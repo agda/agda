@@ -1,0 +1,165 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | More monoids.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Utils.Monoid</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="annot"><span class="hs-comment">-- | Maximum of on-negative (small) natural numbers.</span></span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">newtype</span><span> </span><span id="MaxNat"><span class="annot"><a href="Agda.Utils.Monoid.html#MaxNat"><span class="hs-identifier hs-var">MaxNat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MaxNat"><span class="annot"><a href="Agda.Utils.Monoid.html#MaxNat"><span class="hs-identifier hs-var">MaxNat</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="getMaxNat"><span class="annot"><span class="annottext">MaxNat -&gt; Int
+</span><a href="Agda.Utils.Monoid.html#getMaxNat"><span class="hs-identifier hs-var hs-var">getMaxNat</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681255548"><span id="local-6989586621681255553"><span id="local-6989586621681255557"><span id="local-6989586621681255561"><span id="local-6989586621681255565"><span id="local-6989586621681255569"><span id="local-6989586621681255573"><span class="annot"><span class="annottext">Integer -&gt; MaxNat
+MaxNat -&gt; MaxNat
+MaxNat -&gt; MaxNat -&gt; MaxNat
+(MaxNat -&gt; MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat)
+-&gt; (Integer -&gt; MaxNat)
+-&gt; Num MaxNat
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Integer -&gt; a)
+-&gt; Num a
+$c+ :: MaxNat -&gt; MaxNat -&gt; MaxNat
++ :: MaxNat -&gt; MaxNat -&gt; MaxNat
+$c- :: MaxNat -&gt; MaxNat -&gt; MaxNat
+- :: MaxNat -&gt; MaxNat -&gt; MaxNat
+$c* :: MaxNat -&gt; MaxNat -&gt; MaxNat
+* :: MaxNat -&gt; MaxNat -&gt; MaxNat
+$cnegate :: MaxNat -&gt; MaxNat
+negate :: MaxNat -&gt; MaxNat
+$cabs :: MaxNat -&gt; MaxNat
+abs :: MaxNat -&gt; MaxNat
+$csignum :: MaxNat -&gt; MaxNat
+signum :: MaxNat -&gt; MaxNat
+$cfromInteger :: Integer -&gt; MaxNat
+fromInteger :: Integer -&gt; MaxNat
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Num</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681255579"><span id="local-6989586621681255584"><span class="annot"><span class="annottext">MaxNat -&gt; MaxNat -&gt; Bool
+(MaxNat -&gt; MaxNat -&gt; Bool)
+-&gt; (MaxNat -&gt; MaxNat -&gt; Bool) -&gt; Eq MaxNat
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: MaxNat -&gt; MaxNat -&gt; Bool
+== :: MaxNat -&gt; MaxNat -&gt; Bool
+$c/= :: MaxNat -&gt; MaxNat -&gt; Bool
+/= :: MaxNat -&gt; MaxNat -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681255592"><span id="local-6989586621681255597"><span id="local-6989586621681255601"><span id="local-6989586621681255605"><span id="local-6989586621681255609"><span id="local-6989586621681255613"><span id="local-6989586621681255617"><span class="annot"><span class="annottext">Eq MaxNat
+Eq MaxNat =&gt;
+(MaxNat -&gt; MaxNat -&gt; Ordering)
+-&gt; (MaxNat -&gt; MaxNat -&gt; Bool)
+-&gt; (MaxNat -&gt; MaxNat -&gt; Bool)
+-&gt; (MaxNat -&gt; MaxNat -&gt; Bool)
+-&gt; (MaxNat -&gt; MaxNat -&gt; Bool)
+-&gt; (MaxNat -&gt; MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat -&gt; MaxNat)
+-&gt; Ord MaxNat
+MaxNat -&gt; MaxNat -&gt; Bool
+MaxNat -&gt; MaxNat -&gt; Ordering
+MaxNat -&gt; MaxNat -&gt; MaxNat
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: MaxNat -&gt; MaxNat -&gt; Ordering
+compare :: MaxNat -&gt; MaxNat -&gt; Ordering
+$c&lt; :: MaxNat -&gt; MaxNat -&gt; Bool
+&lt; :: MaxNat -&gt; MaxNat -&gt; Bool
+$c&lt;= :: MaxNat -&gt; MaxNat -&gt; Bool
+&lt;= :: MaxNat -&gt; MaxNat -&gt; Bool
+$c&gt; :: MaxNat -&gt; MaxNat -&gt; Bool
+&gt; :: MaxNat -&gt; MaxNat -&gt; Bool
+$c&gt;= :: MaxNat -&gt; MaxNat -&gt; Bool
+&gt;= :: MaxNat -&gt; MaxNat -&gt; Bool
+$cmax :: MaxNat -&gt; MaxNat -&gt; MaxNat
+max :: MaxNat -&gt; MaxNat -&gt; MaxNat
+$cmin :: MaxNat -&gt; MaxNat -&gt; MaxNat
+min :: MaxNat -&gt; MaxNat -&gt; MaxNat
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681255623"><span id="local-6989586621681255628"><span id="local-6989586621681255632"><span class="annot"><span class="annottext">Int -&gt; MaxNat -&gt; ShowS
+[MaxNat] -&gt; ShowS
+MaxNat -&gt; String
+(Int -&gt; MaxNat -&gt; ShowS)
+-&gt; (MaxNat -&gt; String) -&gt; ([MaxNat] -&gt; ShowS) -&gt; Show MaxNat
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; MaxNat -&gt; ShowS
+showsPrec :: Int -&gt; MaxNat -&gt; ShowS
+$cshow :: MaxNat -&gt; String
+show :: MaxNat -&gt; String
+$cshowList :: [MaxNat] -&gt; ShowS
+showList :: [MaxNat] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681255636"><span id="local-6989586621681255641"><span id="local-6989586621681255645"><span id="local-6989586621681255649"><span id="local-6989586621681255653"><span id="local-6989586621681255657"><span id="local-6989586621681255661"><span id="local-6989586621681255665"><span class="annot"><span class="annottext">Int -&gt; MaxNat
+MaxNat -&gt; Int
+MaxNat -&gt; [MaxNat]
+MaxNat -&gt; MaxNat
+MaxNat -&gt; MaxNat -&gt; [MaxNat]
+MaxNat -&gt; MaxNat -&gt; MaxNat -&gt; [MaxNat]
+(MaxNat -&gt; MaxNat)
+-&gt; (MaxNat -&gt; MaxNat)
+-&gt; (Int -&gt; MaxNat)
+-&gt; (MaxNat -&gt; Int)
+-&gt; (MaxNat -&gt; [MaxNat])
+-&gt; (MaxNat -&gt; MaxNat -&gt; [MaxNat])
+-&gt; (MaxNat -&gt; MaxNat -&gt; [MaxNat])
+-&gt; (MaxNat -&gt; MaxNat -&gt; MaxNat -&gt; [MaxNat])
+-&gt; Enum MaxNat
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: MaxNat -&gt; MaxNat
+succ :: MaxNat -&gt; MaxNat
+$cpred :: MaxNat -&gt; MaxNat
+pred :: MaxNat -&gt; MaxNat
+$ctoEnum :: Int -&gt; MaxNat
+toEnum :: Int -&gt; MaxNat
+$cfromEnum :: MaxNat -&gt; Int
+fromEnum :: MaxNat -&gt; Int
+$cenumFrom :: MaxNat -&gt; [MaxNat]
+enumFrom :: MaxNat -&gt; [MaxNat]
+$cenumFromThen :: MaxNat -&gt; MaxNat -&gt; [MaxNat]
+enumFromThen :: MaxNat -&gt; MaxNat -&gt; [MaxNat]
+$cenumFromTo :: MaxNat -&gt; MaxNat -&gt; [MaxNat]
+enumFromTo :: MaxNat -&gt; MaxNat -&gt; [MaxNat]
+$cenumFromThenTo :: MaxNat -&gt; MaxNat -&gt; MaxNat -&gt; [MaxNat]
+enumFromThenTo :: MaxNat -&gt; MaxNat -&gt; MaxNat -&gt; [MaxNat]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681255672"><span id="local-6989586621681255676"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.Utils.Monoid.html#MaxNat"><span class="hs-identifier hs-type">MaxNat</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-13"></span><span>  </span><span id="local-6989586621681255682"><span class="annot"><span class="annottext">&lt;&gt; :: MaxNat -&gt; MaxNat -&gt; MaxNat
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">(&lt;&gt;)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MaxNat -&gt; MaxNat -&gt; MaxNat
+forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">max</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681255688"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.Utils.Monoid.html#MaxNat"><span class="hs-identifier hs-type">MaxNat</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>  </span><span id="local-6989586621681255694"><span class="annot"><span class="annottext">mempty :: MaxNat
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">mempty</span></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MaxNat
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-17"></span><span>  </span><span id="local-6989586621681255699"><span class="annot"><span class="annottext">mconcat :: [MaxNat] -&gt; MaxNat
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">mconcat</span></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MaxNat
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-18"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">mconcat</span></span><span> </span><span id="local-6989586621681255700"><span class="annot"><span class="annottext">[MaxNat]
+</span><a href="#local-6989586621681255700"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[MaxNat] -&gt; MaxNat
+forall a. Ord a =&gt; [a] -&gt; a
+forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">maximum</span></span><span> </span><span class="annot"><span class="annottext">[MaxNat]
+</span><a href="#local-6989586621681255700"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-19"></span></pre></body></html>

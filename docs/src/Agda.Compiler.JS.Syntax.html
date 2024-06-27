@@ -1,0 +1,656 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Compiler.JS.Syntax</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Semigroup</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier">Nat</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier">List1</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><span class="hs-operator">(:|)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(&lt;|)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- An untyped lambda calculus with records,</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- and a special self-binder for recursive declarations</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">data</span><span> </span><span id="Exp"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-var">Exp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-20"></span><span>  </span><span id="Self"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Self"><span class="hs-identifier hs-var">Self</span></a></span></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-21"></span><span>  </span><span id="Local"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Local"><span class="hs-identifier hs-var">Local</span></a></span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#LocalId"><span class="hs-identifier hs-type">LocalId</span></a></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-22"></span><span>  </span><span id="Global"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Global"><span class="hs-identifier hs-var">Global</span></a></span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#GlobalId"><span class="hs-identifier hs-type">GlobalId</span></a></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-23"></span><span>  </span><span id="Undefined"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Undefined"><span class="hs-identifier hs-var">Undefined</span></a></span></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-24"></span><span>  </span><span id="Null"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Null"><span class="hs-identifier hs-var">Null</span></a></span></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-25"></span><span>  </span><span id="String"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#String"><span class="hs-identifier hs-var">String</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-26"></span><span>  </span><span id="Char"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Char"><span class="hs-identifier hs-var">Char</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-27"></span><span>  </span><span id="Integer"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Integer"><span class="hs-identifier hs-var">Integer</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-28"></span><span>  </span><span id="Double"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Double"><span class="hs-identifier hs-var">Double</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-29"></span><span>  </span><span id="Lambda"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Lambda"><span class="hs-identifier hs-var">Lambda</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-30"></span><span>  </span><span id="Object"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Object"><span class="hs-identifier hs-var">Object</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#MemberId"><span class="hs-identifier hs-type">MemberId</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-31"></span><span>  </span><span id="Array"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Array"><span class="hs-identifier hs-var">Array</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Comment"><span class="hs-identifier hs-type">Comment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-32"></span><span>  </span><span id="Apply"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Apply"><span class="hs-identifier hs-var">Apply</span></a></span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-33"></span><span>  </span><span id="Lookup"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Lookup"><span class="hs-identifier hs-var">Lookup</span></a></span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#MemberId"><span class="hs-identifier hs-type">MemberId</span></a></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-34"></span><span>  </span><span id="If"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#If"><span class="hs-identifier hs-var">If</span></a></span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-35"></span><span>  </span><span id="BinOp"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#BinOp"><span class="hs-identifier hs-var">BinOp</span></a></span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-36"></span><span>  </span><span id="PreOp"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#PreOp"><span class="hs-identifier hs-var">PreOp</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-37"></span><span>  </span><span id="Const"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Const"><span class="hs-identifier hs-var">Const</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">|</span><span>
+</span><span id="line-38"></span><span>  </span><span id="PlainJS"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#PlainJS"><span class="hs-identifier hs-var">PlainJS</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-comment">-- ^ Arbitrary JS code.</span></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681342502"><span id="local-6989586621681342557"><span id="local-6989586621681342560"><span class="annot"><span class="annottext">Int -&gt; Exp -&gt; ShowS
+[Exp] -&gt; ShowS
+Exp -&gt; String
+(Int -&gt; Exp -&gt; ShowS)
+-&gt; (Exp -&gt; String) -&gt; ([Exp] -&gt; ShowS) -&gt; Show Exp
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Exp -&gt; ShowS
+showsPrec :: Int -&gt; Exp -&gt; ShowS
+$cshow :: Exp -&gt; String
+show :: Exp -&gt; String
+$cshowList :: [Exp] -&gt; ShowS
+showList :: [Exp] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681342568"><span id="local-6989586621681342606"><span class="annot"><span class="annottext">Exp -&gt; Exp -&gt; Bool
+(Exp -&gt; Exp -&gt; Bool) -&gt; (Exp -&gt; Exp -&gt; Bool) -&gt; Eq Exp
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Exp -&gt; Exp -&gt; Bool
+== :: Exp -&gt; Exp -&gt; Bool
+$c/= :: Exp -&gt; Exp -&gt; Bool
+/= :: Exp -&gt; Exp -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- Local identifiers are named by De Bruijn indices.</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- Global identifiers are named by string lists.</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- Object members are named by strings.</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">newtype</span><span> </span><span id="LocalId"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#LocalId"><span class="hs-identifier hs-var">LocalId</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LocalId"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#LocalId"><span class="hs-identifier hs-var">LocalId</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Nat"><span class="hs-identifier hs-type">Nat</span></a></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681342615"><span id="local-6989586621681342619"><span class="annot"><span class="annottext">LocalId -&gt; LocalId -&gt; Bool
+(LocalId -&gt; LocalId -&gt; Bool)
+-&gt; (LocalId -&gt; LocalId -&gt; Bool) -&gt; Eq LocalId
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: LocalId -&gt; LocalId -&gt; Bool
+== :: LocalId -&gt; LocalId -&gt; Bool
+$c/= :: LocalId -&gt; LocalId -&gt; Bool
+/= :: LocalId -&gt; LocalId -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681342625"><span id="local-6989586621681342629"><span id="local-6989586621681342633"><span id="local-6989586621681342637"><span id="local-6989586621681342641"><span id="local-6989586621681342645"><span id="local-6989586621681342649"><span class="annot"><span class="annottext">Eq LocalId
+Eq LocalId =&gt;
+(LocalId -&gt; LocalId -&gt; Ordering)
+-&gt; (LocalId -&gt; LocalId -&gt; Bool)
+-&gt; (LocalId -&gt; LocalId -&gt; Bool)
+-&gt; (LocalId -&gt; LocalId -&gt; Bool)
+-&gt; (LocalId -&gt; LocalId -&gt; Bool)
+-&gt; (LocalId -&gt; LocalId -&gt; LocalId)
+-&gt; (LocalId -&gt; LocalId -&gt; LocalId)
+-&gt; Ord LocalId
+LocalId -&gt; LocalId -&gt; Bool
+LocalId -&gt; LocalId -&gt; Ordering
+LocalId -&gt; LocalId -&gt; LocalId
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: LocalId -&gt; LocalId -&gt; Ordering
+compare :: LocalId -&gt; LocalId -&gt; Ordering
+$c&lt; :: LocalId -&gt; LocalId -&gt; Bool
+&lt; :: LocalId -&gt; LocalId -&gt; Bool
+$c&lt;= :: LocalId -&gt; LocalId -&gt; Bool
+&lt;= :: LocalId -&gt; LocalId -&gt; Bool
+$c&gt; :: LocalId -&gt; LocalId -&gt; Bool
+&gt; :: LocalId -&gt; LocalId -&gt; Bool
+$c&gt;= :: LocalId -&gt; LocalId -&gt; Bool
+&gt;= :: LocalId -&gt; LocalId -&gt; Bool
+$cmax :: LocalId -&gt; LocalId -&gt; LocalId
+max :: LocalId -&gt; LocalId -&gt; LocalId
+$cmin :: LocalId -&gt; LocalId -&gt; LocalId
+min :: LocalId -&gt; LocalId -&gt; LocalId
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681342655"><span id="local-6989586621681342659"><span id="local-6989586621681342662"><span class="annot"><span class="annottext">Int -&gt; LocalId -&gt; ShowS
+[LocalId] -&gt; ShowS
+LocalId -&gt; String
+(Int -&gt; LocalId -&gt; ShowS)
+-&gt; (LocalId -&gt; String) -&gt; ([LocalId] -&gt; ShowS) -&gt; Show LocalId
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; LocalId -&gt; ShowS
+showsPrec :: Int -&gt; LocalId -&gt; ShowS
+$cshow :: LocalId -&gt; String
+show :: LocalId -&gt; String
+$cshowList :: [LocalId] -&gt; ShowS
+showList :: [LocalId] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">newtype</span><span> </span><span id="GlobalId"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#GlobalId"><span class="hs-identifier hs-var">GlobalId</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="GlobalId"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#GlobalId"><span class="hs-identifier hs-var">GlobalId</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681342666"><span id="local-6989586621681342671"><span class="annot"><span class="annottext">GlobalId -&gt; GlobalId -&gt; Bool
+(GlobalId -&gt; GlobalId -&gt; Bool)
+-&gt; (GlobalId -&gt; GlobalId -&gt; Bool) -&gt; Eq GlobalId
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: GlobalId -&gt; GlobalId -&gt; Bool
+== :: GlobalId -&gt; GlobalId -&gt; Bool
+$c/= :: GlobalId -&gt; GlobalId -&gt; Bool
+/= :: GlobalId -&gt; GlobalId -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681342680"><span id="local-6989586621681342686"><span id="local-6989586621681342691"><span id="local-6989586621681342696"><span id="local-6989586621681342701"><span id="local-6989586621681342706"><span id="local-6989586621681342711"><span class="annot"><span class="annottext">Eq GlobalId
+Eq GlobalId =&gt;
+(GlobalId -&gt; GlobalId -&gt; Ordering)
+-&gt; (GlobalId -&gt; GlobalId -&gt; Bool)
+-&gt; (GlobalId -&gt; GlobalId -&gt; Bool)
+-&gt; (GlobalId -&gt; GlobalId -&gt; Bool)
+-&gt; (GlobalId -&gt; GlobalId -&gt; Bool)
+-&gt; (GlobalId -&gt; GlobalId -&gt; GlobalId)
+-&gt; (GlobalId -&gt; GlobalId -&gt; GlobalId)
+-&gt; Ord GlobalId
+GlobalId -&gt; GlobalId -&gt; Bool
+GlobalId -&gt; GlobalId -&gt; Ordering
+GlobalId -&gt; GlobalId -&gt; GlobalId
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: GlobalId -&gt; GlobalId -&gt; Ordering
+compare :: GlobalId -&gt; GlobalId -&gt; Ordering
+$c&lt; :: GlobalId -&gt; GlobalId -&gt; Bool
+&lt; :: GlobalId -&gt; GlobalId -&gt; Bool
+$c&lt;= :: GlobalId -&gt; GlobalId -&gt; Bool
+&lt;= :: GlobalId -&gt; GlobalId -&gt; Bool
+$c&gt; :: GlobalId -&gt; GlobalId -&gt; Bool
+&gt; :: GlobalId -&gt; GlobalId -&gt; Bool
+$c&gt;= :: GlobalId -&gt; GlobalId -&gt; Bool
+&gt;= :: GlobalId -&gt; GlobalId -&gt; Bool
+$cmax :: GlobalId -&gt; GlobalId -&gt; GlobalId
+max :: GlobalId -&gt; GlobalId -&gt; GlobalId
+$cmin :: GlobalId -&gt; GlobalId -&gt; GlobalId
+min :: GlobalId -&gt; GlobalId -&gt; GlobalId
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681342725"><span id="local-6989586621681342730"><span id="local-6989586621681342733"><span class="annot"><span class="annottext">Int -&gt; GlobalId -&gt; ShowS
+[GlobalId] -&gt; ShowS
+GlobalId -&gt; String
+(Int -&gt; GlobalId -&gt; ShowS)
+-&gt; (GlobalId -&gt; String) -&gt; ([GlobalId] -&gt; ShowS) -&gt; Show GlobalId
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; GlobalId -&gt; ShowS
+showsPrec :: Int -&gt; GlobalId -&gt; ShowS
+$cshow :: GlobalId -&gt; String
+show :: GlobalId -&gt; String
+$cshowList :: [GlobalId] -&gt; ShowS
+showList :: [GlobalId] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">data</span><span> </span><span id="MemberId"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#MemberId"><span class="hs-identifier hs-var">MemberId</span></a></span></span><span>
+</span><span id="line-52"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="MemberId"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#MemberId"><span class="hs-identifier hs-var">MemberId</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-53"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="MemberIndex"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#MemberIndex"><span class="hs-identifier hs-var">MemberIndex</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Comment"><span class="hs-identifier hs-type">Comment</span></a></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681342739"><span id="local-6989586621681342745"><span class="annot"><span class="annottext">MemberId -&gt; MemberId -&gt; Bool
+(MemberId -&gt; MemberId -&gt; Bool)
+-&gt; (MemberId -&gt; MemberId -&gt; Bool) -&gt; Eq MemberId
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: MemberId -&gt; MemberId -&gt; Bool
+== :: MemberId -&gt; MemberId -&gt; Bool
+$c/= :: MemberId -&gt; MemberId -&gt; Bool
+/= :: MemberId -&gt; MemberId -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681342750"><span id="local-6989586621681342757"><span id="local-6989586621681342763"><span id="local-6989586621681342767"><span id="local-6989586621681342770"><span id="local-6989586621681342773"><span id="local-6989586621681342776"><span class="annot"><span class="annottext">Eq MemberId
+Eq MemberId =&gt;
+(MemberId -&gt; MemberId -&gt; Ordering)
+-&gt; (MemberId -&gt; MemberId -&gt; Bool)
+-&gt; (MemberId -&gt; MemberId -&gt; Bool)
+-&gt; (MemberId -&gt; MemberId -&gt; Bool)
+-&gt; (MemberId -&gt; MemberId -&gt; Bool)
+-&gt; (MemberId -&gt; MemberId -&gt; MemberId)
+-&gt; (MemberId -&gt; MemberId -&gt; MemberId)
+-&gt; Ord MemberId
+MemberId -&gt; MemberId -&gt; Bool
+MemberId -&gt; MemberId -&gt; Ordering
+MemberId -&gt; MemberId -&gt; MemberId
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: MemberId -&gt; MemberId -&gt; Ordering
+compare :: MemberId -&gt; MemberId -&gt; Ordering
+$c&lt; :: MemberId -&gt; MemberId -&gt; Bool
+&lt; :: MemberId -&gt; MemberId -&gt; Bool
+$c&lt;= :: MemberId -&gt; MemberId -&gt; Bool
+&lt;= :: MemberId -&gt; MemberId -&gt; Bool
+$c&gt; :: MemberId -&gt; MemberId -&gt; Bool
+&gt; :: MemberId -&gt; MemberId -&gt; Bool
+$c&gt;= :: MemberId -&gt; MemberId -&gt; Bool
+&gt;= :: MemberId -&gt; MemberId -&gt; Bool
+$cmax :: MemberId -&gt; MemberId -&gt; MemberId
+max :: MemberId -&gt; MemberId -&gt; MemberId
+$cmin :: MemberId -&gt; MemberId -&gt; MemberId
+min :: MemberId -&gt; MemberId -&gt; MemberId
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681342779"><span id="local-6989586621681342787"><span id="local-6989586621681342790"><span class="annot"><span class="annottext">Int -&gt; MemberId -&gt; ShowS
+[MemberId] -&gt; ShowS
+MemberId -&gt; String
+(Int -&gt; MemberId -&gt; ShowS)
+-&gt; (MemberId -&gt; String) -&gt; ([MemberId] -&gt; ShowS) -&gt; Show MemberId
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; MemberId -&gt; ShowS
+showsPrec :: Int -&gt; MemberId -&gt; ShowS
+$cshow :: MemberId -&gt; String
+show :: MemberId -&gt; String
+$cshowList :: [MemberId] -&gt; ShowS
+showList :: [MemberId] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-keyword">newtype</span><span> </span><span id="Comment"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Comment"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Comment"><span class="hs-identifier hs-var">Comment</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681342794"><span id="local-6989586621681342799"><span id="local-6989586621681342802"><span class="annot"><span class="annottext">Int -&gt; Comment -&gt; ShowS
+[Comment] -&gt; ShowS
+Comment -&gt; String
+(Int -&gt; Comment -&gt; ShowS)
+-&gt; (Comment -&gt; String) -&gt; ([Comment] -&gt; ShowS) -&gt; Show Comment
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Comment -&gt; ShowS
+showsPrec :: Int -&gt; Comment -&gt; ShowS
+$cshow :: Comment -&gt; String
+show :: Comment -&gt; String
+$cshowList :: [Comment] -&gt; ShowS
+showList :: [Comment] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681342805"><span id="local-6989586621681342810"><span id="local-6989586621681342816"><span class="annot"><span class="annottext">NonEmpty Comment -&gt; Comment
+Comment -&gt; Comment -&gt; Comment
+(Comment -&gt; Comment -&gt; Comment)
+-&gt; (NonEmpty Comment -&gt; Comment)
+-&gt; (forall b. Integral b =&gt; b -&gt; Comment -&gt; Comment)
+-&gt; Semigroup Comment
+forall b. Integral b =&gt; b -&gt; Comment -&gt; Comment
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (NonEmpty a -&gt; a)
+-&gt; (forall b. Integral b =&gt; b -&gt; a -&gt; a)
+-&gt; Semigroup a
+$c&lt;&gt; :: Comment -&gt; Comment -&gt; Comment
+&lt;&gt; :: Comment -&gt; Comment -&gt; Comment
+$csconcat :: NonEmpty Comment -&gt; Comment
+sconcat :: NonEmpty Comment -&gt; Comment
+$cstimes :: forall b. Integral b =&gt; b -&gt; Comment -&gt; Comment
+stimes :: forall b. Integral b =&gt; b -&gt; Comment -&gt; Comment
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Semigroup</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681342826"><span id="local-6989586621681342831"><span id="local-6989586621681342835"><span class="annot"><span class="annottext">Semigroup Comment
+Comment
+Semigroup Comment =&gt;
+Comment
+-&gt; (Comment -&gt; Comment -&gt; Comment)
+-&gt; ([Comment] -&gt; Comment)
+-&gt; Monoid Comment
+[Comment] -&gt; Comment
+Comment -&gt; Comment -&gt; Comment
+forall a.
+Semigroup a =&gt;
+a -&gt; (a -&gt; a -&gt; a) -&gt; ([a] -&gt; a) -&gt; Monoid a
+$cmempty :: Comment
+mempty :: Comment
+$cmappend :: Comment -&gt; Comment -&gt; Comment
+mappend :: Comment -&gt; Comment -&gt; Comment
+$cmconcat :: [Comment] -&gt; Comment
+mconcat :: [Comment] -&gt; Comment
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monoid</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681342842"><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Comment"><span class="hs-identifier hs-type">Comment</span></a></span></span><span> </span><span class="hs-keyword">where</span><span> </span><span class="annot"><span class="annottext">Comment
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681342844"><span class="annot"><span class="annottext">== :: Comment -&gt; Comment -&gt; Bool
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">==</span></span></span><span> </span><span class="annot"><span class="annottext">Comment
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-60"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681342849"><span id="local-6989586621681342852"><span id="local-6989586621681342855"><span id="local-6989586621681342858"><span id="local-6989586621681342861"><span id="local-6989586621681342864"><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Comment"><span class="hs-identifier hs-type">Comment</span></a></span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681342866"><span class="annot"><span class="annottext">compare :: Comment -&gt; Comment -&gt; Ordering
+</span><a href="#local-6989586621681342866"><span class="hs-identifier hs-var hs-var hs-var hs-var">compare</span></a></span></span><span> </span><span class="annot"><span class="annottext">Comment
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Comment
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- The top-level compilation unit is a module, which names</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- the GId of its exports, and a list of definitions</span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-keyword">data</span><span> </span><span id="Export"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Export"><span class="hs-identifier hs-var">Export</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Export"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Export"><span class="hs-identifier hs-var">Export</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="expName"><span class="annot"><span class="annottext">Export -&gt; JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#expName"><span class="hs-identifier hs-var hs-var">expName</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#JSQName"><span class="hs-identifier hs-type">JSQName</span></a></span><span class="hs-special">,</span><span> </span><span id="defn"><span class="annot"><span class="annottext">Export -&gt; Exp
+</span><a href="Agda.Compiler.JS.Syntax.html#defn"><span class="hs-identifier hs-var hs-var">defn</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621681342872"><span id="local-6989586621681342879"><span id="local-6989586621681342883"><span class="annot"><span class="annottext">Int -&gt; Export -&gt; ShowS
+[Export] -&gt; ShowS
+Export -&gt; String
+(Int -&gt; Export -&gt; ShowS)
+-&gt; (Export -&gt; String) -&gt; ([Export] -&gt; ShowS) -&gt; Show Export
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Export -&gt; ShowS
+showsPrec :: Int -&gt; Export -&gt; ShowS
+$cshow :: Export -&gt; String
+show :: Export -&gt; String
+$cshowList :: [Export] -&gt; ShowS
+showList :: [Export] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-keyword">type</span><span> </span><span id="JSQName"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#JSQName"><span class="hs-identifier hs-var">JSQName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#MemberId"><span class="hs-identifier hs-type">MemberId</span></a></span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-keyword">data</span><span> </span><span id="Module"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Module"><span class="hs-identifier hs-var">Module</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Module"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Module"><span class="hs-identifier hs-var">Module</span></a></span></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="modName"><span class="annot"><span class="annottext">Module -&gt; GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#modName"><span class="hs-identifier hs-var hs-var">modName</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#GlobalId"><span class="hs-identifier hs-type">GlobalId</span></a></span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="imports"><span class="annot"><span class="annottext">Module -&gt; [GlobalId]
+</span><a href="Agda.Compiler.JS.Syntax.html#imports"><span class="hs-identifier hs-var hs-var">imports</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#GlobalId"><span class="hs-identifier hs-type">GlobalId</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="exports"><span class="annot"><span class="annottext">Module -&gt; [Export]
+</span><a href="Agda.Compiler.JS.Syntax.html#exports"><span class="hs-identifier hs-var hs-var">exports</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Export"><span class="hs-identifier hs-type">Export</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="callMain"><span class="annot"><span class="annottext">Module -&gt; Maybe Exp
+</span><a href="Agda.Compiler.JS.Syntax.html#callMain"><span class="hs-identifier hs-var hs-var">callMain</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621681342891"><span id="local-6989586621681342901"><span id="local-6989586621681342905"><span class="annot"><span class="annottext">Int -&gt; Module -&gt; ShowS
+[Module] -&gt; ShowS
+Module -&gt; String
+(Int -&gt; Module -&gt; ShowS)
+-&gt; (Module -&gt; String) -&gt; ([Module] -&gt; ShowS) -&gt; Show Module
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Module -&gt; ShowS
+showsPrec :: Int -&gt; Module -&gt; ShowS
+$cshow :: Module -&gt; String
+show :: Module -&gt; String
+$cshowList :: [Module] -&gt; ShowS
+showList :: [Module] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- Note that modules are allowed to be recursive, via the Self expression,</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- which is bound to the exported module.</span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- Top-level uses of the form exports.l1....lN.</span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-keyword">class</span><span> </span><span id="Uses"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-var">Uses</span></a></span></span><span> </span><span id="local-6989586621681342420"><span class="annot"><a href="#local-6989586621681342420"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-84"></span><span>  </span><span id="uses"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-type">uses</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681342420"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#JSQName"><span class="hs-identifier hs-type">JSQName</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-keyword">default</span><span> </span><span id="uses"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-type">uses</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681342421"><span id="local-6989586621681342422"><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681342420"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><a href="#local-6989586621681342421"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342422"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Foldable</span></span><span> </span><span class="annot"><a href="#local-6989586621681342421"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342422"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681342420"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#JSQName"><span class="hs-identifier hs-type">JSQName</span></a></span></span></span><span>
+</span><span id="line-87"></span><span>  </span><span id="local-6989586621681342909"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var hs-var">uses</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(b -&gt; Set JSQName) -&gt; t b -&gt; Set JSQName
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681342433"><span id="local-6989586621681342924"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342433"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681342433"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-90"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681342437"><span id="local-6989586621681342438"><span id="local-6989586621681342934"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342437"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="#local-6989586621681342438"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342437"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681342441"><span id="local-6989586621681342442"><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342441"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342442"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681342441"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681342442"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-93"></span><span>  </span><span id="local-6989586621681342949"><span class="annot"><span class="annottext">uses :: (a, b) -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var hs-var hs-var hs-var">uses</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681342950"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681342950"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681342951"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681342951"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681342950"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Set JSQName -&gt; Set JSQName -&gt; Set JSQName
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">`Set.union`</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681342951"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681342447"><span id="local-6989586621681342448"><span id="local-6989586621681342449"><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342447"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342448"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342449"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681342447"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681342448"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681342449"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-96"></span><span>  </span><span id="local-6989586621681342964"><span class="annot"><span class="annottext">uses :: (a, b, c) -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var hs-var hs-var hs-var">uses</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681342965"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681342965"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681342966"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681342966"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681342967"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681342967"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681342965"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Set JSQName -&gt; Set JSQName -&gt; Set JSQName
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">`Set.union`</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681342966"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Set JSQName -&gt; Set JSQName -&gt; Set JSQName
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">`Set.union`</span></span><span> </span><span class="annot"><span class="annottext">c -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681342967"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Comment"><span class="hs-identifier hs-type">Comment</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-99"></span><span>  </span><span id="local-6989586621681342970"><span class="annot"><span class="annottext">uses :: Comment -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var hs-var hs-var hs-var">uses</span></a></span></span><span> </span><span class="annot"><span class="annottext">Comment
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set JSQName
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-102"></span><span>  </span><span id="local-6989586621681342985"><span class="annot"><span class="annottext">uses :: Exp -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var hs-var hs-var hs-var">uses</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Object"><span class="hs-identifier hs-type">Object</span></a></span><span> </span><span id="local-6989586621681342986"><span class="annot"><span class="annottext">Map MemberId Exp
+</span><a href="#local-6989586621681342986"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map MemberId Exp -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="annot"><span class="annottext">Map MemberId Exp
+</span><a href="#local-6989586621681342986"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><span id="line-103"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span id="local-6989586621681342987"><span class="annot"><span class="annottext">[(Comment, Exp)]
+</span><a href="#local-6989586621681342987"><span class="hs-identifier hs-var">es</span></a></span></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(Comment, Exp)] -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="annot"><span class="annottext">[(Comment, Exp)]
+</span><a href="#local-6989586621681342987"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-104"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span id="local-6989586621681342988"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681342988"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681342989"><span class="annot"><span class="annottext">[Exp]
+</span><a href="#local-6989586621681342989"><span class="hs-identifier hs-var">es</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Exp, [Exp]) -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681342988"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Exp]
+</span><a href="#local-6989586621681342989"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Lookup"><span class="hs-identifier hs-type">Lookup</span></a></span><span> </span><span id="local-6989586621681342990"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681342990"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681342991"><span class="annot"><span class="annottext">MemberId
+</span><a href="#local-6989586621681342991"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; JSQName -&gt; Set JSQName
+</span><a href="#local-6989586621681342992"><span class="hs-identifier hs-var">uses'</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681342990"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MemberId -&gt; JSQName
+forall a. a -&gt; NonEmpty a
+</span><span class="hs-identifier hs-var">List1.singleton</span></span><span> </span><span class="annot"><span class="annottext">MemberId
+</span><a href="#local-6989586621681342991"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-106"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-107"></span><span>      </span><span class="annot"><a href="#local-6989586621681342992"><span class="hs-identifier hs-type">uses'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#JSQName"><span class="hs-identifier hs-type">JSQName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#JSQName"><span class="hs-identifier hs-type">JSQName</span></a></span><span>
+</span><span id="line-108"></span><span>      </span><span id="local-6989586621681342992"><span class="annot"><span class="annottext">uses' :: Exp -&gt; JSQName -&gt; Set JSQName
+</span><a href="#local-6989586621681342992"><span class="hs-identifier hs-var hs-var">uses'</span></a></span></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="Agda.Compiler.JS.Syntax.html#Self"><span class="hs-identifier hs-var">Self</span></a></span><span>         </span><span id="local-6989586621681342994"><span class="annot"><span class="annottext">JSQName
+</span><a href="#local-6989586621681342994"><span class="hs-identifier hs-var">ls</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">JSQName -&gt; Set JSQName
+forall a. a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.singleton</span></span><span> </span><span class="annot"><span class="annottext">JSQName
+</span><a href="#local-6989586621681342994"><span class="hs-identifier hs-var">ls</span></a></span><span>
+</span><span id="line-109"></span><span>      </span><span class="annot"><a href="#local-6989586621681342992"><span class="hs-identifier hs-var">uses'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Lookup"><span class="hs-identifier hs-type">Lookup</span></a></span><span> </span><span id="local-6989586621681342996"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681342996"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681342997"><span class="annot"><span class="annottext">MemberId
+</span><a href="#local-6989586621681342997"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681342998"><span class="annot"><span class="annottext">JSQName
+</span><a href="#local-6989586621681342998"><span class="hs-identifier hs-var">ls</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; JSQName -&gt; Set JSQName
+</span><a href="#local-6989586621681342992"><span class="hs-identifier hs-var">uses'</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681342996"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MemberId
+</span><a href="#local-6989586621681342997"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">MemberId -&gt; JSQName -&gt; JSQName
+forall a. a -&gt; NonEmpty a -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">&lt;|</span></span><span> </span><span class="annot"><span class="annottext">JSQName
+</span><a href="#local-6989586621681342998"><span class="hs-identifier hs-var">ls</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-110"></span><span>      </span><span class="annot"><a href="#local-6989586621681342992"><span class="hs-identifier hs-var">uses'</span></a></span><span> </span><span id="local-6989586621681342999"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681342999"><span class="hs-identifier hs-var">e</span></a></span></span><span>            </span><span id="local-6989586621681343000"><span class="annot"><span class="annottext">JSQName
+</span><a href="#local-6989586621681343000"><span class="hs-identifier hs-var">ls</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681342999"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-111"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#If"><span class="hs-identifier hs-type">If</span></a></span><span> </span><span id="local-6989586621681343001"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343001"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681343002"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343002"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681343003"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343003"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Exp, Exp, Exp) -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343001"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343002"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343003"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#BinOp"><span class="hs-identifier hs-type">BinOp</span></a></span><span> </span><span id="local-6989586621681343004"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343004"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681343005"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681343005"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621681343006"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343006"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Exp, Exp) -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343004"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343006"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-113"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#PreOp"><span class="hs-identifier hs-type">PreOp</span></a></span><span> </span><span id="local-6989586621681343007"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681343007"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621681343008"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343008"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343008"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-114"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span id="local-6989586621681343009"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343009"><span class="hs-identifier hs-var">e</span></a></span></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set JSQName
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Uses"><span class="hs-identifier hs-type">Uses</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Export"><span class="hs-identifier hs-type">Export</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-117"></span><span>  </span><span id="local-6989586621681343013"><span class="annot"><span class="annottext">uses :: Export -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var hs-var hs-var hs-var">uses</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Export"><span class="hs-identifier hs-type">Export</span></a></span><span> </span><span class="annot"><span class="annottext">JSQName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681343014"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343014"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Set JSQName
+forall a. Uses a =&gt; a -&gt; Set JSQName
+</span><a href="Agda.Compiler.JS.Syntax.html#uses"><span class="hs-identifier hs-var">uses</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343014"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- All global ids</span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-keyword">class</span><span> </span><span id="Globals"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-var">Globals</span></a></span></span><span> </span><span id="local-6989586621681342454"><span class="annot"><a href="#local-6989586621681342454"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-122"></span><span>  </span><span id="globals"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-type">globals</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681342454"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#GlobalId"><span class="hs-identifier hs-type">GlobalId</span></a></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span>  </span><span class="hs-keyword">default</span><span> </span><span id="globals"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-type">globals</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681342455"><span id="local-6989586621681342456"><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681342454"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><a href="#local-6989586621681342455"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342456"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Foldable</span></span><span> </span><span class="annot"><a href="#local-6989586621681342455"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342456"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681342454"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#GlobalId"><span class="hs-identifier hs-type">GlobalId</span></a></span></span></span><span>
+</span><span id="line-125"></span><span>  </span><span id="local-6989586621681343017"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var hs-var">globals</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(b -&gt; Set GlobalId) -&gt; t b -&gt; Set GlobalId
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span></span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681342461"><span id="local-6989586621681343028"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342461"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681342461"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-128"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681342463"><span id="local-6989586621681343037"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342463"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681342463"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-129"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681342466"><span id="local-6989586621681342467"><span id="local-6989586621681343046"><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342466"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="#local-6989586621681342467"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342466"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681342470"><span id="local-6989586621681342471"><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342470"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342471"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681342470"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681342471"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-132"></span><span>  </span><span id="local-6989586621681343059"><span class="annot"><span class="annottext">globals :: (a, b) -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var hs-var hs-var hs-var">globals</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681343060"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681343060"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681343061"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681343061"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681343060"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Set GlobalId -&gt; Set GlobalId -&gt; Set GlobalId
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">`Set.union`</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681343061"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681342475"><span id="local-6989586621681342476"><span id="local-6989586621681342477"><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342475"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342476"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681342477"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681342475"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681342476"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681342477"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-135"></span><span>  </span><span id="local-6989586621681343072"><span class="annot"><span class="annottext">globals :: (a, b, c) -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var hs-var hs-var hs-var">globals</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681343073"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681343073"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681343074"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681343074"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681343075"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681343075"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681343073"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Set GlobalId -&gt; Set GlobalId -&gt; Set GlobalId
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">`Set.union`</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681343074"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Set GlobalId -&gt; Set GlobalId -&gt; Set GlobalId
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">`Set.union`</span></span><span> </span><span class="annot"><span class="annottext">c -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621681343075"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Comment"><span class="hs-identifier hs-type">Comment</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-138"></span><span>  </span><span id="local-6989586621681343078"><span class="annot"><span class="annottext">globals :: Comment -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var hs-var hs-var hs-var">globals</span></a></span></span><span> </span><span class="annot"><span class="annottext">Comment
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set GlobalId
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Exp"><span class="hs-identifier hs-type">Exp</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-141"></span><span>  </span><span id="local-6989586621681343092"><span class="annot"><span class="annottext">globals :: Exp -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var hs-var hs-var hs-var">globals</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Global"><span class="hs-identifier hs-type">Global</span></a></span><span> </span><span id="local-6989586621681343093"><span class="annot"><span class="annottext">GlobalId
+</span><a href="#local-6989586621681343093"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">GlobalId -&gt; Set GlobalId
+forall a. a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.singleton</span></span><span> </span><span class="annot"><span class="annottext">GlobalId
+</span><a href="#local-6989586621681343093"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-142"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Lambda"><span class="hs-identifier hs-type">Lambda</span></a></span><span> </span><span id="local-6989586621681343094"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681343094"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681343095"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343095"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343095"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-143"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Object"><span class="hs-identifier hs-type">Object</span></a></span><span> </span><span id="local-6989586621681343096"><span class="annot"><span class="annottext">Map MemberId Exp
+</span><a href="#local-6989586621681343096"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map MemberId Exp -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="annot"><span class="annottext">Map MemberId Exp
+</span><a href="#local-6989586621681343096"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><span id="line-144"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span id="local-6989586621681343097"><span class="annot"><span class="annottext">[(Comment, Exp)]
+</span><a href="#local-6989586621681343097"><span class="hs-identifier hs-var">es</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(Comment, Exp)] -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="annot"><span class="annottext">[(Comment, Exp)]
+</span><a href="#local-6989586621681343097"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-145"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span id="local-6989586621681343098"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343098"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681343099"><span class="annot"><span class="annottext">[Exp]
+</span><a href="#local-6989586621681343099"><span class="hs-identifier hs-var">es</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Exp, [Exp]) -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343098"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Exp]
+</span><a href="#local-6989586621681343099"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-146"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Lookup"><span class="hs-identifier hs-type">Lookup</span></a></span><span> </span><span id="local-6989586621681343100"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343100"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681343101"><span class="annot"><span class="annottext">MemberId
+</span><a href="#local-6989586621681343101"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343100"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-147"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#If"><span class="hs-identifier hs-type">If</span></a></span><span> </span><span id="local-6989586621681343102"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343102"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681343103"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343103"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681343104"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343104"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Exp, Exp, Exp) -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343102"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343103"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343104"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#BinOp"><span class="hs-identifier hs-type">BinOp</span></a></span><span> </span><span id="local-6989586621681343105"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343105"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681343106"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681343106"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621681343107"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343107"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Exp, Exp) -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343105"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343107"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-149"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#PreOp"><span class="hs-identifier hs-type">PreOp</span></a></span><span> </span><span id="local-6989586621681343108"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681343108"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621681343109"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343109"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343109"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-150"></span><span>  </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set GlobalId
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Export"><span class="hs-identifier hs-type">Export</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-153"></span><span>  </span><span id="local-6989586621681343113"><span class="annot"><span class="annottext">globals :: Export -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var hs-var hs-var hs-var">globals</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Export"><span class="hs-identifier hs-type">Export</span></a></span><span> </span><span class="annot"><span class="annottext">JSQName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681343114"><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343114"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="annot"><span class="annottext">Exp
+</span><a href="#local-6989586621681343114"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Globals"><span class="hs-identifier hs-type">Globals</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Module"><span class="hs-identifier hs-type">Module</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-156"></span><span>  </span><span id="local-6989586621681343122"><span class="annot"><span class="annottext">globals :: Module -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var hs-var hs-var hs-var">globals</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.JS.Syntax.html#Module"><span class="hs-identifier hs-type">Module</span></a></span><span> </span><span class="annot"><span class="annottext">GlobalId
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">[GlobalId]
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681343123"><span class="annot"><span class="annottext">[Export]
+</span><a href="#local-6989586621681343123"><span class="hs-identifier hs-var">es</span></a></span></span><span> </span><span id="local-6989586621681343124"><span class="annot"><span class="annottext">Maybe Exp
+</span><a href="#local-6989586621681343124"><span class="hs-identifier hs-var">me</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([Export], Maybe Exp) -&gt; Set GlobalId
+forall a. Globals a =&gt; a -&gt; Set GlobalId
+</span><a href="Agda.Compiler.JS.Syntax.html#globals"><span class="hs-identifier hs-var">globals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Export]
+</span><a href="#local-6989586621681343123"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe Exp
+</span><a href="#local-6989586621681343124"><span class="hs-identifier hs-var">me</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-157"></span></pre></body></html>

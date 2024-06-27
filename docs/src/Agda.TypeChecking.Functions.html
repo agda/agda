@@ -1,0 +1,438 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.TypeChecking.Functions</span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Functions.html#etaExpandClause"><span class="hs-identifier">etaExpandClause</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Functions.html#getDef"><span class="hs-identifier">getDef</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Arrow</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">first</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Context.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Context</span></a></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Debug</span></a></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Level.html"><span class="hs-identifier">Agda.TypeChecking.Level</span></a></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html"><span class="hs-identifier">Agda.TypeChecking.Pretty</span></a></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Reduce.html"><span class="hs-identifier">Agda.TypeChecking.Reduce</span></a></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.html"><span class="hs-identifier">Agda.TypeChecking.Substitute</span></a></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Telescope.html"><span class="hs-identifier">Agda.TypeChecking.Telescope</span></a></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html"><span class="hs-identifier">Agda.Utils.Functor</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-operator">($&gt;)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier">prettyShow</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Size.html"><span class="hs-identifier">Agda.Utils.Size</span></a></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- | Expand a clause to the maximal arity, by inserting variable</span><span>
+</span><span id="line-30"></span><span class="hs-comment">--   patterns and applying the body to variables.</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-comment">--  Fixes issue #2376.</span><span>
+</span><span id="line-33"></span><span class="hs-comment">--  Replaces 'introHiddenLambdas'.</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--  See, e.g., test/Succeed/SizedTypesExtendedLambda.agda.</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-comment">--  This is used instead of special treatment of lambdas</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--  (which was unsound: Issue #121)</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span id="local-6989586621681519608"><span class="annot"><a href="Agda.TypeChecking.Functions.html#etaExpandClause"><span class="hs-identifier hs-type">etaExpandClause</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCM"><span class="hs-identifier hs-type">MonadTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681519608"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Clause"><span class="hs-identifier hs-type">Clause</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681519608"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Clause"><span class="hs-identifier hs-type">Clause</span></a></span></span><span>
+</span><span id="line-40"></span><span id="etaExpandClause"><span class="annot"><span class="annottext">etaExpandClause :: forall (tcm :: * -&gt; *). MonadTCM tcm =&gt; Clause -&gt; tcm Clause
+</span><a href="Agda.TypeChecking.Functions.html#etaExpandClause"><span class="hs-identifier hs-var hs-var">etaExpandClause</span></a></span></span><span> </span><span id="local-6989586621681519886"><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621681519886"><span class="hs-identifier hs-var">clause</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TCM Clause -&gt; tcm Clause
+forall a. TCM a -&gt; tcm a
+forall (tcm :: * -&gt; *) a. MonadTCM tcm =&gt; TCM a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Base.html#liftTCM"><span class="hs-identifier hs-var">liftTCM</span></a></span><span> </span><span class="annot"><span class="annottext">(TCM Clause -&gt; tcm Clause) -&gt; TCM Clause -&gt; tcm Clause
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621681519886"><span class="hs-identifier hs-var">clause</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-42"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Clause"><span class="hs-identifier hs-type">Clause</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span>  </span><span id="local-6989586621681519889"><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519889"><span class="hs-identifier hs-var">ctel</span></a></span></span><span> </span><span id="local-6989586621681519890"><span class="annot"><span class="annottext">[NamedArg DeBruijnPattern]
+</span><a href="#local-6989586621681519890"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe Term
+</span><span class="hs-identifier">_</span></span><span>           </span><span class="annot"><span class="annottext">Maybe (Arg Type)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>  </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ExpandedEllipsis
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe ModuleName
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Clause -&gt; TCM Clause
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621681519886"><span class="hs-identifier hs-var">clause</span></a></span><span>
+</span><span id="line-43"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Clause"><span class="hs-identifier hs-type">Clause</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span>  </span><span id="local-6989586621681519891"><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519891"><span class="hs-identifier hs-var">ctel</span></a></span></span><span> </span><span id="local-6989586621681519892"><span class="annot"><span class="annottext">[NamedArg DeBruijnPattern]
+</span><a href="#local-6989586621681519892"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe Term
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681519893"><span class="annot"><span class="annottext">Arg Type
+</span><a href="#local-6989586621681519893"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ExpandedEllipsis
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe ModuleName
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Clause -&gt; TCM Clause
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621681519886"><span class="hs-identifier hs-var">clause</span></a></span><span>
+</span><span id="line-44"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Clause"><span class="hs-identifier hs-type">Clause</span></a></span><span> </span><span id="local-6989586621681519894"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681519894"><span class="hs-identifier hs-var">rl</span></a></span></span><span> </span><span id="local-6989586621681519895"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681519895"><span class="hs-identifier hs-var">rf</span></a></span></span><span> </span><span id="local-6989586621681519896"><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519896"><span class="hs-identifier hs-var">ctel</span></a></span></span><span> </span><span id="local-6989586621681519897"><span class="annot"><span class="annottext">[NamedArg DeBruijnPattern]
+</span><a href="#local-6989586621681519897"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681519898"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681519898"><span class="hs-identifier hs-var">body</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681519899"><span class="annot"><span class="annottext">Arg Type
+</span><a href="#local-6989586621681519899"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681519900"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681519900"><span class="hs-identifier hs-var">catchall</span></a></span></span><span> </span><span id="local-6989586621681519901"><span class="annot"><span class="annottext">Maybe Bool
+</span><a href="#local-6989586621681519901"><span class="hs-identifier hs-var">exact</span></a></span></span><span> </span><span id="local-6989586621681519902"><span class="annot"><span class="annottext">Maybe Bool
+</span><a href="#local-6989586621681519902"><span class="hs-identifier hs-var">recursive</span></a></span></span><span> </span><span id="local-6989586621681519903"><span class="annot"><span class="annottext">Maybe Bool
+</span><a href="#local-6989586621681519903"><span class="hs-identifier hs-var">unreachable</span></a></span></span><span> </span><span id="local-6989586621681519904"><span class="annot"><span class="annottext">ExpandedEllipsis
+</span><a href="#local-6989586621681519904"><span class="hs-identifier hs-var">ell</span></a></span></span><span> </span><span id="local-6989586621681519905"><span class="annot"><span class="annottext">Maybe ModuleName
+</span><a href="#local-6989586621681519905"><span class="hs-identifier hs-var">wm</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span>      </span><span class="hs-comment">-- Get the telescope to expand the clause with.</span><span>
+</span><span id="line-47"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Substitute.html#TelV"><span class="hs-identifier hs-type">TelV</span></a></span><span> </span><span id="local-6989586621681519907"><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519907"><span class="hs-identifier hs-var">tel0</span></a></span></span><span> </span><span id="local-6989586621681519908"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621681519908"><span class="hs-identifier hs-var">t'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Telescope -&gt; TCMT IO (TelV Type) -&gt; TCMT IO (TelV Type)
+forall b (m :: * -&gt; *) a.
+(AddContext b, MonadAddContext m) =&gt;
+b -&gt; m a -&gt; m a
+forall (m :: * -&gt; *) a.
+MonadAddContext m =&gt;
+Telescope -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Context.html#addContext"><span class="hs-identifier hs-var">addContext</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519896"><span class="hs-identifier hs-var">ctel</span></a></span><span> </span><span class="annot"><span class="annottext">(TCMT IO (TelV Type) -&gt; TCMT IO (TelV Type))
+-&gt; TCMT IO (TelV Type) -&gt; TCMT IO (TelV Type)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Type -&gt; TCMT IO (TelV Type)
+forall (m :: * -&gt; *).
+(MonadReduce m, MonadAddContext m) =&gt;
+Type -&gt; m (TelV Type)
+</span><a href="Agda.TypeChecking.Telescope.html#telView"><span class="hs-identifier hs-var">telView</span></a></span><span> </span><span class="annot"><span class="annottext">(Type -&gt; TCMT IO (TelV Type)) -&gt; Type -&gt; TCMT IO (TelV Type)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Arg Type -&gt; Type
+forall e. Arg e -&gt; e
+</span><a href="Agda.Syntax.Common.html#unArg"><span class="hs-identifier hs-var">unArg</span></a></span><span> </span><span class="annot"><span class="annottext">Arg Type
+</span><a href="#local-6989586621681519899"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span>      </span><span class="hs-comment">-- If the rhs has lambdas, harvest the names of the bound variables.</span><span>
+</span><span id="line-50"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681519912"><span class="annot"><span class="annottext">xs :: [Arg ArgName]
+</span><a href="#local-6989586621681519912"><span class="hs-identifier hs-var hs-var">xs</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; [Arg ArgName]
+</span><a href="#local-6989586621681519913"><span class="hs-identifier hs-var">peekLambdas</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681519898"><span class="hs-identifier hs-var">body</span></a></span><span>
+</span><span id="line-51"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681519914"><span class="annot"><span class="annottext">ltel :: ListTel
+</span><a href="#local-6989586621681519914"><span class="hs-identifier hs-var hs-var">ltel</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Arg ArgName] -&gt; ListTel -&gt; ListTel
+</span><a href="#local-6989586621681519915"><span class="hs-identifier hs-var">useNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Arg ArgName]
+</span><a href="#local-6989586621681519912"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">(ListTel -&gt; ListTel) -&gt; ListTel -&gt; ListTel
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Telescope -&gt; ListTel
+forall t. Tele (Dom t) -&gt; [Dom (ArgName, t)]
+</span><a href="Agda.Syntax.Internal.html#telToList"><span class="hs-identifier hs-var">telToList</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519907"><span class="hs-identifier hs-var">tel0</span></a></span><span>
+</span><span id="line-52"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681519917"><span class="annot"><span class="annottext">tel :: Telescope
+</span><a href="#local-6989586621681519917"><span class="hs-identifier hs-var hs-var">tel</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListTel -&gt; Telescope
+</span><a href="Agda.Syntax.Internal.html#telFromList"><span class="hs-identifier hs-var">telFromList</span></a></span><span> </span><span class="annot"><span class="annottext">ListTel
+</span><a href="#local-6989586621681519914"><span class="hs-identifier hs-var">ltel</span></a></span><span>
+</span><span id="line-53"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681519919"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621681519919"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Telescope -&gt; Int
+forall a. Sized a =&gt; a -&gt; Int
+</span><a href="Agda.Utils.Size.html#size"><span class="hs-identifier hs-var">size</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519917"><span class="hs-identifier hs-var">tel</span></a></span><span>
+</span><span id="line-54"></span><span>      </span><span class="annot"><span class="annottext">Bool -&gt; TCMT IO () -&gt; TCMT IO ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">unless</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681519919"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Telescope -&gt; Int
+forall a. Sized a =&gt; a -&gt; Int
+</span><a href="Agda.Utils.Size.html#size"><span class="hs-identifier hs-var">size</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519907"><span class="hs-identifier hs-var">tel0</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TCMT IO ()
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>  </span><span class="hs-comment">-- useNames should not drop anything</span><span>
+</span><span id="line-55"></span><span>      </span><span class="hs-comment">-- Join with lhs telescope, extend patterns and apply body.</span><span>
+</span><span id="line-56"></span><span>      </span><span class="hs-comment">-- NB: no need to raise ctel!</span><span>
+</span><span id="line-57"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681519923"><span class="annot"><span class="annottext">ctel' :: Telescope
+</span><a href="#local-6989586621681519923"><span class="hs-identifier hs-var hs-var">ctel'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListTel -&gt; Telescope
+</span><a href="Agda.Syntax.Internal.html#telFromList"><span class="hs-identifier hs-var">telFromList</span></a></span><span> </span><span class="annot"><span class="annottext">(ListTel -&gt; Telescope) -&gt; ListTel -&gt; Telescope
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Telescope -&gt; ListTel
+forall t. Tele (Dom t) -&gt; [Dom (ArgName, t)]
+</span><a href="Agda.Syntax.Internal.html#telToList"><span class="hs-identifier hs-var">telToList</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519896"><span class="hs-identifier hs-var">ctel</span></a></span><span> </span><span class="annot"><span class="annottext">ListTel -&gt; ListTel -&gt; ListTel
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">ListTel
+</span><a href="#local-6989586621681519914"><span class="hs-identifier hs-var">ltel</span></a></span><span>
+</span><span id="line-58"></span><span>          </span><span id="local-6989586621681519924"><span class="annot"><span class="annottext">ps' :: [NamedArg DeBruijnPattern]
+</span><a href="#local-6989586621681519924"><span class="hs-identifier hs-var hs-var">ps'</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; [NamedArg DeBruijnPattern] -&gt; [NamedArg DeBruijnPattern]
+forall a. Subst a =&gt; Int -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#raise"><span class="hs-identifier hs-var">raise</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681519919"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">[NamedArg DeBruijnPattern]
+</span><a href="#local-6989586621681519897"><span class="hs-identifier hs-var">ps</span></a></span><span> </span><span class="annot"><span class="annottext">[NamedArg DeBruijnPattern]
+-&gt; [NamedArg DeBruijnPattern] -&gt; [NamedArg DeBruijnPattern]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Telescope -&gt; [NamedArg DeBruijnPattern]
+forall a t. DeBruijn a =&gt; Tele (Dom t) -&gt; [NamedArg a]
+</span><a href="Agda.TypeChecking.Telescope.html#teleNamedArgs"><span class="hs-identifier hs-var">teleNamedArgs</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519917"><span class="hs-identifier hs-var">tel</span></a></span><span>
+</span><span id="line-59"></span><span>          </span><span id="local-6989586621681519927"><span class="annot"><span class="annottext">body' :: Term
+</span><a href="#local-6989586621681519927"><span class="hs-identifier hs-var hs-var">body'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Term -&gt; Term
+forall a. Subst a =&gt; Int -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#raise"><span class="hs-identifier hs-var">raise</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681519919"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681519898"><span class="hs-identifier hs-var">body</span></a></span><span> </span><span class="annot"><span class="annottext">Term -&gt; Args -&gt; Term
+forall t. Apply t =&gt; t -&gt; Args -&gt; t
+</span><a href="Agda.TypeChecking.Substitute.Class.html#apply"><span class="hs-operator hs-var">`apply`</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope -&gt; Args
+forall a t. DeBruijn a =&gt; Tele (Dom t) -&gt; [Arg a]
+</span><a href="Agda.TypeChecking.Telescope.html#teleArgs"><span class="hs-identifier hs-var">teleArgs</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519917"><span class="hs-identifier hs-var">tel</span></a></span><span>
+</span><span id="line-60"></span><span>      </span><span class="annot"><span class="annottext">ArgName -&gt; Int -&gt; TCMT IO Doc -&gt; TCMT IO ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+ArgName -&gt; Int -&gt; TCMT IO Doc -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#reportSDoc"><span class="hs-identifier hs-var">reportSDoc</span></a></span><span> </span><span class="annot"><span class="annottext">ArgName
+</span><span class="hs-string">&quot;term.clause.expand&quot;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">30</span></span><span> </span><span class="annot"><span class="annottext">(TCMT IO Doc -&gt; TCMT IO ()) -&gt; TCMT IO Doc -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc -&gt; TCMT IO Doc
+forall (tcm :: * -&gt; *) a.
+(MonadTCEnv tcm, ReadTCState tcm) =&gt;
+tcm a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Context.html#inTopContext"><span class="hs-identifier hs-var">inTopContext</span></a></span><span> </span><span class="annot"><span class="annottext">(TCMT IO Doc -&gt; TCMT IO Doc) -&gt; TCMT IO Doc -&gt; TCMT IO Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[TCMT IO Doc] -&gt; TCMT IO Doc
+forall (m :: * -&gt; *) (t :: * -&gt; *).
+(Applicative m, Foldable t) =&gt;
+t (m Doc) -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#vcat"><span class="hs-identifier hs-var">vcat</span></a></span><span>
+</span><span id="line-61"></span><span>        </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc
+</span><span class="hs-string">&quot;etaExpandClause&quot;</span></span><span>
+</span><span id="line-62"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc
+</span><span class="hs-string">&quot;  body    = &quot;</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc -&gt; TCMT IO Doc -&gt; TCMT IO Doc
+forall (m :: * -&gt; *). Applicative m =&gt; m Doc -&gt; m Doc -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-var">&lt;+&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope -&gt; TCMT IO Doc -&gt; TCMT IO Doc
+forall b (m :: * -&gt; *) a.
+(AddContext b, MonadAddContext m) =&gt;
+b -&gt; m a -&gt; m a
+forall (m :: * -&gt; *) a.
+MonadAddContext m =&gt;
+Telescope -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Context.html#addContext"><span class="hs-identifier hs-var">addContext</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519923"><span class="hs-identifier hs-var">ctel'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term -&gt; TCMT IO Doc
+forall a (m :: * -&gt; *). (PrettyTCM a, MonadPretty m) =&gt; a -&gt; m Doc
+forall (m :: * -&gt; *). MonadPretty m =&gt; Term -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#prettyTCM"><span class="hs-identifier hs-var">prettyTCM</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681519898"><span class="hs-identifier hs-var">body</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-63"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc
+</span><span class="hs-string">&quot;  xs      = &quot;</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc -&gt; TCMT IO Doc -&gt; TCMT IO Doc
+forall (m :: * -&gt; *). Applicative m =&gt; m Doc -&gt; m Doc -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-var">&lt;+&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">ArgName -&gt; TCMT IO Doc
+forall (m :: * -&gt; *). Applicative m =&gt; ArgName -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#text"><span class="hs-identifier hs-var">text</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Arg ArgName] -&gt; ArgName
+forall a. Pretty a =&gt; a -&gt; ArgName
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">[Arg ArgName]
+</span><a href="#local-6989586621681519912"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc
+</span><span class="hs-string">&quot;  new tel = &quot;</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO Doc -&gt; TCMT IO Doc -&gt; TCMT IO Doc
+forall (m :: * -&gt; *). Applicative m =&gt; m Doc -&gt; m Doc -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#%3C%2B%3E"><span class="hs-operator hs-var">&lt;+&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope -&gt; TCMT IO Doc
+forall a (m :: * -&gt; *). (PrettyTCM a, MonadPretty m) =&gt; a -&gt; m Doc
+forall (m :: * -&gt; *). MonadPretty m =&gt; Telescope -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#prettyTCM"><span class="hs-identifier hs-var">prettyTCM</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519923"><span class="hs-identifier hs-var">ctel'</span></a></span><span>
+</span><span id="line-65"></span><span>        </span><span class="hs-special">]</span><span>
+</span><span id="line-66"></span><span>      </span><span class="annot"><span class="annottext">Clause -&gt; TCM Clause
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Clause -&gt; TCM Clause) -&gt; Clause -&gt; TCM Clause
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Range
+-&gt; Range
+-&gt; Telescope
+-&gt; [NamedArg DeBruijnPattern]
+-&gt; Maybe Term
+-&gt; Maybe (Arg Type)
+-&gt; Bool
+-&gt; Maybe Bool
+-&gt; Maybe Bool
+-&gt; Maybe Bool
+-&gt; ExpandedEllipsis
+-&gt; Maybe ModuleName
+-&gt; Clause
+</span><a href="Agda.Syntax.Internal.html#Clause"><span class="hs-identifier hs-var">Clause</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681519894"><span class="hs-identifier hs-var">rl</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681519895"><span class="hs-identifier hs-var">rf</span></a></span><span> </span><span class="annot"><span class="annottext">Telescope
+</span><a href="#local-6989586621681519923"><span class="hs-identifier hs-var">ctel'</span></a></span><span> </span><span class="annot"><span class="annottext">[NamedArg DeBruijnPattern]
+</span><a href="#local-6989586621681519924"><span class="hs-identifier hs-var">ps'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term -&gt; Maybe Term
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681519927"><span class="hs-identifier hs-var">body'</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Arg Type -&gt; Maybe (Arg Type)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Arg Type
+</span><a href="#local-6989586621681519899"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">Arg Type -&gt; Type -&gt; Arg Type
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; b -&gt; f b
+</span><span class="hs-operator hs-var">$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621681519908"><span class="hs-identifier hs-var">t'</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681519900"><span class="hs-identifier hs-var">catchall</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Bool
+</span><a href="#local-6989586621681519901"><span class="hs-identifier hs-var">exact</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Bool
+</span><a href="#local-6989586621681519902"><span class="hs-identifier hs-var">recursive</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Bool
+</span><a href="#local-6989586621681519903"><span class="hs-identifier hs-var">unreachable</span></a></span><span> </span><span class="annot"><span class="annottext">ExpandedEllipsis
+</span><a href="#local-6989586621681519904"><span class="hs-identifier hs-var">ell</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe ModuleName
+</span><a href="#local-6989586621681519905"><span class="hs-identifier hs-var">wm</span></a></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-68"></span><span>    </span><span class="hs-comment">-- Get all initial lambdas of the body.</span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><a href="#local-6989586621681519913"><span class="hs-identifier hs-type">peekLambdas</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ArgName"><span class="hs-identifier hs-type">ArgName</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-70"></span><span>    </span><span id="local-6989586621681519913"><span class="annot"><span class="annottext">peekLambdas :: Term -&gt; [Arg ArgName]
+</span><a href="#local-6989586621681519913"><span class="hs-identifier hs-var hs-var">peekLambdas</span></a></span></span><span> </span><span id="local-6989586621681519936"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681519936"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-71"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681519936"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-72"></span><span>        </span><span class="annot"><a href="Agda.Syntax.Internal.html#Lam"><span class="hs-identifier hs-type">Lam</span></a></span><span> </span><span id="local-6989586621681519938"><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621681519938"><span class="hs-identifier hs-var">info</span></a></span></span><span> </span><span id="local-6989586621681519939"><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621681519939"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ArgInfo -&gt; ArgName -&gt; Arg ArgName
+forall e. ArgInfo -&gt; e -&gt; Arg e
+</span><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-var">Arg</span></a></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><a href="#local-6989586621681519938"><span class="hs-identifier hs-var">info</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Abs Term -&gt; ArgName
+forall a. Abs a -&gt; ArgName
+</span><a href="Agda.Syntax.Internal.html#absName"><span class="hs-identifier hs-var">absName</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621681519939"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Arg ArgName -&gt; [Arg ArgName] -&gt; [Arg ArgName]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">Term -&gt; [Arg ArgName]
+</span><a href="#local-6989586621681519913"><span class="hs-identifier hs-var">peekLambdas</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Abs Term -&gt; Term
+forall a. Abs a -&gt; a
+</span><a href="Agda.Syntax.Internal.html#unAbs"><span class="hs-identifier hs-var">unAbs</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621681519939"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>        </span><span class="annot"><span class="annottext">Term
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span>    </span><span class="hs-comment">-- Use the names of the first argument, and set the Origin all other</span><span>
+</span><span id="line-76"></span><span>    </span><span class="hs-comment">-- parts of the telescope to Inserted.</span><span>
+</span><span id="line-77"></span><span>    </span><span class="hs-comment">-- The first list of arguments is a subset of the telescope.</span><span>
+</span><span id="line-78"></span><span>    </span><span class="hs-comment">-- Thus, if compared pointwise, if the hiding does not match,</span><span>
+</span><span id="line-79"></span><span>    </span><span class="hs-comment">-- it means we skipped an element of the telescope.</span><span>
+</span><span id="line-80"></span><span>    </span><span class="annot"><a href="#local-6989586621681519915"><span class="hs-identifier hs-type">useNames</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#ArgName"><span class="hs-identifier hs-type">ArgName</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#ListTel"><span class="hs-identifier hs-type">ListTel</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#ListTel"><span class="hs-identifier hs-type">ListTel</span></a></span><span>
+</span><span id="line-81"></span><span>    </span><span id="local-6989586621681519915"><span class="annot"><span class="annottext">useNames :: [Arg ArgName] -&gt; ListTel -&gt; ListTel
+</span><a href="#local-6989586621681519915"><span class="hs-identifier hs-var hs-var">useNames</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span id="local-6989586621681519943"><span class="annot"><span class="annottext">ListTel
+</span><a href="#local-6989586621681519943"><span class="hs-identifier hs-var">tel</span></a></span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Dom (ArgName, Type) -&gt; Dom (ArgName, Type)) -&gt; ListTel -&gt; ListTel
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Origin -&gt; Dom (ArgName, Type) -&gt; Dom (ArgName, Type)
+forall a. LensOrigin a =&gt; Origin -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#setOrigin"><span class="hs-identifier hs-var">setOrigin</span></a></span><span> </span><span class="annot"><span class="annottext">Origin
+</span><a href="Agda.Syntax.Common.html#Inserted"><span class="hs-identifier hs-var">Inserted</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ListTel
+</span><a href="#local-6989586621681519943"><span class="hs-identifier hs-var">tel</span></a></span><span>
+</span><span id="line-82"></span><span>    </span><span class="hs-comment">-- Andrea: we can have more Lam's than Pi's, because they might be for Path</span><span>
+</span><span id="line-83"></span><span>    </span><span class="hs-comment">-- Andreas, 2017-03-24: the following case is not IMPOSSIBLE when positivity checking comes before termination checking, see examples/tactics/ac/AC.agda</span><span>
+</span><span id="line-84"></span><span>    </span><span class="annot"><a href="#local-6989586621681519915"><span class="hs-identifier hs-var">useNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Arg ArgName
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[Arg ArgName]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span>  </span><span class="hs-special">[</span><span class="hs-special">]</span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-85"></span><span>    </span><span class="annot"><a href="#local-6989586621681519915"><span class="hs-identifier hs-var">useNames</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681519946"><span class="annot"><span class="annottext">Arg ArgName
+</span><a href="#local-6989586621681519946"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681519947"><span class="annot"><span class="annottext">[Arg ArgName]
+</span><a href="#local-6989586621681519947"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681519948"><span class="annot"><span class="annottext">Dom (ArgName, Type)
+</span><a href="#local-6989586621681519948"><span class="hs-identifier hs-var">dom</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681519949"><span class="annot"><span class="annottext">ListTel
+</span><a href="#local-6989586621681519949"><span class="hs-identifier hs-var">tel</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Arg ArgName -&gt; Dom (ArgName, Type) -&gt; Bool
+forall a b. (LensHiding a, LensHiding b) =&gt; a -&gt; b -&gt; Bool
+</span><a href="Agda.Syntax.Common.html#sameHiding"><span class="hs-identifier hs-var">sameHiding</span></a></span><span> </span><span class="annot"><span class="annottext">Arg ArgName
+</span><a href="#local-6989586621681519946"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Dom (ArgName, Type)
+</span><a href="#local-6989586621681519948"><span class="hs-identifier hs-var">dom</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-87"></span><span>          </span><span class="hs-comment">-- set the ArgName of the dom</span><span>
+</span><span id="line-88"></span><span>          </span><span class="annot"><span class="annottext">((ArgName, Type) -&gt; (ArgName, Type))
+-&gt; Dom (ArgName, Type) -&gt; Dom (ArgName, Type)
+forall a b. (a -&gt; b) -&gt; Dom' Term a -&gt; Dom' Term b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(ArgName -&gt; ArgName) -&gt; (ArgName, Type) -&gt; (ArgName, Type)
+forall b c d. (b -&gt; c) -&gt; (b, d) -&gt; (c, d)
+forall (a :: * -&gt; * -&gt; *) b c d.
+Arrow a =&gt;
+a b c -&gt; a (b, d) (c, d)
+</span><span class="hs-identifier hs-var">first</span></span><span> </span><span class="annot"><span class="annottext">((ArgName -&gt; ArgName) -&gt; (ArgName, Type) -&gt; (ArgName, Type))
+-&gt; (ArgName -&gt; ArgName) -&gt; (ArgName, Type) -&gt; (ArgName, Type)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ArgName -&gt; ArgName -&gt; ArgName
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">(ArgName -&gt; ArgName -&gt; ArgName) -&gt; ArgName -&gt; ArgName -&gt; ArgName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Arg ArgName -&gt; ArgName
+forall e. Arg e -&gt; e
+</span><a href="Agda.Syntax.Common.html#unArg"><span class="hs-identifier hs-var">unArg</span></a></span><span> </span><span class="annot"><span class="annottext">Arg ArgName
+</span><a href="#local-6989586621681519946"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Dom (ArgName, Type)
+</span><a href="#local-6989586621681519948"><span class="hs-identifier hs-var">dom</span></a></span><span> </span><span class="annot"><span class="annottext">Dom (ArgName, Type) -&gt; ListTel -&gt; ListTel
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Arg ArgName] -&gt; ListTel -&gt; ListTel
+</span><a href="#local-6989586621681519915"><span class="hs-identifier hs-var">useNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Arg ArgName]
+</span><a href="#local-6989586621681519947"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">ListTel
+</span><a href="#local-6989586621681519949"><span class="hs-identifier hs-var">tel</span></a></span><span>
+</span><span id="line-89"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-90"></span><span>          </span><span class="annot"><span class="annottext">Origin -&gt; Dom (ArgName, Type) -&gt; Dom (ArgName, Type)
+forall a. LensOrigin a =&gt; Origin -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Common.html#setOrigin"><span class="hs-identifier hs-var">setOrigin</span></a></span><span> </span><span class="annot"><span class="annottext">Origin
+</span><a href="Agda.Syntax.Common.html#Inserted"><span class="hs-identifier hs-var">Inserted</span></a></span><span> </span><span class="annot"><span class="annottext">Dom (ArgName, Type)
+</span><a href="#local-6989586621681519948"><span class="hs-identifier hs-var">dom</span></a></span><span> </span><span class="annot"><span class="annottext">Dom (ArgName, Type) -&gt; ListTel -&gt; ListTel
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Arg ArgName] -&gt; ListTel -&gt; ListTel
+</span><a href="#local-6989586621681519915"><span class="hs-identifier hs-var">useNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Arg ArgName
+</span><a href="#local-6989586621681519946"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">Arg ArgName -&gt; [Arg ArgName] -&gt; [Arg ArgName]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[Arg ArgName]
+</span><a href="#local-6989586621681519947"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ListTel
+</span><a href="#local-6989586621681519949"><span class="hs-identifier hs-var">tel</span></a></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- | Get the name of defined symbol of the head normal form of a term.</span><span>
+</span><span id="line-93"></span><span class="hs-comment">--   Returns 'Nothing' if no such head exists.</span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="annot"><a href="Agda.TypeChecking.Functions.html#getDef"><span class="hs-identifier hs-type">getDef</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-96"></span><span id="getDef"><span class="annot"><span class="annottext">getDef :: Term -&gt; TCM (Maybe QName)
+</span><a href="Agda.TypeChecking.Functions.html#getDef"><span class="hs-identifier hs-var hs-var">getDef</span></a></span></span><span> </span><span id="local-6989586621681519952"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681519952"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term -&gt; TCMT IO Term
+forall a (m :: * -&gt; *). (Reduce a, MonadReduce m) =&gt; a -&gt; m a
+</span><a href="Agda.TypeChecking.Reduce.html#reduce"><span class="hs-identifier hs-var">reduce</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681519952"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">TCMT IO Term -&gt; (Term -&gt; TCM (Maybe QName)) -&gt; TCM (Maybe QName)
+forall a b. TCMT IO a -&gt; (a -&gt; TCMT IO b) -&gt; TCMT IO b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-97"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Internal.html#Def"><span class="hs-identifier hs-type">Def</span></a></span><span> </span><span id="local-6989586621681519955"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681519955"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><span class="hs-identifier">_</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe QName -&gt; TCM (Maybe QName)
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Maybe QName -&gt; TCM (Maybe QName))
+-&gt; Maybe QName -&gt; TCM (Maybe QName)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; Maybe QName
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681519955"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-98"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Internal.html#Lam"><span class="hs-identifier hs-type">Lam</span></a></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681519956"><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621681519956"><span class="hs-identifier hs-var">v</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Abs Term -&gt; (Term -&gt; TCM (Maybe QName)) -&gt; TCM (Maybe QName)
+forall a (m :: * -&gt; *) b.
+(Subst a, MonadAddContext m) =&gt;
+Abs a -&gt; (a -&gt; m b) -&gt; m b
+</span><a href="Agda.TypeChecking.Monad.Context.html#underAbstraction_"><span class="hs-identifier hs-var">underAbstraction_</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621681519956"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">Term -&gt; TCM (Maybe QName)
+</span><a href="Agda.TypeChecking.Functions.html#getDef"><span class="hs-identifier hs-var">getDef</span></a></span><span>
+</span><span id="line-99"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Internal.html#Level"><span class="hs-identifier hs-type">Level</span></a></span><span> </span><span id="local-6989586621681519959"><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681519959"><span class="hs-identifier hs-var">v</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term -&gt; TCM (Maybe QName)
+</span><a href="Agda.TypeChecking.Functions.html#getDef"><span class="hs-identifier hs-var">getDef</span></a></span><span> </span><span class="annot"><span class="annottext">(Term -&gt; TCM (Maybe QName)) -&gt; TCMT IO Term -&gt; TCM (Maybe QName)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">Level -&gt; TCMT IO Term
+forall (m :: * -&gt; *). HasBuiltins m =&gt; Level -&gt; m Term
+</span><a href="Agda.TypeChecking.Level.html#reallyUnLevelView"><span class="hs-identifier hs-var">reallyUnLevelView</span></a></span><span> </span><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681519959"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-100"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Internal.html#DontCare"><span class="hs-identifier hs-type">DontCare</span></a></span><span> </span><span id="local-6989586621681519963"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681519963"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term -&gt; TCM (Maybe QName)
+</span><a href="Agda.TypeChecking.Functions.html#getDef"><span class="hs-identifier hs-var">getDef</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681519963"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-101"></span><span>  </span><span class="annot"><span class="annottext">Term
+</span><span class="hs-identifier">_</span></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe QName -&gt; TCM (Maybe QName)
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Maybe QName
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-102"></span></pre></body></html>

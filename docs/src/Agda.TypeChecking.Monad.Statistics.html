@@ -1,0 +1,285 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Collect statistics.</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.TypeChecking.Monad.Statistics</span><span>
+</span><span id="line-6"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier">MonadStatistics</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#tick"><span class="hs-identifier">tick</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#tickN"><span class="hs-identifier">tickN</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#tickMax"><span class="hs-identifier">tickMax</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#getStatistics"><span class="hs-identifier">getStatistics</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#modifyStatistics"><span class="hs-identifier">modifyStatistics</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#printStatistics"><span class="hs-identifier">printStatistics</span></a></span><span>
+</span><span id="line-7"></span><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans.Maybe</span></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Text.PrettyPrint.Boxes</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Boxes</span></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier">TopLevelModuleName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Debug</span></a></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.String.html"><span class="hs-identifier">Agda.Utils.String</span></a></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">class</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409900"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="MonadStatistics"><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-var">MonadStatistics</span></a></span></span><span> </span><span id="local-6989586621681409900"><span class="annot"><a href="#local-6989586621681409900"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-30"></span><span>  </span><span id="modifyCounter"><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#modifyCounter"><span class="hs-identifier hs-type">modifyCounter</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681409900"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-keyword">default</span><span> </span><span id="modifyCounter"><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#modifyCounter"><span class="hs-identifier hs-type">modifyCounter</span></a></span></span><span>
+</span><span id="line-33"></span><span>    </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681409903"><span id="local-6989586621681409904"><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409903"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadTrans</span></span><span> </span><span class="annot"><a href="#local-6989586621681409904"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681409904"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409903"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><a href="#local-6989586621681409900"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>    </span><span class="hs-glyph">=&gt;</span><span>  </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681409900"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-35"></span><span>  </span><span id="local-6989586621681410033"><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#modifyCounter"><span class="hs-identifier hs-var hs-var">modifyCounter</span></a></span><span> </span><span id="local-6989586621681410045"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681410045"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">n () -&gt; m ()
+n () -&gt; t n ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; t m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(n () -&gt; m ())
+-&gt; ((Integer -&gt; Integer) -&gt; n ()) -&gt; (Integer -&gt; Integer) -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; (Integer -&gt; Integer) -&gt; n ()
+forall (m :: * -&gt; *).
+MonadStatistics m =&gt;
+String -&gt; (Integer -&gt; Integer) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#modifyCounter"><span class="hs-identifier hs-var">modifyCounter</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681410045"><span class="hs-identifier hs-var">x</span></a></span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681409924"><span id="local-6989586621681409925"><span id="local-6989586621681410054"><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409924"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><a href="#local-6989586621681409925"><span class="hs-identifier hs-type">e</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409924"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681409929"><span id="local-6989586621681410068"><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409929"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MaybeT</span></span><span> </span><span class="annot"><a href="#local-6989586621681409929"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681409936"><span id="local-6989586621681409937"><span id="local-6989586621681410081"><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409936"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="#local-6989586621681409937"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409936"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681409944"><span id="local-6989586621681409945"><span id="local-6989586621681410094"><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409944"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span>  </span><span class="annot"><a href="#local-6989586621681409945"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409944"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681409952"><span id="local-6989586621681409953"><span id="local-6989586621681410108"><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409952"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681409953"><span class="hs-identifier hs-type">w</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">WriterT</span></span><span> </span><span class="annot"><a href="#local-6989586621681409953"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409952"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-44"></span><span>  </span><span id="local-6989586621681410132"><span class="annot"><span class="annottext">modifyCounter :: String -&gt; (Integer -&gt; Integer) -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#modifyCounter"><span class="hs-identifier hs-var hs-var hs-var hs-var">modifyCounter</span></a></span></span><span> </span><span id="local-6989586621681410133"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681410133"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681410134"><span class="annot"><span class="annottext">Integer -&gt; Integer
+</span><a href="#local-6989586621681410134"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Statistics -&gt; Statistics) -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#modifyStatistics"><span class="hs-identifier hs-var">modifyStatistics</span></a></span><span> </span><span class="annot"><span class="annottext">((Statistics -&gt; Statistics) -&gt; TCM ())
+-&gt; (Statistics -&gt; Statistics) -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Statistics -&gt; Statistics
+forall {b}. NFData b =&gt; b -&gt; b
+</span><a href="#local-6989586621681410135"><span class="hs-identifier hs-var">force</span></a></span><span> </span><span class="annot"><span class="annottext">(Statistics -&gt; Statistics)
+-&gt; (Statistics -&gt; Statistics) -&gt; Statistics -&gt; Statistics
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Statistics -&gt; Statistics
+</span><a href="#local-6989586621681410136"><span class="hs-identifier hs-var">update</span></a></span><span>
+</span><span id="line-45"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-46"></span><span>      </span><span class="hs-comment">-- We need to be strict in the map.</span><span>
+</span><span id="line-47"></span><span>      </span><span class="hs-comment">-- Andreas, 2014-03-22:  Could we take Data.Map.Strict instead of this hack?</span><span>
+</span><span id="line-48"></span><span>      </span><span class="hs-comment">-- Or force the map by looking up the very element we inserted?</span><span>
+</span><span id="line-49"></span><span>      </span><span class="hs-comment">-- force m = Map.lookup x m `seq` m</span><span>
+</span><span id="line-50"></span><span>      </span><span class="hs-comment">-- Or use insertLookupWithKey?</span><span>
+</span><span id="line-51"></span><span>      </span><span class="hs-comment">-- update m = old `seq` m' where</span><span>
+</span><span id="line-52"></span><span>      </span><span class="hs-comment">--   (old, m') = Map.insertLookupWithKey (\ _ new old -&gt; f old) x dummy m</span><span>
+</span><span id="line-53"></span><span>      </span><span class="hs-comment">-- Ulf, 2018-04-10: Neither of these approaches are strict enough in the</span><span>
+</span><span id="line-54"></span><span>      </span><span class="hs-comment">-- map (nor are they less hacky). It's not enough to be strict in the</span><span>
+</span><span id="line-55"></span><span>      </span><span class="hs-comment">-- values stored in the map, we also need to be strict in the *structure*</span><span>
+</span><span id="line-56"></span><span>      </span><span class="hs-comment">-- of the map. A less hacky solution is to deepseq the map.</span><span>
+</span><span id="line-57"></span><span>      </span><span id="local-6989586621681410135"><span class="annot"><span class="annottext">force :: b -&gt; b
+</span><a href="#local-6989586621681410135"><span class="hs-identifier hs-var hs-var">force</span></a></span></span><span> </span><span id="local-6989586621681410139"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681410139"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681410139"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; b -&gt; b
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681410139"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-58"></span><span>      </span><span id="local-6989586621681410136"><span class="annot"><span class="annottext">update :: Statistics -&gt; Statistics
+</span><a href="#local-6989586621681410136"><span class="hs-identifier hs-var hs-var">update</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Integer -&gt; Integer)
+-&gt; String -&gt; Integer -&gt; Statistics -&gt; Statistics
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insertWith</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681410142"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681410142"><span class="hs-identifier hs-var">new</span></a></span></span><span> </span><span id="local-6989586621681410143"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681410143"><span class="hs-identifier hs-var">old</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer
+</span><a href="#local-6989586621681410134"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681410143"><span class="hs-identifier hs-var">old</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681410133"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681410144"><span class="hs-identifier hs-var">dummy</span></a></span><span>
+</span><span id="line-59"></span><span>      </span><span id="local-6989586621681410144"><span class="annot"><span class="annottext">dummy :: Integer
+</span><a href="#local-6989586621681410144"><span class="hs-identifier hs-var hs-var">dummy</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer
+</span><a href="#local-6989586621681410134"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="annot"><span class="hs-comment">-- | Get the statistics.</span></span><span>
+</span><span id="line-62"></span><span id="local-6989586621681409972"><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#getStatistics"><span class="hs-identifier hs-type">getStatistics</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409972"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681409972"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Statistics"><span class="hs-identifier hs-type">Statistics</span></a></span></span><span>
+</span><span id="line-63"></span><span id="getStatistics"><span class="annot"><span class="annottext">getStatistics :: forall (m :: * -&gt; *). ReadTCState m =&gt; m Statistics
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#getStatistics"><span class="hs-identifier hs-var hs-var">getStatistics</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Lens' TCState Statistics -&gt; m Statistics
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useR"><span class="hs-identifier hs-var">useR</span></a></span><span> </span><span class="annot"><span class="annottext">(Statistics -&gt; f Statistics) -&gt; TCState -&gt; f TCState
+Lens' TCState Statistics
+</span><a href="Agda.TypeChecking.Monad.Base.html#stStatistics"><span class="hs-identifier hs-var">stStatistics</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="annot"><span class="hs-comment">-- | Modify the statistics via given function.</span></span><span>
+</span><span id="line-66"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#modifyStatistics"><span class="hs-identifier hs-type">modifyStatistics</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Statistics"><span class="hs-identifier hs-type">Statistics</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Statistics"><span class="hs-identifier hs-type">Statistics</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span id="modifyStatistics"><span class="annot"><span class="annottext">modifyStatistics :: (Statistics -&gt; Statistics) -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#modifyStatistics"><span class="hs-identifier hs-var hs-var">modifyStatistics</span></a></span></span><span> </span><span id="local-6989586621681410151"><span class="annot"><span class="annottext">Statistics -&gt; Statistics
+</span><a href="#local-6989586621681410151"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Statistics -&gt; f Statistics) -&gt; TCState -&gt; f TCState
+Lens' TCState Statistics
+</span><a href="Agda.TypeChecking.Monad.Base.html#stStatistics"><span class="hs-identifier hs-var">stStatistics</span></a></span><span> </span><span class="annot"><span class="annottext">Lens' TCState Statistics -&gt; (Statistics -&gt; Statistics) -&gt; TCM ()
+forall (m :: * -&gt; *) a.
+MonadTCState m =&gt;
+Lens' TCState a -&gt; (a -&gt; a) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTCLens"><span class="hs-operator hs-var">`modifyTCLens`</span></a></span><span> </span><span class="annot"><span class="annottext">Statistics -&gt; Statistics
+</span><a href="#local-6989586621681410151"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="annot"><span class="hs-comment">-- | Increase specified counter by @1@.</span></span><span>
+</span><span id="line-70"></span><span id="local-6989586621681409982"><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#tick"><span class="hs-identifier hs-type">tick</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409982"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681409982"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-71"></span><span id="tick"><span class="annot"><span class="annottext">tick :: forall (m :: * -&gt; *). MonadStatistics m =&gt; String -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#tick"><span class="hs-identifier hs-var hs-var">tick</span></a></span></span><span> </span><span id="local-6989586621681410157"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681410157"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Integer -&gt; m ()
+forall (m :: * -&gt; *).
+MonadStatistics m =&gt;
+String -&gt; Integer -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#tickN"><span class="hs-identifier hs-var">tickN</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681410157"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="annot"><span class="hs-comment">-- | Increase specified counter by @n@.</span></span><span>
+</span><span id="line-74"></span><span id="local-6989586621681409984"><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#tickN"><span class="hs-identifier hs-type">tickN</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409984"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681409984"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-75"></span><span id="tickN"><span class="annot"><span class="annottext">tickN :: forall (m :: * -&gt; *).
+MonadStatistics m =&gt;
+String -&gt; Integer -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#tickN"><span class="hs-identifier hs-var hs-var">tickN</span></a></span></span><span> </span><span id="local-6989586621681410162"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681410162"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681410163"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681410163"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; (Integer -&gt; Integer) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadStatistics m =&gt;
+String -&gt; (Integer -&gt; Integer) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#modifyCounter"><span class="hs-identifier hs-var">modifyCounter</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681410162"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681410163"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="annot"><span class="hs-comment">-- | Set the specified counter to the maximum of its current value and @n@.</span></span><span>
+</span><span id="line-78"></span><span id="local-6989586621681410165"><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#tickMax"><span class="hs-identifier hs-type">tickMax</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#MonadStatistics"><span class="hs-identifier hs-type">MonadStatistics</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681410165"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681410165"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-79"></span><span id="tickMax"><span class="annot"><span class="annottext">tickMax :: forall (m :: * -&gt; *).
+MonadStatistics m =&gt;
+String -&gt; Integer -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#tickMax"><span class="hs-identifier hs-var hs-var">tickMax</span></a></span></span><span> </span><span id="local-6989586621681410170"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681410170"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681410171"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681410171"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; (Integer -&gt; Integer) -&gt; m ()
+forall (m :: * -&gt; *).
+MonadStatistics m =&gt;
+String -&gt; (Integer -&gt; Integer) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#modifyCounter"><span class="hs-identifier hs-var">modifyCounter</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681410170"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">max</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681410171"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="annot"><span class="hs-comment">-- | Print the given statistics.</span></span><span>
+</span><span id="line-82"></span><span id="local-6989586621681409989"><span class="annot"><a href="Agda.TypeChecking.Monad.Statistics.html#printStatistics"><span class="hs-identifier hs-type">printStatistics</span></a></span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#MonadDebug"><span class="hs-identifier hs-type">MonadDebug</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409989"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409989"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier hs-type">HasOptions</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681409989"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Statistics"><span class="hs-identifier hs-type">Statistics</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681409989"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-85"></span><span id="printStatistics"><span class="annot"><span class="annottext">printStatistics :: forall (m :: * -&gt; *).
+(MonadDebug m, MonadTCEnv m, HasOptions m) =&gt;
+Maybe TopLevelModuleName -&gt; Statistics -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#printStatistics"><span class="hs-identifier hs-var hs-var">printStatistics</span></a></span></span><span> </span><span id="local-6989586621681410195"><span class="annot"><span class="annottext">Maybe TopLevelModuleName
+</span><a href="#local-6989586621681410195"><span class="hs-identifier hs-var">mmname</span></a></span></span><span> </span><span id="local-6989586621681410196"><span class="annot"><span class="annottext">Statistics
+</span><a href="#local-6989586621681410196"><span class="hs-identifier hs-var">stats</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-86"></span><span>  </span><span class="annot"><span class="annottext">[(String, Integer)] -&gt; ([(String, Integer)] -&gt; m ()) -&gt; m ()
+forall (m :: * -&gt; *) a.
+(Monad m, Null a) =&gt;
+a -&gt; (a -&gt; m ()) -&gt; m ()
+</span><a href="Agda.Utils.Null.html#unlessNull"><span class="hs-identifier hs-var">unlessNull</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Statistics -&gt; [(String, Integer)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toList</span></span><span> </span><span class="annot"><span class="annottext">Statistics
+</span><a href="#local-6989586621681410196"><span class="hs-identifier hs-var">stats</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(([(String, Integer)] -&gt; m ()) -&gt; m ())
+-&gt; ([(String, Integer)] -&gt; m ()) -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681410199"><span class="annot"><span class="annottext">[(String, Integer)]
+</span><a href="#local-6989586621681410199"><span class="hs-identifier hs-var">stats</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-87"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span class="hs-comment">-- First column (left aligned) is accounts.</span><span>
+</span><span id="line-88"></span><span>        </span><span id="local-6989586621681410200"><span class="annot"><span class="annottext">col1 :: Box
+</span><a href="#local-6989586621681410200"><span class="hs-identifier hs-var hs-var">col1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Alignment -&gt; [Box] -&gt; Box
+forall (f :: * -&gt; *). Foldable f =&gt; Alignment -&gt; f Box -&gt; Box
+</span><span class="hs-identifier hs-var">Boxes.vcat</span></span><span> </span><span class="annot"><span class="annottext">Alignment
+</span><span class="hs-identifier hs-var">Boxes.left</span></span><span>  </span><span class="annot"><span class="annottext">([Box] -&gt; Box) -&gt; [Box] -&gt; Box
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((String, Integer) -&gt; Box) -&gt; [(String, Integer)] -&gt; [Box]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Box
+</span><span class="hs-identifier hs-var">Boxes.text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Box)
+-&gt; ((String, Integer) -&gt; String) -&gt; (String, Integer) -&gt; Box
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(String, Integer) -&gt; String
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[(String, Integer)]
+</span><a href="#local-6989586621681410199"><span class="hs-identifier hs-var">stats</span></a></span><span>
+</span><span id="line-89"></span><span>        </span><span class="hs-comment">-- Second column (right aligned) is numbers.</span><span>
+</span><span id="line-90"></span><span>        </span><span id="local-6989586621681410205"><span class="annot"><span class="annottext">col2 :: Box
+</span><a href="#local-6989586621681410205"><span class="hs-identifier hs-var hs-var">col2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Alignment -&gt; [Box] -&gt; Box
+forall (f :: * -&gt; *). Foldable f =&gt; Alignment -&gt; f Box -&gt; Box
+</span><span class="hs-identifier hs-var">Boxes.vcat</span></span><span> </span><span class="annot"><span class="annottext">Alignment
+</span><span class="hs-identifier hs-var">Boxes.right</span></span><span> </span><span class="annot"><span class="annottext">([Box] -&gt; Box) -&gt; [Box] -&gt; Box
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((String, Integer) -&gt; Box) -&gt; [(String, Integer)] -&gt; [Box]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Box
+</span><span class="hs-identifier hs-var">Boxes.text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Box)
+-&gt; ((String, Integer) -&gt; String) -&gt; (String, Integer) -&gt; Box
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><a href="Agda.Utils.String.html#showThousandSep"><span class="hs-identifier hs-var">showThousandSep</span></a></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; String)
+-&gt; ((String, Integer) -&gt; Integer) -&gt; (String, Integer) -&gt; String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(String, Integer) -&gt; Integer
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[(String, Integer)]
+</span><a href="#local-6989586621681410199"><span class="hs-identifier hs-var">stats</span></a></span><span>
+</span><span id="line-91"></span><span>        </span><span id="local-6989586621681410209"><span class="annot"><span class="annottext">table :: Box
+</span><a href="#local-6989586621681410209"><span class="hs-identifier hs-var hs-var">table</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Alignment -&gt; [Box] -&gt; Box
+forall (f :: * -&gt; *).
+Foldable f =&gt;
+Int -&gt; Alignment -&gt; f Box -&gt; Box
+</span><span class="hs-identifier hs-var">Boxes.hsep</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Alignment
+</span><span class="hs-identifier hs-var">Boxes.left</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Box
+</span><a href="#local-6989586621681410200"><span class="hs-identifier hs-var">col1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Box
+</span><a href="#local-6989586621681410205"><span class="hs-identifier hs-var">col2</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-92"></span><span>    </span><span class="annot"><span class="annottext">String -&gt; Int -&gt; String -&gt; m ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+String -&gt; Int -&gt; String -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#alwaysReportSLn"><span class="hs-identifier hs-var">alwaysReportSLn</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; m ()) -&gt; String -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe TopLevelModuleName
+-&gt; String -&gt; (TopLevelModuleName -&gt; String) -&gt; String
+forall a b. Maybe a -&gt; b -&gt; (a -&gt; b) -&gt; b
+</span><a href="Agda.Utils.Maybe.html#caseMaybe"><span class="hs-identifier hs-var">caseMaybe</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe TopLevelModuleName
+</span><a href="#local-6989586621681410195"><span class="hs-identifier hs-var">mmname</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Accumulated statistics&quot;</span></span><span> </span><span class="annot"><span class="annottext">((TopLevelModuleName -&gt; String) -&gt; String)
+-&gt; (TopLevelModuleName -&gt; String) -&gt; String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681410213"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681410213"><span class="hs-identifier hs-var">mname</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-93"></span><span>      </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Statistics for &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; String
+forall a. Pretty a =&gt; a -&gt; String
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681410213"><span class="hs-identifier hs-var">mname</span></a></span><span>
+</span><span id="line-94"></span><span>    </span><span class="annot"><span class="annottext">String -&gt; Int -&gt; String -&gt; m ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+String -&gt; Int -&gt; String -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#alwaysReportSLn"><span class="hs-identifier hs-var">alwaysReportSLn</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; m ()) -&gt; String -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Box -&gt; String
+</span><span class="hs-identifier hs-var">Boxes.render</span></span><span> </span><span class="annot"><span class="annottext">Box
+</span><a href="#local-6989586621681410209"><span class="hs-identifier hs-var">table</span></a></span><span>
+</span><span id="line-95"></span></pre></body></html>

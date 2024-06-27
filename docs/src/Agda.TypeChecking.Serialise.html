@@ -1,0 +1,1170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Andreas, Makoto, Francesco 2014-10-15 AIM XX:</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- -O2 does not have any noticable effect on runtime</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- but sabotages cabal repl with -Werror</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- (due to a conflict with --interactive warning)</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- {-# OPTIONS_GHC -O2                      #-}</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="annot"><span class="hs-comment">-- | Structure-sharing serialisation of Agda interface files.</span></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- -!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- NOTE: Every time the interface format is changed the interface</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- version number should be bumped _in the same patch_.</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- See 'currentInterfaceVersion' below.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- -!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.TypeChecking.Serialise</span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#encode"><span class="hs-identifier">encode</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#encodeFile"><span class="hs-identifier">encodeFile</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#encodeInterface"><span class="hs-identifier">encodeInterface</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#decode"><span class="hs-identifier">decode</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#decodeFile"><span class="hs-identifier">decodeFile</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#decodeInterface"><span class="hs-identifier">decodeInterface</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#decodeHashes"><span class="hs-identifier">decodeHashes</span></a></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier">EmbPrj</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">null</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Directory</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">createDirectoryIfMissing</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.FilePath</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">takeDirectory</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Arrow</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">second</span></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Control.Exception</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">E</span></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State.Strict</span></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.ST.Trans</span></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Array.IArray</span></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Array.IO</span></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Int</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Int32</span></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString.Lazy</span></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">ByteString</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString.Builder</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">byteString</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">toLazyByteString</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString.Lazy</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">L</span></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-49"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Binary</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">B</span></span><span>
+</span><span id="line-50"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Binary.Get</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">B</span></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Binary.Put</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">B</span></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-53"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">on</span></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Codec.Compression.GZip</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">G</span></span><span>
+</span><span id="line-56"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Codec.Compression.Zlib.Internal</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Z</span></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Compact</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">C</span></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Benchmark</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Bench</span></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Base</span></a></span><span>
+</span><span id="line-63"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Instances</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-comment">--instance only</span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.html"><span class="hs-identifier">Agda.TypeChecking.Monad</span></a></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Hash.html"><span class="hs-identifier">Agda.Utils.Hash</span></a></span><span>
+</span><span id="line-68"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.HashTable.html"><span class="hs-identifier">Agda.Utils.HashTable</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">H</span></span><span>
+</span><span id="line-69"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.IORef.html"><span class="hs-identifier">Agda.Utils.IORef</span></a></span><span>
+</span><span id="line-70"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.ProfileOptions.html"><span class="hs-identifier">Agda.Utils.ProfileOptions</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Profile</span></span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- Note that the Binary instance for Int writes 64 bits, but throws</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- away the 32 high bits when reading (at the time of writing, on</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- 32-bit machines). Word64 does not have these problems.</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#currentInterfaceVersion"><span class="hs-identifier hs-type">currentInterfaceVersion</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span>
+</span><span id="line-80"></span><span id="currentInterfaceVersion"><span class="annot"><span class="annottext">currentInterfaceVersion :: Word64
+</span><a href="Agda.TypeChecking.Serialise.html#currentInterfaceVersion"><span class="hs-identifier hs-var hs-var">currentInterfaceVersion</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-number">20240614</span></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Word64
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-number">10</span></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Word64
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="annot"><span class="hs-comment">-- | The result of 'encode' and 'encodeInterface'.</span></span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="hs-keyword">data</span><span> </span><span id="Encoded"><span class="annot"><a href="Agda.TypeChecking.Serialise.html#Encoded"><span class="hs-identifier hs-var">Encoded</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Encoded"><span class="annot"><a href="Agda.TypeChecking.Serialise.html#Encoded"><span class="hs-identifier hs-var">Encoded</span></a></span></span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="uncompressed"><span class="annot"><span class="annottext">Encoded -&gt; ByteString
+</span><a href="Agda.TypeChecking.Serialise.html#uncompressed"><span class="hs-identifier hs-var hs-var">uncompressed</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span>
+</span><span id="line-86"></span><span>    </span><span class="hs-comment">-- ^ The uncompressed bytestring, without hashes and the interface</span><span>
+</span><span id="line-87"></span><span>    </span><span class="hs-comment">-- version.</span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="compressed"><span class="annot"><span class="annottext">Encoded -&gt; ByteString
+</span><a href="Agda.TypeChecking.Serialise.html#compressed"><span class="hs-identifier hs-var hs-var">compressed</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ The compressed bytestring.</span></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- | Encodes something. To ensure relocatability file paths in</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- positions are replaced with module names.</span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span id="local-6989586621681461158"><span class="annot"><a href="Agda.TypeChecking.Serialise.html#encode"><span class="hs-identifier hs-type">encode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681461158"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681461158"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#Encoded"><span class="hs-identifier hs-type">Encoded</span></a></span></span><span>
+</span><span id="line-96"></span><span id="encode"><span class="annot"><span class="annottext">encode :: forall a. EmbPrj a =&gt; a -&gt; TCM Encoded
+</span><a href="Agda.TypeChecking.Serialise.html#encode"><span class="hs-identifier hs-var hs-var">encode</span></a></span></span><span> </span><span id="local-6989586621681461591"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681461591"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-97"></span><span>    </span><span id="local-6989586621681461592"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681461592"><span class="hs-identifier hs-var">collectStats</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ProfileOption -&gt; TCMT IO Bool
+forall (m :: * -&gt; *). MonadDebug m =&gt; ProfileOption -&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Debug.html#hasProfileOption"><span class="hs-identifier hs-var">hasProfileOption</span></a></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="Agda.Utils.ProfileOptions.html#Serialize"><span class="hs-identifier hs-var">Profile.Serialize</span></a></span><span>
+</span><span id="line-98"></span><span>    </span><span id="local-6989586621681461595"><span class="annot"><span class="annottext">newD :: Dict
+</span><a href="#local-6989586621681461595"><span class="hs-identifier hs-var">newD</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#Dict"><span class="hs-identifier hs-type">Dict</span></a></span><span> </span><span id="local-6989586621681461597"><span class="annot"><span class="annottext">HashTable Node Int32
+</span><a href="#local-6989586621681461597"><span class="hs-identifier hs-var">nD</span></a></span></span><span> </span><span id="local-6989586621681461598"><span class="annot"><span class="annottext">HashTable String Int32
+</span><a href="#local-6989586621681461598"><span class="hs-identifier hs-var">ltD</span></a></span></span><span> </span><span id="local-6989586621681461599"><span class="annot"><span class="annottext">HashTable Text Int32
+</span><a href="#local-6989586621681461599"><span class="hs-identifier hs-var">stD</span></a></span></span><span> </span><span id="local-6989586621681461600"><span class="annot"><span class="annottext">HashTable Text Int32
+</span><a href="#local-6989586621681461600"><span class="hs-identifier hs-var">bD</span></a></span></span><span> </span><span id="local-6989586621681461601"><span class="annot"><span class="annottext">HashTable Integer Int32
+</span><a href="#local-6989586621681461601"><span class="hs-identifier hs-var">iD</span></a></span></span><span> </span><span id="local-6989586621681461602"><span class="annot"><span class="annottext">HashTable Double Int32
+</span><a href="#local-6989586621681461602"><span class="hs-identifier hs-var">dD</span></a></span></span><span> </span><span id="local-6989586621681461603"><span class="annot"><span class="annottext">HashTable (Ptr Term) Int32
+</span><a href="#local-6989586621681461603"><span class="hs-identifier hs-var">_tD</span></a></span></span><span>
+</span><span id="line-99"></span><span>      </span><span id="local-6989586621681461604"><span class="annot"><span class="annottext">HashTable NameId Int32
+</span><a href="#local-6989586621681461604"><span class="hs-identifier hs-var">_nameD</span></a></span></span><span>
+</span><span id="line-100"></span><span>      </span><span id="local-6989586621681461605"><span class="annot"><span class="annottext">HashTable QNameId Int32
+</span><a href="#local-6989586621681461605"><span class="hs-identifier hs-var">_qnameD</span></a></span></span><span>
+</span><span id="line-101"></span><span>      </span><span id="local-6989586621681461606"><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461606"><span class="hs-identifier hs-var">nC</span></a></span></span><span> </span><span id="local-6989586621681461607"><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461607"><span class="hs-identifier hs-var">ltC</span></a></span></span><span> </span><span id="local-6989586621681461608"><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461608"><span class="hs-identifier hs-var">stC</span></a></span></span><span> </span><span id="local-6989586621681461609"><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461609"><span class="hs-identifier hs-var">bC</span></a></span></span><span> </span><span id="local-6989586621681461610"><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461610"><span class="hs-identifier hs-var">iC</span></a></span></span><span> </span><span id="local-6989586621681461611"><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461611"><span class="hs-identifier hs-var">dC</span></a></span></span><span> </span><span id="local-6989586621681461612"><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461612"><span class="hs-identifier hs-var">tC</span></a></span></span><span>
+</span><span id="line-102"></span><span>      </span><span id="local-6989586621681461613"><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461613"><span class="hs-identifier hs-var">nameC</span></a></span></span><span>
+</span><span id="line-103"></span><span>      </span><span id="local-6989586621681461614"><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461614"><span class="hs-identifier hs-var">qnameC</span></a></span></span><span>
+</span><span id="line-104"></span><span>      </span><span id="local-6989586621681461615"><span class="annot"><span class="annottext">HashTable String Int
+</span><a href="#local-6989586621681461615"><span class="hs-identifier hs-var">stats</span></a></span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO Dict -&gt; TCMT IO Dict
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO Dict -&gt; TCMT IO Dict) -&gt; IO Dict -&gt; TCMT IO Dict
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; IO Dict
+</span><a href="Agda.TypeChecking.Serialise.Base.html#emptyDict"><span class="hs-identifier hs-var">emptyDict</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681461592"><span class="hs-identifier hs-var">collectStats</span></a></span><span>
+</span><span id="line-105"></span><span>    </span><span id="local-6989586621681461618"><span class="annot"><span class="annottext">Int32
+</span><a href="#local-6989586621681461618"><span class="hs-identifier hs-var">root</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO Int32 -&gt; TCMT IO Int32
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO Int32 -&gt; TCMT IO Int32) -&gt; IO Int32 -&gt; TCMT IO Int32
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ReaderT Dict IO Int32 -&gt; Dict -&gt; IO Int32
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-operator hs-var">`runReaderT`</span></span><span> </span><span class="annot"><span class="annottext">Dict
+</span><a href="#local-6989586621681461595"><span class="hs-identifier hs-var">newD</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(ReaderT Dict IO Int32 -&gt; IO Int32)
+-&gt; ReaderT Dict IO Int32 -&gt; IO Int32
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; ReaderT Dict IO Int32
+forall a. EmbPrj a =&gt; a -&gt; ReaderT Dict IO Int32
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icode"><span class="hs-identifier hs-var">icode</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681461591"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-106"></span><span>    </span><span id="local-6989586621681461621"><span class="annot"><span class="annottext">[Node]
+</span><a href="#local-6989586621681461621"><span class="hs-identifier hs-var">nL</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [Node] -&gt; TCMT IO [Node]
+forall a. IO a -&gt; TCMT IO a
+</span><a href="#local-6989586621681461622"><span class="hs-identifier hs-var">benchSort</span></a></span><span> </span><span class="annot"><span class="annottext">(IO [Node] -&gt; TCMT IO [Node]) -&gt; IO [Node] -&gt; TCMT IO [Node]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HashTable Node Int32 -&gt; IO [Node]
+forall {b} {b}. (Ord b, Hashable b) =&gt; HashTable b b -&gt; IO [b]
+</span><a href="#local-6989586621681461623"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">HashTable Node Int32
+</span><a href="#local-6989586621681461597"><span class="hs-identifier hs-var">nD</span></a></span><span>
+</span><span id="line-107"></span><span>    </span><span id="local-6989586621681461624"><span class="annot"><span class="annottext">[Text]
+</span><a href="#local-6989586621681461624"><span class="hs-identifier hs-var">stL</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [Text] -&gt; TCMT IO [Text]
+forall a. IO a -&gt; TCMT IO a
+</span><a href="#local-6989586621681461622"><span class="hs-identifier hs-var">benchSort</span></a></span><span> </span><span class="annot"><span class="annottext">(IO [Text] -&gt; TCMT IO [Text]) -&gt; IO [Text] -&gt; TCMT IO [Text]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HashTable Text Int32 -&gt; IO [Text]
+forall {b} {b}. (Ord b, Hashable b) =&gt; HashTable b b -&gt; IO [b]
+</span><a href="#local-6989586621681461623"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">HashTable Text Int32
+</span><a href="#local-6989586621681461599"><span class="hs-identifier hs-var">stD</span></a></span><span>
+</span><span id="line-108"></span><span>    </span><span id="local-6989586621681461625"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681461625"><span class="hs-identifier hs-var">ltL</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [String] -&gt; TCMT IO [String]
+forall a. IO a -&gt; TCMT IO a
+</span><a href="#local-6989586621681461622"><span class="hs-identifier hs-var">benchSort</span></a></span><span> </span><span class="annot"><span class="annottext">(IO [String] -&gt; TCMT IO [String])
+-&gt; IO [String] -&gt; TCMT IO [String]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HashTable String Int32 -&gt; IO [String]
+forall {b} {b}. (Ord b, Hashable b) =&gt; HashTable b b -&gt; IO [b]
+</span><a href="#local-6989586621681461623"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">HashTable String Int32
+</span><a href="#local-6989586621681461598"><span class="hs-identifier hs-var">ltD</span></a></span><span>
+</span><span id="line-109"></span><span>    </span><span id="local-6989586621681461626"><span class="annot"><span class="annottext">[Text]
+</span><a href="#local-6989586621681461626"><span class="hs-identifier hs-var">bL</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [Text] -&gt; TCMT IO [Text]
+forall a. IO a -&gt; TCMT IO a
+</span><a href="#local-6989586621681461622"><span class="hs-identifier hs-var">benchSort</span></a></span><span> </span><span class="annot"><span class="annottext">(IO [Text] -&gt; TCMT IO [Text]) -&gt; IO [Text] -&gt; TCMT IO [Text]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HashTable Text Int32 -&gt; IO [Text]
+forall {b} {b}. (Ord b, Hashable b) =&gt; HashTable b b -&gt; IO [b]
+</span><a href="#local-6989586621681461623"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">HashTable Text Int32
+</span><a href="#local-6989586621681461600"><span class="hs-identifier hs-var">bD</span></a></span><span>
+</span><span id="line-110"></span><span>    </span><span id="local-6989586621681461627"><span class="annot"><span class="annottext">[Integer]
+</span><a href="#local-6989586621681461627"><span class="hs-identifier hs-var">iL</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [Integer] -&gt; TCMT IO [Integer]
+forall a. IO a -&gt; TCMT IO a
+</span><a href="#local-6989586621681461622"><span class="hs-identifier hs-var">benchSort</span></a></span><span> </span><span class="annot"><span class="annottext">(IO [Integer] -&gt; TCMT IO [Integer])
+-&gt; IO [Integer] -&gt; TCMT IO [Integer]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HashTable Integer Int32 -&gt; IO [Integer]
+forall {b} {b}. (Ord b, Hashable b) =&gt; HashTable b b -&gt; IO [b]
+</span><a href="#local-6989586621681461623"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">HashTable Integer Int32
+</span><a href="#local-6989586621681461601"><span class="hs-identifier hs-var">iD</span></a></span><span>
+</span><span id="line-111"></span><span>    </span><span id="local-6989586621681461628"><span class="annot"><span class="annottext">[Double]
+</span><a href="#local-6989586621681461628"><span class="hs-identifier hs-var">dL</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [Double] -&gt; TCMT IO [Double]
+forall a. IO a -&gt; TCMT IO a
+</span><a href="#local-6989586621681461622"><span class="hs-identifier hs-var">benchSort</span></a></span><span> </span><span class="annot"><span class="annottext">(IO [Double] -&gt; TCMT IO [Double])
+-&gt; IO [Double] -&gt; TCMT IO [Double]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HashTable Double Int32 -&gt; IO [Double]
+forall {b} {b}. (Ord b, Hashable b) =&gt; HashTable b b -&gt; IO [b]
+</span><a href="#local-6989586621681461623"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">HashTable Double Int32
+</span><a href="#local-6989586621681461602"><span class="hs-identifier hs-var">dD</span></a></span><span>
+</span><span id="line-112"></span><span>    </span><span class="hs-comment">-- Record reuse statistics.</span><span>
+</span><span id="line-113"></span><span>    </span><span class="annot"><span class="annottext">ProfileOption -&gt; TCMT IO () -&gt; TCMT IO ()
+forall (m :: * -&gt; *). MonadDebug m =&gt; ProfileOption -&gt; m () -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#whenProfile"><span class="hs-identifier hs-var">whenProfile</span></a></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="Agda.Utils.ProfileOptions.html#Sharing"><span class="hs-identifier hs-var">Profile.Sharing</span></a></span><span> </span><span class="annot"><span class="annottext">(TCMT IO () -&gt; TCMT IO ()) -&gt; TCMT IO () -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-114"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; IORef FreshAndReuse -&gt; TCMT IO ()
+</span><a href="#local-6989586621681461631"><span class="hs-identifier hs-var">statistics</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;pointers&quot;</span></span><span> </span><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461612"><span class="hs-identifier hs-var">tC</span></a></span><span>
+</span><span id="line-115"></span><span>    </span><span class="annot"><span class="annottext">ProfileOption -&gt; TCMT IO () -&gt; TCMT IO ()
+forall (m :: * -&gt; *). MonadDebug m =&gt; ProfileOption -&gt; m () -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#whenProfile"><span class="hs-identifier hs-var">whenProfile</span></a></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="Agda.Utils.ProfileOptions.html#Serialize"><span class="hs-identifier hs-var">Profile.Serialize</span></a></span><span> </span><span class="annot"><span class="annottext">(TCMT IO () -&gt; TCMT IO ()) -&gt; TCMT IO () -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-116"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; IORef FreshAndReuse -&gt; TCMT IO ()
+</span><a href="#local-6989586621681461631"><span class="hs-identifier hs-var">statistics</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Integer&quot;</span></span><span>     </span><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461610"><span class="hs-identifier hs-var">iC</span></a></span><span>
+</span><span id="line-117"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; IORef FreshAndReuse -&gt; TCMT IO ()
+</span><a href="#local-6989586621681461631"><span class="hs-identifier hs-var">statistics</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Lazy Text&quot;</span></span><span>   </span><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461607"><span class="hs-identifier hs-var">ltC</span></a></span><span>
+</span><span id="line-118"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; IORef FreshAndReuse -&gt; TCMT IO ()
+</span><a href="#local-6989586621681461631"><span class="hs-identifier hs-var">statistics</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Strict Text&quot;</span></span><span> </span><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461608"><span class="hs-identifier hs-var">stC</span></a></span><span>
+</span><span id="line-119"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; IORef FreshAndReuse -&gt; TCMT IO ()
+</span><a href="#local-6989586621681461631"><span class="hs-identifier hs-var">statistics</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Text&quot;</span></span><span>        </span><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461609"><span class="hs-identifier hs-var">bC</span></a></span><span>
+</span><span id="line-120"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; IORef FreshAndReuse -&gt; TCMT IO ()
+</span><a href="#local-6989586621681461631"><span class="hs-identifier hs-var">statistics</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Double&quot;</span></span><span>      </span><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461611"><span class="hs-identifier hs-var">dC</span></a></span><span>
+</span><span id="line-121"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; IORef FreshAndReuse -&gt; TCMT IO ()
+</span><a href="#local-6989586621681461631"><span class="hs-identifier hs-var">statistics</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Node&quot;</span></span><span>        </span><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461606"><span class="hs-identifier hs-var">nC</span></a></span><span>
+</span><span id="line-122"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; IORef FreshAndReuse -&gt; TCMT IO ()
+</span><a href="#local-6989586621681461631"><span class="hs-identifier hs-var">statistics</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Shared Term&quot;</span></span><span> </span><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461612"><span class="hs-identifier hs-var">tC</span></a></span><span>
+</span><span id="line-123"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; IORef FreshAndReuse -&gt; TCMT IO ()
+</span><a href="#local-6989586621681461631"><span class="hs-identifier hs-var">statistics</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;A.QName&quot;</span></span><span>     </span><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461614"><span class="hs-identifier hs-var">qnameC</span></a></span><span>
+</span><span id="line-124"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; IORef FreshAndReuse -&gt; TCMT IO ()
+</span><a href="#local-6989586621681461631"><span class="hs-identifier hs-var">statistics</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;A.Name&quot;</span></span><span>      </span><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461613"><span class="hs-identifier hs-var">nameC</span></a></span><span>
+</span><span id="line-125"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; TCMT IO () -&gt; TCMT IO ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681461592"><span class="hs-identifier hs-var">collectStats</span></a></span><span> </span><span class="annot"><span class="annottext">(TCMT IO () -&gt; TCMT IO ()) -&gt; TCMT IO () -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-126"></span><span>      </span><span id="local-6989586621681461633"><span class="annot"><span class="annottext">Map String Integer
+</span><a href="#local-6989586621681461633"><span class="hs-identifier hs-var">stats</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Integer -&gt; Integer)
+-&gt; [(String, Integer)] -&gt; Map String Integer
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromListWith</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">([(String, Integer)] -&gt; Map String Integer)
+-&gt; ([(String, Int)] -&gt; [(String, Integer)])
+-&gt; [(String, Int)]
+-&gt; Map String Integer
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">((String, Int) -&gt; (String, Integer))
+-&gt; [(String, Int)] -&gt; [(String, Integer)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Int -&gt; Integer) -&gt; (String, Int) -&gt; (String, Integer)
+forall b c d. (b -&gt; c) -&gt; (d, b) -&gt; (d, c)
+forall (a :: * -&gt; * -&gt; *) b c d.
+Arrow a =&gt;
+a b c -&gt; a (d, b) (d, c)
+</span><span class="hs-identifier hs-var">second</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Integer
+forall a. Integral a =&gt; a -&gt; Integer
+</span><span class="hs-identifier hs-var">toInteger</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([(String, Int)] -&gt; Map String Integer)
+-&gt; TCMT IO [(String, Int)] -&gt; TCMT IO (Map String Integer)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-127"></span><span>        </span><span class="annot"><span class="annottext">IO [(String, Int)] -&gt; TCMT IO [(String, Int)]
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO [(String, Int)] -&gt; TCMT IO [(String, Int)])
+-&gt; IO [(String, Int)] -&gt; TCMT IO [(String, Int)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[(String, Int)] -&gt; [(String, Int)]
+forall a. Ord a =&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">List.sort</span></span><span> </span><span class="annot"><span class="annottext">([(String, Int)] -&gt; [(String, Int)])
+-&gt; IO [(String, Int)] -&gt; IO [(String, Int)]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">HashTable String Int -&gt; IO [(String, Int)]
+forall k v. (Eq k, Hashable k) =&gt; HashTable k v -&gt; IO [(k, v)]
+</span><a href="Agda.Utils.HashTable.html#toList"><span class="hs-identifier hs-var">H.toList</span></a></span><span> </span><span class="annot"><span class="annottext">HashTable String Int
+</span><a href="#local-6989586621681461615"><span class="hs-identifier hs-var">stats</span></a></span><span>
+</span><span id="line-128"></span><span>      </span><span class="annot"><span class="annottext">(Map String Integer -&gt; Map String Integer) -&gt; TCMT IO ()
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#modifyStatistics"><span class="hs-identifier hs-var">modifyStatistics</span></a></span><span> </span><span class="annot"><span class="annottext">((Map String Integer -&gt; Map String Integer) -&gt; TCMT IO ())
+-&gt; (Map String Integer -&gt; Map String Integer) -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Integer -&gt; Integer)
+-&gt; Map String Integer -&gt; Map String Integer -&gt; Map String Integer
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; Map k a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.unionWith</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(+)</span></span><span> </span><span class="annot"><span class="annottext">Map String Integer
+</span><a href="#local-6989586621681461633"><span class="hs-identifier hs-var">stats</span></a></span><span>
+</span><span id="line-129"></span><span>    </span><span class="hs-comment">-- Encode hashmaps and root, and compress.</span><span>
+</span><span id="line-130"></span><span>    </span><span id="local-6989586621681461642"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461642"><span class="hs-identifier hs-var">bits1</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase (TCMT IO))
+-&gt; TCMT IO ByteString -&gt; TCMT IO ByteString
+forall (m :: * -&gt; *) c.
+MonadBench m =&gt;
+Account (BenchPhase m) -&gt; m c -&gt; m c
+</span><a href="Agda.Utils.Benchmark.html#billTo"><span class="hs-identifier hs-var">Bench.billTo</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">BenchPhase (TCMT IO)
+Phase
+</span><a href="Agda.Benchmarking.html#Serialization"><span class="hs-identifier hs-var">Bench.Serialization</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BenchPhase (TCMT IO)
+Phase
+</span><a href="Agda.Benchmarking.html#BinaryEncode"><span class="hs-identifier hs-var">Bench.BinaryEncode</span></a></span><span> </span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(TCMT IO ByteString -&gt; TCMT IO ByteString)
+-&gt; TCMT IO ByteString -&gt; TCMT IO ByteString
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-131"></span><span>      </span><span class="annot"><span class="annottext">ByteString -&gt; TCMT IO ByteString
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; TCMT IO ByteString)
+-&gt; ByteString -&gt; TCMT IO ByteString
+forall a b. NFData a =&gt; (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$!!</span></span><span> </span><span class="annot"><span class="annottext">(Int32, [Node], [String], [Text], [Text], [Integer], [Double])
+-&gt; ByteString
+forall a. Binary a =&gt; a -&gt; ByteString
+</span><span class="hs-identifier hs-var">B.encode</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int32
+</span><a href="#local-6989586621681461618"><span class="hs-identifier hs-var">root</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Node]
+</span><a href="#local-6989586621681461621"><span class="hs-identifier hs-var">nL</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681461625"><span class="hs-identifier hs-var">ltL</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Text]
+</span><a href="#local-6989586621681461624"><span class="hs-identifier hs-var">stL</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Text]
+</span><a href="#local-6989586621681461626"><span class="hs-identifier hs-var">bL</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Integer]
+</span><a href="#local-6989586621681461627"><span class="hs-identifier hs-var">iL</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Double]
+</span><a href="#local-6989586621681461628"><span class="hs-identifier hs-var">dL</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-132"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681461648"><span class="annot"><span class="annottext">compressParams :: CompressParams
+</span><a href="#local-6989586621681461648"><span class="hs-identifier hs-var hs-var">compressParams</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompressParams
+</span><span class="hs-identifier hs-var">G.defaultCompressParams</span></span><span>
+</span><span id="line-133"></span><span>          </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="hs-identifier hs-var">G.compressLevel</span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">G.bestSpeed</span></span><span>
+</span><span id="line-134"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-var">G.compressStrategy</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">G.huffmanOnlyStrategy</span></span><span>
+</span><span id="line-135"></span><span>          </span><span class="hs-special">}</span><span>
+</span><span id="line-136"></span><span>    </span><span id="local-6989586621681461654"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461654"><span class="hs-identifier hs-var">cbits</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase (TCMT IO))
+-&gt; TCMT IO ByteString -&gt; TCMT IO ByteString
+forall (m :: * -&gt; *) c.
+MonadBench m =&gt;
+Account (BenchPhase m) -&gt; m c -&gt; m c
+</span><a href="Agda.Utils.Benchmark.html#billTo"><span class="hs-identifier hs-var">Bench.billTo</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">BenchPhase (TCMT IO)
+Phase
+</span><a href="Agda.Benchmarking.html#Serialization"><span class="hs-identifier hs-var">Bench.Serialization</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BenchPhase (TCMT IO)
+Phase
+</span><a href="Agda.Benchmarking.html#Compress"><span class="hs-identifier hs-var">Bench.Compress</span></a></span><span> </span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(TCMT IO ByteString -&gt; TCMT IO ByteString)
+-&gt; TCMT IO ByteString -&gt; TCMT IO ByteString
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-137"></span><span>      </span><span class="annot"><span class="annottext">ByteString -&gt; TCMT IO ByteString
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; TCMT IO ByteString)
+-&gt; ByteString -&gt; TCMT IO ByteString
+forall a b. NFData a =&gt; (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$!!</span></span><span> </span><span class="annot"><span class="annottext">CompressParams -&gt; ByteString -&gt; ByteString
+</span><span class="hs-identifier hs-var">G.compressWith</span></span><span> </span><span class="annot"><span class="annottext">CompressParams
+</span><a href="#local-6989586621681461648"><span class="hs-identifier hs-var">compressParams</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461642"><span class="hs-identifier hs-var">bits1</span></a></span><span>
+</span><span id="line-138"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681461657"><span class="annot"><span class="annottext">x :: ByteString
+</span><a href="#local-6989586621681461657"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; ByteString
+forall a. Binary a =&gt; a -&gt; ByteString
+</span><span class="hs-identifier hs-var">B.encode</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="Agda.TypeChecking.Serialise.html#currentInterfaceVersion"><span class="hs-identifier hs-var">currentInterfaceVersion</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; ByteString
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461654"><span class="hs-identifier hs-var">cbits</span></a></span><span>
+</span><span id="line-139"></span><span>    </span><span class="annot"><span class="annottext">Encoded -&gt; TCM Encoded
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#Encoded"><span class="hs-identifier hs-type">Encoded</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">uncompressed :: ByteString
+</span><a href="Agda.TypeChecking.Serialise.html#uncompressed"><span class="hs-identifier hs-var">uncompressed</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461642"><span class="hs-identifier hs-var">bits1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">compressed :: ByteString
+</span><a href="Agda.TypeChecking.Serialise.html#compressed"><span class="hs-identifier hs-var">compressed</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461657"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span>
+</span><span id="line-140"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-141"></span><span>    </span><span id="local-6989586621681461623"><span class="annot"><span class="annottext">l :: HashTable b b -&gt; IO [b]
+</span><a href="#local-6989586621681461623"><span class="hs-identifier hs-var hs-var">l</span></a></span></span><span> </span><span id="local-6989586621681461670"><span class="annot"><span class="annottext">HashTable b b
+</span><a href="#local-6989586621681461670"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((b, b) -&gt; b) -&gt; [(b, b)] -&gt; [b]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">List.map</span></span><span> </span><span class="annot"><span class="annottext">(b, b) -&gt; b
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">([(b, b)] -&gt; [b]) -&gt; ([(b, b)] -&gt; [(b, b)]) -&gt; [(b, b)] -&gt; [b]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">((b, b) -&gt; (b, b) -&gt; Ordering) -&gt; [(b, b)] -&gt; [(b, b)]
+forall a. (a -&gt; a -&gt; Ordering) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">List.sortBy</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b -&gt; b -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; b -&gt; Ordering)
+-&gt; ((b, b) -&gt; b) -&gt; (b, b) -&gt; (b, b) -&gt; Ordering
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">(b, b) -&gt; b
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([(b, b)] -&gt; [b]) -&gt; IO [(b, b)] -&gt; IO [b]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">HashTable b b -&gt; IO [(b, b)]
+forall k v. (Eq k, Hashable k) =&gt; HashTable k v -&gt; IO [(k, v)]
+</span><a href="Agda.Utils.HashTable.html#toList"><span class="hs-identifier hs-var">H.toList</span></a></span><span> </span><span class="annot"><span class="annottext">HashTable b b
+</span><a href="#local-6989586621681461670"><span class="hs-identifier hs-var">h</span></a></span><span>
+</span><span id="line-142"></span><span>    </span><span id="local-6989586621681461622"><span class="annot"><span class="annottext">benchSort :: IO c -&gt; TCMT IO c
+</span><a href="#local-6989586621681461622"><span class="hs-identifier hs-var hs-var">benchSort</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Account (BenchPhase (TCMT IO)) -&gt; TCMT IO c -&gt; TCMT IO c
+forall (m :: * -&gt; *) c.
+MonadBench m =&gt;
+Account (BenchPhase m) -&gt; m c -&gt; m c
+</span><a href="Agda.Utils.Benchmark.html#billTo"><span class="hs-identifier hs-var">Bench.billTo</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">BenchPhase (TCMT IO)
+Phase
+</span><a href="Agda.Benchmarking.html#Serialization"><span class="hs-identifier hs-var">Bench.Serialization</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BenchPhase (TCMT IO)
+Phase
+</span><a href="Agda.Benchmarking.html#Sort"><span class="hs-identifier hs-var">Bench.Sort</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(TCMT IO c -&gt; TCMT IO c)
+-&gt; (IO c -&gt; TCMT IO c) -&gt; IO c -&gt; TCMT IO c
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">IO c -&gt; TCMT IO c
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span>
+</span><span id="line-143"></span><span>    </span><span class="annot"><a href="#local-6989586621681461631"><span class="hs-identifier hs-type">statistics</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#FreshAndReuse"><span class="hs-identifier hs-type">FreshAndReuse</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-144"></span><span>    </span><span id="local-6989586621681461631"><span class="annot"><span class="annottext">statistics :: String -&gt; IORef FreshAndReuse -&gt; TCMT IO ()
+</span><a href="#local-6989586621681461631"><span class="hs-identifier hs-var hs-var">statistics</span></a></span></span><span> </span><span id="local-6989586621681461692"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461692"><span class="hs-identifier hs-var">kind</span></a></span></span><span> </span><span id="local-6989586621681461693"><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461693"><span class="hs-identifier hs-var">ioref</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-145"></span><span>      </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#FreshAndReuse"><span class="hs-identifier hs-type">FreshAndReuse</span></a></span><span> </span><span id="local-6989586621681461695"><span class="annot"><span class="annottext">Int32
+</span><a href="#local-6989586621681461695"><span class="hs-identifier hs-var">fresh</span></a></span></span><span class="hs-cpp">
+#ifdef DEBUG_SERIALISATION
+</span><span>                          </span><span class="hs-identifier">reused</span><span class="hs-cpp">
+#endif
+</span><span>                                 </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO FreshAndReuse -&gt; TCMT IO FreshAndReuse
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO FreshAndReuse -&gt; TCMT IO FreshAndReuse)
+-&gt; IO FreshAndReuse -&gt; TCMT IO FreshAndReuse
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">IORef FreshAndReuse -&gt; IO FreshAndReuse
+forall a. IORef a -&gt; IO a
+</span><span class="hs-identifier hs-var">readIORef</span></span><span> </span><span class="annot"><span class="annottext">IORef FreshAndReuse
+</span><a href="#local-6989586621681461693"><span class="hs-identifier hs-var">ioref</span></a></span><span>
+</span><span id="line-150"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; Integer -&gt; TCMT IO ()
+forall (m :: * -&gt; *).
+MonadStatistics m =&gt;
+String -&gt; Integer -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Statistics.html#tickN"><span class="hs-identifier hs-var">tickN</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461692"><span class="hs-identifier hs-var">kind</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;  (fresh)&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; TCMT IO ()) -&gt; Integer -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int32 -&gt; Integer
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int32
+</span><a href="#local-6989586621681461695"><span class="hs-identifier hs-var">fresh</span></a></span><span class="hs-cpp">
+#ifdef DEBUG_SERIALISATION
+</span><span>      </span><span class="hs-identifier">tickN</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">kind</span><span> </span><span class="hs-operator">++</span><span> </span><span class="hs-string">&quot; (reused)&quot;</span><span class="hs-special">)</span><span> </span><span class="hs-operator">$</span><span> </span><span class="hs-identifier">fromIntegral</span><span> </span><span class="hs-identifier">reused</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- encode :: EmbPrj a =&gt; a -&gt; TCM ByteString</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- encode a = do</span><span>
+</span><span id="line-157"></span><span class="hs-comment">--     fileMod &lt;- sourceToModule</span><span>
+</span><span id="line-158"></span><span class="hs-comment">--     (x, shared, total) &lt;- liftIO $ do</span><span>
+</span><span id="line-159"></span><span class="hs-comment">--       newD@(Dict nD sD iD dD _ _ _ _ _ stats _) &lt;- emptyDict fileMod</span><span>
+</span><span id="line-160"></span><span class="hs-comment">--       root &lt;- runReaderT (icode a) newD</span><span>
+</span><span id="line-161"></span><span class="hs-comment">--       nL &lt;- l nD; sL &lt;- l sD; iL &lt;- l iD; dL &lt;- l dD</span><span>
+</span><span id="line-162"></span><span class="hs-comment">--       (shared, total) &lt;- readIORef stats</span><span>
+</span><span id="line-163"></span><span class="hs-comment">--       return (B.encode currentInterfaceVersion &lt;&gt;</span><span>
+</span><span id="line-164"></span><span class="hs-comment">--               G.compress (B.encode (root, nL, sL, iL, dL)), shared, total)</span><span>
+</span><span id="line-165"></span><span class="hs-comment">--     whenProfile Profile.Sharing $ do</span><span>
+</span><span id="line-166"></span><span class="hs-comment">--       tickN &quot;pointers (reused)&quot; $ fromIntegral shared</span><span>
+</span><span id="line-167"></span><span class="hs-comment">--       tickN &quot;pointers&quot; $ fromIntegral total</span><span>
+</span><span id="line-168"></span><span class="hs-comment">--     return x</span><span>
+</span><span id="line-169"></span><span class="hs-comment">--   where</span><span>
+</span><span id="line-170"></span><span class="hs-comment">--   l h = List.map fst . List.sortBy (compare `on` snd) &lt;$&gt; H.toList h</span><span>
+</span><span id="line-171"></span><span>
+</span><span id="line-172"></span><span class="hs-keyword">newtype</span><span> </span><span id="ListLike"><span class="annot"><a href="Agda.TypeChecking.Serialise.html#ListLike"><span class="hs-identifier hs-var">ListLike</span></a></span></span><span> </span><span id="local-6989586621681461267"><span class="annot"><a href="#local-6989586621681461267"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ListLike"><span class="annot"><a href="Agda.TypeChecking.Serialise.html#ListLike"><span class="hs-identifier hs-var">ListLike</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="unListLike"><span class="annot"><span class="annottext">forall a. ListLike a -&gt; Array Int32 a
+</span><a href="Agda.TypeChecking.Serialise.html#unListLike"><span class="hs-identifier hs-var hs-var">unListLike</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Array</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int32</span></span><span> </span><span class="annot"><a href="#local-6989586621681461267"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-173"></span><span>
+</span><span id="line-174"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681461275"><span id="local-6989586621681461704"><span class="annot"><span class="hs-identifier hs-type">B.Binary</span></span><span> </span><span class="annot"><a href="#local-6989586621681461275"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">B.Binary</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#ListLike"><span class="hs-identifier hs-type">ListLike</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681461275"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-175"></span><span>  </span><span id="local-6989586621681461710"><span class="annot"><span class="annottext">put :: ListLike a -&gt; Put
+</span><a href="#local-6989586621681461710"><span class="hs-identifier hs-var hs-var hs-var hs-var">put</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListLike a -&gt; Put
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="hs-comment">-- Will never serialise this</span><span>
+</span><span id="line-176"></span><span>  </span><span id="local-6989586621681461716"><span class="annot"><span class="annottext">get :: Get (ListLike a)
+</span><a href="#local-6989586621681461716"><span class="hs-identifier hs-var hs-var hs-var hs-var">get</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Array Int32 a -&gt; ListLike a)
+-&gt; Get (Array Int32 a) -&gt; Get (ListLike a)
+forall a b. (a -&gt; b) -&gt; Get a -&gt; Get b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Array Int32 a -&gt; ListLike a
+forall a. Array Int32 a -&gt; ListLike a
+</span><a href="Agda.TypeChecking.Serialise.html#ListLike"><span class="hs-identifier hs-var">ListLike</span></a></span><span> </span><span class="annot"><span class="annottext">(Get (Array Int32 a) -&gt; Get (ListLike a))
+-&gt; Get (Array Int32 a) -&gt; Get (ListLike a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(forall s. STT s Get (STArray s Int32 a)) -&gt; Get (Array Int32 a)
+forall (m :: * -&gt; *) i e.
+Monad m =&gt;
+(forall s. STT s m (STArray s i e)) -&gt; m (Array i e)
+</span><span class="hs-identifier hs-var">runSTArray</span></span><span> </span><span class="annot"><span class="annottext">((forall s. STT s Get (STArray s Int32 a)) -&gt; Get (Array Int32 a))
+-&gt; (forall s. STT s Get (STArray s Int32 a)) -&gt; Get (Array Int32 a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-177"></span><span>    </span><span id="local-6989586621681461743"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681461743"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Get Int -&gt; STT s Get Int
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; STT s m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Get Int
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">B.get</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">B.Get</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-178"></span><span>    </span><span id="local-6989586621681461745"><span id="local-6989586621681461746"><span class="annot"><span class="annottext">STArray s Int32 a
+</span><a href="#local-6989586621681461746"><span class="hs-identifier hs-var">arr</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Int32, Int32) -&gt; STT s Get (STArray s Int32 a)
+forall i. Ix i =&gt; (i, i) -&gt; STT s Get (STArray s i a)
+forall (a :: * -&gt; * -&gt; *) e (m :: * -&gt; *) i.
+(MArray a e m, Ix i) =&gt;
+(i, i) -&gt; m (a i e)
+</span><span class="hs-identifier hs-var">newArray_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int32
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int32
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681461743"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Int32 -&gt; Int32 -&gt; Int32
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int32
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">STT</span></span><span> </span><span class="annot"><a href="#local-6989586621681461745"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">B.Get</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">STArray</span></span><span> </span><span class="annot"><a href="#local-6989586621681461745"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int32</span></span><span> </span><span class="annot"><a href="#local-6989586621681461275"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-179"></span><span>
+</span><span id="line-180"></span><span>    </span><span class="hs-comment">-- We'd like to use 'for_ [0..n-1]' here, but unfortunately GHC doesn't unfold</span><span>
+</span><span id="line-181"></span><span>    </span><span class="hs-comment">-- the list construction and so performs worse than the hand-written version.</span><span>
+</span><span id="line-182"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-183"></span><span>      </span><span id="local-6989586621681461758"><span class="annot"><span class="annottext">getMany :: Int -&gt; STT s Get ()
+</span><a href="#local-6989586621681461758"><span class="hs-identifier hs-var hs-var">getMany</span></a></span></span><span> </span><span id="local-6989586621681461759"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681461759"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681461759"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681461743"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">() -&gt; STT s Get ()
+forall a. a -&gt; STT s Get a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-184"></span><span>        </span><span id="local-6989586621681461760"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681461760"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Get a -&gt; STT s Get a
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; STT s m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">Get a
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">B.get</span></span><span>
+</span><span id="line-185"></span><span>        </span><span class="annot"><span class="annottext">STArray s Int32 a -&gt; Int -&gt; a -&gt; STT s Get ()
+forall (m :: * -&gt; *) s i e.
+Applicative m =&gt;
+STArray s i e -&gt; Int -&gt; e -&gt; STT s m ()
+</span><span class="hs-identifier hs-var">unsafeWriteSTArray</span></span><span> </span><span class="annot"><span class="annottext">STArray s Int32 a
+</span><a href="#local-6989586621681461746"><span class="hs-identifier hs-var">arr</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681461759"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681461760"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-186"></span><span>        </span><span class="annot"><span class="annottext">Int -&gt; STT s Get ()
+</span><a href="#local-6989586621681461758"><span class="hs-identifier hs-var">getMany</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681461759"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-187"></span><span>    </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int -&gt; STT s Get ()
+</span><a href="#local-6989586621681461758"><span class="hs-identifier hs-var">getMany</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-188"></span><span>
+</span><span id="line-189"></span><span>    </span><span class="annot"><span class="annottext">STArray s Int32 a -&gt; STT s Get (STArray s Int32 a)
+forall a. a -&gt; STT s Get a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">STArray s Int32 a
+</span><a href="#local-6989586621681461746"><span class="hs-identifier hs-var">arr</span></a></span><span>
+</span><span id="line-190"></span><span>
+</span><span id="line-191"></span><span class="hs-comment">-- | Decodes an uncompressed bytestring (without extra hashes or magic</span><span>
+</span><span id="line-192"></span><span class="hs-comment">-- numbers). The result depends on the include path.</span><span>
+</span><span id="line-193"></span><span class="hs-comment">--</span><span>
+</span><span id="line-194"></span><span class="hs-comment">-- Returns 'Nothing' if a decoding error is encountered.</span><span>
+</span><span id="line-195"></span><span>
+</span><span id="line-196"></span><span id="local-6989586621681461307"><span class="annot"><a href="Agda.TypeChecking.Serialise.html#decode"><span class="hs-identifier hs-type">decode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681461307"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681461307"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-197"></span><span id="decode"><span class="annot"><span class="annottext">decode :: forall a. EmbPrj a =&gt; ByteString -&gt; TCM (Maybe a)
+</span><a href="Agda.TypeChecking.Serialise.html#decode"><span class="hs-identifier hs-var hs-var">decode</span></a></span></span><span> </span><span id="local-6989586621681461821"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461821"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-198"></span><span>  </span><span id="local-6989586621681461822"><span class="annot"><span class="annottext">ModuleToSource
+</span><a href="#local-6989586621681461822"><span class="hs-identifier hs-var">mf</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' TCState ModuleToSource -&gt; TCMT IO ModuleToSource
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; Lens' TCState a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#useTC"><span class="hs-identifier hs-var">useTC</span></a></span><span> </span><span class="annot"><span class="annottext">(ModuleToSource -&gt; f ModuleToSource) -&gt; TCState -&gt; f TCState
+Lens' TCState ModuleToSource
+</span><a href="Agda.TypeChecking.Monad.Base.html#stModuleToSource"><span class="hs-identifier hs-var">stModuleToSource</span></a></span><span>
+</span><span id="line-199"></span><span>  </span><span id="local-6989586621681461827"><span class="annot"><span class="annottext">[AbsolutePath]
+</span><a href="#local-6989586621681461827"><span class="hs-identifier hs-var">incs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TCMT IO [AbsolutePath]
+forall (m :: * -&gt; *). HasOptions m =&gt; m [AbsolutePath]
+</span><a href="Agda.TypeChecking.Monad.Options.html#getIncludeDirs"><span class="hs-identifier hs-var">getIncludeDirs</span></a></span><span>
+</span><span id="line-200"></span><span>
+</span><span id="line-201"></span><span>  </span><span class="hs-comment">-- Note that runGetState can raise errors if the input is malformed.</span><span>
+</span><span id="line-202"></span><span>  </span><span class="hs-comment">-- The decoder is (intended to be) strict enough to ensure that all</span><span>
+</span><span id="line-203"></span><span>  </span><span class="hs-comment">-- such errors can be caught by the handler here.</span><span>
+</span><span id="line-204"></span><span>
+</span><span id="line-205"></span><span>  </span><span id="local-6989586621681461829"><span class="annot"><span class="annottext">Either String (ModuleToSource, a)
+</span><a href="#local-6989586621681461829"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO (Either String (ModuleToSource, a))
+-&gt; TCMT IO (Either String (ModuleToSource, a))
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO (Either String (ModuleToSource, a))
+ -&gt; TCMT IO (Either String (ModuleToSource, a)))
+-&gt; IO (Either String (ModuleToSource, a))
+-&gt; TCMT IO (Either String (ModuleToSource, a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(ErrorCall -&gt; IO (Either String (ModuleToSource, a)))
+-&gt; IO (Either String (ModuleToSource, a))
+-&gt; IO (Either String (ModuleToSource, a))
+forall e a. Exception e =&gt; (e -&gt; IO a) -&gt; IO a -&gt; IO a
+</span><span class="hs-identifier hs-var">E.handle</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">E.ErrorCall</span></span><span> </span><span id="local-6989586621681461832"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461832"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either String (ModuleToSource, a)
+-&gt; IO (Either String (ModuleToSource, a))
+forall a. a -&gt; IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(Either String (ModuleToSource, a)
+ -&gt; IO (Either String (ModuleToSource, a)))
+-&gt; Either String (ModuleToSource, a)
+-&gt; IO (Either String (ModuleToSource, a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Either String (ModuleToSource, a)
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461832"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IO (Either String (ModuleToSource, a))
+ -&gt; IO (Either String (ModuleToSource, a)))
+-&gt; IO (Either String (ModuleToSource, a))
+-&gt; IO (Either String (ModuleToSource, a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-206"></span><span>    </span><span class="hs-special">(</span><span class="hs-special">(</span><span id="local-6989586621681461833"><span class="annot"><span class="annottext">Int32
+</span><a href="#local-6989586621681461833"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681461834"><span class="annot"><span class="annottext">ListLike [Int32]
+</span><a href="#local-6989586621681461834"><span class="hs-identifier hs-var">nL</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681461835"><span class="annot"><span class="annottext">ListLike String
+</span><a href="#local-6989586621681461835"><span class="hs-identifier hs-var">ltL</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681461836"><span class="annot"><span class="annottext">ListLike Text
+</span><a href="#local-6989586621681461836"><span class="hs-identifier hs-var">stL</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681461837"><span class="annot"><span class="annottext">ListLike Text
+</span><a href="#local-6989586621681461837"><span class="hs-identifier hs-var">bL</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681461838"><span class="annot"><span class="annottext">ListLike Integer
+</span><a href="#local-6989586621681461838"><span class="hs-identifier hs-var">iL</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681461839"><span class="annot"><span class="annottext">ListLike Double
+</span><a href="#local-6989586621681461839"><span class="hs-identifier hs-var">dL</span></a></span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span id="local-6989586621681461840"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461840"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int64
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">((Int32, ListLike [Int32], ListLike String, ListLike Text,
+  ListLike Text, ListLike Integer, ListLike Double),
+ ByteString, Int64)
+-&gt; IO
+     ((Int32, ListLike [Int32], ListLike String, ListLike Text,
+       ListLike Text, ListLike Integer, ListLike Double),
+      ByteString, Int64)
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(((Int32, ListLike [Int32], ListLike String, ListLike Text,
+   ListLike Text, ListLike Integer, ListLike Double),
+  ByteString, Int64)
+ -&gt; IO
+      ((Int32, ListLike [Int32], ListLike String, ListLike Text,
+        ListLike Text, ListLike Integer, ListLike Double),
+       ByteString, Int64))
+-&gt; ((Int32, ListLike [Int32], ListLike String, ListLike Text,
+     ListLike Text, ListLike Integer, ListLike Double),
+    ByteString, Int64)
+-&gt; IO
+     ((Int32, ListLike [Int32], ListLike String, ListLike Text,
+       ListLike Text, ListLike Integer, ListLike Double),
+      ByteString, Int64)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Get
+  (Int32, ListLike [Int32], ListLike String, ListLike Text,
+   ListLike Text, ListLike Integer, ListLike Double)
+-&gt; ByteString
+-&gt; Int64
+-&gt; ((Int32, ListLike [Int32], ListLike String, ListLike Text,
+     ListLike Text, ListLike Integer, ListLike Double),
+    ByteString, Int64)
+forall a. Get a -&gt; ByteString -&gt; Int64 -&gt; (a, ByteString, Int64)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#runGetState"><span class="hs-identifier hs-var">runGetState</span></a></span><span> </span><span class="annot"><span class="annottext">Get
+  (Int32, ListLike [Int32], ListLike String, ListLike Text,
+   ListLike Text, ListLike Integer, ListLike Double)
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">B.get</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461821"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Int64
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-207"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681461842"><span class="annot"><span class="annottext">ar :: ListLike a -&gt; Array Int32 a
+</span><a href="#local-6989586621681461842"><span class="hs-identifier hs-var hs-var">ar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListLike a -&gt; Array Int32 a
+forall a. ListLike a -&gt; Array Int32 a
+</span><a href="Agda.TypeChecking.Serialise.html#unListLike"><span class="hs-identifier hs-var">unListLike</span></a></span><span>
+</span><span id="line-208"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; IO () -&gt; IO ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461840"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; IO ()) -&gt; IO () -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ErrorCall -&gt; IO ()
+forall e a. Exception e =&gt; e -&gt; IO a
+</span><span class="hs-identifier hs-var">E.throwIO</span></span><span> </span><span class="annot"><span class="annottext">(ErrorCall -&gt; IO ()) -&gt; ErrorCall -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ErrorCall
+</span><span class="hs-identifier hs-var">E.ErrorCall</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Garbage at end.&quot;</span></span><span>
+</span><span id="line-209"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681461846"><span class="annot"><span class="annottext">nL' :: Array Int32 [Int32]
+</span><a href="#local-6989586621681461846"><span class="hs-identifier hs-var hs-var">nL'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListLike [Int32] -&gt; Array Int32 [Int32]
+forall a. ListLike a -&gt; Array Int32 a
+</span><a href="#local-6989586621681461842"><span class="hs-identifier hs-var">ar</span></a></span><span> </span><span class="annot"><span class="annottext">ListLike [Int32]
+</span><a href="#local-6989586621681461834"><span class="hs-identifier hs-var">nL</span></a></span><span>
+</span><span id="line-210"></span><span>    </span><span id="local-6989586621681461847"><span class="annot"><span class="annottext">St
+</span><a href="#local-6989586621681461847"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Array Int32 [Int32]
+-&gt; Array Int32 String
+-&gt; Array Int32 Text
+-&gt; Array Int32 Text
+-&gt; Array Int32 Integer
+-&gt; Array Int32 Double
+-&gt; Memo
+-&gt; ModuleToSource
+-&gt; [AbsolutePath]
+-&gt; St
+</span><a href="Agda.TypeChecking.Serialise.Base.html#St"><span class="hs-identifier hs-var">St</span></a></span><span> </span><span class="annot"><span class="annottext">Array Int32 [Int32]
+</span><a href="#local-6989586621681461846"><span class="hs-identifier hs-var">nL'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ListLike String -&gt; Array Int32 String
+forall a. ListLike a -&gt; Array Int32 a
+</span><a href="#local-6989586621681461842"><span class="hs-identifier hs-var">ar</span></a></span><span> </span><span class="annot"><span class="annottext">ListLike String
+</span><a href="#local-6989586621681461835"><span class="hs-identifier hs-var">ltL</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ListLike Text -&gt; Array Int32 Text
+forall a. ListLike a -&gt; Array Int32 a
+</span><a href="#local-6989586621681461842"><span class="hs-identifier hs-var">ar</span></a></span><span> </span><span class="annot"><span class="annottext">ListLike Text
+</span><a href="#local-6989586621681461836"><span class="hs-identifier hs-var">stL</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ListLike Text -&gt; Array Int32 Text
+forall a. ListLike a -&gt; Array Int32 a
+</span><a href="#local-6989586621681461842"><span class="hs-identifier hs-var">ar</span></a></span><span> </span><span class="annot"><span class="annottext">ListLike Text
+</span><a href="#local-6989586621681461837"><span class="hs-identifier hs-var">bL</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ListLike Integer -&gt; Array Int32 Integer
+forall a. ListLike a -&gt; Array Int32 a
+</span><a href="#local-6989586621681461842"><span class="hs-identifier hs-var">ar</span></a></span><span> </span><span class="annot"><span class="annottext">ListLike Integer
+</span><a href="#local-6989586621681461838"><span class="hs-identifier hs-var">iL</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ListLike Double -&gt; Array Int32 Double
+forall a. ListLike a -&gt; Array Int32 a
+</span><a href="#local-6989586621681461842"><span class="hs-identifier hs-var">ar</span></a></span><span> </span><span class="annot"><span class="annottext">ListLike Double
+</span><a href="#local-6989586621681461839"><span class="hs-identifier hs-var">dL</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-211"></span><span>            </span><span class="annot"><span class="annottext">(Memo -&gt; ModuleToSource -&gt; [AbsolutePath] -&gt; St)
+-&gt; IO Memo -&gt; IO (ModuleToSource -&gt; [AbsolutePath] -&gt; St)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">IO Memo -&gt; IO Memo
+forall a. IO a -&gt; IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Int32, Int32) -&gt; MemoEntry -&gt; IO Memo
+forall i. Ix i =&gt; (i, i) -&gt; MemoEntry -&gt; IO (IOArray i MemoEntry)
+forall (a :: * -&gt; * -&gt; *) e (m :: * -&gt; *) i.
+(MArray a e m, Ix i) =&gt;
+(i, i) -&gt; e -&gt; m (a i e)
+</span><span class="hs-identifier hs-var">newArray</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Array Int32 [Int32] -&gt; (Int32, Int32)
+forall i. Ix i =&gt; Array i [Int32] -&gt; (i, i)
+forall (a :: * -&gt; * -&gt; *) e i.
+(IArray a e, Ix i) =&gt;
+a i e -&gt; (i, i)
+</span><span class="hs-identifier hs-var">bounds</span></span><span> </span><span class="annot"><span class="annottext">Array Int32 [Int32]
+</span><a href="#local-6989586621681461846"><span class="hs-identifier hs-var">nL'</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">MemoEntry
+</span><a href="Agda.TypeChecking.Serialise.Base.html#MEEmpty"><span class="hs-identifier hs-var">MEEmpty</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-212"></span><span>            </span><span class="annot"><span class="annottext">IO (ModuleToSource -&gt; [AbsolutePath] -&gt; St)
+-&gt; IO ModuleToSource -&gt; IO ([AbsolutePath] -&gt; St)
+forall a b. IO (a -&gt; b) -&gt; IO a -&gt; IO b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">ModuleToSource -&gt; IO ModuleToSource
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">ModuleToSource
+</span><a href="#local-6989586621681461822"><span class="hs-identifier hs-var">mf</span></a></span><span> </span><span class="annot"><span class="annottext">IO ([AbsolutePath] -&gt; St) -&gt; IO [AbsolutePath] -&gt; IO St
+forall a b. IO (a -&gt; b) -&gt; IO a -&gt; IO b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">[AbsolutePath] -&gt; IO [AbsolutePath]
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">[AbsolutePath]
+</span><a href="#local-6989586621681461827"><span class="hs-identifier hs-var">incs</span></a></span><span>
+</span><span id="line-213"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681461852"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681461852"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681461853"><span class="annot"><span class="annottext">St
+</span><a href="#local-6989586621681461853"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">StateT St IO a -&gt; St -&gt; IO (a, St)
+forall s (m :: * -&gt; *) a. StateT s m a -&gt; s -&gt; m (a, s)
+</span><span class="hs-identifier hs-var">runStateT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int32 -&gt; StateT St IO a
+forall a. EmbPrj a =&gt; Int32 -&gt; R a
+</span><a href="Agda.TypeChecking.Serialise.Base.html#value"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">Int32
+</span><a href="#local-6989586621681461833"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">St
+</span><a href="#local-6989586621681461847"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-214"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681461856"><span class="annot"><span class="annottext">mf :: ModuleToSource
+</span><a href="#local-6989586621681461856"><span class="hs-identifier hs-var hs-var">mf</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">St -&gt; ModuleToSource
+</span><a href="Agda.TypeChecking.Serialise.Base.html#modFile"><span class="hs-identifier hs-var">modFile</span></a></span><span> </span><span class="annot"><span class="annottext">St
+</span><a href="#local-6989586621681461853"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-215"></span><span>    </span><span class="annot"><span class="annottext">Either String (ModuleToSource, a)
+-&gt; IO (Either String (ModuleToSource, a))
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either String (ModuleToSource, a)
+ -&gt; IO (Either String (ModuleToSource, a)))
+-&gt; Either String (ModuleToSource, a)
+-&gt; IO (Either String (ModuleToSource, a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(ModuleToSource, a) -&gt; Either String (ModuleToSource, a)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ModuleToSource
+</span><a href="#local-6989586621681461856"><span class="hs-identifier hs-var">mf</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681461852"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-216"></span><span>
+</span><span id="line-217"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either String (ModuleToSource, a)
+</span><a href="#local-6989586621681461829"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-218"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621681461858"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461858"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-219"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; Int -&gt; String -&gt; TCMT IO ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+String -&gt; Int -&gt; String -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier hs-var">reportSLn</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;import.iface&quot;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">5</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; TCMT IO ()) -&gt; String -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Error when decoding interface file: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461858"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-220"></span><span>      </span><span class="annot"><span class="annottext">Maybe a -&gt; TCM (Maybe a)
+forall a. a -&gt; TCMT IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-221"></span><span>
+</span><span id="line-222"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681461860"><span class="annot"><span class="annottext">ModuleToSource
+</span><a href="#local-6989586621681461860"><span class="hs-identifier hs-var">mf</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681461861"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681461861"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-223"></span><span>      </span><span class="annot"><span class="annottext">Lens' TCState ModuleToSource -&gt; ModuleToSource -&gt; TCMT IO ()
+forall (m :: * -&gt; *) a.
+MonadTCState m =&gt;
+Lens' TCState a -&gt; a -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#setTCLens"><span class="hs-identifier hs-var">setTCLens</span></a></span><span> </span><span class="annot"><span class="annottext">(ModuleToSource -&gt; f ModuleToSource) -&gt; TCState -&gt; f TCState
+Lens' TCState ModuleToSource
+</span><a href="Agda.TypeChecking.Monad.Base.html#stModuleToSource"><span class="hs-identifier hs-var">stModuleToSource</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleToSource
+</span><a href="#local-6989586621681461860"><span class="hs-identifier hs-var">mf</span></a></span><span>
+</span><span id="line-224"></span><span>      </span><span class="hs-comment">-- &quot;Compact&quot; the interfaces (without breaking sharing) to</span><span>
+</span><span id="line-225"></span><span>      </span><span class="hs-comment">-- reduce the amount of memory that is traversed by the</span><span>
+</span><span id="line-226"></span><span>      </span><span class="hs-comment">-- garbage collector.</span><span>
+</span><span id="line-227"></span><span>      </span><span class="annot"><span class="annottext">Account (BenchPhase (TCMT IO)) -&gt; TCM (Maybe a) -&gt; TCM (Maybe a)
+forall (m :: * -&gt; *) c.
+MonadBench m =&gt;
+Account (BenchPhase m) -&gt; m c -&gt; m c
+</span><a href="Agda.Utils.Benchmark.html#billTo"><span class="hs-identifier hs-var">Bench.billTo</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">BenchPhase (TCMT IO)
+Phase
+</span><a href="Agda.Benchmarking.html#Deserialization"><span class="hs-identifier hs-var">Bench.Deserialization</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BenchPhase (TCMT IO)
+Phase
+</span><a href="Agda.Benchmarking.html#Compaction"><span class="hs-identifier hs-var">Bench.Compaction</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(TCM (Maybe a) -&gt; TCM (Maybe a)) -&gt; TCM (Maybe a) -&gt; TCM (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-228"></span><span>        </span><span class="annot"><span class="annottext">IO (Maybe a) -&gt; TCM (Maybe a)
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Maybe a
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Maybe a) -&gt; (Compact a -&gt; a) -&gt; Compact a -&gt; Maybe a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Compact a -&gt; a
+forall a. Compact a -&gt; a
+</span><span class="hs-identifier hs-var">C.getCompact</span></span><span> </span><span class="annot"><span class="annottext">(Compact a -&gt; Maybe a) -&gt; IO (Compact a) -&gt; IO (Maybe a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; IO (Compact a)
+forall a. a -&gt; IO (Compact a)
+</span><span class="hs-identifier hs-var">C.compactWithSharing</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681461861"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-229"></span><span>
+</span><span id="line-230"></span><span>
+</span><span id="line-231"></span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#encodeInterface"><span class="hs-identifier hs-type">encodeInterface</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-type">Interface</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#Encoded"><span class="hs-identifier hs-type">Encoded</span></a></span><span>
+</span><span id="line-232"></span><span id="encodeInterface"><span class="annot"><span class="annottext">encodeInterface :: Interface -&gt; TCM Encoded
+</span><a href="Agda.TypeChecking.Serialise.html#encodeInterface"><span class="hs-identifier hs-var hs-var">encodeInterface</span></a></span></span><span> </span><span id="local-6989586621681461869"><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621681461869"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-233"></span><span>  </span><span id="local-6989586621681461870"><span class="annot"><span class="annottext">Encoded
+</span><a href="#local-6989586621681461870"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Interface -&gt; TCM Encoded
+forall a. EmbPrj a =&gt; a -&gt; TCM Encoded
+</span><a href="Agda.TypeChecking.Serialise.html#encode"><span class="hs-identifier hs-var">encode</span></a></span><span> </span><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621681461869"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-234"></span><span>  </span><span class="annot"><span class="annottext">Encoded -&gt; TCM Encoded
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Encoded
+</span><a href="#local-6989586621681461870"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#compressed"><span class="hs-identifier hs-var">compressed</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681461871"><span class="hs-identifier hs-type">hashes</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;&gt;</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#compressed"><span class="hs-identifier hs-var">compressed</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681461870"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-235"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-236"></span><span>    </span><span class="annot"><a href="#local-6989586621681461871"><span class="hs-identifier hs-type">hashes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span>
+</span><span id="line-237"></span><span>    </span><span id="local-6989586621681461871"><span class="annot"><span class="annottext">hashes :: ByteString
+</span><a href="#local-6989586621681461871"><span class="hs-identifier hs-var hs-var">hashes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Put -&gt; ByteString
+</span><span class="hs-identifier hs-var">B.runPut</span></span><span> </span><span class="annot"><span class="annottext">(Put -&gt; ByteString) -&gt; Put -&gt; ByteString
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">B.put</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Interface -&gt; Word64
+</span><a href="Agda.TypeChecking.Monad.Base.html#iSourceHash"><span class="hs-identifier hs-var">iSourceHash</span></a></span><span> </span><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621681461869"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall a b. PutM a -&gt; PutM b -&gt; PutM b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">B.put</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Interface -&gt; Word64
+</span><a href="Agda.TypeChecking.Monad.Base.html#iFullHash"><span class="hs-identifier hs-var">iFullHash</span></a></span><span> </span><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621681461869"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-238"></span><span>
+</span><span id="line-239"></span><span class="hs-comment">-- | Encodes an interface. To ensure relocatability file paths in</span><span>
+</span><span id="line-240"></span><span class="hs-comment">-- positions are replaced with module names.</span><span>
+</span><span id="line-241"></span><span class="hs-comment">--</span><span>
+</span><span id="line-242"></span><span class="hs-comment">-- An uncompressed bytestring corresponding to the encoded interface</span><span>
+</span><span id="line-243"></span><span class="hs-comment">-- is returned.</span><span>
+</span><span id="line-244"></span><span>
+</span><span id="line-245"></span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#encodeFile"><span class="hs-identifier hs-type">encodeFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-type">Interface</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span>
+</span><span id="line-246"></span><span id="encodeFile"><span class="annot"><span class="annottext">encodeFile :: String -&gt; Interface -&gt; TCMT IO ByteString
+</span><a href="Agda.TypeChecking.Serialise.html#encodeFile"><span class="hs-identifier hs-var hs-var">encodeFile</span></a></span></span><span> </span><span id="local-6989586621681461876"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461876"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681461877"><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621681461877"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-247"></span><span>  </span><span id="local-6989586621681461878"><span class="annot"><span class="annottext">Encoded
+</span><a href="#local-6989586621681461878"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Interface -&gt; TCM Encoded
+</span><a href="Agda.TypeChecking.Serialise.html#encodeInterface"><span class="hs-identifier hs-var">encodeInterface</span></a></span><span> </span><span class="annot"><span class="annottext">Interface
+</span><a href="#local-6989586621681461877"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-248"></span><span>  </span><span class="annot"><span class="annottext">IO () -&gt; TCMT IO ()
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; TCMT IO ()) -&gt; IO () -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; String -&gt; IO ()
+</span><span class="hs-identifier hs-var">createDirectoryIfMissing</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; String
+</span><span class="hs-identifier hs-var">takeDirectory</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461876"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-249"></span><span>  </span><span class="annot"><span class="annottext">IO () -&gt; TCMT IO ()
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; TCMT IO ()) -&gt; IO () -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ByteString -&gt; IO ()
+</span><span class="hs-identifier hs-var">L.writeFile</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461876"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Encoded -&gt; ByteString
+</span><a href="Agda.TypeChecking.Serialise.html#compressed"><span class="hs-identifier hs-var">compressed</span></a></span><span> </span><span class="annot"><span class="annottext">Encoded
+</span><a href="#local-6989586621681461878"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-250"></span><span>  </span><span class="annot"><span class="annottext">ByteString -&gt; TCMT IO ByteString
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Encoded -&gt; ByteString
+</span><a href="Agda.TypeChecking.Serialise.html#uncompressed"><span class="hs-identifier hs-var">uncompressed</span></a></span><span> </span><span class="annot"><span class="annottext">Encoded
+</span><a href="#local-6989586621681461878"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-251"></span><span>
+</span><span id="line-252"></span><span class="hs-comment">-- | Decodes an interface. The result depends on the include path.</span><span>
+</span><span id="line-253"></span><span class="hs-comment">--</span><span>
+</span><span id="line-254"></span><span class="hs-comment">-- Returns 'Nothing' if the file does not start with the right magic</span><span>
+</span><span id="line-255"></span><span class="hs-comment">-- number or some other decoding error is encountered.</span><span>
+</span><span id="line-256"></span><span>
+</span><span id="line-257"></span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#decodeInterface"><span class="hs-identifier hs-type">decodeInterface</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-type">Interface</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-258"></span><span id="decodeInterface"><span class="annot"><span class="annottext">decodeInterface :: ByteString -&gt; TCM (Maybe Interface)
+</span><a href="Agda.TypeChecking.Serialise.html#decodeInterface"><span class="hs-identifier hs-var hs-var">decodeInterface</span></a></span></span><span> </span><span id="local-6989586621681461880"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461880"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-259"></span><span>
+</span><span id="line-260"></span><span>  </span><span class="hs-comment">-- Note that runGetState and the decompression code below can raise</span><span>
+</span><span id="line-261"></span><span>  </span><span class="hs-comment">-- errors if the input is malformed. The decoder is (intended to be)</span><span>
+</span><span id="line-262"></span><span>  </span><span class="hs-comment">-- strict enough to ensure that all such errors can be caught by the</span><span>
+</span><span id="line-263"></span><span>  </span><span class="hs-comment">-- handler here or the one in decode.</span><span>
+</span><span id="line-264"></span><span>
+</span><span id="line-265"></span><span>  </span><span id="local-6989586621681461881"><span class="annot"><span class="annottext">Either String ByteString
+</span><a href="#local-6989586621681461881"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO (Either String ByteString) -&gt; TCMT IO (Either String ByteString)
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO (Either String ByteString)
+ -&gt; TCMT IO (Either String ByteString))
+-&gt; IO (Either String ByteString)
+-&gt; TCMT IO (Either String ByteString)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-266"></span><span>       </span><span class="annot"><span class="annottext">(ErrorCall -&gt; IO (Either String ByteString))
+-&gt; IO (Either String ByteString) -&gt; IO (Either String ByteString)
+forall e a. Exception e =&gt; (e -&gt; IO a) -&gt; IO a -&gt; IO a
+</span><span class="hs-identifier hs-var">E.handle</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">E.ErrorCall</span></span><span> </span><span id="local-6989586621681461882"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461882"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either String ByteString -&gt; IO (Either String ByteString)
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Either String ByteString
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461882"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IO (Either String ByteString) -&gt; IO (Either String ByteString))
+-&gt; IO (Either String ByteString) -&gt; IO (Either String ByteString)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-267"></span><span>       </span><span class="annot"><span class="annottext">Either String ByteString -&gt; IO (Either String ByteString)
+forall a. a -&gt; IO a
+</span><span class="hs-identifier hs-var">E.evaluate</span></span><span> </span><span class="annot"><span class="annottext">(Either String ByteString -&gt; IO (Either String ByteString))
+-&gt; Either String ByteString -&gt; IO (Either String ByteString)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-268"></span><span>       </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681461884"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681461884"><span class="hs-identifier hs-var">ver</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681461885"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461885"><span class="hs-identifier hs-var">s'</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int64
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Get Word64 -&gt; ByteString -&gt; Int64 -&gt; (Word64, ByteString, Int64)
+forall a. Get a -&gt; ByteString -&gt; Int64 -&gt; (a, ByteString, Int64)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#runGetState"><span class="hs-identifier hs-var">runGetState</span></a></span><span> </span><span class="annot"><span class="annottext">Get Word64
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">B.get</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int64 -&gt; ByteString -&gt; ByteString
+</span><span class="hs-identifier hs-var">L.drop</span></span><span> </span><span class="annot"><span class="annottext">Int64
+</span><span class="hs-number">16</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461880"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Int64
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-keyword">in</span><span>
+</span><span id="line-269"></span><span>       </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681461884"><span class="hs-identifier hs-var">ver</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word64 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="Agda.TypeChecking.Serialise.html#currentInterfaceVersion"><span class="hs-identifier hs-var">currentInterfaceVersion</span></a></span><span>
+</span><span id="line-270"></span><span>       </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">String -&gt; Either String ByteString
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Wrong interface version.&quot;</span></span><span>
+</span><span id="line-271"></span><span>       </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; Either String ByteString
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; Either String ByteString)
+-&gt; ByteString -&gt; Either String ByteString
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-272"></span><span>            </span><span class="annot"><span class="annottext">Builder -&gt; ByteString
+</span><span class="hs-identifier hs-var">toLazyByteString</span></span><span> </span><span class="annot"><span class="annottext">(Builder -&gt; ByteString) -&gt; Builder -&gt; ByteString
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-273"></span><span>            </span><span class="annot"><span class="annottext">(ByteString -&gt; Builder -&gt; Builder)
+-&gt; (ByteString -&gt; Builder)
+-&gt; (DecompressError -&gt; Builder)
+-&gt; (forall s. DecompressStream (ST s))
+-&gt; ByteString
+-&gt; Builder
+forall a.
+(ByteString -&gt; a -&gt; a)
+-&gt; (ByteString -&gt; a)
+-&gt; (DecompressError -&gt; a)
+-&gt; (forall s. DecompressStream (ST s))
+-&gt; ByteString
+-&gt; a
+</span><span class="hs-identifier hs-var">Z.foldDecompressStreamWithInput</span></span><span>
+</span><span id="line-274"></span><span>              </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681461889"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461889"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; Builder
+</span><span class="hs-identifier hs-var">byteString</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461889"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Builder -&gt; Builder -&gt; Builder
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-275"></span><span>              </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681461890"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461890"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461890"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-276"></span><span>                     </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Builder
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-277"></span><span>                     </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">String -&gt; Builder
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Garbage at end.&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-278"></span><span>              </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681461892"><span class="annot"><span class="annottext">DecompressError
+</span><a href="#local-6989586621681461892"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Builder
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DecompressError -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">DecompressError
+</span><a href="#local-6989586621681461892"><span class="hs-identifier hs-var">err</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-279"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format -&gt; DecompressParams -&gt; DecompressStream (ST s)
+forall s. Format -&gt; DecompressParams -&gt; DecompressStream (ST s)
+</span><span class="hs-identifier hs-var">Z.decompressST</span></span><span> </span><span class="annot"><span class="annottext">Format
+</span><span class="hs-identifier hs-var">Z.gzipFormat</span></span><span> </span><span class="annot"><span class="annottext">DecompressParams
+</span><span class="hs-identifier hs-var">Z.defaultDecompressParams</span></span><span class="hs-special">)</span><span>
+</span><span id="line-280"></span><span>              </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461885"><span class="hs-identifier hs-var">s'</span></a></span><span>
+</span><span id="line-281"></span><span>
+</span><span id="line-282"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either String ByteString
+</span><a href="#local-6989586621681461881"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-283"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621681461897"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461897"><span class="hs-identifier hs-var">s</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; TCM (Maybe Interface)
+forall a. EmbPrj a =&gt; ByteString -&gt; TCM (Maybe a)
+</span><a href="Agda.TypeChecking.Serialise.html#decode"><span class="hs-identifier hs-var">decode</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461897"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-284"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621681461898"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461898"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-285"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; Int -&gt; String -&gt; TCMT IO ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+String -&gt; Int -&gt; String -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier hs-var">reportSLn</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;import.iface&quot;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">5</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; TCMT IO ()) -&gt; String -&gt; TCMT IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-286"></span><span>        </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Error when decoding interface file: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461898"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-287"></span><span>      </span><span class="annot"><span class="annottext">Maybe Interface -&gt; TCM (Maybe Interface)
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Maybe Interface
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-288"></span><span>
+</span><span id="line-289"></span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#decodeHashes"><span class="hs-identifier hs-type">decodeHashes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Hash.html#Hash"><span class="hs-identifier hs-type">Hash</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Hash.html#Hash"><span class="hs-identifier hs-type">Hash</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-290"></span><span id="decodeHashes"><span class="annot"><span class="annottext">decodeHashes :: ByteString -&gt; Maybe (Word64, Word64)
+</span><a href="Agda.TypeChecking.Serialise.html#decodeHashes"><span class="hs-identifier hs-var hs-var">decodeHashes</span></a></span></span><span> </span><span id="local-6989586621681461900"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461900"><span class="hs-identifier hs-var">s</span></a></span></span><span>
+</span><span id="line-291"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; Int64
+</span><span class="hs-identifier hs-var">L.length</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461900"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Int64 -&gt; Int64 -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int64
+</span><span class="hs-number">16</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (Word64, Word64)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-292"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Word64, Word64) -&gt; Maybe (Word64, Word64)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">((Word64, Word64) -&gt; Maybe (Word64, Word64))
+-&gt; (Word64, Word64) -&gt; Maybe (Word64, Word64)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Get (Word64, Word64) -&gt; ByteString -&gt; (Word64, Word64)
+forall a. Get a -&gt; ByteString -&gt; a
+</span><span class="hs-identifier hs-var">B.runGet</span></span><span> </span><span class="annot"><span class="annottext">Get (Word64, Word64)
+</span><a href="#local-6989586621681461904"><span class="hs-identifier hs-var">getH</span></a></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; (Word64, Word64)) -&gt; ByteString -&gt; (Word64, Word64)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int64 -&gt; ByteString -&gt; ByteString
+</span><span class="hs-identifier hs-var">L.take</span></span><span> </span><span class="annot"><span class="annottext">Int64
+</span><span class="hs-number">16</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621681461900"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-293"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681461904"><span class="annot"><span class="annottext">getH :: Get (Word64, Word64)
+</span><a href="#local-6989586621681461904"><span class="hs-identifier hs-var hs-var">getH</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; Word64 -&gt; (Word64, Word64))
+-&gt; Get Word64 -&gt; Get (Word64 -&gt; (Word64, Word64))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word64
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">B.get</span></span><span> </span><span class="annot"><span class="annottext">Get (Word64 -&gt; (Word64, Word64))
+-&gt; Get Word64 -&gt; Get (Word64, Word64)
+forall a b. Get (a -&gt; b) -&gt; Get a -&gt; Get b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word64
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">B.get</span></span><span>
+</span><span id="line-294"></span><span>
+</span><span id="line-295"></span><span class="annot"><a href="Agda.TypeChecking.Serialise.html#decodeFile"><span class="hs-identifier hs-type">decodeFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-type">Interface</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-296"></span><span id="decodeFile"><span class="annot"><span class="annottext">decodeFile :: String -&gt; TCM (Maybe Interface)
+</span><a href="Agda.TypeChecking.Serialise.html#decodeFile"><span class="hs-identifier hs-var hs-var">decodeFile</span></a></span></span><span> </span><span id="local-6989586621681461910"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461910"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; TCM (Maybe Interface)
+</span><a href="Agda.TypeChecking.Serialise.html#decodeInterface"><span class="hs-identifier hs-var">decodeInterface</span></a></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; TCM (Maybe Interface))
+-&gt; TCMT IO ByteString -&gt; TCM (Maybe Interface)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">IO ByteString -&gt; TCMT IO ByteString
+forall a. IO a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; IO ByteString
+</span><span class="hs-identifier hs-var">L.readFile</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681461910"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-297"></span></pre></body></html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Utils.Pointer</span><span>
+</span><span id="line-3"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier">Ptr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#newPtr"><span class="hs-identifier">newPtr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#derefPtr"><span class="hs-identifier">derefPtr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#setPtr"><span class="hs-identifier">setPtr</span></a></span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#updatePtr"><span class="hs-identifier">updatePtr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#updatePtrM"><span class="hs-identifier">updatePtrM</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Concurrent.MVar</span></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">on</span></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Hashable</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IORef</span></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.IO.Unsafe</span></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">data</span><span> </span><span id="Ptr"><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-var">Ptr</span></a></span></span><span> </span><span id="local-6989586621681256154"><span class="annot"><a href="#local-6989586621681256154"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Ptr"><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-var">Ptr</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="ptrTag"><span class="annot"><span class="annottext">forall a. Ptr a -&gt; Integer
+</span><a href="Agda.Utils.Pointer.html#ptrTag"><span class="hs-identifier hs-var hs-var">ptrTag</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-17"></span><span>                 </span><span class="hs-special">,</span><span> </span><span id="ptrRef"><span class="annot"><span class="annottext">forall a. Ptr a -&gt; IORef a
+</span><a href="Agda.Utils.Pointer.html#ptrRef"><span class="hs-identifier hs-var hs-var">ptrRef</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><a href="#local-6989586621681256154"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#freshVar"><span class="hs-pragma hs-type">freshVar</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-20"></span><span class="annot"><a href="Agda.Utils.Pointer.html#freshVar"><span class="hs-identifier hs-type">freshVar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MVar</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-21"></span><span id="freshVar"><span class="annot"><span class="annottext">freshVar :: MVar Integer
+</span><a href="Agda.Utils.Pointer.html#freshVar"><span class="hs-identifier hs-var hs-var">freshVar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO (MVar Integer) -&gt; MVar Integer
+forall a. IO a -&gt; a
+</span><span class="hs-identifier hs-var">unsafePerformIO</span></span><span> </span><span class="annot"><span class="annottext">(IO (MVar Integer) -&gt; MVar Integer)
+-&gt; IO (MVar Integer) -&gt; MVar Integer
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; IO (MVar Integer)
+forall a. a -&gt; IO (MVar a)
+</span><span class="hs-identifier hs-var">newMVar</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="annot"><a href="Agda.Utils.Pointer.html#fresh"><span class="hs-identifier hs-type">fresh</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-24"></span><span id="fresh"><span class="annot"><span class="annottext">fresh :: IO Integer
+</span><a href="Agda.Utils.Pointer.html#fresh"><span class="hs-identifier hs-var hs-var">fresh</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-25"></span><span>    </span><span id="local-6989586621681256297"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681256297"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MVar Integer -&gt; IO Integer
+forall a. MVar a -&gt; IO a
+</span><span class="hs-identifier hs-var">takeMVar</span></span><span> </span><span class="annot"><span class="annottext">MVar Integer
+</span><a href="Agda.Utils.Pointer.html#freshVar"><span class="hs-identifier hs-var">freshVar</span></a></span><span>
+</span><span id="line-26"></span><span>    </span><span class="annot"><span class="annottext">MVar Integer -&gt; Integer -&gt; IO ()
+forall a. MVar a -&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">putMVar</span></span><span> </span><span class="annot"><span class="annottext">MVar Integer
+</span><a href="Agda.Utils.Pointer.html#freshVar"><span class="hs-identifier hs-var">freshVar</span></a></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; IO ()) -&gt; Integer -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$!</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681256297"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-27"></span><span>    </span><span class="annot"><span class="annottext">Integer -&gt; IO Integer
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681256297"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#newPtr"><span class="hs-pragma hs-type">newPtr</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-30"></span><span id="local-6989586621681256174"><span class="annot"><a href="Agda.Utils.Pointer.html#newPtr"><span class="hs-identifier hs-type">newPtr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681256174"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256174"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-31"></span><span id="newPtr"><span class="annot"><span class="annottext">newPtr :: forall a. a -&gt; Ptr a
+</span><a href="Agda.Utils.Pointer.html#newPtr"><span class="hs-identifier hs-var hs-var">newPtr</span></a></span></span><span> </span><span id="local-6989586621681256305"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681256305"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO (Ptr a) -&gt; Ptr a
+forall a. IO a -&gt; a
+</span><span class="hs-identifier hs-var">unsafePerformIO</span></span><span> </span><span class="annot"><span class="annottext">(IO (Ptr a) -&gt; Ptr a) -&gt; IO (Ptr a) -&gt; Ptr a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-32"></span><span>  </span><span id="local-6989586621681256306"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681256306"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO Integer
+</span><a href="Agda.Utils.Pointer.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-33"></span><span>  </span><span class="annot"><span class="annottext">Integer -&gt; IORef a -&gt; Ptr a
+forall a. Integer -&gt; IORef a -&gt; Ptr a
+</span><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-var">Ptr</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681256306"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">(IORef a -&gt; Ptr a) -&gt; IO (IORef a) -&gt; IO (Ptr a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; IO (IORef a)
+forall a. a -&gt; IO (IORef a)
+</span><span class="hs-identifier hs-var">newIORef</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681256305"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span id="local-6989586621681256180"><span class="annot"><a href="Agda.Utils.Pointer.html#derefPtr"><span class="hs-identifier hs-type">derefPtr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256180"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681256180"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-36"></span><span id="derefPtr"><span class="annot"><span class="annottext">derefPtr :: forall a. Ptr a -&gt; a
+</span><a href="Agda.Utils.Pointer.html#derefPtr"><span class="hs-identifier hs-var hs-var">derefPtr</span></a></span></span><span> </span><span id="local-6989586621681256309"><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256309"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO a -&gt; a
+forall a. IO a -&gt; a
+</span><span class="hs-identifier hs-var">unsafePerformIO</span></span><span> </span><span class="annot"><span class="annottext">(IO a -&gt; a) -&gt; IO a -&gt; a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">IORef a -&gt; IO a
+forall a. IORef a -&gt; IO a
+</span><span class="hs-identifier hs-var">readIORef</span></span><span> </span><span class="annot"><span class="annottext">(IORef a -&gt; IO a) -&gt; IORef a -&gt; IO a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Ptr a -&gt; IORef a
+forall a. Ptr a -&gt; IORef a
+</span><a href="Agda.Utils.Pointer.html#ptrRef"><span class="hs-identifier hs-var">ptrRef</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256309"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#updatePtr"><span class="hs-pragma hs-type">updatePtr</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-39"></span><span id="local-6989586621681256183"><span class="annot"><a href="Agda.Utils.Pointer.html#updatePtr"><span class="hs-identifier hs-type">updatePtr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681256183"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681256183"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256183"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256183"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-40"></span><span id="updatePtr"><span class="annot"><span class="annottext">updatePtr :: forall a. (a -&gt; a) -&gt; Ptr a -&gt; Ptr a
+</span><a href="Agda.Utils.Pointer.html#updatePtr"><span class="hs-identifier hs-var hs-var">updatePtr</span></a></span></span><span> </span><span id="local-6989586621681256312"><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621681256312"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681256313"><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256313"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO (Ptr a) -&gt; Ptr a
+forall a. IO a -&gt; a
+</span><span class="hs-identifier hs-var">unsafePerformIO</span></span><span> </span><span class="annot"><span class="annottext">(IO (Ptr a) -&gt; Ptr a) -&gt; IO (Ptr a) -&gt; Ptr a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256313"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr a -&gt; IO () -&gt; IO (Ptr a)
+forall a b. a -&gt; IO b -&gt; IO a
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">IORef a -&gt; (a -&gt; a) -&gt; IO ()
+forall a. IORef a -&gt; (a -&gt; a) -&gt; IO ()
+</span><span class="hs-identifier hs-var">modifyIORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ptr a -&gt; IORef a
+forall a. Ptr a -&gt; IORef a
+</span><a href="Agda.Utils.Pointer.html#ptrRef"><span class="hs-identifier hs-var">ptrRef</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256313"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621681256312"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span id="local-6989586621681256189"><span class="annot"><a href="Agda.Utils.Pointer.html#setPtr"><span class="hs-identifier hs-type">setPtr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681256189"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256189"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256189"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-43"></span><span id="setPtr"><span class="annot"><span class="annottext">setPtr :: forall a. a -&gt; Ptr a -&gt; Ptr a
+</span><a href="Agda.Utils.Pointer.html#setPtr"><span class="hs-identifier hs-var hs-var">setPtr</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681256316"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681256316"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; Ptr a -&gt; Ptr a
+forall a. (a -&gt; a) -&gt; Ptr a -&gt; Ptr a
+</span><a href="Agda.Utils.Pointer.html#updatePtr"><span class="hs-identifier hs-var">updatePtr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681256316"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- | If @f a@ contains many copies of @a@ they will all be the same pointer in</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--   the result. If the function is well-behaved (i.e. preserves the implicit</span><span>
+</span><span id="line-47"></span><span class="hs-comment">--   equivalence, this shouldn't matter).</span><span>
+</span><span id="line-48"></span><span id="local-6989586621681256193"><span id="local-6989586621681256194"><span class="annot"><a href="Agda.Utils.Pointer.html#updatePtrM"><span class="hs-identifier hs-type">updatePtrM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681256193"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681256194"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681256193"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256194"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256194"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681256193"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256194"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-49"></span><span id="updatePtrM"><span class="annot"><span class="annottext">updatePtrM :: forall (f :: * -&gt; *) a.
+Functor f =&gt;
+(a -&gt; f a) -&gt; Ptr a -&gt; f (Ptr a)
+</span><a href="Agda.Utils.Pointer.html#updatePtrM"><span class="hs-identifier hs-var hs-var">updatePtrM</span></a></span></span><span> </span><span id="local-6989586621681256320"><span class="annot"><span class="annottext">a -&gt; f a
+</span><a href="#local-6989586621681256320"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681256321"><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256321"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Ptr a -&gt; Ptr a) -&gt; Ptr a -&gt; a -&gt; Ptr a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Ptr a -&gt; Ptr a
+forall a. a -&gt; Ptr a -&gt; Ptr a
+</span><a href="Agda.Utils.Pointer.html#setPtr"><span class="hs-identifier hs-var">setPtr</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256321"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Ptr a) -&gt; f a -&gt; f (Ptr a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; f a
+</span><a href="#local-6989586621681256320"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ptr a -&gt; a
+forall a. Ptr a -&gt; a
+</span><a href="Agda.Utils.Pointer.html#derefPtr"><span class="hs-identifier hs-var">derefPtr</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256321"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681256203"><span id="local-6989586621681256325"><span id="local-6989586621681256330"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621681256203"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256203"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-52"></span><span>  </span><span id="local-6989586621681256341"><span class="annot"><span class="annottext">show :: Ptr a -&gt; String
+</span><a href="#local-6989586621681256341"><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></a></span></span><span> </span><span id="local-6989586621681256343"><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256343"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;#&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ptr a -&gt; Integer
+forall a. Ptr a -&gt; Integer
+</span><a href="Agda.Utils.Pointer.html#ptrTag"><span class="hs-identifier hs-var">ptrTag</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256343"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;{&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ptr a -&gt; a
+forall a. Ptr a -&gt; a
+</span><a href="Agda.Utils.Pointer.html#derefPtr"><span class="hs-identifier hs-var">derefPtr</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256343"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;}&quot;</span></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681256346"><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-55"></span><span>  </span><span id="local-6989586621681256350"><span class="annot"><span class="annottext">fmap :: forall a b. (a -&gt; b) -&gt; Ptr a -&gt; Ptr b
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">fmap</span></span></span><span> </span><span id="local-6989586621681256351"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681256351"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; Ptr b
+forall a. a -&gt; Ptr a
+</span><a href="Agda.Utils.Pointer.html#newPtr"><span class="hs-identifier hs-var">newPtr</span></a></span><span> </span><span class="annot"><span class="annottext">(b -&gt; Ptr b) -&gt; (Ptr a -&gt; b) -&gt; Ptr a -&gt; Ptr b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621681256351"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; (Ptr a -&gt; a) -&gt; Ptr a -&gt; b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Ptr a -&gt; a
+forall a. Ptr a -&gt; a
+</span><a href="Agda.Utils.Pointer.html#derefPtr"><span class="hs-identifier hs-var">derefPtr</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681256354"><span id="local-6989586621681256361"><span id="local-6989586621681256366"><span id="local-6989586621681256369"><span id="local-6989586621681256372"><span id="local-6989586621681256375"><span id="local-6989586621681256378"><span id="local-6989586621681256381"><span id="local-6989586621681256384"><span id="local-6989586621681256387"><span id="local-6989586621681256390"><span id="local-6989586621681256393"><span id="local-6989586621681256398"><span id="local-6989586621681256403"><span id="local-6989586621681256408"><span id="local-6989586621681256413"><span class="annot"><span class="hs-identifier hs-type">Foldable</span></span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-58"></span><span>  </span><span id="local-6989586621681256419"><span class="annot"><span class="annottext">foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Ptr a -&gt; m
+</span><a href="#local-6989586621681256419"><span class="hs-identifier hs-var hs-var hs-var hs-var">foldMap</span></a></span></span><span> </span><span id="local-6989586621681256421"><span class="annot"><span class="annottext">a -&gt; m
+</span><a href="#local-6989586621681256421"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; m
+</span><a href="#local-6989586621681256421"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; m) -&gt; (Ptr a -&gt; a) -&gt; Ptr a -&gt; m
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Ptr a -&gt; a
+forall a. Ptr a -&gt; a
+</span><a href="Agda.Utils.Pointer.html#derefPtr"><span class="hs-identifier hs-var">derefPtr</span></a></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681256428"><span id="local-6989586621681256434"><span id="local-6989586621681256439"><span class="annot"><span class="hs-identifier hs-type">Traversable</span></span><span> </span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-61"></span><span>  </span><span id="local-6989586621681256448"><span class="annot"><span class="annottext">traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; Ptr a -&gt; f (Ptr b)
+</span><a href="#local-6989586621681256448"><span class="hs-identifier hs-var hs-var hs-var hs-var">traverse</span></a></span></span><span> </span><span id="local-6989586621681256450"><span class="annot"><span class="annottext">a -&gt; f b
+</span><a href="#local-6989586621681256450"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681256451"><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256451"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; Ptr b
+forall a. a -&gt; Ptr a
+</span><a href="Agda.Utils.Pointer.html#newPtr"><span class="hs-identifier hs-var">newPtr</span></a></span><span> </span><span class="annot"><span class="annottext">(b -&gt; Ptr b) -&gt; f b -&gt; f (Ptr b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; f b
+</span><a href="#local-6989586621681256450"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Ptr a -&gt; a
+forall a. Ptr a -&gt; a
+</span><a href="Agda.Utils.Pointer.html#derefPtr"><span class="hs-identifier hs-var">derefPtr</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256451"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681256260"><span id="local-6989586621681256454"><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256260"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621681256460"><span class="annot"><span class="annottext">== :: Ptr a -&gt; Ptr a -&gt; Bool
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">(==)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">(==)</span></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Integer -&gt; Bool)
+-&gt; (Ptr a -&gt; Integer) -&gt; Ptr a -&gt; Ptr a -&gt; Bool
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">Ptr a -&gt; Integer
+forall a. Ptr a -&gt; Integer
+</span><a href="Agda.Utils.Pointer.html#ptrTag"><span class="hs-identifier hs-var">ptrTag</span></a></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681256266"><span id="local-6989586621681256465"><span id="local-6989586621681256469"><span id="local-6989586621681256472"><span id="local-6989586621681256475"><span id="local-6989586621681256478"><span id="local-6989586621681256481"><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256266"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-67"></span><span>  </span><span id="local-6989586621681256486"><span class="annot"><span class="annottext">compare :: Ptr a -&gt; Ptr a -&gt; Ordering
+</span><a href="#local-6989586621681256486"><span class="hs-identifier hs-var hs-var hs-var hs-var">compare</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Integer -&gt; Ordering)
+-&gt; (Ptr a -&gt; Integer) -&gt; Ptr a -&gt; Ptr a -&gt; Ordering
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">Ptr a -&gt; Integer
+forall a. Ptr a -&gt; Integer
+</span><a href="Agda.Utils.Pointer.html#ptrTag"><span class="hs-identifier hs-var">ptrTag</span></a></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681256270"><span id="local-6989586621681256492"><span class="annot"><span class="hs-identifier hs-type">Hashable</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256270"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-70"></span><span>  </span><span id="local-6989586621681256498"><span class="annot"><span class="annottext">hashWithSalt :: Int -&gt; Ptr a -&gt; Int
+</span><a href="#local-6989586621681256498"><span class="hs-identifier hs-var hs-var hs-var hs-var">hashWithSalt</span></a></span></span><span> </span><span id="local-6989586621681256500"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681256500"><span class="hs-identifier hs-var">salt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Integer -&gt; Int
+forall a. Hashable a =&gt; Int -&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">hashWithSalt</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681256500"><span class="hs-identifier hs-var">salt</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Int) -&gt; (Ptr a -&gt; Integer) -&gt; Ptr a -&gt; Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Ptr a -&gt; Integer
+forall a. Ptr a -&gt; Integer
+</span><a href="Agda.Utils.Pointer.html#ptrTag"><span class="hs-identifier hs-var">ptrTag</span></a></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681256274"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Pointer.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681256274"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681256504"><span class="annot"><span class="annottext">rnf :: Ptr a -&gt; ()
+</span><a href="#local-6989586621681256504"><span class="hs-identifier hs-var hs-var hs-var hs-var">rnf</span></a></span></span><span> </span><span id="local-6989586621681256506"><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256506"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ptr a -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-identifier hs-var">seq</span></span><span> </span><span class="annot"><span class="annottext">Ptr a
+</span><a href="#local-6989586621681256506"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span></pre></body></html>

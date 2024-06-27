@@ -1,0 +1,286 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Compiler.Backend.Base</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.html"><span class="hs-identifier">Agda.Interaction.Options</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ArgDescr</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">OptDescr</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html#Flag"><span class="hs-identifier">Flag</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html"><span class="hs-identifier">Agda.Syntax.Abstract.Name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier">QName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier">IsMain</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier">TopLevelModuleName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="hs-pragma">{-# SOURCE</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Definition"><span class="hs-identifier">Definition</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NFData</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">rnf</span></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">data</span><span> </span><span id="Backend_boot"><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend_boot"><span class="hs-identifier hs-var">Backend_boot</span></a></span></span><span> </span><span id="local-6989586621681376925"><span class="annot"><a href="#local-6989586621681376925"><span class="hs-identifier hs-type">tcm</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-18"></span><span>  </span><span id="local-6989586621681376926"><span id="local-6989586621681376927"><span id="local-6989586621681376928"><span id="local-6989586621681376929"><span id="local-6989586621681376930"><span id="local-6989586621681376931"><span id="Backend"><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend"><span class="hs-identifier hs-var">Backend</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621681376926"><span class="hs-identifier hs-type">opts</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend%27_boot"><span class="hs-identifier hs-type">Backend'_boot</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376927"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376926"><span class="hs-identifier hs-type">opts</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376928"><span class="hs-identifier hs-type">env</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376929"><span class="hs-identifier hs-type">menv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376930"><span class="hs-identifier hs-type">mod</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376931"><span class="hs-identifier hs-type">def</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend_boot"><span class="hs-identifier hs-type">Backend_boot</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376927"><span class="hs-identifier hs-type">tcm</span></a></span></span></span></span></span></span></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">data</span><span> </span><span id="Backend%27_boot"><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend%27_boot"><span class="hs-identifier hs-var">Backend'_boot</span></a></span></span><span> </span><span id="local-6989586621681376790"><span class="annot"><a href="#local-6989586621681376790"><span class="hs-identifier hs-type">tcm</span></a></span></span><span> </span><span id="local-6989586621681376791"><span class="annot"><a href="#local-6989586621681376791"><span class="hs-identifier hs-type">opts</span></a></span></span><span> </span><span id="local-6989586621681376792"><span class="annot"><a href="#local-6989586621681376792"><span class="hs-identifier hs-type">env</span></a></span></span><span> </span><span id="local-6989586621681376793"><span class="annot"><a href="#local-6989586621681376793"><span class="hs-identifier hs-type">menv</span></a></span></span><span> </span><span id="local-6989586621681376794"><span class="annot"><a href="#local-6989586621681376794"><span class="hs-identifier hs-type">mod</span></a></span></span><span> </span><span id="local-6989586621681376795"><span class="annot"><a href="#local-6989586621681376795"><span class="hs-identifier hs-type">def</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Backend%27"><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend%27"><span class="hs-identifier hs-var">Backend'</span></a></span></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="backendName"><span class="annot"><span class="annottext">forall (tcm :: * -&gt; *) opts env menv mod def.
+Backend'_boot tcm opts env menv mod def -&gt; String
+</span><a href="Agda.Compiler.Backend.Base.html#backendName"><span class="hs-identifier hs-var hs-var">backendName</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="backendVersion"><span class="annot"><span class="annottext">forall (tcm :: * -&gt; *) opts env menv mod def.
+Backend'_boot tcm opts env menv mod def -&gt; Maybe String
+</span><a href="Agda.Compiler.Backend.Base.html#backendVersion"><span class="hs-identifier hs-var hs-var">backendVersion</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-23"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Optional version information to be printed with @--version@.</span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="options"><span class="annot"><span class="annottext">forall (tcm :: * -&gt; *) opts env menv mod def.
+Backend'_boot tcm opts env menv mod def -&gt; opts
+</span><a href="Agda.Compiler.Backend.Base.html#options"><span class="hs-identifier hs-var hs-var">options</span></a></span></span><span>          </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681376791"><span class="hs-identifier hs-type">opts</span></a></span><span>
+</span><span id="line-25"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Default options</span></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="commandLineFlags"><span class="annot"><span class="annottext">forall (tcm :: * -&gt; *) opts env menv mod def.
+Backend'_boot tcm opts env menv mod def -&gt; [OptDescr (Flag opts)]
+</span><a href="Agda.Compiler.Backend.Base.html#commandLineFlags"><span class="hs-identifier hs-var hs-var">commandLineFlags</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">OptDescr</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Options.Base.html#Flag"><span class="hs-identifier hs-type">Flag</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376791"><span class="hs-identifier hs-type">opts</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-27"></span><span>      </span><span class="hs-comment">-- ^ Backend-specific command-line flags. Should at minimum contain a</span><span>
+</span><span id="line-28"></span><span>      </span><span class="hs-comment">--   flag to enable the backend.</span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="isEnabled"><span class="annot"><span class="annottext">forall (tcm :: * -&gt; *) opts env menv mod def.
+Backend'_boot tcm opts env menv mod def -&gt; opts -&gt; Bool
+</span><a href="Agda.Compiler.Backend.Base.html#isEnabled"><span class="hs-identifier hs-var hs-var">isEnabled</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681376791"><span class="hs-identifier hs-type">opts</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-30"></span><span>      </span><span class="hs-comment">-- ^ Unless the backend has been enabled, @runAgda@ will fall back to</span><span>
+</span><span id="line-31"></span><span>      </span><span class="hs-comment">--   vanilla Agda behaviour.</span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="preCompile"><span class="annot"><span class="annottext">forall (tcm :: * -&gt; *) opts env menv mod def.
+Backend'_boot tcm opts env menv mod def -&gt; opts -&gt; tcm env
+</span><a href="Agda.Compiler.Backend.Base.html#preCompile"><span class="hs-identifier hs-var hs-var">preCompile</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681376791"><span class="hs-identifier hs-type">opts</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681376790"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376792"><span class="hs-identifier hs-type">env</span></a></span><span>
+</span><span id="line-33"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Called after type checking completes, but before compilation starts.</span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="postCompile"><span class="annot"><span class="annottext">forall (tcm :: * -&gt; *) opts env menv mod def.
+Backend'_boot tcm opts env menv mod def
+-&gt; env -&gt; IsMain -&gt; Map TopLevelModuleName mod -&gt; tcm ()
+</span><a href="Agda.Compiler.Backend.Base.html#postCompile"><span class="hs-identifier hs-var hs-var">postCompile</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681376792"><span class="hs-identifier hs-type">env</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376794"><span class="hs-identifier hs-type">mod</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-35"></span><span>                        </span><span class="annot"><a href="#local-6989586621681376790"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>      </span><span class="hs-comment">-- ^ Called after module compilation has completed. The @IsMain@ argument</span><span>
+</span><span id="line-37"></span><span>      </span><span class="hs-comment">--   is @NotMain@ if the @--no-main@ flag is present.</span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="preModule"><span class="annot"><span class="annottext">forall (tcm :: * -&gt; *) opts env menv mod def.
+Backend'_boot tcm opts env menv mod def
+-&gt; env
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; Maybe String
+-&gt; tcm (Recompile menv mod)
+</span><a href="Agda.Compiler.Backend.Base.html#preModule"><span class="hs-identifier hs-var hs-var">preModule</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681376792"><span class="hs-identifier hs-type">env</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-39"></span><span>                        </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681376790"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Recompile"><span class="hs-identifier hs-type">Recompile</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376793"><span class="hs-identifier hs-type">menv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376794"><span class="hs-identifier hs-type">mod</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>      </span><span class="hs-comment">-- ^ Called before compilation of each module. Gets the path to the</span><span>
+</span><span id="line-41"></span><span>      </span><span class="hs-comment">--   @.agdai@ file to allow up-to-date checking of previously written</span><span>
+</span><span id="line-42"></span><span>      </span><span class="hs-comment">--   compilation results. Should return @Skip m@ if compilation is not</span><span>
+</span><span id="line-43"></span><span>      </span><span class="hs-comment">--   required. Will be @Nothing@ if only scope checking.</span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="postModule"><span class="annot"><span class="annottext">forall (tcm :: * -&gt; *) opts env menv mod def.
+Backend'_boot tcm opts env menv mod def
+-&gt; env -&gt; menv -&gt; IsMain -&gt; TopLevelModuleName -&gt; [def] -&gt; tcm mod
+</span><a href="Agda.Compiler.Backend.Base.html#postModule"><span class="hs-identifier hs-var hs-var">postModule</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681376792"><span class="hs-identifier hs-type">env</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681376793"><span class="hs-identifier hs-type">menv</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-45"></span><span>                        </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681376795"><span class="hs-identifier hs-type">def</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681376790"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376794"><span class="hs-identifier hs-type">mod</span></a></span><span>
+</span><span id="line-46"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Called after all definitions of a module have been compiled.</span></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="compileDef"><span class="annot"><span class="annottext">forall (tcm :: * -&gt; *) opts env menv mod def.
+Backend'_boot tcm opts env menv mod def
+-&gt; env -&gt; menv -&gt; IsMain -&gt; Definition -&gt; tcm def
+</span><a href="Agda.Compiler.Backend.Base.html#compileDef"><span class="hs-identifier hs-var hs-var">compileDef</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681376792"><span class="hs-identifier hs-type">env</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681376793"><span class="hs-identifier hs-type">menv</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#IsMain"><span class="hs-identifier hs-type">IsMain</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Definition"><span class="hs-identifier hs-type">Definition</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681376790"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376795"><span class="hs-identifier hs-type">def</span></a></span><span>
+</span><span id="line-48"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Compile a single definition.</span></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="scopeCheckingSuffices"><span class="annot"><span class="annottext">forall (tcm :: * -&gt; *) opts env menv mod def.
+Backend'_boot tcm opts env menv mod def -&gt; Bool
+</span><a href="Agda.Compiler.Backend.Base.html#scopeCheckingSuffices"><span class="hs-identifier hs-var hs-var">scopeCheckingSuffices</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-50"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ True if the backend works if @--only-scope-checking@ is used.</span></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="mayEraseType"><span class="annot"><span class="annottext">forall (tcm :: * -&gt; *) opts env menv mod def.
+Backend'_boot tcm opts env menv mod def -&gt; QName -&gt; tcm Bool
+</span><a href="Agda.Compiler.Backend.Base.html#mayEraseType"><span class="hs-identifier hs-var hs-var">mayEraseType</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681376790"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-52"></span><span>      </span><span class="hs-comment">-- ^ The treeless compiler may ask the Backend if elements</span><span>
+</span><span id="line-53"></span><span>      </span><span class="hs-comment">--   of the given type maybe possibly erased.</span><span>
+</span><span id="line-54"></span><span>      </span><span class="hs-comment">--   The answer should be 'False' if the compilation of the type</span><span>
+</span><span id="line-55"></span><span>      </span><span class="hs-comment">--   is used by a third party, e.g. in a FFI binding.</span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621681376948"><span id="local-6989586621681376950"><span class="annot"><span class="annottext">(forall x.
+ Backend'_boot tcm opts env menv mod def
+ -&gt; Rep (Backend'_boot tcm opts env menv mod def) x)
+-&gt; (forall x.
+    Rep (Backend'_boot tcm opts env menv mod def) x
+    -&gt; Backend'_boot tcm opts env menv mod def)
+-&gt; Generic (Backend'_boot tcm opts env menv mod def)
+forall x.
+Rep (Backend'_boot tcm opts env menv mod def) x
+-&gt; Backend'_boot tcm opts env menv mod def
+forall x.
+Backend'_boot tcm opts env menv mod def
+-&gt; Rep (Backend'_boot tcm opts env menv mod def) x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+forall (tcm :: * -&gt; *) opts env menv mod def x.
+Rep (Backend'_boot tcm opts env menv mod def) x
+-&gt; Backend'_boot tcm opts env menv mod def
+forall (tcm :: * -&gt; *) opts env menv mod def x.
+Backend'_boot tcm opts env menv mod def
+-&gt; Rep (Backend'_boot tcm opts env menv mod def) x
+$cfrom :: forall (tcm :: * -&gt; *) opts env menv mod def x.
+Backend'_boot tcm opts env menv mod def
+-&gt; Rep (Backend'_boot tcm opts env menv mod def) x
+from :: forall x.
+Backend'_boot tcm opts env menv mod def
+-&gt; Rep (Backend'_boot tcm opts env menv mod def) x
+$cto :: forall (tcm :: * -&gt; *) opts env menv mod def x.
+Rep (Backend'_boot tcm opts env menv mod def) x
+-&gt; Backend'_boot tcm opts env menv mod def
+to :: forall x.
+Rep (Backend'_boot tcm opts env menv mod def) x
+-&gt; Backend'_boot tcm opts env menv mod def
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-keyword">data</span><span> </span><span id="Recompile"><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Recompile"><span class="hs-identifier hs-var">Recompile</span></a></span></span><span> </span><span id="local-6989586621681376953"><span class="annot"><a href="#local-6989586621681376953"><span class="hs-identifier hs-type">menv</span></a></span></span><span> </span><span id="local-6989586621681376954"><span class="annot"><a href="#local-6989586621681376954"><span class="hs-identifier hs-type">mod</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Recompile"><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Recompile"><span class="hs-identifier hs-var">Recompile</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621681376953"><span class="hs-identifier hs-type">menv</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Skip"><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621681376954"><span class="hs-identifier hs-type">mod</span></a></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681376896"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend_boot"><span class="hs-identifier hs-type">Backend_boot</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376896"><span class="hs-identifier hs-type">tcm</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-63"></span><span>  </span><span id="local-6989586621681376960"><span class="annot"><span class="annottext">rnf :: Backend_boot tcm -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">rnf</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend"><span class="hs-identifier hs-type">Backend</span></a></span><span> </span><span id="local-6989586621681376964"><span class="annot"><span class="annottext">Backend'_boot tcm opts env menv mod def
+</span><a href="#local-6989586621681376964"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Backend'_boot tcm opts env menv mod def -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">Backend'_boot tcm opts env menv mod def
+</span><a href="#local-6989586621681376964"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681376902"><span id="local-6989586621681376903"><span id="local-6989586621681376904"><span id="local-6989586621681376905"><span id="local-6989586621681376906"><span id="local-6989586621681376907"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="#local-6989586621681376902"><span class="hs-identifier hs-type">opts</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend%27_boot"><span class="hs-identifier hs-type">Backend'_boot</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376903"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376902"><span class="hs-identifier hs-type">opts</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376904"><span class="hs-identifier hs-type">env</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376905"><span class="hs-identifier hs-type">menv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376906"><span class="hs-identifier hs-type">mod</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681376907"><span class="hs-identifier hs-type">def</span></a></span><span class="hs-special">)</span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-66"></span><span>  </span><span id="local-6989586621681376985"><span class="annot"><span class="annottext">rnf :: Backend'_boot tcm opts env menv mod def -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">rnf</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Backend.Base.html#Backend%27"><span class="hs-identifier hs-type">Backend'</span></a></span><span> </span><span id="local-6989586621681376986"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681376986"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681376987"><span class="annot"><span class="annottext">Maybe String
+</span><a href="#local-6989586621681376987"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681376988"><span class="annot"><span class="annottext">opts
+</span><a href="#local-6989586621681376988"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681376989"><span class="annot"><span class="annottext">[OptDescr (Flag opts)]
+</span><a href="#local-6989586621681376989"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681376990"><span class="annot"><span class="annottext">opts -&gt; Bool
+</span><a href="#local-6989586621681376990"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681376991"><span class="annot"><span class="annottext">opts -&gt; tcm env
+</span><a href="#local-6989586621681376991"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681376992"><span class="annot"><span class="annottext">env -&gt; IsMain -&gt; Map TopLevelModuleName mod -&gt; tcm ()
+</span><a href="#local-6989586621681376992"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621681376993"><span class="annot"><span class="annottext">env
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; Maybe String
+-&gt; tcm (Recompile menv mod)
+</span><a href="#local-6989586621681376993"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span id="local-6989586621681376994"><span class="annot"><span class="annottext">env -&gt; menv -&gt; IsMain -&gt; TopLevelModuleName -&gt; [def] -&gt; tcm mod
+</span><a href="#local-6989586621681376994"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681376995"><span class="annot"><span class="annottext">env -&gt; menv -&gt; IsMain -&gt; Definition -&gt; tcm def
+</span><a href="#local-6989586621681376995"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span id="local-6989586621681376996"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681376996"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681376997"><span class="annot"><span class="annottext">QName -&gt; tcm Bool
+</span><a href="#local-6989586621681376997"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-67"></span><span>    </span><span class="annot"><span class="annottext">String -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681376986"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">Maybe String -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">Maybe String
+</span><a href="#local-6989586621681376987"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">opts -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">opts
+</span><a href="#local-6989586621681376988"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">[OptDescr (Flag opts)] -&gt; ()
+forall {a}. NFData a =&gt; [OptDescr a] -&gt; ()
+</span><a href="#local-6989586621681376998"><span class="hs-identifier hs-var">rnf'</span></a></span><span> </span><span class="annot"><span class="annottext">[OptDescr (Flag opts)]
+</span><a href="#local-6989586621681376989"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">(opts -&gt; Bool) -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">opts -&gt; Bool
+</span><a href="#local-6989586621681376990"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span>
+</span><span id="line-68"></span><span>    </span><span class="annot"><span class="annottext">(opts -&gt; tcm env) -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">opts -&gt; tcm env
+</span><a href="#local-6989586621681376991"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">(env -&gt; IsMain -&gt; Map TopLevelModuleName mod -&gt; tcm ()) -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">env -&gt; IsMain -&gt; Map TopLevelModuleName mod -&gt; tcm ()
+</span><a href="#local-6989586621681376992"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">(env
+ -&gt; IsMain
+ -&gt; TopLevelModuleName
+ -&gt; Maybe String
+ -&gt; tcm (Recompile menv mod))
+-&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">env
+-&gt; IsMain
+-&gt; TopLevelModuleName
+-&gt; Maybe String
+-&gt; tcm (Recompile menv mod)
+</span><a href="#local-6989586621681376993"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">(env -&gt; menv -&gt; IsMain -&gt; TopLevelModuleName -&gt; [def] -&gt; tcm mod)
+-&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">env -&gt; menv -&gt; IsMain -&gt; TopLevelModuleName -&gt; [def] -&gt; tcm mod
+</span><a href="#local-6989586621681376994"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">(env -&gt; menv -&gt; IsMain -&gt; Definition -&gt; tcm def) -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">env -&gt; menv -&gt; IsMain -&gt; Definition -&gt; tcm def
+</span><a href="#local-6989586621681376995"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681376996"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">(QName -&gt; tcm Bool) -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; tcm Bool
+</span><a href="#local-6989586621681376997"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-70"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-71"></span><span>    </span><span id="local-6989586621681376998"><span class="annot"><span class="annottext">rnf' :: [OptDescr a] -&gt; ()
+</span><a href="#local-6989586621681376998"><span class="hs-identifier hs-var hs-var">rnf'</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>                   </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>    </span><span class="annot"><a href="#local-6989586621681376998"><span class="hs-identifier hs-var">rnf'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Option</span></span><span> </span><span id="local-6989586621681377006"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681377006"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681377007"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681377007"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681377008"><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681377008"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681377009"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681377009"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681377010"><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681377010"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-73"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681377006"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621681377007"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">ArgDescr a -&gt; ()
+forall {a}. NFData a =&gt; ArgDescr a -&gt; ()
+</span><a href="#local-6989586621681377011"><span class="hs-identifier hs-var">rnf''</span></a></span><span> </span><span class="annot"><span class="annottext">ArgDescr a
+</span><a href="#local-6989586621681377008"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681377009"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">[OptDescr a] -&gt; ()
+</span><a href="#local-6989586621681376998"><span class="hs-identifier hs-var">rnf'</span></a></span><span> </span><span class="annot"><span class="annottext">[OptDescr a]
+</span><a href="#local-6989586621681377010"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span>    </span><span id="local-6989586621681377011"><span class="annot"><span class="annottext">rnf'' :: ArgDescr a -&gt; ()
+</span><a href="#local-6989586621681377011"><span class="hs-identifier hs-var hs-var">rnf''</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">NoArg</span></span><span> </span><span id="local-6989586621681377020"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681377020"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681377020"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-76"></span><span>    </span><span class="annot"><a href="#local-6989586621681377011"><span class="hs-identifier hs-var">rnf''</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReqArg</span></span><span> </span><span id="local-6989586621681377022"><span class="annot"><span class="annottext">String -&gt; a
+</span><a href="#local-6989586621681377022"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681377023"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681377023"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(String -&gt; a) -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; a
+</span><a href="#local-6989586621681377022"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681377023"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><a href="#local-6989586621681377011"><span class="hs-identifier hs-var">rnf''</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">OptArg</span></span><span> </span><span id="local-6989586621681377025"><span class="annot"><span class="annottext">Maybe String -&gt; a
+</span><a href="#local-6989586621681377025"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681377026"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681377026"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Maybe String -&gt; a) -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">Maybe String -&gt; a
+</span><a href="#local-6989586621681377025"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; () -&gt; ()
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621681377026"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-78"></span></pre></body></html>

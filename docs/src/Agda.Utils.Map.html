@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Utils.Map</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor.Compose</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- import Data.Maybe (mapMaybe) -- UNUSED</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="annot"><span class="hs-comment">-- * Monadic map operations</span></span><span>
+</span><span id="line-11"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="annot"><span class="hs-comment">-- | Update monadically the value at one position (must exist!).</span></span><span>
+</span><span id="line-14"></span><span id="local-6989586621681255046"><span id="local-6989586621681255047"><span id="local-6989586621681255048"><span class="annot"><a href="Agda.Utils.Map.html#adjustM"><span class="hs-identifier hs-type">adjustM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681255046"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681255047"><span class="hs-identifier hs-type">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681255048"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681255046"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681255048"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681255047"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="#local-6989586621681255047"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681255048"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681255046"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="#local-6989586621681255047"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681255048"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-15"></span><span id="adjustM"><span class="annot"><span class="annottext">adjustM :: forall (f :: * -&gt; *) k v.
+(Functor f, Ord k) =&gt;
+(v -&gt; f v) -&gt; k -&gt; Map k v -&gt; f (Map k v)
+</span><a href="Agda.Utils.Map.html#adjustM"><span class="hs-identifier hs-var hs-var">adjustM</span></a></span></span><span> </span><span id="local-6989586621681255107"><span class="annot"><span class="annottext">v -&gt; f v
+</span><a href="#local-6989586621681255107"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Maybe v -&gt; f (Maybe v)) -&gt; k -&gt; Map k v -&gt; f (Map k v)
+forall (f :: * -&gt; *) k a.
+(Functor f, Ord k) =&gt;
+(Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; Map k a -&gt; f (Map k a)
+</span><span class="hs-identifier hs-var">Map.alterF</span></span><span> </span><span class="annot"><span class="annottext">((Maybe v -&gt; f (Maybe v)) -&gt; k -&gt; Map k v -&gt; f (Map k v))
+-&gt; (Maybe v -&gt; f (Maybe v)) -&gt; k -&gt; Map k v -&gt; f (Map k v)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-16"></span><span>  </span><span class="annot"><span class="annottext">Maybe v
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">f (Maybe v)
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681255110"><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621681255110"><span class="hs-identifier hs-var">v</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">v -&gt; Maybe v
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(v -&gt; Maybe v) -&gt; f v -&gt; f (Maybe v)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">v -&gt; f v
+</span><a href="#local-6989586621681255107"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621681255110"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="annot"><span class="hs-comment">-- | Wrapper for 'adjustM' for convenience.</span></span><span>
+</span><span id="line-20"></span><span id="local-6989586621681255066"><span id="local-6989586621681255067"><span id="local-6989586621681255068"><span id="local-6989586621681255069"><span class="annot"><a href="Agda.Utils.Map.html#adjustM%27"><span class="hs-identifier hs-type">adjustM'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621681255066"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681255067"><span class="hs-identifier hs-type">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681255068"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681255066"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681255069"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681255068"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681255067"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="#local-6989586621681255067"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681255068"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681255066"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681255069"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="#local-6989586621681255067"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681255068"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-21"></span><span id="adjustM%27"><span class="annot"><span class="annottext">adjustM' :: forall (f :: * -&gt; *) k v a.
+(Functor f, Ord k) =&gt;
+(v -&gt; f (a, v)) -&gt; k -&gt; Map k v -&gt; f (a, Map k v)
+</span><a href="Agda.Utils.Map.html#adjustM%27"><span class="hs-identifier hs-var hs-var">adjustM'</span></a></span></span><span> </span><span id="local-6989586621681255120"><span class="annot"><span class="annottext">v -&gt; f (a, v)
+</span><a href="#local-6989586621681255120"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681255121"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621681255121"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Compose f ((,) a) (Map k v) -&gt; f (a, Map k v)
+forall {k1} {k2} (f :: k1 -&gt; *) (g :: k2 -&gt; k1) (a :: k2).
+Compose f g a -&gt; f (g a)
+</span><span class="hs-identifier hs-var">getCompose</span></span><span> </span><span class="annot"><span class="annottext">(Compose f ((,) a) (Map k v) -&gt; f (a, Map k v))
+-&gt; (Map k v -&gt; Compose f ((,) a) (Map k v))
+-&gt; Map k v
+-&gt; f (a, Map k v)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(v -&gt; Compose f ((,) a) v)
+-&gt; k -&gt; Map k v -&gt; Compose f ((,) a) (Map k v)
+forall (f :: * -&gt; *) k v.
+(Functor f, Ord k) =&gt;
+(v -&gt; f v) -&gt; k -&gt; Map k v -&gt; f (Map k v)
+</span><a href="Agda.Utils.Map.html#adjustM"><span class="hs-identifier hs-var">adjustM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">f (a, v) -&gt; Compose f ((,) a) v
+forall {k} {k1} (f :: k -&gt; *) (g :: k1 -&gt; k) (a :: k1).
+f (g a) -&gt; Compose f g a
+</span><span class="hs-identifier hs-var">Compose</span></span><span> </span><span class="annot"><span class="annottext">(f (a, v) -&gt; Compose f ((,) a) v)
+-&gt; (v -&gt; f (a, v)) -&gt; v -&gt; Compose f ((,) a) v
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">v -&gt; f (a, v)
+</span><a href="#local-6989586621681255120"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621681255121"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- UNUSED Liang-Ting Chen (05-07-2019)</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- data EitherOrBoth a b = L a | B a b | R b</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- -- | Not very efficient (goes via a list), but it'll do.</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- unionWithM :: (Ord k, Monad m) =&gt; (a -&gt; a -&gt; m a) -&gt; Map k a -&gt; Map k a -&gt; m (Map k a)</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- unionWithM f m1 m2 = fromList &lt;$&gt; mapM combine (toList m)</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--     where</span><span>
+</span><span id="line-30"></span><span class="hs-comment">--         m = unionWith both (map L m1) (map R m2)</span><span>
+</span><span id="line-31"></span><span class="hs-comment">--</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--         both (L a) (R b) = B a b</span><span>
+</span><span id="line-33"></span><span class="hs-comment">--         both _     _     = __IMPOSSIBLE__</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--</span><span>
+</span><span id="line-35"></span><span class="hs-comment">--         combine (k, B a b) = (,) k &lt;$&gt; f a b</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--         combine (k, L a)   = return (k, a)</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--         combine (k, R b)   = return (k, b)</span><span>
+</span><span id="line-38"></span><span class="hs-comment">--</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- UNUSED Liang-Ting Chen (05-07-2019)</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- insertWithKeyM :: (Ord k, Monad m) =&gt; (k -&gt; a -&gt; a -&gt; m a) -&gt; k -&gt; a -&gt; Map k a -&gt; m (Map k a)</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- insertWithKeyM clash k x m =</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--     case lookup k m of</span><span>
+</span><span id="line-43"></span><span class="hs-comment">--         Just y  -&gt; do</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--             z &lt;- clash k x y</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--             return $ insert k z m</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--         Nothing -&gt; return $ insert k x m</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="annot"><span class="hs-comment">-- * Non-monadic map operations</span></span><span>
+</span><span id="line-49"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- UNUSED Liang-Ting Chen (05-07-2019)</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- -- | Big conjunction over a map.</span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- allWithKey :: (k -&gt; a -&gt; Bool) -&gt; Map k a -&gt; Bool</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- allWithKey f = Map.foldrWithKey (\ k a b -&gt; f k a &amp;&amp; b) True</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="annot"><span class="hs-comment">-- | Filter a map based on the keys.</span></span><span>
+</span><span id="line-57"></span><span id="local-6989586621681255091"><span id="local-6989586621681255092"><span class="annot"><a href="Agda.Utils.Map.html#filterKeys"><span class="hs-identifier hs-type">filterKeys</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681255091"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="#local-6989586621681255091"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681255092"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="#local-6989586621681255091"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681255092"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-58"></span><span id="filterKeys"><span class="annot"><span class="annottext">filterKeys :: forall k a. (k -&gt; Bool) -&gt; Map k a -&gt; Map k a
+</span><a href="Agda.Utils.Map.html#filterKeys"><span class="hs-identifier hs-var hs-var">filterKeys</span></a></span></span><span> </span><span id="local-6989586621681255126"><span class="annot"><span class="annottext">k -&gt; Bool
+</span><a href="#local-6989586621681255126"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; Bool) -&gt; Map k a -&gt; Map k a
+forall k a. (k -&gt; a -&gt; Bool) -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.filterWithKey</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; a -&gt; Bool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; a -&gt; Bool) -&gt; (k -&gt; Bool) -&gt; k -&gt; a -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; Bool
+</span><a href="#local-6989586621681255126"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- UNUSED Andreas (2021-08-19)</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- -- | O(n log n).  Rebuilds the map from scratch.</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- --   Not worse than 'Map.mapKeys'.</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- mapMaybeKeys :: (Ord k1, Ord k2) =&gt; (k1 -&gt; Maybe k2) -&gt; Map k1 a -&gt; Map k2 a</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- mapMaybeKeys f = Map.fromList . mapMaybe (\ (k,a) -&gt; (,a) &lt;$&gt; f k) . Map.toList</span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- UNUSED Liang-Ting Chen (05-07-2019)</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- -- | Unzip a map.</span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- unzip :: Map k (a, b) -&gt; (Map k a, Map k b)</span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- unzip m = (Map.map fst m, Map.map snd m)</span><span>
+</span><span id="line-70"></span><span class="hs-comment">--</span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- UNUSED Liang-Ting Chen (05-07-2019)</span><span>
+</span><span id="line-72"></span><span class="hs-comment">-- unzip3 :: Map k (a, b, c) -&gt; (Map k a, Map k b, Map k c)</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- unzip3 m = (Map.map fst3 m, Map.map snd3 m, Map.map thd3 m)</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--</span><span>
+</span><span id="line-75"></span></pre></body></html>

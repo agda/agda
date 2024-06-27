@@ -1,0 +1,44 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Agda.TypeChecking.Forcing</title><link href="linuwial.css" rel="stylesheet" type="text/css" title="Linuwial" /><link rel="stylesheet" type="text/css" href="quick-jump.css" /><link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400i,700" /><script src="haddock-bundle.min.js" async="async" type="text/javascript"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { processClass: "mathjax", ignoreClass: ".*" } });</script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script></head><body><div id="package-header"><span class="caption">Agda-2.6.5: A dependently typed functional programming language and proof assistant</span><ul class="links" id="page-menu"><li><a href="src/Agda.TypeChecking.Forcing.html">Source</a></li><li><a href="index.html">Contents</a></li><li><a href="doc-index.html">Index</a></li></ul></div><div id="content"><div id="module-header"><table class="info"><tr><th>Safe Haskell</th><td>None</td></tr><tr><th>Language</th><td>Haskell2010</td></tr></table><p class="caption">Agda.TypeChecking.Forcing</p></div><div id="description"><p class="caption">Description</p><div class="doc"><p>A constructor argument is forced if it appears as pattern variable
+in an index of the target.</p><p>For instance <code>x</code> is forced in <code>sing</code> and <code>n</code> is forced in <code>zero</code> and <code>suc</code>:</p><pre>  data Sing {a}{A : Set a} : A -&gt; Set where
+    sing : (x : A) -&gt; Sing x
+
+  data Fin : Nat -&gt; Set where
+    zero : (n : Nat) -&gt; Fin (suc n)
+    suc  : (n : Nat) (i : Fin n) -&gt; Fin (suc n)
+</pre><p>At runtime, forced constructor arguments may be erased as they can be
+recovered from dot patterns.  For instance,
+<code>
+  unsing : {A : Set} (x : A) -&gt; Sing x -&gt; A
+  unsing .x (sing x) = x
+</code>
+can become
+<code>
+  unsing x sing = x
+</code>
+and
+<code>
+  proj : (n : Nat) (i : Fin n) -&gt; Nat
+  proj .(suc n) (zero n) = n
+  proj .(suc n) (suc n i) = n
+</code>
+becomes
+<code>
+  proj (suc n) zero    = n
+  proj (suc n) (suc i) = n
+</code></p><p>This module implements the analysis of which constructor arguments are forced. The process of moving
+the binding site of forced arguments is implemented in the unifier (see the Solution step of
+Agda.TypeChecking.Rules.LHS.Unify.unifyStep).</p><p>Forcing is a concept from pattern matching and thus builds on the
+concept of equality (I) used there (closed terms, extensional) which is
+different from the equality (II) used in conversion checking and the
+constraint solver (open terms, intensional).</p><p>Up to issue 1441 (Feb 2015), the forcing analysis here relied on the
+wrong equality (II), considering type constructors as injective.  This is
+unsound for program extraction, but ok if forcing is only used to decide which
+arguments to skip during conversion checking.</p><p>From now on, forcing uses equality (I) and does not search for forced
+variables under type constructors.  This may lose some savings during
+conversion checking.  If this turns out to be a problem, the old
+forcing could be brought back, using a new modality <code>Skip</code> to indicate
+that this is a relevant argument but still can be skipped during
+conversion checking as it is forced by equality (II).</p></div></div><div id="synopsis"><details id="syn"><summary>Synopsis</summary><ul class="details-toggle" data-details-id="syn"><li class="src short"><a href="#v:computeForcingAnnotations">computeForcingAnnotations</a> :: <a href="Agda-Syntax-Abstract-Name.html#t:QName" title="Agda.Syntax.Abstract.Name">QName</a> -&gt; <a href="Agda-Syntax-Internal.html#t:Type" title="Agda.Syntax.Internal">Type</a> -&gt; <a href="Agda-TypeChecking-Monad-Base.html#t:TCM" title="Agda.TypeChecking.Monad.Base">TCM</a> [<a href="Agda-TypeChecking-Monad-Base.html#t:IsForced" title="Agda.TypeChecking.Monad.Base">IsForced</a>]</li><li class="src short"><a href="#v:isForced">isForced</a> :: <a href="Agda-TypeChecking-Monad-Base.html#t:IsForced" title="Agda.TypeChecking.Monad.Base">IsForced</a> -&gt; <a href="https://hackage.haskell.org/package/base-4.19.1.0/docs/Data-Bool.html#t:Bool" title="Data.Bool">Bool</a></li><li class="src short"><a href="#v:nextIsForced">nextIsForced</a> :: [<a href="Agda-TypeChecking-Monad-Base.html#t:IsForced" title="Agda.TypeChecking.Monad.Base">IsForced</a>] -&gt; (<a href="Agda-TypeChecking-Monad-Base.html#t:IsForced" title="Agda.TypeChecking.Monad.Base">IsForced</a>, [<a href="Agda-TypeChecking-Monad-Base.html#t:IsForced" title="Agda.TypeChecking.Monad.Base">IsForced</a>])</li></ul></details></div><div id="interface"><h1>Documentation</h1><div class="top"><p class="src"><a id="v:computeForcingAnnotations" class="def">computeForcingAnnotations</a> :: <a href="Agda-Syntax-Abstract-Name.html#t:QName" title="Agda.Syntax.Abstract.Name">QName</a> -&gt; <a href="Agda-Syntax-Internal.html#t:Type" title="Agda.Syntax.Internal">Type</a> -&gt; <a href="Agda-TypeChecking-Monad-Base.html#t:TCM" title="Agda.TypeChecking.Monad.Base">TCM</a> [<a href="Agda-TypeChecking-Monad-Base.html#t:IsForced" title="Agda.TypeChecking.Monad.Base">IsForced</a>] <a href="src/Agda.TypeChecking.Forcing.html#computeForcingAnnotations" class="link">Source</a> <a href="#v:computeForcingAnnotations" class="selflink">#</a></p><div class="doc"><p>Given the type of a constructor (excluding the parameters),
+   decide which arguments are forced.
+   Precondition: the type is of the form <code>&#915; &#8594; D vs</code> and the <code>vs</code>
+   are in normal form.</p></div></div><div class="top"><p class="src"><a id="v:isForced" class="def">isForced</a> :: <a href="Agda-TypeChecking-Monad-Base.html#t:IsForced" title="Agda.TypeChecking.Monad.Base">IsForced</a> -&gt; <a href="https://hackage.haskell.org/package/base-4.19.1.0/docs/Data-Bool.html#t:Bool" title="Data.Bool">Bool</a> <a href="src/Agda.TypeChecking.Forcing.html#isForced" class="link">Source</a> <a href="#v:isForced" class="selflink">#</a></p></div><div class="top"><p class="src"><a id="v:nextIsForced" class="def">nextIsForced</a> :: [<a href="Agda-TypeChecking-Monad-Base.html#t:IsForced" title="Agda.TypeChecking.Monad.Base">IsForced</a>] -&gt; (<a href="Agda-TypeChecking-Monad-Base.html#t:IsForced" title="Agda.TypeChecking.Monad.Base">IsForced</a>, [<a href="Agda-TypeChecking-Monad-Base.html#t:IsForced" title="Agda.TypeChecking.Monad.Base">IsForced</a>]) <a href="src/Agda.TypeChecking.Forcing.html#nextIsForced" class="link">Source</a> <a href="#v:nextIsForced" class="selflink">#</a></p></div></div></div><div id="footer"><p>Produced by <a href="http://www.haskell.org/haddock/">Haddock</a> version 2.30.0</p></div></body></html>

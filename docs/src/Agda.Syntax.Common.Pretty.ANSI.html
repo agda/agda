@@ -1,0 +1,196 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Syntax.Common.Pretty.ANSI</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Text.PrettyPrint.Annotated.HughesPJ</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">renderDecoratedM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html"><span class="hs-identifier">Agda.Interaction.Options.HasOptions</span></a></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Base.html"><span class="hs-identifier">Agda.Interaction.Options.Base</span></a></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html"><span class="hs-identifier">Agda.Syntax.Common.Aspect</span></a></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Console.ANSI</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.IO</span></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- | Render an annotated, pretty-printing 'Doc'ument into a string</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- suitable for printing on VT100-compatible terminals.</span><span>
+</span><span id="line-18"></span><span class="annot"><a href="Agda.Syntax.Common.Pretty.ANSI.html#renderAnsiIO"><span class="hs-identifier hs-type">renderAnsiIO</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span id="renderAnsiIO"><span class="annot"><span class="annottext">renderAnsiIO :: Doc -&gt; IO ()
+</span><a href="Agda.Syntax.Common.Pretty.ANSI.html#renderAnsiIO"><span class="hs-identifier hs-var hs-var">renderAnsiIO</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Aspects -&gt; IO ())
+-&gt; (Aspects -&gt; IO ()) -&gt; (String -&gt; IO ()) -&gt; IO () -&gt; Doc -&gt; IO ()
+forall (m :: * -&gt; *) ann r.
+Monad m =&gt;
+(ann -&gt; m r)
+-&gt; (ann -&gt; m r) -&gt; (String -&gt; m r) -&gt; m r -&gt; Doc ann -&gt; m r
+</span><span class="hs-identifier hs-var">renderDecoratedM</span></span><span> </span><span class="annot"><span class="annottext">Aspects -&gt; IO ()
+</span><a href="#local-6989586621681374741"><span class="hs-identifier hs-var">start</span></a></span><span> </span><span class="annot"><span class="annottext">Aspects -&gt; IO ()
+forall {p}. p -&gt; IO ()
+</span><a href="#local-6989586621681374742"><span class="hs-identifier hs-var">end</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStr</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStr</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\n&quot;</span></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-20"></span><span>  </span><span id="local-6989586621681374741"><span class="annot"><span class="annottext">start :: Aspects -&gt; IO ()
+</span><a href="#local-6989586621681374741"><span class="hs-identifier hs-var hs-var">start</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO () -&gt; (Aspect -&gt; IO ()) -&gt; Maybe Aspect -&gt; IO ()
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">IO ()
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[SGR] -&gt; IO ()
+</span><span class="hs-identifier hs-var">setSGR</span></span><span> </span><span class="annot"><span class="annottext">([SGR] -&gt; IO ()) -&gt; (Aspect -&gt; [SGR]) -&gt; Aspect -&gt; IO ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Aspect -&gt; [SGR]
+</span><a href="#local-6989586621681374751"><span class="hs-identifier hs-var">aspSGR</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe Aspect -&gt; IO ())
+-&gt; (Aspects -&gt; Maybe Aspect) -&gt; Aspects -&gt; IO ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Aspects -&gt; Maybe Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#aspect"><span class="hs-identifier hs-var">aspect</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span id="local-6989586621681374742"><span class="annot"><span class="annottext">end :: p -&gt; IO ()
+</span><a href="#local-6989586621681374742"><span class="hs-identifier hs-var hs-var">end</span></a></span></span><span> </span><span class="annot"><span class="annottext">p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SGR] -&gt; IO ()
+</span><span class="hs-identifier hs-var">setSGR</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SGR
+</span><span class="hs-identifier hs-var">Reset</span></span><span class="hs-special">]</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span>  </span><span class="annot"><a href="#local-6989586621681374751"><span class="hs-identifier hs-type">aspSGR</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Aspect"><span class="hs-identifier hs-type">Aspect</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">SGR</span></span><span class="hs-special">]</span><span>
+</span><span id="line-24"></span><span>  </span><span id="local-6989586621681374751"><span class="annot"><span class="annottext">aspSGR :: Aspect -&gt; [SGR]
+</span><a href="#local-6989586621681374751"><span class="hs-identifier hs-var hs-var">aspSGR</span></a></span></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#String"><span class="hs-identifier hs-var">String</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ConsoleLayer -&gt; ColorIntensity -&gt; Color -&gt; SGR
+</span><span class="hs-identifier hs-var">SetColor</span></span><span> </span><span class="annot"><span class="annottext">ConsoleLayer
+</span><span class="hs-identifier hs-var">Foreground</span></span><span> </span><span class="annot"><span class="annottext">ColorIntensity
+</span><span class="hs-identifier hs-var">Dull</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><span class="hs-identifier hs-var">Red</span></span><span class="hs-special">]</span><span>
+</span><span id="line-25"></span><span>  </span><span class="annot"><a href="#local-6989586621681374751"><span class="hs-identifier hs-var">aspSGR</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#Number"><span class="hs-identifier hs-var">Number</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ConsoleLayer -&gt; ColorIntensity -&gt; Color -&gt; SGR
+</span><span class="hs-identifier hs-var">SetColor</span></span><span> </span><span class="annot"><span class="annottext">ConsoleLayer
+</span><span class="hs-identifier hs-var">Foreground</span></span><span> </span><span class="annot"><span class="annottext">ColorIntensity
+</span><span class="hs-identifier hs-var">Dull</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><span class="hs-identifier hs-var">Magenta</span></span><span class="hs-special">]</span><span>
+</span><span id="line-26"></span><span>  </span><span class="annot"><a href="#local-6989586621681374751"><span class="hs-identifier hs-var">aspSGR</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><a href="Agda.Syntax.Common.Aspect.html#PrimitiveType"><span class="hs-identifier hs-var">PrimitiveType</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ConsoleLayer -&gt; ColorIntensity -&gt; Color -&gt; SGR
+</span><span class="hs-identifier hs-var">SetColor</span></span><span> </span><span class="annot"><span class="annottext">ConsoleLayer
+</span><span class="hs-identifier hs-var">Foreground</span></span><span> </span><span class="annot"><span class="annottext">ColorIntensity
+</span><span class="hs-identifier hs-var">Dull</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><span class="hs-identifier hs-var">Blue</span></span><span class="hs-special">]</span><span>
+</span><span id="line-27"></span><span>  </span><span class="annot"><a href="#local-6989586621681374751"><span class="hs-identifier hs-var">aspSGR</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681374764"><span class="annot"><span class="annottext">NameKind
+</span><a href="#local-6989586621681374764"><span class="hs-identifier hs-var">nk</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">NameKind
+</span><a href="#local-6989586621681374764"><span class="hs-identifier hs-var">nk</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-28"></span><span>    </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Bound"><span class="hs-identifier hs-var">Bound</span></a></span><span>                   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-29"></span><span>    </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Generalizable"><span class="hs-identifier hs-var">Generalizable</span></a></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-30"></span><span>    </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Argument"><span class="hs-identifier hs-var">Argument</span></a></span><span>                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Constructor"><span class="hs-identifier hs-type">Constructor</span></a></span><span> </span><span class="annot"><span class="annottext">Induction
+</span><a href="Agda.Syntax.Common.Aspect.html#Inductive"><span class="hs-identifier hs-var">Inductive</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ConsoleLayer -&gt; ColorIntensity -&gt; Color -&gt; SGR
+</span><span class="hs-identifier hs-var">SetColor</span></span><span> </span><span class="annot"><span class="annottext">ConsoleLayer
+</span><span class="hs-identifier hs-var">Foreground</span></span><span> </span><span class="annot"><span class="annottext">ColorIntensity
+</span><span class="hs-identifier hs-var">Dull</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><span class="hs-identifier hs-var">Green</span></span><span class="hs-special">]</span><span>
+</span><span id="line-33"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Common.Aspect.html#Constructor"><span class="hs-identifier hs-type">Constructor</span></a></span><span> </span><span class="annot"><span class="annottext">Induction
+</span><a href="Agda.Syntax.Common.Aspect.html#CoInductive"><span class="hs-identifier hs-var">CoInductive</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ConsoleLayer -&gt; ColorIntensity -&gt; Color -&gt; SGR
+</span><span class="hs-identifier hs-var">SetColor</span></span><span> </span><span class="annot"><span class="annottext">ConsoleLayer
+</span><span class="hs-identifier hs-var">Foreground</span></span><span> </span><span class="annot"><span class="annottext">ColorIntensity
+</span><span class="hs-identifier hs-var">Dull</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><span class="hs-identifier hs-var">Green</span></span><span class="hs-special">]</span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span>    </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Field"><span class="hs-identifier hs-var">Field</span></a></span><span>                   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ConsoleLayer -&gt; ColorIntensity -&gt; Color -&gt; SGR
+</span><span class="hs-identifier hs-var">SetColor</span></span><span> </span><span class="annot"><span class="annottext">ConsoleLayer
+</span><span class="hs-identifier hs-var">Foreground</span></span><span> </span><span class="annot"><span class="annottext">ColorIntensity
+</span><span class="hs-identifier hs-var">Vivid</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><span class="hs-identifier hs-var">Magenta</span></span><span class="hs-special">]</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span>    </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Module"><span class="hs-identifier hs-var">Module</span></a></span><span>                  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ConsoleLayer -&gt; ColorIntensity -&gt; Color -&gt; SGR
+</span><span class="hs-identifier hs-var">SetColor</span></span><span> </span><span class="annot"><span class="annottext">ConsoleLayer
+</span><span class="hs-identifier hs-var">Foreground</span></span><span> </span><span class="annot"><span class="annottext">ColorIntensity
+</span><span class="hs-identifier hs-var">Vivid</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><span class="hs-identifier hs-var">Magenta</span></span><span class="hs-special">]</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span>    </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Function"><span class="hs-identifier hs-var">Function</span></a></span><span>                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ConsoleLayer -&gt; ColorIntensity -&gt; Color -&gt; SGR
+</span><span class="hs-identifier hs-var">SetColor</span></span><span> </span><span class="annot"><span class="annottext">ConsoleLayer
+</span><span class="hs-identifier hs-var">Foreground</span></span><span> </span><span class="annot"><span class="annottext">ColorIntensity
+</span><span class="hs-identifier hs-var">Dull</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><span class="hs-identifier hs-var">Blue</span></span><span class="hs-special">]</span><span>
+</span><span id="line-40"></span><span>    </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Postulate"><span class="hs-identifier hs-var">Postulate</span></a></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ConsoleLayer -&gt; ColorIntensity -&gt; Color -&gt; SGR
+</span><span class="hs-identifier hs-var">SetColor</span></span><span> </span><span class="annot"><span class="annottext">ConsoleLayer
+</span><span class="hs-identifier hs-var">Foreground</span></span><span> </span><span class="annot"><span class="annottext">ColorIntensity
+</span><span class="hs-identifier hs-var">Dull</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><span class="hs-identifier hs-var">Blue</span></span><span class="hs-special">]</span><span>
+</span><span id="line-41"></span><span>    </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Datatype"><span class="hs-identifier hs-var">Datatype</span></a></span><span>                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ConsoleLayer -&gt; ColorIntensity -&gt; Color -&gt; SGR
+</span><span class="hs-identifier hs-var">SetColor</span></span><span> </span><span class="annot"><span class="annottext">ConsoleLayer
+</span><span class="hs-identifier hs-var">Foreground</span></span><span> </span><span class="annot"><span class="annottext">ColorIntensity
+</span><span class="hs-identifier hs-var">Dull</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><span class="hs-identifier hs-var">Blue</span></span><span class="hs-special">]</span><span>
+</span><span id="line-42"></span><span>    </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Record"><span class="hs-identifier hs-var">Record</span></a></span><span>                  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ConsoleLayer -&gt; ColorIntensity -&gt; Color -&gt; SGR
+</span><span class="hs-identifier hs-var">SetColor</span></span><span> </span><span class="annot"><span class="annottext">ConsoleLayer
+</span><span class="hs-identifier hs-var">Foreground</span></span><span> </span><span class="annot"><span class="annottext">ColorIntensity
+</span><span class="hs-identifier hs-var">Dull</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><span class="hs-identifier hs-var">Blue</span></span><span class="hs-special">]</span><span>
+</span><span id="line-43"></span><span>    </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Primitive"><span class="hs-identifier hs-var">Primitive</span></a></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ConsoleLayer -&gt; ColorIntensity -&gt; Color -&gt; SGR
+</span><span class="hs-identifier hs-var">SetColor</span></span><span> </span><span class="annot"><span class="annottext">ConsoleLayer
+</span><span class="hs-identifier hs-var">Foreground</span></span><span> </span><span class="annot"><span class="annottext">ColorIntensity
+</span><span class="hs-identifier hs-var">Dull</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><span class="hs-identifier hs-var">Blue</span></span><span class="hs-special">]</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span>    </span><span class="annot"><span class="annottext">NameKind
+</span><a href="Agda.Syntax.Common.Aspect.html#Macro"><span class="hs-identifier hs-var">Macro</span></a></span><span>                   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ConsoleLayer -&gt; ColorIntensity -&gt; Color -&gt; SGR
+</span><span class="hs-identifier hs-var">SetColor</span></span><span> </span><span class="annot"><span class="annottext">ConsoleLayer
+</span><span class="hs-identifier hs-var">Foreground</span></span><span> </span><span class="annot"><span class="annottext">ColorIntensity
+</span><span class="hs-identifier hs-var">Dull</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><span class="hs-identifier hs-var">Cyan</span></span><span class="hs-special">]</span><span>
+</span><span id="line-46"></span><span>  </span><span class="annot"><a href="#local-6989586621681374751"><span class="hs-identifier hs-var">aspSGR</span></a></span><span> </span><span class="annot"><span class="annottext">Aspect
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span id="local-6989586621681374722"><span class="annot"><a href="Agda.Syntax.Common.Pretty.ANSI.html#putDoc"><span class="hs-identifier hs-type">putDoc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621681374722"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.HasOptions.html#HasOptions"><span class="hs-identifier hs-type">HasOptions</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681374722"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681374722"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-49"></span><span id="putDoc"><span class="annot"><span class="annottext">putDoc :: forall (m :: * -&gt; *). (MonadIO m, HasOptions m) =&gt; Doc -&gt; m ()
+</span><a href="Agda.Syntax.Common.Pretty.ANSI.html#putDoc"><span class="hs-identifier hs-var hs-var">putDoc</span></a></span></span><span> </span><span id="local-6989586621681374792"><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621681374792"><span class="hs-identifier hs-var">doc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-50"></span><span>  </span><span id="local-6989586621681374793"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681374793"><span class="hs-identifier hs-var">outputcol</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO Bool -&gt; m Bool
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Handle -&gt; IO Bool
+</span><span class="hs-identifier hs-var">hSupportsANSI</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><span class="hs-identifier hs-var">stdout</span></span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>  </span><span id="local-6989586621681374797"><span class="annot"><span class="annottext">CommandLineOptions
+</span><a href="#local-6989586621681374797"><span class="hs-identifier hs-var">wantscol</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m CommandLineOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m CommandLineOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#commandLineOptions"><span class="hs-identifier hs-var">commandLineOptions</span></a></span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-keyword">let</span><span>
+</span><span id="line-53"></span><span>    </span><span id="local-6989586621681374799"><span class="annot"><span class="annottext">col :: Bool
+</span><a href="#local-6989586621681374799"><span class="hs-identifier hs-var hs-var">col</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">CommandLineOptions -&gt; DiagnosticsColours
+</span><a href="Agda.Interaction.Options.Base.html#optDiagnosticsColour"><span class="hs-identifier hs-var">optDiagnosticsColour</span></a></span><span> </span><span class="annot"><span class="annottext">CommandLineOptions
+</span><a href="#local-6989586621681374797"><span class="hs-identifier hs-var">wantscol</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-54"></span><span>      </span><span class="annot"><span class="annottext">DiagnosticsColours
+</span><a href="Agda.Interaction.Options.Base.html#AutoColour"><span class="hs-identifier hs-var">AutoColour</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681374793"><span class="hs-identifier hs-var">outputcol</span></a></span><span>
+</span><span id="line-55"></span><span>      </span><span class="annot"><span class="annottext">DiagnosticsColours
+</span><a href="Agda.Interaction.Options.Base.html#AlwaysColour"><span class="hs-identifier hs-var">AlwaysColour</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-56"></span><span>      </span><span class="annot"><span class="annottext">DiagnosticsColours
+</span><a href="Agda.Interaction.Options.Base.html#NeverColour"><span class="hs-identifier hs-var">NeverColour</span></a></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span>  </span><span class="annot"><span class="annottext">IO () -&gt; m ()
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; m ()) -&gt; IO () -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681374799"><span class="hs-identifier hs-var">col</span></a></span><span>
+</span><span id="line-59"></span><span>    </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; IO ()
+</span><a href="Agda.Syntax.Common.Pretty.ANSI.html#renderAnsiIO"><span class="hs-identifier hs-var">renderAnsiIO</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621681374792"><span class="hs-identifier hs-var">doc</span></a></span><span>
+</span><span id="line-60"></span><span>    </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Doc -&gt; String
+forall a. Doc a -&gt; String
+</span><span class="hs-identifier hs-var">render</span></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621681374792"><span class="hs-identifier hs-var">doc</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span></pre></body></html>

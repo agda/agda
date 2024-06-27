@@ -1,0 +1,1233 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- | Collecting fixity declarations (and polarity pragmas) for concrete</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--   declarations.</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Syntax.Concrete.Fixity</span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#Fixities"><span class="hs-identifier">Fixities</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#Polarities"><span class="hs-identifier">Polarities</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadFixityError"><span class="hs-identifier">MonadFixityError</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DoWarn"><span class="hs-identifier">DoWarn</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#fixitiesAndPolarities"><span class="hs-identifier">fixitiesAndPolarities</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">null</span></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html"><span class="hs-identifier">Agda.Syntax.Builtin</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinById"><span class="hs-identifier">builtinById</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#isBuiltinNoDef"><span class="hs-identifier">isBuiltinNoDef</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html"><span class="hs-identifier">Agda.Syntax.Concrete</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Positivity.Occurrence.html"><span class="hs-identifier">Agda.TypeChecking.Positivity.Occurrence</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Positivity.Occurrence.html#Occurrence"><span class="hs-identifier">Occurrence</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.CallStack.html"><span class="hs-identifier">Agda.Utils.CallStack</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">HasCallStack</span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html"><span class="hs-identifier">Agda.Utils.Functor</span></a></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">type</span><span> </span><span id="Fixities"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#Fixities"><span class="hs-identifier hs-var">Fixities</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#Fixity%27"><span class="hs-identifier hs-type">Fixity'</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">type</span><span> </span><span id="Polarities"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#Polarities"><span class="hs-identifier hs-var">Polarities</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.TypeChecking.Positivity.Occurrence.html#Occurrence"><span class="hs-identifier hs-type">Occurrence</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">class</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681325286"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="MonadFixityError"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadFixityError"><span class="hs-identifier hs-var">MonadFixityError</span></a></span></span><span> </span><span id="local-6989586621681325286"><span class="annot"><a href="#local-6989586621681325286"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-38"></span><span>  </span><span id="throwMultipleFixityDecls"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#throwMultipleFixityDecls"><span class="hs-identifier hs-type">throwMultipleFixityDecls</span></a></span></span><span>            </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681325296"><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#Fixity%27"><span class="hs-identifier hs-type">Fixity'</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681325286"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681325296"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-39"></span><span>  </span><span id="throwMultiplePolarityPragmas"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#throwMultiplePolarityPragmas"><span class="hs-identifier hs-type">throwMultiplePolarityPragmas</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681325346"><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681325286"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681325346"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-40"></span><span>  </span><span id="warnUnknownNamesInFixityDecl"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#warnUnknownNamesInFixityDecl"><span class="hs-identifier hs-type">warnUnknownNamesInFixityDecl</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681325286"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span>  </span><span id="warnUnknownNamesInPolarityPragmas"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#warnUnknownNamesInPolarityPragmas"><span class="hs-identifier hs-type">warnUnknownNamesInPolarityPragmas</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681325286"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>  </span><span id="warnUnknownFixityInMixfixDecl"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#warnUnknownFixityInMixfixDecl"><span class="hs-identifier hs-type">warnUnknownFixityInMixfixDecl</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681325286"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>  </span><span id="warnPolarityPragmasButNotPostulates"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#warnPolarityPragmasButNotPostulates"><span class="hs-identifier hs-type">warnPolarityPragmasButNotPostulates</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681325286"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- | Add more fixities. Throw an exception for multiple fixity declarations.</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span id="local-6989586621681325288"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#plusFixities"><span class="hs-identifier hs-type">plusFixities</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadFixityError"><span class="hs-identifier hs-type">MonadFixityError</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681325288"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#Fixities"><span class="hs-identifier hs-type">Fixities</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#Fixities"><span class="hs-identifier hs-type">Fixities</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681325288"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#Fixities"><span class="hs-identifier hs-type">Fixities</span></a></span></span><span>
+</span><span id="line-49"></span><span id="plusFixities"><span class="annot"><span class="annottext">plusFixities :: forall (m :: * -&gt; *).
+MonadFixityError m =&gt;
+Fixities -&gt; Fixities -&gt; m Fixities
+</span><a href="Agda.Syntax.Concrete.Fixity.html#plusFixities"><span class="hs-identifier hs-var hs-var">plusFixities</span></a></span></span><span> </span><span id="local-6989586621681325500"><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325500"><span class="hs-identifier hs-var">m1</span></a></span></span><span> </span><span id="local-6989586621681325501"><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325501"><span class="hs-identifier hs-var">m2</span></a></span></span><span>
+</span><span id="line-50"></span><span>    </span><span class="hs-comment">-- If maps are not disjoint, report conflicts as exception.</span><span>
+</span><span id="line-51"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[(Name, [Fixity'])] -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">[(Name, [Fixity'])]
+</span><a href="#local-6989586621681325504"><span class="hs-identifier hs-var">isect</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(Name, [Fixity'])] -&gt; m Fixities
+forall a. [(Name, [Fixity'])] -&gt; m a
+forall (m :: * -&gt; *) a.
+MonadFixityError m =&gt;
+[(Name, [Fixity'])] -&gt; m a
+</span><a href="Agda.Syntax.Concrete.Fixity.html#throwMultipleFixityDecls"><span class="hs-identifier hs-var">throwMultipleFixityDecls</span></a></span><span> </span><span class="annot"><span class="annottext">[(Name, [Fixity'])]
+</span><a href="#local-6989586621681325504"><span class="hs-identifier hs-var">isect</span></a></span><span>
+</span><span id="line-52"></span><span>    </span><span class="hs-comment">-- Otherwise, do the union.</span><span>
+</span><span id="line-53"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Fixities -&gt; m Fixities
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Fixities -&gt; m Fixities) -&gt; Fixities -&gt; m Fixities
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Fixity' -&gt; Fixity' -&gt; Fixity')
+-&gt; Fixities -&gt; Fixities -&gt; Fixities
+forall k a.
+Ord k =&gt;
+(k -&gt; a -&gt; a -&gt; a) -&gt; Map k a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.unionWithKey</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Fixity' -&gt; Fixity' -&gt; Fixity'
+forall {p}. p -&gt; Fixity' -&gt; Fixity' -&gt; Fixity'
+</span><a href="#local-6989586621681325506"><span class="hs-identifier hs-var">mergeFixites</span></a></span><span> </span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325500"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325501"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-55"></span><span>    </span><span class="hs-comment">--  Merge two fixities, assuming there is no conflict</span><span>
+</span><span id="line-56"></span><span>    </span><span id="local-6989586621681325506"><span class="annot"><span class="annottext">mergeFixites :: p -&gt; Fixity' -&gt; Fixity' -&gt; Fixity'
+</span><a href="#local-6989586621681325506"><span class="hs-identifier hs-var hs-var">mergeFixites</span></a></span></span><span> </span><span id="local-6989586621681325519"><span class="annot"><span class="annottext">p
+</span><a href="#local-6989586621681325519"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Fixity%27"><span class="hs-identifier hs-type">Fixity'</span></a></span><span> </span><span id="local-6989586621681325521"><span class="annot"><span class="annottext">Fixity
+</span><a href="#local-6989586621681325521"><span class="hs-identifier hs-var">f1</span></a></span></span><span> </span><span id="local-6989586621681325522"><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681325522"><span class="hs-identifier hs-var">s1</span></a></span></span><span> </span><span id="local-6989586621681325523"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681325523"><span class="hs-identifier hs-var">r1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Fixity%27"><span class="hs-identifier hs-type">Fixity'</span></a></span><span> </span><span id="local-6989586621681325524"><span class="annot"><span class="annottext">Fixity
+</span><a href="#local-6989586621681325524"><span class="hs-identifier hs-var">f2</span></a></span></span><span> </span><span id="local-6989586621681325525"><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681325525"><span class="hs-identifier hs-var">s2</span></a></span></span><span> </span><span id="local-6989586621681325526"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681325526"><span class="hs-identifier hs-var">r2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Fixity -&gt; Notation -&gt; Range -&gt; Fixity'
+</span><a href="Agda.Syntax.Common.html#Fixity%27"><span class="hs-identifier hs-var">Fixity'</span></a></span><span> </span><span class="annot"><span class="annottext">Fixity
+</span><a href="#local-6989586621681325527"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681325528"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">(Range -&gt; Fixity') -&gt; Range -&gt; Fixity'
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Range -&gt; Range -&gt; Range
+forall u t. (HasRange u, HasRange t) =&gt; u -&gt; t -&gt; Range
+</span><a href="Agda.Syntax.Position.html#fuseRange"><span class="hs-identifier hs-var">fuseRange</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681325523"><span class="hs-identifier hs-var">r1</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681325526"><span class="hs-identifier hs-var">r2</span></a></span><span>
+</span><span id="line-57"></span><span>              </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681325527"><span class="annot"><span class="annottext">f :: Fixity
+</span><a href="#local-6989586621681325527"><span class="hs-identifier hs-var hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Fixity -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Fixity
+</span><a href="#local-6989586621681325521"><span class="hs-identifier hs-var">f1</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Fixity
+</span><a href="#local-6989586621681325524"><span class="hs-identifier hs-var">f2</span></a></span><span>
+</span><span id="line-58"></span><span>                      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Fixity -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Fixity
+</span><a href="#local-6989586621681325524"><span class="hs-identifier hs-var">f2</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Fixity
+</span><a href="#local-6989586621681325521"><span class="hs-identifier hs-var">f1</span></a></span><span>
+</span><span id="line-59"></span><span>                      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Fixity
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-60"></span><span>                    </span><span id="local-6989586621681325528"><span class="annot"><span class="annottext">s :: Notation
+</span><a href="#local-6989586621681325528"><span class="hs-identifier hs-var hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Notation -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681325522"><span class="hs-identifier hs-var">s1</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681325525"><span class="hs-identifier hs-var">s2</span></a></span><span>
+</span><span id="line-61"></span><span>                      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Notation -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681325525"><span class="hs-identifier hs-var">s2</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681325522"><span class="hs-identifier hs-var">s1</span></a></span><span>
+</span><span id="line-62"></span><span>                      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Notation
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span>    </span><span class="hs-comment">-- Compute a list of conflicts in a format suitable for error reporting.</span><span>
+</span><span id="line-65"></span><span>    </span><span id="local-6989586621681325504"><span class="annot"><span class="annottext">isect :: [(Name, [Fixity'])]
+</span><a href="#local-6989586621681325504"><span class="hs-identifier hs-var hs-var">isect</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325531"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(Fixities -&gt; Fixity') -&gt; [Fixities] -&gt; [Fixity']
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Fixity' -&gt; Name -&gt; Fixities -&gt; Fixity'
+forall k a. Ord k =&gt; a -&gt; k -&gt; Map k a -&gt; a
+</span><span class="hs-identifier hs-var">Map.findWithDefault</span></span><span> </span><span class="annot"><span class="annottext">Fixity'
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325531"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325500"><span class="hs-identifier hs-var">m1</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325501"><span class="hs-identifier hs-var">m2</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>            </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681325531"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325531"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Map Name Bool -&gt; [(Name, Bool)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.assocs</span></span><span> </span><span class="annot"><span class="annottext">(Map Name Bool -&gt; [(Name, Bool)])
+-&gt; Map Name Bool -&gt; [(Name, Bool)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Fixity' -&gt; Fixity' -&gt; Bool)
+-&gt; Fixities -&gt; Fixities -&gt; Map Name Bool
+forall k a b c.
+Ord k =&gt;
+(a -&gt; b -&gt; c) -&gt; Map k a -&gt; Map k b -&gt; Map k c
+</span><span class="hs-identifier hs-var">Map.intersectionWith</span></span><span> </span><span class="annot"><span class="annottext">Fixity' -&gt; Fixity' -&gt; Bool
+</span><a href="#local-6989586621681325535"><span class="hs-identifier hs-var">compatible</span></a></span><span> </span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325500"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325501"><span class="hs-identifier hs-var">m2</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span>    </span><span class="hs-comment">-- Check for no conflict.</span><span>
+</span><span id="line-69"></span><span>    </span><span id="local-6989586621681325535"><span class="annot"><span class="annottext">compatible :: Fixity' -&gt; Fixity' -&gt; Bool
+</span><a href="#local-6989586621681325535"><span class="hs-identifier hs-var hs-var">compatible</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Fixity%27"><span class="hs-identifier hs-type">Fixity'</span></a></span><span> </span><span id="local-6989586621681325540"><span class="annot"><span class="annottext">Fixity
+</span><a href="#local-6989586621681325540"><span class="hs-identifier hs-var">f1</span></a></span></span><span> </span><span id="local-6989586621681325541"><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681325541"><span class="hs-identifier hs-var">s1</span></a></span></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Fixity%27"><span class="hs-identifier hs-type">Fixity'</span></a></span><span> </span><span id="local-6989586621681325542"><span class="annot"><span class="annottext">Fixity
+</span><a href="#local-6989586621681325542"><span class="hs-identifier hs-var">f2</span></a></span></span><span> </span><span id="local-6989586621681325543"><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681325543"><span class="hs-identifier hs-var">s2</span></a></span></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-70"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Fixity -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Fixity
+</span><a href="#local-6989586621681325540"><span class="hs-identifier hs-var">f1</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">Fixity -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Fixity
+</span><a href="#local-6989586621681325542"><span class="hs-identifier hs-var">f2</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span>
+</span><span id="line-71"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Notation -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681325541"><span class="hs-identifier hs-var">s1</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">Notation -&gt; Bool
+forall a. Null a =&gt; a -&gt; Bool
+</span><a href="Agda.Utils.Null.html#null"><span class="hs-identifier hs-var">null</span></a></span><span> </span><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681325543"><span class="hs-identifier hs-var">s2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- | While 'Fixities' and Polarities are not semigroups under disjoint</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--   union (which might fail), we get a semigroup instance for the</span><span>
+</span><span id="line-75"></span><span class="hs-comment">--   monadic @m (Fixities, Polarities)@ which propagates the first</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--   error.</span><span>
+</span><span id="line-77"></span><span class="hs-keyword">newtype</span><span> </span><span id="MonadicFixPol"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadicFixPol"><span class="hs-identifier hs-var">MonadicFixPol</span></a></span></span><span> </span><span id="local-6989586621681325324"><span class="annot"><a href="#local-6989586621681325324"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MonadicFixPol"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadicFixPol"><span class="hs-identifier hs-var">MonadicFixPol</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="runMonadicFixPol"><span class="annot"><span class="annottext">forall (m :: * -&gt; *). MonadicFixPol m -&gt; m (Fixities, Polarities)
+</span><a href="Agda.Syntax.Concrete.Fixity.html#runMonadicFixPol"><span class="hs-identifier hs-var hs-var">runMonadicFixPol</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681325324"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#Fixities"><span class="hs-identifier hs-type">Fixities</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#Polarities"><span class="hs-identifier hs-type">Polarities</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span id="local-6989586621681325328"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#returnFix"><span class="hs-identifier hs-type">returnFix</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681325328"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#Fixities"><span class="hs-identifier hs-type">Fixities</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadicFixPol"><span class="hs-identifier hs-type">MonadicFixPol</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681325328"><span class="hs-identifier hs-type">m</span></a></span></span><span>
+</span><span id="line-80"></span><span id="returnFix"><span class="annot"><span class="annottext">returnFix :: forall (m :: * -&gt; *). Monad m =&gt; Fixities -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#returnFix"><span class="hs-identifier hs-var hs-var">returnFix</span></a></span></span><span> </span><span id="local-6989586621681325551"><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325551"><span class="hs-identifier hs-var">fx</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Fixities, Polarities) -&gt; MonadicFixPol m
+forall (m :: * -&gt; *). m (Fixities, Polarities) -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#MonadicFixPol"><span class="hs-identifier hs-var">MonadicFixPol</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Fixities, Polarities) -&gt; MonadicFixPol m)
+-&gt; m (Fixities, Polarities) -&gt; MonadicFixPol m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Fixities, Polarities) -&gt; m (Fixities, Polarities)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325551"><span class="hs-identifier hs-var">fx</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Polarities
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span id="local-6989586621681325332"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#returnPol"><span class="hs-identifier hs-type">returnPol</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621681325332"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#Polarities"><span class="hs-identifier hs-type">Polarities</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadicFixPol"><span class="hs-identifier hs-type">MonadicFixPol</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681325332"><span class="hs-identifier hs-type">m</span></a></span></span><span>
+</span><span id="line-83"></span><span id="returnPol"><span class="annot"><span class="annottext">returnPol :: forall (m :: * -&gt; *). Monad m =&gt; Polarities -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#returnPol"><span class="hs-identifier hs-var hs-var">returnPol</span></a></span></span><span> </span><span id="local-6989586621681325556"><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325556"><span class="hs-identifier hs-var">pol</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Fixities, Polarities) -&gt; MonadicFixPol m
+forall (m :: * -&gt; *). m (Fixities, Polarities) -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#MonadicFixPol"><span class="hs-identifier hs-var">MonadicFixPol</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Fixities, Polarities) -&gt; MonadicFixPol m)
+-&gt; m (Fixities, Polarities) -&gt; MonadicFixPol m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Fixities, Polarities) -&gt; m (Fixities, Polarities)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Fixities
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325556"><span class="hs-identifier hs-var">pol</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681325338"><span id="local-6989586621681325560"><span id="local-6989586621681325564"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadFixityError"><span class="hs-identifier hs-type">MonadFixityError</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681325338"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadicFixPol"><span class="hs-identifier hs-type">MonadicFixPol</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681325338"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-86"></span><span>  </span><span id="local-6989586621681325577"><span class="annot"><span class="annottext">MonadicFixPol m
+</span><a href="#local-6989586621681325577"><span class="hs-identifier hs-var">c1</span></a></span></span><span> </span><span id="local-6989586621681325578"><span class="annot"><span class="annottext">&lt;&gt; :: MonadicFixPol m -&gt; MonadicFixPol m -&gt; MonadicFixPol m
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span id="local-6989586621681325579"><span class="annot"><span class="annottext">MonadicFixPol m
+</span><a href="#local-6989586621681325579"><span class="hs-identifier hs-var">c2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Fixities, Polarities) -&gt; MonadicFixPol m
+forall (m :: * -&gt; *). m (Fixities, Polarities) -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#MonadicFixPol"><span class="hs-identifier hs-var">MonadicFixPol</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Fixities, Polarities) -&gt; MonadicFixPol m)
+-&gt; m (Fixities, Polarities) -&gt; MonadicFixPol m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-87"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681325580"><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325580"><span class="hs-identifier hs-var">f1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681325581"><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325581"><span class="hs-identifier hs-var">p1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m -&gt; m (Fixities, Polarities)
+forall (m :: * -&gt; *). MonadicFixPol m -&gt; m (Fixities, Polarities)
+</span><a href="Agda.Syntax.Concrete.Fixity.html#runMonadicFixPol"><span class="hs-identifier hs-var">runMonadicFixPol</span></a></span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+</span><a href="#local-6989586621681325577"><span class="hs-identifier hs-var">c1</span></a></span><span>
+</span><span id="line-88"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681325582"><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325582"><span class="hs-identifier hs-var">f2</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681325583"><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325583"><span class="hs-identifier hs-var">p2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m -&gt; m (Fixities, Polarities)
+forall (m :: * -&gt; *). MonadicFixPol m -&gt; m (Fixities, Polarities)
+</span><a href="Agda.Syntax.Concrete.Fixity.html#runMonadicFixPol"><span class="hs-identifier hs-var">runMonadicFixPol</span></a></span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+</span><a href="#local-6989586621681325579"><span class="hs-identifier hs-var">c2</span></a></span><span>
+</span><span id="line-89"></span><span>    </span><span id="local-6989586621681325584"><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325584"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Fixities -&gt; Fixities -&gt; m Fixities
+forall (m :: * -&gt; *).
+MonadFixityError m =&gt;
+Fixities -&gt; Fixities -&gt; m Fixities
+</span><a href="Agda.Syntax.Concrete.Fixity.html#plusFixities"><span class="hs-identifier hs-var">plusFixities</span></a></span><span> </span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325580"><span class="hs-identifier hs-var">f1</span></a></span><span> </span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325582"><span class="hs-identifier hs-var">f2</span></a></span><span>
+</span><span id="line-90"></span><span>    </span><span id="local-6989586621681325585"><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325585"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Polarities -&gt; Polarities -&gt; m Polarities
+forall {m :: * -&gt; *} {b}.
+MonadFixityError m =&gt;
+Map Name b -&gt; Map Name b -&gt; m (Map Name b)
+</span><a href="#local-6989586621681325586"><span class="hs-identifier hs-var">mergePolarities</span></a></span><span> </span><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325581"><span class="hs-identifier hs-var">p1</span></a></span><span> </span><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325583"><span class="hs-identifier hs-var">p2</span></a></span><span>
+</span><span id="line-91"></span><span>    </span><span class="annot"><span class="annottext">(Fixities, Polarities) -&gt; m (Fixities, Polarities)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325584"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325585"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-92"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-93"></span><span>    </span><span id="local-6989586621681325586"><span class="annot"><span class="annottext">mergePolarities :: Map Name b -&gt; Map Name b -&gt; m (Map Name b)
+</span><a href="#local-6989586621681325586"><span class="hs-identifier hs-var hs-var">mergePolarities</span></a></span></span><span> </span><span id="local-6989586621681325602"><span class="annot"><span class="annottext">Map Name b
+</span><a href="#local-6989586621681325602"><span class="hs-identifier hs-var">p1</span></a></span></span><span> </span><span id="local-6989586621681325603"><span class="annot"><span class="annottext">Map Name b
+</span><a href="#local-6989586621681325603"><span class="hs-identifier hs-var">p2</span></a></span></span><span>
+</span><span id="line-94"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Map Name b -&gt; Bool
+forall k a. Map k a -&gt; Bool
+</span><span class="hs-identifier hs-var">Map.null</span></span><span> </span><span class="annot"><span class="annottext">Map Name b
+</span><a href="#local-6989586621681325605"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map Name b -&gt; m (Map Name b)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map Name b -&gt; Map Name b -&gt; Map Name b
+forall k a. Ord k =&gt; Map k a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.union</span></span><span> </span><span class="annot"><span class="annottext">Map Name b
+</span><a href="#local-6989586621681325602"><span class="hs-identifier hs-var">p1</span></a></span><span> </span><span class="annot"><span class="annottext">Map Name b
+</span><a href="#local-6989586621681325603"><span class="hs-identifier hs-var">p2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-95"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; m (Map Name b)
+forall a. [Name] -&gt; m a
+forall (m :: * -&gt; *) a. MonadFixityError m =&gt; [Name] -&gt; m a
+</span><a href="Agda.Syntax.Concrete.Fixity.html#throwMultiplePolarityPragmas"><span class="hs-identifier hs-var">throwMultiplePolarityPragmas</span></a></span><span> </span><span class="annot"><span class="annottext">([Name] -&gt; m (Map Name b)) -&gt; [Name] -&gt; m (Map Name b)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-96"></span><span>                     </span><span class="annot"><span class="annottext">((Name, b) -&gt; Name) -&gt; [(Name, b)] -&gt; [Name]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(Name, b) -&gt; Name
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">([(Name, b)] -&gt; [Name]) -&gt; [(Name, b)] -&gt; [Name]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Map Name b -&gt; [(Name, b)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toList</span></span><span> </span><span class="annot"><span class="annottext">Map Name b
+</span><a href="#local-6989586621681325605"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-97"></span><span>      </span><span class="hs-keyword">where</span><span>
+</span><span id="line-98"></span><span>      </span><span class="hs-comment">-- Only the keys are used.</span><span>
+</span><span id="line-99"></span><span>      </span><span id="local-6989586621681325605"><span class="annot"><span class="annottext">i :: Map Name b
+</span><a href="#local-6989586621681325605"><span class="hs-identifier hs-var hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map Name b -&gt; Map Name b -&gt; Map Name b
+forall k a b. Ord k =&gt; Map k a -&gt; Map k b -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.intersection</span></span><span> </span><span class="annot"><span class="annottext">Map Name b
+</span><a href="#local-6989586621681325602"><span class="hs-identifier hs-var">p1</span></a></span><span> </span><span class="annot"><span class="annottext">Map Name b
+</span><a href="#local-6989586621681325603"><span class="hs-identifier hs-var">p2</span></a></span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681325354"><span id="local-6989586621681325616"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadFixityError"><span class="hs-identifier hs-type">MonadFixityError</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681325354"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadicFixPol"><span class="hs-identifier hs-type">MonadicFixPol</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681325354"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-102"></span><span>  </span><span id="local-6989586621681325622"><span class="annot"><span class="annottext">mempty :: MonadicFixPol m
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">mempty</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Fixities, Polarities) -&gt; MonadicFixPol m
+forall (m :: * -&gt; *). m (Fixities, Polarities) -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#MonadicFixPol"><span class="hs-identifier hs-var">MonadicFixPol</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Fixities, Polarities) -&gt; MonadicFixPol m)
+-&gt; m (Fixities, Polarities) -&gt; MonadicFixPol m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Fixities, Polarities) -&gt; m (Fixities, Polarities)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Fixities
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Polarities
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>  </span><span id="local-6989586621681325624"><span class="annot"><span class="annottext">mappend :: MonadicFixPol m -&gt; MonadicFixPol m -&gt; MonadicFixPol m
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m -&gt; MonadicFixPol m -&gt; MonadicFixPol m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="hs-keyword">data</span><span> </span><span id="DoWarn"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DoWarn"><span class="hs-identifier hs-var">DoWarn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="NoWarn"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#NoWarn"><span class="hs-identifier hs-var">NoWarn</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="DoWarn"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DoWarn"><span class="hs-identifier hs-var">DoWarn</span></a></span></span><span>
+</span><span id="line-106"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681325628"><span id="local-6989586621681325630"><span class="annot"><span class="annottext">DoWarn -&gt; DoWarn -&gt; Bool
+(DoWarn -&gt; DoWarn -&gt; Bool)
+-&gt; (DoWarn -&gt; DoWarn -&gt; Bool) -&gt; Eq DoWarn
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: DoWarn -&gt; DoWarn -&gt; Bool
+== :: DoWarn -&gt; DoWarn -&gt; Bool
+$c/= :: DoWarn -&gt; DoWarn -&gt; Bool
+/= :: DoWarn -&gt; DoWarn -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681325635"><span id="local-6989586621681325637"><span id="local-6989586621681325641"><span class="annot"><span class="annottext">Int -&gt; DoWarn -&gt; ShowS
+[DoWarn] -&gt; ShowS
+DoWarn -&gt; String
+(Int -&gt; DoWarn -&gt; ShowS)
+-&gt; (DoWarn -&gt; String) -&gt; ([DoWarn] -&gt; ShowS) -&gt; Show DoWarn
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; DoWarn -&gt; ShowS
+showsPrec :: Int -&gt; DoWarn -&gt; ShowS
+$cshow :: DoWarn -&gt; String
+show :: DoWarn -&gt; String
+$cshowList :: [DoWarn] -&gt; ShowS
+showList :: [DoWarn] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- | Get the fixities and polarity pragmas from the current block.</span><span>
+</span><span id="line-109"></span><span class="hs-comment">--   Doesn't go inside modules and where blocks.</span><span>
+</span><span id="line-110"></span><span class="hs-comment">--   The reason for this is that these declarations have to appear at the same</span><span>
+</span><span id="line-111"></span><span class="hs-comment">--   level (or possibly outside an abstract or mutual block) as their target</span><span>
+</span><span id="line-112"></span><span class="hs-comment">--   declaration.</span><span>
+</span><span id="line-113"></span><span id="local-6989586621681325359"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#fixitiesAndPolarities"><span class="hs-identifier hs-type">fixitiesAndPolarities</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadFixityError"><span class="hs-identifier hs-type">MonadFixityError</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681325359"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DoWarn"><span class="hs-identifier hs-type">DoWarn</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.html#Declaration"><span class="hs-identifier hs-type">Declaration</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681325359"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#Fixities"><span class="hs-identifier hs-type">Fixities</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#Polarities"><span class="hs-identifier hs-type">Polarities</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-114"></span><span id="fixitiesAndPolarities"><span class="annot"><span class="annottext">fixitiesAndPolarities :: forall (m :: * -&gt; *).
+MonadFixityError m =&gt;
+DoWarn -&gt; [Declaration] -&gt; m (Fixities, Polarities)
+</span><a href="Agda.Syntax.Concrete.Fixity.html#fixitiesAndPolarities"><span class="hs-identifier hs-var hs-var">fixitiesAndPolarities</span></a></span></span><span> </span><span id="local-6989586621681325696"><span class="annot"><span class="annottext">DoWarn
+</span><a href="#local-6989586621681325696"><span class="hs-identifier hs-var">doWarn</span></a></span></span><span> </span><span id="local-6989586621681325697"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325697"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-115"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681325698"><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325698"><span class="hs-identifier hs-var">fixs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681325699"><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325699"><span class="hs-identifier hs-var">pols</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m -&gt; m (Fixities, Polarities)
+forall (m :: * -&gt; *). MonadicFixPol m -&gt; m (Fixities, Polarities)
+</span><a href="Agda.Syntax.Concrete.Fixity.html#runMonadicFixPol"><span class="hs-identifier hs-var">runMonadicFixPol</span></a></span><span> </span><span class="annot"><span class="annottext">(MonadicFixPol m -&gt; m (Fixities, Polarities))
+-&gt; MonadicFixPol m -&gt; m (Fixities, Polarities)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Declaration] -&gt; MonadicFixPol m
+forall (m :: * -&gt; *).
+MonadFixityError m =&gt;
+[Declaration] -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#fixitiesAndPolarities%27"><span class="hs-identifier hs-var">fixitiesAndPolarities'</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325697"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-116"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span><span> </span><span id="local-6989586621681325702"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325702"><span class="hs-identifier hs-var">declared</span></a></span></span><span> </span><span id="local-6989586621681325703"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325703"><span class="hs-identifier hs-var">postulates</span></a></span></span><span> </span><span id="local-6989586621681325704"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325704"><span class="hs-identifier hs-var">privateNames</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325697"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-117"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681325707"><span class="annot"><span class="annottext">publicNames :: Set Name
+</span><a href="#local-6989586621681325707"><span class="hs-identifier hs-var hs-var">publicNames</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325702"><span class="hs-identifier hs-var">declared</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">Set.\\</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325704"><span class="hs-identifier hs-var">privateNames</span></a></span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span>  </span><span class="hs-comment">-- If we have names in fixity declarations which are not defined in the</span><span>
+</span><span id="line-120"></span><span>  </span><span class="hs-comment">-- appropriate scope, raise a warning and delete them from fixs.</span><span>
+</span><span id="line-121"></span><span>  </span><span id="local-6989586621681325709"><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325709"><span class="hs-identifier hs-var">fixs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; m Fixities -&gt; (Set Name -&gt; m Fixities) -&gt; m Fixities
+forall a b. Null a =&gt; a -&gt; b -&gt; (a -&gt; b) -&gt; b
+</span><a href="Agda.Utils.Null.html#ifNull"><span class="hs-identifier hs-var">ifNull</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Fixities -&gt; Set Name
+forall k a. Map k a -&gt; Set k
+</span><span class="hs-identifier hs-var">Map.keysSet</span></span><span> </span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325698"><span class="hs-identifier hs-var">fixs</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">Set.\\</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325702"><span class="hs-identifier hs-var">declared</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Fixities -&gt; m Fixities
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325698"><span class="hs-identifier hs-var">fixs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((Set Name -&gt; m Fixities) -&gt; m Fixities)
+-&gt; (Set Name -&gt; m Fixities) -&gt; m Fixities
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681325712"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325712"><span class="hs-identifier hs-var">unknownFixs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-122"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; m () -&gt; m ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DoWarn
+</span><a href="#local-6989586621681325696"><span class="hs-identifier hs-var">doWarn</span></a></span><span> </span><span class="annot"><span class="annottext">DoWarn -&gt; DoWarn -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">DoWarn
+</span><a href="Agda.Syntax.Concrete.Fixity.html#DoWarn"><span class="hs-identifier hs-var">DoWarn</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; m () -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; m ()
+forall (m :: * -&gt; *).
+(MonadFixityError m, HasCallStack) =&gt;
+[Name] -&gt; m ()
+</span><a href="Agda.Syntax.Concrete.Fixity.html#warnUnknownNamesInFixityDecl"><span class="hs-identifier hs-var">warnUnknownNamesInFixityDecl</span></a></span><span> </span><span class="annot"><span class="annottext">([Name] -&gt; m ()) -&gt; [Name] -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; [Name]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toList</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325712"><span class="hs-identifier hs-var">unknownFixs</span></a></span><span>
+</span><span id="line-123"></span><span>    </span><span class="hs-comment">-- Note: Data.Map.restrictKeys requires containers &gt;= 0.5.8.2</span><span>
+</span><span id="line-124"></span><span>    </span><span class="hs-comment">-- return $ Map.restrictKeys fixs declared</span><span>
+</span><span id="line-125"></span><span>    </span><span class="annot"><span class="annottext">Fixities -&gt; m Fixities
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Fixities -&gt; m Fixities) -&gt; Fixities -&gt; m Fixities
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Fixity' -&gt; Bool) -&gt; Fixities -&gt; Fixities
+forall k a. (k -&gt; a -&gt; Bool) -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.filterWithKey</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681325716"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325716"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="annot"><span class="annottext">Fixity'
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Set Name -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325716"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325702"><span class="hs-identifier hs-var">declared</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325698"><span class="hs-identifier hs-var">fixs</span></a></span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span>  </span><span class="hs-comment">-- Same for undefined names in polarity declarations.</span><span>
+</span><span id="line-128"></span><span>  </span><span id="local-6989586621681325718"><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325718"><span class="hs-identifier hs-var">pols</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Set Name
+-&gt; m Polarities -&gt; (Set Name -&gt; m Polarities) -&gt; m Polarities
+forall a b. Null a =&gt; a -&gt; b -&gt; (a -&gt; b) -&gt; b
+</span><a href="Agda.Utils.Null.html#ifNull"><span class="hs-identifier hs-var">ifNull</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Polarities -&gt; Set Name
+forall k a. Map k a -&gt; Set k
+</span><span class="hs-identifier hs-var">Map.keysSet</span></span><span> </span><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325699"><span class="hs-identifier hs-var">pols</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">Set.\\</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325702"><span class="hs-identifier hs-var">declared</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Polarities -&gt; m Polarities
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325699"><span class="hs-identifier hs-var">pols</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((Set Name -&gt; m Polarities) -&gt; m Polarities)
+-&gt; (Set Name -&gt; m Polarities) -&gt; m Polarities
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-129"></span><span>    </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681325719"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325719"><span class="hs-identifier hs-var">unknownPols</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-130"></span><span>      </span><span class="annot"><span class="annottext">Bool -&gt; m () -&gt; m ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DoWarn
+</span><a href="#local-6989586621681325696"><span class="hs-identifier hs-var">doWarn</span></a></span><span> </span><span class="annot"><span class="annottext">DoWarn -&gt; DoWarn -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">DoWarn
+</span><a href="Agda.Syntax.Concrete.Fixity.html#DoWarn"><span class="hs-identifier hs-var">DoWarn</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; m () -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; m ()
+forall (m :: * -&gt; *).
+(MonadFixityError m, HasCallStack) =&gt;
+[Name] -&gt; m ()
+</span><a href="Agda.Syntax.Concrete.Fixity.html#warnUnknownNamesInPolarityPragmas"><span class="hs-identifier hs-var">warnUnknownNamesInPolarityPragmas</span></a></span><span> </span><span class="annot"><span class="annottext">([Name] -&gt; m ()) -&gt; [Name] -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; [Name]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toList</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325719"><span class="hs-identifier hs-var">unknownPols</span></a></span><span>
+</span><span id="line-131"></span><span>      </span><span class="hs-comment">-- Note: Data.Map.restrictKeys requires containers &gt;= 0.5.8.2</span><span>
+</span><span id="line-132"></span><span>      </span><span class="hs-comment">-- return $ Map.restrictKeys polarities declared</span><span>
+</span><span id="line-133"></span><span>      </span><span class="annot"><span class="annottext">Polarities -&gt; m Polarities
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Polarities -&gt; m Polarities) -&gt; Polarities -&gt; m Polarities
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; [Occurrence] -&gt; Bool) -&gt; Polarities -&gt; Polarities
+forall k a. (k -&gt; a -&gt; Bool) -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.filterWithKey</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681325720"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325720"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="annot"><span class="annottext">[Occurrence]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Set Name -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325720"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325702"><span class="hs-identifier hs-var">declared</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325699"><span class="hs-identifier hs-var">pols</span></a></span><span>
+</span><span id="line-134"></span><span>
+</span><span id="line-135"></span><span>  </span><span class="hs-comment">-- If we have public mixfix identifiers without a corresponding fixity</span><span>
+</span><span id="line-136"></span><span>  </span><span class="hs-comment">-- declaration, we raise a warning</span><span>
+</span><span id="line-137"></span><span>  </span><span class="annot"><span class="annottext">Set Name -&gt; m () -&gt; (Set Name -&gt; m ()) -&gt; m ()
+forall a b. Null a =&gt; a -&gt; b -&gt; (a -&gt; b) -&gt; b
+</span><a href="Agda.Utils.Null.html#ifNull"><span class="hs-identifier hs-var">ifNull</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Name -&gt; Bool) -&gt; Set Name -&gt; Set Name
+forall a. (a -&gt; Bool) -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.filter</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Bool
+</span><a href="Agda.Syntax.Concrete.Name.html#isOpenMixfix"><span class="hs-identifier hs-var">isOpenMixfix</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325707"><span class="hs-identifier hs-var">publicNames</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">Set.\\</span></span><span> </span><span class="annot"><span class="annottext">Fixities -&gt; Set Name
+forall k a. Map k a -&gt; Set k
+</span><span class="hs-identifier hs-var">Map.keysSet</span></span><span> </span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325709"><span class="hs-identifier hs-var">fixs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((Set Name -&gt; m ()) -&gt; m ()) -&gt; (Set Name -&gt; m ()) -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-138"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; m () -&gt; m ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DoWarn
+</span><a href="#local-6989586621681325696"><span class="hs-identifier hs-var">doWarn</span></a></span><span> </span><span class="annot"><span class="annottext">DoWarn -&gt; DoWarn -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">DoWarn
+</span><a href="Agda.Syntax.Concrete.Fixity.html#DoWarn"><span class="hs-identifier hs-var">DoWarn</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; (Set Name -&gt; m ()) -&gt; Set Name -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; m ()
+forall (m :: * -&gt; *).
+(MonadFixityError m, HasCallStack) =&gt;
+[Name] -&gt; m ()
+</span><a href="Agda.Syntax.Concrete.Fixity.html#warnUnknownFixityInMixfixDecl"><span class="hs-identifier hs-var">warnUnknownFixityInMixfixDecl</span></a></span><span> </span><span class="annot"><span class="annottext">([Name] -&gt; m ()) -&gt; (Set Name -&gt; [Name]) -&gt; Set Name -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; [Name]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toList</span></span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span>  </span><span class="hs-comment">-- Check that every polarity pragma is used for a postulate.</span><span>
+</span><span id="line-141"></span><span>  </span><span class="annot"><span class="annottext">Set Name -&gt; m () -&gt; (Set Name -&gt; m ()) -&gt; m ()
+forall a b. Null a =&gt; a -&gt; b -&gt; (a -&gt; b) -&gt; b
+</span><a href="Agda.Utils.Null.html#ifNull"><span class="hs-identifier hs-var">ifNull</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Polarities -&gt; Set Name
+forall k a. Map k a -&gt; Set k
+</span><span class="hs-identifier hs-var">Map.keysSet</span></span><span> </span><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325718"><span class="hs-identifier hs-var">pols</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">Set.\\</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325703"><span class="hs-identifier hs-var">postulates</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">() -&gt; m ()
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((Set Name -&gt; m ()) -&gt; m ()) -&gt; (Set Name -&gt; m ()) -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-142"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; m () -&gt; m ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DoWarn
+</span><a href="#local-6989586621681325696"><span class="hs-identifier hs-var">doWarn</span></a></span><span> </span><span class="annot"><span class="annottext">DoWarn -&gt; DoWarn -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">DoWarn
+</span><a href="Agda.Syntax.Concrete.Fixity.html#DoWarn"><span class="hs-identifier hs-var">DoWarn</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; (Set Name -&gt; m ()) -&gt; Set Name -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; m ()
+forall (m :: * -&gt; *).
+(MonadFixityError m, HasCallStack) =&gt;
+[Name] -&gt; m ()
+</span><a href="Agda.Syntax.Concrete.Fixity.html#warnPolarityPragmasButNotPostulates"><span class="hs-identifier hs-var">warnPolarityPragmasButNotPostulates</span></a></span><span> </span><span class="annot"><span class="annottext">([Name] -&gt; m ()) -&gt; (Set Name -&gt; [Name]) -&gt; Set Name -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; [Name]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toList</span></span><span>
+</span><span id="line-143"></span><span>
+</span><span id="line-144"></span><span>  </span><span class="annot"><span class="annottext">(Fixities, Polarities) -&gt; m (Fixities, Polarities)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Fixities
+</span><a href="#local-6989586621681325709"><span class="hs-identifier hs-var">fixs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Polarities
+</span><a href="#local-6989586621681325718"><span class="hs-identifier hs-var">pols</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span id="local-6989586621681325363"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#fixitiesAndPolarities%27"><span class="hs-identifier hs-type">fixitiesAndPolarities'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadFixityError"><span class="hs-identifier hs-type">MonadFixityError</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681325363"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.html#Declaration"><span class="hs-identifier hs-type">Declaration</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#MonadicFixPol"><span class="hs-identifier hs-type">MonadicFixPol</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681325363"><span class="hs-identifier hs-type">m</span></a></span></span><span>
+</span><span id="line-147"></span><span id="fixitiesAndPolarities%27"><span class="annot"><span class="annottext">fixitiesAndPolarities' :: forall (m :: * -&gt; *).
+MonadFixityError m =&gt;
+[Declaration] -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#fixitiesAndPolarities%27"><span class="hs-identifier hs-var hs-var">fixitiesAndPolarities'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; MonadicFixPol m)
+-&gt; [Declaration] -&gt; MonadicFixPol m
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">((Declaration -&gt; MonadicFixPol m)
+ -&gt; [Declaration] -&gt; MonadicFixPol m)
+-&gt; (Declaration -&gt; MonadicFixPol m)
+-&gt; [Declaration]
+-&gt; MonadicFixPol m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-148"></span><span>  </span><span class="hs-comment">-- These declarations define polarities:</span><span>
+</span><span id="line-149"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Pragma"><span class="hs-identifier hs-type">Pragma</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.html#PolarityPragma"><span class="hs-identifier hs-type">PolarityPragma</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325772"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325772"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681325773"><span class="annot"><span class="annottext">[Occurrence]
+</span><a href="#local-6989586621681325773"><span class="hs-identifier hs-var">occs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Polarities -&gt; MonadicFixPol m
+forall (m :: * -&gt; *). Monad m =&gt; Polarities -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#returnPol"><span class="hs-identifier hs-var">returnPol</span></a></span><span> </span><span class="annot"><span class="annottext">(Polarities -&gt; MonadicFixPol m) -&gt; Polarities -&gt; MonadicFixPol m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; [Occurrence] -&gt; Polarities
+forall k a. k -&gt; a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.singleton</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325772"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">[Occurrence]
+</span><a href="#local-6989586621681325773"><span class="hs-identifier hs-var">occs</span></a></span><span>
+</span><span id="line-150"></span><span>  </span><span class="hs-comment">-- These declarations define fixities:</span><span>
+</span><span id="line-151"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Syntax"><span class="hs-identifier hs-type">Syntax</span></a></span><span> </span><span id="local-6989586621681325776"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325776"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681325777"><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681325777"><span class="hs-identifier hs-var">syn</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Fixities -&gt; MonadicFixPol m
+forall (m :: * -&gt; *). Monad m =&gt; Fixities -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#returnFix"><span class="hs-identifier hs-var">returnFix</span></a></span><span> </span><span class="annot"><span class="annottext">(Fixities -&gt; MonadicFixPol m) -&gt; Fixities -&gt; MonadicFixPol m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Fixity' -&gt; Fixities
+forall k a. k -&gt; a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.singleton</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325776"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Fixity -&gt; Notation -&gt; Range -&gt; Fixity'
+</span><a href="Agda.Syntax.Common.html#Fixity%27"><span class="hs-identifier hs-var">Fixity'</span></a></span><span> </span><span class="annot"><span class="annottext">Fixity
+</span><a href="Agda.Syntax.Common.html#noFixity"><span class="hs-identifier hs-var">noFixity</span></a></span><span> </span><span class="annot"><span class="annottext">Notation
+</span><a href="#local-6989586621681325777"><span class="hs-identifier hs-var">syn</span></a></span><span> </span><span class="annot"><span class="annottext">(Range -&gt; Fixity') -&gt; Range -&gt; Fixity'
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325776"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-152"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Infix"><span class="hs-identifier hs-type">Infix</span></a></span><span>  </span><span id="local-6989586621681325781"><span class="annot"><span class="annottext">Fixity
+</span><a href="#local-6989586621681325781"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681325782"><span class="annot"><span class="annottext">List1 Name
+</span><a href="#local-6989586621681325782"><span class="hs-identifier hs-var">xs</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Fixities -&gt; MonadicFixPol m
+forall (m :: * -&gt; *). Monad m =&gt; Fixities -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#returnFix"><span class="hs-identifier hs-var">returnFix</span></a></span><span> </span><span class="annot"><span class="annottext">(Fixities -&gt; MonadicFixPol m) -&gt; Fixities -&gt; MonadicFixPol m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[(Name, Fixity')] -&gt; Fixities
+forall k a. Ord k =&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromList</span></span><span> </span><span class="annot"><span class="annottext">([(Name, Fixity')] -&gt; Fixities) -&gt; [(Name, Fixity')] -&gt; Fixities
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; (Name -&gt; (Name, Fixity')) -&gt; [(Name, Fixity')]
+forall (m :: * -&gt; *) a b. Functor m =&gt; m a -&gt; (a -&gt; b) -&gt; m b
+</span><a href="Agda.Utils.Functor.html#for"><span class="hs-identifier hs-var">for</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">List1 Name -&gt; [Item (List1 Name)]
+forall l. IsList l =&gt; l -&gt; [Item l]
+</span><span class="hs-identifier hs-var">List1.toList</span></span><span> </span><span class="annot"><span class="annottext">List1 Name
+</span><a href="#local-6989586621681325782"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((Name -&gt; (Name, Fixity')) -&gt; [(Name, Fixity')])
+-&gt; (Name -&gt; (Name, Fixity')) -&gt; [(Name, Fixity')]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681325785"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325785"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325785"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Fixity -&gt; Notation -&gt; Range -&gt; Fixity'
+</span><a href="Agda.Syntax.Common.html#Fixity%27"><span class="hs-identifier hs-var">Fixity'</span></a></span><span> </span><span class="annot"><span class="annottext">Fixity
+</span><a href="#local-6989586621681325781"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Notation
+</span><a href="Agda.Syntax.Common.html#noNotation"><span class="hs-identifier hs-var">noNotation</span></a></span><span> </span><span class="annot"><span class="annottext">(Range -&gt; Fixity') -&gt; Range -&gt; Fixity'
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325785"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-153"></span><span>  </span><span class="hs-comment">-- We look into these blocks:</span><span>
+</span><span id="line-154"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Mutual"><span class="hs-identifier hs-type">Mutual</span></a></span><span>    </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325788"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325788"><span class="hs-identifier hs-var">ds'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Declaration] -&gt; MonadicFixPol m
+forall (m :: * -&gt; *).
+MonadFixityError m =&gt;
+[Declaration] -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#fixitiesAndPolarities%27"><span class="hs-identifier hs-var">fixitiesAndPolarities'</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325788"><span class="hs-identifier hs-var">ds'</span></a></span><span>
+</span><span id="line-155"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#InterleavedMutual"><span class="hs-identifier hs-type">InterleavedMutual</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325790"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325790"><span class="hs-identifier hs-var">ds'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Declaration] -&gt; MonadicFixPol m
+forall (m :: * -&gt; *).
+MonadFixityError m =&gt;
+[Declaration] -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#fixitiesAndPolarities%27"><span class="hs-identifier hs-var">fixitiesAndPolarities'</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325790"><span class="hs-identifier hs-var">ds'</span></a></span><span>
+</span><span id="line-156"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Abstract"><span class="hs-identifier hs-type">Abstract</span></a></span><span>  </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325792"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325792"><span class="hs-identifier hs-var">ds'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Declaration] -&gt; MonadicFixPol m
+forall (m :: * -&gt; *).
+MonadFixityError m =&gt;
+[Declaration] -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#fixitiesAndPolarities%27"><span class="hs-identifier hs-var">fixitiesAndPolarities'</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325792"><span class="hs-identifier hs-var">ds'</span></a></span><span>
+</span><span id="line-157"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Private"><span class="hs-identifier hs-type">Private</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Origin
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325794"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325794"><span class="hs-identifier hs-var">ds'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Declaration] -&gt; MonadicFixPol m
+forall (m :: * -&gt; *).
+MonadFixityError m =&gt;
+[Declaration] -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#fixitiesAndPolarities%27"><span class="hs-identifier hs-var">fixitiesAndPolarities'</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325794"><span class="hs-identifier hs-var">ds'</span></a></span><span>
+</span><span id="line-158"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#InstanceB"><span class="hs-identifier hs-type">InstanceB</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325796"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325796"><span class="hs-identifier hs-var">ds'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Declaration] -&gt; MonadicFixPol m
+forall (m :: * -&gt; *).
+MonadFixityError m =&gt;
+[Declaration] -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#fixitiesAndPolarities%27"><span class="hs-identifier hs-var">fixitiesAndPolarities'</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325796"><span class="hs-identifier hs-var">ds'</span></a></span><span>
+</span><span id="line-159"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Macro"><span class="hs-identifier hs-type">Macro</span></a></span><span>     </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325798"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325798"><span class="hs-identifier hs-var">ds'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Declaration] -&gt; MonadicFixPol m
+forall (m :: * -&gt; *).
+MonadFixityError m =&gt;
+[Declaration] -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#fixitiesAndPolarities%27"><span class="hs-identifier hs-var">fixitiesAndPolarities'</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325798"><span class="hs-identifier hs-var">ds'</span></a></span><span>
+</span><span id="line-160"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Opaque"><span class="hs-identifier hs-type">Opaque</span></a></span><span>    </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325800"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325800"><span class="hs-identifier hs-var">ds'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Declaration] -&gt; MonadicFixPol m
+forall (m :: * -&gt; *).
+MonadFixityError m =&gt;
+[Declaration] -&gt; MonadicFixPol m
+</span><a href="Agda.Syntax.Concrete.Fixity.html#fixitiesAndPolarities%27"><span class="hs-identifier hs-var">fixitiesAndPolarities'</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325800"><span class="hs-identifier hs-var">ds'</span></a></span><span>
+</span><span id="line-161"></span><span>  </span><span class="hs-comment">-- All other declarations are ignored.</span><span>
+</span><span id="line-162"></span><span>  </span><span class="hs-comment">-- We expand these boring cases to trigger a revisit</span><span>
+</span><span id="line-163"></span><span>  </span><span class="hs-comment">-- in case the @Declaration@ type is extended in the future.</span><span>
+</span><span id="line-164"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#TypeSig"><span class="hs-identifier hs-type">TypeSig</span></a></span><span>         </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-165"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#FieldSig"><span class="hs-identifier hs-type">FieldSig</span></a></span><span>        </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-166"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Generalize"><span class="hs-identifier hs-type">Generalize</span></a></span><span>      </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-167"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Field"><span class="hs-identifier hs-type">Field</span></a></span><span>           </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-168"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#FunClause"><span class="hs-identifier hs-type">FunClause</span></a></span><span>       </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-169"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#DataSig"><span class="hs-identifier hs-type">DataSig</span></a></span><span>         </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-170"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#DataDef"><span class="hs-identifier hs-type">DataDef</span></a></span><span>         </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-171"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Data"><span class="hs-identifier hs-type">Data</span></a></span><span>            </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-172"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#RecordSig"><span class="hs-identifier hs-type">RecordSig</span></a></span><span>       </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-173"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#RecordDef"><span class="hs-identifier hs-type">RecordDef</span></a></span><span>       </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-174"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Record"><span class="hs-identifier hs-type">Record</span></a></span><span>          </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-175"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#LoneConstructor"><span class="hs-identifier hs-type">LoneConstructor</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-176"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#PatternSyn"><span class="hs-identifier hs-type">PatternSyn</span></a></span><span>      </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-177"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Postulate"><span class="hs-identifier hs-type">Postulate</span></a></span><span>       </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-178"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Primitive"><span class="hs-identifier hs-type">Primitive</span></a></span><span>       </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-179"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Open"><span class="hs-identifier hs-type">Open</span></a></span><span>            </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-180"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Import"><span class="hs-identifier hs-type">Import</span></a></span><span>          </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-181"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#ModuleMacro"><span class="hs-identifier hs-type">ModuleMacro</span></a></span><span>     </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-182"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Module"><span class="hs-identifier hs-type">Module</span></a></span><span>          </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-183"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#UnquoteDecl"><span class="hs-identifier hs-type">UnquoteDecl</span></a></span><span>     </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-184"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#UnquoteDef"><span class="hs-identifier hs-type">UnquoteDef</span></a></span><span>      </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-185"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#UnquoteData"><span class="hs-identifier hs-type">UnquoteData</span></a></span><span>     </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-186"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Pragma"><span class="hs-identifier hs-type">Pragma</span></a></span><span>          </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-187"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Unfolding"><span class="hs-identifier hs-type">Unfolding</span></a></span><span>       </span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MonadicFixPol m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-188"></span><span>
+</span><span id="line-189"></span><span class="hs-keyword">data</span><span> </span><span id="DeclaredNames"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-var">DeclaredNames</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="DeclaredNames"><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-var">DeclaredNames</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="_allNames"><span class="annot"><span class="annottext">DeclaredNames -&gt; Set Name
+</span><a href="Agda.Syntax.Concrete.Fixity.html#_allNames"><span class="hs-identifier hs-var hs-var">_allNames</span></a></span></span><span class="hs-special">,</span><span> </span><span id="_postulates"><span class="annot"><span class="annottext">DeclaredNames -&gt; Set Name
+</span><a href="Agda.Syntax.Concrete.Fixity.html#_postulates"><span class="hs-identifier hs-var hs-var">_postulates</span></a></span></span><span class="hs-special">,</span><span> </span><span id="_privateNames"><span class="annot"><span class="annottext">DeclaredNames -&gt; Set Name
+</span><a href="Agda.Syntax.Concrete.Fixity.html#_privateNames"><span class="hs-identifier hs-var hs-var">_privateNames</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-190"></span><span>
+</span><span id="line-191"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681325829"><span id="local-6989586621681325832"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-192"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span><span> </span><span id="local-6989586621681325839"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325839"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681325840"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325840"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span id="local-6989586621681325841"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325841"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span id="local-6989586621681325842"><span class="annot"><span class="annottext">&lt;&gt; :: DeclaredNames -&gt; DeclaredNames -&gt; DeclaredNames
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span><span> </span><span id="local-6989586621681325843"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325843"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span id="local-6989586621681325844"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325844"><span class="hs-identifier hs-var">qs</span></a></span></span><span> </span><span id="local-6989586621681325845"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325845"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-193"></span><span>    </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-var">DeclaredNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325839"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325843"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325840"><span class="hs-identifier hs-var">ps</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325844"><span class="hs-identifier hs-var">qs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325841"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325845"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-194"></span><span>
+</span><span id="line-195"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681325851"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-196"></span><span>  </span><span id="local-6989586621681325853"><span class="annot"><span class="annottext">mempty :: DeclaredNames
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">mempty</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-var">DeclaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-197"></span><span>  </span><span id="local-6989586621681325856"><span class="annot"><span class="annottext">mappend :: DeclaredNames -&gt; DeclaredNames -&gt; DeclaredNames
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">DeclaredNames -&gt; DeclaredNames -&gt; DeclaredNames
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-198"></span><span>
+</span><span id="line-199"></span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#allPostulates"><span class="hs-identifier hs-type">allPostulates</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span><span>
+</span><span id="line-200"></span><span id="allPostulates"><span class="annot"><span class="annottext">allPostulates :: DeclaredNames -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#allPostulates"><span class="hs-identifier hs-var hs-var">allPostulates</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span><span> </span><span id="local-6989586621681325858"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325858"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681325859"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325859"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span id="local-6989586621681325860"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325860"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-var">DeclaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325858"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325858"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325859"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325860"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-201"></span><span>
+</span><span id="line-202"></span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#allPrivateNames"><span class="hs-identifier hs-type">allPrivateNames</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span><span>
+</span><span id="line-203"></span><span id="allPrivateNames"><span class="annot"><span class="annottext">allPrivateNames :: DeclaredNames -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#allPrivateNames"><span class="hs-identifier hs-var hs-var">allPrivateNames</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span><span> </span><span id="local-6989586621681325862"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325862"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621681325863"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325863"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span id="local-6989586621681325864"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325864"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-var">DeclaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325862"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325863"><span class="hs-identifier hs-var">ps</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325862"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621681325864"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-204"></span><span>
+</span><span id="line-205"></span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#declaresNames"><span class="hs-identifier hs-type">declaresNames</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span><span>
+</span><span id="line-206"></span><span id="declaresNames"><span class="annot"><span class="annottext">declaresNames :: [Name] -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresNames"><span class="hs-identifier hs-var hs-var">declaresNames</span></a></span></span><span> </span><span id="local-6989586621681325866"><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621681325866"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-var">DeclaredNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Name] -&gt; Set Name
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621681325866"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Name
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-207"></span><span>
+</span><span id="line-208"></span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#declaresName"><span class="hs-identifier hs-type">declaresName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span><span>
+</span><span id="line-209"></span><span id="declaresName"><span class="annot"><span class="annottext">declaresName :: Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresName"><span class="hs-identifier hs-var hs-var">declaresName</span></a></span></span><span> </span><span id="local-6989586621681325869"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325869"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresNames"><span class="hs-identifier hs-var">declaresNames</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325869"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-210"></span><span>
+</span><span id="line-211"></span><span class="hs-comment">-- | Compute the names defined in a declaration. We stay in the current scope,</span><span>
+</span><span id="line-212"></span><span class="hs-comment">--   i.e., do not go into modules.</span><span>
+</span><span id="line-213"></span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-type">declaredNames</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Declaration"><span class="hs-identifier hs-type">Declaration</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#DeclaredNames"><span class="hs-identifier hs-type">DeclaredNames</span></a></span><span>
+</span><span id="line-214"></span><span id="declaredNames"><span class="annot"><span class="annottext">declaredNames :: Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var hs-var">declaredNames</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-215"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#TypeSig"><span class="hs-identifier hs-type">TypeSig</span></a></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">TacticAttribute
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325870"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325870"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><span class="hs-identifier">_</span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresName"><span class="hs-identifier hs-var">declaresName</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325870"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-216"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#FieldSig"><span class="hs-identifier hs-type">FieldSig</span></a></span><span> </span><span class="annot"><span class="annottext">IsInstance
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">TacticAttribute
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325871"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325871"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="annottext">Arg Expr
+</span><span class="hs-identifier">_</span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresName"><span class="hs-identifier hs-var">declaresName</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325871"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-217"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Field"><span class="hs-identifier hs-type">Field</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325872"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325872"><span class="hs-identifier hs-var">fs</span></a></span></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325872"><span class="hs-identifier hs-var">fs</span></a></span><span>
+</span><span id="line-218"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#FunClause"><span class="hs-identifier hs-type">FunClause</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.html#LHS"><span class="hs-identifier hs-type">LHS</span></a></span><span> </span><span id="local-6989586621681325874"><span class="annot"><span class="annottext">Pattern
+</span><a href="#local-6989586621681325874"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">RHS
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">WhereClause
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span>
+</span><span id="line-219"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.html#IdentP"><span class="hs-identifier hs-type">IdentP</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span id="local-6989586621681325877"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325877"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Pattern -&gt; Pattern
+</span><a href="Agda.Syntax.Concrete.html#removeParenP"><span class="hs-identifier hs-var">removeParenP</span></a></span><span> </span><span class="annot"><span class="annottext">Pattern
+</span><a href="#local-6989586621681325874"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-220"></span><span>                        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresName"><span class="hs-identifier hs-var">declaresName</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325877"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-221"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#FunClause"><span class="hs-identifier hs-type">FunClause</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclaredNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-222"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#DataSig"><span class="hs-identifier hs-type">DataSig</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Erased
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325879"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325879"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="annottext">[LamBinding]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><span class="hs-identifier">_</span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresName"><span class="hs-identifier hs-var">declaresName</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325879"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-223"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#DataDef"><span class="hs-identifier hs-type">DataDef</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">[LamBinding]
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325880"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325880"><span class="hs-identifier hs-var">cs</span></a></span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325880"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-224"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Data"><span class="hs-identifier hs-type">Data</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Erased
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325881"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325881"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="annottext">[LamBinding]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325882"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325882"><span class="hs-identifier hs-var">cs</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresName"><span class="hs-identifier hs-var">declaresName</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325881"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">DeclaredNames -&gt; DeclaredNames -&gt; DeclaredNames
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325882"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-225"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#RecordSig"><span class="hs-identifier hs-type">RecordSig</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Erased
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325883"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325883"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="annottext">[LamBinding]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><span class="hs-identifier">_</span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresName"><span class="hs-identifier hs-var">declaresName</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325883"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-226"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#RecordDef"><span class="hs-identifier hs-type">RecordDef</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325884"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325884"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681325885"><span class="annot"><span class="annottext">[RecordDirective]
+</span><a href="#local-6989586621681325885"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span class="annot"><span class="annottext">[LamBinding]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresNames"><span class="hs-identifier hs-var">declaresNames</span></a></span><span> </span><span class="annot"><span class="annottext">([Name] -&gt; DeclaredNames) -&gt; [Name] -&gt; DeclaredNames
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>     </span><span class="annot"><span class="annottext">Maybe Name -&gt; [Name]
+forall a. Maybe a -&gt; [a]
+</span><span class="hs-identifier hs-var">maybeToList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[RecordDirective] -&gt; Maybe Name
+</span><a href="Agda.Syntax.Concrete.Fixity.html#recDirConstructor"><span class="hs-identifier hs-var">recDirConstructor</span></a></span><span> </span><span class="annot"><span class="annottext">[RecordDirective]
+</span><a href="#local-6989586621681325885"><span class="hs-identifier hs-var">ds</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-227"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Record"><span class="hs-identifier hs-type">Record</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Erased
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325888"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325888"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681325889"><span class="annot"><span class="annottext">[RecordDirective]
+</span><a href="#local-6989586621681325889"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span class="annot"><span class="annottext">[LamBinding]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresNames"><span class="hs-identifier hs-var">declaresNames</span></a></span><span> </span><span class="annot"><span class="annottext">([Name] -&gt; DeclaredNames) -&gt; [Name] -&gt; DeclaredNames
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325888"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; [Name] -&gt; [Name]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">Maybe Name -&gt; [Name]
+forall a. Maybe a -&gt; [a]
+</span><span class="hs-identifier hs-var">maybeToList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[RecordDirective] -&gt; Maybe Name
+</span><a href="Agda.Syntax.Concrete.Fixity.html#recDirConstructor"><span class="hs-identifier hs-var">recDirConstructor</span></a></span><span> </span><span class="annot"><span class="annottext">[RecordDirective]
+</span><a href="#local-6989586621681325889"><span class="hs-identifier hs-var">ds</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-228"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Infix"><span class="hs-identifier hs-type">Infix</span></a></span><span> </span><span class="annot"><span class="annottext">Fixity
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">List1 Name
+</span><span class="hs-identifier">_</span></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclaredNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-229"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Syntax"><span class="hs-identifier hs-type">Syntax</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Notation
+</span><span class="hs-identifier">_</span></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclaredNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-230"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#PatternSyn"><span class="hs-identifier hs-type">PatternSyn</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325890"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325890"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="annottext">[WithHiding Name]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Pattern
+</span><span class="hs-identifier">_</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresName"><span class="hs-identifier hs-var">declaresName</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325890"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-231"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Mutual"><span class="hs-identifier hs-type">Mutual</span></a></span><span>    </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325891"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325891"><span class="hs-identifier hs-var">ds</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325891"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-232"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#InterleavedMutual"><span class="hs-identifier hs-type">InterleavedMutual</span></a></span><span>    </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325892"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325892"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325892"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-233"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#LoneConstructor"><span class="hs-identifier hs-type">LoneConstructor</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325893"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325893"><span class="hs-identifier hs-var">ds</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325893"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-234"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Abstract"><span class="hs-identifier hs-type">Abstract</span></a></span><span>  </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325894"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325894"><span class="hs-identifier hs-var">ds</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325894"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-235"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Private"><span class="hs-identifier hs-type">Private</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Origin
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325895"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325895"><span class="hs-identifier hs-var">ds</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclaredNames -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#allPrivateNames"><span class="hs-identifier hs-var">allPrivateNames</span></a></span><span> </span><span class="annot"><span class="annottext">(DeclaredNames -&gt; DeclaredNames) -&gt; DeclaredNames -&gt; DeclaredNames
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325895"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-236"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#InstanceB"><span class="hs-identifier hs-type">InstanceB</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325896"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325896"><span class="hs-identifier hs-var">ds</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325896"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-237"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Macro"><span class="hs-identifier hs-type">Macro</span></a></span><span>     </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325897"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325897"><span class="hs-identifier hs-var">ds</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325897"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-238"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Postulate"><span class="hs-identifier hs-type">Postulate</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325898"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325898"><span class="hs-identifier hs-var">ds</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclaredNames -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#allPostulates"><span class="hs-identifier hs-var">allPostulates</span></a></span><span> </span><span class="annot"><span class="annottext">(DeclaredNames -&gt; DeclaredNames) -&gt; DeclaredNames -&gt; DeclaredNames
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325898"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-239"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Primitive"><span class="hs-identifier hs-type">Primitive</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325899"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325899"><span class="hs-identifier hs-var">ds</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325899"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-240"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Generalize"><span class="hs-identifier hs-type">Generalize</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325900"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325900"><span class="hs-identifier hs-var">ds</span></a></span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325900"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-241"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Opaque"><span class="hs-identifier hs-type">Opaque</span></a></span><span> </span><span class="annot"><span class="annottext">KwRange
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325901"><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325901"><span class="hs-identifier hs-var">ds</span></a></span></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Declaration -&gt; DeclaredNames) -&gt; [Declaration] -&gt; DeclaredNames
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">Declaration -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaredNames"><span class="hs-identifier hs-var">declaredNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Declaration]
+</span><a href="#local-6989586621681325901"><span class="hs-identifier hs-var">ds</span></a></span><span>
+</span><span id="line-242"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Open"><span class="hs-identifier hs-type">Open</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclaredNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-243"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Unfolding"><span class="hs-identifier hs-type">Unfolding</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclaredNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-244"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Import"><span class="hs-identifier hs-type">Import</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclaredNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-245"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#ModuleMacro"><span class="hs-identifier hs-type">ModuleMacro</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclaredNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-246"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Module"><span class="hs-identifier hs-type">Module</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclaredNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-247"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#UnquoteDecl"><span class="hs-identifier hs-type">UnquoteDecl</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325902"><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621681325902"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><span class="hs-identifier">_</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresNames"><span class="hs-identifier hs-var">declaresNames</span></a></span><span> </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621681325902"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-248"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#UnquoteDef"><span class="hs-identifier hs-type">UnquoteDef</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclaredNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-249"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#UnquoteData"><span class="hs-identifier hs-type">UnquoteData</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325903"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325903"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681325904"><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621681325904"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="annot"><span class="annottext">Expr
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresNames"><span class="hs-identifier hs-var">declaresNames</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325903"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">Name -&gt; [Name] -&gt; [Name]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621681325904"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-250"></span><span>  </span><span class="hs-comment">-- BUILTIN pragmas which do not require an accompanying definition declare</span><span>
+</span><span id="line-251"></span><span>  </span><span class="hs-comment">-- the (unqualified) name they mention.</span><span>
+</span><span id="line-252"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Pragma"><span class="hs-identifier hs-type">Pragma</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.html#BuiltinPragma"><span class="hs-identifier hs-type">BuiltinPragma</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681325906"><span class="annot"><span class="annottext">RString
+</span><a href="#local-6989586621681325906"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span id="local-6989586621681325907"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325907"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-253"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">(BuiltinId -&gt; Bool) -&gt; Maybe BuiltinId -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">any</span></span><span> </span><span class="annot"><span class="annottext">BuiltinId -&gt; Bool
+</span><a href="Agda.Syntax.Builtin.html#isBuiltinNoDef"><span class="hs-identifier hs-var">isBuiltinNoDef</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe BuiltinId -&gt; Bool)
+-&gt; (String -&gt; Maybe BuiltinId) -&gt; String -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Maybe BuiltinId
+</span><a href="Agda.Syntax.Builtin.html#builtinById"><span class="hs-identifier hs-var">builtinById</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Bool) -&gt; String -&gt; Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">RString -&gt; String
+forall a. Ranged a -&gt; a
+</span><a href="Agda.Syntax.Common.html#rangedThing"><span class="hs-identifier hs-var">rangedThing</span></a></span><span> </span><span class="annot"><span class="annottext">RString
+</span><a href="#local-6989586621681325906"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; DeclaredNames
+</span><a href="Agda.Syntax.Concrete.Fixity.html#declaresName"><span class="hs-identifier hs-var">declaresName</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325907"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-254"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Pragma"><span class="hs-identifier hs-type">Pragma</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclaredNames
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-255"></span><span>
+</span><span id="line-256"></span><span class="annot"><a href="Agda.Syntax.Concrete.Fixity.html#recDirConstructor"><span class="hs-identifier hs-type">recDirConstructor</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.html#RecordDirective"><span class="hs-identifier hs-type">RecordDirective</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span>
+</span><span id="line-257"></span><span id="recDirConstructor"><span class="annot"><span class="annottext">recDirConstructor :: [RecordDirective] -&gt; Maybe Name
+</span><a href="Agda.Syntax.Concrete.Fixity.html#recDirConstructor"><span class="hs-identifier hs-var hs-var">recDirConstructor</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; Maybe Name
+forall a. [a] -&gt; Maybe a
+</span><span class="hs-identifier hs-var">listToMaybe</span></span><span> </span><span class="annot"><span class="annottext">([Name] -&gt; Maybe Name)
+-&gt; ([RecordDirective] -&gt; [Name]) -&gt; [RecordDirective] -&gt; Maybe Name
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(RecordDirective -&gt; Maybe Name) -&gt; [RecordDirective] -&gt; [Name]
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">mapMaybe</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-258"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Concrete.html#Constructor"><span class="hs-identifier hs-type">Constructor</span></a></span><span> </span><span id="local-6989586621681325913"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325913"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="annottext">IsInstance
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Maybe Name
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621681325913"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-259"></span><span>  </span><span class="annot"><span class="annottext">RecordDirective
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe Name
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-260"></span></pre></body></html>

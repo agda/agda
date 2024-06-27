@@ -1,0 +1,44 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="annot"><span class="hs-comment">-- | Types related to warnings raised by Agda.</span></span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.TypeChecking.Monad.Base.Warning</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span>               </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html"><span class="hs-identifier">Agda.Syntax.Abstract.Name</span></a></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>       </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier">Range</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html"><span class="hs-identifier">Agda.Syntax.Concrete.Name</span></a></span><span>  </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">C</span></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">data</span><span> </span><span id="RecordFieldWarning"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Warning.html#RecordFieldWarning"><span class="hs-identifier hs-var">RecordFieldWarning</span></a></span></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="DuplicateFields"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Warning.html#DuplicateFields"><span class="hs-identifier hs-var">DuplicateFields</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">C.Name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-13"></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ Each redundant field comes with a range of associated dead code.</span></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="TooManyFields"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Warning.html#TooManyFields"><span class="hs-identifier hs-var">TooManyFields</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">C.Name</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Name.html#Name"><span class="hs-identifier hs-type">C.Name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-15"></span><span>      </span><span class="hs-comment">-- ^ Record type, fields not supplied by user, non-fields but supplied.</span><span>
+</span><span id="line-16"></span><span>      </span><span class="hs-comment">--   The redundant fields come with a range of associated dead code.</span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681293812"><span id="local-6989586621681293825"><span id="local-6989586621681293829"><span class="annot"><span class="annottext">Int -&gt; RecordFieldWarning -&gt; ShowS
+[RecordFieldWarning] -&gt; ShowS
+RecordFieldWarning -&gt; String
+(Int -&gt; RecordFieldWarning -&gt; ShowS)
+-&gt; (RecordFieldWarning -&gt; String)
+-&gt; ([RecordFieldWarning] -&gt; ShowS)
+-&gt; Show RecordFieldWarning
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; RecordFieldWarning -&gt; ShowS
+showsPrec :: Int -&gt; RecordFieldWarning -&gt; ShowS
+$cshow :: RecordFieldWarning -&gt; String
+show :: RecordFieldWarning -&gt; String
+$cshowList :: [RecordFieldWarning] -&gt; ShowS
+showList :: [RecordFieldWarning] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681293841"><span id="local-6989586621681293843"><span class="annot"><span class="annottext">(forall x. RecordFieldWarning -&gt; Rep RecordFieldWarning x)
+-&gt; (forall x. Rep RecordFieldWarning x -&gt; RecordFieldWarning)
+-&gt; Generic RecordFieldWarning
+forall x. Rep RecordFieldWarning x -&gt; RecordFieldWarning
+forall x. RecordFieldWarning -&gt; Rep RecordFieldWarning x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. RecordFieldWarning -&gt; Rep RecordFieldWarning x
+from :: forall x. RecordFieldWarning -&gt; Rep RecordFieldWarning x
+$cto :: forall x. Rep RecordFieldWarning x -&gt; RecordFieldWarning
+to :: forall x. Rep RecordFieldWarning x -&gt; RecordFieldWarning
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span></pre></body></html>

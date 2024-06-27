@@ -1,0 +1,661 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.TypeChecking.Warnings</span><span>
+</span><span id="line-3"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier">MonadWarning</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warning%27_"><span class="hs-identifier">warning'_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warning_"><span class="hs-identifier">warning_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warning%27"><span class="hs-identifier">warning'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warning"><span class="hs-identifier">warning</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warnings"><span class="hs-identifier">warnings</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#raiseWarningsOnUsage"><span class="hs-identifier">raiseWarningsOnUsage</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#isUnsolvedWarning"><span class="hs-identifier">isUnsolvedWarning</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#isMetaWarning"><span class="hs-identifier">isMetaWarning</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#isMetaTCWarning"><span class="hs-identifier">isMetaTCWarning</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#onlyShowIfUnsolved"><span class="hs-identifier">onlyShowIfUnsolved</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#WhichWarnings"><span class="hs-identifier">WhichWarnings</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#classifyWarning"><span class="hs-identifier">classifyWarning</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-comment">-- not exporting constructor of WarningsAndNonFatalErrors</span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#WarningsAndNonFatalErrors"><span class="hs-identifier">WarningsAndNonFatalErrors</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#tcWarnings"><span class="hs-identifier">tcWarnings</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#nonFatalErrors"><span class="hs-identifier">nonFatalErrors</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#emptyWarningsAndNonFatalErrors"><span class="hs-identifier">emptyWarningsAndNonFatalErrors</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#classifyWarnings"><span class="hs-identifier">classifyWarnings</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#runPM"><span class="hs-identifier">runPM</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">forM</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">unless</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadError</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">ReaderT</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">StateT</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">MonadTrans</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">lift</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span>  </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span>  </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>     </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">catMaybes</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Semigroup</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(&lt;&gt;)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Debug</span></a></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Caching.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Caching</span></a></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="hs-pragma">{-# SOURCE</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html"><span class="hs-identifier">Agda.TypeChecking.Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#MonadPretty"><span class="hs-identifier">MonadPretty</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#prettyTCM"><span class="hs-identifier">prettyTCM</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#%24%24"><span class="hs-operator">($$)</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="hs-pragma">{-# SOURCE</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.Call.html"><span class="hs-identifier">Agda.TypeChecking.Pretty.Call</span></a></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="hs-pragma">{-# SOURCE</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.Warning.html"><span class="hs-identifier">Agda.TypeChecking.Pretty.Warning</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.Warning.html#prettyWarning"><span class="hs-identifier">prettyWarning</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Pretty.Warning.html#prettyWarningName"><span class="hs-identifier">prettyWarningName</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html"><span class="hs-identifier">Agda.Syntax.Abstract.Name</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier">QName</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html"><span class="hs-identifier">Agda.Syntax.Parser</span></a></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.html"><span class="hs-identifier">Agda.Interaction.Options</span></a></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html"><span class="hs-identifier">Agda.Interaction.Options.Warnings</span></a></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="hs-pragma">{-# SOURCE</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="annot"><a href="Agda.Interaction.Highlighting.Generate.html"><span class="hs-identifier">Agda.Interaction.Highlighting.Generate</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Highlighting.Generate.html#highlightWarning"><span class="hs-identifier">highlightWarning</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.CallStack.html"><span class="hs-identifier">Agda.Utils.CallStack</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">CallStack</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">HasCallStack</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.CallStack.Base.html#withCallerCallStack"><span class="hs-identifier">withCallerCallStack</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Function.html"><span class="hs-identifier">Agda.Utils.Function</span></a></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Function.html#applyUnless"><span class="hs-identifier">applyUnless</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">P</span></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="annot"><span class="hs-comment">-- * The warning monad</span></span><span>
+</span><span id="line-53"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-keyword">class</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Pretty.html#MonadPretty"><span class="hs-identifier hs-type">MonadPretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412611"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCErr"><span class="hs-identifier hs-type">TCErr</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412611"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="MonadWarning"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-var">MonadWarning</span></a></span></span><span> </span><span id="local-6989586621681412611"><span class="annot"><a href="#local-6989586621681412611"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-comment">-- | Store a warning and generate highlighting from it.</span><span>
+</span><span id="line-57"></span><span>  </span><span id="addWarning"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#addWarning"><span class="hs-identifier hs-type">addWarning</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCWarning"><span class="hs-identifier hs-type">TCWarning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681412611"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-keyword">default</span><span> </span><span id="addWarning"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#addWarning"><span class="hs-identifier hs-type">addWarning</span></a></span></span><span>
+</span><span id="line-60"></span><span>    </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681412615"><span id="local-6989586621681412616"><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412615"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadTrans</span></span><span> </span><span class="annot"><a href="#local-6989586621681412616"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681412616"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412615"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><a href="#local-6989586621681412611"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>    </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCWarning"><span class="hs-identifier hs-type">TCWarning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681412611"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-62"></span><span>  </span><span id="local-6989586621681412885"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#addWarning"><span class="hs-identifier hs-var hs-var">addWarning</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">n () -&gt; m ()
+n () -&gt; t n ()
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; t m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(n () -&gt; m ()) -&gt; (TCWarning -&gt; n ()) -&gt; TCWarning -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TCWarning -&gt; n ()
+forall (m :: * -&gt; *). MonadWarning m =&gt; TCWarning -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#addWarning"><span class="hs-identifier hs-var">addWarning</span></a></span></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681412676"><span id="local-6989586621681412677"><span id="local-6989586621681412915"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412676"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="#local-6989586621681412677"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412676"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-65"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681412705"><span id="local-6989586621681412706"><span id="local-6989586621681412960"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412705"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="#local-6989586621681412706"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412705"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-68"></span><span>  </span><span id="local-6989586621681413019"><span class="annot"><span class="annottext">addWarning :: TCWarning -&gt; TCM ()
+</span><a href="Agda.TypeChecking.Warnings.html#addWarning"><span class="hs-identifier hs-var hs-var hs-var hs-var">addWarning</span></a></span></span><span> </span><span id="local-6989586621681413020"><span class="annot"><span class="annottext">TCWarning
+</span><a href="#local-6989586621681413020"><span class="hs-identifier hs-var">tcwarn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="annottext">([TCWarning] -&gt; f [TCWarning]) -&gt; TCState -&gt; f TCState
+Lens' TCState [TCWarning]
+</span><a href="Agda.TypeChecking.Monad.Base.html#stTCWarnings"><span class="hs-identifier hs-var">stTCWarnings</span></a></span><span> </span><span class="annot"><span class="annottext">Lens' TCState [TCWarning] -&gt; ([TCWarning] -&gt; [TCWarning]) -&gt; TCM ()
+forall (m :: * -&gt; *) a.
+MonadTCState m =&gt;
+Lens' TCState a -&gt; (a -&gt; a) -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Base.html#modifyTCLens"><span class="hs-operator hs-var">`modifyTCLens`</span></a></span><span> </span><span class="annot"><span class="annottext">Warning -&gt; TCWarning -&gt; [TCWarning] -&gt; [TCWarning]
+forall {a}. Eq a =&gt; Warning -&gt; a -&gt; [a] -&gt; [a]
+</span><a href="#local-6989586621681413025"><span class="hs-identifier hs-var">add</span></a></span><span> </span><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413026"><span class="hs-identifier hs-var">w'</span></a></span><span> </span><span class="annot"><span class="annottext">TCWarning
+</span><a href="#local-6989586621681413020"><span class="hs-identifier hs-var">tcwarn</span></a></span><span>
+</span><span id="line-70"></span><span>    </span><span class="annot"><span class="annottext">TCWarning -&gt; TCM ()
+</span><a href="Agda.Interaction.Highlighting.Generate.html#highlightWarning"><span class="hs-identifier hs-var">highlightWarning</span></a></span><span> </span><span class="annot"><span class="annottext">TCWarning
+</span><a href="#local-6989586621681413020"><span class="hs-identifier hs-var">tcwarn</span></a></span><span>
+</span><span id="line-71"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-72"></span><span>      </span><span id="local-6989586621681413026"><span class="annot"><span class="annottext">w' :: Warning
+</span><a href="#local-6989586621681413026"><span class="hs-identifier hs-var hs-var">w'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TCWarning -&gt; Warning
+</span><a href="Agda.TypeChecking.Monad.Base.html#tcWarning"><span class="hs-identifier hs-var">tcWarning</span></a></span><span> </span><span class="annot"><span class="annottext">TCWarning
+</span><a href="#local-6989586621681413020"><span class="hs-identifier hs-var">tcwarn</span></a></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span>      </span><span id="local-6989586621681413025"><span class="annot"><span class="annottext">add :: Warning -&gt; a -&gt; [a] -&gt; [a]
+</span><a href="#local-6989586621681413025"><span class="hs-identifier hs-var hs-var">add</span></a></span></span><span> </span><span id="local-6989586621681413032"><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413032"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span id="local-6989586621681413033"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681413033"><span class="hs-identifier hs-var">tcwarn</span></a></span></span><span> </span><span id="local-6989586621681413034"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681413034"><span class="hs-identifier hs-var">tcwarns</span></a></span></span><span>
+</span><span id="line-75"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Warning -&gt; Bool
+</span><a href="Agda.TypeChecking.Warnings.html#onlyOnce"><span class="hs-identifier hs-var">onlyOnce</span></a></span><span> </span><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413032"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; [a] -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">elem</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681413033"><span class="hs-identifier hs-var">tcwarn</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681413034"><span class="hs-identifier hs-var">tcwarns</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681413034"><span class="hs-identifier hs-var">tcwarns</span></a></span><span> </span><span class="hs-comment">-- Eq on TCWarning only checks head constructor</span><span>
+</span><span id="line-76"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>                         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681413033"><span class="hs-identifier hs-var">tcwarn</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681413034"><span class="hs-identifier hs-var">tcwarns</span></a></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="annot"><span class="hs-comment">-- * Raising warnings</span></span><span>
+</span><span id="line-79"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warning%27_"><span class="hs-pragma hs-type">warning'_</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><span class="hs-pragma hs-type">CallStack</span></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-pragma hs-type">Warning</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCWarning"><span class="hs-pragma hs-type">TCWarning</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-82"></span><span id="local-6989586621681412726"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warning%27_"><span class="hs-identifier hs-type">warning'_</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412726"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">CallStack</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-identifier hs-type">Warning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681412726"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCWarning"><span class="hs-identifier hs-type">TCWarning</span></a></span></span><span>
+</span><span id="line-83"></span><span id="warning%27_"><span class="annot"><span class="annottext">warning'_ :: forall (m :: * -&gt; *).
+MonadWarning m =&gt;
+CallStack -&gt; Warning -&gt; m TCWarning
+</span><a href="Agda.TypeChecking.Warnings.html#warning%27_"><span class="hs-identifier hs-var hs-var">warning'_</span></a></span></span><span> </span><span id="local-6989586621681413069"><span class="annot"><span class="annottext">CallStack
+</span><a href="#local-6989586621681413069"><span class="hs-identifier hs-var">loc</span></a></span></span><span> </span><span id="local-6989586621681413070"><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413070"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-84"></span><span>  </span><span id="local-6989586621681413071"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681413071"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv Range -&gt; m Range
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; Lens' TCEnv a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#viewTC"><span class="hs-identifier hs-var">viewTC</span></a></span><span> </span><span class="annot"><span class="annottext">(Range -&gt; f Range) -&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv Range
+</span><a href="Agda.TypeChecking.Monad.Base.html#eRange"><span class="hs-identifier hs-var">eRange</span></a></span><span>
+</span><span id="line-85"></span><span>  </span><span id="local-6989586621681413076"><span class="annot"><span class="annottext">Maybe (Closure Call)
+</span><a href="#local-6989586621681413076"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv (Maybe (Closure Call)) -&gt; m (Maybe (Closure Call))
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; Lens' TCEnv a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#viewTC"><span class="hs-identifier hs-var">viewTC</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe (Closure Call) -&gt; f (Maybe (Closure Call)))
+-&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv (Maybe (Closure Call))
+</span><a href="Agda.TypeChecking.Monad.Base.html#eCall"><span class="hs-identifier hs-var">eCall</span></a></span><span>
+</span><span id="line-86"></span><span>  </span><span id="local-6989586621681413080"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681413080"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m Bool
+forall (m :: * -&gt; *). ReadTCState m =&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Caching.html#areWeCaching"><span class="hs-identifier hs-var">areWeCaching</span></a></span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681413082"><span class="annot"><span class="annottext">r' :: Range
+</span><a href="#local-6989586621681413082"><span class="hs-identifier hs-var hs-var">r'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413070"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-88"></span><span>        </span><span class="hs-comment">-- NicifierIssues come with their own error locations.</span><span>
+</span><span id="line-89"></span><span>        </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#NicifierIssue"><span class="hs-identifier hs-type">NicifierIssue</span></a></span><span> </span><span id="local-6989586621681413084"><span class="annot"><span class="annottext">DeclarationWarning
+</span><a href="#local-6989586621681413084"><span class="hs-identifier hs-var">w0</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">DeclarationWarning -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">DeclarationWarning
+</span><a href="#local-6989586621681413084"><span class="hs-identifier hs-var">w0</span></a></span><span>
+</span><span id="line-90"></span><span>        </span><span class="hs-comment">-- ConstructorDoesNotFitInData packages a full TCErr, so skip the sayWhen/Where here.</span><span>
+</span><span id="line-91"></span><span>        </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ConstructorDoesNotFitInData"><span class="hs-identifier hs-type">ConstructorDoesNotFitInData</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Range
+forall a. Range' a
+</span><a href="Agda.Syntax.Position.html#noRange"><span class="hs-identifier hs-var">noRange</span></a></span><span>
+</span><span id="line-92"></span><span>        </span><span class="annot"><span class="annottext">Warning
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681413071"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681413088"><span class="annot"><span class="annottext">c' :: Maybe (Closure Call)
+</span><a href="#local-6989586621681413088"><span class="hs-identifier hs-var hs-var">c'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413070"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-94"></span><span>        </span><span class="hs-comment">-- ConstructorDoesNotFitInData packages a full TCErr, so skip the sayWhen/Where here.</span><span>
+</span><span id="line-95"></span><span>        </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ConstructorDoesNotFitInData"><span class="hs-identifier hs-type">ConstructorDoesNotFitInData</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe (Closure Call)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-96"></span><span>        </span><span class="annot"><span class="annottext">Warning
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe (Closure Call)
+</span><a href="#local-6989586621681413076"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681413089"><span class="annot"><span class="annottext">wn :: WarningName
+</span><a href="#local-6989586621681413089"><span class="hs-identifier hs-var hs-var">wn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Warning -&gt; WarningName
+</span><a href="Agda.TypeChecking.Monad.Base.html#warningName"><span class="hs-identifier hs-var">warningName</span></a></span><span> </span><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413070"><span class="hs-identifier hs-var">w</span></a></span><span>
+</span><span id="line-98"></span><span>  </span><span id="local-6989586621681413091"><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621681413091"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Maybe (Closure Call) -&gt; m Doc -&gt; m Doc
+forall (m :: * -&gt; *).
+MonadPretty m =&gt;
+Range -&gt; Maybe (Closure Call) -&gt; m Doc -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.Call.html#sayWhen"><span class="hs-identifier hs-var">sayWhen</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681413082"><span class="hs-identifier hs-var">r'</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (Closure Call)
+</span><a href="#local-6989586621681413088"><span class="hs-identifier hs-var">c'</span></a></span><span> </span><span class="annot"><span class="annottext">(m Doc -&gt; m Doc) -&gt; m Doc -&gt; m Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-99"></span><span>    </span><span class="hs-comment">-- Only benign warnings can be deactivated with -WnoXXX, so don't</span><span>
+</span><span id="line-100"></span><span>    </span><span class="hs-comment">-- display hint for error warnings.</span><span>
+</span><span id="line-101"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; (m Doc -&gt; m Doc) -&gt; m Doc -&gt; m Doc
+forall b a. IsBool b =&gt; b -&gt; (a -&gt; a) -&gt; a -&gt; a
+</span><a href="Agda.Utils.Function.html#applyUnless"><span class="hs-identifier hs-var">applyUnless</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">WarningName
+</span><a href="#local-6989586621681413089"><span class="hs-identifier hs-var">wn</span></a></span><span> </span><span class="annot"><span class="annottext">WarningName -&gt; Set WarningName -&gt; Bool
+forall a. Eq a =&gt; a -&gt; Set a -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-operator hs-var">`elem`</span></span><span> </span><span class="annot"><span class="annottext">Set WarningName
+</span><a href="Agda.Interaction.Options.Warnings.html#errorWarnings"><span class="hs-identifier hs-var">errorWarnings</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">WarningName -&gt; m Doc
+forall (m :: * -&gt; *). MonadPretty m =&gt; WarningName -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.Warning.html#prettyWarningName"><span class="hs-identifier hs-var">prettyWarningName</span></a></span><span> </span><span class="annot"><span class="annottext">WarningName
+</span><a href="#local-6989586621681413089"><span class="hs-identifier hs-var">wn</span></a></span><span> </span><span class="annot"><span class="annottext">m Doc -&gt; m Doc -&gt; m Doc
+forall (m :: * -&gt; *). Applicative m =&gt; m Doc -&gt; m Doc -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.html#%24%24"><span class="hs-operator hs-var">$$</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m Doc -&gt; m Doc) -&gt; m Doc -&gt; m Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-102"></span><span>      </span><span class="annot"><span class="annottext">Warning -&gt; m Doc
+forall (m :: * -&gt; *). MonadPretty m =&gt; Warning -&gt; m Doc
+</span><a href="Agda.TypeChecking.Pretty.Warning.html#prettyWarning"><span class="hs-identifier hs-var">prettyWarning</span></a></span><span> </span><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413070"><span class="hs-identifier hs-var">w</span></a></span><span>
+</span><span id="line-103"></span><span>  </span><span class="annot"><span class="annottext">TCWarning -&gt; m TCWarning
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(TCWarning -&gt; m TCWarning) -&gt; TCWarning -&gt; m TCWarning
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">CallStack -&gt; Range -&gt; Warning -&gt; Doc -&gt; Bool -&gt; TCWarning
+</span><a href="Agda.TypeChecking.Monad.Base.html#TCWarning"><span class="hs-identifier hs-var">TCWarning</span></a></span><span> </span><span class="annot"><span class="annottext">CallStack
+</span><a href="#local-6989586621681413069"><span class="hs-identifier hs-var">loc</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621681413071"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413070"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621681413091"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681413080"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warning_"><span class="hs-pragma hs-type">warning_</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-pragma hs-type">Warning</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCWarning"><span class="hs-pragma hs-type">TCWarning</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-106"></span><span id="local-6989586621681412758"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warning_"><span class="hs-identifier hs-type">warning_</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412758"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-identifier hs-type">Warning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681412758"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCWarning"><span class="hs-identifier hs-type">TCWarning</span></a></span></span><span>
+</span><span id="line-107"></span><span id="warning_"><span class="annot"><span class="annottext">warning_ :: forall (m :: * -&gt; *).
+(HasCallStack, MonadWarning m) =&gt;
+Warning -&gt; m TCWarning
+</span><a href="Agda.TypeChecking.Warnings.html#warning_"><span class="hs-identifier hs-var hs-var">warning_</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CallStack -&gt; m TCWarning) -&gt; m TCWarning
+forall b. HasCallStack =&gt; (CallStack -&gt; b) -&gt; b
+</span><a href="Agda.Utils.CallStack.Base.html#withCallerCallStack"><span class="hs-identifier hs-var">withCallerCallStack</span></a></span><span> </span><span class="annot"><span class="annottext">((CallStack -&gt; m TCWarning) -&gt; m TCWarning)
+-&gt; (Warning -&gt; CallStack -&gt; m TCWarning) -&gt; Warning -&gt; m TCWarning
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(CallStack -&gt; Warning -&gt; m TCWarning)
+-&gt; Warning -&gt; CallStack -&gt; m TCWarning
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">CallStack -&gt; Warning -&gt; m TCWarning
+forall (m :: * -&gt; *).
+MonadWarning m =&gt;
+CallStack -&gt; Warning -&gt; m TCWarning
+</span><a href="Agda.TypeChecking.Warnings.html#warning%27_"><span class="hs-identifier hs-var">warning'_</span></a></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- UNUSED Liang-Ting Chen 2019-07-16</span><span>
+</span><span id="line-110"></span><span class="hs-comment">---- | @applyWarningMode@ filters out the warnings the user has not requested</span><span>
+</span><span id="line-111"></span><span class="hs-comment">---- Users are not allowed to ignore non-fatal errors.</span><span>
+</span><span id="line-112"></span><span class="hs-comment">--</span><span>
+</span><span id="line-113"></span><span class="hs-comment">--applyWarningMode :: WarningMode -&gt; Warning -&gt; Maybe Warning</span><span>
+</span><span id="line-114"></span><span class="hs-comment">--applyWarningMode wm w = case classifyWarning w of</span><span>
+</span><span id="line-115"></span><span class="hs-comment">--  ErrorWarnings -&gt; Just w</span><span>
+</span><span id="line-116"></span><span class="hs-comment">--  AllWarnings   -&gt; w &lt;$ guard (Set.member (warningName w) $ wm ^. warningSet)</span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warnings%27"><span class="hs-pragma hs-type">warnings'</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><span class="hs-pragma hs-type">CallStack</span></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="hs-pragma">[</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-pragma hs-type">Warning</span></a></span><span class="hs-pragma">]</span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-119"></span><span id="local-6989586621681412764"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warnings%27"><span class="hs-identifier hs-type">warnings'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412764"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">CallStack</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-identifier hs-type">Warning</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681412764"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-120"></span><span id="warnings%27"><span class="annot"><span class="annottext">warnings' :: forall (m :: * -&gt; *).
+MonadWarning m =&gt;
+CallStack -&gt; [Warning] -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#warnings%27"><span class="hs-identifier hs-var hs-var">warnings'</span></a></span></span><span> </span><span id="local-6989586621681413131"><span class="annot"><span class="annottext">CallStack
+</span><a href="#local-6989586621681413131"><span class="hs-identifier hs-var">loc</span></a></span></span><span> </span><span id="local-6989586621681413132"><span class="annot"><span class="annottext">[Warning]
+</span><a href="#local-6989586621681413132"><span class="hs-identifier hs-var">ws</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span>  </span><span id="local-6989586621681413133"><span class="annot"><span class="annottext">WarningMode
+</span><a href="#local-6989586621681413133"><span class="hs-identifier hs-var">wmode</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">PragmaOptions -&gt; WarningMode
+</span><a href="Agda.Interaction.Options.Base.html#optWarningMode"><span class="hs-identifier hs-var">optWarningMode</span></a></span><span> </span><span class="annot"><span class="annottext">(PragmaOptions -&gt; WarningMode) -&gt; m PragmaOptions -&gt; m WarningMode
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m PragmaOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m PragmaOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#pragmaOptions"><span class="hs-identifier hs-var">pragmaOptions</span></a></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span>  </span><span class="hs-comment">-- We collect *all* of the warnings no matter whether they are in the @warningSet@</span><span>
+</span><span id="line-125"></span><span>  </span><span class="hs-comment">-- or not. If we find one which should be turned into an error, we keep processing</span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-comment">-- the rest of the warnings and *then* report all of the errors at once.</span><span>
+</span><span id="line-127"></span><span>  </span><span id="local-6989586621681413137"><span class="annot"><span class="annottext">[Maybe TCWarning]
+</span><a href="#local-6989586621681413137"><span class="hs-identifier hs-var">merrs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Warning]
+-&gt; (Warning -&gt; m (Maybe TCWarning)) -&gt; m [Maybe TCWarning]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+t a -&gt; (a -&gt; m b) -&gt; m (t b)
+</span><span class="hs-identifier hs-var">forM</span></span><span> </span><span class="annot"><span class="annottext">[Warning]
+</span><a href="#local-6989586621681413132"><span class="hs-identifier hs-var">ws</span></a></span><span> </span><span class="annot"><span class="annottext">((Warning -&gt; m (Maybe TCWarning)) -&gt; m [Maybe TCWarning])
+-&gt; (Warning -&gt; m (Maybe TCWarning)) -&gt; m [Maybe TCWarning]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681413138"><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413138"><span class="hs-identifier hs-var">w'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-128"></span><span>    </span><span id="local-6989586621681413139"><span class="annot"><span class="annottext">TCWarning
+</span><a href="#local-6989586621681413139"><span class="hs-identifier hs-var">tcwarn</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">CallStack -&gt; Warning -&gt; m TCWarning
+forall (m :: * -&gt; *).
+MonadWarning m =&gt;
+CallStack -&gt; Warning -&gt; m TCWarning
+</span><a href="Agda.TypeChecking.Warnings.html#warning%27_"><span class="hs-identifier hs-var">warning'_</span></a></span><span> </span><span class="annot"><span class="annottext">CallStack
+</span><a href="#local-6989586621681413131"><span class="hs-identifier hs-var">loc</span></a></span><span> </span><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413138"><span class="hs-identifier hs-var">w'</span></a></span><span>
+</span><span id="line-129"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">WarningMode
+</span><a href="#local-6989586621681413133"><span class="hs-identifier hs-var">wmode</span></a></span><span> </span><span class="annot"><span class="annottext">WarningMode -&gt; Lens' WarningMode Bool -&gt; Bool
+forall o i. o -&gt; Lens' o i -&gt; i
+</span><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; f Bool) -&gt; WarningMode -&gt; f WarningMode
+Lens' WarningMode Bool
+</span><a href="Agda.Interaction.Options.Warnings.html#warn2Error"><span class="hs-identifier hs-var">warn2Error</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Warning -&gt; WarningName
+</span><a href="Agda.TypeChecking.Monad.Base.html#warningName"><span class="hs-identifier hs-var">warningName</span></a></span><span> </span><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413138"><span class="hs-identifier hs-var">w'</span></a></span><span> </span><span class="annot"><span class="annottext">WarningName -&gt; Set WarningName -&gt; Bool
+forall a. Eq a =&gt; a -&gt; Set a -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-operator hs-var">`elem`</span></span><span> </span><span class="annot"><span class="annottext">WarningMode
+</span><a href="#local-6989586621681413133"><span class="hs-identifier hs-var">wmode</span></a></span><span> </span><span class="annot"><span class="annottext">WarningMode
+-&gt; Lens' WarningMode (Set WarningName) -&gt; Set WarningName
+forall o i. o -&gt; Lens' o i -&gt; i
+</span><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">(Set WarningName -&gt; f (Set WarningName))
+-&gt; WarningMode -&gt; f WarningMode
+Lens' WarningMode (Set WarningName)
+</span><a href="Agda.Interaction.Options.Warnings.html#warningSet"><span class="hs-identifier hs-var">warningSet</span></a></span><span>
+</span><span id="line-130"></span><span>    </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Maybe TCWarning -&gt; m (Maybe TCWarning)
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TCWarning -&gt; Maybe TCWarning
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">TCWarning
+</span><a href="#local-6989586621681413139"><span class="hs-identifier hs-var">tcwarn</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-131"></span><span>    </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Maybe TCWarning
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">Maybe TCWarning -&gt; m () -&gt; m (Maybe TCWarning)
+forall a b. a -&gt; m b -&gt; m a
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">TCWarning -&gt; m ()
+forall (m :: * -&gt; *). MonadWarning m =&gt; TCWarning -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#addWarning"><span class="hs-identifier hs-var">addWarning</span></a></span><span> </span><span class="annot"><span class="annottext">TCWarning
+</span><a href="#local-6989586621681413139"><span class="hs-identifier hs-var">tcwarn</span></a></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681413148"><span class="annot"><span class="annottext">errs :: [TCWarning]
+</span><a href="#local-6989586621681413148"><span class="hs-identifier hs-var hs-var">errs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Maybe TCWarning] -&gt; [TCWarning]
+forall a. [Maybe a] -&gt; [a]
+</span><span class="hs-identifier hs-var">catMaybes</span></span><span> </span><span class="annot"><span class="annottext">[Maybe TCWarning]
+</span><a href="#local-6989586621681413137"><span class="hs-identifier hs-var">merrs</span></a></span><span>
+</span><span id="line-134"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; m () -&gt; m ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">unless</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[TCWarning] -&gt; Bool
+forall a. [a] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">[TCWarning]
+</span><a href="#local-6989586621681413148"><span class="hs-identifier hs-var">errs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; m () -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">CallStack -&gt; TypeError -&gt; m ()
+forall (m :: * -&gt; *) a.
+MonadTCError m =&gt;
+CallStack -&gt; TypeError -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#typeError%27"><span class="hs-identifier hs-var">typeError'</span></a></span><span> </span><span class="annot"><span class="annottext">CallStack
+</span><a href="#local-6989586621681413131"><span class="hs-identifier hs-var">loc</span></a></span><span> </span><span class="annot"><span class="annottext">(TypeError -&gt; m ()) -&gt; TypeError -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[TCWarning] -&gt; TypeError
+</span><a href="Agda.TypeChecking.Monad.Base.html#NonFatalErrors"><span class="hs-identifier hs-var">NonFatalErrors</span></a></span><span> </span><span class="annot"><span class="annottext">[TCWarning]
+</span><a href="#local-6989586621681413148"><span class="hs-identifier hs-var">errs</span></a></span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warnings"><span class="hs-pragma hs-type">warnings</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><span class="hs-pragma hs-type">HasCallStack</span></span><span> </span><span class="hs-pragma">=&gt;</span><span> </span><span class="hs-pragma">[</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-pragma hs-type">Warning</span></a></span><span class="hs-pragma">]</span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-137"></span><span id="local-6989586621681412791"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warnings"><span class="hs-identifier hs-type">warnings</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412791"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-identifier hs-type">Warning</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681412791"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-138"></span><span id="warnings"><span class="annot"><span class="annottext">warnings :: forall (m :: * -&gt; *).
+(HasCallStack, MonadWarning m) =&gt;
+[Warning] -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#warnings"><span class="hs-identifier hs-var hs-var">warnings</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CallStack -&gt; m ()) -&gt; m ()
+forall b. HasCallStack =&gt; (CallStack -&gt; b) -&gt; b
+</span><a href="Agda.Utils.CallStack.Base.html#withCallerCallStack"><span class="hs-identifier hs-var">withCallerCallStack</span></a></span><span> </span><span class="annot"><span class="annottext">((CallStack -&gt; m ()) -&gt; m ())
+-&gt; ([Warning] -&gt; CallStack -&gt; m ()) -&gt; [Warning] -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(CallStack -&gt; [Warning] -&gt; m ()) -&gt; [Warning] -&gt; CallStack -&gt; m ()
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">CallStack -&gt; [Warning] -&gt; m ()
+forall (m :: * -&gt; *).
+MonadWarning m =&gt;
+CallStack -&gt; [Warning] -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#warnings%27"><span class="hs-identifier hs-var">warnings'</span></a></span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warning%27"><span class="hs-pragma hs-type">warning'</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><span class="hs-pragma hs-type">CallStack</span></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-pragma hs-type">Warning</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-141"></span><span id="local-6989586621681412793"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warning%27"><span class="hs-identifier hs-type">warning'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412793"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">CallStack</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-identifier hs-type">Warning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681412793"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-142"></span><span id="warning%27"><span class="annot"><span class="annottext">warning' :: forall (m :: * -&gt; *).
+MonadWarning m =&gt;
+CallStack -&gt; Warning -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#warning%27"><span class="hs-identifier hs-var hs-var">warning'</span></a></span></span><span> </span><span id="local-6989586621681413161"><span class="annot"><span class="annottext">CallStack
+</span><a href="#local-6989586621681413161"><span class="hs-identifier hs-var">loc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CallStack -&gt; [Warning] -&gt; m ()
+forall (m :: * -&gt; *).
+MonadWarning m =&gt;
+CallStack -&gt; [Warning] -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#warnings%27"><span class="hs-identifier hs-var">warnings'</span></a></span><span> </span><span class="annot"><span class="annottext">CallStack
+</span><a href="#local-6989586621681413161"><span class="hs-identifier hs-var">loc</span></a></span><span> </span><span class="annot"><span class="annottext">([Warning] -&gt; m ()) -&gt; (Warning -&gt; [Warning]) -&gt; Warning -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Warning -&gt; [Warning]
+forall a. a -&gt; [a]
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span>
+</span><span id="line-143"></span><span>
+</span><span id="line-144"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warning"><span class="hs-pragma hs-type">warning</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><span class="hs-pragma hs-type">HasCallStack</span></span><span> </span><span class="hs-pragma">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-pragma hs-type">Warning</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-145"></span><span id="local-6989586621681412795"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#warning"><span class="hs-identifier hs-type">warning</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">HasCallStack</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412795"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-identifier hs-type">Warning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681412795"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-146"></span><span id="warning"><span class="annot"><span class="annottext">warning :: forall (m :: * -&gt; *).
+(HasCallStack, MonadWarning m) =&gt;
+Warning -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#warning"><span class="hs-identifier hs-var hs-var">warning</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CallStack -&gt; m ()) -&gt; m ()
+forall b. HasCallStack =&gt; (CallStack -&gt; b) -&gt; b
+</span><a href="Agda.Utils.CallStack.Base.html#withCallerCallStack"><span class="hs-identifier hs-var">withCallerCallStack</span></a></span><span> </span><span class="annot"><span class="annottext">((CallStack -&gt; m ()) -&gt; m ())
+-&gt; (Warning -&gt; CallStack -&gt; m ()) -&gt; Warning -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(CallStack -&gt; Warning -&gt; m ()) -&gt; Warning -&gt; CallStack -&gt; m ()
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">CallStack -&gt; Warning -&gt; m ()
+forall (m :: * -&gt; *).
+MonadWarning m =&gt;
+CallStack -&gt; Warning -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#warning%27"><span class="hs-identifier hs-var">warning'</span></a></span><span>
+</span><span id="line-147"></span><span>
+</span><span id="line-148"></span><span class="annot"><span class="hs-comment">-- | Raise every 'WARNING_ON_USAGE' connected to a name.</span></span><span>
+</span><span id="line-149"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#raiseWarningsOnUsage"><span class="hs-pragma hs-type">raiseWarningsOnUsage</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-pragma hs-type">QName</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-150"></span><span id="local-6989586621681412797"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#raiseWarningsOnUsage"><span class="hs-identifier hs-type">raiseWarningsOnUsage</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#MonadWarning"><span class="hs-identifier hs-type">MonadWarning</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412797"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412797"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681412797"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-151"></span><span id="raiseWarningsOnUsage"><span class="annot"><span class="annottext">raiseWarningsOnUsage :: forall (m :: * -&gt; *).
+(MonadWarning m, ReadTCState m) =&gt;
+QName -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#raiseWarningsOnUsage"><span class="hs-identifier hs-var hs-var">raiseWarningsOnUsage</span></a></span></span><span> </span><span id="local-6989586621681413195"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681413195"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-152"></span><span>  </span><span class="hs-comment">-- In case we find a defined name, we start by checking whether there's</span><span>
+</span><span id="line-153"></span><span>  </span><span class="hs-comment">-- a warning attached to it</span><span>
+</span><span id="line-154"></span><span>  </span><span class="annot"><span class="annottext">[Char] -&gt; VerboseLevel -&gt; [Char] -&gt; m ()
+forall (m :: * -&gt; *).
+MonadDebug m =&gt;
+[Char] -&gt; VerboseLevel -&gt; [Char] -&gt; m ()
+</span><a href="Agda.TypeChecking.Monad.Debug.html#reportSLn"><span class="hs-identifier hs-var">reportSLn</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;scope.warning.usage&quot;</span></span><span> </span><span class="annot"><span class="annottext">VerboseLevel
+</span><span class="hs-number">50</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; m ()) -&gt; [Char] -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;Checking usage of &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; [Char]
+forall a. Pretty a =&gt; a -&gt; [Char]
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">P.prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681413195"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-155"></span><span>  </span><span class="annot"><span class="annottext">(Text -&gt; m ()) -&gt; Maybe Text -&gt; m ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Warning -&gt; m ()
+forall (m :: * -&gt; *).
+(HasCallStack, MonadWarning m) =&gt;
+Warning -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#warning"><span class="hs-identifier hs-var">warning</span></a></span><span> </span><span class="annot"><span class="annottext">(Warning -&gt; m ()) -&gt; (Text -&gt; Warning) -&gt; Text -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Warning
+</span><a href="Agda.TypeChecking.Monad.Base.html#UserWarning"><span class="hs-identifier hs-var">UserWarning</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe Text -&gt; m ()) -&gt; m (Maybe Text) -&gt; m ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; Map QName Text -&gt; Maybe Text
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681413195"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">(Map QName Text -&gt; Maybe Text)
+-&gt; m (Map QName Text) -&gt; m (Maybe Text)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m (Map QName Text)
+forall (m :: * -&gt; *). ReadTCState m =&gt; m (Map QName Text)
+</span><a href="Agda.TypeChecking.Monad.Base.html#getUserWarnings"><span class="hs-identifier hs-var">getUserWarnings</span></a></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span>
+</span><span id="line-158"></span><span class="annot"><span class="hs-comment">-- * Classifying warnings</span></span><span>
+</span><span id="line-159"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#isUnsolvedWarning"><span class="hs-identifier hs-type">isUnsolvedWarning</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-identifier hs-type">Warning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-162"></span><span id="isUnsolvedWarning"><span class="annot"><span class="annottext">isUnsolvedWarning :: Warning -&gt; Bool
+</span><a href="Agda.TypeChecking.Warnings.html#isUnsolvedWarning"><span class="hs-identifier hs-var hs-var">isUnsolvedWarning</span></a></span></span><span> </span><span id="local-6989586621681413203"><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413203"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Warning -&gt; WarningName
+</span><a href="Agda.TypeChecking.Monad.Base.html#warningName"><span class="hs-identifier hs-var">warningName</span></a></span><span> </span><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413203"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">WarningName -&gt; Set WarningName -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span> </span><span class="annot"><span class="annottext">Set WarningName
+</span><a href="Agda.Interaction.Options.Warnings.html#unsolvedWarnings"><span class="hs-identifier hs-var">unsolvedWarnings</span></a></span><span>
+</span><span id="line-163"></span><span>
+</span><span id="line-164"></span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#isMetaWarning"><span class="hs-identifier hs-type">isMetaWarning</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-identifier hs-type">Warning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-165"></span><span id="isMetaWarning"><span class="annot"><span class="annottext">isMetaWarning :: Warning -&gt; Bool
+</span><a href="Agda.TypeChecking.Warnings.html#isMetaWarning"><span class="hs-identifier hs-var hs-var">isMetaWarning</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-166"></span><span>   </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#UnsolvedInteractionMetas"><span class="hs-identifier hs-type">UnsolvedInteractionMetas</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-167"></span><span>   </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#UnsolvedMetaVariables"><span class="hs-identifier hs-type">UnsolvedMetaVariables</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-168"></span><span>   </span><span class="annot"><span class="annottext">Warning
+</span><span class="hs-identifier">_</span></span><span>                          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#isMetaTCWarning"><span class="hs-identifier hs-type">isMetaTCWarning</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCWarning"><span class="hs-identifier hs-type">TCWarning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-171"></span><span id="isMetaTCWarning"><span class="annot"><span class="annottext">isMetaTCWarning :: TCWarning -&gt; Bool
+</span><a href="Agda.TypeChecking.Warnings.html#isMetaTCWarning"><span class="hs-identifier hs-var hs-var">isMetaTCWarning</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Warning -&gt; Bool
+</span><a href="Agda.TypeChecking.Warnings.html#isMetaWarning"><span class="hs-identifier hs-var">isMetaWarning</span></a></span><span> </span><span class="annot"><span class="annottext">(Warning -&gt; Bool) -&gt; (TCWarning -&gt; Warning) -&gt; TCWarning -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TCWarning -&gt; Warning
+</span><a href="Agda.TypeChecking.Monad.Base.html#tcWarning"><span class="hs-identifier hs-var">tcWarning</span></a></span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span class="annot"><span class="hs-comment">-- | Should we only emit a single warning with this constructor.</span></span><span>
+</span><span id="line-174"></span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#onlyOnce"><span class="hs-identifier hs-type">onlyOnce</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-identifier hs-type">Warning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-175"></span><span id="onlyOnce"><span class="annot"><span class="annottext">onlyOnce :: Warning -&gt; Bool
+</span><a href="Agda.TypeChecking.Warnings.html#onlyOnce"><span class="hs-identifier hs-var hs-var">onlyOnce</span></a></span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#InversionDepthReached"><span class="hs-identifier hs-type">InversionDepthReached</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-176"></span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#onlyOnce"><span class="hs-identifier hs-var">onlyOnce</span></a></span><span> </span><span class="annot"><span class="annottext">Warning
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-177"></span><span>
+</span><span id="line-178"></span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#onlyShowIfUnsolved"><span class="hs-identifier hs-type">onlyShowIfUnsolved</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-identifier hs-type">Warning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-179"></span><span id="onlyShowIfUnsolved"><span class="annot"><span class="annottext">onlyShowIfUnsolved :: Warning -&gt; Bool
+</span><a href="Agda.TypeChecking.Warnings.html#onlyShowIfUnsolved"><span class="hs-identifier hs-var hs-var">onlyShowIfUnsolved</span></a></span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#InversionDepthReached"><span class="hs-identifier hs-type">InversionDepthReached</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-180"></span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#onlyShowIfUnsolved"><span class="hs-identifier hs-var">onlyShowIfUnsolved</span></a></span><span> </span><span class="annot"><span class="annottext">Warning
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-181"></span><span>
+</span><span id="line-182"></span><span class="annot"><span class="hs-comment">-- | Classifying warnings: some are benign, others are (non-fatal) errors</span></span><span>
+</span><span id="line-183"></span><span>
+</span><span id="line-184"></span><span class="hs-keyword">data</span><span> </span><span id="WhichWarnings"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#WhichWarnings"><span class="hs-identifier hs-var">WhichWarnings</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-185"></span><span>    </span><span id="ErrorWarnings"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#ErrorWarnings"><span class="hs-identifier hs-var">ErrorWarnings</span></a></span></span><span> </span><span class="annot"><span class="hs-comment">-- ^ warnings that will be turned into errors</span></span><span>
+</span><span id="line-186"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="AllWarnings"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#AllWarnings"><span class="hs-identifier hs-var">AllWarnings</span></a></span></span><span>   </span><span class="hs-comment">-- ^ all warnings, including errors and benign ones</span><span>
+</span><span id="line-187"></span><span>  </span><span class="hs-comment">-- Note: order of constructors is important for the derived Ord instance</span><span>
+</span><span id="line-188"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681413212"><span id="local-6989586621681413214"><span class="annot"><span class="annottext">WhichWarnings -&gt; WhichWarnings -&gt; Bool
+(WhichWarnings -&gt; WhichWarnings -&gt; Bool)
+-&gt; (WhichWarnings -&gt; WhichWarnings -&gt; Bool) -&gt; Eq WhichWarnings
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: WhichWarnings -&gt; WhichWarnings -&gt; Bool
+== :: WhichWarnings -&gt; WhichWarnings -&gt; Bool
+$c/= :: WhichWarnings -&gt; WhichWarnings -&gt; Bool
+/= :: WhichWarnings -&gt; WhichWarnings -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681413221"><span id="local-6989586621681413223"><span id="local-6989586621681413225"><span id="local-6989586621681413229"><span id="local-6989586621681413232"><span id="local-6989586621681413235"><span id="local-6989586621681413238"><span class="annot"><span class="annottext">Eq WhichWarnings
+Eq WhichWarnings =&gt;
+(WhichWarnings -&gt; WhichWarnings -&gt; Ordering)
+-&gt; (WhichWarnings -&gt; WhichWarnings -&gt; Bool)
+-&gt; (WhichWarnings -&gt; WhichWarnings -&gt; Bool)
+-&gt; (WhichWarnings -&gt; WhichWarnings -&gt; Bool)
+-&gt; (WhichWarnings -&gt; WhichWarnings -&gt; Bool)
+-&gt; (WhichWarnings -&gt; WhichWarnings -&gt; WhichWarnings)
+-&gt; (WhichWarnings -&gt; WhichWarnings -&gt; WhichWarnings)
+-&gt; Ord WhichWarnings
+WhichWarnings -&gt; WhichWarnings -&gt; Bool
+WhichWarnings -&gt; WhichWarnings -&gt; Ordering
+WhichWarnings -&gt; WhichWarnings -&gt; WhichWarnings
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: WhichWarnings -&gt; WhichWarnings -&gt; Ordering
+compare :: WhichWarnings -&gt; WhichWarnings -&gt; Ordering
+$c&lt; :: WhichWarnings -&gt; WhichWarnings -&gt; Bool
+&lt; :: WhichWarnings -&gt; WhichWarnings -&gt; Bool
+$c&lt;= :: WhichWarnings -&gt; WhichWarnings -&gt; Bool
+&lt;= :: WhichWarnings -&gt; WhichWarnings -&gt; Bool
+$c&gt; :: WhichWarnings -&gt; WhichWarnings -&gt; Bool
+&gt; :: WhichWarnings -&gt; WhichWarnings -&gt; Bool
+$c&gt;= :: WhichWarnings -&gt; WhichWarnings -&gt; Bool
+&gt;= :: WhichWarnings -&gt; WhichWarnings -&gt; Bool
+$cmax :: WhichWarnings -&gt; WhichWarnings -&gt; WhichWarnings
+max :: WhichWarnings -&gt; WhichWarnings -&gt; WhichWarnings
+$cmin :: WhichWarnings -&gt; WhichWarnings -&gt; WhichWarnings
+min :: WhichWarnings -&gt; WhichWarnings -&gt; WhichWarnings
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-189"></span><span>
+</span><span id="line-190"></span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#classifyWarning"><span class="hs-identifier hs-type">classifyWarning</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Warning"><span class="hs-identifier hs-type">Warning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#WhichWarnings"><span class="hs-identifier hs-type">WhichWarnings</span></a></span><span>
+</span><span id="line-191"></span><span id="classifyWarning"><span class="annot"><span class="annottext">classifyWarning :: Warning -&gt; WhichWarnings
+</span><a href="Agda.TypeChecking.Warnings.html#classifyWarning"><span class="hs-identifier hs-var hs-var">classifyWarning</span></a></span></span><span> </span><span id="local-6989586621681413241"><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413241"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-192"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Warning -&gt; WarningName
+</span><a href="Agda.TypeChecking.Monad.Base.html#warningName"><span class="hs-identifier hs-var">warningName</span></a></span><span> </span><span class="annot"><span class="annottext">Warning
+</span><a href="#local-6989586621681413241"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">WarningName -&gt; Set WarningName -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.member`</span></span><span> </span><span class="annot"><span class="annottext">Set WarningName
+</span><a href="Agda.Interaction.Options.Warnings.html#errorWarnings"><span class="hs-identifier hs-var">errorWarnings</span></a></span><span>
+</span><span id="line-193"></span><span>  </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">WhichWarnings
+</span><a href="Agda.TypeChecking.Warnings.html#ErrorWarnings"><span class="hs-identifier hs-var">ErrorWarnings</span></a></span><span>
+</span><span id="line-194"></span><span>  </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">WhichWarnings
+</span><a href="Agda.TypeChecking.Warnings.html#AllWarnings"><span class="hs-identifier hs-var">AllWarnings</span></a></span><span>
+</span><span id="line-195"></span><span>
+</span><span id="line-196"></span><span class="annot"><span class="hs-comment">-- | The only way to construct a empty WarningsAndNonFatalErrors</span></span><span>
+</span><span id="line-197"></span><span>
+</span><span id="line-198"></span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#emptyWarningsAndNonFatalErrors"><span class="hs-identifier hs-type">emptyWarningsAndNonFatalErrors</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#WarningsAndNonFatalErrors"><span class="hs-identifier hs-type">WarningsAndNonFatalErrors</span></a></span><span>
+</span><span id="line-199"></span><span id="emptyWarningsAndNonFatalErrors"><span class="annot"><span class="annottext">emptyWarningsAndNonFatalErrors :: WarningsAndNonFatalErrors
+</span><a href="Agda.TypeChecking.Warnings.html#emptyWarningsAndNonFatalErrors"><span class="hs-identifier hs-var hs-var">emptyWarningsAndNonFatalErrors</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[TCWarning] -&gt; [TCWarning] -&gt; WarningsAndNonFatalErrors
+</span><a href="Agda.TypeChecking.Monad.Base.html#WarningsAndNonFatalErrors"><span class="hs-identifier hs-var">WarningsAndNonFatalErrors</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-200"></span><span>
+</span><span id="line-201"></span><span class="annot"><a href="Agda.TypeChecking.Warnings.html#classifyWarnings"><span class="hs-identifier hs-type">classifyWarnings</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCWarning"><span class="hs-identifier hs-type">TCWarning</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#WarningsAndNonFatalErrors"><span class="hs-identifier hs-type">WarningsAndNonFatalErrors</span></a></span><span>
+</span><span id="line-202"></span><span id="classifyWarnings"><span class="annot"><span class="annottext">classifyWarnings :: [TCWarning] -&gt; WarningsAndNonFatalErrors
+</span><a href="Agda.TypeChecking.Warnings.html#classifyWarnings"><span class="hs-identifier hs-var hs-var">classifyWarnings</span></a></span></span><span> </span><span id="local-6989586621681413243"><span class="annot"><span class="annottext">[TCWarning]
+</span><a href="#local-6989586621681413243"><span class="hs-identifier hs-var">ws</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[TCWarning] -&gt; [TCWarning] -&gt; WarningsAndNonFatalErrors
+</span><a href="Agda.TypeChecking.Monad.Base.html#WarningsAndNonFatalErrors"><span class="hs-identifier hs-var">WarningsAndNonFatalErrors</span></a></span><span> </span><span class="annot"><span class="annottext">[TCWarning]
+</span><a href="#local-6989586621681413244"><span class="hs-identifier hs-var">warnings</span></a></span><span> </span><span class="annot"><span class="annottext">[TCWarning]
+</span><a href="#local-6989586621681413245"><span class="hs-identifier hs-var">errors</span></a></span><span>
+</span><span id="line-203"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-204"></span><span>    </span><span id="local-6989586621681413247"><span class="annot"><span class="annottext">partite :: TCWarning -&gt; Bool
+</span><a href="#local-6989586621681413247"><span class="hs-identifier hs-var hs-var">partite</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">WhichWarnings -&gt; WhichWarnings -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">WhichWarnings
+</span><a href="Agda.TypeChecking.Warnings.html#AllWarnings"><span class="hs-identifier hs-var">AllWarnings</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(WhichWarnings -&gt; Bool)
+-&gt; (TCWarning -&gt; WhichWarnings) -&gt; TCWarning -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Warning -&gt; WhichWarnings
+</span><a href="Agda.TypeChecking.Warnings.html#classifyWarning"><span class="hs-identifier hs-var">classifyWarning</span></a></span><span> </span><span class="annot"><span class="annottext">(Warning -&gt; WhichWarnings)
+-&gt; (TCWarning -&gt; Warning) -&gt; TCWarning -&gt; WhichWarnings
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TCWarning -&gt; Warning
+</span><a href="Agda.TypeChecking.Monad.Base.html#tcWarning"><span class="hs-identifier hs-var">tcWarning</span></a></span><span>
+</span><span id="line-205"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621681413245"><span class="annot"><span class="annottext">[TCWarning]
+</span><a href="#local-6989586621681413245"><span class="hs-identifier hs-var">errors</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681413244"><span class="annot"><span class="annottext">[TCWarning]
+</span><a href="#local-6989586621681413244"><span class="hs-identifier hs-var">warnings</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TCWarning -&gt; Bool) -&gt; [TCWarning] -&gt; ([TCWarning], [TCWarning])
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">List.partition</span></span><span> </span><span class="annot"><span class="annottext">TCWarning -&gt; Bool
+</span><a href="#local-6989586621681413247"><span class="hs-identifier hs-var">partite</span></a></span><span> </span><span class="annot"><span class="annottext">[TCWarning]
+</span><a href="#local-6989586621681413243"><span class="hs-identifier hs-var">ws</span></a></span><span>
+</span><span id="line-206"></span><span>
+</span><span id="line-207"></span><span>
+</span><span id="line-208"></span><span class="annot"><span class="hs-comment">-- * Warnings in the parser</span></span><span>
+</span><span id="line-209"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-210"></span><span>
+</span><span id="line-211"></span><span class="annot"><span class="hs-comment">-- | running the Parse monad</span></span><span>
+</span><span id="line-212"></span><span>
+</span><span id="line-213"></span><span id="local-6989586621681412827"><span class="annot"><a href="Agda.TypeChecking.Warnings.html#runPM"><span class="hs-identifier hs-type">runPM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Parser.html#PM"><span class="hs-identifier hs-type">PM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412827"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681412827"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-214"></span><span id="runPM"><span class="annot"><span class="annottext">runPM :: forall a. PM a -&gt; TCM a
+</span><a href="Agda.TypeChecking.Warnings.html#runPM"><span class="hs-identifier hs-var hs-var">runPM</span></a></span></span><span> </span><span id="local-6989586621681413266"><span class="annot"><span class="annottext">PM a
+</span><a href="#local-6989586621681413266"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-215"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681413267"><span class="annot"><span class="annottext">Either ParseError a
+</span><a href="#local-6989586621681413267"><span class="hs-identifier hs-var">res</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681413268"><span class="annot"><span class="annottext">[ParseWarning]
+</span><a href="#local-6989586621681413268"><span class="hs-identifier hs-var">ws</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">PM a -&gt; TCMT IO (Either ParseError a, [ParseWarning])
+forall (m :: * -&gt; *) a.
+MonadIO m =&gt;
+PM a -&gt; m (Either ParseError a, [ParseWarning])
+</span><a href="Agda.Syntax.Parser.html#runPMIO"><span class="hs-identifier hs-var">runPMIO</span></a></span><span> </span><span class="annot"><span class="annottext">PM a
+</span><a href="#local-6989586621681413266"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-216"></span><span>  </span><span class="annot"><span class="annottext">(ParseWarning -&gt; TCM ()) -&gt; [ParseWarning] -&gt; TCM ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Warning -&gt; TCM ()
+forall (m :: * -&gt; *).
+(HasCallStack, MonadWarning m) =&gt;
+Warning -&gt; m ()
+</span><a href="Agda.TypeChecking.Warnings.html#warning"><span class="hs-identifier hs-var">warning</span></a></span><span> </span><span class="annot"><span class="annottext">(Warning -&gt; TCM ())
+-&gt; (ParseWarning -&gt; Warning) -&gt; ParseWarning -&gt; TCM ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ParseWarning -&gt; Warning
+</span><a href="Agda.TypeChecking.Monad.Base.html#ParseWarning"><span class="hs-identifier hs-var">ParseWarning</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[ParseWarning]
+</span><a href="#local-6989586621681413268"><span class="hs-identifier hs-var">ws</span></a></span><span>
+</span><span id="line-217"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either ParseError a
+</span><a href="#local-6989586621681413267"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-218"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span>  </span><span id="local-6989586621681413271"><span class="annot"><span class="annottext">ParseError
+</span><a href="#local-6989586621681413271"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TCErr -&gt; TCM a
+forall a. TCErr -&gt; TCMT IO a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; Doc -&gt; TCErr
+</span><a href="Agda.TypeChecking.Monad.Base.html#Exception"><span class="hs-identifier hs-var">Exception</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ParseError -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">ParseError
+</span><a href="#local-6989586621681413271"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ParseError -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">P.pretty</span></a></span><span> </span><span class="annot"><span class="annottext">ParseError
+</span><a href="#local-6989586621681413271"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-219"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621681413275"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681413275"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; TCM a
+forall a. a -&gt; TCMT IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681413275"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-220"></span></pre></body></html>

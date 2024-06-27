@@ -1,0 +1,292 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.TypeChecking.Monad.Open</span><span>
+</span><span id="line-3"></span><span>        </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Open.html#makeOpen"><span class="hs-identifier">makeOpen</span></a></span><span>
+</span><span id="line-4"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Open.html#getOpen"><span class="hs-identifier">getOpen</span></a></span><span>
+</span><span id="line-5"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Open.html#tryGetOpen"><span class="hs-identifier">tryGetOpen</span></a></span><span>
+</span><span id="line-6"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Open.html#isClosed"><span class="hs-identifier">isClosed</span></a></span><span>
+</span><span id="line-7"></span><span>        </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans.Maybe</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.html"><span class="hs-identifier">Agda.TypeChecking.Substitute</span></a></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.State.html"><span class="hs-identifier">Agda.TypeChecking.Monad.State</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.State.html#currentModuleNameHash"><span class="hs-identifier">currentModuleNameHash</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="hs-pragma">{-# SOURCE</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Context.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Context</span></a></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="annot"><span class="hs-comment">-- | Create an open term in the current context.</span></span><span>
+</span><span id="line-26"></span><span id="local-6989586621681416090"><span id="local-6989586621681416093"><span class="annot"><a href="Agda.TypeChecking.Monad.Open.html#makeOpen"><span class="hs-identifier hs-type">makeOpen</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681416090"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681416090"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681416093"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681416090"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Open"><span class="hs-identifier hs-type">Open</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681416093"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-27"></span><span id="makeOpen"><span class="annot"><span class="annottext">makeOpen :: forall (m :: * -&gt; *) a.
+(ReadTCState m, MonadTCEnv m) =&gt;
+a -&gt; m (Open a)
+</span><a href="Agda.TypeChecking.Monad.Open.html#makeOpen"><span class="hs-identifier hs-var hs-var">makeOpen</span></a></span></span><span> </span><span id="local-6989586621681416201"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681416201"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-28"></span><span>    </span><span id="local-6989586621681416202"><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416202"><span class="hs-identifier hs-var">cp</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv CheckpointId -&gt; m CheckpointId
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; Lens' TCEnv a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#viewTC"><span class="hs-identifier hs-var">viewTC</span></a></span><span> </span><span class="annot"><span class="annottext">(CheckpointId -&gt; f CheckpointId) -&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv CheckpointId
+</span><a href="Agda.TypeChecking.Monad.Base.html#eCurrentCheckpoint"><span class="hs-identifier hs-var">eCurrentCheckpoint</span></a></span><span>
+</span><span id="line-29"></span><span>    </span><span id="local-6989586621681416207"><span class="annot"><span class="annottext">Map CheckpointId Substitution
+</span><a href="#local-6989586621681416207"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv (Map CheckpointId Substitution)
+-&gt; m (Map CheckpointId Substitution)
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; Lens' TCEnv a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#viewTC"><span class="hs-identifier hs-var">viewTC</span></a></span><span> </span><span class="annot"><span class="annottext">(Map CheckpointId Substitution
+ -&gt; f (Map CheckpointId Substitution))
+-&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv (Map CheckpointId Substitution)
+</span><a href="Agda.TypeChecking.Monad.Base.html#eCheckpoints"><span class="hs-identifier hs-var">eCheckpoints</span></a></span><span>
+</span><span id="line-30"></span><span>    </span><span id="local-6989586621681416211"><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621681416211"><span class="hs-identifier hs-var">m</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m ModuleNameHash
+forall (m :: * -&gt; *). ReadTCState m =&gt; m ModuleNameHash
+</span><a href="Agda.TypeChecking.Monad.State.html#currentModuleNameHash"><span class="hs-identifier hs-var">currentModuleNameHash</span></a></span><span>
+</span><span id="line-31"></span><span>    </span><span class="annot"><span class="annottext">Open a -&gt; m (Open a)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Open a -&gt; m (Open a)) -&gt; Open a -&gt; m (Open a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">CheckpointId
+-&gt; Map CheckpointId Substitution -&gt; ModuleNameHash -&gt; a -&gt; Open a
+forall a.
+CheckpointId
+-&gt; Map CheckpointId Substitution -&gt; ModuleNameHash -&gt; a -&gt; Open a
+</span><a href="Agda.TypeChecking.Monad.Base.html#OpenThing"><span class="hs-identifier hs-var">OpenThing</span></a></span><span> </span><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416202"><span class="hs-identifier hs-var">cp</span></a></span><span> </span><span class="annot"><span class="annottext">Map CheckpointId Substitution
+</span><a href="#local-6989586621681416207"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621681416211"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681416201"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | Extract the value from an open term. The checkpoint at which it was</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--   created must be in scope.</span><span>
+</span><span id="line-35"></span><span id="local-6989586621681416116"><span id="local-6989586621681416118"><span class="annot"><a href="Agda.TypeChecking.Monad.Open.html#getOpen"><span class="hs-identifier hs-type">getOpen</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html#TermSubst"><span class="hs-identifier hs-type">TermSubst</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681416116"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681416118"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Open"><span class="hs-identifier hs-type">Open</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681416116"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681416118"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681416116"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-36"></span><span id="getOpen"><span class="annot"><span class="annottext">getOpen :: forall a (m :: * -&gt; *).
+(TermSubst a, MonadTCEnv m) =&gt;
+Open a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Open.html#getOpen"><span class="hs-identifier hs-var hs-var">getOpen</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#OpenThing"><span class="hs-identifier hs-type">OpenThing</span></a></span><span> </span><span id="local-6989586621681416224"><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416224"><span class="hs-identifier hs-var">cp</span></a></span></span><span> </span><span class="annot"><span class="annottext">Map CheckpointId Substitution
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ModuleNameHash
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681416225"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681416225"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-37"></span><span>  </span><span id="local-6989586621681416226"><span class="annot"><span class="annottext">Substitution
+</span><a href="#local-6989586621681416226"><span class="hs-identifier hs-var">sub</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">CheckpointId -&gt; m Substitution
+forall (tcm :: * -&gt; *).
+MonadTCEnv tcm =&gt;
+CheckpointId -&gt; tcm Substitution
+</span><a href="Agda.TypeChecking.Monad.Context.html#checkpointSubstitution"><span class="hs-identifier hs-var">checkpointSubstitution</span></a></span><span> </span><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416224"><span class="hs-identifier hs-var">cp</span></a></span><span>
+</span><span id="line-38"></span><span>  </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; m a) -&gt; a -&gt; m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg a) -&gt; a -&gt; a
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution
+Substitution' (SubstArg a)
+</span><a href="#local-6989586621681416226"><span class="hs-identifier hs-var">sub</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681416225"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- | Extract the value from an open term. If the checkpoint is no longer in scope use the provided</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--   function to pull the object to the most recent common checkpoint. The function is given the</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--   substitution from the common ancestor to the checkpoint of the thing.</span><span>
+</span><span id="line-43"></span><span id="local-6989586621681416131"><span id="local-6989586621681416132"><span class="annot"><a href="Agda.TypeChecking.Monad.Open.html#tryGetOpen"><span class="hs-identifier hs-type">tryGetOpen</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html#TermSubst"><span class="hs-identifier hs-type">TermSubst</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681416131"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681416132"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681416132"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Substitution"><span class="hs-identifier hs-type">Substitution</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681416131"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681416131"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Open"><span class="hs-identifier hs-type">Open</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681416131"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681416132"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681416131"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-44"></span><span id="tryGetOpen"><span class="annot"><span class="annottext">tryGetOpen :: forall a (m :: * -&gt; *).
+(TermSubst a, ReadTCState m, MonadTCEnv m) =&gt;
+(Substitution -&gt; a -&gt; Maybe a) -&gt; Open a -&gt; m (Maybe a)
+</span><a href="Agda.TypeChecking.Monad.Open.html#tryGetOpen"><span class="hs-identifier hs-var hs-var">tryGetOpen</span></a></span></span><span> </span><span id="local-6989586621681416267"><span class="annot"><span class="annottext">Substitution -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621681416267"><span class="hs-identifier hs-var">extract</span></a></span></span><span> </span><span id="local-6989586621681416268"><span class="annot"><span class="annottext">Open a
+</span><a href="#local-6989586621681416268"><span class="hs-identifier hs-var">open</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-45"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#OpenThing"><span class="hs-identifier hs-type">OpenThing</span></a></span><span> </span><span id="local-6989586621681416269"><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416269"><span class="hs-identifier hs-var">cp</span></a></span></span><span> </span><span id="local-6989586621681416270"><span class="annot"><span class="annottext">Map CheckpointId Substitution
+</span><a href="#local-6989586621681416270"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span class="annot"><span class="annottext">ModuleNameHash
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681416271"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681416271"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Open a -&gt; m (Open a)
+forall {m :: * -&gt; *} {a}. ReadTCState m =&gt; Open a -&gt; m (Open a)
+</span><a href="#local-6989586621681416272"><span class="hs-identifier hs-var">restrict</span></a></span><span> </span><span class="annot"><span class="annottext">Open a
+</span><a href="#local-6989586621681416268"><span class="hs-identifier hs-var">open</span></a></span><span> </span><span class="hs-comment">-- Strip the env if from another module</span><span>
+</span><span id="line-46"></span><span>  </span><span class="annot"><span class="annottext">MaybeT m a -&gt; m (Maybe a)
+forall (m :: * -&gt; *) a. MaybeT m a -&gt; m (Maybe a)
+</span><span class="hs-identifier hs-var">runMaybeT</span></span><span> </span><span class="annot"><span class="annottext">(MaybeT m a -&gt; m (Maybe a)) -&gt; MaybeT m a -&gt; m (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-47"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg a) -&gt; a -&gt; a
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-operator hs-var">`applySubst`</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681416271"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Substitution -&gt; a) -&gt; MaybeT m Substitution -&gt; MaybeT m a
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Substitution -&gt; MaybeT m Substitution
+forall (f :: * -&gt; *) a. Alternative f =&gt; Maybe a -&gt; f a
+</span><a href="Agda.Utils.Maybe.html#liftMaybe"><span class="hs-identifier hs-var">liftMaybe</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe Substitution -&gt; MaybeT m Substitution)
+-&gt; MaybeT m (Maybe Substitution) -&gt; MaybeT m Substitution
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv (Maybe Substitution) -&gt; MaybeT m (Maybe Substitution)
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; Lens' TCEnv a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#viewTC"><span class="hs-identifier hs-var">viewTC</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Map CheckpointId Substitution
+ -&gt; f (Map CheckpointId Substitution))
+-&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv (Map CheckpointId Substitution)
+</span><a href="Agda.TypeChecking.Monad.Base.html#eCheckpoints"><span class="hs-identifier hs-var">eCheckpoints</span></a></span><span> </span><span class="annot"><span class="annottext">((Map CheckpointId Substitution
+  -&gt; f (Map CheckpointId Substitution))
+ -&gt; TCEnv -&gt; f TCEnv)
+-&gt; ((Maybe Substitution -&gt; f (Maybe Substitution))
+    -&gt; Map CheckpointId Substitution
+    -&gt; f (Map CheckpointId Substitution))
+-&gt; (Maybe Substitution -&gt; f (Maybe Substitution))
+-&gt; TCEnv
+-&gt; f TCEnv
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">CheckpointId
+-&gt; Lens' (Map CheckpointId Substitution) (Maybe Substitution)
+forall k v. Ord k =&gt; k -&gt; Lens' (Map k v) (Maybe v)
+</span><a href="Agda.Utils.Lens.html#key"><span class="hs-identifier hs-var">key</span></a></span><span> </span><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416269"><span class="hs-identifier hs-var">cp</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>    </span><span class="annot"><span class="annottext">MaybeT m a -&gt; MaybeT m a -&gt; MaybeT m a
+forall a. MaybeT m a -&gt; MaybeT m a -&gt; MaybeT m a
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="hs-keyword">do</span><span>  </span><span class="hs-comment">-- Checkpoint no longer in scope</span><span>
+</span><span id="line-49"></span><span>      </span><span id="local-6989586621681416284"><span class="annot"><span class="annottext">Map CheckpointId Substitution
+</span><a href="#local-6989586621681416284"><span class="hs-identifier hs-var">curEnv</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m (Map CheckpointId Substitution)
+-&gt; MaybeT m (Map CheckpointId Substitution)
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; MaybeT m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m (Map CheckpointId Substitution)
+ -&gt; MaybeT m (Map CheckpointId Substitution))
+-&gt; m (Map CheckpointId Substitution)
+-&gt; MaybeT m (Map CheckpointId Substitution)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Lens' TCEnv (Map CheckpointId Substitution)
+-&gt; m (Map CheckpointId Substitution)
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; Lens' TCEnv a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#viewTC"><span class="hs-identifier hs-var">viewTC</span></a></span><span> </span><span class="annot"><span class="annottext">(Map CheckpointId Substitution
+ -&gt; f (Map CheckpointId Substitution))
+-&gt; TCEnv -&gt; f TCEnv
+Lens' TCEnv (Map CheckpointId Substitution)
+</span><a href="Agda.TypeChecking.Monad.Base.html#eCheckpoints"><span class="hs-identifier hs-var">eCheckpoints</span></a></span><span>
+</span><span id="line-50"></span><span>      </span><span id="local-6989586621681416288"><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416288"><span class="hs-identifier hs-var">parent</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Map CheckpointId Substitution
+-&gt; Map CheckpointId Substitution -&gt; MaybeT m CheckpointId
+forall {a} {f :: * -&gt; *} {a} {b}.
+(Ord a, Alternative f, Monad f) =&gt;
+Map a a -&gt; Map a b -&gt; f a
+</span><a href="#local-6989586621681416289"><span class="hs-identifier hs-var">findParent</span></a></span><span> </span><span class="annot"><span class="annottext">Map CheckpointId Substitution
+</span><a href="#local-6989586621681416270"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">Map CheckpointId Substitution
+</span><a href="#local-6989586621681416284"><span class="hs-identifier hs-var">curEnv</span></a></span><span>
+</span><span id="line-51"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681416290"><span class="annot"><span class="annottext">Substitution
+</span><a href="#local-6989586621681416290"><span class="hs-identifier hs-var">subToOld</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CheckpointId -&gt; Map CheckpointId Substitution -&gt; Maybe Substitution
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416288"><span class="hs-identifier hs-var">parent</span></a></span><span> </span><span class="annot"><span class="annottext">Map CheckpointId Substitution
+</span><a href="#local-6989586621681416270"><span class="hs-identifier hs-var">env</span></a></span><span>
+</span><span id="line-52"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681416292"><span class="annot"><span class="annottext">Substitution
+</span><a href="#local-6989586621681416292"><span class="hs-identifier hs-var">subToCur</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CheckpointId -&gt; Map CheckpointId Substitution -&gt; Maybe Substitution
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416288"><span class="hs-identifier hs-var">parent</span></a></span><span> </span><span class="annot"><span class="annottext">Map CheckpointId Substitution
+</span><a href="#local-6989586621681416284"><span class="hs-identifier hs-var">curEnv</span></a></span><span>
+</span><span id="line-53"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg a) -&gt; a -&gt; a
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution
+Substitution' (SubstArg a)
+</span><a href="#local-6989586621681416292"><span class="hs-identifier hs-var">subToCur</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; MaybeT m a -&gt; MaybeT m a
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; MaybeT m a
+forall (f :: * -&gt; *) a. Alternative f =&gt; Maybe a -&gt; f a
+</span><a href="Agda.Utils.Maybe.html#liftMaybe"><span class="hs-identifier hs-var">liftMaybe</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621681416267"><span class="hs-identifier hs-var">extract</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution
+</span><a href="#local-6989586621681416290"><span class="hs-identifier hs-var">subToOld</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681416271"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-55"></span><span>    </span><span class="hs-comment">-- If this comes from a different file, the checkpoints refer to checkpoints in that file and</span><span>
+</span><span id="line-56"></span><span>    </span><span class="hs-comment">-- not in the current file. To avoid confusing them we set the checkpoint to -1 and only keep</span><span>
+</span><span id="line-57"></span><span>    </span><span class="hs-comment">-- checkpoint 0 (which is shared between files) in the environment.</span><span>
+</span><span id="line-58"></span><span>    </span><span id="local-6989586621681416272"><span class="annot"><span class="annottext">restrict :: Open a -&gt; m (Open a)
+</span><a href="#local-6989586621681416272"><span class="hs-identifier hs-var hs-var">restrict</span></a></span></span><span> </span><span id="local-6989586621681416314"><span class="annot"><span class="annottext">o :: Open a
+</span><a href="#local-6989586621681416314"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#OpenThing"><span class="hs-identifier hs-type">OpenThing</span></a></span><span> </span><span id="local-6989586621681416315"><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416315"><span class="hs-identifier hs-var">cp</span></a></span></span><span> </span><span id="local-6989586621681416316"><span class="annot"><span class="annottext">Map CheckpointId Substitution
+</span><a href="#local-6989586621681416316"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span id="local-6989586621681416317"><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621681416317"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681416318"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681416318"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-59"></span><span>      </span><span id="local-6989586621681416319"><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621681416319"><span class="hs-identifier hs-var">cur</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m ModuleNameHash
+forall (m :: * -&gt; *). ReadTCState m =&gt; m ModuleNameHash
+</span><a href="Agda.TypeChecking.Monad.State.html#currentModuleNameHash"><span class="hs-identifier hs-var">currentModuleNameHash</span></a></span><span>
+</span><span id="line-60"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621681416317"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621681416319"><span class="hs-identifier hs-var">cur</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Open a -&gt; m (Open a)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Open a
+</span><a href="#local-6989586621681416314"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><span id="line-61"></span><span>                  </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Open a -&gt; m (Open a)
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Open a -&gt; m (Open a)) -&gt; Open a -&gt; m (Open a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">CheckpointId
+-&gt; Map CheckpointId Substitution -&gt; ModuleNameHash -&gt; a -&gt; Open a
+forall a.
+CheckpointId
+-&gt; Map CheckpointId Substitution -&gt; ModuleNameHash -&gt; a -&gt; Open a
+</span><a href="Agda.TypeChecking.Monad.Base.html#OpenThing"><span class="hs-identifier hs-var">OpenThing</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">-</span><span class="annot"><span class="annottext">CheckpointId
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(CheckpointId -&gt; Substitution -&gt; Bool)
+-&gt; Map CheckpointId Substitution -&gt; Map CheckpointId Substitution
+forall k a. (k -&gt; a -&gt; Bool) -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.filterWithKey</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681416321"><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416321"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="annot"><span class="annottext">Substitution
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416321"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">CheckpointId -&gt; CheckpointId -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">CheckpointId
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Map CheckpointId Substitution
+</span><a href="#local-6989586621681416316"><span class="hs-identifier hs-var">env</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621681416317"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681416318"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span>    </span><span id="local-6989586621681416289"><span class="annot"><span class="annottext">findParent :: Map a a -&gt; Map a b -&gt; f a
+</span><a href="#local-6989586621681416289"><span class="hs-identifier hs-var hs-var">findParent</span></a></span></span><span> </span><span id="local-6989586621681416338"><span class="annot"><span class="annottext">Map a a
+</span><a href="#local-6989586621681416338"><span class="hs-identifier hs-var">m1</span></a></span></span><span> </span><span id="local-6989586621681416339"><span class="annot"><span class="annottext">Map a b
+</span><a href="#local-6989586621681416339"><span class="hs-identifier hs-var">m2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Map a a -&gt; Maybe (a, a)
+forall k a. Map k a -&gt; Maybe (k, a)
+</span><span class="hs-identifier hs-var">Map.lookupMax</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map a a -&gt; Map a b -&gt; Map a a
+forall k a b. Ord k =&gt; Map k a -&gt; Map k b -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.intersection</span></span><span> </span><span class="annot"><span class="annottext">Map a a
+</span><a href="#local-6989586621681416338"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">Map a b
+</span><a href="#local-6989586621681416339"><span class="hs-identifier hs-var">m2</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-64"></span><span>      </span><span class="annot"><span class="annottext">Maybe (a, a)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">f a
+forall a. f a
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a
+</span><span class="hs-identifier hs-var">empty</span></span><span>
+</span><span id="line-65"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681416343"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681416343"><span class="hs-identifier hs-var">max</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; f a
+forall a. a -&gt; f a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681416343"><span class="hs-identifier hs-var">max</span></a></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="annot"><span class="hs-comment">-- | An 'Open' is closed if it has checkpoint 0.</span></span><span>
+</span><span id="line-68"></span><span id="local-6989586621681416183"><span class="annot"><a href="Agda.TypeChecking.Monad.Open.html#isClosed"><span class="hs-identifier hs-type">isClosed</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Open"><span class="hs-identifier hs-type">Open</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681416183"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-69"></span><span id="isClosed"><span class="annot"><span class="annottext">isClosed :: forall a. Open a -&gt; Bool
+</span><a href="Agda.TypeChecking.Monad.Open.html#isClosed"><span class="hs-identifier hs-var hs-var">isClosed</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#OpenThing"><span class="hs-identifier hs-type">OpenThing</span></a></span><span> </span><span id="local-6989586621681416346"><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416346"><span class="hs-identifier hs-var">cp</span></a></span></span><span> </span><span class="annot"><span class="annottext">Map CheckpointId Substitution
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ModuleNameHash
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CheckpointId
+</span><a href="#local-6989586621681416346"><span class="hs-identifier hs-var">cp</span></a></span><span> </span><span class="annot"><span class="annottext">CheckpointId -&gt; CheckpointId -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">CheckpointId
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-70"></span></pre></body></html>

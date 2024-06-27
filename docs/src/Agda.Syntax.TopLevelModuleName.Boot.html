@@ -1,0 +1,251 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Syntax.TopLevelModuleName.Boot</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier">List1</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.BiMap.html"><span class="hs-identifier">Agda.Utils.BiMap</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.BiMap.html#HasTag"><span class="hs-identifier">HasTag</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.BiMap.html#Tag"><span class="hs-identifier">Tag</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.BiMap.html#tag"><span class="hs-identifier">tag</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NFData</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">rnf</span></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">on</span></span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Hashable</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Hashable</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">hashWithSalt</span></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Word64</span></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">newtype</span><span> </span><span id="ModuleNameHash"><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-var">ModuleNameHash</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ModuleNameHash"><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-var">ModuleNameHash</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="moduleNameHash"><span class="annot"><span class="annottext">ModuleNameHash -&gt; Word64
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameHash"><span class="hs-identifier hs-var hs-var">moduleNameHash</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681267695"><span id="local-6989586621681267700"><span class="annot"><span class="annottext">ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+(ModuleNameHash -&gt; ModuleNameHash -&gt; Bool)
+-&gt; (ModuleNameHash -&gt; ModuleNameHash -&gt; Bool) -&gt; Eq ModuleNameHash
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+== :: ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+$c/= :: ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+/= :: ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681267708"><span id="local-6989586621681267713"><span id="local-6989586621681267717"><span id="local-6989586621681267721"><span id="local-6989586621681267725"><span id="local-6989586621681267729"><span id="local-6989586621681267733"><span class="annot"><span class="annottext">Eq ModuleNameHash
+Eq ModuleNameHash =&gt;
+(ModuleNameHash -&gt; ModuleNameHash -&gt; Ordering)
+-&gt; (ModuleNameHash -&gt; ModuleNameHash -&gt; Bool)
+-&gt; (ModuleNameHash -&gt; ModuleNameHash -&gt; Bool)
+-&gt; (ModuleNameHash -&gt; ModuleNameHash -&gt; Bool)
+-&gt; (ModuleNameHash -&gt; ModuleNameHash -&gt; Bool)
+-&gt; (ModuleNameHash -&gt; ModuleNameHash -&gt; ModuleNameHash)
+-&gt; (ModuleNameHash -&gt; ModuleNameHash -&gt; ModuleNameHash)
+-&gt; Ord ModuleNameHash
+ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+ModuleNameHash -&gt; ModuleNameHash -&gt; Ordering
+ModuleNameHash -&gt; ModuleNameHash -&gt; ModuleNameHash
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: ModuleNameHash -&gt; ModuleNameHash -&gt; Ordering
+compare :: ModuleNameHash -&gt; ModuleNameHash -&gt; Ordering
+$c&lt; :: ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+&lt; :: ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+$c&lt;= :: ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+&lt;= :: ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+$c&gt; :: ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+&gt; :: ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+$c&gt;= :: ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+&gt;= :: ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+$cmax :: ModuleNameHash -&gt; ModuleNameHash -&gt; ModuleNameHash
+max :: ModuleNameHash -&gt; ModuleNameHash -&gt; ModuleNameHash
+$cmin :: ModuleNameHash -&gt; ModuleNameHash -&gt; ModuleNameHash
+min :: ModuleNameHash -&gt; ModuleNameHash -&gt; ModuleNameHash
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681267741"><span id="local-6989586621681267746"><span class="annot"><span class="annottext">Eq ModuleNameHash
+Eq ModuleNameHash =&gt;
+(Int -&gt; ModuleNameHash -&gt; Int)
+-&gt; (ModuleNameHash -&gt; Int) -&gt; Hashable ModuleNameHash
+Int -&gt; ModuleNameHash -&gt; Int
+ModuleNameHash -&gt; Int
+forall a. Eq a =&gt; (Int -&gt; a -&gt; Int) -&gt; (a -&gt; Int) -&gt; Hashable a
+$chashWithSalt :: Int -&gt; ModuleNameHash -&gt; Int
+hashWithSalt :: Int -&gt; ModuleNameHash -&gt; Int
+$chash :: ModuleNameHash -&gt; Int
+hash :: ModuleNameHash -&gt; Int
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Hashable</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-type">ModuleNameHash</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-19"></span><span>  </span><span id="local-6989586621681267754"><span class="annot"><span class="annottext">rnf :: ModuleNameHash -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">rnf</span></span></span><span> </span><span class="annot"><span class="annottext">ModuleNameHash
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.BiMap.html#HasTag"><span class="hs-identifier hs-type">HasTag</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-type">ModuleNameHash</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Tag"><span class="annot"><a href="Agda.Utils.BiMap.html#Tag"><span class="hs-identifier hs-var">Tag</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-type">ModuleNameHash</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-type">ModuleNameHash</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span id="local-6989586621681267758"><span class="annot"><span class="annottext">tag :: ModuleNameHash -&gt; Maybe (Tag ModuleNameHash)
+</span><a href="Agda.Utils.BiMap.html#tag"><span class="hs-identifier hs-var hs-var hs-var hs-var">tag</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ModuleNameHash -&gt; Maybe ModuleNameHash
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(ModuleNameHash -&gt; Maybe ModuleNameHash)
+-&gt; (ModuleNameHash -&gt; ModuleNameHash)
+-&gt; ModuleNameHash
+-&gt; Maybe ModuleNameHash
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ModuleNameHash -&gt; ModuleNameHash
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#noModuleNameHash"><span class="hs-identifier hs-type">noModuleNameHash</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-type">ModuleNameHash</span></a></span><span>
+</span><span id="line-26"></span><span id="noModuleNameHash"><span class="annot"><span class="annottext">noModuleNameHash :: ModuleNameHash
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#noModuleNameHash"><span class="hs-identifier hs-var hs-var">noModuleNameHash</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; ModuleNameHash
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-var">ModuleNameHash</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="annot"><span class="hs-comment">-- | The record selector is not included in the resulting strings.</span></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681267764"><span id="local-6989586621681267768"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-type">ModuleNameHash</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-31"></span><span>  </span><span id="local-6989586621681267777"><span class="annot"><span class="annottext">showsPrec :: Int -&gt; ModuleNameHash -&gt; ShowS
+</span><a href="#local-6989586621681267777"><span class="hs-identifier hs-var hs-var hs-var hs-var">showsPrec</span></a></span></span><span> </span><span id="local-6989586621681267779"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681267779"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-type">ModuleNameHash</span></a></span><span> </span><span id="local-6989586621681267780"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681267780"><span class="hs-identifier hs-var">h</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; ShowS -&gt; ShowS
+</span><span class="hs-identifier hs-var">showParen</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681267779"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(ShowS -&gt; ShowS) -&gt; ShowS -&gt; ShowS
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-32"></span><span>    </span><span class="annot"><span class="annottext">String -&gt; ShowS
+</span><span class="hs-identifier hs-var">showString</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ModuleNameHash &quot;</span></span><span> </span><span class="annot"><span class="annottext">ShowS -&gt; ShowS -&gt; ShowS
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; ShowS
+forall a. Show a =&gt; a -&gt; ShowS
+</span><span class="hs-identifier hs-var">shows</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621681267780"><span class="hs-identifier hs-var">h</span></a></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">type</span><span> </span><span id="TopLevelModuleNameParts"><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleNameParts"><span class="hs-identifier hs-var">TopLevelModuleNameParts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">data</span><span> </span><span id="TopLevelModuleName%27"><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName%27"><span class="hs-identifier hs-var">TopLevelModuleName'</span></a></span></span><span> </span><span id="local-6989586621681267654"><span class="annot"><a href="#local-6989586621681267654"><span class="hs-identifier hs-type">range</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="TopLevelModuleName"><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName"><span class="hs-identifier hs-var">TopLevelModuleName</span></a></span></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="moduleNameRange"><span class="annot"><span class="annottext">forall range. TopLevelModuleName' range -&gt; range
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameRange"><span class="hs-identifier hs-var hs-var">moduleNameRange</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681267654"><span class="hs-identifier hs-type">range</span></a></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="moduleNameId"><span class="annot"><span class="annottext">forall range. TopLevelModuleName' range -&gt; ModuleNameHash
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameId"><span class="hs-identifier hs-var hs-var">moduleNameId</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-type">ModuleNameHash</span></a></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="moduleNameParts"><span class="annot"><span class="annottext">forall range. TopLevelModuleName' range -&gt; TopLevelModuleNameParts
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameParts"><span class="hs-identifier hs-var hs-var">moduleNameParts</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleNameParts"><span class="hs-identifier hs-type">TopLevelModuleNameParts</span></a></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681267791"><span id="local-6989586621681267799"><span id="local-6989586621681267803"><span class="annot"><span class="annottext">Int -&gt; TopLevelModuleName' range -&gt; ShowS
+[TopLevelModuleName' range] -&gt; ShowS
+TopLevelModuleName' range -&gt; String
+(Int -&gt; TopLevelModuleName' range -&gt; ShowS)
+-&gt; (TopLevelModuleName' range -&gt; String)
+-&gt; ([TopLevelModuleName' range] -&gt; ShowS)
+-&gt; Show (TopLevelModuleName' range)
+forall range.
+Show range =&gt;
+Int -&gt; TopLevelModuleName' range -&gt; ShowS
+forall range. Show range =&gt; [TopLevelModuleName' range] -&gt; ShowS
+forall range. Show range =&gt; TopLevelModuleName' range -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall range.
+Show range =&gt;
+Int -&gt; TopLevelModuleName' range -&gt; ShowS
+showsPrec :: Int -&gt; TopLevelModuleName' range -&gt; ShowS
+$cshow :: forall range. Show range =&gt; TopLevelModuleName' range -&gt; String
+show :: TopLevelModuleName' range -&gt; String
+$cshowList :: forall range. Show range =&gt; [TopLevelModuleName' range] -&gt; ShowS
+showList :: [TopLevelModuleName' range] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681267807"><span id="local-6989586621681267809"><span class="annot"><span class="annottext">(forall x.
+ TopLevelModuleName' range -&gt; Rep (TopLevelModuleName' range) x)
+-&gt; (forall x.
+    Rep (TopLevelModuleName' range) x -&gt; TopLevelModuleName' range)
+-&gt; Generic (TopLevelModuleName' range)
+forall x.
+Rep (TopLevelModuleName' range) x -&gt; TopLevelModuleName' range
+forall x.
+TopLevelModuleName' range -&gt; Rep (TopLevelModuleName' range) x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+forall range x.
+Rep (TopLevelModuleName' range) x -&gt; TopLevelModuleName' range
+forall range x.
+TopLevelModuleName' range -&gt; Rep (TopLevelModuleName' range) x
+$cfrom :: forall range x.
+TopLevelModuleName' range -&gt; Rep (TopLevelModuleName' range) x
+from :: forall x.
+TopLevelModuleName' range -&gt; Rep (TopLevelModuleName' range) x
+$cto :: forall range x.
+Rep (TopLevelModuleName' range) x -&gt; TopLevelModuleName' range
+to :: forall x.
+Rep (TopLevelModuleName' range) x -&gt; TopLevelModuleName' range
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681267670"><span class="annot"><a href="Agda.Utils.BiMap.html#HasTag"><span class="hs-identifier hs-type">HasTag</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName%27"><span class="hs-identifier hs-type">TopLevelModuleName'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681267670"><span class="hs-identifier hs-type">range</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Tag"><span class="annot"><a href="Agda.Utils.BiMap.html#Tag"><span class="hs-identifier hs-var">Tag</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName%27"><span class="hs-identifier hs-type">TopLevelModuleName'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681267670"><span class="hs-identifier hs-type">range</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#ModuleNameHash"><span class="hs-identifier hs-type">ModuleNameHash</span></a></span><span>
+</span><span id="line-45"></span><span>  </span><span id="local-6989586621681267814"><span class="annot"><span class="annottext">tag :: TopLevelModuleName' range
+-&gt; Maybe (Tag (TopLevelModuleName' range))
+</span><a href="Agda.Utils.BiMap.html#tag"><span class="hs-identifier hs-var hs-var hs-var hs-var">tag</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ModuleNameHash -&gt; Maybe ModuleNameHash
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(ModuleNameHash -&gt; Maybe ModuleNameHash)
+-&gt; (TopLevelModuleName' range -&gt; ModuleNameHash)
+-&gt; TopLevelModuleName' range
+-&gt; Maybe ModuleNameHash
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' range -&gt; ModuleNameHash
+forall range. TopLevelModuleName' range -&gt; ModuleNameHash
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameId"><span class="hs-identifier hs-var">moduleNameId</span></a></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681267672"><span id="local-6989586621681267817"><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName%27"><span class="hs-identifier hs-type">TopLevelModuleName'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681267672"><span class="hs-identifier hs-type">range</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-48"></span><span>  </span><span id="local-6989586621681267821"><span class="annot"><span class="annottext">== :: TopLevelModuleName' range -&gt; TopLevelModuleName' range -&gt; Bool
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">(==)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ModuleNameHash -&gt; ModuleNameHash -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">(==)</span></span><span> </span><span class="annot"><span class="annottext">(ModuleNameHash -&gt; ModuleNameHash -&gt; Bool)
+-&gt; (TopLevelModuleName' range -&gt; ModuleNameHash)
+-&gt; TopLevelModuleName' range
+-&gt; TopLevelModuleName' range
+-&gt; Bool
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' range -&gt; ModuleNameHash
+forall range. TopLevelModuleName' range -&gt; ModuleNameHash
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameId"><span class="hs-identifier hs-var">moduleNameId</span></a></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681267677"><span id="local-6989586621681267826"><span id="local-6989586621681267830"><span id="local-6989586621681267833"><span id="local-6989586621681267836"><span id="local-6989586621681267839"><span id="local-6989586621681267842"><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName%27"><span class="hs-identifier hs-type">TopLevelModuleName'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681267677"><span class="hs-identifier hs-type">range</span></a></span><span class="hs-special">)</span></span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-51"></span><span>  </span><span id="local-6989586621681267845"><span class="annot"><span class="annottext">compare :: TopLevelModuleName' range -&gt; TopLevelModuleName' range -&gt; Ordering
+</span><a href="#local-6989586621681267845"><span class="hs-identifier hs-var hs-var hs-var hs-var">compare</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ModuleNameHash -&gt; ModuleNameHash -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">(ModuleNameHash -&gt; ModuleNameHash -&gt; Ordering)
+-&gt; (TopLevelModuleName' range -&gt; ModuleNameHash)
+-&gt; TopLevelModuleName' range
+-&gt; TopLevelModuleName' range
+-&gt; Ordering
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' range -&gt; ModuleNameHash
+forall range. TopLevelModuleName' range -&gt; ModuleNameHash
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameId"><span class="hs-identifier hs-var">moduleNameId</span></a></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681267679"><span id="local-6989586621681267851"><span class="annot"><span class="hs-identifier hs-type">Hashable</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName%27"><span class="hs-identifier hs-type">TopLevelModuleName'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681267679"><span class="hs-identifier hs-type">range</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-54"></span><span>  </span><span id="local-6989586621681267855"><span class="annot"><span class="annottext">hashWithSalt :: Int -&gt; TopLevelModuleName' range -&gt; Int
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">hashWithSalt</span></span></span><span> </span><span id="local-6989586621681267856"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681267856"><span class="hs-identifier hs-var">salt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; ModuleNameHash -&gt; Int
+forall a. Hashable a =&gt; Int -&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">hashWithSalt</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681267856"><span class="hs-identifier hs-var">salt</span></a></span><span> </span><span class="annot"><span class="annottext">(ModuleNameHash -&gt; Int)
+-&gt; (TopLevelModuleName' range -&gt; ModuleNameHash)
+-&gt; TopLevelModuleName' range
+-&gt; Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' range -&gt; ModuleNameHash
+forall range. TopLevelModuleName' range -&gt; ModuleNameHash
+</span><a href="Agda.Syntax.TopLevelModuleName.Boot.html#moduleNameId"><span class="hs-identifier hs-var">moduleNameId</span></a></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="annot"><span class="hs-comment">-- | The 'range' is not forced.</span></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681267681"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName%27"><span class="hs-identifier hs-type">TopLevelModuleName'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681267681"><span class="hs-identifier hs-type">range</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-59"></span><span>  </span><span id="local-6989586621681267866"><span class="annot"><span class="annottext">rnf :: TopLevelModuleName' range -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">rnf</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.Boot.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681267867"><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621681267867"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681267868"><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681267868"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ModuleNameHash, TopLevelModuleNameParts) -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ModuleNameHash
+</span><a href="#local-6989586621681267867"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleNameParts
+</span><a href="#local-6989586621681267868"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span></pre></body></html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Expand environment variables in strings</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Utils.Environment</span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Environment.html#EnvVars"><span class="hs-identifier">EnvVars</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Environment.html#expandEnvironmentVariables"><span class="hs-identifier">expandEnvironmentVariables</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Environment.html#expandEnvVarTelescope"><span class="hs-identifier">expandEnvVarTelescope</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Environment</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Directory</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">getHomeDirectory</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="annot"><a href="Agda.Utils.Environment.html#expandEnvironmentVariables"><span class="hs-identifier hs-type">expandEnvironmentVariables</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-16"></span><span id="expandEnvironmentVariables"><span class="annot"><span class="annottext">expandEnvironmentVariables :: [Char] -&gt; IO [Char]
+</span><a href="Agda.Utils.Environment.html#expandEnvironmentVariables"><span class="hs-identifier hs-var hs-var">expandEnvironmentVariables</span></a></span></span><span> </span><span id="local-6989586621681251308"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251308"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-17"></span><span>  </span><span id="local-6989586621681251309"><span class="annot"><span class="annottext">[([Char], [Char])]
+</span><a href="#local-6989586621681251309"><span class="hs-identifier hs-var">env</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [([Char], [Char])]
+</span><span class="hs-identifier hs-var">getEnvironment</span></span><span>
+</span><span id="line-18"></span><span>  </span><span id="local-6989586621681251311"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251311"><span class="hs-identifier hs-var">home</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [Char]
+</span><span class="hs-identifier hs-var">getHomeDirectory</span></span><span>
+</span><span id="line-19"></span><span>  </span><span class="annot"><span class="annottext">[Char] -&gt; IO [Char]
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; IO [Char]) -&gt; [Char] -&gt; IO [Char]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [([Char], [Char])] -&gt; [Char] -&gt; [Char]
+</span><a href="Agda.Utils.Environment.html#expandVars"><span class="hs-identifier hs-var">expandVars</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251311"><span class="hs-identifier hs-var">home</span></a></span><span> </span><span class="annot"><span class="annottext">[([Char], [Char])]
+</span><a href="#local-6989586621681251309"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251308"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="annot"><a href="Agda.Utils.Environment.html#expandVars"><span class="hs-identifier hs-type">expandVars</span></a></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>              </span><span class="annot"><span class="hs-comment">-- ^ Home directory.</span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Environment.html#EnvVars"><span class="hs-identifier hs-type">EnvVars</span></a></span><span>             </span><span class="annot"><span class="hs-comment">-- ^ Environment variable substitution map.</span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>              </span><span class="annot"><span class="hs-comment">-- ^ Input.</span></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>              </span><span class="annot"><span class="hs-comment">-- ^ Output with variables and @~@ (home) substituted.</span></span><span>
+</span><span id="line-26"></span><span id="expandVars"><span class="annot"><span class="annottext">expandVars :: [Char] -&gt; [([Char], [Char])] -&gt; [Char] -&gt; [Char]
+</span><a href="Agda.Utils.Environment.html#expandVars"><span class="hs-identifier hs-var hs-var">expandVars</span></a></span></span><span> </span><span id="local-6989586621681251313"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251313"><span class="hs-identifier hs-var">home</span></a></span></span><span> </span><span id="local-6989586621681251314"><span class="annot"><span class="annottext">[([Char], [Char])]
+</span><a href="#local-6989586621681251314"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span id="local-6989586621681251315"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251315"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Token -&gt; [Char]) -&gt; [Token] -&gt; [Char]
+forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="annot"><span class="annottext">Token -&gt; [Char]
+</span><a href="#local-6989586621681251317"><span class="hs-identifier hs-var">repl</span></a></span><span> </span><span class="annot"><span class="annottext">([Token] -&gt; [Char]) -&gt; [Token] -&gt; [Char]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Token]
+</span><a href="Agda.Utils.Environment.html#tokens"><span class="hs-identifier hs-var">tokens</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251315"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-28"></span><span>    </span><span id="local-6989586621681251317"><span class="annot"><span class="annottext">repl :: Token -&gt; [Char]
+</span><a href="#local-6989586621681251317"><span class="hs-identifier hs-var hs-var">repl</span></a></span></span><span> </span><span class="annot"><span class="annottext">Token
+</span><a href="Agda.Utils.Environment.html#Home"><span class="hs-identifier hs-var">Home</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251313"><span class="hs-identifier hs-var">home</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;/&quot;</span></span><span>
+</span><span id="line-29"></span><span>    </span><span class="annot"><a href="#local-6989586621681251317"><span class="hs-identifier hs-var">repl</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Environment.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span id="local-6989586621681251321"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251321"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Maybe [Char] -&gt; [Char]
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="annot"><span class="annottext">(Maybe [Char] -&gt; [Char]) -&gt; Maybe [Char] -&gt; [Char]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [([Char], [Char])] -&gt; Maybe [Char]
+forall a b. Eq a =&gt; a -&gt; [(a, b)] -&gt; Maybe b
+</span><span class="hs-identifier hs-var">lookup</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251321"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">[([Char], [Char])]
+</span><a href="#local-6989586621681251314"><span class="hs-identifier hs-var">env</span></a></span><span>
+</span><span id="line-30"></span><span>    </span><span class="annot"><a href="#local-6989586621681251317"><span class="hs-identifier hs-var">repl</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Environment.html#Str"><span class="hs-identifier hs-type">Str</span></a></span><span> </span><span id="local-6989586621681251325"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251325"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251325"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="annot"><span class="hs-comment">-- | List of environment variable bindings.</span></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">type</span><span> </span><span id="EnvVars"><span class="annot"><a href="Agda.Utils.Environment.html#EnvVars"><span class="hs-identifier hs-var">EnvVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- | Expand a telescope of environment variables</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--   (each value may refer to variables earlier in the list).</span><span>
+</span><span id="line-37"></span><span class="annot"><a href="Agda.Utils.Environment.html#expandEnvVarTelescope"><span class="hs-identifier hs-type">expandEnvVarTelescope</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Environment.html#EnvVars"><span class="hs-identifier hs-type">EnvVars</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Environment.html#EnvVars"><span class="hs-identifier hs-type">EnvVars</span></a></span><span>
+</span><span id="line-38"></span><span id="expandEnvVarTelescope"><span class="annot"><span class="annottext">expandEnvVarTelescope :: [Char] -&gt; [([Char], [Char])] -&gt; [([Char], [Char])]
+</span><a href="Agda.Utils.Environment.html#expandEnvVarTelescope"><span class="hs-identifier hs-var hs-var">expandEnvVarTelescope</span></a></span></span><span> </span><span id="local-6989586621681251326"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251326"><span class="hs-identifier hs-var">home</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[([Char], [Char])] -&gt; [([Char], [Char])]
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">([([Char], [Char])] -&gt; [([Char], [Char])])
+-&gt; ([([Char], [Char])] -&gt; [([Char], [Char])])
+-&gt; [([Char], [Char])]
+-&gt; [([Char], [Char])]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">([([Char], [Char])] -&gt; ([Char], [Char]) -&gt; [([Char], [Char])])
+-&gt; [([Char], [Char])] -&gt; [([Char], [Char])] -&gt; [([Char], [Char])]
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) b a.
+Foldable t =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldl</span></span><span>  </span><span class="hs-comment">-- foldl reverses, so re-reverse afterwards</span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681251330"><span class="annot"><span class="annottext">[([Char], [Char])]
+</span><a href="#local-6989586621681251330"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681251331"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251331"><span class="hs-identifier hs-var">var</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681251332"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251332"><span class="hs-identifier hs-var">val</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251331"><span class="hs-identifier hs-var">var</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [([Char], [Char])] -&gt; [Char] -&gt; [Char]
+</span><a href="Agda.Utils.Environment.html#expandVars"><span class="hs-identifier hs-var">expandVars</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251326"><span class="hs-identifier hs-var">home</span></a></span><span> </span><span class="annot"><span class="annottext">[([Char], [Char])]
+</span><a href="#local-6989586621681251330"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251332"><span class="hs-identifier hs-var">val</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Char], [Char]) -&gt; [([Char], [Char])] -&gt; [([Char], [Char])]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[([Char], [Char])]
+</span><a href="#local-6989586621681251330"><span class="hs-identifier hs-var">acc</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="annot"><span class="hs-comment">-- | Tokenization for environment variable substitution.</span></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">data</span><span> </span><span id="Token"><span class="annot"><a href="Agda.Utils.Environment.html#Token"><span class="hs-identifier hs-var">Token</span></a></span></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Home"><span class="annot"><a href="Agda.Utils.Environment.html#Home"><span class="hs-identifier hs-var">Home</span></a></span></span><span>        </span><span class="annot"><span class="hs-comment">-- ^ @~@.</span></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Var"><span class="annot"><a href="Agda.Utils.Environment.html#Var"><span class="hs-identifier hs-var">Var</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ @$VARIABLE@ or @${VARIABLE}$.</span></span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Str"><span class="annot"><a href="Agda.Utils.Environment.html#Str"><span class="hs-identifier hs-var">Str</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Ordinary characters.</span></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681251334"><span id="local-6989586621681251338"><span class="annot"><span class="annottext">Token -&gt; Token -&gt; Bool
+(Token -&gt; Token -&gt; Bool) -&gt; (Token -&gt; Token -&gt; Bool) -&gt; Eq Token
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Token -&gt; Token -&gt; Bool
+== :: Token -&gt; Token -&gt; Bool
+$c/= :: Token -&gt; Token -&gt; Bool
+/= :: Token -&gt; Token -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681251343"><span id="local-6989586621681251352"><span id="local-6989586621681251356"><span class="annot"><span class="annottext">Int -&gt; Token -&gt; [Char] -&gt; [Char]
+[Token] -&gt; [Char] -&gt; [Char]
+Token -&gt; [Char]
+(Int -&gt; Token -&gt; [Char] -&gt; [Char])
+-&gt; (Token -&gt; [Char]) -&gt; ([Token] -&gt; [Char] -&gt; [Char]) -&gt; Show Token
+forall a.
+(Int -&gt; a -&gt; [Char] -&gt; [Char])
+-&gt; (a -&gt; [Char]) -&gt; ([a] -&gt; [Char] -&gt; [Char]) -&gt; Show a
+$cshowsPrec :: Int -&gt; Token -&gt; [Char] -&gt; [Char]
+showsPrec :: Int -&gt; Token -&gt; [Char] -&gt; [Char]
+$cshow :: Token -&gt; [Char]
+show :: Token -&gt; [Char]
+$cshowList :: [Token] -&gt; [Char] -&gt; [Char]
+showList :: [Token] -&gt; [Char] -&gt; [Char]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- | Tokenize a string.</span><span>
+</span><span id="line-49"></span><span class="hs-comment">--   The @~@ is recognized as @$HOME@ only at the beginning of the string.</span><span>
+</span><span id="line-50"></span><span class="annot"><a href="Agda.Utils.Environment.html#tokens"><span class="hs-identifier hs-type">tokens</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Environment.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-51"></span><span id="tokens"><span class="annot"><span class="annottext">tokens :: [Char] -&gt; [Token]
+</span><a href="Agda.Utils.Environment.html#tokens"><span class="hs-identifier hs-var hs-var">tokens</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-52"></span><span>  </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'~'</span></span><span>  </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'/'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681251360"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251360"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Token
+</span><a href="Agda.Utils.Environment.html#Home"><span class="hs-identifier hs-var">Home</span></a></span><span> </span><span class="annot"><span class="annottext">Token -&gt; [Token] -&gt; [Token]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Token]
+</span><a href="#local-6989586621681251361"><span class="hs-identifier hs-var">tokens'</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251360"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-53"></span><span>  </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\\'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'~'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681251362"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251362"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Char -&gt; [Token] -&gt; [Token]
+</span><a href="#local-6989586621681251363"><span class="hs-identifier hs-var">cons</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'~'</span></span><span> </span><span class="annot"><span class="annottext">([Token] -&gt; [Token]) -&gt; [Token] -&gt; [Token]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Token]
+</span><a href="#local-6989586621681251361"><span class="hs-identifier hs-var">tokens'</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251362"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-54"></span><span>  </span><span id="local-6989586621681251364"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251364"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Token]
+</span><a href="#local-6989586621681251361"><span class="hs-identifier hs-var">tokens'</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251364"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-56"></span><span>    </span><span class="annot"><a href="#local-6989586621681251361"><span class="hs-identifier hs-type">tokens'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Environment.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-57"></span><span>    </span><span id="local-6989586621681251361"><span class="annot"><span class="annottext">tokens' :: [Char] -&gt; [Token]
+</span><a href="#local-6989586621681251361"><span class="hs-identifier hs-var hs-var">tokens'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-58"></span><span>        </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'$'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'$'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681251365"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251365"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Char -&gt; [Token] -&gt; [Token]
+</span><a href="#local-6989586621681251363"><span class="hs-identifier hs-var">cons</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'$'</span></span><span> </span><span class="annot"><span class="annottext">([Token] -&gt; [Token]) -&gt; [Token] -&gt; [Token]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Token]
+</span><a href="#local-6989586621681251361"><span class="hs-identifier hs-var">tokens'</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251365"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-59"></span><span>        </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'$'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681251366"><span class="annot"><span class="annottext">s :: [Char]
+</span><a href="#local-6989586621681251366"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621681251367"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681251367"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681251367"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'_'</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isAlpha</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681251367"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Token
+</span><a href="Agda.Utils.Environment.html#Var"><span class="hs-identifier hs-var">Var</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251370"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Token -&gt; [Token] -&gt; [Token]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Token]
+</span><a href="#local-6989586621681251361"><span class="hs-identifier hs-var">tokens'</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251371"><span class="hs-identifier hs-var">s'</span></a></span><span>
+</span><span id="line-60"></span><span>          </span><span class="hs-keyword">where</span><span>
+</span><span id="line-61"></span><span>          </span><span class="hs-special">(</span><span id="local-6989586621681251370"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251370"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681251371"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251371"><span class="hs-identifier hs-var">s'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; [Char] -&gt; ([Char], [Char])
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">span</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681251373"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681251373"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681251373"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'_'</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isAlphaNum</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681251373"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251366"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-62"></span><span>        </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'$'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'{'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681251375"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251375"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-63"></span><span>          </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; [Char] -&gt; ([Char], [Char])
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">break</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'}'</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251375"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-64"></span><span>            </span><span class="hs-special">(</span><span id="local-6989586621681251377"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251377"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'}'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681251378"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251378"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Token
+</span><a href="Agda.Utils.Environment.html#Var"><span class="hs-identifier hs-var">Var</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251377"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Token -&gt; [Token] -&gt; [Token]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Token]
+</span><a href="#local-6989586621681251361"><span class="hs-identifier hs-var">tokens'</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251378"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-65"></span><span>            </span><span class="annot"><span class="annottext">([Char], [Char])
+</span><span class="hs-identifier">_</span></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char] -&gt; Token
+</span><a href="Agda.Utils.Environment.html#Str"><span class="hs-identifier hs-var">Str</span></a></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; Token) -&gt; [Char] -&gt; Token
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;${&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251375"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-comment">-- abort on unterminated '{'</span><span>
+</span><span id="line-66"></span><span>        </span><span id="local-6989586621681251379"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681251379"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681251380"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251380"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Char -&gt; [Token] -&gt; [Token]
+</span><a href="#local-6989586621681251363"><span class="hs-identifier hs-var">cons</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681251379"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">([Token] -&gt; [Token]) -&gt; [Token] -&gt; [Token]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Token]
+</span><a href="#local-6989586621681251361"><span class="hs-identifier hs-var">tokens'</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251380"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-67"></span><span>        </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;&quot;</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-68"></span><span>    </span><span class="annot"><a href="#local-6989586621681251363"><span class="hs-identifier hs-type">cons</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Environment.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.Environment.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-69"></span><span>    </span><span id="local-6989586621681251363"><span class="annot"><span class="annottext">cons :: Char -&gt; [Token] -&gt; [Token]
+</span><a href="#local-6989586621681251363"><span class="hs-identifier hs-var hs-var">cons</span></a></span></span><span> </span><span id="local-6989586621681251381"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681251381"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Environment.html#Str"><span class="hs-identifier hs-type">Str</span></a></span><span> </span><span id="local-6989586621681251382"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251382"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621681251383"><span class="annot"><span class="annottext">[Token]
+</span><a href="#local-6989586621681251383"><span class="hs-identifier hs-var">ts</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Token
+</span><a href="Agda.Utils.Environment.html#Str"><span class="hs-identifier hs-var">Str</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681251381"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; [Char] -&gt; [Char]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621681251382"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Token -&gt; [Token] -&gt; [Token]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Token]
+</span><a href="#local-6989586621681251383"><span class="hs-identifier hs-var">ts</span></a></span><span>
+</span><span id="line-70"></span><span>    </span><span class="annot"><a href="#local-6989586621681251363"><span class="hs-identifier hs-var">cons</span></a></span><span> </span><span id="local-6989586621681251384"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681251384"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681251385"><span class="annot"><span class="annottext">[Token]
+</span><a href="#local-6989586621681251385"><span class="hs-identifier hs-var">ts</span></a></span></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Token
+</span><a href="Agda.Utils.Environment.html#Str"><span class="hs-identifier hs-var">Str</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621681251384"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Token -&gt; [Token] -&gt; [Token]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Token]
+</span><a href="#local-6989586621681251385"><span class="hs-identifier hs-var">ts</span></a></span><span>
+</span><span id="line-71"></span></pre></body></html>

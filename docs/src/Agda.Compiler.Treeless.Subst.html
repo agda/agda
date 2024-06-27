@@ -1,0 +1,846 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -fno-warn-orphans       #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Compiler.Treeless.Subst</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Semigroup</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(&lt;&gt;)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">All</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Any</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html"><span class="hs-identifier">Agda.Syntax.Treeless</span></a></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.html"><span class="hs-identifier">Agda.TypeChecking.Substitute</span></a></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681401441"><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#DeBruijn"><span class="hs-identifier hs-type">DeBruijn</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>  </span><span id="local-6989586621681401446"><span class="annot"><span class="annottext">deBruijnVar :: Int -&gt; TTerm
+</span><a href="#local-6989586621681401446"><span class="hs-identifier hs-var hs-var hs-var hs-var">deBruijnVar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TVar"><span class="hs-identifier hs-var">TVar</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span id="local-6989586621681401449"><span class="annot"><span class="annottext">deBruijnView :: TTerm -&gt; Maybe Int
+</span><a href="#local-6989586621681401449"><span class="hs-identifier hs-var hs-var hs-var hs-var">deBruijnView</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TVar"><span class="hs-identifier hs-type">TVar</span></a></span><span> </span><span id="local-6989586621681401451"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401451"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Maybe Int
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401451"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Substitute.DeBruijn.html#deBruijnView"><span class="hs-identifier hs-var">deBruijnView</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Int
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html#Subst"><span class="hs-identifier hs-type">Subst</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="SubstArg"><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html#SubstArg"><span class="hs-identifier hs-var">SubstArg</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span>  </span><span id="local-6989586621681401476"><span class="annot"><span class="annottext">applySubst :: Substitution' (SubstArg TTerm) -&gt; TTerm -&gt; TTerm
+</span><a href="#local-6989586621681401476"><span class="hs-identifier hs-var hs-var hs-var hs-var">applySubst</span></a></span></span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm)
+</span><a href="Agda.Syntax.Internal.html#IdS"><span class="hs-identifier hs-var">IdS</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; TTerm
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span id="local-6989586621681401480"><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401480"><span class="hs-identifier hs-var">rho</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-25"></span><span>      </span><span id="local-6989586621681401481"><span class="annot"><span class="annottext">t :: TTerm
+</span><a href="#local-6989586621681401481"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TDef"><span class="hs-identifier hs-type">TDef</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401481"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-26"></span><span>      </span><span id="local-6989586621681401483"><span class="annot"><span class="annottext">t :: TTerm
+</span><a href="#local-6989586621681401483"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TLit"><span class="hs-identifier hs-type">TLit</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401483"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-27"></span><span>      </span><span id="local-6989586621681401485"><span class="annot"><span class="annottext">t :: TTerm
+</span><a href="#local-6989586621681401485"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TCon"><span class="hs-identifier hs-type">TCon</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401485"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-28"></span><span>      </span><span id="local-6989586621681401487"><span class="annot"><span class="annottext">t :: TTerm
+</span><a href="#local-6989586621681401487"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TPrim"><span class="hs-identifier hs-type">TPrim</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401487"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-29"></span><span>      </span><span id="local-6989586621681401489"><span class="annot"><span class="annottext">t :: TTerm
+</span><a href="#local-6989586621681401489"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TUnit"><span class="hs-identifier hs-type">TUnit</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401489"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-30"></span><span>      </span><span id="local-6989586621681401491"><span class="annot"><span class="annottext">t :: TTerm
+</span><a href="#local-6989586621681401491"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TSort"><span class="hs-identifier hs-type">TSort</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401491"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-31"></span><span>      </span><span id="local-6989586621681401493"><span class="annot"><span class="annottext">t :: TTerm
+</span><a href="#local-6989586621681401493"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TErased"><span class="hs-identifier hs-type">TErased</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401493"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-32"></span><span>      </span><span id="local-6989586621681401495"><span class="annot"><span class="annottext">t :: TTerm
+</span><a href="#local-6989586621681401495"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TError"><span class="hs-identifier hs-type">TError</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401495"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-33"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TVar"><span class="hs-identifier hs-type">TVar</span></a></span><span> </span><span id="local-6989586621681401497"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401497"><span class="hs-identifier hs-var">i</span></a></span></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Substitution' TTerm -&gt; Int -&gt; TTerm
+forall a. EndoSubst a =&gt; Substitution' a -&gt; Int -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#lookupS"><span class="hs-identifier hs-var">lookupS</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' TTerm
+Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401480"><span class="hs-identifier hs-var">rho</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401497"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-34"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TApp"><span class="hs-identifier hs-type">TApp</span></a></span><span> </span><span id="local-6989586621681401500"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401500"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681401501"><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681401501"><span class="hs-identifier hs-var">ts</span></a></span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; [TTerm] -&gt; TTerm
+</span><a href="#local-6989586621681401502"><span class="hs-identifier hs-var">tApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm) -&gt; TTerm -&gt; TTerm
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401480"><span class="hs-identifier hs-var">rho</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401500"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg [TTerm]) -&gt; [TTerm] -&gt; [TTerm]
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg [TTerm])
+Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401480"><span class="hs-identifier hs-var">rho</span></a></span><span> </span><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681401501"><span class="hs-identifier hs-var">ts</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TLam"><span class="hs-identifier hs-type">TLam</span></a></span><span> </span><span id="local-6989586621681401504"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401504"><span class="hs-identifier hs-var">b</span></a></span></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TLam"><span class="hs-identifier hs-var">TLam</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm) -&gt; TTerm -&gt; TTerm
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Substitution' TTerm -&gt; Substitution' TTerm
+forall a. Int -&gt; Substitution' a -&gt; Substitution' a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#liftS"><span class="hs-identifier hs-var">liftS</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Substitution' TTerm
+Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401480"><span class="hs-identifier hs-var">rho</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401504"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TLet"><span class="hs-identifier hs-type">TLet</span></a></span><span> </span><span id="local-6989586621681401507"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401507"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681401508"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401508"><span class="hs-identifier hs-var">b</span></a></span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; TTerm -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TLet"><span class="hs-identifier hs-var">TLet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm) -&gt; TTerm -&gt; TTerm
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401480"><span class="hs-identifier hs-var">rho</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401507"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm) -&gt; TTerm -&gt; TTerm
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Substitution' TTerm -&gt; Substitution' TTerm
+forall a. Int -&gt; Substitution' a -&gt; Substitution' a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#liftS"><span class="hs-identifier hs-var">liftS</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Substitution' TTerm
+Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401480"><span class="hs-identifier hs-var">rho</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401508"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TCase"><span class="hs-identifier hs-type">TCase</span></a></span><span> </span><span id="local-6989586621681401510"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401510"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681401511"><span class="annot"><span class="annottext">CaseInfo
+</span><a href="#local-6989586621681401511"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621681401512"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401512"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681401513"><span class="annot"><span class="annottext">[TAlt]
+</span><a href="#local-6989586621681401513"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-38"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm) -&gt; TTerm -&gt; TTerm
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401480"><span class="hs-identifier hs-var">rho</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TVar"><span class="hs-identifier hs-var">TVar</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401510"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-39"></span><span>          </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TVar"><span class="hs-identifier hs-type">TVar</span></a></span><span> </span><span id="local-6989586621681401514"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401514"><span class="hs-identifier hs-var">j</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; CaseInfo -&gt; TTerm -&gt; [TAlt] -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TCase"><span class="hs-identifier hs-var">TCase</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401514"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">CaseInfo
+</span><a href="#local-6989586621681401511"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm) -&gt; TTerm -&gt; TTerm
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401480"><span class="hs-identifier hs-var">rho</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401512"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg [TAlt]) -&gt; [TAlt] -&gt; [TAlt]
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg [TAlt])
+Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401480"><span class="hs-identifier hs-var">rho</span></a></span><span> </span><span class="annot"><span class="annottext">[TAlt]
+</span><a href="#local-6989586621681401513"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>          </span><span id="local-6989586621681401515"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401515"><span class="hs-identifier hs-var">e</span></a></span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; TTerm -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TLet"><span class="hs-identifier hs-var">TLet</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401515"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">(TTerm -&gt; TTerm) -&gt; TTerm -&gt; TTerm
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; CaseInfo -&gt; TTerm -&gt; [TAlt] -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TCase"><span class="hs-identifier hs-var">TCase</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">CaseInfo
+</span><a href="#local-6989586621681401511"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm) -&gt; TTerm -&gt; TTerm
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' TTerm
+Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401516"><span class="hs-identifier hs-var">rho'</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401512"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg [TAlt]) -&gt; [TAlt] -&gt; [TAlt]
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' TTerm
+Substitution' (SubstArg [TAlt])
+</span><a href="#local-6989586621681401516"><span class="hs-identifier hs-var">rho'</span></a></span><span> </span><span class="annot"><span class="annottext">[TAlt]
+</span><a href="#local-6989586621681401513"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span>            </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681401516"><span class="annot"><span class="annottext">rho' :: Substitution' TTerm
+</span><a href="#local-6989586621681401516"><span class="hs-identifier hs-var hs-var">rho'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Substitution' TTerm -&gt; Substitution' TTerm
+forall a. Int -&gt; Substitution' a -&gt; Substitution' a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#wkS"><span class="hs-identifier hs-var">wkS</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Substitution' TTerm
+Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401480"><span class="hs-identifier hs-var">rho</span></a></span><span>
+</span><span id="line-42"></span><span>      </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TCoerce"><span class="hs-identifier hs-type">TCoerce</span></a></span><span> </span><span id="local-6989586621681401519"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401519"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TCoerce"><span class="hs-identifier hs-var">TCoerce</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm) -&gt; TTerm -&gt; TTerm
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401480"><span class="hs-identifier hs-var">rho</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401519"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-44"></span><span>      </span><span id="local-6989586621681401502"><span class="annot"><span class="annottext">tApp :: TTerm -&gt; [TTerm] -&gt; TTerm
+</span><a href="#local-6989586621681401502"><span class="hs-identifier hs-var hs-var">tApp</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TPrim"><span class="hs-identifier hs-type">TPrim</span></a></span><span> </span><span class="annot"><span class="annottext">TPrim
+</span><a href="Agda.Syntax.Treeless.html#PSeq"><span class="hs-identifier hs-var">PSeq</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">TTerm
+</span><a href="Agda.Syntax.Treeless.html#TErased"><span class="hs-identifier hs-var">TErased</span></a></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681401521"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401521"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401521"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-45"></span><span>      </span><span class="annot"><a href="#local-6989586621681401502"><span class="hs-identifier hs-var">tApp</span></a></span><span> </span><span id="local-6989586621681401522"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401522"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681401523"><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681401523"><span class="hs-identifier hs-var">ts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; [TTerm] -&gt; TTerm
+</span><a href="Agda.Syntax.Treeless.html#TApp"><span class="hs-identifier hs-var">TApp</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401522"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681401523"><span class="hs-identifier hs-var">ts</span></a></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html#Subst"><span class="hs-identifier hs-type">Subst</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TAlt"><span class="hs-identifier hs-type">TAlt</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="SubstArg"><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html#SubstArg"><span class="hs-identifier hs-var">SubstArg</span></a></span></span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TAlt"><span class="hs-identifier hs-type">TAlt</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span><span>
+</span><span id="line-49"></span><span>  </span><span id="local-6989586621681401532"><span class="annot"><span class="annottext">applySubst :: Substitution' (SubstArg TAlt) -&gt; TAlt -&gt; TAlt
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var hs-var hs-var hs-var">applySubst</span></a></span></span><span> </span><span id="local-6989586621681401533"><span class="annot"><span class="annottext">Substitution' (SubstArg TAlt)
+</span><a href="#local-6989586621681401533"><span class="hs-identifier hs-var">rho</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TACon"><span class="hs-identifier hs-type">TACon</span></a></span><span> </span><span id="local-6989586621681401535"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681401535"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681401536"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401536"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681401537"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401537"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QName -&gt; Int -&gt; TTerm -&gt; TAlt
+</span><a href="Agda.Syntax.Treeless.html#TACon"><span class="hs-identifier hs-var">TACon</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681401535"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401536"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm) -&gt; TTerm -&gt; TTerm
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Substitution' TTerm -&gt; Substitution' TTerm
+forall a. Int -&gt; Substitution' a -&gt; Substitution' a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#liftS"><span class="hs-identifier hs-var">liftS</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401536"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' TTerm
+Substitution' (SubstArg TAlt)
+</span><a href="#local-6989586621681401533"><span class="hs-identifier hs-var">rho</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401537"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span id="local-6989586621681401538"><span class="annot"><span class="annottext">Substitution' (SubstArg TAlt)
+</span><a href="#local-6989586621681401538"><span class="hs-identifier hs-var">rho</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TALit"><span class="hs-identifier hs-type">TALit</span></a></span><span> </span><span id="local-6989586621681401540"><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681401540"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621681401541"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401541"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Literal -&gt; TTerm -&gt; TAlt
+</span><a href="Agda.Syntax.Treeless.html#TALit"><span class="hs-identifier hs-var">TALit</span></a></span><span> </span><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681401540"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm) -&gt; TTerm -&gt; TTerm
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg TAlt)
+Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401538"><span class="hs-identifier hs-var">rho</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401541"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span id="local-6989586621681401542"><span class="annot"><span class="annottext">Substitution' (SubstArg TAlt)
+</span><a href="#local-6989586621681401542"><span class="hs-identifier hs-var">rho</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TAGuard"><span class="hs-identifier hs-type">TAGuard</span></a></span><span> </span><span id="local-6989586621681401544"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401544"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621681401545"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401545"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; TTerm -&gt; TAlt
+</span><a href="Agda.Syntax.Treeless.html#TAGuard"><span class="hs-identifier hs-var">TAGuard</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm) -&gt; TTerm -&gt; TTerm
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg TAlt)
+Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401542"><span class="hs-identifier hs-var">rho</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401544"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Substitution' (SubstArg TTerm) -&gt; TTerm -&gt; TTerm
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg TAlt)
+Substitution' (SubstArg TTerm)
+</span><a href="#local-6989586621681401542"><span class="hs-identifier hs-var">rho</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401545"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-keyword">newtype</span><span> </span><span id="UnderLambda"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#UnderLambda"><span class="hs-identifier hs-var">UnderLambda</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="UnderLambda"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#UnderLambda"><span class="hs-identifier hs-var">UnderLambda</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Any</span></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681401548"><span id="local-6989586621681401553"><span class="annot"><span class="annottext">UnderLambda -&gt; UnderLambda -&gt; Bool
+(UnderLambda -&gt; UnderLambda -&gt; Bool)
+-&gt; (UnderLambda -&gt; UnderLambda -&gt; Bool) -&gt; Eq UnderLambda
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: UnderLambda -&gt; UnderLambda -&gt; Bool
+== :: UnderLambda -&gt; UnderLambda -&gt; Bool
+$c/= :: UnderLambda -&gt; UnderLambda -&gt; Bool
+/= :: UnderLambda -&gt; UnderLambda -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681401561"><span id="local-6989586621681401566"><span id="local-6989586621681401570"><span id="local-6989586621681401574"><span id="local-6989586621681401578"><span id="local-6989586621681401582"><span id="local-6989586621681401586"><span class="annot"><span class="annottext">Eq UnderLambda
+Eq UnderLambda =&gt;
+(UnderLambda -&gt; UnderLambda -&gt; Ordering)
+-&gt; (UnderLambda -&gt; UnderLambda -&gt; Bool)
+-&gt; (UnderLambda -&gt; UnderLambda -&gt; Bool)
+-&gt; (UnderLambda -&gt; UnderLambda -&gt; Bool)
+-&gt; (UnderLambda -&gt; UnderLambda -&gt; Bool)
+-&gt; (UnderLambda -&gt; UnderLambda -&gt; UnderLambda)
+-&gt; (UnderLambda -&gt; UnderLambda -&gt; UnderLambda)
+-&gt; Ord UnderLambda
+UnderLambda -&gt; UnderLambda -&gt; Bool
+UnderLambda -&gt; UnderLambda -&gt; Ordering
+UnderLambda -&gt; UnderLambda -&gt; UnderLambda
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: UnderLambda -&gt; UnderLambda -&gt; Ordering
+compare :: UnderLambda -&gt; UnderLambda -&gt; Ordering
+$c&lt; :: UnderLambda -&gt; UnderLambda -&gt; Bool
+&lt; :: UnderLambda -&gt; UnderLambda -&gt; Bool
+$c&lt;= :: UnderLambda -&gt; UnderLambda -&gt; Bool
+&lt;= :: UnderLambda -&gt; UnderLambda -&gt; Bool
+$c&gt; :: UnderLambda -&gt; UnderLambda -&gt; Bool
+&gt; :: UnderLambda -&gt; UnderLambda -&gt; Bool
+$c&gt;= :: UnderLambda -&gt; UnderLambda -&gt; Bool
+&gt;= :: UnderLambda -&gt; UnderLambda -&gt; Bool
+$cmax :: UnderLambda -&gt; UnderLambda -&gt; UnderLambda
+max :: UnderLambda -&gt; UnderLambda -&gt; UnderLambda
+$cmin :: UnderLambda -&gt; UnderLambda -&gt; UnderLambda
+min :: UnderLambda -&gt; UnderLambda -&gt; UnderLambda
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681401592"><span id="local-6989586621681401598"><span id="local-6989586621681401602"><span class="annot"><span class="annottext">Int -&gt; UnderLambda -&gt; ShowS
+[UnderLambda] -&gt; ShowS
+UnderLambda -&gt; String
+(Int -&gt; UnderLambda -&gt; ShowS)
+-&gt; (UnderLambda -&gt; String)
+-&gt; ([UnderLambda] -&gt; ShowS)
+-&gt; Show UnderLambda
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; UnderLambda -&gt; ShowS
+showsPrec :: Int -&gt; UnderLambda -&gt; ShowS
+$cshow :: UnderLambda -&gt; String
+show :: UnderLambda -&gt; String
+$cshowList :: [UnderLambda] -&gt; ShowS
+showList :: [UnderLambda] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681401606"><span id="local-6989586621681401611"><span id="local-6989586621681401617"><span class="annot"><span class="annottext">NonEmpty UnderLambda -&gt; UnderLambda
+UnderLambda -&gt; UnderLambda -&gt; UnderLambda
+(UnderLambda -&gt; UnderLambda -&gt; UnderLambda)
+-&gt; (NonEmpty UnderLambda -&gt; UnderLambda)
+-&gt; (forall b. Integral b =&gt; b -&gt; UnderLambda -&gt; UnderLambda)
+-&gt; Semigroup UnderLambda
+forall b. Integral b =&gt; b -&gt; UnderLambda -&gt; UnderLambda
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (NonEmpty a -&gt; a)
+-&gt; (forall b. Integral b =&gt; b -&gt; a -&gt; a)
+-&gt; Semigroup a
+$c&lt;&gt; :: UnderLambda -&gt; UnderLambda -&gt; UnderLambda
+&lt;&gt; :: UnderLambda -&gt; UnderLambda -&gt; UnderLambda
+$csconcat :: NonEmpty UnderLambda -&gt; UnderLambda
+sconcat :: NonEmpty UnderLambda -&gt; UnderLambda
+$cstimes :: forall b. Integral b =&gt; b -&gt; UnderLambda -&gt; UnderLambda
+stimes :: forall b. Integral b =&gt; b -&gt; UnderLambda -&gt; UnderLambda
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Semigroup</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681401627"><span id="local-6989586621681401632"><span id="local-6989586621681401636"><span class="annot"><span class="annottext">Semigroup UnderLambda
+UnderLambda
+Semigroup UnderLambda =&gt;
+UnderLambda
+-&gt; (UnderLambda -&gt; UnderLambda -&gt; UnderLambda)
+-&gt; ([UnderLambda] -&gt; UnderLambda)
+-&gt; Monoid UnderLambda
+[UnderLambda] -&gt; UnderLambda
+UnderLambda -&gt; UnderLambda -&gt; UnderLambda
+forall a.
+Semigroup a =&gt;
+a -&gt; (a -&gt; a -&gt; a) -&gt; ([a] -&gt; a) -&gt; Monoid a
+$cmempty :: UnderLambda
+mempty :: UnderLambda
+$cmappend :: UnderLambda -&gt; UnderLambda -&gt; UnderLambda
+mappend :: UnderLambda -&gt; UnderLambda -&gt; UnderLambda
+$cmconcat :: [UnderLambda] -&gt; UnderLambda
+mconcat :: [UnderLambda] -&gt; UnderLambda
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monoid</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-keyword">newtype</span><span> </span><span id="SeqArg"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#SeqArg"><span class="hs-identifier hs-var">SeqArg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SeqArg"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#SeqArg"><span class="hs-identifier hs-var">SeqArg</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">All</span></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681401642"><span id="local-6989586621681401647"><span class="annot"><span class="annottext">SeqArg -&gt; SeqArg -&gt; Bool
+(SeqArg -&gt; SeqArg -&gt; Bool)
+-&gt; (SeqArg -&gt; SeqArg -&gt; Bool) -&gt; Eq SeqArg
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: SeqArg -&gt; SeqArg -&gt; Bool
+== :: SeqArg -&gt; SeqArg -&gt; Bool
+$c/= :: SeqArg -&gt; SeqArg -&gt; Bool
+/= :: SeqArg -&gt; SeqArg -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681401654"><span id="local-6989586621681401659"><span id="local-6989586621681401663"><span id="local-6989586621681401667"><span id="local-6989586621681401671"><span id="local-6989586621681401675"><span id="local-6989586621681401679"><span class="annot"><span class="annottext">Eq SeqArg
+Eq SeqArg =&gt;
+(SeqArg -&gt; SeqArg -&gt; Ordering)
+-&gt; (SeqArg -&gt; SeqArg -&gt; Bool)
+-&gt; (SeqArg -&gt; SeqArg -&gt; Bool)
+-&gt; (SeqArg -&gt; SeqArg -&gt; Bool)
+-&gt; (SeqArg -&gt; SeqArg -&gt; Bool)
+-&gt; (SeqArg -&gt; SeqArg -&gt; SeqArg)
+-&gt; (SeqArg -&gt; SeqArg -&gt; SeqArg)
+-&gt; Ord SeqArg
+SeqArg -&gt; SeqArg -&gt; Bool
+SeqArg -&gt; SeqArg -&gt; Ordering
+SeqArg -&gt; SeqArg -&gt; SeqArg
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: SeqArg -&gt; SeqArg -&gt; Ordering
+compare :: SeqArg -&gt; SeqArg -&gt; Ordering
+$c&lt; :: SeqArg -&gt; SeqArg -&gt; Bool
+&lt; :: SeqArg -&gt; SeqArg -&gt; Bool
+$c&lt;= :: SeqArg -&gt; SeqArg -&gt; Bool
+&lt;= :: SeqArg -&gt; SeqArg -&gt; Bool
+$c&gt; :: SeqArg -&gt; SeqArg -&gt; Bool
+&gt; :: SeqArg -&gt; SeqArg -&gt; Bool
+$c&gt;= :: SeqArg -&gt; SeqArg -&gt; Bool
+&gt;= :: SeqArg -&gt; SeqArg -&gt; Bool
+$cmax :: SeqArg -&gt; SeqArg -&gt; SeqArg
+max :: SeqArg -&gt; SeqArg -&gt; SeqArg
+$cmin :: SeqArg -&gt; SeqArg -&gt; SeqArg
+min :: SeqArg -&gt; SeqArg -&gt; SeqArg
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681401684"><span id="local-6989586621681401689"><span id="local-6989586621681401693"><span class="annot"><span class="annottext">Int -&gt; SeqArg -&gt; ShowS
+[SeqArg] -&gt; ShowS
+SeqArg -&gt; String
+(Int -&gt; SeqArg -&gt; ShowS)
+-&gt; (SeqArg -&gt; String) -&gt; ([SeqArg] -&gt; ShowS) -&gt; Show SeqArg
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SeqArg -&gt; ShowS
+showsPrec :: Int -&gt; SeqArg -&gt; ShowS
+$cshow :: SeqArg -&gt; String
+show :: SeqArg -&gt; String
+$cshowList :: [SeqArg] -&gt; ShowS
+showList :: [SeqArg] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681401696"><span id="local-6989586621681401701"><span id="local-6989586621681401707"><span class="annot"><span class="annottext">NonEmpty SeqArg -&gt; SeqArg
+SeqArg -&gt; SeqArg -&gt; SeqArg
+(SeqArg -&gt; SeqArg -&gt; SeqArg)
+-&gt; (NonEmpty SeqArg -&gt; SeqArg)
+-&gt; (forall b. Integral b =&gt; b -&gt; SeqArg -&gt; SeqArg)
+-&gt; Semigroup SeqArg
+forall b. Integral b =&gt; b -&gt; SeqArg -&gt; SeqArg
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (NonEmpty a -&gt; a)
+-&gt; (forall b. Integral b =&gt; b -&gt; a -&gt; a)
+-&gt; Semigroup a
+$c&lt;&gt; :: SeqArg -&gt; SeqArg -&gt; SeqArg
+&lt;&gt; :: SeqArg -&gt; SeqArg -&gt; SeqArg
+$csconcat :: NonEmpty SeqArg -&gt; SeqArg
+sconcat :: NonEmpty SeqArg -&gt; SeqArg
+$cstimes :: forall b. Integral b =&gt; b -&gt; SeqArg -&gt; SeqArg
+stimes :: forall b. Integral b =&gt; b -&gt; SeqArg -&gt; SeqArg
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Semigroup</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681401716"><span id="local-6989586621681401721"><span id="local-6989586621681401725"><span class="annot"><span class="annottext">Semigroup SeqArg
+SeqArg
+Semigroup SeqArg =&gt;
+SeqArg
+-&gt; (SeqArg -&gt; SeqArg -&gt; SeqArg)
+-&gt; ([SeqArg] -&gt; SeqArg)
+-&gt; Monoid SeqArg
+[SeqArg] -&gt; SeqArg
+SeqArg -&gt; SeqArg -&gt; SeqArg
+forall a.
+Semigroup a =&gt;
+a -&gt; (a -&gt; a -&gt; a) -&gt; ([a] -&gt; a) -&gt; Monoid a
+$cmempty :: SeqArg
+mempty :: SeqArg
+$cmappend :: SeqArg -&gt; SeqArg -&gt; SeqArg
+mappend :: SeqArg -&gt; SeqArg -&gt; SeqArg
+$cmconcat :: [SeqArg] -&gt; SeqArg
+mconcat :: [SeqArg] -&gt; SeqArg
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monoid</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-keyword">data</span><span> </span><span id="Occurs"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-var">Occurs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Occurs"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-var">Occurs</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#UnderLambda"><span class="hs-identifier hs-type">UnderLambda</span></a></span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#SeqArg"><span class="hs-identifier hs-type">SeqArg</span></a></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681401730"><span id="local-6989586621681401736"><span class="annot"><span class="annottext">Occurs -&gt; Occurs -&gt; Bool
+(Occurs -&gt; Occurs -&gt; Bool)
+-&gt; (Occurs -&gt; Occurs -&gt; Bool) -&gt; Eq Occurs
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Occurs -&gt; Occurs -&gt; Bool
+== :: Occurs -&gt; Occurs -&gt; Bool
+$c/= :: Occurs -&gt; Occurs -&gt; Bool
+/= :: Occurs -&gt; Occurs -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681401742"><span id="local-6989586621681401747"><span id="local-6989586621681401752"><span id="local-6989586621681401756"><span id="local-6989586621681401759"><span id="local-6989586621681401762"><span id="local-6989586621681401765"><span class="annot"><span class="annottext">Eq Occurs
+Eq Occurs =&gt;
+(Occurs -&gt; Occurs -&gt; Ordering)
+-&gt; (Occurs -&gt; Occurs -&gt; Bool)
+-&gt; (Occurs -&gt; Occurs -&gt; Bool)
+-&gt; (Occurs -&gt; Occurs -&gt; Bool)
+-&gt; (Occurs -&gt; Occurs -&gt; Bool)
+-&gt; (Occurs -&gt; Occurs -&gt; Occurs)
+-&gt; (Occurs -&gt; Occurs -&gt; Occurs)
+-&gt; Ord Occurs
+Occurs -&gt; Occurs -&gt; Bool
+Occurs -&gt; Occurs -&gt; Ordering
+Occurs -&gt; Occurs -&gt; Occurs
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: Occurs -&gt; Occurs -&gt; Ordering
+compare :: Occurs -&gt; Occurs -&gt; Ordering
+$c&lt; :: Occurs -&gt; Occurs -&gt; Bool
+&lt; :: Occurs -&gt; Occurs -&gt; Bool
+$c&lt;= :: Occurs -&gt; Occurs -&gt; Bool
+&lt;= :: Occurs -&gt; Occurs -&gt; Bool
+$c&gt; :: Occurs -&gt; Occurs -&gt; Bool
+&gt; :: Occurs -&gt; Occurs -&gt; Bool
+$c&gt;= :: Occurs -&gt; Occurs -&gt; Bool
+&gt;= :: Occurs -&gt; Occurs -&gt; Bool
+$cmax :: Occurs -&gt; Occurs -&gt; Occurs
+max :: Occurs -&gt; Occurs -&gt; Occurs
+$cmin :: Occurs -&gt; Occurs -&gt; Occurs
+min :: Occurs -&gt; Occurs -&gt; Occurs
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681401768"><span id="local-6989586621681401775"><span id="local-6989586621681401779"><span class="annot"><span class="annottext">Int -&gt; Occurs -&gt; ShowS
+[Occurs] -&gt; ShowS
+Occurs -&gt; String
+(Int -&gt; Occurs -&gt; ShowS)
+-&gt; (Occurs -&gt; String) -&gt; ([Occurs] -&gt; ShowS) -&gt; Show Occurs
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Occurs -&gt; ShowS
+showsPrec :: Int -&gt; Occurs -&gt; ShowS
+$cshow :: Occurs -&gt; String
+show :: Occurs -&gt; String
+$cshowList :: [Occurs] -&gt; ShowS
+showList :: [Occurs] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#once"><span class="hs-identifier hs-type">once</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-type">Occurs</span></a></span><span>
+</span><span id="line-63"></span><span id="once"><span class="annot"><span class="annottext">once :: Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#once"><span class="hs-identifier hs-var hs-var">once</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; UnderLambda -&gt; SeqArg -&gt; Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-var">Occurs</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">UnderLambda
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">All -&gt; SeqArg
+</span><a href="Agda.Compiler.Treeless.Subst.html#SeqArg"><span class="hs-identifier hs-var">SeqArg</span></a></span><span> </span><span class="annot"><span class="annottext">(All -&gt; SeqArg) -&gt; All -&gt; SeqArg
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; All
+</span><span class="hs-identifier hs-var">All</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#inSeq"><span class="hs-identifier hs-type">inSeq</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-type">Occurs</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-type">Occurs</span></a></span><span>
+</span><span id="line-66"></span><span id="inSeq"><span class="annot"><span class="annottext">inSeq :: Occurs -&gt; Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#inSeq"><span class="hs-identifier hs-var hs-var">inSeq</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-type">Occurs</span></a></span><span> </span><span id="local-6989586621681401784"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401784"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681401785"><span class="annot"><span class="annottext">UnderLambda
+</span><a href="#local-6989586621681401785"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="annot"><span class="annottext">SeqArg
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; UnderLambda -&gt; SeqArg -&gt; Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-var">Occurs</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401784"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">UnderLambda
+</span><a href="#local-6989586621681401785"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">SeqArg
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#underLambda"><span class="hs-identifier hs-type">underLambda</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-type">Occurs</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-type">Occurs</span></a></span><span>
+</span><span id="line-69"></span><span id="underLambda"><span class="annot"><span class="annottext">underLambda :: Occurs -&gt; Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#underLambda"><span class="hs-identifier hs-var hs-var">underLambda</span></a></span></span><span> </span><span id="local-6989586621681401787"><span class="annot"><span class="annottext">Occurs
+</span><a href="#local-6989586621681401787"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Occurs
+</span><a href="#local-6989586621681401787"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">Occurs -&gt; Occurs -&gt; Occurs
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; UnderLambda -&gt; SeqArg -&gt; Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-var">Occurs</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Any -&gt; UnderLambda
+</span><a href="Agda.Compiler.Treeless.Subst.html#UnderLambda"><span class="hs-identifier hs-var">UnderLambda</span></a></span><span> </span><span class="annot"><span class="annottext">(Any -&gt; UnderLambda) -&gt; Any -&gt; UnderLambda
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Any
+</span><span class="hs-identifier hs-var">Any</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SeqArg
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681401791"><span id="local-6989586621681401794"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-type">Occurs</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-72"></span><span>  </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-type">Occurs</span></a></span><span> </span><span id="local-6989586621681401802"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401802"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681401803"><span class="annot"><span class="annottext">UnderLambda
+</span><a href="#local-6989586621681401803"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681401804"><span class="annot"><span class="annottext">SeqArg
+</span><a href="#local-6989586621681401804"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681401805"><span class="annot"><span class="annottext">&lt;&gt; :: Occurs -&gt; Occurs -&gt; Occurs
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-type">Occurs</span></a></span><span> </span><span id="local-6989586621681401806"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401806"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681401807"><span class="annot"><span class="annottext">UnderLambda
+</span><a href="#local-6989586621681401807"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621681401808"><span class="annot"><span class="annottext">SeqArg
+</span><a href="#local-6989586621681401808"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; UnderLambda -&gt; SeqArg -&gt; Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-var">Occurs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401802"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401806"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">UnderLambda
+</span><a href="#local-6989586621681401803"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">UnderLambda -&gt; UnderLambda -&gt; UnderLambda
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">UnderLambda
+</span><a href="#local-6989586621681401807"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SeqArg
+</span><a href="#local-6989586621681401804"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">SeqArg -&gt; SeqArg -&gt; SeqArg
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">SeqArg
+</span><a href="#local-6989586621681401808"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681401815"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-type">Occurs</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-75"></span><span>  </span><span id="local-6989586621681401820"><span class="annot"><span class="annottext">mempty :: Occurs
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">mempty</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; UnderLambda -&gt; SeqArg -&gt; Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-var">Occurs</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">UnderLambda
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="annot"><span class="annottext">SeqArg
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-76"></span><span>  </span><span id="local-6989586621681401822"><span class="annot"><span class="annottext">mappend :: Occurs -&gt; Occurs -&gt; Occurs
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Occurs -&gt; Occurs -&gt; Occurs
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- Andreas, 2019-07-10: this free variable computation should be rewritten</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- in the style of TypeChecking.Free.Lazy.</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- https://github.com/agda/agda/commit/03eb3945114a4ccdb449f22d69db8d6eaa4699b8#commitcomment-34249120</span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-keyword">class</span><span> </span><span id="HasFree"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-var">HasFree</span></a></span></span><span> </span><span id="local-6989586621681401385"><span class="annot"><a href="#local-6989586621681401385"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-84"></span><span>  </span><span id="freeVars"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-type">freeVars</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681401385"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-type">Occurs</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span id="local-6989586621681401379"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#freeIn"><span class="hs-identifier hs-type">freeIn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681401379"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681401379"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-87"></span><span id="freeIn"><span class="annot"><span class="annottext">freeIn :: forall a. HasFree a =&gt; Int -&gt; a -&gt; Bool
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeIn"><span class="hs-identifier hs-var hs-var">freeIn</span></a></span></span><span> </span><span id="local-6989586621681401828"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401828"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681401829"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401829"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Map Int Occurs -&gt; Bool
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Bool
+</span><span class="hs-identifier hs-var">Map.member</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401828"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401829"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span id="local-6989586621681401386"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#occursIn"><span class="hs-identifier hs-type">occursIn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681401386"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681401386"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Occurs"><span class="hs-identifier hs-type">Occurs</span></a></span></span><span>
+</span><span id="line-90"></span><span id="occursIn"><span class="annot"><span class="annottext">occursIn :: forall a. HasFree a =&gt; Int -&gt; a -&gt; Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#occursIn"><span class="hs-identifier hs-var hs-var">occursIn</span></a></span></span><span> </span><span id="local-6989586621681401836"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401836"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681401837"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401837"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Occurs -&gt; Maybe Occurs -&gt; Occurs
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">Occurs
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="annot"><span class="annottext">(Maybe Occurs -&gt; Occurs) -&gt; Maybe Occurs -&gt; Occurs
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Map Int Occurs -&gt; Maybe Occurs
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401836"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401837"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-93"></span><span>  </span><span id="local-6989586621681401843"><span class="annot"><span class="annottext">freeVars :: Int -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var hs-var hs-var hs-var">freeVars</span></a></span></span><span> </span><span id="local-6989586621681401844"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401844"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Occurs -&gt; Map Int Occurs
+forall k a. k -&gt; a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.singleton</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401844"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#once"><span class="hs-identifier hs-var">once</span></a></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681401394"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681401394"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681401394"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-96"></span><span>  </span><span id="local-6989586621681401854"><span class="annot"><span class="annottext">freeVars :: [a] -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var hs-var hs-var hs-var">freeVars</span></a></span></span><span> </span><span id="local-6989586621681401855"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681401855"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Occurs -&gt; Occurs -&gt; Occurs) -&gt; [Map Int Occurs] -&gt; Map Int Occurs
+forall (f :: * -&gt; *) k a.
+(Foldable f, Ord k) =&gt;
+(a -&gt; a -&gt; a) -&gt; f (Map k a) -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.unionsWith</span></span><span> </span><span class="annot"><span class="annottext">Occurs -&gt; Occurs -&gt; Occurs
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span> </span><span class="annot"><span class="annottext">([Map Int Occurs] -&gt; Map Int Occurs)
+-&gt; [Map Int Occurs] -&gt; Map Int Occurs
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Map Int Occurs) -&gt; [a] -&gt; [Map Int Occurs]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681401855"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681401402"><span id="local-6989586621681401403"><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681401402"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681401403"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681401402"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681401403"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-99"></span><span>  </span><span id="local-6989586621681401865"><span class="annot"><span class="annottext">freeVars :: (a, b) -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var hs-var hs-var hs-var">freeVars</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681401866"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401866"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681401867"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681401867"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Occurs -&gt; Occurs -&gt; Occurs)
+-&gt; Map Int Occurs -&gt; Map Int Occurs -&gt; Map Int Occurs
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; Map k a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.unionWith</span></span><span> </span><span class="annot"><span class="annottext">Occurs -&gt; Occurs -&gt; Occurs
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401866"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681401867"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-keyword">data</span><span> </span><span id="Binder"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Binder"><span class="hs-identifier hs-var">Binder</span></a></span></span><span> </span><span id="local-6989586621681401424"><span class="annot"><a href="#local-6989586621681401424"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Binder"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Binder"><span class="hs-identifier hs-var">Binder</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="annot"><a href="#local-6989586621681401424"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681401408"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681401408"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Binder"><span class="hs-identifier hs-type">Binder</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681401408"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-104"></span><span>  </span><span id="local-6989586621681401880"><span class="annot"><span class="annottext">freeVars :: Binder a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var hs-var hs-var hs-var">freeVars</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Binder"><span class="hs-identifier hs-type">Binder</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span id="local-6989586621681401881"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401881"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401881"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-105"></span><span>  </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#Binder"><span class="hs-identifier hs-type">Binder</span></a></span><span> </span><span id="local-6989586621681401882"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401882"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681401883"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401883"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Occurs -&gt; Bool) -&gt; Map Int Occurs -&gt; Map Int Occurs
+forall k a. (k -&gt; a -&gt; Bool) -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.filterWithKey</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621681401885"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401885"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="annot"><span class="annottext">Occurs
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401885"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Map Int Occurs -&gt; Map Int Occurs)
+-&gt; Map Int Occurs -&gt; Map Int Occurs
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Int) -&gt; Map Int Occurs -&gt; Map Int Occurs
+forall k1 k2 a. (k1 -&gt; k2) -&gt; Map k1 a -&gt; Map k2 a
+</span><span class="hs-identifier hs-var">Map.mapKeysMonotonic</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">subtract</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401882"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Map Int Occurs -&gt; Map Int Occurs)
+-&gt; Map Int Occurs -&gt; Map Int Occurs
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401883"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-keyword">newtype</span><span> </span><span id="InSeq"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#InSeq"><span class="hs-identifier hs-var">InSeq</span></a></span></span><span> </span><span id="local-6989586621681401423"><span class="annot"><a href="#local-6989586621681401423"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="InSeq"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#InSeq"><span class="hs-identifier hs-var">InSeq</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621681401423"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681401416"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681401416"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#InSeq"><span class="hs-identifier hs-type">InSeq</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681401416"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-110"></span><span>  </span><span id="local-6989586621681401895"><span class="annot"><span class="annottext">freeVars :: InSeq a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var hs-var hs-var hs-var">freeVars</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#InSeq"><span class="hs-identifier hs-type">InSeq</span></a></span><span> </span><span id="local-6989586621681401896"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401896"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Occurs -&gt; Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#inSeq"><span class="hs-identifier hs-var">inSeq</span></a></span><span> </span><span class="annot"><span class="annottext">(Occurs -&gt; Occurs) -&gt; Map Int Occurs -&gt; Map Int Occurs
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401896"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TTerm"><span class="hs-identifier hs-type">TTerm</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-113"></span><span>  </span><span id="local-6989586621681401915"><span class="annot"><span class="annottext">freeVars :: TTerm -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var hs-var hs-var hs-var">freeVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-114"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TDef"><span class="hs-identifier hs-type">TDef</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Map Int Occurs
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span>
+</span><span id="line-115"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TLit"><span class="hs-identifier hs-type">TLit</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Map Int Occurs
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span>
+</span><span id="line-116"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TCon"><span class="hs-identifier hs-type">TCon</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Map Int Occurs
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span>
+</span><span id="line-117"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TPrim"><span class="hs-identifier hs-type">TPrim</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Map Int Occurs
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span>
+</span><span id="line-118"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TUnit"><span class="hs-identifier hs-type">TUnit</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Map Int Occurs
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span>
+</span><span id="line-119"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TSort"><span class="hs-identifier hs-type">TSort</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Map Int Occurs
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span>
+</span><span id="line-120"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TErased"><span class="hs-identifier hs-type">TErased</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Map Int Occurs
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span>
+</span><span id="line-121"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TError"><span class="hs-identifier hs-type">TError</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Map Int Occurs
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span>
+</span><span id="line-122"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TVar"><span class="hs-identifier hs-type">TVar</span></a></span><span> </span><span id="local-6989586621681401917"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401917"><span class="hs-identifier hs-var">i</span></a></span></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401917"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-123"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TApp"><span class="hs-identifier hs-type">TApp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TPrim"><span class="hs-identifier hs-type">TPrim</span></a></span><span> </span><span class="annot"><span class="annottext">TPrim
+</span><a href="Agda.Syntax.Treeless.html#PSeq"><span class="hs-identifier hs-var">PSeq</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Treeless.html#TVar"><span class="hs-identifier hs-type">TVar</span></a></span><span> </span><span id="local-6989586621681401918"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401918"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681401919"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401919"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(InSeq Int, TTerm) -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; InSeq Int
+forall a. a -&gt; InSeq a
+</span><a href="Agda.Compiler.Treeless.Subst.html#InSeq"><span class="hs-identifier hs-var">InSeq</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401918"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401919"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-124"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TApp"><span class="hs-identifier hs-type">TApp</span></a></span><span> </span><span id="local-6989586621681401920"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401920"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681401921"><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681401921"><span class="hs-identifier hs-var">ts</span></a></span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(TTerm, [TTerm]) -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401920"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[TTerm]
+</span><a href="#local-6989586621681401921"><span class="hs-identifier hs-var">ts</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-125"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TLam"><span class="hs-identifier hs-type">TLam</span></a></span><span> </span><span id="local-6989586621681401922"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401922"><span class="hs-identifier hs-var">b</span></a></span></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Occurs -&gt; Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#underLambda"><span class="hs-identifier hs-var">underLambda</span></a></span><span> </span><span class="annot"><span class="annottext">(Occurs -&gt; Occurs) -&gt; Map Int Occurs -&gt; Map Int Occurs
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Binder TTerm -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; TTerm -&gt; Binder TTerm
+forall a. Int -&gt; a -&gt; Binder a
+</span><a href="Agda.Compiler.Treeless.Subst.html#Binder"><span class="hs-identifier hs-var">Binder</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401922"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-126"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TLet"><span class="hs-identifier hs-type">TLet</span></a></span><span> </span><span id="local-6989586621681401923"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401923"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681401924"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401924"><span class="hs-identifier hs-var">b</span></a></span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(TTerm, Binder TTerm) -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401923"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int -&gt; TTerm -&gt; Binder TTerm
+forall a. Int -&gt; a -&gt; Binder a
+</span><a href="Agda.Compiler.Treeless.Subst.html#Binder"><span class="hs-identifier hs-var">Binder</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401924"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-127"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TCase"><span class="hs-identifier hs-type">TCase</span></a></span><span> </span><span id="local-6989586621681401925"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401925"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="annot"><span class="annottext">CaseInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681401926"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401926"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681401927"><span class="annot"><span class="annottext">[TAlt]
+</span><a href="#local-6989586621681401927"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Int, (TTerm, [TAlt])) -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401925"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401926"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[TAlt]
+</span><a href="#local-6989586621681401927"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-128"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TCoerce"><span class="hs-identifier hs-type">TCoerce</span></a></span><span> </span><span id="local-6989586621681401928"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401928"><span class="hs-identifier hs-var">t</span></a></span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401928"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TAlt"><span class="hs-identifier hs-type">TAlt</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-131"></span><span>  </span><span id="local-6989586621681401934"><span class="annot"><span class="annottext">freeVars :: TAlt -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var hs-var hs-var hs-var">freeVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-132"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TACon"><span class="hs-identifier hs-type">TACon</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681401935"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401935"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681401936"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401936"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Binder TTerm -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; TTerm -&gt; Binder TTerm
+forall a. Int -&gt; a -&gt; Binder a
+</span><a href="Agda.Compiler.Treeless.Subst.html#Binder"><span class="hs-identifier hs-var">Binder</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401935"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401936"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-133"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TALit"><span class="hs-identifier hs-type">TALit</span></a></span><span> </span><span class="annot"><span class="annottext">Literal
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681401937"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401937"><span class="hs-identifier hs-var">b</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TTerm -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401937"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-134"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Treeless.html#TAGuard"><span class="hs-identifier hs-type">TAGuard</span></a></span><span> </span><span id="local-6989586621681401938"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401938"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621681401939"><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401939"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(TTerm, TTerm) -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401938"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TTerm
+</span><a href="#local-6989586621681401939"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span class="annot"><span class="hs-comment">-- | Strenghtening.</span></span><span>
+</span><span id="line-137"></span><span id="local-6989586621681401425"><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#tryStrengthen"><span class="hs-identifier hs-type">tryStrengthen</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Compiler.Treeless.Subst.html#HasFree"><span class="hs-identifier hs-type">HasFree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681401425"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Substitute.Class.html#Subst"><span class="hs-identifier hs-type">Subst</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681401425"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681401425"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681401425"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-138"></span><span id="tryStrengthen"><span class="annot"><span class="annottext">tryStrengthen :: forall a. (HasFree a, Subst a) =&gt; Int -&gt; a -&gt; Maybe a
+</span><a href="Agda.Compiler.Treeless.Subst.html#tryStrengthen"><span class="hs-identifier hs-var hs-var">tryStrengthen</span></a></span></span><span> </span><span id="local-6989586621681401948"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401948"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681401949"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401949"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-139"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Map Int Occurs -&gt; Maybe ((Int, Occurs), Map Int Occurs)
+forall k a. Map k a -&gt; Maybe ((k, a), Map k a)
+</span><span class="hs-identifier hs-var">Map.minViewWithKey</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Map Int Occurs
+forall a. HasFree a =&gt; a -&gt; Map Int Occurs
+</span><a href="Agda.Compiler.Treeless.Subst.html#freeVars"><span class="hs-identifier hs-var">freeVars</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401949"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-140"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span id="local-6989586621681401951"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401951"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Occurs
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Map Int Occurs
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401951"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401948"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-141"></span><span>    </span><span class="annot"><span class="annottext">Maybe ((Int, Occurs), Map Int Occurs)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; Maybe a
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Maybe a) -&gt; a -&gt; Maybe a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Substitution' (SubstArg a) -&gt; a -&gt; a
+forall a. Subst a =&gt; Substitution' (SubstArg a) -&gt; a -&gt; a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#applySubst"><span class="hs-identifier hs-var">applySubst</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Impossible -&gt; Int -&gt; Substitution' (SubstArg a)
+forall a. Impossible -&gt; Int -&gt; Substitution' a
+</span><a href="Agda.TypeChecking.Substitute.Class.html#strengthenS"><span class="hs-identifier hs-var">strengthenS</span></a></span><span> </span><span class="annot"><span class="annottext">Impossible
+HasCallStack =&gt; Impossible
+</span><a href="Agda.Utils.Impossible.html#impossible"><span class="hs-identifier hs-var">impossible</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681401948"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681401949"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-142"></span></pre></body></html>
