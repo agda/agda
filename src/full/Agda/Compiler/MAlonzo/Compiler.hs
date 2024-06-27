@@ -439,9 +439,9 @@ ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
     hsModuleName <- curHsMod
     writeModule $ HS.Module
       hsModuleName
-      (map HS.OtherPragma headerPragmas)
+      (map HS.OtherPragma $ List.nub headerPragmas)
       imps
-      (map fakeDecl (hsImps ++ code) ++ decls)
+      (map fakeDecl (List.nub hsImps ++ code) ++ decls)
 
   return $ GHCModule menv mainDefs
 
