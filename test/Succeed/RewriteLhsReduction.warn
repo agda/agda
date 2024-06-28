@@ -1,0 +1,13 @@
+RewriteLhsReduction.agda:17,1-21
+warning: -W[no]RewriteLHSReducesTo
+The rewrite rule f≡g' will never be applied
+because its left-hand side reduces to g a
+when checking the pragma REWRITE f≡g'
+
+———— All done; warnings encountered ————————————————————————
+
+RewriteLhsReduction.agda:17,1-21
+warning: -W[no]RewriteLHSReducesTo
+The rewrite rule f≡g' will never be applied
+because its left-hand side reduces to g a
+when checking the pragma REWRITE f≡g'

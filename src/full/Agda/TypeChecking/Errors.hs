@@ -1554,9 +1554,6 @@ instance PrettyTCM TypeError where
           <+> " is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side: "
           <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ IntSet.toList xs))
           <> ". Perhaps you can use a postulate instead of a constructor as the head symbol?"
-      LHSReducesTo v v' -> fsep
-        [ prettyTCM q <+> " is not a legal rewrite rule, since the left-hand side "
-        , prettyTCM v <+> " reduces to " <+> prettyTCM v' ]
       HeadSymbolIsProjection f -> hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
         , prettyTCM f , "is a projection"

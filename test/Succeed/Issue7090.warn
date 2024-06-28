@@ -1,0 +1,13 @@
+Issue7090.agda:13,1-44
+warning: -W[no]RewriteLHSReducesTo
+The rewrite rule +-suc-suc will never be applied
+because its left-hand side reduces to suc (m + suc n)
+when checking the pragma REWRITE +-identityʳ +-suc +-suc-suc
+
+———— All done; warnings encountered ————————————————————————
+
+Issue7090.agda:13,1-44
+warning: -W[no]RewriteLHSReducesTo
+The rewrite rule +-suc-suc will never be applied
+because its left-hand side reduces to suc (m + suc n)
+when checking the pragma REWRITE +-identityʳ +-suc +-suc-suc

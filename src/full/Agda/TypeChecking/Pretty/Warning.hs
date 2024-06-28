@@ -345,6 +345,11 @@ prettyWarning = \case
         ]
       ]
 
+    RewriteLHSReducesTo q u v -> vcat
+      [ "The rewrite rule" <+> prettyTCM q <+> "will never be applied"
+      , "because its left-hand side reduces to" <+> prettyTCM v
+      ]
+
     DuplicateRewriteRule q ->
       "Rewrite rule " <+> prettyTCM q <+> " has already been added"
 

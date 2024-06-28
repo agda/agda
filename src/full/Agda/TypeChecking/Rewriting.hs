@@ -309,28 +309,28 @@ checkRewriteRule q = do
     _ -> typeError $ IllegalRewriteRule q DoesNotTargetRewriteRelation
 
   where
-    checkNoLhsReduction :: QName -> (Elims -> Term)  -> Elims -> TCM ()
+    checkNoLhsReduction :: QName -> (Elims -> Term) -> Elims -> TCM ()
     checkNoLhsReduction f hd es = do
       -- Skip this check when global confluence check is enabled, as
       -- redundant rewrite rules may be required to prove confluence.
       unlessM ((== Just GlobalConfluenceCheck) . optConfluenceCheck <$> pragmaOptions) $ do
       let v = hd es
       v' <- reduce v
-      let fail :: TCM a
+      let fail :: TCM ()
           fail = do
             reportSDoc "rewriting" 20 $ "v  = " <+> text (show v)
             reportSDoc "rewriting" 20 $ "v' = " <+> text (show v')
-            typeError $ IllegalRewriteRule q (LHSReducesTo v v')
-      es' <- case v' of
-        Def f' es'   | f == f'         -> return es'
-        Con c' _ es' | f == conName c' -> return es'
+            warning $ RewriteLHSReducesTo q v v'
+      let checkNoRed es' = unless (null es && null es') $ do
+            a   <- computeElimHeadType f es es'
+            pol <- getPolarity' CmpEq f
+            ok  <- dontAssignMetas $ tryConversion $
+                     compareElims pol [] a (Def f []) es es'
+            unless ok fail
+      case v' of
+        Def f' es'   | f == f'         -> checkNoRed es'
+        Con c' _ es' | f == conName c' -> checkNoRed es'
         _                              -> fail
-      unless (null es && null es') $ do
-        a   <- computeElimHeadType f es es'
-        pol <- getPolarity' CmpEq f
-        ok  <- dontAssignMetas $ tryConversion $
-                 compareElims pol [] a (Def f []) es es'
-        unless ok fail
 
     checkAxFunOrCon :: QName -> Definition -> TCM ()
     checkAxFunOrCon f def = case theDef def of
