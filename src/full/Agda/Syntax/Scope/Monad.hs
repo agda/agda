@@ -36,7 +36,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (ScopeCopyInfo(..))
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Fixity
-import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWarning'(..) )
+import Agda.Syntax.Translation.ConcreteToNice ( DeclarationWarning(..) ,DeclarationWarning'(..) )
   -- TODO: move the relevant warnings out of there
 import Agda.Syntax.Scope.Base as A
 
@@ -84,7 +84,7 @@ printLocals v s = verboseS "scope.top" v $ do
   reportSLn "scope.top" v $ s ++ " " ++ prettyShow locals
 
 scopeWarning' :: CallStack -> DeclarationWarning' -> ScopeM ()
-scopeWarning' loc = warning' loc . NicifierIssue . DeclarationWarning loc
+scopeWarning' loc = warning' loc . ScopeCheckerIssue . DeclarationWarning loc
 
 scopeWarning :: HasCallStack => DeclarationWarning' -> ScopeM ()
 scopeWarning = withCallerCallStack scopeWarning'

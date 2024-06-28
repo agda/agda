@@ -85,8 +85,8 @@ warning'_ loc w = do
   c <- viewTC eCall
   b <- areWeCaching
   let r' = case w of
-        -- NicifierIssues come with their own error locations.
-        NicifierIssue w0 -> getRange w0
+        -- ScopeCheckerIssue s come with their own error locations.
+        ScopeCheckerIssue w0 -> getRange w0
         -- ConstructorDoesNotFitInData packages a full TCErr, so skip the sayWhen/Where here.
         ConstructorDoesNotFitInData{} -> noRange
         _ -> r

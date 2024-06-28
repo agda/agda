@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-module Agda.Syntax.Concrete.Definitions.Monad where
+module Agda.Syntax.Translation.ConcreteToNice.Monad where
 
 import Prelude hiding ( null )
 
@@ -16,8 +16,8 @@ import qualified Data.Map as Map
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (TerminationCheck())
 import Agda.Syntax.Concrete.Name
-import Agda.Syntax.Concrete.Definitions.Types
-import Agda.Syntax.Concrete.Definitions.Errors
+import Agda.Syntax.Nice
+import Agda.Syntax.ScopeCheckerErrors
 
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Lens

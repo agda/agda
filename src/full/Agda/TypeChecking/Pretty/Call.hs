@@ -8,7 +8,7 @@ import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
-import qualified Agda.Syntax.Concrete.Definitions as D
+import qualified Agda.Syntax.Translation.ConcreteToNice as D
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Position
 import Agda.Syntax.Internal

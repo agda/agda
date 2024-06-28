@@ -501,7 +501,7 @@ data Declaration
   | InterleavedMutual KwRange [Declaration]
   | Abstract    KwRange [Declaration]
   | Private     KwRange Origin [Declaration]
-    -- ^ In "Agda.Syntax.Concrete.Definitions" we generate private blocks
+    -- ^ In "Agda.Syntax.Translation.ConcreteToNice" we generate private blocks
     --   temporarily, which should be treated different that user-declared
     --   private blocks.  Thus the 'Origin'.
   | InstanceB   KwRange [Declaration]

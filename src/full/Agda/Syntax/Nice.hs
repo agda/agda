@@ -1,4 +1,7 @@
-module Agda.Syntax.Concrete.Definitions.Types where
+{-| The "nice syntax" is halfway between the concrete and the abstract syntax.
+  It is used internally by the scope checker.
+-}
+module Agda.Syntax.Nice where
 
 import Control.DeepSeq
 

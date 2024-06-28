@@ -11,7 +11,7 @@ How we get from UTF-8 input to GHC-compiled binaries.
 
 2. Nicifier: produces "nice declarations"
    ```
-   Agda.Syntax.Concrete.Definitions
+   Agda.Syntax.Translation.ConcreteToNice
    ```
 
 3. Scope checker:
