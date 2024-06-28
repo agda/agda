@@ -1,6 +1,3 @@
-Issue6042.agda:26,1-46,68
-Termination checking failed for the following functions:
-  Id
-Problematic calls:
-  Id (𝛌 (λ _ → Set)) (snd (snd aₓ)) (B ∙ fst aₓ) (B ∙ fst (snd aₓ))
-    (at Issue6042.agda:33,7-9)
+Issue6042.agda:35,1-29
+Rewrite rule from function  Id-const  cannot be added before the definition of mutually defined Id
+when checking the pragma REWRITE Id-const ＝-Π

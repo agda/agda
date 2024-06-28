@@ -194,6 +194,15 @@ checkRewriteRule q = do
   -- for a type signature whose body has not been type-checked yet.
   when (isEmptyFunction $ theDef def) $
     typeError $ IllegalRewriteRule q BeforeFunctionDefinition
+  -- Issue 6643: Also check that there are no mututal definitions
+  -- that are not yet defined.
+  whenJustM (asksTC envMutualBlock) $ \ mb -> do
+    qs <- mutualNames <$> lookupMutualBlock mb
+    when (Set.member q qs) $ forM_ qs $ \r -> do
+      whenM (isEmptyFunction . theDef <$> getConstInfo r) $
+        typeError $ IllegalRewriteRule q $ BeforeMutualFunctionDefinition r
+
+
   -- Get rewrite rule (type of q).
   TelV gamma1 core <- telView $ defType def
   reportSDoc "rewriting" 30 $ vcat
