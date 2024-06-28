@@ -1601,6 +1601,12 @@ instance PrettyTCM TypeError where
         , prettyTCM q
         , " cannot be added before the function definition"
         ]
+      BeforeMutualFunctionDefinition r -> hsep
+        [ "Rewrite rule from function "
+        , prettyTCM q
+        , " cannot be added before the definition of mutually defined"
+        , prettyTCM r
+        ]
       EmptyReason -> hsep
         [ prettyTCM q , " is not a legal rewrite rule" ]
 

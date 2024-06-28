@@ -4939,6 +4939,7 @@ data IllegalRewriteRuleReason
   | RequiresDefinitions (Set QName)
   | DoesNotTargetRewriteRelation
   | BeforeFunctionDefinition
+  | BeforeMutualFunctionDefinition QName
   | EmptyReason
     deriving (Show, Generic)
 
