@@ -11,4 +11,4 @@ postulate
 
 {-# REWRITE boolTrivial #-}
 
--- Should trigger an error that c is not bound on the lhs.
+-- Should trigger a warning that c is not bound on the lhs.

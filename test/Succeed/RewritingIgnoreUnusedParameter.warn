@@ -1,0 +1,11 @@
+RewritingIgnoreUnusedParameter.agda:11,1-20
+warning: -W[no]RewriteVariablesNotBoundByLHS
+rew  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  A
+when checking the pragma REWRITE rew
+
+———— All done; warnings encountered ————————————————————————
+
+RewritingIgnoreUnusedParameter.agda:11,1-20
+warning: -W[no]RewriteVariablesNotBoundByLHS
+rew  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  A
+when checking the pragma REWRITE rew

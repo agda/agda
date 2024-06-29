@@ -1,0 +1,11 @@
+Issue1980.agda:11,1-22
+warning: -W[no]RewriteVariablesNotBoundByLHS
+funny  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  x
+when checking the pragma REWRITE funny
+
+———— All done; warnings encountered ————————————————————————
+
+Issue1980.agda:11,1-22
+warning: -W[no]RewriteVariablesNotBoundByLHS
+funny  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  x
+when checking the pragma REWRITE funny

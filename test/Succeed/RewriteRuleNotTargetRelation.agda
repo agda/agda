@@ -9,6 +9,6 @@ postulate
 {-# BUILTIN REWRITE R #-}
 {-# REWRITE R #-}
 
--- Expected error:
+-- Expected warning:
 -- R  does not target rewrite relation
 -- when checking the pragma REWRITE R

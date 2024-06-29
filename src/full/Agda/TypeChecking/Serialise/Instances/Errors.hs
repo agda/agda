@@ -99,7 +99,7 @@ instance EmbPrj Warning where
     PragmaCompileList                           -> __IMPOSSIBLE__
     PragmaCompileMaybe                          -> __IMPOSSIBLE__
     NoMain _                                    -> __IMPOSSIBLE__
-    DuplicateRewriteRule a                      -> icodeN 53 DuplicateRewriteRule a
+    IllegalRewriteRule a b                      -> icodeN 53 IllegalRewriteRule a b
     MissingTypeSignatureForOpaque a b           -> icodeN 54 MissingTypeSignatureForOpaque a b
     ConflictingPragmaOptions a b                -> icodeN 55 ConflictingPragmaOptions a b
     CustomBackendWarning a b                    -> icodeN 56 CustomBackendWarning a b
@@ -159,11 +159,49 @@ instance EmbPrj Warning where
     [50, a]              -> valuN ConfluenceCheckingIncompleteBecauseOfMeta a
     [51, a]              -> valuN BuiltinDeclaresIdentifier a
     [52]                 -> valuN ConfluenceForCubicalNotSupported
-    [53, a]              -> valuN DuplicateRewriteRule a
+    [53, a, b]           -> valuN IllegalRewriteRule a b
     [54, a, b]           -> valuN MissingTypeSignatureForOpaque a b
     [55, a, b]           -> valuN ConflictingPragmaOptions a b
     [56, a, b]           -> valuN CustomBackendWarning a b
     [57, a]              -> valuN CoinductiveEtaRecord a
+    _ -> malformed
+
+instance EmbPrj IllegalRewriteRuleReason where
+  icod_ = \case
+    LHSNotDefOrConstr                           -> icodeN 0 LHSNotDefOrConstr
+    VariablesNotBoundByLHS a                    -> icodeN 1 VariablesNotBoundByLHS a
+    VariablesBoundMoreThanOnce a                -> icodeN 2 VariablesBoundMoreThanOnce a
+    LHSReduces a b                              -> icodeN 3 LHSReduces a b
+    HeadSymbolIsProjection a                    -> icodeN 4 HeadSymbolIsProjection a
+    HeadSymbolIsProjectionLikeFunction a        -> icodeN 5 HeadSymbolIsProjectionLikeFunction a
+    HeadSymbolNotPostulateFunctionConstructor a -> icodeN 6 HeadSymbolNotPostulateFunctionConstructor a
+    HeadSymbolDefContainsMetas a                -> icodeN 7 HeadSymbolDefContainsMetas a
+    ConstructorParamsNotGeneral a b             -> icodeN 8 ConstructorParamsNotGeneral a b
+    ContainsUnsolvedMetaVariables a             -> icodeN 9 ContainsUnsolvedMetaVariables a
+    BlockedOnProblems a                         -> icodeN 10 BlockedOnProblems a
+    RequiresDefinitions a                       -> icodeN 11 RequiresDefinitions a
+    DoesNotTargetRewriteRelation                -> icodeN 12 DoesNotTargetRewriteRelation
+    BeforeFunctionDefinition                    -> icodeN 13 BeforeFunctionDefinition
+    BeforeMutualFunctionDefinition a            -> icodeN 14 BeforeMutualFunctionDefinition a
+    DuplicateRewriteRule                        -> icodeN 15 DuplicateRewriteRule
+
+  value = vcase $ \case
+    [0]       -> valuN LHSNotDefOrConstr
+    [1, a]    -> valuN VariablesNotBoundByLHS a
+    [2, a]    -> valuN VariablesBoundMoreThanOnce a
+    [3, a, b] -> valuN LHSReduces a b
+    [4, a]    -> valuN HeadSymbolIsProjection a
+    [5, a]    -> valuN HeadSymbolIsProjectionLikeFunction a
+    [6, a]    -> valuN HeadSymbolNotPostulateFunctionConstructor a
+    [7, a]    -> valuN HeadSymbolDefContainsMetas a
+    [8, a, b] -> valuN ConstructorParamsNotGeneral a b
+    [9, a]    -> valuN ContainsUnsolvedMetaVariables a
+    [10, a]   -> valuN BlockedOnProblems a
+    [11, a]   -> valuN RequiresDefinitions a
+    [12]      -> valuN DoesNotTargetRewriteRelation
+    [13]      -> valuN BeforeFunctionDefinition
+    [14, a]   -> valuN BeforeMutualFunctionDefinition a
+    [15]      -> valuN DuplicateRewriteRule
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -495,6 +533,21 @@ instance EmbPrj WarningName where
     ConstructorDoesNotFitInData_                 -> 117
     CustomBackendWarning_                        -> 118
     CoinductiveEtaRecord_                        -> 119
+    RewriteLHSNotDefOrConstr_                         -> 120
+    RewriteVariablesNotBoundByLHS_                    -> 121
+    RewriteVariablesBoundMoreThanOnce_                -> 122
+    RewriteLHSReduces_                                -> 123
+    RewriteHeadSymbolIsProjection_                    -> 124
+    RewriteHeadSymbolIsProjectionLikeFunction_        -> 125
+    RewriteHeadSymbolNotPostulateFunctionConstructor_ -> 126
+    RewriteHeadSymbolDefContainsMetas_                -> 127
+    RewriteConstructorParamsNotGeneral_               -> 128
+    RewriteContainsUnsolvedMetaVariables_             -> 129
+    RewriteBlockedOnProblems_                         -> 130
+    RewriteRequiresDefinitions_                       -> 131
+    RewriteDoesNotTargetRewriteRelation_              -> 132
+    RewriteBeforeFunctionDefinition_                  -> 133
+    RewriteBeforeMutualFunctionDefinition_            -> 134
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -616,6 +669,21 @@ instance EmbPrj WarningName where
     117 -> return ConstructorDoesNotFitInData_
     118 -> return CustomBackendWarning_
     119 -> return CoinductiveEtaRecord_
+    120 -> return RewriteLHSNotDefOrConstr_
+    121 -> return RewriteVariablesNotBoundByLHS_
+    122 -> return RewriteVariablesBoundMoreThanOnce_
+    123 -> return RewriteLHSReduces_
+    124 -> return RewriteHeadSymbolIsProjection_
+    125 -> return RewriteHeadSymbolIsProjectionLikeFunction_
+    126 -> return RewriteHeadSymbolNotPostulateFunctionConstructor_
+    127 -> return RewriteHeadSymbolDefContainsMetas_
+    128 -> return RewriteConstructorParamsNotGeneral_
+    129 -> return RewriteContainsUnsolvedMetaVariables_
+    130 -> return RewriteBlockedOnProblems_
+    131 -> return RewriteRequiresDefinitions_
+    132 -> return RewriteDoesNotTargetRewriteRelation_
+    133 -> return RewriteBeforeFunctionDefinition_
+    134 -> return RewriteBeforeMutualFunctionDefinition_
     _   -> malformed
 
 

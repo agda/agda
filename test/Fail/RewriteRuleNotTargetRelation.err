@@ -1,3 +1,0 @@
-RewriteRuleNotTargetRelation.agda:10,1-18
-R  does not target rewrite relation
-when checking the pragma REWRITE R

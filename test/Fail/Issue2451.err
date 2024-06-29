@@ -1,3 +1,0 @@
-Issue2451.agda:23,1-23
-plus0p  does not target rewrite relation
-when checking the pragma REWRITE plus0p

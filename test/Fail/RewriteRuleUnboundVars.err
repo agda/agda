@@ -1,3 +1,0 @@
-RewriteRuleUnboundVars.agda:12,1-28
-boolTrivial  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  c
-when checking the pragma REWRITE boolTrivial

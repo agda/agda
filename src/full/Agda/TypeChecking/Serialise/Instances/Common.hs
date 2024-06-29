@@ -422,6 +422,11 @@ instance EmbPrj MetaId where
 
   value m = uncurry MetaId <$!> value m
 
+instance EmbPrj ProblemId where
+  icod_ (ProblemId a) = icode a
+
+  value m = ProblemId <$!> value m
+
 instance EmbPrj A.QName where
   icod_ n@(A.QName a b) = icodeMemo qnameD qnameC (qnameId n) $ icodeN' A.QName a b
 

@@ -1,0 +1,11 @@
+Issue2451.agda:23,1-23
+warning: -W[no]RewriteDoesNotTargetRewriteRelation
+plus0p  does not target rewrite relation
+when checking the pragma REWRITE plus0p
+
+———— All done; warnings encountered ————————————————————————
+
+Issue2451.agda:23,1-23
+warning: -W[no]RewriteDoesNotTargetRewriteRelation
+plus0p  does not target rewrite relation
+when checking the pragma REWRITE plus0p

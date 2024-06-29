@@ -1,3 +1,7 @@
 RewriteRuleOpenMeta.agda:13,1-18
+warning: -W[no]RewriteContainsUnsolvedMetaVariables
 r  is not a legal rewrite rule, since it contains the unsolved meta variable(s) _7
 when checking the pragma REWRITE r
+Unsolved metas at the following locations:
+  RewriteRuleOpenMeta.agda:10,12-13
+  RewriteRuleOpenMeta.agda:10,18-19
