@@ -343,8 +343,9 @@ quotingKit = do
             agdaDefinitionFunDef !@ quoteList (quoteClause (Left ())) cs
           Primitive{}   -> pure agdaDefinitionPrimitive
           PrimitiveSort{} -> pure agdaDefinitionPrimitive
-          Constructor{conData = d} ->
-            agdaDefinitionDataConstructor !@! quoteName d
+          Constructor{conData = d, conSrcCon = c} -> do
+            q <- getQuantity <$> getConstInfo (conName c)
+            agdaDefinitionDataConstructor !@! quoteName d @@ quoteQuantity q
 
   return $ QuotingKit quoteTerm quoteType (quoteDom quoteType) quoteDefn quoteList
 

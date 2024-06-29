@@ -247,7 +247,7 @@ data Definition : Set where
   function    : (cs : List Clause) → Definition
   data-type   : (pars : Nat) (cs : List Name) → Definition
   record-type : (c : Name) (fs : List (Arg Name)) → Definition
-  data-cons   : (d : Name) → Definition
+  data-cons   : (d : Name) (q : Quantity) → Definition
   axiom       : Definition
   prim-fun    : Definition
 
@@ -296,7 +296,7 @@ postulate
   declareDef       : Arg Name → Type → TC ⊤
   declarePostulate : Arg Name → Type → TC ⊤
   declareData      : Name → Nat → Type → TC ⊤
-  defineData       : Name → List (Σ Name (λ _ → Type)) → TC ⊤
+  defineData       : Name → List (Σ Name (λ _ → Σ Quantity (λ _ → Type))) → TC ⊤
   defineFun        : Name → List Clause → TC ⊤
   getType          : Name → TC Type
   getDefinition    : Name → TC Definition

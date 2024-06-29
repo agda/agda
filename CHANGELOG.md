@@ -172,6 +172,11 @@ Changes to the meta-programming facilities.
   typeOfComma = testM
   ```
 
+* Erased constructors are now supported in reflection machinery.
+  Quantity argument was added to `data-cons`. For erased constructors this
+  argument has a value of `quantity-0`, otherwise it's `quantity-ω`.
+  `defineData` now requires setting quantity for each constructor.
+
 Library management
 ------------------
 

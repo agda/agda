@@ -24,7 +24,7 @@ defineD D c =
         (quoteTerm Set))))) >>= λ _ →
   defineData D
     -- c : (xs : List A) → D A (length xs)
-    [(c , pi (vArg (def (quote List) [ vArg (var 0 []) ])) (abs ""
+    [(c , quantity-ω , pi (vArg (def (quote List) [ vArg (var 0 []) ])) (abs ""
             (def D (  vArg (var 1 [])
                     ∷ vArg (def (quote length) [ vArg (var 0 []) ])
                     ∷ [])))
