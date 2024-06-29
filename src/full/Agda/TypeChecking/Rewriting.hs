@@ -196,7 +196,7 @@ checkRewriteRule q = do
     typeError $ IllegalRewriteRule q BeforeFunctionDefinition
   -- Issue 6643: Also check that there are no mututal definitions
   -- that are not yet defined.
-  whenJustM (asksTC envMutualBlock) $ \ mb -> do
+  whenJustM (asksTC envMutualBlock) \ mb -> do
     qs <- mutualNames <$> lookupMutualBlock mb
     when (Set.member q qs) $ forM_ qs $ \r -> do
       whenM (isEmptyFunction . theDef <$> getConstInfo r) $
