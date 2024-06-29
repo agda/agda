@@ -316,21 +316,21 @@ checkRewriteRule q = do
       unlessM ((== Just GlobalConfluenceCheck) . optConfluenceCheck <$> pragmaOptions) $ do
       let v = hd es
       v' <- reduce v
-      let fail :: TCM ()
-          fail = do
+      let warn :: TCM ()
+          warn = do
             reportSDoc "rewriting" 20 $ "v  = " <+> text (show v)
             reportSDoc "rewriting" 20 $ "v' = " <+> text (show v')
-            warning $ RewriteLHSReducesTo q v v'
+            warning $ RewriteLHSReduces q v v'
       let checkNoRed es' = unless (null es && null es') $ do
             a   <- computeElimHeadType f es es'
             pol <- getPolarity' CmpEq f
             ok  <- dontAssignMetas $ tryConversion $
                      compareElims pol [] a (Def f []) es es'
-            unless ok fail
+            unless ok warn
       case v' of
         Def f' es'   | f == f'         -> checkNoRed es'
         Con c' _ es' | f == conName c' -> checkNoRed es'
-        _                              -> fail
+        _                              -> warn
 
     checkAxFunOrCon :: QName -> Definition -> TCM ()
     checkAxFunOrCon f def = case theDef def of
