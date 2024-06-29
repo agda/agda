@@ -4344,7 +4344,7 @@ data Warning
   | RewriteMissingRule Term Term Term
     -- ^ The global confluence checker found a term @u@ that reduces
     --   to @v@, but @v@ does not reduce to @rho(u)@.
-  | RewriteLHSReducesTo QName Term Term
+  | RewriteLHSReduces QName Term Term
   | DuplicateRewriteRule QName
     -- ^ This rewrite rule has already been added.
   | PragmaCompileErased BackendName QName
@@ -4457,7 +4457,7 @@ warningName = \case
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
   RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_
   RewriteMissingRule{}         -> RewriteMissingRule_
-  RewriteLHSReducesTo{}        -> RewriteLHSReducesTo_
+  RewriteLHSReduces{}          -> RewriteLHSReduces_
   DuplicateRewriteRule{}       -> DuplicateRewriteRule_
   PragmaCompileErased{}        -> PragmaCompileErased_
   PragmaCompileList{}          -> PragmaCompileList_

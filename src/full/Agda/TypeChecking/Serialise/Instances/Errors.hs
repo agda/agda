@@ -105,7 +105,7 @@ instance EmbPrj Warning where
     ConflictingPragmaOptions a b                -> icodeN 55 ConflictingPragmaOptions a b
     CustomBackendWarning a b                    -> icodeN 56 CustomBackendWarning a b
     CoinductiveEtaRecord a                      -> icodeN 57 CoinductiveEtaRecord a
-    RewriteLHSReducesTo a b c                   -> icodeN 58 RewriteLHSReducesTo a b c
+    RewriteLHSReduces a b c                     -> icodeN 58 RewriteLHSReduces a b c
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -166,7 +166,7 @@ instance EmbPrj Warning where
     [55, a, b]           -> valuN ConflictingPragmaOptions a b
     [56, a, b]           -> valuN CustomBackendWarning a b
     [57, a]              -> valuN CoinductiveEtaRecord a
-    [58, a, b, c]        -> valuN RewriteLHSReducesTo a b c
+    [58, a, b, c]        -> valuN RewriteLHSReduces a b c
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -498,7 +498,7 @@ instance EmbPrj WarningName where
     ConstructorDoesNotFitInData_                 -> 117
     CustomBackendWarning_                        -> 118
     CoinductiveEtaRecord_                        -> 119
-    RewriteLHSReducesTo_                         -> 120
+    RewriteLHSReduces_                           -> 120
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -620,7 +620,7 @@ instance EmbPrj WarningName where
     117 -> return ConstructorDoesNotFitInData_
     118 -> return CustomBackendWarning_
     119 -> return CoinductiveEtaRecord_
-    120 -> return RewriteLHSReducesTo_
+    120 -> return RewriteLHSReduces_
     _   -> malformed
 
 
