@@ -22,7 +22,7 @@ postulate
 
 {-# REWRITE plus0p #-}
 
--- Error:
+-- Warning:
 -- plus0p  does not target rewrite relation
 -- when checking the pragma REWRITE plus0p
 

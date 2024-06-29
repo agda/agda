@@ -1,3 +1,7 @@
 Issue3846.agda:14,1-20
+warning: -W[no]RewriteHeadSymbolNotPostulateFunctionConstructor
 rew  is not a legal rewrite rule, since the head symbol Nat is not a postulate, a function, or a constructor
 when checking the pragma REWRITE rew
+Issue3846.agda:17,6-7
+Nat != Bool
+when checking that the expression 0 has type Bool

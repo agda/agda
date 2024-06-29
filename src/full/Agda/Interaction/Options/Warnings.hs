@@ -287,6 +287,21 @@ data WarningName
   | PragmaCompileList_
   | PragmaCompileMaybe_
   | NoMain_
+  | RewriteLHSNotDefOrConstr_
+  | RewriteVariablesNotBoundByLHS_
+  | RewriteVariablesBoundMoreThanOnce_
+  | RewriteLHSReduces_
+  | RewriteHeadSymbolIsProjection_
+  | RewriteHeadSymbolIsProjectionLikeFunction_
+  | RewriteHeadSymbolNotPostulateFunctionConstructor_
+  | RewriteHeadSymbolDefContainsMetas_
+  | RewriteConstructorParamsNotGeneral_
+  | RewriteContainsUnsolvedMetaVariables_
+  | RewriteBlockedOnProblems_
+  | RewriteRequiresDefinitions_
+  | RewriteDoesNotTargetRewriteRelation_
+  | RewriteBeforeFunctionDefinition_
+  | RewriteBeforeMutualFunctionDefinition_
   | ConfluenceCheckingIncompleteBecauseOfMeta_
   | ConfluenceForCubicalNotSupported_
   | RewriteMaybeNonConfluent_
@@ -487,6 +502,21 @@ warningNameDescription = \case
   PragmaCompileList_               -> "`COMPILE GHC' pragmas for lists."
   PragmaCompileMaybe_              -> "`COMPILE GHC' pragmas for `MAYBE'."
   NoMain_                          -> "Compilation of modules that do not define `main'."
+  RewriteLHSNotDefOrConstr_                         -> "Rewrite rule head symbol is not a defined symbol or constructor."
+  RewriteVariablesNotBoundByLHS_                    -> "Rewrite rule does not bind all of its variables."
+  RewriteVariablesBoundMoreThanOnce_                -> "Constructor-headed rewrite rule has non-linear parameters."
+  RewriteLHSReduces_                                -> "Rewrite rule LHS is not in weak-head normal form."
+  RewriteHeadSymbolIsProjection_                    -> "Rewrite rule head symbol is a record projection."
+  RewriteHeadSymbolIsProjectionLikeFunction_        -> "Rewrite rule head symbol is a projection-like function."
+  RewriteHeadSymbolNotPostulateFunctionConstructor_ -> "Rewrite rule head symbol is not a postulate, function, or constructor."
+  RewriteHeadSymbolDefContainsMetas_                -> "Definition of rewrite rule head symbol contains unsolved metas."
+  RewriteConstructorParamsNotGeneral_               -> "Constructor-headed rewrite rule parameters are not fully general."
+  RewriteContainsUnsolvedMetaVariables_             -> "Rewrite rule contains unsolved metas."
+  RewriteBlockedOnProblems_                         -> "Checking rewrite rule blocked by unsolved constraint."
+  RewriteRequiresDefinitions_                       -> "Checking rewrite rule blocked by missing definition."
+  RewriteDoesNotTargetRewriteRelation_              -> "Rewrite rule does not target the rewrite relation."
+  RewriteBeforeFunctionDefinition_                  -> "Rewrite rule is not yet defined."
+  RewriteBeforeMutualFunctionDefinition_            -> "Mutually declaration with the rewrite rule is not yet defined."
   ConfluenceCheckingIncompleteBecauseOfMeta_ -> "Incomplete confluence checks because of unsolved metas."
   ConfluenceForCubicalNotSupported_ -> "Incomplete confluence checks because of `--cubical'."
   RewriteMaybeNonConfluent_        -> "Failed local confluence checks while computing overlap."

@@ -4331,6 +4331,7 @@ data Warning
     --   contains unsolved metavariables.
   | ConfluenceForCubicalNotSupported
     -- ^ Confluence checking with @--cubical@ might be incomplete.
+  | IllegalRewriteRule QName IllegalRewriteRuleReason
   | RewriteNonConfluent Term Term Term Doc
     -- ^ Confluence checker found critical pair and equality checking
     --   resulted in a type error
@@ -4344,8 +4345,6 @@ data Warning
   | RewriteMissingRule Term Term Term
     -- ^ The global confluence checker found a term @u@ that reduces
     --   to @v@, but @v@ does not reduce to @rho(u)@.
-  | DuplicateRewriteRule QName
-    -- ^ This rewrite rule has already been added.
   | PragmaCompileErased BackendName QName
     -- ^ COMPILE directive for an erased symbol.
   | PragmaCompileList
@@ -4452,11 +4451,11 @@ warningName = \case
   CoInfectiveImport{}          -> CoInfectiveImport_
   ConfluenceCheckingIncompleteBecauseOfMeta{} -> ConfluenceCheckingIncompleteBecauseOfMeta_
   ConfluenceForCubicalNotSupported{}          -> ConfluenceForCubicalNotSupported_
+  IllegalRewriteRule _ reason  -> illegalRewriteWarningName reason
   RewriteNonConfluent{}        -> RewriteNonConfluent_
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
   RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_
   RewriteMissingRule{}         -> RewriteMissingRule_
-  DuplicateRewriteRule{}       -> DuplicateRewriteRule_
   PragmaCompileErased{}        -> PragmaCompileErased_
   PragmaCompileList{}          -> PragmaCompileList_
   PragmaCompileMaybe{}         -> PragmaCompileMaybe_
@@ -4482,6 +4481,25 @@ warningName = \case
 
   -- Backend warnings
   CustomBackendWarning{} -> CustomBackendWarning_
+
+illegalRewriteWarningName :: IllegalRewriteRuleReason -> WarningName
+illegalRewriteWarningName = \case
+  LHSNotDefOrConstr{} -> RewriteLHSNotDefOrConstr_
+  VariablesNotBoundByLHS{} -> RewriteVariablesNotBoundByLHS_
+  VariablesBoundMoreThanOnce{} -> RewriteVariablesBoundMoreThanOnce_
+  LHSReduces{} -> RewriteLHSReduces_
+  HeadSymbolIsProjection{} -> RewriteHeadSymbolIsProjection_
+  HeadSymbolIsProjectionLikeFunction{} -> RewriteHeadSymbolIsProjectionLikeFunction_
+  HeadSymbolNotPostulateFunctionConstructor{} -> RewriteHeadSymbolNotPostulateFunctionConstructor_
+  HeadSymbolDefContainsMetas{} -> RewriteHeadSymbolDefContainsMetas_
+  ConstructorParamsNotGeneral{} -> RewriteConstructorParamsNotGeneral_
+  ContainsUnsolvedMetaVariables{} -> RewriteContainsUnsolvedMetaVariables_
+  BlockedOnProblems{} -> RewriteBlockedOnProblems_
+  RequiresDefinitions{} -> RewriteRequiresDefinitions_
+  DoesNotTargetRewriteRelation -> RewriteDoesNotTargetRewriteRelation_
+  BeforeFunctionDefinition -> RewriteBeforeFunctionDefinition_
+  BeforeMutualFunctionDefinition{} -> RewriteBeforeMutualFunctionDefinition_
+  DuplicateRewriteRule -> DuplicateRewriteRule_
 
 -- | Should warnings of that type be serialized?
 --
@@ -4769,7 +4787,6 @@ data TypeError
         | TooManyArgumentsToUnivOmega QName
         | ComatchingDisabledForRecord QName
         | BuiltinMustBeIsOne Term
-        | IllegalRewriteRule QName IllegalRewriteRuleReason
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
     -- Data errors
         | UnexpectedParameter A.LamBinding
@@ -4928,7 +4945,7 @@ data IllegalRewriteRuleReason
   = LHSNotDefOrConstr
   | VariablesNotBoundByLHS IntSet
   | VariablesBoundMoreThanOnce IntSet
-  | LHSReducesTo Term Term
+  | LHSReduces Term Term
   | HeadSymbolIsProjection QName
   | HeadSymbolIsProjectionLikeFunction QName
   | HeadSymbolNotPostulateFunctionConstructor QName
@@ -4940,7 +4957,7 @@ data IllegalRewriteRuleReason
   | DoesNotTargetRewriteRelation
   | BeforeFunctionDefinition
   | BeforeMutualFunctionDefinition QName
-  | EmptyReason
+  | DuplicateRewriteRule
     deriving (Show, Generic)
 
 -- Reason, why type for rewrite rule is incorrect
