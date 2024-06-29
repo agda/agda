@@ -2,7 +2,7 @@ AGDA_FAILURE
 
 ret > ExitFailure 42
 out > Forcing analysis for Issue3898.FSet.sg
-out >   xs          = [2,1]
+out >   forcedVars  = []
 out >   forcedArgs  = [NotForced]
 out >
 out > Unsolved interaction metas at the following locations:
