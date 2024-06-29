@@ -1655,6 +1655,10 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      Failed confluence checks while joining critical pairs.
 
+.. option:: RewriteLHSReduces
+
+     Left-hand side of rewrite rule is not in weak-head normal form.
+
 .. option:: SafeFlagEta
 
      :ref:`ETA <eta-pragma>` pragmas with the :option:`--safe` flag.

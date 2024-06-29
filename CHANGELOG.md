@@ -44,6 +44,9 @@ Pragmas and options
   when `--this` implies `--no-that` (and analogous for `--no-this` implies
   `--that`, etc).
 
+* New warning `RewriteLHSReduces` for when a rewrite rule has a left-hand
+  side that is not in weak-head normal form. Before, this was a hard error.
+
 * New error warning `ConstructorDoesNotFitInData` when a constructor parameter
   is too big (in the sense of universe level) for the target data type of the constructor.
   Used to be a hard error.
