@@ -425,7 +425,7 @@ data PragmaOptions = PragmaOptions
       --   This is a stronger form of 'optImportSorts'.
   , _optAllowExec                 :: WithDefault 'False
       -- ^ Allow running external @executables@ from meta programs.
-  , _optSaveMetas                 :: WithDefault 'False
+  , _optSaveMetas                 :: WithDefault 'True
       -- ^ Save meta-variables to interface files.
   , _optShowIdentitySubstitutions :: WithDefault 'False
       -- ^ Show identity substitutions when pretty-printing terms

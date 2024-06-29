@@ -1079,6 +1079,9 @@ publicNames scope =
   Set.fromList $ List1.concat $ Map.elems $
   exportedNamesInScope $ mergeScopes $ Map.elems $ publicModules scope
 
+publicNamesOfModules :: Map A.ModuleName Scope -> [AbstractName]
+publicNamesOfModules = List1.concat . Map.elems . exportedNamesInScope . mergeScopes . Map.elems
+
 everythingInScope :: ScopeInfo -> NameSpace
 everythingInScope scope = allThingsInScope $ mergeScopes $
     (s0 :) $ map look $ scopeParents s0

@@ -192,7 +192,7 @@ instance NamesIn (Pattern' a) where
     VarP _ _        -> mempty
     LitP _ l        -> namesAndMetasIn' sg l
     DotP _ v        -> namesAndMetasIn' sg v
-    ConP c _ args   -> namesAndMetasIn' sg (c, args)
+    ConP c cpi args -> namesAndMetasIn' sg (c, cpi, args)
     DefP o q args   -> namesAndMetasIn' sg (q, args)
     ProjP _ f       -> namesAndMetasIn' sg f
     IApplyP _ t u _ -> namesAndMetasIn' sg (t, u)
@@ -372,6 +372,9 @@ instance NamesIn Compiled where
 newtype PSyn = PSyn A.PatternSynDefn
 instance NamesIn PSyn where
   namesAndMetasIn' sg (PSyn (_args, p)) = namesAndMetasIn' sg p
+
+instance NamesIn ConPatternInfo where
+  namesAndMetasIn' sg (ConPatternInfo _ _ _ ty _) = namesAndMetasIn' sg ty
 
 instance NamesIn (A.Pattern' a) where
   namesAndMetasIn' sg = \case

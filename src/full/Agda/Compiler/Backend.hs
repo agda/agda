@@ -23,7 +23,6 @@ module Agda.Compiler.Backend
 import Agda.Compiler.Backend.Base
 
 import Control.DeepSeq
-import Control.Monad              ( (<=<) )
 import Control.Monad.Trans        ( lift )
 import Control.Monad.Trans.Maybe
 
@@ -186,11 +185,11 @@ compilerMain backend isMain0 checkResult = inCompilerEnv checkResult $ do
         "The --only-scope-checking flag cannot be combined with " ++
         backendName backend ++ "."
 
-    let i = crInterface checkResult
+    !i <- instantiateFull $ crInterface checkResult
     -- Andreas, 2017-08-23, issue #2714
     -- If the backend is invoked from Emacs, we can only get the --no-main
     -- pragma option now, coming from the interface file.
-    isMain <- ifM (optCompileNoMain <$> pragmaOptions)
+    !isMain <- ifM (optCompileNoMain <$> pragmaOptions)
       {-then-} (return NotMain)
       {-else-} (return isMain0)
 
@@ -220,7 +219,7 @@ compileModule backend env isMain i = do
     Skip m         -> return m
     Recompile menv -> do
       defs <- map snd . sortDefs <$> curDefs
-      res  <- mapM (compileDef' backend env menv isMain <=< instantiateFull) defs
+      res  <- mapM (compileDef' backend env menv isMain) defs
       postModule backend env menv isMain (iTopLevelModuleName i) res
 
 compileDef' :: Backend' opts env menv mod def -> env -> menv -> IsMain -> Definition -> TCM def
