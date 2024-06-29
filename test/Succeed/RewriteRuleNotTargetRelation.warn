@@ -1,0 +1,11 @@
+RewriteRuleNotTargetRelation.agda:10,1-18
+warning: -W[no]RewriteDoesNotTargetRewriteRelation
+R  does not target rewrite relation
+when checking the pragma REWRITE R
+
+———— All done; warnings encountered ————————————————————————
+
+RewriteRuleNotTargetRelation.agda:10,1-18
+warning: -W[no]RewriteDoesNotTargetRewriteRelation
+R  does not target rewrite relation
+when checking the pragma REWRITE R

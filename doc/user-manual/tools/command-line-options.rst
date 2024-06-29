@@ -1491,6 +1491,66 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      :ref:`NO_TERMINATION_CHECK<terminating-pragma>` pragmas; such are deprecated.
 
+.. option:: RewriteLHSNotDefOrConstr
+
+     Rewrite rule head symbol is not a defined symbol or constructor.
+
+.. option:: RewriteVariablesNotBoundByLHS
+
+     Rewrite rule does not bind all of its variables.
+
+.. option:: RewriteVariablesBoundMoreThanOnce
+
+     Constructor-headed rewrite rule has non-linear parameters.
+
+.. option:: RewriteLHSReduces
+
+     Rewrite rule LHS is not in weak-head normal form.
+
+.. option:: RewriteHeadSymbolIsProjection
+
+     Rewrite rule head symbol is a record projection.
+
+.. option:: RewriteHeadSymbolIsProjectionLikeFunction
+
+     Rewrite rule head symbol is a projection-like function.
+
+.. option:: RewriteHeadSymbolNotPostulateFunctionConstructor
+
+     Rewrite rule head symbol is not a postulate, function, or constructor.
+
+.. option:: RewriteHeadSymbolDefContainsMetas
+
+     Definition of rewrite rule head symbol contains unsolved metas.
+
+.. option:: RewriteConstructorParamsNotGeneral
+
+     Constructor-headed rewrite rule parameters are not fully general.
+
+.. option:: RewriteContainsUnsolvedMetaVariables
+
+     Rewrite rule contains unsolved metas.
+
+.. option:: RewriteBlockedOnProblems
+
+     Checking rewrite rule blocked by unsolved constraint.
+
+.. option:: RewriteRequiresDefinitions
+
+     Checking rewrite rule blocked by missing definition.
+
+.. option:: RewriteDoesNotTargetRewriteRelation
+
+     Rewrite rule does not target the rewrite relation.
+
+.. option:: RewriteBeforeFunctionDefinition
+
+     Rewrite rule is not yet defined.
+
+.. option:: RewriteBeforeMutualFunctionDefinition
+
+     Mutually declaration with the rewrite rule is not yet defined.
+
 .. option:: ShadowingInTelescope
 
      Repeated variable name in telescope.

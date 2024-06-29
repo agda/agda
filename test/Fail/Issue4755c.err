@@ -1,3 +1,6 @@
 Issue4755c.agda:19,1-19
+warning: -W[no]RewriteVariablesBoundMoreThanOnce
 Λη  is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side:  B , A. Perhaps you can use a postulate instead of a constructor as the head symbol?
 when checking the pragma REWRITE Λη
+Unsolved interaction metas at the following locations:
+  Issue4755c.agda:22,18-56

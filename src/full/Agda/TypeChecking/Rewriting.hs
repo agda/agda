@@ -46,7 +46,10 @@ module Agda.TypeChecking.Rewriting where
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Trans.Maybe ( MaybeT(..), runMaybeT )
+import Control.Monad.Trans ( lift )
 
+import Data.Either (partitionEithers)
 import Data.Foldable (toList)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -135,7 +138,7 @@ addRewriteRules :: [QName] -> TCM ()
 addRewriteRules qs = do
 
   -- Check the rewrite rules
-  rews <- mapM checkRewriteRule qs
+  rews <- mapMaybeM checkRewriteRule qs
 
   -- Add rewrite rules to the signature
   forM_ rews $ \rew -> do
@@ -181,10 +184,10 @@ rewriteRelationDom rel = do
 --   Remember that @rel : Δ → A → A → Set i@, so
 --   @rel us : (lhs rhs : A[us/Δ]) → Set i@.
 --   Returns the checked rewrite rule to be added to the signature.
-checkRewriteRule :: QName -> TCM RewriteRule
-checkRewriteRule q = do
-  requireOptionRewriting
-  rels <- getBuiltinRewriteRelations
+checkRewriteRule :: QName -> TCM (Maybe RewriteRule)
+checkRewriteRule q = runMaybeT $ do
+  lift requireOptionRewriting
+  rels <- lift getBuiltinRewriteRelations
   reportSDoc "rewriting.relations" 40 $ vcat
     [ "Rewrite relations:"
     , prettyList $ map prettyTCM $ toList rels
@@ -193,14 +196,14 @@ checkRewriteRule q = do
   -- Issue 1651: Check that we are not adding a rewrite rule
   -- for a type signature whose body has not been type-checked yet.
   when (isEmptyFunction $ theDef def) $
-    typeError $ IllegalRewriteRule q BeforeFunctionDefinition
+    illegalRule BeforeFunctionDefinition
   -- Issue 6643: Also check that there are no mututal definitions
   -- that are not yet defined.
   whenJustM (asksTC envMutualBlock) \ mb -> do
     qs <- mutualNames <$> lookupMutualBlock mb
     when (Set.member q qs) $ forM_ qs $ \r -> do
       whenM (isEmptyFunction . theDef <$> getConstInfo r) $
-        typeError $ IllegalRewriteRule q $ BeforeMutualFunctionDefinition r
+        illegalRule $ BeforeMutualFunctionDefinition r
 
 
   -- Get rewrite rule (type of q).
@@ -210,27 +213,25 @@ checkRewriteRule q = do
     , prettyTCM gamma1
     , " |- " <+> do addContext gamma1 $ prettyTCM core
     ]
-  let failureBlocked :: Blocker -> TCM a
+  let failureBlocked :: Blocker -> MaybeT TCM a
       failureBlocked b
-        | not (null ms) = typeError $ IllegalRewriteRule q (ContainsUnsolvedMetaVariables ms)
-        | not (null ps) = typeError $ IllegalRewriteRule q (BlockedOnProblems ps)
-        | not (null qs) = typeError $ IllegalRewriteRule q (RequiresDefinitions qs)
+        | not (null ms) = illegalRule $ ContainsUnsolvedMetaVariables ms
+        | not (null ps) = illegalRule $ BlockedOnProblems ps
+        | not (null qs) = illegalRule $ RequiresDefinitions qs
         | otherwise = __IMPOSSIBLE__
         where
           ms = allBlockingMetas b
           ps = allBlockingProblems b
           qs = allBlockingDefs b
-  let failureFreeVars :: IntSet -> TCM a
-      failureFreeVars xs = typeError $ IllegalRewriteRule q (VariablesNotBoundByLHS xs)
-  let failureNonLinearPars :: IntSet -> TCM a
-      failureNonLinearPars xs = typeError $ IllegalRewriteRule q (VariablesBoundMoreThanOnce xs)
-  let failureIllegalRule :: TCM a -- TODO:: Defined but not used
-      failureIllegalRule = typeError $ IllegalRewriteRule q EmptyReason
+  let failureFreeVars :: IntSet -> MaybeT TCM a
+      failureFreeVars xs = illegalRule $ VariablesNotBoundByLHS xs
+  let failureNonLinearPars :: IntSet -> MaybeT TCM a
+      failureNonLinearPars xs = illegalRule $ VariablesBoundMoreThanOnce xs
 
   -- Check that type of q targets rel.
   case unEl core of
     Def rel es@(_:_:_) | rel `elem` rels -> do
-      (delta, a) <- rewriteRelationDom rel
+      (delta, a) <- lift $ rewriteRelationDom rel
       -- Because of the type of rel (Γ → sort), all es are applications.
       let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       -- The last two arguments are lhs and rhs.
@@ -261,7 +262,7 @@ checkRewriteRule q = do
           ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c $ unDom b
           pars <- addContext gamma1 $ checkParametersAreGeneral c pars
           return (conName c , hd , t , pars , vs)
-        _        -> typeError $ IllegalRewriteRule q LHSNotDefOrConstr
+        _        -> illegalRule LHSNotDefOrConstr
 
       ifNotAlreadyAdded f $ do
 
@@ -269,8 +270,9 @@ checkRewriteRule q = do
 
         checkNoLhsReduction f hd es
 
-        ps <- catchPatternErr failureBlocked $
-          patternFrom Relevant 0 (t , Def f) es
+        ps <- fromRightM failureBlocked $ lift $
+          catchPatternErr (pure . Left) $
+            Right <$> patternFrom Relevant 0 (t , Def f) es
 
         reportSDoc "rewriting" 30 $
           "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
@@ -315,55 +317,60 @@ checkRewriteRule q = do
 
         return rew
 
-    _ -> typeError $ IllegalRewriteRule q DoesNotTargetRewriteRelation
+    _ -> illegalRule DoesNotTargetRewriteRelation
 
   where
-    checkNoLhsReduction :: QName -> (Elims -> Term)  -> Elims -> TCM ()
+    illegalRule :: IllegalRewriteRuleReason -> MaybeT TCM a
+    illegalRule reason = do
+      lift $ warning $ IllegalRewriteRule q reason
+      mzero
+
+    checkNoLhsReduction :: QName -> (Elims -> Term) -> Elims -> MaybeT TCM ()
     checkNoLhsReduction f hd es = do
       -- Skip this check when global confluence check is enabled, as
       -- redundant rewrite rules may be required to prove confluence.
       unlessM ((== Just GlobalConfluenceCheck) . optConfluenceCheck <$> pragmaOptions) $ do
       let v = hd es
       v' <- reduce v
-      let fail :: TCM a
+      let fail :: MaybeT TCM a
           fail = do
             reportSDoc "rewriting" 20 $ "v  = " <+> text (show v)
             reportSDoc "rewriting" 20 $ "v' = " <+> text (show v')
-            typeError $ IllegalRewriteRule q (LHSReducesTo v v')
+            illegalRule $ LHSReduces v v'
       es' <- case v' of
         Def f' es'   | f == f'         -> return es'
         Con c' _ es' | f == conName c' -> return es'
         _                              -> fail
       unless (null es && null es') $ do
-        a   <- computeElimHeadType f es es'
+        a   <- lift $ computeElimHeadType f es es'
         pol <- getPolarity' CmpEq f
-        ok  <- dontAssignMetas $ tryConversion $
+        ok  <- lift $ dontAssignMetas $ tryConversion $
                  compareElims pol [] a (Def f []) es es'
         unless ok fail
 
-    checkAxFunOrCon :: QName -> Definition -> TCM ()
+    checkAxFunOrCon :: QName -> Definition -> MaybeT TCM ()
     checkAxFunOrCon f def = case theDef def of
       Axiom{}        -> return ()
       def@Function{} -> do
         whenJust (maybeRight (funProjection def)) $ \proj -> case projProper proj of
-          Just{} -> typeError $ IllegalRewriteRule q (HeadSymbolIsProjection f)
-          Nothing -> typeError $ IllegalRewriteRule q (HeadSymbolIsProjectionLikeFunction f)
+          Just{} -> illegalRule $ HeadSymbolIsProjection f
+          Nothing -> illegalRule $ HeadSymbolIsProjectionLikeFunction f
         whenM (isJust . optConfluenceCheck <$> pragmaOptions) $ do
           let simpleClause cl = (patternsToElims (namedClausePats cl) , clauseBody cl)
           cls <- instantiateFull $ map simpleClause $ funClauses def
-          unless (noMetas cls) $ typeError $ IllegalRewriteRule q (HeadSymbolDefContainsMetas f)
+          unless (noMetas cls) $ illegalRule $ HeadSymbolDefContainsMetas f
 
       Constructor{}  -> return ()
       AbstractDefn{} -> return ()
       Primitive{}    -> return () -- TODO: is this fine?
-      _              -> typeError $ IllegalRewriteRule q (HeadSymbolNotPostulateFunctionConstructor f)
+      _              -> illegalRule $ HeadSymbolNotPostulateFunctionConstructor f
 
-    ifNotAlreadyAdded :: QName -> TCM RewriteRule -> TCM RewriteRule
+    ifNotAlreadyAdded :: QName -> MaybeT TCM RewriteRule -> MaybeT TCM RewriteRule
     ifNotAlreadyAdded f cont = do
       rews <- getRewriteRulesFor f
       -- check if q is already an added rewrite rule
       case List.find ((q ==) . rewName) rews of
-        Just rew -> rew <$ do warning $ DuplicateRewriteRule q
+        Just rew -> illegalRule DuplicateRewriteRule
         Nothing -> cont
 
     usedArgs :: Definition -> IntSet
@@ -375,7 +382,7 @@ checkRewriteRule q = do
         used Pos.Unused = False
         used _          = True
 
-    checkParametersAreGeneral :: ConHead -> Args -> TCM [Int]
+    checkParametersAreGeneral :: ConHead -> Args -> MaybeT TCM [Int]
     checkParametersAreGeneral c vs = do
         is <- loop vs
         unless (fastDistinct is) $ errorNotGeneral
@@ -386,8 +393,8 @@ checkRewriteRule q = do
           Var i [] -> (i :) <$> loop vs
           _        -> errorNotGeneral
 
-        errorNotGeneral :: TCM a
-        errorNotGeneral = typeError $ IllegalRewriteRule q (ConstructorParamsNotGeneral c vs)
+        errorNotGeneral :: MaybeT TCM a
+        errorNotGeneral = illegalRule $ ConstructorParamsNotGeneral c vs
 
 -- | @rewriteWith t f es rew@ where @f : t@
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.

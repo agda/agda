@@ -48,6 +48,25 @@ Pragmas and options
   is too big (in the sense of universe level) for the target data type of the constructor.
   Used to be a hard error.
 
+* Rejected rewrite rules no longer cause a hard error but instead cause
+  an error warning. The following warnings were added to document the
+  various reasons for rejection:
+  * `RewriteLHSNotDefOrConstr`
+  * `RewriteVariablesNotBoundByLHS`
+  * `RewriteVariablesBoundMoreThanOnce`
+  * `RewriteLHSReduces`
+  * `RewriteHeadSymbolIsProjection`
+  * `RewriteHeadSymbolIsProjectionLikeFunction`
+  * `RewriteHeadSymbolNotPostulateFunctionConstructor`
+  * `RewriteHeadSymbolDefContainsMetas`
+  * `RewriteConstructorParamsNotGeneral`
+  * `RewriteContainsUnsolvedMetaVariables`
+  * `RewriteBlockedOnProblems`
+  * `RewriteRequiresDefinitions`
+  * `RewriteDoesNotTargetRewriteRelation`
+  * `RewriteBeforeFunctionDefinition`
+  * `RewriteBeforeMutualFunctionDefinition`
+
 * [**Breaking**] The option `--overlapping-instances`, which allows
   backtracking during instance search, has been renamed to
   `--backtracking-instance-search`.
