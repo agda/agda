@@ -24,7 +24,7 @@ jobs:
     env:
       FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
         }}
-      GHC_VER: ${{ matrix.ghc-ver || '9.8.2' }}
+      GHC_VER: ${{ matrix.ghc-ver || '9.10.1' }}
     name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
@@ -119,22 +119,22 @@ jobs:
         - cabal-flags: --disable-tests
           description: Linux doctest
           doctest: true
-          ghc-ver: 9.8.2
+          ghc-ver: 9.10.1
           os: ubuntu-24.04
         - cabal-flags: --enable-tests -f debug
           description: Linux debug
-          ghc-ver: 9.8.2
+          ghc-ver: 9.10.1
           os: ubuntu-24.04
         - cabal-flags: --enable-tests -f enable-cluster-counting -f debug -f debug-serialisation
             -f debug-parsing -c containers>=0.7 --allow-newer=containers
           description: Linux containers 0.7
-          ghc-ver: 9.8.2
+          ghc-ver: 9.10.1
           os: ubuntu-24.04
         - description: macOS
-          ghc-ver: 9.8.2
+          ghc-ver: 9.10.1
           os: macos-12
         - description: Windows
-          ghc-ver: 9.8.2
+          ghc-ver: 9.10.1
           os: windows-2022
         os:
         - ubuntu-24.04
