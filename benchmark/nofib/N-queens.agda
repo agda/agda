@@ -19,7 +19,7 @@ open import Data.String as String using (String)
 open import Data.Unit hiding (_≟_)
 open import Function
 open import IO using (IO)
-import IO.Primitive as Primitive
+import IO.Primitive.Core as Primitive
 open import Relation.Nullary.Decidable
 
 ------------------------------------------------------------------------
