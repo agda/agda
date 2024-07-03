@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Text IO using the UTF8 character encoding.
 
 module Agda.Utils.IO.UTF8
@@ -55,6 +57,9 @@ instance Exception ReadException where
   displayException (DecodingError file) =
     "Failed to read " ++ file ++ ".\n" ++
     "Please ensure that this file uses the UTF-8 character encoding."
+#if MIN_VERSION_base(4,20,0)
+  backtraceDesired (DecodingError _) = False
+#endif
 
 -- | Reads a UTF8-encoded text file and converts many character
 -- sequences which may be interpreted as line or paragraph separators

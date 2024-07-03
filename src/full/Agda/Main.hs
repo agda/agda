@@ -335,7 +335,7 @@ runTCMPrettyErrors tcm = do
               helpForLocaleError err
             return (Just TCMError)
       ) `catchImpossible` \e -> do
-          liftIO $ putStr $ E.displayException e
+          printException e
           return (Just ImpossibleError)
     ) `E.catches`
         -- Catch all exceptions except for those of type ExitCode
@@ -345,7 +345,7 @@ runTCMPrettyErrors tcm = do
         [ E.Handler $ \(e :: ExitCode)         -> E.throw e
         , E.Handler $ \(e :: E.AsyncException) -> E.throw e
         , E.Handler $ \(e :: E.SomeException)  -> do
-            liftIO $ putStr $ E.displayException e
+            printException e
             return $ Right (Just UnknownError)
         ]
   case r of
@@ -357,6 +357,15 @@ runTCMPrettyErrors tcm = do
         putStrLn $ tcErrString err
         helpForLocaleError err
       exitAgdaWith UnknownError
+  where
+    printException e = liftIO $ putStr $
+      -- Andreas, 2024-07-03, issue #7299
+      -- Regression in base-4.20: printing of exception produces trailing whitespace.
+      -- https://gitlab.haskell.org/ghc/ghc/-/issues/25052
+#if MIN_VERSION_base(4,20,0)
+      rtrim $
+#endif
+      E.displayException e
 
 -- | If the error is an IO error, and the error message suggests that
 -- the problem is related to locales or code pages, print out some
