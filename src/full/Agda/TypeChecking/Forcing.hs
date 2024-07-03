@@ -131,7 +131,10 @@ computeForcingAnnotations c t =
     let vs = case a of
           Def _ us -> us
           _        -> __IMPOSSIBLE__
-    let forcedVars = execForcedVariableCollection forcedArgCands $ forcedVariables vs
+    let forcedVars
+          -- No candidates, no winners!
+          | all isNothing forcedArgCands = IntSet.empty
+          | otherwise = execForcedVariableCollection forcedArgCands $ forcedVariables vs
     let forcedArgs =
           [ if IntSet.member i forcedVars then Forced else NotForced
           | i <- downFrom n
