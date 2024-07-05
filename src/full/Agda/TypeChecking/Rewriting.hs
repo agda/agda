@@ -262,7 +262,7 @@ checkRewriteRule q = runMaybeT $ do
           ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c $ unDom b
           pars <- addContext gamma1 $ checkParametersAreGeneral c pars
           return (conName c , hd , t , pars , vs)
-        _        -> illegalRule LHSNotDefOrConstr
+        _ -> illegalRule LHSNotDefinitionOrConstructor
 
       ifNotAlreadyAdded f $ do
 
@@ -358,12 +358,21 @@ checkRewriteRule q = runMaybeT $ do
         whenM (isJust . optConfluenceCheck <$> pragmaOptions) $ do
           let simpleClause cl = (patternsToElims (namedClausePats cl) , clauseBody cl)
           cls <- instantiateFull $ map simpleClause $ funClauses def
-          unless (noMetas cls) $ illegalRule $ HeadSymbolDefContainsMetas f
+          unless (noMetas cls) $ illegalRule $ HeadSymbolContainsMetas f
 
       Constructor{}  -> return ()
       AbstractDefn{} -> return ()
       Primitive{}    -> return () -- TODO: is this fine?
-      _              -> illegalRule $ HeadSymbolNotPostulateFunctionConstructor f
+      Datatype{}     -> illegalHead
+      Record{}       -> illegalHead
+      DatatypeDefn{} -> illegalHead
+      RecordDefn{}   -> illegalHead
+      DataOrRecSig{} -> illegalHead
+      PrimitiveSort{}-> illegalHead
+      GeneralizableVar{} -> __IMPOSSIBLE__
+
+      where
+      illegalHead = illegalRule $ HeadSymbolIsTypeConstructor f
 
     ifNotAlreadyAdded :: QName -> MaybeT TCM RewriteRule -> MaybeT TCM RewriteRule
     ifNotAlreadyAdded f cont = do
@@ -394,7 +403,7 @@ checkRewriteRule q = runMaybeT $ do
           _        -> errorNotGeneral
 
         errorNotGeneral :: MaybeT TCM a
-        errorNotGeneral = illegalRule $ ConstructorParamsNotGeneral c vs
+        errorNotGeneral = illegalRule $ ConstructorParametersNotGeneral c vs
 
 -- | @rewriteWith t f es rew@ where @f : t@
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.

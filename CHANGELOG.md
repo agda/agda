@@ -51,15 +51,15 @@ Pragmas and options
 * Rejected rewrite rules no longer cause a hard error but instead cause
   an error warning. The following warnings were added to document the
   various reasons for rejection:
-  * `RewriteLHSNotDefOrConstr`
+  * `RewriteLHSNotDefinitionOrConstructor`
   * `RewriteVariablesNotBoundByLHS`
   * `RewriteVariablesBoundMoreThanOnce`
   * `RewriteLHSReduces`
   * `RewriteHeadSymbolIsProjection`
   * `RewriteHeadSymbolIsProjectionLikeFunction`
-  * `RewriteHeadSymbolNotPostulateFunctionConstructor`
-  * `RewriteHeadSymbolDefContainsMetas`
-  * `RewriteConstructorParamsNotGeneral`
+  * `RewriteHeadSymbolIsTypeConstructor`
+  * `RewriteHeadSymbolContainsMetas`
+  * `RewriteConstructorParametersNotGeneral`
   * `RewriteContainsUnsolvedMetaVariables`
   * `RewriteBlockedOnProblems`
   * `RewriteRequiresDefinitions`
