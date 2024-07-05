@@ -56,8 +56,11 @@ prop_partitionMaybe f as = partitionMaybe f as == partitionEithers (map f' as)
 prop_mapMaybeAndRest_Nothing as = mapMaybeAndRest (const Nothing) as == ([] :: [Int],as)
 prop_mapMaybeAndRest_Just    as = mapMaybeAndRest Just            as == (as,[])
 
-prop_dropFrom_marker    marker xs ys = isSublistOf (List1.toList marker) xs || dropFrom marker (xs ++ List1.toList marker ++ ys) == xs
-prop_dropFrom_no_marker marker xs    = isSublistOf (List1.toList marker) xs || dropFrom marker xs == xs
+-- These properties hold only if @marker@ and @xs@ do not overlap.
+-- Problematic case: @dropFrom "aba" ("ab" ++ "aba" ++ "") /= "ab"@
+--
+-- prop_dropFrom_marker    marker xs ys = isSublistOf (List1.toList marker) xs || dropFrom marker (xs ++ List1.toList marker ++ ys) == xs
+-- prop_dropFrom_no_marker marker xs    = isSublistOf (List1.toList marker) xs || dropFrom marker xs == xs
 
 prop_stripSuffix_sound    suf xs  = maybe True (\ pre -> xs == pre ++ suf) $ stripSuffix suf xs
 prop_stripSuffix_complete pre suf = stripSuffix suf (pre ++ suf) == Just pre

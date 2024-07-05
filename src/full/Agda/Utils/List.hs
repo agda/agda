@@ -369,7 +369,7 @@ isSublistOf = List.isSubsequenceOf
 --
 -- If the marker does not appear, the string is returned unchanged.
 --
--- The following two properties hold provided @marker@ does not occur in @xs@:
+-- The following two properties hold provided @marker@ has no overlap with @xs@:
 --
 -- @
 --   dropFrom marker (xs ++ marker ++ ys) == xs
