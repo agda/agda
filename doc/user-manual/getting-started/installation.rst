@@ -33,24 +33,42 @@ Agda programs into Haskell programs.
 So the most common way to install Agda and keep it up to date is through Haskell's
 package manager, Cabal.
 
+.. _zlib-ncurses:
+
+``zlib`` and ``ncurses`` Dependency
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Non-Windows users need to ensure that the development files for the C
+libraries *zlib* and *ncurses* are installed (see http://zlib.net
+and http://www.gnu.org/software/ncurses/). Your package manager may be
+able to install these files for you. For instance, on Debian or Ubuntu
+it should suffice to run
+
+.. code-block:: bash
+
+  apt-get install zlib1g-dev libncurses5-dev
+
+as root to get the correct files installed.
+
 Install GHC and Cabal through GHCup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Follow the `GHCup installation instructions <https://www.haskell.org/ghcup/>`_
-to install GHC and Cabal (see also :ref:`zlib-ncurses` and :ref:`ghc-versions`).
+to install GHC and Cabal (see :ref:`ghc-versions` for a list of supported GHC
+versions). You should now have the ``ghc`` and ``cabal`` commands available.
 
-.. hint:: Use GHCup's 'recommended' version unless you have a reason
-   not to. GHCup should install ``ghc`` and ``cabal`` as part of its own installation,
-   but if you ever want to install different versions of these you can use the
-   ``ghcup`` command, e.g. ``ghcup list`` to see what is available, then e.g.
-   ``ghcup install cabal latest`` to switch to the latest version of Cabal.
+Install ``alex`` and ``happy`` dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. note:: A popular alternative to Cabal is `Stack <https://www.haskellstack.org>`_,
-   which can also be installed using GHCup, or using its own installer. When using
-   Stack it should suffice to replace ``cabal`` with ``stack`` in the following
-   instructions, e.g. ``stack install Agda``.
+Agda depends on the ``alex`` and ``happy`` tools, but depending on your system
+and version of Cabal these might not be installed automatically. You can use
+Cabal to install them manually:
 
-You should now have the ``ghc`` and ``cabal`` commands available.
+.. code-block:: bash
+
+  cabal update
+  cabal install alex happy
+
 
 Use ``cabal`` to install Agda
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -114,8 +132,9 @@ In the top-level directory of the Agda source tree, run:
 Option 3: Install Agda as a Prebuilt Package (not generally recommended)
 ------------------------------------------------------------------------
 
-**Warning** : Depending on the system, prebuilt packages may not be
-the latest release. See https://repology.org/project/agda/versions.
+**Warning** : Depending on the system, prebuilt packages may not be the latest
+release. See `repology <https://repology.org/project/agda/versions>`_ for a list
+of Agda versions available on various package managers.
 
 See :ref:`prebuilt-packages` for a list of known systems and their system-specific instructions.
 
@@ -427,16 +446,6 @@ A Common Issue on Windows: Invalid Byte Sequence
 
 Agda and Haskell
 ----------------
-
-.. _zlib-ncurses:
-
-``zlib`` and ``ncurses`` Dependency
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Non-Windows users need to ensure that the development files for the C libraries `zlib <http://zlib.net>`_ and
-`ncurses <http://www.gnu.org/software/ncurses>`_ are installed. Your package manager may be able to install these
-files for you. For instance, on Debian or Ubuntu it should suffice to run ``apt install zlib1g-dev libncurses-dev``
-as root to get the correct files installed.
 
 .. _ghc-versions:
 
