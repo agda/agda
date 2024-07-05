@@ -257,6 +257,11 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     -- error. Because this function may switch the focus to another file
     -- the status information is also updated.
     handleErr method e = do
+
+      -- TODO: make a better predicate for this
+      noError <- lift $ null <$> renderError e
+      unless noError do
+
         unsolved <- lift $ computeUnsolvedInfo
         err     <- lift $ errorHighlighting e
         modFile <- lift $ useTC stModuleToSource
@@ -266,12 +271,9 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         let info = convert $ err <> unsolved
                      -- Errors take precedence over unsolved things.
 
-        -- TODO: make a better predicate for this
-        noError <- lift $ null <$> renderError e
-
         showImpl <- lift $ optShowImplicit <$> useTC stPragmaOptions
         showIrr <- lift $ optShowIrrelevant <$> useTC stPragmaOptions
-        unless noError $ do
+        do
           mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error $ Info_GenericError e ] ++
             tellEmacsToJumpToError (getRange e) ++
