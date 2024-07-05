@@ -1491,7 +1491,7 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      :ref:`NO_TERMINATION_CHECK<terminating-pragma>` pragmas; such are deprecated.
 
-.. option:: RewriteLHSNotDefOrConstr
+.. option:: RewriteLHSNotDefinitionOrConstructor
 
      Rewrite rule head symbol is not a defined symbol or constructor.
 
@@ -1515,15 +1515,15 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Rewrite rule head symbol is a projection-like function.
 
-.. option:: RewriteHeadSymbolNotPostulateFunctionConstructor
+.. option:: RewriteHeadSymbolIsTypeConstructor
 
-     Rewrite rule head symbol is not a postulate, function, or constructor.
+     Rewrite rule head symbol is a type constructor.
 
-.. option:: RewriteHeadSymbolDefContainsMetas
+.. option:: RewriteHeadSymbolContainsMetas
 
      Definition of rewrite rule head symbol contains unsolved metas.
 
-.. option:: RewriteConstructorParamsNotGeneral
+.. option:: RewriteConstructorParametersNotGeneral
 
      Constructor-headed rewrite rule parameters are not fully general.
 

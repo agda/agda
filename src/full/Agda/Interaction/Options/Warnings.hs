@@ -287,15 +287,15 @@ data WarningName
   | PragmaCompileList_
   | PragmaCompileMaybe_
   | NoMain_
-  | RewriteLHSNotDefOrConstr_
+  | RewriteLHSNotDefinitionOrConstructor_
   | RewriteVariablesNotBoundByLHS_
   | RewriteVariablesBoundMoreThanOnce_
   | RewriteLHSReduces_
   | RewriteHeadSymbolIsProjection_
   | RewriteHeadSymbolIsProjectionLikeFunction_
-  | RewriteHeadSymbolNotPostulateFunctionConstructor_
-  | RewriteHeadSymbolDefContainsMetas_
-  | RewriteConstructorParamsNotGeneral_
+  | RewriteHeadSymbolIsTypeConstructor_
+  | RewriteHeadSymbolContainsMetas_
+  | RewriteConstructorParametersNotGeneral_
   | RewriteContainsUnsolvedMetaVariables_
   | RewriteBlockedOnProblems_
   | RewriteRequiresDefinitions_
@@ -502,15 +502,15 @@ warningNameDescription = \case
   PragmaCompileList_               -> "`COMPILE GHC' pragmas for lists."
   PragmaCompileMaybe_              -> "`COMPILE GHC' pragmas for `MAYBE'."
   NoMain_                          -> "Compilation of modules that do not define `main'."
-  RewriteLHSNotDefOrConstr_                         -> "Rewrite rule head symbol is not a defined symbol or constructor."
+  RewriteLHSNotDefinitionOrConstructor_             -> "Rewrite rule head symbol is not a defined symbol or constructor."
   RewriteVariablesNotBoundByLHS_                    -> "Rewrite rule does not bind all of its variables."
   RewriteVariablesBoundMoreThanOnce_                -> "Constructor-headed rewrite rule has non-linear parameters."
   RewriteLHSReduces_                                -> "Rewrite rule LHS is not in weak-head normal form."
   RewriteHeadSymbolIsProjection_                    -> "Rewrite rule head symbol is a record projection."
   RewriteHeadSymbolIsProjectionLikeFunction_        -> "Rewrite rule head symbol is a projection-like function."
-  RewriteHeadSymbolNotPostulateFunctionConstructor_ -> "Rewrite rule head symbol is not a postulate, function, or constructor."
-  RewriteHeadSymbolDefContainsMetas_                -> "Definition of rewrite rule head symbol contains unsolved metas."
-  RewriteConstructorParamsNotGeneral_               -> "Constructor-headed rewrite rule parameters are not fully general."
+  RewriteHeadSymbolIsTypeConstructor_               -> "Rewrite rule head symbol is a type constructor."
+  RewriteHeadSymbolContainsMetas_                   -> "Definition of rewrite rule head symbol contains unsolved metas."
+  RewriteConstructorParametersNotGeneral_           -> "Constructor-headed rewrite rule parameters are not fully general."
   RewriteContainsUnsolvedMetaVariables_             -> "Rewrite rule contains unsolved metas."
   RewriteBlockedOnProblems_                         -> "Checking rewrite rule blocked by unsolved constraint."
   RewriteRequiresDefinitions_                       -> "Checking rewrite rule blocked by missing definition."

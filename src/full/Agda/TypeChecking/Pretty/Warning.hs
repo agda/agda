@@ -297,7 +297,7 @@ prettyWarning = \case
     CoInfectiveImport msg -> return msg
 
     IllegalRewriteRule q reason -> case reason of
-      LHSNotDefOrConstr -> hsep
+      LHSNotDefinitionOrConstructor -> hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
       VariablesNotBoundByLHS xs -> hsep
         [ prettyTCM q
@@ -324,15 +324,15 @@ prettyWarning = \case
         , "or globally with the flag --no-projection-like"
         ]
         where hd = prettyTCM f
-      HeadSymbolNotPostulateFunctionConstructor f -> hsep
+      HeadSymbolIsTypeConstructor f -> hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
-        , prettyTCM f , "is not a postulate, a function, or a constructor"
+        , prettyTCM f , "is a type constructor."
         ]
-      HeadSymbolDefContainsMetas f -> hsep
+      HeadSymbolContainsMetas f -> hsep
         [ prettyTCM q , "is not a legal rewrite rule, since the definition of the head symbol"
         , prettyTCM f , "contains unsolved metavariables and confluence checking is enabled."
         ]
-      ConstructorParamsNotGeneral c vs -> vcat
+      ConstructorParametersNotGeneral c vs -> vcat
         [ prettyTCM q <+> text " is not a legal rewrite rule, since the constructor parameters are not fully general:"
         , nest 2 $ text "Constructor: " <+> prettyTCM c
         , nest 2 $ text "Parameters: " <+> prettyList (map prettyTCM vs)

@@ -4484,15 +4484,15 @@ warningName = \case
 
 illegalRewriteWarningName :: IllegalRewriteRuleReason -> WarningName
 illegalRewriteWarningName = \case
-  LHSNotDefOrConstr{} -> RewriteLHSNotDefOrConstr_
+  LHSNotDefinitionOrConstructor{} -> RewriteLHSNotDefinitionOrConstructor_
   VariablesNotBoundByLHS{} -> RewriteVariablesNotBoundByLHS_
   VariablesBoundMoreThanOnce{} -> RewriteVariablesBoundMoreThanOnce_
   LHSReduces{} -> RewriteLHSReduces_
   HeadSymbolIsProjection{} -> RewriteHeadSymbolIsProjection_
   HeadSymbolIsProjectionLikeFunction{} -> RewriteHeadSymbolIsProjectionLikeFunction_
-  HeadSymbolNotPostulateFunctionConstructor{} -> RewriteHeadSymbolNotPostulateFunctionConstructor_
-  HeadSymbolDefContainsMetas{} -> RewriteHeadSymbolDefContainsMetas_
-  ConstructorParamsNotGeneral{} -> RewriteConstructorParamsNotGeneral_
+  HeadSymbolIsTypeConstructor{} -> RewriteHeadSymbolIsTypeConstructor_
+  HeadSymbolContainsMetas{} -> RewriteHeadSymbolContainsMetas_
+  ConstructorParametersNotGeneral{} -> RewriteConstructorParametersNotGeneral_
   ContainsUnsolvedMetaVariables{} -> RewriteContainsUnsolvedMetaVariables_
   BlockedOnProblems{} -> RewriteBlockedOnProblems_
   RequiresDefinitions{} -> RewriteRequiresDefinitions_
@@ -4942,15 +4942,15 @@ data InductionAndEta = InductionAndEta
 
 -- Reason, why rewrite rule is invalid
 data IllegalRewriteRuleReason
-  = LHSNotDefOrConstr
+  = LHSNotDefinitionOrConstructor
   | VariablesNotBoundByLHS IntSet
   | VariablesBoundMoreThanOnce IntSet
   | LHSReduces Term Term
   | HeadSymbolIsProjection QName
   | HeadSymbolIsProjectionLikeFunction QName
-  | HeadSymbolNotPostulateFunctionConstructor QName
-  | HeadSymbolDefContainsMetas QName
-  | ConstructorParamsNotGeneral ConHead Args
+  | HeadSymbolIsTypeConstructor QName
+  | HeadSymbolContainsMetas QName
+  | ConstructorParametersNotGeneral ConHead Args
   | ContainsUnsolvedMetaVariables (Set MetaId)
   | BlockedOnProblems (Set ProblemId)
   | RequiresDefinitions (Set QName)
