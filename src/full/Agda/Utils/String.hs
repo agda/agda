@@ -10,6 +10,10 @@ import qualified Data.List as List
 import Data.String
 
 import Agda.Utils.List
+import Agda.Utils.List1 (String1, fromList)
+
+instance IsString String1 where
+  fromString = fromList
 
 -- | 'quote' adds double quotes around the string, replaces newline
 -- characters with @\n@, and escapes double quotes and backslashes

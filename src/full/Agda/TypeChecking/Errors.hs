@@ -75,6 +75,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
 import Agda.Utils.Functor( for )
+import Agda.Utils.IO     ( showIOException )
 import Agda.Utils.List   ( initLast, lastMaybe )
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -121,11 +122,13 @@ nameWithBinding q =
     r = nameBindingSite $ qnameName q
 
 tcErrString :: TCErr -> String
-tcErrString err = prettyShow (getRange err) ++ " " ++ case err of
-  TypeError _ _ cl  -> errorString $ clValue cl
-  Exception r s     -> prettyShow r ++ " " ++ show s
-  IOException _ r e -> prettyShow r ++ " " ++ E.displayException e
-  PatternErr{}      -> "PatternErr"
+tcErrString err =
+  unwords . filter (not . null) . (prettyShow (getRange err) :) $
+    case err of
+      TypeError _ _ cl  -> [ errorString $ clValue cl ]
+      Exception r s     -> [ prettyShow r, show s ]
+      IOException _ r e -> [ prettyShow r, showIOException e ]
+      PatternErr{}      -> [ "PatternErr" ]
 
 stringTCErr :: String -> TCErr
 stringTCErr = Exception noRange . P.text
@@ -351,7 +354,7 @@ instance PrettyTCM TCErr where
       reportSLn "error" 2 $ "Error raised at " ++ prettyShow loc
       sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
     Exception r s     -> sayWhere r $ return s
-    IOException _ r e -> sayWhere r $ fwords $ show e
+    IOException _ r e -> sayWhere r $ fwords $ showIOException e
     PatternErr{}      -> sayWhere err $ panic "uncaught pattern violation"
 
 -- | Drops given amount of leading components of the qualified name.

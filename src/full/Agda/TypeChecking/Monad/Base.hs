@@ -117,6 +117,7 @@ import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash
+import Agda.Utils.IO        ( showIOException )
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
@@ -128,9 +129,9 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty
-import Agda.Utils.Singleton
 import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
 import qualified Agda.Utils.SmallSet as SmallSet
+import Agda.Utils.Singleton
 import Agda.Utils.Update
 
 import Agda.Utils.Impossible
@@ -4978,8 +4979,7 @@ data TCErr
 instance Show TCErr where
   show (TypeError _ _ e)   = prettyShow (envRange $ clEnv e) ++ ": " ++ show (clValue e)
   show (Exception r d)     = prettyShow r ++ ": " ++ render d
-  show (IOException _ r e) = prettyShow r ++ ": " ++
-                             E.displayException e
+  show (IOException _ r e) = prettyShow r ++ ": " ++ showIOException e
   show PatternErr{}        = "Pattern violation (you shouldn't see this)"
 
 instance HasRange TCErr where

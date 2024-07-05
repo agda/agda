@@ -45,6 +45,7 @@ import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Tokens ( Keyword( KwMutual ) )
 
+import Agda.Utils.IO   ( showIOException )
 import Agda.Utils.List ( tailWithDefault )
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Syntax.Common.Pretty
@@ -239,7 +240,7 @@ instance Pretty ParseError where
       ]
   pretty ReadFileError{errPath,errIOError} = vcat
       [ "Cannot read file" <+> pretty errPath
-      , "Error:" <+> text (displayException errIOError)
+      , "Error:" <+> text (showIOException errIOError)
       ]
 
 instance HasRange ParseError where

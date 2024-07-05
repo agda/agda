@@ -79,6 +79,7 @@ import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.Hash
+import Agda.Utils.IO (showIOException)
 import Agda.Utils.Lens
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
@@ -239,9 +240,9 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     handleNastyErrors :: CommandM () -> CommandM ()
     handleNastyErrors m = commandMToIO $ \ toIO -> do
       let handle e =
-            Right <$>
-              toIO (handleErr (Just Direct) $
-                        Exception noRange $ text $ E.displayException e)
+            Right <$> do
+              toIO $ handleErr (Just Direct) $
+                Exception noRange $ text $ showIOException e
 
           asyncHandler e@AsyncCancelled = return (Left e)
 
