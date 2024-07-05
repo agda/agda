@@ -11,6 +11,7 @@ import qualified Data.Array as Array
 import Data.Bifunctor
 import Data.Function (on)
 import Data.Hashable
+import Data.List.Split (splitOn)
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as List1
 import Data.List.NonEmpty (pattern (:|), (<|))
@@ -362,6 +363,20 @@ mapMaybeAndRest f = loop [] where
 -- | Sublist relation.
 isSublistOf :: Eq a => [a] -> [a] -> Bool
 isSublistOf = List.isSubsequenceOf
+
+-- | @dropFrom marker xs@ drops everything from @xs@
+-- starting with (and including) @marker@.
+--
+-- If the marker does not appear, the string is returned unchanged.
+--
+-- The following two properties hold provided @marker@ does not occur in @xs@:
+--
+-- @
+--   dropFrom marker (xs ++ marker ++ ys) == xs
+--   dropFrom marker xs == xs
+-- @
+dropFrom :: Eq a => List1 a -> [a] -> [a]
+dropFrom marker xs = headWithDefault __IMPOSSIBLE__ $ splitOn (List1.toList marker) xs
 
 -- | All ways of removing one element from a list.
 --   O(n²).
