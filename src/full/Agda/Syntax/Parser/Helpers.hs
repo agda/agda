@@ -10,8 +10,6 @@ import Control.Monad.State
 
 import Data.Bifunctor (first, second)
 import Data.Char
-import Data.DList (DList)
-import qualified Data.DList as DL
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ((<>), sconcat)

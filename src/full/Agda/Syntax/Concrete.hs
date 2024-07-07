@@ -71,7 +71,10 @@ import Prelude hiding (null)
 
 import Control.DeepSeq
 
+import Data.Bifunctor   ( second )
+import Data.DList       ( DList )
 import qualified Data.DList as DL
+import Data.Function    ( (&) )
 import Data.Functor.Identity
 import Data.Maybe
 import Data.Set         ( Set  )
@@ -688,13 +691,12 @@ appView e = f (DL.toList ess)
   where
     (f, ess) = appView' e
 
+    appView' :: Expr -> ([NamedArg Expr] -> AppView, DList (NamedArg Expr))
     appView' = \case
-      App r e1 e2      -> vApp (appView' e1) e2
+      App r e1 e2      -> appView' e1 & second (`DL.snoc` e2)
       RawApp _ (List2 e1 e2 es)
                        -> (AppView e1, DL.fromList (map arg (e2 : es)))
       e                -> (AppView e, mempty)
-
-    vApp (f, es) arg = (f, es `DL.snoc` arg)
 
     arg (HiddenArg   _ e) = hide         $ defaultArg e
     arg (InstanceArg _ e) = makeInstance $ defaultArg e

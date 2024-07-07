@@ -41,7 +41,7 @@ appView' e = f (DL.toList es)
   where
   (f, es) = appView'' e
 
-  appView'' e = case e of
+  appView'' = \case
     App i e1 e2
       | Dot _ e2' <- unScope $ namedArg e2
       , Just f <- maybeProjTurnPostfix e2'
@@ -50,7 +50,7 @@ appView' e = f (DL.toList es)
     App i e1 arg | (f, es) <- appView'' e1 ->
       (f, es `DL.snoc` (fmap . fmap) (i,) arg)
     ScopedExpr _ e -> appView'' e
-    _              -> (Application e, mempty)
+    e              -> (Application e, mempty)
 
 maybeProjTurnPostfix :: Expr -> Maybe Expr
 maybeProjTurnPostfix e =
