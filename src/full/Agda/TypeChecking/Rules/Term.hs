@@ -967,10 +967,10 @@ checkRecordExpression cmp mfs e t = do
           -- Just field names.
           xs   = map unArg cxs
           -- Record constructor.
-          con  = killRange $ recConHead def
+          con  = killRange $ _recConHead def
       reportSDoc "tc.term.rec" 20 $ vcat
         [ "  xs  = " <> return (P.pretty xs)
-        , "  ftel= " <> prettyTCM (recTel def)
+        , "  ftel= " <> prettyTCM (_recTel def)
         , "  con = " <> return (P.pretty con)
         ]
 
@@ -986,7 +986,7 @@ checkRecordExpression cmp mfs e t = do
       -- Andreas, 2018-09-06, issue #3122.
       -- Associate the concrete record field names used in the record expression
       -- to their counterpart in the record type definition.
-      disambiguateRecordFields (map _nameFieldA $ lefts mfs) (map unDom $ recFields def)
+      disambiguateRecordFields (map _nameFieldA $ lefts mfs) (map unDom $ _recFields def)
 
       -- Compute the list of given fields, decorated with the ArgInfo from the record def.
       -- Andreas, 2019-03-18, issue #3122, also pick up non-visible fields from the modules.
@@ -1001,7 +1001,7 @@ checkRecordExpression cmp mfs e t = do
       -- are still left out and inserted later by checkArguments_.
       es <- insertMissingFieldsWarn r meta fs cxs
 
-      args <- checkArguments_ cmp ExpandLast re es (recTel def `apply` vs) >>= \case
+      args <- checkArguments_ cmp ExpandLast re es (_recTel def `apply` vs) >>= \case
         (elims, remainingTel) | null remainingTel
                               , Just args <- allApplyElims elims -> return args
         _ -> __IMPOSSIBLE__
@@ -1077,7 +1077,7 @@ checkRecordUpdate cmp ei recexpr fs eupd t = do
       name <- freshNoName $ getRange recexpr
       addLetBinding defaultArgInfo Inserted name v t' $ do
 
-        let projs = map argFromDom $ recFields defn
+        let projs = map argFromDom $ _recFields defn
 
         -- Andreas, 2018-09-06, issue #3122.
         -- Associate the concrete record field names used in the record expression

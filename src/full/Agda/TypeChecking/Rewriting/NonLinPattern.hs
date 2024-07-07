@@ -164,7 +164,7 @@ instance PatternFrom Term NLPat where
              _ -> done
        | otherwise -> done
       (_ , _ ) | Just (d, pars) <- etaRecord -> do
-        def <- theDef <$> getConstInfo d
+        RecordDefn def <- theDef <$> getConstInfo d
         (tel, c, ci, vs) <- etaExpandRecord_ d pars def v
         ct <- assertConOf c t
         PDef (conName c) <$> patternFrom r k (ct , Con c ci) (map Apply vs)

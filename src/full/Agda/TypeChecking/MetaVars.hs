@@ -1678,7 +1678,7 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
              | otherwise         = failure tm
         irrProj <- optIrrelevantProjections <$> pragmaOptions
         lift (isEtaRecordConstructor $ conName c) >>= \case
-          Just (_, r@Record{ recFields = fs })
+          Just (_, RecordData{ _recFields = fs })
             | length fs == length es
             , hasQuantity0 info || all usableQuantity fs     -- Andreas, 2019-11-12/17, issue #4168b
             , irrProj || all isRelevant fs -> do

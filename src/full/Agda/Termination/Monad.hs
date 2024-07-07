@@ -427,7 +427,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
       Just Projection{ projProper = Just{}, projFromType = Arg _ r, projIndex = n } ->
         caseMaybeM (isRecord r) __IMPOSSIBLE__ $ \ rdef -> do
           -- no for inductive or non-recursive record
-          if recInduction rdef /= Just CoInductive then return False else do
+          if _recInduction rdef /= Just CoInductive then return False else do
             reportSLn "term.guardedness" 40 $ prettyShow q ++ " is coinductive; record type is " ++ prettyShow r
             if not mustBeRecursive then return True else do
               reportSLn "term.guardedness" 40 $ prettyShow q ++ " must be recursive"
@@ -439,7 +439,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                 -- Get the type of the field by dropping record parameters and record argument.
                 let TelV tel core = telView' (defType pdef)
                     (pars, tel') = splitAt n $ telToList tel
-                    mut = fromMaybe __IMPOSSIBLE__ $ recMutual rdef
+                    mut = fromMaybe __IMPOSSIBLE__ $ _recMutual rdef
                 -- Check if any recursive symbols appear in the record type.
                 -- Q (2014-07-01): Should we normalize the type?
                 -- A (2017-01-13): Yes, since we also normalize during positivity check?
@@ -476,8 +476,8 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
   -- that has not happened.  To avoid crashing (as in Agda 2.5.3),
   -- we rather give the possibly wrong answer here,
   -- restoring the behavior of Agda 2.5.2.  TODO: fix record declaration checking.
-  safeRecRecursive :: Defn -> Bool
-  safeRecRecursive (Record { recMutual = Just qs }) = not $ null qs
+  safeRecRecursive :: RecordData -> Bool
+  safeRecRecursive RecordData{ _recMutual = Just qs } = not $ null qs
   safeRecRecursive _ = False
 
 -- * De Bruijn pattern stuff

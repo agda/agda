@@ -181,7 +181,7 @@ insertMissingFieldsFail r placeholder fs axs =
 
 -- | Get the definition for a record. Throws an exception if the name
 --   does not refer to a record or the record is abstract.
-getRecordDef :: (HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m Defn
+getRecordDef :: (HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m RecordData
 getRecordDef r = maybe err return =<< isRecord r
   where err = typeError $ ShouldBeRecordType (El __DUMMY_SORT__ $ Def r [])
 
@@ -200,8 +200,8 @@ getRecordFieldNames_ :: (HasConstInfo m, ReadTCState m)
                      => QName -> m (Maybe [Dom C.Name])
 getRecordFieldNames_ r = fmap recordFieldNames <$> isRecord r
 
-recordFieldNames :: Defn -> [Dom C.Name]
-recordFieldNames = map (fmap (nameConcrete . qnameName)) . recFields
+recordFieldNames :: RecordData -> [Dom C.Name]
+recordFieldNames = map (fmap (nameConcrete . qnameName)) . _recFields
 
 -- | Find all records with at least the given fields.
 findPossibleRecords :: [C.Name] -> TCM [QName]
@@ -223,7 +223,7 @@ findPossibleRecords fields = do
 
 -- | Get the field types of a record.
 getRecordFieldTypes :: QName -> TCM Telescope
-getRecordFieldTypes r = recTel <$> getRecordDef r
+getRecordFieldTypes r = _recTel <$> getRecordDef r
 
 -- | Get the field names belonging to a record type.
 getRecordTypeFields
@@ -242,30 +242,29 @@ getRecordTypeFields t = do
 -- | Returns the given record type's constructor name (with an empty
 -- range).
 getRecordConstructor :: (HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m ConHead
-getRecordConstructor r = killRange . recConHead <$> getRecordDef r
+getRecordConstructor r = killRange . _recConHead <$> getRecordDef r
 
 -- | Check if a name refers to a record.
 --   If yes, return record definition.
-{-# SPECIALIZE isRecord :: QName -> TCM (Maybe Defn) #-}
-{-# SPECIALIZE isRecord :: QName -> ReduceM (Maybe Defn) #-}
-isRecord :: HasConstInfo m => QName -> m (Maybe Defn)
-isRecord r = do
-  def <- theDef <$> getConstInfo r
-  return $ case def of
-    Record{} -> Just def
-    _        -> Nothing
+{-# SPECIALIZE isRecord :: QName -> TCM (Maybe RecordData) #-}
+{-# SPECIALIZE isRecord :: QName -> ReduceM (Maybe RecordData) #-}
+isRecord :: HasConstInfo m => QName -> m (Maybe RecordData)
+isRecord r =
+  getConstInfo r <&> theDef <&> \case
+    RecordDefn d -> Just d
+    _ -> Nothing
 
 -- | Reduce a type and check whether it is a record type.
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
-isRecordType :: PureTCM m => Type -> m (Maybe (QName, Args, Defn))
+isRecordType :: PureTCM m => Type -> m (Maybe (QName, Args, RecordData))
 isRecordType t = either (const Nothing) Just <$> tryRecordType t
 
 -- | Reduce a type and check whether it is a record type.
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
 --   If no, return the reduced type (unless it is blocked).
-tryRecordType :: PureTCM m => Type -> m (Either (Blocked Type) (QName, Args, Defn))
+tryRecordType :: PureTCM m => Type -> m (Either (Blocked Type) (QName, Args, RecordData))
 tryRecordType t = ifBlocked t (\ m a -> return $ Left $ Blocked m a) $ \ nb t -> do
   let no = return $ Left $ NotBlocked nb t
   case unEl t of
@@ -453,14 +452,13 @@ isEtaRecord r = do
     Nothing -> return False
     Just r -> isEtaRecordDef r
 
-isEtaRecordDef :: HasConstInfo m => Defn -> m Bool
+isEtaRecordDef :: HasConstInfo m => RecordData -> m Bool
 isEtaRecordDef r
-  | recEtaEquality r /= YesEta = return False
+  | _recEtaEquality r /= YesEta = return False
   | otherwise = do
-          constructorQ <- getQuantity <$>
-                           getConstInfo (conName (recConHead r))
-          currentQ     <- viewTC eQuantity
-          return $ constructorQ `moreQuantity` currentQ
+     constructorQ <- getQuantity <$> getConstInfo (conName (_recConHead r))
+     currentQ     <- viewTC eQuantity
+     return $ constructorQ `moreQuantity` currentQ
 
 
 {-# SPECIALIZE isEtaCon :: QName -> TCM Bool #-}
@@ -472,12 +470,12 @@ isEtaOrCoinductiveRecordConstructor :: HasConstInfo m => QName -> m Bool
 isEtaOrCoinductiveRecordConstructor c =
   caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) ->
     isEtaRecordDef def `or2M`
-      return (recInduction def /= Just Inductive)
+      return (_recInduction def /= Just Inductive)
       -- If in doubt about coinductivity, then yes.
 
 -- | Check if a name refers to a record which is not coinductive.  (Projections are then size-preserving)
 isInductiveRecord :: HasConstInfo m => QName -> m Bool
-isInductiveRecord r = maybe False ((Just CoInductive /=) . recInduction) <$> isRecord r
+isInductiveRecord r = maybe False ((Just CoInductive /=) . _recInduction) <$> isRecord r
 
 -- | Check if a type is an eta expandable record and return the record identifier and the parameters.
 isEtaRecordType :: (HasConstInfo m)
@@ -490,7 +488,7 @@ isEtaRecordType a = case unEl a of
 
 -- | Check if a name refers to a record constructor.
 --   If yes, return record definition.
-isRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, Defn))
+isRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, RecordData))
 isRecordConstructor c = getConstInfo' c >>= \case
   Left (SigUnknown err)     -> __IMPOSSIBLE__
   Left SigCubicalNotErasure -> __IMPOSSIBLE__
@@ -499,7 +497,7 @@ isRecordConstructor c = getConstInfo' c >>= \case
     Constructor{ conData = r } -> fmap (r,) <$> isRecord r
     _                          -> return Nothing
 
-isEtaRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, Defn))
+isEtaRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, RecordData))
 isEtaRecordConstructor c = isRecordConstructor c >>= \case
   Nothing -> return Nothing
   Just (d, def) -> ifM (isEtaRecordDef def) (return $ Just (d, def)) (return Nothing)
@@ -512,7 +510,7 @@ isGeneratedRecordConstructor :: (MonadTCEnv m, HasConstInfo m)
 isGeneratedRecordConstructor c = ignoreAbstractMode $ do
   caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) ->
     case def of
-      Record{ recNamedCon = False } -> return True
+      RecordData{ _recNamedCon = False } -> return True
       _ -> return False
 
 
@@ -592,12 +590,12 @@ expandRecordVar i gamma0 = do
     True  -> Just <$> do
       -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
       -- TODO: compose argInfo ai with tel.
-      let tel = recTel def `apply` pars
+      let tel = _recTel def `apply` pars
           m   = size tel
-          fs  = map argFromDom $ recFields def
+          fs  = map argFromDom $ _recFields def
       -- Construct the record pattern @Γ₁, Γ' ⊢ u := c ys@.
           ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
-          u   = mkCon (recConHead def) ConOSystem ys
+          u   = mkCon (_recConHead def) ConOSystem ys
       -- @Γ₁, Γ' ⊢ τ₀ : Γ₁, x:_@
           tau0 = consS u $ raiseS m
       -- @Γ₁, Γ', Γ₂ ⊢ τ₀ : Γ₁, x:_, Γ₂@
@@ -657,14 +655,14 @@ curryAt t n = do
       -- This might trigger another call to @etaExpandProjectedVar@ later.
       -- A more efficient version does all the eta-expansions at once here.
       (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType a
-      if | NoEta _ <- recEtaEquality def -> __IMPOSSIBLE__
+      if | NoEta _ <- _recEtaEquality def -> __IMPOSSIBLE__
          | otherwise -> return ()
       -- TODO: compose argInfo ai with tel.
-      let tel = recTel def `apply` pars
+      let tel = _recTel def `apply` pars
           m   = size tel
-          fs  = map argFromDom $ recFields def
+          fs  = map argFromDom $ _recFields def
           ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
-          u   = mkCon (recConHead def) ConOSystem ys
+          u   = mkCon (_recConHead def) ConOSystem ys
           b'  = raise m b `absApp` u
           t'  = gamma `telePi` (tel `telePi` b')
           gammai = map domInfo $ telToList gamma
@@ -709,19 +707,19 @@ etaExpandRecord' forceEta r pars u = do
   return (tel, args)
 
 etaExpandRecord_ :: HasConstInfo m
-                 => QName -> Args -> Defn -> Term -> m (Telescope, ConHead, ConInfo, Args)
+  => QName -> Args -> RecordData -> Term -> m (Telescope, ConHead, ConInfo, Args)
 etaExpandRecord_ = etaExpandRecord'_ False
 
 etaExpandRecord'_ :: HasConstInfo m
-                  => Bool -> QName -> Args -> Defn -> Term -> m (Telescope, ConHead, ConInfo, Args)
-etaExpandRecord'_ forceEta r pars def u = do
-  let Record{ recConHead     = con
-            , recFields      = xs
-            , recTel         = tel
-            } = def
-      tel' = apply tel pars
+  => Bool -> QName -> Args -> RecordData -> Term -> m (Telescope, ConHead, ConInfo, Args)
+etaExpandRecord'_ forceEta r pars def@RecordData
+        { _recConHead     = con
+        , _recFields      = xs
+        , _recTel         = tel
+        } u = do
+  let tel' = apply tel pars
   -- Make sure we do not expand non-eta records (unless forced to):
-  unless (recEtaEquality def == YesEta || forceEta) __IMPOSSIBLE__
+  unless (_recEtaEquality def == YesEta || forceEta) __IMPOSSIBLE__
   case u of
 
     -- Already expanded.
@@ -778,7 +776,7 @@ etaExpandAtRecordType t u = do
 {-# SPECIALIZE etaContractRecord :: QName -> ConHead -> ConInfo -> Args -> ReduceM Term #-}
 etaContractRecord :: HasConstInfo m => QName -> ConHead -> ConInfo -> Args -> m Term
 etaContractRecord r c ci args = if all (not . usableModality) args then fallBack else do
-  Just Record{ recFields = xs } <- isRecord r
+  Just RecordData{ _recFields = xs } <- isRecord r
   reportSDoc "tc.record.eta.contract" 20 $ vcat
     [ "eta contracting record"
     , nest 2 $ vcat
@@ -853,18 +851,18 @@ isSingletonRecord' regardIrrelevance r ps rs = do
     caseMaybeM (isRecord r) no $ \ def -> do
       -- We might not know yet whether a record type is recursive because the positivity checker hasn't run yet.
       -- In this case, we pessimistically consider the record type to be recursive (@True@).
-      let recursive = maybe True (not . null) $ recMutual def
+      let recursive = maybe True (not . null) $ _recMutual def
       -- Andreas, 2022-03-23, issue #5823
       -- We may pass through terminating record types as often as we want.
       -- If the termination checker has not run yet, we pessimistically consider the record type
       -- to be non-terminating.
-      let nonTerminating = maybe True not $ recTerminates def
+      let nonTerminating = maybe True not $ _recTerminates def
       reportSDoc "tc.meta.eta" 30 $ vcat
         [ hsep [ prettyTCM r, "is recursive      :", prettyTCM recursive      ]
         , hsep [ prettyTCM r, "is non-terminating:", prettyTCM nonTerminating ]
         ]
-      fmap (mkCon (recConHead def) ConOSystem) <$> do
-        check (applyWhen (recursive && nonTerminating) (Set.insert r) rs) $ recTel def `apply` ps
+      fmap (mkCon (_recConHead def) ConOSystem) <$> do
+        check (applyWhen (recursive && nonTerminating) (Set.insert r) rs) $ _recTel def `apply` ps
   where
   -- Check that all entries of the constructor telescope are singletons.
   check :: Set QName -> Telescope -> m (Maybe [Arg Term])

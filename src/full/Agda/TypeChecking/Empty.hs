@@ -101,7 +101,7 @@ checkEmptyType range t = do
     -- If t is a record type, see if any of the field types is empty
     Right (r, pars, def) -> do
       ifNotM (isEtaRecordDef def) (return $ Left Fail) $
-         void <$> do checkEmptyTel range $ recTel def `apply` pars
+         void <$> do checkEmptyTel range $ _recTel def `apply` pars
 
 -- | Check whether one of the types in the given telescope is constructor-less
 --   and if yes, return its index in the telescope (0 = leftmost).

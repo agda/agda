@@ -1379,7 +1379,8 @@ checkLHS mf = updateModality checkLHS_ where
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
         A.RecP _ fs -> do
-          axs <- map argFromDom . recordFieldNames . theDef <$> getConstInfo d
+          RecordDefn def <- theDef <$> getConstInfo d
+          let axs = map argFromDom $ recordFieldNames def
           ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs axs
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
@@ -1712,14 +1713,14 @@ disambiguateProjection
 disambiguateProjection h ambD@(AmbQ ds) b = do
   -- If the target is not a record type, that's an error.
   -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
-  caseMaybeM (liftTCM $ isRecordType $ unArg b) notRecord $ \(r, vs, def) -> case def of
-    Record{ recFields = fs, recInduction, recEtaEquality' = eta } -> do
+  caseMaybeM (liftTCM $ isRecordType $ unArg b) notRecord
+    \ (r, vs, RecordData{ _recFields = fs, _recInduction = ind, _recEtaEquality' = eta }) -> do
       reportSDoc "tc.lhs.split" 20 $ sep
         [ text $ "we are of record type r  = " ++ prettyShow r
         , text   "applied to parameters vs = " <+> prettyTCM vs
         , text $ "and have fields       fs = " ++ prettyShow (map argFromDom fs)
         ]
-      let comatching = recInduction == Just CoInductive
+      let comatching = ind == Just CoInductive
                     || copatternMatchingAllowed eta
       -- Try the projection candidates.
       -- First, we try to find a disambiguation that doesn't produce
@@ -1731,7 +1732,6 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
             ([]   , []      ) -> __IMPOSSIBLE__
             (err:_, []      ) -> throwError err
             (_    , disambs@((d,a):_)) -> typeError $ AmbiguousProjection d (map fst disambs)
-    _ -> __IMPOSSIBLE__
 
   where
     tryDisambiguate constraintsOk fs r vs comatching failure = do

@@ -965,7 +965,7 @@ getRecordInfo typ = case unEl typ of
     Nothing -> return Nothing
     Just defn -> do
       fields <- getRecordFields qname
-      return $ Just (qname, argsFromElims elims, fields, recRecursive defn)
+      return $ Just (qname, argsFromElims elims, fields, recRecursive_ defn)
   _ -> return Nothing
 
 applyProj :: Args -> Component -> QName -> SM Component

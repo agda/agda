@@ -1269,9 +1269,8 @@ inferOrCheckProjApp e o ds args mt = do
       ifBlocked core (\ m _ -> postpone m) $ {-else-} \ _ core -> do
       ifNotPiType core (\ _ -> refuseProjNotApplied ds) $ {-else-} \ dom _b -> do
       ifBlocked (unDom dom) (\ m _ -> postpone m) $ {-else-} \ _ ta -> do
-      caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds Nothing ta) $ \ (_q, _pars, defn) -> do
-      case defn of
-        Record { recFields = fs } -> do
+      caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds Nothing ta)
+        \ (_q, _pars, RecordData{ _recFields = fs }) -> do
           case forMaybe fs $ \ f -> Fold.find (unDom f ==) ds of
             [] -> refuseProjNoMatching ds
             [d] -> do
@@ -1280,7 +1279,6 @@ inferOrCheckProjApp e o ds args mt = do
               (, t, CheckedTarget Nothing) <$>
                 checkHeadApplication cmp e t (A.Proj o $ unambiguous d) args
             _ -> __IMPOSSIBLE__
-        _ -> __IMPOSSIBLE__
 
     -- Case: we have a visible argument
     ((k, arg) : _) -> do

@@ -340,11 +340,11 @@ instance Match NLPat Term where
           -- If v is not of record constructor form but we are matching at record
           -- type, e.g., we eta-expand both v to (c vs) and
           -- the pattern (p = PDef f ps) to @c (p .f1) ... (p .fn)@.
-            def <- addContext k $ theDef <$> getConstInfo d
+            RecordDefn def <- addContext k $ theDef <$> getConstInfo d
             (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
             addContext k (getFullyAppliedConType c t) >>= \case
               Just (_ , ct) -> do
-                let flds = map argFromDom $ recFields def
+                let flds = map argFromDom $ _recFields def
                     mkField fld = PDef f (ps ++ [Proj ProjSystem fld])
                     -- Issue #3335: when matching against the record constructor,
                     -- don't add projections but take record field directly.
@@ -384,11 +384,11 @@ instance Match NLPat Term where
           k' <- extendContext k (absName b) a
           match r gamma k' (absBody b) pbody body
         _ | Just (d, pars) <- etaRecord -> do
-          def <- addContext k $ theDef <$> getConstInfo d
+          RecordDefn def <- addContext k $ theDef <$> getConstInfo d
           (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
           addContext k (getFullyAppliedConType c t) >>= \case
             Just (_ , ct) -> do
-              let flds = map argFromDom $ recFields def
+              let flds = map argFromDom $ _recFields def
                   ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
               match r gamma k (ct, Con c ci) (map Apply ps') (map Apply vs)
             Nothing -> no ""

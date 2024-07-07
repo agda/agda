@@ -1388,7 +1388,7 @@ getRecordContents norm ce = do
   let notRecordType = typeError $ ShouldBeRecordType t
   (q, vs, defn) <- fromMaybeM notRecordType $ isRecordType t
   case defn of
-    Record{ recFields = fs, recTel = rtel } -> do
+    RecordData{ _recFields = fs, _recTel = rtel } -> do
       let xs   = map (nameConcrete . qnameName . unDom) fs
           tel  = apply rtel vs
           doms = flattenTel tel
@@ -1403,7 +1403,6 @@ getRecordContents norm ce = do
         ]
       ts <- mapM (normalForm norm . unDom) doms
       return ([], tel, zip xs ts)
-    _ -> __IMPOSSIBLE__
 
 -- | Returns the contents of the given module.
 

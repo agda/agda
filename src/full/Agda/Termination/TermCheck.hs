@@ -1033,10 +1033,10 @@ instance ExtractCalls Term where
           caseMaybeM (isRecordConstructor c) inductive $ \ (q, def) -> do
             reportSLn "term.check.term" 50 $ "constructor " ++ prettyShow c ++ " has record type " ++ prettyShow q
             -- inductive record constructors are not guarding
-            if recInduction def /= Just CoInductive then inductive else do
+            if _recInduction def /= Just CoInductive then inductive else do
             -- coinductive constructors unrelated to the mutually
             -- constructed inhabitants of coinductive types are not guarding
-            ifM (targetElem . fromMaybe __IMPOSSIBLE__ $ recMutual def)
+            ifM (targetElem . fromMaybe __IMPOSSIBLE__ $ _recMutual def)
                {-then-} coinductive
                {-else-} inductive
         constructor c ind argsg

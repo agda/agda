@@ -251,7 +251,7 @@ matchPattern p u = case (p, u) of
         -- Case: Eta record constructor.
         -- This case is necessary if we want to use the clauses before
         -- record pattern translation (e.g., in type-checking definitions by copatterns).
-        let fs = map argFromDom $ recFields def
+        let fs = map argFromDom $ _recFields def
         unless (size fs == size ps) __IMPOSSIBLE__
         mapSnd (Arg info . Con c (fromConPatternInfo cpi) . map Apply) <$> do
           matchPatterns ps $ for fs $ \ (Arg ai f) -> Arg ai $ v `applyE` [Proj ProjSystem f]

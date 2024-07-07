@@ -1460,7 +1460,7 @@ splitResultRecord f sc@(SClause tel ps _ _ target) = do
   caseMaybe target (failure CosplitNoTarget) $ \ t -> do
     isR <- addContext tel $ isRecordType $ unDom t
     case isR of
-      Just (_r, vs, Record{ recFields = fs }) -> do
+      Just (_r, vs, RecordData{ _recFields = fs }) -> do
         reportSDoc "tc.cover" 20 $ sep
           [ text $ "we are of record type _r = " ++ prettyShow _r
           , text   "applied to parameters vs =" <+> addContext tel (prettyTCM vs)

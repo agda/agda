@@ -817,11 +817,10 @@ checkPragma r p = do
 
         A.EtaPragma q -> isRecord q >>= \case
             Nothing -> noRecord
-            Just Record{ recInduction = ind, recEtaEquality' = eta }
+            Just RecordData{ _recInduction = ind, _recEtaEquality' = eta }
               | ind /= Just CoInductive  -> noRecord
               | Specified NoEta{} <- eta -> uselessPragma "ETA pragma conflicts with no-eta-equality declaration"
               | otherwise -> modifyRecEta q $ const $ Specified YesEta
-            _ -> __IMPOSSIBLE__
           where
             noRecord = uselessPragma "ETA pragma is only applicable to coinductive records"
 

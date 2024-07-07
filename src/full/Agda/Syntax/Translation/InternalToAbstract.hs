@@ -1338,7 +1338,7 @@ tryRecPFromConP p = do
           -- If the record constructor is generated or the user wrote a record pattern,
           -- print record pattern.
           -- Otherwise, print constructor pattern.
-          if recNamedCon def && conPatOrigin ci /= ConORec then fallback else do
+          if _recNamedCon def && conPatOrigin ci /= ConORec then fallback else do
             fs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
             unless (length fs == length ps) __IMPOSSIBLE__
             return $ A.RecP ci $ zipWith mkFA fs ps
@@ -1357,7 +1357,7 @@ recOrCon c co es = do
     -- If the record constructor is generated or the user wrote a record expression,
     -- print record expression.
     -- Otherwise, print constructor expression.
-    if recNamedCon def && co /= ConORec then fallback else do
+    if _recNamedCon def && co /= ConORec then fallback else do
       fs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
       unless (length fs == length es) __IMPOSSIBLE__
       return $ A.Rec empty $ zipWith mkFA fs es
