@@ -64,6 +64,7 @@ module Agda.TypeChecking.Forcing
     nextIsForced ) where
 
 import Control.Monad
+import Control.Monad.Fail
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -79,6 +80,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Datatypes (consOfHIT)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -131,10 +133,10 @@ computeForcingAnnotations c t =
     let vs = case a of
           Def _ us -> us
           _        -> __IMPOSSIBLE__
-    let forcedVars
+    forcedVars <-
           -- No candidates, no winners!
-          | all isNothing forcedArgCands = IntSet.empty
-          | otherwise = execForcedVariableCollection forcedArgCands $ forcedVariables vs
+      if all isNothing forcedArgCands then pure IntSet.empty
+      else runReduceM $ execForcedVariableCollection forcedArgCands $ forcedVariables vs
     let forcedArgs =
           [ if IntSet.member i forcedVars then Forced else NotForced
           | i <- downFrom n
@@ -167,8 +169,14 @@ type ForcedVariableState = IntSet
 -- | Monad for forced variable analysis.
 --
 newtype ForcedVariableCollection' a = ForcedVariableCollection
-  { runForcedVariableCollection :: ReaderT ForcedVariableContext (State ForcedVariableState) a }
-  deriving (Functor, Applicative, Monad, MonadReader ForcedVariableContext, MonadState ForcedVariableState)
+  { runForcedVariableCollection :: ReaderT ForcedVariableContext (StateT ForcedVariableState ReduceM) a }
+  deriving
+    ( Functor, Applicative, Monad
+    , MonadReader ForcedVariableContext, MonadState ForcedVariableState
+    -- Needed for HasConstInfo:
+    , MonadFail, MonadDebug, MonadTCEnv, HasOptions
+    , HasConstInfo
+    )
 
 type ForcedVariableCollection = ForcedVariableCollection' ()
 
@@ -195,10 +203,10 @@ underModality :: Modality -> ForcedVariableCollection -> ForcedVariableCollectio
 underModality m = local \ (ForcedVariableContext mc cands) -> ForcedVariableContext (composeModality mc m) cands
 
 -- | Run the forced variable analysis monad.
-execForcedVariableCollection :: ForcedVariableCandidates -> ForcedVariableCollection -> ForcedVariableState
+execForcedVariableCollection :: ForcedVariableCandidates -> ForcedVariableCollection -> ReduceM ForcedVariableState
 execForcedVariableCollection cands (ForcedVariableCollection m) =
   m & (`runReaderT` cxt)
-    & (`execState` IntSet.empty)
+    & (`execStateT` IntSet.empty)
   where cxt = ForcedVariableContext unitModality cands
 
 -- | Compute the pattern variables of a term or term-like thing.
@@ -227,7 +235,7 @@ instance ForcedVariables a => ForcedVariables (Arg a) where
 instance ForcedVariables Term where
   forcedVariables = \case
     Var i []   -> singleton (i, unitModality)
-    Con _ _ vs -> forcedVariables vs
+    Con c _ vs -> ifM (consOfHIT $ conName c) mempty $ {-else-} forcedVariables vs
     _          -> mempty
 
 isForced :: IsForced -> Bool

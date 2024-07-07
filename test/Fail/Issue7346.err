@@ -1,0 +1,6 @@
+Issue7346.agda:25,1-26,53
+Termination checking failed for the following functions:
+  not-suc
+Problematic calls:
+  not-suc x (all-sucs x)
+    (at Issue7346.agda:26,31-38)
