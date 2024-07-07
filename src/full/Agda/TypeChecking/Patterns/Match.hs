@@ -247,14 +247,26 @@ matchPattern p u = case (p, u) of
     if not (conPRecord cpi) then fallback c lazy ps (Arg info v) else do
     isEtaRecordConstructor (conName c) >>= \case
       Nothing -> fallback c lazy ps (Arg info v)
+      -- Case: Eta record constructor.
+      -- This case is necessary if we want to use the clauses before
+      -- record pattern translation (e.g., in type-checking definitions by copatterns).
       Just (_r, def) -> do
-        -- Case: Eta record constructor.
-        -- This case is necessary if we want to use the clauses before
-        -- record pattern translation (e.g., in type-checking definitions by copatterns).
-        let fs = map argFromDom $ _recFields def
-        unless (size fs == size ps) __IMPOSSIBLE__
-        mapSnd (Arg info . Con c (fromConPatternInfo cpi) . map Apply) <$> do
-          matchPatterns ps $ for fs $ \ (Arg ai f) -> Arg ai $ v `applyE` [Proj ProjSystem f]
+        reportSDoc "tc.match" 50 $ vcat
+          [ "matchPattern: eta record"
+          , nest 2 $ "c  = " <+> prettyTCM c
+          , nest 2 $ "ps = " <+> prettyTCMPatternList ps
+          , nest 2 $ "v  = " <+> prettyTCM v
+          ]
+        -- Issue #7266: in case we are brazenly matching potentially ill-typed arguments,
+        -- `v` might be an application of a *different* constructor.
+        -- In that case we certainly have no match.
+        case v of
+          Con c' _ _ | c /= c' -> return (No, u)
+          _ -> do
+            let fs = map argFromDom $ _recFields def
+            unless (size fs == size ps) __IMPOSSIBLE__
+            mapSnd (Arg info . Con c (fromConPatternInfo cpi) . map Apply) <$> do
+              matchPatterns ps $ for fs $ \ (Arg ai f) -> Arg ai $ v `applyE` [Proj ProjSystem f]
   (DefP o q ps, v) -> do
     let f (Def q' vs) | q == q' = Just (Def q, vs)
         f _                     = Nothing

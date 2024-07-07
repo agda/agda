@@ -1,0 +1,10 @@
+Issue7266.agda:10,1-11,19
+Incomplete pattern matching for f. Missing cases:
+  f false (false , snd₁)
+when checking the definition of f
+Issue7266.agda:9,1-11,33
+Termination checking failed for the following functions:
+  f
+Problematic calls:
+  f true tt
+    (at Issue7266.agda:10,12-13)
