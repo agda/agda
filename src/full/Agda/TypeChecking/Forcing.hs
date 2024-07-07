@@ -99,8 +99,6 @@ import Agda.Utils.Impossible
 
 -- | Given the type of a constructor (excluding the parameters),
 --   decide which arguments are forced.
---   Precondition: the type is of the form @Γ → D vs@ and the @vs@
---   are in normal form.
 computeForcingAnnotations :: QName -> Type -> TCM [IsForced]
 computeForcingAnnotations c t =
   ifNotM (optForcing <$> pragmaOptions {-then-}) (return []) $ {-else-} do
@@ -109,10 +107,11 @@ computeForcingAnnotations c t =
     -- Andreas, 2015-03-28  Issue 1469: Normalization too costly.
     -- Instantiation also fixes Issue 1454.
     -- Note that normalization of s0 below does not help.
-    t <- instantiateFull t
+    -- t <- instantiateFull t
     -- Ulf, 2018-01-28 (#2919): We do need to reduce the target type enough to
     -- get to the actual data type.
     -- Also #2947: The type might reduce to a pi type.
+    -- Andreas, 2024-07-07, issue #6744, iteratively reduce.
     TelV tel (El _ a) <- telViewPath t
     erasureOn <- optErasure <$> pragmaOptions
     -- Modalities of constructor arguments:
@@ -176,6 +175,9 @@ newtype ForcedVariableCollection' a = ForcedVariableCollection
     -- Needed for HasConstInfo:
     , MonadFail, MonadDebug, MonadTCEnv, HasOptions
     , HasConstInfo
+    -- Neded for MonadReduce:
+    , ReadTCState
+    , MonadReduce
     )
 
 type ForcedVariableCollection = ForcedVariableCollection' ()
@@ -233,7 +235,8 @@ instance ForcedVariables a => ForcedVariables (Arg a) where
 
 -- | Assumes that the term is in normal form.
 instance ForcedVariables Term where
-  forcedVariables = \case
+  -- Andreas, 2024-07-07, issue #6744, add reduction.
+  forcedVariables v = reduce v >>= \case
     Var i []   -> singleton (i, unitModality)
     Con c _ vs -> ifM (consOfHIT $ conName c) mempty $ {-else-} forcedVariables vs
     _          -> mempty
