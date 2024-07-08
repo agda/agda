@@ -687,7 +687,7 @@ checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 
       unless (null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
         "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
       closed_t <- flip abstract t <$> getContextTelescope
-      checkLeftHandSide (CheckLHS lhs) (Just x) aps t withSub strippedPats ret
+      checkLeftHandSide (CheckLHS lhs) (getRange lhs) (Just x) aps t withSub strippedPats ret
 
 -- | Type check a function clause.
 

@@ -93,13 +93,12 @@ import Agda.Utils.Tuple
 import Agda.Utils.Impossible
 import Agda.TypeChecking.Free (freeIn)
 
---UNUSED Liang-Ting Chen 2019-07-16
----- | Compute the set of flexible patterns in a list of patterns. The result is
-----   the deBruijn indices of the flexible patterns.
---flexiblePatterns :: [NamedArg A.Pattern] -> TCM FlexibleVars
---flexiblePatterns nps = do
---  forMaybeM (zip (downFrom $ length nps) nps) $ \ (i, Arg ai p) -> do
---    runMaybeT $ (\ f -> FlexibleVar (getHiding ai) (getOrigin ai) f (Just i) i) <$> maybeFlexiblePattern p
+-- | Extra read-only state for the LHS checker.
+--
+data LHSContext = LHSContext
+  { lhsRange       :: Range  -- ^ The range of the whole lhs of a clause.
+  , lhsContextSize :: Nat    -- ^ Original size of the context in which the lhs checker runs.
+  }
 
 -- | A pattern is flexible if it is dotted or implicit, or a record pattern
 --   with only flexible subpatterns.
@@ -648,6 +647,8 @@ instance InstantiateFull LHSResult where
 checkLeftHandSide :: forall a.
      Call
      -- ^ Trace, e.g. 'CheckLHS' or 'CheckPattern'.
+  -> Range
+     -- ^ 'Range' of the entire left hand side, for error reporting.
   -> Maybe QName
      -- ^ The name of the definition we are checking.
   -> [NamedArg A.Pattern]
@@ -662,7 +663,7 @@ checkLeftHandSide :: forall a.
   -> (LHSResult -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide call f ps a withSub' strippedPats =
+checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
  Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $
  traceCallCPS call $ \ ret -> do
 
@@ -828,7 +829,8 @@ checkLeftHandSide call f ps a withSub' strippedPats =
   let st = over (lhsProblem . problemEqs) (++ withEqs) st0
 
   -- doing the splits:
-  (result, block) <- unsafeInTopContext $ runWriterT $ (`runReaderT` (size cxt)) $ checkLHS f st
+  let initLHSContext = LHSContext { lhsRange = lhsRng, lhsContextSize = size cxt }
+  (result, block) <- unsafeInTopContext $ runWriterT $ (`runReaderT` initLHSContext) $ checkLHS f st
   return result
 
 -- | Check that this split will generate a modality-correct internal
@@ -837,8 +839,10 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 -- necessarily an approximate check. We assume that any argument which
 -- (a) comes after and (b) mentions a dotted argument will be
 -- transported, which is probably an overestimate.
-conSplitModalityCheck
-  :: Modality
+conSplitModalityCheck ::
+     Range
+       -- ^ Range of the whole left hand side, for error reporting.
+  -> Modality
        -- ^ Modality to check at.
   -> PatternSubstitution
       -- ^ Substitution resulting from index unification. @Γ ⊢ ρ : Δ'@,
@@ -848,7 +852,7 @@ conSplitModalityCheck
   -> Telescope -- ^ The telescope @Γ@ itself.
   -> Type      -- ^ Target type of the clause.
   -> TCM ()
-conSplitModalityCheck mod rho blocking gamma target = when (any ((/= defaultModality) . getModality) gamma) $ do
+conSplitModalityCheck lhsRng mod rho blocking gamma target = when (any ((/= defaultModality) . getModality) gamma) $ do
   reportSDoc "tc.lhs.top" 30 $ vcat
     [ "LHS modality check for modality: " <+> prettyTCM mod
     , "rho:    " <+> inTopContext (prettyTCM rho)
@@ -918,8 +922,9 @@ conSplitModalityCheck mod rho blocking gamma target = when (any ((/= defaultModa
   -- the unifier likes to replace @0-variables for @ω-variables). A
   -- concrete case where this happens is #5468. Check in Δ' first since
   -- that will have the forced variable names.
-  usableAtModality IndexedClause mod (unEl (applyPatSubst rho target))
-  inTopContext $ addContext gamma $ usableAtModality IndexedClause mod (unEl target)
+  setCurrentRange lhsRng do
+    usableAtModality IndexedClause mod (unEl (applyPatSubst rho target))
+    inTopContext $ addContext gamma $ usableAtModality IndexedClause mod (unEl target)
   where
     -- Find the first dotted pattern in the substitution. "First" =
     -- "earliest bound", so counts down from the length of the
@@ -957,8 +962,7 @@ splitStrategy = filter shouldSplit
 
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
-checkLHS
-  :: forall tcm a. (MonadTCM tcm, PureTCM tcm, MonadWriter Blocked_ tcm, MonadError TCErr tcm, MonadTrace tcm, MonadReader Nat tcm)
+checkLHS :: forall tcm a. (MonadTCM tcm, PureTCM tcm, MonadWriter Blocked_ tcm, MonadError TCErr tcm, MonadTrace tcm, MonadReader LHSContext tcm)
   => Maybe QName      -- ^ The name of the definition we are checking.
   -> LHSState a       -- ^ The current state.
   -> tcm a
@@ -1174,7 +1178,7 @@ checkLHS mf = updateModality checkLHS_ where
       --             newContext = Γ Ξ
       --             cpSub = raiseS |Ξ|
       --
-      lhsCxtSize <- ask -- size of the context before checkLHS call.
+      lhsCxtSize <- asks lhsContextSize -- size of the context before checkLHS call.
       reportSDoc "tc.lhs.split.partial" 10 $ "lhsCxtSize =" <+> prettyTCM lhsCxtSize
 
       newContext <- liftTCM $ computeLHSContext names delta1
@@ -1549,8 +1553,9 @@ checkLHS mf = updateModality checkLHS_ where
           unless (null ixs) $
             whenM (withoutKOption `or2M` cubicalCompatibleOption) $ do
               mod <- currentModality
+              lhsRng <- asks lhsRange
               liftTCM $ addContext delta' $
-                conSplitModalityCheck mod rho (length delta2) tel (unArg target)
+                conSplitModalityCheck lhsRng mod rho (length delta2) tel (unArg target)
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
