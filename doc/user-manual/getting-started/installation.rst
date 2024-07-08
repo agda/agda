@@ -140,6 +140,23 @@ of Agda versions available on various package managers.
 
 See :ref:`prebuilt-packages` for a list of known systems and their system-specific instructions.
 
+Troubleshooting
+---------------
+
+Cabal install fails due to dynamic linking issues
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you have setting ``executable-dynamic: True`` in your cabal configuration
+then installation might fail on Linux and Windows.
+
+Cure: change to default ``executable-dynamic: False``.
+
+Further information:
+
+  * https://github.com/agda/agda/issues/7163
+  * https://github.com/haskell/cabal/issues/9784
+
+
 .. _install-agda-stdlib:
 
 Step 2: Install the Agda Standard Library (agda-stdlib)
