@@ -140,6 +140,8 @@ Packaged Agda binaries and the Agda standard library are provided by various pac
 Installing Agda binaries can be faster than installing Agda from source,
 but installation problems might be harder to work around.
 
+An OS-independent binary installation of Agda is provided by the :ref:`python installer <pip-install>`.
+
 .. Warning::
   Depending on the system, prebuilt packages may not contain the latest release of Agda.
   See `repology <https://repology.org/project/agda/versions>`_
@@ -605,6 +607,18 @@ To configure the way of editing agda files, follow the section
    package by doing ``M-x package-install RET exec-path-from-shell RET`` and adding
    the line ``(exec-path-from-shell-initialize)`` to your ``.emacs`` file.
 
+.. _pip-install:
+
+Python Installer (``pip``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+An OS-independent binary install of Agda is provided via the Python Installer:
+
+.. code-block:: bash
+
+  pip install agda
+
+Further information: https://pypi.org/project/agda/
 
 Windows
 ^^^^^^^
