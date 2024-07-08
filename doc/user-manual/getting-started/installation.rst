@@ -57,19 +57,6 @@ Follow the `GHCup installation instructions <https://www.haskell.org/ghcup/>`_
 to install GHC and Cabal (see :ref:`ghc-versions` for a list of supported GHC
 versions). You should now have the ``ghc`` and ``cabal`` commands available.
 
-Install ``alex`` and ``happy`` dependencies
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Agda depends on the ``alex`` and ``happy`` tools, but depending on your system
-and version of Cabal these might not be installed automatically. You can use
-Cabal to install them manually:
-
-.. code-block:: bash
-
-  cabal update
-  cabal install alex happy
-
-
 Use ``cabal`` to install Agda
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -106,6 +93,18 @@ You should have GHC and Cabal installed (if not see the instructions in :ref:`in
 .. note:: For the development version :option:`enable-cluster-counting` is on by default,
   so unless you turn it off (see :ref:`installation-flags`, below), you also need to
   install the :ref:`ICU library <icu-install>`.
+
+Install ``alex`` and ``happy`` dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Agda depends on the ``alex`` and ``happy`` tools, but depending on your system
+and version of Cabal these might not be installed automatically. You can use
+Cabal to install them manually:
+
+.. code-block:: bash
+
+  cabal update
+  cabal install alex happy
 
 Build Agda using Cabal
 ^^^^^^^^^^^^^^^^^^^^^^
