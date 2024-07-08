@@ -41,7 +41,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
 import Agda.Syntax.Concrete (FieldAssignment'(..),LensInScope(..))
 import Agda.Syntax.Common as Common
-import Agda.Syntax.Info as A
+import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -200,7 +200,7 @@ updateProblemEqs eqs = do
 
     update eq@(ProblemEq p@(A.AnnP _ _ A.WildP{}) v a) = return [eq]
     update eq@(ProblemEq p@(A.AnnP info ty p') v a) =
-      (ProblemEq (A.AnnP info ty (A.WildP patNoRange)) v a :) <$> update (ProblemEq p' v a)
+      (ProblemEq (A.AnnP info ty (A.WildP empty)) v a :) <$> update (ProblemEq p' v a)
 
     update eq@(ProblemEq p v a) = reduce v >>= constructorForm >>= \case
       Con c ci es -> do
@@ -259,7 +259,7 @@ updateProblemEqs eqs = do
 
             -- In fs omitted explicit fields are replaced by underscores,
             -- and the fields are put in the correct order.
-            ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs cxs
+            ps <- insertMissingFieldsFail d (const $ A.WildP empty) fs cxs
 
             -- We also need to insert missing implicit or instance fields.
             ps <- insertImplicitPatterns ExpandLast ps ctel
@@ -464,7 +464,7 @@ transferOrigins ps qs = do
         let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
             axs = map (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
             cpi = ConPatternInfo (PatternInfo PatORec asB) r ft mb l
-        ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs axs
+        ps <- insertMissingFieldsFail d (const $ A.WildP empty) fs axs
         ConP c cpi <$> transfers ps qs
 
       ((asB , anns , p) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
@@ -546,7 +546,7 @@ checkPatternLinearity eqs = do
         A.AsP _ x p ->
           check vars $ [ProblemEq (A.VarP x) u a, ProblemEq p u a] ++ eqs
         A.AnnP _ _ A.WildP{} -> continue
-        A.AnnP r t p -> (ProblemEq (A.AnnP r t (A.WildP patNoRange)) u a:) <$>
+        A.AnnP r t p -> (ProblemEq (A.AnnP r t (A.WildP empty)) u a:) <$>
           check vars (ProblemEq p u a : eqs)
         A.WildP{}       -> continue
         A.DotP{}        -> continue
@@ -1359,7 +1359,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Don't split on lazy (non-eta) constructor
       case focusPat of
-        A.ConP cpi _ _ | conPatLazy cpi == ConPatLazy ->
+        A.ConP cpi _ _ | A.conPatLazy cpi == A.ConPatLazy ->
           unlessM (isEtaRecord d) $ softTypeError $ ForcedConstructorNotInstantiated focusPat
         _ -> return ()
 
@@ -1381,7 +1381,7 @@ checkLHS mf = updateModality checkLHS_ where
         A.RecP _ fs -> do
           RecordDefn def <- theDef <$> getConstInfo d
           let axs = map argFromDom $ recordFieldNames def
-          ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs axs
+          ps <- insertMissingFieldsFail d (const $ A.WildP empty) fs axs
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
         _ -> __IMPOSSIBLE__
