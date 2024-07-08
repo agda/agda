@@ -839,13 +839,13 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 -- transported, which is probably an overestimate.
 conSplitModalityCheck
   :: Modality
-  -- ^ Modality to check at
+       -- ^ Modality to check at.
   -> PatternSubstitution
-  -- ^ Substitution resulting from index unification. @Γ ⊢ ρ : Δ'@,
-  -- where @Δ'@ is the context we're in, and @Γ@ is the clause telescope
-  -- before unification.
-  -> Int       -- ^ Variable x at which we split
-  -> Telescope -- ^ The telescope @Γ@ itself
+      -- ^ Substitution resulting from index unification. @Γ ⊢ ρ : Δ'@,
+      -- where @Δ'@ is the context we're in, and @Γ@ is the clause telescope
+      -- before unification.
+  -> Int       -- ^ Variable @x@ at which we split.
+  -> Telescope -- ^ The telescope @Γ@ itself.
   -> Type      -- ^ Target type of the clause.
   -> TCM ()
 conSplitModalityCheck mod rho blocking gamma target = when (any ((/= defaultModality) . getModality) gamma) $ do
@@ -858,8 +858,7 @@ conSplitModalityCheck mod rho blocking gamma target = when (any ((/= defaultModa
     , "Δ'target: " <+> prettyTCM (applyPatSubst rho target)
     , "blocking:" <+> prettyTCM blocking
     ]
-  case firstForced rho (length gamma) of
-    Just ix -> do
+  whenJust (firstForced rho (length gamma)) \ ix -> do
       -- We've found a forced argument. This means that the unifier has
       -- decided to kill a unification variable, and any of its
       -- occurrences in the generated term will be replaced by an
@@ -912,7 +911,6 @@ conSplitModalityCheck mod rho blocking gamma target = when (any ((/= defaultModa
         argn <- name arg
         when docheck $
           usableAtModality (IndexedClauseArg forced argn) mod ty'
-    Nothing -> pure ()
 
   -- ALways check the target clause type. Specifically, we check it both
   -- in Δ' and in Γ. The check in Δ' will sometimes let slip by a
