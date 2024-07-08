@@ -4,14 +4,16 @@
 Installation
 ************
 
-To get started with Agda follow these three steps:
+To get started with Agda, follow these three steps:
 
 * :ref:`install-agda`
 * :ref:`install-agda-stdlib`
 * :ref:`install-text-editor`
 
+In case of installation problems, check the section on :ref:`troubleshooting <troubleshooting>`.
+
 .. hint:: If you want a sneak peek of Agda without installing it, try the
-  `Agda Pad <agda-pad_>`_
+  `Agda Pad <agda-pad_>`_.
 
 .. _agda-pad: https://agdapad.quasicoherent.io/
 
@@ -131,12 +133,17 @@ running ``make``. For example:
 
 .. _install-agda-prebuilt:
 
-Option 3: Install Agda as a Prebuilt Package (not generally recommended)
-------------------------------------------------------------------------
+Option 3: Install Agda as a Prebuilt Package
+--------------------------------------------
 
-**Warning** : Depending on the system, prebuilt packages may not be the latest
-release. See `repology <https://repology.org/project/agda/versions>`_ for a list
-of Agda versions available on various package managers.
+Packaged Agda binaries and the Agda standard library are provided by various package managers.
+Installing Agda binaries can be faster than installing Agda from source,
+but installation problems might be harder to work around.
+
+.. Warning::
+  Depending on the system, prebuilt packages may not contain the latest release of Agda.
+  See `repology <https://repology.org/project/agda/versions>`_
+  for a list of Agda versions available on various package managers.
 
 See :ref:`prebuilt-packages` for a list of known systems and their system-specific instructions.
 
@@ -147,8 +154,8 @@ Step 2: Install the Agda Standard Library (agda-stdlib)
 =======================================================
 
 Most users will want to install the `standard library <https://github.com/agda/agda-stdlib>`_.
-You can install this as any other Agda library (see :ref:`package-system`). See
-the `agda-stdlib project's installation instructions <https://github.com/agda/agda-stdlib/blob/master/doc/installation-guide.md>`_
+You can install this as any other Agda library (see :ref:`package-system`).
+See the `agda-stdlib project's installation instructions <https://github.com/agda/agda-stdlib/blob/master/doc/installation-guide.md>`_
 for the steps to take to install the latest version.
 
 
@@ -184,8 +191,9 @@ by the Agda developers in the main Agda repository and offers many advanced feat
 Running the ``agda-mode`` program
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Warning**: Installing ``agda-mode`` via ``melpa`` is discouraged.
-It is strongly advised to install ``agda-mode`` for ``emacs`` as described below:
+.. Warning::
+  Installing ``agda-mode`` via ``melpa`` is discouraged.
+  It is strongly advised to install ``agda-mode`` for ``emacs`` as described below:
 
 After installing the ``agda-mode`` program using ``cabal`` or
 ``stack`` run the following command:
@@ -212,9 +220,9 @@ files:
 
 This can, in some cases, give a noticeable speedup.
 
-**Warning**: If you reinstall the Agda mode without recompiling the
-Emacs Lisp files, then Emacs may continue using the old, compiled
-files.
+.. Warning::
+  If you reinstall the Agda mode without recompiling the Emacs Lisp files,
+  then Emacs may continue using the old, compiled files.
 
 
 Installation Reference
@@ -228,21 +236,20 @@ Troubleshooting
 A Common Issue on Windows: Invalid Byte Sequence
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. Warning::
-  If you are installing Agda using Cabal on Windows, depending on your
-  system locale setting, ``cabal install Agda`` may fail with an error
-  message:
+If you are installing Agda using Cabal on Windows, depending on your
+system locale setting, ``cabal install Agda`` may fail with an error
+message:
 
-  .. code-block:: bash
+.. code-block:: bash
 
-      hGetContents: invalid argument (invalid byte sequence)
+    hGetContents: invalid argument (invalid byte sequence)
 
-  If this happens, you can try changing the `console code page <https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/chcp>`_
-  to UTF-8 using the command:
+If this happens, you can try changing the `console code page <https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/chcp>`_
+to UTF-8 using the command:
 
-  .. code-block:: bash
+.. code-block:: bash
 
-    CHCP 65001
+  CHCP 65001
 
 
 .. _missing-ieee754:
