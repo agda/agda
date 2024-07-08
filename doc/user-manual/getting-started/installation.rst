@@ -116,9 +116,12 @@ In the top-level directory of the Agda source tree, run:
     cabal update
     make install
 
-  .. note:: To install via ``stack`` instead of ``cabal``, copy one of the
-    ``stack-x.y.z.yaml`` files of your choice to a ``stack.yaml`` file before
-    running ``make``. For example:
+Build Agda using Stack
+^^^^^^^^^^^^^^^^^^^^^^
+
+To install via ``stack`` instead of ``cabal``, copy one of the
+``stack-x.y.z.yaml`` files of your choice to a ``stack.yaml`` file before
+running ``make``. For example:
 
   .. code-block:: bash
 
