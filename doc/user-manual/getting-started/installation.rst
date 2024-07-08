@@ -39,8 +39,8 @@ package manager, Cabal.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Non-Windows users need to ensure that the development files for the C
-libraries *zlib* and *ncurses* are installed (see http://zlib.net
-and http://www.gnu.org/software/ncurses/). Your package manager may be
+libraries *zlib* and *ncurses* are installed (see https://zlib.net
+and https://www.gnu.org/software/ncurses/). Your package manager may be
 able to install these files for you. For instance, on Debian or Ubuntu
 it should suffice to run
 
@@ -140,22 +140,6 @@ of Agda versions available on various package managers.
 
 See :ref:`prebuilt-packages` for a list of known systems and their system-specific instructions.
 
-Troubleshooting
----------------
-
-Cabal install fails due to dynamic linking issues
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If you have setting ``executable-dynamic: True`` in your cabal configuration
-then installation might fail on Linux and Windows.
-
-Cure: change to default ``executable-dynamic: False``.
-
-Further information:
-
-  * https://github.com/agda/agda/issues/7163
-  * https://github.com/haskell/cabal/issues/9784
-
 
 .. _install-agda-stdlib:
 
@@ -236,6 +220,182 @@ files.
 Installation Reference
 ======================
 
+.. _troubleshooting:
+
+Troubleshooting
+---------------
+
+A Common Issue on Windows: Invalid Byte Sequence
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. Warning::
+  If you are installing Agda using Cabal on Windows, depending on your
+  system locale setting, ``cabal install Agda`` may fail with an error
+  message:
+
+  .. code-block:: bash
+
+      hGetContents: invalid argument (invalid byte sequence)
+
+  If this happens, you can try changing the `console code page <https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/chcp>`_
+  to UTF-8 using the command:
+
+  .. code-block:: bash
+
+    CHCP 65001
+
+
+.. _missing-ieee754:
+
+A Common Issue: Missing ieee754 Dependency
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You may get the following error when compiling with the GHC backend::
+
+  Compilation error:
+
+  MAlonzo/RTE/Float.hs:6:1: error:
+      Failed to load interface for ‘Numeric.IEEE’
+      Use -v to see a list of the files searched for.
+
+This is because packages are sandboxed in the Cabal store (e.g. ``$HOME/.cabal/store``)
+and you have to explicitly register required packages in a `GHC environment
+<https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments>`_.
+This can be done by running the following command:
+
+.. code-block:: bash
+
+  cabal install --lib Agda ieee754
+
+This will register `ieee754 <https://hackage.haskell.org/package/ieee754>`_
+in the GHC default environment.
+
+Cabal install fails due to dynamic linking issues
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you have setting ``executable-dynamic: True`` in your cabal configuration
+then installation might fail on Linux and Windows.
+
+Cure: change to default ``executable-dynamic: False``.
+
+Further information:
+
+  * https://github.com/agda/agda/issues/7163
+  * https://github.com/haskell/cabal/issues/9784
+
+
+Agda and Haskell
+----------------
+
+.. _ghc-versions:
+
+Tested GHC Versions
+^^^^^^^^^^^^^^^^^^^
+
+Agda has been tested with GHC 8.6.5, 8.8.4, 8.10.7, 9.0.2, 9.2.8, 9.4.8, 9.6.6,
+9.8.2, and GHC 9.10.1.
+
+
+.. _installation-flags:
+
+Installation Flags
+^^^^^^^^^^^^^^^^^^
+
+When installing Agda the following flags can be used:
+
+.. option:: debug
+
+     Enable debug printing. This makes Agda slightly slower, and
+     building Agda slower as well. The :option:`--verbose={N}` option
+     only has an effect when Agda was installed with this flag.
+     Default: off.
+
+.. option:: debug-serialisation
+
+     Enable debug mode in serialisation. This makes serialisation slower.
+     Default: off.
+
+.. option:: debug-parsing
+
+     Enable debug mode in the parser. This makes parsing slower.
+     Default: off.
+
+.. option:: enable-cluster-counting
+
+     Enable :ref:`cluster counting <grapheme-clusters>`.
+     This will require the `text-icu Haskell library <https://hackage.haskell.org/package/text-icu>`_,
+     which in turn requires that :ref:`ICU be installed <icu-install>`.
+     Note that if ``enable-cluster-counting`` is ``False``, then option
+     :option:`--count-clusters` triggers an error message when given to Agda.
+     Default: off, but on for development version.
+
+.. option:: optimise-heavily
+
+     Optimise Agda heavily. (In this case it might make sense to limit
+     GHC's memory usage.) Default: off.
+
+.. hint:: During ``cabal install`` you can add build flags using the ``-f`` argument:
+    ``cabal install -fenable-cluster-counting``. Whereas stack uses ``--flag`` and an
+    ``Agda:`` prefix, like this: ``stack install --flag Agda:enable-cluster-counting``.
+
+.. _icu-install:
+
+Installing ICU
+^^^^^^^^^^^^^^
+
+If cluster counting is enabled (see the ``enable-cluster-counting`` flag above, enabled
+by default), then you will need the `ICU <http://site.icu-project.org>`_ library
+to be installed. See the `text-icu Prerequisites documentation <https://github.com/haskell/text-icu#prerequisites>`_ for how to install ICU on your system.
+
+Keeping the Default Environment Clean
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You may want to keep the default environment clean, e.g. to avoid conflicts with
+other installed packages. In this case you can a create separate Agda
+environment by running:
+
+.. code-block:: bash
+
+  cabal install --package-env agda --lib Agda ieee754
+
+You then have to set the ``GHC_ENVIRONMENT`` when you invoke Agda:
+
+.. code-block:: bash
+
+    GHC_ENVIRONMENT=agda agda -c hello-world.agda
+
+.. NOTE::
+
+  Actually it is not necessary to register the Agda library,
+  but doing so forces Cabal to install the same version of
+  `ieee754 <https://hackage.haskell.org/package/ieee754>`_
+  as used by Agda.
+
+.. _installing-multiple-versions-of-Agda:
+
+Installing Multiple Versions of Agda
+------------------------------------
+
+Multiple versions of Agda can be installed concurrently by using the ``--program-suffix`` flag.
+For example:
+
+.. code-block:: bash
+
+  cabal install Agda-2.6.4.3 --program-suffix=-2.6.4.3
+
+will install version 2.6.4.3 under the name agda-2.6.4.3. You can then switch to this version
+of Agda in Emacs via
+
+.. code-block:: bash
+
+   C-c C-x C-s 2.6.4.3 RETURN
+
+Switching back to the standard version of Agda is then done by:
+
+.. code-block:: bash
+
+   C-c C-x C-s RETURN
+
 .. _prebuilt-packages:
 
 Prebuilt Packages and System-Specific Instructions
@@ -253,7 +413,8 @@ The following prebuilt packages are available:
 
 * `Agda standard library <https://www.archlinux.org/packages/extra/x86_64/agda-stdlib/>`_
 
-However, due to significant packaging bugs such as `this <https://bugs.archlinux.org/task/61904?project=5&string=agda>`_, you might want to use alternative installation methods.
+In case of installation problems, please consult the
+`issue tracker <https://gitlab.archlinux.org/archlinux/packaging/packages/agda/-/issues>_`.
 
 Debian / Ubuntu
 ^^^^^^^^^^^^^^^
@@ -292,7 +453,8 @@ Please report any bugs to Debian, using:
   reportbug -B debian agda-stdlib
 
 Fedora / EPEL (Centos)
-----------------------
+^^^^^^^^^^^^^^^^^^^^^^
+
 Agda is `packaged <https://src.fedoraproject.org/rpms/Agda>`_ for Fedora Linux and EPEL.
 Agda-stdlib is `available <https://src.fedoraproject.org/rpms/Agda-stdlib/>`_ for Fedora.
 
@@ -302,9 +464,19 @@ Agda-stdlib is `available <https://src.fedoraproject.org/rpms/Agda-stdlib/>`_ fo
 
 will install Agda with the emacs mode and also agda-stdlib.
 
+FreeBSD
+^^^^^^^
+
+Packages are available from `FreshPorts <https://www.freebsd.org/cgi/ports.cgi?query=agda>`_
+for Agda and Agda standard library.
+
 GNU Guix
----------
-GNU Guix provides packages for both `agda <https://packages.guix.gnu.org/packages/agda/2.6.4/>`__ and `agda-stdlib <https://packages.guix.gnu.org/packages/agda-stdlib/1.7.3/>`__. You can install the latest versions by running:
+^^^^^^^^
+
+GNU Guix provides packages for both
+`agda <https://packages.guix.gnu.org/packages/agda/>`__ and
+`agda-stdlib <https://packages.guix.gnu.org/packages/agda-stdlib/>`__.
+You can install the latest versions by running:
 
 .. code-block:: bash
 
@@ -314,22 +486,15 @@ You can also install a specific version by running:
 
 .. code-block:: bash
 
-  guix install agda@x.x.x agda-stdlib@x.x.x
+  guix install agda@ver agda-stdlib@ver
 
-where x is a specific version number.
+where ``ver`` is a specific version number.
 
 Packages Sources:
 
 * `Agda <https://git.savannah.gnu.org/cgit/guix.git/tree/gnu/packages/agda.scm#n45>`__
 
 * `Agda-Stdlib <https://git.savannah.gnu.org/cgit/guix.git/tree/gnu/packages/agda.scm#n200>`__
-
-FreeBSD
-^^^^^^^
-
-Packages are available from `FreshPorts
-<https://www.freebsd.org/cgi/ports.cgi?query=agda&stype=all>`_ for
-Agda and Agda standard library.
 
 
 Nix or NixOS
@@ -413,8 +578,8 @@ the ``~/.agda/defaults`` file. To do this, run the following commands:
 .. code-block:: bash
 
   mkdir -p ~/.agda
-  echo $(brew --prefix)/lib/agda/standard-library.agda-lib >>~/.agda/libraries
-  echo standard-library >>~/.agda/defaults
+  echo $(brew --prefix)/lib/agda/standard-library.agda-lib >> ~/.agda/libraries
+  echo standard-library >> ~/.agda/defaults
 
 Please note that this configuration is not performed automatically. You can
 learn more about :ref:`using the standard library <use-std-lib>` or
@@ -437,166 +602,12 @@ To configure the way of editing agda files, follow the section
 Windows
 ^^^^^^^
 
-A precompiled version of Agda 2.6.0.1 bundled with Emacs 26.1 with the
+Some precompiled version of Agda bundled with Emacs and the
 necessary mathematical fonts, is available at
 http://www.cs.uiowa.edu/~astump/agda.
 
-.. Warning:: This is a very old version of Agda. It would be much better to use the
+  * Agda 2.6.0.1 bundled with Emacs 26.1
+  * Agda 2.6.2.2 ...
+
+.. Warning:: These are old versions of Agda.  It would be much better to use the
   :ref:`Agda as installed by cabal <install-agda-cabal>` instead.
-
-A Common Issue on Windows: Invalid Byte Sequence
-------------------------------------------------
-
-.. Warning::
-  If you are installing Agda using Cabal on Windows, depending on your
-  system locale setting, ``cabal install Agda`` may fail with an error
-  message:
-
-  .. code-block:: bash
-
-      hGetContents: invalid argument (invalid byte sequence)
-
-  If this happens, you can try changing the `console code page <https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/chcp>`_
-  to UTF-8 using the command:
-
-  .. code-block:: bash
-
-    CHCP 65001
-
-Agda and Haskell
-----------------
-
-.. _ghc-versions:
-
-Tested GHC Versions
-^^^^^^^^^^^^^^^^^^^
-
-Agda has been tested with GHC 8.6.5, 8.8.4, 8.10.7, 9.0.2, 9.2.8, 9.4.8, 9.6.6,
-9.8.2, and GHC 9.10.1.
-
-
-
-
-.. _installation-flags:
-
-Installation Flags
-^^^^^^^^^^^^^^^^^^
-
-When installing Agda the following flags can be used:
-
-.. option:: debug
-
-     Enable debug printing. This makes Agda slightly slower, and
-     building Agda slower as well. The :option:`--verbose={N}` option
-     only has an effect when Agda was installed with this flag.
-     Default: off.
-
-.. option:: debug-serialisation
-
-     Enable debug mode in serialisation. This makes serialisation slower.
-     Default: off.
-
-.. option:: debug-parsing
-
-     Enable debug mode in the parser. This makes parsing slower.
-     Default: off.
-
-.. option:: enable-cluster-counting
-
-     Enable :ref:`cluster counting <grapheme-clusters>`.
-     This will require the `text-icu Haskell library <https://hackage.haskell.org/package/text-icu>`_,
-     which in turn requires that :ref:`ICU be installed <icu-install>`.
-     Note that if ``enable-cluster-counting`` is ``False``, then option
-     :option:`--count-clusters` triggers an error message when given to Agda.
-     Default: off, but on for development version.
-
-.. option:: optimise-heavily
-
-     Optimise Agda heavily. (In this case it might make sense to limit
-     GHC's memory usage.) Default: off.
-
-.. hint:: During ``cabal install`` you can add build flags using the ``-f`` argument:
-    ``cabal install -fenable-cluster-counting``. Whereas stack uses ``--flag`` and an
-    ``Agda:`` prefix, like this: ``stack install --flag Agda:enable-cluster-counting``.
-
-.. _icu-install:
-
-Installing ICU
-^^^^^^^^^^^^^^
-
-If cluster counting is enabled (see the ``enable-cluster-counting`` flag above, enabled
-by default), then you will need the `ICU <http://site.icu-project.org>`_ library
-to be installed. See the `text-icu Prerequisites documentation <https://github.com/haskell/text-icu#prerequisites>`_ for how to install ICU on your system.
-
-.. _installation-from-hackage:
-
-A Common Issue: Missing ieee754 Dependency
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-You may get the following error when compiling with the GHC backend::
-
-  Compilation error:
-
-  MAlonzo/RTE.hs:13:1: error:
-      Failed to load interface for ‘Numeric.IEEE’
-      Use -v to see a list of the files searched for.
-
-This is because packages are sandboxed in ``$HOME/.cabal/store``
-and you have to explicitly register required packages in a `GHC environment
-<https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments>`_.
-This can be done by running the following command:
-
-.. code-block:: bash
-
-  cabal install --lib Agda ieee754
-
-This will register `ieee754
-<http://hackage.haskell.org/package/ieee754>`_ in the GHC default environment.
-
-Keeping the Default Environment Clean
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-You may want to keep the default environment clean, e.g. to avoid conflicts with
-other installed packages. In this case you can a create separate Agda
-environment by running:
-
-.. code-block:: bash
-
-  cabal install --package-env agda --lib Agda ieee754
-
-You then have to set the ``GHC_ENVIRONMENT`` when you invoke Agda:
-
-.. code-block:: bash
-
-    GHC_ENVIRONMENT=agda agda -c hello-world.agda
-
-.. NOTE::
-
-  Actually it is not necessary to register the Agda library,
-  but doing so forces Cabal to install the same version of `ieee754
-  <http://hackage.haskell.org/package/ieee754>`_ as used by Agda.
-
-.. _installing-multiple-versions-of-Agda:
-
-Installing Multiple Versions of Agda
-------------------------------------
-
-Multiple versions of Agda can be installed concurrently by using the --program-suffix flag.
-For example:
-
-.. code-block:: bash
-
-  cabal install Agda-2.6.1 --program-suffix=-2.6.1
-
-will install version 2.6.1 under the name agda-2.6.1. You can then switch to this version
-of Agda in Emacs via
-
-.. code-block:: bash
-
-   C-c C-x C-s 2.6.1 RETURN
-
-Switching back to the standard version of Agda is then done by:
-
-.. code-block:: bash
-
-   C-c C-x C-s RETURN
