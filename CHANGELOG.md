@@ -12,7 +12,13 @@ Installation
 Pragmas and options
 -------------------
 
-* Option `--exact-split` is now on by default.
+* These options are now on by default:
+
+  * `--exact-split`: Warn about clauses that are not definitional equalities.
+  * `--keep-pattern-variables`: Do not introduce dot patterns in interactive splitting.
+  * `--postfix-projections`: Print projections and projection patterns in postfix.
+
+  To revert to the old behavior, use options `--no-...`.
 
 * The following options are now considered infective:
   ([Issue #5264](https://github.com/agda/agda/issues/5264))
@@ -27,10 +33,6 @@ Pragmas and options
 
   This means that if a module has one of these flags enabled,
   then all modules importing it must also have that flag enabled.
-
-* Option `--postfix-projections` is now on by default.
-  This option only affects how Agda prints projections and projection patterns by default.
-  To revert to the old behavior, use option `--no-postfix-projections`.
 
 * New warning `UselessMacro` when a `macro` block does not contain any function definitions.
 

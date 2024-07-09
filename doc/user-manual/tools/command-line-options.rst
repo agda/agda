@@ -841,11 +841,13 @@ Pattern matching and equality
      Prevent interactive case splitting from replacing variables with
      dot patterns (see :ref:`dot-patterns`).
 
+     Default since 2.7.0.
+
 .. option:: --no-keep-pattern-variables
 
      .. versionadded:: 2.6.4
 
-     Default, opposite of :option:`--keep-pattern-variables`.
+     Opposite of :option:`--keep-pattern-variables`.
 
 .. option:: --infer-absurd-clauses, --no-infer-absurd-clauses
 
