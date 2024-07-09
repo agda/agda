@@ -17,6 +17,7 @@ Pragmas and options
   * `--exact-split`: Warn about clauses that are not definitional equalities.
   * `--keep-pattern-variables`: Do not introduce dot patterns in interactive splitting.
   * `--postfix-projections`: Print projections and projection patterns in postfix.
+  * `--save-metas`: Try to not unfold metavariable solutions in interface files.
 
   To revert to the old behavior, use options `--no-...`.
 
