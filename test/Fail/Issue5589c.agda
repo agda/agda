@@ -3,7 +3,7 @@
 open import Agda.Builtin.Cubical.Path using (PathP; _≡_)
 open import Agda.Builtin.Nat renaming (Nat to ℕ; zero to Z; suc to S)
 
-{-# BUILTIN REWRITE _≡_ #-}
+{-# BUILTIN REWRITE PathP #-}
 
 _+ℕ_ : ℕ → ℕ → ℕ
 x +ℕ Z     = x

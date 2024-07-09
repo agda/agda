@@ -1,0 +1,5 @@
+Issue2451.agda:14.1-28: error: [IncorrectTypeForRewriteRelation]
+λ {t} ⦃ r ⦄ →
+  Eq._≡_ r  is not a valid name for a rewriting relation
+because it is not a postulate or a data/record type.
+when checking the pragma BUILTIN REWRITE _≡_

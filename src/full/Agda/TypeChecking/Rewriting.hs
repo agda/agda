@@ -100,6 +100,7 @@ requireOptionRewriting =
 verifyBuiltinRewrite :: Term -> Type -> TCM ()
 verifyBuiltinRewrite v t = do
   requireOptionRewriting
+  checkRelationIsDataOrPostulate v
   caseMaybeM (relView t)
     (typeError $ IncorrectTypeForRewriteRelation v ShouldAcceptAtLeastTwoArguments) $
     \ (RelView tel delta a b core) -> do
@@ -111,6 +112,17 @@ verifyBuiltinRewrite v t = do
       Lam{}    -> __IMPOSSIBLE__
       Pi{}     -> __IMPOSSIBLE__
       _ -> typeError $ IncorrectTypeForRewriteRelation v (TypeDoesNotEndInSort core tel)
+  where
+    checkRelationIsDataOrPostulate = \case
+      Def d _ -> theDef <$> getConstInfo d >>= \case
+        Axiom{}    -> return ()
+        Datatype{} -> return ()
+        Record{}   -> return ()
+        _          -> typeError $ IncorrectTypeForRewriteRelation v $ RelationNotDataOrPostulate
+      -- Relation might have been eta-expanded
+      Lam _ b -> checkRelationIsDataOrPostulate $ unAbs b
+      _ -> typeError $ IncorrectTypeForRewriteRelation v $ RelationNotDataOrPostulate
+
 
 -- | Deconstructing a type into @Δ → t → t' → core@.
 data RelView = RelView

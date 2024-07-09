@@ -1,6 +1,6 @@
 {-# OPTIONS --cubical --rewriting #-}
-open import Agda.Builtin.Cubical.Path using (_≡_)
-{-# BUILTIN REWRITE _≡_ #-}
+open import Agda.Builtin.Cubical.Path using (PathP; _≡_)
+{-# BUILTIN REWRITE PathP #-}
 
 record ⊤ : Set where
   constructor tt
