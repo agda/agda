@@ -92,7 +92,9 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
           HT.insert seenMetas m ()
           case MapS.lookup m metas of
             Nothing -> pure ()
-            Just mv -> go (instBody (theInstantiation mv))
+            Just mv -> do
+              go (instBody (theInstantiation mv))
+              go (jMetaType (mvJudgement mv))
 
       go :: NamesIn a => a -> IO ()
       go !x = namesAndMetasIn' (either goName goMeta) x
