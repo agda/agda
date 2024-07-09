@@ -1,7 +1,7 @@
 [submodule "std-lib"]
 	path = std-lib
-	url = https://github.com/cmcmA20/agda-stdlib
-	branch = reflection-and-erasure
+	url = https://github.com/agda/agda-stdlib
+	branch = issue7322-compat
 [submodule "cubical"]
 	path = cubical
 	url = https://github.com/agda/cubical
