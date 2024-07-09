@@ -1,3 +1,5 @@
+{-# OPTIONS --no-keep-pattern-variables #-}
+
 -- {-# OPTIONS -v tc.lhs.unify:100 #-}
 module Issue811 where
 

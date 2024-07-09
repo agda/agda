@@ -1,3 +1,4 @@
+{-# OPTIONS --no-keep-pattern-variables #-}
 
 module Issue3080 where
 

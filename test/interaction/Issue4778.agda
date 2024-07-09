@@ -1,10 +1,12 @@
+{-# OPTIONS --no-keep-pattern-variables #-}
+
 -- {-# OPTIONS -vtc.with.strip:60 -v tc.lhs.top:50 #-}
 
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality
 
-postulate trustMe : {A : Set} (x y : A) → x ≡ y
-
+postulate
+  trustMe : {A : Set} (x y : A) → x ≡ y
 
 data Fin : Nat → Set where
   fzero : ∀ n → Fin (suc n)

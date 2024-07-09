@@ -3,7 +3,7 @@ Termination checking failed for the following functions:
   test
 Problematic calls:
   λ { (↦E (there r)) → test (sntE ANY)
-    ; (↦E (π {i = .∞})) → test (acc sntE)
+    ; (↦E (π {i = j})) → test (acc sntE)
     }
     (at Issue4929.agda:64,3-66,6)
   test (sntE ANY)

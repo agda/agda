@@ -1,3 +1,5 @@
+{-# OPTIONS --no-keep-pattern-variables #-}
+
 -- {-# OPTIONS -v tc.cover:40 #-}
 
 -- Andreas, 2014-10-09

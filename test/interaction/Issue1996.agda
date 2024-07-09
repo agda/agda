@@ -1,3 +1,5 @@
+{-# OPTIONS --no-keep-pattern-variables #-}
+
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality
 

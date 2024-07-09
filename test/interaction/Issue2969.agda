@@ -1,3 +1,5 @@
+{-# OPTIONS --no-keep-pattern-variables #-}
+
 open import Agda.Builtin.Equality
 
 module _ (F : Set₁ → Set₁) where
