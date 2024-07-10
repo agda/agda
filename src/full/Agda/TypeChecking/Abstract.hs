@@ -64,7 +64,7 @@ piAbstract (Arg info (v, IdiomType a)) b = do
     eqTy <- defType <$> getConstInfo eqName
     -- E.g. @eqTy = eqTel → Set a@ where @eqTel = {a : Level} {A : Set a} (x y : A)@.
     TelV eqTel _ <- telView eqTy
-    tel  <- newTelMeta (telFromList $ dropEnd 2 $ telToList eqTel)
+    tel  <- newTelMeta (telFromList $ dropEnd 3 $ telToList eqTel)
     let eq = Def eqName $ map Apply
                  $ map (setHiding Hidden) tel
                  -- we write `v ≡ w` because this equality is typically used to
@@ -72,7 +72,8 @@ piAbstract (Arg info (v, IdiomType a)) b = do
                  -- in a with-clause.
                  -- If we were to write `w ≡ v`, we would often need to take the
                  -- symmetric of the proof we get to make use of `rewrite`.
-                 ++ [ defaultArg (raise 1 v)
+                 ++ [ setHiding Hidden $ defaultArg $ raise 1 $ unEl a
+                    , defaultArg (raise 1 v)
                     , defaultArg (var 0)
                     ]
     sort <- newSortMeta
