@@ -799,6 +799,7 @@ checkPragma r p = do
             _ -> uselessPragma $ P.text $ applyUnless b ("NO" ++) "INLINE directive only works on functions or constructors of records that allow copattern matching"
         A.OptionsPragma{} -> uselessPragma $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
+
         A.OverlapPragma q new -> do
           ifNotM ((q `isInModule`) <$> currentModule)
             (uselessPragma =<< fsep (

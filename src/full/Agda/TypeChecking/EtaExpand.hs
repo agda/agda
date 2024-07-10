@@ -23,7 +23,6 @@
 --   El _ (Pi a b) -> return $
 --     Lam ai $ mkAbs (absName b) $ raise 1 v `apply` [ Arg ai $ var 0 ]
 --     where ai = domInfo a
-
 --   a -> isEtaRecordType a >>= \case
 --     Just (r, pars) -> do
 --       def <- theDef <$> getConstInfo r

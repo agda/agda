@@ -17,7 +17,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Either
-import Agda.Utils.Functor        ( (<.>) )
+import Agda.Utils.Functor
 import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Size
 
@@ -223,13 +223,13 @@ getConstructorInfo c = fromMaybe __IMPOSSIBLE__ <$> getConstructorInfo' c
 
 getConstructorInfo' :: HasConstInfo m => QName -> m (Maybe ConstructorInfo)
 getConstructorInfo' c = do
-  (theDef <$> getConstInfo c) >>= \case
+  getConstInfo c <&> theDef >>= \case
     Constructor{ conData = d, conArity = n } -> Just <$> do
-      (theDef <$> getConstInfo d) >>= \case
-        r@Record{ recFields = fs } ->
-           return $ RecordCon (recPatternMatching r) (recEtaEquality r) n fs
-        Datatype{} ->
-           return $ DataCon n
+      getConstInfo d <&> theDef <&> \case
+        RecordDefn (r@RecordData{ _recFields = fs, _recPatternMatching = pat }) ->
+          RecordCon pat (_recEtaEquality r) n fs
+        DatatypeDefn _ ->
+          DataCon n
         _ -> __IMPOSSIBLE__
     _ -> return Nothing
 

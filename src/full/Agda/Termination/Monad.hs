@@ -431,7 +431,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
             reportSLn "term.guardedness" 40 $ prettyShow q ++ " is coinductive; record type is " ++ prettyShow r
             if not mustBeRecursive then return True else do
               reportSLn "term.guardedness" 40 $ prettyShow q ++ " must be recursive"
-              if not (safeRecRecursive rdef) then return False else do
+              if notSafeRecRecursive rdef then return False else do
                 reportSLn "term.guardedness" 40 $ prettyShow q ++ " has been declared recursive, doing actual check now..."
                 -- TODO: the following test for recursiveness of a projection should be cached.
                 -- E.g., it could be stored in the @Projection@ component.
@@ -476,9 +476,9 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
   -- that has not happened.  To avoid crashing (as in Agda 2.5.3),
   -- we rather give the possibly wrong answer here,
   -- restoring the behavior of Agda 2.5.2.  TODO: fix record declaration checking.
-  safeRecRecursive :: RecordData -> Bool
-  safeRecRecursive RecordData{ _recMutual = Just qs } = not $ null qs
-  safeRecRecursive _ = False
+  notSafeRecRecursive :: RecordData -> Bool
+  notSafeRecRecursive = maybe True null . _recMutual
+    -- @_recMutual@ should be something (@Just (_:_)@) to be safe
 
 -- * De Bruijn pattern stuff
 

@@ -731,9 +731,7 @@ forceEtaExpansion a v (e:es) = case e of
     reportSDoc "rewriting.confluence.eta" 40 $ fsep
       [ "Forcing" , prettyTCM v , ":" , prettyTCM a , "to be projectible by" , prettyTCM f ]
     r <- fromMaybe __IMPOSSIBLE__ <$> getRecordOfField f
-    def <- getConstInfo r
-    let ra = defType def
-    let RecordDefn rdef = theDef def
+    Defn{ defType = ra, theDef = RecordDefn rdef } <- getConstInfo r
     pars <- newArgsMeta ra
     s <- ra `piApplyM` pars >>= \s -> ifIsSort s return __IMPOSSIBLE__
     equalType a $ El s (Def r $ map Apply pars)

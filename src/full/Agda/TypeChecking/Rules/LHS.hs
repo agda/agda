@@ -85,6 +85,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
@@ -1719,9 +1720,9 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
   caseMaybeM (liftTCM $ isRecordType $ unArg b) notRecord
     \ (r, vs, RecordData{ _recFields = fs, _recInduction = ind, _recEtaEquality' = eta }) -> do
       reportSDoc "tc.lhs.split" 20 $ sep
-        [ text $ "we are of record type r  = " ++ prettyShow r
-        , text   "applied to parameters vs = " <+> prettyTCM vs
-        , text $ "and have fields       fs = " ++ prettyShow (map argFromDom fs)
+        [ "we are of record type r  = " <> pure (P.pretty r)
+        , "applied to parameters vs = " <> prettyTCM vs
+        , "and have fields       fs = " <> pure (P.pretty $ map argFromDom fs)
         ]
       let comatching = ind == Just CoInductive
                     || copatternMatchingAllowed eta
@@ -1735,7 +1736,6 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
             ([]   , []      ) -> __IMPOSSIBLE__
             (err:_, []      ) -> throwError err
             (_    , disambs@((d,a):_)) -> typeError $ AmbiguousProjection d (map fst disambs)
-
   where
     tryDisambiguate constraintsOk fs r vs comatching failure = do
       -- Note that tryProj wraps TCM in an ExceptT, collecting errors

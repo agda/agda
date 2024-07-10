@@ -52,6 +52,9 @@ import Agda.Utils.Size
 
 import Agda.Utils.Impossible
 
+---------------------------------------------------------------------------
+-- * Tools to build record values
+
 mkCon :: ConHead -> ConInfo -> Args -> Term
 mkCon h info args = Con h info (map Apply args)
 
@@ -179,10 +182,23 @@ insertMissingFieldsFail
 insertMissingFieldsFail r placeholder fs axs =
   failOnRecordFieldWarnings $ insertMissingFields r placeholder fs axs
 
+---------------------------------------------------------------------------
+-- * Query information about records from signature
+
+-- | Check if a name refers to a record.
+--   If yes, return record definition.
+{-# SPECIALIZE isRecord :: QName -> TCM (Maybe RecordData) #-}
+{-# SPECIALIZE isRecord :: QName -> ReduceM (Maybe RecordData) #-}
+isRecord :: HasConstInfo m => QName -> m (Maybe RecordData)
+isRecord r = do
+  getConstInfo r <&> theDef <&> \case
+    RecordDefn rd -> Just rd
+    _ -> Nothing
+
 -- | Get the definition for a record. Throws an exception if the name
 --   does not refer to a record or the record is abstract.
 getRecordDef :: (HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m RecordData
-getRecordDef r = maybe err return =<< isRecord r
+getRecordDef r = fromMaybeM err $ isRecord r
   where err = typeError $ ShouldBeRecordType (El __DUMMY_SORT__ $ Def r [])
 
 -- | Get the record name belonging to a field name.
@@ -193,12 +209,9 @@ getRecordOfField d = caseMaybeM (isProjection d) (return Nothing) $
 
 -- | Get the field names of a record.
 getRecordFieldNames :: (HasConstInfo m, ReadTCState m, MonadError TCErr m)
-                    => QName -> m [Dom C.Name]
+  => QName
+  -> m [Dom C.Name]
 getRecordFieldNames r = recordFieldNames <$> getRecordDef r
-
-getRecordFieldNames_ :: (HasConstInfo m, ReadTCState m)
-                     => QName -> m (Maybe [Dom C.Name])
-getRecordFieldNames_ r = fmap recordFieldNames <$> isRecord r
 
 recordFieldNames :: RecordData -> [Dom C.Name]
 recordFieldNames = map (fmap (nameConcrete . qnameName)) . _recFields
@@ -221,10 +234,6 @@ findPossibleRecords fields = do
         _ -> False
     given = Set.fromList fields
 
--- | Get the field types of a record.
-getRecordFieldTypes :: QName -> TCM Telescope
-getRecordFieldTypes r = _recTel <$> getRecordDef r
-
 -- | Get the field names belonging to a record type.
 getRecordTypeFields
   :: Type  -- ^ Record type.  Need not be reduced.
@@ -243,16 +252,6 @@ getRecordTypeFields t = do
 -- range).
 getRecordConstructor :: (HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m ConHead
 getRecordConstructor r = killRange . _recConHead <$> getRecordDef r
-
--- | Check if a name refers to a record.
---   If yes, return record definition.
-{-# SPECIALIZE isRecord :: QName -> TCM (Maybe RecordData) #-}
-{-# SPECIALIZE isRecord :: QName -> ReduceM (Maybe RecordData) #-}
-isRecord :: HasConstInfo m => QName -> m (Maybe RecordData)
-isRecord r =
-  getConstInfo r <&> theDef <&> \case
-    RecordDefn d -> Just d
-    _ -> Nothing
 
 -- | Reduce a type and check whether it is a record type.
 --   Succeeds only if type is not blocked by a meta var.
@@ -447,8 +446,7 @@ eliminateType' err hd t (e : es) = case e of
 {-# SPECIALIZE isEtaRecord :: QName -> ReduceM Bool #-}
 isEtaRecord :: HasConstInfo m => QName -> m Bool
 isEtaRecord r = do
-  isRec <- isRecord r
-  case isRec of
+  isRecord r >>= \case
     Nothing -> return False
     Just r -> isEtaRecordDef r
 
@@ -479,7 +477,8 @@ isInductiveRecord r = maybe False ((Just CoInductive /=) . _recInduction) <$> is
 
 -- | Check if a type is an eta expandable record and return the record identifier and the parameters.
 isEtaRecordType :: (HasConstInfo m)
-                => Type -> m (Maybe (QName, Args))
+  => Type
+  -> m (Maybe (QName, Args))
 isEtaRecordType a = case unEl a of
   Def d es -> do
     let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -488,6 +487,7 @@ isEtaRecordType a = case unEl a of
 
 -- | Check if a name refers to a record constructor.
 --   If yes, return record definition.
+--
 isRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, RecordData))
 isRecordConstructor c = getConstInfo' c >>= \case
   Left (SigUnknown err)     -> __IMPOSSIBLE__
@@ -501,18 +501,6 @@ isEtaRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, RecordData
 isEtaRecordConstructor c = isRecordConstructor c >>= \case
   Nothing -> return Nothing
   Just (d, def) -> ifM (isEtaRecordDef def) (return $ Just (d, def)) (return Nothing)
-
--- | Check if a constructor name is the internally generated record constructor.
---
---   Works also for abstract constructors.
-isGeneratedRecordConstructor :: (MonadTCEnv m, HasConstInfo m)
-                             => QName -> m Bool
-isGeneratedRecordConstructor c = ignoreAbstractMode $ do
-  caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) ->
-    case def of
-      RecordData{ _recNamedCon = False } -> return True
-      _ -> return False
-
 
 -- | Turn off eta for unguarded recursive records.
 --   Projections do not preserve guardedness.
@@ -547,7 +535,10 @@ nonRecursiveRecord = updateEtaForRecord
 --
 --   Precondition: record type identifier exists in signature.
 isRecursiveRecord :: QName -> TCM Bool
-isRecursiveRecord q = recRecursive . theDef . fromMaybe __IMPOSSIBLE__ . lookupDefinition q <$> getSignature
+isRecursiveRecord q =
+  getSignature <&> lookupDefinition q <&> fmap theDef <&> \case
+    Just (RecordDefn r) -> recRecursive_ r
+    _ -> __IMPOSSIBLE__
 
 {- | @etaExpandBoundVar i = (Δ, σ, τ)@
 
@@ -662,7 +653,7 @@ curryAt t n = do
           m   = size tel
           fs  = map argFromDom $ _recFields def
           ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
-          u   = mkCon (_recConHead def) ConOSystem ys
+          u   = mkCon (killRange $ _recConHead def) ConOSystem ys
           b'  = raise m b `absApp` u
           t'  = gamma `telePi` (tel `telePi` b')
           gammai = map domInfo $ telToList gamma
@@ -691,32 +682,57 @@ curryAt t n = do
     where @tel@ is the record telescope instantiated at the parameters @pars@.
 -}
 etaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m)
-                => QName -> Args -> Term -> m (Telescope, Args)
+  => QName       -- ^ Name of record type.
+  -> Args        -- ^ Parameters applied to record type.
+  -> Term        -- ^ Term to eta-expand.
+  -> m (Telescope, Args)
+     -- ^ Field types instantiated to parameters, field values.
 etaExpandRecord = etaExpandRecord' False
 
 -- | Eta expand a record regardless of whether it's an eta-record or not.
 forceEtaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m, MonadError TCErr m)
-                     => QName -> Args -> Term -> m (Telescope, Args)
+  => QName       -- ^ Name of record type.
+  -> Args        -- ^ Parameters applied to record type.
+  -> Term        -- ^ Term to eta-expand.
+  -> m (Telescope, Args)
+     -- ^ Field types instantiated to parameters, field values.
 forceEtaExpandRecord = etaExpandRecord' True
 
+-- | Eta-expand a value at the given record type (must match).
 etaExpandRecord' :: (HasConstInfo m, MonadDebug m, ReadTCState m)
-                 => Bool -> QName -> Args -> Term -> m (Telescope, Args)
+  => Bool        -- ^ Force expansion, overriding '_recEtaEquality'?
+  -> QName       -- ^ Name of record type.
+  -> Args        -- ^ Parameters applied to record type.
+  -> Term        -- ^ Term to eta-expand.
+  -> m (Telescope, Args)
+     -- ^ Field types instantiated to parameters, field values.
 etaExpandRecord' forceEta r pars u = do
   def <- fromMaybe __IMPOSSIBLE__ <$> isRecord r
   (tel, _, _, args) <- etaExpandRecord'_ forceEta r pars def u
   return (tel, args)
 
+-- | Eta-expand a value at the given eta record type (must match).
 etaExpandRecord_ :: HasConstInfo m
-  => QName -> Args -> RecordData -> Term -> m (Telescope, ConHead, ConInfo, Args)
+  => QName       -- ^ Name of record type.
+  -> Args        -- ^ Parameters applied to record type.
+  -> RecordData  -- ^ Definition of record type.
+  -> Term        -- ^ Term to eta-expand.
+  -> m (Telescope, ConHead, ConInfo, Args)
+     -- ^ Field types instantiated to parameters, disassembled constructor term.
 etaExpandRecord_ = etaExpandRecord'_ False
 
+-- | Eta-expand a value at the given record type (must match).
 etaExpandRecord'_ :: HasConstInfo m
-  => Bool -> QName -> Args -> RecordData -> Term -> m (Telescope, ConHead, ConInfo, Args)
-etaExpandRecord'_ forceEta r pars def@RecordData
-        { _recConHead     = con
-        , _recFields      = xs
-        , _recTel         = tel
-        } u = do
+  => Bool        -- ^ Force expansion, overriding '_recEtaEquality'?
+  -> QName       -- ^ Name of record type.
+  -> Args        -- ^ Parameters applied to record type.
+  -> RecordData  -- ^ Definition of record type.
+  -> Term        -- ^ Term to eta-expand.
+  -> m (Telescope, ConHead, ConInfo, Args)
+     -- ^ Field types instantiated to parameters, disassembled constructor term.
+etaExpandRecord'_ forceEta r pars
+    def@RecordData{ _recConHead = con, _recFields = xs, _recTel = tel }
+    u = do
   let tel' = apply tel pars
   -- Make sure we do not expand non-eta records (unless forced to):
   unless (_recEtaEquality def == YesEta || forceEta) __IMPOSSIBLE__
@@ -820,11 +836,16 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
 --
 -- Precondition: The name should refer to a record type, and the
 -- arguments should be the parameters to the type.
-isSingletonRecord :: (PureTCM m, MonadBlock m) => QName -> Args -> m Bool
+isSingletonRecord :: (PureTCM m, MonadBlock m)
+  => QName   -- ^ Name of record type to check.
+  -> Args    -- ^ Parameters given to the record type.
+  -> m Bool
 isSingletonRecord r ps = isJust <$> isSingletonRecord' False r ps mempty
 
 isSingletonRecordModuloRelevance :: (PureTCM m, MonadBlock m)
-                                 => QName -> Args -> m Bool
+  => QName   -- ^ Name of record type to check.
+  -> Args    -- ^ Parameters given to the record type.
+  -> m Bool
 isSingletonRecordModuloRelevance r ps = isJust <$> isSingletonRecord' True r ps mempty
 
 -- | Return the unique (closed) inhabitant if exists.

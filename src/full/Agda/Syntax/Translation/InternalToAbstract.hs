@@ -516,18 +516,33 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
       reportSDoc "reify.def" 80 $ return $ "reifying def" <+> pretty x
       (x, es) <- reifyPathPConstAsPath x es
       reifyDisplayForm x es $ reifyDef expandAnonDefs x es
-    I.Con c ci vs -> do
-      let x = conName c
-      isR <- isGeneratedRecordConstructor x
-      if isR || ci == ConORec
-        then do
+
+    I.Con c ci es -> do
+
+      -- If the origin is a record expression, print a record expression.
+      if ci == ConORec then recordExpression Nothing else do
+        isRecordConstructor x >>= \case
+
+          -- If it is a generated constructor, print a record expression.
+          Just (r, def) | not (_recNamedCon def) -> recordExpression $ Just (r, def)
+
+          -- Otherwise, print a constructor application.
+          _ -> constructorApplication
+      where
+        x = conName c
+
+        recordExpression mrdef = do
+          (r, def) <- maybe (fromMaybe __IMPOSSIBLE__ <$> isRecordConstructor x) pure mrdef
           showImp <- showImplicitArguments
           let keep (a, v) = showImp || visible a
-          r <- getConstructorData x
-          xs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
-          vs <- map unArg <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
-          return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unDom) $ filter keep $ zip xs vs
-        else reifyDisplayForm x vs $ do
+          A.Rec noExprInfo
+            . map (Left . uncurry FieldAssignment . mapFst unDom)
+            . filter keep
+            . zip (recordFieldNames def)
+            . map unArg
+            <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims es)
+
+        constructorApplication = reifyDisplayForm x es $ do
           def <- getConstInfo x
           let Constructor {conPars = np} = theDef def
           -- if we are the the module that defines constructor x
@@ -537,10 +552,10 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
           -- extra parameters) or equal (if not) to n
           when (n > np) __IMPOSSIBLE__
           let h = A.Con (unambiguous x)
-          if null vs
+          if null es
             then return h
             else do
-              es <- reify (map (fromMaybe __IMPOSSIBLE__ . isApplyElim) vs)
+              es <- reify $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
               -- if the first regular constructor argument is hidden
               -- we turn it into a named argument, in order to avoid confusion
@@ -1339,7 +1354,7 @@ tryRecPFromConP p = do
           -- print record pattern.
           -- Otherwise, print constructor pattern.
           if _recNamedCon def && conPatOrigin ci /= ConORec then fallback else do
-            fs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
+            let fs = recordFieldNames def
             unless (length fs == length ps) __IMPOSSIBLE__
             return $ A.RecP ci $ zipWith mkFA fs ps
         where
@@ -1358,7 +1373,7 @@ recOrCon c co es = do
     -- print record expression.
     -- Otherwise, print constructor expression.
     if _recNamedCon def && co /= ConORec then fallback else do
-      fs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
+      let fs = recordFieldNames def
       unless (length fs == length es) __IMPOSSIBLE__
       return $ A.Rec empty $ zipWith mkFA fs es
   where
