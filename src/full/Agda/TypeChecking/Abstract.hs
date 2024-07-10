@@ -76,9 +76,11 @@ piAbstract (Arg info (v, IdiomType a)) b = do
                     , defaultArg (raise 1 v)
                     , defaultArg (var 0)
                     ]
+    -- Since the result of this function will be type-checked in
+    -- `withFunctionType`, we can be a little lazy here and put
+    -- a meta for the sort.
     sort <- newSortMeta
-    let ty = El sort eq
-    ty <$ checkType ty
+    return $ El sort eq
 
   pure $ mkPi (setHiding (getHiding info) $ defaultDom ("w", a))
        $ mkPi (setHiding NotHidden        $ defaultDom ("eq", eq))
