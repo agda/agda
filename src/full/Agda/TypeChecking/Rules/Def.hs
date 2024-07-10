@@ -1204,7 +1204,10 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   setCurrentRange cs $
     traceCall NoHighlighting $   -- To avoid flicker.
     traceCall (CheckWithFunctionType withFunType) $
-    checkType withFunType
+    -- Jesper, 2024-07-10, issue $6841:
+    -- Having an ill-typed type can lead to problems in the
+    -- coverage checker, so we ensure there are no constraints here.
+    noConstraints $ checkType withFunType
 
   -- With display forms are closed
   df <- inTopContext $ makeOpen =<< withDisplayForm f aux delta1 delta2 n qs perm' perm
