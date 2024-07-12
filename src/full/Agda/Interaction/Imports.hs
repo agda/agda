@@ -696,10 +696,7 @@ getStoredInterface x file msrc = do
 
         lift $ chaseMsg "Loading " x $ Just ifp
         -- print imported warnings
-        let ws = filter ((Strict.Just (Just x) ==) .
-                         fmap rangeFileName . tcWarningOrigin) $
-                 iWarnings i
-        unless (null ws) $ alwaysReportSDoc "warning" 1 $ P.vsep $ map P.prettyTCM ws
+        reportWarningsForModule x $ iWarnings i
 
         loadDecodedModule file $ ModuleInfo
           { miInterface = i
@@ -707,6 +704,13 @@ getStoredInterface x file msrc = do
           , miPrimitive = isPrimitiveModule
           , miMode = ModuleTypeChecked
           }
+
+-- | Report those given warnings that come from the given module.
+
+reportWarningsForModule :: MonadDebug m => TopLevelModuleName -> [TCWarning] -> m ()
+reportWarningsForModule x warns = do
+  unlessNull (filter ((Strict.Just (Just x) ==) . fmap rangeFileName . tcWarningOrigin) warns) \ ws ->
+    alwaysReportSDoc "warning" 1 $ P.vsep $ map P.prettyTCM ws
 
 
 loadDecodedModule
@@ -967,11 +971,7 @@ createInterface mname file isMain msrc = do
        (chaseMsg checkMsg x $ Just fp)
        (const $ do ws <- getAllWarnings AllWarnings
                    let classified = classifyWarnings ws
-                   let wa' = filter ((Strict.Just (Just mname) ==) .
-                                     fmap rangeFileName . tcWarningOrigin) $
-                             tcWarnings classified
-                   unless (null wa') $
-                     alwaysReportSDoc "warning" 1 $ P.vsep $ map P.prettyTCM wa'
+                   reportWarningsForModule mname $ tcWarnings classified
                    when (null (nonFatalErrors classified)) $ chaseMsg "Finished" x Nothing)
 
   withMsgs $
