@@ -579,10 +579,6 @@ resolveInstanceOverlap
   -> TCM [item]
 resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
   wrapper
-    -- If the instance meta is irrelevant: anything will do, no reason
-    -- to do any work.
-    | isIrrelevant rel = pure cands
-
     -- If all the candidates are incoherent: choose the leftmost candidate.
     | all (isIncoherent . candidateOverlap . itemC) cands
     , (c:_) <- cands = pure [c]
