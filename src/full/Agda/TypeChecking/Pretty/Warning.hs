@@ -47,7 +47,8 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
-import Agda.Utils.FileName (filePath)
+import Agda.Utils.FileName ( filePath )
+import Agda.Utils.Functor  ( (<.>) )
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import qualified Agda.Utils.List1 as List1
@@ -576,10 +577,7 @@ didYouMean inscope canon x
 
 
 prettyTCWarnings :: [TCWarning] -> TCM String
-prettyTCWarnings = fmap (unlines . List.intersperse "" . map P.render) . prettyTCWarnings'
-
-renderTCWarnings' :: [TCWarning] -> TCM [String]
-renderTCWarnings' = fmap (map P.render) . prettyTCWarnings'
+prettyTCWarnings = List.intercalate "\n" <.> map P.render <.> prettyTCWarnings'
 
 prettyTCWarnings' :: [TCWarning] -> TCM [Doc]
 prettyTCWarnings' = traverse prettyTCM . filterTCWarnings
