@@ -95,24 +95,23 @@ toIFile (SourceFile src) = do
   mroot <- libToTCM $ findProjectRoot (takeDirectory fp)
   case mroot of
     Nothing   -> pure localIFile
-    Just root ->
+    Just root -> do
       let buildDir = root </> "_build" </> version </> "agda"
-          fileName = makeRelative root (filePath localIFile)
-          separatedIFile = mkAbsolute $ buildDir </> fileName
+      fileName <- liftIO $ makeRelativeCanonical root (filePath localIFile)
+      let separatedIFile = mkAbsolute $ buildDir </> fileName
           ifilePreference = ifM (optLocalInterfaces <$> commandLineOptions)
             (pure (localIFile, separatedIFile))
             (pure (separatedIFile, localIFile))
-      in do
-        separatedIFileExists <- liftIO $ doesFileExistCaseSensitive $ filePath separatedIFile
-        localIFileExists <- liftIO $ doesFileExistCaseSensitive $ filePath localIFile
-        case (separatedIFileExists, localIFileExists) of
-          (False, False) -> fst <$> ifilePreference
-          (False, True) -> pure localIFile
-          (True, False) -> pure separatedIFile
-          (True, True) -> do
-            ifiles <- ifilePreference
-            warning $ uncurry DuplicateInterfaceFiles ifiles
-            pure $ fst ifiles
+      separatedIFileExists <- liftIO $ doesFileExistCaseSensitive $ filePath separatedIFile
+      localIFileExists <- liftIO $ doesFileExistCaseSensitive $ filePath localIFile
+      case (separatedIFileExists, localIFileExists) of
+        (False, False) -> fst <$> ifilePreference
+        (False, True) -> pure localIFile
+        (True, False) -> pure separatedIFile
+        (True, True) -> do
+          ifiles <- ifilePreference
+          warning $ uncurry DuplicateInterfaceFiles ifiles
+          pure $ fst ifiles
 
 replaceModuleExtension :: String -> AbsolutePath -> AbsolutePath
 replaceModuleExtension ext@('.':_) = mkAbsolute . (++ ext) .  dropAgdaExtension . filePath
