@@ -97,12 +97,13 @@ pwords s = map pure $ P.pwords s
 fwords :: Applicative m => String -> m Doc
 fwords s = pure $ P.fwords s
 
-sep, fsep, hsep, hcat, vcat :: (Applicative m, Foldable t) => t (m Doc) -> m Doc
+sep, fsep, hsep, hcat, vcat, vsep :: (Applicative m, Foldable t) => t (m Doc) -> m Doc
 sep ds  = P.sep  <$> sequenceA (Fold.toList ds)
 fsep ds = P.fsep <$> sequenceA (Fold.toList ds)
 hsep ds = P.hsep <$> sequenceA (Fold.toList ds)
 hcat ds = P.hcat <$> sequenceA (Fold.toList ds)
 vcat ds = P.vcat <$> sequenceA (Fold.toList ds)
+vsep ds = P.vsep <$> sequenceA (Fold.toList ds)
 
 hang :: Applicative m => m Doc -> Int -> m Doc -> m Doc
 hang p n q = P.hang <$> p <*> pure n <*> q

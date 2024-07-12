@@ -10,6 +10,7 @@ module Agda.Syntax.Common.Pretty
 
 import Prelude hiding (null)
 
+import qualified Data.List as List
 import qualified Data.Foldable as Fold
 import qualified Data.IntSet as IntSet
 import qualified Data.IntMap as IntMap
@@ -182,6 +183,9 @@ punctuate :: Foldable t => Doc -> t Doc -> [Doc]
 punctuate d = P.punctuate d . Fold.toList
 
 -- * 'Doc' utilities
+
+vsep :: [Doc] -> Doc
+vsep = vcat . List.intersperse ""
 
 pwords :: String -> [Doc]
 pwords = map text . words

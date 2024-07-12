@@ -699,7 +699,7 @@ getStoredInterface x file msrc = do
         let ws = filter ((Strict.Just (Just x) ==) .
                          fmap rangeFileName . tcWarningOrigin) $
                  iWarnings i
-        unless (null ws) $ alwaysReportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
+        unless (null ws) $ alwaysReportSDoc "warning" 1 $ P.vsep $ map P.prettyTCM ws
 
         loadDecodedModule file $ ModuleInfo
           { miInterface = i
@@ -971,7 +971,7 @@ createInterface mname file isMain msrc = do
                                      fmap rangeFileName . tcWarningOrigin) $
                              tcWarnings classified
                    unless (null wa') $
-                     alwaysReportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> wa'
+                     alwaysReportSDoc "warning" 1 $ P.vsep $ map P.prettyTCM wa'
                    when (null (nonFatalErrors classified)) $ chaseMsg "Finished" x Nothing)
 
   withMsgs $
