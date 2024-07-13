@@ -1,4 +1,4 @@
-Release notes for Agda version 2.6.5
+Release notes for Agda version 2.7.0
 ====================================
 
 Highlights
@@ -243,8 +243,8 @@ Highlighting some changes to Agda as a library.
 Other issues closed
 -------------------
 
-For 2.6.5, the following issues were also
-[closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.6.5+is%3Aclosed)
+For 2.7.0, the following issues were also
+[closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.7.0+is%3Aclosed)
 (see [bug tracker](https://github.com/agda/agda/issues)):
 
-NOTE: This section will be filled by output produced with `closed-issues-for-milestone 2.6.5`.
+NOTE: This section will be filled by output produced with `closed-issues-for-milestone 2.7.0`.
