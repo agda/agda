@@ -598,20 +598,21 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
     | otherwise = Bench.billTo [Bench.Typing, Bench.InstanceSearch, Bench.CheckOverlap] do
       reportSDoc "tc.instance.overlap" 30 $ "overlapping instances:" $$ vcat (map (debugCandidate . itemC) cands)
 
-      chooseIncoherent . survivingCands <$> foldrM insert (OverlapState [] []) cands
+      sinkIncoherent . survivingCands <$> foldrM insert (OverlapState [] []) cands
 
   isGlobal Candidate{candidateKind = GlobalCandidate _} = True
   isGlobal _ = False
 
-  -- At the end of the process, we might be in a situation where all
-  -- candidates are incoherent, except for one, since the user might
-  -- have an instance which fixes some arguments in a way that prevents
-  -- it from serving as a specialisation (see test/Succeed/OverlapIncoherent1).
+  -- At the end of the process, we might still have some incoherent and
+  -- non-incoherent candidates, since the user might have an instance
+  -- which fixes some arguments in a way that prevents it from serving
+  -- as a specialisation (see test/Succeed/Overlap1).
   --
-  -- This non-incoherent candidate is what is chosen.
-  chooseIncoherent :: [item] -> [item]
-  chooseIncoherent cands = case List.partition (isIncoherent . itemC) cands of
+  -- See test/Succeed/OverlapDupe for a case where this is necessary.
+  sinkIncoherent :: [item] -> [item]
+  sinkIncoherent cands = case List.partition (isIncoherent . itemC) cands of
     (as, [c]) | all (isGlobal . itemC) as -> pure c
+    (as, cs)  | all (isGlobal . itemC) as -> cs ++ as
     _                                     -> cands
 
   -- Insert a new item into the overlap state.
@@ -621,7 +622,7 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
     -> [item]             -- Old items which we might overlap/be overlapped by
     -> TCM (OverlapState item)
   insertNew oldState new [] = pure oldState{ survivingCands = [new] }
-  insertNew oldState newItem (oldItem:olds) = do
+  insertNew oldState newItem oldItems@(oldItem:olds) = do
     let
       new = itemC newItem
       old = itemC oldItem
@@ -647,8 +648,8 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
       -- But if the new candidate is overlapping, it can be added as a
       -- guard.
       oldnew = do
-        if isOverlapping old || not (isOverlapping new) then pure oldState else do
-          let OverlapState{ survivingCands = oldItems, guardingCands = guards } = oldState
+        if isOverlapping old || not (isOverlapping new) then pure oldState{ survivingCands = oldItems } else do
+          let OverlapState{ guardingCands = guards } = oldState
           reportSDoc "tc.instance.overlap" 40 $ vcat
             [ "will become guard:"
             , nest 2 (debugCandidate new)
@@ -726,9 +727,10 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
       | otherwise -> (cvd :) <$> dropWhileM equal vas
       where
         equal :: (Candidate, Term, a) -> TCM Bool
-        equal (_, v', _)
-            | freshMetas v' = return False  -- If there are fresh metas we can't compare
-            | otherwise     =
+        equal (c, v', _)
+            | isIncoherent c = return True   -- See 'sinkIncoherent'
+            | freshMetas v'  = return False  -- If there are fresh metas we can't compare
+            | otherwise      =
           verboseBracket "tc.instance" 30 "dropSameCandidates: " $ do
           reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> "==", nest 2 $ prettyTCM v' ]
           a <- uncurry piApplyM =<< ((,) <$> getMetaType m <*> getContextArgs)
