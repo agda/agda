@@ -1,0 +1,62 @@
+RecordWhere.agda:25,11-28,24
+warning: -W[no]TooManyFields
+The record type Σ does not have the field distraction
+when checking that the expression
+record
+{ proj₂ = proj₃ ; proj₁ = proj₄ ; distraction = distraction }
+has type Nat × Nat
+RecordWhere.agda:45,11-47,14
+warning: -W[no]TooManyFields
+The record type Σ does not have the field distraction
+when checking that the expression
+record
+{ proj₁ = proj₃ ; distraction = distraction ; proj₂ = proj₄ }
+has type Nat × Nat
+RecordWhere.agda:110,11-113,24
+warning: -W[no]TooManyFields
+The record type Σ does not have the field distraction
+when checking that the expression
+record
+{ proj₂ = proj₂ ; proj₁ = proj₁ ; distraction = distraction }
+has type Nat × Nat
+RecordWhere.agda:130,11-132,14
+warning: -W[no]TooManyFields
+The record type Σ does not have the field distraction
+when checking that the expression
+record
+{ proj₁ = proj₁ ; distraction = distraction ; proj₂ = proj₂ }
+has type Nat × Nat
+
+———— All done; warnings encountered ————————————————————————
+
+RecordWhere.agda:25,11-28,24
+warning: -W[no]TooManyFields
+The record type Σ does not have the field distraction
+when checking that the expression
+record
+{ proj₂ = proj₃ ; proj₁ = proj₄ ; distraction = distraction }
+has type Nat × Nat
+
+RecordWhere.agda:45,11-47,14
+warning: -W[no]TooManyFields
+The record type Σ does not have the field distraction
+when checking that the expression
+record
+{ proj₁ = proj₃ ; distraction = distraction ; proj₂ = proj₄ }
+has type Nat × Nat
+
+RecordWhere.agda:110,11-113,24
+warning: -W[no]TooManyFields
+The record type Σ does not have the field distraction
+when checking that the expression
+record
+{ proj₂ = proj₂ ; proj₁ = proj₁ ; distraction = distraction }
+has type Nat × Nat
+
+RecordWhere.agda:130,11-132,14
+warning: -W[no]TooManyFields
+The record type Σ does not have the field distraction
+when checking that the expression
+record
+{ proj₁ = proj₁ ; distraction = distraction ; proj₂ = proj₂ }
+has type Nat × Nat
