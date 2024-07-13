@@ -1,7 +1,7 @@
 module Auto.Prelude where
 
-open import Agda.Primitive public
-  using    (Level)
+open import Agda.Primitive        public using (Level)
+open import Agda.Builtin.Equality public
 
 
 data ⊥ : Set where
@@ -68,9 +68,6 @@ data Vec (X : Set) : ℕ → Set where
   _∷_ : ∀ {n} → X → Vec X n → Vec X (succ n)
 
 -- -----------------------------------
-
-data _≡_ {a} {A : Set a} (x : A) : A → Set where
-  refl : x ≡ x
 
 subst : {i j : Level} {X : Set i} → (P : X → Set j) → (x y : X) → y ≡ x → P x → P y
 subst P x .x refl h = h
