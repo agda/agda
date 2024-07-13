@@ -778,6 +778,7 @@ checkCandidates m t cands =
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ "candidates", vcat (map debugCandidate cands) ]
 
+    t <- instantiateFull t
     cands'@(_, okay) <- filterResettingState m cands (checkCandidateForMeta m t)
 
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
