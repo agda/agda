@@ -5,9 +5,10 @@ cabal-version: >= 1.10
 author: Nils Anders Danielsson
 build-type: Simple
 tested-with:
+  GHC == 9.10.1
   GHC == 9.8.2
-  GHC == 9.6.3
-  GHC == 9.4.7
+  GHC == 9.6.6
+  GHC == 9.4.8
   GHC == 9.2.8
   GHC == 9.0.2
   GHC == 8.10.7
@@ -20,10 +21,10 @@ tested-with:
 executable agda-bisect
   main-is:          Bisect.hs
   build-depends:
-      base                 >= 4.9.0.0 && < 4.20
+      base                 >= 4.9.0.0 && < 4.21
     , ansi-wl-pprint       >= 0.6.7.3 && < 1.1
     , directory            >= 1.2.6.2 && < 1.4
-    , filepath             >= 1.4.1.0 && < 1.5
+    , filepath             >= 1.4.1.0 && < 1.6
     , optparse-applicative >= 0.13    && < 0.19
     , process              >= 1.4.2.0 && < 1.7
     , time                 >= 1.6.0.1 && < 1.13
