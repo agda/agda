@@ -1,0 +1,6 @@
+TypeBasedTermination/NoSizePreservation.agda:14,1-16,26
+Termination checking failed for the following functions:
+  foo
+Problematic calls:
+  foo (idn n)
+    (at TypeBasedTermination/NoSizePreservation.agda:16,15-18)

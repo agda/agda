@@ -27,9 +27,12 @@ testDir = "test" </> "Fail"
 tests :: IO TestTree
 tests = do
   inpFiles <- getAgdaFilesInDir NonRec testDir
+  typeBasedTerminationFiles <- getAgdaFilesInDir NonRec $ testDir </> "TypeBasedTermination"
   return $ testGroup "Fail" $ concat $
     -- A list written with ':' to quickly switch lines
     map mkFailTest inpFiles :
+    -- Type-based-termination tests are kept separately in order to being able access them independently
+    map mkFailTest typeBasedTerminationFiles :
     -- The some of the customized tests fail with agda-quicker
     -- (because they refer to the name of the Agda executable),
     -- so put them last.
