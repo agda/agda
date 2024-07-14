@@ -2,11 +2,6 @@ resolver: lts-19.33
 compiler: ghc-9.0.2
 compiler-check: match-exact
 
-# Local packages specified by relative directory name.
-packages:
-- '.'
-- 'src/size-solver'
-
 extra-deps:
 - pqueue-1.5.0.0
 - text-icu-0.8.0.2
