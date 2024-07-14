@@ -96,13 +96,13 @@ Pragmas and options
 
 ### Lossy unification
 
-* [New option `--require-unique-meta-solutions`](https://agda.readthedocs.io/en/v2.7.0/tools/command-line-options.html#cmdoption-require-unique-meta-solutions)
+* [New option `--require-unique-meta-solutions`](https://agda.readthedocs.io/en/v2.6.20240714/tools/command-line-options.html#cmdoption-require-unique-meta-solutions)
   (turned on by default).
   Disabling it with `--no-require-unique-meta-solutions` allows the type checker
   to take advantage of `INJECTIVE_FOR_INFERENCE` pragmas (see below).
   The `--lossy-unification` flag implies `--no-require-unique-meta-solutions`.
 
-* [New pragma `INJECTIVE_FOR_INFERENCE`](https://agda.readthedocs.io/en/v2.7.0/pragmas.html#injective-for-inference-pragma)
+* [New pragma `INJECTIVE_FOR_INFERENCE`](https://agda.readthedocs.io/en/v2.6.20240714/pragmas.html#injective-for-inference-pragma)
   which treats functions as injective for inferring implicit arguments if
   `--no-require-unique-meta-solutions` is given. The `--no-require-unique-meta-solutions` flag needs to be given in the
   file where the function is used, and not necessarily in the file where it is defined.
@@ -122,7 +122,7 @@ Syntax
 
 Additions to the Agda syntax.
 
-* [Left-hand side let](https://agda.readthedocs.io/en/v2.7.0/with-abstraction.html#left-hand-side-let-bindings):
+* [Left-hand side let](https://agda.readthedocs.io/en/v2.6.20240714/with-abstraction.html#left-hand-side-let-bindings):
   `using x ← e`
   ([PR #7078](https://github.com/agda/agda/pull/7078))
 
@@ -224,7 +224,7 @@ Changes to the meta-programming facilities.
 Interaction and emacs mode
 --------------------------
 
-* [**Breaking**] [The Auto command](https://agda.readthedocs.io/en/v2.7.0/tools/auto.html)
+* [**Breaking**] [The Auto command](https://agda.readthedocs.io/en/v2.6.20240714/tools/auto.html)
   _Agsy_ has been replaced by an entirely new implementation _Mimer_
   ([PR #6410](https://github.com/agda/agda/pull/6410)).
   This fixes problems where Auto would fail in the presence of language features
