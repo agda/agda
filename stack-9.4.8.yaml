@@ -2,11 +2,6 @@ resolver: lts-21.25
 compiler: ghc-9.4.8
 compiler-check: match-exact
 
-# Local packages specified by relative directory name.
-packages:
-- '.'
-- 'src/size-solver'
-
 flags:
   mintty:
     win32-2-13-1: false
