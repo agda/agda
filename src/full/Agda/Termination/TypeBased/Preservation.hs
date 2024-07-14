@@ -25,11 +25,12 @@
  -}
 module Agda.Termination.TypeBased.Preservation
   ( refinePreservedVariables
+  , replaceColumnInGraph
   , applySizePreservation
   ) where
 
 import Control.Arrow (second)
-import Control.Monad ( forM )
+import Control.Monad ( forM, foldM )
 import Data.Foldable (traverse_)
 import Data.Functor ((<&>))
 import Data.IntMap ( IntMap )
@@ -40,8 +41,8 @@ import qualified Data.List as List
 import Data.Maybe ( mapMaybe )
 
 import Agda.Termination.TypeBased.Common (VariableInstantiation(..), reifySignature)
-import Agda.Termination.TypeBased.Graph ( SizeExpression, simplifySizeGraph, collectIncoherentRigids, collectClusteringIssues )
-import Agda.Termination.TypeBased.Monad ( SConstraint(SConstraint), getCurrentConstraints, getCurrentRigids, currentCheckedName, withAnotherPreservationCandidate, TBTM, getPreservationCandidates, getRecursionMatrix, replacePreservationCandidates )
+import Agda.Termination.TypeBased.Graph ( SizeExpression, simplifySizeGraph, collectIncoherentRigids, collectClusteringIssues, SizeSubstitution )
+import Agda.Termination.TypeBased.Monad ( SConstraint(SConstraint), getCurrentConstraints, getCurrentRigids, currentCheckedName, withAnotherPreservationCandidate, TBTM, getPreservationCandidates, getRecursionMatrix, replacePreservationCandidates, getTotalConstraints, getTotalRigids )
 import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound, SizeType(..), Size(..) )
 import Agda.TypeChecking.Monad.Base ( MonadTCM(liftTCM), sizePreservationOption )
 import Agda.TypeChecking.Monad.Debug ( reportSDoc )
@@ -80,6 +81,17 @@ checkCandidateSatisfiability :: Int -> Int -> [SConstraint] -> [(Int, SizeBound)
 checkCandidateSatisfiability possiblyPreservingVar candidateVar graph bounds = do
   reportSDoc "term.tbt" 70 $ "Trying to replace " <+> text (show possiblyPreservingVar) <+> "with" <+> text (show candidateVar)
 
+  mappedGraph <- replaceColumnInGraph possiblyPreservingVar candidateVar graph
+
+  -- Now let's see if there are any problems if we try to solve graph with merged variables.
+  substitution <- withAnotherPreservationCandidate candidateVar $ simplifySizeGraph bounds mappedGraph
+  incoherences <- liftTCM $ collectIncoherentRigids substitution mappedGraph
+  let allIncoherences = IntSet.union incoherences $ collectClusteringIssues candidateVar substitution mappedGraph bounds
+  reportSDoc "term.tbt" 70 $ "Incoherences during an attempt:" <+> text (show allIncoherences)
+  pure $ not $ IntSet.member candidateVar allIncoherences
+
+replaceColumnInGraph :: Int -> Int -> [SConstraint] -> TBTM [SConstraint]
+replaceColumnInGraph possiblyPreservingVar candidateVar graph = do 
   matrix <- getRecursionMatrix
   -- Now we are trying to replace all variables in 'replaceableCol' with variables in 'replacingCol'
   let replaceableCol = possiblyPreservingVar : map (List.!! possiblyPreservingVar) matrix
@@ -92,18 +104,10 @@ checkCandidateSatisfiability possiblyPreservingVar candidateVar graph bounds = d
     , "codomainCol:  " <+> text (show replaceableCol)
     , "domainCol:    " <+> text (show replacingCol)
     ]
-
-  -- Now let's see if there are any problems if we try to solve graph with merged variables.
-  substitution <- withAnotherPreservationCandidate candidateVar $ simplifySizeGraph bounds mappedGraph
-  incoherences <- liftTCM $ collectIncoherentRigids substitution mappedGraph
-  let allIncoherences = IntSet.union incoherences $ collectClusteringIssues candidateVar substitution mappedGraph bounds
-  reportSDoc "term.tbt" 70 $ "Incoherences during an attempt:" <+> text (show allIncoherences)
-  pure $ not $ IntSet.member candidateVar allIncoherences
-
-
+  pure mappedGraph
 
 -- | Applies the size preservation analysis result to a function signature.
-applySizePreservation :: SizeSignature -> TBTM SizeSignature
+applySizePreservation :: SizeSignature -> TBTM (SizeSignature, SizeSubstitution)
 applySizePreservation s@(SizeSignature _ tele) = do
   candidates <- getPreservationCandidates
   isPreservationEnabled <- sizePreservationOption
@@ -121,6 +125,12 @@ applySizePreservation s@(SizeSignature _ tele) = do
           reportSDoc "term.tbt" 60 $ "No candidates for variable " <+> text (show replaceable)
           pure ToInfinity)
   let newSignature = reifySignature flatCandidates s
+  totalGraph <- getTotalConstraints
+  mappedTotalGraph <- foldM (\graph (replaceable, candidate) -> case candidate of 
+    ToVariable singleCandidate -> replaceColumnInGraph replaceable singleCandidate graph
+    ToInfinity -> pure graph) totalGraph flatCandidates
+  globalRigids <- getTotalRigids
+  globalSubst <- simplifySizeGraph globalRigids mappedTotalGraph
   currentName <- currentCheckedName
   reportSDoc "term.tbt" 5 $ "Signature of" <+> prettyTCM currentName <+> "after size-preservation inference:" $$ nest 2 (pretty newSignature)
-  pure newSignature
+  pure (newSignature, globalSubst)

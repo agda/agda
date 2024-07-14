@@ -13,6 +13,7 @@ module Agda.Termination.TypeBased.Monad
   , storeConstraint
   -- * Size variables manipulation
   , getCurrentRigids
+  , getTotalRigids
   , requestNewRigidVariable
   , withVariableCounter
   , getBottomVariables
@@ -42,6 +43,7 @@ module Agda.Termination.TypeBased.Monad
   , reportCall
   , freshenSignature
   , initNewClause
+  , initGlobalState
   , initSizePreservation
   , hasEncodingErrors
   , recordError
@@ -136,6 +138,8 @@ data SizeCheckerState = SizeCheckerState
   , scsTotalConstraints       :: [SConstraint]
   -- ^ The list of all constraints during function processing.
   --   This list is global across the function
+  , scsTotalRigids            :: [(Int, SizeBound)]
+  -- ^ List of rigid variables across the entire definition
   , scsRigidSizeVars          :: [(Int, SizeBound)]
   -- ^ Variables that are obtained during the process of pattern matching.
   --   All flexible variables should be expressed as infinity or a rigid variable in the end.
@@ -190,11 +194,19 @@ getCurrentConstraints = TBTM $ gets scsConstraints
 getTotalConstraints :: TBTM [SConstraint]
 getTotalConstraints = TBTM $ gets scsTotalConstraints
 
+getTotalRigids:: TBTM [(Int, SizeBound)]
+getTotalRigids = TBTM $ gets scsTotalRigids
+
 getCurrentRigids :: TBTM [(Int, SizeBound)]
 getCurrentRigids = TBTM $ gets scsRigidSizeVars
 
 getCurrentCoreContext :: TBTM [SizeContextEntry]
 getCurrentCoreContext = TBTM $ gets scsCoreContext
+
+initGlobalState :: [SizeBound] -> TBTM ()
+initGlobalState bounds = TBTM $ modify (\s -> s 
+  { scsTotalRigids = (zip [0..length bounds] (replicate (length bounds) SizeUnbounded))
+  })
 
 -- | Initializes internal data strustures that will be filled by the processing of a clause
 initNewClause :: [SizeBound] -> TBTM ()
@@ -269,7 +281,11 @@ getBottomVariables = TBTM $ gets scsBottomFlexVars
 
 -- | 'markInfiniteSize i' is used to mark a size variable as having an infinite lower bound.
 markInfiniteSize :: Int -> TBTM ()
-markInfiniteSize i = TBTM $ modify (\s -> s { scsInfiniteVariables = IntSet.insert i (scsInfiniteVariables s)})
+markInfiniteSize i = TBTM $ modify (\s -> s 
+  { scsInfiniteVariables = IntSet.insert i (scsInfiniteVariables s)
+  -- If a variable has a lower bound of infinity, it definitely cannot reflect preservation. See #7271
+  , scsPreservationCandidates = IntMap.adjust (const []) i (scsPreservationCandidates s)
+  })
 
 -- | 'getInfiniteSizes' returns the set of size variables that have an infinite lower bound.
 getInfiniteSizes :: TBTM IntSet
@@ -369,7 +385,9 @@ requestNewRigidVariable pol bound = do
   newVarIdx <- requestNewVariable pol
   TBTM $ do
     currentRigids <- gets scsRigidSizeVars
+    totalRigids <- gets scsTotalRigids
     modify \s -> s { scsRigidSizeVars = ((newVarIdx, bound) : currentRigids) }
+    modify \s -> s { scsTotalRigids = ((newVarIdx, bound) : totalRigids) }
     return newVarIdx
 
 appendCoreVariable :: Int -> Either FreeGeneric SizeType -> TBTM ()
@@ -393,6 +411,7 @@ runSizeChecker rootName mutualNames (TBTM action) = do
     , scsRecCalls = []
     , scsConstraints = []
     , scsTotalConstraints = []
+    , scsTotalRigids = []
     , scsRigidSizeVars = []
     , scsFreshVarCounter = 0
     , scsFreshVarPolarities = IntMap.empty

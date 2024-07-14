@@ -30,7 +30,7 @@ import Agda.Termination.TypeBased.Common ( fixGaps, computeDecomposition, SizeDe
 import Agda.Termination.TypeBased.Encoding ( encodeFunctionType, encodeFieldType, encodeBlackHole, encodeConstructorType )
 import Agda.Termination.TypeBased.Graph ( SizeExpression(..), simplifySizeGraph, collectIncoherentRigids, SizeSubstitution )
 import Agda.Termination.TypeBased.Monad ( getCurrentConstraints, getTotalConstraints, getCurrentRigids, getCurrentCoreContext, initNewClause, setLeafSizeVariables, currentCheckedName,
-      getRootArity, freshenSignature, runSizeChecker, TBTM, initSizePreservation, hasEncodingErrors, getBottomVariables, getInfiniteSizes, getAllPolarities, MutualRecursiveCall(..) )
+      getRootArity, freshenSignature, runSizeChecker, TBTM, initSizePreservation, hasEncodingErrors, getBottomVariables, getInfiniteSizes, getAllPolarities, MutualRecursiveCall(..), initGlobalState )
 import Agda.Termination.TypeBased.Preservation ( refinePreservedVariables, applySizePreservation )
 import Agda.Termination.TypeBased.Patterns ( matchPatterns )
 import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(SizeUnbounded), SizeType(..), Size(SUndefined, SDefined), pattern UndefinedSizeType )
@@ -207,16 +207,18 @@ processSizedDefinitionTBTM clauses = do
   funType <- defType <$> getConstInfo qn
   sig@(SizeSignature bounds sizeType) <- liftTCM $ encodeFunctionType funType
   let decomposition = computeDecomposition sizeType
+  initGlobalState bounds
   initSizePreservation (sdNegative decomposition) (sdPositive decomposition)
   (_, newTele) <- freshenSignature Covariant sig
 
-  localSubstitutions <- forM clauses $ processSizeClause bounds newTele
+  forM_ clauses $ processSizeClause bounds newTele
 
   -- This is in fact a disjoint union, since all variables are different for each clause.
-  let combinedSubst = IntMap.unions localSubstitutions
-  amendedSubst <- considerIncoherences combinedSubst
+  -- let combinedSubst = IntMap.unions localSubstitutions
 
-  fixedSignature <- billTo [Benchmark.TypeBasedTermination, Benchmark.Preservation] $ applySizePreservation sig
+  (fixedSignature, combinedSubst) <- billTo [Benchmark.TypeBasedTermination, Benchmark.Preservation] $ applySizePreservation sig
+
+  amendedSubst <- considerIncoherences combinedSubst
 
   pure $ (amendedSubst, fixedSignature)
 
@@ -352,6 +354,7 @@ data EncodingFlavor
   | MixedInductiveCoinductive
   -- ^ Indicates that a datatype is located in a block of mutually-defined inductive and coinductive datatypes. Coinduction takes precedence here,
   -- i.e., ν is the outer quantifier in the resulting fixpoint.
+  deriving Eq
 
 encodeDataType :: EncodingFlavor -> [QName] -> Set QName -> Bool -> [Polarity] -> Type -> TCM SizeSignature
 encodeDataType ind ctors fullSet generify polarities tp = do
@@ -363,7 +366,7 @@ encodeDataType ind ctors fullSet generify polarities tp = do
   let ind' = if isRecursiveData then ind else NonRecursive
 
   pure $ SizeSignature
-         (if isRecursiveData then [SizeUnbounded] else [])
+         (if ind == MixedInductiveCoinductive then [SizeUnbounded, SizeUnbounded] else if isRecursiveData then [SizeUnbounded] else [])
          (encodeDatatypeDomain ind' generify polarities [] domains)
 
 -- | 'checkRecursiveConstructor allNames qn' checks that a construtor with the name 'qn' refers to any of the 'allNames',

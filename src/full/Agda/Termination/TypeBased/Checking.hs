@@ -23,7 +23,7 @@ import Agda.Termination.TypeBased.Monad ( SConstraint(SConstraint), ConstrType(S
       addFallbackInstantiation, reportDirectRecursion, storeBottomVariable, abstractCoreContext, freshenSignature, TBTM, markInfiniteSize, withVariableCounter, getSizePolarity )
 import Agda.Termination.TypeBased.Syntax ( FreeGeneric(FreeGeneric, fgIndex), SizeType(..), Size(..), pattern UndefinedSizeType, sizeCodomain )
 import Agda.TypeChecking.Monad.Base ( TCM, Definition(theDef, defCopy, defType, defSizedType, defGeneralizedParams, defArgGeneralizable), MonadTCM(liftTCM), pattern Constructor, conData, pattern Record,
-      recInduction, pattern Function, funProjection, funTerminates, isAbsurdLambdaName, Projection (..) )
+      recInduction, pattern Function, funProjection, funTerminates, isAbsurdLambdaName, Projection (..), pattern Axiom )
 import Agda.TypeChecking.Monad.Debug ( reportSDoc )
 import Agda.TypeChecking.Monad.Context ( AddContext(addContext) )
 import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo), typeOfConst, getDefFreeVars )
@@ -115,7 +115,14 @@ sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure Un
   maybeStoreRecursiveCall qn elims actualArgs
 
   reportSDoc "term.tbt" 40 $ "Eliminated type of " <> prettyTCM qn <> ": " <> pretty remainingCodomain
-  inferenceToChecking expected remainingCodomain
+  let isAdmissibleForConstraints = case theDef constInfo of 
+        Function{} -> True
+        Axiom{} -> True 
+        -- Since we are working on System F_omega, we cannot have constraints on size variables arising from data definitions.
+        -- If we do it, then we would have unpleasant equalities with infinities. The variables of this kind are invariant,
+        -- which means that they would be assigned to infinity, which makes no sense. 
+        _ -> False
+  when isAdmissibleForConstraints $ inferenceToChecking expected remainingCodomain
 
   pure $ remainingCodomain
 sizeCheckTerm' expected t@(Con ch ci elims) = do
@@ -234,7 +241,7 @@ maybeStoreRecursiveCall qn elims callSizes = do
 -- | Records the constraints obtained from comparing inferred and checked size types.
 -- This is more or less standard transition from checking to inference in bidirectional type checking.
 inferenceToChecking :: SizeType -> SizeType -> TBTM ()
-inferenceToChecking expected inferred = unless (expected == UndefinedSizeType) $ smallerOrEq Covariant inferred expected
+inferenceToChecking expected inferred = smallerOrEq Covariant inferred expected
 
 -- | In projection functions, the arguments that precede the principal one are not present among eliminations.
 -- This requires us to forcibly drop them from the sized type, similarly to what was done in constructors.
@@ -393,6 +400,7 @@ smallerOrEq pol (SizeTree i1 c1 tree1) (SizeTree i2 c2 tree2) = do
   let prodPol2 = composePol pol argPol2
   reportSDoc "term.tbt" 40 $ vcat
     [ "product polarities: " <+> pretty prodPol1 <+> " and " <+> pretty prodPol2
+    , "p1:" <+> pretty p1 <+> ", p2:" <+> pretty p2 <+> ", p3:" <+> pretty p3 <+> ", p4:" <+> pretty p4
     ]
   smallerSize prodPol1 i1 i2
   smallerSize prodPol2 c1 c2

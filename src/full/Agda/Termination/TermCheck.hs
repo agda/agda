@@ -258,7 +258,9 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
             -- Else: Old check, all at once.
             (runTerm $ termMutual'))
          {- else -}
-         (pure $ fromMaybe mempty e)
+         (case e of 
+           Just errs -> pure $ errs
+           Nothing -> pure $ [TerminationError names0 []])
 
 -- | @termMutual'@ checks all names of the current mutual block,
 --   henceforth called @allNames@, for termination.
@@ -299,14 +301,11 @@ termMutual' = do
        -- would make the other cases impossible, so I do not disable
        -- this for --without-K entirely.
        ifM (isJust . optCubical <$> pragmaOptions) (return r) {- else -} $ do
-       case r of
-         r@Right{} -> return r
-         Left{}    -> do
-           let ?cutoff = cutoff
-           -- Try again, but include the dot patterns this time.
-           calls2 <- terSetUseDotPatterns True $ collect
-           reportCalls "" calls2
-           billToTerGraph $ Term.terminates calls2
+         let ?cutoff = cutoff
+         -- Try again, but include the dot patterns this time.
+         calls2 <- terSetUseDotPatterns True $ collect
+         reportCalls "" calls2
+         billToTerGraph $ Term.terminates calls2
 
   -- @names@ is taken from the 'Abstract' syntax, so it contains only
   -- the names the user has declared.  This is for error reporting.

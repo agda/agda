@@ -78,7 +78,7 @@ import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
-import Agda.Termination.TypeBased.Definitions (initSizeTypeEncoding)
+import Agda.Termination.TypeBased.Definitions
 
 -- | Cached checkDecl
 checkDeclCached :: A.Declaration -> TCM ()
@@ -689,7 +689,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         , defBlocked           = blk
         }
 
-  initSizeTypeEncoding (Set.singleton x)
+  reportSDoc "term.tbt" 20 $ "Raw sig of kind: " <+> text (show kind) <+> "name:" <+> prettyTCM x
+  when (kind == AxiomName) $ inTopContext $ initSizeTypeEncoding (Set.singleton x)
 
   -- Add the definition to the instance table, if needed
   case Info.defInstance i of
