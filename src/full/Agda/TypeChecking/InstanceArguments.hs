@@ -717,7 +717,10 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
 
   case cands of
     [] -> return cands
-    cvd : _ | isIrrelevant rel -> do
+    -- If overlap is not OK, then picking the first instance if the meta is irrelevant
+    -- is also not OK for the same reason: more work might reveal that some of the
+    -- candidates are invalid.
+    cvd : _ | overlapOk, isIrrelevant rel -> do
       reportSLn "tc.instance" 30 "dropSameCandidates: Meta is irrelevant so any candidate will do."
       return [cvd]
     cvd@(_, v, _) : vas
@@ -829,7 +832,7 @@ checkCandidates m t cands =
           debugConstraints
 
           -- Apply hidden and instance arguments (in case of
-          -- --overlapping-instances, this performs recursive
+          -- --backtracking-instance-search, this performs recursive
           -- inst. search!).
           (args, t'') <- implicitArgs (-1) (\h -> notVisible h) t'
 
