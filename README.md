@@ -7,7 +7,7 @@ Agda 2
 [![Documentation Status](https://readthedocs.org/projects/agda/badge/?version=latest)](http://agda.readthedocs.io/en/latest/?badge=latest)
 [![Agda Zulip](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://agda.zulipchat.com)
 
-![The official Agda logo](doc/user-manual/agda.svg)
+![The official Agda logo](https://raw.githubusercontent.com/agda/agda/master/doc/user-manual/agda.svg)
 
 Note that this README is only about Agda, not its standard
 library. See the [Agda Wiki][agdawiki] for information about the
