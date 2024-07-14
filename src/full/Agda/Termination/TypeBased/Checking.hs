@@ -203,7 +203,10 @@ sizeCheckTerm' expected t@(Lam info tm) = do
       pure $ SizeArrow UndefinedSizeType checkedTerm
     NoAbs _ tm -> do
       sizeCheckTerm rest tm
-sizeCheckTerm' _ (Pi _ _) = pure $ UndefinedSizeType
+sizeCheckTerm' _ (Pi dom cod) = do 
+  _ <- sizeCheckTerm UndefinedSizeType (unEl $ unDom dom)
+  _ <- sizeCheckTerm UndefinedSizeType (unEl $ unAbs cod)
+  pure $ UndefinedSizeType
 sizeCheckTerm' expected t@(MetaV _ el) = do
   inst <- liftTCM $ instantiate t
   case inst of

@@ -1,0 +1,10 @@
+TypeBasedTermination/RecursionInPiType.agda:12,1-13,26
+Termination checking failed for the following functions:
+  T
+Problematic calls:
+  T j
+    (at TypeBasedTermination/RecursionInPiType.agda:13,23-24)
+
+TypeBasedTermination/RecursionInPiType.agda:17,15-19
+x != y of type T i
+when checking that the expression refl has type x ≡ y
