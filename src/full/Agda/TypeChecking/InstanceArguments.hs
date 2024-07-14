@@ -579,6 +579,8 @@ resolveInstanceOverlap
   -> TCM [item]
 resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
   wrapper
+    | not overlapOk = pure cands
+
     -- If all the candidates are incoherent: choose the leftmost candidate.
     | all (isIncoherent . candidateOverlap . itemC) cands
     , (c:_) <- cands = pure [c]
@@ -590,8 +592,6 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
     -- If none of the candidates have a special overlap mode: there's no
     -- reason to do any work.
     | all ((DefaultOverlap ==) . candidateOverlap . itemC) cands = pure cands
-
-    | not overlapOk = pure cands
 
     -- If some of the candidates are overlappable/overlapping, then we
     -- should do the work.
@@ -731,7 +731,7 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
       where
         equal :: (Candidate, Term, a) -> TCM Bool
         equal (c, v', _)
-            | isIncoherent c = return True   -- See 'sinkIncoherent'
+            | overlapOk, isIncoherent c = return True   -- See 'sinkIncoherent'
             | freshMetas v'  = return False  -- If there are fresh metas we can't compare
             | otherwise      =
           verboseBracket "tc.instance" 30 "dropSameCandidates: " $ do
