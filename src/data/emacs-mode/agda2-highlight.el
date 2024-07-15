@@ -421,6 +421,14 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for catchall clauses."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-cosmetic-problem-face
+  '((((background light))
+     (:background "white smoke"))
+    (((background dark))
+     (:background "#404040")))
+  "The face used for cosmetic problems."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-confluence-problem-face
   '((((background light))
      (:background "pink"))
@@ -481,6 +489,7 @@ If `agda2-highlight-face-groups' is nil."
     (incompletepattern      . agda2-highlight-incomplete-pattern-face)
     (catchallclause         . agda2-highlight-catchall-clause-face)
     (confluenceproblem      . agda2-highlight-confluence-problem-face)
+    (cosmeticproblem        . agda2-highlight-cosmetic-problem-face)
     (missingdefinition      . agda2-highlight-missing-definition-face)
     (typechecks             . agda2-highlight-typechecks-face))
   "Alist mapping code aspects to the face used when displaying them.
@@ -492,6 +501,7 @@ The aspects currently recognised are the following:
 `catchallclause'         Clause not holding definitionally.
 `coinductiveconstructor' Coinductive constructors.
 `comment'                Comments.
+`cosmeticproblem'        Code that could be prettier.
 `coverageproblem'        Coverage problems.
 `datatype'               Data types.
 `deadcode'               Deadcode (like unreachable clauses or RHS).

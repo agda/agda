@@ -33,6 +33,10 @@ Library management
 Interaction and emacs mode
 --------------------------
 
+* Emacs: new face `agda2-highlight-cosmetic-problem-face`
+  for highlighting the new aspect `CosmeticProblem`.
+
+
 Backends
 --------
 

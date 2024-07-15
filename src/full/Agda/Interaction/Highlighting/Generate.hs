@@ -613,6 +613,12 @@ catchallHighlighting :: Range -> HighlightingInfoBuilder
 catchallHighlighting r = H.singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CatchallClause }
 
+cosmeticProblemHighlighting :: HasRange a => a -> HighlightingInfoBuilder
+cosmeticProblemHighlighting a = H.singleton (rToR $ P.continuousPerLine r) m
+  where
+    r = getRange a
+    m = parserBased { otherAspects = Set.singleton CosmeticProblem }
+
 confluenceErrorHighlighting ::
   HasRange a => a -> HighlightingInfoBuilder
 confluenceErrorHighlighting a = H.singleton (rToR $ P.continuousPerLine $ getRange a) m
