@@ -17,8 +17,9 @@ module Agda.TypeChecking.Warnings
 import Control.Monad ( forM, unless )
 import Control.Monad.Except ( MonadError(..) )
 import Control.Monad.Reader ( ReaderT )
-import Control.Monad.State ( StateT )
-import Control.Monad.Trans ( MonadTrans, lift )
+import Control.Monad.State  ( StateT )
+import Control.Monad.Trans  ( MonadTrans, lift )
+import Control.Monad.Writer ( WriterT )
 
 import qualified Data.List as List
 import qualified Data.Map  as Map
@@ -63,6 +64,7 @@ class (MonadPretty m, MonadError TCErr m) => MonadWarning m where
 
 instance MonadWarning m => MonadWarning (ReaderT r m)
 instance MonadWarning m => MonadWarning (StateT s m)
+instance (MonadWarning m, Monoid w) => MonadWarning (WriterT w m)
 
 instance MonadWarning TCM where
   addWarning tcwarn = do

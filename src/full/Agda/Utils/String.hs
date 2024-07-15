@@ -4,6 +4,7 @@ module Agda.Utils.String where
 
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Writer
 
 import Data.Char
 import qualified Data.List as List
@@ -107,4 +108,7 @@ instance (IsString (m a), Monad m) => IsString (ReaderT r m a) where
   fromString = lift . fromString
 
 instance (IsString (m a), Monad m) => IsString (StateT s m a) where
+  fromString = lift . fromString
+
+instance (IsString (m a), Monad m, Monoid w) => IsString (WriterT w m a) where
   fromString = lift . fromString

@@ -24,7 +24,7 @@ import Control.Monad.Fix
 import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.State          ( MonadState(..), modify, StateT(..), runStateT )
 import Control.Monad.Reader         ( MonadReader(..), ReaderT(..), runReaderT )
-import Control.Monad.Writer         ( WriterT )
+import Control.Monad.Writer         ( WriterT(..), runWriterT )
 import Control.Monad.Trans          ( MonadTrans(..), lift )
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity ( IdentityT(..), runIdentityT )
@@ -868,6 +868,7 @@ class Monad m => MonadFresh i m where
 
 instance MonadFresh i m => MonadFresh i (ReaderT r m)
 instance MonadFresh i m => MonadFresh i (StateT s m)
+instance (MonadFresh i m, Monoid w) => MonadFresh i (WriterT w m)
 instance MonadFresh i m => MonadFresh i (ListT m)
 instance MonadFresh i m => MonadFresh i (IdentityT m)
 
@@ -988,6 +989,11 @@ instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
   runStConcreteNames m = StateT $ \s -> runStConcreteNames $ StateT $ \ns -> do
     ((x,ns'),s') <- runStateT (runStateT m ns) s
     return ((x,s'),ns')
+
+instance (MonadStConcreteNames m, Monoid w) => MonadStConcreteNames (WriterT w m) where
+  runStConcreteNames m = WriterT $ runStConcreteNames $ StateT $ \ ns -> do
+    ((x,ns'),w) <- runWriterT $ runStateT m ns
+    return ((x,w),ns')
 
 ---------------------------------------------------------------------------
 -- ** Interface

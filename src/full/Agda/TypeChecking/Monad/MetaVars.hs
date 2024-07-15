@@ -520,6 +520,7 @@ class (MonadTCEnv m, ReadTCState m) => MonadInteractionPoints m where
 instance MonadInteractionPoints m => MonadInteractionPoints (IdentityT m)
 instance MonadInteractionPoints m => MonadInteractionPoints (ReaderT r m)
 instance MonadInteractionPoints m => MonadInteractionPoints (StateT s m)
+instance (MonadInteractionPoints m, Monoid w) => MonadInteractionPoints (WriterT w m)
 
 instance MonadInteractionPoints TCM where
   freshInteractionId = fresh
