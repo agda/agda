@@ -254,6 +254,7 @@ errorString = \case
   NotAProjectionPattern{}                  -> "NotAProjectionPattern"
   ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
   SplitError{}                             -> "SplitError"
+  InteractiveSplitError{}                  -> "InteractiveSplitError"
   ImpossibleConstructor{}                  -> "ImpossibleConstructor"
   TooManyFields{}                          -> "TooManyFields"
   TooManyPolarities{}                      -> "TooManyPolarities"
@@ -1328,6 +1329,8 @@ instance PrettyTCM TypeError where
 -}
 
     SplitError e -> prettyTCM e
+
+    InteractiveSplitError doc -> return doc
 
     ImpossibleConstructor c neg -> fsep $
       pwords "The case for the constructor " ++ [prettyTCM c] ++

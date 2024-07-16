@@ -4951,6 +4951,9 @@ data TypeError
     -- Instance search errors
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
+    -- Interaction errors
+        | InteractiveSplitError Doc
+            -- ^ Failure of the 'makeCase' interactive tactics.
     -- Backend errors
         | CustomBackendError String Doc
           -- ^ Used for backend-specific errors. The string is the backend name.
