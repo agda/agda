@@ -35,8 +35,7 @@ sayWhere x d = applyUnless (null r) (prettyTCM r $$) d
   where r = getRange x
 
 sayWhen :: MonadPretty m => Range -> Maybe (Closure Call) -> m Doc -> m Doc
-sayWhen r Nothing   m = sayWhere r m
-sayWhen r (Just cl) m = sayWhere r (m $$ prettyTCM cl)
+sayWhen r cl m = sayWhere r (m $$ prettyTCM cl)
 
 instance PrettyTCM CallInfo where
   prettyTCM (CallInfo callInfoTarget callInfoCall) = do
