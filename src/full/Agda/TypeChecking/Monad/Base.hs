@@ -4389,6 +4389,7 @@ data Warning
   | UselessOpaque
 
   -- Type checker warnings
+  | RecursiveDisplayForm QName
   | WithClauseProjectionFixityMismatch
     { withClausePattern          :: NamedArg A.Pattern
     , withClauseProjectionOrigin :: ProjOrigin
@@ -4497,6 +4498,7 @@ warningName = \case
   UnfoldTransparentName{} -> UnfoldTransparentName_
 
   -- Type checking
+  RecursiveDisplayForm{}               -> RecursiveDisplayForm_
   WithClauseProjectionFixityMismatch{} -> WithClauseProjectionFixityMismatch_
 
   -- Cubical

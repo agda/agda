@@ -11,7 +11,11 @@ open M
 postulate
   a : A
 
-{-# DISPLAY N.A = A #-} -- Makes Agda loop
+{-# DISPLAY N.A = A #-}
+  -- Makes Agda loop.
+  -- Display form should be ignored with a warning.
 
 test : Set
 test = a
+
+-- Should fail with error N.A !=< Set

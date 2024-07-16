@@ -28,7 +28,8 @@ checkDisplayPragma f ps e = do
             let lhs = renumberElims (n - 1) $ map I.Apply args
             v <- exprToTerm e
             return $ Display n lhs (DTerm v)
-  reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ prettyShow f ++ "\n  " ++ show df
+  reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ prettyShow f
+  reportSLn "tc.display.pragma" 90 $ ": \n  " ++ show df
   addDisplayForm f df
 
 type ToTm = StateT Nat TCM

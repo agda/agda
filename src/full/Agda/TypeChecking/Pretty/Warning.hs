@@ -501,6 +501,11 @@ prettyWarning = \case
 
     UselessOpaque -> "This `opaque` block has no effect."
 
+    RecursiveDisplayForm x -> fsep $ concat
+        [ pwords "Ignoring recursive display form for"
+        , [ prettyTCM x ]
+        ]
+
     WithClauseProjectionFixityMismatch p0 o' q o -> fsep $ concat
         [ pwords "With clause pattern"
         , [ prettyA p0 ]

@@ -1496,6 +1496,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      :ref:`NO_TERMINATION_CHECK<terminating-pragma>` pragmas; such are deprecated.
 
+.. option:: RecursiveDisplayForm
+
+     A recursive, thus illegal, :ref:`DISPLAY <display-pragma>` form; it will be ignored.
+
 .. option:: RewriteLHSNotDefinitionOrConstructor
 
      Rewrite rule head symbol is not a defined symbol or constructor.

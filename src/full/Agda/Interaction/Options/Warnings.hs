@@ -330,6 +330,7 @@ data WarningName
   | UselessPatternDeclarationForRecord_
   | UselessPublic_
   | UserWarning_
+  | RecursiveDisplayForm_
   | WithClauseProjectionFixityMismatch_
   | WithoutKFlagPrimEraseEquality_
   | ConflictingPragmaOptions_
@@ -544,6 +545,7 @@ warningNameDescription = \case
   InteractionMetaBoundaries_       -> "Interaction meta variables that have unsolved boundary constraints."
   UnsolvedMetaVariables_           -> "Unsolved meta variables."
   UserWarning_                     -> "User-defined warnings via one of the 'WARNING_ON_*' pragmas."
+  RecursiveDisplayForm_            -> "Recursive display forms."
   WithClauseProjectionFixityMismatch_ -> "With clauses using projections in different fixities than their parent clauses."
   WithoutKFlagPrimEraseEquality_   -> "Uses of `primEraseEquality' with the without-K flags."
   WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."

@@ -1,3 +1,6 @@
 Issue1644.agda:8,1-22
-Cannot add recursive display form for Issue1644.B
+warning: -W[no]RecursiveDisplayForm
+Ignoring recursive display form for B
 when checking the pragma DISPLAY B = A
+Unsolved interaction metas at the following locations:
+  Issue1644.agda:11,8-12

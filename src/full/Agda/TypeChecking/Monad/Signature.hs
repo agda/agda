@@ -7,6 +7,7 @@ import Prelude hiding (null)
 import qualified Control.Monad.Fail as Fail
 
 import Control.Arrow                 ( first, second )
+import Control.Monad
 import Control.Monad.Except          ( ExceptT )
 import Control.Monad.State           ( StateT  )
 import Control.Monad.Reader          ( ReaderT )
@@ -744,13 +745,14 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
 -- | Add a display form to a definition (could be in this or imported signature).
 addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
+  -- Check whether display form is recursive and thus illegal.
+  xs <- chaseDisplayForms df Set.empty
+  if x `Set.member` xs then warning $ RecursiveDisplayForm x else do
   d <- makeOpen df
   let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
   ifM (isLocal x)
     {-then-} (modifySignature add)
     {-else-} (stImportsDisplayForms `modifyTCLens` HMap.insertWith (++) x [d])
-  whenM (hasLoopingDisplayForm x) $
-    typeError . GenericDocError =<< do "Cannot add recursive display form for" <+> pretty x
 
 isLocal :: ReadTCState m => QName -> m Bool
 isLocal x = HMap.member x <$> useR (stSignature . sigDefinitions)
@@ -767,23 +769,46 @@ hasDisplayForms :: (HasConstInfo m, ReadTCState m) => QName -> m Bool
 hasDisplayForms = fmap (not . null) . getDisplayForms
 
 -- | Find all names used (recursively) by display forms of a given name.
-chaseDisplayForms :: QName -> TCM (Set QName)
-chaseDisplayForms q = go Set.empty [q]
-  where
-    go :: Set QName        -- Accumulator.
-       -> [QName]          -- Work list.  TODO: make work set to avoid duplicate chasing?
-       -> TCM (Set QName)
-    go used []       = pure used
-    go used (q : qs) = do
-      let rhs (Display _ _ e) = e   -- Only look at names in the right-hand side (#1870)
-      let notYetUsed x = if x `Set.member` used then Set.empty else Set.singleton x
-      ds <- namesIn' notYetUsed . map (rhs . dget)
-            <$> (getDisplayForms q `catchError_` \ _ -> pure [])  -- might be a pattern synonym
-      go (Set.union ds used) (Set.toList ds ++ qs)
+--
+class ChaseDisplayForms a where
+  chaseDisplayForms ::
+       a                 -- ^ Search this recursively for display form names.
+    -> Set QName         -- ^ Already processed names (accumulator).
+    -> TCM (Set QName)   -- ^ Found names (superset of accumulator)
 
--- | Check if a display form is looping.
-hasLoopingDisplayForm :: QName -> TCM Bool
-hasLoopingDisplayForm q = Set.member q <$> chaseDisplayForms q
+instance ChaseDisplayForms QName where
+  chaseDisplayForms q used
+    | q `Set.member` used = return used
+    | otherwise           = do
+        reportSDoc "tc.display.recursive" 90 $ sep
+          [ "Chasing display form", prettyTCM q, "with accumulator", prettyTCM (Set.toList used) ]
+        xs <- getDisplayForms q `catchError_` const (pure [])  -- might be a pattern synonym
+        chaseDisplayForms xs (Set.insert q used)
+
+instance ChaseDisplayForms DisplayTerm where
+  chaseDisplayForms e used = do
+    let notYetUsed x = if x `Set.member` used then Set.empty else Set.singleton x
+    let ds = namesIn' notYetUsed e
+    chaseDisplayForms ds used
+
+instance ChaseDisplayForms DisplayForm where
+  -- Only look at names in the right-hand side (#1870)
+  chaseDisplayForms = chaseDisplayForms . dfRHS
+
+instance ChaseDisplayForms a => ChaseDisplayForms (Open a) where
+  chaseDisplayForms = chaseDisplayForms . openThing
+
+instance ChaseDisplayForms a => ChaseDisplayForms (Set a) where
+  chaseDisplayForms s = case Set.minView s of
+    Nothing      -> return
+    Just (x, s') -> chaseDisplayForms x >=> chaseDisplayForms s'
+
+instance ChaseDisplayForms a => ChaseDisplayForms [a] where
+  chaseDisplayForms []     = return
+  chaseDisplayForms (x:xs) = chaseDisplayForms x >=> chaseDisplayForms xs
+  -- NB: The following does not work because of lacking instance Ord LocalDisplayForm:
+  -- chaseDisplayForms = chaseDisplayForms . Set.toList
+
 
 canonicalName :: HasConstInfo m => QName -> m QName
 canonicalName x = do

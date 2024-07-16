@@ -105,6 +105,7 @@ instance EmbPrj Warning where
     CustomBackendWarning a b                    -> icodeN 56 CustomBackendWarning a b
     CoinductiveEtaRecord a                      -> icodeN 57 CoinductiveEtaRecord a
     WithClauseProjectionFixityMismatch a b c d  -> icodeN 58 WithClauseProjectionFixityMismatch a b c d
+    RecursiveDisplayForm a                      -> icodeN 59 RecursiveDisplayForm a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -166,6 +167,7 @@ instance EmbPrj Warning where
     [56, a, b]           -> valuN CustomBackendWarning a b
     [57, a]              -> valuN CoinductiveEtaRecord a
     [58, a, b, c, d]     -> valuN WithClauseProjectionFixityMismatch a b c d
+    [59, a]              -> valuN RecursiveDisplayForm a
     _ -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where
@@ -551,6 +553,7 @@ instance EmbPrj WarningName where
     RewriteBeforeFunctionDefinition_                  -> 133
     RewriteBeforeMutualFunctionDefinition_            -> 134
     WithClauseProjectionFixityMismatch_               -> 135
+    RecursiveDisplayForm_                             -> 136
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -688,6 +691,7 @@ instance EmbPrj WarningName where
     133 -> return RewriteBeforeFunctionDefinition_
     134 -> return RewriteBeforeMutualFunctionDefinition_
     135 -> return WithClauseProjectionFixityMismatch_
+    136 -> return RecursiveDisplayForm_
     _   -> malformed
 
 
