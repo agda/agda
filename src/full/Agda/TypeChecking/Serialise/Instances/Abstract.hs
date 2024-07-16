@@ -4,11 +4,14 @@
 
 module Agda.TypeChecking.Serialise.Instances.Abstract where
 
+import Control.Monad
+import Data.Void (Void)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pattern ( noDotOrEqPattern )
 import Agda.Syntax.Info
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Fixity
@@ -204,6 +207,14 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
     valu _            = malformed
 
     i = patNoRange
+
+-- | Hackish serialization for patterns that deletes dot patterns.
+--   So that we can serialize the 'WithClauseProjectionFixityMismatch'
+--   without having to define serialization of expressions.
+--
+instance {-# OVERLAPS #-} EmbPrj A.Pattern where
+  icod_ = icod_ <=< noDotOrEqPattern (return $ A.WildP empty)
+  value = fmap (__IMPOSSIBLE__ :: Void -> A.Expr) <.> value
 
 instance EmbPrj ParenPreference where
   icod_ PreferParen     = icodeN' PreferParen

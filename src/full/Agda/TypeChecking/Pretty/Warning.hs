@@ -37,7 +37,12 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingCons
 import Agda.TypeChecking.Warnings (MonadWarning, isUnsolvedWarning, onlyShowIfUnsolved, classifyWarning, WhichWarnings(..), warning_)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
-import Agda.Syntax.Common ( IsOpaque(OpaqueDef, TransparentDef), getHiding, ImportedName'(..), fromImportedName, partitionImportedNames )
+import Agda.Syntax.Common
+  ( ImportedName'(..), fromImportedName, partitionImportedNames
+  , IsOpaque(OpaqueDef, TransparentDef)
+  , ProjOrigin(..)
+  , getHiding
+  )
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
@@ -55,6 +60,8 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty ( Pretty, prettyShow, singPlural )
 import qualified Agda.Syntax.Common.Pretty as P
+
+import Agda.Utils.Impossible
 
 instance PrettyTCM TCWarning where
   prettyTCM w@(TCWarning loc _ _ _ _) = do
@@ -493,6 +500,21 @@ prettyWarning = \case
       pwords "The name" ++ [prettyTCM qn <> ","] ++ pwords "mentioned by an unfolding clause, does not belong to an opaque block. This has no effect."
 
     UselessOpaque -> "This `opaque` block has no effect."
+
+    WithClauseProjectionFixityMismatch p0 o' q o -> fsep $ concat
+        [ pwords "With clause pattern"
+        , [ prettyA p0 ]
+        , pwords "is not an instance of its parent pattern"
+        , [ P.fsep <$> prettyTCMPatterns [q] ]
+        , pwords "since the parent pattern is"
+        , pwords $ prettyProjOrigin o
+        , pwords "and the with clause pattern is"
+        , pwords $ prettyProjOrigin o'
+        ]
+      where
+        prettyProjOrigin ProjPrefix  = "a prefix projection"
+        prettyProjOrigin ProjPostfix = "a postfix projection"
+        prettyProjOrigin ProjSystem  = __IMPOSSIBLE__
 
     FaceConstraintCannotBeHidden ai -> fsep $
       pwords "Face constraint patterns cannot be" ++ [ pretty (getHiding ai), "arguments"]

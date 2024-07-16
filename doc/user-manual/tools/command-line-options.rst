@@ -1642,6 +1642,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Problem encountered with option :option:`-W`,
      like an unknown warning or the attempt to switch off a non-benign warning.
 
+.. option:: WithClauseProjectionFixityMismatch
+
+     Projection fixity different in with-clause compared to its parent clause.
+
 .. option:: WithoutKFlagPrimEraseEquality
 
      ``primEraseEquality`` used with the without-K flags.

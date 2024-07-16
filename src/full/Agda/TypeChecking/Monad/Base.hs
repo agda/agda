@@ -4388,6 +4388,16 @@ data Warning
   | UnfoldTransparentName QName
   | UselessOpaque
 
+  -- Type checker warnings
+  | WithClauseProjectionFixityMismatch
+    { withClausePattern          :: NamedArg A.Pattern
+    , withClauseProjectionOrigin :: ProjOrigin
+    , parentPattern              :: NamedArg DeBruijnPattern
+    , parentProjectionOrigin     :: ProjOrigin
+    }
+    -- ^ The with-clause uses projection in a different fixity style
+    --   than the parent clause.
+
   -- Cubical
   | FaceConstraintCannotBeHidden ArgInfo
     -- ^ Face constraint patterns @(i = 0)@ must be visible arguments.
@@ -4485,6 +4495,9 @@ warningName = \case
   NotAffectedByOpaque{}   -> NotAffectedByOpaque_
   UselessOpaque{}         -> UselessOpaque_
   UnfoldTransparentName{} -> UnfoldTransparentName_
+
+  -- Type checking
+  WithClauseProjectionFixityMismatch{} -> WithClauseProjectionFixityMismatch_
 
   -- Cubical
   FaceConstraintCannotBeHidden{} -> FaceConstraintCannotBeHidden_

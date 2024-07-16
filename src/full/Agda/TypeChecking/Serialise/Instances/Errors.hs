@@ -104,6 +104,7 @@ instance EmbPrj Warning where
     ConflictingPragmaOptions a b                -> icodeN 55 ConflictingPragmaOptions a b
     CustomBackendWarning a b                    -> icodeN 56 CustomBackendWarning a b
     CoinductiveEtaRecord a                      -> icodeN 57 CoinductiveEtaRecord a
+    WithClauseProjectionFixityMismatch a b c d  -> icodeN 58 WithClauseProjectionFixityMismatch a b c d
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -164,6 +165,7 @@ instance EmbPrj Warning where
     [55, a, b]           -> valuN ConflictingPragmaOptions a b
     [56, a, b]           -> valuN CustomBackendWarning a b
     [57, a]              -> valuN CoinductiveEtaRecord a
+    [58, a, b, c, d]     -> valuN WithClauseProjectionFixityMismatch a b c d
     _ -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where
@@ -548,6 +550,7 @@ instance EmbPrj WarningName where
     RewriteDoesNotTargetRewriteRelation_              -> 132
     RewriteBeforeFunctionDefinition_                  -> 133
     RewriteBeforeMutualFunctionDefinition_            -> 134
+    WithClauseProjectionFixityMismatch_               -> 135
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -684,6 +687,7 @@ instance EmbPrj WarningName where
     132 -> return RewriteDoesNotTargetRewriteRelation_
     133 -> return RewriteBeforeFunctionDefinition_
     134 -> return RewriteBeforeMutualFunctionDefinition_
+    135 -> return WithClauseProjectionFixityMismatch_
     _   -> malformed
 
 

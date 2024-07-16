@@ -12,6 +12,10 @@ Installation
 Pragmas and options
 -------------------
 
+* New warning `WithClauseProjectionFixityMismatch` instead of hard error
+  when in a with-clause a projection is used in a different fixity
+  (prefix vs. postfix) than in its parent clause.
+
 Syntax
 ------
 
