@@ -74,6 +74,7 @@ jobs:
           upquote
           varwidth
           wrapfig
+          xcolor
           zapfchan
 
     - name: Build User Manual in HTML
