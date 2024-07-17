@@ -352,7 +352,16 @@ instance PrettyTCM TCErr where
     -- Benchmark info during printing errors.
     TypeError loc s e -> withTCState (const s) $ do
       reportSLn "error" 2 $ "Error raised at " ++ prettyShow loc
-      sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
+      let r = envRange $ clEnv e
+      vcat
+        [ hsep
+          [ if null r then empty else prettyTCM r <> ":"
+          , "error:"
+          , brackets (text $ errorString $ clValue e)
+          ]
+        , prettyTCM e
+        , prettyTCM (envCall $ clEnv e)
+        ]
     Exception r s     -> sayWhere r $ return s
     IOException _ r e -> sayWhere r $ fwords $ showIOException e
     PatternErr{}      -> sayWhere err $ panic "uncaught pattern violation"
