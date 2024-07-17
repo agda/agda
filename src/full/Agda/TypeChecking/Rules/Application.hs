@@ -280,7 +280,7 @@ inferHead e = do
       (u, a) <- getVarInfo x
       reportSDoc "tc.term.var" 20 $ hsep
         [ "variable" , prettyTCM x
-        , "(" , text (show u) , ")"
+        , "(" , pretty u , ")"
         , "has type:" , prettyTCM a
         ]
       unless (usableRelevance a) $
