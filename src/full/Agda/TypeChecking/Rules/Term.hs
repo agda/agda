@@ -1698,9 +1698,8 @@ checkLetBinding il b@(A.LetPatBind i p e) ret =
         -- We get list of names of the let-bound vars from the context.
         let xs   = map ctxEntryName $ reverse binds
         -- We add all the bindings to the context.
-        let makeEntry info x u t = CtxLet x (setOrigin UserWritten $ defaultArgDom info t) u
-            ces = List.zipWith4 makeEntry infos xs sigma ts
-        addContext ces $ ret ces
+        -- TODO: handle NoInlineLet
+        foldr (\(i,x,u,t) -> addLetBinding YesInlineLet i UserWritten x u t) (ret []) $ List.zip4 infos xs sigma ts
 
 checkLetBinding il (A.LetApply i erased x modapp copyInfo dir) ret = do
   -- Any variables in the context that doesn't belong to the current
