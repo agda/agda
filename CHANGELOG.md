@@ -44,6 +44,10 @@ Interaction and emacs mode
   for highlighting the new aspect `CosmeticProblem`.
 
 
+* Added key binding that switches to the associated mode for a
+  literate Agda file, with the option to automatically add a key
+  binding to switch back.
+
 Backends
 --------
 
