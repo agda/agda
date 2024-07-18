@@ -1,4 +1,5 @@
-Issue1428c.agda:26,10-15
+Issue1428c.agda:26,10-15: error: [NotInScope]
 Not in scope:
-  FIXME at Issue1428c.agda:26,10-15
+  FIXME
+  at Issue1428c.agda:26,10-15
 when scope checking FIXME

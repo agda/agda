@@ -1,4 +1,4 @@
-Prop-Disabled.agda:8,18-22
+Prop-Disabled.agda:8,18-22: error: [NotInScope]
 Not in scope:
   Prop
   at Prop-Disabled.agda:8,18-22

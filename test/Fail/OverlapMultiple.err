@@ -1,4 +1,4 @@
-OverlapMultiple.agda:8,1-21
+OverlapMultiple.agda:8,1-21: error: [DuplicateOverlapPragma]
 The instance x was already marked OVERLAPPING. This INCOHERENT
 pragma can not be applied to it.
 when checking the pragma INCOHERENT [x]

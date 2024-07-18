@@ -1,4 +1,4 @@
-Issue978.agda:28,1-13
+Issue978.agda:28,1-13: error: [OperatorInformation]
 Don't know how to parse test (ε , a). Could mean any one of:
   test (_,_ ε a)
   test (_,_ ε a)

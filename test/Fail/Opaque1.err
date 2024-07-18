@@ -1,3 +1,3 @@
-Opaque1.agda:11,9-12
+Opaque1.agda:11,9-12: error: [UnequalTerms]
 Set !=< foo
 when checking that the expression Nat has type foo

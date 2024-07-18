@@ -1,3 +1,3 @@
-Issue5033.agda:4,10-29
+Issue5033.agda:4,10-29: error: [NoBindingForPrimitive]
 Missing binding for primLockUniv primitive.
 when checking that the expression ∀ (@tick _) → Set is a type

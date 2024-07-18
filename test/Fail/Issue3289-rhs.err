@@ -1,3 +1,3 @@
-Issue3289-rhs.agda:16,11-13
-Illegal hiding in postfix projection  ⦃ .x ⦄
+Issue3289-rhs.agda:16,11-13: error: [IllegalHidingInPostfixProjection]
+Illegal hiding in postfix projection ⦃ .x ⦄
 when scope checking f₁ ⦃ .x ⦄

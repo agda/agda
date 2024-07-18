@@ -1,4 +1,4 @@
-Issue2199.agda:16,9-11
+Issue2199.agda:16,9-11: error: [NotInScope]
 Not in scope:
   Id at Issue2199.agda:16,9-11
 when scope checking Id

@@ -1,4 +1,4 @@
-Issue6711.agda:23,3-60
+Issue6711.agda:23,3-60: error: [NoBindingForBuiltin]
 No binding for builtin thing SIGMA, use {-# BUILTIN SIGMA name #-}
 to bind it to 'name'
 when checking that the type of the primitive function

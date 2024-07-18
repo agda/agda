@@ -1,4 +1,4 @@
-Issue4518.agda:13,1-12
+Issue4518.agda:13,1-12: error: [OperatorInformation]
 Could not parse the left-hand side ... | suc n
 Problematic expression: (suc n)
 Operators used in the grammar:

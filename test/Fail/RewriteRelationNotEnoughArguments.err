@@ -1,4 +1,4 @@
-RewriteRelationNotEnoughArguments.agda:8,1-26
+RewriteRelationNotEnoughArguments.agda:8,1-26: error: [IncorrectTypeForRewriteRelation]
 A  does not have the right type for a rewriting relation
 because it should accept at least two arguments
 when checking the pragma BUILTIN REWRITE A

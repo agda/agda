@@ -1,3 +1,3 @@
-TermSplicing1.agda:6,19-22
+TermSplicing1.agda:6,19-22: error: [UnequalTerms]
 Set₁ !=< Term
 when checking that the expression Set has type Term

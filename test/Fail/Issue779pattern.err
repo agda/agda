@@ -1,4 +1,4 @@
-Issue779pattern.agda:6,3-7,12
+Issue779pattern.agda:6,3-7,12: error: [NotAValidLetBinding]
 Not a valid let-declaration
 when scope checking the declaration
   record R where

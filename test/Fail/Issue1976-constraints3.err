@@ -1,4 +1,4 @@
-Issue1976-constraints3.agda:20,3-9
+Issue1976-constraints3.agda:20,3-9: error: [AmbiguousProjection]
 Ambiguous projection F.
 It could refer to any of
   ShouldFail._.F (introduced at Issue1976-constraints3.agda:16,8-8)

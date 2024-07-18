@@ -1,4 +1,4 @@
-ShouldBeASort.agda:5,7-33
+ShouldBeASort.agda:5,7-33: error: [NotInScope]
 Not in scope:
   ShouldBeASort-Never-Occurs
   at ShouldBeASort.agda:5,7-33

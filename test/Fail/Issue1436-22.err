@@ -1,4 +1,4 @@
-Issue1436-22.agda:21,7-12
+Issue1436-22.agda:21,7-12: error: [OperatorInformation]
 Don't know how to parse • + •. Could mean any one of:
   _+_ • •
   c • •

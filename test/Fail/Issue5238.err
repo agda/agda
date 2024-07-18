@@ -2,6 +2,7 @@ Issue5238.agda:15,3-22
 warning: -W[no]RewriteVariablesNotBoundByLHS
 foo  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  x
 when checking the pragma REWRITE foo
-Issue5238.agda:18,8-12
+
+Issue5238.agda:18,8-12: error: [UnequalTerms]
 t0 != t1 of type T
 when checking that the expression refl has type t0 ≡ t1

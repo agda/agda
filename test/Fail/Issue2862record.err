@@ -1,4 +1,4 @@
-Issue2862record.agda:14,3-17
+Issue2862record.agda:14,3-17: error: [DefinitionInDifferentModule]
 Definition in different module than its type signature
 when scope checking the declaration
   record R where

@@ -1,4 +1,4 @@
-Issue2291-instance.agda:3,12-17
+Issue2291-instance.agda:3,12-17: error: [OperatorInformation]
 Could not parse the left-hand side ⦃ _ ⦄
 Operators used in the grammar:
   None

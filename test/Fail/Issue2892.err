@@ -1,4 +1,4 @@
-Issue2892.agda:6,1-21
+Issue2892.agda:6,1-21: error: [IllTypedPatternAfterWithAbstraction]
 Ill-typed pattern after with abstraction:  y
 (perhaps you can replace it by '_'?)
 when checking the clause left hand side

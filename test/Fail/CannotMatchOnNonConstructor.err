@@ -1,4 +1,4 @@
-CannotMatchOnNonConstructor.agda:9,1-19
+CannotMatchOnNonConstructor.agda:9,1-19: error: [InvalidPattern]
 NAT.Nat is not a valid pattern
 when scope checking the left-hand side test (suc NAT.Nat) in the
 definition of test

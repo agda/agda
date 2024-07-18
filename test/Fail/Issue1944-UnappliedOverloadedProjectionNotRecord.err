@@ -1,4 +1,4 @@
-Issue1944-UnappliedOverloadedProjectionNotRecord.agda:15,8-9
+Issue1944-UnappliedOverloadedProjectionNotRecord.agda:15,8-9: error: [AmbiguousOverloadedProjection]
 Cannot resolve overloaded projection f because
 principal argument has type A₁ while it should be of record type
   candidates in scope:

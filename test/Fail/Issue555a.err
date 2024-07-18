@@ -1,3 +1,3 @@
-Issue555a.agda:6,10-11
+Issue555a.agda:6,10-11: error: [UnexpectedParameter]
 Unexpected parameter Γ
 when checking the definition of Exp

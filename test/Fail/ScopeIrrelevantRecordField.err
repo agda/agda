@@ -1,4 +1,4 @@
-ScopeIrrelevantRecordField.agda:11,9-17
+ScopeIrrelevantRecordField.agda:11,9-17: error: [ProjectionIsIrrelevant]
 Projection  Bla.bla0  is irrelevant.
 Turn on option --irrelevant-projections to use it (unsafe)
 when checking that the expression Bla.bla0 has type Bla → Set

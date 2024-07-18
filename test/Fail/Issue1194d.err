@@ -1,4 +1,4 @@
-Issue1194d.agda:31,8-17
+Issue1194d.agda:31,8-17: error: [OperatorInformation]
 Don't know how to parse ! b + ! b. Could mean any one of:
   (c b) + (c b)
   (c b) + (c b)

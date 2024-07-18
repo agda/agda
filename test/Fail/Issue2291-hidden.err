@@ -1,4 +1,4 @@
-Issue2291-hidden.agda:3,12-15
+Issue2291-hidden.agda:3,12-15: error: [OperatorInformation]
 Could not parse the left-hand side {_}
 Operators used in the grammar:
   None

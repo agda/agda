@@ -1,4 +1,4 @@
-Issue779postulate.agda:4,13-22
+Issue779postulate.agda:4,13-22: error: [NotValidBeforeField]
 This declaration is illegal in a record before the last field
 when scope checking the declaration
   record P where

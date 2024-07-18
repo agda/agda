@@ -94,6 +94,6 @@ ScopeInfo
       public
         names
           P′ --> [Optimised-open.M₂._.P]
-Optimised-open.agda:35,9-10
+Optimised-open.agda:35,9-10: error: [UnequalTerms]
 (A → Set) !=< A
 when checking that the expression P has type A

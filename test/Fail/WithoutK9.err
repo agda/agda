@@ -1,4 +1,4 @@
-WithoutK9.agda:17,26-30
+WithoutK9.agda:17,26-30: error: [SplitError]
 I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):

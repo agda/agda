@@ -1,4 +1,4 @@
-Issue1974.agda:39,12-26
+Issue1974.agda:39,12-26: error: [UnequalTerms]
 R₃ A != R₄ of type Set
 when checking that the expression refl {x = f₁ a} has type
 c a ≡ mkR₃

@@ -1,4 +1,4 @@
-Issue2576MissingData.agda:3,1-13
+Issue2576MissingData.agda:3,1-13: error: [GenericError]
 Missing type signature for data definition A
 when scope checking the declaration
   data A where

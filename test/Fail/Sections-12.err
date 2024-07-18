@@ -1,4 +1,4 @@
-Sections-12.agda:4,1-14
+Sections-12.agda:4,1-14: error: [OperatorInformation]
 Could not parse the left-hand side m test_test n
 Problematic expression: ((m test_test) n)
 Operators used in the grammar:

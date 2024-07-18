@@ -1,4 +1,4 @@
-Issue2006.agda:21,14-24
+Issue2006.agda:21,14-24: error: [DeBruijnIndexOutOfScope]
 de Bruijn index 6 is not in scope in the context
 {n : Nat} {a : Level} {A : Set a} (xs : Vec A n) (k : Nat) (x : _)
 when checking that the expression unquote (deBruijn 6) has type

@@ -3,6 +3,7 @@ Termination checking failed for the following functions:
   T
 Problematic calls:
   T (at Issue2997.agda:9,11-12)
-Issue2997.agda:15,4-12
+
+Issue2997.agda:15,4-12: error: [SplitError]
 Cannot split on argument of non-datatype T
 when checking that the pattern c₁ (c₂ x) has type T

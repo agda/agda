@@ -1,4 +1,4 @@
-PrintClauseUnderscorePattern.agda:9,1-10,19
+PrintClauseUnderscorePattern.agda:9,1-10,19: error: [WithClausePatternMismatch]
 With clause pattern d is not an instance of its parent pattern c
 when checking that the clause
 test _ c _ with D

@@ -1,4 +1,4 @@
-Issue2366.agda:11,1-12,23
+Issue2366.agda:11,1-12,23: error: [WithClausePatternMismatch]
 With clause pattern [] is not an instance of its parent pattern
 y ∷ ys
 when checking that the clause

@@ -1,4 +1,4 @@
-CyclicModuleDependency.agda:3,1-30
+CyclicModuleDependency.agda:3,1-30: error: [CyclicModuleDependency]
 cyclic module dependency:
   CyclicModuleDependency
   CyclicModuleDependency

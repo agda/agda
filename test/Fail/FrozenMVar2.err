@@ -1,7 +1,7 @@
 Failed to solve the following constraints:
   Check definition of +-assoc : Associative _+_
     stuck because
-      FrozenMVar2.agda:34,9-11
+      FrozenMVar2.agda:34,9-11: error: [SplitError]
       Cannot split on argument of unresolved type _A_28
       when checking that the pattern zℕ has type _A_28
     (blocked on _A_28)

@@ -1,3 +1,3 @@
-Issue5410-3.agda:7,3-12
+Issue5410-3.agda:7,3-12: error: [UnusableAtModality]
 {@0 A : Set} → A → D is not usable at the required modality @ω
 when checking the constructor c in the declaration of D

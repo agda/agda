@@ -1,4 +1,4 @@
-WrongPrimitiveModality.agda:13,8-36
+WrongPrimitiveModality.agda:13,8-36: error: [WrongArgInfoForPrimitive]
 Wrong definition properties for primitive primShowNat
   Got:      instance, at modality erased
   Expected: visible, at modality default

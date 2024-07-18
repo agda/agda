@@ -1,4 +1,4 @@
-Issue332.agda:4,1-5
+Issue332.agda:4,1-5: error: [OperatorInformation]
 Don't know how to parse id x. Could mean any one of:
   id x
   id x

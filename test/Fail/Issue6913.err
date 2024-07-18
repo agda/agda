@@ -1,4 +1,4 @@
-Issue6913.agda:12,13-18
+Issue6913.agda:12,13-18: error: [DoesNotMentionTicks]
 The term ✓, given as an argument to the guarded value
   f κ : κ → P κ
 can not be used as a @tick argument, since it does not mention any

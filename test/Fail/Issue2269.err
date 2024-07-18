@@ -1,4 +1,4 @@
-Issue2269.agda:13,8-10
+Issue2269.agda:13,8-10: error: [InstanceSearchDepthExhausted]
 Instance search depth exhausted (max depth: 10) for candidate
 weaken : ⦃ _ = z : Eq ⊥ ⦄ → Eq _5
 when checking that the expression it has type Eq ⊥

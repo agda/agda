@@ -1,4 +1,4 @@
-CheckSizeMetaBounds.agda:24,17-20
+CheckSizeMetaBounds.agda:24,17-20: error: [CannotSolveSizeConstraints]
 Cannot solve size constraints
 [i, j, n] j < ∞ |- _i_18 ≤ _j_17
 [i, j, n] j < ∞ |- ↑ _j_17 ≤ i

@@ -2,11 +2,13 @@ Issue6042.agda:35,1-29
 warning: -W[no]RewriteBeforeMutualFunctionDefinition
 Rewrite rule from function  Id-const  cannot be added before the definition of mutually defined Id
 when checking the pragma REWRITE Id-const ＝-Π
+
 Issue6042.agda:35,1-29
 warning: -W[no]RewriteBeforeMutualFunctionDefinition
 Rewrite rule from function  ＝-Π  cannot be added before the definition of mutually defined Id
 when checking the pragma REWRITE Id-const ＝-Π
-Issue6042.agda:44,79-93
+
+Issue6042.agda:44,79-93: error: [UnequalTerms]
 (𝛌 corr ＝ 𝛌 corr) !=< Π _A_132 _B_133
 when checking that the expression refl' (𝛌 corr) has type
 Π _A_132 _B_133

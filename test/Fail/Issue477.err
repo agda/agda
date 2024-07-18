@@ -1,4 +1,4 @@
-Issue477.agda:4,1-5,8
+Issue477.agda:4,1-5,8: error: [GenericError]
 Missing type signature for data definition D
 when scope checking the declaration
   data D where

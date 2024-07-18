@@ -1,4 +1,4 @@
-Issue5699b.agda:20,8-9
+Issue5699b.agda:20,8-9: error: [GenericDocError]
 lam visible
 (abs "x"
  (lam visible

@@ -1,4 +1,4 @@
-Issue4951b.agda:24,4-6
+Issue4951b.agda:24,4-6: error: [SortOfSplitVarError]
 Cannot eliminate fibrant type Unitω
 unless target type is also fibrant
 when checking that the pattern tt has type Unitω

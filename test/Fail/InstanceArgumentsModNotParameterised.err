@@ -1,4 +1,4 @@
-InstanceArgumentsModNotParameterised.agda:14,6-7
+InstanceArgumentsModNotParameterised.agda:14,6-7: error: [GenericError]
 InstanceArgumentsModNotParameterised.C is not a parameterised
 section
 when checking the module application module _ = C {{...}}

@@ -1,4 +1,4 @@
-Issue1523c.agda:8,15-40
+Issue1523c.agda:8,15-40: error: [EmptyTypeOfSizes]
 Possibly empty type of sizes: (Size< i)
 when checking that the expression λ (j : Size< i) → fix t j has
 type (j : Size< i) → C j

@@ -1,4 +1,4 @@
-Issue3403.agda:29,3-7
+Issue3403.agda:29,3-7: error: [SplitError]
 I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):

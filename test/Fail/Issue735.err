@@ -1,3 +1,3 @@
-Issue735.agda:16,12-16
+Issue735.agda:16,12-16: error: [UnequalTerms]
 ((A₁ : Set _a_10) → Set _a_10) should be a sort, but it isn't
 when checking that the expression List has type _9

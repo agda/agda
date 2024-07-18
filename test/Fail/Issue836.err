@@ -1,4 +1,4 @@
-Issue836.agda:16,5-8
+Issue836.agda:16,5-8: error: [NotInScope]
 Not in scope:
   R.X at Issue836.agda:16,5-8
     (did you mean

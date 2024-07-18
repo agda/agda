@@ -1,4 +1,4 @@
-Issue1963I380.agda:13,16-21
+Issue1963I380.agda:13,16-21: error: [UnequalTerms]
 Σ _A_35 _B_36 !=<
 z .proj₁ ≡ y .proj₁ → _proj₂_32 (y = y) (z = z) ≡ z .proj₂
 when checking that the inferred type of an application

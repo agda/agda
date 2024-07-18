@@ -1,4 +1,4 @@
-ShapeIrrelevantField.agda:8,10-17
+ShapeIrrelevantField.agda:8,10-17: error: [ProjectionIsIrrelevant]
 Projection  Foo.foo  is irrelevant.
 Turn on option --irrelevant-projections to use it (unsafe)
 when checking that the expression Foo.foo has type Foo A → A

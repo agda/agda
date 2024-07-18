@@ -1,4 +1,4 @@
-NotAValidLetBinding.agda:8,11-10,25
+NotAValidLetBinding.agda:8,11-10,25: error: [NotAValidLetBinding]
 Not a valid let-declaration
 when scope checking
 let pred : N → N

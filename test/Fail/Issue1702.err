@@ -1,4 +1,4 @@
-Issue1702.agda:17,10-16
+Issue1702.agda:17,10-16: error: [NotInScope]
 Not in scope:
   M.Priv
   at Issue1702.agda:17,10-16

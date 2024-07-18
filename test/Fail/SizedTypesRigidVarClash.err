@@ -1,4 +1,4 @@
-SizedTypesRigidVarClash.agda:12,9-14
+SizedTypesRigidVarClash.agda:12,9-14: error: [CannotSolveSizeConstraints]
 Cannot solve size constraints
 [i, j, x] i ≤ _size_10
 [i, j, x] _size_10 ≤ j

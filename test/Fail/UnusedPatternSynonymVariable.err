@@ -1,4 +1,4 @@
-UnusedPatternSynonymVariable.agda:7,11-12
+UnusedPatternSynonymVariable.agda:7,11-12: error: [UnusedVariableInPatternSynonym]
 Unused variable in pattern synonym: x
 when scope checking the declaration
   pattern p x = c

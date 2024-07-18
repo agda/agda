@@ -1,4 +1,4 @@
-Issue2047.agda:26,9-22
+Issue2047.agda:26,9-22: error: [UnequalTerms]
 F _P_27 n != (λ { (valSuc _) → anything }) anything of type Set
 when checking that the inferred type of an application
   Any (F _P_27)

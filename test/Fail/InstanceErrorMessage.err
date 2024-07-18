@@ -1,4 +1,4 @@
-InstanceErrorMessage.agda:24,22-26
+InstanceErrorMessage.agda:24,22-26: error: [UnequalTerms]
 a != c of type Nat
 when checking that the expression refl has type
 (InstanceErrorMessage._ Semiring.+ a) c ≡

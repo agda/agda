@@ -1,4 +1,4 @@
-Issue6783.agda:14,11-29
+Issue6783.agda:14,11-29: error: [TacticAttributeNotAllowed]
 The @tactic attribute is not allowed here
 when checking that the expression
 λ {@(tactic super-tac) n : Nat} → n + n has type _4

@@ -1,4 +1,4 @@
-Issue4121-2.agda:13,5-7
+Issue4121-2.agda:13,5-7: error: [NotInScope]
 Not in scope:
   c′ at Issue4121-2.agda:13,5-7
     (did you mean 'M.c′'?)

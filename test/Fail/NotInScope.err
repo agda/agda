@@ -1,4 +1,4 @@
-NotInScope.agda:9,7-26
+NotInScope.agda:9,7-26: error: [OperatorInformation]
 Could not parse the application if x thenn x else x
 Operators used in the grammar:
   None

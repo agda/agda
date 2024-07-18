@@ -1,3 +1,4 @@
+error: [LibraryError]
 Library 'standard-library' not found.
 Add the path to its .agda-lib file to
   installed-libs/libraries'
