@@ -1,4 +1,4 @@
-Issue543.agda:32,10-72
+Issue543.agda:32,10-72: error: [UnequalTerms]
 unsquash _ != true of type Bool
 when checking that the inferred type of an application
   unsquash _ ≡ unsquash _

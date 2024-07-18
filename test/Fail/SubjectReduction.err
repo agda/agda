@@ -1,4 +1,4 @@
-SubjectReduction.agda:26,44-46
+SubjectReduction.agda:26,44-46: error: [UnequalTerms]
 SubjectReduction.♯-1 != (SubjectReduction.♯-3 eq P Px s) of type
 (∞ Stream)
 when checking that the expression Px has type

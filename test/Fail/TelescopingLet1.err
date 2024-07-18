@@ -1,4 +1,4 @@
-TelescopingLet1.agda:6,10-11
+TelescopingLet1.agda:6,10-11: error: [NotInScope]
 Not in scope:
   ★
   at TelescopingLet1.agda:6,10-11

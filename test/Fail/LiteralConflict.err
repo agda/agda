@@ -1,4 +1,4 @@
-LiteralConflict.agda:5,6-10
+LiteralConflict.agda:5,6-10: error: [ImpossibleConstructor]
 The case for the constructor refl is impossible
 because unification ended with a conflicting equation
   "foo" ≟ "bar"

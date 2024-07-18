@@ -1,4 +1,4 @@
-Issue2423.agda:24,8-10
+Issue2423.agda:24,8-10: error: [CannotEliminateWithProjection]
 Cannot eliminate type  S  with projection  S._.f
 when checking the clause left hand side
 test s .f

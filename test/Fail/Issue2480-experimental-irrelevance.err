@@ -1,4 +1,4 @@
-Issue2480-experimental-irrelevance.agda:25,16-60
+Issue2480-experimental-irrelevance.agda:25,16-60: error: [UnequalTerms]
 tt != ff of type Bool
 when checking that the expression
 refl {x = ap {A = Bool→cBool} (λ f → f tt) p} has type

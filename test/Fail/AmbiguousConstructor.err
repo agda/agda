@@ -1,4 +1,4 @@
-AmbiguousConstructor.agda:20,5-7
+AmbiguousConstructor.agda:20,5-7: error: [AmbiguousConstructor]
 Ambiguous constructor c2.
 It could refer to any of
   Foo.D.c0 (introduced at AmbiguousConstructor.agda:5,5-7)

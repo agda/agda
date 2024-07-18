@@ -1,7 +1,7 @@
 Failed to solve the following constraints:
   Check definition of test : _2 → A
     stuck because
-      RecordPattern4.agda:9,6-19
+      RecordPattern4.agda:9,6-19: error: [SplitError]
       Cannot split on argument of unresolved type _2
       when checking that the pattern record { f = a } has type _2
     (blocked on _2)

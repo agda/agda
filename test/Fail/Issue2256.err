@@ -1,3 +1,3 @@
-Issue2256.agda:13,10-14
+Issue2256.agda:13,10-14: error: [UnequalTerms]
 (λ ()) x != A of type Set a
 when checking that the expression refl has type abs x ≡ A

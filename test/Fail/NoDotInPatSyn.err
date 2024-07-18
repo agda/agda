@@ -1,4 +1,4 @@
-NoDotInPatSyn.agda:12,1-29
+NoDotInPatSyn.agda:12,1-29: error: [DotPatternInPatternSynonym]
 Dot or equality patterns are not allowed in pattern synonyms. Maybe
 use '_' instead.
 when scope checking the declaration

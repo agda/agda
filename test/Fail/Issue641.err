@@ -1,6 +1,6 @@
 Importing the primitive modules.
 Done importing the primitive modules.
-Issue641.agda:9,6-18
+Issue641.agda:9,6-18: error: [NoSuchModule]
 No module NoSuchModule in scope
 when scope checking the declaration
   open NoSuchModule

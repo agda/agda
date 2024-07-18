@@ -11,7 +11,8 @@ when checking that the expression
 ⦃ A = A₁ : Wrap A ⦄ →
 X
 is a type
-Issue2348-instance-instance-same-name.agda:28,8-9
+
+Issue2348-instance-instance-same-name.agda:28,8-9: error: [UnequalTerms]
 b != Wrap.out w of type B
 when checking that the expression p has type
 P (proj-like ⦃ A = _ ⦄ ⦃ A = w ⦄)

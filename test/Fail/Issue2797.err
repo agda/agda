@@ -1,4 +1,4 @@
-Issue2797.agda:27,9-15
+Issue2797.agda:27,9-15: error: [AmbiguousOverloadedProjection]
 Cannot resolve overloaded projection nat because
 no matching candidate found
   candidates in scope:

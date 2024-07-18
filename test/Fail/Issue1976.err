@@ -1,4 +1,4 @@
-Issue1976.agda:20,1-8
+Issue1976.agda:20,1-8: error: [UnequalTerms]
 A != B of type Set
 when checking the clause left hand side
 F wrong

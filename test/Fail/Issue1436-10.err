@@ -1,4 +1,4 @@
-Issue1436-10.agda:17,7-14
+Issue1436-10.agda:17,7-14: error: [OperatorInformation]
 Don't know how to parse ! X , X. Could mean any one of:
   ! (H X X)
   ! (F λ X → X)

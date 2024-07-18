@@ -1,7 +1,7 @@
 Failed to solve the following constraints:
   Check definition of Fails : {b : Bool} → D _9 → Set
     stuck because
-      Issue1611.agda:15,7-9
+      Issue1611.agda:15,7-9: error: [SplitError]
       I'm not sure if there should be a case for the constructor dt,
       because I get stuck when trying to solve the following unification
       problems (inferred index ≟ expected index):

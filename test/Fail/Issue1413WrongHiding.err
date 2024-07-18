@@ -1,4 +1,4 @@
-Issue1413WrongHiding.agda:12,1-14
+Issue1413WrongHiding.agda:12,1-14: error: [WrongHidingInProjection]
 Wrong hiding used for projection  Foo.foo
 when checking the clause left hand side
 Foo.foo {bar}

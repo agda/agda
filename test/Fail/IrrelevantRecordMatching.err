@@ -1,3 +1,3 @@
-IrrelevantRecordMatching.agda:12,12-18
+IrrelevantRecordMatching.agda:12,12-18: error: [SplitOnIrrelevant]
 Cannot pattern match against irrelevant argument of type Prod A A
 when checking that the pattern a , a' has type Prod A A

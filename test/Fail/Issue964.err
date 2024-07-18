@@ -1,4 +1,4 @@
-Issue964.agda:18,14-18
+Issue964.agda:18,14-18: error: [UnequalLevel]
 Common.Issue964.UnsolvedMetas.unsolved#meta.1 something !=
 lsuc (lsuc lzero)
 when checking that the expression refl has type

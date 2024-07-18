@@ -3,7 +3,7 @@ Failed to solve the following constraints:
                                 (h : Det R) →
                                 Det (All₂ R)
     stuck because
-      Issue2621.agda:17,13-15
+      Issue2621.agda:17,13-15: error: [SplitError]
       I'm not sure if there should be a case for the constructor [],
       because I get stuck when trying to solve the following unification
       problems (inferred index ≟ expected index):

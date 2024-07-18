@@ -1,4 +1,4 @@
-Issue1951.agda:14,12-21
+Issue1951.agda:14,12-21: error: [OperatorInformation]
 Could not parse the application ƛ !_ ⟶ !_
 Operators used in the grammar:
   ƛ_⟶ (prefix notation, level 20) [Id (Issue1951.agda:1,1-3)]

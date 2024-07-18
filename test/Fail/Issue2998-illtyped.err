@@ -1,4 +1,4 @@
-Issue2998-illtyped.agda:12,1-10
+Issue2998-illtyped.agda:12,1-10: error: [IllTypedPatternAfterWithAbstraction]
 Ill-typed pattern after with abstraction:  r
 (perhaps you can replace it by '_'?)
 when checking the clause left hand side

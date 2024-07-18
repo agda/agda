@@ -1,3 +1,3 @@
-NotAnExpression.agda:5,5-10
+NotAnExpression.agda:5,5-10: error: [NotAnExpression]
 x@y is not a valid expression.
 when scope checking x@y

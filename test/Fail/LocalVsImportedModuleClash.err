@@ -1,4 +1,4 @@
-LocalVsImportedModuleClash.agda:3,5-67
+LocalVsImportedModuleClash.agda:3,5-67: error: [NotInScope]
 Not in scope:
   TODO--This-shouldn't-happen-if-the-scope-checker-does-it's-job
   at LocalVsImportedModuleClash.agda:3,5-67

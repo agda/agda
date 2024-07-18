@@ -1,4 +1,4 @@
-RecordFromModuleAmb.agda:31,5-47
+RecordFromModuleAmb.agda:31,5-47: error: [AmbiguousField]
 Ambiguity: the field t0 appears in the following modules: 
 M0
 MD

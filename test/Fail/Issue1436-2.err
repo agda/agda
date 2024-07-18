@@ -1,4 +1,4 @@
-Issue1436-2.agda:22,12-33
+Issue1436-2.agda:22,12-33: error: [OperatorInformation]
 Don't know how to parse ● ↑ ● ↓ ● ↑ ● ↓ ● ↑ ●. Could mean any one
 of:
   ((● ↑ ●) ↓ (● ↑ ●)) ↓ (● ↑ ●)

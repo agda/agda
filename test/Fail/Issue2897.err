@@ -1,4 +1,4 @@
-Issue2897.agda:17,12-14
+Issue2897.agda:17,12-14: error: [NamedWhereModuleInRefinedContext]
 Named where-modules are not allowed when module parameters have
 been refined by pattern matching. See
 https://github.com/agda/agda/issues/2897.

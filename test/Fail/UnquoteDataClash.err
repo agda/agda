@@ -1,4 +1,4 @@
-UnquoteDataClash.agda:34,3-53
+UnquoteDataClash.agda:34,3-53: error: [ClashingDefinition]
 Multiple definitions of foo. Previous definition at
 UnquoteDataClash.agda:33,11-14
 when scope checking the declaration

@@ -1,4 +1,4 @@
-Issue300.agda:18,39-40
+Issue300.agda:18,39-40: error: [CannotSolveSizeConstraints]
 Cannot solve size constraints
 [Id, k, m, p, j, n] j ≤ (_9 (i = j))
 [Id, k, m, p, j, n] (↑ k) ≤ (_9 (i = k))

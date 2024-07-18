@@ -1,5 +1,4 @@
-Issue783a.agda:3,7-8
+Issue783a.agda:3,7-8: error: [NotInScope]
 Not in scope:
-  Y
-  at Issue783a.agda:3,7-8
+  Y at Issue783a.agda:3,7-8
 when scope checking Y

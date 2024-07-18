@@ -1,4 +1,4 @@
-LargeIndices.agda:5,3-6
+LargeIndices.agda:5,3-6: error: [NotLeqSort]
 Set a is not less or equal than Set
 when checking that the type A of an argument to the constructor inv
 fits in the sort Set of the datatype.

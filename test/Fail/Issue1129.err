@@ -1,4 +1,4 @@
-Issue1129.agda:8,5-12
+Issue1129.agda:8,5-12: error: [OperatorInformation]
 Could not parse the application [ ? ] x
 Operators used in the grammar:
   [_] (prefix notation, level 20) [F (Issue1129.agda:3,3-4)]

@@ -1,4 +1,4 @@
-Issue1258-2.agda:38,9-13
+Issue1258-2.agda:38,9-13: error: [UnequalTerms]
 Foo _28 != Bool of type Set
 when checking that the expression refl has type
 f (Bool × Wrap Nat) (true , wrap zero) ==

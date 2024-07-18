@@ -1,4 +1,4 @@
-Issue2170.agda:32,16-19
+Issue2170.agda:32,16-19: error: [UnequalRelevance]
 (.(unirr₁ : _A_13) → Irr _A_13) !=< (Bool → Irr Bool) because one
 is a relevant function type and the other is an irrelevant function
 type

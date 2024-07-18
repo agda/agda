@@ -1,4 +1,4 @@
-Issue2928.agda:6,3-7
+Issue2928.agda:6,3-7: error: [CannotEliminateWithProjection]
 Cannot eliminate type  Set → R  with projection  R.f
 when checking the clause left hand side
 f .R.f

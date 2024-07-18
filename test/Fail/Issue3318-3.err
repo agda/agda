@@ -1,4 +1,4 @@
-Issue3318-3.agda:2,3-19
+Issue3318-3.agda:2,3-19: error: [NoSuchPrimitiveFunction]
 There is no primitive function called primLevelMax
 when checking that the type of the primitive function primLevelMax
 is _

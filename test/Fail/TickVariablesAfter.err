@@ -1,4 +1,4 @@
-TickVariablesAfter.agda:13,24-36
+TickVariablesAfter.agda:13,24-36: error: [ReferencesFutureVariables]
 The variable arg can not be mentioned here, since it was not
 introduced before the variable tic.
 The following variable is not allowed here, either: func

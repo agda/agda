@@ -1,4 +1,4 @@
-Issue2576.agda:6,1-13
+Issue2576.agda:6,1-13: error: [ClashingDefinition]
 Multiple definitions of ⊥. Previous definition at
 Issue2576.agda:5,6-7
 when scope checking the declaration

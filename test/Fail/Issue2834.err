@@ -1,7 +1,7 @@
 Failed to solve the following constraints:
   Check definition of test : (A : Set) → _2 (A = A) → A ≡ Bool → Bool
     stuck because
-      Issue2834.agda:5,12-16
+      Issue2834.agda:5,12-16: error: [SplitError]
       Cannot split on argument of unresolved type _2 (A = Bool)
       when checking that the pattern true has type _2 (A = Bool)
     (blocked on _2)

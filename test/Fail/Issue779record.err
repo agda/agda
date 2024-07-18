@@ -1,4 +1,4 @@
-Issue779record.agda:4,3-25
+Issue779record.agda:4,3-25: error: [NotValidBeforeField]
 This declaration is illegal in a record before the last field
 when scope checking the declaration
   record R where

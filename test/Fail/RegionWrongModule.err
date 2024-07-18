@@ -1,4 +1,4 @@
-RegionWrongModule.agda:10,8-26
+RegionWrongModule.agda:10,8-26: error: [ModuleNameDoesntMatchFileName]
 The name of the top level module does not match the file name. The
 module ThisIsTheWrongName should be defined in one of the following
 files:

@@ -1,8 +1,8 @@
-UnsolvableLevelConstraintsInDataDef.agda:7,3-6
+UnsolvableLevelConstraintsInDataDef.agda:7,3-6: error: [NotLeqSort]
 Set₂ is not less or equal than Set₁
 when checking that the type Set₁ of an argument to the constructor
 abs fits in the sort Set₁ of the datatype.
-UnsolvableLevelConstraintsInDataDef.agda:7,3-6
+UnsolvableLevelConstraintsInDataDef.agda:7,3-6: error: [NotLeqSort]
 Set₂ is not less or equal than Set₁
 when checking that the type D ≡ E of an argument to the constructor
 abs fits in the sort Set₁ of the datatype.

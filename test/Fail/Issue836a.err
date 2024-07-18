@@ -1,4 +1,4 @@
-Issue836a.agda:14,20-23
+Issue836a.agda:14,20-23: error: [NotInScope]
 Not in scope:
   D.c at Issue836a.agda:14,20-23
     (did you mean

@@ -1,4 +1,4 @@
-CopatternWithoutFieldName.agda:13,3-8
+CopatternWithoutFieldName.agda:13,3-8: error: [GenericError]
 head of copattern needs to be a field identifier, but f isn't one
 when scope checking the left-hand side f bla in the definition of
 bla

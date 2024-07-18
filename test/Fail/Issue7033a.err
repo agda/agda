@@ -1,4 +1,4 @@
-Issue7033a.agda:20,12-86
+Issue7033a.agda:20,12-86: error: [UnequalTerms]
 hcomp (λ i → isOneEmpty) (transp (λ i → Set) i0 (onS¹ base)) !=< ⊥
 when checking that the expression
 transp

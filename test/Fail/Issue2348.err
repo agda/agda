@@ -6,7 +6,8 @@ type, are never considered by instance search, so having an
 instance argument ⦃ A : Set ⦄ has no effect.
 when checking that the expression ⦃ A : Set ⦄ ⦃ r : Wrap A ⦄ → A is
 a type
-Issue2348.agda:28,8-9
+
+Issue2348.agda:28,8-9: error: [UnequalTerms]
 b != Wrap.out w of type B
 when checking that the expression p has type
 P (proj-like ⦃ r = w ⦄)

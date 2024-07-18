@@ -1,4 +1,4 @@
-PatternSynVarShadowsConstructor.agda:8,11-12
+PatternSynVarShadowsConstructor.agda:8,11-12: error: [PatternSynonymArgumentShadowsConstructorOrPatternSynonym]
 Pattern synonym variable x shadows constructor defined at:
 PatternSynVarShadowsConstructor.agda:5,3-4
 when scope checking the declaration

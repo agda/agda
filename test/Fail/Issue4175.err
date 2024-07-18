@@ -2,7 +2,7 @@
   t1 = (Set → Set)
   t2 = (@0 Set → Set)
 } (exception)
-Issue4175.agda:14,16-17
+Issue4175.agda:14,16-17: error: [UnequalQuantity]
 (Set → Set) !=< (@0 Set → Set) because one is a non-erased function
 type and the other is an erased function type
 when checking that the expression F has type @0 Set → Set

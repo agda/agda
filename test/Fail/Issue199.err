@@ -1,7 +1,7 @@
 Failed to solve the following constraints:
   Check definition of foo : {A : Set} {l : D A} → P l → Set₁
     stuck because
-      Issue199.agda:11,6-9
+      Issue199.agda:11,6-9: error: [SplitError]
       I'm not sure if there should be a case for the constructor p,
       because I get stuck when trying to solve the following unification
       problems (inferred index ≟ expected index):

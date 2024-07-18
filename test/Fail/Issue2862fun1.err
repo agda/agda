@@ -3,7 +3,8 @@ The following names are declared but not accompanied by a
 definition: val
 when scope checking the declaration
   module N where
-Issue2862fun1.agda:14,3-6
+
+Issue2862fun1.agda:14,3-6: error: [ClashingDefinition]
 Multiple definitions of val. Previous definition at
 Issue2862fun1.agda:10,3-6
 when scope checking the declaration

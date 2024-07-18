@@ -1,4 +1,4 @@
-Issue7136f.agda:6,14-15
+Issue7136f.agda:6,14-15: error: [IllegalInstanceVariableInPatternSynonym]
 Variable is bound as instance in pattern synonym, but does not
 resolve as instance in pattern: x
 when scope checking the declaration

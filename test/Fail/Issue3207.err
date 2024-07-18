@@ -1,4 +1,4 @@
-Issue3207.agda:7,8-12
+Issue3207.agda:7,8-12: error: [NotInScope]
 Not in scope:
   Prop at Issue3207.agda:7,8-12
     (did you mean

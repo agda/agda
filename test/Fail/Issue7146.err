@@ -1,4 +1,4 @@
-Issue7146.agda:22,3-23,31
+Issue7146.agda:22,3-23,31: error: [NotSupported]
 Not supported: open public in hard compile-time mode (for instance
 in erased modules)
 when checking the module application

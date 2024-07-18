@@ -1,4 +1,4 @@
-Sections-7.agda:6,7-13
+Sections-7.agda:6,7-13: error: [OperatorInformation]
 Don't know how to parse _+ Set. Could mean any one of:
   _+ Set
   _+ Set (section)

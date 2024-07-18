@@ -1,4 +1,4 @@
-Issue5838.agda:211,1-6
+Issue5838.agda:211,1-6: error: [UnequalTerms]
 false != true of type Bool
 when checking that a clause of bad has the correct boundary.
 

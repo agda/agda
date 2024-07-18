@@ -4,12 +4,14 @@ Termination checking failed for the following functions:
 Problematic calls:
   bad
     (at CoinductiveUnitRecord.agda:20,13-16)
+
 CoinductiveUnitRecord.agda:23,1-24,18
 Termination checking failed for the following functions:
   bad'
 Problematic calls:
   bad'
     (at CoinductiveUnitRecord.agda:24,14-18)
-CoinductiveUnitRecord.agda:28,8-12
+
+CoinductiveUnitRecord.agda:28,8-12: error: [UnequalTerms]
 bad != bad' of type Unit
 when checking that the expression refl has type bad ≡ bad'

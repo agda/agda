@@ -1,4 +1,4 @@
-Issue1342a.agda:36,10-11
+Issue1342a.agda:36,10-11: error: [WithOnFreeVariable]
 Cannot 'with' on variable x bound in a module telescope (or
 patterns of a parent clause)
 when inferring the type of x

@@ -1,4 +1,4 @@
-Sections-3.agda:5,1-12
+Sections-3.agda:5,1-12: error: [OperatorInformation]
 Could not parse the left-hand side test c x c_
 Operators used in the grammar:
   c_c (prefix operator, level 20) [c_c_ (Sections-3.agda:2,3-7)]

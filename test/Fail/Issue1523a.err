@@ -1,4 +1,4 @@
-Issue1523a.agda:32,28-34,13
+Issue1523a.agda:32,28-34,13: error: [EmptyTypeOfSizes]
 Possibly empty type of sizes: (Size< i)
 when checking that the expression λ n → case n default λ _ → r zero
 has type {j : Size< i} → Nat j → A

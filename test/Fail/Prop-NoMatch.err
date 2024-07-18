@@ -1,3 +1,3 @@
-Prop-NoMatch.agda:11,8-10
+Prop-NoMatch.agda:11,8-10: error: [SplitInProp]
 Cannot split on datatype in Prop unless target is in Prop
 when checking that the pattern p₁ has type TestProp

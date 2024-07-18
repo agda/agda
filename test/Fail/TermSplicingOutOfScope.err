@@ -1,4 +1,4 @@
-TermSplicingOutOfScope.agda:7,11-36
+TermSplicingOutOfScope.agda:7,11-36: error: [DeBruijnIndexOutOfScope]
 de Bruijn index 3 is not in scope in the context
 (x : Set) (y : Set) (z : Set)
 when checking that the expression unquote (give (var 3 [])) has

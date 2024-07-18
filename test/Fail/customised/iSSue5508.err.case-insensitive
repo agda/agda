@@ -3,7 +3,8 @@ Termination checking failed for the following functions:
   A
 Problematic calls:
   A (at customised/iSSue5508.agda:11,5-6)
-customised/iSSue5508.agda:29,6-8
+
+customised/iSSue5508.agda:29,6-8: error: [CannotEliminateWithProjection]
 Cannot eliminate type  R  with projection  S.g
 when checking the clause left hand side
 test .g

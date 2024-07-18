@@ -1,4 +1,4 @@
-ShadowModule2.agda:10,21-33
+ShadowModule2.agda:10,21-33: error: [ShadowedModule]
 Duplicate definition of module YesDuplicate. Previous definition of
 module YesDuplicate at
 ShadowModule2.agda:7,28-40

@@ -1,4 +1,4 @@
-IUnivNotFibrant.agda:4,8-12
+IUnivNotFibrant.agda:4,8-12: error: [NotLeqSort]
 SSet₁ is not less or equal than Set₁
 when checking that the type IUniv of an argument to the constructor
 IUnivNotFibrant.Wrap.constructor fits in the sort Set₁ of the

@@ -1,4 +1,4 @@
-Issue1129b.agda:22,3-24,20
+Issue1129b.agda:22,3-24,20: error: [OperatorInformation]
 Don't know how to parse act (a , b) ← mAB , return $ b , a. Could
 mean any one of:
   id (bind mAB λ _ @ (a , b) → (((return $) b) , a))

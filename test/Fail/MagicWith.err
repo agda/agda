@@ -1,4 +1,4 @@
-MagicWith.agda:35,1-36,16
+MagicWith.agda:35,1-36,16: error: [UnequalTerms]
 fst p != w of type Nat
 when checking that the type
 (p : Nat × IsZero) (w : Nat) → F w (snd p) of the generated with

@@ -1,4 +1,4 @@
-Issue1977.agda:8,7-22
+Issue1977.agda:8,7-22: error: [OperatorInformation]
 Could not parse the application [ M.undefined ]
 Operators used in the grammar:
   M.[_] (closed operator) [[_] (Issue1977.agda:6,5-8)]

@@ -1,6 +1,5 @@
-ClashingModule.agda:5,8-9
+ClashingModule.agda:5,8-9: error: [ShadowedModule]
 Duplicate definition of module A. Previous definition of module A
-at
-ClashingModule.agda:4,8-9
+at ClashingModule.agda:4,8-9
 when scope checking the declaration
   module A where

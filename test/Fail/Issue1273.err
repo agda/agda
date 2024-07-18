@@ -4,7 +4,8 @@ Instances should be of type {Γ} → C, where C evaluates to a
 postulated name or the name of a data or record type, so 'instance'
 is ignored here.
 when checking the projection set : Set
-Issue1273.agda:21,18-20
+
+Issue1273.agda:21,18-20: error: [InstanceNoCandidate]
 No instance of type Eq (set A) was found in scope.
 when checking that x y are valid arguments to a function of type
 {t : Set} ⦃ r : Eq t ⦄ → t → t → Bool

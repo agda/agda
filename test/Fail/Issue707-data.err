@@ -1,7 +1,7 @@
 Failed to solve the following constraints:
   Check definition of fixIx : (b : Bool) → D b → D b
     stuck because
-      Issue707-data.agda:11,15-16
+      Issue707-data.agda:11,15-16: error: [SplitError]
       I'm not sure if there should be a case for the constructor c,
       because I get stuck when trying to solve the following unification
       problems (inferred index ≟ expected index):

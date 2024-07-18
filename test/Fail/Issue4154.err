@@ -3,12 +3,14 @@ warning: -W[no]ClashesViaRenaming
 Name clashes introduced by 'renaming': B
 when scope checking the declaration
   module N = M renaming (A to B)
+
 Issue4154.agda:15,1-25
 warning: -W[no]ClashesViaRenaming
 Name clashes introduced by 'renaming': B
 when scope checking the declaration
   open M renaming (A to B)
-Issue4154.agda:20,8-9
+
+Issue4154.agda:20,8-9: error: [AmbiguousName]
 Ambiguous name B. It could refer to any one of
   M.B bound at
     Issue4154.agda:10,7-8

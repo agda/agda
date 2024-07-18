@@ -1,4 +1,4 @@
-Issue2081.agda:24,13-21
+Issue2081.agda:24,13-21: error: [NoSuchModule]
 No module M.Public in scope
 when scope checking the declaration
   module Pu = M.Public

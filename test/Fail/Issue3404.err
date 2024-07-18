@@ -1,4 +1,4 @@
-Issue3404.agda:42,22-26
+Issue3404.agda:42,22-26: error: [UnequalTerms]
 x != y of type Nat
 when checking that the expression refl has type
 primWord64FromNat x ≡ primWord64FromNat y

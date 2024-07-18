@@ -1,4 +1,4 @@
-Issue3464.agda:22,11-15
+Issue3464.agda:22,11-15: error: [InstanceNoCandidate]
 No instance of type Le X.1 le.2 was found in scope.
 when checking that X G are valid arguments to a function of type
 {m n : Nat} ⦃ _ : Le m n ⦄ → Fin m → Fin n → Set

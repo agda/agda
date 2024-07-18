@@ -1,4 +1,4 @@
-Issue1216a.agda:12,1-15
+Issue1216a.agda:12,1-15: error: [IllformedProjectionPatternConcrete]
 Ill-formed projection pattern ind A
 when scope checking the left-hand side ind A (loop B) in the
 definition of loop
