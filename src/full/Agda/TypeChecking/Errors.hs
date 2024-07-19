@@ -277,8 +277,6 @@ errorString = \case
   UnequalLevel{}                           -> "UnequalLevel"
   UnequalSorts{}                           -> "UnequalSorts"
   UnequalTerms{}                           -> "UnequalTerms"
-  UnequalTypes{}                           -> "UnequalTypes"
---  UnequalTelescopes{}                      -> "UnequalTelescopes" -- UNUSED
   WithOnFreeVariable{}                     -> "WithOnFreeVariable"
   UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
   UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
@@ -706,13 +704,6 @@ instance PrettyTCM TypeError where
 
     UnequalLevel cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t]
-
--- UnequalTelescopes is UNUSED
---   UnequalTelescopes cmp a b -> fsep $
---     [prettyTCM a, notCmp cmp, prettyTCM b]
-
-    UnequalTypes cmp a b -> prettyUnequal a (notCmp cmp) b
---              fsep $ [prettyTCM a, notCmp cmp, prettyTCM b]
 
     UnequalRelevance cmp a b -> fsep $
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
