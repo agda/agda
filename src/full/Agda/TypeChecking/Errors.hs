@@ -217,7 +217,6 @@ errorString = \case
   NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
   WrongArgInfoForPrimitive{}               -> "WrongArgInfoForPrimitive"
   NotAModuleExpr{}                         -> "NotAModuleExpr"
-  NotAProperTerm                           -> "NotAProperTerm"
   InvalidType{}                            -> "InvalidType"
   InvalidTypeSort{}                        -> "InvalidTypeSort"
   CannotSolveSizeConstraints{}             -> "CannotSolveSizeConstraints"
@@ -596,8 +595,6 @@ instance PrettyTCM TypeError where
 
     ShouldBePath t -> fsep $
       prettyTCM t : pwords "should be a Path or PathP type, but it isn't"
-
-    NotAProperTerm -> fwords "Found a malformed term"
 
     InvalidTypeSort s -> fsep $ prettyTCM s : pwords "is not a valid sort"
     InvalidType v -> fsep $ prettyTCM v : pwords "is not a valid type"
