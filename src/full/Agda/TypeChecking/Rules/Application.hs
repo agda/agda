@@ -1047,7 +1047,7 @@ disambiguateConstructor cs0 args t = do
         def <- getConInfo con
         pure (getData (theDef def), t, setConName c con)
       -- Type error
-      let badCon t = typeError $ DoesNotConstructAnElementOf c0 t
+      let badCon t = typeError $ ConstructorDoesNotTargetGivenType c0 t
 
       -- Lets look at the target type at this point
       TelV tel t1 <- telViewPath t

@@ -4679,7 +4679,7 @@ data TypeError
         | ConstructorPatternInWrongDatatype QName QName -- ^ constructor, datatype
         | CantResolveOverloadedConstructorsTargetingSameDatatype QName (List1 QName)
           -- ^ Datatype, constructors.
-        | DoesNotConstructAnElementOf QName Type -- ^ constructor, type
+        | ConstructorDoesNotTargetGivenType QName Type -- ^ constructor, type
         | WrongHidingInLHS
             -- ^ The left hand side of a function definition has a hidden argument
             --   where a non-hidden was expected.

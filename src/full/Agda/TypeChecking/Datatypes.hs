@@ -136,7 +136,7 @@ fullyApplyCon
        --   type of the full application.
   -> m a
 fullyApplyCon c vs t ret = fullyApplyCon' c vs t ret $
-  typeError . DoesNotConstructAnElementOf (conName c)
+  typeError . ConstructorDoesNotTargetGivenType (conName c)
 
 -- | Like @fullyApplyCon@, but calls the given fallback function if
 --   it encounters something other than a datatype.
