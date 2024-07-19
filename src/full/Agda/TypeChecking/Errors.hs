@@ -244,7 +244,6 @@ errorString = \case
   RepeatedVariablesInPattern{}             -> "RepeatedVariablesInPattern"
   ShadowedModule{}                         -> "ShadowedModule"
   ShouldBeASort{}                          -> "ShouldBeASort"
-  ShouldBeApplicationOf{}                  -> "ShouldBeApplicationOf"
   ShouldBeAppliedToTheDatatypeParameters{} -> "ShouldBeAppliedToTheDatatypeParameters"
   ShouldBeEmpty{}                          -> "ShouldBeEmpty"
   ShouldBePi{}                             -> "ShouldBePi"
@@ -426,10 +425,6 @@ instance PrettyTCM TypeError where
     ShouldBeAppliedToTheDatatypeParameters s t -> fsep $
       pwords "The target of the constructor should be" ++ [prettyTCM s] ++
       pwords "instead of" ++ [prettyTCM t]
-
-    ShouldBeApplicationOf t q -> fsep $
-      pwords "The pattern constructs an element of" ++ [prettyTCM q] ++
-      pwords "which is not the right datatype"
 
     ShouldBeRecordType t -> fsep $
       pwords "Expected non-abstract record type, found " ++ [prettyTCM t]
