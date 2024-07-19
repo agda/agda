@@ -4856,7 +4856,6 @@ data TypeError
         | ModuleNameUnexpected TopLevelModuleName TopLevelModuleName
           -- ^ Found module name, expected module name.
         | ModuleNameDoesntMatchFileName TopLevelModuleName [AbsolutePath]
-        | ClashingFileNamesFor ModuleName [AbsolutePath]
         | ModuleDefinedInOtherFile TopLevelModuleName AbsolutePath AbsolutePath
           -- ^ Module name, file from which it was loaded, file which
           -- the include path says contains the module.
