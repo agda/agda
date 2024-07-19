@@ -162,8 +162,6 @@ errorString = \case
   CompilationError{}                       -> "CompilationError"
   ConstructorPatternInWrongDatatype{}      -> "ConstructorPatternInWrongDatatype"
   CyclicModuleDependency{}                 -> "CyclicModuleDependency"
-  DataMustEndInSort{}                      -> "DataMustEndInSort"
--- UNUSED:    DataTooManyParameters{}                  -> "DataTooManyParameters"
   CantResolveOverloadedConstructorsTargetingSameDatatype{} -> "CantResolveOverloadedConstructorsTargetingSameDatatype"
   DefinitionInDifferentModule{}            -> "DefinitionInDifferentModule"
   ConstructorDoesNotTargetGivenType{}      -> "ConstructorDoesNotTargetGivenType"
@@ -408,14 +406,6 @@ instance PrettyTCM TypeError where
 
     PropMustBeSingleton -> fwords
       "Datatypes in Prop must have at most one constructor when proof irrelevance is enabled"
-
-    DataMustEndInSort t -> fsep $
-      pwords "The type of a datatype must end in a sort."
-      ++ [prettyTCM t] ++ pwords "isn't a sort."
-
-{- UNUSED:
-    DataTooManyParameters -> fsep $ pwords "Too many parameters given to data type."
--}
 
     ShouldEndInApplicationOfTheDatatype t -> fsep $
       pwords "The target of a constructor must be the datatype applied to its parameters,"
