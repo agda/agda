@@ -155,7 +155,6 @@ errorString = \case
   BuiltinInParameterisedModule{}           -> "BuiltinInParameterisedModule"
   BuiltinMustBeConstructor{}               -> "BuiltinMustBeConstructor"
   ClashingDefinition{}                     -> "ClashingDefinition"
-  ClashingFileNamesFor{}                   -> "ClashingFileNamesFor"
   ClashingImport{}                         -> "ClashingImport"
   ClashingModule{}                         -> "ClashingModule"
   ClashingModuleImport{}                   -> "ClashingModuleImport"
@@ -944,11 +943,6 @@ instance PrettyTCM TypeError where
       , "It could refer to any of"
       , nest 2 $ vcat $ map prettyDisambCons disambs
       ]
-
-    ClashingFileNamesFor x files ->
-      fsep ( pwords "Multiple possible sources for module"
-             ++ [prettyTCM x] ++ pwords "found:"
-           ) $$ nest 2 (vcat $ map (text . filePath) files)
 
     InvalidFileName file reason -> fsep $
       pwords "The file name" ++ [pretty file] ++ pwords "is invalid because" ++
