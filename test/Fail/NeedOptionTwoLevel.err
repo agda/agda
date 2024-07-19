@@ -1,0 +1,3 @@
+NeedOptionTwoLevel.agda:9,7-11: error: [NeedOptionTwoLevel]
+Universe SSet is disabled (use option --two-level to enable SSet)
+when checking that the expression SSet is a type
