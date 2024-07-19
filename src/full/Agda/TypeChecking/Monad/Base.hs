@@ -4390,6 +4390,8 @@ data Warning
 
   -- Type checker warnings
   | RecursiveDisplayForm QName
+  | TooManyArgumentsToSort QName (List1 (NamedArg A.Expr))
+      -- ^ Extra arguments to sort (will be ignored).
   | WithClauseProjectionFixityMismatch
     { withClausePattern          :: NamedArg A.Pattern
     , withClauseProjectionOrigin :: ProjOrigin
@@ -4499,6 +4501,7 @@ warningName = \case
 
   -- Type checking
   RecursiveDisplayForm{}               -> RecursiveDisplayForm_
+  TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
   WithClauseProjectionFixityMismatch{} -> WithClauseProjectionFixityMismatch_
 
   -- Cubical
@@ -4798,8 +4801,6 @@ data TypeError
         | MacroResultTypeMismatch Type
         | NamedWhereModuleInRefinedContext [Term] [String]
         | CubicalPrimitiveNotFullyApplied QName
-        | TooManyArgumentsToLeveledSort QName
-        | TooManyArgumentsToUnivOmega QName
         | ComatchingDisabledForRecord QName
         | BuiltinMustBeIsOne Term
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason

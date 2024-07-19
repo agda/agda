@@ -1564,6 +1564,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Repeated variable name in telescope.
 
+.. option:: TooManyArgumentsToSort
+
+     E.g. `Set` used with more than one argument.
+
 .. option:: TooManyFields
 
      Record expression with invalid field names.

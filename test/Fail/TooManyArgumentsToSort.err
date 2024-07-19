@@ -1,0 +1,12 @@
+TooManyArgumentsToSort.agda:11,5-20
+Too many arguments given to sort Type
+when checking that the expression Type (lsuc l) l has type _1
+TooManyArgumentsToSort.agda:12,5-13
+Too many arguments given to sort Type
+when checking that the expression Type l l has type Type (lsuc l)
+TooManyArgumentsToSort.agda:14,5-19
+Too many arguments given to sort Typeω
+when checking that the expression Typeω (lsuc l) has type _2
+TooManyArgumentsToSort.agda:15,5-12
+Too many arguments given to sort Typeω
+when checking that the expression Typeω l has type Typeω

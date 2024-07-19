@@ -460,6 +460,7 @@ warningHighlighting' b w = case tcWarning w of
   InfectiveImport{}                     -> errorWarningHighlighting w
   CoInfectiveImport{}                   -> errorWarningHighlighting w
   RecursiveDisplayForm{}                -> deadcodeHighlighting w
+  TooManyArgumentsToSort _ args         -> errorWarningHighlighting args
   WithClauseProjectionFixityMismatch p _ _ _ -> cosmeticProblemHighlighting p
   WithoutKFlagPrimEraseEquality -> mempty
   ConflictingPragmaOptions{} -> mempty

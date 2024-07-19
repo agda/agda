@@ -106,6 +106,7 @@ instance EmbPrj Warning where
     CoinductiveEtaRecord a                      -> icodeN 57 CoinductiveEtaRecord a
     WithClauseProjectionFixityMismatch a b c d  -> icodeN 58 WithClauseProjectionFixityMismatch a b c d
     RecursiveDisplayForm a                      -> icodeN 59 RecursiveDisplayForm a
+    TooManyArgumentsToSort a b                  -> __IMPOSSIBLE__
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -554,6 +555,7 @@ instance EmbPrj WarningName where
     RewriteBeforeMutualFunctionDefinition_            -> 134
     WithClauseProjectionFixityMismatch_               -> 135
     RecursiveDisplayForm_                             -> 136
+    TooManyArgumentsToSort_                           -> 137
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -692,6 +694,7 @@ instance EmbPrj WarningName where
     134 -> return RewriteBeforeMutualFunctionDefinition_
     135 -> return WithClauseProjectionFixityMismatch_
     136 -> return RecursiveDisplayForm_
+    137 -> return TooManyArgumentsToSort_
     _   -> malformed
 
 
