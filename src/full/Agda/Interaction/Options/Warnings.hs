@@ -254,7 +254,7 @@ data WarningName
   | UselessMacro_
   | UselessPrivate_
   -- Scope and Type Checking Warnings
-  | AbsurdPatternRequiresNoRHS_
+  | AbsurdPatternRequiresAbsentRHS_
   | AsPatternShadowsConstructorOrPatternSynonym_
   | PatternShadowsConstructor_
   | CantGeneralizeOverSorts_
@@ -472,7 +472,7 @@ warningNameDescription = \case
   UselessPublic_                   -> "`public' directives that have no effect."
   UselessPatternDeclarationForRecord_ -> "`pattern' attributes where they have no effect."
   -- Scope and Type Checking Warnings
-  AbsurdPatternRequiresNoRHS_      -> "Clauses with an absurd pattern that have a right hand side."
+  AbsurdPatternRequiresAbsentRHS_  -> "Clauses with an absurd pattern that have a right hand side."
   AsPatternShadowsConstructorOrPatternSynonym_ -> "@-patterns that shadow constructors or pattern synonyms."
   PatternShadowsConstructor_       -> "Pattern variables that shadow constructors."
   CantGeneralizeOverSorts_         -> "Attempts to generalize over sort metas in 'variable' declaration."

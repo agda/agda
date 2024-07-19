@@ -847,14 +847,14 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
     mv <- if absurdPat
           then do
             ps <- instantiateFull ps
-            Nothing <$ setCurrentRange e (warning $ AbsurdPatternRequiresNoRHS ps)
+            Nothing <$ setCurrentRange e (warning $ AbsurdPatternRequiresAbsentRHS ps)
           else Just <$> checkExpr e (unArg trhs)
     return (mv, NoWithFunction)
 
   -- Absurd case: no right hand side
   noRHS :: TCM (Maybe Term, WithFunctionProblem)
   noRHS = do
-    unless absurdPat $ typeError $ NoRHSRequiresAbsurdPattern aps
+    unless absurdPat $ typeError $ AbsentRHSRequiresAbsurdPattern aps
     return (Nothing, NoWithFunction)
 
   -- With case: @f xs with {a} in eqa | b in eqb | {{c}} | ...; ... | ps1 = rhs1; ... | ps2 = rhs2; ...@

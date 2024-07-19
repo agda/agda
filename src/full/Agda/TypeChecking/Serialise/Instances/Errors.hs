@@ -50,7 +50,7 @@ instance EmbPrj Warning where
     NicifierIssue a                       -> icodeN 7 NicifierIssue a
     InversionDepthReached a               -> icodeN 8 InversionDepthReached a
     UserWarning a                         -> icodeN 9 UserWarning a
-    AbsurdPatternRequiresNoRHS a          -> icodeN 10 AbsurdPatternRequiresNoRHS a
+    AbsurdPatternRequiresAbsentRHS a      -> icodeN 10 AbsurdPatternRequiresAbsentRHS a
     ModuleDoesntExport a b c d            -> icodeN 11 ModuleDoesntExport a b c d
     LibraryWarning a                      -> icodeN 12 LibraryWarning a
     CoverageNoExactSplit a b              -> icodeN 13 CoverageNoExactSplit a b
@@ -118,7 +118,7 @@ instance EmbPrj Warning where
     [7, a]               -> valuN NicifierIssue a
     [8, a]               -> valuN InversionDepthReached a
     [9, a]               -> valuN UserWarning a
-    [10, a]              -> valuN AbsurdPatternRequiresNoRHS a
+    [10, a]              -> valuN AbsurdPatternRequiresAbsentRHS a
     [11, a, b, c, d]     -> valuN ModuleDoesntExport a b c d
     [12, a]              -> valuN LibraryWarning a
     [13, a, b]           -> valuN CoverageNoExactSplit a b
@@ -458,7 +458,7 @@ instance EmbPrj WarningName where
     UselessAbstract_                             -> 37
     UselessInstance_                             -> 38
     UselessPrivate_                              -> 39
-    AbsurdPatternRequiresNoRHS_                  -> 40
+    AbsurdPatternRequiresAbsentRHS_                  -> 40
     AsPatternShadowsConstructorOrPatternSynonym_ -> 41
     CantGeneralizeOverSorts_                     -> 42
     ClashesViaRenaming_                          -> 43
@@ -596,7 +596,7 @@ instance EmbPrj WarningName where
     37  -> return UselessAbstract_
     38  -> return UselessInstance_
     39  -> return UselessPrivate_
-    40  -> return AbsurdPatternRequiresNoRHS_
+    40  -> return AbsurdPatternRequiresAbsentRHS_
     41  -> return AsPatternShadowsConstructorOrPatternSynonym_
     42  -> return CantGeneralizeOverSorts_
     43  -> return ClashesViaRenaming_

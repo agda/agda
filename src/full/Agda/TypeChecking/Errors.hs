@@ -214,7 +214,7 @@ errorString = \case
   NoParseForApplication{}                  -> "NoParseForApplication"
   NoParseForLHS{}                          -> "NoParseForLHS"
 --  NoParseForPatternSynonym{}               -> "NoParseForPatternSynonym"
-  NoRHSRequiresAbsurdPattern{}             -> "NoRHSRequiresAbsurdPattern"
+  AbsentRHSRequiresAbsurdPattern{}         -> "AbsentRHSRequiresAbsurdPattern"
   NoSuchBuiltinName{}                      -> "NoSuchBuiltinName"
   NoSuchModule{}                           -> "NoSuchModule"
   DuplicatePrimitiveBinding{}              -> "DuplicatePrimitiveBinding"
@@ -887,7 +887,7 @@ instance PrettyTCM TypeError where
       pretty bd :
       pwords " is not allowed in a telescope here."
 
-    NoRHSRequiresAbsurdPattern ps -> fwords $
+    AbsentRHSRequiresAbsurdPattern ps -> fwords $
       "The right-hand side can only be omitted if there " ++
       "is an absurd pattern, () or {}, in the left-hand side."
 
