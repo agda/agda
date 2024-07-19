@@ -4713,7 +4713,6 @@ data TypeError
         | ShouldBePath Type
         | ShouldBeRecordType Type
         | ShouldBeRecordPattern DeBruijnPattern
-        | NotAProjectionPattern (NamedArg A.Pattern)
         | NotAProperTerm
         | InvalidTypeSort Sort
             -- ^ This sort is not a type expression.

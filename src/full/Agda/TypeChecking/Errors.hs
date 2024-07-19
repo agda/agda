@@ -246,7 +246,6 @@ errorString = \case
   ShouldBePath{}                           -> "ShouldBePath"
   ShouldBeRecordType{}                     -> "ShouldBeRecordType"
   ShouldBeRecordPattern{}                  -> "ShouldBeRecordPattern"
-  NotAProjectionPattern{}                  -> "NotAProjectionPattern"
   ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
   SplitError{}                             -> "SplitError"
   InteractiveSplitError{}                  -> "InteractiveSplitError"
@@ -419,9 +418,6 @@ instance PrettyTCM TypeError where
 
     ShouldBeRecordPattern p -> fsep $
       pwords "Expected record pattern" -- ", found " ++ [prettyTCM p]
-
-    NotAProjectionPattern p -> fsep $
-      pwords "Not a valid projection for a copattern: " ++ [ prettyA p ]
 
     WrongHidingInLHS -> fwords "Unexpected implicit argument"
 
