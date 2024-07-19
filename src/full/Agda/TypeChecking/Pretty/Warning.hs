@@ -506,6 +506,11 @@ prettyWarning = \case
         , [ prettyTCM x ]
         ]
 
+    TooManyArgumentsToSort q args -> fsep $ concat
+      [ pwords "Too many arguments given to sort"
+      , [ prettyTCM q ]
+      ]
+
     WithClauseProjectionFixityMismatch p0 o' q o -> fsep $ concat
         [ pwords "With clause pattern"
         , [ prettyA p0 ]

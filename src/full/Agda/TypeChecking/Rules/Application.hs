@@ -56,6 +56,7 @@ import Agda.TypeChecking.Rules.Def
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Warnings (warning)
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
@@ -1473,12 +1474,12 @@ inferLeveledSort u q suffix = \case
   [] -> do
     let n = suffixToLevel suffix
     return (Sort (Univ u $ ClosedLevel n) , sort (Univ (univUniv u) $ ClosedLevel $ n + 1))
-  [arg] -> do
+  arg : args -> do
     unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ Univ u $ ClosedLevel 0
     unlessM hasUniversePolymorphism $ typeError NeedOptionUniversePolymorphism
+    List1.unlessNull args $ warning . TooManyArgumentsToSort q
     l <- applyRelevanceToContext NonStrict $ checkLevel arg
     return (Sort $ Univ u l , sort (Univ (univUniv u) $ levelSuc l))
-  arg : _ -> typeError $ TooManyArgumentsToLeveledSort q
 
 inferUnivOmega ::
      Univ                -- ^ The universe type.
@@ -1486,11 +1487,10 @@ inferUnivOmega ::
   -> Suffix              -- ^ Level of the universe given via suffix (optional).
   -> [NamedArg A.Expr]   -- ^ Level of the universe given via argument (should be absent).
   -> TCM (Term, Type)    -- ^ Universe and its sort.
-inferUnivOmega u q suffix = \case
-  [] -> do
+inferUnivOmega u q suffix args = do
+    List1.unlessNull args $ warning . TooManyArgumentsToSort q
     let n = suffixToLevel suffix
     return (Sort (Inf u n) , sort (Inf (univUniv u) $ 1 + n))
-  arg : _ -> typeError $ TooManyArgumentsToUnivOmega q
 
 -----------------------------------------------------------------------------
 -- * Coinduction

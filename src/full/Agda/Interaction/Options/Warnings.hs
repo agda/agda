@@ -169,6 +169,7 @@ errorWarnings = Set.fromList
   , SafeFlagInjective_
   , SafeFlagNoCoverageCheck_
   , TerminationIssue_
+  , TooManyArgumentsToSort_
   , UnsolvedMetaVariables_
   , UnsolvedInteractionMetas_
   , UnsolvedConstraints_
@@ -321,6 +322,7 @@ data WarningName
   | SafeFlagTerminating_
   | SafeFlagWithoutKFlagPrimEraseEquality_
   | TerminationIssue_
+  | TooManyArgumentsToSort_
   | UnreachableClauses_
   | UnsolvedConstraints_
   | UnsolvedInteractionMetas_
@@ -546,6 +548,7 @@ warningNameDescription = \case
   UnsolvedMetaVariables_           -> "Unsolved meta variables."
   UserWarning_                     -> "User-defined warnings via one of the 'WARNING_ON_*' pragmas."
   RecursiveDisplayForm_            -> "Recursive display forms."
+  TooManyArgumentsToSort_          -> "Extra arguments given to a sort."
   WithClauseProjectionFixityMismatch_ -> "With clauses using projections in different fixities than their parent clauses."
   WithoutKFlagPrimEraseEquality_   -> "Uses of `primEraseEquality' with the without-K flags."
   WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."

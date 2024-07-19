@@ -313,8 +313,6 @@ errorString = \case
   MacroResultTypeMismatch{}                -> "MacroResultTypeMismatch"
   NamedWhereModuleInRefinedContext{}       -> "NamedWhereModuleInRefinedContext"
   CubicalPrimitiveNotFullyApplied{}        -> "CubicalPrimitiveNotFullyApplied"
-  TooManyArgumentsToLeveledSort{}          -> "TooManyArgumentsToLeveledSort"
-  TooManyArgumentsToUnivOmega{}            -> "TooManyArgumentsToUnivOmega"
   IllTypedPatternAfterWithAbstraction{}    -> "IllTypedPatternAfterWithAbstraction"
   ComatchingDisabledForRecord{}            -> "ComatchingDisabledForRecord"
   BuiltinMustBeIsOne{}                     -> "BuiltinMustBeIsOne"
@@ -1493,12 +1491,6 @@ instance PrettyTCM TypeError where
 
     CubicalPrimitiveNotFullyApplied c ->
       prettyTCM c <+> "must be fully applied"
-
-    TooManyArgumentsToLeveledSort q -> fsep $
-      [ prettyTCM q , "cannot be applied to more than one argument" ]
-
-    TooManyArgumentsToUnivOmega q -> fsep $
-      [ prettyTCM q , "cannot be applied to an argument" ]
 
     IllTypedPatternAfterWithAbstraction p -> vcat
       [ "Ill-typed pattern after with abstraction: " <+> prettyA p
