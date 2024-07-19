@@ -4779,7 +4779,7 @@ data TypeError
         | DuplicateConstructors [C.Name]
         | DuplicateOverlapPragma QName OverlapMode OverlapMode
         | WithOnFreeVariable A.Expr Term
-        | UnexpectedWithPatterns [A.Pattern]
+        | UnexpectedWithPatterns (List1 A.Pattern)
         | WithClausePatternMismatch A.Pattern (NamedArg DeBruijnPattern)
         | IllTypedPatternAfterWithAbstraction A.Pattern
         | FieldOutsideRecord

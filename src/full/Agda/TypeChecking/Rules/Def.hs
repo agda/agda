@@ -680,8 +680,8 @@ instance Monoid ClausesPostChecks where
 checkClauseLHS :: Type -> Maybe Substitution -> A.SpineClause -> (LHSResult -> TCM a) -> TCM a
 checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) ret = do
     reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
-    unlessNull (trailingWithPatterns aps) $ \ withPats -> do
-      typeError $ UnexpectedWithPatterns $ map namedArg withPats
+    () <- List1.unlessNull (trailingWithPatterns aps) $ \ withPats -> do
+      typeError $ UnexpectedWithPatterns $ fmap namedArg withPats
     traceCall (CheckClause t c) $ do
       aps <- expandPatternSynonyms aps
       unless (null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
