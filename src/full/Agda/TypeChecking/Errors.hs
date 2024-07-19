@@ -167,7 +167,7 @@ errorString = \case
 -- UNUSED:    DataTooManyParameters{}                  -> "DataTooManyParameters"
   CantResolveOverloadedConstructorsTargetingSameDatatype{} -> "CantResolveOverloadedConstructorsTargetingSameDatatype"
   DefinitionInDifferentModule{}            -> "DefinitionInDifferentModule"
-  DoesNotConstructAnElementOf{}            -> "DoesNotConstructAnElementOf"
+  ConstructorDoesNotTargetGivenType{}      -> "ConstructorDoesNotTargetGivenType"
   DuplicateBuiltinBinding{}                -> "DuplicateBuiltinBinding"
   DuplicateConstructors{}                  -> "DuplicateConstructors"
   DuplicateFields{}                        -> "DuplicateFields"
@@ -541,7 +541,7 @@ instance PrettyTCM TypeError where
       ++ [parens (prettyTCM (qnameToConcrete d)) <> colon]
       ++ map pretty (List1.toList cs)
 
-    DoesNotConstructAnElementOf c t -> fsep $
+    ConstructorDoesNotTargetGivenType c t -> fsep $
       pwords "The constructor" ++ [prettyTCM c] ++
       pwords "does not construct an element of" ++ [prettyTCM t]
 
