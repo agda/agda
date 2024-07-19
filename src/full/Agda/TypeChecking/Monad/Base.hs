@@ -4933,6 +4933,7 @@ data TypeError
         | NeedOptionRewriting
         | NeedOptionProp
         | NeedOptionTwoLevel
+        | NeedOptionUniversePolymorphism
     -- Failure associated to warnings
         | NonFatalErrors [TCWarning]
     -- Instance search errors

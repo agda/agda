@@ -150,8 +150,7 @@ isType_ e = traceCall (IsType_ e) $ do
         A.Def x <- unScope s,
         Just (USmall, u) <- isNameOfUniv x -> do
       univChecks u
-      unlessM hasUniversePolymorphism $ genericError $
-        "Use --universe-polymorphism to enable level arguments to " ++ showUniv u
+      unlessM hasUniversePolymorphism $ typeError NeedOptionUniversePolymorphism
       -- allow NonStrict variables when checking level
       --   Set : (NonStrict) Level -> Set\omega
       applyRelevanceToContext NonStrict $
