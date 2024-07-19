@@ -6,7 +6,6 @@ import Control.Monad ((<$!>), filterM)
 import Control.Monad.Trans
 
 import Data.Maybe
-import qualified Data.Map as Map
 import qualified Data.Map.Strict as MapS
 import qualified Data.HashMap.Strict as HMap
 
@@ -34,7 +33,7 @@ import qualified Agda.Utils.HashTable as HT
 --     - public names (for definitions and pattern synonyms)
 --     - definitions marked as primitive
 --     - definitions with COMPILE pragma
---     - parameter sections of public modules
+--     - all parameter sections (because all sections go into interfaces!)
 --     - local builtins
 --     - all rewrite rules
 --   We only ever prune dead metavariables and definitions. The reachable ones
@@ -67,9 +66,7 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
   let !rootExtraDefs = mapMaybe extraRootsFilter $ HMap.toList defs
   let !rootRewrites  = sig ^. sigRewriteRules
 
-  -- Andreas, Oskar, 2023-10-19, issue #6931:
-  -- Needed to avoid deleting parameter sections of empty modules.
-  let !rootModSections = (sig ^. sigSections) `Map.intersection` pubModules
+  let !rootModSections = sig ^. sigSections
   !rootBuiltins <- useTC stLocalBuiltins
 
   !seenNames <- liftIO HT.empty :: TCM (HashTable QName ())
