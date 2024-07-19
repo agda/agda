@@ -4734,8 +4734,6 @@ data TypeError
         | VariableIsOfUnusableCohesion Name Cohesion
         | UnequalLevel Comparison Level Level
         | UnequalTerms Comparison Term Term CompareAs
-        | UnequalTypes Comparison Type Type
---      | UnequalTelescopes Comparison Telescope Telescope -- UNUSED
         | UnequalRelevance Comparison Term Term
             -- ^ The two function types have different relevance.
         | UnequalQuantity Comparison Term Term
