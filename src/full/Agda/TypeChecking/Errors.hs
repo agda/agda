@@ -268,7 +268,6 @@ errorString = \case
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
   VariableIsErased{}                       -> "VariableIsErased"
   VariableIsOfUnusableCohesion{}           -> "VariableIsOfUnusableCohesion"
-  UnequalBecauseOfUniverseConflict{}       -> "UnequalBecauseOfUniverseConflict"
   UnequalRelevance{}                       -> "UnequalRelevance"
   UnequalQuantity{}                        -> "UnequalQuantity"
   UnequalCohesion{}                        -> "UnequalCohesion"
@@ -679,9 +678,6 @@ instance PrettyTCM TypeError where
 
     VariableIsOfUnusableCohesion x c -> fsep
       ["Variable", prettyTCM (nameConcrete x), "is declared", text (show c), "so it cannot be used here"]
-
-    UnequalBecauseOfUniverseConflict cmp s t -> fsep $
-      [prettyTCM s, notCmp cmp, prettyTCM t, "because this would result in an invalid use of Setω" ]
 
     UnequalTerms cmp s t a -> case (s,t) of
       (Sort s1      , Sort s2      )

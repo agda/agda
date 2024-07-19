@@ -4745,7 +4745,6 @@ data TypeError
         | UnequalHiding Term Term
             -- ^ The two function types have different hiding.
         | UnequalSorts Sort Sort
-        | UnequalBecauseOfUniverseConflict Comparison Term Term
         | NotLeqSort Sort Sort
         | MetaCannotDependOn MetaId Nat
             -- ^ The arguments are the meta variable and the parameter that it wants to depend on.
