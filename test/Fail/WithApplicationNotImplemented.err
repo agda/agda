@@ -1,0 +1,3 @@
+WithApplicationNotImplemented.agda:6,7-12: error: [NotImplemented]
+Not implemented: type checking of with application
+when checking that the expression A | B has type _0
