@@ -1,0 +1,4 @@
+NeedOptionProp.agda:9,7-11: error: [NeedOptionProp]
+Universe Prop is disabled (use options --prop and --no-prop to
+enable/disable Prop)
+when checking that the expression Prop is a type
