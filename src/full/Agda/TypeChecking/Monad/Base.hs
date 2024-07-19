@@ -4869,7 +4869,6 @@ data TypeError
         | InvalidFileName AbsolutePath InvalidFileNameReason
           -- ^ The file name does not correspond to a module name.
     -- Scope errors
-        | BothWithAndRHS
         | AbstractConstructorNotInScope A.QName
         | NotInScope [C.QName]
         | NoSuchModule C.QName
