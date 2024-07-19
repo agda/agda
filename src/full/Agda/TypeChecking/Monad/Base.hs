@@ -4662,7 +4662,6 @@ data TypeError
         | NotImplemented String
         | NotSupported String
         | CompilationError String
-        | PropMustBeSingleton
         | ShouldEndInApplicationOfTheDatatype Type
             -- ^ The target of a constructor isn't an application of its
             -- datatype. The 'Type' records what it does target.
