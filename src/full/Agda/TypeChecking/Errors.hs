@@ -199,6 +199,7 @@ errorString = \case
   NeedOptionRewriting{}                    -> "NeedOptionRewriting"
   NeedOptionProp{}                         -> "NeedOptionProp"
   NeedOptionTwoLevel{}                     -> "NeedOptionTwoLevel"
+  NeedOptionUniversePolymorphism{}         -> "NeedOptionUniversePolymorphism"
   GeneralizeNotSupportedHere{}             -> "GeneralizeNotSupportedHere"
   GeneralizeCyclicDependency{}             -> "GeneralizeCyclicDependency"
   GeneralizeUnsolvedMeta{}                 -> "GeneralizeUnsolvedMeta"
@@ -1378,6 +1379,9 @@ instance PrettyTCM TypeError where
 
     NeedOptionTwoLevel   -> fsep $
       pwords "Universe SSet is disabled (use option --two-level to enable SSet)"
+
+    NeedOptionUniversePolymorphism -> fsep $
+      pwords "Universe polymorphism is disabled (use option --universe-polymorphism to allow level arguments to sorts)"
 
     GeneralizeNotSupportedHere x -> fsep $
       pwords $ "Generalizable variable " ++ prettyShow x ++ " is not supported here"

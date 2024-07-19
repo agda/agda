@@ -1475,8 +1475,7 @@ inferLeveledSort u q suffix = \case
     return (Sort (Univ u $ ClosedLevel n) , sort (Univ (univUniv u) $ ClosedLevel $ n + 1))
   [arg] -> do
     unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ Univ u $ ClosedLevel 0
-    unlessM hasUniversePolymorphism $ genericError
-      "Use --universe-polymorphism to enable level arguments to Set"
+    unlessM hasUniversePolymorphism $ typeError NeedOptionUniversePolymorphism
     l <- applyRelevanceToContext NonStrict $ checkLevel arg
     return (Sort $ Univ u l , sort (Univ (univUniv u) $ levelSuc l))
   arg : _ -> typeError $ TooManyArgumentsToLeveledSort q
