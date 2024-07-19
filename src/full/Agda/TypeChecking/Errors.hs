@@ -152,7 +152,6 @@ errorString = \case
   CannotResolveAmbiguousPatternSynonym{}   -> "CannotResolveAmbiguousPatternSynonym"
   PatternSynonymArgumentShadowsConstructorOrPatternSynonym{} -> "PatternSynonymArgumentShadowsConstructorOrPatternSynonym"
   UnboundVariablesInPatternSynonym{}       -> "UnboundVariablesInPatternSynonym"
-  BothWithAndRHS                           -> "BothWithAndRHS"
   BuiltinInParameterisedModule{}           -> "BuiltinInParameterisedModule"
   BuiltinMustBeConstructor{}               -> "BuiltinMustBeConstructor"
   ClashingDefinition{}                     -> "ClashingDefinition"
@@ -998,8 +997,6 @@ instance PrettyTCM TypeError where
       fsep (pwords "The name of the top level module does not match the file name. The module" ++
            [ pretty given ] ++ pwords "should be defined in one of the following files:")
       $$ nest 2 (vcat $ map (text . filePath) files)
-
-    BothWithAndRHS -> fsep $ pwords "Unexpected right hand side"
 
     AbstractConstructorNotInScope q -> fsep $
       [ "Constructor"
