@@ -1229,7 +1229,7 @@ Benign warnings
 Individual non-fatal warnings can be turned on and off by ``-W {NAME}`` and ``-W no{NAME}`` respectively.
 The list containing any warning ``NAME`` can be produced by ``agda --help=warning``:
 
-.. option:: AbsurdPatternRequiresNoRHS
+.. option:: AbsurdPatternRequiresAbsentRHS
 
      RHS given despite an absurd pattern in the LHS.
 

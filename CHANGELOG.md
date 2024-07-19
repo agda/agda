@@ -19,6 +19,9 @@ Pragmas and options
   when in a with-clause a projection is used in a different fixity
   (prefix vs. postfix) than in its parent clause.
 
+* Warning `AbsurdPatternRequiresNoRHS` has been renamed to
+  `AbsurdPatternRequiresAbsentRHS`.
+
 Syntax
 ------
 

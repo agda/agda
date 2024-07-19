@@ -4261,7 +4261,7 @@ data Warning
     -- ^ Do not use directly with 'warning'
 
   | CantGeneralizeOverSorts [MetaId]
-  | AbsurdPatternRequiresNoRHS [NamedArg DeBruijnPattern]
+  | AbsurdPatternRequiresAbsentRHS [NamedArg DeBruijnPattern]
   | OldBuiltin               BuiltinId BuiltinId
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new.
   | BuiltinDeclaresIdentifier BuiltinId
@@ -4427,7 +4427,7 @@ warningName = \case
   -- scope- and type-checking errors
   AsPatternShadowsConstructorOrPatternSynonym{} -> AsPatternShadowsConstructorOrPatternSynonym_
   PatternShadowsConstructor{}  -> PatternShadowsConstructor_
-  AbsurdPatternRequiresNoRHS{} -> AbsurdPatternRequiresNoRHS_
+  AbsurdPatternRequiresAbsentRHS{} -> AbsurdPatternRequiresAbsentRHS_
   CantGeneralizeOverSorts{}    -> CantGeneralizeOverSorts_
   CoverageIssue{}              -> CoverageIssue_
   CoverageNoExactSplit{}       -> CoverageNoExactSplit_
@@ -4783,7 +4783,7 @@ data TypeError
             -- ^ The declaration list comes from a single 'C.NiceDeclaration'.
         | IllegalLetInTelescope C.TypedBinding
         | IllegalPatternInTelescope C.Binder
-        | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
+        | AbsentRHSRequiresAbsurdPattern [NamedArg A.Pattern]
         | TooManyFields QName [C.Name] [C.Name]
           -- ^ Record type, fields not supplied by user, non-fields but supplied.
         | DuplicateFields [C.Name]

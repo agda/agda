@@ -422,7 +422,7 @@ warningHighlighting' b w = case tcWarning w of
   InlineNoExactSplit{}       -> catchallHighlighting $ getRange w
   UnsolvedConstraints cs     -> if b then constraintsHighlighting [] cs else mempty
   UnsolvedMetaVariables rs   -> if b then metasHighlighting rs          else mempty
-  AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting w
+  AbsurdPatternRequiresAbsentRHS{} -> deadcodeHighlighting w
   DuplicateRecordDirective{}   -> deadcodeHighlighting w
   ModuleDoesntExport _ _ _ xs  -> foldMap deadcodeHighlighting xs
   DuplicateUsing xs            -> foldMap deadcodeHighlighting xs
