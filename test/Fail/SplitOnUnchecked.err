@@ -1,0 +1,3 @@
+SplitOnUnchecked.agda:7,3-11: error: [SplitOnUnchecked]
+Cannot split on data type R whose definition has not yet been checked
+when checking that the pattern record {} has type R
