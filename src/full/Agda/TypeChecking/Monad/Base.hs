@@ -4676,8 +4676,6 @@ data TypeError
             -- ^ The target of a constructor isn't its datatype applied to
             --   something that isn't the parameters. First term is the correct
             --   target and the second term is the actual target.
-        | ShouldBeApplicationOf Type QName
-            -- ^ Expected a type to be an application of a particular datatype.
         | ConstructorPatternInWrongDatatype QName QName -- ^ constructor, datatype
         | CantResolveOverloadedConstructorsTargetingSameDatatype QName (List1 QName)
           -- ^ Datatype, constructors.
