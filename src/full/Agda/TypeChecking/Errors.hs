@@ -315,7 +315,6 @@ errorString = \case
   CubicalPrimitiveNotFullyApplied{}        -> "CubicalPrimitiveNotFullyApplied"
   IllTypedPatternAfterWithAbstraction{}    -> "IllTypedPatternAfterWithAbstraction"
   ComatchingDisabledForRecord{}            -> "ComatchingDisabledForRecord"
-  BuiltinMustBeIsOne{}                     -> "BuiltinMustBeIsOne"
   IncorrectTypeForRewriteRelation{}        -> "IncorrectTypeForRewriteRelation"
   UnexpectedParameter{}                    -> "UnexpectedParameter"
   NoParameterOfName{}                      -> "NoParameterOfName"
@@ -1499,9 +1498,6 @@ instance PrettyTCM TypeError where
 
     ComatchingDisabledForRecord recName ->
       "Copattern matching is disabled for record" <+> prettyTCM recName
-
-    BuiltinMustBeIsOne builtin ->
-      prettyTCM builtin <+> " is not IsOne."
 
     IncorrectTypeForRewriteRelation v reason -> case reason of
       ShouldAcceptAtLeastTwoArguments -> sep

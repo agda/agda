@@ -4802,7 +4802,6 @@ data TypeError
         | NamedWhereModuleInRefinedContext [Term] [String]
         | CubicalPrimitiveNotFullyApplied QName
         | ComatchingDisabledForRecord QName
-        | BuiltinMustBeIsOne Term
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
     -- Data errors
         | UnexpectedParameter A.LamBinding
