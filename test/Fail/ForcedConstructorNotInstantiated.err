@@ -1,0 +1,3 @@
+ForcedConstructorNotInstantiated.agda:8,4-8: error: [ForcedConstructorNotInstantiated]
+Failed to infer that constructor pattern c x is forced
+when checking that the pattern c x has type D
