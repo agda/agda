@@ -202,7 +202,6 @@ errorString = \case
   NeedOptionUniversePolymorphism{}         -> "NeedOptionUniversePolymorphism"
   GeneralizeNotSupportedHere{}             -> "GeneralizeNotSupportedHere"
   GeneralizeCyclicDependency{}             -> "GeneralizeCyclicDependency"
-  GeneralizeUnsolvedMeta{}                 -> "GeneralizeUnsolvedMeta"
   GeneralizedVarInLetOpenedModule{}        -> "GeneralizedVarInLetOpenedModule"
   MultipleFixityDecls{}                    -> "MultipleFixityDecls"
   MultiplePolarityPragmas{}                -> "MultiplePolarityPragmas"
@@ -1372,9 +1371,6 @@ instance PrettyTCM TypeError where
 
     GeneralizeCyclicDependency -> fsep $
       pwords "Cyclic dependency between generalized variables"
-
-    GeneralizeUnsolvedMeta -> fsep $
-      pwords "Unsolved meta not generalized"
 
     GeneralizedVarInLetOpenedModule x -> fsep $
       pwords "Cannot use generalized variable from let-opened module: " ++

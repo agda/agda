@@ -4785,7 +4785,6 @@ data TypeError
         | FieldOutsideRecord
         | ModuleArityMismatch A.ModuleName Telescope [NamedArg A.Expr]
         | GeneralizeCyclicDependency
-        | GeneralizeUnsolvedMeta
         | ReferencesFutureVariables Term (List1.NonEmpty Int) (Arg Term) Int
           -- ^ The first term references the given list of variables,
           -- which are in "the future" with respect to the given lock
