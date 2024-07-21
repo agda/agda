@@ -1208,7 +1208,12 @@ checkLHS mf = updateModality checkLHS_ where
                        getBuiltinName' builtinIsOne
                      case a of
                        Def q [Apply phi] | q == isone -> return (unArg phi)
-                       _           -> typeError $ BuiltinMustBeIsOne a
+                       -- 2024-07-21 Other cases are impossible, see comment
+                       -- https://github.com/agda/agda/pull/7379#issuecomment-2240017422
+                       -- Amelia writes:
+                       -- There's no way for the user to write an @finite ... → ... other than by using Partial,
+                       -- and Partial always has IsOne as its domain.
+                       _ -> __IMPOSSIBLE__
 
                    _  -> foldl (\ x y -> primIMin <@> x <@> y) primIOne (map pure ts)
          reportSDoc "tc.lhs.split.partial" 10 $ text "phi           =" <+> prettyTCM phi
