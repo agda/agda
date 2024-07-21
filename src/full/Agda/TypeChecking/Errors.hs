@@ -54,7 +54,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Scope.Monad (isDatatypeModule)
 import Agda.Syntax.Scope.Base
 
-import Agda.TypeChecking.Monad (typeOfConst)
+import Agda.TypeChecking.Monad (getConstInfo, typeOfConst)
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
@@ -324,6 +324,11 @@ errorString = \case
   UnexpectedTypeSignatureForParameter{}    -> "UnexpectedTypeSignatureForParameter"
   UnusableAtModality{}                     -> "UnusableAtModality"
   CustomBackendError{}                     -> "CustomBackendError"
+  GHCBackendError err                      -> "GHCBackend." ++ ghcBackendErrorString err
+
+ghcBackendErrorString :: GHCBackendError -> String
+ghcBackendErrorString = \case
+  NotAHaskellType{}                        -> "NotAHaskellType"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1593,6 +1598,7 @@ instance PrettyTCM TypeError where
          <+> pure (attributesForModality mod)
 
     CustomBackendError backend err -> (text backend <> ":") <?> pure err
+    GHCBackendError err -> prettyTCM err
 
     where
     mpar n args
@@ -1617,6 +1623,47 @@ instance PrettyTCM TypeError where
     prettyPat _ (I.LitP _ l) = prettyTCM l
     prettyPat _ (I.ProjP _ p) = "." <> prettyTCM p
     prettyPat _ (I.IApplyP _ _ _ _) = "_"
+
+instance PrettyTCM GHCBackendError where
+  prettyTCM = \case
+
+    NotAHaskellType top offender -> vcat
+      [ fsep $ concat
+        [ pwords "The type", [ prettyTCM top ]
+        , pwords "cannot be translated to a corresponding Haskell type, because it contains"
+        , reason offender
+        ]
+      , possibleFix offender
+      ]
+      where
+      reason (BadLambda        v) = pwords "the lambda term" ++ [prettyTCM v <> "."]
+      reason (BadMeta          v) = pwords "a meta variable" ++ [prettyTCM v <> "."]
+      reason (BadDontCare      v) = pwords "an erased term" ++ [prettyTCM v <> "."]
+      reason (NotCompiled      x) = pwords "a name that is not compiled"
+                                    ++ [parens (prettyTCM x) <> "."]
+      reason (NoPragmaFor      x) = prettyTCM x : pwords "which does not have a COMPILE pragma."
+      reason (WrongPragmaFor _ x) = prettyTCM x : pwords "which has the wrong kind of COMPILE pragma."
+
+      possibleFix BadLambda{}     = empty
+      possibleFix BadMeta{}       = empty
+      possibleFix BadDontCare{}   = empty
+      possibleFix NotCompiled{}   = empty
+      possibleFix (NoPragmaFor d) = suggestPragma d $ "add a pragma"
+      possibleFix (WrongPragmaFor r d) = suggestPragma d $
+        sep [ "replace the value-level pragma at", nest 2 $ pretty r, "by" ]
+
+      suggestPragma d action = do
+        def    <- theDef <$> getConstInfo d
+        let dataPragma n = ("data type HsD", "data HsD (" ++ intercalate " | " [ "C" ++ show i | i <- [1..n] ] ++ ")")
+            (hsThing, pragma) =
+              case def of
+                Datatype{ dataCons = cs } -> dataPragma (length cs)
+                Record{}                  -> dataPragma 1
+                _                         -> ("type HsT", "type HsT")
+        vcat [ sep ["Possible fix:", action]
+             , nest 2 $ hsep [ "{-# COMPILE GHC", prettyTCM d, "=", text pragma, "#-}" ]
+             , text ("for a suitable Haskell " ++ hsThing ++ ".")
+             ]
 
 notCmp :: MonadPretty m => Comparison -> m Doc
 notCmp cmp = "!" <> prettyTCM cmp

@@ -61,53 +61,10 @@ hsFun :: HS.Type -> HS.Type -> HS.Type
 hsFun a (HS.TyForall vs b) = HS.TyForall vs $ hsFun a b
 hsFun a b = HS.TyFun a b
 
-data WhyNot = NoPragmaFor QName
-            | WrongPragmaFor Range QName
-            | BadLambda Term
-            | BadMeta Term
-            | BadDontCare Term
-            | NotCompiled QName
-
-type ToHs = ExceptT WhyNot HsCompileM
-
-notAHaskellType :: Term -> WhyNot -> TCM a
-notAHaskellType top offender = typeError . GenericDocError =<< do
-  fsep (pwords "The type" ++ [prettyTCM top] ++
-        pwords "cannot be translated to a corresponding Haskell type, because it contains" ++
-        reason offender) $$ possibleFix offender
-  where
-    reason (BadLambda        v) = pwords "the lambda term" ++ [prettyTCM v <> "."]
-    reason (BadMeta          v) = pwords "a meta variable" ++ [prettyTCM v <> "."]
-    reason (BadDontCare      v) = pwords "an erased term" ++ [prettyTCM v <> "."]
-    reason (NotCompiled      x) = pwords "a name that is not compiled"
-                                  ++ [parens (prettyTCM x) <> "."]
-    reason (NoPragmaFor      x) = prettyTCM x : pwords "which does not have a COMPILE pragma."
-    reason (WrongPragmaFor _ x) = prettyTCM x : pwords "which has the wrong kind of COMPILE pragma."
-
-    possibleFix BadLambda{}     = empty
-    possibleFix BadMeta{}       = empty
-    possibleFix BadDontCare{}   = empty
-    possibleFix NotCompiled{}   = empty
-    possibleFix (NoPragmaFor d) = suggestPragma d $ "add a pragma"
-    possibleFix (WrongPragmaFor r d) = suggestPragma d $
-      sep [ "replace the value-level pragma at", nest 2 $ pretty r, "by" ]
-
-    suggestPragma d action = do
-      def    <- theDef <$> getConstInfo d
-      let dataPragma n = ("data type HsD", "data HsD (" ++ intercalate " | " [ "C" ++ show i | i <- [1..n] ] ++ ")")
-          typePragma   = ("type HsT", "type HsT")
-          (hsThing, pragma) =
-            case def of
-              Datatype{ dataCons = cs } -> dataPragma (length cs)
-              Record{}                  -> dataPragma 1
-              _                         -> typePragma
-      vcat [ sep ["Possible fix:", action]
-           , nest 2 $ hsep [ "{-# COMPILE GHC", prettyTCM d, "=", text pragma, "#-}" ]
-           , text ("for a suitable Haskell " ++ hsThing ++ ".")
-           ]
+type ToHs = ExceptT WhyNotAHaskellType HsCompileM
 
 runToHs :: Term -> ToHs a -> HsCompileM a
-runToHs top m = either (liftTCM . notAHaskellType top) return =<< runExceptT m
+runToHs top m = either (ghcBackendError . NotAHaskellType top) return =<< runExceptT m
 
 liftE1' :: (forall b. (a -> m b) -> m b) -> (a -> ExceptT e m b) -> ExceptT e m b
 liftE1' f k = ExceptT (f (runExceptT . k))

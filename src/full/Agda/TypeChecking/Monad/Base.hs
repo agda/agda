@@ -4940,8 +4940,26 @@ data TypeError
             -- ^ Failure of the 'makeCase' interactive tactics.
     -- Backend errors
         | CustomBackendError String Doc
-          -- ^ Used for backend-specific errors. The string is the backend name.
+            -- ^ Used for backend-specific errors. The string is the backend name.
+        | GHCBackendError GHCBackendError
+            -- ^ Errors raised by the GHC backend.
           deriving (Show, Generic)
+
+-- | Errors raised by the GHC backend.
+data GHCBackendError
+  = NotAHaskellType Term WhyNotAHaskellType
+      -- ^ GHC backend fails to represent given Agda type in Haskell.
+  deriving (Show, Generic)
+
+-- | Extra information for 'NotAHaskellType' error.
+data WhyNotAHaskellType
+  = NoPragmaFor QName
+  | WrongPragmaFor Range QName
+  | BadLambda Term
+  | BadMeta Term
+  | BadDontCare Term
+  | NotCompiled QName
+  deriving (Show, Generic)
 
 -- | Extra information for 'InvalidFileName' error.
 data InvalidFileNameReason
@@ -6105,3 +6123,5 @@ instance NFData DataOrRecordE
 instance NFData InductionAndEta
 instance NFData IllegalRewriteRuleReason
 instance NFData IncorrectTypeForRewriteRelationReason
+instance NFData GHCBackendError
+instance NFData WhyNotAHaskellType
