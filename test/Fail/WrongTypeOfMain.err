@@ -1,0 +1,2 @@
+error: [GHCBackend.WrongTypeOfMain]
+The type of main should be IO A, for some A. The given type is: Nat

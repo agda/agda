@@ -4954,6 +4954,8 @@ data GHCBackendError
       --   the number of constructors of the given data type.
   | NotAHaskellType Term WhyNotAHaskellType
       -- ^ GHC backend fails to represent given Agda type in Haskell.
+  | WrongTypeOfMain QName Type
+      -- ^ The type of @main@ should be @IO _@ ('QName') but is instead 'Type'.
   deriving (Show, Generic)
 
 -- | Extra information for 'NotAHaskellType' error.

@@ -331,6 +331,7 @@ ghcBackendErrorString :: GHCBackendError -> String
 ghcBackendErrorString = \case
   ConstructorCountMismatch{}               -> "ConstructorCountMismatch"
   NotAHaskellType{}                        -> "NotAHaskellType"
+  WrongTypeOfMain{}                        -> "WrongTypeOfMain"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1685,6 +1686,11 @@ instance PrettyTCM GHCBackendError where
              , nest 2 $ hsep [ "{-# COMPILE GHC", prettyTCM d, "=", text pragma, "#-}" ]
              , text ("for a suitable Haskell " ++ hsThing ++ ".")
              ]
+
+    WrongTypeOfMain io ty -> fsep $ concat
+      [ pwords "The type of main should be", [ prettyTCM io ], pwords "A, for some A."
+      , pwords "The given type is:", [ prettyTCM ty ]
+      ]
 
 notCmp :: MonadPretty m => Comparison -> m Doc
 notCmp cmp = "!" <> prettyTCM cmp
