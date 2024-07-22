@@ -1,0 +1,2 @@
+ConstructorCountMismatch.agda:8,1-36: error: [GHCBackend.ConstructorCountMismatch]
+D has 2 constructors, but only 1 Haskell constructor is given [D1]

@@ -4,7 +4,6 @@
 
 module Agda.Compiler.MAlonzo.HaskellTypes
   ( haskellType
-  , checkConstructorCount
   , hsTelApproximation, hsTelApproximation'
   ) where
 
@@ -179,24 +178,6 @@ haskellType q = do
   ty <- underPars np $ defType def
   reportSDoc "tc.pragma.compile" 10 $ (("Haskell type for" <+> prettyTCM q) <> ":") <?> pretty ty
   return ty
-
-checkConstructorCount :: QName -> [QName] -> [HaskellCode] -> TCM ()
-checkConstructorCount d cs hsCons
-  | n == hn   = return ()
-  | otherwise = do
-    let n_forms_are = case hn of
-          1 -> "1 Haskell constructor is"
-          n -> show n ++ " Haskell constructors are"
-        only | hn == 0   = ""
-             | hn < n    = "only "
-             | otherwise = ""
-
-    genericDocError =<<
-      fsep (prettyTCM d : pwords ("has " ++ show n ++
-            " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords hsCons ++ "]"))
-  where
-    n  = length cs
-    hn = length hsCons
 
 -- Type approximations ----------------------------------------------------
 

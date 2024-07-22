@@ -328,6 +328,7 @@ errorString = \case
 
 ghcBackendErrorString :: GHCBackendError -> String
 ghcBackendErrorString = \case
+  ConstructorCountMismatch{}               -> "ConstructorCountMismatch"
   NotAHaskellType{}                        -> "NotAHaskellType"
 
 instance PrettyTCM TCErr where
@@ -1626,6 +1627,19 @@ instance PrettyTCM TypeError where
 
 instance PrettyTCM GHCBackendError where
   prettyTCM = \case
+
+    ConstructorCountMismatch d cs hsCons -> fsep $ concat
+      [ [ prettyTCM d, "has", text (show n), "constructors,", "but" ]
+      , [ "only" | hn > 0, hn < n ]
+      , pwords n_forms_are
+      , pwords $ "given [" ++ unwords hsCons ++ "]"
+      ]
+      where
+        n  = length cs
+        hn = length hsCons
+        n_forms_are = case hn of
+          1 -> "1 Haskell constructor is"
+          _ -> show hn ++ " Haskell constructors are"
 
     NotAHaskellType top offender -> vcat
       [ fsep $ concat

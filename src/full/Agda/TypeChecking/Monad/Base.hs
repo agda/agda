@@ -4947,7 +4947,10 @@ data TypeError
 
 -- | Errors raised by the GHC backend.
 data GHCBackendError
-  = NotAHaskellType Term WhyNotAHaskellType
+  = ConstructorCountMismatch QName [QName] [String]
+      -- ^ The number of Haskell constructors ('String' list) does not match
+      --   the number of constructors of the given data type.
+  | NotAHaskellType Term WhyNotAHaskellType
       -- ^ GHC backend fails to represent given Agda type in Haskell.
   deriving (Show, Generic)
 

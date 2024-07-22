@@ -877,7 +877,9 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
 constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> HsCompileM [HS.Decl]
 constructorCoverageCode q np cs hsTy hsCons = do
-  liftTCM $ checkConstructorCount q cs hsCons
+  -- Check that number of constructors matches up.
+  unless (length cs == length hsCons) $
+    ghcBackendError $ ConstructorCountMismatch q cs hsCons
   ifM (liftTCM $ noCheckCover q) (return []) $ do
     ccs <- List.concat <$> zipWithM checkConstructorType cs hsCons
     cov <- liftTCM $ checkCover q hsTy np cs hsCons
