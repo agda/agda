@@ -34,6 +34,7 @@ import qualified Agda.Utils.HashTable as HT
 --     - definitions marked as primitive
 --     - definitions with COMPILE pragma
 --     - all parameter sections (because all sections go into interfaces!)
+--       (see also issues #6931 and #7382)
 --     - local builtins
 --     - all rewrite rules
 --   We only ever prune dead metavariables and definitions. The reachable ones
