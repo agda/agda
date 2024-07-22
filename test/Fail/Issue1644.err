@@ -1,6 +1,6 @@
 Issue1644.agda:8,1-22
-warning: -W[no]RecursiveDisplayForm
-Ignoring recursive display form for B
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for B because it is recursive
 when checking the pragma DISPLAY B = A
 Unsolved interaction metas at the following locations:
   Issue1644.agda:11,8-12

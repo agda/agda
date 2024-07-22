@@ -1,0 +1,285 @@
+InvalidDisplayForm.agda:8,1-22
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for R because it is recursive
+when checking the pragma DISPLAY R = R
+
+InvalidDisplayForm.agda:15,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A0 because its right-hand side
+contains a suffix
+when checking the pragma DISPLAY A0 = Set₁
+
+InvalidDisplayForm.agda:16,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A1 because its right-hand side
+contains a with application
+when checking the pragma DISPLAY A1 = Set | Set
+
+InvalidDisplayForm.agda:17,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A2 because its right-hand side
+contains a hole
+when checking the pragma DISPLAY A2 = ?
+
+InvalidDisplayForm.agda:18,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A3 because its right-hand side
+contains a metavariable
+when checking the pragma DISPLAY A3 = _
+
+InvalidDisplayForm.agda:19,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A4 because its right-hand side
+contains a dotted expression
+when checking the pragma DISPLAY A4 = .Set
+
+InvalidDisplayForm.agda:20,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A5 because its right-hand side
+contains a lambda
+when checking the pragma DISPLAY A5 = λ x → x
+
+InvalidDisplayForm.agda:21,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A6 because its right-hand side
+contains a lambda
+when checking the pragma DISPLAY A6 = λ ()
+
+InvalidDisplayForm.agda:22,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A7 because its right-hand side
+contains a lambda
+when checking the pragma DISPLAY A7 = λ { x → x }
+
+InvalidDisplayForm.agda:23,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A8 because its right-hand side
+contains a function type
+when checking the pragma DISPLAY A8 = Set → Set
+
+InvalidDisplayForm.agda:24,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A9 because its right-hand side
+contains a function type
+when checking the pragma DISPLAY A9 = (X : Set) → X
+
+InvalidDisplayForm.agda:25,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A10 because its right-hand side
+contains a let
+when checking the pragma
+DISPLAY A10 =
+          let x : _
+              x = Set
+          in Set
+
+InvalidDisplayForm.agda:26,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A11 because its right-hand side
+contains a record
+when checking the pragma DISPLAY A11 = record {}
+
+InvalidDisplayForm.agda:27,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A12 because its right-hand side
+contains a record update
+when checking the pragma DISPLAY A12 = record Set {}
+
+InvalidDisplayForm.agda:28,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A13 because its right-hand side
+contains a quotation
+when checking the pragma DISPLAY A13 = quote Set
+
+InvalidDisplayForm.agda:29,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A14 because its right-hand side
+contains a quotation
+when checking the pragma DISPLAY A14 = quoteTerm Set
+
+InvalidDisplayForm.agda:30,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A15 because its right-hand side
+contains a unquote
+when checking the pragma DISPLAY A15 = unquote Set
+
+InvalidDisplayForm.agda:45,1-37
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for L0 because its left-hand side
+contains an @-pattern: x@y
+when checking the pragma DISPLAY L0 x@y = Set
+
+InvalidDisplayForm.agda:46,1-37
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for L1 because its left-hand side
+contains a dot pattern: .Set
+when checking the pragma DISPLAY L1 .Set = Set
+
+InvalidDisplayForm.agda:47,1-37
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for L2 because its left-hand side
+contains an absurd pattern: ()
+when checking the pragma DISPLAY L2 () = Set
+
+InvalidDisplayForm.agda:48,1-37
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for L3 because its left-hand side
+contains a record pattern: record {}
+when checking the pragma DISPLAY L3 record {} = Set
+
+InvalidDisplayForm.agda:49,1-37
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for L4 because its left-hand side
+contains a system pattern: (Set = Set)
+when checking the pragma DISPLAY L4 (Set = Set) = Set
+
+InvalidDisplayForm.agda:50,1-37
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for L5 because its left-hand side
+contains an ambiguous constructor: InvalidDisplayForm.D.c,
+InvalidDisplayForm.E.c
+when checking the pragma DISPLAY L5 p = Set
+
+———— All done; warnings encountered ————————————————————————
+
+InvalidDisplayForm.agda:8,1-22
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for R because it is recursive
+when checking the pragma DISPLAY R = R
+
+InvalidDisplayForm.agda:15,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A0 because its right-hand side
+contains a suffix
+when checking the pragma DISPLAY A0 = Set₁
+
+InvalidDisplayForm.agda:16,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A1 because its right-hand side
+contains a with application
+when checking the pragma DISPLAY A1 = Set | Set
+
+InvalidDisplayForm.agda:17,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A2 because its right-hand side
+contains a hole
+when checking the pragma DISPLAY A2 = ?
+
+InvalidDisplayForm.agda:18,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A3 because its right-hand side
+contains a metavariable
+when checking the pragma DISPLAY A3 = _
+
+InvalidDisplayForm.agda:19,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A4 because its right-hand side
+contains a dotted expression
+when checking the pragma DISPLAY A4 = .Set
+
+InvalidDisplayForm.agda:20,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A5 because its right-hand side
+contains a lambda
+when checking the pragma DISPLAY A5 = λ x → x
+
+InvalidDisplayForm.agda:21,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A6 because its right-hand side
+contains a lambda
+when checking the pragma DISPLAY A6 = λ ()
+
+InvalidDisplayForm.agda:22,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A7 because its right-hand side
+contains a lambda
+when checking the pragma DISPLAY A7 = λ { x → x }
+
+InvalidDisplayForm.agda:23,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A8 because its right-hand side
+contains a function type
+when checking the pragma DISPLAY A8 = Set → Set
+
+InvalidDisplayForm.agda:24,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A9 because its right-hand side
+contains a function type
+when checking the pragma DISPLAY A9 = (X : Set) → X
+
+InvalidDisplayForm.agda:25,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A10 because its right-hand side
+contains a let
+when checking the pragma
+DISPLAY A10 =
+          let x : _
+              x = Set
+          in Set
+
+InvalidDisplayForm.agda:26,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A11 because its right-hand side
+contains a record
+when checking the pragma DISPLAY A11 = record {}
+
+InvalidDisplayForm.agda:27,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A12 because its right-hand side
+contains a record update
+when checking the pragma DISPLAY A12 = record Set {}
+
+InvalidDisplayForm.agda:28,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A13 because its right-hand side
+contains a quotation
+when checking the pragma DISPLAY A13 = quote Set
+
+InvalidDisplayForm.agda:29,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A14 because its right-hand side
+contains a quotation
+when checking the pragma DISPLAY A14 = quoteTerm Set
+
+InvalidDisplayForm.agda:30,1-41
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for A15 because its right-hand side
+contains a unquote
+when checking the pragma DISPLAY A15 = unquote Set
+
+InvalidDisplayForm.agda:45,1-37
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for L0 because its left-hand side
+contains an @-pattern: x@y
+when checking the pragma DISPLAY L0 x@y = Set
+
+InvalidDisplayForm.agda:46,1-37
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for L1 because its left-hand side
+contains a dot pattern: .Set
+when checking the pragma DISPLAY L1 .Set = Set
+
+InvalidDisplayForm.agda:47,1-37
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for L2 because its left-hand side
+contains an absurd pattern: ()
+when checking the pragma DISPLAY L2 () = Set
+
+InvalidDisplayForm.agda:48,1-37
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for L3 because its left-hand side
+contains a record pattern: record {}
+when checking the pragma DISPLAY L3 record {} = Set
+
+InvalidDisplayForm.agda:49,1-37
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for L4 because its left-hand side
+contains a system pattern: (Set = Set)
+when checking the pragma DISPLAY L4 (Set = Set) = Set
+
+InvalidDisplayForm.agda:50,1-37
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for L5 because its left-hand side
+contains an ambiguous constructor: InvalidDisplayForm.D.c,
+InvalidDisplayForm.E.c
+when checking the pragma DISPLAY L5 p = Set

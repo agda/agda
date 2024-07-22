@@ -866,6 +866,7 @@ class Monad m => MonadFresh i m where
   default fresh :: (MonadTrans t, MonadFresh i n, t n ~ m) => m i
   fresh = lift fresh
 
+instance MonadFresh i m => MonadFresh i (ExceptT e m)
 instance MonadFresh i m => MonadFresh i (ReaderT r m)
 instance MonadFresh i m => MonadFresh i (StateT s m)
 instance (MonadFresh i m, Monoid w) => MonadFresh i (WriterT w m)
@@ -978,6 +979,13 @@ class Monad m => MonadStConcreteNames m where
 
 instance MonadStConcreteNames TCM where
   runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
+
+-- | The concrete names get lost in case of an exception.
+instance MonadStConcreteNames m => MonadStConcreteNames (ExceptT e m) where
+  runStConcreteNames m = ExceptT $ runStConcreteNames $ StateT $ \ ns -> do
+    runExceptT (runStateT m ns) <&> \case
+      Left e         -> (Left e, mempty)
+      Right (x, ns') -> (Right x, ns')
 
 instance MonadStConcreteNames m => MonadStConcreteNames (IdentityT m) where
   runStConcreteNames m = IdentityT $ runStConcreteNames $ StateT $ runIdentityT . runStateT m
@@ -4389,7 +4397,8 @@ data Warning
   | UselessOpaque
 
   -- Type checker warnings
-  | RecursiveDisplayForm QName
+  | InvalidDisplayForm QName String
+      -- ^ DISPLAY form for 'QName' is invalid because 'String'.
   | TooManyArgumentsToSort QName (List1 (NamedArg A.Expr))
       -- ^ Extra arguments to sort (will be ignored).
   | WithClauseProjectionFixityMismatch
@@ -4500,7 +4509,7 @@ warningName = \case
   UnfoldTransparentName{} -> UnfoldTransparentName_
 
   -- Type checking
-  RecursiveDisplayForm{}               -> RecursiveDisplayForm_
+  InvalidDisplayForm{}                 -> InvalidDisplayForm_
   TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
   WithClauseProjectionFixityMismatch{} -> WithClauseProjectionFixityMismatch_
 

@@ -5,7 +5,7 @@ module Agda.TypeChecking.Monad.MetaVars where
 import Prelude hiding (null)
 
 import Control.Monad                ( (<=<), forM_, guard )
-import Control.Monad.Except         ( MonadError )
+import Control.Monad.Except         ( ExceptT, MonadError )
 import Control.Monad.State          ( StateT, execStateT, get, put )
 import Control.Monad.Trans          ( MonadTrans, lift )
 import Control.Monad.Trans.Identity ( IdentityT )
@@ -517,6 +517,7 @@ class (MonadTCEnv m, ReadTCState m) => MonadInteractionPoints m where
     => (InteractionPoints -> InteractionPoints) -> m ()
   modifyInteractionPoints = lift . modifyInteractionPoints
 
+instance MonadInteractionPoints m => MonadInteractionPoints (ExceptT e m)
 instance MonadInteractionPoints m => MonadInteractionPoints (IdentityT m)
 instance MonadInteractionPoints m => MonadInteractionPoints (ReaderT r m)
 instance MonadInteractionPoints m => MonadInteractionPoints (StateT s m)

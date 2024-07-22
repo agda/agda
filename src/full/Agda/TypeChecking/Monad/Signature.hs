@@ -747,7 +747,7 @@ addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
   -- Check whether display form is recursive and thus illegal.
   xs <- chaseDisplayForms df Set.empty
-  if x `Set.member` xs then warning $ RecursiveDisplayForm x else do
+  if x `Set.member` xs then warning $ InvalidDisplayForm x "it is recursive" else do
   d <- makeOpen df
   let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
   ifM (isLocal x)

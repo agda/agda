@@ -105,7 +105,7 @@ instance EmbPrj Warning where
     CustomBackendWarning a b                    -> icodeN 56 CustomBackendWarning a b
     CoinductiveEtaRecord a                      -> icodeN 57 CoinductiveEtaRecord a
     WithClauseProjectionFixityMismatch a b c d  -> icodeN 58 WithClauseProjectionFixityMismatch a b c d
-    RecursiveDisplayForm a                      -> icodeN 59 RecursiveDisplayForm a
+    InvalidDisplayForm a b                      -> icodeN 59 InvalidDisplayForm a b
     TooManyArgumentsToSort a b                  -> __IMPOSSIBLE__
 
   value = vcase $ \ case
@@ -168,7 +168,7 @@ instance EmbPrj Warning where
     [56, a, b]           -> valuN CustomBackendWarning a b
     [57, a]              -> valuN CoinductiveEtaRecord a
     [58, a, b, c, d]     -> valuN WithClauseProjectionFixityMismatch a b c d
-    [59, a]              -> valuN RecursiveDisplayForm a
+    [59, a, b]           -> valuN InvalidDisplayForm a b
     _ -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where
@@ -554,7 +554,7 @@ instance EmbPrj WarningName where
     RewriteBeforeFunctionDefinition_                  -> 133
     RewriteBeforeMutualFunctionDefinition_            -> 134
     WithClauseProjectionFixityMismatch_               -> 135
-    RecursiveDisplayForm_                             -> 136
+    InvalidDisplayForm_                             -> 136
     TooManyArgumentsToSort_                           -> 137
 
   value = \case
@@ -693,7 +693,7 @@ instance EmbPrj WarningName where
     133 -> return RewriteBeforeFunctionDefinition_
     134 -> return RewriteBeforeMutualFunctionDefinition_
     135 -> return WithClauseProjectionFixityMismatch_
-    136 -> return RecursiveDisplayForm_
+    136 -> return InvalidDisplayForm_
     137 -> return TooManyArgumentsToSort_
     _   -> malformed
 

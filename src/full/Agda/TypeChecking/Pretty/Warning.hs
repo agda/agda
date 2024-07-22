@@ -501,9 +501,10 @@ prettyWarning = \case
 
     UselessOpaque -> "This `opaque` block has no effect."
 
-    RecursiveDisplayForm x -> fsep $ concat
-        [ pwords "Ignoring recursive display form for"
+    InvalidDisplayForm x reason -> fsep $ concat
+        [ pwords "Ignoring invalid display form for"
         , [ prettyTCM x ]
+        , if null reason then [] else "because" : pwords reason
         ]
 
     TooManyArgumentsToSort q args -> fsep $ concat

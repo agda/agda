@@ -1,6 +1,6 @@
 Issue1644b.agda:14,1-24
-warning: -W[no]RecursiveDisplayForm
-Ignoring recursive display form for N.A
+warning: -W[no]InvalidDisplayForm
+Ignoring invalid display form for N.A because it is recursive
 when checking the pragma DISPLAY N.A = A
 
 Issue1644b.agda:19,8-9: error: [UnequalTerms]
