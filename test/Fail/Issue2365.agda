@@ -27,7 +27,8 @@ test0 = refl
 test1 : lit -2 ≡ 1
 test1 = refl
 
--- Error WAS: Internal error in expandLitPattern
--- Error NOW: Type mismatch when checking that the pattern -20 has type Int
+-- Error WAS:  Internal error in expandLitPattern
+-- Error THEN: Type mismatch when checking that the pattern -20 has type Int
+-- Error NOW:  Negative literals are not supported in patterns
 
 -- Ideally, this would succeed.

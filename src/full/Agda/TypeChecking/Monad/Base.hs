@@ -4676,6 +4676,10 @@ data TypeError
         | CantResolveOverloadedConstructorsTargetingSameDatatype QName (List1 QName)
           -- ^ Datatype, constructors.
         | ConstructorDoesNotTargetGivenType QName Type -- ^ constructor, type
+        | LiteralTooBig
+            -- ^ An integer literal that would be too costly to expand to unary.
+        | NegativeLiteralInPattern
+            -- ^ Negative literals are not supported in patterns.
         | WrongHidingInLHS
             -- ^ The left hand side of a function definition has a hidden argument
             --   where a non-hidden was expected.

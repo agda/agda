@@ -32,8 +32,8 @@ expandLitPattern
   => A.Pattern -> m A.Pattern
 expandLitPattern = \case
   A.LitP info (LitNat n)
-    | n < 0     -> negLit -- Andreas, issue #2365, negative literals not yet supported.
-    | n > 20    -> tooBig
+    | n < 0     -> typeError NegativeLiteralInPattern  -- Andreas, issue #2365, negative literals not yet supported.
+    | n > 20    -> typeError LiteralTooBig
     | otherwise -> do
       Con z _ _ <- primZero
       Con s _ _ <- primSuc
@@ -43,14 +43,6 @@ expandLitPattern = \case
           cinfo = A.ConPatInfo ConOCon info ConPatEager
       return $ foldr ($) zero $ List.genericReplicate n suc
   p -> return p
-
-  where
-    tooBig = typeError $ GenericError $
-      "Matching on natural number literals is done by expanding " ++
-      "the literal to the corresponding constructor pattern, so " ++
-      "you probably don't want to do it this way."
-    negLit = typeError $ GenericError $
-      "Negative literals are not supported in patterns"
 
 
 -- | Expand away (deeply) all pattern synonyms in a pattern.

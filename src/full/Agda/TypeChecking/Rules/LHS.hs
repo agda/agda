@@ -1034,7 +1034,7 @@ checkLHS mf = updateModality checkLHS_ where
       let pos = size tel - (i + 1)
           (delta1, tel'@(ExtendTel dom adelta2)) = splitTelescopeAt pos tel -- TODO:: tel' defined but not used
 
-      p <- liftTCM $ expandLitPattern p
+      p <- expandLitPattern p
       let splitOnPat = \case
             (A.LitP _ l)      -> splitLit delta1 dom adelta2 l
             p@A.RecP{}        -> splitCon delta1 dom adelta2 p Nothing

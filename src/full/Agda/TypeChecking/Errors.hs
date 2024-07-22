@@ -186,6 +186,7 @@ errorString = \case
   InvalidPattern{}                         -> "InvalidPattern"
   InvalidFileName{}                        -> "InvalidFileName"
   LibraryError{}                           -> "LibraryError"
+  LiteralTooBig{}                          -> "LiteralTooBig"
   LocalVsImportedModuleClash{}             -> "LocalVsImportedModuleClash"
   MetaCannotDependOn{}                     -> "MetaCannotDependOn"
   MetaOccursInItself{}                     -> "MetaOccursInItself"
@@ -200,6 +201,7 @@ errorString = \case
   NeedOptionProp{}                         -> "NeedOptionProp"
   NeedOptionTwoLevel{}                     -> "NeedOptionTwoLevel"
   NeedOptionUniversePolymorphism{}         -> "NeedOptionUniversePolymorphism"
+  NegativeLiteralInPattern{}               -> "NegativeLiteralInPattern"
   GeneralizeNotSupportedHere{}             -> "GeneralizeNotSupportedHere"
   GeneralizeCyclicDependency{}             -> "GeneralizeCyclicDependency"
   GeneralizedVarInLetOpenedModule{}        -> "GeneralizedVarInLetOpenedModule"
@@ -424,7 +426,6 @@ instance PrettyTCM TypeError where
     WrongHidingInProjection d ->
       sep [ "Wrong hiding used for projection " , prettyTCM d ]
 
-
     IllegalHidingInPostfixProjection arg -> fsep $
       pwords "Illegal hiding in postfix projection " ++
       [pretty arg]
@@ -472,6 +473,15 @@ instance PrettyTCM TypeError where
 
     IllformedProjectionPatternConcrete p -> fsep $
       pwords "Ill-formed projection pattern" ++ [pretty p]
+
+    LiteralTooBig -> fsep $ concat
+      [ pwords "Matching on natural number literals is done by expanding"
+      , pwords "the literal to the corresponding constructor pattern,"
+      , pwords "so you probably don't want to do it this way"
+      ]
+
+    NegativeLiteralInPattern -> fsep $
+      pwords "Negative literals are not supported in patterns"
 
     CannotEliminateWithPattern b p a -> do
       let isProj = isJust (isProjP p)

@@ -414,7 +414,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         tell [ProblemEq (A.VarP x) v a]
         strip self t (fmap (p <$) p0 : ps) qs
     strip self t ps0@(p0 : ps) qs0@(q : qs) = do
-      p <- liftTCM $ (traverse . traverse) expandLitPattern p0
+      p <- (traverse . traverse) expandLitPattern p0
       reportSDoc "tc.with.strip" 15 $ vcat
         [ "strip"
         , nest 2 $ "ps0 =" <+> fsep (punctuate comma $ map prettyA ps0)
