@@ -191,6 +191,38 @@ redoChecks (Just ii) = do
       unless (null terErrs) $ warning $ TerminationIssue terErrs
   -- TODO redo positivity check!
 
+-- | Auxiliary definition for 'give' and 'elaborate_give'.
+give_ ::
+     Bool           -- ^ Elaborating?
+  -> UseForce       -- ^ Skip safety checks?
+  -> InteractionId  -- ^ Hole.
+  -> Maybe Range
+  -> Expr           -- ^ The expression to give.
+  -> TCM Term       -- ^ Value of the expression
+give_ elaborating force ii mr e = do
+  -- if Range is given, update the range of the interaction meta
+  mi  <- lookupInteractionId ii
+  whenJust mr $ updateMetaVarRange mi
+  reportSDoc "interaction.give" 10 $ "giving expression" TP.<+> prettyTCM e
+  reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
+  -- Try to give mi := e
+  withInteractionId ii $ do
+     setMetaOccursCheck mi DontRunMetaOccursCheck -- #589, #2710: Allow giving recursive solutions.
+     applyWhen elaborating (locallyTC eCurrentlyElaborating $ const True) $
+       giveExpr force (Just ii) mi e
+  -- Andreas, 2024-07-22
+  -- The following handler for PatternErr stems from #230 which no longer triggers it.
+  -- We do not have a reproducer for this error and I could not come up with one.
+  -- I presume the exception is caught earlier already, leading to an unsolved constraint.
+  -- In any case, this is what should happen.
+  -- So I am removing the handler
+  -- Should we absolutely have to bring back this handler, use 'catchPatternErr'...
+    -- `catchError` \ case
+    --   -- Turn PatternErr into proper error:
+    --   PatternErr{} -> typeError . GenericDocError =<< do
+    --     withInteractionId ii $ "Failed to give" TP.<+> prettyTCM e
+    --   err -> throwError err
+
 -- | Try to fill hole by expression.
 --
 --   Returns the given expression unchanged
@@ -201,21 +233,8 @@ give
   -> Maybe Range
   -> Expr           -- ^ The expression to give.
   -> TCM Expr       -- ^ If successful, the very expression is returned unchanged.
-give force ii mr e = liftTCM $ do
-  -- if Range is given, update the range of the interaction meta
-  mi  <- lookupInteractionId ii
-  whenJust mr $ updateMetaVarRange mi
-  reportSDoc "interaction.give" 10 $ "giving expression" TP.<+> prettyTCM e
-  reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
-  -- Try to give mi := e
-  _ <- withInteractionId ii $ do
-     setMetaOccursCheck mi DontRunMetaOccursCheck -- #589, #2710: Allow giving recursive solutions.
-     giveExpr force (Just ii) mi e
-    `catchError` \ case
-      -- Turn PatternErr into proper error:
-      PatternErr{} -> typeError . GenericDocError =<< do
-        withInteractionId ii $ "Failed to give" TP.<+> prettyTCM e
-      err -> throwError err
+give force ii mr e = do
+  _ <- give_ False force ii mr e
   removeInteractionPoint ii
   return e
 
@@ -228,26 +247,11 @@ elaborate_give
   -> Expr           -- ^ The expression to give.
   -> TCM Expr       -- ^ If successful, return the elaborated expression.
 elaborate_give norm force ii mr e = withInteractionId ii $ do
-  -- if Range is given, update the range of the interaction meta
-  mi  <- lookupInteractionId ii
-  whenJust mr $ updateMetaVarRange mi
-  reportSDoc "interaction.give" 10 $ "giving expression" TP.<+> prettyTCM e
-  reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
-  -- Try to give mi := e
-  v <- withInteractionId ii $ do
-     setMetaOccursCheck mi DontRunMetaOccursCheck -- #589, #2710: Allow giving recursive solutions.
-     locallyTC eCurrentlyElaborating (const True) $
-       giveExpr force (Just ii) mi e
-    `catchError` \ case
-      -- Turn PatternErr into proper error:
-      PatternErr{} -> typeError . GenericDocError =<< do
-        withInteractionId ii $ "Failed to give" TP.<+> prettyTCM e
-      err -> throwError err
-  mv <- lookupLocalMeta mi
+  v <- give_ True force ii mr e
+  reportSDoc "interaction.give" 40 $ "v = " TP.<+> pure (pretty v)
   -- Reduce projection-likes before quoting, otherwise instance
   -- selection may fail on reload (see #6203).
   nv <- reduceProjectionLike =<< normalForm norm v
-  reportSDoc "interaction.give" 40 $ "nv = " TP.<+> pure (pretty v)
   locallyTC ePrintMetasBare (const True) $ reify nv
 
 -- | Try to refine hole by expression @e@.
@@ -319,20 +323,6 @@ refine force ii mr e = do
                           subX e = e
                   _ -> App i e arg
           return $ smartApp (defaultAppInfo r) e $ defaultNamedArg metaVar
-
--- Andreas, 2017-12-16:
--- Ulf, your attempt to fix #737 introduced regression #2873.
--- Going through concrete syntax does some arbitrary disambiguation
--- of constructors, which subsequently makes refine fail.
--- I am not convinced of the printing-parsing shortcut to address problems.
--- (Unless you prove the roundtrip property.)
---
---           rescopeExpr scope $ smartApp (defaultAppInfo r) e $ defaultNamedArg metaVar
--- -- | Turn an abstract expression into concrete syntax and then back into
--- --   abstract. This ensures that context precedences are set correctly for
--- --   abstract expressions built by hand. Used by refine above.
--- rescopeExpr :: ScopeInfo -> Expr -> TCM Expr
--- rescopeExpr scope = withScope_ scope . (concreteToAbstract_ <=< runAbsToCon . preserveInteractionIds . toConcrete)
 
 {-| Evaluate the given expression in the current environment -}
 evalInCurrent :: ComputeMode -> Expr -> TCM Expr
