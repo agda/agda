@@ -198,8 +198,9 @@ errorString = \case
   ModuleNameDoesntMatchFileName {}         -> "ModuleNameDoesntMatchFileName"
   NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
   NeedOptionCubical{}                      -> "NeedOptionCubical"
-  NeedOptionRewriting{}                    -> "NeedOptionRewriting"
+  NeedOptionPatternMatching{}              -> "NeedOptionPatternMatching"
   NeedOptionProp{}                         -> "NeedOptionProp"
+  NeedOptionRewriting{}                    -> "NeedOptionRewriting"
   NeedOptionTwoLevel{}                     -> "NeedOptionTwoLevel"
   NeedOptionUniversePolymorphism{}         -> "NeedOptionUniversePolymorphism"
   NegativeLiteralInPattern{}               -> "NegativeLiteralInPattern"
@@ -1379,11 +1380,14 @@ instance PrettyTCM TypeError where
         CFull   -> [ "--cubical" ]
         CErased -> pwords $ "--cubical or --erased-cubical"
 
-    NeedOptionRewriting  -> fsep $
-      pwords "Option --rewriting needed to add and use rewrite rules"
+    NeedOptionPatternMatching -> fsep $
+      pwords "Pattern matching is disabled (use option --pattern-matching to enable it)"
 
     NeedOptionProp       -> fsep $
       pwords "Universe Prop is disabled (use options --prop and --no-prop to enable/disable Prop)"
+
+    NeedOptionRewriting  -> fsep $
+      pwords "Option --rewriting needed to add and use rewrite rules"
 
     NeedOptionTwoLevel   -> fsep $
       pwords "Universe SSet is disabled (use option --two-level to enable SSet)"

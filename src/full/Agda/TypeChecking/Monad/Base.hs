@@ -4931,8 +4931,9 @@ data TypeError
     -- Language option errors
         | NeedOptionCopatterns
         | NeedOptionCubical Cubical
-        | NeedOptionRewriting
+        | NeedOptionPatternMatching
         | NeedOptionProp
+        | NeedOptionRewriting
         | NeedOptionTwoLevel
         | NeedOptionUniversePolymorphism
     -- Failure associated to warnings

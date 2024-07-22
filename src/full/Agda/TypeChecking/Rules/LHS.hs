@@ -991,7 +991,7 @@ checkLHS mf = updateModality checkLHS_ where
 
     unlessM (optPatternMatching <$> getsTC getPragmaOptions) $
       unless (problemAllVariables problem) $
-        typeError $ GenericError $ "Pattern matching is disabled"
+        typeError NeedOptionPatternMatching
 
     let splitsToTry = splitStrategy $ problem ^. problemEqs
 
