@@ -47,7 +47,7 @@ primIdElim' :: TCM PrimitiveImpl
 primIdElim' = do
   -- The implementation here looks terrible but most of it is actually
   -- the type.
-  requireCubical CErased ""
+  requireCubical CErased
   t <- runNamesT [] $
     hPi' "a" (el $ cl primLevel) $ \ a ->
     hPi' "c" (el $ cl primLevel) $ \ c ->
@@ -97,7 +97,7 @@ primIdElim' = do
 -- | Introduction form for the cubical identity types.
 primConId' :: TCM PrimitiveImpl
 primConId' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- runNamesT [] $
     hPi' "a" (el $ cl primLevel) $ \ a ->
     hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -132,7 +132,7 @@ primConId' = do
 -- violates the cubical phase distinction.
 primIdFace' :: TCM PrimitiveImpl
 primIdFace' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- runNamesT [] $
     hPi' "a" (el $ cl primLevel) $ \ a ->
     hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -155,7 +155,7 @@ primIdFace' = do
 -- cubical identity types.
 primIdPath' :: TCM PrimitiveImpl
 primIdPath' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- runNamesT [] $
     hPi' "a" (el $ cl primLevel) $ \ a ->
     hPi' "A" (sort . tmSort <$> a) $ \ bA ->

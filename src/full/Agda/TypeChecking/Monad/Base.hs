@@ -4930,6 +4930,7 @@ data TypeError
         | DeBruijnIndexOutOfScope Nat Telescope [Name]
     -- Language option errors
         | NeedOptionCopatterns
+        | NeedOptionCubical Cubical
         | NeedOptionRewriting
         | NeedOptionProp
         | NeedOptionTwoLevel

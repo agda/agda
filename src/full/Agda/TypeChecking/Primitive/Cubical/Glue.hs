@@ -262,7 +262,7 @@ doGlueKanOp _ _ _ = __IMPOSSIBLE__
 -- element is defined.
 primGlue' :: TCM PrimitiveImpl
 primGlue' = do
-  requireCubical CFull ""
+  requireCubical CFull
   -- primGlue
   --   : {la lb : Level} (A : Type la) {φ : I}
   --   → (T : Partial φ (Type lb)
@@ -293,7 +293,7 @@ primGlue' = do
 -- types.
 prim_glue' :: TCM PrimitiveImpl
 prim_glue' = do
-  requireCubical CFull ""
+  requireCubical CFull
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
@@ -321,7 +321,7 @@ prim_glue' = do
 -- @Glue@ types.
 prim_unglue' :: TCM PrimitiveImpl
 prim_unglue' = do
-  requireCubical CFull ""
+  requireCubical CFull
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->

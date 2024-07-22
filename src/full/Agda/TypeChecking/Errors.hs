@@ -197,6 +197,7 @@ errorString = \case
   ModuleNameUnexpected{}                   -> "ModuleNameUnexpected"
   ModuleNameDoesntMatchFileName {}         -> "ModuleNameDoesntMatchFileName"
   NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
+  NeedOptionCubical{}                      -> "NeedOptionCubical"
   NeedOptionRewriting{}                    -> "NeedOptionRewriting"
   NeedOptionProp{}                         -> "NeedOptionProp"
   NeedOptionTwoLevel{}                     -> "NeedOptionTwoLevel"
@@ -1371,6 +1372,12 @@ instance PrettyTCM TypeError where
 
     NeedOptionCopatterns -> fsep $
       pwords "Option --copatterns needed to enable destructor patterns"
+
+    NeedOptionCubical cubical -> fsep $ concat [ [ "Option" ], opt, [ "required" ] ]
+      where
+      opt = case cubical of
+        CFull   -> [ "--cubical" ]
+        CErased -> pwords $ "--cubical or --erased-cubical"
 
     NeedOptionRewriting  -> fsep $
       pwords "Option --rewriting needed to add and use rewrite rules"

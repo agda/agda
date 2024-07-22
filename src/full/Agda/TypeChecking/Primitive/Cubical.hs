@@ -59,7 +59,7 @@ import Agda.TypeChecking.Primitive.Cubical.Id
 
 primPOr :: TCM PrimitiveImpl
 primPOr = do
-  requireCubical CErased ""
+  requireCubical CErased
   t    <- runNamesT [] $
           hPi' "a" (els (pure LevelUniv) (cl primLevel))    $ \ a  ->
           nPi' "i" primIntervalType $ \ i  ->
@@ -89,7 +89,7 @@ primPOr = do
 
 primPartial' :: TCM PrimitiveImpl
 primPartial' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- runNamesT [] $
        hPi' "a" (els (pure LevelUniv) (cl primLevel)) (\ a ->
         nPi' "φ" primIntervalType $ \ _ ->
@@ -105,7 +105,7 @@ primPartial' = do
 
 primPartialP' :: TCM PrimitiveImpl
 primPartialP' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- runNamesT [] $
        hPi' "a" (els (pure LevelUniv) (cl primLevel)) (\ a ->
         nPi' "φ" primIntervalType $ \ phi ->
@@ -120,7 +120,7 @@ primPartialP' = do
 
 primSubOut' :: TCM PrimitiveImpl
 primSubOut' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t    <- runNamesT [] $
           hPi' "a" (els (pure LevelUniv) (cl primLevel)) $ \ a ->
           hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
@@ -144,7 +144,7 @@ primSubOut' = do
 
 primTrans' :: TCM PrimitiveImpl
 primTrans' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t    <- runNamesT [] $
           hPi' "a" (primIntervalType --> els (pure LevelUniv) (cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
@@ -155,7 +155,7 @@ primTrans' = do
 
 primHComp' :: TCM PrimitiveImpl
 primHComp' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t    <- runNamesT [] $
           hPi' "a" (els (pure LevelUniv) (cl primLevel)) $ \ a ->
           hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -723,7 +723,7 @@ primTransHComp cmd ts nelims = do
 -- The definition of it comes from 'mkComp'.
 primComp :: TCM PrimitiveImpl
 primComp = do
-  requireCubical CErased ""
+  requireCubical CErased
   t    <- runNamesT [] $
           hPi' "a" (primIntervalType --> els (pure LevelUniv) (cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
@@ -754,7 +754,7 @@ primComp = do
 -- TODO Andrea: keep reductions that happen under foralls?
 primFaceForall' :: TCM PrimitiveImpl
 primFaceForall' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- (primIntervalType --> primIntervalType) --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \case
     [phi] -> do
