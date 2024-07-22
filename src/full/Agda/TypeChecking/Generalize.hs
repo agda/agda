@@ -767,9 +767,11 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           names   = map (fst . unDom) telList
           late    = map (fst . unDom) $ filter (getAny . allMetas (Any . (== x))) telList
           projs (Proj _ q)
-            | q `elem` genRecFields = Set.fromList $ catMaybes [getGeneralizedFieldName q]
-          projs _                 = Set.empty
-          early = Set.toList $ flip foldTerm u $ \ case
+            | q `elem` genRecFields
+            , Just y <- getGeneralizedFieldName q
+            = Set.singleton y
+          projs _ = Set.empty
+          early = flip foldTerm u \case
                   Var _ es   -> foldMap projs es
                   Def _ es   -> foldMap projs es
                   MetaV _ es -> foldMap projs es
@@ -787,7 +789,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           guess = unwords
             [ "After constraint solving it looks like", commas late
             , singPlural late (++ "s") id "actually depend"
-            , "on", commas early
+            , "on", commas $ Set.toList early
             ]
       genericDocError =<< vcat
         [ fwords $ "Variable generalization failed."
