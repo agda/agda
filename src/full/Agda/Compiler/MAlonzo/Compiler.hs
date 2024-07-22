@@ -218,14 +218,9 @@ data GHCDefinition = GHCDefinition
 
 ghcPreCompile :: GHCFlags -> TCM GHCEnv
 ghcPreCompile flags = do
-  cubical <- cubicalOption
-  let notSupported s =
-        typeError $ GenericError $
-          "Compilation of code that uses " ++ s ++ " is not supported."
-  case cubical of
-    Nothing      -> return ()
-    Just CErased -> return ()
-    Just CFull   -> notSupported "--cubical"
+  whenJustM cubicalOption \case
+    CErased -> pure ()
+    CFull   -> typeError $ CubicalCompilationNotSupported CFull
 
   outDir <- compileDir
   let ghcOpts = GHCOptions

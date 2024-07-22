@@ -323,6 +323,7 @@ errorString = \case
   ExpectedBindingForParameter{}            -> "ExpectedBindingForParameter"
   UnexpectedTypeSignatureForParameter{}    -> "UnexpectedTypeSignatureForParameter"
   UnusableAtModality{}                     -> "UnusableAtModality"
+  CubicalCompilationNotSupported{}         -> "CubicalCompilationNotSupported"
   CustomBackendError{}                     -> "CustomBackendError"
   GHCBackendError err                      -> "GHCBackend." ++ ghcBackendErrorString err
 
@@ -1597,6 +1598,12 @@ instance PrettyTCM TypeError where
               <+> pure (attributesForModality mod)
         _ -> prettyTCM t <+> "is not usable at the required modality"
          <+> pure (attributesForModality mod)
+
+    CubicalCompilationNotSupported cubical -> fsep $ concat
+      [ pwords $ "Compilation of code that uses"
+      , [ text $ cubicalOptionString cubical ]
+      , pwords $ "is not supported."
+      ]
 
     CustomBackendError backend err -> (text backend <> ":") <?> pure err
     GHCBackendError err -> prettyTCM err

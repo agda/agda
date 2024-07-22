@@ -158,17 +158,8 @@ jsCommandLineFlags =
 --- Top-level compilation ---
 
 jsPreCompile :: JSOptions -> TCM JSOptions
-jsPreCompile opts = do
-  cubical <- cubicalOption
-  let notSupported s =
-        typeError $ GenericError $
-          "Compilation of code that uses " ++ s ++ " is not supported."
-  case cubical of
-    Nothing      -> return ()
-    Just CErased -> notSupported "--erased-cubical"
-    Just CFull   -> notSupported "--cubical"
-
-  return opts
+jsPreCompile opts = opts <$ do
+  mapM_ (typeError . CubicalCompilationNotSupported) =<< cubicalOption
 
 -- | After all modules have been compiled, copy RTE modules and verify compiled modules.
 

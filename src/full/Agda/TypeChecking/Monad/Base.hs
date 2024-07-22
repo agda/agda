@@ -4939,6 +4939,8 @@ data TypeError
         | InteractiveSplitError Doc
             -- ^ Failure of the 'makeCase' interactive tactics.
     -- Backend errors
+        | CubicalCompilationNotSupported Cubical
+            -- ^ NYI: Compilation of files using the given flavor of 'Cubical'.
         | CustomBackendError String Doc
             -- ^ Used for backend-specific errors. The string is the backend name.
         | GHCBackendError GHCBackendError

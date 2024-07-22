@@ -98,6 +98,11 @@ data Cubical = CErased | CFull
 
 instance NFData Cubical
 
+cubicalOptionString :: Cubical -> String
+cubicalOptionString = \case
+  CErased -> "--erased-cubical"
+  CFull   -> "--cubical"
+
 -- | Agda variants.
 --
 -- Only some variants are tracked.
