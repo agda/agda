@@ -1,0 +1,4 @@
+WrongAnnotationInLambda.agda:7,8-23: error: [WrongAnnotationInLambda]
+Wrong annotation in lambda
+when checking that the expression λ (@tick A) → A has type
+(A : Set) → A

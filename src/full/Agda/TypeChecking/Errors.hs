@@ -297,6 +297,7 @@ errorString = \case
   WrongHidingInLambda{}                    -> "WrongHidingInLambda"
   WrongHidingInProjection{}                -> "WrongHidingInProjection"
   IllegalHidingInPostfixProjection{}       -> "IllegalHidingInPostfixProjection"
+  WrongAnnotationInLambda{}                -> "WrongAnnotationInLambda"
   WrongIrrelevanceInLambda{}               -> "WrongIrrelevanceInLambda"
   WrongQuantityInLambda{}                  -> "WrongQuantityInLambda"
   WrongCohesionInLambda{}                  -> "WrongCohesionInLambda"
@@ -434,6 +435,9 @@ instance PrettyTCM TypeError where
     IllegalHidingInPostfixProjection arg -> fsep $
       pwords "Illegal hiding in postfix projection " ++
       [pretty arg]
+
+    WrongAnnotationInLambda ->
+      fwords "Wrong annotation in lambda"
 
     WrongIrrelevanceInLambda ->
       fwords "Found a non-strict lambda where a irrelevant lambda was expected"

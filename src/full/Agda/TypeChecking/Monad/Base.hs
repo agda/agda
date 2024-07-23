@@ -4701,6 +4701,8 @@ data TypeError
         | WrongNamedArgument (NamedArg A.Expr) [NamedName]
             -- ^ A function is applied to a hidden named argument it does not have.
             -- The list contains names of possible hidden arguments at this point.
+        | WrongAnnotationInLambda
+            -- ^ Wrong user-given (lock/tick) annotation in lambda.
         | WrongIrrelevanceInLambda
             -- ^ Wrong user-given relevance annotation in lambda.
         | WrongQuantityInLambda
@@ -4712,7 +4714,7 @@ data TypeError
         | HidingMismatch Hiding Hiding
             -- ^ The given hiding does not correspond to the expected hiding.
         | RelevanceMismatch Relevance Relevance
-            -- ^ The given relevance does not correspond to the expected relevane.
+            -- ^ The given relevance does not correspond to the expected relevance.
         | UninstantiatedDotPattern A.Expr
         | ForcedConstructorNotInstantiated A.Pattern
         | IllformedProjectionPatternAbstract A.Pattern
