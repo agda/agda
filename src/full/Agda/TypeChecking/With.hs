@@ -390,8 +390,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
       -- As the type t develops, we need to insert more implicit patterns,
       -- due to copatterns / flexible arity.
       ps <- liftTCM $ insertImplicitPatternsT ExpandLast [] t
-      if null ps then
-        typeError $ GenericError $ "Too few arguments given in with-clause"
+      if null ps then typeError TooFewPatternsInWithClause
        else strip self t ps qs
 
     -- Case: out of parent-clause patterns.
@@ -401,8 +400,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
       let implicit (A.WildP{})     = True
           implicit (A.ConP ci _ _) = conPatOrigin ci == ConOSystem
           implicit _               = False
-      unless (all (implicit . namedArg) ps) $
-        typeError $ GenericError $ "Too many arguments given in with-clause"
+      unless (all (implicit . namedArg) ps) $ typeError TooManyPatternsInWithClause
       return []
 
     -- Case: both parent-clause pattern and with-clause pattern present.

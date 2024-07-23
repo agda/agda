@@ -289,6 +289,8 @@ errorString = \case
   UnusedVariableInPatternSynonym _         -> "UnusedVariableInPatternSynonym"
   UnquoteFailed{}                          -> "UnquoteFailed"
   DeBruijnIndexOutOfScope{}                -> "DeBruijnIndexOutOfScope"
+  TooFewPatternsInWithClause{}             -> "TooFewPatternsInWithClause"
+  TooManyPatternsInWithClause{}            -> "TooManyPatternsInWithClause"
   WithClausePatternMismatch{}              -> "WithClausePatternMismatch"
   WrongHidingInApplication{}               -> "WrongHidingInApplication"
   WrongHidingInLHS{}                       -> "WrongHidingInLHS"
@@ -775,6 +777,9 @@ instance PrettyTCM TypeError where
 
     UnexpectedWithPatterns ps -> fsep $
       pwords "Unexpected with patterns" ++ punctuate " |" (fmap prettyA ps)
+
+    TooFewPatternsInWithClause -> fsep $ pwords "Too few arguments given in with-clause"
+    TooManyPatternsInWithClause -> fsep $ pwords "Too many arguments given in with-clause"
 
     WithClausePatternMismatch p q -> fsep $
       pwords "With clause pattern " ++ [prettyA p] ++

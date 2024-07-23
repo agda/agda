@@ -4795,6 +4795,8 @@ data TypeError
         | UnexpectedWithPatterns (List1 A.Pattern)
         | WithClausePatternMismatch A.Pattern (NamedArg DeBruijnPattern)
         | IllTypedPatternAfterWithAbstraction A.Pattern
+        | TooFewPatternsInWithClause
+        | TooManyPatternsInWithClause
         | FieldOutsideRecord
         | ModuleArityMismatch A.ModuleName Telescope [NamedArg A.Expr]
         | GeneralizeCyclicDependency

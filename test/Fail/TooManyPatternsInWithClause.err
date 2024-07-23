@@ -1,0 +1,6 @@
+TooManyPatternsInWithClause.agda:5,1-6,18: error: [TooManyPatternsInWithClause]
+Too many arguments given in with-clause
+when checking that the clause
+f with Set
+f {Set} | _ = Set
+has type Set₁
