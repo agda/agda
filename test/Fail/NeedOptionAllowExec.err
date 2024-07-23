@@ -1,0 +1,4 @@
+NeedOptionAllowExec.agda:20,5-33: error: [NeedOptionAllowExec]
+Option --allow-exec needed to call external commands from macros
+when checking that the expression
+unquote (echo ("hello" ∷ "world" ∷ [])) has type _A_11

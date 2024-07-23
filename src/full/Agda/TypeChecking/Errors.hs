@@ -196,6 +196,7 @@ errorString = \case
   ModuleDefinedInOtherFile {}              -> "ModuleDefinedInOtherFile"
   ModuleNameUnexpected{}                   -> "ModuleNameUnexpected"
   ModuleNameDoesntMatchFileName {}         -> "ModuleNameDoesntMatchFileName"
+  NeedOptionAllowExec{}                    -> "NeedOptionAllowExec"
   NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
   NeedOptionCubical{}                      -> "NeedOptionCubical"
   NeedOptionPatternMatching{}              -> "NeedOptionPatternMatching"
@@ -1370,6 +1371,9 @@ instance PrettyTCM TypeError where
         nameCxt [] = EmptyTel
         nameCxt (x : xs) = ExtendTel (defaultDom (El __DUMMY_SORT__ $ I.var 0)) $
           NoAbs (P.prettyShow x) $ nameCxt xs
+
+    NeedOptionAllowExec -> fsep $
+      pwords "Option --allow-exec needed to call external commands from macros"
 
     NeedOptionCopatterns -> fsep $
       pwords "Option --copatterns needed to enable destructor patterns"

@@ -4938,6 +4938,7 @@ data TypeError
         | UnquoteFailed UnquoteError
         | DeBruijnIndexOutOfScope Nat Telescope [Name]
     -- Language option errors
+        | NeedOptionAllowExec
         | NeedOptionCopatterns
         | NeedOptionCubical Cubical
         | NeedOptionPatternMatching

@@ -1149,9 +1149,7 @@ type StdErr  = Text
 --
 requireAllowExec :: TCM ()
 requireAllowExec = do
-  allowExec <- optAllowExec <$> pragmaOptions
-  unless allowExec $
-    typeError $ GenericError "Missing option --allow-exec"
+  unlessM (optAllowExec <$> pragmaOptions) $ typeError NeedOptionAllowExec
 
 -- | Convert an @ExitCode@ to an Agda natural number.
 --
