@@ -96,7 +96,6 @@ patternToTerm p ret =
     A.RecP{}                        -> failP "a record pattern"
     A.EqualP{}                      -> failP "a system pattern"
     A.WithP{}                       -> __IMPOSSIBLE__
-    A.AnnP{}                        -> __IMPOSSIBLE__
   where
     fail = throwError . ("its left-hand side contains " ++)
     failP s = fail . (s ++) . (": " ++) . render =<< prettyA p

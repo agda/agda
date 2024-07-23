@@ -1593,7 +1593,6 @@ instance ToAbstract LetDef where
             A.RecP _ fs          -> mapM_ (checkValidLetPattern . _exprFieldA) fs
             A.EqualP{}           -> no
             A.WithP{}            -> no
-            A.AnnP _ _ p         -> checkValidLetPattern p
           where
           yes = return ()
           no  = genericError "Not a valid let pattern"
@@ -3138,7 +3137,6 @@ applyAPattern p0 p ps = do
       A.RecP{}    -> failure
       A.EqualP{}  -> failure
       A.WithP{}   -> failure
-      A.AnnP{}    -> failure
   where
     failure = typeError $ InvalidPattern p0
 

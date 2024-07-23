@@ -1042,7 +1042,6 @@ stripImplicits toKeep params ps = do
             A.RecP i fs         -> A.RecP i $ map (fmap stripPat) fs  -- TODO Andreas: is this right?
             p@A.EqualP{}        -> p -- EqualP cannot be blanked.
             A.WithP i p         -> A.WithP i $ stripPat p -- TODO #2822: right?
-            A.AnnP i a p        -> A.AnnP i a $ stripPat p
 
           varOrDot A.VarP{}      = True
           varOrDot A.WildP{}     = True
@@ -1124,7 +1123,6 @@ instance BlankVars A.Pattern where
     A.RecP i fs   -> A.RecP i $ blank bound fs
     A.EqualP{}    -> p
     A.WithP i p   -> A.WithP i (blank bound p)
-    A.AnnP i a p  -> A.AnnP i (blank bound a) (blank bound p)
 
 instance BlankVars A.Expr where
   blank bound e = case e of
@@ -1207,7 +1205,6 @@ instance Binder A.Pattern where
     A.RecP _ _          -> empty
     A.EqualP{}          -> empty
     A.WithP _ _         -> empty
-    A.AnnP{}            -> empty
 
 instance Binder a => Binder (A.Binder' a) where
   varsBoundIn (A.Binder p n) = varsBoundIn (p, n)

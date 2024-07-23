@@ -129,7 +129,6 @@ instance IsFlexiblePattern A.Pattern where
         ifM (isNothing <$> isRecordConstructor c) (return OtherFlex) {-else-}
             (maybeFlexiblePattern qs)
       A.LitP{}  -> return OtherFlex
-      A.AnnP _ _ p -> maybeFlexiblePattern p
       _ -> mzero
 
 instance IsFlexiblePattern (I.Pattern' a) where
@@ -198,10 +197,6 @@ updateProblemEqs eqs = do
     update eq@(ProblemEq p@(A.AsP info x p') v a) =
       (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
 
-    update eq@(ProblemEq p@(A.AnnP _ _ A.WildP{}) v a) = return [eq]
-    update eq@(ProblemEq p@(A.AnnP info ty p') v a) =
-      (ProblemEq (A.AnnP info ty (A.WildP empty)) v a :) <$> update (ProblemEq p' v a)
-
     update eq@(ProblemEq p v a) = reduce v >>= constructorForm >>= \case
       Con c ci es -> do
         let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -219,7 +214,6 @@ updateProblemEqs eqs = do
         p <- expandLitPattern p
         case p of
           A.AsP{} -> __IMPOSSIBLE__
-          A.AnnP{} -> __IMPOSSIBLE__
           A.ConP cpi ambC ps -> do
             (c',_) <- disambiguateConstructor ambC d pars
 
@@ -308,7 +302,6 @@ problemAllVariables problem =
     isSolved A.AbsurdP{}     = True
     -- recursive cases
     isSolved (A.AsP _ _ p)   = isSolved p
-    isSolved (A.AnnP _ _ p)  = isSolved p
     -- impossible:
     isSolved A.ProjP{}       = __IMPOSSIBLE__
     isSolved A.DefP{}        = __IMPOSSIBLE__
@@ -331,7 +324,6 @@ noShadowingOfConstructors problem@(ProblemEq p _ (Dom{domInfo = info, unDom = El
    A.DotP        {} -> return ()
    A.EqualP      {} -> return ()
    A.AsP _ _ p      -> noShadowingOfConstructors $ problem { problemInPat = p }
-   A.AnnP _ _ p     -> noShadowingOfConstructors $ problem { problemInPat = p }
    A.ConP        {} -> __IMPOSSIBLE__
    A.RecP        {} -> __IMPOSSIBLE__
    A.ProjP       {} -> __IMPOSSIBLE__
@@ -456,26 +448,26 @@ transferOrigins ps qs = do
     transfer :: A.Pattern -> DeBruijnPattern -> TCM DeBruijnPattern
     transfer p q = case (asView p , q) of
 
-      ((asB , anns , A.ConP pi _ ps) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+      ((asB , A.ConP pi _ ps) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let cpi = ConPatternInfo (PatternInfo PatOCon asB) r ft mb l
         ConP c cpi <$> transfers ps qs
 
-      ((asB , anns , A.RecP pi fs) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+      ((asB , A.RecP pi fs) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
             axs = map (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
             cpi = ConPatternInfo (PatternInfo PatORec asB) r ft mb l
         ps <- insertMissingFieldsFail d (const $ A.WildP empty) fs axs
         ConP c cpi <$> transfers ps qs
 
-      ((asB , anns , p) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+      ((asB , p) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let cpi = ConPatternInfo (PatternInfo (patOrig p) asB) r ft mb l
         return $ ConP c cpi qs
 
-      ((asB , anns , p) , VarP _ x) -> return $ VarP (PatternInfo (patOrig p) asB) x
+      ((asB , p) , VarP _ x) -> return $ VarP (PatternInfo (patOrig p) asB) x
 
-      ((asB , anns , p) , DotP _ u) -> return $ DotP (PatternInfo (patOrig p) asB) u
+      ((asB , p) , DotP _ u) -> return $ DotP (PatternInfo (patOrig p) asB) u
 
-      ((asB , anns , p) , LitP _ l) -> return $ LitP (PatternInfo (patOrig p) asB) l
+      ((asB , p) , LitP _ l) -> return $ LitP (PatternInfo (patOrig p) asB) l
 
       _ -> return q
 
@@ -493,7 +485,6 @@ transferOrigins ps qs = do
     patOrig A.DefP{}        = __IMPOSSIBLE__
     patOrig A.PatternSynP{} = __IMPOSSIBLE__
     patOrig A.WithP{}       = __IMPOSSIBLE__
-    patOrig A.AnnP{}        = __IMPOSSIBLE__
 
     matchingArgs :: NamedArg A.Pattern -> NamedArg DeBruijnPattern -> Bool
     matchingArgs p q
@@ -545,9 +536,6 @@ checkPatternLinearity eqs = do
               check (Map.insert x (u,unDom a) vars) eqs
         A.AsP _ x p ->
           check vars $ [ProblemEq (A.VarP x) u a, ProblemEq p u a] ++ eqs
-        A.AnnP _ _ A.WildP{} -> continue
-        A.AnnP r t p -> (ProblemEq (A.AnnP r t (A.WildP empty)) u a:) <$>
-          check vars (ProblemEq p u a : eqs)
         A.WildP{}       -> continue
         A.DotP{}        -> continue
         A.AbsurdP{}     -> continue
@@ -954,7 +942,6 @@ splitStrategy = filter shouldSplit
       A.AbsurdP{} -> False
 
       A.AsP _ _ p  -> shouldSplit $ problem { problemInPat = p }
-      A.AnnP _ _ p -> shouldSplit $ problem { problemInPat = p }
 
       A.ProjP{}       -> __IMPOSSIBLE__
       A.DefP{}        -> __IMPOSSIBLE__
@@ -1041,7 +1028,6 @@ checkLHS mf = updateModality checkLHS_ where
             p@(A.ConP _ c ps) -> splitCon delta1 dom adelta2 p $ Just c
             p@(A.EqualP _ ts) -> splitPartial delta1 dom adelta2 ts
             A.AsP _ _ p       -> splitOnPat p
-            A.AnnP _ _ p      -> splitOnPat p
 
             A.VarP{}        -> __IMPOSSIBLE__
             A.WildP{}       -> __IMPOSSIBLE__

@@ -290,7 +290,6 @@ instance (Hilite a, IsProjP a) => Hilite (A.Pattern' a) where
       A.RecP _r ps           -> hl ps
       A.EqualP _r ps         -> hl ps
       A.WithP _ p            -> hl p
-      A.AnnP _r a p          -> hl p
 
     where
     hl a = hilite a

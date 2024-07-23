@@ -391,7 +391,6 @@ instance NamesIn (A.Pattern' a) where
     A.DotP{}               -> __IMPOSSIBLE__    -- Dot patterns are not allowed in pattern synonyms
     A.EqualP{}             -> __IMPOSSIBLE__    -- Andrea: should we allow these in pattern synonyms?
     A.WithP _ p            -> namesAndMetasIn' sg p
-    A.AnnP _ a p           -> __IMPOSSIBLE__    -- Type annotations are not (yet) allowed in pattern synonyms
 
 instance NamesIn AmbiguousQName where
   namesAndMetasIn' sg (AmbQ cs) = namesAndMetasIn' sg cs
