@@ -1081,8 +1081,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Compute the new rest type by applying the projection type to 'self'.
       -- Note: we cannot be in a let binding.
-      f <- ifJust mf return $ hardTypeError $
-             GenericError "Cannot use copatterns in a let binding"
+      let f = fromMaybe __IMPOSSIBLE__ mf
       let self = Def f $ patternsToElims ip
       target' <- traverse (`piApplyM` self) projType
 
