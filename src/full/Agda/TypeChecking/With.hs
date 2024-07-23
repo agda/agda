@@ -458,7 +458,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         IApplyP _ _ _ x  ->
           (setVarArgInfo x p :) <$> recurse (var (dbPatVarIndex x))
 
-        DefP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of hcomp patterns" -- TODO this should actually be impossible
+        DefP{}  -> __IMPOSSIBLE__
 
         DotP i v  -> do
           (a, _) <- mustBePi t
@@ -551,10 +551,6 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           _ -> mismatch
       where
         recurse v = do
-          -- caseMaybeM (liftTCM $ isPath t) (return ()) $ \ _ ->
-          --   typeError $ GenericError $
-          --     "With-clauses currently not supported under Path abstraction."
-
           let piOrPathApplyM t v = do
                 (TelV tel t', bs) <- telViewUpToPathBoundaryP 1 t
                 unless (size tel == 1) $ __IMPOSSIBLE__
