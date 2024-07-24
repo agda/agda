@@ -148,7 +148,7 @@ runHsCompileT :: HsCompileT m a -> GHCModuleEnv -> m (a, HsCompileState)
 runHsCompileT t e = runHsCompileT' t e mempty
 
 ghcBackendError :: (HasCallStack, MonadTCError m) => GHCBackendError -> m a
-ghcBackendError = typeError . GHCBackendError
+ghcBackendError = locatedTypeError GHCBackendError
 
 --------------------------------------------------
 -- utilities for haskell names
