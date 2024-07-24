@@ -634,18 +634,17 @@ isInteractionMeta x = BiMap.invLookup x <$> useR stInteractionPoints
 -- | Get the information associated to an interaction point.
 {-# SPECIALIZE lookupInteractionPoint :: InteractionId -> TCM InteractionPoint #-}
 lookupInteractionPoint
-  :: (MonadFail m, ReadTCState m, MonadError TCErr m)
+  :: (ReadTCState m, MonadError TCErr m, MonadTCEnv m)
   => InteractionId -> m InteractionPoint
 lookupInteractionPoint ii =
-  fromMaybeM err $ BiMap.lookup ii <$> useR stInteractionPoints
-  where
-    err  = fail $ "no such interaction point: " ++ show ii
+  fromMaybeM (interactionError $ NoSuchInteractionPoint ii) $
+    BiMap.lookup ii <$> useR stInteractionPoints
 
 {-# SPECIALIZE lookupInteractionId :: InteractionId -> TCM MetaId #-}
 -- | Get 'MetaId' for an interaction point.
 --   Precondition: interaction point is connected.
 lookupInteractionId
-  :: (MonadFail m, ReadTCState m, MonadError TCErr m, MonadTCEnv m)
+  :: (ReadTCState m, MonadError TCErr m, MonadTCEnv m)
   => InteractionId -> m MetaId
 lookupInteractionId ii =
   fromMaybeM (interactionError $ NoActionForInteractionPoint ii) $

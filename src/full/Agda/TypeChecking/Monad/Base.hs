@@ -4972,6 +4972,8 @@ data InteractionError
       -- ^ Failure of the 'makeCase' interactive tactics.
   | NoActionForInteractionPoint InteractionId
       -- ^ Interaction point has not been reached during type checking.
+  | NoSuchInteractionPoint InteractionId
+      -- ^ 'InteractionId' does not resolve to an 'InteractionPoint'.
   deriving (Show, Generic)
 
 -- | Errors raised by the GHC backend.

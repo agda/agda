@@ -1659,7 +1659,7 @@ haskellRecord name fields = P.sep [ name, P.nest 2 $ P.braces (P.sep $ P.punctua
 keyValueList :: [(Doc, Doc)] -> Doc
 keyValueList kvs = P.braces $ P.sep $ P.punctuate "," [ P.hang (k P.<> ":") 2 v | (k, v) <- kvs ]
 
-writeTime :: (MonadFail m, ReadTCState m, MonadError TCErr m, MonadTCM m, MonadDebug m) => InteractionId -> Maybe CPUTime -> m ()
+writeTime :: (ReadTCState m, MonadError TCErr m, MonadTCM m, MonadDebug m) => InteractionId -> Maybe CPUTime -> m ()
 writeTime ii mTime = do
   let time = case mTime of
         Nothing -> "n/a"

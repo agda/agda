@@ -345,6 +345,7 @@ interactionErrorString :: InteractionError -> String
 interactionErrorString = \case
   CaseSplitError{}                         -> "CaseSplitError"
   NoActionForInteractionPoint{}            -> "NoActionForInteractionPoint"
+  NoSuchInteractionPoint{}                 -> "NoSuchInteractionPoint"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1738,6 +1739,10 @@ instance PrettyTCM InteractionError where
       [ fwords $ "No type nor action available for hole " ++ prettyShow ii ++ "."
       , fwords $ "Possible cause: the hole has not been reached during type checking (do you see yellow?)"
       ]
+
+    NoSuchInteractionPoint ii ->
+      fsep [ "Unknown", "interaction", "point", prettyTCM ii ]
+
 
 notCmp :: MonadPretty m => Comparison -> m Doc
 notCmp cmp = "!" <> prettyTCM cmp

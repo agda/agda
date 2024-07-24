@@ -187,6 +187,7 @@ instance PrettyTCM Nat                        where prettyTCM = pretty
 instance PrettyTCM ProblemId                  where prettyTCM = pretty
 instance PrettyTCM Range                      where prettyTCM = pretty
 instance PrettyTCM CheckpointId               where prettyTCM = pretty
+instance PrettyTCM InteractionId              where prettyTCM = pretty
 -- instance PrettyTCM Interval where prettyTCM = pretty
 -- instance PrettyTCM Position where prettyTCM = pretty
 
@@ -201,6 +202,7 @@ instance PrettyTCM CheckpointId               where prettyTCM = pretty
 {-# SPECIALIZE prettyTCM :: ProblemId          -> TCM Doc #-}
 {-# SPECIALIZE prettyTCM :: Range              -> TCM Doc #-}
 {-# SPECIALIZE prettyTCM :: CheckpointId       -> TCM Doc #-}
+{-# SPECIALIZE prettyTCM :: InteractionId      -> TCM Doc #-}
 
 instance PrettyTCM a => PrettyTCM (Closure a) where
   prettyTCM cl = enterClosure cl prettyTCM
