@@ -10,8 +10,7 @@ module Agda.Compiler.MAlonzo.HaskellTypes
 import Control.Monad         ( zipWithM )
 import Control.Monad.Except  ( ExceptT(ExceptT), runExceptT, mapExceptT, catchError, throwError )
 import Control.Monad.Trans   ( lift )
--- Control.Monad.Fail import is redundant since GHC 8.8.1
-import Control.Monad.Fail (MonadFail)
+
 import Data.Maybe (fromMaybe)
 import Data.List (intercalate)
 
@@ -117,7 +116,7 @@ isData q = do
     Record{}   -> True
     _          -> False
 
-getHsVar :: (MonadFail tcm, MonadTCM tcm) => Nat -> tcm HS.Name
+getHsVar :: (MonadDebug tcm, MonadTCM tcm) => Nat -> tcm HS.Name
 getHsVar i =
   HS.Ident . encodeString (VarK X) . prettyShow <$> nameOfBV i
 

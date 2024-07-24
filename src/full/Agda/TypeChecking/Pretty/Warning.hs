@@ -5,9 +5,6 @@ import Prelude hiding ( null )
 
 import Control.Monad ( guard, filterM, (<=<) )
 
--- Control.Monad.Fail import is redundant since GHC 8.8.1
-import Control.Monad.Fail ( MonadFail )
-
 import Data.Char ( toLower )
 import Data.Function (on)
 import Data.IntSet (IntSet)
@@ -687,7 +684,7 @@ isBoundaryConstraint c =
     g (a, _, _, _) = getRange a
 
 {-# SPECIALIZE getAllUnsolvedWarnings :: TCM [TCWarning] #-}
-getAllUnsolvedWarnings :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => m [TCWarning]
+getAllUnsolvedWarnings :: (ReadTCState m, MonadWarning m, MonadTCM m) => m [TCWarning]
 getAllUnsolvedWarnings = do
   unsolvedInteractions <- getUnsolvedInteractionMetas
 
@@ -709,12 +706,12 @@ getAllUnsolvedWarnings = do
 -- | Collect all warnings that have accumulated in the state.
 
 {-# SPECIALIZE getAllWarnings :: WhichWarnings -> TCM [TCWarning] #-}
-getAllWarnings :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => WhichWarnings -> m [TCWarning]
+getAllWarnings :: (ReadTCState m, MonadWarning m, MonadTCM m) => WhichWarnings -> m [TCWarning]
 getAllWarnings = getAllWarningsPreserving Set.empty
 
 {-# SPECIALIZE getAllWarningsPreserving :: Set WarningName -> WhichWarnings -> TCM [TCWarning] #-}
 getAllWarningsPreserving ::
-  (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => Set WarningName -> WhichWarnings -> m [TCWarning]
+  (ReadTCState m, MonadWarning m, MonadTCM m) => Set WarningName -> WhichWarnings -> m [TCWarning]
 getAllWarningsPreserving keptWarnings ww = do
   unsolved            <- getAllUnsolvedWarnings
   collectedTCWarnings <- useTC stTCWarnings

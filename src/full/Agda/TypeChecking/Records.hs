@@ -792,7 +792,7 @@ etaExpandAtRecordType t u = do
 {-# SPECIALIZE etaContractRecord :: QName -> ConHead -> ConInfo -> Args -> ReduceM Term #-}
 etaContractRecord :: HasConstInfo m => QName -> ConHead -> ConInfo -> Args -> m Term
 etaContractRecord r c ci args = if all (not . usableModality) args then fallBack else do
-  Just RecordData{ _recFields = xs } <- isRecord r
+  RecordData{ _recFields = xs } <- fromMaybe __IMPOSSIBLE__ <$> isRecord r
   reportSDoc "tc.record.eta.contract" 20 $ vcat
     [ "eta contracting record"
     , nest 2 $ vcat

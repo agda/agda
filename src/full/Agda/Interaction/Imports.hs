@@ -33,10 +33,6 @@ import Control.Monad.State
 import Control.Monad.Trans.Maybe
 import qualified Control.Exception as E
 
-#if __GLASGOW_HASKELL__ < 808
-import Control.Monad.Fail (MonadFail)
-#endif
-
 import Data.Either
 import qualified Data.List as List
 import Data.Maybe
@@ -1200,7 +1196,7 @@ createInterface mname file isMain msrc = do
 -- 'MainInterface', the warnings definitely include also unsolved
 -- warnings.
 
-getAllWarnings' :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => MainInterface -> WhichWarnings -> m [TCWarning]
+getAllWarnings' :: (ReadTCState m, MonadWarning m, MonadTCM m) => MainInterface -> WhichWarnings -> m [TCWarning]
 getAllWarnings' (MainInterface _) = getAllWarningsPreserving unsolvedWarnings
 getAllWarnings' NotMainInterface  = getAllWarningsPreserving Set.empty
 

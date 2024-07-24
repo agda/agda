@@ -12,7 +12,7 @@ module Agda.Utils.Cluster
 import Control.Monad
 
 -- An imperative union-find library:
-import Data.Equivalence.Monad ( runEquivT, equateAll, classDesc )
+import Data.Equivalence.Monad ( runEquivM, equateAll, classDesc )
 
 -- NB: We keep this module independent of Agda.Utils.List1
 import Data.List.NonEmpty     ( NonEmpty(..), nonEmpty, toList )
@@ -22,7 +22,6 @@ import qualified Data.Map.Strict as MapS
 
 import Agda.Utils.Functor
 import Agda.Utils.Singleton
-import Agda.Utils.Fail
 
 -- | Given a function @f :: a -> NonEmpty c@ which returns a non-empty list of
 --   characteristics of @a@, partition a list of @a@s into groups such
@@ -58,7 +57,7 @@ cluster1 f as = cluster1' $ fmap (\ a -> (a, f a)) as
 --   shares at least one characteristic with at least one other
 --   element of the group.
 cluster1' :: Ord c => NonEmpty (a, NonEmpty c) -> NonEmpty (NonEmpty a)
-cluster1' acs = runFail_ $ runEquivT id const $ do
+cluster1' acs = runEquivM id const $ do
   -- Construct the equivalence classes of characteristics.
   forM_ acs $ \ (_, c :| cs) -> equateAll $ c:cs
   -- Pair each element with its class.

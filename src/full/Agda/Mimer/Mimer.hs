@@ -8,7 +8,6 @@ import Control.DeepSeq (force, NFData(..))
 import Control.Monad
 import Control.Monad.Except (catchError)
 import Control.Monad.Error.Class (MonadError)
-import Control.Monad.Fail (MonadFail)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), runReaderT, asks, ask, lift)
 import Data.Function (on)
@@ -606,7 +605,7 @@ builtinLevelName = "Agda.Primitive.Level"
 -- some constructor, and if so which argument of the function they appeared in. This
 -- information is used when building recursive calls, where it's important that we don't try to
 -- construct non-terminating solutions.
-collectLHSVars :: (MonadFail tcm, ReadTCState tcm, MonadError TCErr tcm, MonadTCM tcm, HasConstInfo tcm)
+collectLHSVars :: (ReadTCState tcm, MonadError TCErr tcm, MonadTCM tcm, HasConstInfo tcm)
   => InteractionId -> tcm (Open [(Term, Maybe Int)])
 collectLHSVars ii = do
   ipc <- ipClause <$> lookupInteractionPoint ii

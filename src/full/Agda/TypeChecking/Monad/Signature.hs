@@ -4,8 +4,6 @@ module Agda.TypeChecking.Monad.Signature where
 
 import Prelude hiding (null)
 
-import qualified Control.Monad.Fail as Fail
-
 import Control.Arrow                 ( first, second )
 import Control.Monad
 import Control.Monad.Except          ( ExceptT )
@@ -881,7 +879,6 @@ sigError a = \case
 
 class ( Functor m
       , Applicative m
-      , Fail.MonadFail m
       , HasOptions m
       , MonadDebug m
       , MonadTCEnv m

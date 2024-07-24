@@ -12,8 +12,6 @@ import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer         ( WriterT )
--- Control.Monad.Fail import is redundant since GHC 8.8.1
-import Control.Monad.Fail (MonadFail)
 
 import qualified Data.DList as DL
 import Data.Foldable
@@ -493,35 +491,37 @@ lookupBV' :: MonadTCEnv m => Nat -> m (Maybe ContextEntry)
 lookupBV' n = lookupBV_ n <$> getContext
 
 {-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}
-lookupBV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom (Name, Type))
+lookupBV :: (MonadDebug m, MonadTCEnv m) => Nat -> m (Dom (Name, Type))
 lookupBV n = do
   let failure = do
         ctx <- getContext
-        fail $ "de Bruijn index out of scope: " ++ show n ++
-               " in context " ++ prettyShow (map (fst . unDom) ctx)
+        __IMPOSSIBLE_VERBOSE__ $ unwords
+          [ "de Bruijn index out of scope:", show n
+          , "in context", prettyShow $ map (fst . unDom) ctx
+          ]
   maybeM failure return $ lookupBV' n
 
 {-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
-domOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
+domOfBV :: (Applicative m, MonadDebug m, MonadTCEnv m) => Nat -> m (Dom Type)
 domOfBV n = fmap snd <$> lookupBV n
 
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
-typeOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Type
+typeOfBV :: (Applicative m, MonadDebug m, MonadTCEnv m) => Nat -> m Type
 typeOfBV i = unDom <$> domOfBV i
 
 {-# SPECIALIZE nameOfBV' :: Nat -> TCM (Maybe Name) #-}
-nameOfBV' :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Maybe Name)
+nameOfBV' :: (Applicative m, MonadDebug m, MonadTCEnv m) => Nat -> m (Maybe Name)
 nameOfBV' n = fmap (fst . unDom) <$> lookupBV' n
 
 {-# SPECIALIZE nameOfBV :: Nat -> TCM Name #-}
-nameOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Name
+nameOfBV :: (Applicative m, MonadDebug m, MonadTCEnv m) => Nat -> m Name
 nameOfBV n = fst . unDom <$> lookupBV n
 
 -- | Get the term corresponding to a named variable. If it is a lambda bound
 --   variable the deBruijn index is returned and if it is a let bound variable
 --   its definition is returned.
 {-# SPECIALIZE getVarInfo :: Name -> TCM (Term, Dom Type) #-}
-getVarInfo :: (MonadFail m, MonadTCEnv m) => Name -> m (Term, Dom Type)
+getVarInfo :: (MonadDebug m, MonadTCEnv m) => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContext
         def <- asksTC envLetBindings
@@ -534,5 +534,8 @@ getVarInfo x =
                     Just vt -> do
                       LetBinding _ v t <- getOpen vt
                       return (v, t)
-                    _       -> fail $ "unbound variable " ++ prettyShow (nameConcrete x) ++
-                                " (id: " ++ prettyShow (nameId x) ++ ")"
+                    _ -> __IMPOSSIBLE_VERBOSE__ $ unwords
+                      [ "unbound variable"
+                      , prettyShow $ nameConcrete x
+                      , "(id: " ++ prettyShow (nameId x) ++ ")"
+                      ]

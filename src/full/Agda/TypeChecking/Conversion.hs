@@ -10,8 +10,6 @@ module Agda.TypeChecking.Conversion where
 import Control.Arrow (second)
 import Control.Monad
 import Control.Monad.Except
--- Control.Monad.Fail import is redundant since GHC 8.8.1
-import Control.Monad.Fail (MonadFail)
 
 import Data.Function (on)
 import Data.Semigroup ((<>))
@@ -79,7 +77,6 @@ type MonadConversion m =
   , MonadStatistics m
   , MonadFresh ProblemId m
   , MonadFresh Int m
-  , MonadFail m
   )
 
 -- | Try whether a computation runs without errors or new constraints

@@ -18,7 +18,6 @@ import qualified Control.Exception  as E
 import Control.Monad
 import Control.Monad.Except         ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class       ( MonadIO(..) )
-import Control.Monad.Fail           ( MonadFail )
 import Control.Monad.State          ( MonadState(..), gets, modify, runStateT )
 import Control.Monad.STM
 import Control.Monad.State          ( StateT )
@@ -192,7 +191,7 @@ getOldInteractionScope :: InteractionId -> CommandM ScopeInfo
 getOldInteractionScope ii = do
   ms <- gets $ Map.lookup ii . oldInteractionScopes
   case ms of
-    Nothing    -> fail $ "not an old interaction point: " ++ show ii
+    Nothing    -> __IMPOSSIBLE_VERBOSE__ $ "not an old interaction point: " ++ show ii
     Just scope -> return scope
 
 -- | Do setup and error handling for a command.
@@ -1074,7 +1073,7 @@ highlightExpr e =
 -- | Sorts interaction points based on their ranges.
 
 sortInteractionPoints
-  :: (MonadInteractionPoints m, MonadError TCErr m, MonadFail m)
+  :: (MonadInteractionPoints m, MonadError TCErr m, MonadDebug m)
   => [InteractionId] -> m [InteractionId]
 sortInteractionPoints is =
   map fst . List.sortBy (compare `on` snd) <$> do

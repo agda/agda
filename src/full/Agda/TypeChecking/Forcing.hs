@@ -173,7 +173,7 @@ newtype ForcedVariableCollection' a = ForcedVariableCollection
     ( Functor, Applicative, Monad
     , MonadReader ForcedVariableContext, MonadState ForcedVariableState
     -- Needed for HasConstInfo:
-    , MonadFail, MonadDebug, MonadTCEnv, HasOptions
+    , MonadDebug, MonadTCEnv, HasOptions
     , HasConstInfo
     -- Neded for MonadReduce:
     , ReadTCState

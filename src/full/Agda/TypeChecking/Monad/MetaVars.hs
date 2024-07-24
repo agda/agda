@@ -11,8 +11,6 @@ import Control.Monad.Trans          ( MonadTrans, lift )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Reader         ( ReaderT(ReaderT), runReaderT )
 import Control.Monad.Writer         ( WriterT, execWriterT, tell )
--- Control.Monad.Fail import is redundant since GHC 8.8.1
-import Control.Monad.Fail (MonadFail)
 
 import qualified Data.HashMap.Strict as HMap
 import qualified Data.List as List
@@ -354,7 +352,7 @@ isGeneralizableMeta x =
 -- | Check whether all metas are instantiated.
 --   Precondition: argument is a meta (in some form) or a list of metas.
 class IsInstantiatedMeta a where
-  isInstantiatedMeta :: (MonadFail m, ReadTCState m) => a -> m Bool
+  isInstantiatedMeta :: (ReadTCState m) => a -> m Bool
 
 {-# SPECIALIZE isInstantiatedMeta :: Term -> TCM Bool #-}
 {-# SPECIALIZE isInstantiatedMeta :: Type -> TCM Bool #-}
@@ -395,7 +393,7 @@ instance IsInstantiatedMeta a => IsInstantiatedMeta (Abs a) where
   isInstantiatedMeta = isInstantiatedMeta . unAbs
 
 {-# SPECIALIZE isInstantiatedMeta' :: MetaId -> TCM (Maybe Term) #-}
-isInstantiatedMeta' :: (MonadFail m, ReadTCState m) => MetaId -> m (Maybe Term)
+isInstantiatedMeta' :: (ReadTCState m) => MetaId -> m (Maybe Term)
 isInstantiatedMeta' m = do
   inst <- lookupMetaInstantiation m
   return $ case inst of
@@ -685,7 +683,7 @@ newMetaTCM' inst frozen mi p perm j = do
 -- | Get the 'Range' for an interaction point.
 {-# SPECIALIZE getInteractionRange :: InteractionId -> TCM Range #-}
 getInteractionRange
-  :: (MonadInteractionPoints m, MonadFail m, MonadError TCErr m)
+  :: (MonadInteractionPoints m, MonadDebug m, MonadError TCErr m)
   => InteractionId -> m Range
 getInteractionRange = ipRange <.> lookupInteractionPoint
 
@@ -695,7 +693,7 @@ getMetaRange ::
 getMetaRange = getRange <.> lookupLocalMeta
 
 getInteractionScope ::
-  (MonadDebug m, MonadFail m, ReadTCState m, MonadError TCErr m,
+  (MonadDebug m, ReadTCState m, MonadError TCErr m,
    MonadTCEnv m) =>
   InteractionId -> m ScopeInfo
 getInteractionScope =
@@ -709,7 +707,7 @@ withMetaInfo mI cont = enterClosure mI $ \ r ->
   setCurrentRange r cont
 
 withInteractionId ::
-  (MonadDebug m, MonadFail m, ReadTCState m, MonadError TCErr m,
+  (MonadDebug m, ReadTCState m, MonadError TCErr m,
    MonadTCEnv m, MonadTrace m) =>
   InteractionId -> m a -> m a
 withInteractionId i ret = do

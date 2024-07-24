@@ -2,7 +2,6 @@
 
 module Agda.TypeChecking.Monad.Signature where
 
-import qualified Control.Monad.Fail as Fail
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -23,7 +22,6 @@ notSoPrettySigCubicalNotErasure :: QName -> String
 
 class ( Functor m
       , Applicative m
-      , Fail.MonadFail m
       , HasOptions m
       , MonadDebug m
       , MonadTCEnv m
