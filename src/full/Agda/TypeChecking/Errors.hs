@@ -251,7 +251,6 @@ errorString = \case
   ShouldBeRecordPattern{}                  -> "ShouldBeRecordPattern"
   ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
   SplitError{}                             -> "SplitError"
-  InteractiveSplitError{}                  -> "InteractiveSplitError"
   ImpossibleConstructor{}                  -> "ImpossibleConstructor"
   TooManyFields{}                          -> "TooManyFields"
   TooManyPolarities{}                      -> "TooManyPolarities"
@@ -334,12 +333,18 @@ errorString = \case
   CubicalCompilationNotSupported{}         -> "CubicalCompilationNotSupported"
   CustomBackendError{}                     -> "CustomBackendError"
   GHCBackendError err                      -> "GHCBackend." ++ ghcBackendErrorString err
+  InteractionError err                     -> "Interaction." ++ interactionErrorString err
 
 ghcBackendErrorString :: GHCBackendError -> String
 ghcBackendErrorString = \case
   ConstructorCountMismatch{}               -> "ConstructorCountMismatch"
   NotAHaskellType{}                        -> "NotAHaskellType"
   WrongTypeOfMain{}                        -> "WrongTypeOfMain"
+
+interactionErrorString :: InteractionError -> String
+interactionErrorString = \case
+  CaseSplitError{}                         -> "CaseSplitError"
+  NoActionForInteractionPoint{}            -> "NoActionForInteractionPoint"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1317,8 +1322,6 @@ instance PrettyTCM TypeError where
 
     SplitError e -> prettyTCM e
 
-    InteractiveSplitError doc -> return doc
-
     ImpossibleConstructor c neg -> fsep $
       pwords "The case for the constructor " ++ [prettyTCM c] ++
       pwords " is impossible" ++ [prettyTCM neg] ++
@@ -1642,6 +1645,8 @@ instance PrettyTCM TypeError where
     CustomBackendError backend err -> (text backend <> ":") <?> pure err
     GHCBackendError err -> prettyTCM err
 
+    InteractionError err -> prettyTCM err
+
     where
     mpar n args
       | n > 0 && not (null args) = parens
@@ -1723,6 +1728,15 @@ instance PrettyTCM GHCBackendError where
     WrongTypeOfMain io ty -> fsep $ concat
       [ pwords "The type of main should be", [ prettyTCM io ], pwords "A, for some A."
       , pwords "The given type is:", [ prettyTCM ty ]
+      ]
+
+instance PrettyTCM InteractionError where
+  prettyTCM = \case
+    CaseSplitError doc -> return doc
+
+    NoActionForInteractionPoint ii -> vcat
+      [ fwords $ "No type nor action available for hole " ++ prettyShow ii ++ "."
+      , fwords $ "Possible cause: the hole has not been reached during type checking (do you see yellow?)"
       ]
 
 notCmp :: MonadPretty m => Comparison -> m Doc

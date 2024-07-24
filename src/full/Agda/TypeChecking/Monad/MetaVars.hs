@@ -647,9 +647,9 @@ lookupInteractionPoint ii =
 lookupInteractionId
   :: (MonadFail m, ReadTCState m, MonadError TCErr m, MonadTCEnv m)
   => InteractionId -> m MetaId
-lookupInteractionId ii = fromMaybeM err2 $ ipMeta <$> lookupInteractionPoint ii
-  where
-    err2 = typeError $ GenericError $ "No type nor action available for hole " ++ prettyShow ii ++ ". Possible cause: the hole has not been reached during type checking (do you see yellow?)"
+lookupInteractionId ii =
+  fromMaybeM (interactionError $ NoActionForInteractionPoint ii) $
+    ipMeta <$> lookupInteractionPoint ii
 
 -- | Check whether an interaction id is already associated with a meta variable.
 lookupInteractionMeta :: ReadTCState m => InteractionId -> m (Maybe MetaId)

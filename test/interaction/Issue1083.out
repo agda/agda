@@ -8,6 +8,6 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals, Errors*" "_x_12 : Bool [ at Issue1083.agda:16,13-14 ] _14 : Bool → Bool [ at Issue1083.agda:16,13-19 ] ———— Error ————————————————————————————————————————————————— Unsolved constraints" nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-info-action "*Error*" "error: [GenericError] No type nor action available for hole ?0. Possible cause: the hole has not been reached during type checking (do you see yellow?)" nil)
+(agda2-info-action "*Error*" "error: [Interaction.NoActionForInteractionPoint] No type nor action available for hole ?0. Possible cause: the hole has not been reached during type checking (do you see yellow?)" nil)
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

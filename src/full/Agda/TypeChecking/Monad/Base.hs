@@ -4956,8 +4956,7 @@ data TypeError
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
     -- Interaction errors
-        | InteractiveSplitError Doc
-            -- ^ Failure of the 'makeCase' interactive tactics.
+        | InteractionError InteractionError
     -- Backend errors
         | CubicalCompilationNotSupported Cubical
             -- ^ NYI: Compilation of files using the given flavor of 'Cubical'.
@@ -4966,6 +4965,14 @@ data TypeError
         | GHCBackendError GHCBackendError
             -- ^ Errors raised by the GHC backend.
           deriving (Show, Generic)
+
+-- | Errors raised in @--interaction@ mode.
+data InteractionError
+  = CaseSplitError Doc
+      -- ^ Failure of the 'makeCase' interactive tactics.
+  | NoActionForInteractionPoint InteractionId
+      -- ^ Interaction point has not been reached during type checking.
+  deriving (Show, Generic)
 
 -- | Errors raised by the GHC backend.
 data GHCBackendError
@@ -5751,6 +5758,9 @@ typeError'_ loc err = TypeError loc <$> getTCState <*> buildClosure err
 typeError_ :: (HasCallStack, MonadTCEnv m, ReadTCState m) => TypeError -> m TCErr
 typeError_ = withCallerCallStack . flip typeError'_
 
+interactionError :: (HasCallStack, MonadTCError m) => InteractionError -> m a
+interactionError = locatedTypeError InteractionError
+
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
 runTCM :: MonadIO m => TCEnv -> TCState -> TCMT m a -> m (a, TCState)
@@ -6152,3 +6162,4 @@ instance NFData IllegalRewriteRuleReason
 instance NFData IncorrectTypeForRewriteRelationReason
 instance NFData GHCBackendError
 instance NFData WhyNotAHaskellType
+instance NFData InteractionError
