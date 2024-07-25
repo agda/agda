@@ -1484,7 +1484,7 @@ instance Reify Sort where
         I.Inf u 0 -> return $ A.Def' (nameOfUniv ULarge u) A.NoSuffix
         I.Inf u n -> return $ A.Def' (nameOfUniv ULarge u) (A.Suffix n)
         I.SizeUniv  -> do
-          I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
+          sizeU <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSizeUniv
           return $ A.Def sizeU
         I.LockUniv  -> do
           lockU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLockUniv

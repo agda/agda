@@ -35,11 +35,11 @@ expandLitPattern = \case
     | n < 0     -> typeError NegativeLiteralInPattern  -- Andreas, issue #2365, negative literals not yet supported.
     | n > 20    -> typeError LiteralTooBig
     | otherwise -> do
-      Con z _ _ <- primZero
-      Con s _ _ <- primSuc
+      z <- getBuiltinName_ builtinZero
+      s <- getBuiltinName_ builtinSuc
       let r     = getRange info
-      let zero  = A.ConP cinfo (unambiguous $ setRange r $ conName z) []
-          suc p = A.ConP cinfo (unambiguous $ setRange r $ conName s) [defaultNamedArg p]
+      let zero  = A.ConP cinfo (unambiguous $ setRange r z) []
+          suc p = A.ConP cinfo (unambiguous $ setRange r s) [defaultNamedArg p]
           cinfo = A.ConPatInfo ConOCon info ConPatEager
       return $ foldr ($) zero $ List.genericReplicate n suc
   p -> return p

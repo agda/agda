@@ -835,7 +835,7 @@ instance PrettyTCM (Seq OccursWhere) where
                           [prettyTCM q]
         UnderInf     -> pwords "under" ++
                         [do -- this cannot fail if an 'UnderInf' has been generated
-                            Def inf _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInf
+                            inf <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinInf
                             prettyTCM inf]
         VarArg       -> pwords "in an argument of a bound variable"
         MetaArg      -> pwords "in an argument of a metavariable"

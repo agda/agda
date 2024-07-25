@@ -11,8 +11,6 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 
-import qualified Control.Monad.Fail as Fail
-
 import Control.Monad          ( forM )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except
@@ -179,7 +177,6 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
   deriving ( Functor
            , Applicative
            , Monad
-           , Fail.MonadFail
            , MonadError TCErr
            , MonadStatistics
            , HasOptions
