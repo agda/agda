@@ -87,7 +87,7 @@ import Agda.Utils.AffineHole
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List (isSublistOf, spanJust)
+import Agda.Utils.List (spanJust)
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -822,13 +822,13 @@ niceDeclarations fixs ds = do
         -- first identifier in the patterns is the fun.symbol?
         (Just y, _) | x == y -> True -- trace ("couldBe since y = " ++ prettyShow y) $ True
         -- are the parts of x contained in p
-        _ | xStrings `isSublistOf` patStrings -> True -- trace ("couldBe since isSublistOf") $ True
+        _ | xStrings `List.isSubsequenceOf` patStrings -> True
         -- looking for a mixfix fun.symb
         (_, Just fix) ->  -- also matches in case of a postfix
            let notStrings = stringParts (theNotation fix)
            in  -- trace ("notStrings = " ++ show notStrings) $
                -- trace ("patStrings = " ++ show patStrings) $
-               not (null notStrings) && (notStrings `isSublistOf` patStrings)
+               not (null notStrings) && (notStrings `List.isSubsequenceOf` patStrings)
         -- not a notation, not first id: give up
         _ -> False -- trace ("couldBe not (case default)") $ False
 

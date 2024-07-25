@@ -2,7 +2,13 @@
 
 -- | Utility functions for lists.
 
-module Agda.Utils.List where
+module Agda.Utils.List (module Agda.Utils.List, module X) where
+
+-- Reexports
+
+import Data.List as X (uncons)
+
+-- Regular imports
 
 import Control.Monad (filterM)
 
@@ -81,8 +87,9 @@ tailWithDefault def = fromMaybe def . tailMaybe
 -- | Last element (safe).
 --   O(n).
 lastMaybe :: [a] -> Maybe a
-lastMaybe [] = Nothing
-lastMaybe xs = Just $ last xs
+lastMaybe = \case
+  []   -> Nothing
+  x:xs -> Just $ last1 x xs
 
 -- | Last element (safe).  Returns a default list on empty lists.
 --   O(n).
@@ -111,12 +118,6 @@ last2' :: a -> a -> [a] -> (a, a)
 last2' x y = \case
   []  -> (x, y)
   z:zs -> last2' y z zs
-
--- | Opposite of cons @(:)@, safe.
---   O(1).
-uncons :: [a] -> Maybe (a, [a])
-uncons []     = Nothing
-uncons (x:xs) = Just (x,xs)
 
 -- | Maybe cons.
 --   O(1).
@@ -359,10 +360,6 @@ mapMaybeAndRest f = loop [] where
     []                   -> ([], reverse acc)
     x:xs | Just y <- f x -> first (y:) $ loop [] xs
          | otherwise     -> loop (x:acc) xs
-
--- | Sublist relation.
-isSublistOf :: Eq a => [a] -> [a] -> Bool
-isSublistOf = List.isSubsequenceOf
 
 -- | @dropFrom marker xs@ drops everything from @xs@
 -- starting with (and including) @marker@.
