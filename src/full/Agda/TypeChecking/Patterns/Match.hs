@@ -284,7 +284,8 @@ matchPattern p u = case (p, u) of
   -- can be matched on.
   isMatchable' :: HasBuiltins m => m (Blocked Term -> Maybe Term)
   isMatchable' = do
-    [mhcomp,mconid] <- mapM getName' [builtinHComp, builtinConId]
+    mhcomp <- getName' builtinHComp
+    mconid <- getName' builtinConId
     return $ \ r ->
       case ignoreBlocking r of
         t@Con{} -> Just t

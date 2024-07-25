@@ -178,7 +178,7 @@ instance Match [Elim' NLPat] Elims where
 
     (IApply x y p , IApply u v i) -> addContext k (pathView =<< reduce t) >>= \case
       PathType s q l b _u _v -> do
-        Right interval <- runExceptT primIntervalType
+        interval <- fromRight __IMPOSSIBLE__ <$> runExceptT primIntervalType
         match r gamma k interval p i
         let t' = El s $ unArg b `apply` [ defaultArg i ]
         let hd' = hd . (IApply u v i:)

@@ -63,8 +63,13 @@ doHCompUKanOp (HCompOp psi u u0) (IsNot (la, phi, bT, bA)) tpos = do
   tSubIn   <- getTermLocal builtinSubIn
   tItIsOne <- getTermLocal builtinItIsOne
   runNamesT [] $ do
-    [psi, u, u0] <- mapM (open . unArg) [ignoreBlocking psi, u, u0]
-    [la, phi, bT, bA] <- mapM (open . unArg) [la, phi, bT, bA]
+    psi <- open . unArg $ ignoreBlocking psi
+    u   <- open . unArg $ u
+    u0  <- open . unArg $ u0
+    la  <- open . unArg $ la
+    phi <- open . unArg $ phi
+    bT  <- open . unArg $ bT
+    bA  <- open . unArg $ bA
 
     ifM (headStop tpos phi) (return Nothing) $ Just <$> do
 
@@ -122,9 +127,14 @@ doHCompUKanOp (TranspOp psi u0) (IsFam (la, phi, bT, bA)) tpos = do
         <@> (imax phi (ineg i))
         <@> u0
 
-    [psi, u0] <- mapM (open . unArg) [ignoreBlocking psi, u0]
+    psi <- open . unArg . ignoreBlocking $ psi
+    u0  <- open . unArg $ u0
 
-    [la, phi, bT, bA] <- mapM (\a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [la, phi, bT, bA]
+    let lami = open . runNames [] . lam "i" . const . pure . unArg
+    la  <- lami la
+    phi <- lami phi
+    bT  <- lami bT
+    bA  <- lami bA
 
     -- Andreas, 2022-03-25, issue #5838.
     -- Port the fix of @unglueTranspGlue@ and @doGlueKanOp DoTransp@
@@ -253,7 +263,9 @@ prim_unglueU' = do
           iNeg    <- getTerm (getBuiltinId builtin_unglueU) builtinINeg
           iZ      <- getTerm (getBuiltinId builtin_unglueU) builtinIZero
           redReturn <=< runNamesT [] $ do
-            [la,bT,b] <- mapM (open . unArg) [la,bT,b]
+            la <- open . unArg $ la
+            bT <- open . unArg $ bT
+            b  <- open . unArg $ b
             pure tTransp <#> lam "i" (\ _ -> la) <@> lam "i" (\ i -> bT <@> ineg i <..> pure one)
               <@> pure iZ <@> b
 

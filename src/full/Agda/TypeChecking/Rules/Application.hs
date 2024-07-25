@@ -1702,11 +1702,15 @@ checkPOr c rs vs _ = do
       phi <- intervalUnview (IMin phi1 phi2)
       reportSDoc "tc.term.por" 10 $ text (show phi)
       t1 <- runNamesT [] $ do
-             [l,a] <- mapM (open . unArg) [l,a]
+             l <- open . unArg $ l
+             a <- open . unArg $ a
              psi <- open =<< intervalUnview (IMax phi1 phi2)
              pPi' "o" psi $ \ o -> el' l (a <..> o)
       tv <- runNamesT [] $ do
-             [l,a,phi1,phi2] <- mapM (open . unArg) [l,a,phi1,phi2]
+             l    <- open . unArg $ l
+             a    <- open . unArg $ a
+             phi1 <- open . unArg $ phi1
+             phi2 <- open . unArg $ phi2
              pPi' "o" phi2 $ \ o -> el' l (a <..> (cl primIsOne2 <@> phi1 <@> phi2 <@> o))
       v <- blockArg tv (rs !!! 5) v $ do
         -- ' φ₁ ∧ φ₂  ⊢ u , v : PartialP (φ₁ ∨ φ₂) \ o → a o
@@ -1726,11 +1730,19 @@ check_glue c rs vs _ = do
    la : lb : bA : phi : bT : e : t : a : rest -> do
       let iinfo = setRelevance Irrelevant defaultArgInfo
       v <- runNamesT [] $ do
-            [lb, la, bA, phi, bT, e, t] <- mapM (open . unArg) [lb, la, bA, phi, bT, e, t]
+            lb  <- open . unArg $ lb
+            la  <- open . unArg $ la
+            bA  <- open . unArg $ bA
+            phi <- open . unArg $ phi
+            bT  <- open . unArg $ bT
+            e   <- open . unArg $ e
+            t   <- open . unArg $ t
             let f o = cl primEquivFun <#> lb <#> la <#> (bT <..> o) <#> bA <@> (e <..> o)
             glam iinfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
-            [lb, phi, bA] <- mapM (open . unArg) [lb, phi, bA]
+            lb  <- open . unArg $ lb
+            phi <- open . unArg $ phi
+            bA  <- open . unArg $ bA
             el's lb $ cl primPartialP <#> lb <@> phi <@> glam iinfo "o" (\ _ -> bA)
       let a' = Lam iinfo (NoAbs "o" $ unArg a)
       ta <- el' (pure $ unArg la) (pure $ unArg bA)
@@ -1752,15 +1764,24 @@ check_glueU c rs vs _ = do
    la : phi : bT : bA : t : a : rest -> do
       let iinfo = setRelevance Irrelevant defaultArgInfo
       v <- runNamesT [] $ do
-            [la, phi, bT, bA, t] <- mapM (open . unArg) [la, phi, bT, bA, t]
+            la  <- open . unArg $ la
+            phi <- open . unArg $ phi
+            bT  <- open . unArg $ bT
+            bA  <- open . unArg $ bA
+            t   <- open . unArg $ t
             let f o = cl primTrans <#> lam "i" (const la) <@> lam "i" (\ i -> bT <@> (cl primINeg <@> i) <..> o) <@> cl primIZero
             glam iinfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
-            [la, phi, bT] <- mapM (open . unArg) [la, phi, bT]
+            la  <- open . unArg $ la
+            phi <- open . unArg $ phi
+            bT  <- open . unArg $ bT
             pPi' "o" phi $ \ o -> el' la (bT <@> cl primIZero <..> o)
       let a' = Lam iinfo (NoAbs "o" $ unArg a)
       ta <- runNamesT [] $ do
-            [la, phi, bT, bA] <- mapM (open . unArg) [la, phi, bT, bA]
+            la  <- open . unArg $ la
+            phi <- open . unArg $ phi
+            bT  <- open . unArg $ bT
+            bA  <- open . unArg $ bA
             el' la (cl primSubOut <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> cl primIZero) <@> bA)
       a <- blockArg ta (rs !!! 5) a $ equalTerm ty a' v
       return $ la : phi : bT : bA : t : a : rest

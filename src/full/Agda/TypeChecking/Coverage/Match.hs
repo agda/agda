@@ -501,11 +501,14 @@ isLitP _ = return Nothing
 {-# SPECIALIZE unLitP :: Pattern' a -> TCM (Pattern' a) #-}
 unLitP :: HasBuiltins m => Pattern' a -> m (Pattern' a)
 unLitP (LitP info l@(LitNat n)) | n >= 0 = do
-  Con c ci es <- constructorForm' (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero)
-                                  (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc)
-                                  (Lit l)
-  let toP (Apply (Arg i (Lit l))) = Arg i (LitP info l)
-      toP _ = __IMPOSSIBLE__
-      cpi   = noConPatternInfo { conPInfo = info }
-  return $ ConP c cpi $ map (fmap unnamed . toP) es
+ constructorForm'
+   (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero)
+   (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc)
+   (Lit l) >>= \case
+  Con c ci es -> do
+    let toP (Apply (Arg i (Lit l))) = Arg i (LitP info l)
+        toP _ = __IMPOSSIBLE__
+        cpi   = noConPatternInfo { conPInfo = info }
+    return $ ConP c cpi $ map (fmap unnamed . toP) es
+  _ -> __IMPOSSIBLE__
 unLitP p = return p

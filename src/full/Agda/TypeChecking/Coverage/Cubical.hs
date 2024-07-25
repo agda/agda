@@ -33,6 +33,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Telescope.Path
 
+import Agda.Utils.Either ( fromRight )
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.List1 ( pattern (:|) )
@@ -217,7 +218,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
              bindNArg [defaultArg "x0"] $ \ x0 -> do
              param_args <- fmap (map (setHiding Hidden . fmap (unnamed . dotP))) $
                pure params `applyN` (fmap unArg <$> g1)
-             (phi:p) <- sequence phi_p
+             (phi, p) <- fromMaybe __IMPOSSIBLE__ . uncons <$> sequence phi_p
              x0 <- sequence x0
              pure $ DefP defaultPatternInfo q_trX $ param_args ++ p ++ [phi] ++ x0
       trX = (fmap . fmap . fmap) patternToTerm <$> trX'
@@ -270,7 +271,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
       base <- map defaultArg <$> appTel (sequence q) j
       u  <- liftM2 (,) (max j psi) $ bind "h" $ \ h -> do
               appTel (sequence p) (min j (min h i))
-      Right xs <- lift $ runExceptT $ transpSysTel' False ty [u] face base
+      xs <- fromRight __IMPOSSIBLE__ <$> do lift $ runExceptT $ transpSysTel' False ty [u] face base
       pure $ map unArg xs
     -- Ξ ⊢ pat_rec[0] = pat : D η v
     -- Ξ ⊢ pat_rec[1] = trX q4 (φ ∧ ψ) x0 : D η v
@@ -317,7 +318,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
     -- Ξ ⊢ rhs := tr (i. old_t[γ1,x = pat_rec[~i], δ_f[~i]]) (φ ∧ ψ) w0 -- TODO plus sides.
     syspsi <- (open =<<) $ lam "i" $ \ i -> ilam "o" $ \ _ -> do
       c <- mkComp $ bindN ["i","j"] $ \ [i,j] -> do
-        Abs n (data_ty,lines) <- bind "k" $ \ k -> do
+        res <- bind "k" $ \ k -> do
           let phi_k = max phi (neg k)
           let p_k = for p $ \ p -> lam "h" $ \ h -> p <@> (min k h)
           data_ty <- pure dT `applyN` g1 `applyN` for p (\ p -> p <@> k)
@@ -329,13 +330,17 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
                   [trX `applyN` g1
                        `applyN` (max phi_k (neg j): for p_k (\ p -> lam "h" $ \ h -> p <@> (min h j)))
                        `applyN` [x0]]
-          pure (data_ty,[line1,line2])
-        data_ty <- open $ Abs n data_ty
-        [line1,line2] <- mapM (open . Abs n) lines
-        let sys = [(neg i, lam "k" $ \ k -> ilam "o" $ \ _ -> absApp <$> line2 <*> k)
-                  ,(neg j `max` j `max` i `max` phi, lam "k" $ \ k -> ilam "o" $ \ _ -> absApp <$> line1 <*> k)
-                  ]
-        transpSys data_ty sys (pure iz) x0
+          pure (data_ty, [line1, line2])
+        case res of
+          Abs n (data_ty, [line1, line2]) -> do
+            data_ty <- open $ Abs n data_ty
+            line1   <- open $ Abs n line1
+            line2   <- open $ Abs n line2
+            let sys = [(neg i, lam "k" $ \ k -> ilam "o" $ \ _ -> absApp <$> line2 <*> k)
+                      ,(neg j `max` j `max` i `max` phi, lam "k" $ \ k -> ilam "o" $ \ _ -> absApp <$> line1 <*> k)
+                      ]
+            transpSys data_ty sys (pure iz) x0
+          _ -> __IMPOSSIBLE__
       absApp <$> pure c <*> i
     sysphi <- (open =<<) $ lam "i" $ \ i -> ilam "o" $ \ o -> do
       c <- mkComp $ bindN ["i","j"] $ \ _ij -> do
@@ -506,7 +511,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
              bindNArg [defaultArg "x0"] $ \ x0 -> do
              param_args <- fmap (map (setHiding Hidden . fmap (unnamed . dotP))) $
                pure params `applyN` (fmap unArg <$> g1)
-             (phi:p) <- sequence phi_p
+             (phi, p) <- fromMaybe __IMPOSSIBLE__ . uncons <$> sequence phi_p
              x0 <- sequence x0
              pure $ DefP defaultPatternInfo q_trX $ param_args ++ p ++ [phi] ++ x0
       trX = (fmap . fmap . fmap) patternToTerm <$> trX'
@@ -514,7 +519,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
     hcompD' g1 v =
         bindNArg [argH "psi",argN "u", argN "u0"] $ \ x0 -> do
         x0 <- sequence x0
-        Just (LEl l t) <- (toLType =<<) $ pure dT `applyN` g1 `applyN` v
+        LEl l t <- fromMaybe __IMPOSSIBLE__ <.> toLType =<< do pure dT `applyN` g1 `applyN` v
         let ty = map (fmap (unnamed . dotP) . argH) [Level l,t]
         pure $ DefP defaultPatternInfo q_hcomp $ ty ++ x0
   hcompD <- runNamesT [] $
@@ -750,7 +755,7 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
             bindNArg gammaArgNames $ \ g1_args -> do
             bindNArg ([defaultArg "phi"] ++ teleArgNames xTel) $ \ phi_p -> do
             let (g1,args) = splitAt gamma1_size g1_args
-            (phi:p) <- sequence phi_p
+            (phi, p) <- fromMaybe __IMPOSSIBLE__ . uncons <$> sequence phi_p
             args <- sequence args
             let cargs = defaultArg $ unnamed $ ConP chead noConPatternInfo args
             -- Amy (2022-11-06): Set the parameters to quantity-0.
@@ -926,30 +931,34 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
 
   params <- runNamesT [] $ do
     hdelta <- open hdelta
-    bindN (teleNames gamma) $ \ args -> do
-       hdelta@(ExtendTel hdom _) <- applyN hdelta args
-       Def _Id es@[_,_,_,_] <- reduce $ unEl $ unDom hdom
-       return $ map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-
+    bindN (teleNames gamma) $ \ args -> applyN hdelta args >>= \case
+       hdelta@(ExtendTel hdom _) -> reduce (unEl $ unDom hdom) >>= \case
+         Def _Id es@[_,_,_,_] -> do
+           return $ map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+         _ -> __IMPOSSIBLE__
+       _ -> __IMPOSSIBLE__
   working_tel <- runNamesT [] $ do
     hdelta <- open hdelta
     params <- open params
     abstractN (pure gamma) $ \ args -> do
       pTel <- open =<< lift (pathTelescope (infoEqTel info) (map defaultArg $ infoEqLHS info) (map defaultArg $ infoEqRHS info))
       abstractN (pure (telFromList [defaultDom ("phi",interval)] :: Telescope)) $ \ [phi] ->
-        abstractN pTel $ \ [p] -> do
-          [l,bA,x,y] <- mapM open =<< applyN params args
-          apply1 <$> applyN hdelta args <*> (cl primConId <#> l <#> bA <#> x <#> y <@> phi <@> p)
+        abstractN pTel $ \ [p] -> applyN params args >>= mapM open >>= \case
+          [l,bA,x,y] -> do
+            apply1 <$> applyN hdelta args <*> (cl primConId <#> l <#> bA <#> x <#> y <@> phi <@> p)
+          _ -> __IMPOSSIBLE__
   -- working_tel ⊢ i. γ[leftInv i]
   (gamma_args_left :: Abs [Term], con_phi_p_left :: Abs Term) <- fmap (raise (size delta) . unAbsN) . runNamesT [] $ do
     params <- open params
     bindN (teleNames gamma ++ ["phi","p"]) $ \ args' -> do
       let (args,[phi,p]) = splitAt (size gamma) args'
-      [l,bA,x,y] <- mapM open =<< applyN params args
-      gargs <- Abs "i" . applySubst ileftInv <$> sequence args
-      con_phi_p <- Abs "i" . applySubst ileftInv <$> do
-        (cl primConId <#> l <#> bA <#> x <#> y <@> phi <@> p)
-      return (gargs,con_phi_p)
+      applyN params args >>= mapM open >>= \case
+        [l,bA,x,y] -> do
+          gargs <- Abs "i" . applySubst ileftInv <$> sequence args
+          con_phi_p <- Abs "i" . applySubst ileftInv <$> do
+            (cl primConId <#> l <#> bA <#> x <#> y <@> phi <@> p)
+          return (gargs,con_phi_p)
+        _ -> __IMPOSSIBLE__
   ps <- fmap unAbsN . runNamesT [] $ do
     old_ps' <- open $ old_ps'
     params <- open params
@@ -1019,7 +1028,8 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
     delta_f <- bind "i" $ \ i -> do
       apply1 <$> applyN' hdelta (lazyAbsApp <$> gamma_args_left <*> (cl primINeg <@> i)) <*> (lazyAbsApp <$> con_phi_p_left <*> (cl primINeg <@> i))
     delta_f <- open delta_f
-    [phi,p] <- mapM (open . unArg) [phi,p]
+    phi <- open . unArg $ phi
+    p   <- open . unArg $ p
     delta_args_f <- bind "i" $ \ i -> do
 
       m <- trFillTel' True <$> delta_f <*> phi <*> delta_args <*> i
@@ -1065,7 +1075,8 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
     tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPOr
     let
       pOr l ty phi psi u0 u1 = do
-          [phi,psi] <- mapM open [phi,psi]
+          phi <- open phi
+          psi <- open psi
           pure tPOr <#> l
                     <@> phi <@> psi
                     <#> ilam "o" (\ _ -> ty) <@> noilam u0 <@> u1
@@ -1267,7 +1278,10 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
           lvl <- open =<< (lift . getLevel $ unDom hdom)
 
           -- Γ,φ,u,u0,Δ(x = hcomp phi u u0) ⊢
-          [phi,u,u0] <- mapM (open . raise (size delta) . var) [2,1,0]
+          let vr = open . raise (size delta) . var
+          phi <- vr 2
+          u   <- vr 1
+          u0  <- vr 0
           -- Γ,x,Δ ⊢ f old_ps
           -- Γ ⊢ abstract hdelta (f old_ps)
           g <- open $ raise (3 + size delta) $ abstract hdelta (Def f old_ps)
@@ -1314,8 +1328,9 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
           b <- do
              sides <- forM alphab $ \ (psi,(side0,side1)) -> do
                 psi <- open $ hcompS `applySubst` psi
-
-                [side0, side1] <- mapM (open . raise (3 + size delta) . abstract hdelta) [side0, side1]
+                let f = open . raise (3 + size delta) . abstract hdelta
+                side0 <- f side0
+                side1 <- f side1
                 return $ (ineg psi `imax` psi, \ i -> pOr_ty i (ineg psi) psi (ilam "o" $ \ _ -> apply_delta_fill i $ side0 <@> hfill lvl htype phi u u0 i)
                                                             (ilam "o" $ \ _ -> apply_delta_fill i $ side1 <@> hfill lvl htype phi u u0 i))
              let recurse []           i = __IMPOSSIBLE__
