@@ -111,8 +111,15 @@ doGlueKanOp (HCompOp psi u u0) (IsNot (la, lb, bA, phi, bT, e)) tpos = do
   view     <- intervalView'
 
   runNamesT [] $ do
-    [psi, u, u0] <- mapM (open . unArg) [ignoreBlocking psi, u, u0]
-    [la, lb, bA, phi, bT, e] <- mapM (open . unArg) [la, lb, bA, phi, bT, e]
+    psi <- open . unArg $ ignoreBlocking psi
+    u   <- open . unArg $ u
+    u0  <- open . unArg $ u0
+    la  <- open . unArg $ la
+    lb  <- open . unArg $ lb
+    bA  <- open . unArg $ bA
+    phi <- open . unArg $ phi
+    bT  <- open . unArg $ bT
+    e   <- open . unArg $ e
 
     ifM (headStop tpos phi) (return Nothing) $ Just <$> do
     let
@@ -164,8 +171,15 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
                       <@> lam "j" (\ j -> bA <@> imin i j)
                       <@> (imax phi (ineg i))
                       <@> u0
-    [psi,u0] <- mapM (open . unArg) [ignoreBlocking psi,u0]
-    [la, lb, bA, phi, bT, e] <- mapM (\ a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [la, lb, bA, phi, bT, e]
+    psi <- open . unArg $ ignoreBlocking psi
+    u0  <- open . unArg $ u0
+    let lami = open . runNames [] . lam "i" . const . pure . unArg
+    la  <- lami la
+    lb  <- lami lb
+    bA  <- lami bA
+    phi <- lami phi
+    bT  <- lami bT
+    e   <- lami e
 
     -- Andreas, 2022-03-24, fixing #5838
     -- Following the updated note

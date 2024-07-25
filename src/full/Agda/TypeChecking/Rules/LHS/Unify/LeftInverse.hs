@@ -25,6 +25,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Unify.Types
 
+import Agda.Utils.Either (fromRight)
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -198,7 +199,8 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
   interval <- primIntervalType
   max <- primIMax
   neg <- primINeg
-  Right leftInv <- fmap sequenceA $ addContext prob0 $ runNamesT (teleNames prob0) $ do
+  leftInv <- fromRight __IMPOSSIBLE__ . sequenceA <$> do
+    addContext prob0 $ runNamesT (teleNames prob0) $ do
              phi <- open phi0
              g0 <- open $ raise (size prob0) prob0
              step0 <- open $ Abs "i" $ step0 `applySubst` teleArgs prob0
@@ -251,8 +253,8 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = ru
           ]
         (tau,leftInv,phi) <- addContext working_tel $ runNamesT [] $ do
           let raiseFrom tel x = raise (size working_tel - size tel) x
-
-          [u,v] <- mapM (open . raiseFrom gamma . unArg) [u,v]
+          u <- open . raiseFrom gamma . unArg $ u
+          v <- open . raiseFrom gamma . unArg $ v
           -- φ
           let phi = raiseFrom gamma_phis $ var 0
           -- working_tel ⊢ γ₁,x,γ₂,φ,eqs

@@ -263,11 +263,19 @@ doIdKanOp kanOp l bA_x_y = do
         -- Similarly to the fake line of levels above, fake lines of
         -- everything even when we're doing composition, for uniformity
         -- of eval.
-        [bA, x, y] <- case bA_x_y of
-          IsFam (bA, x, y) -> for [bA, x, y] $ \a ->
-            open $ runNames [] $ lam "i" (const (pure $ unArg a))
-          IsNot (bA, x, y) -> for [bA, x, y] $ \a ->
-            open (Lam defaultArgInfo $ NoAbs "_" $ unArg a)
+        (bA, x, y) <- case bA_x_y of
+          IsFam (bA, x, y) -> do
+            let lami = open . runNames [] . lam "i" . const . pure . unArg
+            bA <- lami bA
+            x  <- lami x
+            y  <- lami y
+            pure (bA, x, y)
+          IsNot (bA, x, y) -> do
+            let lam_ = open . Lam defaultArgInfo . NoAbs "_" . unArg
+            bA <- lam_ bA
+            x  <- lam_ x
+            y  <- lam_ y
+            pure (bA, x, y)
 
         -- The resulting path is constant when when
         --    @Σ φ λ o → -- primIdFace p i1 o@

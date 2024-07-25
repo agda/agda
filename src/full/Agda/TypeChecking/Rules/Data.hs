@@ -949,7 +949,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
   let neg i = cl primINeg <@> i
   let hcomp ty sys u0 = do
           ty <- ty
-          Just (LEl l ty) <- toLType ty
+          LEl l ty <- fromMaybe __IMPOSSIBLE__ <$> toLType ty
           l <- open $ Level l
           ty <- open $ ty
           face <- (foldr max (pure iz) $ map fst $ sys)
@@ -994,7 +994,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                ixsI <- open $ AbsN (teleNames parI) ixsI
                parI <- open parI
                abstract_trD $ \ delta x _ -> do
-               Just (LEl l ty) <- toLType =<< (dT `applyN` (delta ++ x ++ [pure iz]))
+               LEl l ty <- fromMaybe __IMPOSSIBLE__ <.> toLType =<< (dT `applyN` (delta ++ x ++ [pure iz]))
                -- (φ : I), (I → Partial φ (D (δ i0) (x i0))), D (δ i0) (x i0)
                TelV args _ <- lift $ telView =<< piApplyM hcomp_ty [Level l,ty]
                unless (size args == 3) __IMPOSSIBLE__
@@ -1008,10 +1008,12 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
         bindNArg hcompArgs $ \ as0 -> do -- as0 : aTel[delta 0]
         let
           origPHComp = do
-            Just (LEl l t) <- toLType =<< (dT `applyN` (delta ++ x ++ [pure iz]))
+            LEl l t <- fromMaybe __IMPOSSIBLE__ <.> toLType =<< (dT `applyN` (delta ++ x ++ [pure iz]))
             let ds = map (argH . unnamed . dotP) [Level l, t]
-            ps0@[_hphi,_u,_u0] <- sequence $ as0
-            pure $ DefP defaultPatternInfo qHComp $ ds ++ ps0
+            sequence as0 >>= \case
+              ps0@[_hphi,_u,_u0] ->
+                pure $ DefP defaultPatternInfo qHComp $ ds ++ ps0
+              _ -> __IMPOSSIBLE__
           psHComp = sequence $ delta_ps ++ x_ps ++ phi_ps ++ [argN . unnamed <$> origPHComp]
         let
           rhsTy = dT `applyN` (delta ++ x ++ [pure io])
@@ -1062,7 +1064,8 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
               x'_ps <- sequence x'_ps
               phi'_ps <- sequence phi'_ps
               ds <- map (setHiding Hidden . fmap (unnamed . dotP)) <$> deltaArg (pure iz)
-              ps0@[_t] <- sequence as0
+              ps0 <- sequence as0
+              unless (length ps0 == 1) __IMPOSSIBLE__
               pure $ DefP defaultPatternInfo trX $ ds ++ x'_ps ++ phi'_ps ++ ps0
             psTrX = sequence $ delta_ps ++ x_ps ++ phi_ps ++ [argN . unnamed <$> origPTrX]
 
@@ -1147,7 +1150,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
           -- bsys : Abs Δ.Args ([phi] → ty)
           (bsysFace,bsys) <- do
             p <- bindN (teleNames prm ++ aTelNames) $ \ ts -> do
-              Just (LEl l ty) <- toLType ty
+              LEl l ty <- fromMaybe __IMPOSSIBLE__ <$> toLType ty
               l <- open (Level l)
               ty <- open ty
               bs <- bndry `applyN` ts

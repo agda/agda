@@ -718,7 +718,10 @@ compareAtom cmp t m n =
                   s = tmSort $ unArg la
                   sucla = lsuc <$> la
               bA <- runNamesT [] $ do
-                [la,phi,bT,bAS] <- mapM (open . unArg) [la,phi,bT,bAS]
+                la  <- open . unArg $ la
+                phi <- open . unArg $ phi
+                bT  <- open . unArg $ bT
+                bAS <- open . unArg $ bAS
                 (pure tSubOut <#> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> primIZero) <@> bAS)
               compareAtom cmp (AsTermsOf $ El (tmSort . unArg $ sucla) $ apply tHComp $ [sucla, argH (Sort s), phi] ++ [argH (unArg bT), argH bA])
                               (unArg b) (unArg b')
@@ -785,7 +788,8 @@ compareMetas cmp t x xArgs y yArgs | x == y = blockOnError (unblockOnMeta x) $ d
          -- not all relevant arguments are variables
          Nothing -> fallback
 compareMetas cmp t x xArgs y yArgs = do
-  [p1, p2] <- mapM getMetaPriority [x,y]
+  p1 <- getMetaPriority x
+  p2 <- getMetaPriority y
   let dir = fromCmp cmp
       rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
       retry = patternViolation alwaysUnblock
