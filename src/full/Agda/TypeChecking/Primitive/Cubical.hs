@@ -428,7 +428,8 @@ primTransHComp cmd ts nelims = do
             -- regardless of how big the original term is, and
             -- isOneEmpty is *tiny*, so let's use that:
             IZero -> fmap (reduced . notBlocked . argN) . runNamesT [] $ do
-                [l,c] <- mapM (open . unArg) [famThing l, ignoreBlocking sc]
+                l <- open . unArg . famThing $ l
+                c <- open . unArg . ignoreBlocking $ sc
                 lam "i" $ \ i -> clP builtinIsOneEmpty <#> l <#> ilam "o" (\ _ -> c)
 
             -- Otherwise we have some interesting formula (though
@@ -618,7 +619,8 @@ primTransHComp cmd ts nelims = do
             where
               su' = case view phi of
                      IZero -> notBlocked $ argN $ runNames [] $ do
-                                 [l,c] <- mapM (open . unArg) [l,ignoreBlocking sc]
+                                 l <- open . unArg $ l
+                                 c <- open . unArg . ignoreBlocking $ sc
                                  lam "i" $ \ i -> pure tEmpty <#> l
                                                               <#> ilam "o" (\ _ -> c)
                      _     -> su
