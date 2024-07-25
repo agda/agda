@@ -6,6 +6,7 @@ module Agda.TypeChecking.SizedTypes where
 
 import Prelude hiding (null)
 
+import Control.Monad.Trans.Maybe ( MaybeT(..), runMaybeT )
 import Control.Monad.Except ( MonadError(..) )
 import Control.Monad.Writer ( MonadWriter(..), WriterT(..), runWriterT )
 
@@ -241,10 +242,10 @@ trySizeUniv cmp t m n x els1 y els2 = do
       failure = typeError $ UnequalTerms cmp m n t
       forceInfty u = compareSizes CmpEq (unArg u) =<< primSizeInf
   -- Get the SIZE built-ins.
-  (size, sizelt) <- flip catchError (const failure) $ do
-     Def size   _ <- primSize
-     Def sizelt _ <- primSizeLt
-     return (size, sizelt)
+  (size, sizelt) <- maybe failure pure =<< runMaybeT do
+    size   <- MaybeT $ getBuiltinName' builtinSize
+    sizelt <- MaybeT $ getBuiltinName' builtinSizeLt
+    pure (size, sizelt)
   case (cmp, els1, els2) of
      -- Case @Size< _ <= Size@: true.
      (CmpLeq, [_], [])  | x == sizelt && y == size -> return ()
@@ -263,8 +264,8 @@ trySizeUniv cmp t m n x els1 y els2 = do
 --   Precondition: sized types are enabled.
 deepSizeView :: (PureTCM m, MonadTCError m) => Term -> m DeepSizeView
 deepSizeView v = do
-  Def inf [] <- primSizeInf
-  Def suc [] <- primSizeSuc
+  inf <- getBuiltinName_ builtinSizeInf
+  suc <- getBuiltinName_ builtinSizeSuc
   let loop v =
         reduce v >>= \case
           Def x []        | x == inf -> return $ DSizeInf
@@ -278,9 +279,9 @@ deepSizeView v = do
 
 sizeMaxView :: PureTCM m => Term -> m SizeMaxView
 sizeMaxView v = do
-  inf <- getBuiltinDefName builtinSizeInf
-  suc <- getBuiltinDefName builtinSizeSuc
-  max <- getBuiltinDefName builtinSizeMax
+  inf <- getBuiltinName' builtinSizeInf
+  suc <- getBuiltinName' builtinSizeSuc
+  max <- getBuiltinName' builtinSizeMax
   let loop v = do
         v <- reduce v
         case v of

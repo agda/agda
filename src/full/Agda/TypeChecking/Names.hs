@@ -19,9 +19,6 @@ runNames [] $ do
 -}
 module Agda.TypeChecking.Names where
 
--- Control.Monad.Fail import is redundant since GHC 8.8.1
-import Control.Monad.Fail (MonadFail)
-
 import Control.Monad          ( liftM2, unless )
 import Control.Monad.Except   ( MonadError )
 import Control.Monad.Identity ( Identity, runIdentity )
@@ -48,7 +45,6 @@ newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
   deriving ( Functor
            , Applicative
            , Monad
-           , MonadFail
            , MonadTrans
            , MonadState s
            , MonadIO
