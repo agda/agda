@@ -1,7 +1,7 @@
 module UnknownImplicitInstance where
 
-⟨⟩ : {A : Set} {{a : A}} → A
-⟨⟩ {{a}} = a
+it : {A : Set} {{a : A}} → A
+it {{a}} = a
 
 postulate
   B : Set

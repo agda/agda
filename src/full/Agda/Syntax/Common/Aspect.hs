@@ -76,7 +76,9 @@ data OtherAspect
   | TypeChecks
     -- ^ Code which is being type-checked.
   | MissingDefinition
-    -- ^ Function declaration without matching definition
+    -- ^ Function declaration without matching definition.
+  | InstanceProblem
+      -- ^ Unusable instance etc.
 
   -- NB: We put CatchallClause and CosmeticProblem last
   -- so that they are overwritten by other,

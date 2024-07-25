@@ -437,6 +437,14 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for confluence problems."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-instance-problem-face
+  '((((background light))
+     (:background "wheat"))
+    (((background dark))
+     (:background "#805300")))
+  "The face used for instance problems."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-missing-definition-face
   '((((background light))
      (:background "orange"))
@@ -490,6 +498,7 @@ If `agda2-highlight-face-groups' is nil."
     (catchallclause         . agda2-highlight-catchall-clause-face)
     (confluenceproblem      . agda2-highlight-confluence-problem-face)
     (cosmeticproblem        . agda2-highlight-cosmetic-problem-face)
+    (instanceproblem        . agda2-highlight-instance-problem-face)
     (missingdefinition      . agda2-highlight-missing-definition-face)
     (typechecks             . agda2-highlight-typechecks-face))
   "Alist mapping code aspects to the face used when displaying them.
@@ -513,6 +522,7 @@ The aspects currently recognised are the following:
 `generalizable'          Generalizable variables.
 `incompletepattern'      Incomplete patterns.
 `inductiveconstructor'   Inductive constructors.
+`instanceproblem'        Unusable instance(argument)s.
 `keyword'                Keywords.
 `macro'                  Macros.
 `markup'                 Delimiters to separate the Agda code blocks

@@ -48,6 +48,9 @@ Interaction and emacs mode
 * Emacs: new face `agda2-highlight-cosmetic-problem-face`
   for highlighting the new aspect `CosmeticProblem`.
 
+* Emacs: new face `agda2-highlight-instance-problem-face`
+  for highlighting the new aspect `InstanceProblem`.
+
 
 Backends
 --------

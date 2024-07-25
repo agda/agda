@@ -444,10 +444,10 @@ warningHighlighting' b w = case tcWarning w of
   ClashesViaRenaming _ xs    -> foldMap deadcodeHighlighting xs
     -- #4154, TODO: clashing renamings are not dead code, but introduce problems.
     -- Should we have a different color?
-  WrongInstanceDeclaration{} -> mempty
-  InstanceWithExplicitArg{}  -> deadcodeHighlighting w
-  InstanceNoOutputTypeName{} -> mempty
-  InstanceArgWithExplicitArg{} -> mempty
+  WrongInstanceDeclaration{}   -> instanceProblemHighlighting w
+  InstanceWithExplicitArg{}    -> instanceProblemHighlighting w
+  InstanceNoOutputTypeName{}   -> instanceProblemHighlighting w
+  InstanceArgWithExplicitArg{} -> instanceProblemHighlighting w
   InversionDepthReached{}    -> mempty
   NoGuardednessFlag{}        -> mempty
   -- Andreas, 2020-03-21, issue #4456:
@@ -626,6 +626,12 @@ confluenceErrorHighlighting ::
   HasRange a => a -> HighlightingInfoBuilder
 confluenceErrorHighlighting a = H.singleton (rToR $ P.continuousPerLine $ getRange a) m
   where m = parserBased { otherAspects = Set.singleton ConfluenceProblem }
+
+instanceProblemHighlighting :: HasRange a => a -> HighlightingInfoBuilder
+instanceProblemHighlighting a = H.singleton (rToR $ P.continuousPerLine r) m
+  where
+    r = getRange a
+    m = parserBased { otherAspects = Set.singleton InstanceProblem }
 
 missingDefinitionHighlighting ::
   HasRange a => a -> HighlightingInfoBuilder
