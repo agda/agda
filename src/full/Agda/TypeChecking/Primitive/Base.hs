@@ -3,8 +3,6 @@
 module Agda.TypeChecking.Primitive.Base where
 
 import Control.Monad             ( mzero )
-import Control.Monad.Fail        ( MonadFail )
-  -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Trans.Maybe ( MaybeT(..), runMaybeT )
 
 import qualified Data.Map as Map
@@ -62,7 +60,7 @@ hPi, nPi :: (MonadAddContext m, MonadDebug m)
 hPi = gpi $ setHiding Hidden defaultArgInfo
 nPi = gpi defaultArgInfo
 
-hPi', nPi' :: (MonadFail m, MonadAddContext m, MonadDebug m)
+hPi', nPi' :: (MonadAddContext m, MonadDebug m)
            => String -> NamesT m Type -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
 hPi' s a b = hPi s a (bind' s (\ x -> b x))
 nPi' s a b = nPi s a (bind' s (\ x -> b x))
