@@ -463,7 +463,7 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
   where
     nextMeta :: (MonadState [Term] m) => m Term
     nextMeta = do
-      (m, ms) <- fromMaybe __IMPOSSIBLE__ . uncons <$> get
+      (m, ms) <- gets (fromMaybe __IMPOSSIBLE__ . uncons)
       put ms
       return m
 

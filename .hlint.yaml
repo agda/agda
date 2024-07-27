@@ -70,7 +70,6 @@
 - ignore: {name: "Use fold"} # 1 hint
 - ignore: {name: "Use foldMap"} # 2 hints
 - ignore: {name: "Use fromMaybe"} # 1 hint
-- ignore: {name: "Use gets"} # 1 hint
 - ignore: {name: "Use id"} # 2 hints
 - ignore: {name: "Use infix"} # 1 hint
 - ignore: {name: "Use intercalate"} # 1 hint
