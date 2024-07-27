@@ -411,13 +411,13 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         ]
 checkConstructor _ _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
-defineCompData :: QName      -- datatype name
-               -> ConHead
-               -> Telescope  -- Γ parameters
-               -> [QName]    -- projection names
-               -> Telescope  -- Γ ⊢ Φ field types
-               -> Type       -- Γ ⊢ T target type
-               -> Boundary   -- [(i,t_i,b_i)],  Γ.Φ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : B_i
+defineCompData :: QName      -- ^ datatype name
+               -> ConHead    -- ^ constructor
+               -> Telescope  -- ^ Γ parameters
+               -> [QName]    -- ^ projection names
+               -> Telescope  -- ^ Γ ⊢ Φ field types
+               -> Type       -- ^ Γ ⊢ T target type
+               -> Boundary   -- ^ [(i,t_i,b_i)],  Γ.Φ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : B_i
                -> TCM CompKit
 defineCompData d con params names fsT t boundary = do
   required <- mapM getTerm'
@@ -430,11 +430,11 @@ defineCompData d con params names fsT t boundary = do
     , someBuiltin builtinPOr
     , someBuiltin builtinItIsOne
     ]
-  if not (all isJust required) then return $ emptyCompKit else do
+  if not (all isJust required) then return emptyCompKit else do
     hcomp  <- whenDefined (null boundary) [builtinHComp,builtinTrans]
-      (defineKanOperationD DoHComp  d con params names fsT t boundary)
+      (defineKanOperationD DoHComp)
     transp <- whenDefined True            [builtinTrans]
-      (defineKanOperationD DoTransp d con params names fsT t boundary)
+      (defineKanOperationD DoTransp)
     return $ CompKit
       { nameOfTransp = transp
       , nameOfHComp  = hcomp
@@ -444,7 +444,10 @@ defineCompData d con params names fsT t boundary = do
     sub tel = [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ] ++# EmptyS __IMPOSSIBLE__
     withArgInfo tel = zipWith Arg (map domInfo . telToList $ tel)
 
-    defineKanOperationD cmd d con params names fsT t boundary = do
+    defineKanOperationD ::
+         Command            -- ^ 'DoTransp' or 'DoHComp'
+      -> TCM (Maybe QName)  -- ^ Name of the generated transport or hcomp operation, if any.
+    defineKanOperationD cmd = do
       let project = (\ t p -> apply (Def p []) [argN t])
       stuff <- defineKanOperationForFields cmd
                  (guard (not $ null boundary) >> Just (Con con ConOSystem $ teleElims fsT boundary))
@@ -452,10 +455,11 @@ defineCompData d con params names fsT t boundary = do
       caseMaybe stuff (return Nothing) $ \ ((theName, gamma , ty, _cl_types , bodies), theSub) -> do
 
       iz <- primIZero
+      let conBody = return $ Con con ConOSystem $ map Apply $ withArgInfo fsT bodies
       body <- do
         case cmd of
-          DoHComp -> return $ Con con ConOSystem (map Apply $ withArgInfo fsT bodies)
-          DoTransp | null boundary {- && null ixs -} -> return $ Con con ConOSystem (map Apply $ withArgInfo fsT bodies)
+          DoHComp -> conBody
+          DoTransp | null boundary {- && null ixs -} -> conBody
                    | otherwise -> do
             io <- primIOne
             tIMax <- primIMax
@@ -604,7 +608,7 @@ defineCompData d con params names fsT t boundary = do
           , clauseFullRange   = noRange
           , clauseLHSRange    = noRange
           , clauseCatchall    = False
-          , clauseBody        = Just $ body
+          , clauseBody        = Just body
           , clauseExact       = Just True
           , clauseRecursive   = Nothing
               -- Andreas 2020-02-06 TODO
