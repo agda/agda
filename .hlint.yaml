@@ -19,23 +19,24 @@
 # Warnings currently triggered by your code
 - ignore: {name: "Avoid lambda"} # 50 hints
 - ignore: {name: "Avoid lambda using `infix`"} # 13 hints
-- ignore: {name: "Empty single-line comment"} # 197 hints
 - ignore: {name: "Eta reduce"} # 181 hints
 - ignore: {name: "Evaluate"} # 15 hints
-- ignore: {name: "Functor law"} # 2 hints
+- ignore: {name: "Functor law"} # 24 hints
 - ignore: {name: "Fuse foldr/map"} # 8 hints
 - ignore: {name: "Fuse mapM/map"} # 2 hints
+- ignore: {name: "Fuse traverse/<$>"} # 2 hints
 - ignore: {name: "Hoist not"} # 18 hints
 - ignore: {name: "Move brackets to avoid $"} # 1 hint
 - ignore: {name: "Move guards forward"} # 2 hints
 - ignore: {name: "Redundant $"} # 622 hints
-- ignore: {name: "Redundant <$>"} # 45 hints
-- ignore: {name: "Redundant <&>"} # 1 hint
+- ignore: {name: "Redundant <$>"} # 47 hints
+- ignore: {name: "Redundant <&>"} # 4 hints
 - ignore: {name: "Redundant True guards"} # 1 hint
 - ignore: {name: "Redundant bang pattern"} # 1 hint
-- ignore: {name: "Redundant bracket"} # 495 hints
+- ignore: {name: "Redundant bracket"} # 494 hints
 - ignore: {name: "Redundant case"} # 1 hint
 - ignore: {name: "Redundant flip"} # 4 hints
+- ignore: {name: "Redundant fmap"} # 1 hint
 - ignore: {name: "Redundant guard"} # 5 hints
 - ignore: {name: "Redundant id"} # 1 hint
 - ignore: {name: "Redundant if"} # 2 hints
@@ -59,6 +60,7 @@
 - ignore: {name: "Use >"} # 1 hint
 - ignore: {name: "Use Just"} # 2 hints
 - ignore: {name: "Use LANGUAGE pragmas"} # 7 hints
+- ignore: {name: "Use all"} # 1 hint
 - ignore: {name: "Use camelCase"} # 72 hints
 - ignore: {name: "Use concatMap"} # 2 hints
 - ignore: {name: "Use const"} # 79 hints
@@ -66,6 +68,7 @@
 - ignore: {name: "Use first"} # 1 hint
 - ignore: {name: "Use fmap"} # 6 hints
 - ignore: {name: "Use fold"} # 1 hint
+- ignore: {name: "Use foldMap"} # 2 hints
 - ignore: {name: "Use fromMaybe"} # 1 hint
 - ignore: {name: "Use gets"} # 1 hint
 - ignore: {name: "Use id"} # 2 hints
@@ -90,10 +93,11 @@
 - ignore: {name: "Use section"} # 21 hints
 - ignore: {name: "Use sequenceA"} # 3 hints
 - ignore: {name: "Use uncurry"} # 1 hint
-- ignore: {name: "Use unless"} # 3 hints
+- ignore: {name: "Use unless"} # 4 hints
 - ignore: {name: "Use void"} # 13 hints
 - ignore: {name: "Use zipWith"} # 2 hints
 - ignore: {name: "Use ||"} # 8 hints
+
 # Specify additional command line arguments
 - arguments:
     - --ignore-glob=notes/papers/iird/paper.lhs
