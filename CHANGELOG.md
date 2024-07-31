@@ -50,18 +50,8 @@ Pragmas and options
 
   To revert to the old behavior, use options `--no-...`.
 
-* The following options are now considered infective:
-  ([Issue #5264](https://github.com/agda/agda/issues/5264))
-
-  * `--allow-exec`
-  * `--cumulativity`
-  * `--experimental-irrelevance`
-  * `--injective-type-constructors`
-  * `--omega-in-omega`
-  * `--rewriting`
-  * `--type-in-type`
-
-  This means that if a module has one of these flags enabled,
+* Option `--rewriting` is now considered infective.
+  This means that if a module has this flag enabled,
   then all modules importing it must also have that flag enabled.
 
 * New warnings:
@@ -288,7 +278,6 @@ For 2.7.0, the following issues were
 - [Issue #2853](https://github.com/agda/agda/issues/2853): Auto does not work well with record types
 - [Issue #4594](https://github.com/agda/agda/issues/4594): Improve the blocking primitive
 - [Issue #4777](https://github.com/agda/agda/issues/4777): Interaction between tactics and instance search
-- [Issue #5264](https://github.com/agda/agda/issues/5264): Should more flags be infective (or have coinfective negations)?
 - [Issue #6101](https://github.com/agda/agda/issues/6101): Agsy gives up when no HIT is present
 - [Issue #6124](https://github.com/agda/agda/issues/6124): Reflection: cannot reduce type because variable is erased
 - [Issue #6181](https://github.com/agda/agda/issues/6181): Agda incorrectly reports type error when an identity function is not properly hidden from the termination checker
@@ -352,7 +341,6 @@ For 2.7.0, the following issues were
 
 These (relevant) pull requests were merged for 2.7.0:
 
-- [PR #5267](https://github.com/agda/agda/issues/5267): Make more flags infective
 - [PR #6410](https://github.com/agda/agda/issues/6410): Mimer: a drop-in replacement for Agsy
 - [PR #6569](https://github.com/agda/agda/issues/6569): Do final checks before freezing metas
 - [PR #6570](https://github.com/agda/agda/issues/6570): Coerce `unquote` applications
@@ -364,7 +352,6 @@ These (relevant) pull requests were merged for 2.7.0:
 - [PR #7055](https://github.com/agda/agda/issues/7055): Unspine system projections when they have display forms
 - [PR #7071](https://github.com/agda/agda/issues/7071): Eta-expand mismatched cubical primitives
 - [PR #7078](https://github.com/agda/agda/issues/7078): Left-hand side `let`
-- [PR #7103](https://github.com/agda/agda/issues/7103): [ re #5267 ] Add new infective options to user manual
 - [PR #7109](https://github.com/agda/agda/issues/7109): Discrimination trees for instance search
 - [PR #7115](https://github.com/agda/agda/issues/7115): Flake improvements
 - [PR #7119](https://github.com/agda/agda/issues/7119): Split GenericWarning into individual warnings
