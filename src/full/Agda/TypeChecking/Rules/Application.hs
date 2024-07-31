@@ -1161,7 +1161,7 @@ getTypeHead t = do
     case nb of
       ReallyNotBlocked -> do
         -- Drop initial hidden domains (only needed for generalizable variables).
-        TelV _ core <- telViewUpTo' (0-1) (not . visible) t
+        TelV _ core <- telViewUpTo' (negate 1) (not . visible) t
         case unEl core of
           Def q _ -> return $ Just q
           _ -> return Nothing
