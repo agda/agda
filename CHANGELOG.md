@@ -22,6 +22,16 @@ Installation
   so Agda can be more reliably used as a library.
   Major releases will now bump the second number in the version tuple: 2.7.0, 2.8.0, 2.9.0, ...
 
+* When the creation of the Agda library interface files fails during installation,
+  a warning is emitted rather than aborting installation.
+  The absence of these interface files is not a problem if the Agda installation
+  resides in user space; they will be created on the fly then.
+  Yet for system-wide installations in root space or packaging,
+  the interface files should be created.
+  This can be achieved by a manual invocation of Agda on the library source files
+  (i.e., primitive and builtin modules `Agda.*`).
+  (See [Issue #7401](https://github.com/agda/agda/issues/7401) and [PR #7404](https://github.com/agda/agda/pull/7404).)
+
 * Agda supports GHC versions 8.6.5 to 9.10.1.
 
 Pragmas and options
