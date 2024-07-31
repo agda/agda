@@ -40,7 +40,17 @@ jobs:
 
     timeout-minutes: 60
 
+    name: cabal install ${{ matrix.name }}
     runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - name:  ""
+          install_flags: ""
+        - name:  "--lib"
+          install_flags: "--lib"
 
     env:
       FLAGS: "-O0 -f enable-cluster-counting"
@@ -51,7 +61,7 @@ jobs:
     - uses: haskell-actions/setup@v2
       id: setup-haskell
       with:
-        ghc-version:   '9.8'
+        ghc-version:   '9.10'
         cabal-version: latest
         cabal-update:  true
 
@@ -81,7 +91,7 @@ jobs:
 
     - name: Install Agda
       run: |
-        cabal install ${FLAGS}
+        cabal install ${FLAGS} ${{ matrix.install_flags }}
 
     - name: Save cache
       uses: actions/cache/save@v4

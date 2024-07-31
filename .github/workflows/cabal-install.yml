@@ -23,6 +23,7 @@ jobs:
   cabal-install:
     env:
       FLAGS: -O0 -f enable-cluster-counting
+    name: cabal install ${{ matrix.name }}
     needs: auto-cancel
     runs-on: ubuntu-24.04
     steps:
@@ -32,7 +33,7 @@ jobs:
       with:
         cabal-update: true
         cabal-version: latest
-        ghc-version: '9.8'
+        ghc-version: '9.10'
     - name: Configure the build plan
       run: |
         cabal configure ${FLAGS}
@@ -52,13 +53,21 @@ jobs:
         cabal build --only-dependencies
     - name: Install Agda
       run: |
-        cabal install ${FLAGS}
+        cabal install ${FLAGS} ${{ matrix.install_flags }}
     - if: always() && steps.cache.outputs.cache-hit != 'true'
       name: Save cache
       uses: actions/cache/save@v4
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
         path: ${{ steps.setup-haskell.outputs.cabal-store }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - install_flags: ''
+          name: ''
+        - install_flags: --lib
+          name: --lib
     timeout-minutes: 60
 name: Install (v2-cabal)
 'on':
