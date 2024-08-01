@@ -4674,6 +4674,9 @@ data TypeError
         | NotImplemented String
         | NotSupported String
         | CompilationError String
+        | NoKnownRecordWithSuchFields [C.Name]
+            -- ^ The user has given a record expression with the given fields,
+            --   but no record type known to type inference has all these fields.
         | ShouldEndInApplicationOfTheDatatype Type
             -- ^ The target of a constructor isn't an application of its
             -- datatype. The 'Type' records what it does target.

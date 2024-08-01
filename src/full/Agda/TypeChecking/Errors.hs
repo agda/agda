@@ -206,6 +206,7 @@ errorString = \case
   NeedOptionTwoLevel{}                     -> "NeedOptionTwoLevel"
   NeedOptionUniversePolymorphism{}         -> "NeedOptionUniversePolymorphism"
   NegativeLiteralInPattern{}               -> "NegativeLiteralInPattern"
+  NoKnownRecordWithSuchFields{}            -> "NoKnownRecordWithSuchFields"
   GeneralizeNotSupportedHere{}             -> "GeneralizeNotSupportedHere"
   GeneralizeCyclicDependency{}             -> "GeneralizeCyclicDependency"
   GeneralizedVarInLetOpenedModule{}        -> "GeneralizedVarInLetOpenedModule"
@@ -416,6 +417,12 @@ instance PrettyTCM TypeError where
     GenericError s -> fwords s
 
     GenericDocError d -> return d
+
+    NoKnownRecordWithSuchFields fields -> fsep $
+      case fields of
+        []  -> pwords "There are no records in scope"
+        [f] -> pwords "There is no known record with the field" ++ [ pretty f ]
+        _   -> pwords "There is no known record with the fields" ++ map pretty fields
 
     ShouldEndInApplicationOfTheDatatype t -> fsep $
       pwords "The target of a constructor must be the datatype applied to its parameters,"
