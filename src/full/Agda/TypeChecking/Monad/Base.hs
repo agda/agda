@@ -4944,7 +4944,8 @@ data TypeError
     -- Language option errors
         | NeedOptionAllowExec
         | NeedOptionCopatterns
-        | NeedOptionCubical Cubical
+        | NeedOptionCubical Cubical String
+            -- ^ Flavor of cubical needed for the given reason.
         | NeedOptionPatternMatching
         | NeedOptionProp
         | NeedOptionRewriting
