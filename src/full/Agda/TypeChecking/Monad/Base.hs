@@ -4823,6 +4823,8 @@ data TypeError
         | ComatchingDisabledForRecord QName
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
     -- Cubical errors
+        | ExpectedIntervalLiteral A.Expr
+            -- ^ Expected an interval literal (0 or 1) but found 'A.Expr'.
         | PatternMatchingInSystem
             -- ^ Attempt to pattern or copattern match in a system.
     -- Data errors

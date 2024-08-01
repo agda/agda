@@ -321,6 +321,7 @@ errorString = \case
   MacroResultTypeMismatch{}                -> "MacroResultTypeMismatch"
   NamedWhereModuleInRefinedContext{}       -> "NamedWhereModuleInRefinedContext"
   CubicalPrimitiveNotFullyApplied{}        -> "CubicalPrimitiveNotFullyApplied"
+  ExpectedIntervalLiteral{}                -> "ExpectedIntervalLiteral"
   PatternMatchingInSystem{}                -> "PatternMatchingInSystem"
   IllTypedPatternAfterWithAbstraction{}    -> "IllTypedPatternAfterWithAbstraction"
   ComatchingDisabledForRecord{}            -> "ComatchingDisabledForRecord"
@@ -1546,6 +1547,16 @@ instance PrettyTCM TypeError where
 
     CubicalPrimitiveNotFullyApplied c ->
       prettyTCM c <+> "must be fully applied"
+
+    ExpectedIntervalLiteral e -> do
+      i0 <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero
+      i1 <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIOne
+      fsep $ concat
+        [ pwords "Expected an interval literal"
+        , [ parens $ fsep [ prettyTCM i0, "or", prettyTCM i1 ] ]
+        , pwords "but found:"
+        , [ prettyTCM e ]
+        ]
 
     PatternMatchingInSystem ->
       fwords $ "Pattern matching or path copatterns not allowed in systems"

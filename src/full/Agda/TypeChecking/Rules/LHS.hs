@@ -1173,17 +1173,16 @@ checkLHS mf = updateModality checkLHS_ where
       let cpSub = raiseS $ size newContext - lhsCxtSize
 
       (gamma,sigma) <- liftTCM $ updateContext cpSub (const newContext) $ do
-         ts <- forM ts $ \ (t,u) -> do
+         ts <- forM ts $ \ (lhs, rhs) -> do
                  reportSDoc "tc.lhs.split.partial" 10 $ "currentCxt =" <+> (prettyTCM =<< getContext)
-                 reportSDoc "tc.lhs.split.partial" 10 $ text "t, u (Expr) =" <+> prettyTCM (t,u)
-                 t <- checkExpr t tInterval
-                 u <- checkExpr u tInterval
+                 reportSDoc "tc.lhs.split.partial" 10 $ text "t, u (Expr) =" <+> prettyTCM (lhs, rhs)
+                 t <- checkExpr lhs tInterval
+                 u <- checkExpr rhs tInterval
                  reportSDoc "tc.lhs.split.partial" 10 $ text "t, u        =" <+> pretty (t, u)
-                 u <- intervalView =<< reduce u
-                 case u of
+                 reduce u >>= intervalView >>= \case
                    IZero -> primINeg <@> pure t
                    IOne  -> return t
-                   _     -> typeError $ GenericError $ "Only 0 or 1 allowed on the rhs of face"
+                   _     -> typeError $ ExpectedIntervalLiteral rhs
          -- Example: ts = (i=0) (j=1) will result in phi = ¬ i & j
          phi <- case ts of
                    [] -> do
