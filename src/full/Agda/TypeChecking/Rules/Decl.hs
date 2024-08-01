@@ -464,17 +464,6 @@ checkPositivity_ mi names = Bench.billTo [Bench.Positivity] $ do
   -- positivity check, so it needs happen after the positivity check.
   computePolarity $ Set.toList names
 
--- | Check that all coinductive records are actually recursive.
---   (Otherwise, one can implement invalid recursion schemes just like
---   for the old coinduction.)
-checkCoinductiveRecords :: [A.Declaration] -> TCM ()
-checkCoinductiveRecords ds = forM_ ds $ \case
-  A.RecDef _ q _ dir _ _ _
-    | Just (Ranged r CoInductive) <- recInductive dir -> setCurrentRange r $ do
-    unlessM (isRecursiveRecord q) $ typeError $ GenericError $
-      "Only recursive records can be coinductive"
-  _ -> return ()
-
 -- | Check a set of mutual names for constructor-headedness.
 checkInjectivity_ :: Set QName -> TCM ()
 checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
