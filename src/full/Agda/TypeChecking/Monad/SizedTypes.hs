@@ -20,6 +20,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.CallStack
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -29,6 +30,44 @@ import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
+
+------------------------------------------------------------------------
+-- * Builtins
+------------------------------------------------------------------------
+
+-- | Ensure that option @--sized-types@ is on, for the given reason.
+--
+requireOptionSizedTypes :: (HasCallStack, HasOptions m, MonadTCError m) => String -> m ()
+requireOptionSizedTypes reason = unlessM sizedTypesOption $
+  typeError $ NeedOptionSizedTypes reason
+
+getBuiltinSize :: (HasBuiltins m) => m (Maybe QName, Maybe QName)
+getBuiltinSize = do
+  size   <- getBuiltinName' builtinSize
+  sizelt <- getBuiltinName' builtinSizeLt
+  return (size, sizelt)
+
+-- | Test whether the SIZELT builtin is defined.
+haveSizeLt :: TCM Bool
+haveSizeLt = isJust <$> getBuiltinName' builtinSizeLt
+
+-- | Add polarity info to a SIZE builtin.
+builtinSizeHook :: BuiltinId -> QName -> Type -> TCM ()
+builtinSizeHook s q t = do
+  when (s `elem` [builtinSizeLt, builtinSizeSuc]) $ do
+    modifySignature $ updateDefinition q
+      $ updateDefPolarity       (const [Covariant])
+      . updateDefArgOccurrences (const [StrictPos])
+  when (s == builtinSizeMax) $ do
+    modifySignature $ updateDefinition q
+      $ updateDefPolarity       (const [Covariant, Covariant])
+      . updateDefArgOccurrences (const [StrictPos, StrictPos])
+{-
+      . updateDefType           (const tmax)
+  where
+    -- TODO: max : (i j : Size) -> Size< (suc (max i j))
+    tmax =
+-}
 
 ------------------------------------------------------------------------
 -- * Testing for type 'Size'
@@ -71,12 +110,6 @@ isSizeTypeTest =
         testType _                                    = Nothing
     return testType
 
-getBuiltinSize :: (HasBuiltins m) => m (Maybe QName, Maybe QName)
-getBuiltinSize = do
-  size   <- getBuiltinName' builtinSize
-  sizelt <- getBuiltinName' builtinSizeLt
-  return (size, sizelt)
-
 isSizeNameTest :: (HasOptions m, HasBuiltins m) => m (QName -> Bool)
 isSizeNameTest = ifM sizedTypesOption
   isSizeNameTestRaw
@@ -86,28 +119,6 @@ isSizeNameTestRaw :: (HasOptions m, HasBuiltins m) => m (QName -> Bool)
 isSizeNameTestRaw = do
   (size, sizelt) <- getBuiltinSize
   return $ (`elem` [size, sizelt]) . Just
-
--- | Test whether the SIZELT builtin is defined.
-haveSizeLt :: TCM Bool
-haveSizeLt = isJust <$> getBuiltinName' builtinSizeLt
-
--- | Add polarity info to a SIZE builtin.
-builtinSizeHook :: BuiltinId -> QName -> Type -> TCM ()
-builtinSizeHook s q t = do
-  when (s `elem` [builtinSizeLt, builtinSizeSuc]) $ do
-    modifySignature $ updateDefinition q
-      $ updateDefPolarity       (const [Covariant])
-      . updateDefArgOccurrences (const [StrictPos])
-  when (s == builtinSizeMax) $ do
-    modifySignature $ updateDefinition q
-      $ updateDefPolarity       (const [Covariant, Covariant])
-      . updateDefArgOccurrences (const [StrictPos, StrictPos])
-{-
-      . updateDefType           (const tmax)
-  where
-    -- TODO: max : (i j : Size) -> Size< (suc (max i j))
-    tmax =
--}
 
 ------------------------------------------------------------------------
 -- * Constructors

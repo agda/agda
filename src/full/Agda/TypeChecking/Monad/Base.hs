@@ -4948,6 +4948,8 @@ data TypeError
         | NeedOptionPatternMatching
         | NeedOptionProp
         | NeedOptionRewriting
+        | NeedOptionSizedTypes String
+            -- ^ Need @--sized-types@ for the given reason.
         | NeedOptionTwoLevel
         | NeedOptionUniversePolymorphism
     -- Failure associated to warnings
