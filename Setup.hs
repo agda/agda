@@ -163,7 +163,6 @@ generateInterfaces pd lbi = do
           ]
   env <- getEnvironment
   handle onIOError $ do
-    throw $ userError "FOO BAR"
     True <$ readCreateProcess
       (proc agda agdaArgs)
         { delegate_ctlc = True
