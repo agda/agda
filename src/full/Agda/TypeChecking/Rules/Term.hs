@@ -1009,10 +1009,7 @@ checkRecordExpression cmp mfs e t = do
       reportSDoc "tc.term.rec" 30 $ "Possible records for" <+> prettyTCM t <+> "are" <?> pretty rs
       case rs of
           -- If there are no records with the right fields we might as well fail right away.
-        [] -> case fields of
-          []  -> genericError "There are no records in scope"
-          [f] -> genericError $ "There is no known record with the field " ++ prettyShow f
-          _   -> genericError $ "There is no known record with the fields " ++ unwords (map prettyShow fields)
+        [] -> typeError $ NoKnownRecordWithSuchFields fields
           -- If there's only one record with the appropriate fields, go with that.
         [r] -> do
           -- #5198: Don't generate metas for parameters of the current module. In most cases they
@@ -1037,8 +1034,6 @@ checkRecordExpression cmp mfs e t = do
           let inferred = El s $ Def r $ map Apply (ps ++ vs)
           v <- checkExpr e inferred
           coerce cmp v inferred t
-          -- Andreas 2012-04-21: OLD CODE, WRONG DIRECTION, I GUESS:
-          -- blockTerm t $ v <$ leqType_ t inferred
 
           -- If there are more than one possible record we postpone
         _:_:_ -> do
