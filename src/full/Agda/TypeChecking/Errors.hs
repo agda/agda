@@ -1391,7 +1391,10 @@ instance PrettyTCM TypeError where
     NeedOptionCopatterns -> fsep $
       pwords "Option --copatterns needed to enable destructor patterns"
 
-    NeedOptionCubical cubical -> fsep $ concat [ [ "Option" ], opt, [ "required" ] ]
+    NeedOptionCubical cubical reason -> fsep $ concat
+        [ [ "Option" ], opt, [ "required" ]
+        , pwords reason
+        ]
       where
       opt = case cubical of
         CFull   -> [ "--cubical" ]

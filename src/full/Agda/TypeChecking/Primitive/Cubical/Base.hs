@@ -61,13 +61,20 @@ import Agda.Syntax.Internal
 requireCubical
   :: Cubical -- ^ Which variant of Cubical Agda is required?
   -> TCM ()
-requireCubical wanted = do
+requireCubical wanted = requireCubical' wanted ""
+
+-- | Generalization of 'requireCubical' supplying a reason.
+requireCubical'
+  :: Cubical -- ^ Which variant of Cubical Agda is required?
+  -> String  -- ^ Why, exactly, do we need Cubical to be enabled?
+  -> TCM ()
+requireCubical' wanted reason = do
   cubical         <- cubicalOption
   inErasedContext <- hasQuantity0 <$> viewTC eQuantity
   case cubical of
     Just CFull -> return ()
     Just CErased | wanted == CErased || inErasedContext -> return ()
-    _ -> typeError $ NeedOptionCubical wanted
+    _ -> typeError $ NeedOptionCubical wanted reason
 
 -- | Our good friend the interval type.
 primIntervalType :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Type
