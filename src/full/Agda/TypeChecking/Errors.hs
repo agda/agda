@@ -321,6 +321,7 @@ errorString = \case
   MacroResultTypeMismatch{}                -> "MacroResultTypeMismatch"
   NamedWhereModuleInRefinedContext{}       -> "NamedWhereModuleInRefinedContext"
   CubicalPrimitiveNotFullyApplied{}        -> "CubicalPrimitiveNotFullyApplied"
+  PatternMatchingInSystem{}                -> "PatternMatchingInSystem"
   IllTypedPatternAfterWithAbstraction{}    -> "IllTypedPatternAfterWithAbstraction"
   ComatchingDisabledForRecord{}            -> "ComatchingDisabledForRecord"
   IncorrectTypeForRewriteRelation{}        -> "IncorrectTypeForRewriteRelation"
@@ -1545,6 +1546,9 @@ instance PrettyTCM TypeError where
 
     CubicalPrimitiveNotFullyApplied c ->
       prettyTCM c <+> "must be fully applied"
+
+    PatternMatchingInSystem ->
+      fwords $ "Pattern matching or path copatterns not allowed in systems"
 
     IllTypedPatternAfterWithAbstraction p -> vcat
       [ "Ill-typed pattern after with abstraction: " <+> prettyA p

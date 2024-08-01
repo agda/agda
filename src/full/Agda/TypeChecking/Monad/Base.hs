@@ -4822,6 +4822,9 @@ data TypeError
         | CubicalPrimitiveNotFullyApplied QName
         | ComatchingDisabledForRecord QName
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
+    -- Cubical errors
+        | PatternMatchingInSystem
+            -- ^ Attempt to pattern or copattern match in a system.
     -- Data errors
         | UnexpectedParameter A.LamBinding
         | NoParameterOfName ArgName

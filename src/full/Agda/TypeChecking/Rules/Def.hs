@@ -295,9 +295,9 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
 
         (cs, CPC isOneIxs) <- return $ (second mconcat . unzip) cs
 
+        -- If there is a partial match ("system"), no proper (co)pattern matching is allowed.
         let isSystem = not . null $ isOneIxs
-
-        canBeSystem <- do
+        when isSystem do
           -- allow VarP and ConP i0/i1 fallThrough = yes, DotP
           let pss = map namedClausePats cs
               allowed = \case
@@ -306,10 +306,8 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
                 ConP _ cpi [] | conPFallThrough cpi -> True
                 DotP{} -> True
                 _      -> False
-          return $! all (allowed . namedArg) (concat pss)
-        when isSystem $ unless canBeSystem $
-          typeError $ GenericError "no pattern matching or path copatterns in systems!"
-
+          unless (all (all $ allowed . namedArg) pss) $
+            typeError PatternMatchingInSystem
 
         reportSDoc "tc.def.fun" 70 $ inTopContext $ do
           sep $ "checked clauses:" : map (nest 2 . text . show) cs
