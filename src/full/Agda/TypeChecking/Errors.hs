@@ -202,6 +202,7 @@ errorString = \case
   NeedOptionPatternMatching{}              -> "NeedOptionPatternMatching"
   NeedOptionProp{}                         -> "NeedOptionProp"
   NeedOptionRewriting{}                    -> "NeedOptionRewriting"
+  NeedOptionSizedTypes{}                   -> "NeedOptionSizedTypes"
   NeedOptionTwoLevel{}                     -> "NeedOptionTwoLevel"
   NeedOptionUniversePolymorphism{}         -> "NeedOptionUniversePolymorphism"
   NegativeLiteralInPattern{}               -> "NegativeLiteralInPattern"
@@ -1404,6 +1405,9 @@ instance PrettyTCM TypeError where
 
     NeedOptionRewriting  -> fsep $
       pwords "Option --rewriting needed to add and use rewrite rules"
+
+    NeedOptionSizedTypes reason -> fsep $
+      pwords "Option --sized-types needed" ++ pwords reason
 
     NeedOptionTwoLevel   -> fsep $
       pwords "Universe SSet is disabled (use option --two-level to enable SSet)"

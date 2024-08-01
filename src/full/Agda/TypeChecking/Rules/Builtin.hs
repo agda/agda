@@ -967,8 +967,8 @@ bindUntypedBuiltin b = \case
 -- We simply ignore the parameters.
 bindBuiltinNoDef :: BuiltinId -> A.QName -> TCM ()
 bindBuiltinNoDef b q = inTopContext $ do
-  when (b `elem` sizeBuiltins) $ unlessM sizedTypesOption $
-    genericError $ "Cannot declare size BUILTIN " ++ getBuiltinId b ++ " with option --no-sized-types"
+  when (b `elem` sizeBuiltins) $
+    requireOptionSizedTypes $ "to declare size BUILTIN " ++ getBuiltinId b
   case builtinDesc <$> findBuiltinInfo b of
 
     Just (BuiltinPostulate rel mt) -> do
