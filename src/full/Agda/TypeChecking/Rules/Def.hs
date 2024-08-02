@@ -307,7 +307,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
                 DotP{} -> True
                 _      -> False
           unless (all (all $ allowed . namedArg) pss) $
-            typeError PatternMatchingInSystem
+            typeError PatternInSystem
 
         reportSDoc "tc.def.fun" 70 $ inTopContext $ do
           sep $ "checked clauses:" : map (nest 2 . text . show) cs

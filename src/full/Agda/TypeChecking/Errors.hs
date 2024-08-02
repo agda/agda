@@ -323,7 +323,7 @@ errorString = \case
   CubicalPrimitiveNotFullyApplied{}        -> "CubicalPrimitiveNotFullyApplied"
   ExpectedIntervalLiteral{}                -> "ExpectedIntervalLiteral"
   PatternInPathLambda{}                    -> "PatternInPathLambda"
-  PatternMatchingInSystem{}                -> "PatternMatchingInSystem"
+  PatternInSystem{}                        -> "PatternInSystem"
   IllTypedPatternAfterWithAbstraction{}    -> "IllTypedPatternAfterWithAbstraction"
   ComatchingDisabledForRecord{}            -> "ComatchingDisabledForRecord"
   IncorrectTypeForRewriteRelation{}        -> "IncorrectTypeForRewriteRelation"
@@ -1562,7 +1562,7 @@ instance PrettyTCM TypeError where
     PatternInPathLambda ->
       fwords $ "Patterns are not allowed in Path-lambdas"
 
-    PatternMatchingInSystem ->
+    PatternInSystem ->
       fwords $ "Pattern matching or path copatterns not allowed in systems"
 
     IllTypedPatternAfterWithAbstraction p -> vcat

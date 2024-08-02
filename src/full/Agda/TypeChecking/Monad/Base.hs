@@ -4827,7 +4827,7 @@ data TypeError
             -- ^ Expected an interval literal (0 or 1) but found 'A.Expr'.
         | PatternInPathLambda
             -- ^ Attempt to pattern match in an abstraction of interval type.
-        | PatternMatchingInSystem
+        | PatternInSystem
             -- ^ Attempt to pattern or copattern match in a system.
     -- Data errors
         | UnexpectedParameter A.LamBinding

@@ -1,5 +1,5 @@
 -- Andreas, 2024-08-01
--- Trigger error PatternMatchingInSystem
+-- Trigger error PatternInSystem
 
 {-# OPTIONS --cubical #-}
 
