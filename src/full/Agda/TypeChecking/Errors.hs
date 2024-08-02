@@ -322,6 +322,7 @@ errorString = \case
   NamedWhereModuleInRefinedContext{}       -> "NamedWhereModuleInRefinedContext"
   CubicalPrimitiveNotFullyApplied{}        -> "CubicalPrimitiveNotFullyApplied"
   ExpectedIntervalLiteral{}                -> "ExpectedIntervalLiteral"
+  PatternInPathLambda{}                    -> "PatternInPathLambda"
   PatternMatchingInSystem{}                -> "PatternMatchingInSystem"
   IllTypedPatternAfterWithAbstraction{}    -> "IllTypedPatternAfterWithAbstraction"
   ComatchingDisabledForRecord{}            -> "ComatchingDisabledForRecord"
@@ -1557,6 +1558,9 @@ instance PrettyTCM TypeError where
         , pwords "but found:"
         , [ prettyTCM e ]
         ]
+
+    PatternInPathLambda ->
+      fwords $ "Patterns are not allowed in Path-lambdas"
 
     PatternMatchingInSystem ->
       fwords $ "Pattern matching or path copatterns not allowed in systems"

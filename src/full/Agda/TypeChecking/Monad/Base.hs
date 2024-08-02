@@ -4825,6 +4825,8 @@ data TypeError
     -- Cubical errors
         | ExpectedIntervalLiteral A.Expr
             -- ^ Expected an interval literal (0 or 1) but found 'A.Expr'.
+        | PatternInPathLambda
+            -- ^ Attempt to pattern match in an abstraction of interval type.
         | PatternMatchingInSystem
             -- ^ Attempt to pattern or copattern match in a system.
     -- Data errors
