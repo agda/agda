@@ -461,6 +461,7 @@ initialiseCommandQueue next = do
 
 independent :: Interaction -> Bool
 independent (Cmd_load {})                   = True
+independent Cmd_load_no_metas{}             = True
 independent (Cmd_compile {})                = True
 independent (Cmd_load_highlighting_info {}) = True
 independent Cmd_tokenHighlighting {}        = True
@@ -475,7 +476,7 @@ updateInteractionPointsAfter Cmd_load{}                          = True
 updateInteractionPointsAfter Cmd_compile{}                       = True
 updateInteractionPointsAfter Cmd_constraints{}                   = False
 updateInteractionPointsAfter Cmd_metas{}                         = False
-updateInteractionPointsAfter Cmd_no_metas{}                      = False
+updateInteractionPointsAfter Cmd_load_no_metas{}                 = False
 updateInteractionPointsAfter Cmd_show_module_contents_toplevel{} = False
 updateInteractionPointsAfter Cmd_search_about_toplevel{}         = False
 updateInteractionPointsAfter Cmd_solveAll{}                      = True
@@ -545,10 +546,12 @@ interpret (Cmd_metas norm) = do
   ms <- lift $ B.getGoals' norm (max Simplified norm)
   display_info . Info_AllGoalsWarnings ms =<< lift B.getWarningsAndNonFatalErrors
 
-interpret Cmd_no_metas = do
-  metas <- getOpenMetas
-  unless (null metas) $
-    typeError $ GenericError "Unsolved meta-variables"
+interpret (Cmd_load_no_metas file) = do
+  -- Fail if there are open metas.
+  let allowMetas = False
+  cmd_load' file [] allowMetas TypeCheck $ \ result -> do
+    Imp.raiseNonFatalErrors result
+    unlessM (null <$> getOpenMetas) __IMPOSSIBLE__
 
 interpret (Cmd_show_module_contents_toplevel norm s) =
   atTopLevel $ showModuleContents norm noRange s

@@ -19,6 +19,7 @@ module Agda.Interaction.Imports
   , scopeCheckImport
   , parseSource
   , typeCheckMain
+  , raiseNonFatalErrors
 
   -- Currently only used by test/api/Issue1168.hs:
   , readInterface
@@ -548,6 +549,15 @@ getInterface x isMain msrc =
             return modl
 
       either recheck pure stored
+
+-- | If checking produced non-benign warnings, error out.
+--
+raiseNonFatalErrors :: (HasOptions m, MonadTCError m)
+  => CheckResult  -- ^ E.g. obtained from 'typeCheckMain'.
+  -> m ()
+raiseNonFatalErrors result = do
+  unlessNullM (applyFlagsToTCWarnings (crWarnings result)) $ \ ws ->
+    typeError $ NonFatalErrors ws
 
 -- | Check if the options used for checking an imported module are
 --   compatible with the current options. Raises Non-fatal errors if

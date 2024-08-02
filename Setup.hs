@@ -130,11 +130,9 @@ generateInterfaces pd lbi = do
         , "-Werror"
         , "-v0"
         ]
-  let loadBuiltinCmds = concat
-        [ [ cmd ("Cmd_load " ++ f ++ " []")
-          , cmd "Cmd_no_metas"
+  let loadBuiltinCmds =
+        [ cmd ("Cmd_load_no_metas " ++ f)
             -- Fail if any meta-variable is unsolved.
-          ]
         | b <- builtins
         , let f     = show (ddir </> b)
               cmd c = "IOTCM " ++ f ++ " None Indirect (" ++ c ++ ")"

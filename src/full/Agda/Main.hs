@@ -236,8 +236,7 @@ runAgdaWithOptions interactor progName opts = do
           result <- Imp.typeCheckMain mode =<< Imp.parseSource (SourceFile inputFile)
 
           unless (crMode result == ModuleScopeChecked) $
-            unlessNullM (applyFlagsToTCWarnings (crWarnings result)) $ \ ws ->
-              typeError $ NonFatalErrors ws
+            Imp.raiseNonFatalErrors result
 
           let i = crInterface result
           reportSDoc "main" 50 $ pretty i

@@ -1,0 +1,6 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Error*" "Unsolved metas at the following locations: Cmd_load_no_metas.agda:3,1-2 Unsolved interaction metas at the following locations: Cmd_load_no_metas.agda:3,5-6" nil)
+(agda2-highlight-load-and-delete-action)
+(agda2-status-action "")
