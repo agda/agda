@@ -1,4 +1,4 @@
-Issue1499.agda:7,1-9
+Issue1499.agda:3,1-7,25: error: [Syntax.AmbiguousFunClauses]
 More than one matching type signature for left hand side ldom R a
 it could belong to any of:
 ldom (at Issue1499.agda:6,1-5)

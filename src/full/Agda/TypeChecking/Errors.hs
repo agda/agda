@@ -44,6 +44,7 @@ import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Definitions (notSoNiceDeclarations)
+import Agda.Syntax.Concrete.Definitions.Errors (declarationExceptionString)
 import Agda.Syntax.Concrete.Pretty (attributesForModality, prettyHiding, prettyRelevance)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
@@ -339,6 +340,7 @@ errorString = \case
   CustomBackendError{}                     -> "CustomBackendError"
   GHCBackendError err                      -> "GHCBackend." ++ ghcBackendErrorString err
   InteractionError err                     -> "Interaction." ++ interactionErrorString err
+  NicifierError err                        -> "Syntax." ++ declarationExceptionString err
 
 ghcBackendErrorString :: GHCBackendError -> String
 ghcBackendErrorString = \case
@@ -420,6 +422,8 @@ instance PrettyTCM TypeError where
     GenericError s -> fwords s
 
     GenericDocError d -> return d
+
+    NicifierError err -> pretty err
 
     NoKnownRecordWithSuchFields fields -> fsep $
       case fields of

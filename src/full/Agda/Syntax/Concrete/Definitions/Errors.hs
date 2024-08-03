@@ -58,7 +58,27 @@ data DeclarationException'
       -- ^ A declaration that breaks an implicit mutual block (named by
       -- the String argument) was present while the given lone type
       -- signatures were still without their definitions.
-    deriving Show
+    deriving (Show, Generic)
+
+-- | The name of the error.
+declarationExceptionString :: DeclarationException' -> String
+declarationExceptionString = \case
+  MultipleEllipses            {} -> "MultipleEllipses"
+  InvalidName                 {} -> "InvalidName"
+  DuplicateDefinition         {} -> "DuplicateDefinition"
+  DuplicateAnonDeclaration    {} -> "DuplicateAnonDeclaration"
+  MissingWithClauses          {} -> "MissingWithClauses"
+  WrongDefinition             {} -> "WrongDefinition"
+  DeclarationPanic            {} -> "DeclarationPanic"
+  WrongContentBlock           {} -> "WrongContentBlock"
+  AmbiguousFunClauses         {} -> "AmbiguousFunClauses"
+  AmbiguousConstructor        {} -> "AmbiguousConstructor"
+  InvalidMeasureMutual        {} -> "InvalidMeasureMutual"
+  UnquoteDefRequiresSignature {} -> "UnquoteDefRequiresSignature"
+  BadMacroDef                 {} -> "BadMacroDef"
+  UnfoldingOutsideOpaque      {} -> "UnfoldingOutsideOpaque"
+  OpaqueInMutual              {} -> "OpaqueInMutual"
+  DisallowedInterleavedMutual {} -> "DisallowedInterleavedMutual"
 
 ------------------------------------------------------------------------
 -- Warnings
@@ -523,5 +543,6 @@ instance Pretty DeclarationWarning' where
     where
       unsafePragma s = fsep $ ["Cannot", "use", s] ++ pwords "pragma with safe flag."
 
+instance NFData DeclarationException'
 instance NFData DeclarationWarning
 instance NFData DeclarationWarning'

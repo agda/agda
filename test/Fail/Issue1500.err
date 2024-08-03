@@ -1,2 +1,2 @@
-Issue1500.agda:5,8-14
+Issue1500.agda:3,1-7,20: error: [Syntax.DuplicateDefinition]
 Duplicate definition of CoList

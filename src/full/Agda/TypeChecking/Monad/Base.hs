@@ -73,6 +73,8 @@ import Agda.Syntax.Builtin (SomeBuiltin, BuiltinId, PrimitiveId)
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Definitions
   (NiceDeclaration, DeclarationWarning, declarationWarningName)
+import Agda.Syntax.Concrete.Definitions.Errors
+  (DeclarationException')
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars
@@ -4674,6 +4676,8 @@ data TypeError
         | NotImplemented String
         | NotSupported String
         | CompilationError String
+        | NicifierError DeclarationException'
+             -- ^ Error thrown in the nicifier phase 'Agda.Syntax.Concrete.Definitions'.
         | NoKnownRecordWithSuchFields [C.Name]
             -- ^ The user has given a record expression with the given fields,
             --   but no record type known to type inference has all these fields.
