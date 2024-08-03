@@ -1,4 +1,5 @@
-top_command (cmd_load currentFile [])
+-- toplevel commands will load if needed
+-- top_command (cmd_load currentFile [])
 
 -- Should be "Set → Set".
 top_command (cmd_infer_toplevel Normalised "F")

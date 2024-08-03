@@ -1270,7 +1270,9 @@ introTactic pmLambda ii = do
 --   Sets up current module, scope, and context.
 atTopLevel :: TCM a -> TCM a
 atTopLevel m = inConcreteMode $ do
-  let err = typeError $ GenericError "The file has not been loaded yet."
+  let err = __IMPOSSIBLE__
+    -- Andreas, 2024-08-03: cannot trigger this error:
+    -- let err = typeError $ GenericError "The file has not been loaded yet."
   caseMaybeM (useTC stCurrentModule) err $ \(current, topCurrent) -> do
     caseMaybeM (getVisitedModule topCurrent) __IMPOSSIBLE__ $ \ mi -> do
       let scope = iInsideScope $ miInterface mi
