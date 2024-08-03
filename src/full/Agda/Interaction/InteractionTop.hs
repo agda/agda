@@ -882,17 +882,11 @@ cmd_load'
                -- ^ Continuation after successful loading.
   -> CommandM a
 cmd_load' file argv unsolvedOK mode cmd = do
-    fp <- liftIO $ absolute file
-    ex <- liftIO $ doesFileExist $ filePath fp
-    unless ex $ typeError $ GenericError $
-      "The file " ++ file ++ " was not found."
 
     -- Forget the previous "current file" and interaction points.
     modify $ \ st -> st { theInteractionPoints = []
                         , theCurrentFile       = Nothing
                         }
-
-    t <- liftIO $ getModificationTime file
 
     -- Update the status. Because the "current file" is not set the
     -- status is not "Checked".
@@ -913,7 +907,15 @@ cmd_load' file argv unsolvedOK mode cmd = do
     -- Parse the file.
     --
     -- Note that options are set below.
+    fp  <- liftIO $ absolute file
     src <- lift $ Imp.parseSource (SourceFile fp)
+    -- Andreas, 2024-08-03, see test/interaction/FileNotFound:
+    -- Run 'getModificationTime' after 'parseSource',
+    -- otherwise the user gets a weird error for non-existing files.
+    -- (We assume that parsing is fast in comparison to type-checking,
+    -- so it should not matter much whether we get the time stamp
+    -- before or after parsing.)
+    t   <- liftIO $ getModificationTime file
 
     -- Store the warnings.
     warnings <- useTC stTCWarnings
