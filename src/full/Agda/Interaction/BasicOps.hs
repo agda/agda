@@ -1015,7 +1015,7 @@ metaHelperType norm ii rng s = case words s of
         ]
       return $ OfType' h a
   where
-    failure = typeError $ GenericError $ "Expected an argument of the form f e1 e2 .. en"
+    failure = interactionError ExpectedApplication
     ensureName f = do
       ce <- parseExpr rng f
       flip (caseMaybe $ isName ce) (\ _ -> return ()) $ do

@@ -4993,6 +4993,8 @@ data InteractionError
       -- ^ Failure of the 'makeCase' interactive tactic.
   | ExpectedIdentifier C.Expr
       -- ^ Expected the given expression to be an identifier.
+  | ExpectedApplication
+      -- ^ Expected an argument of the form @f e1 e2 .. en@.
   | NoActionForInteractionPoint InteractionId
       -- ^ Interaction point has not been reached during type checking.
   | NoSuchInteractionPoint InteractionId

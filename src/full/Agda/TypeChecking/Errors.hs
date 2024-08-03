@@ -351,6 +351,7 @@ interactionErrorString = \case
   CaseSplitError{}                         -> "CaseSplitError"
   CannotRefine{}                           -> "CannotRefine"
   ExpectedIdentifier{}                     -> "ExpectedIdentifier"
+  ExpectedApplication{}                    -> "ExpectedApplication"
   NoActionForInteractionPoint{}            -> "NoActionForInteractionPoint"
   NoSuchInteractionPoint{}                 -> "NoSuchInteractionPoint"
 
@@ -1780,6 +1781,8 @@ instance PrettyTCM InteractionError where
       [ pwords "Expected identifier, but found:"
       , pure $ pretty e
       ]
+
+    ExpectedApplication -> fwords "Expected an argument of the form f e1 e2 .. en"
 
     NoActionForInteractionPoint ii -> vcat
       [ fwords $ "No type nor action available for hole " ++ prettyShow ii ++ "."
