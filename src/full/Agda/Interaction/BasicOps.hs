@@ -100,8 +100,7 @@ parseExpr rng s = do
   (C.ExprWhere e wh, attrs) <-
     runPM $ parsePosString exprWhereParser pos s
   checkAttributes attrs
-  unless (null wh) $ typeError $ GenericError $
-    "where clauses are not supported in holes"
+  unless (null wh) $ interactionError UnexpectedWhere
   return e
   where pos = fromMaybe (startPos Nothing) $ rStart rng
 

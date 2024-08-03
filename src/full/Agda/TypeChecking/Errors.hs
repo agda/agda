@@ -354,6 +354,7 @@ interactionErrorString = \case
   ExpectedApplication{}                    -> "ExpectedApplication"
   NoActionForInteractionPoint{}            -> "NoActionForInteractionPoint"
   NoSuchInteractionPoint{}                 -> "NoSuchInteractionPoint"
+  UnexpectedWhere{}                        -> "UnexpectedWhere"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1791,6 +1792,8 @@ instance PrettyTCM InteractionError where
 
     NoSuchInteractionPoint ii ->
       fsep [ "Unknown", "interaction", "point", prettyTCM ii ]
+
+    UnexpectedWhere -> fwords "`where' clauses are not supported in holes"
 
 
 notCmp :: MonadPretty m => Comparison -> m Doc

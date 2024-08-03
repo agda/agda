@@ -4999,6 +4999,8 @@ data InteractionError
       -- ^ Interaction point has not been reached during type checking.
   | NoSuchInteractionPoint InteractionId
       -- ^ 'InteractionId' does not resolve to an 'InteractionPoint'.
+  | UnexpectedWhere
+      -- ^ @where@ not allowed in hole.
   deriving (Show, Generic)
 
 -- | Errors raised by the GHC backend.
