@@ -4991,6 +4991,8 @@ data InteractionError
       -- ^ Failure of the 'refine' interactive tactic.
   | CaseSplitError Doc
       -- ^ Failure of the 'makeCase' interactive tactic.
+  | ExpectedIdentifier C.Expr
+      -- ^ Expected the given expression to be an identifier.
   | NoActionForInteractionPoint InteractionId
       -- ^ Interaction point has not been reached during type checking.
   | NoSuchInteractionPoint InteractionId

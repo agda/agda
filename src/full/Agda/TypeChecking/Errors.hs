@@ -350,6 +350,7 @@ interactionErrorString :: InteractionError -> String
 interactionErrorString = \case
   CaseSplitError{}                         -> "CaseSplitError"
   CannotRefine{}                           -> "CannotRefine"
+  ExpectedIdentifier{}                     -> "ExpectedIdentifier"
   NoActionForInteractionPoint{}            -> "NoActionForInteractionPoint"
   NoSuchInteractionPoint{}                 -> "NoSuchInteractionPoint"
 
@@ -1774,6 +1775,11 @@ instance PrettyTCM InteractionError where
     CannotRefine s     -> fsep $ pwords "Cannot refine" ++ pwords s
 
     CaseSplitError doc -> return doc
+
+    ExpectedIdentifier e -> fsep $ concat
+      [ pwords "Expected identifier, but found:"
+      , pure $ pretty e
+      ]
 
     NoActionForInteractionPoint ii -> vcat
       [ fwords $ "No type nor action available for hole " ++ prettyShow ii ++ "."

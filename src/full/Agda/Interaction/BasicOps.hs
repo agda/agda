@@ -1321,8 +1321,7 @@ atTopLevel m = inConcreteMode $ do
 parseName :: Range -> String -> TCM C.QName
 parseName r s = do
   e <- parseExpr r s
-  let failure = typeError $ GenericError $ "Not an identifier: " ++ show e ++ "."
-  maybe failure return $ isQName e
+  maybe (interactionError $ ExpectedIdentifier e) return $ isQName e
 
 -- | Check whether an expression is a (qualified) identifier.
 isQName :: C.Expr -> Maybe C.QName
