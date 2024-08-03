@@ -131,7 +131,7 @@ freshTCM m = do
       case err of
         TypeError { tcErrState = s } ->
           setTCLens lensPersistentState $ s ^. lensPersistentState
-        IOException s _ _ ->
+        IOException (Just s) _ _ ->
           setTCLens lensPersistentState $ s ^. lensPersistentState
         _ -> return ()
       return $ Left err

@@ -5072,7 +5072,7 @@ data TCErr
         -- ^ The environment in which the error as raised plus the error.
     }
   | Exception Range Doc
-  | IOException TCState Range E.IOException
+  | IOException (Maybe TCState) Range E.IOException
     -- ^ The first argument is the state in which the error was
     -- raised.
   | PatternErr Blocker
@@ -5091,7 +5091,7 @@ instance Show TCErr where
 instance HasRange TCErr where
   getRange (TypeError _ _ cl)  = envRange $ clEnv cl
   getRange (Exception r _)     = r
-  getRange (IOException s r _) = r
+  getRange (IOException _ r _) = r
   getRange PatternErr{}        = noRange
 
 instance E.Exception TCErr
@@ -5601,7 +5601,7 @@ instance MonadIO m => MonadIO (TCMT m) where
     where
       wrap s r m = E.catch m $ \ err -> do
         s <- readIORef s
-        E.throwIO $ IOException s r err
+        E.throwIO $ IOException (Just s) r err
 
 instance ( MonadFix m
          ) => MonadFix (TCMT m) where

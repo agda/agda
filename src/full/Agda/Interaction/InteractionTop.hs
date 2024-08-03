@@ -238,16 +238,18 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     -- AsyncCancelled, which is used to abort Agda.
     handleNastyErrors :: CommandM () -> CommandM ()
     handleNastyErrors m = commandMToIO $ \ toIO -> do
-      let handle e =
-            Right <$> do
-              toIO $ handleErr (Just Direct) $
-                Exception noRange $ text $ showIOException e
 
-          asyncHandler e@AsyncCancelled = return (Left e)
+      let asyncHandler e@AsyncCancelled = return (Left e)
 
-          generalHandler (e :: E.SomeException) = handle e
+          ioHandler (e :: E.IOException) = Right <$> do
+            toIO $ handleErr (Just Direct) $ IOException Nothing noRange e
 
-      r <- ((Right <$> toIO m) `E.catch` asyncHandler)
+          generalHandler (e :: E.SomeException) = Right <$> do
+            toIO $ handleErr (Just Direct) $ Exception noRange $ text $ showIOException e
+
+      r <- (Right <$> toIO m)
+             `E.catch` asyncHandler
+             `E.catch` ioHandler
              `E.catch` generalHandler
       case r of
         Right x -> return x
