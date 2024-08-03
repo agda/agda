@@ -119,7 +119,7 @@ import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash
-import Agda.Utils.IO        ( showIOException )
+import Agda.Utils.IO        ( CatchIO, catchIO, showIOException )
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
@@ -5592,7 +5592,7 @@ instance Monad m => Monad (TCMT m) where
     (>>=)  = bindTCMT; {-# INLINE (>>=) #-}
     (>>)   = (*>); {-# INLINE (>>) #-}
 
-instance MonadIO m => Fail.MonadFail (TCMT m) where
+instance (CatchIO m, MonadIO m) => Fail.MonadFail (TCMT m) where
   fail = internalError
 
 instance MonadIO m => MonadIO (TCMT m) where
@@ -5636,12 +5636,11 @@ instance MonadBlock TCM where
            PatternErr u -> handle u
            _            -> throwError err
 
-
-instance MonadError TCErr TCM where
+instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
   throwError = liftIO . E.throwIO
-  catchError m h = TCM $ \ r e -> do  -- now we are in the IO monad
-    oldState <- readIORef r
-    unTCM m r e `E.catch` \err -> do
+  catchError m h = TCM $ \ r e -> do  -- now we are in the monad m
+    oldState <- liftIO $ readIORef r
+    unTCM m r e `catchIO` \err -> do
       -- Reset the state, but do not forget changes to the persistent
       -- component. Not for pattern violations.
       case err of
@@ -5746,9 +5745,9 @@ instance Null (TCM Doc) where
   empty = return empty
   null = __IMPOSSIBLE__
 
-internalError :: (HasCallStack, MonadTCM tcm) => String -> tcm a
+internalError :: (HasCallStack, MonadTCError m) => String -> m a
 internalError s = withCallerCallStack $ \ loc ->
-  liftTCM $ typeError' loc $ InternalError s
+  typeError' loc $ InternalError s
 
 -- | The constraints needed for 'typeError' and similar.
 type MonadTCError m = (MonadTCEnv m, ReadTCState m, MonadError TCErr m)

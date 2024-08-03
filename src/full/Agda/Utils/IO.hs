@@ -11,10 +11,10 @@ import Control.Monad.Writer
 import Agda.Utils.List (dropFrom)
 import Agda.Utils.String (rtrim)
 
--- | Catch 'IOException's.
+-- | Catch 'Exception's in an extension of the 'IO' monad.
 --
 class CatchIO m where
-  catchIO :: m a -> (IOException -> m a) -> m a
+  catchIO :: Exception e => m a -> (e -> m a) -> m a
 
 -- | Alias of 'catch' for the IO monad.
 --
