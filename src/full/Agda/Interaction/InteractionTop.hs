@@ -55,7 +55,7 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.TopLevelModuleName
 
 import Agda.Interaction.Base
-import Agda.Interaction.ExitCode
+import Agda.Interaction.ExitCode (pattern TCMError, exitAgdaWith)
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses as Lenses
@@ -927,7 +927,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     let (z, warns) = runOptM $ parseBackendOptions backends argv opts0
     mapM_ (lift . warning . OptionWarning) warns
     case z of
-      Left err -> lift $ typeError $ GenericError err
+      Left err -> lift $ typeError $ OptionError err
       Right (_, opts) -> do
         opts <- lift $ addTrustedExecutables opts
         let update = over (lensOptAllowUnsolved . lensKeepDefault) (unsolvedOK &&)

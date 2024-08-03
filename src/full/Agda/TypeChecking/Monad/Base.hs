@@ -4676,6 +4676,8 @@ data TypeError
         | NotImplemented String
         | NotSupported String
         | CompilationError String
+        | OptionError OptionError
+             -- ^ Error thrown by the option parser.
         | NicifierError DeclarationException'
              -- ^ Error thrown in the nicifier phase 'Agda.Syntax.Concrete.Definitions'.
         | NoKnownRecordWithSuchFields [C.Name]

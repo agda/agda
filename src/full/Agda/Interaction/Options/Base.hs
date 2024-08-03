@@ -8,6 +8,7 @@
 module Agda.Interaction.Options.Base
     ( CommandLineOptions(..)
     , PragmaOptions(..)
+    , OptionError
     , OptionWarning(..), optionWarningName
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity, VerboseKey, VerboseLevel

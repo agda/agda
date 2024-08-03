@@ -22,7 +22,7 @@ import qualified System.IO as IO
 import Paths_Agda            ( getDataDir )
 
 import Agda.Interaction.CommandLine
-import Agda.Interaction.ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
+import Agda.Interaction.ExitCode as ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Help (Help (..))
 import Agda.Interaction.EmacsTop (mimicGHCi)
@@ -305,7 +305,7 @@ optionError :: String -> IO ()
 optionError err = do
   prog <- getProgName
   putStrLn $ "Error: " ++ err ++ "\nRun '" ++ prog ++ " --help' for help on command line options."
-  exitAgdaWith OptionError
+  exitAgdaWith ExitCode.OptionError
 
 -- | Run a TCM action in IO; catch and pretty print errors.
 

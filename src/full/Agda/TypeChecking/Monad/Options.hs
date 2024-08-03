@@ -237,7 +237,7 @@ setOptionsFromPragma' checkConsistency ps = setCurrentRange (pragmaRange ps) $ d
     let (z, warns) = runOptM (parsePragmaOptions ps opts)
     mapM_ (warning . OptionWarning) warns
     case z of
-      Left err    -> typeError $ GenericError err
+      Left err    -> typeError $ OptionError err
       Right opts' -> do
 
         -- Check consistency of implied options
