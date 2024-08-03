@@ -49,7 +49,7 @@ import Agda.Syntax.Parser
 import Agda.TheTypeChecker
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Errors ( getAllWarnings, stringTCErr, Verbalize(..) )
+import Agda.TypeChecking.Errors ( getAllWarnings, Verbalize(..) )
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Mention
@@ -280,11 +280,10 @@ refine force ii mr e = do
     tryRefine nrOfMetas r scope = try nrOfMetas Nothing
       where
         try :: Int -> Maybe TCErr -> Expr -> TCM Expr
-        try 0 err e = throwError . stringTCErr $ case err of
+        try 0 err e = interactionError $ CannotRefine $ case err of
            Just (TypeError _ _ cl) | UnequalTerms _ I.Pi{} _ _ <- clValue cl ->
-             "Cannot refine functions with 10 or more arguments"
-           _ ->
-             "Cannot refine"
+             "functions with 10 or more arguments"
+           _ -> ""
         try n _ e = give force ii (Just r) e `catchError` \err -> try (n - 1) (Just err) =<< appMeta e
 
         -- Apply A.Expr to a new meta

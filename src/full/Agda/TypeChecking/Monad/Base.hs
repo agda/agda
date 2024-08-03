@@ -4985,8 +4985,10 @@ data TypeError
 
 -- | Errors raised in @--interaction@ mode.
 data InteractionError
-  = CaseSplitError Doc
-      -- ^ Failure of the 'makeCase' interactive tactics.
+  = CannotRefine String
+      -- ^ Failure of the 'refine' interactive tactic.
+  | CaseSplitError Doc
+      -- ^ Failure of the 'makeCase' interactive tactic.
   | NoActionForInteractionPoint InteractionId
       -- ^ Interaction point has not been reached during type checking.
   | NoSuchInteractionPoint InteractionId

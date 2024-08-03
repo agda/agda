@@ -28,7 +28,7 @@ countModID modName modID = runTCMTop $ do
   mInter <- decodeFile $ filePath interPath
 
   case mInter of
-    Nothing -> throwError $ stringTCErr "failed to load interface file"
+    Nothing -> internalError "failed to load interface file"
     Just inter -> do
       let defs = iSignature inter ^. sigDefinitions
       let names = concatMap A.qnameToList0 $ keys defs

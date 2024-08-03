@@ -4,6 +4,6 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : A " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-info-action "*Error*" "Cannot refine functions with 10 or more arguments" nil)
+(agda2-info-action "*Error*" "error: [Interaction.CannotRefine] Cannot refine functions with 10 or more arguments" nil)
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

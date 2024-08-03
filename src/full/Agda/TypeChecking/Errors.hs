@@ -17,7 +17,6 @@ module Agda.TypeChecking.Errors
   , getAllWarningsOfTCErr
   , dropTopLevelModule
   , topLevelModuleDropper
-  , stringTCErr
   , explainWhyInScope
   , Verbalize(verbalize)
   ) where
@@ -130,9 +129,6 @@ tcErrString err =
       Exception r s     -> [ prettyShow r, show s ]
       IOException _ r e -> [ prettyShow r, showIOException e ]
       PatternErr{}      -> [ "PatternErr" ]
-
-stringTCErr :: String -> TCErr
-stringTCErr = Exception noRange . P.text
 
 errorString :: TypeError -> String
 errorString = \case
@@ -351,6 +347,7 @@ ghcBackendErrorString = \case
 interactionErrorString :: InteractionError -> String
 interactionErrorString = \case
   CaseSplitError{}                         -> "CaseSplitError"
+  CannotRefine{}                           -> "CannotRefine"
   NoActionForInteractionPoint{}            -> "NoActionForInteractionPoint"
   NoSuchInteractionPoint{}                 -> "NoSuchInteractionPoint"
 
@@ -1770,6 +1767,8 @@ instance PrettyTCM GHCBackendError where
 
 instance PrettyTCM InteractionError where
   prettyTCM = \case
+    CannotRefine s     -> fsep $ pwords "Cannot refine" ++ pwords s
+
     CaseSplitError doc -> return doc
 
     NoActionForInteractionPoint ii -> vcat
