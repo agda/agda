@@ -82,7 +82,6 @@
 - ignore: {name: "Use map with tuple-section"} # 4 hints
 - ignore: {name: "Use mapAndUnzipM"} # 1 hint
 - ignore: {name: "Use mapMaybe"} # 3 hints
-- ignore: {name: "Use maximum"} # 1 hint
 - ignore: {name: "Use newtype instead of data"} # 31 hints
 - ignore: {name: "Use null"} # 5 hints
 - ignore: {name: "Use otherwise"} # 1 hint
