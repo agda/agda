@@ -4829,6 +4829,8 @@ data TypeError
         | ComatchingDisabledForRecord QName
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
     -- Cubical errors
+        | CannotGenerateHCompClause Type
+            -- ^ Cannot generate @hcomp@ clause because type is not fibrant.
         | CannotGenerateTransportClause QName (Closure (Abs Type))
             -- ^ Cannot generate transport clause because type is not fibrant.
         | ExpectedIntervalLiteral A.Expr

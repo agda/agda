@@ -317,6 +317,7 @@ errorString = \case
   CannotRewriteByNonEquation{}             -> "CannotRewriteByNonEquation"
   MacroResultTypeMismatch{}                -> "MacroResultTypeMismatch"
   NamedWhereModuleInRefinedContext{}       -> "NamedWhereModuleInRefinedContext"
+  CannotGenerateHCompClause{}              -> "CannotGenerateHCompClause"
   CannotGenerateTransportClause{}          -> "CannotGenerateTransportClause"
   CubicalPrimitiveNotFullyApplied{}        -> "CubicalPrimitiveNotFullyApplied"
   ExpectedIntervalLiteral{}                -> "ExpectedIntervalLiteral"
@@ -1554,6 +1555,11 @@ instance PrettyTCM TypeError where
                   (if not (null args) then "s have" else " has") ++
                   " been refined to"
         , nest 2 $ vcat (zipWith pr names args) ]
+
+    CannotGenerateHCompClause ty -> fsep $ concat
+        [ pwords "Cannot generate hcomp clause at type"
+        , [ prettyTCM ty ]
+        ]
 
     CannotGenerateTransportClause f clos ->
       enterClosure clos \ failed_t -> addContext ("i" :: String, __DUMMY_DOM__) $ vcat

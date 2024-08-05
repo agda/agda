@@ -1271,8 +1271,7 @@ instance Subst CType where
   applySubst rho (ClosedType s q) = ClosedType (applySubst rho s) q
   applySubst rho (LType t) = LType $ applySubst rho t
 
-hcomp
-  :: (HasBuiltins m, MonadError TCErr m, MonadReduce m, MonadPretty m)
+hcomp :: (HasBuiltins m, MonadError TCErr m, MonadReduce m, MonadPretty m)
   => NamesT m Type
   -> [(NamesT m Term, NamesT m Term)]
   -> NamesT m Term
@@ -1284,9 +1283,8 @@ hcomp ty sys u0 = do
   ty <- ty
   (l, ty) <- toLType ty >>= \case
     Just (LEl l ty) -> return (l, ty)
-    Nothing -> lift $ do -- TODO: support Setω properly
-      typeError . GenericDocError =<< sep
-        [ text "Cubical Agda: cannot generate hcomp clauses at type", prettyTCM ty ]
+    Nothing -> -- TODO: support Setω properly
+      typeError $ CannotGenerateHCompClause ty
   l <- open $ Level l
   ty <- open $ ty
   face <- (foldr max (pure iz) $ map fst $ sys)
