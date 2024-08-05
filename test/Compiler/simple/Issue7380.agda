@@ -19,5 +19,6 @@ f r = fst g
 
 postulate print : Nat → IO ⊤
 {-# COMPILE GHC print = print #-}
+{-# COMPILE JS  print = x => cb => { process.stdout.write(x.toString() + "\n"); cb(0); } #-}
 
 main = print (f (record { x = 3 }))
