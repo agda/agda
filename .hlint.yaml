@@ -28,7 +28,7 @@
 - ignore: {name: "Hoist not"} # 18 hints
 - ignore: {name: "Move brackets to avoid $"} # 1 hint
 - ignore: {name: "Move guards forward"} # 2 hints
-- ignore: {name: "Redundant $"} # 622 hints
+- ignore: {name: "Redundant $"} # 618 hints
 - ignore: {name: "Redundant <$>"} # 47 hints
 - ignore: {name: "Redundant <&>"} # 4 hints
 - ignore: {name: "Redundant True guards"} # 1 hint
@@ -49,7 +49,7 @@
 - ignore: {name: "Replace case with maybe"} # 4 hints
 - ignore: {name: "Unused LANGUAGE pragma"} # 210 hints
 - ignore: {name: "Use &&"} # 4 hints
-- ignore: {name: "Use ++"} # 13 hints
+- ignore: {name: "Use ++"} # 14 hints
 - ignore: {name: "Use /="} # 1 hint
 - ignore: {name: "Use :"} # 17 hints
 - ignore: {name: "Use <$"} # 4 hints
@@ -61,7 +61,6 @@
 - ignore: {name: "Use >=>"} # 1 hint
 - ignore: {name: "Use Just"} # 2 hints
 - ignore: {name: "Use LANGUAGE pragmas"} # 7 hints
-- ignore: {name: "Use all"} # 1 hint
 - ignore: {name: "Use camelCase"} # 72 hints
 - ignore: {name: "Use concatMap"} # 2 hints
 - ignore: {name: "Use const"} # 79 hints
@@ -75,7 +74,7 @@
 - ignore: {name: "Use infix"} # 1 hint
 - ignore: {name: "Use intercalate"} # 1 hint
 - ignore: {name: "Use isNothing"} # 2 hints
-- ignore: {name: "Use join"} # 2 hints
+- ignore: {name: "Use join"} # 3 hints
 - ignore: {name: "Use lambda-case"} # 11 hints
 - ignore: {name: "Use list literal"} # 12 hints
 - ignore: {name: "Use list literal pattern"} # 1 hint
