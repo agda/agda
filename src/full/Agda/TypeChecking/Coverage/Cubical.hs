@@ -108,12 +108,7 @@ covFillTele func tel face d j = do
   ed_f <- liftTCM $ runExceptT $ trFillTel tel face d j
   case ed_f of
     Right d_f -> pure $ map unArg d_f
-    Left failed_t -> enterClosure failed_t $ \failed_t -> addContext ("i" :: String, __DUMMY_DOM__) $ do
-      typeError . GenericDocError =<< vcat
-        [ "Could not generate a transport clause for" <+> prettyTCM func
-        , "because a term of type" <+> prettyTCM (unAbs failed_t)
-        , "lives in the sort" <+> prettyTCM (getSort (unAbs failed_t)) <+> "and thus can not be transported"
-        ]
+    Left failed_t -> typeError $ CannotGenerateTransportClause func failed_t
 
 createMissingTrXTrXClause :: QName -- ^ trX
                             -> QName -- ^ f defined

@@ -4829,6 +4829,8 @@ data TypeError
         | ComatchingDisabledForRecord QName
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
     -- Cubical errors
+        | CannotGenerateTransportClause QName (Closure (Abs Type))
+            -- ^ Cannot generate transport clause because type is not fibrant.
         | ExpectedIntervalLiteral A.Expr
             -- ^ Expected an interval literal (0 or 1) but found 'A.Expr'.
         | PatternInPathLambda

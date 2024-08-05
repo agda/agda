@@ -317,6 +317,7 @@ errorString = \case
   CannotRewriteByNonEquation{}             -> "CannotRewriteByNonEquation"
   MacroResultTypeMismatch{}                -> "MacroResultTypeMismatch"
   NamedWhereModuleInRefinedContext{}       -> "NamedWhereModuleInRefinedContext"
+  CannotGenerateTransportClause{}          -> "CannotGenerateTransportClause"
   CubicalPrimitiveNotFullyApplied{}        -> "CubicalPrimitiveNotFullyApplied"
   ExpectedIntervalLiteral{}                -> "ExpectedIntervalLiteral"
   PatternInPathLambda{}                    -> "PatternInPathLambda"
@@ -1553,6 +1554,14 @@ instance PrettyTCM TypeError where
                   (if not (null args) then "s have" else " has") ++
                   " been refined to"
         , nest 2 $ vcat (zipWith pr names args) ]
+
+    CannotGenerateTransportClause f clos ->
+      enterClosure clos \ failed_t -> addContext ("i" :: String, __DUMMY_DOM__) $ vcat
+        [ "Could not generate a transport clause for" <+> prettyTCM f
+        , "because a term of type" <+> prettyTCM (unAbs failed_t)
+        , "lives in the sort" <+> prettyTCM (getSort (unAbs failed_t))
+        , "and thus can not be transported"
+        ]
 
     CubicalPrimitiveNotFullyApplied c ->
       prettyTCM c <+> "must be fully applied"
