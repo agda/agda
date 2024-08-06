@@ -338,6 +338,7 @@ For 2.7.0, the following issues were
 - [Issue #7332](https://github.com/agda/agda/issues/7332): quoteTerm loops on dependent copattern lambda
 - [Issue #7337](https://github.com/agda/agda/issues/7337): Caching loses reflection-generated pragmas
 - [Issue #7346](https://github.com/agda/agda/issues/7346): Proof of ⊥ using HIT-indexed type
+- [Issue #7380](https://github.com/agda/agda/issues/7380): MAlonzo bug: `unreachable code reached`
 - [Issue #7382](https://github.com/agda/agda/issues/7382): Agda 2.7.0-rc1 crashes when run twice, probably serialization issue
 - [Issue #7401](https://github.com/agda/agda/issues/7401): Cabal 3.12.1.0 install failure for lib:Agda - dist/build/agda/agda does not exist
 
@@ -436,3 +437,6 @@ These (relevant) pull requests were merged for 2.7.0:
 - [PR #7383](https://github.com/agda/agda/issues/7383): Fix #7382: make all module param sections live in DeadCode
 - [PR #7386](https://github.com/agda/agda/issues/7386): Testcase for #7382 (completes PR #7383)
 - [PR #7404](https://github.com/agda/agda/issues/7404): Fix #7401: do not fail hard in Setup.hs if library interface files cannot be built
+- [PR #7410](https://github.com/agda/agda/issues/7410): Fixup #7404 and test agdai-generation in cabal-install workflow
+- [PR #7419](https://github.com/agda/agda/issues/7419): #7380: add clauses to generalizedTel projections
+- [PR #7423](https://github.com/agda/agda/issues/7423): Fixup #7265: restore passing arguments from goal to Mimer
