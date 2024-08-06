@@ -1,2 +1,2 @@
-Issue1228.agda:40,1-45: error: [UnquoteFailed]
+Issue1228.agda:40,1-45: error: [Unquote.DefInsteadOfCon]
 Use def instead of con for non-constructor tt
