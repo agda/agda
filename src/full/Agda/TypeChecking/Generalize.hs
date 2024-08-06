@@ -1006,5 +1006,26 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
   setType (conName con) conType
   -- Record telescope: Includes both parameters and fields.
   modifyGlobalDefinition name $ set (lensTheDef . lensRecord . lensRecTel) fullTel
+  -- #7380: Also add clauses to the field definitions
+  let n      = length fields
+      cpi    = noConPatternInfo
+      fldTys = map (fmap snd . argFromDom) $ telToList fieldTel
+      conPat = ConP con cpi [ fmap unnamed $ varP (DBPatVar "x" i) <$ arg | (i, arg) <- zip (downFrom n) fldTys ]
+  forM_ (zip3 (downFrom n) fields fldTys) \ (i, fld, fldTy) -> do
+    modifyFunClauses fld \ _ ->
+      [Clause
+        { clauseLHSRange    = noRange
+        , clauseFullRange   = noRange
+        , clauseTel         = fieldTel
+        , namedClausePats   = [defaultNamedArg conPat]
+        , clauseBody        = Just $ var i
+        , clauseType        = Just $ raise (i + 1) fldTy
+        , clauseCatchall    = False
+        , clauseExact       = Just True
+        , clauseRecursive   = Just False
+        , clauseUnreachable = Just False
+        , clauseEllipsis    = NoEllipsis
+        , clauseWhereModule = Nothing
+        }]
   where
     setType q ty = modifyGlobalDefinition q $ \ d -> d { defType = ty }
