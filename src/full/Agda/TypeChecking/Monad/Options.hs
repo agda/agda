@@ -169,10 +169,7 @@ checkLibraryFileNotTooFarDown ::
   AgdaLibFile ->
   TCM ()
 checkLibraryFileNotTooFarDown m lib =
-  when (lib ^. libAbove < size m - 1) $ typeError $ GenericError $
-    "A .agda-lib file for " ++ prettyShow m ++
-    " must not be located in the directory " ++
-    takeDirectory (lib ^. libFile)
+  when (lib ^. libAbove < size m - 1) $ typeError $ LibTooFarDown m lib
 
 -- | Returns the library options for a given file.
 
