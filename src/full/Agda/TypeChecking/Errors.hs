@@ -363,13 +363,14 @@ interactionErrorString = \case
 
 unquoteErrorString :: UnquoteError -> String
 unquoteErrorString = \case
-  BadVisibility        {} -> "BadVisibility"
-  ConInsteadOfDef      {} -> "ConInsteadOfDef"
-  DefInsteadOfCon      {} -> "DefInsteadOfCon"
-  NonCanonical         {} -> "NonCanonical"
-  BlockedOnMeta        {} -> "BlockedOnMeta"
-  PatLamWithoutClauses {} -> "PatLamWithoutClauses"
-  UnquotePanic         {} -> "UnquotePanic"
+  BadVisibility               {} -> "BadVisibility"
+  CannotDeclareHiddenFunction {} -> "CannotDeclareHiddenFunction"
+  ConInsteadOfDef             {} -> "ConInsteadOfDef"
+  DefInsteadOfCon             {} -> "DefInsteadOfCon"
+  NonCanonical                {} -> "NonCanonical"
+  BlockedOnMeta               {} -> "BlockedOnMeta"
+  PatLamWithoutClauses        {} -> "PatLamWithoutClauses"
+  UnquotePanic                {} -> "UnquotePanic"
 
 
 instance PrettyTCM TCErr where
@@ -1812,6 +1813,9 @@ instance PrettyTCM UnquoteError where
 
     BadVisibility msg arg -> fsep $
       pwords $ "Unable to unquote the argument. It should be `" ++ msg ++ "'."
+
+    CannotDeclareHiddenFunction f -> fsep $
+      pwords "Cannot declare hidden function" ++ [ prettyTCM f ]
 
     ConInsteadOfDef x def con -> fsep $
       pwords ("Use " ++ con ++ " instead of " ++ def ++ " for constructor") ++
