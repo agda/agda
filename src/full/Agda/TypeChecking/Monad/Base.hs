@@ -4663,6 +4663,8 @@ data UnificationFailure
 
 data UnquoteError
   = BadVisibility String (Arg I.Term)
+  | CannotDeclareHiddenFunction QName
+      -- ^ Attempt to @unquoteDecl@ with 'Hiding' other than 'NotHidden'.
   | ConInsteadOfDef QName String String
   | DefInsteadOfCon QName String String
   | NonCanonical String I.Term
@@ -5794,6 +5796,9 @@ typeError_ = withCallerCallStack . flip typeError'_
 
 interactionError :: (HasCallStack, MonadTCError m) => InteractionError -> m a
 interactionError = locatedTypeError InteractionError
+
+unquoteError :: (HasCallStack, MonadTCError m) => UnquoteError -> m a
+unquoteError = locatedTypeError UnquoteFailed
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
