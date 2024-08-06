@@ -1382,7 +1382,7 @@ Either only one if point is a goal, or all of them."
   agda2-mimer
   "Run proof search on a goal."
   "Cmd_autoOne"
-  nil
+  'goal
 )
 
 (agda2-maybe-normalised-toplevel-asis-noprompt
