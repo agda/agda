@@ -1,4 +1,4 @@
-Issue7326.agda:13,7-12: error: [UnquoteFailed]
+Issue7326.agda:13,7-12: error: [Unquote.PatLamWithoutClauses]
 Cannot unquote pattern lambda without clauses. Use a single
 'absurd-clause' for absurd lambdas.
 when checking that the expression unquote magic has type ⊥ → ⊤

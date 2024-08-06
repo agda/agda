@@ -1,4 +1,4 @@
-PostulateMacro.agda:15,8-19: error: [UnquoteFailed]
+PostulateMacro.agda:15,8-19: error: [Unquote.NonCanonical]
 Cannot unquote non-canonical type checking computation
   stuck
 when checking that the expression unquote not-so-good has type Nat

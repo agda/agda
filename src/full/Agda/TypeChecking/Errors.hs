@@ -288,7 +288,6 @@ errorString = \case
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
   IllegalInstanceVariableInPatternSynonym _ -> "IllegalInstanceVariableInPatternSynonym"
   UnusedVariableInPatternSynonym _         -> "UnusedVariableInPatternSynonym"
-  UnquoteFailed{}                          -> "UnquoteFailed"
   DeBruijnIndexOutOfScope{}                -> "DeBruijnIndexOutOfScope"
   TooFewPatternsInWithClause{}             -> "TooFewPatternsInWithClause"
   TooManyPatternsInWithClause{}            -> "TooManyPatternsInWithClause"
@@ -344,6 +343,7 @@ errorString = \case
   InteractionError err                     -> "Interaction." ++ interactionErrorString err
   NicifierError err                        -> "Syntax." ++ declarationExceptionString err
   OptionError{}                            -> "OptionError"
+  UnquoteFailed err                        -> "Unquote." ++ unquoteErrorString err
 
 ghcBackendErrorString :: GHCBackendError -> String
 ghcBackendErrorString = \case
@@ -360,6 +360,17 @@ interactionErrorString = \case
   NoActionForInteractionPoint{}            -> "NoActionForInteractionPoint"
   NoSuchInteractionPoint{}                 -> "NoSuchInteractionPoint"
   UnexpectedWhere{}                        -> "UnexpectedWhere"
+
+unquoteErrorString :: UnquoteError -> String
+unquoteErrorString = \case
+  BadVisibility        {} -> "BadVisibility"
+  ConInsteadOfDef      {} -> "ConInsteadOfDef"
+  DefInsteadOfCon      {} -> "DefInsteadOfCon"
+  NonCanonical         {} -> "NonCanonical"
+  BlockedOnMeta        {} -> "BlockedOnMeta"
+  PatLamWithoutClauses {} -> "PatLamWithoutClauses"
+  UnquotePanic         {} -> "UnquotePanic"
+
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1377,29 +1388,7 @@ instance PrettyTCM TypeError where
             vcat [ prettyTCM term <?> text "was ruled out because"
                  , prettyTCM err ]
 
-    UnquoteFailed e -> case e of
-      BadVisibility msg arg -> fsep $
-        pwords $ "Unable to unquote the argument. It should be `" ++ msg ++ "'."
-
-      ConInsteadOfDef x def con -> fsep $
-        pwords ("Use " ++ con ++ " instead of " ++ def ++ " for constructor") ++
-        [prettyTCM x]
-
-      DefInsteadOfCon x def con -> fsep $
-        pwords ("Use " ++ def ++ " instead of " ++ con ++ " for non-constructor")
-        ++ [prettyTCM x]
-
-      NonCanonical kind t ->
-        fwords ("Cannot unquote non-canonical " ++ kind)
-        $$ nest 2 (prettyTCM t)
-
-      BlockedOnMeta _ m -> fsep $
-        pwords $ "Unquote failed because of unsolved meta variables."
-
-      PatLamWithoutClauses _ -> fsep $
-        pwords "Cannot unquote pattern lambda without clauses. Use a single `absurd-clause` for absurd lambdas."
-
-      UnquotePanic err -> __IMPOSSIBLE__
+    UnquoteFailed e -> prettyTCM e
 
     DeBruijnIndexOutOfScope i EmptyTel [] -> fsep $
         pwords $ "de Bruijn index " ++ show i ++ " is not in scope in the empty context"
@@ -1818,6 +1807,31 @@ instance PrettyTCM InteractionError where
 
     UnexpectedWhere -> fwords "`where' clauses are not supported in holes"
 
+instance PrettyTCM UnquoteError where
+  prettyTCM = \case
+
+    BadVisibility msg arg -> fsep $
+      pwords $ "Unable to unquote the argument. It should be `" ++ msg ++ "'."
+
+    ConInsteadOfDef x def con -> fsep $
+      pwords ("Use " ++ con ++ " instead of " ++ def ++ " for constructor") ++
+      [prettyTCM x]
+
+    DefInsteadOfCon x def con -> fsep $
+      pwords ("Use " ++ def ++ " instead of " ++ con ++ " for non-constructor")
+      ++ [prettyTCM x]
+
+    NonCanonical kind t ->
+      fwords ("Cannot unquote non-canonical " ++ kind)
+      $$ nest 2 (prettyTCM t)
+
+    BlockedOnMeta _ m -> fsep $
+      pwords $ "Unquote failed because of unsolved meta variables."
+
+    PatLamWithoutClauses _ -> fsep $
+      pwords "Cannot unquote pattern lambda without clauses. Use a single `absurd-clause` for absurd lambdas."
+
+    UnquotePanic err -> __IMPOSSIBLE__
 
 notCmp :: MonadPretty m => Comparison -> m Doc
 notCmp cmp = "!" <> prettyTCM cmp
