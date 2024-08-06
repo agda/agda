@@ -37,6 +37,7 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
+import System.FilePath
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Interaction.Options
@@ -69,13 +70,14 @@ import Agda.TypeChecking.SizedTypes.Pretty ()
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce (instantiate)
 
-import Agda.Interaction.Library.Base (formatLibErrors)
+import Agda.Interaction.Library.Base (formatLibErrors, libFile)
 
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
 import Agda.Utils.Functor( for )
 import Agda.Utils.IO     ( showIOException )
+import Agda.Utils.Lens
 import Agda.Utils.List   ( initLast, lastMaybe )
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -183,6 +185,7 @@ errorString = \case
   InvalidPattern{}                         -> "InvalidPattern"
   InvalidFileName{}                        -> "InvalidFileName"
   LibraryError{}                           -> "LibraryError"
+  LibTooFarDown{}                          -> "LibTooFarDown"
   LiteralTooBig{}                          -> "LiteralTooBig"
   LocalVsImportedModuleClash{}             -> "LocalVsImportedModuleClash"
   MetaCannotDependOn{}                     -> "MetaCannotDependOn"
@@ -904,6 +907,11 @@ instance PrettyTCM TypeError where
       "is an absurd pattern, () or {}, in the left-hand side."
 
     LibraryError err -> return $ formatLibErrors err
+
+    LibTooFarDown m lib -> vcat
+      [ text "A .agda-lib file for" <+> pretty m
+      , text "must not be located in the directory" <+> text (takeDirectory (lib ^. libFile))
+      ]
 
     LocalVsImportedModuleClash m -> fsep $
       pwords "The module" ++ [prettyTCM m] ++

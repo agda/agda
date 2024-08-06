@@ -4873,6 +4873,8 @@ data TypeError
     -- Import errors
         | LibraryError LibErrors
             -- ^ Collected errors when processing the @.agda-lib@ file.
+        | LibTooFarDown TopLevelModuleName AgdaLibFile
+            -- ^ The @.agda-lib@ file for the given module is not on the right level.
         | LocalVsImportedModuleClash ModuleName
         | SolvedButOpenHoles
           -- ^ Some interaction points (holes) have not been filled by user.
