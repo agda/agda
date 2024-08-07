@@ -1122,7 +1122,6 @@ tryLamAbs :: Goal -> Type -> SearchBranch -> SM (Either Expr (Goal, Type, Search
 tryLamAbs goal goalType branch =
   case unEl goalType of
     Pi dom abs -> do
-     e <- isEmptyType (unDom dom)
      isEmptyType (unDom dom) >>= \case -- TODO: Is this the correct way of checking if absurd lambda is applicable?
       True -> do
         let argInf = defaultArgInfo{argInfoOrigin = Inserted} -- domInfo dom
@@ -1137,8 +1136,7 @@ tryLamAbs goal goalType branch =
                      | otherwise              = absName abs
         newName <- freshName_ bindName
         (metaId', bodyType, metaTerm, env) <- lambdaAddContext newName bindName dom $ do
-          goalType' <- getMetaTypeInContext (goalMeta goal)
-          bodyType <- bench [Bench.Reduce] $ reduce =<< piApplyM goalType' (Var 0 []) -- TODO: Good place to reduce?
+          bodyType <- reduce =<< getMetaTypeInContext (goalMeta goal)
           (metaId', metaTerm) <- bench [Bench.Free] $ newValueMeta DontRunMetaOccursCheck CmpLeq bodyType
           env <- askTC
           return (metaId', bodyType, metaTerm, env)
