@@ -1,5 +1,7 @@
 
 open import Agda.Builtin.Equality
+open import Agda.Builtin.Bool
+open import Agda.Builtin.Maybe
 open import Auto.Prelude
 
 -- using a type argument as a proof
@@ -64,3 +66,6 @@ module Issue2853 where
 
   test : (a b : A) → f a ≡ f b
   test a b rewrite irr A f a b = {!!}  -- refl (Agsy failed, Mimer succeeds)
+
+skip-solutions : Maybe Bool
+skip-solutions = {!-s 1!}
