@@ -11,6 +11,7 @@ module Agda.Utils.FileName
   , doesFileExistCaseSensitive
   , isNewerThan
   , relativizeAbsolutePath
+  , makeRelativeCanonical
   ) where
 
 import System.Directory
@@ -126,7 +127,7 @@ isNewerThan new old = do
 --   returning 'Nothing' if the given path cannot be relativized to the given @root@.
 relativizeAbsolutePath ::
      AbsolutePath
-       -- ^ The absolute path we see to relativize.
+       -- ^ The absolute path we seek to relativize.
   -> AbsolutePath
        -- ^ The root for relativization.
   -> Maybe FilePath
@@ -146,3 +147,9 @@ relativizeAbsolutePath apath aroot
     -- In our case, the @root@ is absolute, so we should expect @rest@ to
     -- always be different from @path@ if @path@ is relative to @root@.
     -- In the extreme case, @root = "/"@ and @path == "/" ++ rest@.
+
+-- | Makes a path relative to a root without assuming that either path is
+-- canonical.
+
+makeRelativeCanonical :: FilePath -> FilePath -> IO FilePath
+makeRelativeCanonical = liftA2 makeRelative `on` canonicalizePath
