@@ -948,44 +948,32 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     setDirty :: UnquoteM ()
     setDirty = modify (first $ const Dirty)
 
-    tcDeclareDef :: Arg QName -> R.Type -> UnquoteM Term
-    tcDeclareDef (Arg i x) a = inOriginalContext $ do
+    tcDeclareDef_ :: Arg QName -> R.Type -> String -> Defn -> UnquoteM Term
+    tcDeclareDef_ (Arg i x) a doc defn = inOriginalContext $ do
       setDirty
-      when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
-        "Cannot declare hidden function" <+> prettyTCM x
+      when (hidden i) $ liftTCM $ unquoteError $ CannotDeclareHiddenFunction x
       tell [x]
       liftTCM $ do
         alwaysReportSDoc "tc.unquote.decl" 10 $ sep
-          [ "declare" <+> prettyTCM x <+> ":"
+          [ "declare" <+> text doc <+> prettyTCM x <+> ":"
           , nest 2 $ prettyR a
           ]
         a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
-        addConstant' x i x a =<< emptyFunction
+        addConstant' x i x a defn
         when (isInstance i) $ addTypedInstance x a
         primUnitUnit
 
+    tcDeclareDef :: Arg QName -> R.Type -> UnquoteM Term
+    tcDeclareDef arg a = tcDeclareDef_ arg a "" =<< emptyFunction
+
     tcDeclarePostulate :: Arg QName -> R.Type -> UnquoteM Term
-    tcDeclarePostulate (Arg i x) a = inOriginalContext $ do
+    tcDeclarePostulate arg@(Arg i x) a = do
       clo <- commandLineOptions
       when (Lens.getSafeMode clo) $ liftTCM $ typeError . GenericDocError =<<
         "Cannot postulate '" <+> prettyTCM x <+> ":" <+> prettyR a <+> "' with safe flag"
-      setDirty
-      when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
-        "Cannot declare hidden function" <+> prettyTCM x
-      tell [x]
-      liftTCM $ do
-        alwaysReportSDoc "tc.unquote.decl" 10 $ sep
-          [ "declare Postulate" <+> prettyTCM x <+> ":"
-          , nest 2 $ prettyR a
-          ]
-        a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
-        alreadyDefined <- isRight <$> getConstInfo' x
-        when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
-        addConstant' x i x a defaultAxiom
-        when (isInstance i) $ addTypedInstance x a
-        primUnitUnit
+      tcDeclareDef_ arg a "Postulate" defaultAxiom
 
     -- A datatype is expected to be declared with a function type.
     -- The second argument indicates how many preceding types are parameters.

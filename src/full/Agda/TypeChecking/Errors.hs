@@ -37,6 +37,7 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
+import System.FilePath
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Interaction.Options
@@ -69,13 +70,14 @@ import Agda.TypeChecking.SizedTypes.Pretty ()
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce (instantiate)
 
-import Agda.Interaction.Library.Base (formatLibErrors)
+import Agda.Interaction.Library.Base (formatLibErrors, libFile)
 
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
 import Agda.Utils.Functor( for )
 import Agda.Utils.IO     ( showIOException )
+import Agda.Utils.Lens
 import Agda.Utils.List   ( initLast, lastMaybe )
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -183,6 +185,7 @@ errorString = \case
   InvalidPattern{}                         -> "InvalidPattern"
   InvalidFileName{}                        -> "InvalidFileName"
   LibraryError{}                           -> "LibraryError"
+  LibTooFarDown{}                          -> "LibTooFarDown"
   LiteralTooBig{}                          -> "LiteralTooBig"
   LocalVsImportedModuleClash{}             -> "LocalVsImportedModuleClash"
   MetaCannotDependOn{}                     -> "MetaCannotDependOn"
@@ -285,7 +288,6 @@ errorString = \case
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
   IllegalInstanceVariableInPatternSynonym _ -> "IllegalInstanceVariableInPatternSynonym"
   UnusedVariableInPatternSynonym _         -> "UnusedVariableInPatternSynonym"
-  UnquoteFailed{}                          -> "UnquoteFailed"
   DeBruijnIndexOutOfScope{}                -> "DeBruijnIndexOutOfScope"
   TooFewPatternsInWithClause{}             -> "TooFewPatternsInWithClause"
   TooManyPatternsInWithClause{}            -> "TooManyPatternsInWithClause"
@@ -341,6 +343,7 @@ errorString = \case
   InteractionError err                     -> "Interaction." ++ interactionErrorString err
   NicifierError err                        -> "Syntax." ++ declarationExceptionString err
   OptionError{}                            -> "OptionError"
+  UnquoteFailed err                        -> "Unquote." ++ unquoteErrorString err
 
 ghcBackendErrorString :: GHCBackendError -> String
 ghcBackendErrorString = \case
@@ -357,6 +360,18 @@ interactionErrorString = \case
   NoActionForInteractionPoint{}            -> "NoActionForInteractionPoint"
   NoSuchInteractionPoint{}                 -> "NoSuchInteractionPoint"
   UnexpectedWhere{}                        -> "UnexpectedWhere"
+
+unquoteErrorString :: UnquoteError -> String
+unquoteErrorString = \case
+  BadVisibility               {} -> "BadVisibility"
+  CannotDeclareHiddenFunction {} -> "CannotDeclareHiddenFunction"
+  ConInsteadOfDef             {} -> "ConInsteadOfDef"
+  DefInsteadOfCon             {} -> "DefInsteadOfCon"
+  NonCanonical                {} -> "NonCanonical"
+  BlockedOnMeta               {} -> "BlockedOnMeta"
+  PatLamWithoutClauses        {} -> "PatLamWithoutClauses"
+  UnquotePanic                {} -> "UnquotePanic"
+
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -905,6 +920,11 @@ instance PrettyTCM TypeError where
 
     LibraryError err -> return $ formatLibErrors err
 
+    LibTooFarDown m lib -> vcat
+      [ text "A .agda-lib file for" <+> pretty m
+      , text "must not be located in the directory" <+> text (takeDirectory (lib ^. libFile))
+      ]
+
     LocalVsImportedModuleClash m -> fsep $
       pwords "The module" ++ [prettyTCM m] ++
       pwords "can refer to either a local module or an imported module"
@@ -1369,29 +1389,7 @@ instance PrettyTCM TypeError where
             vcat [ prettyTCM term <?> text "was ruled out because"
                  , prettyTCM err ]
 
-    UnquoteFailed e -> case e of
-      BadVisibility msg arg -> fsep $
-        pwords $ "Unable to unquote the argument. It should be `" ++ msg ++ "'."
-
-      ConInsteadOfDef x def con -> fsep $
-        pwords ("Use " ++ con ++ " instead of " ++ def ++ " for constructor") ++
-        [prettyTCM x]
-
-      DefInsteadOfCon x def con -> fsep $
-        pwords ("Use " ++ def ++ " instead of " ++ con ++ " for non-constructor")
-        ++ [prettyTCM x]
-
-      NonCanonical kind t ->
-        fwords ("Cannot unquote non-canonical " ++ kind)
-        $$ nest 2 (prettyTCM t)
-
-      BlockedOnMeta _ m -> fsep $
-        pwords $ "Unquote failed because of unsolved meta variables."
-
-      PatLamWithoutClauses _ -> fsep $
-        pwords "Cannot unquote pattern lambda without clauses. Use a single `absurd-clause` for absurd lambdas."
-
-      UnquotePanic err -> __IMPOSSIBLE__
+    UnquoteFailed e -> prettyTCM e
 
     DeBruijnIndexOutOfScope i EmptyTel [] -> fsep $
         pwords $ "de Bruijn index " ++ show i ++ " is not in scope in the empty context"
@@ -1810,6 +1808,34 @@ instance PrettyTCM InteractionError where
 
     UnexpectedWhere -> fwords "`where' clauses are not supported in holes"
 
+instance PrettyTCM UnquoteError where
+  prettyTCM = \case
+
+    BadVisibility msg arg -> fsep $
+      pwords $ "Unable to unquote the argument. It should be `" ++ msg ++ "'."
+
+    CannotDeclareHiddenFunction f -> fsep $
+      pwords "Cannot declare hidden function" ++ [ prettyTCM f ]
+
+    ConInsteadOfDef x def con -> fsep $
+      pwords ("Use " ++ con ++ " instead of " ++ def ++ " for constructor") ++
+      [prettyTCM x]
+
+    DefInsteadOfCon x def con -> fsep $
+      pwords ("Use " ++ def ++ " instead of " ++ con ++ " for non-constructor")
+      ++ [prettyTCM x]
+
+    NonCanonical kind t ->
+      fwords ("Cannot unquote non-canonical " ++ kind)
+      $$ nest 2 (prettyTCM t)
+
+    BlockedOnMeta _ m -> fsep $
+      pwords $ "Unquote failed because of unsolved meta variables."
+
+    PatLamWithoutClauses _ -> fsep $
+      pwords "Cannot unquote pattern lambda without clauses. Use a single `absurd-clause` for absurd lambdas."
+
+    UnquotePanic err -> __IMPOSSIBLE__
 
 notCmp :: MonadPretty m => Comparison -> m Doc
 notCmp cmp = "!" <> prettyTCM cmp

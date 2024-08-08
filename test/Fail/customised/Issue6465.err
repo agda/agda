@@ -1,5 +1,5 @@
-customised/Issue6465.agda:1,1-11: error: [GenericError]
-A .agda-lib file for A.B must not be located in the directory
-customised/Issue6465/A
+customised/Issue6465.agda:1,1-11: error: [LibTooFarDown]
+A .agda-lib file for A.B
+must not be located in the directory customised/Issue6465/A
 when scope checking the declaration
   import A.B
