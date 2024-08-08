@@ -73,7 +73,7 @@ instance Monoid IsMain where
 -- * File
 ---------------------------------------------------------------------------
 
-data FileType = AgdaFileType | MdFileType | RstFileType | TexFileType | OrgFileType | TypstFileType
+data FileType = AgdaFileType | MdFileType | RstFileType | TexFileType | OrgFileType | TypstFileType | TreeFileType
   deriving (Eq, Ord, Show, Generic)
 
 instance Pretty FileType where
@@ -84,6 +84,7 @@ instance Pretty FileType where
     TexFileType  -> "LaTeX"
     OrgFileType  -> "org-mode"
     TypstFileType -> "Typst"
+    TreeFileType -> "Forester"
 
 instance NFData FileType
 
