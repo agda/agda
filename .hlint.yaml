@@ -49,7 +49,7 @@
 - ignore: {name: "Replace case with maybe"} # 4 hints
 - ignore: {name: "Unused LANGUAGE pragma"} # 210 hints
 - ignore: {name: "Use &&"} # 4 hints
-- ignore: {name: "Use ++"} # 14 hints
+- ignore: {name: "Use ++"} # 15 hints
 - ignore: {name: "Use /="} # 1 hint
 - ignore: {name: "Use :"} # 17 hints
 - ignore: {name: "Use <$"} # 4 hints
@@ -63,7 +63,7 @@
 - ignore: {name: "Use LANGUAGE pragmas"} # 7 hints
 - ignore: {name: "Use camelCase"} # 72 hints
 - ignore: {name: "Use concatMap"} # 2 hints
-- ignore: {name: "Use const"} # 79 hints
+- ignore: {name: "Use const"} # 80 hints
 - ignore: {name: "Use fewer imports"} # 6 hints
 - ignore: {name: "Use first"} # 1 hint
 - ignore: {name: "Use fmap"} # 6 hints
