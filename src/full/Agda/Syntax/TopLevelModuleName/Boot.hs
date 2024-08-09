@@ -20,7 +20,7 @@ instance NFData ModuleNameHash where
 
 instance HasTag ModuleNameHash where
   type Tag ModuleNameHash = ModuleNameHash
-  tag = Just . id
+  tag = Just
 
 noModuleNameHash :: ModuleNameHash
 noModuleNameHash = ModuleNameHash 0
