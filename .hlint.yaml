@@ -38,7 +38,6 @@
 - ignore: {name: "Redundant flip"} # 4 hints
 - ignore: {name: "Redundant fmap"} # 1 hint
 - ignore: {name: "Redundant guard"} # 5 hints
-- ignore: {name: "Redundant id"} # 1 hint
 - ignore: {name: "Redundant if"} # 2 hints
 - ignore: {name: "Redundant irrefutable pattern"} # 36 hints
 - ignore: {name: "Redundant lambda"} # 46 hints
