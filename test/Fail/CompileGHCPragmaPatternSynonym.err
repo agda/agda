@@ -1,4 +1,0 @@
-CompileGHCPragmaPatternSynonym.agda:6,1-22: error: [GenericError]
-Cannot COMPILE pattern synonym p
-when scope checking the declaration
-  {-# COMPILE GHC p #-}

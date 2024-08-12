@@ -1,1 +1,0 @@
-{-# COMPILE GHC Set1 #-}
