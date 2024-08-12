@@ -1,0 +1,2 @@
+ParseErrorGHCPragma.agda:7,1-22: error: [GenericError]
+Failed to parse GHC pragma ''
