@@ -301,6 +301,14 @@ prettyWarning = \case
 
     CoInfectiveImport msg -> return msg
 
+    NotARewriteRule x amb -> hsep $ concat
+        [ [ pretty x ]
+        , pwords "is not a legal rewrite rule, since the left-hand side is"
+        , case amb of
+            YesAmbiguous -> [ "ambiguous" ]
+            NotAmbiguous -> pwords "neither a defined symbol nor a constructor"
+        ]
+
     IllegalRewriteRule q reason -> case reason of
       LHSNotDefinitionOrConstructor -> hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]

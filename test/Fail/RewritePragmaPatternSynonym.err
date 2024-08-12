@@ -1,4 +1,0 @@
-RewritePragmaPatternSynonym.agda:9,1-18: error: [GenericError]
-REWRITE used on pattern synonym
-when scope checking the declaration
-  {-# REWRITE p #-}

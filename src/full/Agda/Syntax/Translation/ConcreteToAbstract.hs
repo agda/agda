@@ -2418,18 +2418,19 @@ instance ToAbstract C.Pragma where
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
   toAbstract (C.RewritePragma _ _ []) = [] <$ warning EmptyRewritePragma
   toAbstract (C.RewritePragma _ r xs) = singleton . A.RewritePragma r . concat <$> do
-   forM xs $ \ x -> do
-    e <- toAbstract $ OldQName x Nothing
-    case e of
-      A.Def' x NoSuffix -> return [ x ]
-      A.Def' x Suffix{} -> genericError $ "REWRITE used on name with suffix"
-      A.Proj _ p | Just x <- getUnambiguous p -> return [ x ]
-      A.Proj _ x       -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
-      A.Con c | Just x <- getUnambiguous c -> return [ x ]
-      A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
-      A.Var x          -> genericError $ "REWRITE used on parameter " ++ prettyShow x ++ " instead of on a defined symbol"
-      A.PatternSyn{}   -> genericError $ "REWRITE used on pattern synonym"
-      _       -> __IMPOSSIBLE__
+    forM xs $ \ x -> do
+      let failure = ([] <$) . warning . NotARewriteRule x
+      e <- toAbstract $ OldQName x Nothing
+      case e of
+        A.Def' x NoSuffix                       -> return [ x ]
+        A.Def' x Suffix{}                       -> failure NotAmbiguous
+        A.Proj _ p | Just x <- getUnambiguous p -> return [ x ]
+        A.Proj{}                                -> failure YesAmbiguous
+        A.Con c | Just x <- getUnambiguous c    -> return [ x ]
+        A.Con{}                                 -> failure YesAmbiguous
+        A.Var{}                                 -> failure NotAmbiguous
+        A.PatternSyn{}                          -> failure NotAmbiguous
+        _ -> __IMPOSSIBLE__
   toAbstract (C.ForeignPragma _ rb s) = [] <$ addForeignCode (rangedThing rb) s
   toAbstract (C.CompilePragma _ rb x s) = do
     me <- toAbstract $ MaybeOldQName $ OldQName x Nothing

@@ -1,4 +1,0 @@
-RewritePragmaSuffix.agda:3,1-21: error: [GenericError]
-REWRITE used on name with suffix
-when scope checking the declaration
-  {-# REWRITE Set1 #-}

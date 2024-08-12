@@ -288,6 +288,7 @@ data WarningName
   | PragmaCompileList_
   | PragmaCompileMaybe_
   | NoMain_
+  | NotARewriteRule_
   | RewriteLHSNotDefinitionOrConstructor_
   | RewriteVariablesNotBoundByLHS_
   | RewriteVariablesBoundMoreThanOnce_
@@ -506,6 +507,7 @@ warningNameDescription = \case
   PragmaCompileList_               -> "`COMPILE GHC' pragmas for lists."
   PragmaCompileMaybe_              -> "`COMPILE GHC' pragmas for `MAYBE'."
   NoMain_                          -> "Compilation of modules that do not define `main'."
+  NotARewriteRule_                 -> "`REWRITE pragmas referring to identifiers that are neither definitions nor constructors.'"
   RewriteLHSNotDefinitionOrConstructor_             -> "Rewrite rule head symbol is not a defined symbol or constructor."
   RewriteVariablesNotBoundByLHS_                    -> "Rewrite rule does not bind all of its variables."
   RewriteVariablesBoundMoreThanOnce_                -> "Constructor-headed rewrite rule has non-linear parameters."
