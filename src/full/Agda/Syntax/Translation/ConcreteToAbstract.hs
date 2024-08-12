@@ -2436,7 +2436,8 @@ instance ToAbstract C.Pragma where
       Just e  -> do
         let err what = genericError $ "Cannot COMPILE " ++ what ++ " " ++ prettyShow x
         y <- case e of
-          A.Def x             -> return x
+          A.Def' x NoSuffix   -> return x
+          A.Def' x Suffix{}   -> err "name with suffix"
           A.Proj _ p | Just x <- getUnambiguous p -> return x
           A.Proj _ x          -> err "ambiguous projection"
           A.Con c | Just x <- getUnambiguous c -> return x
