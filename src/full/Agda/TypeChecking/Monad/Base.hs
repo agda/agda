@@ -4377,6 +4377,8 @@ data Warning
     -- ^ @COMPILE GHC@ pragma for lists; ignored.
   | PragmaCompileMaybe
     -- ^ @COMPILE GHC@ pragma for @MAYBE@; ignored.
+  | PragmaCompileWrongName C.QName IsAmbiguous
+    -- ^ @COMPILE@ pragma with name that is not an unambiguous constructor or definition.
   | NoMain TopLevelModuleName
     -- ^ Compiler run on module that does not have a @main@ function.
   | NotInScopeW [C.QName]
@@ -4500,6 +4502,7 @@ warningName = \case
   PragmaCompileErased{}        -> PragmaCompileErased_
   PragmaCompileList{}          -> PragmaCompileList_
   PragmaCompileMaybe{}         -> PragmaCompileMaybe_
+  PragmaCompileWrongName{}     -> PragmaCompileWrongName_
   NoMain{}                     -> NoMain_
   PlentyInHardCompileTimeMode{}
                                -> PlentyInHardCompileTimeMode_

@@ -447,6 +447,15 @@ prettyWarning = \case
     PragmaCompileMaybe -> fsep $ pwords
       "Ignoring GHC pragma for builtin MAYBE; it always compiles to Haskell Maybe."
 
+    PragmaCompileWrongName x amb -> hsep $ concat
+      [ pwords "Cannot COMPILE"
+      , [ pretty x ]
+      , pwords "since it is"
+      , case amb of
+          YesAmbiguous -> [ "ambiguous" ]
+          NotAmbiguous -> pwords "neither a defined symbol nor a constructor"
+      ]
+
     NoMain topLevelModule -> vcat
       [ fsep $ pwords "No main function defined in" ++ [prettyTCM topLevelModule <> "."]
       , fsep $ pwords "Use option --no-main to suppress this warning."

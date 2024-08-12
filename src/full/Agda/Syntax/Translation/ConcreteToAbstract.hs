@@ -2415,40 +2415,18 @@ instance ToAbstract C.Pragma where
     case strs of
       "ReduceM" : _ -> impossibleTestReduceM strs
       _ -> impossibleTest strs
+
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
+
   toAbstract (C.RewritePragma _ _ []) = [] <$ warning EmptyRewritePragma
-  toAbstract (C.RewritePragma _ r xs) = singleton . A.RewritePragma r . concat <$> do
-    forM xs $ \ x -> do
-      let notInScope = [] <$ notInScopeWarning x
-      let failure = ([] <$) . warning . NotARewriteRule x
-      caseMaybeM (toAbstract $ MaybeOldQName $ OldQName x Nothing) notInScope $ \case
-        A.Def' x NoSuffix                       -> return [ x ]
-        A.Def' x Suffix{}                       -> failure NotAmbiguous
-        A.Proj _ p | Just x <- getUnambiguous p -> return [ x ]
-        A.Proj{}                                -> failure YesAmbiguous
-        A.Con c | Just x <- getUnambiguous c    -> return [ x ]
-        A.Con{}                                 -> failure YesAmbiguous
-        A.Var{}                                 -> failure NotAmbiguous
-        A.PatternSyn{}                          -> failure NotAmbiguous
-        _ -> __IMPOSSIBLE__
+  toAbstract (C.RewritePragma _ r xs) = singleton . A.RewritePragma r . catMaybes <$> do
+    mapM (unambiguousConOrDef NotARewriteRule) xs
+
   toAbstract (C.ForeignPragma _ rb s) = [] <$ addForeignCode (rangedThing rb) s
-  toAbstract (C.CompilePragma _ rb x s) = do
-    me <- toAbstract $ MaybeOldQName $ OldQName x Nothing
-    case me of
-      Nothing -> [] <$ notInScopeWarning x
-      Just e  -> do
-        let err what = genericError $ "Cannot COMPILE " ++ what ++ " " ++ prettyShow x
-        y <- case e of
-          A.Def' x NoSuffix   -> return x
-          A.Def' x Suffix{}   -> err "name with suffix"
-          A.Proj _ p | Just x <- getUnambiguous p -> return x
-          A.Proj _ x          -> err "ambiguous projection"
-          A.Con c | Just x <- getUnambiguous c -> return x
-          A.Con x             -> err "ambiguous constructor"
-          A.PatternSyn{}      -> err "pattern synonym"
-          A.Var{}             -> err "local variable"
-          _                   -> __IMPOSSIBLE__
-        return [ A.CompilePragma rb y s ]
+
+  toAbstract (C.CompilePragma _ rb x s) =
+    maybe [] (\ y -> [ A.CompilePragma rb y s ]) <$>
+      unambiguousConOrDef PragmaCompileWrongName x
 
   toAbstract (C.StaticPragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
@@ -2631,6 +2609,23 @@ instance ToAbstract C.Pragma where
 
   -- Polarity pragmas are handled by the niceifier.
   toAbstract C.PolarityPragma{} = __IMPOSSIBLE__
+
+unambiguousConOrDef :: (C.QName -> IsAmbiguous -> Warning) -> C.QName -> ScopeM (Maybe A.QName)
+unambiguousConOrDef warn x = do
+    caseMaybeM (toAbstract $ MaybeOldQName $ OldQName x Nothing) notInScope $ \case
+      A.Def' y NoSuffix                       -> ret y
+      A.Def' y Suffix{}                       -> failure NotAmbiguous
+      A.Proj _ p | Just y <- getUnambiguous p -> ret y
+      A.Proj{}                                -> failure YesAmbiguous
+      A.Con c | Just y <- getUnambiguous c    -> ret y
+      A.Con{}                                 -> failure YesAmbiguous
+      A.Var{}                                 -> failure NotAmbiguous
+      A.PatternSyn{}                          -> failure NotAmbiguous
+      _ -> __IMPOSSIBLE__
+  where
+    notInScope = Nothing <$ notInScopeWarning x
+    failure = (Nothing <$) . warning . warn x
+    ret = return . Just
 
 instance ToAbstract C.Clause where
   type AbsOfCon C.Clause = A.Clause

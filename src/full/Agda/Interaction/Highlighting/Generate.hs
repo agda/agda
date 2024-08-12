@@ -431,7 +431,7 @@ warningHighlighting' b w = case tcWarning w of
   CantGeneralizeOverSorts{}  -> mempty
   UnsolvedInteractionMetas{} -> mempty
   InteractionMetaBoundaries{} -> mempty
-  OldBuiltin{}               -> mempty
+  OldBuiltin{}                -> deadcodeHighlighting w
   BuiltinDeclaresIdentifier{} -> mempty
   EmptyRewritePragma{}       -> deadcodeHighlighting w
   EmptyWhere{}               -> deadcodeHighlighting w
@@ -478,6 +478,7 @@ warningHighlighting' b w = case tcWarning w of
   PragmaCompileErased{}      -> deadcodeHighlighting w
   PragmaCompileList{}        -> deadcodeHighlighting w
   PragmaCompileMaybe{}       -> deadcodeHighlighting w
+  PragmaCompileWrongName x _ -> deadcodeHighlighting x
   NoMain{}                   -> mempty
   NotInScopeW{}              -> deadcodeHighlighting w
   UnsupportedIndexedMatch{}  -> mempty
