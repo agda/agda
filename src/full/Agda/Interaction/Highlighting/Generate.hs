@@ -474,6 +474,7 @@ warningHighlighting' b w = case tcWarning w of
   RewriteAmbiguousRules{}    -> confluenceErrorHighlighting w
   RewriteMissingRule{}       -> confluenceErrorHighlighting w
   IllegalRewriteRule{}       -> deadcodeHighlighting w
+  NotARewriteRule x _        -> deadcodeHighlighting x
   PragmaCompileErased{}      -> deadcodeHighlighting w
   PragmaCompileList{}        -> deadcodeHighlighting w
   PragmaCompileMaybe{}       -> deadcodeHighlighting w

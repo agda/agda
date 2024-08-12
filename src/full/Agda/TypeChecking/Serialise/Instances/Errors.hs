@@ -21,6 +21,8 @@ import Agda.Utils.ProfileOptions
 
 import Agda.Utils.Impossible
 
+instance EmbPrj IsAmbiguous
+
 instance EmbPrj TCWarning where
   icod_ (TCWarning fp a b c d) = icodeN' TCWarning fp a b c d
   value = valueN TCWarning
@@ -107,6 +109,7 @@ instance EmbPrj Warning where
     WithClauseProjectionFixityMismatch a b c d  -> icodeN 58 WithClauseProjectionFixityMismatch a b c d
     InvalidDisplayForm a b                      -> icodeN 59 InvalidDisplayForm a b
     TooManyArgumentsToSort a b                  -> __IMPOSSIBLE__
+    NotARewriteRule a b                         -> icodeN 60 NotARewriteRule a b
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -169,6 +172,7 @@ instance EmbPrj Warning where
     [57, a]              -> valuN CoinductiveEtaRecord a
     [58, a, b, c, d]     -> valuN WithClauseProjectionFixityMismatch a b c d
     [59, a, b]           -> valuN InvalidDisplayForm a b
+    [60, a, b]           -> valuN NotARewriteRule a b
     _ -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where
@@ -554,8 +558,9 @@ instance EmbPrj WarningName where
     RewriteBeforeFunctionDefinition_                  -> 133
     RewriteBeforeMutualFunctionDefinition_            -> 134
     WithClauseProjectionFixityMismatch_               -> 135
-    InvalidDisplayForm_                             -> 136
+    InvalidDisplayForm_                               -> 136
     TooManyArgumentsToSort_                           -> 137
+    NotARewriteRule_                                  -> 138
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -695,6 +700,7 @@ instance EmbPrj WarningName where
     135 -> return WithClauseProjectionFixityMismatch_
     136 -> return InvalidDisplayForm_
     137 -> return TooManyArgumentsToSort_
+    138 -> return NotARewriteRule_
     _   -> malformed
 
 

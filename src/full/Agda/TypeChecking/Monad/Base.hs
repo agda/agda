@@ -4355,6 +4355,8 @@ data Warning
     --   contains unsolved metavariables.
   | ConfluenceForCubicalNotSupported
     -- ^ Confluence checking with @--cubical@ might be incomplete.
+  | NotARewriteRule C.QName IsAmbiguous
+    -- ^ 'IllegalRewriteRule' detected during scope checking.
   | IllegalRewriteRule QName IllegalRewriteRuleReason
   | RewriteNonConfluent Term Term Term Doc
     -- ^ Confluence checker found critical pair and equality checking
@@ -4490,6 +4492,7 @@ warningName = \case
   ConfluenceCheckingIncompleteBecauseOfMeta{} -> ConfluenceCheckingIncompleteBecauseOfMeta_
   ConfluenceForCubicalNotSupported{}          -> ConfluenceForCubicalNotSupported_
   IllegalRewriteRule _ reason  -> illegalRewriteWarningName reason
+  NotARewriteRule{}            -> NotARewriteRule_
   RewriteNonConfluent{}        -> RewriteNonConfluent_
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
   RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_
@@ -5064,6 +5067,12 @@ data IllegalRewriteRuleReason
   | BeforeMutualFunctionDefinition QName
   | DuplicateRewriteRule
     deriving (Show, Generic)
+
+-- | Boolean flag whether a name is ambiguous.
+data IsAmbiguous
+  = YesAmbiguous
+  | NotAmbiguous
+  deriving (Show, Generic, Bounded, Enum)
 
 -- Reason, why type for rewrite rule is incorrect
 data IncorrectTypeForRewriteRelationReason
@@ -6202,3 +6211,4 @@ instance NFData IncorrectTypeForRewriteRelationReason
 instance NFData GHCBackendError
 instance NFData WhyNotAHaskellType
 instance NFData InteractionError
+instance NFData IsAmbiguous

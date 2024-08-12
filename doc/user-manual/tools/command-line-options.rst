@@ -1448,6 +1448,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Declarations that should not be inside ``opaque`` blocks.
 
+.. option:: NotARewriteRule
+
+     ``REWRITE`` pragmas referring to identifiers that are neither definitions nor constructors.
+
 .. option:: NotInScope
 
      Out of scope names.
