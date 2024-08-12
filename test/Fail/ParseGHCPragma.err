@@ -1,0 +1,4 @@
+ParseGHCPragma.agda:1,1-25
+Cannot COMPILE name with suffix Set1
+when scope checking the declaration
+  {-# COMPILE GHC Set1  #-}
