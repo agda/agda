@@ -2455,6 +2455,7 @@ instance ToAbstract C.Pragma where
       A.Con c | Just x <- getUnambiguous c -> return [ x ]
       A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
       A.Var x          -> genericError $ "REWRITE used on parameter " ++ prettyShow x ++ " instead of on a defined symbol"
+      A.PatternSyn{}   -> genericError $ "REWRITE used on pattern synonym"
       _       -> __IMPOSSIBLE__
   toAbstract (C.ForeignPragma _ rb s) = [] <$ addForeignCode (rangedThing rb) s
   toAbstract (C.CompilePragma _ rb x s) = do
