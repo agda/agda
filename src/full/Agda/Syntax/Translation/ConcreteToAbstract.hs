@@ -2421,7 +2421,8 @@ instance ToAbstract C.Pragma where
    forM xs $ \ x -> do
     e <- toAbstract $ OldQName x Nothing
     case e of
-      A.Def x          -> return [ x ]
+      A.Def' x NoSuffix -> return [ x ]
+      A.Def' x Suffix{} -> genericError $ "REWRITE used on name with suffix"
       A.Proj _ p | Just x <- getUnambiguous p -> return [ x ]
       A.Proj _ x       -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
       A.Con c | Just x <- getUnambiguous c -> return [ x ]
