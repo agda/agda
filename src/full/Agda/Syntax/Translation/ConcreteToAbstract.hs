@@ -2419,9 +2419,9 @@ instance ToAbstract C.Pragma where
   toAbstract (C.RewritePragma _ _ []) = [] <$ warning EmptyRewritePragma
   toAbstract (C.RewritePragma _ r xs) = singleton . A.RewritePragma r . concat <$> do
     forM xs $ \ x -> do
+      let notInScope = [] <$ notInScopeWarning x
       let failure = ([] <$) . warning . NotARewriteRule x
-      e <- toAbstract $ OldQName x Nothing
-      case e of
+      caseMaybeM (toAbstract $ MaybeOldQName $ OldQName x Nothing) notInScope $ \case
         A.Def' x NoSuffix                       -> return [ x ]
         A.Def' x Suffix{}                       -> failure NotAmbiguous
         A.Proj _ p | Just x <- getUnambiguous p -> return [ x ]
