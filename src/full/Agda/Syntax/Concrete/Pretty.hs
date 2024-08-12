@@ -615,7 +615,7 @@ instance Pretty Pragma where
     pretty (RewritePragma _ _ xs)    =
       hsep [ "REWRITE", hsep $ map pretty xs ]
     pretty (CompilePragma _ b x e) =
-      hsep [ "COMPILE", text (rangedThing b), pretty x, text e ]
+      hsep [ "COMPILE", text (rangedThing b), pretty x, textNonEmpty e ]
     pretty (ForeignPragma _ b s) =
       vcat $ text ("FOREIGN " ++ rangedThing b) : map text (lines s)
     pretty (StaticPragma _ i) =

@@ -230,6 +230,12 @@ mparens False = id
 parensNonEmpty :: Doc -> Doc
 parensNonEmpty d = if null d then empty else parens d
 
+-- | Return 'empty' for empty strings.
+textNonEmpty :: String -> Doc
+textNonEmpty = \case
+  "" -> empty
+  s  -> text s
+
 -- | @align max rows@ lays out the elements of @rows@ in two columns,
 -- with the second components aligned. The alignment column of the
 -- second components is at most @max@ characters to the right of the
