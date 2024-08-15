@@ -112,6 +112,7 @@ instance EmbPrj Warning where
     NotARewriteRule a b                         -> icodeN 60 NotARewriteRule a b
     PragmaCompileWrongName a b                  -> icodeN 61 PragmaCompileWrongName a b
     PragmaCompileUnparsable a                   -> icodeN 62 PragmaCompileUnparsable a
+    PragmaCompileWrong a b                      -> icodeN 63 PragmaCompileWrong a b
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -177,6 +178,7 @@ instance EmbPrj Warning where
     [60, a, b]           -> valuN NotARewriteRule a b
     [61, a, b]           -> valuN PragmaCompileWrongName a b
     [62, a]              -> valuN PragmaCompileUnparsable a
+    [63, a, b]           -> valuN PragmaCompileWrong a b
     _ -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where
@@ -567,6 +569,7 @@ instance EmbPrj WarningName where
     NotARewriteRule_                                  -> 138
     PragmaCompileWrongName_                           -> 139
     PragmaCompileUnparsable_                          -> 140
+    PragmaCompileWrong_                               -> 141
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -709,6 +712,7 @@ instance EmbPrj WarningName where
     138 -> return NotARewriteRule_
     139 -> return PragmaCompileWrongName_
     140 -> return PragmaCompileUnparsable_
+    141 -> return PragmaCompileWrong_
     _   -> malformed
 
 

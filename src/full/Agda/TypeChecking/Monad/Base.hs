@@ -4386,6 +4386,8 @@ data Warning
     -- ^ @COMPILE GHC@ pragma for @MAYBE@; ignored.
   | PragmaCompileUnparsable String
     -- ^ @COMPILE GHC@ pragma 'String' not parsable; ignored.
+  | PragmaCompileWrong QName String
+    -- ^ Wrong @COMPILE GHC@ given for 'QName'; explanation is in 'String'.
   | PragmaCompileWrongName C.QName IsAmbiguous
     -- ^ @COMPILE@ pragma with name that is not an unambiguous constructor or definition.
   | NoMain TopLevelModuleName
@@ -4512,6 +4514,7 @@ warningName = \case
   PragmaCompileList{}          -> PragmaCompileList_
   PragmaCompileMaybe{}         -> PragmaCompileMaybe_
   PragmaCompileUnparsable{}    -> PragmaCompileUnparsable_
+  PragmaCompileWrong{}         -> PragmaCompileWrong_
   PragmaCompileWrongName{}     -> PragmaCompileWrongName_
   NoMain{}                     -> NoMain_
   PlentyInHardCompileTimeMode{}

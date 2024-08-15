@@ -323,6 +323,7 @@ cleanOutput' agda pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
         -- First, replace backslashes by slashes, then try to match @pwd@,
         -- which has already backslashes by slashes replaced.
       , (T.pack pwd `T.append` ".test", "..")
+      , ("/[^ ]*/MAlonzo/Code/", "«path»/MAlonzo/Code/")
       , ("\\.hs(:[[:digit:]]+){2}", ".hs:«line»:«col»")
       , (T.pack Agda.Version.package, "«Agda-package»")
       -- Andreas, 2021-08-26.  When run with 'cabal test',
