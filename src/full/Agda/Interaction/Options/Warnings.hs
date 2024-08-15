@@ -291,6 +291,7 @@ data WarningName
   | PragmaCompileWrong_
   | PragmaCompileWrongName_
   | PragmaExpectsUnambiguousConstructorOrFunction_
+  | PragmaExpectsUnambiguousProjectionOrFunction_
   | NoMain_
   | NotARewriteRule_
   | RewriteLHSNotDefinitionOrConstructor_
@@ -514,6 +515,7 @@ warningNameDescription = \case
   PragmaCompileWrong_              -> "Ill-formed `COMPILE GHC' pragmas."
   PragmaCompileWrongName_          -> "`COMPILE' pragmas referring to identifiers that are neither definitions nor constructors.'"
   PragmaExpectsUnambiguousConstructorOrFunction_    -> "Pragmas referring to identifiers that are not unambiguous constructors or functions.'"
+  PragmaExpectsUnambiguousProjectionOrFunction_     -> "Pragmas referring to identifiers that are not unambiguous projections or functions.'"
   NoMain_                          -> "Compilation of modules that do not define `main'."
   NotARewriteRule_                 -> "`REWRITE pragmas referring to identifiers that are neither definitions nor constructors.'"
   RewriteLHSNotDefinitionOrConstructor_             -> "Rewrite rule head symbol is not a defined symbol or constructor."

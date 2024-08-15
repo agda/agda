@@ -483,6 +483,8 @@ warningHighlighting' b w = case tcWarning w of
   PragmaCompileUnparsable{}  -> deadcodeHighlighting w
   PragmaExpectsUnambiguousConstructorOrFunction{}
                              -> deadcodeHighlighting w
+  PragmaExpectsUnambiguousProjectionOrFunction{}
+                             -> deadcodeHighlighting w
   NoMain{}                   -> mempty
   NotInScopeW{}              -> deadcodeHighlighting w
   UnsupportedIndexedMatch{}  -> mempty

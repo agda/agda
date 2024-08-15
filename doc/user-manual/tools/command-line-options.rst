@@ -1512,6 +1512,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Pragmas referring to identifiers that are not unambiguous constructors or functions.
 
+.. option:: PragmaExpectsUnambiguousProjectionOrFunction
+
+     Pragmas referring to identifiers that are not unambiguous projections or functions.
+
 .. option:: PragmaNoTerminationCheck
 
      :ref:`NO_TERMINATION_CHECK<terminating-pragma>` pragmas; such are deprecated.

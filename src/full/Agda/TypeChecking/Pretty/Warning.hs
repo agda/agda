@@ -469,6 +469,15 @@ prettyWarning = \case
           NotAmbiguous -> pwords "a function, constructor, or projection"
       ]
 
+    PragmaExpectsUnambiguousProjectionOrFunction pragma _x amb -> hsep $ concat
+      [ pwords "Target of"
+      , [ text pragma ]
+      , pwords "pragma should be"
+      , case amb of
+          YesAmbiguous xs -> pwords "unambiguous, but it resolves to:" ++ [ pretty xs ]
+          NotAmbiguous -> pwords "a function or projection"
+      ]
+
     NoMain topLevelModule -> vcat
       [ fsep $ pwords "No main function defined in" ++ [prettyTCM topLevelModule <> "."]
       , fsep $ pwords "Use option --no-main to suppress this warning."
