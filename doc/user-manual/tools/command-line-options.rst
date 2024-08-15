@@ -1508,6 +1508,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      :ref:`COMPILE<foreign-function-interface>` pragmas referring to identifiers that are neither definitions nor constructors.
 
+.. option:: PragmaExpectsDefinedSymbol
+
+     Pragmas referring to identifiers that are not defined symbols.
+
 .. option:: PragmaExpectsUnambiguousConstructorOrFunction
 
      Pragmas referring to identifiers that are not unambiguous constructors or functions.

@@ -481,6 +481,8 @@ warningHighlighting' b w = case tcWarning w of
   PragmaCompileWrong{}       -> deadcodeHighlighting w
   PragmaCompileWrongName{}   -> deadcodeHighlighting w
   PragmaCompileUnparsable{}  -> deadcodeHighlighting w
+  PragmaExpectsDefinedSymbol{}
+                             -> deadcodeHighlighting w
   PragmaExpectsUnambiguousConstructorOrFunction{}
                              -> deadcodeHighlighting w
   PragmaExpectsUnambiguousProjectionOrFunction{}

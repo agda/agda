@@ -290,6 +290,7 @@ data WarningName
   | PragmaCompileUnparsable_
   | PragmaCompileWrong_
   | PragmaCompileWrongName_
+  | PragmaExpectsDefinedSymbol_
   | PragmaExpectsUnambiguousConstructorOrFunction_
   | PragmaExpectsUnambiguousProjectionOrFunction_
   | NoMain_
@@ -514,6 +515,7 @@ warningNameDescription = \case
   PragmaCompileUnparsable_         -> "Unparsable `COMPILE GHC' pragmas."
   PragmaCompileWrong_              -> "Ill-formed `COMPILE GHC' pragmas."
   PragmaCompileWrongName_          -> "`COMPILE' pragmas referring to identifiers that are neither definitions nor constructors.'"
+  PragmaExpectsDefinedSymbol_      -> "Pragmas referrings to identifiers that are not defined symbols."
   PragmaExpectsUnambiguousConstructorOrFunction_    -> "Pragmas referring to identifiers that are not unambiguous constructors or functions.'"
   PragmaExpectsUnambiguousProjectionOrFunction_     -> "Pragmas referring to identifiers that are not unambiguous projections or functions.'"
   NoMain_                          -> "Compilation of modules that do not define `main'."
