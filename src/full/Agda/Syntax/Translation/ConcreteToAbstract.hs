@@ -2437,11 +2437,8 @@ instance ToAbstract C.Pragma where
       unambiguousDef (PragmaExpectsUnambiguousProjectionOrFunction "INJECTIVE") x
 
   toAbstract (C.InjectiveForInferencePragma _ x) = do
-      e <- toAbstract $ OldQName x Nothing
-      y <- case e of
-          A.Def  x -> return x
-          _        -> genericError "Target of INJECTIVE_FOR_INFERENCE pragma should be a defined symbol"
-      return [ A.InjectiveForInferencePragma y ]
+    map A.InjectiveForInferencePragma . maybeToList <$> do
+      scopeCheckDef (PragmaExpectsDefinedSymbol "INJECTIVE_FOR_INFERENCE") x
 
   toAbstract (C.InlinePragma _ b x) = do
       e <- toAbstract $ OldQName x Nothing
@@ -2513,13 +2510,8 @@ instance ToAbstract C.Pragma where
     where b = builtinById (rangedThing rb)
 
   toAbstract (C.EtaPragma _ x) = do
-    e <- toAbstract $ OldQName x Nothing
-    case e of
-      A.Def x -> return [ A.EtaPragma x ]
-      _       -> do
-       e <- showA e
-       genericError $ "Pragma ETA: expected identifier, " ++
-         "but found expression " ++ e
+    map A.EtaPragma . maybeToList <$> do
+      scopeCheckDef (PragmaExpectsDefinedSymbol "ETA") x
 
   toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
     let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
@@ -2618,6 +2610,21 @@ unambiguousDef warn x = do
   where
     notInScope = Nothing <$ notInScopeWarning x
     failure = (Nothing <$) . warning . warn x
+    ret = return . Just
+
+scopeCheckDef :: (C.QName -> Warning) -> C.QName -> ScopeM (Maybe A.QName)
+scopeCheckDef warn x = do
+    caseMaybeM (toAbstract $ MaybeOldQName $ OldQName x Nothing) notInScope $ \case
+      A.Def' y NoSuffix -> ret y
+      A.Def' y Suffix{} -> failure
+      A.Proj{}          -> failure
+      A.Con{}           -> failure
+      A.Var{}           -> failure
+      A.PatternSyn{}    -> failure
+      _ -> __IMPOSSIBLE__
+  where
+    notInScope = Nothing <$ notInScopeWarning x
+    failure = Nothing <$ do warning $ warn x
     ret = return . Just
 
 instance ToAbstract C.Clause where

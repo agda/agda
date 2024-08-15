@@ -4390,6 +4390,8 @@ data Warning
     -- ^ Wrong @COMPILE GHC@ given for 'QName'; explanation is in 'String'.
   | PragmaCompileWrongName C.QName IsAmbiguous
     -- ^ @COMPILE@ pragma with name 'C.QName' that is not an unambiguous constructor or definition.
+  | PragmaExpectsDefinedSymbol String C.QName
+    -- ^ Pragma 'String' with name 'C.QName' that is not an 'A.Def'.
   | PragmaExpectsUnambiguousConstructorOrFunction String C.QName IsAmbiguous
     -- ^ Pragma 'String' with name 'C.QName' that is not an unambiguous constructor or definition.
     --   General form of 'PragmaCompileWrongName' and 'NotARewriteRule'.
@@ -4521,6 +4523,7 @@ warningName = \case
   PragmaCompileUnparsable{}    -> PragmaCompileUnparsable_
   PragmaCompileWrong{}         -> PragmaCompileWrong_
   PragmaCompileWrongName{}     -> PragmaCompileWrongName_
+  PragmaExpectsDefinedSymbol{} -> PragmaExpectsDefinedSymbol_
   PragmaExpectsUnambiguousConstructorOrFunction{} ->
     PragmaExpectsUnambiguousConstructorOrFunction_
   PragmaExpectsUnambiguousProjectionOrFunction{} ->

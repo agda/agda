@@ -460,7 +460,13 @@ prettyWarning = \case
           NotAmbiguous -> pwords "neither a defined symbol nor a constructor"
       ]
 
-    PragmaExpectsUnambiguousConstructorOrFunction pragma x amb -> hsep $ concat
+    PragmaExpectsDefinedSymbol pragma _x -> hsep $ concat
+      [ pwords "Target of"
+      , [ text pragma ]
+      , pwords "pragma should be a defined symbol"
+      ]
+
+    PragmaExpectsUnambiguousConstructorOrFunction pragma _x amb -> hsep $ concat
       [ pwords "Target of"
       , [ text pragma ]
       , pwords "pragma should be"

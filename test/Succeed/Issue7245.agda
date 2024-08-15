@@ -1,5 +1,6 @@
+{-# ETA Set1 #-}
 {-# INJECTIVE Set1 #-}
--- {-# INJECTIVE_FOR_INFERENCE Set1 #-}
+{-# INJECTIVE_FOR_INFERENCE Set1 #-}
 {-# STATIC Set1 #-}
 {-# NOT_PROJECTION_LIKE Set1 #-}
 -- {-# INLINE Set1 #-}
@@ -20,8 +21,9 @@ record S : Set1 where field f : Set
 open R
 open S
 
+{-# ETA f #-}
 {-# INJECTIVE f #-}
--- {-# INJECTIVE_FOR_INFERENCE f #-}
+{-# INJECTIVE_FOR_INFERENCE f #-}
 {-# STATIC f #-}
 {-# NOT_PROJECTION_LIKE f #-}
 -- {-# INLINE f #-}
