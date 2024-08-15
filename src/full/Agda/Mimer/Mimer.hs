@@ -724,7 +724,9 @@ runSearch norm options ii rng = withInteractionId ii $ do
                                        , "with args" <+> pretty (instTel inst) ]
 
       -- ctx <- getContextTelescope
-      return metaIds
+      -- #7402: still solve the top-level meta, because we don't have the correct contexts for the
+      --        submetas
+      return [metaId | not $ null metaIds]
     OpenMeta UnificationMeta -> do
       reportSLn "mimer.init" 20 "Interaction point not instantiated."
       return [metaId]
@@ -1123,7 +1125,6 @@ tryLamAbs :: Goal -> Type -> SearchBranch -> SM (Either Expr (Goal, Type, Search
 tryLamAbs goal goalType branch =
   case unEl goalType of
     Pi dom abs -> do
-     e <- isEmptyType (unDom dom)
      isEmptyType (unDom dom) >>= \case -- TODO: Is this the correct way of checking if absurd lambda is applicable?
       True -> do
         let argInf = defaultArgInfo{argInfoOrigin = Inserted} -- domInfo dom
