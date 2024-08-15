@@ -8,6 +8,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Identity
+import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
 
 import qualified Data.Set as Set
@@ -117,6 +118,9 @@ class (MonadTCEnv m, ReadTCState m) => MonadTrace m where
 
 instance MonadTrace m => MonadTrace (IdentityT m) where
   traceClosureCall c f = IdentityT $ traceClosureCall c $ runIdentityT f
+
+instance MonadTrace m => MonadTrace (MaybeT m) where
+  traceClosureCall c f = MaybeT $ traceClosureCall c $ runMaybeT f
 
 instance MonadTrace m => MonadTrace (ReaderT r m) where
   traceClosureCall c f = ReaderT $ \r -> traceClosureCall c $ runReaderT f r

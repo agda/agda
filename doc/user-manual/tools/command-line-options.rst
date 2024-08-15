@@ -1496,6 +1496,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      :ref:`COMPILE<foreign-function-interface>` pragma for GHC backend targeting ``MAYBE``.
 
+.. option:: PragmaCompileUnparsable
+
+     Illformed :ref:`COMPILE<foreign-function-interface>` GHC pragmas.
+
 .. option:: PragmaCompileWrongName
 
      :ref:`COMPILE<foreign-function-interface>` pragmas referring to identifiers that are neither definitions nor constructors.

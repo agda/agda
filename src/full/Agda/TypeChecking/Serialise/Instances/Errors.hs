@@ -111,6 +111,7 @@ instance EmbPrj Warning where
     TooManyArgumentsToSort a b                  -> __IMPOSSIBLE__
     NotARewriteRule a b                         -> icodeN 60 NotARewriteRule a b
     PragmaCompileWrongName a b                  -> icodeN 61 PragmaCompileWrongName a b
+    PragmaCompileUnparsable a                   -> icodeN 62 PragmaCompileUnparsable a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -175,6 +176,7 @@ instance EmbPrj Warning where
     [59, a, b]           -> valuN InvalidDisplayForm a b
     [60, a, b]           -> valuN NotARewriteRule a b
     [61, a, b]           -> valuN PragmaCompileWrongName a b
+    [62, a]              -> valuN PragmaCompileUnparsable a
     _ -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where
@@ -564,6 +566,7 @@ instance EmbPrj WarningName where
     TooManyArgumentsToSort_                           -> 137
     NotARewriteRule_                                  -> 138
     PragmaCompileWrongName_                           -> 139
+    PragmaCompileUnparsable_                          -> 140
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -705,6 +708,7 @@ instance EmbPrj WarningName where
     137 -> return TooManyArgumentsToSort_
     138 -> return NotARewriteRule_
     139 -> return PragmaCompileWrongName_
+    140 -> return PragmaCompileUnparsable_
     _   -> malformed
 
 

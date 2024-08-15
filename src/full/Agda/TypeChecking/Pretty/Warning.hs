@@ -447,6 +447,8 @@ prettyWarning = \case
     PragmaCompileMaybe -> fsep $ pwords
       "Ignoring GHC pragma for builtin MAYBE; it always compiles to Haskell Maybe."
 
+    PragmaCompileUnparsable s -> fwords $ "Ignoring unparsable GHC pragma '" ++ s ++ "'"
+
     PragmaCompileWrongName x amb -> hsep $ concat
       [ pwords "Cannot COMPILE"
       , [ pretty x ]

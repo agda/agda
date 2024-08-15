@@ -478,7 +478,8 @@ warningHighlighting' b w = case tcWarning w of
   PragmaCompileErased{}      -> deadcodeHighlighting w
   PragmaCompileList{}        -> deadcodeHighlighting w
   PragmaCompileMaybe{}       -> deadcodeHighlighting w
-  PragmaCompileWrongName x _ -> deadcodeHighlighting x
+  PragmaCompileWrongName{}   -> deadcodeHighlighting w
+  PragmaCompileUnparsable{}  -> deadcodeHighlighting w
   NoMain{}                   -> mempty
   NotInScopeW{}              -> deadcodeHighlighting w
   UnsupportedIndexedMatch{}  -> mempty
