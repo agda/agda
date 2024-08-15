@@ -2440,17 +2440,19 @@ instance ToAbstract C.Pragma where
     map A.InjectiveForInferencePragma . maybeToList <$> do
       scopeCheckDef (PragmaExpectsDefinedSymbol "INJECTIVE_FOR_INFERENCE") x
 
-  toAbstract (C.InlinePragma _ b x) = do
-      e <- toAbstract $ OldQName x Nothing
-      let sINLINE = if b then "INLINE" else "NOINLINE"
-      let ret y = return [ A.InlinePragma b y ]
-      case e of
-          A.Con (AmbQ xs) -> concatMapM ret $ List1.toList xs
-          A.Def  x -> ret x
-          A.Proj _ p | Just x <- getUnambiguous p -> ret x
-          A.Proj _ x -> genericError $
-            sINLINE ++ " used on ambiguous name " ++ prettyShow x
-          _ -> genericError $ ("Target of " ++) $ applyWhen b ("NO" ++) "INLINE pragma should be a function or constructor"
+  toAbstract p@(C.InlinePragma _ b x) = do
+      caseMaybeM (toAbstract $ MaybeOldQName $ OldQName x Nothing) notInScope \case
+        A.Con (AmbQ xs)                -> concatMapM ret $ List1.toList xs
+        A.Def x                        -> ret x
+        A.Proj _ p
+          | Just x <- getUnambiguous p -> ret x
+          | otherwise                  -> failure $ sINLINE ++ " used on ambiguous name " ++ prettyShow x
+        _ -> failure $ "Target of " ++ sINLINE ++ " pragma should be a function or constructor"
+    where
+      sINLINE    = if b then "INLINE" else "NOINLINE"
+      notInScope = [] <$ notInScopeWarning x
+      failure    = ([] <$) . warning . UselessPragma (getRange p) . P.fwords
+      ret y      = return [ A.InlinePragma b y ]
 
   toAbstract (C.NotProjectionLikePragma _ x) = do
     map A.NotProjectionLikePragma . maybeToList <$> do
