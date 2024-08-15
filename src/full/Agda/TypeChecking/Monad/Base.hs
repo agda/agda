@@ -4393,6 +4393,8 @@ data Warning
   | PragmaExpectsUnambiguousConstructorOrFunction String C.QName IsAmbiguous
     -- ^ Pragma 'String' with name 'C.QName' that is not an unambiguous constructor or definition.
     --   General form of 'PragmaCompileWrongName' and 'NotARewriteRule'.
+  | PragmaExpectsUnambiguousProjectionOrFunction String C.QName IsAmbiguous
+    -- ^ Pragma 'String' with name 'C.QName' that is not an unambiguous projection or function.
   | NoMain TopLevelModuleName
     -- ^ Compiler run on module that does not have a @main@ function.
   | NotInScopeW [C.QName]
@@ -4521,6 +4523,8 @@ warningName = \case
   PragmaCompileWrongName{}     -> PragmaCompileWrongName_
   PragmaExpectsUnambiguousConstructorOrFunction{} ->
     PragmaExpectsUnambiguousConstructorOrFunction_
+  PragmaExpectsUnambiguousProjectionOrFunction{} ->
+    PragmaExpectsUnambiguousProjectionOrFunction_
   NoMain{}                     -> NoMain_
   PlentyInHardCompileTimeMode{}
                                -> PlentyInHardCompileTimeMode_

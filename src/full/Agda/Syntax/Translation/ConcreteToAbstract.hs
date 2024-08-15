@@ -2429,29 +2429,20 @@ instance ToAbstract C.Pragma where
       unambiguousConOrDef PragmaCompileWrongName x
 
   toAbstract (C.StaticPragma _ x) = do
-      e <- toAbstract $ OldQName x Nothing
-      y <- case e of
-          A.Def  x -> return x
-          A.Proj _ p | Just x <- getUnambiguous p -> return x
-          A.Proj _ x -> genericError $
-            "STATIC used on ambiguous name " ++ prettyShow x
-          _        -> genericError "Target of STATIC pragma should be a function"
-      return [ A.StaticPragma y ]
+    map A.StaticPragma . maybeToList <$> do
+      unambiguousDef (PragmaExpectsUnambiguousProjectionOrFunction "STATIC") x
+
   toAbstract (C.InjectivePragma _ x) = do
-      e <- toAbstract $ OldQName x Nothing
-      y <- case e of
-          A.Def  x -> return x
-          A.Proj _ p | Just x <- getUnambiguous p -> return x
-          A.Proj _ x -> genericError $
-            "INJECTIVE used on ambiguous name " ++ prettyShow x
-          _        -> genericError "Target of INJECTIVE pragma should be a defined symbol"
-      return [ A.InjectivePragma y ]
+    map A.InjectivePragma . maybeToList <$> do
+      unambiguousDef (PragmaExpectsUnambiguousProjectionOrFunction "INJECTIVE") x
+
   toAbstract (C.InjectiveForInferencePragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
           A.Def  x -> return x
           _        -> genericError "Target of INJECTIVE_FOR_INFERENCE pragma should be a defined symbol"
       return [ A.InjectiveForInferencePragma y ]
+
   toAbstract (C.InlinePragma _ b x) = do
       e <- toAbstract $ OldQName x Nothing
       let sINLINE = if b then "INLINE" else "NOINLINE"
@@ -2463,15 +2454,10 @@ instance ToAbstract C.Pragma where
           A.Proj _ x -> genericError $
             sINLINE ++ " used on ambiguous name " ++ prettyShow x
           _ -> genericError $ ("Target of " ++) $ applyWhen b ("NO" ++) "INLINE pragma should be a function or constructor"
+
   toAbstract (C.NotProjectionLikePragma _ x) = do
-      e <- toAbstract $ OldQName x Nothing
-      y <- case e of
-          A.Def  x -> return x
-          A.Proj _ p | Just x <- getUnambiguous p -> return x
-          A.Proj _ x -> genericError $
-            "NOT_PROJECTION_LIKE used on ambiguous name " ++ prettyShow x
-          _        -> genericError $ "Target of NOT_PROJECTION_LIKE pragma should be a function"
-      return [ A.NotProjectionLikePragma y ]
+    map A.NotProjectionLikePragma . maybeToList <$> do
+      unambiguousDef (PragmaExpectsUnambiguousProjectionOrFunction "NOT_PROJECTION_LIKE") x
 
   toAbstract (C.OverlapPragma _ xs i) = do
     map (flip A.OverlapPragma i) . catMaybes <$> do
@@ -2609,6 +2595,23 @@ unambiguousConOrDef warn x = do
       A.Con c
         | Just y <- getUnambiguous c -> ret y
         | otherwise                  -> failure $ YesAmbiguous c
+      A.Var{}                        -> failure NotAmbiguous
+      A.PatternSyn{}                 -> failure NotAmbiguous
+      _ -> __IMPOSSIBLE__
+  where
+    notInScope = Nothing <$ notInScopeWarning x
+    failure = (Nothing <$) . warning . warn x
+    ret = return . Just
+
+unambiguousDef :: (C.QName -> IsAmbiguous -> Warning) -> C.QName -> ScopeM (Maybe A.QName)
+unambiguousDef warn x = do
+    caseMaybeM (toAbstract $ MaybeOldQName $ OldQName x Nothing) notInScope $ \case
+      A.Def' y NoSuffix              -> ret y
+      A.Def' y Suffix{}              -> failure NotAmbiguous
+      A.Proj _ p
+        | Just y <- getUnambiguous p -> ret y
+        | otherwise                  -> failure $ YesAmbiguous p
+      A.Con{}                        -> failure NotAmbiguous
       A.Var{}                        -> failure NotAmbiguous
       A.PatternSyn{}                 -> failure NotAmbiguous
       _ -> __IMPOSSIBLE__
