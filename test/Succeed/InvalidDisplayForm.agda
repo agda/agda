@@ -54,3 +54,34 @@ postulate
 --
 -- All display forms in this file should trigger warning InvalidDisplayForm
 -- and be marked as dead code.
+
+------------------------------------------------------------------------
+
+record R1 : Set1 where field f : Set
+record R2 : Set1 where field f : Set
+
+open R1
+open R2
+
+postulate r : R1
+
+-- Andreas, 2024-08-15
+-- Trigger warning UselessPragma for bad lhss of display forms
+
+{-# DISPLAY 0 = Set #-}
+-- DISPLAY pragma left-hand side must have form 'f e1 .. en'
+
+{-# DISPLAY Set1 = Set #-}
+-- Invalid pattern Set1
+
+{-# DISPLAY c = Set #-}
+-- Ambiguous constructor c: InvalidDisplayForm.D.c | InvalidDisplayForm.E.c
+
+{-# DISPLAY f = Set #-}
+-- Ambiguous projection f: InvalidDisplayForm.R1.f | InvalidDisplayForm.R2.f
+
+{-# DISPLAY r | Set = Set #-}
+-- DISPLAY pragma left-hand side must have form 'f e1 .. en'
+
+{-# DISPLAY x@y = Set #-}
+-- DISPLAY pragma left-hand side must have form 'f e1 .. en'
