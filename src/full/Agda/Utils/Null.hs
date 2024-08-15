@@ -15,6 +15,7 @@ import Control.Monad.Reader   ( ReaderT )
 import Control.Monad.State    ( StateT  )
 import Control.Monad.Writer   ( WriterT )
 import Control.Monad.Trans    ( lift    )
+import Control.Monad.Trans.Maybe
 
 import Data.Maybe             ( isNothing )
 
@@ -145,6 +146,10 @@ instance Null a => Null (IO a) where
   null  = __IMPOSSIBLE__
 
 instance (Null (m a), Monad m) => Null (ExceptT e m a) where
+  empty = lift empty
+  null  = __IMPOSSIBLE__
+
+instance (Null (m a), Monad m) => Null (MaybeT m a) where
   empty = lift empty
   null  = __IMPOSSIBLE__
 

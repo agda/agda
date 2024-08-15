@@ -8,10 +8,10 @@
 module Agda.TypeChecking.Monad.Pure where
 
 import Control.Monad.Except ( ExceptT )
-import Control.Monad.Trans.Maybe ( MaybeT )
 import Control.Monad.Reader ( ReaderT )
 import Control.Monad.State ( StateT )
 import Control.Monad.Trans.Identity ( IdentityT )
+import Control.Monad.Trans.Maybe ( MaybeT )
 import Control.Monad.Writer ( WriterT )
 
 import Agda.TypeChecking.Monad.Base

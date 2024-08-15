@@ -869,6 +869,7 @@ class Monad m => MonadFresh i m where
   fresh = lift fresh
 
 instance MonadFresh i m => MonadFresh i (ExceptT e m)
+instance MonadFresh i m => MonadFresh i (MaybeT m)
 instance MonadFresh i m => MonadFresh i (ReaderT r m)
 instance MonadFresh i m => MonadFresh i (StateT s m)
 instance (MonadFresh i m, Monoid w) => MonadFresh i (WriterT w m)
@@ -991,6 +992,12 @@ instance MonadStConcreteNames m => MonadStConcreteNames (ExceptT e m) where
 
 instance MonadStConcreteNames m => MonadStConcreteNames (IdentityT m) where
   runStConcreteNames m = IdentityT $ runStConcreteNames $ StateT $ runIdentityT . runStateT m
+
+instance MonadStConcreteNames m => MonadStConcreteNames (MaybeT m) where
+  runStConcreteNames m = MaybeT $ runStConcreteNames $ StateT $ \ ns -> do
+    runMaybeT (runStateT m ns) <&> \case
+      Nothing       -> (Nothing, mempty)
+      Just (x, ns') -> (Just x, ns')
 
 instance MonadStConcreteNames m => MonadStConcreteNames (ReaderT r m) where
   runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . flip (runReaderT . runStateT m)
@@ -4377,6 +4384,8 @@ data Warning
     -- ^ @COMPILE GHC@ pragma for lists; ignored.
   | PragmaCompileMaybe
     -- ^ @COMPILE GHC@ pragma for @MAYBE@; ignored.
+  | PragmaCompileUnparsable String
+    -- ^ @COMPILE GHC@ pragma 'String' not parsable; ignored.
   | PragmaCompileWrongName C.QName IsAmbiguous
     -- ^ @COMPILE@ pragma with name that is not an unambiguous constructor or definition.
   | NoMain TopLevelModuleName
@@ -4502,6 +4511,7 @@ warningName = \case
   PragmaCompileErased{}        -> PragmaCompileErased_
   PragmaCompileList{}          -> PragmaCompileList_
   PragmaCompileMaybe{}         -> PragmaCompileMaybe_
+  PragmaCompileUnparsable{}    -> PragmaCompileUnparsable_
   PragmaCompileWrongName{}     -> PragmaCompileWrongName_
   NoMain{}                     -> NoMain_
   PlentyInHardCompileTimeMode{}

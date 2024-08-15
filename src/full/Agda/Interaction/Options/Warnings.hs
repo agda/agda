@@ -287,6 +287,7 @@ data WarningName
   | PragmaCompileErased_
   | PragmaCompileList_
   | PragmaCompileMaybe_
+  | PragmaCompileUnparsable_
   | PragmaCompileWrongName_
   | NoMain_
   | NotARewriteRule_
@@ -507,6 +508,7 @@ warningNameDescription = \case
   PragmaCompileErased_             -> "`COMPILE' pragmas targeting an erased symbol."
   PragmaCompileList_               -> "`COMPILE GHC' pragmas for lists."
   PragmaCompileMaybe_              -> "`COMPILE GHC' pragmas for `MAYBE'."
+  PragmaCompileUnparsable_         -> "Unparsable `COMPILE GHC' pragmas."
   PragmaCompileWrongName_          -> "`COMPILE' pragmas referring to identifiers that are neither definitions nor constructors.'"
   NoMain_                          -> "Compilation of modules that do not define `main'."
   NotARewriteRule_                 -> "`REWRITE pragmas referring to identifiers that are neither definitions nor constructors.'"

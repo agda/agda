@@ -1,0 +1,3 @@
+ParseErrorGHCPragma.agda:9,1-22
+warning: -W[no]PragmaCompileUnparsable
+Ignoring unparsable GHC pragma ''

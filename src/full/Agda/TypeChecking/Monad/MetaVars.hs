@@ -9,6 +9,7 @@ import Control.Monad.Except         ( ExceptT, MonadError )
 import Control.Monad.State          ( StateT, execStateT, get, put )
 import Control.Monad.Trans          ( MonadTrans, lift )
 import Control.Monad.Trans.Identity ( IdentityT )
+import Control.Monad.Trans.Maybe    ( MaybeT )
 import Control.Monad.Reader         ( ReaderT(ReaderT), runReaderT )
 import Control.Monad.Writer         ( WriterT, execWriterT, tell )
 
@@ -516,6 +517,7 @@ class (MonadTCEnv m, ReadTCState m) => MonadInteractionPoints m where
   modifyInteractionPoints = lift . modifyInteractionPoints
 
 instance MonadInteractionPoints m => MonadInteractionPoints (ExceptT e m)
+instance MonadInteractionPoints m => MonadInteractionPoints (MaybeT m)
 instance MonadInteractionPoints m => MonadInteractionPoints (IdentityT m)
 instance MonadInteractionPoints m => MonadInteractionPoints (ReaderT r m)
 instance MonadInteractionPoints m => MonadInteractionPoints (StateT s m)
