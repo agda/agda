@@ -34,7 +34,6 @@
 - ignore: {name: "Redundant True guards"} # 1 hint
 - ignore: {name: "Redundant bang pattern"} # 1 hint
 - ignore: {name: "Redundant bracket"} # 494 hints
-- ignore: {name: "Redundant case"} # 1 hint
 - ignore: {name: "Redundant flip"} # 4 hints
 - ignore: {name: "Redundant fmap"} # 1 hint
 - ignore: {name: "Redundant guard"} # 5 hints

@@ -719,10 +719,7 @@ checkPrimitive i x (Arg info e) =
     -- ArgInfos, and likely very few will have different ArgInfos in the
     -- future. Thus, rather than, the arguably nicer solution of adding an
     -- ArgInfo to PrimImpl we simply check the few special primitives here.
-    let expectedInfo =
-          case name of
-            -- Currently no special primitives
-            _ -> defaultArgInfo
+    let expectedInfo = defaultArgInfo -- Currently no special primitives.
     unless (info == expectedInfo) $
       typeError $ WrongArgInfoForPrimitive name info expectedInfo
     bindPrimitive name pf
