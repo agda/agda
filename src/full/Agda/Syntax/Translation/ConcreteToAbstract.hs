@@ -2440,18 +2440,17 @@ instance ToAbstract C.Pragma where
     map A.InjectiveForInferencePragma . maybeToList <$> do
       scopeCheckDef (PragmaExpectsDefinedSymbol "INJECTIVE_FOR_INFERENCE") x
 
-  toAbstract p@(C.InlinePragma _ b x) = do
+  toAbstract pragma@(C.InlinePragma _ b x) = do
       caseMaybeM (toAbstract $ MaybeOldQName $ OldQName x Nothing) notInScope \case
         A.Con (AmbQ xs)                -> concatMapM ret $ List1.toList xs
         A.Def x                        -> ret x
         A.Proj _ p
           | Just x <- getUnambiguous p -> ret x
-          | otherwise                  -> failure $ sINLINE ++ " used on ambiguous name " ++ prettyShow x
-        _ -> failure $ "Target of " ++ sINLINE ++ " pragma should be a function or constructor"
+          | otherwise                  -> uselessPragma pragma $ sINLINE ++ " used on ambiguous name " ++ prettyShow x
+        _ -> uselessPragma pragma $ "Target of " ++ sINLINE ++ " pragma should be a function or constructor"
     where
       sINLINE    = if b then "INLINE" else "NOINLINE"
       notInScope = [] <$ notInScopeWarning x
-      failure    = ([] <$) . warning . UselessPragma (getRange p) . P.fwords
       ret y      = return [ A.InlinePragma b y ]
 
   toAbstract (C.NotProjectionLikePragma _ x) = do
@@ -2471,7 +2470,7 @@ instance ToAbstract C.Pragma where
         DefaultOverlap -> __IMPOSSIBLE__
         FieldOverlap   -> __IMPOSSIBLE__
 
-  toAbstract (C.BuiltinPragma _ rb qx)
+  toAbstract pragma@(C.BuiltinPragma _ rb qx)
     | Just b' <- b, isUntypedBuiltin b' = do
         q <- toAbstract $ ResolveQName qx
         bindUntypedBuiltin b' q
@@ -2492,7 +2491,7 @@ instance ToAbstract C.Pragma where
               let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b'
               bindName PublicAccess kind x y
               return [ A.BuiltinNoDefPragma rb kind y ]
-            _ -> genericError $
+            _ -> uselessPragma pragma $
               "Pragma BUILTIN " ++ getBuiltinId b' ++ ": expected unqualified identifier, " ++
               "but found " ++ prettyShow qx
     | otherwise = do
@@ -2577,6 +2576,9 @@ instance ToAbstract C.Pragma where
 
   -- Polarity pragmas are handled by the niceifier.
   toAbstract C.PolarityPragma{} = __IMPOSSIBLE__
+
+uselessPragma :: HasRange p => p -> String -> ScopeM [a]
+uselessPragma pragma = ([] <$) . warning . UselessPragma (getRange pragma) . P.fwords
 
 unambiguousConOrDef :: (C.QName -> IsAmbiguous -> Warning) -> C.QName -> ScopeM (Maybe A.QName)
 unambiguousConOrDef warn x = do
