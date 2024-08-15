@@ -24,8 +24,9 @@ import Prelude hiding ( null )
 
 import Control.Monad        ( (>=>), (<=<), foldM, forM, forM_, zipWithM, zipWithM_ )
 import Control.Applicative  ( liftA2, liftA3 )
-import Control.Monad.Except ( MonadError(..) )
+import Control.Monad.Except ( runExceptT, MonadError(..) )
 import Control.Monad.State  ( StateT, execStateT, get, put )
+import Control.Monad.Trans.Maybe
 import Control.Monad.Trans  ( lift )
 
 import Data.Bifunctor
@@ -653,6 +654,7 @@ instance ToQName a => ToAbstract (OldName a) where
     case rx of
       DefinedName _ d NoSuffix -> return $ anameName d
       DefinedName _ d Suffix{} -> notInScopeError (toQName x)
+      -- Andreas, 2024-08-15: Is the following sentence still true?
       -- We can get the cases below for DISPLAY pragmas
       ConstructorName _ ds -> return $ anameName (List1.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
       FieldName ds         -> return $ anameName (List1.head ds)
@@ -2514,47 +2516,52 @@ instance ToAbstract C.Pragma where
     map A.EtaPragma . maybeToList <$> do
       scopeCheckDef (PragmaExpectsDefinedSymbol "ETA") x
 
-  toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
-    let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
-        getHead (C.IdentP _ x)        = return x
-        getHead (C.RawAppP _ (List2 p _ _)) = getHead p
-        getHead _                     = err
+  toAbstract pragma@(C.DisplayPragma _ lhs rhs) = do
+    maybeToList <$> do
+      withLocalVars $ runMaybeT do
+        let err = failure "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
+            getHead (C.IdentP _ x)              = return x
+            getHead (C.RawAppP _ (List2 p _ _)) = getHead p
+            getHead _ = err
 
-    top <- getHead lhs
+        top <- getHead lhs
 
-    (isPatSyn, hd) <- do
-      qx <- resolveName' allKindsOfNames Nothing top
-      case qx of
-        VarName x' _                -> return . (False,) $ A.qnameFromList $ singleton x'
-        DefinedName _ d NoSuffix    -> return . (False,) $ anameName d
-        DefinedName _ d Suffix{}    -> genericError $ "Invalid pattern " ++ prettyShow top
-        FieldName     (d :| [])     -> return . (False,) $ anameName d
-        FieldName ds                -> genericError $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
-        ConstructorName _ (d :| []) -> return . (False,) $ anameName d
-        ConstructorName _ ds        -> genericError $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
-        UnknownName                 -> notInScopeError top
-        PatternSynResName (d :| []) -> return . (True,) $ anameName d
-        PatternSynResName ds        -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
+        (isPatSyn, hd) <- do
+          qx <- liftTCM $ resolveName' allKindsOfNames Nothing top
+          case qx of
+            VarName x' _                -> return . (False,) $ A.qnameFromList $ singleton x'
+            DefinedName _ d NoSuffix    -> return . (False,) $ anameName d
+            DefinedName _ d Suffix{}    -> failure $ "Invalid pattern " ++ prettyShow top
+            FieldName     (d :| [])     -> return . (False,) $ anameName d
+            FieldName ds                -> failure $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (AmbQ $ fmap anameName ds)
+            ConstructorName _ (d :| []) -> return . (False,) $ anameName d
+            ConstructorName _ ds        -> failure $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (AmbQ $ fmap anameName ds)
+            UnknownName                 -> do liftTCM $ notInScopeWarning top; mzero
+            PatternSynResName (d :| []) -> return . (True,) $ anameName d
+            PatternSynResName ds        -> failure $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
 
-    lhs <- toAbstract $ LeftHandSide top lhs
-    ps  <- case lhs of
-             A.LHS _ (A.LHSHead _ ps) -> return ps
-             _ -> err
+        lhs <- liftTCM $ toAbstract $ LeftHandSide top lhs
+        ps  <- case lhs of
+                 A.LHS _ (A.LHSHead _ ps) -> return ps
+                 _ -> err
 
-    -- Andreas, 2016-08-08, issue #2132
-    -- Remove pattern synonyms on lhs
-    (hd, ps) <- do
-      let mkP | isPatSyn  = A.PatternSynP (PatRange $ getRange lhs) (unambiguous hd)
-              | otherwise = A.DefP (PatRange $ getRange lhs) (unambiguous hd)
-      p <- expandPatternSynonyms $ mkP ps
-      case p of
-        A.DefP _ f ps | Just hd <- getUnambiguous f -> return (hd, ps)
-        A.ConP _ c ps | Just hd <- getUnambiguous c -> return (hd, ps)
-        A.PatternSynP{} -> __IMPOSSIBLE__
-        _ -> err
+        -- Andreas, 2016-08-08, issue #2132
+        -- Remove pattern synonyms on lhs
+        (hd, ps) <- do
+          let mkP | isPatSyn  = A.PatternSynP (PatRange $ getRange lhs) (unambiguous hd)
+                  | otherwise = A.DefP (PatRange $ getRange lhs) (unambiguous hd)
+          p <- liftTCM $ expandPatternSynonyms $ mkP ps
+          case p of
+            A.DefP _ f ps | Just hd <- getUnambiguous f -> return (hd, ps)
+            A.ConP _ c ps | Just hd <- getUnambiguous c -> return (hd, ps)
+            A.PatternSynP{} -> __IMPOSSIBLE__
+            _ -> err
 
-    rhs <- toAbstract rhs
-    return [A.DisplayPragma hd ps rhs]
+        rhs <- liftTCM $ toAbstract rhs
+        return $ A.DisplayPragma hd ps rhs
+    where
+      failure :: forall a. String -> MaybeT ScopeM a
+      failure msg = do warning (UselessPragma (getRange pragma) $ P.fwords msg); mzero
 
   -- A warning attached to an ambiguous name shall apply to all disambiguations.
   toAbstract (C.WarningOnUsage _ x str) = do

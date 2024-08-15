@@ -1,3 +1,41 @@
+InvalidDisplayForm.agda:71,1-24
+warning: -W[no]UselessPragma
+DISPLAY pragma left-hand side must have form 'f e1 .. en'
+when scope checking the declaration
+  {-# DISPLAY 0 = Set #-}
+
+InvalidDisplayForm.agda:74,1-27
+warning: -W[no]UselessPragma
+Invalid pattern Set1
+when scope checking the declaration
+  {-# DISPLAY Set1 = Set #-}
+
+InvalidDisplayForm.agda:77,1-24
+warning: -W[no]UselessPragma
+Ambiguous constructor c: InvalidDisplayForm.D.c |
+InvalidDisplayForm.E.c
+when scope checking the declaration
+  {-# DISPLAY c = Set #-}
+
+InvalidDisplayForm.agda:80,1-24
+warning: -W[no]UselessPragma
+Ambiguous projection f: InvalidDisplayForm.R1.f |
+InvalidDisplayForm.R2.f
+when scope checking the declaration
+  {-# DISPLAY f = Set #-}
+
+InvalidDisplayForm.agda:83,1-30
+warning: -W[no]UselessPragma
+DISPLAY pragma left-hand side must have form 'f e1 .. en'
+when scope checking the declaration
+  {-# DISPLAY r | Set = Set #-}
+
+InvalidDisplayForm.agda:86,1-26
+warning: -W[no]UselessPragma
+DISPLAY pragma left-hand side must have form 'f e1 .. en'
+when scope checking the declaration
+  {-# DISPLAY x@y = Set #-}
+
 InvalidDisplayForm.agda:8,1-22
 warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for R because it is recursive
@@ -141,6 +179,44 @@ InvalidDisplayForm.E.c
 when checking the pragma DISPLAY L5 p = Set
 
 ———— All done; warnings encountered ————————————————————————
+
+InvalidDisplayForm.agda:71,1-24
+warning: -W[no]UselessPragma
+DISPLAY pragma left-hand side must have form 'f e1 .. en'
+when scope checking the declaration
+  {-# DISPLAY 0 = Set #-}
+
+InvalidDisplayForm.agda:74,1-27
+warning: -W[no]UselessPragma
+Invalid pattern Set1
+when scope checking the declaration
+  {-# DISPLAY Set1 = Set #-}
+
+InvalidDisplayForm.agda:77,1-24
+warning: -W[no]UselessPragma
+Ambiguous constructor c: InvalidDisplayForm.D.c |
+InvalidDisplayForm.E.c
+when scope checking the declaration
+  {-# DISPLAY c = Set #-}
+
+InvalidDisplayForm.agda:80,1-24
+warning: -W[no]UselessPragma
+Ambiguous projection f: InvalidDisplayForm.R1.f |
+InvalidDisplayForm.R2.f
+when scope checking the declaration
+  {-# DISPLAY f = Set #-}
+
+InvalidDisplayForm.agda:83,1-30
+warning: -W[no]UselessPragma
+DISPLAY pragma left-hand side must have form 'f e1 .. en'
+when scope checking the declaration
+  {-# DISPLAY r | Set = Set #-}
+
+InvalidDisplayForm.agda:86,1-26
+warning: -W[no]UselessPragma
+DISPLAY pragma left-hand side must have form 'f e1 .. en'
+when scope checking the declaration
+  {-# DISPLAY x@y = Set #-}
 
 InvalidDisplayForm.agda:8,1-22
 warning: -W[no]InvalidDisplayForm
