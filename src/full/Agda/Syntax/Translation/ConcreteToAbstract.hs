@@ -2472,31 +2472,19 @@ instance ToAbstract C.Pragma where
             "NOT_PROJECTION_LIKE used on ambiguous name " ++ prettyShow x
           _        -> genericError $ "Target of NOT_PROJECTION_LIKE pragma should be a function"
       return [ A.NotProjectionLikePragma y ]
+
   toAbstract (C.OverlapPragma _ xs i) = do
-    let
-      name = case i of
+    map (flip A.OverlapPragma i) . catMaybes <$> do
+      mapM (unambiguousConOrDef $ PragmaExpectsUnambiguousConstructorOrFunction pragma) xs
+    where
+      pragma = case i of
         Overlappable -> "OVERLAPPABLE"
         Overlapping  -> "OVERLAPPING"
         Overlaps     -> "OVERLAPS"
         Incoherent   -> "INCOHERENT"
-
         -- Never written by the user:
         DefaultOverlap -> __IMPOSSIBLE__
         FieldOverlap   -> __IMPOSSIBLE__
-
-      single x = do
-        e <- toAbstract $ OldQName x Nothing
-        flip A.OverlapPragma i <$> case e of
-          A.Def  x -> return x
-          A.Con c | Just x <- getUnambiguous c -> return x
-          A.Con x -> genericError $
-            name <> " used on ambiguous name " ++ prettyShow x
-          A.Proj _ p | Just x <- getUnambiguous p -> return x
-          A.Proj _ x -> genericError $
-            name <> " used on ambiguous name " ++ prettyShow x
-          _        -> genericError $ "Target of " <> name <> " pragma should be a function, constructor, or projection"
-
-    traverse single xs
 
   toAbstract (C.BuiltinPragma _ rb qx)
     | Just b' <- b, isUntypedBuiltin b' = do

@@ -121,6 +121,8 @@ instance EmbPrj Warning where
     PragmaCompileWrongName a b                  -> icodeN 61 PragmaCompileWrongName a b
     PragmaCompileUnparsable a                   -> icodeN 62 PragmaCompileUnparsable a
     PragmaCompileWrong a b                      -> icodeN 63 PragmaCompileWrong a b
+    PragmaExpectsUnambiguousConstructorOrFunction a b c ->
+      icodeN 64 PragmaExpectsUnambiguousConstructorOrFunction a b c
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -187,6 +189,7 @@ instance EmbPrj Warning where
     [61, a, b]           -> valuN PragmaCompileWrongName a b
     [62, a]              -> valuN PragmaCompileUnparsable a
     [63, a, b]           -> valuN PragmaCompileWrong a b
+    [64, a, b, c]        -> valuN PragmaExpectsUnambiguousConstructorOrFunction a b c
     _ -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where
@@ -578,6 +581,7 @@ instance EmbPrj WarningName where
     PragmaCompileWrongName_                           -> 139
     PragmaCompileUnparsable_                          -> 140
     PragmaCompileWrong_                               -> 141
+    PragmaExpectsUnambiguousConstructorOrFunction_    -> 142
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -721,6 +725,7 @@ instance EmbPrj WarningName where
     139 -> return PragmaCompileWrongName_
     140 -> return PragmaCompileUnparsable_
     141 -> return PragmaCompileWrong_
+    142 -> return PragmaExpectsUnambiguousConstructorOrFunction_
     _   -> malformed
 
 

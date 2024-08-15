@@ -4389,7 +4389,10 @@ data Warning
   | PragmaCompileWrong QName String
     -- ^ Wrong @COMPILE GHC@ given for 'QName'; explanation is in 'String'.
   | PragmaCompileWrongName C.QName IsAmbiguous
-    -- ^ @COMPILE@ pragma with name that is not an unambiguous constructor or definition.
+    -- ^ @COMPILE@ pragma with name 'C.QName' that is not an unambiguous constructor or definition.
+  | PragmaExpectsUnambiguousConstructorOrFunction String C.QName IsAmbiguous
+    -- ^ Pragma 'String' with name 'C.QName' that is not an unambiguous constructor or definition.
+    --   General form of 'PragmaCompileWrongName' and 'NotARewriteRule'.
   | NoMain TopLevelModuleName
     -- ^ Compiler run on module that does not have a @main@ function.
   | NotInScopeW [C.QName]
@@ -4516,6 +4519,8 @@ warningName = \case
   PragmaCompileUnparsable{}    -> PragmaCompileUnparsable_
   PragmaCompileWrong{}         -> PragmaCompileWrong_
   PragmaCompileWrongName{}     -> PragmaCompileWrongName_
+  PragmaExpectsUnambiguousConstructorOrFunction{} ->
+    PragmaExpectsUnambiguousConstructorOrFunction_
   NoMain{}                     -> NoMain_
   PlentyInHardCompileTimeMode{}
                                -> PlentyInHardCompileTimeMode_
