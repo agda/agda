@@ -449,6 +449,8 @@ prettyWarning = \case
 
     PragmaCompileUnparsable s -> fwords $ "Ignoring unparsable GHC pragma '" ++ s ++ "'"
 
+    PragmaCompileWrong _x s -> fwords s
+
     PragmaCompileWrongName x amb -> hsep $ concat
       [ pwords "Cannot COMPILE"
       , [ pretty x ]

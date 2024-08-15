@@ -288,6 +288,7 @@ data WarningName
   | PragmaCompileList_
   | PragmaCompileMaybe_
   | PragmaCompileUnparsable_
+  | PragmaCompileWrong_
   | PragmaCompileWrongName_
   | NoMain_
   | NotARewriteRule_
@@ -509,6 +510,7 @@ warningNameDescription = \case
   PragmaCompileList_               -> "`COMPILE GHC' pragmas for lists."
   PragmaCompileMaybe_              -> "`COMPILE GHC' pragmas for `MAYBE'."
   PragmaCompileUnparsable_         -> "Unparsable `COMPILE GHC' pragmas."
+  PragmaCompileWrong_              -> "Ill-formed `COMPILE GHC' pragmas."
   PragmaCompileWrongName_          -> "`COMPILE' pragmas referring to identifiers that are neither definitions nor constructors.'"
   NoMain_                          -> "Compilation of modules that do not define `main'."
   NotARewriteRule_                 -> "`REWRITE pragmas referring to identifiers that are neither definitions nor constructors.'"

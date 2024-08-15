@@ -3,7 +3,6 @@
 module Agda.Compiler.MAlonzo.Pragmas where
 
 import Control.Monad
-import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 
 import Data.Maybe
@@ -18,12 +17,14 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Primitive
 
-import Agda.Syntax.Common.Pretty hiding (char)
-import Agda.Utils.String ( ltrim )
-import Agda.Utils.Maybe
-import Agda.Utils.Three
-
 import Agda.Compiler.MAlonzo.Misc
+
+import Agda.Syntax.Common.Pretty hiding (char)
+import Agda.Utils.Functor
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
+import Agda.Utils.String ( ltrim )
+import Agda.Utils.Three
 
 import Agda.Utils.Impossible
 
@@ -65,8 +66,7 @@ getHaskellPragma q = runMaybeT do
   p <- MaybeT $ getUniqueCompilerPragma ghcBackendName q
   setCurrentRange p do
     pragma <- MaybeT $ parseHaskellPragma p
-    def    <- lift $ getConstInfo q
-    pragma <$ sanityCheckPragma def pragma
+    MaybeT $ sanityCheckPragma q pragma
 
 -- Syntax for Haskell pragmas:
 --  HsDefn CODE       "= CODE"
@@ -124,42 +124,47 @@ parseHaskellPragma p@(CompilerPragma _ s) = do
   () <- whenNothing p' $ warning $ PragmaCompileUnparsable s
   return p'
 
-sanityCheckPragma :: (HasBuiltins m, MonadTCError m, MonadReduce m) => Definition -> HaskellPragma -> m ()
-sanityCheckPragma def (HsDefn{}) =
-  case theDef def of
-    Axiom{}        -> return ()
-    Function{}     -> return ()
-    AbstractDefn{} -> __IMPOSSIBLE__
-    Datatype{}     -> recOrDataErr "data"
-    Record{}       -> recOrDataErr "record"
-    _              -> typeError $ GenericError "Haskell definitions can only be given for postulates and functions."
-    where
-      recOrDataErr which =
-        typeError $ GenericDocError $
-          sep [ text $ "Bad COMPILE GHC pragma for " ++ which ++ " type. Use"
-              , "{-# COMPILE GHC <Name> = data <HsData> (<HsCon1> | .. | <HsConN>) #-}" ]
-sanityCheckPragma def (HsData{}) =
-  case theDef def of
-    Datatype{} -> return ()
-    Record{}   -> return ()
-    _          -> typeError $ GenericError "Haskell data types can only be given for data or record types."
-sanityCheckPragma def (HsType{}) =
-  case theDef def of
-    Axiom{} -> return ()
-    Datatype{} -> do
-      -- We use HsType pragmas for Nat, Int and Bool
-      nat  <- getBuiltinName builtinNat
-      int  <- getBuiltinName builtinInteger
-      bool <- getBuiltinName builtinBool
-      unless (Just (defName def) `elem` [nat, int, bool]) err
-    _ -> err
-  where
-    err = typeError $ GenericError "Haskell types can only be given for postulates."
-sanityCheckPragma def (HsExport{}) =
-  case theDef def of
-    Function{} -> return ()
-    _ -> typeError $ GenericError "Only functions can be exported to Haskell using {-# COMPILE GHC <Name> as <HsName> #-}"
+-- | Check whether the parsed @COMPILE GHC@ pragma matches the kind of identifier it attaches to.
+--
+sanityCheckPragma :: QName -> HaskellPragma -> TCM (Maybe HaskellPragma)
+sanityCheckPragma x pragma = do
+  def <- getConstInfo x
+  case pragma of
 
+    HsDefn{} -> case theDef def of
+      Axiom{}        -> ok
+      Function{}     -> ok
+      AbstractDefn{} -> __IMPOSSIBLE__
+      Datatype{}     -> recOrDataErr "data"
+      Record{}       -> recOrDataErr "record"
+      _ -> bad "Haskell definitions can only be given for postulates and functions."
+
+    HsData{} -> case theDef def of
+      Datatype{} -> ok
+      Record{}   -> ok
+      _ -> bad "Haskell data types can only be given for data or record types."
+
+    HsType{} -> case theDef def of
+      Axiom{}    -> ok
+      Datatype{} -> do
+        -- We use HsType pragmas for Nat, Int and Bool
+        ifM (flip anyM ((Just (defName def) ==) <.> getBuiltinName) [builtinNat, builtinInteger, builtinBool])
+          {-then-} ok
+          {-else-} notPostulate
+      _ -> notPostulate
+
+    HsExport{} -> case theDef def of
+      Function{} -> ok
+      _ -> bad "Only functions can be exported to Haskell using {-# COMPILE GHC <Name> as <HsName> #-}"
+
+  where
+    ok  = return $ Just pragma
+    bad = (Nothing <$) . warning . PragmaCompileWrong x
+    recOrDataErr which = bad $ unwords
+      [ "Bad COMPILE GHC pragma for", which, "type. Use"
+      , "{-# COMPILE GHC <Name> = data <HsData> (<HsCon1> | .. | <HsConN>) #-}"
+      ]
+    notPostulate = bad "Haskell types can only be given for postulates."
 
 
 -- TODO: cache this to avoid parsing the pragma for every constructor

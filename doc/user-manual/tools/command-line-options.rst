@@ -1498,7 +1498,11 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: PragmaCompileUnparsable
 
-     Illformed :ref:`COMPILE<foreign-function-interface>` GHC pragmas.
+     Unparsable :ref:`COMPILE<foreign-function-interface>` GHC pragmas.
+
+.. option:: PragmaCompileWrong
+
+     Ill-formed :ref:`COMPILE<foreign-function-interface>` GHC pragmas.
 
 .. option:: PragmaCompileWrongName
 
