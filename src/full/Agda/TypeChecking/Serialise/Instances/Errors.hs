@@ -21,7 +21,15 @@ import Agda.Utils.ProfileOptions
 
 import Agda.Utils.Impossible
 
-instance EmbPrj IsAmbiguous
+instance EmbPrj IsAmbiguous where
+  icod_ = \case
+    YesAmbiguous a -> icodeN' YesAmbiguous a
+    NotAmbiguous   -> icodeN' NotAmbiguous
+
+  value = vcase \case
+    [a] -> valuN YesAmbiguous a
+    []  -> valuN NotAmbiguous
+    _   -> malformed
 
 instance EmbPrj TCWarning where
   icod_ (TCWarning fp a b c d) = icodeN' TCWarning fp a b c d

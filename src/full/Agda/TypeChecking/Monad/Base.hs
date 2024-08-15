@@ -5086,9 +5086,9 @@ data IllegalRewriteRuleReason
 
 -- | Boolean flag whether a name is ambiguous.
 data IsAmbiguous
-  = YesAmbiguous
+  = YesAmbiguous AmbiguousQName
   | NotAmbiguous
-  deriving (Show, Generic, Bounded, Enum)
+  deriving (Show, Generic)
 
 -- Reason, why type for rewrite rule is incorrect
 data IncorrectTypeForRewriteRelationReason

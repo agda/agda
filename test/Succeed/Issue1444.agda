@@ -24,3 +24,8 @@ pattern p = c
 
 -- Was: internal error
 -- Now: deadcode warning
+
+data E : Set where
+  c : E
+
+{-# REWRITE c #-}
