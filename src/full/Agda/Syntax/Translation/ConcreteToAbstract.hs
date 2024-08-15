@@ -2613,14 +2613,16 @@ instance ToAbstract C.Pragma where
 unambiguousConOrDef :: (C.QName -> IsAmbiguous -> Warning) -> C.QName -> ScopeM (Maybe A.QName)
 unambiguousConOrDef warn x = do
     caseMaybeM (toAbstract $ MaybeOldQName $ OldQName x Nothing) notInScope $ \case
-      A.Def' y NoSuffix                       -> ret y
-      A.Def' y Suffix{}                       -> failure NotAmbiguous
-      A.Proj _ p | Just y <- getUnambiguous p -> ret y
-      A.Proj{}                                -> failure YesAmbiguous
-      A.Con c | Just y <- getUnambiguous c    -> ret y
-      A.Con{}                                 -> failure YesAmbiguous
-      A.Var{}                                 -> failure NotAmbiguous
-      A.PatternSyn{}                          -> failure NotAmbiguous
+      A.Def' y NoSuffix              -> ret y
+      A.Def' y Suffix{}              -> failure NotAmbiguous
+      A.Proj _ p
+        | Just y <- getUnambiguous p -> ret y
+        | otherwise                  -> failure $ YesAmbiguous p
+      A.Con c
+        | Just y <- getUnambiguous c -> ret y
+        | otherwise                  -> failure $ YesAmbiguous c
+      A.Var{}                        -> failure NotAmbiguous
+      A.PatternSyn{}                 -> failure NotAmbiguous
       _ -> __IMPOSSIBLE__
   where
     notInScope = Nothing <$ notInScopeWarning x

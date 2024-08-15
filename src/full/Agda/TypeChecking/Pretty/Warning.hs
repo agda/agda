@@ -305,7 +305,7 @@ prettyWarning = \case
         [ [ pretty x ]
         , pwords "is not a legal rewrite rule, since the left-hand side is"
         , case amb of
-            YesAmbiguous -> [ "ambiguous" ]
+            YesAmbiguous xs -> [ "ambiguous:", pretty xs ]
             NotAmbiguous -> pwords "neither a defined symbol nor a constructor"
         ]
 
@@ -456,7 +456,7 @@ prettyWarning = \case
       , [ pretty x ]
       , pwords "since it is"
       , case amb of
-          YesAmbiguous -> [ "ambiguous" ]
+          YesAmbiguous xs -> [ "ambiguous:", pretty xs ]
           NotAmbiguous -> pwords "neither a defined symbol nor a constructor"
       ]
 

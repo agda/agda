@@ -6,13 +6,13 @@ when scope checking the declaration
 
 CompileBuiltinListWarning.agda:41,1-22
 warning: -W[no]PragmaCompileWrongName
-Cannot COMPILE c since it is ambiguous
+Cannot COMPILE c since it is ambiguous: CompileBuiltinListWarning.D.c | CompileBuiltinListWarning.c
 when scope checking the declaration
   {-# COMPILE GHC c #-}
 
 CompileBuiltinListWarning.agda:42,1-22
 warning: -W[no]PragmaCompileWrongName
-Cannot COMPILE f since it is ambiguous
+Cannot COMPILE f since it is ambiguous: CompileBuiltinListWarning.E.f | CompileBuiltinListWarning.R.f
 when scope checking the declaration
   {-# COMPILE GHC f #-}
 
@@ -48,13 +48,13 @@ when scope checking the declaration
 
 CompileBuiltinListWarning.agda:41,1-22
 warning: -W[no]PragmaCompileWrongName
-Cannot COMPILE c since it is ambiguous
+Cannot COMPILE c since it is ambiguous: CompileBuiltinListWarning.D.c | CompileBuiltinListWarning.c
 when scope checking the declaration
   {-# COMPILE GHC c #-}
 
 CompileBuiltinListWarning.agda:42,1-22
 warning: -W[no]PragmaCompileWrongName
-Cannot COMPILE f since it is ambiguous
+Cannot COMPILE f since it is ambiguous: CompileBuiltinListWarning.E.f | CompileBuiltinListWarning.R.f
 when scope checking the declaration
   {-# COMPILE GHC f #-}
 
