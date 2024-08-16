@@ -126,13 +126,13 @@ jobs:
           ghc-ver: 9.10.1
           os: ubuntu-24.04
         - cabal-flags: --enable-tests -f enable-cluster-counting -f debug -f debug-serialisation
-            -f debug-parsing -c containers>=0.7 --allow-newer=containers
-          description: Linux containers 0.7
+            -f debug-parsing
+          description: Linux debug all
           ghc-ver: 9.10.1
           os: ubuntu-24.04
         - description: macOS
           ghc-ver: 9.10.1
-          os: macos-12
+          os: macos-14
         - description: Windows
           ghc-ver: 9.10.1
           os: windows-2022

@@ -436,7 +436,7 @@ library
     -- hashable 1.2.0.10 makes library-test 10x
     -- slower. The issue was fixed in hashable 1.2.1.0.
     -- https://github.com/tibbe/hashable/issues/57.
-    , hashable             >= 1.2.1.0   && < 1.5
+    , hashable             >= 1.2.1.0   && < 1.6
     , haskeline            >= 0.7.4.3   && < 0.9
     -- monad-control-1.0.1.0 is the first to contain liftThrough
     , monad-control        >= 1.0.1.0   && < 1.1
@@ -1007,7 +1007,7 @@ test-suite agda-tests
     , strict
     , tasty            >= 1.1.0.4 && < 1.6
     , tasty-hunit      >= 0.9.2   && < 0.11
-    , tasty-quickcheck >= 0.9.2   && < 0.11
+    , tasty-quickcheck >= 0.9.2   && < 0.12
     -- tasty-silver 3.1.13 has option --ansi-tricks=false
     -- NB: tasty-silver 3.2 requires tasty-1.4 at least
     -- tasty-silver < 3.3 does not work interactively under Windows
