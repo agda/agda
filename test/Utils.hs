@@ -138,9 +138,7 @@ runAgdaWithOptions testName opts mflag mvars = do
         -- a missing '=' might mean to set the variable to the empty string.
 
 hasWarning :: Text -> Bool
-hasWarning t =
- "———— All done; warnings encountered ————————————————————————"
- `T.isInfixOf` t
+hasWarning = T.isInfixOf "warning: -W[no]"
 
 getAgdaBin :: EnvVars -> FilePath
 getAgdaBin = getProg "agda"

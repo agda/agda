@@ -128,12 +128,13 @@ parseHaskellPragma p@(CompilerPragma _ s) = do
 --
 sanityCheckPragma :: QName -> HaskellPragma -> TCM (Maybe HaskellPragma)
 sanityCheckPragma x pragma = do
+  reportSLn "compile.haskell.pragma" 40 $ unwords ["sanityCheckPragma" , prettyShow x]
   def <- getConstInfo x
   case pragma of
 
     HsDefn{} -> case theDef def of
       Axiom{}        -> ok
-      Function{}     -> ok
+      Function{}     -> notBuiltinFlat
       AbstractDefn{} -> __IMPOSSIBLE__
       Datatype{}     -> recOrDataErr "data"
       Record{}       -> recOrDataErr "record"
@@ -154,7 +155,7 @@ sanityCheckPragma x pragma = do
       _ -> notPostulate
 
     HsExport{} -> case theDef def of
-      Function{} -> ok
+      Function{} -> notBuiltinFlat
       _ -> bad "Only functions can be exported to Haskell using {-# COMPILE GHC <Name> as <HsName> #-}"
 
   where
@@ -165,6 +166,16 @@ sanityCheckPragma x pragma = do
       , "{-# COMPILE GHC <Name> = data <HsData> (<HsCon1> | .. | <HsConN>) #-}"
       ]
     notPostulate = bad "Haskell types can only be given for postulates."
+    notBuiltinFlat = do
+      mflat <- getBuiltinName builtinFlat
+      reportSLn "compile.haskell.pragma" 40 $ render $ vcat
+        [ "Checking pragma for FLAT"
+        , hsep [ "x     =", pretty x ]
+        , hsep [ "mflat =", pretty mflat ]
+        ]
+      if Just x == mflat
+        then bad "COMPILE GHC pragmas are not allowed for the FLAT builtin."
+        else ok
 
 
 -- TODO: cache this to avoid parsing the pragma for every constructor
