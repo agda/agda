@@ -522,6 +522,8 @@ data OldQName = OldQName
 --   (e.g. drop the offending COMPILE pragma)
 data MaybeOldQName = MaybeOldQName OldQName
 
+-- | Wrapper for a concrete name that we already bound to an 'A.Def'.
+--
 newtype OldName a = OldName a
 
 -- | Wrapper to resolve a name to a 'ResolvedName' (rather than an 'A.Expr').
@@ -646,21 +648,19 @@ class ToQName a where
 instance ToQName C.Name  where toQName = C.QName
 instance ToQName C.QName where toQName = id
 
--- Should be a defined name.
+-- | Should be a defined name.
 instance ToQName a => ToAbstract (OldName a) where
   type AbsOfCon (OldName a) = A.QName
   toAbstract (OldName x) = do
-    rx <- resolveName (toQName x)
-    case rx of
+    resolveName (toQName x) >>= \case
       DefinedName _ d NoSuffix -> return $ anameName d
-      DefinedName _ d Suffix{} -> notInScopeError (toQName x)
-      -- Andreas, 2024-08-15: Is the following sentence still true?
+      DefinedName _ d Suffix{} -> __IMPOSSIBLE__
+      VarName{}                -> __IMPOSSIBLE__
+      UnknownName              -> __IMPOSSIBLE__
       -- We can get the cases below for DISPLAY pragmas
       ConstructorName _ ds -> return $ anameName (List1.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
       FieldName ds         -> return $ anameName (List1.head ds)
       PatternSynResName ds -> return $ anameName (List1.head ds)
-      VarName x _          -> genericError $ "Not a defined name: " ++ prettyShow x
-      UnknownName          -> notInScopeError (toQName x)
 
 newtype NewModuleName      = NewModuleName      C.Name
 newtype NewModuleQName     = NewModuleQName     C.QName
