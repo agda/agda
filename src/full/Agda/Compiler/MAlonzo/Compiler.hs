@@ -534,11 +534,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
   (uncurry (,,typeCheckedMainDef)) . second ((mainDecl ++) . infodecl q) <$>
     case d of
 
-      _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $
-          if is ghcEnvFlat
-          then genericError
-                "\"COMPILE GHC\" pragmas are not allowed for the FLAT builtin."
-          else do
+      _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $ do
             -- Make sure we have imports for all names mentioned in the type.
             hsty <- haskellType q
             mapM_ (`xqual` HS.Ident "_") (namesIn ty :: Set QName)
@@ -798,12 +794,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
   function mhe fun = do
     (imp, ccls) <- fun
     case mhe of
-      Just (HsExport r name) -> setCurrentRange r $ do
-        env <- askGHCEnv
-        if Just q == ghcEnvFlat env
-        then genericError
-              "\"COMPILE GHC as\" pragmas are not allowed for the FLAT builtin."
-        else do
+      Just (HsExport r name) -> do
           t <- setCurrentRange r $ haskellType q
           let tsig :: HS.Decl
               tsig = HS.TypeSig [HS.Ident name] t
