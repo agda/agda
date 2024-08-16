@@ -662,17 +662,6 @@ instance ToQName a => ToAbstract (OldName a) where
       VarName x _          -> genericError $ "Not a defined name: " ++ prettyShow x
       UnknownName          -> notInScopeError (toQName x)
 
--- | Resolve a non-local name and return its possibly ambiguous abstract name.
-toAbstractExistingName :: ToQName a => a -> ScopeM (List1 AbstractName)
-toAbstractExistingName x = resolveName (toQName x) >>= \case
-    DefinedName _ d NoSuffix -> return $ singleton d
-    DefinedName _ d Suffix{} -> notInScopeError (toQName x)
-    ConstructorName _ ds     -> return ds
-    FieldName ds             -> return ds
-    PatternSynResName ds     -> return ds
-    VarName x _              -> genericError $ "Not a defined name: " ++ prettyShow x
-    UnknownName              -> notInScopeError (toQName x)
-
 newtype NewModuleName      = NewModuleName      C.Name
 newtype NewModuleQName     = NewModuleQName     C.QName
 newtype OldModuleName      = OldModuleName      C.QName
@@ -2564,9 +2553,17 @@ instance ToAbstract C.Pragma where
       failure msg = do warning (UselessPragma (getRange pragma) $ P.fwords msg); mzero
 
   -- A warning attached to an ambiguous name shall apply to all disambiguations.
-  toAbstract (C.WarningOnUsage _ x str) = do
-    ys <- fmap anameName <$> toAbstractExistingName x
-    forM_ ys $ \ qn -> stLocalUserWarnings `modifyTCLens` Map.insert qn str
+  toAbstract pragma@(C.WarningOnUsage _ x str) = do
+    ys <- resolveName x >>= \case
+      ConstructorName _ ds     -> return $ List1.toList ds
+      FieldName ds             -> return $ List1.toList ds
+      PatternSynResName ds     -> return $ List1.toList ds
+      DefinedName _ d NoSuffix -> return $ singleton d
+      DefinedName _ d Suffix{} -> [] <$ notInScopeWarning x
+      UnknownName              -> [] <$ notInScopeWarning x
+      VarName x _              -> [] <$ do
+        uselessPragma pragma $ "Not a defined name: " ++ prettyShow x
+    forM_ ys $ \ y -> stLocalUserWarnings `modifyTCLens` Map.insert (anameName y) str
     return []
 
   toAbstract (C.WarningOnImport _ str) = do
