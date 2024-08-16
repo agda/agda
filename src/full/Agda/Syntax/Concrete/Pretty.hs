@@ -642,8 +642,8 @@ instance Pretty Pragma where
         Terminating            -> "TERMINATING"
         TerminationMeasure _ x -> hsep $ ["MEASURE", pretty x]
     pretty (NoCoverageCheckPragma _) = "NON_COVERING"
-    pretty (WarningOnUsage _ nm str) = hsep [ "WARNING_ON_USAGE", pretty nm, text (T.unpack str) ]
-    pretty (WarningOnImport _ str)   = hsep [ "WARNING_ON_IMPORT", text (T.unpack str) ]
+    pretty (WarningOnUsage _ nm str) = hsep [ "WARNING_ON_USAGE", pretty nm, text (show str) ]
+    pretty (WarningOnImport _ str)   = hsep [ "WARNING_ON_IMPORT", text (show str) ]
     pretty (CatchallPragma _) = "CATCHALL"
     pretty (DisplayPragma _ lhs rhs) = "DISPLAY" <+> sep [ pretty lhs <+> "=", nest 2 $ pretty rhs ]
     pretty (NoPositivityCheckPragma _) = "NO_POSITIVITY_CHECK"
