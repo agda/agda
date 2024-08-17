@@ -126,6 +126,7 @@ instance EmbPrj Warning where
     PragmaExpectsUnambiguousProjectionOrFunction a b c ->
       icodeN 65 PragmaExpectsUnambiguousProjectionOrFunction a b c
     PragmaExpectsDefinedSymbol a b              -> icodeN 66 PragmaExpectsDefinedSymbol a b
+    UnfoldingWrongName a                        -> icodeN 67 UnfoldingWrongName a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -195,6 +196,7 @@ instance EmbPrj Warning where
     [64, a, b, c]        -> valuN PragmaExpectsUnambiguousConstructorOrFunction a b c
     [65, a, b, c]        -> valuN PragmaExpectsUnambiguousProjectionOrFunction a b c
     [66, a, b]           -> valuN PragmaExpectsDefinedSymbol a b
+    [67, a]              -> valuN UnfoldingWrongName a
     _ -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where
@@ -589,6 +591,7 @@ instance EmbPrj WarningName where
     PragmaExpectsUnambiguousConstructorOrFunction_    -> 142
     PragmaExpectsUnambiguousProjectionOrFunction_     -> 143
     PragmaExpectsDefinedSymbol_                       -> 144
+    UnfoldingWrongName_                               -> 145
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -735,6 +738,7 @@ instance EmbPrj WarningName where
     142 -> return PragmaExpectsUnambiguousConstructorOrFunction_
     143 -> return PragmaExpectsUnambiguousProjectionOrFunction_
     144 -> return PragmaExpectsDefinedSymbol_
+    145 -> return UnfoldingWrongName_
     _   -> malformed
 
 

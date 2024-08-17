@@ -538,6 +538,9 @@ prettyWarning = \case
 
     NotAffectedByOpaque -> fwords "Only function definitions can be marked opaque. This definition will be treated as transparent."
 
+    UnfoldingWrongName x -> fsep $
+      pwords "Name in unfolding clause should be unambiguous defined name:" ++ [prettyTCM x]
+
     UnfoldTransparentName qn -> fsep $
       pwords "The name" ++ [prettyTCM qn <> ","] ++ pwords "mentioned by an unfolding clause, does not belong to an opaque block. This has no effect."
 
