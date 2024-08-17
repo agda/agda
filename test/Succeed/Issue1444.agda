@@ -1,8 +1,8 @@
 {-# OPTIONS --rewriting #-}
 
-module _ (R : Set) where
+module _ (R S : Set) where
 
-{-# REWRITE R #-}
+{-# REWRITE R S #-}
 
 -- Andreas, 2024-08-12
 -- Test parsing REWRITE pragma with suffix

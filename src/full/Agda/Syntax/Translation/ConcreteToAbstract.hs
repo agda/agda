@@ -2400,7 +2400,7 @@ instance ToAbstract C.Pragma where
 
   toAbstract (C.RewritePragma _ _ []) = [] <$ warning EmptyRewritePragma
   toAbstract (C.RewritePragma _ r xs) = singleton . A.RewritePragma r . catMaybes <$> do
-    mapM (unambiguousConOrDef NotARewriteRule) xs
+    forM xs \ x -> setCurrentRange x $ unambiguousConOrDef NotARewriteRule x
 
   toAbstract (C.ForeignPragma _ rb s) = [] <$ addForeignCode (rangedThing rb) s
 
