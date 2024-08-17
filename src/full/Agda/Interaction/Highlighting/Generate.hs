@@ -504,6 +504,7 @@ warningHighlighting' b w = case tcWarning w of
   MissingTypeSignatureForOpaque{} -> errorWarningHighlighting w
   NotAffectedByOpaque{}           -> deadcodeHighlighting w
   UselessOpaque{}                 -> deadcodeHighlighting w
+  UnfoldingWrongName x            -> deadcodeHighlighting x
   UnfoldTransparentName r         -> deadcodeHighlighting r
   FaceConstraintCannotBeHidden{}  -> deadcodeHighlighting w
   FaceConstraintCannotBeNamed{}   -> deadcodeHighlighting w

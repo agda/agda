@@ -1600,6 +1600,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Record expression with invalid field names.
 
+.. option:: UnfoldingWrongName
+
+     Names in an ``unfolding`` clause that are not unambiguous definitions.
+
 .. option:: UnfoldTransparentName
 
      Non-``opaque`` names mentioned in an ``unfolding`` clause.

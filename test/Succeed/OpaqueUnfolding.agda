@@ -20,3 +20,14 @@ opaque
 
   quux : ty
   quux = zero
+
+-- Andreas, 2024-08-17
+-- Trigger scope checker warnings
+
+module _ (A : Set) where
+
+  opaque            -- UselessOpaque
+    unfolding Set   -- UnfoldTransparentName
+    unfolding A     -- UnfoldingWrongName
+    unfolding B     -- NotInScope
+    unfolding Set1

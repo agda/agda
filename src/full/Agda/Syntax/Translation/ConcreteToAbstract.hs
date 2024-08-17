@@ -2078,28 +2078,17 @@ instance ToAbstract NiceDeclaration where
       warning $ NicifierIssue (DeclarationWarning stk (InvalidConstructorBlock (getRange d)))
       pure []
 
-    NiceOpaque kwr names decls -> do
-      -- The names in an 'unfolding' clause must be unambiguous names of
-      -- definitions:
-      let
-        r = getRange (kwr, names, decls)
-        findName c = resolveName c >>= \case
-          A.DefinedName _ an _           -> pure (anameName an)
-          A.FieldName (an :| [])         -> pure (anameName an)
-          A.ConstructorName _ (an :| []) -> pure (anameName an)
-
-          A.UnknownName -> notInScopeError c
-          _ -> typeError . GenericDocError =<<
-            "Name in unfolding clause should be unambiguous defined name:" <+> prettyTCM c
-
-      -- Resolve all the names, and use them as an initial unfolding
-      -- set:
-      names  <- traverse findName names
+    d@(NiceOpaque kwr xs decls) -> do
+      -- The names in an 'unfolding' clause must be unambiguous names of definitions:
+      -- Resolve all the names, and use them as an initial unfolding set:
+      names  <- catMaybes <$> forM xs \ x -> do
+        setCurrentRange x $ unambiguousConOrDef (const . UnfoldingWrongName) x
       -- Generate the identifier for this block:
       oid    <- fresh
       -- Record the parent unfolding block, if any:
       parent <- asksTC envCurrentOpaqueId
 
+      let r = getRange d
       stOpaqueBlocks `modifyTCLens` Map.insert oid OpaqueBlock
         { opaqueId        = oid
         , opaqueUnfolding = HashSet.fromList names

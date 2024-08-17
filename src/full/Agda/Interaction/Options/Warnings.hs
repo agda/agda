@@ -353,6 +353,7 @@ data WarningName
   -- Opaque/unfolding
   | MissingTypeSignatureForOpaque_
   | NotAffectedByOpaque_
+  | UnfoldingWrongName_
   | UnfoldTransparentName_
   | UselessOpaque_
   -- Cubical
@@ -575,6 +576,7 @@ warningNameDescription = \case
   -- Opaque/unfolding warnings
   MissingTypeSignatureForOpaque_   -> "Definitions that are `abstract` or `opaque` yet lack type signatures."
   NotAffectedByOpaque_             -> "Declarations unaffected by enclosing `opaque` blocks."
+  UnfoldingWrongName_              -> "Names in `unfolding` clause that are not unambiguous functions."
   UnfoldTransparentName_           -> "Non-`opaque` names mentioned in an `unfolding` clause."
   UselessOpaque_                   -> "`opaque` blocks that have no effect."
   -- Cubical

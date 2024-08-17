@@ -4414,9 +4414,12 @@ data Warning
     -- ^ Explicit use of @@ω@ or @@plenty@ in hard compile-time mode.
   | RecordFieldWarning RecordFieldWarning
 
+  -- Opaque
   | MissingTypeSignatureForOpaque QName IsOpaque
     -- ^ An @abstract@ or @opaque@ definition lacks a type signature.
   | NotAffectedByOpaque
+  | UnfoldingWrongName C.QName
+      -- ^ Name in @unfolding@ clause does not resolve to unambiguous defined name.
   | UnfoldTransparentName QName
   | UselessOpaque
 
@@ -4536,9 +4539,11 @@ warningName = \case
     W.DuplicateFields{}   -> DuplicateFields_
     W.TooManyFields{}     -> TooManyFields_
 
+  -- opaque warnings
   MissingTypeSignatureForOpaque{} -> MissingTypeSignatureForOpaque_
   NotAffectedByOpaque{}   -> NotAffectedByOpaque_
   UselessOpaque{}         -> UselessOpaque_
+  UnfoldingWrongName{}    -> UnfoldingWrongName_
   UnfoldTransparentName{} -> UnfoldTransparentName_
 
   -- Type checking
