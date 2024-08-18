@@ -1,0 +1,3 @@
+ParseErrorTripleDot.agda:3,5-8: error: [SyntaxError]
+Syntax error: unexpected '...'
+when scope checking ...
