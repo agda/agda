@@ -1,23 +1,22 @@
-ConflictingPragmaOptions.agda:2,1-29
-warning: -W[no]ConflictingPragmaOptions
+ConflictingPragmaOptions.agda:2,1-29: warning: -W[no]ConflictingPragmaOptions
 Conflicting options --erase-record-parameters and --no-erasure
 (--erase-record-parameters implies --erasure). Ignoring
 --no-erasure.
-ConflictingPragmaOptions.agda:3,1-33
-warning: -W[no]ConflictingPragmaOptions
+
+ConflictingPragmaOptions.agda:3,1-33: warning: -W[no]ConflictingPragmaOptions
 Conflicting options --erased-matches and --no-erasure
 (--erased-matches implies --erasure). Ignoring --no-erasure.
-ConflictingPragmaOptions.agda:5,1-29
-warning: -W[no]ConflictingPragmaOptions
+
+ConflictingPragmaOptions.agda:5,1-29: warning: -W[no]ConflictingPragmaOptions
 Conflicting options --flat-split and --no-cohesion (--flat-split
 implies --cohesion). Ignoring --no-cohesion.
-ConflictingPragmaOptions.agda:6,1-52
-warning: -W[no]ConflictingPragmaOptions
+
+ConflictingPragmaOptions.agda:6,1-52: warning: -W[no]ConflictingPragmaOptions
 Conflicting options --no-load-primitives and --import-sorts
 (--no-load-primitives implies --no-import-sorts). Ignoring
 --import-sorts.
-ConflictingPragmaOptions.agda:7,1-68
-warning: -W[no]ConflictingPragmaOptions
+
+ConflictingPragmaOptions.agda:7,1-68: warning: -W[no]ConflictingPragmaOptions
 Conflicting options --lossy-unification and
 --require-unique-meta-solutions (--lossy-unification implies
 --no-require-unique-meta-solutions). Ignoring
@@ -25,30 +24,25 @@ Conflicting options --lossy-unification and
 
 ———— All done; warnings encountered ————————————————————————
 
-ConflictingPragmaOptions.agda:2,1-29
-warning: -W[no]ConflictingPragmaOptions
+ConflictingPragmaOptions.agda:2,1-29: warning: -W[no]ConflictingPragmaOptions
 Conflicting options --erase-record-parameters and --no-erasure
 (--erase-record-parameters implies --erasure). Ignoring
 --no-erasure.
 
-ConflictingPragmaOptions.agda:3,1-33
-warning: -W[no]ConflictingPragmaOptions
+ConflictingPragmaOptions.agda:3,1-33: warning: -W[no]ConflictingPragmaOptions
 Conflicting options --erased-matches and --no-erasure
 (--erased-matches implies --erasure). Ignoring --no-erasure.
 
-ConflictingPragmaOptions.agda:5,1-29
-warning: -W[no]ConflictingPragmaOptions
+ConflictingPragmaOptions.agda:5,1-29: warning: -W[no]ConflictingPragmaOptions
 Conflicting options --flat-split and --no-cohesion (--flat-split
 implies --cohesion). Ignoring --no-cohesion.
 
-ConflictingPragmaOptions.agda:6,1-52
-warning: -W[no]ConflictingPragmaOptions
+ConflictingPragmaOptions.agda:6,1-52: warning: -W[no]ConflictingPragmaOptions
 Conflicting options --no-load-primitives and --import-sorts
 (--no-load-primitives implies --no-import-sorts). Ignoring
 --import-sorts.
 
-ConflictingPragmaOptions.agda:7,1-68
-warning: -W[no]ConflictingPragmaOptions
+ConflictingPragmaOptions.agda:7,1-68: warning: -W[no]ConflictingPragmaOptions
 Conflicting options --lossy-unification and
 --require-unique-meta-solutions (--lossy-unification implies
 --no-require-unique-meta-solutions). Ignoring

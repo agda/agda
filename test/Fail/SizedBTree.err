@@ -1,4 +1,4 @@
-SizedBTree.agda:36,3-41,40
+SizedBTree.agda:36,3-41,40: error: [TerminationIssue]
 Termination checking failed for the following functions:
   Old.deep2
 Problematic calls:
@@ -8,7 +8,7 @@ Problematic calls:
     (at SizedBTree.agda:39,38-43)
   deep2 {↑ i} {A} (node {_} {i} l2 r2)
     (at SizedBTree.agda:41,22-27)
-SizedBTree.agda:64,3-69,40
+SizedBTree.agda:64,3-69,40: error: [TerminationIssue]
 Termination checking failed for the following functions:
   New.deep2
 Problematic calls:

@@ -1,13 +1,11 @@
-Issue1614Useless.agda:6,1-28
-warning: -W[no]InvalidNoPositivityCheckPragma
+Issue1614Useless.agda:6,1-28: warning: -W[no]InvalidNoPositivityCheckPragma
 NO_POSITIVITY_CHECKING pragmas can only precede a data/record
 definition or a mutual block (that contains a data/record
 definition).
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue1614Useless.agda:6,1-28
-warning: -W[no]InvalidNoPositivityCheckPragma
+Issue1614Useless.agda:6,1-28: warning: -W[no]InvalidNoPositivityCheckPragma
 NO_POSITIVITY_CHECKING pragmas can only precede a data/record
 definition or a mutual block (that contains a data/record
 definition).

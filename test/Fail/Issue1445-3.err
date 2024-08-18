@@ -1,4 +1,4 @@
-Issue1445-3.agda:19,13-16
+Issue1445-3.agda:19,13-16: error: [RewriteAmbiguousRules]
 Global confluence check failed: Bar unit y can be rewritten to
 either Unit or Foo y.
 Possible fix: add a rewrite rule with left-hand side Bar unit y to

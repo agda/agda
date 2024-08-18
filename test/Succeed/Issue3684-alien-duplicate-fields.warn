@@ -1,24 +1,21 @@
-Issue3684-alien-duplicate-fields.agda:6,5-32
-warning: -W[no]TooManyFields
+Issue3684-alien-duplicate-fields.agda:6,5-32: warning: -W[no]TooManyFields
 The record type R does not have the fields f, f
 when checking that the expression record { f = Set ; f = Set } has
 type R
-Issue3684-alien-duplicate-fields.agda:6,5-32
-warning: -W[no]DuplicateFields
+
+Issue3684-alien-duplicate-fields.agda:6,5-32: warning: -W[no]DuplicateFields
 Duplicate field f in record
 when checking that the expression record { f = Set ; f = Set } has
 type R
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue3684-alien-duplicate-fields.agda:6,5-32
-warning: -W[no]TooManyFields
+Issue3684-alien-duplicate-fields.agda:6,5-32: warning: -W[no]TooManyFields
 The record type R does not have the fields f, f
 when checking that the expression record { f = Set ; f = Set } has
 type R
 
-Issue3684-alien-duplicate-fields.agda:6,5-32
-warning: -W[no]DuplicateFields
+Issue3684-alien-duplicate-fields.agda:6,5-32: warning: -W[no]DuplicateFields
 Duplicate field f in record
 when checking that the expression record { f = Set ; f = Set } has
 type R

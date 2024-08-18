@@ -1,8 +1,10 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _8 : C true
   Candidates
     [overlappable] Ct : C true
     local : {x : Bool} → C x
     (stuck)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   OverlapLocal1.agda:15,5-13

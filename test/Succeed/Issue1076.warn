@@ -1,11 +1,9 @@
-Issue1076.agda:3,1-39
-warning: -W[no]UselessPragma
+Issue1076.agda:3,1-39: warning: -W[no]UselessPragma
 OPTIONS pragma only allowed at beginning of file, before top module declaration
 when checking the pragma OPTIONS --no-termination-check
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue1076.agda:3,1-39
-warning: -W[no]UselessPragma
+Issue1076.agda:3,1-39: warning: -W[no]UselessPragma
 OPTIONS pragma only allowed at beginning of file, before top module declaration
 when checking the pragma OPTIONS --no-termination-check

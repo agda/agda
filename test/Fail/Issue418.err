@@ -1,13 +1,13 @@
-Issue418.agda:30,3-10
-warning: -W[no]MissingTypeSignatureForOpaque
+Issue418.agda:30,3-10: warning: -W[no]MissingTypeSignatureForOpaque
 Missing type signature for abstract definition B.
 Types of abstract definitions are never inferred since this would
 leak information that should be abstract.
-Issue418.agda:33,3-10
-warning: -W[no]MissingTypeSignatureForOpaque
+
+Issue418.agda:33,3-10: warning: -W[no]MissingTypeSignatureForOpaque
 Missing type signature for abstract definition C.
 Types of abstract definitions are never inferred since this would
 leak information that should be abstract.
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Set₂ = _14 (blocked on _14)
   Set₁ =< _15 (blocked on _15)
@@ -15,6 +15,7 @@ Failed to solve the following constraints:
   Set = _3 : Set₁ (blocked on _3)
   Set₂ = _10 (blocked on _10)
   Set₁ =< _11 (blocked on _11)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue418.agda:13,18-19
   Issue418.agda:14,14-18

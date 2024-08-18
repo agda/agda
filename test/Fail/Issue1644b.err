@@ -1,5 +1,4 @@
-Issue1644b.agda:14,1-24
-warning: -W[no]InvalidDisplayForm
+Issue1644b.agda:14,1-24: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for N.A because it is recursive
 when checking the pragma DISPLAY N.A = A
 

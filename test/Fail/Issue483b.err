@@ -1,5 +1,7 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _10 _ = f _ : A (blocked on _10)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue483b.agda:12,16-17
   Issue483b.agda:14,10-14

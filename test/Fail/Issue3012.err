@@ -1,4 +1,4 @@
-Issue3012.agda:12,1-15
+Issue3012.agda:12,1-15: error: [CoverageIssue]
 Incomplete pattern matching for partial. Missing cases:
   partial x .snd
 when checking the definition of partial

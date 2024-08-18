@@ -1,5 +1,4 @@
-Issue3966.agda:17,1-19,56
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:17,1-19,56: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -9,8 +8,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of ⊆-trans
 
-Issue3966.agda:17,1-19,56
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:17,1-19,56: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -20,8 +18,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of ⊆-trans
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -31,8 +28,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -42,8 +38,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -53,8 +48,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -64,8 +58,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -75,8 +68,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -86,8 +78,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -97,8 +88,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -108,8 +98,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -119,8 +108,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -130,8 +118,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -141,8 +128,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -152,8 +138,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -163,8 +148,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -174,8 +158,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -185,8 +168,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -196,8 +178,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -207,8 +188,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -218,8 +198,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -229,8 +208,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -240,8 +218,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -251,8 +228,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -262,8 +238,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -273,8 +248,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -284,8 +258,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -295,8 +268,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -306,8 +278,7 @@ Reason: It relies on injectivity of the data constructor _∷ʳ_,
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -317,8 +288,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -328,8 +298,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -339,8 +308,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -350,8 +318,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -361,8 +328,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -372,8 +338,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -383,8 +348,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -394,8 +358,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -405,8 +368,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -416,8 +378,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -427,8 +388,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -438,8 +398,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -449,8 +408,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -460,8 +418,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -471,8 +428,7 @@ Reason: It relies on injectivity of the data constructor _∷ʳ_,
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -482,8 +438,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -493,8 +448,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -504,8 +458,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -515,8 +468,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -526,8 +478,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -537,8 +488,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -548,8 +498,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -559,8 +508,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -570,8 +518,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -581,8 +528,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -592,8 +538,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -603,8 +548,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -614,8 +558,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -625,8 +568,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -636,8 +578,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -647,8 +588,7 @@ Reason: It relies on injectivity of the data constructor _∷ʳ_,
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -658,8 +598,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -669,8 +608,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -680,8 +618,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -691,8 +628,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -702,8 +638,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -713,8 +648,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -724,8 +658,7 @@ Reason: it relies on higher-dimensional unification, which is not
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -735,8 +668,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -746,8 +678,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -757,8 +688,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -768,8 +698,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -779,8 +708,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:28,1-36,52
-warning: -W[no]UnsupportedIndexedMatch
+Issue3966.agda:28,1-36,52: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.

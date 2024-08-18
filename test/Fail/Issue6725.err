@@ -1,18 +1,18 @@
-Issue6725.agda:49,5-9
+Issue6725.agda:49,5-9: error: [CoverageIssue]
 Incomplete pattern matching for .extendedlambda0. Missing cases:
   .extendedlambda0 .ze
   .extendedlambda0 .on
   .extendedlambda0 .se
 when checking the definition of .extendedlambda0
 
-Issue6725.agda:51,5-9
+Issue6725.agda:51,5-9: error: [CoverageIssue]
 Incomplete pattern matching for .extendedlambda1. Missing cases:
   .extendedlambda1 .ze
   .extendedlambda1 .on
   .extendedlambda1 .se
 when checking the definition of .extendedlambda1
 
-Issue6725.agda:54,5-56,8
+Issue6725.agda:54,5-56,8: error: [CoverageIssue]
 Incomplete pattern matching for .extendedlambda2. Missing cases:
   .extendedlambda2 i .se
 when checking the definition of .extendedlambda2

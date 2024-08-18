@@ -1,8 +1,8 @@
-BadInductionRecursion4.agda:3,1-11,12
+BadInductionRecursion4.agda:3,1-11,12: error: [NotStrictlyPositive]
 R is not strictly positive, because it occurs
 in the first clause
 in the definition of T, which occurs
-to the left of an arrow
-in the first clause
-in the definition of T, which occurs
-in the definition of R.
+                      to the left of an arrow
+                      in the first clause
+                      in the definition of T, which occurs
+                                            in the definition of R.

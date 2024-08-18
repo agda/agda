@@ -1,10 +1,11 @@
-Issue5848.agda:6,1-12
-warning: -W[no]ConfluenceCheckingIncompleteBecauseOfMeta
+Issue5848.agda:6,1-12: warning: -W[no]ConfluenceCheckingIncompleteBecauseOfMeta
 Confluence checking incomplete because the definition of l1
 contains unsolved metavariables.
 when checking the definition of l1
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue5848.agda:5,6-11
+error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
   Issue5848.agda:5,12-16
   Issue5848.agda:5,17-21

@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Check definition of bar : {A : Set} →
                             SubVec A (suc (suc (suc zero))) _36 → A
@@ -20,6 +21,7 @@ Failed to solve the following constraints:
       when checking that the pattern a :: b :: c :: [] has type
       Vec Nat _12
     (blocked on _12)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   IndexInference.agda:19,15-16
   IndexInference.agda:44,51-52

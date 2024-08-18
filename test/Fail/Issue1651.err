@@ -1,5 +1,4 @@
-Issue1651.agda:14,1-18
-warning: -W[no]RewriteBeforeFunctionDefinition
+Issue1651.agda:14,1-18: warning: -W[no]RewriteBeforeFunctionDefinition
 Rewrite rule from function  r  cannot be added before the function definition
 when checking the pragma REWRITE r
 

@@ -1,2 +1,3 @@
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   PruneBadRigidDef.agda:12,47-48

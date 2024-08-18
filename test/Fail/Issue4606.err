@@ -1,4 +1,4 @@
-Issue4606.agda:34,1-40,28
+Issue4606.agda:34,1-40,28: error: [TerminationIssue]
 Termination checking failed for the following functions:
 Problematic calls:
   α y

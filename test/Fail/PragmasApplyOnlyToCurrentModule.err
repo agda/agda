@@ -1,4 +1,4 @@
-Imports/NonTerminating.agda:3,1-4,10
+Imports/NonTerminating.agda:3,1-4,10: error: [TerminationIssue]
 Termination checking failed for the following functions:
   Foo
 Problematic calls:

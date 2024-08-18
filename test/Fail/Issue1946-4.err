@@ -1,4 +1,4 @@
-Issue1946-4.agda:53,1-54,18
+Issue1946-4.agda:53,1-54,18: error: [TerminationIssue]
 Termination checking failed for the following functions:
   bla
 Problematic calls:

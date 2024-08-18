@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   tt = _b_38
     : (λ { true → ⊤ ; false → ⊥ }) (test true (c (_b_21 (n = true))))
@@ -9,6 +10,7 @@ Failed to solve the following constraints:
        (test true (c (_b_21 (n = true))))
     (blocked on _23)
   _b_21 = n : Bool (blocked on _b_21)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2640.agda:20,22-23
   Issue2640.agda:20,20-23

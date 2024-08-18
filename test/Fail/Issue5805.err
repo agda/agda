@@ -1,4 +1,4 @@
-Issue5805.agda:29,1-31,6
+Issue5805.agda:29,1-31,6: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   (ff≡f : (f ∘ f) ≡ f) →
   ?1 (ff≡f = ff≡f) (λ x → f (f x)) ≡ ?1 (ff≡f = ff≡f) f →

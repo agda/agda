@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Check definition of Fails : {b : Bool} → D _9 → Set
     stuck because
@@ -8,5 +9,6 @@ Failed to solve the following constraints:
         true ≟ _9
       when checking that the pattern dt has type D _9
     (blocked on _9)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue1611.agda:14,25-26

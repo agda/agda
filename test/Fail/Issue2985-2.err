@@ -1,4 +1,4 @@
-Issue2985-2.agda:27,1-29,43
+Issue2985-2.agda:27,1-29,43: error: [TerminationIssue]
 Termination checking failed for the following functions:
   u
 Problematic calls:

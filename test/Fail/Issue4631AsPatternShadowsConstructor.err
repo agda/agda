@@ -1,5 +1,4 @@
-Issue4631AsPatternShadowsConstructor.agda:8,6-10
-warning: -W[no]AsPatternShadowsConstructorOrPatternSynonym
+Issue4631AsPatternShadowsConstructor.agda:8,6-10: warning: -W[no]AsPatternShadowsConstructorOrPatternSynonym
 Name bound in @-pattern ignored because it shadows constructor
 when scope checking the left-hand side test true@_ in the
 definition of test

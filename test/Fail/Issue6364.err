@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _86 : Semigroup A
   Candidates

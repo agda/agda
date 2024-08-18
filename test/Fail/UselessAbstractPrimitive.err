@@ -1,5 +1,4 @@
-UselessAbstractPrimitive.agda:9,1-9
-warning: -W[no]UselessAbstract
+UselessAbstractPrimitive.agda:9,1-9: warning: -W[no]UselessAbstract
 Using abstract here has no effect. Abstract applies to only
 definitions like data definitions, record type definitions and
 function clauses.

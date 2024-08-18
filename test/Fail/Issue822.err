@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Check definition of Foo : _5 → Set
     stuck because
@@ -5,5 +6,6 @@ Failed to solve the following constraints:
       Cannot split on argument of unresolved type _5
       when checking that the pattern D.[ A ] has type _5
     (blocked on _5)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue822.agda:22,7-8

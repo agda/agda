@@ -10,5 +10,5 @@
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue2728-3 (Issue2728-3.agda). " t)
 (agda2-status-action "")
-(agda2-info-action "*All Errors*" "Issue2728-3.agda:4,11-18 Cannot postulate B with safe flag when scope checking the declaration B : Set" nil)
+(agda2-info-action "*All Errors*" "Issue2728-3.agda:4,11-18: error: [SafeFlagPostulate] Cannot postulate B with safe flag when scope checking the declaration B : Set" nil)
 ((last . 1) . (agda2-goals-action '()))

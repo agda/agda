@@ -1,5 +1,4 @@
-Issue2553.agda:22,3-10
-warning: -W[no]UselessPatternDeclarationForRecord
+Issue2553.agda:22,3-10: warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for eta record
 when scope checking the declaration
   record R₁ _ where
@@ -9,8 +8,8 @@ when scope checking the declaration
     field p : R₀ A
     X : Set
     X = R₀.proj₁ p
-Issue2553.agda:32,3-10
-warning: -W[no]UselessPatternDeclarationForRecord
+
+Issue2553.agda:32,3-10: warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for eta record
 when scope checking the declaration
   record R₂ r where
@@ -20,8 +19,7 @@ when scope checking the declaration
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue2553.agda:22,3-10
-warning: -W[no]UselessPatternDeclarationForRecord
+Issue2553.agda:22,3-10: warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for eta record
 when scope checking the declaration
   record R₁ _ where
@@ -32,8 +30,7 @@ when scope checking the declaration
     X : Set
     X = R₀.proj₁ p
 
-Issue2553.agda:32,3-10
-warning: -W[no]UselessPatternDeclarationForRecord
+Issue2553.agda:32,3-10: warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for eta record
 when scope checking the declaration
   record R₂ r where

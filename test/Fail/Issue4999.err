@@ -1,14 +1,14 @@
-Issue4999.agda:16,9-17
+Issue4999.agda:16,9-17: error: [InvalidCharacterLiteral]
 Invalid character literal '/55296' (surrogate code points are not
 supported)
 when scope checking '/55296'
 
-Issue4999.agda:16,25-33
+Issue4999.agda:16,25-33: error: [InvalidCharacterLiteral]
 Invalid character literal '/55297' (surrogate code points are not
 supported)
 when scope checking '/55297'
 
-Issue4999.agda:29,16-24
+Issue4999.agda:29,16-24: error: [InvalidCharacterLiteral]
 Invalid character literal '/55466' (surrogate code points are not
 supported)
 when scope checking the left-hand side errorAlsoInLHS '/55466' in

@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: c0 ≡ c1 (stuck)
       [ at Issue1497.agda:11,7-9 ]

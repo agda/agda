@@ -1,4 +1,4 @@
-SafeFlagPragmas.agda:1,1-7,43
+SafeFlagPragmas.agda:1,1-7,43: error: [SafeFlagPragma]
 Cannot set OPTIONS pragmas --allow-unsolved-metas
 --no-positivity-check --no-termination-check --type-in-type
 --sized-types --injective-type-constructors

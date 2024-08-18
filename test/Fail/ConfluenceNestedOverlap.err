@@ -1,4 +1,4 @@
-ConfluenceNestedOverlap.agda:17,13-17
+ConfluenceNestedOverlap.agda:17,13-17: error: [RewriteAmbiguousRules]
 Global confluence check failed: f (g a) can be rewritten to either
 c or f a.
 Possible fix: add a rewrite rule with left-hand side f (g a) to

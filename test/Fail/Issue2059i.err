@@ -1,5 +1,4 @@
-Issue2059i.agda:29,1-26
-warning: -W[no]RewriteVariablesNotBoundByLHS
+Issue2059i.agda:29,1-26: warning: -W[no]RewriteVariablesNotBoundByLHS
 obvious  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  p
 when checking the pragma REWRITE obvious
 

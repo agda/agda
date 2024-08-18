@@ -1,5 +1,4 @@
-Issue3057.agda:14,1-32
-warning: -W[no]ClashesViaRenaming
+Issue3057.agda:14,1-32: warning: -W[no]ClashesViaRenaming
 Name clashes introduced by 'renaming': A
 when scope checking the declaration
   open M public renaming (a to A)

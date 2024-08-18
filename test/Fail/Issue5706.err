@@ -1,8 +1,10 @@
+error: [ConstructorDoesNotFitInData]
 Issue5706.agda:32,3-6: error: [NotLeqSort]
 Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₆ is not less or equal than Set
 when checking that the type Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₅ of an argument
 to the constructor set fits in the sort Set of the datatype.
 
+error: [ConstructorDoesNotFitInData]
 Issue5706.agda:32,3-6: error: [NotLeqSort]
 Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₅ is not less or equal than Set
 when checking that the type X → SET of an argument to the

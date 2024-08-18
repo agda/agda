@@ -1,2 +1,3 @@
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue351-5.agda:14,21-22

@@ -1,4 +1,4 @@
-Issue4929.agda:60,1-66,6
+Issue4929.agda:60,1-66,6: error: [TerminationIssue]
 Termination checking failed for the following functions:
   test
 Problematic calls:

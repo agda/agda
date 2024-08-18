@@ -1,5 +1,4 @@
-OpaqueRecord.agda:5,3-8,16
-warning: -W[no]NotAffectedByOpaque
+OpaqueRecord.agda:5,3-8,16: warning: -W[no]NotAffectedByOpaque
 Only function definitions can be marked opaque. This definition
 will be treated as transparent.
 when scope checking the declaration

@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: ff ≅ tt (stuck)
       [ at Issue292e.agda:38,16-18 ]

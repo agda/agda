@@ -1,10 +1,8 @@
-EtaData.agda:8,1-14
-warning: -W[no]UselessPragma
+EtaData.agda:8,1-14: warning: -W[no]UselessPragma
 ETA pragma conflicts with no-eta-equality declaration
 when checking the pragma ETA R
 
-EtaData.agda:17,1-17
-warning: -W[no]UselessPragma
+EtaData.agda:17,1-17: warning: -W[no]UselessPragma
 ETA pragma is only applicable to coinductive records
 when checking the pragma ETA Prod
 

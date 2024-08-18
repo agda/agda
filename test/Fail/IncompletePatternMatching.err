@@ -1,4 +1,4 @@
-IncompletePatternMatching.agda:14,1-15,15
+IncompletePatternMatching.agda:14,1-15,15: error: [CoverageIssue]
 Incomplete pattern matching for _==_. Missing cases:
   zero == suc x
   suc x == zero

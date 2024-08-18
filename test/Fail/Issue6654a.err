@@ -1,3 +1,4 @@
+error: [ConstructorDoesNotFitInData]
 Issue6654a.agda:10,3-4: error: [NotLeqSort]
 Set₁ is not less or equal than Set
 when checking that the type (P : Set) → P → P of an argument to the

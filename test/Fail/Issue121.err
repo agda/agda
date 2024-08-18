@@ -1,4 +1,4 @@
-Issue121.agda:15,1-16,31
+Issue121.agda:15,1-16,31: error: [NotStrictlyPositive]
 D is not strictly positive, because it occurs
 in the second argument of F
 in the type of the constructor nop

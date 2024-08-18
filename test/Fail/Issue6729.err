@@ -1,10 +1,9 @@
-Issue6729.agda:1,1-7
-warning: -W[no]UselessOpaque
+Issue6729.agda:1,1-7: warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration
   opaque
     unfolding {}
     test : Set
-Issue6729.agda:2,3-7
+Issue6729.agda:2,3-7: error: [MissingDefinitions]
 The following names are declared but not accompanied by a
 definition: test

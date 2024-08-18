@@ -1,2 +1,2 @@
-Issue5029-2.agda:8,1-21
+Issue5029-2.agda:8,1-21: error: [SafeFlagNoCoverageCheck]
 Cannot use NON_COVERING pragma with safe flag.

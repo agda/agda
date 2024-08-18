@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _r_57 : Structure
   Candidates
@@ -168,6 +169,7 @@ Failed to solve the following constraints:
   Structure.Type D =< _r_68 .Structure.Type (blocked on _r_68)
   Structure.Type D =< _r_57 .Structure.Type (blocked on _r_57)
   Structure.Type C =< _r_51 .Structure.Type (blocked on _r_51)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue1952.agda:29,25-26
   Issue1952.agda:29,23-24

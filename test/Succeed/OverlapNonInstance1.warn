@@ -1,11 +1,9 @@
-OverlapNonInstance1.agda:4,1-22
-warning: -W[no]UselessPragma
+OverlapNonInstance1.agda:4,1-22: warning: -W[no]UselessPragma
 OVERLAPPING pragma can only be applied to instances
 when checking the pragma OVERLAPPING [X]
 
 ———— All done; warnings encountered ————————————————————————
 
-OverlapNonInstance1.agda:4,1-22
-warning: -W[no]UselessPragma
+OverlapNonInstance1.agda:4,1-22: warning: -W[no]UselessPragma
 OVERLAPPING pragma can only be applied to instances
 when checking the pragma OVERLAPPING [X]

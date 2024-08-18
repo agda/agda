@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Check definition of +-assoc : Associative _+_
     stuck because
@@ -8,6 +9,7 @@ Failed to solve the following constraints:
   lzero = _a_26 (blocked on _a_26)
   ℕ =< _A_28 (blocked on _A_28)
   _A_28 =< ℕ (blocked on _A_28)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   FrozenMVar2.agda:20,1-28
   FrozenMVar2.agda:32,23-26

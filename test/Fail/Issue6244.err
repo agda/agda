@@ -1,2 +1,2 @@
-Issue6244.agda:4,1-44
+Issue6244.agda:4,1-44: error: [SafeFlagPragma]
 Cannot set OPTIONS pragma --no-load-primitives with safe flag.

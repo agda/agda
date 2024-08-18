@@ -1,10 +1,9 @@
-Issue5029.agda:1,1-45
-warning: -W[no]WarningProblem
+Issue5029.agda:1,1-45: warning: -W[no]WarningProblem
 You may only turn off benign warnings. The warning TerminationIssue is a non-fatal error and thus cannot be ignored. See --help=warning.
-Issue5029.agda:1,1-45
-warning: -W[no]WarningProblem
+
+Issue5029.agda:1,1-45: warning: -W[no]WarningProblem
 You may only turn off benign warnings. The warning TerminationIssue is a non-fatal error and thus cannot be ignored. See --help=warning.
-Issue5029.agda:5,1-6,10
+Issue5029.agda:5,1-6,10: error: [TerminationIssue]
 Termination checking failed for the following functions:
   bad
 Problematic calls:

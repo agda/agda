@@ -1,16 +1,13 @@
-UnknownWarning.agda:3,1-43
-warning: -W[no]WarningProblem
+UnknownWarning.agda:3,1-43: warning: -W[no]WarningProblem
 Unknown warning flag: ThisWarningIsYetUnknown. See --help=warning.
-UnknownWarning.agda:3,1-43
-warning: -W[no]WarningProblem
+
+UnknownWarning.agda:3,1-43: warning: -W[no]WarningProblem
 Unknown warning flag: ThisWarningIsYetUnknown. See --help=warning.
 
 ———— All done; warnings encountered ————————————————————————
 
-UnknownWarning.agda:3,1-43
-warning: -W[no]WarningProblem
+UnknownWarning.agda:3,1-43: warning: -W[no]WarningProblem
 Unknown warning flag: ThisWarningIsYetUnknown. See --help=warning.
 
-UnknownWarning.agda:3,1-43
-warning: -W[no]WarningProblem
+UnknownWarning.agda:3,1-43: warning: -W[no]WarningProblem
 Unknown warning flag: ThisWarningIsYetUnknown. See --help=warning.

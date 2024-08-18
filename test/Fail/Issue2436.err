@@ -1,7 +1,7 @@
-Issue2436.agda:8,3-15
-warning: -W[no]CoinductiveEtaRecord
+Issue2436.agda:8,3-15: warning: -W[no]CoinductiveEtaRecord
 Not switching on eta-equality for coinductive records.
 If you must, use pragma {-# ETA U #-}
 when checking the definition of U
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2436.agda:14,8-9

@@ -1,6 +1,9 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   ?0 .fst = fst x : A (blocked on _5)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue3606.agda:14,10-18
+error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
   Issue3606.agda:14,14-18

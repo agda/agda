@@ -1,4 +1,6 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   x = _q.B.1_20 : A (blocked on _q.B.1_20)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue5058b.agda:16,8-9

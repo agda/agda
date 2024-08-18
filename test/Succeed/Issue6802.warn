@@ -1,13 +1,12 @@
-Issue6802.agda:9,3-11,15
-warning: -W[no]NotAffectedByOpaque
+Issue6802.agda:9,3-11,15: warning: -W[no]NotAffectedByOpaque
 Only function definitions can be marked opaque. This definition
 will be treated as transparent.
 when scope checking the declaration
   module _ where
     foo : Nat
     foo = zero
-Issue6802.agda:8,1-7
-warning: -W[no]UselessOpaque
+
+Issue6802.agda:8,1-7: warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration
   opaque
@@ -18,8 +17,7 @@ when scope checking the declaration
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue6802.agda:9,3-11,15
-warning: -W[no]NotAffectedByOpaque
+Issue6802.agda:9,3-11,15: warning: -W[no]NotAffectedByOpaque
 Only function definitions can be marked opaque. This definition
 will be treated as transparent.
 when scope checking the declaration
@@ -27,8 +25,7 @@ when scope checking the declaration
     foo : Nat
     foo = zero
 
-Issue6802.agda:8,1-7
-warning: -W[no]UselessOpaque
+Issue6802.agda:8,1-7: warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration
   opaque

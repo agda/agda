@@ -1,3 +1,4 @@
+error: [ConstructorDoesNotFitInData]
 LargeIndices.agda:5,3-6: error: [NotLeqSort]
 Set a is not less or equal than Set
 when checking that the type A of an argument to the constructor inv

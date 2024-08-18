@@ -1,6 +1,9 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   ?0 =< Loop → Loop (blocked on _3)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2710.agda:8,13-14
+error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
   Issue2710.agda:4,10-14

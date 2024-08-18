@@ -1,4 +1,4 @@
-Issue3810c.agda:34,13-18
+Issue3810c.agda:34,13-18: error: [RewriteAmbiguousRules]
 Global confluence check failed: f (Box A) (g (Box A)) can be
 rewritten to either b or f (Box A) (box a).
 Possible fix: add a rewrite rule with left-hand side

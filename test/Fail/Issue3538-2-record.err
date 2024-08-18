@@ -1,4 +1,4 @@
-Issue3538-2-record.agda:19,13-16
+Issue3538-2-record.agda:19,13-16: error: [RewriteAmbiguousRules]
 Global confluence check failed: unD (c ((_ : Nat) → Nat)) can be
 rewritten to either (_ : Nat) → Nat or Nat → Bool.
 Possible fix: add a rewrite rule with left-hand side

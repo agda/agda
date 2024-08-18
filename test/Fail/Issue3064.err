@@ -1,4 +1,4 @@
-Issue3064.agda:11,1-14
+Issue3064.agda:11,1-14: error: [CoverageIssue]
 Incomplete pattern matching for test. Missing cases:
   test 'a' .snd
   test c

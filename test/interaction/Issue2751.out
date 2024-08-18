@@ -27,5 +27,5 @@
 (agda2-highlight-add-annotations 'nil '(1 36 (comment) t) '(37 77 (comment) t) '(79 82 (symbol) t) '(83 90 (keyword) t) '(91 104 (pragma) t) '(105 108 (symbol) t) '(710 732 (comment) t) '(736 776 (comment) t) '(779 836 (comment) t) '(839 879 (comment) t) '(881 938 (comment) t) '(979 985 (keyword) t) '(1051 1065 (comment) t) '(1118 1132 (comment) t))
 (agda2-highlight-add-annotations 'nil '(685 707 (unsolvedconstraint)) '(992 993 (unsolvedmeta)) '(1038 1039 (unsolvedconstraint)) '(1105 1106 (unsolvedconstraint)))
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : SizeUniv _29 : Agda.Primitive.Level [ at Issue2751.agda:46,7-8 ] ———— Error ————————————————————————————————————————————————— Failed to solve the following constraints: _29 =< Agda.Primitive.lsuc Agda.Primitive.lzero (blocked on _29) a =< _29 (blocked on _29) i =< Issue2751.UnsolvedSizeConstraints.foo t : Size (stuck)" nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : SizeUniv _29 : Agda.Primitive.Level [ at Issue2751.agda:46,7-8 ] ———— Error ————————————————————————————————————————————————— error: [UnsolvedConstraints] Failed to solve the following constraints: _29 =< Agda.Primitive.lsuc Agda.Primitive.lzero (blocked on _29) a =< _29 (blocked on _29) i =< Issue2751.UnsolvedSizeConstraints.foo t : Size (stuck)" nil)
 ((last . 1) . (agda2-goals-action '(0)))

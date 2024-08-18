@@ -1,4 +1,4 @@
-Issue1251/NonTerminating.agda:6,1-8,20
+Issue1251/NonTerminating.agda:6,1-8,20: error: [TerminationIssue]
 Termination checking failed for the following functions:
   bla
 Problematic calls:

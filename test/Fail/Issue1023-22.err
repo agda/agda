@@ -1,4 +1,4 @@
-Issue1023-22.agda:26,1-27,44
+Issue1023-22.agda:26,1-27,44: error: [TerminationIssue]
 Termination checking failed for the following functions:
   loop
 Problematic calls:

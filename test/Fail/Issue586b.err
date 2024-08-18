@@ -1,2 +1,2 @@
-Issue586b.agda:3,1-20
+Issue586b.agda:3,1-20: error: [SafeFlagTerminating]
 Cannot use TERMINATING pragma with safe flag.

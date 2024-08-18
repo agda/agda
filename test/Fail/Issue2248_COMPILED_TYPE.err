@@ -1,5 +1,4 @@
-Issue2248_COMPILED_TYPE.agda:23,1-34
-warning: -W[no]PragmaCompileWrong
+Issue2248_COMPILED_TYPE.agda:23,1-34: warning: -W[no]PragmaCompileWrong
 Haskell types can only be given for postulates.
 
 error: [CompilationError]

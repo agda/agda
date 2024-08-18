@@ -1,4 +1,4 @@
-Issue3572.agda:17,1-20,22
+Issue3572.agda:17,1-20,22: error: [TerminationIssue]
 Termination checking failed for the following functions:
   id
 Problematic calls:

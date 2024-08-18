@@ -1,4 +1,4 @@
-ConfluenceTypeLevelReduction.agda:25,13-16
+ConfluenceTypeLevelReduction.agda:25,13-16: error: [RewriteMaybeNonConfluent]
 Couldn't determine overlap between left-hand sides
 f _u_18 (b _u_18) and f _u_18 (a _u_18) because of unsolved
 constraints:

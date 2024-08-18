@@ -1,13 +1,11 @@
-Issue1322.agda:16,19-32
-warning: -W[no]InstanceArgWithExplicitArg
+Issue1322.agda:16,19-32: warning: -W[no]InstanceArgWithExplicitArg
 Instance arguments with explicit arguments are never considered by
 instance search, so having an instance argument
 ⦃ p : n == zero → ⊥ ⦄ has no effect.
 when checking that the expression (n : ℕ) ⦃ p : n == zero → ⊥ ⦄ → ℕ
 is a type
 
-Issue1322.agda:19,19-32
-warning: -W[no]InstanceArgWithExplicitArg
+Issue1322.agda:19,19-32: warning: -W[no]InstanceArgWithExplicitArg
 Instance arguments with explicit arguments are never considered by
 instance search, so having an instance argument
 ⦃ q : n == zero → ⊥ ⦄ has no effect.

@@ -1,2 +1,3 @@
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2927.agda:9,49-50

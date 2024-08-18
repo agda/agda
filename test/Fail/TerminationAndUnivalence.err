@@ -1,4 +1,4 @@
-TerminationAndUnivalence.agda:31,1-32,41
+TerminationAndUnivalence.agda:31,1-32,41: error: [TerminationIssue]
 Termination checking failed for the following functions:
   noo
 Problematic calls:

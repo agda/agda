@@ -1,11 +1,9 @@
-Issue6660-data-constructor.agda:10,1-19
-warning: -W[no]UselessPragma
+Issue6660-data-constructor.agda:10,1-19: warning: -W[no]UselessPragma
 INLINE directive only works on functions or constructors of records that allow copattern matching
 when checking the pragma INLINE ttt
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue6660-data-constructor.agda:10,1-19
-warning: -W[no]UselessPragma
+Issue6660-data-constructor.agda:10,1-19: warning: -W[no]UselessPragma
 INLINE directive only works on functions or constructors of records that allow copattern matching
 when checking the pragma INLINE ttt

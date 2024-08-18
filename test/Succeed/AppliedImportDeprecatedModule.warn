@@ -1,13 +1,11 @@
-AppliedImportDeprecatedModule.agda:4,6-34
-warning: -W[no]UserWarning
+AppliedImportDeprecatedModule.agda:4,6-34: warning: -W[no]UserWarning
 Deprecated module
 when scope checking the declaration
   import Deprecated.Deprecated as .#Deprecated.Deprecated-5114039497349854673
 
 ———— All done; warnings encountered ————————————————————————
 
-AppliedImportDeprecatedModule.agda:4,6-34
-warning: -W[no]UserWarning
+AppliedImportDeprecatedModule.agda:4,6-34: warning: -W[no]UserWarning
 Deprecated module
 when scope checking the declaration
   import Deprecated.Deprecated as .#Deprecated.Deprecated-5114039497349854673

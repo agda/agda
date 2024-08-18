@@ -1,4 +1,4 @@
-Issue1075.agda:283,1-435,54
+Issue1075.agda:283,1-435,54: error: [TerminationIssue]
 Termination checking failed for the following functions:
   cut⁺, cut⁻, rsubst+, lsubst
 Problematic calls:

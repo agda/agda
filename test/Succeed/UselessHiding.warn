@@ -1,13 +1,11 @@
-UselessHiding.agda:11,1-38
-warning: -W[no]UselessHiding
+UselessHiding.agda:11,1-38: warning: -W[no]UselessHiding
 Ignoring names in 'hiding' directive: B, module D
 when scope checking the declaration
   open M using (A) hiding (B; module D)
 
 ———— All done; warnings encountered ————————————————————————
 
-UselessHiding.agda:11,1-38
-warning: -W[no]UselessHiding
+UselessHiding.agda:11,1-38: warning: -W[no]UselessHiding
 Ignoring names in 'hiding' directive: B, module D
 when scope checking the declaration
   open M using (A) hiding (B; module D)

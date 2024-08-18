@@ -1,4 +1,3 @@
-Erased-modules-11.agda:11,34-40
-warning: -W[no]UselessPublic
+Erased-modules-11.agda:11,34-40: warning: -W[no]UselessPublic
 Keyword 'public' is ignored here
 when scope checking let open Agda.Builtin.Bool public in Set₁

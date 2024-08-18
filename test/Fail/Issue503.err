@@ -1,4 +1,4 @@
-Issue503.agda:42,1-43,57
+Issue503.agda:42,1-43,57: error: [TerminationIssue]
 Termination checking failed for the following functions:
   div
 Problematic calls:

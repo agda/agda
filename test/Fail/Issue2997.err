@@ -1,4 +1,4 @@
-Issue2997.agda:6,1-12,15
+Issue2997.agda:6,1-12,15: error: [TerminationIssue]
 Termination checking failed for the following functions:
   T
 Problematic calls:

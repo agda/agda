@@ -1,8 +1,8 @@
-Issue7266.agda:10,1-11,19
+Issue7266.agda:10,1-11,19: error: [CoverageIssue]
 Incomplete pattern matching for f. Missing cases:
   f false (false , snd₁)
 when checking the definition of f
-Issue7266.agda:9,1-11,33
+Issue7266.agda:9,1-11,33: error: [TerminationIssue]
 Termination checking failed for the following functions:
   f
 Problematic calls:

@@ -1,10 +1,10 @@
-Issue3932.agda:13,5-15,12
+Issue3932.agda:13,5-15,12: error: [NotAllowedInMutual]
 mutual blocks in mutual blocks are not supported. Suggestion: get
 rid of the mutual block by manually ordering declarations
 when scope checking the declaration
   module M where
 
-Issue3932.agda:23,5-24,14
+Issue3932.agda:23,5-24,14: error: [NotAllowedInMutual]
 mutual blocks in mutual blocks are not supported. Suggestion: get
 rid of the mutual block by manually ordering declarations
 when scope checking the declaration

@@ -1,9 +1,10 @@
-Issue1375-2.agda:18,1-26,25
+Issue1375-2.agda:18,1-26,25: error: [TerminationIssue]
 Termination checking failed for the following functions:
   weakenType
 Problematic calls:
   weakenType (?0 (ty = ty) (ty' = ty')) type
     (at Issue1375-2.agda:25,26-36)
+error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
   Issue1375-2.agda:24,13-17
   Issue1375-2.agda:25,50-54

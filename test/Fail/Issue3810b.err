@@ -1,4 +1,4 @@
-Issue3810b.agda:25,13-18
+Issue3810b.agda:25,13-18: error: [RewriteAmbiguousRules]
 Global confluence check failed: f ((x : A) → A) (g ((x : A) → A))
 can be rewritten to either b or f ((x : A) → A) (λ x → a).
 Possible fix: add a rewrite rule with left-hand side

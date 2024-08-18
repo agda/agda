@@ -1,2 +1,2 @@
-Polarity-pragma-in-safe-mode.agda:5,1-22
+Polarity-pragma-in-safe-mode.agda:5,1-22: error: [SafeFlagPolarity]
 Cannot use POLARITY pragma with safe flag.

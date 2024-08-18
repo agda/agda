@@ -1,5 +1,4 @@
-Issue4189.agda:15,17-38
-warning: -W[no]ModuleDoesntExport
+Issue4189.agda:15,17-38: warning: -W[no]ModuleDoesntExport
 The module Unit doesn't export the following:
   tt
 when scope checking the declaration
