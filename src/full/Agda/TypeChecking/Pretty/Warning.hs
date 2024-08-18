@@ -65,15 +65,6 @@ instance PrettyTCM TCWarning where
     reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow loc
     pure $ tcWarningPrintedWarning w
 
-{-# SPECIALIZE prettyWarningName :: WarningName -> TCM Doc #-}
--- | Prefix for a warning text showing name of the warning.
---   E.g. @warning: -W[no]<warning_name>@
-prettyWarningName :: MonadPretty m => WarningName -> m Doc
-prettyWarningName w = hcat
-  [ "warning: -W[no]"
-  , text $ warningName2String w
-  ]
-
 {-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
 prettyWarning :: MonadPretty m => Warning -> m Doc
 prettyWarning = \case

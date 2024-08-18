@@ -31,9 +31,9 @@ import Data.Semigroup ( Semigroup, (<>) )
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Caching
-import {-# SOURCE #-} Agda.TypeChecking.Pretty (MonadPretty, prettyTCM, ($$))
+import {-# SOURCE #-} Agda.TypeChecking.Pretty ( MonadPretty, prettyTCM, vcat, ($$) )
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
-import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning, prettyWarningName )
+import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning )
 
 import Agda.Syntax.Abstract.Name ( QName )
 import Agda.Syntax.Position
@@ -99,11 +99,17 @@ warning'_ loc w = do
         ConstructorDoesNotFitInData{} -> Nothing
         _ -> c
   let wn = warningName w
-  p <- sayWhen r' c' $
-    -- Only benign warnings can be deactivated with -WnoXXX, so don't
-    -- display hint for error warnings.
-    applyUnless (wn `elem` errorWarnings) (prettyWarningName wn $$) $
-      prettyWarning w
+  let ws = warningName2String wn
+  p <- vcat
+    [ pure $ P.hsep
+      [ if null r' then mempty else P.pretty r' P.<> P.colon
+      , if wn `elem` errorWarnings then "error:" P.<+> P.brackets (P.text ws)
+        else P.text $ "warning: -W[no]" ++ ws
+        -- Only benign warnings can be deactivated with -WnoXXX.
+      ]
+    , prettyWarning w
+    , prettyTCM c'
+    ]
   return $ TCWarning loc r w p b
 
 {-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}

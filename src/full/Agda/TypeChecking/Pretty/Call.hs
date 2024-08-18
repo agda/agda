@@ -32,9 +32,6 @@ import Agda.Version (docsUrl)
 sayWhere :: MonadPretty m => HasRange a => a -> m Doc -> m Doc
 sayWhere x d = prettyTCM (getRange x) $$ d
 
-sayWhen :: MonadPretty m => Range -> Maybe (Closure Call) -> m Doc -> m Doc
-sayWhen r cl m = sayWhere r (m $$ prettyTCM cl)
-
 instance PrettyTCM CallInfo where
   prettyTCM (CallInfo callInfoTarget callInfoCall) = do
     let call = prettyTCM callInfoCall
