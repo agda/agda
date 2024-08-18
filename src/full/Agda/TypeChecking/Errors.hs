@@ -337,13 +337,14 @@ errorString = \case
   UnexpectedTypeSignatureForParameter{}    -> "UnexpectedTypeSignatureForParameter"
   UnusableAtModality{}                     -> "UnusableAtModality"
   CubicalCompilationNotSupported{}         -> "CubicalCompilationNotSupported"
-  -- Error groups
+  -- Error groups and generic errors
   CustomBackendError{}                     -> "CustomBackendError"
   GHCBackendError err                      -> "GHCBackend." ++ ghcBackendErrorString err
   InteractionError err                     -> "Interaction." ++ interactionErrorString err
   NicifierError err                        -> "Syntax." ++ declarationExceptionString err
   OptionError{}                            -> "OptionError"
   UnquoteFailed err                        -> "Unquote." ++ unquoteErrorString err
+  SyntaxError{}                            -> "SyntaxError"
 
 ghcBackendErrorString :: GHCBackendError -> String
 ghcBackendErrorString = \case
@@ -445,6 +446,8 @@ instance PrettyTCM TypeError where
     NicifierError err -> pretty err
 
     OptionError s -> fwords s
+
+    SyntaxError s -> fwords $ "Syntax error: "  ++ s
 
     NoKnownRecordWithSuchFields fields -> fsep $
       case fields of

@@ -4714,6 +4714,9 @@ data TypeError
         | NotImplemented String
         | NotSupported String
         | CompilationError String
+        | SyntaxError String
+             -- ^ Essential syntax error thrown after successful parsing.
+             --   Description in 'String'.
         | OptionError OptionError
              -- ^ Error thrown by the option parser.
         | NicifierError DeclarationException'
@@ -5838,6 +5841,9 @@ typeError_ = withCallerCallStack . flip typeError'_
 
 interactionError :: (HasCallStack, MonadTCError m) => InteractionError -> m a
 interactionError = locatedTypeError InteractionError
+
+syntaxError :: (HasCallStack, MonadTCError m) => String -> m a
+syntaxError = locatedTypeError SyntaxError
 
 unquoteError :: (HasCallStack, MonadTCError m) => UnquoteError -> m a
 unquoteError = locatedTypeError UnquoteFailed

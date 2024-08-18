@@ -992,16 +992,16 @@ instance ToAbstract C.Expr where
       C.Absurd _ -> notAnExpression e
 
   -- Impossible things
-      C.Equal{} -> genericError "Parse error: unexpected '='"
-      C.Ellipsis _ -> genericError "Parse error: unexpected '...'"
-      C.DoubleDot _ _ -> genericError "Parse error: unexpected '..'"
+      C.Equal{} -> syntaxError "unexpected '='" -- triggered by 'f = (x = e)'
+      C.Ellipsis _ -> syntaxError "unexpected '...'"  -- triggered by 'f = ...'
+      C.DoubleDot _ _ -> __IMPOSSIBLE__
 
   -- Quoting
       C.Quote r -> return $ A.Quote (ExprRange r)
       C.QuoteTerm r -> return $ A.QuoteTerm (ExprRange r)
       C.Unquote r -> return $ A.Unquote (ExprRange r)
 
-      C.Tactic r e -> genericError "Syntax error: 'tactic' can only appear in attributes"
+      C.Tactic r e -> syntaxError "'tactic' can only appear in attributes"
 
   -- DontCare
       C.DontCare e -> A.DontCare <$> toAbstract e
