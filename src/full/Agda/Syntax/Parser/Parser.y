@@ -1889,7 +1889,7 @@ parseDisplayPragma r pos s =
 
 -- | Required by Happy.
 happyError :: Parser a
-happyError = parseError "Parse error"
+happyError = parseError ""
 
 
 {--------------------------------------------------------------------------

@@ -155,6 +155,7 @@ blockOnError blocker f
     PatternErr blocker' -> throwError $ PatternErr $ unblockOnEither blocker blocker'
     err@Exception{}     -> throwError err
     err@IOException{}   -> throwError err
+    ParserError{}       -> __IMPOSSIBLE__
 
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.

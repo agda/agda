@@ -219,5 +219,5 @@ runPM m = do
   (res, ws) <- runPMIO m
   mapM_ (warning . ParseWarning) ws
   case res of
-    Left  e -> throwError (Exception (getRange e) (P.pretty e))
+    Left  e -> throwError $ ParserError e
     Right a -> return a

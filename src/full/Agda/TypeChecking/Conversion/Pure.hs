@@ -78,6 +78,7 @@ runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $
       return Nothing
     Left Exception{}   -> __IMPOSSIBLE__
     Left IOException{} -> __IMPOSSIBLE__
+    Left ParserError{} -> __IMPOSSIBLE__
     Right x            -> do
       debugResult "success"
       return $ Just x
