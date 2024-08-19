@@ -1,5 +1,7 @@
-error: [ConstructorDoesNotFitInData]
-NotLeqSort.agda:5,3-6: error: [NotLeqSort]
-Set₁ is not less or equal than Set
+NotLeqSort.agda:5,3-6: error: [ConstructorDoesNotFitInData]
+Constructor err
+of sort Set₁
+does not fit into data type of sort Set.
+(Reason: Set₁ is not less or equal than Set)
 when checking that the type Set of an argument to the constructor
 err fits in the sort Set of the datatype.

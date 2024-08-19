@@ -1,6 +1,8 @@
-error: [ConstructorDoesNotFitInData]
-LargeIndicesWithoutK.agda:5,3-6: error: [NotLeqSort]
-Set a is not less or equal than Set
+LargeIndicesWithoutK.agda:5,3-6: error: [ConstructorDoesNotFitInData]
+Constructor [_]
+of sort Set a
+does not fit into data type of sort Set.
+(Reason: Set a is not less or equal than Set)
 when checking that the type A of an argument to the constructor [_]
 fits in the sort Set of the datatype.
 

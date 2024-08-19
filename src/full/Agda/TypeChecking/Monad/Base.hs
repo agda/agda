@@ -4266,7 +4266,7 @@ data Warning
   | NotStrictlyPositive      QName (Seq OccursWhere)
   | ConstructorDoesNotFitInData QName Sort Sort TCErr
       -- ^ Checking whether constructor 'QName' 'Sort' fits into @data@ 'Sort'
-      --   produced 'TCErr'
+      --   produced 'TCErr'.
   | CoinductiveEtaRecord QName
       -- ^ A record type declared as both @coinductive@ and having @eta-equality@.
 

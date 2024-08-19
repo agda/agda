@@ -8,6 +8,7 @@ import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug (MonadDebug)
 import {-# SOURCE #-} Agda.TypeChecking.Pretty (PrettyTCM)
 
+instance PrettyTCM TypeError
 instance PrettyTCM TCErr
 
 -- Misplaced SPECIALISE pragma:

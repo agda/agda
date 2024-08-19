@@ -1,15 +1,21 @@
-error: [ConstructorDoesNotFitInData]
-Issue776.agda:7,3-8: error: [NotLeqSort]
-Set (lsuc l) is not less or equal than Set₁
+Issue776.agda:7,3-8: error: [ConstructorDoesNotFitInData]
+Constructor proof
+of sort Set (lsuc l)
+does not fit into data type of sort Set₁.
+(Reason: Set (lsuc l) is not less or equal than Set₁)
 when checking that the type Set l → Set l of an argument to the
 constructor proof fits in the sort Set₁ of the datatype.
-error: [ConstructorDoesNotFitInData]
-Issue776.agda:7,3-8: error: [NotLeqSort]
-Set l is not less or equal than Set₁
+Issue776.agda:7,3-8: error: [ConstructorDoesNotFitInData]
+Constructor proof
+of sort Set l
+does not fit into data type of sort Set₁.
+(Reason: Set l is not less or equal than Set₁)
 when checking that the type F A of an argument to the constructor
 proof fits in the sort Set₁ of the datatype.
-error: [ConstructorDoesNotFitInData]
-Issue776.agda:7,3-8: error: [NotLeqSort]
-Set l is not less or equal than Set₁
+Issue776.agda:7,3-8: error: [ConstructorDoesNotFitInData]
+Constructor proof
+of sort Set l
+does not fit into data type of sort Set₁.
+(Reason: Set l is not less or equal than Set₁)
 when checking that the type F B of an argument to the constructor
 proof fits in the sort Set₁ of the datatype.

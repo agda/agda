@@ -91,13 +91,7 @@ warning'_ loc w = do
   let r' = case w of
         -- NicifierIssues come with their own error locations.
         NicifierIssue w0 -> getRange w0
-        -- ConstructorDoesNotFitInData packages a full TCErr, so skip the sayWhen/Where here.
-        ConstructorDoesNotFitInData{} -> noRange
         _ -> r
-  let c' = case w of
-        -- ConstructorDoesNotFitInData packages a full TCErr, so skip the sayWhen/Where here.
-        ConstructorDoesNotFitInData{} -> Nothing
-        _ -> c
   let wn = warningName w
   let ws = warningName2String wn
   p <- vcat
@@ -108,7 +102,7 @@ warning'_ loc w = do
         -- Only benign warnings can be deactivated with -WnoXXX.
       ]
     , prettyWarning w
-    , prettyTCM c'
+    , prettyTCM c
     ]
   return $ TCWarning loc r w p b
 

@@ -1,6 +1,8 @@
-error: [ConstructorDoesNotFitInData]
-IUnivNotFibrant.agda:4,8-12: error: [NotLeqSort]
-SSet₁ is not less or equal than Set₁
+IUnivNotFibrant.agda:4,8-12: error: [ConstructorDoesNotFitInData]
+Constructor IUnivNotFibrant.Wrap.constructor
+of sort SSet₁
+does not fit into data type of sort Set₁.
+(Reason: SSet₁ is not less or equal than Set₁)
 when checking that the type IUniv of an argument to the constructor
 IUnivNotFibrant.Wrap.constructor fits in the sort Set₁ of the
 datatype.

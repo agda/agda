@@ -131,7 +131,18 @@ prettyWarning = \case
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
 
-    ConstructorDoesNotFitInData c s1 s2 err -> prettyTCM err
+    ConstructorDoesNotFitInData c s1 s2 err -> msg $$
+      case err of
+        TypeError _loc s e -> withTCState (const s) $ enterClosure e \ e ->
+          parens ("Reason:" <+> prettyTCM e)
+        _ ->
+          prettyTCM err
+      where
+        msg = sep
+          [ "Constructor" <+> prettyTCM c
+          , "of sort" <+> prettyTCM s1
+          , ("does not fit into data type of sort" <+> prettyTCM s2) <> "."
+          ]
 
     CoinductiveEtaRecord name -> vcat
       [ fsep $ pwords "Not switching on eta-equality for coinductive records."
