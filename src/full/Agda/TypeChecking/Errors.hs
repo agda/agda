@@ -127,11 +127,11 @@ tcErrString :: TCErr -> String
 tcErrString err =
   unwords . filter (not . null) . (prettyShow (getRange err) :) $
     case err of
-      TypeError _ _ cl  -> [ errorString $ clValue cl ]
-      ParserError e     -> [ "ParserError" ]
-      Exception r s     -> [ prettyShow r, show s ]
-      IOException _ r e -> [ prettyShow r, showIOException e ]
-      PatternErr{}      -> [ "PatternErr" ]
+      TypeError _ _ cl     -> [ errorString $ clValue cl ]
+      ParserError e        -> [ "ParserError" ]
+      GenericException msg -> [ msg ]
+      IOException _ r e    -> [ prettyShow r, showIOException e ]
+      PatternErr{}         -> [ "PatternErr" ]
 
 errorString :: TypeError -> String
 errorString = \case
@@ -399,7 +399,7 @@ instance PrettyTCM TCErr where
         , prettyTCM (envCall $ clEnv e)
         ]
     ParserError err   -> pretty err
-    Exception r s     -> sayWhere r $ return s
+    GenericException msg -> fwords msg
     IOException _ r e -> sayWhere r $ fwords $ showIOException e
     PatternErr{}      -> sayWhere err $ panic "uncaught pattern violation"
 

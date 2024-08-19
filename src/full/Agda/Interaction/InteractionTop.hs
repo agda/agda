@@ -245,7 +245,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
             toIO $ handleErr (Just Direct) $ IOException Nothing noRange e
 
           generalHandler (e :: E.SomeException) = Right <$> do
-            toIO $ handleErr (Just Direct) $ Exception noRange $ text $ showIOException e
+            toIO $ handleErr (Just Direct) $ GenericException $ showIOException e
 
       r <- (Right <$> toIO m)
              `E.catch` asyncHandler

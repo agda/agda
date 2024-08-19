@@ -153,7 +153,7 @@ blockOnError blocker f
   | otherwise               = f `catchError` \case
     TypeError{}         -> throwError $ PatternErr blocker
     PatternErr blocker' -> throwError $ PatternErr $ unblockOnEither blocker blocker'
-    err@Exception{}     -> throwError err
+    GenericException{}  -> __IMPOSSIBLE__
     err@IOException{}   -> throwError err
     ParserError{}       -> __IMPOSSIBLE__
 

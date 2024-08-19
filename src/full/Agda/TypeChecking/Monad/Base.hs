@@ -5133,10 +5133,10 @@ data TCErr
     }
   | ParserError ParseError
       -- ^ Error raised by the Happy parser.
-  | Exception Range Doc
+  | GenericException String
+      -- ^ Unspecific error without 'Range'.
   | IOException (Maybe TCState) Range E.IOException
-    -- ^ The first argument is the state in which the error was
-    -- raised.
+      -- ^ The first argument is the state in which the error was raised.
   | PatternErr Blocker
       -- ^ The exception which is usually caught.
       --   Raised for pattern violations during unification ('assignV')
@@ -5146,16 +5146,16 @@ data TCErr
 
 instance Show TCErr where
   show = \case
-    TypeError _ _ e   -> prettyShow (envRange $ clEnv e) ++ ": " ++ show (clValue e)
-    ParserError e     -> prettyShow e
-    Exception r d     -> prettyShow r ++ ": " ++ render d
-    IOException _ r e -> prettyShow r ++ ": " ++ showIOException e
-    PatternErr{}      -> "Pattern violation (you shouldn't see this)"
+    TypeError _ _ e      -> prettyShow (envRange $ clEnv e) ++ ": " ++ show (clValue e)
+    ParserError e        -> prettyShow e
+    GenericException msg -> msg
+    IOException _ r e    -> prettyShow r ++ ": " ++ showIOException e
+    PatternErr{}         -> "Pattern violation (you shouldn't see this)"
 
 instance HasRange TCErr where
   getRange (TypeError _ _ cl)  = envRange $ clEnv cl
   getRange (ParserError e)     = getRange e
-  getRange (Exception r _)     = r
+  getRange GenericException{}  = noRange
   getRange (IOException _ r _) = r
   getRange PatternErr{}        = noRange
 
@@ -6134,7 +6134,7 @@ instance NFData NumGeneralizableArgs where
 instance NFData TCErr where
   rnf (TypeError a b c)   = rnf a `seq` rnf b `seq` rnf c
   rnf (ParserError a)     = rnf a
-  rnf (Exception a b)     = rnf a `seq` rnf b
+  rnf (GenericException a)= rnf a
   rnf (IOException a b c) = rnf a `seq` rnf b `seq` rnf (c == c)
                             -- At the time of writing there is no
                             -- NFData instance for E.IOException.
