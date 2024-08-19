@@ -1,7 +1,3 @@
-Issue7136a.agda:11,33-33
-Issue7136a.agda:11,33: Illegal pattern synonym argument  {x}
+Issue7136a.agda:11,33: error: [ParseError]
+Illegal pattern synonym argument  {x}
 (Tactic annotations not allowed in pattern synonym arguments.)
-=<ERROR>
- suc x
-
--- Should complain abo...

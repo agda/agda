@@ -1,3 +1,2 @@
-FileThatDoesNotExist-ForReals.agda:1,1-1
 Cannot read file FileThatDoesNotExist-ForReals.agda
 Error: FileThatDoesNotExist-ForReals.agda: openBinaryFile: does not exist (No such file or directory)

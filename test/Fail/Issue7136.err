@@ -1,6 +1,3 @@
-Issue7136.agda:7,19-19
-Issue7136.agda:7,19: Illegal pattern synonym argument  {x = y}
+Issue7136.agda:7,19: error: [ParseError]
+Illegal pattern synonym argument  {x = y}
 (Arguments to pattern synonyms cannot be named.)
-=<ERROR>
- c y
--- Should be rejected: na...

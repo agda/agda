@@ -1,4 +1,2 @@
-Issue5365.agda:7,3-3
-Issue5365.agda:7,3: Incomplete binding x ←
-<EOF><ERROR>
-...
+Issue5365.agda:7,3: error: [ParseError]
+Incomplete binding x ←

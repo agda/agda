@@ -1,5 +1,2 @@
-Issue3007.agda:8,15-15
-Issue3007.agda:8,15: in the name _--, the part -- is not valid
-This<ERROR>
- is the end of the file!
-...
+Issue3007.agda:8,15: error: [ParseError]
+in the name _--, the part -- is not valid

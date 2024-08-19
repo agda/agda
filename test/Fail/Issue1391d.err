@@ -1,5 +1,2 @@
-Issue1391d.agda:5,18-18
-Issue1391d.agda:5,18: Expected sequence of possibly hidden bound identifiers
-:<ERROR>
- Set) → Set
-...
+Issue1391d.agda:5,18: error: [ParseError]
+Expected sequence of possibly hidden bound identifiers

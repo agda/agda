@@ -1,6 +1,3 @@
-Issue7136d.agda:6,18-18
-Issue7136d.agda:6,18: Illegal pattern synonym argument  x
+Issue7136d.agda:6,18: error: [ParseError]
+Illegal pattern synonym argument  x
 (Cohesion annotations not allowed in pattern synonym arguments.)
-=<ERROR>
- suc x
--- Should be rejected: ...

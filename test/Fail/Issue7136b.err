@@ -1,6 +1,3 @@
-Issue7136b.agda:8,18-18
-Issue7136b.agda:8,18: Illegal pattern synonym argument  x
+Issue7136b.agda:8,18: error: [ParseError]
+Illegal pattern synonym argument  x
 (Quantity annotations not allowed in pattern synonym arguments.)
-=<ERROR>
- suc x
--- Should be rejected: ...
