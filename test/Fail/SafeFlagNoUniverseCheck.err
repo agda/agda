@@ -1,0 +1,2 @@
+SafeFlagNoUniverseCheck.agda:9,1-26: error: [SafeFlagNoUniverseCheck]
+Cannot use NO_UNIVERSE_CHECK pragma with safe flag.
