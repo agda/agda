@@ -1,11 +1,11 @@
-RewriteLhsReduction.agda:17,1-21: warning: -W[no]RewriteLHSReduces
+RewriteLhsReduction.agda:17,13-17: warning: -W[no]RewriteLHSReduces
 f≡g'  is not a legal rewrite rule, since the left-hand side 
 f a  reduces to  g a
 when checking the pragma REWRITE f≡g'
 
 ———— All done; warnings encountered ————————————————————————
 
-RewriteLhsReduction.agda:17,1-21: warning: -W[no]RewriteLHSReduces
+RewriteLhsReduction.agda:17,13-17: warning: -W[no]RewriteLHSReduces
 f≡g'  is not a legal rewrite rule, since the left-hand side 
 f a  reduces to  g a
 when checking the pragma REWRITE f≡g'

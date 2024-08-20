@@ -185,7 +185,7 @@ rewriteRelationDom rel = do
 --   @rel us : (lhs rhs : A[us/Δ]) → Set i@.
 --   Returns the checked rewrite rule to be added to the signature.
 checkRewriteRule :: QName -> TCM (Maybe RewriteRule)
-checkRewriteRule q = runMaybeT $ do
+checkRewriteRule q = runMaybeT $ setCurrentRange q do
   lift requireOptionRewriting
   rels <- lift getBuiltinRewriteRelations
   reportSDoc "rewriting.relations" 40 $ vcat

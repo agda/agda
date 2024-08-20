@@ -1,4 +1,4 @@
-Issue2467.agda:8,1-18: error: [NoBindingForBuiltin]
+Issue2467.agda:8,13-14: error: [NoBindingForBuiltin]
 No binding for builtin thing REWRITE, use {-# BUILTIN REWRITE name
 #-} to bind it to 'name'
 when checking the pragma REWRITE A

@@ -1,8 +1,8 @@
-Issue1994.agda:36,1-20: warning: -W[no]RewriteVariablesNotBoundByLHS
+Issue1994.agda:36,13-16: warning: -W[no]RewriteVariablesNotBoundByLHS
 feq  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  r
 when checking the pragma REWRITE feq
 
-Issue1994.agda:37,1-20: warning: -W[no]RewriteVariablesNotBoundByLHS
+Issue1994.agda:37,13-16: warning: -W[no]RewriteVariablesNotBoundByLHS
 seq  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  r
 when checking the pragma REWRITE seq
 

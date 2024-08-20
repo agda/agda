@@ -4562,22 +4562,22 @@ warningName = \case
 
 illegalRewriteWarningName :: IllegalRewriteRuleReason -> WarningName
 illegalRewriteWarningName = \case
-  LHSNotDefinitionOrConstructor{} -> RewriteLHSNotDefinitionOrConstructor_
-  VariablesNotBoundByLHS{} -> RewriteVariablesNotBoundByLHS_
-  VariablesBoundMoreThanOnce{} -> RewriteVariablesBoundMoreThanOnce_
-  LHSReduces{} -> RewriteLHSReduces_
-  HeadSymbolIsProjection{} -> RewriteHeadSymbolIsProjection_
+  LHSNotDefinitionOrConstructor{}      -> RewriteLHSNotDefinitionOrConstructor_
+  VariablesNotBoundByLHS{}             -> RewriteVariablesNotBoundByLHS_
+  VariablesBoundMoreThanOnce{}         -> RewriteVariablesBoundMoreThanOnce_
+  LHSReduces{}                         -> RewriteLHSReduces_
+  HeadSymbolIsProjection{}             -> RewriteHeadSymbolIsProjection_
   HeadSymbolIsProjectionLikeFunction{} -> RewriteHeadSymbolIsProjectionLikeFunction_
-  HeadSymbolIsTypeConstructor{} -> RewriteHeadSymbolIsTypeConstructor_
-  HeadSymbolContainsMetas{} -> RewriteHeadSymbolContainsMetas_
-  ConstructorParametersNotGeneral{} -> RewriteConstructorParametersNotGeneral_
-  ContainsUnsolvedMetaVariables{} -> RewriteContainsUnsolvedMetaVariables_
-  BlockedOnProblems{} -> RewriteBlockedOnProblems_
-  RequiresDefinitions{} -> RewriteRequiresDefinitions_
-  DoesNotTargetRewriteRelation -> RewriteDoesNotTargetRewriteRelation_
-  BeforeFunctionDefinition -> RewriteBeforeFunctionDefinition_
-  BeforeMutualFunctionDefinition{} -> RewriteBeforeMutualFunctionDefinition_
-  DuplicateRewriteRule -> DuplicateRewriteRule_
+  HeadSymbolIsTypeConstructor{}        -> RewriteHeadSymbolIsTypeConstructor_
+  HeadSymbolContainsMetas{}            -> RewriteHeadSymbolContainsMetas_
+  ConstructorParametersNotGeneral{}    -> RewriteConstructorParametersNotGeneral_
+  ContainsUnsolvedMetaVariables{}      -> RewriteContainsUnsolvedMetaVariables_
+  BlockedOnProblems{}                  -> RewriteBlockedOnProblems_
+  RequiresDefinitions{}                -> RewriteRequiresDefinitions_
+  DoesNotTargetRewriteRelation         -> RewriteDoesNotTargetRewriteRelation_
+  BeforeFunctionDefinition             -> RewriteBeforeFunctionDefinition_
+  BeforeMutualFunctionDefinition{}     -> RewriteBeforeMutualFunctionDefinition_
+  DuplicateRewriteRule                 -> DuplicateRewriteRule_
 
 -- | Should warnings of that type be serialized?
 --

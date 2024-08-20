@@ -1,4 +1,4 @@
-Issue6643.agda:12,1-18: warning: -W[no]RewriteBeforeMutualFunctionDefinition
+Issue6643.agda:12,13-14: warning: -W[no]RewriteBeforeMutualFunctionDefinition
 Rewrite rule from function  p  cannot be added before the definition of mutually defined q
 when checking the pragma REWRITE p
 
