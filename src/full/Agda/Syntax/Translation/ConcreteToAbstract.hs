@@ -980,14 +980,20 @@ instance ToAbstract C.Expr where
               A.LetPatBind _ p _ -> go p
                 where
                   go = \case
-                    A.VarP (A.BindName name) -> return [name]
-                    A.ConP _ _ args -> mapM' (go . namedArg) args
-                    A.RecP _ fs -> mapM' (go . _exprFieldA) fs
-                    A.WildP _ -> return []
-                    -- Possibly more Pattern constructors can be supported
-                    other -> do
-                      doc <- prettyATop other
-                      genericError $ "Syntax error: pattern type not supported in 'record where' expressions: " ++ render doc
+                    A.VarP (A.BindName name)    -> return [name]
+                    A.ConP _ _ args             -> mapM' (go . namedArg) args
+                    A.RecP _ fs                 -> mapM' (go . _exprFieldA) fs
+                    A.WildP _                   -> return []
+                    A.AsP _ (A.BindName name) p -> (name :) <$> go p
+                    A.PatternSynP _ _ args      -> mapM' (go . namedArg) args
+                    -- We have run checkValidLetPattern at this point
+                    A.ProjP{}   -> __IMPOSSIBLE__
+                    A.DefP{}    -> __IMPOSSIBLE__
+                    A.DotP{}    -> __IMPOSSIBLE__
+                    A.AbsurdP{} -> __IMPOSSIBLE__
+                    A.LitP{}    -> __IMPOSSIBLE__
+                    A.EqualP{}  -> __IMPOSSIBLE__
+                    A.WithP{}   -> __IMPOSSIBLE__
               _ -> return []
             let fs = [Left $ C.FieldAssignment (nameCanonical n) (A.Var n) | n <- names]
             return $ A.mkLet i ds' (A.Rec ri fs)
