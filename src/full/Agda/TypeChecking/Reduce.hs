@@ -1731,7 +1731,7 @@ instance InstantiateFull Interface where
       <*!> return libPragmas
       <*!> return filePragmas
       <*!> return usedOpts
-      <*!> return patsyns
+      <*!> instantiateFull' patsyns
       <*!> return warnings
       <*!> return partialdefs
       <*!> return oblocks
