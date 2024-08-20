@@ -535,7 +535,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
           (r, def) <- maybe (fromMaybe __IMPOSSIBLE__ <$> isRecordConstructor x) pure mrdef
           showImp <- showImplicitArguments
           let keep (a, v) = showImp || visible a
-          A.Rec noExprInfo
+          A.Rec (recInfoBrace noRange)
             . map (Left . uncurry FieldAssignment . mapFst unDom)
             . filter keep
             . zip (recordFieldNames def)
@@ -1372,7 +1372,7 @@ recOrCon c co es = do
     if _recNamedCon def && co /= ConORec then fallback else do
       let fs = recordFieldNames def
       unless (length fs == length es) __IMPOSSIBLE__
-      return $ A.Rec empty $ zipWith mkFA fs es
+      return $ A.Rec (recInfoBrace noRange) $ zipWith mkFA fs es
   where
   fallback = apps (A.Con (unambiguous c)) es
   mkFA ax  = Left . FieldAssignment (unDom ax) . unArg

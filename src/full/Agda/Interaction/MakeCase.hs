@@ -482,7 +482,7 @@ makePatternVarsVisible is sc@SClause{ scPats = ps } =
 --   In this case, replace the rhs by @record{}@
 makeRHSEmptyRecord :: A.RHS -> A.RHS
 makeRHSEmptyRecord = \case
-  A.RHS{}            -> A.RHS{ rhsExpr = A.Rec empty empty, rhsConcrete = Nothing }
+  A.RHS{}            -> A.RHS{ rhsExpr = A.Rec (recInfoBrace noRange) empty, rhsConcrete = Nothing }
   rhs@A.RewriteRHS{} -> rhs{ A.rewriteRHS = makeRHSEmptyRecord $ A.rewriteRHS rhs }
   A.AbsurdRHS        -> __IMPOSSIBLE__
   A.WithRHS{}        -> __IMPOSSIBLE__

@@ -330,7 +330,7 @@ instance PatternToExpr Pattern Expr where
     AbsurdP _          -> asks hidingToMetaKind <&> \ k -> Underscore emptyMetaInfo{ metaKind = k }
     LitP _ l           -> return $ Lit empty l
     PatternSynP _ c ps -> app (PatternSyn c) <$> patToExpr ps
-    RecP _ as          -> Rec exprNoRange . map Left <$> patToExpr as
+    RecP i as          -> Rec (recInfoBrace $ getRange i) . map Left <$> patToExpr as
     EqualP{}           -> __IMPOSSIBLE__  -- Andrea TODO: where is this used?
     WithP r p          -> __IMPOSSIBLE__
 

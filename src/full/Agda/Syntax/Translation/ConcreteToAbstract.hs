@@ -960,9 +960,11 @@ instance ToAbstract C.Expr where
         let ds'  = [ d | Right (_, Just d) <- fs' ]
             fs'' = map (mapRight fst) fs'
             i    = ExprRange r
-        return $ A.mkLet i ds' (A.Rec i fs'')
+            ri   = recInfoBrace r
+        return $ A.mkLet i ds' (A.Rec ri fs'')
       C.RecWhere r ds0 -> do
-        let i = ExprRange r
+        let i  = ExprRange r
+            ri = recInfoWhere r
         -- We need to rewrite any opens or module applications opened in this
         -- scope into a non-opening declaration and explicit bindings, so that
         -- references inside this body refer unambiguously to things opened
@@ -971,7 +973,7 @@ instance ToAbstract C.Expr where
         -- rewrite won't be necessary any more, but any `using` or `renaming`
         -- clauses will still have to be made into field assignments somehow.
         ds0' <- mapM' rewriteConcreteOpens ds0
-        List1.ifNull ds0' (return $ A.Rec i []) $ \ ds -> do
+        List1.ifNull ds0' (return $ A.Rec ri []) $ \ ds -> do
           localToAbstract (LetDefs ds) $ \ ds' -> do
             names <- forM' ds' $ \case
               A.LetBind _ _ (A.BindName name) _ _ -> return [name]
@@ -988,7 +990,7 @@ instance ToAbstract C.Expr where
                       genericError $ "Syntax error: pattern type not supported in 'record where' expressions: " ++ render doc
               _ -> return []
             let fs = [Left $ C.FieldAssignment (nameCanonical n) (A.Var n) | n <- names]
-            return $ A.mkLet i ds' (A.Rec i fs)
+            return $ A.mkLet i ds' (A.Rec ri fs)
         where
           rewriteConcreteOpens :: C.Declaration -> ScopeM [C.Declaration]
           rewriteConcreteOpens = \case
@@ -1020,7 +1022,7 @@ instance ToAbstract C.Expr where
 
   -- Record update
       C.RecUpdate r e fs -> do
-        A.RecUpdate (ExprRange r) <$> toAbstract e <*> toAbstractCtx TopCtx fs
+        A.RecUpdate (recInfoBrace r) <$> toAbstract e <*> toAbstractCtx TopCtx fs
 
   -- Parenthesis
       C.Paren _ e -> toAbstractCtx TopCtx e

@@ -103,8 +103,8 @@ data Expr
   | Fun  ExprInfo (Arg Type) Type      -- ^ Non-dependent function space.
   | Let  ExprInfo (List1 LetBinding) Expr
                                        -- ^ @let bs in e@.
-  | Rec  ExprInfo RecordAssigns        -- ^ Record construction.
-  | RecUpdate ExprInfo Expr Assigns    -- ^ Record update.
+  | Rec RecInfo RecordAssigns          -- ^ Record construction.
+  | RecUpdate RecInfo Expr Assigns     -- ^ Record update.
   | ScopedExpr ScopeInfo Expr          -- ^ Scope annotation.
   | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
