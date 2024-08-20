@@ -1,0 +1,11 @@
+Issue5784.agda:14,3-66: warning: -W[no]WithoutKFlagPrimEraseEquality
+Using primEraseEquality with the without-K flag is inconsistent.
+when checking that the type of the primitive function
+primEraseEquality is ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
+
+———— All done; warnings encountered ————————————————————————
+
+Issue5784.agda:14,3-66: warning: -W[no]WithoutKFlagPrimEraseEquality
+Using primEraseEquality with the without-K flag is inconsistent.
+when checking that the type of the primitive function
+primEraseEquality is ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
