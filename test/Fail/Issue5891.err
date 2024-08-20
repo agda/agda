@@ -1,4 +1,8 @@
-Issue5891.agda:16,9-27: error: [UnequalSorts]
+Issue5891.agda:15,1-26: warning: -W[no]InvalidNoUniverseCheckPragma
+NO_UNIVERSE_CHECKING pragmas can only precede a data/record
+definition.
+
+Issue5891.agda:17,9-27: error: [UnequalSorts]
 Setω != SizeUniv
 when checking that the expression (X : SizeUniv) → X has type
 SizeUniv
