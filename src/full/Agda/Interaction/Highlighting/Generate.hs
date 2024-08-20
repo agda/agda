@@ -534,6 +534,7 @@ warningHighlighting' b w = case tcWarning w of
     UselessInstance{}                -> deadcodeHighlighting w
     UselessMacro{}                   -> deadcodeHighlighting w
     UselessPrivate{}                 -> deadcodeHighlighting w
+    InvalidCatchallPragma{}          -> deadcodeHighlighting w
     InvalidNoPositivityCheckPragma{} -> deadcodeHighlighting w
     InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting w
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting w
@@ -556,7 +557,6 @@ warningHighlighting' b w = case tcWarning w of
     MissingDeclarations{}            -> missingDefinitionHighlighting w
     MissingDefinitions{}             -> missingDefinitionHighlighting w
     -- TODO: explore highlighting opportunities here!
-    InvalidCatchallPragma{}           -> mempty
     PolarityPragmasButNotPostulates{} -> mempty
     PragmaNoTerminationCheck{}        -> mempty
     PragmaCompiled{}                  -> errorWarningHighlighting w

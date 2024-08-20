@@ -771,11 +771,8 @@ niceDeclarations fixs ds = do
     -- Turn function clauses into nice function clauses.
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]
     mkClauses _ [] _ = return []
-    mkClauses x (Pragma (CatchallPragma r) : cs) True  = do
-      declarationWarning $ InvalidCatchallPragma r
-      mkClauses x cs True
-    mkClauses x (Pragma (CatchallPragma r) : cs) False = do
-      when (null cs) $ declarationWarning $ InvalidCatchallPragma r
+    mkClauses x (Pragma (CatchallPragma r) : cs) catchall = do
+      when (catchall || null cs) $ declarationWarning $ InvalidCatchallPragma r
       mkClauses x cs True
 
     mkClauses x (FunClause lhs rhs wh ca : cs) catchall
