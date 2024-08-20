@@ -327,10 +327,6 @@ prettyWarning = \case
       LHSReduces v v' -> fsep
         [ prettyTCM q <+> " is not a legal rewrite rule, since the left-hand side "
         , prettyTCM v <+> " reduces to " <+> prettyTCM v' ]
-      HeadSymbolIsProjection f -> hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
-        , prettyTCM f , "is a projection"
-        ]
       HeadSymbolIsProjectionLikeFunction f -> hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
         , hd , "is a projection-like function."

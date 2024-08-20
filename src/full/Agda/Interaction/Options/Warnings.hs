@@ -298,7 +298,6 @@ data WarningName
   | RewriteVariablesNotBoundByLHS_
   | RewriteVariablesBoundMoreThanOnce_
   | RewriteLHSReduces_
-  | RewriteHeadSymbolIsProjection_
   | RewriteHeadSymbolIsProjectionLikeFunction_
   | RewriteHeadSymbolIsTypeConstructor_
   | RewriteHeadSymbolContainsMetas_
@@ -523,7 +522,6 @@ warningNameDescription = \case
   RewriteVariablesNotBoundByLHS_                    -> "Rewrite rule does not bind all of its variables."
   RewriteVariablesBoundMoreThanOnce_                -> "Constructor-headed rewrite rule has non-linear parameters."
   RewriteLHSReduces_                                -> "Rewrite rule LHS is not in weak-head normal form."
-  RewriteHeadSymbolIsProjection_                    -> "Rewrite rule head symbol is a record projection."
   RewriteHeadSymbolIsProjectionLikeFunction_        -> "Rewrite rule head symbol is a projection-like function."
   RewriteHeadSymbolIsTypeConstructor_               -> "Rewrite rule head symbol is a type constructor."
   RewriteHeadSymbolContainsMetas_                   -> "Definition of rewrite rule head symbol contains unsolved metas."

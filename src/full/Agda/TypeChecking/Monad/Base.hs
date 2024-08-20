@@ -4566,7 +4566,6 @@ illegalRewriteWarningName = \case
   VariablesNotBoundByLHS{}             -> RewriteVariablesNotBoundByLHS_
   VariablesBoundMoreThanOnce{}         -> RewriteVariablesBoundMoreThanOnce_
   LHSReduces{}                         -> RewriteLHSReduces_
-  HeadSymbolIsProjection{}             -> RewriteHeadSymbolIsProjection_
   HeadSymbolIsProjectionLikeFunction{} -> RewriteHeadSymbolIsProjectionLikeFunction_
   HeadSymbolIsTypeConstructor{}        -> RewriteHeadSymbolIsTypeConstructor_
   HeadSymbolContainsMetas{}            -> RewriteHeadSymbolContainsMetas_
@@ -5089,7 +5088,6 @@ data IllegalRewriteRuleReason
   | VariablesNotBoundByLHS IntSet
   | VariablesBoundMoreThanOnce IntSet
   | LHSReduces Term Term
-  | HeadSymbolIsProjection QName
   | HeadSymbolIsProjectionLikeFunction QName
   | HeadSymbolIsTypeConstructor QName
   | HeadSymbolContainsMetas QName

@@ -262,7 +262,10 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
           ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c $ unDom b
           pars <- addContext gamma1 $ checkParametersAreGeneral c pars
           return (conName c , hd , t , pars , vs)
-        _ -> illegalRule LHSNotDefinitionOrConstructor
+        _ -> do
+          reportSDoc "rewriting.rule.check" 30 $ hsep
+            [ "LHSNotDefinitionOrConstructor: ", prettyTCM lhs ]
+          illegalRule LHSNotDefinitionOrConstructor
 
       ifNotAlreadyAdded f $ do
 
@@ -353,8 +356,13 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
       Axiom{}        -> return ()
       def@Function{} -> do
         whenJust (maybeRight (funProjection def)) $ \proj -> case projProper proj of
-          Just{} -> illegalRule $ HeadSymbolIsProjection f
           Nothing -> illegalRule $ HeadSymbolIsProjectionLikeFunction f
+          Just{} -> __IMPOSSIBLE__
+            -- Andreas, 2024-08-20
+            -- A projection ought to be impossible in the head, since they are represented
+            -- in post-fix in the internal syntax.
+            -- Thus, a lone projection @p@ will be @λ x → x .p@
+            -- and an applied projection @p t@ will be @t .p@.
         whenM (isJust . optConfluenceCheck <$> pragmaOptions) $ do
           let simpleClause cl = (patternsToElims (namedClausePats cl) , clauseBody cl)
           cls <- instantiateFull $ map simpleClause $ funClauses def

@@ -1540,10 +1540,6 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Rewrite rule LHS is not in weak-head normal form.
 
-.. option:: RewriteHeadSymbolIsProjection
-
-     Rewrite rule head symbol is a record projection.
-
 .. option:: RewriteHeadSymbolIsProjectionLikeFunction
 
      Rewrite rule head symbol is a projection-like function.
