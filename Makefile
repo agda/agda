@@ -632,23 +632,28 @@ benchmark-summary :
 	@$(call decorate, "Benchmark summary", \
 	  $(MAKE) -C benchmark summary)
 
-.PHONY : user-manual-test ##
+.PHONY : user-manual-test ## Check the Agda code embedded in the user manual.
 user-manual-test :
 	@$(call decorate, "User manual (test)", \
 		find doc/user-manual -type f -name '*.agdai' -delete; \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/UserManual)
 
-.PHONY : user-manual-covers-options
+.PHONY : user-manual-covers-options ## Test that the user manual mentions all options.
 user-manual-covers-options :
 	@$(call decorate, "User manual should mention all options", \
           AGDA_BIN=$(AGDA_BIN) test/doc/user-manual-covers-options.sh)
 
-.PHONY : user-manual-covers-warnings
+.PHONY : user-manual-covers-warnings ## Test that the user manual mentions all warnings.
 user-manual-covers-warnings :
 	@$(call decorate, "User manual should mention all warnings", \
           AGDA_BIN=$(AGDA_BIN) test/doc/user-manual-covers-warnings.sh)
 
-.PHONY : testing-emacs-mode ##
+.PHONY : test-suite-covers-warnings ## Check whether the test suite covers all warnings.
+test-suite-covers-warnings :
+	@$(call decorate, "Test suite should cover all warnings", \
+          AGDA_BIN=$(AGDA_BIN) test/test-suite-covers-warnings.sh)
+
+.PHONY : testing-emacs-mode ## Compile the emacs mode and run basic tests.
 testing-emacs-mode:
 	@$(call decorate, "Testing the Emacs mode", \
 	  $(AGDA_MODE) compile)

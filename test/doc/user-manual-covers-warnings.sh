@@ -15,7 +15,9 @@ HELPWARNS=$TMPDIR/help-text-warnings.txt
 # Documented warnings
 sed -nr 's/^.. option:: ([A-Z][A-Za-z]*)/\1/p' $DOC | sort > $DOCWARNS
 
-# Existing warnings
+# Existing warnings.
+# Those are printed by `agda --help=warning` at line beginnings and follow
+# the camel-case convention, with at least two capital letters.
 $AGDA_BIN --help=warning | sed -nr 's/^([A-Z][a-z]+[A-Z][A-Za-z]+).*/\1/p' | sort > $HELPWARNS
 
 # Warnings that are documented but don't exist any longer.
