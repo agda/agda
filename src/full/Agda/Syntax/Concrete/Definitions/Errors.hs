@@ -108,8 +108,6 @@ data DeclarationWarning'
   | InvalidCatchallPragma Range
       -- ^ A {-\# CATCHALL \#-} pragma
       --   that does not precede a function clause.
-  | InvalidConstructor Range
-      -- ^ Invalid definition in a constructor block
   | InvalidConstructorBlock Range
       -- ^ Invalid constructor block (not inside an interleaved mutual block)
   | InvalidCoverageCheckPragma Range
@@ -180,7 +178,6 @@ declarationWarningName' = \case
   EmptyPrimitive{}                  -> EmptyPrimitive_
   HiddenGeneralize{}                -> HiddenGeneralize_
   InvalidCatchallPragma{}           -> InvalidCatchallPragma_
-  InvalidConstructor{}              -> InvalidConstructor_
   InvalidConstructorBlock{}         -> InvalidConstructorBlock_
   InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
@@ -230,7 +227,6 @@ unsafeDeclarationWarning' = \case
   EmptyPrimitive{}                  -> False
   HiddenGeneralize{}                -> False
   InvalidCatchallPragma{}           -> False
-  InvalidConstructor{}              -> False
   InvalidConstructorBlock{}         -> False
   InvalidNoPositivityCheckPragma{}  -> False
   InvalidNoUniverseCheckPragma{}    -> False
@@ -342,7 +338,6 @@ instance HasRange DeclarationWarning' where
     EmptyPrivate kwr                   -> getRange kwr
     HiddenGeneralize r                 -> r
     InvalidCatchallPragma r            -> r
-    InvalidConstructor r               -> r
     InvalidConstructorBlock r          -> r
     InvalidCoverageCheckPragma r       -> r
     InvalidNoPositivityCheckPragma r   -> r
@@ -496,9 +491,6 @@ instance Pretty DeclarationWarning' where
 
     InvalidTerminationCheckPragma _ -> fsep $
       pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
-
-    InvalidConstructor{} -> fsep $
-      pwords "`data _ where' blocks may only contain type signatures for constructors."
 
     InvalidConstructorBlock{} -> fsep $
       pwords "No `data _ where' blocks outside of `interleaved mutual' blocks."

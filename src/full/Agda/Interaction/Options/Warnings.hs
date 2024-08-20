@@ -231,7 +231,6 @@ data WarningName
   | EmptyWhere_
   | HiddenGeneralize_
   | InvalidCatchallPragma_
-  | InvalidConstructor_
   | InvalidConstructorBlock_
   | InvalidCoverageCheckPragma_
   | InvalidNoPositivityCheckPragma_
@@ -454,7 +453,6 @@ warningNameDescription = \case
   EmptyWhere_                      -> "Empty `where' blocks."
   HiddenGeneralize_                -> "Hidden identifiers in variable blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
-  InvalidConstructor_              -> "`constructor' blocks that contain declarations other than type signatures for constructors."
   InvalidConstructorBlock_         -> "`constructor' blocks outside of `interleaved mutual' blocks."
   InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
   InvalidNoPositivityCheckPragma_  -> "Positivity checking pragmas before non-`data', `record' or `mutual' blocks."

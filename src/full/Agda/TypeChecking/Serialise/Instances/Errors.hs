@@ -317,7 +317,7 @@ instance EmbPrj DeclarationWarning' where
     OpenPublicPrivate r               -> icodeN 27 OpenPublicPrivate r
     EmptyConstructor a                -> icodeN 28 EmptyConstructor a
     -- 29 removed
-    InvalidConstructor a              -> icodeN 30 InvalidConstructor a
+    -- 30 removed
     InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
     MissingDeclarations a             -> icodeN 32 MissingDeclarations a
     HiddenGeneralize r                -> icodeN 33 HiddenGeneralize r
@@ -362,7 +362,7 @@ instance EmbPrj DeclarationWarning' where
     [27,r]   -> valuN OpenPublicPrivate r
     [28,r]   -> valuN EmptyConstructor r
     -- 29 removed
-    [30,r]   -> valuN InvalidConstructor r
+    -- 30 removed
     [31,r]   -> valuN InvalidConstructorBlock r
     [32,r]   -> valuN MissingDeclarations r
     [33,r]   -> valuN HiddenGeneralize r

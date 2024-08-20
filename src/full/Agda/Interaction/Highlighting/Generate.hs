@@ -539,7 +539,6 @@ warningHighlighting' b w = case tcWarning w of
     InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting w
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting w
     InvalidCoverageCheckPragma{}     -> deadcodeHighlighting w
-    InvalidConstructor{}             -> deadcodeHighlighting w
     InvalidConstructorBlock{}        -> deadcodeHighlighting w
     OpenPublicAbstract{}             -> deadcodeHighlighting w
     OpenPublicPrivate{}              -> deadcodeHighlighting w

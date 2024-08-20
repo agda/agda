@@ -1389,10 +1389,6 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Illegal character literals such as surrogate code points.
 
-.. option:: InvalidConstructor
-
-     ``constructor`` blocks that contain declarations other type signatures for constructors.
-
 .. option:: InvalidConstructorBlock
 
      ``constructor`` blocks outside of ``interleaved mutual`` blocks.
