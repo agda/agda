@@ -1014,7 +1014,7 @@ instance ToAbstract C.Expr where
           handleOpen :: C.QName -> C.ImportDirective -> ScopeM [C.Declaration]
           handleOpen m ImportDirective{ using, impRenaming } = case using of
             UseEverything ->
-              genericError "Syntax error: 'open' in 'record where' expressions must provide a 'using' clause"
+              typeError OpenEverythingInRecordWhere
             Using usingNames ->
               return . map mkDef $
                 [(name, name) | ImportedName name <- usingNames] ++

@@ -1455,6 +1455,8 @@ instance PrettyTCM TypeError where
       , pwords $ "is not supported."
       ]
 
+    OpenEverythingInRecordWhere -> fsep $
+      pwords "'open' in 'record where' expressions must provide a 'using' clause"
     CustomBackendError backend err -> (text backend <> ":") <?> pure err
     GHCBackendError err -> prettyTCM err
 
