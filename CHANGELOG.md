@@ -51,6 +51,14 @@ Additions to the Agda syntax.
     snd = n * n
   ```
 
+  The syntax also works for record updates
+
+  ```agda
+  p₂ : Pair Nat Nat
+  p₂ = record p₁ where
+    snd = snd p₁ + 1
+  ```
+
   See [#4275](https://github.com/agda/agda/issues/4275) for the proposal.
 
 Language

@@ -288,6 +288,14 @@ Then we can update (some of) the record value’s fields in the following way:
   new : MyRecord
   new = record old { a = 0; c = 5 }
 
+or using the ``record where`` syntax
+::
+
+  new₁ : MyRecord
+  new₁ = record old where
+    a = 0
+    c = 5
+
 Here ``new`` normalises to ``record { a = 0; b = 2; c = 5 }``. Any
 expression yielding a value of type ``MyRecord`` can be used instead of
 ``old``. Using that :ref:`records can be built from module names
@@ -297,12 +305,15 @@ written as
 
 ::
 
-  new' : MyRecord
-  new'  = record { MyRecord old; a = 0; c = 5}
+  new₂ : MyRecord
+  new₂  = record { MyRecord old; a = 0; c = 5}
 
 ..
   ::
-  _ : new ≡ new' -- make sure that old and new syntax agree
+  -- make sure the syntax doesn't matter
+  _ : new ≡ new₁
+  _ = refl
+  _ : new ≡ new₂
   _ = refl
 
 Record updating is not allowed to change types: the resulting value

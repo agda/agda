@@ -280,6 +280,7 @@ instance Pretty Expr where
             RecWhere _ xs -> sep [hlKeyword "record" <+> hlKeyword "where", nest 2 (vcat $ map pretty xs)]
             RecUpdate _ e xs ->
               sep [hlKeyword "record" <+> pretty e, bracesAndSemicolons (map pretty xs)]
+            RecUpdateWhere _ e xs -> sep [hlKeyword "record" <+> pretty e <+> hlKeyword "where", nest 2 (vcat $ map pretty xs)]
             Quote _ -> hlKeyword "quote"
             QuoteTerm _ -> hlKeyword "quoteTerm"
             Unquote _  -> hlKeyword "unquote"
