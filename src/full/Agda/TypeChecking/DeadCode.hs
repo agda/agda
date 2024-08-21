@@ -2,7 +2,7 @@
 
 module Agda.TypeChecking.DeadCode (eliminateDeadCode) where
 
-import Control.Monad ((<$!>), filterM)
+import Control.Monad (filterM)
 import Control.Monad.Trans
 
 import Data.Maybe
@@ -30,20 +30,21 @@ import qualified Agda.Utils.HashTable as HT
 --   public interface. We do not compute reachable data precisely, because that
 --   would be very expensive, mainly because of rewrite rules. The following
 --   things are assumed to be "roots":
---     - public names (for definitions and pattern synonyms)
+--     - public definitions
 --     - definitions marked as primitive
 --     - definitions with COMPILE pragma
---     - all parameter sections (because all sections go into interfaces!)
+--     - all pattern synonyms (because currently all of them go into interfaces)
+--     - all parameter sections (because currently all of them go into interfaces)
 --       (see also issues #6931 and #7382)
 --     - local builtins
 --     - all rewrite rules
---   We only ever prune dead metavariables and definitions. The reachable ones
---   are returned from this function.
-eliminateDeadCode :: ScopeInfo -> TCM (RemoteMetaStore, Definitions)
+--     - closed display forms
+--   We only ever prune dead metavariables and definitions. We return the pruned metas,
+--   pruned definitions and closed display forms.
+eliminateDeadCode :: ScopeInfo -> TCM (RemoteMetaStore, Definitions, DisplayForms)
 eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
   !sig <- getSignature
   let !defs = sig ^. sigDefinitions
-  !psyns <- getPatternSyns
   !metas <- useR stSolvedMetaStore
 
   -- #2921: Eliminating definitions with attached COMPILE pragmas results in
@@ -63,12 +64,18 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
 
   let !pubModules = publicModules scope
 
+    -- Ulf, 2016-04-12:
+    -- Non-closed display forms are not applicable outside the module anyway,
+    -- and should be dead-code eliminated (#1928).
+  !rootDisplayForms <-
+      HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
+
   let !rootPubNames  = map anameName $ publicNamesOfModules pubModules
   let !rootExtraDefs = mapMaybe extraRootsFilter $ HMap.toList defs
   let !rootRewrites  = sig ^. sigRewriteRules
-
   let !rootModSections = sig ^. sigSections
   !rootBuiltins <- useTC stLocalBuiltins
+  !rootPatSyns  <- getPatternSyns
 
   !seenNames <- liftIO HT.empty :: TCM (HashTable QName ())
   !seenMetas <- liftIO HT.empty :: TCM (HashTable MetaId ())
@@ -80,7 +87,6 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
         Nothing -> do
           HT.insert seenNames x ()
           go (HMap.lookup x defs)
-          go (PSyn <$!> MapS.lookup x psyns)
 
       goMeta :: MetaId -> IO ()
       goMeta !m = HT.lookup seenMetas m >>= \case
@@ -99,11 +105,13 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
       {-# INLINE go #-}
 
   Bench.billTo [Bench.DeadCode, Bench.DeadCodeReachable] $ liftIO $ do
+    go rootDisplayForms
     foldMap goName rootPubNames
     foldMap goName rootExtraDefs
     go rootRewrites
     go rootModSections
     go rootBuiltins
+    foldMap (go . PSyn) rootPatSyns
 
   let filterMeta :: (MetaId, MetaVariable) -> IO (Maybe (MetaId, RemoteMetaVariable))
       filterMeta (!i, !m) = HT.lookup seenMetas i >>= \case
@@ -117,7 +125,7 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
 
   !metas <- liftIO $ HMap.fromList <$> mapMaybeM filterMeta (MapS.toList metas)
   !defs  <- liftIO $ HMap.fromList <$> filterM filterDef (HMap.toList defs)
-  pure (metas, defs)
+  pure (metas, defs, rootDisplayForms)
 
 -- | Returns the instantiation.
 --   Precondition: The instantiation must be of the form @'InstV' inst@.
