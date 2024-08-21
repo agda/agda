@@ -29,10 +29,6 @@ description:
     This package includes both a command-line program (agda) and an
     Emacs mode. If you want to use the Emacs mode you can set it up by
     running @agda-mode setup@ (see the README).
-    .
-    Note that the Agda package does not follow the package versioning
-    policy, because it is not intended to be used by third-party
-    packages.
 
 tested-with:
     GHC == 9.10.1
