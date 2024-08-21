@@ -999,7 +999,10 @@ checkRecordExpression cmp style mfs e t = do
         _ -> __IMPOSSIBLE__
       -- Don't need to block here!
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
-      return $ Con con ConORec (map Apply args)
+      let origin = case style of
+            A.RecStyleBrace -> ConORec
+            A.RecStyleWhere -> ConORecWhere
+      return $ Con con origin (map Apply args)
     _ -> typeError $ ShouldBeRecordType t
 
   where

@@ -520,22 +520,22 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
     I.Con c ci es -> do
 
       -- If the origin is a record expression, print a record expression.
-      if ci == ConORec then recordExpression Nothing else do
+      if isRecOrigin ci then recordExpression (conOriginToRecInfo ci) Nothing else do
         isRecordConstructor x >>= \case
 
           -- If it is a generated constructor, print a record expression.
-          Just (r, def) | not (_recNamedCon def) -> recordExpression $ Just (r, def)
+          Just (r, def) | not (_recNamedCon def) -> recordExpression (recInfoBrace noRange) $ Just (r, def)
 
           -- Otherwise, print a constructor application.
           _ -> constructorApplication
       where
         x = conName c
 
-        recordExpression mrdef = do
+        recordExpression ri mrdef = do
           (r, def) <- maybe (fromMaybe __IMPOSSIBLE__ <$> isRecordConstructor x) pure mrdef
           showImp <- showImplicitArguments
           let keep (a, v) = showImp || visible a
-          A.Rec (recInfoBrace noRange)
+          A.Rec ri
             . map (Left . uncurry FieldAssignment . mapFst unDom)
             . filter keep
             . zip (recordFieldNames def)
@@ -1358,6 +1358,15 @@ tryRecPFromConP p = do
           mkFA ax nap = FieldAssignment (unDom ax) (namedArg nap)
     _ -> __IMPOSSIBLE__
 
+isRecOrigin :: ConOrigin -> Bool
+isRecOrigin ConORec = True
+isRecOrigin ConORecWhere = True
+isRecOrigin _ = False
+
+conOriginToRecInfo :: ConOrigin -> RecInfo
+conOriginToRecInfo ConORecWhere = recInfoWhere noRange
+conOriginToRecInfo _           = recInfoBrace noRange
+
 {-# SPECIALIZE recOrCon :: QName -> ConOrigin -> [Arg Expr] -> TCM A.Expr #-}
 -- | If the record constructor is generated or the user wrote a record expression,
 --   turn constructor expression into record expression.
@@ -1369,10 +1378,10 @@ recOrCon c co es = do
     -- If the record constructor is generated or the user wrote a record expression,
     -- print record expression.
     -- Otherwise, print constructor expression.
-    if _recNamedCon def && co /= ConORec then fallback else do
+    if _recNamedCon def && not (isRecOrigin co) then fallback else do
       let fs = recordFieldNames def
       unless (length fs == length es) __IMPOSSIBLE__
-      return $ A.Rec (recInfoBrace noRange) $ zipWith mkFA fs es
+      return $ A.Rec (conOriginToRecInfo co) $ zipWith mkFA fs es
   where
   fallback = apps (A.Con (unambiguous c)) es
   mkFA ax  = Left . FieldAssignment (unDom ax) . unArg
