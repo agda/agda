@@ -1249,19 +1249,13 @@ buildInterface src topLevel = do
 
     let !scope = topLevelScope topLevel
 
-    (!solvedMetas, !definitions) <- eliminateDeadCode scope
+    (!solvedMetas, !definitions, !displayForms) <- eliminateDeadCode scope
     !sig <- set sigDefinitions definitions <$> getSignature
 
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synonym.
     !patsyns <- killRange <$> getPatternSyns
-
-    -- Ulf, 2016-04-12:
-    -- Non-closed display forms are not applicable outside the module anyway,
-    -- and should be dead-code eliminated (#1928).
-    !importedDisplayForms <-
-        HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
 
     !userwarns   <- useTC stLocalUserWarnings
     !importwarn  <- useTC stWarningOnImport
@@ -1294,7 +1288,7 @@ buildInterface src topLevel = do
           , iInsideScope          = scope
           , iSignature            = sig
           , iMetaBindings         = solvedMetas
-          , iDisplayForms         = importedDisplayForms
+          , iDisplayForms         = displayForms
           , iUserWarnings         = userwarns
           , iImportWarning        = importwarn
           , iBuiltin              = builtin
