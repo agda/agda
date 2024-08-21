@@ -5,6 +5,7 @@
 module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base
   , module Agda.TypeChecking.Monad.Base.Types
+  , module X
   , HasOptions (..)
   , RecordFieldWarning
   ) where
@@ -103,6 +104,8 @@ import Agda.TypeChecking.DiscrimTree.Types
 import Agda.Compiler.Backend.Base
 
 import Agda.Interaction.Options
+import qualified Agda.Interaction.Options.Errors as ErrorName
+import Agda.Interaction.Options.Errors as X ( ErasedDatatypeReason(..) )
 import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Response.Base (Response_boot(..))
 import Agda.Interaction.Highlighting.Precise
@@ -4644,17 +4647,6 @@ data TerminationError = TerminationError
     -- ^ The problematic call sites.
   } deriving (Show, Generic)
 
--- | The reason for an 'ErasedDatatype' error.
-
-data ErasedDatatypeReason
-  = SeveralConstructors
-    -- ^ There are several constructors.
-  | NoErasedMatches
-    -- ^ The flag @--erased-matches@ is not used.
-  | NoK
-    -- ^ The K rule is not activated.
-  deriving (Show, Generic)
-
 -- | Error when splitting a pattern variable into possible constructor patterns.
 data SplitError
   = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
@@ -6239,7 +6231,6 @@ instance NFData RecordFieldWarning
 instance NFData TCWarning
 instance NFData CallInfo
 instance NFData TerminationError
-instance NFData ErasedDatatypeReason
 instance NFData SplitError
 instance NFData NegativeUnification
 instance NFData UnificationFailure
