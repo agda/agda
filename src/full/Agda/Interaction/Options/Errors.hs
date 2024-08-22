@@ -211,7 +211,6 @@ data ErrorName
   | UnexpectedParameter_
   | UnexpectedTypeSignatureForParameter_
   | UnexpectedWithPatterns_
-  | UninstantiatedDotPattern_
   | UnusableAtModality_
   | UnusedVariableInPatternSynonym_
   | VariableIsErased_

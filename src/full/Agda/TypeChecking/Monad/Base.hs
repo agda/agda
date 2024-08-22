@@ -4755,7 +4755,6 @@ data TypeError
             -- ^ The given hiding does not correspond to the expected hiding.
         | RelevanceMismatch Relevance Relevance
             -- ^ The given relevance does not correspond to the expected relevance.
-        | UninstantiatedDotPattern A.Expr
         | ForcedConstructorNotInstantiated A.Pattern
         | IllformedProjectionPatternAbstract A.Pattern
         | IllformedProjectionPatternConcrete C.Pattern

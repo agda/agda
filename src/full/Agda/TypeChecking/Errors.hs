@@ -277,9 +277,6 @@ instance PrettyTCM TypeError where
       "Expected " ++ verbalize (Indefinite q') ++ " argument, but found " ++
       verbalize (Indefinite q) ++ " argument"
 
-    UninstantiatedDotPattern e -> fsep $
-      pwords "Failed to infer the value of dotted pattern"
-
     ForcedConstructorNotInstantiated p -> fsep $
       pwords "Failed to infer that constructor pattern "
       ++ [prettyA p] ++ pwords " is forced"
