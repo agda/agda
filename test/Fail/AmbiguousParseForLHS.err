@@ -1,4 +1,4 @@
-AmbiguousParseForLHS.agda:12,1-35: error: [OperatorInformation]
+AmbiguousParseForLHS.agda:12,1-35: error: [AmbiguousParseForLHS]
 Don't know how to parse bad (if x then if x then x else x). Could
 mean any one of:
   bad (if x then (if x then x else x))

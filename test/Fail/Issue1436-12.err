@@ -1,4 +1,4 @@
-Issue1436-12.agda:28,12-19: error: [OperatorInformation]
+Issue1436-12.agda:28,12-19: error: [AmbiguousParseForApplication]
 Don't know how to parse ● ↑ ↓ ●. Could mean any one of:
   c {x = (● ↑)} {y = ●}
   c {y = (● ↑)} {x = ●}

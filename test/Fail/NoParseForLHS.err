@@ -1,4 +1,4 @@
-NoParseForLHS.agda:12,1-12: error: [OperatorInformation]
+NoParseForLHS.agda:12,1-12: error: [NoParseForLHS]
 Could not parse the left-hand side wrong (! x)
 Operators used in the grammar:
   ! (postfix operator, level 20) [_! (NoParseForLHS.agda:4,3-5)]

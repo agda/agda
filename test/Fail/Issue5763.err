@@ -1,4 +1,4 @@
-Issue5763.agda:8,1-15: error: [OperatorInformation]
+Issue5763.agda:8,1-15: error: [NoParseForLHS]
 Could not parse the left-hand side foo (fn x , y)
 Operators used in the grammar:
   None

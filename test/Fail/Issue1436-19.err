@@ -1,4 +1,4 @@
-Issue1436-19.agda:23,7-16: error: [OperatorInformation]
+Issue1436-19.agda:23,7-16: error: [NoParseForApplication]
 Could not parse the application • + • + •
 Operators used in the grammar:
   + (infix operator, level 0) [_+_ (Issue1436-19.agda:9,5-8), 

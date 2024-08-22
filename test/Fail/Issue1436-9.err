@@ -1,4 +1,4 @@
-Issue1436-9.agda:15,7-14: error: [OperatorInformation]
+Issue1436-9.agda:15,7-14: error: [AmbiguousParseForApplication]
 Don't know how to parse ! X , X. Could mean any one of:
   ! (G λ X → X)
   ! (F λ X → X)

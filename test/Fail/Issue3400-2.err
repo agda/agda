@@ -1,4 +1,4 @@
-Issue3400-2.agda:11,1-4: error: [OperatorInformation]
+Issue3400-2.agda:11,1-4: error: [NoParseForLHS]
 Could not parse the left-hand side + A
 Operators used in the grammar:
   None

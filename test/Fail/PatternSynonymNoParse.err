@@ -1,4 +1,4 @@
-PatternSynonymNoParse.agda:3,1-18: error: [OperatorInformation]
+PatternSynonymNoParse.agda:3,1-18: error: [NoParseForLHS]
 Could not parse the pattern synonym right-hand side a b
 Problematic expression: (a b)
 Operators used in the grammar:

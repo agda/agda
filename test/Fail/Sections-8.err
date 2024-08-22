@@ -1,4 +1,4 @@
-Sections-8.agda:5,1-17: error: [OperatorInformation]
+Sections-8.agda:5,1-17: error: [NoParseForLHS]
 Could not parse the left-hand side Test ((⟨_⟩ X) _)
 Problematic expression: ((⟨_⟩ X) _)
 Operators used in the grammar:

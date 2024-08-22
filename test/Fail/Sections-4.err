@@ -1,4 +1,4 @@
-Sections-4.agda:7,10-14: error: [OperatorInformation]
+Sections-4.agda:7,10-14: error: [NoParseForApplication]
 Could not parse the application _! X
 Operators used in the grammar:
   None

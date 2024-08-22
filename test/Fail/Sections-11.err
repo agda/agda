@@ -1,4 +1,4 @@
-Sections-11.agda:4,1-8: error: [OperatorInformation]
+Sections-11.agda:4,1-8: error: [NoParseForLHS]
 Could not parse the left-hand side _test n
 Problematic expression: (_test n)
 Operators used in the grammar:
