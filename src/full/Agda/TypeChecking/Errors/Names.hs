@@ -161,7 +161,6 @@ typeErrorName = \case
   RepeatedVariablesInPattern                                 {} -> RepeatedVariablesInPattern_
   ShadowedModule                                             {} -> ShadowedModule_
   ShouldBeASort                                              {} -> ShouldBeASort_
-  ShouldBeAppliedToTheDatatypeParameters                     {} -> ShouldBeAppliedToTheDatatypeParameters_
   ShouldBeEmpty                                              {} -> ShouldBeEmpty_
   ShouldBePath                                               {} -> ShouldBePath_
   ShouldBePi                                                 {} -> ShouldBePi_

@@ -221,10 +221,6 @@ instance PrettyTCM TypeError where
       pwords "The target of a constructor must be the datatype applied to its parameters,"
       ++ [prettyTCM t] ++ pwords "isn't"
 
-    ShouldBeAppliedToTheDatatypeParameters s t -> fsep $
-      pwords "The target of the constructor should be" ++ [prettyTCM s] ++
-      pwords "instead of" ++ [prettyTCM t]
-
     ShouldBeRecordType t -> fsep $
       pwords "Expected non-abstract record type, found " ++ [prettyTCM t]
 

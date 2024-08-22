@@ -170,7 +170,6 @@ data ErrorName
   | RepeatedVariablesInPattern_
   | ShadowedModule_
   | ShouldBeASort_
-  | ShouldBeAppliedToTheDatatypeParameters_
   | ShouldBeEmpty_
   | ShouldBePath_
   | ShouldBePi_

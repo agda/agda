@@ -4717,10 +4717,6 @@ data TypeError
         | ShouldEndInApplicationOfTheDatatype Type
             -- ^ The target of a constructor isn't an application of its
             -- datatype. The 'Type' records what it does target.
-        | ShouldBeAppliedToTheDatatypeParameters Term Term
-            -- ^ The target of a constructor isn't its datatype applied to
-            --   something that isn't the parameters. First term is the correct
-            --   target and the second term is the actual target.
         | ConstructorPatternInWrongDatatype QName QName -- ^ constructor, datatype
         | CantResolveOverloadedConstructorsTargetingSameDatatype QName (List1 QName)
           -- ^ Datatype, constructors.
