@@ -3,6 +3,7 @@
 module Agda.Interaction.Options.Errors where
 
 import Control.DeepSeq        ( NFData )
+import Data.List              ( sort )
 import Generic.Data           ( FiniteEnumeration(..) )
 import GHC.Generics           ( Generic )
 
@@ -360,5 +361,17 @@ splitErrorNameString = \case
 unquoteErrorNameString :: UnquoteError_ -> String
 unquoteErrorNameString = defaultErrorNameString
 
--- instance NFData ErrorName
+-- | Print list of errors.
+
+helpErrors :: String
+helpErrors = unlines $ concat
+  [ [ "Agda's errors:"
+    , ""
+    ]
+  , sort $ map errorNameString [minBound..maxBound]
+  ]
+
+-- Instances
+------------------------------------------------------------------------
+
 instance NFData ErasedDatatypeReason

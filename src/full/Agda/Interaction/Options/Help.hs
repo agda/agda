@@ -12,6 +12,7 @@ import Control.DeepSeq
 
 import GHC.Generics (Generic)
 
+import Agda.Interaction.Options.Errors
 import Agda.Interaction.Options.Warnings
 
 -- | Interface to the @help@ function
@@ -30,18 +31,23 @@ instance NFData Help
 
 data HelpTopic
   = Warning
+  | Error
   deriving (Eq, Show, Generic)
 
 instance NFData HelpTopic
 
 allHelpTopics :: [(String, HelpTopic)]
-allHelpTopics = [("warning", Warning)]
+allHelpTopics =
+  [ ("warning", Warning)
+  , ("error"  , Error  )
+  ]
 
 -- | Usage information generation
 
 helpTopicUsage :: HelpTopic -> String
 helpTopicUsage tp = case tp of
   Warning -> usageWarning
+  Error   -> helpErrors
 
 -- | Conversion functions to strings
 
