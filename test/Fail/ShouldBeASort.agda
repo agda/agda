@@ -1,6 +1,8 @@
+-- Andreas, 2024-08-22, trigger error ShouldBeASort
 
--- This error never occurs.
-module ShouldBeASort where
+record R : Set → Set where
 
-err = ShouldBeASort-Never-Occurs
-
+-- Expected error:
+--
+-- Set → Set should be a sort, but it isn't
+-- when checking the definition of R
