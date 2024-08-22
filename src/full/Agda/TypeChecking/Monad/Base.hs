@@ -4798,6 +4798,7 @@ data TypeError
         | VariableIsIrrelevant Name
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion
+        | InvalidModalTelescopeUse Term Modality Modality Definition
         | UnequalLevel Comparison Level Level
         | UnequalTerms Comparison Term Term CompareAs
         | UnequalRelevance Comparison Term Term

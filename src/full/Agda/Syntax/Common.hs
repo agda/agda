@@ -610,6 +610,11 @@ topModality = Modality topRelevance topQuantity topCohesion
 defaultModality :: Modality
 defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
 
+-- | Extract the positional modality component for checks regarding only them.
+positionalModalityComponent :: Modality -> Modality
+positionalModalityComponent m =
+  defaultModality {modCohesion = modCohesion m}
+
 -- | Equality ignoring origin.
 
 sameModality :: (LensModality a, LensModality b) => a -> b -> Bool
