@@ -24,12 +24,12 @@ data ErasedDatatypeReason
 
 data ErrorName
   -- Error groups (alphabetically) with named sub errors
-  = GHCBackendError_ GHCBackendError_
+  = GHCBackendError_       GHCBackendError_
   | ImpossibleConstructor_ NegativeUnification_
-  | InteractionError_ InteractionError_
-  | NicifierError_ DeclarationException_
-  | SplitError_ SplitError_
-  | UnquoteError_ UnquoteError_
+  | InteractionError_      InteractionError_
+  | NicifierError_         DeclarationException_
+  | SplitError_            SplitError_
+  | UnquoteError_          UnquoteError_
   -- Generic errors (alphabetically)
   | CompilationError_
   | CustomBackendError_
@@ -315,9 +315,50 @@ data UnquoteError_
   | UnquotePanic_
   deriving (Show, Generic, Enum, Bounded)
 
-errorName2String :: ErrorName -> String
-errorName2String = \case
-  e -> initWithDefault __IMPOSSIBLE__ $ show e
+-- * Printing error names
+
+defaultErrorNameString :: Show a => a -> String
+defaultErrorNameString = initWithDefault __IMPOSSIBLE__ . show
+
+erasedDatatypeReasonString :: ErasedDatatypeReason -> String
+erasedDatatypeReasonString = show
+
+errorNameString :: ErrorName -> String
+errorNameString = \case
+  GHCBackendError_        err -> "GHCBackend." ++ ghcBackendErrorNameString err
+  ImpossibleConstructor_  err -> "ImpossibleConstructor." ++ negativeUnificationErrorNameString err
+  InteractionError_       err -> "Interaction." ++ interactionErrorNameString err
+  NicifierError_          err -> "Syntax." ++ declarationExceptionNameString err
+  SplitError_             err -> "SplitError." ++ splitErrorNameString err
+  UnquoteError_           err -> "Unquote." ++ unquoteErrorNameString err
+  err -> defaultErrorNameString err
+
+declarationExceptionNameString :: DeclarationException_ -> String
+declarationExceptionNameString = \case
+  AmbiguousConstructorN_ -> "AmbiguousConstructor"
+  err -> defaultErrorNameString err
+
+ghcBackendErrorNameString :: GHCBackendError_ -> String
+ghcBackendErrorNameString = \case
+  NotAHaskellType_ err -> "NotAHaskellType." ++ notAHaskellTypeErrorNameString err
+  err -> defaultErrorNameString err
+
+interactionErrorNameString :: InteractionError_ -> String
+interactionErrorNameString = defaultErrorNameString
+
+negativeUnificationErrorNameString :: NegativeUnification_ -> String
+negativeUnificationErrorNameString = defaultErrorNameString
+
+notAHaskellTypeErrorNameString :: NotAHaskellType_ -> String
+notAHaskellTypeErrorNameString = defaultErrorNameString
+
+splitErrorNameString :: SplitError_ -> String
+splitErrorNameString = \case
+  ErasedDatatype_ err -> "ErasedDatatype." ++ erasedDatatypeReasonString err
+  err -> defaultErrorNameString err
+
+unquoteErrorNameString :: UnquoteError_ -> String
+unquoteErrorNameString = defaultErrorNameString
 
 -- instance NFData ErrorName
 instance NFData ErasedDatatypeReason
