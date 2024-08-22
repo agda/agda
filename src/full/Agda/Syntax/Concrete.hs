@@ -13,6 +13,7 @@ module Agda.Syntax.Concrete
   , OpAppArgs, OpAppArgs'
   , module Agda.Syntax.Concrete.Name
   , AppView(..), appView, unAppView
+  , toNamedArg, unNamedArg
   , rawApp, rawAppP
   , isSingleIdentifierP, removeParenP
   , isPattern, isAbsurdP, isBinderP
@@ -573,8 +574,8 @@ isPragma = \case
     Unfolding _ _           -> empty
 
 data ModuleApplication
-  = SectionApp Range Telescope Expr
-    -- ^ @tel. M args@
+  = SectionApp Range Telescope QName [Expr]
+    -- ^ @tel M exprs@ where @M exprs@ is a 'RawApp' just after parsing.
   | RecordModuleInstance Range QName
     -- ^ @M {{...}}@
   deriving Eq
@@ -695,21 +696,25 @@ appView e = f (DL.toList ess)
     appView' = \case
       App r e1 e2      -> appView' e1 & second (`DL.snoc` e2)
       RawApp _ (List2 e1 e2 es)
-                       -> (AppView e1, DL.fromList (map arg (e2 : es)))
+                       -> (AppView e1, DL.fromList (map toNamedArg (e2 : es)))
       e                -> (AppView e, mempty)
-
-    arg (HiddenArg   _ e) = hide         $ defaultArg e
-    arg (InstanceArg _ e) = makeInstance $ defaultArg e
-    arg e                 = defaultArg (unnamed e)
 
 unAppView :: AppView -> Expr
 unAppView (AppView e nargs) = rawApp (e :| map unNamedArg nargs)
 
-  where
-    unNamedArg narg = ($ unArg narg) $ case getHiding narg of
-      Hidden     -> HiddenArg (getRange narg)
-      NotHidden  -> namedThing
-      Instance{} -> InstanceArg (getRange narg)
+-- | Parse outermost hiding information.
+toNamedArg :: Expr -> NamedArg Expr
+toNamedArg = \case
+  HiddenArg   _ e -> hide         $ defaultArg e
+  InstanceArg _ e -> makeInstance $ defaultArg e
+  e -> defaultNamedArg e
+
+-- | Unparse hiding information.
+unNamedArg :: NamedArg Expr -> Expr
+unNamedArg narg = ($ unArg narg) $ case getHiding narg of
+  Hidden     -> HiddenArg (getRange narg)
+  NotHidden  -> namedThing
+  Instance{} -> InstanceArg (getRange narg)
 
 isSingleIdentifierP :: Pattern -> Maybe Name
 isSingleIdentifierP = \case
@@ -939,7 +944,7 @@ instance HasRange WhereClause where
   getRange (SomeWhere r e x _ ds) = getRange (r, e, x, ds)
 
 instance HasRange ModuleApplication where
-  getRange (SectionApp r _ _) = r
+  getRange (SectionApp r _ _ _) = r
   getRange (RecordModuleInstance r _) = r
 
 instance HasRange a => HasRange (FieldAssignment' a) where
@@ -1199,7 +1204,7 @@ instance KillRange DoStmt where
   killRange (DoLet r ds)     = killRangeN DoLet r ds
 
 instance KillRange ModuleApplication where
-  killRange (SectionApp _ t e)    = killRangeN (SectionApp noRange) t e
+  killRange (SectionApp _ t x es)      = killRangeN (SectionApp noRange) t x es
   killRange (RecordModuleInstance _ q) = killRangeN (RecordModuleInstance noRange) q
 
 instance KillRange e => KillRange (OpApp e) where
@@ -1413,7 +1418,7 @@ instance NFData a => NFData (TypedBinding' a) where
 -- | Ranges are not forced.
 
 instance NFData ModuleApplication where
-  rnf (SectionApp _ a b)    = rnf a `seq` rnf b
+  rnf (SectionApp _ a b c)       = rnf a `seq` rnf b `seq` rnf c
   rnf (RecordModuleInstance _ a) = rnf a
 
 -- | Ranges are not forced.

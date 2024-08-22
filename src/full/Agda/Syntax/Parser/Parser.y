@@ -1445,8 +1445,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; appStm m' es =
         Private empty Inserted
           [ ModuleMacro r defaultErased m'
-             (SectionApp (getRange es) []
-               (rawApp (Ident (QName fresh) :| es)))
+             (SectionApp (getRange es) [] (QName fresh) es)
              doOpen dir
           ]
     ; (initArgs, last2Args) = splitAt (length es - 2) es
@@ -1493,8 +1492,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
       ; _   -> Private empty Inserted
                  [ ModuleMacro r defaultErased
                      (noName $ beginningOf $ getRange m)
-                     (SectionApp (getRange (m , es)) []
-                        (rawApp (Ident m :| es)))
+                     (SectionApp (getRange (m , es)) [] m es)
                      DoOpen dir
                  ]
       }
@@ -1517,7 +1515,7 @@ ModuleApplication : ModuleName '{{' '...' DoubleCloseBrace { (\ts ->
                     else parseError "No bindings allowed for record module with non-canonical implicits" )
                     }
                   | ModuleName OpenArgs {
-                    (\ts -> return $ SectionApp (getRange ($1, $2)) ts (rawApp (Ident $1 :| $2)) ) }
+                    (\ts -> return $ SectionApp (getRange ($1, $2)) ts $1 $2) }
 
 
 -- Module instantiation

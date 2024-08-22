@@ -1190,7 +1190,7 @@ instance ToConcrete A.ModuleApplication where
     bindToConcrete tel $ \ tel -> do
       es <- toConcreteCtx argumentCtx_ es
       let r = fuseRange y es
-      return $ C.SectionApp r (catMaybes tel) (foldl (C.App r) (C.Ident y) es)
+      return $ C.SectionApp r (catMaybes tel) y $ map unNamedArg es
 
   toConcrete (A.RecordModuleInstance recm) = do
     recm <- toConcrete recm

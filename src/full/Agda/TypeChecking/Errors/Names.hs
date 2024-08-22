@@ -141,7 +141,6 @@ typeErrorName = \case
   NoSuchBuiltinName                                          {} -> NoSuchBuiltinName_
   NoSuchModule                                               {} -> NoSuchModule_
   NoSuchPrimitiveFunction                                    {} -> NoSuchPrimitiveFunction_
-  NotAModuleExpr                                             {} -> NotAModuleExpr_
   NotAValidLetBinding                                        {} -> NotAValidLetBinding_
   NotAnExpression                                            {} -> NotAnExpression_
   NotInScope                                                 {} -> NotInScope_

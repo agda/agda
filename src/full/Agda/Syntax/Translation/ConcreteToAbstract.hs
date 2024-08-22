@@ -224,15 +224,15 @@ checkModuleApplication
   -> C.ImportDirective
   -> ScopeM (A.ModuleApplication, ScopeCopyInfo, A.ImportDirective)
 
-checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
+checkModuleApplication (C.SectionApp _ tel m es) m0 x dir' = do
   reportSDoc "scope.decl" 70 $ vcat $
     [ text $ "scope checking ModuleApplication " ++ prettyShow x
     ]
 
   -- For the following, set the current module to be m0.
   withCurrentModule m0 $ do
-    -- Check that expression @e@ is of the form @m args@.
-    (m, args) <- parseModuleApplication e
+    -- Parse the raw arguments of the module application. (See issue #1245.)
+    args <- parseArguments (C.Ident m) es
     -- Scope check the telescope (introduces bindings!).
     tel' <- catMaybes <$> toAbstract tel
     -- Scope check the old module name and the module args.
@@ -1019,7 +1019,7 @@ instance ToAbstract C.ModuleAssignment where
         x <- C.NoName (getRange m) <$> fresh
         r <- checkModuleMacro LetApply LetOpenModule
                (getRange (m, es, i)) PublicAccess defaultErased x
-               (C.SectionApp (getRange (m , es)) [] (rawApp (Ident m :| es)))
+               (C.SectionApp (getRange (m , es)) [] m es)
                DontOpen i
         case r of
           LetApply _ _ m' _ _ _ -> return (m', Just r)

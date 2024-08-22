@@ -218,7 +218,7 @@ instance ExprLike DoStmt where
 
 instance ExprLike ModuleApplication where
   mapExpr f = \case
-     SectionApp r bs e -> SectionApp r (mapE bs) $ mapE e
+     SectionApp r bs x es -> SectionApp r (mapE bs) x $ mapE es
      e@RecordModuleInstance{} -> e
    where
      mapE :: ExprLike e => e -> e

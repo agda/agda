@@ -422,8 +422,12 @@ instance Pretty LHSCore where
   pretty (LHSEllipsis r p) = "..."
 
 instance Pretty ModuleApplication where
-  pretty (SectionApp _ bs e) = fsep (map pretty bs) <+> "=" <+> pretty e
-  pretty (RecordModuleInstance _ rec) = "=" <+> pretty rec <+> "{{...}}"
+  pretty (SectionApp _ bs x es) = fsep $ concat
+    [ map pretty bs
+    , [ "=", pretty x ]
+    , map pretty es
+    ]
+  pretty (RecordModuleInstance _ x) = "=" <+> pretty x <+> "{{...}}"
 
 instance Pretty DoStmt where
   pretty (DoBind _ p e cs) =
@@ -524,16 +528,16 @@ instance Pretty Declaration where
            , fsep (map pretty tel)
            , "where"
            ] $$ nest 2 (vcat $ map pretty ds)
-    ModuleMacro _ NotErased{} x (SectionApp _ [] e) DoOpen i
+    ModuleMacro _ NotErased{} x (SectionApp _ [] y es) DoOpen i
       | isNoName x ->
       sep [ pretty DoOpen
-          , nest 2 $ pretty e
+          , nest 2 $ fsep $ pretty y : map pretty es
           , nest 4 $ pretty i
           ]
-    ModuleMacro _ erased x (SectionApp _ tel e) open i ->
+    ModuleMacro _ erased x (SectionApp _ tel y es) open i ->
       sep [ pretty open <+> "module" <+>
             prettyErased erased (pretty x) <+> fsep (map pretty tel)
-          , nest 2 $ "=" <+> pretty e <+> pretty i
+          , nest 2 $ fsep $ concat [ [ "=", pretty y ], map pretty es, [ pretty i ] ]
           ]
     ModuleMacro _ erased x (RecordModuleInstance _ rec) open i ->
       sep [ pretty open <+> "module" <+> prettyErased erased (pretty x)

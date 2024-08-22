@@ -150,7 +150,6 @@ data ErrorName
   | NoSuchBuiltinName_
   | NoSuchModule_
   | NoSuchPrimitiveFunction_
-  | NotAModuleExpr_
   | NotAValidLetBinding_
   | NotAnExpression_
   | NotInScope_
