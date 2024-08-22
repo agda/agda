@@ -22,6 +22,8 @@ typeErrorName = \case
   NicifierError            err -> NicifierError_         $ declarationExceptionName       err
   SplitError               err -> SplitError_            $ splitErrorName                 err
   UnquoteFailed            err -> UnquoteError_          $ unquoteErrorName               err
+  -- Wrappers
+  OperatorInformation _    err -> typeErrorName err
   -- Generic errors (alphabetically)
   CompilationError          {} -> CompilationError_
   CustomBackendError        {} -> CustomBackendError_
@@ -148,7 +150,6 @@ typeErrorName = \case
   NotValidBeforeField                                        {} -> NotValidBeforeField_
   NothingAppliedToHiddenArg                                  {} -> NothingAppliedToHiddenArg_
   NothingAppliedToInstanceArg                                {} -> NothingAppliedToInstanceArg_
-  OperatorInformation                                        {} -> OperatorInformation_
   OverlappingProjects                                        {} -> OverlappingProjects_
   PatternInPathLambda                                        {} -> PatternInPathLambda_
   PatternInSystem                                            {} -> PatternInSystem_

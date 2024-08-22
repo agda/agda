@@ -157,7 +157,6 @@ data ErrorName
   | NotValidBeforeField_
   | NothingAppliedToHiddenArg_
   | NothingAppliedToInstanceArg_
-  | OperatorInformation_
   | OverlappingProjects_
   | PatternInPathLambda_
   | PatternInSystem_
