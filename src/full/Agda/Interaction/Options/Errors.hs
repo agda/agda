@@ -116,7 +116,6 @@ data ErrorName
   | InvalidPattern_
   | InvalidProjectionParameter_
   | InvalidTypeSort_
-  | InvalidType_
   | LibTooFarDown_
   | LiteralTooBig_
   | LocalVsImportedModuleClash_

@@ -4772,8 +4772,6 @@ data TypeError
         | ShouldBeRecordPattern DeBruijnPattern
         | InvalidTypeSort Sort
             -- ^ This sort is not a type expression.
-        | InvalidType Term
-            -- ^ This term is not a type expression.
         | SplitOnCoinductive
         | SplitOnIrrelevant (Dom Type)
         | SplitOnUnusableCohesion (Dom Type)

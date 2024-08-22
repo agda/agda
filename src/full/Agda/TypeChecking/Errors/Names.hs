@@ -107,7 +107,6 @@ typeErrorName = \case
   InvalidPattern                                             {} -> InvalidPattern_
   InvalidProjectionParameter                                 {} -> InvalidProjectionParameter_
   InvalidTypeSort                                            {} -> InvalidTypeSort_
-  InvalidType                                                {} -> InvalidType_
   LibTooFarDown                                              {} -> LibTooFarDown_
   LiteralTooBig                                              {} -> LiteralTooBig_
   LocalVsImportedModuleClash                                 {} -> LocalVsImportedModuleClash_

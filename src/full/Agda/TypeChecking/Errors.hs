@@ -420,7 +420,6 @@ instance PrettyTCM TypeError where
       prettyTCM t : pwords "should be a Path or PathP type, but it isn't"
 
     InvalidTypeSort s -> fsep $ prettyTCM s : pwords "is not a valid sort"
-    InvalidType v -> fsep $ prettyTCM v : pwords "is not a valid type"
 
     CannotSolveSizeConstraints ccs reason -> do
       -- Print the HypSizeConstraints (snd)
