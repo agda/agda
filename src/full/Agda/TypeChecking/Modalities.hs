@@ -15,7 +15,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Monad
@@ -95,11 +94,7 @@ checkModalityArgs d vs = do
           v <- deBruijnView t
           varModality <$> lookupVarMap v vmap
     whenJust m $ \ used -> do
-        unless (getCohesion avail `moreCohesion` getCohesion used) $
-           genericDocError =<< fsep
-             [ "Telescope variable" <+> prettyTCM t
-             , "is indirectly being used in the" <+> text (verbalize (getModality used)) <+> "modality"
-             , "but only available as in the" <+> text (verbalize (getModality avail)) <+> "modality"
-             , "when inserting into the top-level"
-             , pretty (defName d) <+> ":" <+> prettyTCM (defType d)
-             ]
+      let availPosMod = positionalModalityComponent (getModality avail)
+          usedPosMod = positionalModalityComponent (getModality used)
+      unless (availPosMod `moreUsableModality` usedPosMod) $
+         typeError $ InvalidModalTelescopeUse t usedPosMod availPosMod d

@@ -274,6 +274,7 @@ errorString = \case
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
   VariableIsErased{}                       -> "VariableIsErased"
   VariableIsOfUnusableCohesion{}           -> "VariableIsOfUnusableCohesion"
+  InvalidModalTelescopeUse{}               -> "InvalidModalTelescopeUse"
   UnequalRelevance{}                       -> "UnequalRelevance"
   UnequalQuantity{}                        -> "UnequalQuantity"
   UnequalCohesion{}                        -> "UnequalCohesion"
@@ -747,6 +748,14 @@ instance PrettyTCM TypeError where
 
     VariableIsOfUnusableCohesion x c -> fsep
       ["Variable", prettyTCM (nameConcrete x), "is declared", text (show c), "so it cannot be used here"]
+
+    InvalidModalTelescopeUse t used avail def -> fsep
+      [ "Telescope variable" <+> prettyTCM t
+      , "is indirectly being used in the" <+> text (verbalize (getModality used)) <+> "modality"
+      , "but only available in the" <+> text (verbalize (getModality avail)) <+> "modality"
+      , "when inserting into the telescope of definition"
+      , pretty (defName def) <+> ":" <+> prettyTCM (defType def)
+      ]
 
     UnequalTerms cmp s t a -> case (s,t) of
       (Sort s1      , Sort s2      )
