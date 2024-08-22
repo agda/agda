@@ -855,12 +855,6 @@ instance PrettyTCM TypeError where
       pwords "The modules" ++ [prettyTCM m1, "and", prettyTCM m2]
       ++ pwords "clash."
 
-    ClashingImport x y -> fsep $
-      pwords "Import clash between" ++ [pretty x, "and", prettyTCM y]
-
-    ClashingModuleImport x y -> fsep $
-      pwords "Module import clash between" ++ [pretty x, "and", prettyTCM y]
-
     DuplicateImports m xs -> fsep $
       pwords "Ambiguous imports from module" ++ [pretty m] ++ pwords "for" ++
       punctuate comma (map pretty xs)

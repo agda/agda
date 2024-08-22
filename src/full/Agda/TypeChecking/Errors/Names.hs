@@ -60,8 +60,6 @@ typeErrorName = \case
   CannotSolveSizeConstraints                                 {} -> CannotSolveSizeConstraints_
   CantResolveOverloadedConstructorsTargetingSameDatatype     {} -> CantResolveOverloadedConstructorsTargetingSameDatatype_
   ClashingDefinition                                         {} -> ClashingDefinition_
-  ClashingImport                                             {} -> ClashingImport_
-  ClashingModuleImport                                       {} -> ClashingModuleImport_
   ClashingModule                                             {} -> ClashingModule_
   ComatchingDisabledForRecord                                {} -> ComatchingDisabledForRecord_
   ConstructorDoesNotTargetGivenType                          {} -> ConstructorDoesNotTargetGivenType_

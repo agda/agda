@@ -69,8 +69,6 @@ data ErrorName
   | CannotSolveSizeConstraints_
   | CantResolveOverloadedConstructorsTargetingSameDatatype_
   | ClashingDefinition_
-  | ClashingImport_
-  | ClashingModuleImport_
   | ClashingModule_
   | ComatchingDisabledForRecord_
   | ConstructorDoesNotTargetGivenType_
