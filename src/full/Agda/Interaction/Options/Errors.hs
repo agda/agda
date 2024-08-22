@@ -118,7 +118,6 @@ data ErrorName
   | InvalidTypeSort_
   | LibTooFarDown_
   | LiteralTooBig_
-  | LocalVsImportedModuleClash_
   | MacroResultTypeMismatch_
   | MetaCannotDependOn_
   | MetaErasedSolution_

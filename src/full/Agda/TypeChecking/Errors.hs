@@ -697,10 +697,6 @@ instance PrettyTCM TypeError where
       , text "must not be located in the directory" <+> text (takeDirectory (lib ^. libFile))
       ]
 
-    LocalVsImportedModuleClash m -> fsep $
-      pwords "The module" ++ [prettyTCM m] ++
-      pwords "can refer to either a local module or an imported module"
-
     SolvedButOpenHoles -> fsep $
       pwords "Module cannot be imported since it has open interaction points" ++
       pwords "(consider adding {-# OPTIONS --allow-unsolved-metas #-} to this module)"

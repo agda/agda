@@ -4905,7 +4905,6 @@ data TypeError
             -- ^ Collected errors when processing the @.agda-lib@ file.
         | LibTooFarDown TopLevelModuleName AgdaLibFile
             -- ^ The @.agda-lib@ file for the given module is not on the right level.
-        | LocalVsImportedModuleClash ModuleName
         | SolvedButOpenHoles
           -- ^ Some interaction points (holes) have not been filled by user.
           --   There are not 'UnsolvedMetas' since unification solved them.

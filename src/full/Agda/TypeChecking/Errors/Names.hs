@@ -109,7 +109,6 @@ typeErrorName = \case
   InvalidTypeSort                                            {} -> InvalidTypeSort_
   LibTooFarDown                                              {} -> LibTooFarDown_
   LiteralTooBig                                              {} -> LiteralTooBig_
-  LocalVsImportedModuleClash                                 {} -> LocalVsImportedModuleClash_
   MacroResultTypeMismatch                                    {} -> MacroResultTypeMismatch_
   MetaCannotDependOn                                         {} -> MetaCannotDependOn_
   MetaErasedSolution                                         {} -> MetaErasedSolution_
