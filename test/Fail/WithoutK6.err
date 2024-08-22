@@ -1,4 +1,4 @@
-WithoutK6.agda:11,45-59: error: [SplitError]
+WithoutK6.agda:11,45-59: error: [SplitError.UnificationStuck]
 I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):

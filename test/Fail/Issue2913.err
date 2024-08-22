@@ -1,4 +1,4 @@
-Issue2913.agda:12,1-35: error: [GHCBackend.NotAHaskellType]
+Issue2913.agda:12,1-35: error: [GHCBackend.NotAHaskellType.WrongPragmaFor]
 The type (f : F Set) → R cannot be translated to a corresponding
 Haskell type, because it contains F which has the wrong kind of
 COMPILE pragma.

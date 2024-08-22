@@ -1,3 +1,3 @@
-RecordPattern1.agda:2,6-21: error: [SplitError]
+RecordPattern1.agda:2,6-21: error: [SplitError.NotADatatype]
 Cannot split on argument of non-datatype Set
 when checking that the pattern record { x = _ } has type Set

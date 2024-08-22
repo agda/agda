@@ -1,4 +1,4 @@
-Issue2906.agda:9,1-33: error: [GHCBackend.NotAHaskellType]
+Issue2906.agda:9,1-33: error: [GHCBackend.NotAHaskellType.NoPragmaFor]
 The type D → D cannot be translated to a corresponding Haskell
 type, because it contains D which does not have a COMPILE pragma.
 Possible fix: add a pragma

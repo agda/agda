@@ -1,4 +1,4 @@
-CompiledMustHaveHaskellType.agda:12,1-30: error: [GHCBackend.NotAHaskellType]
+CompiledMustHaveHaskellType.agda:12,1-30: error: [GHCBackend.NotAHaskellType.NoPragmaFor]
 The type N cannot be translated to a corresponding Haskell type,
 because it contains N which does not have a COMPILE pragma.
 Possible fix: add a pragma

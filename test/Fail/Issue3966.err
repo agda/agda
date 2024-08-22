@@ -718,7 +718,7 @@ Reason: It relies on injectivity of the data constructor _∷_, which
 
 when checking the definition of test
 
-Issue3966.agda:34,1-43: error: [SplitError]
+Issue3966.agda:34,1-43: error: [SplitError.UnificationStuck]
 I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):

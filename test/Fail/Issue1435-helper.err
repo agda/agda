@@ -1,4 +1,4 @@
-Issue1435-helper.agda:28,29-33: error: [SplitError]
+Issue1435-helper.agda:28,29-33: error: [SplitError.UnificationStuck]
 I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):

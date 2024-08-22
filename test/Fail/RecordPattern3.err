@@ -2,7 +2,7 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Check definition of test : _3 → A
     stuck because
-      RecordPattern3.agda:12,6-19: error: [SplitError]
+      RecordPattern3.agda:12,6-19: error: [SplitError.BlockedType]
       Cannot split on argument of unresolved type _3
       when checking that the pattern record { f = a } has type _3
     (blocked on _3)

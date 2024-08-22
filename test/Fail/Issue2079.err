@@ -1,4 +1,4 @@
-Issue2079.agda:34,6-11: error: [ImpossibleConstructor]
+Issue2079.agda:34,6-11: error: [ImpossibleConstructor.UnifyConflict]
 The case for the constructor nec is impossible
 because unification ended with a conflicting equation
   ∅ ≟ Γ , A

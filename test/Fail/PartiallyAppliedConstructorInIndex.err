@@ -1,4 +1,4 @@
-PartiallyAppliedConstructorInIndex.agda:19,1-20,4: error: [SplitError]
+PartiallyAppliedConstructorInIndex.agda:19,1-20,4: error: [SplitError.UnificationStuck]
 I'm not sure if there should be a case for the constructor d,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):
