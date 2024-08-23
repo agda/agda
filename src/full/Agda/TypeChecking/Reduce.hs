@@ -988,7 +988,7 @@ instance Reduce e => Reduce (Map k e) where
   reduce' = traverse reduce'
 
 instance Reduce Candidate where
-  reduce' (Candidate q u t ov) = Candidate q <$> reduce' u <*> reduce' t <*> pure ov
+  reduce' (Candidate q u t ov) = Candidate q <$> pure u <*> reduce' t <*> pure ov
 
 instance Reduce EqualityView where
   reduce' (OtherType t)            = OtherType
