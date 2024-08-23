@@ -185,6 +185,9 @@ jobs:
       name: Test suite covers all warnings
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" test-suite-covers-warnings
     - if: always()
+      name: Test suite covers all errors
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" test-suite-covers-errors
+    - if: always()
       name: Suite of interaction tests
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
   size-solver-test:

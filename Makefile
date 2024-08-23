@@ -124,15 +124,10 @@ STACK_INSTALL_DEP_OPTS = --only-dependencies $(STACK_INSTALL_OPTS)
 
 # Options for building the Agda exectutable.
 # -j1 so that cabal will print built progress to stdout.
-CABAL_INSTALL_BIN_OPTS = -j1 --disable-library-profiling -fdebug \
-                         $(CABAL_INSTALL_OPTS)
-CABAL_INSTALL_BIN_OPTS_NODEBUG = -j1 --disable-library-profiling \
-                               $(CABAL_INSTALL_OPTS)
-STACK_INSTALL_BIN_OPTS = --no-library-profiling \
-												 --flag Agda:debug \
-                         $(STACK_INSTALL_OPTS)
-STACK_INSTALL_BIN_OPTS_NODEBUG = --no-library-profiling \
-																 $(STACK_INSTALL_OPTS)
+CABAL_INSTALL_BIN_OPTS         = -fdebug $(CABAL_INSTALL_BIN_OPTS_NODEBUG)
+CABAL_INSTALL_BIN_OPTS_NODEBUG = -j1 --disable-library-profiling $(CABAL_INSTALL_OPTS)
+STACK_INSTALL_BIN_OPTS         = --flag Agda:debug $(STACK_INSTALL_BIN_OPTS_NODEBUG)
+STACK_INSTALL_BIN_OPTS_NODEBUG = --no-library-profiling $(STACK_INSTALL_OPTS)
 
 CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
                        --disable-library-profiling \
@@ -654,6 +649,11 @@ user-manual-covers-warnings :
 test-suite-covers-warnings :
 	@$(call decorate, "Test suite should cover all warnings", \
           AGDA_BIN=$(AGDA_BIN) test/test-suite-covers-warnings.sh)
+
+.PHONY : test-suite-covers-errors ## Check whether the test suite covers all errors.
+test-suite-covers-errors :
+	@$(call decorate, "Test suite should cover all errors", \
+          AGDA_BIN=$(AGDA_BIN) test/test-suite-covers-errors.sh)
 
 .PHONY : testing-emacs-mode ## Compile the emacs mode and run basic tests.
 testing-emacs-mode:

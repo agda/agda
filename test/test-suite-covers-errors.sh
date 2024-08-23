@@ -41,11 +41,18 @@ cat >> $ERRORS <<EOF
 HidingMismatch
 QuantityMismatch
 RelevanceMismatch
+ShouldBePath
 EOF
 
 # Errors we currently do not cover by the testsuite (TODO!).
 #
 cat >> $ERRORS <<EOF
+ContradictorySizeConstraint
+FunctionTypeInSizeUniv
+GeneralizeCyclicDependency
+SplitError.CannotCreateMissingClause
+SplitError.CosplitNoTarget
+SplitError.GenericSplitError
 EOF
 
 # Errors covered by the testsuite.
