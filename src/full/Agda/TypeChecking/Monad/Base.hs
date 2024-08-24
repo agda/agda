@@ -4291,6 +4291,11 @@ data Warning
     -- ^ If the user wrote just @{-\# REWRITE \#-}@.
   | EmptyWhere
     -- ^ An empty @where@ block is dead code.
+  -- TODO: linearity
+  -- -- | FixingQuantity String Quantity Quantity
+  -- --   -- ^ Auto-correcting quantity pertaining to 'String' /from/ /to/.
+  | FixingRelevance String Relevance Relevance
+    -- ^ Auto-correcting relevance pertaining to 'String' /from/ /to/.
   | IllformedAsClause String
     -- ^ If the user wrote something other than an unqualified name
     --   in the @as@ clause of an @import@ statement.
@@ -4476,6 +4481,9 @@ warningName = \case
   DuplicateRecordDirective{}   -> DuplicateRecordDirective_
   EmptyRewritePragma           -> EmptyRewritePragma_
   EmptyWhere                   -> EmptyWhere_
+  -- TODO: linearity
+  -- FixingQuantity{}             -> FixingQuantity_
+  FixingRelevance{}            -> FixingRelevance_
   IllformedAsClause{}          -> IllformedAsClause_
   WrongInstanceDeclaration{}   -> WrongInstanceDeclaration_
   InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_

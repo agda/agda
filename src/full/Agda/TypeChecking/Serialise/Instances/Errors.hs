@@ -127,6 +127,9 @@ instance EmbPrj Warning where
       icodeN 65 PragmaExpectsUnambiguousProjectionOrFunction a b c
     PragmaExpectsDefinedSymbol a b              -> icodeN 66 PragmaExpectsDefinedSymbol a b
     UnfoldingWrongName a                        -> icodeN 67 UnfoldingWrongName a
+    -- TODO: linearity
+    -- FixingQuantity a b c                        -> icodeN 68 FixingQuantity a b c
+    FixingRelevance a b c                       -> icodeN 69 FixingRelevance a b c
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -197,6 +200,9 @@ instance EmbPrj Warning where
     [65, a, b, c]        -> valuN PragmaExpectsUnambiguousProjectionOrFunction a b c
     [66, a, b]           -> valuN PragmaExpectsDefinedSymbol a b
     [67, a]              -> valuN UnfoldingWrongName a
+    -- TODO: linearity
+    -- [68, a, b, c]        -> valuN FixingQuantity a b c
+    [69, a, b, c]        -> valuN FixingRelevance a b c
     _ -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where

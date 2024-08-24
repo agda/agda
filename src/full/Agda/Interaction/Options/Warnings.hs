@@ -264,6 +264,9 @@ data WarningName
   | InlineNoExactSplit_
   | DeprecationWarning_
   | DuplicateUsing_
+  | FixingRelevance_
+  -- TODO: linearity
+  -- -- | FixingQuantity_
   | FixityInRenamingModule_
   | InvalidCharacterLiteral_
   | UselessPragma_
@@ -488,6 +491,9 @@ warningNameDescription = \case
   CoverageNoExactSplit_            -> "Failed exact split checks."
   InlineNoExactSplit_              -> "Failed exact split checks after inlining record constructors."
   DeprecationWarning_              -> "Deprecated features."
+  -- TODO: linearity
+  -- FixingQuantity_                  -> "Correcting invalid user-written quantity."
+  FixingRelevance_                 -> "Correcting invalid user-written relevance."
   InvalidCharacterLiteral_         -> "Illegal character literals."
   UselessPragma_                   -> "Pragmas that get ignored."
   IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."

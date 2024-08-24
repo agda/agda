@@ -2366,11 +2366,13 @@ bindUnquoteConstructorName m p c = do
 instance ToAbstract DataConstrDecl where
   type AbsOfCon DataConstrDecl = A.Declaration
 
-  toAbstract (DataConstrDecl m a p d) = do
+  toAbstract (DataConstrDecl m a p d) = traceCall (ScopeCheckDeclaration d) do
     case d of
       C.Axiom r p1 a1 i info x t -> do -- rel==Relevant
         -- unless (p1 == p) __IMPOSSIBLE__  -- This invariant is currently violated by test/Succeed/Issue282.agda
         unless (a1 == a) __IMPOSSIBLE__
+        let msg = "of constructor"
+        info <- ensureNotLinear msg =<< ensureRelevant msg info
         t' <- toAbstractCtx TopCtx t
         -- The abstract name is the qualified one
         -- Bind it twice, once unqualified and once qualified
@@ -2384,6 +2386,25 @@ instance ToAbstract DataConstrDecl where
 errorNotConstrDecl :: C.NiceDeclaration -> ScopeM a
 errorNotConstrDecl d = setCurrentRange d $
   typeError $ IllegalDeclarationInDataDefinition $ notSoNiceDeclarations d
+
+ensureRelevant :: LensRelevance a => String -> a -> ScopeM a
+ensureRelevant s info = do
+  if isRelevant info then return info else do
+    warning $ FixingRelevance s (getRelevance info) Relevant
+    return $ setRelevance Relevant info
+
+ensureNotLinear :: LensQuantity a => String -> a -> ScopeM a
+ensureNotLinear s info = do
+  case getQuantity info of
+    Quantityω{} -> return info
+    Quantity0{} -> return info
+    q@Quantity1{} -> do
+      -- Andreas, 2024-08-24, "@1" is still not parsed, so this is impossible.
+      __IMPOSSIBLE__
+      -- TODO: linearity
+      -- let q' = Quantityω QωInferred
+      -- warning $ FixingQuantity s q q'
+      -- return $ setQuantity q' info
 
 -- ** More scope checking
 ------------------------------------------------------------------------

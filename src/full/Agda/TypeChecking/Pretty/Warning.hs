@@ -180,6 +180,16 @@ prettyWarning = \case
 
     EmptyWhere         -> fsep . pwords $ "Empty `where' block (ignored)"
 
+    -- TODO: linearity
+    -- FixingQuantity s q q' -> fsep $ concat
+    --   [ pwords "Replacing illegal quantity", [ pretty q ], pwords s, [ "by", pretty q' ] ]
+
+    FixingRelevance s r r' ->  fsep $ concat
+      [ pwords "Replacing illegal relevance", [ p r ]
+      , pwords s, [ "by", p r' ]
+      ]
+      where p r = text $ "`" ++ verbalize r ++ "'"
+
     IllformedAsClause s -> fsep . pwords $
       "`as' must be followed by an identifier" ++ s
 

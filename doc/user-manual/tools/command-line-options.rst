@@ -1346,6 +1346,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Face constraint patterns that are given as named arguments.
 
+.. option:: FixingRelevance
+
+     Invalid relevance annotations, automatically corrected.
+
 .. option:: FixityInRenamingModule
 
      Fixity annotations in ``renaming`` directives for a ``module``.

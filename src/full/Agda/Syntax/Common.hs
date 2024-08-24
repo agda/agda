@@ -1088,6 +1088,11 @@ instance NFData Quantity where
   rnf (Quantity1 o) = rnf o
   rnf (Quantityω o) = rnf o
 
+isQuantity0 :: LensQuantity a => a -> Bool
+isQuantity0 a = case getQuantity a of
+  Quantity0{} -> True
+  _ -> False
+
 isQuantityω :: LensQuantity a => a -> Bool
 isQuantityω a = case getQuantity a of
   Quantityω{} -> True

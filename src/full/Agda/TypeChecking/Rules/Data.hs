@@ -2,7 +2,7 @@
 
 module Agda.TypeChecking.Rules.Data where
 
-import Prelude hiding (null)
+import Prelude hiding (null, not, (&&), (||) )
 
 import Control.Monad
 import Control.Monad.Except
@@ -46,6 +46,7 @@ import Agda.TypeChecking.Warnings (warning)
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
+import Agda.Utils.Boolean
 import Agda.Utils.Either
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
@@ -242,7 +243,6 @@ forceSort t = reduce (unEl t) >>= \case
     equalType t (sort s)
     return s
 
-
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
 --   Returns the non-linear parameters.
@@ -265,15 +265,9 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
       t' <- workOnTypes $ do
 -}
         debugEnter c e
-        -- check that we are relevant
-        case getRelevance ai of
-          Relevant   -> return ()
-          Irrelevant -> typeError $ GenericError $ "Irrelevant constructors are not supported"
-          NonStrict  -> typeError $ GenericError $ "Shape-irrelevant constructors are not supported"
-        case getQuantity ai of
-          Quantityω{} -> return ()
-          Quantity0{} -> return ()
-          Quantity1{} -> typeError $ GenericError $ "Quantity-restricted constructors are not supported"
+        -- Remember that we are of a suitable modality.
+        unless (isRelevant ai) __IMPOSSIBLE__
+        unless ((isQuantityω || isQuantity0) ai) __IMPOSSIBLE__
 
         -- If the constructor is erased, then hard compile-time mode
         -- is entered.

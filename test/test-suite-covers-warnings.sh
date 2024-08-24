@@ -28,6 +28,11 @@ DuplicateInterfaceFiles
 LibUnknownField
 EOF
 
+# Warnings we ignore (e.g. that are still impossible).
+#
+cat >> $BENIGNWARNS <<EOF
+EOF
+
 # Warnings we currently do not cover by the testsuite (TODO!).
 #
 cat >> $BENIGNWARNS <<EOF

@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.Errors where
 
+import Agda.Syntax.Common (Relevance)
 import Agda.Syntax.Abstract.Name
 
 import Agda.TypeChecking.Monad.Base
@@ -16,3 +17,8 @@ instance PrettyTCM TCErr
 renderError :: MonadTCM tcm => TCErr -> tcm String
 
 topLevelModuleDropper :: (MonadDebug m, MonadTCEnv m, ReadTCState m) => m (QName -> QName)
+
+class Verbalize a where
+  verbalize :: a -> String
+
+instance Verbalize Relevance where
