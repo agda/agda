@@ -1188,10 +1188,7 @@ data Relevance
                 --   - <https://dl.acm.org/doi/10.1145/3110277>
                 --   - <https://doi.org/10.1145/3209108.3209119>
   | Irrelevant  -- ^ The argument is irrelevant at compile- and runtime.
-    deriving (Show, Eq, Enum, Bounded, Generic)
-
-allRelevances :: [Relevance]
-allRelevances = [minBound..maxBound]
+    deriving (Show, Eq, Generic)
 
 instance HasRange Relevance where
   getRange _ = noRange
@@ -1228,6 +1225,15 @@ instance LensRelevance Relevance where
   getRelevance = id
   setRelevance = const
   mapRelevance = id
+
+relevant :: Relevance
+relevant = Relevant
+
+irrelevant :: Relevance
+irrelevant = Irrelevant
+
+shapeIrrelevant :: Relevance
+shapeIrrelevant = NonStrict
 
 isRelevant :: LensRelevance a => a -> Bool
 isRelevant a = getRelevance a == Relevant

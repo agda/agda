@@ -63,7 +63,7 @@ instance Arbitrary Quantity where
 
 instance CoArbitrary Relevance
 instance Arbitrary Relevance where
-  arbitrary = elements allRelevances
+  arbitrary = elements [ relevant, irrelevant, shapeIrrelevant ]
 
 instance CoArbitrary Cohesion
 instance Arbitrary Cohesion where
