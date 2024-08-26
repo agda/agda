@@ -641,39 +641,10 @@ getStoredInterface x file msrc = do
 
         reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is up-to-date."]
 
-  -- Check if we have cached the module.
-  cachedE <- runExceptT $ maybeToExceptT "the interface has not been decoded" $ MaybeT $
-      lift $ getDecodedModule x
-
-  case cachedE of
-    -- If it's cached ignoreInterfaces has no effect;
-    -- to avoid typechecking a file more than once.
-    Right mi -> do
-      (ifile, hashes) <- getIFileHashesET
-
-      let ifp = filePath $ intFilePath ifile
-      let i = miInterface mi
-
-      -- Make sure the hashes match.
-      let cachedIfaceHash = iFullHash i
-      let fileIfaceHash = snd hashes
-      unless (cachedIfaceHash == fileIfaceHash) $ do
-        lift $ dropDecodedModule x
-        reportSLn "import.iface" 50 $ "  cached hash = " ++ show cachedIfaceHash
-        reportSLn "import.iface" 50 $ "  stored hash = " ++ show fileIfaceHash
-        reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifp
-        throwError $ concat
-          [ "the cached interface hash (", show cachedIfaceHash, ")"
-          , " does not match interface file (", show fileIfaceHash, ")"
-          ]
-
-      Bench.billTo [Bench.Deserialization] $ do
-        checkSourceHashET (iSourceHash i)
-
-        reportSLn "import.iface" 5 $ "  using stored version of " ++ filePath (intFilePath ifile)
-        loadDecodedModule file mi
-
-    Left whyNotCached -> withExceptT (\e -> concat [whyNotCached, " and ", e]) $ do
+  let
+    -- Load or reload the interface file, if possible.
+    loadInterfaceFile whyNotCached =
+      withExceptT (\e -> concat [whyNotCached, " and ", e]) $ do
       whenM ignoreAllInterfaces $
         throwError "we're ignoring all interface files"
 
@@ -710,6 +681,39 @@ getStoredInterface x file msrc = do
           , miPrimitive = isPrimitiveModule
           , miMode = ModuleTypeChecked
           }
+
+  -- Check if we have cached the module.
+  cachedE <- runExceptT $ maybeToExceptT "the interface has not been decoded" $ MaybeT $
+      lift $ getDecodedModule x
+
+  case cachedE of
+    Left whyNotCached -> loadInterfaceFile whyNotCached
+
+    -- If it's cached ignoreInterfaces has no effect;
+    -- to avoid typechecking a file more than once.
+    Right mi -> do
+      (ifile, hashes) <- getIFileHashesET
+
+      let ifp = filePath $ intFilePath ifile
+      let i = miInterface mi
+
+      -- Make sure the hashes match.
+      let cachedIfaceHash = iFullHash i
+      let fileIfaceHash = snd hashes
+      if cachedIfaceHash /= fileIfaceHash then do
+        lift $ dropDecodedModule x
+        reportSLn "import.iface" 50 $ "  cached hash = " ++ show cachedIfaceHash
+        reportSLn "import.iface" 50 $ "  stored hash = " ++ show fileIfaceHash
+        reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifp
+        loadInterfaceFile $ concat
+          [ "the cached interface hash (", show cachedIfaceHash, ")"
+          , " does not match interface file (", show fileIfaceHash, ")"
+          ]
+       else Bench.billTo [Bench.Deserialization] $ do
+        checkSourceHashET (iSourceHash i)
+
+        reportSLn "import.iface" 5 $ "  using stored version of " ++ filePath (intFilePath ifile)
+        loadDecodedModule file mi
 
 -- | Report those given warnings that come from the given module.
 
