@@ -64,9 +64,9 @@ type LensAttribute a = (LensRelevance a, LensQuantity a, LensCohesion a, LensLoc
 
 relevanceAttributeTable :: [(String, Relevance)]
 relevanceAttributeTable = concat
-  [ map (, Irrelevant)  [ "irr", "irrelevant" ]
-  , map (, NonStrict)   [ "shirr", "shape-irrelevant" ]
-  , map (, Relevant)    [ "relevant" ]
+  [ map (, Irrelevant)      [ "irr", "irrelevant" ]
+  , map (, ShapeIrrelevant) [ "shirr", "shape-irrelevant" ]
+  , map (, Relevant)        [ "relevant" ]
   ]
 
 -- | Modifiers for 'Quantity'.

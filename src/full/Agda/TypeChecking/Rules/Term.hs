@@ -151,9 +151,9 @@ isType_ e = traceCall (IsType_ e) $ do
         Just (USmall, u) <- isNameOfUniv x -> do
       univChecks u
       unlessM hasUniversePolymorphism $ typeError NeedOptionUniversePolymorphism
-      -- allow NonStrict variables when checking level
-      --   Set : (NonStrict) Level -> Set\omega
-      applyRelevanceToContext NonStrict $
+      -- allow ShapeIrrelevant variables when checking level
+      --   Set : (ShapeIrrelevant) Level -> Set\omega
+      applyRelevanceToContext shapeIrrelevant $
         sort . Univ u <$> checkLevel arg
 
     -- Issue #707: Check an existing interaction point
@@ -361,7 +361,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         -- modify the new context entries
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
-        modMod PiNotLam xp = applyWhen xp $ mapRelevance irrToNonStrict
+        modMod PiNotLam xp = applyWhen xp $ mapRelevance irrelevantToShapeIrrelevant
         modMod _        _  = id
 
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do

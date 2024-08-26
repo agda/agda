@@ -1173,21 +1173,23 @@ instance Semigroup (UnderComposition Erased) where
 -- | A function argument can be relevant or irrelevant.
 --   See "Agda.TypeChecking.Irrelevance".
 data Relevance
-  = Relevant    -- ^ The argument is (possibly) relevant at compile-time.
-  | NonStrict   -- ^ The argument may never flow into evaluation position.
-                --   Therefore, it is irrelevant at run-time.
-                --   It is treated relevantly during equality checking.
-                --
-                --   The above comment is probably obsolete, as we currently have
-                --   erasure (/at/0, @Quantity0@) for that. What's described here is probably
-                --   shape-irrelevance (..). If you enable @--experimental-irrelevance@,
-                --   then the type of an irrelevant function is forced to be shape-irrelevant.
-                --   See:
-                --   - <https://doi.org/10.2168/LMCS-8(1:29)2012> example 2.8
-                --     (Not enforcing shape-irrelevant codomains can break subject reduction!)
-                --   - <https://dl.acm.org/doi/10.1145/3110277>
-                --   - <https://doi.org/10.1145/3209108.3209119>
-  | Irrelevant  -- ^ The argument is irrelevant at compile- and runtime.
+  = Relevant
+      -- ^ The argument is (possibly) relevant at compile-time.
+  | ShapeIrrelevant
+      -- ^ Like 'Quantity0', the argument may never flow into evaluation position.
+      --   So it is irrelevant at run-time,
+      --   yet treated relevantly during equality checking.
+      --
+      --   Unlike 'Quantity0', it is used to type 'Irrelevant' arguments in functions:
+      --   If you enable @--experimental-irrelevance@,
+      --   then the type of an irrelevant function is forced to be shape-irrelevant.
+      --   See:
+      --   - <https://doi.org/10.2168/LMCS-8(1:29)2012> example 2.8
+      --     (Not enforcing shape-irrelevant codomains can break subject reduction!)
+      --   - <https://dl.acm.org/doi/10.1145/3110277>
+      --   - <https://doi.org/10.1145/3209108.3209119>
+  | Irrelevant
+      -- ^ The argument is irrelevant at compile- and runtime.
     deriving (Show, Generic)
 
 instance Eq Relevance where
@@ -1203,9 +1205,9 @@ instance KillRange Relevance where
   killRange rel = rel -- no range to kill
 
 instance NFData Relevance where
-  rnf Relevant   = ()
-  rnf NonStrict  = ()
-  rnf Irrelevant = ()
+  rnf Relevant        = ()
+  rnf ShapeIrrelevant = ()
+  rnf Irrelevant      = ()
 
 -- | A lens to access the 'Relevance' attribute in data structures.
 --   Minimal implementation: @getRelevance@ and @mapRelevance@ or @LensModality@.
@@ -1236,7 +1238,7 @@ irrelevant :: Relevance
 irrelevant = Irrelevant
 
 shapeIrrelevant :: Relevance
-shapeIrrelevant = NonStrict
+shapeIrrelevant = ShapeIrrelevant
 
 isRelevant :: LensRelevance a => a -> Bool
 isRelevant a = case getRelevance a of
@@ -1248,14 +1250,14 @@ isIrrelevant a = case getRelevance a of
   Irrelevant{} -> True
   _ -> False
 
-isNonStrict :: LensRelevance a => a -> Bool
-isNonStrict a = case getRelevance a of
-  NonStrict{} -> True
+isShapeIrrelevant :: LensRelevance a => a -> Bool
+isShapeIrrelevant a = case getRelevance a of
+  ShapeIrrelevant{} -> True
   _ -> False
 
 -- | Information ordering.
 -- @Relevant  \`moreRelevant\`
---  NonStrict \`moreRelevant\`
+--  ShapeIrrelevant \`moreRelevant\`
 --  Irrelevant@
 moreRelevant :: Relevance -> Relevance -> Bool
 moreRelevant = (<=)
@@ -1263,9 +1265,9 @@ moreRelevant = (<=)
 -- | Equality ignoring origin.
 sameRelevance :: Relevance -> Relevance -> Bool
 sameRelevance = curry $ \case
-  (Relevant  {}, Relevant  {}) -> True
-  (Irrelevant{}, Irrelevant{}) -> True
-  (NonStrict {}, NonStrict {}) -> True
+  (Relevant        {}, Relevant        {}) -> True
+  (Irrelevant      {}, Irrelevant      {}) -> True
+  (ShapeIrrelevant {}, ShapeIrrelevant {}) -> True
   _ -> False
 
 -- | More relevant is smaller.
@@ -1279,7 +1281,7 @@ instance Ord Relevance where
     (Relevant, _) -> LT
     (_, Relevant) -> GT
     -- redundant case
-    (NonStrict,NonStrict) -> EQ
+    (ShapeIrrelevant,ShapeIrrelevant) -> EQ
 
 -- | More relevant is smaller.
 instance PartialOrd Relevance where
@@ -1297,8 +1299,8 @@ composeRelevance r r' =
   case (r, r') of
     (Irrelevant, _) -> Irrelevant
     (_, Irrelevant) -> Irrelevant
-    (NonStrict, _)  -> NonStrict
-    (_, NonStrict)  -> NonStrict
+    (ShapeIrrelevant, _) -> ShapeIrrelevant
+    (_, ShapeIrrelevant) -> ShapeIrrelevant
     (Relevant, Relevant) -> Relevant
 
 -- | Compose with relevance flag from the left.
@@ -1315,11 +1317,11 @@ applyRelevance rel = mapRelevance (rel `composeRelevance`)
 inverseComposeRelevance :: Relevance -> Relevance -> Relevance
 inverseComposeRelevance r x =
   case (r, x) of
-    (Relevant  , x)          -> x          -- going to relevant arg.: nothing changes
-                                           -- because Relevant is comp.-neutral
-    (Irrelevant, x)          -> Relevant   -- going irrelevant: every thing usable
-    (NonStrict , Irrelevant) -> Irrelevant -- otherwise: irrelevant things remain unusable
-    (NonStrict , _)          -> Relevant   -- but @NonStrict@s become usable
+    (Relevant  , x) -> x          -- going to relevant arg.: nothing changes
+                                  -- because Relevant is comp.-neutral
+    (Irrelevant, x) -> Relevant   -- going irrelevant: every thing usable
+    (ShapeIrrelevant , Irrelevant) -> Irrelevant -- otherwise: irrelevant things remain unusable
+    (ShapeIrrelevant , _)          -> Relevant   -- but @ShapeIrrelevant@s become usable
 
 -- | Left division by a 'Relevance'.
 --   Used e.g. to modify context when going into a @rel@ argument.
@@ -1373,18 +1375,18 @@ defaultRelevance :: Relevance
 defaultRelevance = unitRelevance
 
 -- | Irrelevant function arguments may appear non-strictly in the codomain type.
-irrToNonStrict :: Relevance -> Relevance
-irrToNonStrict Irrelevant = NonStrict
-irrToNonStrict rel        = rel
+irrelevantToShapeIrrelevant :: Relevance -> Relevance
+irrelevantToShapeIrrelevant Irrelevant = ShapeIrrelevant
+irrelevantToShapeIrrelevant rel = rel
 
 -- | Applied when working on types (unless --experimental-irrelevance).
-nonStrictToRel :: Relevance -> Relevance
-nonStrictToRel NonStrict = Relevant
-nonStrictToRel rel       = rel
+shapeIrrelevantToRelevant :: Relevance -> Relevance
+shapeIrrelevantToRelevant ShapeIrrelevant = Relevant
+shapeIrrelevantToRelevant rel = rel
 
-nonStrictToIrr :: Relevance -> Relevance
-nonStrictToIrr NonStrict = Irrelevant
-nonStrictToIrr rel       = rel
+shapeIrrelevantToIrrelevant :: Relevance -> Relevance
+shapeIrrelevantToIrrelevant ShapeIrrelevant = Irrelevant
+shapeIrrelevantToIrrelevant rel = rel
 
 ---------------------------------------------------------------------------
 -- * Annotations
@@ -1985,9 +1987,9 @@ instance KillRange a => KillRange (Arg a) where
 --           where showOv YesOverlap = "overlap "
 --                 showOv NoOverlap  = ""
 --         showR r s = case r of
---           Irrelevant   -> "." ++ s
---           NonStrict    -> "?" ++ s
---           Relevant     -> "r" ++ s -- Andreas: I want to see it explicitly
+--           Irrelevant      -> "." ++ s
+--           ShapeIrrelevant -> "?" ++ s
+--           Relevant        -> "r" ++ s -- Andreas: I want to see it explicitly
 --         showQ q s = case q of
 --           Quantity0   -> "0" ++ s
 --           Quantity1   -> "1" ++ s
@@ -2012,7 +2014,7 @@ instance KillRange a => KillRange (Arg a) where
 --                 prettyOv NoOverlap  = ""
 --         prettyR r s = case r of
 --           Irrelevant   -> "." <> s
---           NonStrict    -> "?" <> s
+--           ShapeIrrelevant    -> "?" <> s
 --           Relevant     -> "r" <> s -- Andreas: I want to see it explicitly
 --         prettyQ q s = case q of
 --           Quantity0   -> "0" <> s

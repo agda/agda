@@ -743,7 +743,7 @@ toAbstractDotHiding mr mh prec e = do
         | Nothing <- mr -> toAbstractDotHiding (Just Irrelevant) mh prec e
 
       C.DoubleDot _ e
-        | Nothing <- mr -> toAbstractDotHiding (Just NonStrict) mh prec e
+        | Nothing <- mr -> toAbstractDotHiding (Just ShapeIrrelevant) mh prec e
 
       C.HiddenArg _ (Named Nothing e)
         | Nothing <- mh -> toAbstractDotHiding mr (Just Hidden) TopCtx e

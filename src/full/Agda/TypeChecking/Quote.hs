@@ -129,9 +129,10 @@ quotingKit = do
       quoteHiding NotHidden  = pure visible
 
       quoteRelevance :: Relevance -> ReduceM Term
-      quoteRelevance Relevant   = pure relevant
-      quoteRelevance Irrelevant = pure irrelevant
-      quoteRelevance NonStrict  = pure relevant
+      quoteRelevance = \case
+        Relevant        {} -> pure relevant
+        Irrelevant      {} -> pure irrelevant
+        ShapeIrrelevant {} -> pure relevant
 
       quoteQuantity :: Quantity -> ReduceM Term
       quoteQuantity (Quantity0 _) = pure quantity0

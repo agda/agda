@@ -739,7 +739,7 @@ observeHiding = \case
 observeRelevance :: Expr -> (Relevance, Expr)
 observeRelevance = \case
   Dot _ e       -> (Irrelevant, e)
-  DoubleDot _ e -> (NonStrict, e)
+  DoubleDot _ e -> (ShapeIrrelevant, e)
   e             -> (Relevant, e)
 
 -- | Observe various modifiers applied to an expression

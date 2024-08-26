@@ -1478,7 +1478,7 @@ inferLeveledSort u q suffix = \case
     unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ Univ u $ ClosedLevel 0
     unlessM hasUniversePolymorphism $ typeError NeedOptionUniversePolymorphism
     List1.unlessNull args $ warning . TooManyArgumentsToSort q
-    l <- applyRelevanceToContext NonStrict $ checkLevel arg
+    l <- applyRelevanceToContext shapeIrrelevant $ checkLevel arg
     return (Sort $ Univ u l , sort (Univ (univUniv u) $ levelSuc l))
 
 inferUnivOmega ::

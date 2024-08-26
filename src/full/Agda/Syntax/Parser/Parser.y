@@ -444,7 +444,7 @@ DoubleCloseBrace
 -- A possibly dotted identifier.
 MaybeDottedId :: { Arg Name }
 MaybeDottedId
-  : '..' Id { setRelevance NonStrict $ defaultArg $2 }
+  : '..' Id { setRelevance ShapeIrrelevant $ defaultArg $2 }
   | '.'  Id { setRelevance Irrelevant $ defaultArg $2 }
   | Id      { defaultArg $1 }
 
@@ -468,10 +468,10 @@ ArgIds
     | '.' '{' SpaceIds '}'            { fmap (hide . setRelevance Irrelevant . defaultArg) $3 }
     | '.' '{{' SpaceIds DoubleCloseBrace ArgIds   { fmap (makeInstance . setRelevance Irrelevant . defaultArg) $3 <> $5 }
     | '.' '{{' SpaceIds DoubleCloseBrace          { fmap (makeInstance . setRelevance Irrelevant . defaultArg) $3 }
-    | '..' '{' SpaceIds '}' ArgIds    { fmap (hide . setRelevance NonStrict . defaultArg) $3 <> $5 }
-    | '..' '{' SpaceIds '}'           { fmap (hide . setRelevance NonStrict . defaultArg) $3 }
-    | '..' '{{' SpaceIds DoubleCloseBrace ArgIds  { fmap (makeInstance . setRelevance NonStrict . defaultArg) $3 <> $5 }
-    | '..' '{{' SpaceIds DoubleCloseBrace         { fmap (makeInstance . setRelevance NonStrict . defaultArg) $3 }
+    | '..' '{' SpaceIds '}' ArgIds    { fmap (hide . setRelevance ShapeIrrelevant . defaultArg) $3 <> $5 }
+    | '..' '{' SpaceIds '}'           { fmap (hide . setRelevance ShapeIrrelevant . defaultArg) $3 }
+    | '..' '{{' SpaceIds DoubleCloseBrace ArgIds  { fmap (makeInstance . setRelevance ShapeIrrelevant . defaultArg) $3 <> $5 }
+    | '..' '{{' SpaceIds DoubleCloseBrace         { fmap (makeInstance . setRelevance ShapeIrrelevant . defaultArg) $3 }
 
 -- Modalities preceeding identifiers
 
@@ -514,7 +514,7 @@ MaybeDottedBId :: { (Relevance, Name) }
 MaybeDottedBId
     : BId        { (Relevant  , $1) }
     | '.' BId    { (Irrelevant, $2) }
-    | '..' BId   { (NonStrict, $2) }
+    | '..' BId   { (ShapeIrrelevant, $2) }
 -}
 
 
@@ -814,14 +814,14 @@ TypedBinding
                              makeInstance $
                              setRelevance Irrelevant $3 }
     | '..' '(' TBindWithHiding ')'   { setRange (getRange ($2,$3,$4)) $
-                             setRelevance NonStrict $3 }
+                             setRelevance ShapeIrrelevant $3 }
     | '..' '{' TBind '}'   { setRange (getRange ($2,$3,$4)) $
                              setHiding Hidden $
-                             setRelevance NonStrict $3 }
+                             setRelevance ShapeIrrelevant $3 }
     | '..' '{{' TBind DoubleCloseBrace
                            { setRange (getRange ($2,$3,$4)) $
                              makeInstance $
-                             setRelevance NonStrict $3 }
+                             setRelevance ShapeIrrelevant $3 }
     | '(' TBindWithHiding ')'        { setRange (getRange ($1,$2,$3)) $2 }
     | '(' ModalTBindWithHiding ')'        { setRange (getRange ($1,$2,$3)) $2 }
     | '{{' TBind DoubleCloseBrace
@@ -988,7 +988,7 @@ DomainFreeBindingAbsurd :: { Either (List1 (NamedArg Binder)) (List1 Expr)}
 DomainFreeBindingAbsurd
     : BId      MaybeAsPattern { Left . singleton $ mkDomainFree_ id $2 $1 }
     | '.' BId  MaybeAsPattern { Left . singleton $ mkDomainFree_ (setRelevance Irrelevant) $3 $2 }
-    | '..' BId MaybeAsPattern { Left . singleton $ mkDomainFree_ (setRelevance NonStrict) $3 $2 }
+    | '..' BId MaybeAsPattern { Left . singleton $ mkDomainFree_ (setRelevance ShapeIrrelevant) $3 $2 }
     | '(' Application ')'     {% exprToPattern (rawApp $2) >>= \ p ->
                                  pure . Left . singleton $ mkDomainFree_ id (Just p) $ simpleHole }
     | '(' Attributes1 CommaBIdAndAbsurds ')'
@@ -1005,8 +1005,8 @@ DomainFreeBindingAbsurd
               Left $ fmap (makeInstance . setTacticAttr $2 . setArgInfo ai) $3 }
     | '.' '{' CommaBIds '}' { Left $ fmap (hide . setRelevance Irrelevant) $3 }
     | '.' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . setRelevance Irrelevant) $3 }
-    | '..' '{' CommaBIds '}' { Left $ fmap (hide . setRelevance NonStrict) $3 }
-    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . setRelevance NonStrict) $3 }
+    | '..' '{' CommaBIds '}' { Left $ fmap (hide . setRelevance ShapeIrrelevant) $3 }
+    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . setRelevance ShapeIrrelevant) $3 }
 
 
 {--------------------------------------------------------------------------

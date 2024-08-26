@@ -605,13 +605,13 @@ instance EmbPrj Modality where
     _ -> malformed
 
 instance EmbPrj Relevance where
-  icod_ Relevant       = return 0
-  icod_ Irrelevant     = return 1
-  icod_ NonStrict      = return 2
+  icod_ Relevant        = return 0
+  icod_ Irrelevant      = return 1
+  icod_ ShapeIrrelevant = return 2
 
   value 0 = return Relevant
   value 1 = return Irrelevant
-  value 2 = return NonStrict
+  value 2 = return ShapeIrrelevant
   value _ = malformed
 
 instance EmbPrj Annotation where

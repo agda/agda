@@ -960,10 +960,11 @@ instance ToConcrete A.Expr where
              -- TODO: print attributes
         where
             ctx = if isRelevant a then FunctionSpaceDomainCtx else DotPatternCtx
-            addRel a e = case getRelevance a of
-                           Irrelevant -> C.Dot (getRange a) e
-                           NonStrict  -> C.DoubleDot (getRange a) e
-                           _          -> e
+            addRel a e =
+              case getRelevance a of
+                Irrelevant      {} -> C.Dot (getRange a) e
+                ShapeIrrelevant {} -> C.DoubleDot (getRange a) e
+                Relevant        {} -> e
             mkArg (Arg info e) = case getHiding info of
                                           Hidden     -> HiddenArg   (getRange e) (unnamed e)
                                           Instance{} -> InstanceArg (getRange e) (unnamed e)

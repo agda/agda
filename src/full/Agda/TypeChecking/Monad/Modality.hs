@@ -40,7 +40,7 @@ import Agda.Utils.Monad
 -- | Prepare parts of a parameter telescope for abstraction in constructors
 --   and projections.
 hideAndRelParams :: (LensHiding a, LensRelevance a) => a -> a
-hideAndRelParams = hideOrKeepInstance . mapRelevance nonStrictToIrr
+hideAndRelParams = hideOrKeepInstance . mapRelevance shapeIrrelevantToIrrelevant
 
 -- * Operations on 'Context'.
 
@@ -56,7 +56,7 @@ workOnTypes cont = do
 --   as argument.
 workOnTypes' :: (MonadTCEnv m) => Bool -> m a -> m a
 workOnTypes' experimental
-  = applyWhen experimental (modifyContextInfo $ mapRelevance irrToNonStrict)
+  = applyWhen experimental (modifyContextInfo $ mapRelevance irrelevantToShapeIrrelevant)
   . applyQuantityToJudgement zeroQuantity
   . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })

@@ -34,8 +34,8 @@ infixr 4 ..-->
 
 (-->), (.-->), (..-->) :: Applicative m => m Type -> m Type -> m Type
 a --> b = garr id a b
-a .--> b = garr (const $ Irrelevant) a b
-a ..--> b = garr (const $ NonStrict) a b
+a .--> b = garr (const $ irrelevant) a b
+a ..--> b = garr (const $ shapeIrrelevant) a b
 
 garr :: Applicative m => (Relevance -> Relevance) -> m Type -> m Type -> m Type
 garr f a b = do

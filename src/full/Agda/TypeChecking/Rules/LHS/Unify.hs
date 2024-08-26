@@ -849,7 +849,7 @@ solutionStep retry s
   let eqrel  = getRelevance dom
       eqmod  = getModality dom
       varmod = getModality dom'
-      mod    = applyUnless (NonStrict `moreRelevant` eqrel) (setRelevance eqrel)
+      mod    = applyUnless (shapeIrrelevant `moreRelevant` eqrel) (setRelevance eqrel)
              $ applyUnless (usableQuantity envmod) (setQuantity zeroQuantity)
              $ varmod
   reportSDoc "tc.lhs.unify" 65 $ text $ "Equation modality: " ++ show (getModality dom)

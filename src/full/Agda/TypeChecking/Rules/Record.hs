@@ -702,10 +702,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         -- 2012-04-02: DontCare instead of irrAxiom
 
         -- compute body modification for irrelevant projections
-        let bodyMod = case rel of
-              Relevant   -> id
-              NonStrict  -> id
-              Irrelevant -> dontCare
+        let bodyMod = applyWhen (isIrrelevant rel) dontCare
 
         let -- Andreas, 2010-09-09: comment for existing code
             -- split the telescope into parameters (ptel) and the type or the record

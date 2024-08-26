@@ -193,7 +193,7 @@ instance CheckInternal Term where
             -- Preserve NoAbs
             goInside = case b of
               Abs{}   -> addContext $ (absName b,) $
-                applyWhen experimental (mapRelevance irrToNonStrict) a
+                applyWhen experimental (mapRelevance irrelevantToShapeIrrelevant) a
               NoAbs{} -> id
         a <- mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
         v' <- goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) CmpLeq (sort sb)

@@ -1855,9 +1855,9 @@ instance Verbalize Hiding where
 instance Verbalize Relevance where
   verbalize r =
     case r of
-      Relevant   -> "relevant"
-      Irrelevant -> "irrelevant"
-      NonStrict  -> "shape-irrelevant"
+      Relevant        {} -> "relevant"
+      Irrelevant      {} -> "irrelevant"
+      ShapeIrrelevant {} -> "shape-irrelevant"
 
 instance Verbalize Quantity where
   verbalize = \case

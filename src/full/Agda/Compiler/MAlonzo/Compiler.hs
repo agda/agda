@@ -513,9 +513,6 @@ mazRTEFloatImport (UsesFloat b) = [ HS.ImportDecl mazRTEFloat True Nothing | b ]
 
 definition :: Definition -> HsCompileM (UsesFloat, [HS.Decl], Maybe CheckedMainFunctionDef)
 -- ignore irrelevant definitions
-{- Andreas, 2012-10-02: Invariant no longer holds
-definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
--}
 definition Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
   reportSDoc "compile.ghc.definition" 10 $
     ("Not compiling" <+> prettyTCM q) <> "."

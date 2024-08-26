@@ -126,7 +126,7 @@ instance Pretty a => Pretty (WithHiding a) where
 instance Pretty Relevance where
   pretty Relevant   = empty
   pretty Irrelevant = "."
-  pretty NonStrict  = ".."
+  pretty ShapeIrrelevant = ".."
 
 instance Pretty Q0Origin where
   pretty = \case
@@ -179,7 +179,7 @@ attributesForModality mod
     relevance = case getRelevance mod of
       Relevant   -> Nothing
       Irrelevant -> Just "@irrelevant"
-      NonStrict  -> Just "@shape-irrelevant"
+      ShapeIrrelevant -> Just "@shape-irrelevant"
     quantity = case getQuantity mod of
       Quantity0{} -> Just "@0"
       Quantity1{} -> Just "@1"

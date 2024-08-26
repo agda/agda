@@ -518,7 +518,7 @@ instance Occurs Term where
             definitionCheck (conName c)
             Con c ci <$> conArgs vs (occurs vs)  -- if strongly rigid, remain so, except with unreduced IApply arguments.
           Pi a b      -> Pi <$> occurs_ a <*> occurs b
-          Sort s      -> Sort <$> do underRelevance NonStrict $ occurs_ s
+          Sort s      -> Sort <$> do underRelevance shapeIrrelevant $ occurs_ s
           MetaV m' es -> do
             m' <- metaCheck m'
             -- The arguments of a meta are in a flexible position
