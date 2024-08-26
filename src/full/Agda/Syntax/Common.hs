@@ -1188,7 +1188,10 @@ data Relevance
                 --   - <https://dl.acm.org/doi/10.1145/3110277>
                 --   - <https://doi.org/10.1145/3209108.3209119>
   | Irrelevant  -- ^ The argument is irrelevant at compile- and runtime.
-    deriving (Show, Eq, Generic)
+    deriving (Show, Generic)
+
+instance Eq Relevance where
+  (==) = sameRelevance
 
 instance HasRange Relevance where
   getRange _ = noRange
@@ -1236,13 +1239,19 @@ shapeIrrelevant :: Relevance
 shapeIrrelevant = NonStrict
 
 isRelevant :: LensRelevance a => a -> Bool
-isRelevant a = getRelevance a == Relevant
+isRelevant a = case getRelevance a of
+  Relevant{} -> True
+  _ -> False
 
 isIrrelevant :: LensRelevance a => a -> Bool
-isIrrelevant a = getRelevance a == Irrelevant
+isIrrelevant a = case getRelevance a of
+  Irrelevant{} -> True
+  _ -> False
 
 isNonStrict :: LensRelevance a => a -> Bool
-isNonStrict a = getRelevance a == NonStrict
+isNonStrict a = case getRelevance a of
+  NonStrict{} -> True
+  _ -> False
 
 -- | Information ordering.
 -- @Relevant  \`moreRelevant\`
@@ -1253,12 +1262,16 @@ moreRelevant = (<=)
 
 -- | Equality ignoring origin.
 sameRelevance :: Relevance -> Relevance -> Bool
-sameRelevance = (==)
+sameRelevance = curry $ \case
+  (Relevant  {}, Relevant  {}) -> True
+  (Irrelevant{}, Irrelevant{}) -> True
+  (NonStrict {}, NonStrict {}) -> True
+  _ -> False
 
 -- | More relevant is smaller.
 instance Ord Relevance where
   compare = curry $ \case
-    (r, r') | r == r' -> EQ
+    (r, r') | sameRelevance r r' -> EQ
     -- top
     (_, Irrelevant) -> LT
     (Irrelevant, _) -> GT
