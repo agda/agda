@@ -105,7 +105,7 @@ import Agda.Compiler.Backend.Base
 
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Errors as ErrorName
-import Agda.Interaction.Options.Errors as X ( ErasedDatatypeReason(..) )
+import Agda.Interaction.Options.Errors as X ( ErasedDatatypeReason(..), NotAllowedInDotPatterns(..) )
 import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Response.Base (Response_boot(..))
 import Agda.Interaction.Highlighting.Precise
@@ -4927,6 +4927,7 @@ data TypeError
           -- ^ The file name does not correspond to a module name.
     -- Scope errors
         | AbstractConstructorNotInScope A.QName
+        | NotAllowedInDotPatterns NotAllowedInDotPatterns
         | NotInScope [C.QName]
         | NoSuchModule C.QName
         | AmbiguousName C.QName AmbiguousNameReason

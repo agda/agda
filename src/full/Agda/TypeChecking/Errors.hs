@@ -797,6 +797,12 @@ instance PrettyTCM TypeError where
       , prettyTCM q
       ] ++ pwords "is abstract, thus, not in scope here"
 
+    NotAllowedInDotPatterns what -> fsep $ verb what ++ pwords "are not allowed in dot patterns"
+      where
+      verb = \case
+        LetExpressions -> pwords "Let expressions"
+        PatternLambdas -> pwords "Pattern lambdas"
+
     NotInScope xs ->
       -- using the warning version to avoid code duplication
       prettyWarning (NotInScopeW xs)

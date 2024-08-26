@@ -21,6 +21,13 @@ data ErasedDatatypeReason
     -- ^ The K rule is not activated.
   deriving (Show, Generic, Enum, Bounded)
 
+-- | Things not allowed in dot patterns.
+
+data NotAllowedInDotPatterns
+  = LetExpressions
+  | PatternLambdas
+  deriving (Show, Generic, Enum, Bounded)
+
 -- | Symbolic name of an Agda error.
 
 data ErrorName
@@ -151,6 +158,7 @@ data ErrorName
   | NoSuchModule_
   | NoSuchPrimitiveFunction_
   | NotAValidLetBinding_
+  | NotAllowedInDotPatterns_ NotAllowedInDotPatterns
   | NotAnExpression_
   | NotInScope_
   | NotLeqSort_
@@ -324,6 +332,7 @@ errorNameString = \case
   NicifierError_          err -> "Syntax." ++ declarationExceptionNameString err
   SplitError_             err -> "SplitError." ++ splitErrorNameString err
   UnquoteError_           err -> "Unquote." ++ unquoteErrorNameString err
+  NotAllowedInDotPatterns_ err -> "NotAllowedInDotPatterns." ++ notAllowedInDotPatternsString err
   err -> defaultErrorNameString err
 
 declarationExceptionNameString :: DeclarationException_ -> String
@@ -344,6 +353,9 @@ negativeUnificationErrorNameString = defaultErrorNameString
 
 notAHaskellTypeErrorNameString :: NotAHaskellType_ -> String
 notAHaskellTypeErrorNameString = defaultErrorNameString
+
+notAllowedInDotPatternsString :: NotAllowedInDotPatterns -> String
+notAllowedInDotPatternsString = show
 
 splitErrorNameString :: SplitError_ -> String
 splitErrorNameString = \case
@@ -367,3 +379,4 @@ helpErrors = unlines $ concat
 ------------------------------------------------------------------------
 
 instance NFData ErasedDatatypeReason
+instance NFData NotAllowedInDotPatterns

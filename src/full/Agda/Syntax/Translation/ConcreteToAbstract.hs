@@ -777,8 +777,7 @@ toAbstractLam r bs e ctx = do
 scopeCheckExtendedLam ::
   Range -> Erased -> List1 C.LamClause -> ScopeM A.Expr
 scopeCheckExtendedLam r e cs = do
-  whenM isInsideDotPattern $
-    genericError "Extended lambdas are not allowed in dot patterns"
+  whenM isInsideDotPattern $ typeError $ NotAllowedInDotPatterns PatternLambdas
 
   -- Find an unused name for the extended lambda definition.
   cname <- freshConcreteName r 0 extendedLambdaName
@@ -948,7 +947,7 @@ instance ToAbstract C.Expr where
 
   -- Let
       e0@(C.Let _ ds (Just e)) ->
-        ifM isInsideDotPattern (genericError $ "Let-expressions are not allowed in dot patterns") $
+        ifM isInsideDotPattern (typeError $ NotAllowedInDotPatterns LetExpressions) {-else-} do
         localToAbstract (LetDefs ds) $ \ds' -> do
           e <- toAbstractCtx TopCtx e
           let info = ExprRange (getRange e0)

@@ -22,6 +22,8 @@ typeErrorName = \case
   NicifierError            err -> NicifierError_         $ declarationExceptionName       err
   SplitError               err -> SplitError_            $ splitErrorName                 err
   UnquoteFailed            err -> UnquoteError_          $ unquoteErrorName               err
+  -- Parametrized errors
+  NotAllowedInDotPatterns what -> NotAllowedInDotPatterns_ what
   -- Wrappers
   OperatorInformation _    err -> typeErrorName err
   -- Generic errors (alphabetically)
