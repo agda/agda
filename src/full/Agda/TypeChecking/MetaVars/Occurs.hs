@@ -510,7 +510,7 @@ instance Occurs Term where
           Lit l       -> return v
           Dummy{}     -> return v
           DontCare v  -> dontCare <$> do
-            onlyReduceTypes $ underRelevance Irrelevant $ occurs v
+            onlyReduceTypes $ underRelevance irrelevant $ occurs v
           Def d es    -> do
             definitionCheck d
             Def d <$> occDef d es
@@ -911,12 +911,11 @@ instance (Subst a, AnyRigid a) => AnyRigid (Abs a) where
 
 instance AnyRigid a => AnyRigid (Arg a) where
   anyRigid f a =
-    case getRelevance a of
       -- Irrelevant arguments are definitionally equal to
       -- values, so the variables there are not considered
       -- "definitely rigid".
-      Irrelevant -> return False
-      _          -> anyRigid f $ unArg a
+    if isIrrelevant a then return False else
+      anyRigid f $ unArg a
 
 instance AnyRigid a => AnyRigid (Dom a) where
   anyRigid f dom = anyRigid f $ unDom dom

@@ -604,15 +604,55 @@ instance EmbPrj Modality where
     [a, b, c] -> valuN Modality a b c
     _ -> malformed
 
-instance EmbPrj Relevance where
-  icod_ Relevant        = return 0
-  icod_ Irrelevant      = return 1
-  icod_ ShapeIrrelevant = return 2
+instance EmbPrj OriginRelevant where
+  icod_ = \case
+    ORelInferred   -> return 0
+    ORelRelevant _ -> return 1
 
-  value 0 = return Relevant
-  value 1 = return Irrelevant
-  value 2 = return ShapeIrrelevant
-  value _ = malformed
+  value = \case
+    0 -> return $ ORelInferred
+    1 -> return $ ORelRelevant noRange
+    _ -> malformed
+
+instance EmbPrj OriginIrrelevant where
+  icod_ = \case
+    OIrrInferred     -> return 0
+    OIrrDot _        -> return 1
+    OIrrIrr _        -> return 2
+    OIrrIrrelevant _ -> return 3
+
+  value = \case
+    0 -> return $ OIrrInferred
+    1 -> return $ OIrrDot        noRange
+    2 -> return $ OIrrIrr        noRange
+    3 -> return $ OIrrIrrelevant noRange
+    _ -> malformed
+
+instance EmbPrj OriginShapeIrrelevant where
+  icod_ = \case
+    OShIrrInferred          -> return 0
+    OShIrrDotDot _          -> return 1
+    OShIrrShIrr _           -> return 2
+    OShIrrShapeIrrelevant _ -> return 3
+
+  value = \case
+    0 -> return $ OShIrrInferred
+    1 -> return $ OShIrrDotDot          noRange
+    2 -> return $ OShIrrShIrr           noRange
+    3 -> return $ OShIrrShapeIrrelevant noRange
+    _ -> malformed
+
+instance EmbPrj Relevance where
+  icod_ = \case
+    Relevant   a      -> icodeN' Relevant a
+    Irrelevant a      -> icodeN 0 Irrelevant a
+    ShapeIrrelevant a -> icodeN 1 ShapeIrrelevant a
+
+  value = vcase \case
+    [a]    -> valuN Relevant a
+    [0, a] -> valuN Irrelevant a
+    [1, a] -> valuN ShapeIrrelevant a
+    _      -> malformed
 
 instance EmbPrj Annotation where
   icod_ (Annotation l) = icodeN' Annotation l

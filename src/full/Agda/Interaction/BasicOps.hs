@@ -148,7 +148,7 @@ giveExpr force mii mi e = do
       reportSDoc "interaction.give" 40 $ "give: checked expression:" TP.<+> pure (pretty v)
       case mvInstantiation mv of
 
-        InstV{} -> unlessM ((Irrelevant ==) <$> viewTC eRelevance) $ do
+        InstV{} -> unlessM (isIrrelevant <$> viewTC eRelevance) $ do
           v' <- instantiate $ MetaV mi $ map Apply ctx
           reportSDoc "interaction.give" 20 $ TP.sep
             [ "meta was already set to value v' = " TP.<+> prettyTCM v'
@@ -425,7 +425,7 @@ instance Reify Constraint where
   reify (ValueCmp cmp AsTypes u v) = CmpTypes cmp <$> reify u <*> reify v
   reify (ValueCmpOnFace cmp p t u v) = CmpInType cmp <$> (reify =<< ty) <*> reify (lam_o u) <*> reify (lam_o v)
     where
-      lam_o = I.Lam (setRelevance Irrelevant defaultArgInfo) . NoAbs "_"
+      lam_o = I.Lam defaultIrrelevantArgInfo . NoAbs "_"
       ty = runNamesT [] $ do
         p <- open p
         t <- open t

@@ -275,7 +275,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
 
         ps <- fromRightM failureBlocked $ lift $
           catchPatternErr (pure . Left) $
-            Right <$> patternFrom Relevant 0 (t , Def f) es
+            Right <$> patternFrom relevant 0 (t , Def f) es
 
         reportSDoc "rewriting" 30 $
           "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)

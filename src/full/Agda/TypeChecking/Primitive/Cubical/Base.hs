@@ -47,7 +47,7 @@ import Agda.TypeChecking.Reduce (Reduce(..), reduceB', reduce', reduce)
 import Agda.TypeChecking.Names (NamesT, runNamesT, ilam, lam)
 
 import Agda.Syntax.Common
-  (Cubical(..), Arg(..), Relevance(..), setRelevance, defaultArgInfo, hasQuantity0)
+  (Cubical(..), Arg(..), relevant, irrelevant, setRelevance, defaultArgInfo, hasQuantity0)
 
 import Agda.TypeChecking.Primitive.Base
   (SigmaKit(..), (-->), nPi', pPi', (<@>), (<#>), (<..>), argN, getSigmaKit)
@@ -420,10 +420,10 @@ decomposeInterval' t = do
 reduce2Lam :: Term -> ReduceM (Blocked Term)
 reduce2Lam t = do
   t <- reduce' t
-  case lam2Abs Relevant t of
+  case lam2Abs relevant t of
     t -> underAbstraction_ t $ \ t -> do
       t <- reduce' t
-      case lam2Abs Irrelevant t of
+      case lam2Abs irrelevant t of
         t -> underAbstraction_ t reduceB'
   where
     lam2Abs rel (Lam _ t) = absBody t <$ t

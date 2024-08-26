@@ -1150,7 +1150,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
               bs <- bndry `applyN` ts
               xs <- mapM (\(phi,u) -> (,) <$> open phi <*> open u) $ do
                 (i,(l,r)) <- bs
-                let pElem t = Lam (setRelevance Irrelevant defaultArgInfo) $ NoAbs "o" t
+                let pElem t = Lam defaultIrrelevantArgInfo $ NoAbs "o" t
                 [(tINeg `apply` [argN i],pElem l),(i,pElem r)]
               combineSys' l ty xs
             (,) <$> open (fst <$> p) <*> open (snd <$> p)

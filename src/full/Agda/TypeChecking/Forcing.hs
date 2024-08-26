@@ -124,7 +124,7 @@ computeForcingAnnotations c t =
             if (erasureOn `implies` hasQuantity0 m)
             -- Also the argument shouldn't be irrelevant, since in that
             -- case it isn't really forced.
-            && (getRelevance m /= Irrelevant)
+            && (not $ isIrrelevant m)
             then Just m else Nothing
           | m <- map getModality $ reverse $ telToList tel
           ]

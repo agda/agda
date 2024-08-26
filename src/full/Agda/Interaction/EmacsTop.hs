@@ -351,7 +351,7 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
             -- Print relevance of hypothesis relative to relevance of the goal. (Issue #6706.)
           , [ text $ verbalize r
                              | let r = getRelevance mod `inverseComposeRelevance` getRelevance ai
-                             , r /= Relevant ]
+                             , not $ isRelevant r ]
             -- Print "instance" if variable is considered by instance search.
           , [ "instance"     | isInstance ai ]
           ]

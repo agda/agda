@@ -22,6 +22,7 @@ import Agda.Syntax.Concrete.Glyph
 import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.List  ( lastMaybe )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
@@ -79,7 +80,9 @@ prettyHiding a parens =
     NotHidden  -> parens
 
 prettyRelevance :: LensRelevance a => a -> Doc -> Doc
-prettyRelevance a = (pretty (getRelevance a) <>)
+prettyRelevance a = if lastMaybe (render d) == Just '.' then (d <>) else (d <+>)
+  where
+    d = pretty $ getRelevance a
 
 prettyQuantity :: LensQuantity a => a -> Doc -> Doc
 prettyQuantity a = (pretty (getQuantity a) <+>)
@@ -123,10 +126,30 @@ instance Pretty (ThingWithFixity Name) where
 instance Pretty a => Pretty (WithHiding a) where
   pretty w = prettyHiding w id $ pretty $ dget w
 
+instance Pretty OriginRelevant where
+  pretty = \case
+    ORelInferred {} -> empty
+    ORelRelevant {} -> "@relevant"
+
+instance Pretty OriginIrrelevant where
+  pretty = \case
+    OIrrInferred   {} -> empty
+    OIrrDot        {} -> "."
+    OIrrIrr        {} -> "@irr"
+    OIrrIrrelevant {} -> "@irrelevant"
+
+instance Pretty OriginShapeIrrelevant where
+  pretty = \case
+    OShIrrInferred        {} -> empty
+    OShIrrDotDot          {} -> ".."
+    OShIrrShIrr           {} -> "@shirr"
+    OShIrrShapeIrrelevant {} -> "@shape-irrelevant"
+
 instance Pretty Relevance where
-  pretty Relevant   = empty
-  pretty Irrelevant = "."
-  pretty ShapeIrrelevant = ".."
+  pretty = \case
+    Relevant        o -> pretty o
+    Irrelevant      o -> ifNull (pretty o) "." id
+    ShapeIrrelevant o -> ifNull (pretty o) ".." id
 
 instance Pretty Q0Origin where
   pretty = \case
@@ -161,10 +184,10 @@ instance Pretty Cohesion where
   pretty Squash  = "@⊤"
 
 instance Pretty Modality where
-  pretty mod = hsep
-    [ pretty (getRelevance mod)
-    , pretty (getQuantity mod)
-    , pretty (getCohesion mod)
+  pretty (Modality r q c) = hsep
+    [ pretty r
+    , pretty q
+    , pretty c
     ]
 
 -- | Show the attributes necessary to recover a modality, in long-form
@@ -172,19 +195,19 @@ instance Pretty Modality where
 -- the result is at-ω (rather than the empty document). Suitable for
 -- showing modalities outside of binders.
 attributesForModality :: Modality -> Doc
-attributesForModality mod
+attributesForModality mod@(Modality r q c)
   | mod == defaultModality = text "@ω"
   | otherwise = fsep $ catMaybes [relevance, quantity, cohesion]
   where
-    relevance = case getRelevance mod of
-      Relevant   -> Nothing
-      Irrelevant -> Just "@irrelevant"
-      ShapeIrrelevant -> Just "@shape-irrelevant"
-    quantity = case getQuantity mod of
+    relevance = case r of
+      Relevant        {} -> Nothing
+      Irrelevant      {} -> Just "@irrelevant"
+      ShapeIrrelevant {} -> Just "@shape-irrelevant"
+    quantity = case q of
       Quantity0{} -> Just "@0"
       Quantity1{} -> Just "@1"
       Quantityω{} -> Nothing
-    cohesion = case getCohesion mod of
+    cohesion = case c of
       Flat{}       -> Just "@♭"
       Continuous{} -> Nothing
       Squash{}     -> Just "@⊤"
@@ -317,7 +340,7 @@ instance Pretty NamedBinding where
       -- isLabeled looks at _mn and _y
       -- pretty xb prints also the pattern _mp
     where
-    prH = (pretty r <>)
+    prH = prettyRelevance r
         . prettyHiding h mparens
         . (coh <+>)
         . (qnt <+>)
@@ -448,7 +471,7 @@ instance Pretty Declaration where
     FieldSig inst tac x (Arg i e) ->
       mkInst inst $ mkOverlap i $
       prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $
-      pretty $ TypeSig (setRelevance Relevant i) tac x e
+      pretty $ TypeSig (setRelevance relevant i) tac x e
       where
         mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]
         mkInst NotInstanceDef  d = d
@@ -711,7 +734,7 @@ instance Pretty Pattern where
             ParenP _ p      -> parens $ pretty p
             WildP _         -> underscore
             AsP _ x p       -> pretty x <> "@" <> pretty p
-            DotP _ p        -> "." <> pretty p
+            DotP _ _ p      -> "." <> pretty p
             AbsurdP _       -> "()"
             LitP _ l        -> pretty l
             QuoteP _        -> "quote"

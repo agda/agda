@@ -729,7 +729,7 @@ validConPattern cons = loop
         | cons x      -> mapM_ loop ps
         | otherwise   -> failure
       QuoteP _ :| [_] -> ok
-      DotP _ e :| ps  -> mapM_ loop ps
+      DotP _ _ e :| ps  -> mapM_ loop ps
       _               -> failure
     where
     ok      = return ()

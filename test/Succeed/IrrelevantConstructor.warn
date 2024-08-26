@@ -8,7 +8,7 @@ IrrelevantConstructor.agda:11,21-38: warning: -W[no]FixingRelevance
 Replacing illegal relevance 'shape-irrelevant' of constructor by
 'relevant'
 when scope checking the declaration
-  ..wrap : A → Wrap A
+  @shape-irrelevant wrap : A → Wrap A
 
 ———— All done; warnings encountered ————————————————————————
 
@@ -22,4 +22,4 @@ IrrelevantConstructor.agda:11,21-38: warning: -W[no]FixingRelevance
 Replacing illegal relevance 'shape-irrelevant' of constructor by
 'relevant'
 when scope checking the declaration
-  ..wrap : A → Wrap A
+  @shape-irrelevant wrap : A → Wrap A

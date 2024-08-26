@@ -146,7 +146,7 @@ equalType = compareType CmpEq
 -- | Ignore errors in irrelevant context.
 convError :: TypeError -> TCM ()
 convError err =
-  ifM ((==) Irrelevant <$> viewTC eRelevance)
+  ifM (isIrrelevant <$> viewTC eRelevance)
     (return ())
     (typeError err)
 
@@ -834,7 +834,7 @@ compareDom cmp0
      | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
-          dependent = (r /= Irrelevant) && isBinderUsed b2
+          dependent = not (isIrrelevant r) && isBinderUsed b2
       pid <- newProblem_ $ compareType cmp0 a1 a2
       dom <- if dependent
              then (\ a -> dom1 {unDom = a}) <$> blockTypeOnProblem a1 pid

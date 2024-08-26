@@ -194,13 +194,13 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
           -- A record is irrelevant if all of its fields are.
           -- In this case, the associated module parameter will be irrelevant.
-          -- See issue 392.
+          -- See issue #392.
           -- Unless it's been declared coinductive or no-eta-equality (#2607).
           recordRelevance
-            | Just NoEta{} <- eta         = Relevant
-            | CoInductive <- conInduction = Relevant
-            | null (telToList ftel)       = Relevant    -- #6270: eta unit types don't need to be irrelevant
-            | otherwise                   = minimum $ Irrelevant : map getRelevance (telToList ftel)
+            | Just NoEta{} <- eta         = relevant
+            | CoInductive <- conInduction = relevant
+            | null (telToList ftel)       = relevant    -- #6270: eta unit types don't need to be irrelevant
+            | otherwise                   = minimum $ irrelevant : map getRelevance (telToList ftel)
 
       -- Andreas, 2017-01-26, issue #2436
       -- Disallow coinductive records with eta-equality
@@ -502,7 +502,7 @@ defineKanOperationR cmd name params fsT fns rect = do
                   -- Γ = Δ, CompRArgs
                   -- pats = ... | phi = i1
                   -- body = u i1 itIsOne
-                  DoHComp  -> (2,Var 1 [] `apply` [argN io, setRelevance Irrelevant $ argN one])
+                  DoHComp  -> (2,Var 1 [] `apply` [argN io, setRelevance irrelevant $ argN one])
 
               p = ConP (ConHead io_name IsData Inductive [])
                        (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)

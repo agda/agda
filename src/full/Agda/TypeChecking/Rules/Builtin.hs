@@ -62,11 +62,11 @@ import Agda.Utils.Impossible
 ---------------------------------------------------------------------------
 
 builtinPostulate :: TCM Type -> BuiltinDescriptor
-builtinPostulate = BuiltinPostulate Relevant
+builtinPostulate = BuiltinPostulate relevant
 
 builtinPostulateC :: Cubical -> TCM Type -> BuiltinDescriptor
 builtinPostulateC c m =
-  BuiltinPostulate Relevant $ requireCubical c >> m
+  builtinPostulate $ requireCubical c >> m
 
 findBuiltinInfo :: BuiltinId -> Maybe BuiltinInfo
 findBuiltinInfo b = find ((b ==) . builtinName) coreBuiltins
@@ -159,7 +159,7 @@ coreBuiltins =
                                                                    hPi' "A" (pPi' "o" (cl primIZero) $ \ _ ->
                                                                                   el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bA ->
                                                                    pPi' "o" (cl primIZero) (\ o ->
-                                                                        el' l $ gApply' (setRelevance Irrelevant defaultArgInfo) bA o)))
+                                                                        el' l $ gApply' defaultIrrelevantArgInfo bA o)))
 
   , (builtinId                               |-> BuiltinData ((>>) (requireCubical CErased) $ hPi "a" (el primLevel) $
                                                               hPi "A" (return $ sort $ varSort 0) $

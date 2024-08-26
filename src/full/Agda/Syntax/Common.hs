@@ -1170,12 +1170,168 @@ instance Semigroup (UnderComposition Erased) where
 -- * Relevance
 ---------------------------------------------------------------------------
 
+-- ** Relevance origin
+
+-- | Origin of 'Relevant'.
+
+data OriginRelevant
+  = ORelInferred        -- ^ User wrote nothing.
+  | ORelRelevant Range  -- ^ User wrote "@relevant".
+  deriving (Show, Generic)
+
+-- | Origin of 'Irrelevant'.
+
+data OriginIrrelevant
+  = OIrrInferred          -- ^ User wrote nothing.
+  | OIrrDot        Range  -- ^ User wrote ".".
+  | OIrrIrr        Range  -- ^ User wrote "@irr".
+  | OIrrIrrelevant Range  -- ^ User wrote "@irrelevant".
+  deriving (Show, Generic)
+
+-- | Origin of 'ShapeIrrelevant'.
+
+data OriginShapeIrrelevant
+  = OShIrrInferred               -- ^ User wrote nothing.
+  | OShIrrDotDot          Range  -- ^ User wrote "..".
+  | OShIrrShIrr           Range  -- ^ User wrote "@shirr".
+  | OShIrrShapeIrrelevant Range  -- ^ User wrote "@shape-irrelevant".
+  deriving (Show, Generic)
+
+-- *** Instances for 'OriginRelevant'
+
+instance Null OriginRelevant where
+  empty = ORelInferred
+  null = \case
+    ORelInferred -> True
+    _ -> False
+
+instance Semigroup OriginRelevant where
+  (<>) = curry \case
+    (ORelInferred, o  ) -> o
+    (o, ORelInferred  ) -> o
+    (o, ORelRelevant r) -> ORelRelevant $ fuseRange o r
+
+instance Monoid OriginRelevant where
+  mempty = empty
+
+instance HasRange OriginRelevant where
+  getRange = \case
+    ORelInferred   -> noRange
+    ORelRelevant r -> r
+
+instance SetRange OriginRelevant where
+  setRange r = \case
+    ORelInferred   -> ORelInferred
+    ORelRelevant _ -> ORelRelevant r
+
+instance KillRange OriginRelevant where
+  killRange = setRange noRange
+
+instance NFData OriginRelevant where
+  rnf = \case
+    ORelInferred   -> ()
+    ORelRelevant _ -> ()
+
+-- *** Instances for 'OriginIrrelevant'
+
+instance Null OriginIrrelevant where
+  empty = OIrrInferred
+  null = \case
+    OIrrInferred -> True
+    _ -> False
+
+-- | Right-biased composition, because the left relevance
+--   acts as context, and the right one as occurrence.
+
+instance Semigroup OriginIrrelevant where
+  (<>) = curry \case
+    (OIrrInferred, o    ) -> o
+    (o, OIrrInferred    ) -> o
+    (o, OIrrDot        r) -> OIrrDot        $ fuseRange o r
+    (o, OIrrIrr        r) -> OIrrIrr        $ fuseRange o r
+    (o, OIrrIrrelevant r) -> OIrrIrrelevant $ fuseRange o r
+
+instance Monoid OriginIrrelevant where
+  mempty = empty
+
+instance HasRange OriginIrrelevant where
+  getRange = \case
+    OIrrInferred     -> noRange
+    OIrrDot        r -> r
+    OIrrIrr        r -> r
+    OIrrIrrelevant r -> r
+
+instance SetRange OriginIrrelevant where
+  setRange r = \case
+    OIrrInferred     -> OIrrInferred
+    OIrrDot _        -> OIrrDot r
+    OIrrIrr _        -> OIrrIrr r
+    OIrrIrrelevant _ -> OIrrIrrelevant r
+
+instance KillRange OriginIrrelevant where
+  killRange = setRange noRange
+
+instance NFData OriginIrrelevant where
+  rnf = \case
+    OIrrInferred     -> ()
+    OIrrDot _        -> ()
+    OIrrIrr _        -> ()
+    OIrrIrrelevant _ -> ()
+
+-- *** Instances for 'OriginShapeIrrelevant'
+
+instance Null OriginShapeIrrelevant where
+  empty = OShIrrInferred
+  null = \case
+    OShIrrInferred -> True
+    _ -> False
+
+-- | Right-biased composition, because the left relevance
+--   acts as context, and the right one as occurrence.
+
+instance Semigroup OriginShapeIrrelevant where
+  (<>) = curry \case
+    (OShIrrInferred, o         ) -> o
+    (o, OShIrrInferred         ) -> o
+    (o, OShIrrDotDot          r) -> OShIrrDotDot          $ fuseRange o r
+    (o, OShIrrShIrr           r) -> OShIrrShIrr           $ fuseRange o r
+    (o, OShIrrShapeIrrelevant r) -> OShIrrShapeIrrelevant $ fuseRange o r
+
+instance Monoid OriginShapeIrrelevant where
+  mempty = empty
+
+instance HasRange OriginShapeIrrelevant where
+  getRange = \case
+    OShIrrInferred          -> noRange
+    OShIrrDotDot          r -> r
+    OShIrrShIrr           r -> r
+    OShIrrShapeIrrelevant r -> r
+
+instance SetRange OriginShapeIrrelevant where
+  setRange r = \case
+    OShIrrInferred          -> OShIrrInferred
+    OShIrrDotDot _          -> OShIrrDotDot r
+    OShIrrShIrr _           -> OShIrrShIrr r
+    OShIrrShapeIrrelevant _ -> OShIrrShapeIrrelevant r
+
+instance KillRange OriginShapeIrrelevant where
+  killRange = setRange noRange
+
+instance NFData OriginShapeIrrelevant where
+  rnf = \case
+    OShIrrInferred          -> ()
+    OShIrrDotDot _          -> ()
+    OShIrrShIrr _           -> ()
+    OShIrrShapeIrrelevant _ -> ()
+
+-- ** Relevance levels
+
 -- | A function argument can be relevant or irrelevant.
 --   See "Agda.TypeChecking.Irrelevance".
 data Relevance
-  = Relevant
+  = Relevant OriginRelevant
       -- ^ The argument is (possibly) relevant at compile-time.
-  | ShapeIrrelevant
+  | ShapeIrrelevant OriginShapeIrrelevant
       -- ^ Like 'Quantity0', the argument may never flow into evaluation position.
       --   So it is irrelevant at run-time,
       --   yet treated relevantly during equality checking.
@@ -1188,7 +1344,7 @@ data Relevance
       --     (Not enforcing shape-irrelevant codomains can break subject reduction!)
       --   - <https://dl.acm.org/doi/10.1145/3110277>
       --   - <https://doi.org/10.1145/3209108.3209119>
-  | Irrelevant
+  | Irrelevant OriginIrrelevant
       -- ^ The argument is irrelevant at compile- and runtime.
     deriving (Show, Generic)
 
@@ -1196,18 +1352,25 @@ instance Eq Relevance where
   (==) = sameRelevance
 
 instance HasRange Relevance where
-  getRange _ = noRange
+  getRange = \case
+    Relevant        o -> getRange o
+    ShapeIrrelevant o -> getRange o
+    Irrelevant      o -> getRange o
 
 instance SetRange Relevance where
-  setRange _ = id
+  setRange r = \case
+    Relevant        o -> Relevant        $ setRange r o
+    ShapeIrrelevant o -> ShapeIrrelevant $ setRange r o
+    Irrelevant      o -> Irrelevant      $ setRange r o
 
 instance KillRange Relevance where
-  killRange rel = rel -- no range to kill
+  killRange = setRange noRange
 
 instance NFData Relevance where
-  rnf Relevant        = ()
-  rnf ShapeIrrelevant = ()
-  rnf Irrelevant      = ()
+  rnf = \case
+    Relevant        o -> rnf o
+    ShapeIrrelevant o -> rnf o
+    Irrelevant      o -> rnf o
 
 -- | A lens to access the 'Relevance' attribute in data structures.
 --   Minimal implementation: @getRelevance@ and @mapRelevance@ or @LensModality@.
@@ -1232,13 +1395,13 @@ instance LensRelevance Relevance where
   mapRelevance = id
 
 relevant :: Relevance
-relevant = Relevant
+relevant = Relevant empty
 
 irrelevant :: Relevance
-irrelevant = Irrelevant
+irrelevant = Irrelevant empty
 
 shapeIrrelevant :: Relevance
-shapeIrrelevant = ShapeIrrelevant
+shapeIrrelevant = ShapeIrrelevant empty
 
 isRelevant :: LensRelevance a => a -> Bool
 isRelevant a = case getRelevance a of
@@ -1272,16 +1435,16 @@ sameRelevance = curry $ \case
 
 -- | More relevant is smaller.
 instance Ord Relevance where
-  compare = curry $ \case
+  compare = curry \case
     (r, r') | sameRelevance r r' -> EQ
     -- top
-    (_, Irrelevant) -> LT
-    (Irrelevant, _) -> GT
+    (_, Irrelevant{}) -> LT
+    (Irrelevant{}, _) -> GT
     -- bottom
-    (Relevant, _) -> LT
-    (_, Relevant) -> GT
+    (Relevant{}, _) -> LT
+    (_, Relevant{}) -> GT
     -- redundant case
-    (ShapeIrrelevant,ShapeIrrelevant) -> EQ
+    (ShapeIrrelevant{}, ShapeIrrelevant{}) -> EQ
 
 -- | More relevant is smaller.
 instance PartialOrd Relevance where
@@ -1295,13 +1458,14 @@ usableRelevance = isRelevant
 --   'Irrelevant' is dominant, 'Relevant' is neutral.
 --   Composition coincides with 'max'.
 composeRelevance :: Relevance -> Relevance -> Relevance
-composeRelevance r r' =
-  case (r, r') of
-    (Irrelevant, _) -> Irrelevant
-    (_, Irrelevant) -> Irrelevant
-    (ShapeIrrelevant, _) -> ShapeIrrelevant
-    (_, ShapeIrrelevant) -> ShapeIrrelevant
-    (Relevant, Relevant) -> Relevant
+composeRelevance = curry \case
+  (Relevant o        , Relevant o'       ) -> Relevant (o <> o')
+  (Relevant{}        , r                 ) -> r
+  (r                 , Relevant{}        ) -> r
+  (Irrelevant o      , Irrelevant o'     ) -> Irrelevant (o <> o')
+  (_                 , Irrelevant o      ) -> Irrelevant o
+  (Irrelevant o      , _                 ) -> Irrelevant o
+  (ShapeIrrelevant o , ShapeIrrelevant o') -> ShapeIrrelevant (o <> o')
 
 -- | Compose with relevance flag from the left.
 --   This function is e.g. used to update the relevance information
@@ -1315,13 +1479,13 @@ applyRelevance rel = mapRelevance (rel `composeRelevance`)
 --   iff
 --   @(r \`inverseComposeRelevance\` x) \`moreRelevant\` y@ (Galois connection).
 inverseComposeRelevance :: Relevance -> Relevance -> Relevance
-inverseComposeRelevance r x =
-  case (r, x) of
-    (Relevant  , x) -> x          -- going to relevant arg.: nothing changes
-                                  -- because Relevant is comp.-neutral
-    (Irrelevant, x) -> Relevant   -- going irrelevant: every thing usable
-    (ShapeIrrelevant , Irrelevant) -> Irrelevant -- otherwise: irrelevant things remain unusable
-    (ShapeIrrelevant , _)          -> Relevant   -- but @ShapeIrrelevant@s become usable
+inverseComposeRelevance = curry \case
+  (_                 , Relevant o       ) -> Relevant o   -- can't get more relevant
+  (Relevant{}        , x                ) -> x            -- going to relevant arg.: nothing changes
+                                                          -- because Relevant is comp.-neutral
+  (Irrelevant{}      , x                ) -> relevant     -- going irrelevant: every thing usable
+  (ShapeIrrelevant{} , Irrelevant o     ) -> Irrelevant o -- otherwise: irrelevant things remain unusable
+  (ShapeIrrelevant{} , ShapeIrrelevant{}) -> relevant     -- but @ShapeIrrelevant@s become usable
 
 -- | Left division by a 'Relevance'.
 --   Used e.g. to modify context when going into a @rel@ argument.
@@ -1360,15 +1524,15 @@ addRelevance = min
 
 -- | 'Relevance' forms a monoid under addition, and even a semiring.
 zeroRelevance :: Relevance
-zeroRelevance = Irrelevant
+zeroRelevance = irrelevant
 
 -- | Identity element under composition
 unitRelevance :: Relevance
-unitRelevance = Relevant
+unitRelevance = relevant
 
 -- | Absorptive element under addition.
 topRelevance :: Relevance
-topRelevance = Relevant
+topRelevance = relevant
 
 -- | Default Relevance is the identity element under composition
 defaultRelevance :: Relevance
@@ -1376,16 +1540,16 @@ defaultRelevance = unitRelevance
 
 -- | Irrelevant function arguments may appear non-strictly in the codomain type.
 irrelevantToShapeIrrelevant :: Relevance -> Relevance
-irrelevantToShapeIrrelevant Irrelevant = ShapeIrrelevant
+irrelevantToShapeIrrelevant Irrelevant{} = shapeIrrelevant
 irrelevantToShapeIrrelevant rel = rel
 
 -- | Applied when working on types (unless --experimental-irrelevance).
 shapeIrrelevantToRelevant :: Relevance -> Relevance
-shapeIrrelevantToRelevant ShapeIrrelevant = Relevant
+shapeIrrelevantToRelevant ShapeIrrelevant{} = relevant
 shapeIrrelevantToRelevant rel = rel
 
 shapeIrrelevantToIrrelevant :: Relevance -> Relevance
-shapeIrrelevantToIrrelevant ShapeIrrelevant = Irrelevant
+shapeIrrelevantToIrrelevant ShapeIrrelevant{} = irrelevant
 shapeIrrelevantToIrrelevant rel = rel
 
 ---------------------------------------------------------------------------
@@ -1890,6 +2054,10 @@ defaultArgInfo =  ArgInfo
   , argInfoFreeVariables = UnknownFVs
   , argInfoAnnotation    = defaultAnnotation
   }
+
+defaultIrrelevantArgInfo :: ArgInfo
+defaultIrrelevantArgInfo = setRelevance irrelevant defaultArgInfo
+
 
 -- Accessing through ArgInfo
 

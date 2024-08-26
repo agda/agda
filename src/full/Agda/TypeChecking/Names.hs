@@ -148,7 +148,7 @@ lam n f = glam defaultArgInfo n f
 
 ilam :: Monad m
     => ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
-ilam n f = glam (setRelevance Irrelevant defaultArgInfo) n f
+ilam n f = glam defaultIrrelevantArgInfo n f
 
 
 -- * Combinators for n-ary binders.

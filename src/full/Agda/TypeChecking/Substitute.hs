@@ -49,6 +49,7 @@ import Agda.TypeChecking.Substitute.DeBruijn
 
 import Agda.Utils.Either
 import Agda.Utils.Empty
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -187,9 +188,7 @@ argToDontCare :: Arg Term -> Term
 argToDontCare (Arg ai v) = relToDontCare ai v
 
 relToDontCare :: LensRelevance a => a -> Term -> Term
-relToDontCare ai v
-  | Irrelevant <- getRelevance ai = dontCare v
-  | otherwise                     = v
+relToDontCare ai = applyWhen (isIrrelevant ai) dontCare
 
 -- Andreas, 2016-01-19: In connection with debugging issue #1783,
 -- I consider the Apply instance for Type harmful, as piApply is not

@@ -95,7 +95,7 @@ import Agda.Utils.CallStack ( HasCallStack, withCurrentCallStack )
 import Agda.Utils.Char
 import Agda.Utils.Either
 import Agda.Utils.FileName
-import Agda.Utils.Function ( applyWhen, applyWhenM )
+import Agda.Utils.Function ( applyWhen, applyWhenM, applyUnless )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -719,10 +719,6 @@ mkArg' :: ArgInfo -> C.Expr -> Arg C.Expr
 mkArg' info (C.HiddenArg   _ e) = Arg (hide         info) $ namedThing e
 mkArg' info (C.InstanceArg _ e) = Arg (makeInstance info) $ namedThing e
 mkArg' info e                   = Arg (setHiding NotHidden info) e
---UNUSED Liang-Ting 2019-07-16
----- | By default, arguments are @Relevant@.
---mkArg :: C.Expr -> Arg C.Expr
---mkArg e = mkArg' defaultArgInfo e
 
 inferParenPreference :: C.Expr -> ParenPreference
 inferParenPreference C.Paren{} = PreferParen
@@ -739,11 +735,11 @@ toAbstractDotHiding mr mh prec e = do
       C.RawApp _ es     -> toAbstractDotHiding mr mh prec =<< parseApplication es
       C.Paren _ e       -> toAbstractDotHiding mr mh TopCtx e
 
-      C.Dot _ e
-        | Nothing <- mr -> toAbstractDotHiding (Just Irrelevant) mh prec e
+      C.Dot kwr e
+        | Nothing <- mr -> toAbstractDotHiding (Just $ Irrelevant $ OIrrDot $ getRange kwr) mh prec e
 
-      C.DoubleDot _ e
-        | Nothing <- mr -> toAbstractDotHiding (Just ShapeIrrelevant) mh prec e
+      C.DoubleDot kwr e
+        | Nothing <- mr -> toAbstractDotHiding (Just $ ShapeIrrelevant $ OShIrrDotDot $ getRange kwr) mh prec e
 
       C.HiddenArg _ (Named Nothing e)
         | Nothing <- mh -> toAbstractDotHiding mr (Just Hidden) TopCtx e
@@ -751,7 +747,7 @@ toAbstractDotHiding mr mh prec e = do
       C.InstanceArg _ (Named Nothing e)
         | Nothing <- mh -> toAbstractDotHiding mr (Just $ Instance NoOverlap) TopCtx e
 
-      e                 -> (, fromMaybe Relevant mr, fromMaybe NotHidden mh) <$>
+      e                 -> (, fromMaybe relevant mr, fromMaybe NotHidden mh) <$>
                              toAbstractCtx prec e
 
 -- | Translate concrete expression under at least one binder into nested
@@ -928,15 +924,13 @@ instance ToAbstract C.Expr where
       C.Fun r (Arg info1 e1) e2 -> do
         let arg = mkArg' info1 e1
         let mr = case getRelevance arg of
-              Relevant  -> Nothing
-              r         -> Just r
+              Relevant{} -> Nothing
+              r -> Just r
         let mh = case getHiding arg of
               NotHidden -> Nothing
               h         -> Just h
         Arg info (e1', rel, hid) <- traverse (toAbstractDotHiding mr mh FunctionSpaceDomainCtx) arg
-        let updRel = case rel of
-              Relevant -> id
-              rel      -> setRelevance rel
+        let updRel = applyUnless (isRelevant rel) $ setRelevance rel
         let updHid = case hid of
               NotHidden -> id
               hid       -> setHiding hid
@@ -985,7 +979,7 @@ instance ToAbstract C.Expr where
         toAbstractCtx TopCtx =<< desugarDoNotation r ss
 
   -- Post-fix projections
-      C.Dot r e  -> A.Dot (ExprRange r) <$> toAbstract e
+      e0@(C.Dot _kwr e) -> A.Dot (ExprRange $ getRange e0) <$> toAbstract e
 
   -- Pattern things
       C.As _ _ _ -> notAnExpression e
@@ -2390,8 +2384,8 @@ errorNotConstrDecl d = setCurrentRange d $
 ensureRelevant :: LensRelevance a => String -> a -> ScopeM a
 ensureRelevant s info = do
   if isRelevant info then return info else do
-    warning $ FixingRelevance s (getRelevance info) Relevant
-    return $ setRelevance Relevant info
+    warning $ FixingRelevance s (getRelevance info) relevant
+    return $ setRelevance relevant info
 
 ensureNotLinear :: LensQuantity a => String -> a -> ScopeM a
 ensureNotLinear s info = do
@@ -3198,21 +3192,21 @@ instance ToAbstract C.Pattern where
 
         where
             distributeDots :: C.Pattern -> ScopeM C.Pattern
-            distributeDots p@(C.DotP r e) = distributeDotsExpr r e
+            distributeDots p@(C.DotP kwr r e) = distributeDotsExpr kwr r e
             distributeDots p = return p
 
-            distributeDotsExpr :: Range -> C.Expr -> ScopeM C.Pattern
-            distributeDotsExpr r e = parseRawApp e >>= \case
+            distributeDotsExpr :: KwRange -> Range -> C.Expr -> ScopeM C.Pattern
+            distributeDotsExpr kwr r e = parseRawApp e >>= \case
               C.App r e a     ->
-                AppP <$> distributeDotsExpr r e
-                     <*> (traverse . traverse) (distributeDotsExpr r) a
+                AppP <$> distributeDotsExpr empty r e
+                     <*> (traverse . traverse) (distributeDotsExpr empty r) a
               OpApp r q ns as ->
                 case (traverse . traverse . traverse) fromNoPlaceholder as of
                   Just as -> OpAppP r q ns <$>
-                    (traverse . traverse . traverse) (distributeDotsExpr r) as
-                  Nothing -> return $ C.DotP r e
-              Paren r e -> ParenP r <$> distributeDotsExpr r e
-              _ -> return $ C.DotP r e
+                    (traverse . traverse . traverse) (distributeDotsExpr empty r) as
+                  Nothing -> return $ C.DotP empty r e
+              Paren r e -> ParenP r <$> distributeDotsExpr empty r e
+              _ -> return $ C.DotP kwr r e
 
             fromNoPlaceholder :: MaybePlaceholder (OpApp a) -> Maybe a
             fromNoPlaceholder (NoPlaceholder _ (Ordinary e)) = Just e
@@ -3261,7 +3255,7 @@ instance ToAbstract C.Pattern where
 
     -- We have to do dot patterns at the end since they can
     -- refer to the variables bound by the other patterns.
-    toAbstract p0@(C.DotP r e) = do
+    toAbstract p0@(C.DotP _kwr r e) = do
       let fallback = return $ A.DotP (PatRange r) e
       case e of
         C.Ident x -> resolveName x >>= \case

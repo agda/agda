@@ -821,7 +821,7 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
   -- @a@ is the constructor argument, @ax@ the corr. record field name
     -- skip irrelevant record fields by returning DontCare
     case (getRelevance a, hasElims $ unArg a) of
-      (Irrelevant, _)   -> Just Nothing
+      (Irrelevant{}, _)   -> Just Nothing
       -- if @a@ is the record field name applied to a single argument
       -- then it passes the check
       (_, Just (_, [])) -> Nothing  -- not a projection

@@ -329,7 +329,7 @@ prop_isSemimodule_withVarOcc2_not_a_counterexample =
     r     = occ irrelevant
     s     = occ shapeIrrelevant
     m     :: VarMap
-    m     = VarMap $ Map.fromList [(0, occ Irrelevant)]
+    m     = VarMap $ Map.fromList [(0, occ irrelevant)]
   -- LHS:
   --   r <> s                = min Irrelevant ShapeIrrelevant = ShapeIrrelevant
   --   withVarOcc (r <> s) m = max ShapeIrrelevant Irrelevant = Irrelevant

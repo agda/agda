@@ -378,8 +378,8 @@ instance Unquote Relevance where
     case t of
       Con c _ [] ->
         choice
-          [(c `isCon` getBuiltin' builtinRelevant,   return Relevant)
-          ,(c `isCon` getBuiltin' builtinIrrelevant, return Irrelevant)]
+          [(c `isCon` getBuiltin' builtinRelevant,   return relevant)
+          ,(c `isCon` getBuiltin' builtinIrrelevant, return irrelevant)]
           __IMPOSSIBLE__
       Con c _ vs -> __IMPOSSIBLE__
       _        -> throwError $ NonCanonical "relevance" t

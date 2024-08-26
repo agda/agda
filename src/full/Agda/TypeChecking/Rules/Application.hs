@@ -1728,7 +1728,6 @@ check_glue c rs vs _ = do
   case vs of
    -- WAS: [la, lb, bA, phi, bT, e, t, a] -> do
    la : lb : bA : phi : bT : e : t : a : rest -> do
-      let iinfo = setRelevance Irrelevant defaultArgInfo
       v <- runNamesT [] $ do
             lb  <- open . unArg $ lb
             la  <- open . unArg $ la
@@ -1738,13 +1737,13 @@ check_glue c rs vs _ = do
             e   <- open . unArg $ e
             t   <- open . unArg $ t
             let f o = cl primEquivFun <#> lb <#> la <#> (bT <..> o) <#> bA <@> (e <..> o)
-            glam iinfo "o" $ \ o -> f o <@> (t <..> o)
+            glam defaultIrrelevantArgInfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
             lb  <- open . unArg $ lb
             phi <- open . unArg $ phi
             bA  <- open . unArg $ bA
-            el's lb $ cl primPartialP <#> lb <@> phi <@> glam iinfo "o" (\ _ -> bA)
-      let a' = Lam iinfo (NoAbs "o" $ unArg a)
+            el's lb $ cl primPartialP <#> lb <@> phi <@> glam defaultIrrelevantArgInfo "o" (\ _ -> bA)
+      let a' = Lam defaultIrrelevantArgInfo (NoAbs "o" $ unArg a)
       ta <- el' (pure $ unArg la) (pure $ unArg bA)
       a <- blockArg ta (rs !!! 7) a $ equalTerm ty a' v
       return $ la : lb : bA : phi : bT : e : t : a : rest
@@ -1762,7 +1761,6 @@ check_glueU c rs vs _ = do
   case vs of
    -- WAS: [la, lb, bA, phi, bT, e, t, a] -> do
    la : phi : bT : bA : t : a : rest -> do
-      let iinfo = setRelevance Irrelevant defaultArgInfo
       v <- runNamesT [] $ do
             la  <- open . unArg $ la
             phi <- open . unArg $ phi
@@ -1770,13 +1768,13 @@ check_glueU c rs vs _ = do
             bA  <- open . unArg $ bA
             t   <- open . unArg $ t
             let f o = cl primTrans <#> lam "i" (const la) <@> lam "i" (\ i -> bT <@> (cl primINeg <@> i) <..> o) <@> cl primIZero
-            glam iinfo "o" $ \ o -> f o <@> (t <..> o)
+            glam defaultIrrelevantArgInfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
             la  <- open . unArg $ la
             phi <- open . unArg $ phi
             bT  <- open . unArg $ bT
             pPi' "o" phi $ \ o -> el' la (bT <@> cl primIZero <..> o)
-      let a' = Lam iinfo (NoAbs "o" $ unArg a)
+      let a' = Lam defaultIrrelevantArgInfo (NoAbs "o" $ unArg a)
       ta <- runNamesT [] $ do
             la  <- open . unArg $ la
             phi <- open . unArg $ phi

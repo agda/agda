@@ -582,7 +582,7 @@ primTransHComp cmd ts nelims = do
     allComponentsBack unview phi u p = do
             let
               boolToI b = if b then unview IOne else unview IZero
-              lamlam t = Lam defaultArgInfo (Abs "i" (Lam (setRelevance Irrelevant defaultArgInfo) (Abs "o" t)))
+              lamlam t = Lam defaultArgInfo (Abs "i" (Lam defaultIrrelevantArgInfo (Abs "o" t)))
             as <- decomposeInterval phi
             (flags,t_alphas) <- fmap unzip . forM as $ \ (bs,ts) -> do
                  let u' = listS bs' `applySubst` u

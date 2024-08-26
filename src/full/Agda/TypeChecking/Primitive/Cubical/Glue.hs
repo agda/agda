@@ -27,8 +27,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Syntax.Common
   ( Cubical(..), Arg(..)
   , ConOrigin(..), ProjOrigin(..)
-  , Relevance(..)
-  , setRelevance
+  , irrelevant, setRelevance
   )
 import Agda.Syntax.Internal
 
@@ -362,7 +361,7 @@ prim_unglue' = do
         -- and we must produce @unglue b : A [ i1 → e b ]@. But that's
         -- just @e b@!
         IOne -> do
-          let argOne = setRelevance Irrelevant $ argN one
+          let argOne = setRelevance irrelevant $ argN one
           tEFun <- getTerm (getBuiltinId builtin_unglue) builtinEquivFun
           redReturn $ tEFun `apply` [lb,la,argH $ unArg bT `apply` [argOne],bA, argN $ unArg e `apply` [argOne],b]
 

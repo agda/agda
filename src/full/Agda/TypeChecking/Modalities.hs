@@ -31,7 +31,7 @@ import Agda.Utils.Monad
 checkRelevance' :: (MonadConversion m) => QName -> Definition -> m (Maybe TypeError)
 checkRelevance' x def = do
   case getRelevance def of
-    Relevant -> return Nothing -- relevance functions can be used in any context.
+    Relevant{} -> return Nothing -- relevance functions can be used in any context.
     drel -> do
       -- Andreas,, 2018-06-09, issue #2170
       -- irrelevant projections are only allowed if --irrelevant-projections

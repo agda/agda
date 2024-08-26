@@ -55,6 +55,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive.Cubical.Base
 
 import Agda.Utils.Either
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -266,7 +267,7 @@ instance Match NLPat Term where
     etaRecord <- addContext k $ isEtaRecordType t
     pview <- pathViewAsPi'whnf
     prop <- fromRight __IMPOSSIBLE__ <.> runBlocked . addContext k $ isPropM t
-    let r = if prop then Irrelevant else r0
+    let r = if prop then irrelevant else r0
     traceSDoc "rewriting.match" 30 (sep
       [ "matching pattern " <+> prettyPat
       , "  with term      " <+> prettyTerm
@@ -279,7 +280,7 @@ instance Match NLPat Term where
       [ "pattern vars:   " <+> prettyTCM gamma
       , "bound vars:     " <+> prettyTCM k ]) $ do
     let yes = return ()
-        no msg = if r == Irrelevant then yes else do
+        no msg = if isIrrelevant r then yes else do
           traceSDoc "rewriting.match" 10 (sep
             [ "mismatch between" <+> prettyPat
             , " and " <+> prettyTerm
@@ -288,7 +289,7 @@ instance Match NLPat Term where
           traceSDoc "rewriting.match" 30 (sep
             [ "blocking tag from reduction: " <+> text (show b) ]) $ do
           matchingBlocked b
-        block b' = if r == Irrelevant then yes else do
+        block b' = if isIrrelevant r then yes else do
           traceSDoc "rewriting.match" 10 (sep
             [ "matching blocked on meta"
             , text (show b') ]) $ do
@@ -404,10 +405,7 @@ makeSubstitution :: Telescope -> Sub -> Maybe Substitution
 makeSubstitution gamma sub =
   parallelS <$> traverse val [0 .. size gamma-1]
     where
-      val i = case IntMap.lookup i sub of
-                Just (Irrelevant, v) -> Just $ dontCare v
-                Just (_         , v) -> Just v
-                Nothing              -> Nothing
+      val i = IntMap.lookup i sub <&> \ (rel, v) -> applyWhen (isIrrelevant rel) dontCare v
 
 {-# SPECIALIZE checkPostponedEquations :: Substitution -> PostponedEquations -> TCM (Maybe Blocked_) #-}
 checkPostponedEquations :: PureTCM m
@@ -427,7 +425,7 @@ nonLinMatch gamma t p v = do
   let no msg b = traceSDoc "rewriting.match" 10 (sep
                    [ "matching failed during" <+> text msg
                    , "blocking: " <+> text (show b) ]) $ return (Left b)
-  caseEitherM (runNLM $ match Relevant gamma empty t p v) (no "matching") $ \ s -> do
+  caseEitherM (runNLM $ match relevant gamma empty t p v) (no "matching") $ \ s -> do
     let msub = makeSubstitution gamma $ s ^. nlmSub
         eqs = s ^. nlmEqs
     traceSDoc "rewriting.match" 90 (text $ "msub = " ++ show msub) $ case msub of

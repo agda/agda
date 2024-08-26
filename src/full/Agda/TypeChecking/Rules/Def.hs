@@ -62,6 +62,7 @@ import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
+import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -186,9 +187,7 @@ checkAlias t ai i name e mc =
     -- (test/succeed/Issue655.agda)
 
   -- compute body modification for irrelevant definitions, see issue 610
-  let bodyMod = case getRelevance ai of
-        Irrelevant -> dontCare
-        _          -> id
+  let bodyMod = applyWhen (isIrrelevant ai) dontCare
 
   -- Add the definition
   fun <- emptyFunctionData
@@ -775,9 +774,7 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
 
         -- compute body modification for irrelevant definitions, see issue 610
         rel <- viewTC eRelevance
-        let bodyMod body = case rel of
-              Irrelevant -> dontCare <$> body
-              _          -> body
+        let bodyMod = applyWhen (isIrrelevant rel) (fmap dontCare)
 
         -- absurd clauses don't define computational behaviour, so it's fine to
         -- treat them as catchalls.
