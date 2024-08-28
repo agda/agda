@@ -750,7 +750,7 @@ Pattern matching and equality
      definitional equalities unless marked ``CATCHALL`` (see
      :ref:`case-trees`).
 
-     Default since 2.7.0: ``--exact-split``.
+     Default: ``--no-exact-split``.
 
 .. option:: --hidden-argument-puns, --no-hidden-argument-puns
 
