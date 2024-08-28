@@ -868,8 +868,10 @@ instance PrettyTCM TypeError where
     NotAnExpression e -> fsep $
       pretty e : pwords "is not a valid expression."
 
-    NotAValidLetBinding nd -> fwords $
-      "Not a valid let-declaration"
+    NotAValidLetBinding Nothing -> fwords $ "Not a valid let binding"
+    NotAValidLetBinding (Just err) -> fwords $ verbalizeNotAValidLetBinding err
+
+    NotAValidLetExpression err -> fwords $ verbalizeNotAValidLetExpression err
 
     NotValidBeforeField nd -> fwords $
       "This declaration is illegal in a record before the last field"

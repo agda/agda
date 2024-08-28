@@ -1,5 +1,5 @@
 Issue779pattern.agda:6,3-7,12: error: [NotAValidLetBinding]
-Not a valid let-declaration
+Not a valid let binding
 when scope checking the declaration
   record R where
     bla : D → D

@@ -24,6 +24,8 @@ typeErrorName = \case
   UnquoteFailed            err -> UnquoteError_          $ unquoteErrorName               err
   -- Parametrized errors
   NotAllowedInDotPatterns what -> NotAllowedInDotPatterns_ what
+  NotAValidLetBinding     what -> NotAValidLetBinding_     what
+  NotAValidLetExpression  what -> NotAValidLetExpression_  what
   -- Wrappers
   OperatorInformation _    err -> typeErrorName err
   -- Generic errors (alphabetically)
@@ -145,7 +147,6 @@ typeErrorName = \case
   NoSuchBuiltinName                                          {} -> NoSuchBuiltinName_
   NoSuchModule                                               {} -> NoSuchModule_
   NoSuchPrimitiveFunction                                    {} -> NoSuchPrimitiveFunction_
-  NotAValidLetBinding                                        {} -> NotAValidLetBinding_
   NotAnExpression                                            {} -> NotAnExpression_
   NotInScope                                                 {} -> NotInScope_
   NotLeqSort                                                 {} -> NotLeqSort_

@@ -7,6 +7,7 @@ import Data.List              ( sort )
 import Generic.Data           ( FiniteEnumeration(..) )
 import GHC.Generics           ( Generic )
 
+import Agda.Utils.Function    ( applyWhenJust )
 import Agda.Utils.List        ( initWithDefault )
 import Agda.Utils.Impossible  ( __IMPOSSIBLE__ )
 
@@ -26,6 +27,26 @@ data ErasedDatatypeReason
 data NotAllowedInDotPatterns
   = LetExpressions
   | PatternLambdas
+  deriving (Show, Generic, Enum, Bounded)
+
+-- | Reasons for error 'NotAValidLetBinding'.
+
+data NotAValidLetBinding
+  = AbstractNotAllowed
+  | MacrosNotAllowed
+  | MissingRHS
+  | NotAValidLetPattern
+  | WhereClausesNotAllowed
+  -- These cannot be triggered:
+  -- -- | CopatternsNotAllowed
+  -- -- | EllipsisNotAllowed
+  -- -- | WithPatternsNotAllowed
+  deriving (Show, Generic, Enum, Bounded)
+
+-- | Reasons for error 'NotAValidLetExpression'.
+
+data NotAValidLetExpression
+  = MissingBody
   deriving (Show, Generic, Enum, Bounded)
 
 -- | Symbolic name of an Agda error.
@@ -157,7 +178,8 @@ data ErrorName
   | NoSuchBuiltinName_
   | NoSuchModule_
   | NoSuchPrimitiveFunction_
-  | NotAValidLetBinding_
+  | NotAValidLetBinding_ (Maybe NotAValidLetBinding)
+  | NotAValidLetExpression_ NotAValidLetExpression
   | NotAllowedInDotPatterns_ NotAllowedInDotPatterns
   | NotAnExpression_
   | NotInScope_
@@ -317,6 +339,7 @@ data UnquoteError_
   deriving (Show, Generic, Enum, Bounded)
 
 -- * Printing error names
+------------------------------------------------------------------------
 
 defaultErrorNameString :: Show a => a -> String
 defaultErrorNameString = initWithDefault __IMPOSSIBLE__ . show
@@ -333,6 +356,8 @@ errorNameString = \case
   SplitError_             err -> "SplitError." ++ splitErrorNameString err
   UnquoteError_           err -> "Unquote." ++ unquoteErrorNameString err
   NotAllowedInDotPatterns_ err -> "NotAllowedInDotPatterns." ++ notAllowedInDotPatternsString err
+  NotAValidLetBinding_    merr -> applyWhenJust merr (\ err hd -> hd ++ "." ++ notAValidLetBindingString err) "NotAValidLetBinding"
+  NotAValidLetExpression_  err -> "NotAValidLetExpression." ++ notAValidLetExpressionString err
   err -> defaultErrorNameString err
 
 declarationExceptionNameString :: DeclarationException_ -> String
@@ -353,6 +378,12 @@ negativeUnificationErrorNameString = defaultErrorNameString
 
 notAHaskellTypeErrorNameString :: NotAHaskellType_ -> String
 notAHaskellTypeErrorNameString = defaultErrorNameString
+
+notAValidLetBindingString :: NotAValidLetBinding -> String
+notAValidLetBindingString = show
+
+notAValidLetExpressionString :: NotAValidLetExpression -> String
+notAValidLetExpressionString = show
 
 notAllowedInDotPatternsString :: NotAllowedInDotPatterns -> String
 notAllowedInDotPatternsString = show
@@ -375,8 +406,34 @@ helpErrors = unlines $ concat
   , sort $ map errorNameString [minBound..maxBound]
   ]
 
+-- * Print error messages
+------------------------------------------------------------------------
+
+verbalizeNotAValidLetBinding :: NotAValidLetBinding -> String
+verbalizeNotAValidLetBinding = \case
+  AbstractNotAllowed     -> "`abstract` not allowed in let bindings"
+  MacrosNotAllowed       -> "Macros cannot be defined in let bindings"
+  MissingRHS             -> "Missing right hand side in let binding"
+  NotAValidLetPattern    -> "Not a valid let pattern"
+  WhereClausesNotAllowed -> "`where` clauses not allowed in let bindings"
+  -- These cannot be triggered:
+  -- CopatternsNotAllowed   -> "Copatterns not allowed in let bindings"
+  -- EllipsisNotAllowed     -> "`...` not allowed in let bindings"
+  -- WithPatternsNotAllowed -> "`with` patterns not allowed in let bindings"
+
+verbalizeNotAValidLetExpression :: NotAValidLetExpression -> String
+verbalizeNotAValidLetExpression = \case
+  MissingBody -> "Missing body in let-expression"
+
 -- Instances
 ------------------------------------------------------------------------
 
+deriving via (FiniteEnumeration (Maybe a))
+  instance (Bounded a, Enum a) => Enum (Maybe a)
+deriving via (FiniteEnumeration (Maybe a))
+  instance (Bounded a, Enum a) => Bounded (Maybe a)
+
 instance NFData ErasedDatatypeReason
 instance NFData NotAllowedInDotPatterns
+instance NFData NotAValidLetBinding
+instance NFData NotAValidLetExpression

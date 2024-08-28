@@ -1,4 +1,4 @@
-Issue4586WhereInLet.agda:6,15-28: error: [GenericError]
+Issue4586WhereInLet.agda:6,15-28: error: [NotAValidLetBinding.WhereClausesNotAllowed]
 'where' clauses not allowed in let bindings
 when scope checking
 let x = Set

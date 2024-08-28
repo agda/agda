@@ -128,7 +128,7 @@ nothingAppliedToHiddenArg = locatedTypeError NothingAppliedToHiddenArg
 nothingAppliedToInstanceArg :: (HasCallStack, MonadTCError m) => C.Expr -> m a
 nothingAppliedToInstanceArg = locatedTypeError NothingAppliedToInstanceArg
 
-notAValidLetBinding :: (HasCallStack, MonadTCError m) => C.NiceDeclaration -> m a
+notAValidLetBinding :: (HasCallStack, MonadTCError m) => Maybe NotAValidLetBinding -> m a
 notAValidLetBinding = locatedTypeError NotAValidLetBinding
 
 {--------------------------------------------------------------------------
@@ -952,7 +952,7 @@ instance ToAbstract C.Expr where
           e <- toAbstractCtx TopCtx e
           let info = ExprRange (getRange e0)
           return $ A.mkLet info ds' e
-      C.Let _ _ Nothing -> genericError "Missing body in let-expression"
+      C.Let _ _ Nothing -> typeError $ NotAValidLetExpression MissingBody
 
   -- Record construction
       C.Rec r fs  -> do
@@ -1424,10 +1424,10 @@ instance ToAbstract LetDef where
   toAbstract (LetDef d) =
     case d of
       NiceMutual _ _ _ _ d@[C.FunSig _ _ _ instanc macro info _ _ x t, C.FunDef _ _ abstract _ _ _ _ [cl]] ->
-          do  when (abstract == AbstractDef) $ do
-                genericError $ "`abstract` not allowed in let expressions"
-              when (macro == MacroDef) $ do
-                genericError $ "Macros cannot be defined in a let expression"
+          do  when (abstract == AbstractDef) do
+                notAValidLetBinding $ Just AbstractNotAllowed
+              when (macro == MacroDef) do
+                notAValidLetBinding $ Just MacrosNotAllowed
               t <- toAbstract t
               -- We bind the name here to make sure it's in scope for the LHS (#917).
               -- It's unbound for the RHS in letToAbstract.
@@ -1520,7 +1520,7 @@ instance ToAbstract LetDef where
         singleton <$> checkModuleMacro LetApply LetOpenModule r
                         privateAccessInserted erased x modapp open dir
 
-      _   -> notAValidLetBinding d
+      _   -> notAValidLetBinding Nothing
     where
         letToAbstract (C.Clause top _catchall (C.LHS p [] []) rhs0 wh []) = do
             noWhereInLetBinding wh
@@ -1529,9 +1529,9 @@ instance ToAbstract LetDef where
               res <- setCurrentRange p $ parseLHS (C.QName top) p
               case res of
                 C.LHSHead x args -> return (x, args)
-                C.LHSProj{} -> genericError $ "Copatterns not allowed in let bindings"
-                C.LHSWith{} -> genericError $ "`with` patterns not allowed in let bindings"
-                C.LHSEllipsis{} -> genericError "`...` not allowed in let bindings"
+                C.LHSProj{}      -> __IMPOSSIBLE__  -- notAValidLetBinding $ Just CopatternsNotAllowed
+                C.LHSWith{}      -> __IMPOSSIBLE__  -- notAValidLetBinding $ Just WithPatternsNotAllowed
+                C.LHSEllipsis{}  -> __IMPOSSIBLE__  -- notAValidLetBinding $ Just EllipsisNotAllowed
 
             e <- localToAbstract args $ \args -> do
                 bindVarsToBind
@@ -1539,7 +1539,7 @@ instance ToAbstract LetDef where
                 rhs <- unbindVariable top $ toAbstract rhs
                 foldM lambda rhs (reverse args)  -- just reverse because these are DomainFree
             return (x, e)
-        letToAbstract _ = notAValidLetBinding d
+        letToAbstract _ = notAValidLetBinding Nothing
 
         -- Named patterns not allowed in let definitions
         lambda e (Arg info (Named Nothing (A.VarP x))) =
@@ -1549,16 +1549,16 @@ instance ToAbstract LetDef where
             do  x <- freshNoName (getRange i)
                 return $ A.Lam i' (A.mkDomainFree $ unnamedArg info $ A.mkBinder_ x) e
             where i' = ExprRange (fuseRange i e)
-        lambda _ _ = notAValidLetBinding d
+        lambda _ _ = notAValidLetBinding Nothing
 
         noWhereInLetBinding :: C.WhereClause -> ScopeM ()
         noWhereInLetBinding = \case
           NoWhere -> return ()
-          wh -> setCurrentRange wh $ genericError $ "`where` clauses not allowed in let bindings"
+          wh -> setCurrentRange wh $ notAValidLetBinding $ Just WhereClausesNotAllowed
         letBindingMustHaveRHS :: C.RHS -> ScopeM C.Expr
         letBindingMustHaveRHS = \case
           C.RHS e -> return e
-          C.AbsurdRHS -> genericError $ "Missing right hand side in let binding"
+          C.AbsurdRHS -> notAValidLetBinding $ Just MissingRHS
 
         -- Only record patterns allowed, but we do not exclude data constructors here.
         -- They will fail in the type checker.
@@ -1579,7 +1579,7 @@ instance ToAbstract LetDef where
             A.WithP{}            -> no
           where
           yes = return ()
-          no  = genericError "Not a valid let pattern"
+          no  = notAValidLetBinding $ Just NotAValidLetPattern
 
 
 instance ToAbstract NiceDeclaration where

@@ -105,7 +105,12 @@ import Agda.Compiler.Backend.Base
 
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Errors as ErrorName
-import Agda.Interaction.Options.Errors as X ( ErasedDatatypeReason(..), NotAllowedInDotPatterns(..) )
+import Agda.Interaction.Options.Errors as X
+  ( ErasedDatatypeReason(..)
+  , NotAValidLetBinding(..)
+  , NotAValidLetExpression(..)
+  , NotAllowedInDotPatterns(..)
+  )
 import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Response.Base (Response_boot(..))
 import Agda.Interaction.Highlighting.Precise
@@ -4947,7 +4952,8 @@ data TypeError
         | MultiplePolarityPragmas [C.Name]
     -- Concrete to Abstract errors
         | NotAnExpression C.Expr
-        | NotAValidLetBinding NiceDeclaration
+        | NotAValidLetBinding (Maybe NotAValidLetBinding)
+        | NotAValidLetExpression NotAValidLetExpression
         | NotValidBeforeField NiceDeclaration
         | NothingAppliedToHiddenArg C.Expr
         | NothingAppliedToInstanceArg C.Expr

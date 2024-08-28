@@ -1,5 +1,5 @@
 NotAValidLetBinding.agda:8,11-10,25: error: [NotAValidLetBinding]
-Not a valid let-declaration
+Not a valid let binding
 when scope checking
 let pred : N → N
     pred z = z
