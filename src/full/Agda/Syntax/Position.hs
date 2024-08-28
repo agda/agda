@@ -14,10 +14,10 @@ module Agda.Syntax.Position
   , mkRangeFile
   , positionInvariant
   , startPos
+  , startPos'
   , movePos
   , movePosByString
   , backupPos
-  , startPos'
 
     -- * Intervals
   , Interval
@@ -37,6 +37,7 @@ module Agda.Syntax.Position
   , consecutiveAndSeparated
   , intervalsToRange
   , intervalToRange
+  , rangeFromAbsolutePath
   , rangeIntervals
   , rangeFile
   , rangeModule'
@@ -513,6 +514,13 @@ startPos' f = Pn
 -- | The first position in a file: position 1, line 1, column 1.
 startPos :: Maybe RangeFile -> Position
 startPos = startPos' . Strict.toStrict
+
+-- | Range pointing to the first position in the given file.
+rangeFromAbsolutePath :: AbsolutePath -> Range
+rangeFromAbsolutePath f = posToRange' src p0 p0
+  where
+    src = Strict.Just $ mkRangeFile f Nothing
+    p0  = startPos' ()
 
 -- | Ranges between two unknown positions
 noRange :: Range' a

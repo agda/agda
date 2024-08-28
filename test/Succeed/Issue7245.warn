@@ -1,47 +1,287 @@
-Issue7245.agda:5,1-36
-warning: -W[no]UselessPragma
+Issue7245.agda:1,1-37: warning: -W[no]PragmaExpectsDefinedSymbol
+Target of ETA pragma should be a defined symbol
+when scope checking the declaration
+  {-# ETA Set1 #-}
+
+Issue7245.agda:2,1-37: warning: -W[no]PragmaExpectsUnambiguousProjectionOrFunction
+Target of INJECTIVE pragma should be a function or projection
+when scope checking the declaration
+  {-# INJECTIVE Set1 #-}
+
+Issue7245.agda:3,1-37: warning: -W[no]PragmaExpectsDefinedSymbol
+Target of INJECTIVE_FOR_INFERENCE pragma should be a defined symbol
+when scope checking the declaration
+  {-# INJECTIVE_FOR_INFERENCE Set1 #-}
+
+Issue7245.agda:4,1-37: warning: -W[no]PragmaExpectsUnambiguousProjectionOrFunction
+Target of STATIC pragma should be a function or projection
+when scope checking the declaration
+  {-# STATIC Set1 #-}
+
+Issue7245.agda:5,1-37: warning: -W[no]PragmaExpectsUnambiguousProjectionOrFunction
+Target of NOT_PROJECTION_LIKE pragma should be a function or projection
+when scope checking the declaration
+  {-# NOT_PROJECTION_LIKE Set1 #-}
+
+Issue7245.agda:6,1-37: warning: -W[no]UselessPragma
+Target of INLINE pragma should be a function or constructor
+when scope checking the declaration
+  {-# INLINE Set1 #-}
+
+Issue7245.agda:7,1-37: warning: -W[no]UselessPragma
+Target of NOINLINE pragma should be a function or constructor
+when scope checking the declaration
+  {-# NOINLINE Set1 #-}
+
+Issue7245.agda:26,1-34: warning: -W[no]PragmaExpectsDefinedSymbol
+Target of ETA pragma should be a defined symbol
+when scope checking the declaration
+  {-# ETA f #-}
+
+Issue7245.agda:27,1-34: warning: -W[no]PragmaExpectsUnambiguousProjectionOrFunction
+Target of INJECTIVE pragma should be unambiguous, but it resolves to: Issue7245.R.f | Issue7245.S.f
+when scope checking the declaration
+  {-# INJECTIVE f #-}
+
+Issue7245.agda:28,1-34: warning: -W[no]PragmaExpectsDefinedSymbol
+Target of INJECTIVE_FOR_INFERENCE pragma should be a defined symbol
+when scope checking the declaration
+  {-# INJECTIVE_FOR_INFERENCE f #-}
+
+Issue7245.agda:29,1-34: warning: -W[no]PragmaExpectsUnambiguousProjectionOrFunction
+Target of STATIC pragma should be unambiguous, but it resolves to: Issue7245.R.f | Issue7245.S.f
+when scope checking the declaration
+  {-# STATIC f #-}
+
+Issue7245.agda:30,1-34: warning: -W[no]PragmaExpectsUnambiguousProjectionOrFunction
+Target of NOT_PROJECTION_LIKE pragma should be unambiguous, but it resolves to: Issue7245.R.f | Issue7245.S.f
+when scope checking the declaration
+  {-# NOT_PROJECTION_LIKE f #-}
+
+Issue7245.agda:31,1-34: warning: -W[no]UselessPragma
+INLINE used on ambiguous name f
+when scope checking the declaration
+  {-# INLINE f #-}
+
+Issue7245.agda:32,1-34: warning: -W[no]UselessPragma
+NOINLINE used on ambiguous name f
+when scope checking the declaration
+  {-# NOINLINE f #-}
+
+Issue7245.agda:34,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:34,29-41
+when scope checking the declaration
+  {-# ETA not-in-scope #-}
+
+Issue7245.agda:35,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:35,29-41
+when scope checking the declaration
+  {-# INJECTIVE not-in-scope #-}
+
+Issue7245.agda:36,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:36,29-41
+when scope checking the declaration
+  {-# INJECTIVE_FOR_INFERENCE not-in-scope #-}
+
+Issue7245.agda:37,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:37,29-41
+when scope checking the declaration
+  {-# STATIC not-in-scope #-}
+
+Issue7245.agda:38,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:38,29-41
+when scope checking the declaration
+  {-# NOT_PROJECTION_LIKE not-in-scope #-}
+
+Issue7245.agda:39,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:39,29-41
+when scope checking the declaration
+  {-# INLINE not-in-scope #-}
+
+Issue7245.agda:40,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:40,29-41
+when scope checking the declaration
+  {-# NOINLINE not-in-scope #-}
+
+Issue7245.agda:12,1-36: warning: -W[no]UselessPragma
+ETA pragma is only applicable to coinductive records
+when checking the pragma ETA foo
+
+Issue7245.agda:14,1-36: warning: -W[no]UselessPragma
 INJECTIVE_FOR_INFERENCE directive only applies to functions
 when checking the pragma INJECTIVE_FOR_INFERENCE foo
-Issue7245.agda:6,1-19
-warning: -W[no]UselessPragma
+
+Issue7245.agda:15,1-36: warning: -W[no]UselessPragma
 STATIC directive only applies to functions
 when checking the pragma STATIC foo
-Issue7245.agda:7,1-32
-warning: -W[no]UselessPragma
+
+Issue7245.agda:16,1-36: warning: -W[no]UselessPragma
 NOT_PROJECTION_LIKE directive only applies to functions
 when checking the pragma NOT_PROJECTION_LIKE foo
-Issue7245.agda:8,1-19
-warning: -W[no]UselessPragma
+
+Issue7245.agda:17,1-36: warning: -W[no]UselessPragma
 INLINE directive only works on functions or constructors of records that allow copattern matching
 when checking the pragma INLINE foo
-Issue7245.agda:9,1-21
-warning: -W[no]UselessPragma
+
+Issue7245.agda:18,1-36: warning: -W[no]UselessPragma
 NOINLINE directive only works on functions or constructors of records that allow copattern matching
 when checking the pragma NOINLINE foo
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue7245.agda:5,1-36
-warning: -W[no]UselessPragma
+Issue7245.agda:1,1-37: warning: -W[no]PragmaExpectsDefinedSymbol
+Target of ETA pragma should be a defined symbol
+when scope checking the declaration
+  {-# ETA Set1 #-}
+
+Issue7245.agda:2,1-37: warning: -W[no]PragmaExpectsUnambiguousProjectionOrFunction
+Target of INJECTIVE pragma should be a function or projection
+when scope checking the declaration
+  {-# INJECTIVE Set1 #-}
+
+Issue7245.agda:3,1-37: warning: -W[no]PragmaExpectsDefinedSymbol
+Target of INJECTIVE_FOR_INFERENCE pragma should be a defined symbol
+when scope checking the declaration
+  {-# INJECTIVE_FOR_INFERENCE Set1 #-}
+
+Issue7245.agda:4,1-37: warning: -W[no]PragmaExpectsUnambiguousProjectionOrFunction
+Target of STATIC pragma should be a function or projection
+when scope checking the declaration
+  {-# STATIC Set1 #-}
+
+Issue7245.agda:5,1-37: warning: -W[no]PragmaExpectsUnambiguousProjectionOrFunction
+Target of NOT_PROJECTION_LIKE pragma should be a function or projection
+when scope checking the declaration
+  {-# NOT_PROJECTION_LIKE Set1 #-}
+
+Issue7245.agda:6,1-37: warning: -W[no]UselessPragma
+Target of INLINE pragma should be a function or constructor
+when scope checking the declaration
+  {-# INLINE Set1 #-}
+
+Issue7245.agda:7,1-37: warning: -W[no]UselessPragma
+Target of NOINLINE pragma should be a function or constructor
+when scope checking the declaration
+  {-# NOINLINE Set1 #-}
+
+Issue7245.agda:26,1-34: warning: -W[no]PragmaExpectsDefinedSymbol
+Target of ETA pragma should be a defined symbol
+when scope checking the declaration
+  {-# ETA f #-}
+
+Issue7245.agda:27,1-34: warning: -W[no]PragmaExpectsUnambiguousProjectionOrFunction
+Target of INJECTIVE pragma should be unambiguous, but it resolves to: Issue7245.R.f | Issue7245.S.f
+when scope checking the declaration
+  {-# INJECTIVE f #-}
+
+Issue7245.agda:28,1-34: warning: -W[no]PragmaExpectsDefinedSymbol
+Target of INJECTIVE_FOR_INFERENCE pragma should be a defined symbol
+when scope checking the declaration
+  {-# INJECTIVE_FOR_INFERENCE f #-}
+
+Issue7245.agda:29,1-34: warning: -W[no]PragmaExpectsUnambiguousProjectionOrFunction
+Target of STATIC pragma should be unambiguous, but it resolves to: Issue7245.R.f | Issue7245.S.f
+when scope checking the declaration
+  {-# STATIC f #-}
+
+Issue7245.agda:30,1-34: warning: -W[no]PragmaExpectsUnambiguousProjectionOrFunction
+Target of NOT_PROJECTION_LIKE pragma should be unambiguous, but it resolves to: Issue7245.R.f | Issue7245.S.f
+when scope checking the declaration
+  {-# NOT_PROJECTION_LIKE f #-}
+
+Issue7245.agda:31,1-34: warning: -W[no]UselessPragma
+INLINE used on ambiguous name f
+when scope checking the declaration
+  {-# INLINE f #-}
+
+Issue7245.agda:32,1-34: warning: -W[no]UselessPragma
+NOINLINE used on ambiguous name f
+when scope checking the declaration
+  {-# NOINLINE f #-}
+
+Issue7245.agda:34,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:34,29-41
+when scope checking the declaration
+  {-# ETA not-in-scope #-}
+
+Issue7245.agda:35,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:35,29-41
+when scope checking the declaration
+  {-# INJECTIVE not-in-scope #-}
+
+Issue7245.agda:36,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:36,29-41
+when scope checking the declaration
+  {-# INJECTIVE_FOR_INFERENCE not-in-scope #-}
+
+Issue7245.agda:37,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:37,29-41
+when scope checking the declaration
+  {-# STATIC not-in-scope #-}
+
+Issue7245.agda:38,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:38,29-41
+when scope checking the declaration
+  {-# NOT_PROJECTION_LIKE not-in-scope #-}
+
+Issue7245.agda:39,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:39,29-41
+when scope checking the declaration
+  {-# INLINE not-in-scope #-}
+
+Issue7245.agda:40,1-45: warning: -W[no]NotInScope
+Not in scope:
+  not-in-scope
+  at Issue7245.agda:40,29-41
+when scope checking the declaration
+  {-# NOINLINE not-in-scope #-}
+
+Issue7245.agda:12,1-36: warning: -W[no]UselessPragma
+ETA pragma is only applicable to coinductive records
+when checking the pragma ETA foo
+
+Issue7245.agda:14,1-36: warning: -W[no]UselessPragma
 INJECTIVE_FOR_INFERENCE directive only applies to functions
 when checking the pragma INJECTIVE_FOR_INFERENCE foo
 
-Issue7245.agda:6,1-19
-warning: -W[no]UselessPragma
+Issue7245.agda:15,1-36: warning: -W[no]UselessPragma
 STATIC directive only applies to functions
 when checking the pragma STATIC foo
 
-Issue7245.agda:7,1-32
-warning: -W[no]UselessPragma
+Issue7245.agda:16,1-36: warning: -W[no]UselessPragma
 NOT_PROJECTION_LIKE directive only applies to functions
 when checking the pragma NOT_PROJECTION_LIKE foo
 
-Issue7245.agda:8,1-19
-warning: -W[no]UselessPragma
+Issue7245.agda:17,1-36: warning: -W[no]UselessPragma
 INLINE directive only works on functions or constructors of records that allow copattern matching
 when checking the pragma INLINE foo
 
-Issue7245.agda:9,1-21
-warning: -W[no]UselessPragma
+Issue7245.agda:18,1-36: warning: -W[no]UselessPragma
 NOINLINE directive only works on functions or constructors of records that allow copattern matching
 when checking the pragma NOINLINE foo

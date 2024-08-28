@@ -1,13 +1,11 @@
-PublicWithoutOpen.agda:5,14-20
-warning: -W[no]UselessPublic
+PublicWithoutOpen.agda:5,14-20: warning: -W[no]UselessPublic
 Keyword 'public' is ignored here
 when scope checking the declaration
   module B = A public
 
 ———— All done; warnings encountered ————————————————————————
 
-PublicWithoutOpen.agda:5,14-20
-warning: -W[no]UselessPublic
+PublicWithoutOpen.agda:5,14-20: warning: -W[no]UselessPublic
 Keyword 'public' is ignored here
 when scope checking the declaration
   module B = A public

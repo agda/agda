@@ -1,4 +1,2 @@
-Issue3285.agda:7,14-14
-Issue3285.agda:7,14: Malformed syntax declaration: syntax cannot be a single hole
-<EOF><ERROR>
-...
+Issue3285.agda:7,14: error: [ParseError]
+Malformed syntax declaration: syntax cannot be a single hole

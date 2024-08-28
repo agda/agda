@@ -1,4 +1,4 @@
-HoTTCompatibleWithSizeBasedTerminationMaximeDenes.agda:42,1-51,37
+HoTTCompatibleWithSizeBasedTerminationMaximeDenes.agda:42,1-51,37: error: [TerminationIssue]
 Termination checking failed for the following functions:
   loop, loop'
 Problematic calls:

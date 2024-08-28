@@ -59,7 +59,7 @@ import Agda.TypeChecking.Primitive.Cubical.Id
 
 primPOr :: TCM PrimitiveImpl
 primPOr = do
-  requireCubical CErased ""
+  requireCubical CErased
   t    <- runNamesT [] $
           hPi' "a" (els (pure LevelUniv) (cl primLevel))    $ \ a  ->
           nPi' "i" primIntervalType $ \ i  ->
@@ -89,7 +89,7 @@ primPOr = do
 
 primPartial' :: TCM PrimitiveImpl
 primPartial' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- runNamesT [] $
        hPi' "a" (els (pure LevelUniv) (cl primLevel)) (\ a ->
         nPi' "φ" primIntervalType $ \ _ ->
@@ -105,7 +105,7 @@ primPartial' = do
 
 primPartialP' :: TCM PrimitiveImpl
 primPartialP' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- runNamesT [] $
        hPi' "a" (els (pure LevelUniv) (cl primLevel)) (\ a ->
         nPi' "φ" primIntervalType $ \ phi ->
@@ -120,7 +120,7 @@ primPartialP' = do
 
 primSubOut' :: TCM PrimitiveImpl
 primSubOut' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t    <- runNamesT [] $
           hPi' "a" (els (pure LevelUniv) (cl primLevel)) $ \ a ->
           hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
@@ -144,7 +144,7 @@ primSubOut' = do
 
 primTrans' :: TCM PrimitiveImpl
 primTrans' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t    <- runNamesT [] $
           hPi' "a" (primIntervalType --> els (pure LevelUniv) (cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
@@ -155,7 +155,7 @@ primTrans' = do
 
 primHComp' :: TCM PrimitiveImpl
 primHComp' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t    <- runNamesT [] $
           hPi' "a" (els (pure LevelUniv) (cl primLevel)) $ \ a ->
           hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -251,7 +251,8 @@ doPiKanOp cmd t ab = do
         -- We're looking at a fibrant Pi with fibrant domain: Transport
         -- backwards along the domain.
         Type lx -> do
-          [la, bA] <- mapM (open . f) [Level lx, unEl . unDom $ x]
+          la <- open . f $ Level lx
+          bA <- open . f . unEl . unDom $ x
           pure $ Just $ \iOrNot phi a0 ->
             pure tTrans <#> lam "j" (\j -> la <@> iOrNot j)
               <@> lam "j" (\ j -> bA <@> iOrNot j)
@@ -274,7 +275,8 @@ doPiKanOp cmd t ab = do
         _ -> return Nothing
 
     caseMaybe trFibrantDomain (return Nothing) $ \trA -> Just <$> do
-    [phi, u0] <- mapM (open . unArg) [ignoreBlocking (kanOpCofib cmd), kanOpBase cmd]
+    phi <- open . unArg $ ignoreBlocking $ kanOpCofib cmd
+    u0  <- open . unArg $ kanOpBase cmd
 
     glam (getArgInfo (fst $ famThing ab)) (absName $ snd $ famThing ab) $ \u1 -> do
       case (cmd, ab) of
@@ -329,7 +331,13 @@ doPathPKanOp (HCompOp phi u u0) (IsNot l) (IsNot (bA,x,y)) = do
   tHComp <- getTermLocal builtinHComp
 
   redReturn <=< runNamesT [] $ do
-    [l, u, u0, phi, bA, x, y] <- mapM (open . unArg) [l, u, u0, ignoreBlocking phi, bA, x, y]
+    l   <- open . unArg $ l
+    u   <- open . unArg $ u
+    u0  <- open . unArg $ u0
+    phi <- open . unArg $ ignoreBlocking phi
+    bA  <- open . unArg $ bA
+    x   <- open . unArg $ x
+    y   <- open . unArg $ y
 
     -- hcomp in path spaces is simply hcomp in the underlying space, but
     -- fixing the endpoints at (j ∨ ~ j) in the new direction to those
@@ -370,8 +378,13 @@ doPathPKanOp (TranspOp phi u0) (IsFam l) (IsFam (bA,x,y)) = do
     -- In reality to avoid a round-trip between primComp we use mkComp
     -- here.
     comp <- mkComp $ "transport for path types"
-    [l, u0, phi] <- traverse (open . unArg) [l, u0, ignoreBlocking phi]
-    [bA, x, y] <- mapM (\ a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [bA, x, y]
+    l   <- open . unArg $ l
+    u0  <- open . unArg $ u0
+    phi <- open . unArg $ ignoreBlocking phi
+    let lami = open . runNames [] . lam "i" . const . pure . unArg
+    bA  <- lami bA
+    x   <- lami x
+    y   <- lami y
     -- Γ ⊢ bA : (i : I) → Type (l i)
     -- Γ ⊢ x, y : (i : I) → bA i
 
@@ -428,7 +441,8 @@ primTransHComp cmd ts nelims = do
             -- regardless of how big the original term is, and
             -- isOneEmpty is *tiny*, so let's use that:
             IZero -> fmap (reduced . notBlocked . argN) . runNamesT [] $ do
-                [l,c] <- mapM (open . unArg) [famThing l, ignoreBlocking sc]
+                l <- open . unArg . famThing $ l
+                c <- open . unArg . ignoreBlocking $ sc
                 lam "i" $ \ i -> clP builtinIsOneEmpty <#> l <#> ilam "o" (\ _ -> c)
 
             -- Otherwise we have some interesting formula (though
@@ -568,7 +582,7 @@ primTransHComp cmd ts nelims = do
     allComponentsBack unview phi u p = do
             let
               boolToI b = if b then unview IOne else unview IZero
-              lamlam t = Lam defaultArgInfo (Abs "i" (Lam (setRelevance Irrelevant defaultArgInfo) (Abs "o" t)))
+              lamlam t = Lam defaultArgInfo (Abs "i" (Lam defaultIrrelevantArgInfo (Abs "o" t)))
             as <- decomposeInterval phi
             (flags,t_alphas) <- fmap unzip . forM as $ \ (bs,ts) -> do
                  let u' = listS bs' `applySubst` u
@@ -618,7 +632,8 @@ primTransHComp cmd ts nelims = do
             where
               su' = case view phi of
                      IZero -> notBlocked $ argN $ runNames [] $ do
-                                 [l,c] <- mapM (open . unArg) [l,ignoreBlocking sc]
+                                 l <- open . unArg $ l
+                                 c <- open . unArg . ignoreBlocking $ sc
                                  lam "i" $ \ i -> pure tEmpty <#> l
                                                               <#> ilam "o" (\ _ -> c)
                      _     -> su
@@ -640,7 +655,8 @@ primTransHComp cmd ts nelims = do
                             foldr (iMin . (\(i,b) -> applyUnless b iNeg $ var i)) iO (IntMap.toList m)
               runNamesT [] $ do
                 u <- open u
-                [l,c] <- mapM (open . unArg) [l,ignoreBlocking sc]
+                l <- open . unArg $ l
+                c <- open . unArg $ ignoreBlocking sc
                 phis <- mapM open phis
                 us   <- mapM (open . ignoreBlocking) us
                 lam "i" $ \ i -> do
@@ -695,7 +711,12 @@ primTransHComp cmd ts nelims = do
            io <- getTermLocal builtinIOne
            iz <- getTermLocal builtinIZero
            redReturn <=< runNamesT [] $ do
-             [l,bC,phi,psi,u,u0] <- mapM (open . unArg) [l,bC,ignoreBlocking sphi,psi,u,u0]
+             l   <- open . unArg $ l
+             bC  <- open . unArg $ bC
+             phi <- open . unArg $ ignoreBlocking sphi
+             psi <- open . unArg $ psi
+             u   <- open . unArg $ u
+             u0  <- open . unArg $ u0
              -- hcomp (sc 1) [psi |-> transp sc phi u] (transp sc phi u0)
              pure hcomp <#> (l <@> pure io) <#> (bC <@> pure io) <#> psi
                    <@> lam "j" (\ j -> ilam "o" $ \ o ->
@@ -723,7 +744,7 @@ primTransHComp cmd ts nelims = do
 -- The definition of it comes from 'mkComp'.
 primComp :: TCM PrimitiveImpl
 primComp = do
-  requireCubical CErased ""
+  requireCubical CErased
   t    <- runNamesT [] $
           hPi' "a" (primIntervalType --> els (pure LevelUniv) (cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
@@ -745,7 +766,11 @@ primComp = do
           _    -> do
             redReturnNoSimpl <=< runNamesT [] $ do
               comp <- mkComp (getBuiltinId PrimComp)
-              [l,c,phi,u,a0] <- mapM (open . unArg) [l,c,phi,u,a0]
+              l   <- open . unArg $ l
+              c   <- open . unArg $ c
+              phi <- open . unArg $ phi
+              u   <- open . unArg $ u
+              a0  <- open . unArg $ a0
               comp l c phi u a0
 
       _ -> __IMPOSSIBLE__
@@ -754,7 +779,7 @@ primComp = do
 -- TODO Andrea: keep reductions that happen under foralls?
 primFaceForall' :: TCM PrimitiveImpl
 primFaceForall' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- (primIntervalType --> primIntervalType) --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \case
     [phi] -> do
@@ -959,7 +984,8 @@ transpSysTel' flag delta us phi args = do
         t <- open $ Abs "i" (unDom t)
         u <- forM u $ \ (psi,upsi) -> do
               (,) <$> open psi <*> open (Abs "i" upsi)
-        [phi,a] <- mapM open [phi, unArg a]
+        phi <- open phi
+        a   <- open $ unArg a
         b <- gTransp l t u phi a
         bf <- bind "i" $ \ i -> do
                             gTransp ((<$> l) $ \ l -> lam "j" $ \ j -> l <@> (pure imin <@> i <@> j))
@@ -1049,8 +1075,10 @@ pathTelescope' tel lhs rhs = do
     (ExtendTel (a' <$ a) <$>) . runNamesT [] $ do
       let nm = (absName tel)
       tel <- open $ Abs "i" tel
-      [u,v] <- mapM (open . unArg) [u,v]
-      [lhs,rhs] <- mapM open [lhs,rhs]
+      u   <- open $ unArg u
+      v   <- open $ unArg v
+      lhs <- open lhs
+      rhs <- open rhs
       bind nm $ \ eq -> do
         lhs <- lhs
         rhs <- rhs
@@ -1243,8 +1271,7 @@ instance Subst CType where
   applySubst rho (ClosedType s q) = ClosedType (applySubst rho s) q
   applySubst rho (LType t) = LType $ applySubst rho t
 
-hcomp
-  :: (HasBuiltins m, MonadError TCErr m, MonadReduce m, MonadPretty m)
+hcomp :: (HasBuiltins m, MonadError TCErr m, MonadReduce m, MonadPretty m)
   => NamesT m Type
   -> [(NamesT m Term, NamesT m Term)]
   -> NamesT m Term
@@ -1256,9 +1283,8 @@ hcomp ty sys u0 = do
   ty <- ty
   (l, ty) <- toLType ty >>= \case
     Just (LEl l ty) -> return (l, ty)
-    Nothing -> lift $ do -- TODO: support Setω properly
-      typeError . GenericDocError =<< sep
-        [ text "Cubical Agda: cannot generate hcomp clauses at type", prettyTCM ty ]
+    Nothing -> -- TODO: support Setω properly
+      typeError $ CannotGenerateHCompClause ty
   l <- open $ Level l
   ty <- open $ ty
   face <- (foldr max (pure iz) $ map fst $ sys)

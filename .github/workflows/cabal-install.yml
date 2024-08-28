@@ -23,6 +23,7 @@ jobs:
   cabal-install:
     env:
       FLAGS: -O0 -f enable-cluster-counting
+    name: cabal install ${{ matrix.name }}
     needs: auto-cancel
     runs-on: ubuntu-24.04
     steps:
@@ -32,7 +33,7 @@ jobs:
       with:
         cabal-update: true
         cabal-version: latest
-        ghc-version: '9.8'
+        ghc-version: '9.10'
     - name: Configure the build plan
       run: |
         cabal configure ${FLAGS}
@@ -52,13 +53,35 @@ jobs:
         cabal build --only-dependencies
     - name: Install Agda
       run: |
-        cabal install ${FLAGS}
+        cabal install ${FLAGS} ${{ matrix.install_flags }}
+    - if: matrix.name != '--lib'
+      name: Debug
+      run: |
+        echo "PATH = ${PATH}"
+        ls -l ~/.cabal/bin
+        tree -L 3 ~/.cabal/store
+    - if: matrix.name != '--lib'
+      name: Check for Agda library interface files
+      run: |
+        AGDA_VERSION=$(agda --numeric-version)
+        AGDA_DATA_DIR=$(agda --print-agda-data-dir)
+        echo "AGDA_VERSION  = ${AGDA_VERSION}"
+        echo "AGDA_DATA_DIR = ${AGDA_DATA_DIR}"
+        ls -l "${AGDA_DATA_DIR}/lib/prim/_build/${AGDA_VERSION}/agda/Agda/Primitive.agdai"
     - if: always() && steps.cache.outputs.cache-hit != 'true'
       name: Save cache
       uses: actions/cache/save@v4
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
         path: ${{ steps.setup-haskell.outputs.cabal-store }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - install_flags: ''
+          name: ''
+        - install_flags: --lib
+          name: --lib
     timeout-minutes: 60
 name: Install (v2-cabal)
 'on':

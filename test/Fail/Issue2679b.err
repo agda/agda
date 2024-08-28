@@ -1,8 +1,9 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Check definition of boo : (a : A) (b : B a) →
                             C a (_17 (a = a) (b = b)) → Set
     stuck because
-      Issue2679b.agda:19,10-20
+      Issue2679b.agda:19,10-20: error: [SplitError.UnificationStuck]
       I'm not sure if there should be a case for the constructor conC,
       because I get stuck when trying to solve the following unification
       problems (inferred index ≟ expected index):
@@ -10,5 +11,6 @@ Failed to solve the following constraints:
       when checking that the pattern conC tl tr has type
       C a (_17 (a = a) (b = b))
     (blocked on _17)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2679b.agda:18,34-35

@@ -1,5 +1,4 @@
-ModuleDoesntExport.agda:6,8-45
-warning: -W[no]ModuleDoesntExport
+ModuleDoesntExport.agda:6,8-45: warning: -W[no]ModuleDoesntExport
 The module A doesn't export the following:
   B
   D
@@ -9,8 +8,7 @@ when scope checking the declaration
 
 ———— All done; warnings encountered ————————————————————————
 
-ModuleDoesntExport.agda:6,8-45
-warning: -W[no]ModuleDoesntExport
+ModuleDoesntExport.agda:6,8-45: warning: -W[no]ModuleDoesntExport
 The module A doesn't export the following:
   B
   D

@@ -1,7 +1,7 @@
 AGDA_FAILURE
 
 ret > ExitFailure 42
-out > Issue4251.agda:18,1-42,8
+out > Issue4251.agda:18,1-42,8: error: [NotStrictlyPositive]
 out > CoconeDep is not strictly positive, because it occurs
 out > in the first clause
 out > in the definition of s, which occurs

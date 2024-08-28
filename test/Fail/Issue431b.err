@@ -1,11 +1,12 @@
-Issue431b.agda:22,10-19
-warning: -W[no]InversionDepthReached
+Issue431b.agda:22,10-19: warning: -W[no]InversionDepthReached
 Refusing to invert pattern matching of F because the maximum depth
 (10) has been reached. Most likely this means you have an
 unsatisfiable constraint, but it could also mean that you need to
 increase the maximum depth using the flag --inversion-max-depth=N
 when checking that the expression f (suc n) has type F n
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Nat × F _n_19 =< F _n_19 : Set (blocked on _n_19)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue431b.agda:22,10-19

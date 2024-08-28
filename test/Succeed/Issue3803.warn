@@ -1,27 +1,26 @@
-Issue3803.agda:2,3-8
-warning: -W[no]EmptyField
+Issue3803.agda:2,3-8: warning: -W[no]EmptyField
 Empty field block.
 when scope checking the declaration
   record Foo where
     field
-Issue3803.agda:8,3-8
-warning: -W[no]EmptyField
+
+Issue3803.agda:8,3-8: warning: -W[no]EmptyField
 Empty field block.
 when scope checking the declaration
   record A where
     B : Set₁
     B = Set
     field
-Issue3803.agda:11,3-8
-warning: -W[no]EmptyField
+
+Issue3803.agda:11,3-8: warning: -W[no]EmptyField
 Empty field block.
 when scope checking the declaration
   record C where
     field
     B : Foo
     B = _
-Issue3803.agda:19,3-8
-warning: -W[no]EmptyField
+
+Issue3803.agda:19,3-8: warning: -W[no]EmptyField
 Empty field block.
 when scope checking the declaration
   record D where
@@ -33,15 +32,13 @@ when scope checking the declaration
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue3803.agda:2,3-8
-warning: -W[no]EmptyField
+Issue3803.agda:2,3-8: warning: -W[no]EmptyField
 Empty field block.
 when scope checking the declaration
   record Foo where
     field
 
-Issue3803.agda:8,3-8
-warning: -W[no]EmptyField
+Issue3803.agda:8,3-8: warning: -W[no]EmptyField
 Empty field block.
 when scope checking the declaration
   record A where
@@ -49,8 +46,7 @@ when scope checking the declaration
     B = Set
     field
 
-Issue3803.agda:11,3-8
-warning: -W[no]EmptyField
+Issue3803.agda:11,3-8: warning: -W[no]EmptyField
 Empty field block.
 when scope checking the declaration
   record C where
@@ -58,8 +54,7 @@ when scope checking the declaration
     B : Foo
     B = _
 
-Issue3803.agda:19,3-8
-warning: -W[no]EmptyField
+Issue3803.agda:19,3-8: warning: -W[no]EmptyField
 Empty field block.
 when scope checking the declaration
   record D where

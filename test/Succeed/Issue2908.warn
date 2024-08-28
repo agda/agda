@@ -1,3 +1,0 @@
-{ compiling Issue2908.foo
-Issue2908.foo = λ a → let b = a + a in seq b 0
-}

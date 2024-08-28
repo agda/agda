@@ -1,4 +1,4 @@
-IUnivRecord.agda:3,8-11
+IUnivRecord.agda:3,8-11: error: [SortDoesNotAdmitDataDefinitions]
 The universe IUniv of Bad
 does not admit data or record declarations
 when checking the definition of Bad

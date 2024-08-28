@@ -1,9 +1,2 @@
-Issue3962.agda:12,8-8
-Issue3962.agda:12,8: Unterminated '{-'
-{<ERROR>
-x}}
-
-C : Set
-C = ?
-
--- WAS: pa...
+Issue3962.agda:12,8: error: [ParseError]
+Unterminated '{-'

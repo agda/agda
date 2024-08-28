@@ -217,7 +217,7 @@ jobs:
         cabal-ver:
         - latest
         ghc-ver:
-        - '9.8'
+        - '9.10'
         os:
         - windows-latest
         - macos-latest
@@ -240,7 +240,7 @@ jobs:
       run: |
         gh release delete 'nightly' --repo ${GITHUB_REPOSITORY} --cleanup-tag --yes || true
         ls -R artifacts
-        gh release create 'nightly' artifacts/**/* --repo ${GITHUB_REPOSITORY} --generate-notes --notes-start-tag v2.6.4.3 --prerelease --title "${{ needs.build.outputs.sha }}@master"
+        gh release create 'nightly' artifacts/**/* --repo ${GITHUB_REPOSITORY} --generate-notes --notes-start-tag v2.7.0 --prerelease --title "${{ needs.build.outputs.sha }}@master"
     - env:
         GITHUB_TOKEN: ${{ github.token }}
       if: startsWith(github.ref, 'refs/tags/v')

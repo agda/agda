@@ -19,11 +19,9 @@ runNames [] $ do
 -}
 module Agda.TypeChecking.Names where
 
--- Control.Monad.Fail import is redundant since GHC 8.8.1
-import Control.Monad.Fail (MonadFail)
-
 import Control.Monad          ( liftM2, unless )
 import Control.Monad.Except   ( MonadError )
+import Control.Monad.Identity ( Identity, runIdentity )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader   ( MonadReader(..), ReaderT, runReaderT )
 import Control.Monad.State    ( MonadState )
@@ -43,14 +41,10 @@ import Agda.Utils.Fail (Fail, runFail_)
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import Agda.Utils.Impossible
 
-instance HasBuiltins m => HasBuiltins (NamesT m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
-
 newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
   deriving ( Functor
            , Applicative
            , Monad
-           , MonadFail
            , MonadTrans
            , MonadState s
            , MonadIO
@@ -63,6 +57,7 @@ newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
            , MonadReduce
            , MonadError e
            , MonadAddContext
+           , HasBuiltins
            , HasConstInfo
            , PureTCM
            )
@@ -74,8 +69,8 @@ type Names = [String]
 runNamesT :: Names -> NamesT m a -> m a
 runNamesT n m = runReaderT (unName m) n
 
-runNames :: Names -> NamesT Fail a -> a
-runNames n m = runFail_ (runNamesT n m)
+runNames :: Names -> NamesT Identity a -> a
+runNames n m = runIdentity (runNamesT n m)
 
 currentCxt :: Monad m => NamesT m Names
 currentCxt = NamesT ask
@@ -84,20 +79,23 @@ currentCxt = NamesT ask
 -- | @cxtSubst Γ@ returns the substitution needed to go
 --   from Γ to the current context.
 --
---   Fails if @Γ@ is not a subcontext of the current one.
-cxtSubst :: MonadFail m => Names -> NamesT m (Substitution' a)
+--   Precondition @Γ@ is not a subcontext of the current one.
+cxtSubst :: Monad m => Names -> NamesT m (Substitution' a)
 cxtSubst ctx = do
   ctx' <- currentCxt
   if (ctx `isSuffixOf` ctx')
      then return $ raiseS (length ctx' - length ctx)
-     else fail $ "out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
+     else
+      -- trace ("out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")")
+       __IMPOSSIBLE__
+
 
 {-# INLINABLE inCxt #-}
 -- | @inCxt Γ t@ takes a @t@ in context @Γ@ and produce an action that
 --   will return @t@ weakened to the current context.
 --
 --   Fails whenever @cxtSubst Γ@ would.
-inCxt :: (MonadFail m, Subst a) => Names -> a -> NamesT m a
+inCxt :: (Monad m, Subst a) => Names -> a -> NamesT m a
 inCxt ctx a = do
   sigma <- cxtSubst ctx
   return $ applySubst sigma a
@@ -111,7 +109,7 @@ cl = lift
 
 {-# INLINABLE open #-}
 -- | Open terms in the current context.
-open :: (MonadFail m, Subst a) => a -> NamesT m (NamesT m a)
+open :: (Monad m, Subst a) => a -> NamesT m (NamesT m a)
 open a = do
   ctx <- NamesT ask
   pure $ inCxt ctx a
@@ -127,12 +125,12 @@ type Var m = forall b. (Subst b, DeBruijn b) => NamesT m b
 -- | @bind n f@ provides @f@ with a fresh variable, which can be used in any extended context.
 --
 --   Returns an @Abs@ which binds the extra variable.
-bind :: MonadFail m => ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m (Abs a)
+bind :: Monad m => ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m (Abs a)
 bind n f = Abs n <$> bind' n f
 
 {-# INLINABLE bind' #-}
 -- | Like @bind@ but returns a bare term.
-bind' :: MonadFail m => ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m a
+bind' :: Monad m => ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m a
 bind' n f = do
   cxt <- NamesT ask
   (NamesT . local (n:) . unName $ f (inCxt (n:cxt) (deBruijnVar 0)))
@@ -140,17 +138,17 @@ bind' n f = do
 
 -- * Helpers to build lambda abstractions.
 
-glam :: MonadFail m
+glam :: Monad m
      => ArgInfo -> ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
 glam info n f = Lam info <$> bind n (\ x -> f x)
 
-lam :: MonadFail m
+lam :: Monad m
     => ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
 lam n f = glam defaultArgInfo n f
 
-ilam :: MonadFail m
+ilam :: Monad m
     => ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
-ilam n f = glam (setRelevance Irrelevant defaultArgInfo) n f
+ilam n f = glam defaultIrrelevantArgInfo n f
 
 
 -- * Combinators for n-ary binders.
@@ -175,14 +173,14 @@ type ArgVars m = (forall b. (Subst b, DeBruijn b) => [NamesT m (Arg b)])
 type Vars m = (forall b. (Subst b, DeBruijn b) => [NamesT m b])
 
 {-# INLINABLE bindN #-}
-bindN :: ( MonadFail m
+bindN :: ( Monad m
         ) =>
         [ArgName] -> (Vars m -> NamesT m a) -> NamesT m (AbsN a)
 bindN [] f = AbsN [] <$> f []
 bindN (x:xs) f = toAbsN <$> bind x (\ x -> bindN xs (\ xs -> f (x:xs)))
 
 {-# INLINABLE bindNArg #-}
-bindNArg :: ( MonadFail m
+bindNArg :: ( Monad m
         ) =>
         [Arg ArgName] -> (ArgVars m -> NamesT m a) -> NamesT m (AbsN a)
 bindNArg [] f = AbsN [] <$> f []
@@ -191,11 +189,11 @@ bindNArg (Arg i x:xs) f = toAbsN <$> bind x (\ x -> bindNArg xs (\ xs -> f ((Arg
 
 type Vars1 m = (forall b. (Subst b, DeBruijn b) => List1 (NamesT m b))
 
-bindN1 :: MonadFail m
+bindN1 :: Monad m
   => List1 ArgName -> (Vars1 m -> NamesT m a) -> NamesT m (AbsN a)
 bindN1 (x :| xs) f = toAbsN <$> bind x (\ x -> bindN xs (\ xs -> f (x :| xs)))
 
-glamN :: (Functor m, MonadFail m) =>
+glamN :: (Functor m, Monad m) =>
          [Arg ArgName] -> (NamesT m Args -> NamesT m Term) -> NamesT m Term
 glamN [] f = f $ pure []
 glamN (Arg i n:ns) f = glam i n $ \ x -> glamN ns (\ xs -> f ((:) <$> (Arg i <$> x) <*> xs))
@@ -223,7 +221,7 @@ applyN' f xs = do
   return $ absAppN f xs
 
 {-# INLINABLE abstractN #-}
-abstractN :: ( MonadFail m
+abstractN :: ( Monad m
              , Abstract a
              ) =>
              NamesT m Telescope -> (Vars m -> NamesT m a) -> NamesT m a
@@ -233,7 +231,7 @@ abstractN tel f = do
   return $ abstract tel $ unAbsN u
 
 {-# INLINABLE abstractT #-}
-abstractT :: ( MonadFail m
+abstractT :: ( Monad m
              , Abstract a
              ) =>
              String -> NamesT m Type -> (Var m -> NamesT m a) -> NamesT m a

@@ -1,4 +1,4 @@
-Issue6017.agda:24,1-13
+Issue6017.agda:24,1-13: error: [UnequalTerms]
 (~ j ∨ j) ∨ ~ i ∨ i != ~ j ∨ j of type I
 when checking that a clause of f has the correct boundary.
 

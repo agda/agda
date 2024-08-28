@@ -3,6 +3,6 @@ message: "If you use this software, please cite it as below."
 authors:
 - name: "Agda Developers"
 title: "Agda"
-version: 2.6.5
-license-url: "https://agda.readthedocs.io/en/v2.6.5/team.html"
+version: 2.8.0
+license-url: "https://agda.readthedocs.io/en/v2.8.0/team.html"
 url: "https://agda.readthedocs.io/"

@@ -1,4 +1,4 @@
-Issue4121-1.agda:15,5-7
+Issue4121-1.agda:15,5-7: error: [NotInScope]
 Not in scope:
   c′ at Issue4121-1.agda:15,5-7
 when scope checking c′

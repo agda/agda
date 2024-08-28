@@ -483,13 +483,13 @@ isLitP (DotP _ u) = reduce u >>= \case
   Lit l -> return $ Just l
   _ -> return $ Nothing
 isLitP (ConP c ci []) = do
-  Con zero _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
-  if c == zero
+  zero <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinZero
+  if conName c == zero
     then return $ Just $ LitNat 0
     else return Nothing
 isLitP (ConP c ci [a]) | visible a && isRelevant a = do
-  Con suc _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
-  if c == suc
+  suc <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSuc
+  if conName c == suc
     then fmap inc <$> isLitP (namedArg a)
     else return Nothing
   where
@@ -501,11 +501,14 @@ isLitP _ = return Nothing
 {-# SPECIALIZE unLitP :: Pattern' a -> TCM (Pattern' a) #-}
 unLitP :: HasBuiltins m => Pattern' a -> m (Pattern' a)
 unLitP (LitP info l@(LitNat n)) | n >= 0 = do
-  Con c ci es <- constructorForm' (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero)
-                                  (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc)
-                                  (Lit l)
-  let toP (Apply (Arg i (Lit l))) = Arg i (LitP info l)
-      toP _ = __IMPOSSIBLE__
-      cpi   = noConPatternInfo { conPInfo = info }
-  return $ ConP c cpi $ map (fmap unnamed . toP) es
+ constructorForm'
+   (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero)
+   (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc)
+   (Lit l) >>= \case
+  Con c ci es -> do
+    let toP (Apply (Arg i (Lit l))) = Arg i (LitP info l)
+        toP _ = __IMPOSSIBLE__
+        cpi   = noConPatternInfo { conPInfo = info }
+    return $ ConP c cpi $ map (fmap unnamed . toP) es
+  _ -> __IMPOSSIBLE__
 unLitP p = return p

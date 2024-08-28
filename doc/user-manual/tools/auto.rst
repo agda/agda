@@ -18,6 +18,8 @@ Any solution coming from Auto is checked by Agda. Also, the main
 search algorithm has a timeout mechanism. Therefore, there is little
 harm in trying Auto and it might save you key presses.
 
+Auto was completely rewritten for Agda version 2.7.0.
+
 Usage
 =====
 
@@ -40,7 +42,7 @@ Option                   Meaning
 
 :samp:`-l`               List up to ten solutions, does not commit to any
 
-:samp:`-s {N}`           Skip the :samp:`{N}` th first solutions
+:samp:`-s {N}`           Skip the :samp:`{N}` first solutions
 =======================  =========================================================
 
 Giving no arguments is fine and results in a search with
@@ -104,13 +106,15 @@ ones.
 Dependencies between meta variables
 -----------------------------------
 
-If the goal type or type of local variables contain meta variables,
+The following feature is `missing <https://github.com/agda/agda/issues/7110>`_
+from Agda 2.7.0's implementation of Auto:
+*If the goal type or type of local variables contain meta variables,
 then the constraints for these are also included in the search. If a
 solution is found it means that Auto has also found solutions for the
 occurring meta variables. Those solutions will be inserted into your
 file along with that of the hole from where you called Auto. Also, any
 unsolved equality constraints that contain any of the involved meta
-variables are respected in the search.
+variables are respected in the search.*
 
 Limitations
 ===========

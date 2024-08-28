@@ -1,4 +1,0 @@
-RewriteLhsReduction.agda:17,1-21
-f≡g'  is not a legal rewrite rule, since the left-hand side 
-f a  reduces to  g a
-when checking the pragma REWRITE f≡g'

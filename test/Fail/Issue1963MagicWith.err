@@ -1,6 +1,6 @@
-Issue1963MagicWith.agda:30,1-31,16
+Issue1963MagicWith.agda:30,1-31,16: error: [UnequalTerms]
 p .proj₁ != w of type Nat
 when checking that the type
 (p : Σ Nat IsZero) (w : Nat) → F w (p .proj₂) of the generated with
 function is well-formed
-(https://agda.readthedocs.io/en/v2.6.5/language/with-abstraction.html#ill-typed-with-abstractions)
+(https://agda.readthedocs.io/en/v2.8.0/language/with-abstraction.html#ill-typed-with-abstractions)

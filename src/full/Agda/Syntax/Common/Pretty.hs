@@ -10,6 +10,7 @@ module Agda.Syntax.Common.Pretty
 
 import Prelude hiding (null)
 
+import qualified Data.List as List
 import qualified Data.Foldable as Fold
 import qualified Data.IntSet as IntSet
 import qualified Data.IntMap as IntMap
@@ -183,6 +184,9 @@ punctuate d = P.punctuate d . Fold.toList
 
 -- * 'Doc' utilities
 
+vsep :: [Doc] -> Doc
+vsep = vcat . List.intersperse ""
+
 pwords :: String -> [Doc]
 pwords = map text . words
 
@@ -225,6 +229,12 @@ mparens False = id
 -- | Only wrap in parens if not 'empty'
 parensNonEmpty :: Doc -> Doc
 parensNonEmpty d = if null d then empty else parens d
+
+-- | Return 'empty' for empty strings.
+textNonEmpty :: String -> Doc
+textNonEmpty = \case
+  "" -> empty
+  s  -> text s
 
 -- | @align max rows@ lays out the elements of @rows@ in two columns,
 -- with the second components aligned. The alignment column of the

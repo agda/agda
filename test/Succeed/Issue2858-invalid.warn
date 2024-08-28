@@ -1,5 +1,4 @@
-Issue2858-invalid.agda:3,1-5,18
-warning: -W[no]InvalidConstructorBlock
+Issue2858-invalid.agda:3,1-5,18: warning: -W[no]InvalidConstructorBlock
 No 'data _ where' blocks outside of 'interleaved mutual' blocks.
 when scope checking the declaration
   data _ where
@@ -8,8 +7,7 @@ when scope checking the declaration
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue2858-invalid.agda:3,1-5,18
-warning: -W[no]InvalidConstructorBlock
+Issue2858-invalid.agda:3,1-5,18: warning: -W[no]InvalidConstructorBlock
 No 'data _ where' blocks outside of 'interleaved mutual' blocks.
 when scope checking the declaration
   data _ where

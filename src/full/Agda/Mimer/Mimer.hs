@@ -8,7 +8,6 @@ import Control.DeepSeq (force, NFData(..))
 import Control.Monad
 import Control.Monad.Except (catchError)
 import Control.Monad.Error.Class (MonadError)
-import Control.Monad.Fail (MonadFail)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), runReaderT, asks, ask, lift)
 import Data.Function (on)
@@ -606,7 +605,7 @@ builtinLevelName = "Agda.Primitive.Level"
 -- some constructor, and if so which argument of the function they appeared in. This
 -- information is used when building recursive calls, where it's important that we don't try to
 -- construct non-terminating solutions.
-collectLHSVars :: (MonadFail tcm, ReadTCState tcm, MonadError TCErr tcm, MonadTCM tcm, HasConstInfo tcm)
+collectLHSVars :: (ReadTCState tcm, MonadError TCErr tcm, MonadTCM tcm, HasConstInfo tcm)
   => InteractionId -> tcm (Open [(Term, Maybe Int)])
 collectLHSVars ii = do
   ipc <- ipClause <$> lookupInteractionPoint ii
@@ -724,7 +723,9 @@ runSearch norm options ii rng = withInteractionId ii $ do
                                        , "with args" <+> pretty (instTel inst) ]
 
       -- ctx <- getContextTelescope
-      return metaIds
+      -- #7402: still solve the top-level meta, because we don't have the correct contexts for the
+      --        submetas
+      return [metaId | not $ null metaIds]
     OpenMeta UnificationMeta -> do
       reportSLn "mimer.init" 20 "Interaction point not instantiated."
       return [metaId]
@@ -965,7 +966,7 @@ getRecordInfo typ = case unEl typ of
     Nothing -> return Nothing
     Just defn -> do
       fields <- getRecordFields qname
-      return $ Just (qname, argsFromElims elims, fields, recRecursive defn)
+      return $ Just (qname, argsFromElims elims, fields, recRecursive_ defn)
   _ -> return Nothing
 
 applyProj :: Args -> Component -> QName -> SM Component
@@ -1123,7 +1124,6 @@ tryLamAbs :: Goal -> Type -> SearchBranch -> SM (Either Expr (Goal, Type, Search
 tryLamAbs goal goalType branch =
   case unEl goalType of
     Pi dom abs -> do
-     e <- isEmptyType (unDom dom)
      isEmptyType (unDom dom) >>= \case -- TODO: Is this the correct way of checking if absurd lambda is applicable?
       True -> do
         let argInf = defaultArgInfo{argInfoOrigin = Inserted} -- domInfo dom
@@ -1659,7 +1659,7 @@ haskellRecord name fields = P.sep [ name, P.nest 2 $ P.braces (P.sep $ P.punctua
 keyValueList :: [(Doc, Doc)] -> Doc
 keyValueList kvs = P.braces $ P.sep $ P.punctuate "," [ P.hang (k P.<> ":") 2 v | (k, v) <- kvs ]
 
-writeTime :: (MonadFail m, ReadTCState m, MonadError TCErr m, MonadTCM m, MonadDebug m) => InteractionId -> Maybe CPUTime -> m ()
+writeTime :: (ReadTCState m, MonadError TCErr m, MonadTCM m, MonadDebug m) => InteractionId -> Maybe CPUTime -> m ()
 writeTime ii mTime = do
   let time = case mTime of
         Nothing -> "n/a"

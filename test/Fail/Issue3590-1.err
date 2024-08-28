@@ -1,4 +1,4 @@
 Termination checking mutual block MutId 0
-Issue3590-1.agda:23,7-10
+Issue3590-1.agda:23,7-10: error: [UnequalSorts]
 Set₁ != Set
 when checking that the expression Set has type Set

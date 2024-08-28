@@ -1,8 +1,11 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _105 (us = us) =< us ⊆ us (blocked on _105)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue3982.agda:30,8-12
   Issue3982.agda:24,3-43
+error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
   Issue3982.agda:30,8-12
   Issue3982.agda:31,11-15

@@ -218,14 +218,9 @@ data GHCDefinition = GHCDefinition
 
 ghcPreCompile :: GHCFlags -> TCM GHCEnv
 ghcPreCompile flags = do
-  cubical <- cubicalOption
-  let notSupported s =
-        typeError $ GenericError $
-          "Compilation of code that uses " ++ s ++ " is not supported."
-  case cubical of
-    Nothing      -> return ()
-    Just CErased -> return ()
-    Just CFull   -> notSupported "--cubical"
+  whenJustM cubicalOption \case
+    CErased -> pure ()
+    CFull   -> typeError $ CubicalCompilationNotSupported CFull
 
   outDir <- compileDir
   let ghcOpts = GHCOptions
@@ -305,6 +300,7 @@ ghcPreCompile flags = do
       , builtinAgdaTCMFormatErrorParts
       , builtinAgdaTCMDebugPrint
       , builtinAgdaTCMNoConstraints
+      , builtinAgdaTCMWorkOnTypes
       , builtinAgdaTCMRunSpeculative
       , builtinAgdaTCMExec
       , builtinAgdaTCMGetInstances
@@ -438,9 +434,9 @@ ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
     hsModuleName <- curHsMod
     writeModule $ HS.Module
       hsModuleName
-      (map HS.OtherPragma headerPragmas)
+      (map HS.OtherPragma $ List.nub headerPragmas)
       imps
-      (map fakeDecl (hsImps ++ code) ++ decls)
+      (map fakeDecl (List.nub hsImps ++ code) ++ decls)
 
   return $ GHCModule menv mainDefs
 
@@ -517,9 +513,6 @@ mazRTEFloatImport (UsesFloat b) = [ HS.ImportDecl mazRTEFloat True Nothing | b ]
 
 definition :: Definition -> HsCompileM (UsesFloat, [HS.Decl], Maybe CheckedMainFunctionDef)
 -- ignore irrelevant definitions
-{- Andreas, 2012-10-02: Invariant no longer holds
-definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
--}
 definition Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
   reportSDoc "compile.ghc.definition" 10 $
     ("Not compiling" <+> prettyTCM q) <> "."
@@ -538,11 +531,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
   (uncurry (,,typeCheckedMainDef)) . second ((mainDecl ++) . infodecl q) <$>
     case d of
 
-      _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $
-          if is ghcEnvFlat
-          then genericError
-                "\"COMPILE GHC\" pragmas are not allowed for the FLAT builtin."
-          else do
+      _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $ do
             -- Make sure we have imports for all names mentioned in the type.
             hsty <- haskellType q
             mapM_ (`xqual` HS.Ident "_") (namesIn ty :: Set QName)
@@ -802,12 +791,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
   function mhe fun = do
     (imp, ccls) <- fun
     case mhe of
-      Just (HsExport r name) -> setCurrentRange r $ do
-        env <- askGHCEnv
-        if Just q == ghcEnvFlat env
-        then genericError
-              "\"COMPILE GHC as\" pragmas are not allowed for the FLAT builtin."
-        else do
+      Just (HsExport r name) -> do
           t <- setCurrentRange r $ haskellType q
           let tsig :: HS.Decl
               tsig = HS.TypeSig [HS.Ident name] t
@@ -876,7 +860,9 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
 constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> HsCompileM [HS.Decl]
 constructorCoverageCode q np cs hsTy hsCons = do
-  liftTCM $ checkConstructorCount q cs hsCons
+  -- Check that number of constructors matches up.
+  unless (length cs == length hsCons) $
+    ghcBackendError $ ConstructorCountMismatch q cs hsCons
   ifM (liftTCM $ noCheckCover q) (return []) $ do
     ccs <- List.concat <$> zipWithM checkConstructorType cs hsCons
     cov <- liftTCM $ checkCover q hsTy np cs hsCons

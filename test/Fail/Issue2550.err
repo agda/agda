@@ -1,4 +1,4 @@
-Issue2550.agda:43,13-17
-(λ { (r , refl) → proj₂ (P.f (from q) r) }) x != proj₂ q x of type
-R (proj₁ i₁) (proj₂ i₁)
+Issue2550.agda:43,13-17: error: [UnequalTerms]
+(λ { (r , refl) → proj₂ (P.f (from q) r) }) x != q .proj₂ x of type
+R (i₁ .proj₁) (i₁ .proj₂)
 when checking that the expression refl has type to (from q) ≡ q

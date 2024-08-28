@@ -1,4 +1,4 @@
-WrongPolarity.agda:25,23-36
+WrongPolarity.agda:25,23-36: error: [UnequalTerms]
 ↑ i !=< i of type Size
 when checking that the inferred type of an application
   Sink (Nat {i})

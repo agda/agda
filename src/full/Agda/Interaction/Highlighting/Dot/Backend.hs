@@ -45,7 +45,7 @@ import Agda.TypeChecking.Monad
   , MonadTCError
   , ReadTCState
   , MonadTCM(..)
-  , genericError
+  , internalError
   , reportSDoc
   , getAgdaLibFiles
   )
@@ -121,7 +121,7 @@ dotBackend' = Backend'
   , options               = defaultDotFlags
   , commandLineFlags      = dotFlagsDescriptions
   , isEnabled             = isJust . dotFlagDestination
-  , preCompile            = asTCErrors . preCompileDot
+  , preCompile            = asInternalErrors . preCompileDot
   , preModule             = preModuleDot
   , compileDef            = compileDefDot
   , postModule            = postModuleDot
@@ -131,8 +131,8 @@ dotBackend' = Backend'
   }
 
 -- | Convert a general "MonadError String m" into "MonadTCError m".
-asTCErrors :: MonadTCError m => ExceptT String m b -> m b
-asTCErrors t = either genericError return =<< runExceptT t
+asInternalErrors :: (MonadTCError m) => ExceptT String m b -> m b
+asInternalErrors t = either internalError return =<< runExceptT t
 
 preCompileDot
   :: MonadError String m
@@ -145,6 +145,7 @@ preCompileDot d = case dotFlagDestination d of
     }
   Nothing ->
     throwError "The Dot backend was invoked without being enabled!"
+      -- Andreas, 2024-08-03: I suppose this counts as internal error.
 
 preModuleDot
   :: Applicative m

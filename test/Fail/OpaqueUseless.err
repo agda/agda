@@ -1,5 +1,4 @@
-OpaqueUseless.agda:4,1-7
-warning: -W[no]UselessOpaque
+OpaqueUseless.agda:4,1-7: warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration
   opaque

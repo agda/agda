@@ -1,0 +1,9 @@
+Issue5238-unbound-parameter.agda:23,13-16: warning: -W[no]RewriteVariablesNotBoundByLHS
+rew  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  A
+when checking the pragma REWRITE rew
+
+———— All done; warnings encountered ————————————————————————
+
+Issue5238-unbound-parameter.agda:23,13-16: warning: -W[no]RewriteVariablesNotBoundByLHS
+rew  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  A
+when checking the pragma REWRITE rew

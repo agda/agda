@@ -1,4 +1,4 @@
-Issue1035.agda:22,5-25,72
+Issue1035.agda:22,5-25,72: error: [TerminationIssue]
 Termination checking failed for the following functions:
   M.to-∈-intersection′
 Problematic calls:

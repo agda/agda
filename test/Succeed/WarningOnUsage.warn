@@ -1,11 +1,33 @@
-WarningOnUsage.agda:16,25-29
-warning: -W[no]UserWarning
+WarningOnUsage.agda:14,25-29: warning: -W[no]UserWarning
 DEPRECATED: Use 'id' instead of 'λx→x'
 when scope checking λx→x
+
+WarningOnUsage.agda:22,3-53: warning: -W[no]UselessPragma
+Not a defined name: A
+when scope checking the declaration
+  {-# WARNING_ON_USAGE A "Not a defined name: A" #-}
+
+WarningOnUsage.agda:23,3-53: warning: -W[no]NotInScope
+Not in scope:
+  x
+  at WarningOnUsage.agda:23,24-25
+when scope checking the declaration
+  {-# WARNING_ON_USAGE x "Not in scope: x" #-}
 
 ———— All done; warnings encountered ————————————————————————
 
-WarningOnUsage.agda:16,25-29
-warning: -W[no]UserWarning
+WarningOnUsage.agda:14,25-29: warning: -W[no]UserWarning
 DEPRECATED: Use 'id' instead of 'λx→x'
 when scope checking λx→x
+
+WarningOnUsage.agda:22,3-53: warning: -W[no]UselessPragma
+Not a defined name: A
+when scope checking the declaration
+  {-# WARNING_ON_USAGE A "Not a defined name: A" #-}
+
+WarningOnUsage.agda:23,3-53: warning: -W[no]NotInScope
+Not in scope:
+  x
+  at WarningOnUsage.agda:23,24-25
+when scope checking the declaration
+  {-# WARNING_ON_USAGE x "Not in scope: x" #-}

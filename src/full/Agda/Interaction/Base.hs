@@ -148,10 +148,11 @@ data Interaction' range
     -- show those instead.
   | Cmd_metas Rewrite
 
-    -- | A command that fails if there are any unsolved
+    -- | Load a file and fail if there are any unsolved
     -- meta-variables. By default no output is generated if the
     -- command is successful.
-  | Cmd_no_metas
+    -- (This command is used in Agda's installation script (Setup.hs)).
+  | Cmd_load_no_metas FilePath
 
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the top-level scope.

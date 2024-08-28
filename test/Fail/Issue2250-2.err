@@ -1,4 +1,4 @@
-Issue2250-2.agda:24,5-24
+Issue2250-2.agda:24,5-24: error: [SafeFlagInjective]
 Cannot use INJECTIVE pragma with safe flag.
 when scope checking the declaration
   module Abstract where

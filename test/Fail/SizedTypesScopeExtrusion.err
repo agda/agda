@@ -1,4 +1,4 @@
-SizedTypesScopeExtrusion.agda:21,41-42
+SizedTypesScopeExtrusion.agda:21,41-42: error: [CannotSolveSizeConstraints]
 Cannot solve size constraints
 [x, i] ∞ ≤ i
 when checking that the expression x has type Nat

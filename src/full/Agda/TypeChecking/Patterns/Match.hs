@@ -245,24 +245,28 @@ matchPattern p u = case (p, u) of
   (ConP c cpi ps, Arg info v) -> do
     let lazy = if conPLazy cpi then OnlyLazy else NonLazy
     if not (conPRecord cpi) then fallback c lazy ps (Arg info v) else do
-    isEtaRecordCon (conName c) >>= \case
+    isEtaRecordConstructor (conName c) >>= \case
       Nothing -> fallback c lazy ps (Arg info v)
-      Just fs -> do
-        -- Case: Eta record constructor.
-        -- This case is necessary if we want to use the clauses before
-        -- record pattern translation (e.g., in type-checking definitions by copatterns).
-        unless (size fs == size ps) __IMPOSSIBLE__
-        mapSnd (Arg info . Con c (fromConPatternInfo cpi) . map Apply) <$> do
-          matchPatterns ps $ for fs $ \ (Arg ai f) -> Arg ai $ v `applyE` [Proj ProjSystem f]
-    where
-    isEtaRecordCon :: HasConstInfo m => QName -> m (Maybe [Arg QName])
-    isEtaRecordCon c = do
-      (theDef <$> getConstInfo c) >>= \case
-        Constructor{ conData = d } -> do
-          (theDef <$> getConstInfo d) >>= \case
-            r@Record{ recFields = fs } | YesEta <- recEtaEquality r -> return $ Just $ map argFromDom fs
-            _ -> return Nothing
-        _ -> __IMPOSSIBLE__
+      -- Case: Eta record constructor.
+      -- This case is necessary if we want to use the clauses before
+      -- record pattern translation (e.g., in type-checking definitions by copatterns).
+      Just (_r, def) -> do
+        reportSDoc "tc.match" 50 $ vcat
+          [ "matchPattern: eta record"
+          , nest 2 $ "c  = " <+> prettyTCM c
+          , nest 2 $ "ps = " <+> prettyTCMPatternList ps
+          , nest 2 $ "v  = " <+> prettyTCM v
+          ]
+        -- Issue #7266: in case we are brazenly matching potentially ill-typed arguments,
+        -- `v` might be an application of a *different* constructor.
+        -- In that case we certainly have no match.
+        case v of
+          Con c' _ _ | c /= c' -> return (No, u)
+          _ -> do
+            let fs = map argFromDom $ _recFields def
+            unless (size fs == size ps) __IMPOSSIBLE__
+            mapSnd (Arg info . Con c (fromConPatternInfo cpi) . map Apply) <$> do
+              matchPatterns ps $ for fs $ \ (Arg ai f) -> Arg ai $ v `applyE` [Proj ProjSystem f]
   (DefP o q ps, v) -> do
     let f (Def q' vs) | q == q' = Just (Def q, vs)
         f _                     = Nothing
@@ -280,7 +284,8 @@ matchPattern p u = case (p, u) of
   -- can be matched on.
   isMatchable' :: HasBuiltins m => m (Blocked Term -> Maybe Term)
   isMatchable' = do
-    [mhcomp,mconid] <- mapM getName' [builtinHComp, builtinConId]
+    mhcomp <- getName' builtinHComp
+    mconid <- getName' builtinConId
     return $ \ r ->
       case ignoreBlocking r of
         t@Con{} -> Just t

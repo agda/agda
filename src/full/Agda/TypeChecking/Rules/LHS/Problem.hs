@@ -313,7 +313,6 @@ getLeftoverPatterns eqs = do
     asPattern x v a      = empty { asPatterns       = singleton (AsB x v (unDom a) (getModality a)) }
     dotPattern e v a     = empty { dotPatterns      = singleton (Dot e v a) }
     absurdPattern info a = empty { absurdPatterns   = singleton (Absurd info a) }
-    annPattern t a       = empty { typeAnnotations  = singleton (Ann t a) }
     otherPattern p       = empty { otherPatterns    = singleton p }
 
     getLeftoverPattern :: (A.Name -> Bool) -> ProblemEq -> m LeftoverPatterns
@@ -327,8 +326,6 @@ getLeftoverPatterns eqs = do
         getLeftoverPattern isParamName $ ProblemEq p v a
       (A.DotP info e)   -> return $ dotPattern e v a
       (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
-      (A.AnnP info t p) -> (annPattern t (unDom a) `mappend`) <$> do
-        getLeftoverPattern isParamName $ ProblemEq p v a
       _                 -> return $ otherPattern p
 
 -- | Build a renaming for the internal patterns using variable names from

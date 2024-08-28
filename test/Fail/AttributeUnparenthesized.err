@@ -1,5 +1,4 @@
-AttributeUnparenthesized.agda:4,12-12
-AttributeUnparenthesized.agda:4,12: Parse error
+AttributeUnparenthesized.agda:4,12: error: [ParseError]
 @<ERROR>
 0 A → A → A
 

@@ -3,7 +3,6 @@
 module Agda.TypeChecking.Conversion where
 
 import Control.Monad.Except ( MonadError )
-import qualified Control.Monad.Fail as Fail
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
@@ -18,7 +17,6 @@ type MonadConversion m =
   , MonadStatistics m
   , MonadFresh ProblemId m
   , MonadFresh Int m
-  , Fail.MonadFail m
   )
 
 compareTerm  :: MonadConversion m => Comparison -> Type -> Term -> Term -> m ()

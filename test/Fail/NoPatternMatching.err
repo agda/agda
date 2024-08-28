@@ -1,4 +1,5 @@
-NoPatternMatching.agda:10,1-10
-Pattern matching is disabled
+NoPatternMatching.agda:10,1-10: error: [NeedOptionPatternMatching]
+Pattern matching is disabled (use option --pattern-matching to
+enable it)
 when checking the clause left hand side
 fail unit

@@ -1,4 +1,4 @@
-AnonymousImport.agda:6,11-27
+AnonymousImport.agda:6,11-27: error: [NotInScope]
 Not in scope:
   Common.Unit.Unit
   at AnonymousImport.agda:6,11-27

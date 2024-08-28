@@ -1,6 +1,6 @@
 Checking Issue6265 (Issue6265.agda).
 Checking Issue6265 (Issue6265.agda).
-Issue6265.agda:1,11-18
+Issue6265.agda:1,11-18: error: [SafeFlagPostulate]
 Cannot postulate A with safe flag
 when scope checking the declaration
 A : Set

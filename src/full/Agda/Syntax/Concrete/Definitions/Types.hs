@@ -77,7 +77,7 @@ data NiceDeclaration
       --   An alias should know that it is an instance.
   | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [LamBinding] [NiceConstructor]
   | NiceLoneConstructor KwRange [NiceConstructor]
-  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name RecordDirectives [LamBinding] [Declaration]
+  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [RecordDirective] [LamBinding] [Declaration]
       -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
   | NicePatternSyn Range Access Name [WithHiding Name] Pattern
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
@@ -198,8 +198,9 @@ data KindOfBlock
   | FieldBlock      -- ^ @field@.  Ensured by parser.
   | DataBlock       -- ^ @data ... where@.  Here we got a bad error message for Agda-2.5 (Issue 1698).
   | ConstructorBlock  -- ^ @constructor@, in @interleaved mutual@.
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
 
+instance NFData KindOfBlock
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _)           = r
@@ -298,7 +299,9 @@ data DataRecOrFun
     -- ^ Name of a record type
   | FunName TerminationCheck CoverageCheck
     -- ^ Name of a function.
-  deriving Show
+  deriving (Show, Generic)
+
+instance NFData DataRecOrFun
 
 -- Ignore pragmas when checking equality
 instance Eq DataRecOrFun where

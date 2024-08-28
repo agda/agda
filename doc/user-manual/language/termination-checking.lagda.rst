@@ -1,5 +1,8 @@
 ..
   ::
+
+  {-# OPTIONS --termination-depth=2 #-}
+
   module language.termination-checking where
 
       open import Agda.Builtin.Bool
@@ -160,10 +163,43 @@ Pragmas and Options
         {-# TERMINATING #-}
         h = g
 
+.. _termination-depth:
+
+* Increasing the analysis depth with :option:`--termination-depth`.
+
+  With ``{-# OPTIONS --termination-depth=2 #-}`` the following mutual functions are accepted
+  by the termination checker::
+
+      mutual
+
+        f : Nat → Nat
+        f zero = zero
+        f (suc zero) = suc zero
+        f (suc (suc x)) = g x
+
+        g : Nat → Nat
+        g y = f (suc y)
+
+  Without the option, the termination checker would only register that the call from ``f``
+  to ``g`` decreases the argument and the call from ``g`` to ``f`` increases the argument,
+  but not by how much.
+  Thus, it has no evidence that the call sequence ``f → g → f`` decreases the argument.
+
+  With termination depth 2, it will see that the call ``f → g`` decreases by 2 and the
+  call ``g → f`` increases only by 1, so the overall decrease in ``f → g → f`` is still 1.
+
+  In general termination depth *N* can track decrease up to *N* and increase up to *N-1*.
+
+  Increasing the termination depth from the default 1 can make the termination checker slower
+  and more memory hungry.
+  Rather then increasing the termination depth, function should be reformulated such that
+  they are structurally recursive, i.e., only match one level deep.
+
+
 .. _termination-checking-references:
 
 References
 ----------
 
 `Andreas Abel, Foetus -- termination checker for simple functional programs
-<http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.44.3494&rank=1>`_
+<https://andreasabel.github.io/foetus-report>`_

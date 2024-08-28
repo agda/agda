@@ -1,4 +1,4 @@
-Issue921.agda:49,1-117,17
+Issue921.agda:49,1-117,17: error: [TerminationIssue]
 Termination checking failed for the following functions:
   pullback, _○_, pullback-var
 Problematic calls:

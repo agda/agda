@@ -1,4 +1,4 @@
-Issue3810a.agda:14,1-21
+Issue3810a.agda:14,1-21: error: [RewriteMissingRule]
 Global confluence check failed: f a unfolds to b which should
 further unfold to a but it does not.
 Possible fix: add a rule to rewrite b to a

@@ -1,28 +1,73 @@
-CompileBuiltinListWarning.agda:10,1-26
-warning: -W[no]OldBuiltin
+CompileBuiltinListWarning.agda:26,1-25: warning: -W[no]PragmaCompileWrongName
+Cannot COMPILE Set₁ since it is neither a defined symbol nor a constructor
+when scope checking the declaration
+  {-# COMPILE GHC Set₁ #-}
+
+CompileBuiltinListWarning.agda:41,1-22: warning: -W[no]PragmaCompileWrongName
+Cannot COMPILE c since it is ambiguous: CompileBuiltinListWarning.D.c | CompileBuiltinListWarning.c
+when scope checking the declaration
+  {-# COMPILE GHC c #-}
+
+CompileBuiltinListWarning.agda:42,1-22: warning: -W[no]PragmaCompileWrongName
+Cannot COMPILE f since it is ambiguous: CompileBuiltinListWarning.E.f | CompileBuiltinListWarning.R.f
+when scope checking the declaration
+  {-# COMPILE GHC f #-}
+
+CompileBuiltinListWarning.agda:46,1-22: warning: -W[no]PragmaCompileWrongName
+Cannot COMPILE p since it is neither a defined symbol nor a constructor
+when scope checking the declaration
+  {-# COMPILE GHC p #-}
+
+CompileBuiltinListWarning.agda:50,3-24: warning: -W[no]PragmaCompileWrongName
+Cannot COMPILE A since it is neither a defined symbol nor a constructor
+when scope checking the declaration
+  {-# COMPILE GHC A #-}
+
+CompileBuiltinListWarning.agda:10,1-26: warning: -W[no]OldBuiltin
 Builtin NIL no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN NIL []
-CompileBuiltinListWarning.agda:11,1-26
-warning: -W[no]OldBuiltin
+
+CompileBuiltinListWarning.agda:11,1-26: warning: -W[no]OldBuiltin
 Builtin CONS no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN CONS _∷_
 
 ———— All done; warnings encountered ————————————————————————
 
-CompileBuiltinListWarning.agda:10,1-26
-warning: -W[no]OldBuiltin
+CompileBuiltinListWarning.agda:26,1-25: warning: -W[no]PragmaCompileWrongName
+Cannot COMPILE Set₁ since it is neither a defined symbol nor a constructor
+when scope checking the declaration
+  {-# COMPILE GHC Set₁ #-}
+
+CompileBuiltinListWarning.agda:41,1-22: warning: -W[no]PragmaCompileWrongName
+Cannot COMPILE c since it is ambiguous: CompileBuiltinListWarning.D.c | CompileBuiltinListWarning.c
+when scope checking the declaration
+  {-# COMPILE GHC c #-}
+
+CompileBuiltinListWarning.agda:42,1-22: warning: -W[no]PragmaCompileWrongName
+Cannot COMPILE f since it is ambiguous: CompileBuiltinListWarning.E.f | CompileBuiltinListWarning.R.f
+when scope checking the declaration
+  {-# COMPILE GHC f #-}
+
+CompileBuiltinListWarning.agda:46,1-22: warning: -W[no]PragmaCompileWrongName
+Cannot COMPILE p since it is neither a defined symbol nor a constructor
+when scope checking the declaration
+  {-# COMPILE GHC p #-}
+
+CompileBuiltinListWarning.agda:50,3-24: warning: -W[no]PragmaCompileWrongName
+Cannot COMPILE A since it is neither a defined symbol nor a constructor
+when scope checking the declaration
+  {-# COMPILE GHC A #-}
+
+CompileBuiltinListWarning.agda:10,1-26: warning: -W[no]OldBuiltin
 Builtin NIL no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN NIL []
 
-CompileBuiltinListWarning.agda:11,1-26
-warning: -W[no]OldBuiltin
+CompileBuiltinListWarning.agda:11,1-26: warning: -W[no]OldBuiltin
 Builtin CONS no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN CONS _∷_
-CompileBuiltinListWarning.agda:7,1-44
-warning: -W[no]PragmaCompileList
+CompileBuiltinListWarning.agda:7,1-44: warning: -W[no]PragmaCompileList
 Ignoring GHC pragma for builtin lists; they always compile to
 Haskell lists.
-CompileBuiltinListWarning.agda:17,1-45
-warning: -W[no]PragmaCompileMaybe
+CompileBuiltinListWarning.agda:17,1-45: warning: -W[no]PragmaCompileMaybe
 Ignoring GHC pragma for builtin MAYBE; it always compiles to
 Haskell Maybe.

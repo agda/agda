@@ -6,7 +6,7 @@
 ((last . 1) . (agda2-goals-action '(0 1)))
 ((last . 2) . (agda2-make-case-action '("test x true = λ z → ?" "test x false = λ z → ?")))
 ((last . 1) . (agda2-goals-action '(0 1)))
-(agda2-info-action "*Error*" "Issue2239.agda:15,19-25 Cannot split on local variable z when checking that the expression ? has type Bool" nil)
+(agda2-info-action "*Error*" "Issue2239.agda:15,19-25: error: [Interaction.CaseSplitError] Cannot split on local variable z when checking that the expression ? has type Bool" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue2239.agda" . 353)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

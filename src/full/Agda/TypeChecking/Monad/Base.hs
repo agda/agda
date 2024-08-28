@@ -5,6 +5,7 @@
 module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base
   , module Agda.TypeChecking.Monad.Base.Types
+  , module X
   , HasOptions (..)
   , RecordFieldWarning
   ) where
@@ -24,7 +25,7 @@ import Control.Monad.Fix
 import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.State          ( MonadState(..), modify, StateT(..), runStateT )
 import Control.Monad.Reader         ( MonadReader(..), ReaderT(..), runReaderT )
-import Control.Monad.Writer         ( WriterT )
+import Control.Monad.Writer         ( WriterT(..), runWriterT )
 import Control.Monad.Trans          ( MonadTrans(..), lift )
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity ( IdentityT(..), runIdentityT )
@@ -73,12 +74,13 @@ import Agda.Syntax.Builtin (SomeBuiltin, BuiltinId, PrimitiveId)
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Definitions
   (NiceDeclaration, DeclarationWarning, declarationWarningName)
+import Agda.Syntax.Concrete.Definitions.Errors
+  (DeclarationException')
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Internal.Generic (TermLike(..))
-import Agda.Syntax.Parser (ParseWarning)
-import Agda.Syntax.Parser.Monad (parseWarningName)
+import Agda.Syntax.Parser.Monad (ParseError, ParseWarning, parseWarningName)
 import Agda.Syntax.TopLevelModuleName
   (RawTopLevelModuleName, TopLevelModuleName)
 import Agda.Syntax.Treeless (Compiled)
@@ -102,11 +104,19 @@ import Agda.TypeChecking.DiscrimTree.Types
 import Agda.Compiler.Backend.Base
 
 import Agda.Interaction.Options
+import qualified Agda.Interaction.Options.Errors as ErrorName
+import Agda.Interaction.Options.Errors as X
+  ( ErasedDatatypeReason(..)
+  , NotAValidLetBinding(..)
+  , NotAValidLetExpression(..)
+  , NotAllowedInDotPatterns(..)
+  )
 import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Response.Base (Response_boot(..))
 import Agda.Interaction.Highlighting.Precise
   (HighlightingInfo, NameKind)
 import Agda.Interaction.Library
+import Agda.Interaction.Library.Base (LibErrors)
 
 import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.BiMap (BiMap, HasTag(..))
@@ -116,6 +126,7 @@ import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash
+import Agda.Utils.IO        ( CatchIO, catchIO, showIOException )
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
@@ -127,9 +138,9 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty
-import Agda.Utils.Singleton
 import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
 import qualified Agda.Utils.SmallSet as SmallSet
+import Agda.Utils.Singleton
 import Agda.Utils.Update
 
 import Agda.Utils.Impossible
@@ -208,9 +219,6 @@ data PreScopeState = PreScopeState
   , stPreImportedBuiltins   :: !(BuiltinThings PrimFun)
   , stPreImportedDisplayForms :: !DisplayForms
     -- ^ Display forms added by someone else to imported identifiers
-  , stPreForeignCode        :: !(Map BackendName ForeignCodeStack)
-    -- ^ @{-\# FOREIGN \#-}@ code that should be included in the compiled output.
-    -- Does not include code for imported modules.
   , stPreFreshInteractionId :: !InteractionId
   , stPreImportedUserWarnings :: !(Map A.QName Text)
     -- ^ Imported @UserWarning@s, not to be stored in the @Interface@
@@ -275,6 +283,9 @@ data PostScopeState = PostScopeState
     --   context of the module parameters.
   , stPostImportsDisplayForms :: !DisplayForms
     -- ^ Display forms we add for imported identifiers
+  , stPostForeignCode         :: !(Map BackendName ForeignCodeStack)
+    -- ^ @{-\# FOREIGN \#-}@ code that should be included in the compiled output.
+    -- Does not include code for imported modules.
   , stPostCurrentModule       ::
       !(Maybe (ModuleName, TopLevelModuleName))
     -- ^ The current module is available after it has been type
@@ -311,7 +322,6 @@ data PostScopeState = PostScopeState
   , stPostAreWeCaching        :: !Bool
   , stPostPostponeInstanceSearch :: !Bool
   , stPostConsideringInstance :: !Bool
-  , stPostMutualChecks        :: Bool
   , stPostInstantiateBlocking :: !Bool
     -- ^ Should we instantiate away blocking metas?
     --   This can produce ill-typed terms but they are often more readable. See issue #3606.
@@ -432,7 +442,6 @@ initPreScopeState = PreScopeState
   , stPrePragmaOptions        = defaultInteractionOptions
   , stPreImportedBuiltins     = Map.empty
   , stPreImportedDisplayForms = HMap.empty
-  , stPreForeignCode          = Map.empty
   , stPreFreshInteractionId   = 0
   , stPreImportedUserWarnings = Map.empty
   , stPreLocalUserWarnings    = Map.empty
@@ -479,11 +488,11 @@ initPostScopeState = PostScopeState
   , stPostAreWeCaching         = False
   , stPostPostponeInstanceSearch = False
   , stPostConsideringInstance  = False
-  , stPostMutualChecks         = False
   , stPostInstantiateBlocking  = False
   , stPostLocalPartialDefs     = Set.empty
   , stPostOpaqueBlocks         = Map.empty
   , stPostOpaqueIds            = Map.empty
+  , stPostForeignCode          = Map.empty
   }
 
 initState :: TCState
@@ -554,8 +563,8 @@ stImportedBuiltins f s =
 
 stForeignCode :: Lens' TCState (Map BackendName ForeignCodeStack)
 stForeignCode f s =
-  f (stPreForeignCode (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreForeignCode = x}}
+  f (stPostForeignCode (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostForeignCode = x}}
 
 stFreshInteractionId :: Lens' TCState InteractionId
 stFreshInteractionId f s =
@@ -830,10 +839,6 @@ stConsideringInstance f s =
   f (stPostConsideringInstance (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConsideringInstance = x}}
 
-stMutualChecks :: Lens' TCState Bool
-stMutualChecks f s = f (stPostMutualChecks (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostMutualChecks = x}}
-
 stInstantiateBlocking :: Lens' TCState Bool
 stInstantiateBlocking f s =
   f (stPostInstantiateBlocking (stPostScopeState s)) <&>
@@ -870,8 +875,11 @@ class Monad m => MonadFresh i m where
   default fresh :: (MonadTrans t, MonadFresh i n, t n ~ m) => m i
   fresh = lift fresh
 
+instance MonadFresh i m => MonadFresh i (ExceptT e m)
+instance MonadFresh i m => MonadFresh i (MaybeT m)
 instance MonadFresh i m => MonadFresh i (ReaderT r m)
 instance MonadFresh i m => MonadFresh i (StateT s m)
+instance (MonadFresh i m, Monoid w) => MonadFresh i (WriterT w m)
 instance MonadFresh i m => MonadFresh i (ListT m)
 instance MonadFresh i m => MonadFresh i (IdentityT m)
 
@@ -982,8 +990,21 @@ class Monad m => MonadStConcreteNames m where
 instance MonadStConcreteNames TCM where
   runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
 
+-- | The concrete names get lost in case of an exception.
+instance MonadStConcreteNames m => MonadStConcreteNames (ExceptT e m) where
+  runStConcreteNames m = ExceptT $ runStConcreteNames $ StateT $ \ ns -> do
+    runExceptT (runStateT m ns) <&> \case
+      Left e         -> (Left e, mempty)
+      Right (x, ns') -> (Right x, ns')
+
 instance MonadStConcreteNames m => MonadStConcreteNames (IdentityT m) where
   runStConcreteNames m = IdentityT $ runStConcreteNames $ StateT $ runIdentityT . runStateT m
+
+instance MonadStConcreteNames m => MonadStConcreteNames (MaybeT m) where
+  runStConcreteNames m = MaybeT $ runStConcreteNames $ StateT $ \ ns -> do
+    runMaybeT (runStateT m ns) <&> \case
+      Nothing       -> (Nothing, mempty)
+      Just (x, ns') -> (Just x, ns')
 
 instance MonadStConcreteNames m => MonadStConcreteNames (ReaderT r m) where
   runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . flip (runReaderT . runStateT m)
@@ -992,6 +1013,11 @@ instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
   runStConcreteNames m = StateT $ \s -> runStConcreteNames $ StateT $ \ns -> do
     ((x,ns'),s') <- runStateT (runStateT m ns) s
     return ((x,s'),ns')
+
+instance (MonadStConcreteNames m, Monoid w) => MonadStConcreteNames (WriterT w m) where
+  runStConcreteNames m = WriterT $ runStConcreteNames $ StateT $ \ ns -> do
+    ((x,ns'),w) <- runWriterT $ runStateT m ns
+    return ((x,w),ns')
 
 ---------------------------------------------------------------------------
 -- ** Interface
@@ -1034,7 +1060,7 @@ newtype ForeignCodeStack = ForeignCodeStack
   } deriving (Show, Generic, NFData)
 
 data Interface = Interface
-  { iSourceHash      :: Hash
+  { iSourceHash      :: !Hash
     -- ^ Hash of the source code.
   , iSource          :: TL.Text
     -- ^ The source code. The source code is stored so that the HTML
@@ -2795,6 +2821,10 @@ lensRecTel :: Lens' RecordData Telescope
 lensRecTel f r =
   f (_recTel r) <&> \ tel -> r { _recTel = tel }
 
+lensRecEta :: Lens' RecordData EtaEquality
+lensRecEta f r =
+  f (_recEtaEquality' r) <&> \ eta -> r { _recEtaEquality' = eta }
+
 -- Pretty printing definitions
 
 instance Pretty Definition where
@@ -2990,11 +3020,18 @@ instance Pretty ProjLams where
 
 -- | Is the record type recursive?
 recRecursive :: Defn -> Bool
-recRecursive (Record { recMutual = Just qs }) = not $ null qs
+recRecursive (RecordDefn d) = recRecursive_ d
 recRecursive _ = __IMPOSSIBLE__
+
+recRecursive_ :: RecordData -> Bool
+recRecursive_ RecordData{ _recMutual = Just qs } = not $ null qs
+recRecursive_ _ = __IMPOSSIBLE__
 
 recEtaEquality :: Defn -> HasEta
 recEtaEquality = theEtaEquality . recEtaEquality'
+
+_recEtaEquality :: RecordData -> HasEta
+_recEtaEquality = theEtaEquality . _recEtaEquality'
 
 -- | A template for creating 'Function' definitions, with sensible
 -- defaults.
@@ -4234,6 +4271,11 @@ data Warning
     -- ^ 'Clause' was turned into copattern matching clause(s) by an @{-# INLINE constructor #-}@
     --   and thus is not a definitional equality any more.
   | NotStrictlyPositive      QName (Seq OccursWhere)
+  | ConstructorDoesNotFitInData QName Sort Sort TCErr
+      -- ^ Checking whether constructor 'QName' 'Sort' fits into @data@ 'Sort'
+      --   produced 'TCErr'.
+  | CoinductiveEtaRecord QName
+      -- ^ A record type declared as both @coinductive@ and having @eta-equality@.
 
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
@@ -4243,15 +4285,22 @@ data Warning
     -- ^ Do not use directly with 'warning'
 
   | CantGeneralizeOverSorts [MetaId]
-  | AbsurdPatternRequiresNoRHS [NamedArg DeBruijnPattern]
+  | AbsurdPatternRequiresAbsentRHS [NamedArg DeBruijnPattern]
   | OldBuiltin               BuiltinId BuiltinId
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new.
   | BuiltinDeclaresIdentifier BuiltinId
     -- ^ The builtin declares a new identifier, so it should not be in scope.
+  | DuplicateRecordDirective C.RecordDirective
+    -- ^ The given record directive is conflicting with a prior one in the same record declaration.
   | EmptyRewritePragma
     -- ^ If the user wrote just @{-\# REWRITE \#-}@.
   | EmptyWhere
     -- ^ An empty @where@ block is dead code.
+  -- TODO: linearity
+  -- -- | FixingQuantity String Quantity Quantity
+  -- --   -- ^ Auto-correcting quantity pertaining to 'String' /from/ /to/.
+  | FixingRelevance String Relevance Relevance
+    -- ^ Auto-correcting relevance pertaining to 'String' /from/ /to/.
   | IllformedAsClause String
     -- ^ If the user wrote something other than an unqualified name
     --   in the @as@ clause of an @import@ statement.
@@ -4325,6 +4374,9 @@ data Warning
     --   contains unsolved metavariables.
   | ConfluenceForCubicalNotSupported
     -- ^ Confluence checking with @--cubical@ might be incomplete.
+  | NotARewriteRule C.QName IsAmbiguous
+    -- ^ 'IllegalRewriteRule' detected during scope checking.
+  | IllegalRewriteRule QName IllegalRewriteRuleReason
   | RewriteNonConfluent Term Term Term Doc
     -- ^ Confluence checker found critical pair and equality checking
     --   resulted in a type error
@@ -4338,14 +4390,25 @@ data Warning
   | RewriteMissingRule Term Term Term
     -- ^ The global confluence checker found a term @u@ that reduces
     --   to @v@, but @v@ does not reduce to @rho(u)@.
-  | DuplicateRewriteRule QName
-    -- ^ This rewrite rule has already been added.
   | PragmaCompileErased BackendName QName
     -- ^ COMPILE directive for an erased symbol.
   | PragmaCompileList
     -- ^ @COMPILE GHC@ pragma for lists; ignored.
   | PragmaCompileMaybe
     -- ^ @COMPILE GHC@ pragma for @MAYBE@; ignored.
+  | PragmaCompileUnparsable String
+    -- ^ @COMPILE GHC@ pragma 'String' not parsable; ignored.
+  | PragmaCompileWrong QName String
+    -- ^ Wrong @COMPILE GHC@ given for 'QName'; explanation is in 'String'.
+  | PragmaCompileWrongName C.QName IsAmbiguous
+    -- ^ @COMPILE@ pragma with name 'C.QName' that is not an unambiguous constructor or definition.
+  | PragmaExpectsDefinedSymbol String C.QName
+    -- ^ Pragma 'String' with name 'C.QName' that is not an 'A.Def'.
+  | PragmaExpectsUnambiguousConstructorOrFunction String C.QName IsAmbiguous
+    -- ^ Pragma 'String' with name 'C.QName' that is not an unambiguous constructor or definition.
+    --   General form of 'PragmaCompileWrongName' and 'NotARewriteRule'.
+  | PragmaExpectsUnambiguousProjectionOrFunction String C.QName IsAmbiguous
+    -- ^ Pragma 'String' with name 'C.QName' that is not an unambiguous projection or function.
   | NoMain TopLevelModuleName
     -- ^ Compiler run on module that does not have a @main@ function.
   | NotInScopeW [C.QName]
@@ -4363,11 +4426,28 @@ data Warning
     -- ^ Explicit use of @@ω@ or @@plenty@ in hard compile-time mode.
   | RecordFieldWarning RecordFieldWarning
 
+  -- Opaque
   | MissingTypeSignatureForOpaque QName IsOpaque
     -- ^ An @abstract@ or @opaque@ definition lacks a type signature.
   | NotAffectedByOpaque
+  | UnfoldingWrongName C.QName
+      -- ^ Name in @unfolding@ clause does not resolve to unambiguous defined name.
   | UnfoldTransparentName QName
   | UselessOpaque
+
+  -- Type checker warnings
+  | InvalidDisplayForm QName String
+      -- ^ DISPLAY form for 'QName' is invalid because 'String'.
+  | TooManyArgumentsToSort QName (List1 (NamedArg A.Expr))
+      -- ^ Extra arguments to sort (will be ignored).
+  | WithClauseProjectionFixityMismatch
+    { withClausePattern          :: NamedArg A.Pattern
+    , withClauseProjectionOrigin :: ProjOrigin
+    , parentPattern              :: NamedArg DeBruijnPattern
+    , parentProjectionOrigin     :: ProjOrigin
+    }
+    -- ^ The with-clause uses projection in a different fixity style
+    --   than the parent clause.
 
   -- Cubical
   | FaceConstraintCannotBeHidden ArgInfo
@@ -4378,6 +4458,8 @@ data Warning
   -- Not source code related
   | DuplicateInterfaceFiles AbsolutePath AbsolutePath
     -- ^ `DuplicateInterfaceFiles selectedInterfaceFile ignoredInterfaceFile`
+  | CustomBackendWarning String Doc
+    -- ^ Used for backend-specific warnings. The string is the backend name.
   deriving (Show, Generic)
 
 recordFieldWarningToError :: RecordFieldWarning -> TypeError
@@ -4395,14 +4477,18 @@ warningName = \case
   -- scope- and type-checking errors
   AsPatternShadowsConstructorOrPatternSynonym{} -> AsPatternShadowsConstructorOrPatternSynonym_
   PatternShadowsConstructor{}  -> PatternShadowsConstructor_
-  AbsurdPatternRequiresNoRHS{} -> AbsurdPatternRequiresNoRHS_
+  AbsurdPatternRequiresAbsentRHS{} -> AbsurdPatternRequiresAbsentRHS_
   CantGeneralizeOverSorts{}    -> CantGeneralizeOverSorts_
   CoverageIssue{}              -> CoverageIssue_
   CoverageNoExactSplit{}       -> CoverageNoExactSplit_
   InlineNoExactSplit{}         -> InlineNoExactSplit_
   DeprecationWarning{}         -> DeprecationWarning_
+  DuplicateRecordDirective{}   -> DuplicateRecordDirective_
   EmptyRewritePragma           -> EmptyRewritePragma_
   EmptyWhere                   -> EmptyWhere_
+  -- TODO: linearity
+  -- FixingQuantity{}             -> FixingQuantity_
+  FixingRelevance{}            -> FixingRelevance_
   IllformedAsClause{}          -> IllformedAsClause_
   WrongInstanceDeclaration{}   -> WrongInstanceDeclaration_
   InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_
@@ -4418,6 +4504,8 @@ warningName = \case
   NoGuardednessFlag{}          -> NoGuardednessFlag_
   NotInScopeW{}                -> NotInScope_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
+  ConstructorDoesNotFitInData{}-> ConstructorDoesNotFitInData_
+  CoinductiveEtaRecord{}       -> CoinductiveEtaRecord_
   UnsupportedIndexedMatch{}    -> UnsupportedIndexedMatch_
   OldBuiltin{}                 -> OldBuiltin_
   BuiltinDeclaresIdentifier{}  -> BuiltinDeclaresIdentifier_
@@ -4441,14 +4529,23 @@ warningName = \case
   CoInfectiveImport{}          -> CoInfectiveImport_
   ConfluenceCheckingIncompleteBecauseOfMeta{} -> ConfluenceCheckingIncompleteBecauseOfMeta_
   ConfluenceForCubicalNotSupported{}          -> ConfluenceForCubicalNotSupported_
+  IllegalRewriteRule _ reason  -> illegalRewriteWarningName reason
+  NotARewriteRule{}            -> NotARewriteRule_
   RewriteNonConfluent{}        -> RewriteNonConfluent_
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
   RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_
   RewriteMissingRule{}         -> RewriteMissingRule_
-  DuplicateRewriteRule{}       -> DuplicateRewriteRule_
   PragmaCompileErased{}        -> PragmaCompileErased_
   PragmaCompileList{}          -> PragmaCompileList_
   PragmaCompileMaybe{}         -> PragmaCompileMaybe_
+  PragmaCompileUnparsable{}    -> PragmaCompileUnparsable_
+  PragmaCompileWrong{}         -> PragmaCompileWrong_
+  PragmaCompileWrongName{}     -> PragmaCompileWrongName_
+  PragmaExpectsDefinedSymbol{} -> PragmaExpectsDefinedSymbol_
+  PragmaExpectsUnambiguousConstructorOrFunction{} ->
+    PragmaExpectsUnambiguousConstructorOrFunction_
+  PragmaExpectsUnambiguousProjectionOrFunction{} ->
+    PragmaExpectsUnambiguousProjectionOrFunction_
   NoMain{}                     -> NoMain_
   PlentyInHardCompileTimeMode{}
                                -> PlentyInHardCompileTimeMode_
@@ -4457,10 +4554,17 @@ warningName = \case
     W.DuplicateFields{}   -> DuplicateFields_
     W.TooManyFields{}     -> TooManyFields_
 
+  -- opaque warnings
   MissingTypeSignatureForOpaque{} -> MissingTypeSignatureForOpaque_
   NotAffectedByOpaque{}   -> NotAffectedByOpaque_
   UselessOpaque{}         -> UselessOpaque_
+  UnfoldingWrongName{}    -> UnfoldingWrongName_
   UnfoldTransparentName{} -> UnfoldTransparentName_
+
+  -- Type checking
+  InvalidDisplayForm{}                 -> InvalidDisplayForm_
+  TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
+  WithClauseProjectionFixityMismatch{} -> WithClauseProjectionFixityMismatch_
 
   -- Cubical
   FaceConstraintCannotBeHidden{} -> FaceConstraintCannotBeHidden_
@@ -4468,6 +4572,27 @@ warningName = \case
 
   -- Not source code related
   DuplicateInterfaceFiles{}      -> DuplicateInterfaceFiles_
+
+  -- Backend warnings
+  CustomBackendWarning{} -> CustomBackendWarning_
+
+illegalRewriteWarningName :: IllegalRewriteRuleReason -> WarningName
+illegalRewriteWarningName = \case
+  LHSNotDefinitionOrConstructor{}      -> RewriteLHSNotDefinitionOrConstructor_
+  VariablesNotBoundByLHS{}             -> RewriteVariablesNotBoundByLHS_
+  VariablesBoundMoreThanOnce{}         -> RewriteVariablesBoundMoreThanOnce_
+  LHSReduces{}                         -> RewriteLHSReduces_
+  HeadSymbolIsProjectionLikeFunction{} -> RewriteHeadSymbolIsProjectionLikeFunction_
+  HeadSymbolIsTypeConstructor{}        -> RewriteHeadSymbolIsTypeConstructor_
+  HeadSymbolContainsMetas{}            -> RewriteHeadSymbolContainsMetas_
+  ConstructorParametersNotGeneral{}    -> RewriteConstructorParametersNotGeneral_
+  ContainsUnsolvedMetaVariables{}      -> RewriteContainsUnsolvedMetaVariables_
+  BlockedOnProblems{}                  -> RewriteBlockedOnProblems_
+  RequiresDefinitions{}                -> RewriteRequiresDefinitions_
+  DoesNotTargetRewriteRelation         -> RewriteDoesNotTargetRewriteRelation_
+  BeforeFunctionDefinition             -> RewriteBeforeFunctionDefinition_
+  BeforeMutualFunctionDefinition{}     -> RewriteBeforeMutualFunctionDefinition_
+  DuplicateRewriteRule                 -> DuplicateRewriteRule_
 
 -- | Should warnings of that type be serialized?
 --
@@ -4535,17 +4660,6 @@ data TerminationError = TerminationError
     -- ^ The problematic call sites.
   } deriving (Show, Generic)
 
--- | The reason for an 'ErasedDatatype' error.
-
-data ErasedDatatypeReason
-  = SeveralConstructors
-    -- ^ There are several constructors.
-  | NoErasedMatches
-    -- ^ The flag @--erased-matches@ is not used.
-  | NoK
-    -- ^ The K rule is not activated.
-  deriving (Show, Generic)
-
 -- | Error when splitting a pattern variable into possible constructor patterns.
 data SplitError
   = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
@@ -4588,10 +4702,13 @@ data UnificationFailure
 
 data UnquoteError
   = BadVisibility String (Arg I.Term)
+  | CannotDeclareHiddenFunction QName
+      -- ^ Attempt to @unquoteDecl@ with 'Hiding' other than 'NotHidden'.
   | ConInsteadOfDef QName String String
   | DefInsteadOfCon QName String String
   | NonCanonical String I.Term
   | BlockedOnMeta TCState Blocker
+  | PatLamWithoutClauses I.Term
   | UnquotePanic String
   deriving (Show, Generic)
 
@@ -4600,26 +4717,27 @@ data TypeError
         | NotImplemented String
         | NotSupported String
         | CompilationError String
-        | PropMustBeSingleton
-        | DataMustEndInSort Term
-{- UNUSED
-        | DataTooManyParameters
-            -- ^ In @data D xs where@ the number of parameters @xs@ does not fit the
-            --   the parameters given in the forward declaraion @data D Gamma : T@.
--}
+        | SyntaxError String
+             -- ^ Essential syntax error thrown after successful parsing.
+             --   Description in 'String'.
+        | OptionError OptionError
+             -- ^ Error thrown by the option parser.
+        | NicifierError DeclarationException'
+             -- ^ Error thrown in the nicifier phase 'Agda.Syntax.Concrete.Definitions'.
+        | NoKnownRecordWithSuchFields [C.Name]
+            -- ^ The user has given a record expression with the given fields,
+            --   but no record type known to type inference has all these fields.
         | ShouldEndInApplicationOfTheDatatype Type
             -- ^ The target of a constructor isn't an application of its
             -- datatype. The 'Type' records what it does target.
-        | ShouldBeAppliedToTheDatatypeParameters Term Term
-            -- ^ The target of a constructor isn't its datatype applied to
-            --   something that isn't the parameters. First term is the correct
-            --   target and the second term is the actual target.
-        | ShouldBeApplicationOf Type QName
-            -- ^ Expected a type to be an application of a particular datatype.
         | ConstructorPatternInWrongDatatype QName QName -- ^ constructor, datatype
         | CantResolveOverloadedConstructorsTargetingSameDatatype QName (List1 QName)
           -- ^ Datatype, constructors.
-        | DoesNotConstructAnElementOf QName Type -- ^ constructor, type
+        | ConstructorDoesNotTargetGivenType QName Type -- ^ constructor, type
+        | LiteralTooBig
+            -- ^ An integer literal that would be too costly to expand to unary.
+        | NegativeLiteralInPattern
+            -- ^ Negative literals are not supported in patterns.
         | WrongHidingInLHS
             -- ^ The left hand side of a function definition has a hidden argument
             --   where a non-hidden was expected.
@@ -4632,6 +4750,8 @@ data TypeError
         | WrongNamedArgument (NamedArg A.Expr) [NamedName]
             -- ^ A function is applied to a hidden named argument it does not have.
             -- The list contains names of possible hidden arguments at this point.
+        | WrongAnnotationInLambda
+            -- ^ Wrong user-given (lock/tick) annotation in lambda.
         | WrongIrrelevanceInLambda
             -- ^ Wrong user-given relevance annotation in lambda.
         | WrongQuantityInLambda
@@ -4643,8 +4763,7 @@ data TypeError
         | HidingMismatch Hiding Hiding
             -- ^ The given hiding does not correspond to the expected hiding.
         | RelevanceMismatch Relevance Relevance
-            -- ^ The given relevance does not correspond to the expected relevane.
-        | UninstantiatedDotPattern A.Expr
+            -- ^ The given relevance does not correspond to the expected relevance.
         | ForcedConstructorNotInstantiated A.Pattern
         | IllformedProjectionPatternAbstract A.Pattern
         | IllformedProjectionPatternConcrete C.Pattern
@@ -4659,12 +4778,9 @@ data TypeError
         | ShouldBePath Type
         | ShouldBeRecordType Type
         | ShouldBeRecordPattern DeBruijnPattern
-        | NotAProjectionPattern (NamedArg A.Pattern)
-        | NotAProperTerm
         | InvalidTypeSort Sort
             -- ^ This sort is not a type expression.
-        | InvalidType Term
-            -- ^ This term is not a type expression.
+        | SplitOnCoinductive
         | SplitOnIrrelevant (Dom Type)
         | SplitOnUnusableCohesion (Dom Type)
         -- UNUSED: -- | SplitOnErased (Dom Type)
@@ -4680,10 +4796,9 @@ data TypeError
         | VariableIsIrrelevant Name
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion
+        | InvalidModalTelescopeUse Term Modality Modality Definition
         | UnequalLevel Comparison Level Level
         | UnequalTerms Comparison Term Term CompareAs
-        | UnequalTypes Comparison Type Type
---      | UnequalTelescopes Comparison Telescope Telescope -- UNUSED
         | UnequalRelevance Comparison Term Term
             -- ^ The two function types have different relevance.
         | UnequalQuantity Comparison Term Term
@@ -4695,7 +4810,6 @@ data TypeError
         | UnequalHiding Term Term
             -- ^ The two function types have different hiding.
         | UnequalSorts Sort Sort
-        | UnequalBecauseOfUniverseConflict Comparison Term Term
         | NotLeqSort Sort Sort
         | MetaCannotDependOn MetaId Nat
             -- ^ The arguments are the meta variable and the parameter that it wants to depend on.
@@ -4720,20 +4834,21 @@ data TypeError
             -- ^ The declaration list comes from a single 'C.NiceDeclaration'.
         | IllegalLetInTelescope C.TypedBinding
         | IllegalPatternInTelescope C.Binder
-        | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
+        | AbsentRHSRequiresAbsurdPattern [NamedArg A.Pattern]
         | TooManyFields QName [C.Name] [C.Name]
           -- ^ Record type, fields not supplied by user, non-fields but supplied.
         | DuplicateFields [C.Name]
         | DuplicateConstructors [C.Name]
         | DuplicateOverlapPragma QName OverlapMode OverlapMode
         | WithOnFreeVariable A.Expr Term
-        | UnexpectedWithPatterns [A.Pattern]
+        | UnexpectedWithPatterns (List1 A.Pattern)
         | WithClausePatternMismatch A.Pattern (NamedArg DeBruijnPattern)
         | IllTypedPatternAfterWithAbstraction A.Pattern
+        | TooFewPatternsInWithClause
+        | TooManyPatternsInWithClause
         | FieldOutsideRecord
         | ModuleArityMismatch A.ModuleName Telescope [NamedArg A.Expr]
         | GeneralizeCyclicDependency
-        | GeneralizeUnsolvedMeta
         | ReferencesFutureVariables Term (List1.NonEmpty Int) (Arg Term) Int
           -- ^ The first term references the given list of variables,
           -- which are in "the future" with respect to the given lock
@@ -4749,12 +4864,19 @@ data TypeError
         | MacroResultTypeMismatch Type
         | NamedWhereModuleInRefinedContext [Term] [String]
         | CubicalPrimitiveNotFullyApplied QName
-        | TooManyArgumentsToLeveledSort QName
-        | TooManyArgumentsToUnivOmega QName
         | ComatchingDisabledForRecord QName
-        | BuiltinMustBeIsOne Term
-        | IllegalRewriteRule QName IllegalRewriteRuleReason
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
+    -- Cubical errors
+        | CannotGenerateHCompClause Type
+            -- ^ Cannot generate @hcomp@ clause because type is not fibrant.
+        | CannotGenerateTransportClause QName (Closure (Abs Type))
+            -- ^ Cannot generate transport clause because type is not fibrant.
+        | ExpectedIntervalLiteral A.Expr
+            -- ^ Expected an interval literal (0 or 1) but found 'A.Expr'.
+        | PatternInPathLambda
+            -- ^ Attempt to pattern match in an abstraction of interval type.
+        | PatternInSystem
+            -- ^ Attempt to pattern or copattern match in a system.
     -- Data errors
         | UnexpectedParameter A.LamBinding
         | NoParameterOfName ArgName
@@ -4771,6 +4893,9 @@ data TypeError
         | ImpossibleConstructor QName NegativeUnification
     -- Positivity errors
         | TooManyPolarities QName Int
+        | RecursiveRecordNeedsInductivity QName
+            -- ^ A record type inferred as recursive needs a manual declaration
+            --   whether it should be inductively or coinductively.
     -- Sized type errors
         | CannotSolveSizeConstraints (List1 (ProblemConstraint, HypSizeConstraint)) Doc
             -- ^ The list of constraints is given redundantly as pairs of
@@ -4784,7 +4909,10 @@ data TypeError
             -- ^ This term, a function type constructor, lives in
             --   @SizeUniv@, which is not allowed.
     -- Import errors
-        | LocalVsImportedModuleClash ModuleName
+        | LibraryError LibErrors
+            -- ^ Collected errors when processing the @.agda-lib@ file.
+        | LibTooFarDown TopLevelModuleName AgdaLibFile
+            -- ^ The @.agda-lib@ file for the given module is not on the right level.
         | SolvedButOpenHoles
           -- ^ Some interaction points (holes) have not been filled by user.
           --   There are not 'UnsolvedMetas' since unification solved them.
@@ -4797,15 +4925,14 @@ data TypeError
         | ModuleNameUnexpected TopLevelModuleName TopLevelModuleName
           -- ^ Found module name, expected module name.
         | ModuleNameDoesntMatchFileName TopLevelModuleName [AbsolutePath]
-        | ClashingFileNamesFor ModuleName [AbsolutePath]
         | ModuleDefinedInOtherFile TopLevelModuleName AbsolutePath AbsolutePath
           -- ^ Module name, file from which it was loaded, file which
           -- the include path says contains the module.
         | InvalidFileName AbsolutePath InvalidFileNameReason
           -- ^ The file name does not correspond to a module name.
     -- Scope errors
-        | BothWithAndRHS
         | AbstractConstructorNotInScope A.QName
+        | NotAllowedInDotPatterns NotAllowedInDotPatterns
         | NotInScope [C.QName]
         | NoSuchModule C.QName
         | AmbiguousName C.QName AmbiguousNameReason
@@ -4814,8 +4941,6 @@ data TypeError
         | AmbiguousConstructor QName [QName]
         | ClashingDefinition C.QName A.QName (Maybe NiceDeclaration)
         | ClashingModule A.ModuleName A.ModuleName
-        | ClashingImport C.Name A.QName
-        | ClashingModuleImport C.Name A.ModuleName
         | DefinitionInDifferentModule A.QName
             -- ^ The given data/record definition rests in a different module than its signature.
         | DuplicateImports C.QName [C.ImportedName]
@@ -4826,11 +4951,9 @@ data TypeError
         | MultipleFixityDecls [(C.Name, [Fixity'])]
         | MultiplePolarityPragmas [C.Name]
     -- Concrete to Abstract errors
-        | NotAModuleExpr C.Expr
-            -- ^ The expr was used in the right hand side of an implicit module
-            --   definition, but it wasn't of the form @m Delta@.
         | NotAnExpression C.Expr
-        | NotAValidLetBinding NiceDeclaration
+        | NotAValidLetBinding (Maybe NotAValidLetBinding)
+        | NotAValidLetExpression NotAValidLetExpression
         | NotValidBeforeField NiceDeclaration
         | NothingAppliedToHiddenArg C.Expr
         | NothingAppliedToInstanceArg C.Expr
@@ -4875,16 +4998,71 @@ data TypeError
         | UnquoteFailed UnquoteError
         | DeBruijnIndexOutOfScope Nat Telescope [Name]
     -- Language option errors
+        | NeedOptionAllowExec
         | NeedOptionCopatterns
-        | NeedOptionRewriting
+        | NeedOptionCubical Cubical String
+            -- ^ Flavor of cubical needed for the given reason.
+        | NeedOptionPatternMatching
         | NeedOptionProp
+        | NeedOptionRewriting
+        | NeedOptionSizedTypes String
+            -- ^ Need @--sized-types@ for the given reason.
         | NeedOptionTwoLevel
+        | NeedOptionUniversePolymorphism
     -- Failure associated to warnings
         | NonFatalErrors [TCWarning]
     -- Instance search errors
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
+    -- Interaction errors
+        | InteractionError InteractionError
+    -- Backend errors
+        | CubicalCompilationNotSupported Cubical
+            -- ^ NYI: Compilation of files using the given flavor of 'Cubical'.
+        | CustomBackendError String Doc
+            -- ^ Used for backend-specific errors. The string is the backend name.
+        | GHCBackendError GHCBackendError
+            -- ^ Errors raised by the GHC backend.
           deriving (Show, Generic)
+
+-- | Errors raised in @--interaction@ mode.
+data InteractionError
+  = CannotRefine String
+      -- ^ Failure of the 'refine' interactive tactic.
+  | CaseSplitError Doc
+      -- ^ Failure of the 'makeCase' interactive tactic.
+  | ExpectedIdentifier C.Expr
+      -- ^ Expected the given expression to be an identifier.
+  | ExpectedApplication
+      -- ^ Expected an argument of the form @f e1 e2 .. en@.
+  | NoActionForInteractionPoint InteractionId
+      -- ^ Interaction point has not been reached during type checking.
+  | NoSuchInteractionPoint InteractionId
+      -- ^ 'InteractionId' does not resolve to an 'InteractionPoint'.
+  | UnexpectedWhere
+      -- ^ @where@ not allowed in hole.
+  deriving (Show, Generic)
+
+-- | Errors raised by the GHC backend.
+data GHCBackendError
+  = ConstructorCountMismatch QName [QName] [String]
+      -- ^ The number of Haskell constructors ('String' list) does not match
+      --   the number of constructors of the given data type.
+  | NotAHaskellType Term WhyNotAHaskellType
+      -- ^ GHC backend fails to represent given Agda type in Haskell.
+  | WrongTypeOfMain QName Type
+      -- ^ The type of @main@ should be @IO _@ ('QName') but is instead 'Type'.
+  deriving (Show, Generic)
+
+-- | Extra information for 'NotAHaskellType' error.
+data WhyNotAHaskellType
+  = NoPragmaFor QName
+  | WrongPragmaFor Range QName
+  | BadLambda Term
+  | BadMeta Term
+  | BadDontCare Term
+  | NotCompiled QName
+  deriving (Show, Generic)
 
 -- | Extra information for 'InvalidFileName' error.
 data InvalidFileNameReason
@@ -4901,22 +5079,28 @@ data InductionAndEta = InductionAndEta
 
 -- Reason, why rewrite rule is invalid
 data IllegalRewriteRuleReason
-  = LHSNotDefOrConstr
+  = LHSNotDefinitionOrConstructor
   | VariablesNotBoundByLHS IntSet
   | VariablesBoundMoreThanOnce IntSet
-  | LHSReducesTo Term Term
-  | HeadSymbolIsProjection QName
+  | LHSReduces Term Term
   | HeadSymbolIsProjectionLikeFunction QName
-  | HeadSymbolNotPostulateFunctionConstructor QName
-  | HeadSymbolDefContainsMetas QName
-  | ConstructorParamsNotGeneral ConHead Args
+  | HeadSymbolIsTypeConstructor QName
+  | HeadSymbolContainsMetas QName
+  | ConstructorParametersNotGeneral ConHead Args
   | ContainsUnsolvedMetaVariables (Set MetaId)
   | BlockedOnProblems (Set ProblemId)
   | RequiresDefinitions (Set QName)
   | DoesNotTargetRewriteRelation
   | BeforeFunctionDefinition
-  | EmptyReason
+  | BeforeMutualFunctionDefinition QName
+  | DuplicateRewriteRule
     deriving (Show, Generic)
+
+-- | Boolean flag whether a name is ambiguous.
+data IsAmbiguous
+  = YesAmbiguous AmbiguousQName
+  | NotAmbiguous
+  deriving (Show, Generic)
 
 -- Reason, why type for rewrite rule is incorrect
 data IncorrectTypeForRewriteRelationReason
@@ -4940,10 +5124,12 @@ data TCErr
     , tcErrClosErr  :: Closure TypeError
         -- ^ The environment in which the error as raised plus the error.
     }
-  | Exception Range Doc
-  | IOException TCState Range E.IOException
-    -- ^ The first argument is the state in which the error was
-    -- raised.
+  | ParserError ParseError
+      -- ^ Error raised by the Happy parser.
+  | GenericException String
+      -- ^ Unspecific error without 'Range'.
+  | IOException (Maybe TCState) Range E.IOException
+      -- ^ The first argument is the state in which the error was raised.
   | PatternErr Blocker
       -- ^ The exception which is usually caught.
       --   Raised for pattern violations during unification ('assignV')
@@ -4952,16 +5138,18 @@ data TCErr
       --   be retried.
 
 instance Show TCErr where
-  show (TypeError _ _ e)   = prettyShow (envRange $ clEnv e) ++ ": " ++ show (clValue e)
-  show (Exception r d)     = prettyShow r ++ ": " ++ render d
-  show (IOException _ r e) = prettyShow r ++ ": " ++
-                             E.displayException e
-  show PatternErr{}        = "Pattern violation (you shouldn't see this)"
+  show = \case
+    TypeError _ _ e      -> prettyShow (envRange $ clEnv e) ++ ": " ++ show (clValue e)
+    ParserError e        -> prettyShow e
+    GenericException msg -> msg
+    IOException _ r e    -> prettyShow r ++ ": " ++ showIOException e
+    PatternErr{}         -> "Pattern violation (you shouldn't see this)"
 
 instance HasRange TCErr where
   getRange (TypeError _ _ cl)  = envRange $ clEnv cl
-  getRange (Exception r _)     = r
-  getRange (IOException s r _) = r
+  getRange (ParserError e)     = getRange e
+  getRange GenericException{}  = noRange
+  getRange (IOException _ r _) = r
   getRange PatternErr{}        = noRange
 
 instance E.Exception TCErr
@@ -5460,7 +5648,7 @@ instance Monad m => Monad (TCMT m) where
     (>>=)  = bindTCMT; {-# INLINE (>>=) #-}
     (>>)   = (*>); {-# INLINE (>>) #-}
 
-instance MonadIO m => Fail.MonadFail (TCMT m) where
+instance (CatchIO m, MonadIO m) => Fail.MonadFail (TCMT m) where
   fail = internalError
 
 instance MonadIO m => MonadIO (TCMT m) where
@@ -5471,7 +5659,7 @@ instance MonadIO m => MonadIO (TCMT m) where
     where
       wrap s r m = E.catch m $ \ err -> do
         s <- readIORef s
-        E.throwIO $ IOException s r err
+        E.throwIO $ IOException (Just s) r err
 
 instance ( MonadFix m
          ) => MonadFix (TCMT m) where
@@ -5504,12 +5692,11 @@ instance MonadBlock TCM where
            PatternErr u -> handle u
            _            -> throwError err
 
-
-instance MonadError TCErr TCM where
+instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
   throwError = liftIO . E.throwIO
-  catchError m h = TCM $ \ r e -> do  -- now we are in the IO monad
-    oldState <- readIORef r
-    unTCM m r e `E.catch` \err -> do
+  catchError m h = TCM $ \ r e -> do  -- now we are in the monad m
+    oldState <- liftIO $ readIORef r
+    unTCM m r e `catchIO` \err -> do
       -- Reset the state, but do not forget changes to the persistent
       -- component. Not for pattern violations.
       case err of
@@ -5614,9 +5801,9 @@ instance Null (TCM Doc) where
   empty = return empty
   null = __IMPOSSIBLE__
 
-internalError :: (HasCallStack, MonadTCM tcm) => String -> tcm a
+internalError :: (HasCallStack, MonadTCError m) => String -> m a
 internalError s = withCallerCallStack $ \ loc ->
-  liftTCM $ typeError' loc $ InternalError s
+  typeError' loc $ InternalError s
 
 -- | The constraints needed for 'typeError' and similar.
 type MonadTCError m = (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
@@ -5648,6 +5835,15 @@ typeError'_ loc err = TypeError loc <$> getTCState <*> buildClosure err
 {-# SPECIALIZE typeError_ :: HasCallStack => TypeError -> TCM TCErr #-}
 typeError_ :: (HasCallStack, MonadTCEnv m, ReadTCState m) => TypeError -> m TCErr
 typeError_ = withCallerCallStack . flip typeError'_
+
+interactionError :: (HasCallStack, MonadTCError m) => InteractionError -> m a
+interactionError = locatedTypeError InteractionError
+
+syntaxError :: (HasCallStack, MonadTCError m) => String -> m a
+syntaxError = locatedTypeError SyntaxError
+
+unquoteError :: (HasCallStack, MonadTCError m) => UnquoteError -> m a
+unquoteError = locatedTypeError UnquoteFailed
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
@@ -5930,7 +6126,8 @@ instance NFData NumGeneralizableArgs where
 
 instance NFData TCErr where
   rnf (TypeError a b c)   = rnf a `seq` rnf b `seq` rnf c
-  rnf (Exception a b)     = rnf a `seq` rnf b
+  rnf (ParserError a)     = rnf a
+  rnf (GenericException a)= rnf a
   rnf (IOException a b c) = rnf a `seq` rnf b `seq` rnf (c == c)
                             -- At the time of writing there is no
                             -- NFData instance for E.IOException.
@@ -6036,7 +6233,6 @@ instance NFData RecordFieldWarning
 instance NFData TCWarning
 instance NFData CallInfo
 instance NFData TerminationError
-instance NFData ErasedDatatypeReason
 instance NFData SplitError
 instance NFData NegativeUnification
 instance NFData UnificationFailure
@@ -6048,3 +6244,7 @@ instance NFData DataOrRecordE
 instance NFData InductionAndEta
 instance NFData IllegalRewriteRuleReason
 instance NFData IncorrectTypeForRewriteRelationReason
+instance NFData GHCBackendError
+instance NFData WhyNotAHaskellType
+instance NFData InteractionError
+instance NFData IsAmbiguous

@@ -1,4 +1,4 @@
-NoConstraints.agda:30,8-19
+NoConstraints.agda:30,8-19: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   P _b_20 =< Bool (blocked on _b_20)
 when checking that the expression unquote should-fail has type ⊤

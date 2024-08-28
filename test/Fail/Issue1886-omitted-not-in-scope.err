@@ -1,4 +1,4 @@
-Issue1886-omitted-not-in-scope.agda:12,9-10
+Issue1886-omitted-not-in-scope.agda:12,9-10: error: [NotInScope]
 Not in scope:
   a
   at Issue1886-omitted-not-in-scope.agda:12,9-10

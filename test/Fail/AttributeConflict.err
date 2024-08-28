@@ -1,4 +1,2 @@
-AttributeConflict.agda:4,3-3
-AttributeConflict.agda:4,3: Conflicting attributes: 0 ω
-<EOF><ERROR>
-...
+AttributeConflict.agda:4,3: error: [ParseError]
+Conflicting attributes: 0 ω

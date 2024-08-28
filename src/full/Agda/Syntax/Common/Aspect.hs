@@ -76,9 +76,15 @@ data OtherAspect
   | TypeChecks
     -- ^ Code which is being type-checked.
   | MissingDefinition
-    -- ^ Function declaration without matching definition
-  -- NB: We put CatchallClause last so that it is overwritten by other,
+    -- ^ Function declaration without matching definition.
+  | InstanceProblem
+      -- ^ Unusable instance etc.
+
+  -- NB: We put CatchallClause and CosmeticProblem last
+  -- so that they are overwritten by other,
   -- more important, aspects in the emacs mode.
+  | CosmeticProblem
+      -- ^ Nothing serious, just a beauty flaw.
   | CatchallClause
   | ConfluenceProblem
     deriving (Eq, Ord, Show, Enum, Bounded, Generic)

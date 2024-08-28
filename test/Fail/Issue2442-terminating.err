@@ -1,2 +1,2 @@
-Issue2442-terminating.agda:5,1-24
+Issue2442-terminating.agda:5,1-24: error: [SafeFlagNonTerminating]
 Cannot use NON_TERMINATING pragma with safe flag.

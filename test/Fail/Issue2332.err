@@ -1,4 +1,4 @@
-Issue2332.agda:6,1-6
+Issue2332.agda:6,1-6: error: [CannotEliminateWithProjection]
 Cannot eliminate type  Set → Set₁  with projection  R._A
 when checking the clause left hand side
 P R.A

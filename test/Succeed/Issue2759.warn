@@ -1,323 +1,285 @@
-Issue2759.agda:9,1-9
-warning: -W[no]EmptyAbstract
+Issue2759.agda:9,1-9: warning: -W[no]EmptyAbstract
 Empty abstract block.
-Issue2759.agda:10,1-13
-warning: -W[no]EmptyConstructor
+
+Issue2759.agda:10,1-13: warning: -W[no]EmptyConstructor
 Empty constructor block.
-Issue2759.agda:11,1-9
-warning: -W[no]EmptyInstance
+
+Issue2759.agda:11,1-9: warning: -W[no]EmptyInstance
 Empty instance block.
-Issue2759.agda:12,1-19
-warning: -W[no]EmptyMutual
+
+Issue2759.agda:12,1-19: warning: -W[no]EmptyMutual
 Empty mutual block.
-Issue2759.agda:13,1-6
-warning: -W[no]EmptyMacro
+
+Issue2759.agda:13,1-6: warning: -W[no]EmptyMacro
 Empty macro block.
-Issue2759.agda:14,1-7
-warning: -W[no]EmptyMutual
+
+Issue2759.agda:14,1-7: warning: -W[no]EmptyMutual
 Empty mutual block.
-Issue2759.agda:17,1-10
-warning: -W[no]EmptyPostulate
+
+Issue2759.agda:17,1-10: warning: -W[no]EmptyPostulate
 Empty postulate block.
-Issue2759.agda:18,1-10
-warning: -W[no]EmptyPrimitive
+
+Issue2759.agda:18,1-10: warning: -W[no]EmptyPrimitive
 Empty primitive block.
-Issue2759.agda:19,1-8
-warning: -W[no]EmptyPrivate
+
+Issue2759.agda:19,1-8: warning: -W[no]EmptyPrivate
 Empty private block.
-Issue2759.agda:20,1-9
-warning: -W[no]EmptyGeneralize
+
+Issue2759.agda:20,1-9: warning: -W[no]EmptyGeneralize
 Empty variable block.
-Issue2759.agda:43,3-12
-warning: -W[no]EmptyPostulate
+
+Issue2759.agda:43,3-12: warning: -W[no]EmptyPostulate
 Empty postulate block.
-Issue2759.agda:47,27-32
-warning: -W[no]EmptyMacro
+
+Issue2759.agda:47,27-32: warning: -W[no]EmptyMacro
 Empty macro block.
-Issue2759.agda:47,18-26
-warning: -W[no]UselessInstance
+
+Issue2759.agda:47,18-26: warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
 declarations that introduce new identifiers into the module, like
 type signatures and axioms.
-Issue2759.agda:47,10-17
-warning: -W[no]UselessPrivate
+
+Issue2759.agda:47,10-17: warning: -W[no]UselessPrivate
 Using private here has no effect. Private applies only to
 declarations that introduce new identifiers into the module, like
 type signatures and data, record, and module declarations.
-Issue2759.agda:47,1-9
-warning: -W[no]UselessAbstract
+
+Issue2759.agda:47,1-9: warning: -W[no]UselessAbstract
 Using abstract here has no effect. Abstract applies to only
 definitions like data definitions, record type definitions and
 function clauses.
-Issue2759.agda:15,1-7
-warning: -W[no]UselessOpaque
+
+Issue2759.agda:15,1-7: warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration
   opaque unfolding {}
-Issue2759.agda:16,1-7
-warning: -W[no]UselessOpaque
+
+Issue2759.agda:16,1-7: warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration
   opaque unfolding {}
-Issue2759.agda:25,12-20
-warning: -W[no]EmptyAbstract
+
+Issue2759.agda:25,12-20: warning: -W[no]EmptyAbstract
 Empty abstract block.
 when scope checking λ (let abstract) → let abstract in Set
-Issue2759.agda:25,38-46
-warning: -W[no]EmptyAbstract
+
+Issue2759.agda:25,38-46: warning: -W[no]EmptyAbstract
 Empty abstract block.
 when scope checking let abstract in Set
-Issue2759.agda:26,12-24
-warning: -W[no]EmptyConstructor
+
+Issue2759.agda:26,12-24: warning: -W[no]EmptyConstructor
 Empty constructor block.
 when scope checking λ (let data _ where) → let data _ where in Set
-Issue2759.agda:26,38-50
-warning: -W[no]EmptyConstructor
+
+Issue2759.agda:26,38-50: warning: -W[no]EmptyConstructor
 Empty constructor block.
 when scope checking let data _ where in Set
-Issue2759.agda:27,12-20
-warning: -W[no]EmptyInstance
+
+Issue2759.agda:27,12-20: warning: -W[no]EmptyInstance
 Empty instance block.
 when scope checking λ (let instance) → let instance in Set
-Issue2759.agda:27,38-46
-warning: -W[no]EmptyInstance
+
+Issue2759.agda:27,38-46: warning: -W[no]EmptyInstance
 Empty instance block.
 when scope checking let instance in Set
-Issue2759.agda:28,12-30
-warning: -W[no]EmptyMutual
+
+Issue2759.agda:28,12-30: warning: -W[no]EmptyMutual
 Empty mutual block.
 when scope checking
 λ (let interleaved mutual) → let interleaved mutual in Set
-Issue2759.agda:28,38-56
-warning: -W[no]EmptyMutual
+
+Issue2759.agda:28,38-56: warning: -W[no]EmptyMutual
 Empty mutual block.
 when scope checking let interleaved mutual in Set
-Issue2759.agda:29,12-17
-warning: -W[no]EmptyMacro
+
+Issue2759.agda:29,12-17: warning: -W[no]EmptyMacro
 Empty macro block.
 when scope checking λ (let macro) → let macro in Set
-Issue2759.agda:29,38-43
-warning: -W[no]EmptyMacro
+
+Issue2759.agda:29,38-43: warning: -W[no]EmptyMacro
 Empty macro block.
 when scope checking let macro in Set
-Issue2759.agda:30,12-18
-warning: -W[no]EmptyMutual
+
+Issue2759.agda:30,12-18: warning: -W[no]EmptyMutual
 Empty mutual block.
 when scope checking λ (let mutual) → let mutual in Set
-Issue2759.agda:30,38-44
-warning: -W[no]EmptyMutual
+
+Issue2759.agda:30,38-44: warning: -W[no]EmptyMutual
 Empty mutual block.
 when scope checking let mutual in Set
-Issue2759.agda:31,12-21
-warning: -W[no]EmptyPostulate
+
+Issue2759.agda:31,12-21: warning: -W[no]EmptyPostulate
 Empty postulate block.
 when scope checking λ (let postulate) → let postulate in Set
-Issue2759.agda:31,38-47
-warning: -W[no]EmptyPostulate
+
+Issue2759.agda:31,38-47: warning: -W[no]EmptyPostulate
 Empty postulate block.
 when scope checking let postulate in Set
-Issue2759.agda:32,12-21
-warning: -W[no]EmptyPrimitive
+
+Issue2759.agda:32,12-21: warning: -W[no]EmptyPrimitive
 Empty primitive block.
 when scope checking λ (let primitive) → let primitive in Set
-Issue2759.agda:32,38-47
-warning: -W[no]EmptyPrimitive
+
+Issue2759.agda:32,38-47: warning: -W[no]EmptyPrimitive
 Empty primitive block.
 when scope checking let primitive in Set
-Issue2759.agda:33,12-19
-warning: -W[no]EmptyPrivate
+
+Issue2759.agda:33,12-19: warning: -W[no]EmptyPrivate
 Empty private block.
 when scope checking λ (let private) → let private in Set
-Issue2759.agda:33,38-45
-warning: -W[no]EmptyPrivate
+
+Issue2759.agda:33,38-45: warning: -W[no]EmptyPrivate
 Empty private block.
 when scope checking let private in Set
-Issue2759.agda:34,12-20
-warning: -W[no]EmptyGeneralize
+
+Issue2759.agda:34,12-20: warning: -W[no]EmptyGeneralize
 Empty variable block.
 when scope checking λ (let variable) → let variable in Set
-Issue2759.agda:34,38-46
-warning: -W[no]EmptyGeneralize
+
+Issue2759.agda:34,38-46: warning: -W[no]EmptyGeneralize
 Empty variable block.
 when scope checking let variable in Set
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue2759.agda:9,1-9
-warning: -W[no]EmptyAbstract
+Issue2759.agda:9,1-9: warning: -W[no]EmptyAbstract
 Empty abstract block.
 
-Issue2759.agda:10,1-13
-warning: -W[no]EmptyConstructor
+Issue2759.agda:10,1-13: warning: -W[no]EmptyConstructor
 Empty constructor block.
 
-Issue2759.agda:11,1-9
-warning: -W[no]EmptyInstance
+Issue2759.agda:11,1-9: warning: -W[no]EmptyInstance
 Empty instance block.
 
-Issue2759.agda:12,1-19
-warning: -W[no]EmptyMutual
+Issue2759.agda:12,1-19: warning: -W[no]EmptyMutual
 Empty mutual block.
 
-Issue2759.agda:13,1-6
-warning: -W[no]EmptyMacro
+Issue2759.agda:13,1-6: warning: -W[no]EmptyMacro
 Empty macro block.
 
-Issue2759.agda:14,1-7
-warning: -W[no]EmptyMutual
+Issue2759.agda:14,1-7: warning: -W[no]EmptyMutual
 Empty mutual block.
 
-Issue2759.agda:17,1-10
-warning: -W[no]EmptyPostulate
+Issue2759.agda:17,1-10: warning: -W[no]EmptyPostulate
 Empty postulate block.
 
-Issue2759.agda:18,1-10
-warning: -W[no]EmptyPrimitive
+Issue2759.agda:18,1-10: warning: -W[no]EmptyPrimitive
 Empty primitive block.
 
-Issue2759.agda:19,1-8
-warning: -W[no]EmptyPrivate
+Issue2759.agda:19,1-8: warning: -W[no]EmptyPrivate
 Empty private block.
 
-Issue2759.agda:20,1-9
-warning: -W[no]EmptyGeneralize
+Issue2759.agda:20,1-9: warning: -W[no]EmptyGeneralize
 Empty variable block.
 
-Issue2759.agda:43,3-12
-warning: -W[no]EmptyPostulate
+Issue2759.agda:43,3-12: warning: -W[no]EmptyPostulate
 Empty postulate block.
 
-Issue2759.agda:47,27-32
-warning: -W[no]EmptyMacro
+Issue2759.agda:47,27-32: warning: -W[no]EmptyMacro
 Empty macro block.
 
-Issue2759.agda:47,18-26
-warning: -W[no]UselessInstance
+Issue2759.agda:47,18-26: warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
 declarations that introduce new identifiers into the module, like
 type signatures and axioms.
 
-Issue2759.agda:47,10-17
-warning: -W[no]UselessPrivate
+Issue2759.agda:47,10-17: warning: -W[no]UselessPrivate
 Using private here has no effect. Private applies only to
 declarations that introduce new identifiers into the module, like
 type signatures and data, record, and module declarations.
 
-Issue2759.agda:47,1-9
-warning: -W[no]UselessAbstract
+Issue2759.agda:47,1-9: warning: -W[no]UselessAbstract
 Using abstract here has no effect. Abstract applies to only
 definitions like data definitions, record type definitions and
 function clauses.
 
-Issue2759.agda:15,1-7
-warning: -W[no]UselessOpaque
+Issue2759.agda:15,1-7: warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration
   opaque unfolding {}
 
-Issue2759.agda:16,1-7
-warning: -W[no]UselessOpaque
+Issue2759.agda:16,1-7: warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration
   opaque unfolding {}
 
-Issue2759.agda:25,12-20
-warning: -W[no]EmptyAbstract
+Issue2759.agda:25,12-20: warning: -W[no]EmptyAbstract
 Empty abstract block.
 when scope checking λ (let abstract) → let abstract in Set
 
-Issue2759.agda:25,38-46
-warning: -W[no]EmptyAbstract
+Issue2759.agda:25,38-46: warning: -W[no]EmptyAbstract
 Empty abstract block.
 when scope checking let abstract in Set
 
-Issue2759.agda:26,12-24
-warning: -W[no]EmptyConstructor
+Issue2759.agda:26,12-24: warning: -W[no]EmptyConstructor
 Empty constructor block.
 when scope checking λ (let data _ where) → let data _ where in Set
 
-Issue2759.agda:26,38-50
-warning: -W[no]EmptyConstructor
+Issue2759.agda:26,38-50: warning: -W[no]EmptyConstructor
 Empty constructor block.
 when scope checking let data _ where in Set
 
-Issue2759.agda:27,12-20
-warning: -W[no]EmptyInstance
+Issue2759.agda:27,12-20: warning: -W[no]EmptyInstance
 Empty instance block.
 when scope checking λ (let instance) → let instance in Set
 
-Issue2759.agda:27,38-46
-warning: -W[no]EmptyInstance
+Issue2759.agda:27,38-46: warning: -W[no]EmptyInstance
 Empty instance block.
 when scope checking let instance in Set
 
-Issue2759.agda:28,12-30
-warning: -W[no]EmptyMutual
+Issue2759.agda:28,12-30: warning: -W[no]EmptyMutual
 Empty mutual block.
 when scope checking
 λ (let interleaved mutual) → let interleaved mutual in Set
 
-Issue2759.agda:28,38-56
-warning: -W[no]EmptyMutual
+Issue2759.agda:28,38-56: warning: -W[no]EmptyMutual
 Empty mutual block.
 when scope checking let interleaved mutual in Set
 
-Issue2759.agda:29,12-17
-warning: -W[no]EmptyMacro
+Issue2759.agda:29,12-17: warning: -W[no]EmptyMacro
 Empty macro block.
 when scope checking λ (let macro) → let macro in Set
 
-Issue2759.agda:29,38-43
-warning: -W[no]EmptyMacro
+Issue2759.agda:29,38-43: warning: -W[no]EmptyMacro
 Empty macro block.
 when scope checking let macro in Set
 
-Issue2759.agda:30,12-18
-warning: -W[no]EmptyMutual
+Issue2759.agda:30,12-18: warning: -W[no]EmptyMutual
 Empty mutual block.
 when scope checking λ (let mutual) → let mutual in Set
 
-Issue2759.agda:30,38-44
-warning: -W[no]EmptyMutual
+Issue2759.agda:30,38-44: warning: -W[no]EmptyMutual
 Empty mutual block.
 when scope checking let mutual in Set
 
-Issue2759.agda:31,12-21
-warning: -W[no]EmptyPostulate
+Issue2759.agda:31,12-21: warning: -W[no]EmptyPostulate
 Empty postulate block.
 when scope checking λ (let postulate) → let postulate in Set
 
-Issue2759.agda:31,38-47
-warning: -W[no]EmptyPostulate
+Issue2759.agda:31,38-47: warning: -W[no]EmptyPostulate
 Empty postulate block.
 when scope checking let postulate in Set
 
-Issue2759.agda:32,12-21
-warning: -W[no]EmptyPrimitive
+Issue2759.agda:32,12-21: warning: -W[no]EmptyPrimitive
 Empty primitive block.
 when scope checking λ (let primitive) → let primitive in Set
 
-Issue2759.agda:32,38-47
-warning: -W[no]EmptyPrimitive
+Issue2759.agda:32,38-47: warning: -W[no]EmptyPrimitive
 Empty primitive block.
 when scope checking let primitive in Set
 
-Issue2759.agda:33,12-19
-warning: -W[no]EmptyPrivate
+Issue2759.agda:33,12-19: warning: -W[no]EmptyPrivate
 Empty private block.
 when scope checking λ (let private) → let private in Set
 
-Issue2759.agda:33,38-45
-warning: -W[no]EmptyPrivate
+Issue2759.agda:33,38-45: warning: -W[no]EmptyPrivate
 Empty private block.
 when scope checking let private in Set
 
-Issue2759.agda:34,12-20
-warning: -W[no]EmptyGeneralize
+Issue2759.agda:34,12-20: warning: -W[no]EmptyGeneralize
 Empty variable block.
 when scope checking λ (let variable) → let variable in Set
 
-Issue2759.agda:34,38-46
-warning: -W[no]EmptyGeneralize
+Issue2759.agda:34,38-46: warning: -W[no]EmptyGeneralize
 Empty variable block.
 when scope checking let variable in Set

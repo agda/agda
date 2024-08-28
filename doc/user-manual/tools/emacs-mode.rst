@@ -5,26 +5,14 @@ Emacs Mode
 **********
 
 Agda programs are commonly edited using `Emacs
-<http://www.gnu.org/software/emacs/>`_ which is explained in this
-section.  Other editors with interactive support for Agda include
+<http://www.gnu.org/software/emacs/>`_ using ``agda-mode``. To use it, first ensure
+you have :ref:`installed Agda <installation>` and the :ref:`Emacs agda-mode <install-agda-mode>`.
 
-* Visual Studio Code (`agda-mode on VS Code
-  <https://github.com/banacorn/agda-mode-vscode>`_)
-
-* Neovim (`Cornelis
-  <https://github.com/isovector/cornelis>`_), and
-
-* Vim (`agda-vim
-  <https://github.com/derekelkins/agda-vim>`_)
-
-To edit a module in Emacs (assuming you have :ref:`installed
-<installation>` Agda and the Emacs mode properly), open a file ending
-in ``.agda`` and load it by pressing ``C-c C-l`` (other commands are
-listed under :ref:`notation-for-key-combinations` below). This will
-apply syntax highlighting to the code and display any errors in a
-separate buffer. Agda uses certain background colors to indicate
-specific issues with the code, see :ref:`highlight` below.
-
+To edit a module in Emacs, open a file ending in ``.agda`` and load it by pressing
+``C-c C-l`` (other commands are listed under :ref:`notation-for-key-combinations`
+below). This will apply syntax highlighting to the code and display any errors in
+a separate buffer. Agda uses certain background colors to indicate specific issues
+with the code, see :ref:`highlight` below.
 
 Menus
 =====

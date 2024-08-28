@@ -1,9 +1,8 @@
-Issue5589c.agda:15,1-22
-warning: -W[no]ConfluenceForCubicalNotSupported
+Issue5589c.agda:15,1-22: warning: -W[no]ConfluenceForCubicalNotSupported
 Confluence checking for --cubical is not yet supported, confluence
 checking might be incomplete
 when checking the pragma REWRITE +ℕ-id
-Issue5589c.agda:15,13-18
+Issue5589c.agda:15,13-18: error: [RewriteAmbiguousRules]
 Global confluence check failed: 0 +ℕ S y can be rewritten to either
 S y or S (0 +ℕ y).
 Possible fix: add a rewrite rule with left-hand side 0 +ℕ S y to

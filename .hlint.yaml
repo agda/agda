@@ -17,28 +17,26 @@
       - Agda.Syntax.Concrete.Operators.parsePat
 
 # Warnings currently triggered by your code
-- ignore: {name: "Avoid lambda"} # 49 hints
+- ignore: {name: "Avoid lambda"} # 50 hints
 - ignore: {name: "Avoid lambda using `infix`"} # 13 hints
-- ignore: {name: "Eta reduce"} # 182 hints
+- ignore: {name: "Eta reduce"} # 181 hints
 - ignore: {name: "Evaluate"} # 15 hints
-- ignore: {name: "Functor law"} # 21 hints
-- ignore: {name: "Fuse foldMap/<$>"} # 2 hints
+- ignore: {name: "Functor law"} # 24 hints
 - ignore: {name: "Fuse foldr/map"} # 8 hints
 - ignore: {name: "Fuse mapM/map"} # 2 hints
 - ignore: {name: "Fuse traverse/<$>"} # 2 hints
 - ignore: {name: "Hoist not"} # 18 hints
+- ignore: {name: "Move brackets to avoid $"} # 1 hint
 - ignore: {name: "Move guards forward"} # 2 hints
-- ignore: {name: "Redundant $"} # 634 hints
-- ignore: {name: "Redundant <$>"} # 52 hints
+- ignore: {name: "Redundant $"} # 618 hints
+- ignore: {name: "Redundant <$>"} # 47 hints
 - ignore: {name: "Redundant <&>"} # 4 hints
 - ignore: {name: "Redundant True guards"} # 1 hint
 - ignore: {name: "Redundant bang pattern"} # 1 hint
-- ignore: {name: "Redundant bracket"} # 492 hints
-- ignore: {name: "Redundant case"} # 1 hint
-- ignore: {name: "Redundant flip"} # 3 hints
+- ignore: {name: "Redundant bracket"} # 494 hints
+- ignore: {name: "Redundant flip"} # 4 hints
 - ignore: {name: "Redundant fmap"} # 1 hint
 - ignore: {name: "Redundant guard"} # 5 hints
-- ignore: {name: "Redundant id"} # 1 hint
 - ignore: {name: "Redundant if"} # 2 hints
 - ignore: {name: "Redundant irrefutable pattern"} # 36 hints
 - ignore: {name: "Redundant lambda"} # 46 hints
@@ -49,7 +47,7 @@
 - ignore: {name: "Replace case with maybe"} # 4 hints
 - ignore: {name: "Unused LANGUAGE pragma"} # 210 hints
 - ignore: {name: "Use &&"} # 4 hints
-- ignore: {name: "Use ++"} # 11 hints
+- ignore: {name: "Use ++"} # 15 hints
 - ignore: {name: "Use /="} # 1 hint
 - ignore: {name: "Use :"} # 17 hints
 - ignore: {name: "Use <$"} # 4 hints
@@ -58,21 +56,23 @@
 - ignore: {name: "Use <=<"} # 1 hint
 - ignore: {name: "Use =<<"} # 1 hint
 - ignore: {name: "Use >"} # 1 hint
+- ignore: {name: "Use >=>"} # 1 hint
 - ignore: {name: "Use Just"} # 2 hints
 - ignore: {name: "Use LANGUAGE pragmas"} # 7 hints
-- ignore: {name: "Use all"} # 1 hint
 - ignore: {name: "Use camelCase"} # 72 hints
 - ignore: {name: "Use concatMap"} # 2 hints
-- ignore: {name: "Use const"} # 79 hints
+- ignore: {name: "Use const"} # 80 hints
 - ignore: {name: "Use fewer imports"} # 6 hints
+- ignore: {name: "Use first"} # 1 hint
 - ignore: {name: "Use fmap"} # 6 hints
 - ignore: {name: "Use fold"} # 1 hint
 - ignore: {name: "Use foldMap"} # 2 hints
 - ignore: {name: "Use fromMaybe"} # 1 hint
 - ignore: {name: "Use id"} # 2 hints
+- ignore: {name: "Use infix"} # 1 hint
 - ignore: {name: "Use intercalate"} # 1 hint
 - ignore: {name: "Use isNothing"} # 2 hints
-- ignore: {name: "Use join"} # 2 hints
+- ignore: {name: "Use join"} # 3 hints
 - ignore: {name: "Use lambda-case"} # 11 hints
 - ignore: {name: "Use list literal"} # 12 hints
 - ignore: {name: "Use list literal pattern"} # 1 hint
@@ -80,8 +80,6 @@
 - ignore: {name: "Use map with tuple-section"} # 4 hints
 - ignore: {name: "Use mapAndUnzipM"} # 1 hint
 - ignore: {name: "Use mapMaybe"} # 3 hints
-- ignore: {name: "Use maximum"} # 1 hint
-- ignore: {name: "Use negate"} # 1 hint
 - ignore: {name: "Use newtype instead of data"} # 31 hints
 - ignore: {name: "Use null"} # 5 hints
 - ignore: {name: "Use otherwise"} # 1 hint
@@ -93,7 +91,7 @@
 - ignore: {name: "Use unless"} # 4 hints
 - ignore: {name: "Use void"} # 13 hints
 - ignore: {name: "Use zipWith"} # 2 hints
-- ignore: {name: "Use ||"} # 7 hints
+- ignore: {name: "Use ||"} # 8 hints
 
 # Specify additional command line arguments
 - arguments:

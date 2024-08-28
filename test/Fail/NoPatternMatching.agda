@@ -8,4 +8,5 @@ data Unit : Set where
 
 fail : Unit → Set
 fail unit = Unit
--- Expected error: Pattern matching is disabled
+
+-- Expected error: Pattern matching is disabled (use option --pattern-matching to enable it)

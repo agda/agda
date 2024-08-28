@@ -12,7 +12,7 @@ on:
     - 'Agda.cabal'
     - 'Setup.hs'
     - 'stack-*.yaml'
-    - '!stack-9.8.2.yaml'
+    - '!stack-9.10.1.yaml'
     - 'src/size-solver/size-solver.cabal'
 
   pull_request:
@@ -47,7 +47,7 @@ jobs:
         os: [ubuntu-24.04]
         stack-ver: ['latest']
         # Note: when adding a version here, check that it is not excluded in the triggers above.
-        ghc-ver: [9.6.5, 9.4.8, 9.2.8, 9.0.2, 8.10.7, 8.8.4]
+        ghc-ver: [9.8.2, 9.6.6, 9.4.8, 9.2.8, 9.0.2, 8.10.7, 8.8.4]
           # Andreas, 2022-03-26:
           # Note: ghc-ver needs to be spelled out with minor version, i.e., x.y.z
           # rather than x.y (which haskell-setup would resolve to a suitable .z)

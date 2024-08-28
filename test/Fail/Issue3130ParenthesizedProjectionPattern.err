@@ -1,4 +1,4 @@
-Issue3130ParenthesizedProjectionPattern.agda:11,7-11
+Issue3130ParenthesizedProjectionPattern.agda:11,7-11: error: [CannotEliminateWithPattern]
 Cannot eliminate type R with dot pattern .f (did you supply too
 many arguments?)
 when checking the clause left hand side

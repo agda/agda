@@ -1,9 +1,9 @@
-Issue3848.agda:19,1-21
+Issue3848.agda:19,1-21: error: [RewriteMissingRule]
 Global confluence check failed: f (c f₁) unfolds to f r which
 should further unfold to f₁ but it does not.
 Possible fix: add a rule to rewrite f r to f₁
 when checking the pragma REWRITE rew₁
-Issue3848.agda:30,1-21
+Issue3848.agda:30,1-21: error: [RewriteMissingRule]
 Global confluence check failed: g (f r) unfolds to g a which should
 further unfold to a but it does not.
 Possible fix: add a rule to rewrite g a to a

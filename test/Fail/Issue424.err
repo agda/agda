@@ -1,2 +1,2 @@
-Issue424.agda:1,1-39
+Issue424.agda:1,1-39: error: [OptionError]
 Unrecognized option: --no-unreachable-check

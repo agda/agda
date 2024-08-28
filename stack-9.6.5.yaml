@@ -1,8 +1,0 @@
-resolver: lts-22.22
-compiler: ghc-9.6.5
-compiler-check: match-exact
-
-# Local packages specified by relative directory name.
-packages:
-- '.'
-- 'src/size-solver'

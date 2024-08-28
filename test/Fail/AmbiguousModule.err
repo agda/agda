@@ -1,6 +1,5 @@
-AmbiguousModule.agda:5,10-11
+AmbiguousModule.agda:5,10-11: error: [ShadowedModule]
 Duplicate definition of module A. Previous definition of module A
-at
-AmbiguousModule.agda:3,8-9
+at AmbiguousModule.agda:3,8-9
 when scope checking the declaration
   module A where

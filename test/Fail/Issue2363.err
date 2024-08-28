@@ -1,4 +1,4 @@
-Issue2363.agda:8,1-9,21
+Issue2363.agda:8,1-9,21: error: [WithClausePatternMismatch]
 With clause pattern zero is not an instance of its parent pattern
 suc n
 when checking that the clause

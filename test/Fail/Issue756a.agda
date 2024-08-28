@@ -11,3 +11,6 @@ data T : Nat → Set where
 bad : ∀ n → T n → Nat
 bad .zero                   [ zero  ] = zero
 bad .(suc (let x = n in x)) [ suc n ] = zero
+
+-- Expected error:
+-- Let-expressions are not allowed in dot patterns

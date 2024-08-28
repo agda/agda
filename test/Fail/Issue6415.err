@@ -1,4 +1,4 @@
-Issue6415.agda:20,7-19
+Issue6415.agda:20,7-19: error: [UnequalTerms]
 primHComp (λ i → isOneEmpty)
 (primHComp
  (λ i →

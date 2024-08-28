@@ -1,0 +1,7 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Error*" "Cannot read file NonExistingFile.agda Error: NonExistingFile.agda: openBinaryFile: does not exist (No such file or directory)" nil)
+((last . 3) . (agda2-maybe-goto '("NonExistingFile.agda" . 1)))
+(agda2-highlight-load-and-delete-action)
+(agda2-status-action "")

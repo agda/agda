@@ -8,6 +8,7 @@
 module Agda.Interaction.Options.Base
     ( CommandLineOptions(..)
     , PragmaOptions(..)
+    , OptionError
     , OptionWarning(..), optionWarningName
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity, VerboseKey, VerboseLevel
@@ -372,10 +373,10 @@ data PragmaOptions = PragmaOptions
       --   optRequireUniqueMetaSolutions.
   , _optRequireUniqueMetaSolutions :: WithDefault 'True
       -- ^ Forbid non-unique meta solutions allowed. For instance from INJECTIVE_FOR_INFERENCE pragmas.
-  , _optPostfixProjections        :: WithDefault 'False
+  , _optPostfixProjections        :: WithDefault 'True
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
-  , _optKeepPatternVariables      :: WithDefault 'False
+  , _optKeepPatternVariables      :: WithDefault 'True
       -- ^ Should case splitting replace variables with dot patterns
       --   (False) or keep them as variables (True).
   , _optInferAbsurdClauses        :: WithDefault 'True
@@ -425,7 +426,7 @@ data PragmaOptions = PragmaOptions
       --   This is a stronger form of 'optImportSorts'.
   , _optAllowExec                 :: WithDefault 'False
       -- ^ Allow running external @executables@ from meta programs.
-  , _optSaveMetas                 :: WithDefault 'False
+  , _optSaveMetas                 :: WithDefault 'True
       -- ^ Save meta-variables to interface files.
   , _optShowIdentitySubstitutions :: WithDefault 'False
       -- ^ Show identity substitutions when pretty-printing terms
@@ -1233,12 +1234,6 @@ infectiveCoinfectiveOptions =
   , infectiveOption optCohesion               "--cohesion"
   , infectiveOption optErasure                "--erasure"
   , infectiveOption optErasedMatches          "--erased-matches"
-  , infectiveOption (not . optUniverseCheck)  "--type-in-type"
-  , infectiveOption optOmegaInOmega           "--omega-in-omega"
-  , infectiveOption optInjectiveTypeConstructors "--injective-type-constructors"
-  , infectiveOption optExperimentalIrrelevance "--experimental-irrelevance"
-  , infectiveOption optCumulativity           "--cumulativity"
-  , infectiveOption optAllowExec              "--allow-exec"
   ]
   where
   cubicalCompatible =

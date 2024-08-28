@@ -18,7 +18,6 @@ Agda 2 is currently actively developed mainly by (in alphabetical order):
 * Nils Anders Danielsson
 * Amélia Liao
 * Ulf Norell
-* Andrés Sicard-Ramírez
 
 Agda 2 has received major contributions by the following developers, amongst others.
 Some contributors have pioneered a feature which shall be mentioned here.
@@ -34,6 +33,8 @@ But many have worked on these features for improvements and maintenance.
 * Guillaume Brunerie
 * James Chapman
 * Liang-Ting Chen: *github workflows*
+* Lawrence Chonavel
+* Jonathan Coates: *performance*
 * Jesper Cockx: *rewriting, unification* :option:`--without-K`, *recursive instance search*, *reflection*, ``Prop``, *cumulativity*
 * Catarina Coquand: *Agda 1*
 * Jonathan Coates: *performance*
@@ -42,17 +43,21 @@ But many have worked on these features for improvements and maintenance.
 * Dominique Devriese: ``instance`` *arguments*
 * Péter Diviánszky: *web frontent,* ``variable`` *declarations*
 * Robert Estelle: *refactoring of backends, main driver*
+* Naïm Favier
 * Olle Fredriksson: *Epic compiler backend*
 * Paolo Giarrusso
 * Adam Gundry: *pattern synonyms*
 * Daniel Gustafsson: *Epic compiler backend*
+* Alex Haršáni: *GenericError refactorings*
 * Philipp Hausmann: *treeless compiler, UHC compiler backend, testsuite runner, Travis CI*
 * Kuen-Bang Hou "favonia"
 * Patrik Jansson
 * Alan Jeffrey: *JavaScript compiler backend*
 * Phil de Joux: some *hlinting*
 * Wolfram Kahl
+* Andre Knispel: *reflection, ``INJECTIVE_FOR_INFERENCE``*
 * Wen Kokke
+* András Kovács: *performance, serialization*
 * John Leo
 * Fredrik Lindblad: *Agsy proof search "Auto"*
 * Víctor López Juan: *"tog" prototype, markdown frontend, documentation*
@@ -64,13 +69,17 @@ But many have worked on these features for improvements and maintenance.
 * Fredrik Nordvall Forsberg: *pattern lambdas, warnings*
 * Konstantin Nisht
 * Ulf Norell: *Agda 2*
+* Andreas Nuyts
 * Josselin Poiret: some refactoring of *modalities*
 * Nicolas Pouillard: *module record expressions*
 * Jonathan Prieto: *Agda package manager*
 * Christian Sattler
+* Michael Shulman: *some Agda input key bindings*
 * Andrés Sicard-Ramírez: *Agda releases, stackage, Travis CI*
+* Lukas Skystedt: *Mimer proof search "Auto"*
 * Makoto Takeyama: *Agda 1, Emacs mode, "MAlonzo" compiler to Haskell, serialization*
 * Andrea Vezzosi: *Cubical Agda, Agda-flat, Agda-parametric, Guarded Cubical Agda*
+* Szumi Xie: *some bug fixes*
 * Noam Zeilberger: *pattern lambdas*
 * Tesla Ice Zhang
 

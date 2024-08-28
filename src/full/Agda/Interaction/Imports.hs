@@ -19,6 +19,7 @@ module Agda.Interaction.Imports
   , scopeCheckImport
   , parseSource
   , typeCheckMain
+  , raiseNonFatalErrors
 
   -- Currently only used by test/api/Issue1168.hs:
   , readInterface
@@ -32,10 +33,6 @@ import Control.Monad.IO.Class      ( MonadIO(..) )
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 import qualified Control.Exception as E
-
-#if __GLASGOW_HASKELL__ < 808
-import Control.Monad.Fail (MonadFail)
-#endif
 
 import Data.Either
 import qualified Data.List as List
@@ -553,6 +550,15 @@ getInterface x isMain msrc =
 
       either recheck pure stored
 
+-- | If checking produced non-benign warnings, error out.
+--
+raiseNonFatalErrors :: (HasOptions m, MonadTCError m)
+  => CheckResult  -- ^ E.g. obtained from 'typeCheckMain'.
+  -> m ()
+raiseNonFatalErrors result = do
+  unlessNullM (applyFlagsToTCWarnings (crWarnings result)) $ \ ws ->
+    typeError $ NonFatalErrors ws
+
 -- | Check if the options used for checking an imported module are
 --   compatible with the current options. Raises Non-fatal errors if
 --   not.
@@ -696,10 +702,7 @@ getStoredInterface x file msrc = do
 
         lift $ chaseMsg "Loading " x $ Just ifp
         -- print imported warnings
-        let ws = filter ((Strict.Just (Just x) ==) .
-                         fmap rangeFileName . tcWarningOrigin) $
-                 iWarnings i
-        unless (null ws) $ alwaysReportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
+        reportWarningsForModule x $ iWarnings i
 
         loadDecodedModule file $ ModuleInfo
           { miInterface = i
@@ -707,6 +710,13 @@ getStoredInterface x file msrc = do
           , miPrimitive = isPrimitiveModule
           , miMode = ModuleTypeChecked
           }
+
+-- | Report those given warnings that come from the given module.
+
+reportWarningsForModule :: MonadDebug m => TopLevelModuleName -> [TCWarning] -> m ()
+reportWarningsForModule x warns = do
+  unlessNull (filter ((Strict.Just (Just x) ==) . fmap rangeFileName . tcWarningOrigin) warns) \ ws ->
+    alwaysReportSDoc "warning" 1 $ P.vsep $ map P.prettyTCM ws
 
 
 loadDecodedModule
@@ -967,11 +977,7 @@ createInterface mname file isMain msrc = do
        (chaseMsg checkMsg x $ Just fp)
        (const $ do ws <- getAllWarnings AllWarnings
                    let classified = classifyWarnings ws
-                   let wa' = filter ((Strict.Just (Just mname) ==) .
-                                     fmap rangeFileName . tcWarningOrigin) $
-                             tcWarnings classified
-                   unless (null wa') $
-                     alwaysReportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> wa'
+                   reportWarningsForModule mname $ tcWarnings classified
                    when (null (nonFatalErrors classified)) $ chaseMsg "Finished" x Nothing)
 
   withMsgs $
@@ -1200,7 +1206,7 @@ createInterface mname file isMain msrc = do
 -- 'MainInterface', the warnings definitely include also unsolved
 -- warnings.
 
-getAllWarnings' :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => MainInterface -> WhichWarnings -> m [TCWarning]
+getAllWarnings' :: (ReadTCState m, MonadWarning m, MonadTCM m) => MainInterface -> WhichWarnings -> m [TCWarning]
 getAllWarnings' (MainInterface _) = getAllWarningsPreserving unsolvedWarnings
 getAllWarnings' NotMainInterface  = getAllWarningsPreserving Set.empty
 
@@ -1215,8 +1221,7 @@ constructIScope i = billToPure [ Deserialization ] $
   i{ iScope = publicModules $ iInsideScope i }
 
 -- | Builds an interface for the current module, which should already
--- have been successfully type checked.
-
+--   have been successfully type checked.
 buildInterface
   :: Source
      -- ^ 'Source' for the current module.
@@ -1230,6 +1235,7 @@ buildInterface src topLevel = do
         fileType = srcFileType src
         defPragmas = srcDefaultPragmas src
         filePragmas  = srcFilePragmas src
+
     -- Andreas, 2014-05-03: killRange did not result in significant reduction
     -- of .agdai file size, and lost a few seconds performance on library-test.
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
@@ -1240,82 +1246,77 @@ buildInterface src topLevel = do
     -- that introduced this change seems to have made Agda a bit
     -- faster and interface file sizes a bit smaller, at least for the
     -- standard library).
-    builtin     <- useTC stLocalBuiltins
-    mhs         <- mapM (\top -> (top,) <$> moduleHash top) .
-                   Set.toAscList =<<
-                   useR stImportedModules
-    foreignCode <- useTC stForeignCode
-    -- Ulf, 2016-04-12:
-    -- Non-closed display forms are not applicable outside the module anyway,
-    -- and should be dead-code eliminated (#1928).
-    origDisplayForms <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
-    -- TODO: Kill some ranges?
-    let scope = topLevelScope topLevel
-    -- Andreas, Oskar, 2023-10-19, issue #6931:
-    -- To not delete module telescopes of empty public modules,
-    -- we need to pass the public modules to the dead-code elimination
-    -- (to be mined for additional roots for the reachability analysis).
-    (display, sig, solvedMetas) <-
-      eliminateDeadCode (publicModules scope) builtin origDisplayForms ==<<
-        (getSignature, useR stSolvedMetaStore)
-    userwarns   <- useTC stLocalUserWarnings
-    importwarn  <- useTC stWarningOnImport
-    syntaxInfo  <- useTC stSyntaxInfo
-    optionsUsed <- useTC stPragmaOptions
-    partialDefs <- useTC stLocalPartialDefs
+    !mhs <- mapM (\top -> (top,) <$> moduleHash top) . Set.toAscList =<< useR stImportedModules
+    !foreignCode <- useTC stForeignCode
 
-    -- Only serialise the opaque blocks actually defined in this
-    -- top-level module.
-    opaqueBlocks' <- useTC stOpaqueBlocks
-    opaqueIds' <- useTC stOpaqueIds
-    let
-      mh = moduleNameId (srcModuleName src)
-      opaqueBlocks = Map.filterWithKey (\(OpaqueId _ mod) _ -> mod == mh) opaqueBlocks'
-      isLocal qnm = case nameId (qnameName qnm) of
-        NameId _ mh' -> mh' == mh
-      opaqueIds = Map.filterWithKey (\qnm (OpaqueId _ mod) -> isLocal qnm || mod == mh) opaqueIds'
+    let !scope = topLevelScope topLevel
+
+    (!solvedMetas, !definitions) <- eliminateDeadCode scope
+    !sig <- set sigDefinitions definitions <$> getSignature
 
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synonym.
-    patsyns <- killRange <$> getPatternSyns
-    let builtin' = Map.mapWithKey (\ x b -> primName x <$> b) builtin
-    warnings <- filter (isSourceCodeWarning . warningName . tcWarning) <$> getAllWarnings AllWarnings
-    let i = Interface
-          { iSourceHash      = hashText source
-          , iSource          = source
-          , iFileType        = fileType
-          , iImportedModules = mhs
-          , iModuleName      = mname
-          , iTopLevelModuleName = srcModuleName src
-          , iScope           = empty -- publicModules scope
-          , iInsideScope     = scope
-          , iSignature       = sig
-          , iMetaBindings    = solvedMetas
-          , iDisplayForms    = display
-          , iUserWarnings    = userwarns
-          , iImportWarning   = importwarn
-          , iBuiltin         = builtin'
-          , iForeignCode     = foreignCode
-          , iHighlighting    = syntaxInfo
+    !patsyns <- killRange <$> getPatternSyns
+
+    -- Ulf, 2016-04-12:
+    -- Non-closed display forms are not applicable outside the module anyway,
+    -- and should be dead-code eliminated (#1928).
+    !importedDisplayForms <-
+        HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
+
+    !userwarns   <- useTC stLocalUserWarnings
+    !importwarn  <- useTC stWarningOnImport
+    !syntaxInfo  <- useTC stSyntaxInfo
+    !optionsUsed <- useTC stPragmaOptions
+    !partialDefs <- useTC stLocalPartialDefs
+
+    -- Only serialise the opaque blocks actually defined in this
+    -- top-level module.
+    !opaqueBlocks' <- useTC stOpaqueBlocks
+    !opaqueIds' <- useTC stOpaqueIds
+    let
+      !mh = moduleNameId (srcModuleName src)
+      !opaqueBlocks = Map.filterWithKey (\(OpaqueId _ mod) _ -> mod == mh) opaqueBlocks'
+      isLocal qnm = case nameId (qnameName qnm) of
+        NameId _ mh' -> mh' == mh
+      !opaqueIds = Map.filterWithKey (\qnm (OpaqueId _ mod) -> isLocal qnm || mod == mh) opaqueIds'
+
+    !builtin  <- Map.mapWithKey (\ x b -> primName x <$> b) <$> useTC stLocalBuiltins
+    !warnings <- filter (isSourceCodeWarning . warningName . tcWarning) <$> getAllWarnings AllWarnings
+
+    let !i = Interface
+          { iSourceHash           = hashText source
+          , iSource               = source
+          , iFileType             = fileType
+          , iImportedModules      = mhs
+          , iModuleName           = mname
+          , iTopLevelModuleName   = srcModuleName src
+          , iScope                = empty -- publicModules scope
+          , iInsideScope          = scope
+          , iSignature            = sig
+          , iMetaBindings         = solvedMetas
+          , iDisplayForms         = importedDisplayForms
+          , iUserWarnings         = userwarns
+          , iImportWarning        = importwarn
+          , iBuiltin              = builtin
+          , iForeignCode          = foreignCode
+          , iHighlighting         = syntaxInfo
           , iDefaultPragmaOptions = defPragmas
           , iFilePragmaOptions    = filePragmas
-          , iOptionsUsed     = optionsUsed
-          , iPatternSyns     = patsyns
-          , iWarnings        = warnings
-          , iPartialDefs     = partialDefs
-          , iOpaqueBlocks    = opaqueBlocks
-          , iOpaqueNames     = opaqueIds
+          , iOptionsUsed          = optionsUsed
+          , iPatternSyns          = patsyns
+          , iWarnings             = warnings
+          , iPartialDefs          = partialDefs
+          , iOpaqueBlocks         = opaqueBlocks
+          , iOpaqueNames          = opaqueIds
           }
-    i <-
+    !i <-
       ifM (optSaveMetas <$> pragmaOptions)
         (return i)
         (do reportSLn "import.iface" 7
-              "  instantiating all meta variables"
-            -- Note that the meta-variables in the definitions in
-            -- "sig" have already been instantiated (by
-            -- eliminateDeadCode).
-            instantiateFullExceptForDefinitions i)
+              "  instantiating all metavariables in interface"
+            Bench.billTo [Bench.InterfaceInstantiateFull] $ liftReduce $ instantiateFull' i)
     reportSLn "import.iface" 7 "  interface complete"
     return i
 

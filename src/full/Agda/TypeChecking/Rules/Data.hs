@@ -2,16 +2,13 @@
 
 module Agda.TypeChecking.Rules.Data where
 
-import Prelude hiding (null)
+import Prelude hiding (null, not, (&&), (||) )
 
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 import Control.Exception as E
-
--- Control.Monad.Fail import is redundant since GHC 8.8.1
-import Control.Monad.Fail (MonadFail)
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -45,9 +42,11 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Warnings (warning)
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
+import Agda.Utils.Boolean
 import Agda.Utils.Either
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
@@ -244,7 +243,6 @@ forceSort t = reduce (unEl t) >>= \case
     equalType t (sort s)
     return s
 
-
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
 --   Returns the non-linear parameters.
@@ -267,15 +265,9 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
       t' <- workOnTypes $ do
 -}
         debugEnter c e
-        -- check that we are relevant
-        case getRelevance ai of
-          Relevant   -> return ()
-          Irrelevant -> typeError $ GenericError $ "Irrelevant constructors are not supported"
-          NonStrict  -> typeError $ GenericError $ "Shape-irrelevant constructors are not supported"
-        case getQuantity ai of
-          Quantityω{} -> return ()
-          Quantity0{} -> return ()
-          Quantity1{} -> typeError $ GenericError $ "Quantity-restricted constructors are not supported"
+        -- Remember that we are of a suitable modality.
+        unless (isRelevant ai) __IMPOSSIBLE__
+        unless ((isQuantityω || isQuantity0) ai) __IMPOSSIBLE__
 
         -- If the constructor is erased, then hard compile-time mode
         -- is entered.
@@ -523,7 +515,9 @@ defineCompData d con params names fsT t boundary = do
 
                 bind "i" $ \ i -> do
                   -- Γ, i
-                  [r,u1,u2] <- mapM (open . applySubst theSub) [r,u1,u2]
+                  r  <- open . applySubst theSub $ r
+                  u1 <- open . applySubst theSub $ u1
+                  u2 <- open . applySubst theSub $ u2
                   psi <- imax r (ineg r)
                   let
                     -- Γ, i ⊢ squeeze u = primTrans (\ j -> ty [i := i ∨ j]) (φ ∨ i) u
@@ -949,7 +943,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
   let neg i = cl primINeg <@> i
   let hcomp ty sys u0 = do
           ty <- ty
-          Just (LEl l ty) <- toLType ty
+          LEl l ty <- fromMaybe __IMPOSSIBLE__ <$> toLType ty
           l <- open $ Level l
           ty <- open $ ty
           face <- (foldr max (pure iz) $ map fst $ sys)
@@ -960,7 +954,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
 
   let (parI,ixsI) = splitTelescopeAt npars telI
   let
-    abstract_trD :: MonadFail m => (Vars m -> Vars m -> Vars m -> NamesT m Telescope) -> NamesT m Telescope
+    abstract_trD :: Monad m => (Vars m -> Vars m -> Vars m -> NamesT m Telescope) -> NamesT m Telescope
     abstract_trD k = do
                ixsI <- open $ AbsN (teleNames parI) ixsI
                parI <- open parI
@@ -968,7 +962,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                abstractN (ixsI `applyN` delta) $ \ x -> do
                abstractN (pure $ intervalTel "phi") $ \ phi -> do
                k delta x phi
-    bind_trD :: MonadFail m => (ArgVars m -> ArgVars m -> ArgVars m -> NamesT m b) ->
+    bind_trD :: Monad m => (ArgVars m -> ArgVars m -> ArgVars m -> NamesT m b) ->
                 NamesT m (AbsN (AbsN (AbsN b)))
     bind_trD k = do
       bindNArg (teleArgNames parI) $ \ delta_ps -> do
@@ -994,7 +988,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                ixsI <- open $ AbsN (teleNames parI) ixsI
                parI <- open parI
                abstract_trD $ \ delta x _ -> do
-               Just (LEl l ty) <- toLType =<< (dT `applyN` (delta ++ x ++ [pure iz]))
+               LEl l ty <- fromMaybe __IMPOSSIBLE__ <.> toLType =<< (dT `applyN` (delta ++ x ++ [pure iz]))
                -- (φ : I), (I → Partial φ (D (δ i0) (x i0))), D (δ i0) (x i0)
                TelV args _ <- lift $ telView =<< piApplyM hcomp_ty [Level l,ty]
                unless (size args == 3) __IMPOSSIBLE__
@@ -1008,10 +1002,12 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
         bindNArg hcompArgs $ \ as0 -> do -- as0 : aTel[delta 0]
         let
           origPHComp = do
-            Just (LEl l t) <- toLType =<< (dT `applyN` (delta ++ x ++ [pure iz]))
+            LEl l t <- fromMaybe __IMPOSSIBLE__ <.> toLType =<< (dT `applyN` (delta ++ x ++ [pure iz]))
             let ds = map (argH . unnamed . dotP) [Level l, t]
-            ps0@[_hphi,_u,_u0] <- sequence $ as0
-            pure $ DefP defaultPatternInfo qHComp $ ds ++ ps0
+            sequence as0 >>= \case
+              ps0@[_hphi,_u,_u0] ->
+                pure $ DefP defaultPatternInfo qHComp $ ds ++ ps0
+              _ -> __IMPOSSIBLE__
           psHComp = sequence $ delta_ps ++ x_ps ++ phi_ps ++ [argN . unnamed <$> origPHComp]
         let
           rhsTy = dT `applyN` (delta ++ x ++ [pure io])
@@ -1062,7 +1058,8 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
               x'_ps <- sequence x'_ps
               phi'_ps <- sequence phi'_ps
               ds <- map (setHiding Hidden . fmap (unnamed . dotP)) <$> deltaArg (pure iz)
-              ps0@[_t] <- sequence as0
+              ps0 <- sequence as0
+              unless (length ps0 == 1) __IMPOSSIBLE__
               pure $ DefP defaultPatternInfo trX $ ds ++ x'_ps ++ phi'_ps ++ ps0
             psTrX = sequence $ delta_ps ++ x_ps ++ phi_ps ++ [argN . unnamed <$> origPTrX]
 
@@ -1147,13 +1144,13 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
           -- bsys : Abs Δ.Args ([phi] → ty)
           (bsysFace,bsys) <- do
             p <- bindN (teleNames prm ++ aTelNames) $ \ ts -> do
-              Just (LEl l ty) <- toLType ty
+              LEl l ty <- fromMaybe __IMPOSSIBLE__ <$> toLType ty
               l <- open (Level l)
               ty <- open ty
               bs <- bndry `applyN` ts
               xs <- mapM (\(phi,u) -> (,) <$> open phi <*> open u) $ do
                 (i,(l,r)) <- bs
-                let pElem t = Lam (setRelevance Irrelevant defaultArgInfo) $ NoAbs "o" t
+                let pElem t = Lam defaultIrrelevantArgInfo $ NoAbs "o" t
                 [(tINeg `apply` [argN i],pElem l),(i,pElem r)]
               combineSys' l ty xs
             (,) <$> open (fst <$> p) <*> open (snd <$> p)
@@ -1198,7 +1195,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
 
           let argApp a t = liftM2 (\ a t -> fmap (`apply` [argN t]) a) a t
           let
-            argLam :: MonadFail m => String -> (Var m -> NamesT m (Arg Term)) -> NamesT m (Arg Term)
+            argLam :: Monad m => String -> (Var m -> NamesT m (Arg Term)) -> NamesT m (Arg Term)
             argLam n f = (\ (Abs n (Arg i t)) -> Arg i $ Lam defaultArgInfo $ Abs n t) <$> bind "n" f
           let cas1 = applyN u $ map (<@> pure io) delta ++ as1
 
@@ -1439,16 +1436,16 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
             let lvl = lam_i $ Level l
             return $ runNames [] $ do
              lvl <- open lvl
-             [phi,field] <- mapM open [the_phi,field]
+             phi <- open the_phi
+             field <- open field
              pure transp <#> lvl <@> pure filled_ty
                                  <@> phi
                                  <@> field
           -- interval arg
           ClosedType{}  ->
             return $ runNames [] $ do
-            [field] <- mapM open [field]
-            field
-
+              field <- open field
+              field
   let
         -- ' Ξ , i : I ⊢ τ = [(\ j → δ (i ∧ j)), φ ∨ ~ i, u] : Ξ
         tau = parallelS $ us ++ (phi `iMax` iNeg (var 0))
@@ -1557,10 +1554,12 @@ defineHCompForFields applyProj name params fsT fns rect = do
 
       -- ' (δ, φ, u, u0) : Γ ⊢ fillR Γ : (i : I) → rtype[ δ ↦ (\ j → δ (i ∧ j))]
       fillTerm = runNames [] $ do
-        rect <- open . unEl  . fromLType  $ drect_gamma
-        lvl  <- open . Level . lTypeLevel $ drect_gamma
-        params     <- mapM open $ take (size delta) $ teleArgs gamma
-        [phi,w,w0] <- mapM open [the_phi,the_u,the_u0]
+        rect   <- open . unEl  . fromLType  $ drect_gamma
+        lvl    <- open . Level . lTypeLevel $ drect_gamma
+        params <- mapM open $ take (size delta) $ teleArgs gamma
+        phi    <- open the_phi
+        w      <- open the_u
+        w0     <- open the_u0
         -- (δ : Δ, φ : I, w : .., w0 : R δ) ⊢
         -- ' fillR Γ = λ i → hcompR δ (φ ∨ ~ i) (\ j → [ φ ↦ w (i ∧ j) , ~ i ↦ w0 ]) w0
         --           = hfillR δ φ w w0
@@ -1612,8 +1611,10 @@ defineHCompForFields applyProj name params fsT fns rect = do
         l <- reduce $ lTypeLevel $ unDom filled_ty'
         let lvl = Lam defaultArgInfo (Abs "i" $ Level l)
         return $ runNames [] $ do
-             lvl <- open lvl
-             [phi,w,w0] <- mapM open [the_phi,the_u,the_u0]
+             lvl       <- open lvl
+             phi       <- open the_phi
+             w         <- open the_u
+             w0        <- open the_u0
              filled_ty <- open filled_ty
 
              comp lvl
@@ -1756,13 +1757,16 @@ fitsIn con uc forceds conT s = do
           sa <- reduce $ getSort dom
           unless (isPath || uc == NoUniverseCheck || sa == SizeUniv) $
             traceCall (CheckConArgFitsIn con isf (unDom dom) s) $
-            sa `leqSort` s
+            fitSort sa s
 
         addContext (absName b, dom) $ do
           succ <$> fitsIn' li forceds' (absBody b) (raise 1 s)
       _ -> do
-        getSort t `leqSort` s
+        fitSort (getSort t) s
         return 0
+  -- catch hard error from sort comparison to turn it into a soft error
+  fitSort sa s = leqSort sa s `catchError` \ err ->
+    warning $ ConstructorDoesNotFitInData con sa s err
 
 -- | When --without-K is enabled, we should check that the sorts of
 --   the index types fit into the sort of the datatype.

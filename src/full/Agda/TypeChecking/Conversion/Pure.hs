@@ -73,12 +73,13 @@ runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $
      | otherwise             -> do
          debugResult $ "blocked on" <+> prettyTCM block
          patternViolation block
-    Left TypeError{}   -> do
+    Left TypeError{}         -> do
       debugResult "type error"
       return Nothing
-    Left Exception{}   -> __IMPOSSIBLE__
-    Left IOException{} -> __IMPOSSIBLE__
-    Right x            -> do
+    Left GenericException{}  -> __IMPOSSIBLE__
+    Left IOException{}       -> __IMPOSSIBLE__
+    Left ParserError{}       -> __IMPOSSIBLE__
+    Right x                  -> do
       debugResult "success"
       return $ Just x
   where

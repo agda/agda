@@ -1,0 +1,3 @@
+NoParameterOfName.agda:5,13-14: error: [NoParameterOfName]
+No parameter of name B
+when checking the definition of D

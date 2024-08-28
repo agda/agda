@@ -1,0 +1,4 @@
+NothingAppliedToInstanceArg.agda:4,7-12: error: [NothingAppliedToInstanceArg]
+⦃ x ⦄ cannot appear by itself. It needs to be the argument to a
+function expecting an instance argument.
+when scope checking ⦃ x ⦄

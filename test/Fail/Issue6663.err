@@ -1,0 +1,4 @@
+Issue6663.agda:18,5-9: error: [UnequalTerms]
+0 != 1 of type Nat
+when checking that the expression refl has type
+Foo′ Nat 0 ≡ Foo′ Nat 1

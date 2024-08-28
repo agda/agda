@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _AF_165 : Applicative (λ v₁ → _F_180 v₁)
   Candidates
@@ -20,10 +21,12 @@ Failed to solve the following constraints:
   _F_180 (Vec _B_164 n₁) =< F (Vec B n₁)
     (blocked on any(_B_164, _F_180))
   F B =< _F_180 _B_164 (blocked on _F_180)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2993.agda:66,80-83
   Issue2993.agda:66,84-85
   Issue2993.agda:66,80-87
   Issue2993.agda:62,40-43
+error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
   Issue2993.agda:51,19-23

@@ -14,7 +14,7 @@ import Agda.Utils.Null (Null)
 import Agda.Syntax.Common.Pretty (Doc)
 import qualified Agda.Syntax.Common.Pretty as P
 
-
+comma, colon, equals  :: Applicative m => m Doc
 text                  :: Applicative m => String -> m Doc
 sep, fsep, hsep, vcat :: (Applicative m, Foldable t) => t (m Doc) -> m Doc
 hang                  :: Applicative m => m Doc -> Int -> m Doc -> m Doc
@@ -23,6 +23,8 @@ nest                  :: Functor m => Int -> m Doc -> m Doc
 pretty                :: (Applicative m, P.Pretty a) => a -> m Doc
 prettyList_           :: (Applicative m, Semigroup (m Doc), Foldable t) => t (m Doc) -> m Doc
 pwords                :: Applicative m => String -> [m Doc]
+braces, dbraces, brackets, parens, parensNonEmpty , doubleQuotes, quotes ::
+  Functor m => m Doc -> m Doc
 
 -- The definition of MonadAbsToCon is inlined so that the module
 -- Agda.Syntax.Translation.AbstractToConcrete does not need to be
@@ -49,6 +51,7 @@ class PrettyTCM a where
 newtype PrettyContext = PrettyContext Context
 
 instance PrettyTCM a => PrettyTCM (Closure a)
+instance PrettyTCM a => PrettyTCM (Maybe a)
 instance PrettyTCM a => PrettyTCM [a]
 
 instance PrettyTCM Name

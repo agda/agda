@@ -41,7 +41,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
 import Agda.Syntax.Concrete (FieldAssignment'(..),LensInScope(..))
 import Agda.Syntax.Common as Common
-import Agda.Syntax.Info as A
+import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -85,6 +85,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
@@ -93,13 +94,12 @@ import Agda.Utils.Tuple
 import Agda.Utils.Impossible
 import Agda.TypeChecking.Free (freeIn)
 
---UNUSED Liang-Ting Chen 2019-07-16
----- | Compute the set of flexible patterns in a list of patterns. The result is
-----   the deBruijn indices of the flexible patterns.
---flexiblePatterns :: [NamedArg A.Pattern] -> TCM FlexibleVars
---flexiblePatterns nps = do
---  forMaybeM (zip (downFrom $ length nps) nps) $ \ (i, Arg ai p) -> do
---    runMaybeT $ (\ f -> FlexibleVar (getHiding ai) (getOrigin ai) f (Just i) i) <$> maybeFlexiblePattern p
+-- | Extra read-only state for the LHS checker.
+--
+data LHSContext = LHSContext
+  { lhsRange       :: Range  -- ^ The range of the whole lhs of a clause.
+  , lhsContextSize :: Nat    -- ^ Original size of the context in which the lhs checker runs.
+  }
 
 -- | A pattern is flexible if it is dotted or implicit, or a record pattern
 --   with only flexible subpatterns.
@@ -129,7 +129,6 @@ instance IsFlexiblePattern A.Pattern where
         ifM (isNothing <$> isRecordConstructor c) (return OtherFlex) {-else-}
             (maybeFlexiblePattern qs)
       A.LitP{}  -> return OtherFlex
-      A.AnnP _ _ p -> maybeFlexiblePattern p
       _ -> mzero
 
 instance IsFlexiblePattern (I.Pattern' a) where
@@ -198,10 +197,6 @@ updateProblemEqs eqs = do
     update eq@(ProblemEq p@(A.AsP info x p') v a) =
       (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
 
-    update eq@(ProblemEq p@(A.AnnP _ _ A.WildP{}) v a) = return [eq]
-    update eq@(ProblemEq p@(A.AnnP info ty p') v a) =
-      (ProblemEq (A.AnnP info ty (A.WildP patNoRange)) v a :) <$> update (ProblemEq p' v a)
-
     update eq@(ProblemEq p v a) = reduce v >>= constructorForm >>= \case
       Con c ci es -> do
         let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -219,7 +214,6 @@ updateProblemEqs eqs = do
         p <- expandLitPattern p
         case p of
           A.AsP{} -> __IMPOSSIBLE__
-          A.AnnP{} -> __IMPOSSIBLE__
           A.ConP cpi ambC ps -> do
             (c',_) <- disambiguateConstructor ambC d pars
 
@@ -259,7 +253,7 @@ updateProblemEqs eqs = do
 
             -- In fs omitted explicit fields are replaced by underscores,
             -- and the fields are put in the correct order.
-            ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs cxs
+            ps <- insertMissingFieldsFail d (const $ A.WildP empty) fs cxs
 
             -- We also need to insert missing implicit or instance fields.
             ps <- insertImplicitPatterns ExpandLast ps ctel
@@ -308,7 +302,6 @@ problemAllVariables problem =
     isSolved A.AbsurdP{}     = True
     -- recursive cases
     isSolved (A.AsP _ _ p)   = isSolved p
-    isSolved (A.AnnP _ _ p)  = isSolved p
     -- impossible:
     isSolved A.ProjP{}       = __IMPOSSIBLE__
     isSolved A.DefP{}        = __IMPOSSIBLE__
@@ -331,7 +324,6 @@ noShadowingOfConstructors problem@(ProblemEq p _ (Dom{domInfo = info, unDom = El
    A.DotP        {} -> return ()
    A.EqualP      {} -> return ()
    A.AsP _ _ p      -> noShadowingOfConstructors $ problem { problemInPat = p }
-   A.AnnP _ _ p     -> noShadowingOfConstructors $ problem { problemInPat = p }
    A.ConP        {} -> __IMPOSSIBLE__
    A.RecP        {} -> __IMPOSSIBLE__
    A.ProjP       {} -> __IMPOSSIBLE__
@@ -456,26 +448,26 @@ transferOrigins ps qs = do
     transfer :: A.Pattern -> DeBruijnPattern -> TCM DeBruijnPattern
     transfer p q = case (asView p , q) of
 
-      ((asB , anns , A.ConP pi _ ps) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+      ((asB , A.ConP pi _ ps) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let cpi = ConPatternInfo (PatternInfo PatOCon asB) r ft mb l
         ConP c cpi <$> transfers ps qs
 
-      ((asB , anns , A.RecP pi fs) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+      ((asB , A.RecP pi fs) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
             axs = map (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
             cpi = ConPatternInfo (PatternInfo PatORec asB) r ft mb l
-        ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs axs
+        ps <- insertMissingFieldsFail d (const $ A.WildP empty) fs axs
         ConP c cpi <$> transfers ps qs
 
-      ((asB , anns , p) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+      ((asB , p) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let cpi = ConPatternInfo (PatternInfo (patOrig p) asB) r ft mb l
         return $ ConP c cpi qs
 
-      ((asB , anns , p) , VarP _ x) -> return $ VarP (PatternInfo (patOrig p) asB) x
+      ((asB , p) , VarP _ x) -> return $ VarP (PatternInfo (patOrig p) asB) x
 
-      ((asB , anns , p) , DotP _ u) -> return $ DotP (PatternInfo (patOrig p) asB) u
+      ((asB , p) , DotP _ u) -> return $ DotP (PatternInfo (patOrig p) asB) u
 
-      ((asB , anns , p) , LitP _ l) -> return $ LitP (PatternInfo (patOrig p) asB) l
+      ((asB , p) , LitP _ l) -> return $ LitP (PatternInfo (patOrig p) asB) l
 
       _ -> return q
 
@@ -493,7 +485,6 @@ transferOrigins ps qs = do
     patOrig A.DefP{}        = __IMPOSSIBLE__
     patOrig A.PatternSynP{} = __IMPOSSIBLE__
     patOrig A.WithP{}       = __IMPOSSIBLE__
-    patOrig A.AnnP{}        = __IMPOSSIBLE__
 
     matchingArgs :: NamedArg A.Pattern -> NamedArg DeBruijnPattern -> Bool
     matchingArgs p q
@@ -545,9 +536,6 @@ checkPatternLinearity eqs = do
               check (Map.insert x (u,unDom a) vars) eqs
         A.AsP _ x p ->
           check vars $ [ProblemEq (A.VarP x) u a, ProblemEq p u a] ++ eqs
-        A.AnnP _ _ A.WildP{} -> continue
-        A.AnnP r t p -> (ProblemEq (A.AnnP r t (A.WildP patNoRange)) u a:) <$>
-          check vars (ProblemEq p u a : eqs)
         A.WildP{}       -> continue
         A.DotP{}        -> continue
         A.AbsurdP{}     -> continue
@@ -648,6 +636,8 @@ instance InstantiateFull LHSResult where
 checkLeftHandSide :: forall a.
      Call
      -- ^ Trace, e.g. 'CheckLHS' or 'CheckPattern'.
+  -> Range
+     -- ^ 'Range' of the entire left hand side, for error reporting.
   -> Maybe QName
      -- ^ The name of the definition we are checking.
   -> [NamedArg A.Pattern]
@@ -662,7 +652,7 @@ checkLeftHandSide :: forall a.
   -> (LHSResult -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide call f ps a withSub' strippedPats =
+checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
  Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $
  traceCallCPS call $ \ ret -> do
 
@@ -828,7 +818,8 @@ checkLeftHandSide call f ps a withSub' strippedPats =
   let st = over (lhsProblem . problemEqs) (++ withEqs) st0
 
   -- doing the splits:
-  (result, block) <- unsafeInTopContext $ runWriterT $ (`runReaderT` (size cxt)) $ checkLHS f st
+  let initLHSContext = LHSContext { lhsRange = lhsRng, lhsContextSize = size cxt }
+  (result, block) <- unsafeInTopContext $ runWriterT $ (`runReaderT` initLHSContext) $ checkLHS f st
   return result
 
 -- | Check that this split will generate a modality-correct internal
@@ -837,18 +828,20 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 -- necessarily an approximate check. We assume that any argument which
 -- (a) comes after and (b) mentions a dotted argument will be
 -- transported, which is probably an overestimate.
-conSplitModalityCheck
-  :: Modality
-  -- ^ Modality to check at
+conSplitModalityCheck ::
+     Range
+       -- ^ Range of the whole left hand side, for error reporting.
+  -> Modality
+       -- ^ Modality to check at.
   -> PatternSubstitution
-  -- ^ Substitution resulting from index unification. @Γ ⊢ ρ : Δ'@,
-  -- where @Δ'@ is the context we're in, and @Γ@ is the clause telescope
-  -- before unification.
-  -> Int       -- ^ Variable x at which we split
-  -> Telescope -- ^ The telescope @Γ@ itself
+      -- ^ Substitution resulting from index unification. @Γ ⊢ ρ : Δ'@,
+      -- where @Δ'@ is the context we're in, and @Γ@ is the clause telescope
+      -- before unification.
+  -> Int       -- ^ Variable @x@ at which we split.
+  -> Telescope -- ^ The telescope @Γ@ itself.
   -> Type      -- ^ Target type of the clause.
   -> TCM ()
-conSplitModalityCheck mod rho blocking gamma target = when (any ((/= defaultModality) . getModality) gamma) $ do
+conSplitModalityCheck lhsRng mod rho blocking gamma target = when (any ((/= defaultModality) . getModality) gamma) $ do
   reportSDoc "tc.lhs.top" 30 $ vcat
     [ "LHS modality check for modality: " <+> prettyTCM mod
     , "rho:    " <+> inTopContext (prettyTCM rho)
@@ -858,8 +851,7 @@ conSplitModalityCheck mod rho blocking gamma target = when (any ((/= defaultModa
     , "Δ'target: " <+> prettyTCM (applyPatSubst rho target)
     , "blocking:" <+> prettyTCM blocking
     ]
-  case firstForced rho (length gamma) of
-    Just ix -> do
+  whenJust (firstForced rho (length gamma)) \ ix -> do
       -- We've found a forced argument. This means that the unifier has
       -- decided to kill a unification variable, and any of its
       -- occurrences in the generated term will be replaced by an
@@ -912,7 +904,6 @@ conSplitModalityCheck mod rho blocking gamma target = when (any ((/= defaultModa
         argn <- name arg
         when docheck $
           usableAtModality (IndexedClauseArg forced argn) mod ty'
-    Nothing -> pure ()
 
   -- ALways check the target clause type. Specifically, we check it both
   -- in Δ' and in Γ. The check in Δ' will sometimes let slip by a
@@ -920,8 +911,9 @@ conSplitModalityCheck mod rho blocking gamma target = when (any ((/= defaultModa
   -- the unifier likes to replace @0-variables for @ω-variables). A
   -- concrete case where this happens is #5468. Check in Δ' first since
   -- that will have the forced variable names.
-  usableAtModality IndexedClause mod (unEl (applyPatSubst rho target))
-  inTopContext $ addContext gamma $ usableAtModality IndexedClause mod (unEl target)
+  setCurrentRange lhsRng do
+    usableAtModality IndexedClause mod (unEl (applyPatSubst rho target))
+    inTopContext $ addContext gamma $ usableAtModality IndexedClause mod (unEl target)
   where
     -- Find the first dotted pattern in the substitution. "First" =
     -- "earliest bound", so counts down from the length of the
@@ -950,7 +942,6 @@ splitStrategy = filter shouldSplit
       A.AbsurdP{} -> False
 
       A.AsP _ _ p  -> shouldSplit $ problem { problemInPat = p }
-      A.AnnP _ _ p -> shouldSplit $ problem { problemInPat = p }
 
       A.ProjP{}       -> __IMPOSSIBLE__
       A.DefP{}        -> __IMPOSSIBLE__
@@ -959,8 +950,7 @@ splitStrategy = filter shouldSplit
 
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
-checkLHS
-  :: forall tcm a. (MonadTCM tcm, PureTCM tcm, MonadWriter Blocked_ tcm, MonadError TCErr tcm, MonadTrace tcm, MonadReader Nat tcm)
+checkLHS :: forall tcm a. (MonadTCM tcm, PureTCM tcm, MonadWriter Blocked_ tcm, MonadError TCErr tcm, MonadTrace tcm, MonadReader LHSContext tcm)
   => Maybe QName      -- ^ The name of the definition we are checking.
   -> LHSState a       -- ^ The current state.
   -> tcm a
@@ -988,7 +978,7 @@ checkLHS mf = updateModality checkLHS_ where
 
     unlessM (optPatternMatching <$> getsTC getPragmaOptions) $
       unless (problemAllVariables problem) $
-        typeError $ GenericError $ "Pattern matching is disabled"
+        typeError NeedOptionPatternMatching
 
     let splitsToTry = splitStrategy $ problem ^. problemEqs
 
@@ -1031,14 +1021,13 @@ checkLHS mf = updateModality checkLHS_ where
       let pos = size tel - (i + 1)
           (delta1, tel'@(ExtendTel dom adelta2)) = splitTelescopeAt pos tel -- TODO:: tel' defined but not used
 
-      p <- liftTCM $ expandLitPattern p
+      p <- expandLitPattern p
       let splitOnPat = \case
             (A.LitP _ l)      -> splitLit delta1 dom adelta2 l
             p@A.RecP{}        -> splitCon delta1 dom adelta2 p Nothing
             p@(A.ConP _ c ps) -> splitCon delta1 dom adelta2 p $ Just c
             p@(A.EqualP _ ts) -> splitPartial delta1 dom adelta2 ts
             A.AsP _ _ p       -> splitOnPat p
-            A.AnnP _ _ p      -> splitOnPat p
 
             A.VarP{}        -> __IMPOSSIBLE__
             A.WildP{}       -> __IMPOSSIBLE__
@@ -1078,8 +1067,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Compute the new rest type by applying the projection type to 'self'.
       -- Note: we cannot be in a let binding.
-      f <- ifJust mf return $ hardTypeError $
-             GenericError "Cannot use copatterns in a let binding"
+      let f = fromMaybe __IMPOSSIBLE__ mf
       let self = Def f $ patternsToElims ip
       target' <- traverse (`piApplyM` self) projType
 
@@ -1176,7 +1164,7 @@ checkLHS mf = updateModality checkLHS_ where
       --             newContext = Γ Ξ
       --             cpSub = raiseS |Ξ|
       --
-      lhsCxtSize <- ask -- size of the context before checkLHS call.
+      lhsCxtSize <- asks lhsContextSize -- size of the context before checkLHS call.
       reportSDoc "tc.lhs.split.partial" 10 $ "lhsCxtSize =" <+> prettyTCM lhsCxtSize
 
       newContext <- liftTCM $ computeLHSContext names delta1
@@ -1185,17 +1173,16 @@ checkLHS mf = updateModality checkLHS_ where
       let cpSub = raiseS $ size newContext - lhsCxtSize
 
       (gamma,sigma) <- liftTCM $ updateContext cpSub (const newContext) $ do
-         ts <- forM ts $ \ (t,u) -> do
+         ts <- forM ts $ \ (lhs, rhs) -> do
                  reportSDoc "tc.lhs.split.partial" 10 $ "currentCxt =" <+> (prettyTCM =<< getContext)
-                 reportSDoc "tc.lhs.split.partial" 10 $ text "t, u (Expr) =" <+> prettyTCM (t,u)
-                 t <- checkExpr t tInterval
-                 u <- checkExpr u tInterval
+                 reportSDoc "tc.lhs.split.partial" 10 $ text "t, u (Expr) =" <+> prettyTCM (lhs, rhs)
+                 t <- checkExpr lhs tInterval
+                 u <- checkExpr rhs tInterval
                  reportSDoc "tc.lhs.split.partial" 10 $ text "t, u        =" <+> pretty (t, u)
-                 u <- intervalView =<< reduce u
-                 case u of
+                 reduce u >>= intervalView >>= \case
                    IZero -> primINeg <@> pure t
                    IOne  -> return t
-                   _     -> typeError $ GenericError $ "Only 0 or 1 allowed on the rhs of face"
+                   _     -> typeError $ ExpectedIntervalLiteral rhs
          -- Example: ts = (i=0) (j=1) will result in phi = ¬ i & j
          phi <- case ts of
                    [] -> do
@@ -1205,7 +1192,12 @@ checkLHS mf = updateModality checkLHS_ where
                        getBuiltinName' builtinIsOne
                      case a of
                        Def q [Apply phi] | q == isone -> return (unArg phi)
-                       _           -> typeError $ BuiltinMustBeIsOne a
+                       -- 2024-07-21 Other cases are impossible, see comment
+                       -- https://github.com/agda/agda/pull/7379#issuecomment-2240017422
+                       -- Amelia writes:
+                       -- There's no way for the user to write an @finite ... → ... other than by using Partial,
+                       -- and Partial always has IsOne as its domain.
+                       _ -> __IMPOSSIBLE__
 
                    _  -> foldl (\ x y -> primIMin <@> x <@> y) primIOne (map pure ts)
          reportSDoc "tc.lhs.split.partial" 10 $ text "phi           =" <+> prettyTCM phi
@@ -1359,7 +1351,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Don't split on lazy (non-eta) constructor
       case focusPat of
-        A.ConP cpi _ _ | conPatLazy cpi == ConPatLazy ->
+        A.ConP cpi _ _ | A.conPatLazy cpi == A.ConPatLazy ->
           unlessM (isEtaRecord d) $ softTypeError $ ForcedConstructorNotInstantiated focusPat
         _ -> return ()
 
@@ -1379,8 +1371,9 @@ checkLHS mf = updateModality checkLHS_ where
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
         A.RecP _ fs -> do
-          axs <- map argFromDom . recordFieldNames . theDef <$> getConstInfo d
-          ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs axs
+          RecordDefn def <- theDef <$> getConstInfo d
+          let axs = map argFromDom $ recordFieldNames def
+          ps <- insertMissingFieldsFail d (const $ A.WildP empty) fs axs
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
         _ -> __IMPOSSIBLE__
@@ -1550,8 +1543,9 @@ checkLHS mf = updateModality checkLHS_ where
           unless (null ixs) $
             whenM (withoutKOption `or2M` cubicalCompatibleOption) $ do
               mod <- currentModality
+              lhsRng <- asks lhsRange
               liftTCM $ addContext delta' $
-                conSplitModalityCheck mod rho (length delta2) tel (unArg target)
+                conSplitModalityCheck lhsRng mod rho (length delta2) tel (unArg target)
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
@@ -1576,8 +1570,7 @@ checkMatchingAllowed :: (MonadTCError m)
   -> m ()
 checkMatchingAllowed d = \case
   IsRecord InductionAndEta { recordInduction=ind, recordEtaEquality=eta }
-    | Just CoInductive <- ind -> typeError $
-        GenericError "Pattern matching on coinductive types is not allowed"
+    | Just CoInductive <- ind -> typeError SplitOnCoinductive
     | not $ patternMatchingAllowed eta -> typeError $ SplitOnNonEtaRecord d
     | otherwise -> return ()
   IsData -> return ()
@@ -1713,14 +1706,14 @@ disambiguateProjection
 disambiguateProjection h ambD@(AmbQ ds) b = do
   -- If the target is not a record type, that's an error.
   -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
-  caseMaybeM (liftTCM $ isRecordType $ unArg b) notRecord $ \(r, vs, def) -> case def of
-    Record{ recFields = fs, recInduction, recEtaEquality' = eta } -> do
+  caseMaybeM (liftTCM $ isRecordType $ unArg b) notRecord
+    \ (r, vs, RecordData{ _recFields = fs, _recInduction = ind, _recEtaEquality' = eta }) -> do
       reportSDoc "tc.lhs.split" 20 $ sep
-        [ text $ "we are of record type r  = " ++ prettyShow r
-        , text   "applied to parameters vs = " <+> prettyTCM vs
-        , text $ "and have fields       fs = " ++ prettyShow (map argFromDom fs)
+        [ "we are of record type r  = " <> pure (P.pretty r)
+        , "applied to parameters vs = " <> prettyTCM vs
+        , "and have fields       fs = " <> pure (P.pretty $ map argFromDom fs)
         ]
-      let comatching = recInduction == Just CoInductive
+      let comatching = ind == Just CoInductive
                     || copatternMatchingAllowed eta
       -- Try the projection candidates.
       -- First, we try to find a disambiguation that doesn't produce
@@ -1732,8 +1725,6 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
             ([]   , []      ) -> __IMPOSSIBLE__
             (err:_, []      ) -> throwError err
             (_    , disambs@((d,a):_)) -> typeError $ AmbiguousProjection d (map fst disambs)
-    _ -> __IMPOSSIBLE__
-
   where
     tryDisambiguate constraintsOk fs r vs comatching failure = do
       -- Note that tryProj wraps TCM in an ExceptT, collecting errors

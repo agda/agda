@@ -1,3 +1,5 @@
+{-# OPTIONS --no-keep-pattern-variables #-}
+
 postulate
   A : Set
   B : Set
@@ -11,3 +13,6 @@ data C where
   c : (x : C t) → C (foo t x)
 
 foo b x = {!x!}
+
+-- Case split on x should produce:
+-- foo .(foo t x) (c x) = ?

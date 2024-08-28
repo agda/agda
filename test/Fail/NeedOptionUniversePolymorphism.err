@@ -1,0 +1,4 @@
+NeedOptionUniversePolymorphism.agda:9,7-13: error: [NeedOptionUniversePolymorphism]
+Universe polymorphism is disabled (use option
+--universe-polymorphism to allow level arguments to sorts)
+when checking that the expression Type 1 is a type

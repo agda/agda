@@ -1,4 +1,6 @@
+{-# OPTIONS --keep-pattern-variables #-}
 -- {-# OPTIONS -v tc.lhs.unify.flexflex:100 -v tc.lhs.unify.assign:100 -v tc.lhs:100 #-}
+
 module Multisplit where
 
 data Bool : Set where

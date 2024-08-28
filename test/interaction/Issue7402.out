@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals, Errors*" "?0 : (A → A) → A _8 : (A → A) → A [ at Issue7402.agda:7,18-19 ] ———— Error ————————————————————————————————————————————————— error: [UnsolvedConstraints] Failed to solve the following constraints: _8 (y = x) h = h x : A (blocked on _8)" nil)
+((last . 1) . (agda2-goals-action '(0)))
+(agda2-give-action 0 "λ z → y")
+((last . 1) . (agda2-goals-action '()))

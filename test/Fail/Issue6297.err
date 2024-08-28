@@ -1,3 +1,3 @@
-Issue6297.agda:7,31-32
+Issue6297.agda:7,31-32: error: [VariableIsErased]
 Variable x is declared erased, so it cannot be used here
 when checking that the expression x has type A

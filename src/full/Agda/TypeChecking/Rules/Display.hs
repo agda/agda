@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.Rules.Display (checkDisplayPragma) where
 
+import Control.Monad.Except
 import Control.Monad.State
 import Data.Maybe
 
@@ -14,26 +15,36 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Warnings (warning)
 
-import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow, render)
 
 import Agda.Utils.Impossible
 
+-- | Add display pragma if well-formed.
+--   Otherwise, throw 'InvalidDisplayForm' warning and ignore it.
+--
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
 checkDisplayPragma f ps e = do
-  df <- inTopContext $ do
-          pappToTerm f id ps $ \ n args -> do
-            -- pappToTerm puts Var 0 for every variable. We get to know how many there were (n) so
-            -- now we can renumber them with decreasing deBruijn indices.
-            let lhs = renumberElims (n - 1) $ map I.Apply args
-            v <- exprToTerm e
-            return $ Display n lhs (DTerm v)
-  reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ prettyShow f ++ "\n  " ++ show df
-  addDisplayForm f df
+  res <- inTopContext $ runExceptT do
+    pappToTerm f id ps $ \ n args -> do
+      -- pappToTerm puts Var 0 for every variable. We get to know how many there were (n) so
+      -- now we can renumber them with decreasing deBruijn indices.
+      let lhs = renumberElims (n - 1) $ map I.Apply args
+      Display n lhs <$> DTerm <$> exprToTerm e
+  case res of
+    Left reason -> warning $ InvalidDisplayForm f reason
+    Right df -> do
+      reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ prettyShow f
+      reportSLn "tc.display.pragma" 90 $ ": \n  " ++ show df
+      addDisplayForm f df
 
-type ToTm = StateT Nat TCM
+-- | The monad to check display forms.
+--   The 'String' contains the reason to reject the display form.
+--
+type M = ExceptT String TCM
 
-patternsToTerms :: Telescope -> [NamedArg A.Pattern] -> (Int -> Args -> TCM a) -> TCM a
+patternsToTerms :: Telescope -> [NamedArg A.Pattern] -> (Int -> Args -> M a) -> M a
 patternsToTerms _ [] ret = ret 0 []
 patternsToTerms EmptyTel (p : ps) ret =
   patternToTerm (namedArg p) $ \n v ->
@@ -49,7 +60,7 @@ patternsToTerms (ExtendTel a tel) (p : ps) ret
 inheritHiding :: LensHiding a => a -> b -> Arg b
 inheritHiding a b = setHiding (getHiding a) (defaultArg b)
 
-pappToTerm :: QName -> (Args -> b) -> [NamedArg A.Pattern] -> (Int -> b -> TCM a) -> TCM a
+pappToTerm :: QName -> (Args -> b) -> [NamedArg A.Pattern] -> (Int -> b -> M a) -> M a
 pappToTerm x f ps ret = do
   def <- getConstInfo x
   TelV tel _ <- telView $ defType def
@@ -63,7 +74,7 @@ pappToTerm x f ps ret = do
 
   patternsToTerms (dropTel pars tel) ps $ \ n vs -> ret n (f vs)
 
-patternToTerm :: A.Pattern -> (Nat -> Term -> TCM a) -> TCM a
+patternToTerm :: A.Pattern -> (Nat -> Term -> M a) -> M a
 patternToTerm p ret =
   case p of
     A.VarP A.BindName{unBind = x}   -> bindVar x $ ret 1 (Var 0 [])
@@ -78,43 +89,63 @@ patternToTerm p ret =
       | otherwise                   -> ambigErr "DefP" fs
     A.LitP _ l                      -> ret 0 $ Lit l
     A.WildP _                       -> bindWild $ ret 1 (Var 0 [])
-    _ -> genericDocError =<< vcat [ "Pattern not allowed in DISPLAY pragma:", prettyA p ]
+    A.AsP{}                         -> failP "an @-pattern"
+    A.DotP{}                        -> failP "a dot pattern"
+    A.AbsurdP{}                     -> failP "an absurd pattern"
+    A.PatternSynP{}                 -> __IMPOSSIBLE__
+    A.RecP{}                        -> failP "a record pattern"
+    A.EqualP{}                      -> failP "a system pattern"
+    A.WithP{}                       -> __IMPOSSIBLE__
   where
+    fail = throwError . ("its left-hand side contains " ++)
+    failP s = fail . (s ++) . (": " ++) . render =<< prettyA p
     ambigErr thing (AmbQ xs) =
-      genericDocError =<< do
-        text ("Ambiguous " ++ thing ++ ":") <?>
+      fail . render =<< do
+        text ("an ambiguous " ++ thing ++ ":") <?>
           fsep (punctuate comma (fmap pretty xs))
 
-bindWild :: TCM a -> TCM a
+bindWild :: M a -> M a
 bindWild ret = do
   x <- freshNoName_
   bindVar x ret
 
-bindVar :: Name -> TCM a -> TCM a
+bindVar :: Name -> M a -> M a
 bindVar x ret = addContext x ret
 
-exprToTerm :: A.Expr -> TCM Term
+exprToTerm :: A.Expr -> M Term
 exprToTerm e =
   case unScope e of
-    A.Var x  -> fst <$> getVarInfo x
-    A.Def f  -> pure $ Def f []
-    A.Con c  -> pure $ Con (ConHead (headAmbQ c) IsData Inductive []) ConOCon [] -- Don't care too much about ambiguity here
-    A.Lit _ l  -> pure $ Lit l
-    A.App _ e arg  -> apply <$> exprToTerm e <*> ((:[]) . inheritHiding arg <$> exprToTerm (namedArg arg))
+    A.Var x          -> fst <$> getVarInfo x
+    A.Def' f NoSuffix-> pure $ Def f []
+    A.Def'{}         -> fail "suffix"
+    A.Con c          -> pure $ Con (ConHead (headAmbQ c) IsData Inductive []) ConOCon [] -- Don't care too much about ambiguity here
+    A.Lit _ l        -> pure $ Lit l
+    A.App _ e arg    -> apply <$> exprToTerm e <*> ((:[]) . inheritHiding arg <$> exprToTerm (namedArg arg))
 
-    A.Proj _ f -> pure $ Def (headAmbQ f) []   -- only for printing so we don't have to worry too much here
-    A.PatternSyn f -> pure $ Def (headAmbQ f) []
-    A.Macro f      -> pure $ Def f []
+    A.Proj _ f       -> pure $ Def (headAmbQ f) []   -- only for printing so we don't have to worry too much here
+    A.PatternSyn f   -> pure $ Def (headAmbQ f) []
+    A.Macro f        -> pure $ Def f []
 
-    A.WithApp{}      -> notAllowed "with application"
-    A.QuestionMark{} -> notAllowed "holes"
-    A.Underscore{}   -> notAllowed "metavariables"
-    A.Lam{}          -> notAllowed "lambdas"
-    A.AbsurdLam{}    -> notAllowed "lambdas"
-    A.ExtendedLam{}  -> notAllowed "lambdas"
-    _                -> typeError $ GenericError $ "TODO: exprToTerm " ++ show e
+    A.WithApp{}      -> fail "with application"
+    A.QuestionMark{} -> fail "hole"
+    A.Underscore{}   -> fail "metavariable"
+    A.Dot{}          -> fail "dotted expression"
+    A.Lam{}          -> fail "lambda"
+    A.AbsurdLam{}    -> fail "lambda"
+    A.ExtendedLam{}  -> fail "lambda"
+    A.Fun{}          -> fail "function type"
+    A.Pi{}           -> fail "function type"
+    A.Generalized{}  -> __IMPOSSIBLE__
+    A.Let{}          -> fail "let"
+    A.Rec{}          -> fail "record"
+    A.RecUpdate{}    -> fail "record update"
+    A.ScopedExpr{}   -> __IMPOSSIBLE__
+    A.Quote{}        -> fail "quotation"
+    A.QuoteTerm{}    -> fail "quotation"
+    A.Unquote{}      -> fail "unquote"
+    A.DontCare{}     -> __IMPOSSIBLE__
   where
-    notAllowed s = typeError $ GenericError $ "Not allowed in DISPLAY pragma right-hand side: " ++ s
+    fail = throwError . ("its right-hand side contains a " ++)
 
 renumberElims :: Nat -> Elims -> Elims
 renumberElims n es = evalState (renumbers es) n

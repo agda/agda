@@ -1,6 +1,5 @@
 -- 2012-03-08 Andreas
-module _ where
+-- 2024-08-20 Andreas, add NO_COVERAGE_CHECK
 
-{-# TERMINATING #-}
-
--- error: misplaced pragma
+{-# TERMINATING  #-}  -- warning: -W[no]InvalidTerminationCheckPragma
+{-# NON_COVERING #-}  -- warning: -W[no]InvalidCoverageCheckPragma

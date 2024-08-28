@@ -1,4 +1,3 @@
-Issue1145b.agda:7,11-11
-Issue1145b.agda:7,11: Parse error
+Issue1145b.agda:7,11: error: [ParseError]
 :<ERROR>
  Set          -- Bad, should f...

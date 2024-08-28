@@ -1,4 +1,4 @@
-Issue4924.agda:15,7-12
+Issue4924.agda:15,7-12: error: [AmbiguousOverloadedProjection]
 Cannot resolve overloaded projection f because
 principal argument pri has type A while it should be of record type
   candidates in scope:

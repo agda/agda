@@ -5,11 +5,10 @@ import Prelude hiding ( null )
 
 import Control.Monad ( guard, filterM, (<=<) )
 
--- Control.Monad.Fail import is redundant since GHC 8.8.1
-import Control.Monad.Fail ( MonadFail )
-
 import Data.Char ( toLower )
 import Data.Function (on)
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import Data.Maybe
 
 import qualified Data.Set as Set
@@ -35,7 +34,12 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingCons
 import Agda.TypeChecking.Warnings (MonadWarning, isUnsolvedWarning, onlyShowIfUnsolved, classifyWarning, WhichWarnings(..), warning_)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
-import Agda.Syntax.Common ( IsOpaque(OpaqueDef, TransparentDef), getHiding, ImportedName'(..), fromImportedName, partitionImportedNames )
+import Agda.Syntax.Common
+  ( ImportedName'(..), fromImportedName, partitionImportedNames
+  , IsOpaque(OpaqueDef, TransparentDef)
+  , ProjOrigin(..)
+  , getHiding
+  )
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
@@ -45,7 +49,8 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
-import Agda.Utils.FileName (filePath)
+import Agda.Utils.FileName ( filePath )
+import Agda.Utils.Functor  ( (<.>) )
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import qualified Agda.Utils.List1 as List1
@@ -53,19 +58,12 @@ import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty ( Pretty, prettyShow, singPlural )
 import qualified Agda.Syntax.Common.Pretty as P
 
+import Agda.Utils.Impossible
+
 instance PrettyTCM TCWarning where
   prettyTCM w@(TCWarning loc _ _ _ _) = do
     reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow loc
     pure $ tcWarningPrintedWarning w
-
-{-# SPECIALIZE prettyWarningName :: WarningName -> TCM Doc #-}
--- | Prefix for a warning text showing name of the warning.
---   E.g. @warning: -W[no]<warning_name>@
-prettyWarningName :: MonadPretty m => WarningName -> m Doc
-prettyWarningName w = hcat
-  [ "warning: -W[no]"
-  , text $ warningName2String w
-  ]
 
 {-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
 prettyWarning :: MonadPretty m => Warning -> m Doc
@@ -133,6 +131,24 @@ prettyWarning = \case
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
 
+    ConstructorDoesNotFitInData c s1 s2 err -> msg $$
+      case err of
+        TypeError _loc s e -> withTCState (const s) $ enterClosure e \ e ->
+          parens ("Reason:" <+> prettyTCM e)
+        _ ->
+          prettyTCM err
+      where
+        msg = sep
+          [ "Constructor" <+> prettyTCM c
+          , "of sort" <+> prettyTCM s1
+          , ("does not fit into data type of sort" <+> prettyTCM s2) <> "."
+          ]
+
+    CoinductiveEtaRecord name -> vcat
+      [ fsep $ pwords "Not switching on eta-equality for coinductive records."
+      , fsep $ pwords "If you must, use pragma" ++ [ "{-# ETA", prettyTCM name, "#-}" ]
+      ]
+
     UnsupportedIndexedMatch doc -> vcat
       [ fsep (pwords "This clause uses pattern-matching features that are not yet supported by Cubical Agda,"
            ++ pwords "the function to which it belongs will not compute when applied to transports."
@@ -148,7 +164,7 @@ prettyWarning = \case
             , fsep $ pwords "Suggestion: add a `variable Any : Set _` and replace unsolved metas by Any"
             ]
 
-    AbsurdPatternRequiresNoRHS ps -> fwords $
+    AbsurdPatternRequiresAbsentRHS ps -> fwords $
       "The right-hand side must be omitted if there " ++
       "is an absurd pattern, () or {}, in the left-hand side."
 
@@ -163,6 +179,16 @@ prettyWarning = \case
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
     EmptyWhere         -> fsep . pwords $ "Empty `where' block (ignored)"
+
+    -- TODO: linearity
+    -- FixingQuantity s q q' -> fsep $ concat
+    --   [ pwords "Replacing illegal quantity", [ pretty q ], pwords s, [ "by", pretty q' ] ]
+
+    FixingRelevance s r r' ->  fsep $ concat
+      [ pwords "Replacing illegal relevance", [ p r ]
+      , pwords s, [ "by", p r' ]
+      ]
+      where p r = text $ "`" ++ verbalize r ++ "'"
 
     IllformedAsClause s -> fsep . pwords $
       "`as' must be followed by an identifier" ++ s
@@ -287,6 +313,79 @@ prettyWarning = \case
 
     CoInfectiveImport msg -> return msg
 
+    NotARewriteRule x amb -> hsep $ concat
+        [ [ pretty x ]
+        , pwords "is not a legal rewrite rule, since the left-hand side is"
+        , case amb of
+            YesAmbiguous xs -> [ "ambiguous:", pretty xs ]
+            NotAmbiguous -> pwords "neither a defined symbol nor a constructor"
+        ]
+
+    IllegalRewriteRule q reason -> case reason of
+      LHSNotDefinitionOrConstructor -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
+      VariablesNotBoundByLHS xs -> hsep
+        [ prettyTCM q
+        , " is not a legal rewrite rule, since the following variables are not bound by the left hand side: "
+        , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs)
+        ]
+      VariablesBoundMoreThanOnce xs -> do
+        (prettyTCM q
+          <+> " is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side: "
+          <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ IntSet.toList xs))
+          <> ". Perhaps you can use a postulate instead of a constructor as the head symbol?"
+      LHSReduces v v' -> fsep
+        [ prettyTCM q <+> " is not a legal rewrite rule, since the left-hand side "
+        , prettyTCM v <+> " reduces to " <+> prettyTCM v' ]
+      HeadSymbolIsProjectionLikeFunction f -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+        , hd , "is a projection-like function."
+        , "You can turn off the projection-like optimization for", hd
+        , "with the pragma {-# NOT_PROJECTION_LIKE", hd, "#-}"
+        , "or globally with the flag --no-projection-like"
+        ]
+        where hd = prettyTCM f
+      HeadSymbolIsTypeConstructor f -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+        , prettyTCM f , "is a type constructor."
+        ]
+      HeadSymbolContainsMetas f -> hsep
+        [ prettyTCM q , "is not a legal rewrite rule, since the definition of the head symbol"
+        , prettyTCM f , "contains unsolved metavariables and confluence checking is enabled."
+        ]
+      ConstructorParametersNotGeneral c vs -> vcat
+        [ prettyTCM q <+> text " is not a legal rewrite rule, since the constructor parameters are not fully general:"
+        , nest 2 $ text "Constructor: " <+> prettyTCM c
+        , nest 2 $ text "Parameters: " <+> prettyList (map prettyTCM vs)
+        ]
+      ContainsUnsolvedMetaVariables ms -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since"
+        , "it contains the unsolved meta variable(s)", prettyList_ (map prettyTCM $ Set.toList ms)
+        ]
+      BlockedOnProblems ps -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since"
+        , "it is blocked on problem(s)", prettyList_ (map prettyTCM $ Set.toList ps)
+        ]
+      RequiresDefinitions qs -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since"
+        , "it requires the definition(s) of", prettyList_ (map prettyTCM $ Set.toList qs)
+        ]
+      DoesNotTargetRewriteRelation -> hsep
+        [ prettyTCM q , " does not target rewrite relation" ]
+      BeforeFunctionDefinition -> hsep
+        [ "Rewrite rule from function "
+        , prettyTCM q
+        , " cannot be added before the function definition"
+        ]
+      BeforeMutualFunctionDefinition r -> hsep
+        [ "Rewrite rule from function "
+        , prettyTCM q
+        , " cannot be added before the definition of mutually defined"
+        , prettyTCM r
+        ]
+      DuplicateRewriteRule ->
+        "Rewrite rule " <+> prettyTCM q <+> " has already been added"
+
     ConfluenceCheckingIncompleteBecauseOfMeta f -> fsep
       [ "Confluence checking incomplete because the definition of"
       , prettyTCM f
@@ -338,8 +437,8 @@ prettyWarning = \case
         ]
       ]
 
-    DuplicateRewriteRule q ->
-      "Rewrite rule " <+> prettyTCM q <+> " has already been added"
+    DuplicateRecordDirective dir ->
+      "Ignoring duplicate record directive: " <+> pretty dir
 
     PragmaCompileErased bn qn -> fsep $ concat
       [ pwords "The backend"
@@ -355,6 +454,43 @@ prettyWarning = \case
 
     PragmaCompileMaybe -> fsep $ pwords
       "Ignoring GHC pragma for builtin MAYBE; it always compiles to Haskell Maybe."
+
+    PragmaCompileUnparsable s -> fwords $ "Ignoring unparsable GHC pragma '" ++ s ++ "'"
+
+    PragmaCompileWrong _x s -> fwords s
+
+    PragmaCompileWrongName x amb -> hsep $ concat
+      [ pwords "Cannot COMPILE"
+      , [ pretty x ]
+      , pwords "since it is"
+      , case amb of
+          YesAmbiguous xs -> [ "ambiguous:", pretty xs ]
+          NotAmbiguous -> pwords "neither a defined symbol nor a constructor"
+      ]
+
+    PragmaExpectsDefinedSymbol pragma _x -> hsep $ concat
+      [ pwords "Target of"
+      , [ text pragma ]
+      , pwords "pragma should be a defined symbol"
+      ]
+
+    PragmaExpectsUnambiguousConstructorOrFunction pragma _x amb -> hsep $ concat
+      [ pwords "Target of"
+      , [ text pragma ]
+      , pwords "pragma should be"
+      , case amb of
+          YesAmbiguous xs -> pwords "unambiguous, but it resolves to:" ++ [ pretty xs ]
+          NotAmbiguous -> pwords "a function, constructor, or projection"
+      ]
+
+    PragmaExpectsUnambiguousProjectionOrFunction pragma _x amb -> hsep $ concat
+      [ pwords "Target of"
+      , [ text pragma ]
+      , pwords "pragma should be"
+      , case amb of
+          YesAmbiguous xs -> pwords "unambiguous, but it resolves to:" ++ [ pretty xs ]
+          NotAmbiguous -> pwords "a function or projection"
+      ]
 
     NoMain topLevelModule -> vcat
       [ fsep $ pwords "No main function defined in" ++ [prettyTCM topLevelModule <> "."]
@@ -410,16 +546,47 @@ prettyWarning = \case
 
     NotAffectedByOpaque -> fwords "Only function definitions can be marked opaque. This definition will be treated as transparent."
 
+    UnfoldingWrongName x -> fsep $
+      pwords "Name in unfolding clause should be unambiguous defined name:" ++ [prettyTCM x]
+
     UnfoldTransparentName qn -> fsep $
       pwords "The name" ++ [prettyTCM qn <> ","] ++ pwords "mentioned by an unfolding clause, does not belong to an opaque block. This has no effect."
 
     UselessOpaque -> "This `opaque` block has no effect."
+
+    InvalidDisplayForm x reason -> fsep $ concat
+        [ pwords "Ignoring invalid display form for"
+        , [ prettyTCM x ]
+        , if null reason then [] else "because" : pwords reason
+        ]
+
+    TooManyArgumentsToSort q args -> fsep $ concat
+      [ pwords "Too many arguments given to sort"
+      , [ prettyTCM q ]
+      ]
+
+    WithClauseProjectionFixityMismatch p0 o' q o -> fsep $ concat
+        [ pwords "With clause pattern"
+        , [ prettyA p0 ]
+        , pwords "is not an instance of its parent pattern"
+        , [ P.fsep <$> prettyTCMPatterns [q] ]
+        , pwords "since the parent pattern is"
+        , pwords $ prettyProjOrigin o
+        , pwords "and the with clause pattern is"
+        , pwords $ prettyProjOrigin o'
+        ]
+      where
+        prettyProjOrigin ProjPrefix  = "a prefix projection"
+        prettyProjOrigin ProjPostfix = "a postfix projection"
+        prettyProjOrigin ProjSystem  = __IMPOSSIBLE__
 
     FaceConstraintCannotBeHidden ai -> fsep $
       pwords "Face constraint patterns cannot be" ++ [ pretty (getHiding ai), "arguments"]
 
     FaceConstraintCannotBeNamed x -> fsep $
       pwords "Ignoring name" ++ ["`" <> pretty x <> "`"] ++ pwords "given to face constraint pattern"
+
+    CustomBackendWarning backend warn -> (text backend <> ":") <?> pure warn
 
 {-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
@@ -496,10 +663,7 @@ didYouMean inscope canon x
 
 
 prettyTCWarnings :: [TCWarning] -> TCM String
-prettyTCWarnings = fmap (unlines . List.intersperse "" . map P.render) . prettyTCWarnings'
-
-renderTCWarnings' :: [TCWarning] -> TCM [String]
-renderTCWarnings' = fmap (map P.render) . prettyTCWarnings'
+prettyTCWarnings = List.intercalate "\n" <.> map P.render <.> prettyTCWarnings'
 
 prettyTCWarnings' :: [TCWarning] -> TCM [Doc]
 prettyTCWarnings' = traverse prettyTCM . filterTCWarnings
@@ -576,7 +740,7 @@ isBoundaryConstraint c =
     g (a, _, _, _) = getRange a
 
 {-# SPECIALIZE getAllUnsolvedWarnings :: TCM [TCWarning] #-}
-getAllUnsolvedWarnings :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => m [TCWarning]
+getAllUnsolvedWarnings :: (ReadTCState m, MonadWarning m, MonadTCM m) => m [TCWarning]
 getAllUnsolvedWarnings = do
   unsolvedInteractions <- getUnsolvedInteractionMetas
 
@@ -598,12 +762,12 @@ getAllUnsolvedWarnings = do
 -- | Collect all warnings that have accumulated in the state.
 
 {-# SPECIALIZE getAllWarnings :: WhichWarnings -> TCM [TCWarning] #-}
-getAllWarnings :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => WhichWarnings -> m [TCWarning]
+getAllWarnings :: (ReadTCState m, MonadWarning m, MonadTCM m) => WhichWarnings -> m [TCWarning]
 getAllWarnings = getAllWarningsPreserving Set.empty
 
 {-# SPECIALIZE getAllWarningsPreserving :: Set WarningName -> WhichWarnings -> TCM [TCWarning] #-}
 getAllWarningsPreserving ::
-  (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => Set WarningName -> WhichWarnings -> m [TCWarning]
+  (ReadTCState m, MonadWarning m, MonadTCM m) => Set WarningName -> WhichWarnings -> m [TCWarning]
 getAllWarningsPreserving keptWarnings ww = do
   unsolved            <- getAllUnsolvedWarnings
   collectedTCWarnings <- useTC stTCWarnings

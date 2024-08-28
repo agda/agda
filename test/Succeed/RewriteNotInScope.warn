@@ -1,0 +1,15 @@
+RewriteNotInScope.agda:1,13-16: warning: -W[no]NotInScope
+Not in scope:
+  foo
+  at RewriteNotInScope.agda:1,13-16
+when scope checking the declaration
+  {-# REWRITE foo #-}
+
+———— All done; warnings encountered ————————————————————————
+
+RewriteNotInScope.agda:1,13-16: warning: -W[no]NotInScope
+Not in scope:
+  foo
+  at RewriteNotInScope.agda:1,13-16
+when scope checking the declaration
+  {-# REWRITE foo #-}

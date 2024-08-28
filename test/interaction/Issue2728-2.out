@@ -9,7 +9,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue2728-2 (Issue2728-2.agda). " t)
-(agda2-info-action "*Error*" "Issue2728-2.agda:4,5-6 Function does not accept argument {A = _} when checking that {A = Set} is a valid argument to a function of type {_ : Set₁} → Set₁" nil)
+(agda2-info-action "*Error*" "Issue2728-2.agda:4,5-6: error: [WrongNamedArgument] Function does not accept argument {A = _} when checking that {A = Set} is a valid argument to a function of type {_ : Set₁} → Set₁" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue2728-2.agda" . 46)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

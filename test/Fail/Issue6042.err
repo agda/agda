@@ -1,6 +1,12 @@
-Issue6042.agda:26,1-46,68
-Termination checking failed for the following functions:
-  Id
-Problematic calls:
-  Id (𝛌 (λ _ → Set)) (snd (snd aₓ)) (B ∙ fst aₓ) (B ∙ fst (snd aₓ))
-    (at Issue6042.agda:33,7-9)
+Issue6042.agda:35,13-21: warning: -W[no]RewriteBeforeMutualFunctionDefinition
+Rewrite rule from function  Id-const  cannot be added before the definition of mutually defined Id
+when checking the pragma REWRITE Id-const ＝-Π
+
+Issue6042.agda:35,22-25: warning: -W[no]RewriteBeforeMutualFunctionDefinition
+Rewrite rule from function  ＝-Π  cannot be added before the definition of mutually defined Id
+when checking the pragma REWRITE Id-const ＝-Π
+
+Issue6042.agda:44,79-93: error: [UnequalTerms]
+(𝛌 corr ＝ 𝛌 corr) !=< Π _A_132 _B_133
+when checking that the expression refl' (𝛌 corr) has type
+Π _A_132 _B_133

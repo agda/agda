@@ -16,6 +16,12 @@ postulate instance
   C123b : ∀ {A} → C123 (List (List A))
   C123c : ∀ {A} → C123 (List A)
 
+module M where
+  -- Andreas, 2024-06-22
+  -- This following pragma is ignored with a warning
+  -- because it is not in the same module as the instances.
+  {-# OVERLAPS C123b #-}
+
 {-# OVERLAPS C123b #-}
 
 test123 : List (List Nat)

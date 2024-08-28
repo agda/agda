@@ -172,24 +172,24 @@ parseVariables f cxt asb ii rng ss = do
 
   where
 
-  failNotVar s      = typeError $ GenericError $ "Not a variable: " ++ s
-  failUnbound s     = typeError $ GenericError $ "Unbound variable " ++ s
-  failAmbiguous s   = typeError $ GenericError $ "Ambiguous variable " ++ s
-  failLocal s       = typeError $ GenericError $
+  failNotVar s      = interactionError $ CaseSplitError $ P.text $ "Not a variable: " ++ s
+  failUnbound s     = interactionError $ CaseSplitError $ P.text $ "Unbound variable " ++ s
+  failAmbiguous s   = interactionError $ CaseSplitError $ P.text $ "Ambiguous variable " ++ s
+  failLocal s       = interactionError $ CaseSplitError $ P.text $
     "Cannot split on local variable " ++ s
-  failHiddenLocal s = typeError $ GenericError $
+  failHiddenLocal s = interactionError $ CaseSplitError $ P.text $
     "Cannot make hidden lambda-bound variable " ++ s ++ " visible"
-  failModuleBound s = typeError $ GenericError $
+  failModuleBound s = interactionError $ CaseSplitError $ P.text $
     "Cannot split on module parameter " ++ s
-  failHiddenModuleBound s = typeError $ GenericError $
+  failHiddenModuleBound s = interactionError $ CaseSplitError $ P.text $
     "Cannot make hidden module parameter " ++ s ++ " visible"
-  failLetBound s = typeError . GenericError $
+  failLetBound s = interactionError $ CaseSplitError $ P.text $
     "Cannot split on let-bound variable " ++ s
-  failInstantiatedVar s v = typeError . GenericDocError =<< sep
+  failInstantiatedVar s v = interactionError . CaseSplitError =<< sep
       [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
       , prettyTCM v
       ]
-  failCaseLet s     = typeError $ GenericError $
+  failCaseLet s     = interactionError $ CaseSplitError $ P.text $
     "Cannot split on variable " ++ s ++
     ", because let-declarations may not be defined by pattern-matching"
 
@@ -252,7 +252,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
   InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole
   (f, clauseNo, clTy, clWithSub, absCl@A.Clause{ clauseRHS = rhs }, clClos) <- case ipCl of
     IPClause f i t sub cl clo -> return (f, i, t, sub, cl, clo)
-    IPNoClause                -> typeError $ GenericError $
+    IPNoClause                -> interactionError $ CaseSplitError $
       "Cannot split here, as we are not in a function definition"
   (casectxt, (prevClauses0, _clause, follClauses0)) <- getClauseZipperForIP f clauseNo
 
@@ -432,7 +432,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     return (f, casectxt, cs)
 
   where
-  failNoCop = typeError $ GenericError $
+  failNoCop = interactionError $ CaseSplitError $
     "OPTION --copatterns needed to split on result here"
 
   -- Split clause on given variables, return the resulting clauses together
@@ -460,7 +460,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
   checkClauseIsClean ipCl = do
     sips <- filter ipSolved . BiMap.elems <$> useTC stInteractionPoints
     when (List.any ((== ipCl) . ipClause) sips) $
-      typeError $ GenericError $ "Cannot split as clause rhs has been refined.  Please reload"
+      interactionError $ CaseSplitError $ "Cannot split as clause rhs has been refined.  Please reload"
 
 -- | Make the given pattern variables visible by marking their origin as
 --   'CaseSplit' and pattern origin as 'PatOSplit' in the 'SplitClause'.

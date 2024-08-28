@@ -1,4 +1,4 @@
-TerminationWithInsufficientDepth.agda:20,3-27,20
+TerminationWithInsufficientDepth.agda:20,3-27,20: error: [TerminationIssue]
 Termination checking failed for the following functions:
   Depth2.g, Depth2.f
 Problematic calls:
@@ -6,7 +6,7 @@ Problematic calls:
     (at TerminationWithInsufficientDepth.agda:25,21-22)
   f (suc n)
     (at TerminationWithInsufficientDepth.agda:27,11-12)
-TerminationWithInsufficientDepth.agda:39,3-47,24
+TerminationWithInsufficientDepth.agda:39,3-47,24: error: [TerminationIssue]
 Termination checking failed for the following functions:
   Depth3.f, Depth3.g
 Problematic calls:

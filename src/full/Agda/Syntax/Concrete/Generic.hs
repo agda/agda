@@ -218,7 +218,7 @@ instance ExprLike DoStmt where
 
 instance ExprLike ModuleApplication where
   mapExpr f = \case
-     SectionApp r bs e -> SectionApp r (mapE bs) $ mapE e
+     SectionApp r bs x es -> SectionApp r (mapE bs) x $ mapE es
      e@RecordModuleInstance{} -> e
    where
      mapE :: ExprLike e => e -> e
@@ -240,7 +240,6 @@ instance ExprLike Declaration where
      Record r er n dir tel e ds
                                -> Record r er n dir (mapE tel) (mapE e)
                                                                        $ mapE ds
-     e@RecordDirective{}       -> e
      e@Infix{}                 -> e
      e@Syntax{}                -> e
      e@PatternSyn{}            -> e
@@ -322,7 +321,6 @@ instance FoldDecl Declaration where
     Data _ _ _ _ _ _        -> mempty
     DataDef _ _ _ _         -> mempty
     RecordSig _ _ _ _ _     -> mempty
-    RecordDirective _       -> mempty
     Infix _ _               -> mempty
     Syntax _ _              -> mempty
     PatternSyn _ _ _ _      -> mempty
@@ -378,7 +376,6 @@ instance TraverseDecl Declaration where
       Data _ _ _ _ _ _           -> return d
       DataDef _ _ _ _            -> return d
       RecordSig _ _ _ _ _        -> return d
-      RecordDirective _          -> return d
       Infix _ _                  -> return d
       Syntax _ _                 -> return d
       PatternSyn _ _ _ _         -> return d

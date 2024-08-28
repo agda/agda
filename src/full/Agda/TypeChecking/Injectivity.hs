@@ -461,9 +461,9 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
                 ]
               return RollBackMetas
   where
-    nextMeta :: (MonadState [Term] m, MonadFail m) => m Term
+    nextMeta :: (MonadState [Term] m) => m Term
     nextMeta = do
-      m : ms <- get
+      (m, ms) <- gets (fromMaybe __IMPOSSIBLE__ . uncons)
       put ms
       return m
 
@@ -473,18 +473,18 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
       return $ applySubst sub v
 
     metaElim
-      :: (MonadState [Term] m, MonadReader Substitution m, HasConstInfo m, MonadFail m)
+      :: (MonadState [Term] m, MonadReader Substitution m, HasConstInfo m)
       => Arg DeBruijnPattern -> m Elim
     metaElim (Arg _ (ProjP o p))  = Proj o <$> getOriginalProjection p
     metaElim (Arg info p)         = Apply . Arg info <$> metaPat p
 
     metaArgs
-      :: (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
+      :: (MonadState [Term] m, MonadReader Substitution m)
       => [NamedArg DeBruijnPattern] -> m Args
     metaArgs args = mapM (traverse $ metaPat . namedThing) args
 
     metaPat
-      :: (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
+      :: (MonadState [Term] m, MonadReader Substitution m)
       => DeBruijnPattern -> m Term
     metaPat (DotP _ v)       = dotP v
     metaPat (VarP _ _)       = nextMeta

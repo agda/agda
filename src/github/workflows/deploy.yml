@@ -38,7 +38,7 @@ jobs:
         # As of today (2024-02-05), the actual version information can be found in
         # https://github.com/actions/runner-images#available-images
         os: [windows-latest, macos-latest, ubuntu-latest]
-        ghc-ver: ['9.8']
+        ghc-ver: ['9.10']
         cabal-ver: [latest]
 
     env:
@@ -308,7 +308,7 @@ jobs:
       run: |
         gh release delete 'nightly' --repo ${GITHUB_REPOSITORY} --cleanup-tag --yes || true
         ls -R artifacts
-        gh release create 'nightly' artifacts/**/* --repo ${GITHUB_REPOSITORY} --generate-notes --notes-start-tag v2.6.4.3 --prerelease --title "${{ needs.build.outputs.sha }}@master"
+        gh release create 'nightly' artifacts/**/* --repo ${GITHUB_REPOSITORY} --generate-notes --notes-start-tag v2.7.0 --prerelease --title "${{ needs.build.outputs.sha }}@master"
 
     - name: Create a release with the bindist as release assets
       if: startsWith(github.ref, 'refs/tags/v')

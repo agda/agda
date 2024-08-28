@@ -1,4 +1,4 @@
-Issue4135Record.agda:16,6-8
+Issue4135Record.agda:16,6-8: error: [AmbiguousProjection]
 Ambiguous projection f.
 It could refer to any of
   True.f (introduced at Issue4135Record.agda:12,13-17)

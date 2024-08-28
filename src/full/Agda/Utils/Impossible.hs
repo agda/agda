@@ -1,9 +1,10 @@
+{-# LANGUAGE CPP #-}
+
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 ------------------------------------------------------------------------
 -- | An interface for reporting \"impossible\" errors
 ------------------------------------------------------------------------
-
 
 module Agda.Utils.Impossible where
 
@@ -59,7 +60,14 @@ instance Show Impossible where
     , unwords needed
     ]
 
-instance Exception Impossible
+instance Exception Impossible where
+#if MIN_VERSION_base(4,20,0)
+  -- Andreas, 2024-07-05, issue #7299;
+  -- Turn off the (here useless) backtrace introduced in GHC 9.10.
+  -- Besides spamming us with useless info, it changes the golden
+  -- value, introducing incompatibilities in the test-suite.
+  backtraceDesired _ = False
+#endif
 
 -- | Abort by throwing an \"impossible\" error. You should not use
 -- this function directly. Instead use __IMPOSSIBLE__

@@ -1,4 +1,4 @@
-Issue952.agda:7,10-11
+Issue952.agda:7,10-11: error: [WrongNamedArgument]
 Function does not accept argument {A₁ = _}
 (possible arguments: A B)
 when checking that {A₁ = Set} {B₁ = Set} are valid arguments to a

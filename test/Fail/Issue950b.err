@@ -1,4 +1,4 @@
-Issue950b.agda:19,1-4
+Issue950b.agda:19,1-4: error: [CannotEliminateWithProjection]
 Cannot eliminate type  ?0  with projection  x
 when checking the clause left hand side
 x f

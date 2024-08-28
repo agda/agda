@@ -1,6 +1,0 @@
-COMPILE_FAILED
-
-ret > ExitFailure 42
-out > /Issue2909-6.agda:10,1-34
-out > "COMPILE GHC" pragmas are not allowed for the FLAT builtin.
-out >

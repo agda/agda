@@ -10,8 +10,6 @@ import Control.Monad.State
 
 import Data.Bifunctor (first, second)
 import Data.Char
-import Data.DList (DList)
-import qualified Data.DList as DL
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ((<>), sconcat)
@@ -430,26 +428,6 @@ buildDoStmt e@(RawApp r _)    cs = do
 buildDoStmt e cs = defaultBuildDoStmt e cs
 
 
--- | Check for duplicate record directives.
-verifyRecordDirectives :: [RecordDirective] -> Parser RecordDirectives
-verifyRecordDirectives ds =
-  case rs of
-    []  -> return (RecordDirectives (listToMaybe is) (listToMaybe es) (listToMaybe ps) (listToMaybe cs))
-      -- Here, all the lists is, es, cs, ps are at most singletons.
-    r:_ -> parseErrorRange r $ unlines $ "Repeated record directives at:" : map prettyShow rs
-  where
-  errorFromList []  = []
-  errorFromList [x] = []
-  errorFromList xs  = map getRange xs
-  rs  = List.sort $ concat [ errorFromList is, errorFromList es', errorFromList cs, errorFromList ps ]
-  es  = map rangedThing es'
-  is  = [ i      | Induction i          <- ds ]
-  es' = [ e      | Eta e                <- ds ]
-  cs  = [ (c, i) | Constructor c i      <- ds ]
-  ps  = [ r      | PatternOrCopattern r <- ds ]
-
-
-
 {--------------------------------------------------------------------------
     Patterns
  --------------------------------------------------------------------------}
@@ -517,7 +495,7 @@ patternSynArgs = mapM \ x -> do
         case ai of
 
           -- Benign case:
-          ArgInfo h (Modality Relevant (Quantityω _) Continuous) UserWritten UnknownFVs (Annotation IsNotLock) ->
+          ArgInfo h (Modality Relevant{} (Quantityω _) Continuous) UserWritten UnknownFVs (Annotation IsNotLock) ->
             return $ WithHiding h n
 
           -- Error cases:
@@ -562,11 +540,11 @@ data RHSOrTypeSigs
 
 patternToNames :: Pattern -> Parser (List1 (ArgInfo, Name))
 patternToNames = \case
-    IdentP _ (QName i)       -> return $ singleton $ (defaultArgInfo, i)
-    WildP r                  -> return $ singleton $ (defaultArgInfo, C.noName r)
-    DotP _ (Ident (QName i)) -> return $ singleton $ (setRelevance Irrelevant defaultArgInfo, i)
-    RawAppP _ ps             -> sconcat . List2.toList1 <$> mapM patternToNames ps
-    p                        -> parseError $
+    IdentP _ (QName i)           -> return $ singleton (defaultArgInfo, i)
+    WildP r                      -> return $ singleton (defaultArgInfo, C.noName r)
+    DotP kwr _ (Ident (QName i)) -> return $ singleton (makeIrrelevant kwr defaultArgInfo, i)
+    RawAppP _ ps                 -> sconcat . List2.toList1 <$> mapM patternToNames ps
+    p -> parseError $
       "Illegal name in type signature: " ++ prettyShow p
 
 funClauseOrTypeSigs :: [Attr] -> ([RewriteEqn] -> [WithExpr] -> LHS)
@@ -594,6 +572,21 @@ funClauseOrTypeSigs attrs lhs' with mrhs wh = do
 
 typeSig :: ArgInfo -> TacticAttribute -> Name -> Expr -> Declaration
 typeSig i tac n e = TypeSig i tac n (Generalized e)
+
+------------------------------------------------------------------------
+-- * Relevance
+
+makeIrrelevant :: (HasRange a, LensRelevance b) => a -> b -> b
+makeIrrelevant = setRelevance . Irrelevant . OIrrDot . getRange
+
+makeShapeIrrelevant :: (HasRange a, LensRelevance b) => a -> b -> b
+makeShapeIrrelevant = setRelevance . ShapeIrrelevant . OShIrrDotDot . getRange
+
+defaultIrrelevantArg :: HasRange a => a -> b -> Arg b
+defaultIrrelevantArg a = makeIrrelevant a . defaultArg
+
+defaultShapeIrrelevantArg :: HasRange a => a -> b -> Arg b
+defaultShapeIrrelevantArg a = makeShapeIrrelevant a . defaultArg
 
 ------------------------------------------------------------------------
 -- * Attributes

@@ -1,4 +1,4 @@
-Issue7193.agda:12,11-18
+Issue7193.agda:12,11-18: error: [ProjectionIsIrrelevant]
 Projection  extract  is irrelevant.
 Turn on option --irrelevant-projections to use it (unsafe)
 when checking that the expression extract has type ⊤ → A

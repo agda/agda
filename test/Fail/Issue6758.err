@@ -1,5 +1,7 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _57 (x = x) = x₁ x : _X_54 (blocked on _57)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue6758.agda:27,11-15
   Issue6758.agda:22,12-13

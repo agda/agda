@@ -767,9 +767,11 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           names   = map (fst . unDom) telList
           late    = map (fst . unDom) $ filter (getAny . allMetas (Any . (== x))) telList
           projs (Proj _ q)
-            | q `elem` genRecFields = Set.fromList $ catMaybes [getGeneralizedFieldName q]
-          projs _                 = Set.empty
-          early = Set.toList $ flip foldTerm u $ \ case
+            | q `elem` genRecFields
+            , Just y <- getGeneralizedFieldName q
+            = Set.singleton y
+          projs _ = Set.empty
+          early = flip foldTerm u \case
                   Var _ es   -> foldMap projs es
                   Def _ es   -> foldMap projs es
                   MetaV _ es -> foldMap projs es
@@ -787,7 +789,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           guess = unwords
             [ "After constraint solving it looks like", commas late
             , singPlural late (++ "s") id "actually depend"
-            , "on", commas early
+            , "on", commas $ Set.toList early
             ]
       genericDocError =<< vcat
         [ fwords $ "Variable generalization failed."
@@ -1006,5 +1008,26 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
   setType (conName con) conType
   -- Record telescope: Includes both parameters and fields.
   modifyGlobalDefinition name $ set (lensTheDef . lensRecord . lensRecTel) fullTel
+  -- #7380: Also add clauses to the field definitions
+  let n      = length fields
+      cpi    = noConPatternInfo
+      fldTys = map (fmap snd . argFromDom) $ telToList fieldTel
+      conPat = ConP con cpi [ fmap unnamed $ varP (DBPatVar "x" i) <$ arg | (i, arg) <- zip (downFrom n) fldTys ]
+  forM_ (zip3 (downFrom n) fields fldTys) \ (i, fld, fldTy) -> do
+    modifyFunClauses fld \ _ ->
+      [Clause
+        { clauseLHSRange    = noRange
+        , clauseFullRange   = noRange
+        , clauseTel         = fieldTel
+        , namedClausePats   = [defaultNamedArg conPat]
+        , clauseBody        = Just $ var i
+        , clauseType        = Just $ raise (i + 1) fldTy
+        , clauseCatchall    = False
+        , clauseExact       = Just True
+        , clauseRecursive   = Just False
+        , clauseUnreachable = Just False
+        , clauseEllipsis    = NoEllipsis
+        , clauseWhereModule = Nothing
+        }]
   where
     setType q ty = modifyGlobalDefinition q $ \ d -> d { defType = ty }

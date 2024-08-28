@@ -1,4 +1,4 @@
-NoTerminationCheckPositivity.agda:20,1-21,14
+NoTerminationCheckPositivity.agda:20,1-21,14: error: [NotStrictlyPositive]
 E is not strictly positive, because it occurs
 in the 4th argument of M.F
 in the type of the constructor e

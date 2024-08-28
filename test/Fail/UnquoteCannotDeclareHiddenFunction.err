@@ -1,0 +1,2 @@
+UnquoteCannotDeclareHiddenFunction.agda:7,1-8,67: error: [Unquote.CannotDeclareHiddenFunction]
+Cannot declare hidden function x

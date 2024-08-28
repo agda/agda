@@ -1,5 +1,4 @@
-OpaqueTypeSig.agda:7,3-9
-warning: -W[no]MissingTypeSignatureForOpaque
+OpaqueTypeSig.agda:7,3-9: warning: -W[no]MissingTypeSignatureForOpaque
 Missing type signature for opaque definition _.
 Types of opaque definitions are never inferred since this would
 leak information that should be opaque.

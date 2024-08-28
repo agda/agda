@@ -141,7 +141,7 @@ newMetaArg
 newMetaArg kind info x cmp a = do
   prp <- runBlocked $ isPropM a
   let irrelevantIfProp =
-        applyWhen (prp == Right True) $ applyRelevanceToContext Irrelevant
+        applyWhen (prp == Right True) $ applyRelevanceToContext irrelevant
   applyModalityToContext info $ irrelevantIfProp $
     newMeta (argNameToString x) kind a
   where

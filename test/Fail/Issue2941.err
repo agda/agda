@@ -1,4 +1,4 @@
-Issue2941.agda:17,1-18,39
+Issue2941.agda:17,1-18,39: error: [TerminationIssue]
 Termination checking failed for the following functions:
   concat
 Problematic calls:

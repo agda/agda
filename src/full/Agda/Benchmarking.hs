@@ -51,7 +51,7 @@ data Phase
     -- ^ Writing interface files.
   | DeadCode
     -- ^ Dead code elimination.
-  | DeadCodeInstantiateFull
+  | InterfaceInstantiateFull
     -- ^ Unfolding all metas before serialization.
   | DeadCodeReachable
     -- ^ Dead code reachable definitions subphase.

@@ -1,7 +1,2 @@
-Issue1484.agda:40,14-14
-Issue1484.agda:40,14: expected sequence of bound identifiers, not absurd pattern
-}<ERROR>
-}
-
--- Error WAS:
--- Internal p...
+Issue1484.agda:40,14: error: [ParseError]
+expected sequence of bound identifiers, not absurd pattern

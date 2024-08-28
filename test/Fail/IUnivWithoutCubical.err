@@ -1,3 +1,3 @@
-IUnivWithoutCubical.agda:1,1-39
-Missing option --cubical or --erased-cubical
+IUnivWithoutCubical.agda:1,1-39: error: [NeedOptionCubical]
+Option --cubical or --erased-cubical required
 when checking the pragma BUILTIN CUBEINTERVALUNIV IUniv

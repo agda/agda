@@ -1,4 +1,4 @@
-Issue2350-constructor-parameter-ignored.agda:8,18-27
+Issue2350-constructor-parameter-ignored.agda:8,18-27: error: [UnequalTerms]
 ℓ != ℓ' of type Agda.Primitive.Level
 when checking that the inferred type of an application
   D _A_13

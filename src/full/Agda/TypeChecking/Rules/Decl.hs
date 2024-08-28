@@ -464,17 +464,6 @@ checkPositivity_ mi names = Bench.billTo [Bench.Positivity] $ do
   -- positivity check, so it needs happen after the positivity check.
   computePolarity $ Set.toList names
 
--- | Check that all coinductive records are actually recursive.
---   (Otherwise, one can implement invalid recursion schemes just like
---   for the old coinduction.)
-checkCoinductiveRecords :: [A.Declaration] -> TCM ()
-checkCoinductiveRecords ds = forM_ ds $ \case
-  A.RecDef _ q _ dir _ _ _
-    | Just (Ranged r CoInductive) <- recInductive dir -> setCurrentRange r $ do
-    unlessM (isRecursiveRecord q) $ typeError $ GenericError $
-      "Only recursive records can be coinductive"
-  _ -> return ()
-
 -- | Check a set of mutual names for constructor-headedness.
 checkInjectivity_ :: Set QName -> TCM ()
 checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
@@ -731,9 +720,9 @@ checkPrimitive i x (Arg info e) =
     -- future. Thus, rather than, the arguably nicer solution of adding an
     -- ArgInfo to PrimImpl we simply check the few special primitives here.
     let expectedInfo =
-          case name of
-            -- Currently no special primitives
-            _ -> defaultArgInfo
+          -- Currently no special primitives
+          -- case name of _ ->
+                        defaultArgInfo
     unless (info == expectedInfo) $
       typeError $ WrongArgInfoForPrimitive name info expectedInfo
     bindPrimitive name pf
@@ -750,7 +739,8 @@ checkPrimitive i x (Arg info e) =
 
 -- | Check a pragma.
 checkPragma :: Range -> A.Pragma -> TCM ()
-checkPragma r p =
+checkPragma r p = do
+    let uselessPragma = warning . UselessPragma r
     traceCall (CheckPragma r p) $ case p of
         A.BuiltinPragma rb x
           | any isUntypedBuiltin b -> return ()
@@ -767,64 +757,62 @@ checkPragma r p =
         A.CompilePragma b x s -> do
           -- Check that x resides in the same module (or a child) as the pragma.
           x' <- defName <$> getConstInfo x  -- Get the canonical name of x.
-          unlessM ((x' `isInModule`) <$> currentModule) $
-            typeError $ GenericError $
+          ifM ((x' `isInModule`) <$> currentModule)
+            {- then -} (addPragma (rangedThing b) x s)
+            {- else -} $ uselessPragma
               "COMPILE pragmas must appear in the same module as their corresponding definitions,"
-          addPragma (rangedThing b) x s
+
         A.StaticPragma x -> do
           def <- ignoreAbstractMode $ getConstInfo x
           case theDef def of
             Function{} -> markStatic x
-            _          -> warning $ UselessPragma r "STATIC directive only applies to functions"
+            _          -> uselessPragma "STATIC directive only applies to functions"
         A.InjectivePragma x -> markInjective x
         A.InjectiveForInferencePragma x -> do
           def <- ignoreAbstractMode $ getConstInfo x
           case theDef def of
             Function{} -> markFirstOrder x
-            _ -> warning $ UselessPragma r "INJECTIVE_FOR_INFERENCE directive only applies to functions"
+            _ -> uselessPragma "INJECTIVE_FOR_INFERENCE directive only applies to functions"
         A.NotProjectionLikePragma qn -> do
           def <- ignoreAbstractMode $ getConstInfo qn
           case theDef def of
             it@Function{} ->
               modifyGlobalDefinition qn $ \def -> def { theDef = it { funProjection = Left NeverProjection } }
-            _ -> warning $ UselessPragma r "NOT_PROJECTION_LIKE directive only applies to functions"
+            _ -> uselessPragma "NOT_PROJECTION_LIKE directive only applies to functions"
         A.InlinePragma b x -> do
           def <- ignoreAbstractMode $ getConstInfo x
           case theDef def of
             Function{} -> markInline b x
             d@Constructor{ conSrcCon } | copatternMatchingAllowed conSrcCon
               -> modifyGlobalDefinition x $ set lensTheDef d{ conInline = b }
-            _ -> warning $ UselessPragma r $ P.text $ applyUnless b ("NO" ++) "INLINE directive only works on functions or constructors of records that allow copattern matching"
-        A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
+            _ -> uselessPragma $ P.text $ applyUnless b ("NO" ++) "INLINE directive only works on functions or constructors of records that allow copattern matching"
+        A.OptionsPragma{} -> uselessPragma $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
-        A.OverlapPragma q new -> do
-          def <- getConstInfo q
 
-          unlessM ((q `isInModule`) <$> currentModule) $
-            typeError . GenericDocError =<< fsep (
+        A.OverlapPragma q new -> do
+          ifNotM ((q `isInModule`) <$> currentModule)
+            (uselessPragma =<< fsep (
               pwords "This" ++ [pretty new] ++
               pwords "pragma must appear in the same module as the definition of" ++
-              [prettyTCM q])
+              [prettyTCM q]))
 
+            {- else -} do
+
+          def <- getConstInfo q
           case defInstance def of
             Just i@InstanceInfo{ instanceOverlap = DefaultOverlap } ->
               modifyGlobalDefinition q \x -> x { defInstance = Just i{ instanceOverlap = new } }
             Just InstanceInfo{ instanceOverlap = old } -> typeError $ DuplicateOverlapPragma q old new
-            Nothing -> typeError . GenericDocError =<< pretty new <+> "pragma can only be applied to instances"
+            Nothing -> uselessPragma =<< pretty new <+> "pragma can only be applied to instances"
 
-        A.EtaPragma r -> do
-          let noRecord = typeError $ GenericError $
-                "ETA pragma is only applicable to coinductive records"
-          caseMaybeM (isRecord r) noRecord $ \case
-            Record{ recInduction = ind, recEtaEquality' = eta } -> do
-              unless (ind == Just CoInductive) $ noRecord
-              if | Specified NoEta{} <- eta -> typeError $ GenericError $
-                     "ETA pragma conflicts with no-eta-equality declaration"
-                 | otherwise -> return ()
-            _ -> __IMPOSSIBLE__
-          modifySignature $ updateDefinition r $ updateTheDef $ \case
-            def@Record{} -> def { recEtaEquality' = Specified YesEta }
-            _ -> __IMPOSSIBLE__
+        A.EtaPragma q -> isRecord q >>= \case
+            Nothing -> noRecord
+            Just RecordData{ _recInduction = ind, _recEtaEquality' = eta }
+              | ind /= Just CoInductive  -> noRecord
+              | Specified NoEta{} <- eta -> uselessPragma "ETA pragma conflicts with no-eta-equality declaration"
+              | otherwise -> modifyRecEta q $ const $ Specified YesEta
+          where
+            noRecord = uselessPragma "ETA pragma is only applicable to coinductive records"
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 --

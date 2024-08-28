@@ -1,8 +1,10 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _12 : C Int Int
   Candidates
     [overlaps] CIa : {a : Set} → C Int a
     [overlaps] CaI : {a : Set} → C a Int
     (stuck)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Overlap1.agda:19,5-16

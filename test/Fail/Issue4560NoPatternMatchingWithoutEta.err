@@ -1,4 +1,4 @@
-Issue4560NoPatternMatchingWithoutEta.agda:18,6-13
+Issue4560NoPatternMatchingWithoutEta.agda:18,6-13: error: [SplitOnNonEtaRecord]
 Pattern matching on no-eta record type R
 (defined at Issue4560NoPatternMatchingWithoutEta.agda:11,8-9)
 is not allowed

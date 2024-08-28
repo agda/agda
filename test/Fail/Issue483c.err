@@ -1,5 +1,7 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _15 _ = refute _ : ⊥ (blocked on _15)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue483c.agda:20,9-10
   Issue483c.agda:21,9-13

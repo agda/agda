@@ -1,4 +1,4 @@
-Issue6675.agda:14,5-25
+Issue6675.agda:14,5-25: error: [IllegalDeclarationInDataDefinition]
 Illegal declaration in data type definition
   {-# REWRITE refl #-}
 when scope checking the declaration

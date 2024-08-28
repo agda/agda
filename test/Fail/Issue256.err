@@ -1,4 +1,4 @@
-Issue256.agda:14,1-15,24
+Issue256.agda:14,1-15,24: error: [TerminationIssue]
 Termination checking failed for the following functions:
   ℓ
 Problematic calls:

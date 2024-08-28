@@ -1,3 +1,3 @@
-Issue216.agda:8,11-26
+Issue216.agda:8,11-26: error: [UnequalSorts]
 Set (lsuc i) != Set i
 when checking that the expression (R : Set i) → R has type Set i

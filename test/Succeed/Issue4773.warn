@@ -1,13 +1,12 @@
-Issue4773.agda:21,15-55
-warning: -W[no]ModuleDoesntExport
+Issue4773.agda:21,15-55: warning: -W[no]ModuleDoesntExport
 The module N doesn't export the following:
   X
   Z
   Y
 when scope checking the declaration
   module N = M using (X) hiding (Z) renaming (Y to Y')
-Issue4773.agda:35,12-49
-warning: -W[no]ModuleDoesntExport
+
+Issue4773.agda:35,12-49: warning: -W[no]ModuleDoesntExport
 The module _ doesn't export the following:
   Y
   Z
@@ -16,8 +15,7 @@ when scope checking the declaration
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue4773.agda:21,15-55
-warning: -W[no]ModuleDoesntExport
+Issue4773.agda:21,15-55: warning: -W[no]ModuleDoesntExport
 The module N doesn't export the following:
   X
   Z
@@ -25,8 +23,7 @@ The module N doesn't export the following:
 when scope checking the declaration
   module N = M using (X) hiding (Z) renaming (Y to Y')
 
-Issue4773.agda:35,12-49
-warning: -W[no]ModuleDoesntExport
+Issue4773.agda:35,12-49: warning: -W[no]ModuleDoesntExport
 The module _ doesn't export the following:
   Y
   Z

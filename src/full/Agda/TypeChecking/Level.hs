@@ -53,7 +53,7 @@ levelType' =
 isLevelType :: PureTCM m => Type -> m Bool
 isLevelType a = reduce (unEl a) >>= \case
   Def f [] -> do
-    Def lvl [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
+    lvl <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinLevel
     return $ f == lvl
   _ -> return False
 
@@ -61,38 +61,38 @@ isLevelType a = reduce (unEl a) >>= \case
 {-# SPECIALIZE builtinLevelKit :: ReduceM LevelKit #-}
 builtinLevelKit :: (HasBuiltins m) => m LevelKit
 builtinLevelKit = do
-    level@(Def l [])     <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
-    zero@(Def z [])      <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
-    suc@(Def s [])       <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
-    max@(Def m [])       <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
+    level <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinLevel
+    zero  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinLevelZero
+    suc   <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinLevelSuc
+    max   <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinLevelMax
     return $ LevelKit
-      { lvlType  = level
-      , lvlSuc   = \ a -> suc `apply1` a
-      , lvlMax   = \ a b -> max `applys` [a, b]
-      , lvlZero  = zero
-      , typeName = l
-      , sucName  = s
-      , maxName  = m
-      , zeroName = z
+      { lvlType  = Def level []
+      , lvlSuc   = \ a -> Def suc [] `apply1` a
+      , lvlMax   = \ a b -> Def max [] `applys` [a, b]
+      , lvlZero  = Def zero []
+      , typeName = level
+      , sucName  = suc
+      , maxName  = max
+      , zeroName = zero
       }
 
 {-# SPECIALIZE requireLevels :: TCM LevelKit #-}
 -- | Raises an error if no level kit is available.
 requireLevels :: (HasBuiltins m, MonadTCError m) => m LevelKit
 requireLevels = do
-    level@(Def l [])     <- getBuiltin builtinLevel
-    zero@(Def z [])      <- getBuiltin builtinLevelZero
-    suc@(Def s [])       <- getBuiltin builtinLevelSuc
-    max@(Def m [])       <- getBuiltin builtinLevelMax
+    level <- getBuiltinName_ builtinLevel
+    zero  <- getBuiltinName_ builtinLevelZero
+    suc   <- getBuiltinName_ builtinLevelSuc
+    max   <- getBuiltinName_ builtinLevelMax
     return $ LevelKit
-      { lvlType  = level
-      , lvlSuc   = \ a -> suc `apply1` a
-      , lvlMax   = \ a b -> max `applys` [a, b]
-      , lvlZero  = zero
-      , typeName = l
-      , sucName  = s
-      , maxName  = m
-      , zeroName = z
+      { lvlType  = Def level []
+      , lvlSuc   = \ a -> Def suc [] `apply1` a
+      , lvlMax   = \ a b -> Def max [] `applys` [a, b]
+      , lvlZero  = Def zero []
+      , typeName = level
+      , sucName  = suc
+      , maxName  = max
+      , zeroName = zero
       }
 
 -- | Checks whether level kit is fully available.
@@ -121,26 +121,16 @@ reallyUnLevelView :: (HasBuiltins m) => Level -> m Term
 reallyUnLevelView nv = (`unlevelWithKit` nv) <$> builtinLevelKit
 
 unlevelWithKit :: LevelKit -> Level -> Term
-unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } = \case
+unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax } = \case
   Max m []  -> unConstV zer suc m
   Max 0 [a] -> unPlusV suc a
-  Max m as  -> foldl1 max $ [ unConstV zer suc m | m > 0 ] ++ map (unPlusV suc) as
+  Max m as  -> foldl1 lvlMax $ [ unConstV zer suc m | m > 0 ] ++ map (unPlusV suc) as
 
 unConstV :: Term -> (Term -> Term) -> Integer -> Term
 unConstV zer suc n = foldr ($) zer (List.genericReplicate n suc)
 
 unPlusV :: (Term -> Term) -> PlusLevel -> Term
 unPlusV suc (Plus n a) = foldr ($) a (List.genericReplicate n suc)
-
-maybePrimCon :: TCM Term -> TCM (Maybe ConHead)
-maybePrimCon prim = tryMaybe $ do
-    Con c ci [] <- prim
-    return c
-
-maybePrimDef :: TCM Term -> TCM (Maybe QName)
-maybePrimDef prim = tryMaybe $ do
-    Def f [] <- prim
-    return f
 
 {-# SPECIALIZE levelView :: Term -> TCM Level #-}
 levelView :: PureTCM m => Term -> m Level
@@ -153,9 +143,9 @@ levelView a = do
 {-# SPECIALIZE levelView' :: Term -> TCM Level #-}
 levelView' :: PureTCM m => Term -> m Level
 levelView' a = do
-  Def lzero [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
-  Def lsuc  [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
-  Def lmax  [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
+  lzero <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinLevelZero
+  lsuc  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinLevelSuc
+  lmax  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinLevelMax
   let view a = do
         ba <- reduceB a
         case ignoreBlocking ba of

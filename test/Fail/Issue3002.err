@@ -1,4 +1,4 @@
-Issue3002.agda:19,9-13
+Issue3002.agda:19,9-13: error: [UnequalTerms]
 (λ ()) x != f x of type ⊥
 when checking that the expression refl has type
 (suc zero ≤? zero) ≡ f

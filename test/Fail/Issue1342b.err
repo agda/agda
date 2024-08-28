@@ -1,4 +1,4 @@
-Issue1342b.agda:46,10-26
+Issue1342b.agda:46,10-26: error: [WithOnFreeVariable]
 Cannot 'with' on expression wrap (wrapped x) which reduces to
 variable x bound in a module telescope (or patterns of a parent
 clause)

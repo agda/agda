@@ -1,4 +1,4 @@
-Issue3032-termination.agda:10,1-19,18
+Issue3032-termination.agda:10,1-19,18: error: [TerminationIssue]
 Termination checking failed for the following functions:
   foo
 Problematic calls:

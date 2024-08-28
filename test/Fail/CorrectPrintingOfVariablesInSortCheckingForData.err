@@ -1,4 +1,4 @@
-CorrectPrintingOfVariablesInSortCheckingForData.agda:13,6-9
+CorrectPrintingOfVariablesInSortCheckingForData.agda:13,6-9: error: [SortCannotDependOnItsIndex]
 The sort of foo cannot depend on its indices in the type
 (y : Bool) → if y then Set else Set
 when checking the definition of foo

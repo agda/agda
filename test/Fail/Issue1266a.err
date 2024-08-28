@@ -1,4 +1,4 @@
-Issue1266a.agda:13,34-35
+Issue1266a.agda:13,34-35: error: [AmbiguousName]
 Ambiguous name A. It could refer to any one of
   A bound at
     Issue1266a.agda:13,9-10

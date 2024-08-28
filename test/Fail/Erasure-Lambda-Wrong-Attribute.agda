@@ -10,9 +10,6 @@ test x = applyErased (λ (@ω y) → y) x
 
 -- Expected error:
 --
--- Wrong quantity annotation in lambda abstraction.
---
--- Current error (because @ω as default quantity is ignored):
---
--- Variable y is declared erased, so it cannot be used here
--- when checking that the expression y has type _B_7
+-- Incorrect quantity annotation in lambda
+-- when checking that the expression λ (@ω y) → y has type
+-- @0 _A_6 → _B_7

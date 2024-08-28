@@ -1,4 +1,4 @@
-TerminationLambda.agda:8,1-9,19
+TerminationLambda.agda:8,1-9,19: error: [TerminationIssue]
 Termination checking failed for the following functions:
   F
 Problematic calls:

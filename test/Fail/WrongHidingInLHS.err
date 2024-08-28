@@ -1,4 +1,4 @@
-WrongHidingInLHS.agda:5,4-5
+WrongHidingInLHS.agda:5,4-5: error: [WrongHidingInLHS]
 Unexpected implicit argument
 when checking the clause left hand side
 f {x}

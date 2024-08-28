@@ -1,0 +1,19 @@
+ExactSplit.agda:18,1-17: warning: -W[no]InvalidCatchallPragma
+The CATCHALL pragma can only precede a function clause.
+
+ExactSplit.agda:22,1-17: warning: -W[no]InvalidCatchallPragma
+The CATCHALL pragma can only precede a function clause.
+
+ExactSplit.agda:28,1-17: warning: -W[no]InvalidCatchallPragma
+The CATCHALL pragma can only precede a function clause.
+
+———— All done; warnings encountered ————————————————————————
+
+ExactSplit.agda:18,1-17: warning: -W[no]InvalidCatchallPragma
+The CATCHALL pragma can only precede a function clause.
+
+ExactSplit.agda:22,1-17: warning: -W[no]InvalidCatchallPragma
+The CATCHALL pragma can only precede a function clause.
+
+ExactSplit.agda:28,1-17: warning: -W[no]InvalidCatchallPragma
+The CATCHALL pragma can only precede a function clause.

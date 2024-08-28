@@ -22,22 +22,22 @@ import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Info
 import Agda.Syntax.Position
 
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive ( getRefl )
 import Agda.TypeChecking.Records
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Rules.LHS.Implicit
+import Agda.TypeChecking.Rules.LHS.Problem (ProblemEq(..))
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Telescope.Path
-
-import Agda.TypeChecking.Abstract
-import Agda.TypeChecking.Rules.LHS.Implicit
-import Agda.TypeChecking.Rules.LHS.Problem (ProblemEq(..))
+import Agda.TypeChecking.Warnings ( warning )
 
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -48,7 +48,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
 import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty (prettyShow)
-import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -391,8 +390,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
       -- As the type t develops, we need to insert more implicit patterns,
       -- due to copatterns / flexible arity.
       ps <- liftTCM $ insertImplicitPatternsT ExpandLast [] t
-      if null ps then
-        typeError $ GenericError $ "Too few arguments given in with-clause"
+      if null ps then typeError TooFewPatternsInWithClause
        else strip self t ps qs
 
     -- Case: out of parent-clause patterns.
@@ -402,8 +400,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
       let implicit (A.WildP{})     = True
           implicit (A.ConP ci _ _) = conPatOrigin ci == ConOSystem
           implicit _               = False
-      unless (all (implicit . namedArg) ps) $
-        typeError $ GenericError $ "Too many arguments given in with-clause"
+      unless (all (implicit . namedArg) ps) $ typeError TooManyPatternsInWithClause
       return []
 
     -- Case: both parent-clause pattern and with-clause pattern present.
@@ -415,7 +412,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         tell [ProblemEq (A.VarP x) v a]
         strip self t (fmap (p <$) p0 : ps) qs
     strip self t ps0@(p0 : ps) qs0@(q : qs) = do
-      p <- liftTCM $ (traverse . traverse) expandLitPattern p0
+      p <- (traverse . traverse) expandLitPattern p0
       reportSDoc "tc.with.strip" 15 $ vcat
         [ "strip"
         , nest 2 $ "ps0 =" <+> fsep (punctuate comma $ map prettyA ps0)
@@ -428,7 +425,10 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         ProjP o d -> case A.isProjP p of
           Just (o', AmbQ ds) -> do
             -- We assume here that neither @o@ nor @o'@ can be @ProjSystem@.
-            if o /= o' then liftTCM $ mismatchOrigin o o' else do
+            when (o /= o') $ setCurrentRange p0 $ addContext delta do
+              reportSLn "tc.with.strip" 90 $ "p0 = " ++ show p0
+              reportSLn "tc.with.strip" 80 $ "getRange p0 = " ++ prettyShow (getRange p0)
+              warning $ WithClauseProjectionFixityMismatch p0 o' q o
             -- Andreas, 2016-12-28, issue #2360:
             -- We disambiguate the projection in the with clause
             -- to the projection in the parent clause.
@@ -458,7 +458,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         IApplyP _ _ _ x  ->
           (setVarArgInfo x p :) <$> recurse (var (dbPatVarIndex x))
 
-        DefP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of hcomp patterns" -- TODO this should actually be impossible
+        DefP{}  -> __IMPOSSIBLE__
 
         DotP i v  -> do
           (a, _) <- mustBePi t
@@ -551,10 +551,6 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           _ -> mismatch
       where
         recurse v = do
-          -- caseMaybeM (liftTCM $ isPath t) (return ()) $ \ _ ->
-          --   typeError $ GenericError $
-          --     "With-clauses currently not supported under Path abstraction."
-
           let piOrPathApplyM t v = do
                 (TelV tel t', bs) <- telViewUpToPathBoundaryP 1 t
                 unless (size tel == 1) $ __IMPOSSIBLE__
@@ -565,17 +561,6 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         mismatch :: forall m a. (MonadAddContext m, MonadTCError m) => m a
         mismatch = addContext delta $ typeError $
           WithClausePatternMismatch (namedArg p0) q
-        mismatchOrigin o o' = addContext delta . typeError . GenericDocError =<< fsep
-          [ "With clause pattern"
-          , prettyA p0
-          , "is not an instance of its parent pattern"
-          , P.fsep <$> prettyTCMPatterns [q]
-          , text $ "since the parent pattern is " ++ prettyProjOrigin o ++
-                   " and the with clause pattern is " ++ prettyProjOrigin o'
-          ]
-        prettyProjOrigin ProjPrefix  = "a prefix projection"
-        prettyProjOrigin ProjPostfix = "a postfix projection"
-        prettyProjOrigin ProjSystem  = __IMPOSSIBLE__
 
         -- Make a WildP, keeping arg. info.
         makeWildP :: NamedArg A.Pattern -> NamedArg A.Pattern

@@ -1,4 +1,4 @@
-Issue6654b.agda:15,1-16,32
+Issue6654b.agda:15,1-16,32: error: [TerminationIssue]
 Termination checking failed for the following functions:
   no-bad
 Problematic calls:

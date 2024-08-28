@@ -1,3 +1,3 @@
-Issue1886.agda:4,8-17
+Issue1886.agda:4,8-17: error: [UnexpectedTypeSignatureForParameter]
 Unexpected type signature for parameter X
 when checking the definition of D

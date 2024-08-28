@@ -1,4 +1,4 @@
-CantOpenConstructorsFromRecordModule.agda:14,7-10
+CantOpenConstructorsFromRecordModule.agda:14,7-10: error: [NotInScope]
 Not in scope:
   foo
   at CantOpenConstructorsFromRecordModule.agda:14,7-10

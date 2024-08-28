@@ -55,7 +55,7 @@ env:
   # Andreas, 2022-03-26, 2022-11-28:
   # GHC_VER should be given as x.y.z (as opposed to x.y only)
   # because it is used verbatim when referring to stack-x.y.z.yaml.
-  GHC_VER: "9.8.2"
+  GHC_VER: "9.10.1"
 
   # Part 2: Variables that should not have to be changed
   ###########################################################################
@@ -154,15 +154,7 @@ jobs:
       ## but printing stuff might not hurt here.
 
     - name: "Build Agda"
-      run: make BUILD_DIR="${BUILD_DIR}" install-bin-debug
-
-    # Andreas, 2023-10-19: currently building the size-solver triggers a rebuild of Agda,
-    # likely because the cabal flags (`-f`) passed to `cabal build` have changed.
-    # So, deactivate this for now.
-    # - name: "Run tests for the size solver"
-    #   run: |
-    #     export PATH=${HOME}/.local/bin:${PATH}
-    #     make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
+      run: make BUILD_DIR="${BUILD_DIR}" install-bin
 
     - name: "Pack artifacts"
       # This step should go into the Makefile.
@@ -353,6 +345,14 @@ jobs:
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-covers-warnings
       if: always() # run test even if a previous test failed
 
+    - name: "Test suite covers all warnings"
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" test-suite-covers-warnings
+      if: always() # run test even if a previous test failed
+
+    - name: "Test suite covers all errors"
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" test-suite-covers-errors
+      if: always() # run test even if a previous test failed
+
     - name: "Suite of interaction tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
       if: always() # run test even if a previous test failed
@@ -379,3 +379,23 @@ jobs:
 
     - name: "Successful tests using the cubical library"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-succeed
+
+  # Step 2e: running size-solver-test
+  ###########################################################################
+
+  size-solver-test:
+    needs: build
+    runs-on: *runs_on
+
+    steps:
+    - *checkout
+    - *haskell_setup
+    - *download_artifact
+    - *unpack_artifact
+    - *icu
+    - *cache
+
+    - name: "Run tests for the size solver"
+      run: |
+        export PATH=${HOME}/.local/bin:${PATH}
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test

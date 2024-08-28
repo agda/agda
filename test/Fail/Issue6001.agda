@@ -14,6 +14,5 @@ bug {p = con _} = {!!}
 
 -- WAS: internal error
 -- Now:
--- Cubical Agda: cannot generate hcomp clauses at type
--- ?0
+-- Cannot generate hcomp clause at type ?0
 -- when checking the definition of bug

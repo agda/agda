@@ -1,5 +1,4 @@
-Issue1963.agda:24,5-12
-warning: -W[no]UselessPatternDeclarationForRecord
+Issue1963.agda:24,5-12: warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for coinductive record
 when scope checking the declaration
   record Stream A where
@@ -11,8 +10,7 @@ when scope checking the declaration
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue1963.agda:24,5-12
-warning: -W[no]UselessPatternDeclarationForRecord
+Issue1963.agda:24,5-12: warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for coinductive record
 when scope checking the declaration
   record Stream A where

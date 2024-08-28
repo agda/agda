@@ -1,4 +1,4 @@
-NonConfluentBecauseOfEta.agda:15,13-20
+NonConfluentBecauseOfEta.agda:15,13-20: error: [RewriteMaybeNonConfluent]
 Couldn't determine overlap between left-hand sides f (λ _ → _c_19)
 and f (λ z → z) because of unsolved constraints:
   _c_19 = x : _A_18 (blocked on any(_A_18, _c_19))

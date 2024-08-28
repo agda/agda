@@ -1,0 +1,3 @@
+UnexpectedWithPatterns.agda:5,1-14: error: [UnexpectedWithPatterns]
+Unexpected with patterns | Set₁
+when checking the definition of f

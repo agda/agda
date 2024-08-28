@@ -1,5 +1,7 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _V_10 =< U ⊔ V (blocked on _V_10)
   U ⊔ _V_10 = V (blocked on _V_10)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue3044.agda:21,32-33

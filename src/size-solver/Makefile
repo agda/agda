@@ -14,7 +14,7 @@ ifdef HAS_STACK
 	mkdir -p dist/build/size-solver
 	cp $(shell $(STACK) path --local-install-root)/bin/size-solver dist/build/size-solver/size-solver
 else
-	$(CABAL) $(CABAL_INSTALL_CMD) $(CABAL_INSTALL_OPTS)
+	$(CABAL) $(CABAL_INSTALL_CMD)
 endif
 
 # Tested with shelltestrunner 1.9 and 1.10

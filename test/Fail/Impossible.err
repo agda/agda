@@ -2,4 +2,3 @@ ret > ExitFailure 154
 out > An internal error has occurred. Please report this as a bug.
 out > Location of the error: __IMPOSSIBLE__, called at src/full/Agda/ImpossibleTest.hs:«line»:«col» in «Agda-package»:Agda.ImpossibleTest
 out >   impossibleTest, called at src/full/Agda/Syntax/Translation/ConcreteToAbstract.hs:«line»:«col» in «Agda-package»:Agda.Syntax.Translation.ConcreteToAbstract
-out >

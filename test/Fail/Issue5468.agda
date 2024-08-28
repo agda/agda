@@ -32,6 +32,10 @@ data Box : @0 Set → Set₁ where
 unbox : ∀ {@0 A} → Box A → A
 unbox [ x ] = x
 
+-- Expected error: Highlighting of the entire lhs (#7262) and message:
+--
+-- This clause has target type A which is not usable at the required modality @ω.
+
 postulate
   @0 not : Bool ≡ Bool
 

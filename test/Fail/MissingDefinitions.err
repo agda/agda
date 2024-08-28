@@ -1,4 +1,4 @@
-MissingDefinitions.agda:25,1-7
+MissingDefinitions.agda:3,1-30,50: error: [Syntax.DisallowedInterleavedMutual]
 The following names are declared, but not accompanied by a
 definition:
 - Q (at MissingDefinitions.agda:5,1-2)

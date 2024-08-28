@@ -7,6 +7,6 @@ Checking Imports.Issue5357-C (Imports/Issue5357-C.agda).
 == Failing run
 == Should check D -> error
 Checking Imports.Issue5357-D (Imports/Issue5357-D.agda).
-Imports/Issue5357-D.agda:3,5-9
+Imports/Issue5357-D.agda:3,5-9: error: [UnequalSorts]
 Set₂ != Set₁
 when checking that the expression Set₁ has type Set₁

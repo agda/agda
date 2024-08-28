@@ -1,4 +1,4 @@
-StaleMetaLiteral.agda:14,7-28
+StaleMetaLiteral.agda:14,7-28: error: [GenericDocError]
 Can't unquote stale metavariable Imports.StaleMetaLiteral._14
 when checking that the expression unquote (unquoteMeta staleMeta)
 has type _A_4

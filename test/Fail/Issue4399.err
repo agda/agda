@@ -1,7 +1,2 @@
-Issue4399.agda:11,5-5
-Issue4399.agda:11,5: Not a valid named argument: _ = tt
-=<ERROR>
- A
-
--- Expected: Parse error
--...
+Issue4399.agda:11,5: error: [ParseError]
+Not a valid named argument: _ = tt

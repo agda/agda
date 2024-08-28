@@ -1,4 +1,4 @@
-Issue3655b.agda:19,9-10
+Issue3655b.agda:19,9-10: error: [GenericDocError]
 Variable generalization failed.
   - Probable cause
       There were unsolved constraints that obscured the dependencies
@@ -11,7 +11,7 @@ Variable generalization failed.
     - Dependency analysis suggested this (likely incorrect) order: x b
     - After constraint solving it looks like x actually depends on b
     - The dependency I error is
-      Issue3655b.agda:19,9-10
+      Issue3655b.agda:19,9-10: error: [GenericDocError]
       Cannot instantiate the metavariable _x.b_21 to solution b
       since it contains the variable genTel
       which is not in scope of the metavariable

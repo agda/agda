@@ -326,16 +326,16 @@ prop_isSemimodule_withVarOcc2_not_a_counterexample =
   where
     occ r = VarOcc StronglyRigid $ Modality r topQuantity topCohesion
     r, s  :: VarOcc
-    r     = occ Irrelevant
-    s     = occ NonStrict
+    r     = occ irrelevant
+    s     = occ shapeIrrelevant
     m     :: VarMap
-    m     = VarMap $ Map.fromList [(0, occ Irrelevant)]
+    m     = VarMap $ Map.fromList [(0, occ irrelevant)]
   -- LHS:
-  --   r <> s                = min Irrelevant NonStrict = NonStrict
-  --   withVarOcc (r <> s) m = max NonStrict Irrelevant = Irrelevant
+  --   r <> s                = min Irrelevant ShapeIrrelevant = ShapeIrrelevant
+  --   withVarOcc (r <> s) m = max ShapeIrrelevant Irrelevant = Irrelevant
   -- RHS:
   --   withVarOcc r m = max Irrelevant Irrelevant = Irrelevant
-  --   withVarOcc s m = max NonStrict  Irrelevant = Irrelevant
+  --   withVarOcc s m = max ShapeIrrelevant  Irrelevant = Irrelevant
   --   withVarOcc r m <> withVarOcc s m
   --                  = min Irrelevant Irrelevant = Irrelevant
 

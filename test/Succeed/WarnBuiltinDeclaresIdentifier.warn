@@ -1,5 +1,10 @@
-WarnBuiltinDeclaresIdentifier.agda:11,1-34
-warning: -W[no]BuiltinDeclaresIdentifier
+WarnBuiltinDeclaresIdentifier.agda:5,1-31: warning: -W[no]UselessPragma
+Pragma BUILTIN SIZE: expected unqualified identifier, but found
+Size.Type
+when scope checking the declaration
+  {-# BUILTIN SIZE Size.Type #-}
+
+WarnBuiltinDeclaresIdentifier.agda:17,1-34: warning: -W[no]BuiltinDeclaresIdentifier
 BUILTIN SIZEINF declares an identifier (no longer expects an
 already defined identifier)
 when scope checking the declaration
@@ -7,8 +12,13 @@ when scope checking the declaration
 
 ———— All done; warnings encountered ————————————————————————
 
-WarnBuiltinDeclaresIdentifier.agda:11,1-34
-warning: -W[no]BuiltinDeclaresIdentifier
+WarnBuiltinDeclaresIdentifier.agda:5,1-31: warning: -W[no]UselessPragma
+Pragma BUILTIN SIZE: expected unqualified identifier, but found
+Size.Type
+when scope checking the declaration
+  {-# BUILTIN SIZE Size.Type #-}
+
+WarnBuiltinDeclaresIdentifier.agda:17,1-34: warning: -W[no]BuiltinDeclaresIdentifier
 BUILTIN SIZEINF declares an identifier (no longer expects an
 already defined identifier)
 when scope checking the declaration

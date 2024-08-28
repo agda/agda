@@ -1,0 +1,13 @@
+RewriteConstructorParsNotGeneral.agda:12,13-16: warning: -W[no]RewriteConstructorParametersNotGeneral
+rew  is not a legal rewrite rule, since the constructor parameters are not fully general:
+  Constructor:  c
+  Parameters:  [Bool]
+when checking the pragma REWRITE rew
+
+———— All done; warnings encountered ————————————————————————
+
+RewriteConstructorParsNotGeneral.agda:12,13-16: warning: -W[no]RewriteConstructorParametersNotGeneral
+rew  is not a legal rewrite rule, since the constructor parameters are not fully general:
+  Constructor:  c
+  Parameters:  [Bool]
+when checking the pragma REWRITE rew

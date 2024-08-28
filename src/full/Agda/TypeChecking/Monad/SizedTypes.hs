@@ -20,6 +20,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.CallStack
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -29,6 +30,44 @@ import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
+
+------------------------------------------------------------------------
+-- * Builtins
+------------------------------------------------------------------------
+
+-- | Ensure that option @--sized-types@ is on, for the given reason.
+--
+requireOptionSizedTypes :: (HasCallStack, HasOptions m, MonadTCError m) => String -> m ()
+requireOptionSizedTypes reason = unlessM sizedTypesOption $
+  typeError $ NeedOptionSizedTypes reason
+
+getBuiltinSize :: (HasBuiltins m) => m (Maybe QName, Maybe QName)
+getBuiltinSize = do
+  size   <- getBuiltinName' builtinSize
+  sizelt <- getBuiltinName' builtinSizeLt
+  return (size, sizelt)
+
+-- | Test whether the SIZELT builtin is defined.
+haveSizeLt :: TCM Bool
+haveSizeLt = isJust <$> getBuiltinName' builtinSizeLt
+
+-- | Add polarity info to a SIZE builtin.
+builtinSizeHook :: BuiltinId -> QName -> Type -> TCM ()
+builtinSizeHook s q t = do
+  when (s `elem` [builtinSizeLt, builtinSizeSuc]) $ do
+    modifySignature $ updateDefinition q
+      $ updateDefPolarity       (const [Covariant])
+      . updateDefArgOccurrences (const [StrictPos])
+  when (s == builtinSizeMax) $ do
+    modifySignature $ updateDefinition q
+      $ updateDefPolarity       (const [Covariant, Covariant])
+      . updateDefArgOccurrences (const [StrictPos, StrictPos])
+{-
+      . updateDefType           (const tmax)
+  where
+    -- TODO: max : (i j : Size) -> Size< (suc (max i j))
+    tmax =
+-}
 
 ------------------------------------------------------------------------
 -- * Testing for type 'Size'
@@ -71,18 +110,6 @@ isSizeTypeTest =
         testType _                                    = Nothing
     return testType
 
-getBuiltinDefName :: (HasBuiltins m) => BuiltinId -> m (Maybe QName)
-getBuiltinDefName s = fromDef <$> getBuiltin' s
-  where
-    fromDef (Just (Def d [])) = Just d
-    fromDef _                 = Nothing
-
-getBuiltinSize :: (HasBuiltins m) => m (Maybe QName, Maybe QName)
-getBuiltinSize = do
-  size   <- getBuiltinDefName builtinSize
-  sizelt <- getBuiltinDefName builtinSizeLt
-  return (size, sizelt)
-
 isSizeNameTest :: (HasOptions m, HasBuiltins m) => m (QName -> Bool)
 isSizeNameTest = ifM sizedTypesOption
   isSizeNameTestRaw
@@ -92,38 +119,6 @@ isSizeNameTestRaw :: (HasOptions m, HasBuiltins m) => m (QName -> Bool)
 isSizeNameTestRaw = do
   (size, sizelt) <- getBuiltinSize
   return $ (`elem` [size, sizelt]) . Just
-
--- | Test whether OPTIONS --sized-types and whether
---   the size built-ins are defined.
-haveSizedTypes :: TCM Bool
-haveSizedTypes = do
-    Def _ [] <- primSize
-    Def _ [] <- primSizeInf
-    Def _ [] <- primSizeSuc
-    sizedTypesOption
-  `catchError` \_ -> return False
-
--- | Test whether the SIZELT builtin is defined.
-haveSizeLt :: TCM Bool
-haveSizeLt = isJust <$> getBuiltinDefName builtinSizeLt
-
--- | Add polarity info to a SIZE builtin.
-builtinSizeHook :: BuiltinId -> QName -> Type -> TCM ()
-builtinSizeHook s q t = do
-  when (s `elem` [builtinSizeLt, builtinSizeSuc]) $ do
-    modifySignature $ updateDefinition q
-      $ updateDefPolarity       (const [Covariant])
-      . updateDefArgOccurrences (const [StrictPos])
-  when (s == builtinSizeMax) $ do
-    modifySignature $ updateDefinition q
-      $ updateDefPolarity       (const [Covariant, Covariant])
-      . updateDefArgOccurrences (const [StrictPos, StrictPos])
-{-
-      . updateDefType           (const tmax)
-  where
-    -- TODO: max : (i j : Size) -> Size< (suc (max i j))
-    tmax =
--}
 
 ------------------------------------------------------------------------
 -- * Constructors
@@ -159,7 +154,7 @@ sizeSuc :: HasBuiltins m => Nat -> Term -> m Term
 sizeSuc n v | n < 0     = __IMPOSSIBLE__
             | n == 0    = return v
             | otherwise = do
-  Def suc [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeSuc
+  suc <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSizeSuc
   return $ fromMaybe __IMPOSSIBLE__ (iterate (sizeSuc_ suc) v !!! n)
 
 sizeSuc_ :: QName -> Term -> Term
@@ -171,7 +166,7 @@ sizeMax :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
 sizeMax vs = case vs of
   v :| [] -> return v
   vs  -> do
-    Def max [] <- primSizeMax
+    max <- getBuiltinName_ builtinSizeMax
     return $ foldr1 (\ u v -> Def max $ map (Apply . defaultArg) [u,v]) vs
 
 
@@ -186,8 +181,8 @@ data SizeView = SizeInf | SizeSuc Term | OtherSize Term
 sizeView :: (HasBuiltins m, MonadTCEnv m, ReadTCState m)
          => Term -> m SizeView
 sizeView v = do
-  Def inf [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeInf
-  Def suc [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeSuc
+  inf <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSizeInf
+  suc <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSizeSuc
   case v of
     Def x []        | x == inf -> return SizeInf
     Def x [Apply u] | x == suc -> return $ SizeSuc (unArg u)

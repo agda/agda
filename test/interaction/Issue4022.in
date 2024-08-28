@@ -8,3 +8,6 @@ top_command (cmd_search_about_toplevel AsIs "Binary")
 top_command (cmd_search_about_toplevel Normalised "Nat \"plus\"")
 -- without the "plus" filter, we get a lot of answers
 top_command (cmd_search_about_toplevel Normalised "Nat")
+
+-- Trigger error ExpectedIdentifier
+top_command (cmd_search_about_toplevel AsIs "42")

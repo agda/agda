@@ -1,3 +1,8 @@
+{-# OPTIONS --no-keep-pattern-variables #-}
+  -- Andreas, 2024-07-09.  According to
+  -- https://github.com/agda/agda/issues/4704#issuecomment-778805747
+  -- this test is pointless with --keep-pattern-variables.
+
 open import Agda.Builtin.List
 open import Agda.Builtin.Nat
 

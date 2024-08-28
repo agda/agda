@@ -1,4 +1,4 @@
-Issue3577.agda:26,19-23
+Issue3577.agda:26,19-23: error: [UnequalTerms]
 Issue3577.transpSusp' (λ i → outS (A i)) ψ (hcomp u (outS u0)) !=
 hcomp (λ j .o → transp (λ i → Susp' (outS (A i))) ψ (u j _))
 (Issue3577.transpSusp' (λ i → outS (A i)) ψ (outS u0))

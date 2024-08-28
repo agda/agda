@@ -1,5 +1,5 @@
-
-module _ where
+-- {-# OPTIONS -v tc.display:20 #-}
+-- {-# OPTIONS -v tc.display.recursive:90 #-}
 
 postulate
   A B : Set
@@ -9,3 +9,5 @@ postulate
 
 loop : A
 loop = {!!}
+
+-- Should fail with unsolved metas.

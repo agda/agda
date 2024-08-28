@@ -444,8 +444,8 @@ DoubleCloseBrace
 -- A possibly dotted identifier.
 MaybeDottedId :: { Arg Name }
 MaybeDottedId
-  : '..' Id { setRelevance NonStrict $ defaultArg $2 }
-  | '.'  Id { setRelevance Irrelevant $ defaultArg $2 }
+  : '..' Id { defaultShapeIrrelevantArg $1 $2 }
+  | '.'  Id { defaultIrrelevantArg $1 $2 }
   | Id      { defaultArg $1 }
 
 -- Space separated list of one or more possibly dotted identifiers.
@@ -464,14 +464,14 @@ ArgIds
     | '{{' MaybeDottedIds DoubleCloseBrace        { fmap makeInstance $2 }
     | '{' MaybeDottedIds '}' ArgIds   { fmap hide $2 <> $4 }
     | '{' MaybeDottedIds '}'          { fmap hide $2 }
-    | '.' '{' SpaceIds '}' ArgIds     { fmap (hide . setRelevance Irrelevant . defaultArg) $3 <> $5 }
-    | '.' '{' SpaceIds '}'            { fmap (hide . setRelevance Irrelevant . defaultArg) $3 }
-    | '.' '{{' SpaceIds DoubleCloseBrace ArgIds   { fmap (makeInstance . setRelevance Irrelevant . defaultArg) $3 <> $5 }
-    | '.' '{{' SpaceIds DoubleCloseBrace          { fmap (makeInstance . setRelevance Irrelevant . defaultArg) $3 }
-    | '..' '{' SpaceIds '}' ArgIds    { fmap (hide . setRelevance NonStrict . defaultArg) $3 <> $5 }
-    | '..' '{' SpaceIds '}'           { fmap (hide . setRelevance NonStrict . defaultArg) $3 }
-    | '..' '{{' SpaceIds DoubleCloseBrace ArgIds  { fmap (makeInstance . setRelevance NonStrict . defaultArg) $3 <> $5 }
-    | '..' '{{' SpaceIds DoubleCloseBrace         { fmap (makeInstance . setRelevance NonStrict . defaultArg) $3 }
+    | '.' '{' SpaceIds '}' ArgIds     { fmap (hide . defaultIrrelevantArg $1) $3 <> $5 }
+    | '.' '{' SpaceIds '}'            { fmap (hide . defaultIrrelevantArg $1) $3 }
+    | '.' '{{' SpaceIds DoubleCloseBrace ArgIds   { fmap (makeInstance . defaultIrrelevantArg $1) $3 <> $5 }
+    | '.' '{{' SpaceIds DoubleCloseBrace          { fmap (makeInstance . defaultIrrelevantArg $1) $3 }
+    | '..' '{' SpaceIds '}' ArgIds    { fmap (hide . defaultShapeIrrelevantArg $1) $3 <> $5 }
+    | '..' '{' SpaceIds '}'           { fmap (hide . defaultShapeIrrelevantArg $1) $3 }
+    | '..' '{{' SpaceIds DoubleCloseBrace ArgIds  { fmap (makeInstance . defaultShapeIrrelevantArg $1) $3 <> $5 }
+    | '..' '{{' SpaceIds DoubleCloseBrace         { fmap (makeInstance . defaultShapeIrrelevantArg $1) $3 }
 
 -- Modalities preceeding identifiers
 
@@ -512,9 +512,9 @@ BId : Id    { $1 }
 -- A binding variable. Can be '_'
 MaybeDottedBId :: { (Relevance, Name) }
 MaybeDottedBId
-    : BId        { (Relevant  , $1) }
-    | '.' BId    { (Irrelevant, $2) }
-    | '..' BId   { (NonStrict, $2) }
+    : BId        { (Relevant empty , $1) }
+    | '.' BId    { (Irrelevant (OIrrDot $ getRange $1), $2) }
+    | '..' BId   { (ShapeIrrelevant (OShIrrDotDot $ getRange $1), $2) }
 -}
 
 
@@ -725,8 +725,8 @@ Expr3NoCurly
     | '(|)'                             { IdiomBrackets (getRange $1) [] }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }
-    | '.' Expr3                         { Dot (fuseRange $1 $2) $2 }
-    | '..' Expr3                        { DoubleDot (fuseRange $1 $2) $2 }
+    | '.' Expr3                         { Dot (kwRange $1) $2 }
+    | '..' Expr3                        { DoubleDot (kwRange $1) $2 }
     | 'record' '{' RecordAssignments '}' { Rec (getRange ($1,$2,$3,$4)) $3 }
     | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (getRange ($1,$2,$3,$4,$5)) $2 $4 }
     | '...'                             { Ellipsis (getRange $1) }
@@ -805,23 +805,23 @@ TypedBindings
 TypedBinding :: { TypedBinding }
 TypedBinding
     : '.' '(' TBindWithHiding ')'    { setRange (getRange ($2,$3,$4)) $
-                             setRelevance Irrelevant $3 }
+                             makeIrrelevant $1 $3 }
     | '.' '{' TBind '}'    { setRange (getRange ($2,$3,$4)) $
                              setHiding Hidden $
-                             setRelevance Irrelevant $3 }
+                             makeIrrelevant $1 $3 }
     | '.' '{{' TBind DoubleCloseBrace
                            { setRange (getRange ($2,$3,$4)) $
                              makeInstance $
-                             setRelevance Irrelevant $3 }
+                             makeIrrelevant $1 $3 }
     | '..' '(' TBindWithHiding ')'   { setRange (getRange ($2,$3,$4)) $
-                             setRelevance NonStrict $3 }
+                             makeShapeIrrelevant $1 $3 }
     | '..' '{' TBind '}'   { setRange (getRange ($2,$3,$4)) $
                              setHiding Hidden $
-                             setRelevance NonStrict $3 }
+                             makeShapeIrrelevant $1 $3 }
     | '..' '{{' TBind DoubleCloseBrace
                            { setRange (getRange ($2,$3,$4)) $
                              makeInstance $
-                             setRelevance NonStrict $3 }
+                             makeShapeIrrelevant $1 $3 }
     | '(' TBindWithHiding ')'        { setRange (getRange ($1,$2,$3)) $2 }
     | '(' ModalTBindWithHiding ')'        { setRange (getRange ($1,$2,$3)) $2 }
     | '{{' TBind DoubleCloseBrace
@@ -987,8 +987,8 @@ MaybeAsPattern
 DomainFreeBindingAbsurd :: { Either (List1 (NamedArg Binder)) (List1 Expr)}
 DomainFreeBindingAbsurd
     : BId      MaybeAsPattern { Left . singleton $ mkDomainFree_ id $2 $1 }
-    | '.' BId  MaybeAsPattern { Left . singleton $ mkDomainFree_ (setRelevance Irrelevant) $3 $2 }
-    | '..' BId MaybeAsPattern { Left . singleton $ mkDomainFree_ (setRelevance NonStrict) $3 $2 }
+    | '.' BId  MaybeAsPattern { Left . singleton $ mkDomainFree_ (makeIrrelevant $1) $3 $2 }
+    | '..' BId MaybeAsPattern { Left . singleton $ mkDomainFree_ (makeShapeIrrelevant $1) $3 $2 }
     | '(' Application ')'     {% exprToPattern (rawApp $2) >>= \ p ->
                                  pure . Left . singleton $ mkDomainFree_ id (Just p) $ simpleHole }
     | '(' Attributes1 CommaBIdAndAbsurds ')'
@@ -1003,10 +1003,10 @@ DomainFreeBindingAbsurd
     | '{{' Attributes1 CommaBIds DoubleCloseBrace
          {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
               Left $ fmap (makeInstance . setTacticAttr $2 . setArgInfo ai) $3 }
-    | '.' '{' CommaBIds '}' { Left $ fmap (hide . setRelevance Irrelevant) $3 }
-    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . setRelevance Irrelevant) $3 }
-    | '..' '{' CommaBIds '}' { Left $ fmap (hide . setRelevance NonStrict) $3 }
-    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . setRelevance NonStrict) $3 }
+    | '.' '{' CommaBIds '}' { Left $ fmap (hide . makeIrrelevant $1) $3 }
+    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . makeIrrelevant $1) $3 }
+    | '..' '{' CommaBIds '}' { Left $ fmap (hide . makeShapeIrrelevant $1) $3 }
+    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . makeShapeIrrelevant $1) $3 }
 
 
 {--------------------------------------------------------------------------
@@ -1445,8 +1445,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; appStm m' es =
         Private empty Inserted
           [ ModuleMacro r defaultErased m'
-             (SectionApp (getRange es) []
-               (rawApp (Ident (QName fresh) :| es)))
+             (SectionApp (getRange es) [] (QName fresh) es)
              doOpen dir
           ]
     ; (initArgs, last2Args) = splitAt (length es - 2) es
@@ -1493,8 +1492,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
       ; _   -> Private empty Inserted
                  [ ModuleMacro r defaultErased
                      (noName $ beginningOf $ getRange m)
-                     (SectionApp (getRange (m , es)) []
-                        (rawApp (Ident m :| es)))
+                     (SectionApp (getRange (m , es)) [] m es)
                      DoOpen dir
                  ]
       }
@@ -1517,7 +1515,7 @@ ModuleApplication : ModuleName '{{' '...' DoubleCloseBrace { (\ts ->
                     else parseError "No bindings allowed for record module with non-canonical implicits" )
                     }
                   | ModuleName OpenArgs {
-                    (\ts -> return $ SectionApp (getRange ($1, $2)) ts (rawApp (Ident $1 :| $2)) ) }
+                    (\ts -> return $ SectionApp (getRange ($1, $2)) ts $1 $2) }
 
 
 -- Module instantiation
@@ -1783,12 +1781,11 @@ ArgTypeSignatures0
     | {- empty -}                         { [] }
 
 -- Record declarations, including an optional record constructor name.
-RecordDeclarations :: { (RecordDirectives, [Declaration]) }
+RecordDeclarations :: { ([RecordDirective], [Declaration]) }
 RecordDeclarations
-    : vopen RecordDirectives close                    {% verifyRecordDirectives $2 <&> (,[]) }
-    | vopen RecordDirectives semi Declarations1 close {% verifyRecordDirectives $2 <&> (, List1.toList $4) }
-    | vopen Declarations1 close                       { (emptyRecordDirectives, List1.toList $2) }
-
+    : vopen RecordDirectives close                    { (reverse $2, []) }
+    | vopen RecordDirectives semi Declarations1 close { (reverse $2, List1.toList $4) }
+    | vopen Declarations1 close                       { ([], List1.toList $2) }
 
 RecordDirectives :: { [RecordDirective] }
 RecordDirectives
@@ -1890,7 +1887,7 @@ parseDisplayPragma r pos s =
 
 -- | Required by Happy.
 happyError :: Parser a
-happyError = parseError "Parse error"
+happyError = parseError ""
 
 
 {--------------------------------------------------------------------------

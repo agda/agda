@@ -1,4 +1,4 @@
-RewriteRelationNotSort.agda:9,1-26
+RewriteRelationNotSort.agda:9,1-26: error: [IncorrectTypeForRewriteRelation]
 a  does not have the right type for a rewriting relation
 because its type does not end in a sort, but in  A
 when checking the pragma BUILTIN REWRITE a

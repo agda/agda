@@ -97,12 +97,13 @@ pwords s = map pure $ P.pwords s
 fwords :: Applicative m => String -> m Doc
 fwords s = pure $ P.fwords s
 
-sep, fsep, hsep, hcat, vcat :: (Applicative m, Foldable t) => t (m Doc) -> m Doc
+sep, fsep, hsep, hcat, vcat, vsep :: (Applicative m, Foldable t) => t (m Doc) -> m Doc
 sep ds  = P.sep  <$> sequenceA (Fold.toList ds)
 fsep ds = P.fsep <$> sequenceA (Fold.toList ds)
 hsep ds = P.hsep <$> sequenceA (Fold.toList ds)
 hcat ds = P.hcat <$> sequenceA (Fold.toList ds)
 vcat ds = P.vcat <$> sequenceA (Fold.toList ds)
+vsep ds = P.vsep <$> sequenceA (Fold.toList ds)
 
 hang :: Applicative m => m Doc -> Int -> m Doc -> m Doc
 hang p n q = P.hang <$> p <*> pure n <*> q
@@ -186,6 +187,7 @@ instance PrettyTCM Nat                        where prettyTCM = pretty
 instance PrettyTCM ProblemId                  where prettyTCM = pretty
 instance PrettyTCM Range                      where prettyTCM = pretty
 instance PrettyTCM CheckpointId               where prettyTCM = pretty
+instance PrettyTCM InteractionId              where prettyTCM = pretty
 -- instance PrettyTCM Interval where prettyTCM = pretty
 -- instance PrettyTCM Position where prettyTCM = pretty
 
@@ -200,6 +202,7 @@ instance PrettyTCM CheckpointId               where prettyTCM = pretty
 {-# SPECIALIZE prettyTCM :: ProblemId          -> TCM Doc #-}
 {-# SPECIALIZE prettyTCM :: Range              -> TCM Doc #-}
 {-# SPECIALIZE prettyTCM :: CheckpointId       -> TCM Doc #-}
+{-# SPECIALIZE prettyTCM :: InteractionId      -> TCM Doc #-}
 
 instance PrettyTCM a => PrettyTCM (Closure a) where
   prettyTCM cl = enterClosure cl prettyTCM

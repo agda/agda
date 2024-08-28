@@ -1,4 +1,4 @@
-Issue917.agda:6,27-28
+Issue917.agda:6,27-28: error: [NotInScope]
 Not in scope:
   ! at Issue917.agda:6,27-28
 when scope checking !

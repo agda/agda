@@ -1,4 +1,4 @@
-TerminationCheckUnquoteDeclUnnamed.agda:30,1-23
+TerminationCheckUnquoteDeclUnnamed.agda:30,1-23: error: [TerminationIssue]
 Termination checking failed for the following functions:
   aux
 Problematic calls:

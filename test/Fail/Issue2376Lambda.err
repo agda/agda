@@ -1,4 +1,4 @@
-Issue2376Lambda.agda:11,1-12,19
+Issue2376Lambda.agda:11,1-12,19: error: [TerminationIssue]
 Termination checking failed for the following functions:
   f
 Problematic calls:

@@ -1,5 +1,4 @@
-ConflictingRelevance1.agda:4,42-42
-ConflictingRelevance1.agda:4,42: Parse error
+ConflictingRelevance1.agda:4,42: error: [ParseError]
 )<ERROR>
  → A
 

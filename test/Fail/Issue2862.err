@@ -1,4 +1,4 @@
-Issue2862.agda:13,3-14,13
+Issue2862.agda:13,3-14,13: error: [DefinitionInDifferentModule]
 Definition in different module than its type signature
 when scope checking the declaration
   data N where

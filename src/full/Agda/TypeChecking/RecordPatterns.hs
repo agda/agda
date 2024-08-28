@@ -384,22 +384,6 @@ recordExpressionsToCopatterns = \case
 --          }
 --  in  loop i cc
 
--- UNUSED Liang-Ting 2019-07-16
----- | Check if a split is on a record constructor, and return the projections
-----   if yes.
---isRecordCase :: Case c -> TCM (Maybe ([QName], c))
---isRecordCase (Branches { conBranches = conMap
---                       , litBranches = litMap
---                       , catchAllBranch = Nothing })
---  | Map.null litMap
---  , [(con, WithArity _ br)] <- Map.toList conMap = do
---    isRC <- isRecordConstructor con
---    case isRC of
---      Just (r, Record { recFields = fs }) -> return $ Just (map unArg fs, br)
---      Just (r, _) -> __IMPOSSIBLE__
---      Nothing -> return Nothing
---isRecordCase _ = return Nothing
-
 ---------------------------------------------------------------------------
 -- * Record pattern translation for split trees
 ---------------------------------------------------------------------------
@@ -514,24 +498,6 @@ instance DropFrom (c, SplitTree' c) where
 
 instance DropFrom a => DropFrom [a] where
   dropFrom i n ts = map (dropFrom i n) ts
-
-{-
--- | Check if a split is on a record constructor, and return the projections
---   if yes.
-isRecordSplit :: SplitTrees -> TCM (Maybe ([QName], c))
-isRecordSplit (Branches { conBranches = conMap
-                       , litBranches = litMap
-                       , catchAllBranch = Nothing })
-  | Map.null litBranches
-  , [(con,br)] <- Map.toList conMap = do
-    isRC <- isRecordConstructor con
-    case isRC of
-      Just (r, Record { recFields = fs }) -> return $ Just (map unArg fs, br)
-      Just (r, _) -> __IMPOSSIBLE__
-      Nothing -> return Nothing
-isRecordSplit _ = return Nothing
-
--}
 
 
 ---------------------------------------------------------------------------

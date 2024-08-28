@@ -1,5 +1,4 @@
-Issue1698-field.agda:2,7-7
-Issue1698-field.agda:2,7: Parse error
+Issue1698-field.agda:2,7: error: [ParseError]
 =<ERROR>
  Set
 

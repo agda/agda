@@ -1,6 +1,6 @@
 cabal-version:   2.4
 name:            Agda
-version:         2.6.5
+version:         2.8.0
 build-type:      Custom
 license:         MIT
 license-file:    LICENSE
@@ -29,14 +29,11 @@ description:
     This package includes both a command-line program (agda) and an
     Emacs mode. If you want to use the Emacs mode you can set it up by
     running @agda-mode setup@ (see the README).
-    .
-    Note that the Agda package does not follow the package versioning
-    policy, because it is not intended to be used by third-party
-    packages.
 
 tested-with:
+    GHC == 9.10.1
     GHC == 9.8.2
-    GHC == 9.6.5
+    GHC == 9.6.6
     GHC == 9.4.8
     GHC == 9.2.8
     GHC == 9.0.2
@@ -48,6 +45,8 @@ extra-doc-files:
     CHANGELOG.md
     README.md
     doc/user-manual/agda.svg
+    doc/release-notes/2.7.0.md
+    doc/release-notes/2.6.4.3.md
     doc/release-notes/2.6.4.2.md
     doc/release-notes/2.6.4.1.md
     doc/release-notes/2.6.4.md
@@ -90,8 +89,9 @@ extra-doc-files:
     doc/release-notes/2.2.0.md
 
 extra-source-files:
+    stack-9.10.1.yaml
     stack-9.8.2.yaml
-    stack-9.6.5.yaml
+    stack-9.6.6.yaml
     stack-9.4.8.yaml
     stack-9.2.8.yaml
     stack-9.0.2.yaml
@@ -157,7 +157,7 @@ source-repository head
 source-repository this
   type:     git
   location: https://github.com/agda/agda.git
-  tag:      v2.6.5
+  tag:      v2.8.0
 
 -- Build flags
 ---------------------------------------------------------------------------
@@ -329,6 +329,7 @@ common language
       DeriveGeneric
       DeriveTraversable
       DerivingStrategies
+      DerivingVia
       ExistentialQuantification
       FlexibleContexts
       FlexibleInstances
@@ -427,12 +428,13 @@ library
     -- exceptions-0.8 instead of 0.10 because of stack
     , exceptions           >= 0.8       && < 0.11
     , filepath             >= 1.4.2.1   && < 1.6
+    , generic-data         >= 0.7.0.0   && < 1.2
     , ghc-compact          == 0.1.*
     , gitrev               >= 1.3.1     && < 2
     -- hashable 1.2.0.10 makes library-test 10x
     -- slower. The issue was fixed in hashable 1.2.1.0.
     -- https://github.com/tibbe/hashable/issues/57.
-    , hashable             >= 1.2.1.0   && < 1.5
+    , hashable             >= 1.2.1.0   && < 1.6
     , haskeline            >= 0.7.4.3   && < 0.9
     -- monad-control-1.0.1.0 is the first to contain liftThrough
     , monad-control        >= 1.0.1.0   && < 1.1
@@ -535,6 +537,7 @@ library
       Agda.Interaction.Library.Base
       Agda.Interaction.Library.Parse
       Agda.Interaction.Options
+      Agda.Interaction.Options.Errors
       Agda.Interaction.Options.Help
       Agda.Interaction.Options.Lenses
       Agda.Interaction.Options.Warnings
@@ -643,6 +646,7 @@ library
       Agda.TypeChecking.Empty
       Agda.TypeChecking.EtaContract
       Agda.TypeChecking.Errors
+      Agda.TypeChecking.Errors.Names
       Agda.TypeChecking.Free
       Agda.TypeChecking.Free.Lazy
       Agda.TypeChecking.Free.Precompute
@@ -786,6 +790,7 @@ library
       Agda.Utils.Hash
       Agda.Utils.HashTable
       Agda.Utils.Haskell.Syntax
+      Agda.Utils.IArray
       Agda.Utils.Impossible
       Agda.Utils.IndexedList
       Agda.Utils.IntSet.Infinite
@@ -1002,7 +1007,7 @@ test-suite agda-tests
     , strict
     , tasty            >= 1.1.0.4 && < 1.6
     , tasty-hunit      >= 0.9.2   && < 0.11
-    , tasty-quickcheck >= 0.9.2   && < 0.11
+    , tasty-quickcheck >= 0.9.2   && < 0.12
     -- tasty-silver 3.1.13 has option --ansi-tricks=false
     -- NB: tasty-silver 3.2 requires tasty-1.4 at least
     -- tasty-silver < 3.3 does not work interactively under Windows

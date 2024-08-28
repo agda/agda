@@ -34,7 +34,7 @@ jobs:
         packages: scheme-basic anyfontsize bbm bbm-macros booktabs capt-of cmap colortbl
           dvipng ellipse etoolbox fancyvrb float fncychap framed keystroke latexmk
           mathtools needspace parskip pict2e psnfss stmaryrd tabulary tex-gyre titlesec
-          upquote varwidth wrapfig zapfchan
+          upquote varwidth wrapfig xcolor zapfchan
     - name: Build User Manual in HTML
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH

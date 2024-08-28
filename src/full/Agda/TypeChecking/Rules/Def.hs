@@ -62,6 +62,7 @@ import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
+import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -186,9 +187,7 @@ checkAlias t ai i name e mc =
     -- (test/succeed/Issue655.agda)
 
   -- compute body modification for irrelevant definitions, see issue 610
-  let bodyMod = case getRelevance ai of
-        Irrelevant -> dontCare
-        _          -> id
+  let bodyMod = applyWhen (isIrrelevant ai) dontCare
 
   -- Add the definition
   fun <- emptyFunctionData
@@ -295,9 +294,9 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
 
         (cs, CPC isOneIxs) <- return $ (second mconcat . unzip) cs
 
+        -- If there is a partial match ("system"), no proper (co)pattern matching is allowed.
         let isSystem = not . null $ isOneIxs
-
-        canBeSystem <- do
+        when isSystem do
           -- allow VarP and ConP i0/i1 fallThrough = yes, DotP
           let pss = map namedClausePats cs
               allowed = \case
@@ -306,10 +305,8 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
                 ConP _ cpi [] | conPFallThrough cpi -> True
                 DotP{} -> True
                 _      -> False
-          return $! all (allowed . namedArg) (concat pss)
-        when isSystem $ unless canBeSystem $
-          typeError $ GenericError "no pattern matching or path copatterns in systems!"
-
+          unless (all (all $ allowed . namedArg) pss) $
+            typeError PatternInSystem
 
         reportSDoc "tc.def.fun" 70 $ inTopContext $ do
           sep $ "checked clauses:" : map (nest 2 . text . show) cs
@@ -680,14 +677,14 @@ instance Monoid ClausesPostChecks where
 checkClauseLHS :: Type -> Maybe Substitution -> A.SpineClause -> (LHSResult -> TCM a) -> TCM a
 checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) ret = do
     reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
-    unlessNull (trailingWithPatterns aps) $ \ withPats -> do
-      typeError $ UnexpectedWithPatterns $ map namedArg withPats
+    () <- List1.unlessNull (trailingWithPatterns aps) $ \ withPats -> do
+      typeError $ UnexpectedWithPatterns $ fmap namedArg withPats
     traceCall (CheckClause t c) $ do
       aps <- expandPatternSynonyms aps
       unless (null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
         "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
       closed_t <- flip abstract t <$> getContextTelescope
-      checkLeftHandSide (CheckLHS lhs) (Just x) aps t withSub strippedPats ret
+      checkLeftHandSide (CheckLHS lhs) (getRange lhs) (Just x) aps t withSub strippedPats ret
 
 -- | Type check a function clause.
 
@@ -777,9 +774,7 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
 
         -- compute body modification for irrelevant definitions, see issue 610
         rel <- viewTC eRelevance
-        let bodyMod body = case rel of
-              Irrelevant -> dontCare <$> body
-              _          -> body
+        let bodyMod = applyWhen (isIrrelevant rel) (fmap dontCare)
 
         -- absurd clauses don't define computational behaviour, so it's fine to
         -- treat them as catchalls.
@@ -847,14 +842,14 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
     mv <- if absurdPat
           then do
             ps <- instantiateFull ps
-            Nothing <$ setCurrentRange e (warning $ AbsurdPatternRequiresNoRHS ps)
+            Nothing <$ setCurrentRange e (warning $ AbsurdPatternRequiresAbsentRHS ps)
           else Just <$> checkExpr e (unArg trhs)
     return (mv, NoWithFunction)
 
   -- Absurd case: no right hand side
   noRHS :: TCM (Maybe Term, WithFunctionProblem)
   noRHS = do
-    unless absurdPat $ typeError $ NoRHSRequiresAbsurdPattern aps
+    unless absurdPat $ typeError $ AbsentRHSRequiresAbsurdPattern aps
     return (Nothing, NoWithFunction)
 
   -- With case: @f xs with {a} in eqa | b in eqb | {{c}} | ...; ... | ps1 = rhs1; ... | ps2 = rhs2; ...@
@@ -1204,7 +1199,10 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   setCurrentRange cs $
     traceCall NoHighlighting $   -- To avoid flicker.
     traceCall (CheckWithFunctionType withFunType) $
-    checkType withFunType
+    -- Jesper, 2024-07-10, issue $6841:
+    -- Having an ill-typed type can lead to problems in the
+    -- coverage checker, so we ensure there are no constraints here.
+    noConstraints $ checkType withFunType
 
   -- With display forms are closed
   df <- inTopContext $ makeOpen =<< withDisplayForm f aux delta1 delta2 n qs perm' perm

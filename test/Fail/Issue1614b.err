@@ -1,4 +1,4 @@
-Issue1614b.agda:5,6-11,20
+Issue1614b.agda:5,6-11,20: error: [NotStrictlyPositive]
 D is not strictly positive, because it occurs
 to the left of an arrow
 in the type of the constructor lam

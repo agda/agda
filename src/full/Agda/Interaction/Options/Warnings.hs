@@ -154,6 +154,7 @@ errorWarnings = Set.fromList
   , MissingDeclarations_
   , NotAllowedInMutual_
   , NotStrictlyPositive_
+  , ConstructorDoesNotFitInData_
   , OverlappingTokensWarning_
   , PragmaCompiled_
   , SafeFlagPostulate_
@@ -168,6 +169,7 @@ errorWarnings = Set.fromList
   , SafeFlagInjective_
   , SafeFlagNoCoverageCheck_
   , TerminationIssue_
+  , TooManyArgumentsToSort_
   , UnsolvedMetaVariables_
   , UnsolvedInteractionMetas_
   , UnsolvedConstraints_
@@ -229,12 +231,11 @@ data WarningName
   | EmptyWhere_
   | HiddenGeneralize_
   | InvalidCatchallPragma_
-  | InvalidConstructor_
   | InvalidConstructorBlock_
   | InvalidCoverageCheckPragma_
   | InvalidNoPositivityCheckPragma_
   | InvalidNoUniverseCheckPragma_
-  | InvalidRecordDirective_
+  | DuplicateRecordDirective_
   | InvalidTerminationCheckPragma_
   | MissingDeclarations_
   | MissingDefinitions_
@@ -253,7 +254,7 @@ data WarningName
   | UselessMacro_
   | UselessPrivate_
   -- Scope and Type Checking Warnings
-  | AbsurdPatternRequiresNoRHS_
+  | AbsurdPatternRequiresAbsentRHS_
   | AsPatternShadowsConstructorOrPatternSynonym_
   | PatternShadowsConstructor_
   | CantGeneralizeOverSorts_
@@ -263,6 +264,9 @@ data WarningName
   | InlineNoExactSplit_
   | DeprecationWarning_
   | DuplicateUsing_
+  | FixingRelevance_
+  -- TODO: linearity
+  -- -- | FixingQuantity_
   | FixityInRenamingModule_
   | InvalidCharacterLiteral_
   | UselessPragma_
@@ -276,6 +280,8 @@ data WarningName
   | NoGuardednessFlag_
   | NotInScope_
   | NotStrictlyPositive_
+  | ConstructorDoesNotFitInData_
+  | CoinductiveEtaRecord_
   | UnsupportedIndexedMatch_
   | OldBuiltin_
   | BuiltinDeclaresIdentifier_
@@ -283,7 +289,28 @@ data WarningName
   | PragmaCompileErased_
   | PragmaCompileList_
   | PragmaCompileMaybe_
+  | PragmaCompileUnparsable_
+  | PragmaCompileWrong_
+  | PragmaCompileWrongName_
+  | PragmaExpectsDefinedSymbol_
+  | PragmaExpectsUnambiguousConstructorOrFunction_
+  | PragmaExpectsUnambiguousProjectionOrFunction_
   | NoMain_
+  | NotARewriteRule_
+  | RewriteLHSNotDefinitionOrConstructor_
+  | RewriteVariablesNotBoundByLHS_
+  | RewriteVariablesBoundMoreThanOnce_
+  | RewriteLHSReduces_
+  | RewriteHeadSymbolIsProjectionLikeFunction_
+  | RewriteHeadSymbolIsTypeConstructor_
+  | RewriteHeadSymbolContainsMetas_
+  | RewriteConstructorParametersNotGeneral_
+  | RewriteContainsUnsolvedMetaVariables_
+  | RewriteBlockedOnProblems_
+  | RewriteRequiresDefinitions_
+  | RewriteDoesNotTargetRewriteRelation_
+  | RewriteBeforeFunctionDefinition_
+  | RewriteBeforeMutualFunctionDefinition_
   | ConfluenceCheckingIncompleteBecauseOfMeta_
   | ConfluenceForCubicalNotSupported_
   | RewriteMaybeNonConfluent_
@@ -303,6 +330,7 @@ data WarningName
   | SafeFlagTerminating_
   | SafeFlagWithoutKFlagPrimEraseEquality_
   | TerminationIssue_
+  | TooManyArgumentsToSort_
   | UnreachableClauses_
   | UnsolvedConstraints_
   | UnsolvedInteractionMetas_
@@ -312,6 +340,8 @@ data WarningName
   | UselessPatternDeclarationForRecord_
   | UselessPublic_
   | UserWarning_
+  | InvalidDisplayForm_
+  | WithClauseProjectionFixityMismatch_
   | WithoutKFlagPrimEraseEquality_
   | ConflictingPragmaOptions_
   | WrongInstanceDeclaration_
@@ -324,6 +354,7 @@ data WarningName
   -- Opaque/unfolding
   | MissingTypeSignatureForOpaque_
   | NotAffectedByOpaque_
+  | UnfoldingWrongName_
   | UnfoldTransparentName_
   | UselessOpaque_
   -- Cubical
@@ -331,6 +362,8 @@ data WarningName
   | FaceConstraintCannotBeNamed_
   -- Not source code related
   | DuplicateInterfaceFiles_
+  -- Backends
+  | CustomBackendWarning_
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 instance NFData WarningName
@@ -422,12 +455,11 @@ warningNameDescription = \case
   EmptyWhere_                      -> "Empty `where' blocks."
   HiddenGeneralize_                -> "Hidden identifiers in variable blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
-  InvalidConstructor_              -> "`constructor' blocks that contain declarations other than type signatures for constructors."
   InvalidConstructorBlock_         -> "`constructor' blocks outside of `interleaved mutual' blocks."
   InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
   InvalidNoPositivityCheckPragma_  -> "Positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "Universe checking pragmas before non-`data' or `record' declaration."
-  InvalidRecordDirective_          -> "Record directives outside of record definitions or below field declarations."
+  DuplicateRecordDirective_        -> "Conflicting directives in a record declaration."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
   MissingDeclarations_             -> "Definitions not associated to a declaration."
   MissingDefinitions_              -> "Declarations not associated to a definition."
@@ -450,7 +482,7 @@ warningNameDescription = \case
   UselessPublic_                   -> "`public' directives that have no effect."
   UselessPatternDeclarationForRecord_ -> "`pattern' attributes where they have no effect."
   -- Scope and Type Checking Warnings
-  AbsurdPatternRequiresNoRHS_      -> "Clauses with an absurd pattern that have a right hand side."
+  AbsurdPatternRequiresAbsentRHS_  -> "Clauses with an absurd pattern that have a right hand side."
   AsPatternShadowsConstructorOrPatternSynonym_ -> "@-patterns that shadow constructors or pattern synonyms."
   PatternShadowsConstructor_       -> "Pattern variables that shadow constructors."
   CantGeneralizeOverSorts_         -> "Attempts to generalize over sort metas in 'variable' declaration."
@@ -459,6 +491,9 @@ warningNameDescription = \case
   CoverageNoExactSplit_            -> "Failed exact split checks."
   InlineNoExactSplit_              -> "Failed exact split checks after inlining record constructors."
   DeprecationWarning_              -> "Deprecated features."
+  -- TODO: linearity
+  -- FixingQuantity_                  -> "Correcting invalid user-written quantity."
+  FixingRelevance_                 -> "Correcting invalid user-written relevance."
   InvalidCharacterLiteral_         -> "Illegal character literals."
   UselessPragma_                   -> "Pragmas that get ignored."
   IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."
@@ -472,6 +507,8 @@ warningNameDescription = \case
   FixityInRenamingModule_          -> "Fixity annotations in `renaming' directive for `module'."
   NotInScope_                      -> "Out of scope names."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
+  ConstructorDoesNotFitInData_     -> "Failed constructor size checks."
+  CoinductiveEtaRecord_            -> "Record type declared as both coinductive and having eta-equality."
   UnsupportedIndexedMatch_         -> "Failures to compute full equivalence when splitting on indexed family."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   BuiltinDeclaresIdentifier_       -> "`BUILTIN' pragmas that declare a new identifier but have been given an existing one."
@@ -479,7 +516,28 @@ warningNameDescription = \case
   PragmaCompileErased_             -> "`COMPILE' pragmas targeting an erased symbol."
   PragmaCompileList_               -> "`COMPILE GHC' pragmas for lists."
   PragmaCompileMaybe_              -> "`COMPILE GHC' pragmas for `MAYBE'."
+  PragmaCompileUnparsable_         -> "Unparsable `COMPILE GHC' pragmas."
+  PragmaCompileWrong_              -> "Ill-formed `COMPILE GHC' pragmas."
+  PragmaCompileWrongName_          -> "`COMPILE' pragmas referring to identifiers that are neither definitions nor constructors.'"
+  PragmaExpectsDefinedSymbol_      -> "Pragmas referrings to identifiers that are not defined symbols."
+  PragmaExpectsUnambiguousConstructorOrFunction_    -> "Pragmas referring to identifiers that are not unambiguous constructors or functions.'"
+  PragmaExpectsUnambiguousProjectionOrFunction_     -> "Pragmas referring to identifiers that are not unambiguous projections or functions.'"
   NoMain_                          -> "Compilation of modules that do not define `main'."
+  NotARewriteRule_                 -> "`REWRITE pragmas referring to identifiers that are neither definitions nor constructors.'"
+  RewriteLHSNotDefinitionOrConstructor_             -> "Rewrite rule head symbol is not a defined symbol or constructor."
+  RewriteVariablesNotBoundByLHS_                    -> "Rewrite rule does not bind all of its variables."
+  RewriteVariablesBoundMoreThanOnce_                -> "Constructor-headed rewrite rule has non-linear parameters."
+  RewriteLHSReduces_                                -> "Rewrite rule LHS is not in weak-head normal form."
+  RewriteHeadSymbolIsProjectionLikeFunction_        -> "Rewrite rule head symbol is a projection-like function."
+  RewriteHeadSymbolIsTypeConstructor_               -> "Rewrite rule head symbol is a type constructor."
+  RewriteHeadSymbolContainsMetas_                   -> "Definition of rewrite rule head symbol contains unsolved metas."
+  RewriteConstructorParametersNotGeneral_           -> "Constructor-headed rewrite rule parameters are not fully general."
+  RewriteContainsUnsolvedMetaVariables_             -> "Rewrite rule contains unsolved metas."
+  RewriteBlockedOnProblems_                         -> "Checking rewrite rule blocked by unsolved constraint."
+  RewriteRequiresDefinitions_                       -> "Checking rewrite rule blocked by missing definition."
+  RewriteDoesNotTargetRewriteRelation_              -> "Rewrite rule does not target the rewrite relation."
+  RewriteBeforeFunctionDefinition_                  -> "Rewrite rule is not yet defined."
+  RewriteBeforeMutualFunctionDefinition_            -> "Mutually declaration with the rewrite rule is not yet defined."
   ConfluenceCheckingIncompleteBecauseOfMeta_ -> "Incomplete confluence checks because of unsolved metas."
   ConfluenceForCubicalNotSupported_ -> "Incomplete confluence checks because of `--cubical'."
   RewriteMaybeNonConfluent_        -> "Failed local confluence checks while computing overlap."
@@ -506,6 +564,9 @@ warningNameDescription = \case
   InteractionMetaBoundaries_       -> "Interaction meta variables that have unsolved boundary constraints."
   UnsolvedMetaVariables_           -> "Unsolved meta variables."
   UserWarning_                     -> "User-defined warnings via one of the 'WARNING_ON_*' pragmas."
+  InvalidDisplayForm_              -> "Invalid display forms."
+  TooManyArgumentsToSort_          -> "Extra arguments given to a sort."
+  WithClauseProjectionFixityMismatch_ -> "With clauses using projections in different fixities than their parent clauses."
   WithoutKFlagPrimEraseEquality_   -> "Uses of `primEraseEquality' with the without-K flags."
   WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."
   -- Checking consistency of options
@@ -517,6 +578,7 @@ warningNameDescription = \case
   -- Opaque/unfolding warnings
   MissingTypeSignatureForOpaque_   -> "Definitions that are `abstract` or `opaque` yet lack type signatures."
   NotAffectedByOpaque_             -> "Declarations unaffected by enclosing `opaque` blocks."
+  UnfoldingWrongName_              -> "Names in `unfolding` clause that are not unambiguous functions."
   UnfoldTransparentName_           -> "Non-`opaque` names mentioned in an `unfolding` clause."
   UselessOpaque_                   -> "`opaque` blocks that have no effect."
   -- Cubical
@@ -524,3 +586,5 @@ warningNameDescription = \case
   FaceConstraintCannotBeNamed_     -> "Face constraint patterns that are given as named arguments."
   -- Not source code related
   DuplicateInterfaceFiles_         -> "Duplicate interface files."
+  -- Backends
+  CustomBackendWarning_            -> "Custom warnings from backends."

@@ -517,10 +517,9 @@ data Pattern' e
   | AbsurdP PatInfo
   | LitP PatInfo Literal
   | PatternSynP PatInfo AmbiguousQName (NAPs e)
-  | RecP PatInfo [FieldAssignment' (Pattern' e)]
+  | RecP ConPatInfo [FieldAssignment' (Pattern' e)]
   | EqualP PatInfo [(e, e)]
   | WithP PatInfo (Pattern' e)  -- ^ @| p@, for with-patterns.
-  | AnnP PatInfo e (Pattern' e) -- ^ Pattern with type annotation
   deriving (Show, Functor, Foldable, Traversable, Eq, Generic)
 
 type NAPs e   = [NamedArg (Pattern' e)]
@@ -706,7 +705,6 @@ instance HasRange (Pattern' e) where
     getRange (RecP i _)          = getRange i
     getRange (EqualP i _)        = getRange i
     getRange (WithP i _)         = getRange i
-    getRange (AnnP i _ _)        = getRange i
 
 instance HasRange SpineLHS where
     getRange (SpineLHS i _ _)  = getRange i
@@ -750,10 +748,9 @@ instance SetRange (Pattern' a) where
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
     setRange r (LitP _ l)           = LitP (PatRange r) l
     setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) n as
-    setRange r (RecP i as)          = RecP (PatRange r) as
+    setRange r (RecP i as)          = RecP (setRange r i) as
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
     setRange r (WithP i p)          = WithP (setRange r i) p
-    setRange r (AnnP i a p)         = AnnP (setRange r i) a p
 
 instance KillRange a => KillRange (Binder' a) where
   killRange (Binder a b) = killRangeN Binder a b
@@ -850,7 +847,6 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (RecP i as)         = killRangeN RecP i as
   killRange (EqualP i es)       = killRangeN EqualP i es
   killRange (WithP i p)         = killRangeN WithP i p
-  killRange (AnnP i a p)        = killRangeN AnnP i a p
 
 instance KillRange SpineLHS where
   killRange (SpineLHS i a b)  = killRangeN SpineLHS i a b

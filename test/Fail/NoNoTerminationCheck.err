@@ -1,4 +1,4 @@
-NoNoTerminationCheck.agda:10,1-11,6
+NoNoTerminationCheck.agda:10,1-11,6: error: [TerminationIssue]
 Termination checking failed for the following functions:
   g
 Problematic calls:

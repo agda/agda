@@ -1,4 +1,4 @@
-Issue1295.agda:5,1-22
+Issue1295.agda:5,1-22: error: [RepeatedVariablesInPattern]
 Repeated variables in pattern: x
 when scope checking the declaration
   pattern foo x = x , x

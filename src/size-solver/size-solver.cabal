@@ -13,8 +13,9 @@ synopsis:        A solver for size constraints arising in sized types.
 description:
   See Felix Reihl, 2013, Bachelor thesis, Ludwig-Maximilians-University.
 tested-with:
+  GHC == 9.10.1
   GHC == 9.8.2
-  GHC == 9.6.5
+  GHC == 9.6.6
   GHC == 9.4.8
   GHC == 9.2.8
   GHC == 9.0.2
@@ -30,7 +31,7 @@ executable size-solver
   hs-source-dirs: .
   main-is:        Main.hs
   build-depends:
-    Agda == 2.6.5
+    Agda == 2.8.0
     , base       >= 4.12.0.0 && < 5
     , containers >= 0.5.7.1  && < 0.8
     , mtl        >= 2.2.1    && < 2.4

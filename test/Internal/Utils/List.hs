@@ -9,6 +9,7 @@
 module Internal.Utils.List ( tests ) where
 
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 
 import Data.Bifunctor (first)
 import Data.Either (partitionEithers)
@@ -54,6 +55,12 @@ prop_partitionMaybe f as = partitionMaybe f as == partitionEithers (map f' as)
 
 prop_mapMaybeAndRest_Nothing as = mapMaybeAndRest (const Nothing) as == ([] :: [Int],as)
 prop_mapMaybeAndRest_Just    as = mapMaybeAndRest Just            as == (as,[])
+
+-- These properties hold only if @marker@ and @xs@ do not overlap.
+-- Problematic case: @dropFrom "aba" ("ab" ++ "aba" ++ "") /= "ab"@
+--
+-- prop_dropFrom_marker    marker xs ys = isSubsequenceOf (List1.toList marker) xs || dropFrom marker (xs ++ List1.toList marker ++ ys) == xs
+-- prop_dropFrom_no_marker marker xs    = isSubsequenceOf (List1.toList marker) xs || dropFrom marker xs == xs
 
 prop_stripSuffix_sound    suf xs  = maybe True (\ pre -> xs == pre ++ suf) $ stripSuffix suf xs
 prop_stripSuffix_complete pre suf = stripSuffix suf (pre ++ suf) == Just pre

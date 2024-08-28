@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: f true ≡ f false (stuck)
       [ at Issue2250.agda:19,10-12 ]

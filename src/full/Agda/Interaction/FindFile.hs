@@ -44,6 +44,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
   (getIncludeDirs, libToTCM)
 import Agda.TypeChecking.Monad.State (topLevelModuleName)
+import Agda.TypeChecking.Monad.Trace (setCurrentRange)
 import Agda.TypeChecking.Warnings (runPM, warning)
 
 import Agda.Version ( version )
@@ -270,7 +271,7 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $ do
   let defaultName = rootNameModule file
       raw         = rawTopLevelModuleNameForModule parsedModule
   topLevelModuleName =<< if isNoName raw
-    then do
+    then setCurrentRange (rangeFromAbsolutePath file) do
       m <- runPM (fst <$> parse moduleNameParser defaultName)
              `catchError` \_ ->
            typeError $ InvalidFileName file DoesNotCorrespondToValidModuleName

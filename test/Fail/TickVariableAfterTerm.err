@@ -1,4 +1,4 @@
-TickVariableAfterTerm.agda:16,21-37
+TickVariableAfterTerm.agda:16,21-37: error: [ReferencesFutureVariables]
 The variable later can not be mentioned here, since it was not
 introduced before the variable tic.
 Variables introduced after tic can not be used, since that is the

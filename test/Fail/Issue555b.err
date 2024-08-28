@@ -1,3 +1,3 @@
-Issue555b.agda:10,6-9
+Issue555b.agda:10,6-9: error: [ExpectedBindingForParameter]
 Expected binding for parameter A : Set
 when checking the definition of Exp

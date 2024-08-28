@@ -28,7 +28,7 @@ import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Internal.MetaVars
-import Agda.Syntax.Position (getRange)
+import Agda.Syntax.Position (getRange, killRange)
 
 import Agda.TypeChecking.Monad
 -- import Agda.TypeChecking.Monad.Builtin
@@ -392,10 +392,12 @@ newRecordMetaCtx
   -> Args    -- ^ Parameters of record type.
   -> Telescope -> Permutation -> Args -> TCM Term
 newRecordMetaCtx pref frozen r pars tel perm ctx = do
-  ftel   <- flip apply pars <$> getRecordFieldTypes r
+  rdef   <- getRecordDef r
+  let con = killRange $ _recConHead rdef
+  -- Get the record field types as telescope.
+  let ftel = apply (_recTel rdef) pars
   fields <- newArgsMetaCtx'' pref frozen trueCondition
               (telePi_ ftel __DUMMY_TYPE__) tel perm ctx
-  con    <- getRecordConstructor r
   return $ Con con ConOSystem (map Apply fields)
 
 newQuestionMark :: InteractionId -> Comparison -> Type -> TCM (MetaId, Term)
@@ -968,10 +970,10 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       -- even though the lhs is not a pattern, we can prune the y from _2
 
       let
-                vars        = freeVars args
-                relVL       = filterVarMapToList isRelevant  vars
-                nonstrictVL = filterVarMapToList isNonStrict vars
-                irrVL       = filterVarMapToList (liftM2 (&&) isIrrelevant isUnguarded) vars
+                vars              = freeVars args
+                relevantVL        = filterVarMapToList isRelevant vars
+                shapeIrrelevantVL = filterVarMapToList isShapeIrrelevant vars
+                irrelevantVL      = filterVarMapToList (liftM2 (&&) isIrrelevant isUnguarded) vars
             -- Andreas, 2011-10-06 only irrelevant vars that are direct
             -- arguments to the meta, hence, can be abstracted over, may
             -- appear on the rhs.  (test/fail/Issue483b)
@@ -994,9 +996,9 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
               pr _          = ".."
           in vcat
                [ "mvar args:" <+> sep (map (pr . unArg) args)
-               , "fvars lhs (rel):" <+> sep (map (text . show) relVL)
-               , "fvars lhs (nonstrict):" <+> sep (map (text . show) nonstrictVL)
-               , "fvars lhs (irr):" <+> sep (map (text . show) irrVL)
+               , "fvars lhs (relevant)        :" <+> sep (map (text . show) relevantVL)
+               , "fvars lhs (shape-irrelevant):" <+> sep (map (text . show) shapeIrrelevantVL)
+               , "fvars lhs (irrelevant)      :" <+> sep (map (text . show) irrelevantVL)
                ]
 
       -- Check that the x doesn't occur in the right hand side.
@@ -1004,7 +1006,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       -- Herein, distinguish relevant and irrelevant vars,
       -- since when abstracting irrelevant lhs vars, they may only occur
       -- irrelevantly on rhs.
-      -- v <- liftTCM $ occursCheck x (relVL, nonstrictVL, irrVL) v
+      -- v <- liftTCM $ occursCheck x (relevantVL, nonstrictVL, irrelevantVL) v
       v <- liftTCM $ occursCheck x vars v
 
       reportSLn "tc.meta.assign" 15 "passed occursCheck"
@@ -1677,10 +1679,10 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
              | skip tm           = return vars
              | otherwise         = failure tm
         irrProj <- optIrrelevantProjections <$> pragmaOptions
-        lift (isRecordConstructor $ conName c) >>= \case
-          Just (_, r@Record{ recFields = fs })
-            | YesEta <- recEtaEquality r  -- Andreas, 2019-11-10, issue #4185: only for eta-records
-            , length fs == length es
+        lift (isEtaRecordConstructor $ conName c) >>= \case
+          -- Andreas, 2019-11-10, issue #4185: only for eta-records
+          Just (_, RecordData{ _recFields = fs })
+            | length fs == length es
             , hasQuantity0 info || all usableQuantity fs     -- Andreas, 2019-11-12/17, issue #4168b
             , irrProj || all isRelevant fs -> do
               let aux (Arg _ v) Dom{domInfo = info', unDom = f} =

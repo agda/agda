@@ -1,4 +1,4 @@
-WithClausePatternMismatch.agda:10,1-11,17
+WithClausePatternMismatch.agda:10,1-11,17: error: [WithClausePatternMismatch]
 With clause pattern d is not an instance of its parent pattern c
 when checking that the clause
 test _ c with Set

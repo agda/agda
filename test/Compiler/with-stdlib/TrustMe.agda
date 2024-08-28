@@ -6,7 +6,7 @@ open import Data.String
 open import Data.String.Unsafe
 open import Data.Unit.Polymorphic using (⊤)
 open import IO
-import IO.Primitive as Prim
+import IO.Primitive.Core as Prim
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 open import Level using (0ℓ)

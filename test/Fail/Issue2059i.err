@@ -1,3 +1,7 @@
-Issue2059i.agda:29,1-26
+Issue2059i.agda:29,13-20: warning: -W[no]RewriteVariablesNotBoundByLHS
 obvious  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  p
 when checking the pragma REWRITE obvious
+
+Issue2059i.agda:38,10-14: error: [UnequalTerms]
+b ∧ b != false of type Bool
+when checking that the expression refl has type (b ∧ b) ≡ false

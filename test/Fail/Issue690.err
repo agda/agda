@@ -1,4 +1,4 @@
-Issue690.agda:14,1-15,42
+Issue690.agda:14,1-15,42: error: [NotStrictlyPositive]
 D is not strictly positive, because it occurs
 in the second argument of _≡_
 in the type of the constructor abs

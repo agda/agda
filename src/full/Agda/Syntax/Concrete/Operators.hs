@@ -13,7 +13,7 @@
 
 module Agda.Syntax.Concrete.Operators
     ( parseApplication
-    , parseModuleApplication
+    , parseArguments
     , parseLHS
     , parsePattern
     , parsePatternSyn
@@ -729,7 +729,7 @@ validConPattern cons = loop
         | cons x      -> mapM_ loop ps
         | otherwise   -> failure
       QuoteP _ :| [_] -> ok
-      DotP _ e :| ps  -> mapM_ loop ps
+      DotP _ _ e :| ps  -> mapM_ loop ps
       _               -> failure
     where
     ok      = return ()
@@ -790,40 +790,33 @@ parseApplication es  = billToParser IsExpr $ do
                          $ AmbiguousParseForApplication es
                          $ fmap fullParen (e :| es')
 
-parseModuleIdentifier :: Expr -> ScopeM QName
-parseModuleIdentifier (Ident m) = return m
-parseModuleIdentifier e = typeError $ NotAModuleExpr e
+-- | Parse the arguments of a raw application with known head.
+--
+parseArguments ::
+     Expr                   -- ^ Head
+  -> [Expr]                 -- ^ Raw arguments
+  -> ScopeM [NamedArg Expr] -- ^ Operator-parsed arguments
+parseArguments hd = \case
+  [] -> return []
+  es@(e1 : rest) -> billToParser IsExpr $ do
 
-parseRawModuleApplication :: List2 Expr -> ScopeM (QName, [NamedArg Expr])
-parseRawModuleApplication es@(List2 e e2 rest) = billToParser IsExpr $ do
-    let es_args = e2:rest
-    m <- parseModuleIdentifier e
+    -- Form the raw application for error reporting
+    let es2 = List2 hd e1 rest
 
     -- Build the arguments parser
-    p <- buildParsers IsExpr [ q | Ident q <- es_args ]
+    p <- buildParsers IsExpr [ q | Ident q <- es ]
 
     -- Parse
     -- TODO: not sure about forcing
-    case {-force $-} argsParser p es_args of
-        [as] -> return (m, as)
+    case {-force $-} argsParser p es of
+        [as] -> return as
         []   -> typeError $ OperatorInformation (operators p)
-                          $ NoParseForApplication es
+                          $ NoParseForApplication es2
         as : ass -> do
-          let f = fullParen . foldl (App noRange) (Ident m)
+          let f = fullParen . foldl (App noRange) hd
           typeError $ OperatorInformation (operators p)
-                    $ AmbiguousParseForApplication es
+                    $ AmbiguousParseForApplication es2
                     $ fmap f (as :| ass)
-
--- | Parse an expression into a module application
---   (an identifier plus a list of arguments).
-parseModuleApplication :: Expr -> ScopeM (QName, [NamedArg Expr])
-parseModuleApplication (RawApp _ es) = parseRawModuleApplication es
-parseModuleApplication (App r e1 e2) = do -- TODO: do we need this case?
-    (m, args) <- parseModuleApplication e1
-    return (m, args ++ [e2])
-parseModuleApplication e = do
-    m <- parseModuleIdentifier e
-    return (m, [])
 
 ---------------------------------------------------------------------------
 -- * Inserting parenthesis

@@ -25,7 +25,7 @@ import Agda.Syntax.Concrete as C
 import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, renderError, verbalize )
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
-import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, renderTCWarnings')
+import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings)
 import Agda.TypeChecking.Monad
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Base
@@ -293,7 +293,7 @@ formatWarningsAndErrors g w e = (body, title)
 
     body = List.intercalate "\n" $ catMaybes
              [ g                    <$ guard isG
-             , delimiter "Errors"   <$ guard (isE && (isG || isW))
+             , delimiter "Error"    <$ guard (isE && (isG || isW))
              , e                    <$ guard isE
              , delimiter "Warnings" <$ guard (isW && (isG || isE))
              , w                    <$ guard isW
@@ -304,24 +304,16 @@ formatWarningsAndErrors g w e = (body, title)
 showInfoError :: Info_Error -> TCM String
 showInfoError (Info_GenericError err) = do
   e <- renderError err
-  w <- renderTCWarnings' =<< getAllWarningsOfTCErr err
-
-  let errorMsg  = if null w
-                      then e
-                      else delimiter "Error" ++ "\n" ++ e
-  let warningMsg = List.intercalate "\n" $ delimiter "Warning(s)"
-                                      : filter (not . null) w
-  return $ if null w
-            then errorMsg
-            else errorMsg ++ "\n\n" ++ warningMsg
+  w <- prettyTCWarnings =<< getAllWarningsOfTCErr err
+  let (body, _) = formatWarningsAndErrors "" w e
+  return body
 showInfoError (Info_CompilationError warnings) = do
   s <- prettyTCWarnings warnings
   return $ unlines
-            [ "You need to fix the following errors before you can compile"
-            , "the module:"
-            , ""
-            , s
-            ]
+    [ "You need to fix the following errors before you can compile the module:"
+    , ""
+    , s
+    ]
 showInfoError (Info_HighlightingParseError ii) =
   return $ "Highlighting failed to parse expression in " ++ show ii
 showInfoError (Info_HighlightingScopeCheckError ii) =
@@ -359,7 +351,7 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
             -- Print relevance of hypothesis relative to relevance of the goal. (Issue #6706.)
           , [ text $ verbalize r
                              | let r = getRelevance mod `inverseComposeRelevance` getRelevance ai
-                             , r /= Relevant ]
+                             , not $ isRelevant r ]
             -- Print "instance" if variable is considered by instance search.
           , [ "instance"     | isInstance ai ]
           ]

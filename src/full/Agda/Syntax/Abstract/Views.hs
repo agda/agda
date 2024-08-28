@@ -41,7 +41,7 @@ appView' e = f (DL.toList es)
   where
   (f, es) = appView'' e
 
-  appView'' e = case e of
+  appView'' = \case
     App i e1 e2
       | Dot _ e2' <- unScope $ namedArg e2
       , Just f <- maybeProjTurnPostfix e2'
@@ -50,7 +50,7 @@ appView' e = f (DL.toList es)
     App i e1 arg | (f, es) <- appView'' e1 ->
       (f, es `DL.snoc` (fmap . fmap) (i,) arg)
     ScopedExpr _ e -> appView'' e
-    _              -> (Application e, mempty)
+    e              -> (Application e, mempty)
 
 maybeProjTurnPostfix :: Expr -> Maybe Expr
 maybeProjTurnPostfix e =
@@ -84,11 +84,10 @@ piView = \case
 unPiView :: PiView -> Expr
 unPiView (PiView tels t) = foldr (uncurry Pi) t tels
 
--- | Gather top-level 'AsP'atterns and 'AnnP'atterns to expose underlying pattern.
-asView :: A.Pattern -> ([Name], [A.Expr], A.Pattern)
-asView (A.AsP _ x p)  = (\(asb, ann, p) -> (unBind x : asb, ann, p)) $ asView p
-asView (A.AnnP _ a p) = (\(asb, ann, p) -> (asb, a : ann, p))        $ asView p
-asView p              = ([], [], p)
+-- | Gather top-level 'AsP'atterns to expose underlying pattern.
+asView :: A.Pattern -> ([Name], A.Pattern)
+asView (A.AsP _ x p)  = (\(asb, p) -> (unBind x : asb, p)) $ asView p
+asView p              = ([], p)
 
 -- | Remove top 'ScopedExpr' wrappers.
 unScope :: Expr -> Expr

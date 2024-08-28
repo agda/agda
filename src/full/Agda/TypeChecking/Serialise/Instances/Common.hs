@@ -36,6 +36,7 @@ import Data.Void
 import Agda.Syntax.Common
 import Agda.Syntax.Builtin
 import Agda.Syntax.Concrete.Name as C
+import Agda.Syntax.Concrete (RecordDirective(..))
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Position as P
@@ -421,6 +422,11 @@ instance EmbPrj MetaId where
 
   value m = uncurry MetaId <$!> value m
 
+instance EmbPrj ProblemId where
+  icod_ (ProblemId a) = icode a
+
+  value m = ProblemId <$!> value m
+
 instance EmbPrj A.QName where
   icod_ n@(A.QName a b) = icodeMemo qnameD qnameC (qnameId n) $ icodeN' A.QName a b
 
@@ -598,15 +604,55 @@ instance EmbPrj Modality where
     [a, b, c] -> valuN Modality a b c
     _ -> malformed
 
-instance EmbPrj Relevance where
-  icod_ Relevant       = return 0
-  icod_ Irrelevant     = return 1
-  icod_ NonStrict      = return 2
+instance EmbPrj OriginRelevant where
+  icod_ = \case
+    ORelInferred   -> return 0
+    ORelRelevant _ -> return 1
 
-  value 0 = return Relevant
-  value 1 = return Irrelevant
-  value 2 = return NonStrict
-  value _ = malformed
+  value = \case
+    0 -> return $ ORelInferred
+    1 -> return $ ORelRelevant noRange
+    _ -> malformed
+
+instance EmbPrj OriginIrrelevant where
+  icod_ = \case
+    OIrrInferred     -> return 0
+    OIrrDot _        -> return 1
+    OIrrIrr _        -> return 2
+    OIrrIrrelevant _ -> return 3
+
+  value = \case
+    0 -> return $ OIrrInferred
+    1 -> return $ OIrrDot        noRange
+    2 -> return $ OIrrIrr        noRange
+    3 -> return $ OIrrIrrelevant noRange
+    _ -> malformed
+
+instance EmbPrj OriginShapeIrrelevant where
+  icod_ = \case
+    OShIrrInferred          -> return 0
+    OShIrrDotDot _          -> return 1
+    OShIrrShIrr _           -> return 2
+    OShIrrShapeIrrelevant _ -> return 3
+
+  value = \case
+    0 -> return $ OShIrrInferred
+    1 -> return $ OShIrrDotDot          noRange
+    2 -> return $ OShIrrShIrr           noRange
+    3 -> return $ OShIrrShapeIrrelevant noRange
+    _ -> malformed
+
+instance EmbPrj Relevance where
+  icod_ = \case
+    Relevant   a      -> icodeN' Relevant a
+    Irrelevant a      -> icodeN 0 Irrelevant a
+    ShapeIrrelevant a -> icodeN 1 ShapeIrrelevant a
+
+  value = vcase \case
+    [a]    -> valuN Relevant a
+    [0, a] -> valuN Irrelevant a
+    [1, a] -> valuN ShapeIrrelevant a
+    _      -> malformed
 
 instance EmbPrj Annotation where
   icod_ (Annotation l) = icodeN' Annotation l
@@ -758,3 +804,34 @@ instance EmbPrj SomeBuiltin where
     valu [0, x] = valuN BuiltinName x
     valu [1, x] = valuN PrimitiveName x
     valu _      = malformed
+
+instance EmbPrj IsInstance where
+  icod_ = \case
+    InstanceDef a  -> icodeN' InstanceDef a
+    NotInstanceDef -> icodeN' NotInstanceDef
+
+  value = vcase \case
+    [a] -> valuN InstanceDef a
+    []  -> valuN NotInstanceDef
+    _ -> malformed
+
+instance EmbPrj a => EmbPrj (RecordDirectives' a) where
+  icod_ (RecordDirectives a b c d) = icodeN' RecordDirectives a b c d
+
+  value = vcase \case
+    [a, b, c, d] -> valuN RecordDirectives a b c d
+    _ -> malformed
+
+instance EmbPrj RecordDirective where
+  icod_ = \case
+    Constructor a b      -> icodeN 0 Constructor a b
+    Eta a                -> icodeN 1 Eta a
+    Induction a          -> icodeN 2 Induction a
+    PatternOrCopattern a -> icodeN 3 PatternOrCopattern a
+
+  value = vcase \case
+    [0, a, b] -> valuN Constructor a b
+    [1, a]    -> valuN Eta a
+    [2, a]    -> valuN Induction a
+    [3, a]    -> valuN PatternOrCopattern a
+    _ -> malformed

@@ -1,4 +1,4 @@
-Issue3932-2.agda:6,1-7
+Issue3932-2.agda:1,1-7,9: error: [Syntax.DisallowedInterleavedMutual]
 The following names are declared, but not accompanied by a
 definition:
 - f (at Issue3932-2.agda:4,1-2)

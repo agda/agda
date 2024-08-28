@@ -1,2 +1,2 @@
-UnquoteDeclHelperNotDefined.agda:9,1-13,47
+UnquoteDeclHelperNotDefined.agda:9,1-13,47: error: [GenericError]
 Missing definition for UnquoteDeclHelperNotDefined.aux

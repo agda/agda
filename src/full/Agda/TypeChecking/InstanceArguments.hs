@@ -206,68 +206,6 @@ initialInstanceCandidates blockOverlap instTy = do
 
       cands <- catMaybes <$> mapM (lift . candidate rel) (toList qs)
 
-      recursive <- useTC stConsideringInstance
-      prefreeze <- useTC stMutualChecks
-
-      let
-        -- When possible, we block the instance selection process early
-        -- and accurately when there is some overlap. "When possible"
-        -- turns out to be a bit hairy:
-        block = and
-          [ not (Set.null (allBlockingMetas blocker))
-            -- If we're not blocked on any metas, we might as well check
-            -- all the candidates to see if the overlap was resolvable.
-            -- Keep going.
-
-          , length cands > 1
-            -- If there's no overlap, blocking might be counterproductive.
-
-          , Set.disjoint mutual qs
-            -- The results of termination checking depends on whether we
-            -- solve instance metas eagerly or late. Consider
-            --
-            --   instance Show-List = record { show = go }
-            --   go (x ∷ xs) = show x <> show ⦃ ?0 ⦄ xs
-            --
-            -- If we solve ?0 eagerly, the term we use is the literal
-            -- record constructor. The 'show' projection unfolds in 'go'
-            -- and the termination check is happy.
-            --
-            -- If we solve it late, we run the risk of the clause
-            -- compiler applying copattern translation to Show-List. The
-            -- 'show' projection does not eagerly unfold, and the
-            -- termination check explodes.
-
-          , not recursive
-            -- Blocking instance selection *on a meta* while considering
-            -- an instance causes the recursive instance constraint to
-            -- get repeatedly woken up. Not good for performance.
-
-          , not prefreeze
-            -- During the pre-freeze wakeupConstraints_, we don't
-            -- eagerly block on overlap. This is because we might have a
-            -- pair of constraints
-            --
-            --   instance ?1 : Foo ?0, blocked on ?0, candidates Foo T, Foo S
-            --   ?0 = T (blocked on ?0)
-            --
-            -- If we block ?1 on ?0, then this pair goes unsolved --- ?0
-            -- gets frozen and there's no way for us to make any more
-            -- progress. But if we let the overlapping candidates
-            -- through, checkCandidateForMeta will wake up the ?0 = T
-            -- constraint in each case, which rules out the 'Foo S'
-            -- candidate: both constraints get solved.
-
-          , blockOverlap
-            -- For the getInstances reflection primitive, we don't want
-            -- to block on overlap, so that the user can do their thing.
-          ]
-
-      when block do
-        reportSDoc "tc.instance.candidates.search" 20 $
-          "postponing because of overlap:" <+> prettyTCM blocker
-        patternViolation blocker
-
       -- Some more class-specific profiling.
       lift $ whenProfile Profile.Instances case Map.lookup n counts of
         Just tot -> do
@@ -346,8 +284,10 @@ initialInstanceCandidates blockOverlap instTy = do
 --   wasn't known when the constraint was generated. In that case, try to find
 --   its type again.
 findInstance :: MetaId -> Maybe [Candidate] -> TCM ()
-findInstance m Nothing = do
-  ifM canDropRecursiveInstance (addConstraint neverUnblock (FindInstance m Nothing)) do
+findInstance m Nothing =
+  ifM canDropRecursiveInstance (addConstraint neverUnblock (FindInstance m Nothing)) $
+  -- Getting initial candidates can fail, in which case we should postpone (#7286)
+  catchConstraint (FindInstance m Nothing) $ do
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
   mv <- lookupLocalMeta m
@@ -639,10 +579,6 @@ resolveInstanceOverlap
   -> TCM [item]
 resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
   wrapper
-    -- If the instance meta is irrelevant: anything will do, no reason
-    -- to do any work.
-    | isIrrelevant rel = pure cands
-
     -- If all the candidates are incoherent: choose the leftmost candidate.
     | all (isIncoherent . candidateOverlap . itemC) cands
     , (c:_) <- cands = pure [c]
@@ -662,20 +598,21 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
     | otherwise = Bench.billTo [Bench.Typing, Bench.InstanceSearch, Bench.CheckOverlap] do
       reportSDoc "tc.instance.overlap" 30 $ "overlapping instances:" $$ vcat (map (debugCandidate . itemC) cands)
 
-      chooseIncoherent . survivingCands <$> foldrM insert (OverlapState [] []) cands
+      sinkIncoherent . survivingCands <$> foldrM insert (OverlapState [] []) cands
 
   isGlobal Candidate{candidateKind = GlobalCandidate _} = True
   isGlobal _ = False
 
-  -- At the end of the process, we might be in a situation where all
-  -- candidates are incoherent, except for one, since the user might
-  -- have an instance which fixes some arguments in a way that prevents
-  -- it from serving as a specialisation (see test/Succeed/OverlapIncoherent1).
+  -- At the end of the process, we might still have some incoherent and
+  -- non-incoherent candidates, since the user might have an instance
+  -- which fixes some arguments in a way that prevents it from serving
+  -- as a specialisation (see test/Succeed/Overlap1).
   --
-  -- This non-incoherent candidate is what is chosen.
-  chooseIncoherent :: [item] -> [item]
-  chooseIncoherent cands = case List.partition (isIncoherent . itemC) cands of
+  -- See test/Succeed/OverlapDupe for a case where this is necessary.
+  sinkIncoherent :: [item] -> [item]
+  sinkIncoherent cands = case List.partition (isIncoherent . itemC) cands of
     (as, [c]) | all (isGlobal . itemC) as -> pure c
+    (as, cs)  | all (isGlobal . itemC) as -> cs ++ as
     _                                     -> cands
 
   -- Insert a new item into the overlap state.
@@ -685,7 +622,7 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
     -> [item]             -- Old items which we might overlap/be overlapped by
     -> TCM (OverlapState item)
   insertNew oldState new [] = pure oldState{ survivingCands = [new] }
-  insertNew oldState newItem (oldItem:olds) = do
+  insertNew oldState newItem oldItems@(oldItem:olds) = do
     let
       new = itemC newItem
       old = itemC oldItem
@@ -711,8 +648,8 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
       -- But if the new candidate is overlapping, it can be added as a
       -- guard.
       oldnew = do
-        if isOverlapping old || not (isOverlapping new) then pure oldState else do
-          let OverlapState{ survivingCands = oldItems, guardingCands = guards } = oldState
+        if isOverlapping old || not (isOverlapping new) then pure oldState{ survivingCands = oldItems } else do
+          let OverlapState{ guardingCands = guards } = oldState
           reportSDoc "tc.instance.overlap" 40 $ vcat
             [ "will become guard:"
             , nest 2 (debugCandidate new)
@@ -790,9 +727,10 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
       | otherwise -> (cvd :) <$> dropWhileM equal vas
       where
         equal :: (Candidate, Term, a) -> TCM Bool
-        equal (_, v', _)
-            | freshMetas v' = return False  -- If there are fresh metas we can't compare
-            | otherwise     =
+        equal (c, v', _)
+            | isIncoherent c = return True   -- See 'sinkIncoherent'
+            | freshMetas v'  = return False  -- If there are fresh metas we can't compare
+            | otherwise      =
           verboseBracket "tc.instance" 30 "dropSameCandidates: " $ do
           reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> "==", nest 2 $ prettyTCM v' ]
           a <- uncurry piApplyM =<< ((,) <$> getMetaType m <*> getContextArgs)
@@ -842,6 +780,7 @@ checkCandidates m t cands =
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ "candidates", vcat (map debugCandidate cands) ]
 
+    t <- instantiateFull t
     cands'@(_, okay) <- filterResettingState m cands (checkCandidateForMeta m t)
 
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
@@ -1123,10 +1062,10 @@ resolveInstanceHead q = do
 --   an error if it doesn't work and return the instance table otherwise.
 getInstanceDefs :: TCM InstanceTable
 getInstanceDefs = do
-  insts <- getAllInstanceDefs
-  unless (null $ snd insts) $
-    typeError $ GenericError $ "There are instances whose type is still unsolved"
-  return $ fst insts
+  (table, pending) <- getAllInstanceDefs
+  unless (null pending) $ do
+    patternViolation alwaysUnblock  -- TODO: more refined unblocking
+  return table
 
 -- | Prune an 'Interface' to remove any instances that would be
 -- inapplicable in child modules.

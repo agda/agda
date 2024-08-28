@@ -1,4 +1,4 @@
-ImplicitMutualOpaque.agda:6,1-7
+ImplicitMutualOpaque.agda:3,1-9,9: error: [Syntax.DisallowedInterleavedMutual]
 The following names are declared, but not accompanied by a
 definition:
 - test (at ImplicitMutualOpaque.agda:5,1-5)

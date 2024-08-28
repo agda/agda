@@ -47,7 +47,7 @@ primIdElim' :: TCM PrimitiveImpl
 primIdElim' = do
   -- The implementation here looks terrible but most of it is actually
   -- the type.
-  requireCubical CErased ""
+  requireCubical CErased
   t <- runNamesT [] $
     hPi' "a" (el $ cl primLevel) $ \ a ->
     hPi' "c" (el $ cl primLevel) $ \ c ->
@@ -97,7 +97,7 @@ primIdElim' = do
 -- | Introduction form for the cubical identity types.
 primConId' :: TCM PrimitiveImpl
 primConId' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- runNamesT [] $
     hPi' "a" (el $ cl primLevel) $ \ a ->
     hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -132,7 +132,7 @@ primConId' = do
 -- violates the cubical phase distinction.
 primIdFace' :: TCM PrimitiveImpl
 primIdFace' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- runNamesT [] $
     hPi' "a" (el $ cl primLevel) $ \ a ->
     hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -155,7 +155,7 @@ primIdFace' = do
 -- cubical identity types.
 primIdPath' :: TCM PrimitiveImpl
 primIdPath' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- runNamesT [] $
     hPi' "a" (el $ cl primLevel) $ \ a ->
     hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -263,11 +263,19 @@ doIdKanOp kanOp l bA_x_y = do
         -- Similarly to the fake line of levels above, fake lines of
         -- everything even when we're doing composition, for uniformity
         -- of eval.
-        [bA, x, y] <- case bA_x_y of
-          IsFam (bA, x, y) -> for [bA, x, y] $ \a ->
-            open $ runNames [] $ lam "i" (const (pure $ unArg a))
-          IsNot (bA, x, y) -> for [bA, x, y] $ \a ->
-            open (Lam defaultArgInfo $ NoAbs "_" $ unArg a)
+        (bA, x, y) <- case bA_x_y of
+          IsFam (bA, x, y) -> do
+            let lami = open . runNames [] . lam "i" . const . pure . unArg
+            bA <- lami bA
+            x  <- lami x
+            y  <- lami y
+            pure (bA, x, y)
+          IsNot (bA, x, y) -> do
+            let lam_ = open . Lam defaultArgInfo . NoAbs "_" . unArg
+            bA <- lam_ bA
+            x  <- lam_ x
+            y  <- lam_ y
+            pure (bA, x, y)
 
         -- The resulting path is constant when when
         --    @Σ φ λ o → -- primIdFace p i1 o@
