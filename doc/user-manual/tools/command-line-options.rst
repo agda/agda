@@ -1144,7 +1144,7 @@ Other features
      actually saved, and this option is more like an anticipation of possible
      future optimizations.
 
-     Default: :option:`--save-metas`.
+     Default: :option:`--no-save-metas`.
 
 Erasure
 ~~~~~~~
