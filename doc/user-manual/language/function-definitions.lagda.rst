@@ -267,4 +267,5 @@ be marked as such, for instance: ::
 
 The :option:`--no-exact-split` flag can be used to override a global
 :option:`--exact-split` in a file, by adding a pragma
-``{-# OPTIONS --no-exact-split #-}``.
+``{-# OPTIONS --no-exact-split #-}``. This option is enabled by
+default.

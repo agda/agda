@@ -349,7 +349,7 @@ data PragmaOptions = PragmaOptions
       -- ^ Allow definitions by copattern matching?
   , _optPatternMatching           :: WithDefault 'True
       -- ^ Is pattern matching allowed in the current file?
-  , _optExactSplit                :: WithDefault 'True
+  , _optExactSplit                :: WithDefault 'False
   , _optHiddenArgumentPuns        :: WithDefault 'False
       -- ^ Should patterns of the form @{x}@ or @⦃ x ⦄@ be interpreted as puns?
   , _optEta                       :: WithDefault 'True
