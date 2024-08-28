@@ -56,6 +56,9 @@ Tutorials and lecture notes
 Videos on Agda
 ==============
 
+- Jesper Cockx (2024). `Programming and Proving in Agda
+  <https://www.youtube.com/watch?v=AVRsH_YH7XU>`__.
+  (Lecture at ZuriHac 2024).
 - Conor McBride (2014). `Introduction to Dependently Typed Programming
   using Agda
   <https://www.youtube.com/playlist?list=PL44F162A8B8CB7C87>`__.
