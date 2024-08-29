@@ -187,6 +187,7 @@ data ErrorName
   | NotValidBeforeField_
   | NothingAppliedToHiddenArg_
   | NothingAppliedToInstanceArg_
+  | OpenEverythingInRecordWhere_
   | OverlappingProjects_
   | PatternInPathLambda_
   | PatternInSystem_

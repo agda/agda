@@ -153,6 +153,7 @@ typeErrorName = \case
   NotValidBeforeField                                        {} -> NotValidBeforeField_
   NothingAppliedToHiddenArg                                  {} -> NothingAppliedToHiddenArg_
   NothingAppliedToInstanceArg                                {} -> NothingAppliedToInstanceArg_
+  OpenEverythingInRecordWhere                                {} -> OpenEverythingInRecordWhere_
   OverlappingProjects                                        {} -> OverlappingProjects_
   PatternInPathLambda                                        {} -> PatternInPathLambda_
   PatternInSystem                                            {} -> PatternInSystem_
