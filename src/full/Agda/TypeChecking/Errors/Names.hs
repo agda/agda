@@ -97,6 +97,7 @@ typeErrorName = \case
   GeneralizeNotSupportedHere                                 {} -> GeneralizeNotSupportedHere_
   GeneralizedVarInLetOpenedModule                            {} -> GeneralizedVarInLetOpenedModule_
   HidingMismatch                                             {} -> HidingMismatch_
+  IdiomBracketError                                          {} -> IdiomBracketError_
   IllTypedPatternAfterWithAbstraction                        {} -> IllTypedPatternAfterWithAbstraction_
   IllegalDeclarationInDataDefinition                         {} -> IllegalDeclarationInDataDefinition_
   IllegalHidingInPostfixProjection                           {} -> IllegalHidingInPostfixProjection_

@@ -211,6 +211,8 @@ instance PrettyTCM TypeError where
 
     SyntaxError s -> fwords $ "Syntax error: "  ++ s
 
+    IdiomBracketError err -> fwords err
+
     NoKnownRecordWithSuchFields fields -> fsep $
       case fields of
         []  -> pwords "There are no records in scope"

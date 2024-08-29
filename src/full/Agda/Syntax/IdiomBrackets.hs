@@ -50,17 +50,20 @@ appViewM = \case
   where
     onlyVisible a
       | defaultNamedArg () == fmap (() <$) a = return $ namedArg a
-      | otherwise = genericError "Only regular arguments are allowed in idiom brackets (no implicit or instance arguments)"
-    noPlaceholder Placeholder{}       = genericError "Naked sections are not allowed in idiom brackets"
+      | otherwise = idiomBracketError "Only regular arguments are allowed in idiom brackets (no implicit or instance arguments)"
+    noPlaceholder Placeholder{}       = idiomBracketError "Naked sections are not allowed in idiom brackets"
     noPlaceholder (NoPlaceholder _ x) = return x
 
     ordinary (Ordinary a) = return a
-    ordinary _ = genericError "Binding syntax is not allowed in idiom brackets"
+    ordinary _ = idiomBracketError "Binding syntax is not allowed in idiom brackets"
 
 ensureInScope :: QName -> ScopeM ()
 ensureInScope q = do
   r <- resolveName q
   case r of
-    UnknownName -> genericError $
+    UnknownName -> idiomBracketError $
       prettyShow q ++ " needs to be in scope to use idiom brackets " ++ prettyShow leftIdiomBrkt ++ " ... " ++ prettyShow rightIdiomBrkt
     _ -> return ()
+
+idiomBracketError :: String -> ScopeM a
+idiomBracketError = typeError . IdiomBracketError
