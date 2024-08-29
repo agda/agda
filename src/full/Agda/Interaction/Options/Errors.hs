@@ -128,6 +128,7 @@ data ErrorName
   | GeneralizeNotSupportedHere_
   | GeneralizedVarInLetOpenedModule_
   | HidingMismatch_
+  | IdiomBracketError_
   | IllTypedPatternAfterWithAbstraction_
   | IllegalDeclarationInDataDefinition_
   | IllegalHidingInPostfixProjection_

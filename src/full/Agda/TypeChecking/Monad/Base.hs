@@ -4724,6 +4724,9 @@ data TypeError
              -- ^ Error thrown by the option parser.
         | NicifierError DeclarationException'
              -- ^ Error thrown in the nicifier phase 'Agda.Syntax.Concrete.Definitions'.
+        | IdiomBracketError String
+             -- ^ Error during (operator) parsing and interpreting the contents of idiom brackets.
+             --   Error message in 'String'.
         | NoKnownRecordWithSuchFields [C.Name]
             -- ^ The user has given a record expression with the given fields,
             --   but no record type known to type inference has all these fields.
