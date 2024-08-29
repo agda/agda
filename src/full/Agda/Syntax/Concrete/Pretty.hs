@@ -277,8 +277,10 @@ instance Pretty Expr where
             DoubleDot _ e  -> hlSymbol ".." <> pretty e
             Absurd _  -> hlSymbol "()"
             Rec _ xs  -> sep [hlKeyword "record", bracesAndSemicolons (map pretty xs)]
+            RecWhere _ xs -> sep [hlKeyword "record" <+> hlKeyword "where", nest 2 (vcat $ map pretty xs)]
             RecUpdate _ e xs ->
               sep [hlKeyword "record" <+> pretty e, bracesAndSemicolons (map pretty xs)]
+            RecUpdateWhere _ e xs -> sep [hlKeyword "record" <+> pretty e <+> hlKeyword "where", nest 2 (vcat $ map pretty xs)]
             Quote _ -> hlKeyword "quote"
             QuoteTerm _ -> hlKeyword "quoteTerm"
             Unquote _  -> hlKeyword "unquote"

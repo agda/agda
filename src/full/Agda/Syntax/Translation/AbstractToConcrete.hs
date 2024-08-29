@@ -977,8 +977,17 @@ instance ToConcrete A.Expr where
              return $ C.mkLet (getRange i) (concat ds') e'
 
     toConcrete (A.Rec i fs) =
-      bracket appBrackets $ do
-        C.Rec (getRange i) . map (fmap (\x -> ModuleAssignment x [] defaultImportDir)) <$> toConcreteTop fs
+      bracket appBrackets $
+        case i of
+          A.RecInfo r A.RecStyleBrace ->
+            C.Rec r . map (fmap (\x -> ModuleAssignment x [] defaultImportDir)) <$> toConcreteTop fs
+          A.RecInfo r A.RecStyleWhere ->
+            C.RecWhere r . map (either fieldToDecl moduleToDecl) <$> toConcreteTop fs
+            where
+              fieldToDecl (C.FieldAssignment x e) = C.FunClause (C.LHS (C.IdentP True $ C.QName x) [] [])
+                                                                (C.RHS e) C.NoWhere False
+              -- record where cannot contain modules
+              moduleToDecl = __IMPOSSIBLE__
 
     toConcrete (A.RecUpdate i e fs) =
       bracket appBrackets $ do

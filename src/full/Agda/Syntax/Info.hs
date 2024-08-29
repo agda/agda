@@ -173,6 +173,31 @@ instance HasRange LetInfo where
 instance KillRange LetInfo where
   killRange (LetRange r) = LetRange noRange
 
+------------------------------------------------------------------------
+-- Record info
+------------------------------------------------------------------------
+
+data RecInfo = RecInfo Range RecStyle
+  deriving (Show, Eq, Generic)
+
+data RecStyle = RecStyleWhere | RecStyleBrace
+  deriving (Show, Eq, Generic)
+
+recInfoBrace :: Range -> RecInfo
+recInfoBrace r = RecInfo r RecStyleBrace
+
+recInfoWhere :: Range -> RecInfo
+recInfoWhere r = RecInfo r RecStyleWhere
+
+instance NFData RecInfo
+instance NFData RecStyle
+
+instance HasRange RecInfo where
+  getRange (RecInfo r _) = r
+
+instance KillRange RecInfo where
+  killRange (RecInfo r s) = RecInfo noRange s
+
 {--------------------------------------------------------------------------
     Definition information (declarations that actually define something)
  --------------------------------------------------------------------------}

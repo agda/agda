@@ -311,7 +311,8 @@ recordExpressionsToCopatterns
 recordExpressionsToCopatterns = \case
     Case i bs -> Case i <$> traverse recordExpressionsToCopatterns bs
     cc@Fail{} -> return cc
-    cc@(Done xs (Con c ConORec es)) -> do  -- don't translate if using the record /constructor/
+    cc@(Done xs (Con c co es))
+      | elem co [ConORec, ConORecWhere] -> do  -- don't translate if using the record /constructor/
       let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       irrProj <- optIrrelevantProjections <$> pragmaOptions
       getConstructorInfo (conName c) >>= \ case
