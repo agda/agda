@@ -211,6 +211,8 @@ instance PrettyTCM TypeError where
 
     SyntaxError s -> fwords $ "Syntax error: "  ++ s
 
+    DoNotationError err -> fwords err
+
     IdiomBracketError err -> fwords err
 
     NoKnownRecordWithSuchFields fields -> fsep $

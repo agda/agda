@@ -4724,6 +4724,9 @@ data TypeError
              -- ^ Error thrown by the option parser.
         | NicifierError DeclarationException'
              -- ^ Error thrown in the nicifier phase 'Agda.Syntax.Concrete.Definitions'.
+        | DoNotationError String
+             -- ^ Error during unsugaring some @do@ notation.
+             --   Error message in 'String'.
         | IdiomBracketError String
              -- ^ Error during (operator) parsing and interpreting the contents of idiom brackets.
              --   Error message in 'String'.

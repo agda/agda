@@ -109,6 +109,7 @@ data ErrorName
   | DefinitionInDifferentModule_
   | DefinitionIsErased_
   | DefinitionIsIrrelevant_
+  | DoNotationError_
   | DoesNotMentionTicks_
   | DotPatternInPatternSynonym_
   | DuplicateBuiltinBinding_

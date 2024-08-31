@@ -78,6 +78,7 @@ typeErrorName = \case
   DefinitionInDifferentModule                                {} -> DefinitionInDifferentModule_
   DefinitionIsErased                                         {} -> DefinitionIsErased_
   DefinitionIsIrrelevant                                     {} -> DefinitionIsIrrelevant_
+  DoNotationError                                            {} -> DoNotationError_
   DoesNotMentionTicks                                        {} -> DoesNotMentionTicks_
   DotPatternInPatternSynonym                                 {} -> DotPatternInPatternSynonym_
   DuplicateBuiltinBinding                                    {} -> DuplicateBuiltinBinding_
