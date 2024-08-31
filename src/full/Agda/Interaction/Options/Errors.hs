@@ -196,6 +196,7 @@ data ErrorName
   | PatternInSystem_
   | PatternSynonymArgumentShadowsConstructorOrPatternSynonym_
   | ProjectionIsIrrelevant_
+  | QualifiedLocalModule_
   | QuantityMismatch_
   | RecursiveRecordNeedsInductivity_
   | ReferencesFutureVariables_

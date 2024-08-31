@@ -1463,7 +1463,11 @@ instance PrettyTCM TypeError where
 
     OpenEverythingInRecordWhere -> fsep $
       pwords "'open' in 'record where' expressions must provide a 'using' clause"
+
+    QualifiedLocalModule -> fwords "Local modules cannot have qualified names"
+
     CustomBackendError backend err -> (text backend <> ":") <?> pure err
+
     GHCBackendError err -> prettyTCM err
 
     InteractionError err -> prettyTCM err

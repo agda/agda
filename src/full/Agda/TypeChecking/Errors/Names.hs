@@ -162,6 +162,7 @@ typeErrorName = \case
   PatternInSystem                                            {} -> PatternInSystem_
   PatternSynonymArgumentShadowsConstructorOrPatternSynonym   {} -> PatternSynonymArgumentShadowsConstructorOrPatternSynonym_
   ProjectionIsIrrelevant                                     {} -> ProjectionIsIrrelevant_
+  QualifiedLocalModule                                       {} -> QualifiedLocalModule_
   QuantityMismatch                                           {} -> QuantityMismatch_
   RecursiveRecordNeedsInductivity                            {} -> RecursiveRecordNeedsInductivity_
   ReferencesFutureVariables                                  {} -> ReferencesFutureVariables_

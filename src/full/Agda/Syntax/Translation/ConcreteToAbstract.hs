@@ -1921,8 +1921,7 @@ instance ToAbstract NiceDeclaration where
         ]
       return [ adecl ]
 
-    NiceModule _ _ _ _ m@C.Qual{} _ _ ->
-      genericError $ "Local modules cannot have qualified names"
+    NiceModule _ _ _ _ m@C.Qual{} _ _ -> typeError QualifiedLocalModule
 
     NiceModuleMacro r p e x modapp open dir -> do
       reportSDoc "scope.decl" 70 $ vcat $
