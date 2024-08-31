@@ -4740,6 +4740,8 @@ data TypeError
         | CantResolveOverloadedConstructorsTargetingSameDatatype QName (List1 QName)
           -- ^ Datatype, constructors.
         | ConstructorDoesNotTargetGivenType QName Type -- ^ constructor, type
+        | InvalidDottedExpression
+            -- ^ @.e@ in non-argument position.
         | LiteralTooBig
             -- ^ An integer literal that would be too costly to expand to unary.
         | NegativeLiteralInPattern

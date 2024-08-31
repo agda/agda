@@ -1228,7 +1228,7 @@ checkExpr' cmp e t =
           else
             internalError "DontCare may only appear in irrelevant contexts"
 
-        A.Dot{} -> genericError "Invalid dotted expression"
+        A.Dot{} -> typeError InvalidDottedExpression
 
         -- Application
         _   | Application hd args <- appView e -> checkApplication cmp hd args e t

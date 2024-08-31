@@ -215,6 +215,8 @@ instance PrettyTCM TypeError where
 
     IdiomBracketError err -> fwords err
 
+    InvalidDottedExpression -> fwords "Invalid dotted expression"
+
     NoKnownRecordWithSuchFields fields -> fsep $
       case fields of
         []  -> pwords "There are no records in scope"

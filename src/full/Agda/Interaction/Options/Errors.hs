@@ -130,6 +130,7 @@ data ErrorName
   | GeneralizedVarInLetOpenedModule_
   | HidingMismatch_
   | IdiomBracketError_
+  | InvalidDottedExpression_
   | IllTypedPatternAfterWithAbstraction_
   | IllegalDeclarationInDataDefinition_
   | IllegalHidingInPostfixProjection_

@@ -99,6 +99,7 @@ typeErrorName = \case
   GeneralizedVarInLetOpenedModule                            {} -> GeneralizedVarInLetOpenedModule_
   HidingMismatch                                             {} -> HidingMismatch_
   IdiomBracketError                                          {} -> IdiomBracketError_
+  InvalidDottedExpression                                    {} -> InvalidDottedExpression_
   IllTypedPatternAfterWithAbstraction                        {} -> IllTypedPatternAfterWithAbstraction_
   IllegalDeclarationInDataDefinition                         {} -> IllegalDeclarationInDataDefinition_
   IllegalHidingInPostfixProjection                           {} -> IllegalHidingInPostfixProjection_
