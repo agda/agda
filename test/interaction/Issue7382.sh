@@ -2,8 +2,7 @@
 
 AGDA=$1
 
-$AGDA -v0 --save-metas --ignore-interfaces Issue7382.agda
-$AGDA -v0 --save-metas --compile --ghc-flag=-v0 Issue7382.agda
-rm Issue7382 || true
+$AGDA Issue7382.agda -v0 --save-metas --ignore-interfaces
+$AGDA Issue7382.agda -v0 --save-metas --ghc --ghc-dont-call-ghc
 
 # Problem was: Deserialization caused internal error.
