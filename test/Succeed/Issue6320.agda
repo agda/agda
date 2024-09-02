@@ -24,7 +24,7 @@ macro
     fromSurfaceInExtendContext : Term → TC ⊤
     fromSurfaceInExtendContext hole = do
       body <- extendContext "m"
-                 (arg (arg-info visible (modality relevant quantity-0))
+                 (arg (arg-info visible (modality relevant quantity-ω))
                       ((def (quote Nat) [])))
               (checkFromStringTC "(1 + n) + m" (def (quote Nat) []))
       unify hole (lam visible (abs "m" body))
