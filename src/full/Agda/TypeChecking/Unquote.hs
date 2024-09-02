@@ -877,7 +877,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     extendCxt :: Text -> Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt s' a m = withFreshName noRange (T.unpack s') $ \s -> do
       a <- workOnTypes $ locallyReduceAllDefs $ liftTCM $ traverse (isType_ <=< toAbstract_) a
-      
+
       locallyScope scopeLocals ((simpleName (T.unpack s') , LocalVar s MacroBound []) :)
           $ liftU1 (addContext (s, domFromArg a :: Dom Type)) m
 
