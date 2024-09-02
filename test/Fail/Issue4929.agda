@@ -1,4 +1,4 @@
--- {-# OPTIONS --no-forcing #-}
+{-# OPTIONS --keep-pattern-variables #-}
 {-# OPTIONS --rewriting #-}
 {-# OPTIONS --sized-types #-}
 

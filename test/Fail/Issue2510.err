@@ -1,4 +1,4 @@
-Issue2510.agda:7,6-7
+Issue2510.agda:7,6-7: error: [CannotEliminateWithPattern]
 Cannot eliminate type Set with variable pattern x (did you supply
 too many arguments?)
 when checking the clause left hand side

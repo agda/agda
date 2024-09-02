@@ -1,4 +1,4 @@
-Issue217.agda:4,1-6,8
+Issue217.agda:4,1-6,8: error: [TerminationIssue]
 Termination checking failed for the following functions:
   A.⊥
 Problematic calls:

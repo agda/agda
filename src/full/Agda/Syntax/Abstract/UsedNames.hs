@@ -172,7 +172,6 @@ instance BoundAndUsed e => BoundAndUsed (Pattern' e) where
     RecP _ as          -> parBoundAndUsed as
     EqualP _ eqs       -> parBoundAndUsed eqs
     WithP _ p          -> boundAndUsed p
-    AnnP _ ty p        -> boundAndUsed (ty, p)
 
 instance BoundAndUsed e => BoundAndUsed (FieldAssignment' e) where
   boundAndUsed (FieldAssignment _ e) = boundAndUsed e
@@ -180,4 +179,3 @@ instance BoundAndUsed e => BoundAndUsed (FieldAssignment' e) where
 instance BoundAndUsed ModuleApplication where
   boundAndUsed (SectionApp tel _ es)  = noBindings $ boundAndUsed (tel, es)
   boundAndUsed RecordModuleInstance{} = mempty
-

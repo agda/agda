@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs                      #-}
 
 {-# LANGUAGE ImplicitParams             #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
@@ -255,7 +254,7 @@ termMutual' = do
        -- could be turned into actual splits, because no-confusion
        -- would make the other cases impossible, so I do not disable
        -- this for --without-K entirely.
-       ifM (isJust . optCubical <$> pragmaOptions) (return r) {- else -} $
+       ifM (isJust <$> cubicalOption) (return r) {- else -} $
        case r of
          r@Right{} -> return r
          Left{}    -> do
@@ -414,7 +413,7 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
      -- this for --without-K entirely.
      --
      -- Andreas, 2022-03-21: The check for --cubical was missing here.
-     ifM (isJust . optCubical <$> pragmaOptions) (return r) {- else -} $ case r of
+     ifM (isJust <$> cubicalOption) (return r) {- else -} $ case r of
        Right () -> return $ Right ()
        Left{}   -> do
          -- Try again, but include the dot patterns this time.
@@ -436,7 +435,7 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
           Record{} -> do
             reportSDoc "term.warn.no" 10 $ vcat $
               hsep [ "Record type", prettyTCM name, "does not termination check.", "Problematic calls:" ] :
-              (map (nest 2 . prettyTCM) $ List.sortOn getRange calls)
+              map (nest 2 . prettyTCM) (List.sortOn getRange calls)
             mempty
 
           -- Functions must terminate, so we report the error.
@@ -1034,10 +1033,10 @@ instance ExtractCalls Term where
           caseMaybeM (isRecordConstructor c) inductive $ \ (q, def) -> do
             reportSLn "term.check.term" 50 $ "constructor " ++ prettyShow c ++ " has record type " ++ prettyShow q
             -- inductive record constructors are not guarding
-            if recInduction def /= Just CoInductive then inductive else do
+            if _recInduction def /= Just CoInductive then inductive else do
             -- coinductive constructors unrelated to the mutually
             -- constructed inhabitants of coinductive types are not guarding
-            ifM (targetElem . fromMaybe __IMPOSSIBLE__ $ recMutual def)
+            ifM (targetElem . fromMaybe __IMPOSSIBLE__ $ _recMutual def)
                {-then-} coinductive
                {-else-} inductive
         constructor c ind argsg

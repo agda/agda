@@ -1,6 +1,8 @@
 -- Andreas, 2017-01-26, issue #2436
 -- Outlaw coinductive records with eta-equality
 
+{-# OPTIONS --guardedness #-}
+
 record U : Set where
   coinductive
   eta-equality

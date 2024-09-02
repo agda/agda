@@ -1,4 +1,4 @@
-Issue1445-2.agda:26,15-16
+Issue1445-2.agda:26,15-16: error: [RewriteAmbiguousRules]
 Global confluence check failed: block unit false can be rewritten
 to either true or false.
 Possible fix: add a rewrite rule with left-hand side

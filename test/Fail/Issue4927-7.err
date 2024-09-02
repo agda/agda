@@ -1,3 +1,3 @@
-Issue4927-7.agda:4,12-14
-Cohesion attributes have not been enabled (use --cohesion to enable
-them): ♭
+Issue4927-7.agda:4,18: error: [ParseError]
+Illegal pattern synonym argument  x
+(Cohesion annotations not allowed in pattern synonym arguments.)

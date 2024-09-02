@@ -13,7 +13,7 @@ import Data.Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A
-import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
+import Agda.Syntax.Concrete (FieldAssignment', exprFieldA, TacticAttribute')
 import Agda.Syntax.Info
 import Agda.Syntax.Scope.Base (KindOfName(..), conKindOfName, WithKind(..))
 
@@ -41,7 +41,7 @@ appView' e = f (DL.toList es)
   where
   (f, es) = appView'' e
 
-  appView'' e = case e of
+  appView'' = \case
     App i e1 e2
       | Dot _ e2' <- unScope $ namedArg e2
       , Just f <- maybeProjTurnPostfix e2'
@@ -50,7 +50,7 @@ appView' e = f (DL.toList es)
     App i e1 arg | (f, es) <- appView'' e1 ->
       (f, es `DL.snoc` (fmap . fmap) (i,) arg)
     ScopedExpr _ e -> appView'' e
-    _              -> (Application e, mempty)
+    e              -> (Application e, mempty)
 
 maybeProjTurnPostfix :: Expr -> Maybe Expr
 maybeProjTurnPostfix e =
@@ -84,11 +84,10 @@ piView = \case
 unPiView :: PiView -> Expr
 unPiView (PiView tels t) = foldr (uncurry Pi) t tels
 
--- | Gather top-level 'AsP'atterns and 'AnnP'atterns to expose underlying pattern.
-asView :: A.Pattern -> ([Name], [A.Expr], A.Pattern)
-asView (A.AsP _ x p)  = (\(asb, ann, p) -> (unBind x : asb, ann, p)) $ asView p
-asView (A.AnnP _ a p) = (\(asb, ann, p) -> (asb, a : ann, p))        $ asView p
-asView p              = ([], [], p)
+-- | Gather top-level 'AsP'atterns to expose underlying pattern.
+asView :: A.Pattern -> ([Name], A.Pattern)
+asView (A.AsP _ x p)  = (\(asb, p) -> (unBind x : asb, p)) $ asView p
+asView p              = ([], p)
 
 -- | Remove top 'ScopedExpr' wrappers.
 unScope :: Expr -> Expr
@@ -257,6 +256,7 @@ instance ExprLike a => ExprLike (Named x a)
 instance ExprLike a => ExprLike (Ranged a)
 instance ExprLike a => ExprLike [a]
 instance ExprLike a => ExprLike (List1 a)
+instance ExprLike a => ExprLike (TacticAttribute' a)
 
 instance (ExprLike a, ExprLike b) => ExprLike (a, b) where
   recurseExpr f (x, y) = (,) <$> recurseExpr f x <*> recurseExpr f y
@@ -411,9 +411,11 @@ instance ExprLike Pragma where
       CompilePragma{}             -> pure p
       StaticPragma{}              -> pure p
       InjectivePragma{}           -> pure p
+      InjectiveForInferencePragma{} -> pure p
       InlinePragma{}              -> pure p
       EtaPragma{}                 -> pure p
       NotProjectionLikePragma{}   -> pure p
+      OverlapPragma{}             -> pure p
       DisplayPragma f xs e        -> DisplayPragma f <$> rec xs <*> rec e
     where
       rec :: RecurseExprRecFn m
@@ -514,7 +516,7 @@ instance DeclaredNames Declaration where
       PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
       UnquoteDef _ qs _            -> fromList $ map (WithKind FunName) qs       -- cannot be Axiom
-      UnquoteData _ d _ _ cs _     -> singleton (WithKind DataName d) <> (fromList $ map (WithKind ConName) cs) -- singleton _ <> map (WithKind ConName) cs
+      UnquoteData _ d _ _ cs _     -> singleton (WithKind DataName d) <> fromList (map (WithKind ConName) cs) -- singleton _ <> map (WithKind ConName) cs
       FunDef _ q cls               -> singleton (WithKind FunName q) <> declaredNames cls
       ScopedDecl _ decls           -> declaredNames decls
       Section _ _ _ _ decls        -> declaredNames decls
@@ -537,10 +539,12 @@ instance DeclaredNames Pragma where
     StaticPragma{}            -> mempty
     EtaPragma{}               -> mempty
     InjectivePragma{}         -> mempty
+    InjectiveForInferencePragma{} -> mempty
     InlinePragma{}            -> mempty
     NotProjectionLikePragma{} -> mempty
     DisplayPragma{}           -> mempty
     OptionsPragma{}           -> mempty
+    OverlapPragma{}           -> mempty
 
 instance DeclaredNames Clause where
   declaredNames (Clause _ _ rhs decls _) = declaredNames rhs <> declaredNames decls

@@ -1,3 +1,5 @@
+{-# OPTIONS --keep-pattern-variables #-}
+
 module Issue231 where
 
 postulate

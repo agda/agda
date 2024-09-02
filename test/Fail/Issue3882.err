@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _B_103 (ψ = ψ) (n = _y_129)
   (b = (×id (λ x₁ → p x₁ .fst) (s₁ , wrap (v s₁)))) x
@@ -53,6 +54,7 @@ Failed to solve the following constraints:
     = _B_103 (ψ = ψ) (n = n₀) (b = b) x
     : Set
     (blocked on any(_B_103, _x_128))
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue3882.agda:72,72-75
   Issue3882.agda:78,19-33

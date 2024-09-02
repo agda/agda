@@ -1,4 +1,5 @@
-Issue2024-fun.agda:3,17-20
+Issue2024-fun.agda:3,17-20: error: [NotInScope]
 Not in scope:
-  Foo at Issue2024-fun.agda:3,17-20
+  Foo
+  at Issue2024-fun.agda:3,17-20
 when scope checking Foo

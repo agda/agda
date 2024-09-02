@@ -1,0 +1,7 @@
+InvalidModalTelescopeUse.agda:12,7-8: error: [InvalidModalTelescopeUse]
+Telescope variable a
+is indirectly being used in the default modality
+but only available in the squashed modality
+when inserting into the telescope of definition
+InvalidModalTelescopeUse.M.b : (a₁ : A) → A
+when checking that the expression b has type A

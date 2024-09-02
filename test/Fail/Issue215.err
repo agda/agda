@@ -1,5 +1,0 @@
-Issue215.agda:6,1-52
-COMPILE pragmas must appear in the same module as their
-corresponding definitions,
-when checking the pragma
-COMPILE GHC Bool = data Bool (True | False)

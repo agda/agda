@@ -1,4 +1,4 @@
-{-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 import Data.List
 import Data.Maybe
@@ -18,8 +18,8 @@ import System.Exit
 import System.IO
 import System.IO.Error (isDoesNotExistError)
 
-import Control.Monad (forM_, unless)
-import Control.Exception (bracket, catch, throwIO)
+import Control.Monad
+import Control.Exception
 
 main :: IO ()
 main = defaultMainWithHooks userhooks
@@ -44,9 +44,9 @@ copyHook' pd lbi hooks flags = do
   copyHook simpleUserHooks pd lbi hooks flags
   unless (skipInterfaces lbi) $ do
     -- Generate .agdai files.
-    generateInterfaces pd lbi
+    success <- generateInterfaces pd lbi
     -- Copy again, now including the .agdai files.
-    copyHook simpleUserHooks pd' lbi hooks flags
+    when success $ copyHook simpleUserHooks pd' lbi hooks flags
   where
   pd' = pd
     { dataFiles = concatMap (expandAgdaExt pd) $ dataFiles pd
@@ -89,7 +89,9 @@ toIFile pd file = buildDir </> fileName where
 skipInterfaces :: LocalBuildInfo -> Bool
 skipInterfaces lbi = fromPathTemplate (progSuffix lbi) == "-quicker"
 
-generateInterfaces :: PackageDescription -> LocalBuildInfo -> IO ()
+-- | Returns 'True' if call to Agda executes without error.
+--
+generateInterfaces :: PackageDescription -> LocalBuildInfo -> IO Bool
 generateInterfaces pd lbi = do
 
   -- for debugging, these are examples how you can inspect the flags...
@@ -121,30 +123,53 @@ generateInterfaces pd lbi = do
 
   -- Type-check all builtin modules (in a single Agda session to take
   -- advantage of caching).
-  let loadBuiltinCmds = concat
-        [ [ cmd ("Cmd_load " ++ f ++ " []")
-          , cmd "Cmd_no_metas"
+  let agdaDirEnvVar = "Agda_datadir"
+  let agdaArgs =
+        [ "--interaction"
+        , "--interaction-exit-on-error"
+        , "-Werror"
+        , "-v0"
+        ]
+  let loadBuiltinCmds =
+        [ cmd ("Cmd_load_no_metas " ++ f)
             -- Fail if any meta-variable is unsolved.
-          ]
         | b <- builtins
         , let f     = show (ddir </> b)
               cmd c = "IOTCM " ++ f ++ " None Indirect (" ++ c ++ ")"
         ]
+  let callLines = concat
+        [ [ unwords $ concat
+            [ [ concat [ agdaDirEnvVar, "=", ddir ] ]
+            , [ agda ]
+            , agdaArgs
+            , [ "<<EOF" ]
+            ]
+          ]
+        , loadBuiltinCmds
+        , [ "EOF" ]
+        ]
+  let onIOError (e :: IOException) = False <$ do
+        putStr $ unlines $ concat
+          [ [ "*** Warning!"
+            , "*** Could not generate Agda library interface files."
+            , "*** Reason:"
+            , show e
+            , "*** The attempted call to Agda was:"
+            ]
+          , callLines
+          , [ "*** Ignoring error, continuing installation..." ]
+          ]
   env <- getEnvironment
-  _output <- readCreateProcess
-      (proc agda
-          [ "--interaction"
-          , "--interaction-exit-on-error"
-          , "-Werror"
-          , "-v0"
-          ])
+  handle onIOError $ do
+    True <$ readCreateProcess
+      (proc agda agdaArgs)
         { delegate_ctlc = True
                           -- Make Agda look for data files in a
                           -- certain place.
-        , env           = Just (("Agda_datadir", ddir) : env)
+        , env           = Just ((agdaDirEnvVar, ddir) : env)
         }
       (unlines loadBuiltinCmds)
-  return ()
+
 
 agdaExeExtension :: String
 agdaExeExtension = exeExtension buildPlatform

@@ -1,7 +1,7 @@
 AGDA_FAILURE
 
 ret > ExitFailure 42
-out > Issue6660-sized-Stream.agda:19,41-69
+out > Issue6660-sized-Stream.agda:19,41-69: error: [UnequalTerms]
 out > Stream _i_15 _C_18 !=< ({j : Size< i} → Stream j C)
 out > when checking that the inferred type of an application
 out >   Stream _i_15 _C_18

@@ -1,0 +1,4 @@
+ExpectedIntervalLiteral.agda:16,9-16: error: [ExpectedIntervalLiteral]
+Expected an interval literal (i0 or i1) but found: foo
+when checking that the pattern (i = foo) has type
+IsOne (_φ_15 (p = p) (q = q) (i = i))

@@ -1,3 +1,3 @@
-IrrelevantMatchRefl.agda:11,9-13
+IrrelevantMatchRefl.agda:11,9-13: error: [SplitOnIrrelevant]
 Cannot pattern match against irrelevant argument of type a ≡ b
 when checking that the pattern refl has type a ≡ b

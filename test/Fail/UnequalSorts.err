@@ -1,3 +1,3 @@
-UnequalSorts.agda:8,7-11
+UnequalSorts.agda:8,7-11: error: [UnequalTerms]
 One' !=< One
 when checking that the expression one' has type One

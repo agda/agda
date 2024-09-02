@@ -1,3 +1,5 @@
+{-# OPTIONS --no-keep-pattern-variables #-}
+
 -- Andreas, 2017-09-03, issue #2729.
 -- Expect non-indexed or -primed variables when splitting.
 

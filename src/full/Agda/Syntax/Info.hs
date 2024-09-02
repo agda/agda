@@ -20,7 +20,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Concrete
 import Agda.Syntax.Fixity
-import Agda.Syntax.Scope.Base (ScopeInfo, emptyScopeInfo)
+import Agda.Syntax.Scope.Base (ScopeInfo)
 
 import Agda.Utils.Functor
 import Agda.Utils.Null
@@ -29,21 +29,51 @@ import Agda.Utils.Null
     Meta information
  --------------------------------------------------------------------------}
 
+-- | Kind of a meta: the method how to solve it.
+--
+data MetaKind
+  = InstanceMeta     -- ^ Meta variable solved by instance search.
+  | UnificationMeta  -- ^ Meta variable solved by unification (default).
+  deriving (Show, Eq, Generic)
+
+instance Null MetaKind where
+  empty = UnificationMeta
+
+instance NFData MetaKind
+
+-- | Default meta kind from its 'Hiding' context.
+--
+hidingToMetaKind :: Hiding -> MetaKind
+hidingToMetaKind = \case
+  Instance{} -> InstanceMeta
+  Hidden     -> UnificationMeta
+  NotHidden  -> UnificationMeta
+
+-- | Name suggestion for meta variable.  Empty string means no suggestion.
+type MetaNameSuggestion = String
+
+-- | Information associated to a meta variable in the abstract syntax.
+--
 data MetaInfo = MetaInfo
   { metaRange          :: Range
   , metaScope          :: ScopeInfo
   , metaNumber         :: Maybe MetaId
-  , metaNameSuggestion :: String
+  , metaNameSuggestion :: MetaNameSuggestion
+  , metaKind           :: MetaKind
   }
   deriving (Show, Eq, Generic)
 
 emptyMetaInfo :: MetaInfo
 emptyMetaInfo = MetaInfo
   { metaRange          = noRange
-  , metaScope          = emptyScopeInfo
+  , metaScope          = empty
   , metaNumber         = Nothing
   , metaNameSuggestion = ""
+  , metaKind           = empty
   }
+
+instance Null MetaInfo where
+  empty = emptyMetaInfo
 
 instance HasRange MetaInfo where
   getRange = metaRange
@@ -51,7 +81,8 @@ instance HasRange MetaInfo where
 instance KillRange MetaInfo where
   killRange m = m { metaRange = noRange }
 
-instance NFData MetaInfo
+instance NFData MetaInfo where
+  rnf (MetaInfo _ a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 
 {--------------------------------------------------------------------------
     General expression information
@@ -142,6 +173,31 @@ instance HasRange LetInfo where
 instance KillRange LetInfo where
   killRange (LetRange r) = LetRange noRange
 
+------------------------------------------------------------------------
+-- Record info
+------------------------------------------------------------------------
+
+data RecInfo = RecInfo Range RecStyle
+  deriving (Show, Eq, Generic)
+
+data RecStyle = RecStyleWhere | RecStyleBrace
+  deriving (Show, Eq, Generic)
+
+recInfoBrace :: Range -> RecInfo
+recInfoBrace r = RecInfo r RecStyleBrace
+
+recInfoWhere :: Range -> RecInfo
+recInfoWhere r = RecInfo r RecStyleWhere
+
+instance NFData RecInfo
+instance NFData RecStyle
+
+instance HasRange RecInfo where
+  getRange (RecInfo r _) = r
+
+instance KillRange RecInfo where
+  killRange (RecInfo r s) = RecInfo noRange s
+
 {--------------------------------------------------------------------------
     Definition information (declarations that actually define something)
  --------------------------------------------------------------------------}
@@ -154,7 +210,7 @@ data DefInfo' t = DefInfo
   , defInstance :: IsInstance
   , defMacro    :: IsMacro
   , defInfo     :: DeclInfo
-  , defTactic   :: Maybe (Ranged t)
+  , defTactic   :: TacticAttribute' t
   }
   deriving (Show, Eq, Generic)
 
@@ -163,7 +219,7 @@ mkDefInfo x f a ab r = mkDefInfoInstance x f a ab NotInstanceDef NotMacroDef r
 
 -- | Same as @mkDefInfo@ but where we can also give the @IsInstance@
 mkDefInfoInstance :: Name -> Fixity' -> Access -> IsAbstract -> IsInstance -> IsMacro -> Range -> DefInfo' t
-mkDefInfoInstance x f a ab i m r = DefInfo f a ab TransparentDef i m (DeclInfo x r) Nothing
+mkDefInfoInstance x f a ab i m r = DefInfo f a ab TransparentDef i m (DeclInfo x r) empty
 
 instance HasRange (DefInfo' t) where
   getRange = getRange . defInfo

@@ -1,9 +1,9 @@
-Issue1384.agda:18,3-41
+Issue1384.agda:18,3-41: error: [CoverageIssue]
 Incomplete pattern matching for test. Missing cases:
   test I
   test (App false false .false refl (App a b .false x x₁ x₂) x₃)
 when checking the definition of test
-Issue1384.agda:29,3-41
+Issue1384.agda:29,3-41: error: [CoverageIssue]
 Incomplete pattern matching for test. Missing cases:
   test I
   test (App false false .false (App a b .false x x₁ x₂) x₃ refl)

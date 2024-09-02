@@ -1,4 +1,2 @@
-Issue5029-2.agda:1,1-51
-You may only turn off benign warnings. The warning
-SafeFlagNoCoverageCheck is a non-fatal error and thus cannot be
-ignored. See --help=warning.
+Issue5029-2.agda:8,1-21: error: [SafeFlagNoCoverageCheck]
+Cannot use NON_COVERING pragma with safe flag.

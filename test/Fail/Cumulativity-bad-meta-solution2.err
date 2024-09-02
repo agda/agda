@@ -1,4 +1,4 @@
-Cumulativity-bad-meta-solution2.agda:7,7-8
+Cumulativity-bad-meta-solution2.agda:7,7-8: error: [NotLeqSort]
 Set₁ is not less or equal than Set
 when checking that the solution Set of metavariable _3 has the
 expected type Set

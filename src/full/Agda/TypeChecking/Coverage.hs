@@ -862,7 +862,7 @@ computeHCompSplit  :: Telescope   -- ^ Telescope before split point.
   -- -> QName                        -- ^ Constructor to fit into hole.
   -> CoverM (Maybe (SplitTag,SplitClause))   -- ^ New split clause if successful.
 computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
-  withK   <- not . optCubicalCompatible <$> pragmaOptions
+  withK   <- not <$> cubicalCompatibleOption
   if withK then return Nothing else do
     -- Get the type of the datatype
   -- Δ1 ⊢ dtype
@@ -1036,7 +1036,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
         Right{} -> return ()
         Left SplitOnStrict -> return ()
         Left x -> do
-          whenM (optCubicalCompatible <$> pragmaOptions) $ do
+          whenM cubicalCompatibleOption $ do
             -- re #3733: TODO better error msg.
             lift $ warning . UnsupportedIndexedMatch =<< prettyTCM x
 
@@ -1458,9 +1458,10 @@ splitResultRecord f sc@(SClause tel ps _ _ target) = do
   -- if we want to split projections, but have no target type, we give up
   let failure = return . Left
   caseMaybe target (failure CosplitNoTarget) $ \ t -> do
-    isR <- addContext tel $ isRecordType $ unDom t
-    case isR of
-      Just (_r, vs, Record{ recFields = fs }) -> do
+    (addContext tel $ isRecordType $ unDom t) >>= \case
+      Nothing -> addContext tel $ do
+        failure . CosplitNoRecordType =<< buildClosure (unDom t)
+      Just (_r, vs, RecordData{ _recFields = fs }) -> do
         reportSDoc "tc.cover" 20 $ sep
           [ text $ "we are of record type _r = " ++ prettyShow _r
           , text   "applied to parameters vs =" <+> addContext tel (prettyTCM vs)
@@ -1506,8 +1507,6 @@ splitResultRecord f sc@(SClause tel ps _ _ target) = do
               [ "fieldSub for" <+> prettyTCM (unDom proj)
               , nest 2 $ pretty fieldSub ]
             return (SplitCon (unDom proj), (sc', NoInfo))
-      _ -> addContext tel $ do
-        buildClosure (unDom t) >>= failure . CosplitNoRecordType
   -- Andreas, 2018-06-09, issue #2170: splitting with irrelevant fields is always fine!
   -- where
   -- -- A record type is strong if it has all the projections.

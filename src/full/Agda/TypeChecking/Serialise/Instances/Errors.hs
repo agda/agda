@@ -21,6 +21,16 @@ import Agda.Utils.ProfileOptions
 
 import Agda.Utils.Impossible
 
+instance EmbPrj IsAmbiguous where
+  icod_ = \case
+    YesAmbiguous a -> icodeN' YesAmbiguous a
+    NotAmbiguous   -> icodeN' NotAmbiguous
+
+  value = vcase \case
+    [a] -> valuN YesAmbiguous a
+    []  -> valuN NotAmbiguous
+    _   -> malformed
+
 instance EmbPrj TCWarning where
   icod_ (TCWarning fp a b c d) = icodeN' TCWarning fp a b c d
   value = valueN TCWarning
@@ -32,6 +42,7 @@ instance EmbPrj Warning where
     UnreachableClauses a b                -> icodeN 0 UnreachableClauses a b
     CoverageIssue a b                     -> __IMPOSSIBLE__
     NotStrictlyPositive a b               -> __IMPOSSIBLE__
+    ConstructorDoesNotFitInData{}         -> __IMPOSSIBLE__
     UnsolvedMetaVariables a               -> __IMPOSSIBLE__
     UnsolvedInteractionMetas a            -> __IMPOSSIBLE__
     UnsolvedConstraints a                 -> __IMPOSSIBLE__
@@ -40,16 +51,16 @@ instance EmbPrj Warning where
     EmptyRewritePragma                    -> icodeN 2 EmptyRewritePragma
     UselessPublic                         -> icodeN 3 UselessPublic
     UselessInline a                       -> icodeN 4 UselessInline a
-    GenericWarning a                      -> icodeN 5 GenericWarning a
     InvalidCharacterLiteral a             -> __IMPOSSIBLE__
     SafeFlagPostulate a                   -> __IMPOSSIBLE__
     SafeFlagPragma a                      -> __IMPOSSIBLE__
     SafeFlagWithoutKFlagPrimEraseEquality -> __IMPOSSIBLE__
+    DuplicateRecordDirective a            -> icodeN 5 DuplicateRecordDirective a
     DeprecationWarning a b c              -> icodeN 6 DeprecationWarning a b c
     NicifierIssue a                       -> icodeN 7 NicifierIssue a
     InversionDepthReached a               -> icodeN 8 InversionDepthReached a
     UserWarning a                         -> icodeN 9 UserWarning a
-    AbsurdPatternRequiresNoRHS a          -> icodeN 10 AbsurdPatternRequiresNoRHS a
+    AbsurdPatternRequiresAbsentRHS a      -> icodeN 10 AbsurdPatternRequiresAbsentRHS a
     ModuleDoesntExport a b c d            -> icodeN 11 ModuleDoesntExport a b c d
     LibraryWarning a                      -> icodeN 12 LibraryWarning a
     CoverageNoExactSplit a b              -> icodeN 13 CoverageNoExactSplit a b
@@ -89,6 +100,36 @@ instance EmbPrj Warning where
     FaceConstraintCannotBeHidden a        -> icodeN 47 FaceConstraintCannotBeHidden a
     FaceConstraintCannotBeNamed a         -> icodeN 48 FaceConstraintCannotBeNamed a
     PatternShadowsConstructor a b         -> icodeN 49 PatternShadowsConstructor a b
+    -- Not source code related, therefore they should never be serialized
+    DuplicateInterfaceFiles a b           -> __IMPOSSIBLE__
+    ConfluenceCheckingIncompleteBecauseOfMeta a -> icodeN 50 ConfluenceCheckingIncompleteBecauseOfMeta a
+    BuiltinDeclaresIdentifier a                 -> icodeN 51 BuiltinDeclaresIdentifier a
+    ConfluenceForCubicalNotSupported            -> icodeN 52 ConfluenceForCubicalNotSupported
+    -- We do not need to serialize compiler warnings:
+    PragmaCompileList                           -> __IMPOSSIBLE__
+    PragmaCompileMaybe                          -> __IMPOSSIBLE__
+    NoMain _                                    -> __IMPOSSIBLE__
+    IllegalRewriteRule a b                      -> icodeN 53 IllegalRewriteRule a b
+    MissingTypeSignatureForOpaque a b           -> icodeN 54 MissingTypeSignatureForOpaque a b
+    ConflictingPragmaOptions a b                -> icodeN 55 ConflictingPragmaOptions a b
+    CustomBackendWarning a b                    -> icodeN 56 CustomBackendWarning a b
+    CoinductiveEtaRecord a                      -> icodeN 57 CoinductiveEtaRecord a
+    WithClauseProjectionFixityMismatch a b c d  -> icodeN 58 WithClauseProjectionFixityMismatch a b c d
+    InvalidDisplayForm a b                      -> icodeN 59 InvalidDisplayForm a b
+    TooManyArgumentsToSort a b                  -> __IMPOSSIBLE__
+    NotARewriteRule a b                         -> icodeN 60 NotARewriteRule a b
+    PragmaCompileWrongName a b                  -> icodeN 61 PragmaCompileWrongName a b
+    PragmaCompileUnparsable a                   -> icodeN 62 PragmaCompileUnparsable a
+    PragmaCompileWrong a b                      -> icodeN 63 PragmaCompileWrong a b
+    PragmaExpectsUnambiguousConstructorOrFunction a b c ->
+      icodeN 64 PragmaExpectsUnambiguousConstructorOrFunction a b c
+    PragmaExpectsUnambiguousProjectionOrFunction a b c ->
+      icodeN 65 PragmaExpectsUnambiguousProjectionOrFunction a b c
+    PragmaExpectsDefinedSymbol a b              -> icodeN 66 PragmaExpectsDefinedSymbol a b
+    UnfoldingWrongName a                        -> icodeN 67 UnfoldingWrongName a
+    -- TODO: linearity
+    -- FixingQuantity a b c                        -> icodeN 68 FixingQuantity a b c
+    FixingRelevance a b c                       -> icodeN 69 FixingRelevance a b c
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -96,12 +137,12 @@ instance EmbPrj Warning where
     [2]                  -> valuN EmptyRewritePragma
     [3]                  -> valuN UselessPublic
     [4, a]               -> valuN UselessInline a
-    [5, a]               -> valuN GenericWarning a
+    [5, a]               -> valuN DuplicateRecordDirective a
     [6, a, b, c]         -> valuN DeprecationWarning a b c
     [7, a]               -> valuN NicifierIssue a
     [8, a]               -> valuN InversionDepthReached a
     [9, a]               -> valuN UserWarning a
-    [10, a]              -> valuN AbsurdPatternRequiresNoRHS a
+    [10, a]              -> valuN AbsurdPatternRequiresAbsentRHS a
     [11, a, b, c, d]     -> valuN ModuleDoesntExport a b c d
     [12, a]              -> valuN LibraryWarning a
     [13, a, b]           -> valuN CoverageNoExactSplit a b
@@ -141,14 +182,85 @@ instance EmbPrj Warning where
     [47, a]              -> valuN FaceConstraintCannotBeHidden a
     [48, a]              -> valuN FaceConstraintCannotBeNamed a
     [49, a, b]           -> valuN PatternShadowsConstructor a b
+    [50, a]              -> valuN ConfluenceCheckingIncompleteBecauseOfMeta a
+    [51, a]              -> valuN BuiltinDeclaresIdentifier a
+    [52]                 -> valuN ConfluenceForCubicalNotSupported
+    [53, a, b]           -> valuN IllegalRewriteRule a b
+    [54, a, b]           -> valuN MissingTypeSignatureForOpaque a b
+    [55, a, b]           -> valuN ConflictingPragmaOptions a b
+    [56, a, b]           -> valuN CustomBackendWarning a b
+    [57, a]              -> valuN CoinductiveEtaRecord a
+    [58, a, b, c, d]     -> valuN WithClauseProjectionFixityMismatch a b c d
+    [59, a, b]           -> valuN InvalidDisplayForm a b
+    [60, a, b]           -> valuN NotARewriteRule a b
+    [61, a, b]           -> valuN PragmaCompileWrongName a b
+    [62, a]              -> valuN PragmaCompileUnparsable a
+    [63, a, b]           -> valuN PragmaCompileWrong a b
+    [64, a, b, c]        -> valuN PragmaExpectsUnambiguousConstructorOrFunction a b c
+    [65, a, b, c]        -> valuN PragmaExpectsUnambiguousProjectionOrFunction a b c
+    [66, a, b]           -> valuN PragmaExpectsDefinedSymbol a b
+    [67, a]              -> valuN UnfoldingWrongName a
+    -- TODO: linearity
+    -- [68, a, b, c]        -> valuN FixingQuantity a b c
+    [69, a, b, c]        -> valuN FixingRelevance a b c
+    _ -> malformed
+
+instance EmbPrj IllegalRewriteRuleReason where
+  icod_ = \case
+    LHSNotDefinitionOrConstructor               -> icodeN 0 LHSNotDefinitionOrConstructor
+    VariablesNotBoundByLHS a                    -> icodeN 1 VariablesNotBoundByLHS a
+    VariablesBoundMoreThanOnce a                -> icodeN 2 VariablesBoundMoreThanOnce a
+    LHSReduces a b                              -> icodeN 3 LHSReduces a b
+    -- 4 was HeadSymbolIsProjection
+    HeadSymbolIsProjectionLikeFunction a        -> icodeN 5 HeadSymbolIsProjectionLikeFunction a
+    HeadSymbolIsTypeConstructor a               -> icodeN 6 HeadSymbolIsTypeConstructor a
+    HeadSymbolContainsMetas a                   -> icodeN 7 HeadSymbolContainsMetas a
+    ConstructorParametersNotGeneral a b         -> icodeN 8 ConstructorParametersNotGeneral a b
+    ContainsUnsolvedMetaVariables a             -> icodeN 9 ContainsUnsolvedMetaVariables a
+    BlockedOnProblems a                         -> icodeN 10 BlockedOnProblems a
+    RequiresDefinitions a                       -> icodeN 11 RequiresDefinitions a
+    DoesNotTargetRewriteRelation                -> icodeN 12 DoesNotTargetRewriteRelation
+    BeforeFunctionDefinition                    -> icodeN 13 BeforeFunctionDefinition
+    BeforeMutualFunctionDefinition a            -> icodeN 14 BeforeMutualFunctionDefinition a
+    DuplicateRewriteRule                        -> icodeN 15 DuplicateRewriteRule
+
+  value = vcase $ \case
+    [0]       -> valuN LHSNotDefinitionOrConstructor
+    [1, a]    -> valuN VariablesNotBoundByLHS a
+    [2, a]    -> valuN VariablesBoundMoreThanOnce a
+    [3, a, b] -> valuN LHSReduces a b
+    -- 4 was HeadSymbolIsProjection
+    [5, a]    -> valuN HeadSymbolIsProjectionLikeFunction a
+    [6, a]    -> valuN HeadSymbolIsTypeConstructor a
+    [7, a]    -> valuN HeadSymbolContainsMetas a
+    [8, a, b] -> valuN ConstructorParametersNotGeneral a b
+    [9, a]    -> valuN ContainsUnsolvedMetaVariables a
+    [10, a]   -> valuN BlockedOnProblems a
+    [11, a]   -> valuN RequiresDefinitions a
+    [12]      -> valuN DoesNotTargetRewriteRelation
+    [13]      -> valuN BeforeFunctionDefinition
+    [14, a]   -> valuN BeforeMutualFunctionDefinition a
+    [15]      -> valuN DuplicateRewriteRule
     _ -> malformed
 
 instance EmbPrj OptionWarning where
   icod_ = \case
-    OptionRenamed a b -> icodeN' OptionRenamed a b
+    OptionRenamed a b -> icodeN 0 OptionRenamed a b
+    WarningProblem a  -> icodeN 1 WarningProblem a
 
   value = vcase $ \case
-    [a, b] -> valuN OptionRenamed a b
+    [0, a, b] -> valuN OptionRenamed a b
+    [1, a]    -> valuN WarningProblem a
+    _ -> malformed
+
+instance EmbPrj WarningModeError where
+  icod_ = \case
+    Unknown a   -> icodeN 0 Unknown a
+    NoNoError a -> icodeN 1 NoNoError a
+
+  value = vcase $ \case
+    [0, a] -> valuN Unknown a
+    [1, a] -> valuN NoNoError a
     _ -> malformed
 
 instance EmbPrj ParseWarning where
@@ -210,11 +322,12 @@ instance EmbPrj DeclarationWarning' where
     OpenPublicAbstract r              -> icodeN 26 OpenPublicAbstract r
     OpenPublicPrivate r               -> icodeN 27 OpenPublicPrivate r
     EmptyConstructor a                -> icodeN 28 EmptyConstructor a
-    InvalidRecordDirective a          -> icodeN 29 InvalidRecordDirective a
-    InvalidConstructor a              -> icodeN 30 InvalidConstructor a
+    -- 29 removed
+    -- 30 removed
     InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
     MissingDeclarations a             -> icodeN 32 MissingDeclarations a
     HiddenGeneralize r                -> icodeN 33 HiddenGeneralize r
+    UselessMacro r                    -> icodeN 34 UselessMacro r
     SafeFlagEta                    {} -> __IMPOSSIBLE__
     SafeFlagInjective              {} -> __IMPOSSIBLE__
     SafeFlagNoCoverageCheck        {} -> __IMPOSSIBLE__
@@ -254,11 +367,12 @@ instance EmbPrj DeclarationWarning' where
     [26,r]   -> valuN OpenPublicAbstract r
     [27,r]   -> valuN OpenPublicPrivate r
     [28,r]   -> valuN EmptyConstructor r
-    [29,r]   -> valuN InvalidRecordDirective r
-    [30,r]   -> valuN InvalidConstructor r
+    -- 29 removed
+    -- 30 removed
     [31,r]   -> valuN InvalidConstructorBlock r
     [32,r]   -> valuN MissingDeclarations r
     [33,r]   -> valuN HiddenGeneralize r
+    [34,r]   -> valuN UselessMacro r
     _ -> malformed
 
 instance EmbPrj LibWarning where
@@ -308,8 +422,8 @@ instance EmbPrj InfectiveCoinfective where
     valu _   = malformed
 
 instance EmbPrj PragmaOptions where
-  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp) =
-    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp
+  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq) =
+    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq
 
   value = valueN PragmaOptions
 
@@ -317,7 +431,9 @@ instance EmbPrj ProfileOptions where
   icod_ opts = icode (profileOptionsToList opts)
   value = fmap profileOptionsFromList . value
 
-instance EmbPrj ProfileOption where
+instance EmbPrj ProfileOption
+
+instance EmbPrj LHSOrPatSyn
 
 instance EmbPrj UnicodeOrAscii
 
@@ -335,222 +451,9 @@ instance EmbPrj WarningMode where
 
   value = valueN WarningMode
 
-instance EmbPrj WarningName where
-  icod_ = return . \case
-    OverlappingTokensWarning_                    -> 0
-    UnsupportedAttribute_                        -> 1
-    MultipleAttributes_                          -> 2
-    LibUnknownField_                             -> 3
-    EmptyAbstract_                               -> 4
-    EmptyConstructor_                            -> 5
-    EmptyField_                                  -> 6
-    EmptyGeneralize_                             -> 7
-    EmptyInstance_                               -> 8
-    EmptyMacro_                                  -> 9
-    EmptyMutual_                                 -> 10
-    EmptyPostulate_                              -> 11
-    EmptyPrimitive_                              -> 12
-    EmptyPrivate_                                -> 13
-    EmptyRewritePragma_                          -> 14
-    EmptyWhere_                                  -> 15
-    HiddenGeneralize_                            -> 16
-    InvalidCatchallPragma_                       -> 17
-    InvalidConstructor_                          -> 18
-    InvalidConstructorBlock_                     -> 19
-    InvalidCoverageCheckPragma_                  -> 20
-    InvalidNoPositivityCheckPragma_              -> 21
-    InvalidNoUniverseCheckPragma_                -> 22
-    InvalidRecordDirective_                      -> 23
-    InvalidTerminationCheckPragma_               -> 24
-    MissingDeclarations_                         -> 25
-    MissingDefinitions_                          -> 26
-    NotAllowedInMutual_                          -> 27
-    OpenPublicAbstract_                          -> 28
-    OpenPublicPrivate_                           -> 29
-    PolarityPragmasButNotPostulates_             -> 30
-    PragmaCompiled_                              -> 31
-    PragmaNoTerminationCheck_                    -> 32
-    ShadowingInTelescope_                        -> 33
-    UnknownFixityInMixfixDecl_                   -> 34
-    UnknownNamesInFixityDecl_                    -> 35
-    UnknownNamesInPolarityPragmas_               -> 36
-    UselessAbstract_                             -> 37
-    UselessInstance_                             -> 38
-    UselessPrivate_                              -> 39
-    AbsurdPatternRequiresNoRHS_                  -> 40
-    AsPatternShadowsConstructorOrPatternSynonym_ -> 41
-    CantGeneralizeOverSorts_                     -> 42
-    ClashesViaRenaming_                          -> 43
-    CoverageIssue_                               -> 44
-    CoverageNoExactSplit_                        -> 45
-    DeprecationWarning_                          -> 46
-    DuplicateUsing_                              -> 47
-    FixityInRenamingModule_                      -> 48
-    InvalidCharacterLiteral_                     -> 49
-    UselessPragma_                               -> 50
-    GenericWarning_                              -> 51
-    IllformedAsClause_                           -> 52
-    InstanceArgWithExplicitArg_                  -> 53
-    InstanceWithExplicitArg_                     -> 54
-    InstanceNoOutputTypeName_                    -> 55
-    InversionDepthReached_                       -> 56
-    ModuleDoesntExport_                          -> 57
-    NoGuardednessFlag_                           -> 58
-    NotInScope_                                  -> 59
-    NotStrictlyPositive_                         -> 60
-    UnsupportedIndexedMatch_                     -> 61
-    OldBuiltin_                                  -> 62
-    PragmaCompileErased_                         -> 63
-    RewriteMaybeNonConfluent_                    -> 64
-    RewriteNonConfluent_                         -> 65
-    RewriteAmbiguousRules_                       -> 66
-    RewriteMissingRule_                          -> 67
-    SafeFlagEta_                                 -> 68
-    SafeFlagInjective_                           -> 69
-    SafeFlagNoCoverageCheck_                     -> 70
-    SafeFlagNonTerminating_                      -> 71
-    SafeFlagNoPositivityCheck_                   -> 72
-    SafeFlagNoUniverseCheck_                     -> 73
-    SafeFlagPolarity_                            -> 74
-    SafeFlagPostulate_                           -> 75
-    SafeFlagPragma_                              -> 76
-    SafeFlagTerminating_                         -> 77
-    SafeFlagWithoutKFlagPrimEraseEquality_       -> 78
-    TerminationIssue_                            -> 79
-    UnreachableClauses_                          -> 80
-    UnsolvedConstraints_                         -> 81
-    UnsolvedInteractionMetas_                    -> 82
-    UnsolvedMetaVariables_                       -> 83
-    UselessHiding_                               -> 84
-    UselessInline_                               -> 85
-    UselessPatternDeclarationForRecord_          -> 86
-    UselessPublic_                               -> 87
-    UserWarning_                                 -> 88
-    WithoutKFlagPrimEraseEquality_               -> 89
-    WrongInstanceDeclaration_                    -> 90
-    CoInfectiveImport_                           -> 91
-    InfectiveImport_                             -> 92
-    DuplicateFields_                             -> 93
-    TooManyFields_                               -> 94
-    OptionRenamed_                               -> 95
-    PlentyInHardCompileTimeMode_                 -> 96
-    InteractionMetaBoundaries_                   -> 97
-    NotAffectedByOpaque_                         -> 98
-    UnfoldTransparentName_                       -> 99
-    UselessOpaque_                               -> 100
-    InlineNoExactSplit_                          -> 101
-    FaceConstraintCannotBeHidden_                -> 102
-    FaceConstraintCannotBeNamed_                 -> 103
-    PatternShadowsConstructor_                   -> 104
-
-  value = \case
-    0   -> return OverlappingTokensWarning_
-    1   -> return UnsupportedAttribute_
-    2   -> return MultipleAttributes_
-    3   -> return LibUnknownField_
-    4   -> return EmptyAbstract_
-    5   -> return EmptyConstructor_
-    6   -> return EmptyField_
-    7   -> return EmptyGeneralize_
-    8   -> return EmptyInstance_
-    9   -> return EmptyMacro_
-    10  -> return EmptyMutual_
-    11  -> return EmptyPostulate_
-    12  -> return EmptyPrimitive_
-    13  -> return EmptyPrivate_
-    14  -> return EmptyRewritePragma_
-    15  -> return EmptyWhere_
-    16  -> return HiddenGeneralize_
-    17  -> return InvalidCatchallPragma_
-    18  -> return InvalidConstructor_
-    19  -> return InvalidConstructorBlock_
-    20  -> return InvalidCoverageCheckPragma_
-    21  -> return InvalidNoPositivityCheckPragma_
-    22  -> return InvalidNoUniverseCheckPragma_
-    23  -> return InvalidRecordDirective_
-    24  -> return InvalidTerminationCheckPragma_
-    25  -> return MissingDeclarations_
-    26  -> return MissingDefinitions_
-    27  -> return NotAllowedInMutual_
-    28  -> return OpenPublicAbstract_
-    29  -> return OpenPublicPrivate_
-    30  -> return PolarityPragmasButNotPostulates_
-    31  -> return PragmaCompiled_
-    32  -> return PragmaNoTerminationCheck_
-    33  -> return ShadowingInTelescope_
-    34  -> return UnknownFixityInMixfixDecl_
-    35  -> return UnknownNamesInFixityDecl_
-    36  -> return UnknownNamesInPolarityPragmas_
-    37  -> return UselessAbstract_
-    38  -> return UselessInstance_
-    39  -> return UselessPrivate_
-    40  -> return AbsurdPatternRequiresNoRHS_
-    41  -> return AsPatternShadowsConstructorOrPatternSynonym_
-    42  -> return CantGeneralizeOverSorts_
-    43  -> return ClashesViaRenaming_
-    44  -> return CoverageIssue_
-    45  -> return CoverageNoExactSplit_
-    46  -> return DeprecationWarning_
-    47  -> return DuplicateUsing_
-    48  -> return FixityInRenamingModule_
-    49  -> return InvalidCharacterLiteral_
-    50  -> return UselessPragma_
-    51  -> return GenericWarning_
-    52  -> return IllformedAsClause_
-    53  -> return InstanceArgWithExplicitArg_
-    54  -> return InstanceWithExplicitArg_
-    55  -> return InstanceNoOutputTypeName_
-    56  -> return InversionDepthReached_
-    57  -> return ModuleDoesntExport_
-    58  -> return NoGuardednessFlag_
-    59  -> return NotInScope_
-    60  -> return NotStrictlyPositive_
-    61  -> return UnsupportedIndexedMatch_
-    62  -> return OldBuiltin_
-    63  -> return PragmaCompileErased_
-    64  -> return RewriteMaybeNonConfluent_
-    65  -> return RewriteNonConfluent_
-    66  -> return RewriteAmbiguousRules_
-    67  -> return RewriteMissingRule_
-    68  -> return SafeFlagEta_
-    69  -> return SafeFlagInjective_
-    70  -> return SafeFlagNoCoverageCheck_
-    71  -> return SafeFlagNonTerminating_
-    72  -> return SafeFlagNoPositivityCheck_
-    73  -> return SafeFlagNoUniverseCheck_
-    74  -> return SafeFlagPolarity_
-    75  -> return SafeFlagPostulate_
-    76  -> return SafeFlagPragma_
-    77  -> return SafeFlagTerminating_
-    78  -> return SafeFlagWithoutKFlagPrimEraseEquality_
-    79  -> return TerminationIssue_
-    80  -> return UnreachableClauses_
-    81  -> return UnsolvedConstraints_
-    82  -> return UnsolvedInteractionMetas_
-    83  -> return UnsolvedMetaVariables_
-    84  -> return UselessHiding_
-    85  -> return UselessInline_
-    86  -> return UselessPatternDeclarationForRecord_
-    87  -> return UselessPublic_
-    88  -> return UserWarning_
-    89  -> return WithoutKFlagPrimEraseEquality_
-    90  -> return WrongInstanceDeclaration_
-    91  -> return CoInfectiveImport_
-    92  -> return InfectiveImport_
-    93  -> return DuplicateFields_
-    94  -> return TooManyFields_
-    95  -> return OptionRenamed_
-    96  -> return PlentyInHardCompileTimeMode_
-    97  -> return InteractionMetaBoundaries_
-    98  -> return NotAffectedByOpaque_
-    99  -> return UnfoldTransparentName_
-    100 -> return UselessOpaque_
-    101 -> return InlineNoExactSplit_
-    102 -> return FaceConstraintCannotBeHidden_
-    103 -> return FaceConstraintCannotBeNamed_
-    104 -> return PatternShadowsConstructor_
-    _   -> malformed
-
+-- Andreas, 2024-08-18
+-- Removed manual implementation of EmbPrj for this Enum type.
+instance EmbPrj WarningName
 
 instance EmbPrj CutOff where
   icod_ = \case

@@ -1,3 +1,12 @@
+{-# OPTIONS --guardedness #-}
+
+-- Andreas, 2024-06-22, conflicting ETA pragma
+
+record R : Set where
+  coinductive; no-eta-equality
+
+{-# ETA R #-}
+
 -- Andreas, 2014-07-02 wondering about the ETA pragma (legacy?)
 
 open import Common.Equality

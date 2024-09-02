@@ -1,13 +1,11 @@
-Issue1452-warn.agda:5,5-14
-warning: -W[no]WrongInstanceDeclaration
+Issue1452-warn.agda:5,5-14: warning: -W[no]WrongInstanceDeclaration
 Instances should be of type {Γ} → C, where C evaluates to a
 postulated name or the name of a data or record type, so 'instance'
 is ignored here.
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue1452-warn.agda:5,5-14
-warning: -W[no]WrongInstanceDeclaration
+Issue1452-warn.agda:5,5-14: warning: -W[no]WrongInstanceDeclaration
 Instances should be of type {Γ} → C, where C evaluates to a
 postulated name or the name of a data or record type, so 'instance'
 is ignored here.

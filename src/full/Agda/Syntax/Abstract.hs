@@ -24,7 +24,7 @@ import Data.Void
 
 import GHC.Generics (Generic)
 
-import Agda.Syntax.Concrete (FieldAssignment'(..))
+import Agda.Syntax.Concrete (FieldAssignment'(..), TacticAttribute'(..))
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Internal as I
@@ -103,8 +103,8 @@ data Expr
   | Fun  ExprInfo (Arg Type) Type      -- ^ Non-dependent function space.
   | Let  ExprInfo (List1 LetBinding) Expr
                                        -- ^ @let bs in e@.
-  | Rec  ExprInfo RecordAssigns        -- ^ Record construction.
-  | RecUpdate ExprInfo Expr Assigns    -- ^ Record update.
+  | Rec RecInfo RecordAssigns          -- ^ Record construction.
+  | RecUpdate RecInfo Expr Assigns     -- ^ Record update.
   | ScopedExpr ScopeInfo Expr          -- ^ Scope annotation.
   | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
@@ -180,7 +180,7 @@ data Declaration
       -- ^ The 'Type' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Dummy@,
       --   and the optional name is the constructor's name.
       --   The optional 'Range' is for the @pattern@ attribute.
-  | PatternSynDef QName [Arg BindName] (Pattern' Void)
+  | PatternSynDef QName [WithHiding BindName] (Pattern' Void)
       -- ^ Only for highlighting purposes
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
   | UnquoteDef  [DefInfo] [QName] Expr
@@ -219,9 +219,12 @@ data Pragma
     -- ^ For coinductive records, use pragma instead of regular
     --   @eta-equality@ definition (as it is might make Agda loop).
   | InjectivePragma QName
+  | InjectiveForInferencePragma QName
   | InlinePragma Bool QName -- INLINE or NOINLINE
   | NotProjectionLikePragma QName
-    -- Mark the definition as not being projection-like
+    -- ^ Mark the definition as not being projection-like
+  | OverlapPragma QName OverlapMode
+    -- ^ If the definition is an instance, set its overlap mode.
   | DisplayPragma QName [NamedArg Pattern] Expr
   deriving (Show, Eq, Generic)
 
@@ -247,7 +250,7 @@ type TypeSignature  = Declaration
 type Constructor    = TypeSignature
 type Field          = TypeSignature
 
-type TacticAttr = Maybe (Ranged Expr)
+type TacticAttribute = TacticAttribute' Expr
 
 -- A Binder @x\@p@, the pattern is optional
 data Binder' a = Binder
@@ -268,21 +271,21 @@ extractPattern (Binder p a) = (,a) <$> p
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-  = DomainFree TacticAttr (NamedArg Binder)
+  = DomainFree TacticAttribute (NamedArg Binder)
     -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@ or @x\@p@ or @(p)@
   | DomainFull TypedBinding
     -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
   deriving (Show, Eq, Generic)
 
 mkDomainFree :: NamedArg Binder -> LamBinding
-mkDomainFree = DomainFree Nothing
+mkDomainFree = DomainFree empty
 
 -- | Extra information that is attached to a typed binding, that plays a
 -- role during type checking but strictly speaking is not part of the
 -- @name : type@" relation which a makes up a binding.
 data TypedBindingInfo
   = TypedBindingInfo
-    { tbTacticAttr :: TacticAttr
+    { tbTacticAttr :: TacticAttribute
       -- ^ Does this binding have a tactic annotation?
     , tbFinite     :: Bool
       -- ^ Does this binding correspond to a Partial binder, rather than
@@ -291,11 +294,9 @@ data TypedBindingInfo
     }
   deriving (Show, Eq, Generic)
 
-defaultTbInfo :: TypedBindingInfo
-defaultTbInfo = TypedBindingInfo
-  { tbTacticAttr = Nothing
-  , tbFinite = False
-  }
+instance Null TypedBindingInfo where
+  null (TypedBindingInfo tac fin) = null tac && not fin
+  empty = TypedBindingInfo empty empty
 
 -- | A typed binding.  Appears in dependent function spaces, typed lambdas, and
 --   telescopes.  It might be tempting to simplify this to only bind a single
@@ -319,7 +320,7 @@ data TypedBinding
   deriving (Show, Eq, Generic)
 
 mkTBind :: Range -> List1 (NamedArg Binder) -> Type -> TypedBinding
-mkTBind r = TBind r defaultTbInfo
+mkTBind r = TBind r empty
 
 mkTLet :: Range -> [LetBinding] -> Maybe TypedBinding
 mkTLet _ []     = Nothing
@@ -516,10 +517,9 @@ data Pattern' e
   | AbsurdP PatInfo
   | LitP PatInfo Literal
   | PatternSynP PatInfo AmbiguousQName (NAPs e)
-  | RecP PatInfo [FieldAssignment' (Pattern' e)]
+  | RecP ConPatInfo [FieldAssignment' (Pattern' e)]
   | EqualP PatInfo [(e, e)]
   | WithP PatInfo (Pattern' e)  -- ^ @| p@, for with-patterns.
-  | AnnP PatInfo e (Pattern' e) -- ^ Pattern with type annotation
   deriving (Show, Functor, Foldable, Traversable, Eq, Generic)
 
 type NAPs e   = [NamedArg (Pattern' e)]
@@ -613,7 +613,9 @@ instance Eq Declaration where
 
 instance Underscore Expr where
   underscore   = Underscore emptyMetaInfo
-  isUnderscore = __IMPOSSIBLE__
+  isUnderscore = \case
+    Underscore _ -> True
+    _ -> False
 
 instance LensHiding LamBinding where
   getHiding   (DomainFree _ x) = getHiding x
@@ -703,7 +705,6 @@ instance HasRange (Pattern' e) where
     getRange (RecP i _)          = getRange i
     getRange (EqualP i _)        = getRange i
     getRange (WithP i _)         = getRange i
-    getRange (AnnP i _ _)        = getRange i
 
 instance HasRange SpineLHS where
     getRange (SpineLHS i _ _)  = getRange i
@@ -747,10 +748,9 @@ instance SetRange (Pattern' a) where
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
     setRange r (LitP _ l)           = LitP (PatRange r) l
     setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) n as
-    setRange r (RecP i as)          = RecP (PatRange r) as
+    setRange r (RecP i as)          = RecP (setRange r i) as
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
     setRange r (WithP i p)          = WithP (setRange r i) p
-    setRange r (AnnP i a p)         = AnnP (setRange r i) a p
 
 instance KillRange a => KillRange (Binder' a) where
   killRange (Binder a b) = killRangeN Binder a b
@@ -847,7 +847,6 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (RecP i as)         = killRangeN RecP i as
   killRange (EqualP i es)       = killRangeN EqualP i es
   killRange (WithP i p)         = killRangeN WithP i p
-  killRange (AnnP i a p)        = killRangeN AnnP i a p
 
 instance KillRange SpineLHS where
   killRange (SpineLHS i a b)  = killRangeN SpineLHS i a b
@@ -994,32 +993,14 @@ mkLet :: ExprInfo -> [LetBinding] -> Expr -> Expr
 mkLet _ []     e = e
 mkLet i (d:ds) e = Let i (d :| ds) e
 
-patternToExpr :: Pattern -> Expr
-patternToExpr = \case
-  VarP x             -> Var (unBind x)
-  ConP _ c ps        -> Con c `app` map (fmap (fmap patternToExpr)) ps
-  ProjP _ o ds       -> Proj o ds
-  DefP _ fs ps       -> Def (headAmbQ fs) `app` map (fmap (fmap patternToExpr)) ps
-  WildP _            -> Underscore emptyMetaInfo
-  AsP _ _ p          -> patternToExpr p
-  DotP _ e           -> e
-  AbsurdP _          -> Underscore emptyMetaInfo  -- TODO: could this happen?
-  LitP (PatRange r) l-> Lit (ExprRange r) l
-  PatternSynP _ c ps -> PatternSyn c `app` (map . fmap . fmap) patternToExpr ps
-  RecP _ as          -> Rec exprNoRange $ map (Left . fmap patternToExpr) as
-  EqualP{}           -> __IMPOSSIBLE__  -- Andrea TODO: where is this used?
-  WithP r p          -> __IMPOSSIBLE__
-  AnnP _ _ p         -> patternToExpr p
-
-type PatternSynDefn = ([Arg Name], Pattern' Void)
+type PatternSynDefn = ([WithHiding Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn
 
-lambdaLiftExpr :: [Name] -> Expr -> Expr
-lambdaLiftExpr ns e
-  = foldr
-      (\ n -> Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n))
-      e
-      ns
+lambdaLiftExpr :: [WithHiding Name] -> Expr -> Expr
+lambdaLiftExpr ns e = foldr f e ns
+  where
+  f (WithHiding h n) = Lam exprNoRange $ setHiding h $ mkDomainFree $ defaultNamedArg $ mkBinder_ n
+
 
 -- NOTE: This is only used on expressions that come from right-hand sides of pattern synonyms, and
 -- thus does not have to handle all forms of expressions.
@@ -1082,31 +1063,45 @@ instance SubstExpr Expr where
     Macro{}         -> __IMPOSSIBLE__
 
 -- TODO: more informative failure
-insertImplicitPatSynArgs
-  :: HasRange a
-  => (Range -> a)
+insertImplicitPatSynArgs :: forall a. HasRange a
+  => (Hiding -> Range -> a)
+       -- ^ Thing to insert (wildcard).
   -> Range
-  -> [Arg Name]
+       -- ^ Range of the whole pattern synonym expression/pattern.
+  -> [WithHiding Name]
+       -- ^ The parameters of the pattern synonym (from its definition).
   -> [NamedArg a]
-  -> Maybe ([(Name, a)], [Arg Name])
+       -- ^ The arguments it is used with.
+  -> Maybe ([(Name, a)], [WithHiding Name])
+       -- ^ Substitution and left-over parameters.
 insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
   where
+    matchNextArg :: Range -> WithHiding Name -> [NamedArg a] -> Maybe (a, [NamedArg a])
     matchNextArg r n as@(~(a : as'))
-      | matchNext n as = return (namedArg a, as')
+      | not (null as)
+      , matchNext n a  = return (namedArg a, as')
       | visible n      = Nothing
-      | otherwise      = return (wild r, as)
+      | otherwise      = return (wild (getHiding n) r, as)
 
-    matchNext _ [] = False
-    matchNext n (a:as) = sameHiding n a && maybe True (x ==) (bareNameOf a)
+    matchNext ::
+         WithHiding Name  -- Pattern synonym parameter
+      -> NamedArg a       -- Argument given to pattern synonym
+      -> Bool
+    matchNext n a = sameHiding n a && maybe True (x ==) (bareNameOf a)
       where
-        x = C.nameToRawName $ nameConcrete $ unArg n
+        x = C.nameToRawName $ nameConcrete $ whThing n
 
+    matchArgs ::
+         Range
+      -> [WithHiding Name]
+      -> [NamedArg a]
+      -> Maybe ([(Name, a)], [WithHiding Name])
     matchArgs r [] []     = return ([], [])
     matchArgs r [] as     = Nothing
     matchArgs r (n:ns) [] | visible n = return ([], n : ns)    -- under-applied
     matchArgs r (n:ns) as = do
       (p, as) <- matchNextArg r n as
-      first ((unArg n, p) :) <$> matchArgs (getRange p) ns as
+      first ((whThing n, p) :) <$> matchArgs (getRange p) ns as
 
 ------------------------------------------------------------------------
 -- Declaration spines

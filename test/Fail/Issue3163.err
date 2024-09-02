@@ -1,4 +1,4 @@
-Issue3163.agda:11,8-9
+Issue3163.agda:11,8-9: error: [NotInScope]
 Not in scope:
   A at Issue3163.agda:11,8-9
 when scope checking A

@@ -20,8 +20,7 @@ import Control.Monad.Writer
 
 import Data.Maybe
 import Data.Time                    ( getCurrentTime, getCurrentTimeZone, utcToLocalTime )
-import Data.Time.Format.ISO8601.Compat ( iso8601Show )
-  -- This is also exported from Data.Time.Format.ISO8601, but only from time >= 1.9
+import Data.Time.Format.ISO8601     ( iso8601Show )
 
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base

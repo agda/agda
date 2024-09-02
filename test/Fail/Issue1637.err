@@ -1,3 +1,3 @@
-Issue1637.agda:32,9-10
+Issue1637.agda:32,9-10: error: [UnequalTerms]
 (Z : R A) → P (R.f Z) !=< Set₁
 when checking that the expression f has type Set₁

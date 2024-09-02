@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs              #-}
 
 {-| This module defines the notion of a scope and operations on scopes.
 -}
@@ -86,7 +85,7 @@ localNameSpace PublicAccess    = PublicNS
 localNameSpace PrivateAccess{} = PrivateNS
 
 nameSpaceAccess :: NameSpaceId -> Access
-nameSpaceAccess PrivateNS = PrivateAccess Inserted
+nameSpaceAccess PrivateNS = privateAccessInserted
 nameSpaceAccess _         = PublicAccess
 
 -- | Get a 'NameSpace' from 'Scope'.
@@ -150,16 +149,23 @@ type LocalVars = AssocList C.Name LocalVar
 -- | For each bound variable, we want to know whether it was bound by a
 --   λ, Π, module telescope, pattern, or @let@.
 data BindingSource
-  = LambdaBound  -- ^ @λ@ (currently also used for @Π@ and module parameters)
-  | PatternBound -- ^ @f ... =@
-  | LetBound     -- ^ @let ... in@
-  | WithBound    -- ^ @| ... in q@
+  = LambdaBound
+      -- ^ @λ@ (currently also used for @Π@ and module parameters)
+  | PatternBound Hiding
+      -- ^ @f ... =@.
+      --   Remember 'Hiding' for pattern variables @{x}@ and @{{x}}@.
+      --   This information is only used for checking pattern synonyms.
+      --   It is not serialized.
+  | LetBound
+      -- ^ @let ... in@
+  | WithBound
+      -- ^ @| ... in q@
   deriving (Show, Eq, Generic)
 
 instance Pretty BindingSource where
   pretty = \case
     LambdaBound  -> "local"
-    PatternBound -> "pattern"
+    PatternBound _ -> "pattern"
     LetBound     -> "let-bound"
     WithBound    -> "with-bound"
 
@@ -195,7 +201,7 @@ shadowLocal ys (LocalVar x b zs) = LocalVar x b (List1.toList ys ++ zs)
 -- | Treat patternBound variable as a module parameter
 patternToModuleBound :: LocalVar -> LocalVar
 patternToModuleBound x
- | localBindingSource x == PatternBound =
+ | PatternBound _ <- localBindingSource x =
    x { localBindingSource = LambdaBound }
  | otherwise                     = x
 
@@ -627,13 +633,41 @@ mapNameSpaceM fd fm fs ns = update ns <$> fd (nsNames ns) <*> fm (nsModules ns) 
 
 instance Null Scope where
   empty = emptyScope
-  null  = __IMPOSSIBLE__
-    -- TODO: define when needed, careful about scopeNameSpaces!
+  -- -- Use default implementation of null
+  -- null Scope{ scopeName, scopeParents, scopeNameSpaces, scopeImports, scopeDatatypeModule } = and
+  --   [ null scopeName
+  --   , null scopeParents
+  --   , null scopeNameSpaces || all (null . snd) scopeNameSpaces
+  --   , null scopeImports
+  --   , null scopeDatatypeModule
+  --   ]
 
 instance Null ScopeInfo where
   empty = emptyScopeInfo
-  null  = __IMPOSSIBLE__
-    -- TODO: define when needed, careful about _scopeModules!
+  -- -- Use default implementation of null
+  -- null ScopeInfo
+  --   { _scopeCurrent
+  --   , _scopeModules
+  --   , _scopeVarsToBind
+  --   , _scopeLocals
+  --   , _scopePrecendence
+  --   , _scopeInverseName
+  --   , _scopeInverseModule
+  --   , _scopeInScope
+  --   , _scopeFixities
+  --   , _scopePolarities
+  --   } = and
+  --   [ null _scopeCurrent
+  --   , null _scopeModules || all null (Map.values _scopeModules)
+  --   , null _scopeVarsToBind
+  --   , null _scopeLocals
+  --   , null _scopePrecendence
+  --   , null _scopeInverseName
+  --   , null _scopeInverseModule
+  --   , null _scopeInScope
+  --   , null _scopeFixities
+  --   , null _scopePolarities
+  --   ]
 
 -- | The empty scope.
 emptyScope :: Scope
@@ -1044,6 +1078,9 @@ publicNames :: ScopeInfo -> Set AbstractName
 publicNames scope =
   Set.fromList $ List1.concat $ Map.elems $
   exportedNamesInScope $ mergeScopes $ Map.elems $ publicModules scope
+
+publicNamesOfModules :: Map A.ModuleName Scope -> [AbstractName]
+publicNamesOfModules = List1.concat . Map.elems . exportedNamesInScope . mergeScopes . Map.elems
 
 everythingInScope :: ScopeInfo -> NameSpace
 everythingInScope scope = allThingsInScope $ mergeScopes $

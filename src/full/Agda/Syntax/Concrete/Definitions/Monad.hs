@@ -171,7 +171,7 @@ checkLoneSigs xs = do
 -- | Ensure that all forward declarations have been given a definition,
 -- raising an error indicating *why* they would have had to have been
 -- defined.
-breakImplicitMutualBlock :: Range -> String -> Nice ()
+breakImplicitMutualBlock :: KwRange -> String -> Nice ()
 breakImplicitMutualBlock r why = do
   m <- use loneSigs
   List1.unlessNull (Map.elems m) $ \ xs ->

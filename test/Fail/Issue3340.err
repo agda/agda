@@ -1,6 +1,8 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   f x = _47 : _f.P_46 x (blocked on _47)
   _f.P_46 y =< _f.P_46 x (blocked on _f.P_46)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue3340.agda:12,22-25
   Issue3340.agda:12,16-17

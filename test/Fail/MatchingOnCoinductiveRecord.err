@@ -1,3 +1,3 @@
-MatchingOnCoinductiveRecord.agda:21,5-10
+MatchingOnCoinductiveRecord.agda:21,5-10: error: [SplitOnCoinductive]
 Pattern matching on coinductive types is not allowed
 when checking that the pattern inn y has type U

@@ -1,6 +1,6 @@
-Issue2771.agda:15,1-19
+Issue2771.agda:15,1-19: error: [UnequalTerms]
 ¬ho-shr-morph ind != w of type IndexL
 when checking that the type
 (ind : IndexL) → ⊤ → (w : IndexL) → ¬ord-morph w (pres-¬ord ind) of
 the generated with function is well-formed
-(https://agda.readthedocs.io/en/v2.6.5/language/with-abstraction.html#ill-typed-with-abstractions)
+(https://agda.readthedocs.io/en/v2.8.0/language/with-abstraction.html#ill-typed-with-abstractions)

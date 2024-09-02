@@ -36,6 +36,7 @@ import Data.Void
 import Agda.Syntax.Common
 import Agda.Syntax.Builtin
 import Agda.Syntax.Concrete.Name as C
+import Agda.Syntax.Concrete (RecordDirective(..))
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Position as P
@@ -53,6 +54,8 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2 (List2(List2))
 import qualified Agda.Utils.List2 as List2
 import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Null
+import Agda.Utils.SmallSet (SmallSet(..))
 import Agda.Utils.Trie (Trie(..))
 import Agda.Utils.WithDefault
 
@@ -269,6 +272,10 @@ instance EmbPrj IntSet where
   icod_ s = icode (IntSet.toAscList s)
   value s = IntSet.fromDistinctAscList <$!> value s
 
+instance Typeable a => EmbPrj (SmallSet a) where
+  icod_ (SmallSet a) = icodeN' SmallSet a
+  value = valueN SmallSet
+
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Trie a b) where
   icod_ (Trie a b)= icodeN' Trie a b
 
@@ -303,6 +310,10 @@ instance EmbPrj RangeFile where
 instance EmbPrj Range where
   icod_ _ = icodeN' ()
   value _ = return noRange
+
+instance EmbPrj KwRange where
+  icod_ _ = icodeN' ()
+  value _ = return empty
 
 -- | Ranges that should be serialised properly.
 
@@ -411,6 +422,11 @@ instance EmbPrj MetaId where
 
   value m = uncurry MetaId <$!> value m
 
+instance EmbPrj ProblemId where
+  icod_ (ProblemId a) = icode a
+
+  value m = ProblemId <$!> value m
+
 instance EmbPrj A.QName where
   icod_ n@(A.QName a b) = icodeMemo qnameD qnameC (qnameId n) $ icodeN' A.QName a b
 
@@ -489,6 +505,7 @@ instance EmbPrj a => EmbPrj (HasEta' a) where
     valu _   = malformed
 
 instance EmbPrj PatternOrCopattern
+instance EmbPrj OverlapMode
 
 instance EmbPrj Induction where
   icod_ Inductive   = icodeN' Inductive
@@ -587,15 +604,55 @@ instance EmbPrj Modality where
     [a, b, c] -> valuN Modality a b c
     _ -> malformed
 
-instance EmbPrj Relevance where
-  icod_ Relevant       = return 0
-  icod_ Irrelevant     = return 1
-  icod_ NonStrict      = return 2
+instance EmbPrj OriginRelevant where
+  icod_ = \case
+    ORelInferred   -> return 0
+    ORelRelevant _ -> return 1
 
-  value 0 = return Relevant
-  value 1 = return Irrelevant
-  value 2 = return NonStrict
-  value _ = malformed
+  value = \case
+    0 -> return $ ORelInferred
+    1 -> return $ ORelRelevant noRange
+    _ -> malformed
+
+instance EmbPrj OriginIrrelevant where
+  icod_ = \case
+    OIrrInferred     -> return 0
+    OIrrDot _        -> return 1
+    OIrrIrr _        -> return 2
+    OIrrIrrelevant _ -> return 3
+
+  value = \case
+    0 -> return $ OIrrInferred
+    1 -> return $ OIrrDot        noRange
+    2 -> return $ OIrrIrr        noRange
+    3 -> return $ OIrrIrrelevant noRange
+    _ -> malformed
+
+instance EmbPrj OriginShapeIrrelevant where
+  icod_ = \case
+    OShIrrInferred          -> return 0
+    OShIrrDotDot _          -> return 1
+    OShIrrShIrr _           -> return 2
+    OShIrrShapeIrrelevant _ -> return 3
+
+  value = \case
+    0 -> return $ OShIrrInferred
+    1 -> return $ OShIrrDotDot          noRange
+    2 -> return $ OShIrrShIrr           noRange
+    3 -> return $ OShIrrShapeIrrelevant noRange
+    _ -> malformed
+
+instance EmbPrj Relevance where
+  icod_ = \case
+    Relevant   a      -> icodeN' Relevant a
+    Irrelevant a      -> icodeN 0 Irrelevant a
+    ShapeIrrelevant a -> icodeN 1 ShapeIrrelevant a
+
+  value = vcase \case
+    [a]    -> valuN Relevant a
+    [0, a] -> valuN Irrelevant a
+    [1, a] -> valuN ShapeIrrelevant a
+    _      -> malformed
 
 instance EmbPrj Annotation where
   icod_ (Annotation l) = icodeN' Annotation l
@@ -645,15 +702,17 @@ instance EmbPrj FreeVariables where
     valu _   = malformed
 
 instance EmbPrj ConOrigin where
-  icod_ ConOSystem = return 0
-  icod_ ConOCon    = return 1
-  icod_ ConORec    = return 2
-  icod_ ConOSplit  = return 3
+  icod_ ConOSystem   = return 0
+  icod_ ConOCon      = return 1
+  icod_ ConORec      = return 2
+  icod_ ConOSplit    = return 3
+  icod_ ConORecWhere = return 4
 
   value 0 = return ConOSystem
   value 1 = return ConOCon
   value 2 = return ConORec
   value 3 = return ConOSplit
+  value 4 = return ConORecWhere
   value _ = malformed
 
 instance EmbPrj ProjOrigin where
@@ -747,3 +806,34 @@ instance EmbPrj SomeBuiltin where
     valu [0, x] = valuN BuiltinName x
     valu [1, x] = valuN PrimitiveName x
     valu _      = malformed
+
+instance EmbPrj IsInstance where
+  icod_ = \case
+    InstanceDef a  -> icodeN' InstanceDef a
+    NotInstanceDef -> icodeN' NotInstanceDef
+
+  value = vcase \case
+    [a] -> valuN InstanceDef a
+    []  -> valuN NotInstanceDef
+    _ -> malformed
+
+instance EmbPrj a => EmbPrj (RecordDirectives' a) where
+  icod_ (RecordDirectives a b c d) = icodeN' RecordDirectives a b c d
+
+  value = vcase \case
+    [a, b, c, d] -> valuN RecordDirectives a b c d
+    _ -> malformed
+
+instance EmbPrj RecordDirective where
+  icod_ = \case
+    Constructor a b      -> icodeN 0 Constructor a b
+    Eta a                -> icodeN 1 Eta a
+    Induction a          -> icodeN 2 Induction a
+    PatternOrCopattern a -> icodeN 3 PatternOrCopattern a
+
+  value = vcase \case
+    [0, a, b] -> valuN Constructor a b
+    [1, a]    -> valuN Eta a
+    [2, a]    -> valuN Induction a
+    [3, a]    -> valuN PatternOrCopattern a
+    _ -> malformed

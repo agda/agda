@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: (fst a , x) ≡ a (stuck)
       [ at Issue4484b.agda:16,15-17 ]

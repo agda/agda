@@ -1,4 +1,4 @@
-AbstractTermination.agda:7,1-14,18
+AbstractTermination.agda:7,1-14,18: error: [TerminationIssue]
 Termination checking failed for the following functions:
   f
 Problematic calls:

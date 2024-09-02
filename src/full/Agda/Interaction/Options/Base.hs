@@ -8,6 +8,7 @@
 module Agda.Interaction.Options.Base
     ( CommandLineOptions(..)
     , PragmaOptions(..)
+    , OptionError
     , OptionWarning(..), optionWarningName
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity, VerboseKey, VerboseLevel
@@ -31,6 +32,8 @@ module Agda.Interaction.Options.Base
     , InfectiveCoinfective(..)
     , InfectiveCoinfectiveOption(..)
     , infectiveCoinfectiveOptions
+    , ImpliedPragmaOption(..)
+    , impliedPragmaOptions
     , safeFlag
     , mapFlag
     , usage
@@ -77,11 +80,12 @@ module Agda.Interaction.Options.Base
     , lensOptCubical
     , lensOptGuarded
     , lensOptFirstOrder
+    , lensOptRequireUniqueMetaSolutions
     , lensOptPostfixProjections
     , lensOptKeepPatternVariables
     , lensOptInferAbsurdClauses
     , lensOptInstanceSearchDepth
-    , lensOptOverlappingInstances
+    , lensOptBacktrackingInstances
     , lensOptQualifiedInstances
     , lensOptInversionMaxDepth
     , lensOptSafe
@@ -138,10 +142,11 @@ module Agda.Interaction.Options.Base
     , optRewriting
     , optGuarded
     , optFirstOrder
+    , optRequireUniqueMetaSolutions
     , optPostfixProjections
     , optKeepPatternVariables
     , optInferAbsurdClauses
-    , optOverlappingInstances
+    , optBacktrackingInstances
     , optQualifiedInstances
     , optSafe
     , optDoubleCheck
@@ -364,18 +369,21 @@ data PragmaOptions = PragmaOptions
   , _optCubical                   :: Maybe Cubical
   , _optGuarded                   :: WithDefault 'False
   , _optFirstOrder                :: WithDefault 'False
-      -- ^ Should we speculatively unify function applications as if they were injective?
-  , _optPostfixProjections        :: WithDefault 'False
+      -- ^ Should we speculatively unify function applications as if they were injective? Implies
+      --   optRequireUniqueMetaSolutions.
+  , _optRequireUniqueMetaSolutions :: WithDefault 'True
+      -- ^ Forbid non-unique meta solutions allowed. For instance from INJECTIVE_FOR_INFERENCE pragmas.
+  , _optPostfixProjections        :: WithDefault 'True
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
-  , _optKeepPatternVariables      :: WithDefault 'False
+  , _optKeepPatternVariables      :: WithDefault 'True
       -- ^ Should case splitting replace variables with dot patterns
       --   (False) or keep them as variables (True).
   , _optInferAbsurdClauses        :: WithDefault 'True
       -- ^ Should case splitting and coverage checking try to discharge absurd clauses?
       --   Default: 'True', but 'False' might make coverage checking considerably faster in some cases.
   , _optInstanceSearchDepth       :: Int
-  , _optOverlappingInstances      :: WithDefault 'False
+  , _optBacktrackingInstances     :: WithDefault 'False
   , _optQualifiedInstances        :: WithDefault 'True
       -- ^ Should instance search consider instances with qualified names?
   , _optInversionMaxDepth         :: Int
@@ -418,7 +426,7 @@ data PragmaOptions = PragmaOptions
       --   This is a stronger form of 'optImportSorts'.
   , _optAllowExec                 :: WithDefault 'False
       -- ^ Allow running external @executables@ from meta programs.
-  , _optSaveMetas                 :: WithDefault 'False
+  , _optSaveMetas                 :: WithDefault 'True
       -- ^ Save meta-variables to interface files.
   , _optShowIdentitySubstitutions :: WithDefault 'False
       -- ^ Show identity substitutions when pretty-printing terms
@@ -452,6 +460,32 @@ data PrintAgdaVersion
   deriving (Show, Generic)
 
 instance NFData PrintAgdaVersion
+
+data ImpliedPragmaOption where
+  ImpliesPragmaOption
+    :: String -> Bool -> (PragmaOptions -> WithDefault a)
+    -> String -> Bool -> (PragmaOptions -> WithDefault b)
+    -> ImpliedPragmaOption
+    -- ^ The first option having the given value implies the second option having its given value.
+    --   For instance, `ImpliesPragmaOption "lossy-unification" True _optFirstOrder
+    --                                      "require-unique-meta-solutions" False _optRequireUniqueMetaSolutions`
+    --   encodes the fact that --lossy-unification implies --no-require-unique-meta-solutions.
+
+impliedPragmaOptions :: [ImpliedPragmaOption]
+impliedPragmaOptions =
+  [ ("erase-record-parameters", _optEraseRecordParameters) ==> ("erasure",                          _optErasure)
+  , ("erased-matches",          _optErasedMatches)         ==> ("erasure",                          _optErasure)
+  , ("flat-split",              _optFlatSplit)             ==> ("cohesion",                         _optCohesion)
+  , ("no-load-primitives",      _optLoadPrimitives)        ==> ("no-import-sorts",                  _optImportSorts)
+  , ("lossy-unification",       _optFirstOrder)            ==> ("no-require-unique-meta-solutions", _optRequireUniqueMetaSolutions)
+  ]
+  where
+    yesOrNo ('n':'o':'-':s) = (False, s)
+    yesOrNo s               = (True, s)
+    (nameA, optA) ==> (nameB, optB) = ImpliesPragmaOption stemA valA optA stemB valB optB
+      where
+        (valA, stemA) = yesOrNo nameA
+        (valB, stemB) = yesOrNo nameB
 
 -- collapse defaults
 optShowImplicit              :: PragmaOptions -> Bool
@@ -489,10 +523,11 @@ optEraseRecordParameters     :: PragmaOptions -> Bool
 optRewriting                 :: PragmaOptions -> Bool
 optGuarded                   :: PragmaOptions -> Bool
 optFirstOrder                :: PragmaOptions -> Bool
+optRequireUniqueMetaSolutions :: PragmaOptions -> Bool
 optPostfixProjections        :: PragmaOptions -> Bool
 optKeepPatternVariables      :: PragmaOptions -> Bool
 optInferAbsurdClauses        :: PragmaOptions -> Bool
-optOverlappingInstances      :: PragmaOptions -> Bool
+optBacktrackingInstances     :: PragmaOptions -> Bool
 optQualifiedInstances        :: PragmaOptions -> Bool
 optSafe                      :: PragmaOptions -> Bool
 optDoubleCheck               :: PragmaOptions -> Bool
@@ -550,10 +585,12 @@ optEraseRecordParameters     = collapseDefault . _optEraseRecordParameters
 optRewriting                 = collapseDefault . _optRewriting
 optGuarded                   = collapseDefault . _optGuarded
 optFirstOrder                = collapseDefault . _optFirstOrder
+optRequireUniqueMetaSolutions = collapseDefault . _optRequireUniqueMetaSolutions && not . optFirstOrder
+-- --lossy-unification implies --no-require-unique-meta-solutions
 optPostfixProjections        = collapseDefault . _optPostfixProjections
 optKeepPatternVariables      = collapseDefault . _optKeepPatternVariables
 optInferAbsurdClauses        = collapseDefault . _optInferAbsurdClauses
-optOverlappingInstances      = collapseDefault . _optOverlappingInstances
+optBacktrackingInstances     = collapseDefault . _optBacktrackingInstances
 optQualifiedInstances        = collapseDefault . _optQualifiedInstances
 optSafe                      = collapseDefault . _optSafe
 optDoubleCheck               = collapseDefault . _optDoubleCheck
@@ -724,6 +761,9 @@ lensOptGuarded f o = f (_optGuarded o) <&> \ i -> o{ _optGuarded = i }
 lensOptFirstOrder :: Lens' PragmaOptions _
 lensOptFirstOrder f o = f (_optFirstOrder o) <&> \ i -> o{ _optFirstOrder = i }
 
+lensOptRequireUniqueMetaSolutions :: Lens' PragmaOptions _
+lensOptRequireUniqueMetaSolutions f o = f (_optRequireUniqueMetaSolutions o) <&> \ i -> o{ _optRequireUniqueMetaSolutions = i }
+
 lensOptPostfixProjections :: Lens' PragmaOptions _
 lensOptPostfixProjections f o = f (_optPostfixProjections o) <&> \ i -> o{ _optPostfixProjections = i }
 
@@ -736,8 +776,8 @@ lensOptInferAbsurdClauses f o = f (_optInferAbsurdClauses o) <&> \ i -> o{ _optI
 lensOptInstanceSearchDepth :: Lens' PragmaOptions _
 lensOptInstanceSearchDepth f o = f (_optInstanceSearchDepth o) <&> \ i -> o{ _optInstanceSearchDepth = i }
 
-lensOptOverlappingInstances :: Lens' PragmaOptions _
-lensOptOverlappingInstances f o = f (_optOverlappingInstances o) <&> \ i -> o{ _optOverlappingInstances = i }
+lensOptBacktrackingInstances :: Lens' PragmaOptions _
+lensOptBacktrackingInstances f o = f (_optBacktrackingInstances o) <&> \ i -> o{ _optBacktrackingInstances = i }
 
 lensOptQualifiedInstances :: Lens' PragmaOptions _
 lensOptQualifiedInstances f o = f (_optQualifiedInstances o) <&> \ i -> o{ _optQualifiedInstances = i }
@@ -892,11 +932,12 @@ defaultPragmaOptions = PragmaOptions
   , _optCubical                   = Nothing
   , _optGuarded                   = Default
   , _optFirstOrder                = Default
+  , _optRequireUniqueMetaSolutions = Default
   , _optPostfixProjections        = Default
   , _optKeepPatternVariables      = Default
   , _optInferAbsurdClauses        = Default
   , _optInstanceSearchDepth       = 500
-  , _optOverlappingInstances      = Default
+  , _optBacktrackingInstances      = Default
   , _optQualifiedInstances        = Default
   , _optInversionMaxDepth         = 50
   , _optSafe                      = Default
@@ -944,6 +985,9 @@ type Flag opts = opts -> OptM opts
 
 data OptionWarning
   = OptionRenamed { oldOptionName :: String, newOptionName :: String }
+      -- ^ Name of option changed in a newer version of Agda.
+  | WarningProblem WarningModeError
+      -- ^ A problem with setting or unsetting a warning.
   deriving (Show, Generic)
 
 instance NFData OptionWarning
@@ -951,13 +995,15 @@ instance NFData OptionWarning
 instance Pretty OptionWarning where
   pretty = \case
     OptionRenamed old new -> hsep
-      [ "Option", name old, "is deprecated, please use", name new, "instead" ]
+      [ "Option", option old, "is deprecated, please use", option new, "instead" ]
+    WarningProblem err -> pretty (prettyWarningModeError err) <+> "See --help=warning."
     where
-    name = text . ("--" ++)
+    option = text . ("--" ++)
 
 optionWarningName :: OptionWarning -> WarningName
 optionWarningName = \case
   OptionRenamed{} -> OptionRenamed_
+  WarningProblem{} -> WarningProblem_
 
 -- | Checks that the given options are consistent.
 --   Also makes adjustments (e.g. when one option implies another).
@@ -1188,12 +1234,6 @@ infectiveCoinfectiveOptions =
   , infectiveOption optCohesion               "--cohesion"
   , infectiveOption optErasure                "--erasure"
   , infectiveOption optErasedMatches          "--erased-matches"
-  , infectiveOption (not . optUniverseCheck)  "--type-in-type"
-  , infectiveOption optOmegaInOmega           "--omega-in-omega"
-  , infectiveOption optInjectiveTypeConstructors "--injective-type-constructors"
-  , infectiveOption optExperimentalIrrelevance "--experimental-irrelevance"
-  , infectiveOption optCumulativity           "--cumulativity"
-  , infectiveOption optAllowExec              "--allow-exec"
   ]
   where
   cubicalCompatible =
@@ -1311,10 +1351,10 @@ transliterateFlag o = return $ o { optTransliterate = True }
 withKFlag :: Flag PragmaOptions
 withKFlag =
   -- with-K is the opposite of --without-K, so collapse default when disabling --without-K
-  (lensOptWithoutK $ lensCollapseDefault $ const $ pure False)
+  lensOptWithoutK (lensCollapseDefault $ const $ pure False)
   >=>
   -- with-K only restores any unsetting of --erased-matches, so keep its default
-  (lensOptErasedMatches $ lensKeepDefault $ const $ pure True)
+  lensOptErasedMatches (lensKeepDefault $ const $ pure True)
 
 
 withoutKFlag :: Flag PragmaOptions
@@ -1411,7 +1451,7 @@ profileFlag s o =
 warningModeFlag :: String -> Flag PragmaOptions
 warningModeFlag s o = case warningModeUpdate s of
   Right upd -> return $ o { _optWarningMode = upd (_optWarningMode o) }
-  Left err  -> throwError $ prettyWarningModeError err ++ " See --help=warning."
+  Left err  -> o <$ tell1 (WarningProblem err)
 
 terminationDepthFlag :: String -> Flag PragmaOptions
 terminationDepthFlag s o =
@@ -1734,6 +1774,7 @@ pragmaOptions = concat
                     "enable @lock/@tick attributes" ""
                     $ Just "disable @lock/@tick attributes"
   , lossyUnificationOption
+  , requireUniqueMetaSolutionsOptions
   , pragmaFlag      "postfix-projections" lensOptPostfixProjections
                     "prefer postfix projection notation" ""
                     $ Just "prefer prefix projection notation"
@@ -1746,9 +1787,7 @@ pragmaOptions = concat
   , [ Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
     ]
-  , pragmaFlag      "overlapping-instances" lensOptOverlappingInstances
-                    "consider recursive instance arguments during pruning of instance candidates" ""
-                    Nothing
+  , backtrackingInstancesOption
   , pragmaFlag      "qualified-instances" lensOptQualifiedInstances
                     "use instances with qualified names" ""
                     Nothing
@@ -1830,6 +1869,20 @@ lossyUnificationOption =
     "even when it could lose solutions"
     Nothing
 
+requireUniqueMetaSolutionsOptions :: [OptDescr (Flag PragmaOptions)]
+requireUniqueMetaSolutionsOptions =
+  pragmaFlag "require-unique-meta-solutions" lensOptRequireUniqueMetaSolutions
+    "require unique solutions to meta variables"
+    "even when it could lose solutions"
+    Nothing
+
+backtrackingInstancesOption :: [OptDescr (Flag PragmaOptions)]
+backtrackingInstancesOption =
+  pragmaFlag "backtracking-instance-search" lensOptBacktrackingInstances
+    "allow backtracking during instance search"
+    ""
+    Nothing
+
 -- | Pragma options of previous versions of Agda.
 --   Should not be listed in the usage info, put parsed by GetOpt for good error messaging.
 deadPragmaOptions :: [OptDescr (Flag PragmaOptions)]
@@ -1850,6 +1903,9 @@ deadPragmaOptions = concat
   , map (uncurry renamedNoArgOption)
     [ ( "experimental-lossy-unification"
       , headWithDefault __IMPOSSIBLE__ lossyUnificationOption
+      )
+    , ( "overlapping-instances"
+      , headWithDefault __IMPOSSIBLE__ backtrackingInstancesOption
       )
     ]
   ]

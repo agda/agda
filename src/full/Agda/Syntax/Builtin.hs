@@ -237,10 +237,12 @@ data BuiltinId
   | BuiltinAgdaTCMFormatErrorParts
   | BuiltinAgdaTCMDebugPrint
   | BuiltinAgdaTCMNoConstraints
+  | BuiltinAgdaTCMWorkOnTypes
   | BuiltinAgdaTCMRunSpeculative
   | BuiltinAgdaTCMExec
   | BuiltinAgdaTCMCheckFromString
   | BuiltinAgdaTCMGetInstances
+  | BuiltinAgdaTCMSolveInstances
   | BuiltinAgdaTCMPragmaForeign
   | BuiltinAgdaTCMPragmaCompile
   | BuiltinAgdaBlocker
@@ -457,10 +459,12 @@ instance IsBuiltin BuiltinId where
     BuiltinAgdaTCMFormatErrorParts           -> "AGDATCMFORMATERRORPARTS"
     BuiltinAgdaTCMDebugPrint                 -> "AGDATCMDEBUGPRINT"
     BuiltinAgdaTCMNoConstraints              -> "AGDATCMNOCONSTRAINTS"
+    BuiltinAgdaTCMWorkOnTypes                -> "AGDATCMWORKONTYPES"
     BuiltinAgdaTCMRunSpeculative             -> "AGDATCMRUNSPECULATIVE"
     BuiltinAgdaTCMExec                       -> "AGDATCMEXEC"
     BuiltinAgdaTCMCheckFromString            -> "AGDATCMCHECKFROMSTRING"
     BuiltinAgdaTCMGetInstances               -> "AGDATCMGETINSTANCES"
+    BuiltinAgdaTCMSolveInstances             -> "AGDATCMSOLVEINSTANCES"
     BuiltinAgdaTCMPragmaForeign              -> "AGDATCMPRAGMAFOREIGN"
     BuiltinAgdaTCMPragmaCompile              -> "AGDATCMPRAGMACOMPILE"
     BuiltinAgdaBlocker                       -> "AGDABLOCKER"
@@ -582,10 +586,12 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMAskNormalisation, builtinAgdaTCMAskReconstructed,
   builtinAgdaTCMAskExpandLast, builtinAgdaTCMAskReduceDefs,
   builtinAgdaTCMNoConstraints,
+  builtinAgdaTCMWorkOnTypes,
   builtinAgdaTCMRunSpeculative,
   builtinAgdaTCMExec,
   builtinAgdaTCMCheckFromString,
   builtinAgdaTCMGetInstances,
+  builtinAgdaTCMSolveInstances,
   builtinAgdaTCMPragmaForeign,
   builtinAgdaTCMPragmaCompile
   :: BuiltinId
@@ -782,10 +788,12 @@ builtinAgdaTCMAskReduceDefs              = BuiltinAgdaTCMAskReduceDefs
 builtinAgdaTCMFormatErrorParts           = BuiltinAgdaTCMFormatErrorParts
 builtinAgdaTCMDebugPrint                 = BuiltinAgdaTCMDebugPrint
 builtinAgdaTCMNoConstraints              = BuiltinAgdaTCMNoConstraints
+builtinAgdaTCMWorkOnTypes                = BuiltinAgdaTCMWorkOnTypes
 builtinAgdaTCMRunSpeculative             = BuiltinAgdaTCMRunSpeculative
 builtinAgdaTCMExec                       = BuiltinAgdaTCMExec
 builtinAgdaTCMCheckFromString            = BuiltinAgdaTCMCheckFromString
 builtinAgdaTCMGetInstances               = BuiltinAgdaTCMGetInstances
+builtinAgdaTCMSolveInstances             = BuiltinAgdaTCMSolveInstances
 builtinAgdaTCMPragmaForeign              = BuiltinAgdaTCMPragmaForeign
 builtinAgdaTCMPragmaCompile              = BuiltinAgdaTCMPragmaCompile
 builtinAgdaBlocker                       = BuiltinAgdaBlocker

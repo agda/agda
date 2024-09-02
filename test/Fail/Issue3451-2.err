@@ -1,4 +1,4 @@
-Issue3451-2.agda:5,1-24
+Issue3451-2.agda:5,1-24: error: [InfectiveImport]
 Importing module Common.Size using the --sized-types flag from a
 module which does not.
 when scope checking the declaration

@@ -1,4 +1,0 @@
-NoRHSRequiresAbsurdPattern.agda:11,1-6
-The right-hand side can only be omitted if there is an absurd
-pattern, () or {}, in the left-hand side.
-when checking that the clause bad h has type {A : Set} → Zero → A

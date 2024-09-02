@@ -1,3 +1,4 @@
+{-# OPTIONS --no-keep-pattern-variables #-}
 
 record Σ (A : Set) (B : A → Set) : Set where
   constructor _,_

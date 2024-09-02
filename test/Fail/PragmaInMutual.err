@@ -1,3 +1,3 @@
-PragmaInMutual.agda:11,3-30
+PragmaInMutual.agda:11,3-30: error: [NotAllowedInMutual]
 BUILTIN pragmas in mutual blocks are not supported. Suggestion: get
 rid of the mutual block by manually ordering declarations

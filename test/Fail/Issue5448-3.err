@@ -1,4 +1,4 @@
-Issue5448-3.agda:8,9-13
+Issue5448-3.agda:8,1-15: error: [UnusableAtModality]
 This clause has target type P x which is not usable at the required
 modality @ω.
 

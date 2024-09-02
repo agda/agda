@@ -1,3 +1,3 @@
-noLevelUnivToSet.agda:7,5-9
+noLevelUnivToSet.agda:7,5-9: error: [UnequalSorts]
 LevelUniv != Set
 when checking that the expression refl has type LevelUniv ≡ Set

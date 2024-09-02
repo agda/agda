@@ -351,5 +351,4 @@ help cs = putStr $ unlines $
 readM :: Read a => String -> TCM a
 readM s = maybe err return $ readMaybe s
   where
-  err    = throwError $ strMsg $ "Cannot parse: " ++ s
-  strMsg = Exception noRange . text
+  err = throwError $ GenericException $ "Cannot parse: " ++ s

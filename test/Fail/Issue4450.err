@@ -1,2 +1,2 @@
-Issue4450.agda:15,1-14
+Issue4450.agda:15,1-14: error: [SafeFlagEta]
 Cannot use ETA pragma with safe flag.

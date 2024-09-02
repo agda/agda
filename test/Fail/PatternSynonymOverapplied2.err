@@ -1,3 +1,3 @@
-PatternSynonymOverapplied2.agda:11,4-12
+PatternSynonymOverapplied2.agda:11,4-12: error: [BadArgumentsToPatternSynonym]
 Bad arguments to pattern synonym suc'
 when checking that the clause f (suc' m n) = n has type Nat → Nat

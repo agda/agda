@@ -1,4 +1,0 @@
-Issue1444.agda:5,1-18
-REWRITE used on parameter R instead of on a defined symbol
-when scope checking the declaration
-  {-# REWRITE R #-}

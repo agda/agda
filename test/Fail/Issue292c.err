@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: unit2 ≅ unit1 (stuck)
       [ at Issue292c.agda:41,19-21 ]

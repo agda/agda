@@ -1,42 +1,39 @@
-Issue2553.agda:22,3-10
-warning: -W[no]UselessPatternDeclarationForRecord
+Issue2553.agda:22,3-10: warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for eta record
 when scope checking the declaration
   record R₁ _ where
-    eta-equality
     pattern
     constructor mkR₁
+    eta-equality
     field p : R₀ A
     X : Set
     X = R₀.proj₁ p
-Issue2553.agda:32,3-10
-warning: -W[no]UselessPatternDeclarationForRecord
+
+Issue2553.agda:32,3-10: warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for eta record
 when scope checking the declaration
   record R₂ r where
-    eta-equality
     pattern
+    eta-equality
     field g : R₀ (R₁.X r)
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue2553.agda:22,3-10
-warning: -W[no]UselessPatternDeclarationForRecord
+Issue2553.agda:22,3-10: warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for eta record
 when scope checking the declaration
   record R₁ _ where
-    eta-equality
     pattern
     constructor mkR₁
+    eta-equality
     field p : R₀ A
     X : Set
     X = R₀.proj₁ p
 
-Issue2553.agda:32,3-10
-warning: -W[no]UselessPatternDeclarationForRecord
+Issue2553.agda:32,3-10: warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for eta record
 when scope checking the declaration
   record R₂ r where
-    eta-equality
     pattern
+    eta-equality
     field g : R₀ (R₁.X r)

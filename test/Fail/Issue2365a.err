@@ -1,3 +1,0 @@
-Issue2365a.agda:6,5-8
-Negative literals are not supported in patterns
-when checking that the pattern -20 has type Nat

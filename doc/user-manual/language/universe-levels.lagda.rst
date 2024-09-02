@@ -12,7 +12,7 @@ Universe Levels
 
 .. _universe-polymorphism:
 
-Agda' type system includes an infinite hierarchy of universes ``Setᵢ :
+Agda's type system includes an infinite hierarchy of universes ``Setᵢ :
 Setᵢ₊₁``. This hierarchy enables quantification over arbitrary types
 without running into the inconsistency that follows from ``Set :
 Set``. These universes are further detailed on the page on
@@ -68,7 +68,7 @@ following) operations on levels are provided:
     _⊔_   : (n m : Level) → Level
 
 This is sufficient for most purposes; for example, we can define the
-cartesian product of two types of arbitrary (and not necessarily
+Cartesian product of two types of arbitrary (and not necessarily
 equal) levels like this:
 
 ::

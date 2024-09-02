@@ -34,7 +34,7 @@ import Agda.Syntax.Info hiding (defAbstract)
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Warnings ( warning, genericWarning )
+import Agda.TypeChecking.Warnings ( warning )
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
@@ -62,6 +62,7 @@ import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
+import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -117,15 +118,8 @@ checkFunDef i name cs = do
               -- blocks you might actually have solved the type of an alias by the time you get to
               -- the definition. See test/Succeed/SizeInfinity.agda for an example where this
               -- happens.
-              let
-                what
-                  | Info.defOpaque i == TransparentDef = "abstract"
-                  | otherwise                          = "opaque"
               whenM (isOpenMeta <$> lookupMetaInstantiation x) $
-                setCurrentRange i $ genericWarning =<<
-                  "Missing type signature for" <+> text what <+> "definition" <+> (prettyTCM name <> ".") $$
-                  fsep (pwords ("Types of " ++ what ++ " definitions are never inferred since this would leak") ++
-                        pwords ("information that should be " ++ what ++ "."))
+                setCurrentRange i $ warning $ MissingTypeSignatureForOpaque name (Info.defOpaque i)
               checkFunDef' t info Nothing Nothing i name cs
           _ -> checkFunDef' t info Nothing Nothing i name cs
 
@@ -193,15 +187,14 @@ checkAlias t ai i name e mc =
     -- (test/succeed/Issue655.agda)
 
   -- compute body modification for irrelevant definitions, see issue 610
-  let bodyMod = case getRelevance ai of
-        Irrelevant -> dontCare
-        _          -> id
+  let bodyMod = applyWhen (isIrrelevant ai) dontCare
 
   -- Add the definition
   fun <- emptyFunctionData
-  addConstant' name ai name t $ set funMacro (Info.defMacro i == MacroDef) $
-      FunctionDefn fun
-          { _funClauses   = [ Clause  -- trivial clause @name = v@
+  addConstant' name ai name t $ FunctionDefn $
+    set funMacro_ (Info.defMacro i == MacroDef) $
+    set funAbstr_ (Info.defAbstract i) $
+      fun { _funClauses   = [ Clause  -- trivial clause @name = v@
               { clauseLHSRange    = getRange i
               , clauseFullRange   = getRange i
               , clauseTel         = EmptyTel
@@ -217,7 +210,6 @@ checkAlias t ai i name e mc =
               } ]
           , _funCompiled  = Just $ Done [] $ bodyMod v
           , _funSplitTree = Just $ SplittingDone 0
-          , _funAbstr     = Info.defAbstract i
           , _funOpaque    = Info.defOpaque i
           }
 
@@ -302,9 +294,9 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
 
         (cs, CPC isOneIxs) <- return $ (second mconcat . unzip) cs
 
+        -- If there is a partial match ("system"), no proper (co)pattern matching is allowed.
         let isSystem = not . null $ isOneIxs
-
-        canBeSystem <- do
+        when isSystem do
           -- allow VarP and ConP i0/i1 fallThrough = yes, DotP
           let pss = map namedClausePats cs
               allowed = \case
@@ -313,10 +305,8 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
                 ConP _ cpi [] | conPFallThrough cpi -> True
                 DotP{} -> True
                 _      -> False
-          return $! all (allowed . namedArg) (concat pss)
-        when isSystem $ unless canBeSystem $
-          typeError $ GenericError "no pattern matching or path copatterns in systems!"
-
+          unless (all (all $ allowed . namedArg) pss) $
+            typeError PatternInSystem
 
         reportSDoc "tc.def.fun" 70 $ inTopContext $ do
           sep $ "checked clauses:" : map (nest 2 . text . show) cs
@@ -442,14 +432,14 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
           fun  <- emptyFunctionData
-          defn <- autoInline $
-             set funMacro (ismacro || Info.defMacro i == MacroDef) $
-             FunctionDefn fun
+          defn <- autoInline $ FunctionDefn $
+           set funMacro_ (ismacro || Info.defMacro i == MacroDef) $
+           set funAbstr_ (Info.defAbstract i) $
+           fun
              { _funClauses        = cs
              , _funCompiled       = Just cc
              , _funSplitTree      = mst
              , _funInv            = inv
-             , _funAbstr          = Info.defAbstract i
              , _funOpaque         = Info.defOpaque i
              , _funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
              , _funWith           = with
@@ -687,14 +677,14 @@ instance Monoid ClausesPostChecks where
 checkClauseLHS :: Type -> Maybe Substitution -> A.SpineClause -> (LHSResult -> TCM a) -> TCM a
 checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) ret = do
     reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
-    unlessNull (trailingWithPatterns aps) $ \ withPats -> do
-      typeError $ UnexpectedWithPatterns $ map namedArg withPats
+    () <- List1.unlessNull (trailingWithPatterns aps) $ \ withPats -> do
+      typeError $ UnexpectedWithPatterns $ fmap namedArg withPats
     traceCall (CheckClause t c) $ do
       aps <- expandPatternSynonyms aps
       unless (null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
         "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
       closed_t <- flip abstract t <$> getContextTelescope
-      checkLeftHandSide (CheckLHS lhs) (Just x) aps t withSub strippedPats ret
+      checkLeftHandSide (CheckLHS lhs) (getRange lhs) (Just x) aps t withSub strippedPats ret
 
 -- | Type check a function clause.
 
@@ -784,9 +774,7 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
 
         -- compute body modification for irrelevant definitions, see issue 610
         rel <- viewTC eRelevance
-        let bodyMod body = case rel of
-              Irrelevant -> dontCare <$> body
-              _          -> body
+        let bodyMod = applyWhen (isIrrelevant rel) (fmap dontCare)
 
         -- absurd clauses don't define computational behaviour, so it's fine to
         -- treat them as catchalls.
@@ -854,14 +842,14 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
     mv <- if absurdPat
           then do
             ps <- instantiateFull ps
-            Nothing <$ setCurrentRange e (warning $ AbsurdPatternRequiresNoRHS ps)
+            Nothing <$ setCurrentRange e (warning $ AbsurdPatternRequiresAbsentRHS ps)
           else Just <$> checkExpr e (unArg trhs)
     return (mv, NoWithFunction)
 
   -- Absurd case: no right hand side
   noRHS :: TCM (Maybe Term, WithFunctionProblem)
   noRHS = do
-    unless absurdPat $ typeError $ NoRHSRequiresAbsurdPattern aps
+    unless absurdPat $ typeError $ AbsentRHSRequiresAbsurdPattern aps
     return (Nothing, NoWithFunction)
 
   -- With case: @f xs with {a} in eqa | b in eqb | {{c}} | ...; ... | ps1 = rhs1; ... | ps2 = rhs2; ...@
@@ -1001,6 +989,10 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
       -- Get value and type of rewrite-expression.
 
       (proof, eqt) <- inferExpr eq
+
+      -- Andreas, 2024-02-27, issue #7150
+      -- trigger instance search to resolve instances in rewrite-expression
+      solveAwakeConstraints
 
       -- Andreas, 2016-04-14, see also Issue #1796
       -- Run the size constraint solver to improve with-abstraction
@@ -1207,7 +1199,10 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   setCurrentRange cs $
     traceCall NoHighlighting $   -- To avoid flicker.
     traceCall (CheckWithFunctionType withFunType) $
-    checkType withFunType
+    -- Jesper, 2024-07-10, issue $6841:
+    -- Having an ill-typed type can lead to problems in the
+    -- coverage checker, so we ensure there are no constraints here.
+    noConstraints $ checkType withFunType
 
   -- With display forms are closed
   df <- inTopContext $ makeOpen =<< withDisplayForm f aux delta1 delta2 n qs perm' perm

@@ -1,4 +1,4 @@
-DuplicateBuiltinBinding.agda:6,1-30
+DuplicateBuiltinBinding.agda:6,1-30: error: [DuplicateBuiltinBinding]
 Duplicate binding for built-in thing STRING, previous binding to
 String
 when checking the pragma BUILTIN STRING String

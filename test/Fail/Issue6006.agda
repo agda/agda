@@ -13,7 +13,7 @@ postulate
   F : T → T
 
 a : T → T
-a x = ?
+a x = _
 
 postulate
   r : ∀ x → F (a x) ≡ C

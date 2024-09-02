@@ -325,7 +325,8 @@ below <reflection-tc-monad>`.
     data-type   : (pars : Nat) (cs : List Name) → Definition  -- parameters and constructors
     record-type : (c : Name) (fs : List (Arg Name)) →         -- c: name of record constructor
                   Definition                                  -- fs: fields
-    data-cons   : (d : Name) → Definition                     -- d: name of data type
+    data-cons   : (d : Name) (q : Quantity) → Definition      -- d: name of data type
+                                                              -- q: constructor quantity
     axiom       : Definition
     prim-fun    : Definition
 
@@ -477,9 +478,9 @@ following primitive operations::
     declareData      : Name → Nat → Type → TC ⊤
 
     -- Define a declared datatype. The datatype must have been declared using
-    -- 'declareData`. The second argument is a list of pairs in which each pair
-    -- is the name of a constructor and its type.
-    defineData       : Name → List (Σ Name (λ _ → Type)) → TC ⊤
+    -- 'declareData`. The second argument is a list of triples in which each triple
+    -- is the name of a constructor, its erasure status and its type.
+    defineData       : Name → List (Σ Name (λ _ → Σ Quantity (λ _ → Type))) → TC ⊤
 
     -- Define a declared function. The function may have been declared using
     -- 'declareDef' or with an explicit type signature in the program.
@@ -540,6 +541,9 @@ following primitive operations::
     -- "blocking" constraints.
     noConstraints : ∀ {a} {A : Set a} → TC A → TC A
 
+    -- Run the given computation at the type level, allowing use of erased things.
+    workOnTypes : ∀ {a} {A : Set a} → TC A → TC A
+
     -- Run the given TC action and return the first component. Resets to
     -- the old TC state if the second component is 'false', or keep the
     -- new TC state if it is 'true'.
@@ -548,6 +552,12 @@ following primitive operations::
     -- Get a list of all possible instance candidates for the given meta
     -- variable (it does not have to be an instance meta).
     getInstances : Meta → TC (List Term)
+
+    -- Try to solve open instance constraints. When wrapped in `noConstraints`,
+    -- fails if there are unsolved instance constraints left over that originate
+    -- from the current macro invokation. Outside constraints are still attempted,
+    -- but failure to solve them are ignored by `noConstraints`.
+    solveInstanceConstraints : TC ⊤
 
   {-# BUILTIN AGDATCMUNIFY                      unify                      #-}
   {-# BUILTIN AGDATCMTYPEERROR                  typeError                  #-}
@@ -573,6 +583,8 @@ following primitive operations::
   {-# BUILTIN AGDATCMGETDEFINITION              getDefinition              #-}
   {-# BUILTIN AGDATCMCOMMIT                     commitTC                   #-}
   {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
+  {-# BUILTIN AGDATCMPRAGMAFOREIGN              pragmaForeign              #-}
+  {-# BUILTIN AGDATCMPRAGMACOMPILE              pragmaCompile              #-}
   {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
   {-# BUILTIN AGDATCMWITHRECONSTRUCTED          withReconstructed          #-}
   {-# BUILTIN AGDATCMWITHEXPANDLAST             withExpandLast             #-}
@@ -583,8 +595,10 @@ following primitive operations::
   {-# BUILTIN AGDATCMASKREDUCEDEFS              askReduceDefs              #-}
   {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
   {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
+  {-# BUILTIN AGDATCMWORKONTYPES                workOnTypes                #-}
   {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
   {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
+  {-# BUILTIN AGDATCMSOLVEINSTANCES             solveInstanceConstraints   #-}
 
 Metaprogramming
 ---------------

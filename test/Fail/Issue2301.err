@@ -1,4 +1,4 @@
-Issue2301.agda:12,11-15
+Issue2301.agda:12,11-15: error: [UnequalRelevance]
 _A_8 → Box _A_8 !=< .A → Box A because one is a relevant function
 type and the other is an irrelevant function type
 when checking that the expression wrap has type .A → Box A

@@ -6,6 +6,8 @@ import qualified Control.Exception as E
 
 import Control.Monad       (void, when)
 import Control.Monad.Trans (MonadIO, liftIO)
+import Control.Exception (evaluate)
+import Control.DeepSeq   (rnf)
 
 import Data.Maybe
 
@@ -129,7 +131,7 @@ freshTCM m = do
       case err of
         TypeError { tcErrState = s } ->
           setTCLens lensPersistentState $ s ^. lensPersistentState
-        IOException s _ _ ->
+        IOException (Just s) _ _ ->
           setTCLens lensPersistentState $ s ^. lensPersistentState
         _ -> return ()
       return $ Left err
@@ -289,6 +291,12 @@ setMatchableSymbols f matchables =
   foldr ((.) . (\g -> updateDefinition g setMatchable)) id matchables
     where
       setMatchable def = def { defMatchable = Set.insert f $ defMatchable def }
+
+-- ** 'modify' methods for the signature
+
+modifyRecEta :: MonadTCState m => QName -> (EtaEquality -> EtaEquality) -> m ()
+modifyRecEta q f =
+  modifySignature $ updateDefinition q $ over (lensTheDef . lensRecord . lensRecEta) f
 
 -- ** Modifiers for parts of the signature
 
@@ -507,14 +515,6 @@ modifyBenchmark = modifyTC' . updateBenchmark
 -- * Instance definitions
 ---------------------------------------------------------------------------
 
--- | Look through the signature and reconstruct the instance table.
-addImportedInstances :: Signature -> TCM ()
-addImportedInstances sig = do
-  let itable = Map.fromListWith Set.union
-               [ (c, Set.singleton i)
-               | (i, Defn{ defInstance = Just c }) <- HMap.toList $ sig ^. sigDefinitions ]
-  stImportedInstanceDefs `modifyTCLens` Map.unionWith Set.union itable
-
 -- | Lens for 'stInstanceDefs'.
 updateInstanceDefs :: (TempInstanceTable -> TempInstanceTable) -> (TCState -> TCState)
 updateInstanceDefs = over stInstanceDefs
@@ -524,9 +524,10 @@ modifyInstanceDefs = modifyTC . updateInstanceDefs
 
 getAllInstanceDefs :: TCM TempInstanceTable
 getAllInstanceDefs = do
-  (table,xs) <- useTC stInstanceDefs
-  itable <- useTC stImportedInstanceDefs
-  let !table' = Map.unionWith Set.union itable table
+  (table, xs) <- useTC stInstanceDefs
+  itable <- useTC (stImports . sigInstances)
+  let table' = table <> itable
+  () <- liftIO $ evaluate (rnf table')
   return (table', xs)
 
 getAnonInstanceDefs :: TCM (Set QName)
@@ -543,16 +544,3 @@ addUnknownInstance x = do
     "adding definition " ++ prettyShow x ++
     " to the instance table (the type is not yet known)"
   modifyInstanceDefs $ mapSnd $ Set.insert x
-
--- | Add instance to some ``class''.
-addNamedInstance
-  :: QName  -- ^ Name of the instance.
-  -> QName  -- ^ Name of the class.
-  -> TCM ()
-addNamedInstance x n = do
-  reportSLn "tc.decl.instance" 10 $
-    "adding definition " ++ prettyShow x ++ " to instance table for " ++ prettyShow n
-  -- Mark x as instance for n.
-  modifySignature $ updateDefinition x $ \ d -> d { defInstance = Just n }
-  -- Add x to n's instances.
-  modifyInstanceDefs $ mapFst $ Map.insertWith Set.union n $ Set.singleton x

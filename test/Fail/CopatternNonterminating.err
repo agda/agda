@@ -1,4 +1,4 @@
-CopatternNonterminating.agda:16,1-18,38
+CopatternNonterminating.agda:16,1-18,38: error: [TerminationIssue]
 Termination checking failed for the following functions:
   illdefined
 Problematic calls:

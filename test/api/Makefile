@@ -7,7 +7,7 @@ AGDA = $(AGDA_BIN) -v0 --no-libraries
 .PHONY: all
 all : Issue1168.api PrettyInterface.api PrintImports.run ScopeFromInterface.api
 
-%.agdai : %.agda $(AGDA_BIN)
+%.agdai : %.agda $(which $(AGDA_BIN))
 	$(AGDA) $<
 
 .PHONY: %.api
@@ -17,7 +17,7 @@ all : Issue1168.api PrettyInterface.api PrintImports.run ScopeFromInterface.api
 .PHONY: %.run
 %.run : %.hs
 	$(eval tmpdir = $(shell mktemp -d /tmp/api-test.XXXX))
-	$(GHC) -Wall -Werror -package Agda-$(VERSION) -o $(tmpdir)/$* $*.hs
+	$(GHC) -Wall -Werror -package bytestring -package containers -package mtl -package Agda-$(VERSION) -o $(tmpdir)/$* $*.hs
 	$(tmpdir)/$*
 	rm -r $(tmpdir)
 

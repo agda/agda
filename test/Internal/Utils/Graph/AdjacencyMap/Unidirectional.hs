@@ -243,7 +243,7 @@ prop_invariant_insertEdgeWith ::
 prop_invariant_insertEdgeWith f e = invariant . insertEdgeWith f e
 
 prop_invariant_union :: G -> G -> Bool
-prop_invariant_union g1 g2 = invariant (union g1 g2)
+prop_invariant_union g1 g2 = invariant (g1 `union` g2)
 
 prop_invariant_unionWith :: (E -> E -> E) -> G -> G -> Bool
 prop_invariant_unionWith f g1 g2 = invariant (unionWith f g1 g2)
@@ -431,7 +431,7 @@ prop_removeEdge g =
     .&&.
   (not (null (nodes g)) ==>
    forAll (vectorOf 2 (nodeIn g)) $ \[s, t] ->
-   not (t `elem` map target (edgesFrom g [s])) ==>
+   t `notElem` (map target (edgesFrom g [s])) ==>
    forAll arbitrary $ \l ->
      removeEdge s t (insertEdge (Edge s t l) g) == g)
 
@@ -605,7 +605,7 @@ prop_longestPaths1 =
     (all (\(n, ps) -> all ((== n) . length) ps) $
      map Graph.label (edges g'))
     .&&.
-  (forAll (nodeIn g) $ \n ->
+  forAll (nodeIn g) (\n ->
    Map.keysSet (reachableFrom g n)
      ==
    Map.keysSet (neighboursMap n g'))
@@ -747,7 +747,7 @@ g2 = Graph $ Map.fromList
 
 g3 = Graph $ Map.fromList
   [ (n 1, Map.fromList [(n 2,StrictPos)])
-  , (n 2, Map.fromList [])
+  , (n 2, Map.empty)
   , (n 4, Map.fromList [(n 1,StrictPos)])
   ]
 

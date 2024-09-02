@@ -1,4 +1,4 @@
-ColistMutual.agda:39,1-6
+ColistMutual.agda:39,1-6: error: [AbsentRHSRequiresAbsurdPattern]
 The right-hand side can only be omitted if there is an absurd
 pattern, () or {}, in the left-hand side.
 when checking that the clause CRASH has type _18

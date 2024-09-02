@@ -1,4 +1,4 @@
-Issue477b.agda:4,1-5,16
+Issue477b.agda:4,1-5,16: error: [GenericError]
 Missing type signature for record definition D
 when scope checking the declaration
   record D where

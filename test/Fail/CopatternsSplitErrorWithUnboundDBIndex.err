@@ -1,4 +1,4 @@
-CopatternsSplitErrorWithUnboundDBIndex.agda:20,1-11
+CopatternsSplitErrorWithUnboundDBIndex.agda:20,1-11: error: [CannotEliminateWithProjection]
 Cannot eliminate type  A → A → A × A  with projection  fst
 when checking the clause left hand side
 fst test a

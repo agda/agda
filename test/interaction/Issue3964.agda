@@ -1,3 +1,4 @@
+{-# OPTIONS --no-keep-pattern-variables #-}
 
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Sigma

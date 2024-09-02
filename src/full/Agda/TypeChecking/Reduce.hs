@@ -5,7 +5,6 @@ module Agda.TypeChecking.Reduce
  ( Instantiate, instantiate', instantiate, instantiateWhen
  -- Recursive meta instantiation
  , InstantiateFull, instantiateFull', instantiateFull
- , instantiateFullExceptForDefinitions
  -- Check for meta (no reduction)
  , IsMeta, isMeta
  -- Reduction and blocking
@@ -154,8 +153,9 @@ blockOnError blocker f
   | otherwise               = f `catchError` \case
     TypeError{}         -> throwError $ PatternErr blocker
     PatternErr blocker' -> throwError $ PatternErr $ unblockOnEither blocker blocker'
-    err@Exception{}     -> throwError err
+    GenericException{}  -> __IMPOSSIBLE__
     err@IOException{}   -> throwError err
+    ParserError{}       -> __IMPOSSIBLE__
 
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.
@@ -213,9 +213,7 @@ instance Instantiate Term where
          _ | Just m' <- mvTwin mv, blocking ->
            instantiate' (MetaV m' es)
 
-         Open -> return t
-
-         OpenInstance -> return t
+         OpenMeta _ -> return t
 
          BlockedConst u
            | blocking  -> instantiate' . unBrave $
@@ -487,9 +485,9 @@ instance Reduce t => Reduce (Maybe t) where
 
 instance Reduce t => Reduce (Arg t) where
     reduce' a = case getRelevance a of
-      Irrelevant -> return a             -- Don't reduce' irr. args!?
-                                         -- Andreas, 2018-03-03, caused #2989.
-      _          -> traverse reduce' a
+      Irrelevant{} -> return a             -- Don't reduce' irr. args!?
+                                           -- Andreas, 2018-03-03, caused #2989.
+      _ -> traverse reduce' a
 
     reduceB' t = traverse id <$> traverse reduceB' t
 
@@ -926,8 +924,15 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
             (m, es0) <- matchCopatterns pats es0
             let es = es0 ++ es1
             case m of
-              No         -> goCls cls es
-              DontKnow b -> rewrite b (applyE v) rewr es
+              No               -> goCls cls es
+              -- Szumi, 2024-03-29, issue #7181:
+              -- If a lazy match is stuck and all non-lazy matches are conclusive,
+              -- then reduction should not be stuck on the current clause and it
+              -- should be fine to continue matching on the next clause.
+              -- This assumes it's impossible for a lazy match to be stuck if
+              -- all non-lazy matches succeed.
+              DontKnow OnlyLazy _ -> goCls cls es
+              DontKnow NonLazy  b -> rewrite b (applyE v) rewr es
               Yes simpl vs -- vs is the subst. for the variables bound in body
                 | Just w <- body -> do -- clause has body?
                     -- TODO: let matchPatterns also return the reduced forms
@@ -1570,7 +1575,11 @@ instance InstantiateFull CompareAs where
   instantiateFull' AsTypes       = return AsTypes
 
 instance InstantiateFull Signature where
-  instantiateFull' (Sig a b c) = uncurry3 Sig <$> instantiateFull' (a, b, c)
+  instantiateFull' (Sig a b c d) = Sig
+    <$> instantiateFull' a
+    <*> instantiateFull' b
+    <*> instantiateFull' c
+    <*> pure d             -- The instance table only stores names
 
 instance InstantiateFull Section where
   instantiateFull' (Section tel) = Section <$> instantiateFull' tel
@@ -1707,47 +1716,27 @@ instance InstantiateFull RemoteMetaVariable where
     <*> instantiateFull' c
 
 instance InstantiateFull Interface where
-  instantiateFull' i = do
-    defs <- instantiateFull' (i ^. intSignature . sigDefinitions)
-    instantiateFullExceptForDefinitions'
-      (set (intSignature . sigDefinitions) defs i)
-
--- | Instantiates everything except for definitions in the signature.
-
-instantiateFullExceptForDefinitions' :: Interface -> ReduceM Interface
-instantiateFullExceptForDefinitions'
-  (Interface h s ft ms mod tlmod scope inside sig metas display userwarn
-     importwarn b foreignCode highlighting libPragmas filePragmas
-     usedOpts patsyns warnings partialdefs oblocks onames) =
-  Interface h s ft ms mod tlmod scope inside
-    <$> ((\s r -> Sig { _sigSections     = s
-                      , _sigDefinitions  = sig ^. sigDefinitions
-                      , _sigRewriteRules = r
-                      })
-         <$> instantiateFull' (sig ^. sigSections)
-         <*> instantiateFull' (sig ^. sigRewriteRules))
-    <*> instantiateFull' metas
-    <*> instantiateFull' display
-    <*> return userwarn
-    <*> return importwarn
-    <*> instantiateFull' b
-    <*> return foreignCode
-    <*> return highlighting
-    <*> return libPragmas
-    <*> return filePragmas
-    <*> return usedOpts
-    <*> return patsyns
-    <*> return warnings
-    <*> return partialdefs
-    <*> return oblocks
-    <*> return onames
-
--- | Instantiates everything except for definitions in the signature.
-
-instantiateFullExceptForDefinitions ::
-  MonadReduce m => Interface -> m Interface
-instantiateFullExceptForDefinitions =
-  liftReduce . instantiateFullExceptForDefinitions'
+  instantiateFull'
+    (Interface h s ft ms mod tlmod scope inside sig _ display userwarn
+         importwarn b foreignCode highlighting libPragmas filePragmas
+         usedOpts patsyns warnings partialdefs oblocks onames) = do
+    Interface h s ft ms mod tlmod scope inside
+      <$!> instantiateFull' sig
+      <*!> pure mempty               -- remote metas are dropped
+      <*!> instantiateFull' display
+      <*!> return userwarn
+      <*!> return importwarn
+      <*!> instantiateFull' b
+      <*!> return foreignCode
+      <*!> return highlighting
+      <*!> return libPragmas
+      <*!> return filePragmas
+      <*!> return usedOpts
+      <*!> return patsyns
+      <*!> return warnings
+      <*!> return partialdefs
+      <*!> return oblocks
+      <*!> return onames
 
 instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull' (Builtin t) = Builtin <$> instantiateFull' t

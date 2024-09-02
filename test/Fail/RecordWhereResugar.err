@@ -1,0 +1,7 @@
+RecordWhereResugar.agda:15,8-12: error: [UnequalTerms]
+1 != 3 of type Nat
+when checking that the expression refl has type
+record { fst = 1 ; snd = 2 } ≡
+record where
+  fst = 3
+  snd = 4

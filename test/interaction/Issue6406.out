@@ -5,4 +5,4 @@
 (agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))
 (agda2-status-action "Checked")
-(agda2-info-action "*Normal Form*" "λ (@0 A) z → R.x z" nil)
+(agda2-info-action "*Normal Form*" "λ (@0 A) z → z .R.x" nil)

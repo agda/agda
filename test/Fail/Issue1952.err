@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _r_57 : Structure
   Candidates
@@ -159,15 +160,16 @@ Failed to solve the following constraints:
   (_r_95 Structure.⟶ (_r_95 Structure.× (_r_95 Structure.× X) X) X) X
     =< (_r_51 (Ty⟦_⟧ = Ty⟦_⟧) Structure.⟶ _X_93) _A_94
     (blocked on any(_r_51, _r_95))
-  Structure.Type C =< Structure.Type _r_95 (blocked on _r_95)
-  Structure.Type D =< Structure.Type _r_67 (blocked on _r_67)
-  Structure.Type _r_75 =< Structure.Type C (blocked on _r_75)
-  Structure.Type C =< Structure.Type _r_75 (blocked on _r_75)
-  Structure.Type _r_68 =< Structure.Type _r_67
+  Structure.Type C =< _r_95 .Structure.Type (blocked on _r_95)
+  Structure.Type D =< _r_67 .Structure.Type (blocked on _r_67)
+  _r_75 .Structure.Type =< Structure.Type C (blocked on _r_75)
+  Structure.Type C =< _r_75 .Structure.Type (blocked on _r_75)
+  _r_68 .Structure.Type =< _r_67 .Structure.Type
     (blocked on any(_r_67, _r_68))
-  Structure.Type D =< Structure.Type _r_68 (blocked on _r_68)
-  Structure.Type D =< Structure.Type _r_57 (blocked on _r_57)
-  Structure.Type C =< Structure.Type _r_51 (blocked on _r_51)
+  Structure.Type D =< _r_68 .Structure.Type (blocked on _r_68)
+  Structure.Type D =< _r_57 .Structure.Type (blocked on _r_57)
+  Structure.Type C =< _r_51 .Structure.Type (blocked on _r_51)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue1952.agda:29,25-26
   Issue1952.agda:29,23-24

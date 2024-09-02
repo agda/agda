@@ -10,11 +10,12 @@ import Prelude hiding (null)
 import Control.Arrow           ( (***), second )
 import Control.Monad           ( (>=>) )
 import Control.Monad.Identity  ( Identity(..), runIdentity )
+import Control.Monad.Reader    ( Reader, runReader, asks, local )
 import Control.Applicative     ( liftA2 )
-
 
 import Data.Maybe
 import Data.Monoid
+import Data.Void (Void)
 
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -64,7 +65,6 @@ instance MapNamedArgPattern NAP where
       AsP i x p0         -> f $ updateNamedArg (AsP i x) $ mapNamedArgPattern f $ setNamedArg p p0
       -- WithP: like AsP
       WithP i p0         -> f $ updateNamedArg (WithP i) $ mapNamedArgPattern f $ setNamedArg p p0
-      AnnP i a p0        -> f $ updateNamedArg (AnnP i a) $ mapNamedArgPattern f $ setNamedArg p p0
 
 instance MapNamedArgPattern a => MapNamedArgPattern [a]                  where
 instance MapNamedArgPattern a => MapNamedArgPattern (FieldAssignment' a) where
@@ -150,7 +150,6 @@ instance APatternLike (Pattern' a) where
       AbsurdP _          -> mempty
       LitP _ _           -> mempty
       EqualP _ _         -> mempty
-      AnnP _ _ p         -> foldrAPattern f p
 
   traverseAPatternM pre post = pre >=> recurse >=> post
     where
@@ -170,7 +169,6 @@ instance APatternLike (Pattern' a) where
       A.RecP        i    ps -> A.RecP        i    <$> traverseAPatternM pre post ps
       A.PatternSynP i x  ps -> A.PatternSynP i x  <$> traverseAPatternM pre post ps
       A.WithP       i p     -> A.WithP       i    <$> traverseAPatternM pre post p
-      A.AnnP        i a  p  -> A.AnnP        i a  <$> traverseAPatternM pre post p
 
 instance APatternLike a => APatternLike (Arg a) where
   type ADotT (Arg a) = ADotT a
@@ -223,7 +221,6 @@ patternVars p = foldAPattern f p `appEndo` []
     A.EqualP      {} -> mempty
     A.PatternSynP {} -> mempty
     A.WithP _ _      -> mempty
-    A.AnnP        {} -> mempty
 
 -- | Check if a pattern contains a specific (sub)pattern.
 
@@ -278,7 +275,6 @@ substPattern' subE s = mapAPattern $ \ p -> case p of
   VarP x            -> fromMaybe p $ lookup (A.unBind x) s
   DotP i e          -> DotP i $ subE e
   EqualP i es       -> EqualP i $ map (subE *** subE) es
-  AnnP i a p        -> AnnP i (subE a) p
   -- No action on the other patterns (besides the recursion):
   ConP _ _ _        -> p
   RecP _ _          -> p
@@ -290,6 +286,78 @@ substPattern' subE s = mapAPattern $ \ p -> case p of
   AsP _ _ _         -> p -- Note: cannot substitute into as-variable
   PatternSynP _ _ _ -> p
   WithP _ _         -> p
+
+-- | Convert a pattern to an expression.
+--
+-- Does not support all cases of patterns.
+-- Result has no 'Range' info, except in identifiers.
+--
+-- This function is only used in expanding pattern synonyms
+-- and in "Agda.Syntax.Translation.InternalToAbstract",
+-- so we can cut some corners.
+patternToExpr :: Pattern -> Expr
+patternToExpr p = patToExpr p `runReader` empty
+
+-- | Converting a pattern to an expression.
+--
+--   The 'Hiding' context is remembered to create instance metas
+--   when translating absurd patterns in instance position.
+--
+class PatternToExpr p e where
+  patToExpr :: p -> Reader Hiding e
+
+  default patToExpr :: (Traversable t, PatternToExpr p' e', p ~ t p', e ~ t e')
+    => p -> Reader Hiding e
+  patToExpr = traverse patToExpr
+
+instance PatternToExpr p e => PatternToExpr [p] [e]
+instance PatternToExpr p e => PatternToExpr (Named n p) (Named n e)
+instance PatternToExpr p e => PatternToExpr (FieldAssignment' p) (FieldAssignment' e)
+
+instance PatternToExpr p e => PatternToExpr (Arg p) (Arg e) where
+  patToExpr (Arg ai p) = local (const $ getHiding ai) $ Arg ai <$> patToExpr p
+
+instance PatternToExpr Pattern Expr where
+  patToExpr = \case
+    VarP x             -> return $ Var (unBind x)
+    ConP _ c ps        -> app (Con c) <$> patToExpr ps
+    ProjP _ o ds       -> return $ Proj o ds
+    DefP _ fs ps       -> app (Def $ headAmbQ fs) <$> patToExpr ps
+    WildP _            -> return $ Underscore emptyMetaInfo
+    AsP _ _ p          -> patToExpr p
+    DotP _ e           -> return e
+    -- Issue #7176: An absurd pattern in an instance position should turn into an instance meta:
+    AbsurdP _          -> asks hidingToMetaKind <&> \ k -> Underscore emptyMetaInfo{ metaKind = k }
+    LitP _ l           -> return $ Lit empty l
+    PatternSynP _ c ps -> app (PatternSyn c) <$> patToExpr ps
+    RecP i as          -> Rec (recInfoBrace $ getRange i) . map Left <$> patToExpr as
+    EqualP{}           -> __IMPOSSIBLE__  -- Andrea TODO: where is this used?
+    WithP r p          -> __IMPOSSIBLE__
+
+-- | Make sure that there are no dot or equality patterns (called on pattern synonyms).
+--   Also disallows annotated patterns.
+--
+noDotOrEqPattern :: forall m e. Monad m
+  => m (A.Pattern' Void)   -- ^ Exception or replacement for dot (etc.) patterns.
+  -> A.Pattern' e          -- ^ In pattern.
+  -> m (A.Pattern' Void)   -- ^ Out pattern.
+noDotOrEqPattern err = dot
+  where
+    dot :: A.Pattern' e -> m (A.Pattern' Void)
+    dot = \case
+      A.VarP x               -> pure $ A.VarP x
+      A.ConP i c args        -> A.ConP i c <$> (traverse $ traverse $ traverse dot) args
+      A.ProjP i o d          -> pure $ A.ProjP i o d
+      A.WildP i              -> pure $ A.WildP i
+      A.AsP i x p            -> A.AsP i x <$> dot p
+      A.DotP{}               -> err
+      A.EqualP{}             -> err   -- Andrea: so we also disallow = patterns, reasonable?
+      A.AbsurdP i            -> pure $ A.AbsurdP i
+      A.LitP i l             -> pure $ A.LitP i l
+      A.DefP i f args        -> A.DefP i f <$> (traverse $ traverse $ traverse dot) args
+      A.PatternSynP i c args -> A.PatternSynP i c <$> (traverse $ traverse $ traverse dot) args
+      A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
+      A.WithP i p            -> A.WithP i <$> dot p
 
 
 -- * Other pattern utilities

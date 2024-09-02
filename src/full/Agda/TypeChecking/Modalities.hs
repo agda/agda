@@ -15,13 +15,14 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Function
+import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
@@ -30,23 +31,22 @@ import Agda.Utils.Monad
 checkRelevance' :: (MonadConversion m) => QName -> Definition -> m (Maybe TypeError)
 checkRelevance' x def = do
   case getRelevance def of
-    Relevant -> return Nothing -- relevance functions can be used in any context.
+    Relevant{} -> return Nothing -- relevance functions can be used in any context.
     drel -> do
       -- Andreas,, 2018-06-09, issue #2170
       -- irrelevant projections are only allowed if --irrelevant-projections
-      ifM (return (isJust $ isProjection_ $ theDef def) `and2M`
+      let isProj = theDef def ^. funProj
+      ifM (pure isProj `and2M`
            (not . optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
         rel <- viewTC eRelevance
         reportSDoc "tc.irr" 50 $ vcat
           [ "declaration relevance =" <+> text (show drel)
           , "context     relevance =" <+> text (show rel)
+          , prettyTCM x <+> "is" <+> applyUnless isProj ("not" <+>) "a projection"
           ]
         return $ boolToMaybe (not $ drel `moreRelevant` rel) $ DefinitionIsIrrelevant x
   where
-  needIrrProj = Just . GenericDocError <$> do
-    sep [ "Projection " , prettyTCM x, " is irrelevant."
-        , " Turn on option --irrelevant-projections to use it (unsafe)."
-        ]
+  needIrrProj = return $ Just $ ProjectionIsIrrelevant x
 
 -- | The second argument is the definition of the first.
 --   Returns 'Nothing' if ok, otherwise the error message.
@@ -94,11 +94,7 @@ checkModalityArgs d vs = do
           v <- deBruijnView t
           varModality <$> lookupVarMap v vmap
     whenJust m $ \ used -> do
-        unless (getCohesion avail `moreCohesion` getCohesion used) $
-           genericDocError =<< fsep
-             [ "Telescope variable" <+> prettyTCM t
-             , "is indirectly being used in the" <+> text (verbalize (getModality used)) <+> "modality"
-             , "but only available as in the" <+> text (verbalize (getModality avail)) <+> "modality"
-             , "when inserting into the top-level"
-             , pretty (defName d) <+> ":" <+> prettyTCM (defType d)
-             ]
+      let availPosMod = positionalModalityComponent (getModality avail)
+          usedPosMod = positionalModalityComponent (getModality used)
+      unless (availPosMod `moreUsableModality` usedPosMod) $
+         typeError $ InvalidModalTelescopeUse t usedPosMod availPosMod d

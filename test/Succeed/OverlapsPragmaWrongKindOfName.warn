@@ -1,0 +1,29 @@
+OverlapsPragmaWrongKindOfName.agda:7,1-19: warning: -W[no]PragmaExpectsUnambiguousConstructorOrFunction
+Target of OVERLAPS pragma should be unambiguous, but it resolves to: OverlapsPragmaWrongKindOfName.D.c | OverlapsPragmaWrongKindOfName.E.c
+when scope checking the declaration
+  {-# OVERLAPS [c] #-}
+
+OverlapsPragmaWrongKindOfName.agda:9,1-22: warning: -W[no]PragmaExpectsUnambiguousConstructorOrFunction
+Target of OVERLAPS pragma should be a function, constructor, or projection
+when scope checking the declaration
+  {-# OVERLAPS [Set1] #-}
+
+OverlapsPragmaWrongKindOfName.agda:10,1-19: warning: -W[no]UselessPragma
+OVERLAPS pragma can only be applied to instances
+when checking the pragma OVERLAPS [D]
+
+———— All done; warnings encountered ————————————————————————
+
+OverlapsPragmaWrongKindOfName.agda:7,1-19: warning: -W[no]PragmaExpectsUnambiguousConstructorOrFunction
+Target of OVERLAPS pragma should be unambiguous, but it resolves to: OverlapsPragmaWrongKindOfName.D.c | OverlapsPragmaWrongKindOfName.E.c
+when scope checking the declaration
+  {-# OVERLAPS [c] #-}
+
+OverlapsPragmaWrongKindOfName.agda:9,1-22: warning: -W[no]PragmaExpectsUnambiguousConstructorOrFunction
+Target of OVERLAPS pragma should be a function, constructor, or projection
+when scope checking the declaration
+  {-# OVERLAPS [Set1] #-}
+
+OverlapsPragmaWrongKindOfName.agda:10,1-19: warning: -W[no]UselessPragma
+OVERLAPS pragma can only be applied to instances
+when checking the pragma OVERLAPS [D]

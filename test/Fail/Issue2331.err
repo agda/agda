@@ -1,4 +1,4 @@
-Issue2331.agda:11,1-16,28
+Issue2331.agda:11,1-16,28: error: [TerminationIssue]
 Termination checking failed for the following functions:
   test, helper
 Problematic calls:

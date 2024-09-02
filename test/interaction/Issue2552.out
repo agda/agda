@@ -6,6 +6,6 @@
 ((last . 1) . (agda2-goals-action '()))
 (agda2-status-action "Checked")
 (agda2-info-action "*Inferred Type*" "Set" nil)
-(agda2-info-action "*Error*" "1,1-4 Panic: unbound variable foo (id: 2@ModuleNameHash 16937846059894629291) when inferring the type of foo" nil)
-(agda2-highlight-load-and-delete-action)
+(agda2-info-action "*Error*" "An internal error has occurred. Please report this as a bug. Location of the error: __IMPOSSIBLE_VERBOSE__, called at src/full/Agda/TypeChecking/Monad/Context.hs:«line»:«col» «Agda-package»:Agda.TypeChecking.Monad.Context" nil)
+(agda2-highlight-add-annotations 'nil)
 (agda2-status-action "")

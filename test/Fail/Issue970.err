@@ -1,4 +1,4 @@
-Issue970.agda:42,1-46,53
+Issue970.agda:42,1-46,53: error: [TerminationIssue]
 Termination checking failed for the following functions:
   bug
 Problematic calls:

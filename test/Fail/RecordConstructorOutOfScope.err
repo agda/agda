@@ -1,4 +1,4 @@
-RecordConstructorOutOfScope.agda:7,8-11
+RecordConstructorOutOfScope.agda:7,8-11: error: [NotInScope]
 Not in scope:
   con
   at RecordConstructorOutOfScope.agda:7,8-11

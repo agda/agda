@@ -1,7 +1,7 @@
 AGDA_FAILURE
 
 ret > ExitFailure 42
-out > Issue6660-greet-nosig.agda:29,1-33,10
+out > Issue6660-greet-nosig.agda:29,1-33,10: error: [TerminationIssue]
 out > Termination checking failed for the following functions:
 out >   greet
 out > Problematic calls:

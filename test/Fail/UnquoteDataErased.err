@@ -1,0 +1,3 @@
+UnquoteDataErased.agda:22,5-12: error: [DefinitionIsErased]
+Identifier newC0 is declared erased, so it cannot be used here
+when checking that the expression newC0 7 has type newD0

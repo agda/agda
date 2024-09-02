@@ -1,4 +1,4 @@
-Issue708b.agda:5,1-6,16
+Issue708b.agda:5,1-6,16: error: [CoverageIssue]
 Incomplete pattern matching for test. Missing cases:
   test (x ∷ [])
   test (x ∷ x₁ ∷ x₂)

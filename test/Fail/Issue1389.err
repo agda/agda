@@ -1,2 +1,2 @@
-Issue1389.agda:1,12-13
+Issue1389.agda:1,1-17: error: [Syntax.UnquoteDefRequiresSignature]
 Missing type signatures for unquoteDef x

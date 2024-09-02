@@ -1,4 +1,4 @@
-NotStrictlyPositive.agda:12,1-13,23
+NotStrictlyPositive.agda:12,1-13,23: error: [NotStrictlyPositive]
 Bad is not strictly positive, because it occurs
 in the first argument of Neg
 in the type of the constructor bad

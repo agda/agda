@@ -1,4 +1,4 @@
-TelescopingLetDataRecord.agda:4,8-34
+TelescopingLetDataRecord.agda:4,8-34: error: [IllegalLetInTelescope]
 (let open Star) is not allowed in a telescope here.
 when scope checking the declaration
   data D1 (let open Star) (A : ★) : ★

@@ -99,11 +99,7 @@ checkConfluenceOfClauses confChk f = do
   rews <- getClausesAsRewriteRules f
   let noMetasInPats rew
         | noMetas (rewPats rew) = return True
-        | otherwise             = do
-            genericWarning =<< do
-              text "Confluence checking incomplete because the definition of" <+>
-                prettyTCM f <+> text "contains unsolved metavariables."
-            return False
+        | otherwise             = False <$ do warning $ ConfluenceCheckingIncompleteBecauseOfMeta f
   rews <- filterM noMetasInPats rews
   let matchables = map getMatchables rews
   reportSDoc "rewriting.confluence" 30 $
@@ -735,15 +731,14 @@ forceEtaExpansion a v (e:es) = case e of
     reportSDoc "rewriting.confluence.eta" 40 $ fsep
       [ "Forcing" , prettyTCM v , ":" , prettyTCM a , "to be projectible by" , prettyTCM f ]
     r <- fromMaybe __IMPOSSIBLE__ <$> getRecordOfField f
-    rdef <- getConstInfo r
-    let ra = defType rdef
+    Defn{ defType = ra, theDef = RecordDefn rdef } <- getConstInfo r
     pars <- newArgsMeta ra
     s <- ra `piApplyM` pars >>= \s -> ifIsSort s return __IMPOSSIBLE__
     equalType a $ El s (Def r $ map Apply pars)
 
     -- Eta-expand v at record type r, and get field corresponding to f
-    (_ , c , ci , fields) <- etaExpandRecord_ r pars (theDef rdef) v
-    let fs        = map argFromDom $ recFields $ theDef rdef
+    (_ , c , ci , fields) <- etaExpandRecord_ r pars rdef v
+    let fs        = map argFromDom $ _recFields rdef
         i         = fromMaybe __IMPOSSIBLE__ $ elemIndex f $ map unArg fs
         fContent  = unArg $ fromMaybe __IMPOSSIBLE__ $ fields !!! i
         fUpdate w = Con c ci $ map Apply $ updateAt i (w <$) fields

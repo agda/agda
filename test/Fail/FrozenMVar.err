@@ -1,5 +1,7 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _10 = suc zero : ℕ (blocked on _10)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   FrozenMVar.agda:14,7-8
   FrozenMVar.agda:17,9-13

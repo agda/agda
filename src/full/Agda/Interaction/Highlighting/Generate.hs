@@ -412,6 +412,8 @@ warningHighlighting' :: Bool -- ^ should we generate highlighting for unsolved m
 warningHighlighting' b w = case tcWarning w of
   TerminationIssue terrs     -> terminationErrorHighlighting terrs
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
+  ConstructorDoesNotFitInData c s1 s2 err -> errorWarningHighlighting c
+  CoinductiveEtaRecord _x    -> deadcodeHighlighting w
   -- #3965 highlight each unreachable clause independently: they
   -- may be interleaved with actually reachable clauses!
   UnreachableClauses _ rs    -> foldMap deadcodeHighlighting rs
@@ -420,17 +422,24 @@ warningHighlighting' b w = case tcWarning w of
   InlineNoExactSplit{}       -> catchallHighlighting $ getRange w
   UnsolvedConstraints cs     -> if b then constraintsHighlighting [] cs else mempty
   UnsolvedMetaVariables rs   -> if b then metasHighlighting rs          else mempty
-  AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting w
-  ModuleDoesntExport{}         -> deadcodeHighlighting w
+  AbsurdPatternRequiresAbsentRHS{} -> deadcodeHighlighting w
+  DuplicateRecordDirective{}   -> deadcodeHighlighting w
+  ModuleDoesntExport _ _ _ xs  -> foldMap deadcodeHighlighting xs
   DuplicateUsing xs            -> foldMap deadcodeHighlighting xs
   FixityInRenamingModule rs    -> foldMap deadcodeHighlighting rs
   -- expanded catch-all case to get a warning for new constructors
   CantGeneralizeOverSorts{}  -> mempty
   UnsolvedInteractionMetas{} -> mempty
   InteractionMetaBoundaries{} -> mempty
-  OldBuiltin{}               -> mempty
+  OldBuiltin{}                -> deadcodeHighlighting w
+  BuiltinDeclaresIdentifier{} -> mempty
   EmptyRewritePragma{}       -> deadcodeHighlighting w
   EmptyWhere{}               -> deadcodeHighlighting w
+  -- TODO: linearity
+  -- FixingQuantity _ q _       -> if null r then cosmeticHighlighting w else deadcodeHighlighting r
+  --   where r = getRange q
+  FixingRelevance _ q _      -> if null r then cosmeticProblemHighlighting w else deadcodeHighlighting r
+    where r = getRange q
   IllformedAsClause{}        -> deadcodeHighlighting w
   UselessPragma r _          -> deadcodeHighlighting r
   UselessPublic{}            -> deadcodeHighlighting w
@@ -440,13 +449,12 @@ warningHighlighting' b w = case tcWarning w of
   ClashesViaRenaming _ xs    -> foldMap deadcodeHighlighting xs
     -- #4154, TODO: clashing renamings are not dead code, but introduce problems.
     -- Should we have a different color?
-  WrongInstanceDeclaration{} -> mempty
-  InstanceWithExplicitArg{}  -> deadcodeHighlighting w
-  InstanceNoOutputTypeName{} -> mempty
-  InstanceArgWithExplicitArg{} -> mempty
+  WrongInstanceDeclaration{}   -> instanceProblemHighlighting w
+  InstanceWithExplicitArg{}    -> instanceProblemHighlighting w
+  InstanceNoOutputTypeName{}   -> instanceProblemHighlighting w
+  InstanceArgWithExplicitArg{} -> instanceProblemHighlighting w
   InversionDepthReached{}    -> mempty
   NoGuardednessFlag{}        -> mempty
-  GenericWarning{}           -> mempty
   -- Andreas, 2020-03-21, issue #4456:
   -- Error warnings that do not have dedicated highlighting
   -- are highlighted as errors.
@@ -456,15 +464,35 @@ warningHighlighting' b w = case tcWarning w of
   SafeFlagWithoutKFlagPrimEraseEquality -> errorWarningHighlighting w
   InfectiveImport{}                     -> errorWarningHighlighting w
   CoInfectiveImport{}                   -> errorWarningHighlighting w
+  InvalidDisplayForm{}                  -> deadcodeHighlighting w
+  TooManyArgumentsToSort _ args         -> errorWarningHighlighting args
+  WithClauseProjectionFixityMismatch p _ _ _ -> cosmeticProblemHighlighting p
   WithoutKFlagPrimEraseEquality -> mempty
+  ConflictingPragmaOptions{} -> mempty
   DeprecationWarning{}       -> mempty
   UserWarning{}              -> mempty
   LibraryWarning{}           -> mempty
+  ConfluenceCheckingIncompleteBecauseOfMeta{} -> confluenceErrorHighlighting w
+  ConfluenceForCubicalNotSupported{} -> mempty
   RewriteNonConfluent{}      -> confluenceErrorHighlighting w
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting w
   RewriteAmbiguousRules{}    -> confluenceErrorHighlighting w
   RewriteMissingRule{}       -> confluenceErrorHighlighting w
+  IllegalRewriteRule x _     -> deadcodeHighlighting x
+  NotARewriteRule x _        -> deadcodeHighlighting x
   PragmaCompileErased{}      -> deadcodeHighlighting w
+  PragmaCompileList{}        -> deadcodeHighlighting w
+  PragmaCompileMaybe{}       -> deadcodeHighlighting w
+  PragmaCompileWrong{}       -> deadcodeHighlighting w
+  PragmaCompileWrongName{}   -> deadcodeHighlighting w
+  PragmaCompileUnparsable{}  -> deadcodeHighlighting w
+  PragmaExpectsDefinedSymbol{}
+                             -> deadcodeHighlighting w
+  PragmaExpectsUnambiguousConstructorOrFunction{}
+                             -> deadcodeHighlighting w
+  PragmaExpectsUnambiguousProjectionOrFunction{}
+                             -> deadcodeHighlighting w
+  NoMain{}                   -> mempty
   NotInScopeW{}              -> deadcodeHighlighting w
   UnsupportedIndexedMatch{}  -> mempty
   AsPatternShadowsConstructorOrPatternSynonym{}
@@ -478,8 +506,10 @@ warningHighlighting' b w = case tcWarning w of
     Pa.UnsupportedAttribute{}     -> deadcodeHighlighting w
     Pa.MultipleAttributes{}       -> deadcodeHighlighting w
     Pa.OverlappingTokensWarning{} -> mempty
+  MissingTypeSignatureForOpaque{} -> errorWarningHighlighting w
   NotAffectedByOpaque{}           -> deadcodeHighlighting w
   UselessOpaque{}                 -> deadcodeHighlighting w
+  UnfoldingWrongName x            -> deadcodeHighlighting x
   UnfoldTransparentName r         -> deadcodeHighlighting r
   FaceConstraintCannotBeHidden{}  -> deadcodeHighlighting w
   FaceConstraintCannotBeNamed{}   -> deadcodeHighlighting w
@@ -507,14 +537,14 @@ warningHighlighting' b w = case tcWarning w of
       -- suggesting that it is not generalized over.
     UselessAbstract{}                -> deadcodeHighlighting w
     UselessInstance{}                -> deadcodeHighlighting w
+    UselessMacro{}                   -> deadcodeHighlighting w
     UselessPrivate{}                 -> deadcodeHighlighting w
+    InvalidCatchallPragma{}          -> deadcodeHighlighting w
     InvalidNoPositivityCheckPragma{} -> deadcodeHighlighting w
     InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting w
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting w
     InvalidCoverageCheckPragma{}     -> deadcodeHighlighting w
-    InvalidConstructor{}             -> deadcodeHighlighting w
     InvalidConstructorBlock{}        -> deadcodeHighlighting w
-    InvalidRecordDirective{}         -> deadcodeHighlighting w
     OpenPublicAbstract{}             -> deadcodeHighlighting w
     OpenPublicPrivate{}              -> deadcodeHighlighting w
     SafeFlagEta                   {} -> errorWarningHighlighting w
@@ -531,13 +561,18 @@ warningHighlighting' b w = case tcWarning w of
     MissingDeclarations{}            -> missingDefinitionHighlighting w
     MissingDefinitions{}             -> missingDefinitionHighlighting w
     -- TODO: explore highlighting opportunities here!
-    InvalidCatchallPragma{}           -> mempty
     PolarityPragmasButNotPostulates{} -> mempty
     PragmaNoTerminationCheck{}        -> mempty
     PragmaCompiled{}                  -> errorWarningHighlighting w
     UnknownFixityInMixfixDecl{}       -> mempty
     UnknownNamesInFixityDecl{}        -> mempty
     UnknownNamesInPolarityPragmas{}   -> mempty
+
+  -- Not source code related
+  DuplicateInterfaceFiles{} -> mempty
+
+  -- Backends
+  CustomBackendWarning{} -> mempty
 
 recordFieldWarningHighlighting ::
   RecordFieldWarning -> HighlightingInfoBuilder
@@ -596,10 +631,22 @@ catchallHighlighting :: Range -> HighlightingInfoBuilder
 catchallHighlighting r = H.singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CatchallClause }
 
+cosmeticProblemHighlighting :: HasRange a => a -> HighlightingInfoBuilder
+cosmeticProblemHighlighting a = H.singleton (rToR $ P.continuousPerLine r) m
+  where
+    r = getRange a
+    m = parserBased { otherAspects = Set.singleton CosmeticProblem }
+
 confluenceErrorHighlighting ::
   HasRange a => a -> HighlightingInfoBuilder
 confluenceErrorHighlighting a = H.singleton (rToR $ P.continuousPerLine $ getRange a) m
   where m = parserBased { otherAspects = Set.singleton ConfluenceProblem }
+
+instanceProblemHighlighting :: HasRange a => a -> HighlightingInfoBuilder
+instanceProblemHighlighting a = H.singleton (rToR $ P.continuousPerLine r) m
+  where
+    r = getRange a
+    m = parserBased { otherAspects = Set.singleton InstanceProblem }
 
 missingDefinitionHighlighting ::
   HasRange a => a -> HighlightingInfoBuilder

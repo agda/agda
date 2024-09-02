@@ -1,4 +1,4 @@
-TerminationWithMerge.agda:17,1-22,36
+TerminationWithMerge.agda:17,1-22,36: error: [TerminationIssue]
 Termination checking failed for the following functions:
   merge
 Problematic calls:

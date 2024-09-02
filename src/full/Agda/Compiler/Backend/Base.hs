@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.Compiler.Backend.Base where

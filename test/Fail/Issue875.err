@@ -1,4 +1,6 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _x_5 = x : A (blocked on _x_5)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue875.agda:8,7-8

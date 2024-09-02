@@ -218,14 +218,9 @@ data GHCDefinition = GHCDefinition
 
 ghcPreCompile :: GHCFlags -> TCM GHCEnv
 ghcPreCompile flags = do
-  cubical <- optCubical <$> pragmaOptions
-  let notSupported s =
-        typeError $ GenericError $
-          "Compilation of code that uses " ++ s ++ " is not supported."
-  case cubical of
-    Nothing      -> return ()
-    Just CErased -> return ()
-    Just CFull   -> notSupported "--cubical"
+  whenJustM cubicalOption \case
+    CErased -> pure ()
+    CFull   -> typeError $ CubicalCompilationNotSupported CFull
 
   outDir <- compileDir
   let ghcOpts = GHCOptions
@@ -305,10 +300,12 @@ ghcPreCompile flags = do
       , builtinAgdaTCMFormatErrorParts
       , builtinAgdaTCMDebugPrint
       , builtinAgdaTCMNoConstraints
+      , builtinAgdaTCMWorkOnTypes
       , builtinAgdaTCMRunSpeculative
       , builtinAgdaTCMExec
       , builtinAgdaTCMCheckFromString
       , builtinAgdaTCMGetInstances
+      , builtinAgdaTCMSolveInstances
       , builtinAgdaTCMPragmaForeign
       , builtinAgdaTCMPragmaCompile
       , builtinAgdaBlocker
@@ -383,7 +380,7 @@ ghcPreModule
                  -- ^ Could we confirm the existence of a main function?
 ghcPreModule cenv isMain m mifile =
   (do let check = ifM uptodate noComp yesComp
-      cubical <- optCubical <$> pragmaOptions
+      cubical <- cubicalOption
       case cubical of
         -- Code that uses --cubical is not compiled.
         Just CFull   -> noComp
@@ -438,9 +435,9 @@ ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
     hsModuleName <- curHsMod
     writeModule $ HS.Module
       hsModuleName
-      (map HS.OtherPragma headerPragmas)
+      (map HS.OtherPragma $ List.nub headerPragmas)
       imps
-      (map fakeDecl (hsImps ++ code) ++ decls)
+      (map fakeDecl (List.nub hsImps ++ code) ++ decls)
 
   return $ GHCModule menv mainDefs
 
@@ -517,9 +514,6 @@ mazRTEFloatImport (UsesFloat b) = [ HS.ImportDecl mazRTEFloat True Nothing | b ]
 
 definition :: Definition -> HsCompileM (UsesFloat, [HS.Decl], Maybe CheckedMainFunctionDef)
 -- ignore irrelevant definitions
-{- Andreas, 2012-10-02: Invariant no longer holds
-definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
--}
 definition Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
   reportSDoc "compile.ghc.definition" 10 $
     ("Not compiling" <+> prettyTCM q) <> "."
@@ -538,11 +532,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
   (uncurry (,,typeCheckedMainDef)) . second ((mainDecl ++) . infodecl q) <$>
     case d of
 
-      _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $
-          if is ghcEnvFlat
-          then genericError
-                "\"COMPILE GHC\" pragmas are not allowed for the FLAT builtin."
-          else do
+      _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $ do
             -- Make sure we have imports for all names mentioned in the type.
             hsty <- haskellType q
             mapM_ (`xqual` HS.Ident "_") (namesIn ty :: Set QName)
@@ -568,8 +558,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- Compiling List
       Datatype{ dataPars = np } | is ghcEnvList -> do
         sequence_ [primNil, primCons] -- Just to get the proper error for missing NIL/CONS
-        caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
-          fsep $ pwords "Ignoring GHC pragma for builtin lists; they always compile to Haskell lists."
+        whenJust pragma $ \ p -> setCurrentRange p $ warning PragmaCompileList
         let d = dname q
             t = unqhname TypeK q
         Just nil  <- getBuiltinName builtinNil
@@ -583,8 +572,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- Compiling Maybe
       Datatype{ dataPars = np } | is ghcEnvMaybe -> do
         sequence_ [primNothing, primJust] -- Just to get the proper error for missing NOTHING/JUST
-        caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
-          fsep $ pwords "Ignoring GHC pragma for builtin maybe; they always compile to Haskell lists."
+        whenJust pragma $ \ p -> setCurrentRange p $ warning PragmaCompileMaybe
         let d = dname q
             t = unqhname TypeK q
         Just nothing <- getBuiltinName builtinNothing
@@ -804,12 +792,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
   function mhe fun = do
     (imp, ccls) <- fun
     case mhe of
-      Just (HsExport r name) -> setCurrentRange r $ do
-        env <- askGHCEnv
-        if Just q == ghcEnvFlat env
-        then genericError
-              "\"COMPILE GHC as\" pragmas are not allowed for the FLAT builtin."
-        else do
+      Just (HsExport r name) -> do
           t <- setCurrentRange r $ haskellType q
           let tsig :: HS.Decl
               tsig = HS.TypeSig [HS.Ident name] t
@@ -878,7 +861,9 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
 constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> HsCompileM [HS.Decl]
 constructorCoverageCode q np cs hsTy hsCons = do
-  liftTCM $ checkConstructorCount q cs hsCons
+  -- Check that number of constructors matches up.
+  unless (length cs == length hsCons) $
+    ghcBackendError $ ConstructorCountMismatch q cs hsCons
   ifM (liftTCM $ noCheckCover q) (return []) $ do
     ccs <- List.concat <$> zipWithM checkConstructorType cs hsCons
     cov <- liftTCM $ checkCover q hsTy np cs hsCons
@@ -1342,9 +1327,7 @@ callGHC = do
   let isMain = modIsMain && modHasMainFunc  -- both need to be IsMain
 
   -- Warn if no main function and not --no-main
-  when (modIsMain /= isMain) $
-    genericWarning =<< fsep (pwords "No main function defined in" ++ [prettyTCM agdaMod <> "."] ++
-                             pwords "Use --no-main to suppress this warning.")
+  when (modIsMain /= isMain) $ warning $ NoMain agdaMod
 
   let overridableArgs =
         [ "-O"] ++

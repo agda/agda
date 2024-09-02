@@ -1,4 +1,4 @@
-RewriteExt-confluence.agda:32,17-21
+RewriteExt-confluence.agda:32,17-21: error: [RewriteAmbiguousRules]
 Global confluence check failed: id unit x (f x) can be rewritten to
 either g x or f x.
 Possible fix: add a rewrite rule with left-hand side

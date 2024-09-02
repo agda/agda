@@ -1,5 +1,4 @@
-Issue6238-safe.agda:11,1-30
-warning: -W[no]UnsupportedIndexedMatch
+Issue6238-safe.agda:11,1-30: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -7,6 +6,6 @@ not compute when applied to transports.
 Reason: It splits on a @♭ argument
 
 when checking the definition of CommFlatId
-Issue6238-safe.agda:1,1-46
+Issue6238-safe.agda:1,1-46: error: [SafeFlagPragma]
 Cannot set OPTIONS pragmas --without-K and --flat-split
 with safe flag.

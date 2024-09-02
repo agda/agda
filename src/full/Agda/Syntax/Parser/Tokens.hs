@@ -24,7 +24,7 @@ data Keyword
         | KwOpaque | KwUnfolding
         | KwOPTIONS | KwBUILTIN | KwLINE
         | KwFOREIGN | KwCOMPILE
-        | KwIMPOSSIBLE | KwSTATIC | KwINJECTIVE | KwINLINE | KwNOINLINE
+        | KwIMPOSSIBLE | KwSTATIC | KwINJECTIVE | KwINJECTIVE_FOR_INFERENCE | KwINLINE | KwNOINLINE
         | KwETA
         | KwNO_TERMINATION_CHECK | KwTERMINATING | KwNON_TERMINATING
         | KwNOT_PROJECTION_LIKE
@@ -32,6 +32,7 @@ data Keyword
         | KwWARNING_ON_USAGE | KwWARNING_ON_IMPORT
         | KwMEASURE | KwDISPLAY
         | KwREWRITE
+        | KwOVERLAPPABLE | KwOVERLAPPING | KwOVERLAPS | KwINCOHERENT
         | KwQuote | KwQuoteTerm
         | KwUnquote | KwUnquoteDecl | KwUnquoteDef
         | KwSyntax

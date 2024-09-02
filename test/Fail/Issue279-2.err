@@ -1,4 +1,4 @@
-Issue279-2.agda:20,7-12
+Issue279-2.agda:20,7-12: error: [UnequalTerms]
 ⊥ !=< ⊤ of type Set
 when checking that the inferred type of an application
   M.P ⊥ tt

@@ -1,4 +1,4 @@
-Issue2573-confluence.agda:21,15-18
+Issue2573-confluence.agda:21,15-18: error: [RewriteAmbiguousRules]
 Global confluence check failed: op true A can be rewritten to
 either Bool or A.
 Possible fix: add a rewrite rule with left-hand side op true A to

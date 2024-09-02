@@ -1,8 +1,7 @@
-Issue849.agda:26,1-24
-warning: -W[no]UnreachableClauses
+Issue849.agda:26,1-24: warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of f
-Issue849.agda:25,1-26,11
+Issue849.agda:25,1-26,11: error: [CoverageIssue]
 Incomplete pattern matching for f. Missing cases:
   f .(¬ x) (d2 x)
 when checking the definition of f

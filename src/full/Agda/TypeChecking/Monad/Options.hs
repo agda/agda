@@ -58,6 +58,24 @@ setPragmaOptions opts = do
   stPragmaOptions `setTCLens` opts
   updateBenchmarkingStatus
 
+-- | Check that that you don't turn on inconsistent options. For instance, if --a implies --b and
+--   you have both --a and --no-b. Only warn for things that have changed compared to the old
+--   options.
+checkPragmaOptionConsistency :: PragmaOptions -> PragmaOptions -> TCM ()
+checkPragmaOptionConsistency oldOpts newOpts = do
+  mapM_ check impliedPragmaOptions
+  where
+    -- Only warn if both flags are set explicitly (Value rather than Default)
+    check (ImpliesPragmaOption nameA valA flagA nameB valB flagB)
+      | flagA newOpts == flagA oldOpts
+      , flagB newOpts == flagB oldOpts  = pure () -- Nothing changed, don't check again.
+      | Value vA <- flagA newOpts, vA == valA
+      , Value vB <- flagB newOpts, vB /= valB = warning $ ConflictingPragmaOptions (nameA .= valA) (nameB .= valB)
+      | otherwise                 = pure ()
+      where
+        name .= True  = name
+        name .= False = "no-" ++ name
+
 -- | Sets the command line options (both persistent and pragma options
 -- are updated).
 --
@@ -103,7 +121,7 @@ libToTCM m = do
 
   unless (null warns) $ warnings $ map LibraryWarning warns
   case z of
-    Left s  -> typeError $ GenericDocError s
+    Left s  -> typeError $ LibraryError s
     Right x -> return x
 
 -- | Returns the library files for a given file.
@@ -151,10 +169,7 @@ checkLibraryFileNotTooFarDown ::
   AgdaLibFile ->
   TCM ()
 checkLibraryFileNotTooFarDown m lib =
-  when (lib ^. libAbove < size m - 1) $ typeError $ GenericError $
-    "A .agda-lib file for " ++ prettyShow m ++
-    " must not be located in the directory " ++
-    takeDirectory (lib ^. libFile)
+  when (lib ^. libAbove < size m - 1) $ typeError $ LibTooFarDown m lib
 
 -- | Returns the library options for a given file.
 
@@ -205,14 +220,29 @@ addTrustedExecutables o = do
   -- or is a security risk.
   return o{ optTrustedExecutables = trustedExes }
 
+-- | Set pragma options without checking for consistency.
 setOptionsFromPragma :: OptionsPragma -> TCM ()
-setOptionsFromPragma ps = setCurrentRange (pragmaRange ps) $ do
+setOptionsFromPragma = setOptionsFromPragma' False
+
+-- | Set pragma options and check them for consistency.
+checkAndSetOptionsFromPragma :: OptionsPragma -> TCM ()
+checkAndSetOptionsFromPragma = setOptionsFromPragma' True
+
+setOptionsFromPragma' :: Bool -> OptionsPragma -> TCM ()
+setOptionsFromPragma' checkConsistency ps = setCurrentRange (pragmaRange ps) $ do
     opts <- commandLineOptions
     let (z, warns) = runOptM (parsePragmaOptions ps opts)
     mapM_ (warning . OptionWarning) warns
     case z of
-      Left err    -> typeError $ GenericError err
-      Right opts' -> setPragmaOptions opts'
+      Left err    -> typeError $ OptionError err
+      Right opts' -> do
+
+        -- Check consistency of implied options
+        when checkConsistency $ do
+          oldOpts <- pragmaOptions
+          checkPragmaOptionConsistency oldOpts opts'
+
+        setPragmaOptions opts'
 
 -- | Disable display forms.
 enableDisplayForms :: MonadTCEnv m => m a -> m a

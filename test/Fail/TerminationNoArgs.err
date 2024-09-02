@@ -1,4 +1,4 @@
-TerminationNoArgs.agda:3,1-4,12
+TerminationNoArgs.agda:3,1-4,12: error: [TerminationIssue]
 Termination checking failed for the following functions:
   loop
 Problematic calls:

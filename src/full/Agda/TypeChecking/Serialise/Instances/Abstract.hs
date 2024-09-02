@@ -4,11 +4,14 @@
 
 module Agda.TypeChecking.Serialise.Instances.Abstract where
 
+import Control.Monad
+import Data.Void (Void)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pattern ( noDotOrEqPattern )
 import Agda.Syntax.Info
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Fixity
@@ -18,6 +21,7 @@ import Agda.TypeChecking.Serialise.Instances.Common () --instance only
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.Null
 import Agda.Utils.Impossible
 
 -- Don't serialize the tactic.
@@ -51,13 +55,13 @@ instance EmbPrj NameSpaceId where
     _ -> malformed
 
 instance EmbPrj Access where
-  icod_ (PrivateAccess UserWritten) = pure 0
-  icod_ PrivateAccess{}             = pure 1
-  icod_ PublicAccess                = pure 2
+  icod_ (PrivateAccess _ UserWritten) = pure 0
+  icod_ PrivateAccess{}               = pure 1
+  icod_ PublicAccess                  = pure 2
 
   value = \case
-    0 -> pure $ PrivateAccess UserWritten
-    1 -> pure $ PrivateAccess Inserted
+    0 -> pure $ PrivateAccess empty UserWritten
+    1 -> pure $ privateAccessInserted
     2 -> pure PublicAccess
     _ -> malformed
 
@@ -144,14 +148,15 @@ instance EmbPrj KindOfName where
   --   valu _   = malformed
 
 instance EmbPrj BindingSource where
-  icod_ LambdaBound   = pure 0
-  icod_ PatternBound  = pure 1
-  icod_ LetBound      = pure 2
-  icod_ WithBound     = pure 3
+  icod_ = \case
+    LambdaBound    -> pure 0
+    PatternBound _ -> pure 1
+    LetBound       -> pure 2
+    WithBound      -> pure 3
 
   value = \case
     0 -> pure LambdaBound
-    1 -> pure PatternBound
+    1 -> pure $ PatternBound empty
     2 -> pure LetBound
     3 -> pure WithBound
     _ -> malformed
@@ -180,10 +185,9 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
   icod_ (A.LitP i a)          = icodeN 7 (A.LitP i) a
   icod_ (A.ProjP p a b)       = icodeN 8 (A.ProjP p) a b
   icod_ (A.PatternSynP p a b) = icodeN 9 (A.PatternSynP p) a b
-  icod_ (A.RecP p a)          = icodeN 10 (A.RecP p) a
+  icod_ (A.RecP a b)          = icodeN 10 A.RecP a b
   icod_ (A.EqualP _ a)        = __IMPOSSIBLE__
   icod_ (A.WithP i a)         = icodeN 11 (A.WithP i) a
-  icod_ (A.AnnP i a p)        = icodeN 12 (A.AnnP i) a p
 
   value = vcase valu where
     valu [0, a]       = valuN A.VarP a
@@ -196,12 +200,19 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
     valu [7, a]       = valuN (A.LitP i) a
     valu [8, a, b]    = valuN (A.ProjP i) a b
     valu [9, a, b]    = valuN (A.PatternSynP i) a b
-    valu [10, a]      = valuN (A.RecP i) a
+    valu [10, a, b]   = valuN A.RecP a b
     valu [11, a]      = valuN (A.WithP i) a
-    valu [12, a, b]   = valuN (A.AnnP i) a b
     valu _            = malformed
 
     i = patNoRange
+
+-- | Hackish serialization for patterns that deletes dot patterns.
+--   So that we can serialize the 'WithClauseProjectionFixityMismatch'
+--   without having to define serialization of expressions.
+--
+instance {-# OVERLAPS #-} EmbPrj A.Pattern where
+  icod_ = icod_ <=< noDotOrEqPattern (return $ A.WildP empty)
+  value = fmap (__IMPOSSIBLE__ :: Void -> A.Expr) <.> value
 
 instance EmbPrj ParenPreference where
   icod_ PreferParen     = icodeN' PreferParen

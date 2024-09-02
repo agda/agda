@@ -129,7 +129,7 @@ tests = do
       enabledCompilers =
         [ MAlonzo s
         | s <- [Lazy, StrictData] ++
-               if ghcVersionAtLeast9 then [Strict] else []
+               [Strict | ghcVersionAtLeast9]
         ] ++
         [ JS opt
         | isJust nodeBin
@@ -278,7 +278,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           extraArgs' <- extraArgs
           -- compile file
           let cArgs   = cleanUpOptions (extraAgdaArgs cOpts)
-              defArgs = ["--ignore-interfaces" | notElem "--no-ignore-interfaces" (extraAgdaArgs cOpts)] ++
+              defArgs = ["--ignore-interfaces" | "--no-ignore-interfaces" `notElem` extraAgdaArgs cOpts] ++
                         ["--no-libraries"] ++
                         ["--compile-dir", compDir, "-v0", "-vwarning:1"] ++ extraArgs' ++ cArgs ++ [inp]
           let args = argsForComp comp ++ defArgs
@@ -321,13 +321,13 @@ cleanUpOptions = filter clean
   where
     clean :: String -> Bool
     clean "--no-ignore-interfaces"         = False
-    clean o | isPrefixOf "--ghc-flag=-j" o = True
+    clean o | "--ghc-flag=-j" `isPrefixOf` o = True
     clean _                                = True
 
 -- gets the generated executable path
 getExecForComp :: Compiler -> FilePath -> FilePath -> FilePath
-getExecForComp JS{} compDir inpFile = compDir </> ("jAgda." ++ (takeFileName $ dropAgdaOrOtherExtension inpFile) ++ ".js")
-getExecForComp _ compDir inpFile = compDir </> (takeFileName $ dropAgdaOrOtherExtension inpFile)
+getExecForComp JS{} compDir inpFile = compDir </> ("jAgda." ++ takeFileName (dropAgdaOrOtherExtension inpFile) ++ ".js")
+getExecForComp _ compDir inpFile = compDir </> takeFileName (dropAgdaOrOtherExtension inpFile)
 
 printExecResult :: ExecResult -> T.Text
 printExecResult (CompileFailed r)    = "COMPILE_FAILED\n\n"    <> printProgramResult r

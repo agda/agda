@@ -1,3 +1,6 @@
-Issue2645.agda:7,5-8,14
+Issue2645.agda:6,3-8,14: error: [Syntax.WrongContentBlock]
 A 'postulate' block can only contain type signatures, possibly
 under keywords 'instance' and 'private'
+when scope checking the declaration
+  record S where
+    postulate field f : Set

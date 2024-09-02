@@ -1,4 +1,2 @@
-Issue1609c.agda:3,9-9
-Issue1609c.agda:3,9: Illegal: with patterns in type signature
-<EOF><ERROR>
-...
+Issue1609c.agda:3,9: error: [ParseError]
+Illegal: with patterns in type signature

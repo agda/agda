@@ -27,8 +27,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Syntax.Common
   ( Cubical(..), Arg(..)
   , ConOrigin(..), ProjOrigin(..)
-  , Relevance(..)
-  , setRelevance
+  , irrelevant, setRelevance
   )
 import Agda.Syntax.Internal
 
@@ -111,8 +110,15 @@ doGlueKanOp (HCompOp psi u u0) (IsNot (la, lb, bA, phi, bT, e)) tpos = do
   view     <- intervalView'
 
   runNamesT [] $ do
-    [psi, u, u0] <- mapM (open . unArg) [ignoreBlocking psi, u, u0]
-    [la, lb, bA, phi, bT, e] <- mapM (open . unArg) [la, lb, bA, phi, bT, e]
+    psi <- open . unArg $ ignoreBlocking psi
+    u   <- open . unArg $ u
+    u0  <- open . unArg $ u0
+    la  <- open . unArg $ la
+    lb  <- open . unArg $ lb
+    bA  <- open . unArg $ bA
+    phi <- open . unArg $ phi
+    bT  <- open . unArg $ bT
+    e   <- open . unArg $ e
 
     ifM (headStop tpos phi) (return Nothing) $ Just <$> do
     let
@@ -164,8 +170,15 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
                       <@> lam "j" (\ j -> bA <@> imin i j)
                       <@> (imax phi (ineg i))
                       <@> u0
-    [psi,u0] <- mapM (open . unArg) [ignoreBlocking psi,u0]
-    [la, lb, bA, phi, bT, e] <- mapM (\ a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [la, lb, bA, phi, bT, e]
+    psi <- open . unArg $ ignoreBlocking psi
+    u0  <- open . unArg $ u0
+    let lami = open . runNames [] . lam "i" . const . pure . unArg
+    la  <- lami la
+    lb  <- lami lb
+    bA  <- lami bA
+    phi <- lami phi
+    bT  <- lami bT
+    e   <- lami e
 
     -- Andreas, 2022-03-24, fixing #5838
     -- Following the updated note
@@ -262,7 +275,7 @@ doGlueKanOp _ _ _ = __IMPOSSIBLE__
 -- element is defined.
 primGlue' :: TCM PrimitiveImpl
 primGlue' = do
-  requireCubical CFull ""
+  requireCubical CFull
   -- primGlue
   --   : {la lb : Level} (A : Type la) {φ : I}
   --   → (T : Partial φ (Type lb)
@@ -293,7 +306,7 @@ primGlue' = do
 -- types.
 prim_glue' :: TCM PrimitiveImpl
 prim_glue' = do
-  requireCubical CFull ""
+  requireCubical CFull
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
@@ -321,7 +334,7 @@ prim_glue' = do
 -- @Glue@ types.
 prim_unglue' :: TCM PrimitiveImpl
 prim_unglue' = do
-  requireCubical CFull ""
+  requireCubical CFull
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
@@ -348,7 +361,7 @@ prim_unglue' = do
         -- and we must produce @unglue b : A [ i1 → e b ]@. But that's
         -- just @e b@!
         IOne -> do
-          let argOne = setRelevance Irrelevant $ argN one
+          let argOne = setRelevance irrelevant $ argN one
           tEFun <- getTerm (getBuiltinId builtin_unglue) builtinEquivFun
           redReturn $ tEFun `apply` [lb,la,argH $ unArg bT `apply` [argOne],bA, argN $ unArg e `apply` [argOne],b]
 

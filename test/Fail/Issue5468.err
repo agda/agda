@@ -1,4 +1,4 @@
-Issue5468.agda:33,7-12
+Issue5468.agda:33,1-12: error: [UnusableAtModality]
 This clause has target type A which is not usable at the required
 modality @ω.
 

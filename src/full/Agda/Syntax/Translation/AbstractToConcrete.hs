@@ -564,13 +564,13 @@ withAbstractPrivate i m =
       . addInstanceB (case A.defInstance i of InstanceDef r -> Just r; NotInstanceDef -> Nothing)
       <$> m
     where
-        priv (PrivateAccess UserWritten)
-                         ds = [ C.Private  (getRange ds) UserWritten ds ]
+        priv (PrivateAccess kwr UserWritten)
+                         ds = [ C.Private kwr UserWritten ds ]
         priv _           ds = ds
-        abst AbstractDef ds = [ C.Abstract (getRange ds) ds ]
+        abst AbstractDef ds = [ C.Abstract empty ds ]
         abst ConcreteDef ds = ds
 
-addInstanceB :: Maybe Range -> [C.Declaration] -> [C.Declaration]
+addInstanceB :: Maybe KwRange -> [C.Declaration] -> [C.Declaration]
 addInstanceB (Just r) ds = [ C.InstanceB r ds ]
 addInstanceB Nothing  ds = ds
 
@@ -619,7 +619,7 @@ bindToConcreteHiding h =
     Hidden     -> bindToConcreteTop
     Instance{} -> bindToConcreteTop
 
--- General instances ------------------------------------------------------
+-- Base type instances ------------------------------------------------------
 
 instance ToConcrete () where
   type ConOfAbs () = ()
@@ -632,6 +632,8 @@ instance ToConcrete Bool where
 instance ToConcrete Char where
   type ConOfAbs Char = Char
   toConcrete = pure
+
+-- Functors ---------------------------------------------------------------
 
 instance ToConcrete a => ToConcrete [a] where
     type ConOfAbs [a] = [ConOfAbs a]
@@ -654,6 +656,14 @@ instance ToConcrete a => ToConcrete (List1 a) where
         withPrecedence' p $ -- reset precedence
           bindToConcrete as $ \ cs ->
             ret (c :| cs)
+
+instance ToConcrete a => ToConcrete (Maybe a)  where
+    type ConOfAbs (Maybe a) = Maybe (ConOfAbs a)
+    toConcrete = traverse toConcrete
+    bindToConcrete (Just x) ret = bindToConcrete x $ ret . Just
+    bindToConcrete Nothing  ret = ret Nothing
+
+-- Bifunctors etc. --------------------------------------------------------
 
 instance (ToConcrete a1, ToConcrete a2) => ToConcrete (Either a1 a2) where
     type ConOfAbs (Either a1 a2) = Either (ConOfAbs a1) (ConOfAbs a2)
@@ -686,6 +696,8 @@ instance (ToConcrete a1, ToConcrete a2, ToConcrete a3) => ToConcrete (a1,a2,a3) 
         where
             reorder (x,(y,z)) = (x,y,z)
 
+-- Decorations ------------------------------------------------------------
+
 instance ToConcrete a => ToConcrete (Arg a) where
     type ConOfAbs (Arg a) = Arg (ConOfAbs a)
 
@@ -710,6 +722,28 @@ instance ToConcrete a => ToConcrete (Ranged a)  where
     type ConOfAbs (Ranged a) = Ranged (ConOfAbs a)
     toConcrete = traverse toConcrete
     bindToConcrete (Ranged r x) ret = bindToConcrete x $ ret . Ranged r
+
+-- Christian Sattler, 2017-08-05, fixing #2669
+-- Both methods of ToConcrete (FieldAssignment' a) need
+-- to be implemented, each in terms of the corresponding one of ToConcrete a.
+-- This mirrors the instance ToConcrete (Ranged a).
+-- The default implementations of ToConcrete are not valid semantically.
+instance ToConcrete a => ToConcrete (FieldAssignment' a) where
+    type ConOfAbs (FieldAssignment' a) = FieldAssignment' (ConOfAbs a)
+    toConcrete = traverse toConcrete
+
+    bindToConcrete (FieldAssignment name a) ret =
+      bindToConcrete a $ ret . FieldAssignment name
+
+-- Newtypes ---------------------------------------------------------------
+
+-- Deriving this requires UndecidableInstances,
+-- as TacticAttribute' is not larger than its expansion (Maybe . Ranged).
+-- (Also the derived instance produce a type error.)
+instance ToConcrete a => ToConcrete (TacticAttribute' a) where
+  type ConOfAbs (TacticAttribute' a) = TacticAttribute' (ConOfAbs a)
+  toConcrete = traverse toConcrete
+  bindToConcrete (TacticAttribute a) ret = bindToConcrete a $ ret . TacticAttribute
 
 -- Names ------------------------------------------------------------------
 
@@ -771,7 +805,7 @@ instance ToConcrete A.Expr where
     toConcrete (Var x)             = KnownIdent Asp.Bound . C.QName <$> toConcrete x
     toConcrete (Def' x suffix)     = KnownIdent Asp.Function <$> addSuffixConcrete suffix (toConcrete x)
     toConcrete (Proj ProjPrefix p) = KnownIdent Asp.Field <$> toConcrete (headAmbQ p)
-    toConcrete (Proj _          p) = C.Dot noRange . KnownIdent Asp.Field <$> toConcrete (headAmbQ p)
+    toConcrete (Proj _          p) = C.Dot empty . KnownIdent Asp.Field <$> toConcrete (headAmbQ p)
     toConcrete (A.Macro x)         = KnownIdent Asp.Macro <$> toConcrete x
     toConcrete e@(Con c)           = tryToRecoverPatternSyn e $ KnownIdent (Asp.Constructor Inductive) <$> toConcrete (headAmbQ c)
         -- for names we have to use the name from the info, since the abstract
@@ -798,7 +832,7 @@ instance ToConcrete A.Expr where
         (NamedMeta (metaNameSuggestion i) <$> metaNumber i)
 
     toConcrete (A.Dot i e) =
-      C.Dot (getRange i) <$> toConcrete e
+      C.Dot empty <$> toConcrete e
 
     toConcrete e@(A.App i e1 e2) = do
       is <- isBuiltinFun
@@ -920,16 +954,17 @@ instance ToConcrete A.Expr where
              b' <- toConcreteTop b
              -- NOTE We set relevance to Relevant in arginfo because we wrap
              -- with C.Dot or C.DoubleDot using addRel instead.
-             let dom = setRelevance Relevant $ setModality (getModality a') $ defaultArg $ addRel a' $ mkArg a'
+             let dom = setRelevance relevant $ setModality (getModality a') $ defaultArg $ addRel a' $ mkArg a'
              return $ C.Fun (getRange i) dom b'
              -- Andreas, 2018-06-14, issue #2513
              -- TODO: print attributes
         where
             ctx = if isRelevant a then FunctionSpaceDomainCtx else DotPatternCtx
-            addRel a e = case getRelevance a of
-                           Irrelevant -> C.Dot (getRange a) e
-                           NonStrict  -> C.DoubleDot (getRange a) e
-                           _          -> e
+            addRel a e =
+              case getRelevance a of
+                Irrelevant      {} -> C.Dot empty e
+                ShapeIrrelevant {} -> C.DoubleDot empty e
+                Relevant        {} -> e
             mkArg (Arg info e) = case getHiding info of
                                           Hidden     -> HiddenArg   (getRange e) (unnamed e)
                                           Instance{} -> InstanceArg (getRange e) (unnamed e)
@@ -942,8 +977,17 @@ instance ToConcrete A.Expr where
              return $ C.mkLet (getRange i) (concat ds') e'
 
     toConcrete (A.Rec i fs) =
-      bracket appBrackets $ do
-        C.Rec (getRange i) . map (fmap (\x -> ModuleAssignment x [] defaultImportDir)) <$> toConcreteTop fs
+      bracket appBrackets $
+        case i of
+          A.RecInfo r A.RecStyleBrace ->
+            C.Rec r . map (fmap (\x -> ModuleAssignment x [] defaultImportDir)) <$> toConcreteTop fs
+          A.RecInfo r A.RecStyleWhere ->
+            C.RecWhere r . map (either fieldToDecl moduleToDecl) <$> toConcreteTop fs
+            where
+              fieldToDecl (C.FieldAssignment x e) = C.FunClause (C.LHS (C.IdentP True $ C.QName x) [] [])
+                                                                (C.RHS e) C.NoWhere False
+              -- record where cannot contain modules
+              moduleToDecl = __IMPOSSIBLE__
 
     toConcrete (A.RecUpdate i e fs) =
       bracket appBrackets $ do
@@ -956,7 +1000,7 @@ instance ToConcrete A.Expr where
 
     -- Andreas, 2012-04-02: TODO!  print DontCare as irrAxiom
     -- Andreas, 2010-10-05 print irrelevant things as ordinary things
-    toConcrete (A.DontCare e) = C.Dot r . C.Paren r  <$> toConcrete e
+    toConcrete (A.DontCare e) = C.Dot empty . C.Paren r  <$> toConcrete e
        where r = getRange e
     toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete (headAmbQ n)
 
@@ -967,18 +1011,6 @@ makeDomainFree b@(A.DomainFull (A.TBind _ tac (x :| []) t)) =
       A.DomainFree (tbTacticAttr tac) x
     _ -> b
 makeDomainFree b = b
-
--- Christian Sattler, 2017-08-05, fixing #2669
--- Both methods of ToConcrete (FieldAssignment' a) (FieldAssignment' c) need
--- to be implemented, each in terms of the corresponding one of ToConcrete a c.
--- This mirrors the instance ToConcrete (Arg a) (Arg c).
--- The default implementations of ToConcrete are not valid semantically.
-instance ToConcrete a => ToConcrete (FieldAssignment' a) where
-    type ConOfAbs (FieldAssignment' a) = FieldAssignment' (ConOfAbs a)
-    toConcrete = traverse toConcrete
-
-    bindToConcrete (FieldAssignment name a) ret =
-      bindToConcrete a $ ret . FieldAssignment name
 
 
 -- Binder instances -------------------------------------------------------
@@ -1033,8 +1065,8 @@ instance ToConcrete A.LetBinding where
     bindToConcrete (A.LetBind i info x t e) ret =
         bindToConcrete x $ \ x ->
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
-           ret $ addInstanceB (if isInstance info then Just noRange else Nothing) $
-               [ C.TypeSig info Nothing (C.boundName x) t
+           ret $ addInstanceB (if isInstance info then Just empty else Nothing) $
+               [ C.TypeSig info empty (C.boundName x) t
                , C.FunClause
                    (C.LHS (C.IdentP True $ C.QName $ C.boundName x) [] [])
                    e C.NoWhere False
@@ -1134,18 +1166,9 @@ instance (ToConcrete p, ToConcrete a) => ToConcrete (RewriteEqn' qn A.BindName p
     Rewrite es    -> Rewrite <$> mapM (toConcrete . (\ (_, e) -> ((),e))) es
     Invert qn pes -> fmap (Invert ()) $ forM pes $ \ (Named n pe) -> do
       pe <- toConcrete pe
-      n  <- toConcrete n
+      n  <- fmap C.boundName <$> toConcrete n
       pure $ Named n pe
     LeftLet pes -> LeftLet <$> mapM toConcrete pes
-
-instance ToConcrete (Maybe A.BindName) where
-  type ConOfAbs (Maybe A.BindName) = Maybe C.Name
-  toConcrete = traverse (C.boundName <.> toConcrete)
-
-instance ToConcrete (Maybe A.QName) where
-  type ConOfAbs (Maybe A.QName) = Maybe C.Name
-
-  toConcrete = mapM (toConcrete . qnameName)
 
 instance ToConcrete (Constr A.Constructor) where
   type ConOfAbs (Constr A.Constructor) = C.Declaration
@@ -1155,7 +1178,7 @@ instance ToConcrete (Constr A.Constructor) where
   toConcrete (Constr (A.Axiom _ i info Nothing x t)) = do
     x' <- unsafeQNameToName <$> toConcrete x
     t' <- toConcreteTop t
-    return $ C.TypeSig info Nothing x' t'
+    return $ C.TypeSig info empty x' t'
   toConcrete (Constr (A.Axiom _ _ _ (Just _) _ _)) = __IMPOSSIBLE__
   toConcrete (Constr d) = headWithDefault __IMPOSSIBLE__ <$> toConcrete d
 
@@ -1177,11 +1200,20 @@ instance ToConcrete A.ModuleApplication where
     bindToConcrete tel $ \ tel -> do
       es <- toConcreteCtx argumentCtx_ es
       let r = fuseRange y es
-      return $ C.SectionApp r (catMaybes tel) (foldl (C.App r) (C.Ident y) es)
+      return $ C.SectionApp r (catMaybes tel) y $ map unNamedArg es
 
   toConcrete (A.RecordModuleInstance recm) = do
     recm <- toConcrete recm
     return $ C.RecordModuleInstance (getRange recm) recm
+
+instance ToConcrete A.RecordDirectives where
+  type ConOfAbs A.RecordDirectives = [C.RecordDirective]
+
+  toConcrete dir = C.ungatherRecordDirectives <$> traverse f dir
+    where
+      f :: A.QName -> AbsToCon (C.Name, IsInstance)
+      f = (,NotInstanceDef) <.> C.unqualify <.> toConcrete
+
 
 instance ToConcrete A.Declaration where
   type ConOfAbs A.Declaration = [C.Declaration]
@@ -1198,19 +1230,19 @@ instance ToConcrete A.Declaration where
         (case mp of
            Nothing   -> []
            Just occs -> [C.Pragma (PolarityPragma noRange x' occs)]) ++
-        [C.Postulate (getRange i) [C.TypeSig info Nothing x' t']]
+        [C.Postulate empty [C.TypeSig info empty x' t']]
 
   toConcrete (A.Generalize s i j x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
-    tac <- traverse toConcrete (defTactic i)
+    tac <- toConcrete (defTactic i)
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      return [C.Generalize (getRange i) [C.TypeSig j tac x' $ C.Generalized t']]
+      return [C.Generalize empty [C.TypeSig j tac x' $ C.Generalized t']]
 
   toConcrete (A.Field i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
-    tac <- traverse toConcrete (defTactic i)
+    tac <- toConcrete (defTactic i)
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
@@ -1221,7 +1253,7 @@ instance ToConcrete A.Declaration where
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- traverse toConcreteTop t
-      return [C.Primitive (getRange i) [C.TypeSig (argInfo t') Nothing x' (unArg t')]]
+      return [C.Primitive empty [C.TypeSig (argInfo t') empty x' (unArg t')]]
         -- Primitives are always relevant.
 
   toConcrete (A.FunDef i _ cs) =
@@ -1252,10 +1284,11 @@ instance ToConcrete A.Declaration where
   toConcrete (A.RecDef  i x uc dir bs t cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
+      dirs <- toConcrete dir
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
-      return [ C.RecordDef (getRange i) x' (dir { recConstructor = Nothing }) (catMaybes tel') cs' ]
+      return [ C.RecordDef (getRange i) x' dirs (catMaybes tel') cs' ]
 
-  toConcrete (A.Mutual i ds) = pure . C.Mutual noRange <$> declsToConcrete ds
+  toConcrete (A.Mutual i ds) = pure . C.Mutual empty <$> declsToConcrete ds
 
   toConcrete (A.Section i erased x (A.GeneralizeTel _ tel) ds) = do
     x <- toConcrete x
@@ -1321,8 +1354,10 @@ instance ToConcrete RangeAndPragma where
       return $ C.CompilePragma r b x s
     A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
     A.InjectivePragma x -> C.InjectivePragma r <$> toConcrete x
+    A.InjectiveForInferencePragma x -> C.InjectiveForInferencePragma r <$> toConcrete x
     A.InlinePragma b x -> C.InlinePragma r b <$> toConcrete x
     A.NotProjectionLikePragma q -> C.NotProjectionLikePragma r <$> toConcrete q
+    A.OverlapPragma q i -> C.OverlapPragma r <$> (fmap pure (toConcrete q)) <*> pure i
     A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
     A.DisplayPragma f ps rhs ->
       C.DisplayPragma r <$> toConcrete (A.DefP (PatRange noRange) (unambiguous f) ps) <*> toConcrete rhs
@@ -1388,12 +1423,13 @@ instance ToConcrete (UserPattern A.Pattern) where
         | otherwise          -> bindToConcrete (map UserPattern args) $ ret . A.ConP i c
       A.DefP i f args        -> bindToConcrete (map UserPattern args) $ ret . A.DefP i f
       A.PatternSynP i f args -> bindToConcrete (map UserPattern args) $ ret . A.PatternSynP i f
-      A.RecP i args          -> bindToConcrete ((map . fmap) UserPattern args) $ ret . A.RecP i
+      A.RecP i args
+        | conPatOrigin i == ConOSplit -> ret p
+        | otherwise          -> bindToConcrete ((map . fmap) UserPattern args) $ ret . A.RecP i
       A.AsP i x p            -> bindName' (unBind x) $
                                 bindToConcrete (UserPattern p) $ \ p ->
                                 ret (A.AsP i x p)
       A.WithP i p            -> bindToConcrete (UserPattern p) $ ret . A.WithP i
-      A.AnnP i a p           -> bindToConcrete (UserPattern p) $ ret . A.AnnP i a
 
 instance ToConcrete (UserPattern (NamedArg A.Pattern)) where
   type ConOfAbs (UserPattern (NamedArg A.Pattern)) = NamedArg A.Pattern
@@ -1425,11 +1461,13 @@ instance ToConcrete (SplitPattern A.Pattern) where
         | otherwise          -> bindToConcrete (map SplitPattern args) $ ret . A.ConP i c
       A.DefP i f args        -> bindToConcrete (map SplitPattern args) $ ret . A.DefP i f
       A.PatternSynP i f args -> bindToConcrete (map SplitPattern args) $ ret . A.PatternSynP i f
-      A.RecP i args          -> bindToConcrete ((map . fmap) SplitPattern args) $ ret . A.RecP i
+      A.RecP i args
+        | conPatOrigin i == ConOSplit
+                             -> bindToConcrete ((map . fmap) BindingPat args) $ ret . A.RecP i
+        | otherwise          -> bindToConcrete ((map . fmap) SplitPattern args) $ ret . A.RecP i
       A.AsP i x p            -> bindToConcrete (SplitPattern p)  $ \ p ->
                                 ret (A.AsP i x p)
       A.WithP i p            -> bindToConcrete (SplitPattern p) $ ret . A.WithP i
-      A.AnnP i a p           -> bindToConcrete (SplitPattern p) $ ret . A.AnnP i a
 
 instance ToConcrete (SplitPattern (NamedArg A.Pattern)) where
   type ConOfAbs (SplitPattern (NamedArg A.Pattern)) = NamedArg A.Pattern
@@ -1462,7 +1500,6 @@ instance ToConcrete BindingPattern where
                                 bindToConcrete (BindingPat p)  $ \ p ->
                                 ret (A.AsP i (mkBindName x) p)
       A.WithP i p            -> bindToConcrete (BindingPat p) $ ret . A.WithP i
-      A.AnnP i a p           -> bindToConcrete (BindingPat p) $ ret . A.AnnP i a
 
 instance ToConcrete A.Pattern where
   type ConOfAbs A.Pattern = C.Pattern
@@ -1483,7 +1520,7 @@ instance ToConcrete A.Pattern where
       A.ConP i c args  -> tryOp (headAmbQ c) (A.ConP i c) args
 
       A.ProjP i ProjPrefix p -> C.IdentP True <$> toConcrete (headAmbQ p)
-      A.ProjP i _          p -> C.DotP noRange . C.Ident <$> toConcrete (headAmbQ p)
+      A.ProjP i _          p -> C.DotP empty noRange . C.Ident <$> toConcrete (headAmbQ p)
 
       A.DefP i x args -> tryOp (headAmbQ x) (A.DefP i x)  args
 
@@ -1505,7 +1542,7 @@ instance ToConcrete A.Pattern where
       -- Andreas, 2018-06-19, issue #3130
       -- Print .p as .(p) if p is a projection
       -- to avoid confusion with projection pattern.
-      A.DotP i e@A.Proj{} -> C.DotP r . C.Paren r <$> toConcreteCtx TopCtx e
+      A.DotP i e@A.Proj{} -> C.DotP empty r . C.Paren r <$> toConcreteCtx TopCtx e
         where r = getRange i
 
       -- gallais, 2019-02-12, issue #3491
@@ -1520,7 +1557,7 @@ instance ToConcrete A.Pattern where
           -- If we do then we print .(v) rather than .v
           Right FieldName{} -> do
             reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ prettyShow (nameConcrete v)
-            C.DotP r . C.Paren r <$> toConcrete (A.Var v)
+            C.DotP empty r . C.Paren r <$> toConcrete (A.Var v)
           Right _ -> printDotDefault i e
           Left _ -> __IMPOSSIBLE__
 
@@ -1536,8 +1573,6 @@ instance ToConcrete A.Pattern where
 
       A.WithP i p -> C.WithP (getRange i) <$> toConcreteCtx WithArgCtx p
 
-      A.AnnP i a p -> toConcrete p -- TODO: print type annotation
-
     where
 
     printDotDefault :: PatInfo -> A.Expr -> AbsToCon C.Pattern
@@ -1548,7 +1583,7 @@ instance ToConcrete A.Pattern where
         -- Andreas, 2016-02-04 print ._ pattern as _ pattern,
         -- following the fusing of WildP and ImplicitP.
         C.Underscore{} -> return $ C.WildP r
-        _ -> return $ C.DotP r c
+        _ -> return $ C.DotP empty r c
 
     tryOp :: A.QName -> (A.Patterns -> A.Pattern) -> A.Patterns -> AbsToCon C.Pattern
     tryOp x f args = do
@@ -1576,11 +1611,6 @@ instance ToConcrete A.Pattern where
                Arg i (Named Nothing (C.ParenP noRange x))
              arg -> arg)
           (return arg)
-
-instance ToConcrete (Maybe A.Pattern) where
-  type ConOfAbs (Maybe A.Pattern) = Maybe C.Pattern
-
-  toConcrete = traverse toConcrete
 
 -- Helpers for recovering natural number literals
 
@@ -1824,11 +1854,13 @@ tryToRecoverPatternSynP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
 tryToRecoverPatternSynP = recoverPatternSyn apply matchPatternSynP
   where apply c args = PatternSynP patNoRange (unambiguous c) args
 
--- | General pattern synonym recovery parameterised over expression type
-recoverPatternSyn :: ToConcrete a =>
-  (A.QName -> [NamedArg a] -> a)         -> -- applySyn
-  (PatternSynDefn -> a -> Maybe [Arg a]) -> -- match
-  a -> AbsToCon (ConOfAbs a) -> AbsToCon (ConOfAbs a)
+-- | General pattern synonym recovery parameterised over expression type.
+recoverPatternSyn :: forall a. ToConcrete a
+  => (A.QName -> [NamedArg a] -> a)                 -- applySyn
+  -> (PatternSynDefn -> a -> Maybe [WithHiding a])  -- match
+  -> a                                              -- expressions
+  -> AbsToCon (ConOfAbs a)                          -- fallback
+  -> AbsToCon (ConOfAbs a)
 recoverPatternSyn applySyn match e fallback = do
   doFold <- asks foldPatternSynonyms
   if not doFold then fallback else do
@@ -1855,8 +1887,9 @@ recoverPatternSyn applySyn match e fallback = do
       , prettyList_ $ map (\ (q,_,_) -> q) cands
       ]
     case sortBy cmp cands of
-      (q, args, _) : _ -> toConcrete $ applySyn q $ (map . fmap) unnamed args
-      []               -> fallback
+      (q, args, _) : _ -> toConcrete $ applySyn q $
+        for args $ \ (WithHiding h arg) -> setHiding h $ defaultNamedArg arg
+      [] -> fallback
   where
     -- Heuristic to pick the best pattern synonym: the one that folds the most
     -- constructors.

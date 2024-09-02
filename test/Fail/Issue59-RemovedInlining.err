@@ -1,4 +1,4 @@
-Issue59-RemovedInlining.agda:11,3-17,70
+Issue59-RemovedInlining.agda:11,3-17,70: error: [TerminationIssue]
 Termination checking failed for the following functions:
   Order.merge
 Problematic calls:

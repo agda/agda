@@ -12,6 +12,7 @@ data ⊥ : Set where
 -- Original exploit:
 -- data False : SizeUniv where
 
+{-# NO_UNIVERSE_CHECK #-}  -- InvalidNoUniverseCheckPragma, the pragma does not apply to definitions
 False : SizeUniv
 False = (X : SizeUniv) → X
 

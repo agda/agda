@@ -40,18 +40,18 @@ jobs:
 
     timeout-minutes: 60
 
-    runs-on: ubuntu-latest
-    ## Use preinstalled GHC and Cabal
-    #
-    # runs-on: ${{ matrix.os }}
-    # strategy:
-    #   fail-fast: false
-    #   matrix:
-    #     os:
-    #       - ubuntu-latest
-    #     ghc-ver: ['9.8.1']
-    #     cabal-ver: ['3.10.1.0']
-    #     # Use the versions preinstalled in the virtual environment, if possible.
+    name: cabal install ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        # OBS: name also used in conditional below
+        - name:  ""
+          install_flags: ""
+        - name:  "--lib"
+          install_flags: "--lib"
 
     env:
       FLAGS: "-O0 -f enable-cluster-counting"
@@ -59,37 +59,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    ## Disable the setup action: Use preinstalled GHC and Cabal.
-    ##
-    ## In case the ubuntu-22.04 environment moves GHC beyond
-    ## what Agda supports, bring back the setup action.
-    # - uses: haskell-actions/setup@v2
-    #   id: setup-haskell
-    #   with:
-    #     ghc-version:   ${{ matrix.ghc-ver }}
-    #     cabal-version: ${{ matrix.cabal-ver }}
-    #     cabal-update:  true
-
-    # 2023-08-21: skipping setup does no work out of the box
-    # since then cabal uses the XDG directory structure.
-    # In particular, the ~/.cabal/store is somewhere else.
-    # A workaround is to create the .cabal directory.
-    # In case we switch to XDG we need to reset the cache then so cabal does not get
-    # confused if there is both the restored .cabal/store and the XDG store.
-
-    - name: Set up cabal
-      run: |
-        mkdir -p ~/.cabal
-        cabal update
-
-    - name: Environment settings based on the Haskell setup
-      run: |
-        GHC_VER=$(ghc --numeric-version)
-        CABAL_VER=$(cabal --numeric-version)
-        echo "GHC_VER   = ${GHC_VER}"
-        echo "CABAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
-        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
+    - uses: haskell-actions/setup@v2
+      id: setup-haskell
+      with:
+        ghc-version:   '9.10'
+        cabal-version: latest
+        cabal-update:  true
 
     - name: Configure the build plan
       run: |
@@ -101,26 +76,43 @@ jobs:
       uses: actions/cache/restore@v4
       id: cache
       env:
-        key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}
+        key: cabal-install.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
       with:
-        path: &cache_path ~/.cabal/store
-        # ${{ steps.setup-haskell.outputs.cabal-store }}
+        path: &cache_path ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
         key:          ${{ env.key }}-${{ hashFiles('**/plan.json') }}
         restore-keys: ${{ env.key }}-
 
     - name: Install dependencies
-      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      # Since we save the cache even when building failed, it may be incomplete.
+      # Thus, do not skip this step:
+      # if: steps.cache.outputs.cache-hit != 'true'
       run: |
         cabal build --only-dependencies
 
     - name: Install Agda
       run: |
-        cabal install ${FLAGS}
+        cabal install ${FLAGS} ${{ matrix.install_flags }}
+
+    - name: Debug
+      if: matrix.name != '--lib'
+      run: |
+        echo "PATH = ${PATH}"
+        ls -l ~/.cabal/bin
+        tree -L 3 ~/.cabal/store
+
+    - name: Check for Agda library interface files
+      if: matrix.name != '--lib'
+      run: |
+        AGDA_VERSION=$(agda --numeric-version)
+        AGDA_DATA_DIR=$(agda --print-agda-data-dir)
+        echo "AGDA_VERSION  = ${AGDA_VERSION}"
+        echo "AGDA_DATA_DIR = ${AGDA_DATA_DIR}"
+        ls -l "${AGDA_DATA_DIR}/lib/prim/_build/${AGDA_VERSION}/agda/Agda/Primitive.agdai"
 
     - name: Save cache
       uses: actions/cache/save@v4
-      if:   ${{ always() && (steps.cache.outputs.cache-hit != 'true') }}
+      if:   always() && steps.cache.outputs.cache-hit != 'true'
             # save cache even when build fails
       with:
         key:  ${{ steps.cache.outputs.cache-primary-key }}

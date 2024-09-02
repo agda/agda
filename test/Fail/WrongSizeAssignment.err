@@ -1,4 +1,4 @@
-WrongSizeAssignment.agda:17,1-18,23
+WrongSizeAssignment.agda:17,1-18,23: error: [TerminationIssue]
 Termination checking failed for the following functions:
   f
 Problematic calls:

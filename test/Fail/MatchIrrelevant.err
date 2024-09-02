@@ -1,3 +1,3 @@
-MatchIrrelevant.agda:21,8-12
+MatchIrrelevant.agda:21,8-12: error: [SplitOnIrrelevant]
 Cannot pattern match against irrelevant argument of type NAT zero
 when checking that the pattern Zero has type NAT zero

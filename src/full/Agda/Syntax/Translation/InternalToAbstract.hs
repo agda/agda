@@ -40,7 +40,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Concrete (FieldAssignment'(..))
+import Agda.Syntax.Concrete (FieldAssignment'(..), TacticAttribute'(..))
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A hiding (Binder)
 import qualified Agda.Syntax.Abstract as A
@@ -190,12 +190,14 @@ instance Reify MetaId where
     reifyWhen = reifyWhenE
     reify x = do
       b <- asksTC envPrintMetasBare
-      mi  <- mvInfo <$> lookupLocalMeta x
+      mvar <- lookupLocalMeta x
+      let mi  = mvInfo mvar
       let mi' = Info.MetaInfo
                  { metaRange          = getRange $ miClosRange mi
                  , metaScope          = clScope $ miClosRange mi
                  , metaNumber         = if b then Nothing else Just x
                  , metaNameSuggestion = if b then "" else miNameSuggestion mi
+                 , metaKind           =  metaInstantiationToMetaKind (mvInstantiation mvar)
                  }
           underscore = return $ A.Underscore mi'
       -- If we are printing a term that will be pasted into the user
@@ -413,7 +415,7 @@ reifyDisplayFormP f ps wps = do
               -- even the pattern variables @n < len@ can be
               -- applied to some args @vs@.
               e <- if n < len
-                   then return $ A.patternToExpr $ namedArg $ indexWithDefault __IMPOSSIBLE__ ps n
+                   then return $ patternToExpr $ namedArg $ indexWithDefault __IMPOSSIBLE__ ps n
                    else reify (I.var (n - len))
               apps e =<< argsToExpr vs
             _ -> return underscore
@@ -490,9 +492,14 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
   -- turned into head symbols *if* they have display forms attached.
   hasDisplay <- liftReduce $ unKleisli hasDisplayForms
   let
-    prefixize orig name
-      | havePfp   = (orig == ProjPrefix)  || hasDisplay name
-      | otherwise = (orig /= ProjPostfix) || hasDisplay name
+    prefixize :: ProjOrigin -> QName -> Bool
+    prefixize orig name = or
+      [ if havePfp then orig == ProjPrefix else orig /= ProjPostfix
+      , isOperator name
+          -- Andreas, 2024-06-13, issue #7318:
+          -- print e.g. G .|_| as | G |
+      , hasDisplay name
+      ]
   reportSDoc "reify.term" 80 $ pure $ "reifyTerm (unSpine v) = " <+> pretty (unSpine' prefixize v)
 
   case unSpine' prefixize v of
@@ -509,18 +516,33 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
       reportSDoc "reify.def" 80 $ return $ "reifying def" <+> pretty x
       (x, es) <- reifyPathPConstAsPath x es
       reifyDisplayForm x es $ reifyDef expandAnonDefs x es
-    I.Con c ci vs -> do
-      let x = conName c
-      isR <- isGeneratedRecordConstructor x
-      if isR || ci == ConORec
-        then do
+
+    I.Con c ci es -> do
+
+      -- If the origin is a record expression, print a record expression.
+      if isRecOrigin ci then recordExpression (conOriginToRecInfo ci) Nothing else do
+        isRecordConstructor x >>= \case
+
+          -- If it is a generated constructor, print a record expression.
+          Just (r, def) | not (_recNamedCon def) -> recordExpression (recInfoBrace noRange) $ Just (r, def)
+
+          -- Otherwise, print a constructor application.
+          _ -> constructorApplication
+      where
+        x = conName c
+
+        recordExpression ri mrdef = do
+          (r, def) <- maybe (fromMaybe __IMPOSSIBLE__ <$> isRecordConstructor x) pure mrdef
           showImp <- showImplicitArguments
           let keep (a, v) = showImp || visible a
-          r <- getConstructorData x
-          xs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
-          vs <- map unArg <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
-          return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unDom) $ filter keep $ zip xs vs
-        else reifyDisplayForm x vs $ do
+          A.Rec ri
+            . map (Left . uncurry FieldAssignment . mapFst unDom)
+            . filter keep
+            . zip (recordFieldNames def)
+            . map unArg
+            <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims es)
+
+        constructorApplication = reifyDisplayForm x es $ do
           def <- getConstInfo x
           let Constructor {conPars = np} = theDef def
           -- if we are the the module that defines constructor x
@@ -530,10 +552,10 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
           -- extra parameters) or equal (if not) to n
           when (n > np) __IMPOSSIBLE__
           let h = A.Con (unambiguous x)
-          if null vs
+          if null es
             then return h
             else do
-              es <- reify (map (fromMaybe __IMPOSSIBLE__ . isApplyElim) vs)
+              es <- reify $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
               -- if the first regular constructor argument is hidden
               -- we turn it into a named argument, in order to avoid confusion
@@ -594,7 +616,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
             {- else -} (reify a)
       where
         mkPi b (Arg info a') = ifM (skipGeneralizedParameter info) (snd <$> reify b) $ do
-          tac <- traverse (Ranged noRange <.> reify) $ domTactic a
+          tac <- TacticAttribute <$> do traverse (Ranged noRange <.> reify) $ domTactic a
           (x, b) <- reify b
           let xs = singleton $ Arg info $ Named (domName a) $ mkBinder_ x
           return $ A.Pi noExprInfo
@@ -913,7 +935,7 @@ instance Reify i => Reify (Arg i) where
 
   reify (Arg info i) = Arg info <$> (flip reifyWhen i =<< condition)
     where condition = (return (argInfoHiding info /= Hidden) `or2M` showImplicitArguments)
-              `and2M` (return (getRelevance info /= Irrelevant) `or2M` showIrrelevantArguments)
+              `and2M` (return (not $ isIrrelevant info) `or2M` showIrrelevantArguments)
   reifyWhen b i = traverse (reifyWhen b) i
 {-# SPECIALIZE reify :: Reify i => Arg i -> TCM (ReifiesTo (Arg i)) #-}
 
@@ -1020,7 +1042,6 @@ stripImplicits toKeep params ps = do
             A.RecP i fs         -> A.RecP i $ map (fmap stripPat) fs  -- TODO Andreas: is this right?
             p@A.EqualP{}        -> p -- EqualP cannot be blanked.
             A.WithP i p         -> A.WithP i $ stripPat p -- TODO #2822: right?
-            A.AnnP i a p        -> A.AnnP i a $ stripPat p
 
           varOrDot A.VarP{}      = True
           varOrDot A.WildP{}     = True
@@ -1102,7 +1123,6 @@ instance BlankVars A.Pattern where
     A.RecP i fs   -> A.RecP i $ blank bound fs
     A.EqualP{}    -> p
     A.WithP i p   -> A.WithP i (blank bound p)
-    A.AnnP i a p  -> A.AnnP i (blank bound a) (blank bound p)
 
 instance BlankVars A.Expr where
   blank bound e = case e of
@@ -1185,7 +1205,6 @@ instance Binder A.Pattern where
     A.RecP _ _          -> empty
     A.EqualP{}          -> empty
     A.WithP _ _         -> empty
-    A.AnnP{}            -> empty
 
 instance Binder a => Binder (A.Binder' a) where
   varsBoundIn (A.Binder p n) = varsBoundIn (p, n)
@@ -1331,13 +1350,22 @@ tryRecPFromConP p = do
           -- If the record constructor is generated or the user wrote a record pattern,
           -- print record pattern.
           -- Otherwise, print constructor pattern.
-          if recNamedCon def && conPatOrigin ci /= ConORec then fallback else do
-            fs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
+          if _recNamedCon def && conPatOrigin ci /= ConORec then fallback else do
+            let fs = recordFieldNames def
             unless (length fs == length ps) __IMPOSSIBLE__
-            return $ A.RecP patNoRange $ zipWith mkFA fs ps
+            return $ A.RecP ci $ zipWith mkFA fs ps
         where
           mkFA ax nap = FieldAssignment (unDom ax) (namedArg nap)
     _ -> __IMPOSSIBLE__
+
+isRecOrigin :: ConOrigin -> Bool
+isRecOrigin ConORec = True
+isRecOrigin ConORecWhere = True
+isRecOrigin _ = False
+
+conOriginToRecInfo :: ConOrigin -> RecInfo
+conOriginToRecInfo ConORecWhere = recInfoWhere noRange
+conOriginToRecInfo _           = recInfoBrace noRange
 
 {-# SPECIALIZE recOrCon :: QName -> ConOrigin -> [Arg Expr] -> TCM A.Expr #-}
 -- | If the record constructor is generated or the user wrote a record expression,
@@ -1350,10 +1378,10 @@ recOrCon c co es = do
     -- If the record constructor is generated or the user wrote a record expression,
     -- print record expression.
     -- Otherwise, print constructor expression.
-    if recNamedCon def && co /= ConORec then fallback else do
-      fs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
+    if _recNamedCon def && not (isRecOrigin co) then fallback else do
+      let fs = recordFieldNames def
       unless (length fs == length es) __IMPOSSIBLE__
-      return $ A.Rec empty $ zipWith mkFA fs es
+      return $ A.Rec (conOriginToRecInfo co) $ zipWith mkFA fs es
   where
   fallback = apps (A.Con (unambiguous c)) es
   mkFA ax  = Left . FieldAssignment (unDom ax) . unArg
@@ -1465,7 +1493,7 @@ instance Reify Sort where
         I.Inf u 0 -> return $ A.Def' (nameOfUniv ULarge u) A.NoSuffix
         I.Inf u n -> return $ A.Def' (nameOfUniv ULarge u) (A.Suffix n)
         I.SizeUniv  -> do
-          I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
+          sizeU <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSizeUniv
           return $ A.Def sizeU
         I.LockUniv  -> do
           lockU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLockUniv
@@ -1532,7 +1560,7 @@ instance Reify I.Telescope where
     (x, bs)  <- reify tel
     let r    = getRange e
         name = domName arg
-    tac <- traverse (Ranged noRange <.> reify) $ domTactic arg
+    tac <- TacticAttribute <$> do traverse (Ranged noRange <.> reify) $ domTactic arg
     let xs = singleton $ Arg info $ Named name $ A.mkBinder_ x
     return $ TBind r (TypedBindingInfo tac (domIsFinite arg)) xs e : bs
 {-# SPECIALIZE reify :: I.Telescope -> TCM (ReifiesTo I.Telescope) #-}

@@ -4,7 +4,7 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : A " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-info-action "*Error*" "ParseHoleWhere.agda:17,8-20,3 where clauses are not supported in holes when checking that the expression ? has type A" nil)
+(agda2-info-action "*Error*" "ParseHoleWhere.agda:17,8-20,3: error: [Interaction.UnexpectedWhere] `where' clauses are not supported in holes when checking that the expression ? has type A" nil)
 ((last . 3) . (agda2-maybe-goto '("ParseHoleWhere.agda" . 220)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

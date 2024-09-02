@@ -1,0 +1,3 @@
+top_command (cmd_load currentFile ["--ignore-interfaces"])
+goal_command 0 cmd_give "String"
+top_command (cmd_compile GHC currentFile ["--no-main"])

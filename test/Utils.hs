@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Utils (module Utils,
               AgdaError(..)) where
@@ -27,7 +28,7 @@ import System.Exit
 import System.FilePath
 import qualified System.FilePath.Find as Find
 import System.FilePath.GlobPattern
--- import System.IO                     ( hPutStrLn, stderr )
+import System.IO                     ( hPutStrLn, stderr )
 import System.IO.Temp
 import System.PosixCompat.Time       ( epochTime )
 import System.PosixCompat.Files      ( modificationTime, touchFile )
@@ -77,8 +78,9 @@ readAgdaProcessWithExitCode extraEnv args inp = do
   home <- getHomeDirectory
   let env = expandEnvVarTelescope home $ maybe origEnv (origEnv ++) extraEnv
   let envArgs = maybe [] words $ lookup "AGDA_ARGS" env
+  let agdaBin = getAgdaBin env
   -- hPutStrLn stderr $ unwords $ agdaBin : envArgs ++ args
-  let agdaProc = (proc (getAgdaBin env) (envArgs ++ args))
+  let agdaProc = (proc agdaBin (envArgs ++ args))
         { create_group = True
         , env          = Just env
         , cwd          = Just "."
@@ -136,9 +138,7 @@ runAgdaWithOptions testName opts mflag mvars = do
         -- a missing '=' might mean to set the variable to the empty string.
 
 hasWarning :: Text -> Bool
-hasWarning t =
- "———— All done; warnings encountered ————————————————————————"
- `T.isInfixOf` t
+hasWarning = T.isInfixOf "warning: -W[no]"
 
 getAgdaBin :: EnvVars -> FilePath
 getAgdaBin = getProg "agda"
@@ -321,6 +321,7 @@ cleanOutput' agda pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
         -- First, replace backslashes by slashes, then try to match @pwd@,
         -- which has already backslashes by slashes replaced.
       , (T.pack pwd `T.append` ".test", "..")
+      , ("/[^ ]*/MAlonzo/Code/", "«path»/MAlonzo/Code/")
       , ("\\.hs(:[[:digit:]]+){2}", ".hs:«line»:«col»")
       , (T.pack Agda.Version.package, "«Agda-package»")
       -- Andreas, 2021-08-26.  When run with 'cabal test',

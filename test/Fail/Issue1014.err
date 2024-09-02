@@ -1,4 +1,4 @@
-Issue1014.agda:19,3-23,83
+Issue1014.agda:19,3-23,83: error: [TerminationIssue]
 Termination checking failed for the following functions:
   NoWith.bar
 Problematic calls:
@@ -6,7 +6,7 @@ Problematic calls:
     (at Issue1014.agda:23,28-29)
   bar A (proj₁ (h n An)) h (proj₂ (proj₂ (h n An)))
     (at Issue1014.agda:23,31-34)
-Issue1014.agda:30,3-34,82
+Issue1014.agda:30,3-34,82: error: [TerminationIssue]
 Termination checking failed for the following functions:
   CorrectlyRejected.bar'
 Problematic calls:
@@ -15,7 +15,7 @@ Problematic calls:
     (at Issue1014.agda:34,61-62)
   bar' A h n' An'
     (at Issue1014.agda:34,64-68)
-Issue1014.agda:41,3-43,63
+Issue1014.agda:41,3-43,63: error: [TerminationIssue]
 Termination checking failed for the following functions:
   CorrectlyRejected.bar
 Problematic calls:
@@ -24,7 +24,7 @@ Problematic calls:
     (at Issue1014.agda:43,47-48)
   bar n' An'
     (at Issue1014.agda:43,50-53)
-Issue1014.agda:48,3-52,81
+Issue1014.agda:48,3-52,81: error: [TerminationIssue]
 Termination checking failed for the following functions:
   WasAccepted1.bar
 Problematic calls:
@@ -33,7 +33,7 @@ Problematic calls:
     (at Issue1014.agda:52,61-62)
   bar A n' h An'
     (at Issue1014.agda:52,64-67)
-Issue1014.agda:63,1-65,63
+Issue1014.agda:63,1-65,63: error: [TerminationIssue]
 Termination checking failed for the following functions:
   bar
 Problematic calls:

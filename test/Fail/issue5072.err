@@ -1,5 +1,4 @@
-issue5072.agda:3,3-3
-issue5072.agda:3,3: Parse error
+issue5072.agda:3,3: error: [ParseError]
 no-eta-equality<ERROR>
 
 ...

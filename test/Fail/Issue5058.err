@@ -1,5 +1,7 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   i = _x.b.1_40 : I (blocked on _x.b.1_40)
   _x.b.1_40 = i : I (blocked on _x.b.1_40)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue5058.agda:26,9-10

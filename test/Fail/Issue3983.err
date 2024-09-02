@@ -1,12 +1,12 @@
-Issue3983.agda:14,3-22
+Issue3983.agda:14,3-22: error: [SafeFlagTerminating]
 Cannot use TERMINATING pragma with safe flag.
-Issue3983.agda:20,3-22
+Issue3983.agda:20,3-22: error: [SafeFlagTerminating]
 Cannot use TERMINATING pragma with safe flag.
-Issue3983.agda:26,3-22
+Issue3983.agda:26,3-22: error: [SafeFlagTerminating]
 Cannot use TERMINATING pragma with safe flag.
-Issue3983.agda:37,3-22
+Issue3983.agda:37,3-22: error: [SafeFlagTerminating]
 Cannot use TERMINATING pragma with safe flag.
-Issue3983.agda:43,3-22
+Issue3983.agda:43,3-22: error: [SafeFlagTerminating]
 Cannot use TERMINATING pragma with safe flag.
-Issue3983.agda:49,3-22
+Issue3983.agda:49,3-22: error: [SafeFlagTerminating]
 Cannot use TERMINATING pragma with safe flag.

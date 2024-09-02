@@ -1,11 +1,11 @@
-ConstructorRewriteConfluenceFail.agda:31,1-10
+ConstructorRewriteConfluenceFail.agda:31,1-10: error: [RewriteAmbiguousRules]
 Global confluence check failed: count-suc (pred (suc x)) can be
 rewritten to either count-suc (suc x) or count-suc x.
 Possible fix: add a rewrite rule with left-hand side
 count-suc (pred (suc x)) to resolve the ambiguity.
 when checking confluence of the rewrite rule
 ConstructorRewriteConfluenceFail.count-suc-clause2 with pred-suc
-ConstructorRewriteConfluenceFail.agda:31,1-10
+ConstructorRewriteConfluenceFail.agda:31,1-10: error: [RewriteAmbiguousRules]
 Global confluence check failed: count-suc (suc (pred x)) can be
 rewritten to either 1 +ℕ count-suc (pred x) or count-suc x.
 Possible fix: add a rewrite rule with left-hand side

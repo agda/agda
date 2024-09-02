@@ -1,4 +1,2 @@
-SyntaxForOperators.agda:5,22-22
-SyntaxForOperators.agda:5,22: Syntax declarations are allowed only for simple names (without holes)
-<EOF><ERROR>
-...
+SyntaxForOperators.agda:5,22: error: [ParseError]
+Syntax declarations are allowed only for simple names (without holes)

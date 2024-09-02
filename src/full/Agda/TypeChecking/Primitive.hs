@@ -213,9 +213,9 @@ instance ToTerm ArgInfo where
           Hidden     -> hid
           Instance{} -> ins
       , case getRelevance i of
-          Relevant   -> rel
-          Irrelevant -> irr
-          NonStrict  -> rel
+          Relevant        {} -> rel
+          Irrelevant      {} -> irr
+          ShapeIrrelevant {} -> rel
       ]
 
 instance ToTerm Fixity' where

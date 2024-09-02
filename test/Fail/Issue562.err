@@ -1,5 +1,4 @@
-Issue562.agda:9,14-15
+Issue562.agda:9,14-15: error: [NotInScope]
 Not in scope:
-  b
-  at Issue562.agda:9,14-15
+  b at Issue562.agda:9,14-15
 when scope checking b

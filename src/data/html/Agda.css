@@ -19,6 +19,7 @@
 .Agda .Datatype               { color: #0000CD }
 .Agda .Field                  { color: #EE1289 }
 .Agda .Function               { color: #0000CD }
+.Agda .Macro                  { color: #0000CD }
 .Agda .Module                 { color: #A020F0 }
 .Agda .Postulate              { color: #0000CD }
 .Agda .Primitive              { color: #0000CD }

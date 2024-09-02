@@ -44,7 +44,7 @@ prop_cluster_sound (Fun _ f) as =
   (`all` [ (c, d) | let cs = cluster f as, c <- cs, d <- cs, c /= d]) $ \ (c, d) ->
   (`all` c) $ \ a ->
   (`all` d) $ \ b ->
-  null $ (NonEmpty.toList $ f a) `intersect` (NonEmpty.toList $ f b)
+  null $ NonEmpty.toList (f a) `intersect` NonEmpty.toList (f b)
 
 isSingleton, exactlyTwo, atLeastTwo :: Foldable t => t a -> Bool
 isSingleton x = Fold.length x == 1

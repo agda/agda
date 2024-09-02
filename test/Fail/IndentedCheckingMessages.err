@@ -1,7 +1,7 @@
 Checking IndentedCheckingMessages (IndentedCheckingMessages.agda).
  Checking A.M (A/M.agda).
   Checking A.B.M (A/B/M.agda).
-IndentedCheckingMessages.agda:5,1-6,10
+IndentedCheckingMessages.agda:5,1-6,10: error: [TerminationIssue]
 Termination checking failed for the following functions:
   Foo
 Problematic calls:

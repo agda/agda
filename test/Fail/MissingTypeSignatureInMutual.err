@@ -1,4 +1,4 @@
-MissingTypeSignatureInMutual.agda:9,3-22
+MissingTypeSignatureInMutual.agda:9,3-22: error: [GenericError]
 Missing type signature for left hand side pred zero
 when scope checking the declaration
   pred zero = zero

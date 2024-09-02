@@ -2,7 +2,11 @@
 
 module Agda.Compiler.ToTreeless
   ( toTreeless
+  , toTreelessWith
   , closedTermToTreeless
+  , Pipeline(..)
+  , CompilerPass(..)
+  , compilerPass
   ) where
 
 import Prelude hiding ((!!))
@@ -71,50 +75,8 @@ getCompiledClauses q = do
       "-- using split tree" $$ pretty st
   CC.compileClauses' translate cs mst
 
--- | Converts compiled clauses to treeless syntax.
---
--- Note: Do not use any of the concrete names in the returned
--- term for identification purposes! If you wish to do so,
--- first apply the Agda.Compiler.Treeless.NormalizeNames
--- transformation.
-toTreeless :: EvaluationStrategy -> QName -> TCM (Maybe C.TTerm)
-toTreeless eval q = ifM (alwaysInline q) (pure Nothing) $ Just <$> toTreeless' eval q
-
-toTreeless' :: EvaluationStrategy -> QName -> TCM C.TTerm
-toTreeless' eval q =
-  flip fromMaybeM (getTreeless q) $ verboseBracket "treeless.convert" 20 ("compiling " ++ prettyShow q) $ do
-    cc <- getCompiledClauses q
-    unlessM (alwaysInline q) $ setTreeless q (C.TDef q)
-      -- so recursive inlining doesn't loop, but not for always inlined
-      -- functions, since that would risk inlining to fail.
-    ccToTreeless eval q cc
-
--- | Does not require the name to refer to a function.
-cacheTreeless :: EvaluationStrategy -> QName -> TCM ()
-cacheTreeless eval q = do
-  def <- theDef <$> getConstInfo q
-  case def of
-    Function{} -> () <$ toTreeless' eval q
-    _          -> return ()
-
-ccToTreeless :: EvaluationStrategy -> QName -> CC.CompiledClauses -> TCM C.TTerm
-ccToTreeless eval q cc = do
-  let pbody b = pbody' "" b
-      pbody' suf b = sep [ text (prettyShow q ++ suf) <+> "=", nest 2 $ prettyPure b ]
-  v <- ifM (alwaysInline q) (return 20) (return 0)
-  reportSDoc "treeless.convert" (30 + v) $ "-- compiled clauses of" <+> prettyTCM q $$ nest 2 (prettyPure cc)
-  body <- casetreeTop eval cc
-  reportSDoc "treeless.opt.converted" (30 + v) $ "-- converted" $$ pbody body
-  body <- runPipeline eval q (compilerPipeline v q) body
-  used <- usedArguments q body
-  when (ArgUnused `elem` used) $
-    reportSDoc "treeless.opt.unused" (30 + v) $
-      "-- used args:" <+> hsep [ if u == ArgUsed then text [x] else "_" | (x, u) <- zip ['a'..] used ] $$
-      pbody' "[stripped]" (stripUnusedArguments used body)
-  reportSDoc "treeless.opt.final" (20 + v) $ pbody body
-  setTreeless q body
-  setCompiledArgUse q used
-  return body
+-- ** Types of pipelines; different backends might use their own custom pipeline.
+type BuildPipeline = Int -> QName -> Pipeline
 
 data Pipeline = FixedPoint Int Pipeline
               | Sequential [Pipeline]
@@ -127,10 +89,86 @@ data CompilerPass = CompilerPass
   , passCode      :: EvaluationStrategy -> TTerm -> TCM TTerm
   }
 
+type CC        = ReaderT CCEnv TCM
+type CCContext = [Int]
+data CCSubst   = EraseUnused | IgnoreUnused deriving Eq
+
+-- | Environment for treeless conversion.
+data CCEnv = CCEnv
+  { ccCxt         :: CCContext
+    -- ^ Maps case tree de-bruijn indices to TTerm de-bruijn indices.
+  , ccCatchAll    :: Maybe Int
+    -- ^ TTerm de-bruijn index of the current catch all.
+    -- If an inner case has no catch-all clause, we use the one from its parent.
+  , ccEvaluation  :: EvaluationStrategy
+    -- ^ Which evaluation strategy does the backend assumes.
+  , ccSubstUnused :: CCSubst
+    -- ^ Whether to erase unused arguments.
+  }
+
+type CCConfig  = (EvaluationStrategy, CCSubst)
+
+-- | Initial environment for expression generation.
+initCCEnv :: CCConfig -> CCEnv
+initCCEnv (eval, su) = CCEnv
+  { ccCxt         = []
+  , ccCatchAll    = Nothing
+  , ccEvaluation  = eval
+  , ccSubstUnused = su
+  }
+
+-- | Converts compiled clauses to treeless syntax.
+--
+-- Note: Do not use any of the concrete names in the returned
+-- term for identification purposes! If you wish to do so,
+-- first apply the Agda.Compiler.Treeless.NormalizeNames
+-- transformation.
+toTreelessWith :: BuildPipeline -> CCConfig -> QName -> TCM (Maybe C.TTerm)
+toTreelessWith pl cfg q
+  = ifM (alwaysInline q) (pure Nothing)
+  $ Just <$> toTreelessWith' pl cfg q
+
+toTreeless :: EvaluationStrategy -> QName -> TCM (Maybe C.TTerm)
+toTreeless eval = toTreelessWith compilerPipeline (eval, EraseUnused)
+
+toTreelessWith' :: BuildPipeline -> CCConfig -> QName -> TCM C.TTerm
+toTreelessWith' pl cfg q =
+  flip fromMaybeM (getTreeless q) $ verboseBracket "treeless.convert" 20 ("compiling " ++ prettyShow q) $ do
+    cc <- getCompiledClauses q
+    unlessM (alwaysInline q) $ setTreeless q (C.TDef q)
+      -- so recursive inlining doesn't loop, but not for always inlined
+      -- functions, since that would risk inlining to fail.
+    ccToTreelessWith pl cfg q cc
+
+toTreeless' :: EvaluationStrategy -> QName -> TCM C.TTerm
+toTreeless' eval = toTreelessWith' compilerPipeline (eval, EraseUnused)
+
+ccToTreelessWith :: BuildPipeline -> CCConfig -> QName -> CC.CompiledClauses -> TCM C.TTerm
+ccToTreelessWith pl cfg@(eval, su) q cc = do
+  let pbody b = pbody' "" b
+      pbody' suf b = sep [ text (prettyShow q ++ suf) <+> "=", nest 2 $ prettyPure b ]
+  v <- ifM (alwaysInline q) (return 20) (return 0)
+  reportSDoc "treeless.convert" (30 + v) $ "-- compiled clauses of" <+> prettyTCM q $$ nest 2 (prettyPure cc)
+  body <- casetreeTop cfg cc
+  reportSDoc "treeless.opt.converted" (30 + v) $ "-- converted" $$ pbody body
+  body <- runPipeline eval q (pl v q) body
+  used <- usedArguments q body
+  when (su == EraseUnused && ArgUnused `elem` used) $
+    reportSDoc "treeless.opt.unused" (30 + v) $
+      "-- used args:" <+> hsep [ if u == ArgUsed then text [x] else "_" | (x, u) <- zip ['a'..] used ] $$
+      pbody' "[stripped]" (stripUnusedArguments used body)
+  reportSDoc "treeless.opt.final" (20 + v) $ pbody body
+  setTreeless q body
+  setCompiledArgUse q used
+  return body
+
+ccToTreeless :: EvaluationStrategy -> QName -> CC.CompiledClauses -> TCM C.TTerm
+ccToTreeless eval = ccToTreelessWith compilerPipeline (eval, EraseUnused)
+
 compilerPass :: String -> Int -> String -> (EvaluationStrategy -> TTerm -> TCM TTerm) -> Pipeline
 compilerPass tag v name code = SinglePass (CompilerPass tag v name code)
 
-compilerPipeline :: Int -> QName -> Pipeline
+compilerPipeline :: BuildPipeline
 compilerPipeline v q =
   Sequential
     -- Issue #4967: No simplification step before builtin translation! Simplification relies
@@ -177,9 +215,9 @@ runFixedPoint n eval q pipeline = go 1
             return t'
          | otherwise -> go (i + 1) t'
 
-closedTermToTreeless :: EvaluationStrategy -> I.Term -> TCM C.TTerm
-closedTermToTreeless eval t = do
-  substTerm t `runReaderT` initCCEnv eval
+closedTermToTreeless :: CCConfig -> I.Term -> TCM C.TTerm
+closedTermToTreeless cfg t = do
+  substTerm t `runReaderT` initCCEnv cfg
 
 alwaysInline :: QName -> TCM Bool
 alwaysInline q = do
@@ -189,25 +227,6 @@ alwaysInline q = do
             where
               recursive = any (fromMaybe True . clauseRecursive) cs
     _ -> False
-
--- | Initial environment for expression generation.
-initCCEnv :: EvaluationStrategy -> CCEnv
-initCCEnv eval = CCEnv
-  { ccCxt        = []
-  , ccCatchAll   = Nothing
-  , ccEvaluation = eval
-  }
-
--- | Environment for naming of local variables.
-data CCEnv = CCEnv
-  { ccCxt        :: CCContext  -- ^ Maps case tree de-bruijn indices to TTerm de-bruijn indices
-  , ccCatchAll   :: Maybe Int  -- ^ TTerm de-bruijn index of the current catch all
-  -- If an inner case has no catch-all clause, we use the one from its parent.
-  , ccEvaluation :: EvaluationStrategy
-  }
-
-type CCContext = [Int]
-type CC = ReaderT CCEnv TCM
 
 shift :: Int -> CCContext -> CCContext
 shift n = map (+ n)
@@ -225,8 +244,8 @@ lookupLevel :: Int -- ^ case tree de bruijn level
 lookupLevel l xs = fromMaybe __IMPOSSIBLE__ $ xs !!! (length xs - 1 - l)
 
 -- | Compile a case tree into nested case and record expressions.
-casetreeTop :: EvaluationStrategy -> CC.CompiledClauses -> TCM C.TTerm
-casetreeTop eval cc = flip runReaderT (initCCEnv eval) $ do
+casetreeTop :: CCConfig -> CC.CompiledClauses -> TCM C.TTerm
+casetreeTop cfg cc = flip runReaderT (initCCEnv cfg) $ do
   let a = commonArity cc
   lift $ reportSLn "treeless.convert.arity" 40 $ "-- common arity: " ++ show a
   lambdasUpTo a $ casetree cc
@@ -249,10 +268,6 @@ casetree cc = do
         ]
       return v'
     CC.Case _ (CC.Branches True _ _ _ Just{} _ _) -> __IMPOSSIBLE__
-      -- Andreas, 2016-06-03, issue #1986: Ulf: "no catch-all for copatterns!"
-      -- lift $ do
-      --   typeError . GenericDocError =<< do
-      --     "Not yet implemented: compilation of copattern matching with catch-all clause"
     CC.Case (Arg _ n) (CC.Branches True conBrs _ _ Nothing _ _) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
     CC.Case (Arg i n) (CC.Branches False conBrs etaBr litBrs catchAll _ lazy) -> lambdasUpTo (n + 1) $ do
@@ -582,6 +597,14 @@ normaliseStatic v@(I.Def f es) = lift $ do
   if static then normalise v else pure v
 normaliseStatic v = pure v
 
+-- | Does not require the name to refer to a function.
+cacheTreeless :: EvaluationStrategy -> QName -> TCM ()
+cacheTreeless eval q = do
+  def <- theDef <$> getConstInfo q
+  case def of
+    Function{} -> () <$ toTreeless' eval q
+    _          -> return ()
+
 maybeInlineDef :: I.QName -> I.Args -> CC C.TTerm
 maybeInlineDef q vs = do
   eval <- asks ccEvaluation
@@ -594,8 +617,12 @@ maybeInlineDef q vs = do
         | otherwise -> do
         -- If ArgUsage hasn't been computed yet, we assume all arguments are used.
         used <- lift $ fromMaybe [] <$> getCompiledArgUse q
-        let substUsed _   ArgUnused = pure C.TErased
-            substUsed arg ArgUsed   = substArg arg
+        su <- asks ccSubstUnused
+        let substUsed arg used
+              | used == ArgUnused && su == EraseUnused
+              = pure C.TErased
+              | otherwise
+              = substArg arg
         C.mkTApp (C.TDef q) <$> zipWithM substUsed vs (used ++ repeat ArgUsed)
       _ -> C.mkTApp (C.TDef q) <$> substArgs vs
   where

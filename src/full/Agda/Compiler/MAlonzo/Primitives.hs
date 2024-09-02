@@ -20,7 +20,6 @@ import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Either
 import Agda.Utils.Lens
@@ -76,11 +75,7 @@ checkTypeOfMain' m@(MainFunctionDef def) = CheckedMainFunctionDef m <$> do
     ty <- reduce $ defType def
     case unEl ty of
       Def d _ | d == io -> return mainAlias
-      _                 -> do
-        err <- fsep $
-          pwords "The type of main should be" ++
-          [prettyTCM io] ++ pwords " A, for some A. The given type is" ++ [prettyTCM ty]
-        typeError $ GenericError $ show err
+      _ -> ghcBackendError $ WrongTypeOfMain io ty
   where
     mainAlias = HS.FunBind [HS.Match mainLHS [] mainRHS emptyBinds ]
     mainLHS   = HS.Ident "main"

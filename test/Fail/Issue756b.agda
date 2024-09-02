@@ -10,3 +10,6 @@ data T : (Nat → Nat) → Set where
 
 bad : ∀ f → T f → Nat
 bad .(λ { zero → zero ; (suc n) → suc n }) idId = zero
+
+-- Expected error:
+-- Pattern lambdas are not allowed in dot patterns

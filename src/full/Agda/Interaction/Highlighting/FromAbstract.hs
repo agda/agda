@@ -27,7 +27,7 @@ import           Agda.Interaction.Highlighting.Range   ( rToR )  -- Range is amb
 import           Agda.Syntax.Abstract                ( IsProjP(..) )
 import qualified Agda.Syntax.Abstract      as A
 import           Agda.Syntax.Common        as Common
-import           Agda.Syntax.Concrete                ( FieldAssignment'(..) )
+import           Agda.Syntax.Concrete                ( FieldAssignment'(..), TacticAttribute' )
 import qualified Agda.Syntax.Concrete.Name as C
 import           Agda.Syntax.Info                    ( ModuleInfo(..) )
 import           Agda.Syntax.Literal
@@ -102,6 +102,7 @@ instance Hilite a => Hilite [a]
 instance Hilite a => Hilite (List1 a)
 instance Hilite a => Hilite (Maybe a)
 instance Hilite a => Hilite (Ranged a)
+instance Hilite a => Hilite (TacticAttribute' a)
 instance Hilite a => Hilite (WithHiding a)
 
 instance Hilite Void where
@@ -225,17 +226,19 @@ instance Hilite A.Declaration where
 
 instance Hilite A.Pragma where
   hilite = \case
-    A.OptionsPragma _strings     -> mempty
-    A.BuiltinPragma b x          -> singleAspect Keyword b <> hilite x
-    A.BuiltinNoDefPragma b k x   -> singleAspect Keyword b <> hiliteQName (Just $ kindOfNameToNameKind k) x
-    A.CompilePragma b x _foreign -> singleAspect Keyword b <> hilite x
-    A.RewritePragma r xs         -> singleAspect Keyword r <> hilite xs
-    A.StaticPragma x             -> hilite x
-    A.EtaPragma x                -> hilite x
-    A.InjectivePragma x          -> hilite x
-    A.NotProjectionLikePragma x  -> hilite x
-    A.InlinePragma _inline x     -> hilite x
-    A.DisplayPragma x ps e       -> hilite x <> hilite ps <> hilite e
+    A.OptionsPragma _strings        -> mempty
+    A.BuiltinPragma b x             -> singleAspect Keyword b <> hilite x
+    A.BuiltinNoDefPragma b k x      -> singleAspect Keyword b <> hiliteQName (Just $ kindOfNameToNameKind k) x
+    A.CompilePragma b x _foreign    -> singleAspect Keyword b <> hilite x
+    A.RewritePragma r xs            -> singleAspect Keyword r <> hilite xs
+    A.StaticPragma x                -> hilite x
+    A.EtaPragma x                   -> hilite x
+    A.InjectivePragma x             -> hilite x
+    A.InjectiveForInferencePragma x -> hilite x
+    A.NotProjectionLikePragma x     -> hilite x
+    A.OverlapPragma x _             -> hilite x
+    A.InlinePragma _inline x        -> hilite x
+    A.DisplayPragma x ps e          -> hilite x <> hilite ps <> hilite e
 
 instance Hilite A.Expr where
   hilite = \case
@@ -287,7 +290,6 @@ instance (Hilite a, IsProjP a) => Hilite (A.Pattern' a) where
       A.RecP _r ps           -> hl ps
       A.EqualP _r ps         -> hl ps
       A.WithP _ p            -> hl p
-      A.AnnP _r a p          -> hl p
 
     where
     hl a = hilite a

@@ -22,6 +22,7 @@ jobs:
       run:
         shell: bash
     env:
+      ARGS: --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --system-ghc --no-terminal
       EXTRA_ARGS: --dry-run
       NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:debug --flag
         Agda:debug-serialisation --flag Agda:debug-parsing
@@ -40,30 +41,6 @@ jobs:
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
         stack-version: ${{ matrix.stack-ver }}
-    - name: Environment settings based on the Haskell setup
-      run: |
-        echo "runner.os         = ${{ runner.os                               }}"
-        echo "OSTYPE            = ${{ env.OSTYPE                              }}"
-        echo "ghc-path          = ${{ steps.haskell-setup.outputs.ghc-path    }}"
-        echo "ghc-exe           = ${{ steps.haskell-setup.outputs.ghc-exe     }}"
-        echo "cabal-path        = ${{ steps.haskell-setup.outputs.cabal-path  }}"
-        echo "cabal-exe         = ${{ steps.haskell-setup.outputs.cabal-exe   }}"
-        echo "cabal-store       = ${{ steps.haskell-setup.outputs.cabal-store }}"
-        echo "stack-path        = ${{ steps.haskell-setup.outputs.stack-path  }}"
-        echo "stack-exe         = ${{ steps.haskell-setup.outputs.stack-exe   }}"
-        echo "stack-root        = ${{ steps.haskell-setup.outputs.stack-root  }}"
-        echo "STACK_ROOT (orig) = ${{ env.STACK_ROOT                          }}"
-        echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> "${GITHUB_ENV}"
-        echo "STACK_VER=$(stack --numeric-version)"                     >> "${GITHUB_ENV}"
-        GHC_VER=$(ghc --numeric-version)
-        echo "GHC_VER=${GHC_VER}"                                       >> "${GITHUB_ENV}"
-        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> "${GITHUB_ENV}"
-    - name: Environment (review)
-      run: |
-        echo "STACK_ROOT (fix)  = ${STACK_ROOT}"
-        echo "STACK_VER         = ${STACK_VER}"
-        echo "GHC_VER           = ${GHC_VER}"
-        echo "ICU_VER           = ${ICU_VER}"
     - name: Stack dry-run with the default flags in Agda.cabal.
       run: stack build ${ARGS} ${EXTRA_ARGS} --test
     - name: Stack-dry-run Agda with the non-default flags in Agda.cabal.
@@ -72,15 +49,15 @@ jobs:
       fail-fast: false
       matrix:
         ghc-ver:
-        - 9.6.4
+        - 9.8.2
+        - 9.6.6
         - 9.4.8
         - 9.2.8
         - 9.0.2
         - 8.10.7
         - 8.8.4
-        - 8.6.5
         os:
-        - ubuntu-latest
+        - ubuntu-24.04
         stack-ver:
         - latest
     timeout-minutes: 10
@@ -92,7 +69,7 @@ name: Stack check snapshots
     - Agda.cabal
     - Setup.hs
     - stack-*.yaml
-    - '!stack-9.8.1.yaml'
+    - '!stack-9.10.1.yaml'
     - src/size-solver/size-solver.cabal
   push:
     branches:
@@ -104,6 +81,6 @@ name: Stack check snapshots
     - Agda.cabal
     - Setup.hs
     - stack-*.yaml
-    - '!stack-9.8.1.yaml'
+    - '!stack-9.10.1.yaml'
     - src/size-solver/size-solver.cabal
   workflow_dispatch: null

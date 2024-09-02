@@ -1,7 +1,0 @@
-AbstractBlockInLet.agda:7,12-9,19
-'abstract' not allowed in let expressions
-when scope checking
-let abstract
-      x = a
-      y = x
-in y

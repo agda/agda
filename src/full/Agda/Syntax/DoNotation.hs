@@ -99,7 +99,7 @@ desugarDo qBind qThen = \case
   desugarDo0 :: [DoStmt] -> ScopeM Expr
   desugarDo0 ss = List1.ifNull ss failure $ desugarDo qBind qThen
 
-  failure = genericError
+  failure = doNotationError
     "The last statement in a 'do' block must be an expression or an absurd match."
 
 singleName :: Pattern -> Maybe Name
@@ -139,6 +139,9 @@ ensureInScope :: QName -> ScopeM ()
 ensureInScope q = do
   r <- resolveName q
   case r of
-    UnknownName -> genericError $
+    UnknownName -> doNotationError $
       prettyShow q ++ " needs to be in scope to desugar 'do' block"
     _ -> return ()
+
+doNotationError :: String -> ScopeM a
+doNotationError = typeError . DoNotationError

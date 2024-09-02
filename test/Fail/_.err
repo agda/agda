@@ -1,2 +1,3 @@
-The file name _.agda is
-invalid because it does not correspond to a valid module name.
+_.agda:1,1-1: error: [InvalidFileName]
+The file name _.agda is invalid
+because it does not correspond to a valid module name.

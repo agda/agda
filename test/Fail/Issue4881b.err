@@ -1,2 +1,2 @@
-Issue4881b.agda:2,1-2
+Issue4881b.agda:1,1-2,14: error: [Syntax.DuplicateAnonDeclaration]
 Duplicate declaration of _

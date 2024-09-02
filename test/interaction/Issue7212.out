@@ -1,0 +1,7 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-give-action 0 "refl (1 + 1)")
+((last . 1) . (agda2-goals-action '(1)))
+(agda2-give-action 1 "refl 2")
+((last . 1) . (agda2-goals-action '()))

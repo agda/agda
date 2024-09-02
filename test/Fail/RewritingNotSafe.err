@@ -1,2 +1,2 @@
-RewritingNotSafe.agda:2,1-28
+RewritingNotSafe.agda:2,1-28: error: [SafeFlagPragma]
 Cannot set OPTIONS pragma --rewriting with safe flag.

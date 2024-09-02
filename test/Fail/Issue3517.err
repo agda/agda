@@ -1,8 +1,8 @@
-Issue3517/S.agda:1,1-37
+Issue3517/S.agda:1,1-37: error: [SafeFlagPragma]
 Cannot set OPTIONS pragma --sized-types with safe flag.
 when scope checking the declaration
   import Issue3517.S
-Issue3517/S.agda:5,1-37
+Issue3517/S.agda:5,1-37: error: [CoInfectiveImport]
 Importing module Agda.Builtin.Size not using the --safe flag from a
 module which does.
 when scope checking the declaration

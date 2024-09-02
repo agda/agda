@@ -15,6 +15,7 @@ import Control.Monad.Reader   ( ReaderT )
 import Control.Monad.State    ( StateT  )
 import Control.Monad.Writer   ( WriterT )
 import Control.Monad.Trans    ( lift    )
+import Control.Monad.Trans.Maybe
 
 import Data.Maybe             ( isNothing )
 
@@ -45,6 +46,7 @@ import Text.PrettyPrint.Annotated (Doc, isEmpty)
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
 
+import Agda.Utils.Unsafe (unsafeComparePointers)
 import Agda.Utils.Impossible
 
 class Null a where
@@ -52,8 +54,10 @@ class Null a where
   null  :: a -> Bool
   -- ^ Satisfying @null empty == True@.
 
+  -- | The default implementation of 'null' compares with 'empty',
+  --   first trying pointer equality, then falling back to 'Eq' equality.
   default null :: Eq a => a -> Bool
-  null = (== empty)
+  null a = unsafeComparePointers a empty || a == empty
 
 instance Null () where
   empty  = ()
@@ -145,6 +149,10 @@ instance (Null (m a), Monad m) => Null (ExceptT e m a) where
   empty = lift empty
   null  = __IMPOSSIBLE__
 
+instance (Null (m a), Monad m) => Null (MaybeT m a) where
+  empty = lift empty
+  null  = __IMPOSSIBLE__
+
 instance (Null (m a), Monad m) => Null (ReaderT r m a) where
   empty = lift empty
   null  = __IMPOSSIBLE__
@@ -182,3 +190,6 @@ whenNullM ma k = ma >>= (`whenNull` k)
 
 unlessNullM :: (Monad m, Null a) => m a -> (a -> m ()) -> m ()
 unlessNullM ma k = ma >>= (`unlessNull` k)
+
+applyUnlessNull :: (Null a) => a -> (a -> b -> b) -> (b -> b)
+applyUnlessNull a f = if null a then id else f a

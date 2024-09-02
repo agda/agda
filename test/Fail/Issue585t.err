@@ -1,5 +1,7 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _x_13 = inn (out _x_13) : B (blocked on _x_13)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue585t.agda:24,9-10
   Issue585t.agda:24,7-10

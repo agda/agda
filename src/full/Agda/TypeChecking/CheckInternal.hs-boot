@@ -5,7 +5,6 @@
 module Agda.TypeChecking.CheckInternal where
 
 import Control.Monad.Except
-import qualified Control.Monad.Fail as Fail
 
 import qualified Data.Kind as Hs
 
@@ -22,7 +21,6 @@ type MonadCheckInternal m =
   , MonadStatistics m
   , MonadFresh ProblemId m
   , MonadFresh Int m
-  , Fail.MonadFail m
   )
 
 data Action (m :: Hs.Type -> Hs.Type)

@@ -1,0 +1,6 @@
+Issue7208.agda:4,1-19: error: [OverlappingProjects]
+The file Issue7208/A.agda can be
+accessed via several project roots. Both A and Issue7208.A point to
+this file.
+when scope checking the declaration
+  import Issue7208.A

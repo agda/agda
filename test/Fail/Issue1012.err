@@ -1,4 +1,4 @@
-Issue1012.agda:16,7-28
+Issue1012.agda:16,7-28: error: [UnequalTerms]
 Nat !=< A
 when checking that the inferred type of an application
   Nat

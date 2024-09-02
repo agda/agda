@@ -28,6 +28,7 @@ import Agda.Interaction.Highlighting.Generate
   ( storeDisambiguatedConstructor, storeDisambiguatedProjection )
 
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pattern (patternToExpr)
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
@@ -55,6 +56,7 @@ import Agda.TypeChecking.Rules.Def
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Warnings (warning)
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
@@ -147,12 +149,12 @@ checkApplication cmp hd args e t =
       -- Expand the pattern synonym by substituting for
       -- the arguments we have got and lambda-lifting
       -- over the ones we haven't.
-      let meta r = A.Underscore $ A.emptyMetaInfo{ A.metaRange = r }   -- TODO: name suggestion
+      let meta h r = A.Underscore $ A.emptyMetaInfo{ A.metaRange = r, A.metaKind = A.hidingToMetaKind h }   -- TODO: name suggestion
       case A.insertImplicitPatSynArgs meta (getRange n) ns args of
         Nothing      -> typeError $ BadArgumentsToPatternSynonym n
         Just (s, ns) -> do
-          let p' = A.patternToExpr p
-              e' = A.lambdaLiftExpr (map unArg ns) (A.substExpr s p')
+          let p' = patternToExpr p
+              e' = A.lambdaLiftExpr ns (A.substExpr s p')
           checkExpr' cmp e' t
 
     -- Subcase: macro
@@ -203,18 +205,17 @@ checkApplication cmp hd args e t =
           -- Example: unquote v a b : A
           --  Create meta H : (x : X) (y : Y x) → Z x y for the hole
           --  Check a : X, b : Y a
-          --  Unify Z a b == A
           --  Run the tactic on H
+          --  Check H a b : A
           tel    <- metaTel args                    -- (x : X) (y : Y x)
-          target <- addContext tel newTypeMeta_      -- Z x y
+          target <- addContext tel newTypeMeta_     -- Z x y
           let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
           (Just vs, EmptyTel) <- mapFst allApplyElims <$> checkArguments_ CmpLeq ExpandLast (getRange args) args tel
                                                     -- a b : (x : X) (y : Y x)
-          let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
-          equalType (applySubst rho target) t       -- Z a b == A
           (_, hole) <- newValueMeta RunMetaOccursCheck CmpLeq holeType
           unquoteM (namedArg arg) hole holeType
-          return $ apply hole vs
+          let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
+          coerce CmpEq (apply hole vs) (applySubst rho target) t -- H a b : A
       where
         metaTel :: [Arg a] -> TCM Telescope
         metaTel []           = pure EmptyTel
@@ -326,8 +327,8 @@ inferHead e = do
       -- So when applying the constructor throw away the parameters.
       return (applyE u . drop n, a)
     A.Con{} -> __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
-    A.QuestionMark i ii -> inferMeta (newQuestionMark ii) i
-    A.Underscore i   -> inferMeta (newValueMeta RunMetaOccursCheck) i
+    A.QuestionMark i ii -> inferMeta i (newQuestionMark ii)
+    A.Underscore i      -> inferMeta i (newValueMetaOfKind i RunMetaOccursCheck)
     e -> do
       (term, t) <- inferExpr e
       return (applyE term, t)
@@ -679,6 +680,11 @@ checkArgumentsE'
                       then skip x
                       else skip 0
                 IsRigid -> do
+                  -- Andreas, 2024-03-01, issue #7158 reported by Amy.
+                  -- We need to check that the arity of the function type
+                  -- is sufficient before checking the target,
+                  -- otherwise the target is non-sensical.
+                  if visiblePis < sArgsLen then return s else do
 
                       -- Is any free variable in tgt less than
                       -- visiblePis?
@@ -1042,7 +1048,7 @@ disambiguateConstructor cs0 args t = do
         def <- getConInfo con
         pure (getData (theDef def), t, setConName c con)
       -- Type error
-      let badCon t = typeError $ DoesNotConstructAnElementOf c0 t
+      let badCon t = typeError $ ConstructorDoesNotTargetGivenType c0 t
 
       -- Lets look at the target type at this point
       TelV tel t1 <- telViewPath t
@@ -1155,7 +1161,7 @@ getTypeHead t = do
     case nb of
       ReallyNotBlocked -> do
         -- Drop initial hidden domains (only needed for generalizable variables).
-        TelV _ core <- telViewUpTo' (0-1) (not . visible) t
+        TelV _ core <- telViewUpTo' (negate 1) (not . visible) t
         case unEl core of
           Def q _ -> return $ Just q
           _ -> return Nothing
@@ -1264,9 +1270,8 @@ inferOrCheckProjApp e o ds args mt = do
       ifBlocked core (\ m _ -> postpone m) $ {-else-} \ _ core -> do
       ifNotPiType core (\ _ -> refuseProjNotApplied ds) $ {-else-} \ dom _b -> do
       ifBlocked (unDom dom) (\ m _ -> postpone m) $ {-else-} \ _ ta -> do
-      caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds Nothing ta) $ \ (_q, _pars, defn) -> do
-      case defn of
-        Record { recFields = fs } -> do
+      caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds Nothing ta)
+        \ (_q, _pars, RecordData{ _recFields = fs }) -> do
           case forMaybe fs $ \ f -> Fold.find (unDom f ==) ds of
             [] -> refuseProjNoMatching ds
             [d] -> do
@@ -1275,7 +1280,6 @@ inferOrCheckProjApp e o ds args mt = do
               (, t, CheckedTarget Nothing) <$>
                 checkHeadApplication cmp e t (A.Proj o $ unambiguous d) args
             _ -> __IMPOSSIBLE__
-        _ -> __IMPOSSIBLE__
 
     -- Case: we have a visible argument
     ((k, arg) : _) -> do
@@ -1470,13 +1474,12 @@ inferLeveledSort u q suffix = \case
   [] -> do
     let n = suffixToLevel suffix
     return (Sort (Univ u $ ClosedLevel n) , sort (Univ (univUniv u) $ ClosedLevel $ n + 1))
-  [arg] -> do
+  arg : args -> do
     unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ Univ u $ ClosedLevel 0
-    unlessM hasUniversePolymorphism $ genericError
-      "Use --universe-polymorphism to enable level arguments to Set"
-    l <- applyRelevanceToContext NonStrict $ checkLevel arg
+    unlessM hasUniversePolymorphism $ typeError NeedOptionUniversePolymorphism
+    List1.unlessNull args $ warning . TooManyArgumentsToSort q
+    l <- applyRelevanceToContext shapeIrrelevant $ checkLevel arg
     return (Sort $ Univ u l , sort (Univ (univUniv u) $ levelSuc l))
-  arg : _ -> typeError $ TooManyArgumentsToLeveledSort q
 
 inferUnivOmega ::
      Univ                -- ^ The universe type.
@@ -1484,11 +1487,10 @@ inferUnivOmega ::
   -> Suffix              -- ^ Level of the universe given via suffix (optional).
   -> [NamedArg A.Expr]   -- ^ Level of the universe given via argument (should be absent).
   -> TCM (Term, Type)    -- ^ Universe and its sort.
-inferUnivOmega u q suffix = \case
-  [] -> do
+inferUnivOmega u q suffix args = do
+    List1.unlessNull args $ warning . TooManyArgumentsToSort q
     let n = suffixToLevel suffix
     return (Sort (Inf u n) , sort (Inf (univUniv u) $ 1 + n))
-  arg : _ -> typeError $ TooManyArgumentsToUnivOmega q
 
 -----------------------------------------------------------------------------
 -- * Coinduction
@@ -1700,11 +1702,15 @@ checkPOr c rs vs _ = do
       phi <- intervalUnview (IMin phi1 phi2)
       reportSDoc "tc.term.por" 10 $ text (show phi)
       t1 <- runNamesT [] $ do
-             [l,a] <- mapM (open . unArg) [l,a]
+             l <- open . unArg $ l
+             a <- open . unArg $ a
              psi <- open =<< intervalUnview (IMax phi1 phi2)
              pPi' "o" psi $ \ o -> el' l (a <..> o)
       tv <- runNamesT [] $ do
-             [l,a,phi1,phi2] <- mapM (open . unArg) [l,a,phi1,phi2]
+             l    <- open . unArg $ l
+             a    <- open . unArg $ a
+             phi1 <- open . unArg $ phi1
+             phi2 <- open . unArg $ phi2
              pPi' "o" phi2 $ \ o -> el' l (a <..> (cl primIsOne2 <@> phi1 <@> phi2 <@> o))
       v <- blockArg tv (rs !!! 5) v $ do
         -- ' φ₁ ∧ φ₂  ⊢ u , v : PartialP (φ₁ ∨ φ₂) \ o → a o
@@ -1722,15 +1728,22 @@ check_glue c rs vs _ = do
   case vs of
    -- WAS: [la, lb, bA, phi, bT, e, t, a] -> do
    la : lb : bA : phi : bT : e : t : a : rest -> do
-      let iinfo = setRelevance Irrelevant defaultArgInfo
       v <- runNamesT [] $ do
-            [lb, la, bA, phi, bT, e, t] <- mapM (open . unArg) [lb, la, bA, phi, bT, e, t]
+            lb  <- open . unArg $ lb
+            la  <- open . unArg $ la
+            bA  <- open . unArg $ bA
+            phi <- open . unArg $ phi
+            bT  <- open . unArg $ bT
+            e   <- open . unArg $ e
+            t   <- open . unArg $ t
             let f o = cl primEquivFun <#> lb <#> la <#> (bT <..> o) <#> bA <@> (e <..> o)
-            glam iinfo "o" $ \ o -> f o <@> (t <..> o)
+            glam defaultIrrelevantArgInfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
-            [lb, phi, bA] <- mapM (open . unArg) [lb, phi, bA]
-            el's lb $ cl primPartialP <#> lb <@> phi <@> glam iinfo "o" (\ _ -> bA)
-      let a' = Lam iinfo (NoAbs "o" $ unArg a)
+            lb  <- open . unArg $ lb
+            phi <- open . unArg $ phi
+            bA  <- open . unArg $ bA
+            el's lb $ cl primPartialP <#> lb <@> phi <@> glam defaultIrrelevantArgInfo "o" (\ _ -> bA)
+      let a' = Lam defaultIrrelevantArgInfo (NoAbs "o" $ unArg a)
       ta <- el' (pure $ unArg la) (pure $ unArg bA)
       a <- blockArg ta (rs !!! 7) a $ equalTerm ty a' v
       return $ la : lb : bA : phi : bT : e : t : a : rest
@@ -1748,17 +1761,25 @@ check_glueU c rs vs _ = do
   case vs of
    -- WAS: [la, lb, bA, phi, bT, e, t, a] -> do
    la : phi : bT : bA : t : a : rest -> do
-      let iinfo = setRelevance Irrelevant defaultArgInfo
       v <- runNamesT [] $ do
-            [la, phi, bT, bA, t] <- mapM (open . unArg) [la, phi, bT, bA, t]
+            la  <- open . unArg $ la
+            phi <- open . unArg $ phi
+            bT  <- open . unArg $ bT
+            bA  <- open . unArg $ bA
+            t   <- open . unArg $ t
             let f o = cl primTrans <#> lam "i" (const la) <@> lam "i" (\ i -> bT <@> (cl primINeg <@> i) <..> o) <@> cl primIZero
-            glam iinfo "o" $ \ o -> f o <@> (t <..> o)
+            glam defaultIrrelevantArgInfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
-            [la, phi, bT] <- mapM (open . unArg) [la, phi, bT]
+            la  <- open . unArg $ la
+            phi <- open . unArg $ phi
+            bT  <- open . unArg $ bT
             pPi' "o" phi $ \ o -> el' la (bT <@> cl primIZero <..> o)
-      let a' = Lam iinfo (NoAbs "o" $ unArg a)
+      let a' = Lam defaultIrrelevantArgInfo (NoAbs "o" $ unArg a)
       ta <- runNamesT [] $ do
-            [la, phi, bT, bA] <- mapM (open . unArg) [la, phi, bT, bA]
+            la  <- open . unArg $ la
+            phi <- open . unArg $ phi
+            bT  <- open . unArg $ bT
+            bA  <- open . unArg $ bA
             el' la (cl primSubOut <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> cl primIZero) <@> bA)
       a <- blockArg ta (rs !!! 5) a $ equalTerm ty a' v
       return $ la : phi : bT : bA : t : a : rest

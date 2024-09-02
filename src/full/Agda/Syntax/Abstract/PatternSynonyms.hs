@@ -33,8 +33,8 @@ mergePatternSynDefs (def :| defs) = foldM mergeDef def defs
 
 mergeDef :: PatternSynDefn -> PatternSynDefn -> Maybe PatternSynDefn
 mergeDef (xs, p) (ys, q) = do
-  guard $ map getArgInfo xs == map getArgInfo ys
-  let ren = zip (map unArg xs) (map unArg ys)
+  guard $ map whHiding xs == map whHiding ys
+  let ren = zip (map whThing xs) (map whThing ys)
   (xs,) <$> merge ren p q
   where
     merge ren p@(VarP x) (VarP y)   = p <$ guard ((unBind x, unBind y) `elem` ren)
@@ -48,7 +48,7 @@ mergeDef (xs, p) (ys, q) = do
     mergeArg ren p q = setNamedArg p <$> merge ren (namedArg p) (namedArg q)
 
 -- | Match an expression against a pattern synonym.
-matchPatternSyn :: PatternSynDefn -> Expr -> Maybe [Arg Expr]
+matchPatternSyn :: PatternSynDefn -> Expr -> Maybe [WithHiding Expr]
 matchPatternSyn = runMatch match
   where
     match (VarP x) e = unBind x ==> e
@@ -61,7 +61,7 @@ matchPatternSyn = runMatch match
     match _ _ = empty
 
 -- | Match a pattern against a pattern synonym.
-matchPatternSynP :: PatternSynDefn -> Pattern' e -> Maybe [Arg (Pattern' e)]
+matchPatternSynP :: PatternSynDefn -> Pattern' e -> Maybe [WithHiding (Pattern' e)]
 matchPatternSynP = runMatch match
   where
     match (VarP x) q = unBind x ==> q
@@ -78,7 +78,7 @@ type Match e = WriterT (Map Name e) Maybe
 (==>) :: Name -> e -> Match e ()
 x ==> e = tell (Map.singleton x e)
 
-runMatch :: (Pattern' Void -> e -> Match e ()) -> PatternSynDefn -> e -> Maybe [Arg e]
+runMatch :: (Pattern' Void -> e -> Match e ()) -> PatternSynDefn -> e -> Maybe [WithHiding e]
 runMatch match (xs, pat) e = do
   sub <- execWriterT (match pat e)
-  forM xs $ \ x -> (<$ x) <$> Map.lookup (unArg x) sub
+  forM xs $ \ x -> (<$ x) <$> Map.lookup (whThing x) sub

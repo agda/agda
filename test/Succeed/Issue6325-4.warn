@@ -1,5 +1,4 @@
-Issue6325-4.agda:12,4-8
-warning: -W[no]PatternShadowsConstructor
+Issue6325-4.agda:12,4-8: warning: -W[no]PatternShadowsConstructor
 The pattern variable true has the same name as the constructor
 Bool.true
 when checking the clause left hand side
@@ -7,8 +6,7 @@ f {true = true} {(A)}
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue6325-4.agda:12,4-8
-warning: -W[no]PatternShadowsConstructor
+Issue6325-4.agda:12,4-8: warning: -W[no]PatternShadowsConstructor
 The pattern variable true has the same name as the constructor
 Bool.true
 when checking the clause left hand side

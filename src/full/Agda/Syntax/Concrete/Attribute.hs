@@ -13,6 +13,7 @@ import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete (Expr(..), TacticAttribute)
+import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Position
@@ -62,10 +63,12 @@ type LensAttribute a = (LensRelevance a, LensQuantity a, LensCohesion a, LensLoc
 -- | Modifiers for 'Relevance'.
 
 relevanceAttributeTable :: [(String, Relevance)]
-relevanceAttributeTable = concat
-  [ map (, Irrelevant)  [ "irr", "irrelevant" ]
-  , map (, NonStrict)   [ "shirr", "shape-irrelevant" ]
-  , map (, Relevant)    [ "relevant" ]
+relevanceAttributeTable =
+  [ ("irr"             , Irrelevant      $ OIrrIrr               noRange)
+  , ("irrelevant"      , Irrelevant      $ OIrrIrrelevant        noRange)
+  , ("shirr"           , ShapeIrrelevant $ OShIrrShIrr           noRange)
+  , ("shape-irrelevant", ShapeIrrelevant $ OShIrrShapeIrrelevant noRange)
+  , ("relevant"        , Relevant        $ ORelRelevant          noRange)
   ]
 
 -- | Modifiers for 'Quantity'.
@@ -216,8 +219,9 @@ isQuantityAttribute = \case
   _ -> Nothing
 
 isTacticAttribute :: Attribute -> TacticAttribute
-isTacticAttribute (TacticAttribute t) = Just t
-isTacticAttribute _                   = Nothing
+isTacticAttribute = C.TacticAttribute . \case
+  TacticAttribute t -> Just t
+  _ -> Nothing
 
 relevanceAttributes :: [Attribute] -> [Attribute]
 relevanceAttributes = filter $ isJust . isRelevanceAttribute
@@ -226,4 +230,4 @@ quantityAttributes :: [Attribute] -> [Attribute]
 quantityAttributes = filter $ isJust . isQuantityAttribute
 
 tacticAttributes :: [Attribute] -> [Attribute]
-tacticAttributes = filter $ isJust . isTacticAttribute
+tacticAttributes = filter $ isJust . C.theTacticAttribute . isTacticAttribute

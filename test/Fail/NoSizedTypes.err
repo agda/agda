@@ -1,4 +1,4 @@
-NoSizedTypes.agda:3,1-44
+NoSizedTypes.agda:3,1-44: error: [InfectiveImport]
 Importing module Common.Size using the --sized-types flag from a
 module which does not.
 when scope checking the declaration

@@ -28,11 +28,14 @@ where
 import Control.Arrow ( (&&&) )
 import Control.DeepSeq
 import Control.Monad ( guard, when )
+import Control.Monad.Except ( throwError )
 
-import Data.Set (Set)
-import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
 import Data.List ( stripPrefix, intercalate, partition, sort )
+import Data.Set  ( Set )
+import qualified Data.Set as Set
+import Data.Text ( Text )
+import qualified Data.Text as Text
 
 import GHC.Generics (Generic)
 
@@ -77,14 +80,23 @@ defaultWarningMode = WarningMode ws False where
   ws = fst $ fromMaybe __IMPOSSIBLE__ $ lookup defaultWarningSet warningSets
 
 -- | Some warnings are errors and cannot be turned off.
-data WarningModeError = Unknown String | NoNoError String
+data WarningModeError
+  = Unknown Text
+      -- ^ Unknown warning.
+  | NoNoError Text
+      -- ^ Warning that cannot be disabled.
+  deriving (Show, Generic)
 
-prettyWarningModeError :: WarningModeError -> String
+instance NFData WarningModeError
+
+prettyWarningModeError :: WarningModeError -> Text
 prettyWarningModeError = \case
-  Unknown str -> concat [ "Unknown warning flag: ", str, "." ]
-  NoNoError str -> concat [ "You may only turn off benign warnings. The warning "
-                          , str
-                          ," is a non-fatal error and thus cannot be ignored." ]
+  Unknown   w -> Text.concat [ "Unknown warning flag: ", w, "." ]
+  NoNoError w -> Text.concat
+    [ "You may only turn off benign warnings. The warning "
+    , w
+    , " is a non-fatal error and thus cannot be ignored."
+    ]
 
 -- | From user-given directives we compute WarningMode updates
 type WarningModeUpdate = WarningMode -> WarningMode
@@ -101,12 +113,17 @@ warningModeUpdate str = case str of
             -> pure $ set warningSet ws
   _ -> case stripPrefix "no" str of
     Nothing   -> do
-      wname :: WarningName <- maybeToEither (Unknown str) $ string2WarningName str
+      wname <- stringToWarningName str
       pure (over warningSet $ Set.insert wname)
     Just str' -> do
-      wname :: WarningName <- maybeToEither (Unknown str') $ string2WarningName str'
-      when (wname `elem` errorWarnings) (Left (NoNoError str'))
+      wname <- stringToWarningName str'
+      when (wname `elem` errorWarnings) $
+        throwError $ NoNoError $ Text.pack str'
       pure (over warningSet $ Set.delete wname)
+  where
+    stringToWarningName :: String -> Either WarningModeError WarningName
+    stringToWarningName str = maybeToEither (Unknown $ Text.pack str) $ string2WarningName str
+
 
 -- | Common sets of warnings
 
@@ -137,6 +154,7 @@ errorWarnings = Set.fromList
   , MissingDeclarations_
   , NotAllowedInMutual_
   , NotStrictlyPositive_
+  , ConstructorDoesNotFitInData_
   , OverlappingTokensWarning_
   , PragmaCompiled_
   , SafeFlagPostulate_
@@ -151,11 +169,15 @@ errorWarnings = Set.fromList
   , SafeFlagInjective_
   , SafeFlagNoCoverageCheck_
   , TerminationIssue_
+  , TooManyArgumentsToSort_
   , UnsolvedMetaVariables_
   , UnsolvedInteractionMetas_
   , UnsolvedConstraints_
   , InfectiveImport_
   , CoInfectiveImport_
+  -- Andreas, 2024-02-15: the following warning used to be a GenericWarning (not an error warning).
+  -- Maybe revisit.
+  -- , ConfluenceCheckingIncompleteBecauseOfMeta_
   , RewriteNonConfluent_
   , RewriteMaybeNonConfluent_
   , RewriteAmbiguousRules_
@@ -186,6 +208,8 @@ exactSplitWarnings = Set.fromList
 data WarningName
   -- Option Warnings
   = OptionRenamed_
+  | WarningProblem_
+      -- ^ Some warning could not be set or unset.
   -- Parser Warnings
   | OverlappingTokensWarning_
   | UnsupportedAttribute_
@@ -207,12 +231,11 @@ data WarningName
   | EmptyWhere_
   | HiddenGeneralize_
   | InvalidCatchallPragma_
-  | InvalidConstructor_
   | InvalidConstructorBlock_
   | InvalidCoverageCheckPragma_
   | InvalidNoPositivityCheckPragma_
   | InvalidNoUniverseCheckPragma_
-  | InvalidRecordDirective_
+  | DuplicateRecordDirective_
   | InvalidTerminationCheckPragma_
   | MissingDeclarations_
   | MissingDefinitions_
@@ -228,9 +251,10 @@ data WarningName
   | UnknownNamesInPolarityPragmas_
   | UselessAbstract_
   | UselessInstance_
+  | UselessMacro_
   | UselessPrivate_
   -- Scope and Type Checking Warnings
-  | AbsurdPatternRequiresNoRHS_
+  | AbsurdPatternRequiresAbsentRHS_
   | AsPatternShadowsConstructorOrPatternSynonym_
   | PatternShadowsConstructor_
   | CantGeneralizeOverSorts_
@@ -240,10 +264,12 @@ data WarningName
   | InlineNoExactSplit_
   | DeprecationWarning_
   | DuplicateUsing_
+  | FixingRelevance_
+  -- TODO: linearity
+  -- -- | FixingQuantity_
   | FixityInRenamingModule_
   | InvalidCharacterLiteral_
   | UselessPragma_
-  | GenericWarning_
   | IllformedAsClause_
   | InstanceArgWithExplicitArg_
   | InstanceWithExplicitArg_
@@ -254,14 +280,44 @@ data WarningName
   | NoGuardednessFlag_
   | NotInScope_
   | NotStrictlyPositive_
+  | ConstructorDoesNotFitInData_
+  | CoinductiveEtaRecord_
   | UnsupportedIndexedMatch_
   | OldBuiltin_
+  | BuiltinDeclaresIdentifier_
   | PlentyInHardCompileTimeMode_
   | PragmaCompileErased_
+  | PragmaCompileList_
+  | PragmaCompileMaybe_
+  | PragmaCompileUnparsable_
+  | PragmaCompileWrong_
+  | PragmaCompileWrongName_
+  | PragmaExpectsDefinedSymbol_
+  | PragmaExpectsUnambiguousConstructorOrFunction_
+  | PragmaExpectsUnambiguousProjectionOrFunction_
+  | NoMain_
+  | NotARewriteRule_
+  | RewriteLHSNotDefinitionOrConstructor_
+  | RewriteVariablesNotBoundByLHS_
+  | RewriteVariablesBoundMoreThanOnce_
+  | RewriteLHSReduces_
+  | RewriteHeadSymbolIsProjectionLikeFunction_
+  | RewriteHeadSymbolIsTypeConstructor_
+  | RewriteHeadSymbolContainsMetas_
+  | RewriteConstructorParametersNotGeneral_
+  | RewriteContainsUnsolvedMetaVariables_
+  | RewriteBlockedOnProblems_
+  | RewriteRequiresDefinitions_
+  | RewriteDoesNotTargetRewriteRelation_
+  | RewriteBeforeFunctionDefinition_
+  | RewriteBeforeMutualFunctionDefinition_
+  | ConfluenceCheckingIncompleteBecauseOfMeta_
+  | ConfluenceForCubicalNotSupported_
   | RewriteMaybeNonConfluent_
   | RewriteNonConfluent_
   | RewriteAmbiguousRules_
   | RewriteMissingRule_
+  | DuplicateRewriteRule_
   | SafeFlagEta_
   | SafeFlagInjective_
   | SafeFlagNoCoverageCheck_
@@ -274,6 +330,7 @@ data WarningName
   | SafeFlagTerminating_
   | SafeFlagWithoutKFlagPrimEraseEquality_
   | TerminationIssue_
+  | TooManyArgumentsToSort_
   | UnreachableClauses_
   | UnsolvedConstraints_
   | UnsolvedInteractionMetas_
@@ -283,7 +340,10 @@ data WarningName
   | UselessPatternDeclarationForRecord_
   | UselessPublic_
   | UserWarning_
+  | InvalidDisplayForm_
+  | WithClauseProjectionFixityMismatch_
   | WithoutKFlagPrimEraseEquality_
+  | ConflictingPragmaOptions_
   | WrongInstanceDeclaration_
   -- Checking consistency of options
   | CoInfectiveImport_
@@ -292,12 +352,18 @@ data WarningName
   | DuplicateFields_
   | TooManyFields_
   -- Opaque/unfolding
+  | MissingTypeSignatureForOpaque_
   | NotAffectedByOpaque_
+  | UnfoldingWrongName_
   | UnfoldTransparentName_
   | UselessOpaque_
   -- Cubical
   | FaceConstraintCannotBeHidden_
   | FaceConstraintCannotBeNamed_
+  -- Not source code related
+  | DuplicateInterfaceFiles_
+  -- Backends
+  | CustomBackendWarning_
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 instance NFData WarningName
@@ -367,6 +433,7 @@ warningNameDescription :: WarningName -> String
 warningNameDescription = \case
   -- Option Warnings
   OptionRenamed_                   -> "Renamed options."
+  WarningProblem_                  -> "Problems with switching warnings."
   -- Parser Warnings
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
   UnsupportedAttribute_            -> "Unsupported attributes."
@@ -388,12 +455,11 @@ warningNameDescription = \case
   EmptyWhere_                      -> "Empty `where' blocks."
   HiddenGeneralize_                -> "Hidden identifiers in variable blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
-  InvalidConstructor_              -> "`constructor' blocks that contain declarations other than type signatures for constructors."
   InvalidConstructorBlock_         -> "`constructor' blocks outside of `interleaved mutual' blocks."
   InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
   InvalidNoPositivityCheckPragma_  -> "Positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "Universe checking pragmas before non-`data' or `record' declaration."
-  InvalidRecordDirective_          -> "Record directives outside of record definitions or below field declarations."
+  DuplicateRecordDirective_        -> "Conflicting directives in a record declaration."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
   MissingDeclarations_             -> "Definitions not associated to a declaration."
   MissingDefinitions_              -> "Declarations not associated to a definition."
@@ -411,11 +477,12 @@ warningNameDescription = \case
   UselessHiding_                   -> "Names in `hiding' directive that are anyway not imported."
   UselessInline_                   -> "`INLINE' pragmas where they have no effect."
   UselessInstance_                 -> "`instance' blocks where they have no effect."
+  UselessMacro_                    -> "`macro' blocks where they have no effect."
   UselessPrivate_                  -> "`private' blocks where they have no effect."
-  UselessPublic_                   -> "`public' blocks where they have no effect."
+  UselessPublic_                   -> "`public' directives that have no effect."
   UselessPatternDeclarationForRecord_ -> "`pattern' attributes where they have no effect."
   -- Scope and Type Checking Warnings
-  AbsurdPatternRequiresNoRHS_      -> "Clauses with an absurd pattern that have a right hand side."
+  AbsurdPatternRequiresAbsentRHS_  -> "Clauses with an absurd pattern that have a right hand side."
   AsPatternShadowsConstructorOrPatternSynonym_ -> "@-patterns that shadow constructors or pattern synonyms."
   PatternShadowsConstructor_       -> "Pattern variables that shadow constructors."
   CantGeneralizeOverSorts_         -> "Attempts to generalize over sort metas in 'variable' declaration."
@@ -424,9 +491,11 @@ warningNameDescription = \case
   CoverageNoExactSplit_            -> "Failed exact split checks."
   InlineNoExactSplit_              -> "Failed exact split checks after inlining record constructors."
   DeprecationWarning_              -> "Deprecated features."
+  -- TODO: linearity
+  -- FixingQuantity_                  -> "Correcting invalid user-written quantity."
+  FixingRelevance_                 -> "Correcting invalid user-written relevance."
   InvalidCharacterLiteral_         -> "Illegal character literals."
   UselessPragma_                   -> "Pragmas that get ignored."
-  GenericWarning_                  -> ""
   IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."
   InstanceNoOutputTypeName_        -> "Instance arguments whose type does not end in a named or variable type; those are never considered by instance search."
   InstanceArgWithExplicitArg_      -> "Instance arguments with explicit arguments; those are never considered by instance search."
@@ -438,14 +507,44 @@ warningNameDescription = \case
   FixityInRenamingModule_          -> "Fixity annotations in `renaming' directive for `module'."
   NotInScope_                      -> "Out of scope names."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
+  ConstructorDoesNotFitInData_     -> "Failed constructor size checks."
+  CoinductiveEtaRecord_            -> "Record type declared as both coinductive and having eta-equality."
   UnsupportedIndexedMatch_         -> "Failures to compute full equivalence when splitting on indexed family."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
+  BuiltinDeclaresIdentifier_       -> "`BUILTIN' pragmas that declare a new identifier but have been given an existing one."
   PlentyInHardCompileTimeMode_     -> "Uses of @ω or @plenty in hard compile-time mode."
   PragmaCompileErased_             -> "`COMPILE' pragmas targeting an erased symbol."
+  PragmaCompileList_               -> "`COMPILE GHC' pragmas for lists."
+  PragmaCompileMaybe_              -> "`COMPILE GHC' pragmas for `MAYBE'."
+  PragmaCompileUnparsable_         -> "Unparsable `COMPILE GHC' pragmas."
+  PragmaCompileWrong_              -> "Ill-formed `COMPILE GHC' pragmas."
+  PragmaCompileWrongName_          -> "`COMPILE' pragmas referring to identifiers that are neither definitions nor constructors.'"
+  PragmaExpectsDefinedSymbol_      -> "Pragmas referrings to identifiers that are not defined symbols."
+  PragmaExpectsUnambiguousConstructorOrFunction_    -> "Pragmas referring to identifiers that are not unambiguous constructors or functions.'"
+  PragmaExpectsUnambiguousProjectionOrFunction_     -> "Pragmas referring to identifiers that are not unambiguous projections or functions.'"
+  NoMain_                          -> "Compilation of modules that do not define `main'."
+  NotARewriteRule_                 -> "`REWRITE pragmas referring to identifiers that are neither definitions nor constructors.'"
+  RewriteLHSNotDefinitionOrConstructor_             -> "Rewrite rule head symbol is not a defined symbol or constructor."
+  RewriteVariablesNotBoundByLHS_                    -> "Rewrite rule does not bind all of its variables."
+  RewriteVariablesBoundMoreThanOnce_                -> "Constructor-headed rewrite rule has non-linear parameters."
+  RewriteLHSReduces_                                -> "Rewrite rule LHS is not in weak-head normal form."
+  RewriteHeadSymbolIsProjectionLikeFunction_        -> "Rewrite rule head symbol is a projection-like function."
+  RewriteHeadSymbolIsTypeConstructor_               -> "Rewrite rule head symbol is a type constructor."
+  RewriteHeadSymbolContainsMetas_                   -> "Definition of rewrite rule head symbol contains unsolved metas."
+  RewriteConstructorParametersNotGeneral_           -> "Constructor-headed rewrite rule parameters are not fully general."
+  RewriteContainsUnsolvedMetaVariables_             -> "Rewrite rule contains unsolved metas."
+  RewriteBlockedOnProblems_                         -> "Checking rewrite rule blocked by unsolved constraint."
+  RewriteRequiresDefinitions_                       -> "Checking rewrite rule blocked by missing definition."
+  RewriteDoesNotTargetRewriteRelation_              -> "Rewrite rule does not target the rewrite relation."
+  RewriteBeforeFunctionDefinition_                  -> "Rewrite rule is not yet defined."
+  RewriteBeforeMutualFunctionDefinition_            -> "Mutually declaration with the rewrite rule is not yet defined."
+  ConfluenceCheckingIncompleteBecauseOfMeta_ -> "Incomplete confluence checks because of unsolved metas."
+  ConfluenceForCubicalNotSupported_ -> "Incomplete confluence checks because of `--cubical'."
   RewriteMaybeNonConfluent_        -> "Failed local confluence checks while computing overlap."
   RewriteNonConfluent_             -> "Failed local confluence checks while joining critical pairs."
   RewriteAmbiguousRules_           -> "Failed global confluence checks because of overlapping rules."
   RewriteMissingRule_              -> "Failed global confluence checks because of missing rule."
+  DuplicateRewriteRule_            -> "Duplicate rewrite rules."
   SafeFlagEta_                     -> "`ETA' pragmas with the safe flag."
   SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."
   SafeFlagNoCoverageCheck_         -> "`NON_COVERING` pragmas with the safe flag."
@@ -457,6 +556,7 @@ warningNameDescription = \case
   SafeFlagPragma_                  -> "Unsafe `OPTIONS' pragmas with the safe flag."
   SafeFlagTerminating_             -> "`TERMINATING' pragmas with the safe flag."
   SafeFlagWithoutKFlagPrimEraseEquality_ -> "`primEraseEquality' used with the safe and without-K flags."
+  ConflictingPragmaOptions_        -> "Conflicting pragma options."
   TerminationIssue_                -> "Failed termination checks."
   UnreachableClauses_              -> "Unreachable function clauses."
   UnsolvedConstraints_             -> "Unsolved constraints."
@@ -464,6 +564,9 @@ warningNameDescription = \case
   InteractionMetaBoundaries_       -> "Interaction meta variables that have unsolved boundary constraints."
   UnsolvedMetaVariables_           -> "Unsolved meta variables."
   UserWarning_                     -> "User-defined warnings via one of the 'WARNING_ON_*' pragmas."
+  InvalidDisplayForm_              -> "Invalid display forms."
+  TooManyArgumentsToSort_          -> "Extra arguments given to a sort."
+  WithClauseProjectionFixityMismatch_ -> "With clauses using projections in different fixities than their parent clauses."
   WithoutKFlagPrimEraseEquality_   -> "Uses of `primEraseEquality' with the without-K flags."
   WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."
   -- Checking consistency of options
@@ -473,9 +576,15 @@ warningNameDescription = \case
   DuplicateFields_                 -> "Record expressions with duplicate field names."
   TooManyFields_                   -> "Record expressions with invalid field names."
   -- Opaque/unfolding warnings
+  MissingTypeSignatureForOpaque_   -> "Definitions that are `abstract` or `opaque` yet lack type signatures."
   NotAffectedByOpaque_             -> "Declarations unaffected by enclosing `opaque` blocks."
+  UnfoldingWrongName_              -> "Names in `unfolding` clause that are not unambiguous functions."
   UnfoldTransparentName_           -> "Non-`opaque` names mentioned in an `unfolding` clause."
   UselessOpaque_                   -> "`opaque` blocks that have no effect."
   -- Cubical
   FaceConstraintCannotBeHidden_    -> "Face constraint patterns that are given as implicit arguments."
   FaceConstraintCannotBeNamed_     -> "Face constraint patterns that are given as named arguments."
+  -- Not source code related
+  DuplicateInterfaceFiles_         -> "Duplicate interface files."
+  -- Backends
+  CustomBackendWarning_            -> "Custom warnings from backends."

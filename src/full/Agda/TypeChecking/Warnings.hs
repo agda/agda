@@ -1,7 +1,6 @@
 
 module Agda.TypeChecking.Warnings
   ( MonadWarning(..)
-  , genericWarning
   , warning'_, warning_, warning', warning, warnings
   , raiseWarningsOnUsage
   , isUnsolvedWarning
@@ -18,8 +17,10 @@ module Agda.TypeChecking.Warnings
 import Control.Monad ( forM, unless )
 import Control.Monad.Except ( MonadError(..) )
 import Control.Monad.Reader ( ReaderT )
-import Control.Monad.State ( StateT )
-import Control.Monad.Trans ( MonadTrans, lift )
+import Control.Monad.State  ( StateT )
+import Control.Monad.Trans  ( MonadTrans, lift )
+import Control.Monad.Trans.Maybe
+import Control.Monad.Writer ( WriterT )
 
 import qualified Data.List as List
 import qualified Data.Map  as Map
@@ -30,9 +31,9 @@ import Data.Semigroup ( Semigroup, (<>) )
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Caching
-import {-# SOURCE #-} Agda.TypeChecking.Pretty (MonadPretty, prettyTCM, ($$))
+import {-# SOURCE #-} Agda.TypeChecking.Pretty ( MonadPretty, prettyTCM, vcat, ($$) )
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
-import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning, prettyWarningName )
+import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning )
 
 import Agda.Syntax.Abstract.Name ( QName )
 import Agda.Syntax.Position
@@ -62,8 +63,10 @@ class (MonadPretty m, MonadError TCErr m) => MonadWarning m where
     => TCWarning -> m ()
   addWarning = lift . addWarning
 
+instance MonadWarning m => MonadWarning (MaybeT m)
 instance MonadWarning m => MonadWarning (ReaderT r m)
 instance MonadWarning m => MonadWarning (StateT s m)
+instance (MonadWarning m, Monoid w) => MonadWarning (WriterT w m)
 
 instance MonadWarning TCM where
   addWarning tcwarn = do
@@ -79,24 +82,28 @@ instance MonadWarning TCM where
 -- * Raising warnings
 ---------------------------------------------------------------------------
 
-{-# SPECIALIZE genericWarning :: P.Doc -> TCM () #-}
-genericWarning :: MonadWarning m => P.Doc -> m ()
-genericWarning = warning . GenericWarning
-
 {-# SPECIALIZE warning'_ :: CallStack -> Warning -> TCM TCWarning #-}
 warning'_ :: (MonadWarning m) => CallStack -> Warning -> m TCWarning
 warning'_ loc w = do
   r <- viewTC eRange
   c <- viewTC eCall
   b <- areWeCaching
-  -- NicifierIssues come with their own error locations.
-  let r' = case w of { NicifierIssue w0 -> getRange w0 ; _ -> r }
+  let r' = case w of
+        -- NicifierIssues come with their own error locations.
+        NicifierIssue w0 -> getRange w0
+        _ -> r
   let wn = warningName w
-  p <- sayWhen r' c $
-    -- Only benign warnings can be deactivated with -WnoXXX, so don't
-    -- display hint for error warnings.
-    applyUnless (wn `elem` errorWarnings) (prettyWarningName wn $$) $
-      prettyWarning w
+  let ws = warningName2String wn
+  p <- vcat
+    [ pure $ P.hsep
+      [ if null r' then mempty else P.pretty r' P.<> P.colon
+      , if wn `elem` errorWarnings then "error:" P.<+> P.brackets (P.text ws)
+        else P.text $ "warning: -W[no]" ++ ws
+        -- Only benign warnings can be deactivated with -WnoXXX.
+      ]
+    , prettyWarning w
+    , prettyTCM c
+    ]
   return $ TCWarning loc r w p b
 
 {-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}
@@ -212,5 +219,5 @@ runPM m = do
   (res, ws) <- runPMIO m
   mapM_ (warning . ParseWarning) ws
   case res of
-    Left  e -> throwError (Exception (getRange e) (P.pretty e))
+    Left  e -> throwError $ ParserError e
     Right a -> return a

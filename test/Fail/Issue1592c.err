@@ -1,4 +1,4 @@
-Issue1592c.agda:15,1-16,26
+Issue1592c.agda:15,1-16,26: error: [NotStrictlyPositive]
 D is not strictly positive, because it occurs
 in the second argument of dup
 in the first argument of proj₁

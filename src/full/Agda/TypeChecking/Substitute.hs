@@ -49,6 +49,7 @@ import Agda.TypeChecking.Substitute.DeBruijn
 
 import Agda.Utils.Either
 import Agda.Utils.Empty
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -187,9 +188,7 @@ argToDontCare :: Arg Term -> Term
 argToDontCare (Arg ai v) = relToDontCare ai v
 
 relToDontCare :: LensRelevance a => a -> Term -> Term
-relToDontCare ai v
-  | Irrelevant <- getRelevance ai = dontCare v
-  | otherwise                     = v
+relToDontCare ai = applyWhen (isIrrelevant ai) dontCare
 
 -- Andreas, 2016-01-19: In connection with debugging issue #1783,
 -- I consider the Apply instance for Type harmful, as piApply is not
@@ -857,6 +856,7 @@ instance Subst Term where
 
 -- András 2023-09-25: we can only put this here, because at the original definition site there's no Subst Term instance.
 {-# SPECIALIZE lookupS :: Substitution' Term -> Nat -> Term #-}
+{-# SPECIALIZE isNoAbs :: Abs Term -> Maybe Term #-}
 
 instance Subst BraveTerm where
   type SubstArg BraveTerm = BraveTerm
@@ -1402,6 +1402,8 @@ deriving instance Eq NotBlocked
 deriving instance Eq t => Eq (Blocked t)
 deriving instance Eq CandidateKind
 deriving instance Eq Candidate
+deriving instance Ord CandidateKind
+deriving instance Ord Candidate
 
 deriving instance (Subst a, Eq a)  => Eq  (Tele a)
 deriving instance (Subst a, Ord a) => Ord (Tele a)

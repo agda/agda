@@ -1,3 +1,3 @@
-Issue2365.agda:19,5-8
+Issue2365.agda:19,5-8: error: [NegativeLiteralInPattern]
 Negative literals are not supported in patterns
 when checking that the pattern -20 has type Int

@@ -1,4 +1,4 @@
-MatchOnIrrelevantData1.agda:17,16-23
+MatchOnIrrelevantData1.agda:17,16-23: error: [SplitOnIrrelevant]
 Cannot pattern match against irrelevant argument of type
 Fin (suc n)
 when checking that the pattern zero .n has type Fin (suc n)

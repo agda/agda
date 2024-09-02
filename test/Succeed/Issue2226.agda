@@ -93,8 +93,8 @@ bar₂-def =  refl
 --- Originally reported test case ---
 
 defToTerm : Name → Definition → List (Arg Term) → Term
-defToTerm _ (function cs) as = pat-lam cs as
-defToTerm _ (data-cons d) as = con d as
+defToTerm _ (function cs)   as = pat-lam cs as
+defToTerm _ (data-cons d _) as = con d as
 defToTerm _ _ _ = unknown
 
 derefImmediate : Term → TC Term

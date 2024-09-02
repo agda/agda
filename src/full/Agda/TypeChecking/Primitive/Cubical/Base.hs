@@ -46,10 +46,8 @@ import Agda.TypeChecking.Substitute.Class (absBody, raise, apply)
 import Agda.TypeChecking.Reduce (Reduce(..), reduceB', reduce', reduce)
 import Agda.TypeChecking.Names (NamesT, runNamesT, ilam, lam)
 
-import Agda.Interaction.Options.Base (optCubical)
-
 import Agda.Syntax.Common
-  (Cubical(..), Arg(..), Relevance(..), setRelevance, defaultArgInfo, hasQuantity0)
+  (Cubical(..), Arg(..), relevant, irrelevant, setRelevance, defaultArgInfo, hasQuantity0)
 
 import Agda.TypeChecking.Primitive.Base
   (SigmaKit(..), (-->), nPi', pPi', (<@>), (<#>), (<..>), argN, getSigmaKit)
@@ -62,19 +60,21 @@ import Agda.Syntax.Internal
 -- contexts.
 requireCubical
   :: Cubical -- ^ Which variant of Cubical Agda is required?
+  -> TCM ()
+requireCubical wanted = requireCubical' wanted ""
+
+-- | Generalization of 'requireCubical' supplying a reason.
+requireCubical'
+  :: Cubical -- ^ Which variant of Cubical Agda is required?
   -> String  -- ^ Why, exactly, do we need Cubical to be enabled?
   -> TCM ()
-requireCubical wanted s = do
-  cubical         <- optCubical <$> pragmaOptions
+requireCubical' wanted reason = do
+  cubical         <- cubicalOption
   inErasedContext <- hasQuantity0 <$> viewTC eQuantity
   case cubical of
     Just CFull -> return ()
     Just CErased | wanted == CErased || inErasedContext -> return ()
-    _ -> typeError $ GenericError $ "Missing option " ++ opt ++ s
-  where
-  opt = case wanted of
-    CFull   -> "--cubical"
-    CErased -> "--cubical or --erased-cubical"
+    _ -> typeError $ NeedOptionCubical wanted reason
 
 -- | Our good friend the interval type.
 primIntervalType :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Type
@@ -84,7 +84,7 @@ primIntervalType = El intervalSort <$> primInterval
 -- their implementation is handled here.
 primINeg' :: TCM PrimitiveImpl
 primINeg' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- primIntervalType --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \case
     [x] -> do
@@ -120,7 +120,7 @@ primINeg' = do
 -- operations in @Id@.
 primDepIMin' :: TCM PrimitiveImpl
 primDepIMin' = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- runNamesT [] $
        nPi' "φ" primIntervalType $ \ φ ->
        pPi' "o" φ (\ o -> primIntervalType) --> primIntervalType
@@ -155,7 +155,7 @@ primDepIMin' = do
 -- parameterised by their unit and absorbing elements.
 primIBin :: IntervalView -> IntervalView -> TCM PrimitiveImpl
 primIBin unit absorber = do
-  requireCubical CErased ""
+  requireCubical CErased
   t <- primIntervalType --> primIntervalType --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \case
     [x,y] -> do
@@ -187,14 +187,14 @@ primIBin unit absorber = do
 -- cofibration classifier.
 primIMin' :: TCM PrimitiveImpl
 primIMin' = do
-  requireCubical CErased ""
+  requireCubical CErased
   primIBin IOne IZero
 
 -- | Implements both the @max@ connection /and/ disjunction on the
 -- cofibration classifier.
 primIMax' :: TCM PrimitiveImpl
 primIMax' = do
-  requireCubical CErased ""
+  requireCubical CErased
   primIBin IZero IOne
 
 -- | A helper for evaluating @max@ on the interval in TCM&co.
@@ -323,13 +323,13 @@ combineSys' l ty xs = do
 
   let
     pOr l ty phi psi u0 u1 = pure tPOr
-      <#> l <@> phi <@> psi <#> (ilam "o" $ \ _ -> ty)
+      <#> l <@> phi <@> psi <#> ilam "o" (\ _ -> ty)
       <@> u0 <@> u1
 
     -- In one pass, compute the disjunction of all the cofibrations and
     -- compute the primPOr expression.
     combine :: [(NamesT m Term, NamesT m Term)] -> NamesT m (Term, Term)
-    combine [] = (iz,) <$> (pure tEmpty <#> l <#> (ilam "o" $ \ _ -> ty))
+    combine [] = (iz,) <$> (pure tEmpty <#> l <#> ilam "o" (\ _ -> ty))
     combine [(psi, u)] = (,) <$> psi <*> u
     combine ((psi, u):xs) = do
       (phi, c) <- combine xs
@@ -420,10 +420,10 @@ decomposeInterval' t = do
 reduce2Lam :: Term -> ReduceM (Blocked Term)
 reduce2Lam t = do
   t <- reduce' t
-  case lam2Abs Relevant t of
+  case lam2Abs relevant t of
     t -> underAbstraction_ t $ \ t -> do
       t <- reduce' t
-      case lam2Abs Irrelevant t of
+      case lam2Abs irrelevant t of
         t -> underAbstraction_ t reduceB'
   where
     lam2Abs rel (Lam _ t) = absBody t <$ t

@@ -1,6 +1,8 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   h _75 _76 = base : 𝕊¹ (blocked on all(_75, _76))
   g _49 _50 = base : 𝕊¹ (blocked on _49)
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   InjectivityHITs.agda:34,7-8
   InjectivityHITs.agda:34,9-10

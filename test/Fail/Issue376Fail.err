@@ -1,4 +1,4 @@
-Issue376Fail.agda:18,14-18
+Issue376Fail.agda:18,14-18: error: [GenericDocError]
 Cannot instantiate the metavariable _7 to solution fst(z) , snd(z)
 since it contains the variable snd(z)
 which is not in scope of the metavariable

@@ -1,3 +1,3 @@
-Erased-cubical-Glue.agda:14,3-11
+Erased-cubical-Glue.agda:14,3-11: error: [DefinitionIsErased]
 Identifier primGlue is declared erased, so it cannot be used here
 when checking that the expression primGlue A B f has type _7

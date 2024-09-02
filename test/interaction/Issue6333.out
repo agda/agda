@@ -1,2 +1,2 @@
-Issue6333/br.agda-lib:1,1-1
+Issue6333/br.agda-lib:1,1-1: error: [OptionError]
 Unrecognized option: --definitely-not-a-valid-flag

@@ -1,3 +1,3 @@
-SizeUnsolvedConstraintsInTypeSignature.agda:21,33-39
+SizeUnsolvedConstraintsInTypeSignature.agda:21,33-39: error: [UnequalTerms]
 (↑ i) !=< i of type Size
 when checking that the expression one2 i has type Nat (↑ (↑ i))

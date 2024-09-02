@@ -2,9 +2,14 @@
 
 {-# LANGUAGE RebindableSyntax #-}
 
-module Agda.Utils.Function where
+module Agda.Utils.Function
+  ( module Agda.Utils.Function
+  , module Data.Function
+  ) where
 
 import Prelude hiding ( not, (&&), (||) )
+
+import Data.Function  ( on )
 import Data.String    ( fromString )       -- for RebindableSyntax, somehow not covered by Prelude
 
 import Agda.Utils.Boolean

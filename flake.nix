@@ -32,6 +32,7 @@
             # Tools for building agda
             pkgs.cabal-install
             pkgs.haskell-language-server
+            pkgs.icu
             hpkgs.fix-whitespace
             # Tools for building the agda docs
             (pkgs.python3.withPackages (py3pkgs: [

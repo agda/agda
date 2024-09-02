@@ -165,10 +165,12 @@ instance CheckInternal Term where
       Con c ci vs -> do
         -- We need to fully apply the constructor to make getConType work!
         fullyApplyCon c vs t $ \ _d _dt _pars a vs' tel t -> do
-          Con c ci vs2 <- checkSpine action a (Con c ci) vs' cmp t
-          -- Strip away the extra arguments
-          return $ applySubst (strengthenS impossible (size tel))
-            $ Con c ci $ take (length vs) vs2
+          checkSpine action a (Con c ci) vs' cmp t >>= \case
+            Con c ci vs2 ->
+              -- Strip away the extra arguments
+              return $ applySubst (strengthenS impossible (size tel))
+                $ Con c ci $ take (length vs) vs2
+            _ -> __IMPOSSIBLE__
       Lit l      -> do
         lt <- litType l
         compareType cmp lt t
@@ -191,7 +193,7 @@ instance CheckInternal Term where
             -- Preserve NoAbs
             goInside = case b of
               Abs{}   -> addContext $ (absName b,) $
-                applyWhen experimental (mapRelevance irrToNonStrict) a
+                applyWhen experimental (mapRelevance irrelevantToShapeIrrelevant) a
               NoAbs{} -> id
         a <- mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
         v' <- goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) CmpLeq (sort sb)

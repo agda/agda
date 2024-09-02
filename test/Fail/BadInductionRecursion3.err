@@ -1,9 +1,9 @@
-BadInductionRecursion3.agda:12,1-18,30
+BadInductionRecursion3.agda:12,1-18,30: error: [NotStrictlyPositive]
 D is not strictly positive, because it occurs
 in the first clause
 in the definition of D′, which occurs
-to the left of an arrow
-in the second clause
-in the definition of D′, which occurs
-in the type of the constructor d
-in the definition of D.
+                       to the left of an arrow
+                       in the second clause
+                       in the definition of D′, which occurs
+                                              in the type of the constructor d
+                                              in the definition of D.

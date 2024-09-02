@@ -1,0 +1,3 @@
+ParseErrorUnexpectedEquals.agda:4,6-11: error: [SyntaxError]
+Syntax error: unexpected '='
+when scope checking x = e

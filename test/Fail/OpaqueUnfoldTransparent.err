@@ -1,4 +1,3 @@
-OpaqueUnfoldTransparent.agda:10,13-16
-warning: -W[no]UnfoldTransparentName
+OpaqueUnfoldTransparent.agda:10,13-16: warning: -W[no]UnfoldTransparentName
 The name foo, mentioned by an unfolding clause, does not belong to
 an opaque block. This has no effect.

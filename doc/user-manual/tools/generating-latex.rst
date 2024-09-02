@@ -826,3 +826,8 @@ code.
 .. _hyperref: https://www.ctan.org/pkg/hyperref
 .. _catchfilebetweentags: https://www.ctan.org/pkg/catchfilebetweentags
 .. _ICU: http://site.icu-project.org/
+
+Generating lagda files directly from Agda using agdaLatex
+---------------------------------------------------------
+A tool for for creating lagda files and corresponding LaTeX files directly from Agda code has been created.
+See  <https://github.com/csetzer/agdaLatex>

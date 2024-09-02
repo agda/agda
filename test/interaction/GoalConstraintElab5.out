@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Warnings*" "?0 : T ?1 : T ?2 : T ———— Warnings —————————————————————————————————————————————— warning: -W[no]InteractionMetaBoundaries Interaction meta(s) at the following location(s) have unsolved boundary constraints: GoalConstraintElab5.agda:44,19-26 GoalConstraintElab5.agda:45,18-25 GoalConstraintElab5.agda:46,26-33 " nil)
+(agda2-info-action "*All Goals, Warnings*" "?0 : T ?1 : T ?2 : T ———— Warnings —————————————————————————————————————————————— warning: -W[no]InteractionMetaBoundaries Interaction meta(s) at the following location(s) have unsolved boundary constraints: GoalConstraintElab5.agda:44,19-26 GoalConstraintElab5.agda:45,18-25 GoalConstraintElab5.agda:46,26-33" nil)
 ((last . 1) . (agda2-goals-action '(0 1 2)))
 (agda2-status-action "")
 (agda2-info-action "*Goal type etc.*" "Goal: T ———— Boundary (wanted) ————————————————————————————————————— i = i0 ⊢ m (i₁ (go x)) (go x) i = i1 ⊢ u ———————————————————————————————————————————————————————————— i : I x : Fg A il : (x₁ y z : T) → m (m x₁ y) z ≡ m x₁ (m y z) il = il₂ : (x₁ : T) → m u x₁ ≡ x₁ (not in scope) il = il₁ : (x₁ : T) → m (i₁ x₁) x₁ ≡ u (not in scope) u : T i = i₁ : T → T (not in scope) m : T → T → T f : A → T T : Type A : Type" nil)

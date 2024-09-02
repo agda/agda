@@ -40,7 +40,7 @@ import Agda.Utils.Monad
 -- | Prepare parts of a parameter telescope for abstraction in constructors
 --   and projections.
 hideAndRelParams :: (LensHiding a, LensRelevance a) => a -> a
-hideAndRelParams = hideOrKeepInstance . mapRelevance nonStrictToIrr
+hideAndRelParams = hideOrKeepInstance . mapRelevance shapeIrrelevantToIrrelevant
 
 -- * Operations on 'Context'.
 
@@ -56,7 +56,7 @@ workOnTypes cont = do
 --   as argument.
 workOnTypes' :: (MonadTCEnv m) => Bool -> m a -> m a
 workOnTypes' experimental
-  = applyWhen experimental (modifyContextInfo $ mapRelevance irrToNonStrict)
+  = applyWhen experimental (modifyContextInfo $ mapRelevance irrelevantToShapeIrrelevant)
   . applyQuantityToJudgement zeroQuantity
   . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })
@@ -69,10 +69,10 @@ workOnTypes' experimental
 --   Also allow the use of irrelevant definitions.
 applyRelevanceToContext :: (MonadTCEnv tcm, LensRelevance r) => r -> tcm a -> tcm a
 applyRelevanceToContext thing =
-  case getRelevance thing of
-    Relevant -> id
-    rel      -> applyRelevanceToContextOnly   rel
-              . applyRelevanceToJudgementOnly rel
+  applyUnless (isRelevant rel)
+   $ applyRelevanceToContextOnly   rel
+   . applyRelevanceToJudgementOnly rel
+  where rel = getRelevance thing
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
@@ -98,7 +98,7 @@ applyRelevanceToJudgementOnly = localTC . over eRelevance . composeRelevance
 applyRelevanceToContextFunBody :: (MonadTCM tcm, LensRelevance r) => r -> tcm a -> tcm a
 applyRelevanceToContextFunBody thing cont =
   case getRelevance thing of
-    Relevant -> cont
+    Relevant{} -> cont
     rel -> applyWhenM (optIrrelevantProjections <$> pragmaOptions)
       (applyRelevanceToContextOnly rel) $    -- enable local irr. defs only when option
       applyRelevanceToJudgementOnly rel cont -- enable global irr. defs alway
@@ -198,5 +198,5 @@ applyModalityToContextFunBody thing cont = do
 --   Also set the current quantity to 0.
 wakeIrrelevantVars :: (MonadTCEnv tcm) => tcm a -> tcm a
 wakeIrrelevantVars
-  = applyRelevanceToContextOnly Irrelevant
+  = applyRelevanceToContextOnly irrelevant
   . applyQuantityToJudgement zeroQuantity

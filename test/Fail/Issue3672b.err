@@ -1,3 +1,4 @@
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue3672b.agda:33,14-16
   Issue3672b.agda:33,57-58

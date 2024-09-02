@@ -14,6 +14,7 @@ import Prelude hiding (null)
 import Control.Monad
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -171,7 +172,6 @@ fixitiesAndPolarities' = foldMap $ \case
   RecordSig       {}  -> mempty
   RecordDef       {}  -> mempty
   Record          {}  -> mempty
-  RecordDirective {}  -> mempty
   LoneConstructor {}  -> mempty
   PatternSyn      {}  -> mempty
   Postulate       {}  -> mempty
@@ -223,9 +223,8 @@ declaredNames = \case
   DataDef _ _ _ cs      -> foldMap declaredNames cs
   Data _ _ x _ _ cs     -> declaresName x <> foldMap declaredNames cs
   RecordSig _ _ x _ _   -> declaresName x
-  RecordDef _ x d _ _   -> declaresNames $     foldMap (:[]) (fst <$> recConstructor d)
-  Record _ _ x d _ _ _  -> declaresNames $ x : foldMap (:[]) (fst <$> recConstructor d)
-  RecordDirective _     -> mempty
+  RecordDef _ x ds _ _  -> declaresNames $     maybeToList (recDirConstructor ds)
+  Record _ _ x ds _ _ _ -> declaresNames $ x : maybeToList (recDirConstructor ds)
   Infix _ _             -> mempty
   Syntax _ _            -> mempty
   PatternSyn _ x _ _    -> declaresName x
@@ -253,3 +252,8 @@ declaredNames = \case
   Pragma (BuiltinPragma _ b (QName x))
     | any isBuiltinNoDef . builtinById $ rangedThing b -> declaresName x
   Pragma{}             -> mempty
+
+recDirConstructor :: [RecordDirective] -> Maybe Name
+recDirConstructor = listToMaybe . mapMaybe \case
+  Constructor x _ -> Just x
+  _ -> Nothing

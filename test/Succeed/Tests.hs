@@ -82,13 +82,13 @@ mkSucceedTest extraOpts dir agdaFile =
 
   updGolden = Just $ writeTextFile warnFile
 
-  doRun = do
+  doRun = withSystemTempDirectory testName \ compDir -> do
 
     let agdaArgs = [ "-v0", "-i" ++ dir, "-itest/", agdaFile
                    , "-vimpossible:10" -- BEWARE: no spaces allowed here
                    , "-vwarning:1"
                    , "--double-check"
-                   -- , "--ghc-flag=-outputdir=ghc-" ++ testName
+                   , "--ghc-flag=-outputdir=" ++ compDir
                    -- , "-vcompile.cmd:1"
                    ] ++
                    [ if testName == "Issue481"

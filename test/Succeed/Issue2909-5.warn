@@ -1,0 +1,2 @@
+Issue2909-5.agda:12,1-30: warning: -W[no]PragmaCompileWrong
+COMPILE GHC pragmas are not allowed for the FLAT builtin.

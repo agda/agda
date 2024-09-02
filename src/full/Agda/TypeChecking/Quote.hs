@@ -27,6 +27,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Size
+import qualified Agda.Utils.Maybe.Strict as Strict
 
 -- | Parse @quote@.
 quotedName :: (MonadTCError m, MonadAbsToCon m) => A.Expr -> m QName
@@ -129,9 +130,10 @@ quotingKit = do
       quoteHiding NotHidden  = pure visible
 
       quoteRelevance :: Relevance -> ReduceM Term
-      quoteRelevance Relevant   = pure relevant
-      quoteRelevance Irrelevant = pure irrelevant
-      quoteRelevance NonStrict  = pure relevant
+      quoteRelevance = \case
+        Relevant        {} -> pure relevant
+        Irrelevant      {} -> pure irrelevant
+        ShapeIrrelevant {} -> pure relevant
 
       quoteQuantity :: Quantity -> ReduceM Term
       quoteQuantity (Quantity0 _) = pure quantity0
@@ -179,8 +181,8 @@ quotingKit = do
       quoteSort PiSort{} = pure unsupportedSort
       quoteSort FunSort{} = pure unsupportedSort
       quoteSort UnivSort{}   = pure unsupportedSort
-      quoteSort (MetaS x es) = quoteTerm $ MetaV x es
-      quoteSort (DefS d es)  = quoteTerm $ Def d es
+      quoteSort (MetaS x es) = pure unsupportedSort
+      quoteSort (DefS d es)  = pure unsupportedSort
       quoteSort (DummyS s)   =__IMPOSSIBLE_VERBOSE__ s
 
       quoteType :: Type -> ReduceM Term
@@ -262,12 +264,16 @@ quotingKit = do
           Lam info t -> lam !@ quoteHiding (getHiding info) @@ quoteAbs quoteTerm t
           Def x es   -> do
             defn <- getConstInfo x
+            patlams <- viewTC ePrintingPatternLambdas
+            let isSeenPatLam = elem x patlams
             r <- isReconstructed
             -- #2220: remember to restore dropped parameters
             let
               conOrProjPars = defParameters defn r
               ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              qx Function{ funExtLam = Just (ExtLamInfo m False _), funClauses = cs } = do
+              qx Function{ funExtLam = Just (ExtLamInfo m False Strict.Nothing), funClauses = cs }
+                | not isSeenPatLam = locallyTC ePrintingPatternLambdas (x :) $ do
+
                     -- An extended lambda should not have any extra parameters!
                     unless (null conOrProjPars) __IMPOSSIBLE__
                     cs <- return $ filter (not . generatedClause) cs
@@ -275,7 +281,8 @@ quotingKit = do
                     let (pars, args) = splitAt n ts
                     extlam !@ list (map (quoteClause (Left ()) . (`apply` pars)) cs)
                            @@ list (map (quoteArg quoteTerm) args)
-              qx df@Function{ funExtLam = Just (ExtLamInfo _ True _), funCompiled = Just Fail{}, funClauses = [cl] } = do
+              qx df@Function{ funExtLam = Just (ExtLamInfo _ True Strict.Nothing), funCompiled = Just Fail{}, funClauses = [cl] }
+                | not isSeenPatLam = locallyTC ePrintingPatternLambdas (x :) $ do
                     -- See also corresponding code in InternalToAbstract
                     let n = length (namedClausePats cl) - 1
                         pars = take n ts
@@ -339,8 +346,9 @@ quotingKit = do
             agdaDefinitionFunDef !@ quoteList (quoteClause (Left ())) cs
           Primitive{}   -> pure agdaDefinitionPrimitive
           PrimitiveSort{} -> pure agdaDefinitionPrimitive
-          Constructor{conData = d} ->
-            agdaDefinitionDataConstructor !@! quoteName d
+          Constructor{conData = d, conSrcCon = c} -> do
+            q <- getQuantity <$> getConstInfo (conName c)
+            agdaDefinitionDataConstructor !@! quoteName d @@ quoteQuantity q
 
   return $ QuotingKit quoteTerm quoteType (quoteDom quoteType) quoteDefn quoteList
 

@@ -1,7 +1,10 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _v.T_21 _v.i_22 =< _T_23 _i_24 (blocked on any(_v.T_21, _T_23))
+error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue3401.agda:12,7-8
   Issue3401.agda:12,5-6
+error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
   Issue3401.agda:13,5-9

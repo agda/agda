@@ -1,4 +1,4 @@
-Negative3.agda:3,1-4,27
+Negative3.agda:3,1-4,27: error: [NotStrictlyPositive]
 Mu is not strictly positive, because it occurs
 in an argument of a bound variable
 in the type of the constructor inn

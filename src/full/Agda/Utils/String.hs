@@ -2,14 +2,21 @@
 
 module Agda.Utils.String where
 
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Trans.Maybe
+import Control.Monad.Writer
 
 import Data.Char
 import qualified Data.List as List
 import Data.String
 
 import Agda.Utils.List
+import Agda.Utils.List1 (String1, fromList)
+
+instance IsString String1 where
+  fromString = fromList
 
 -- | 'quote' adds double quotes around the string, replaces newline
 -- characters with @\n@, and escapes double quotes and backslashes
@@ -99,8 +106,17 @@ rtrim = List.dropWhileEnd isSpace
 trim :: String -> String
 trim = rtrim . ltrim
 
+instance (IsString (m a), Monad m) => IsString (ExceptT e m a) where
+  fromString = lift . fromString
+
+instance (IsString (m a), Monad m) => IsString (MaybeT m a) where
+  fromString = lift . fromString
+
 instance (IsString (m a), Monad m) => IsString (ReaderT r m a) where
   fromString = lift . fromString
 
 instance (IsString (m a), Monad m) => IsString (StateT s m a) where
+  fromString = lift . fromString
+
+instance (IsString (m a), Monad m, Monoid w) => IsString (WriterT w m a) where
   fromString = lift . fromString

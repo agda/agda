@@ -1,4 +1,4 @@
-PolarityProjectionLike.agda:31,10-11
+PolarityProjectionLike.agda:31,10-11: error: [UnequalTerms]
 i != ↑ i of type Size
 when checking that the expression x has type
 Contra true (mkType (D (↑ i)))

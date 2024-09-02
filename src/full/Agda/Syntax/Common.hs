@@ -2,6 +2,7 @@
 -}
 module Agda.Syntax.Common
   ( module Agda.Syntax.Common
+  , module Agda.Syntax.Common.KeywordRange
   , module Agda.Syntax.TopLevelModuleName.Boot
   , Induction(..)
   )
@@ -30,9 +31,13 @@ import qualified Data.HashSet as HashSet
 
 import GHC.Generics (Generic)
 
+import Agda.Syntax.Common.Aspect (Induction(..))
+import Agda.Syntax.Common.KeywordRange
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Position
 
 import Agda.Utils.BiMap (HasTag(..))
+import Agda.Utils.Boolean (Boolean(fromBool), IsBool(toBool))
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
@@ -41,8 +46,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
-import Agda.Syntax.Common.Aspect (Induction(..))
-import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 
@@ -95,6 +98,11 @@ data Cubical = CErased | CFull
 
 instance NFData Cubical
 
+cubicalOptionString :: Cubical -> String
+cubicalOptionString = \case
+  CErased -> "--erased-cubical"
+  CFull   -> "--cubical"
+
 -- | Agda variants.
 --
 -- Only some variants are tracked.
@@ -116,10 +124,14 @@ instance NFData Language
 
 data RecordDirectives' a = RecordDirectives
   { recInductive   :: Maybe (Ranged Induction)
-  , recHasEta      :: Maybe HasEta0
+  , recHasEta      :: Maybe (Ranged HasEta0)
   , recPattern     :: Maybe Range
   , recConstructor :: Maybe a
-  } deriving (Functor, Show, Eq)
+  } deriving (Functor, Show, Eq, Foldable, Traversable)
+
+instance Null (RecordDirectives' a) where
+  empty = emptyRecordDirectives
+  null (RecordDirectives a b c d) = and [null a, null b, null c, null d]
 
 emptyRecordDirectives :: RecordDirectives' a
 emptyRecordDirectives = RecordDirectives empty empty empty empty
@@ -223,11 +235,101 @@ instance PatternMatchingAllowed Induction where
   patternMatchingAllowed = (== Inductive)
 
 ---------------------------------------------------------------------------
--- * Hiding
+-- * Overlapping instances
 ---------------------------------------------------------------------------
 
 data Overlappable = YesOverlap | NoOverlap
   deriving (Show, Eq, Ord)
+
+-- | Just for the 'Hiding' instance. Should never combine different
+--   overlapping.
+instance Semigroup Overlappable where
+  NoOverlap  <> NoOverlap  = NoOverlap
+  YesOverlap <> YesOverlap = YesOverlap
+  _          <> _          = __IMPOSSIBLE__
+
+instance Monoid Overlappable where
+  mempty  = NoOverlap
+  mappend = (<>)
+
+instance NFData Overlappable where
+  rnf NoOverlap  = ()
+  rnf YesOverlap = ()
+
+-- | The possible overlap modes for an instance, also used for instance candidates.
+data OverlapMode
+  = Overlappable
+  -- ^ User-written OVERLAPPABLE pragma: this candidate can *be removed*
+  -- by a more specific candidate.
+
+  | Overlapping
+  -- ^ User-written OVERLAPPING pragma: this candidate can *remove* a
+  -- less specific candidate.
+
+  | Overlaps
+  -- ^ User-written OVERLAPS pragma: both overlappable and overlapping.
+
+  | DefaultOverlap
+  -- ^ No user-written overlap pragma. This instance can be overlapped
+  -- by an OVERLAPPING instance, and it can overlap OVERLAPPABLE
+  -- instances.
+
+  | Incoherent
+  -- ^ User-written INCOHERENT pragma: both overlappable and
+  -- overlapping; and, if there are multiple candidates after all
+  -- overlap has been handled, make an arbitrary choice.
+
+  | FieldOverlap
+  -- ^ Overlapping instances in record fields.
+  deriving (Show, Eq, Ord, Enum, Bounded)
+
+instance Pretty OverlapMode where
+  pretty = \case
+    Overlappable   -> "OVERLAPPABLE"
+    Overlapping    -> "OVERLAPPING"
+    Incoherent     -> "INCOHERENT"
+    Overlaps       -> "OVERLAPS"
+    FieldOverlap   -> "overlap"
+    DefaultOverlap -> empty
+
+instance KillRange OverlapMode where
+  killRange = id
+
+instance NFData OverlapMode where
+  rnf = \case
+    Overlappable   -> ()
+    Overlapping    -> ()
+    Overlaps       -> ()
+    DefaultOverlap -> ()
+    FieldOverlap   -> ()
+    Incoherent     -> ()
+
+class HasOverlapMode a where
+  lensOverlapMode :: Lens' a OverlapMode
+
+instance HasOverlapMode OverlapMode where
+  lensOverlapMode = id
+
+isIncoherent, isOverlappable, isOverlapping :: HasOverlapMode a => a -> Bool
+isIncoherent x = case x ^. lensOverlapMode of
+  Incoherent -> True
+  _          -> False
+
+isOverlappable x = case x ^. lensOverlapMode of
+  Overlappable -> True
+  Incoherent   -> True
+  Overlaps     -> True
+  _            -> False
+
+isOverlapping x = case x ^. lensOverlapMode of
+  Overlapping -> True
+  Incoherent  -> True
+  Overlaps    -> True
+  _           -> False
+
+---------------------------------------------------------------------------
+-- * Hiding
+---------------------------------------------------------------------------
 
 data Hiding  = Hidden | Instance Overlappable | NotHidden
   deriving (Show, Eq, Ord)
@@ -241,12 +343,8 @@ hidingToString = \case
   NotHidden  -> "visible"
   Instance{} -> "instance"
 
--- | Just for the 'Hiding' instance. Should never combine different
---   overlapping.
-instance Semigroup Overlappable where
-  NoOverlap  <> NoOverlap  = NoOverlap
-  YesOverlap <> YesOverlap = YesOverlap
-  _          <> _          = __IMPOSSIBLE__
+instance Null Hiding where
+  empty = NotHidden
 
 -- | 'Hiding' is an idempotent partial monoid, with unit 'NotHidden'.
 --   'Instance' and 'NotHidden' are incompatible.
@@ -257,12 +355,8 @@ instance Semigroup Hiding where
   Instance o <> Instance o' = Instance (o <> o')
   _          <> _           = __IMPOSSIBLE__
 
-instance Monoid Overlappable where
-  mempty  = NoOverlap
-  mappend = (<>)
-
 instance Monoid Hiding where
-  mempty = NotHidden
+  mempty = empty
   mappend = (<>)
 
 instance HasRange Hiding where
@@ -270,10 +364,6 @@ instance HasRange Hiding where
 
 instance KillRange Hiding where
   killRange = id
-
-instance NFData Overlappable where
-  rnf NoOverlap  = ()
-  rnf YesOverlap = ()
 
 instance NFData Hiding where
   rnf Hidden       = ()
@@ -370,8 +460,8 @@ makeInstance = makeInstance' NoOverlap
 makeInstance' :: LensHiding a => Overlappable -> a -> a
 makeInstance' o = setHiding (Instance o)
 
-isOverlappable :: LensHiding a => a -> Bool
-isOverlappable x =
+isYesOverlap :: LensHiding a => a -> Bool
+isYesOverlap x =
   case getHiding x of
     Instance YesOverlap -> True
     _ -> False
@@ -519,6 +609,11 @@ topModality = Modality topRelevance topQuantity topCohesion
 --   composition, because the default quantity is ω.
 defaultModality :: Modality
 defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
+
+-- | Extract the positional modality component for checks regarding only them.
+positionalModalityComponent :: Modality -> Modality
+positionalModalityComponent m =
+  defaultModality {modCohesion = modCohesion m}
 
 -- | Equality ignoring origin.
 
@@ -993,6 +1088,16 @@ instance NFData Quantity where
   rnf (Quantity1 o) = rnf o
   rnf (Quantityω o) = rnf o
 
+isQuantity0 :: LensQuantity a => a -> Bool
+isQuantity0 a = case getQuantity a of
+  Quantity0{} -> True
+  _ -> False
+
+isQuantityω :: LensQuantity a => a -> Bool
+isQuantityω a = case getQuantity a of
+  Quantityω{} -> True
+  _ -> False
+
 -- ** Erased.
 
 -- | A special case of 'Quantity': erased or not.
@@ -1065,42 +1170,207 @@ instance Semigroup (UnderComposition Erased) where
 -- * Relevance
 ---------------------------------------------------------------------------
 
+-- ** Relevance origin
+
+-- | Origin of 'Relevant'.
+
+data OriginRelevant
+  = ORelInferred        -- ^ User wrote nothing.
+  | ORelRelevant Range  -- ^ User wrote "@relevant".
+  deriving (Show, Generic)
+
+-- | Origin of 'Irrelevant'.
+
+data OriginIrrelevant
+  = OIrrInferred          -- ^ User wrote nothing.
+  | OIrrDot        Range  -- ^ User wrote ".".
+  | OIrrIrr        Range  -- ^ User wrote "@irr".
+  | OIrrIrrelevant Range  -- ^ User wrote "@irrelevant".
+  deriving (Show, Generic)
+
+-- | Origin of 'ShapeIrrelevant'.
+
+data OriginShapeIrrelevant
+  = OShIrrInferred               -- ^ User wrote nothing.
+  | OShIrrDotDot          Range  -- ^ User wrote "..".
+  | OShIrrShIrr           Range  -- ^ User wrote "@shirr".
+  | OShIrrShapeIrrelevant Range  -- ^ User wrote "@shape-irrelevant".
+  deriving (Show, Generic)
+
+-- *** Instances for 'OriginRelevant'
+
+instance Null OriginRelevant where
+  empty = ORelInferred
+  null = \case
+    ORelInferred -> True
+    _ -> False
+
+instance Semigroup OriginRelevant where
+  (<>) = curry \case
+    (ORelInferred, o  ) -> o
+    (o, ORelInferred  ) -> o
+    (o, ORelRelevant r) -> ORelRelevant $ fuseRange o r
+
+instance Monoid OriginRelevant where
+  mempty = empty
+
+instance HasRange OriginRelevant where
+  getRange = \case
+    ORelInferred   -> noRange
+    ORelRelevant r -> r
+
+instance SetRange OriginRelevant where
+  setRange r = \case
+    ORelInferred   -> ORelInferred
+    ORelRelevant _ -> ORelRelevant r
+
+instance KillRange OriginRelevant where
+  killRange = setRange noRange
+
+instance NFData OriginRelevant where
+  rnf = \case
+    ORelInferred   -> ()
+    ORelRelevant _ -> ()
+
+-- *** Instances for 'OriginIrrelevant'
+
+instance Null OriginIrrelevant where
+  empty = OIrrInferred
+  null = \case
+    OIrrInferred -> True
+    _ -> False
+
+-- | Right-biased composition, because the left relevance
+--   acts as context, and the right one as occurrence.
+
+instance Semigroup OriginIrrelevant where
+  (<>) = curry \case
+    (OIrrInferred, o    ) -> o
+    (o, OIrrInferred    ) -> o
+    (o, OIrrDot        r) -> OIrrDot        $ fuseRange o r
+    (o, OIrrIrr        r) -> OIrrIrr        $ fuseRange o r
+    (o, OIrrIrrelevant r) -> OIrrIrrelevant $ fuseRange o r
+
+instance Monoid OriginIrrelevant where
+  mempty = empty
+
+instance HasRange OriginIrrelevant where
+  getRange = \case
+    OIrrInferred     -> noRange
+    OIrrDot        r -> r
+    OIrrIrr        r -> r
+    OIrrIrrelevant r -> r
+
+instance SetRange OriginIrrelevant where
+  setRange r = \case
+    OIrrInferred     -> OIrrInferred
+    OIrrDot _        -> OIrrDot r
+    OIrrIrr _        -> OIrrIrr r
+    OIrrIrrelevant _ -> OIrrIrrelevant r
+
+instance KillRange OriginIrrelevant where
+  killRange = setRange noRange
+
+instance NFData OriginIrrelevant where
+  rnf = \case
+    OIrrInferred     -> ()
+    OIrrDot _        -> ()
+    OIrrIrr _        -> ()
+    OIrrIrrelevant _ -> ()
+
+-- *** Instances for 'OriginShapeIrrelevant'
+
+instance Null OriginShapeIrrelevant where
+  empty = OShIrrInferred
+  null = \case
+    OShIrrInferred -> True
+    _ -> False
+
+-- | Right-biased composition, because the left relevance
+--   acts as context, and the right one as occurrence.
+
+instance Semigroup OriginShapeIrrelevant where
+  (<>) = curry \case
+    (OShIrrInferred, o         ) -> o
+    (o, OShIrrInferred         ) -> o
+    (o, OShIrrDotDot          r) -> OShIrrDotDot          $ fuseRange o r
+    (o, OShIrrShIrr           r) -> OShIrrShIrr           $ fuseRange o r
+    (o, OShIrrShapeIrrelevant r) -> OShIrrShapeIrrelevant $ fuseRange o r
+
+instance Monoid OriginShapeIrrelevant where
+  mempty = empty
+
+instance HasRange OriginShapeIrrelevant where
+  getRange = \case
+    OShIrrInferred          -> noRange
+    OShIrrDotDot          r -> r
+    OShIrrShIrr           r -> r
+    OShIrrShapeIrrelevant r -> r
+
+instance SetRange OriginShapeIrrelevant where
+  setRange r = \case
+    OShIrrInferred          -> OShIrrInferred
+    OShIrrDotDot _          -> OShIrrDotDot r
+    OShIrrShIrr _           -> OShIrrShIrr r
+    OShIrrShapeIrrelevant _ -> OShIrrShapeIrrelevant r
+
+instance KillRange OriginShapeIrrelevant where
+  killRange = setRange noRange
+
+instance NFData OriginShapeIrrelevant where
+  rnf = \case
+    OShIrrInferred          -> ()
+    OShIrrDotDot _          -> ()
+    OShIrrShIrr _           -> ()
+    OShIrrShapeIrrelevant _ -> ()
+
+-- ** Relevance levels
+
 -- | A function argument can be relevant or irrelevant.
 --   See "Agda.TypeChecking.Irrelevance".
 data Relevance
-  = Relevant    -- ^ The argument is (possibly) relevant at compile-time.
-  | NonStrict   -- ^ The argument may never flow into evaluation position.
-                --   Therefore, it is irrelevant at run-time.
-                --   It is treated relevantly during equality checking.
-                --
-                --   The above comment is probably obsolete, as we currently have
-                --   erasure (/at/0, @Quantity0@) for that. What's described here is probably
-                --   shape-irrelevance (..). If you enable @--experimental-irrelevance@,
-                --   then the type of an irrelevant function is forced to be shape-irrelevant.
-                --   See:
-                --   - <https://doi.org/10.2168/LMCS-8(1:29)2012> example 2.8
-                --     (Not enforcing shape-irrelevant codomains can break subject reduction!)
-                --   - <https://dl.acm.org/doi/10.1145/3110277>
-                --   - <https://doi.org/10.1145/3209108.3209119>
-  | Irrelevant  -- ^ The argument is irrelevant at compile- and runtime.
-    deriving (Show, Eq, Enum, Bounded, Generic)
+  = Relevant OriginRelevant
+      -- ^ The argument is (possibly) relevant at compile-time.
+  | ShapeIrrelevant OriginShapeIrrelevant
+      -- ^ Like 'Quantity0', the argument may never flow into evaluation position.
+      --   So it is irrelevant at run-time,
+      --   yet treated relevantly during equality checking.
+      --
+      --   Unlike 'Quantity0', it is used to type 'Irrelevant' arguments in functions:
+      --   If you enable @--experimental-irrelevance@,
+      --   then the type of an irrelevant function is forced to be shape-irrelevant.
+      --   See:
+      --   - <https://doi.org/10.2168/LMCS-8(1:29)2012> example 2.8
+      --     (Not enforcing shape-irrelevant codomains can break subject reduction!)
+      --   - <https://dl.acm.org/doi/10.1145/3110277>
+      --   - <https://doi.org/10.1145/3209108.3209119>
+  | Irrelevant OriginIrrelevant
+      -- ^ The argument is irrelevant at compile- and runtime.
+    deriving (Show, Generic)
 
-allRelevances :: [Relevance]
-allRelevances = [minBound..maxBound]
+instance Eq Relevance where
+  (==) = sameRelevance
 
 instance HasRange Relevance where
-  getRange _ = noRange
+  getRange = \case
+    Relevant        o -> getRange o
+    ShapeIrrelevant o -> getRange o
+    Irrelevant      o -> getRange o
 
 instance SetRange Relevance where
-  setRange _ = id
+  setRange r = \case
+    Relevant        o -> Relevant        $ setRange r o
+    ShapeIrrelevant o -> ShapeIrrelevant $ setRange r o
+    Irrelevant      o -> Irrelevant      $ setRange r o
 
 instance KillRange Relevance where
-  killRange rel = rel -- no range to kill
+  killRange = setRange noRange
 
 instance NFData Relevance where
-  rnf Relevant   = ()
-  rnf NonStrict  = ()
-  rnf Irrelevant = ()
+  rnf = \case
+    Relevant        o -> rnf o
+    ShapeIrrelevant o -> rnf o
+    Irrelevant      o -> rnf o
 
 -- | A lens to access the 'Relevance' attribute in data structures.
 --   Minimal implementation: @getRelevance@ and @mapRelevance@ or @LensModality@.
@@ -1124,38 +1394,57 @@ instance LensRelevance Relevance where
   setRelevance = const
   mapRelevance = id
 
+relevant :: Relevance
+relevant = Relevant empty
+
+irrelevant :: Relevance
+irrelevant = Irrelevant empty
+
+shapeIrrelevant :: Relevance
+shapeIrrelevant = ShapeIrrelevant empty
+
 isRelevant :: LensRelevance a => a -> Bool
-isRelevant a = getRelevance a == Relevant
+isRelevant a = case getRelevance a of
+  Relevant{} -> True
+  _ -> False
 
 isIrrelevant :: LensRelevance a => a -> Bool
-isIrrelevant a = getRelevance a == Irrelevant
+isIrrelevant a = case getRelevance a of
+  Irrelevant{} -> True
+  _ -> False
 
-isNonStrict :: LensRelevance a => a -> Bool
-isNonStrict a = getRelevance a == NonStrict
+isShapeIrrelevant :: LensRelevance a => a -> Bool
+isShapeIrrelevant a = case getRelevance a of
+  ShapeIrrelevant{} -> True
+  _ -> False
 
 -- | Information ordering.
 -- @Relevant  \`moreRelevant\`
---  NonStrict \`moreRelevant\`
+--  ShapeIrrelevant \`moreRelevant\`
 --  Irrelevant@
 moreRelevant :: Relevance -> Relevance -> Bool
 moreRelevant = (<=)
 
 -- | Equality ignoring origin.
 sameRelevance :: Relevance -> Relevance -> Bool
-sameRelevance = (==)
+sameRelevance = curry $ \case
+  (Relevant        {}, Relevant        {}) -> True
+  (Irrelevant      {}, Irrelevant      {}) -> True
+  (ShapeIrrelevant {}, ShapeIrrelevant {}) -> True
+  _ -> False
 
 -- | More relevant is smaller.
 instance Ord Relevance where
-  compare = curry $ \case
-    (r, r') | r == r' -> EQ
+  compare = curry \case
+    (r, r') | sameRelevance r r' -> EQ
     -- top
-    (_, Irrelevant) -> LT
-    (Irrelevant, _) -> GT
+    (_, Irrelevant{}) -> LT
+    (Irrelevant{}, _) -> GT
     -- bottom
-    (Relevant, _) -> LT
-    (_, Relevant) -> GT
+    (Relevant{}, _) -> LT
+    (_, Relevant{}) -> GT
     -- redundant case
-    (NonStrict,NonStrict) -> EQ
+    (ShapeIrrelevant{}, ShapeIrrelevant{}) -> EQ
 
 -- | More relevant is smaller.
 instance PartialOrd Relevance where
@@ -1169,13 +1458,14 @@ usableRelevance = isRelevant
 --   'Irrelevant' is dominant, 'Relevant' is neutral.
 --   Composition coincides with 'max'.
 composeRelevance :: Relevance -> Relevance -> Relevance
-composeRelevance r r' =
-  case (r, r') of
-    (Irrelevant, _) -> Irrelevant
-    (_, Irrelevant) -> Irrelevant
-    (NonStrict, _)  -> NonStrict
-    (_, NonStrict)  -> NonStrict
-    (Relevant, Relevant) -> Relevant
+composeRelevance = curry \case
+  (Relevant o        , Relevant o'       ) -> Relevant (o <> o')
+  (Relevant{}        , r                 ) -> r
+  (r                 , Relevant{}        ) -> r
+  (Irrelevant o      , Irrelevant o'     ) -> Irrelevant (o <> o')
+  (_                 , Irrelevant o      ) -> Irrelevant o
+  (Irrelevant o      , _                 ) -> Irrelevant o
+  (ShapeIrrelevant o , ShapeIrrelevant o') -> ShapeIrrelevant (o <> o')
 
 -- | Compose with relevance flag from the left.
 --   This function is e.g. used to update the relevance information
@@ -1189,13 +1479,13 @@ applyRelevance rel = mapRelevance (rel `composeRelevance`)
 --   iff
 --   @(r \`inverseComposeRelevance\` x) \`moreRelevant\` y@ (Galois connection).
 inverseComposeRelevance :: Relevance -> Relevance -> Relevance
-inverseComposeRelevance r x =
-  case (r, x) of
-    (Relevant  , x)          -> x          -- going to relevant arg.: nothing changes
-                                           -- because Relevant is comp.-neutral
-    (Irrelevant, x)          -> Relevant   -- going irrelevant: every thing usable
-    (NonStrict , Irrelevant) -> Irrelevant -- otherwise: irrelevant things remain unusable
-    (NonStrict , _)          -> Relevant   -- but @NonStrict@s become usable
+inverseComposeRelevance = curry \case
+  (_                 , Relevant o       ) -> Relevant o   -- can't get more relevant
+  (Relevant{}        , x                ) -> x            -- going to relevant arg.: nothing changes
+                                                          -- because Relevant is comp.-neutral
+  (Irrelevant{}      , x                ) -> relevant     -- going irrelevant: every thing usable
+  (ShapeIrrelevant{} , Irrelevant o     ) -> Irrelevant o -- otherwise: irrelevant things remain unusable
+  (ShapeIrrelevant{} , ShapeIrrelevant{}) -> relevant     -- but @ShapeIrrelevant@s become usable
 
 -- | Left division by a 'Relevance'.
 --   Used e.g. to modify context when going into a @rel@ argument.
@@ -1234,33 +1524,33 @@ addRelevance = min
 
 -- | 'Relevance' forms a monoid under addition, and even a semiring.
 zeroRelevance :: Relevance
-zeroRelevance = Irrelevant
+zeroRelevance = irrelevant
 
 -- | Identity element under composition
 unitRelevance :: Relevance
-unitRelevance = Relevant
+unitRelevance = relevant
 
 -- | Absorptive element under addition.
 topRelevance :: Relevance
-topRelevance = Relevant
+topRelevance = relevant
 
 -- | Default Relevance is the identity element under composition
 defaultRelevance :: Relevance
 defaultRelevance = unitRelevance
 
 -- | Irrelevant function arguments may appear non-strictly in the codomain type.
-irrToNonStrict :: Relevance -> Relevance
-irrToNonStrict Irrelevant = NonStrict
-irrToNonStrict rel        = rel
+irrelevantToShapeIrrelevant :: Relevance -> Relevance
+irrelevantToShapeIrrelevant Irrelevant{} = shapeIrrelevant
+irrelevantToShapeIrrelevant rel = rel
 
 -- | Applied when working on types (unless --experimental-irrelevance).
-nonStrictToRel :: Relevance -> Relevance
-nonStrictToRel NonStrict = Relevant
-nonStrictToRel rel       = rel
+shapeIrrelevantToRelevant :: Relevance -> Relevance
+shapeIrrelevantToRelevant ShapeIrrelevant{} = relevant
+shapeIrrelevantToRelevant rel = rel
 
-nonStrictToIrr :: Relevance -> Relevance
-nonStrictToIrr NonStrict = Irrelevant
-nonStrictToIrr rel       = rel
+shapeIrrelevantToIrrelevant :: Relevance -> Relevance
+shapeIrrelevantToIrrelevant ShapeIrrelevant{} = irrelevant
+shapeIrrelevantToIrrelevant rel = rel
 
 ---------------------------------------------------------------------------
 -- * Annotations
@@ -1409,6 +1699,9 @@ instance LensCohesion Cohesion where
   getCohesion = id
   setCohesion = const
   mapCohesion = id
+
+isContinuous :: LensCohesion a => a -> Bool
+isContinuous = (Continuous ==) . getCohesion
 
 -- | Information ordering.
 -- @Flat  \`moreCohesion\`
@@ -1762,6 +2055,10 @@ defaultArgInfo =  ArgInfo
   , argInfoAnnotation    = defaultAnnotation
   }
 
+defaultIrrelevantArgInfo :: ArgInfo
+defaultIrrelevantArgInfo = setRelevance irrelevant defaultArgInfo
+
+
 -- Accessing through ArgInfo
 
 -- default accessors for Hiding
@@ -1858,9 +2155,9 @@ instance KillRange a => KillRange (Arg a) where
 --           where showOv YesOverlap = "overlap "
 --                 showOv NoOverlap  = ""
 --         showR r s = case r of
---           Irrelevant   -> "." ++ s
---           NonStrict    -> "?" ++ s
---           Relevant     -> "r" ++ s -- Andreas: I want to see it explicitly
+--           Irrelevant      -> "." ++ s
+--           ShapeIrrelevant -> "?" ++ s
+--           Relevant        -> "r" ++ s -- Andreas: I want to see it explicitly
 --         showQ q s = case q of
 --           Quantity0   -> "0" ++ s
 --           Quantity1   -> "1" ++ s
@@ -1885,7 +2182,7 @@ instance KillRange a => KillRange (Arg a) where
 --                 prettyOv NoOverlap  = ""
 --         prettyR r s = case r of
 --           Irrelevant   -> "." <> s
---           NonStrict    -> "?" <> s
+--           ShapeIrrelevant    -> "?" <> s
 --           Relevant     -> "r" <> s -- Andreas: I want to see it explicitly
 --         prettyQ q s = case q of
 --           Quantity0   -> "0" <> s
@@ -2046,6 +2343,7 @@ setNameOf = set lensNamed
 
 mapNameOf :: LensNamed a => (Maybe (NameOf a) -> Maybe (NameOf a)) -> a -> a
 mapNameOf = over lensNamed
+
 bareNameOf :: (LensNamed a, NameOf a ~ NamedName) => a -> Maybe ArgName
 bareNameOf a = rangedThing . woThing <$> getNameOf a
 
@@ -2213,10 +2511,11 @@ type RString = Ranged RawName
 
 -- | Where does the 'ConP' or 'Con' come from?
 data ConOrigin
-  = ConOSystem  -- ^ Inserted by system or expanded from an implicit pattern.
-  | ConOCon     -- ^ User wrote a constructor (pattern).
-  | ConORec     -- ^ User wrote a record (pattern).
-  | ConOSplit   -- ^ Generated by interactive case splitting.
+  = ConOSystem   -- ^ Inserted by system or expanded from an implicit pattern.
+  | ConOCon      -- ^ User wrote a constructor (pattern).
+  | ConORec      -- ^ User wrote a record (pattern).
+  | ConORecWhere -- ^ User wrote a `record where`
+  | ConOSplit    -- ^ Generated by interactive case splitting.
   deriving (Show, Eq, Ord, Enum, Bounded, Generic)
 
 instance NFData ConOrigin
@@ -2254,16 +2553,17 @@ data IsInfix = InfixDef | PrefixDef
 
 -- | Access modifier.
 data Access
-  = PrivateAccess Origin
+  = PrivateAccess KwRange Origin
       -- ^ Store the 'Origin' of the private block that lead to this qualifier.
       --   This is needed for more faithful printing of declarations.
+      --   'KwRange' is the range of the @private@ keyword.
   | PublicAccess
     deriving (Show, Eq, Ord)
 
 instance Pretty Access where
   pretty = text . \case
-    PrivateAccess _ -> "private"
-    PublicAccess    -> "public"
+    PrivateAccess _ _ -> "private"
+    PublicAccess      -> "public"
 
 instance NFData Access where
   rnf _ = ()
@@ -2273,6 +2573,9 @@ instance HasRange Access where
 
 instance KillRange Access where
   killRange = id
+
+privateAccessInserted :: Access
+privateAccessInserted = PrivateAccess empty Inserted
 
 -- ** abstract blocks
 
@@ -2289,6 +2592,14 @@ instance Semigroup IsAbstract where
 instance Monoid IsAbstract where
   mempty  = ConcreteDef
   mappend = (<>)
+
+instance Boolean IsAbstract where
+  fromBool True  = AbstractDef
+  fromBool False = ConcreteDef
+
+instance IsBool IsAbstract where
+  toBool AbstractDef = True
+  toBool ConcreteDef = False
 
 instance KillRange IsAbstract where
   killRange = id
@@ -2318,18 +2629,18 @@ instance AnyIsAbstract a => AnyIsAbstract (Maybe a) where
 
 -- | Is this definition eligible for instance search?
 data IsInstance
-  = InstanceDef Range  -- ^ Range of the @instance@ keyword.
+  = InstanceDef KwRange  -- ^ Range of the @instance@ keyword.
   | NotInstanceDef
     deriving (Show, Eq, Ord)
 
 instance KillRange IsInstance where
   killRange = \case
-    InstanceDef _    -> InstanceDef noRange
+    InstanceDef _    -> InstanceDef empty
     i@NotInstanceDef -> i
 
 instance HasRange IsInstance where
   getRange = \case
-    InstanceDef r  -> r
+    InstanceDef r  -> getRange r
     NotInstanceDef -> noRange
 
 instance NFData IsInstance where
@@ -2711,7 +3022,9 @@ data ImportDirective' n m = ImportDirective
   , using          :: Using' n m
   , hiding         :: HidingDirective' n m
   , impRenaming    :: RenamingDirective' n m
-  , publicOpen     :: Maybe Range -- ^ Only for @open@. Exports the opened names from the current module.
+  , publicOpen     :: Maybe KwRange
+      -- ^ Only for @open@. Exports the opened names from the current module.
+      --   Range of the @public@ keyword.
   }
   deriving Eq
 
@@ -2834,7 +3147,7 @@ instance (HasRange a, HasRange b) => HasRange (ImportedName' a b) where
 
 instance (KillRange a, KillRange b) => KillRange (ImportDirective' a b) where
   killRange (ImportDirective _ u h r p) =
-    killRangeN (\u h r -> ImportDirective noRange u h r p) u h r
+    killRangeN (\u h r -> ImportDirective noRange u h r (p $> empty)) u h r
 
 instance (KillRange a, KillRange b) => KillRange (Using' a b) where
   killRange (Using  i) = killRangeN Using  i

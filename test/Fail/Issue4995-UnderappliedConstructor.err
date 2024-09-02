@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: c2 (c1 n) ≡ n (stuck)
       [ at Issue4995-UnderappliedConstructor.agda:17,7-9 ]

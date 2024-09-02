@@ -23,49 +23,65 @@ jobs:
   cabal-install:
     env:
       FLAGS: -O0 -f enable-cluster-counting
+    name: cabal install ${{ matrix.name }}
     needs: auto-cancel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
-    - name: Set up cabal
-      run: |
-        mkdir -p ~/.cabal
-        cabal update
-    - name: Environment settings based on the Haskell setup
-      run: |
-        GHC_VER=$(ghc --numeric-version)
-        CABAL_VER=$(cabal --numeric-version)
-        echo "GHC_VER   = ${GHC_VER}"
-        echo "CABAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
-        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
+    - id: setup-haskell
+      uses: haskell-actions/setup@v2
+      with:
+        cabal-update: true
+        cabal-version: latest
+        ghc-version: '9.10'
     - name: Configure the build plan
       run: |
         cabal configure ${FLAGS}
         cabal build --dry-run
     - env:
-        key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
-          }}
+        key: cabal-install.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version
+          }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
       id: cache
       name: Restore cached dependencies
       uses: actions/cache/restore@v4
       with:
         key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
-        path: ~/.cabal/store
+        path: ${{ steps.setup-haskell.outputs.cabal-store }}
         restore-keys: ${{ env.key }}-
-    - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-      name: Install dependencies
+    - name: Install dependencies
       run: |
         cabal build --only-dependencies
     - name: Install Agda
       run: |
-        cabal install ${FLAGS}
-    - if: ${{ always() && (steps.cache.outputs.cache-hit != 'true') }}
+        cabal install ${FLAGS} ${{ matrix.install_flags }}
+    - if: matrix.name != '--lib'
+      name: Debug
+      run: |
+        echo "PATH = ${PATH}"
+        ls -l ~/.cabal/bin
+        tree -L 3 ~/.cabal/store
+    - if: matrix.name != '--lib'
+      name: Check for Agda library interface files
+      run: |
+        AGDA_VERSION=$(agda --numeric-version)
+        AGDA_DATA_DIR=$(agda --print-agda-data-dir)
+        echo "AGDA_VERSION  = ${AGDA_VERSION}"
+        echo "AGDA_DATA_DIR = ${AGDA_DATA_DIR}"
+        ls -l "${AGDA_DATA_DIR}/lib/prim/_build/${AGDA_VERSION}/agda/Agda/Primitive.agdai"
+    - if: always() && steps.cache.outputs.cache-hit != 'true'
       name: Save cache
       uses: actions/cache/save@v4
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
-        path: ~/.cabal/store
+        path: ${{ steps.setup-haskell.outputs.cabal-store }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - install_flags: ''
+          name: ''
+        - install_flags: --lib
+          name: --lib
     timeout-minutes: 60
 name: Install (v2-cabal)
 'on':

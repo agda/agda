@@ -14,3 +14,6 @@
 (agda2-info-action "*Search About*" "Definitions about Nat, \"plus\" plus : Nat → Nat → Nat" nil)
 (agda2-status-action "Checked")
 (agda2-info-action "*Search About*" "Definitions about Nat _*_ : Nat → Nat → Nat _+_ : Nat → Nat → Nat _∸_ : Nat → Nat → Nat length : {a : Agda.Primitive.Level} {A : Set a} → List A → Nat natToString : Nat → String plus : Nat → Nat → Nat pred : Nat → Nat primCharToNat : Char → Nat primCharToNatInjective : (a b : Char) → primCharToNat a ≡ primCharToNat b → a ≡ b primNatToChar : Nat → Char primNatToFloat : Nat → Float primShowNat : Nat → String printNat : Nat → IO ⊤ suc : Nat → Nat zero : Nat" nil)
+(agda2-info-action "*Error*" "error: [Interaction.ExpectedIdentifier] Expected identifier, but found: 42" nil)
+(agda2-highlight-load-and-delete-action)
+(agda2-status-action "")

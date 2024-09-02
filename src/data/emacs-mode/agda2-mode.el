@@ -28,7 +28,7 @@
 
 ;;; Code:
 
-(defvar agda2-version "2.6.5"
+(defvar agda2-version "2.8.0"
   "The version of the Agda mode.
 Note that the same version of the Agda executable must be used.")
 
@@ -1378,15 +1378,17 @@ Either only one if point is a goal, or all of them."
                           'agda2-mimerAll))
 )
 
-(defun agda2-mimer ()
+(agda2-maybe-normalised-asis
+  agda2-mimer
   "Run proof search on a goal."
-  (interactive)
-  (agda2-goal-cmd "Cmd_autoOne" 'save 'goal))
+  "Cmd_autoOne"
+  'goal
+)
 
-(defun agda2-mimerAll ()
+(agda2-maybe-normalised-toplevel-asis-noprompt
+  agda2-mimerAll
   "Solves all goals by simple proof search."
-  (interactive)
-  (agda2-go nil nil 'busy t "Cmd_autoAll")
+  "Cmd_autoAll"
 )
 
 (agda2-maybe-normalised-toplevel-asis-noprompt

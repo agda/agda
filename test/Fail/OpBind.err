@@ -1,4 +1,4 @@
-OpBind.agda:8,7-8
+OpBind.agda:8,7-8: error: [NotInScope]
 Not in scope:
   ! at OpBind.agda:8,7-8
     (did you mean

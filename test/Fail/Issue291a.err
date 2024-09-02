@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: ♭ u ≡ runit u (stuck)
       [ at Issue291a.agda:14,5-7 ]

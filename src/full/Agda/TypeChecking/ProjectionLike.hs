@@ -81,6 +81,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.DropArgs
 
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -271,7 +272,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     def@Function{funProjection = Left MaybeProjection, funClauses = cls,
                  funSplitTree = st0, funCompiled = cc0, funInv = NotInjective,
                  funMutual = Just [], -- Andreas, 2012-09-28: only consider non-mutual funs
-                 funAbstr = ConcreteDef, funOpaque = TransparentDef} -> do
+                 funOpaque = TransparentDef} | not (def ^. funAbstract) -> do
       ps0 <- filterM validProj $ candidateArgs [] t
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
                                                 else "  candidates: " ++ prettyShow ps0
@@ -326,7 +327,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
                                    }
     Function{funInv = Inverse{}} ->
       reportSLn "tc.proj.like" 30 $ "  injective functions can't be projections"
-    Function{funAbstr = AbstractDef} ->
+    d@Function{} | d ^. funAbstract ->
       reportSLn "tc.proj.like" 30 $ "  abstract functions can't be projections"
     Function{funOpaque = OpaqueDef _} ->
       reportSLn "tc.proj.like" 30 $ "  opaque functions can't be projections"
@@ -338,6 +339,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
       reportSLn "tc.proj.like" 30 $ "  mutual functions can't be projections"
     Function{funMutual = Nothing} ->
       reportSLn "tc.proj.like" 30 $ "  mutuality check has not run yet"
+    Function{} -> __IMPOSSIBLE__ -- match is complete, but GHC does not see this (because of d^.funAbstract)
     Axiom{}        -> reportSLn "tc.proj.like" 30 $ "  not a function, but Axiom"
     DataOrRecSig{} -> reportSLn "tc.proj.like" 30 $ "  not a function, but DataOrRecSig"
     GeneralizableVar{} -> reportSLn "tc.proj.like" 30 $ "  not a function, but GeneralizableVar"
@@ -355,6 +357,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     isRecordExpression :: Term -> Bool
     isRecordExpression = \case
       Con _ ConORec _ -> True
+      Con _ ConORecWhere _ -> True
       _ -> False
     -- @validProj (d,n)@ checks whether the head @d@ of the type of the
     -- @n@th argument is injective in all args (i.d. being name of data/record/axiom).

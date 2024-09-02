@@ -4,9 +4,8 @@ module Agda.TypeChecking.Monad.Signature where
 
 import Prelude hiding (null)
 
-import qualified Control.Monad.Fail as Fail
-
 import Control.Arrow                 ( first, second )
+import Control.Monad
 import Control.Monad.Except          ( ExceptT )
 import Control.Monad.State           ( StateT  )
 import Control.Monad.Reader          ( ReaderT )
@@ -51,6 +50,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
+import {-# SOURCE #-} Agda.TypeChecking.InstanceArguments
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
@@ -281,13 +281,17 @@ markInline b = setFunctionFlag FunInline b
 markInjective :: QName -> TCM ()
 markInjective q = modifyGlobalDefinition q $ \def -> def { defInjective = True }
 
+markFirstOrder :: QName -> TCM ()
+markFirstOrder = setFunctionFlag FunFirstOrder True
+
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
   where
-    unionSignature (Sig a b c) (Sig a' b' c') =
+    unionSignature (Sig a b c d) (Sig a' b' c' d') =
       Sig (Map.union a a')
-          (HMap.union b b')              -- definitions are unique (in at most one module)
-          (HMap.unionWith mappend c c')  -- rewrite rules are accumulated
+          (HMap.union b b')             -- definitions are unique (in at most one module)
+          (HMap.unionWith mappend c c') -- rewrite rules are accumulated
+          (d <> d')                     -- instances are accumulated
 
 -- | Add a section to the signature.
 --
@@ -445,30 +449,40 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
     -- and if a constructor is copied its datatype needs to be.
     closeConstructors :: Ren QName -> TCM (Ren QName)
     closeConstructors rd = do
-        ds <- nubOn id . catMaybes <$> traverse constructorData (Map.keys rd)
-        cs <- nubOn id . concat    <$> traverse dataConstructors (Map.keys rd)
+        ds <- nubOn snd . catMaybes <$> traverse constructorData (Map.toList rd)
+        cs <- nubOn snd . concat    <$> traverse dataConstructors (Map.toList rd)
         new <- Map.unionsWith (<>) <$> traverse rename (ds ++ cs)
         reportSDoc "tc.mod.apply.complete" 30 $
           "also copying: " <+> pretty new
         return $ Map.unionWith (<>) new rd
       where
-        rename :: QName -> TCM (Ren QName)
-        rename x
+        rename :: (ModuleName, QName) -> TCM (Ren QName)
+        rename (m, x)
           | x `Map.member` rd = pure mempty
           | otherwise =
-              Map.singleton x . pure . qnameFromList . singleton <$> freshName_ (prettyShow $ qnameName x)
+              -- Ulf, 2024-06-24 (#7329):
+              --   Here we used to generate an unqualified name, but this breaks things if the new
+              --   module shows up in a module application later on. This is because we use the
+              --   module name to figure out which arguments from the application are relevant for
+              --   the current symbol (see argsToUse in applySection' below).
+              --
+              --   Instead we use the target module name of the thing that required x to be copied.
+              --   For instance, if we are copying a data type A.B.D to X.Y.Z.D and its constructor
+              --   mkD is not in the renaming, we add `A.B.mkD -> X.Y.Z.mkD` (instead of `A.B.mkD ->
+              --   mkD` which we did before).
+              Map.singleton x . pure . qualify m <$> freshName_ (prettyShow $ qnameName x)
 
-        constructorData :: QName -> TCM (Maybe QName)
-        constructorData x = do
+        constructorData :: (QName, List1.List1 QName) -> TCM (Maybe (ModuleName, QName))
+        constructorData (x, y List1.:| _) = do  -- All new names share the same module, so we can safely grab the first one
           (theDef <$> getConstInfo x) <&> \case
-            Constructor{ conData = d } -> Just d
+            Constructor{ conData = d } -> Just (qnameModule y, d)
             _                          -> Nothing
 
-        dataConstructors :: QName -> TCM [QName]
-        dataConstructors x = do
+        dataConstructors :: (QName, List1.List1 QName) -> TCM [(ModuleName, QName)]
+        dataConstructors (x, y List1.:| _) = do
           (theDef <$> getConstInfo x) <&> \case
-            Datatype{ dataCons = cs } -> cs
-            Record{ recConHead = h }  -> [conName h]
+            Datatype{ dataCons = cs } -> map (qnameModule y,) cs
+            Record{ recConHead = h }  -> [(qnameModule y, conName h)]
             _                         -> []
 
 applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> ScopeCopyInfo -> TCM ()
@@ -501,6 +515,8 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
     -- Taking 'List1.head' because 'Module.Data.cons' and 'Module.cons' are
     -- equivalent valid names and either can be used.
     copyName x = maybe x List1.head (Map.lookup x rd)
+
+    copyConHead c = c { conName = copyName (conName c) }
 
     argsToUse x = do
       let m = commonParentModule old x
@@ -545,7 +561,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
           -- Issue5583: Don't skip constructures, because the original constructor doesn't always
           -- work. For instance if it's only available in an anonymous module generated by
           -- `open import M args`.
-          whenJust inst $ \ c -> addNamedInstance y c
+          whenJust inst $ \_ -> addTypedInstance' False inst y t
           -- Set display form for the old name if it's not a constructor.
 {- BREAKS fail/Issue478
           -- Andreas, 2012-10-20 and if we are not an anonymous module
@@ -632,16 +648,19 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                          , dataClause = Just cl
                          , dataCons   = map copyName cs
                          }
-                Record{ recPars = np, recTel = tel } -> return $
+                Record{ recPars = np, recTel = tel, recConHead = c, recFields = fs } -> return $
                   oldDef { recPars    = np - size ts'
                          , recClause  = Just cl
                          , recTel     = apply tel ts'
+                         , recConHead = copyConHead c
+                         , recFields  = (map . fmap) copyName fs
                          }
                 GeneralizableVar -> return GeneralizableVar
                 _ -> do
                   (mst, _, cc) <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
                   fun          <- emptyFunctionData
                   let newDef =
+                        set funProj   (oldDef ^. funProj) $
                         set funMacro  (oldDef ^. funMacro) $
                         set funStatic (oldDef ^. funStatic) $
                         set funInline True $
@@ -724,13 +743,14 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
 -- | Add a display form to a definition (could be in this or imported signature).
 addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
+  -- Check whether display form is recursive and thus illegal.
+  xs <- chaseDisplayForms df Set.empty
+  if x `Set.member` xs then warning $ InvalidDisplayForm x "it is recursive" else do
   d <- makeOpen df
   let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
   ifM (isLocal x)
     {-then-} (modifySignature add)
     {-else-} (stImportsDisplayForms `modifyTCLens` HMap.insertWith (++) x [d])
-  whenM (hasLoopingDisplayForm x) $
-    typeError . GenericDocError =<< do "Cannot add recursive display form for" <+> pretty x
 
 isLocal :: ReadTCState m => QName -> m Bool
 isLocal x = HMap.member x <$> useR (stSignature . sigDefinitions)
@@ -747,23 +767,46 @@ hasDisplayForms :: (HasConstInfo m, ReadTCState m) => QName -> m Bool
 hasDisplayForms = fmap (not . null) . getDisplayForms
 
 -- | Find all names used (recursively) by display forms of a given name.
-chaseDisplayForms :: QName -> TCM (Set QName)
-chaseDisplayForms q = go Set.empty [q]
-  where
-    go :: Set QName        -- Accumulator.
-       -> [QName]          -- Work list.  TODO: make work set to avoid duplicate chasing?
-       -> TCM (Set QName)
-    go used []       = pure used
-    go used (q : qs) = do
-      let rhs (Display _ _ e) = e   -- Only look at names in the right-hand side (#1870)
-      let notYetUsed x = if x `Set.member` used then Set.empty else Set.singleton x
-      ds <- namesIn' notYetUsed . map (rhs . dget)
-            <$> (getDisplayForms q `catchError_` \ _ -> pure [])  -- might be a pattern synonym
-      go (Set.union ds used) (Set.toList ds ++ qs)
+--
+class ChaseDisplayForms a where
+  chaseDisplayForms ::
+       a                 -- ^ Search this recursively for display form names.
+    -> Set QName         -- ^ Already processed names (accumulator).
+    -> TCM (Set QName)   -- ^ Found names (superset of accumulator)
 
--- | Check if a display form is looping.
-hasLoopingDisplayForm :: QName -> TCM Bool
-hasLoopingDisplayForm q = Set.member q <$> chaseDisplayForms q
+instance ChaseDisplayForms QName where
+  chaseDisplayForms q used
+    | q `Set.member` used = return used
+    | otherwise           = do
+        reportSDoc "tc.display.recursive" 90 $ sep
+          [ "Chasing display form", prettyTCM q, "with accumulator", prettyTCM (Set.toList used) ]
+        xs <- getDisplayForms q `catchError_` const (pure [])  -- might be a pattern synonym
+        chaseDisplayForms xs (Set.insert q used)
+
+instance ChaseDisplayForms DisplayTerm where
+  chaseDisplayForms e used = do
+    let notYetUsed x = if x `Set.member` used then Set.empty else Set.singleton x
+    let ds = namesIn' notYetUsed e
+    chaseDisplayForms ds used
+
+instance ChaseDisplayForms DisplayForm where
+  -- Only look at names in the right-hand side (#1870)
+  chaseDisplayForms = chaseDisplayForms . dfRHS
+
+instance ChaseDisplayForms a => ChaseDisplayForms (Open a) where
+  chaseDisplayForms = chaseDisplayForms . openThing
+
+instance ChaseDisplayForms a => ChaseDisplayForms (Set a) where
+  chaseDisplayForms s = case Set.minView s of
+    Nothing      -> return
+    Just (x, s') -> chaseDisplayForms x >=> chaseDisplayForms s'
+
+instance ChaseDisplayForms a => ChaseDisplayForms [a] where
+  chaseDisplayForms []     = return
+  chaseDisplayForms (x:xs) = chaseDisplayForms x >=> chaseDisplayForms xs
+  -- NB: The following does not work because of lacking instance Ord LocalDisplayForm:
+  -- chaseDisplayForms = chaseDisplayForms . Set.toList
+
 
 canonicalName :: HasConstInfo m => QName -> m QName
 canonicalName x = do
@@ -836,7 +879,6 @@ sigError a = \case
 
 class ( Functor m
       , Applicative m
-      , Fail.MonadFail m
       , HasOptions m
       , MonadDebug m
       , MonadTCEnv m
@@ -1086,6 +1128,11 @@ getMutual_ = \case
     _ -> Nothing
 
 -- | Set the mutually recursive identifiers.
+--
+--   TODO: This produces data of quadratic size (which has to be processed upon serialization).
+--   Presumably qs is usually short, but in some cases (for instance for generated code) it may be
+--   long. It would be better to assign a unique identifier to each SCC, and store the names
+--   separately.
 setMutual :: QName -> [QName] -> TCM ()
 setMutual d m = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
   case def of

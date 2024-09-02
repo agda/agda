@@ -1,4 +1,4 @@
-PatternSynonymOverloaded.agda:11,6-10
+PatternSynonymOverloaded.agda:11,6-10: error: [CannotResolveAmbiguousPatternSynonym]
 Cannot resolve overloaded pattern synonym ss, since candidates have
 different shapes:
   pattern ss x = suc (suc x)

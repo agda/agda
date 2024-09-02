@@ -123,7 +123,7 @@ instance PatternFrom Term NLPat where
     t <- abortIfBlocked t
     etaRecord <- isEtaRecordType t
     prop <- isPropM t
-    let r = if prop then Irrelevant else r0
+    let r = if prop then irrelevant else r0
     v <- unLevel =<< abortIfBlocked v
     reportSDoc "rewriting.build" 60 $ sep
       [ "building a pattern from term v = " <+> prettyTCM v
@@ -164,7 +164,7 @@ instance PatternFrom Term NLPat where
              _ -> done
        | otherwise -> done
       (_ , _ ) | Just (d, pars) <- etaRecord -> do
-        def <- theDef <$> getConstInfo d
+        RecordDefn def <- theDef <$> getConstInfo d
         (tel, c, ci, vs) <- etaExpandRecord_ d pars def v
         ct <- assertConOf c t
         PDef (conName c) <$> patternFrom r k (ct , Con c ci) (map Apply vs)

@@ -1,3 +1,4 @@
+error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: x ≡ y (stuck)
       [ at Issue835.agda:12,3-5 ]

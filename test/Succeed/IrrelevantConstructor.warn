@@ -1,0 +1,25 @@
+IrrelevantConstructor.agda:4,4-9: warning: -W[no]FixingRelevance
+Replacing illegal relevance 'irrelevant' of constructor by
+'relevant'
+when scope checking the declaration
+  .c : D
+
+IrrelevantConstructor.agda:11,21-38: warning: -W[no]FixingRelevance
+Replacing illegal relevance 'shape-irrelevant' of constructor by
+'relevant'
+when scope checking the declaration
+  @shape-irrelevant wrap : A → Wrap A
+
+———— All done; warnings encountered ————————————————————————
+
+IrrelevantConstructor.agda:4,4-9: warning: -W[no]FixingRelevance
+Replacing illegal relevance 'irrelevant' of constructor by
+'relevant'
+when scope checking the declaration
+  .c : D
+
+IrrelevantConstructor.agda:11,21-38: warning: -W[no]FixingRelevance
+Replacing illegal relevance 'shape-irrelevant' of constructor by
+'relevant'
+when scope checking the declaration
+  @shape-irrelevant wrap : A → Wrap A

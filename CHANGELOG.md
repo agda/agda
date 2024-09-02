@@ -1,4 +1,4 @@
-Release notes for Agda version 2.6.5
+Release notes for Agda version 2.8.0
 ====================================
 
 Highlights
@@ -7,49 +7,64 @@ Highlights
 Installation
 ------------
 
-* Agda supports GHC versions 8.6.5 to 9.8.1.
+* Agda supports GHC versions 8.6.5 to 9.10.1.
 
 Pragmas and options
 -------------------
+
+* New warning `InvalidDisplayForm` instead of hard error
+  when a display form is illegal (and thus ignored).
+
+* New warning `WithClauseProjectionFixityMismatch` instead of hard error
+  when in a with-clause a projection is used in a different fixity
+  (prefix vs. postfix) than in its parent clause.
+
+* New error warning `TooManyArgumentsToSort` instead of hard error.
+
+* Warning `AbsurdPatternRequiresNoRHS` has been renamed to
+  `AbsurdPatternRequiresAbsentRHS`.
 
 Syntax
 ------
 
 Additions to the Agda syntax.
 
+* Records can now be created using module-like syntax in place of curly braces
+  and semicolons.
+
+  ```agda
+  p : Pair Nat Nat
+  p = record where
+    fst = 2
+    snd = 3
+  ```
+
+  In a `record where` block, definitions have the semantics of let-bindings: they
+  can refer to earlier bindings and may include other definitions than the fields
+  of the record, including opening of modules. For instance,
+
+  ```agda
+  p₁ : Pair Nat Nat
+  p₁ = record where
+    open Pair p using (fst)
+    n   = fst * 2
+    snd = n * n
+  ```
+
+  The syntax also works for record updates
+
+  ```agda
+  p₂ : Pair Nat Nat
+  p₂ = record p₁ where
+    snd = snd p₁ + 1
+  ```
+
+  See [#4275](https://github.com/agda/agda/issues/4275) for the proposal.
+
 Language
 --------
 
 Changes to type checker and other components defining the Agda language.
-
-* Left-hand side let: `using x ← e`
-
-  This new construct can be using in left-hand sides together with `with` and
-  `rewrite` to give names to subexpressions. It is the left-hand side
-  counterpart of a `let`-binding and supports the same limited form of pattern
-  matching on eta-expandable record values.
-
-  It can be quite useful when you have a function doing a series of nested
-  `with`s that share some expressions. Something like
-
-  ```agda
-  fun : A → B
-  fun x using z ← e with foo z
-  ... | p with bar z
-  ...   | q = r
-  ```
-
-  Here the expression `e` doesn't have to be repeated in the two `with`-expressions.
-
-  As in a `with`, multiple bindings can be separated by a `|`, and variables to
-  the left are in scope in bindings to the right.
-
-* The following options are now considered infective:
-  `--rewriting`, `--type-in-type`, `--omega-in-omega`,
-  `--injective-type-constructors`, `--experimental-irrelevance`,
-  `--cumulativity`, and `--allow-exec`. This means that if a module
-  has one of these flags enabled, then all modules importing it must
-  also have that flag enabled.
 
 Reflection
 ----------
@@ -62,12 +77,12 @@ Library management
 Interaction and emacs mode
 --------------------------
 
-* The Auto command has been reimplemented from the ground up. This fixes
-  problems where Auto would fail in the presence of language features it didn't
-  know about, such as copatterns or anything cubical.
+* Emacs: new face `agda2-highlight-cosmetic-problem-face`
+  for highlighting the new aspect `CosmeticProblem`.
 
-  The reimplementation does not support case splitting (`-c`), disproving
-  (`-d`) or refining (`-r`).
+* Emacs: new face `agda2-highlight-instance-problem-face`
+  for highlighting the new aspect `InstanceProblem`.
+
 
 Backends
 --------
@@ -75,8 +90,8 @@ Backends
 Other issues closed
 -------------------
 
-For 2.6.5, the following issues were also
-[closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.6.5+is%3Aclosed)
+For 2.8.0, the following issues were also
+[closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.8.0+is%3Aclosed)
 (see [bug tracker](https://github.com/agda/agda/issues)):
 
-NOTE: This section will be filled by output produced with `closed-issues-for-milestone 2.6.5`.
+NOTE: This section will be filled by output produced with `closed-issues-for-milestone 2.8.0`.

@@ -1,2 +1,24 @@
-Issue2248_COMPILED_TYPE.agda:23,1-34
+Issue2248_COMPILED_TYPE.agda:23,1-34: warning: -W[no]PragmaCompileWrong
 Haskell types can only be given for postulates.
+
+error: [CompilationError]
+Compilation error:
+«path»/MAlonzo/Code/Issue2248_COMPILED_TYPE.hs:«line»:«col»: error: [GHC-25897]
+    • Couldn't match expected type ‘T_IO_6 xA’ with actual type ‘xA’
+      ‘xA’ is a rigid type variable bound by
+        the type signature for:
+          d_toIO_16 :: forall xA. () -> xA -> T_IO_6 xA
+        at «path»/MAlonzo/Code/Issue2248_COMPILED_TYPE.hs:«line»:«col»-45
+    • In the expression: x
+      In the expression: / _ x -> x
+      In an equation for ‘d_toIO_16’: d_toIO_16 = / _ x -> x
+    • Relevant bindings include
+        x :: xA
+          (bound at «path»/MAlonzo/Code/Issue2248_COMPILED_TYPE.hs:«line»:«col»)
+        d_toIO_16 :: () -> xA -> T_IO_6 xA
+          (bound at «path»/MAlonzo/Code/Issue2248_COMPILED_TYPE.hs:«line»:«col»)
+   |
+37 | d_toIO_16 = / _ x -> x
+   |                      ^
+
+

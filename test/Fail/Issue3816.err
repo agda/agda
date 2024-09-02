@@ -1,4 +1,4 @@
-Issue3816.agda:17,1-33
+Issue3816.agda:17,1-33: error: [RewriteMissingRule]
 Global confluence check failed: f (λ z → g z) unfolds to
 f (λ _ → a) which should further unfold to a but it does not.
 Possible fix: add a rule to rewrite f (λ _ → a) to a

@@ -1,4 +1,4 @@
-SizedTypesVarSwap.agda:11,1-13,15
+SizedTypesVarSwap.agda:11,1-13,15: error: [TerminationIssue]
 Termination checking failed for the following functions:
   bad
 Problematic calls:

@@ -1,0 +1,5 @@
+DoNotationBindNotInScope.agda:4,5-18: error: [DoNotationError]
+_>>=_ needs to be in scope to desugar 'do' block
+when scope checking
+do x ← Set
+   x

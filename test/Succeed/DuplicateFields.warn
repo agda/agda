@@ -1,13 +1,11 @@
-DuplicateFields.agda:12,9-31
-warning: -W[no]DuplicateFields
+DuplicateFields.agda:12,9-31: warning: -W[no]DuplicateFields
 Duplicate field x in record
 when checking that the expression record { x = x ; x = y } has type
 D
 
 ———— All done; warnings encountered ————————————————————————
 
-DuplicateFields.agda:12,9-31
-warning: -W[no]DuplicateFields
+DuplicateFields.agda:12,9-31: warning: -W[no]DuplicateFields
 Duplicate field x in record
 when checking that the expression record { x = x ; x = y } has type
 D

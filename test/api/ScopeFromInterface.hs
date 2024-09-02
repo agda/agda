@@ -38,7 +38,6 @@ import Agda.TypeChecking.Serialise.Base
 import Agda.Utils.Functor
 import Agda.Utils.Hash           ( Hash )
 import Agda.Utils.IO.Binary      ( readBinaryFile' )
-import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Impossible
 
@@ -77,7 +76,7 @@ mainTCM args = do
   let f = fromMaybe "ScopeFromInterface.agdai" $ listToMaybe args
   readTruncatedInterface f >>= \case
     Just i -> processInterface i
-    Nothing -> throwError $ Exception empty $ text "Cannot read interface file"
+    Nothing -> throwError $ GenericException "Cannot read interface file"
 
 processInterface :: TruncatedInterface -> TCM ()
 processInterface i = liftIO $ do

@@ -1,4 +1,4 @@
-TooManyArgumentsInLHS.agda:5,5-6
+TooManyArgumentsInLHS.agda:5,5-6: error: [CannotEliminateWithPattern]
 Cannot eliminate type Set with variable pattern Y (did you supply
 too many arguments?)
 when checking the clause left hand side

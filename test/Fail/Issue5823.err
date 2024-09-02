@@ -1,4 +1,4 @@
-Issue5823.agda:26,1-27,91
+Issue5823.agda:26,1-27,91: error: [TerminationIssue]
 Termination checking failed for the following functions:
   isPropAcc
 Problematic calls:

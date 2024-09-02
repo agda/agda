@@ -1,0 +1,3 @@
+TranspErasedPi-rhs.agda:25,82-83: error: [VariableIsErased]
+Variable x is declared erased, so it cannot be used here
+when checking that the expression x has type outS (A (i ∨ ~ i0))

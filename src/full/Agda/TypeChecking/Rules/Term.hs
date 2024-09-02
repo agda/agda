@@ -21,7 +21,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
-import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA)
+import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA, TacticAttribute'(..))
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -150,11 +150,10 @@ isType_ e = traceCall (IsType_ e) $ do
         A.Def x <- unScope s,
         Just (USmall, u) <- isNameOfUniv x -> do
       univChecks u
-      unlessM hasUniversePolymorphism $ genericError $
-        "Use --universe-polymorphism to enable level arguments to " ++ showUniv u
-      -- allow NonStrict variables when checking level
-      --   Set : (NonStrict) Level -> Set\omega
-      applyRelevanceToContext NonStrict $
+      unlessM hasUniversePolymorphism $ typeError NeedOptionUniversePolymorphism
+      -- allow ShapeIrrelevant variables when checking level
+      --   Set : (ShapeIrrelevant) Level -> Set\omega
+      applyRelevanceToContext shapeIrrelevant $
         sort . Univ u <$> checkLevel arg
 
     -- Issue #707: Check an existing interaction point
@@ -326,7 +325,7 @@ checkPiDomain = checkDomain PiNotLam
 checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     let xs = fmap (updateNamedArg $ A.unBind . A.binderName) xps
-    tac <- traverse (checkTacticAttribute lamOrPi) (tbTacticAttr tac)
+    tac <- traverse (checkTacticAttribute lamOrPi) $ theTacticAttribute $ tbTacticAttr tac
     whenJust tac $ \ t -> reportSDoc "tc.term.tactic" 30 $ "Checked tactic attribute:" <?> prettyTCM t
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
@@ -338,13 +337,15 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
     List1.unlessNull (List1.filter isInstance xps) $ \ ixs -> do
-      (tel, target) <- getOutputTypeName t
+      (tel, _, target) <- getOutputTypeName t
       case target of
         OutputTypeName{} -> return ()
         OutputTypeVar{}  -> return ()
-        OutputTypeVisiblePi{} -> warning . InstanceArgWithExplicitArg =<< prettyTCM (A.mkTBind r ixs e)
         OutputTypeNameNotYetKnown{} -> return ()
-        NoOutputTypeName -> warning . InstanceNoOutputTypeName =<< prettyTCM (A.mkTBind r ixs e)
+        OutputTypeVisiblePi{} -> setCurrentRange e $
+          warning . InstanceArgWithExplicitArg =<< prettyTCM (A.mkTBind r ixs e)
+        NoOutputTypeName -> setCurrentRange e $
+          warning . InstanceNoOutputTypeName =<< prettyTCM (A.mkTBind r ixs e)
 
     let setTac tac EmptyTel            = EmptyTel
         setTac tac (ExtendTel dom tel) = ExtendTel dom{ domTactic = tac } $ setTac (raise 1 tac) <$> tel
@@ -360,7 +361,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         -- modify the new context entries
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
-        modMod PiNotLam xp = applyWhen xp $ mapRelevance irrToNonStrict
+        modMod PiNotLam xp = applyWhen xp $ mapRelevance irrelevantToShapeIrrelevant
         modMod _        _  = id
 
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
@@ -385,11 +386,11 @@ checkTacticAttribute PiNotLam (Ranged r e) = do
   expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
   checkExpr e expectedType
 
-checkPath :: A.TypedBinding -> A.Expr -> Type -> TCM Term
-checkPath b@(A.TBind _r _tac (xp :| []) typ) body ty = do
+checkPath :: NamedArg Binder -> A.Type -> A.Expr -> Type -> TCM Term
+checkPath xp typ body ty = do
  reportSDoc "tc.term.lambda" 30 $ hsep [ "checking path lambda", prettyA xp ]
  case (A.extractPattern $ namedArg xp) of
-  Just{}  -> setCurrentRange xp $ genericError $ "Patterns are not allowed in Path-lambdas"
+  Just{}  -> setCurrentRange xp $ typeError PatternInPathLambda
   Nothing -> do
     let x    = updateNamedArg (A.unBind . A.binderName) xp
         info = getArgInfo x
@@ -407,7 +408,6 @@ checkPath b@(A.TBind _r _tac (xp :| []) typ) body ty = do
       equalTerm (btyp iZero) lhs' (unArg lhs)
       equalTerm (btyp iOne) rhs' (unArg rhs)
       return t
-checkPath b body ty = __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Lambda abstractions
@@ -425,51 +425,61 @@ checkLambda cmp b@(A.TBind r tac xps0 typ) body target = do
   -- Andreas, 2020-03-25, issue #4481: since we have named lambdas now,
   -- we need to insert skipped hidden arguments.
   xps <- insertImplicitBindersT1 xps0 target
-  checkLambda' cmp (A.TBind r tac xps typ) xps typ body target
+  checkLambda' cmp r tac xps typ body target
 
-checkLambda'
-  :: Comparison          -- ^ @cmp@
-  -> A.TypedBinding      -- ^ @TBind _ _ xps typ@
-  -> List1 (NamedArg Binder)   -- ^ @xps@
-  -> A.Expr              -- ^ @typ@
-  -> A.Expr              -- ^ @body@
-  -> Type                -- ^ @target@
+checkLambda' ::
+     Comparison                -- ^ @cmp@
+  -> Range                     -- ^ Range @r@ of the typed binding
+  -> A.TypedBindingInfo        -- ^ @tac@ tactic/finiteness attribute of the typed binding
+  -> List1 (NamedArg Binder)   -- ^ @xps@ variables/patterns of the typed binding
+  -> A.Type                    -- ^ @typ@ Type of the typed binding
+  -> A.Expr                    -- ^ @body@
+  -> Type                      -- ^ @target@
   -> TCM Term
-checkLambda' cmp b xps typ body target = do
+checkLambda' cmp r tac xps typ body target = do
   reportSDoc "tc.term.lambda" 30 $ vcat
     [ "checkLambda xs =" <+> prettyA xps
     , "possiblePath   =" <+> prettyTCM possiblePath
     , "numbinds       =" <+> prettyTCM numbinds
     , "typ            =" <+> prettyA   (unScope typ)
+    , "tactic         =" <+> prettyA (tbTacticAttr tac)
     ]
   reportSDoc "tc.term.lambda" 60 $ vcat
     [ "info           =" <+> (text . show) info
     ]
+
+  -- Consume @tac@:
+  case tac of
+    _ | null tac -> pure ()
+    A.TypedBindingInfo{ tbTacticAttr = TacticAttribute (Just tactic) } -> do
+      -- Andreas, 2024-02-22, issue #6783
+      -- Error out if user supplied a tactic (rather than dropping it silently).
+      _tactic <- checkTacticAttribute LamNotPi tactic
+      -- We should not survive this check...
+      __IMPOSSIBLE__
+    _ -> __IMPOSSIBLE__
+
   TelV tel btyp <- telViewUpTo numbinds target
   if numbinds == 1 && not (null tel) then useTargetType tel btyp
   else if possiblePath then trySeeingIfPath
   else dontUseTargetType
 
   where
-
+    b = A.TBind r tac xps typ
     xs = fmap (updateNamedArg (A.unBind . A.binderName)) xps
     numbinds = length xps
-    isUnderscore = \case { A.Underscore{} -> True; _ -> False }
     possiblePath = numbinds == 1 && isUnderscore (unScope typ)
                    && isRelevant info && visible info
     info = getArgInfo $ List1.head xs
 
     trySeeingIfPath = do
-      cubical <- isJust . optCubical <$> pragmaOptions
       reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xps
-      let postpone' = if cubical then postpone else \ _ _ -> dontUseTargetType
+      let postpone' blocker tgt =
+            ifM (isNothing <$> cubicalOption) {-then-} dontUseTargetType {-else-} $ postpone blocker tgt
       ifBlocked target postpone' $ \ _ t -> do
-        ifNotM (isPathType <$> pathView t) dontUseTargetType {-else-} $ if cubical
-          then checkPath b body t
-          else genericError $ unwords
-                 [ "Option --cubical/--erased-cubical needed to build"
-                 , "a path with a lambda abstraction"
-                 ]
+        ifNotM (isPathType <$> pathView t) dontUseTargetType {-else-} do
+          -- Note that --cubical is on here since we returned from 'pathView'.
+          checkPath (List1.head xps) typ body t
 
     postpone blocker tgt = flip postponeTypeCheckingProblem blocker $
       CheckExpr cmp (A.Lam A.exprNoRange (A.DomainFull b) body) tgt
@@ -593,7 +603,7 @@ lambdaAnnotationCheck dom info
       let aPi  = getAnnotation dom  -- annotation of function type
       let aLam = getAnnotation info -- annotation of lambda
       unless (aPi == aLam) $ do
-        typeError $ GenericError $ "Wrong annotation in lambda"
+        typeError WrongAnnotationInLambda
       return info
 
 -- | Check that cohesion info in lambda is compatible with cohesion
@@ -926,11 +936,12 @@ expandModuleAssigns mfs xs = do
 checkRecordExpression
   :: Comparison       -- ^ How do we related the inferred type of the record expression
                       --   to the expected type?  Subtype or equal type?
+  -> A.RecStyle       -- ^ record {...} or record where ...
   -> A.RecordAssigns  -- ^ @mfs@: modules and field assignments.
   -> A.Expr           -- ^ Must be @A.Rec _ mfs@.
   -> Type             -- ^ Expected type of record expression.
   -> TCM Term         -- ^ Record value in internal syntax.
-checkRecordExpression cmp mfs e t = do
+checkRecordExpression cmp style mfs e t = do
   reportSDoc "tc.term.rec" 10 $ sep
     [ "checking record expression"
     , prettyA e
@@ -940,14 +951,7 @@ checkRecordExpression cmp mfs e t = do
     -- Case: We know the type of the record already.
     Def r es  -> do
       let ~(Just vs) = allApplyElims es
-      reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ prettyShow r
-
-      reportSDoc "tc.term.rec" 30 $ "  xs  = " <> do
-        text =<< prettyShow . map unDom <$> getRecordFieldNames r
-      reportSDoc "tc.term.rec" 30 $ "  ftel= " <> do
-        prettyTCM =<< getRecordFieldTypes r
-      reportSDoc "tc.term.rec" 30 $ "  con = " <> do
-        text =<< prettyShow <$> getRecordConstructor r
+      reportSDoc "tc.term.rec" 20 $ "  r   = " <> pure (P.pretty r)
 
       def <- getRecordDef r
       let -- Field names (C.Name) with ArgInfo from record type definition.
@@ -955,11 +959,11 @@ checkRecordExpression cmp mfs e t = do
           -- Just field names.
           xs   = map unArg cxs
           -- Record constructor.
-          con  = killRange $ recConHead def
+          con  = killRange $ _recConHead def
       reportSDoc "tc.term.rec" 20 $ vcat
-        [ "  xs  = " <> return (P.pretty xs)
-        , "  ftel= " <> prettyTCM (recTel def)
-        , "  con = " <> return (P.pretty con)
+        [ "  xs  = " <> pure (P.pretty xs)
+        , "  ftel= " <> prettyTCM (_recTel def)
+        , "  con = " <> pure (P.pretty con)
         ]
 
       -- Record expressions corresponding to erased record
@@ -974,28 +978,31 @@ checkRecordExpression cmp mfs e t = do
       -- Andreas, 2018-09-06, issue #3122.
       -- Associate the concrete record field names used in the record expression
       -- to their counterpart in the record type definition.
-      disambiguateRecordFields (map _nameFieldA $ lefts mfs) (map unDom $ recFields def)
+      disambiguateRecordFields (map _nameFieldA $ lefts mfs) (map unDom $ _recFields def)
 
       -- Compute the list of given fields, decorated with the ArgInfo from the record def.
       -- Andreas, 2019-03-18, issue #3122, also pick up non-visible fields from the modules.
-      fs <- expandModuleAssigns mfs (map unArg cxs)
+      fs <- expandModuleAssigns mfs xs
 
       -- Compute a list of metas for the missing visible fields.
       scope <- getScope
       let re = getRange e
-          meta x = A.Underscore $ A.MetaInfo re scope Nothing (prettyShow x)
+          meta x = A.Underscore $ A.MetaInfo re scope Nothing (prettyShow x) A.UnificationMeta
       -- In @es@ omitted explicit fields are replaced by underscores.
       -- Omitted implicit or instance fields
       -- are still left out and inserted later by checkArguments_.
-      es <- insertMissingFieldsWarn r meta fs cxs
+      es <- insertMissingFieldsWarn style r meta fs cxs
 
-      args <- checkArguments_ cmp ExpandLast re es (recTel def `apply` vs) >>= \case
+      args <- checkArguments_ cmp ExpandLast re es (_recTel def `apply` vs) >>= \case
         (elims, remainingTel) | null remainingTel
                               , Just args <- allApplyElims elims -> return args
         _ -> __IMPOSSIBLE__
       -- Don't need to block here!
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
-      return $ Con con ConORec (map Apply args)
+      let origin = case style of
+            A.RecStyleBrace -> ConORec
+            A.RecStyleWhere -> ConORecWhere
+      return $ Con con origin (map Apply args)
     _ -> typeError $ ShouldBeRecordType t
 
   where
@@ -1006,10 +1013,7 @@ checkRecordExpression cmp mfs e t = do
       reportSDoc "tc.term.rec" 30 $ "Possible records for" <+> prettyTCM t <+> "are" <?> pretty rs
       case rs of
           -- If there are no records with the right fields we might as well fail right away.
-        [] -> case fields of
-          []  -> genericError "There are no records in scope"
-          [f] -> genericError $ "There is no known record with the field " ++ prettyShow f
-          _   -> genericError $ "There is no known record with the fields " ++ unwords (map prettyShow fields)
+        [] -> typeError $ NoKnownRecordWithSuchFields fields
           -- If there's only one record with the appropriate fields, go with that.
         [r] -> do
           -- #5198: Don't generate metas for parameters of the current module. In most cases they
@@ -1034,8 +1038,6 @@ checkRecordExpression cmp mfs e t = do
           let inferred = El s $ Def r $ map Apply (ps ++ vs)
           v <- checkExpr e inferred
           coerce cmp v inferred t
-          -- Andreas 2012-04-21: OLD CODE, WRONG DIRECTION, I GUESS:
-          -- blockTerm t $ v <$ leqType_ t inferred
 
           -- If there are more than one possible record we postpone
         _:_:_ -> do
@@ -1051,13 +1053,13 @@ checkRecordExpression cmp mfs e t = do
 --
 checkRecordUpdate
   :: Comparison   -- ^ @cmp@
-  -> A.ExprInfo   -- ^ @ei@
+  -> A.RecInfo    -- ^ @ei@
   -> A.Expr       -- ^ @recexpr@
   -> A.Assigns    -- ^ @fs@
   -> A.Expr       -- ^ @e = RecUpdate ei recexpr fs@
   -> Type         -- ^ Need not be reduced.
   -> TCM Term
-checkRecordUpdate cmp ei recexpr fs eupd t = do
+checkRecordUpdate cmp ei@(A.RecInfo _ style) recexpr fs eupd t = do
   ifBlocked t (\ _ _ -> tryInfer) $ {-else-} \ _ t' -> do
     caseMaybeM (isRecordType t') should $ \ (r, _pars, defn) -> do
       -- Bind the record value (before update) to a fresh @name@.
@@ -1065,7 +1067,7 @@ checkRecordUpdate cmp ei recexpr fs eupd t = do
       name <- freshNoName $ getRange recexpr
       addLetBinding defaultArgInfo Inserted name v t' $ do
 
-        let projs = map argFromDom $ recFields defn
+        let projs = map argFromDom $ _recFields defn
 
         -- Andreas, 2018-09-06, issue #3122.
         -- Associate the concrete record field names used in the record expression
@@ -1074,14 +1076,14 @@ checkRecordUpdate cmp ei recexpr fs eupd t = do
 
         -- Desugar record update expression into record expression.
         let fs' = map (\ (FieldAssignment x e) -> (x, Just e)) fs
-        axs <- map argFromDom <$> getRecordFieldNames r
-        es  <- orderFieldsWarn r (const Nothing) axs fs'
+        let axs = map argFromDom $ recordFieldNames defn
+        es  <- orderFieldsWarn style r (const Nothing) axs fs'
         let es'  = zipWith (replaceFields name ei) projs es
         let erec = A.Rec ei [ Left (FieldAssignment x e) | (Arg _ x, Just e) <- zip axs es' ]
         -- Call the type checker on the desugared syntax.
         checkExpr' cmp erec t
   where
-    replaceFields :: Name -> A.ExprInfo -> Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
+    replaceFields :: Name -> A.RecInfo -> Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
     replaceFields name ei (Arg ai p) Nothing | visible ai = Just $
       -- omitted visible fields remain unchanged: @{ ...; p = p name; ...}@
       -- (hidden fields are supposed to be inferred)
@@ -1151,9 +1153,9 @@ checkExpr' cmp e t =
 
     e <- scopedExpr e
 
-    irrelevantIfProp <- (runBlocked $ isPropM t) >>= \case
+    irrelevantIfProp <- runBlocked (isPropM t) >>= \case
       Right True  -> do
-        let mod = unitModality { modRelevance = Irrelevant }
+        let mod = unitModality { modRelevance = irrelevant }
         return $ fmap dontCare . applyModalityToContext mod
       _ -> return id
 
@@ -1163,7 +1165,7 @@ checkExpr' cmp e t =
 
         -- a meta variable without arguments: type check directly for efficiency
         A.QuestionMark i ii -> checkQuestionMark (newValueMeta' RunMetaOccursCheck) cmp t i ii
-        A.Underscore i -> checkUnderscore cmp t i
+        A.Underscore i -> checkUnderscore i cmp t
 
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
@@ -1191,7 +1193,7 @@ checkExpr' cmp e t =
         A.Lam i (A.DomainFree _ x) e0
           | isNothing (nameOf $ unArg x) && isNothing (A.binderPattern $ namedArg x) ->
               checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ A.unBind <$> namedArg x) e0) t
-          | otherwise -> typeError $ NotImplemented "named arguments in lambdas"
+          | otherwise -> __IMPOSSIBLE__
 
         A.Lit _ lit  -> checkLiteral lit t
         A.Let i ds e -> checkLetBindings ds $ checkExpr' cmp e t
@@ -1214,16 +1216,19 @@ checkExpr' cmp e t =
                 v = unEl t'
             coerce cmp v (sort s) t
 
-        A.Rec _ fs  -> checkRecordExpression cmp fs e t
+        A.Rec (A.RecInfo _ style) fs -> checkRecordExpression cmp style fs e t
 
         A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e t
 
-        A.DontCare e -> -- resurrect vars
-          ifM ((Irrelevant ==) <$> viewTC eRelevance)
-            (dontCare <$> do applyRelevanceToContext Irrelevant $ checkExpr' cmp e t)
-            (internalError "DontCare may only appear in irrelevant contexts")
+        A.DontCare e -> do
+          rel <- viewTC eRelevance
+          if isIrrelevant rel then dontCare <$> do
+            -- resurrect variables
+            applyRelevanceToContext rel $ checkExpr' cmp e t
+          else
+            internalError "DontCare may only appear in irrelevant contexts"
 
-        A.Dot{} -> genericError "Invalid dotted expression"
+        A.Dot{} -> typeError InvalidDottedExpression
 
         -- Application
         _   | Application hd args <- appView e -> checkApplication cmp hd args e t
@@ -1330,6 +1335,7 @@ unquoteM tacA hole holeType = do
 --   given by the third argument. Runs the continuation if successful.
 unquoteTactic :: Term -> Term -> Type -> TCM ()
 unquoteTactic tac hole goal = do
+  ifM (useTC stConsideringInstance) (addConstraint neverUnblock (UnquoteTactic tac hole goal)) do
   reportSDoc "tc.term.tactic" 40 $ sep
     [ "Running tactic" <+> prettyTCM tac
     , nest 2 $ "on" <+> prettyTCM hole <+> ":" <+> prettyTCM goal ]
@@ -1371,34 +1377,34 @@ checkQuestionMark new cmp t0 i ii = do
     [ "Raw:"
     , text (show t0)
     ]
-  checkMeta (newQuestionMark' new ii) cmp t0 i -- Andreas, 2013-05-22 use unreduced type t0!
+  checkMeta i (newQuestionMark' new ii) cmp t0 -- Andreas, 2013-05-22 use unreduced type t0!
 
 -- | Check an underscore without arguments.
-checkUnderscore :: Comparison -> Type -> A.MetaInfo -> TCM Term
-checkUnderscore = checkMeta (newValueMeta RunMetaOccursCheck)
+checkUnderscore :: A.MetaInfo -> Comparison -> Type -> TCM Term
+checkUnderscore i = checkMeta i (newValueMetaOfKind i RunMetaOccursCheck)
 
 -- | Type check a meta variable.
-checkMeta :: (Comparison -> Type -> TCM (MetaId, Term)) -> Comparison -> Type -> A.MetaInfo -> TCM Term
-checkMeta newMeta cmp t i = fst <$> checkOrInferMeta newMeta (Just (cmp , t)) i
+checkMeta :: A.MetaInfo -> (Comparison -> Type -> TCM (MetaId, Term)) -> Comparison -> Type -> TCM Term
+checkMeta i newMeta cmp t = fst <$> checkOrInferMeta i newMeta (Just (cmp , t))
 
 -- | Infer the type of a meta variable.
 --   If it is a new one, we create a new meta for its type.
-inferMeta :: (Comparison -> Type -> TCM (MetaId, Term)) -> A.MetaInfo -> TCM (Elims -> Term, Type)
-inferMeta newMeta i = mapFst applyE <$> checkOrInferMeta newMeta Nothing i
+inferMeta :: A.MetaInfo -> (Comparison -> Type -> TCM (MetaId, Term)) -> TCM (Elims -> Term, Type)
+inferMeta i newMeta = mapFst applyE <$> checkOrInferMeta i newMeta Nothing
 
 -- | Type check a meta variable.
 --   If its type is not given, we return its type, or a fresh one, if it is a new meta.
 --   If its type is given, we check that the meta has this type, and we return the same
 --   type.
 checkOrInferMeta
-  :: (Comparison -> Type -> TCM (MetaId, Term))
+  :: A.MetaInfo
+  -> (Comparison -> Type -> TCM (MetaId, Term))
   -> Maybe (Comparison , Type)
-  -> A.MetaInfo
   -> TCM (Term, Type)
-checkOrInferMeta newMeta mt i = do
+checkOrInferMeta i newMeta mt = do
   case A.metaNumber i of
     Nothing -> do
-      setScope (A.metaScope i)
+      unlessNull (A.metaScope i) setScope
       (cmp , t) <- maybe ((CmpEq,) <$> workOnTypes newTypeMeta_) return mt
       (x, v) <- newMeta cmp t
       setMetaNameSuggestion x (A.metaNameSuggestion i)
@@ -1428,6 +1434,7 @@ domainFree info x =
       , A.metaScope          = emptyScopeInfo
       , A.metaNumber         = Nothing
       , A.metaNameSuggestion = prettyShow $ A.nameConcrete $ A.binderName x
+      , A.metaKind           = A.UnificationMeta
       }
 
 
@@ -1489,8 +1496,10 @@ checkNamedArg arg@(Arg info e0) t0 = do
     reportSLn "tc.term.args.named" 75 $ "  arg = " ++ show (deepUnscope arg)
     -- Ulf, 2017-03-24: (#2172) Always treat explicit _ and ? as implicit
     -- argument (i.e. solve with unification).
-    let checkU = checkMeta (newMetaArg (setHiding Hidden info) x) CmpLeq t0
-    let checkQ = checkQuestionMark (newInteractionMetaArg (setHiding Hidden info) x) CmpLeq t0
+    -- Andreas, 2024-03-07, issue #2829: Except when we don't.
+    -- E.g. when 'insertImplicitPatSynArgs' inserted an instance underscore.
+    let checkU i = checkMeta i (newMetaArg (A.metaKind i) info x) CmpLeq t0
+    let checkQ = checkQuestionMark (newInteractionMetaArg info x) CmpLeq t0
     if not $ isHole e then checkExpr e t0 else localScope $ do
       -- Note: we need localScope here,
       -- as scopedExpr manipulates the scope in the state.
@@ -1555,15 +1564,18 @@ isModuleFreeVar i = do
 inferExprForWith :: Arg A.Expr -> TCM (Term, Type)
 inferExprForWith (Arg info e) = verboseBracket "tc.with.infer" 20 "inferExprForWith" $
   applyRelevanceToContext (getRelevance info) $ do
-    reportSDoc "tc.with.infer" 20 $ "inferExprforWith " <+> prettyTCM e
-    reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show (deepUnscope e)
+    reportSDoc "tc.with.infer" 20 $ "inferExprForWith " <+> prettyTCM e
+    reportSLn  "tc.with.infer" 80 $ "inferExprForWith " ++ show (deepUnscope e)
     traceCall (InferExpr e) $ do
-      -- With wants type and term fully instantiated!
+      -- Andreas, 2024-02-26, issue #7148:
+      -- The 'instantiateFull' here performs necessary eta-contraction,
+      -- both for future with-abstraction,
+      -- and for testing whether v is a variable modulo eta.
       (v, t) <- instantiateFull =<< inferExpr e
-      v0 <- reduce v
+      v <- reduce v
       -- Andreas 2014-11-06, issue 1342.
       -- Check that we do not `with` on a module parameter!
-      case v0 of
+      case v of
         Var i [] -> whenM (isModuleFreeVar i) $ do
           reportSDoc "tc.with.infer" 80 $ vcat
             [ text $ "with expression is variable " ++ show i
@@ -1572,20 +1584,21 @@ inferExprForWith (Arg info e) = verboseBracket "tc.with.infer" 20 "inferExprForW
             , "context size = " <+> do text . show =<< getContextSize
             , "current context = " <+> do prettyTCM =<< getContextTelescope
             ]
-          typeError $ WithOnFreeVariable e v0
+          typeError $ WithOnFreeVariable e v
         _        -> return ()
       -- Possibly insert hidden arguments.
       TelV tel t0 <- telViewUpTo' (-1) (not . visible) t
-      case unEl t0 of
+      (v, t) <- case unEl t0 of
         Def d vs -> do
           isDataOrRecordType d >>= \case
             Nothing -> return (v, t)
             Just{}  -> do
               (args, t1) <- implicitArgs (-1) notVisible t
-              -- #6868: trigger instance search if we inserted any instance arguments
-              when (any isInstance args) $ solveAwakeInstanceConstraints
               return (v `apply` args, t1)
         _ -> return (v, t)
+      -- #6868, #7113: trigger instance search to resolve instances in with-expression
+      solveAwakeConstraints
+      return (v, t)
 
 ---------------------------------------------------------------------------
 -- * Let bindings
@@ -1622,7 +1635,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         ]
       ]
     fvs <- getContextSize
-    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing [] $ \ (LHSResult _ delta0 ps _ _t _ asb _ _) -> bindAsPatterns asb $ do
+    checkLeftHandSide (CheckPattern p EmptyTel t) noRange Nothing [p0] t0 Nothing [] $ \ (LHSResult _ delta0 ps _ _t _ asb _ _) -> bindAsPatterns asb $ do
           -- After dropping the free variable patterns there should be a single pattern left.
       let p = case drop fvs ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
           -- Also strip the context variables from the telescope

@@ -1,4 +1,4 @@
-Issue4560NoCopatternMatchingWithoutEta.agda:26,5-9
+Issue4560NoCopatternMatchingWithoutEta.agda:26,5-9: error: [ComatchingDisabledForRecord]
 Copattern matching is disabled for record R
 when checking the clause left hand side
 bar .R.X

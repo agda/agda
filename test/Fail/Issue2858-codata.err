@@ -1,3 +1,3 @@
-Issue2858-codata.agda:14,5-21
+Issue2858-codata.agda:1,1-14,21: error: [Syntax.AmbiguousConstructor]
 Could not find a matching data signature for constructor suc
 There was no candidate.

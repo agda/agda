@@ -1,4 +1,4 @@
-TerminationRecordPatternLie.agda:40,1-41,21
+TerminationRecordPatternLie.agda:40,1-41,21: error: [TerminationIssue]
 Termination checking failed for the following functions:
   g
 Problematic calls:

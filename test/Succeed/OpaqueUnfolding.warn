@@ -1,0 +1,53 @@
+OpaqueUnfolding.agda:31,15-16: warning: -W[no]UnfoldingWrongName
+Name in unfolding clause should be unambiguous defined name: A
+when scope checking the declaration
+  opaque unfolding {Set; A; B; Set1}
+
+OpaqueUnfolding.agda:32,15-16: warning: -W[no]NotInScope
+Not in scope:
+  B
+  at OpaqueUnfolding.agda:32,15-16
+when scope checking the declaration
+  opaque unfolding {Set; A; B; Set1}
+
+OpaqueUnfolding.agda:33,15-19: warning: -W[no]UnfoldingWrongName
+Name in unfolding clause should be unambiguous defined name: Set1
+when scope checking the declaration
+  opaque unfolding {Set; A; B; Set1}
+
+OpaqueUnfolding.agda:29,3-9: warning: -W[no]UselessOpaque
+This 'opaque' block has no effect.
+when scope checking the declaration
+  opaque unfolding {Set; A; B; Set1}
+
+OpaqueUnfolding.agda:30,15-18: warning: -W[no]UnfoldTransparentName
+The name Set, mentioned by an unfolding clause, does not belong to
+an opaque block. This has no effect.
+
+———— All done; warnings encountered ————————————————————————
+
+OpaqueUnfolding.agda:31,15-16: warning: -W[no]UnfoldingWrongName
+Name in unfolding clause should be unambiguous defined name: A
+when scope checking the declaration
+  opaque unfolding {Set; A; B; Set1}
+
+OpaqueUnfolding.agda:32,15-16: warning: -W[no]NotInScope
+Not in scope:
+  B
+  at OpaqueUnfolding.agda:32,15-16
+when scope checking the declaration
+  opaque unfolding {Set; A; B; Set1}
+
+OpaqueUnfolding.agda:33,15-19: warning: -W[no]UnfoldingWrongName
+Name in unfolding clause should be unambiguous defined name: Set1
+when scope checking the declaration
+  opaque unfolding {Set; A; B; Set1}
+
+OpaqueUnfolding.agda:29,3-9: warning: -W[no]UselessOpaque
+This 'opaque' block has no effect.
+when scope checking the declaration
+  opaque unfolding {Set; A; B; Set1}
+
+OpaqueUnfolding.agda:30,15-18: warning: -W[no]UnfoldTransparentName
+The name Set, mentioned by an unfolding clause, does not belong to
+an opaque block. This has no effect.

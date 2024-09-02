@@ -77,16 +77,14 @@ module Agda.TypeChecking.Irrelevance where
 
 import Control.Monad.Except
 
-import Agda.Interaction.Options
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Concrete.Pretty
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute.Class
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
@@ -298,8 +296,7 @@ instance UsableModality a => UsableModality (Arg a) where
 instance UsableModality a => UsableModality (Dom a) where
   usableMod mod Dom{unDom = u} = usableMod mod u
 
-usableAtModality'
-  :: MonadConstraint TCM
+usableAtModality' :: MonadConstraint TCM
   -- Note: This weird-looking constraint is to trick GHC into accepting
   -- that an instance of MonadConstraint TCM will exist, even if we
   -- can't import the module in which it is defined.
@@ -309,60 +306,8 @@ usableAtModality' ms why mod t =
     whenM (maybe (pure True) isFibrant ms) $ do
       res <- runExceptT $ usableMod mod t
       case res of
-        Right b -> unless b $
-          typeError . GenericDocError =<< formatWhy
+        Right b -> unless b $ typeError $ UnusableAtModality why mod t
         Left blocker -> patternViolation blocker
-  where
-    formatWhy = do
-      compatible <- optCubicalCompatible <$> pragmaOptions
-      cubical <- isJust . optCubical <$> pragmaOptions
-      let
-        context
-          | cubical    = "in Cubical Agda,"
-          | compatible = "to maintain compatibility with Cubical Agda,"
-          | otherwise  = "when --without-K is enabled,"
-
-        explanation what
-          | cubical || compatible =
-            [ ""
-            , fsep ( "Note:":pwords context
-                  ++ pwords what ++ pwords "must be usable at the modality"
-                  ++ pwords "in which the function was defined, since it will be"
-                  ++ pwords "used for computing transports"
-                  )
-            , ""
-            ]
-          | otherwise = []
-
-      case why of
-        IndexedClause ->
-          vcat $
-            ( fsep ( pwords "This clause has target type"
-                  ++ [prettyTCM t]
-                  ++ pwords "which is not usable at the required modality"
-                  ++ [pure (attributesForModality mod) <> "."]
-                   )
-            : explanation "the target type")
-
-        -- Arguments sometimes need to be transported too:
-        IndexedClauseArg forced the_arg ->
-          vcat $
-            ( fsep (pwords "The argument" ++ [prettyTCM the_arg] ++ pwords "has type")
-            : nest 2 (prettyTCM t)
-            : fsep ( pwords "which is not usable at the required modality"
-                  ++ [pure (attributesForModality mod) <> "."] )
-            : explanation "this argument's type")
-
-        -- Note: if a generated clause is modality-incorrect, that's a
-        -- bug in the LHS modality check
-        GeneratedClause ->
-          __IMPOSSIBLE_VERBOSE__ . show =<<
-                   prettyTCM t
-              <+> "is not usable at the required modality"
-              <+> pure (attributesForModality mod)
-        _ -> prettyTCM t <+> "is not usable at the required modality"
-         <+> pure (attributesForModality mod)
-
 
 usableAtModality :: MonadConstraint TCM => WhyCheckModality -> Modality -> Term -> TCM ()
 usableAtModality = usableAtModality' Nothing
@@ -386,6 +331,12 @@ isIrrelevantOrPropM
   :: (LensRelevance a, LensSort a, PrettyTCM a, PureTCM m, MonadBlock m)
   => a -> m Bool
 isIrrelevantOrPropM x = return (isIrrelevant x) `or2M` isPropM x
+
+allIrrelevantOrPropTel
+  :: (PureTCM m, MonadBlock m)
+  => Telescope -> m Bool
+allIrrelevantOrPropTel =
+  foldrTelescopeM (and2M . isIrrelevantOrPropM . fmap snd) (return True)
 
 -- * Fibrant types
 

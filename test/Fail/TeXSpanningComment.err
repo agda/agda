@@ -1,1 +1,2 @@
+error: [OverlappingTokensWarning]
 TeXSpanningComment.lagda.tex:2,3-6,7: Multi-line comment spans one or more literate text blocks.

@@ -1,10 +1,10 @@
-MixingCoPatternsAndCoConstructors.agda:30,3-32,41
+MixingCoPatternsAndCoConstructors.agda:30,3-32,41: error: [TerminationIssue]
 Termination checking failed for the following functions:
   MStream.weird''
 Problematic calls:
   weird'' zero
     (at MixingCoPatternsAndCoConstructors.agda:31,28-35)
-MixingCoPatternsAndCoConstructors.agda:37,3-39,40
+MixingCoPatternsAndCoConstructors.agda:37,3-39,40: error: [TerminationIssue]
 Termination checking failed for the following functions:
   MStream.repeat
 Problematic calls:
