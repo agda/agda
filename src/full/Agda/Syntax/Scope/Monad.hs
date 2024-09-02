@@ -137,7 +137,7 @@ getCurrentScope = getNamedScope =<< getCurrentModule
 --   (@Just@ if it is a datatype or record module.)
 createModule :: Maybe DataOrRecordModule -> A.ModuleName -> ScopeM ()
 createModule b m = do
-  reportSLn "scope.createModule" 10 $ "createModule " ++ prettyShow m
+  reportSLn "scope.createModule" 30 $ "createModule " ++ prettyShow m
   s <- getCurrentScope
   let parents = scopeName s : scopeParents s
       sm = emptyScope { scopeName           = m
@@ -253,7 +253,7 @@ bindVarsToBind :: ScopeM ()
 bindVarsToBind = do
   vars <- getVarsToBind
   modifyLocalVars (vars ++)
-  printLocals 10 "bound variables:"
+  printLocals 30 "bound variables:"
   modifyScope_ $ setVarsToBind []
 
 annotateDecls :: ReadTCState m => m [A.Declaration] -> m A.Declaration
@@ -792,7 +792,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     -- directive do exist.  If some do not then we remove them and raise a warning.
     let (missingExports, namesA) = checkExist $ usingList ++ hdn' ++ map renFrom ren'
     unless (null missingExports) $ setCurrentRange rng $ do
-      reportSLn "scope.import.apply" 20 $ "non existing names: " ++ prettyShow missingExports
+      reportSLn "scope.import.apply" 30 $ "non existing names: " ++ prettyShow missingExports
       warning $ ModuleDoesntExport m (Map.keys namesInScope) (Map.keys modulesInScope) missingExports
 
     -- We can now define a cleaned-up version of the import directive.
@@ -1008,11 +1008,11 @@ openModule kind mam cm dir = do
   checkForClashes
 
   -- Importing names might shadow existing locals.
-  verboseS "scope.locals" 10 $ do
+  verboseS "scope.locals" 30 $ do
     locals <- mapMaybe (\ (c,x) -> c <$ notShadowedLocal x) <$> getLocalVars
     let newdefs = Map.keys $ nsNames ns
         shadowed = locals `List.intersect` newdefs
-    reportSLn "scope.locals" 10 $ "opening module shadows the following locals vars: " ++ prettyShow shadowed
+    reportSLn "scope.locals" 30 $ "opening module shadows the following locals vars: " ++ prettyShow shadowed
   -- Andreas, 2014-09-03, issue 1266: shadow local variables by imported defs.
   modifyLocalVars $ AssocList.mapWithKey $ \ c x ->
     case Map.lookup c $ nsNames ns of

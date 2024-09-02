@@ -243,7 +243,7 @@ mergeInterface i = do
       warns
       (iOpaqueBlocks i)
       (iOpaqueNames i)
-    reportSLn "import.iface.merge" 20 $
+    reportSLn "import.iface.merge" 50 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
     whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> do
@@ -286,10 +286,10 @@ scopeCheckImport ::
   TopLevelModuleName -> ModuleName ->
   TCM (ModuleName, Map ModuleName Scope)
 scopeCheckImport top x = do
-    reportSLn "import.scope" 5 $ "Scope checking " ++ prettyShow x
-    verboseS "import.scope" 10 $ do
+    reportSLn "import.scope" 15 $ "Scope checking " ++ prettyShow x
+    verboseS "import.scope" 30 $ do
       visited <- prettyShow <$> getPrettyVisitedModules
-      reportSLn "import.scope" 10 $ "  visited: " ++ visited
+      reportSLn "import.scope" 30 $ "  visited: " ++ visited
     -- Since scopeCheckImport is called from the scope checker,
     -- we need to reimburse her account.
     i <- Bench.billTo [] $ getNonMainInterface top Nothing

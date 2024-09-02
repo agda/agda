@@ -243,7 +243,7 @@ checkModuleApplication (C.SectionApp _ tel m es) m0 x dir' = do
     (s', copyInfo) <- copyScope m m0 s
     -- Set the current scope to @s'@
     modifyCurrentScope $ const s'
-    printScope "mod.inst" 20 "copied source module"
+    printScope "mod.inst" 40 "copied source module"
     reportSDoc "scope.mod.inst" 30 $ return $ pretty copyInfo
     let amodapp = A.SectionApp tel' m1 args'
     reportSDoc "scope.decl" 70 $ vcat $
@@ -262,7 +262,7 @@ checkModuleApplication (C.RecordModuleInstance _ recN) m0 x dir' =
     (s', copyInfo) <- copyScope recN m0 s
     modifyCurrentScope $ const s'
 
-    printScope "mod.inst" 20 "copied record module"
+    printScope "mod.inst" 40 "copied record module"
     return (A.RecordModuleInstance m1, copyInfo, adir)
 
 -- | @checkModuleMacro mkApply range access concreteName modapp open dir@
@@ -296,7 +296,7 @@ checkModuleMacro apply kind r p e x modapp open dir = do
     m0 <- toAbstract (NewModuleName x)
     reportSDoc "scope.decl" 90 $ "NewModuleName: m0 =" <+> prettyA m0
 
-    printScope "mod.inst" 20 "module macro"
+    printScope "mod.inst" 40 "module macro"
 
     -- If we're opening a /named/ module, the import directive is
     -- applied to the "open", otherwise to the module itself. However,
@@ -310,7 +310,7 @@ checkModuleMacro apply kind r p e x modapp open dir = do
 
     -- Restore the locals after module application has been checked.
     (modapp', copyInfo, adir') <- withLocalVars $ checkModuleApplication modapp m0 x moduleDir
-    printScope "mod.inst.app" 20 "checkModuleMacro, after checkModuleApplication"
+    printScope "mod.inst.app" 40 "checkModuleMacro, after checkModuleApplication"
 
     reportSDoc "scope.decl" 90 $ "after mod app: trying to print m0 ..."
     reportSDoc "scope.decl" 90 $ "after mod app: m0 =" <+> prettyA m0
@@ -318,7 +318,7 @@ checkModuleMacro apply kind r p e x modapp open dir = do
     bindModule p x m0
     reportSDoc "scope.decl" 90 $ "after bindMod: m0 =" <+> prettyA m0
 
-    printScope "mod.inst.copy.after" 20 "after copying"
+    printScope "mod.inst.copy.after" 40 "after copying"
 
     -- Open the module if DoOpen.
     -- Andreas, 2014-09-02: @openModule@ might shadow some locals!
@@ -331,11 +331,11 @@ checkModuleMacro apply kind r p e x modapp open dir = do
         -- (the other one is a defaultImportDir).
         return $ if isNoName x then adir' else adir''
 
-    printScope "mod.inst" 20 $ show open
+    printScope "mod.inst" 40 $ show open
     reportSDoc "scope.decl" 90 $ "after open   : m0 =" <+> prettyA m0
 
     stripNoNames
-    printScope "mod.inst" 10 $ "after stripping"
+    printScope "mod.inst.strip" 30 $ "after stripping"
     reportSDoc "scope.decl" 90 $ "after stripNo: m0 =" <+> prettyA m0
 
     let m      = m0 `withRangesOf` singleton x
@@ -396,9 +396,9 @@ checkOpen r mam x dir = do
       setCurrentRange r $ warning UselessPublic
 
   m <- caseMaybe mam (toAbstract (OldModuleName x)) return
-  printScope "open" 20 $ "opening " ++ prettyShow x
+  printScope "open" 40 $ "opening " ++ prettyShow x
   adir <- openModule TopOpenModule (Just m) x dir
-  printScope "open" 20 $ "result:"
+  printScope "open" 40 $ "result:"
   let minfo = ModuleInfo
         { minfoRange     = r
         , minfoAsName    = Nothing
@@ -626,7 +626,7 @@ instance ToAbstract MaybeOldQName where
   type AbsOfCon MaybeOldQName = Maybe A.Expr
   toAbstract (MaybeOldQName (OldQName x ns)) = do
     qx <- resolveName' allKindsOfNames ns x
-    reportSLn "scope.name" 10 $ "resolved " ++ prettyShow x ++ ": " ++ prettyShow qx
+    reportSLn "scope.name" 30 $ "resolved " ++ prettyShow x ++ ": " ++ prettyShow qx
     case qx of
       VarName x' _         -> return $ Just $ A.Var x'
       DefinedName _ d suffix -> do
@@ -681,18 +681,18 @@ data APatName = VarPatName A.Name
 instance ToAbstract PatName where
   type AbsOfCon PatName = APatName
   toAbstract (PatName x ns h) = do
-    reportSLn "scope.pat" 10 $ "checking pattern name: " ++ prettyShow x
+    reportSLn "scope.pat" 30 $ "checking pattern name: " ++ prettyShow x
     rx <- resolveName' (someKindsOfNames [ConName, CoConName, PatternSynName]) ns x
           -- Andreas, 2013-03-21 ignore conflicting names which cannot
           -- be meant since we are in a pattern
           -- Andreas, 2020-04-11 CoConName:
           -- coinductive constructors will be rejected later, in the type checker
-    reportSLn "scope.pat" 20 $ "resolved as " ++ prettyShow rx
+    reportSLn "scope.pat" 40 $ "resolved as " ++ prettyShow rx
     case rx of
       ConstructorName _ ds -> ConPatName ds <$ do
-        reportSLn "scope.pat" 10 $ "it was a con: " ++ prettyShow (fmap anameName ds)
+        reportSLn "scope.pat" 30 $ "it was a con: " ++ prettyShow (fmap anameName ds)
       PatternSynResName ds -> PatternSynPatName ds <$ do
-        reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ prettyShow (fmap anameName ds)
+        reportSLn "scope.pat" 30 $ "it was a pat syn: " ++ prettyShow (fmap anameName ds)
       _ -> case x of
         C.QName y -> VarPatName <$> bindPatternVariable h y
         C.Qual{}  -> typeError $ InvalidPattern $ C.IdentP True x
@@ -703,10 +703,10 @@ bindPatternVariable :: Hiding -> C.Name -> ScopeM A.Name
 bindPatternVariable h x = do
   y <- (AssocList.lookup x <$> getVarsToBind) >>= \case
     Just (LocalVar y _ _) -> do
-      reportSLn "scope.pat" 10 $ "it was a old var: " ++ prettyShow x
+      reportSLn "scope.pat" 30 $ "it was a old var: " ++ prettyShow x
       return $ setRange (getRange x) y
     Nothing -> do
-      reportSLn "scope.pat" 10 $ "it was a new var: " ++ prettyShow x
+      reportSLn "scope.pat" 30 $ "it was a new var: " ++ prettyShow x
       freshAbstractName_ x
   addVarToBind x $ LocalVar y (PatternBound h) []
   return y
@@ -742,7 +742,7 @@ checkForModuleClash :: C.Name -> ScopeM ()
 checkForModuleClash x = do
   ms :: [AbstractModule] <- scopeLookup (C.QName x) <$> getScope
   unless (null ms) $ do
-    reportSLn "scope.clash" 20 $ "clashing modules ms = " ++ prettyShow ms
+    reportSLn "scope.clash" 40 $ "clashing modules ms = " ++ prettyShow ms
     reportSLn "scope.clash" 60 $ "clashing modules ms = " ++ show ms
     setCurrentRange x $
       typeError $ ShadowedModule x $
@@ -852,7 +852,7 @@ scopeCheckExtendedLam r e cs = do
   cname <- freshConcreteName r 0 extendedLambdaName
   name  <- freshAbstractName_ cname
   a <- asksTC (^. lensIsAbstract)
-  reportSDoc "scope.extendedLambda" 10 $ vcat
+  reportSDoc "scope.extendedLambda" 30 $ vcat
     [ text $ "new extended lambda name (" ++ show a ++ "): " ++ prettyShow name
     ]
   verboseS "scope.extendedLambda" 60 $ do
@@ -1278,7 +1278,7 @@ scopeCheckModule
   -> ScopeM (ScopeInfo, A.Declaration)
        -- ^ The returned declaration is an 'A.Section'.
 scopeCheckModule r e x qm tel checkDs = do
-  printScope "module" 20 $ "checking module " ++ prettyShow x
+  printScope "module" 40 $ "checking module " ++ prettyShow x
   -- Andreas, 2013-12-10: Telescope does not live in the new module
   -- but its parent, so check it before entering the new module.
   -- This is important for Nicolas Pouillard's open parametrized modules
@@ -1288,13 +1288,13 @@ scopeCheckModule r e x qm tel checkDs = do
     withCurrentModule qm $ do
       -- pushScope m
       -- qm <- getCurrentModule
-      printScope "module" 20 $ "inside module " ++ prettyShow x
+      printScope "module" 40 $ "inside module " ++ prettyShow x
       ds    <- checkDs
       scope <- getScope
       return (scope, A.Section r e (qm `withRangesOfQ` x) tel ds)
 
   -- Binding is done by the caller
-  printScope "module" 20 $ "after module " ++ prettyShow x
+  printScope "module" 40 $ "after module " ++ prettyShow x
   return res
 
 -- | Temporary data type to scope check a file.
@@ -1687,7 +1687,7 @@ instance ToAbstract NiceDeclaration where
       singleton <$> toAbstractNiceAxiom AxiomName d
 
     C.NiceGeneralize r p i tac x t -> do
-      reportSLn "scope.decl" 10 $ "found nice generalize: " ++ prettyShow x
+      reportSLn "scope.decl" 30 $ "found nice generalize: " ++ prettyShow x
       tac <- traverse (toAbstractCtx TopCtx) tac
       t_ <- toAbstractCtx TopCtx t
       let (s, t) = unGeneralized t_
@@ -1735,9 +1735,9 @@ instance ToAbstract NiceDeclaration where
 
   -- Definitions (possibly mutual)
     NiceMutual kwr tc cc pc ds -> do
-      reportSLn "scope.mutual" 20 ("starting checking mutual definitions: " ++ prettyShow ds)
+      reportSLn "scope.mutual" 40 ("starting checking mutual definitions: " ++ prettyShow ds)
       ds' <- toAbstract ds
-      reportSLn "scope.mutual" 20 ("finishing checking mutual definitions")
+      reportSLn "scope.mutual" 40 ("finishing checking mutual definitions")
       -- We only termination check blocks that do not have a measure.
       return [ A.Mutual (MutualInfo tc cc pc (fuseRange kwr ds)) ds' ]
 
@@ -1756,7 +1756,7 @@ instance ToAbstract NiceDeclaration where
         return [ A.RecSig (mkDefInfo x f p a r) er x' ls' t' ]
 
     C.NiceDataSig r er p a pc uc x ls t -> do
-        reportSLn "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
+        reportSLn "scope.data.sig" 40 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
         withLocalVars $ do
           ls' <- withCheckNoShadowing $
@@ -1786,7 +1786,7 @@ instance ToAbstract NiceDeclaration where
 
   -- Function definitions
     C.FunDef r ds a i _ _ x cs -> do
-        printLocals 10 $ "checking def " ++ prettyShow x
+        printLocals 30 $ "checking def " ++ prettyShow x
         (x',cs) <- toAbstract (OldName x,cs)
         -- Andreas, 2017-12-04 the name must reside in the current module
         unlessM ((A.qnameModule x' ==) <$> getCurrentModule) $
@@ -1805,7 +1805,7 @@ instance ToAbstract NiceDeclaration where
 
   -- Data definitions
     C.NiceDataDef r o a _ uc x pars cons -> notAffectedByOpaque $ do
-        reportSLn "scope.data.def" 20 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
+        reportSLn "scope.data.def" 40 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
         (p, ax) <- resolveName (C.QName x) >>= \case
           DefinedName p ax NoSuffix -> do
             clashUnless x DataName ax  -- Andreas 2019-07-07, issue #3892
@@ -1831,7 +1831,7 @@ instance ToAbstract NiceDeclaration where
           createModule (Just IsDataModule) m
           bindModule p x m  -- make it a proper module
           cons <- toAbstract (map (DataConstrDecl m a p) cons)
-          printScope "data" 20 $ "Checked data " ++ prettyShow x
+          printScope "data" 40 $ "Checked data " ++ prettyShow x
           f <- getConcreteFixity x
           return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc (DataDefParams gvars pars) cons ]
       where
@@ -1840,7 +1840,7 @@ instance ToAbstract NiceDeclaration where
 
   -- Record definitions (mucho interesting)
     C.NiceRecDef r o a _ uc x directives pars fields -> notAffectedByOpaque $ do
-      reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
+      reportSLn "scope.rec.def" 40 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
       -- #3008: Termination pragmas are ignored in records
       checkNoTerminationPragma InRecordDef fields
       RecordDirectives ind eta pat cm <- gatherRecordDirectives directives
@@ -1874,12 +1874,12 @@ instance ToAbstract NiceDeclaration where
         contel <- localToAbstract (RecordConstructorType fields) return
         m0     <- getCurrentModule
         let m = A.qualifyM m0 $ mnameFromList1 $ singleton $ List1.last $ qnameToList x'
-        printScope "rec" 15 "before record"
+        printScope "rec" 25 "before record"
         createModule (Just IsRecordModule) m
         -- We scope check the fields a second time, as actual fields.
         afields <- withCurrentModule m $ do
           afields <- toAbstract (Declarations fields)
-          printScope "rec" 15 "checked fields"
+          printScope "rec" 25 "checked fields"
           return afields
         -- Andreas, 2017-07-13 issue #2642 disallow duplicate fields
         -- Check for duplicate fields. (See "Check for duplicate constructors")
@@ -1899,7 +1899,7 @@ instance ToAbstract NiceDeclaration where
         -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
         cm' <- forM cm $ \ (c, _) -> bindRecordConstructorName c kind a p
         let inst = caseMaybe cm NotInstanceDef snd
-        printScope "rec" 15 "record complete"
+        printScope "rec" 25 "record complete"
         f <- getConcreteFixity x
         let params = DataDefParams gvars pars
         let dir' = RecordDirectives ind eta pat cm'
@@ -1972,9 +1972,9 @@ instance ToAbstract NiceDeclaration where
       (m, i) <- withCurrentModule noModuleName $
                 withTopLevelModule top $ do
         m <- toAbstract $ NewModuleQName x  -- (No longer erases the contents of @m@.)
-        printScope "import" 10 "before import:"
+        printScope "import" 30 "before import:"
         (m, i) <- scopeCheckImport top m
-        printScope "import" 10 $ "scope checked import: " ++ prettyShow i
+        printScope "import" 30 $ "scope checked import: " ++ prettyShow i
         -- We don't want the top scope of the imported module (things happening
         -- before the module declaration)
         return (m, Map.delete noModuleName i)
@@ -2038,7 +2038,7 @@ instance ToAbstract NiceDeclaration where
           modifyScopes $ \ ms -> Map.unionWith mergeScope ms i'
           return adir
 
-      printScope "import" 10 "merged imported sig:"
+      printScope "import" 30 "merged imported sig:"
       let minfo = ModuleInfo
             { minfoRange     = r
             , minfoAsName    = theAsName
@@ -2102,7 +2102,7 @@ instance ToAbstract NiceDeclaration where
         ]
 
     NicePatternSyn r a n as p -> do
-      reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
+      reportSLn "scope.pat" 30 $ "found nice pattern syn: " ++ prettyShow n
       (as, p) <- withLocalVars $ do
          -- Expand puns if optHiddenArgumentPuns is True.
          puns <- optHiddenArgumentPuns <$> pragmaOptions
@@ -2444,7 +2444,7 @@ instance ToAbstract DataConstrDecl where
         -- Bind it twice, once unqualified and once qualified
         f <- getConcreteFixity x
         y <- bindConstructorName m x a p
-        printScope "con" 15 "bound constructor"
+        printScope "con" 25 "bound constructor"
         return $ A.Axiom ConName (mkDefInfoInstance x f p a i NotMacroDef r)
                          info Nothing y t'
       _ -> errorNotConstrDecl d
@@ -2721,7 +2721,7 @@ instance ToAbstract C.Clause where
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
     vars0 <- getLocalVars
     lhs' <- toAbstract $ LeftHandSide (C.QName top) p
-    printLocals 10 "after lhs:"
+    printLocals 30 "after lhs:"
     vars1 <- getLocalVars
     eqs <- mapM (toAbstractCtx TopCtx) eqs
     vars2 <- getLocalVars
@@ -2979,7 +2979,7 @@ instance ToAbstract LeftHandSide where
 
     toAbstract (LeftHandSide top lhs) =
       traceCall (ScopeCheckLHS top lhs) $ do
-        reportSLn "scope.lhs" 5 $ "original lhs: " ++ prettyShow lhs
+        reportSLn "scope.lhs" 25 $ "original lhs: " ++ prettyShow lhs
         reportSLn "scope.lhs" 60 $ "patternQNames: " ++ prettyShow (patternQNames lhs)
         reportSLn "scope.lhs" 60 $ "original lhs (raw): " ++ show lhs
 
@@ -2989,16 +2989,16 @@ instance ToAbstract LeftHandSide where
         -- is.
         puns <- optHiddenArgumentPuns <$> pragmaOptions
         lhs  <- return $ if puns then expandPuns lhs else lhs
-        reportSLn "scope.lhs" 5 $
+        reportSLn "scope.lhs" 25 $
           "lhs with expanded puns: " ++ prettyShow lhs
         reportSLn "scope.lhs" 60 $
           "lhs with expanded puns (raw): " ++ show lhs
 
         lhscore <- parseLHS top lhs
         let ell = hasExpandedEllipsis lhscore
-        reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ prettyShow lhscore
+        reportSLn "scope.lhs" 25 $ "parsed lhs: " ++ prettyShow lhscore
         reportSLn "scope.lhs" 60 $ "parsed lhs (raw): " ++ show lhscore
-        printLocals 10 "before lhs:"
+        printLocals 30 "before lhs:"
         -- error if copattern parsed but --no-copatterns option
         unlessM (optCopatterns <$> pragmaOptions) $
           when (hasCopatterns lhscore) $
@@ -3006,14 +3006,14 @@ instance ToAbstract LeftHandSide where
         -- scope check patterns except for dot patterns
         lhscore <- toAbstract lhscore
         bindVarsToBind
-        -- reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ prettyShow lhscore  -- TODO: Pretty A.LHSCore'
+        -- reportSLn "scope.lhs" 25 $ "parsed lhs patterns: " ++ prettyShow lhscore  -- TODO: Pretty A.LHSCore'
         reportSLn "scope.lhs" 60 $ "parsed lhs patterns: " ++ show lhscore
-        printLocals 10 "checked pattern:"
+        printLocals 30 "checked pattern:"
         -- scope check dot patterns
         lhscore <- toAbstract lhscore
-        -- reportSLn "scope.lhs" 5 $ "parsed lhs dot patterns: " ++ prettyShow lhscore  -- TODO: Pretty A.LHSCore'
+        -- reportSLn "scope.lhs" 25 $ "parsed lhs dot patterns: " ++ prettyShow lhscore  -- TODO: Pretty A.LHSCore'
         reportSLn "scope.lhs" 60 $ "parsed lhs dot patterns: " ++ show lhscore
-        printLocals 10 "checked dots:"
+        printLocals 30 "checked dots:"
         return $ A.LHS (LHSInfo (getRange lhs) ell) lhscore
 
 -- | Expands hidden argument puns.
