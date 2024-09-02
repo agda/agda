@@ -68,21 +68,38 @@ copyHook' pd lbi hooks flags = do
 
 -- Used to add .agdai files to data-files
 expandAgdaExt :: PackageDescription -> FilePath -> [FilePath]
-expandAgdaExt pd fp | takeExtension fp == ".agda" = [ fp, toIFile pd fp ]
-                    | otherwise                   = [ fp ]
+expandAgdaExt pd = \ fp ->
+    -- N.B. using lambda here so that @expandAgdaExt pd@ can be partially evaluated.
+    if takeExtension fp == ".agda" then [ fp, iFile fp ] else [ fp ]
+  where
+  iFile = toIFile pd
 
 version :: PackageDescription -> String
 version = intercalate "." . map show . versionNumbers . pkgVersion . package
 
+-- | This returns @lib/prim@.
+--
 projectRoot :: PackageDescription -> FilePath
-projectRoot pd = takeDirectory agdaLibFile where
+projectRoot pd = takeDirectory agdaLibFile
+  where
   [agdaLibFile] = filter ((".agda-lib" ==) . takeExtension) $ dataFiles pd
 
-toIFile :: PackageDescription -> FilePath -> FilePath
-toIFile pd file = buildDir </> fileName where
+-- | Turns e.g. @lib/prim/Agda/Primitive.agda@
+--   into @lib/prim/_build/2.7.0/agda/Agda/Primitive.agdai@.
+--
+--   An absolute path will be returned unchanged.
+toIFile ::
+     PackageDescription
+  -> FilePath            -- ^ Should be a relative path.
+  -> FilePath            -- ^ Then this is also a relative path.
+toIFile pd = (buildDir </>) . fileName
+  where
   root = projectRoot pd
+    -- e.g. root     = "lib/prim"
   buildDir = root </> "_build" </> version pd </> "agda"
-  fileName = makeRelative root $ replaceExtension file ".agdai"
+    -- e.g. buildDir = "lib/prim/_build/2.7.0/agda"
+  fileName file = makeRelative root $ replaceExtension file ".agdai"
+    -- e.g. fileName "lib/prim/Agda/Primitive.agda" = "Agda/Primitive.agdai"
 
 -- Andreas, 2019-10-21, issue #4151:
 -- skip the generation of interface files with program suffix "-quicker"
@@ -102,10 +119,10 @@ generateInterfaces pd lbi = do
   let bdir = buildDir lbi
       agda = bdir </> "agda" </> "agda" <.> agdaExeExtension
 
+  -- We should be in the current directory root of the cabal package
+  -- and data-files reside in src/data relative to this.
+  --
   ddir <- makeAbsolute $ "src" </> "data"
-
-  -- assuming we want to type check all .agda files in data-files
-  -- current directory root of the package.
 
   putStrLn "Generating Agda library interface files..."
 
