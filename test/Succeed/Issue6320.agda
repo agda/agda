@@ -43,9 +43,7 @@ macro
                    (("m" , (arg (arg-info visible (modality relevant quantity-ω))
                       ((def (quote Nat) [])))) ∷
                     ("o" , (arg (arg-info visible (modality relevant quantity-ω))
-                      ((def (quote Nat) [])))) ∷ []) --"m"
-                 -- (arg (arg-info visible (modality relevant quantity-ω))
-                 --      ((def (quote Nat) [])))
+                      ((def (quote Nat) [])))) ∷ [])
               (checkFromStringTC "(1 + n) + m + o" (def (quote Nat) []))
       unify hole (lam visible (abs "m" (lam visible (abs "o" body))))
 
