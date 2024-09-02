@@ -160,6 +160,8 @@ data BindingSource
       -- ^ @let ... in@
   | WithBound
       -- ^ @| ... in q@
+  | MacroBound
+      -- ^ Binding added to scope by one of context-manipulating reflection primitives
   deriving (Show, Eq, Generic)
 
 instance Pretty BindingSource where
@@ -168,7 +170,7 @@ instance Pretty BindingSource where
     PatternBound _ -> "pattern"
     LetBound     -> "let-bound"
     WithBound    -> "with-bound"
-
+    MacroBound   -> "macro-bound"
 -- | A local variable can be shadowed by an import.
 --   In case of reference to a shadowed variable, we want to report
 --   a scope error.
