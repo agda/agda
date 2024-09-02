@@ -112,14 +112,12 @@ generateInterfaces pd lbi = do
   -- The Agda.Primitive* and Agda.Builtin* modules.
   let builtins = filter ((== ".agda") . takeExtension) (dataFiles pd)
 
+  -- The absolute filenames of their interfaces.
+  let interfaces = map ((ddir </>) . toIFile pd) builtins
+
   -- Remove all existing .agdai files.
-  forM_ builtins $ \fp -> do
-    let fullpathi = toIFile pd (ddir </> fp)
-
-        handleExists e | isDoesNotExistError e = return ()
-                       | otherwise             = throwIO e
-
-    removeFile fullpathi `catch` handleExists
+  forM_ interfaces $ \ fp -> removeFile fp `catch` \ e ->
+    unless (isDoesNotExistError e) $ throwIO e
 
   -- Type-check all builtin modules (in a single Agda session to take
   -- advantage of caching).
