@@ -1,7 +1,10 @@
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-import Data.List
-import Data.Maybe
+import Data.Functor ( (<&>) )
+import Data.List    ( intercalate )
+import Data.Maybe   ( catMaybes )
 
 import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo
@@ -11,7 +14,7 @@ import Distribution.PackageDescription
 import Distribution.System ( buildPlatform )
 
 import System.FilePath
-import System.Directory (makeAbsolute, removeFile)
+import System.Directory (doesFileExist, makeAbsolute, removeFile)
 import System.Environment (getEnvironment)
 import System.Process
 import System.Exit
@@ -166,19 +169,19 @@ generateInterfaces pd lbi = do
         , [ "EOF" ]
         ]
   let onIOError (e :: IOException) = False <$ do
-        putStr $ unlines $ concat
-          [ [ "*** Warning!"
-            , "*** Could not generate Agda library interface files."
+        warn $ concat
+          [ [ "*** Could not generate Agda library interface files."
             , "*** Reason:"
             , show e
             , "*** The attempted call to Agda was:"
             ]
           , callLines
-          , [ "*** Ignoring error, continuing installation..." ]
           ]
   env <- getEnvironment
   handle onIOError $ do
-    True <$ readCreateProcess
+
+    -- Generate interface files via a call to Agda.
+    readCreateProcess
       (proc agda agdaArgs)
         { delegate_ctlc = True
                           -- Make Agda look for data files in a
@@ -186,6 +189,29 @@ generateInterfaces pd lbi = do
         , env           = Just ((agdaDirEnvVar, ddir) : env)
         }
       (unlines loadBuiltinCmds)
+
+    -- Check whether all interface files have been generated.
+    missing <- catMaybes <$> forM interfaces \ f ->
+      doesFileExist f <&> \case
+        True  -> Nothing
+        False -> Just f
+
+    -- Warn if not all interface files have been generated, but don't crash.
+    -- This might help with issue #7455.
+    let success = null missing
+    unless success $ warn $ concat
+      [ [ "*** Agda failed to generate the following library interface files:" ]
+      , missing
+      ]
+    return success
+
+warn :: [String] -> IO ()
+warn msgs = putStr $ unlines $ concat
+    [ [ "*** Warning!" ]
+    , msgs
+    , [ "*** Ignoring error, continuing installation..." ]
+    ]
+
 
 
 agdaExeExtension :: String
