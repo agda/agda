@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -45,11 +46,13 @@ copyHook' :: PackageDescription -> LocalBuildInfo -> UserHooks -> CopyFlags -> I
 copyHook' pd lbi hooks flags = do
   -- Copy library and executable etc.
   copyHook simpleUserHooks pd lbi hooks flags
-  unless (skipInterfaces lbi) $ do
+  if wantInterfaces flags && not (skipInterfaces lbi) then do
     -- Generate .agdai files.
     success <- generateInterfaces pd lbi
     -- Copy again, now including the .agdai files.
     when success $ copyHook simpleUserHooks pd' lbi hooks flags
+  else
+    putStrLn "Skipping generation of Agda core library interface files"
   where
   pd' = pd
     { dataFiles = concatMap (expandAgdaExt pd) $ dataFiles pd
@@ -68,6 +71,20 @@ copyHook' pd lbi hooks flags = do
     -- , extraTmpFiles = []
     -- , extraDocFiles = []
     }
+
+-- We only want to write interfaces if installing the executable.
+-- If we're installing *just* the library, the interface files are not needed
+-- and, most importantly, the executable will not be available to be run (cabal#10235)
+wantInterfaces :: CopyFlags -> Bool
+wantInterfaces _flags = do
+#if MIN_VERSION_Cabal(3,11,0)
+    any isAgdaExe (copyArgs _flags)
+      where
+        isAgdaExe "exe:agda" = True
+        isAgdaExe _ = False
+#else
+  True
+#endif
 
 -- Used to add .agdai files to data-files
 expandAgdaExt :: PackageDescription -> FilePath -> [FilePath]
@@ -114,6 +131,8 @@ skipInterfaces lbi = fromPathTemplate (progSuffix lbi) == "-quicker"
 generateInterfaces :: PackageDescription -> LocalBuildInfo -> IO Bool
 generateInterfaces pd lbi = do
 
+  putStrLn "Generating Agda core library interface files..."
+
   -- for debugging, these are examples how you can inspect the flags...
   -- print $ flagAssignment lbi
   -- print $ fromPathTemplate $ progSuffix lbi
@@ -126,8 +145,6 @@ generateInterfaces pd lbi = do
   -- and data-files reside in src/data relative to this.
   --
   ddir <- makeAbsolute $ "src" </> "data"
-
-  putStrLn "Generating Agda library interface files..."
 
   -- The Agda.Primitive* and Agda.Builtin* modules.
   let builtins = filter ((== ".agda") . takeExtension) (dataFiles pd)
