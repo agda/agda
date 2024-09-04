@@ -502,10 +502,6 @@ makeAbsurdClause f ell (SClause tel sps _ _ t) = do
       ]
     ]
   withCurrentModule (qnameModule f) $
-    -- Andreas, 2015-05-29 Issue 635
-    -- Contract implicit record patterns before printing.
-    -- c <- translateRecordPatterns $ Clause noRange tel perm ps NoBody t False
-    -- Jesper, 2015-09-19 Don't contract, since we do on-demand splitting
     inTopContext $ reify $ QNamed f $ Clause
       { clauseLHSRange  = noRange
       , clauseFullRange = noRange
