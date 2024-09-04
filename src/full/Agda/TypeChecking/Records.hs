@@ -510,7 +510,17 @@ isEtaRecordConstructor c = isRecordConstructor c >>= \case
 -- | Turn off eta for unguarded recursive records.
 --   Projections do not preserve guardedness.
 unguardedRecord :: QName -> PatternOrCopattern -> TCM ()
-unguardedRecord q pat = modifyRecEta q \ eta -> setEtaEquality eta $ NoEta pat
+unguardedRecord q pat =
+  (stSignature . sigDefinitions . lensDefinition q . lensTheDef . lensRecord . lensRecEta)
+    `modifyTCLensM` \case
+      YesEtaPragma            -> return YesEtaPragma -- cannot overwrite
+      e@(Specified _ NoEta{}) -> pure e
+      Specified r YesEta      -> setCurrentRange r do
+        warning $ IllicitEtaRecord Inductive q
+        noEta
+      Inferred _              -> noEta
+  where
+    noEta = pure $ Inferred $ NoEta pat
 
 -- | Turn on eta for non-recursive and inductive guarded recursive records,
 --   unless user declared otherwise.

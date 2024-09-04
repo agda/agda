@@ -1,6 +1,20 @@
-Issue5823.agda:26,1-27,91: error: [TerminationIssue]
-Termination checking failed for the following functions:
-  isPropAcc
-Problematic calls:
-  isPropAcc (x n p) (y n p)
-    (at Issue5823.agda:27,65-74)
+Issue5823.agda:18,14-21: warning: -W[no]UselessPatternDeclarationForRecord
+'pattern' attribute ignored for eta record
+when scope checking the declaration
+  record Acc {a} {A} {r} R x where
+    inductive
+    pattern
+    eta-equality
+    constructor acc
+    field step : ∀ y → R y x → Acc R y
+
+Issue5823.agda:18,23-35: warning: -W[no]UnguardedEtaRecord
+Not switching on eta-equality for unguarded recursive records.
+If you must, use pragma {-# ETA Acc #-}
+
+Issue5823.agda:27,12-17: error: [SplitOnNonEtaRecord]
+Pattern matching on no-eta record type Acc
+(defined at Issue5823.agda:17,8-11)
+is not allowed
+(to activate, add declaration 'pattern' to record definition)
+when checking that the pattern acc x has type Acc R x

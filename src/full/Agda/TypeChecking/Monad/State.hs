@@ -40,9 +40,10 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 
 import qualified Agda.Utils.BiMap as BiMap
+import Agda.Utils.Functor ( (<.>) )
 import Agda.Utils.Lens
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Monad (bracket_)
+import Agda.Utils.Monad   ( bracket_ )
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Tuple
 
@@ -305,6 +306,9 @@ lookupDefinition q sig = HMap.lookup q $ sig ^. sigDefinitions
 
 updateDefinitions :: (Definitions -> Definitions) -> Signature -> Signature
 updateDefinitions = over sigDefinitions
+
+lensDefinition :: QName -> Lens' Definitions Definition
+lensDefinition q f = HMap.alterF (maybe __IMPOSSIBLE__ (Just <.> f)) q
 
 updateDefinition :: QName -> (Definition -> Definition) -> Signature -> Signature
 updateDefinition q f = updateDefinitions $ HMap.adjust f q

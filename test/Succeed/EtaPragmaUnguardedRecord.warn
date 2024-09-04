@@ -1,0 +1,17 @@
+EtaPragmaUnguardedRecord.agda:22,3-15: warning: -W[no]UnguardedEtaRecord
+Not switching on eta-equality for unguarded recursive records.
+If you must, use pragma {-# ETA R #-}
+
+EtaPragmaUnguardedRecord.agda:31,1-14: warning: -W[no]UselessPragma
+Ignoring duplicate ETA pragma
+when checking the pragma ETA R
+
+———— All done; warnings encountered ————————————————————————
+
+EtaPragmaUnguardedRecord.agda:22,3-15: warning: -W[no]UnguardedEtaRecord
+Not switching on eta-equality for unguarded recursive records.
+If you must, use pragma {-# ETA R #-}
+
+EtaPragmaUnguardedRecord.agda:31,1-14: warning: -W[no]UselessPragma
+Ignoring duplicate ETA pragma
+when checking the pragma ETA R

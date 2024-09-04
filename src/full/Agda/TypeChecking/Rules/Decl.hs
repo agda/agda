@@ -807,12 +807,13 @@ checkPragma r p = do
 
         A.EtaPragma q -> isRecord q >>= \case
             Nothing -> noRecord
-            Just RecordData{ _recInduction = ind, _recEtaEquality' = eta }
-              | ind /= Just CoInductive  -> noRecord
-              | Specified NoEta{} <- eta -> uselessPragma "ETA pragma conflicts with no-eta-equality declaration"
-              | otherwise -> modifyRecEta q $ const $ Specified YesEta
+            Just RecordData{ _recEtaEquality' = eta } ->
+              case eta of
+                YesEtaPragma        -> uselessPragma "Ignoring duplicate ETA pragma"
+                Specified _ NoEta{} -> uselessPragma "ETA pragma conflicts with no-eta-equality declaration"
+                _ -> modifyRecEta q $ const YesEtaPragma
           where
-            noRecord = uselessPragma "ETA pragma is only applicable to coinductive records"
+            noRecord = uselessPragma "ETA pragma is only applicable to records"
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 --

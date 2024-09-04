@@ -36,6 +36,7 @@ import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
 import Agda.Syntax.Common
   ( ImportedName'(..), fromImportedName, partitionImportedNames
+  , pattern Inductive, pattern CoInductive
   , IsOpaque(OpaqueDef, TransparentDef)
   , ProjOrigin(..)
   , getHiding
@@ -144,8 +145,12 @@ prettyWarning = \case
           , ("does not fit into data type of sort" <+> prettyTCM s2) <> "."
           ]
 
-    CoinductiveEtaRecord name -> vcat
-      [ fsep $ pwords "Not switching on eta-equality for coinductive records."
+    IllicitEtaRecord ind name -> vcat
+      [ fsep $ concat
+        [ pwords "Not switching on eta-equality for"
+        , case ind of CoInductive -> [ "coinductive" ]; Inductive -> [ "unguarded", "recursive" ]
+        , [ "records." ]
+        ]
       , fsep $ pwords "If you must, use pragma" ++ [ "{-# ETA", prettyTCM name, "#-}" ]
       ]
 

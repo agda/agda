@@ -1,0 +1,9 @@
+Issue840a.agda:49,5-17: warning: -W[no]UnguardedEtaRecord
+Not switching on eta-equality for unguarded recursive records.
+If you must, use pragma {-# ETA Record #-}
+
+———— All done; warnings encountered ————————————————————————
+
+Issue840a.agda:49,5-17: warning: -W[no]UnguardedEtaRecord
+Not switching on eta-equality for unguarded recursive records.
+If you must, use pragma {-# ETA Record #-}

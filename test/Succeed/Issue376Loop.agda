@@ -10,6 +10,7 @@ record R : Set where
   field
     r : R
 
+{-# ETA R #-}
 
 postulate F : (R → Set) → Set
 

@@ -159,7 +159,7 @@ bindBuiltinFlat x =
     fun <- emptyFunctionData
     addConstant flat $
       flatDefn { defPolarity       = []
-               , defArgOccurrences = [StrictPos]  -- changing that to [Mixed] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
+               , defArgOccurrences = [StrictPos]
                , defCopatternLHS = hasProjectionPatterns cc
                , theDef = FunctionDefn fun
                    { _funClauses      = [clause]

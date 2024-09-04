@@ -118,7 +118,7 @@ when scope checking the declaration
   {-# NOINLINE not-in-scope #-}
 
 Issue7245.agda:12,1-36: warning: -W[no]UselessPragma
-ETA pragma is only applicable to coinductive records
+ETA pragma is only applicable to records
 when checking the pragma ETA foo
 
 Issue7245.agda:14,1-36: warning: -W[no]UselessPragma
@@ -263,7 +263,7 @@ when scope checking the declaration
   {-# NOINLINE not-in-scope #-}
 
 Issue7245.agda:12,1-36: warning: -W[no]UselessPragma
-ETA pragma is only applicable to coinductive records
+ETA pragma is only applicable to records
 when checking the pragma ETA foo
 
 Issue7245.agda:14,1-36: warning: -W[no]UselessPragma

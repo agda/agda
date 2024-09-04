@@ -2330,20 +2330,25 @@ projArgInfo (Projection _ _ _ _ lams) =
 
 -- | Should a record type admit eta-equality?
 data EtaEquality
-  = Specified { theEtaEquality :: !HasEta }  -- ^ User specifed 'eta-equality' or 'no-eta-equality'.
-  | Inferred  { theEtaEquality :: !HasEta }  -- ^ Positivity checker inferred whether eta is safe.
+  = Specified { etaDirectiveRange :: Range, theEtaEquality_ :: !HasEta }
+      -- ^ User specifed 'eta-equality' or 'no-eta-equality'.
+  | Inferred  { theEtaEquality_ :: !HasEta }
+      -- ^ Positivity checker inferred whether eta is safe.
+  | YesEtaPragma
+      -- ^ Eta-equality forced by ETA pragma
   deriving (Show, Eq, Generic)
+
+theEtaEquality :: EtaEquality -> HasEta
+theEtaEquality = \case
+  Specified _r eta -> eta
+  Inferred eta     -> eta
+  YesEtaPragma     -> YesEta
 
 instance PatternMatchingAllowed EtaEquality where
   patternMatchingAllowed = patternMatchingAllowed . theEtaEquality
 
 instance CopatternMatchingAllowed EtaEquality where
   copatternMatchingAllowed = copatternMatchingAllowed . theEtaEquality
-
--- | Make sure we do not overwrite a user specification.
-setEtaEquality :: EtaEquality -> HasEta -> EtaEquality
-setEtaEquality e@Specified{} _ = e
-setEtaEquality _ b = Inferred b
 
 data FunctionFlag
   = FunStatic  -- ^ Should calls to this function be normalised at compile-time?
@@ -4274,9 +4279,9 @@ data Warning
   | ConstructorDoesNotFitInData QName Sort Sort TCErr
       -- ^ Checking whether constructor 'QName' 'Sort' fits into @data@ 'Sort'
       --   produced 'TCErr'.
-  | CoinductiveEtaRecord QName
-      -- ^ A record type declared as both @coinductive@ and having @eta-equality@.
-
+  | IllicitEtaRecord Induction QName
+      -- ^ A record type declared with @eta-equality@
+      --   that is either @CoInductive@ or unguarded @Inductive@.
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedConstraints      Constraints
@@ -4505,7 +4510,8 @@ warningName = \case
   NotInScopeW{}                -> NotInScope_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
   ConstructorDoesNotFitInData{}-> ConstructorDoesNotFitInData_
-  CoinductiveEtaRecord{}       -> CoinductiveEtaRecord_
+  IllicitEtaRecord CoInductive _ -> CoinductiveEtaRecord_
+  IllicitEtaRecord Inductive   _ -> UnguardedEtaRecord_
   UnsupportedIndexedMatch{}    -> UnsupportedIndexedMatch_
   OldBuiltin{}                 -> OldBuiltin_
   BuiltinDeclaresIdentifier{}  -> BuiltinDeclaresIdentifier_
