@@ -61,9 +61,8 @@ import Agda.Utils.Null
 import Agda.Utils.Impossible
 
 instance PrettyTCM TCWarning where
-  prettyTCM w@(TCWarning loc _ _ _ _) = do
+  prettyTCM w@(TCWarning loc _ _ doc _ _) = doc <$ do
     reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow loc
-    pure $ tcWarningPrintedWarning w
 
 {-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
 prettyWarning :: MonadPretty m => Warning -> m Doc
@@ -696,8 +695,8 @@ applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
   -- This is a way to collect all of them and remove duplicates.
   let pragmas w = case tcWarning w of { SafeFlagPragma ps -> ([w], ps); _ -> ([], []) }
   let sfp = case fmap List.nub (foldMap pragmas ws) of
-              (TCWarning loc r w p b:_, sfp) ->
-                 [TCWarning loc r (SafeFlagPragma sfp) p b]
+              (TCWarning loc r w doc str b : _, sfp) ->
+                 [TCWarning loc r (SafeFlagPragma sfp) doc str b]
               _                        -> []
 
   pragmaWarnings <- (^. warningSet) . optWarningMode <$> pragmaOptions
