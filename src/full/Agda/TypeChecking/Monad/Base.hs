@@ -13,6 +13,7 @@ module Agda.TypeChecking.Monad.Base
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
+import Control.Arrow                ( (&&&) )
 import qualified Control.Concurrent as C
 import Control.DeepSeq
 import qualified Control.Exception as E
@@ -4622,8 +4623,10 @@ data TCWarning
         -- ^ Range where the warning was raised
     , tcWarning         :: Warning
         -- ^ The warning itself
-    , tcWarningPrintedWarning :: Doc
+    , tcWarningDoc      :: Doc
         -- ^ The warning printed in the state and environment where it was raised
+    , tcWarningString   :: String
+        -- ^ Caches @render tcWarningDoc@ for the sake of an 'Ord' instance.
     , tcWarningCached :: Bool
         -- ^ Should the warning be affected by caching.
     }
@@ -4635,9 +4638,11 @@ tcWarningOrigin = rangeFile . tcWarningRange
 instance HasRange TCWarning where
   getRange = tcWarningRange
 
--- used for merging lists of warnings
 instance Eq TCWarning where
-  (==) = (==) `on` tcWarningPrintedWarning
+  (==) = (==) `on` tcWarningRange &&& tcWarningString
+
+instance Ord TCWarning where
+  compare = compare `on` tcWarningRange &&& tcWarningString
 
 ---------------------------------------------------------------------------
 -- * Type checking errors

@@ -32,7 +32,7 @@ instance EmbPrj IsAmbiguous where
     _   -> malformed
 
 instance EmbPrj TCWarning where
-  icod_ (TCWarning fp a b c d) = icodeN' TCWarning fp a b c d
+  icod_ (TCWarning fp a b c d e) = icodeN' TCWarning fp a b c d e
   value = valueN TCWarning
 
 -- We don't need to serialise warnings that turn into errors

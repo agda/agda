@@ -104,7 +104,7 @@ warning'_ loc w = do
     , prettyWarning w
     , prettyTCM c
     ]
-  return $ TCWarning loc r w p b
+  return $ TCWarning loc r w p (P.render p) b
 
 {-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}
 warning_ :: (HasCallStack, MonadWarning m) => Warning -> m TCWarning
