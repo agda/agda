@@ -8,7 +8,7 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
-import Control.Applicative
+import Control.Applicative ( (<|>) )
 
 import Data.Bifunctor
 import qualified Data.List as List

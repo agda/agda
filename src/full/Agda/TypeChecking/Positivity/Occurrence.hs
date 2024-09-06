@@ -10,6 +10,8 @@ module Agda.TypeChecking.Positivity.Occurrence
   , productOfEdgesInBoundedWalk
   ) where
 
+import Prelude hiding (null)
+
 import Control.DeepSeq
 import Control.Monad
 
@@ -22,13 +24,13 @@ import Data.Sequence (Seq)
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Position
 
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty
 import Agda.Utils.SemiRing
 import Agda.Utils.Size
 
@@ -49,6 +51,10 @@ data OccursWhere
   deriving (Show, Eq, Ord, Generic)
 
 instance NFData OccursWhere
+
+instance Null OccursWhere where
+  empty = OccursWhere empty empty empty
+  null (OccursWhere r wh1 wh2) = and [ null r, null wh1, null wh2 ]
 
 -- | One part of the description of an occurrence.
 data Where
