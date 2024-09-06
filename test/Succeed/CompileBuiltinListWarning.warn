@@ -65,9 +65,11 @@ when checking the pragma BUILTIN NIL []
 CompileBuiltinListWarning.agda:11,1-26: warning: -W[no]OldBuiltin
 Builtin CONS no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN CONS _∷_
+
 CompileBuiltinListWarning.agda:7,1-44: warning: -W[no]PragmaCompileList
 Ignoring GHC pragma for builtin lists; they always compile to
 Haskell lists.
+
 CompileBuiltinListWarning.agda:17,1-45: warning: -W[no]PragmaCompileMaybe
 Ignoring GHC pragma for builtin MAYBE; it always compiles to
 Haskell Maybe.

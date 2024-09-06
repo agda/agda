@@ -172,7 +172,12 @@ backendInteraction mainFile backends setup check = do
 
   -- print warnings that might have accumulated during compilation
   ws <- filter (not . isUnsolvedWarning . tcWarning) <$> getAllWarnings AllWarnings
-  unless (null ws) $ alwaysReportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
+  unless (null ws) $ alwaysReportSDoc "warning" 1 $
+    -- Andreas, 2024-09-06 start warning list by a newline
+    -- since type checker warnings are also newline separated.
+    -- See e.g. test/Succeed/CompileBuiltinListWarning.warn.
+    -- Also separate warnings by newlines (issue #6919).
+    P.vcat $ concatMap (\ w -> [ "", P.prettyTCM w ]) ws
 
 
 compilerMain :: Backend' opts env menv mod def -> IsMain -> CheckResult -> TCM ()

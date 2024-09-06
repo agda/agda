@@ -1,6 +1,7 @@
 COMPILE_SUCCEEDED
 
 ret > ExitSuccess
+out >
 out > warning: -W[no]NoMain
 out > No main function defined in Issue2714.
 out > Use option --no-main to suppress this warning.
