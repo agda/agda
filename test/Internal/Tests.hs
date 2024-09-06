@@ -41,6 +41,7 @@ import qualified Internal.Utils.Favorites                          as UtilFav   
 import qualified Internal.Utils.FileName                           as UtilFile     ( tests )
 import qualified Internal.Utils.Graph.AdjacencyMap.Unidirectional  as UtilGraphUni ( tests )
 import qualified Internal.Utils.IntSet                             as UtilIntSet   ( tests )
+import qualified Internal.Utils.Lens                               as UtilLens     ( tests )
 import qualified Internal.Utils.List                               as UtilList     ( tests )
 import qualified Internal.Utils.List1                              as UtilList1    ( tests )
 import qualified Internal.Utils.List2                              as UtilList2    ( tests )
@@ -59,7 +60,8 @@ import qualified Internal.Utils.Warshall                           as UtilWarsh 
 -- Keep this list in the import order, please!
 tests :: TestTree
 tests = testGroup "Internal"
-  [ CompEnco.tests
+  [ UtilLens.tests
+  , CompEnco.tests
   , UtilMonad.tests
   , IntePrec.tests
   , InteRang.tests

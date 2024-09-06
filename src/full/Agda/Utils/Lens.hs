@@ -11,7 +11,6 @@ module Agda.Utils.Lens
 import Control.Applicative ( Const(Const), getConst )
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad.Writer
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -87,15 +86,15 @@ l %= f = modify $ over l f
 infix 4 %==
 -- | Modify a part of the state monadically.
 (%==) :: MonadState o m => Lens' o i -> (i -> m i) -> m ()
-l %== f = put =<< l f =<< get
+l %== f = use l >>= f >>= (l .=)
 
 infix 4 %%=
 -- | Modify a part of the state monadically, and return some result.
 (%%=) :: MonadState o m => Lens' o i -> (i -> m (i, r)) -> m r
 l %%= f = do
-  o <- get
-  (o', r) <- runWriterT $ l (WriterT . f) o
-  put o'
+  i <- use l
+  (i', r) <- f i
+  l .= i'
   return r
 
 -- | Modify a part of the state locally.

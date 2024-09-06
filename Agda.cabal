@@ -964,6 +964,7 @@ test-suite agda-tests
       Internal.Utils.FileName
       Internal.Utils.Graph.AdjacencyMap.Unidirectional
       Internal.Utils.IntSet
+      Internal.Utils.Lens
       Internal.Utils.List
       Internal.Utils.List1
       Internal.Utils.List2

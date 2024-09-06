@@ -5526,22 +5526,28 @@ modifyTCLens' l = modifyTC' . over l
 
 {-# INLINE modifyTCLensM #-}
 -- | Modify a part of the state monadically.
-modifyTCLensM :: MonadTCState m => Lens' TCState a -> (a -> m a) -> m ()
-modifyTCLensM l f = putTC =<< l f =<< getTC
+--
+--   This is an instance of 'Agda.Utils.Lens.%=='.
+modifyTCLensM :: (MonadTCState m, ReadTCState m) => Lens' TCState a -> (a -> m a) -> m ()
+modifyTCLensM l f = useTC l >>= f >>= setTCLens l
+  -- Note:
+  -- The implementation @getTC >>= l f >>= putTC@ loses state changes
+  -- contained in @f@, see https://github.com/agda/agda/pull/7470#discussion_r1747232483
 
 {-# INLINE stateTCLens #-}
 -- | Modify the part of the 'TCState' focused on by the lens, and return some result.
-stateTCLens :: MonadTCState m => Lens' TCState a -> (a -> (r , a)) -> m r
+stateTCLens :: (MonadTCState m, ReadTCState m) => Lens' TCState a -> (a -> (r , a)) -> m r
 stateTCLens l f = stateTCLensM l $ return . f
 
 {-# INLINE stateTCLensM #-}
 -- | Modify a part of the state monadically, and return some result.
-stateTCLensM :: MonadTCState m => Lens' TCState a -> (a -> m (r , a)) -> m r
+--
+--   This is an instance of 'Agda.Utils.Lens.%%='.
+stateTCLensM :: (MonadTCState m, ReadTCState m) => Lens' TCState a -> (a -> m (r , a)) -> m r
 stateTCLensM l f = do
-  s <- getTC
-  (result , x) <- f $ s ^. l
-  putTC $ set l x s
-  return result
+  a <- useTC l
+  (result , a') <- f a
+  result <$ setTCLens l a'
 
 
 ---------------------------------------------------------------------------
