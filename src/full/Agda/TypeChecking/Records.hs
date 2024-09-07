@@ -455,17 +455,14 @@ eliminateType' err hd t (e : es) = case e of
 isEtaRecord :: HasConstInfo m => QName -> m Bool
 isEtaRecord r = do
   isRecord r >>= \case
-    Nothing -> return False
-    Just r -> isEtaRecordDef r
-
-isEtaRecordDef :: HasConstInfo m => RecordData -> m Bool
-isEtaRecordDef r
-  | _recEtaEquality r /= YesEta = return False
-  | otherwise = do
+    Just r | isEtaRecordDef r -> do
      constructorQ <- getQuantity <$> getConstInfo (conName (_recConHead r))
      currentQ     <- viewTC eQuantity
      return $ constructorQ `moreQuantity` currentQ
+    _ -> return False
 
+isEtaRecordDef :: RecordData -> Bool
+isEtaRecordDef r = _recEtaEquality r == YesEta
 
 {-# SPECIALIZE isEtaCon :: QName -> TCM Bool #-}
 isEtaCon :: HasConstInfo m => QName -> m Bool
@@ -475,7 +472,7 @@ isEtaCon c = isJust <$> isEtaRecordConstructor c
 isEtaOrCoinductiveRecordConstructor :: HasConstInfo m => QName -> m Bool
 isEtaOrCoinductiveRecordConstructor c =
   caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) ->
-    isEtaRecordDef def `or2M`
+    pure (isEtaRecordDef def) `or2M`
       return (_recInduction def /= Just Inductive)
       -- If in doubt about coinductivity, then yes.
 
@@ -508,7 +505,7 @@ isRecordConstructor c = getConstInfo' c >>= \case
 isEtaRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, RecordData))
 isEtaRecordConstructor c = isRecordConstructor c >>= \case
   Nothing -> return Nothing
-  Just (d, def) -> ifM (isEtaRecordDef def) (return $ Just (d, def)) (return Nothing)
+  Just (d, def) -> if isEtaRecordDef def then return $ Just (d, def) else return Nothing
 
 -- | Turn off eta for unguarded recursive records.
 --   Projections do not preserve guardedness.
@@ -584,7 +581,7 @@ expandRecordVar i gamma0 = do
           " since its type " <+> prettyTCM a <+>
           " is not a record type"
         return Nothing
-  caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> isEtaRecordDef def >>= \case
+  caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> case isEtaRecordDef def of
     False -> return Nothing
     True  -> Just <$> do
       -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
@@ -936,7 +933,7 @@ isSingletonType' regardIrrelevance t rs = do
         record :: m (Maybe Term)
         record = runMaybeT $ do
           (r, ps, def) <- MaybeT $ isRecordType t
-          guardM $ isEtaRecordDef def
+          guard $ isEtaRecordDef def
           abstract tel <$> MaybeT (isSingletonRecord' regardIrrelevance r ps rs)
 
         -- Slightly harder case: η for Sub {level} tA phi elt.
