@@ -7,6 +7,7 @@ Installation
 ------------
 
 * During installation, Agda type-checks its built-in modules and installs the generated `.agdai` files.
+  (This step is now skipped when the Agda executable is not installed, e.g. `cabal install --lib Agda`.)
   Should the generation for (some of) these files fail, the names of the missing ones are now printed,
   but installation continues nevertheless ([PR #7465](https://github.com/agda/agda/pull/7465)).
   Rationale: installation of these files is only crucial when installing Agda in super-user mode.
@@ -45,6 +46,7 @@ For 2.7.0.1, the following issues were
 - [Issue #7199](https://github.com/agda/agda/issues/7199): Agda re-checks a file with an up-to-date interface file
 - [Issue #7402](https://github.com/agda/agda/issues/7402): Mimer internal error in hole with constraint
 - [Issue #7436](https://github.com/agda/agda/issues/7436): Code only reachable from display forms not serialised in Agda 2.7.0
+- [Issue #7442](https://github.com/agda/agda/issues/7442): Regression: emptiness check fails when erased constructors are involved
 - [Issue #7443](https://github.com/agda/agda/issues/7443): `--exact-split` is not default in 2.7.0, contrary to claims
 - [Issue #7452](https://github.com/agda/agda/issues/7452): Performance regression caused by making `--save-metas` the default
 - [Issue #7455](https://github.com/agda/agda/issues/7455): Both stack and cabal fail to install Agda
@@ -58,3 +60,6 @@ These pull requests were merged for 2.7.0.1:
 - [PR #7456](https://github.com/agda/agda/issues/7456): Actually, --exact-split is not really on by default
 - [PR #7457](https://github.com/agda/agda/issues/7457): Revert default to `--no-save-metas`
 - [PR #7465](https://github.com/agda/agda/issues/7465): Re #7455: Setup.hs: catch when Agda did not produce (all) agdai files
+- [PR #7471](https://github.com/agda/agda/issues/7471): setup: Don't assume exe is built on --lib
+- [PR #7475](https://github.com/agda/agda/issues/7475): Hotfix for #7442
+- [PR #7476](https://github.com/agda/agda/issues/7476): Bump std-lib to latest (v2.1.1) and cubical to latest
