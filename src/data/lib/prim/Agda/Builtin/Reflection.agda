@@ -352,6 +352,10 @@ postulate
   -- but failure to solve them are ignored by `noConstraints`.
   solveInstanceConstraints : TC ⊤
 
+  -- Parse and type check the given string against the given type, returning
+  -- the resulting term (when successful).
+  checkFromStringTC : String → Type → TC Term
+
 {-# BUILTIN AGDATCM                           TC                         #-}
 {-# BUILTIN AGDATCMRETURN                     returnTC                   #-}
 {-# BUILTIN AGDATCMBIND                       bindTC                     #-}
@@ -396,6 +400,7 @@ postulate
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
 {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
 {-# BUILTIN AGDATCMSOLVEINSTANCES             solveInstanceConstraints   #-}
+{-# BUILTIN AGDATCMCHECKFROMSTRING            checkFromStringTC          #-}
 
 -- All the TC primitives are compiled to functions that return
 -- undefined, rather than just undefined, in an attempt to make sure

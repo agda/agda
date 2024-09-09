@@ -652,7 +652,9 @@ instance ToAbstract MaybeOldQName where
       FieldName     ds     -> ambiguous (A.Proj ProjPrefix) ds
       ConstructorName _ ds -> ambiguous A.Con ds
       PatternSynResName ds -> ambiguous A.PatternSyn ds
-      UnknownName          -> pure Nothing
+      UnknownName          -> do
+        reportSLn "scope.name.unknown" 80 $ "resolved : unknown " ++ prettyShow x
+        pure Nothing
     where
       ambiguous :: (AmbiguousQName -> A.Expr) -> List1 AbstractName -> ScopeM (Maybe A.Expr)
       ambiguous f ds = do

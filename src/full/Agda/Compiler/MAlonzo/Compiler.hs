@@ -303,6 +303,7 @@ ghcPreCompile flags = do
       , builtinAgdaTCMWorkOnTypes
       , builtinAgdaTCMRunSpeculative
       , builtinAgdaTCMExec
+      , builtinAgdaTCMCheckFromString
       , builtinAgdaTCMGetInstances
       , builtinAgdaTCMSolveInstances
       , builtinAgdaTCMPragmaForeign

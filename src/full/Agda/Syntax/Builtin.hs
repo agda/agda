@@ -240,6 +240,7 @@ data BuiltinId
   | BuiltinAgdaTCMWorkOnTypes
   | BuiltinAgdaTCMRunSpeculative
   | BuiltinAgdaTCMExec
+  | BuiltinAgdaTCMCheckFromString
   | BuiltinAgdaTCMGetInstances
   | BuiltinAgdaTCMSolveInstances
   | BuiltinAgdaTCMPragmaForeign
@@ -461,6 +462,7 @@ instance IsBuiltin BuiltinId where
     BuiltinAgdaTCMWorkOnTypes                -> "AGDATCMWORKONTYPES"
     BuiltinAgdaTCMRunSpeculative             -> "AGDATCMRUNSPECULATIVE"
     BuiltinAgdaTCMExec                       -> "AGDATCMEXEC"
+    BuiltinAgdaTCMCheckFromString            -> "AGDATCMCHECKFROMSTRING"
     BuiltinAgdaTCMGetInstances               -> "AGDATCMGETINSTANCES"
     BuiltinAgdaTCMSolveInstances             -> "AGDATCMSOLVEINSTANCES"
     BuiltinAgdaTCMPragmaForeign              -> "AGDATCMPRAGMAFOREIGN"
@@ -587,6 +589,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMWorkOnTypes,
   builtinAgdaTCMRunSpeculative,
   builtinAgdaTCMExec,
+  builtinAgdaTCMCheckFromString,
   builtinAgdaTCMGetInstances,
   builtinAgdaTCMSolveInstances,
   builtinAgdaTCMPragmaForeign,
@@ -788,6 +791,7 @@ builtinAgdaTCMNoConstraints              = BuiltinAgdaTCMNoConstraints
 builtinAgdaTCMWorkOnTypes                = BuiltinAgdaTCMWorkOnTypes
 builtinAgdaTCMRunSpeculative             = BuiltinAgdaTCMRunSpeculative
 builtinAgdaTCMExec                       = BuiltinAgdaTCMExec
+builtinAgdaTCMCheckFromString            = BuiltinAgdaTCMCheckFromString
 builtinAgdaTCMGetInstances               = BuiltinAgdaTCMGetInstances
 builtinAgdaTCMSolveInstances             = BuiltinAgdaTCMSolveInstances
 builtinAgdaTCMPragmaForeign              = BuiltinAgdaTCMPragmaForeign

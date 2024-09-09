@@ -41,9 +41,9 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
 import Agda.TypeChecking.Warnings
 
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
@@ -412,6 +412,7 @@ coreBuiltins =
                                                                    tTCM_ (primSigma <#> primLevelZero <#> primLevelZero <@> primNat <@>
                                                                           (Lam defaultArgInfo . Abs "_" <$> (primSigma <#> primLevelZero <#> primLevelZero <@> primString <@>
                                                                            (Lam defaultArgInfo . Abs "_" <$> primString)))))
+  , builtinAgdaTCMCheckFromString            |-> builtinPostulate (tstring --> ttype --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMGetInstances               |-> builtinPostulate (tmeta --> tTCM_ (list primAgdaTerm))
   , builtinAgdaTCMSolveInstances             |-> builtinPostulate (tTCM_ primUnit)
   , builtinAgdaTCMPragmaForeign              |-> builtinPostulate (tstring --> tstring --> tTCM_ primUnit)

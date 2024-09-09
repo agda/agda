@@ -154,6 +154,8 @@ parseVariables f cxt asb ii rng ss = do
       (_              , LetBound    ) -> failLetBound s
       -- Case 1g: with-bound variable (not used?)
       (_              , WithBound   ) -> __IMPOSSIBLE__
+      -- Case 1h: macro-bound variable (interactive command impossible in macro context)
+      (_              , MacroBound   ) -> __IMPOSSIBLE__
     -- Case 2: variable has no binding site, so we check if it can be
     -- made visible.
     Nothing -> case List.find (((==) `on` nameConcrete) name . fst) clauseVars of

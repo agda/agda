@@ -71,6 +71,12 @@ Reflection
 
 Changes to the meta-programming facilities.
 
+* New reflection primitive: `checkFromStringTC : String → Type → TC Term`
+
+  Parse and type check the given string against the given type, returning
+  the resulting term (when successful).
+
+
 Library management
 ------------------
 
