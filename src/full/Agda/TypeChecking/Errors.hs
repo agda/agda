@@ -1466,6 +1466,12 @@ instance PrettyTCM TypeError where
 
     QualifiedLocalModule -> fwords "Local modules cannot have qualified names"
 
+    BackendDoesNotSupportOnlyScopeChecking backend -> fsep $ concat
+      [ pwords "The backend"
+      , [ prettyTCM backend ]
+      , pwords "does not support --only-scope-checking."
+      ]
+
     UnknownBackend backend backends -> pure $ P.vcat $ concat
       [ [ P.hcat [ "No backend called '", P.pretty backend, "' " ] ]
       , [ "Installed backend(s):" ]

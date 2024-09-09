@@ -1,0 +1,2 @@
+error: [BackendDoesNotSupportOnlyScopeChecking]
+The backend GHC does not support --only-scope-checking.

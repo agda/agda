@@ -54,6 +54,7 @@ typeErrorName = \case
   AmbiguousTopLevelModuleName                                {} -> AmbiguousTopLevelModuleName_
   AsPatternInPatternSynonym                                  {} -> AsPatternInPatternSynonym_
   AttributeKindNotEnabled                                    {} -> AttributeKindNotEnabled_
+  BackendDoesNotSupportOnlyScopeChecking                     {} -> BackendDoesNotSupportOnlyScopeChecking_
   BadArgumentsToPatternSynonym                               {} -> BadArgumentsToPatternSynonym_
   BuiltinInParameterisedModule                               {} -> BuiltinInParameterisedModule_
   BuiltinMustBeConstructor                                   {} -> BuiltinMustBeConstructor_

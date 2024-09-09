@@ -39,7 +39,6 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Imports as CheckResult (CheckResult(CheckResult), crInterface, crWarnings, crMode)
 
 import Agda.Syntax.Common (BackendName)
-import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Treeless
 
 import Agda.TypeChecking.Errors (getAllWarnings)
@@ -183,9 +182,7 @@ compilerMain backend isMain0 checkResult = inCompilerEnv checkResult $ do
     -- BEWARE: Do not use @optOnlyScopeChecking@ here; it does not authoritatively describe the type-checking mode!
     -- InteractionTop currently may invoke type-checking with scope checking regardless of that flag.
     when (not (scopeCheckingSuffices backend) && crMode checkResult == ModuleScopeChecked) $
-      genericDocError $
-        "The --only-scope-checking flag cannot be combined with" P.<+>
-        (P.pretty (backendName backend) <> ".")
+      typeError $ BackendDoesNotSupportOnlyScopeChecking $ backendName backend
 
     !i <- instantiateFull $ crInterface checkResult
     -- Andreas, 2017-08-23, issue #2714

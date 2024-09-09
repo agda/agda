@@ -5025,6 +5025,8 @@ data TypeError
     -- Interaction errors
         | InteractionError InteractionError
     -- Backend errors
+        | BackendDoesNotSupportOnlyScopeChecking BackendName
+            -- ^ The given backend does not support @--only-scope-checking@.
         | CubicalCompilationNotSupported Cubical
             -- ^ NYI: Compilation of files using the given flavor of 'Cubical'.
         | CustomBackendError String Doc

@@ -85,6 +85,7 @@ data ErrorName
   | AmbiguousTopLevelModuleName_
   | AsPatternInPatternSynonym_
   | AttributeKindNotEnabled_
+  | BackendDoesNotSupportOnlyScopeChecking_
   | BadArgumentsToPatternSynonym_
   | BuiltinInParameterisedModule_
   | BuiltinMustBeConstructor_

@@ -1,0 +1,2 @@
+error: [BackendDoesNotSupportOnlyScopeChecking]
+The backend JS does not support --only-scope-checking.
