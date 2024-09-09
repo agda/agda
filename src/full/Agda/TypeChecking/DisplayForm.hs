@@ -114,13 +114,28 @@ matchDisplayForm d@(Display n ps v) es
   | length ps > length es = mzero
   | otherwise             = do
       let (es0, es1) = splitAt (length ps) es
-      mm <- match (Window 0 n) ps es0
+
+      -- The 'Display' constructor acts as though it binds the pattern
+      -- pattern variables up to 'n', so a match like
+      --
+      --   Display 1 [@1 @0] x =? [@0 _]
+      --
+      -- should work (it didn't; see LiftDisplayIntermediate). In
+      -- effect, this is because the LHS patterns are in some context
+      -- "Γ . @0", but the LHS term is only in context Γ.
+      --
+      -- Therefore, we should raise the RHS term by the number of
+      -- pattern variables, to bring it into the context of the
+      -- patterns.
+
+      mm <- match (Window 0 n) ps (raise n es0)
       us <- forM [0 .. n - 1] $ \ i -> do
-              -- #5294: Fail if we don't have bindings for all variables. This can
-              --        happen outside parameterised modules when some of the parameters
-              --        are not used in the lhs.
-              Just u <- return $ Map.lookup i mm
-              return u
+        -- #5294: Fail if we don't have bindings for all variables. This can
+        --        happen outside parameterised modules when some of the parameters
+        --        are not used in the lhs.
+        Just u <- return $ Map.lookup i mm
+        -- Note that the RHS terms are independent of the pattern variables.
+        return (applySubst (strengthenS __IMPOSSIBLE__ n) <$> u)
       return (d, substWithOrigin (parallelS $ map woThing us) us v `applyE` es1)
 
 type MatchResult = Map Int (WithOrigin Term)
