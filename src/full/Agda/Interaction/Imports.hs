@@ -79,7 +79,7 @@ import Agda.TheTypeChecker
 import Agda.Interaction.BasicOps ( getGoals, showGoals )
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
-import Agda.Interaction.Highlighting.Precise  ( convert )
+import qualified Agda.Interaction.Highlighting.Precise as Highlighting ( convert )
 import Agda.Interaction.Highlighting.Vim
 import Agda.Interaction.Library
 import Agda.Interaction.Options
@@ -262,7 +262,7 @@ addImportedThings
   -> DisplayForms
   -> Map A.QName Text      -- ^ Imported user warnings
   -> Set QName             -- ^ Name of imported definitions which are partial
-  -> [TCWarning]
+  -> Set TCWarning
   -> Map OpaqueId OpaqueBlock
   -> Map QName OpaqueId
   -> TCM ()
@@ -275,7 +275,7 @@ addImportedThings isig metas ibuiltin patsyns display userwarn
   stImportedPartialDefs  `modifyTCLens` \ imp -> Set.union imp partialdefs
   stPatternSynImports    `modifyTCLens` \ imp -> Map.union imp patsyns
   stImportedDisplayForms `modifyTCLens` \ imp -> HMap.unionWith (++) imp display
-  stTCWarnings           `modifyTCLens` \ imp -> imp `List.union` warnings
+  stTCWarnings           `modifyTCLens` \ imp -> Set.union imp warnings
   stOpaqueBlocks         `modifyTCLens` \ imp -> imp `Map.union` oblock
   stOpaqueIds            `modifyTCLens` \ imp -> imp `Map.union` oid
 
@@ -384,7 +384,7 @@ data CheckResult = CheckResult'
 
 -- | Flattened unidirectional pattern for 'CheckResult' for destructuring inside
 --   the 'ModuleInfo' field.
-pattern CheckResult :: Interface -> [TCWarning] -> ModuleCheckMode -> Source -> CheckResult
+pattern CheckResult :: Interface -> Set TCWarning -> ModuleCheckMode -> Source -> CheckResult
 pattern CheckResult { crInterface, crWarnings, crMode, crSource } <- CheckResult'
     { crModuleInfo = ModuleInfo
         { miInterface = crInterface
@@ -480,7 +480,7 @@ getNonMainInterface x msrc = do
   -- and checking the interface.
   mi <- bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $
           getInterface x NotMainInterface msrc
-  tcWarningsToError $ miWarnings mi
+  tcWarningsToError $ Set.toAscList $ miWarnings mi
   return (miInterface mi)
 
 -- | A more precise variant of 'getNonMainInterface'. If warnings are
@@ -585,7 +585,7 @@ checkOptionsCompatible current imported importedModule = flip execStateT True $ 
 -- | Compare options and return collected warnings.
 -- | Returns `Nothing` if warning collection was skipped.
 
-getOptionsCompatibilityWarnings :: MainInterface -> Bool -> PragmaOptions -> Interface -> TCM (Maybe [TCWarning])
+getOptionsCompatibilityWarnings :: MainInterface -> Bool -> PragmaOptions -> Interface -> TCM (Maybe (Set TCWarning))
 getOptionsCompatibilityWarnings isMain isPrim currentOptions i = runMaybeT $ exceptToMaybeT $ do
   -- We're just dropping these reasons-for-skipping messages for now.
   -- They weren't logged before, but they're nice for documenting the early returns.
@@ -717,9 +717,9 @@ getStoredInterface x file msrc = do
 
 -- | Report those given warnings that come from the given module.
 
-reportWarningsForModule :: MonadDebug m => TopLevelModuleName -> [TCWarning] -> m ()
+reportWarningsForModule :: MonadDebug m => TopLevelModuleName -> Set TCWarning -> m ()
 reportWarningsForModule x warns = do
-  unlessNull (filter ((Strict.Just (Just x) ==) . fmap rangeFileName . tcWarningOrigin) warns) \ ws ->
+  unlessNull (filter ((Strict.Just (Just x) ==) . fmap rangeFileName . tcWarningOrigin) $ Set.toAscList warns) \ ws ->
     alwaysReportSDoc "warning" 1 $ P.vsep $ map P.prettyTCM ws
 
 
@@ -980,7 +980,7 @@ createInterface mname file isMain msrc = do
       withMsgs = bracket_
        (chaseMsg checkMsg x $ Just fp)
        (const $ do ws <- getAllWarnings AllWarnings
-                   let classified = classifyWarnings ws
+                   let classified = classifyWarnings $ Set.toAscList ws
                    reportWarningsForModule mname $ tcWarnings classified
                    when (null (nonFatalErrors classified)) $ chaseMsg "Finished" x Nothing)
 
@@ -1105,7 +1105,7 @@ createInterface mname file isMain msrc = do
       unless (null unsolved) $ reportSDoc "import.iface.create" 20 $
         "collected unsolved: " <> prettyTCM unsolved
       let warningInfo =
-            convert $ foldMap warningHighlighting $ unsolved ++ warnings
+            Highlighting.convert $ foldMap warningHighlighting $ Set.fromList unsolved `Set.union` warnings
 
       stSyntaxInfo `modifyTCLens` \inf -> (inf `mappend` toks) `mappend` warningInfo
 
@@ -1210,7 +1210,7 @@ createInterface mname file isMain msrc = do
 -- 'MainInterface', the warnings definitely include also unsolved
 -- warnings.
 
-getAllWarnings' :: (ReadTCState m, MonadWarning m, MonadTCM m) => MainInterface -> WhichWarnings -> m [TCWarning]
+getAllWarnings' :: (ReadTCState m, MonadWarning m, MonadTCM m) => MainInterface -> WhichWarnings -> m (Set TCWarning)
 getAllWarnings' (MainInterface _) = getAllWarningsPreserving unsolvedWarnings
 getAllWarnings' NotMainInterface  = getAllWarningsPreserving Set.empty
 
@@ -1281,7 +1281,7 @@ buildInterface src topLevel = do
       !opaqueIds = Map.filterWithKey (\qnm (OpaqueId _ mod) -> isLocal qnm || mod == mh) opaqueIds'
 
     !builtin  <- Map.mapWithKey (\ x b -> primName x <$> b) <$> useTC stLocalBuiltins
-    !warnings <- filter (isSourceCodeWarning . warningName . tcWarning) <$> getAllWarnings AllWarnings
+    !warnings <- Set.filter (isSourceCodeWarning . warningName . tcWarning) <$> getAllWarnings AllWarnings
 
     let !i = Interface
           { iSourceHash           = hashText source

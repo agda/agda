@@ -143,7 +143,7 @@ instance PrettyTCM TCErr where
     -- fact that ̀ws` is non-empty.
     TypeError loc _ Closure{ clValue = NonFatalErrors ws } -> do
       reportSLn "error" 2 $ "Error raised at " ++ prettyShow loc
-      foldr1 ($$) $ fmap prettyTCM ws
+      vcat $ map prettyTCM $ Set.toAscList ws
     -- Andreas, 2014-03-23
     -- This use of withTCState seems ok since we do not collect
     -- Benchmark info during printing errors.
@@ -1248,7 +1248,7 @@ instance PrettyTCM TypeError where
     MultiplePolarityPragmas xs -> fsep $
       pwords "Multiple polarity pragmas for" ++ map pretty xs
 
-    NonFatalErrors ws -> foldr1 ($$) $ fmap prettyTCM ws
+    NonFatalErrors ws -> vcat $ map prettyTCM $ Set.toAscList ws
 
     InstanceSearchDepthExhausted c a d -> fsep $
       pwords ("Instance search depth exhausted (max depth: " ++ show d ++ ") for candidate") ++

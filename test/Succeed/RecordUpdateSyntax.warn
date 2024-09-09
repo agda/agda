@@ -9,14 +9,14 @@ Duplicate field s in record
 when checking that the expression record old { s = 1 ; s = 0 } has
 type R
 
-RecordUpdateSyntax.agda:62,5-50: warning: -W[no]TooManyFields
-The record type R does not have the fields foo, bar but it would
-have the fields i, p
+RecordUpdateSyntax.agda:62,5-50: warning: -W[no]DuplicateFields
+Duplicate field s in record
 when checking that the expression
 record old { foo = 1 ; bar = 0 ; s = 1 ; s = 0 } has type R
 
-RecordUpdateSyntax.agda:62,5-50: warning: -W[no]DuplicateFields
-Duplicate field s in record
+RecordUpdateSyntax.agda:62,5-50: warning: -W[no]TooManyFields
+The record type R does not have the fields foo, bar but it would
+have the fields i, p
 when checking that the expression
 record old { foo = 1 ; bar = 0 ; s = 1 ; s = 0 } has type R
 
@@ -33,13 +33,13 @@ Duplicate field s in record
 when checking that the expression record old { s = 1 ; s = 0 } has
 type R
 
-RecordUpdateSyntax.agda:62,5-50: warning: -W[no]TooManyFields
-The record type R does not have the fields foo, bar but it would
-have the fields i, p
+RecordUpdateSyntax.agda:62,5-50: warning: -W[no]DuplicateFields
+Duplicate field s in record
 when checking that the expression
 record old { foo = 1 ; bar = 0 ; s = 1 ; s = 0 } has type R
 
-RecordUpdateSyntax.agda:62,5-50: warning: -W[no]DuplicateFields
-Duplicate field s in record
+RecordUpdateSyntax.agda:62,5-50: warning: -W[no]TooManyFields
+The record type R does not have the fields foo, bar but it would
+have the fields i, p
 when checking that the expression
 record old { foo = 1 ; bar = 0 ; s = 1 ; s = 0 } has type R

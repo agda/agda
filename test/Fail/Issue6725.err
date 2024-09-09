@@ -1,3 +1,9 @@
+warning: -W[no]InteractionMetaBoundaries
+Interaction meta(s) at the following location(s) have unsolved
+boundary constraints:
+  Issue6725.agda:55,11-12
+  Issue6725.agda:56,11-12
+
 Issue6725.agda:49,5-9: error: [CoverageIssue]
 Incomplete pattern matching for .extendedlambda0. Missing cases:
   .extendedlambda0 .ze
@@ -16,12 +22,6 @@ Issue6725.agda:54,5-56,8: error: [CoverageIssue]
 Incomplete pattern matching for .extendedlambda2. Missing cases:
   .extendedlambda2 i .se
 when checking the definition of .extendedlambda2
-
-warning: -W[no]InteractionMetaBoundaries
-Interaction meta(s) at the following location(s) have unsolved
-boundary constraints:
-  Issue6725.agda:55,11-12
-  Issue6725.agda:56,11-12
 
 Issue6725.agda:53,3-12: error: [UnequalTerms]
 se (λ { .Φ _ → Set }) i !=

@@ -5,6 +5,7 @@ module Agda.TypeChecking.Serialise.Instances.Errors where
 import Control.Monad
 
 import Agda.TypeChecking.Serialise.Base
+import Agda.TypeChecking.Serialise.Instances.Common   ( SerialisedRange(..) )
 import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
 import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 
@@ -32,8 +33,8 @@ instance EmbPrj IsAmbiguous where
     _   -> malformed
 
 instance EmbPrj TCWarning where
-  icod_ (TCWarning fp a b c d e) = icodeN' TCWarning fp a b c d e
-  value = valueN TCWarning
+  icod_ (TCWarning fp r a b c d) = icodeN' (\ fp -> TCWarning fp . underlyingRange) fp (SerialisedRange r) a b c d
+  value = valueN (\ fp -> TCWarning fp . underlyingRange)
 
 -- We don't need to serialise warnings that turn into errors
 instance EmbPrj Warning where
