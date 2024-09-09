@@ -16,6 +16,16 @@ Empty macro block.
 Issue2759.agda:14,1-7: warning: -W[no]EmptyMutual
 Empty mutual block.
 
+Issue2759.agda:15,1-7: warning: -W[no]UselessOpaque
+This 'opaque' block has no effect.
+when scope checking the declaration
+  opaque unfolding {}
+
+Issue2759.agda:16,1-7: warning: -W[no]UselessOpaque
+This 'opaque' block has no effect.
+when scope checking the declaration
+  opaque unfolding {}
+
 Issue2759.agda:17,1-10: warning: -W[no]EmptyPostulate
 Empty postulate block.
 
@@ -27,37 +37,6 @@ Empty private block.
 
 Issue2759.agda:20,1-9: warning: -W[no]EmptyGeneralize
 Empty variable block.
-
-Issue2759.agda:43,3-12: warning: -W[no]EmptyPostulate
-Empty postulate block.
-
-Issue2759.agda:47,27-32: warning: -W[no]EmptyMacro
-Empty macro block.
-
-Issue2759.agda:47,18-26: warning: -W[no]UselessInstance
-Using instance here has no effect. Instance applies only to
-declarations that introduce new identifiers into the module, like
-type signatures and axioms.
-
-Issue2759.agda:47,10-17: warning: -W[no]UselessPrivate
-Using private here has no effect. Private applies only to
-declarations that introduce new identifiers into the module, like
-type signatures and data, record, and module declarations.
-
-Issue2759.agda:47,1-9: warning: -W[no]UselessAbstract
-Using abstract here has no effect. Abstract applies to only
-definitions like data definitions, record type definitions and
-function clauses.
-
-Issue2759.agda:15,1-7: warning: -W[no]UselessOpaque
-This 'opaque' block has no effect.
-when scope checking the declaration
-  opaque unfolding {}
-
-Issue2759.agda:16,1-7: warning: -W[no]UselessOpaque
-This 'opaque' block has no effect.
-when scope checking the declaration
-  opaque unfolding {}
 
 Issue2759.agda:25,12-20: warning: -W[no]EmptyAbstract
 Empty abstract block.
@@ -139,6 +118,27 @@ when scope checking λ (let variable) → let variable in Set
 Issue2759.agda:34,38-46: warning: -W[no]EmptyGeneralize
 Empty variable block.
 when scope checking let variable in Set
+
+Issue2759.agda:43,3-12: warning: -W[no]EmptyPostulate
+Empty postulate block.
+
+Issue2759.agda:47,1-9: warning: -W[no]UselessAbstract
+Using abstract here has no effect. Abstract applies to only
+definitions like data definitions, record type definitions and
+function clauses.
+
+Issue2759.agda:47,10-17: warning: -W[no]UselessPrivate
+Using private here has no effect. Private applies only to
+declarations that introduce new identifiers into the module, like
+type signatures and data, record, and module declarations.
+
+Issue2759.agda:47,18-26: warning: -W[no]UselessInstance
+Using instance here has no effect. Instance applies only to
+declarations that introduce new identifiers into the module, like
+type signatures and axioms.
+
+Issue2759.agda:47,27-32: warning: -W[no]EmptyMacro
+Empty macro block.
 
 ———— All done; warnings encountered ————————————————————————
 
@@ -160,6 +160,16 @@ Empty macro block.
 Issue2759.agda:14,1-7: warning: -W[no]EmptyMutual
 Empty mutual block.
 
+Issue2759.agda:15,1-7: warning: -W[no]UselessOpaque
+This 'opaque' block has no effect.
+when scope checking the declaration
+  opaque unfolding {}
+
+Issue2759.agda:16,1-7: warning: -W[no]UselessOpaque
+This 'opaque' block has no effect.
+when scope checking the declaration
+  opaque unfolding {}
+
 Issue2759.agda:17,1-10: warning: -W[no]EmptyPostulate
 Empty postulate block.
 
@@ -171,37 +181,6 @@ Empty private block.
 
 Issue2759.agda:20,1-9: warning: -W[no]EmptyGeneralize
 Empty variable block.
-
-Issue2759.agda:43,3-12: warning: -W[no]EmptyPostulate
-Empty postulate block.
-
-Issue2759.agda:47,27-32: warning: -W[no]EmptyMacro
-Empty macro block.
-
-Issue2759.agda:47,18-26: warning: -W[no]UselessInstance
-Using instance here has no effect. Instance applies only to
-declarations that introduce new identifiers into the module, like
-type signatures and axioms.
-
-Issue2759.agda:47,10-17: warning: -W[no]UselessPrivate
-Using private here has no effect. Private applies only to
-declarations that introduce new identifiers into the module, like
-type signatures and data, record, and module declarations.
-
-Issue2759.agda:47,1-9: warning: -W[no]UselessAbstract
-Using abstract here has no effect. Abstract applies to only
-definitions like data definitions, record type definitions and
-function clauses.
-
-Issue2759.agda:15,1-7: warning: -W[no]UselessOpaque
-This 'opaque' block has no effect.
-when scope checking the declaration
-  opaque unfolding {}
-
-Issue2759.agda:16,1-7: warning: -W[no]UselessOpaque
-This 'opaque' block has no effect.
-when scope checking the declaration
-  opaque unfolding {}
 
 Issue2759.agda:25,12-20: warning: -W[no]EmptyAbstract
 Empty abstract block.
@@ -283,3 +262,24 @@ when scope checking λ (let variable) → let variable in Set
 Issue2759.agda:34,38-46: warning: -W[no]EmptyGeneralize
 Empty variable block.
 when scope checking let variable in Set
+
+Issue2759.agda:43,3-12: warning: -W[no]EmptyPostulate
+Empty postulate block.
+
+Issue2759.agda:47,1-9: warning: -W[no]UselessAbstract
+Using abstract here has no effect. Abstract applies to only
+definitions like data definitions, record type definitions and
+function clauses.
+
+Issue2759.agda:47,10-17: warning: -W[no]UselessPrivate
+Using private here has no effect. Private applies only to
+declarations that introduce new identifiers into the module, like
+type signatures and data, record, and module declarations.
+
+Issue2759.agda:47,18-26: warning: -W[no]UselessInstance
+Using instance here has no effect. Instance applies only to
+declarations that introduce new identifiers into the module, like
+type signatures and axioms.
+
+Issue2759.agda:47,27-32: warning: -W[no]EmptyMacro
+Empty macro block.

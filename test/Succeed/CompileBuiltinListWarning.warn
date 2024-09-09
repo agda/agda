@@ -1,3 +1,11 @@
+CompileBuiltinListWarning.agda:10,1-26: warning: -W[no]OldBuiltin
+Builtin NIL no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN NIL []
+
+CompileBuiltinListWarning.agda:11,1-26: warning: -W[no]OldBuiltin
+Builtin CONS no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN CONS _∷_
+
 CompileBuiltinListWarning.agda:26,1-25: warning: -W[no]PragmaCompileWrongName
 Cannot COMPILE Set₁ since it is neither a defined symbol nor a constructor
 when scope checking the declaration
@@ -22,17 +30,17 @@ CompileBuiltinListWarning.agda:50,3-24: warning: -W[no]PragmaCompileWrongName
 Cannot COMPILE A since it is neither a defined symbol nor a constructor
 when scope checking the declaration
   {-# COMPILE GHC A #-}
-
-CompileBuiltinListWarning.agda:10,1-26: warning: -W[no]OldBuiltin
-Builtin NIL no longer exists. It is now bound by BUILTIN LIST
-when checking the pragma BUILTIN NIL []
-
-CompileBuiltinListWarning.agda:11,1-26: warning: -W[no]OldBuiltin
-Builtin CONS no longer exists. It is now bound by BUILTIN LIST
-when checking the pragma BUILTIN CONS _∷_
 
 ———— All done; warnings encountered ————————————————————————
 
+CompileBuiltinListWarning.agda:10,1-26: warning: -W[no]OldBuiltin
+Builtin NIL no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN NIL []
+
+CompileBuiltinListWarning.agda:11,1-26: warning: -W[no]OldBuiltin
+Builtin CONS no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN CONS _∷_
+
 CompileBuiltinListWarning.agda:26,1-25: warning: -W[no]PragmaCompileWrongName
 Cannot COMPILE Set₁ since it is neither a defined symbol nor a constructor
 when scope checking the declaration
@@ -57,14 +65,6 @@ CompileBuiltinListWarning.agda:50,3-24: warning: -W[no]PragmaCompileWrongName
 Cannot COMPILE A since it is neither a defined symbol nor a constructor
 when scope checking the declaration
   {-# COMPILE GHC A #-}
-
-CompileBuiltinListWarning.agda:10,1-26: warning: -W[no]OldBuiltin
-Builtin NIL no longer exists. It is now bound by BUILTIN LIST
-when checking the pragma BUILTIN NIL []
-
-CompileBuiltinListWarning.agda:11,1-26: warning: -W[no]OldBuiltin
-Builtin CONS no longer exists. It is now bound by BUILTIN LIST
-when checking the pragma BUILTIN CONS _∷_
 
 CompileBuiltinListWarning.agda:7,1-44: warning: -W[no]PragmaCompileList
 Ignoring GHC pragma for builtin lists; they always compile to

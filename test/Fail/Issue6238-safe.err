@@ -7,5 +7,5 @@ Reason: It splits on a @♭ argument
 
 when checking the definition of CommFlatId
 Issue6238-safe.agda:1,1-46: error: [SafeFlagPragma]
-Cannot set OPTIONS pragmas --without-K and --flat-split
-with safe flag.
+The --safe mode does not allow OPTIONS pragmas
+--without-K and --flat-split

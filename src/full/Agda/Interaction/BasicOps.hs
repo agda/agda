@@ -72,7 +72,7 @@ import Agda.TypeChecking.SizedTypes.Solve
 import qualified Agda.TypeChecking.Pretty as TP
 import Agda.TypeChecking.Warnings
   ( runPM, warning, WhichWarnings(..), classifyWarnings, isMetaTCWarning
-  , WarningsAndNonFatalErrors, emptyWarningsAndNonFatalErrors )
+  , WarningsAndNonFatalErrors )
 
 import Agda.Termination.TermCheck (termMutual)
 
@@ -851,10 +851,10 @@ showGoals (ims, hms) = do
 getWarningsAndNonFatalErrors :: TCM WarningsAndNonFatalErrors
 getWarningsAndNonFatalErrors = do
   mws <- getAllWarnings AllWarnings
-  let notMetaWarnings = filter (not . isMetaTCWarning) mws
+  let notMetaWarnings = filter (not . isMetaTCWarning) $ Set.toList mws
   return $ case notMetaWarnings of
     ws@(_:_) -> classifyWarnings ws
-    _ -> emptyWarningsAndNonFatalErrors
+    _ -> empty
 
 -- | Collecting the context of the given meta-variable.
 getResponseContext

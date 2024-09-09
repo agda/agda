@@ -17,6 +17,8 @@ module Agda.TypeChecking.Monad.Caching
   , restorePostScopeState
   ) where
 
+import qualified Data.Set as Set
+
 import Agda.Syntax.Common
 
 import Agda.Interaction.Options
@@ -80,8 +82,8 @@ restorePostScopeState pss = do
     -- see #1338 on why we need to use the new ranges.
     mergeIP li si = li { ipRange = ipRange si }
 
-    mergeWarnings loading current = [ w | w <- current, not $ tcWarningCached w ]
-                                 ++ [ w | w <- loading,       tcWarningCached w ]
+    mergeWarnings loading current = Set.filter (not . tcWarningCached) current
+                        `Set.union` Set.filter (      tcWarningCached) loading
 
 {-# SPECIALIZE modifyCache :: (Maybe LoadedFileCache -> Maybe LoadedFileCache) -> TCM () #-}
 modifyCache

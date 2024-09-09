@@ -16,6 +16,10 @@ module Agda.Interaction.Response.Base
   , GiveResult (..)
   ) where
 
+import Control.Monad.Trans ( MonadIO(liftIO) )
+import Data.Int (Int32)
+import Data.Set (Set)
+
 import Agda.Interaction.Base
   ( CommandState
   , CompilerBackend
@@ -36,10 +40,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
   (HighlightingMethod, ModuleToSource, NamedMeta, IPFace')
 import Agda.Utils.Impossible
 import Agda.Utils.Time
-
-import Control.Monad.Trans ( MonadIO(liftIO) )
-import Data.Int
-import System.IO
 
 -- | Responses for any interactive interface
 --
@@ -131,7 +131,7 @@ type Goals_boot tcErr =
 --   used, if appropriate.
 data Info_Error_boot tcErr tcWarning
     = Info_GenericError tcErr
-    | Info_CompilationError [tcWarning]
+    | Info_CompilationError (Set tcWarning)
     | Info_HighlightingParseError InteractionId
     | Info_HighlightingScopeCheckError InteractionId
 

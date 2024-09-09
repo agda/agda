@@ -8,5 +8,5 @@ Reason: It relies on the K rule, which is incompatible with
 
 when checking the definition of uip
 Issue2790-b.agda:1,1-42: error: [SafeFlagPragma]
-Cannot set OPTIONS pragmas --cubical-compatible and --with-K
-with safe flag.
+The --safe mode does not allow OPTIONS pragmas
+--cubical-compatible and --with-K
