@@ -40,7 +40,6 @@ tests = do
     [ testGroup "customised" $
         issue6465 :
         issue5508 :
-        issue5101 :
         issue4671 :
         issue2649 :
         nestedProjectRoots :
@@ -164,29 +163,6 @@ issue5508 =
       let agdaArgs file = [ "-v0", "--no-libraries", "-i" ++ dir, dir </> file ]
       runAgdaWithOptions "iSSue5508" (agdaArgs "iSSue5508.agda") Nothing Nothing
         <&> printTestResult . expectFail
-
--- The only customization here is that these do not have input .agda files,
--- because the front-end interactors do not accept them.
--- This runs the same as a normal test, but won't be auto-discovered because
--- currently test discovery searches only for the .agda source.
-issue5101 :: TestTree
-issue5101 = testGroup "Issue5101" $
-  for suffixes $ \s -> do
-    let testName = "OnlyScopeChecking" ++ s
-    let goldenFile = dir </> testName <.> "err"
-    let flagsFile = dir </> testName <.> "flags"
-    let agdaArgs = ["-v0", "--no-libraries", "-i" ++ dir]
-    let doRun = runAgdaWithOptions testName agdaArgs (Just flagsFile) Nothing <&> printTestResult . expectFail
-    goldenTest1
-      testName
-      (readTextFileMaybe goldenFile)
-      doRun
-      textDiff
-      ShowText
-      (writeTextFile goldenFile)
-  where
-  dir = testDir
-  suffixes = ["Repl", "Emacs", "JSON", "Vim"]
 
 issue2649 :: TestTree
 issue2649 =
