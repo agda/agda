@@ -97,9 +97,13 @@ ifJustM mm = flip (caseMaybeM mm)
 whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
 whenJust m k = caseMaybe m (return ()) k
 
--- | 'caseMaybe' without the 'Just' case.
-whenNothing :: Monoid m => Maybe a -> m -> m
-whenNothing m d = caseMaybe m d (\_ -> mempty)
+-- | Pendent to 'whenJust'.
+whenNothing :: Monad m => Maybe a -> m () -> m ()
+whenNothing m d = caseMaybe m d \ _ -> return ()
+
+-- -- | 'caseMaybe' without the 'Just' case.
+-- whenNothing :: Monoid m => Maybe a -> m -> m
+-- whenNothing m d = caseMaybe m d \ _ -> mempty
 
 -- | 'caseMaybeM' without the 'Nothing' case.
 whenJustM :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
