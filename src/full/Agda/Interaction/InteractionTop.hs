@@ -526,16 +526,16 @@ interpret (Cmd_load m argv) =
 
 interpret (Cmd_compile backend file argv) =
   cmd_load' file argv allowUnsolved mode $ \ checkResult -> do
-    mw <- lift $ applyFlagsToTCWarnings $ crWarnings checkResult
-    case mw of
-      [] -> do
+    ws <- lift $ applyFlagsToTCWarnings $ crWarnings checkResult
+    case null ws of
+      True -> do
         lift $ case backend of
           LaTeX                    -> callBackend "LaTeX" IsMain checkResult
           QuickLaTeX               -> callBackend "LaTeX" IsMain checkResult
           OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain checkResult   -- for backwards compatibility
           OtherBackend b           -> callBackend b IsMain checkResult
         display_info . Info_CompilationOk backend =<< lift B.getWarningsAndNonFatalErrors
-      w@(_:_) -> display_info $ Info_Error $ Info_CompilationError w
+      False -> display_info $ Info_Error $ Info_CompilationError ws
   where
   allowUnsolved = backend `elem` [LaTeX, QuickLaTeX]
   mode | QuickLaTeX <- backend = ScopeCheck

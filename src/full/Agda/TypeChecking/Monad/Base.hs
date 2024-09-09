@@ -475,7 +475,7 @@ initPostScopeState = PostScopeState
   , stPostUsedNames            = Map.empty
   , stPostShadowingNames       = Map.empty
   , stPostStatistics           = Map.empty
-  , stPostTCWarnings           = []
+  , stPostTCWarnings           = empty
   , stPostMutualBlocks         = Map.empty
   , stPostLocalBuiltins        = Map.empty
   , stPostFreshMetaId          = initialMetaId
@@ -5169,6 +5169,10 @@ data WarningsAndNonFatalErrors = WarningsAndNonFatalErrors
   { tcWarnings     :: [TCWarning]
   , nonFatalErrors :: [TCWarning]
   }
+
+instance Null WarningsAndNonFatalErrors where
+  null (WarningsAndNonFatalErrors ws errs) = null ws && null errs
+  empty = WarningsAndNonFatalErrors empty empty
 
 -----------------------------------------------------------------------------
 -- * Accessing options

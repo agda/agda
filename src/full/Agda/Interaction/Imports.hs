@@ -347,7 +347,7 @@ alreadyVisited x isMain currentOptions getModule =
     -- Check that imported options are compatible with current ones (issue #2487),
     -- but give primitive modules a pass
     -- compute updated warnings if needed
-    wt <- fromMaybe ws <$> (getOptionsCompatibilityWarnings isMain isPrim currentOptions i)
+    wt <- fromMaybe ws <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
 
     return mi { miWarnings = wt }
 
@@ -359,9 +359,9 @@ alreadyVisited x isMain currentOptions getModule =
 
     -- Interfaces are not stored if we are only scope-checking, or
     -- if any warnings were encountered.
-    case (isMain, miWarnings mi) of
+    case (isMain, null $ miWarnings mi) of
       (MainInterface ScopeCheck, _) -> return ()
-      (_, _:_)                      -> return ()
+      (_, False)                    -> return ()
       _                             -> storeDecodedModule mi
 
     reportS "warning.import" 10
@@ -677,7 +677,7 @@ getStoredInterface x file msrc = do
 
         loadDecodedModule file $ ModuleInfo
           { miInterface = i
-          , miWarnings = []
+          , miWarnings = empty
           , miPrimitive = isPrimitiveModule
           , miMode = ModuleTypeChecked
           }
@@ -833,7 +833,7 @@ createInterfaceIsolated x file msrc = do
                stModuleToSource `setTCLens` mf
                setVisitedModules vs
                addImportedThings isig metas ibuiltin ipatsyns display
-                 userwarn partialdefs [] opaqueblk opaqueid
+                 userwarn partialdefs empty opaqueblk opaqueid
 
                r  <- createInterface x file NotMainInterface msrc
                mf' <- useTC stModuleToSource
@@ -1164,18 +1164,18 @@ createInterface mname file isMain msrc = do
     mallWarnings <- getAllWarnings' isMain ErrorWarnings
 
     reportSLn "import.iface.create" 7 "Considering writing to interface file."
-    finalIface <- constructIScope <$> case (mallWarnings, isMain) of
-      (_:_, _) -> do
+    finalIface <- constructIScope <$> case (null mallWarnings, isMain) of
+      (False, _) -> do
         -- Andreas, 2018-11-15, re issue #3393
         -- The following is not sufficient to fix #3393
         -- since the replacement of metas by postulates did not happen.
         -- -- | not (allowUnsolved && all (isUnsolvedWarning . tcWarning) allWarnings) -> do
         reportSLn "import.iface.create" 7 "We have warnings, skipping writing interface file."
         return i
-      ([], MainInterface ScopeCheck) -> do
+      (True, MainInterface ScopeCheck) -> do
         reportSLn "import.iface.create" 7 "We are just scope-checking, skipping writing interface file."
         return i
-      ([], _) -> Bench.billTo [Bench.Serialization] $ do
+      (True, _) -> Bench.billTo [Bench.Serialization] $ do
         reportSLn "import.iface.create" 7 "Actually calling writeInterface."
         -- The file was successfully type-checked (and no warnings were
         -- encountered), so the interface should be written out.

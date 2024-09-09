@@ -14,6 +14,7 @@ import qualified Data.Set as Set
 import Data.Either
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
@@ -40,8 +41,8 @@ import Agda.Utils.CallStack ( withCurrentCallStack )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty (prettyShow)
 import qualified Agda.Utils.ProfileOptions as Profile
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -162,7 +163,7 @@ noConstraints' includingNonBlocking problem = do
   unless (null cs) $ do
     withCurrentCallStack $ \loc -> do
       w <- warning'_ loc (UnsolvedConstraints cs)
-      typeError' loc $ NonFatalErrors [ w ]
+      typeError' loc $ NonFatalErrors $ singleton w
   return x
 
 -- | Run a computation that should succeeds without constraining
