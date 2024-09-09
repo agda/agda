@@ -122,7 +122,7 @@ matchDisplayForm d@(Display n ps v) es
       --
       -- should work (it didn't; see LiftDisplayIntermediate). In
       -- effect, this is because the LHS patterns are in some context
-      -- "Γ . @0", but the LHS term is only in context Γ.
+      -- "Γ . @0", but the RHS term is only in context Γ.
       --
       -- Therefore, we should raise the RHS term by the number of
       -- pattern variables, to bring it into the context of the
