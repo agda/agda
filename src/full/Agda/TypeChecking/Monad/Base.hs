@@ -5031,6 +5031,8 @@ data TypeError
             -- ^ Used for backend-specific errors. The string is the backend name.
         | GHCBackendError GHCBackendError
             -- ^ Errors raised by the GHC backend.
+        | UnknownBackend BackendName (Set BackendName)
+            -- ^ Unknown backend requested, known ones are in the 'Set'.
           deriving (Show, Generic)
 
 -- | Errors raised in @--interaction@ mode.

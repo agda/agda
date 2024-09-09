@@ -209,6 +209,7 @@ typeErrorName = \case
   UnexpectedParameter                                        {} -> UnexpectedParameter_
   UnexpectedTypeSignatureForParameter                        {} -> UnexpectedTypeSignatureForParameter_
   UnexpectedWithPatterns                                     {} -> UnexpectedWithPatterns_
+  UnknownBackend                                             {} -> UnknownBackend_
   UnusableAtModality                                         {} -> UnusableAtModality_
   UnusedVariableInPatternSynonym                             {} -> UnusedVariableInPatternSynonym_
   VariableIsErased                                           {} -> VariableIsErased_

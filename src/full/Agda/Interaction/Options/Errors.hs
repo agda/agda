@@ -243,6 +243,7 @@ data ErrorName
   | UnexpectedParameter_
   | UnexpectedTypeSignatureForParameter_
   | UnexpectedWithPatterns_
+  | UnknownBackend_
   | UnusableAtModality_
   | UnusedVariableInPatternSynonym_
   | VariableIsErased_

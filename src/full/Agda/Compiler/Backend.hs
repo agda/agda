@@ -24,9 +24,9 @@ import Control.DeepSeq
 import Control.Monad.Trans        ( lift )
 import Control.Monad.Trans.Maybe
 
-import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import System.Console.GetOpt
 
@@ -75,12 +75,9 @@ callBackend name iMain checkResult = lookupBackend name >>= \case
   Just (Backend b) -> compilerMain b iMain checkResult
   Nothing -> do
     backends <- useTC stBackends
-    genericDocError $ P.vcat $ concat
-      [ [ P.hcat [ "No backend called '", P.pretty name, "' " ] ]
-      , [ "Installed backend(s):" ]
-      , map (("-" P.<+>) . P.pretty) $ List.sort $
+    let backendSet = Set.fromList $
           otherBackends ++ [ backendName b | Backend b <- backends ]
-      ]
+    typeError $ UnknownBackend name backendSet
 
 -- | Backends that are not included in the state, but still available
 --   to the user.

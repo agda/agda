@@ -1466,6 +1466,12 @@ instance PrettyTCM TypeError where
 
     QualifiedLocalModule -> fwords "Local modules cannot have qualified names"
 
+    UnknownBackend backend backends -> pure $ P.vcat $ concat
+      [ [ P.hcat [ "No backend called '", P.pretty backend, "' " ] ]
+      , [ "Installed backend(s):" ]
+      , map (("-" P.<+>) . P.pretty) $ Set.toAscList backends
+      ]
+
     CustomBackendError backend err -> (text backend <> ":") <?> pure err
 
     GHCBackendError err -> prettyTCM err
