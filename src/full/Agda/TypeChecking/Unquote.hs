@@ -1100,13 +1100,13 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
 
     tcPragmaForeign :: Text -> Text -> TCM Term
     tcPragmaForeign backend code = do
-      addForeignCode (T.unpack backend) (T.unpack code)
+      addForeignCode backend (T.unpack code)
       primUnitUnit
 
     tcPragmaCompile :: Text -> QName -> Text -> TCM Term
     tcPragmaCompile backend name code = do
       modifySignature $ updateDefinition name $
-        addCompilerPragma (T.unpack backend) $ CompilerPragma noRange (T.unpack code)
+        addCompilerPragma backend $ CompilerPragma noRange (T.unpack code)
       primUnitUnit
 
     tcRunSpeculative :: Term -> UnquoteM Term

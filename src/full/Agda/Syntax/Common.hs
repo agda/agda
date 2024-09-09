@@ -28,6 +28,7 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
+import Data.Text (Text)
 
 import GHC.Generics (Generic)
 
@@ -117,6 +118,12 @@ instance KillRange Language where
   killRange = id
 
 instance NFData Language
+
+---------------------------------------------------------------------------
+-- * Backends
+---------------------------------------------------------------------------
+
+type BackendName = Text
 
 ---------------------------------------------------------------------------
 -- * Record Directives
@@ -3011,6 +3018,7 @@ class LensFixity' a where
 
 instance LensFixity' Fixity' where
   lensFixity' = id
+
 ---------------------------------------------------------------------------
 -- * Import directive
 ---------------------------------------------------------------------------

@@ -14,12 +14,13 @@ import qualified Data.List                    as List
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (listToMaybe)
+import qualified Data.Text                    as T
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
   (HighlightingLevel, HighlightingMethod, Comparison, Polarity)
 
 import           Agda.Syntax.Abstract         (QName)
-import           Agda.Syntax.Common           (InteractionId (..), Modality)
+import           Agda.Syntax.Common           (BackendName, InteractionId (..), Modality)
 import           Agda.Syntax.Internal         (ProblemId, Blocker)
 import           Agda.Syntax.Position
 import           Agda.Syntax.Scope.Base       (ScopeInfo)
@@ -422,7 +423,7 @@ instance Read a => Read (Position' a) where
 ---------------------------------------------------------
 -- | Available backends.
 
-data CompilerBackend = LaTeX | QuickLaTeX | OtherBackend String
+data CompilerBackend = LaTeX | QuickLaTeX | OtherBackend BackendName
     deriving (Eq)
 
 -- TODO 2021-08-25 get rid of custom Show instance
@@ -433,7 +434,7 @@ instance Pretty CompilerBackend where
   pretty = \case
     LaTeX          -> "LaTeX"
     QuickLaTeX     -> "QuickLaTeX"
-    OtherBackend s -> text s
+    OtherBackend s -> pretty s
 
 instance Read CompilerBackend where
   readsPrec _ s = do
@@ -441,7 +442,7 @@ instance Read CompilerBackend where
     let b = case t of
               "LaTeX"      -> LaTeX
               "QuickLaTeX" -> QuickLaTeX
-              _            -> OtherBackend t
+              _            -> OtherBackend $ T.pack t
     return (b, s)
 
 -- | Ordered ascendingly by degree of normalization.

@@ -442,7 +442,7 @@ prettyWarning = \case
 
     PragmaCompileErased bn qn -> fsep $ concat
       [ pwords "The backend"
-      , [ text bn
+      , [ prettyTCM bn
         , "erases"
         , prettyTCM qn
         ]

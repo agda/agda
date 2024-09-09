@@ -2234,8 +2234,6 @@ data CompilerPragma = CompilerPragma Range String
 instance HasRange CompilerPragma where
   getRange (CompilerPragma r _) = r
 
-type BackendName    = String
-
 jsBackendName, ghcBackendName :: BackendName
 jsBackendName  = "JS"
 ghcBackendName = "GHC"

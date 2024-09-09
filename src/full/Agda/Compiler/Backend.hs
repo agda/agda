@@ -20,20 +20,28 @@ module Agda.Compiler.Backend
   , activeBackend
   ) where
 
-import Agda.Compiler.Backend.Base
-
 import Control.DeepSeq
 import Control.Monad.Trans        ( lift )
 import Control.Monad.Trans.Maybe
 
 import qualified Data.List as List
 import Data.Maybe
-
 import qualified Data.Map as Map
 
 import System.Console.GetOpt
 
+import Agda.Compiler.Backend.Base
+import Agda.Compiler.Common
+import Agda.Compiler.ToTreeless
+
+import Agda.Interaction.Options
+import Agda.Interaction.FindFile
+import Agda.Interaction.Imports as CheckResult (CheckResult(CheckResult), crInterface, crWarnings, crMode)
+
+import Agda.Syntax.Common (BackendName)
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Treeless
+
 import Agda.TypeChecking.Errors (getAllWarnings)
 -- Agda.TypeChecking.Monad.Base imports us, relying on the .hs-boot file to
 -- resolve the circular dependency. Fine. However, ghci loads the module after
@@ -43,11 +51,7 @@ import Agda.TypeChecking.Errors (getAllWarnings)
 -- hide it here to prevent it from being seen there and causing an error.
 import Agda.TypeChecking.Monad hiding (getBenchmark)
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Pretty as P
-
-import Agda.Interaction.Options
-import Agda.Interaction.FindFile
-import Agda.Interaction.Imports as CheckResult (CheckResult(CheckResult), crInterface, crWarnings, crMode)
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.FileName
@@ -55,9 +59,6 @@ import Agda.Utils.Functor
 import Agda.Utils.IndexedList
 import Agda.Utils.Lens
 import Agda.Utils.Monad
-
-import Agda.Compiler.ToTreeless
-import Agda.Compiler.Common
 
 import Agda.Utils.Impossible
 
@@ -69,23 +70,22 @@ type Backend' opts env menv mod def = Backend'_boot TCM opts env menv mod def
 
 -- | Call the 'compilerMain' function of the given backend.
 
-callBackend :: String -> IsMain -> CheckResult -> TCM ()
+callBackend :: BackendName -> IsMain -> CheckResult -> TCM ()
 callBackend name iMain checkResult = lookupBackend name >>= \case
   Just (Backend b) -> compilerMain b iMain checkResult
   Nothing -> do
     backends <- useTC stBackends
-    genericError $
-      "No backend called '" ++ name ++ "' " ++
-      "(installed backends: " ++
-      List.intercalate ", "
-        (List.sort $ otherBackends ++
-                     [ backendName b | Backend b <- backends ]) ++
-      ")"
+    genericDocError $ P.vcat $ concat
+      [ [ P.hcat [ "No backend called '", P.pretty name, "' " ] ]
+      , [ "Installed backend(s):" ]
+      , map (("-" P.<+>) . P.pretty) $ List.sort $
+          otherBackends ++ [ backendName b | Backend b <- backends ]
+      ]
 
 -- | Backends that are not included in the state, but still available
 --   to the user.
 
-otherBackends :: [String]
+otherBackends :: [BackendName]
 otherBackends = ["GHCNoMain", "QuickLaTeX"]
 
 -- | Look for a backend of the given name.
@@ -177,7 +177,7 @@ backendInteraction mainFile backends setup check = do
     -- since type checker warnings are also newline separated.
     -- See e.g. test/Succeed/CompileBuiltinListWarning.warn.
     -- Also separate warnings by newlines (issue #6919).
-    P.vcat $ concatMap (\ w -> [ "", P.prettyTCM w ]) ws
+    vcat $ concatMap (\ w -> [ "", prettyTCM w ]) ws
 
 
 compilerMain :: Backend' opts env menv mod def -> IsMain -> CheckResult -> TCM ()
@@ -186,9 +186,9 @@ compilerMain backend isMain0 checkResult = inCompilerEnv checkResult $ do
     -- BEWARE: Do not use @optOnlyScopeChecking@ here; it does not authoritatively describe the type-checking mode!
     -- InteractionTop currently may invoke type-checking with scope checking regardless of that flag.
     when (not (scopeCheckingSuffices backend) && crMode checkResult == ModuleScopeChecked) $
-      genericError $
-        "The --only-scope-checking flag cannot be combined with " ++
-        backendName backend ++ "."
+      genericDocError $
+        "The --only-scope-checking flag cannot be combined with" P.<+>
+        (P.pretty (backendName backend) <> ".")
 
     !i <- instantiateFull $ crInterface checkResult
     -- Andreas, 2017-08-23, issue #2714

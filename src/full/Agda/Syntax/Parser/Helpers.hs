@@ -13,7 +13,8 @@ import Data.Char
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ((<>), sconcat)
-import qualified Data.Traversable as T
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Monad
@@ -158,6 +159,9 @@ mkDomainFree_ f p n = f $ defaultNamedArg $ Binder p $ mkBoundName_ n
 
 mkRString :: (Interval, String) -> RString
 mkRString (i, s) = Ranged (getRange i) s
+
+mkRText :: (Interval, String) -> Ranged Text
+mkRText (i, s) = Ranged (getRange i) $ T.pack s
 
 -- | Create a qualified name from a string (used in pragmas).
 --   Range of each name component is range of whole string.

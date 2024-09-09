@@ -213,7 +213,7 @@ data Pragma
     --   but declare a name for an Agda concept.
   | RewritePragma Range [QName]
     -- ^ Range is range of REWRITE keyword.
-  | CompilePragma RString QName String
+  | CompilePragma (Ranged BackendName) QName String
   | StaticPragma QName
   | EtaPragma QName
     -- ^ For coinductive records, use pragma instead of regular

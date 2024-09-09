@@ -1654,13 +1654,13 @@ ForeignPragma :: { Pragma }
 ForeignPragma
   : '{-#' 'FOREIGN' string ForeignCode '#-}'
     { ForeignPragma (getRange ($1, $2, fst $3, $5))
-        (mkRString $3) (recoverLayout (DL.toList $4)) }
+        (mkRText $3) (recoverLayout (DL.toList $4)) }
 
 CompilePragma :: { Pragma }
 CompilePragma
   : '{-#' 'COMPILE' string PragmaQName PragmaStrings '#-}'
     { CompilePragma (getRange ($1, $2, fst $3, $4, map fst $5, $6))
-        (mkRString $3) $4 (unwords (map snd $5)) }
+        (mkRText $3) $4 (unwords (map snd $5)) }
 
 StaticPragma :: { Pragma }
 StaticPragma

@@ -266,7 +266,7 @@ getUniqueCompilerPragma backend q = do
     (_:p1:_) ->
       setCurrentRange p1 $
             genericDocError =<< do
-                  hang (text ("Conflicting " ++ backend ++ " pragmas for") <+> pretty q <+> "at") 2 $
+                  hang (hsep [ "Conflicting", pretty backend, "pragmas for", pretty q, "at" ]) 2 $
                        vcat [ "-" <+> pretty (getRange p) | p <- ps ]
 
 setFunctionFlag :: FunctionFlag -> Bool -> QName -> TCM ()

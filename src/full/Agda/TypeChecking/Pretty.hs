@@ -11,13 +11,14 @@ import Control.Applicative  (liftA2)
 import Control.Monad
 import Control.Monad.Except
 
+import qualified Data.Foldable as Fold
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
 import Data.String    ()
 import Data.Semigroup (Semigroup((<>)))
-import qualified Data.Foldable as Fold
+import Data.Text      (Text)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -177,6 +178,7 @@ prettyTCMCtx :: (PrettyTCM a, MonadPretty m) => Precedence -> a -> m Doc
 prettyTCMCtx p = withContextPrecedence p . prettyTCM
 
 instance {-# OVERLAPPING #-} PrettyTCM String where prettyTCM = text
+instance PrettyTCM Text                       where prettyTCM = pretty
 instance PrettyTCM Bool                       where prettyTCM = pretty
 instance PrettyTCM C.Name                     where prettyTCM = pretty
 instance PrettyTCM C.QName                    where prettyTCM = pretty

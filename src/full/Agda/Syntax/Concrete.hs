@@ -592,8 +592,8 @@ data Pragma
   = OptionsPragma               Range [String]
   | BuiltinPragma               Range RString QName
   | RewritePragma               Range Range [QName]        -- ^ Second Range is for REWRITE keyword.
-  | ForeignPragma               Range RString String       -- ^ first string is backend name
-  | CompilePragma               Range RString QName String -- ^ first string is backend name
+  | ForeignPragma               Range (Ranged BackendName) String
+  | CompilePragma               Range (Ranged BackendName) QName String
   | StaticPragma                Range QName
   | InlinePragma                Range Bool QName  -- ^ INLINE or NOINLINE
 
