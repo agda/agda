@@ -310,7 +310,7 @@ data PostScopeState = PostScopeState
   , stPostStatistics          :: !Statistics
     -- ^ Counters to collect various statistics about meta variables etc.
     --   Only for current file.
-  , stPostTCWarnings          :: ![TCWarning]
+  , stPostTCWarnings          :: !(Set TCWarning)
   , stPostMutualBlocks        :: !(Map MutualId MutualBlock)
   , stPostLocalBuiltins       :: !(BuiltinThings PrimFun)
   , stPostFreshMetaId         :: !MetaId
@@ -784,7 +784,7 @@ stStatistics f s =
   f (stPostStatistics (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostStatistics = x}}
 
-stTCWarnings :: Lens' TCState [TCWarning]
+stTCWarnings :: Lens' TCState (Set TCWarning)
 stTCWarnings f s =
   f (stPostTCWarnings (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostTCWarnings = x}}
@@ -1035,7 +1035,7 @@ data ModuleCheckMode
 
 data ModuleInfo = ModuleInfo
   { miInterface  :: Interface
-  , miWarnings   :: [TCWarning]
+  , miWarnings   :: Set TCWarning
     -- ^ Warnings were encountered when the module was type checked.
     --   These might include warnings not stored in the interface itself,
     --   specifically unsolved interaction metas.
@@ -1106,7 +1106,7 @@ data Interface = Interface
     -- ^ Options/features used when checking the file (can be different
     --   from options set directly in the file).
   , iPatternSyns     :: A.PatternSynDefns
-  , iWarnings        :: [TCWarning]
+  , iWarnings        :: Set TCWarning
   , iPartialDefs     :: Set QName
   , iOpaqueBlocks    :: Map OpaqueId OpaqueBlock
   , iOpaqueNames     :: Map QName OpaqueId
@@ -4354,7 +4354,8 @@ data Warning
 
   -- Safe flag errors
   | SafeFlagPostulate C.Name
-  | SafeFlagPragma [String]                -- ^ Unsafe OPTIONS.
+  | SafeFlagPragma (Set String)
+      -- ^ Unsafe OPTIONS.
   | SafeFlagWithoutKFlagPrimEraseEquality
   | WithoutKFlagPrimEraseEquality
   | ConflictingPragmaOptions String String
@@ -5044,7 +5045,7 @@ data TypeError
         | NeedOptionTwoLevel
         | NeedOptionUniversePolymorphism
     -- Failure associated to warnings
-        | NonFatalErrors [TCWarning]
+        | NonFatalErrors (Set TCWarning)
     -- Instance search errors
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
@@ -5204,8 +5205,8 @@ instance E.Exception TCErr
 
 -- | Assorted warnings and errors to be displayed to the user
 data WarningsAndNonFatalErrors = WarningsAndNonFatalErrors
-  { tcWarnings     :: [TCWarning]
-  , nonFatalErrors :: [TCWarning]
+  { tcWarnings     :: Set TCWarning
+  , nonFatalErrors :: Set TCWarning
   }
 
 instance Null WarningsAndNonFatalErrors where

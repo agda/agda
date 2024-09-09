@@ -1,5 +1,6 @@
 Issue3517/S.agda:1,1-37: error: [SafeFlagPragma]
-Cannot set OPTIONS pragma --sized-types with safe flag.
+The --safe mode does not allow OPTIONS pragma
+--sized-types
 when scope checking the declaration
   import Issue3517.S
 Issue3517/S.agda:5,1-37: error: [CoInfectiveImport]

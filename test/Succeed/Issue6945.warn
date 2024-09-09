@@ -1,3 +1,10 @@
+Issue6945.agda:13,3-10: warning: -W[no]UselessPrivate
+Using private here has no effect. Private applies only to
+declarations that introduce new identifiers into the module, like
+type signatures and data, record, and module declarations.
+when scope checking the declaration
+  module M where
+
 Issue6945.agda:24,1-8: warning: -W[no]UselessPrivate
 Using private here has no effect. Private applies only to
 declarations that introduce new identifiers into the module, like
@@ -21,13 +28,6 @@ type signatures and axioms.
 Issue6945.agda:46,1-6: warning: -W[no]UselessMacro
 Using a macro block here has no effect. 'macro' applies only to
 function definitions.
-
-Issue6945.agda:13,3-10: warning: -W[no]UselessPrivate
-Using private here has no effect. Private applies only to
-declarations that introduce new identifiers into the module, like
-type signatures and data, record, and module declarations.
-when scope checking the declaration
-  module M where
 
 Issue6945.agda:50,1-7: warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
@@ -36,6 +36,13 @@ when scope checking the declaration
 
 ———— All done; warnings encountered ————————————————————————
 
+Issue6945.agda:13,3-10: warning: -W[no]UselessPrivate
+Using private here has no effect. Private applies only to
+declarations that introduce new identifiers into the module, like
+type signatures and data, record, and module declarations.
+when scope checking the declaration
+  module M where
+
 Issue6945.agda:24,1-8: warning: -W[no]UselessPrivate
 Using private here has no effect. Private applies only to
 declarations that introduce new identifiers into the module, like
@@ -59,13 +66,6 @@ type signatures and axioms.
 Issue6945.agda:46,1-6: warning: -W[no]UselessMacro
 Using a macro block here has no effect. 'macro' applies only to
 function definitions.
-
-Issue6945.agda:13,3-10: warning: -W[no]UselessPrivate
-Using private here has no effect. Private applies only to
-declarations that introduce new identifiers into the module, like
-type signatures and data, record, and module declarations.
-when scope checking the declaration
-  module M where
 
 Issue6945.agda:50,1-7: warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.

@@ -1,2 +1,3 @@
 SafeFlagNoTermination.agda:1,1-39: error: [SafeFlagPragma]
-Cannot set OPTIONS pragma --no-termination-check with safe flag.
+The --safe mode does not allow OPTIONS pragma
+--no-termination-check

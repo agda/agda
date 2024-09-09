@@ -14,6 +14,7 @@ import qualified Data.Graph as Graph
 import Data.List (sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import System.Directory
 import System.FilePath
@@ -53,7 +54,7 @@ setPragmaOptions opts = do
   -- Check for unsafe pragma options if @--safe@ is on.
   when (Lens.getSafeMode opts) $
     unlessNull (unsafePragmaOptions opts) $ \ unsafe ->
-      warning $ SafeFlagPragma unsafe
+      warning $ SafeFlagPragma $ Set.fromList unsafe
 
   stPragmaOptions `setTCLens` opts
   updateBenchmarkingStatus

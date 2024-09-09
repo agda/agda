@@ -40,7 +40,7 @@ import Agda.Syntax.Common
   , ProjOrigin(..)
   , getHiding
   )
-import Agda.Syntax.Common.Pretty ( Pretty, prettyShow )
+import Agda.Syntax.Common.Pretty ( Pretty, prettyShow, singPlural )
 import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Internal
@@ -57,6 +57,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -249,11 +250,11 @@ prettyWarning = \case
     SafeFlagPostulate e -> fsep $
       pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
 
-    SafeFlagPragma xs -> fsep $ concat
-      [ [ fsep $ pwords "Cannot set OPTIONS" ++ [ pluralS (words =<< xs) "pragma" ] ]
+    SafeFlagPragma sset -> vcat $ concat
+      [ [ fwords $ singPlural (words =<< xs) id (++ "s") "The --safe mode does not allow OPTIONS pragma" ]
       , map text xs
-      , [ fwords "with safe flag." ]
       ]
+      where xs = Set.toAscList sset
 
     SafeFlagWithoutKFlagPrimEraseEquality -> fsep (pwords "Cannot use primEraseEquality with safe and without-K flags.")
 
@@ -652,16 +653,16 @@ didYouMean inscope canon x
   ys           = map prettyShow $ filter (close (strip $ canon x) . strip . C.unqualify) inscope
 
 
-prettyTCWarnings :: [TCWarning] -> TCM String
+prettyTCWarnings :: Set TCWarning -> TCM String
 prettyTCWarnings = List.intercalate "\n" <.> map P.render <.> prettyTCWarnings'
 
-prettyTCWarnings' :: [TCWarning] -> TCM [Doc]
+prettyTCWarnings' :: Set TCWarning -> TCM [Doc]
 prettyTCWarnings' = traverse prettyTCM . filterTCWarnings
 
 -- | If there are several warnings, remove the unsolved-constraints warning
 -- in case there are no interesting constraints to list.
-filterTCWarnings :: [TCWarning] -> [TCWarning]
-filterTCWarnings = \case
+filterTCWarnings :: Set TCWarning -> [TCWarning]
+filterTCWarnings wset = case Set.toAscList wset of
   -- #4065: Always keep the only warning
   [w] -> [w]
   -- Andreas, 2019-09-10, issue #4065:
@@ -677,7 +678,7 @@ tcWarningsToError :: [TCWarning] -> TCM ()
 tcWarningsToError mws = case (unsolvedHoles, otherWarnings) of
    ([], [])                   -> return ()
    (_unsolvedHoles@(_:_), []) -> typeError SolvedButOpenHoles
-   (_, ws@(_:_))              -> typeError $ NonFatalErrors ws
+   (_, ws@(_:_))              -> typeError $ NonFatalErrors $ Set.fromList ws
    where
    -- filter out unsolved interaction points for imported module so
    -- that we get the right error message (see test case Fail/Issue1296)
@@ -689,15 +690,15 @@ tcWarningsToError mws = case (unsolvedHoles, otherWarnings) of
 -- | Depending which flags are set, one may happily ignore some
 -- warnings.
 
-applyFlagsToTCWarningsPreserving :: HasOptions m => Set WarningName -> [TCWarning] -> m [TCWarning]
+applyFlagsToTCWarningsPreserving :: HasOptions m => Set WarningName -> Set TCWarning -> m (Set TCWarning)
 applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
   -- For some reason some SafeFlagPragma seem to be created multiple times.
   -- This is a way to collect all of them and remove duplicates.
-  let pragmas w = case tcWarning w of { SafeFlagPragma ps -> ([w], ps); _ -> ([], []) }
-  let sfp = case fmap List.nub (foldMap pragmas ws) of
+  let pragmas w = case tcWarning w of { SafeFlagPragma ps -> ([w], ps); _ -> ([], empty) }
+  let sfp = case foldMap pragmas ws of
               (TCWarning loc r w doc str b : _, sfp) ->
-                 [TCWarning loc r (SafeFlagPragma sfp) doc str b]
-              _                        -> []
+                 singleton $ TCWarning loc r (SafeFlagPragma sfp) doc str b
+              _ -> empty
 
   pragmaWarnings <- (^. warningSet) . optWarningMode <$> pragmaOptions
   let warnSet = Set.union pragmaWarnings additionalKeptWarnings
@@ -712,9 +713,9 @@ applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
           UnsolvedConstraints ucs      -> not $ null ucs
           _                            -> True
 
-  return $ sfp ++ filter (cleanUp . tcWarning) ws
+  return $ Set.union sfp $ Set.filter (cleanUp . tcWarning) ws
 
-applyFlagsToTCWarnings :: HasOptions m => [TCWarning] -> m [TCWarning]
+applyFlagsToTCWarnings :: HasOptions m => Set TCWarning -> m (Set TCWarning)
 applyFlagsToTCWarnings = applyFlagsToTCWarningsPreserving Set.empty
 
 {-# SPECIALIZE isBoundaryConstraint :: ProblemConstraint -> TCM (Maybe Range) #-}
@@ -751,32 +752,33 @@ getAllUnsolvedWarnings = do
 
 -- | Collect all warnings that have accumulated in the state.
 
-{-# SPECIALIZE getAllWarnings :: WhichWarnings -> TCM [TCWarning] #-}
-getAllWarnings :: (ReadTCState m, MonadWarning m, MonadTCM m) => WhichWarnings -> m [TCWarning]
+{-# SPECIALIZE getAllWarnings :: WhichWarnings -> TCM (Set TCWarning) #-}
+getAllWarnings :: (ReadTCState m, MonadWarning m, MonadTCM m) => WhichWarnings -> m (Set TCWarning)
 getAllWarnings = getAllWarningsPreserving Set.empty
 
-{-# SPECIALIZE getAllWarningsPreserving :: Set WarningName -> WhichWarnings -> TCM [TCWarning] #-}
+{-# SPECIALIZE getAllWarningsPreserving :: Set WarningName -> WhichWarnings -> TCM (Set TCWarning) #-}
 getAllWarningsPreserving ::
-  (ReadTCState m, MonadWarning m, MonadTCM m) => Set WarningName -> WhichWarnings -> m [TCWarning]
+  (ReadTCState m, MonadWarning m, MonadTCM m) => Set WarningName -> WhichWarnings -> m (Set TCWarning)
 getAllWarningsPreserving keptWarnings ww = do
-  unsolved            <- getAllUnsolvedWarnings
+  unsolved            <- Set.fromList <$> getAllUnsolvedWarnings
   collectedTCWarnings <- useTC stTCWarnings
 
-  let showWarn w = classifyWarning w <= ww &&
-                    not (null unsolved && onlyShowIfUnsolved w)
+  -- E.g. the InversionDepthReached warning is only shown when we have unsolved constraints.
+  let showWarn
+        | null unsolved = \ w -> classifyWarning w <= ww && not (onlyShowIfUnsolved w)
+        | otherwise     = \ w -> classifyWarning w <= ww
 
-  fmap (filter (showWarn . tcWarning))
-    $ applyFlagsToTCWarningsPreserving keptWarnings
-    $ reverse $ unsolved ++ collectedTCWarnings
+  Set.filter (showWarn . tcWarning) <$> do
+    applyFlagsToTCWarningsPreserving keptWarnings $
+      unsolved `Set.union` collectedTCWarnings
 
-getAllWarningsOfTCErr :: TCErr -> TCM [TCWarning]
-getAllWarningsOfTCErr err = case err of
+getAllWarningsOfTCErr :: TCErr -> TCM (Set TCWarning)
+getAllWarningsOfTCErr = \case
   TypeError _ tcst cls -> case clValue cls of
-    NonFatalErrors{} -> return []
+    NonFatalErrors{} -> return empty
     _ -> localTCState $ do
       putTC tcst
-      ws <- getAllWarnings AllWarnings
       -- We filter out the unsolved(Metas/Constraints) to stay
       -- true to the previous error messages.
-      return $ filter (not . isUnsolvedWarning . tcWarning) ws
-  _ -> return []
+      Set.filter (not . isUnsolvedWarning . tcWarning) <$> getAllWarnings AllWarnings
+  _ -> return empty

@@ -20,6 +20,8 @@ module Agda.Compiler.Backend
   , activeBackend
   ) where
 
+import Prelude hiding (null)
+
 import Control.DeepSeq
 import Control.Monad.Trans        ( lift )
 import Control.Monad.Trans.Maybe
@@ -58,6 +60,7 @@ import Agda.Utils.Functor
 import Agda.Utils.IndexedList
 import Agda.Utils.Lens
 import Agda.Utils.Monad
+import Agda.Utils.Null
 
 import Agda.Utils.Impossible
 
@@ -150,7 +153,7 @@ backendInteraction mainFile backends setup check = do
   checkResult <- check mainFile
 
   -- reset warnings
-  stTCWarnings `setTCLens` []
+  stTCWarnings `setTCLens` empty
 
   noMain <- optCompileNoMain <$> pragmaOptions
   let isMain | noMain    = NotMain
@@ -159,7 +162,7 @@ backendInteraction mainFile backends setup check = do
   sequence_ [ compilerMain backend isMain checkResult | Backend backend <- backends ]
 
   -- print warnings that might have accumulated during compilation
-  ws <- filter (not . isUnsolvedWarning . tcWarning) <$> getAllWarnings AllWarnings
+  ws <- filter (not . isUnsolvedWarning . tcWarning) . Set.toAscList <$> getAllWarnings AllWarnings
   unless (null ws) $ alwaysReportSDoc "warning" 1 $
     -- Andreas, 2024-09-06 start warning list by a newline
     -- since type checker warnings are also newline separated.
