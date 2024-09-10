@@ -582,8 +582,8 @@ fastDistinct xs = Set.size (Set.fromList xs) == length xs
 duplicates :: Ord a => [a] -> [a]
 duplicates = mapMaybe dup . Bag.groups . Bag.fromList
   where
-    dup (a : _ : _) = Just a
-    dup _           = Nothing
+    dup (a :| _ : _) = Just a
+    dup _            = Nothing
 
 -- | Remove the first representative for each list element.
 --   Thus, returns all duplicate copies.
@@ -591,7 +591,7 @@ duplicates = mapMaybe dup . Bag.groups . Bag.fromList
 --
 --   @allDuplicates xs == sort $ xs \\ nub xs@.
 allDuplicates :: Ord a => [a] -> [a]
-allDuplicates = concatMap (drop 1 . reverse) . Bag.groups . Bag.fromList
+allDuplicates = concatMap (List1.tail . List1.reverse) . Bag.groups . Bag.fromList
   -- The reverse is necessary to actually remove the *first* occurrence
   -- of each element.
 

@@ -6,21 +6,22 @@ module Agda.Utils.Bag where
 
 import Prelude hiding (null, map)
 
-import Text.Show.Functions () -- instance only
+import           Text.Show.Functions    () -- instance only
 
-import qualified Data.List as List
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Semigroup
+import qualified Data.List              as List
+import           Data.List.NonEmpty     ( NonEmpty, pattern (:|) )
+import qualified Data.List.NonEmpty     as List1
+  -- NB: Not importing Agda.Utils.List1 to avoid import cycles.
+import           Data.Map               ( Map )
+import qualified Data.Map               as Map
+import           Data.Semigroup
 
-import Agda.Utils.Functor
-
-import Agda.Utils.Impossible
+import           Agda.Utils.Functor
 
 -- | A set with duplicates.
 --   Faithfully stores elements which are equal with regard to (==).
 newtype Bag a = Bag
-  { bag :: Map a [a]
+  { bag :: Map a (NonEmpty a)
       -- ^ The list contains all occurrences of @a@ (not just the duplicates!).
       --   Hence, the invariant: the list is never empty.
   }
@@ -52,7 +53,7 @@ size = getSum . foldMap (Sum . length) . bag
 -- | @(bag ! a)@ finds all elements equal to @a@.  O(log n).
 --   Total function, returns @[]@ if none are.
 (!) :: Ord a => Bag a -> a -> [a]
-(!) (Bag b) a = Map.findWithDefault [] a b
+(!) (Bag b) a = maybe [] List1.toList $ Map.lookup a b
   -- Note: not defined infix because of BangPatterns.
 
 -- | O(log n).
@@ -77,33 +78,33 @@ empty = Bag $ Map.empty
 
 -- | O(1)
 singleton :: a -> Bag a
-singleton a = Bag $ Map.singleton a [a]
+singleton a = Bag $ Map.singleton a (a :| [])
 
 union :: Ord a => Bag a -> Bag a -> Bag a
-union (Bag b) (Bag c) = Bag $ Map.unionWith (++) b c
+union (Bag b) (Bag c) = Bag $ Map.unionWith (<>) b c
 
 unions :: Ord a => [Bag a] -> Bag a
-unions = Bag . Map.unionsWith (++)  . List.map bag
+unions = Bag . Map.unionsWith (<>)  . List.map bag
 
 -- | @insert a b = union b (singleton a)@
 insert :: Ord a => a -> Bag a -> Bag a
-insert a = Bag . Map.insertWith (++) a [a] . bag
+insert a = Bag . Map.insertWith (<>) a (a :| []) . bag
 
 -- | @fromList = unions . map singleton@
 fromList :: Ord a => [a] -> Bag a
-fromList = Bag . Map.fromListWith (++) . List.map (\ a -> (a,[a]))
+fromList = Bag . Map.fromListWith (<>) . List.map (\ a -> (a, a :| []))
 
 ------------------------------------------------------------------------
 -- * Destruction
 ------------------------------------------------------------------------
 
 -- | Returns the elements of the bag, grouped by equality (==).
-groups :: Bag a -> [[a]]
+groups :: Bag a -> [NonEmpty a]
 groups = Map.elems . bag
 
 -- | Returns the bag, with duplicates.
 toList :: Bag a -> [a]
-toList = concat . groups
+toList = concatMap List1.toList . groups
 
 -- | Returns the bag without duplicates.
 keys :: Bag a -> [a]
@@ -124,19 +125,19 @@ toAscList = toList
 -- * Traversal
 ------------------------------------------------------------------------
 
+-- | O(n).
 map :: Ord b => (a -> b) -> Bag a -> Bag b
-map f = Bag . Map.fromListWith (++) . List.map ff . Map.elems . bag
+map f = Bag . Map.fromListWith (<>) . List.map ff . Map.elems . bag
   where
-    ff (a : as) = (b, b : List.map f as) where b = f a
-    ff []       = __IMPOSSIBLE__
+    ff (a :| as) = (b, b :| List.map f as) where b = f a
 
 traverse' :: forall a b m . (Applicative m, Ord b) =>
              (a -> m b) -> Bag a -> m (Bag b)
-traverse' f = (Bag . Map.fromListWith (++)) <.> traverse trav . Map.elems . bag
+traverse' f = (Bag . Map.fromListWith (<>)) <.> traverse trav . Map.elems . bag
   where
-    trav :: [a] -> m (b, [b])
-    trav (a : as) = (\ b bs -> (b, b:bs)) <$> f a <*> traverse f as
-    trav []       = __IMPOSSIBLE__
+    trav :: NonEmpty a -> m (b, NonEmpty b)
+    trav (a :| as) = (\ b bs -> (b, b :| bs)) <$> f a <*> traverse f as
+
 
 ------------------------------------------------------------------------
 -- Instances
