@@ -233,6 +233,7 @@ import Agda.Utils.Monad         ( tell1 )
 import Agda.Utils.Null
 import Agda.Utils.ProfileOptions
 import Agda.Utils.String        ( unwords1 )
+import qualified Agda.Utils.String       as String
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.TypeLits
@@ -1487,7 +1488,7 @@ standardOptions =
 
     , Option ['?']  ["help"]    (OptArg helpFlag "TOPIC") $ concat
                     [ "print help and exit; available "
-                    , singPlural allHelpTopics "TOPIC" "TOPICs"
+                    , String.pluralS allHelpTopics "TOPIC"
                     , ": "
                     , intercalate ", " $ map fst allHelpTopics
                     ]
@@ -1956,14 +1957,12 @@ getOptSimple argv opts fileArg = \ defaults ->
     (_, _, unrecognized, errs) -> throwError $ umsg ++ emsg
 
       where
-      ucap = "Unrecognized " ++ plural unrecognized "option" ++ ":"
-      ecap = plural errs "Option error" ++ ":"
+      ucap = "Unrecognized " ++ String.pluralS unrecognized "option" ++ ":"
+      ecap = String.pluralS errs "Option error" ++ ":"
       umsg = if null unrecognized then "" else unlines $
        ucap : map suggest unrecognized
       emsg = if null errs then "" else unlines $
        ecap : errs
-      plural [_] x = x
-      plural _   x = x ++ "s"
 
       -- Suggest alternatives that are at most 3 typos away
 

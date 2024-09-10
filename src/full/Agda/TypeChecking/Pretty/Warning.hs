@@ -40,10 +40,12 @@ import Agda.Syntax.Common
   , ProjOrigin(..)
   , getHiding
   )
-import Agda.Syntax.Position
+import Agda.Syntax.Common.Pretty ( Pretty, prettyShow )
+import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
 import Agda.Syntax.Internal
+import Agda.Syntax.Position
+import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
 import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.Interaction.Options
@@ -55,8 +57,6 @@ import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty ( Pretty, prettyShow, singPlural )
-import qualified Agda.Syntax.Common.Pretty as P
 
 import Agda.Utils.Impossible
 
@@ -101,11 +101,7 @@ prettyWarning = \case
               mapM prettyTCM $ List.sortOn getRange $
               concatMap termErrCalls because)
 
-    UnreachableClauses f pss -> fsep $
-      pwords "Unreachable" ++ pwords (plural (length pss) "clause")
-        where
-          plural 1 thing = thing
-          plural n thing = thing ++ "s"
+    UnreachableClauses _f pss -> "Unreachable" <+> pluralS pss "clause"
 
     CoverageIssue f pss -> fsep (
       pwords "Incomplete pattern matching for" ++ [prettyTCM f <> "."] ++
@@ -115,7 +111,7 @@ prettyWarning = \case
           empty { clauseTel = tel, namedClausePats = ps }
 
     CoverageNoExactSplit f cs -> vcat $
-      fsep (pwords "Exact splitting is enabled, but the following" ++ pwords (P.singPlural cs "clause" "clauses") ++
+      fsep (pwords "Exact splitting is enabled, but the following" ++ [ pluralS cs "clause" ] ++
             pwords "could not be preserved as definitional equalities in the translation to a case tree:"
            ) :
       map (nest 2 . prettyTCM . NamedClause f True) cs
@@ -255,7 +251,7 @@ prettyWarning = \case
       pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
 
     SafeFlagPragma xs -> fsep $ concat
-      [ [ fwords $ singPlural (words =<< xs) id (++ "s") "Cannot set OPTIONS pragma" ]
+      [ [ fsep $ pwords "Cannot set OPTIONS" ++ [ pluralS (words =<< xs) "pragma" ] ]
       , map text xs
       , [ fwords "with safe flag." ]
       ]
@@ -596,13 +592,10 @@ prettyRecordFieldWarning = \case
 
 prettyDuplicateFields :: MonadPretty m => [C.Name] -> m Doc
 prettyDuplicateFields xs = fsep $ concat
-    [ pwords "Duplicate"
-    , fields xs
+    [ [ "Duplicate", pluralS xs "field" ]
     , punctuate comma (map pretty xs)
     , pwords "in record"
     ]
-  where
-  fields ys = P.singPlural ys [text "field"] [text "fields"]
 
 {-# SPECIALIZE prettyTooManyFields :: QName -> [C.Name] -> [C.Name] -> TCM Doc  #-}
 prettyTooManyFields :: MonadPretty m => QName -> [C.Name] -> [C.Name] -> m Doc
@@ -619,7 +612,7 @@ prettyTooManyFields r missing xs = fsep $ concat
       ]
     ]
   where
-  fields ys = P.singPlural ys [text "field"] [text "fields"]
+    fields ys = [ pluralS ys "field" ]
 
 {-# SPECIALIZE prettyNotInScopeNames :: (Pretty a, HasRange a) => Bool -> (a -> TCM Doc) -> [a] -> TCM Doc #-}
 -- | Report a number of names that are not in scope.

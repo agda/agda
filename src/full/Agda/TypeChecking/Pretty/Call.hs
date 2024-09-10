@@ -7,11 +7,12 @@ import Prelude hiding ( null )
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Common
-import Agda.Syntax.Fixity
+import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Syntax.Concrete.Definitions as D
 import qualified Agda.Syntax.Info as A
-import Agda.Syntax.Position
+import Agda.Syntax.Fixity
 import Agda.Syntax.Internal
+import Agda.Syntax.Position
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.AbstractToConcrete
 
@@ -23,7 +24,6 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Null
-import qualified Agda.Syntax.Common.Pretty as P
 
 import Agda.Utils.Impossible
 
@@ -193,13 +193,10 @@ instance PrettyTCM Call where
     ScopeCheckExpr e -> fsep $ pwords "when scope checking" ++ [pretty e]
 
     ScopeCheckDeclaration d ->
-      fwords ("when scope checking the declaration" ++ suffix) $$
+      fsep (pwords "when scope checking the" ++ [ pluralS ds "declaration" ]) $$
       nest 2 (vcat $ map pretty ds)
       where
       ds     = D.notSoNiceDeclarations d
-      suffix = case ds of
-        [_] -> ""
-        _   -> "s"
 
     ScopeCheckLHS x p ->
       fsep $ pwords "when scope checking the left-hand side" ++ [pretty p] ++

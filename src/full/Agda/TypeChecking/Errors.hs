@@ -83,6 +83,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List   ( initLast, lastMaybe )
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty ( prettyShow, render )
@@ -566,11 +567,12 @@ instance PrettyTCM TypeError where
 
     TooManyFields r missing xs -> prettyTooManyFields r missing xs
 
-    DuplicateConstructors xs -> fsep $
-      pwords "Duplicate" ++ constructors xs ++ punctuate comma (map pretty xs) ++
-      pwords "in datatype"
-      where
-      constructors ys = P.singPlural ys [text "constructor"] [text "constructors"]
+    DuplicateConstructors xs -> fsep $ concat
+      [ [ "Duplicate" ]
+      , [ pluralS xs "constructor" ]
+      , punctuate comma (map pretty xs)
+      , pwords "in datatype"
+      ]
 
     DuplicateFields xs -> prettyDuplicateFields xs
 
@@ -1402,9 +1404,7 @@ instance PrettyTCM TypeError where
       ]
 
     UnexpectedTypeSignatureForParameter xs -> do
-      let s | length xs > 1 = "s"
-            | otherwise     = ""
-      text ("Unexpected type signature for parameter" ++ s) <+> sep (fmap prettyA xs)
+      fsep (pwords "Unexpected type signature for" ++ [ pluralS xs "parameter" ]) <+> sep (fmap prettyA xs)
 
     UnusableAtModality why mod t -> do
       compatible <- cubicalCompatibleOption
@@ -1718,9 +1718,8 @@ instance PrettyTCM SplitError where
           ]
         , zipWith prEq cIxs gIxs
         , if null errs then [] else
-            fsep ( pwords "Possible" ++ pwords (P.singPlural errs "reason" "reasons") ++
-                     pwords "why unification failed:" ) :
-            map (nest 2 . prettyTCM) errs
+            (fsep $ [ "Possible", pluralS errs "reason" ] ++ pwords "why unification failed:")
+            : map (nest 2 . prettyTCM) errs
         ]
       where
         -- Andreas, 2019-08-08, issue #3943
