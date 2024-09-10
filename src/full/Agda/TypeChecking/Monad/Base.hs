@@ -4960,6 +4960,7 @@ data TypeError
         | MultiplePolarityPragmas [C.Name]
     -- Concrete to Abstract errors
         | DeclarationsAfterTopLevelModule
+        | IllegalDeclarationBeforeTopLevelModule
         | NotAnExpression C.Expr
         | NotAValidLetBinding (Maybe NotAValidLetBinding)
         | NotAValidLetExpression NotAValidLetExpression

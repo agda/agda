@@ -1366,8 +1366,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
                          void $ toAbstract (Declarations outsideDecls)
                          void $ toAbstract (Declarations ds0)
                          -- Fail with a crude error otherwise
-                         setCurrentRange ds0 $ genericError
-                           "Illegal declaration(s) before top-level module"
+                         setCurrentRange ds0 $ typeError IllegalDeclarationBeforeTopLevelModule
 
                     -- Otherwise, reconstruct the top-level module name
                     _ -> do

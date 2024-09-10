@@ -134,6 +134,7 @@ data ErrorName
   | IdiomBracketError_
   | InvalidDottedExpression_
   | IllTypedPatternAfterWithAbstraction_
+  | IllegalDeclarationBeforeTopLevelModule_
   | IllegalDeclarationInDataDefinition_
   | IllegalHidingInPostfixProjection_
   | IllegalInstanceVariableInPatternSynonym_

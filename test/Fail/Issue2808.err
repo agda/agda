@@ -1,2 +1,2 @@
-Issue2808.agda:6,1-18: error: [GenericError]
+Issue2808.agda:6,1-18: error: [IllegalDeclarationBeforeTopLevelModule]
 Illegal declaration(s) before top-level module

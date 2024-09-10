@@ -883,6 +883,8 @@ instance PrettyTCM TypeError where
 
     DeclarationsAfterTopLevelModule -> fwords $ "No declarations allowed after top-level module."
 
+    IllegalDeclarationBeforeTopLevelModule -> fwords $ "Illegal declaration(s) before top-level module"
+
     NotAnExpression e -> fsep $
       pretty e : pwords "is not a valid expression."
 
