@@ -4951,6 +4951,8 @@ data TypeError
             -- ^ The given data/record definition rests in a different module than its signature.
         | DuplicateImports C.QName [C.ImportedName]
         | InvalidPattern C.Pattern
+        | RepeatedNamesInImportDirective (List1 (List2 C.ImportedName))
+            -- ^ Some names are bound several times by an @import@/@open@ directive.
         | RepeatedVariablesInPattern [C.Name]
         | GeneralizeNotSupportedHere A.QName
         | GeneralizedVarInLetOpenedModule A.QName

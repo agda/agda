@@ -743,25 +743,12 @@ checkNoFixityInRenamingModule ren = do
     Renaming ImportedModule{} _ mfx _ -> getRange <$> mfx
     _ -> Nothing
 
--- Moved here carefully from Parser.y to preserve the archaeological artefact
--- dating from Oct 2005 (5ba14b647b9bd175733f9563e744176425c39126).
 -- | Check that an import directive doesn't contain repeated names.
 verifyImportDirective :: [C.ImportedName] -> C.HidingDirective -> C.RenamingDirective -> ScopeM ()
 verifyImportDirective usn hdn ren =
-    case filter (not . null . List1.tail)
-         $ List1.group
-         $ List.sort xs
-    of
-        []  -> return ()
-        yss -> setCurrentRange yss $ genericError $
-                "Repeated name" ++ s ++ " in import directive: " ++
-                concat (List.intersperse ", " $ map (prettyShow . List1.head) yss)
-            where
-                s = case yss of
-                        [_] -> ""
-                        _   -> "s"
-    where
-        xs = usn ++ hdn ++ map renFrom ren
+  List1.unlessNull
+    (mapMaybe List2.fromList1Maybe . List1.group . List.sort $ usn ++ hdn ++ map renFrom ren)
+    \ yss -> setCurrentRange yss $ typeError $ RepeatedNamesInImportDirective yss
 
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.

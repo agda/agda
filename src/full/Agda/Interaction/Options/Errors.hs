@@ -202,6 +202,7 @@ data ErrorName
   | RecursiveRecordNeedsInductivity_
   | ReferencesFutureVariables_
   | RelevanceMismatch_
+  | RepeatedNamesInImportDirective_
   | RepeatedVariablesInPattern_
   | ShadowedModule_
   | ShouldBeASort_
