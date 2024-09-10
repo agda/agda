@@ -1808,6 +1808,10 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      Failed termination checks.
 
+.. option:: UnguardedEtaRecord
+
+     Declaring ``eta-equality`` for a recursive ``record`` type that fails the guardedness check.
+
 .. option:: UnsolvedConstraints
 
      Unsolved constraints.

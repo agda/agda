@@ -395,13 +395,16 @@ instance EmbPrj Occurrence where
   value _ = malformed
 
 instance EmbPrj EtaEquality where
-  icod_ (Specified a) = icodeN 0 Specified a
-  icod_ (Inferred a)  = icodeN 1 Inferred a
+  icod_ = \case
+    Specified _ a -> icodeN 0 (Specified noRange) a
+    Inferred a    -> icodeN 1 Inferred a
+    YesEtaPragma  -> icodeN' YesEtaPragma
 
-  value = vcase valu where
-    valu [0,a] = valuN Specified a
-    valu [1,a] = valuN Inferred a
-    valu _     = malformed
+  value = vcase \case
+    [0,a] -> valuN (Specified noRange) a
+    [1,a] -> valuN Inferred a
+    []    -> valuN YesEtaPragma
+    _     -> malformed
 
 instance EmbPrj ProjectionLikenessMissing
 

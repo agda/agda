@@ -34,6 +34,8 @@ mutual
   T zero = ⊤
   T (suc n) = T n × S n
 
+{-# ETA S #-}
+
 -- S n is a eta singleton type for each n because it is terminating.
 
 inh5 : S 5

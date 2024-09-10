@@ -3,7 +3,7 @@ ETA pragma conflicts with no-eta-equality declaration
 when checking the pragma ETA R
 
 EtaData.agda:17,1-17: warning: -W[no]UselessPragma
-ETA pragma is only applicable to coinductive records
+ETA pragma is only applicable to records
 when checking the pragma ETA Prod
 
 EtaData.agda:34,10-14: error: [UnequalTerms]

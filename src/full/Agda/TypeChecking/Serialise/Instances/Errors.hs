@@ -113,7 +113,7 @@ instance EmbPrj Warning where
     MissingTypeSignatureForOpaque a b           -> icodeN 54 MissingTypeSignatureForOpaque a b
     ConflictingPragmaOptions a b                -> icodeN 55 ConflictingPragmaOptions a b
     CustomBackendWarning a b                    -> icodeN 56 CustomBackendWarning a b
-    CoinductiveEtaRecord a                      -> icodeN 57 CoinductiveEtaRecord a
+    IllicitEtaRecord a b                        -> icodeN 57 IllicitEtaRecord a b
     WithClauseProjectionFixityMismatch a b c d  -> icodeN 58 WithClauseProjectionFixityMismatch a b c d
     InvalidDisplayForm a b                      -> icodeN 59 InvalidDisplayForm a b
     TooManyArgumentsToSort a b                  -> __IMPOSSIBLE__
@@ -189,7 +189,7 @@ instance EmbPrj Warning where
     [54, a, b]           -> valuN MissingTypeSignatureForOpaque a b
     [55, a, b]           -> valuN ConflictingPragmaOptions a b
     [56, a, b]           -> valuN CustomBackendWarning a b
-    [57, a]              -> valuN CoinductiveEtaRecord a
+    [57, a, b]           -> valuN IllicitEtaRecord a b
     [58, a, b, c, d]     -> valuN WithClauseProjectionFixityMismatch a b c d
     [59, a, b]           -> valuN InvalidDisplayForm a b
     [60, a, b]           -> valuN NotARewriteRule a b

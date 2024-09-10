@@ -76,7 +76,7 @@ instance MonadWarning TCM where
       w' = tcWarning tcwarn
 
       add w tcwarn tcwarns
-        | onlyOnce w && elem tcwarn tcwarns = tcwarns -- Eq on TCWarning only checks head constructor
+        | onlyOnce w && elem tcwarn tcwarns = tcwarns -- Eq on TCWarning only checks for same warning Doc
         | otherwise                         = tcwarn : tcwarns
 
 -- * Raising warnings

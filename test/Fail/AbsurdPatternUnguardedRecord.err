@@ -1,0 +1,8 @@
+AbsurdPatternUnguardedRecord.agda:10,3-15: warning: -W[no]UnguardedEtaRecord
+Not switching on eta-equality for unguarded recursive records.
+If you must, use pragma {-# ETA R #-}
+
+AbsurdPatternUnguardedRecord.agda:15,1-5: error: [ShouldBeEmpty]
+R should be empty, but that's not obvious to me
+when checking the clause left hand side
+f ()

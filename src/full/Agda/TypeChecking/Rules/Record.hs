@@ -189,7 +189,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
           -- Eta is inferred by the positivity checker.
           -- We should turn it off until it is proven to be safe.
           noEta    = Inferred $ NoEta patCopat
-          haveEta0 = maybe noEta Specified eta
+          haveEta0 = maybe noEta (Specified $ getRange eta0) eta
           con = ConHead conName (IsRecord patCopat) conInduction $ map argFromDom fs
 
           -- A record is irrelevant if all of its fields are.
@@ -209,7 +209,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       haveEta <-
         if (conInduction == CoInductive && theEtaEquality haveEta0 == YesEta) then do
           noEta <$ do
-            setCurrentRange eta0 $ warning $ CoinductiveEtaRecord name
+            setCurrentRange eta0 $ warning $ IllicitEtaRecord CoInductive name
         else pure haveEta0
       reportSDoc "tc.rec" 30 $ "record constructor is " <+> prettyTCM con
 
