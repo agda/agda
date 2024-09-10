@@ -61,7 +61,7 @@ import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Primitive (getBuiltinName)
-import Agda.TypeChecking.Pretty hiding ((<>))
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings

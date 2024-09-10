@@ -1,7 +1,6 @@
 
 module Agda.TypeChecking.Pretty
     ( module Agda.TypeChecking.Pretty
-    , module Data.Semigroup -- This re-export can be removed once <GHC-8.4 is dropped.
     , module Reexport
     ) where
 
