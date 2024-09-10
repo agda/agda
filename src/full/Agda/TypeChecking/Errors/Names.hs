@@ -103,6 +103,7 @@ typeErrorName = \case
   IdiomBracketError                                          {} -> IdiomBracketError_
   InvalidDottedExpression                                    {} -> InvalidDottedExpression_
   IllTypedPatternAfterWithAbstraction                        {} -> IllTypedPatternAfterWithAbstraction_
+  IllegalDeclarationBeforeTopLevelModule                     {} -> IllegalDeclarationBeforeTopLevelModule_
   IllegalDeclarationInDataDefinition                         {} -> IllegalDeclarationInDataDefinition_
   IllegalHidingInPostfixProjection                           {} -> IllegalHidingInPostfixProjection_
   IllegalInstanceVariableInPatternSynonym                    {} -> IllegalInstanceVariableInPatternSynonym_
