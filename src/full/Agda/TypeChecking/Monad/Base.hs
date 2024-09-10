@@ -4961,6 +4961,7 @@ data TypeError
     -- Concrete to Abstract errors
         | DeclarationsAfterTopLevelModule
         | IllegalDeclarationBeforeTopLevelModule
+        | MissingTypeSignature MissingTypeSignatureInfo
         | NotAnExpression C.Expr
         | NotAValidLetBinding (Maybe NotAValidLetBinding)
         | NotAValidLetExpression NotAValidLetExpression
@@ -5069,6 +5070,16 @@ data GHCBackendError
       -- ^ GHC backend fails to represent given Agda type in Haskell.
   | WrongTypeOfMain QName Type
       -- ^ The type of @main@ should be @IO _@ ('QName') but is instead 'Type'.
+  deriving (Show, Generic)
+
+-- | Extra information for 'MissingTypeSignature' error.
+data MissingTypeSignatureInfo
+  = MissingDataSignature     C.Name
+      -- ^ The @data@ definition for 'C.Name' lacks a data signature.
+  | MissingRecordSignature   C.Name
+      -- ^ The @record@ definition for 'C.Name' lacks a record signature.
+  | MissingFunctionSignature C.LHS
+      -- ^ The function lhs misses a type signature.
   deriving (Show, Generic)
 
 -- | Extra information for 'NotAHaskellType' error.
@@ -6272,6 +6283,7 @@ instance NFData InductionAndEta
 instance NFData IllegalRewriteRuleReason
 instance NFData IncorrectTypeForRewriteRelationReason
 instance NFData GHCBackendError
+instance NFData MissingTypeSignatureInfo
 instance NFData WhyNotAHaskellType
 instance NFData InteractionError
 instance NFData IsAmbiguous

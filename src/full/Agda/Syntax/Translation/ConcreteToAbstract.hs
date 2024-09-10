@@ -1799,8 +1799,7 @@ instance ToAbstract NiceDeclaration where
 
   -- Uncategorized function clauses
     C.NiceFunClause _ _ _ _ _ _ (C.FunClause lhs _ _ _) ->
-      genericError $
-        "Missing type signature for left hand side " ++ prettyShow lhs
+      typeError $ MissingTypeSignature $ MissingFunctionSignature lhs
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
@@ -1812,7 +1811,7 @@ instance ToAbstract NiceDeclaration where
             livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
             clashIfModuleAlreadyDefinedInCurrentModule x ax
             return (p, ax)
-          _ -> genericError $ "Missing type signature for data definition " ++ prettyShow x
+          _ -> typeError $ MissingTypeSignature $ MissingDataSignature x
         ensureNoLetStms pars
         withLocalVars $ do
           gvars <- bindGeneralizablesIfInserted o ax
@@ -1860,7 +1859,7 @@ instance ToAbstract NiceDeclaration where
           livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
           clashIfModuleAlreadyDefinedInCurrentModule x ax
           return (p, ax)
-        _ -> genericError $ "Missing type signature for record definition " ++ prettyShow x
+        _ -> typeError $ MissingTypeSignature $ MissingRecordSignature x
       ensureNoLetStms pars
       withLocalVars $ do
         gvars <- bindGeneralizablesIfInserted o ax

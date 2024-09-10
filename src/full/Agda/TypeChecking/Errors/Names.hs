@@ -23,6 +23,7 @@ typeErrorName = \case
   SplitError               err -> SplitError_            $ splitErrorName                 err
   UnquoteFailed            err -> UnquoteError_          $ unquoteErrorName               err
   -- Parametrized errors
+  MissingTypeSignature    what -> MissingTypeSignature_  $ missingTypeSignatureInfoName   what
   NotAllowedInDotPatterns what -> NotAllowedInDotPatterns_ what
   NotAValidLetBinding     what -> NotAValidLetBinding_     what
   NotAValidLetExpression  what -> NotAValidLetExpression_  what
@@ -273,6 +274,12 @@ interactionErrorName = \case
   NoActionForInteractionPoint{} -> NoActionForInteractionPoint_
   NoSuchInteractionPoint{}      -> NoSuchInteractionPoint_
   UnexpectedWhere{}             -> UnexpectedWhere_
+
+missingTypeSignatureInfoName :: MissingTypeSignatureInfo -> DataRecOrFun_
+missingTypeSignatureInfoName = \case
+  MissingDataSignature      {} -> DataName_
+  MissingRecordSignature    {} -> RecName_
+  MissingFunctionSignature  {} -> FunName_
 
 notAHaskellTypeErrorName :: WhyNotAHaskellType -> NotAHaskellType_
 notAHaskellTypeErrorName = \case
