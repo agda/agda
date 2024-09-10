@@ -22,6 +22,8 @@ import Data.Text      (Text)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty ( Pretty, prettyShow )
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Fixity
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
@@ -55,10 +57,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Trie
 import Agda.Utils.Permutation ( Permutation )
-import Agda.Syntax.Common.Pretty      ( Pretty, prettyShow )
-import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Utils.Maybe.Strict as S
-import Agda.Utils.Size        ( natSize )
+import Agda.Utils.Size ( Sized, natSize )
 
 import Agda.Utils.Impossible
 
@@ -133,6 +133,9 @@ quotes         d = P.quotes         <$> d
 
 pshow :: (Applicative m, Show a) => a -> m Doc
 pshow = pure . P.pshow
+
+pluralS :: (Functor m, Sized a) => a -> m Doc -> m Doc
+pluralS xs = (P.pluralS xs <$>)
 
 -- | Comma-separated list in brackets.
 prettyList :: (Applicative m, Semigroup (m Doc), Foldable t) => t (m Doc) -> m Doc

@@ -12,8 +12,10 @@ import Data.Char
 import qualified Data.List as List
 import Data.String
 
+import Agda.Utils.Function (applyUnless)
 import Agda.Utils.List
 import Agda.Utils.List1 (String1, fromList)
+import Agda.Utils.Size  (Sized, natSize)
 
 instance IsString String1 where
   fromString = fromList
@@ -88,6 +90,11 @@ indent i = unlines . map (List.genericReplicate i ' ' ++) . lines
 
 unwords1 :: [String] -> String
 unwords1 = unwords . filter (not . null)
+
+-- | Append an @"s"@ to the second argument if the first has cardinality @/= 1@.
+
+pluralS :: Sized a => a -> String -> String
+pluralS xs = applyUnless (natSize xs == 1) (++ "s")
 
 -- | Show a number using comma to separate powers of 1,000.
 

@@ -264,6 +264,9 @@ pshow = text . show
 singPlural :: Sized a => a -> c -> c -> c
 singPlural xs singular plural = if natSize xs == 1 then singular else plural
 
+pluralS :: Sized a => a -> Doc -> Doc
+pluralS xs d = singPlural xs d (d <> "s")
+
 -- | Used for with-like 'telescopes'
 
 prefixedThings :: Doc -> [Doc] -> Doc

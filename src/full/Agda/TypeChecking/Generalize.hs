@@ -788,7 +788,8 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
                         nest 2 $ fwords (unwords names) ]
           guess = unwords
             [ "After constraint solving it looks like", commas late
-            , singPlural late (++ "s") id "actually depend"
+            , "actually"
+            , singPlural late (<> "s") id "depend"  -- NB: this is a singular "s"
             , "on", commas $ Set.toList early
             ]
       genericDocError =<< vcat
