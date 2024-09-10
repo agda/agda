@@ -10,7 +10,7 @@ Variable generalization failed.
   - Further information
     - Dependency analysis suggested this (likely incorrect) order: x b
     - After constraint solving it looks like x actually depends on b
-    - The dependency I error is
+    - The dependency error is
       Issue3655b.agda:19,9-10: error: [GenericDocError]
       Cannot instantiate the metavariable _x.b_21 to solution b
       since it contains the variable genTel

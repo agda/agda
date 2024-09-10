@@ -17,3 +17,6 @@ variable
 
 postulate
   f : D x → (P : F b → Set) → P x
+
+-- Expected error:
+-- Variable generalization failed.

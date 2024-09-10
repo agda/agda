@@ -799,7 +799,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         , nest 2 $ sep $ ["- Further information"
                          , nest 2 $ "-" <+> order ] ++
                          [ nest 2 $ "-" <+> fwords guess | not (null late), not (null early) ] ++
-                         [ nest 2 $ "-" <+> sep [ fwords "The dependency I error is", prettyTCM err' ] ]
+                         [ nest 2 $ "-" <+> sep [ fwords "The dependency error is", prettyTCM err' ] ]
         ]
 
     addNamedVariablesToScope cxt =
