@@ -73,6 +73,7 @@ typeErrorName = \case
   ConstructorDoesNotTargetGivenType                          {} -> ConstructorDoesNotTargetGivenType_
   ConstructorPatternInWrongDatatype                          {} -> ConstructorPatternInWrongDatatype_
   ContradictorySizeConstraint                                {} -> ContradictorySizeConstraint_
+  CopatternHeadNotProjection                                 {} -> CopatternHeadNotProjection_
   CubicalCompilationNotSupported                             {} -> CubicalCompilationNotSupported_
   CubicalPrimitiveNotFullyApplied                            {} -> CubicalPrimitiveNotFullyApplied_
   CyclicModuleDependency                                     {} -> CyclicModuleDependency_

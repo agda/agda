@@ -113,6 +113,7 @@ data ErrorName
   | ConstructorDoesNotTargetGivenType_
   | ConstructorPatternInWrongDatatype_
   | ContradictorySizeConstraint_
+  | CopatternHeadNotProjection_
   | CubicalCompilationNotSupported_
   | CubicalPrimitiveNotFullyApplied_
   | CyclicModuleDependency_

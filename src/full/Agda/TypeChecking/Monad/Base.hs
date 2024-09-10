@@ -4938,6 +4938,7 @@ data TypeError
           -- ^ The file name does not correspond to a module name.
     -- Scope errors
         | AbstractConstructorNotInScope A.QName
+        | CopatternHeadNotProjection C.QName
         | NotAllowedInDotPatterns NotAllowedInDotPatterns
         | NotInScope [C.QName]
         | NoSuchModule C.QName

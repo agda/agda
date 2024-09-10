@@ -3094,13 +3094,10 @@ instance ToAbstract C.LHSCore where
         A.LHSHead x <$> do mergeEqualPs =<< toAbstract ps
     toAbstract (C.LHSProj d ps1 l ps2) = do
         unless (null ps1) $ typeError $ IllformedProjectionPatternConcrete (foldl C.AppP (C.IdentP True d) ps1)
-        qx <- resolveName d
-        ds <- case qx of
-                FieldName ds -> return $ fmap anameName ds
-                UnknownName -> notInScopeError d
-                _           -> genericError $
-                  "head of copattern needs to be a field identifier, but "
-                  ++ prettyShow d ++ " isn't one"
+        ds <- resolveName d >>= \case
+          FieldName ds -> return $ fmap anameName ds
+          UnknownName  -> notInScopeError d
+          _            -> typeError $ CopatternHeadNotProjection d
         A.LHSProj (AmbQ ds) <$> toAbstract l <*> (mergeEqualPs =<< toAbstract ps2)
     toAbstract (C.LHSWith core wps ps) = do
       liftA2 A.lhsCoreApp

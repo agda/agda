@@ -805,6 +805,12 @@ instance PrettyTCM TypeError where
       , prettyTCM q
       ] ++ pwords "is abstract, thus, not in scope here"
 
+    CopatternHeadNotProjection x -> fsep $ concat
+      [ pwords "Head of copattern needs to be a projection, but"
+      , [ prettyTCM x ]
+      , pwords "isn't one"
+      ]
+
     NotAllowedInDotPatterns what -> fsep $ verb what ++ pwords "are not allowed in dot patterns"
       where
       verb = \case
