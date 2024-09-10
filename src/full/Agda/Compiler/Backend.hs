@@ -156,14 +156,6 @@ backendInteraction mainFile backends setup check = do
   let isMain | noMain    = NotMain
              | otherwise = IsMain
 
-  unlessM (optAllowUnsolved <$> pragmaOptions) $ do
-    let ws = crWarnings checkResult
-        mode = crMode checkResult
-    -- Possible warnings, but only scope checking: ok.
-    -- (Compatibility with scope checking done during options validation).
-    unless (mode == ModuleScopeChecked || null ws) $
-      genericError $ "You can only compile modules without unsolved metavariables."
-
   sequence_ [ compilerMain backend isMain checkResult | Backend backend <- backends ]
 
   -- print warnings that might have accumulated during compilation
