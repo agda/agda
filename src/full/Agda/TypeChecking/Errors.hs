@@ -887,6 +887,8 @@ instance PrettyTCM TypeError where
 
     IllegalDeclarationBeforeTopLevelModule -> fwords $ "Illegal declaration(s) before top-level module"
 
+    MissingTypeSignature info -> fwords "Missing type signature for" <+> prettyTCM info
+
     NotAnExpression e -> fsep $
       pretty e : pwords "is not a valid expression."
 
@@ -1632,6 +1634,13 @@ instance PrettyTCM UnquoteError where
       pwords "Cannot unquote pattern lambda without clauses. Use a single `absurd-clause` for absurd lambdas."
 
     UnquotePanic err -> __IMPOSSIBLE__
+
+instance PrettyTCM MissingTypeSignatureInfo where
+  prettyTCM = \case
+    MissingDataSignature x       -> fsep [ "data"  , "definition", prettyTCM x ]
+    MissingRecordSignature x     -> fsep [ "record", "definition", prettyTCM x ]
+    MissingFunctionSignature lhs -> fsep [ "left", "hand", "side", prettyTCM lhs ]
+
 
 notCmp :: MonadPretty m => Comparison -> m Doc
 notCmp cmp = "!" <> prettyTCM cmp

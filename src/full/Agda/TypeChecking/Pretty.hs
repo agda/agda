@@ -186,6 +186,7 @@ instance PrettyTCM Bool                       where prettyTCM = pretty
 instance PrettyTCM C.Name                     where prettyTCM = pretty
 instance PrettyTCM C.QName                    where prettyTCM = pretty
 instance PrettyTCM C.ImportedName             where prettyTCM = pretty
+instance PrettyTCM C.LHS                      where prettyTCM = pretty
 instance PrettyTCM TopLevelModuleName         where prettyTCM = pretty
 instance PrettyTCM Comparison                 where prettyTCM = pretty
 instance PrettyTCM Literal                    where prettyTCM = pretty
@@ -202,6 +203,7 @@ instance PrettyTCM InteractionId              where prettyTCM = pretty
 {-# SPECIALIZE prettyTCM :: C.Name             -> TCM Doc #-}
 {-# SPECIALIZE prettyTCM :: C.QName            -> TCM Doc #-}
 {-# SPECIALIZE prettyTCM :: C.ImportedName     -> TCM Doc #-}
+{-# SPECIALIZE prettyTCM :: C.LHS              -> TCM Doc #-}
 {-# SPECIALIZE prettyTCM :: TopLevelModuleName -> TCM Doc #-}
 {-# SPECIALIZE prettyTCM :: Comparison         -> TCM Doc #-}
 {-# SPECIALIZE prettyTCM :: Literal            -> TCM Doc #-}

@@ -11,6 +11,16 @@ import Agda.Utils.Function    ( applyWhenJust )
 import Agda.Utils.List        ( initWithDefault )
 import Agda.Utils.Impossible  ( __IMPOSSIBLE__ )
 
+-- | What kind of declaration?
+--
+--   See also 'Agda.Syntax.Concrete.Definitions.Types.DataRecOrFun'.
+
+data DataRecOrFun_
+  = DataName_  -- ^ Name of a data type.
+  | RecName_   -- ^ Name of a record type.
+  | FunName_   -- ^ Name of a function.
+  deriving (Show, Generic, Enum, Bounded)
+
 -- | The reason for an 'ErasedDatatype' error.
 
 data ErasedDatatypeReason
@@ -158,6 +168,7 @@ data ErrorName
   | MetaIrrelevantSolution_
   | MetaOccursInItself_
   | MismatchedProjectionsError_
+  | MissingTypeSignature_ DataRecOrFun_
   | ModuleArityMismatch_
   | ModuleDefinedInOtherFile_
   | ModuleNameDoesntMatchFileName_
@@ -366,10 +377,17 @@ errorNameString = \case
   NicifierError_          err -> "Syntax." ++ declarationExceptionNameString err
   SplitError_             err -> "SplitError." ++ splitErrorNameString err
   UnquoteError_           err -> "Unquote." ++ unquoteErrorNameString err
+  MissingTypeSignature_    err -> "MissingTypeSignature." ++ dataRecOrFunString err
   NotAllowedInDotPatterns_ err -> "NotAllowedInDotPatterns." ++ notAllowedInDotPatternsString err
   NotAValidLetBinding_    merr -> applyWhenJust merr (\ err hd -> hd ++ "." ++ notAValidLetBindingString err) "NotAValidLetBinding"
   NotAValidLetExpression_  err -> "NotAValidLetExpression." ++ notAValidLetExpressionString err
   err -> defaultErrorNameString err
+
+dataRecOrFunString :: DataRecOrFun_ -> String
+dataRecOrFunString = \case
+  DataName_ -> "Data"
+  RecName_  -> "Record"
+  FunName_  -> "Function"
 
 declarationExceptionNameString :: DeclarationException_ -> String
 declarationExceptionNameString = \case
