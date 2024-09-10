@@ -873,6 +873,14 @@ instance PrettyTCM TypeError where
     RepeatedVariablesInPattern xs -> fsep $
       pwords "Repeated variables in pattern:" ++ map pretty xs
 
+    RepeatedNamesInImportDirective yss -> fsep
+      [ fsep $ concat
+         [ [ "Repeated" , pluralS yss "name" ]
+         , pwords "in import directive:"
+         ]
+      , fsep $ punctuate comma $ fmap (prettyTCM . List2.head) yss
+      ]
+
     NotAnExpression e -> fsep $
       pretty e : pwords "is not a valid expression."
 

@@ -168,6 +168,7 @@ typeErrorName = \case
   RecursiveRecordNeedsInductivity                            {} -> RecursiveRecordNeedsInductivity_
   ReferencesFutureVariables                                  {} -> ReferencesFutureVariables_
   RelevanceMismatch                                          {} -> RelevanceMismatch_
+  RepeatedNamesInImportDirective                             {} -> RepeatedNamesInImportDirective_
   RepeatedVariablesInPattern                                 {} -> RepeatedVariablesInPattern_
   ShadowedModule                                             {} -> ShadowedModule_
   ShouldBeASort                                              {} -> ShouldBeASort_
