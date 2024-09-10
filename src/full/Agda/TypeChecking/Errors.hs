@@ -881,6 +881,8 @@ instance PrettyTCM TypeError where
       , fsep $ punctuate comma $ fmap (prettyTCM . List2.head) yss
       ]
 
+    DeclarationsAfterTopLevelModule -> fwords $ "No declarations allowed after top-level module."
+
     NotAnExpression e -> fsep $
       pretty e : pwords "is not a valid expression."
 

@@ -107,6 +107,7 @@ data ErrorName
   | CubicalPrimitiveNotFullyApplied_
   | CyclicModuleDependency_
   | DeBruijnIndexOutOfScope_
+  | DeclarationsAfterTopLevelModule_
   | DefinitionInDifferentModule_
   | DefinitionIsErased_
   | DefinitionIsIrrelevant_
