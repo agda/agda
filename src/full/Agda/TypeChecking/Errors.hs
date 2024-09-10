@@ -867,6 +867,8 @@ instance PrettyTCM TypeError where
     FieldOutsideRecord -> fsep $
       pwords "Field appearing outside record declaration."
 
+    PrivateRecordField -> fwords "Record fields cannot be private"
+
     InvalidPattern p -> fsep $
       pretty p : pwords "is not a valid pattern"
 
