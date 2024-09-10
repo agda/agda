@@ -1700,7 +1700,7 @@ instance ToAbstract NiceDeclaration where
 
   -- Fields
     C.NiceField r p a i tac x t -> do
-      unless (p == PublicAccess) $ genericError "Record fields can not be private"
+      unless (p == PublicAccess) $ typeError PrivateRecordField
       -- Interaction points for record fields have already been introduced
       -- when checking the type of the record constructor.
       -- To avoid introducing interaction points (IP) twice, we turn

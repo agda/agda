@@ -4968,6 +4968,7 @@ data TypeError
         | NothingAppliedToHiddenArg C.Expr
         | NothingAppliedToInstanceArg C.Expr
         | OpenEverythingInRecordWhere
+        | PrivateRecordField
         | QualifiedLocalModule
     -- Pattern synonym errors
         | AsPatternInPatternSynonym

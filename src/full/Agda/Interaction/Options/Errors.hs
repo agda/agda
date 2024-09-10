@@ -198,6 +198,7 @@ data ErrorName
   | PatternInPathLambda_
   | PatternInSystem_
   | PatternSynonymArgumentShadowsConstructorOrPatternSynonym_
+  | PrivateRecordField_
   | ProjectionIsIrrelevant_
   | QualifiedLocalModule_
   | QuantityMismatch_

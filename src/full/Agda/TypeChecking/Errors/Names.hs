@@ -164,6 +164,7 @@ typeErrorName = \case
   PatternInPathLambda                                        {} -> PatternInPathLambda_
   PatternInSystem                                            {} -> PatternInSystem_
   PatternSynonymArgumentShadowsConstructorOrPatternSynonym   {} -> PatternSynonymArgumentShadowsConstructorOrPatternSynonym_
+  PrivateRecordField                                         {} -> PrivateRecordField_
   ProjectionIsIrrelevant                                     {} -> ProjectionIsIrrelevant_
   QualifiedLocalModule                                       {} -> QualifiedLocalModule_
   QuantityMismatch                                           {} -> QuantityMismatch_

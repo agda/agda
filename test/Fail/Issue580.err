@@ -1,4 +1,4 @@
-Issue580.agda:5,17-24: error: [GenericError]
-Record fields can not be private
+Issue580.agda:5,17-24: error: [PrivateRecordField]
+Record fields cannot be private
 when scope checking the declaration
   A : Set
