@@ -4,4 +4,7 @@ module Issue1388 where
 
   indented = Set
 
-not-indented = Set  -- This should be a parse error.
+not-indented = Set
+
+-- Expected error:
+-- No declarations allowed after top-level module.

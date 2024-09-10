@@ -1335,8 +1335,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
 
         -- If there are declarations after the top-level module
         -- we have to report a parse error here.
-        (_, C.Module{} : d : _) -> setCurrentRange d $
-          genericError $ "No declarations allowed after top-level module."
+        (_, C.Module{} : d : _) -> setCurrentRange d $ typeError DeclarationsAfterTopLevelModule
 
         -- Otherwise, proceed.
         (outsideDecls, [ C.Module r e m0 tel insideDecls ]) -> do

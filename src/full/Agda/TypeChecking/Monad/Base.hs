@@ -4959,6 +4959,7 @@ data TypeError
         | MultipleFixityDecls [(C.Name, [Fixity'])]
         | MultiplePolarityPragmas [C.Name]
     -- Concrete to Abstract errors
+        | DeclarationsAfterTopLevelModule
         | NotAnExpression C.Expr
         | NotAValidLetBinding (Maybe NotAValidLetBinding)
         | NotAValidLetExpression NotAValidLetExpression

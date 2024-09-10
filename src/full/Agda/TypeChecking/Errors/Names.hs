@@ -76,6 +76,7 @@ typeErrorName = \case
   CubicalPrimitiveNotFullyApplied                            {} -> CubicalPrimitiveNotFullyApplied_
   CyclicModuleDependency                                     {} -> CyclicModuleDependency_
   DeBruijnIndexOutOfScope                                    {} -> DeBruijnIndexOutOfScope_
+  DeclarationsAfterTopLevelModule                            {} -> DeclarationsAfterTopLevelModule_
   DefinitionInDifferentModule                                {} -> DefinitionInDifferentModule_
   DefinitionIsErased                                         {} -> DefinitionIsErased_
   DefinitionIsIrrelevant                                     {} -> DefinitionIsIrrelevant_
