@@ -24,6 +24,7 @@ typeErrorName = \case
   UnquoteFailed            err -> UnquoteError_          $ unquoteErrorName               err
   -- Parametrized errors
   MissingTypeSignature    what -> MissingTypeSignature_  $ missingTypeSignatureInfoName   what
+  InvalidPun            kind _ -> InvalidPun_              kind
   NotAllowedInDotPatterns what -> NotAllowedInDotPatterns_ what
   NotAValidLetBinding     what -> NotAValidLetBinding_     what
   NotAValidLetExpression  what -> NotAValidLetExpression_  what

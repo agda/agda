@@ -878,6 +878,12 @@ instance PrettyTCM TypeError where
     InvalidPattern p -> fsep $
       pretty p : pwords "is not a valid pattern"
 
+    InvalidPun kind x -> fsep $ concat
+      [ pwords "A pun must not use the"
+      , [ pure $ P.pretty kind ]
+      , [ prettyTCM x ]
+      ]
+
     RepeatedVariablesInPattern xs -> fsep $
       pwords "Repeated variables in pattern:" ++ map pretty xs
 

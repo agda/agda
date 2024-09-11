@@ -3139,6 +3139,9 @@ instance ToAbstract (A.Pattern' C.Expr) where
 resolvePatternIdentifier ::
      Bool
        -- ^ Is the identifier allowed to refer to a constructor (or a pattern synonym)?
+       --
+       --   Value 'False' is only used when 'optHiddenArgumentPuns' is 'True'.
+       --   In this case, error 'InvalidPun' is thrown on identifiers that are not variables.
   -> Hiding
        -- ^ Is the pattern variable hidden?
   -> C.QName
@@ -3148,27 +3151,23 @@ resolvePatternIdentifier ::
   -> ScopeM (A.Pattern' C.Expr)
 resolvePatternIdentifier canBeConstructor h x ns = do
   reportSLn "scope.pat" 60 $ "resolvePatternIdentifier " ++ prettyShow x ++ " at source position " ++ prettyShow r
-  px <- toAbstract (PatName x ns h)
-  case px of
-    VarPatName y         -> do
+  toAbstract (PatName x ns h) >>= \case
+    VarPatName y -> do
       reportSLn "scope.pat" 60 $ "  resolved to VarPatName " ++ prettyShow y ++ " with range " ++ prettyShow (getRange y)
       return $ VarP $ A.mkBindName y
     ConPatName ds ->
       if canBeConstructor
       then return $ ConP (ConPatInfo ConOCon (PatRange r) ConPatEager)
                          (AmbQ $ fmap anameName ds) []
-      else err "constructor"
+      else err IsConstructor
     PatternSynPatName ds ->
       if canBeConstructor
       then return $ PatternSynP (PatRange r)
                                 (AmbQ $ fmap anameName ds) []
-      else err "pattern synonym"
+      else err IsPatternSynonym
   where
   r = getRange x
-  err s =
-    setCurrentRange r $
-    typeError $ GenericError $
-      "A pun must not use the " ++ s ++ " " ++ prettyShow x
+  err s = setCurrentRange r $ typeError $ InvalidPun s x
 
 -- | Apply an abstract syntax pattern head to pattern arguments.
 --

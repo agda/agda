@@ -7,6 +7,8 @@ import Data.List              ( sort )
 import Generic.Data           ( FiniteEnumeration(..) )
 import GHC.Generics           ( Generic )
 
+import Agda.Syntax.Common     ( ConstructorOrPatternSynonym(..) )
+
 import Agda.Utils.Function    ( applyWhenJust )
 import Agda.Utils.List        ( initWithDefault )
 import Agda.Utils.Impossible  ( __IMPOSSIBLE__ )
@@ -160,6 +162,7 @@ data ErrorName
   | InvalidModalTelescopeUse_
   | InvalidPattern_
   | InvalidProjectionParameter_
+  | InvalidPun_ ConstructorOrPatternSynonym
   | InvalidTypeSort_
   | LibTooFarDown_
   | LiteralTooBig_
@@ -378,11 +381,17 @@ errorNameString = \case
   NicifierError_          err -> "Syntax." ++ declarationExceptionNameString err
   SplitError_             err -> "SplitError." ++ splitErrorNameString err
   UnquoteError_           err -> "Unquote." ++ unquoteErrorNameString err
+  InvalidPun_              err -> "InvalidPun." ++ constructorOrPatternSynonymNameString err
   MissingTypeSignature_    err -> "MissingTypeSignature." ++ dataRecOrFunString err
   NotAllowedInDotPatterns_ err -> "NotAllowedInDotPatterns." ++ notAllowedInDotPatternsString err
   NotAValidLetBinding_    merr -> applyWhenJust merr (\ err hd -> hd ++ "." ++ notAValidLetBindingString err) "NotAValidLetBinding"
   NotAValidLetExpression_  err -> "NotAValidLetExpression." ++ notAValidLetExpressionString err
   err -> defaultErrorNameString err
+
+constructorOrPatternSynonymNameString :: ConstructorOrPatternSynonym -> String
+constructorOrPatternSynonymNameString = \case
+  IsConstructor    -> "Constructor"
+  IsPatternSynonym -> "PatternSynonym"
 
 dataRecOrFunString :: DataRecOrFun_ -> String
 dataRecOrFunString = \case
