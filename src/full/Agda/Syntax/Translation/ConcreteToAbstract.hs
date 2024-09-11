@@ -1111,8 +1111,7 @@ instance ToAbstract (C.Binder' (NewName C.BoundName)) where
            pure $ fmap (\ n -> n { C.boundName = n' }) n
     n <- toAbstract n
     -- Expand puns if optHiddenArgumentPuns is True.
-    puns <- optHiddenArgumentPuns <$> pragmaOptions
-    p <- return $ if puns then fmap expandPuns p else p
+    p <- traverse expandPunsOpt p
     -- Actually parsing the pattern, checking it is linear,
     -- and bind its variables
     p <- traverse parsePattern p
@@ -1526,8 +1525,7 @@ instance ToAbstract LetDef where
         noWhereInLetBinding wh
         rhs <- letBindingMustHaveRHS rhs0
         -- Expand puns if optHiddenArgumentPuns is True.
-        puns <- optHiddenArgumentPuns <$> pragmaOptions
-        p0   <- return $ if puns then expandPuns p0 else p0
+        p0   <- expandPunsOpt p0
         mp   <- setCurrentRange p0 $
                   (Right <$> parsePattern p0)
                     `catchError`
@@ -2104,8 +2102,7 @@ instance ToAbstract NiceDeclaration where
       reportSLn "scope.pat" 30 $ "found nice pattern syn: " ++ prettyShow n
       (as, p) <- withLocalVars $ do
          -- Expand puns if optHiddenArgumentPuns is True.
-         puns <- optHiddenArgumentPuns <$> pragmaOptions
-         p <- parsePatternSyn $ applyWhen puns expandPuns p
+         p <- parsePatternSyn =<< expandPunsOpt p
          p <- toAbstract p
          when (containsAsPattern p) $
            typeError AsPatternInPatternSynonym
@@ -2916,8 +2913,7 @@ instance ToAbstract C.RewriteEqn where
     where
       toAbsPat p = do
         -- Expand puns if optHiddenArgumentPuns is True.
-        puns <- optHiddenArgumentPuns <$> pragmaOptions
-        p <- return $ if puns then expandPuns p else p
+        p <- expandPunsOpt p
         p <- parsePattern p
         p <- toAbstract p
         checkPatternLinearity p (typeError . RepeatedVariablesInPattern)
@@ -2986,8 +2982,7 @@ instance ToAbstract LeftHandSide where
         -- expansion should happen before the left-hand side is
         -- parsed, because {(x)} is not treated as a pun, whereas {x}
         -- is.
-        puns <- optHiddenArgumentPuns <$> pragmaOptions
-        lhs  <- return $ if puns then expandPuns lhs else lhs
+        lhs  <- expandPunsOpt lhs
         reportSLn "scope.lhs" 25 $
           "lhs with expanded puns: " ++ prettyShow lhs
         reportSLn "scope.lhs" 60 $
@@ -3014,6 +3009,14 @@ instance ToAbstract LeftHandSide where
         reportSLn "scope.lhs" 60 $ "parsed lhs dot patterns: " ++ show lhscore
         printLocals 30 "checked dots:"
         return $ A.LHS (LHSInfo (getRange lhs) ell) lhscore
+
+-- | Expands hidden argument puns when option 'optHiddenArgumentPuns' is set.
+
+expandPunsOpt :: C.Pattern -> ScopeM C.Pattern
+expandPunsOpt p = do
+  pragmaOptions <&> optHiddenArgumentPuns <&> \case
+    True  -> expandPuns p
+    False -> p
 
 -- | Expands hidden argument puns.
 
