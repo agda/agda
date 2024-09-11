@@ -3018,34 +3018,18 @@ instance ToAbstract LeftHandSide where
 -- | Expands hidden argument puns.
 
 expandPuns :: C.Pattern -> C.Pattern
-expandPuns p = case p of
-  C.AppP p1 p2       -> C.AppP (expandPuns p1)
-                          ((fmap . fmap) expandPuns p2)
-  C.RawAppP r ps     -> C.RawAppP r (fmap expandPuns ps)
-  C.OpAppP r q xs ps -> C.OpAppP r q xs
-                          ((fmap . fmap . fmap) expandPuns ps)
-  C.ParenP r p       -> C.ParenP r (expandPuns p)
-  C.AsP r x p        -> C.AsP r x (expandPuns p)
-  C.RecP r ps        -> C.RecP r (fmap (fmap expandPuns) ps)
-  C.WithP r p        -> C.WithP r (expandPuns p)
-  C.EllipsisP r mp   -> C.EllipsisP r (fmap expandPuns mp)
-  C.IdentP{}         -> p
-  C.QuoteP{}         -> p
-  C.WildP{}          -> p
-  C.AbsurdP{}        -> p
-  C.DotP{}           -> p
-  C.LitP{}           -> p
-  C.EqualP{}         -> p
-
-  C.HiddenP r p   -> C.HiddenP r (expand (fmap expandPuns p))
-  C.InstanceP r p -> C.InstanceP r (expand (fmap expandPuns p))
+expandPuns = mapCPattern \case
+  C.HiddenP   r p -> C.HiddenP   r $ expand p
+  C.InstanceP r p -> C.InstanceP r $ expand p
+  p -> p
   where
   -- Only patterns of the form {x} or ⦃ x ⦄, where x is an unqualified
   -- name (not @_@), are interpreted as puns.
   expand :: Named_ C.Pattern -> Named_ C.Pattern
-  expand (Named { nameOf     = Nothing
-                , namedThing = C.IdentP _ q@(C.QName x@C.Name{})
-                }) =
+  expand
+   (Named { namedThing = C.IdentP _ q@(C.QName x@C.Name{})
+          , nameOf     = Nothing
+          }) =
     Named { namedThing = C.IdentP False q
           , nameOf     = Just $
                          WithOrigin

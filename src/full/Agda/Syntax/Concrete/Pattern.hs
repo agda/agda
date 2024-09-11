@@ -169,8 +169,8 @@ class CPatternLike p where
   traverseCPatternA = traverse . traverseCPatternA
 
   -- | Traverse pattern.
-  traverseCPatternM
-    :: Monad m => (Pattern -> m Pattern)  -- ^ @pre@: Modification before recursion.
+  traverseCPatternM :: Monad m
+    => (Pattern -> m Pattern)  -- ^ @pre@: Modification before recursion.
     -> (Pattern -> m Pattern)  -- ^ @post@: Modification after recursion.
     -> p -> m p
 
