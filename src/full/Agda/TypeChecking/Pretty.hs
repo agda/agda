@@ -1,4 +1,5 @@
-
+-- Each function here should either have an INLINE or a SPECIALIZE pragma.
+--
 module Agda.TypeChecking.Pretty
     ( module Agda.TypeChecking.Pretty
     , module Reexport
@@ -69,45 +70,47 @@ import Agda.Utils.Impossible
 type Doc = P.Doc
 
 comma, colon, equals :: Applicative m => m Doc
-comma  = pure P.comma        ; {-# INLINE comma  #-} ; {-# SPECIALIZE comma  :: TCM Doc #-}
-colon  = pure P.colon        ; {-# INLINE colon  #-} ; {-# SPECIALIZE colon  :: TCM Doc #-}
-equals = pure P.equals       ; {-# INLINE equals #-} ; {-# SPECIALIZE equals :: TCM Doc #-}
+comma  = pure P.comma        ; {-# INLINE comma  #-}
+colon  = pure P.colon        ; {-# INLINE colon  #-}
+equals = pure P.equals       ; {-# INLINE equals #-}
 
 {-# INLINE pretty #-}
-{-# SPECIALIZE pretty :: P.Pretty a => a -> TCM Doc #-}
 pretty :: (Applicative m, P.Pretty a) => a -> m Doc
 pretty = pure . P.pretty
 
 {-# INLINE prettyA #-}
-{-# SPECIALIZE prettyA :: (ToConcrete a, P.Pretty (ConOfAbs a)) => a -> TCM Doc #-}
 prettyA :: (ToConcrete a, P.Pretty (ConOfAbs a), MonadAbsToCon m) => a -> m Doc
 prettyA = AP.prettyA
 
 {-# INLINE prettyAs #-}
--- Triggers error: [GHC-69441] RULE left-hand side too complicated to desugar:
+-- Triggers error: [GHC-69441] RULE left-hand side too complicated to desugar: ...
 -- {-# SPECIALIZE prettyAs :: (ToConcrete a, ConOfAbs a ~ [ce], P.Pretty ce) => a -> TCM Doc #-}
 prettyAs :: (ToConcrete a, ConOfAbs a ~ [ce], P.Pretty ce, MonadAbsToCon m) => a -> m Doc
 prettyAs = AP.prettyAs
 
 fwords, text, multiLineText :: Applicative m => String -> m Doc
-fwords        = pure . P.fwords        ; {-# INLINE fwords        #-} ; {-# SPECIALIZE fwords        :: String -> TCM Doc #-}
-text          = pure . P.text          ; {-# INLINE text          #-} ; {-# SPECIALIZE fwords        :: String -> TCM Doc #-}
-multiLineText = pure . P.multiLineText ; {-# INLINE multiLineText #-} ; {-# SPECIALIZE multiLineText :: String -> TCM Doc #-}
+fwords        = pure . P.fwords        ; {-# INLINE fwords        #-}
+text          = pure . P.text          ; {-# INLINE text          #-}
+multiLineText = pure . P.multiLineText ; {-# INLINE multiLineText #-}
 
 {-# INLINE pwords #-}
-{-# SPECIALIZE pwords :: String -> [TCM Doc] #-}
 pwords :: Applicative m => String -> [m Doc]
 pwords = map pure . P.pwords
 
 sep, fsep, hsep, hcat, vcat, vsep :: (Applicative m, Foldable t) => t (m Doc) -> m Doc
-sep  = fmap P.sep  . sequenceA . Fold.toList  ; {-# SPECIALIZE sep  :: Foldable t => t (TCM Doc) -> TCM Doc #-}
-fsep = fmap P.fsep . sequenceA . Fold.toList  ; {-# SPECIALIZE fsep :: Foldable t => t (TCM Doc) -> TCM Doc #-}
-hsep = fmap P.hsep . sequenceA . Fold.toList  ; {-# SPECIALIZE hsep :: Foldable t => t (TCM Doc) -> TCM Doc #-}
-hcat = fmap P.hcat . sequenceA . Fold.toList  ; {-# SPECIALIZE hcat :: Foldable t => t (TCM Doc) -> TCM Doc #-}
-vcat = fmap P.vcat . sequenceA . Fold.toList  ; {-# SPECIALIZE vcat :: Foldable t => t (TCM Doc) -> TCM Doc #-}
-vsep = fmap P.vsep . sequenceA . Fold.toList  ; {-# SPECIALIZE vsep :: Foldable t => t (TCM Doc) -> TCM Doc #-}
+sep  = fmap P.sep  . sequenceAFoldable  ; {-# SPECIALIZE NOINLINE sep  :: [TCM Doc] -> TCM Doc #-} ; {-# SPECIALIZE NOINLINE sep  :: List1 (TCM Doc) -> TCM Doc #-}
+fsep = fmap P.fsep . sequenceAFoldable  ; {-# SPECIALIZE NOINLINE fsep :: [TCM Doc] -> TCM Doc #-} ; {-# SPECIALIZE NOINLINE fsep :: List1 (TCM Doc) -> TCM Doc #-}
+hsep = fmap P.hsep . sequenceAFoldable  ; {-# SPECIALIZE NOINLINE hsep :: [TCM Doc] -> TCM Doc #-} ; {-# SPECIALIZE NOINLINE hsep :: List1 (TCM Doc) -> TCM Doc #-}
+hcat = fmap P.hcat . sequenceAFoldable  ; {-# SPECIALIZE NOINLINE hcat :: [TCM Doc] -> TCM Doc #-} ; {-# SPECIALIZE NOINLINE hcat :: List1 (TCM Doc) -> TCM Doc #-}
+vcat = fmap P.vcat . sequenceAFoldable  ; {-# SPECIALIZE NOINLINE vcat :: [TCM Doc] -> TCM Doc #-} ; {-# SPECIALIZE NOINLINE vcat :: List1 (TCM Doc) -> TCM Doc #-}
+vsep = fmap P.vsep . sequenceAFoldable  ; {-# SPECIALIZE NOINLINE vsep :: [TCM Doc] -> TCM Doc #-} ; {-# SPECIALIZE NOINLINE vsep :: List1 (TCM Doc) -> TCM Doc #-}
 
-{-# SPECIALIZE hang :: TCM Doc -> Int -> TCM Doc -> TCM Doc #-}
+{-# INLINE sequenceAFoldable #-}
+-- | @sequenceAFoldable == sequenceA . Fold.toList@
+sequenceAFoldable :: (Applicative m, Foldable t) => t (m a) -> m [a]
+sequenceAFoldable = Fold.foldr (liftA2 (:)) (pure [])
+
+{-# INLINE hang #-}
 hang :: Applicative m => m Doc -> Int -> m Doc -> m Doc
 hang p n q = P.hang <$> p <*> pure n <*> q
 
@@ -115,42 +118,44 @@ infixl 6 <+>, <?>
 infixl 5 $$, $+$
 
 ($$), ($+$), (<+>), (<?>) :: Applicative m => m Doc -> m Doc -> m Doc
-($$ ) = liftA2 (P.$$)   ; {-# INLINE ($$)  #-}; {-# SPECIALIZE ($$)  :: TCM Doc -> TCM Doc -> TCM Doc #-}
-($+$) = liftA2 (P.$+$)  ; {-# INLINE ($+$) #-}; {-# SPECIALIZE ($+$) :: TCM Doc -> TCM Doc -> TCM Doc #-}
-(<+>) = liftA2 (P.<+>)  ; {-# INLINE (<+>) #-}; {-# SPECIALIZE (<+>) :: TCM Doc -> TCM Doc -> TCM Doc #-}
-(<?>) = liftA2 (P.<?>)  ; {-# INLINE (<?>) #-}; {-# SPECIALIZE (<?>) :: TCM Doc -> TCM Doc -> TCM Doc #-}
+($$ ) = liftA2 (P.$$)   ; {-# INLINE ($$)  #-}
+($+$) = liftA2 (P.$+$)  ; {-# INLINE ($+$) #-}
+(<+>) = liftA2 (P.<+>)  ; {-# INLINE (<+>) #-}
+(<?>) = liftA2 (P.<?>)  ; {-# INLINE (<?>) #-}
 
 nest :: Functor m => Int -> m Doc -> m Doc
-nest = fmap . P.nest    ; {-# INLINE nest  #-}; {-# SPECIALIZE nest  :: Int -> TCM Doc -> TCM Doc #-}
+nest = fmap . P.nest    ; {-# INLINE nest  #-}
 
 braces, dbraces, brackets, parens, parensNonEmpty
   , doubleQuotes, quotes :: Functor m => m Doc -> m Doc
-braces         = fmap P.braces         ; {-# INLINE braces         #-} ; {-# SPECIALIZE braces         :: TCM Doc -> TCM Doc #-}
-dbraces        = fmap CP.dbraces       ; {-# INLINE dbraces        #-} ; {-# SPECIALIZE dbraces        :: TCM Doc -> TCM Doc #-}
-brackets       = fmap P.brackets       ; {-# INLINE brackets       #-} ; {-# SPECIALIZE brackets       :: TCM Doc -> TCM Doc #-}
-parens         = fmap P.parens         ; {-# INLINE parens         #-} ; {-# SPECIALIZE parens         :: TCM Doc -> TCM Doc #-}
-parensNonEmpty = fmap P.parensNonEmpty ; {-# INLINE parensNonEmpty #-} ; {-# SPECIALIZE parensNonEmpty :: TCM Doc -> TCM Doc #-}
-doubleQuotes   = fmap P.doubleQuotes   ; {-# INLINE doubleQuotes   #-} ; {-# SPECIALIZE doubleQuotes   :: TCM Doc -> TCM Doc #-}
-quotes         = fmap P.quotes         ; {-# INLINE quotes         #-} ; {-# SPECIALIZE quotes         :: TCM Doc -> TCM Doc #-}
+braces         = fmap P.braces         ; {-# INLINE braces         #-}
+dbraces        = fmap CP.dbraces       ; {-# INLINE dbraces        #-}
+brackets       = fmap P.brackets       ; {-# INLINE brackets       #-}
+parens         = fmap P.parens         ; {-# INLINE parens         #-}
+parensNonEmpty = fmap P.parensNonEmpty ; {-# INLINE parensNonEmpty #-}
+doubleQuotes   = fmap P.doubleQuotes   ; {-# INLINE doubleQuotes   #-}
+quotes         = fmap P.quotes         ; {-# INLINE quotes         #-}
 
 pshow :: (Applicative m, Show a) => a -> m Doc
-pshow = pure . P.pshow                 ; {-# INLINE pshow          #-} ; {-# SPECIALIZE pshow          :: Show a => a -> TCM Doc #-}
+pshow = pure . P.pshow                 ; {-# INLINE pshow          #-}
 
 pluralS :: (Functor m, Sized a) => a -> m Doc -> m Doc
-pluralS = fmap . P.pluralS             ; {-# INLINE pluralS        #-} ; {-# SPECIALIZE pluralS        :: Sized a => a -> TCM Doc -> TCM Doc #-}
+pluralS = fmap . P.pluralS             ; {-# INLINE pluralS        #-}
 
 -- | Comma-separated list in brackets.
-{-# SPECIALIZE prettyList :: Foldable t => t (TCM Doc) -> TCM Doc #-}
+{-# INLINE prettyList #-}
 prettyList :: (Applicative m, Foldable t) => t (m Doc) -> m Doc
-prettyList = fmap P.pretty . sequenceA . Fold.toList
+prettyList = fmap P.pretty . sequenceAFoldable
 
 -- | 'prettyList' without the brackets.
-{-# SPECIALIZE prettyList_ :: Foldable t => t (TCM Doc) -> TCM Doc #-}
+{-# SPECIALIZE prettyList_ :: [TCM Doc]       -> TCM Doc #-}
+{-# SPECIALIZE prettyList_ :: List1 (TCM Doc) -> TCM Doc #-}
 prettyList_ :: (Applicative m, Semigroup (m Doc), Foldable t) => t (m Doc) -> m Doc
 prettyList_ = fsep . punctuate comma
 
 {-# INLINABLE punctuate #-}
-{-# SPECIALIZE punctuate :: Foldable t => TCM Doc -> t (TCM Doc) -> [TCM Doc] #-}
+{-# SPECIALIZE punctuate :: TCM Doc -> [TCM Doc] -> [TCM Doc] #-}
+{-# SPECIALIZE punctuate :: TCM Doc -> List1 (TCM Doc) -> [TCM Doc] #-}
 punctuate :: (Applicative m, Semigroup (m Doc), Foldable t) => m Doc -> t (m Doc) -> [m Doc]
 punctuate d ts
   | null ds   = []
@@ -186,28 +191,28 @@ class PrettyTCM a where
 prettyTCMCtx :: (PrettyTCM a, MonadPretty m) => Precedence -> a -> m Doc
 prettyTCMCtx p = withContextPrecedence p . prettyTCM
 
-instance {-# OVERLAPPING #-} PrettyTCM String where prettyTCM = text   ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: String             -> TCM Doc #-}
-instance PrettyTCM Text                       where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: Text               -> TCM Doc #-}
-instance PrettyTCM Bool                       where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: Bool               -> TCM Doc #-}
-instance PrettyTCM C.Name                     where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: C.Name             -> TCM Doc #-}
-instance PrettyTCM C.QName                    where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: C.QName            -> TCM Doc #-}
-instance PrettyTCM C.ImportedName             where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: C.ImportedName     -> TCM Doc #-}
-instance PrettyTCM C.LHS                      where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: C.LHS              -> TCM Doc #-}
-instance PrettyTCM TopLevelModuleName         where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: TopLevelModuleName -> TCM Doc #-}
-instance PrettyTCM Comparison                 where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: Comparison         -> TCM Doc #-}
-instance PrettyTCM Literal                    where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: Literal            -> TCM Doc #-}
-instance PrettyTCM Nat                        where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: Nat                -> TCM Doc #-}
-instance PrettyTCM ProblemId                  where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: ProblemId          -> TCM Doc #-}
-instance PrettyTCM Range                      where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: Range              -> TCM Doc #-}
-instance PrettyTCM CheckpointId               where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: CheckpointId       -> TCM Doc #-}
-instance PrettyTCM InteractionId              where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: InteractionId      -> TCM Doc #-}
-instance PrettyTCM Relevance                  where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: Relevance          -> TCM Doc #-}
-instance PrettyTCM Quantity                   where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: Quantity           -> TCM Doc #-}
-instance PrettyTCM Erased                     where prettyTCM = pretty ; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: Erased             -> TCM Doc #-}
+instance {-# OVERLAPPING #-} PrettyTCM String where prettyTCM = text   ; {-# INLINE prettyTCM #-}
+instance PrettyTCM Text                       where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM Bool                       where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM C.Name                     where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM C.QName                    where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM C.ImportedName             where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM C.LHS                      where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM TopLevelModuleName         where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM Comparison                 where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM Literal                    where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM Nat                        where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM ProblemId                  where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM Range                      where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM CheckpointId               where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM InteractionId              where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM Relevance                  where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM Quantity                   where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM Erased                     where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
 
-instance PrettyTCM A.Expr                     where prettyTCM = prettyA; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: A.Expr             -> TCM Doc #-}
-instance PrettyTCM A.Pattern                  where prettyTCM = prettyA; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: A.Pattern          -> TCM Doc #-}
-instance PrettyTCM A.TypedBinding             where prettyTCM = prettyA; {-# INLINE prettyTCM #-} ; {-# SPECIALIZE prettyTCM :: A.TypedBinding     -> TCM Doc #-}
+instance PrettyTCM A.Expr                     where prettyTCM = prettyA; {-# INLINE prettyTCM #-}
+instance PrettyTCM A.Pattern                  where prettyTCM = prettyA; {-# INLINE prettyTCM #-}
+instance PrettyTCM A.TypedBinding             where prettyTCM = prettyA; {-# INLINE prettyTCM #-}
 
 instance PrettyTCM Term               where prettyTCM = prettyA <=< reify         ; {-# SPECIALIZE prettyTCM :: Term              -> TCM Doc #-}
 instance PrettyTCM Type               where prettyTCM = prettyA <=< reify         ; {-# SPECIALIZE prettyTCM :: Type              -> TCM Doc #-}
@@ -534,7 +539,7 @@ instance (PrettyTCM n, PrettyTCMWithNode e) => PrettyTCM (Graph n e) where
         [ prettyTCM n
         , nest 2 $ vcat $ map (prettyTCMWithNode . uncurry WithNode) $ Map.assocs es
         ]
-{-# SPECIALIZE prettyTCM :: (PrettyTCM n, PrettyTCMWithNode e) => (Graph n e) -> TCM Doc #-}
+{-# SPECIALIZE NOINLINE prettyTCM :: (PrettyTCM n, PrettyTCMWithNode e) => (Graph n e) -> TCM Doc #-}
 
 instance PrettyTCM SplitTag where
   prettyTCM (SplitCon c)  = prettyTCM c
