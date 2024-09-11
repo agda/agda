@@ -2130,8 +2130,8 @@ instance ToAbstract NiceDeclaration where
             VarName a (PatternBound h')
               | isInstance h, not (isInstance h') -> err $ IllegalInstanceVariableInPatternSynonym x
               | otherwise -> return $ WithHiding h a
-            ConstructorName _ ys -> err $ PatternSynonymArgumentShadowsConstructorOrPatternSynonym IsLHS x ys
-            PatternSynResName ys -> err $ PatternSynonymArgumentShadowsConstructorOrPatternSynonym IsPatSyn x ys
+            ConstructorName _ ys -> err $ PatternSynonymArgumentShadows IsConstructor x ys
+            PatternSynResName ys -> err $ PatternSynonymArgumentShadows IsPatternSynonym x ys
             UnknownName -> err $ UnusedVariableInPatternSynonym x
             -- Other cases are impossible because parsing the pattern syn rhs would have failed.
             _ -> __IMPOSSIBLE__

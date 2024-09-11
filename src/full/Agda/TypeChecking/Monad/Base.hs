@@ -4985,7 +4985,7 @@ data TypeError
             --   but not on the rhs.
             --   This is forbidden because expansion of pattern synonyms would not be faithful
             --   to availability of instances in instance search.
-        | PatternSynonymArgumentShadowsConstructorOrPatternSynonym LHSOrPatSyn C.Name (List1 AbstractName)
+        | PatternSynonymArgumentShadows ConstructorOrPatternSynonym C.Name (List1 AbstractName)
             -- ^ A variable to be bound in the pattern synonym resolved on the rhs as name of
             --   a constructor or a pattern synonym.
             --   The resolvents are given in the list.

@@ -212,7 +212,7 @@ data ErrorName
   | OverlappingProjects_
   | PatternInPathLambda_
   | PatternInSystem_
-  | PatternSynonymArgumentShadowsConstructorOrPatternSynonym_
+  | PatternSynonymArgumentShadows_ ConstructorOrPatternSynonym
   | PrivateRecordField_
   | ProjectionIsIrrelevant_
   | QualifiedLocalModule_
@@ -386,6 +386,7 @@ errorNameString = \case
   NotAllowedInDotPatterns_ err -> "NotAllowedInDotPatterns." ++ notAllowedInDotPatternsString err
   NotAValidLetBinding_    merr -> applyWhenJust merr (\ err hd -> hd ++ "." ++ notAValidLetBindingString err) "NotAValidLetBinding"
   NotAValidLetExpression_  err -> "NotAValidLetExpression." ++ notAValidLetExpressionString err
+  PatternSynonymArgumentShadows_ err -> "PatternSynonymArgumentShadows." ++ constructorOrPatternSynonymNameString err
   err -> defaultErrorNameString err
 
 constructorOrPatternSynonymNameString :: ConstructorOrPatternSynonym -> String

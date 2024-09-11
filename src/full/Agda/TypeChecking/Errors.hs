@@ -987,14 +987,12 @@ instance PrettyTCM TypeError where
       , [pretty x]
       ]
 
-    PatternSynonymArgumentShadowsConstructorOrPatternSynonym kind x (y :| _ys) -> vcat
+    PatternSynonymArgumentShadows kind x (y :| _ys) -> vcat
       [ fsep $ concat
         [ pwords "Pattern synonym variable"
         , [ pretty x ]
         , [ "shadows" ]
-        , case kind of
-            IsLHS -> [ "constructor" ]
-            IsPatSyn -> pwords "pattern synonym"
+        , [ pretty kind ]
         , pwords "defined at:"
         ]
       , pretty $ nameBindingSite $ qnameName $ anameName y

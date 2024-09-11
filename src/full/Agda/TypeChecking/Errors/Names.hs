@@ -28,6 +28,7 @@ typeErrorName = \case
   NotAllowedInDotPatterns what -> NotAllowedInDotPatterns_ what
   NotAValidLetBinding     what -> NotAValidLetBinding_     what
   NotAValidLetExpression  what -> NotAValidLetExpression_  what
+  PatternSynonymArgumentShadows what _ _ -> PatternSynonymArgumentShadows_ what
   -- Wrappers
   OperatorInformation _    err -> typeErrorName err
   -- Generic errors (alphabetically)
@@ -166,7 +167,6 @@ typeErrorName = \case
   OverlappingProjects                                        {} -> OverlappingProjects_
   PatternInPathLambda                                        {} -> PatternInPathLambda_
   PatternInSystem                                            {} -> PatternInSystem_
-  PatternSynonymArgumentShadowsConstructorOrPatternSynonym   {} -> PatternSynonymArgumentShadowsConstructorOrPatternSynonym_
   PrivateRecordField                                         {} -> PrivateRecordField_
   ProjectionIsIrrelevant                                     {} -> ProjectionIsIrrelevant_
   QualifiedLocalModule                                       {} -> QualifiedLocalModule_
