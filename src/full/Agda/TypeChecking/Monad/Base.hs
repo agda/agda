@@ -3092,6 +3092,12 @@ isEmptyFunction def =
     Function { funClauses = [] } -> True
     _ -> False
 
+isExtendedLambda :: Defn -> Bool
+isExtendedLambda def =
+  case def of
+    Function { funExtLam = Just{} } -> True
+    _ -> False
+
 isCopatternLHS :: [Clause] -> Bool
 isCopatternLHS = List.any (List.any (isJust . A.isProjP) . namedClausePats)
 
