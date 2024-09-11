@@ -4413,9 +4413,9 @@ data Warning
     -- ^ Out of scope error we can recover from.
   | UnsupportedIndexedMatch Doc
     -- ^ Was not able to compute a full equivalence when splitting.
-  | AsPatternShadowsConstructorOrPatternSynonym LHSOrPatSyn
-    -- ^ The as-name in an as-pattern may not shadow a constructor ('IsLHS')
-    --   or pattern synonym name ('IsPatSyn'),
+  | AsPatternShadowsConstructorOrPatternSynonym ConstructorOrPatternSynonym
+    -- ^ The as-name in an as-pattern may not shadow a constructor
+    --   or pattern synonym name,
     --   because this can be confusing to read.
   | PatternShadowsConstructor C.Name A.QName
     -- ^ A pattern variable has the name of a constructor

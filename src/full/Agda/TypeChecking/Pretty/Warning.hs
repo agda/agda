@@ -512,10 +512,8 @@ prettyWarning = \case
         s = P.prettyShow x
 
     AsPatternShadowsConstructorOrPatternSynonym patsyn -> fsep $ concat
-      [ pwords "Name bound in @-pattern ignored because it shadows"
-      , case patsyn of
-          IsPatSyn -> pwords "pattern synonym"
-          IsLHS    -> [ "constructor" ]
+      [ pwords "Name bound in @-pattern ignored because it shadows a"
+      , [ pure $ P.pretty patsyn ]
       ]
 
     PatternShadowsConstructor x c -> fsep $

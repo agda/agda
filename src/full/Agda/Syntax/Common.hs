@@ -126,6 +126,22 @@ instance NFData Language
 type BackendName = Text
 
 ---------------------------------------------------------------------------
+-- * Some enums
+---------------------------------------------------------------------------
+
+-- | Distinguish constructors from pattern synonyms.
+
+data ConstructorOrPatternSynonym = IsConstructor | IsPatternSynonym
+  deriving (Show, Generic, Enum, Bounded)
+
+instance Pretty ConstructorOrPatternSynonym where
+  pretty = \case
+    IsConstructor    -> "constructor"
+    IsPatternSynonym -> "pattern synonym"
+
+instance NFData ConstructorOrPatternSynonym
+
+---------------------------------------------------------------------------
 -- * Record Directives
 ---------------------------------------------------------------------------
 

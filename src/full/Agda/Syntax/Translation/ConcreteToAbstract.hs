@@ -3298,8 +3298,8 @@ instance ToAbstract C.Pattern where
         -- x <- bindPatternVariable x
       toAbstract (PatName (C.QName x) Nothing empty) >>= \case
         VarPatName x        -> A.AsP (PatRange r) (A.mkBindName x) <$> toAbstract p
-        ConPatName{}        -> ignoreAsPat IsLHS
-        PatternSynPatName{} -> ignoreAsPat IsPatSyn
+        ConPatName{}        -> ignoreAsPat IsConstructor
+        PatternSynPatName{} -> ignoreAsPat IsPatternSynonym
       where
       -- An @-bound name which shadows a constructor is illegal and becomes dead code.
       ignoreAsPat b = do

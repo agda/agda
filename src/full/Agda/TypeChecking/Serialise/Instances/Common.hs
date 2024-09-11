@@ -160,6 +160,8 @@ instance EmbPrj Bool where
   value 1 = pure True
   value _ = malformed
 
+instance EmbPrj ConstructorOrPatternSynonym
+
 instance EmbPrj FileType where
   icod_ AgdaFileType  = pure 0
   icod_ MdFileType    = pure 1
