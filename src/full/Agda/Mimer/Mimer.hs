@@ -473,6 +473,7 @@ collectComponents opts costs ii mDefName whereNames metaId = do
 
     go' comps qname info
       | isExtendedLambda (theDef info) = return comps    -- We can't use pattern lambdas as components
+      | isWithFunction   (theDef info) = return comps    -- or with functions
       | otherwise = do
         typ <- typeOfConst qname
         scope <- getScope

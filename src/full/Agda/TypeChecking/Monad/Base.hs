@@ -3098,6 +3098,12 @@ isExtendedLambda def =
     Function { funExtLam = Just{} } -> True
     _ -> False
 
+isWithFunction :: Defn -> Bool
+isWithFunction def =
+  case def of
+    Function { funWith = Just{} } -> True
+    _ -> False
+
 isCopatternLHS :: [Clause] -> Bool
 isCopatternLHS = List.any (List.any (isJust . A.isProjP) . namedClausePats)
 
