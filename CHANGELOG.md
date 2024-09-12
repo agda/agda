@@ -30,11 +30,15 @@ Bug fixes
 * Fixed an internal error related to interface files
   ([Issue #7436](https://github.com/agda/agda/issues/7436)).
 
-* Fixed an internal error in Mimer
-  ([Issue #7402](https://github.com/agda/agda/issues/7402)).
+* Fixed two internal errors in Mimer:
+  ([Issue #7402](https://github.com/agda/agda/issues/7402) and
+  [Issue #7484](https://github.com/agda/agda/issues/7484)).
 
 * Fixed a regression causing needless re-checking of files
   ([Issue #7199](https://github.com/agda/agda/issues/7199)).
+
+* Improved printing of terms by fixing a display form bug
+  ([PR #7480](https://github.com/agda/agda/issues/7480)).
 
 List of closed issues
 ---------------------
@@ -50,6 +54,7 @@ For 2.7.0.1, the following issues were
 - [Issue #7443](https://github.com/agda/agda/issues/7443): `--exact-split` is not default in 2.7.0, contrary to claims
 - [Issue #7452](https://github.com/agda/agda/issues/7452): Performance regression caused by making `--save-metas` the default
 - [Issue #7455](https://github.com/agda/agda/issues/7455): Both stack and cabal fail to install Agda
+- [Issue #7484](https://github.com/agda/agda/issues/7484): Internal error using Mimer in where block
 
 These pull requests were merged for 2.7.0.1:
 
@@ -63,3 +68,5 @@ These pull requests were merged for 2.7.0.1:
 - [PR #7471](https://github.com/agda/agda/issues/7471): setup: Don't assume exe is built on --lib
 - [PR #7475](https://github.com/agda/agda/issues/7475): Hotfix for #7442
 - [PR #7476](https://github.com/agda/agda/issues/7476): Bump std-lib to latest (v2.1.1) and cubical to latest
+- [PR #7480](https://github.com/agda/agda/issues/7480): Match display forms in the right context
+- [PR #7487](https://github.com/agda/agda/issues/7487): Mimer shouldn't try to use existing pattern lambdas in solutions
