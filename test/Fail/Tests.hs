@@ -20,6 +20,7 @@ import Test.Tasty.Silver.Advanced
 import Utils
 
 import Agda.Utils.Functor ((<&>), for)
+import Test.Tasty.Silver.Filter (RegexFilter (RFInclude))
 
 testDir :: FilePath
 testDir = "test" </> "Fail"
@@ -93,6 +94,30 @@ caseInsensitiveFileSystem4671 = do
     goldenFileSens    = dir </> "Issue4671.err.case-sensitive"
     goldenFileInsens  = dir </> "Issue4671.err.case-insensitive"
     goldenFileInsens' = dir </> "Issue4671.err.cAsE-inSensitive" -- case variant, to test file system
+
+
+-- | Filtering out fail-tests that require Agda built with -fdebug.
+
+fdebugTestFilter :: [RegexFilter]
+fdebugTestFilter =
+-- This list was crafted using
+--    grep -RP '(?<!-- ){-# OPTIONS.* -v' | grep Fail/
+--  and screening the results (e.g. for comments)
+  [ disable "Fail/Issue3590-2"
+  , disable "Fail/IndexInference"
+  , disable "Fail/DebugWith"
+  , disable "Fail/ImpossibleVerbose"
+  , disable "Fail/ConstructorHeadedPointlessForRecordPatterns"
+  , disable "Fail/Issue3590-1"
+  , disable "Fail/Issue1303"
+  , disable "Fail/ImpossibleVerboseReduceM"
+  , disable "Fail/Issue2018debug"
+  , disable "Fail/Issue1963DisplayWithPostfixCopattern"
+  , disable "Fail/Optimised-open"
+  , disable "Fail/Optimised-open"
+  , disable "Fail/Issue4175"
+  ]
+  where disable = RFInclude
 
 issue6465 :: TestTree
 issue6465 =

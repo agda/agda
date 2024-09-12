@@ -13,9 +13,23 @@ import System.Exit
 
 import Agda.Utils.Monad
 import Utils
+import Test.Tasty.Silver.Filter (RegexFilter (RFInclude))
 
 testDir :: FilePath
 testDir = "test" </> "Interactive"
+
+-- | Filtering out interaction tests that require Agda built with -fdebug.
+
+fdebugTestFilter :: [RegexFilter]
+fdebugTestFilter =
+-- This list was crafted using
+--    grep -RP '(?<!-- ){-# OPTIONS.* -v' | grep interaction/
+--  and screening the results (e.g. for comments)
+  [ disable "interaction/Debug"
+  , disable "interaction/Issue1353"
+  , disable "interaction/Positivity"
+  ]
+  where disable = RFInclude
 
 tests :: TestTree
 tests = testGroup "Interactive"

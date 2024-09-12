@@ -19,31 +19,49 @@ import System.Environment (getEnvironment)
 import System.Exit
 
 import Utils
+import Control.Monad (when)
+import qualified Data.Text as T
 
 main :: IO ()
 main = do
-  doesEnvContain "AGDA_BIN" >>= \case
-    True  -> TM.defaultMain1 disabledTests =<< tests
-    False -> do
-      putStrLn $ unlines
-        [ "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
-        , "@ The AGDA_BIN environment variable is not set.                             @"
-        , "@ Maybe you are running 'cabal test' or 'cabal v1-install --runtests'?      @"
-        , "@ This will only run parts of the Agda test-suite.                          @"
-        , "@ The preferred way of running the tests is via the Makefile ('make test'). @"
-        , "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+  -- Detect properties of Agda build
+  agdaBin <- getAgdaBin <$> getEnvironment
+  agdaBinExists <- doesCommandExist agdaBin
+  builtWithMakefile <- doesEnvContain "AGDA_BIN"
+  builtWithFDebug <- wasAgdaCompiledWithFDebug
+  -- Warn/err about un-recommended builds
+  when (not agdaBinExists) do
+      putStrLn $ unwords ["Could not find executable", agdaBin ]
+      exitFailure
+  when (not builtWithMakefile) do
+    putStrLn $ unlines
+      [ "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+      , "@ The AGDA_BIN environment variable is not set.                             @"
+      , "@ Maybe you are running 'cabal test' or 'cabal v1-install --runtests'?      @"
+      , "@ This will only run parts of the Agda test-suite.                          @"
+      , "@ The preferred way of running the tests is via the Makefile ('make test'). @"
+      , "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+      ]
+  when (not builtWithFDebug) do
+    putStrLn $ unlines
+      [ "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+      , "@ Detected an Agda built without the '-fdebug' cabal flag,                  @"
+      , "@ tests that rely on debugging output will be skipped.                      @"
+      , "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+      ]
+  -- Calcualte tests to disable
+  let disabledTests = concat
+        [ if not builtWithFDebug   then fdebugTestFilter       else []
+        , if not builtWithMakefile then testsWithSystemDeps    else []
+        , if not builtWithMakefile then makefileDependentTests else []
+        , alwaysDisabledTests
         ]
-      agdaBin <- getAgdaBin <$> getEnvironment
-      doesCommandExist agdaBin >>= \case
-        True ->
-          TM.defaultMain1 cabalDisabledTests =<< tests
-        False -> do
-          putStrLn $ unwords ["Could not find executable", agdaBin ]
-          exitFailure
+  -- Run tests
+  TM.defaultMain1 disabledTests =<< allTests
 
 -- | All tests covered by the tasty testsuite.
-tests :: IO TestTree
-tests = do
+allTests :: IO TestTree
+allTests = do
   testGroup "all" {- . concat -} <$> do
     sequence $
       -- N.B.: This list is written using (:) so that lines can be swapped easily:
@@ -66,13 +84,23 @@ tests = do
   -- sg m = (:[]) <$> m
   -- pu x = pure [x]
 
--- | Filtering out tests for @cabal test@.
+-- | Tests that require Agda built with -fdebug.
 
-cabalDisabledTests :: [RegexFilter]
-cabalDisabledTests = concat
-  [ disabledTests
-  , makefileDependentTests
-  , LATEXHTML.latexTests
+fdebugTestFilter :: [RegexFilter]
+fdebugTestFilter = concat
+  [   SUCCEED.fdebugTestFilter
+  ,   FAIL.fdebugTestFilter
+  ,   COMPILER.fdebugTestFilter
+  ,   INTERACTIVE.fdebugTestFilter
+  ]
+
+-- | Tests with system dependencies
+-- (note that this list is not complete:
+--  some tests include ad-hoc checks, e.g. for NodeJS)
+
+testsWithSystemDeps :: [RegexFilter]
+testsWithSystemDeps = concat
+  [ LATEXHTML.latexTests
   , LATEXHTML.icuTests
   , COMPILER.stdlibTestFilter
   ]
@@ -82,8 +110,9 @@ cabalDisabledTests = concat
 makefileDependentTests :: [RegexFilter]
 makefileDependentTests = SUCCEED.makefileDependentTests
 
-disabledTests :: [RegexFilter]
-disabledTests = concat
+-- | Tests that are always disabled
+alwaysDisabledTests :: [RegexFilter]
+alwaysDisabledTests = concat
   [ COMPILER.disabledTests
   , LIBSUCCEED.disabledTests
   , LATEXHTML.disabledTests

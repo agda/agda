@@ -401,3 +401,14 @@ goldenVsAction' name ref act toTxt =
     textDiff
     ShowText
     (BS.writeFile ref . encodeUtf8)
+
+-- | Scrapes the output of @agda --version@
+-- to determine whether agda was built with or without
+-- the @-fdebug@ cabal flag.
+wasAgdaCompiledWithFDebug :: IO Bool
+wasAgdaCompiledWithFDebug = do
+  (_code , out, _err) <-
+    readAgdaProcessWithExitCode
+      Nothing ["--version"] ""
+  let flines = dropWhile (/= "Built with flags (cabal -f)") $ T.lines out
+  return $ " - debug: enable debug printing ('-v' verbosity flags)" `elem` flines
