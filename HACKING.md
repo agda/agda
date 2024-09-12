@@ -180,6 +180,10 @@ Testing and documentation
     * You can also add `.flags` files to set Agda options.
     * You can also add `.vars` files to set environment variables (which may reference other environment variables, even those in the file appearing before them).
 
+* Track the dependencies of your test:
+  * Need Agda compiled with `-fdebug`? Add to `fdebugTestFilter` in `Main.hs`.
+  * Need other misc. setup by the `Makefile`? Add to `makefileDependentTests` in `Main.hs`.
+  * Need `node`, `ghc`, `latexmk`, etc.? Choose the appropriate sub-directory.
 
 * Run the test-suite, using `make test`.
   Maybe you want to build Agda first, using `make` or `make install-bin`.

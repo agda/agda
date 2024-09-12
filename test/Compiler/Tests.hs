@@ -111,6 +111,24 @@ disabledTests =
   ]
   where disable = RFInclude
 
+-- | Filtering out compiler tests that require Agda built with -fdebug.
+
+fdebugTestFilter :: [RegexFilter]
+fdebugTestFilter =
+-- This list was crafted using
+--    grep -RP '(?<!-- ){-# OPTIONS.* -v' | grep Compiler/
+--  and screening the results (e.g. for comments)
+  [ disable "Compiler/simple/UnusedArguments"
+  , disable "Compiler/simple/EraseRefl"
+  , disable "Compiler/simple/InlineRecursive"
+  , disable "Compiler/simple/Word"
+  , disable "Compiler/simple/CompileNumbers"
+  , disable "Compiler/simple/CaseOnCase"
+  , disable "Compiler/simple/CompareNat"
+  , disable "Compiler/simple/CompileCatchAll"
+  ]
+  where disable = RFInclude
+
 -- | Filtering out compiler tests using the Agda standard library.
 
 stdlibTestFilter :: [RegexFilter]
