@@ -39,6 +39,8 @@
               py3pkgs.sphinx
               py3pkgs.sphinx_rtd_theme
             ]))
+            # Tools for running the agda test-suite
+            pkgs.nodejs_22
           ];
 
         # Include an offline-usable `hoogle` command
