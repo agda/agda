@@ -33,6 +33,30 @@ Target of NOINLINE pragma should be a function or constructor
 when scope checking the declaration
   {-# NOINLINE Set1 #-}
 
+Issue7245.agda:12,1-36: warning: -W[no]UselessPragma
+ETA pragma is only applicable to coinductive records
+when checking the pragma ETA foo
+
+Issue7245.agda:14,1-36: warning: -W[no]UselessPragma
+INJECTIVE_FOR_INFERENCE directive only applies to functions
+when checking the pragma INJECTIVE_FOR_INFERENCE foo
+
+Issue7245.agda:15,1-36: warning: -W[no]UselessPragma
+STATIC directive only applies to functions
+when checking the pragma STATIC foo
+
+Issue7245.agda:16,1-36: warning: -W[no]UselessPragma
+NOT_PROJECTION_LIKE directive only applies to functions
+when checking the pragma NOT_PROJECTION_LIKE foo
+
+Issue7245.agda:17,1-36: warning: -W[no]UselessPragma
+INLINE directive only works on functions or constructors of records that allow copattern matching
+when checking the pragma INLINE foo
+
+Issue7245.agda:18,1-36: warning: -W[no]UselessPragma
+NOINLINE directive only works on functions or constructors of records that allow copattern matching
+when checking the pragma NOINLINE foo
+
 Issue7245.agda:26,1-34: warning: -W[no]PragmaExpectsDefinedSymbol
 Target of ETA pragma should be a defined symbol
 when scope checking the declaration
@@ -116,30 +140,6 @@ Not in scope:
   at Issue7245.agda:40,29-41
 when scope checking the declaration
   {-# NOINLINE not-in-scope #-}
-
-Issue7245.agda:12,1-36: warning: -W[no]UselessPragma
-ETA pragma is only applicable to coinductive records
-when checking the pragma ETA foo
-
-Issue7245.agda:14,1-36: warning: -W[no]UselessPragma
-INJECTIVE_FOR_INFERENCE directive only applies to functions
-when checking the pragma INJECTIVE_FOR_INFERENCE foo
-
-Issue7245.agda:15,1-36: warning: -W[no]UselessPragma
-STATIC directive only applies to functions
-when checking the pragma STATIC foo
-
-Issue7245.agda:16,1-36: warning: -W[no]UselessPragma
-NOT_PROJECTION_LIKE directive only applies to functions
-when checking the pragma NOT_PROJECTION_LIKE foo
-
-Issue7245.agda:17,1-36: warning: -W[no]UselessPragma
-INLINE directive only works on functions or constructors of records that allow copattern matching
-when checking the pragma INLINE foo
-
-Issue7245.agda:18,1-36: warning: -W[no]UselessPragma
-NOINLINE directive only works on functions or constructors of records that allow copattern matching
-when checking the pragma NOINLINE foo
 
 ———— All done; warnings encountered ————————————————————————
 
@@ -178,6 +178,30 @@ Target of NOINLINE pragma should be a function or constructor
 when scope checking the declaration
   {-# NOINLINE Set1 #-}
 
+Issue7245.agda:12,1-36: warning: -W[no]UselessPragma
+ETA pragma is only applicable to coinductive records
+when checking the pragma ETA foo
+
+Issue7245.agda:14,1-36: warning: -W[no]UselessPragma
+INJECTIVE_FOR_INFERENCE directive only applies to functions
+when checking the pragma INJECTIVE_FOR_INFERENCE foo
+
+Issue7245.agda:15,1-36: warning: -W[no]UselessPragma
+STATIC directive only applies to functions
+when checking the pragma STATIC foo
+
+Issue7245.agda:16,1-36: warning: -W[no]UselessPragma
+NOT_PROJECTION_LIKE directive only applies to functions
+when checking the pragma NOT_PROJECTION_LIKE foo
+
+Issue7245.agda:17,1-36: warning: -W[no]UselessPragma
+INLINE directive only works on functions or constructors of records that allow copattern matching
+when checking the pragma INLINE foo
+
+Issue7245.agda:18,1-36: warning: -W[no]UselessPragma
+NOINLINE directive only works on functions or constructors of records that allow copattern matching
+when checking the pragma NOINLINE foo
+
 Issue7245.agda:26,1-34: warning: -W[no]PragmaExpectsDefinedSymbol
 Target of ETA pragma should be a defined symbol
 when scope checking the declaration
@@ -261,27 +285,3 @@ Not in scope:
   at Issue7245.agda:40,29-41
 when scope checking the declaration
   {-# NOINLINE not-in-scope #-}
-
-Issue7245.agda:12,1-36: warning: -W[no]UselessPragma
-ETA pragma is only applicable to coinductive records
-when checking the pragma ETA foo
-
-Issue7245.agda:14,1-36: warning: -W[no]UselessPragma
-INJECTIVE_FOR_INFERENCE directive only applies to functions
-when checking the pragma INJECTIVE_FOR_INFERENCE foo
-
-Issue7245.agda:15,1-36: warning: -W[no]UselessPragma
-STATIC directive only applies to functions
-when checking the pragma STATIC foo
-
-Issue7245.agda:16,1-36: warning: -W[no]UselessPragma
-NOT_PROJECTION_LIKE directive only applies to functions
-when checking the pragma NOT_PROJECTION_LIKE foo
-
-Issue7245.agda:17,1-36: warning: -W[no]UselessPragma
-INLINE directive only works on functions or constructors of records that allow copattern matching
-when checking the pragma INLINE foo
-
-Issue7245.agda:18,1-36: warning: -W[no]UselessPragma
-NOINLINE directive only works on functions or constructors of records that allow copattern matching
-when checking the pragma NOINLINE foo

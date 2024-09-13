@@ -1045,6 +1045,18 @@ checkPragmaOptions opts = do
       "Cluster counting has not been enabled in this build of Agda."
 #endif
 
+  -- Check for unsafe combinations.  (See also TypeChecking.Monad.Options.setPragmaOptions.)
+
+  when (optSafe opts) $
+    unlessNull (unsafePragmaOptions opts) \ unsafe ->
+      throwError $ unwords
+        [ "Option --safe cannot be combined with"
+        , singPlural unsafe
+            (singPlural (words =<< unsafe) "option" "option combination")
+            "any of the options"
+        , intercalate ", " unsafe
+        ]
+
   -- Perform corrections in pragma options.
 
   return $ opts

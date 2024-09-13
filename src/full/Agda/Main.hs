@@ -13,6 +13,7 @@ import Control.Monad.IO.Class ( MonadIO(..) )
 
 import qualified Data.List as List
 import Data.Maybe
+import qualified Data.Set as Set
 import qualified Data.Text as T
 
 import System.Environment
@@ -243,10 +244,10 @@ runAgdaWithOptions interactor progName opts = do
           reportSDoc "main" 50 $ pretty i
 
           -- Print accumulated warnings
-          unlessNullM (tcWarnings . classifyWarnings <$> getAllWarnings AllWarnings) $ \ ws -> do
+          unlessNullM (tcWarnings . classifyWarnings . Set.toAscList <$> getAllWarnings AllWarnings) $ \ ws -> do
             let banner = text $ "\n" ++ delimiter "All done; warnings encountered"
             alwaysReportSDoc "warning" 1 $
-              vcat $ punctuate "\n" $ banner : (prettyTCM <$> ws)
+              vsep $ (banner :) $ map prettyTCM $ Set.toAscList ws
 
           return result
 

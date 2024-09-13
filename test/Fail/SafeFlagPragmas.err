@@ -1,5 +1,5 @@
-SafeFlagPragmas.agda:1,1-7,43: error: [SafeFlagPragma]
-Cannot set OPTIONS pragmas --allow-unsolved-metas
---no-positivity-check --no-termination-check --type-in-type
---sized-types --injective-type-constructors
---experimental-irrelevance with safe flag.
+SafeFlagPragmas.agda:1,1-7,43: error: [OptionError]
+Option --safe cannot be combined with any of the options
+--allow-unsolved-metas, --no-positivity-check,
+--no-termination-check, --type-in-type, --sized-types,
+--injective-type-constructors, --experimental-irrelevance

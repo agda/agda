@@ -27,6 +27,7 @@ import qualified Data.Char as Char
 import Data.Function (on)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Maybe
 
 import System.Directory
@@ -935,7 +936,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
         lift $ TCM.setCommandLineOptions' root $ mapPragmaOptions update opts
 
     -- Restore the warnings that were saved above.
-    modifyTCLens stTCWarnings (++ warnings)
+    modifyTCLens stTCWarnings $ Set.union warnings
 
     ok <- lift $ Imp.typeCheckMain mode src
 

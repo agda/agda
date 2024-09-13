@@ -10,7 +10,7 @@ module Agda.TypeChecking.Warnings
   , WhichWarnings(..), classifyWarning
   -- not exporting constructor of WarningsAndNonFatalErrors
   , WarningsAndNonFatalErrors, tcWarnings, nonFatalErrors
-  , emptyWarningsAndNonFatalErrors, classifyWarnings
+  , classifyWarnings
   , runPM
   ) where
 
@@ -46,6 +46,7 @@ import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate (highlightWarning)
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Function  ( applyUnless )
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 import qualified Agda.Syntax.Common.Pretty as P
 
 import Agda.Utils.Impossible
@@ -70,14 +71,8 @@ instance (MonadWarning m, Monoid w) => MonadWarning (WriterT w m)
 
 instance MonadWarning TCM where
   addWarning tcwarn = do
-    stTCWarnings `modifyTCLens` add w' tcwarn
+    stTCWarnings `modifyTCLens` Set.insert tcwarn
     highlightWarning tcwarn
-    where
-      w' = tcWarning tcwarn
-
-      add w tcwarn tcwarns
-        | onlyOnce w && elem tcwarn tcwarns = tcwarns -- Eq on TCWarning only checks head constructor
-        | otherwise                         = tcwarn : tcwarns
 
 -- * Raising warnings
 ---------------------------------------------------------------------------
@@ -104,7 +99,7 @@ warning'_ loc w = do
     , prettyWarning w
     , prettyTCM c
     ]
-  return $ TCWarning loc r w p b
+  return $ TCWarning loc r' w p (P.render p) b
 
 {-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}
 warning_ :: (HasCallStack, MonadWarning m) => Warning -> m TCWarning
@@ -135,7 +130,7 @@ warnings' loc ws = do
     else Nothing <$ addWarning tcwarn
 
   let errs = catMaybes merrs
-  unless (null errs) $ typeError' loc $ NonFatalErrors errs
+  unless (null errs) $ typeError' loc $ NonFatalErrors $ Set.fromList errs
 
 {-# SPECIALIZE warnings :: HasCallStack => [Warning] -> TCM () #-}
 warnings :: (HasCallStack, MonadWarning m) => [Warning] -> m ()
@@ -174,11 +169,6 @@ isMetaWarning = \case
 isMetaTCWarning :: TCWarning -> Bool
 isMetaTCWarning = isMetaWarning . tcWarning
 
--- | Should we only emit a single warning with this constructor.
-onlyOnce :: Warning -> Bool
-onlyOnce InversionDepthReached{} = True
-onlyOnce _ = False
-
 onlyShowIfUnsolved :: Warning -> Bool
 onlyShowIfUnsolved InversionDepthReached{} = True
 onlyShowIfUnsolved _ = False
@@ -197,13 +187,9 @@ classifyWarning w =
   then ErrorWarnings
   else AllWarnings
 
--- | The only way to construct a empty WarningsAndNonFatalErrors
-
-emptyWarningsAndNonFatalErrors :: WarningsAndNonFatalErrors
-emptyWarningsAndNonFatalErrors = WarningsAndNonFatalErrors [] []
-
 classifyWarnings :: [TCWarning] -> WarningsAndNonFatalErrors
-classifyWarnings ws = WarningsAndNonFatalErrors warnings errors
+classifyWarnings ws =
+    WarningsAndNonFatalErrors (Set.fromList warnings) (Set.fromList errors)
   where
     partite = (< AllWarnings) . classifyWarning . tcWarning
     (errors, warnings) = List.partition partite ws

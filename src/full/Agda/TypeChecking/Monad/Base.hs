@@ -13,6 +13,7 @@ module Agda.TypeChecking.Monad.Base
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
+import Control.Arrow                ( (&&&) )
 import qualified Control.Concurrent as C
 import Control.DeepSeq
 import qualified Control.Exception as E
@@ -309,7 +310,7 @@ data PostScopeState = PostScopeState
   , stPostStatistics          :: !Statistics
     -- ^ Counters to collect various statistics about meta variables etc.
     --   Only for current file.
-  , stPostTCWarnings          :: ![TCWarning]
+  , stPostTCWarnings          :: !(Set TCWarning)
   , stPostMutualBlocks        :: !(Map MutualId MutualBlock)
   , stPostLocalBuiltins       :: !(BuiltinThings PrimFun)
   , stPostFreshMetaId         :: !MetaId
@@ -783,7 +784,7 @@ stStatistics f s =
   f (stPostStatistics (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostStatistics = x}}
 
-stTCWarnings :: Lens' TCState [TCWarning]
+stTCWarnings :: Lens' TCState (Set TCWarning)
 stTCWarnings f s =
   f (stPostTCWarnings (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostTCWarnings = x}}
@@ -1034,7 +1035,7 @@ data ModuleCheckMode
 
 data ModuleInfo = ModuleInfo
   { miInterface  :: Interface
-  , miWarnings   :: [TCWarning]
+  , miWarnings   :: Set TCWarning
     -- ^ Warnings were encountered when the module was type checked.
     --   These might include warnings not stored in the interface itself,
     --   specifically unsolved interaction metas.
@@ -1105,7 +1106,7 @@ data Interface = Interface
     -- ^ Options/features used when checking the file (can be different
     --   from options set directly in the file).
   , iPatternSyns     :: A.PatternSynDefns
-  , iWarnings        :: [TCWarning]
+  , iWarnings        :: Set TCWarning
   , iPartialDefs     :: Set QName
   , iOpaqueBlocks    :: Map OpaqueId OpaqueBlock
   , iOpaqueNames     :: Map QName OpaqueId
@@ -4353,7 +4354,8 @@ data Warning
 
   -- Safe flag errors
   | SafeFlagPostulate C.Name
-  | SafeFlagPragma [String]                -- ^ Unsafe OPTIONS.
+  | SafeFlagPragma String
+      -- ^ Unsafe OPTIONS.
   | SafeFlagWithoutKFlagPrimEraseEquality
   | WithoutKFlagPrimEraseEquality
   | ConflictingPragmaOptions String String
@@ -4622,8 +4624,10 @@ data TCWarning
         -- ^ Range where the warning was raised
     , tcWarning         :: Warning
         -- ^ The warning itself
-    , tcWarningPrintedWarning :: Doc
+    , tcWarningDoc      :: Doc
         -- ^ The warning printed in the state and environment where it was raised
+    , tcWarningString   :: String
+        -- ^ Caches @render tcWarningDoc@ for the sake of an 'Ord' instance.
     , tcWarningCached :: Bool
         -- ^ Should the warning be affected by caching.
     }
@@ -4635,9 +4639,11 @@ tcWarningOrigin = rangeFile . tcWarningRange
 instance HasRange TCWarning where
   getRange = tcWarningRange
 
--- used for merging lists of warnings
 instance Eq TCWarning where
-  (==) = (==) `on` tcWarningPrintedWarning
+  (==) = (==) `on` tcWarningRange &&& tcWarningString
+
+instance Ord TCWarning where
+  compare = compare `on` tcWarningRange &&& tcWarningString
 
 ---------------------------------------------------------------------------
 -- * Type checking errors
@@ -5039,7 +5045,7 @@ data TypeError
         | NeedOptionTwoLevel
         | NeedOptionUniversePolymorphism
     -- Failure associated to warnings
-        | NonFatalErrors [TCWarning]
+        | NonFatalErrors (Set TCWarning)
     -- Instance search errors
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
@@ -5199,8 +5205,8 @@ instance E.Exception TCErr
 
 -- | Assorted warnings and errors to be displayed to the user
 data WarningsAndNonFatalErrors = WarningsAndNonFatalErrors
-  { tcWarnings     :: [TCWarning]
-  , nonFatalErrors :: [TCWarning]
+  { tcWarnings     :: Set TCWarning
+  , nonFatalErrors :: Set TCWarning
   }
 
 instance Null WarningsAndNonFatalErrors where
