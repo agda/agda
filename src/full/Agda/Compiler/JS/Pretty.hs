@@ -323,7 +323,7 @@ instance Pretty Module where
     , pretty opt callMain
     ]
     $+$ ""
-    where 
+    where
       imports = vcat [
         "var " <> indent (pretty opt e) <+> "=" <+> "require(\"" <> modname e <> "\");"
         | e <- toList (globals es <> Set.fromList is)
