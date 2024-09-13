@@ -1,3 +1,2 @@
-Issue6244.agda:4,1-44: error: [SafeFlagPragma]
-The --safe mode does not allow OPTIONS pragma
---no-load-primitives
+Issue6244.agda:4,1-44: error: [OptionError]
+Option --safe cannot be combined with option --no-load-primitives

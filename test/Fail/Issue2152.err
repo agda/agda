@@ -1,3 +1,8 @@
 error: [SafeFlagPragma]
-The --safe mode does not allow OPTIONS pragma
---allow-unsolved-metas
+Cannot set OPTIONS pragma --allow-unsolved-metas with safe flag.
+
+agda-default-include-path/Agda/Primitive.agda:3,1-72: error: [SafeFlagPragma]
+Cannot set OPTIONS pragma --allow-unsolved-metas with safe flag.
+
+error: [OptionError]
+Option --safe cannot be combined with option --allow-unsolved-metas
