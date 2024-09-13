@@ -2,6 +2,7 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   F (♭ x) = _20 (x = x) : I (blocked on _20)
   G x = _14 (x = x) : I (blocked on _14)
+
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue118Comment9.agda:17,11-12

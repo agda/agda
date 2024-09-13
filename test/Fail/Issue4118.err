@@ -1,9 +1,11 @@
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   a _ab_20 = a ab : A (blocked on _ab_20)
+
 error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
   Issue4118.agda:37,35-39
+
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue4118.agda:47,14-15

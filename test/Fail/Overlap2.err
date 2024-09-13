@@ -10,6 +10,7 @@ Failed to solve the following constraints:
     Extensional-default :
       {ℓ : Level} {A = A₁ : Type ℓ} → Extensional A₁ ℓ
     (stuck)
+
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Overlap2.agda:40,38-39

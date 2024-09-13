@@ -5,6 +5,7 @@ Failed to solve the following constraints:
     [overlaps] CIa : {a : Set} → C Int a
     [overlaps] CaI : {a : Set} → C a Int
     (stuck)
+
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Overlap1.agda:19,5-16

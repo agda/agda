@@ -1,5 +1,6 @@
 error: [UnsolvedConstraints]
 Unsolved constraints
+
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   InferRecordTypes-4.agda:17,1-4

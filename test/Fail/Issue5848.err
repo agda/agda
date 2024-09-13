@@ -8,6 +8,7 @@ Unsolved interaction metas at the following locations:
   Issue5848.agda:5,17-21
   Issue5848.agda:5,22-26
   Issue5848.agda:6,8-12
+
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue5848.agda:5,6-11

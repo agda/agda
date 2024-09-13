@@ -5,6 +5,7 @@ Failed to solve the following constraints:
     a₁ : A
     a₂ : A
     (stuck)
+
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   InstanceArgumentsAmbiguous.agda:8,8-9

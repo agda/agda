@@ -11,6 +11,7 @@ Failed to solve the following constraints:
       when checking that the pattern conC b has type
       C a1 (_11 (a1 = a1) (a2 = a2) (a3 = a3))
     (blocked on _11)
+
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2679c.agda:10,32-33

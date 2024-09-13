@@ -9,6 +9,7 @@ Failed to solve the following constraints:
         ?0 ≟ true
       when checking that the pattern c has type D true
     (blocked on _9)
+
 error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
   Issue707-data.agda:8,13-14

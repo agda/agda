@@ -6,6 +6,7 @@ Failed to solve the following constraints:
       Cannot split on argument of unresolved type _2
       when checking that the pattern record { f = a } has type _2
     (blocked on _2)
+
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   RecordPattern4.agda:8,8-9

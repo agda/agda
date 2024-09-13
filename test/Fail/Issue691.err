@@ -5,6 +5,7 @@ Failed to solve the following constraints:
     = true
     : Bool
     (blocked on _12)
+
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue691.agda:21,11-12

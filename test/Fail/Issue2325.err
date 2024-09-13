@@ -5,6 +5,7 @@ Failed to solve the following constraints:
     zero : Nat
     one : Nat
     (stuck)
+
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2325.agda:44,10-15

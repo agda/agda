@@ -13,6 +13,7 @@ Failed to solve the following constraints:
         [] ≟ b
       when checking that the pattern [] has type All₂ R a b
     (blocked on _k_61)
+
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2621.agda:16,70-76

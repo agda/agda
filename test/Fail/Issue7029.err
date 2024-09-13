@@ -4,9 +4,11 @@ when checking the pragma REWRITE UIP
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   ?0 = refl : x ≡ x (blocked on _6)
+
 error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
   Issue7029.agda:8,10-11
+
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue7029.agda:11,17-23

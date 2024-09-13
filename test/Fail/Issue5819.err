@@ -3,6 +3,7 @@ Unsolved interaction metas at the following locations:
   Issue5819.agda:108,48-52
   Issue5819.agda:108,56-60
   Issue5819.agda:120,25-45
+
 Issue5819.agda:72,1-120,45: error: [TerminationIssue]
 Termination checking failed for the following functions:
   dl-iso, Fresh→Fresh′, Fresh→AllFresh
