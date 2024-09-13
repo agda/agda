@@ -54,7 +54,7 @@ setPragmaOptions opts = do
   -- Check for unsafe pragma options if @--safe@ is on.
   when (Lens.getSafeMode opts) $
     unlessNull (unsafePragmaOptions opts) $ \ unsafe ->
-      warning $ SafeFlagPragma $ Set.fromList unsafe
+      mapM_ (warning . SafeFlagPragma) unsafe
 
   stPragmaOptions `setTCLens` opts
   updateBenchmarkingStatus

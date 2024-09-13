@@ -1,3 +1,2 @@
-Issue2442-conflicting.agda:1,1-46: error: [SafeFlagPragma]
-The --safe mode does not allow OPTIONS pragma
---no-termination-check
+Issue2442-conflicting.agda:1,1-46: error: [OptionError]
+Option --safe cannot be combined with option --no-termination-check

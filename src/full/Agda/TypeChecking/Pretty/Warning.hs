@@ -250,11 +250,12 @@ prettyWarning = \case
     SafeFlagPostulate e -> fsep $
       pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
 
-    SafeFlagPragma sset -> vcat $ concat
-      [ [ fwords $ singPlural (words =<< xs) id (++ "s") "The --safe mode does not allow OPTIONS pragma" ]
-      , map text xs
+    SafeFlagPragma s -> fsep $ concat
+      [ pwords "Cannot set OPTIONS"
+      , [ pluralS (words s) "pragma" ]
+      , pwords s
+      , pwords "with safe flag."
       ]
-      where xs = Set.toAscList sset
 
     SafeFlagWithoutKFlagPrimEraseEquality -> fsep (pwords "Cannot use primEraseEquality with safe and without-K flags.")
 
@@ -692,28 +693,19 @@ tcWarningsToError mws = case (unsolvedHoles, otherWarnings) of
 
 applyFlagsToTCWarningsPreserving :: HasOptions m => Set WarningName -> Set TCWarning -> m (Set TCWarning)
 applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
-  -- For some reason some SafeFlagPragma seem to be created multiple times.
-  -- This is a way to collect all of them and remove duplicates.
-  let pragmas w = case tcWarning w of { SafeFlagPragma ps -> ([w], ps); _ -> ([], empty) }
-  let sfp = case foldMap pragmas ws of
-              (TCWarning loc r w doc str b : _, sfp) ->
-                 singleton $ TCWarning loc r (SafeFlagPragma sfp) doc str b
-              _ -> empty
 
   pragmaWarnings <- (^. warningSet) . optWarningMode <$> pragmaOptions
   let warnSet = Set.union pragmaWarnings additionalKeptWarnings
 
   -- filter out the warnings the flags told us to ignore
-  let cleanUp w = let wName = warningName w in
-        wName /= SafeFlagPragma_
-        && wName `Set.member` warnSet
+  let keep w = warningName w `Set.member` warnSet
         && case w of
           UnsolvedMetaVariables ums    -> not $ null ums
           UnsolvedInteractionMetas uis -> not $ null uis
           UnsolvedConstraints ucs      -> not $ null ucs
           _                            -> True
 
-  return $ Set.union sfp $ Set.filter (cleanUp . tcWarning) ws
+  return $ Set.filter (keep . tcWarning) ws
 
 applyFlagsToTCWarnings :: HasOptions m => Set TCWarning -> m (Set TCWarning)
 applyFlagsToTCWarnings = applyFlagsToTCWarningsPreserving Set.empty

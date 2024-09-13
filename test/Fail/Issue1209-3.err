@@ -1,3 +1,2 @@
-Issue1209-3.agda:3,1-51: error: [SafeFlagPragma]
-The --safe mode does not allow OPTIONS pragma
---sized-types
+Issue1209-3.agda:3,1-51: error: [OptionError]
+Option --safe cannot be combined with option --sized-types

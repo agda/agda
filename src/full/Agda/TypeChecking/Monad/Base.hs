@@ -4354,7 +4354,7 @@ data Warning
 
   -- Safe flag errors
   | SafeFlagPostulate C.Name
-  | SafeFlagPragma (Set String)
+  | SafeFlagPragma String
       -- ^ Unsafe OPTIONS.
   | SafeFlagWithoutKFlagPrimEraseEquality
   | WithoutKFlagPrimEraseEquality
