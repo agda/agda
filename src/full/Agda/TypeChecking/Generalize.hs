@@ -163,9 +163,11 @@ import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.List (downFrom, hasElem)
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 
@@ -344,8 +346,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
     ]
 
   -- Issue 3301: We can't generalize over sorts
-  unlessNull openSortMetas $ \ ms ->
-    warning $ CantGeneralizeOverSorts $ map fst ms
+  List1.unlessNull openSortMetas $ \ ms ->
+    warning $ CantGeneralizeOverSorts $ Set1.fromList $ fmap fst ms
 
   -- Any meta in the solution of a generalizable meta should be generalized over (if possible).
   cp <- viewTC eCurrentCheckpoint

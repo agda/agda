@@ -56,6 +56,8 @@ import qualified Agda.Utils.List2 as List2
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Utils.SmallSet (SmallSet(..))
+import Agda.Utils.Set1 (Set1)
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Trie (Trie(..))
 import Agda.Utils.WithDefault
 
@@ -269,6 +271,10 @@ instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
 instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
   icod_ s = icode (Set.toAscList s)
   value s = Set.fromDistinctAscList <$!> value s
+
+instance (Ord a, EmbPrj a) => EmbPrj (Set1 a) where
+  icod_ s = icode (Set1.toAscList s)
+  value s = Set1.fromDistinctAscList <$!> value s
 
 instance EmbPrj IntSet where
   icod_ s = icode (IntSet.toAscList s)

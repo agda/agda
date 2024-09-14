@@ -4296,7 +4296,7 @@ data Warning
   | InteractionMetaBoundaries (Set1 Range)
     -- ^ Do not use directly with 'warning'
 
-  | CantGeneralizeOverSorts [MetaId]
+  | CantGeneralizeOverSorts (Set1 MetaId)
   | AbsurdPatternRequiresAbsentRHS [NamedArg DeBruijnPattern]
   | OldBuiltin               BuiltinId BuiltinId
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new.

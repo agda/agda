@@ -3,9 +3,10 @@ module Agda.TypeChecking.Pretty.Warning where
 
 import Prelude hiding ( null )
 
-import Control.Monad ( guard, filterM, (<=<) )
+import Control.Monad ( guard, filterM, forM, (<=<) )
 
 import Data.Char ( toLower )
+import qualified Data.Foldable as Fold
 import Data.Function (on)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -153,9 +154,11 @@ prettyWarning = \case
       , ""
       ]
 
-    CantGeneralizeOverSorts ms -> vcat
+    CantGeneralizeOverSorts ms -> do
+      rms <- forM (Fold.toList ms) \ x -> (,x) <$> getMetaRange x
+      vcat
             [ text "Cannot generalize over unsolved sort metas:"
-            , nest 2 $ vcat [ prettyTCM x <+> text "at" <+> (pretty =<< getMetaRange x) | x <- ms ]
+            , nest 2 $ vcat [ prettyTCM x <+> text "at" <+> pretty r | (r,x) <- List.sort rms ]
             , fsep $ pwords "Suggestion: add a `variable Any : Set _` and replace unsolved metas by Any"
             ]
 
