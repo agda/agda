@@ -141,6 +141,7 @@ import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
 import qualified Agda.Utils.SmallSet as SmallSet
+import Agda.Utils.Set1 (Set1)
 import Agda.Utils.Singleton
 import Agda.Utils.Update
 
@@ -4288,11 +4289,11 @@ data Warning
   | CoinductiveEtaRecord QName
       -- ^ A record type declared as both @coinductive@ and having @eta-equality@.
 
-  | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
-  | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
-  | UnsolvedConstraints      Constraints
+  | UnsolvedMetaVariables    (Set1 Range)  -- ^ Do not use directly with 'warning'
+  | UnsolvedInteractionMetas (Set1 Range)  -- ^ Do not use directly with 'warning'
+  | UnsolvedConstraints      (List1 ProblemConstraint)  -- no instance Ord ProblemConstraint
     -- ^ Do not use directly with 'warning'
-  | InteractionMetaBoundaries [Range]
+  | InteractionMetaBoundaries (Set1 Range)
     -- ^ Do not use directly with 'warning'
 
   | CantGeneralizeOverSorts [MetaId]

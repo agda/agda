@@ -72,6 +72,8 @@ import Agda.Syntax.Abstract.Views ( KName, declaredNames )
 
 import Agda.Utils.FileName
 import Agda.Utils.List            ( caseList, last1 )
+import Agda.Utils.List1           ( List1 )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2           ( List2 )
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
@@ -420,8 +422,8 @@ warningHighlighting' b w = case tcWarning w of
   CoverageIssue{}            -> coverageErrorHighlighting $ getRange w
   CoverageNoExactSplit{}     -> catchallHighlighting $ getRange w
   InlineNoExactSplit{}       -> catchallHighlighting $ getRange w
-  UnsolvedConstraints cs     -> if b then constraintsHighlighting [] cs else mempty
-  UnsolvedMetaVariables rs   -> if b then metasHighlighting rs          else mempty
+  UnsolvedConstraints cs     -> if b then constraintsHighlighting [] $ Fold.toList cs else mempty
+  UnsolvedMetaVariables rs   -> if b then metasHighlighting          $ Fold.toList rs else mempty
   AbsurdPatternRequiresAbsentRHS{} -> deadcodeHighlighting w
   DuplicateRecordDirective{}   -> deadcodeHighlighting w
   ModuleDoesntExport _ _ _ xs  -> foldMap deadcodeHighlighting xs
@@ -692,11 +694,11 @@ computeUnsolvedMetaWarnings = do
   return $ (rs ++ rs', metasHighlighting' rs)
 
 metasHighlighting :: [Range] -> HighlightingInfoBuilder
-metasHighlighting rs = metasHighlighting' (map (rToR . P.continuousPerLine) rs)
+metasHighlighting = metasHighlighting' . fmap (rToR . P.continuousPerLine)
 
 metasHighlighting' :: [Ranges] -> HighlightingInfoBuilder
-metasHighlighting' rs = several rs
-                     $ parserBased { otherAspects = Set.singleton UnsolvedMeta }
+metasHighlighting' rs =
+  several (List1.toList rs) parserBased{ otherAspects = Set.singleton UnsolvedMeta }
 
 -- | Generates syntax highlighting information for unsolved constraints
 --   (ideally: that are not connected to a meta variable).

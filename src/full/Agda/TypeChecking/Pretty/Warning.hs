@@ -9,12 +9,10 @@ import Data.Char ( toLower )
 import Data.Function (on)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.Maybe
-
-import qualified Data.Set as Set
-import Data.Set (Set)
-
 import qualified Data.List as List
+import Data.Maybe
+import Data.Set (Set)
+import qualified Data.Set  as Set
 import qualified Data.Text as T
 
 import Agda.TypeChecking.Monad.Base
@@ -58,6 +56,7 @@ import Agda.Utils.List ( editDistance )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Singleton
+import qualified Agda.Utils.Set1 as Set1
 
 import Agda.Utils.Impossible
 
@@ -71,18 +70,18 @@ prettyWarning = \case
 
     UnsolvedMetaVariables ms  ->
       fsep ( pwords "Unsolved metas at the following locations:" )
-      $$ nest 2 (vcat $ map prettyTCM ms)
+      $$ nest 2 (vcat $ fmap prettyTCM $ Set1.toAscList ms)
 
     UnsolvedInteractionMetas is ->
       fsep ( pwords "Unsolved interaction metas at the following locations:" )
-      $$ nest 2 (vcat $ map prettyTCM is)
+      $$ nest 2 (vcat $ fmap prettyTCM $ Set1.toAscList is)
 
     InteractionMetaBoundaries is ->
       fsep ( pwords "Interaction meta(s) at the following location(s) have unsolved boundary constraints:" )
-      $$ nest 2 (vcat $ map prettyTCM (Set.toList (Set.fromList is)))
+      $$ nest 2 (vcat $ fmap prettyTCM $ Set1.toAscList is)
 
     UnsolvedConstraints cs -> do
-      pcs <- prettyInterestingConstraints cs
+      pcs <- prettyInterestingConstraints $ List1.toList cs
       if null pcs
         then fsep $ pwords "Unsolved constraints"  -- #4065: keep minimal warning text
         else vcat
@@ -707,11 +706,6 @@ applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
   let cleanUp w = let wName = warningName w in
         wName /= SafeFlagPragma_
         && wName `Set.member` warnSet
-        && case w of
-          UnsolvedMetaVariables ums    -> not $ null ums
-          UnsolvedInteractionMetas uis -> not $ null uis
-          UnsolvedConstraints ucs      -> not $ null ucs
-          _                            -> True
 
   return $ Set.union sfp $ Set.filter (cleanUp . tcWarning) ws
 
@@ -741,14 +735,12 @@ getAllUnsolvedWarnings = do
 
   unsolvedMetas        <- getUnsolvedMetas
 
-  let checkNonEmpty c rs = c rs <$ guard (not $ null rs)
-
   mapM warning_ $ catMaybes
-                [ checkNonEmpty UnsolvedInteractionMetas  unsolvedInteractions
-                , checkNonEmpty UnsolvedMetaVariables     unsolvedMetas
-                , checkNonEmpty UnsolvedConstraints       unsolvedConstraints
-                , checkNonEmpty InteractionMetaBoundaries interactionBoundary
-                ]
+    [ UnsolvedInteractionMetas  . Set1.fromList <$> List1.nonEmpty unsolvedInteractions
+    , UnsolvedMetaVariables     . Set1.fromList <$> List1.nonEmpty unsolvedMetas
+    , UnsolvedConstraints                       <$> List1.nonEmpty unsolvedConstraints
+    , InteractionMetaBoundaries . Set1.fromList <$> List1.nonEmpty interactionBoundary
+    ]
 
 -- | Collect all warnings that have accumulated in the state.
 

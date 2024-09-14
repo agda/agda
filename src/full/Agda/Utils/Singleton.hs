@@ -27,6 +27,8 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Set.NonEmpty (NESet)
+import qualified Data.Set.NonEmpty as Set1
 
 import Agda.Utils.Null     (Null, empty)
 import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
@@ -81,6 +83,7 @@ instance Singleton a   [a]         where singleton = (:[])
 instance Singleton a  ([a] -> [a]) where singleton = (:)
 instance Singleton a   (Endo [a])  where singleton = Endo . (:)
 instance Singleton a   (DList a)   where singleton = DL.singleton
+instance Singleton a   (NESet a)   where singleton = Set1.singleton
 instance Singleton a   (NonEmpty a)
                                    where singleton = (:| [])
 instance Singleton a   (Seq a)     where singleton = Seq.singleton

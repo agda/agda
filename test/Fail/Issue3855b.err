@@ -4,5 +4,5 @@ Failed to solve the following constraints:
 
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue3855b.agda:15,34-35
   Issue3855b.agda:15,29-35
+  Issue3855b.agda:15,34-35

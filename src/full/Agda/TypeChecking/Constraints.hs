@@ -38,6 +38,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Lock
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal ( checkType )
 
 import Agda.Utils.CallStack ( withCurrentCallStack )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -159,10 +160,10 @@ noConstraints' includingNonBlocking problem = do
   (pid, x) <- newProblem problem
   let counts | includingNonBlocking = const True
              | otherwise            = isBlockingConstraint . clValue . theConstraint
-  cs <- filter counts <$> getConstraintsForProblem pid
-  unless (null cs) $ do
-    withCurrentCallStack $ \loc -> do
-      w <- warning'_ loc (UnsolvedConstraints cs)
+  cs <- List.filter counts <$> getConstraintsForProblem pid
+  List1.ifNull cs (pure ()) \ cs -> do
+    withCurrentCallStack \ loc -> do
+      w <- warning'_ loc $ UnsolvedConstraints cs
       typeError' loc $ NonFatalErrors $ singleton w
   return x
 

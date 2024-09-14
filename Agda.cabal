@@ -440,6 +440,8 @@ library
     , monad-control        >= 1.0.1.0   && < 1.1
     , mtl                  >= 2.2.2     && < 2.4
     , murmur-hash          >= 0.1       && < 0.2
+    , nonempty-containers  >= 0.3.1.0   && < 0.4
+        -- nonempty-containers-0.3.1.0 ships with LTS 14.27 (GHC 8.6.5)
     , parallel             >= 3.2.2.0   && < 3.3
     , peano                >= 0.1.0.1   && < 0.2
     , pqueue               >= 1.4.1.2   && < 1.6
@@ -822,6 +824,7 @@ library
       Agda.Utils.RangeMap
       Agda.Utils.SemiRing
       Agda.Utils.Semigroup
+      Agda.Utils.Set1
       Agda.Utils.Singleton
       Agda.Utils.Size
       Agda.Utils.SmallSet

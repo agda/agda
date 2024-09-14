@@ -12,5 +12,5 @@ Unsolved interaction metas at the following locations:
 
 error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue3431.agda:49,24-28
   Issue3431.agda:49,21-49
+  Issue3431.agda:49,24-28
