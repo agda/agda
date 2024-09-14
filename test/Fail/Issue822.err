@@ -7,6 +7,6 @@ Failed to solve the following constraints:
       when checking that the pattern D.[ A ] has type _5
     (blocked on _5)
 
-error: [UnsolvedMetaVariables]
+Issue822.agda:22,7-8: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue822.agda:22,7-8

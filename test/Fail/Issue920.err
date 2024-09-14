@@ -2,10 +2,10 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   ?0 (B = A) = x : A (blocked on _7)
 
-error: [UnsolvedInteractionMetas]
-Unsolved interaction metas at the following locations:
-  Issue920.agda:16,42-47
-
-error: [UnsolvedMetaVariables]
+Issue920.agda:16,11-50: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue920.agda:16,11-50
+
+Issue920.agda:16,42-47: error: [UnsolvedInteractionMetas]
+Unsolved interaction metas at the following locations:
+  Issue920.agda:16,42-47

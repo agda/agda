@@ -2,6 +2,6 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   unquote (λ hole → blockOnFresh) (stuck)
 
-error: [UnsolvedMetaVariables]
+BlockOnFreshMeta.agda:24,5-19: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   BlockOnFreshMeta.agda:24,5-19

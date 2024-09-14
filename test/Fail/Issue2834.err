@@ -7,7 +7,7 @@ Failed to solve the following constraints:
       when checking that the pattern true has type _2 (A = Bool)
     (blocked on _2)
 
-error: [UnsolvedMetaVariables]
+Issue2834.agda:4,27-36: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2834.agda:4,27-28
   Issue2834.agda:4,35-36

@@ -8,6 +8,6 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Nat × F _n_19 =< F _n_19 : Set (blocked on _n_19)
 
-error: [UnsolvedMetaVariables]
+Issue431b.agda:22,10-19: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue431b.agda:22,10-19

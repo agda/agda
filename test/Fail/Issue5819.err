@@ -1,9 +1,3 @@
-error: [UnsolvedInteractionMetas]
-Unsolved interaction metas at the following locations:
-  Issue5819.agda:108,48-52
-  Issue5819.agda:108,56-60
-  Issue5819.agda:120,25-45
-
 Issue5819.agda:72,1-120,45: error: [TerminationIssue]
 Termination checking failed for the following functions:
   dl-iso, Fresh→Fresh′, Fresh→AllFresh
@@ -28,3 +22,9 @@ Problematic calls:
     (at Issue5819.agda:112,37-43)
   f dl-iso l
     (at Issue5819.agda:116,84-90)
+
+Issue5819.agda:108,48-120,45: error: [UnsolvedInteractionMetas]
+Unsolved interaction metas at the following locations:
+  Issue5819.agda:108,48-52
+  Issue5819.agda:108,56-60
+  Issue5819.agda:120,25-45

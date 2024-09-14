@@ -11,7 +11,7 @@ Failed to solve the following constraints:
     (blocked on _23)
   _b_21 = n : Bool (blocked on _b_21)
 
-error: [UnsolvedMetaVariables]
+Issue2640.agda:20,20-31,21: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2640.agda:20,20-23
   Issue2640.agda:20,22-23

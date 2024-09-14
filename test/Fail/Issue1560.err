@@ -1,4 +1,10 @@
-error: [UnsolvedInteractionMetas]
+Issue1560.agda:16,1-118,73: error: [NotStrictlyPositive]
+SType' is not strictly positive, because it occurs
+to the left of an arrow
+in the type of the constructor c
+in the definition of SType'.
+
+Issue1560.agda:47,25-118,73: error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
   Issue1560.agda:47,25-29
   Issue1560.agda:55,47-85
@@ -6,9 +12,3 @@ Unsolved interaction metas at the following locations:
   Issue1560.agda:110,70-74
   Issue1560.agda:114,69-73
   Issue1560.agda:118,69-73
-
-Issue1560.agda:16,1-118,73: error: [NotStrictlyPositive]
-SType' is not strictly positive, because it occurs
-to the left of an arrow
-in the type of the constructor c
-in the definition of SType'.

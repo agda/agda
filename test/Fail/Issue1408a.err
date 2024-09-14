@@ -1,4 +1,4 @@
-error: [UnsolvedConstraints]
+Issue1408a.agda:22,31-23,32: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: suc i ≅ zero (stuck)
       [ at Issue1408a.agda:23,30-32 ]

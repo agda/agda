@@ -5,7 +5,7 @@ Failed to solve the following constraints:
   bla pred _28 = 1 : Nat (blocked on _28)
   bla pred _23 = 0 : Nat (blocked on _23)
 
-error: [UnsolvedMetaVariables]
+Issue2944.agda:38,8-61,25: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2944.agda:38,8-26
   Issue2944.agda:38,17-18

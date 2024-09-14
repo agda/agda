@@ -7,7 +7,7 @@ Reason: It relies on injectivity of the data constructor false,
         which is not yet supported
 
 when checking the definition of ¬pfin
-error: [UnsolvedConstraints]
+Issue1408b.agda:20,12-14: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: y ≅ x (stuck)
       [ at Issue1408b.agda:20,12-14 ]

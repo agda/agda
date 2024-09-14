@@ -84,8 +84,12 @@ warning'_ loc w = do
   c <- viewTC eCall
   b <- areWeCaching
   let r' = case w of
-        -- NicifierIssues come with their own error locations.
-        NicifierIssue w0 -> getRange w0
+        -- Some warnings come with their own error locations.
+        NicifierIssue             w0 -> getRange w0
+        UnsolvedInteractionMetas  rs -> getRange rs
+        UnsolvedMetaVariables     rs -> getRange rs
+        UnsolvedConstraints       cs -> getRange cs
+        InteractionMetaBoundaries rs -> getRange rs
         _ -> r
   let wn = warningName w
   let ws = warningName2String wn

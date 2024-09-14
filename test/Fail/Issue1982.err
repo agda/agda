@@ -12,6 +12,6 @@ Failed to solve the following constraints:
       when checking that the pattern up j has type True Γ A
     (blocked on _n_99)
 
-error: [UnsolvedMetaVariables]
+Issue1982.agda:28,40-46: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue1982.agda:28,40-46

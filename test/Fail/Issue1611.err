@@ -10,6 +10,6 @@ Failed to solve the following constraints:
       when checking that the pattern dt has type D _9
     (blocked on _9)
 
-error: [UnsolvedMetaVariables]
+Issue1611.agda:14,25-26: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue1611.agda:14,25-26

@@ -7,6 +7,6 @@ Failed to solve the following constraints:
       when checking that the pattern record { f = a } has type _2
     (blocked on _2)
 
-error: [UnsolvedMetaVariables]
+RecordPattern4.agda:8,8-9: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   RecordPattern4.agda:8,8-9

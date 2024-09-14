@@ -3,11 +3,11 @@ Failed to solve the following constraints:
   univSort _9 = Setω (blocked on _9)
   univSort _9 =< Setω (blocked on _9)
 
-error: [UnsolvedInteractionMetas]
+Issue6651-UnivSort-SetOmega-SizedTypes.agda:15,5-17,17: error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
   Issue6651-UnivSort-SetOmega-SizedTypes.agda:15,5-9
   Issue6651-UnivSort-SetOmega-SizedTypes.agda:17,13-17
 
-error: [UnsolvedMetaVariables]
+Issue6651-UnivSort-SetOmega-SizedTypes.agda:17,21-22: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue6651-UnivSort-SetOmega-SizedTypes.agda:17,21-22

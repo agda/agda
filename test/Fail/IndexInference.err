@@ -22,7 +22,7 @@ Failed to solve the following constraints:
       Vec Nat _12
     (blocked on _12)
 
-error: [UnsolvedMetaVariables]
+IndexInference.agda:19,15-44,52: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   IndexInference.agda:19,15-16
   IndexInference.agda:44,51-52

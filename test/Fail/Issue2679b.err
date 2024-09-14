@@ -12,6 +12,6 @@ Failed to solve the following constraints:
       C a (_17 (a = a) (b = b))
     (blocked on _17)
 
-error: [UnsolvedMetaVariables]
+Issue2679b.agda:18,34-35: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2679b.agda:18,34-35

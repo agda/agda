@@ -16,7 +16,7 @@ Failed to solve the following constraints:
   Set₂ = _10 (blocked on _10)
   Set₁ =< _11 (blocked on _11)
 
-error: [UnsolvedMetaVariables]
+Issue418.agda:13,18-33,10: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue418.agda:13,18-19
   Issue418.agda:14,14-18

@@ -6,6 +6,6 @@ Failed to solve the following constraints:
     a₂ : A
     (stuck)
 
-error: [UnsolvedMetaVariables]
+InstanceArgumentsAmbiguous.agda:8,8-9: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   InstanceArgumentsAmbiguous.agda:8,8-9

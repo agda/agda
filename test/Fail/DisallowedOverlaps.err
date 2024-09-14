@@ -16,7 +16,7 @@ Failed to solve the following constraints:
     overlap b .B.a : A
     (stuck)
 
-error: [UnsolvedMetaVariables]
+DisallowedOverlaps.agda:27,9-37,11: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   DisallowedOverlaps.agda:27,9-11
   DisallowedOverlaps.agda:31,9-11

@@ -96,7 +96,7 @@ import Agda.Utils.List2 (List2)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-
+import Agda.Utils.Set1 (Set1)
 import Agda.Utils.TypeLevel (IsBase, All, Domains)
 
 import Agda.Utils.Impossible
@@ -372,6 +372,7 @@ instance HasRange a => HasRange [a]
 instance HasRange a => HasRange (List1 a)
 instance HasRange a => HasRange (List2 a)
 instance HasRange a => HasRange (Maybe a)
+instance HasRange a => HasRange (Set1 a)
 
 -- | Precondition: The ranges of the tuple elements must point to the
 -- same file (or be empty).

@@ -3,7 +3,7 @@ Failed to solve the following constraints:
   x = _63 (A' = A) : A (blocked on _63)
   _63 (A' = A) = x : A (blocked on _63)
 
-error: [UnsolvedMetaVariables]
+Issue920a.agda:26,23-58: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue920a.agda:26,23-58
   Issue920a.agda:26,49-50
