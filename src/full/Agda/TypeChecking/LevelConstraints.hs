@@ -3,7 +3,7 @@
 module Agda.TypeChecking.LevelConstraints ( simplifyLevelConstraint ) where
 
 import qualified Data.List as List
-import Data.Maybe
+
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
@@ -12,6 +12,7 @@ import Agda.TypeChecking.Level
 
 import Agda.Utils.Impossible
 import Agda.Utils.List (nubOn)
+import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Update
 
@@ -24,7 +25,7 @@ import Agda.Utils.Update
 --   takes care of renaming variables when checking for matches.
 simplifyLevelConstraint
   :: Constraint          -- ^ Constraint @c@ to simplify.
-  -> [Constraint]        -- ^ Other constraints, enable simplification.
+  -> List1 Constraint    -- ^ Other constraints, enable simplification.
   -> Maybe [Constraint]  -- ^ @Just@: list of constraints equal to the original @c@.
                          --   @Nothing@: no simplification possible.
 simplifyLevelConstraint c others = do
@@ -38,7 +39,7 @@ simplifyLevelConstraint c others = do
     simpl (a :=< b)
       | any (matchLeq (b :=< a)) leqs = dirty  $ LevelCmp CmpEq  (unSingleLevel a) (unSingleLevel b)
       | otherwise                     = return $ LevelCmp CmpLeq (unSingleLevel a) (unSingleLevel b)
-    leqs = concat $ mapMaybe inequalities others
+    leqs = concat $ List1.mapMaybe inequalities others
 
 data Leq = SingleLevel :=< SingleLevel
   deriving (Show, Eq)

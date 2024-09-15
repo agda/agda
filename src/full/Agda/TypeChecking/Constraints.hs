@@ -41,7 +41,7 @@ import Agda.Utils.CallStack ( withCurrentCallStack )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Null
+import Agda.Utils.Null ()
 import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Singleton
 
@@ -98,13 +98,13 @@ addConstraintTCM unblock c = do
           -- Get all level constraints.
           lvlcs <- instantiateFull =<< do
             List.filter (isLvl . clValue) . map theConstraint <$> getAllConstraints
-          unless (null lvlcs) $ do
+          List1.ifNull lvlcs (return Nothing) $ {-else-} \ lvlcs -> do
             reportSDoc "tc.constr.lvl" 40 $ vcat
               [ "simplifying level constraint" <+> prettyTCM c
               , nest 2 $ hang "using" 2 $ prettyTCM lvlcs
               ]
-          -- Try to simplify @c@ using the other constraints.
-          return $ simplifyLevelConstraint c $ map clValue lvlcs
+            -- Try to simplify @c@ using the other constraints.
+            return $ simplifyLevelConstraint c $ fmap clValue lvlcs
         | otherwise = return Nothing
 
 wakeConstraintsTCM :: (ProblemConstraint-> WakeUp) -> TCM ()

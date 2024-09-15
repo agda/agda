@@ -250,6 +250,10 @@ instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM [a] where
   prettyTCM = prettyList . map prettyTCM
 {-# SPECIALIZE prettyTCM :: PrettyTCM a => [a] -> TCM Doc #-}
 
+instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM (List1 a) where
+  prettyTCM = prettyList . fmap prettyTCM
+{-# SPECIALIZE prettyTCM :: PrettyTCM a => [a] -> TCM Doc #-}
+
 instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM (Maybe a) where
   prettyTCM = maybe empty prettyTCM
 {-# SPECIALIZE prettyTCM :: PrettyTCM a => Maybe a -> TCM Doc #-}
