@@ -744,12 +744,11 @@ freshQModule m x = A.qualifyM m . mnameFromList1 . singleton <$> freshAbstractNa
 checkForModuleClash :: C.Name -> ScopeM ()
 checkForModuleClash x = do
   ms :: [AbstractModule] <- scopeLookup (C.QName x) <$> getScope
-  unless (null ms) $ do
+  List1.unlessNull ms \ ms -> do
     reportSLn "scope.clash" 40 $ "clashing modules ms = " ++ prettyShow ms
     reportSLn "scope.clash" 60 $ "clashing modules ms = " ++ show ms
     setCurrentRange x $
-      typeError $ ShadowedModule x $
-                map ((`withRangeOf` x) . amodName) ms
+      typeError $ ShadowedModule x $ fmap ((`withRangeOf` x) . amodName) ms
 
 instance ToAbstract NewModuleName where
   type AbsOfCon NewModuleName = A.ModuleName

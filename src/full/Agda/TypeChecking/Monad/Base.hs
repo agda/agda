@@ -4853,7 +4853,7 @@ data TypeError
         | NoSuchPrimitiveFunction String
         | DuplicatePrimitiveBinding PrimitiveId QName QName
         | WrongArgInfoForPrimitive PrimitiveId ArgInfo ArgInfo
-        | ShadowedModule C.Name [A.ModuleName]
+        | ShadowedModule C.Name (List1 A.ModuleName)
         | BuiltinInParameterisedModule BuiltinId
         | IllegalDeclarationInDataDefinition [C.Declaration]
             -- ^ The declaration list comes from a single 'C.NiceDeclaration'.
