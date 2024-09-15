@@ -301,8 +301,15 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     Yes (i,mps) -> do
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       reportSDoc "tc.cover.cover" 20 $ text "with mps = " <+> do addContext tel $ pretty mps
-      exact <- allM mps $ isTrivialPattern . snd
       let cl0 = indexWithDefault __IMPOSSIBLE__ cs i
+      -- Szumi, 2024-09-15, issue #7495: If the split clause has more
+      -- patterns than the function clause, then the extra patterns need to
+      -- be trivial for the clause to be exact
+      let extra = drop (length $ namedClausePats cl0) ps
+      exact <-
+        and2M
+          (allM mps $ isTrivialPattern . snd)
+          (allM extra $ isTrivialPattern . namedArg)
       cl <- applyCl sc cl0 mps
       return $ CoverResult
         { coverSplitTree      = SplittingDone (size tel)
