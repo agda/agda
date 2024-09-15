@@ -4863,7 +4863,7 @@ data TypeError
         | TooManyFields QName [C.Name] (List1 C.Name)
           -- ^ Record type, fields not supplied by user, possibly non-fields but supplied.
         | DuplicateFields (List1 C.Name)
-        | DuplicateConstructors [C.Name]
+        | DuplicateConstructors (List1 C.Name)
         | DuplicateOverlapPragma QName OverlapMode OverlapMode
         | WithOnFreeVariable A.Expr Term
         | UnexpectedWithPatterns (List1 A.Pattern)

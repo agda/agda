@@ -1816,7 +1816,7 @@ instance ToAbstract NiceDeclaration where
           gvars <- bindGeneralizablesIfInserted o ax
           -- Check for duplicate constructors
           do cs <- mapM conName cons
-             unlessNull (duplicates cs) $ \ dups -> do
+             List1.unlessNull (duplicates cs) $ \ dups -> do
                let bad = filter (`elem` dups) cs
                setCurrentRange bad $
                  typeError $ DuplicateConstructors dups

@@ -571,7 +571,7 @@ instance PrettyTCM TypeError where
     DuplicateConstructors xs -> fsep $ concat
       [ [ "Duplicate" ]
       , [ pluralS xs "constructor" ]
-      , punctuate comma (map pretty xs)
+      , punctuate comma $ fmap pretty xs
       , pwords "in datatype"
       ]
 
