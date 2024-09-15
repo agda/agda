@@ -2113,7 +2113,7 @@ instance ToAbstract NiceDeclaration where
          bindVarsToBind
          p <- A.noDotOrEqPattern (typeError DotPatternInPatternSynonym) p
          as <- mapM checkPatSynParam as
-         unlessNull (patternVars p List.\\ map whThing as) $ \ xs -> do
+         List1.unlessNull (patternVars p List.\\ map whThing as) $ \ xs -> do
            typeError $ UnboundVariablesInPatternSynonym xs
          return (as, p)
       y <- freshAbstractQName' n

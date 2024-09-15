@@ -5010,7 +5010,7 @@ data TypeError
             --   The resolvents are given in the list.
         | UnusedVariableInPatternSynonym C.Name
             -- ^ This variable is only bound on the lhs of the pattern synonym, not on the rhs.
-        | UnboundVariablesInPatternSynonym [A.Name]
+        | UnboundVariablesInPatternSynonym (List1 A.Name)
             -- ^ These variables are only bound on the rhs of the pattern synonym, not on the lhs.
     -- Operator errors
         | NoParseForApplication (List2 C.Expr)
