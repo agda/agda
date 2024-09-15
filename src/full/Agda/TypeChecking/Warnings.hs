@@ -47,9 +47,11 @@ import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate (highlightWarning)
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Function  ( applyUnless )
 import Agda.Utils.Lens
+import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Set1 as Set1
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -120,8 +122,8 @@ warning_ = withCallerCallStack . flip warning'_
 --  ErrorWarnings -> Just w
 --  AllWarnings   -> w <$ guard (Set.member (warningName w) $ wm ^. warningSet)
 
-{-# SPECIALIZE warnings' :: CallStack -> [Warning] -> TCM () #-}
-warnings' :: MonadWarning m => CallStack -> [Warning] -> m ()
+{-# SPECIALIZE warnings' :: CallStack -> List1 Warning -> TCM () #-}
+warnings' :: MonadWarning m => CallStack -> List1 Warning -> m ()
 warnings' loc ws = do
 
   wmode <- optWarningMode <$> pragmaOptions
@@ -135,15 +137,16 @@ warnings' loc ws = do
     then pure (Just tcwarn)
     else Nothing <$ addWarning tcwarn
 
-  List1.unlessNull (catMaybes merrs) \ errs -> typeError' loc $ NonFatalErrors $ Set1.fromList errs
+  List1.unlessNull (List1.catMaybes merrs) \ errs ->
+    typeError' loc $ NonFatalErrors $ Set1.fromList errs
 
-{-# SPECIALIZE warnings :: HasCallStack => [Warning] -> TCM () #-}
-warnings :: (HasCallStack, MonadWarning m) => [Warning] -> m ()
+{-# SPECIALIZE warnings :: HasCallStack => List1 Warning -> TCM () #-}
+warnings :: (HasCallStack, MonadWarning m) => List1 Warning -> m ()
 warnings = withCallerCallStack . flip warnings'
 
 {-# SPECIALIZE warning' :: CallStack -> Warning -> TCM () #-}
 warning' :: MonadWarning m => CallStack -> Warning -> m ()
-warning' loc = warnings' loc . pure
+warning' loc = warnings' loc . singleton
 
 {-# SPECIALIZE warning :: HasCallStack => Warning -> TCM () #-}
 warning :: (HasCallStack, MonadWarning m) => Warning -> m ()

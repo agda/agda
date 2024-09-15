@@ -1465,7 +1465,7 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
       let (errs, ws) = List.partition unsafeDeclarationWarning warns
       -- If some of them are, we fail
       List1.unlessNull errs \ errs -> do
-        warnings $ map NicifierIssue ws
+        List1.unlessNull ws \ ws -> warnings $ fmap NicifierIssue ws
         tcerrs <- mapM (warning_ . NicifierIssue) errs
         setCurrentRange errs $ typeError $ NonFatalErrors $ Set1.fromList tcerrs
     -- Otherwise we simply record the warnings

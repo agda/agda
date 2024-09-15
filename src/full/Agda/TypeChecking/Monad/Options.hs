@@ -40,6 +40,7 @@ import Agda.Utils.FileName
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
 import Agda.Utils.Lens
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
@@ -120,7 +121,7 @@ libToTCM m = do
   modifyTCLens stProjectConfigs $ const cachedConfs'
   modifyTCLens stAgdaLibFiles   $ const cachedLibs'
 
-  unless (null warns) $ warnings $ map LibraryWarning warns
+  List1.unlessNull warns \ warns -> warnings $ fmap LibraryWarning warns
   case z of
     Left s  -> typeError $ LibraryError s
     Right x -> return x
