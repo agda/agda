@@ -247,9 +247,9 @@ coverageCheck f t cs = do
   let noexclauses = forMaybe noex $ \ i -> do
         let cl = indexWithDefault __IMPOSSIBLE__ cs1 i
         if clauseCatchall cl then Nothing else Just cl
-  unless (null noexclauses) $ do
-      setCurrentRange (map clauseLHSRange noexclauses) $
-        warning $ CoverageNoExactSplit f $ noexclauses
+  List1.unlessNull noexclauses \ noexclauses -> do
+      setCurrentRange (fmap clauseLHSRange noexclauses) $
+        warning $ CoverageNoExactSplit f noexclauses
   return splitTree
 
 -- | Top-level function for eliminating redundant clauses in the interactive

@@ -54,7 +54,7 @@ import Agda.Utils.FileName ( filePath )
 import Agda.Utils.Functor  ( (<.>) )
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
-import Agda.Utils.List1 ( pattern (:|) )
+import Agda.Utils.List1 ( pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Singleton
@@ -121,8 +121,8 @@ prettyWarning = \case
     CoverageNoExactSplit f cs -> vcat $
       fsep (pwords "Exact splitting is enabled, but the following" ++ [ pluralS cs "clause" ] ++
             pwords "could not be preserved as definitional equalities in the translation to a case tree:"
-           ) :
-      map (nest 2 . prettyTCM . NamedClause f True) cs
+           ) <|
+      fmap (nest 2 . prettyTCM . NamedClause f True) cs
 
     InlineNoExactSplit f c -> vcat $
       [ fsep $

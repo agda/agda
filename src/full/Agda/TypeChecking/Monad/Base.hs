@@ -4278,7 +4278,7 @@ data Warning
   --   are unreachable
   | CoverageIssue            QName (List1 (Telescope, [NamedArg DeBruijnPattern]))
   -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
-  | CoverageNoExactSplit     QName [Clause]
+  | CoverageNoExactSplit     QName (List1 Clause)
   | InlineNoExactSplit       QName Clause
     -- ^ 'Clause' was turned into copattern matching clause(s) by an @{-# INLINE constructor #-}@
     --   and thus is not a definitional equality any more.
