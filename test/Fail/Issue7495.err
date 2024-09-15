@@ -1,0 +1,6 @@
+Issue7495.agda:6,1-4: warning: -W[no]CoverageNoExactSplit
+Exact splitting is enabled, but the following clause could not be
+preserved as definitional equalities in the translation to a case
+tree:
+  not = λ _ → false
+when checking the definition of not
