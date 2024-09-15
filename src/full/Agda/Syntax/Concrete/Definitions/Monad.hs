@@ -4,7 +4,7 @@ module Agda.Syntax.Concrete.Definitions.Monad where
 
 import Prelude hiding ( null )
 
-import Control.Monad        ( unless )
+import Control.Monad        ()
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
 import Control.Monad.Reader ( MonadReader, ReaderT, runReaderT )
 import Control.Monad.State  ( MonadState(..), modify, State, runState )
@@ -165,8 +165,8 @@ forgetLoneSigs = loneSigs .= Map.empty
 checkLoneSigs :: LoneSigs -> Nice ()
 checkLoneSigs xs = do
   forgetLoneSigs
-  unless (Map.null xs) $ declarationWarning $ MissingDefinitions $
-    map (\s -> (loneSigName s , loneSigRange s)) $ Map.elems xs
+  List1.unlessNull (Map.elems xs) \ ss -> declarationWarning $ MissingDefinitions $
+    fmap (\s -> (loneSigName s , loneSigRange s)) ss
 
 -- | Ensure that all forward declarations have been given a definition,
 -- raising an error indicating *why* they would have had to have been

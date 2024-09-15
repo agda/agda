@@ -123,7 +123,7 @@ data DeclarationWarning'
       --   that does not apply to any function.
   | MissingDeclarations [(Name, Range)]
       -- ^ Definitions (e.g. constructors or functions) without a declaration.
-  | MissingDefinitions [(Name, Range)]
+  | MissingDefinitions (List1 (Name, Range))
       -- ^ Declarations (e.g. type signatures) without a definition.
   | NotAllowedInMutual Range String
   | OpenPublicPrivate KwRange
@@ -446,7 +446,7 @@ instance Pretty DeclarationWarning' where
 
     MissingDefinitions xs -> fsep $
      pwords "The following names are declared but not accompanied by a definition:"
-     ++ punctuate comma (map (pretty . fst) xs)
+     ++ punctuate comma (fmap (pretty . fst) xs)
 
     NotAllowedInMutual r nd -> fsep $
       text nd : pwords "in mutual blocks are not supported.  Suggestion: get rid of the mutual block by manually ordering declarations"
