@@ -387,16 +387,16 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
         metas <- filterM canGeneralize . Set.toList .
                  allMetas Set.singleton =<<
                  instantiateFull (instBody inst)
-        unless (null metas) $
+        unless (null metas) do
           reportSDoc "tc.generalize" 40 $
             hcat ["Inherited metas from ", prettyTCM x, ":"] <?> prettyList_ (map prettyTCM metas)
-        -- #4291: Override existing meta name suggestion.
-        -- Don't suggest names for explicitly named generalizable metas.
-        case filter (`Map.notMember` nameMap) metas of
-          -- If we solved the parent with a new meta use the parent name for that.
-          [m] | MetaV{} <- instBody inst -> setMetaNameSuggestion m parentName
-          -- Otherwise suffix with a number.
-          ms -> zipWithM_ (\ i m -> setMetaNameSuggestion m (parentName ++ "." ++ show i)) [1..] ms
+          -- #4291: Override existing meta name suggestion.
+          -- Don't suggest names for explicitly named generalizable metas.
+          case filter (`Map.notMember` nameMap) metas of
+            -- If we solved the parent with a new meta use the parent name for that.
+            [m] | MetaV{} <- instBody inst -> setMetaNameSuggestion m parentName
+            -- Otherwise suffix with a number.
+            ms -> zipWithM_ (\ i m -> setMetaNameSuggestion m (parentName ++ "." ++ show i)) [1..] ms
         return $ Set.fromList metas
       _ -> __IMPOSSIBLE__
 
