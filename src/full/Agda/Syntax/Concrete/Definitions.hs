@@ -338,7 +338,7 @@ niceDeclarations fixs ds = do
               -- Subcase: The lhs is single identifier (potentially anonymous).
               -- Treat it as a function clause without a type signature.
               LHS p [] [] | Just x <- isSingleIdentifierP p -> do
-                d  <- mkFunDef (setOrigin Inserted defaultArgInfo) termCheck covCheck x Nothing [d] -- fun def without type signature is relevant
+                d  <- mkFunDef (setOrigin Inserted defaultArgInfo) termCheck covCheck x Nothing $ singleton d -- fun def without type signature is relevant
                 return (d , ds)
               -- Subcase: The lhs is a proper pattern.
               -- This could be a let-pattern binding. Pass it on.
@@ -1486,35 +1486,35 @@ instance MakePrivate WhereClause where
 
 -- | (Approximately) convert a 'NiceDeclaration' back to a list of
 -- 'Declaration's.
-notSoNiceDeclarations :: NiceDeclaration -> [Declaration]
+notSoNiceDeclarations :: NiceDeclaration -> List1 Declaration
 notSoNiceDeclarations = \case
-    Axiom _ _ _ i rel x e          -> inst i [TypeSig rel empty x e]
-    NiceField _ _ _ i tac x argt   -> [FieldSig i tac x argt]
-    PrimitiveFunction _ _ _ x e    -> [Primitive empty [TypeSig (argInfo e) empty x (unArg e)]]
-    NiceMutual r _ _ _ ds          -> [Mutual r $ concatMap notSoNiceDeclarations ds]
-    NiceLoneConstructor r ds       -> [LoneConstructor r $ concatMap notSoNiceDeclarations ds]
-    NiceModule r _ _ e x tel ds    -> [Module r e x tel ds]
+    Axiom _ _ _ i rel x e            -> inst i $ TypeSig rel empty x e
+    NiceField _ _ _ i tac x argt     -> singleton $ FieldSig i tac x argt
+    PrimitiveFunction _ _ _ x e      -> singleton $ Primitive empty $ singleton $ TypeSig (argInfo e) empty x (unArg e)
+    NiceMutual r _ _ _ ds            -> singleton $ Mutual r $ List1.concat $ fmap notSoNiceDeclarations ds
+    NiceLoneConstructor r ds         -> singleton $ LoneConstructor r $ List1.concat $ fmap notSoNiceDeclarations ds
+    NiceModule r _ _ e x tel ds      -> singleton $ Module r e x tel ds
     NiceModuleMacro r _ e x ma o dir
-                                   -> [ModuleMacro r e x ma o dir]
-    NiceOpen r x dir               -> [Open r x dir]
-    NiceImport r x as o dir        -> [Import r x as o dir]
-    NicePragma _ p                 -> [Pragma p]
-    NiceRecSig r er _ _ _ _ x bs e -> [RecordSig r er x bs e]
-    NiceDataSig r er _ _ _ _ x bs e -> [DataSig r er x bs e]
-    NiceFunClause _ _ _ _ _ _ d    -> [d]
-    FunSig _ _ _ i _ rel _ _ x e   -> inst i [TypeSig rel empty x e]
-    FunDef _ ds _ _ _ _ _ _        -> ds
-    NiceDataDef r _ _ _ _ x bs cs  -> [DataDef r x bs $ concatMap notSoNiceDeclarations cs]
-    NiceRecDef r _ _ _ _ x dir bs ds -> [RecordDef r x dir bs ds]
-    NicePatternSyn r _ n as p      -> [PatternSyn r n as p]
-    NiceGeneralize _ _ i tac n e   -> [Generalize empty [TypeSig i tac n e]]
-    NiceUnquoteDecl r _ _ i _ _ x e -> inst i [UnquoteDecl r x e]
-    NiceUnquoteDef r _ _ _ _ x e    -> [UnquoteDef r x e]
-    NiceUnquoteData r _ _ _ _ x xs e  -> [UnquoteData r x xs e]
-    NiceOpaque r ns ds                -> [Opaque r (Unfolding r ns:concatMap notSoNiceDeclarations ds)]
+                                     -> singleton $ ModuleMacro r e x ma o dir
+    NiceOpen r x dir                 -> singleton $ Open r x dir
+    NiceImport r x as o dir          -> singleton $ Import r x as o dir
+    NicePragma _ p                   -> singleton $ Pragma p
+    NiceRecSig r er _ _ _ _ x bs e   -> singleton $ RecordSig r er x bs e
+    NiceDataSig r er _ _ _ _ x bs e  -> singleton $ DataSig r er x bs e
+    NiceFunClause _ _ _ _ _ _ d      -> singleton $ d
+    FunSig _ _ _ i _ rel _ _ x e     -> inst i $ TypeSig rel empty x e
+    FunDef _ ds _ _ _ _ _ _          -> List1.fromListSafe __IMPOSSIBLE__ ds -- TODO: use List1 in type of FunDef
+    NiceDataDef r _ _ _ _ x bs cs    -> singleton $ DataDef r x bs $ List1.concat $ fmap notSoNiceDeclarations cs
+    NiceRecDef r _ _ _ _ x dir bs ds -> singleton $ RecordDef r x dir bs ds
+    NicePatternSyn r _ n as p        -> singleton $ PatternSyn r n as p
+    NiceGeneralize _ _ i tac n e     -> singleton $ Generalize empty $ singleton $ TypeSig i tac n e
+    NiceUnquoteDecl r _ _ i _ _ x e  -> inst i $ UnquoteDecl r x e
+    NiceUnquoteDef r _ _ _ _ x e     -> singleton $ UnquoteDef r x e
+    NiceUnquoteData r _ _ _ _ x xs e -> singleton $ UnquoteData r x xs e
+    NiceOpaque r ns ds               -> singleton $ Opaque r $ (Unfolding r ns :) $ List1.concat $ fmap notSoNiceDeclarations ds
   where
-    inst (InstanceDef r) ds = [InstanceB r ds]
-    inst NotInstanceDef  ds = ds
+    inst (InstanceDef r) d = singleton $ InstanceB r $ singleton d
+    inst NotInstanceDef  d = singleton d
 
 -- | Has the 'NiceDeclaration' a field of type 'IsAbstract'?
 niceHasAbstract :: NiceDeclaration -> Maybe IsAbstract

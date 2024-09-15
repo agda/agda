@@ -674,7 +674,7 @@ instance PrettyTCM TypeError where
 
     IllegalDeclarationInDataDefinition ds -> vcat
       [ "Illegal declaration in data type definition"
-      , nest 2 $ vcat $ map pretty ds
+      , nest 2 $ vcat $ fmap pretty ds
       ]
 
     IllegalLetInTelescope tb -> fsep $

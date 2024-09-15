@@ -4855,7 +4855,7 @@ data TypeError
         | WrongArgInfoForPrimitive PrimitiveId ArgInfo ArgInfo
         | ShadowedModule C.Name (List1 A.ModuleName)
         | BuiltinInParameterisedModule BuiltinId
-        | IllegalDeclarationInDataDefinition [C.Declaration]
+        | IllegalDeclarationInDataDefinition (List1 C.Declaration)
             -- ^ The declaration list comes from a single 'C.NiceDeclaration'.
         | IllegalLetInTelescope C.TypedBinding
         | IllegalPatternInTelescope C.Binder
