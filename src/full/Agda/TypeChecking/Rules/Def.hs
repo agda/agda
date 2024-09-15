@@ -847,7 +847,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
   -- Absurd case: no right hand side
   noRHS :: TCM (Maybe Term, WithFunctionProblem)
   noRHS = do
-    unless absurdPat $ typeError $ AbsentRHSRequiresAbsurdPattern aps
+    unless absurdPat $ typeError AbsentRHSRequiresAbsurdPattern
     return (Nothing, NoWithFunction)
 
   -- With case: @f xs with {a} in eqa | b in eqb | {{c}} | ...; ... | ps1 = rhs1; ... | ps2 = rhs2; ...@

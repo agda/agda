@@ -4859,7 +4859,7 @@ data TypeError
             -- ^ The declaration list comes from a single 'C.NiceDeclaration'.
         | IllegalLetInTelescope C.TypedBinding
         | IllegalPatternInTelescope C.Binder
-        | AbsentRHSRequiresAbsurdPattern [NamedArg A.Pattern]
+        | AbsentRHSRequiresAbsurdPattern
         | TooManyFields QName [C.Name] (List1 C.Name)
           -- ^ Record type, fields not supplied by user, possibly non-fields but supplied.
         | DuplicateFields (List1 C.Name)
