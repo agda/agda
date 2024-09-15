@@ -106,10 +106,15 @@ prettyWarning = \case
 
     UnreachableClauses _f pss -> "Unreachable" <+> pluralS pss "clause"
 
-    CoverageIssue f pss -> fsep (
-      pwords "Incomplete pattern matching for" ++ [prettyTCM f <> "."] ++
-      pwords "Missing cases:") $$ nest 2 (vcat $ map display pss)
-        where
+    CoverageIssue f pss -> vcat
+        [ fsep $ concat
+          [ pwords "Incomplete pattern matching for"
+          , [ prettyTCM f <> "." ]
+          , pwords "Missing cases:"
+          ]
+        , nest 2 $ vcat $ fmap display pss
+        ]
+      where
         display (tel, ps) = prettyTCM $ NamedClause f True $
           empty { clauseTel = tel, namedClausePats = ps }
 

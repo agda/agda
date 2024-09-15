@@ -33,6 +33,7 @@ import qualified Data.IntSet as IntSet
 import qualified Agda.Benchmarking as Bench
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Position
 import Agda.Syntax.Internal hiding (DataOrRecord)
 import Agda.Syntax.Internal.Pattern
@@ -71,11 +72,11 @@ import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -208,7 +209,7 @@ coverageCheck f t cs = do
       return False
 
   -- report a warning if there are uncovered cases,
-  unless (null pss) $ do
+  List1.unlessNull pss \ pss -> do
     stLocalPartialDefs `modifyTCLens` Set.insert f
     whenM ((YesCoverageCheck ==) <$> viewTC eCoverageCheck) $
       setCurrentRange cs $ warning $ CoverageIssue f pss

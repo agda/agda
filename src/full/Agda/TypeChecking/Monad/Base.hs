@@ -4276,7 +4276,7 @@ data Warning
   | UnreachableClauses       QName [Range]
   -- ^ `UnreachableClauses f rs` means that the clauses in `f` whose ranges are rs
   --   are unreachable
-  | CoverageIssue            QName [(Telescope, [NamedArg DeBruijnPattern])]
+  | CoverageIssue            QName (List1 (Telescope, [NamedArg DeBruijnPattern]))
   -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
   | CoverageNoExactSplit     QName [Clause]
   | InlineNoExactSplit       QName Clause
