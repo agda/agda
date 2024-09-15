@@ -210,6 +210,9 @@ unlessNull :: Applicative m => [a] -> (List1 a -> m ()) -> m ()
 unlessNull []       _ = pure ()
 unlessNull (x : xs) f = f $ x :| xs
 
+unlessNullM :: Monad m => m [a] -> (List1 a -> m ()) -> m ()
+unlessNullM m k = m >>= (`unlessNull` k)
+
 -- * List functions with no special behavior for non-empty lists.
 
 -- | Checks if all the elements in the list are equal. Assumes that

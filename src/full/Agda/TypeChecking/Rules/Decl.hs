@@ -68,6 +68,7 @@ import Agda.Termination.TermCheck
 import Agda.Utils.Function ( applyUnless )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -450,7 +451,7 @@ checkTermination_ d = Bench.billTo [Bench.Termination] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
   -- If there are some termination errors, we throw a warning.
   -- The termination checker already marked non-terminating functions as such.
-  unlessNullM (termDecl d) $ \ termErrs -> do
+  List1.unlessNullM (termDecl d) \ termErrs -> do
     warning $ TerminationIssue termErrs
 
 -- | Check a set of mutual names for positivity.

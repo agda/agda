@@ -187,7 +187,7 @@ redoChecks (Just ii) = do
     IPClause{ipcQName = f} -> do
       mb <- mutualBlockOf f
       terErrs <- localTC (\ e -> e { envMutualBlock = Just mb }) $ termMutual []
-      unless (null terErrs) $ warning $ TerminationIssue terErrs
+      List1.unlessNull terErrs $ warning . TerminationIssue
   -- TODO redo positivity check!
 
 -- | Auxiliary definition for 'give' and 'elaborate_give'.

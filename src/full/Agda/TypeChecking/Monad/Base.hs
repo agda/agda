@@ -4272,7 +4272,7 @@ data ArgsCheckState a = ACState
 
 data Warning
   = NicifierIssue            DeclarationWarning
-  | TerminationIssue         [TerminationError]
+  | TerminationIssue         (List1 TerminationError)
   | UnreachableClauses       QName [Range]
   -- ^ `UnreachableClauses f rs` means that the clauses in `f` whose ranges are rs
   --   are unreachable

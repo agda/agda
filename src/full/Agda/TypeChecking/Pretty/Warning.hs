@@ -93,14 +93,16 @@ prettyWarning = \case
 
     TerminationIssue because -> do
       dropTopLevel <- topLevelModuleDropper
-      fwords "Termination checking failed for the following functions:"
-        $$ nest 2 (fsep $ punctuate comma $
-             map (pretty . dropTopLevel) $
-               concatMap termErrFunctions because)
-        $$ fwords "Problematic calls:"
-        $$ nest 2 (fmap (P.vcat . List.nub) $
-              mapM prettyTCM $ List.sortOn getRange $
-              concatMap termErrCalls because)
+      vcat
+        [ fwords "Termination checking failed for the following functions:"
+        , nest 2 $ fsep $ punctuate comma $
+            map (pretty . dropTopLevel) $
+              concatMap termErrFunctions because
+        , fwords "Problematic calls:"
+        , nest 2 $ fmap (P.vcat . List.nub) $
+            mapM prettyTCM $ List.sortOn getRange $
+              concatMap termErrCalls because
+        ]
 
     UnreachableClauses _f pss -> "Unreachable" <+> pluralS pss "clause"
 

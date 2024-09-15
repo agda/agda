@@ -591,7 +591,7 @@ recordFieldWarningHighlighting = \case
 -- | Generate syntax highlighting for termination errors.
 
 terminationErrorHighlighting ::
-  [TerminationError] -> HighlightingInfoBuilder
+  List1 TerminationError -> HighlightingInfoBuilder
 terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
   where
     m            = parserBased { otherAspects = Set.singleton TerminationProblem }
