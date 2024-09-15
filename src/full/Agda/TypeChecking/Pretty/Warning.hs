@@ -361,15 +361,15 @@ prettyWarning = \case
         ]
       ContainsUnsolvedMetaVariables ms -> hsep
         [ prettyTCM q , " is not a legal rewrite rule, since"
-        , "it contains the unsolved meta variable(s)", prettyList_ (map prettyTCM $ Set.toList ms)
+        , "it contains the unsolved meta variable(s)", prettyList_ (fmap prettyTCM $ Set1.toList ms)
         ]
       BlockedOnProblems ps -> hsep
         [ prettyTCM q , " is not a legal rewrite rule, since"
-        , "it is blocked on problem(s)", prettyList_ (map prettyTCM $ Set.toList ps)
+        , "it is blocked on problem(s)", prettyList_ (fmap prettyTCM $ Set1.toList ps)
         ]
       RequiresDefinitions qs -> hsep
         [ prettyTCM q , " is not a legal rewrite rule, since"
-        , "it requires the definition(s) of", prettyList_ (map prettyTCM $ Set.toList qs)
+        , "it requires the definition(s) of", prettyList_ (fmap prettyTCM $ Set1.toList qs)
         ]
       DoesNotTargetRewriteRelation -> hsep
         [ prettyTCM q , " does not target rewrite relation" ]

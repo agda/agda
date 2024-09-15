@@ -5137,9 +5137,9 @@ data IllegalRewriteRuleReason
   | HeadSymbolIsTypeConstructor QName
   | HeadSymbolContainsMetas QName
   | ConstructorParametersNotGeneral ConHead Args
-  | ContainsUnsolvedMetaVariables (Set MetaId)
-  | BlockedOnProblems (Set ProblemId)
-  | RequiresDefinitions (Set QName)
+  | ContainsUnsolvedMetaVariables (Set1 MetaId)
+  | BlockedOnProblems (Set1 ProblemId)
+  | RequiresDefinitions (Set1 QName)
   | DoesNotTargetRewriteRelation
   | BeforeFunctionDefinition
   | BeforeMutualFunctionDefinition QName

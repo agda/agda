@@ -84,6 +84,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Size
 import qualified Agda.Utils.SmallSet as SmallSet
 
@@ -215,14 +216,10 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
     ]
   let failureBlocked :: Blocker -> MaybeT TCM a
       failureBlocked b
-        | not (null ms) = illegalRule $ ContainsUnsolvedMetaVariables ms
-        | not (null ps) = illegalRule $ BlockedOnProblems ps
-        | not (null qs) = illegalRule $ RequiresDefinitions qs
+        | Set1.IsNonEmpty ms <- allBlockingMetas    b = illegalRule $ ContainsUnsolvedMetaVariables ms
+        | Set1.IsNonEmpty ps <- allBlockingProblems b = illegalRule $ BlockedOnProblems ps
+        | Set1.IsNonEmpty qs <- allBlockingDefs     b = illegalRule $ RequiresDefinitions qs
         | otherwise = __IMPOSSIBLE__
-        where
-          ms = allBlockingMetas b
-          ps = allBlockingProblems b
-          qs = allBlockingDefs b
   let failureFreeVars :: IntSet -> MaybeT TCM a
       failureFreeVars xs = illegalRule $ VariablesNotBoundByLHS xs
   let failureNonLinearPars :: IntSet -> MaybeT TCM a
