@@ -194,7 +194,7 @@ instance PrettyTCM Call where
 
     ScopeCheckDeclaration d ->
       fsep (pwords "when scope checking the" ++ [ pluralS ds "declaration" ]) $$
-      nest 2 (vcat $ map pretty ds)
+      nest 2 (vcat $ fmap pretty ds)
       where
       ds     = D.notSoNiceDeclarations d
 
