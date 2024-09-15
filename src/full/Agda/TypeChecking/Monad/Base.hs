@@ -4969,7 +4969,7 @@ data TypeError
         | ClashingModule A.ModuleName A.ModuleName
         | DefinitionInDifferentModule A.QName
             -- ^ The given data/record definition rests in a different module than its signature.
-        | DuplicateImports C.QName [C.ImportedName]
+        | DuplicateImports C.QName (List1 C.ImportedName)
         | InvalidPattern C.Pattern
         | InvalidPun ConstructorOrPatternSynonym C.QName
             -- ^ Expected the identifier to be a variable, not a constructor or pattern synonym.

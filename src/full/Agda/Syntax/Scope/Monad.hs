@@ -810,7 +810,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
 
     -- Check for duplicate imports in a single import directive.
     -- @dup@ : To be imported names that are mentioned more than once.
-    unlessNull (allDuplicates targetNames) $ \ dup ->
+    () <- List1.unlessNull (allDuplicates targetNames) $ \ dup ->
       typeError $ DuplicateImports m dup
 
     -- Apply the import directive.

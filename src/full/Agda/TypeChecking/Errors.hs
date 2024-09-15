@@ -865,7 +865,7 @@ instance PrettyTCM TypeError where
 
     DuplicateImports m xs -> fsep $
       pwords "Ambiguous imports from module" ++ [pretty m] ++ pwords "for" ++
-      punctuate comma (map pretty xs)
+      punctuate comma (fmap pretty xs)
 
     DefinitionInDifferentModule _x -> fsep $
       pwords "Definition in different module than its type signature"
