@@ -44,6 +44,8 @@ import Agda.Interaction.Options
 import Agda.Interaction.Options.Errors
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty ( prettyShow, render )
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Concrete.Definitions (notSoNiceDeclarations)
 import Agda.Syntax.Concrete.Definitions.Errors (declarationExceptionString)
 import Agda.Syntax.Concrete.Pretty (attributesForModality, prettyHiding, prettyRelevance)
@@ -86,8 +88,7 @@ import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty ( prettyShow, render )
-import qualified Agda.Syntax.Common.Pretty as P
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -143,7 +144,7 @@ instance PrettyTCM TCErr where
     -- fact that  ̀ws` is non-empty.
     TypeError loc _ Closure{ clValue = NonFatalErrors ws } -> do
       reportSLn "error" 2 $ "Error raised at " ++ prettyShow loc
-      vsep $ map prettyTCM $ Set.toAscList ws
+      vsep $ fmap prettyTCM $ Set1.toAscList ws
     -- Andreas, 2014-03-23
     -- This use of withTCState seems ok since we do not collect
     -- Benchmark info during printing errors.
@@ -1248,7 +1249,7 @@ instance PrettyTCM TypeError where
     MultiplePolarityPragmas xs -> fsep $
       pwords "Multiple polarity pragmas for" ++ map pretty xs
 
-    NonFatalErrors ws -> vsep $ map prettyTCM $ Set.toAscList ws
+    NonFatalErrors ws -> vsep $ fmap prettyTCM $ Set1.toAscList ws
 
     InstanceSearchDepthExhausted c a d -> fsep $
       pwords ("Instance search depth exhausted (max depth: " ++ show d ++ ") for candidate") ++

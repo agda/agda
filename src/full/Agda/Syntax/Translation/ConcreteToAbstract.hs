@@ -41,6 +41,9 @@ import qualified Data.HashSet as HashSet
 import Data.Maybe
 import Data.Void
 
+import Agda.Syntax.Common
+import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Syntax.Common.Pretty (render, Pretty, pretty, prettyShow)
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Attribute as CA
 import Agda.Syntax.Concrete.Generic
@@ -53,7 +56,6 @@ import Agda.Syntax.Abstract.Pretty
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
-import Agda.Syntax.Common
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Concrete.Definitions as C
 import Agda.Syntax.Fixity
@@ -106,8 +108,7 @@ import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Syntax.Common.Pretty as P
-import Agda.Syntax.Common.Pretty (render, Pretty, pretty, prettyShow)
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 
@@ -1463,10 +1464,10 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
     when isSafe $ do
       let (errs, ws) = List.partition unsafeDeclarationWarning warns
       -- If some of them are, we fail
-      unless (null errs) $ do
+      List1.unlessNull errs \ errs -> do
         warnings $ map NicifierIssue ws
         tcerrs <- mapM (warning_ . NicifierIssue) errs
-        setCurrentRange errs $ typeError $ NonFatalErrors $ Set.fromList tcerrs
+        setCurrentRange errs $ typeError $ NonFatalErrors $ Set1.fromList tcerrs
     -- Otherwise we simply record the warnings
     mapM_ (\ w -> warning' (dwLocation w) $ NicifierIssue w) warns
   case result of

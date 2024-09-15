@@ -27,3 +27,7 @@ type Set1 = Set1.NESet
 unlessNull :: Applicative m => Set a -> (Set1 a -> m ()) -> m ()
 unlessNull = flip $ Set1.withNonEmpty $ pure ()
 {-# INLINE unlessNull #-}
+
+unlessNullM :: Monad m => m (Set a) -> (Set1 a -> m ()) -> m ()
+unlessNullM m k = m >>= (`unlessNull` k)
+{-# INLINE unlessNullM #-}

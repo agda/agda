@@ -54,6 +54,7 @@ import Agda.Utils.FileName ( filePath )
 import Agda.Utils.Functor  ( (<.>) )
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
+import Agda.Utils.List1 ( pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Singleton
@@ -680,7 +681,7 @@ tcWarningsToError :: [TCWarning] -> TCM ()
 tcWarningsToError mws = case (unsolvedHoles, otherWarnings) of
    ([], [])                   -> return ()
    (_unsolvedHoles@(_:_), []) -> typeError SolvedButOpenHoles
-   (_, ws@(_:_))              -> typeError $ NonFatalErrors $ Set.fromList ws
+   (_ , w : ws)               -> typeError $ NonFatalErrors $ Set1.fromList (w :| ws)
    where
    -- filter out unsolved interaction points for imported module so
    -- that we get the right error message (see test case Fail/Issue1296)

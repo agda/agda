@@ -5046,7 +5046,7 @@ data TypeError
         | NeedOptionTwoLevel
         | NeedOptionUniversePolymorphism
     -- Failure associated to warnings
-        | NonFatalErrors (Set TCWarning)
+        | NonFatalErrors (Set1 TCWarning)
     -- Instance search errors
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName

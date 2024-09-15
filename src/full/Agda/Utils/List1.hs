@@ -203,8 +203,11 @@ ifNotNull :: [a] -> (List1 a -> b) -> b -> b
 ifNotNull []       _ b = b
 ifNotNull (a : as) f _ = f $ a :| as
 
-unlessNull :: Null m => [a] -> (List1 a -> m) -> m
-unlessNull []       _ = empty
+-- | The more general type @Null m => [a] -> (List1 a -> m) -> m@
+--   often causes type inference to fail, as we do not in general have
+--   @instance Applicative m => Null (m ())@.
+unlessNull :: Applicative m => [a] -> (List1 a -> m ()) -> m ()
+unlessNull []       _ = pure ()
 unlessNull (x : xs) f = f $ x :| xs
 
 -- * List functions with no special behavior for non-empty lists.

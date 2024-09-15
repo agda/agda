@@ -98,6 +98,7 @@ import Agda.Utils.IO.Binary
 import Agda.Syntax.Common.Pretty hiding (Mode)
 import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Hash
+import qualified Agda.Utils.Set1 as Set1
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Impossible
@@ -556,7 +557,7 @@ raiseNonFatalErrors :: (HasOptions m, MonadTCError m)
   => CheckResult  -- ^ E.g. obtained from 'typeCheckMain'.
   -> m ()
 raiseNonFatalErrors result = do
-  unlessNullM (applyFlagsToTCWarnings (crWarnings result)) $ \ ws ->
+  Set1.unlessNullM (applyFlagsToTCWarnings (crWarnings result)) $ \ ws ->
     typeError $ NonFatalErrors ws
 
 -- | Check if the options used for checking an imported module are

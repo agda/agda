@@ -36,6 +36,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning )
 
 import Agda.Syntax.Abstract.Name ( QName )
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
 
@@ -46,8 +47,9 @@ import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate (highlightWarning)
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Function  ( applyUnless )
 import Agda.Utils.Lens
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
-import qualified Agda.Syntax.Common.Pretty as P
+import qualified Agda.Utils.Set1 as Set1
 
 import Agda.Utils.Impossible
 
@@ -133,8 +135,7 @@ warnings' loc ws = do
     then pure (Just tcwarn)
     else Nothing <$ addWarning tcwarn
 
-  let errs = catMaybes merrs
-  unless (null errs) $ typeError' loc $ NonFatalErrors $ Set.fromList errs
+  List1.unlessNull (catMaybes merrs) \ errs -> typeError' loc $ NonFatalErrors $ Set1.fromList errs
 
 {-# SPECIALIZE warnings :: HasCallStack => [Warning] -> TCM () #-}
 warnings :: (HasCallStack, MonadWarning m) => [Warning] -> m ()
