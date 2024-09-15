@@ -779,9 +779,9 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     -- We start by checking that all of the names talked about in the import
     -- directive do exist.  If some do not then we remove them and raise a warning.
     let (missingExports, namesA) = checkExist $ usingList ++ hdn' ++ map renFrom ren'
-    unless (null missingExports) $ setCurrentRange rng $ do
+    () <- List1.unlessNull missingExports \ missingExports1 -> setCurrentRange rng do
       reportSLn "scope.import.apply" 30 $ "non existing names: " ++ prettyShow missingExports
-      warning $ ModuleDoesntExport m (Map.keys namesInScope) (Map.keys modulesInScope) missingExports
+      warning $ ModuleDoesntExport m (Map.keys namesInScope) (Map.keys modulesInScope) missingExports1
 
     -- We can now define a cleaned-up version of the import directive.
     let notMissing = not . (missingExports `hasElem`)  -- #3997, efficient lookup in missingExports

@@ -298,7 +298,7 @@ prettyWarning = \case
       ys, ms :: [C.ImportedName]
       ys            = map ImportedName   ys0
       ms            = map ImportedModule ms0
-      (ys0, ms0)    = partitionImportedNames xs
+      (ys0, ms0)    = partitionImportedNames $ List1.toList xs
       suggestion zs = maybe empty parens . didYouMean (map C.QName zs) fromImportedName
 
     DuplicateUsing xs -> fsep $ pwords "Duplicates in `using` directive:" ++ map pretty (List1.toList xs)

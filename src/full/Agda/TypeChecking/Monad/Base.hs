@@ -4374,7 +4374,7 @@ data Warning
     -- ^ Duplicate mentions of the same name in @using@ directive(s).
   | FixityInRenamingModule (List1 Range)
     -- ^ Fixity of modules cannot be changed via renaming (since modules have no fixity).
-  | ModuleDoesntExport C.QName [C.Name] [C.Name] [C.ImportedName]
+  | ModuleDoesntExport C.QName [C.Name] [C.Name] (List1 C.ImportedName)
     -- ^ Some imported names are not actually exported by the source module.
     --   The second argument is the names that could be exported.
     --   The third  argument is the module names that could be exported.
