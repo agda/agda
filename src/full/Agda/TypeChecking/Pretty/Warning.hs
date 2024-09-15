@@ -205,7 +205,7 @@ prettyWarning = \case
 
     UselessHiding xs -> fsep $ concat
       [ pwords "Ignoring names in `hiding' directive:"
-      , punctuate "," $ map pretty xs
+      , punctuate "," $ fmap pretty xs
       ]
 
     UselessInline q -> fsep $

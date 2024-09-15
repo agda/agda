@@ -4333,7 +4333,7 @@ data Warning
   | UselessPublic
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
-  | UselessHiding [C.ImportedName]
+  | UselessHiding (List1 C.ImportedName)
     -- ^ Names in `hiding` directive that don't hide anything
     --   imported by a `using` directive.
   | UselessInline            QName
