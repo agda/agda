@@ -194,7 +194,7 @@ prettyWarning = \case
     ClashesViaRenaming nm xs -> fsep $ concat $
       [ [ case nm of NameNotModule -> "Name"; ModuleNotName -> "Module" ]
       , pwords "clashes introduced by `renaming':"
-      , map prettyTCM xs
+      , map prettyTCM $ Fold.toList xs
       ]
 
     UselessPatternDeclarationForRecord s -> fwords $ unwords

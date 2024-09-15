@@ -4319,7 +4319,7 @@ data Warning
     --   The 'String' gives optionally extra explanation.
   | InvalidCharacterLiteral Char
     -- ^ A character literal Agda does not support, e.g. surrogate code points.
-  | ClashesViaRenaming NameOrModule [C.Name]
+  | ClashesViaRenaming NameOrModule (Set1 C.Name)
     -- ^ If a `renaming' import directive introduces a name or module name clash
     --   in the exported names of a module.
     --   (See issue #4154.)

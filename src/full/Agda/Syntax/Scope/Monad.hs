@@ -28,6 +28,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -62,7 +63,7 @@ import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix as C
 
@@ -817,10 +818,10 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
 
     -- Andreas, 2019-11-08, issue #4154, report clashes
     -- introduced by the @renaming@.
-    unless (null nameClashes) $
-      warning $ ClashesViaRenaming NameNotModule $ Set.toList nameClashes
-    unless (null moduleClashes) $
-      warning $ ClashesViaRenaming ModuleNotName $ Set.toList moduleClashes
+    Set1.unlessNull nameClashes \ nameClashes ->
+      warning $ ClashesViaRenaming NameNotModule nameClashes
+    Set1.unlessNull moduleClashes \ moduleClashes ->
+      warning $ ClashesViaRenaming ModuleNotName moduleClashes
 
     -- Look up the defined names in the new scope.
     let namesInScope'   = (allNamesInScope scope' :: ThingsInScope AbstractName)
