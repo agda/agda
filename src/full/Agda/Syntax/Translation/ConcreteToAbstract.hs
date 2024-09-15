@@ -1888,7 +1888,7 @@ instance ToAbstract NiceDeclaration where
                    C.FieldSig _ _ f _ -> f
                    _ -> __IMPOSSIBLE__
                  _ -> Nothing
-           unlessNull (duplicates fs) $ \ dups -> do
+           List1.unlessNull (duplicates fs) $ \ dups -> do
              let bad = filter (`elem` dups) fs
              setCurrentRange bad $
                typeError $ DuplicateFields dups

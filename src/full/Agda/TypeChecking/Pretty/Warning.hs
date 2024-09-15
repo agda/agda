@@ -54,7 +54,7 @@ import Agda.Utils.FileName ( filePath )
 import Agda.Utils.Functor  ( (<.>) )
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
-import Agda.Utils.List1 ( pattern (:|), (<|) )
+import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Singleton
@@ -595,24 +595,24 @@ prettyWarning = \case
 {-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
 prettyRecordFieldWarning = \case
-  W.DuplicateFields xrs    -> prettyDuplicateFields $ map fst xrs
-  W.TooManyFields q ys xrs -> prettyTooManyFields q ys $ map fst xrs
+  W.DuplicateFields xrs    -> prettyDuplicateFields    $ fmap fst xrs
+  W.TooManyFields q ys xrs -> prettyTooManyFields q ys $ fmap fst xrs
 
-prettyDuplicateFields :: MonadPretty m => [C.Name] -> m Doc
+prettyDuplicateFields :: MonadPretty m => List1 C.Name -> m Doc
 prettyDuplicateFields xs = fsep $ concat
     [ [ "Duplicate", pluralS xs "field" ]
-    , punctuate comma (map pretty xs)
+    , punctuate comma (fmap pretty xs)
     , pwords "in record"
     ]
 
-{-# SPECIALIZE prettyTooManyFields :: QName -> [C.Name] -> [C.Name] -> TCM Doc  #-}
-prettyTooManyFields :: MonadPretty m => QName -> [C.Name] -> [C.Name] -> m Doc
+{-# SPECIALIZE prettyTooManyFields :: QName -> [C.Name] -> List1 C.Name -> TCM Doc  #-}
+prettyTooManyFields :: MonadPretty m => QName -> [C.Name] -> List1 C.Name -> m Doc
 prettyTooManyFields r missing xs = fsep $ concat
     [ pwords "The record type"
     , [prettyTCM r]
     , pwords "does not have the"
     , fields xs
-    , punctuate comma (map pretty xs)
+    , punctuate comma (fmap pretty xs)
     , if null missing then [] else concat
       [ pwords "but it would have the"
       , fields missing

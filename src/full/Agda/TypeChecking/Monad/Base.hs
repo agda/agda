@@ -4477,8 +4477,8 @@ data Warning
 
 recordFieldWarningToError :: RecordFieldWarning -> TypeError
 recordFieldWarningToError = \case
-  W.DuplicateFields    xrs -> DuplicateFields    $ map fst xrs
-  W.TooManyFields q ys xrs -> TooManyFields q ys $ map fst xrs
+  W.DuplicateFields    xrs -> DuplicateFields    $ fmap fst xrs
+  W.TooManyFields q ys xrs -> TooManyFields q ys $ fmap fst xrs
 
 warningName :: Warning -> WarningName
 warningName = \case
@@ -4860,9 +4860,9 @@ data TypeError
         | IllegalLetInTelescope C.TypedBinding
         | IllegalPatternInTelescope C.Binder
         | AbsentRHSRequiresAbsurdPattern [NamedArg A.Pattern]
-        | TooManyFields QName [C.Name] [C.Name]
-          -- ^ Record type, fields not supplied by user, non-fields but supplied.
-        | DuplicateFields [C.Name]
+        | TooManyFields QName [C.Name] (List1 C.Name)
+          -- ^ Record type, fields not supplied by user, possibly non-fields but supplied.
+        | DuplicateFields (List1 C.Name)
         | DuplicateConstructors [C.Name]
         | DuplicateOverlapPragma QName OverlapMode OverlapMode
         | WithOnFreeVariable A.Expr Term

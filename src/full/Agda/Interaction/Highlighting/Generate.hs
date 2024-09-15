@@ -582,8 +582,8 @@ recordFieldWarningHighlighting = \case
   W.DuplicateFields xrs      -> dead xrs
   W.TooManyFields _q _ys xrs -> dead xrs
   where
-  dead :: [(C.Name, Range)] -> HighlightingInfoBuilder
-  dead = mconcat . map deadcodeHighlighting
+  dead :: List1 (C.Name, Range) -> HighlightingInfoBuilder
+  dead = sconcat . fmap deadcodeHighlighting
   -- Andreas, 2020-03-27 #3684: This variant seems to only highlight @x@:
   -- dead = mconcat . map f
   -- f (x, r) = deadcodeHighlighting (getRange x) `mappend` deadcodeHighlighting r

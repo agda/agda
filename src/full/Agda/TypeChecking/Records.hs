@@ -44,6 +44,7 @@ import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor (for, ($>), (<&>))
 import Agda.Utils.Lens
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -75,15 +76,15 @@ orderFields style r fill axs fs = do
   --   , "  provided fields: " <+> sep (map pretty ys)
   --   ]
   unless (style == A.RecStyleWhere) $   -- Don't warn about unknown fields for `record where`
-    unlessNull alien     $ warn $ W.TooManyFields r missing
-  unlessNull duplicate $ warn $ W.DuplicateFields
+    List1.unlessNull alien   $ warn $ W.TooManyFields r missing
+  List1.unlessNull duplicate $ warn $ W.DuplicateFields
   return $ for axs $ \ ax -> fromMaybe (fill ax) $ lookup (unArg ax) uniq
   where
     (uniq, duplicate) = nubAndDuplicatesOn fst fs   -- separating duplicate fields
     xs        = map unArg axs                       -- official fields (accord. record type)
     missing   = filter (not . hasElem (map fst fs)) xs  -- missing  fields
     alien     = filter (not . hasElem xs . fst) fs      -- spurious fields
-    warn w    = tell . singleton . w . map (second getRange)
+    warn w    = tell . singleton . w . fmap (second getRange)
 
 -- | Raise generated 'RecordFieldWarning's as warnings.
 warnOnRecordFieldWarnings :: Writer [RecordFieldWarning] a -> TCM a
