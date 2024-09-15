@@ -61,7 +61,7 @@ instance EmbPrj Warning where
     NicifierIssue a                       -> icodeN 7 NicifierIssue a
     InversionDepthReached a               -> icodeN 8 InversionDepthReached a
     UserWarning a                         -> icodeN 9 UserWarning a
-    AbsurdPatternRequiresAbsentRHS a      -> icodeN 10 AbsurdPatternRequiresAbsentRHS a
+    AbsurdPatternRequiresAbsentRHS        -> icodeN 10 AbsurdPatternRequiresAbsentRHS
     ModuleDoesntExport a b c d            -> icodeN 11 ModuleDoesntExport a b c d
     LibraryWarning a                      -> icodeN 12 LibraryWarning a
     CoverageNoExactSplit a b              -> icodeN 13 CoverageNoExactSplit a b
@@ -143,7 +143,7 @@ instance EmbPrj Warning where
     [7, a]               -> valuN NicifierIssue a
     [8, a]               -> valuN InversionDepthReached a
     [9, a]               -> valuN UserWarning a
-    [10, a]              -> valuN AbsurdPatternRequiresAbsentRHS a
+    [10]                 -> valuN AbsurdPatternRequiresAbsentRHS
     [11, a, b, c, d]     -> valuN ModuleDoesntExport a b c d
     [12, a]              -> valuN LibraryWarning a
     [13, a, b]           -> valuN CoverageNoExactSplit a b

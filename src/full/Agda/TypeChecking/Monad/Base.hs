@@ -4297,7 +4297,7 @@ data Warning
     -- ^ Do not use directly with 'warning'
 
   | CantGeneralizeOverSorts (Set1 MetaId)
-  | AbsurdPatternRequiresAbsentRHS [NamedArg DeBruijnPattern]
+  | AbsurdPatternRequiresAbsentRHS
   | OldBuiltin               BuiltinId BuiltinId
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new.
   | BuiltinDeclaresIdentifier BuiltinId

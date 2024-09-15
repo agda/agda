@@ -840,9 +840,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
     -- one we complain, ignore it and return the same @(Nothing, NoWithFunction)@
     -- as the case dealing with @A.AbsurdRHS@.
     mv <- if absurdPat
-          then do
-            ps <- instantiateFull ps
-            Nothing <$ setCurrentRange e (warning $ AbsurdPatternRequiresAbsentRHS ps)
+          then Nothing <$ do setCurrentRange e $ warning AbsurdPatternRequiresAbsentRHS
           else Just <$> checkExpr e (unArg trhs)
     return (mv, NoWithFunction)
 

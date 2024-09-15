@@ -162,7 +162,7 @@ prettyWarning = \case
             , fsep $ pwords "Suggestion: add a `variable Any : Set _` and replace unsolved metas by Any"
             ]
 
-    AbsurdPatternRequiresAbsentRHS ps -> fwords $
+    AbsurdPatternRequiresAbsentRHS -> fwords $
       "The right-hand side must be omitted if there " ++
       "is an absurd pattern, () or {}, in the left-hand side."
 
