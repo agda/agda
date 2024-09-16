@@ -55,6 +55,7 @@ import Agda.Utils.List  ( stripSuffix, nubOn )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import Agda.Utils.List2 ( List2, pattern List2 )
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Monad ( ifM, unlessM )
 import Agda.Syntax.Common.Pretty ( Pretty(..), prettyShow )
 import qualified Agda.Syntax.Common.Pretty as P
@@ -175,7 +176,7 @@ findFile'' dirs m modFile =
     Just f  -> return (Right (SourceFile f), modFile)
     Nothing -> do
       files          <- fileList acceptableFileExts
-      filesShortList <- fileList parseFileExtsShortList
+      filesShortList <- fileList $ List2.toList parseFileExtsShortList
       existingFiles  <-
         liftIO $ filterM (doesFileExistCaseSensitive . filePath . srcFilePath) files
       return $ case nubOn id existingFiles of
@@ -284,8 +285,8 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $ do
             }
     else return raw
 
-parseFileExtsShortList :: [String]
-parseFileExtsShortList = ".agda" : literateExtsShortList
+parseFileExtsShortList :: List2 String
+parseFileExtsShortList = List2.cons ".agda" literateExtsShortList
 
 dropAgdaExtension :: String -> String
 dropAgdaExtension s = case catMaybes [ stripSuffix ext s
