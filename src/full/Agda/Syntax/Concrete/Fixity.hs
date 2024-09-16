@@ -26,8 +26,11 @@ import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 
 import Agda.Utils.CallStack (HasCallStack)
 import Agda.Utils.Functor
+import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
+import Agda.Utils.Tuple (Pair(Pair))
+
 import Agda.Utils.Impossible
 
 
@@ -35,7 +38,7 @@ type Fixities   = Map Name Fixity'
 type Polarities = Map Name [Occurrence]
 
 class Monad m => MonadFixityError m where
-  throwMultipleFixityDecls            :: [(Name, [Fixity'])] -> m a
+  throwMultipleFixityDecls            :: List1 (Name, Pair Fixity') -> m a
   throwMultiplePolarityPragmas        :: [Name] -> m a
   warnUnknownNamesInFixityDecl        :: HasCallStack => [Name] -> m ()
   warnUnknownNamesInPolarityPragmas   :: HasCallStack => [Name] -> m ()
@@ -48,7 +51,7 @@ class Monad m => MonadFixityError m where
 plusFixities :: MonadFixityError m => Fixities -> Fixities -> m Fixities
 plusFixities m1 m2
     -- If maps are not disjoint, report conflicts as exception.
-    | not (null isect) = throwMultipleFixityDecls isect
+    | Just ds <- List1.nonEmpty isect = throwMultipleFixityDecls ds
     -- Otherwise, do the union.
     | otherwise        = return $ Map.unionWithKey mergeFixites m1 m2
   where
@@ -62,7 +65,7 @@ plusFixities m1 m2
                       | otherwise = __IMPOSSIBLE__
 
     -- Compute a list of conflicts in a format suitable for error reporting.
-    isect = [ (x, map (Map.findWithDefault __IMPOSSIBLE__ x) [m1,m2])
+    isect = [ (x, fmap (Map.findWithDefault __IMPOSSIBLE__ x) $ Pair m1 m2)
             | (x, False) <- Map.assocs $ Map.intersectionWith compatible m1 m2 ]
 
     -- Check for no conflict.

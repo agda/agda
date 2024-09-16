@@ -143,6 +143,7 @@ import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
 import qualified Agda.Utils.SmallSet as SmallSet
 import Agda.Utils.Set1 (Set1)
 import Agda.Utils.Singleton
+import Agda.Utils.Tuple (Pair)
 import Agda.Utils.Update
 
 import Agda.Utils.Impossible
@@ -4981,7 +4982,7 @@ data TypeError
         | RepeatedVariablesInPattern (List1 C.Name)
         | GeneralizeNotSupportedHere A.QName
         | GeneralizedVarInLetOpenedModule A.QName
-        | MultipleFixityDecls [(C.Name, [Fixity'])]
+        | MultipleFixityDecls (List1 (C.Name, Pair Fixity'))
         | MultiplePolarityPragmas [C.Name]
     -- Concrete to Abstract errors
         | DeclarationsAfterTopLevelModule
