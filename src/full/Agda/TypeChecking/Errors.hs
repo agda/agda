@@ -1025,7 +1025,7 @@ instance PrettyTCM TypeError where
             pwords "Could mean any one of:"
         ]
           ++
-        map (nest 2 . pretty' d) ps
+        map (nest 2 . pretty' d) (List2.toList ps)
       where
         pretty' :: MonadPretty m => Doc -> C.Pattern -> m Doc
         pretty' d1 p' = do

@@ -597,15 +597,15 @@ parseLHS' lhsOrPatSyn top p = do
       [ "Possible parses for lhs:" ] ++ map (nest 2 . pretty . snd) results
     case results of
         -- Unique result.
-        [(_,lhs)] -> do reportS "scope.operators" 50 $ "Parsed lhs:" <+> pretty lhs
-                        return (lhs, operators patP)
+        [(_,lhs)] -> (lhs, operators patP) <$ do
+                       reportS "scope.operators" 50 $ "Parsed lhs:" <+> pretty lhs
         -- No result.
-        []        -> typeError $ OperatorInformation (operators patP)
-                               $ NoParseForLHS lhsOrPatSyn (catMaybes errs) p
+        []        -> typeError $ OperatorInformation (operators patP) $
+                       NoParseForLHS lhsOrPatSyn (catMaybes errs) p
         -- Ambiguous result.
-        rs        -> typeError $ OperatorInformation (operators patP)
-                               $ AmbiguousParseForLHS lhsOrPatSyn p $
-                       map (fullParen . fst) rs
+        r0:r1:rs  -> typeError $ OperatorInformation (operators patP) $
+                       AmbiguousParseForLHS lhsOrPatSyn p $
+                         fmap (fullParen . fst) $ List2 r0 r1 rs
     where
         getNames kinds flat =
           map (notaName . List1.head) $ getDefinedNames kinds flat

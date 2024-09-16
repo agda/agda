@@ -5028,7 +5028,7 @@ data TypeError
         | NoParseForLHS LHSOrPatSyn [C.Pattern] C.Pattern
             -- ^ The list contains patterns that failed to be interpreted.
             --   If it is non-empty, the first entry could be printed as error hint.
-        | AmbiguousParseForLHS LHSOrPatSyn C.Pattern [C.Pattern]
+        | AmbiguousParseForLHS LHSOrPatSyn C.Pattern (List2 C.Pattern)
             -- ^ Pattern and its possible interpretations.
         | AmbiguousProjection QName [QName]
         | AmbiguousOverloadedProjection (List1 QName) Doc
