@@ -151,7 +151,7 @@ errorWarnings = Set.fromList
   [ CoverageIssue_
   , InvalidCharacterLiteral_
   , MissingDefinitions_
-  , MissingDeclarations_
+  , MissingDataDeclaration_
   , NotAllowedInMutual_
   , NotStrictlyPositive_
   , ConstructorDoesNotFitInData_
@@ -237,7 +237,7 @@ data WarningName
   | InvalidNoUniverseCheckPragma_
   | DuplicateRecordDirective_
   | InvalidTerminationCheckPragma_
-  | MissingDeclarations_
+  | MissingDataDeclaration_
   | MissingDefinitions_
   | NotAllowedInMutual_
   | OpenPublicAbstract_
@@ -461,7 +461,7 @@ warningNameDescription = \case
   InvalidNoUniverseCheckPragma_    -> "Universe checking pragmas before non-`data' or `record' declaration."
   DuplicateRecordDirective_        -> "Conflicting directives in a record declaration."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
-  MissingDeclarations_             -> "Definitions not associated to a declaration."
+  MissingDataDeclaration_          -> "Constructor definitions not associated to a data declaration."
   MissingDefinitions_              -> "Declarations not associated to a definition."
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
   OpenPublicAbstract_              -> "'open public' directives in 'abstract' blocks."
