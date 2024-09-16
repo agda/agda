@@ -265,7 +265,7 @@ instance PrettyTCM TypeError where
       ++ [prettyTCM a] -- ++ pwords " (wrong argument name)"
       ++ [parens $ fsep $ text "possible arguments:" : map pretty xs | not (null xs)]
       where
-      xs = filter (not . isNoName) xs0
+      xs = List1.filter (not . isNoName) xs0
 
     WrongHidingInApplication t ->
       fwords "Found an implicit application where an explicit application was expected"

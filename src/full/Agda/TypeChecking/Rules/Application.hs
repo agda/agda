@@ -614,25 +614,24 @@ checkArgumentsE'
         -- What can go wrong?
 
         -- 1. We ran out of function types.
-        let shouldBePi
+        let shouldBePi =
               -- a) It is an explicit argument, but we ran out of function types.
-              | visible info = lift $ typeError $ ShouldBePi sFun
+              if visible info then liftTCM . typeError $ ShouldBePi sFun
               -- b) It is an implicit argument, and we did not insert any implicits.
               --    Thus, the type was not a function type to start with.
-              | null xs        = lift $ typeError $ ShouldBePi sFun
+              else List1.ifNull xs {-then-} (liftTCM . typeError $ ShouldBePi sFun)
               -- c) We did insert implicits, but we ran out of implicit function types.
               --    Then, we should inform the user that we did not find his one.
-              | otherwise      = lift $ typeError $ WrongNamedArgument arg xs
+              {-else-} (liftTCM . typeError . WrongNamedArgument arg)
 
         -- 2. We have a function type left, but it is the wrong one.
         --    Our argument must be implicit, case a) is impossible.
         --    (Otherwise we would have ran out of function types instead.)
-        let wrongPi
+        let wrongPi = List1.ifNull xs
               -- b) We have not inserted any implicits.
-              | null xs   = lift $ typeError $
-                            WrongHidingInApplication sFun
+                {-then-} (liftTCM . typeError $ WrongHidingInApplication sFun)
               -- c) We inserted implicits, but did not find his one.
-              | otherwise = lift $ typeError $ WrongNamedArgument arg xs
+                {-else-} (liftTCM . typeError . WrongNamedArgument arg)
 
         let (skip, next) = case sSkipCheck of
               Skip       -> (True, Skip)
