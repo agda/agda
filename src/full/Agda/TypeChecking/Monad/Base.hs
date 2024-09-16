@@ -4978,7 +4978,7 @@ data TypeError
             -- ^ Expected the identifier to be a variable, not a constructor or pattern synonym.
         | RepeatedNamesInImportDirective (List1 (List2 C.ImportedName))
             -- ^ Some names are bound several times by an @import@/@open@ directive.
-        | RepeatedVariablesInPattern [C.Name]
+        | RepeatedVariablesInPattern (List1 C.Name)
         | GeneralizeNotSupportedHere A.QName
         | GeneralizedVarInLetOpenedModule A.QName
         | MultipleFixityDecls [(C.Name, [Fixity'])]
