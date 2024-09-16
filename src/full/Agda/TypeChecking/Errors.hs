@@ -885,7 +885,7 @@ instance PrettyTCM TypeError where
       ]
 
     RepeatedVariablesInPattern xs -> fsep $
-      pwords "Repeated variables in pattern:" ++ map pretty xs
+      pwords "Repeated variables in pattern:" ++ map pretty (List1.toList xs)
 
     RepeatedNamesInImportDirective yss -> fsep
       [ fsep $ concat

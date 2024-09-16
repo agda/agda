@@ -27,6 +27,8 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.List1 (List1)
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
@@ -248,9 +250,9 @@ containsAsPattern = containsAPattern $ \case
 -- | Check if any user-written pattern variables occur more than once,
 --   and throw the given error if they do.
 checkPatternLinearity :: (Monad m, APatternLike p)
-                      => p -> ([C.Name] -> m ()) -> m ()
-checkPatternLinearity ps err =
-  unlessNull (duplicates $ map nameConcrete $ patternVars ps) $ \ys -> err ys
+  => p -> (List1 C.Name -> m ()) -> m ()
+checkPatternLinearity =
+  List1.unlessNull . duplicates . map nameConcrete . patternVars
 
 
 -- * Specific traversals
