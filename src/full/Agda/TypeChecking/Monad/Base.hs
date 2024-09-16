@@ -4983,7 +4983,7 @@ data TypeError
         | GeneralizeNotSupportedHere A.QName
         | GeneralizedVarInLetOpenedModule A.QName
         | MultipleFixityDecls (List1 (C.Name, Pair Fixity'))
-        | MultiplePolarityPragmas [C.Name]
+        | MultiplePolarityPragmas (List1 C.Name)
     -- Concrete to Abstract errors
         | DeclarationsAfterTopLevelModule
         | IllegalDeclarationBeforeTopLevelModule

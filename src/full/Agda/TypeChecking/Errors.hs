@@ -1246,7 +1246,7 @@ instance PrettyTCM TypeError where
         f (x, fs) = (pretty x <> ": ") <+> fsep (fmap pretty fs)
 
     MultiplePolarityPragmas xs -> fsep $
-      pwords "Multiple polarity pragmas for" ++ map pretty xs
+      pwords "Multiple polarity pragmas for" ++ map pretty (List1.toList xs)
 
     NonFatalErrors ws -> vsep $ fmap prettyTCM $ Set1.toAscList ws
 
