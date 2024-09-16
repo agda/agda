@@ -1724,14 +1724,17 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
           -- If this fails, we try again with constraints, but we require
           -- the solution to be unique.
           tryDisambiguate True fs r vs comatching $ \case
-            ([]   , []      ) -> __IMPOSSIBLE__
-            (err:_, []      ) -> throwError err
-            (_    , disambs@((d,a):_)) -> typeError $ AmbiguousProjection d (map fst disambs)
+            (err:_, [] ) -> throwError err
+            ([]   , [] ) -> __IMPOSSIBLE__
+            (_    , [_]) -> __IMPOSSIBLE__
+            (_    , (d,_) : (d1,_) : disambs) ->
+              typeError $ AmbiguousProjection d $ d1 :| map fst disambs
   where
     tryDisambiguate constraintsOk fs r vs comatching failure = do
       -- Note that tryProj wraps TCM in an ExceptT, collecting errors
       -- instead of throwing them to the user immediately.
-      disambiguations <- mapM (runExceptT . tryProj constraintsOk fs r vs) ds
+      disambiguations :: List1 (Either TCErr (QName, (Arg Type, ArgInfo, Maybe TCState)))
+        <- mapM (runExceptT . tryProj constraintsOk fs r vs) ds
       case List1.partitionEithers disambiguations of
         (_ , (d, (a, ai, mst)) : disambs) | constraintsOk <= null disambs -> do
           mapM_ putTC mst -- Activate state changes

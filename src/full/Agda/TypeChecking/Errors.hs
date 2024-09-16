@@ -738,7 +738,7 @@ instance PrettyTCM TypeError where
     AmbiguousProjection d disambs -> vcat
       [ "Ambiguous projection " <> prettyTCM d <> "."
       , "It could refer to any of"
-      , nest 2 $ vcat $ (map prettyDisambProj disambs)
+      , nest 2 $ vcat $ fmap prettyDisambProj $ List2.cons d disambs
       ]
 
     AmbiguousOverloadedProjection ds reason -> do

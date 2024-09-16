@@ -5030,7 +5030,8 @@ data TypeError
             --   If it is non-empty, the first entry could be printed as error hint.
         | AmbiguousParseForLHS LHSOrPatSyn C.Pattern (List2 C.Pattern)
             -- ^ Pattern and its possible interpretations.
-        | AmbiguousProjection QName [QName]
+        | AmbiguousProjection QName (List1 QName)
+            -- ^ The list contains alternative interpretations of the name.
         | AmbiguousOverloadedProjection (List1 QName) Doc
         | OperatorInformation [NotationSection] TypeError
             -- ^ The list of notations can be empty.
