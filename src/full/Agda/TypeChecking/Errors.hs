@@ -845,8 +845,8 @@ instance PrettyTCM TypeError where
           sep [prettyTCM m, anno ]
 
     AmbiguousField field modules -> vcat $
-      "Ambiguity: the field" <+> prettyTCM field
-        <+> "appears in the following modules: " : map prettyTCM modules
+      hsep [ "Ambiguity: the field", prettyTCM field, "appears in the following modules:" ]
+      : map prettyTCM (List2.toList modules)
 
     ClashingDefinition x y suggestion -> fsep $
       pwords "Multiple definitions of" ++ [pretty x <> "."] ++
