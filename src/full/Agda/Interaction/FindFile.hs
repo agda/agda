@@ -53,6 +53,7 @@ import Agda.Utils.Applicative ( (?$>) )
 import Agda.Utils.FileName
 import Agda.Utils.List  ( stripSuffix, nubOn )
 import Agda.Utils.List1 ( List1, pattern (:|) )
+import Agda.Utils.List2 ( List2, pattern List2 )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad ( ifM, unlessM )
 import Agda.Syntax.Common.Pretty ( Pretty(..), prettyShow )
@@ -124,20 +125,17 @@ data FindError
   = NotFound [SourceFile]
     -- ^ The file was not found. It should have had one of the given
     -- file names.
-  | Ambiguous [SourceFile]
+  | Ambiguous (List2 SourceFile)
     -- ^ Several matching files were found.
-    --
-    -- Invariant: The list of matching files has at least two
-    -- elements.
   deriving Show
 
 -- | Given the module name which the error applies to this function
 -- converts a 'FindError' to a 'TypeError'.
 
 findErrorToTypeError :: TopLevelModuleName -> FindError -> TypeError
-findErrorToTypeError m (NotFound  files) = FileNotFound m (map srcFilePath files)
-findErrorToTypeError m (Ambiguous files) =
-  AmbiguousTopLevelModuleName m (map srcFilePath files)
+findErrorToTypeError m = \case
+  NotFound  files -> FileNotFound m $ map srcFilePath files
+  Ambiguous files -> AmbiguousTopLevelModuleName m $ fmap srcFilePath files
 
 -- | Finds the source file corresponding to a given top-level module
 -- name. The returned paths are absolute.
@@ -183,7 +181,7 @@ findFile'' dirs m modFile =
       return $ case nubOn id existingFiles of
         []     -> (Left (NotFound filesShortList), modFile)
         [file] -> (Right file, Map.insert m (srcFilePath file) modFile)
-        files  -> (Left (Ambiguous existingFiles), modFile)
+        f0:f1:fs -> (Left (Ambiguous $ List2 f0 f1 fs), modFile)
   where
     fileList exts = mapM (fmap SourceFile . absolute)
                     [ filePath dir </> file
@@ -232,7 +230,7 @@ checkModuleName name (SourceFile file) mexpected = do
         Just expected -> ModuleNameUnexpected name expected
 
     Left (Ambiguous files) -> typeError $
-      AmbiguousTopLevelModuleName name (map srcFilePath files)
+      AmbiguousTopLevelModuleName name $ fmap srcFilePath files
 
     Right src -> do
       let file' = srcFilePath src

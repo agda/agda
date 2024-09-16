@@ -733,7 +733,7 @@ instance PrettyTCM TypeError where
       fsep ( pwords "Ambiguous module name. The module name" ++
              [pretty x] ++
              pwords "could refer to any of the following files:"
-           ) $$ nest 2 (vcat $ map (text . filePath) files)
+           ) $$ nest 2 (vcat $ fmap (text . filePath) files)
 
     AmbiguousProjection d disambs -> vcat
       [ "Ambiguous projection " <> prettyTCM d <> "."
