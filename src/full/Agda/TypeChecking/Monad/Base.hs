@@ -4751,6 +4751,7 @@ data TypeError
         | NoKnownRecordWithSuchFields [C.Name]
             -- ^ The user has given a record expression with the given fields,
             --   but no record type known to type inference has all these fields.
+            --   The list can be empty.
         | ShouldEndInApplicationOfTheDatatype Type
             -- ^ The target of a constructor isn't an application of its
             -- datatype. The 'Type' records what it does target.
@@ -4797,6 +4798,7 @@ data TypeError
         | CannotEliminateWithProjection (Arg Type) Bool QName
         | WrongNumberOfConstructorArguments QName Nat Nat
         | ShouldBeEmpty Type [DeBruijnPattern]
+            -- ^ Type should be empty. The list gives possible patterns that match, but can be empty.
         | ShouldBeASort Type
             -- ^ The given type should have been a sort.
         | ShouldBePi Type
@@ -4889,6 +4891,8 @@ data TypeError
         | CannotRewriteByNonEquation Type
         | MacroResultTypeMismatch Type
         | NamedWhereModuleInRefinedContext [Term] [String]
+            -- ^ The lists should have the same length.
+            --   TODO: enforce this by construction.
         | CubicalPrimitiveNotFullyApplied QName
         | ComatchingDisabledForRecord QName
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
@@ -4947,12 +4951,14 @@ data TypeError
         | CyclicModuleDependency (List2 TopLevelModuleName)
             -- ^ The cycle starts and ends with the same module.
         | FileNotFound TopLevelModuleName [AbsolutePath]
+            -- ^ The list can be empty.
         | OverlappingProjects AbsolutePath TopLevelModuleName TopLevelModuleName
         | AmbiguousTopLevelModuleName TopLevelModuleName (List2 AbsolutePath)
             -- ^ The given module has at least 2 file locations.
         | ModuleNameUnexpected TopLevelModuleName TopLevelModuleName
           -- ^ Found module name, expected module name.
         | ModuleNameDoesntMatchFileName TopLevelModuleName [AbsolutePath]
+            -- ^ The list can be empty.
         | ModuleDefinedInOtherFile TopLevelModuleName AbsolutePath AbsolutePath
           -- ^ Module name, file from which it was loaded, file which
           -- the include path says contains the module.
@@ -5027,6 +5033,7 @@ data TypeError
         | AmbiguousProjection QName [QName]
         | AmbiguousOverloadedProjection (List1 QName) Doc
         | OperatorInformation [NotationSection] TypeError
+            -- ^ The list of notations can be empty.
 {- UNUSED
         | NoParseForPatternSynonym C.Pattern
         | AmbiguousParseForPatternSynonym C.Pattern [C.Pattern]
@@ -5034,9 +5041,11 @@ data TypeError
     -- Usage errors
     -- Instance search errors
         | InstanceNoCandidate Type [(Term, TCErr)]
+            -- ^ The list can be empty.
     -- Reflection errors
         | UnquoteFailed UnquoteError
         | DeBruijnIndexOutOfScope Nat Telescope [Name]
+            -- ^ The list can be empty.
     -- Language option errors
         | NeedOptionAllowExec
         | NeedOptionCopatterns
