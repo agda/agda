@@ -4773,7 +4773,7 @@ data TypeError
             -- ^ A function is applied to a hidden argument where a non-hidden was expected.
         | WrongHidingInProjection QName
         | IllegalHidingInPostfixProjection (NamedArg C.Expr)
-        | WrongNamedArgument (NamedArg A.Expr) [NamedName]
+        | WrongNamedArgument (NamedArg A.Expr) (List1 NamedName)
             -- ^ A function is applied to a hidden named argument it does not have.
             -- The list contains names of possible hidden arguments at this point.
         | WrongAnnotationInLambda
