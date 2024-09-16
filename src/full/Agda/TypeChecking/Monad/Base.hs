@@ -4274,9 +4274,9 @@ data ArgsCheckState a = ACState
 data Warning
   = NicifierIssue            DeclarationWarning
   | TerminationIssue         (List1 TerminationError)
-  | UnreachableClauses       QName [Range]
-  -- ^ `UnreachableClauses f rs` means that the clauses in `f` whose ranges are rs
-  --   are unreachable
+  | UnreachableClauses       QName (List1 Range)
+  -- ^ @UnreachableClauses f rs@ means that the clauses in @f@ whose ranges are @rs@
+  --   are unreachable.
   | CoverageIssue            QName (List1 (Telescope, [NamedArg DeBruijnPattern]))
   -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
   | CoverageNoExactSplit     QName (List1 Clause)

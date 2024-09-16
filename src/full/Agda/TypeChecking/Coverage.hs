@@ -218,27 +218,20 @@ coverageCheck f t cs = do
   -- Mark clauses as reachable or unreachable in the signature.
   -- Andreas, 2020-11-19, issue #5065
   -- Remember whether clauses are exact or not.
-  let (is0, cs1) = unzip $ for (zip [0..] cs) $ \ (i, cl) -> let
-          unreachable = i `IntSet.notMember` used
-          exact       = i `IntSet.notMember` (IntSet.fromList noex)
-        in (boolToMaybe unreachable i, cl
-             { clauseUnreachable = Just unreachable
-             , clauseExact       = Just exact
-             })
-  -- is = indices of unreachable clauses
-  let is = catMaybes is0
-  reportSDoc "tc.cover.top" 10 $ vcat
-    [ text $ "unreachable clauses: " ++ if null is then "(none)" else show is
-    ]
+  let noExSet = IntSet.fromList noex
+  let cs1 = zip [0..] cs <&> \ (i, cl) -> cl
+             { clauseUnreachable = Just $ i `IntSet.notMember` used
+             , clauseExact       = Just $ i `IntSet.notMember` noExSet
+             }
+
   -- Replace the first clauses by @cs1@.  There might be more
   -- added by @inferMissingClause@.
   modifyFunClauses f $ \ cs0 -> cs1 ++ drop (length cs1) cs0
 
   -- Warn if there are unreachable clauses and mark them as unreachable.
-  unless (null is) $ do
+  List1.unlessNull (filter ((Just True ==) . clauseUnreachable) cs1) \ unreached -> do
     -- Warn about unreachable clauses.
-    let unreached = filter ((Just True ==) . clauseUnreachable) cs1
-    let ranges    = map clauseFullRange unreached
+    let ranges = fmap clauseFullRange unreached
     setCurrentRange ranges $ warning $ UnreachableClauses f ranges
 
   -- Report a warning if there are clauses that are not preserved as
