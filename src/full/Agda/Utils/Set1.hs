@@ -20,6 +20,9 @@ import Data.Set.NonEmpty as Set1
 
 type Set1 = Set1.NESet
 
+ifNull :: Set a -> b -> (Set1 a -> b) -> b
+ifNull s b f = Set1.withNonEmpty b f s
+
 -- | A more general type would be @Null m => Set a -> (Set1 a -> m) -> m@
 --   but this type is problematic as we do not have a general
 --   @instance Applicative m => Null (m ())@.

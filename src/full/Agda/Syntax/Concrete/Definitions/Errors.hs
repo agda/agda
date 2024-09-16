@@ -17,6 +17,8 @@ import Agda.Utils.CallStack ( CallStack )
 import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.List2 (List2, pattern List2)
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Set1 (Set1)
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
 
 ------------------------------------------------------------------------
@@ -132,7 +134,7 @@ data DeclarationWarning'
   | OpenPublicAbstract KwRange
       -- ^ @abstract@ has no effect on @open public@.  (But the user might think so.)
       --   'KwRange' is the range of the @public@ keyword.
-  | PolarityPragmasButNotPostulates [Name]
+  | PolarityPragmasButNotPostulates (Set1 Name)
   | PragmaNoTerminationCheck Range
       -- ^ Pragma @{-\# NO_TERMINATION_CHECK \#-}@ has been replaced
       --   by @{-\# TERMINATING \#-}@ and @{-\# NON_TERMINATING \#-}@.
@@ -147,9 +149,9 @@ data DeclarationWarning'
   | SafeFlagPolarity          Range -- ^ @POLARITY@            pragma is unsafe.
   | SafeFlagTerminating       Range -- ^ @TERMINATING@         pragma is unsafe.
   | ShadowingInTelescope (List1 (Name, List2 Range))
-  | UnknownFixityInMixfixDecl [Name]
-  | UnknownNamesInFixityDecl [Name]
-  | UnknownNamesInPolarityPragmas [Name]
+  | UnknownFixityInMixfixDecl (Set1 Name)
+  | UnknownNamesInFixityDecl (Set1 Name)
+  | UnknownNamesInPolarityPragmas (Set1 Name)
   | UselessAbstract KwRange
       -- ^ @abstract@ block with nothing that can (newly) be made abstract.
   | UselessInstance KwRange
@@ -430,15 +432,15 @@ instance Pretty DeclarationWarning' where
 
     UnknownNamesInFixityDecl xs -> fsep $
       pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):"
-      ++ punctuate comma (map pretty xs)
+      ++ punctuate comma (fmap pretty $ Set1.toList xs)
 
     UnknownFixityInMixfixDecl xs -> fsep $
       pwords "The following mixfix names do not have an associated fixity declaration:"
-      ++ punctuate comma (map pretty xs)
+      ++ punctuate comma (fmap pretty $ Set1.toList xs)
 
     UnknownNamesInPolarityPragmas xs -> fsep $
       pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):"
-      ++ punctuate comma  (map pretty xs)
+      ++ punctuate comma (fmap pretty $ Set1.toList xs)
 
     MissingDeclarations xs -> fsep $
      pwords "The following names are defined but not accompanied by a declaration:"
@@ -453,7 +455,7 @@ instance Pretty DeclarationWarning' where
 
     PolarityPragmasButNotPostulates xs -> fsep $
       pwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
-      ++ punctuate comma (map pretty xs)
+      ++ punctuate comma (fmap pretty $ Set1.toList xs)
 
     UselessPrivate _ -> fsep $
       pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."

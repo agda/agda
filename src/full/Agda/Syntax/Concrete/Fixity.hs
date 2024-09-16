@@ -29,6 +29,8 @@ import Agda.Utils.Functor
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
+import Agda.Utils.Set1 (Set1)
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Tuple (Pair(Pair))
 
 import Agda.Utils.Impossible
@@ -40,10 +42,10 @@ type Polarities = Map Name [Occurrence]
 class Monad m => MonadFixityError m where
   throwMultipleFixityDecls            :: List1 (Name, Pair Fixity') -> m a
   throwMultiplePolarityPragmas        :: List1 Name -> m a
-  warnUnknownNamesInFixityDecl        :: HasCallStack => [Name] -> m ()
-  warnUnknownNamesInPolarityPragmas   :: HasCallStack => [Name] -> m ()
-  warnUnknownFixityInMixfixDecl       :: HasCallStack => [Name] -> m ()
-  warnPolarityPragmasButNotPostulates :: HasCallStack => [Name] -> m ()
+  warnUnknownNamesInFixityDecl        :: HasCallStack => Set1 Name -> m ()
+  warnUnknownNamesInPolarityPragmas   :: HasCallStack => Set1 Name -> m ()
+  warnUnknownFixityInMixfixDecl       :: HasCallStack => Set1 Name -> m ()
+  warnPolarityPragmasButNotPostulates :: HasCallStack => Set1 Name -> m ()
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 --   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.
@@ -118,28 +120,28 @@ fixitiesAndPolarities doWarn ds = do
 
   -- If we have names in fixity declarations which are not defined in the
   -- appropriate scope, raise a warning and delete them from fixs.
-  fixs <- ifNull (Map.keysSet fixs Set.\\ declared) (return fixs) $ \ unknownFixs -> do
-    when (doWarn == DoWarn) $ warnUnknownNamesInFixityDecl $ Set.toList unknownFixs
+  fixs <- Set1.ifNull (Map.keysSet fixs Set.\\ declared) (return fixs) $ \ unknownFixs -> do
+    when (doWarn == DoWarn) $ warnUnknownNamesInFixityDecl unknownFixs
     -- Note: Data.Map.restrictKeys requires containers >= 0.5.8.2
     -- return $ Map.restrictKeys fixs declared
     return $ Map.filterWithKey (\ k _ -> Set.member k declared) fixs
 
   -- Same for undefined names in polarity declarations.
-  pols <- ifNull (Map.keysSet pols Set.\\ declared) (return pols) $
+  pols <- Set1.ifNull (Map.keysSet pols Set.\\ declared) (return pols) $
     \ unknownPols -> do
-      when (doWarn == DoWarn) $ warnUnknownNamesInPolarityPragmas $ Set.toList unknownPols
+      when (doWarn == DoWarn) $ warnUnknownNamesInPolarityPragmas unknownPols
       -- Note: Data.Map.restrictKeys requires containers >= 0.5.8.2
       -- return $ Map.restrictKeys polarities declared
       return $ Map.filterWithKey (\ k _ -> Set.member k declared) pols
 
   -- If we have public mixfix identifiers without a corresponding fixity
   -- declaration, we raise a warning
-  ifNull (Set.filter isOpenMixfix publicNames Set.\\ Map.keysSet fixs) (return ()) $
-    when (doWarn == DoWarn) . warnUnknownFixityInMixfixDecl . Set.toList
+  Set1.unlessNull (Set.filter isOpenMixfix publicNames Set.\\ Map.keysSet fixs) $
+    when (doWarn == DoWarn) . warnUnknownFixityInMixfixDecl
 
   -- Check that every polarity pragma is used for a postulate.
-  ifNull (Map.keysSet pols Set.\\ postulates) (return ()) $
-    when (doWarn == DoWarn) . warnPolarityPragmasButNotPostulates . Set.toList
+  Set1.unlessNull (Map.keysSet pols Set.\\ postulates) $
+    when (doWarn == DoWarn) . warnPolarityPragmasButNotPostulates
 
   return (fixs, pols)
 
