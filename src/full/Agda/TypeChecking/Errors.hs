@@ -83,7 +83,8 @@ import Agda.Utils.Functor( for )
 import Agda.Utils.IO     ( showIOException )
 import Agda.Utils.Lens
 import Agda.Utils.List   ( initLast, lastMaybe )
-import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.List1  ( List1, pattern (:|) )
+import Agda.Utils.List2  ( pattern List2 )
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
@@ -701,9 +702,9 @@ instance PrettyTCM TypeError where
       pwords "Module cannot be imported since it has open interaction points" ++
       pwords "(consider adding {-# OPTIONS --allow-unsolved-metas #-} to this module)"
 
-    CyclicModuleDependency ms ->
+    CyclicModuleDependency (List2 m0 m1 ms) ->
       fsep (pwords "cyclic module dependency:")
-      $$ nest 2 (vcat $ map pretty ms)
+      $$ nest 2 (vcat $ (pretty m0 :) $ map (("importing" <+>) . pretty) (m1 : ms))
 
     FileNotFound x files ->
       fsep ( pwords "Failed to find source of module" ++ [pretty x] ++
