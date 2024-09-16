@@ -35,7 +35,9 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 
 import Agda.Utils.List
+import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -146,8 +148,8 @@ isBlank = (&&) <$> isSpace <*> (/= '\n')
 -- | Short list of extensions for literate Agda files.
 --   For display purposes.
 
-literateExtsShortList :: [String]
-literateExtsShortList = [".lagda"]
+literateExtsShortList :: List1 String
+literateExtsShortList = singleton ".lagda"
 
 -- | Returns a tuple consisting of the first line of the input, and the rest
 --   of the input.
