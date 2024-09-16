@@ -330,7 +330,7 @@ order for the change to take effect."
   ("oo"  . ("⊚"))
   ("o*"  . ("⊛"))
   ("o="  . ("⊜"))
-  ("o-"  . ("⊝"))
+  ("o-"  . ,(agda-input-to-string-list "⊝⟜"))
 
   ("O+"  . ("⨁"))
   ("Ox"  . ("⨂"))
@@ -435,6 +435,7 @@ order for the change to take effect."
   ("r->" . ("↣"))
 
   ("r-o" . ("⊸"))  ("-o"  . ("⊸"))
+  ("l-o" . ("⟜"))
 
   ("dz" . ("↯"))
 
