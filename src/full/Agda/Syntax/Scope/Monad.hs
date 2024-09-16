@@ -447,8 +447,7 @@ instance MonadFixityError ScopeM where
   throwMultipleFixityDecls xs         = case xs of
     (x, _) :| _ -> setCurrentRange (getRange x) $ typeError $ MultipleFixityDecls xs
   throwMultiplePolarityPragmas xs     = case xs of
-    x : _ -> setCurrentRange (getRange x) $ typeError $ MultiplePolarityPragmas xs
-    []    -> __IMPOSSIBLE__
+    x :| _ -> setCurrentRange (getRange x) $ typeError $ MultiplePolarityPragmas xs
   warnUnknownNamesInFixityDecl        = scopeWarning . UnknownNamesInFixityDecl
   warnUnknownNamesInPolarityPragmas   = scopeWarning . UnknownNamesInPolarityPragmas
   warnUnknownFixityInMixfixDecl       = scopeWarning . UnknownFixityInMixfixDecl

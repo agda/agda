@@ -39,7 +39,7 @@ type Polarities = Map Name [Occurrence]
 
 class Monad m => MonadFixityError m where
   throwMultipleFixityDecls            :: List1 (Name, Pair Fixity') -> m a
-  throwMultiplePolarityPragmas        :: [Name] -> m a
+  throwMultiplePolarityPragmas        :: List1 Name -> m a
   warnUnknownNamesInFixityDecl        :: HasCallStack => [Name] -> m ()
   warnUnknownNamesInPolarityPragmas   :: HasCallStack => [Name] -> m ()
   warnUnknownFixityInMixfixDecl       :: HasCallStack => [Name] -> m ()
@@ -93,13 +93,10 @@ instance MonadFixityError m => Semigroup (MonadicFixPol m) where
     p <- mergePolarities p1 p2
     return (f, p)
     where
-    mergePolarities p1 p2
-      | Map.null i = return (Map.union p1 p2)
-      | otherwise  = throwMultiplePolarityPragmas $
-                     map fst $ Map.toList i
-      where
-      -- Only the keys are used.
-      i = Map.intersection p1 p2
+    mergePolarities p1 p2 =
+      List1.ifNull (Map.keys $ Map.intersection p1 p2)
+        {-then-} (return $ Map.union p1 p2)
+        {-else-} \ ks -> throwMultiplePolarityPragmas ks
 
 instance MonadFixityError m => Monoid (MonadicFixPol m) where
   mempty  = MonadicFixPol $ return (Map.empty, Map.empty)
