@@ -759,7 +759,7 @@ instance PrettyTCM TypeError where
     AmbiguousConstructor c disambs -> vcat
       [ "Ambiguous constructor " <> pretty (qnameName c) <> "."
       , "It could refer to any of"
-      , nest 2 $ vcat $ map prettyDisambCons disambs
+      , nest 2 $ vcat $ fmap prettyDisambCons disambs
       ]
 
     InvalidFileName file reason -> fsep $

@@ -81,7 +81,9 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.List2 (pattern List2)
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -1836,8 +1838,8 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
         -- meaning that only the parameters may differ,
         -- then throw more specific error.
         (_    , [_]) -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
-        (_    , disambs@(((c,_,_) :| _) : _)) -> typeError $
-          AmbiguousConstructor c (map (conName . snd3) $ List1.concat disambs)
+        (_    , (d0@((c,_,_) :| _) : d1 : ds)) -> typeError $
+          AmbiguousConstructor c $ fmap (conName . snd3) $ List2.concat21 $ List2 d0 d1 ds
 
   where
     tryDisambiguate

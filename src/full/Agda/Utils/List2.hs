@@ -17,6 +17,7 @@ import Control.DeepSeq
 import Control.Monad                   ( (<=<) )
 
 import qualified Data.List as List
+import Data.Semigroup (sconcat)
 
 import GHC.Exts                        ( IsList(..) )
 import qualified GHC.Exts  as Reexport ( toList )
@@ -94,6 +95,10 @@ append (x :| xs) ys = cons x $ List1.prependList xs ys
 -- | O(length first list).
 appendList :: List2 a -> [a] -> List2 a
 appendList (List2 x y ys) zs = List2 x y $ mappend ys zs
+
+-- | Concatenate at least 2 lists of length at least 1.
+concat21 :: List2 (List1 a) -> List2 a
+concat21 (List2 xs ys zss) = append xs $ sconcat $ ys :| zss
 
 -- * Destruction
 

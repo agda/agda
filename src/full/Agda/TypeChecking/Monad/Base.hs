@@ -4966,7 +4966,8 @@ data TypeError
         | AmbiguousName C.QName AmbiguousNameReason
         | AmbiguousModule C.QName (List1 A.ModuleName)
         | AmbiguousField C.Name (List2 A.ModuleName)
-        | AmbiguousConstructor QName [QName]
+        | AmbiguousConstructor QName (List2 QName)
+            -- ^ The list contains all interpretations of the name.
         | ClashingDefinition C.QName A.QName (Maybe NiceDeclaration)
         | ClashingModule A.ModuleName A.ModuleName
         | DefinitionInDifferentModule A.QName
