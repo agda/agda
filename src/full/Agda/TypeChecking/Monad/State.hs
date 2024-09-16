@@ -216,12 +216,12 @@ localScope m = do
 notInScopeError :: C.QName -> TCM a
 notInScopeError x = do
   printScope "unbound" 25 ""
-  typeError $ NotInScope [x]
+  typeError $ NotInScope x
 
 notInScopeWarning :: C.QName -> TCM ()
 notInScopeWarning x = do
   printScope "unbound" 25 ""
-  warning $ NotInScopeW [x]
+  warning $ NotInScopeW x
 
 -- | Debug print the scope.
 printScope :: String -> Int -> String -> TCM ()

@@ -503,11 +503,11 @@ prettyWarning = \case
       , fsep $ pwords "Use option --no-main to suppress this warning."
       ]
 
-    NotInScopeW xs -> vcat
+    NotInScopeW x -> vcat
       [ fsep $ pwords "Not in scope:"
       , do
         inscope <- Set.toList . concreteNamesInScope <$> getScope
-        prettyNotInScopeNames True (suggestion inscope) xs
+        prettyNotInScopeNames True (suggestion inscope) $ singleton x
       ]
       where
       suggestion inscope x = nest 2 $ par $ concat
