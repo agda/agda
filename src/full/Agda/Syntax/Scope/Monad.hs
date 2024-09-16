@@ -445,8 +445,7 @@ getConcretePolarity x = Map.lookup x <$> useScope scopePolarities
 
 instance MonadFixityError ScopeM where
   throwMultipleFixityDecls xs         = case xs of
-    (x, _) : _ -> setCurrentRange (getRange x) $ typeError $ MultipleFixityDecls xs
-    []         -> __IMPOSSIBLE__
+    (x, _) :| _ -> setCurrentRange (getRange x) $ typeError $ MultipleFixityDecls xs
   throwMultiplePolarityPragmas xs     = case xs of
     x : _ -> setCurrentRange (getRange x) $ typeError $ MultiplePolarityPragmas xs
     []    -> __IMPOSSIBLE__

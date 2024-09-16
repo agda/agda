@@ -1240,10 +1240,10 @@ instance PrettyTCM TypeError where
 
     MultipleFixityDecls xs ->
       sep [ fsep $ pwords "Multiple fixity or syntax declarations for"
-          , vcat $ map f xs
+          , vcat $ fmap f xs
           ]
       where
-        f (x, fs) = (pretty x <> ": ") <+> fsep (map pretty fs)
+        f (x, fs) = (pretty x <> ": ") <+> fsep (fmap pretty fs)
 
     MultiplePolarityPragmas xs -> fsep $
       pwords "Multiple polarity pragmas for" ++ map pretty xs
