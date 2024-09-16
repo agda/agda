@@ -4943,7 +4943,8 @@ data TypeError
           --   There are not 'UnsolvedMetas' since unification solved them.
           --   This is an error, since interaction points are never filled
           --   without user interaction.
-        | CyclicModuleDependency [TopLevelModuleName]
+        | CyclicModuleDependency (List2 TopLevelModuleName)
+            -- ^ The cycle starts and ends with the same module.
         | FileNotFound TopLevelModuleName [AbsolutePath]
         | OverlappingProjects AbsolutePath TopLevelModuleName TopLevelModuleName
         | AmbiguousTopLevelModuleName TopLevelModuleName [AbsolutePath]

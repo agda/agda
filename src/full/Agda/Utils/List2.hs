@@ -81,6 +81,12 @@ toList1Either = \case
 cons :: a -> List1 a -> List2 a
 cons x (y :| ys) = List2 x y ys
 
+-- | O(n).
+snoc :: List1 a -> a -> List2 a
+snoc (x :| xs) z = List2 x y ys
+  where
+    y :| ys = List1.snoc xs z
+
 -- | O(length first list).
 append :: List1 a -> List1 a -> List2 a
 append (x :| xs) ys = cons x $ List1.prependList xs ys

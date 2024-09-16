@@ -1,0 +1,8 @@
+CyclicModuleDependency1.agda:3,1-31: error: [CyclicModuleDependency]
+cyclic module dependency:
+  CyclicModuleDependency2
+  importing CyclicModuleDependency3
+  importing CyclicModuleDependency1
+  importing CyclicModuleDependency2
+when scope checking the declaration
+  import CyclicModuleDependency2

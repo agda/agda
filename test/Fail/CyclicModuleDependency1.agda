@@ -1,0 +1,3 @@
+module CyclicModuleDependency1 where
+
+import CyclicModuleDependency2

@@ -24,11 +24,13 @@ import Control.Monad   ( when )
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad.Base
 
 import Agda.Utils.List ( caseListM )
-import Agda.Syntax.Common.Pretty
+import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 
 import Agda.Utils.Impossible
 
@@ -103,5 +105,6 @@ withImportPath path = localTC $ \e -> e { envImportPath = path }
 checkForImportCycle :: TCM ()
 checkForImportCycle = do
   caseListM getImportPath __IMPOSSIBLE__ $ \ m ms -> do
-    when (m `elem` ms) $ typeError $ CyclicModuleDependency
-                                   $ dropWhile (/= m) $ reverse (m:ms)
+    when (m `elem` ms) $ typeError $ CyclicModuleDependency $
+      List2.snoc (List1.fromListSafe __IMPOSSIBLE__ $ dropWhile (/= m) $ reverse ms) m
+        -- NB: we know that ms contains m, so even after dropWhile the list is not empty.
