@@ -1,6 +1,5 @@
-Issue5558.agda:3,3-15: error: [MissingDeclarations]
-The following names are defined but not accompanied by a
-declaration: A
-Issue5558.agda:6,3-7,10: error: [MissingDeclarations]
-The following names are defined but not accompanied by a
-declaration: B
+Issue5558.agda:3,8-9: error: [MissingDataDeclaration]
+Data definition A misses a data declaration
+
+Issue5558.agda:6,8-9: error: [MissingDataDeclaration]
+Data definition B misses a data declaration

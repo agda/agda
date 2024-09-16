@@ -903,11 +903,7 @@ niceDeclarations fixs ds = do
                     Nothing        -> ((i , ds :| [] ), i + 1)
                     Just (i1, ds1) -> ((i1, ds <| ds1), i)
               put (Map.insert n (InterleavedData i0 sig (Just cs')) m, checks, i')
-            _ -> lift $ declarationWarning $ MissingDeclarations $ case mr of
-                   Just r -> [(n, r)]
-                   Nothing -> flip foldMap ds $ \case
-                     Axiom r _ _ _ _ n _ -> [(n, r)]
-                     _ -> __IMPOSSIBLE__
+            _ -> lift $ declarationWarning $ MissingDataDeclaration n
 
         addDataConstructors mr Nothing [] = pure ()
 

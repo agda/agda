@@ -1720,9 +1720,9 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      Importing a file using e.g. :option:`--cubical` into one which does not.
 
-.. option:: MissingDeclarations
+.. option:: MissingDataDeclaration
 
-     Definitions not associated to a declaration.
+     Constructor definitions not associated to a data declaration.
 
 .. option:: MissingDefinitions
 

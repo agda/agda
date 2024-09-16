@@ -123,8 +123,8 @@ data DeclarationWarning'
   | InvalidTerminationCheckPragma Range
       -- ^ A {-\# TERMINATING \#-} and {-\# NON_TERMINATING \#-} pragma
       --   that does not apply to any function.
-  | MissingDeclarations [(Name, Range)]
-      -- ^ Definitions (e.g. constructors or functions) without a declaration.
+  | MissingDataDeclaration Name
+      -- ^ A @data@ definition without a @data@ signature.
   | MissingDefinitions (List1 (Name, Range))
       -- ^ Declarations (e.g. type signatures) without a definition.
   | NotAllowedInMutual Range String
@@ -185,7 +185,7 @@ declarationWarningName' = \case
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
   InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
   InvalidCoverageCheckPragma{}      -> InvalidCoverageCheckPragma_
-  MissingDeclarations{}             -> MissingDeclarations_
+  MissingDataDeclaration{}          -> MissingDataDeclaration_
   MissingDefinitions{}              -> MissingDefinitions_
   NotAllowedInMutual{}              -> NotAllowedInMutual_
   OpenPublicPrivate{}               -> OpenPublicPrivate_
@@ -234,7 +234,7 @@ unsafeDeclarationWarning' = \case
   InvalidNoUniverseCheckPragma{}    -> False
   InvalidTerminationCheckPragma{}   -> False
   InvalidCoverageCheckPragma{}      -> False
-  MissingDeclarations{}             -> True  -- not safe
+  MissingDataDeclaration{}          -> True  -- not safe
   MissingDefinitions{}              -> True  -- not safe
   NotAllowedInMutual{}              -> False -- really safe?
   OpenPublicPrivate{}               -> False
@@ -345,7 +345,7 @@ instance HasRange DeclarationWarning' where
     InvalidNoPositivityCheckPragma r   -> r
     InvalidNoUniverseCheckPragma r     -> r
     InvalidTerminationCheckPragma r    -> r
-    MissingDeclarations xs             -> getRange xs
+    MissingDataDeclaration x           -> getRange x
     MissingDefinitions xs              -> getRange xs
     NotAllowedInMutual r x             -> r
     OpenPublicAbstract kwr             -> getRange kwr
@@ -442,9 +442,11 @@ instance Pretty DeclarationWarning' where
       pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):"
       ++ punctuate comma (fmap pretty $ Set1.toList xs)
 
-    MissingDeclarations xs -> fsep $
-     pwords "The following names are defined but not accompanied by a declaration:"
-     ++ punctuate comma (map (pretty . fst) xs)
+    MissingDataDeclaration x -> fsep $ concat
+      [ pwords "Data definition"
+      , [ pretty x ]
+      , pwords "misses a data declaration"
+      ]
 
     MissingDefinitions xs -> fsep $
      pwords "The following names are declared but not accompanied by a definition:"

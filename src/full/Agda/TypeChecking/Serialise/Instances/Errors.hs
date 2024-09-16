@@ -326,7 +326,7 @@ instance EmbPrj DeclarationWarning' where
     -- 29 removed
     -- 30 removed
     InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
-    MissingDeclarations a             -> icodeN 32 MissingDeclarations a
+    MissingDataDeclaration a          -> icodeN 32 MissingDataDeclaration a
     HiddenGeneralize r                -> icodeN 33 HiddenGeneralize r
     UselessMacro r                    -> icodeN 34 UselessMacro r
     SafeFlagEta                    {} -> __IMPOSSIBLE__
@@ -371,7 +371,7 @@ instance EmbPrj DeclarationWarning' where
     -- 29 removed
     -- 30 removed
     [31,r]   -> valuN InvalidConstructorBlock r
-    [32,r]   -> valuN MissingDeclarations r
+    [32,r]   -> valuN MissingDataDeclaration r
     [33,r]   -> valuN HiddenGeneralize r
     [34,r]   -> valuN UselessMacro r
     _ -> malformed
