@@ -817,9 +817,9 @@ instance PrettyTCM TypeError where
         LetExpressions -> pwords "Let expressions"
         PatternLambdas -> pwords "Pattern lambdas"
 
-    NotInScope xs ->
+    NotInScope x ->
       -- using the warning version to avoid code duplication
-      prettyWarning (NotInScopeW xs)
+      prettyWarning $ NotInScopeW x
 
     NoSuchModule x -> fsep $ pwords "No module" ++ [pretty x] ++ pwords "in scope"
 

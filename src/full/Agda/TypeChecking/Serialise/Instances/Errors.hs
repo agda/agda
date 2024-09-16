@@ -78,7 +78,7 @@ instance EmbPrj Warning where
     RewriteMaybeNonConfluent a b c        -> icodeN 24 RewriteMaybeNonConfluent a b c
     PragmaCompileErased a b               -> icodeN 25 PragmaCompileErased a b
     FixityInRenamingModule a              -> icodeN 26 FixityInRenamingModule a
-    NotInScopeW ns                        -> icodeN 27 NotInScopeW ns
+    NotInScopeW a                         -> icodeN 27 NotInScopeW a
     ClashesViaRenaming a b                -> icodeN 28 ClashesViaRenaming a b
     RecordFieldWarning a                  -> icodeN 29 RecordFieldWarning a
     UselessPatternDeclarationForRecord a  -> icodeN 30 UselessPatternDeclarationForRecord a
@@ -160,7 +160,7 @@ instance EmbPrj Warning where
     [24, a, b, c]        -> valuN RewriteMaybeNonConfluent a b c
     [25, a, b]           -> valuN PragmaCompileErased a b
     [26, a]              -> valuN FixityInRenamingModule a
-    [27, ns]             -> valuN NotInScopeW ns
+    [27, a]              -> valuN NotInScopeW a
     [28, a, b]           -> valuN ClashesViaRenaming a b
     [29, a]              -> valuN RecordFieldWarning a
     [30, a]              -> valuN UselessPatternDeclarationForRecord a
