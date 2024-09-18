@@ -31,4 +31,4 @@ intToString : Integer → String
 intToString = primShowInteger
 
 natToString : Nat -> String
-natToString n = intToString (pos n)
+natToString = primShowNat
