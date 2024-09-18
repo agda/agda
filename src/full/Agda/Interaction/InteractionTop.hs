@@ -39,7 +39,7 @@ import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Errors
-import Agda.TypeChecking.Warnings (runPM, warning)
+import Agda.TypeChecking.Warnings (warning)
 
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position

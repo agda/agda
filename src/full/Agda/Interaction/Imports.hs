@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE RecursiveDo #-}
 
 {-| This module deals with finding imported modules and loading their
     interface files.
@@ -130,17 +129,34 @@ data Source = Source
 
 parseSource :: SourceFile -> TCM Source
 parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
-  (source, fileType, parsedMod, attrs, parsedModName) <- mdo
-    -- This piece of code uses mdo because the top-level module name
-    -- (parsedModName) is obtained from the parser's result, but it is
-    -- also used by the parser.
-    let rf = mkRangeFile f (Just parsedModName)
-    source                         <- runPM $ readFilePM rf
-    ((parsedMod, attrs), fileType) <- runPM $
-                                      parseFile moduleParser rf $
-                                      TL.unpack source
-    parsedModName                  <- moduleName f parsedMod
-    return (source, fileType, parsedMod, attrs, parsedModName)
+  -- Issue #7303:
+  -- The parser previously used mdo to avoid the duplicate parsing for the
+  -- bootstrapping of the TopLevelModuleName in Range.
+  -- But that made ranges blackholes during parsing,
+  -- introducing regression #7301, fragility of the API as observed in #7492,
+  -- and debugging headaches as ranges could not be showed during parsing.
+  -- Now we bite the bullet to parse the source twice,
+  -- until a better management of ranges comes about.
+  --
+  -- (E.g. it is unclear why ranges need the file name/id in place
+  -- so early, as all the ranges from one file have the same file id.
+  -- It would be sufficient to fill in the file name/id when the mixing
+  -- with other files starts, e.g. during scope checking.)
+
+  -- Read the source text.
+  let rf0 = mkRangeFile f Nothing
+  source <- runPM $ readFilePM rf0
+  let txt = TL.unpack source
+
+  -- Bootstrapping: parse the module name.
+  parsedModName0 <- moduleName f . fst . fst =<< do
+    runPMDropWarnings $ parseFile moduleParser rf0 txt
+
+  -- Now parse again, with module name present to be filled into the ranges.
+  let rf = mkRangeFile f $ Just parsedModName0
+  ((parsedMod, attrs), fileType) <- runPM $ parseFile moduleParser rf txt
+  parsedModName                  <- moduleName f parsedMod
+
   libs <- getAgdaLibFiles f parsedModName
   return Source
     { srcText        = source

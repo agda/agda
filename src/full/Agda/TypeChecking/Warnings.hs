@@ -11,7 +11,6 @@ module Agda.TypeChecking.Warnings
   -- not exporting constructor of WarningsAndNonFatalErrors
   , WarningsAndNonFatalErrors, tcWarnings, nonFatalErrors
   , classifyWarnings
-  , runPM
   ) where
 
 import Control.Monad ( forM, unless )
@@ -22,6 +21,7 @@ import Control.Monad.Trans  ( MonadTrans, lift )
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer ( WriterT )
 
+import Data.Foldable
 import qualified Data.List as List
 import qualified Data.Map  as Map
 import qualified Data.Set  as Set
@@ -201,17 +201,3 @@ classifyWarnings ws =
   where
     partite = (< AllWarnings) . classifyWarning . tcWarning
     (errors, warnings) = List.partition partite ws
-
-
--- * Warnings in the parser
----------------------------------------------------------------------------
-
--- | running the Parse monad
-
-runPM :: PM a -> TCM a
-runPM m = do
-  (res, ws) <- runPMIO m
-  mapM_ (warning . ParseWarning) ws
-  case res of
-    Left  e -> throwError $ ParserError e
-    Right a -> return a

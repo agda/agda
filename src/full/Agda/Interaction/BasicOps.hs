@@ -71,7 +71,7 @@ import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.SizedTypes.Solve
 import qualified Agda.TypeChecking.Pretty as TP
 import Agda.TypeChecking.Warnings
-  ( runPM, warning, WhichWarnings(..), classifyWarnings, isMetaTCWarning
+  ( warning, WhichWarnings(..), classifyWarnings, isMetaTCWarning
   , WarningsAndNonFatalErrors )
 
 import Agda.Termination.TermCheck (termMutual)
