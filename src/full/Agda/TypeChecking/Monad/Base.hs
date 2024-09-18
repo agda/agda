@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE RecursiveDo #-}
 -- {-# LANGUAGE UndecidableInstances #-}  -- ghc >= 8.2, GeneralizedNewtypeDeriving MonadTransControl BlockT
 
 module Agda.TypeChecking.Monad.Base
@@ -5734,12 +5733,6 @@ instance MonadIO m => MonadIO (TCMT m) where
       wrap s r m = E.catch m $ \ err -> do
         s <- readIORef s
         E.throwIO $ IOException (Just s) r err
-
-instance ( MonadFix m
-         ) => MonadFix (TCMT m) where
-  mfix f = TCM $ \s env -> mdo
-    x <- unTCM (f x) s env
-    return x
 
 instance MonadIO m => MonadTCEnv (TCMT m) where
   askTC             = TCM $ \ _ e -> return e; {-# INLINE askTC #-}
