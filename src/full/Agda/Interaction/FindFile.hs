@@ -44,8 +44,8 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
   (getIncludeDirs, libToTCM)
 import Agda.TypeChecking.Monad.State (topLevelModuleName)
-import Agda.TypeChecking.Monad.Trace (setCurrentRange)
-import Agda.TypeChecking.Warnings (runPM, warning)
+import Agda.TypeChecking.Monad.Trace (runPM, setCurrentRange)
+import Agda.TypeChecking.Warnings    (warning)
 
 import Agda.Version ( version )
 

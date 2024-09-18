@@ -36,7 +36,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM) )
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Warnings (runPM)
 
 import Agda.Utils.FileName (absolute, AbsolutePath)
 import Agda.Utils.Maybe (caseMaybeM)
