@@ -27,7 +27,7 @@ import Agda.Utils.Impossible
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
 checkDisplayPragma f ps e = do
   res <- inTopContext $ runExceptT do
-    pappToTerm f id ps $ \ n args -> do
+    pappToTerm f id ps \n args -> do
       -- pappToTerm puts Var 0 for every variable. We get to know how many there were (n) so
       -- now we can renumber them with decreasing deBruijn indices.
       let lhs = renumberElims (n - 1) args
@@ -51,14 +51,14 @@ data ProjOrApp = IsProj QName | IsApp Term
 patternsToTerms :: Telescope -> [NamedArg A.Pattern] -> (Int -> Elims -> M a) -> M a
 patternsToTerms _ [] ret = ret 0 []
 patternsToTerms EmptyTel (p : ps) ret =
-  patternToTerm (namedArg p) $ \n v ->
-  patternsToTerms EmptyTel ps $ \m vs -> ret (n + m) (inheritHiding p v : vs)
+  patternToTerm (namedArg p) \n v ->
+  patternsToTerms EmptyTel ps \m vs -> ret (n + m) (inheritHiding p v : vs)
 patternsToTerms (ExtendTel a tel) (p : ps) ret
   | fromMaybe __IMPOSSIBLE__ $ fittingNamedArg p a =
-      patternToTerm (namedArg p) $ \n v ->
-      patternsToTerms (unAbs tel) ps $ \m vs -> ret (n + m) (inheritHiding p v : vs)
+      patternToTerm (namedArg p) \n v ->
+      patternsToTerms (unAbs tel) ps \m vs -> ret (n + m) (inheritHiding p v : vs)
   | otherwise =
-      bindWild $ patternsToTerms (unAbs tel) (p : ps) $ \n vs ->
+      bindWild $ patternsToTerms (unAbs tel) (p : ps) \n vs ->
       ret (1 + n) (inheritHiding a (IsApp (Var 0 [])) : vs)
 
 inheritHiding :: LensHiding a => a -> ProjOrApp -> Elim
