@@ -1,0 +1,3 @@
+ProjPDisplay.agda:44,7-11: error: [UnequalTerms]
+g x != Equiv.from f x of type A
+when checking that the expression refl has type g ≡ Equiv.from f

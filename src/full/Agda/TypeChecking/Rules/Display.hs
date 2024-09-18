@@ -27,10 +27,10 @@ import Agda.Utils.Impossible
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
 checkDisplayPragma f ps e = do
   res <- inTopContext $ runExceptT do
-    pappToTerm f id ps $ \ n args -> do
+    pappToTerm f id ps \n args -> do
       -- pappToTerm puts Var 0 for every variable. We get to know how many there were (n) so
       -- now we can renumber them with decreasing deBruijn indices.
-      let lhs = renumberElims (n - 1) $ map I.Apply args
+      let lhs = renumberElims (n - 1) args
       Display n lhs <$> DTerm <$> exprToTerm e
   case res of
     Left reason -> warning $ InvalidDisplayForm f reason
@@ -44,23 +44,28 @@ checkDisplayPragma f ps e = do
 --
 type M = ExceptT String TCM
 
-patternsToTerms :: Telescope -> [NamedArg A.Pattern] -> (Int -> Args -> M a) -> M a
+-- | Helper data type to record whether a pattern on the LHS contributed
+-- a 'Proj' elimination or an 'Apply' elimination.
+data ProjOrApp = IsProj QName | IsApp Term
+
+patternsToTerms :: Telescope -> [NamedArg A.Pattern] -> (Int -> Elims -> M a) -> M a
 patternsToTerms _ [] ret = ret 0 []
 patternsToTerms EmptyTel (p : ps) ret =
-  patternToTerm (namedArg p) $ \n v ->
-  patternsToTerms EmptyTel ps     $ \m vs -> ret (n + m) (inheritHiding p v : vs)
+  patternToTerm (namedArg p) \n v ->
+  patternsToTerms EmptyTel ps \m vs -> ret (n + m) (inheritHiding p v : vs)
 patternsToTerms (ExtendTel a tel) (p : ps) ret
   | fromMaybe __IMPOSSIBLE__ $ fittingNamedArg p a =
-      patternToTerm (namedArg p) $ \n v ->
-      patternsToTerms (unAbs tel) ps  $ \m vs -> ret (n + m) (inheritHiding p v : vs)
+      patternToTerm (namedArg p) \n v ->
+      patternsToTerms (unAbs tel) ps \m vs -> ret (n + m) (inheritHiding p v : vs)
   | otherwise =
-      bindWild $ patternsToTerms (unAbs tel) (p : ps) $ \n vs ->
-      ret (1 + n) (inheritHiding a (Var 0 []) : vs)
+      bindWild $ patternsToTerms (unAbs tel) (p : ps) \n vs ->
+      ret (1 + n) (inheritHiding a (IsApp (Var 0 [])) : vs)
 
-inheritHiding :: LensHiding a => a -> b -> Arg b
-inheritHiding a b = setHiding (getHiding a) (defaultArg b)
+inheritHiding :: LensHiding a => a -> ProjOrApp -> Elim
+inheritHiding a (IsProj q) = Proj ProjSystem q
+inheritHiding a (IsApp t) = Apply (setHiding (getHiding a) (defaultArg t))
 
-pappToTerm :: QName -> (Args -> b) -> [NamedArg A.Pattern] -> (Int -> b -> M a) -> M a
+pappToTerm :: QName -> (Elims -> b) -> [NamedArg A.Pattern] -> (Int -> b -> M a) -> M a
 pappToTerm x f ps ret = do
   def <- getConstInfo x
   TelV tel _ <- telView $ defType def
@@ -74,21 +79,21 @@ pappToTerm x f ps ret = do
 
   patternsToTerms (dropTel pars tel) ps $ \ n vs -> ret n (f vs)
 
-patternToTerm :: A.Pattern -> (Nat -> Term -> M a) -> M a
+patternToTerm :: A.Pattern -> (Nat -> ProjOrApp -> M a) -> M a
 patternToTerm p ret =
   case p of
-    A.VarP A.BindName{unBind = x}   -> bindVar x $ ret 1 (Var 0 [])
+    A.VarP A.BindName{unBind = x}   -> bindVar x $ ret 1 (IsApp (Var 0 []))
     A.ConP _ cs ps
-      | Just c <- getUnambiguous cs -> pappToTerm c (Con (ConHead c IsData Inductive []) ConOCon . map Apply) ps ret
+      | Just c <- getUnambiguous cs -> pappToTerm c (Con (ConHead c IsData Inductive []) ConOCon) ps \n t -> ret n (IsApp t)
       | otherwise                   -> ambigErr "constructor" cs
     A.ProjP _ _ ds
-      | Just d <- getUnambiguous ds -> ret 0 (Def d [])
+      | Just d <- getUnambiguous ds -> ret 0 $ IsProj d
       | otherwise                   -> ambigErr "projection" ds
     A.DefP _ fs ps
-      | Just f <- getUnambiguous fs -> pappToTerm f (Def f . map Apply) ps ret
+      | Just f <- getUnambiguous fs -> pappToTerm f (Def f) ps \n t -> ret n (IsApp t)
       | otherwise                   -> ambigErr "DefP" fs
-    A.LitP _ l                      -> ret 0 $ Lit l
-    A.WildP _                       -> bindWild $ ret 1 (Var 0 [])
+    A.LitP _ l                      -> ret 0 $ IsApp $ Lit l
+    A.WildP _                       -> bindWild $ ret 1 $ IsApp (Var 0 [])
     A.AsP{}                         -> failP "an @-pattern"
     A.DotP{}                        -> failP "a dot pattern"
     A.AbsurdP{}                     -> failP "an absurd pattern"
@@ -120,7 +125,7 @@ exprToTerm e =
     A.Def'{}         -> fail "suffix"
     A.Con c          -> pure $ Con (ConHead (headAmbQ c) IsData Inductive []) ConOCon [] -- Don't care too much about ambiguity here
     A.Lit _ l        -> pure $ Lit l
-    A.App _ e arg    -> apply <$> exprToTerm e <*> ((:[]) . inheritHiding arg <$> exprToTerm (namedArg arg))
+    A.App _ e arg    -> applyE <$> exprToTerm e <*> ((:[]) . inheritHiding arg . IsApp <$> exprToTerm (namedArg arg))
 
     A.Proj _ f       -> pure $ Def (headAmbQ f) []   -- only for printing so we don't have to worry too much here
     A.PatternSyn f   -> pure $ Def (headAmbQ f) []
