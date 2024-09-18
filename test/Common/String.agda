@@ -22,6 +22,8 @@ fromList = primStringFromList
 stringToList : String -> List Char
 stringToList = primStringToList
 
+-- Unlike primShowChar, this function
+-- does not add quotes
 charToStr : Char → String
 charToStr c = primStringFromList (c ∷ [])
 
