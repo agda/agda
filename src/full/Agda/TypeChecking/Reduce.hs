@@ -920,6 +920,7 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
               nvars = size $ clauseTel cl
           -- if clause is underapplied, skip to next clause
           if length es < npats then goCls cls es else do
+            termCheck <- asksTC envTermCheckReducing
             let (es0, es1) = splitAt npats es
             (m, es0) <- matchCopatterns pats es0
             let es = es0 ++ es1
@@ -934,6 +935,8 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
               DontKnow OnlyLazy _ -> goCls cls es
               DontKnow NonLazy  b -> rewrite b (applyE v) rewr es
               Yes simpl vs -- vs is the subst. for the variables bound in body
+                | termCheck && fromMaybe True (clauseRecursive cl) ->
+                    return $ NoReduction __IMPOSSIBLE__
                 | Just w <- body -> do -- clause has body?
                     -- TODO: let matchPatterns also return the reduced forms
                     -- of the original arguments!

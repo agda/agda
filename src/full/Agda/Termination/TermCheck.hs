@@ -975,15 +975,17 @@ tryReduceNonRecursiveClause g es continue fallback = do
   ifM (notElem g <$> terGetMutual) fallback {-else-} $ do
   reportSLn "term.reduce" 40 $ "This call is in the current SCC!"
 
-  -- Then, collect its non-recursive clauses.
-  cls <- liftTCM $ getNonRecursiveClauses g
-  reportSLn "term.reduce" 40 $ unwords [ "Function has", show (length cls), "non-recursive exact clauses"]
+  -- Then, collect its clauses.
+  cls <- defClauses <$> getConstInfo g
+  reportSLn "term.reduce" 40 $ unwords [ "Function has", show (length cls), "clauses"]
   reportSDoc "term.reduce" 80 $ vcat $ map (prettyTCM . NamedClause g True) cls
   reportSLn  "term.reduce" 80 . ("allowed reductions = " ++) . show . SmallSet.elems
     =<< asksTC envAllowedReductions
 
   -- Finally, try to reduce with the non-recursive clauses (and no rewrite rules).
-  r <- liftTCM $ modifyAllowedReductions (SmallSet.delete UnconfirmedReductions) $
+  r <- liftTCM $
+    modifyAllowedReductions (SmallSet.delete UnconfirmedReductions) $
+    localTC (\e -> e { envTermCheckReducing = True }) $
     runReduceM $ appDefE' g v0 cls [] (map notReduced es)
   case r of
     NoReduction{}    -> fallback
@@ -994,13 +996,6 @@ tryReduceNonRecursiveClause g es continue fallback = do
         ]
       verboseS "term.reduce" 5 $ tick "termination-checker-reduced-nonrecursive-call"
       continue v
-
-getNonRecursiveClauses :: QName -> TCM [Clause]
-getNonRecursiveClauses q =
-  filter (liftA2 (&&) nonrec exact) . defClauses <$> getConstInfo q
-  where
-  nonrec = maybe False not . clauseRecursive
-  exact  = fromMaybe False . clauseExact
 
 -- | Extract recursive calls from a term.
 
