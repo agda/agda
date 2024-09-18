@@ -33,4 +33,4 @@ primitive
 {-# COMPILE JS primStringEquality = function(x) { return function(y) { return x===y; }; } #-}
 {-# COMPILE JS primShowChar = function(x) { return JSON.stringify(x); } #-}
 {-# COMPILE JS primShowString = function(x) { return JSON.stringify(x); } #-}
-{-# COMPILE JS primShowNat = function(x) { return JSON.stringify(x); } #-}
+{-# COMPILE JS primShowNat = function(x) { return x.toString(); } #-}
