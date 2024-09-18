@@ -426,6 +426,7 @@ workflows :
 .PHONY : test ## Run all test suites.
 test : check-whitespace \
        check-encoding \
+       check-mdo \
        common \
        succeed \
        fail \
@@ -466,6 +467,11 @@ check-encoding :
 #     pcregrep --color='auto' -n "[\x80-\xFF]" src/full/Agda/Syntax/Parser/Parser.y
 #
 # to find non-ASCII characters.
+
+.PHONY : check-mdo ## Make sure we don't use LANGUAGE RecursiveDo. [Issue #7303]
+check-mdo :
+	@$(call decorate, "Check that RecursiveDo language extension is not used", \
+          test/check-mdo.sh)
 
 .PHONY : bugs ##
 bugs :
