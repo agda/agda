@@ -63,6 +63,7 @@ import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records hiding (getRecordConstructor)
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Telescope.Path
@@ -1333,13 +1334,16 @@ checkLHS mf = updateModality checkLHS_ where
       let genTrx = boolToMaybe ((getCohesion info == Flat)) SplitOnFlat
 
       -- We should be at a data/record type
-      (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType a
+      (dr, d, s, pars, ixs) <- addContext delta1 $ isDataOrRecordType a
       let isRec = case dr of
             IsData{}   -> False
             IsRecord{} -> True
 
       checkMatchingAllowed d dr  -- No splitting on coinductive constructors.
-      addContext delta1 $ checkSortOfSplitVar dr a delta2 (Just target)
+
+      -- Issue #7503: use principal sort for checking if split is ok
+      let a' = set lensSort s a
+      addContext delta1 $ checkSortOfSplitVar dr a' delta2 (Just target)
 
       -- Jesper, 2019-09-13: if the data type we split on is a strict
       -- set, we locally enable --with-K during unification.
@@ -1600,31 +1604,32 @@ hardTypeError = withCallerCallStack $ \loc -> liftTCM . typeError' loc
 type DataOrRecord = DataOrRecord' InductionAndEta
 
 -- | Check if the type is a data or record type and return its name,
---   definition, parameters, and indices. Fails softly if the type could become
+--   definition, sort, parameters, and indices. Fails softly if the type could become
 --   a data/record type by instantiating a variable/metavariable, or fail hard
 --   otherwise.
 isDataOrRecordType
   :: (MonadTCM m, PureTCM m)
   => Type
-  -> ExceptT TCErr m (DataOrRecord, QName, Args, Args)
+  -> ExceptT TCErr m (DataOrRecord, QName, Sort, Args, Args)
        -- ^ The 'Args' are parameters and indices.
 
 isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
   ReallyNotBlocked -> \ a -> case unEl a of
 
     -- Subcase: split type is a Def.
-    Def d es -> liftTCM (theDef <$> getConstInfo d) >>= \case
+    Def d es -> liftTCM (getConstInfo d) >>= \def -> case theDef def of
 
-      Datatype{dataPars = np} -> do
+      Datatype{dataPars = np, dataSort = s} -> do
 
         whenM (isInterval a) $ hardTypeError =<< notData
 
         let (pars, ixs) = splitAt np $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-        return (IsData, d, pars, ixs)
+        return (IsData, d, s, pars, ixs)
 
       Record{ recInduction, recEtaEquality' } -> do
         let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-        return (IsRecord InductionAndEta {recordInduction=recInduction, recordEtaEquality=recEtaEquality' }, d, pars, [])
+        s <- shouldBeSort =<< defType def `piApplyM` pars
+        return (IsRecord InductionAndEta {recordInduction=recInduction, recordEtaEquality=recEtaEquality' }, d, s, pars, [])
 
       -- Issue #2253: the data type could be abstract.
       AbstractDefn{} -> hardTypeError $ SplitOnAbstract d
