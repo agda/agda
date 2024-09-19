@@ -62,6 +62,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records
+import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Warnings
@@ -72,6 +73,7 @@ import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.Lens
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -712,7 +714,7 @@ splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
 -- the data type must be inductive.
 isDatatype :: (MonadTCM tcm, MonadError SplitError tcm) =>
               Induction -> Dom Type ->
-              tcm (DataOrRecord, QName, Args, Args, [QName], Bool)
+              tcm (DataOrRecord, QName, Sort, Args, Args, [QName], Bool)
 isDatatype ind at = do
   let t       = unDom at
       throw f = throwError . f =<< do liftTCM $ buildClosure t
@@ -724,21 +726,22 @@ isDatatype ind at = do
     Def d [Apply phi] | Just d == mIsOne -> do
                 xs <- liftTCM $ decomposeInterval =<< reduce (unArg phi)
                 if null xs
-                   then return $ (IsData, d, [phi], [], [], False)
+                   then return $ (IsData, d, mkSSet 0, [phi], [], [], False)
                    else throw NotADatatype
     Def d es -> do
       let ~(Just args) = allApplyElims es
-      def <- liftTCM $ theDef <$> getConstInfo d
-      case def of
-        Datatype{dataPars = np, dataCons = cs}
+      def <- liftTCM $ getConstInfo d
+      case theDef def of
+        Datatype{dataSort = s, dataPars = np, dataCons = cs}
           | otherwise -> do
               let (ps, is) = splitAt np args
-              return (IsData, d, ps, is, cs, not $ null (dataPathCons def))
+              return (IsData, d, s, ps, is, cs, not $ null (dataPathCons $ theDef def))
         Record{recPars = np, recConHead = con, recInduction = i, recEtaEquality'}
           | i == Just CoInductive && ind /= CoInductive ->
               throw CoinductiveDatatype
-          | otherwise ->
-              return (IsRecord InductionAndEta { recordInduction=i, recordEtaEquality=recEtaEquality' }, d, args, [], [conName con], False)
+          | otherwise -> do
+              s <- liftTCM $ shouldBeSort =<< defType def `piApplyM` args
+              return (IsRecord InductionAndEta { recordInduction=i, recordEtaEquality=recEtaEquality' }, d, s, args, [], [conName con], False)
         _ -> throw NotADatatype
     _ -> throw NotADatatype
 
@@ -1257,7 +1260,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
         -- Check that t is a datatype or a record
         -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
         -- cons = constructors of this datatype
-        (dr, d, pars, ixs, cons', isHIT) <- inContextOfT $ isDatatype ind t
+        (dr, d, s, pars, ixs, cons', isHIT) <- inContextOfT $ isDatatype ind t
         isFib <- lift $ isFibrant t
         cons <- case checkEmpty of
           CheckEmpty   -> ifM (liftTCM $ inContextOfT $ isEmptyType $ unDom t) (pure []) (pure cons')
@@ -1269,6 +1272,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
                    else return Nothing
         let ns = catMaybes mns
         return ( dr
+               , s
                , not (null ixs) -- Is "d" indexed?
                , length $ ns
                , ns ++ catMaybes ([fmap (fmap (,NoInfo)) hcompsc | not $ null $ ns])
@@ -1302,11 +1306,11 @@ split' checkEmpty ind allowPartialCover inserttrailing
         -- following code should be changed (the constructor False
         -- stands for "not indexed").
         let ns' = map ((fmap (,NoInfo))) $ ns ++ [ ca ]
-        return (IsData, False, length ns', ns')
+        return (IsData, mkType 0, False, length ns', ns')
 
   -- numMatching is the number of proper constructors matching, excluding hcomp.
   -- for literals this considers the catchall clause as 1 extra constructor.
-  (dr, isIndexed, numMatching, ns) <- if null pcons' && not (null plits)
+  (dr, s, isIndexed, numMatching, ns) <- if null pcons' && not (null plits)
         then computeLitNeighborhoods
         else computeNeighborhoods
 
@@ -1383,7 +1387,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
                 ]
               throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
 
-      liftTCM $ inContextOfT $ checkSortOfSplitVar dr (unDom t) delta2 target
+      let t' = set lensSort s $ unDom t
+      liftTCM $ inContextOfT $ checkSortOfSplitVar dr t' delta2 target
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
