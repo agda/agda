@@ -532,7 +532,6 @@ defineKanOperationR cmd name params fsT fns rect = do
                          , clauseBody      = Just $ rhs
                          , clauseType      = Just $ argN t
                          , clauseCatchall    = False
-                         , clauseExact       = Just True
                          , clauseRecursive   = Just False  -- definitely non-recursive!
                          , clauseUnreachable = Just False
                          , clauseEllipsis    = NoEllipsis
@@ -550,7 +549,6 @@ defineKanOperationR cmd name params fsT fns rect = do
                          , clauseBody      = Just body
                          , clauseType      = Just $ argN (unDom clause_ty)
                          , clauseCatchall    = False
-                         , clauseExact       = Just True
                          , clauseRecursive   = Nothing
                              -- Andreas 2020-02-06 TODO
                              -- Or: Just False;  is it known to be non-recursive?
@@ -727,7 +725,6 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                             , clauseBody      = body
                             , clauseType      = cltype
                             , clauseCatchall  = False
-                            , clauseExact       = Just True
                             , clauseRecursive   = Just False
                             , clauseUnreachable = Just False
                             , clauseEllipsis    = NoEllipsis

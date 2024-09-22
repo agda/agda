@@ -419,12 +419,6 @@ data Clause = Clause
       --   pattern on the lhs.
     , clauseCatchall    :: Bool
       -- ^ Clause has been labelled as CATCHALL.
-    , clauseExact       :: Maybe Bool
-      -- ^ Pattern matching of this clause is exact, no catch-all case.
-      --   Computed by the coverage checker.
-      --   @Nothing@ means coverage checker has not run yet (clause may be inexact).
-      --   @Just False@ means clause is not exact.
-      --   @Just True@ means clause is exact.
     , clauseRecursive   :: Maybe Bool
       -- ^ @clauseBody@ contains recursive calls; computed by termination checker.
       --   @Nothing@ means that termination checker has not run yet,
@@ -1117,8 +1111,8 @@ instance Null (Tele a) where
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
 instance Null Clause where
-  empty = Clause empty empty empty empty empty empty False Nothing Nothing Nothing empty empty
-  null (Clause _ _ tel pats body _ _ _ _ _ _ wm)
+  empty = Clause empty empty empty empty empty empty False Nothing Nothing empty empty
+  null (Clause _ _ tel pats body _ _ _ _ _ wm)
     =  null tel
     && null pats
     && null body
@@ -1298,8 +1292,8 @@ instance KillRange a => KillRange (Pattern' a) where
       DefP o q ps      -> killRangeN (DefP o) q ps
 
 instance KillRange Clause where
-  killRange (Clause rl rf tel ps body t catchall exact recursive unreachable ell wm) =
-    killRangeN Clause rl rf tel ps body t catchall exact recursive unreachable ell wm
+  killRange (Clause rl rf tel ps body t catchall recursive unreachable ell wm) =
+    killRangeN Clause rl rf tel ps body t catchall recursive unreachable ell wm
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange

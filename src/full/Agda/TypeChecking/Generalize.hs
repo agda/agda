@@ -1026,7 +1026,6 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
         , clauseBody        = Just $ var i
         , clauseType        = Just $ raise (i + 1) fldTy
         , clauseCatchall    = False
-        , clauseExact       = Just True
         , clauseRecursive   = Just False
         , clauseUnreachable = Just False
         , clauseEllipsis    = NoEllipsis

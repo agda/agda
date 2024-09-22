@@ -739,7 +739,6 @@ checkAbsurdLambda cmp i h e t =
                     , clauseBody      = Nothing
                     , clauseType      = Just $ setModality mod $ defaultArg $ absBody b
                     , clauseCatchall    = True      -- absurd clauses are safe as catch-alls
-                    , clauseExact       = Just False
                     , clauseRecursive   = Just False
                     , clauseUnreachable = Just True -- absurd clauses are unreachable
                     , clauseEllipsis    = NoEllipsis

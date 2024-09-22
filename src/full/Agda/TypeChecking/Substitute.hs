@@ -366,7 +366,7 @@ instance Apply Clause where
     -- It is assumed that we only apply a clause to "parameters", i.e.
     -- arguments introduced by lambda lifting. The problem is that these aren't
     -- necessarily the first elements of the clause telescope.
-    apply cls@(Clause rl rf tel ps b t catchall exact recursive unreachable ell wm) args
+    apply cls@(Clause rl rf tel ps b t catchall recursive unreachable ell wm) args
       | length args > length ps = __IMPOSSIBLE__
       | otherwise =
       Clause rl rf
@@ -375,7 +375,6 @@ instance Apply Clause where
              (applySubst rho b)
              (applySubst rho t)
              catchall
-             exact
              recursive
              unreachable
              ell
@@ -720,13 +719,12 @@ instance Abstract PrimFun where
         where n = size tel
 
 instance Abstract Clause where
-  abstract tel (Clause rl rf tel' ps b t catchall exact recursive unreachable ell wm) =
+  abstract tel (Clause rl rf tel' ps b t catchall recursive unreachable ell wm) =
     Clause rl rf (abstract tel tel')
            (namedTelVars m tel ++ ps)
            b
            t -- nothing to do for t, since it lives under the telescope
            catchall
-           exact
            recursive
            unreachable
            ell

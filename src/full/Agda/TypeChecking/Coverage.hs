@@ -192,7 +192,6 @@ coverageCheck f t cs = do
                       , clauseBody      = Nothing
                       , clauseType      = Nothing
                       , clauseCatchall    = True       -- absurd clauses are safe as catch-all
-                      , clauseExact       = Just False
                       , clauseRecursive   = Just False
                       , clauseUnreachable = Just False
                       , clauseEllipsis    = NoEllipsis
@@ -218,12 +217,8 @@ coverageCheck f t cs = do
 
   -- Andreas, 2017-08-28, issue #2723:
   -- Mark clauses as reachable or unreachable in the signature.
-  -- Andreas, 2020-11-19, issue #5065
-  -- Remember whether clauses are exact or not.
-  let noExSet = IntSet.fromList noex
   let cs1 = zip [0..] cs <&> \ (i, cl) -> cl
              { clauseUnreachable = Just $ i `IntSet.notMember` used
-             , clauseExact       = Just $ i `IntSet.notMember` noExSet
              }
 
   -- Replace the first clauses by @cs1@.  There might be more
@@ -465,7 +460,6 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                     , clauseBody      = (`applyE` patternsToElims extra) . (s `applyPatSubst`) <$> clauseBody cl
                     , clauseType      = ty
                     , clauseCatchall    = clauseCatchall cl
-                    , clauseExact       = clauseExact cl
                     , clauseRecursive   = clauseRecursive cl
                     , clauseUnreachable = clauseUnreachable cl
                     , clauseEllipsis    = clauseEllipsis cl
@@ -680,7 +674,6 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
                   , clauseBody      = Just rhs
                   , clauseType      = Just (argFromDom t)
                   , clauseCatchall    = False
-                  , clauseExact       = Just True
                   , clauseRecursive   = Nothing     -- could be recursive
                   , clauseUnreachable = Just False  -- missing, thus, not unreachable
                   , clauseEllipsis    = NoEllipsis
