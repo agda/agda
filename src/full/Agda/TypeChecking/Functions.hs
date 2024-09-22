@@ -39,9 +39,9 @@ import Agda.Utils.Size
 etaExpandClause :: MonadTCM tcm => Clause -> tcm Clause
 etaExpandClause clause = liftTCM $ do
   case clause of
-    Clause _  _  ctel ps _           Nothing  _ _ _ _ _ _ -> return clause
-    Clause _  _  ctel ps Nothing     (Just t) _ _ _ _ _ _ -> return clause
-    Clause rl rf ctel ps (Just body) (Just t) catchall exact recursive unreachable ell wm -> do
+    Clause _  _  ctel ps _           Nothing  _ _ _ _ _ -> return clause
+    Clause _  _  ctel ps Nothing     (Just t) _ _ _ _ _ -> return clause
+    Clause rl rf ctel ps (Just body) (Just t) catchall recursive unreachable ell wm -> do
 
       -- Get the telescope to expand the clause with.
       TelV tel0 t' <- addContext ctel $ telView $ unArg t
@@ -63,7 +63,7 @@ etaExpandClause clause = liftTCM $ do
         , "  xs      = " <+> text (prettyShow xs)
         , "  new tel = " <+> prettyTCM ctel'
         ]
-      return $ Clause rl rf ctel' ps' (Just body') (Just (t $> t')) catchall exact recursive unreachable ell wm
+      return $ Clause rl rf ctel' ps' (Just body') (Just (t $> t')) catchall recursive unreachable ell wm
   where
     -- Get all initial lambdas of the body.
     peekLambdas :: Term -> [Arg ArgName]

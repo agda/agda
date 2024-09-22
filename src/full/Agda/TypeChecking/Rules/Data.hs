@@ -598,7 +598,6 @@ defineCompData d con params names fsT t boundary = do
           , clauseLHSRange    = noRange
           , clauseCatchall    = False
           , clauseBody        = Just $ body
-          , clauseExact       = Just True
           , clauseRecursive   = Nothing
               -- Andreas 2020-02-06 TODO
               -- Or: Just False;  is it known to be non-recursive?
@@ -1277,7 +1276,6 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
             -- it is indirectly recursive through transp, does it count?
             , clauseUnreachable = Just False
             , clauseEllipsis    = NoEllipsis
-            , clauseExact       = Nothing
             , clauseWhereModule = Nothing
             }
       reportSDoc "tc.data.transp.con" 20 $
