@@ -155,8 +155,9 @@ Options
 
 .. option:: --js-es6
 
+    .. versionadded:: 2.8.0
+
     Produce ES6 style modules (supported natively by browsers and NodeJS since 2020).
-    This option is supported by Agda since 2.8.0.
 
 .. option:: --js-amd
 
