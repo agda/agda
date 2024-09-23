@@ -68,7 +68,7 @@ data TestOptions
 
 allCompilers :: [Compiler]
 allCompilers
-  =  [ MAlonzo strict | strict <- [minBound..]]
+  =  [ MAlonzo strict | strict <- [Lazy, StrictData, Strict]]
   ++ [ JS style opt   | opt <- [minBound..], style <- [minBound..] ]
 
 defaultOptions :: TestOptions
