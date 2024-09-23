@@ -148,7 +148,8 @@ Options
 
 .. option:: --js
 
-     Compile to JavaScript, placing translation of module :samp:`{M}` into file :samp:`jAgda.{M}.js`.
+     Compile to JavaScript, placing translation of module :samp:`{M}` into file :samp:`jAgda.{M}.js`
+     (or :samp:`jAgda.{M}.mjs`, if the option :option:`--js-es6` is passed).
      The files will be placed into the root directory of the compiled Agda project,
      or into the directory given by :option:`--compile-dir`.
 
