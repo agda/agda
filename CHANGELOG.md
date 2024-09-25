@@ -24,6 +24,8 @@ Pragmas and options
 * Warning `AbsurdPatternRequiresNoRHS` has been renamed to
   `AbsurdPatternRequiresAbsentRHS`.
 
+* New option `--js-es6` for generating JavaScript with ES6 module syntax.
+
 Syntax
 ------
 

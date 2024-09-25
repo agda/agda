@@ -105,6 +105,7 @@ data-files:
     emacs-mode/*.el
     html/Agda.css
     html/highlight-hover.js
+    JS/agda-rts.mjs
     JS/agda-rts.js
     JS/agda-rts.amd.js
     latex/agda.sty

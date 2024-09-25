@@ -144,6 +144,7 @@ jsCommandLineFlags =
     -- Minification is described at https://en.wikipedia.org/wiki/Minification_(programming)
     , Option [] ["js-minify"] (NoArg enableMin) "minify generated JS code"
     , Option [] ["js-verify"] (NoArg enableVerify) "except for main module, run generated JS modules through `node` (needs to be in PATH)"
+    , Option [] ["js-es6"] (NoArg setES6) "use ES6 module style for JS"
     , Option [] ["js-cjs"] (NoArg setCJS) "use CommonJS module style (default)"
     , Option [] ["js-amd"] (NoArg setAMD) "use AMD module style for JS"
     ]
@@ -152,6 +153,7 @@ jsCommandLineFlags =
     enableOpt    o = pure o{ optJSOptimize = True }
     enableMin    o = pure o{ optJSMinify   = True }
     enableVerify o = pure o{ optJSVerify   = True }
+    setES6       o = pure o{ optJSModuleStyle = JSES6 }
     setCJS       o = pure o{ optJSModuleStyle = JSCJS }
     setAMD       o = pure o{ optJSModuleStyle = JSAMD }
 
@@ -175,6 +177,7 @@ jsPostCompile opts _ ms = do
     let fname = case optJSModuleStyle opts of
           JSCJS -> "agda-rts.js"
           JSAMD -> "agda-rts.amd.js"
+          JSES6 -> "agda-rts.mjs"
         srcPath = dataDir </> "JS" </> fname
         compPath = compDir </> fname
     copyIfChanged srcPath compPath
@@ -188,7 +191,7 @@ jsPostCompile opts _ ms = do
     liftIO $ setEnv "NODE_PATH" compDir
 
     forM_ ms $ \ Module{ modName, callMain } -> do
-      jsFile <- outFile modName
+      jsFile <- outFile (optJSModuleStyle opts) modName
       reportSLn "compile.js.verify" 30 $ unwords [ "Considering JS module:" , jsFile ]
 
       -- Since we do not run a JS program for real, we skip all modules that could
@@ -196,7 +199,9 @@ jsPostCompile opts _ ms = do
       -- Atm, modules whose compilation was skipped are also skipped during verification
       -- (they appear here as main modules).
       whenNothing callMain $ do
-        let cmd = unwords [ "node", "-", "<", jsFile ]
+        -- node needs to see whether the extension is .js or .mjs,
+        -- so we pass input explicitly, not via stdin
+        let cmd = unwords [ "node", jsFile ]
         reportSLn "compile.js.verify" 20 $ unwords [ "calling:", cmd ]
         liftIO $ callCommand cmd
 
@@ -211,7 +216,7 @@ data JSModuleEnv = JSModuleEnv
 jsPreModule ::
   JSOptions -> IsMain -> TopLevelModuleName -> Maybe FilePath ->
   TCM (Recompile JSModuleEnv Module)
-jsPreModule _opts _ m mifile = do
+jsPreModule opts _ m mifile = do
   cubical <- cubicalOption
   let compile = case cubical of
         -- Code that uses --cubical is not compiled.
@@ -220,6 +225,10 @@ jsPreModule _opts _ m mifile = do
         Nothing      -> True
   ifM uptodate noComp (yesComp compile)
   where
+    outFile_ = do
+      m <- curMName
+      outFile (optJSModuleStyle opts) (jsMod m)
+
     uptodate = case mifile of
       Nothing -> pure False
       Just ifile -> liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
@@ -276,8 +285,9 @@ jsMod :: TopLevelModuleName -> GlobalId
 jsMod m =
   GlobalId (prefix : map T.unpack (List1.toList (moduleNameParts m)))
 
-jsFileName :: GlobalId -> String
-jsFileName (GlobalId ms) = intercalate "." ms ++ ".js"
+jsFileName :: JSModuleStyle -> GlobalId -> String
+jsFileName JSES6 (GlobalId ms) = intercalate "." ms ++ ".mjs" -- Hint that file is ES6, not old js
+jsFileName _     (GlobalId ms) = intercalate "." ms ++  ".js"
 
 jsMember :: Name -> MemberId
 jsMember n
@@ -712,22 +722,17 @@ litmeta (MetaId m h) =
 
 writeModule :: Bool -> JSModuleStyle -> Module -> TCM ()
 writeModule minify ms m = do
-  out <- outFile (modName m)
+  out <- outFile ms (modName m)
   liftIO (writeFile out (JSPretty.prettyShow minify ms m))
 
-outFile :: GlobalId -> TCM FilePath
-outFile m = do
+outFile :: JSModuleStyle -> GlobalId -> TCM FilePath
+outFile ms m = do
   mdir <- compileDir
-  let (fdir, fn) = splitFileName (jsFileName m)
+  let (fdir, fn) = splitFileName (jsFileName ms m)
   let dir = mdir </> fdir
       fp  = dir </> fn
   liftIO $ createDirectoryIfMissing True dir
   return fp
-
-outFile_ :: TCM FilePath
-outFile_ = do
-  m <- curMName
-  outFile (jsMod m)
 
 -- | Primitives implemented in the JS Agda RTS.
 --

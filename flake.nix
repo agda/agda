@@ -1,7 +1,7 @@
 {
   description = "Agda is a dependently typed programming language / interactive theorem prover.";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
   inputs.flake-parts.url = "github:hercules-ci/flake-parts";
 
   outputs = inputs:
@@ -39,6 +39,8 @@
               py3pkgs.sphinx
               py3pkgs.sphinx_rtd_theme
             ]))
+            # Tools for running the agda test-suite
+            pkgs.nodejs_22
           ];
 
         # Include an offline-usable `hoogle` command

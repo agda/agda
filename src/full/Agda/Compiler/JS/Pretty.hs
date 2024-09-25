@@ -37,7 +37,7 @@ import Agda.Compiler.JS.Syntax hiding (exports)
 --  standard pretty printers.
 --- This library code is only used in this module, and it is specialized to pretty
 --- print JavaScript code for the Agda backend, so I think its best place is in this module.
-data JSModuleStyle = JSCJS | JSAMD
+data JSModuleStyle = JSES6 | JSCJS | JSAMD
   deriving Generic
 
 data Doc
@@ -280,7 +280,7 @@ block n e = mparens (doNest e) $ pretty n e
     doNest _ = False
 
 modname :: GlobalId -> Doc
-modname (GlobalId ms) = text $ "\"" ++ intercalate "." ms ++ "\""
+modname (GlobalId ms) = text $ intercalate "." ms
 
 exports :: (Nat, Bool, JSModuleStyle) -> Set JSQName -> [Export] -> Doc
 exports n lss [] = Empty
@@ -301,6 +301,21 @@ instance Pretty [(GlobalId, Export)] where
            | (g, Export ls e) <- es ]
 
 instance Pretty Module where
+  pretty opt@(n, min, JSES6) (Module m is es callMain) = vsep
+    [ "import agdaRTS from \"./agda-rts.mjs\";"
+    , imports
+    , "const exports = {};"
+    , exports opt Set.empty es
+    , pretty opt callMain
+    , ";export default exports;"
+    ]
+    $+$ ""
+    where
+      imports = vcat [
+        "import " <> indent (pretty opt e) <+> " from \"./" <> modname e <> ".mjs\";"
+        | e <- toList (globals es <> Set.fromList is)
+        ]
+      les = toList (globals es <> Set.fromList is)
   pretty opt@(n, min, JSCJS) (Module m is es callMain) = vsep
     [ "var agdaRTS" <+> "=" <+> "require(\"agda-rts\");"
     , imports
@@ -310,13 +325,13 @@ instance Pretty Module where
     $+$ ""
     where
       imports = vcat [
-        "var " <> indent (pretty opt e) <+> "=" <+> "require(" <> modname e <> ");"
+        "var " <> indent (pretty opt e) <+> "=" <+> "require(\"" <> modname e <> "\");"
         | e <- toList (globals es <> Set.fromList is)
         ]
       les = toList (globals es <> Set.fromList is)
   pretty opt@(n, min, JSAMD) (Module m is es callMain) = vsep
     [ "define(['agda-rts'"
-      <+> hcat [ ", " <+> modname e | e <- les ]
+      <+> hcat [ ", " <+> ("\"" <> modname e <> "\"") | e <- les ]
       <+> "],"
     , "function(agdaRTS"
       <+> hcat [ ", " <+> pretty opt e | e <- les ]
