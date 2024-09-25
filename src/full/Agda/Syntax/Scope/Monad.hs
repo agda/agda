@@ -335,22 +335,29 @@ resolveName = resolveName' allKindsOfNames Nothing
 resolveName' ::
   KindsOfNames -> Maybe (Set A.Name) -> C.QName -> ScopeM ResolvedName
 resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
-  Left reason  -> do
+  Left (IllegalAmbiguity reason)  -> do
     reportS "scope.resolve" 60 $ unlines $
       "resolveName': ambiguous name" :
       map (show . qnameName) (toList $ ambiguousNamesInReason reason)
     setCurrentRange x $ typeError $ AmbiguousName x reason
+
+  Left (ConstrOfNonRecord q r) -> case r of
+    UnknownName -> setCurrentRange x $ typeError $ I.NotInScope q
+    _ -> setCurrentRange x $ typeError $ ConstructorNameOfNonRecord r
+
   Right x' -> return x'
 
 tryResolveName
-  :: forall m. (ReadTCState m, HasBuiltins m, MonadError AmbiguousNameReason m)
+  :: forall m. (ReadTCState m, HasBuiltins m, MonadError NameResolutionError m)
   => KindsOfNames       -- ^ Restrict search to these kinds of names.
   -> Maybe (Set A.Name) -- ^ Unless 'Nothing', restrict search to match any of these names.
   -> C.QName            -- ^ Name to be resolved
   -> m ResolvedName     -- ^ If illegally ambiguous, throw error with the ambiguous name.
 tryResolveName kinds names x = do
   scope <- getScope
-  let vars     = AssocList.mapKeysMonotonic C.QName $ scope ^. scopeLocals
+  let
+    vars = AssocList.mapKeysMonotonic C.QName $ scope ^. scopeLocals
+    throwAmb = throwError . IllegalAmbiguity
   case lookup x vars of
 
     -- Case: we have a local variable x, but is (perhaps) shadowed by some imports ys.
@@ -358,7 +365,7 @@ tryResolveName kinds names x = do
       -- We may ignore the imports filtered out by the @names@ filter.
       case nonEmpty $ filterNames id ys of
         Nothing  -> return $ VarName y{ nameConcrete = unqualify x } b
-        Just ys' -> throwError $ AmbiguousLocalVar var ys'
+        Just ys' -> throwAmb $ AmbiguousLocalVar var ys'
 
     -- Case: we do not have a local variable x.
     Nothing -> do
@@ -388,29 +395,30 @@ tryResolveName kinds names x = do
           (Nothing, []) ->
             return $ DefinedName a (upd d) A.NoSuffix
           (Nothing, (d',_) : ds') ->
-            throwError $ AmbiguousDeclName $ List2 d d' $ map fst ds'
+            throwAmb $ AmbiguousDeclName $ List2 d d' $ map fst ds'
           (Just (_, ss), _) ->
-            throwError $ AmbiguousDeclName $ List2.append (d :| map fst ds) (fmap fst ss)
+            throwAmb $ AmbiguousDeclName $ List2.append (d :| map fst ds) (fmap fst ss)
 
+        -- Name is of the form r.constructor
         Nothing | Just r <- isRecordConstructor x -> do
-          recd <- tryResolveName (SomeKindsOfNames (Set.singleton RecName)) Nothing r
+          -- We resolve the record name r with no filter, that way we
+          -- can know when printing an error message whether r is not in
+          -- scope, or whether it's some other type of name, etc.
+          recd <- tryResolveName AllKindsOfNames Nothing r
+
           case recd of
             DefinedName acc abs suf -> getRecordConstructor (anameName abs) >>= \case
               Just qn ->
                 let abs' = upd abs { anameName = qn, anameKind = ConName }
                  in pure (ConstructorName mempty $ List1.singleton abs')
-
-              -- __IMPOSSIBLE__ because the 'tryResolveName' guarantees
-              -- that we've gotten an in-scope record name
-              Nothing -> __IMPOSSIBLE__
-
-            _ -> error "TODO: not a record name"
+              Nothing -> throwError $ ConstrOfNonRecord r recd
+            _ -> throwError $ ConstrOfNonRecord r recd
 
         Nothing -> case suffixedNames of
           Nothing -> return UnknownName
           Just (suffix , (d, a) :| []) -> return $ DefinedName a (upd d) suffix
           Just (suffix , (d1,_) :| (d2,_) : sds) ->
-            throwError $ AmbiguousDeclName $ List2 d1 d2 $ map fst sds
+            throwAmb $ AmbiguousDeclName $ List2 d1 d2 $ map fst sds
 
   where
   -- @names@ intended semantics: a filter on names.

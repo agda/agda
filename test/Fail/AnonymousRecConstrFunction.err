@@ -1,0 +1,3 @@
+AnonymousRecConstrFunction.agda:6.5-20: error: [ConstructorNameOfNonRecord]
+Only record types have constructor names, but foo is a function.
+when scope checking foo.constructor

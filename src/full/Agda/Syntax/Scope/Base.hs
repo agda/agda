@@ -563,6 +563,16 @@ data AmbiguousNameReason
       -- ^ The name resolves to at least 2 declared names.
   deriving (Show, Generic)
 
+-- | A failure in name resolution, indicating the reason that a name
+-- which /is/ in scope could not be returned from @tryResolveName@.
+data NameResolutionError
+  = IllegalAmbiguity  AmbiguousNameReason
+  -- ^ Ambiguous names are not supported in this situation.
+  | ConstrOfNonRecord C.QName ResolvedName
+  -- ^ The name was @Foo.constructor@, and @Foo@ is in scope, but it is
+  -- not a record.
+  deriving (Show, Generic)
+
 -- | The flat list of ambiguous names in 'AmbiguousNameReason'.
 ambiguousNamesInReason :: AmbiguousNameReason -> List2 (A.QName)
 ambiguousNamesInReason = \case

@@ -1,5 +1,5 @@
 Issue555c.agda:7.8-9: error: [ConstructorDoesNotFitInData]
-Constructor Issue555c.R.constructor
+Constructor R.constructor
 of sort Set a
 does not fit into data type of sort Set.
 (Reason: Set a is not less or equal than Set)

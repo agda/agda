@@ -1,5 +1,5 @@
 IUnivNotFibrant.agda:4.8-12: error: [ConstructorDoesNotFitInData]
-Constructor IUnivNotFibrant.Wrap.constructor
+Constructor Wrap.constructor
 of sort SSet₁
 does not fit into data type of sort Set₁.
 (Reason: SSet₁ is not less or equal than Set₁)

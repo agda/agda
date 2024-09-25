@@ -137,6 +137,7 @@ typeErrorName = \case
   ModuleNameUnexpected                                       {} -> ModuleNameUnexpected_
   MultipleFixityDecls                                        {} -> MultipleFixityDecls_
   MultiplePolarityPragmas                                    {} -> MultiplePolarityPragmas_
+  ConstructorNameOfNonRecord                                 {} -> ConstructorNameOfNonRecord_
   NamedWhereModuleInRefinedContext                           {} -> NamedWhereModuleInRefinedContext_
   NeedOptionAllowExec                                        {} -> NeedOptionAllowExec_
   NeedOptionCopatterns                                       {} -> NeedOptionCopatterns_
