@@ -151,7 +151,16 @@ instance Pretty ScopeCopyInfo where
           xs = [ (k, v) | (k, vs) <- Map.toList r, v <- List1.toList vs ]
       pr (x, y) = pretty x <+> "->" <+> pretty y
 
-type RecordDirectives = RecordDirectives' QName
+-- | How did we get our hands on the 'QName' for the constructor of this
+-- record?
+data RecordConName
+  = NamedRecCon { recordConName :: !QName }
+    -- ^ The user wrote it.
+  | FreshRecCon { recordConName :: !QName }
+    -- ^ We made it up.
+  deriving (Eq, Show, Generic)
+
+type RecordDirectives = RecordDirectives' RecordConName
 
 data Declaration
   = Axiom      KindOfName DefInfo ArgInfo (Maybe [Occurrence]) QName Type
@@ -833,6 +842,10 @@ instance KillRange ModuleApplication where
 instance KillRange ScopeCopyInfo where
   killRange (ScopeCopyInfo a b) = killRangeN ScopeCopyInfo a b
 
+instance KillRange RecordConName where
+  killRange (NamedRecCon x) = killRangeN NamedRecCon x
+  killRange (FreshRecCon x) = killRangeN FreshRecCon x
+
 instance KillRange e => KillRange (Pattern' e) where
   killRange (VarP x)           = killRangeN VarP x
   killRange (ConP i a b)        = killRangeN ConP i a b
@@ -883,6 +896,7 @@ instance KillRange LetBinding where
 
 instance NFData Expr
 instance NFData ScopeCopyInfo
+instance NFData RecordConName
 instance NFData Declaration
 instance NFData ModuleApplication
 instance NFData Pragma

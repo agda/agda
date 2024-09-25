@@ -119,6 +119,8 @@ data ScopeInfo = ScopeInfo
       , _scopeInScope       :: InScopeSet
       , _scopeFixities      :: C.Fixities    -- ^ Maps concrete names C.Name to fixities
       , _scopePolarities    :: C.Polarities  -- ^ Maps concrete names C.Name to polarities
+      , _scopeRecords       :: Map A.QName A.QName
+        -- ^ Maps the name of a record to the name of its constructor.
       }
   deriving (Show, Generic)
 
@@ -140,7 +142,7 @@ type ModuleMap = Map A.ModuleName [C.QName]
 -- type ModuleMap = Map A.ModuleName (List1 C.QName)
 
 instance Eq ScopeInfo where
-  ScopeInfo c1 m1 v1 l1 p1 _ _ _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ _ _ =
+  ScopeInfo c1 m1 v1 l1 p1 _ _ _ _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ _ _ _ =
     c1 == c2 && m1 == m2 && v1 == v2 && l1 == l2 && p1 == p2
 
 -- | Local variables.
@@ -266,6 +268,11 @@ scopePolarities :: Lens' ScopeInfo C.Polarities
 scopePolarities f s =
   f (_scopePolarities s) <&>
   \x -> s { _scopePolarities = x }
+
+scopeRecords :: Lens' ScopeInfo (Map A.QName A.QName)
+scopeRecords f s =
+  f (_scopeRecords s) <&>
+  \x -> s { _scopeRecords = x }
 
 scopeFixitiesAndPolarities :: Lens' ScopeInfo (C.Fixities, C.Polarities)
 scopeFixitiesAndPolarities f s =
@@ -696,6 +703,7 @@ emptyScopeInfo = ScopeInfo
   , _scopeInScope       = Set.empty
   , _scopeFixities      = Map.empty
   , _scopePolarities    = Map.empty
+  , _scopeRecords       = Map.empty
   }
 
 -- | Map functions over the names and modules in a scope.
@@ -1447,7 +1455,7 @@ blockOfLines _  [] = []
 blockOfLines hd ss = hd : map (nest 2) ss
 
 instance Pretty ScopeInfo where
-  pretty (ScopeInfo this mods toBind locals ctx _ _ _ _ _) = vcat $ concat
+  pretty (ScopeInfo this mods toBind locals ctx _ _ _ _ _ _) = vcat $ concat
     [ [ "ScopeInfo"
       , nest 2 $ "current =" <+> pretty this
       ]

@@ -1211,8 +1211,9 @@ instance ToConcrete A.RecordDirectives where
 
   toConcrete dir = C.ungatherRecordDirectives <$> traverse f dir
     where
-      f :: A.QName -> AbsToCon (C.Name, IsInstance)
-      f = (,NotInstanceDef) <.> C.unqualify <.> toConcrete
+      f :: RecordConName -> AbsToCon (Maybe (C.Name, IsInstance))
+      f (FreshRecCon _) = pure Nothing
+      f (NamedRecCon nm) = Just . (, NotInstanceDef) . C.unqualify <$> toConcrete nm
 
 
 instance ToConcrete A.Declaration where
