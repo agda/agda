@@ -1,9 +1,9 @@
-RewriteRuleUnboundVars.agda:12,13-24: warning: -W[no]RewriteVariablesNotBoundByLHS
+RewriteRuleUnboundVars.agda:12.13-24: warning: -W[no]RewriteVariablesNotBoundByLHS
 boolTrivial  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  c
 when checking the pragma REWRITE boolTrivial
 
 ———— All done; warnings encountered ————————————————————————
 
-RewriteRuleUnboundVars.agda:12,13-24: warning: -W[no]RewriteVariablesNotBoundByLHS
+RewriteRuleUnboundVars.agda:12.13-24: warning: -W[no]RewriteVariablesNotBoundByLHS
 boolTrivial  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  c
 when checking the pragma REWRITE boolTrivial

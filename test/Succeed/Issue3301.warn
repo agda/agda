@@ -1,27 +1,27 @@
-Issue3301.agda:6,3-8: warning: -W[no]CantGeneralizeOverSorts
+Issue3301.agda:6.3-8: warning: -W[no]CantGeneralizeOverSorts
 Cannot generalize over unsolved sort metas:
-  _1 at Issue3301.agda:6,7-8
+  _1 at Issue3301.agda:6.7-8
 Suggestion: add a 'variable Any : Set _' and replace unsolved metas
 by Any
 
-Issue3301.agda:7,3-12: warning: -W[no]CantGeneralizeOverSorts
+Issue3301.agda:7.3-12: warning: -W[no]CantGeneralizeOverSorts
 Cannot generalize over unsolved sort metas:
-  _5 at Issue3301.agda:7,7-8
-  _7 at Issue3301.agda:7,11-12
+  _5 at Issue3301.agda:7.7-8
+  _7 at Issue3301.agda:7.11-12
 Suggestion: add a 'variable Any : Set _' and replace unsolved metas
 by Any
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue3301.agda:6,3-8: warning: -W[no]CantGeneralizeOverSorts
+Issue3301.agda:6.3-8: warning: -W[no]CantGeneralizeOverSorts
 Cannot generalize over unsolved sort metas:
-  _1 at Issue3301.agda:6,7-8
+  _1 at Issue3301.agda:6.7-8
 Suggestion: add a 'variable Any : Set _' and replace unsolved metas
 by Any
 
-Issue3301.agda:7,3-12: warning: -W[no]CantGeneralizeOverSorts
+Issue3301.agda:7.3-12: warning: -W[no]CantGeneralizeOverSorts
 Cannot generalize over unsolved sort metas:
-  _5 at Issue3301.agda:7,7-8
-  _7 at Issue3301.agda:7,11-12
+  _5 at Issue3301.agda:7.7-8
+  _7 at Issue3301.agda:7.11-12
 Suggestion: add a 'variable Any : Set _' and replace unsolved metas
 by Any

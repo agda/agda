@@ -1,9 +1,9 @@
-Issue1652-2.agda:16,15-21: warning: -W[no]RewriteVariablesNotBoundByLHS
+Issue1652-2.agda:16.15-21: warning: -W[no]RewriteVariablesNotBoundByLHS
 plus0p  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  A
 when checking the pragma REWRITE plus0p
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue1652-2.agda:16,15-21: warning: -W[no]RewriteVariablesNotBoundByLHS
+Issue1652-2.agda:16.15-21: warning: -W[no]RewriteVariablesNotBoundByLHS
 plus0p  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  A
 when checking the pragma REWRITE plus0p
