@@ -85,6 +85,27 @@ Library management
 Interaction and emacs mode
 --------------------------
 
+* Agda's error messages now follow the [GNU standard](https://www.gnu.org/prep/standards/html_node/Errors.html).
+  To comply with this policy, line and column are now separated by a dot instead of comma.
+  The format of regular errors and error warnings follows this template:
+
+  > _sourcefile_:_line1_._column1_-_line2_._column2_: error: [_ErrorName_]
+  > ...
+  > _error message_
+  > ...
+  > when _error context_
+
+  _line2_ or even _column2_ can be missing, in some cases even the entire error location.
+  Internal errors might follow a different format.
+
+  Warnings are printed in a similar format:
+
+  > _sourcefile_:_line1_._column1_-_line2_._column2_: warning: -W[no]_WarningName_
+  > ...
+  > _warning text_
+  > ...
+  > when _warning context_
+
 * Emacs: new face `agda2-highlight-cosmetic-problem-face`
   for highlighting the new aspect `CosmeticProblem`.
 

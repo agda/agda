@@ -133,9 +133,9 @@ instance Pretty RangeFile where
   pretty = pretty . rangeFilePath
 
 instance Pretty a => Pretty (Position' (Strict.Maybe a)) where
-  pretty (Pn Strict.Nothing  _ l c) = pretty l <> "," <> pretty c
+  pretty (Pn Strict.Nothing  _ l c) = pretty l <> dot <> pretty c
   pretty (Pn (Strict.Just f) _ l c) =
-    pretty f <> ":" <> pretty l <> "," <> pretty c
+    pretty f <> colon <> pretty l <> dot <> pretty c
 
 instance Pretty PositionWithoutFile where
   pretty p = pretty (p { srcFile = Strict.Nothing } :: Position)
@@ -149,11 +149,11 @@ instance Pretty IntervalWithoutFile where
       ec = posCol e
 
       start :: Doc
-      start = pretty sl <> comma <> pretty sc
+      start = pretty sl <> dot <> pretty sc
 
       end :: Doc
         | sl == el  = pretty ec
-        | otherwise = pretty el <> comma <> pretty ec
+        | otherwise = pretty el <> dot <> pretty ec
 
 instance Pretty a => Pretty (Interval' (Strict.Maybe a)) where
   pretty i@(Interval s _) = file <> pretty (setIntervalFile () i)
@@ -315,10 +315,11 @@ parens p       = lparen <> p <> rparen
 brackets p     = lbrack <> p <> rbrack
 braces p       = lbrace <> p <> rbrace
 
-semi, comma, colon, space, equals, lparen, rparen, lbrack, rbrack, lbrace, rbrace :: Doc
+semi, comma, colon, dot, space, equals, lparen, rparen, lbrack, rbrack, lbrace, rbrace :: Doc
 semi   = hlSymbol $ char ';'
 comma  = hlSymbol $ char ','
 colon  = hlSymbol $ char ':'
+dot    = hlSymbol $ char '.'
 space  = hlSymbol $ char ' '
 equals = hlSymbol $ char '='
 lparen = hlSymbol $ char '('
