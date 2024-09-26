@@ -195,6 +195,7 @@ prettyDisambCons :: MonadPretty m => QName -> m Doc
 prettyDisambCons = prettyDisamb $ Just . nameBindingSite . qnameName
 
 instance PrettyTCM TypeError where
+  prettyTCM :: forall m. MonadPretty m => TypeError -> m Doc
   prettyTCM err = case err of
     InternalError s -> panic s
 
@@ -1247,6 +1248,35 @@ instance PrettyTCM TypeError where
 
     MultiplePolarityPragmas xs -> fsep $
       pwords "Multiple polarity pragmas for" ++ map pretty (List1.toList xs)
+
+    ConstructorNameOfNonRecord res -> case res of
+      UnknownName -> __IMPOSSIBLE__ -- Turned into NotInScope when the name is resolved
+      name ->
+        let
+          qn :: m Doc
+          (qn, whatis) = case name of
+            DefinedName _ nm _ -> (prettyTCM nm,) case anameKind nm of
+              RecName                  -> __IMPOSSIBLE__
+              ConName                  -> __IMPOSSIBLE__
+              CoConName                -> __IMPOSSIBLE__
+              FldName                  -> __IMPOSSIBLE__
+              PatternSynName           -> __IMPOSSIBLE__
+
+              GeneralizeName           -> "a generalized variable"
+              DisallowedGeneralizeName -> "a generalized variable"
+              MacroName                -> "a macro"
+              QuotableName             -> "a quotable name"
+
+              DataName                 -> "a data type"
+              FunName                  -> "a function"
+              AxiomName                -> "a postulate"
+              PrimName                 -> "a primitive"
+              OtherDefName             -> "a defined symbol"
+            VarName a _ -> (prettyTCM a, "a local variable")
+            FieldName (a :| _) -> (prettyTCM a, "a projection")
+            ConstructorName _ (a :| _) -> (prettyTCM a, "a constructor")
+            PatternSynResName (a :| _) -> (prettyTCM a, "a pattern synonym")
+        in fsep $ pwords "Only record types have constructor names, but" ++ [qn, "is"] ++ pwords (whatis <> ".")
 
     NonFatalErrors ws -> vsep $ fmap prettyTCM $ Set1.toAscList ws
 

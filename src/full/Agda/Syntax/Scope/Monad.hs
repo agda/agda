@@ -11,6 +11,8 @@ import Control.Arrow ((***))
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
+import Control.Monad.Trans.Maybe
+import Control.Applicative
 
 import Data.Either ( partitionEithers )
 import Data.Foldable (all, traverse_)
@@ -41,7 +43,7 @@ import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWar
   -- TODO: move the relevant warnings out of there
 import Agda.Syntax.Scope.Base as A
 
-import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Base as I
 import Agda.TypeChecking.Monad.Builtin
   ( HasBuiltins, getBuiltinName'
   , builtinProp, builtinSet, builtinStrictSet, builtinPropOmega, builtinSetOmega, builtinSSetOmega )
@@ -333,22 +335,29 @@ resolveName = resolveName' allKindsOfNames Nothing
 resolveName' ::
   KindsOfNames -> Maybe (Set A.Name) -> C.QName -> ScopeM ResolvedName
 resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
-  Left reason  -> do
+  Left (IllegalAmbiguity reason)  -> do
     reportS "scope.resolve" 60 $ unlines $
       "resolveName': ambiguous name" :
       map (show . qnameName) (toList $ ambiguousNamesInReason reason)
     setCurrentRange x $ typeError $ AmbiguousName x reason
+
+  Left (ConstrOfNonRecord q r) -> case r of
+    UnknownName -> setCurrentRange x $ typeError $ I.NotInScope q
+    _ -> setCurrentRange x $ typeError $ ConstructorNameOfNonRecord r
+
   Right x' -> return x'
 
 tryResolveName
-  :: forall m. (ReadTCState m, HasBuiltins m, MonadError AmbiguousNameReason m)
+  :: forall m. (ReadTCState m, HasBuiltins m, MonadError NameResolutionError m)
   => KindsOfNames       -- ^ Restrict search to these kinds of names.
   -> Maybe (Set A.Name) -- ^ Unless 'Nothing', restrict search to match any of these names.
   -> C.QName            -- ^ Name to be resolved
   -> m ResolvedName     -- ^ If illegally ambiguous, throw error with the ambiguous name.
 tryResolveName kinds names x = do
   scope <- getScope
-  let vars     = AssocList.mapKeysMonotonic C.QName $ scope ^. scopeLocals
+  let
+    vars = AssocList.mapKeysMonotonic C.QName $ scope ^. scopeLocals
+    throwAmb = throwError . IllegalAmbiguity
   case lookup x vars of
 
     -- Case: we have a local variable x, but is (perhaps) shadowed by some imports ys.
@@ -356,7 +365,7 @@ tryResolveName kinds names x = do
       -- We may ignore the imports filtered out by the @names@ filter.
       case nonEmpty $ filterNames id ys of
         Nothing  -> return $ VarName y{ nameConcrete = unqualify x } b
-        Just ys' -> throwError $ AmbiguousLocalVar var ys'
+        Just ys' -> throwAmb $ AmbiguousLocalVar var ys'
 
     -- Case: we do not have a local variable x.
     Nothing -> do
@@ -386,15 +395,30 @@ tryResolveName kinds names x = do
           (Nothing, []) ->
             return $ DefinedName a (upd d) A.NoSuffix
           (Nothing, (d',_) : ds') ->
-            throwError $ AmbiguousDeclName $ List2 d d' $ map fst ds'
+            throwAmb $ AmbiguousDeclName $ List2 d d' $ map fst ds'
           (Just (_, ss), _) ->
-            throwError $ AmbiguousDeclName $ List2.append (d :| map fst ds) (fmap fst ss)
+            throwAmb $ AmbiguousDeclName $ List2.append (d :| map fst ds) (fmap fst ss)
+
+        -- Name is of the form r.constructor
+        Nothing | Just r <- isRecordConstructor x -> do
+          -- We resolve the record name r with no filter, that way we
+          -- can know when printing an error message whether r is not in
+          -- scope, or whether it's some other type of name, etc.
+          recd <- tryResolveName AllKindsOfNames Nothing r
+
+          case recd of
+            DefinedName acc abs suf -> getRecordConstructor (anameName abs) >>= \case
+              Just qn ->
+                let abs' = upd abs { anameName = qn, anameKind = ConName }
+                 in pure (ConstructorName mempty $ List1.singleton abs')
+              Nothing -> throwError $ ConstrOfNonRecord r recd
+            _ -> throwError $ ConstrOfNonRecord r recd
 
         Nothing -> case suffixedNames of
           Nothing -> return UnknownName
           Just (suffix , (d, a) :| []) -> return $ DefinedName a (upd d) suffix
           Just (suffix , (d1,_) :| (d2,_) : sds) ->
-            throwError $ AmbiguousDeclName $ List2 d1 d2 $ map fst sds
+            throwAmb $ AmbiguousDeclName $ List2 d1 d2 $ map fst sds
 
   where
   -- @names@ intended semantics: a filter on names.
@@ -559,6 +583,48 @@ bindQModule :: Access -> C.QName -> A.ModuleName -> ScopeM ()
 bindQModule acc q m = modifyCurrentScope $ \s ->
   s { scopeImports = Map.insert q m (scopeImports s) }
 
+---------------------------------------------------
+-- * Operations to do with record constructor names
+---------------------------------------------------
+
+-- | Record (ha) that a given record has the specified constructor name.
+setRecordConstructor :: A.QName -> A.QName -> ScopeM ()
+setRecordConstructor recr con = modifyScope_ $ over scopeRecords $ Map.insert recr con
+
+-- | Get the internal 'QName' for the  name of a record constructor. If
+-- the name does not refer to a record type, 'Nothing' is returned.
+getRecordConstructor :: ReadTCState m => A.QName -> m (Maybe A.QName)
+getRecordConstructor recr = runMaybeT $ local <|> imported where
+  local = do
+    recs <- useScope scopeRecords
+    MaybeT $ pure $ Map.lookup recr recs
+  imported = do
+    idefs <- useTC (stImports . sigDefinitions)
+    case theDef <$> HMap.lookup recr idefs of
+      Just def@I.Record{} -> pure (I.recCon def)
+      _ -> MaybeT $ pure Nothing
+
+
+-- | Is this the qualified name which refers to the constructor of an
+-- anonymous record (like @Foo.constructor@)?
+--
+-- If so, return the part of the name referring to the record (@Foo@).
+isRecordConstructor :: C.QName -> Maybe C.QName
+isRecordConstructor = fmap to . toplevel where
+  toplevel, is :: C.QName -> Maybe [C.Name]
+  toplevel (Qual r n) = (r:) <$> is n
+  toplevel _          = Nothing
+
+  is (C.Qual r n) = (r:) <$> is n
+  is (C.QName n)  = case n of
+    C.Name _ _ (Id w :| [])
+      | w == "constructor" -> pure []
+    _ -> Nothing
+
+  to []     = __IMPOSSIBLE__
+  to [x]    = C.QName x
+  to (x:xs) = C.Qual x (to xs)
+
 ---------------------------------------------------------------------------
 -- * Module manipulation operations
 ---------------------------------------------------------------------------
@@ -643,6 +709,13 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
           i <- lift fresh
           return $ x { A.nameId = i }
 
+        copyRecordConstr :: A.QName -> A.QName -> WSM ()
+        copyRecordConstr from to = getRecordConstructor from >>= \case
+          Just con -> do
+            con' <- renName con
+            lift (setRecordConstructor to con')
+          Nothing  -> pure ()
+
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
         renName :: A.QName -> WSM A.QName
         renName x = do
@@ -679,6 +752,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
           lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ prettyShow x ++ " to " ++ prettyShow y
           addName x y
           lift (copyName x y)
+          copyRecordConstr x y
           return y
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y

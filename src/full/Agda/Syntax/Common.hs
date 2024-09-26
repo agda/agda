@@ -149,14 +149,14 @@ data RecordDirectives' a = RecordDirectives
   { recInductive   :: Maybe (Ranged Induction)
   , recHasEta      :: Maybe (Ranged HasEta0)
   , recPattern     :: Maybe Range
-  , recConstructor :: Maybe a
+  , recConstructor :: a
   } deriving (Functor, Show, Eq, Foldable, Traversable)
 
-instance Null (RecordDirectives' a) where
+instance Null a => Null (RecordDirectives' a) where
   empty = emptyRecordDirectives
   null (RecordDirectives a b c d) = and [null a, null b, null c, null d]
 
-emptyRecordDirectives :: RecordDirectives' a
+emptyRecordDirectives :: Null a => RecordDirectives' a
 emptyRecordDirectives = RecordDirectives empty empty empty empty
 
 instance HasRange a => HasRange (RecordDirectives' a) where

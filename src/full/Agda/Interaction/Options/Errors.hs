@@ -179,6 +179,7 @@ data ErrorName
   | ModuleNameUnexpected_
   | MultipleFixityDecls_
   | MultiplePolarityPragmas_
+  | ConstructorNameOfNonRecord_
   | NamedWhereModuleInRefinedContext_
   | NeedOptionAllowExec_
   | NeedOptionCopatterns_

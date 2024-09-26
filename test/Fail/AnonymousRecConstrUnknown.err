@@ -1,0 +1,5 @@
+AnonymousRecConstrUnknown.agda:3.5-20: error: [NotInScope]
+Not in scope:
+  Foo
+  at AnonymousRecConstrUnknown.agda:3.5-9
+when scope checking Foo.constructor

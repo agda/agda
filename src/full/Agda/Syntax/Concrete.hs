@@ -471,7 +471,7 @@ data RecordDirective
        -- ^ If declaration @pattern@ is present, give its range.
    deriving (Eq, Show)
 
-type RecordDirectives = RecordDirectives' (Name, IsInstance)
+type RecordDirectives = RecordDirectives' (Maybe (Name, IsInstance))
 
 ungatherRecordDirectives :: RecordDirectives -> [RecordDirective]
 ungatherRecordDirectives (RecordDirectives ind eta pat con) = catMaybes

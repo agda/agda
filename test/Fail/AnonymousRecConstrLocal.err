@@ -1,0 +1,4 @@
+AnonymousRecConstrLocal.agda:4.19-32: error: [ConstructorNameOfNonRecord]
+Only record types have constructor names, but x is a local
+variable.
+when scope checking x.constructor

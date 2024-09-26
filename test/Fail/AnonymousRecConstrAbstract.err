@@ -1,0 +1,4 @@
+AnonymousRecConstrAbstract.agda:11.5-20: error: [AbstractConstructorNotInScope]
+Constructor Foo.constructor is abstract, thus, not in scope here
+when checking that the expression Foo.constructor has type
+Set → Foo

@@ -1891,10 +1891,27 @@ instance ToAbstract NiceDeclaration where
              let bad = filter (`elem` dups) fs
              setCurrentRange bad $
                typeError $ DuplicateFields dups
+
         bindModule p x m
         let kind = maybe ConName (conKindOfName . rangedThing) ind
-        -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
-        cm' <- forM cm $ \ (c, _) -> bindRecordConstructorName c kind a p
+
+        cm' <- case cm of
+          -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
+          Just (c, _) -> NamedRecCon <$> bindRecordConstructorName c kind a p
+
+          -- Amy, 2024-09-25: if the record does not have a named
+          -- constructor, then generate the QName here, and record it in
+          -- the TC state so that 'Record.constructor' can be resolved.
+          Nothing -> do
+            -- Technically it doesn't matter with what this name is
+            -- qualified since record constructor names have a special
+            -- printing rule in lookupQName.
+            constr <- withCurrentModule m $
+              freshAbstractQName noFixity' $ simpleName "constructor"
+            pure $ FreshRecCon constr
+
+        setRecordConstructor x' (recordConName cm')
+
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 25 "record complete"
         f <- getConcreteFixity x

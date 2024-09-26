@@ -1,0 +1,2 @@
+AnonymousRecConstrParse1.agda:3.5: error: [ParseError]
+in the name constructor, the part constructor is not valid because it is a keyword
