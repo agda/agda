@@ -1,4 +1,3 @@
-AnonymousRecConstrAmbig.agda:9,5-19: error: [ConstructorNameOfNonRecord]
-Only record types have constructor names, but mk is the name of an
-ambiguous constructor.
+AnonymousRecConstrAmbig.agda:9.5-19: error: [ConstructorNameOfNonRecord]
+Only record types have constructor names, but mk is a constructor.
 when scope checking mk.constructor

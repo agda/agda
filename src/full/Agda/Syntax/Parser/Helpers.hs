@@ -32,7 +32,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Hash
-import Agda.Utils.List ( spanJust, chopWhen )
+import Agda.Utils.List ( spanJust, chopWhen, initLast )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -168,15 +168,11 @@ mkName = mkName' False
 
 -- | Create a qualified name from a list of strings
 mkQName :: [(Interval, String)] -> Parser QName
-mkQName ss = do
-    let
-      ss0 = init ss
-      ss1 = last ss
-    -- The last name part can be the 'constructor' token, to refer to
-    -- record constructors
-    xs0 <- mapM mkName ss0
-    xs1 <- mkName' True ss1
-    return $ foldr Qual (QName xs1) xs0
+mkQName ss | Just (ss0, ss1) <- initLast ss = do
+  xs0 <- mapM mkName ss0
+  xs1 <- mkName' True ss1
+  return $ foldr Qual (QName xs1) xs0
+mkQName _ = __IMPOSSIBLE__ -- The lexer never gives us an empty list of parts
 
 mkDomainFree_ :: (NamedArg Binder -> NamedArg Binder) -> Maybe Pattern -> Name -> NamedArg Binder
 mkDomainFree_ f p n = f $ defaultNamedArg $ Binder p $ mkBoundName_ n
