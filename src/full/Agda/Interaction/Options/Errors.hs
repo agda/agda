@@ -68,6 +68,7 @@ data ErrorName
   = GHCBackendError_       GHCBackendError_
   | ImpossibleConstructor_ NegativeUnification_
   | InteractionError_      InteractionError_
+  | JSBackendError_        JSBackendError_
   | NicifierError_         DeclarationException_
   | SplitError_            SplitError_
   | UnquoteError_          UnquoteError_
@@ -315,6 +316,11 @@ data GHCBackendError_
   deriving (Show, Generic)
   deriving (Enum, Bounded) via (FiniteEnumeration GHCBackendError_)
 
+data JSBackendError_
+  = BadCompilePragma_
+  deriving (Show, Generic)
+  deriving (Enum, Bounded) via (FiniteEnumeration JSBackendError_)
+
 data InteractionError_
   = CannotRefine_
   | CaseSplitError_
@@ -379,6 +385,7 @@ errorNameString = \case
   GHCBackendError_        err -> "GHCBackend." ++ ghcBackendErrorNameString err
   ImpossibleConstructor_  err -> "ImpossibleConstructor." ++ negativeUnificationErrorNameString err
   InteractionError_       err -> "Interaction." ++ interactionErrorNameString err
+  JSBackendError_         err -> "JSBackend." ++ jsBackendErrorNameString err
   NicifierError_          err -> "Syntax." ++ declarationExceptionNameString err
   SplitError_             err -> "SplitError." ++ splitErrorNameString err
   UnquoteError_           err -> "Unquote." ++ unquoteErrorNameString err
@@ -410,6 +417,9 @@ ghcBackendErrorNameString :: GHCBackendError_ -> String
 ghcBackendErrorNameString = \case
   NotAHaskellType_ err -> "NotAHaskellType." ++ notAHaskellTypeErrorNameString err
   err -> defaultErrorNameString err
+
+jsBackendErrorNameString :: JSBackendError_ -> String
+jsBackendErrorNameString = defaultErrorNameString
 
 interactionErrorNameString :: InteractionError_ -> String
 interactionErrorNameString = defaultErrorNameString

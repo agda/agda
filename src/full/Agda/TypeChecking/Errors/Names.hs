@@ -17,6 +17,7 @@ typeErrorName :: TypeError -> ErrorName
 typeErrorName = \case
   -- Error groups (alphabetically) with named sub errors
   GHCBackendError          err -> GHCBackendError_       $ ghcBackendErrorName            err
+  JSBackendError           err -> JSBackendError_        $ jsBackendErrorName             err
   ImpossibleConstructor _  err -> ImpossibleConstructor_ $ impossibleConstructorErrorName err
   InteractionError         err -> InteractionError_      $ interactionErrorName           err
   NicifierError            err -> NicifierError_         $ declarationExceptionName       err
@@ -262,6 +263,10 @@ ghcBackendErrorName = \case
   ConstructorCountMismatch{} -> ConstructorCountMismatch_
   NotAHaskellType _ err      -> NotAHaskellType_ $ notAHaskellTypeErrorName err
   WrongTypeOfMain{}          -> WrongTypeOfMain_
+
+jsBackendErrorName :: JSBackendError -> JSBackendError_
+jsBackendErrorName = \case
+  BadCompilePragma -> BadCompilePragma_
 
 impossibleConstructorErrorName :: NegativeUnification -> NegativeUnification_
 impossibleConstructorErrorName = \case

@@ -5079,6 +5079,8 @@ data TypeError
             -- ^ Used for backend-specific errors. The string is the backend name.
         | GHCBackendError GHCBackendError
             -- ^ Errors raised by the GHC backend.
+        | JSBackendError JSBackendError
+            -- ^ Errors raised by the JS backend.
         | UnknownBackend BackendName (Set BackendName)
             -- ^ Unknown backend requested, known ones are in the 'Set'.
           deriving (Show, Generic)
@@ -5110,6 +5112,11 @@ data GHCBackendError
       -- ^ GHC backend fails to represent given Agda type in Haskell.
   | WrongTypeOfMain QName Type
       -- ^ The type of @main@ should be @IO _@ ('QName') but is instead 'Type'.
+  deriving (Show, Generic)
+
+-- | Errors raised by the JS backend.
+data JSBackendError
+  = BadCompilePragma
   deriving (Show, Generic)
 
 -- | Extra information for 'MissingTypeSignature' error.
@@ -6317,6 +6324,7 @@ instance NFData InductionAndEta
 instance NFData IllegalRewriteRuleReason
 instance NFData IncorrectTypeForRewriteRelationReason
 instance NFData GHCBackendError
+instance NFData JSBackendError
 instance NFData MissingTypeSignatureInfo
 instance NFData WhyNotAHaskellType
 instance NFData InteractionError
