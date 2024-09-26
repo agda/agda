@@ -1508,6 +1508,8 @@ instance PrettyTCM TypeError where
 
     GHCBackendError err -> prettyTCM err
 
+    JSBackendError err -> prettyTCM err
+
     InteractionError err -> prettyTCM err
 
     where
@@ -1591,6 +1593,13 @@ instance PrettyTCM GHCBackendError where
     WrongTypeOfMain io ty -> fsep $ concat
       [ pwords "The type of main should be", [ prettyTCM io ], pwords "A, for some A."
       , pwords "The given type is:", [ prettyTCM ty ]
+      ]
+
+instance PrettyTCM JSBackendError where
+  prettyTCM = \case
+    BadCompilePragma -> sep
+      [ "Badly formed COMPILE JS pragma. Expected"
+      , "{-# COMPILE JS <name> = <js> #-}"
       ]
 
 instance PrettyTCM InteractionError where

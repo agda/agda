@@ -395,8 +395,7 @@ checkCompilerPragmas q =
   caseMaybeM (getUniqueCompilerPragma jsBackendName q) (return ()) $ \ (CompilerPragma r s) ->
   setCurrentRange r $ case words s of
     "=" : _ -> return ()
-    _       -> genericDocError $ P.sep [ "Badly formed COMPILE JS pragma. Expected",
-                                         "{-# COMPILE JS <name> = <js> #-}" ]
+    _       -> typeError $ JSBackendError BadCompilePragma
 
 defJSDef :: Definition -> Maybe String
 defJSDef def =

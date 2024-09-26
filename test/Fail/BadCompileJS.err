@@ -1,0 +1,3 @@
+BadCompileJS.agda:6.1-21: error: [JSBackend.BadCompilePragma]
+Badly formed COMPILE JS pragma. Expected
+{-# COMPILE JS <name> = <js> #-}
