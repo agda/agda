@@ -9,7 +9,7 @@ module Agda.TypeChecking.Lock
   )
 where
 
-import Control.Monad            ( filterM, forM, forM_ )
+import Control.Monad            ( (<=<), filterM, forM )
 
 import qualified Data.IntMap as IMap
 import qualified Data.IntSet as ISet
@@ -130,18 +130,11 @@ isTimeless t = do
     Def q _ | Just q `elem` timeless -> return True
     _                                -> return False
 
-notAllowedVarsError :: Term -> [Int] -> TCM b
-notAllowedVarsError lk is = do
-        typeError . GenericDocError =<<
-         ("The following vars are not allowed in a later value applied to"
-          <+> prettyTCM lk <+> ":" <+> prettyTCM (map var $ is))
-
-checkEarlierThan :: Term -> VSet.VarSet -> TCM ()
+-- | If the first argument is a lock variable, check that all variables in the given set
+--   are either earlier than this variable or are timeless.
+--
+checkEarlierThan :: Term -> VSet.VarSet -> TCM Bool
 checkEarlierThan lk fvs = do
-  mv <- getLockVar lk
-  caseMaybe mv (return ()) $ \ i -> do
-    let problems = filter (<= i) $ VSet.toList fvs
-    forM_ problems $ \ j -> do
-      ty <- typeOfBV j
-      unlessM (isTimeless ty) $
-        notAllowedVarsError lk [j]
+  getLockVar lk >>= \case
+    Nothing -> return True
+    Just i  -> flip allM (isTimeless <=< typeOfBV) $ filter (<= i) $ VSet.toList fvs
