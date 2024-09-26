@@ -1,4 +1,4 @@
-Issue4461.agda:4,3-4: error: [ConstructorDoesNotFitInData]
+Issue4461.agda:4.3-4: error: [ConstructorDoesNotFitInData]
 Constructor m
 of sort univSort _4
 does not fit into data type of sort Set.

@@ -1,5 +1,5 @@
-RsTSpanningComment.lagda.rst:2,4-5,19: error: [OverlappingTokensWarning]
+RsTSpanningComment.lagda.rst:2.4-5.19: error: [OverlappingTokensWarning]
 Multi-line comment spans one or more literate text blocks.
 
-RsTSpanningComment.lagda.rst:8,3-13,7: error: [OverlappingTokensWarning]
+RsTSpanningComment.lagda.rst:8.3-13.7: error: [OverlappingTokensWarning]
 Multi-line comment spans one or more literate text blocks.

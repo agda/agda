@@ -1,4 +1,4 @@
-Issue3327.agda:19,15-18: error: [ConstructorDoesNotFitInData]
+Issue3327.agda:19.15-18: error: [ConstructorDoesNotFitInData]
 Constructor inn
 of sort Set₁
 does not fit into data type of sort Set.

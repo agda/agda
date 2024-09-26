@@ -2,7 +2,7 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _12 = f (g (loop y)) : A (blocked on _12)
 
-Issue4120-loop.agda:17,7-20,16: error: [UnsolvedMetaVariables]
+Issue4120-loop.agda:17.7-20.16: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue4120-loop.agda:17,7-8
-  Issue4120-loop.agda:20,12-16
+  Issue4120-loop.agda:17.7-8
+  Issue4120-loop.agda:20.12-16

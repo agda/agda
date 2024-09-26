@@ -1,4 +1,4 @@
-Issue481NonExistentModule.agda:4,6-30: error: [FileNotFound]
+Issue481NonExistentModule.agda:4.6-30: error: [FileNotFound]
 Failed to find source of module NonExistentModule in any of the
 following locations:
   ../NonExistentModule.agda
@@ -8,4 +8,4 @@ following locations:
   agda-default-include-path/NonExistentModule.agda
   agda-default-include-path/NonExistentModule.lagda
 when scope checking the declaration
-  import NonExistentModule as .#NonExistentModule-4156777100598845688
+  import NonExistentModule as .#NonExistentModule-4871442055463982176

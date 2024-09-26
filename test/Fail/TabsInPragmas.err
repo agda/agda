@@ -1,2 +1,2 @@
-TabsInPragmas.agda:1,5: error: [ParseError]
+TabsInPragmas.agda:1.5: error: [ParseError]
 Lexical error (you may want to replace tabs with spaces):

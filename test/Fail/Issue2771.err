@@ -1,4 +1,4 @@
-Issue2771.agda:15,1-19: error: [UnequalTerms]
+Issue2771.agda:15.1-19: error: [UnequalTerms]
 ¬ho-shr-morph ind != w of type IndexL
 when checking that the type
 (ind : IndexL) → ⊤ → (w : IndexL) → ¬ord-morph w (pres-¬ord ind) of

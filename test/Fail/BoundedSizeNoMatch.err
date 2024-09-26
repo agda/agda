@@ -1,6 +1,6 @@
-BoundedSizeNoMatch.agda:8,1-9,26: error: [TerminationIssue]
+BoundedSizeNoMatch.agda:8.1-9.26: error: [TerminationIssue]
 Termination checking failed for the following functions:
   T
 Problematic calls:
   T j
-    (at BoundedSizeNoMatch.agda:9,23-24)
+    (at BoundedSizeNoMatch.agda:9.23-24)

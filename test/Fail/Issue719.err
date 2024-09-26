@@ -1,5 +1,5 @@
-Issue719.agda:11,23-24: error: [ShadowedModule]
+Issue719.agda:11.23-24: error: [ShadowedModule]
 Duplicate definition of module A. Previous definition of module A
-at Issue719.agda:8,25-26
+at Issue719.agda:8.25-26
 when scope checking the declaration
   open module A = M

@@ -1,4 +1,4 @@
-Issue6654a.agda:10,3-4: error: [ConstructorDoesNotFitInData]
+Issue6654a.agda:10.3-4: error: [ConstructorDoesNotFitInData]
 Constructor b of sort Set₁ does not fit into data type of sort Set.
 (Reason: Set₁ is not less or equal than Set)
 when checking that the type (P : Set) → P → P of an argument to the

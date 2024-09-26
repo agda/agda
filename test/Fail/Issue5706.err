@@ -1,4 +1,4 @@
-Issue5706.agda:32,3-6: error: [ConstructorDoesNotFitInData]
+Issue5706.agda:32.3-6: error: [ConstructorDoesNotFitInData]
 Constructor set
 of sort Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₅
 does not fit into data type of sort Set.
@@ -6,7 +6,7 @@ does not fit into data type of sort Set.
 when checking that the type X → SET of an argument to the
 constructor set fits in the sort Set of the datatype.
 
-Issue5706.agda:32,3-6: error: [ConstructorDoesNotFitInData]
+Issue5706.agda:32.3-6: error: [ConstructorDoesNotFitInData]
 Constructor set
 of sort Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₆
 does not fit into data type of sort Set.
@@ -14,7 +14,7 @@ does not fit into data type of sort Set.
 when checking that the type Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₅ of an argument
 to the constructor set fits in the sort Set of the datatype.
 
-Issue5706.agda:37,15-16: error: [UnequalSorts]
+Issue5706.agda:37.15-16: error: [UnequalSorts]
 Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₅ != Set
 when checking that the solution X of metavariable _A_21 has the
 expected type Set

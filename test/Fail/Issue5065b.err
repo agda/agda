@@ -1,6 +1,6 @@
-Issue5065b.agda:9,1-12,17: error: [TerminationIssue]
+Issue5065b.agda:9.1-12.17: error: [TerminationIssue]
 Termination checking failed for the following functions:
   bad
 Problematic calls:
   bad b
-    (at Issue5065b.agda:10,12-15)
+    (at Issue5065b.agda:10.12-15)

@@ -1,2 +1,2 @@
-Issue1391c.agda:5,14: error: [ParseError]
+Issue1391c.agda:5.14: error: [ParseError]
 Expected sequence of possibly hidden bound identifiers

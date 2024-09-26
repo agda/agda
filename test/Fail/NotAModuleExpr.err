@@ -1,5 +1,4 @@
-NotAModuleExpr.agda:5,14: error: [ParseError]
-/<ERROR>
-x -> x
+NotAModuleExpr.agda:5.14: error: [ParseError]
+/<ERROR> x -> x
 
 ...

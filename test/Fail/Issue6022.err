@@ -1,7 +1,7 @@
-Issue6022.agda:22,12-16: warning: -W[no]InteractionMetaBoundaries
+Issue6022.agda:22.12-16: warning: -W[no]InteractionMetaBoundaries
 Interaction meta(s) at the following location(s) have unsolved
 boundary constraints:
-  Issue6022.agda:22,12-16
-Issue6022.agda:22,12-16: error: [UnsolvedInteractionMetas]
+  Issue6022.agda:22.12-16
+Issue6022.agda:22.12-16: error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
-  Issue6022.agda:22,12-16
+  Issue6022.agda:22.12-16

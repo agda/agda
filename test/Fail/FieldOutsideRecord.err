@@ -1,2 +1,2 @@
-FieldOutsideRecord.agda:5,3-12: error: [FieldOutsideRecord]
+FieldOutsideRecord.agda:5.3-12: error: [FieldOutsideRecord]
 Field appearing outside record declaration.

@@ -1,6 +1,6 @@
-Same-Precedence-Different-Associativity.agda:20,22-31: error: [NoParseForApplication]
+Same-Precedence-Different-Associativity.agda:20.22-31: error: [NoParseForApplication]
 Could not parse the application 1 + 0 ∸ 1
 Operators used in the grammar:
-  + (infixl operator, level 6) [_+_ (Same-Precedence-Different-Associativity.agda:10,1-4)]
-  ∸ (infix operator, level 6)  [_∸_ (Same-Precedence-Different-Associativity.agda:14,1-4)]
+  + (infixl operator, level 6) [_+_ (Same-Precedence-Different-Associativity.agda:10.1-4)]
+  ∸ (infix operator, level 6)  [_∸_ (Same-Precedence-Different-Associativity.agda:14.1-4)]
 when scope checking 1 + 0 ∸ 1

@@ -1,6 +1,6 @@
-TerminationAndUnivalence.agda:31,1-32,41: error: [TerminationIssue]
+TerminationAndUnivalence.agda:31.1-32.41: error: [TerminationIssue]
 Termination checking failed for the following functions:
   noo
 Problematic calls:
   noo FOne iso x
-    (at TerminationAndUnivalence.agda:32,27-30)
+    (at TerminationAndUnivalence.agda:32.27-30)

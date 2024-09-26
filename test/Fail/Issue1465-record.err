@@ -1,2 +1,2 @@
-Issue1465-record.agda:1,8: error: [ParseError]
+Issue1465-record.agda:1.8: error: [ParseError]
 Not a valid identifier: _

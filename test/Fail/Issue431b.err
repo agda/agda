@@ -1,4 +1,4 @@
-Issue431b.agda:22,10-19: warning: -W[no]InversionDepthReached
+Issue431b.agda:22.10-19: warning: -W[no]InversionDepthReached
 Refusing to invert pattern matching of F because the maximum depth
 (10) has been reached. Most likely this means you have an
 unsatisfiable constraint, but it could also mean that you need to
@@ -8,6 +8,6 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Nat × F _n_19 =< F _n_19 : Set (blocked on _n_19)
 
-Issue431b.agda:22,10-19: error: [UnsolvedMetaVariables]
+Issue431b.agda:22.10-19: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue431b.agda:22,10-19
+  Issue431b.agda:22.10-19

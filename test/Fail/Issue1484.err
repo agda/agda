@@ -1,2 +1,2 @@
-Issue1484.agda:40,14: error: [ParseError]
+Issue1484.agda:40.14: error: [ParseError]
 expected sequence of bound identifiers, not absurd pattern

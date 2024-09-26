@@ -1,9 +1,9 @@
-Issue1436-12.agda:28,12-19: error: [AmbiguousParseForApplication]
+Issue1436-12.agda:28.12-19: error: [AmbiguousParseForApplication]
 Don't know how to parse ● ↑ ↓ ●. Could mean any one of:
   c {x = (● ↑)} {y = ●}
   c {y = (● ↑)} {x = ●}
 Operators used in the grammar:
-  ↑ (postfix operator, level 2) [_↑ (Issue1436-12.agda:10,5-7)]
-  ↓ (infix notation, level 1)   [c (Issue1436-12.agda:11,5-6)] 
-  ↓ (infix notation, level 1)   [c (Issue1436-12.agda:20,5-6)] 
+  ↑ (postfix operator, level 2) [_↑ (Issue1436-12.agda:10.5-7)]
+  ↓ (infix notation, level 1)   [c (Issue1436-12.agda:11.5-6)] 
+  ↓ (infix notation, level 1)   [c (Issue1436-12.agda:20.5-6)] 
 when scope checking ● ↑ ↓ ●

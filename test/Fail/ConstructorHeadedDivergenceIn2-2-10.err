@@ -2,7 +2,7 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   ℕ × f n =< f _14 (blocked on _14)
 
-ConstructorHeadedDivergenceIn2-2-10.agda:27,5-30,20: error: [UnsolvedMetaVariables]
+ConstructorHeadedDivergenceIn2-2-10.agda:27.5-30.20: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  ConstructorHeadedDivergenceIn2-2-10.agda:27,5-6
-  ConstructorHeadedDivergenceIn2-2-10.agda:30,8-20
+  ConstructorHeadedDivergenceIn2-2-10.agda:27.5-6
+  ConstructorHeadedDivergenceIn2-2-10.agda:30.8-20

@@ -1,14 +1,14 @@
-Issue1194m.agda:23,11-12: error: [AmbiguousName]
+Issue1194m.agda:23.11-12: error: [AmbiguousName]
 Ambiguous name _∷_. It could refer to any one of
   A._∷_ bound at
-    Issue1194m.agda:10,5-8
+    Issue1194m.agda:10.5-8
   B._∷_ bound at
-    Issue1194m.agda:17,5-8
+    Issue1194m.agda:17.5-8
 _∷_ is in scope as
   * a postulate Issue1194m.A._∷_ brought into scope by
-    - the opening of A at Issue1194m.agda:19,6-7
-    - its definition at Issue1194m.agda:10,5-8
+    - the opening of A at Issue1194m.agda:19.6-7
+    - its definition at Issue1194m.agda:10.5-8
   * a postulate Issue1194m.B._∷_ brought into scope by
-    - the opening of B at Issue1194m.agda:20,6-7
-    - its definition at Issue1194m.agda:17,5-8
+    - the opening of B at Issue1194m.agda:20.6-7
+    - its definition at Issue1194m.agda:17.5-8
 when scope checking Set ∷ Set

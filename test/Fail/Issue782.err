@@ -1,5 +1,4 @@
-Issue782.agda:4,43: error: [ParseError]
-toz<ERROR>
-; suc tos; Nat toℕ)
+Issue782.agda:4.43: error: [ParseError]
+toz<ERROR> ; suc tos; Nat toℕ)
 
 f : ℕ → ℕ...

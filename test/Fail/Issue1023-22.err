@@ -1,8 +1,8 @@
-Issue1023-22.agda:26,1-27,44: error: [TerminationIssue]
+Issue1023-22.agda:26.1-27.44: error: [TerminationIssue]
 Termination checking failed for the following functions:
   loop
 Problematic calls:
   Issue1023-22.♯-0
-    (at Issue1023-22.agda:27,25-26)
+    (at Issue1023-22.agda:27.25-26)
   loop False foo
-    (at Issue1023-22.agda:27,28-32)
+    (at Issue1023-22.agda:27.28-32)

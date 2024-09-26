@@ -1,3 +1,3 @@
-Issue1239.agda:28,10-14: error: [UnsolvedInteractionMetas]
+Issue1239.agda:28.10-14: error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
-  Issue1239.agda:28,10-14
+  Issue1239.agda:28.10-14

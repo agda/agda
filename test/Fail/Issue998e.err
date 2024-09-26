@@ -1,4 +1,4 @@
-Issue998e.agda:7,3-4: error: [ConstructorDoesNotFitInData]
+Issue998e.agda:7.3-4: error: [ConstructorDoesNotFitInData]
 Constructor c
 of sort Set (lsuc ℓ₁)
 does not fit into data type of sort Set (lsuc ℓ).

@@ -1,7 +1,7 @@
-Sections-7.agda:6,7-13: error: [AmbiguousParseForApplication]
+Sections-7.agda:6.7-13: error: [AmbiguousParseForApplication]
 Don't know how to parse _+ Set. Could mean any one of:
   _+ Set
   _+ Set (section)
 Operators used in the grammar:
-  _+ (prefix operator section, level 20) [_+_ (Sections-7.agda:2,3-6)]
+  _+ (prefix operator section, level 20) [_+_ (Sections-7.agda:2.3-6)]
 when scope checking _+ Set

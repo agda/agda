@@ -1,3 +1,3 @@
-LiftDisplayIntermediate.agda:20,7-11: error: [UnequalTerms]
+LiftDisplayIntermediate.agda:20.7-11: error: [UnequalTerms]
 g zero != zero of type Nat
 when checking that the expression refl has type g zero ≡ zero

@@ -3,8 +3,8 @@ Failed to solve the following constraints:
   Foo _15 = Bool : Set (blocked on _15)
   Bool =< Foo _15 (blocked on _15)
 
-Issue1258.agda:20,9-22,12: error: [UnsolvedMetaVariables]
+Issue1258.agda:20.9-22.12: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue1258.agda:20,9-10
-  Issue1258.agda:21,8-13
-  Issue1258.agda:22,8-12
+  Issue1258.agda:20.9-10
+  Issue1258.agda:21.8-13
+  Issue1258.agda:22.8-12

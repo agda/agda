@@ -1,4 +1,4 @@
-LiteralTooBig.agda:7,6-8: error: [LiteralTooBig]
+LiteralTooBig.agda:7.6-8: error: [LiteralTooBig]
 Matching on natural number literals is done by expanding the
 literal to the corresponding constructor pattern, so you probably
 don't want to do it this way

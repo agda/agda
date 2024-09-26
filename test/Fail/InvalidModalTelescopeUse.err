@@ -1,4 +1,4 @@
-InvalidModalTelescopeUse.agda:12,7-8: error: [InvalidModalTelescopeUse]
+InvalidModalTelescopeUse.agda:12.7-8: error: [InvalidModalTelescopeUse]
 Telescope variable a
 is indirectly being used in the default modality
 but only available in the squashed modality

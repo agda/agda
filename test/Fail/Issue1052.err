@@ -1,6 +1,6 @@
-Issue1052.agda:19,1-23,67: error: [TerminationIssue]
+Issue1052.agda:19.1-23.67: error: [TerminationIssue]
 Termination checking failed for the following functions:
   bad
 Problematic calls:
   bad (trans* (next r done) q) p (trans* (next r done) s)
-    (at Issue1052.agda:23,11-14)
+    (at Issue1052.agda:23.11-14)

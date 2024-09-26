@@ -1,7 +1,7 @@
-Prop-Disabled.agda:8,18-22: error: [NotInScope]
+Prop-Disabled.agda:8.18-22: error: [NotInScope]
 Not in scope:
   Prop
-  at Prop-Disabled.agda:8,18-22
+  at Prop-Disabled.agda:8.18-22
     (did you mean
        'Agda.Primitive.Prop' or
        'Agda.Primitive.Propω'?)

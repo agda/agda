@@ -1,6 +1,6 @@
-Issue1209-4-2.agda:18,1-20,48: error: [TerminationIssue]
+Issue1209-4-2.agda:18.1-20.48: error: [TerminationIssue]
 Termination checking failed for the following functions:
   repeat
 Problematic calls:
   repeat x
-    (at Issue1209-4-2.agda:20,39-45)
+    (at Issue1209-4-2.agda:20.39-45)

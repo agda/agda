@@ -1,5 +1,5 @@
-NoParseForApplication.agda:12,11-14: error: [NoParseForApplication]
+NoParseForApplication.agda:12.11-14: error: [NoParseForApplication]
 Could not parse the application ! x
 Operators used in the grammar:
-  ! (postfix operator, level 20) [_! (NoParseForApplication.agda:6,3-5)]
+  ! (postfix operator, level 20) [_! (NoParseForApplication.agda:6.3-5)]
 when scope checking ! x

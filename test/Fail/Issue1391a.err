@@ -1,2 +1,2 @@
-Issue1391a.agda:5,16: error: [ParseError]
+Issue1391a.agda:5.16: error: [ParseError]
 expected sequence of bound identifiers

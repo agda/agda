@@ -1,6 +1,6 @@
-Issue5823.agda:26,1-27,91: error: [TerminationIssue]
+Issue5823.agda:26.1-27.91: error: [TerminationIssue]
 Termination checking failed for the following functions:
   isPropAcc
 Problematic calls:
   isPropAcc (x n p) (y n p)
-    (at Issue5823.agda:27,65-74)
+    (at Issue5823.agda:27.65-74)

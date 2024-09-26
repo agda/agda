@@ -1,2 +1,2 @@
-InvalidNamePartKeyword.agda:1,21: error: [ParseError]
+InvalidNamePartKeyword.agda:1.21: error: [ParseError]
 in the name _let_, the part let is not valid because it is a keyword

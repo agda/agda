@@ -1,2 +1,2 @@
-Issue1609c.agda:3,9: error: [ParseError]
+Issue1609c.agda:3.9: error: [ParseError]
 Illegal: with patterns in type signature

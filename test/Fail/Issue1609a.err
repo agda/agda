@@ -1,2 +1,2 @@
-Issue1609a.agda:3,19: error: [ParseError]
+Issue1609a.agda:3.19: error: [ParseError]
 A type signature cannot have a where clause

@@ -1,6 +1,6 @@
-Issue1015.agda:17,1-18,30: error: [TerminationIssue]
+Issue1015.agda:17.1-18.30: error: [TerminationIssue]
 Termination checking failed for the following functions:
   inh
 Problematic calls:
   inh j
-    (at Issue1015.agda:18,24-27)
+    (at Issue1015.agda:18.24-27)

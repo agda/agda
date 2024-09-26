@@ -3,6 +3,6 @@ Failed to solve the following constraints:
   _V_10 =< U ⊔ V (blocked on _V_10)
   U ⊔ _V_10 = V (blocked on _V_10)
 
-Issue3044.agda:21,32-33: error: [UnsolvedMetaVariables]
+Issue3044.agda:21.32-33: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue3044.agda:21,32-33
+  Issue3044.agda:21.32-33

@@ -1,5 +1,5 @@
-RecordFromModuleAmb.agda:31,5-47: error: [AmbiguousField]
-Ambiguity: the field t0 appears in the following modules: 
+RecordFromModuleAmb.agda:31.5-47: error: [AmbiguousField]
+Ambiguity: the field t0 appears in the following modules:
 M0
 MD
 when checking that the expression

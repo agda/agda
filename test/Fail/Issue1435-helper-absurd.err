@@ -1,4 +1,4 @@
-Issue1435-helper-absurd.agda:26,29-31: error: [UnsolvedConstraints]
+Issue1435-helper-absurd.agda:26.29-31: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: c₂ A ≅ c₁ B (stuck)
-      [ at Issue1435-helper-absurd.agda:26,29-31 ]
+      [ at Issue1435-helper-absurd.agda:26.29-31 ]

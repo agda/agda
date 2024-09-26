@@ -1,6 +1,6 @@
-CopatternNonterminating.agda:16,1-18,38: error: [TerminationIssue]
+CopatternNonterminating.agda:16.1-18.38: error: [TerminationIssue]
 Termination checking failed for the following functions:
   illdefined
 Problematic calls:
   Stream.tail illdefined
-    (at CopatternNonterminating.agda:18,28-38)
+    (at CopatternNonterminating.agda:18.28-38)

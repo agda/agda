@@ -1,4 +1,4 @@
-Issue203.agda:8,3-6: error: [ConstructorDoesNotFitInData]
+Issue203.agda:8.3-6: error: [ConstructorDoesNotFitInData]
 Constructor [_]
 of sort Set a
 does not fit into data type of sort Set b.

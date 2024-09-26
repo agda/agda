@@ -1,2 +1,2 @@
-Issue5201.agda:6,22: error: [ParseError]
+Issue5201.agda:6.22: error: [ParseError]
 Malformed syntax declaration: syntax must not contain adjacent holes (f x)

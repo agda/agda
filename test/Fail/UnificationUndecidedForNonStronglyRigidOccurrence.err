@@ -1,4 +1,4 @@
-UnificationUndecidedForNonStronglyRigidOccurrence.agda:12,7-9: error: [UnsolvedConstraints]
+UnificationUndecidedForNonStronglyRigidOccurrence.agda:12.7-9: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: n ≡ f n (stuck)
-      [ at UnificationUndecidedForNonStronglyRigidOccurrence.agda:12,7-9 ]
+      [ at UnificationUndecidedForNonStronglyRigidOccurrence.agda:12.7-9 ]

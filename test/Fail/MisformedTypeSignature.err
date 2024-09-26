@@ -1,2 +1,2 @@
-MisformedTypeSignature.agda:5,9: error: [ParseError]
+MisformedTypeSignature.agda:5.9: error: [ParseError]
 Illegal name in type signature: (f g)

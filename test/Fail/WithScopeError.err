@@ -1,5 +1,5 @@
-WithScopeError.agda:11,11-12: error: [NotInScope]
+WithScopeError.agda:11.11-12: error: [NotInScope]
 Not in scope:
   y
-  at WithScopeError.agda:11,11-12
+  at WithScopeError.agda:11.11-12
 when scope checking y

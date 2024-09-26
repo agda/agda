@@ -1,7 +1,7 @@
-UnsolvedMetas.agda:4,1-4: error: [UnsolvedMetaVariables]
+UnsolvedMetas.agda:4.1-4: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  UnsolvedMetas.agda:4,1-4
+  UnsolvedMetas.agda:4.1-4
 
-UnsolvedMetas.agda:4,7-8: error: [UnsolvedInteractionMetas]
+UnsolvedMetas.agda:4.7-8: error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
-  UnsolvedMetas.agda:4,7-8
+  UnsolvedMetas.agda:4.7-8

@@ -1,2 +1,2 @@
-UselessOverlap.agda:6,5: error: [ParseError]
+UselessOverlap.agda:6.5: error: [ParseError]
 The 'overlap' keyword only applies to instance fields (fields marked with {{ }})

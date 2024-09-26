@@ -1,2 +1,2 @@
-Issue3090-rparen.agda:4,23: error: [ParseError]
+Issue3090-rparen.agda:4.23: error: [ParseError]
 in the name ), the part ) is not valid because it is used to parenthesize expressions

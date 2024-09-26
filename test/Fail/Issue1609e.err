@@ -1,2 +1,2 @@
-Issue1609e.agda:3,15: error: [ParseError]
+Issue1609e.agda:3.15: error: [ParseError]
 Illegal: rewrite in type signature

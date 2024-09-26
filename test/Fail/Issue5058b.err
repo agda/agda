@@ -2,6 +2,6 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   x = _q.B.1_20 : A (blocked on _q.B.1_20)
 
-Issue5058b.agda:16,8-9: error: [UnsolvedMetaVariables]
+Issue5058b.agda:16.8-9: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue5058b.agda:16,8-9
+  Issue5058b.agda:16.8-9

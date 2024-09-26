@@ -1,8 +1,8 @@
-HoTTCompatibleWithSizeBasedTerminationMaximeDenes.agda:42,1-51,37: error: [TerminationIssue]
+HoTTCompatibleWithSizeBasedTerminationMaximeDenes.agda:42.1-51.37: error: [TerminationIssue]
 Termination checking failed for the following functions:
   loop, loop'
 Problematic calls:
   loop' (↑ i) (Empty → Box i) (iso i) (conceal x)
-    (at HoTTCompatibleWithSizeBasedTerminationMaximeDenes.agda:44,28-33)
+    (at HoTTCompatibleWithSizeBasedTerminationMaximeDenes.agda:44.28-33)
   loop i x
-    (at HoTTCompatibleWithSizeBasedTerminationMaximeDenes.agda:51,29-33)
+    (at HoTTCompatibleWithSizeBasedTerminationMaximeDenes.agda:51.29-33)

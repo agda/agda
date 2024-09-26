@@ -1,9 +1,9 @@
-Issue1245AmbiguousParse.agda:10,1-35: error: [AmbiguousParseForApplication]
+Issue1245AmbiguousParse.agda:10.1-35: error: [AmbiguousParseForApplication]
 Don't know how to parse M * a * a * a *. Could mean any one of:
   M (* ((a (* a *)) a) *)
   ((M (* a *)) a) (* a *)
 Operators used in the grammar:
-  *_* (closed operator)          [*_* (Issue1245AmbiguousParse.agda:5,3-6)]
-  *   (infix operator, level 20) [_*_ (Issue1245AmbiguousParse.agda:6,3-6)]
+  *_* (closed operator)          [*_* (Issue1245AmbiguousParse.agda:5.3-6)]
+  *   (infix operator, level 20) [_*_ (Issue1245AmbiguousParse.agda:6.3-6)]
 when scope checking the declaration
   module N (a : A) = M * a * a * a *

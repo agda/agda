@@ -2,8 +2,8 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _23 = f _23 : o (blocked on _23)
 
-JasonReedPruning.agda:21,11-26,23: error: [UnsolvedMetaVariables]
+JasonReedPruning.agda:21.11-26.23: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  JasonReedPruning.agda:21,11-12
-  JasonReedPruning.agda:23,11-12
-  JasonReedPruning.agda:26,19-23
+  JasonReedPruning.agda:21.11-12
+  JasonReedPruning.agda:23.11-12
+  JasonReedPruning.agda:26.19-23

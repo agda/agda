@@ -1,5 +1,5 @@
-Issue3457.agda:4,25-35: error: [NotInScope]
+Issue3457.agda:4.25-35: error: [NotInScope]
 Not in scope:
   Fresh-name
-  at Issue3457.agda:4,25-35
+  at Issue3457.agda:4.25-35
 when scope checking Fresh-name

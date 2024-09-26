@@ -1,8 +1,8 @@
-AbstractTermination.agda:7,1-14,18: error: [TerminationIssue]
+AbstractTermination.agda:7.1-14.18: error: [TerminationIssue]
 Termination checking failed for the following functions:
   f
 Problematic calls:
   g n
-    (at AbstractTermination.agda:10,9-10)
+    (at AbstractTermination.agda:10.9-10)
   f n
-    (at AbstractTermination.agda:14,15-16)
+    (at AbstractTermination.agda:14.15-16)

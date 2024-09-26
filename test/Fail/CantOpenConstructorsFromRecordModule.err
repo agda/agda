@@ -1,7 +1,7 @@
-CantOpenConstructorsFromRecordModule.agda:14,7-10: error: [NotInScope]
+CantOpenConstructorsFromRecordModule.agda:14.7-10: error: [NotInScope]
 Not in scope:
   foo
-  at CantOpenConstructorsFromRecordModule.agda:14,7-10
+  at CantOpenConstructorsFromRecordModule.agda:14.7-10
     (did you mean
        'Datatypes.Foo' or
        'Datatypes.foo'?)

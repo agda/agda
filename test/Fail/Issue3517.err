@@ -1,9 +1,10 @@
-Issue3517/S.agda:1,1-37: error: [SafeFlagPragma]
+Issue3517/S.agda:1.1-37: error: [SafeFlagPragma]
 The --safe mode does not allow OPTIONS pragma
 --sized-types
 when scope checking the declaration
   import Issue3517.S
-Issue3517/S.agda:5,1-37: error: [CoInfectiveImport]
+
+Issue3517/S.agda:5.1-37: error: [CoInfectiveImport]
 Importing module Agda.Builtin.Size not using the --safe flag from a
 module which does.
 when scope checking the declaration

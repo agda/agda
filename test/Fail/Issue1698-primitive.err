@@ -1,5 +1,4 @@
-Issue1698-primitive.agda:2,3: error: [ParseError]
-data<ERROR>
- D : Set where
+Issue1698-primitive.agda:2.3: error: [ParseError]
+data<ERROR>  D : Set where
 
 -- Bad error m...

@@ -1,6 +1,6 @@
-Issue6654b.agda:15,1-16,32: error: [TerminationIssue]
+Issue6654b.agda:15.1-16.32: error: [TerminationIssue]
 Termination checking failed for the following functions:
   no-bad
 Problematic calls:
   no-bad (x (Bad (λ P p → p)) bad)
-    (at Issue6654b.agda:16,16-22)
+    (at Issue6654b.agda:16.16-22)

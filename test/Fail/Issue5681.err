@@ -3,10 +3,10 @@ Failed to solve the following constraints:
   Sort _2 of foo admits data/record definitions. (blocked on _2)
   Is usable at default modality: foo (blocked on _2)
 
-Issue5681.agda:3,8-11: error: [UnsolvedMetaVariables]
+Issue5681.agda:3.8-11: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue5681.agda:3,8-11
+  Issue5681.agda:3.8-11
 
-Issue5681.agda:3,14-18: error: [UnsolvedInteractionMetas]
+Issue5681.agda:3.14-18: error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
-  Issue5681.agda:3,14-18
+  Issue5681.agda:3.14-18

@@ -1,4 +1,4 @@
-SafeFlagPragmas.agda:1,1-7,43: error: [SafeFlagPragma]
+SafeFlagPragmas.agda:1.1-7.43: error: [SafeFlagPragma]
 The --safe mode does not allow OPTIONS pragmas
 --allow-unsolved-metas
 --experimental-irrelevance

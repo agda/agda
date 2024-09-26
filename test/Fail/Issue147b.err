@@ -1,8 +1,8 @@
-Issue147b.agda:10,1-10: error: [AmbiguousParseForLHS]
+Issue147b.agda:10.1-10: error: [AmbiguousParseForLHS]
 Don't know how to parse bad (f x). Could mean any one of:
   bad (f x)
   bad (f_ x)
 Operators used in the grammar:
-  f (prefix operator, level 20) [f_ (Issue147b.agda:6,3-5)]
+  f (prefix operator, level 20) [f_ (Issue147b.agda:6.3-5)]
 when scope checking the left-hand side bad (f x) in the definition
 of bad

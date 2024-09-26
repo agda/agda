@@ -1,5 +1,5 @@
-Issue2024-data.agda:3,12-15: error: [NotInScope]
+Issue2024-data.agda:3.12-15: error: [NotInScope]
 Not in scope:
   Foo
-  at Issue2024-data.agda:3,12-15
+  at Issue2024-data.agda:3.12-15
 when scope checking Foo

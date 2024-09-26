@@ -1,2 +1,2 @@
-Issue394-4.agda:5,32: error: [ParseError]
+Issue394-4.agda:5.32: error: [ParseError]
 Malformed syntax declaration: syntax must not contain adjacent holes (A B)

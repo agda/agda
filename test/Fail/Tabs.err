@@ -1,2 +1,2 @@
-Tabs.agda:5,1: error: [ParseError]
+Tabs.agda:5.1: error: [ParseError]
 Lexical error (you may want to replace tabs with spaces):

@@ -1,5 +1,5 @@
-Issue3566-4.agda:3,7-8: error: [NotInScope]
+Issue3566-4.agda:3.7-8: error: [NotInScope]
 Not in scope:
-  r at Issue3566-4.agda:3,7-8
+  r at Issue3566-4.agda:3.7-8
     (did you mean 'R'?)
 when scope checking r

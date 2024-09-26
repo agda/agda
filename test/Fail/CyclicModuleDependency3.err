@@ -1,4 +1,4 @@
-CyclicModuleDependency2.agda:3,1-31: error: [CyclicModuleDependency]
+CyclicModuleDependency2.agda:3.1-31: error: [CyclicModuleDependency]
 cyclic module dependency:
   CyclicModuleDependency3
   importing CyclicModuleDependency1

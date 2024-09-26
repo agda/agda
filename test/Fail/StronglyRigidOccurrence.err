@@ -2,7 +2,7 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _11 = suc _11 : Nat (blocked on _11)
 
-StronglyRigidOccurrence.agda:13,25-14,12: error: [UnsolvedMetaVariables]
+StronglyRigidOccurrence.agda:13.25-14.12: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  StronglyRigidOccurrence.agda:13,25-26
-  StronglyRigidOccurrence.agda:14,8-12
+  StronglyRigidOccurrence.agda:13.25-26
+  StronglyRigidOccurrence.agda:14.8-12

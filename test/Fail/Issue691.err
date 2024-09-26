@@ -6,7 +6,7 @@ Failed to solve the following constraints:
     : Bool
     (blocked on _12)
 
-Issue691.agda:21,11-26,14: error: [UnsolvedMetaVariables]
+Issue691.agda:21.11-26.14: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue691.agda:21,11-12
-  Issue691.agda:26,10-14
+  Issue691.agda:21.11-12
+  Issue691.agda:26.10-14

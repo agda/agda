@@ -1,6 +1,6 @@
-Issue1903.agda:7,12-16: error: [NotInScope]
+Issue1903.agda:7.12-16: error: [NotInScope]
 Not in scope:
-  Fooo at Issue1903.agda:7,12-16
+  Fooo at Issue1903.agda:7.12-16
     (did you mean
        'foo' or
        'fooo'?)

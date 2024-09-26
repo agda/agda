@@ -1,2 +1,2 @@
-Issue1077.agda:6,1-10: error: [IllegalDeclarationBeforeTopLevelModule]
+Issue1077.agda:6.1-10: error: [IllegalDeclarationBeforeTopLevelModule]
 Illegal declaration(s) before top-level module

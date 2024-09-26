@@ -6,7 +6,7 @@ Failed to solve the following constraints:
     (blocked on _28)
   _r.P_25 tt = ⊤ : Set (blocked on _r.P_25)
 
-Issue878.agda:30,7-13: error: [UnsolvedMetaVariables]
+Issue878.agda:30.7-13: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue878.agda:30,7-10
-  Issue878.agda:30,7-13
+  Issue878.agda:30.7-10
+  Issue878.agda:30.7-13

@@ -1,2 +1,2 @@
-Issue3007.agda:8,15: error: [ParseError]
+Issue3007.agda:8.15: error: [ParseError]
 in the name _--, the part -- is not valid

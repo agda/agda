@@ -1,5 +1,5 @@
-NoNoTerminationCheck.agda:10,1-11,6: error: [TerminationIssue]
+NoNoTerminationCheck.agda:10.1-11.6: error: [TerminationIssue]
 Termination checking failed for the following functions:
   g
 Problematic calls:
-  g (at NoNoTerminationCheck.agda:11,5-6)
+  g (at NoNoTerminationCheck.agda:11.5-6)

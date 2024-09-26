@@ -1,5 +1,5 @@
-Issue260b.agda:5,8-9: error: [ShadowedModule]
+Issue260b.agda:5.8-9: error: [ShadowedModule]
 Duplicate definition of module R. Previous definition of module R
-at Issue260b.agda:4,8-9
+at Issue260b.agda:4.8-9
 when scope checking the declaration
   record R where

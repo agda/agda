@@ -1,4 +1,3 @@
-Issue1391b.agda:5,14: error: [ParseError]
-:<ERROR>
- Set} → Set
+Issue1391b.agda:5.14: error: [ParseError]
+:<ERROR>  Set} → Set
 ...

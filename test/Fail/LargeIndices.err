@@ -1,4 +1,4 @@
-LargeIndices.agda:5,3-6: error: [ConstructorDoesNotFitInData]
+LargeIndices.agda:5.3-6: error: [ConstructorDoesNotFitInData]
 Constructor inv
 of sort Set a
 does not fit into data type of sort Set.

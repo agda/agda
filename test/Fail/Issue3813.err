@@ -2,10 +2,10 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   to _57 = to n : Bin (blocked on _57)
 
-Issue3813.agda:43,15-16: error: [UnsolvedMetaVariables]
+Issue3813.agda:43.15-16: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue3813.agda:43,15-16
+  Issue3813.agda:43.15-16
 
-Issue3813.agda:43,29-33: error: [UnsolvedInteractionMetas]
+Issue3813.agda:43.29-33: error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
-  Issue3813.agda:43,29-33
+  Issue3813.agda:43.29-33

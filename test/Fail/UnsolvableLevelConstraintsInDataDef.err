@@ -1,16 +1,18 @@
-UnsolvableLevelConstraintsInDataDef.agda:6,1-7,34: error: [NotStrictlyPositive]
+UnsolvableLevelConstraintsInDataDef.agda:6.1-7.34: error: [NotStrictlyPositive]
 D is not strictly positive, because it occurs
 in the third argument of _≡_
 in the type of the constructor abs
 in the definition of D.
-UnsolvableLevelConstraintsInDataDef.agda:7,3-6: error: [ConstructorDoesNotFitInData]
+
+UnsolvableLevelConstraintsInDataDef.agda:7.3-6: error: [ConstructorDoesNotFitInData]
 Constructor abs
 of sort Set₂
 does not fit into data type of sort Set₁.
 (Reason: Set₂ is not less or equal than Set₁)
 when checking that the type D ≡ E of an argument to the constructor
 abs fits in the sort Set₁ of the datatype.
-UnsolvableLevelConstraintsInDataDef.agda:7,3-6: error: [ConstructorDoesNotFitInData]
+
+UnsolvableLevelConstraintsInDataDef.agda:7.3-6: error: [ConstructorDoesNotFitInData]
 Constructor abs
 of sort Set₂
 does not fit into data type of sort Set₁.

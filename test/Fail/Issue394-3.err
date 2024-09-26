@@ -1,2 +1,2 @@
-Issue394-3.agda:5,36: error: [ParseError]
+Issue394-3.agda:5.36: error: [ParseError]
 Malformed syntax declaration: syntax must use holes exactly once

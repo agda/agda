@@ -1,2 +1,2 @@
-Issue4132.agda:4,5: error: [ParseError]
+Issue4132.agda:4.5: error: [ParseError]
 in the name 1, the part 1 is not valid because it is a literal

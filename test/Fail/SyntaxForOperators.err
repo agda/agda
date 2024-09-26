@@ -1,2 +1,2 @@
-SyntaxForOperators.agda:5,22: error: [ParseError]
+SyntaxForOperators.agda:5.22: error: [ParseError]
 Syntax declarations are allowed only for simple names (without holes)

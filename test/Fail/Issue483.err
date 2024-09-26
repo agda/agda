@@ -2,7 +2,7 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _x_15 = resurrect _ : ⊥ (blocked on _x_15)
 
-Issue483.agda:17,7-20: error: [UnsolvedMetaVariables]
+Issue483.agda:17.7-20: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue483.agda:17,7-8
-  Issue483.agda:17,16-20
+  Issue483.agda:17.7-8
+  Issue483.agda:17.16-20

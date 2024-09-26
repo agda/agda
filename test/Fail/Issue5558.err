@@ -1,5 +1,5 @@
-Issue5558.agda:3,8-9: error: [MissingDataDeclaration]
+Issue5558.agda:3.8-9: error: [MissingDataDeclaration]
 Data definition A misses a data declaration
 
-Issue5558.agda:6,8-9: error: [MissingDataDeclaration]
+Issue5558.agda:6.8-9: error: [MissingDataDeclaration]
 Data definition B misses a data declaration

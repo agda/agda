@@ -1,7 +1,7 @@
-Issue2583.agda:7,1-10,26: error: [TerminationIssue]
+Issue2583.agda:7.1-10.26: error: [TerminationIssue]
 Termination checking failed for the following functions:
   test
 Problematic calls:
   test x | nothing
   test x
-    (at Issue2583.agda:10,20-24)
+    (at Issue2583.agda:10.20-24)

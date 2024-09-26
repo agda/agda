@@ -1,7 +1,7 @@
-Issue1651.agda:14,13-14: warning: -W[no]RewriteBeforeFunctionDefinition
+Issue1651.agda:14.13-14: warning: -W[no]RewriteBeforeFunctionDefinition
 Rewrite rule from function  r  cannot be added before the function definition
 when checking the pragma REWRITE r
 
-Issue1651.agda:15,5-8: error: [UnequalTerms]
+Issue1651.agda:15.5-8: error: [UnequalTerms]
 a != b of type A
 when checking that the expression idp has type a == b

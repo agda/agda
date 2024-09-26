@@ -1,5 +1,5 @@
-Issue2858-conflict.agda:1,1-7,21: error: [Syntax.AmbiguousConstructor]
+Issue2858-conflict.agda:1.1-7.21: error: [Syntax.AmbiguousConstructor]
 Could not find a matching data signature for constructor foobar
 It could be any of:
-Foo (at Issue2858-conflict.agda:3,8-11)
-Foo_Bar (at Issue2858-conflict.agda:4,8-15)
+Foo (at Issue2858-conflict.agda:3.8-11)
+Foo_Bar (at Issue2858-conflict.agda:4.8-15)

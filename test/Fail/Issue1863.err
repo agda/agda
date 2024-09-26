@@ -2,7 +2,7 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Check definition of foo : (y : D _x_12) → P _x_12 y
     stuck because
-      Issue1863.agda:17,5-6: error: [SplitError.UnificationStuck]
+      Issue1863.agda:17.5-6: error: [SplitError.UnificationStuck]
       I'm not sure if there should be a case for the constructor d,
       because I get stuck when trying to solve the following unification
       problems (inferred index ≟ expected index):
@@ -10,6 +10,6 @@ Failed to solve the following constraints:
       when checking that the pattern d has type D _x_12
     (blocked on _x_12)
 
-Issue1863.agda:16,19-20: error: [UnsolvedMetaVariables]
+Issue1863.agda:16.19-20: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue1863.agda:16,19-20
+  Issue1863.agda:16.19-20

@@ -1,2 +1,2 @@
-Invalid-name-part.agda:2,7: error: [ParseError]
+Invalid-name-part.agda:2.7: error: [ParseError]
 in the name _→_, the part → is not valid because it is the function arrow

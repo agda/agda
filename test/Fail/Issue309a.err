@@ -1,2 +1,2 @@
-Issue309a.agda:6,18: error: [ParseError]
+Issue309a.agda:6.18: error: [ParseError]
 Malformed syntax declaration: syntax must use unique argument names

@@ -1,2 +1,2 @@
-Issue5365.agda:7,3: error: [ParseError]
+Issue5365.agda:7.3: error: [ParseError]
 Incomplete binding x ←

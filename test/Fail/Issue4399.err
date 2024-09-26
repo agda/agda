@@ -1,2 +1,2 @@
-Issue4399.agda:11,5: error: [ParseError]
+Issue4399.agda:11.5: error: [ParseError]
 Not a valid named argument: _ = tt

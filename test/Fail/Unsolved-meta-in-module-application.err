@@ -1,3 +1,3 @@
-Unsolved-meta-in-module-application.agda:5,8-9: error: [UnsolvedMetaVariables]
+Unsolved-meta-in-module-application.agda:5.8-9: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Unsolved-meta-in-module-application.agda:5,8-9
+  Unsolved-meta-in-module-application.agda:5.8-9

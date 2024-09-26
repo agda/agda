@@ -1,4 +1,4 @@
-Issue653.agda:7,1-14,22: error: [NotStrictlyPositive]
+Issue653.agda:7.1-14.22: error: [NotStrictlyPositive]
 B is not strictly positive, because it occurs
 in the second argument of P
 in the first clause

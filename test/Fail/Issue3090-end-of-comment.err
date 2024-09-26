@@ -1,2 +1,2 @@
-Issue3090-end-of-comment.agda:4,24: error: [ParseError]
+Issue3090-end-of-comment.agda:4.24: error: [ParseError]
 in the name -}, the part -} is not valid because it is the end-of-comment brace

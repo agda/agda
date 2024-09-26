@@ -1,2 +1,2 @@
-Issue1609d.agda:3,12: error: [ParseError]
+Issue1609d.agda:3.12: error: [ParseError]
 Illegal: with in type signature

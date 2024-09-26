@@ -1,2 +1,2 @@
-AttributeConflict.agda:4,3: error: [ParseError]
+AttributeConflict.agda:4.3: error: [ParseError]
 Conflicting attributes: 0 ω

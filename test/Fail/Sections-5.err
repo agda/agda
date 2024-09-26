@@ -1,7 +1,7 @@
-Sections-5.agda:4,8-25: error: [NotInScope]
+Sections-5.agda:4.8-25: error: [NotInScope]
 Not in scope:
   _Common.Prelude.+
-  at Sections-5.agda:4,8-25
+  at Sections-5.agda:4.8-25
     (did you mean
        'Common.Prelude._+_' or
        '_+_'?)

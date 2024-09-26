@@ -1,9 +1,9 @@
-CoinductionAndUnivalence.agda:43,1-44,30: error: [TerminationIssue]
+CoinductionAndUnivalence.agda:43.1-44.30: error: [TerminationIssue]
 Termination checking failed for the following functions:
   loop
 Problematic calls:
   loop | False | foo
   CoinductionAndUnivalence.♯-0
-    (at CoinductionAndUnivalence.agda:44,23-24)
+    (at CoinductionAndUnivalence.agda:44.23-24)
   loop
-    (at CoinductionAndUnivalence.agda:44,25-29)
+    (at CoinductionAndUnivalence.agda:44.25-29)

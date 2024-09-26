@@ -1,2 +1,2 @@
-Issue549.agda:4,8: error: [ParseError]
+Issue549.agda:4.8: error: [ParseError]
 Not a valid identifier: M.R

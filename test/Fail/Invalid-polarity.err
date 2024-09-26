@@ -1,2 +1,2 @@
-Invalid-polarity.agda:4,18: error: [ParseError]
+Invalid-polarity.agda:4.18: error: [ParseError]
 Not a valid polarity: ⚄

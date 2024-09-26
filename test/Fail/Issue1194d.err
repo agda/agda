@@ -1,11 +1,11 @@
-Issue1194d.agda:31,8-17: error: [AmbiguousParseForApplication]
+Issue1194d.agda:31.8-17: error: [AmbiguousParseForApplication]
 Don't know how to parse ! b + ! b. Could mean any one of:
   (c b) + (c b)
   (c b) + (c b)
   (c b) + (c b)
   (c b) + (c b)
 Operators used in the grammar:
-  + (infix operator, level 10)  [_+_ (Issue1194d.agda:19,5-8)]
-  ! (prefix notation, level 19) [c (Issue1194d.agda:10,5-6)]  
-  ! (prefix notation, level 20) [c (Issue1194d.agda:20,5-6)]  
+  + (infix operator, level 10)  [_+_ (Issue1194d.agda:19.5-8)]
+  ! (prefix notation, level 19) [c (Issue1194d.agda:10.5-6)]  
+  ! (prefix notation, level 20) [c (Issue1194d.agda:20.5-6)]  
 when scope checking ! b + ! b

@@ -1,10 +1,10 @@
-Issue3572.agda:17,1-20,22: error: [TerminationIssue]
+Issue3572.agda:17.1-20.22: error: [TerminationIssue]
 Termination checking failed for the following functions:
   id
 Problematic calls:
   id (sq i1)
-    (at Issue3572.agda:20,12-14)
+    (at Issue3572.agda:20.12-14)
 
-Issue3572.agda:18,1-10: error: [UnequalTerms]
+Issue3572.agda:18.1-10: error: [UnequalTerms]
 id (sq i0) != left of type Interval
 when checking the definition of id

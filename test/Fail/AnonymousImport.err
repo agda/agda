@@ -1,7 +1,7 @@
-AnonymousImport.agda:6,11-27: error: [NotInScope]
+AnonymousImport.agda:6.11-27: error: [NotInScope]
 Not in scope:
   Common.Unit.Unit
-  at AnonymousImport.agda:6,11-27
+  at AnonymousImport.agda:6.11-27
     (did you mean
        'Unit' or
        'unit'?)

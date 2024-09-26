@@ -1,6 +1,6 @@
-Issue3207.agda:7,8-12: error: [NotInScope]
+Issue3207.agda:7.8-12: error: [NotInScope]
 Not in scope:
-  Prop at Issue3207.agda:7,8-12
+  Prop at Issue3207.agda:7.8-12
     (did you mean
        'Agda.Primitive.Prop' or
        'Agda.Primitive.Propω'?)

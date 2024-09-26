@@ -1,4 +1,4 @@
-Issue1078.agda:7,1-19: error: [ModuleDefinedInOtherFile]
+Issue1078.agda:7.1-19: error: [ModuleDefinedInOtherFile]
 You tried to load
 Issue1078/B.agda which defines
 the module Issue1078.A. However, according to the include path this

@@ -1,2 +1,2 @@
-Issue2870.agda:5,3: error: [ParseError]
+Issue2870.agda:5.3: error: [ParseError]
 Lexical error (unprintable character):

@@ -1,2 +1,2 @@
-Issue3285.agda:7,14: error: [ParseError]
+Issue3285.agda:7.14: error: [ParseError]
 Malformed syntax declaration: syntax cannot be a single hole

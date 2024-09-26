@@ -1,10 +1,10 @@
-Issue6108.agda:22,1-23,30: error: [TerminationIssue]
+Issue6108.agda:22.1-23.30: error: [TerminationIssue]
 Termination checking failed for the following functions:
   r
 Problematic calls:
   r i
-    (at Issue6108.agda:23,26-27)
+    (at Issue6108.agda:23.26-27)
 
-Issue6108.agda:27,1-8: error: [UnequalTerms]
+Issue6108.agda:27.1-8: error: [UnequalTerms]
 x != r i0 .R.force of type D
 when checking the definition of loops

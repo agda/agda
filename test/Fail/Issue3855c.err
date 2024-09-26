@@ -2,10 +2,10 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   b =< ?0 : Bool (blocked on _b_5)
 
-Issue3855c.agda:15,29-34: error: [UnsolvedInteractionMetas]
+Issue3855c.agda:15.29-34: error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
-  Issue3855c.agda:15,29-34
+  Issue3855c.agda:15.29-34
 
-Issue3855c.agda:15,36-37: error: [UnsolvedMetaVariables]
+Issue3855c.agda:15.36-37: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue3855c.agda:15,36-37
+  Issue3855c.agda:15.36-37

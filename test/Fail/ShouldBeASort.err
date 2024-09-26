@@ -1,3 +1,3 @@
-ShouldBeASort.agda:3,8-9: error: [ShouldBeASort]
+ShouldBeASort.agda:3.8-9: error: [ShouldBeASort]
 Set → Set should be a sort, but it isn't
 when checking the definition of R

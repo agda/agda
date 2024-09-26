@@ -3,6 +3,6 @@ Failed to solve the following constraints:
   Sort _4 of Big admits data/record definitions. (blocked on _4)
   Agda.Primitive.Setω =< _4 (blocked on _4)
 
-Issue2285-record.agda:4,8-11: error: [UnsolvedMetaVariables]
+Issue2285-record.agda:4.8-11: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue2285-record.agda:4,8-11
+  Issue2285-record.agda:4.8-11

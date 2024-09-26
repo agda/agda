@@ -1,4 +1,4 @@
-DoNotationEndingInBind.agda:7,5-11: error: [DoNotationError]
+DoNotationEndingInBind.agda:7.5-11: error: [DoNotationError]
 The last statement in a 'do' block must be an expression or an
 absurd match.
 when scope checking do x ← Set

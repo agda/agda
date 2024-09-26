@@ -1,2 +1,2 @@
-Issue1609.agda:3,5: error: [ParseError]
+Issue1609.agda:3.5: error: [ParseError]
 Illegal name in type signature: 1

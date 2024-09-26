@@ -1,8 +1,8 @@
-Issue1251/NonTerminating.agda:6,1-8,20: error: [TerminationIssue]
+Issue1251/NonTerminating.agda:6.1-8.20: error: [TerminationIssue]
 Termination checking failed for the following functions:
   bla
 Problematic calls:
   bla zero
-    (at Issue1251/NonTerminating.agda:7,15-18)
+    (at Issue1251/NonTerminating.agda:7.15-18)
 when scope checking the declaration
   open import Issue1251.NonTerminating

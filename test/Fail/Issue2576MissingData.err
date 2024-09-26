@@ -1,4 +1,4 @@
-Issue2576MissingData.agda:3,1-13: error: [MissingTypeSignature.Data]
+Issue2576MissingData.agda:3.1-13: error: [MissingTypeSignature.Data]
 Missing type signature for data definition A
 when scope checking the declaration
   data A where

@@ -1,4 +1,4 @@
-NotLeqSort.agda:5,3-6: error: [ConstructorDoesNotFitInData]
+NotLeqSort.agda:5.3-6: error: [ConstructorDoesNotFitInData]
 Constructor err
 of sort Set₁
 does not fit into data type of sort Set.

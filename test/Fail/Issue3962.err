@@ -1,2 +1,2 @@
-Issue3962.agda:12,8: error: [ParseError]
+Issue3962.agda:12.8: error: [ParseError]
 Unterminated '{-'

@@ -2,7 +2,7 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   _8 (A = A) _ = x : A (blocked on _8)
 
-UnifyWithIrrelevantArgument.agda:9,16-11,16: error: [UnsolvedMetaVariables]
+UnifyWithIrrelevantArgument.agda:9.16-11.16: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  UnifyWithIrrelevantArgument.agda:9,16-17
-  UnifyWithIrrelevantArgument.agda:11,12-16
+  UnifyWithIrrelevantArgument.agda:9.16-17
+  UnifyWithIrrelevantArgument.agda:11.12-16

@@ -1,4 +1,4 @@
-Issue4995.agda:24,10-12: error: [UnsolvedConstraints]
+Issue4995.agda:24.10-12: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: n ≡ su (λ _ → n) (stuck)
-      [ at Issue4995.agda:24,10-12 ]
+      [ at Issue4995.agda:24.10-12 ]

@@ -1,5 +1,5 @@
-Issue4435-2.agda:12,6-17: error: [ClashingDefinition]
+Issue4435-2.agda:12.6-17: error: [ClashingDefinition]
 Multiple definitions of Foo. Previous definition at
-Issue4435-2.agda:5,6-9
+Issue4435-2.agda:5.6-9
 when scope checking the declaration
   data Foo a : Set

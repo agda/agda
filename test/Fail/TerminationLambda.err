@@ -1,6 +1,6 @@
-TerminationLambda.agda:8,1-9,19: error: [TerminationIssue]
+TerminationLambda.agda:8.1-9.19: error: [TerminationIssue]
 Termination checking failed for the following functions:
   F
 Problematic calls:
   F (Id A)
-    (at TerminationLambda.agda:9,11-12)
+    (at TerminationLambda.agda:9.11-12)

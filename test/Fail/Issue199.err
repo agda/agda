@@ -2,7 +2,7 @@ error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Check definition of foo : {A : Set} {l : D A} → P l → Set₁
     stuck because
-      Issue199.agda:11,6-9: error: [SplitError.UnificationStuck]
+      Issue199.agda:11.6-9: error: [SplitError.UnificationStuck]
       I'm not sure if there should be a case for the constructor p,
       because I get stuck when trying to solve the following unification
       problems (inferred index ≟ expected index):
@@ -12,7 +12,7 @@ Failed to solve the following constraints:
     (blocked on _T_13)
   D A =< _T_13 _A_12 (blocked on _T_13)
 
-Issue199.agda:10,25-28: error: [UnsolvedMetaVariables]
+Issue199.agda:10.25-28: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue199.agda:10,25-26
-  Issue199.agda:10,27-28
+  Issue199.agda:10.25-26
+  Issue199.agda:10.27-28
