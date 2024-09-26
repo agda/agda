@@ -17,8 +17,15 @@ General options
 
 .. option:: --help[={TOPIC}], -?[{TOPIC}]
 
-     Show basically this help, or more help about ``TOPIC``. Current
-     topics available: ``warning``.
+     Show basically this help, or more help about ``TOPIC``.
+     Available topics:
+
+     - ``error``:
+       List the names of Agda's errors.
+
+     - ``warning``:
+       List warning groups and individual warnings and their default status.
+       Instruct how to toggle benign warnings.
 
 .. option:: --interaction
 
