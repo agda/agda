@@ -320,10 +320,12 @@ syntaxOf y
 --
 -- Postcondition: No 'A.Name' occurs in more than one list element.
 mergeNotations :: List1 NewNotation -> List1 NewNotation
-mergeNotations =
+mergeNotations ns@(_ :| []) = ns
+mergeNotations ns =
   fmap merge
   . List1.concatMap1 groupIfLevelsMatch
   . List1.groupOn1 (notation &&& notaIsOperator)
+  $ ns
   where
   groupIfLevelsMatch :: List1 NewNotation -> List1 (List1 NewNotation)
   groupIfLevelsMatch ns =
