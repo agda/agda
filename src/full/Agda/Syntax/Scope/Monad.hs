@@ -408,9 +408,8 @@ tryResolveName kinds names x = do
 
           case recd of
             DefinedName acc abs suf -> getRecordConstructor (anameName abs) >>= \case
-              Just qn ->
-                let abs' = upd abs { anameName = qn, anameKind = ConName }
-                 in pure (ConstructorName mempty $ List1.singleton abs')
+              Just (qn, ind) -> pure $ ConstructorName (Set1.singleton $ fromMaybe Inductive ind) $
+                List1.singleton $ upd abs { anameName = qn, anameKind = ConName }
               Nothing -> throwError $ ConstrOfNonRecord r recd
             _ -> throwError $ ConstrOfNonRecord r recd
 
@@ -588,12 +587,12 @@ bindQModule acc q m = modifyCurrentScope $ \s ->
 ---------------------------------------------------
 
 -- | Record (ha) that a given record has the specified constructor name.
-setRecordConstructor :: A.QName -> A.QName -> ScopeM ()
+setRecordConstructor :: A.QName -> (A.QName, Maybe Induction) -> ScopeM ()
 setRecordConstructor recr con = modifyScope_ $ over scopeRecords $ Map.insert recr con
 
 -- | Get the internal 'QName' for the  name of a record constructor. If
 -- the name does not refer to a record type, 'Nothing' is returned.
-getRecordConstructor :: ReadTCState m => A.QName -> m (Maybe A.QName)
+getRecordConstructor :: ReadTCState m => A.QName -> m (Maybe (A.QName, Maybe Induction))
 getRecordConstructor recr = runMaybeT $ local <|> imported where
   local = do
     recs <- useScope scopeRecords
@@ -601,7 +600,7 @@ getRecordConstructor recr = runMaybeT $ local <|> imported where
   imported = do
     idefs <- useTC (stImports . sigDefinitions)
     case theDef <$> HMap.lookup recr idefs of
-      Just def@I.Record{} -> pure (I.recCon def)
+      Just def@I.Record{} -> pure (I.recCon def, I.recInduction def)
       _ -> MaybeT $ pure Nothing
 
 
@@ -711,9 +710,9 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
 
         copyRecordConstr :: A.QName -> A.QName -> WSM ()
         copyRecordConstr from to = getRecordConstructor from >>= \case
-          Just con -> do
+          Just (con, ind) -> do
             con' <- renName con
-            lift (setRecordConstructor to con')
+            lift $ setRecordConstructor to (con', ind)
           Nothing  -> pure ()
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y

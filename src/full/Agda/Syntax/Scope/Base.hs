@@ -120,8 +120,8 @@ data ScopeInfo = ScopeInfo
       , _scopeInScope       :: InScopeSet
       , _scopeFixities      :: C.Fixities    -- ^ Maps concrete names C.Name to fixities
       , _scopePolarities    :: C.Polarities  -- ^ Maps concrete names C.Name to polarities
-      , _scopeRecords       :: Map A.QName A.QName
-        -- ^ Maps the name of a record to the name of its constructor.
+      , _scopeRecords       :: Map A.QName (A.QName, Maybe Induction)
+        -- ^ Maps the name of a record to the name of its (co)constructor.
       }
   deriving (Show, Generic)
 
@@ -270,7 +270,7 @@ scopePolarities f s =
   f (_scopePolarities s) <&>
   \x -> s { _scopePolarities = x }
 
-scopeRecords :: Lens' ScopeInfo (Map A.QName A.QName)
+scopeRecords :: Lens' ScopeInfo (Map A.QName (A.QName, Maybe Induction))
 scopeRecords f s =
   f (_scopeRecords s) <&>
   \x -> s { _scopeRecords = x }

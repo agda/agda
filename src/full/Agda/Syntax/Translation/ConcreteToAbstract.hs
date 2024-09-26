@@ -1910,7 +1910,7 @@ instance ToAbstract NiceDeclaration where
               freshAbstractQName noFixity' $ simpleName "constructor"
             pure $ FreshRecCon constr
 
-        setRecordConstructor x' (recordConName cm')
+        setRecordConstructor x' (recordConName cm', fmap rangedThing ind)
 
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 25 "record complete"
