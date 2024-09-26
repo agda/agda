@@ -45,6 +45,7 @@ import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty hiding ((<>))
 import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Utils.Set1 ( Set1 )
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Map as Map
 
@@ -531,7 +532,9 @@ data ResolvedName
     FieldName (List1 AbstractName)       -- ^ @('FldName' ==) . 'anameKind'@ for all names.
 
   | -- | Data or record constructor name.
-    ConstructorName (Set Induction) (List1 AbstractName) -- ^ @isJust . 'isConName' . 'anameKind'@ for all names.
+    ConstructorName
+      (Set1 Induction)      -- ^ 'Inductive' or 'CoInductive' or both.
+      (List1 AbstractName)  -- ^ @isJust . 'isConName' . 'anameKind'@ for all names.
 
   | -- | Name of pattern synonym.
     PatternSynResName (List1 AbstractName) -- ^ @('PatternSynName' ==) . 'anameKind'@ for all names.

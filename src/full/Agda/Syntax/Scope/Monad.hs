@@ -380,10 +380,10 @@ tryResolveName kinds names x = do
           possibleBaseNames = filter (canHaveSuffix . anameName . fst) $ possibleNames xbase
           suffixedNames = (,) <$> fromConcreteSuffix xsuffix <*> nonEmpty possibleBaseNames
       case (nonEmpty $ possibleNames x) of
-        Just ds  | let ks = fmap (isConName . anameKind . fst) ds
-                 , all isJust ks
+        Just ds  | Just ks <- traverse (isConName . anameKind . fst) ds
+                     -- all names resolve to a constructor name
                  , isNothing suffixedNames ->
-          return $ ConstructorName (Set.fromList $ List1.catMaybes ks) $ fmap (upd . fst) ds
+          return $ ConstructorName (Set1.fromList ks) $ fmap (upd . fst) ds
 
         Just ds  | all ((FldName ==) . anameKind . fst) ds , isNothing suffixedNames ->
           return $ FieldName $ fmap (upd . fst) ds
