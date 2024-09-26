@@ -6,5 +6,5 @@
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "(λ { (c ()) }) ?")
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "Sort _8 [ at 1,1-10 ] _9 : _8 [ at 1,1-10 ] _11 : _9 [ at 1,1-10 ] _13 : D → ⊥ [ at Issue2807.agda:18,8-24 ] " nil)
+(agda2-info-action "*All Goals*" "Sort _8 [ at 1.1-10 ] _9 : _8 [ at 1.1-10 ] _11 : _9 [ at 1.1-10 ] _13 : D → ⊥ [ at Issue2807.agda:18.8-24 ] " nil)
 ((last . 1) . (agda2-goals-action '(1)))

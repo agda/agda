@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : Set ?1 : Set ?2 : _A_12 ?3 : _A_12 _A_7 : Set [ at Issue2273.agda:11,5-6 ] _a_8 : _A_7 [ at Issue2273.agda:11,5-6 ] _b_9 : _A_7 [ at Issue2273.agda:11,5-6 ] _A_12 : Set [ at Issue2273.agda:14,5-6 ] " nil)
+(agda2-info-action "*All Goals*" "?0 : Set ?1 : Set ?2 : _A_12 ?3 : _A_12 _A_7 : Set [ at Issue2273.agda:11.5-6 ] _a_8 : _A_7 [ at Issue2273.agda:11.5-6 ] _b_9 : _A_7 [ at Issue2273.agda:11.5-6 ] _A_12 : Set [ at Issue2273.agda:14.5-6 ] " nil)
 ((last . 1) . (agda2-goals-action '(0 1 2 3)))
 ((last . 2) . (agda2-solveAll-action '(0 "? == ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2 3)))

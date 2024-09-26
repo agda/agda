@@ -5,4 +5,4 @@
 (agda2-info-action "*All Goals*" "?0 : Set₂ " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-status-action "")
-(agda2-info-action "*Scope Info*" "A is in scope as * a variable bound at Issue1266whyInScope.agda:10,9-10 in conflict with * a defined name Issue1266whyInScope.M.A brought into scope by - the opening of M at Issue1266whyInScope.agda:10,29-30 - its definition at Issue1266whyInScope.agda:8,3-4" nil)
+(agda2-info-action "*Scope Info*" "A is in scope as * a variable bound at Issue1266whyInScope.agda:10.9-10 in conflict with * a defined name Issue1266whyInScope.M.A brought into scope by - the opening of M at Issue1266whyInScope.agda:10.29-30 - its definition at Issue1266whyInScope.agda:8.3-4" nil)

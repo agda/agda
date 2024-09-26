@@ -2,5 +2,5 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "Sort _3 [ at SetInf.agda:3,14-15 ] " nil)
+(agda2-info-action "*All Goals*" "Sort _3 [ at SetInf.agda:3.14-15 ] " nil)
 ((last . 1) . (agda2-goals-action '()))

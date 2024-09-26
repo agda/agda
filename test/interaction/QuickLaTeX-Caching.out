@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : _0 Sort _0 [ at QuickLaTeX-Caching.lagda:5,17-18 ] " nil)
+(agda2-info-action "*All Goals*" "?0 : _0 Sort _0 [ at QuickLaTeX-Caching.lagda:5.17-18 ] " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "Set")
 (agda2-status-action "")

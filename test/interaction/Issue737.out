@@ -30,7 +30,7 @@
 ((last . 1) . (agda2-goals-action '(7 1)))
 (agda2-give-action 7 "(rec ? ?)")
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?1 : (A × A) × (A → A) × (A → A) ?8 : Σ _S_35 (λ s₁ → _P_36 s₁ → W _S_35 _P_36 × X) → X ?9 : W _S_35 _P_36 _S_35 : Set [ at 1,1-4 ] _P_36 : _S_35 → Set [ at 1,1-4 ] " nil)
+(agda2-info-action "*All Goals*" "?1 : (A × A) × (A → A) × (A → A) ?8 : Σ _S_35 (λ s₁ → _P_36 s₁ → W _S_35 _P_36 × X) → X ?9 : W _S_35 _P_36 _S_35 : Set [ at 1.1-4 ] _P_36 : _S_35 → Set [ at 1.1-4 ] " nil)
 ((last . 1) . (agda2-goals-action '(8 9 1)))
 (agda2-give-action 8 "φ")
 (agda2-status-action "")
