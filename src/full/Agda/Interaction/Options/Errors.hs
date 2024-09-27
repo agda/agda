@@ -382,6 +382,7 @@ data UnquoteError_
   | CannotDeclareHiddenFunction_
   | ConInsteadOfDef_
   | DefInsteadOfCon_
+  | NakedUnquote_
   | NonCanonical_
   | BlockedOnMeta_
   | PatLamWithoutClauses_

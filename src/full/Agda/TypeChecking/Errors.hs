@@ -1723,6 +1723,8 @@ instance PrettyTCM UnquoteError where
       pwords ("Use " ++ def ++ " instead of " ++ con ++ " for non-constructor")
       ++ [prettyTCM x]
 
+    NakedUnquote -> fwords "`unquote' must be applied to a term"
+
     NonCanonical kind t ->
       fwords ("Cannot unquote non-canonical " ++ kind)
       $$ nest 2 (prettyTCM t)

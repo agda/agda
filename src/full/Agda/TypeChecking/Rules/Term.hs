@@ -1185,7 +1185,7 @@ checkExpr' cmp e t =
 
         A.Quote{}     -> typeError $ CannotQuote CannotQuoteNothing
         A.QuoteTerm{} -> typeError $ CannotQuoteTerm CannotQuoteTermNothing
-        A.Unquote{}   -> genericError "unquote must be applied to a term"
+        A.Unquote{}   -> unquoteError NakedUnquote
 
         A.AbsurdLam i h -> checkAbsurdLambda cmp i h e t
 

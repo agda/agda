@@ -4728,6 +4728,7 @@ data UnquoteError
       -- ^ Attempt to @unquoteDecl@ with 'Hiding' other than 'NotHidden'.
   | ConInsteadOfDef QName String String
   | DefInsteadOfCon QName String String
+  | NakedUnquote
   | NonCanonical String I.Term
   | BlockedOnMeta TCState Blocker
   | PatLamWithoutClauses I.Term
