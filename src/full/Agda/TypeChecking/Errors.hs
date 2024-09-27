@@ -1290,6 +1290,15 @@ instance PrettyTCM TypeError where
             _ ->
               pwords "a compound pattern"
 
+    CannotQuoteTerm what -> do
+      fwords "`quoteTerm' expects a single visible argument," $$ do
+      fsep $ pwords "but has been given" ++
+        case what of
+          CannotQuoteTermNothing ->
+            pwords "none"
+          CannotQuoteTermHidden ->
+            pwords "an implicit one"
+
 
     ConstructorNameOfNonRecord res -> case res of
       UnknownName -> __IMPOSSIBLE__ -- Turned into NotInScope when the name is resolved

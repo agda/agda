@@ -106,7 +106,8 @@ import Agda.Compiler.Backend.Base
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Errors as ErrorName
 import Agda.Interaction.Options.Errors as X
-  ( ErasedDatatypeReason(..)
+  ( CannotQuoteTerm(..)
+  , ErasedDatatypeReason(..)
   , NotAValidLetBinding(..)
   , NotAValidLetExpression(..)
   , NotAllowedInDotPatterns(..)
@@ -4996,6 +4997,7 @@ data TypeError
         | ConstructorNameOfNonRecord ResolvedName
     -- Concrete to Abstract errors
         | CannotQuote CannotQuote
+        | CannotQuoteTerm CannotQuoteTerm
         | DeclarationsAfterTopLevelModule
         | IllegalDeclarationBeforeTopLevelModule
         | MissingTypeSignature MissingTypeSignatureInfo

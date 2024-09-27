@@ -27,6 +27,7 @@ typeErrorName = \case
   CannotQuote             what -> CannotQuote_           $ unquotableName                 what
   MissingTypeSignature    what -> MissingTypeSignature_  $ missingTypeSignatureInfoName   what
   InvalidPun            kind _ -> InvalidPun_              kind
+  CannotQuoteTerm         what -> CannotQuoteTerm_         what
   NotAllowedInDotPatterns what -> NotAllowedInDotPatterns_ what
   NotAValidLetBinding     what -> NotAValidLetBinding_     what
   NotAValidLetExpression  what -> NotAValidLetExpression_  what

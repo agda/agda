@@ -1,0 +1,5 @@
+QuoteTermHidden.agda:6.5-24: error: [CannotQuoteTerm.Hidden]
+'quoteTerm' expects a single visible argument,
+but has been given an implicit one
+when checking that the expression quoteTerm ⦃ x = Set ⦄ has type
+Term

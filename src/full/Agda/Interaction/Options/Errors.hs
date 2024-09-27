@@ -13,6 +13,13 @@ import Agda.Utils.Function    ( applyWhenJust )
 import Agda.Utils.List        ( initWithDefault )
 import Agda.Utils.Impossible  ( __IMPOSSIBLE__ )
 
+-- | Extra information for error 'CannotQuoteTerm'.
+
+data CannotQuoteTerm
+  = CannotQuoteTermHidden
+  | CannotQuoteTermNothing
+  deriving (Show, Generic, Enum, Bounded)
+
 -- | What kind of declaration?
 --
 --   See also 'Agda.Syntax.Concrete.Definitions.Types.DataRecOrFun'.
@@ -107,6 +114,7 @@ data ErrorName
   | CannotGenerateHCompClause_
   | CannotGenerateTransportClause_
   | CannotQuote_ CannotQuote_
+  | CannotQuoteTerm_ CannotQuoteTerm
   | CannotResolveAmbiguousPatternSynonym_
   | CannotRewriteByNonEquation_
   | CannotSolveSizeConstraints_
@@ -399,6 +407,7 @@ errorNameString = \case
   SplitError_             err -> "SplitError." ++ splitErrorNameString err
   UnquoteError_           err -> "Unquote." ++ unquoteErrorNameString err
   CannotQuote_             err -> "CannotQuote." ++ cannotQuoteNameString err
+  CannotQuoteTerm_         err -> "CannotQuoteTerm." ++ cannotQuoteTermNameString err
   InvalidPun_              err -> "InvalidPun." ++ constructorOrPatternSynonymNameString err
   MissingTypeSignature_    err -> "MissingTypeSignature." ++ dataRecOrFunString err
   NotAllowedInDotPatterns_ err -> "NotAllowedInDotPatterns." ++ notAllowedInDotPatternsString err
@@ -462,6 +471,11 @@ cannotQuoteNameString = \case
   CannotQuoteNothing_    -> "Nothing"
   CannotQuotePattern_    -> "Pattern"
 
+cannotQuoteTermNameString :: CannotQuoteTerm -> String
+cannotQuoteTermNameString = \case
+  CannotQuoteTermHidden      -> "Hidden"
+  CannotQuoteTermNothing     -> "Nothing"
+
 unquoteErrorNameString :: UnquoteError_ -> String
 unquoteErrorNameString = defaultErrorNameString
 
@@ -502,6 +516,7 @@ deriving via (FiniteEnumeration (Maybe a))
 deriving via (FiniteEnumeration (Maybe a))
   instance (Bounded a, Enum a) => Bounded (Maybe a)
 
+instance NFData CannotQuoteTerm
 instance NFData ErasedDatatypeReason
 instance NFData NotAllowedInDotPatterns
 instance NFData NotAValidLetBinding

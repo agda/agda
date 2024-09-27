@@ -1178,11 +1178,13 @@ checkExpr' cmp e t =
              else typeError $ CannotQuote CannotQuoteHidden
 
           | A.QuoteTerm _ <- unScope q -> do
-             (et, _) <- inferExpr (namedThing e)
-             doQuoteTerm cmp et t
+             if visible ai then do
+               (et, _) <- inferExpr (namedThing e)
+               doQuoteTerm cmp et t
+             else typeError $ CannotQuoteTerm CannotQuoteTermHidden
 
         A.Quote{}     -> typeError $ CannotQuote CannotQuoteNothing
-        A.QuoteTerm{} -> genericError "quoteTerm must be applied to a term"
+        A.QuoteTerm{} -> typeError $ CannotQuoteTerm CannotQuoteTermNothing
         A.Unquote{}   -> genericError "unquote must be applied to a term"
 
         A.AbsurdLam i h -> checkAbsurdLambda cmp i h e t

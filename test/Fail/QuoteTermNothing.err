@@ -1,0 +1,4 @@
+QuoteTermNothing.agda:6.5-14: error: [CannotQuoteTerm.Nothing]
+'quoteTerm' expects a single visible argument,
+but has been given none
+when checking that the expression quoteTerm has type Term
