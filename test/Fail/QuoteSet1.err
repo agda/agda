@@ -1,0 +1,4 @@
+QuoteSet1.agda:7.5-15: error: [CannotQuote.Expression]
+'quote' expects an unambiguous defined name,
+but here the argument is a compound expression
+when checking that the expression quote Set₁ has type Name

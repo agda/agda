@@ -1,0 +1,5 @@
+QuotePatternAbsurd.agda:7.1-16: error: [CannotQuote.Pattern]
+'quote' expects an unambiguous defined name,
+but here the argument is an absurd pattern
+when scope checking the left-hand side test (quote ()) in the
+definition of test

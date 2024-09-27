@@ -1,0 +1,5 @@
+QuotePatternWildcard.agda:7.1-15: error: [CannotQuote.Pattern]
+'quote' expects an unambiguous defined name,
+but here the argument is a wildcard pattern
+when scope checking the left-hand side test (quote _) in the
+definition of test

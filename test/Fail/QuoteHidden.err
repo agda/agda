@@ -1,0 +1,4 @@
+QuoteHidden.agda:6.5-16: error: [CannotQuote.Hidden]
+'quote' expects an unambiguous defined name,
+but here the argument is implicit
+when checking that the expression quote {Set} has type Name

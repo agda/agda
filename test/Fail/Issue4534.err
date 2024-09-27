@@ -1,3 +1,4 @@
-Issue4534.agda:7.12-19: error: [GenericError]
-Cannot quote a variable X
+Issue4534.agda:7.12-19: error: [CannotQuote.Expression]
+'quote' expects an unambiguous defined name, but here the argument
+is a variable: X
 when checking that the expression quote X has type Name

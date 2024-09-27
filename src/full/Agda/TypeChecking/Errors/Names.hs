@@ -24,6 +24,7 @@ typeErrorName = \case
   SplitError               err -> SplitError_            $ splitErrorName                 err
   UnquoteFailed            err -> UnquoteError_          $ unquoteErrorName               err
   -- Parametrized errors
+  CannotQuote             what -> CannotQuote_           $ unquotableName                 what
   MissingTypeSignature    what -> MissingTypeSignature_  $ missingTypeSignatureInfoName   what
   InvalidPun            kind _ -> InvalidPun_              kind
   NotAllowedInDotPatterns what -> NotAllowedInDotPatterns_ what
@@ -74,6 +75,7 @@ typeErrorName = \case
   ClashingModule                                             {} -> ClashingModule_
   ComatchingDisabledForRecord                                {} -> ComatchingDisabledForRecord_
   ConstructorDoesNotTargetGivenType                          {} -> ConstructorDoesNotTargetGivenType_
+  ConstructorNameOfNonRecord                                 {} -> ConstructorNameOfNonRecord_
   ConstructorPatternInWrongDatatype                          {} -> ConstructorPatternInWrongDatatype_
   ContradictorySizeConstraint                                {} -> ContradictorySizeConstraint_
   CopatternHeadNotProjection                                 {} -> CopatternHeadNotProjection_
@@ -138,7 +140,6 @@ typeErrorName = \case
   ModuleNameUnexpected                                       {} -> ModuleNameUnexpected_
   MultipleFixityDecls                                        {} -> MultipleFixityDecls_
   MultiplePolarityPragmas                                    {} -> MultiplePolarityPragmas_
-  ConstructorNameOfNonRecord                                 {} -> ConstructorNameOfNonRecord_
   NamedWhereModuleInRefinedContext                           {} -> NamedWhereModuleInRefinedContext_
   NeedOptionAllowExec                                        {} -> NeedOptionAllowExec_
   NeedOptionCopatterns                                       {} -> NeedOptionCopatterns_
@@ -311,6 +312,14 @@ splitErrorName = \case
   CosplitNoTarget           {} -> CosplitNoTarget_
   NotADatatype              {} -> NotADatatype_
   UnificationStuck          {} -> UnificationStuck_
+
+unquotableName :: CannotQuote -> CannotQuote_
+unquotableName = \case
+  CannotQuoteAmbiguous         {} -> CannotQuoteAmbiguous_
+  CannotQuoteExpression        {} -> CannotQuoteExpression_
+  CannotQuoteHidden            {} -> CannotQuoteHidden_
+  CannotQuoteNothing           {} -> CannotQuoteNothing_
+  CannotQuotePattern           {} -> CannotQuotePattern_
 
 unquoteErrorName :: UnquoteError -> UnquoteError_
 unquoteErrorName = \case

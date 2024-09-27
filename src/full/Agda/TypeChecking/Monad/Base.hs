@@ -4995,6 +4995,7 @@ data TypeError
         | MultiplePolarityPragmas (List1 C.Name)
         | ConstructorNameOfNonRecord ResolvedName
     -- Concrete to Abstract errors
+        | CannotQuote CannotQuote
         | DeclarationsAfterTopLevelModule
         | IllegalDeclarationBeforeTopLevelModule
         | MissingTypeSignature MissingTypeSignatureInfo
@@ -5182,6 +5183,20 @@ data IncorrectTypeForRewriteRelationReason
   = ShouldAcceptAtLeastTwoArguments
   | FinalTwoArgumentsNotVisible
   | TypeDoesNotEndInSort Type Telescope
+    deriving (Show, Generic)
+
+-- | Extra information for error 'CannotQuote'.
+data CannotQuote
+  = CannotQuoteAmbiguous (List2 A.QName)
+      -- ^ @quote@ is applied to an ambiguous name.
+  | CannotQuoteExpression A.Expr
+      -- ^ @quote@ is applied to an expression that is not an unambiguous defined name.
+  | CannotQuoteHidden
+      -- ^ @quote@ is applied to a non-visible argument.
+  | CannotQuoteNothing
+      -- ^ @quote@ is unapplied.
+  | CannotQuotePattern (NamedArg C.Pattern)
+      -- ^ @quote@ is applied to a pattern that is not an unambiguous defined name.
     deriving (Show, Generic)
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
@@ -6329,3 +6344,4 @@ instance NFData MissingTypeSignatureInfo
 instance NFData WhyNotAHaskellType
 instance NFData InteractionError
 instance NFData IsAmbiguous
+instance NFData CannotQuote

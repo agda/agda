@@ -1,0 +1,4 @@
+QuoteNothing.agda:6.5-10: error: [CannotQuote.Nothing]
+'quote' expects an unambiguous defined name,
+but here the argument is missing
+when checking that the expression quote has type Name

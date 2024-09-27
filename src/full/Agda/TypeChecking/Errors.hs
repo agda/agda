@@ -1249,6 +1249,48 @@ instance PrettyTCM TypeError where
     MultiplePolarityPragmas xs -> fsep $
       pwords "Multiple polarity pragmas for" ++ map pretty (List1.toList xs)
 
+    CannotQuote what -> do
+      fwords "`quote' expects an unambiguous defined name," $$ do
+      fsep $ pwords "but here the argument is" ++
+        case what of
+          CannotQuoteNothing ->
+            pwords "missing"
+          CannotQuoteHidden ->
+            pwords "implicit"
+          CannotQuoteAmbiguous (List2 x y zs) ->
+            pwords "ambiguous:" ++ [ pretty $ AmbQ $ x :| y : zs ]
+          CannotQuoteExpression e -> case e of
+            -- These expression can be quoted:
+            A.Def' _ NoSuffix -> __IMPOSSIBLE__
+              -- Andreas, 2024-09-27, issue #7514:
+              -- Why only quote suffix-free universes?
+            A.Macro        {} -> __IMPOSSIBLE__
+            A.Proj         {} -> __IMPOSSIBLE__
+            A.Con          {} -> __IMPOSSIBLE__
+            A.DontCare     {} -> __IMPOSSIBLE__
+            A.ScopedExpr   {} -> __IMPOSSIBLE__
+            -- These cannot:
+            A.PatternSyn   {} -> other "a pattern synonym:"
+            A.Var          {} -> other "a variable:"
+            A.Lit          {} -> other "a literal:"
+            A.QuestionMark {} -> pwords "a metavariable"
+            A.Underscore   {} -> pwords "a metavariable"
+            _ ->
+              pwords "a compound expression"
+            where
+              other s = pwords s ++ [ prettyTCM e]
+          CannotQuotePattern p -> case namedArg p of
+            C.IdentP    {} -> __IMPOSSIBLE__
+            C.HiddenP   {} -> __IMPOSSIBLE__
+            C.InstanceP {} -> __IMPOSSIBLE__
+            C.RawAppP   {} -> __IMPOSSIBLE__
+            C.AbsurdP   {} -> pwords "an absurd pattern"
+            C.LitP      {} -> pwords "a literal pattern"
+            C.WildP     {} -> pwords "a wildcard pattern"
+            _ ->
+              pwords "a compound pattern"
+
+
     ConstructorNameOfNonRecord res -> case res of
       UnknownName -> __IMPOSSIBLE__ -- Turned into NotInScope when the name is resolved
       name ->

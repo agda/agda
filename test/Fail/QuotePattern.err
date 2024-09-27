@@ -1,0 +1,5 @@
+QuotePattern.agda:11.1-19: error: [CannotQuote.Pattern]
+'quote' expects an unambiguous defined name,
+but here the argument is a compound pattern
+when scope checking the left-hand side test (quote (F X)) in the
+definition of test

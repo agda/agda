@@ -1170,16 +1170,18 @@ checkExpr' cmp e t =
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
         e0@(A.App i q (Arg ai e))
-          | A.Quote _ <- unScope q, visible ai -> do
-          x <- quotedName $ namedThing e
-          ty <- qNameType
-          coerce cmp (quoteName x) ty t
+          | A.Quote _ <- unScope q -> do
+             if visible ai then do
+               x  <- quotedName $ namedThing e
+               ty <- qNameType
+               coerce cmp (quoteName x) ty t
+             else typeError $ CannotQuote CannotQuoteHidden
 
           | A.QuoteTerm _ <- unScope q -> do
              (et, _) <- inferExpr (namedThing e)
              doQuoteTerm cmp et t
 
-        A.Quote{}     -> genericError "quote must be applied to a defined name"
+        A.Quote{}     -> typeError $ CannotQuote CannotQuoteNothing
         A.QuoteTerm{} -> genericError "quoteTerm must be applied to a term"
         A.Unquote{}   -> genericError "unquote must be applied to a term"
 

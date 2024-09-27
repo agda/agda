@@ -106,6 +106,7 @@ data ErrorName
   | CannotEliminateWithProjection_
   | CannotGenerateHCompClause_
   | CannotGenerateTransportClause_
+  | CannotQuote_ CannotQuote_
   | CannotResolveAmbiguousPatternSynonym_
   | CannotRewriteByNonEquation_
   | CannotSolveSizeConstraints_
@@ -360,6 +361,14 @@ data SplitError_
   deriving (Show, Generic)
   deriving (Enum, Bounded) via (FiniteEnumeration SplitError_)
 
+data CannotQuote_
+  = CannotQuoteAmbiguous_
+  | CannotQuoteExpression_
+  | CannotQuoteHidden_
+  | CannotQuoteNothing_
+  | CannotQuotePattern_
+  deriving (Show, Generic, Enum, Bounded)
+
 data UnquoteError_
   = BadVisibility_
   | CannotDeclareHiddenFunction_
@@ -389,6 +398,7 @@ errorNameString = \case
   NicifierError_          err -> "Syntax." ++ declarationExceptionNameString err
   SplitError_             err -> "SplitError." ++ splitErrorNameString err
   UnquoteError_           err -> "Unquote." ++ unquoteErrorNameString err
+  CannotQuote_             err -> "CannotQuote." ++ cannotQuoteNameString err
   InvalidPun_              err -> "InvalidPun." ++ constructorOrPatternSynonymNameString err
   MissingTypeSignature_    err -> "MissingTypeSignature." ++ dataRecOrFunString err
   NotAllowedInDotPatterns_ err -> "NotAllowedInDotPatterns." ++ notAllowedInDotPatternsString err
@@ -443,6 +453,14 @@ splitErrorNameString :: SplitError_ -> String
 splitErrorNameString = \case
   ErasedDatatype_ err -> "ErasedDatatype." ++ erasedDatatypeReasonString err
   err -> defaultErrorNameString err
+
+cannotQuoteNameString :: CannotQuote_ -> String
+cannotQuoteNameString = \case
+  CannotQuoteAmbiguous_  -> "Ambiguous"
+  CannotQuoteExpression_ -> "Expression"
+  CannotQuoteHidden_     -> "Hidden"
+  CannotQuoteNothing_    -> "Nothing"
+  CannotQuotePattern_    -> "Pattern"
 
 unquoteErrorNameString :: UnquoteError_ -> String
 unquoteErrorNameString = defaultErrorNameString

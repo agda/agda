@@ -3243,14 +3243,16 @@ instance ToAbstract C.Pattern where
     toAbstract (C.IdentP canBeConstructor x) =
       resolvePatternIdentifier canBeConstructor empty x Nothing
 
-    toAbstract (AppP (QuoteP _) p)
-      | IdentP _ x <- namedArg p,
-        visible p = do
-      e <- toAbstract (OldQName x Nothing)
-      A.LitP (PatRange $ getRange x) . LitQName <$> quotedName e
+    toAbstract (QuoteP _r) =
+      typeError $ CannotQuote CannotQuoteNothing
 
-    toAbstract (QuoteP r) =
-      genericError "quote must be applied to an identifier"
+    toAbstract (AppP (QuoteP _) p)
+      | IdentP _ x <- namedArg p = do
+          if visible p then do
+            e <- toAbstract (OldQName x Nothing)
+            A.LitP (PatRange $ getRange x) . LitQName <$> quotedName e
+          else typeError $ CannotQuote CannotQuoteHidden
+      | otherwise = typeError $ CannotQuote $ CannotQuotePattern p
 
     toAbstract p0@(AppP p q) = do
         reportSLn "scope.pat" 50 $ "distributeDots before = " ++ show p

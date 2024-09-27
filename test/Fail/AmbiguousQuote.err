@@ -1,3 +1,4 @@
-AmbiguousQuote.agda:11.8-16: error: [GenericError]
-quote: Ambiguous name: [AmbiguousQuote.A1.AC, AmbiguousQuote.A2.AC]
+AmbiguousQuote.agda:11.8-16: error: [CannotQuote.Ambiguous]
+'quote' expects an unambiguous defined name, but here the argument
+is ambiguous: AmbiguousQuote.A1.AC | AmbiguousQuote.A2.AC
 when checking that the expression quote AC has type _5

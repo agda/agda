@@ -1,0 +1,5 @@
+QuotePatternHidden.agda:7.1-20: error: [CannotQuote.Hidden]
+'quote' expects an unambiguous defined name,
+but here the argument is implicit
+when scope checking the left-hand side test (quote {zero}) in the
+definition of test

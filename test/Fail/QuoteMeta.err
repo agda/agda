@@ -1,0 +1,4 @@
+QuoteMeta.agda:7.5-12: error: [CannotQuote.Expression]
+'quote' expects an unambiguous defined name,
+but here the argument is a metavariable
+when checking that the expression quote ? has type Name
