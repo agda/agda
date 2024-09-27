@@ -6,5 +6,5 @@ open import Common.Reflection using (QName)
 
 example : QName → Bool
 example (quote Bool) = true
-example (quote Bool) = false
+example (quote Bool) = false  -- unreachable clause
 example _            = false

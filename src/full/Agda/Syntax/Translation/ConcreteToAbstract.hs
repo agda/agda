@@ -3306,7 +3306,7 @@ instance ToAbstract C.Pattern where
     toAbstract p@(C.WildP r)    = return $ A.WildP (PatRange r)
     -- Andreas, 2015-05-28 futile attempt to fix issue 819: repeated variable on lhs "_"
     -- toAbstract p@(C.WildP r)    = A.VarP <$> freshName r "_"
-    toAbstract (C.ParenP _ p)   = toAbstract p
+    toAbstract (C.ParenP _ p)   = toAbstract p  -- Andreas, 2024-09-27 not impossible
     toAbstract (C.LitP r l)     = setCurrentRange r $ A.LitP (PatRange r) l <$ checkLiteral l
 
     toAbstract p0@(C.AsP r x p) = do

@@ -226,7 +226,7 @@ data Pattern
   | ParenP Range Pattern                   -- ^ @(p)@
   | WildP Range                            -- ^ @_@
   | AbsurdP Range                          -- ^ @()@
-  | AsP Range Name Pattern                 -- ^ @x\@p@ unused
+  | AsP Range Name Pattern                 -- ^ @x\@p@
   | DotP KwRange Range Expr                -- ^ @.e@, the 'KwRange' is for the dot,
                                            --   the 'Range' for the whole thing (including the dot).
   | LitP Range Literal                     -- ^ @0@, @1@, etc.
