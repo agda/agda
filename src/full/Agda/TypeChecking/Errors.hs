@@ -59,18 +59,7 @@ import Agda.Syntax.Scope.Monad (isDatatypeModule)
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Errors.Names (typeErrorString)
--- Andreas, 2024-09-28: Instead of the individual modules, we could just
--- import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Closure
-import Agda.TypeChecking.Monad.Context
-import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.MetaVars   ( isSortMeta )
-import Agda.TypeChecking.Monad.Options    ( hasUniversePolymorphism )
-import Agda.TypeChecking.Monad.Signature  ( getConstInfo, typeOfConst )
-import Agda.TypeChecking.Monad.SizedTypes ( sizeType )
-import Agda.TypeChecking.Monad.State
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
 import Agda.TypeChecking.Pretty.Warning
