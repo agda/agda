@@ -180,7 +180,6 @@ data ErrorName
   | MetaCannotDependOn_
   | MetaErasedSolution_
   | MetaIrrelevantSolution_
-  | MetaOccursInItself_
   | MismatchedProjectionsError_
   | MissingTypeSignature_ DataRecOrFun_
   | ModuleArityMismatch_

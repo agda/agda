@@ -133,7 +133,6 @@ typeErrorName = \case
   MetaCannotDependOn                                         {} -> MetaCannotDependOn_
   MetaErasedSolution                                         {} -> MetaErasedSolution_
   MetaIrrelevantSolution                                     {} -> MetaIrrelevantSolution_
-  MetaOccursInItself                                         {} -> MetaOccursInItself_
   MismatchedProjectionsError                                 {} -> MismatchedProjectionsError_
   ModuleArityMismatch                                        {} -> ModuleArityMismatch_
   ModuleDefinedInOtherFile                                   {} -> ModuleDefinedInOtherFile_

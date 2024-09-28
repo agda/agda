@@ -617,10 +617,6 @@ instance PrettyTCM TypeError where
           --   xs  -> pwords "only depends on the variables" ++ punctuate comma xs
 
     -- The following error is caught and reraised as GenericDocError in Occurs.hs
-    MetaOccursInItself m -> fsep $
-      pwords "Cannot construct infinite solution of metavariable" ++ [prettyTCM $ MetaV m []]
-
-    -- The following error is caught and reraised as GenericDocError in Occurs.hs
     MetaIrrelevantSolution m _ -> fsep $
       pwords "Cannot instantiate the metavariable because (part of) the" ++
       pwords "solution was created in an irrelevant context."

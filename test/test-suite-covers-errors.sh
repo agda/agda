@@ -32,7 +32,6 @@ cat >> $ERRORS <<EOF
 MetaCannotDependOn
 MetaErasedSolution
 MetaIrrelevantSolution
-MetaOccursInItself
 EOF
 
 # Errors of the double checker which should be impossible.

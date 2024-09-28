@@ -228,6 +228,7 @@ metaCheck m = do
   -- WAS:
   -- when (m == m') $ if ctx == Top then patternViolation else
   --   abort ctx $ MetaOccursInItself m'
+  -- Andreas, 2024-09-28: removed error MetaOccursInItself from code base.
   when (m == m0) $ patternViolation' neverUnblock 50 $ "occursCheck failed: Found " ++ prettyShow m
 
   mv <- lookupLocalMeta m
@@ -414,13 +415,6 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
     nicerErrorMessage :: TCM a -> TCM a
     nicerErrorMessage f = f `catchError` \ err -> case err of
       TypeError _ _ cl -> case clValue cl of
-        MetaOccursInItself{} ->
-          typeError . GenericDocError =<<
-            fsep [ text "Refuse to construct infinite term by instantiating"
-                 , prettyTCM m
-                 , "to"
-                 , prettyTCM =<< instantiateFull v
-                 ]
         MetaCannotDependOn _ i ->
           ifM (isSortMeta m `and2M` (not <$> hasUniversePolymorphism))
           ( typeError . GenericDocError =<<
