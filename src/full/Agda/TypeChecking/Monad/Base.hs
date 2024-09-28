@@ -5083,7 +5083,7 @@ data TypeError
             -- ^ The given backend does not support @--only-scope-checking@.
         | CubicalCompilationNotSupported Cubical
             -- ^ NYI: Compilation of files using the given flavor of 'Cubical'.
-        | CustomBackendError String Doc
+        | CustomBackendError BackendName Doc
             -- ^ Used for backend-specific errors. The string is the backend name.
         | GHCBackendError GHCBackendError
             -- ^ Errors raised by the GHC backend.

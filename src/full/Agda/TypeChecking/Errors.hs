@@ -1588,7 +1588,7 @@ instance PrettyTCM TypeError where
       , map (("-" P.<+>) . P.pretty) $ Set.toAscList backends
       ]
 
-    CustomBackendError backend err -> (text backend <> ":") <?> pure err
+    CustomBackendError backend err -> (pretty backend <> ":") <?> pure err
 
     GHCBackendError err -> prettyTCM err
 
