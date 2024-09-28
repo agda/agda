@@ -59,12 +59,16 @@ import Agda.Syntax.Scope.Monad (isDatatypeModule)
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Errors.Names (typeErrorString)
-import Agda.TypeChecking.Monad (getConstInfo, typeOfConst)
+-- Andreas, 2024-09-28: Instead of the individual modules, we could just
+-- import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.MetaVars   ( isSortMeta )
+import Agda.TypeChecking.Monad.Options    ( hasUniversePolymorphism )
+import Agda.TypeChecking.Monad.Signature  ( getConstInfo, typeOfConst )
 import Agda.TypeChecking.Monad.SizedTypes ( sizeType )
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Pretty
@@ -88,6 +92,7 @@ import Agda.Utils.List2  ( pattern List2 )
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Size
@@ -604,27 +609,40 @@ instance PrettyTCM TypeError where
       pwords "With clause pattern " ++ [prettyA p] ++
       pwords " is not an instance of its parent pattern " ++ [P.fsep <$> prettyTCMPatterns [q]]
 
-    -- The following error is caught and reraised as GenericDocError in Occurs.hs
-    MetaCannotDependOn m {- ps -} i -> fsep $
-      pwords "The metavariable" ++ [prettyTCM $ MetaV m []] ++
-      pwords "cannot depend on" ++ [pvar i] ++
-      [] -- pwords "because it" ++ deps
-        where
-          pvar = prettyTCM . I.var
-          -- deps = case map pvar ps of
-          --   []  -> pwords "does not depend on any variables"
-          --   [x] -> pwords "only depends on the variable" ++ [x]
-          --   xs  -> pwords "only depends on the variables" ++ punctuate comma xs
+    MetaCannotDependOn m v i ->
+      ifM (isSortMeta m `and2M` (not <$> hasUniversePolymorphism))
+      ( {- then -}
+        fsep [ text "Cannot instantiate the metavariable"
+             , prettyTCM m
+             , "to"
+             , prettyTCM v
+             , "since universe polymorphism is disabled"
+             ]
+      ) {- else -}
+      ( fsep [ text "Cannot instantiate the metavariable"
+             , prettyTCM m
+             , "to solution"
+             , prettyTCM v
+             , "since it contains the variable"
+             , prettyTCM (I.Var i [])
+             , "which is not in scope of the metavariable"
+             ]
+        )
+    MetaIrrelevantSolution m v ->
+      fsep [ text "Cannot instantiate the metavariable"
+           , prettyTCM m
+           , "to solution"
+           , prettyTCM v
+           , "since (part of) the solution was created in an irrelevant context"
+           ]
 
-    -- The following error is caught and reraised as GenericDocError in Occurs.hs
-    MetaIrrelevantSolution m _ -> fsep $
-      pwords "Cannot instantiate the metavariable because (part of) the" ++
-      pwords "solution was created in an irrelevant context."
-
-    -- The following error is caught and reraised as GenericDocError in Occurs.hs
-    MetaErasedSolution m _ -> fsep $
-      pwords "Cannot instantiate the metavariable because (part of) the" ++
-      pwords "solution was created in an erased context."
+    MetaErasedSolution m v  ->
+      fsep [ text "Cannot instantiate the metavariable"
+           , prettyTCM m
+           , "to solution"
+           , prettyTCM v
+           , "since (part of) the solution was created in an erased context"
+           ]
 
     BuiltinMustBeConstructor s e -> fsep $
       [prettyA e] ++ pwords "must be a constructor in the binding to builtin" ++ [pretty s]

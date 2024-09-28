@@ -139,8 +139,9 @@ tallyDef d = modifyOccursCheckDefs $ Set.delete d
 -- | Extra environment for the occurs check.  (Complements 'FreeEnv'.)
 data OccursExtra = OccursExtra
   { occUnfold  :: UnfoldStrategy
-  , occVars    :: VarMap          -- ^ The allowed variables with their variance.
-  , occMeta    :: MetaId          -- ^ The meta we want to solve.
+  , occMeta    :: MetaId          -- ^ The meta @m@ we want to solve.
+  , occVars    :: VarMap          -- ^ The allowed variables @xs@ with their variance.
+  , occRHS     :: Term            -- ^ The proposed solution @v@ for the meta (@m xs := v@).
   , occCxtSize :: Nat             -- ^ The size of the typing context upon invocation.
   }
 
@@ -197,7 +198,7 @@ definitionCheck d = do
         , "has relevance"
         , text . show $ getRelevance dmod
         ]
-      abort neverUnblock $ MetaIrrelevantSolution m $ Def d []
+      abort neverUnblock $ MetaIrrelevantSolution m $ occRHS $ feExtra cxt
     unless (er || usableQuantity dmod) $ do
       reportSDoc "tc.meta.occurs" 35 $ hsep
         [ "occursCheck: definition"
@@ -205,7 +206,7 @@ definitionCheck d = do
         , "has quantity"
         , text . show $ getQuantity dmod
         ]
-      abort neverUnblock $ MetaErasedSolution m $ Def d []
+      abort neverUnblock $ MetaErasedSolution m $ occRHS $ feExtra cxt
 
 metaCheck :: MetaId -> OccursM MetaId
 metaCheck m = do
@@ -387,10 +388,11 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
   n  <- getContextSize
   reportSDoc "tc.meta.occurs" 65 $ "occursCheck" <+> pretty m <+> text (show xs)
   let initEnv unf = FreeEnv
-        {  feExtra = OccursExtra
+        { feExtra = OccursExtra
           { occUnfold  = unf
-          , occVars    = xs
           , occMeta    = m
+          , occVars    = xs
+          , occRHS     = v
           , occCxtSize = n
           }
         , feFlexRig   = StronglyRigid -- ? Unguarded
@@ -398,7 +400,7 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
         , feSingleton = variableCheck xs
         }
   initOccursCheck mv
-  nicerErrorMessage $ do
+  do
     -- First try without normalising the term
     (occurs v `runReaderT` initEnv NoUnfold) `catchError` \err -> do
       -- If first run is inconclusive, try again with normalization
@@ -409,50 +411,6 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
           initOccursCheck mv
           occurs v `runReaderT` initEnv YesUnfold
         _ -> throwError err
-
-  where
-    -- Produce nicer error messages
-    nicerErrorMessage :: TCM a -> TCM a
-    nicerErrorMessage f = f `catchError` \ err -> case err of
-      TypeError _ _ cl -> case clValue cl of
-        MetaCannotDependOn _ i ->
-          ifM (isSortMeta m `and2M` (not <$> hasUniversePolymorphism))
-          ( typeError . GenericDocError =<<
-            fsep [ text "Cannot instantiate the metavariable"
-                 , prettyTCM m
-                 , "to"
-                 , prettyTCM v
-                 , "since universe polymorphism is disabled"
-                 ]
-          ) {- else -}
-          ( typeError . GenericDocError =<<
-              fsep [ text "Cannot instantiate the metavariable"
-                   , prettyTCM m
-                   , "to solution"
-                   , prettyTCM v
-                   , "since it contains the variable"
-                   , enterClosure cl $ \_ -> prettyTCM (Var i [])
-                   , "which is not in scope of the metavariable"
-                   ]
-            )
-        MetaIrrelevantSolution _ _ ->
-          typeError . GenericDocError =<<
-            fsep [ text "Cannot instantiate the metavariable"
-                 , prettyTCM m
-                 , "to solution"
-                 , prettyTCM v
-                 , "since (part of) the solution was created in an irrelevant context"
-                 ]
-        MetaErasedSolution _ _ ->
-          typeError . GenericDocError =<<
-            fsep [ text "Cannot instantiate the metavariable"
-                 , prettyTCM m
-                 , "to solution"
-                 , prettyTCM v
-                 , "since (part of) the solution was created in an erased context"
-                 ]
-        _ -> throwError err
-      _ -> throwError err
 
 instance Occurs Term where
   occurs v = do
@@ -495,7 +453,7 @@ instance Occurs Term where
                   -- could potentially be salvaged by eta expansion.
                   ifM (($ i) <$> allowedVars) -- vv TODO: neverUnblock is not correct! What could trigger this eta expansion though?
                       (patternViolation' neverUnblock 70 $ "Disallowed var " ++ show i ++ " due to modality/relevance")
-                      (strongly $ abort neverUnblock $ MetaCannotDependOn m i)
+                      (strongly $ abort neverUnblock $ MetaCannotDependOn m (occRHS $ feExtra ctx) i)
                 -- is a singleton type with unique inhabitant sv
                 (Just sv) -> return $ sv `applyE` es
           Lam h f     -> do

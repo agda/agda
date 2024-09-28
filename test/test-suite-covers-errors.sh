@@ -26,14 +26,6 @@ InternalError
 NonFatalErrors
 EOF
 
-# Errors that are transformed to other errors and thus not printed.
-#
-cat >> $ERRORS <<EOF
-MetaCannotDependOn
-MetaErasedSolution
-MetaIrrelevantSolution
-EOF
-
 # Errors of the double checker which should be impossible.
 #
 cat >> $ERRORS <<EOF

@@ -4844,10 +4844,15 @@ data TypeError
             -- ^ The two function types have different hiding.
         | UnequalSorts Sort Sort
         | NotLeqSort Sort Sort
-        | MetaCannotDependOn MetaId Nat
-            -- ^ The arguments are the meta variable and the parameter that it wants to depend on.
+        | MetaCannotDependOn MetaId Term Nat
+            -- ^ The arguments are the meta variable, the proposed solution,
+            --   and the parameter that it wants to depend on.
         | MetaIrrelevantSolution MetaId Term
+            -- ^ When solving @'MetaId' ... := 'Term'@,
+            --   part of the 'Term' is invalid as it was created in an irrelevant context.
         | MetaErasedSolution MetaId Term
+            -- ^ When solving @'MetaId' ... := 'Term'@,
+            --   part of the 'Term' is invalid as it was created in an erased context.
         | GenericError String
         | GenericDocError Doc
         | SortOfSplitVarError (Maybe Blocker) Doc
