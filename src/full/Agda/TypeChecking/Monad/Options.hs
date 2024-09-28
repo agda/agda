@@ -40,6 +40,7 @@ import Agda.Utils.FileName
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
@@ -104,7 +105,7 @@ setCommandLineOptions' root opts = do
           opts' <- setLibraryPaths root opts
           let incs = optIncludePaths opts'
           setIncludeDirs incs root
-          getIncludeDirs
+          List1.toList <$> getIncludeDirs
         incs -> return incs
       modifyTC $ Lens.setCommandLineOptions opts{ optAbsoluteIncludePaths = incs }
       setPragmaOptions (optPragmaOptions opts)
@@ -265,12 +266,9 @@ displayFormsEnabled = asksTC envDisplayFormsEnabled
 -- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
 -- 'setCommandLineOptions' must have run).
 
-getIncludeDirs :: HasOptions m => m [AbsolutePath]
+getIncludeDirs :: HasOptions m => m (List1 AbsolutePath)
 getIncludeDirs = do
-  incs <- optAbsoluteIncludePaths <$> commandLineOptions
-  case incs of
-    [] -> __IMPOSSIBLE__
-    _  -> return incs
+  List1.fromListSafe __IMPOSSIBLE__ . optAbsoluteIncludePaths <$> commandLineOptions
 
 -- | Makes the given directories absolute and stores them as include
 -- directories.
@@ -289,9 +287,9 @@ setIncludeDirs incs root = do
   oldIncs <- getsTC Lens.getAbsoluteIncludePaths
 
   -- Add the current dir if no include path is given
-  incs <- return $ if null incs then ["."] else incs
+  incs <- return $ List1.fromListSafe (List1.singleton ".") incs
   -- Make paths absolute
-  incs <- return $  map (mkAbsolute . (filePath root </>)) incs
+  incs <- return $ fmap (mkAbsolute . (filePath root </>)) incs
 
   -- Andreas, 2013-10-30  Add default include dir
       -- NB: This is an absolute file name, but
@@ -300,13 +298,13 @@ setIncludeDirs incs root = do
       -- We add the default dir at the end, since it is then
       -- printed last in error messages.
       -- Might also be useful to overwrite default imports...
-  incs <- return $ nubOn id $ incs ++ [primdir]
+  incs <- return $ List1.fromListSafe __IMPOSSIBLE__ $ nubOn id $ List1.toList $ incs <> List1.singleton primdir
 
   reportSDoc "setIncludeDirs" 10 $ return $ vcat
     [ "Old include directories:"
     , nest 2 $ vcat $ map pretty oldIncs
     , "New include directories:"
-    , nest 2 $ vcat $ map pretty incs
+    , nest 2 $ vcat $ fmap pretty incs
     ]
 
   -- Check whether the include dirs have changed.  If yes, reset state.
@@ -322,7 +320,7 @@ setIncludeDirs incs root = do
   -- up in a situation in which we use the contents of the file
   -- "old-path/M.agda", when the user actually meant
   -- "new-path/M.agda".
-  when (sort oldIncs /= sort incs) $ do
+  when (sort oldIncs /= sort (List1.toList incs)) $ do
     ho <- getInteractionOutputCallback
     tcWarnings <- useTC stTCWarnings -- restore already generated warnings
     projectConfs <- useTC stProjectConfigs  -- restore cached project configs & .agda-lib
@@ -337,7 +335,7 @@ setIncludeDirs incs root = do
     setDecodedModules keptDecodedModules
     setTCLens stModuleToSource modFile
 
-  Lens.putAbsoluteIncludePaths incs
+  Lens.putAbsoluteIncludePaths $ List1.toList incs
   where
   -- A decoded module is kept if its top-level module name is resolved
   -- to the same absolute path using the old and the new include
@@ -351,7 +349,7 @@ setIncludeDirs incs root = do
   -- ModuleToSource structure, constructed using the new include
   -- directories, is returned.
   modulesToKeep
-    :: [AbsolutePath]  -- New include directories.
+    :: List1 AbsolutePath -- New include directories.
     -> DecodedModules  -- Old decoded modules.
     -> TCM (DecodedModules, ModuleToSource)
   modulesToKeep incs old = process Map.empty Map.empty modules

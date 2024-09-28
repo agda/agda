@@ -51,6 +51,7 @@ import Agda.Utils.HashTable (HashTable)
 import qualified Agda.Utils.HashTable as H
 import Agda.Utils.IORef
 import Agda.Utils.Lens
+import Agda.Utils.List1 (List1)
 import Agda.Utils.Monad
 import Agda.Utils.Pointer
 import Agda.Utils.TypeLevel
@@ -232,7 +233,7 @@ data St = St
     --   Used to introduce sharing while deserializing objects.
   , modFile   :: !ModuleToSource
     -- ^ Maps module names to file names. Constructed by the decoder.
-  , includes  :: ![AbsolutePath]
+  , includes  :: !(List1 AbsolutePath)
     -- ^ The include directories.
   }
 

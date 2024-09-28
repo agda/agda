@@ -164,8 +164,8 @@ findFile' m = do
 
 -- | A variant of 'findFile'' which does not require 'TCM'.
 
-findFile''
-  :: [AbsolutePath]
+findFile'' ::
+     List1 AbsolutePath
   -- ^ Include paths.
   -> TopLevelModuleName
   -> ModuleToSource
@@ -186,7 +186,7 @@ findFile'' dirs m modFile =
   where
     fileList exts = mapM (fmap SourceFile . absolute)
                     [ filePath dir </> file
-                    | dir  <- dirs
+                    | dir  <- List1.toList dirs
                     , file <- map (moduleNameToFileName m) exts
                     ]
 
