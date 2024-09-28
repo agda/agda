@@ -50,6 +50,7 @@ telePiPath reAbs lams tel t bs = do
         _ -> typeError . GenericError . show =<<
              (text "The type is non-fibrant or its sort depends on an interval variable" <+> prettyTCM (unAbs b))
              -- TODO better Type Error
+             -- TODO #7413: reproducer for this error
     telePiPath :: [Int] -> Telescope -> TCM Type
     telePiPath []     EmptyTel          = pure $ t
     telePiPath (x:xs) (ExtendTel a tel)

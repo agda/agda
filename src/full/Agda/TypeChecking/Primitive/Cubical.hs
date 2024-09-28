@@ -1037,26 +1037,23 @@ trFillTel' flag delta phi args r = do
 --           -> ExceptT (Closure (Abs Type)) TCM [Term]
 -- hFillTel' b delta sides base = undefined
 
-pathTelescope
-  :: forall m. (PureTCM m, MonadError TCErr m) =>
-  Telescope -- Δ
-  -> [Arg Term] -- lhs : Δ
-  -> [Arg Term] -- rhs : Δ
+pathTelescope :: forall m. (PureTCM m, MonadError TCErr m)
+  => Telescope  -- ^ Δ
+  -> [Arg Term] -- ^ lhs : Δ
+  -> [Arg Term] -- ^ rhs : Δ
   -> m Telescope
 pathTelescope tel lhs rhs = do
-  x <- runExceptT (pathTelescope' tel lhs rhs)
-  case x of
+  runExceptT (pathTelescope' tel lhs rhs) >>= \case
     Left t -> do
       enterClosure t $ \ t ->
                  typeError . GenericDocError =<<
                     (text "The sort of" <+> pretty t <+> text "should be of the form \"Set l\"")
     Right tel -> return tel
 
-pathTelescope'
-  :: forall m. (PureTCM m, MonadError (Closure Type) m) =>
-  Telescope -- Δ
-  -> [Arg Term] -- lhs : Δ
-  -> [Arg Term] -- rhs : Δ
+pathTelescope' :: forall m. (PureTCM m, MonadError (Closure Type) m)
+  => Telescope  -- ^ Δ
+  -> [Arg Term] -- ^ lhs : Δ
+  -> [Arg Term] -- ^ rhs : Δ
   -> m Telescope
 pathTelescope' tel lhs rhs = do
   pathp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPathP
