@@ -263,11 +263,10 @@ getUniqueCompilerPragma backend q = do
   case ps of
     []  -> return Nothing
     [p] -> return $ Just p
-    (_:p1:_) ->
-      setCurrentRange p1 $
-            genericDocError =<< do
-                  hang (hsep [ "Conflicting", pretty backend, "pragmas for", pretty q, "at" ]) 2 $
-                       vcat [ "-" <+> pretty (getRange p) | p <- ps ]
+    _:p1:_ -> setCurrentRange p1 do
+      typeError . CustomBackendError backend =<< do
+        hang (hsep [ "Conflicting", pretty backend, "pragmas for", prettyTCM q, "at" ]) 2 $
+          vcat [ "-" <+> pretty (getRange p) | p <- ps ]
 
 setFunctionFlag :: FunctionFlag -> Bool -> QName -> TCM ()
 setFunctionFlag flag val q = modifyGlobalDefinition q $ set (lensTheDef . funFlag flag) val

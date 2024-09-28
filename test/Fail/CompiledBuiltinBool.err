@@ -1,4 +1,5 @@
-CompiledBuiltinBool.agda:12.1-52: error: [GenericDocError]
-Conflicting GHC pragmas for CompiledBuiltinBool.Bool at
-  - CompiledBuiltinBool.agda:7.1-26
-  - CompiledBuiltinBool.agda:12.1-52
+CompiledBuiltinBool.agda:11.1-52: error: [CustomBackendError]
+GHC:
+  Conflicting GHC pragmas for Bool at
+    - CompiledBuiltinBool.agda:6.1-26
+    - CompiledBuiltinBool.agda:11.1-52
