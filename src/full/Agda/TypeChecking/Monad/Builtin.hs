@@ -4,8 +4,6 @@ module Agda.TypeChecking.Monad.Builtin
   , module Agda.Syntax.Builtin  -- The names are defined here.
   ) where
 
-import qualified Control.Monad.Fail as Fail
-
 import Control.Monad                ( liftM2, void )
 import Control.Monad.Except
 import Control.Monad.IO.Class       ( MonadIO(..) )
@@ -74,7 +72,7 @@ instance MonadIO m => HasBuiltins (TCMT m) where
 newtype BuiltinAccess a = BuiltinAccess { unBuiltinAccess :: TCState -> a }
   deriving (Functor, Applicative, Monad)
 
-instance Fail.MonadFail BuiltinAccess where
+instance MonadFail BuiltinAccess where
   fail msg = BuiltinAccess $ \_ -> error msg
 
 instance HasBuiltins BuiltinAccess where

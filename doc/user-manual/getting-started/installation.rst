@@ -301,8 +301,15 @@ Agda and Haskell
 Tested GHC Versions
 ^^^^^^^^^^^^^^^^^^^
 
-Agda has been tested with GHC 8.6.5, 8.8.4, 8.10.7, 9.0.2, 9.2.8, 9.4.8, 9.6.6,
-9.8.2, and GHC 9.10.1.
+Agda has been tested with GHC
+8.8.4,
+8.10.7,
+9.0.2,
+9.2.8,
+9.4.8,
+9.6.6,
+9.8.2 and
+9.10.1.
 
 
 .. _installation-flags:

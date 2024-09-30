@@ -11,7 +11,6 @@ module Agda.Utils.ListT where
 
 import Control.Applicative ( Alternative((<|>), empty) )
 import Control.Monad
-import Control.Monad.Fail as Fail
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.IO.Class ( MonadIO(..) )

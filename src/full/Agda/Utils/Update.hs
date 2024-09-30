@@ -16,9 +16,6 @@ module Agda.Utils.Update
   , Updater2(..)
   ) where
 
--- Control.Monad.Fail import is redundant since GHC 8.8.1
-import Control.Monad.Fail (MonadFail)
-
 import Control.Monad.Identity
 import Control.Monad.Trans
 import Control.Monad.Trans.Control

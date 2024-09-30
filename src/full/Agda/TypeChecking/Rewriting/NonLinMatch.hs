@@ -29,8 +29,6 @@ import Control.Monad        ( void )
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
 import Control.Monad.State  ( MonadState, StateT, runStateT )
 
-import qualified Control.Monad.Fail as Fail
-
 import Data.Maybe
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -70,7 +68,7 @@ import Agda.Utils.Impossible
 
 -- | Monad for non-linear matching.
 newtype NLM a = NLM { unNLM :: ExceptT Blocked_ (StateT NLMState ReduceM) a }
-  deriving ( Functor, Applicative, Monad, Fail.MonadFail
+  deriving ( Functor, Applicative, Monad, MonadFail
            , Alternative, MonadPlus
            , MonadError Blocked_, MonadState NLMState
            , HasBuiltins, HasConstInfo, HasOptions, ReadTCState

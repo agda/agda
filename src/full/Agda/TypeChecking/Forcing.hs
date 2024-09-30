@@ -64,7 +64,6 @@ module Agda.TypeChecking.Forcing
     nextIsForced ) where
 
 import Control.Monad
-import Control.Monad.Fail
 import Control.Monad.Reader
 import Control.Monad.State
 

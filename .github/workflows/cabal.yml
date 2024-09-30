@@ -114,7 +114,6 @@ jobs:
         - 9.0.2
         - 8.10.7
         - 8.8.4
-        - 8.6.5
         include:
         - cabal-flags: --disable-tests
           description: Linux doctest

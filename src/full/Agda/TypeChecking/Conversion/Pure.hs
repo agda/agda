@@ -1,9 +1,6 @@
 
 module Agda.TypeChecking.Conversion.Pure where
 
--- Control.Monad.Fail import is redundant since GHC 8.8.1
-import Control.Monad.Fail (MonadFail)
-
 import Control.Monad.Except
 import Control.Monad.State
 

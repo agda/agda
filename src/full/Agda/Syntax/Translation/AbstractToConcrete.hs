@@ -31,8 +31,6 @@ import Control.Monad.Except ( runExceptT )
 import Control.Monad.Reader ( MonadReader(..), asks, runReaderT )
 import Control.Monad.State  ( StateT(..), runStateT )
 
-import qualified Control.Monad.Fail as Fail
-
 import Data.Bifunctor       ( first )
 import qualified Data.Map as Map
 import Data.Maybe
@@ -236,11 +234,8 @@ instance Monad AbsToCon where
   -- ASR (2021-02-07). The eta-expansion @\m' -> unAbsToCon m'@ is
   -- required by GHC >= 9.0.1 (see Issue #4955).
   m >>= f = AbsToCon $ unAbsToCon m >>= (\m' -> unAbsToCon m'). f
-#if __GLASGOW_HASKELL__ < 808
-  fail = Fail.fail
-#endif
 
-instance Fail.MonadFail AbsToCon where
+instance MonadFail AbsToCon where
   fail = error
 
 instance MonadReader Env AbsToCon where

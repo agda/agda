@@ -7,7 +7,8 @@ Highlights
 Installation
 ------------
 
-* Agda supports GHC versions 8.6.5 to 9.10.1.
+* Dropped support for GHC 8.6.
+* Agda supports GHC versions 8.8.4 to 9.10.1.
 
 Pragmas and options
 -------------------

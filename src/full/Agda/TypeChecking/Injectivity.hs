@@ -43,7 +43,6 @@ module Agda.TypeChecking.Injectivity where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Except
-import Control.Monad.Fail
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Trans.Maybe

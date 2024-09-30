@@ -17,8 +17,6 @@ import qualified Control.Concurrent as C
 import Control.DeepSeq
 import qualified Control.Exception as E
 
-import qualified Control.Monad.Fail as Fail
-
 import Control.Monad                ( void )
 import Control.Monad.Except
 import Control.Monad.Fix
@@ -5419,7 +5417,7 @@ instance Monad ReduceM where
   (>>=) = bindReduce
   (>>) = (*>)
 
-instance Fail.MonadFail ReduceM where
+instance MonadFail ReduceM where
   fail = error
 
 instance ReadTCState ReduceM where
@@ -5663,7 +5661,7 @@ class Monad m => MonadBlock m where
 
 newtype BlockT m a = BlockT { unBlockT :: ExceptT Blocker m a }
   deriving ( Functor, Applicative, Monad, MonadTrans -- , MonadTransControl -- requires GHC >= 8.2
-           , MonadIO, Fail.MonadFail
+           , MonadIO, MonadFail
            , ReadTCState, HasOptions
            , MonadTCEnv, MonadTCState, MonadTCM
            )
@@ -5759,7 +5757,7 @@ instance Monad m => Monad (TCMT m) where
     (>>=)  = bindTCMT; {-# INLINE (>>=) #-}
     (>>)   = (*>); {-# INLINE (>>) #-}
 
-instance (CatchIO m, MonadIO m) => Fail.MonadFail (TCMT m) where
+instance (CatchIO m, MonadIO m) => MonadFail (TCMT m) where
   fail = internalError
 
 instance MonadIO m => MonadIO (TCMT m) where
