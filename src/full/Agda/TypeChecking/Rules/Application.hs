@@ -59,6 +59,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings (warning)
 
 import Agda.Utils.Either
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List  ( (!!!), initWithDefault )
@@ -74,20 +75,42 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 
------------------------------------------------------------------------------
--- * Applications
------------------------------------------------------------------------------
+---------------------------------------------------------------------------
+-- * Data structures for checking arguments
+---------------------------------------------------------------------------
 
 -- | Ranges of checked arguments, where present.
 type MaybeRanges = [Maybe Range]
 
-acHeadConstraints :: (Elims -> Term) -> ArgsCheckState a -> [Constraint]
-acHeadConstraints hd ACState{acElims = es, acConstraints = cs} = go hd es cs
+acElims :: ArgsCheckState a -> [Elim]
+acElims = map caElim . acCheckedArgs
+
+acRanges :: ArgsCheckState a -> MaybeRanges
+acRanges = map caRange . acCheckedArgs
+
+setACElims :: [Elim] -> ArgsCheckState a -> ArgsCheckState a
+setACElims es st = st{ acCheckedArgs = go es (acCheckedArgs st) }
   where
-    go hd [] [] = []
-    go hd (e : es) (c : cs) = maybe id (\ c -> (lazyAbsApp c (hd []) :)) c $ go (hd . (e :)) es cs
-    go _  [] (_:_) = __IMPOSSIBLE__
-    go _  (_:_) [] = __IMPOSSIBLE__
+    go [] [] = []
+    go (e : es) (ca : cas) = ca{ caElim = e } : go es cas
+    go _ _ = __IMPOSSIBLE__
+
+-- | A checked argument without constraint or range.
+defaultCheckedArg :: Elim -> CheckedArg
+defaultCheckedArg e = CheckedArg { caElim = e, caRange = Nothing, caConstraint = Nothing }
+
+-----------------------------------------------------------------------------
+-- * Applications
+-----------------------------------------------------------------------------
+
+acHeadConstraints :: (Elims -> Term) -> ArgsCheckState a -> [Constraint]
+acHeadConstraints hd = go hd . acCheckedArgs
+  where
+    go :: (Elims -> Term) -> [CheckedArg] -> [Constraint]
+    go hd = \case
+      [] -> []
+      CheckedArg e _ mc : cas -> applyWhenJust mc (\ c -> (lazyAbsApp c (hd []) :)) $
+        go (hd . (e :)) cas
 
 checkHeadConstraints :: (Elims -> Term) -> ArgsCheckState a -> TCM Term
 checkHeadConstraints hd st = do
@@ -429,17 +452,16 @@ checkHeadApplication cmp e t hd args = do
   defaultResult' mk = do
     (f, t0) <- inferHead hd
     expandLast <- asksTC envExpandLast
-    checkArguments cmp expandLast (getRange hd) args t0 t $ \ st@(ACState rs vs _ t1 checkedTarget) -> do
-      let check = do
-           k <- mk
-           as <- allApplyElims vs
-           pure $ k rs as t1
-      vs <- case check of
-              Just ck -> do
-                map Apply <$> ck
-              Nothing -> do
-                return vs
-      v <- unfoldInlined =<< checkHeadConstraints f (st { acElims = vs })
+    checkArguments cmp expandLast (getRange hd) args t0 t $ \ st@(ACState cas t1 checkedTarget) -> do
+      let check :: Maybe (TCM Args)
+          check = do
+            k <- mk
+            vs <- allApplyElims $ map caElim cas
+            pure $ k (map caRange cas) vs t1
+      st' <- case check of
+               Just ck -> (`setACElims` st) . map Apply <$> ck
+               Nothing -> pure st
+      v <- unfoldInlined =<< checkHeadConstraints f st'
       coerce' cmp checkedTarget v t1 t
 
 -- Issue #3019 and #4170: Don't insert trailing implicits when checking arguments to existing
@@ -528,17 +550,17 @@ data SkipCheck
     -- ^ Skip the given number of checks.
   | DontSkip
 
+type CheckArgumentsE' = ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM (ArgsCheckState CheckedTarget)
+
 checkArgumentsE'
   :: CheckArgumentsE'State
-  -> ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM (ArgsCheckState CheckedTarget)
+  -> CheckArgumentsE'
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
 checkArgumentsE' S{ sArgs = [], .. }
   | isDontExpandLast sExpand =
     return $ ACState
-      { acRanges      = []
-      , acElims       = []
-      , acConstraints = []
+      { acCheckedArgs = []
       , acType        = sFun
       , acData        = sChecked
       }
@@ -549,9 +571,7 @@ checkArgumentsE' S{ sArgs = [], .. } =
     sApp    <- traverse (unEl <.> reduce) sApp
     (us, t) <- implicitArgs (-1) (expand sApp) sFun
     return $ ACState
-      { acRanges      = replicate (length us) Nothing
-      , acElims       = map Apply us
-      , acConstraints = replicate (length us) Nothing
+      { acCheckedArgs = map (defaultCheckedArg . Apply) us
       , acType        = t
       , acData        = sChecked
       }
@@ -604,9 +624,7 @@ checkArgumentsE'
       -- We are done inserting implicit args.  Now, try to check @arg@.
       ifBlocked sFun
         (\_ sFun -> throwError $ ACState
-            { acRanges      = replicate (length us) Nothing
-            , acElims       = us
-            , acConstraints = replicate (length us) Nothing
+            { acCheckedArgs = map defaultCheckedArg us
             , acType        = sFun
             , acData        = map fst sArgs
             }) $ \_ sFun -> do
@@ -765,7 +783,8 @@ checkArgumentsE'
                   addContext (defaultDom $ sFun) $
                   maybe (text "nothing") (prettyTCM . absBody) c
                 -- save relevance info' from domain in argument
-                addCheckedArgs us (getRange e) (Apply $ Arg info' u) c $
+                let ca = CheckedArg{ caElim = Apply (Arg info' u), caRange = Just (getRange e), caConstraint = c }
+                addCheckedArgs us ca $
                   checkArgumentsE' s{ sFun = absApp b u }
             | otherwise -> do
                 reportSDoc "error" 10 $ nest 2 $ vcat
@@ -780,7 +799,12 @@ checkArgumentsE'
             , PathType sort _ _ bA x y <- sPathView sFun -> do
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
                 u <- lift $ checkExpr (namedThing e) =<< primIntervalType
-                addCheckedArgs us (getRange e) (IApply (unArg x) (unArg y) u) Nothing $
+                let ca = CheckedArg
+                     { caElim       = IApply (unArg x) (unArg y) u
+                     , caRange      = Just (getRange e)
+                     , caConstraint = Nothing
+                     }
+                addCheckedArgs us ca $
                   checkArgumentsE'
                     s{ sChecked = NotCheckedTarget
                      , sFun     = El sort $ unArg bA `apply` [argN u]
@@ -788,15 +812,16 @@ checkArgumentsE'
           _ -> shouldBePi
   where
     -- Andrea: Here one would add constraints too.
-    addCheckedArgs us r u c rec = do
-        st@ACState{acRanges = rs, acElims = vs} <- rec
-        let rs' = replicate (length us) Nothing ++ Just r : rs
-            cs' = replicate (length us) Nothing ++ c : acConstraints st
-        return $ st { acRanges = rs', acElims = us ++ u : vs, acConstraints = cs' }
-      `catchError` \ st@ACState{acRanges = rs, acElims = vs} -> do
-          let rs' = replicate (length us) Nothing ++ Just r : rs
-              cs' = replicate (length us) Nothing ++ c : acConstraints st
-          throwError $ st { acRanges = rs', acElims = us ++ u : vs, acConstraints = cs' }
+    addCheckedArgs ::
+         Elims
+      -> CheckedArg
+      -> CheckArgumentsE'
+      -> CheckArgumentsE'
+    addCheckedArgs us ca cont = do
+      let upd :: ArgsCheckState a -> ArgsCheckState a
+          upd st = st{ acCheckedArgs = map defaultCheckedArg us ++ ca : acCheckedArgs st }
+      -- Add checked arguments to both regular and exceptional result of @cont@.
+      withError upd $ upd <$> cont
 
 -- | The result of 'isRigid'.
 
@@ -868,11 +893,11 @@ checkArguments_ cmp exh r args tel = postponeInstanceConstraints $ do
     z <- runExceptT $
       checkArgumentsE cmp exh r args (telePi tel __DUMMY_TYPE__) Nothing
     case z of
-      Right (ACState _ args cs t _) | all isNothing cs -> do
+      Right (ACState cas t _) -> do
+        unless (all (isNothing . caConstraint) cas) do
+          typeError $ GenericError $ "Head constraints are not (yet) supported in this position."
         let TelV tel' _ = telView' t
-        return (args, tel')
-                                    | otherwise -> do
-        typeError $ GenericError $ "Head constraints are not (yet) supported in this position."
+        return (map caElim cas, tel')
       Left _ -> __IMPOSSIBLE__  -- type cannot be blocked as it is generated by telePi
 
 -- | @checkArguments cmp exph r args t0 t k@ tries @checkArgumentsE exph args t0 t@.
@@ -895,17 +920,19 @@ checkArguments cmp exph r args t0 t k = postponeInstanceConstraints $ do
 
 postponeArgs :: (ArgsCheckState [NamedArg A.Expr]) -> Comparison -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type ->
                 (ArgsCheckState CheckedTarget -> TCM Term) -> TCM Term
-postponeArgs (ACState rs us cs t0 es) cmp exph r args t k = do
+postponeArgs (ACState cas t0 es) cmp exph r args t k = do
   reportSDoc "tc.term.expr.args" 80 $
     sep [ "postponed checking arguments"
         , nest 4 $ prettyList (map (prettyA . namedThing . unArg) args)
         , nest 2 $ "against"
         , nest 4 $ prettyTCM t0 ] $$
     sep [ "progress:"
-        , nest 2 $ "checked" <+> prettyList (map prettyTCM us)
+        , nest 2 $ "checked" <+> prettyList (map (prettyTCM . caElim) cas)
         , nest 2 $ "remaining" <+> sep [ prettyList (map (prettyA . namedThing . unArg) es)
                                             , nest 2 $ ":" <+> prettyTCM t0 ] ]
-  postponeTypeCheckingProblem_ (CheckArgs cmp exph r es t0 t $ \ (ACState rs' vs cs' t pid) -> k $ ACState (rs ++ rs') (us ++ vs) (cs ++ cs') t pid)
+  postponeTypeCheckingProblem_ $
+    CheckArgs cmp exph r es t0 t $ \ (ACState cas' t pid) ->
+      k $ ACState (cas ++ cas') t pid
 
 -----------------------------------------------------------------------------
 -- * Constructors
@@ -971,7 +998,7 @@ checkConstructorApplication cmp org t c args = do
                args' = dropArgs pnames args
            -- check the non-parameter arguments
            expandLast <- asksTC envExpandLast
-           checkArguments cmp expandLast (getRange c) args' ctype' t $ \ st@(ACState _ _ _ t' targetCheck) -> do
+           checkArguments cmp expandLast (getRange c) args' ctype' t $ \ st@(ACState _ t' targetCheck) -> do
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
                [ text "es     =" <+> prettyTCM es
                , text "t'     =" <+> prettyTCM t' ]
@@ -1406,7 +1433,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
               args' = drop (k + 1) args
           z <- runExceptT $ checkArgumentsE cmp ExpandLast r args' tb (snd <$> mt)
           case z of
-            Right st@(ACState _ _ _ trest targetCheck) -> do
+            Right st@(ACState _ trest targetCheck) -> do
               v <- checkHeadConstraints (u `applyE`) st
               return (v, trest, targetCheck)
             Left problem -> do
@@ -1414,7 +1441,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
               -- To create a postponed type checking problem,
               -- we do not use typeDontCare, but create a meta.
               tc <- caseMaybe mt newTypeMeta_ (return . snd)
-              v  <- postponeArgs problem cmp ExpandLast r args' tc $ \ st@(ACState _ _ _ trest targetCheck) -> do
+              v  <- postponeArgs problem cmp ExpandLast r args' tc $ \ st@(ACState _ trest targetCheck) -> do
                       v <- checkHeadConstraints (u `applyE`) st
                       coerce' cmp targetCheck v trest tc
 

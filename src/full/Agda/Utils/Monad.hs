@@ -1,6 +1,10 @@
+{-# LANGUAGE CPP #-}
 
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad
+#if MIN_VERSION_mtl(2,3,1)
+    , module X
+#endif
     , when, unless, MonadPlus(..)
     , (<$>), (<*>), (<$!>)
     , (<$)
@@ -27,6 +31,26 @@ import Agda.Utils.Null (empty, ifNotNullM)
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
+
+---------------------------------------------------------------------------
+-- Vendor some new functions from mtl-2.3.1
+
+#if MIN_VERSION_mtl(2,3,1)
+import Control.Monad.Except as X ( tryError, withError )
+#endif
+
+#if !MIN_VERSION_mtl(2,3,1)
+-- | 'MonadError' analogue to the 'Control.Exception.try' function.
+tryError :: MonadError e m => m a -> m (Either e a)
+tryError action = (Right <$> action) `catchError` (pure . Left)
+
+-- | 'MonadError' analogue to the 'withExceptT' function.
+-- Modify the value (but not the type) of an error.  The type is
+-- fixed because of the functional dependency @m -> e@.  If you need
+-- to change the type of @e@ use 'mapError' or 'modifyError'.
+withError :: MonadError e m => (e -> e) -> m a -> m a
+withError f action = tryError action >>= either (throwError . f) pure
+#endif
 
 ---------------------------------------------------------------------------
 

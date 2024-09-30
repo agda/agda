@@ -4252,21 +4252,25 @@ instance HasOverlapMode Candidate where
 -- ** Checking arguments
 ---------------------------------------------------------------------------
 
-data ArgsCheckState a = ACState
-       { acRanges :: [Maybe Range]
-         -- ^ Ranges of checked arguments, where present.
-         -- e.g. inserted implicits have no correponding abstract syntax.
-       , acElims  :: Elims
-         -- ^ Checked and inserted arguments so far.
-       , acConstraints :: [Maybe (Abs Constraint)]
-         -- ^ Constraints for the head so far,
-         -- i.e. before applying the correponding elim.
-       , acType   :: Type
-         -- ^ Type for the rest of the application.
-       , acData   :: a
-       }
-  deriving (Show)
+data CheckedArg = CheckedArg
+  { caElim        :: Elim
+      -- ^ Checked and inserted argument.
+  , caRange       :: Maybe Range
+      -- ^ Range of checked argument, where present.
+      --   E.g. inserted implicits have no correponding abstract syntax.
+  , caConstraint  :: Maybe (Abs Constraint)
+      -- ^ Head constraint before applying the argument.
+  }
+  deriving Show
 
+data ArgsCheckState a = ACState
+  { acCheckedArgs :: [CheckedArg]
+      -- ^ Checked and inserted arguments so far.
+  , acType        :: Type
+      -- ^ Type for the rest of the application.
+  , acData        :: a
+  }
+  deriving Show
 
 ---------------------------------------------------------------------------
 -- * Type checking warnings (aka non-fatal errors)
