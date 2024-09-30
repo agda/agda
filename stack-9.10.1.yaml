@@ -1,4 +1,4 @@
-resolver: nightly-2024-07-13
+resolver: nightly-2024-09-30
 compiler: ghc-9.10.1
 compiler-check: match-exact
 
