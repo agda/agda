@@ -110,12 +110,20 @@ jobs:
       matrix:
         ghc-ver:
         - 9.10.1
+        - 9.8.2
+        - 9.6.6
+        - 9.4.8
+        - 9.2.8
+        - 9.0.2
+        - 8.10.7
+        - 8.8.4
         include:
+        - ghc-ver: 9.10.1
+          os: macos-14
         - ghc-ver: 9.10.1
           os: windows-2022
         os:
         - ubuntu-24.04
-        - macos-14
     timeout-minutes: 60
 name: Build (stack)
 'on':
@@ -124,7 +132,7 @@ name: Build (stack)
     - .github/workflows/stack.yml
     - Agda.cabal
     - Setup.hs
-    - stack-9.10.1.yaml
+    - stack-*.yaml
     - src/size-solver/size-solver.cabal
   push:
     branches:
@@ -135,6 +143,6 @@ name: Build (stack)
     - .github/workflows/stack.yml
     - Agda.cabal
     - Setup.hs
-    - stack-9.10.1.yaml
+    - stack-*.yaml
     - src/size-solver/size-solver.cabal
   workflow_dispatch: null
