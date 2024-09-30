@@ -1,10 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE CPP             #-}
 
-#if  __GLASGOW_HASKELL__ > 800
 {-# OPTIONS_GHC -Wno-error=missing-signatures #-}
-#endif
-{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# OPTIONS_GHC -Wno-missing-signatures #-}
 
 module Internal.Utils.SmallSet ( tests ) where
 
