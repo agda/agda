@@ -1,23 +1,11 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > -- used args: _ _ _ _ e f g
-out > UnusedArguments.maybe[stripped] =
-out >   λ a b c →
-out >     case c of
-out >       Common.Maybe.Maybe.nothing → a
-out >       Common.Maybe.Maybe.just d → b d
 out > UnusedArguments.maybe =
 out >   λ _ _ _ _ a b c →
 out >     case c of
 out >       Common.Maybe.Maybe.nothing → a
 out >       Common.Maybe.Maybe.just d → b d
-out > -- used args: _ _ _ _ e f
-out > UnusedArguments.mapMaybe[stripped] =
-out >   λ a b →
-out >     UnusedArguments.maybe
-out >       _ _ _ _ Common.Maybe.Maybe.nothing
-out >       (λ c → Common.Maybe.Maybe.just (a c)) b
 out > UnusedArguments.mapMaybe =
 out >   λ _ _ _ _ a b →
 out >     UnusedArguments.maybe
@@ -25,13 +13,6 @@ out >       _ _ _ _ Common.Maybe.Maybe.nothing
 out >       (λ c → Common.Maybe.Maybe.just (a c)) b
 out > UnusedArguments.maybeToNat =
 out >   λ a → UnusedArguments.maybe _ _ _ _ 0 (λ b → b) a
-out > -- used args: _ _ c d e
-out > UnusedArguments.foldr[stripped] =
-out >   λ a b c →
-out >     case c of
-out >       Agda.Builtin.List.List.[] → b
-out >       Agda.Builtin.List.List._∷_ d e →
-out >         a d (UnusedArguments.foldr _ _ a b e)
 out > UnusedArguments.foldr =
 out >   λ _ _ a b c →
 out >     case c of

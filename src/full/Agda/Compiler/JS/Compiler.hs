@@ -431,20 +431,8 @@ definition' kit q d t ls =
           eliminateLiteralPatterns
           (convertGuards treeless)
         reportSDoc "compile.js" 30 $ " compiled treeless fun:" <+> pretty funBody
-        reportSDoc "compile.js" 40 $ " argument usage:" <+> (text . show) used
 
-        let (body, given) = lamView funBody
-              where
-                lamView :: T.TTerm -> (T.TTerm, Int)
-                lamView (T.TLam t) = (+ 1) <$> lamView t
-                lamView t = (t, 0)
-
-            -- number of eta expanded args
-            etaN = length $ dropWhileEnd (== ArgUsed) $ drop given used
-
-        funBody' <- compileTerm kit
-                  $ iterate' (given + etaN) T.TLam
-                  $ T.mkTApp (raise etaN body) (T.TVar <$> downFrom etaN)
+        funBody' <- compileTerm kit funBody
 
         reportSDoc "compile.js" 30 $ " compiled JS fun:" <+> (text . show) funBody'
         return $
@@ -477,30 +465,19 @@ definition' kit q d t ls =
     Constructor{conData = p, conPars = nc} -> do
       TelV tel _ <- telViewPath t
       let np = length (telToList tel) - nc
-      erased <- getErasedConArgs q
-      let nargs = np - length (filter id erased)
+      let nargs = np
           args = [ Local $ LocalId $ nargs - i | i <- [0 .. nargs-1] ]
       d <- getConstInfo p
       let l = List1.last ls
       case theDef d of
         Record { recFields = flds } -> ret $ curriedLambda nargs $
-          if optJSOptimize (fst kit)
-            then Lambda 1 $ Apply (Local (LocalId 0)) args
-            else Object $ Map.singleton l $ Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args
+          Object $ Map.singleton l $ Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args
         dt -> do
           i <- index
           ret $ curriedLambda (nargs + 1) $ Apply (Lookup (Local (LocalId 0)) i) args
           where
             index :: TCM MemberId
-            index
-              | Datatype{} <- dt
-              , optJSOptimize (fst kit) = do
-                  q  <- canonicalName q
-                  cs <- mapM canonicalName $ defConstructors dt
-                  case q `elemIndex` cs of
-                    Just i  -> return $ MemberIndex i (mkComment l)
-                    Nothing -> __IMPOSSIBLE_VERBOSE__ $ unwords [ "Constructor", prettyShow q, "not found in", prettyShow cs ]
-              | otherwise = return l
+            index = return l
             mkComment (MemberId s) = Comment s
             mkComment _ = mempty
 
@@ -537,22 +514,6 @@ compileTerm kit t = go t
         return $ Object $ Map.fromListWith __IMPOSSIBLE__
           [(flatName, PlainJS evalThunk)
           ,(MemberId "__flat_helper", Lambda 0 x)]
-      T.TApp t' xs | Just f <- getDef t' -> do
-        used <- case f of
-          Left  q -> fromMaybe [] <$> getCompiledArgUse q
-          Right c -> map (\ b -> if b then ArgUnused else ArgUsed) <$> getErasedConArgs c
-            -- Andreas, 2021-02-10 NB: could be @map (bool ArgUsed ArgUnused)@
-            -- but I find it unintuitive that 'bool' takes the 'False'-branch first.
-        let given = length xs
-
-            -- number of eta expanded args
-            etaN = length $ dropWhile (== ArgUsed) $ reverse $ drop given used
-
-            args = filterUsed used $
-                     raise etaN xs ++ (T.TVar <$> downFrom etaN)
-
-        curriedLambda etaN <$> (curriedApply <$> go (raise etaN t') <*> mapM go args)
-
       T.TApp t xs -> do
             curriedApply <$> go t <*> mapM go xs
       T.TLam t -> Lambda 1 <$> go t
@@ -571,13 +532,9 @@ compileTerm kit t = go t
         case (theDef dt, defJSDef dt) of
           (_, Just e) -> do
             return $ apply (PlainJS e) [Local (LocalId sc), obj]
-          (Record{}, _) | optJSOptimize (fst kit) -> do
-            return $ apply (Local $ LocalId sc) [snd $ headWithDefault __IMPOSSIBLE__ alts']
           (Record{}, _) -> do
             memId <- visitorName $ recCon $ theDef dt
             return $ apply (Lookup (Local $ LocalId sc) memId) [obj]
-          (Datatype{}, _) | optJSOptimize (fst kit) -> do
-            return $ curriedApply (Local (LocalId sc)) [arr]
           (Datatype{}, _) -> do
             return $ curriedApply (Local (LocalId sc)) [obj]
           _ -> __IMPOSSIBLE__
@@ -637,17 +594,11 @@ compilePrim p =
 compileAlt :: EnvWithOpts -> T.TAlt -> TCM ((QName, MemberId), Exp)
 compileAlt kit = \case
   T.TACon con ar body -> do
-    erased <- getErasedConArgs con
-    let nargs = ar - length (filter id erased)
+    let nargs = ar
     memId <- visitorName con
-    body <- Lambda nargs <$> compileTerm kit (eraseLocalVars erased body)
+    body <- Lambda nargs <$> compileTerm kit body
     return ((con, memId), body)
   _ -> __IMPOSSIBLE__
-
-eraseLocalVars :: [Bool] -> T.TTerm -> T.TTerm
-eraseLocalVars [] x = x
-eraseLocalVars (False: es) x = eraseLocalVars es x
-eraseLocalVars (True: es) x = eraseLocalVars es (TC.subst (length es) T.TErased x)
 
 visitorName :: QName -> TCM MemberId
 visitorName q = do (m,ls) <- global q; return (List1.last ls)
