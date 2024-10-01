@@ -252,7 +252,7 @@ data DisambiguatedName = DisambiguatedName NameKind A.QName
   deriving Generic
 type DisambiguatedNames = IntMap DisambiguatedName
 
-type ConcreteNames = Map Name [C.Name]
+type ConcreteNames = Map Name (List1 C.Name)
 
 data PostScopeState = PostScopeState
   { stPostSyntaxInfo          :: !HighlightingInfo
@@ -471,7 +471,7 @@ initPostScopeState = PostScopeState
   , stPostImportsDisplayForms  = HMap.empty
   , stPostCurrentModule        = empty
   , stPostPendingInstances     = Set.empty
-  , stPostTemporaryInstances     = Set.empty
+  , stPostTemporaryInstances   = Set.empty
   , stPostConcreteNames        = Map.empty
   , stPostUsedNames            = Map.empty
   , stPostShadowingNames       = Map.empty

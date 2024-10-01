@@ -414,7 +414,7 @@ lookupNameInScope y =
 -- | Have we already committed to a specific concrete name for this
 --   abstract name? If yes, return the concrete name(s).
 hasConcreteNames :: (MonadStConcreteNames m) => A.Name -> m [C.Name]
-hasConcreteNames x = Map.findWithDefault [] x <$> useConcreteNames
+hasConcreteNames x = maybe [] List1.toList . Map.lookup x <$> useConcreteNames
 
 -- | Commit to a specific concrete name for printing the given
 --   abstract name. If the abstract name already has associated
@@ -422,9 +422,9 @@ hasConcreteNames x = Map.findWithDefault [] x <$> useConcreteNames
 ---  names are shadowed. Precondition: the abstract name should be in
 --   scope.
 pickConcreteName :: (MonadStConcreteNames m) => A.Name -> C.Name -> m ()
-pickConcreteName x y = modifyConcreteNames $ flip Map.alter x $ \case
-    Nothing   -> Just $ [y]
-    (Just ys) -> Just $ ys ++ [y]
+pickConcreteName x y = modifyConcreteNames $ flip Map.alter x $ Just . \case
+    Nothing -> singleton y
+    Just ys -> List1.snoc (List1.toList ys) y
 
 -- | For the given abstract name, return the names that could shadow it.
 shadowingNames :: (ReadTCState m, MonadStConcreteNames m)
@@ -435,7 +435,7 @@ shadowingNames x =
 
 toConcreteName :: A.Name -> AbsToCon C.Name
 toConcreteName x | y <- nameConcrete x , isNoName y = return y
-toConcreteName x = (Map.findWithDefault [] x <$> useConcreteNames) >>= loop
+toConcreteName x = hasConcreteNames x >>= loop
   where
     -- case: we already have picked some name(s) for x
     loop (y:ys) = ifM (isGoodName x y) (return y) (loop ys)
