@@ -165,7 +165,7 @@ checkDecl d = setCurrentRange d $ do
       A.DataDef i x uc ps cs   -> impossible $ check x i $ checkDataDef i x uc ps cs
       A.RecDef i x uc dir ps tel cs -> impossible $ check x i $ do
                                     checkRecDef i x uc dir ps tel cs
-                                    blockId <- mutualBlockOf x
+                                    blockId <- defMutual <$> getConstInfo x
 
                                     -- Andreas, 2016-10-01 testing whether
                                     -- envMutualBlock is set correctly.

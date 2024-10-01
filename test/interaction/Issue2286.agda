@@ -3,7 +3,6 @@
 -- {-# OPTIONS -v interaction.give:40 #-}
 -- {-# OPTIONS -v tc.term.expr:40 #-}
 -- {-# OPTIONS -v tc.meta:40 #-}
--- {-# OPTIONS -v 10 #-}
 
 data Nat : Set where
   zero : Nat

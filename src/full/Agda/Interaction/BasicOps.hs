@@ -185,7 +185,7 @@ redoChecks (Just ii) = do
   case ipClause ip of
     IPNoClause -> return ()
     IPClause{ipcQName = f} -> do
-      mb <- mutualBlockOf f
+      mb <- defMutual <$> getConstInfo f
       terErrs <- localTC (\ e -> e { envMutualBlock = Just mb }) $ termMutual []
       List1.unlessNull terErrs $ warning . TerminationIssue
   -- TODO redo positivity check!
