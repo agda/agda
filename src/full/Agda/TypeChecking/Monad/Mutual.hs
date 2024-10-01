@@ -33,15 +33,6 @@ inMutualBlock m = do
     -- Don't create a new mutual block if we're already inside one.
     Just i -> m i
 
--- | Set the mutual block info for a block,
---   possibly overwriting the existing one.
-
-setMutualBlockInfo :: MutualId -> Info.MutualInfo -> TCM ()
-setMutualBlockInfo mi info = stMutualBlocks `modifyTCLens` Map.alter f mi
-  where
-  f Nothing                   = Just $ MutualBlock info empty
-  f (Just (MutualBlock _ xs)) = Just $ MutualBlock info xs
-
 -- | Set the mutual block info for a block if non-existing.
 
 insertMutualBlockInfo :: MutualId -> Info.MutualInfo -> TCM ()
