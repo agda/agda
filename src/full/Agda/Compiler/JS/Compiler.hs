@@ -462,6 +462,8 @@ definition' kit q d t ls =
         return Nothing
 
     Constructor{} | Just e <- defJSDef d -> plainJS e
+    -- Implements Scott-Encoding of constructor definitions
+    -- (see the note "Implementing data types")
     Constructor{conData = p, conPars = nc} -> do
       TelV tel _ <- telViewPath t
       let np = length (telToList tel) - nc
@@ -485,6 +487,53 @@ definition' kit q d t ls =
   where
     ret = return . Just . Export ls
     plainJS = return . Just . Export ls . PlainJS
+
+-- Implementing data types
+--------------------------
+
+-- Data types are implemented using a variant of Scott Encoding,
+-- which uses JavaScript dicts instead of some lambda-expressions
+
+-- For example, given the data type
+--
+--      data Foo : Set where
+--        c1 : Foo
+--        c2 : X -> Y -> Foo
+--        c3 : Foo -> Foo
+--
+-- here is how "Foo" is compiled:
+--
+--  * A constructor definition, e.g.
+--
+--        c2 : X -> Y -> Foo
+--
+--    compiles to
+--
+--        exports["Foo"]["c2"] = x => y => k = k["c2"](x,y)
+--
+--  * A constructor application, e.g.
+--
+--        c2 x y
+--
+--    compiles to
+--
+--        exports["Foo"]["c2"](x)(y)
+--
+--  * A case split, e.g.
+--
+--        case p of
+--          (c1    ) -> E1
+--          (c2 x y) -> E2
+--          (c3 f  ) -> E3
+--
+--    compiles to
+--
+--        p(
+--          { "c1":           E1
+--          , "c2": x => y => E2
+--          , "c3": f      => E3
+--          })
+
 
 compileTerm :: EnvWithOpts -> T.TTerm -> TCM Exp
 compileTerm kit t = go t
@@ -520,9 +569,13 @@ compileTerm kit t = go t
       -- TODO This is not a lazy let, but it should be...
       T.TLet t e -> apply <$> (Lambda 1 <$> go e) <*> traverse go [t]
       T.TLit l -> return $ literal l
+      -- Implements Scott-Encoding of constructor applications
+      -- (see the note "Implementing data types")
       T.TCon q -> do
         d <- getConstInfo q
         qname q
+    -- Implements Scott-Encoding of case splits
+    -- (see the note "Implementing data types")
       T.TCase sc ct def alts | T.CTData dt <- T.caseType ct -> do
         dt <- getConstInfo dt
         alts' <- traverse (compileAlt kit) alts
@@ -590,7 +643,8 @@ compilePrim p =
         unOp js  = curriedLambda 1 $ apply (PlainJS js) [local 0]
         primEq   = curriedLambda 2 $ BinOp (local 1) "===" (local 0)
 
-
+-- Implements Scott-Encoding of case split cases
+-- (see the note "Implementing data types")
 compileAlt :: EnvWithOpts -> T.TAlt -> TCM ((QName, MemberId), Exp)
 compileAlt kit = \case
   T.TACon con ar body -> do
