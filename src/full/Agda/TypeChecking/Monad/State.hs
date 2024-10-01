@@ -24,6 +24,7 @@ import Agda.Interaction.Response
 
 import Agda.Syntax.Common
 import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.Flat
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract (PatternSynDefn, PatternSynDefns)
 import Agda.Syntax.Abstract.PatternSynonyms
@@ -179,10 +180,14 @@ setScope scope = modifyScope (const scope)
 modifyScope_ :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
 modifyScope_ f = stScope `modifyTCLens` f
 
+-- | Recompute cached information for a modified scope
+refreshScopeCaches :: ScopeInfo -> ScopeInfo
+refreshScopeCaches = recomputeOperatorContext . recomputeInverseScopeMaps
+
 {-# INLINE modifyScope #-}
 -- | Modify the current scope.
 modifyScope :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
-modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
+modifyScope f = modifyScope_ (refreshScopeCaches . f)
 
 {-# INLINE useScope #-}
 -- | Get a part of the current scope.
@@ -197,7 +202,7 @@ locallyScope l = locallyTCState $ stScope . l
 {-# INLINE withScope #-}
 -- | Run a computation in a local scope.
 withScope :: ReadTCState m => ScopeInfo -> m a -> m (a, ScopeInfo)
-withScope s m = locallyTCState stScope (recomputeInverseScopeMaps . const s) $ (,) <$> m <*> getScope
+withScope s m = locallyTCState stScope (refreshScopeCaches . const s) $ (,) <$> m <*> getScope
 
 {-# INLINE withScope_ #-}
 -- | Same as 'withScope', but discard the scope from the computation.

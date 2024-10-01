@@ -2,10 +2,10 @@
 
 -- | Flattened scopes.
 module Agda.Syntax.Scope.Flat
-  ( FlatScope
-  , flattenScope
-  , getDefinedNames
-  , localNames
+  ( getDefinedNames
+  , createOperatorContext
+  , recomputeOperatorContext
+  , filterOperatorContext
   ) where
 
 import Data.Bifunctor
@@ -18,9 +18,6 @@ import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Scope.Monad
-
-import Agda.TypeChecking.Monad.Debug
 
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
@@ -28,43 +25,64 @@ import Agda.Utils.List
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
-import Agda.Syntax.Common.Pretty
 
--- | Flattened scopes.
-newtype FlatScope = Flat (Map QName (List1 AbstractName))
-  deriving Pretty
+-- | Update the cached operator context after a change to the scope.
+recomputeOperatorContext :: ScopeInfo -> ScopeInfo
+recomputeOperatorContext scope = set scopeOperatorContext (createOperatorContext scope) scope
 
--- | Compute a flattened scope. Only include unqualified names or names
--- qualified by modules in the first argument.
-flattenScope :: [[Name]] -> ScopeInfo -> FlatScope
-flattenScope ms scope =
-  Flat $
+-- | Compute the operator parsing context.
+createOperatorContext :: ScopeInfo -> OperatorContext
+createOperatorContext scope = OperatorContext
+  { opCxtFlatScope = flat
+  , opCxtNames     = names
+  , opCxtNotations = notations
+  }
+  where
+    flat = flattenScope scope
+    (names, notations) = localNames scope flat
+
+-- | Discard any qualified names not in one of the given modules (given as lists of Names). Note
+--   that we only keep names that live in the *top level* of one of the given modules. For instance,
+--   if we filter on `[A.B, M]` we keep `A.B.f` and `M.x`, but not `A.B.C.g` or `M.N.y`.
+filterOperatorContext :: [[Name]] -> OperatorContext -> OperatorContext
+filterOperatorContext ms (OperatorContext (FlatScope flat) names notations) =
+  OperatorContext (FlatScope $ Map.filterWithKey (const . checkPrefix) flat)
+                  (filter checkPrefix names)
+                  (filter (checkPrefix . notaName) notations)
+  where
+    checkPrefix q
+      | [_] <- xs = True    -- Unqualified name
+      | otherwise = any (isQual xs) ms
+      where xs = List1.toList $ qnameParts q
+            isQual xs m
+              | Just [_] <- List.stripPrefix m xs = True   -- Needs to be qualified by *exactly* m
+              | otherwise                         = False
+
+-- | Compute a flattened scope.
+flattenScope :: ScopeInfo -> FlatScope
+flattenScope scope =
+  FlatScope $
   Map.unionWith (<>)
-    (build ms allNamesInScope root)
+    (build allNamesInScope root)
     imported
   where
     current = moduleScope $ scope ^. scopeCurrent
     root    = mergeScopes $ current : map moduleScope (scopeParents current)
 
     imported = Map.unionsWith (<>)
-               [ qual c (build ms' exportedNamesInScope $ moduleScope a)
-               | (c, a) <- Map.toList $ scopeImports root
-               , let -- get the suffixes of c in ms
-                     ms' = mapMaybe (List.stripPrefix $ List1.toList $ qnameParts c) ms
-               , not $ null ms' ]
+               [ qual c (build exportedNamesInScope $ moduleScope a)
+               | (c, a) <- Map.toList $ scopeImports root ]
     qual c = Map.mapKeysMonotonic (q c)
       where
         q (QName x)  = Qual x
         q (Qual m x) = Qual m . q x
 
-    build :: [[Name]] -> (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Map QName (List1 AbstractName)
-    build ms getNames s = Map.unionsWith (<>) $
+    build :: (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Map QName (List1 AbstractName)
+    build getNames s = Map.unionsWith (<>) $
         Map.mapKeysMonotonic QName (getNames s) :
           [ Map.mapKeysMonotonic (\ y -> Qual x y) $
-              build ms' exportedNamesInScope $ moduleScope m
+              build exportedNamesInScope $ moduleScope m
           | (x, mods) <- Map.toList (getNames s)
-          , let ms' = [ tl | hd:tl <- ms, hd == x ]
-          , not $ null ms'
           , AbsModule m _ <- List1.toList mods
           ]
 
@@ -75,7 +93,7 @@ flattenScope ms scope =
 -- Note that overloaded names (constructors) can have several
 -- fixities/notations. Then we 'mergeNotations'. (See issue 1194.)
 getDefinedNames :: KindsOfNames -> FlatScope -> [List1 NewNotation]
-getDefinedNames kinds (Flat names) =
+getDefinedNames kinds (FlatScope names) =
   [ mergeNotations $ fmap (namesToNotation x . A.qnameName . anameName) ds
   | (x, ds) <- Map.toList names
   , any ((`elemKindsOfNames` kinds) . anameKind) ds
@@ -87,22 +105,15 @@ getDefinedNames kinds (Flat names) =
 
 -- | Compute all names (first component) and operators/notations
 -- (second component) in scope.
-localNames :: FlatScope -> ScopeM ([QName], [NewNotation])
-localNames flat = do
-  let defs = getDefinedNames allKindsOfNames flat
-  locals <- nubOn fst . notShadowedLocals <$> getLocalVars
-  -- Note: Debug printout aligned with the one in
-  -- Agda.Syntax.Concrete.Operators.buildParsers.
-  reportS "scope.operators" 50
-    [ "flat  = " ++ prettyShow flat
-    , "defs  = " ++ prettyShow defs
-    , "locals= " ++ prettyShow locals
-    ]
-  let localNots  = map localOp locals
-      notLocal   = not . hasElem (map notaName localNots) . notaName
-      otherNots  = concatMap (List1.filter notLocal) defs
-  return $ second (map useDefaultFixity) $ split $ localNots ++ otherNots
+localNames :: ScopeInfo -> FlatScope -> ([QName], [NewNotation])
+localNames scope flat = second (map useDefaultFixity) $ split $ localNots ++ otherNots
   where
+    defs      = getDefinedNames allKindsOfNames flat
+    locals    = nubOn fst . notShadowedLocals $ scope ^. scopeLocals
+    localNots = map localOp locals
+    notLocal  = not . hasElem (map notaName localNots) . notaName
+    otherNots = concatMap (List1.filter notLocal) defs
+
     localOp (x, y) = namesToNotation (QName x) y
     split          = partitionEithers . concatMap opOrNot
     opOrNot n      = Left (notaName n) :

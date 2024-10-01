@@ -45,7 +45,7 @@ import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad.Base (typeError, TypeError(..), LHSOrPatSyn(..))
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.State (getScope)
+import Agda.TypeChecking.Monad.State (useScope)
 
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Either
@@ -139,9 +139,15 @@ buildParsers
      -- the list of names.
   -> ScopeM (Parsers e)
 buildParsers kind exprNames = do
-    flat         <- flattenScope (qualifierModules exprNames) <$>
-                      getScope
-    (names, ops0) <- localNames flat
+    OperatorContext{ opCxtFlatScope = flat
+                   , opCxtNames     = names
+                   , opCxtNotations = ops0 } <- filterOperatorContext (qualifierModules exprNames)
+                                                <$> useScope scopeOperatorContext
+    reportS "scope.operators" 50
+      [ "flat  = " ++ prettyShow flat
+      , "names = " ++ prettyShow names
+      , "ops   = " ++ prettyShow ops0
+      ]
     let ops | kind == IsPattern = filter (not . isLambdaNotation) ops0
             | otherwise         = ops0
 

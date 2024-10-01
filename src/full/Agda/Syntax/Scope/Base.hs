@@ -27,6 +27,7 @@ import Agda.Benchmarking
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
@@ -103,6 +104,18 @@ updateScopeNameSpacesM ::
 updateScopeNameSpacesM f s = for (f $ scopeNameSpaces s) $ \ x ->
   s { scopeNameSpaces = x }
 
+-- | Flattened scopes.
+newtype FlatScope = FlatScope (Map C.QName (List1 AbstractName))
+  deriving (Show, Pretty, Generic)
+
+-- | Cached information for operator parsing.
+data OperatorContext = OperatorContext
+  { opCxtFlatScope :: FlatScope
+  , opCxtNames     :: [C.QName]
+  , opCxtNotations :: [NewNotation]
+  }
+  deriving (Show, Generic)
+
 -- | The complete information about the scope at a particular program point
 --   includes the scope stack, the local variables, and the context precedence.
 data ScopeInfo = ScopeInfo
@@ -122,6 +135,7 @@ data ScopeInfo = ScopeInfo
       , _scopePolarities    :: C.Polarities  -- ^ Maps concrete names C.Name to polarities
       , _scopeRecords       :: Map A.QName (A.QName, Maybe Induction)
         -- ^ Maps the name of a record to the name of its (co)constructor.
+      , _scopeOperatorContext :: OperatorContext -- ^ Cached information for operator parsing
       }
   deriving (Show, Generic)
 
@@ -143,7 +157,7 @@ type ModuleMap = Map A.ModuleName [C.QName]
 -- type ModuleMap = Map A.ModuleName (List1 C.QName)
 
 instance Eq ScopeInfo where
-  ScopeInfo c1 m1 v1 l1 p1 _ _ _ _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ _ _ _ =
+  ScopeInfo c1 m1 v1 l1 p1 _ _ _ _ _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ _ _ _ _ =
     c1 == c2 && m1 == m2 && v1 == v2 && l1 == l2 && p1 == p2
 
 -- | Local variables.
@@ -274,6 +288,11 @@ scopeRecords :: Lens' ScopeInfo (Map A.QName (A.QName, Maybe Induction))
 scopeRecords f s =
   f (_scopeRecords s) <&>
   \x -> s { _scopeRecords = x }
+
+scopeOperatorContext :: Lens' ScopeInfo OperatorContext
+scopeOperatorContext f s =
+  f (_scopeOperatorContext s) <&>
+  \x -> s { _scopeOperatorContext = x }
 
 scopeFixitiesAndPolarities :: Lens' ScopeInfo (C.Fixities, C.Polarities)
 scopeFixitiesAndPolarities f s =
@@ -691,6 +710,12 @@ instance Null ScopeInfo where
   --   , null _scopePolarities
   --   ]
 
+emptyFlatScope :: FlatScope
+emptyFlatScope = FlatScope mempty
+
+emptyOperatorContext :: OperatorContext
+emptyOperatorContext = OperatorContext emptyFlatScope mempty mempty
+
 -- | The empty scope.
 emptyScope :: Scope
 emptyScope = Scope
@@ -717,6 +742,7 @@ emptyScopeInfo = ScopeInfo
   , _scopeFixities      = Map.empty
   , _scopePolarities    = Map.empty
   , _scopeRecords       = Map.empty
+  , _scopeOperatorContext = emptyOperatorContext
   }
 
 -- | Map functions over the names and modules in a scope.
@@ -1468,7 +1494,7 @@ blockOfLines _  [] = []
 blockOfLines hd ss = hd : map (nest 2) ss
 
 instance Pretty ScopeInfo where
-  pretty (ScopeInfo this mods toBind locals ctx _ _ _ _ _ _) = vcat $ concat
+  pretty (ScopeInfo this mods toBind locals ctx _ _ _ _ _ _ _) = vcat $ concat
     [ [ "ScopeInfo"
       , nest 2 $ "current =" <+> pretty this
       ]
@@ -1496,6 +1522,8 @@ instance SetRange AbstractName where
 instance NFData Scope
 instance NFData DataOrRecordModule
 instance NFData NameSpaceId
+instance NFData FlatScope
+instance NFData OperatorContext
 instance NFData ScopeInfo
 instance NFData KindOfName
 instance NFData NameMapEntry

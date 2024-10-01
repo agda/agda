@@ -42,6 +42,7 @@ import Agda.Syntax.Concrete.Fixity
 import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWarning'(..) )
   -- TODO: move the relevant warnings out of there
 import Agda.Syntax.Scope.Base as A
+import Agda.Syntax.Scope.Flat (recomputeOperatorContext)
 
 import Agda.TypeChecking.Monad.Base as I
 import Agda.TypeChecking.Monad.Builtin
@@ -194,7 +195,7 @@ getLocalVars :: ReadTCState m => m LocalVars
 getLocalVars = useScope scopeLocals
 
 modifyLocalVars :: (LocalVars -> LocalVars) -> ScopeM ()
-modifyLocalVars = modifyScope_ . updateScopeLocals
+modifyLocalVars f = modifyScope_ (recomputeOperatorContext . updateScopeLocals f)
 
 setLocalVars :: LocalVars -> ScopeM ()
 setLocalVars vars = modifyLocalVars $ const vars

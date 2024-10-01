@@ -2730,7 +2730,7 @@ instance ToAbstract C.Clause where
   toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
     -- Jesper, 2018-12-10, #3095: pattern variables bound outside the
     -- module are locally treated as module parameters
-    modifyScope_ $ updateScopeLocals $ map $ second patternToModuleBound
+    modifyLocalVars $ map $ second patternToModuleBound
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
     vars0 <- getLocalVars
     lhs' <- toAbstract $ LeftHandSide (C.QName top) p
