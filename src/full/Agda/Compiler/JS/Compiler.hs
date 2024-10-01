@@ -466,27 +466,21 @@ definition' kit q d t ls =
     -- (see the note "Implementing data types")
     Constructor{conData = p, conPars = nc} -> do
       TelV tel _ <- telViewPath t
-      let np = length (telToList tel) - nc
-      let nargs = np
+      let nargs = length (telToList tel) - nc
           args = [ Local $ LocalId $ nargs - i | i <- [0 .. nargs-1] ]
       d <- getConstInfo p
       let l = List1.last ls
-      case theDef d of
-        Record { recFields = flds } -> ret $ curriedLambda nargs $
-          Object $ Map.singleton l $ Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args
-        dt -> do
-          i <- index
-          ret $ curriedLambda (nargs + 1) $ Apply (Lookup (Local (LocalId 0)) i) args
-          where
-            index :: TCM MemberId
-            index = return l
-            mkComment (MemberId s) = Comment s
-            mkComment _ = mempty
+      ret
+        $ curriedLambda nargs
+        $ (case theDef d of
+              Record {} -> Object . Map.singleton l
+              dt -> id)
+        $  Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args
 
     AbstractDefn{} -> __IMPOSSIBLE__
   where
     ret = return . Just . Export ls
-    plainJS = return . Just . Export ls . PlainJS
+    plainJS = ret . PlainJS
 
 -- Implementing data types
 --------------------------
@@ -571,17 +565,14 @@ compileTerm kit t = go t
       T.TLit l -> return $ literal l
       -- Implements Scott-Encoding of constructor applications
       -- (see the note "Implementing data types")
-      T.TCon q -> do
-        d <- getConstInfo q
-        qname q
+      T.TCon q -> qname q
     -- Implements Scott-Encoding of case splits
     -- (see the note "Implementing data types")
       T.TCase sc ct def alts | T.CTData dt <- T.caseType ct -> do
         dt <- getConstInfo dt
         alts' <- traverse (compileAlt kit) alts
         let cs  = defConstructors $ theDef dt
-            obj = Object $ Map.fromListWith __IMPOSSIBLE__ [(snd x, y) | (x, y) <- alts']
-            arr = mkArray [headWithDefault (mempty, Null) [(Comment s, y) | ((c', MemberId s), y) <- alts', c' == c] | c <- cs]
+            obj = Object $ Map.fromListWith __IMPOSSIBLE__ alts'
         case (theDef dt, defJSDef dt) of
           (_, Just e) -> do
             return $ apply (PlainJS e) [Local (LocalId sc), obj]
@@ -645,17 +636,16 @@ compilePrim p =
 
 -- Implements Scott-Encoding of case split cases
 -- (see the note "Implementing data types")
-compileAlt :: EnvWithOpts -> T.TAlt -> TCM ((QName, MemberId), Exp)
+compileAlt :: EnvWithOpts -> T.TAlt -> TCM (MemberId, Exp)
 compileAlt kit = \case
-  T.TACon con ar body -> do
-    let nargs = ar
+  T.TACon con nargs body -> do
     memId <- visitorName con
     body <- Lambda nargs <$> compileTerm kit body
-    return ((con, memId), body)
+    return (memId, body)
   _ -> __IMPOSSIBLE__
 
 visitorName :: QName -> TCM MemberId
-visitorName q = do (m,ls) <- global q; return (List1.last ls)
+visitorName q = List1.last . snd <$> global q
 
 flatName :: MemberId
 flatName = MemberId "flat"
