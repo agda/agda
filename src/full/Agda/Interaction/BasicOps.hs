@@ -1202,11 +1202,12 @@ introTactic pmLambda ii = do
     conName [p] = [ c | I.ConP c _ _ <- [namedArg p] ]
     conName _   = __IMPOSSIBLE__
 
-    showUnambiguousConName amb v =
-       render . pretty <$> runAbsToCon (lookupQName amb $ I.conName v)
+    showUnambiguousConName :: AllowAmbiguousNames -> ConHead -> TCM String
+    showUnambiguousConName amb c = render . pretty <$> do
+      abstractToConcreteQName amb $ I.conName c
 
     showTCM :: PrettyTCM a => a -> TCM String
-    showTCM v = render <$> prettyTCM v
+    showTCM = render <.> prettyTCM
 
     introFun :: ListTel -> TCM [String]
     introFun tel = addContext tel' $ do

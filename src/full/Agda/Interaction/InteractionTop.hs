@@ -51,7 +51,7 @@ import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Info (mkDefInfo)
 import Agda.Syntax.Translation.ConcreteToAbstract
-import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)
+import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.TopLevelModuleName
 
