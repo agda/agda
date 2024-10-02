@@ -399,8 +399,7 @@ instance PrettyTCM a => PrettyTCM (WithHiding a) where
 
 instance PrettyTCM Telescope where
   prettyTCM tel = P.fsep . map P.pretty <$> do
-      tel <- reify tel
-      runAbsToCon $ bindToConcrete tel return
+      abstractToConcreteTelescope =<< reify tel
 {-# SPECIALIZE prettyTCM :: Telescope -> TCM Doc #-}
 
 newtype PrettyContext = PrettyContext Context

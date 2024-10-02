@@ -9,17 +9,15 @@
 module Agda.Syntax.Translation.AbstractToConcrete
     ( ToConcrete(..)
     , toConcreteCtx
-    , abstractToConcrete_
-    , abstractToConcreteScope
-    , abstractToConcreteHiding
-    , runAbsToCon
-    , RangeAndPragma(..)
-    , abstractToConcreteCtx
-    , withScope
-    , preserveInteractionIds
     , MonadAbsToCon
+    , abstractToConcrete_
+    , abstractToConcreteCtx
+    , abstractToConcreteHiding
+    , abstractToConcreteQName
+    , abstractToConcreteScope
+    , abstractToConcreteTelescope
+    , RangeAndPragma(..)
     , noTakenNames
-    , lookupQName
     ) where
 
 import Prelude hiding (null)
@@ -122,6 +120,14 @@ abstractToConcrete_ = runAbsToCon . toConcrete
 abstractToConcreteHiding :: (LensHiding i, ToConcrete a, MonadAbsToCon m)
   => i -> a -> m (ConOfAbs a)
 abstractToConcreteHiding i = runAbsToCon . toConcreteHiding i
+
+abstractToConcreteTelescope :: MonadAbsToCon m
+  => A.Telescope -> m [Maybe C.TypedBinding]
+abstractToConcreteTelescope tel = runAbsToCon $ bindToConcrete tel return
+
+abstractToConcreteQName :: MonadAbsToCon m
+  => AllowAmbiguousNames -> A.QName -> m (C.QName)
+abstractToConcreteQName amb = runAbsToCon . lookupQName amb
 
 ---------------------------------------------------------------------------
 -- * The Monad
