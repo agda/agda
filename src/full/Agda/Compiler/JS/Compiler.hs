@@ -503,7 +503,7 @@ definition' kit q d t ls =
 --
 --    compiles to
 --
---        exports["Foo"]["c2"] = x => y => k = k["c2"](x,y)
+--        exports["Foo"]["c2"] = x => y => k => k["c2"](x,y)
 --
 --  * A constructor application, e.g.
 --
