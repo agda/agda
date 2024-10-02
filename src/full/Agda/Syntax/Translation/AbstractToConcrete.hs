@@ -1099,14 +1099,16 @@ instance ToConcrete A.LetBinding where
     type ConOfAbs A.LetBinding = [C.Declaration]
 
     bindToConcrete (A.LetBind i info x t e) ret =
-        bindToConcrete x $ \ x ->
-        do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
+      bindToConcrete x \ x -> do
+        toConcrete (t, A.RHS e Nothing) >>= \case
+          (t, (e, [], [], [])) ->
            ret $ addInstanceB (if isInstance info then Just empty else Nothing) $
                [ C.TypeSig info empty (C.boundName x) t
                , C.FunClause
                    (C.LHS (C.IdentP True $ C.QName $ C.boundName x) [] [])
                    e C.NoWhere False
                ]
+          _ -> __IMPOSSIBLE__
     -- TODO: bind variables
     bindToConcrete (LetPatBind i p e) ret = do
         p <- toConcrete p
@@ -1355,11 +1357,11 @@ instance ToConcrete A.Declaration where
     x <- toConcrete x
     return [C.Open (getRange i) x defaultImportDir]
 
-  toConcrete (A.PatternSynDef x xs p) = do
-    C.QName x <- toConcrete x
-    bindToConcrete (map (fmap A.unBind) xs) $ \ xs ->
+  toConcrete (A.PatternSynDef x xs p) = toConcrete x >>= \case
+    C.QName x -> bindToConcrete (map (fmap A.unBind) xs) \ xs ->
       singleton . C.PatternSyn (getRange x) x xs <$> do
         dontFoldPatternSynonyms $ toConcrete (vacuous p :: A.Pattern)
+    _ -> __IMPOSSIBLE__
 
   toConcrete (A.UnquoteDecl _ i xs e) = do
     let unqual (C.QName x) = return x
