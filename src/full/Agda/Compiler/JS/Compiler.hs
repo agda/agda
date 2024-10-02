@@ -423,8 +423,7 @@ definition' kit q d t ls =
     Function{} | otherwise -> do
 
       reportSDoc "compile.js" 5 $ "compiling fun:" <+> prettyTCM q
-      -- Unused arguments are ignored, not erased. This fixes #7508.
-      let mTreeless = toTreelessWith compilerPipeline (T.EagerEvaluation, IgnoreUnused) q
+      let mTreeless = toTreeless T.EagerEvaluation q
       caseMaybeM mTreeless (pure Nothing) $ \ treeless -> do
         used <- fromMaybe [] <$> getCompiledArgUse q
         funBody <- eliminateCaseDefaults =<<
