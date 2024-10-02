@@ -523,9 +523,9 @@ definition' kit q d t ls =
 --    compiles to
 --
 --        p(
---          { "c1":           E1
---          , "c2": x => y => E2
---          , "c3": f      => E3
+--          { "c1":          E1
+--          , "c2": (x,y) => E2
+--          , "c3": f     => E3
 --          })
 
 
