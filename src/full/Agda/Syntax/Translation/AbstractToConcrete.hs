@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-
 -- {-# OPTIONS -fwarn-unused-binds #-}
 
 {-| The translation of abstract syntax to concrete syntax has two purposes.
@@ -19,7 +17,7 @@ module Agda.Syntax.Translation.AbstractToConcrete
     , abstractToConcreteCtx
     , withScope
     , preserveInteractionIds
-    , MonadAbsToCon, AbsToCon, Env
+    , MonadAbsToCon
     , noTakenNames
     , lookupQName
     ) where
@@ -92,117 +90,12 @@ import Agda.Utils.Suffix
 
 import Agda.Utils.Impossible
 
--- Environment ------------------------------------------------------------
+---------------------------------------------------------------------------
+-- * The Interface
+---------------------------------------------------------------------------
 
-data Env = Env { takenVarNames :: Set A.Name
-                  -- ^ Abstract names currently in scope. Unlike the
-                  --   ScopeInfo, this includes names for hidden
-                  --   arguments inserted by the system.
-               , takenDefNames :: Set C.NameParts
-                  -- ^ Concrete names of all definitions in scope
-               , currentScope :: ScopeInfo
-               , builtins     :: Map BuiltinId A.QName
-                  -- ^ Certain builtins (like `fromNat`) have special printing
-               , preserveIIds :: Bool
-                  -- ^ Preserve interaction point ids
-               , foldPatternSynonyms :: Bool
-               }
-
-makeEnv :: MonadAbsToCon m => ScopeInfo -> m Env
-makeEnv scope = do
-      -- zero and suc doesn't have to be in scope for natural number literals to work
-  let noScopeCheck b = b `elem` [builtinZero, builtinSuc]
-      name (I.Def q _)   = Just q
-      name (I.Con q _ _) = Just (I.conName q)
-      name _             = Nothing
-      builtin b = getBuiltin' b >>= \ case
-        Just v | Just q <- name v,
-                 noScopeCheck b || isNameInScope q scope -> return [(b, q)]
-        _                                                -> return []
-  ctxVars <- map (fst . I.unDom) <$> asksTC envContext
-  letVars <- Map.keys <$> asksTC envLetBindings
-  let vars = ctxVars ++ letVars
-
-  -- pick concrete names for in-scope names now so we don't
-  -- accidentally shadow them
-  forM_ (scope ^. scopeLocals) $ \(y , x) -> do
-    pickConcreteName (localVar x) y
-
-  builtinList <- concat <$> mapM builtin [ builtinFromNat, builtinFromString, builtinFromNeg, builtinZero, builtinSuc ]
-  foldPatSyns <- optPrintPatternSynonyms <$> pragmaOptions
-  return $
-    Env { takenVarNames = Set.fromList vars
-        , takenDefNames = defs
-        , currentScope = scope
-        , builtins     = Map.fromListWith __IMPOSSIBLE__ builtinList
-        , preserveIIds = False
-        , foldPatternSynonyms = foldPatSyns
-        }
-  where
-    defs = Set.map nameParts . Map.keysSet $
-        Map.filterWithKey usefulDef $
-        nsNames $ everythingInScope scope
-
-    -- Jesper, 2018-12-10: It's fine to shadow generalizable names as
-    -- they will never show up directly in printed terms.
-    notGeneralizeName AbsName{ anameKind = k }  =
-      not (k == GeneralizeName || k == DisallowedGeneralizeName)
-
-    usefulDef C.NoName{} _ = False
-    usefulDef C.Name{} names = all notGeneralizeName names
-
-    nameParts (C.NoName {}) = __IMPOSSIBLE__
-    nameParts (C.Name { nameNameParts }) = nameNameParts
-
-currentPrecedence :: AbsToCon PrecedenceStack
-currentPrecedence = asks $ (^. scopePrecedence) . currentScope
-
-preserveInteractionIds :: AbsToCon a -> AbsToCon a
-preserveInteractionIds = local $ \ e -> e { preserveIIds = True }
-
-withPrecedence' :: PrecedenceStack -> AbsToCon a -> AbsToCon a
-withPrecedence' ps = local $ \e ->
-  e { currentScope = set scopePrecedence ps (currentScope e) }
-
-withPrecedence :: Precedence -> AbsToCon a -> AbsToCon a
-withPrecedence p ret = do
-  ps <- currentPrecedence
-  withPrecedence' (pushPrecedence p ps) ret
-
-withScope :: ScopeInfo -> AbsToCon a -> AbsToCon a
-withScope scope = local $ \e -> e { currentScope = scope }
-
-noTakenNames :: AbsToCon a -> AbsToCon a
-noTakenNames = local $ \e -> e { takenVarNames = Set.empty }
-
-dontFoldPatternSynonyms :: AbsToCon a -> AbsToCon a
-dontFoldPatternSynonyms = local $ \ e -> e { foldPatternSynonyms = False }
-
--- | Bind a concrete name to an abstract in the translation environment.
-addBinding :: C.Name -> A.Name -> Env -> Env
-addBinding y x e =
-  e { takenVarNames = Set.insert x $ takenVarNames e
-    , currentScope = (`updateScopeLocals` currentScope e) $
-        AssocList.insert y (LocalVar x __IMPOSSIBLE__ [])
-    }
-
--- | Get a function to check if a name refers to a particular builtin function.
-isBuiltinFun :: AbsToCon (A.QName -> BuiltinId -> Bool)
-isBuiltinFun = asks $ is . builtins
-  where is m q b = Just q == Map.lookup b m
-
--- | Resolve a concrete name. If illegally ambiguous fail with the ambiguous names.
-resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either NameResolutionError ResolvedName)
-resolveName kinds candidates q = runExceptT $ tryResolveName kinds candidates q
-
--- | Treat illegally ambiguous names as UnknownNames.
-resolveName_ :: C.QName -> [A.Name] -> AbsToCon ResolvedName
-resolveName_ q cands = fromRight (const UnknownName) <$> resolveName allKindsOfNames (Just $ Set.fromList cands) q
-
--- The Monad --------------------------------------------------------------
-
--- | The function 'runAbsToCon' can target any monad that satisfies
--- the constraints of 'MonadAbsToCon'.
+-- | Preconditions to run the AbstractToConcrete translation.
+--
 type MonadAbsToCon m =
   ( MonadFresh NameId m
   , MonadInteractionPoints m
@@ -213,6 +106,26 @@ type MonadAbsToCon m =
   , Null (m Doc)
   , Semigroup (m Doc)
   )
+
+abstractToConcreteScope :: (ToConcrete a, MonadAbsToCon m)
+  => ScopeInfo -> a -> m (ConOfAbs a)
+abstractToConcreteScope scope a = runReaderT (unAbsToCon $ toConcrete a) =<< makeEnv scope
+
+abstractToConcreteCtx :: (ToConcrete a, MonadAbsToCon m)
+  => Precedence -> a -> m (ConOfAbs a)
+abstractToConcreteCtx ctx x = runAbsToCon $ withPrecedence ctx (toConcrete x)
+
+abstractToConcrete_ :: (ToConcrete a, MonadAbsToCon m)
+  => a -> m (ConOfAbs a)
+abstractToConcrete_ = runAbsToCon . toConcrete
+
+abstractToConcreteHiding :: (LensHiding i, ToConcrete a, MonadAbsToCon m)
+  => i -> a -> m (ConOfAbs a)
+abstractToConcreteHiding i = runAbsToCon . toConcreteHiding i
+
+---------------------------------------------------------------------------
+-- * The Monad
+---------------------------------------------------------------------------
 
 newtype AbsToCon a = AbsToCon
   { unAbsToCon :: forall m.
@@ -322,23 +235,123 @@ runAbsToCon m = do
     reportSLn "toConcrete" 50 $ "leaving AbsToCon"
     return x
 
-abstractToConcreteScope :: (ToConcrete a, MonadAbsToCon m)
-                        => ScopeInfo -> a -> m (ConOfAbs a)
-abstractToConcreteScope scope a = runReaderT (unAbsToCon $ toConcrete a) =<< makeEnv scope
+---------------------------------------------------------------------------
+-- * The Environment
+---------------------------------------------------------------------------
 
-abstractToConcreteCtx :: (ToConcrete a, MonadAbsToCon m)
-                      => Precedence -> a -> m (ConOfAbs a)
-abstractToConcreteCtx ctx x = runAbsToCon $ withPrecedence ctx (toConcrete x)
+data Env = Env
+  { takenVarNames :: Set A.Name
+      -- ^ Abstract names currently in scope.
+      --   Unlike the 'ScopeInfo', this includes names for hidden arguments
+      --   inserted by the system.
+  , takenDefNames :: Set C.NameParts
+      -- ^ Concrete names of all definitions in scope.
+  , currentScope :: ScopeInfo
+  , builtins     :: Map BuiltinId A.QName
+      -- ^ Certain builtins (like `fromNat`) have special printing.
+  , preserveIIds :: Bool
+      -- ^ Preserve interaction point ids?
+  , foldPatternSynonyms :: Bool
+  }
 
-abstractToConcrete_ :: (ToConcrete a, MonadAbsToCon m)
-                    => a -> m (ConOfAbs a)
-abstractToConcrete_ = runAbsToCon . toConcrete
+makeEnv :: MonadAbsToCon m => ScopeInfo -> m Env
+makeEnv scope = do
+      -- zero and suc doesn't have to be in scope for natural number literals to work
+  let noScopeCheck b = b `elem` [builtinZero, builtinSuc]
+      name (I.Def q _)   = Just q
+      name (I.Con q _ _) = Just (I.conName q)
+      name _             = Nothing
+      builtin b = getBuiltin' b >>= \ case
+        Just v | Just q <- name v,
+                 noScopeCheck b || isNameInScope q scope -> return [(b, q)]
+        _                                                -> return []
+  ctxVars <- map (fst . I.unDom) <$> asksTC envContext
+  letVars <- Map.keys <$> asksTC envLetBindings
+  let vars = ctxVars ++ letVars
 
-abstractToConcreteHiding :: (LensHiding i, ToConcrete a, MonadAbsToCon m)
-                         => i -> a -> m (ConOfAbs a)
-abstractToConcreteHiding i = runAbsToCon . toConcreteHiding i
+  -- pick concrete names for in-scope names now so we don't
+  -- accidentally shadow them
+  forM_ (scope ^. scopeLocals) $ \(y , x) -> do
+    pickConcreteName (localVar x) y
 
--- Dealing with names -----------------------------------------------------
+  builtinList <- concat <$> mapM builtin [ builtinFromNat, builtinFromString, builtinFromNeg, builtinZero, builtinSuc ]
+  foldPatSyns <- optPrintPatternSynonyms <$> pragmaOptions
+  return $
+    Env { takenVarNames = Set.fromList vars
+        , takenDefNames = defs
+        , currentScope = scope
+        , builtins     = Map.fromListWith __IMPOSSIBLE__ builtinList
+        , preserveIIds = False
+        , foldPatternSynonyms = foldPatSyns
+        }
+  where
+    defs = Set.map nameParts . Map.keysSet $
+        Map.filterWithKey usefulDef $
+        nsNames $ everythingInScope scope
+
+    -- Jesper, 2018-12-10: It's fine to shadow generalizable names as
+    -- they will never show up directly in printed terms.
+    notGeneralizeName AbsName{ anameKind = k }  =
+      not (k == GeneralizeName || k == DisallowedGeneralizeName)
+
+    usefulDef C.NoName{} _ = False
+    usefulDef C.Name{} names = all notGeneralizeName names
+
+    nameParts (C.NoName {}) = __IMPOSSIBLE__
+    nameParts (C.Name { nameNameParts }) = nameNameParts
+
+-- | Bind a concrete name to an abstract in the translation environment.
+addBinding :: C.Name -> A.Name -> Env -> Env
+addBinding y x e =
+  e { takenVarNames = Set.insert x $ takenVarNames e
+    , currentScope = (`updateScopeLocals` currentScope e) $
+        AssocList.insert y (LocalVar x __IMPOSSIBLE__ [])
+    }
+
+---------------------------------------------------------------------------
+-- * Service functions
+---------------------------------------------------------------------------
+
+currentPrecedence :: AbsToCon PrecedenceStack
+currentPrecedence = asks $ (^. scopePrecedence) . currentScope
+
+preserveInteractionIds :: AbsToCon a -> AbsToCon a
+preserveInteractionIds = local $ \ e -> e { preserveIIds = True }
+
+withPrecedence' :: PrecedenceStack -> AbsToCon a -> AbsToCon a
+withPrecedence' ps = local $ \e ->
+  e { currentScope = set scopePrecedence ps (currentScope e) }
+
+withPrecedence :: Precedence -> AbsToCon a -> AbsToCon a
+withPrecedence p ret = do
+  ps <- currentPrecedence
+  withPrecedence' (pushPrecedence p ps) ret
+
+withScope :: ScopeInfo -> AbsToCon a -> AbsToCon a
+withScope scope = local $ \e -> e { currentScope = scope }
+
+noTakenNames :: AbsToCon a -> AbsToCon a
+noTakenNames = local $ \e -> e { takenVarNames = Set.empty }
+
+dontFoldPatternSynonyms :: AbsToCon a -> AbsToCon a
+dontFoldPatternSynonyms = local $ \ e -> e { foldPatternSynonyms = False }
+
+-- | Get a function to check if a name refers to a particular builtin function.
+isBuiltinFun :: AbsToCon (A.QName -> BuiltinId -> Bool)
+isBuiltinFun = asks $ is . builtins
+  where is m q b = Just q == Map.lookup b m
+
+-- | Resolve a concrete name. If illegally ambiguous fail with the ambiguous names.
+resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either NameResolutionError ResolvedName)
+resolveName kinds candidates q = runExceptT $ tryResolveName kinds candidates q
+
+-- | Treat illegally ambiguous names as UnknownNames.
+resolveName_ :: C.QName -> [A.Name] -> AbsToCon ResolvedName
+resolveName_ q cands = fromRight (const UnknownName) <$> resolveName allKindsOfNames (Just $ Set.fromList cands) q
+
+---------------------------------------------------------------------------
+-- ** Dealing with names
+---------------------------------------------------------------------------
 
 -- | Names in abstract syntax are fully qualified, but the concrete syntax
 --   requires non-qualified names in places. In theory (if all scopes are
@@ -516,7 +529,9 @@ bindName' x ret = do
   applyUnless (isNoName y) (local $ addBinding y x) ret
   where y = nameConcrete x
 
--- Dealing with precedences -----------------------------------------------
+---------------------------------------------------------------------------
+-- ** Dealing with precedences
+---------------------------------------------------------------------------
 
 -- | General bracketing function.
 bracket' ::    (e -> e)             -- ^ the bracketing function
@@ -540,16 +555,6 @@ bracketP_ par m =
     do  e <- m
         bracket' (ParenP (getRange e)) par e
 
-{- UNUSED
--- | Pattern bracketing
-bracketP :: (PrecedenceStack -> Bool) -> (C.Pattern -> AbsToCon a)
-                                 -> ((C.Pattern -> AbsToCon a) -> AbsToCon a)
-                                 -> AbsToCon a
-bracketP par ret m = m $ \p -> do
-    p <- bracket' (ParenP $ getRange p) par p
-    ret p
--}
-
 -- | Applications where the argument is a lambda without parentheses need
 --   parens more often than other applications.
 isLambda :: NamedArg A.Expr -> Bool
@@ -561,7 +566,9 @@ isLambda e =
     A.ExtendedLam{} -> True
     _               -> False
 
--- Dealing with infix declarations ----------------------------------------
+---------------------------------------------------------------------------
+-- ** Dealing with infix declarations
+---------------------------------------------------------------------------
 
 -- | If a name is defined with a fixity that differs from the default, we have
 --   to generate a fixity declaration for that name.
@@ -573,7 +580,9 @@ withInfixDecl i x m = ((fixDecl ++ synDecl) ++) <$> m
             ]
   synDecl = [ C.Syntax x $ theNotation $ defFixity i ]
 
--- Dealing with private definitions ---------------------------------------
+---------------------------------------------------------------------------
+-- ** Dealing with private definitions
+---------------------------------------------------------------------------
 
 -- | Add @abstract@, @private@, @instance@ modifiers.
 withAbstractPrivate :: DefInfo -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
@@ -593,7 +602,9 @@ addInstanceB :: Maybe KwRange -> [C.Declaration] -> [C.Declaration]
 addInstanceB (Just r) ds = [ C.InstanceB r ds ]
 addInstanceB Nothing  ds = ds
 
--- The To Concrete Class --------------------------------------------------
+---------------------------------------------------------------------------
+-- * The To Concrete Class
+---------------------------------------------------------------------------
 
 class ToConcrete a where
     type ConOfAbs a
