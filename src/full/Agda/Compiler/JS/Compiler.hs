@@ -431,6 +431,7 @@ definition' kit q d t ls =
           eliminateLiteralPatterns
           (convertGuards treeless)
         reportSDoc "compile.js" 30 $ " compiled treeless fun:" <+> pretty funBody
+        reportSDoc "compile.js" 40 $ " argument usage:" <+> (text . show) used
 
         funBody' <- compileTerm kit funBody
 
