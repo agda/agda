@@ -9,7 +9,7 @@ import Prelude hiding ((!!)) -- don't use partial functions!
 import Control.Arrow (first)
 import Control.Monad.Reader
 import Data.Maybe
-import qualified Data.Map as Map
+import qualified Data.IntMap as IntMap
 
 import Agda.Syntax.Treeless
 import Agda.Syntax.Common.Pretty
@@ -47,12 +47,12 @@ withNames' :: HasFree a => Int -> a -> ([String] -> P b) -> P b
 withNames' n tm k = withNames n' $ k . insBlanks
   where
     fv = freeVars tm
-    n'  = length $ filter (< n) $ Map.keys fv
+    n'  = length $ filter (< n) $ IntMap.keys fv
     insBlanks = go n
       where
         go 0 _ = []
         go i xs0@(~(x : xs))
-          | Map.member (i - 1) fv = x   : go (i - 1) xs
+          | IntMap.member (i - 1) fv = x   : go (i - 1) xs
           | otherwise             = "_" : go (i - 1) xs0
 
 bindName :: String -> P a -> P a

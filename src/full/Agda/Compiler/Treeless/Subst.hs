@@ -2,8 +2,8 @@
 
 module Agda.Compiler.Treeless.Subst where
 
-import qualified Data.Map as Map
-import Data.Map (Map)
+import qualified Data.IntMap as IntMap
+import Data.IntMap (IntMap)
 import Data.Maybe
 import Data.Semigroup ( Semigroup, (<>), All(..), Any(..) )
 
@@ -81,28 +81,28 @@ instance Monoid Occurs where
 -- https://github.com/agda/agda/commit/03eb3945114a4ccdb449f22d69db8d6eaa4699b8#commitcomment-34249120
 
 class HasFree a where
-  freeVars :: a -> Map Int Occurs
+  freeVars :: a -> IntMap Occurs
 
 freeIn :: HasFree a => Int -> a -> Bool
-freeIn i x = Map.member i (freeVars x)
+freeIn i x = IntMap.member i (freeVars x)
 
 occursIn :: HasFree a => Int -> a -> Occurs
-occursIn i x = fromMaybe mempty $ Map.lookup i (freeVars x)
+occursIn i x = fromMaybe mempty $ IntMap.lookup i (freeVars x)
 
 instance HasFree Int where
-  freeVars x = Map.singleton x once
+  freeVars x = IntMap.singleton x once
 
 instance HasFree a => HasFree [a] where
-  freeVars xs = Map.unionsWith mappend $ map freeVars xs
+  freeVars xs = IntMap.unionsWith mappend $ map freeVars xs
 
 instance (HasFree a, HasFree b) => HasFree (a, b) where
-  freeVars (x, y) = Map.unionWith mappend (freeVars x) (freeVars y)
+  freeVars (x, y) = IntMap.unionWith mappend (freeVars x) (freeVars y)
 
 data Binder a = Binder Int a
 
 instance HasFree a => HasFree (Binder a) where
   freeVars (Binder 0 x) = freeVars x
-  freeVars (Binder k x) = Map.filterWithKey (\ k _ -> k >= 0) $ Map.mapKeysMonotonic (subtract k) $ freeVars x
+  freeVars (Binder k x) = IntMap.filterWithKey (\ k _ -> k >= 0) $ IntMap.mapKeysMonotonic (subtract k) $ freeVars x
 
 newtype InSeq a = InSeq a
 
@@ -111,14 +111,14 @@ instance HasFree a => HasFree (InSeq a) where
 
 instance HasFree TTerm where
   freeVars = \case
-    TDef{}    -> Map.empty
-    TLit{}    -> Map.empty
-    TCon{}    -> Map.empty
-    TPrim{}   -> Map.empty
-    TUnit{}   -> Map.empty
-    TSort{}   -> Map.empty
-    TErased{} -> Map.empty
-    TError{}  -> Map.empty
+    TDef{}    -> IntMap.empty
+    TLit{}    -> IntMap.empty
+    TCon{}    -> IntMap.empty
+    TPrim{}   -> IntMap.empty
+    TUnit{}   -> IntMap.empty
+    TSort{}   -> IntMap.empty
+    TErased{} -> IntMap.empty
+    TError{}  -> IntMap.empty
     TVar i         -> freeVars i
     TApp (TPrim PSeq) [TVar x, b] -> freeVars (InSeq x, b)
     TApp f ts      -> freeVars (f, ts)
@@ -136,6 +136,6 @@ instance HasFree TAlt where
 -- | Strenghtening.
 tryStrengthen :: (HasFree a, Subst a) => Int -> a -> Maybe a
 tryStrengthen n t =
-  case Map.minViewWithKey (freeVars t) of
+  case IntMap.minViewWithKey (freeVars t) of
     Just ((i, _), _) | i < n -> Nothing
     _ -> Just $ applySubst (strengthenS impossible n) t
