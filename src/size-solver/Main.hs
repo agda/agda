@@ -100,9 +100,9 @@ parseFile input = ( map parse hyps
                   )
   where
     (ls1, ls2)   = break isSeparator input
-    (hyps, rest) = if null ls2 then ([], ls1) else (ls1, tail ls2)
+    (hyps, rest) = case ls2 of {[] -> ([], ls1); (_ : tls2) -> (ls1, tls2)}
     (ls1', ls2') = break isSeparator rest
-    (pols, cons) = if null ls2' then ([], ls1') else (ls1', tail ls2')
+    (pols, cons) = case ls2' of {[] -> ([], ls1'); (_ : tls2') -> (ls1', tls2')}
 
 
 -- | A separator is a line consisting entirely of dashes,
