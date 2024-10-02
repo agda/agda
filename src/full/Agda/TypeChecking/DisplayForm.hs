@@ -9,6 +9,8 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe
 
 import Data.Monoid (All(..))
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -133,20 +135,20 @@ matchDisplayForm d@(Display n ps v) es
         -- #5294: Fail if we don't have bindings for all variables. This can
         --        happen outside parameterised modules when some of the parameters
         --        are not used in the lhs.
-        Just u <- return $ Map.lookup i mm
+        Just u <- return $ IntMap.lookup i mm
         -- Note that the RHS terms are independent of the pattern variables.
         return (applySubst (strengthenS __IMPOSSIBLE__ n) <$> u)
       return (d, substWithOrigin (parallelS $ map woThing us) us v `applyE` es1)
 
-type MatchResult = Map Int (WithOrigin Term)
+type MatchResult = IntMap (WithOrigin Term)
 
 unionMatch :: Monad m => MatchResult -> MatchResult -> MaybeT m MatchResult
 unionMatch m1 m2
-  | null (Map.intersection m1 m2) = return $ Map.union m1 m2
+  | null (IntMap.intersection m1 m2) = return $ IntMap.union m1 m2
   | otherwise = mzero  -- Non-linear pattern, fail for now.
 
 unionsMatch :: Monad m => [MatchResult] -> MaybeT m MatchResult
-unionsMatch = foldM unionMatch Map.empty
+unionsMatch = foldM unionMatch mempty
 
 data Window = Window {dbLo, dbHi :: Nat}
 
@@ -170,12 +172,12 @@ instance Match a => Match [a] where
   match n xs ys = unionsMatch =<< zipWithM (match n) xs ys
 
 instance Match a => Match (Arg a) where
-  match n p v = Map.map (setOrigin (getOrigin v)) <$> match n (unArg p) (unArg v)
+  match n p v = IntMap.map (setOrigin (getOrigin v)) <$> match n (unArg p) (unArg v)
 
 instance Match a => Match (Elim' a) where
   match n p v =
     case (p, v) of
-      (Proj _ f, Proj _ f') | f == f' -> return Map.empty
+      (Proj _ f, Proj _ f') | f == f' -> return mempty
       _ | Just a  <- isApplyElim p
         , Just a' <- isApplyElim v    -> match n a a'
       -- we do not care to differentiate between Apply and IApply for
@@ -184,14 +186,14 @@ instance Match a => Match (Elim' a) where
 
 instance Match Term where
   match w p v = lift (instantiate v) >>= \ v -> case (unSpine p, unSpine v) of
-    (Var i [], v)    | Just j <- inWindow w i -> return $ Map.singleton j (WithOrigin Inserted v)
+    (Var i [], v)    | Just j <- inWindow w i -> return $ IntMap.singleton j (WithOrigin Inserted v)
     (Var i (_:_), v) | Just{} <- inWindow w i -> mzero  -- Higher-order pattern, fail for now.
     (Var i ps, Var j vs) | i == j  -> match w ps vs
     (Def c ps, Def d vs) | c == d  -> match w ps vs
     (Con c _ ps, Con d _ vs) | c == d -> match w ps vs
-    (Lit l, Lit l')      | l == l' -> return Map.empty
+    (Lit l, Lit l')      | l == l' -> return mempty
     (Lam h p, Lam h' v)  | h == h' -> match (shiftWindow w) (unAbs p) (unAbs v)
-    (p, v)               | p == v  -> return Map.empty  -- TODO: this is wrong (this is why we lifted the rhs before)
+    (p, v)               | p == v  -> return mempty  -- TODO: this is wrong (this is why we lifted the rhs before)
     (p, Level l)                   -> match w p =<< reallyUnLevelView l
     (Sort ps, Sort pv)             -> match w ps pv
     (p, Sort (Type v))             -> match w p =<< reallyUnLevelView v
@@ -200,7 +202,7 @@ instance Match Term where
 instance Match Sort where
   match w p v = case (p, v) of
     (Type pl, Type vl) -> match w pl vl
-    _ | p == v -> return Map.empty
+    _ | p == v -> return mempty
     _          -> mzero
 
 instance Match Level where
