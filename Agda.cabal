@@ -823,7 +823,6 @@ library
       Agda.Utils.Unsafe
       Agda.Utils.Update
       Agda.Utils.VarSet
-      Agda.Utils.Warshall
       Agda.Utils.WithDefault
       Agda.Utils.Zipper
       Agda.Version
@@ -965,7 +964,6 @@ test-suite agda-tests
       Internal.Utils.SmallSet
       Internal.Utils.Three
       Internal.Utils.Trie
-      Internal.Utils.Warshall
       LaTeXAndHTML.Tests
       LibSucceed.Tests
       Succeed.Tests

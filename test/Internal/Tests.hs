@@ -55,7 +55,6 @@ import qualified Internal.Utils.RangeMap                           as UtilRangeM
 import qualified Internal.Utils.SmallSet                           as UtilSSet     ( tests )
 import qualified Internal.Utils.Three                              as UtilThree    ( tests )
 import qualified Internal.Utils.Trie                               as UtilTrie     ( tests )
-import qualified Internal.Utils.Warshall                           as UtilWarsh    ( tests )
 
 -- Keep this list in the import order, please!
 tests :: TestTree
@@ -108,5 +107,4 @@ tests = testGroup "Internal"
   , UtilSSet.tests
   , UtilThree.tests
   , UtilTrie.tests
-  , UtilWarsh.tests
   ]
