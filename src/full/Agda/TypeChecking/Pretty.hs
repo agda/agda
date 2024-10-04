@@ -247,6 +247,10 @@ instance PrettyTCM EqualityView where prettyTCM = prettyTCM . equalityUnview    
 
 -- Functors
 
+instance (PrettyTCM a, Subst a) => PrettyTCM (Abs a) where
+  prettyTCM a = underAbstraction_ a prettyTCM
+{-# SPECIALIZE prettyTCM :: PrettyTCM a => Abs a -> TCM Doc #-}
+
 instance PrettyTCM a => PrettyTCM (Closure a) where
   prettyTCM cl = enterClosure cl prettyTCM
 {-# SPECIALIZE prettyTCM :: PrettyTCM a => Closure a -> TCM Doc #-}

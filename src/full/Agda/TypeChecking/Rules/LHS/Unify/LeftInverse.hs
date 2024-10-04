@@ -25,7 +25,6 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Unify.Types
 
-import Agda.Utils.Either (fromRight)
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -199,7 +198,7 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
   interval <- primIntervalType
   max <- primIMax
   neg <- primINeg
-  leftInv <- fromRight __IMPOSSIBLE__ . sequenceA <$> do
+  result <- sequenceA <$> do
     addContext prob0 $ runNamesT (teleNames prob0) $ do
              phi <- open phi0
              g0 <- open $ raise (size prob0) prob0
@@ -213,6 +212,15 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
               i <- i
               -- this composition could be optimized further whenever step0i is actually constant in i.
               lift $ runExceptT (map unArg <$> transpSysTel' True tel [(i, leftInv0)] face step0i)
+  leftInv <- case result of
+    Right x  -> pure x
+    Left cl -> do
+      reportSDoc "impossible" 10 $ vcat
+        [ "transpSysTel' errored with term"
+        , prettyTCM cl
+        ]
+      __IMPOSSIBLE__
+
   let sigma = termsS __IMPOSSIBLE__ $ absBody leftInv
   verboseS "tc.lhs.unify.inv" 20 do
     addContext prob0 $ addContext ("r" :: String, __DUMMY_DOM__) do
