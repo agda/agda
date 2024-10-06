@@ -91,6 +91,14 @@ Ignoring invalid display form for L0 because its left-hand side
 contains an @-pattern: x@y
 when checking the pragma DISPLAY L0 x@y = Set
 
+InvalidDisplayForm.agda:45.1-37: warning: -W[no]UnusedVariablesInDisplayForm
+The following variables are bound on the left hand side but unused
+on the right hand side of the display form:
+  x y
+Replace them by underscores to pacify this warning
+when scope checking the declaration
+  {-# DISPLAY L0 x@y = Set #-}
+
 InvalidDisplayForm.agda:46.1-37: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for L1 because its left-hand side
 contains a dot pattern: .Set
@@ -243,6 +251,14 @@ InvalidDisplayForm.agda:45.1-37: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for L0 because its left-hand side
 contains an @-pattern: x@y
 when checking the pragma DISPLAY L0 x@y = Set
+
+InvalidDisplayForm.agda:45.1-37: warning: -W[no]UnusedVariablesInDisplayForm
+The following variables are bound on the left hand side but unused
+on the right hand side of the display form:
+  x y
+Replace them by underscores to pacify this warning
+when scope checking the declaration
+  {-# DISPLAY L0 x@y = Set #-}
 
 InvalidDisplayForm.agda:46.1-37: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for L1 because its left-hand side

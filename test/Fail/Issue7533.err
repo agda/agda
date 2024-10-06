@@ -1,0 +1,11 @@
+Issue7533.agda:15.1-28: warning: -W[no]UnusedVariablesInDisplayForm
+The following variable is bound on the left hand side but unused on
+the right hand side of the display form:
+  Empty
+Replace it by an underscore to pacify this warning
+when scope checking the declaration
+  {-# DISPLAY F Empty = X #-}
+
+Issue7533.agda:20.5-6: error: [UnequalTerms]
+Set !=< X
+when checking that the expression A has type X
