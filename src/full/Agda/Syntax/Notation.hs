@@ -21,8 +21,6 @@ import Control.Monad
 import Control.Monad.Except
 
 import qualified Data.List as List
-import Data.Set (Set)
-import qualified Data.Set as Set
 
 import GHC.Generics (Generic)
 
@@ -37,6 +35,8 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1           ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Set1            ( Set1 )
+import qualified Agda.Utils.Set1  as Set1
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 
@@ -237,11 +237,10 @@ mkNotation holes ids = do
 -- | All the notation information related to a name.
 data NewNotation = NewNotation
   { notaName  :: QName
-  , notaNames :: Set A.Name
+  , notaNames :: Set1 A.Name
     -- ^ The names the syntax and/or fixity belong to.
     --
-    -- Invariant: The set is non-empty. Every name in the list matches
-    -- 'notaName'.
+    -- Invariant: Every name in the list matches 'notaName'.
   , notaFixity :: Fixity
     -- ^ Associativity and precedence (fixity) of the names.
   , notation :: Notation
@@ -259,7 +258,7 @@ instance LensFixity NewNotation where
 namesToNotation :: QName -> A.Name -> NewNotation
 namesToNotation q n = NewNotation
   { notaName       = q
-  , notaNames      = Set.singleton n
+  , notaNames      = singleton n
   , notaFixity     = f
   , notation       = if null syn then syntaxOf (unqualify q) else syn
   , notaIsOperator = null syn
@@ -360,7 +359,7 @@ mergeNotations =
         _                                          -> NonAssoc
 
   merge :: List1 NewNotation -> NewNotation
-  merge (n :| ns) = n { notaNames = Set.unions $ map notaNames $ n:ns }
+  merge ns@(n :| _) = n { notaNames = Set1.unions $ fmap notaNames ns }
 
 -- | Check if a notation contains any lambdas (in which case it cannot be used in a pattern).
 isLambdaNotation :: NewNotation -> Bool

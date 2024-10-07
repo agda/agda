@@ -13,7 +13,6 @@ import Data.Kind ( Type )
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Strict.Maybe as Strict
-import Data.Set (Set)
 
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract.Name as A
@@ -27,6 +26,7 @@ import Agda.Syntax.Common.Pretty
 import Agda.Utils.List  ( spanEnd )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Set1  ( Set1 )
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
@@ -56,7 +56,7 @@ data ExprView e
     | WildV e
     | OtherV e
     | AppV e (NamedArg e)
-    | OpAppV QName (Set A.Name) (OpAppArgs' e)
+    | OpAppV QName (Set1 A.Name) (OpAppArgs' e)
       -- ^ The 'QName' is possibly ambiguous, but it must correspond
       -- to one of the names in the set.
     | HiddenArgV (Named_ e)

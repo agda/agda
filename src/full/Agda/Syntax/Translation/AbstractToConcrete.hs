@@ -30,17 +30,18 @@ import Control.Monad.State  ( StateT(..), runStateT )
 import Data.Bifunctor       ( first )
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Monoid hiding ((<>))
+import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Foldable as Fold
 import Data.Void
 import Data.List (sortBy)
-import Data.Semigroup ( Semigroup, (<>), sconcat )
+import Data.Semigroup ( sconcat )
 import Data.String
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Info as A
@@ -82,7 +83,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Syntax.Common.Aspect as Asp
-import Agda.Syntax.Common.Pretty hiding ((<>))
+import Agda.Utils.Set1 (Set1)
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix
 
@@ -278,12 +279,12 @@ isBuiltinFun = asks $ is . builtins
   where is m q b = Just q == Map.lookup b m
 
 -- | Resolve a concrete name. If illegally ambiguous fail with the ambiguous names.
-resolveName :: MonadToConcrete m => KindsOfNames -> Maybe (Set A.Name) -> C.QName -> m (Either NameResolutionError ResolvedName)
+resolveName :: MonadToConcrete m => KindsOfNames -> Maybe (Set1 A.Name) -> C.QName -> m (Either NameResolutionError ResolvedName)
 resolveName kinds candidates q = runExceptT $ tryResolveName kinds candidates q
 
 -- | Treat illegally ambiguous names as UnknownNames.
-resolveName_ :: MonadToConcrete m => C.QName -> [A.Name] -> m ResolvedName
-resolveName_ q cands = fromRight (const UnknownName) <$> resolveName allKindsOfNames (Just $ Set.fromList cands) q
+resolveName_ :: MonadToConcrete m => C.QName -> A.Name -> m ResolvedName
+resolveName_ q cand = fromRight (const UnknownName) <$> resolveName allKindsOfNames (Just $ singleton cand) q
 
 ---------------------------------------------------------------------------
 -- ** Dealing with names
@@ -1629,7 +1630,7 @@ getHead _                = Nothing
 
 cOpApp :: Asp.NameKind -> Range -> C.QName -> A.Name -> List1 (MaybeSection C.Expr) -> C.Expr
 cOpApp nk r x n es =
-  C.KnownOpApp nk r x (Set.singleton n) $
+  C.KnownOpApp nk r x (singleton n) $
   fmap (defaultNamedArg . placeholder) $
   List1.toList eps
   where
@@ -1690,7 +1691,7 @@ tryToRecoverOpAppP p = do
     ]
   return res
   where
-    opApp r x n ps = C.OpAppP r x (Set.singleton n) $
+    opApp r x n ps = C.OpAppP r x (singleton n) $
       fmap (defaultNamedArg . fromNoSection __IMPOSSIBLE__) $
       -- `view` does not generate any `Nothing`s
       List1.toList ps
@@ -1743,7 +1744,7 @@ recoverOpApp bracket isLam opApp view e = case view e of
     let n' = either id A.qnameName n
     -- #1346: The fixity of the abstract name is not necessarily correct, it depends on which
     -- concrete name we choose! Make sure to resolve ambiguities with n'.
-    (fx, nk) <- resolveName_ x [n'] <&> \ case
+    (fx, nk) <- resolveName_ x n' <&> \ case
       VarName y _                -> (y ^. lensFixity, Asp.Bound)
       DefinedName _ q _          -> (q ^. lensFixity, Asp.Function)
       FieldName (q :| _)         -> (q ^. lensFixity, Asp.Field)

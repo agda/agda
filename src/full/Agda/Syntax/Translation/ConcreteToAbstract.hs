@@ -103,6 +103,7 @@ import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Set1 ( Set1 )
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
@@ -578,9 +579,11 @@ data NewName a = NewName
   } deriving (Functor)
 
 data OldQName = OldQName
-  C.QName              -- ^ Concrete name to be resolved
-  (Maybe (Set A.Name)) -- ^ If a set is given, then the first name must
-                       --   correspond to one of the names in the set.
+  C.QName
+    -- ^ Concrete name to be resolved.
+  (Maybe (Set1 A.Name))
+    -- ^ If a set is given, then the first name must
+    --   correspond to one of the names in the set.
 
 -- | We sometimes do not want to fail hard if the name is not actually
 --   in scope because we have a strategy to recover from this problem
@@ -594,7 +597,7 @@ newtype OldName a = OldName a
 -- | Wrapper to resolve a name to a 'ResolvedName' (rather than an 'A.Expr').
 data ResolveQName = ResolveQName C.QName
 
-data PatName      = PatName C.QName (Maybe (Set A.Name)) Hiding
+data PatName      = PatName C.QName (Maybe (Set1 A.Name)) Hiding
   -- ^ If a set is given, then the first name must correspond to one
   -- of the names in the set.
   -- If pattern variable is hidden, its status is indicated in 'Hiding'.
@@ -672,9 +675,10 @@ instance ToAbstract ResolveQName where
     UnknownName -> notInScopeError x
     q -> return q
 
-data APatName = VarPatName A.Name
-              | ConPatName (List1 AbstractName)
-              | PatternSynPatName (List1 AbstractName)
+data APatName
+  = VarPatName A.Name
+  | ConPatName (List1 AbstractName)
+  | PatternSynPatName (List1 AbstractName)
 
 instance ToAbstract PatName where
   type AbsOfCon PatName = APatName
@@ -3158,7 +3162,7 @@ resolvePatternIdentifier ::
        -- ^ Is the pattern variable hidden?
   -> C.QName
        -- ^ Identifier.
-  -> Maybe (Set A.Name)
+  -> Maybe (Set1 A.Name)
        -- ^ Possibly precomputed resolutions of the identifier (from the operator parser).
   -> ScopeM (A.Pattern' C.Expr)
 resolvePatternIdentifier canBeConstructor h x ns = do
@@ -3347,7 +3351,7 @@ toAbstractOpArg ctx (SyntaxBindingLambda r bs e) = toAbstractLam r bs e ctx
 
 -- | Turn an operator application into abstract syntax. Make sure to
 -- record the right precedences for the various arguments.
-toAbstractOpApp :: C.QName -> Set A.Name -> OpAppArgs -> ScopeM A.Expr
+toAbstractOpApp :: C.QName -> Set1 A.Name -> OpAppArgs -> ScopeM A.Expr
 toAbstractOpApp op ns es = do
     -- Replace placeholders with bound variables.
     (binders, es) <- replacePlaceholders es

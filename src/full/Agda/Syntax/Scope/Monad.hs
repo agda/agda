@@ -65,6 +65,7 @@ import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Set1 ( Set1 )
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix as C
@@ -333,7 +334,7 @@ resolveName = resolveName' allKindsOfNames Nothing
 --   Then, we can ignore conflicting definitions of that name
 --   of a different kind. (See issue 822.)
 resolveName' ::
-  KindsOfNames -> Maybe (Set A.Name) -> C.QName -> ScopeM ResolvedName
+  KindsOfNames -> Maybe (Set1 A.Name) -> C.QName -> ScopeM ResolvedName
 resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
   Left (IllegalAmbiguity reason)  -> do
     reportS "scope.resolve" 60 $ unlines $
@@ -347,12 +348,15 @@ resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
 
   Right x' -> return x'
 
-tryResolveName
-  :: forall m. (ReadTCState m, HasBuiltins m, MonadError NameResolutionError m)
-  => KindsOfNames       -- ^ Restrict search to these kinds of names.
-  -> Maybe (Set A.Name) -- ^ Unless 'Nothing', restrict search to match any of these names.
-  -> C.QName            -- ^ Name to be resolved
-  -> m ResolvedName     -- ^ If illegally ambiguous, throw error with the ambiguous name.
+tryResolveName :: forall m. (ReadTCState m, HasBuiltins m, MonadError NameResolutionError m)
+  => KindsOfNames
+       -- ^ Restrict search to these kinds of names.
+  -> Maybe (Set1 A.Name)
+       -- ^ Unless 'Nothing', restrict search to match any of these names.
+  -> C.QName
+       -- ^ Name to be resolved
+  -> m ResolvedName
+       -- ^ If illegally ambiguous, throw error with the ambiguous name.
 tryResolveName kinds names x = do
   scope <- getScope
   let
@@ -426,7 +430,7 @@ tryResolveName kinds names x = do
   filterNames :: forall a. (a -> AbstractName) -> [a] -> [a]
   filterNames = case names of
     Nothing -> \ f -> id
-    Just ns -> \ f -> filter $ (`Set.member` ns) . A.qnameName . anameName . f
+    Just ns -> \ f -> filter $ (`Set1.member` ns) . A.qnameName . anameName . f
     -- lambda-dropped style by intention
   upd d = updateConcreteName d $ unqualify x
   updateConcreteName :: AbstractName -> C.Name -> AbstractName
@@ -491,7 +495,7 @@ computeFixitiesAndPolarities warn ds cont = do
 -- | Get the notation of a name. The name is assumed to be in scope.
 getNotation
   :: C.QName
-  -> Set A.Name
+  -> Set1 A.Name
      -- ^ The name must correspond to one of the names in this set.
   -> ScopeM NewNotation
 getNotation x ns = do

@@ -78,7 +78,6 @@ import qualified Data.DList as DL
 import Data.Function    ( (&) )
 import Data.Functor.Identity
 import Data.Maybe
-import Data.Set         ( Set  )
 import Data.Text        ( Text )
 -- import Data.Traversable ( forM )
 
@@ -86,6 +85,7 @@ import GHC.Generics     ( Generic )
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Aspect (NameKind)
 import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
 
@@ -100,8 +100,9 @@ import Agda.Utils.Lens
 import Agda.Utils.List1       ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2       ( List2, pattern List2 )
-import Agda.Syntax.Common.Aspect (NameKind)
 import Agda.Utils.Null
+import Agda.Utils.Set1        ( Set1 )
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
@@ -156,7 +157,7 @@ data Expr
   | Underscore Range (Maybe String)            -- ^ ex: @_@ or @_A_5@
   | RawApp Range (List2 Expr)                  -- ^ before parsing operators
   | App Range Expr (NamedArg Expr)             -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
-  | OpApp Range QName (Set A.Name) OpAppArgs   -- ^ ex: @e + e@
+  | OpApp Range QName (Set1 A.Name) OpAppArgs  -- ^ ex: @e + e@
                                                -- The 'QName' is possibly ambiguous,
                                                -- but it must correspond to one of the names in the set.
   | WithApp Range Expr [Expr]                  -- ^ ex: @e | e1 | .. | en@
@@ -190,7 +191,7 @@ data Expr
   | KnownIdent NameKind QName
     -- ^ An identifier coming from abstract syntax, for which we know a
     -- precise syntactic highlighting class (used in printing).
-  | KnownOpApp NameKind Range QName (Set A.Name) OpAppArgs
+  | KnownOpApp NameKind Range QName (Set1 A.Name) OpAppArgs
     -- ^ An operator application coming from abstract syntax, for which
     -- we know a precise syntactic highlighting class (used in
     -- printing).
@@ -215,7 +216,7 @@ data Pattern
   | QuoteP Range                           -- ^ @quote@
   | AppP Pattern (NamedArg Pattern)        -- ^ @p p'@ or @p {x = p'}@
   | RawAppP Range (List2 Pattern)          -- ^ @p1..pn@ before parsing operators
-  | OpAppP Range QName (Set A.Name)
+  | OpAppP Range QName (Set1 A.Name)
            [NamedArg Pattern]              -- ^ eg: @p => p'@ for operator @_=>_@
                                            -- The 'QName' is possibly
                                            -- ambiguous, but it must

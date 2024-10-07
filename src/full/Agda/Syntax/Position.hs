@@ -97,6 +97,7 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Set1 (Set1)
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.TypeLevel (IsBase, All, Domains)
 
 import Agda.Utils.Impossible
@@ -483,6 +484,9 @@ instance KillRange a => KillRange (Strict.Maybe a)
 
 instance {-# OVERLAPPABLE #-} (Ord a, KillRange a) => KillRange (Set a) where
   killRange = Set.map killRange
+
+instance (Ord a, KillRange a) => KillRange (Set1 a) where
+  killRange = Set1.map killRange
 
 instance (KillRange a, KillRange b) => KillRange (a, b) where
   killRange (x, y) = (killRange x, killRange y)
