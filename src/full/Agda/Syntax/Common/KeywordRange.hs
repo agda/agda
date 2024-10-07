@@ -1,5 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
 -- | A abstract 'Range' type dedicated to keyword occurrences in the source.
 
 module Agda.Syntax.Common.KeywordRange

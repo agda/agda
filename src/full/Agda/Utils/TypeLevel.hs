@@ -2,7 +2,6 @@
 
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE PolyKinds            #-}
-{-# LANGUAGE TypeOperators        #-}
 
 -- We need undecidable instances for the definition of @Foldr@,
 -- and @Domains@ and @CoDomain@ using @If@ for instance.

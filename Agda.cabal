@@ -351,9 +351,24 @@ common language
       ViewPatterns
 
   other-extensions:
+      AllowAmbiguousTypes
+      ApplicativeDo
       CPP
+      DataKinds
       DeriveAnyClass
+      ImplicitParams
+      KindSignatures
+      MagicHash
+      NondecreasingIndentation
+      OverloadedLists
       PartialTypeSignatures
+      PatternGuards
+      PolyKinds
+      RebindableSyntax
+      TemplateHaskell
+      TypeApplications
+      UnboxedTuples
+      UndecidableInstances
 
 
 -- Agda library

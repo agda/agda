@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE ViewPatterns #-}
-
 module Agda.TypeChecking.Telescope where
 
 import Prelude hiding (null)

@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Agda.TypeChecking.Level.Solve where
 
 import Control.Monad

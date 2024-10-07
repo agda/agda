@@ -1,9 +1,8 @@
 {-# LANGUAGE CPP                  #-}
-{-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE DataKinds            #-}
-{-# LANGUAGE UndecidableInstances #-} -- Due to ICODE vararg typeclass
 {-# LANGUAGE MagicHash            #-}
 {-# LANGUAGE UnboxedTuples        #-}
+{-# LANGUAGE UndecidableInstances #-} -- Due to ICODE vararg typeclass
 
 {-
 András, 2023-10-2:

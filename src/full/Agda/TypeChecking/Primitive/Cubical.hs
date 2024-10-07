@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Primitive.Cubical
   ( module Agda.TypeChecking.Primitive.Cubical

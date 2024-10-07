@@ -1,8 +1,7 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE PolyKinds #-}
 
 module Agda.Utils.IndexedList where
 

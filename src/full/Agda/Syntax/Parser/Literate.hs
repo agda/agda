@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE ViewPatterns #-}
-
 -- | Preprocessors for literate code formats.
 
 module Agda.Syntax.Parser.Literate

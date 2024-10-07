@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds      #-}
+{-# LANGUAGE KindSignatures #-}
 
 -- | Potentially uninitialised Booleans.
 --
