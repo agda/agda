@@ -77,7 +77,7 @@ instance IsWithP p => IsWithP (Named n p) where
 --
 -- (This view discards 'PatInfo'.)
 data LHSPatternView
-  = LHSAppP  [NamedArg Pattern]
+  = LHSAppP  (List1 (NamedArg Pattern))
       -- ^ Application patterns (non-empty list).
   | LHSWithP (List1 Pattern)
       -- ^ With patterns (non-empty list).
@@ -95,14 +95,14 @@ lhsPatternView (p0 : ps) =
       where
       (ps1, ps2) = spanJust isWithP ps
     -- If the next pattern is an application pattern, collect more of these
-    _ -> Just (LHSAppP (p0 : ps1), ps2)
+    _ -> Just (LHSAppP (p0 :| ps1), ps2)
       where
       (ps1, ps2) = span (isNothing . isWithP) ps
 
 -- | Add applicative patterns (non-projection / non-with patterns) to the right.
-lhsCoreApp :: LHSCore -> [NamedArg Pattern] -> LHSCore
+lhsCoreApp :: LHSCore -> List1 (NamedArg Pattern) -> LHSCore
 lhsCoreApp (LHSEllipsis r core) ps = LHSEllipsis r $ lhsCoreApp core ps
-lhsCoreApp core ps = core { lhsPats = lhsPats core ++ ps }
+lhsCoreApp core ps = core { lhsPats = lhsPats core ++ List1.toList ps }
 
 -- | Add with-patterns to the right.
 lhsCoreWith :: LHSCore -> List1 Pattern -> LHSCore

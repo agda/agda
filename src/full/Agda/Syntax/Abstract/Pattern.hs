@@ -30,6 +30,7 @@ import Agda.Utils.List
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -383,7 +384,7 @@ trailingWithPatterns = snd . splitOffTrailingWithPatterns
 --
 -- (This view discards 'PatInfo'.)
 data LHSPatternView e
-  = LHSAppP  (NAPs e)
+  = LHSAppP  (NAPs1 e)
       -- ^ Application patterns (non-empty list).
   | LHSProjP ProjOrigin AmbiguousQName (NamedArg (Pattern' e))
       -- ^ A projection pattern.  Is also stored unmodified here.
@@ -406,7 +407,7 @@ lhsPatternView (p0 : ps) =
       where
       (ps1, ps2) = spanJust isWithP ps
     -- If the next pattern is an application pattern, collect more of these
-    _ -> Just (LHSAppP (p0 : ps1), ps2)
+    _ -> Just (LHSAppP (p0 :| ps1), ps2)
       where
       (ps1, ps2) = span (\ p -> isNothing (isProjP p) && isNothing (isWithP p)) ps
 
@@ -459,10 +460,10 @@ lhsCoreWith core                  wps' = LHSWith core wps' []
 
 lhsCoreAddChunk :: IsProjP e => LHSCore' e -> LHSPatternView e -> LHSCore' e
 lhsCoreAddChunk core = \case
-  LHSAppP ps               -> lhsCoreApp core ps
+  LHSAppP ps               -> lhsCoreApp core $ List1.toList ps
   LHSWithP wps             -> lhsCoreWith core (defaultArg <$> wps)
   LHSProjP ProjPrefix d np -> LHSProj d (setNamedArg np core) []  -- Prefix projection pattern.
-  LHSProjP _          _ np -> lhsCoreApp core [np]       -- Postfix projection pattern.
+  LHSProjP _          _ np -> lhsCoreApp core (singleton np)      -- Postfix projection pattern.
 
 -- | Add projection, with, and applicative patterns to the right.
 lhsCoreAddSpine :: IsProjP e => LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
