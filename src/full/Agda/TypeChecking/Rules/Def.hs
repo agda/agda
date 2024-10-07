@@ -15,7 +15,7 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Semigroup (Semigroup((<>)))
+import Data.Semigroup ( sconcat )
 
 import Agda.Interaction.Options
 
@@ -495,7 +495,7 @@ insertInspects :: List1 (Arg (Maybe A.BindName)) -> A.LHSCore -> A.LHSCore
 insertInspects ps = \case
   A.LHSWith core wps [] ->
     let ps' = fmap (fmap $ fmap patOfName) ps in
-    A.LHSWith core (insertIn (List1.toList ps') wps) []
+    A.LHSWith core (List1.fromListSafe __IMPOSSIBLE__ $ insertIn (List1.toList ps') (List1.toList wps)) []
   -- Andreas, AIM XXXV, 2022-05-09, issue #5728:
   -- Cases other than LHSWith actually do not make sense, but let them
   -- through to get a proper error later.
@@ -510,22 +510,22 @@ insertInspects ps = \case
              -> [Arg a] -> [Arg a]
     insertIn []                 wps  = wps
     insertIn (Arg info nm : ps) (w : wps) | visible info =
-      w : (maybe [] pure nm) ++ insertIn ps wps
+      w : maybeToList nm ++ insertIn ps wps
     insertIn (Arg info nm : ps) wps       | notVisible info =
-          (maybe [] pure nm) ++ insertIn ps wps
+          maybeToList nm ++ insertIn ps wps
     insertIn _ _ = __IMPOSSIBLE__
 
 
 -- | Insert some with-patterns into the with-clauses LHS of the given RHS.
 -- (Used for @rewrite@)
-insertPatterns :: [Arg A.Pattern] -> A.RHS -> A.RHS
+insertPatterns :: List1 (Arg A.Pattern) -> A.RHS -> A.RHS
 insertPatterns pats = mapLHSCores (insertPatternsLHSCore pats)
 
 -- | Insert with-patterns before the trailing with patterns.
 -- If there are none, append the with-patterns.
-insertPatternsLHSCore :: [Arg A.Pattern] -> A.LHSCore -> A.LHSCore
+insertPatternsLHSCore :: List1 (Arg A.Pattern) -> A.LHSCore -> A.LHSCore
 insertPatternsLHSCore pats = \case
-  A.LHSWith core wps [] -> A.LHSWith core (pats ++ wps) []
+  A.LHSWith core wps [] -> A.LHSWith core (pats <> wps) []
   core                  -> A.LHSWith core pats []
 
 -- | Parameters for creating a @with@-function.
@@ -927,10 +927,8 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
           Nothing -> OtherType ty
           Just{}  -> IdiomType ty
 
-      let pats = concatMap (map defaultArg) $
-            for npats $ \ (Named nm p) -> case nm of
-              Nothing -> [p]
-              Just n  -> [p, A.VarP n]
+      let pats = fmap defaultArg $ sconcat $
+            for npats $ \ (Named nm p) -> p :| maybe [] (\ n -> [A.VarP n]) nm
 
       -- Andreas, 2016-04-14, see also Issue #1796
       -- Run the size constraint solver to improve with-abstraction
@@ -1013,8 +1011,8 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
 
       (pats', withExpr, withType) <- do
         ifM isReflexive
-          {-then-} (return ([ reflPat ]                    , proof, OtherType t'))
-          {-else-} (return ([ A.WildP patNoRange, reflPat ], proof, eqt))
+          {-then-} (return (                      reflPat :| [], proof, OtherType t'))
+          {-else-} (return (A.WildP patNoRange <| reflPat :| [], proof, eqt))
       let pats = defaultArg <$> pats'
 
       let rhs' = insertPatterns pats rhs

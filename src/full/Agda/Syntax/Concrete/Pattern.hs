@@ -79,7 +79,7 @@ instance IsWithP p => IsWithP (Named n p) where
 data LHSPatternView
   = LHSAppP  [NamedArg Pattern]
       -- ^ Application patterns (non-empty list).
-  | LHSWithP [Pattern]
+  | LHSWithP (List1 Pattern)
       -- ^ With patterns (non-empty list).
       --   These patterns are not prefixed with 'WithP'.
 
@@ -91,7 +91,7 @@ lhsPatternView :: [NamedArg Pattern] -> Maybe (LHSPatternView, [NamedArg Pattern
 lhsPatternView [] = Nothing
 lhsPatternView (p0 : ps) =
   case namedArg p0 of
-    WithP _i p   -> Just (LHSWithP (p : map namedArg ps1), ps2)
+    WithP _i p   -> Just (LHSWithP (p :| map namedArg ps1), ps2)
       where
       (ps1, ps2) = spanJust isWithP ps
     -- If the next pattern is an application pattern, collect more of these
@@ -105,8 +105,8 @@ lhsCoreApp (LHSEllipsis r core) ps = LHSEllipsis r $ lhsCoreApp core ps
 lhsCoreApp core ps = core { lhsPats = lhsPats core ++ ps }
 
 -- | Add with-patterns to the right.
-lhsCoreWith :: LHSCore -> [Pattern] -> LHSCore
-lhsCoreWith (LHSWith core wps []) wps' = LHSWith core (wps ++ wps') []
+lhsCoreWith :: LHSCore -> List1 Pattern -> LHSCore
+lhsCoreWith (LHSWith core wps []) wps' = LHSWith core (wps <> wps') []
 lhsCoreWith core                  wps' = LHSWith core wps' []
 
 -- | Append patterns to 'LHSCore', separating with patterns from the rest.

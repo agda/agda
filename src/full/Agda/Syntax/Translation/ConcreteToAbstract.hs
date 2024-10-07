@@ -3106,7 +3106,7 @@ instance ToAbstract C.LHSCore where
       liftA2 A.lhsCoreApp
         (liftA2 A.lhsCoreWith
           (toAbstract core)
-          (map defaultArg <$> toAbstract wps))
+          (fmap defaultArg <$> toAbstract wps))
         (toAbstract ps)
     -- In case of a part of the LHS which was expanded from an ellipsis,
     -- we flush the @scopeVarsToBind@ in order to allow variables bound

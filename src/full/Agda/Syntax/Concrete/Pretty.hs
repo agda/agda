@@ -443,7 +443,7 @@ instance Pretty LHSCore where
   pretty (LHSWith h wps ps) = if null ps then doc else
       sep $ parens doc : map (parens . pretty) ps
     where
-    doc = sep $ pretty h : map (("|" <+>) . pretty) wps
+    doc = sep $ pretty h <$ fmap (("|" <+>) . pretty) wps
   pretty (LHSEllipsis r p) = "..."
 
 instance Pretty ModuleApplication where

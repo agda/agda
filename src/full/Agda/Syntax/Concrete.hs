@@ -380,7 +380,7 @@ data LHSCore
              , lhsPats         :: [NamedArg Pattern]  -- ^ More application patterns.
              }
   | LHSWith  { lhsHead         :: LHSCore
-             , lhsWithPatterns :: [Pattern]          -- ^ Non-empty; at least one @(| p)@.
+             , lhsWithPatterns :: List1 Pattern      -- ^ At least one @(| p)@.
              , lhsPats         :: [NamedArg Pattern] -- ^ More application patterns.
              }
   | LHSEllipsis

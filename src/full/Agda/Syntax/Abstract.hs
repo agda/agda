@@ -493,7 +493,7 @@ data LHSCore' e
     -- | With patterns.
   | LHSWith  { lhsHead         :: LHSCore' e
                  -- ^ E.g. the 'LHSHead'.
-             , lhsWithPatterns :: [Arg (Pattern' e)]
+             , lhsWithPatterns :: List1 (Arg (Pattern' e))
                  -- ^ Applied to with patterns @| p1 | ... | pn@.
                  --   These patterns are not prefixed with @WithP@!
              , lhsPats         :: [NamedArg (Pattern' e)]

@@ -27,7 +27,7 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Functor
 import Agda.Utils.List
-import Agda.Utils.List1 (List1)
+import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 
@@ -387,7 +387,7 @@ data LHSPatternView e
       -- ^ Application patterns (non-empty list).
   | LHSProjP ProjOrigin AmbiguousQName (NamedArg (Pattern' e))
       -- ^ A projection pattern.  Is also stored unmodified here.
-  | LHSWithP [Pattern' e]
+  | LHSWithP (List1 (Pattern' e))
       -- ^ With patterns (non-empty list).
       --   These patterns are not prefixed with 'WithP'.
   deriving (Show)
@@ -402,7 +402,7 @@ lhsPatternView (p0 : ps) =
   case namedArg p0 of
     ProjP _i o d -> Just (LHSProjP o d p0, ps)
     -- If the next pattern is a with-pattern, collect more with-patterns
-    WithP _i p   -> Just (LHSWithP (p : map namedArg ps1), ps2)
+    WithP _i p   -> Just (LHSWithP (p :| map namedArg ps1), ps2)
       where
       (ps1, ps2) = spanJust isWithP ps
     -- If the next pattern is an application pattern, collect more of these
@@ -439,7 +439,7 @@ lhsCoreToSpine = \case
   LHSHead f ps     -> QNamed f ps
   LHSProj d h ps   -> lhsCoreToSpine (namedArg h) <&> (++ (p : ps))
     where p = updateNamedArg (const $ ProjP empty ProjPrefix d) h
-  LHSWith h wps ps -> lhsCoreToSpine h <&> (++ map fromWithPat wps ++ ps)
+  LHSWith h wps ps -> lhsCoreToSpine h <&> (++ map fromWithPat (List1.toList wps) ++ ps)
     where
       fromWithPat :: Arg (Pattern' e) -> NamedArg (Pattern' e)
       fromWithPat = fmap (unnamed . mkWithP)
@@ -453,8 +453,8 @@ lhsCoreApp :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
 lhsCoreApp core ps = core { lhsPats = lhsPats core ++ ps }
 
 -- | Add with-patterns to the right.
-lhsCoreWith :: LHSCore' e -> [Arg (Pattern' e)] -> LHSCore' e
-lhsCoreWith (LHSWith core wps []) wps' = LHSWith core (wps ++ wps') []
+lhsCoreWith :: LHSCore' e -> List1 (Arg (Pattern' e)) -> LHSCore' e
+lhsCoreWith (LHSWith core wps []) wps' = LHSWith core (wps <> wps') []
 lhsCoreWith core                  wps' = LHSWith core wps' []
 
 lhsCoreAddChunk :: IsProjP e => LHSCore' e -> LHSPatternView e -> LHSCore' e
@@ -496,7 +496,7 @@ lhsCoreToPattern lc =
     LHSProj d lhscore aps -> DefP noInfo d $
       fmap (fmap lhsCoreToPattern) lhscore : aps
     LHSWith h wps aps     -> case lhsCoreToPattern h of
-      DefP r q ps         -> DefP r q $ ps ++ map fromWithPat wps ++ aps
+      DefP r q ps         -> DefP r q $ ps ++ map fromWithPat (List1.toList wps) ++ aps
         where
           fromWithPat :: Arg Pattern -> NamedArg Pattern
           fromWithPat = fmap (unnamed . mkWithP)
