@@ -527,7 +527,7 @@ data Pattern' e
   | LitP PatInfo Literal
   | PatternSynP PatInfo AmbiguousQName (NAPs e)
   | RecP ConPatInfo [FieldAssignment' (Pattern' e)]
-  | EqualP PatInfo [(e, e)]
+  | EqualP PatInfo (List1 (e, e))
   | WithP PatInfo (Pattern' e)  -- ^ @| p@, for with-patterns.
   deriving (Show, Functor, Foldable, Traversable, Eq, Generic)
 

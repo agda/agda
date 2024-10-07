@@ -3081,9 +3081,9 @@ mergeEqualPs = go (empty, [])
         warning $ FaceConstraintCannotBeHidden ai
       whenJust mn $ \ x -> setCurrentRange x $
         warning $ FaceConstraintCannotBeNamed x
-      go (acc `mappend` (r, es)) ps
-    go (r, es@(_:_)) ps = (defaultNamedArg (A.EqualP r es) :) <$> mergeEqualPs ps
-    go (_, []) []       = return []
+      go (acc `mappend` (r, List1.toList es)) ps
+    go (r, (e:es))   ps = (defaultNamedArg (A.EqualP r $ e :| es) :) <$> mergeEqualPs ps
+    go (_, [])       [] = return []
     go (_, []) (p : ps) = (p :) <$> mergeEqualPs ps
 
 -- does not check pattern linearity

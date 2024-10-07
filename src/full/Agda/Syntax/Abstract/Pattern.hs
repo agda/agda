@@ -277,7 +277,7 @@ substPattern'
 substPattern' subE s = mapAPattern $ \ p -> case p of
   VarP x            -> fromMaybe p $ lookup (A.unBind x) s
   DotP i e          -> DotP i $ subE e
-  EqualP i es       -> EqualP i $ map (subE *** subE) es
+  EqualP i es       -> EqualP i $ fmap (subE *** subE) es
   -- No action on the other patterns (besides the recursion):
   ConP _ _ _        -> p
   RecP _ _          -> p

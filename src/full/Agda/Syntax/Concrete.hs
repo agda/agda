@@ -232,7 +232,7 @@ data Pattern
                                            --   the 'Range' for the whole thing (including the dot).
   | LitP Range Literal                     -- ^ @0@, @1@, etc.
   | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
-  | EqualP Range [(Expr,Expr)]             -- ^ @i = i1@ i.e. cubical face lattice generator
+  | EqualP Range (List1 (Expr,Expr))       -- ^ @i = i1@ i.e. cubical face lattice generator
   | EllipsisP Range (Maybe Pattern)        -- ^ @...@, only as left-most pattern.
                                            --   Second arg is @Nothing@ before expansion, and
                                            --   @Just p@ after expanding ellipsis to @p@.
@@ -797,7 +797,7 @@ exprToPattern fallback = loop
     InstanceArg r e      -> InstanceP r <$> traverse loop e
     RawApp      r es     -> RawAppP   r <$> traverse loop es
     Quote       r        -> pure $ QuoteP r
-    Equal       r e1 e2  -> pure $ EqualP r [(e1, e2)]
+    Equal       r e1 e2  -> pure $ EqualP r $ singleton (e1, e2)
     Ellipsis    r        -> pure $ EllipsisP r Nothing
     e@(Rec r es)
         -- We cannot translate record expressions with module parts.

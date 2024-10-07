@@ -741,7 +741,7 @@ instance Pretty Pattern where
             LitP _ l        -> pretty l
             QuoteP _        -> "quote"
             RecP _ fs       -> sep [ "record", bracesAndSemicolons (map pretty fs) ]
-            EqualP _ es     -> sep $ [ parens (sep [pretty e1, "=", pretty e2]) | (e1,e2) <- es ]
+            EqualP _ es     -> sep $ for es \ (e1, e2) -> parens $ sep [pretty e1, "=", pretty e2]
             EllipsisP _ mp  -> "..."
             WithP _ p       -> "|" <+> pretty p
 

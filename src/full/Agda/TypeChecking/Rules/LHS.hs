@@ -1133,11 +1133,17 @@ checkLHS mf = updateModality checkLHS_ where
     --   sigma = fails because several substitutions [[1/i],[1/j]] correspond to phi
     -- @
 
-    splitPartial :: Telescope     -- The types of arguments before the one we split on
-                 -> Dom Type      -- The type of the argument we split on
-                 -> Abs Telescope -- The types of arguments after the one we split on
-                 -> [(A.Expr, A.Expr)] -- [(φ₁ = b1),..,(φn = bn)]
-                 -> ExceptT TCErr tcm (LHSState a)
+    splitPartial ::
+         Telescope
+            -- The types of arguments before the one we split on.
+      -> Dom Type
+            -- The type of the argument we split on.
+      -> Abs Telescope
+            -- The types of arguments after the one we split on.
+      -> List1 (A.Expr, A.Expr)
+            -- [(φ₁ = b1),..,(φn = bn)]
+      -> ExceptT TCErr tcm (LHSState a)
+
     splitPartial delta1 dom adelta2 ts = do
 
       unless (domIsFinite dom) $ liftTCM $ addContext delta1 $
@@ -1187,22 +1193,7 @@ checkLHS mf = updateModality checkLHS_ where
                    IOne  -> return t
                    _     -> typeError $ ExpectedIntervalLiteral rhs
          -- Example: ts = (i=0) (j=1) will result in phi = ¬ i & j
-         phi <- case ts of
-                   [] -> do
-                     a <- reduce (unEl $ unDom dom)
-                     -- builtinIsOne is defined, since this is a precondition for having Partial
-                     isone <- fromMaybe __IMPOSSIBLE__ <$>  -- newline because of CPP
-                       getBuiltinName' builtinIsOne
-                     case a of
-                       Def q [Apply phi] | q == isone -> return (unArg phi)
-                       -- 2024-07-21 Other cases are impossible, see comment
-                       -- https://github.com/agda/agda/pull/7379#issuecomment-2240017422
-                       -- Amelia writes:
-                       -- There's no way for the user to write an @finite ... → ... other than by using Partial,
-                       -- and Partial always has IsOne as its domain.
-                       _ -> __IMPOSSIBLE__
-
-                   _  -> foldl (\ x y -> primIMin <@> x <@> y) primIOne (map pure ts)
+         phi <- foldl (\ x y -> primIMin <@> x <@> y) primIOne (fmap pure ts)
          reportSDoc "tc.lhs.split.partial" 10 $ text "phi           =" <+> prettyTCM phi
          reportSDoc "tc.lhs.split.partial" 30 $ text "phi           =" <+> pretty phi
          phi <- reduce phi

@@ -1455,19 +1455,18 @@ instance Reify (QNamed System) where
           (IOne, False) -> False
           _ -> True
     forM sys $ \ (alpha,u) -> do
-      rhs <- RHS <$> reify u <*> pure Nothing
-      ep <- fmap (A.EqualP patNoRange) . forM alpha $ \ (phi,b) -> do
-        let
-            d True = unview IOne
-            d False = unview IZero
-        reify (phi, d b)
-
       ps <- reifyPatterns $ teleNamedArgs tel
-      ps <- stripImplicits mempty [] $ ps ++ [defaultNamedArg ep]
-      let
-        lhs = SpineLHS empty f ps
-        result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
-      return result
+      ps <- List1.ifNull alpha (pure ps) {-else-} \ alpha -> do
+        ep <- fmap (A.EqualP patNoRange) . forM alpha $ \ (phi,b) -> do
+          let
+              d True = unview IOne
+              d False = unview IZero
+          reify (phi, d b)
+        pure $ ps ++ [defaultNamedArg ep]
+
+      lhs <- SpineLHS empty f <$> stripImplicits mempty [] ps
+      rhs <- reify u <&> (`RHS` Nothing)
+      return $ A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
 {-# SPECIALIZE reify :: QNamed System -> TCM (ReifiesTo (QNamed System)) #-}
 
 instance Reify I.Type where
