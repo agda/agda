@@ -678,8 +678,9 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
       tqs        = applySubst rho tqs0
       -- Build the arguments to the with function.
       es         = map (Apply . fmap DTerm) topArgs ++ tqs
-      withArgs   = map var $ take n $ downFrom $ size delta2 + n
-      dt         = DWithApp (DDef f es) (map DTerm withArgs) []
+      withArgs   = List1.fromListSafe __IMPOSSIBLE__ $  -- List is non-empty since n >= 1
+                     map var $ take n $ downFrom $ size delta2 + n
+      dt         = DWithApp (DDef f es) (fmap DTerm withArgs) []
 
   -- Build the lhs of the display form and finish.
   -- @var 0@ is the pattern variable (hole).

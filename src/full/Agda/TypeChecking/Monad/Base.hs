@@ -1902,7 +1902,7 @@ type LocalDisplayForm = Open DisplayForm
 -- | A structured presentation of a 'Term' for reification into
 --   'Abstract.Syntax'.
 data DisplayTerm
-  = DWithApp DisplayTerm [DisplayTerm] Elims
+  = DWithApp DisplayTerm (List1 DisplayTerm) Elims
     -- ^ @(f vs | ws) es@.
     --   The first 'DisplayTerm' is the parent function @f@ with its args @vs@.
     --   The list of 'DisplayTerm's are the with expressions @ws@.
@@ -1950,7 +1950,8 @@ instance Pretty DisplayTerm where
       DWithApp h ws es ->
         mparens (p > 0)
           (sep [ pretty h
-              , nest 2 $ fsep [ "|" <+> pretty w | w <- ws ] ])
+               , nest 2 $ fsep $ fmap (\ w -> "|" <+> pretty w) ws
+               ])
         `pApp` es
     where
       pApp :: Pretty el => Doc -> [el] -> Doc

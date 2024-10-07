@@ -27,6 +27,7 @@ import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.List1 (List1)
 import Agda.Utils.Maybe
 import Agda.Syntax.Common.Pretty
 
@@ -224,6 +225,9 @@ class SubstWithOrigin a where
 
 instance SubstWithOrigin a => SubstWithOrigin [a] where
   substWithOrigin rho ots = map (substWithOrigin rho ots)
+
+instance SubstWithOrigin a => SubstWithOrigin (List1 a) where
+  substWithOrigin rho ots = fmap (substWithOrigin rho ots)
 
 instance (SubstWithOrigin a, SubstWithOrigin (Arg a)) => SubstWithOrigin (Elim' a) where
   substWithOrigin rho ots (Apply arg) = Apply $ substWithOrigin rho ots arg

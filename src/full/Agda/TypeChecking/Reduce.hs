@@ -169,6 +169,7 @@ class Instantiate t where
   instantiate' = traverse instantiate'
 
 instance Instantiate t => Instantiate [t]
+instance Instantiate t => Instantiate (List1 t)
 instance Instantiate t => Instantiate (Map k t)
 instance Instantiate t => Instantiate (Maybe t)
 instance Instantiate t => Instantiate (Strict.Maybe t)
@@ -1387,6 +1388,7 @@ class InstantiateFull t where
 -- Traversables (doesn't include binders like Abs, Tele):
 
 instance InstantiateFull t => InstantiateFull [t]
+instance InstantiateFull t => InstantiateFull (List1 t)
 instance InstantiateFull t => InstantiateFull (HashMap k t)
 instance InstantiateFull t => InstantiateFull (Map k t)
 instance InstantiateFull t => InstantiateFull (Maybe t)

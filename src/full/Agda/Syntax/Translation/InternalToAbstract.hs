@@ -224,7 +224,7 @@ instance Reify DisplayTerm where
     DDef f es         -> elims (A.Def f) =<< reify es
     DWithApp u us es0 -> do
       (e, es) <- reify (u, us)
-      elims (List1.ifNull es {-then-} e {-else-} $ A.WithApp noExprInfo e) =<< reify es0
+      elims (A.WithApp noExprInfo e es) =<< reify es0
 {-# SPECIALIZE reify :: DisplayTerm -> TCM (ReifiesTo DisplayTerm) #-}
 
 {-# SPECIALIZE reifyDisplayForm :: QName -> I.Elims -> TCM A.Expr -> TCM A.Expr #-}
@@ -342,7 +342,7 @@ reifyDisplayFormP f ps wps = do
     flattenWith :: DisplayTerm -> (QName, [I.Elim' DisplayTerm], [I.Elim' DisplayTerm])
     flattenWith (DWithApp d ds1 es2) =
       let (f, es, ds0) = flattenWith d
-      in  (f, es, ds0 ++ map (I.Apply . defaultArg) ds1 ++ map (fmap DTerm) es2)
+      in  (f, es, ds0 ++ map (I.Apply . defaultArg) (List1.toList ds1) ++ map (fmap DTerm) es2)
     flattenWith (DDef f es) = (f, es, [])     -- .^ hacky, but we should only hit this when printing debug info
     flattenWith (DTerm' (I.Def f es') es) = (f, map (fmap DTerm) $ es' ++ es, [])
     flattenWith _ = __IMPOSSIBLE__
@@ -1579,6 +1579,12 @@ instance Reify i => Reify (I.Elim' i)  where
 
 instance Reify i => Reify [i] where
   type ReifiesTo [i] = [ReifiesTo i]
+
+  reify = traverse reify
+  reifyWhen b = traverse (reifyWhen b)
+
+instance Reify i => Reify (List1 i) where
+  type ReifiesTo (List1 i) = List1 (ReifiesTo i)
 
   reify = traverse reify
   reifyWhen b = traverse (reifyWhen b)
