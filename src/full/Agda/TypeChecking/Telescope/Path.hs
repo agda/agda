@@ -47,10 +47,22 @@ telePiPath reAbs lams tel t bs = do
       case s of
         NoAbs _ (Type l) -> return l
         Abs n (Type l) | not (freeIn 0 s) -> return $ noabsApp __IMPOSSIBLE__ (Abs n l)
-        _ -> typeError . GenericError . show =<<
-             (text "The type is non-fibrant or its sort depends on an interval variable" <+> prettyTCM (unAbs b))
-             -- TODO better Type Error
-             -- TODO #7413: reproducer for this error
+        _ -> __IMPOSSIBLE__
+          -- 2024-10-07 Andreas, issue #7413
+          -- Andrea writes in https://github.com/agda/agda/issues/7413#issuecomment-2396146135
+          --
+          -- I believe this is actually impossible at the moment
+          -- unless generalized Path types were implemented while I wasn't looking:
+          --
+          -- telePathPi only does this check if there's a boundary,
+          -- which should only be introduced by a PathP copattern,
+          -- which then should ensure the result type is in Type lvl
+          -- for some lvl that does not depend on on the interval
+          -- variable of the path.
+          --
+          -- WAS: generic error with message
+          -- text "The type is non-fibrant or its sort depends on an interval variable" <+> prettyTCM (unAbs b)
+
     telePiPath :: [Int] -> Telescope -> TCM Type
     telePiPath []     EmptyTel          = pure $ t
     telePiPath (x:xs) (ExtendTel a tel)
