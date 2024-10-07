@@ -8,14 +8,9 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     ( ToAbstract(..), localToAbstract
     , concreteToAbstract_
     , concreteToAbstract
-    , NewModuleQName(..)
     , TopLevel(..)
     , TopLevelInfo(..)
     , topLevelModuleName
-    , AbstractRHS
-    , NewModuleName, OldModuleName
-    , NewName, OldQName
-    , PatName, APatName
     , importPrimitives
     , checkAttributes
     ) where
