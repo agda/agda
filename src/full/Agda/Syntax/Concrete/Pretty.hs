@@ -23,7 +23,7 @@ import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List  ( lastMaybe )
-import Agda.Utils.List1 ( List1, pattern (:|) )
+import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
@@ -240,7 +240,7 @@ instance Pretty Expr where
             KnownOpApp nk _ q _ es -> fsep $ prettyOpApp (Asp.Name (Just nk) True) q es
 
             WithApp _ e es -> fsep $
-              pretty e : map ((hlSymbol "|" <+>) . pretty) es
+              pretty e <| fmap ((hlSymbol "|" <+>) . pretty) es
 
             HiddenArg _ e -> braces' $ pretty e
             InstanceArg _ e -> dbraces $ pretty e

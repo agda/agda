@@ -160,7 +160,7 @@ data Expr
   | OpApp Range QName (Set1 A.Name) OpAppArgs  -- ^ ex: @e + e@
                                                -- The 'QName' is possibly ambiguous,
                                                -- but it must correspond to one of the names in the set.
-  | WithApp Range Expr [Expr]                  -- ^ ex: @e | e1 | .. | en@
+  | WithApp Range Expr (List1 Expr)            -- ^ ex: @e | e1 | .. | en@
   | HiddenArg Range (Named_ Expr)              -- ^ ex: @{e}@ or @{x=e}@
   | InstanceArg Range (Named_ Expr)            -- ^ ex: @{{e}}@ or @{{x=e}}@
   | Lam Range (List1 LamBinding) Expr          -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@

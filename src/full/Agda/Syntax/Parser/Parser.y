@@ -667,8 +667,8 @@ Expr1 : Expr1_P(RecordUpdate) { $1 }
 Expr1_P(recordUpdate)
   : UnnamedWithExprs_P(recordUpdate)
       {% case $1 of
-           { e :| [] -> return e
-           ; e :| es -> return $ WithApp (fuseRange e es) e es
+           { e :| []      -> return e
+           ; e :| e1 : es -> return $ WithApp (getRange (e, e1, es)) e (e1 :| es)
            }
       }
 
@@ -676,17 +676,17 @@ WithExprs :: { List1 (Named Name Expr) }
 WithExprs : WithExprs_P(RecordUpdate) { $1 }
 
 WithExprs_P(recordUpdate)
-  : Application3_P(recordUpdate) 'in' Id     '|' WithExprs { named $3  (rawApp $1) <| $5 }
-  | Application3_P(recordUpdate) {- empty -} '|' WithExprs { unnamed   (rawApp $1) <| $3 }
-  | Application3_P(recordUpdate) 'in' Id                   { singleton (named $3 (rawApp $1)) }
-  | Application3_P(recordUpdate) {- empty -}               { singleton (unnamed  (rawApp $1)) }
+  : Application3_P(recordUpdate) 'in' Id '|' WithExprs { named $3  (rawApp $1) <| $5 }
+  | Application3_P(recordUpdate)         '|' WithExprs { unnamed   (rawApp $1) <| $3 }
+  | Application3_P(recordUpdate) 'in' Id               { singleton (named $3 (rawApp $1)) }
+  | Application3_P(recordUpdate)                       { singleton (unnamed  (rawApp $1)) }
 
 UnnamedWithExprs :: { List1 Expr }
 UnnamedWithExprs : UnnamedWithExprs_P(RecordUpdate) { $1 }
 
 UnnamedWithExprs_P(recordUpdate)
-  :  Application3_P(recordUpdate) '|' UnnamedWithExprs { (rawApp $1) <| $3 }
-  | {- empty -} Application_P(recordUpdate)            { singleton (rawApp $1) }
+  : Application3_P(recordUpdate) '|' UnnamedWithExprs { (rawApp $1) <| $3 }
+  | Application_P(recordUpdate)                       { singleton (rawApp $1) }
 
 Application :: { List1 Expr }
 Application : Application_P(RecordUpdate) { $1 }
@@ -731,7 +731,7 @@ Application3_P(recordUpdate)
 -- original type and create this copy solely for extended lambda clauses.
 Application3PossiblyEmpty :: { [Expr] }
 Application3PossiblyEmpty
-    :                                 { [] }
+    : {- empty -}                                     { [] }
     | Expr3_P(RecordUpdate) Application3PossiblyEmpty { $1 : $2 }
 
 -- Level 3: Atoms

@@ -224,7 +224,7 @@ instance Reify DisplayTerm where
     DDef f es         -> elims (A.Def f) =<< reify es
     DWithApp u us es0 -> do
       (e, es) <- reify (u, us)
-      elims (if null es then e else A.WithApp noExprInfo e es) =<< reify es0
+      elims (List1.ifNull es {-then-} e {-else-} $ A.WithApp noExprInfo e) =<< reify es0
 {-# SPECIALIZE reify :: DisplayTerm -> TCM (ReifiesTo DisplayTerm) #-}
 
 {-# SPECIALIZE reifyDisplayForm :: QName -> I.Elims -> TCM A.Expr -> TCM A.Expr #-}

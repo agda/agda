@@ -94,7 +94,7 @@ data Expr
     -- ^ Meta variable for hidden argument (must be inferred locally).
   | Dot ExprInfo Expr                  -- ^ @.e@, for postfix projection.
   | App  AppInfo Expr (NamedArg Expr)  -- ^ Ordinary (binary) application.
-  | WithApp ExprInfo Expr [Expr]       -- ^ With application.
+  | WithApp ExprInfo Expr (List1 Expr) -- ^ With application.
   | Lam  ExprInfo LamBinding Expr      -- ^ @λ bs → e@.
   | AbsurdLam ExprInfo Hiding          -- ^ @λ()@ or @λ{}@.
   | ExtendedLam ExprInfo DefInfo Erased QName (List1 Clause)
