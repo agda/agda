@@ -261,6 +261,11 @@ unwords = List.unwords . List1.toList
 nubM :: Monad m => (a -> a -> m Bool) -> List1 a -> m (List1 a)
 nubM eq (a :| as) = (a :|) <$> do List.nubM eq =<< filterM (not <.> eq a) as
 
+-- | Like 'Agda.Utils.List.unzipWith'.
+
+unzipWith :: (a -> (b, c)) -> List1 a -> (List1 b, List1 c)
+unzipWith f = unzip . fmap f
+
 -- | Like 'Control.Monad.zipWithM'.
 
 zipWithM :: Applicative m => (a -> b -> m c) -> List1 a -> List1 b -> m (List1 c)

@@ -50,8 +50,12 @@ import Agda.Utils.POMonoid
 
 import Agda.Utils.Impossible
 
+-- | Number @>= 0@.
 type Nat    = Int
 type Arity  = Nat
+
+-- | Number @>= 1@.
+type Nat1   = Nat
 
 ---------------------------------------------------------------------------
 -- * IsMain

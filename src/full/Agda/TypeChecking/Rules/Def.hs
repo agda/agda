@@ -488,14 +488,14 @@ mapLHSCores f = \case
 
 -- | Insert some names into the with-clauses LHS of the given RHS.
 -- (Used for the inspect idiom)
-insertNames :: [Arg (Maybe A.BindName)] -> A.RHS -> A.RHS
+insertNames :: List1 (Arg (Maybe A.BindName)) -> A.RHS -> A.RHS
 insertNames = mapLHSCores . insertInspects
 
-insertInspects :: [Arg (Maybe A.BindName)] -> A.LHSCore -> A.LHSCore
+insertInspects :: List1 (Arg (Maybe A.BindName)) -> A.LHSCore -> A.LHSCore
 insertInspects ps = \case
   A.LHSWith core wps [] ->
-    let ps' = map (fmap $ fmap patOfName) ps in
-    A.LHSWith core (insertIn ps' wps) []
+    let ps' = fmap (fmap $ fmap patOfName) ps in
+    A.LHSWith core (insertIn (List1.toList ps') wps) []
   -- Andreas, AIM XXXV, 2022-05-09, issue #5728:
   -- Cases other than LHSWith actually do not make sense, but let them
   -- through to get a proper error later.
@@ -532,22 +532,22 @@ insertPatternsLHSCore pats = \case
 data WithFunctionProblem
   = NoWithFunction
   | WithFunction
-    { wfParentName :: QName                             -- ^ Parent function name.
-    , wfName       :: QName                             -- ^ With function name.
-    , wfParentType :: Type                              -- ^ Type of the parent function.
-    , wfParentTel  :: Telescope                         -- ^ Context of the parent patterns.
-    , wfBeforeTel  :: Telescope                         -- ^ Types of arguments to the with function before the with expressions (needed vars).
-    , wfAfterTel   :: Telescope                         -- ^ Types of arguments to the with function after the with expressions (unneeded vars).
-    , wfExprs      :: [Arg (Term, EqualityView)]        -- ^ With and rewrite expressions and their types.
-    , wfRHSType    :: Type                              -- ^ Type of the right hand side.
-    , wfParentPats :: [NamedArg DeBruijnPattern]        -- ^ Parent patterns.
-    , wfParentParams :: Nat                             -- ^ Number of module parameters in parent patterns
-    , wfPermSplit  :: Permutation                       -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
-    , wfPermParent :: Permutation                       -- ^ Permutation reordering the variables in the parent pattern.
-    , wfPermFinal  :: Permutation                       -- ^ Final permutation (including permutation for the parent clause).
-    , wfClauses    :: List1 A.Clause                    -- ^ The given clauses for the with function
-    , wfCallSubst :: Substitution                       -- ^ Subtsitution to generate call for the parent.
-    , wfLetBindings :: Map Name LetBinding              -- ^ The let-bindings in scope of the parent (in the parent context)
+    { wfParentName   :: QName                            -- ^ Parent function name.
+    , wfName         :: QName                            -- ^ With function name.
+    , wfParentType   :: Type                             -- ^ Type of the parent function.
+    , wfParentTel    :: Telescope                        -- ^ Context of the parent patterns.
+    , wfBeforeTel    :: Telescope                        -- ^ Types of arguments to the with function before the with expressions (needed vars).
+    , wfAfterTel     :: Telescope                        -- ^ Types of arguments to the with function after the with expressions (unneeded vars).
+    , wfExprs        :: List1 (Arg (Term, EqualityView)) -- ^ With and rewrite expressions and their types.
+    , wfRHSType      :: Type                             -- ^ Type of the right hand side.
+    , wfParentPats   :: [NamedArg DeBruijnPattern]       -- ^ Parent patterns.
+    , wfParentParams :: Nat                              -- ^ Number of module parameters in parent patterns
+    , wfPermSplit    :: Permutation                      -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
+    , wfPermParent   :: Permutation                      -- ^ Permutation reordering the variables in the parent pattern.
+    , wfPermFinal    :: Permutation                      -- ^ Final permutation (including permutation for the parent clause).
+    , wfClauses      :: List1 A.Clause                   -- ^ The given clauses for the with function
+    , wfCallSubst    :: Substitution                     -- ^ Substitution to generate call for the parent.
+    , wfLetBindings  :: Map Name LetBinding              -- ^ The let-bindings in scope of the parent (in the parent context).
     }
 
 checkSystemCoverage
@@ -849,14 +849,14 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
   -- to insert the {eqb} names so that the equality proofs are available on the various RHS.
   withRHS ::
        QName             -- name of the with-function
-    -> [A.WithExpr]      -- @[{a} in eqa, b in eqb, {{c}}, ...]@
+    -> List1 A.WithExpr  -- @[{a} in eqa, b in eqb, {{c}}, ...]@
     -> List1 A.Clause    -- @[(ps1 = rhs1), (ps2 = rhs), ...]@
     -> TCM (Maybe Term, WithFunctionProblem)
   withRHS aux es cs = do
 
     reportSDoc "tc.with.top" 15 $ vcat
       [ "TC.Rules.Def.checkclause reached A.WithRHS"
-      , sep $ prettyA aux : map (parens . prettyA . namedThing) es
+      , sep $ prettyA aux <| fmap (parens . prettyA . namedThing) es
       ]
     reportSDoc "tc.with.top" 20 $ do
       nfv <- getCurrentModuleFreeVars
@@ -874,7 +874,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
                 Nothing -> OtherType ty
                 Just{}  -> IdiomType ty
 
-    let names = map (\ (Named nm e) -> nm <$ e) es
+    let names = fmap (\ (Named nm e) -> nm <$ e) es
     cs <- forM cs $ \ c@(A.Clause (A.LHS i core) eqs rhs wh b) -> do
       let rhs'  = insertNames    names rhs
       let core' = insertInspects names core
@@ -904,22 +904,22 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
     Rewrite ((qname, eq) :| qes) ->
       rewriteEqnRHS qname eq $
         List1.ifNull qes {-then-} rs {-else-} $ \ qes -> Rewrite qes : rs
-    Invert qname pes -> invertEqnRHS qname (List1.toList pes) rs
-    LeftLet pes -> usingEqnRHS (List1.toList pes) rs
+    Invert qname pes -> invertEqnRHS qname pes rs
+    LeftLet pes -> usingEqnRHS pes rs
 
     where
 
     -- @using@ clauses
-    usingEqnRHS :: [(A.Pattern, A.Expr)] -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
+    usingEqnRHS :: List1 (A.Pattern, A.Expr) -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
     usingEqnRHS pes rs = do
       let letBindings = for (List1.toList pes) $ \(p, e) -> A.LetPatBind (LetRange $ getRange e) p e
       checkLetBindings letBindings $ rewriteEqnsRHS rs strippedPats rhs wh
 
     -- @invert@ clauses
-    invertEqnRHS :: QName -> [Named A.BindName (A.Pattern,A.Expr)] -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
+    invertEqnRHS :: QName -> List1 (Named A.BindName (A.Pattern,A.Expr)) -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
     invertEqnRHS qname pes rs = do
 
-      let (npats, es) = unzipWith (\ (Named nm (p , e)) -> (Named nm p, Named nm e)) pes
+      let (npats, es) = List1.unzipWith (\ (Named nm (p , e)) -> (Named nm p, Named nm e)) pes
       -- Infer the types of the with expressions
       vtys <- forM es $ \ (Named nm we) -> do
         (e, ty) <- inferExprForWith (defaultArg we)
@@ -1030,14 +1030,14 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
         [ text "rewrite"
         , "  rhs' = " <> (text . show) rhs'
         ]
-      checkWithRHS x qname t lhsResult [defaultArg (withExpr, withType)] $ singleton cl
+      checkWithRHS x qname t lhsResult (singleton $ defaultArg (withExpr, withType)) $ singleton cl
 
 checkWithRHS
   :: QName                             -- ^ Name of function.
   -> QName                             -- ^ Name of the with-function.
   -> Type                              -- ^ Type of function.
   -> LHSResult                         -- ^ Result of type-checking patterns
-  -> [Arg (Term, EqualityView)]        -- ^ Expressions and types of with-expressions.
+  -> List1 (Arg (Term, EqualityView))  -- ^ Expressions and types of with-expressions.
   -> List1 A.Clause                    -- ^ With-clauses to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                 -- Note: as-bindings already bound (in checkClause)
@@ -1049,13 +1049,13 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
 
         reportSDoc "tc.with.top" 30 $ vcat $
           -- declared locally because we do not want to use the unzip'd thing!
-          let (vs, as) = unzipWith unArg vtys0 in
+          let (vs, as) = List1.unzipWith unArg vtys0 in
           [ "vs (before normalization) =" <+> prettyTCM vs
           , "as (before normalization) =" <+> prettyTCM as
           ]
         reportSDoc "tc.with.top" 45 $ vcat $
           -- declared locally because we do not want to use the unzip'd thing!
-          let (vs, as) = unzipWith unArg vtys0 in
+          let (vs, as) = List1.unzipWith unArg vtys0 in
           [ "vs (before norm., raw) =" <+> pretty vs
           ]
         vtys0 <- normalise vtys0
@@ -1067,7 +1067,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
           ]
         reportSDoc "tc.with.top" 25 $ vcat $
           -- declared locally because we do not want to use the unzip'd thing!
-          let (vs, as) = unzipWith unArg vtys0 in
+          let (vs, as) = List1.unzipWith unArg vtys0 in
           [ "vs     =" <+> prettyTCM vs
           , "as     =" <+> prettyTCM as
           , "perm   =" <+> text (show perm)
@@ -1102,7 +1102,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
             -- Then permute the rest and grab those needed to for the with arguments
             (us1, us2)  = splitAt (size delta1) $ permute perm' us1'
             -- Now stuff the with arguments in between and finish with the remaining variables
-            argsS = parallelS $ reverse $ us0 ++ us1 ++ map unArg withArgs ++ us2
+            argsS = parallelS $ reverse $ us0 ++ us1 ++ map unArg (List1.toList withArgs) ++ us2
             v         = Nothing -- generated by checkWithFunction
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
@@ -1112,9 +1112,9 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
               emptyFunction
 
         reportSDoc "tc.with.top" 20 $ vcat $
-          let (vs, as) = unzipWith unArg vtys in
-          [ "    with arguments" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
-          , "             types" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
+          let (vs, as) = List1.unzipWith unArg vtys in
+          [ "    with arguments" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyList (fmap prettyTCM vs)
+          , "             types" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyList (fmap prettyTCM as)
           , "           context" <+> (prettyTCM =<< getContextTelescope)
           , "             delta" <+> do escapeContext impossible (size delta) $ prettyTCM delta
           , "            delta1" <+> do escapeContext impossible (size delta) $ prettyTCM delta1
@@ -1133,14 +1133,14 @@ checkWithFunction _ NoWithFunction = return Nothing
 checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs npars perm' perm finalPerm cs argsS lets) = do
   let -- Δ₁ ws Δ₂ ⊢ withSub : Δ′    (where Δ′ is the context of the parent lhs)
       withSub :: Substitution
-      withSub = let as = map (snd . unArg) vtys in
+      withSub = let as = fmap (snd . unArg) vtys in
                 liftS (size delta2) (wkS (countWithArgs as) idS)
                 `composeS` renaming impossible (reverseP perm')
 
   reportSDoc "tc.with.top" 10 $ vcat
     [ "checkWithFunction"
     , nest 2 $ vcat $
-      let (vs, as) = unzipWith unArg vtys in
+      let (vs, as) = List1.unzipWith unArg vtys in
       [ "delta1 =" <+> prettyTCM delta1
       , "delta2 =" <+> addContext delta1 (prettyTCM delta2)
       , "t      =" <+> prettyTCM t

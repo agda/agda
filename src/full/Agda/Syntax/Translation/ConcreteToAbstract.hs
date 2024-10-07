@@ -2873,7 +2873,7 @@ data RightHandSide = RightHandSide
 
 data AbstractRHS
   = AbsurdRHS'
-  | WithRHS' [A.WithExpr] (List1 (ScopeM C.Clause))
+  | WithRHS' (List1 A.WithExpr) (List1 (ScopeM C.Clause))
     -- ^ The with clauses haven't been translated yet
   | RHS' A.Expr C.Expr
   | RewriteRHS' [RewriteEqn' () A.BindName A.Pattern A.Expr] AbstractRHS A.WhereDeclarations
@@ -2958,15 +2958,15 @@ instance ToAbstract RightHandSide where
   toAbstract (RightHandSide [] []    (_  , _:_) _          _)  = __IMPOSSIBLE__
   toAbstract (RightHandSide [] (_:_) _         (C.RHS _)   _)  = __IMPOSSIBLE__  -- see test/Fail/BothWithAndRHS: triggers MissingWithClauses first
   toAbstract (RightHandSide [] []    (_  , []) rhs         NoWhere) = toAbstract rhs
-  toAbstract (RightHandSide [] nes   (lv , c:cs) C.AbsurdRHS NoWhere) = do
-    let (ns , es) = unzipWith (\ (Named nm e) -> (NewName WithBound . C.mkBoundName_ <$> nm, e)) nes
+  toAbstract (RightHandSide [] (z:zs)(lv , c:cs) C.AbsurdRHS NoWhere) = do
+    let (ns, es) = List1.unzipWith (\ (Named nm e) -> (NewName WithBound . C.mkBoundName_ <$> nm, e)) $ z :| zs
     es <- toAbstractCtx TopCtx es
     lvars0 <- getLocalVars
     ns <- toAbstract ns
     lvars1 <- getLocalVars
     let lv' = dropEnd (length lvars0) lvars1 ++ lv
     let cs' = for (c :| cs) $ \ c -> setLocalVars lv' $> c
-    let nes = zipWith Named ns es
+    let nes = List1.zipWith Named ns es
     return $ WithRHS' nes cs'
   -- TODO: some of these might be possible
   toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS  AnyWhere{}) = __IMPOSSIBLE__

@@ -40,6 +40,7 @@ import Agda.Interaction.Options
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Scope.Base (Scope)
@@ -63,9 +64,9 @@ import {-# SOURCE #-} Agda.TypeChecking.Opacity
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
-import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import qualified Agda.Utils.SmallSet as SmallSet
@@ -1196,9 +1197,10 @@ class Normalise t where
   default normalise' :: (t ~ f a, Traversable f, Normalise a) => t -> ReduceM t
   normalise' = traverse normalise'
 
--- boring instances:
+-- Functor instances:
 
 instance Normalise t => Normalise [t]
+instance Normalise t => Normalise (List1 t)
 instance Normalise t => Normalise (Map k t)
 instance Normalise t => Normalise (Maybe t)
 instance Normalise t => Normalise (Strict.Maybe t)
@@ -1208,6 +1210,8 @@ instance Normalise t => Normalise (Strict.Maybe t)
 instance Normalise t => Normalise (Named name t)
 instance Normalise t => Normalise (IPBoundary' t)
 instance Normalise t => Normalise (WithHiding t)
+
+-- more boring instances:
 
 instance (Normalise a, Normalise b) => Normalise (a,b) where
     normalise' (x,y) = (,) <$> normalise' x <*> normalise' y

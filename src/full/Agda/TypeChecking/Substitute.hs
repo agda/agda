@@ -1087,6 +1087,9 @@ instance Subst a => Subst (Maybe a) where
 instance Subst a => Subst [a] where
   type SubstArg [a] = SubstArg a
 
+instance Subst a => Subst (List1 a) where
+  type SubstArg (List1 a) = SubstArg a
+
 instance (Ord k, Subst a) => Subst (Map k a) where
   type SubstArg (Map k a) = SubstArg a
 

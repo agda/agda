@@ -1122,7 +1122,7 @@ instance ToConcrete A.RHS where
                  n <- traverse toConcrete n
                  pure $ Named (C.boundName <$> n) e
       cs <- noTakenNames $ sconcat <$> toConcrete cs
-      return (C.AbsurdRHS, [], es, List1.toList cs)
+      return (C.AbsurdRHS, [], List1.toList es, List1.toList cs)
     toConcrete (A.RewriteRHS xeqs _spats rhs wh) = do
       wh <- maybe (return []) toConcrete $ A.whereDecls wh
       (rhs, eqs', es, whs) <- toConcrete rhs

@@ -67,9 +67,8 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
-import Data.Semigroup ( Semigroup, (<>) )
-import qualified Data.Set as Set
 import Data.Set (Set)
+import qualified Data.Set as Set
 
 
 import Agda.Syntax.Common
@@ -77,6 +76,7 @@ import Agda.Syntax.Internal
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List1 (List1)
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Semigroup
@@ -572,9 +572,10 @@ instance Free Level where
 instance Free t => Free (PlusLevel' t) where
   freeVars' (Plus _ l)    = freeVars' l
 
-instance Free t => Free [t]            where
-instance Free t => Free (Maybe t)      where
-instance Free t => Free (WithHiding t) where
+instance Free t => Free [t]
+instance Free t => Free (List1 t)
+instance Free t => Free (Maybe t)
+instance Free t => Free (WithHiding t)
 instance Free t => Free (Named nm t)
 
 instance (Free t, Free u) => Free (t, u) where

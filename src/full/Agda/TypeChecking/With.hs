@@ -12,6 +12,7 @@ import Control.Monad.Writer (WriterT, runWriterT, tell)
 import qualified Data.List as List
 import Data.Maybe
 import Data.Foldable ( foldrM )
+import Data.Semigroup ( sconcat )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -42,13 +43,14 @@ import Agda.TypeChecking.Warnings ( warning )
 
 import Agda.Utils.Functor
 import Agda.Utils.List
-import Agda.Utils.List1 (List1)
+import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
 import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -79,13 +81,13 @@ splitTelForWith
   -- Input:
   :: Telescope                         -- ^ __@Δ@__             context of types and with-arguments.
   -> Type                              -- ^ __@Δ ⊢ t@__         type of rhs.
-  -> [Arg (Term, EqualityView)]        -- ^ __@Δ ⊢ vs : as@__   with arguments and their types.
+  -> List1 (Arg (Term, EqualityView))  -- ^ __@Δ ⊢ vs : as@__   with arguments and their types.
   -- Output:
   -> ( Telescope                         -- @Δ₁@             part of context needed for with arguments and their types.
      , Telescope                         -- @Δ₂@             part of context not needed for with arguments and their types.
      , Permutation                       -- @π@              permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
      , Type                              -- @Δ₁Δ₂ ⊢ t'@      type of rhs under @π@
-     , [Arg (Term, EqualityView)]        -- @Δ₁ ⊢ vs' : as'@ with- and rewrite-arguments and types under @π@.
+     , List1 (Arg (Term, EqualityView))  -- @Δ₁ ⊢ vs' : as'@ with- and rewrite-arguments and types under @π@.
      )              -- ^ (__@Δ₁@__,__@Δ₂@__,__@π@__,__@t'@__,__@vtys'@__) where
 --
 --   [@Δ₁@]        part of context needed for with arguments and their types.
@@ -125,11 +127,11 @@ splitTelForWith delta t vtys = let
 
 withFunctionType
   :: Telescope                          -- ^ @Δ₁@                        context for types of with types.
-  -> [Arg (Term, EqualityView)]         -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions and their type.
+  -> List1 (Arg (Term, EqualityView))   -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions and their type.
   -> Telescope                          -- ^ @Δ₁ ⊢ Δ₂@                   context extension to type with-expressions.
   -> Type                               -- ^ @Δ₁,Δ₂ ⊢ b@                 type of rhs.
   -> [(Int,(Term,Term))]                -- ^ @Δ₁,Δ₂ ⊢ [(i,(u0,u1))] : b  boundary.
-  -> TCM (Type, Nat)
+  -> TCM (Type, Nat1)
     -- ^ @Δ₁ → wtel → Δ₂′ → b′@ such that
     --     @[vs/wtel]wtel = as@ and
     --     @[vs/wtel]Δ₂′ = Δ₂@ and
@@ -156,7 +158,7 @@ withFunctionType delta1 vtys delta2 b bndry = addContext delta1 $ do
   wd2b <- foldrM piAbstract d2b vtys
   dbg 30 "wΓ → Δ₂ → B" wd2b
 
-  let nwithargs = countWithArgs (map (snd . unArg) vtys)
+  let nwithargs = countWithArgs (fmap (snd . unArg) vtys)
 
   TelV wtel _ <- telViewUpTo nwithargs wd2b
 
@@ -171,8 +173,8 @@ withFunctionType delta1 vtys delta2 b bndry = addContext delta1 $ do
 
   return (d1wd2b, nwithargs)
 
-countWithArgs :: [EqualityView] -> Nat
-countWithArgs = sum . map countArgs
+countWithArgs :: List1 EqualityView -> Nat1
+countWithArgs = sum . fmap countArgs
   where
     countArgs OtherType{}    = 1
     countArgs IdiomType{}    = 2
@@ -180,16 +182,20 @@ countWithArgs = sum . map countArgs
 
 -- | From a list of @with@ and @rewrite@ expressions and their types,
 --   compute the list of final @with@ expressions (after expanding the @rewrite@s).
-withArguments :: [Arg (Term, EqualityView)] ->
-                 TCM [Arg Term]
+withArguments :: List1 (Arg (Term, EqualityView)) ->
+                 TCM (List1 (Arg Term))
 withArguments vtys = do
-  tss <- forM vtys $ \ (Arg info ts) -> fmap (map (Arg info)) $ case ts of
-    (v, OtherType a) -> pure [v]
-    (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> pure [unArg v, prf]
-    (v, IdiomType t) -> do
-       mkRefl <- getRefl
-       pure [v, mkRefl (defaultArg v)]
-  pure (concat tss)
+  sconcat <$> do
+    forM vtys $ \ (Arg info ts) -> do
+      fmap (Arg info) <$> do
+        case ts of
+          (v, OtherType a) -> do
+            return $ singleton v
+          (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> do
+            return $ unArg v :| prf : []
+          (v, IdiomType t) -> do
+            mkRefl <- getRefl
+            return $ v :| mkRefl (defaultArg v) : []
 
 -- | Compute the clauses for the with-function given the original patterns.
 buildWithFunction

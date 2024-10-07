@@ -984,34 +984,36 @@ metaHelperType norm ii rng s = case words s of
       OfType' h <$> do
         runInPrintingEnvironment $ reify $ telePiVisible tel a0
 
-     -- If some arguments are not variables.
+     -- If some arguments are not variables (in this case, @args@ is not empty).
      Nothing -> do
       -- cleanupType relies on with arguments being named 'w',
       -- so we'd better rename any actual 'w's to avoid confusion.
       let tel = runIdentity . onNamesTel unW . telFromList' nameToArgName $ contextForAbstracting
       let a = runIdentity . onNames unW $ a0
-      vtys <- mapM (\ a -> fmap (Arg (getArgInfo a) . fmap OtherType) $ inferExpr $ namedArg a) args
+      vtys <- mapM (\ a -> fmap (Arg (getArgInfo a) . fmap OtherType) $ inferExpr $ namedArg a) $
+        List1.fromListSafe __IMPOSSIBLE__ args
       -- Remember the arity of a
       TelV atel _ <- telView a
       let arity = size atel
           (delta1, delta2, _, a', vtys') = splitTelForWith tel a vtys
       a <- runInPrintingEnvironment $ do
         reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' []
-      reportSDoc "interaction.helper" 10 $ TP.vcat $
-        let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ } in
-        let (vs, as)   = unzipWith (fmap extractOtherType . unArg) vtys in
-        let (vs', as') = unzipWith (fmap extractOtherType . unArg) vtys' in
-        [ "generating helper function"
-        , TP.nest 2 $ "tel    = " TP.<+> inTopContext (prettyTCM tel)
-        , TP.nest 2 $ "a      = " TP.<+> prettyTCM a
-        , TP.nest 2 $ "vs     = " TP.<+> prettyTCM vs
-        , TP.nest 2 $ "as     = " TP.<+> prettyTCM as
-        , TP.nest 2 $ "delta1 = " TP.<+> inTopContext (prettyTCM delta1)
-        , TP.nest 2 $ "delta2 = " TP.<+> inTopContext (addContext delta1 $ prettyTCM delta2)
-        , TP.nest 2 $ "a'     = " TP.<+> inTopContext (addContext delta1 $ addContext delta2 $ prettyTCM a')
-        , TP.nest 2 $ "as'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM as')
-        , TP.nest 2 $ "vs'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM vs')
-        ]
+      reportSDoc "interaction.helper" 10 do
+        let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ }
+        let (vs, as)   = List1.unzipWith (fmap extractOtherType . unArg) vtys
+        let (vs', as') = List1.unzipWith (fmap extractOtherType . unArg) vtys'
+        TP.vcat
+          [ "generating helper function"
+          , TP.nest 2 $ "tel    = " TP.<+> inTopContext (prettyTCM tel)
+          , TP.nest 2 $ "a      = " TP.<+> prettyTCM a
+          , TP.nest 2 $ "vs     = " TP.<+> prettyTCM vs
+          , TP.nest 2 $ "as     = " TP.<+> prettyTCM as
+          , TP.nest 2 $ "delta1 = " TP.<+> inTopContext (prettyTCM delta1)
+          , TP.nest 2 $ "delta2 = " TP.<+> inTopContext (addContext delta1 $ prettyTCM delta2)
+          , TP.nest 2 $ "a'     = " TP.<+> inTopContext (addContext delta1 $ addContext delta2 $ prettyTCM a')
+          , TP.nest 2 $ "as'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM as')
+          , TP.nest 2 $ "vs'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM vs')
+          ]
       return $ OfType' h a
   where
     failure = interactionError ExpectedApplication
