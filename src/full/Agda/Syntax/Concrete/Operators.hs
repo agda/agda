@@ -723,14 +723,34 @@ validConPattern
 validConPattern cons = loop
   where
   loop p = case appView p of
-      WithP _ p :| [] -> loop p
-      _ :| []         -> ok
-      IdentP _ x :| ps
-        | cons x      -> mapM_ loop ps
-        | otherwise   -> failure
-      QuoteP _ :| [_] -> ok
-      DotP _ _ e :| ps  -> mapM_ loop ps
-      _               -> failure
+
+      -- Eliminated by appView:
+      AppP{}      :| _   -> __IMPOSSIBLE__
+      OpAppP{}    :| _   -> __IMPOSSIBLE__
+      ParenP{}    :| _   -> __IMPOSSIBLE__
+      RawAppP{}   :| _   -> __IMPOSSIBLE__
+      HiddenP{}   :| _   -> __IMPOSSIBLE__
+      InstanceP{} :| _   -> __IMPOSSIBLE__
+
+      -- Hopeful cases:
+      WithP _ p   :| []  -> loop p
+      _           :| []  -> ok
+      IdentP _ x  :| ps
+        | cons x         -> mapM_ loop ps
+        | otherwise      -> failure
+      QuoteP _    :| [_] -> ok
+      DotP _ _ _  :| ps  -> mapM_ loop ps
+
+      -- Failures:
+      AbsurdP{}   :| _:_ -> failure
+      AsP{}       :| _:_ -> failure
+      EllipsisP{} :| _:_ -> failure
+      EqualP{}    :| _:_ -> failure
+      LitP{}      :| _:_ -> failure
+      QuoteP{}    :| _:_ -> failure
+      RecP{}      :| _:_ -> failure
+      WildP{}     :| _:_ -> failure
+      WithP{}     :| _:_ -> failure
     where
     ok      = return ()
     failure = throwError $ Just p
