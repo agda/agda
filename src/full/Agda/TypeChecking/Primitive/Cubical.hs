@@ -272,7 +272,17 @@ doPiKanOp cmd t ab = do
             Def q [] | Just q == mInterval -> return $ Just $ \_ _ a0 -> a0
             _ -> return Nothing
 
-        _ -> return Nothing
+        Prop _     -> pure Nothing
+        SSet _     -> pure Nothing
+        Inf _ _    -> pure Nothing
+        LevelUniv  -> pure Nothing
+        SizeUniv   -> pure Nothing
+        PiSort{}   -> pure Nothing
+        FunSort{}  -> pure Nothing
+        UnivSort{} -> pure Nothing
+        MetaS{}    -> pure Nothing
+        DefS{}     -> pure Nothing
+        DummyS{}   -> pure Nothing
 
     caseMaybe trFibrantDomain (return Nothing) $ \trA -> Just <$> do
     phi <- open . unArg $ ignoreBlocking $ kanOpCofib cmd
@@ -879,7 +889,7 @@ transpSysTel' flag delta us phi args = do
   ineg <- lift primINeg
   let
     noTranspError t = do
-      reportSDoc "cubical.prim.transpTel" 20 $ nest 2 $ (text "error type =" <+>) $
+      reportSDoc "cubical.prim.transpTel.error" 20 $ nest 2 $ (text "error type =" <+>) $
         addContext ("i" :: String, __DUMMY_DOM__) $ prettyTCM $ unAbs t
       lift . throwError =<< buildClosure t
     bapp :: forall m a. (Applicative m, Subst a) => m (Abs a) -> m (SubstArg a) -> m a
@@ -950,19 +960,25 @@ transpSysTel' flag delta us phi args = do
               else return axi
 
         case s of
-          Type l -> do
-            l <- open $ lam_i (Level l)
+          Univ UType l -> do
+            l <- open $ lam_i $ Level l
             b' <- open b'
             axi <- open axi
             usxi <- mapM open usxi
             gTransp (Just l) b' (zip psis usxi) phi axi
-          Inf _ _  -> noTranspSort
-          SSet _  -> noTranspSort
-          SizeUniv -> noTranspSort
-          LockUniv -> noTranspSort
+          Univ _ _     -> noTranspSort
+          Inf _ _      -> noTranspSort
           IntervalUniv -> noTranspSort
-          Prop{}  -> noTranspSort
-          _ -> noTranspError b'
+          LevelUniv    -> noTranspSort
+          LockUniv     -> noTranspSort
+          SizeUniv     -> noTranspSort
+          PiSort{}     -> noTranspError b'
+          FunSort{}    -> noTranspError b'
+          UnivSort{}   -> noTranspError b'
+          MetaS{}      -> noTranspError b'
+          DefS{}       -> noTranspError b'
+          DummyS{}     -> noTranspError b'
+
     lam_i = Lam defaultArgInfo . Abs "i"
     go :: Telescope -> [[(Term,Term)]] -> Term -> Args -> ExceptT (Closure (Abs Type)) m Args
     go EmptyTel            [] _  []       = return []
@@ -973,15 +989,25 @@ transpSysTel' flag delta us phi args = do
       s <- reduce $ getSort t
       -- Γ ⊢ b : t[1]    Γ, i ⊢ bf : t[i]
       (b,bf) <- runNamesT [] $ do
+        let b' = Abs "i" $ unDom t
         l <- case s of
-               SSet _ -> return Nothing
-               IntervalUniv -> return Nothing
-               SizeUniv     -> return Nothing
-               LockUniv     -> return Nothing
-               Inf _ _ -> return Nothing
-               Type l -> Just <$> open (lam_i (Level l))
-               _ -> noTranspError (Abs "i" (unDom t))
-        t <- open $ Abs "i" (unDom t)
+          Univ UType l -> Just <$> open (lam_i (Level l))
+          Univ USSet _ -> pure Nothing
+          Univ UProp _ -> noTranspError b'  -- Issue #6060
+          Inf  UType _ -> pure Nothing
+          Inf  USSet _ -> pure Nothing
+          Inf  UProp _ -> noTranspError b'  -- Issue #7535
+          IntervalUniv -> pure Nothing
+          LevelUniv    -> pure Nothing
+          LockUniv     -> pure Nothing
+          SizeUniv     -> pure Nothing
+          PiSort{}     -> noTranspError b'
+          FunSort{}    -> noTranspError b'
+          UnivSort{}   -> noTranspError b'
+          MetaS{}      -> noTranspError b'
+          DefS{}       -> noTranspError b'
+          DummyS{}     -> noTranspError b'
+        t <- open b'
         u <- forM u $ \ (psi,upsi) -> do
               (,) <$> open psi <*> open (Abs "i" upsi)
         phi <- open phi
@@ -1256,12 +1282,24 @@ toCType ty = do
   sort <- reduce $ getSort ty
   case sort of
     Type l -> return $ Just $ LType (LEl l (unEl ty))
-    SSet{} -> do
+    SSet _ -> do
       t <- reduce (unEl ty)
       case t of
         Def q [] -> return $ Just $ ClosedType sort q
         _        -> return $ Nothing
-    _      -> return $ Nothing
+    Prop _       -> pure Nothing
+    Inf _ _      -> pure Nothing
+    IntervalUniv -> pure Nothing  -- ClosedType?  (See comment on CType.)
+    LevelUniv    -> pure Nothing  -- TODO: Or some ClosedType?
+    LockUniv     -> pure Nothing
+    SizeUniv     -> pure Nothing
+    PiSort{}     -> pure Nothing
+    FunSort{}    -> pure Nothing
+    UnivSort{}   -> pure Nothing
+    MetaS{}      -> pure Nothing
+    DefS{}       -> pure Nothing
+    DummyS{}     -> pure Nothing
+
 
 instance Subst CType where
   type SubstArg CType = Term

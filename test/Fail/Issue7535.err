@@ -1,0 +1,6 @@
+Issue7535.agda:16.1-16: error: [CannotGenerateTransportClause]
+Could not generate a transport clause for g
+because a term of type P
+lives in the sort Propω
+and thus can not be transported
+when checking the definition of g
