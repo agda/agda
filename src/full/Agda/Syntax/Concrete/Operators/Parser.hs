@@ -111,7 +111,7 @@ instance IsExpr Pattern where
     unExprView = \case
         LocalV x       -> IdentP True x
         AppV e1 e2     -> AppP e1 e2
-        OpAppV d ns es -> let ess :: [NamedArg Pattern]
+        OpAppV d ns es -> let ess :: List1 (NamedArg Pattern)
                               ess = (fmap . fmap . fmap)
                                       (\case
                                           Placeholder{}     -> __IMPOSSIBLE__
@@ -267,9 +267,11 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
           -- away here.
           unExprView (LocalV q')
         else
-          unExprView (OpAppV q' names args)
+          List1.ifNull args
+            {-then-} (unExprView $ LocalV q')
+            {-else-} $ unExprView . OpAppV q' names
         where
-        args = map (findExprFor (f normal) binders) [0..lastHole]
+        args = fmap (findExprFor (f normal) binders) [0..lastHole]
         q'   = setRange range q
   in
 
@@ -343,7 +345,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
         {-else-} $ \ bs -> set (noPlaceholder (SyntaxBindingLambda (fuseRange bs e) bs e)) arg
       _ -> __IMPOSSIBLE__
 
-  noPlaceholders :: OpAppArgs' e -> Int
+  noPlaceholders :: OpAppArgs0 e -> Int
   noPlaceholders = sum . fmap (isPlaceholder . namedArg)
     where
     isPlaceholder NoPlaceholder{} = 0

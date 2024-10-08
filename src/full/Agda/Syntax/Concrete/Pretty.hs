@@ -221,14 +221,13 @@ instance Pretty a => Pretty (MaybePlaceholder a) where
   pretty (NoPlaceholder _ e) = pretty e
 
 instance Pretty Expr where
-    pretty e =
-        case e of
+    pretty = \case
             Ident x          -> pretty x
             KnownIdent nk x  -> annotateAspect (Asp.Name (Just nk) False) (pretty x)
             Lit _ l          -> pretty l
             QuestionMark _ n -> hlSymbol "?" <> maybe empty (text . show) n
             Underscore _ n   -> maybe underscore text n
-            App _ _ _        ->
+            e@(App _ _ _)    ->
                 case appView e of
                     AppView e1 args     ->
                         fsep $ pretty e1 : map pretty args
@@ -746,8 +745,8 @@ instance Pretty Pattern where
             WithP _ p       -> "|" <+> pretty p
 
 prettyOpApp :: forall a .
-  Pretty a => Asp.Aspect -> QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]
-prettyOpApp asp q es = merge [] $ prOp ms xs es
+  Pretty a => Asp.Aspect -> QName -> List1 (NamedArg (MaybePlaceholder a)) -> [Doc]
+prettyOpApp asp q es = merge [] $ prOp ms xs $ List1.toList es
   where
     -- ms: the module part of the name.
     ms = List1.init (qnameParts q)

@@ -3193,9 +3193,10 @@ resolvePatternIdentifier canBeConstructor h x ns = do
 applyAPattern
   :: C.Pattern            -- ^ The application pattern in concrete syntax.
   -> A.Pattern' C.Expr    -- ^ Head of application.
-  -> NAPs C.Expr          -- ^ Arguments of application.
+  -> NAPs1 C.Expr         -- ^ Arguments of application.
   -> ScopeM (A.Pattern' C.Expr)
-applyAPattern p0 p ps = do
+applyAPattern p0 p ps1 = do
+  let ps = List1.toList ps1
   setRange (getRange p0) <$> do
     case p of
       A.ConP i x as        -> return $ A.ConP        i x (as ++ ps)
@@ -3292,7 +3293,7 @@ instance ToAbstract C.Pattern where
         reportSLn "scope.pat" 60 $ "ConcreteToAbstract.toAbstract OpAppP{}: " ++ show p0
         p  <- resolvePatternIdentifier True empty op (Just ns)
         -- Remember hiding info in arguments to propagate to 'PatternBound'.
-        ps <- toAbstract $ map propagateHidingInfo ps
+        ps <- toAbstract $ fmap propagateHidingInfo ps
         applyAPattern p0 p ps
 
     toAbstract (EllipsisP _ mp) = maybe __IMPOSSIBLE__ toAbstract mp
@@ -3354,7 +3355,7 @@ toAbstractOpArg ctx (SyntaxBindingLambda r bs e) = toAbstractLam r bs e ctx
 toAbstractOpApp :: C.QName -> Set1 A.Name -> OpAppArgs -> ScopeM A.Expr
 toAbstractOpApp op ns es = do
     -- Replace placeholders with bound variables.
-    (binders, es) <- replacePlaceholders es
+    (binders, es) <- replacePlaceholders $ List1.toList es
     -- Get the notation for the operator.
     nota <- getNotation op ns
     let parts = notation nota
@@ -3433,7 +3434,7 @@ toAbstractOpApp op ns es = do
     right _ _     _  = __IMPOSSIBLE__
 
     replacePlaceholders ::
-      OpAppArgs' e ->
+      OpAppArgs0 e ->
       ScopeM ([A.LamBinding], [NamedArg (Either A.Expr (OpApp e))])
     replacePlaceholders []       = return ([], [])
     replacePlaceholders (a : as) = case namedArg a of

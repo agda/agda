@@ -1632,14 +1632,13 @@ cOpApp :: Asp.NameKind -> Range -> C.QName -> A.Name -> List1 (MaybeSection C.Ex
 cOpApp nk r x n es =
   C.KnownOpApp nk r x (singleton n) $
   fmap (defaultNamedArg . placeholder) $
-  List1.toList eps
+  List1.zip es positions
   where
     x0 = C.unqualify x
     positions | isPrefix  x0 =              (const Middle <$> List1.drop 1 es) `List1.snoc` End
               | isPostfix x0 = Beginning :| (const Middle <$> List1.drop 1 es)
               | isInfix x0   = Beginning :| (const Middle <$> List1.drop 2 es) ++ [ End ]
               | otherwise    =               const Middle <$> es
-    eps = List1.zip es positions
     placeholder (YesSection , pos ) = Placeholder pos
     placeholder (NoSection e, _pos) = noPlaceholder (Ordinary e)
 
@@ -1694,7 +1693,7 @@ tryToRecoverOpAppP p = do
     opApp r x n ps = C.OpAppP r x (singleton n) $
       fmap (defaultNamedArg . fromNoSection __IMPOSSIBLE__) $
       -- `view` does not generate any `Nothing`s
-      List1.toList ps
+      ps
 
     appInfo = defaultAppInfo_
 
