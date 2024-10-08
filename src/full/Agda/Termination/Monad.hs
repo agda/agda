@@ -11,10 +11,9 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 
-import Control.Monad          ( forM )
 import Control.Monad.IO.Class ( MonadIO(..) )
-import Control.Monad.Except
-import Control.Monad.Reader
+import Control.Monad.Except   ( MonadError(..) )
+import Control.Monad.Reader   ( MonadReader(..), ReaderT(..) )
 
 import Data.DList (DList)
 import qualified Data.DList as DL

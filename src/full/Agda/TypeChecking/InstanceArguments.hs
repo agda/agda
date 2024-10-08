@@ -18,10 +18,7 @@ module Agda.TypeChecking.InstanceArguments
   , resolveInstanceHead
   ) where
 
-import Control.Monad          (forM, filterM)
 import Control.Monad.Except   (ExceptT(..), runExceptT, MonadError(..))
-import Control.Monad.Trans    (lift )
--- import Control.Monad.IO.Class (liftIO)
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set

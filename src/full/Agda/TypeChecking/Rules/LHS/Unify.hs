@@ -126,10 +126,9 @@ module Agda.TypeChecking.Rules.LHS.Unify
 
 import Prelude hiding (null)
 
-import Control.Monad
-import Control.Monad.State
-import Control.Monad.Writer (WriterT(..), MonadWriter(..))
-import Control.Monad.Except
+import Control.Monad.State  ( gets, modify, evalStateT )
+import Control.Monad.Writer ( WriterT(..), MonadWriter(..) )
+import Control.Monad.Except ( runExceptT, MonadError )
 
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List

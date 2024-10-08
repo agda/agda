@@ -9,8 +9,6 @@ module Agda.TypeChecking.Lock
   )
 where
 
-import Control.Monad            ( (<=<), filterM, forM )
-
 import qualified Data.IntMap as IMap
 import qualified Data.IntSet as ISet
 import qualified Data.Set as Set

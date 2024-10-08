@@ -4,9 +4,7 @@ module Agda.TypeChecking.Coverage.Cubical where
 
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 
-import Control.Monad
-import Control.Monad.Except
-import Control.Monad.Trans ( lift )
+import Control.Monad.Except ( runExceptT )
 
 import qualified Data.Set as Set
 import Data.IntSet (IntSet)

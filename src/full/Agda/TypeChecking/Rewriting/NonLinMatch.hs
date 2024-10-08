@@ -25,7 +25,6 @@ module Agda.TypeChecking.Rewriting.NonLinMatch where
 import Prelude hiding (null, sequence)
 
 import Control.Applicative  ( Alternative )
-import Control.Monad        ( void )
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
 import Control.Monad.State  ( MonadState, StateT, runStateT )
 

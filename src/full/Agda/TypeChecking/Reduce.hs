@@ -24,8 +24,7 @@ module Agda.TypeChecking.Reduce
  , slowNormaliseArgs
  ) where
 
-import Control.Monad ( (>=>), void )
-import Control.Monad.Except
+import Control.Monad.Except ( MonadError(..) )
 
 import Data.List ( intercalate )
 import Data.Maybe

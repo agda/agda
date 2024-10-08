@@ -6,7 +6,7 @@
 
 module Agda.TypeChecking.Monad.SizedTypes where
 
-import Control.Monad.Except
+import Control.Monad.Except ( MonadError(..) )
 
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav

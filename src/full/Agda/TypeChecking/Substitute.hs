@@ -20,7 +20,6 @@ module Agda.TypeChecking.Substitute
   ) where
 
 import Control.Arrow (first, second)
-import Control.Monad (guard)
 
 import Data.Coerce
 import Data.Function (on)

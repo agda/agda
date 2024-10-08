@@ -58,8 +58,6 @@
 
 module Agda.TypeChecking.ProjectionLike where
 
-import Control.Monad
-
 import qualified Data.Map as Map
 import Data.Monoid (Any(..), getAny)
 

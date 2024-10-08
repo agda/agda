@@ -39,9 +39,8 @@ module Agda.TypeChecking.Rewriting.Confluence
 
 import Control.Applicative
 import Control.Arrow ((***))
-import Control.Monad
-import Control.Monad.Except
-import Control.Monad.Reader
+import Control.Monad.Except ( MonadError(..) )
+import Control.Monad.Reader ( MonadReader(..), asks, runReaderT )
 
 import Data.Either
 import Data.Function ( on )

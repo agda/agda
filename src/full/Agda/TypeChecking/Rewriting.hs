@@ -45,9 +45,7 @@ module Agda.TypeChecking.Rewriting where
 
 import Prelude hiding (null)
 
-import Control.Monad
 import Control.Monad.Trans.Maybe ( MaybeT(..), runMaybeT )
-import Control.Monad.Trans ( lift )
 
 import Data.Either (partitionEithers)
 import Data.Foldable (toList)

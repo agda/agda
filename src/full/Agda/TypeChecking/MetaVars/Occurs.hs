@@ -15,9 +15,8 @@
 
 module Agda.TypeChecking.MetaVars.Occurs where
 
-import Control.Monad
-import Control.Monad.Except
-import Control.Monad.Reader
+import Control.Monad.Except ( ExceptT, runExceptT, catchError, throwError )
+import Control.Monad.Reader ( ReaderT, runReaderT, ask, asks, local )
 
 import Data.Foldable (traverse_)
 import Data.Functor

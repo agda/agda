@@ -8,9 +8,9 @@ module Agda.Compiler.Treeless.Erase
        , isErasable
        ) where
 
-import Control.Arrow (first, second)
-import Control.Monad
-import Control.Monad.State
+import Control.Arrow       ( first, second )
+import Control.Monad.State ( StateT, evalStateT )
+
 import Data.Map (Map)
 import qualified Data.Map as Map
 

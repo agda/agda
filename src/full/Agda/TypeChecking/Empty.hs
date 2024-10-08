@@ -7,7 +7,6 @@ module Agda.TypeChecking.Empty
   , checkEmptyTel
   ) where
 
-import Control.Monad        ( void )
 import Control.Monad.Except ( MonadError(..) )
 
 import Data.Semigroup

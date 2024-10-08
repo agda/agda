@@ -15,9 +15,8 @@ import Data.Function (on)
 import Data.Maybe
 
 import Control.Arrow (left)
-import Control.Monad
-import Control.Monad.Except
-import Control.Monad.Reader
+import Control.Monad.Except       ( MonadError(..), ExceptT(..), runExceptT )
+import Control.Monad.Reader       ( MonadReader(..), asks, runReaderT )
 import Control.Monad.Writer       ( MonadWriter(..), runWriterT )
 import Control.Monad.Trans.Maybe
 

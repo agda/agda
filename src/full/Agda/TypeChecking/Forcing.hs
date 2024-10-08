@@ -63,9 +63,8 @@ module Agda.TypeChecking.Forcing
     isForced,
     nextIsForced ) where
 
-import Control.Monad
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.Reader ( MonadReader, ask, local, ReaderT, runReaderT )
+import Control.Monad.State  ( MonadState, modify, StateT, execStateT )
 
 import Data.Bifunctor
 import Data.Function ((&))

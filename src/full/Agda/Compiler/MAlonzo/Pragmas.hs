@@ -2,7 +2,6 @@
 
 module Agda.Compiler.MAlonzo.Pragmas where
 
-import Control.Monad
 import Control.Monad.Trans.Maybe
 
 import Data.Maybe

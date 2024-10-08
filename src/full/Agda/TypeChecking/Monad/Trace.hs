@@ -4,8 +4,6 @@ module Agda.TypeChecking.Monad.Trace where
 
 import Prelude hiding (null)
 
-import Control.Monad                ( forM_ )
-import Control.Monad.Trans          ( MonadTrans, lift)
 import Control.Monad.Except         ( ExceptT  (ExceptT  ), runExceptT   , throwError )
 import Control.Monad.Reader         ( ReaderT  (ReaderT  ), runReaderT   )
 import Control.Monad.State          ( StateT   (StateT   ), runStateT    )

@@ -10,12 +10,9 @@ module Agda.TypeChecking.RecordPatterns
   ) where
 
 import Control.Arrow          ( first, second )
-import Control.Monad          ( forM, join, unless, when, zipWithM )
-import Control.Monad.Fix      ( mfix )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader   ( MonadReader(..), ReaderT(..), runReaderT )
 import Control.Monad.State    ( MonadState(..), StateT(..), runStateT )
-import Control.Monad.Trans    ( lift )
 
 import qualified Data.List as List
 import Data.Maybe

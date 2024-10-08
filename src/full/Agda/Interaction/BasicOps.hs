@@ -6,10 +6,9 @@ module Agda.Interaction.BasicOps where
 import Prelude hiding (null)
 
 import Control.Arrow          ( first )
-import Control.Monad          ( (<=<), (>=>), forM, filterM, guard )
-import Control.Monad.Except
-import Control.Monad.State
-import Control.Monad.Identity
+import Control.Monad.Except   ( MonadError(..) )
+import Control.Monad.State    ( MonadState(..), evalState )
+import Control.Monad.Identity ( runIdentity )
 import Control.Monad.Trans.Maybe
 
 import qualified Data.Map as Map

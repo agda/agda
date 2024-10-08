@@ -6,8 +6,6 @@ module Agda.Interaction.MakeCase where
 
 import Prelude hiding ((!!), null)
 
-import Control.Monad
-
 import Data.Either
 import qualified Data.List as List
 import Data.Maybe

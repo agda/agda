@@ -8,8 +8,7 @@
 module Agda.TypeChecking.Conversion where
 
 import Control.Arrow (second)
-import Control.Monad
-import Control.Monad.Except
+import Control.Monad.Except ( MonadError(..) )
 
 import Data.Function (on)
 import Data.Semigroup ((<>))

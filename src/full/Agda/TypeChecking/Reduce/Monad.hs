@@ -11,24 +11,20 @@ module Agda.TypeChecking.Reduce.Monad
 
 import Prelude hiding (null)
 
-import Control.Monad         ( liftM2 )
-
 import qualified Data.Map as Map
 import Data.Maybe
 
 import System.IO.Unsafe
 
+import Agda.Syntax.Common.Pretty () --instance only
 import Agda.Syntax.Internal
+
 import Agda.TypeChecking.Monad hiding (enterClosure, constructorForm)
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
-#ifdef DEBUG
 import Agda.Utils.Monad
-#endif
-import Agda.Syntax.Common.Pretty () --instance only
-
 
 instance HasBuiltins ReduceM where
   getBuiltinThing b =

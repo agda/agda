@@ -50,8 +50,7 @@ module Agda.TypeChecking.SizedTypes.Solve where
 
 import Prelude hiding (null)
 
-import Control.Monad hiding (forM, forM_)
-import Control.Monad.Except
+import Control.Monad.Except ( catchError )
 import Control.Monad.Trans.Maybe
 
 import Data.Either

@@ -8,10 +8,10 @@ module Agda.Syntax.Scope.Monad where
 import Prelude hiding (null)
 
 import Control.Arrow ((***))
-import Control.Monad
-import Control.Monad.Except
-import Control.Monad.State
-import Control.Monad.Trans.Maybe
+import Control.Monad.Except       ( MonadError, throwError, runExceptT )
+import Control.Monad.State        ( StateT, runStateT, gets, modify )
+import Control.Monad.Trans        ( MonadTrans, lift )
+import Control.Monad.Trans.Maybe  ( MaybeT(MaybeT), runMaybeT )
 import Control.Applicative
 
 import Data.Either ( partitionEithers )

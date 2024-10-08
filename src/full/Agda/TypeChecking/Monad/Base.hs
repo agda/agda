@@ -17,9 +17,7 @@ import qualified Control.Concurrent as C
 import Control.DeepSeq
 import qualified Control.Exception as E
 
-import Control.Monad                ( void )
-import Control.Monad.Except
-import Control.Monad.Fix
+import Control.Monad.Except         ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.State          ( MonadState(..), modify, StateT(..), runStateT )
 import Control.Monad.Reader         ( MonadReader(..), ReaderT(..), runReaderT )
