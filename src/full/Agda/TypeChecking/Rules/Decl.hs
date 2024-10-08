@@ -6,7 +6,6 @@ module Agda.TypeChecking.Rules.Decl where
 
 import Prelude hiding ( null )
 
-import Control.Monad
 import Control.Monad.Writer (tell)
 
 import Data.Either (partitionEithers)

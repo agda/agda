@@ -119,8 +119,7 @@ module Agda.TypeChecking.Generalize
 import Prelude hiding (null)
 
 import Control.Arrow ((&&&), first)
-import Control.Monad
-import Control.Monad.Except
+import Control.Monad.Except ( MonadError(..) )
 
 import qualified Data.IntSet as IntSet
 import Data.Set (Set)

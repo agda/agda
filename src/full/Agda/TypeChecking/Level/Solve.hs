@@ -2,8 +2,7 @@
 
 module Agda.TypeChecking.Level.Solve where
 
-import Control.Monad
-import Control.Monad.Except
+import Control.Monad.Except ( catchError )
 
 import qualified Data.Map.Strict as MapS
 import Data.Maybe

@@ -4,11 +4,10 @@ module Agda.TypeChecking.Records where
 
 import Prelude hiding (null)
 
-import Control.Monad
-import Control.Monad.Except
-import Control.Monad.Trans.Maybe
-import Control.Monad.Writer
-import Control.Applicative ( (<|>) )
+import Control.Applicative        ( (<|>) )
+import Control.Monad.Except       ( MonadError )
+import Control.Monad.Trans.Maybe  ( MaybeT(MaybeT), runMaybeT )
+import Control.Monad.Writer       ( Writer, runWriter, tell )
 
 import Data.Bifunctor
 import qualified Data.List as List

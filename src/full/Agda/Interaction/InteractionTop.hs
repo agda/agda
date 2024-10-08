@@ -15,13 +15,11 @@ import Control.Concurrent.STM.TChan
 import Control.Concurrent.STM.TVar
 import qualified Control.Exception  as E
 
-import Control.Monad
 import Control.Monad.Except         ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.State          ( MonadState(..), gets, modify, runStateT )
 import Control.Monad.STM
 import Control.Monad.State          ( StateT )
-import Control.Monad.Trans          ( lift )
 
 import qualified Data.Char as Char
 import Data.Function (on)

@@ -5,7 +5,6 @@ module Agda.TypeChecking.Monad.Signature where
 import Prelude hiding (null)
 
 import Control.Arrow                 ( first, second )
-import Control.Monad
 import Control.Monad.Except          ( ExceptT )
 import Control.Monad.State           ( StateT  )
 import Control.Monad.Reader          ( ReaderT )

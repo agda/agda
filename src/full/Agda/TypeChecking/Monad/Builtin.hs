@@ -4,14 +4,13 @@ module Agda.TypeChecking.Monad.Builtin
   , module Agda.Syntax.Builtin  -- The names are defined here.
   ) where
 
-import Control.Monad                ( liftM2, void )
-import Control.Monad.Except
+import Control.Monad.Except         ( MonadError(..), ExceptT )
 import Control.Monad.IO.Class       ( MonadIO(..) )
-import Control.Monad.Reader
-import Control.Monad.State
-import Control.Monad.Trans.Identity (IdentityT)
+import Control.Monad.Reader         ( ReaderT )
+import Control.Monad.State          ( StateT )
+import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer
+import Control.Monad.Writer         ( WriterT )
 
 import Data.Function ( on )
 import qualified Data.Map as Map

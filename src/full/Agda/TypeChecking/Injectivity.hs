@@ -41,11 +41,10 @@ Projection patterns (@ProjP@) are excluded because metas cannot occupy their pla
 module Agda.TypeChecking.Injectivity where
 
 import Control.Applicative
-import Control.Monad
-import Control.Monad.Except
-import Control.Monad.State
-import Control.Monad.Reader
-import Control.Monad.Trans.Maybe
+import Control.Monad.Except       ( MonadError )
+import Control.Monad.State        ( evalStateT, MonadState, gets, put )
+import Control.Monad.Reader       ( runReaderT, MonadReader, ask )
+import Control.Monad.Trans.Maybe  ( MaybeT(MaybeT), runMaybeT )
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set

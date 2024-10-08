@@ -7,7 +7,6 @@ module Agda.TypeChecking.Modalities
   ) where
 
 import Control.Applicative ((<|>))
-import Control.Monad
 
 import Agda.Interaction.Options
 

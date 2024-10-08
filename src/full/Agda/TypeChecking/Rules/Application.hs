@@ -13,9 +13,7 @@ module Agda.TypeChecking.Rules.Application
 import Prelude hiding ( null )
 
 import Control.Applicative        ( (<|>) )
-import Control.Monad              ( filterM, forM, forM_, guard, liftM2 )
 import Control.Monad.Except       ( ExceptT, runExceptT, MonadError, catchError, throwError )
-import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 
 import Data.Bifunctor

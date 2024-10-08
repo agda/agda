@@ -5,8 +5,7 @@ module Agda.Syntax.Parser.Helpers where
 import Prelude hiding (null)
 
 import Control.Applicative ( (<|>) )
-import Control.Monad
-import Control.Monad.State
+import Control.Monad.State ( modify' )
 
 import Data.Bifunctor (first, second)
 import Data.Char

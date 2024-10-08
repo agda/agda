@@ -6,9 +6,7 @@ module Agda.TypeChecking.MetaVars where
 
 import Prelude hiding (null)
 
-import Control.Monad        ( foldM, forM, forM_, liftM2, void, guard )
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
-import Control.Monad.Trans  ( lift )
 import Control.Monad.Trans.Maybe
 
 import qualified Data.IntSet as IntSet

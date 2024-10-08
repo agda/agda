@@ -23,7 +23,6 @@ module Agda.Compiler.Backend
 import Prelude hiding (null)
 
 import Control.DeepSeq
-import Control.Monad.Trans        ( lift )
 import Control.Monad.Trans.Maybe
 
 import Data.Maybe

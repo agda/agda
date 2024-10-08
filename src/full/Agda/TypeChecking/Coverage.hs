@@ -18,17 +18,18 @@ module Agda.TypeChecking.Coverage
 
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 
-import Control.Monad
-import Control.Monad.Except
-import Control.Monad.Trans ( lift )
+import Control.Monad.Except ( MonadError(..), ExceptT(..), runExceptT )
+import Control.Monad.State  ( State, evalState, state )
 
 import Data.Foldable (for_)
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
 
 import qualified Agda.Benchmarking as Bench
 
@@ -52,7 +53,6 @@ import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Coverage.SplitClause
 import Agda.TypeChecking.Coverage.Cubical
-
 
 import Agda.TypeChecking.Conversion (tryConversion, equalType)
 import Agda.TypeChecking.Datatypes (getConForm)
@@ -84,10 +84,6 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
-import Control.Monad.State
-
 
 type CoverM = ExceptT SplitError TCM
 

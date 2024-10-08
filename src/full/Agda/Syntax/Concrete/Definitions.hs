@@ -52,7 +52,6 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Monad         ( forM, guard, unless, void, when )
 import Control.Monad.Except  ( )
 import Control.Monad.Reader  ( asks )
 import Control.Monad.State   ( MonadState(..), gets, StateT, runStateT )

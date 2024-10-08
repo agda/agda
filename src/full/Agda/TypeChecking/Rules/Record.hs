@@ -6,7 +6,6 @@ module Agda.TypeChecking.Rules.Record where
 
 import Prelude hiding (null, not, (&&), (||))
 
-import Control.Monad
 import Data.Maybe
 import qualified Data.Set as Set
 

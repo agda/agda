@@ -13,8 +13,7 @@ module Agda.TypeChecking.Rules.Builtin
 
 import Prelude hiding (null)
 
-import Control.Monad
-import Control.Monad.Except
+import Control.Monad.Except      ( catchError )
 import Control.Monad.Trans.Maybe
 
 import Data.List (find, sortBy)

@@ -7,7 +7,6 @@ module Agda.Compiler.MAlonzo.Compiler
 
 import Control.Arrow (second)
 import Control.DeepSeq
-import Control.Monad
 import Control.Monad.Except   ( throwError )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader   ( MonadReader(..), asks, ReaderT, runReaderT, withReaderT)

@@ -75,7 +75,7 @@ variable rule:
 
 module Agda.TypeChecking.Irrelevance where
 
-import Control.Monad.Except
+import Control.Monad.Except ( MonadError(..), runExceptT )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

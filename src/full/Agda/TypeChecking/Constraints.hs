@@ -6,8 +6,7 @@ module Agda.TypeChecking.Constraints where
 
 import Prelude hiding (null)
 
-import Control.Monad
-import Control.Monad.Except
+import Control.Monad.Except ( MonadError )
 
 import qualified Data.List as List
 import qualified Data.Set as Set

@@ -10,7 +10,6 @@ module Agda.TypeChecking.Rewriting.NonLinPattern where
 
 import Prelude hiding ( null )
 
-import Control.Monad        ( (>=>), forM )
 import Control.Monad.Reader ( asks )
 
 import Data.IntSet (IntSet)

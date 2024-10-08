@@ -4,9 +4,7 @@ module Agda.TypeChecking.Rules.Data where
 
 import Prelude hiding (null, not, (&&), (||) )
 
-import Control.Monad
-import Control.Monad.Except
-import Control.Monad.Trans
+import Control.Monad.Except ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.Trans.Maybe
 import Control.Exception as E
 
