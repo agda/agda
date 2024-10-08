@@ -1,4 +1,3 @@
-
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract".
     Involves scope analysis,
     figuring out infix operator precedences and tidying up definitions.
@@ -88,6 +87,7 @@ import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Options.Warnings
 
 import qualified Agda.Utils.AssocList as AssocList
+import Agda.Utils.Boolean   ( ifThenElse )
 import Agda.Utils.CallStack ( HasCallStack, withCurrentCallStack )
 import Agda.Utils.Char
 import Agda.Utils.Either
@@ -597,10 +597,18 @@ newtype OldName a = OldName a
 -- | Wrapper to resolve a name to a 'ResolvedName' (rather than an 'A.Expr').
 data ResolveQName = ResolveQName C.QName
 
-data PatName      = PatName C.QName (Maybe (Set1 A.Name)) Hiding
-  -- ^ If a set is given, then the first name must correspond to one
-  -- of the names in the set.
-  -- If pattern variable is hidden, its status is indicated in 'Hiding'.
+-- | Wrapper to resolve a name in a pattern.
+data PatName = PatName
+  C.QName
+    -- ^ Concrete name to be resolved in a pattern.
+  (Maybe (Set1 A.Name))
+    -- ^ If a set is given, then the first name must correspond to one
+    --   of the names in the set.
+  Hiding
+    -- ^ If pattern variable is hidden, its status is indicated in 'Hiding'.
+  DisplayLHS
+    -- ^ If we parse the lhs of a 'DisplayPragma',
+    --   names of arbitrary definitions count as constructors.
 
 instance ToAbstract (NewName C.Name) where
   type AbsOfCon (NewName C.Name) = A.Name
@@ -675,16 +683,24 @@ instance ToAbstract ResolveQName where
     UnknownName -> notInScopeError x
     q -> return q
 
+-- | A name resolved in a pattern.
 data APatName
   = VarPatName A.Name
+      -- ^ Pattern variable.
   | ConPatName (List1 AbstractName)
+      -- ^ A (possibly ambiguous) constructor.
+      --   When parsing a 'C.DisplayPragma', this can be the name of a definition.
   | PatternSynPatName (List1 AbstractName)
+      -- ^ A (possibly ambiguous) pattern synonym.
+  | DefPatName AbstractName
+      -- ^ A defined name, only possible when checking a 'C.DisplayPragma'.
 
 instance ToAbstract PatName where
   type AbsOfCon PatName = APatName
-  toAbstract (PatName x ns h) = do
+  toAbstract (PatName x ns h displayLhs) = do
     reportSLn "scope.pat" 30 $ "checking pattern name: " ++ prettyShow x
-    rx <- resolveName' (someKindsOfNames [ConName, CoConName, PatternSynName]) ns x
+    let kinds = applyWhen displayLhs (defNameKinds ++) conLikeNameKinds
+    rx <- resolveName' (someKindsOfNames kinds) ns x
           -- Andreas, 2013-03-21 ignore conflicting names which cannot
           -- be meant since we are in a pattern
           -- Andreas, 2020-04-11 CoConName:
@@ -695,6 +711,8 @@ instance ToAbstract PatName where
         reportSLn "scope.pat" 30 $ "it was a con: " ++ prettyShow (fmap anameName ds)
       PatternSynResName ds -> PatternSynPatName ds <$ do
         reportSLn "scope.pat" 30 $ "it was a pat syn: " ++ prettyShow (fmap anameName ds)
+      DefinedName _ d suffix | YesDisplayLHS <- displayLhs, null suffix -> DefPatName d <$ do
+        reportSLn "scope.pat" 30 $ "it was a def: " ++ prettyShow (anameName d)
       _ -> case x of
         C.QName y -> VarPatName <$> bindPatternVariable h y
         C.Qual{}  -> typeError $ InvalidPattern $ C.IdentP True x
@@ -1597,7 +1615,7 @@ instance ToAbstract LetDef where
             noWhereInLetBinding wh
             rhs <- letBindingMustHaveRHS rhs0
             (x, args) <- do
-              res <- setCurrentRange p $ parseLHS (C.QName top) p
+              res <- setCurrentRange p $ parseLHS NoDisplayLHS (C.QName top) p
               case res of
                 C.LHSHead x args -> return (x, args)
                 C.LHSProj{}      -> __IMPOSSIBLE__  -- notAValidLetBinding $ Just CopatternsNotAllowed
@@ -2617,7 +2635,7 @@ instance ToAbstract C.Pragma where
             PatternSynResName (d :| []) -> return . (True,) $ anameName d
             PatternSynResName ds        -> failure $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
 
-        lhs <- liftTCM $ toAbstract $ LeftHandSide top lhs
+        lhs <- liftTCM $ toAbstract $ LeftHandSide top lhs YesDisplayLHS
         ps  <- case lhs of
                  A.LHS _ (A.LHSHead _ ps) -> return ps
                  _ -> err
@@ -2732,7 +2750,7 @@ instance ToAbstract C.Clause where
     modifyScope_ $ updateScopeLocals $ map $ second patternToModuleBound
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
     vars0 <- getLocalVars
-    lhs' <- toAbstract $ LeftHandSide (C.QName top) p
+    lhs' <- toAbstract $ LeftHandSide (C.QName top) p NoDisplayLHS
     printLocals 30 "after lhs:"
     vars1 <- getLocalVars
     eqs <- mapM (toAbstractCtx TopCtx) eqs
@@ -2983,12 +3001,20 @@ instance ToAbstract C.RHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
     toAbstract (C.RHS e)   = RHS' <$> toAbstract e <*> pure e
 
-data LeftHandSide = LeftHandSide C.QName C.Pattern
+-- | Wrapper to check lhs (possibly of a 'C.DisplayPragma').
+--
+data LeftHandSide = LeftHandSide
+  C.QName
+    -- ^ Name of the definition we are checking.
+  C.Pattern
+    -- ^ Full left hand side.
+  DisplayLHS
+    -- ^ Are we checking a 'C.DisplayPragma'?
 
 instance ToAbstract LeftHandSide where
     type AbsOfCon LeftHandSide = A.LHS
 
-    toAbstract (LeftHandSide top lhs) =
+    toAbstract (LeftHandSide top lhs displayLhs) =
       traceCall (ScopeCheckLHS top lhs) $ do
         reportSLn "scope.lhs" 25 $ "original lhs: " ++ prettyShow lhs
         reportSLn "scope.lhs" 60 $ "patternQNames: " ++ prettyShow (patternQNames lhs)
@@ -3004,7 +3030,7 @@ instance ToAbstract LeftHandSide where
         reportSLn "scope.lhs" 60 $
           "lhs with expanded puns (raw): " ++ show lhs
 
-        lhscore <- parseLHS top lhs
+        lhscore <- parseLHS displayLhs top lhs
         let ell = hasExpandedEllipsis lhscore
         reportSLn "scope.lhs" 25 $ "parsed lhs: " ++ prettyShow lhscore
         reportSLn "scope.lhs" 60 $ "parsed lhs (raw): " ++ show lhscore
@@ -3014,7 +3040,7 @@ instance ToAbstract LeftHandSide where
           when (hasCopatterns lhscore) $
             typeError $ NeedOptionCopatterns
         -- scope check patterns except for dot patterns
-        lhscore <- toAbstract lhscore
+        lhscore <- toAbstract $ CLHSCore displayLhs lhscore
         bindVarsToBind
         -- reportSLn "scope.lhs" 25 $ "parsed lhs patterns: " ++ prettyShow lhscore  -- TODO: Pretty A.LHSCore'
         reportSLn "scope.lhs" 60 $ "parsed lhs patterns: " ++ show lhscore
@@ -3086,35 +3112,59 @@ mergeEqualPs = go (empty, [])
     go (_, [])       [] = return []
     go (_, []) (p : ps) = (p :) <$> mergeEqualPs ps
 
--- does not check pattern linearity
-instance ToAbstract C.LHSCore where
-    type AbsOfCon C.LHSCore = (A.LHSCore' C.Expr)
 
-    toAbstract (C.LHSHead x ps) = do
-        x <- withLocalVars $ do
+-- | Scope-check a 'C.LHSCore' (of possibly a 'C.DisplayForm').
+
+data CLHSCore = CLHSCore
+  DisplayLHS
+    -- ^ Are we checking the left hand side of a 'C.DisplayForm'?
+  C.LHSCore
+    -- ^ The lhs to scope-check.
+
+-- | Scope-check a 'C.LHSCore' not of a 'C.DisplayForm'.
+
+instance ToAbstract C.LHSCore where
+  type AbsOfCon C.LHSCore = A.LHSCore' C.Expr
+
+  toAbstract = toAbstract . CLHSCore NoDisplayLHS
+
+-- does not check pattern linearity
+instance ToAbstract CLHSCore where
+  type AbsOfCon CLHSCore = A.LHSCore' C.Expr
+
+  toAbstract (CLHSCore displayLhs core0) = case core0 of
+
+    C.LHSHead x ps -> do
+        x <- withLocalVars do
           setLocalVars []
           toAbstract (OldName x)
-        A.LHSHead x <$> do mergeEqualPs =<< toAbstract ps
-    toAbstract (C.LHSProj d ps1 l ps2) = do
+        ps <- toAbstract $ (fmap . fmap . fmap) (CPattern displayLhs) ps
+        A.LHSHead x <$> mergeEqualPs ps
+
+    C.LHSProj d ps1 core ps2 -> do
         unless (null ps1) $ typeError $ IllformedProjectionPatternConcrete (foldl C.AppP (C.IdentP True d) ps1)
         ds <- resolveName d >>= \case
           FieldName ds -> return $ fmap anameName ds
           UnknownName  -> notInScopeError d
           _            -> typeError $ CopatternHeadNotProjection d
-        A.LHSProj (AmbQ ds) <$> toAbstract l <*> (mergeEqualPs =<< toAbstract ps2)
-    toAbstract (C.LHSWith core wps ps) = do
-      liftA2 A.lhsCoreApp
-        (liftA2 A.lhsCoreWith
-          (toAbstract core)
-          (fmap defaultArg <$> toAbstract wps))
-        (toAbstract ps)
+        core <- toAbstract $ (fmap . fmap) (CLHSCore displayLhs) core
+        ps2  <- toAbstract $ (fmap . fmap . fmap) (CPattern displayLhs) ps2
+        A.LHSProj (AmbQ ds) core <$> mergeEqualPs ps2
+
+    C.LHSWith core wps ps -> do
+      -- DISPLAY pragmas cannot have @with@, so no need to pass on @displayLhs@.
+      core <- toAbstract core
+      wps  <- fmap defaultArg <$> toAbstract wps
+      ps   <- toAbstract ps
+      return $ A.lhsCoreApp (A.lhsCoreWith core wps) ps
+
     -- In case of a part of the LHS which was expanded from an ellipsis,
     -- we flush the @scopeVarsToBind@ in order to allow variables bound
     -- in the ellipsis to be shadowed.
-    toAbstract (C.LHSEllipsis _ p) = do
-      ap <- toAbstract p
+    C.LHSEllipsis _ core -> do
+      core <- toAbstract core  -- Cannot come from a DISPLAY pragma.
       bindVarsToBind
-      return ap
+      return core
 
 instance ToAbstract c => ToAbstract (WithHiding c) where
   type AbsOfCon (WithHiding c) = WithHiding (AbsOfCon c)
@@ -3158,6 +3208,9 @@ resolvePatternIdentifier ::
        --
        --   Value 'False' is only used when 'optHiddenArgumentPuns' is 'True'.
        --   In this case, error 'InvalidPun' is thrown on identifiers that are not variables.
+  -> DisplayLHS
+       -- ^ Are definitions to be treated as constructors?
+       --   'True' when we are checking a 'C.DisplayForm'.
   -> Hiding
        -- ^ Is the pattern variable hidden?
   -> C.QName
@@ -3165,24 +3218,29 @@ resolvePatternIdentifier ::
   -> Maybe (Set1 A.Name)
        -- ^ Possibly precomputed resolutions of the identifier (from the operator parser).
   -> ScopeM (A.Pattern' C.Expr)
-resolvePatternIdentifier canBeConstructor h x ns = do
+resolvePatternIdentifier canBeConstructor displayLhs h x ns = do
   reportSLn "scope.pat" 60 $ "resolvePatternIdentifier " ++ prettyShow x ++ " at source position " ++ prettyShow r
-  toAbstract (PatName x ns h) >>= \case
+  toAbstract (PatName x ns h displayLhs) >>= \case
+
     VarPatName y -> do
       reportSLn "scope.pat" 60 $ "  resolved to VarPatName " ++ prettyShow y ++ " with range " ++ prettyShow (getRange y)
       return $ VarP $ A.mkBindName y
-    ConPatName ds ->
-      if canBeConstructor
-      then return $ ConP (ConPatInfo ConOCon (PatRange r) ConPatEager)
-                         (AmbQ $ fmap anameName ds) []
-      else err IsConstructor
-    PatternSynPatName ds ->
-      if canBeConstructor
-      then return $ PatternSynP (PatRange r)
-                                (AmbQ $ fmap anameName ds) []
-      else err IsPatternSynonym
+
+    ConPatName ds -> do
+      unless canBeConstructor $ err IsConstructor
+      return $ ConP (ConPatInfo ConOCon info ConPatEager) (AmbQ $ fmap anameName ds) []
+
+    PatternSynPatName ds -> do
+      unless canBeConstructor $ err IsPatternSynonym
+      return $ PatternSynP info (AmbQ $ fmap anameName ds) []
+
+    DefPatName d -> do
+      unless displayLhs __IMPOSSIBLE__
+      return $ DefP info (AmbQ $ singleton $ anameName d) []
+
   where
   r = getRange x
+  info = PatRange r
   err s = setCurrentRange r $ typeError $ InvalidPun s x
 
 -- | Apply an abstract syntax pattern head to pattern arguments.
@@ -3233,34 +3291,53 @@ instance ToAbstract (WithHidingInfo C.Pattern) where
     type AbsOfCon (WithHidingInfo C.Pattern) = A.Pattern' C.Expr
 
     toAbstract (WithHidingInfo h (C.IdentP canBeConstructor x)) =
-      resolvePatternIdentifier canBeConstructor h x Nothing
+      resolvePatternIdentifier canBeConstructor NoDisplayLHS h x Nothing
 
     toAbstract (WithHidingInfo _ p) = toAbstract p
 
+-- | Scope check a 'C.Pattern' (of possibly a 'C.DisplayForm').
+--
+data CPattern = CPattern
+  DisplayLHS
+    -- ^ Are we checking a 'C.DisplayForm'?
+  C.Pattern
+    -- ^ The pattern to scope-check.
+
+-- | Scope check a 'C.Pattern' not belonging to a 'C.DisplayForm'.
+--
 instance ToAbstract C.Pattern where
-    type AbsOfCon C.Pattern = A.Pattern' C.Expr
+  type AbsOfCon C.Pattern = A.Pattern' C.Expr
 
-    toAbstract (C.IdentP canBeConstructor x) =
-      resolvePatternIdentifier canBeConstructor empty x Nothing
+  toAbstract = toAbstract . CPattern NoDisplayLHS
 
-    toAbstract (QuoteP _r) =
+instance ToAbstract CPattern where
+  type AbsOfCon CPattern = A.Pattern' C.Expr
+
+  toAbstract (CPattern displayLhs p0) = case p0 of
+
+    C.IdentP canBeConstructor x ->
+      resolvePatternIdentifier canBeConstructor displayLhs empty x Nothing
+
+    QuoteP _r ->
       typeError $ CannotQuote CannotQuoteNothing
 
-    toAbstract (AppP (QuoteP _) p)
-      | IdentP _ x <- namedArg p = do
+    AppP (QuoteP _) p
+      | IdentP _ x <- namedArg p -> do
           if visible p then do
             e <- toAbstract (OldQName x Nothing)
             A.LitP (PatRange $ getRange x) . LitQName <$> quotedName e
           else typeError $ CannotQuote CannotQuoteHidden
-      | otherwise = typeError $ CannotQuote $ CannotQuotePattern p
+      | otherwise -> typeError $ CannotQuote $ CannotQuotePattern p
 
-    toAbstract p0@(AppP p q) = do
+    AppP p q -> do
         reportSLn "scope.pat" 50 $ "distributeDots before = " ++ show p
         p <- distributeDots p
         reportSLn "scope.pat" 50 $ "distributeDots after  = " ++ show p
-        p' <- toAbstract p
+        p' <- toAbstract (wrap p)
         -- Remember hiding info in argument to propagate to 'PatternBound'.
-        q' <- toAbstract $ propagateHidingInfo q
+        q' <- ifThenElse displayLhs
+          {-then-} (toAbstract $ (fmap . fmap) wrap q)
+          {-else-} (toAbstract $ propagateHidingInfo q)
         applyAPattern p0 p' $ singleton q'
 
         where
@@ -3289,46 +3366,49 @@ instance ToAbstract C.Pattern where
             parseRawApp (RawApp r es) = parseApplication es
             parseRawApp e             = return e
 
-    toAbstract p0@(OpAppP r op ns ps) = do
+    OpAppP r op ns ps -> do
         reportSLn "scope.pat" 60 $ "ConcreteToAbstract.toAbstract OpAppP{}: " ++ show p0
-        p  <- resolvePatternIdentifier True empty op (Just ns)
+        p  <- resolvePatternIdentifier True displayLhs empty op (Just ns)
         -- Remember hiding info in arguments to propagate to 'PatternBound'.
-        ps <- toAbstract $ fmap propagateHidingInfo ps
+        ps <- ifThenElse displayLhs
+          {-then-} (toAbstract $ (fmap . fmap . fmap) wrap ps)
+          {-else-} (toAbstract $ fmap propagateHidingInfo ps)
         applyAPattern p0 p ps
 
-    toAbstract (EllipsisP _ mp) = maybe __IMPOSSIBLE__ toAbstract mp
+    EllipsisP _ mp -> maybe __IMPOSSIBLE__ toAbstract mp  -- Not in DISPLAY pragma
 
     -- Removed when parsing
-    toAbstract (HiddenP _ _)   = __IMPOSSIBLE__
-    toAbstract (InstanceP _ _) = __IMPOSSIBLE__
-    toAbstract (RawAppP _ _)   = __IMPOSSIBLE__
+    HiddenP _ _    -> __IMPOSSIBLE__
+    InstanceP _ _  -> __IMPOSSIBLE__
+    RawAppP _ _    -> __IMPOSSIBLE__
 
-    toAbstract p@(C.WildP r)    = return $ A.WildP (PatRange r)
+    C.WildP r      -> return $ A.WildP $ PatRange r
     -- Andreas, 2015-05-28 futile attempt to fix issue 819: repeated variable on lhs "_"
     -- toAbstract p@(C.WildP r)    = A.VarP <$> freshName r "_"
-    toAbstract (C.ParenP _ p)   = toAbstract p  -- Andreas, 2024-09-27 not impossible
-    toAbstract (C.LitP r l)     = setCurrentRange r $ A.LitP (PatRange r) l <$ checkLiteral l
+    C.ParenP _ p   -> toAbstract $ wrap p  -- Andreas, 2024-09-27 not impossible
+    C.LitP r l     -> setCurrentRange r $ A.LitP (PatRange r) l <$ checkLiteral l
 
-    toAbstract p0@(C.AsP r x p) = do
+    C.AsP r x p -> do
         -- Andreas, 2018-06-30, issue #3147: as-variables can be non-linear a priori!
         -- x <- toAbstract (NewName PatternBound x)
         -- Andreas, 2020-05-01, issue #4631: as-variables should not shadow constructors.
         -- x <- bindPatternVariable x
-      toAbstract (PatName (C.QName x) Nothing empty) >>= \case
-        VarPatName x        -> A.AsP (PatRange r) (A.mkBindName x) <$> toAbstract p
+      toAbstract (PatName (C.QName x) Nothing empty NoDisplayLHS) >>= \case
+        VarPatName x        -> A.AsP (PatRange r) (A.mkBindName x) <$> toAbstract (wrap p)
         ConPatName{}        -> ignoreAsPat IsConstructor
         PatternSynPatName{} -> ignoreAsPat IsPatternSynonym
+        DefPatName{}        -> __IMPOSSIBLE__  -- because of @False@ in @PatName@
       where
       -- An @-bound name which shadows a constructor is illegal and becomes dead code.
       ignoreAsPat b = do
         setCurrentRange x $ warning $ AsPatternShadowsConstructorOrPatternSynonym b
-        toAbstract p
+        toAbstract $ wrap p
 
-    toAbstract p0@(C.EqualP r es)  = return $ A.EqualP (PatRange r) es
+    C.EqualP r es -> return $ A.EqualP (PatRange r) es
 
     -- We have to do dot patterns at the end since they can
     -- refer to the variables bound by the other patterns.
-    toAbstract p0@(C.DotP _kwr r e) = do
+    C.DotP _kwr r e -> do
       let fallback = return $ A.DotP (PatRange r) e
       case e of
         C.Ident x -> resolveName x >>= \case
@@ -3339,9 +3419,13 @@ instance ToAbstract C.Pattern where
           _ -> fallback
         _ -> fallback
 
-    toAbstract p0@(C.AbsurdP r)    = return $ A.AbsurdP (PatRange r)
-    toAbstract (C.RecP r fs)       = A.RecP (ConPatInfo ConORec (PatRange r) ConPatEager) <$> mapM (traverse toAbstract) fs
-    toAbstract (C.WithP r p)       = A.WithP (PatRange r) <$> toAbstract p
+    C.AbsurdP r -> return $ A.AbsurdP $ PatRange r
+    C.RecP r fs -> A.RecP (ConPatInfo ConORec (PatRange r) ConPatEager) <$> mapM (traverse $ toAbstract . wrap) fs
+    C.WithP r p -> A.WithP (PatRange r) <$> toAbstract p  -- not in DISPLAY pragma
+
+    where
+      -- Pass on @displayLhs@ context
+      wrap = CPattern displayLhs
 
 -- | An argument @OpApp C.Expr@ to an operator can have binders,
 --   in case the operator is some @syntax@-notation.

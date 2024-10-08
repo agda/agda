@@ -392,8 +392,16 @@ data KindOfName
   -- End @DefName@.  Keep these together in sequence, for sake of @isDefName@!
   deriving (Eq, Ord, Show, Enum, Bounded, Generic)
 
+-- | All kinds of regular definitions.
+defNameKinds :: [KindOfName]
+defNameKinds = [DataName .. OtherDefName]
+
 isDefName :: KindOfName -> Bool
 isDefName = (>= DataName)
+
+-- | Constructor and pattern synonyms.
+conLikeNameKinds :: [KindOfName]
+conLikeNameKinds = [ConName, CoConName, PatternSynName]
 
 isConName :: KindOfName -> Maybe Induction
 isConName = \case

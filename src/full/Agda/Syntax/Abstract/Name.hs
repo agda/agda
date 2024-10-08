@@ -7,7 +7,7 @@ module Agda.Syntax.Abstract.Name
   , FreshNameMode(..)
   ) where
 
-import Prelude hiding (length)
+import Prelude hiding (length, null)
 
 import Control.DeepSeq
 
@@ -20,6 +20,7 @@ import Data.Void
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..), NameInScope(..), LensInScope(..), FreshNameMode(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
@@ -28,7 +29,7 @@ import Agda.Utils.Lens
 import qualified Agda.Utils.List as L
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
-import Agda.Syntax.Common.Pretty
+import Agda.Utils.Null
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -104,6 +105,9 @@ data Suffix
   = NoSuffix
   | Suffix !Integer
   deriving (Show, Eq, Ord)
+
+instance Null Suffix where
+  empty = NoSuffix
 
 instance NFData Suffix where
   rnf NoSuffix   = ()

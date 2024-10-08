@@ -145,6 +145,21 @@ instance Pretty ConstructorOrPatternSynonym where
 
 instance NFData ConstructorOrPatternSynonym
 
+-- | Distinguish parsing a DISPLAY pragma from an ordinary left hand side.
+
+data DisplayLHS = YesDisplayLHS | NoDisplayLHS
+  deriving (Eq, Show, Generic, Enum, Bounded)
+
+instance Boolean DisplayLHS where
+  fromBool = \case
+    True -> YesDisplayLHS
+    False -> NoDisplayLHS
+
+instance IsBool DisplayLHS where
+  toBool = \case
+    YesDisplayLHS -> True
+    NoDisplayLHS -> False
+
 ---------------------------------------------------------------------------
 -- * Record Directives
 ---------------------------------------------------------------------------
