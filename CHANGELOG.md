@@ -27,6 +27,19 @@ Pragmas and options
 
 * New option `--js-es6` for generating JavaScript with ES6 module syntax.
 
+* DISPLAY pragmas can now define display forms that match on defined names
+  beyond constructors ([issue #7533](https://github.com/agda/agda/issues/7533)).
+  Example:
+  ```agda
+  {-# DISPLAY Irrelevant Empty = ⊥ #-}
+  ```
+  `Empty` used to be interpreted as a pattern variable, effectively installing
+  the display form `Irrelevant _ = ⊥`.
+  Now `Empty` is treated as a matchable name, as one would intuitively expect
+  from a display form.
+  As a consequence, only `Irrelevant Empty` is displayed as `⊥`, not just any
+  `Irrelevant A`.
+
 Syntax
 ------
 

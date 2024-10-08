@@ -560,8 +560,13 @@ instance Pretty ParseLHS where
 
 -- | Parses a left-hand side, workhorse for 'parseLHS'.
 --
-parseLHS'
-  :: LHSOrPatSyn
+parseLHS' ::
+     DisplayLHS
+       -- ^ Are we parsing a 'DisplayPragma'?
+       --   Then defined names are recognized as constructors.
+       --
+       --   In this case, 'LHSOrPatSyn' is 'IsLHS' and 'Maybe QName' is 'Just'.
+  -> LHSOrPatSyn
        -- ^ Are we trying to parse a lhs or a pattern synonym?
        --   For error reporting only!
   -> Maybe QName
@@ -570,13 +575,13 @@ parseLHS'
   -> Pattern
        -- ^ Thing to parse.
   -> ScopeM (ParseLHS, [NotationSection])
-       -- ^ The returned list contains all operators/notations/sections that
-       -- were used to generate the grammar.
+       -- ^ The returned list contains all operators\/notations\/sections that
+       --   were used to generate the grammar.
 
-parseLHS' IsLHS (Just qn) WildP{} =
+parseLHS' NoDisplayLHS IsLHS (Just qn) WildP{} =
     return (ParseLHS qn $ LHSHead qn [], [])
 
-parseLHS' lhsOrPatSyn top p = do
+parseLHS' displayLhs lhsOrPatSyn top p = do
 
     -- Build parser.
     patP <- buildParsers IsPattern (patternQNames p)
@@ -586,7 +591,7 @@ parseLHS' lhsOrPatSyn top p = do
                in  foldr seq () result `seq` result
 
     -- Classify parse results.
-    let cons = getNames (someKindsOfNames [ConName, CoConName, PatternSynName])
+    let cons = getNames (someKindsOfNames $ applyWhen displayLhs (defNameKinds ++) conLikeNameKinds)
                         (flattenedScope patP)
     let flds = getNames (someKindsOfNames [FldName])
                         (flattenedScope patP)
@@ -689,9 +694,16 @@ classifyPattern conf p =
 
 
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
-parseLHS :: QName -> Pattern -> ScopeM LHSCore
-parseLHS top p = billToParser IsPattern $ do
-  (res, ops) <- parseLHS' IsLHS (Just top) p
+parseLHS ::
+     DisplayLHS
+       -- ^ Are we parsing a 'DisplayPragma'?
+  -> QName
+       -- ^ Name of the definition.
+  -> Pattern
+       -- ^ Full left hand side.
+  -> ScopeM LHSCore
+parseLHS displayLhs top p = billToParser IsPattern $ do
+  (res, ops) <- parseLHS' displayLhs IsLHS (Just top) p
   case res of
     ParseLHS f lhs -> return lhs
     _ -> typeError $ OperatorInformation ops
@@ -706,7 +718,7 @@ parsePatternSyn = parsePatternOrSyn IsPatSyn
 
 parsePatternOrSyn :: LHSOrPatSyn -> Pattern -> ScopeM Pattern
 parsePatternOrSyn lhsOrPatSyn p = billToParser IsPattern $ do
-  (res, ops) <- parseLHS' lhsOrPatSyn Nothing p
+  (res, ops) <- parseLHS' NoDisplayLHS lhsOrPatSyn Nothing p
   case res of
     ParsePattern p -> return p
     _ -> typeError $ OperatorInformation ops

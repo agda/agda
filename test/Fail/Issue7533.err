@@ -1,0 +1,3 @@
+Issue7533.agda:18.5-12: error: [UnequalTerms]
+Set !=< X → F A
+when checking that the expression F Empty has type X → F A
