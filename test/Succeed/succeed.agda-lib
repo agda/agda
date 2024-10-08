@@ -1,5 +1,7 @@
 -- Andreas, 2017-08-23, issue #2708, name is optional
--- name: test-succeed
+-- Andreas, 2024-09-27: still include it, so we can run with old Agda
+
+name: test-succeed
 
 include:
   .
