@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "Checked")
-(agda2-info-action "*All Done*" "" nil)
+(agda2-info-action "*All Warnings*" "Issue6325.agda:26.1-47: warning: -W[no]UnusedVariablesInDisplayForm The following variable is bound on the left hand side but unused on the right hand side of the display form: ys Replace it by an underscore to pacify this warning when scope checking the declaration {-# DISPLAY f₁ _ (c {xs} n ys) = c n xs #-} Issue6325.agda:27.1-47: warning: -W[no]UnusedVariablesInDisplayForm The following variable is bound on the left hand side but unused on the right hand side of the display form: n Replace it by an underscore to pacify this warning when scope checking the declaration {-# DISPLAY f₂ _ (c {(xs)} n ys) = c xs ys #-}" nil)
 ((last . 1) . (agda2-goals-action '()))
 (agda2-status-action "Checked")
 (agda2-info-action "*Normal Form*" "λ x → c 1 (0 ∷ [])" nil)

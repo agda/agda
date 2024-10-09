@@ -4456,9 +4456,15 @@ data Warning
   | UnfoldTransparentName QName
   | UselessOpaque
 
-  -- Type checker warnings
+  -- Display form warnings
   | InvalidDisplayForm QName String
       -- ^ DISPLAY form for 'QName' is invalid because 'String'.
+  | UnusedVariablesInDisplayForm (List1 A.Name)
+      -- ^ The given names are bound in the lhs of the display form
+      --   but not used on the rhs.
+      --   This can indicate a user misunderstanding of display forms.
+
+  -- Type checker warnings
   | TooManyArgumentsToSort QName (List1 (NamedArg A.Expr))
       -- ^ Extra arguments to sort (will be ignored).
   | WithClauseProjectionFixityMismatch
@@ -4582,8 +4588,11 @@ warningName = \case
   UnfoldingWrongName{}    -> UnfoldingWrongName_
   UnfoldTransparentName{} -> UnfoldTransparentName_
 
-  -- Type checking
+  -- Display forms
   InvalidDisplayForm{}                 -> InvalidDisplayForm_
+  UnusedVariablesInDisplayForm{}       -> UnusedVariablesInDisplayForm_
+
+  -- Type checking
   TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
   WithClauseProjectionFixityMismatch{} -> WithClauseProjectionFixityMismatch_
 
