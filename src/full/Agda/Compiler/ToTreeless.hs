@@ -7,6 +7,9 @@ module Agda.Compiler.ToTreeless
   , Pipeline(..)
   , CompilerPass(..)
   , compilerPass
+  , compilerPipeline
+  , CCConfig
+  , CCSubst(..)
   ) where
 
 import Prelude hiding ((!!))
