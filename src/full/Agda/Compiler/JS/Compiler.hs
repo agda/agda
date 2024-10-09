@@ -77,7 +77,7 @@ import Agda.Compiler.JS.Syntax
   , JSQName
   )
 import Agda.Compiler.JS.Substitution
-  ( curriedLambda, curriedApply, emp, apply )
+  ( curriedLambda, curriedApply, emp, apply, substShift )
 import qualified Agda.Compiler.JS.Pretty as JSPretty
 import Agda.Compiler.JS.Pretty (JSModuleStyle(..))
 
@@ -569,8 +569,12 @@ compileTerm kit t = go t
       T.TApp t xs -> do
             curriedApply <$> go t <*> mapM go xs
       T.TLam t -> Lambda 1 <$> go t
-      -- TODO This is not a lazy let, but it should be...
-      T.TLet t e -> apply <$> (Lambda 1 <$> go e) <*> traverse go [t]
+      -- `let x = t in e` is compiled to `(x => e[x()/x])(() => t)` so that `t`
+      -- is only evaluated inside the body
+      T.TLet t e -> do
+        t' <- Lambda 0 <$> go t
+        e' <- substShift 1 1 [Apply (Local (LocalId 0)) []] <$> go e
+        return $ Apply (Lambda 1 e') [t']
       T.TLit l -> return $ literal l
       -- Implements Scott-Encoding of constructor applications
       -- (see the note "Implementing data types")
