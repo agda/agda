@@ -50,6 +50,9 @@ substituter n es m (LocalId i) | i < m       = Local (LocalId i)
 substituter n es m (LocalId i) | (i - m) < n = shift m (genericIndex (es ++ repeat Undefined) (n - (i + 1 - m)))
 substituter n es m (LocalId i) | otherwise   = Local (LocalId (i - n))
 
+substShift :: Nat -> Nat -> [Exp] -> Exp -> Exp
+substShift m n es = subst m es . shiftFrom m n
+
 -- A variant on substitution which performs beta-reduction
 
 map' :: Nat -> (Nat -> LocalId -> Exp) -> Exp -> Exp
