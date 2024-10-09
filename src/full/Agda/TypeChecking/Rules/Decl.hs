@@ -24,6 +24,7 @@ import Agda.Syntax.Internal
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Base ( KindOfName(..) )
 
@@ -72,7 +73,6 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.Update
 import qualified Agda.Syntax.Common.Pretty as P

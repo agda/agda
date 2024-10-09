@@ -19,6 +19,7 @@ import Agda.Syntax.Abstract.Views (deepUnscope)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Common
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Scope.Monad
@@ -52,7 +53,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Syntax.Common.Pretty as P
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -373,7 +374,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
 
       case e of
         A.Generalized s e -> do
-          (_, t, isPathCons) <- generalizeType' s (check 1 e)
+          (_, t, isPathCons) <- generalizeType' (Set1.toSet s) (check 1 e)
           return (t, isPathCons)
         _ -> check 0 e
 

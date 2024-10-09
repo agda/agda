@@ -23,6 +23,8 @@ import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
 import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA, TacticAttribute'(..))
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty ( prettyShow )
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position
@@ -77,8 +79,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty ( prettyShow )
-import qualified Agda.Syntax.Common.Pretty as P
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -130,7 +131,7 @@ isType_ e = traceCall (IsType_ e) $ do
       return t'
 
     A.Generalized s e -> do
-      (_, t') <- generalizeType s $ isType_ e
+      (_, t') <- generalizeType (Set1.toSet s) $ isType_ e
       --noFunctionsIntoSize t'
       return t'
 
@@ -1207,7 +1208,7 @@ checkExpr' cmp e t =
             coerce cmp v (sort s) t
 
         A.Generalized s e -> do
-            (_, t') <- generalizeType s $ isType_ e
+            (_, t') <- generalizeType (Set1.toSet s) $ isType_ e
             --noFunctionsIntoSize t' t'
             let s = getSort t'
                 v = unEl t'

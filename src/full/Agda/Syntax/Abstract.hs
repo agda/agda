@@ -29,6 +29,7 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Info
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
@@ -39,7 +40,8 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty
+import Agda.Utils.Set1 (Set1)
+import qualified Agda.Utils.Set1 as Set1
 
 import Agda.Utils.Impossible
 
@@ -99,7 +101,7 @@ data Expr
   | AbsurdLam ExprInfo Hiding          -- ^ @λ()@ or @λ{}@.
   | ExtendedLam ExprInfo DefInfo Erased QName (List1 Clause)
   | Pi   ExprInfo Telescope1 Type      -- ^ Dependent function space @Γ → A@.
-  | Generalized (Set QName) Type       -- ^ Like a Pi, but the ordering is not known
+  | Generalized (Set1 QName) Type      -- ^ Like a Pi, but the ordering is not known
   | Fun  ExprInfo (Arg Type) Type      -- ^ Non-dependent function space.
   | Let  ExprInfo (List1 LetBinding) Expr
                                        -- ^ @let bs in e@.
@@ -118,9 +120,7 @@ pattern Def x = Def' x NoSuffix
 
 -- | Smart constructor for 'Generalized'.
 generalized :: Set QName -> Type -> Type
-generalized s e
-    | null s    = e
-    | otherwise = Generalized s e
+generalized s e = Set1.ifNull s e \ s -> Generalized s e
 
 -- | Record field assignment @f = e@.
 type Assign  = FieldAssignment' Expr
@@ -169,7 +169,7 @@ data Declaration
     -- The fourth argument contains an optional assignment of
     -- polarities to arguments.
   | Generalize (Set QName) DefInfo ArgInfo QName Type
-    -- ^ First argument is set of generalizable variables used in the type.
+    -- ^ The first argument is the (possibly empty) set of generalizable variables used in the type.
   | Field      DefInfo QName (Arg Type)              -- ^ record field
   | Primitive  DefInfo QName (Arg Type)              -- ^ primitive function
   | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions

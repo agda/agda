@@ -2255,15 +2255,15 @@ notAffectedByOpaque k = do
 -- * Helper functions for @variable@ generalization
 ------------------------------------------------------------------------
 
-unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)
-unGeneralized (A.Generalized s t) = (s, t)
+unGeneralized :: A.Expr -> (Set A.QName, A.Expr)
+unGeneralized (A.Generalized s t) = (Set1.toSet s, t)
 unGeneralized (A.ScopedExpr si e) = A.ScopedExpr si <$> unGeneralized e
 unGeneralized t = (mempty, t)
 
 alreadyGeneralizing :: ScopeM Bool
 alreadyGeneralizing = isJust <$> useTC stGeneralizedVars
 
-collectGeneralizables :: ScopeM a -> ScopeM (Set I.QName, a)
+collectGeneralizables :: ScopeM a -> ScopeM (Set A.QName, a)
 collectGeneralizables m =
   -- #5683: No nested generalization
   ifM alreadyGeneralizing ((Set.empty,) <$> m) $
@@ -2280,14 +2280,14 @@ collectGeneralizables m =
         pure gvs
     close = (stGeneralizedVars `setTCLens`)
 
-createBoundNamesForGeneralizables :: Set I.QName -> ScopeM (Map I.QName I.Name)
+createBoundNamesForGeneralizables :: Set A.QName -> ScopeM (Map A.QName A.Name)
 createBoundNamesForGeneralizables vs =
   flip Map.traverseWithKey (Map.fromSet (const ()) vs) $ \ q _ -> do
     let x  = nameConcrete $ qnameName q
         fx = nameFixity   $ qnameName q
     freshAbstractName fx x
 
-collectAndBindGeneralizables :: ScopeM a -> ScopeM (Map I.QName I.Name, a)
+collectAndBindGeneralizables :: ScopeM a -> ScopeM (Map A.QName A.Name, a)
 collectAndBindGeneralizables m = do
   fvBefore <- length <$> getLocalVars
   (s, res) <- collectGeneralizables m

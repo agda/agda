@@ -808,6 +808,7 @@ library
       Agda.Utils.List2
       Agda.Utils.ListT
       Agda.Utils.Map
+      Agda.Utils.Map1
       Agda.Utils.Maybe
       Agda.Utils.Maybe.Strict
       Agda.Utils.Memo
