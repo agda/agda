@@ -161,7 +161,7 @@ Literate Forester
 Files ending in :file:`.lagda.tree` are interpreted as literate
 Forester_ files. Literate forester use `\agda{...}` for code blocks.
 
-.. code-block:: tree
+.. code-block:: text
 
    \p{This line is ordinary text, which is ignored by Agda.}
 
