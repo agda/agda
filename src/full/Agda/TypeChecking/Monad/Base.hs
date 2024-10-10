@@ -13,7 +13,7 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 import Control.Arrow                ( (&&&) )
-import qualified Control.Concurrent as C
+import Control.Concurrent           ( forkIO )
 import Control.DeepSeq
 import qualified Control.Exception as E
 
@@ -5988,11 +5988,11 @@ runSafeTCM m st =
 -- propagated to the parent, so the thread should not do anything
 -- important.
 
-forkTCM :: TCM a -> TCM ()
+forkTCM :: TCM () -> TCM ()
 forkTCM m = do
   s <- getTC
   e <- askTC
-  liftIO $ void $ C.forkIO $ void $ runTCM e s m
+  liftIO $ void $ forkIO $ void $ runTCM e s m
 
 ---------------------------------------------------------------------------
 -- * Interaction Callback
