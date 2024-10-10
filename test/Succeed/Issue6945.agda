@@ -27,7 +27,8 @@ private
 -- Expected: Warning about useless private.
 
 private
-  {-# POLARITY _#_ #-}
+  {-# POLARITY _#_ + - #-}
+  {-# POLARITY Nat     #-}  -- Andreas, 2024-10-10 this useless pragma should be ignored (#7546).
 
 -- Expected: Warning about useless private.
 

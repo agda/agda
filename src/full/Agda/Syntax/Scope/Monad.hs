@@ -467,7 +467,7 @@ getConcreteFixity :: C.Name -> ScopeM Fixity'
 getConcreteFixity x = Map.findWithDefault noFixity' x <$> useScope scopeFixities
 
 -- | Get the polarities of a not yet bound name.
-getConcretePolarity :: C.Name -> ScopeM (Maybe [Occurrence])
+getConcretePolarity :: C.Name -> ScopeM (Maybe (List1 Occurrence))
 getConcretePolarity x = Map.lookup x <$> useScope scopePolarities
 
 instance MonadFixityError ScopeM where
@@ -479,6 +479,7 @@ instance MonadFixityError ScopeM where
   warnUnknownNamesInPolarityPragmas   = scopeWarning . UnknownNamesInPolarityPragmas
   warnUnknownFixityInMixfixDecl       = scopeWarning . UnknownFixityInMixfixDecl
   warnPolarityPragmasButNotPostulates = scopeWarning . PolarityPragmasButNotPostulates
+  warnEmptyPolarityPragma             = scopeWarning . EmptyPolarityPragma
 
 -- | Collect the fixity/syntax declarations and polarity pragmas from the list
 --   of declarations and store them in the scope.

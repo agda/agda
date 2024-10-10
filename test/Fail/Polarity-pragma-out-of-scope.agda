@@ -1,8 +1,8 @@
 {-# OPTIONS --warning=error #-}
 
 postulate
-  A : Set
+  F : Set → Set
 
 module _ where
 
-  {-# POLARITY A #-}
+  {-# POLARITY F + #-}

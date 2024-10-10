@@ -1,6 +1,6 @@
 {-# OPTIONS --warning=error #-}
 
-A : Set₁
-A = Set
+A : Set → Set₁
+A _ = Set
 
-{-# POLARITY A #-}
+{-# POLARITY A ++ #-}

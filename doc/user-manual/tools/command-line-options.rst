@@ -1325,6 +1325,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Empty ``mutual`` blocks.
 
+.. option:: EmptyPolarityPragma
+
+     :ref:`POLARITY pragmas <polarity-pragma>` not giving any polarities.
+
 .. option:: EmptyPostulate
 
      Empty ``postulate`` blocks.

@@ -1200,7 +1200,7 @@ instance ToConcrete A.Declaration where
       return $
         (case mp of
            Nothing   -> []
-           Just occs -> [C.Pragma (PolarityPragma noRange x' occs)]) ++
+           Just occs -> [C.Pragma (PolarityPragma noRange x' $ List1.toList occs)]) ++
         [C.Postulate empty [C.TypeSig info empty x' t']]
 
   toConcrete (A.Generalize s i j x t) = do

@@ -337,6 +337,7 @@ instance EmbPrj DeclarationWarning' where
     SafeFlagNonTerminating         {} -> __IMPOSSIBLE__
     SafeFlagPolarity               {} -> __IMPOSSIBLE__
     SafeFlagTerminating            {} -> __IMPOSSIBLE__
+    EmptyPolarityPragma r             -> icodeN 35 EmptyPolarityPragma r
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -374,6 +375,7 @@ instance EmbPrj DeclarationWarning' where
     [32,r]   -> valuN MissingDataDeclaration r
     [33,r]   -> valuN HiddenGeneralize r
     [34,r]   -> valuN UselessMacro r
+    [35,r]   -> valuN EmptyPolarityPragma r
     _ -> malformed
 
 instance EmbPrj LibWarning where
