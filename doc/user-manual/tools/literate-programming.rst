@@ -155,12 +155,35 @@ Org_ files. Code blocks are surrounded by two lines including only
   final document may be placed in source blocks without the ``agda2``
   label.
 
+Literate Forester
+-----------------
+
+Files ending in :file:`.lagda.tree` are interpreted as literate
+Forester_ files. Literate forester use ```\agda{...}``` for code blocks.
+
+.. code-block:: text
+
+   \p{This line is ordinary text, which is ignored by Agda.}
+
+   \agda{
+   module Whatever where
+   -- Agda code goes here
+   }
+
+   \p{Here is another code block:}
+
+   \agda{
+   data ℕ : Set where
+    zero : ℕ
+    suc  : ℕ → ℕ
+   }
 
 .. _TeX: http://tug.org/
 .. _reStructuredText: http://docutils.sourceforge.io/rst.html
 .. _Markdown: https://daringfireball.net/projects/markdown/
 .. _Org: https://orgmode.org
 .. _Typst: https://typst.app
+.. _Forester: https://sr.ht/~jonsterling/forester/
 
 .. _lhs2TeX: https://www.andres-loeh.de/lhs2tex/
 .. _Sphinx: http://www.sphinx-doc.org/en/stable/

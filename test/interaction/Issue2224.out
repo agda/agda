@@ -1,4 +1,4 @@
 Issue2224WrongExtension.agda.tex: error: [InvalidExtensionError]
 Unsupported extension.
 Supported extensions are: .agda, .lagda, .lagda.rst, .lagda.tex,
-.lagda.md, .lagda.org, .lagda.typ
+.lagda.md, .lagda.org, .lagda.tree, .lagda.typ

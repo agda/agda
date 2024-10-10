@@ -45,6 +45,7 @@ Syntax
 
 Additions to the Agda syntax.
 
+* Add new literate agda: forester, see [#7403](https://github.com/agda/agda/pull/7403)
 * Records can now be created using module-like syntax in place of curly braces
   and semicolons.
 
