@@ -6068,10 +6068,7 @@ generalizedFieldName = ".generalizedField-"
 
 -- | Check whether we have a generalized variable field
 getGeneralizedFieldName :: A.QName -> Maybe String
-getGeneralizedFieldName q
-  | generalizedFieldName `List.isPrefixOf` strName = Just (drop (length generalizedFieldName) strName)
-  | otherwise                                      = Nothing
-  where strName = prettyShow $ nameConcrete $ qnameName q
+getGeneralizedFieldName = List.stripPrefix generalizedFieldName . prettyShow . nameConcrete . qnameName
 
 ---------------------------------------------------------------------------
 -- * KillRange instances
