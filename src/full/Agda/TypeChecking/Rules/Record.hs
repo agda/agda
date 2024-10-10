@@ -220,7 +220,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       let npars = size tel
           telh  = fmap hideAndRelParams tel
       escapeContext impossible npars $ do
-        addConstant' name defaultArgInfo name t $
+        addConstant' name defaultArgInfo t $
             Record
               { recPars           = npars
               , recClause         = Nothing
@@ -243,7 +243,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
         erasure <- optErasure <$> pragmaOptions
         -- Add record constructor to signature
-        addConstant' conName defaultArgInfo conName
+        addConstant' conName defaultArgInfo
              -- If --erasure is used, then the parameters are erased
              -- in the constructor's type.
             (applyWhen erasure (fmap $ applyQuantity zeroQuantity) telh

@@ -987,7 +987,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
-        addConstant' x i x a defn
+        addConstant' x i a defn
         when (isInstance i) $ addTypedInstance x a
         primUnitUnit
 
