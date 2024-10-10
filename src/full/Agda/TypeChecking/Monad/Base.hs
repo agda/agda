@@ -2129,9 +2129,6 @@ data Definition = Defn
     --   22,    2
     --   23,    3
     --   27,    1
-
-  , defArgGeneralizable :: NumGeneralizableArgs
-    -- ^ For a generalized variable, shows how many arguments should be generalised.
   , defGeneralizedParams :: [Maybe Name]
     -- ^ Gives the name of the (bound variable) parameter for named generalized
     --   parameters. This is needed to bring it into scope when type checking
@@ -2190,7 +2187,6 @@ defaultDefn info x t lang def = Defn
   , defType           = t
   , defPolarity       = []
   , defArgOccurrences = []
-  , defArgGeneralizable = NoGeneralizableArgs
   , defGeneralizedParams = []
   , defDisplay        = defaultDisplayForm x
   , defMutual         = 0
@@ -2383,7 +2379,9 @@ data Defn
   | DataOrRecSigDefn DataOrRecSigData
       -- ^ Data or record type signature that doesn't yet have a definition.
   | GeneralizableVar
-      -- ^ Generalizable variable (introduced in `generalize` block).
+      -- ^ Generalizable variable (introduced in @variable@ block).
+      NumGeneralizableArgs
+        -- ^ For a generalized variable, shows how many arguments should be generalised.
   | AbstractDefn Defn
       -- ^ Returned by 'getConstInfo' if definition is abstract.
   | FunctionDefn FunctionData
@@ -2848,7 +2846,7 @@ instance Pretty Defn where
   pretty = \case
     AxiomDefn _         -> "Axiom"
     DataOrRecSigDefn d  -> pretty d
-    GeneralizableVar    -> "GeneralizableVar"
+    GeneralizableVar _  -> "GeneralizableVar"
     AbstractDefn def    -> "AbstractDefn" <?> parens (pretty def)
     FunctionDefn d      -> pretty d
     DatatypeDefn d      -> pretty d
@@ -3335,7 +3333,7 @@ defAbstract :: Definition -> IsAbstract
 defAbstract def = case theDef def of
     AxiomDefn _         -> ConcreteDef
     DataOrRecSigDefn _  -> ConcreteDef
-    GeneralizableVar    -> ConcreteDef
+    GeneralizableVar _  -> ConcreteDef
     AbstractDefn _      -> AbstractDef
     FunctionDefn d      -> d ^. funAbstr_
     DatatypeDefn d      -> _dataAbstr d
@@ -6097,8 +6095,8 @@ instance KillRange InstanceInfo where
   killRange (InstanceInfo a b) = killRangeN InstanceInfo a b
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
-    killRangeN Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def
+  killRange (Defn ai name t pols occs gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
+    killRangeN Defn ai name t pols occs gpars displ mut compiled inst copy ma nc inj copat blk lang def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NumGeneralizableArgs where
@@ -6158,7 +6156,7 @@ instance KillRange Defn where
     case def of
       Axiom a -> Axiom a
       DataOrRecSig n -> DataOrRecSig n
-      GeneralizableVar -> GeneralizableVar
+      GeneralizableVar a -> GeneralizableVar a
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function a b c d e f g h i j k l m n ->
         killRangeN Function a b c d e f g h i j k l m n

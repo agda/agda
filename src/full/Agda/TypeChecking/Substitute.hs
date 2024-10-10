@@ -230,8 +230,8 @@ instance TermSubst a => Apply (Tele a) where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply Definition where
-  apply (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk lang d) args =
-    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj copat blk lang (apply d args)
+  apply (Defn info x t pol occ gpars df m c inst copy ma nc inj copat blk lang d) args =
+    Defn info x (piApply t args) (apply pol args) (apply occ args) (drop (length args) gpars) df m c inst copy ma nc inj copat blk lang (apply d args)
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -300,7 +300,7 @@ instance Apply Defn where
   apply d args@(arg1:args1) = case d of
     Axiom{} -> d
     DataOrRecSig n -> DataOrRecSig (n - length args)
-    GeneralizableVar{} -> d
+    GeneralizableVar gv -> GeneralizableVar $ apply gv args
     AbstractDefn d -> AbstractDefn $ apply d args
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
@@ -620,8 +620,8 @@ instance Abstract Telescope where
   ExtendTel arg xtel `abstract` tel = ExtendTel arg $ xtel <&> (`abstract` tel)
 
 instance Abstract Definition where
-  abstract tel (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk lang d) =
-    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) (abstract tel gens)
+  abstract tel (Defn info x t pol occ gpars df m c inst copy ma nc inj copat blk lang d) =
+    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ)
       (replicate (size tel) Nothing ++ gpars)
       df m c inst copy ma nc inj copat blk lang (abstract tel d)
 
@@ -661,7 +661,7 @@ instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
     DataOrRecSig n -> DataOrRecSig (size tel + n)
-    GeneralizableVar{} -> d
+    GeneralizableVar gv -> GeneralizableVar $ abstract tel gv
     AbstractDefn d -> AbstractDefn $ abstract tel d
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam

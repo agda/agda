@@ -486,9 +486,9 @@ collectComponents opts costs ii mDefName whereNames metaId = do
                   | shouldKeep scope -> addAxiom
                   | otherwise        -> return comps
           -- TODO: Check if we want to use these
-          DataOrRecSig{}   -> return comps
-          GeneralizableVar -> return comps
-          AbstractDefn{}   -> return comps
+          DataOrRecSig{}     -> return comps
+          GeneralizableVar{} -> return comps
+          AbstractDefn{}     -> return comps
           -- If the function is in the same mutual block, do not include it.
           f@Function{}
             | Just qname == mDefName                  -> addThisFn
@@ -543,16 +543,16 @@ qnameToComponent cost qname = do
   mParams <- freeVarsToApply qname
   let def = (Def qname [] `apply` mParams, 0)
       (term, pars) = case theDef info of
-        c@Constructor{}  -> (Con (conSrcCon c) ConOCon [], conPars c - length mParams)
-        Axiom{}          -> def
-        GeneralizableVar -> def
-        Function{}       -> def
-        Datatype{}       -> def
-        Record{}         -> def
-        Primitive{}      -> def
-        PrimitiveSort{}  -> def
-        DataOrRecSig{}   -> __IMPOSSIBLE__
-        AbstractDefn{}   -> __IMPOSSIBLE__
+        c@Constructor{}    -> (Con (conSrcCon c) ConOCon [], conPars c - length mParams)
+        Axiom{}            -> def
+        GeneralizableVar{} -> def
+        Function{}         -> def
+        Datatype{}         -> def
+        Record{}           -> def
+        Primitive{}        -> def
+        PrimitiveSort{}    -> def
+        DataOrRecSig{}     -> __IMPOSSIBLE__
+        AbstractDefn{}     -> __IMPOSSIBLE__
   newComponentQ [] cost qname pars term typ
 
 getEverythingInScope :: MonadTCM tcm => MetaVariable -> tcm [QName]
@@ -1236,24 +1236,24 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
       primitive@Primitive{} -> do
         return []
       -- TODO: Better way of checking that type is Level
-      d@Axiom{}
+      Axiom{}
         | P.prettyShow qname == "Agda.Primitive.Level" -> do
             tryLevel
         | otherwise -> do
         return []
-      d@DataOrRecSig{} -> do
+      DataOrRecSig{} -> do
         return []
-      d@GeneralizableVar -> do
+      GeneralizableVar{} -> do
         return []
-      d@AbstractDefn{} -> do
+      AbstractDefn{} -> do
         return []
-      d@Function{} -> do
+      Function{} -> do
         return []
-      d@Constructor{} -> do
+      Constructor{} -> do
         return []
-      d@PrimitiveSort{} -> do
+      PrimitiveSort{} -> do
         return []
-    sort@(Sort (Type level)) -> do
+    Sort (Type level) -> do
       trySet level
     Sort sort -> do
       return []

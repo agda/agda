@@ -576,7 +576,6 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
             t   = defType d `piApply` ts'
             pol = defPolarity d `apply` ts'
             occ = defArgOccurrences d `apply` ts'
-            gen = defArgGeneralizable d `apply` ts'
             inst = defInstance d
             -- the name is set by the addConstant function
             nd :: QName -> TCM Definition
@@ -590,7 +589,6 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defType           = t
                     , defPolarity       = pol
                     , defArgOccurrences = occ
-                    , defArgGeneralizable = gen
                     , defGeneralizedParams = [] -- This is only needed for type checking data/record defs so no need to copy it.
                     , defDisplay        = []
                     , defMutual         = -1   -- TODO: mutual block?
@@ -653,7 +651,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                          , recConHead = copyConHead c
                          , recFields  = (map . fmap) copyName fs
                          }
-                GeneralizableVar -> return GeneralizableVar
+                GeneralizableVar gv -> return $ GeneralizableVar $ gv `apply` ts'
                 _ -> do
                   (mst, _, cc) <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
                   fun          <- emptyFunctionData
