@@ -155,7 +155,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   }
 
             escapeContext impossible npars $ do
-              addConstant' name defaultArgInfo name t $ DatatypeDefn dataDef
+              addConstant' name defaultArgInfo t $ DatatypeDefn dataDef
                 -- polarity and argOcc.s determined by the positivity checker
 
             -- Check the types of the constructors
@@ -196,7 +196,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
 
         -- Add the datatype to the signature with its constructors.
         -- It was previously added without them.
-        addConstant' name defaultArgInfo name t $ DatatypeDefn
+        addConstant' name defaultArgInfo t $ DatatypeDefn
             dataDef{ _dataCons = cons
                    , _dataTranspIx = mtranspix
                    , _dataTransp   = transpFun
@@ -331,7 +331,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- add parameters to constructor type and put into signature
         escapeContext impossible (size tel) $ do
           erasure <- optErasure <$> pragmaOptions
-          addConstant' c ai c (telePi tel t) $ Constructor
+          addConstant' c ai (telePi tel t) $ Constructor
               { conPars   = size tel
               , conArity  = arity
               , conSrcCon = con

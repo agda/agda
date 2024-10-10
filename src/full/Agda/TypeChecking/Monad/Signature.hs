@@ -187,10 +187,10 @@ addConstant q d = do
 -- does not need to be supplied.
 
 addConstant' ::
-  QName -> ArgInfo -> QName -> Type -> Defn -> TCM ()
-addConstant' q info x t def = do
+  QName -> ArgInfo -> Type -> Defn -> TCM ()
+addConstant' q info t def = do
   lang <- getLanguage
-  addConstant q $ defaultDefn info x t lang def
+  addConstant q $ defaultDefn info q t lang def
 
 -- | Set termination info of a defined function symbol.
 setTerminates :: MonadTCState m => QName -> Bool -> m ()

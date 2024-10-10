@@ -1908,7 +1908,7 @@ openMetasToPostulates = do
       ]
 
     -- Add the new postulate to the signature.
-    addConstant' q defaultArgInfo q t defaultAxiom
+    addConstant' q defaultArgInfo t defaultAxiom
 
     -- Solve the meta.
     let inst = InstV $ Instantiation
