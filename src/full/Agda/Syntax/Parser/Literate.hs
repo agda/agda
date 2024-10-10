@@ -316,7 +316,7 @@ literateOrg pos s = mkLayers pos $ org s
   -- Source blocks start with `#+begin_src` but the casing does not matter.
   rex' = makeRegexOpts blankCompOpt{newSyntax = True, caseSensitive = False} blankExecOpt
 
--- | Preprocessor for Froester documents
+-- | Preprocessor for Forester documents
 
 literateTree :: Position -> String -> [Layer]
 literateTree pos s = mkLayers pos (tree s)
