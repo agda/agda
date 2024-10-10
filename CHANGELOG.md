@@ -22,6 +22,9 @@ Pragmas and options
 
 * New error warning `TooManyArgumentsToSort` instead of hard error.
 
+* New warning `EmptyPolarityPragma` for POLARITY pragma without polarities.
+  E.g. triggered by `{-# POLARITY F #-}`.
+
 * Warning `AbsurdPatternRequiresNoRHS` has been renamed to
   `AbsurdPatternRequiresAbsentRHS`.
 

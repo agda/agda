@@ -1,4 +1,4 @@
-postulate A : Set
+postulate F : Set → Set
 
-{-# POLARITY A #-}
-{-# POLARITY A #-}
+{-# POLARITY F + #-}
+{-# POLARITY F - #-}

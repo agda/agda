@@ -1,3 +1,3 @@
 {-# OPTIONS --warning=error #-}
 
-{-# POLARITY F #-}
+{-# POLARITY F + #-}

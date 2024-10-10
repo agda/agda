@@ -37,7 +37,7 @@ import Agda.Utils.Impossible
 
 
 type Fixities   = Map Name Fixity'
-type Polarities = Map Name [Occurrence]
+type Polarities = Map Name (List1 Occurrence)
 
 class Monad m => MonadFixityError m where
   throwMultipleFixityDecls            :: List1 (Name, Pair Fixity') -> m a
@@ -46,6 +46,7 @@ class Monad m => MonadFixityError m where
   warnUnknownNamesInPolarityPragmas   :: HasCallStack => Set1 Name -> m ()
   warnUnknownFixityInMixfixDecl       :: HasCallStack => Set1 Name -> m ()
   warnPolarityPragmasButNotPostulates :: HasCallStack => Set1 Name -> m ()
+  warnEmptyPolarityPragma             :: HasCallStack => Range -> m ()
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 --   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.
@@ -95,6 +96,7 @@ instance MonadFixityError m => Semigroup (MonadicFixPol m) where
     p <- mergePolarities p1 p2
     return (f, p)
     where
+    -- Merge disjoint maps.
     mergePolarities p1 p2 =
       List1.ifNull (Map.keys $ Map.intersection p1 p2)
         {-then-} (return $ Map.union p1 p2)
@@ -148,7 +150,9 @@ fixitiesAndPolarities doWarn ds = do
 fixitiesAndPolarities' :: MonadFixityError m => [Declaration] -> MonadicFixPol m
 fixitiesAndPolarities' = foldMap $ \case
   -- These declarations define polarities:
-  Pragma (PolarityPragma _ x occs) -> returnPol $ Map.singleton x occs
+  Pragma (PolarityPragma r x occs) ->
+    List1.ifNull occs (MonadicFixPol $ warnEmptyPolarityPragma r $> mempty) {-else-} \ occs ->
+      returnPol $ Map.singleton x occs
   -- These declarations define fixities:
   Syntax x syn    -> returnFix $ Map.singleton x (Fixity' noFixity syn $ getRange x)
   Infix  f xs     -> returnFix $ Map.fromList $ for (List1.toList xs) $ \ x -> (x, Fixity' f noNotation $ getRange x)

@@ -229,6 +229,7 @@ data WarningName
   | EmptyPrivate_
   | EmptyRewritePragma_
   | EmptyWhere_
+  | EmptyPolarityPragma_
   | HiddenGeneralize_
   | InvalidCatchallPragma_
   | InvalidConstructorBlock_
@@ -453,6 +454,7 @@ warningNameDescription = \case
   EmptyPrivate_                    -> "Empty `private' blocks."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
   EmptyWhere_                      -> "Empty `where' blocks."
+  EmptyPolarityPragma_             -> "`POLARITY' pragmas giving no polarities."
   HiddenGeneralize_                -> "Hidden identifiers in variable blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
   InvalidConstructorBlock_         -> "`constructor' blocks outside of `interleaved mutual' blocks."

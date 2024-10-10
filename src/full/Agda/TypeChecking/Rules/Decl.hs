@@ -68,7 +68,7 @@ import Agda.Termination.TermCheck
 import Agda.Utils.Function ( applyUnless )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List1 ( pattern (:|) )
+import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -572,14 +572,14 @@ checkGeneralize s i info x e = do
 
 -- | Type check an axiom.
 checkAxiom :: KindOfName -> A.DefInfo -> ArgInfo ->
-              Maybe [Occurrence] -> QName -> A.Expr -> TCM ()
+              Maybe (List1 Occurrence) -> QName -> A.Expr -> TCM ()
 checkAxiom = checkAxiom' Nothing
 
 -- | Data and record type signatures need to remember the generalized
 --   parameters for when checking the corresponding definition, so for these we
 --   pass in the parameter telescope separately.
 checkAxiom' :: Maybe A.GeneralizeTelescope -> KindOfName -> A.DefInfo -> ArgInfo ->
-               Maybe [Occurrence] -> QName -> A.Expr -> TCM ()
+               Maybe (List1 Occurrence) -> QName -> A.Expr -> TCM ()
 checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaultOpenLevelsToZero $ do
   -- Andreas, 2016-07-19 issues #418 #2102:
   -- We freeze metas in type signatures of abstract definitions, to prevent
@@ -634,11 +634,13 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
 
   -- Ensure that polarity pragmas do not contain too many occurrences.
   (occs, pols) <- case mp of
-    Nothing   -> return ([], [])
-    Just occs -> do
-      TelV tel _ <- telView t
-      let n = length (telToList tel)
-      when (n < length occs) $
+    Nothing    -> return ([], [])
+    Just occs1 -> do
+      let occs = List1.toList occs1
+      let m = length occs
+      TelV tel _ <- telViewUpTo m t
+      let n = size tel
+      when (n < m) $
         typeError $ TooManyPolarities x n
       let pols = map polFromOcc occs
       reportSLn "tc.polarity.pragma" 10 $

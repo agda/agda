@@ -1,4 +1,4 @@
 {-# OPTIONS --warning=error #-}
 
-{-# POLARITY F #-}
-{-# POLARITY G #-}
+{-# POLARITY F + #-}
+{-# POLARITY G - #-}

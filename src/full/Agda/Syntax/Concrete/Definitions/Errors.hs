@@ -92,17 +92,19 @@ data DeclarationWarning = DeclarationWarning
 
 -- | Non-fatal errors encountered in the Nicifier.
 data DeclarationWarning'
-  -- Please keep in alphabetical order.
-  = EmptyAbstract KwRange  -- ^ Empty @abstract@  block.
-  | EmptyConstructor KwRange -- ^ Empty @data _ where@ block.
-  | EmptyField KwRange       -- ^ Empty @field@     block.
-  | EmptyGeneralize KwRange  -- ^ Empty @variable@  block.
-  | EmptyInstance KwRange  -- ^ Empty @instance@  block
-  | EmptyMacro KwRange     -- ^ Empty @macro@     block.
-  | EmptyMutual KwRange    -- ^ Empty @mutual@    block.
-  | EmptyPostulate KwRange -- ^ Empty @postulate@ block.
-  | EmptyPrivate KwRange   -- ^ Empty @private@   block.
-  | EmptyPrimitive KwRange   -- ^ Empty @primitive@ block.
+  -- Please keep in (mostly) alphabetical order.
+  = EmptyAbstract    KwRange  -- ^ Empty @abstract@     block.
+  | EmptyConstructor KwRange  -- ^ Empty @data _ where@ block.
+  | EmptyField       KwRange  -- ^ Empty @field@        block.
+  | EmptyGeneralize  KwRange  -- ^ Empty @variable@     block.
+  | EmptyInstance    KwRange  -- ^ Empty @instance@     block
+  | EmptyMacro       KwRange  -- ^ Empty @macro@        block.
+  | EmptyMutual      KwRange  -- ^ Empty @mutual@       block.
+  | EmptyPostulate   KwRange  -- ^ Empty @postulate@    block.
+  | EmptyPrivate     KwRange  -- ^ Empty @private@      block.
+  | EmptyPrimitive   KwRange  -- ^ Empty @primitive@    block.
+  | EmptyPolarityPragma Range
+      -- ^ POLARITY pragma without any polarities.
   | HiddenGeneralize Range
       -- ^ A 'Hidden' identifier in a @variable@ declaration.
       --   Hiding has no effect there as generalized variables are always hidden
@@ -178,6 +180,7 @@ declarationWarningName' = \case
   EmptyPrivate{}                    -> EmptyPrivate_
   EmptyPostulate{}                  -> EmptyPostulate_
   EmptyPrimitive{}                  -> EmptyPrimitive_
+  EmptyPolarityPragma{}             -> EmptyPolarityPragma_
   HiddenGeneralize{}                -> HiddenGeneralize_
   InvalidCatchallPragma{}           -> InvalidCatchallPragma_
   InvalidConstructorBlock{}         -> InvalidConstructorBlock_
@@ -227,6 +230,7 @@ unsafeDeclarationWarning' = \case
   EmptyPrivate{}                    -> False
   EmptyPostulate{}                  -> False
   EmptyPrimitive{}                  -> False
+  EmptyPolarityPragma{}             -> False
   HiddenGeneralize{}                -> False
   InvalidCatchallPragma{}           -> False
   InvalidConstructorBlock{}         -> False
@@ -338,6 +342,7 @@ instance HasRange DeclarationWarning' where
     EmptyPostulate kwr                 -> getRange kwr
     EmptyPrimitive kwr                 -> getRange kwr
     EmptyPrivate kwr                   -> getRange kwr
+    EmptyPolarityPragma r              -> r
     HiddenGeneralize r                 -> r
     InvalidCatchallPragma r            -> r
     InvalidConstructorBlock r          -> r
@@ -490,6 +495,8 @@ instance Pretty DeclarationWarning' where
     EmptyPrimitive _ -> fsep $ pwords "Empty primitive block."
 
     EmptyField _ -> fsep $ pwords "Empty field block."
+
+    EmptyPolarityPragma _ -> fsep $ pwords "POLARITY pragma without polarities (ignored)."
 
     HiddenGeneralize _ -> fsep $ pwords "Declaring a variable as hidden has no effect in a variable block. Generalization never introduces visible arguments."
 
