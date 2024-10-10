@@ -172,7 +172,7 @@ Forester_ files. Literate forester use `\agda{...}` for code blocks.
 
    \p{Here is another code block:}
 
-   \agda
+   \agda{
    data ℕ : Set where
     zero : ℕ
     suc  : ℕ → ℕ
