@@ -127,6 +127,21 @@ applyWhen b f = if b then f else id
 {-# INLINE applyUnless #-}
 applyUnless :: IsBool b => b -> (a -> a) -> a -> a
 applyUnless b f = if b then id else f
+  -- Note: RebindableSyntax translates this if-then-else to ifThenElse of IsBool.
+
+-- | @applyWhenIts p f a@ applies @f@ to @a@ when @p a@.
+{-# SPECIALIZE applyWhenIts :: (a -> Bool) -> (a -> a) -> (a -> a) #-}
+{-# INLINE applyWhenIts #-}
+applyWhenIts :: IsBool b => (a -> b) -> (a -> a) -> a -> a
+applyWhenIts p f a = if p a then f a else a
+  -- Note: RebindableSyntax translates this if-then-else to ifThenElse of IsBool.
+
+-- | @applyUnlessIts p f a@ applies @f@ to @a@ unless @p a@.
+{-# SPECIALIZE applyUnlessIts :: (a -> Bool) -> (a -> a) -> (a -> a) #-}
+{-# INLINE applyUnlessIts #-}
+applyUnlessIts :: IsBool b => (a -> b) -> (a -> a) -> a -> a
+applyUnlessIts p f a = if p a then a else f a
+  -- Note: RebindableSyntax translates this if-then-else to ifThenElse of IsBool.
 
 -- | Monadic version of @applyWhen@
 {-# SPECIALIZE applyWhenM :: Monad m => m Bool -> (m a -> m a) -> m a -> m a #-}

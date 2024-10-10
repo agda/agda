@@ -129,7 +129,6 @@ import qualified Data.Map as Map
 import qualified Data.Map.Strict as MapS
 import Data.List (partition, sortBy)
 import Data.Monoid
-import Data.Function (on)
 
 import Agda.Interaction.Options.Base
 
@@ -158,6 +157,7 @@ import Agda.TypeChecking.Warnings
 import Agda.Benchmarking (Phase(Typing, Generalize))
 import Agda.Utils.Benchmark
 import qualified Agda.Utils.BiMap as BiMap
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
@@ -851,35 +851,45 @@ buildGeneralizeTel con xs = go 0 xs
             dom = defaultNamedArgDom (getArgInfo name) (unArg name)
 
 -- | Create metas for all used generalizable variables and their dependencies.
-createGenValues :: Set QName -> TCM (Map MetaId QName, Map QName GeneralizedValue)
+createGenValues ::
+     Set QName
+       -- ^ Possibly empty set of generalizable variables.
+  -> TCM (Map MetaId QName, Map QName GeneralizedValue)
+       -- ^ A bimap from generalizable variables to their metas.
 createGenValues s = do
   genvals <- locallyTC eGeneralizeMetas (const YesGeneralizeVar) $
-               mapM createGenValue $ sortBy (compare `on` getRange) $ Set.toList s
-  let metaMap = Map.fromListWith __IMPOSSIBLE__ [ (m, x) | (x, m, _) <- genvals ]
-      nameMap = Map.fromListWith __IMPOSSIBLE__ [ (x, v) | (x, _, v) <- genvals ]
+    forM (sortBy (compare `on` getRange) $ Set.toList s) \ x -> do
+      (x,) <$> createGenValue x
+  let metaMap = Map.fromListWith __IMPOSSIBLE__ [ (m, x) | (x, (m, _)) <- genvals ]
+      nameMap = Map.fromListWith __IMPOSSIBLE__ [ (x, v) | (x, (_, v)) <- genvals ]
   return (metaMap, nameMap)
 
--- | Create a generalisable meta for a generalisable variable.
-createGenValue :: QName -> TCM (QName, MetaId, GeneralizedValue)
+-- | Create a generalizable meta for a generalizable variable.
+createGenValue ::
+     QName
+       -- ^ Name of a generalizable variable.
+  -> TCM (MetaId, GeneralizedValue)
+       -- ^ Generated metavariable and its representation as typed term.
 createGenValue x = setCurrentRange x $ do
   cp  <- viewTC eCurrentCheckpoint
+
   def <- instantiateDef =<< getConstInfo x
-                   -- Only prefix of generalizable arguments (for now?)
-  let nGen       = case defArgGeneralizable def of
-                     NoGeneralizableArgs     -> 0
-                     SomeGeneralizableArgs n -> n
-      ty         = defType def
-      TelV tel _ = telView' ty
-      -- Generalizable variables are never explicit, so if they're given as
-      -- explicit we default to hidden.
-      hideExplicit arg | visible arg = hide arg
-                       | otherwise   = arg
-      argTel     = telFromList $ map hideExplicit $ take nGen $ telToList tel
+  let
+    nGen = case theDef def of
+      GeneralizableVar NoGeneralizableArgs       -> 0
+      GeneralizableVar (SomeGeneralizableArgs n) -> n
+      _ -> __IMPOSSIBLE__
+
+    ty         = defType def
+    TelV tel _ = telView' ty
+    -- Generalizable variables are never explicit, so if they're given as
+    -- explicit we default to hidden.
+    argTel     = telFromList $ map hideExplicit $ take nGen $ telToList tel
 
   args <- newTelMeta argTel
   metaType <- piApplyM ty args
 
-  let name     = prettyShow (nameConcrete $ qnameName x)
+  let name = prettyShow $ nameConcrete $ qnameName x
   (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name CmpLeq metaType
 
   -- Freeze the meta to prevent named generalizable metas from being
@@ -911,9 +921,16 @@ createGenValue x = setCurrentRange x $ do
     MetaV{} -> return ()
     _       -> genericDocError =<< ("Cannot generalize over" <+> prettyTCM x <+> "of eta-expandable type") <?>
                                     prettyTCM metaType
-  return (x, m, GeneralizedValue{ genvalCheckpoint = cp
-                                , genvalTerm       = term
-                                , genvalType       = metaType })
+  return . (m,) $ GeneralizedValue
+    { genvalCheckpoint = cp
+    , genvalTerm       = term
+    , genvalType       = metaType
+    }
+
+  where
+    hideExplicit :: LensHiding a => a -> a
+    hideExplicit = applyWhenIts visible hide
+
 
 -- | Create a not-yet correct record type for the generalized telescope. It's not yet correct since
 --   we haven't computed the telescope yet, and we need the record type to do it.

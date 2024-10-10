@@ -224,8 +224,8 @@ instance EmbPrj InstanceInfo where
   value = valueN InstanceInfo
 
 instance EmbPrj Definition where
-  icod_ (Defn a b c d e f g h i j k l m n o p blocked r s) =
-    icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p (ossify blocked) r s
+  icod_ (Defn a b c d e f g h i j k l m n o blocked r s) =
+    icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o (ossify blocked) r s
     where
       -- Andreas, 2024-01-02, issue #7044:
       -- After serialization, a definition can never be unblocked,
@@ -428,7 +428,7 @@ instance EmbPrj Defn where
   icod_ (Primitive   a b c d e f)                       = icodeN 5 Primitive a b c d e f
   icod_ (PrimitiveSort a b)                             = icodeN 6 PrimitiveSort a b
   icod_ AbstractDefn{}                                  = __IMPOSSIBLE__
-  icod_ GeneralizableVar                                = icodeN 7 GeneralizableVar
+  icod_ (GeneralizableVar a)                            = icodeN 7 GeneralizableVar a
   icod_ DataOrRecSig{}                                  = __IMPOSSIBLE__
 
   value = vcase valu where
@@ -440,7 +440,7 @@ instance EmbPrj Defn where
     valu [4, a, b, c, d, e, f, g, h, i, j, k]          = valuN Constructor a b c d e f g h i j k
     valu [5, a, b, c, d, e, f]                         = valuN Primitive   a b c d e f
     valu [6, a, b]                                     = valuN PrimitiveSort a b
-    valu [7]                                           = valuN GeneralizableVar
+    valu [7, a]                                        = valuN GeneralizableVar a
     valu _                                             = malformed
 
 instance EmbPrj LazySplit where

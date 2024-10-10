@@ -150,14 +150,14 @@ instance NamesIn Bool where
 
 instance NamesIn Definition where
   namesAndMetasIn' sg
-    (Defn _ _ t _ _ _ _ disp _ _ _ _ _ _ _ _ _ _ def) =
+    (Defn _ _ t _ _ _ disp _ _ _ _ _ _ _ _ _ _ def) =
     namesAndMetasIn' sg (t, def, disp)
 
 instance NamesIn Defn where
   namesAndMetasIn' sg = \case
     Axiom _            -> mempty
     DataOrRecSig _     -> mempty
-    GeneralizableVar   -> mempty
+    GeneralizableVar _ -> mempty
     PrimitiveSort _ s  -> namesAndMetasIn' sg s
     AbstractDefn{}     -> __IMPOSSIBLE__
     -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?

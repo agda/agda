@@ -566,9 +566,8 @@ checkGeneralize s i info x e = do
       ]
 
     lang <- getLanguage
-    addConstant x $ (defaultDefn info x tGen lang GeneralizableVar)
-                    { defArgGeneralizable = SomeGeneralizableArgs n }
-
+    addConstant x $ defaultDefn info x tGen lang $
+      GeneralizableVar $ SomeGeneralizableArgs n
 
 -- | Type check an axiom.
 checkAxiom :: KindOfName -> A.DefInfo -> ArgInfo ->
