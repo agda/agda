@@ -327,6 +327,7 @@ unquoteErrorName = \case
   CannotDeclareHiddenFunction {} -> CannotDeclareHiddenFunction_
   ConInsteadOfDef             {} -> ConInsteadOfDef_
   DefInsteadOfCon             {} -> DefInsteadOfCon_
+  MissingDefinition           {} -> MissingDefinition_
   NakedUnquote                {} -> NakedUnquote_
   NonCanonical                {} -> NonCanonical_
   BlockedOnMeta               {} -> BlockedOnMeta_

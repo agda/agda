@@ -1,2 +1,2 @@
-UnquoteDeclNotDefined.agda:9.1-10.27: error: [GenericError]
-Missing definition for UnquoteDeclNotDefined.f
+UnquoteDeclNotDefined.agda:9.1-10.27: error: [Unquote.MissingDefinition]
+Missing definition for f

@@ -57,6 +57,7 @@ import Agda.TypeChecking.Warnings ( raiseWarningsOnUsage )
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..), DeclarationWarning'(..) )
 import Agda.Syntax.Common (Induction(..), pattern Ranged)
+import qualified Agda.Syntax.Common.Aspect as Aspect
 import qualified Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal as L
@@ -655,7 +656,7 @@ instanceProblemHighlighting a = H.singleton (rToR $ P.continuousPerLine r) m
 missingDefinitionHighlighting ::
   HasRange a => a -> HighlightingInfoBuilder
 missingDefinitionHighlighting a = H.singleton (rToR $ P.continuousPerLine $ getRange a) m
-  where m = parserBased { otherAspects = Set.singleton MissingDefinition }
+  where m = parserBased { otherAspects = Set.singleton Aspect.MissingDefinition }
 
 -- | Generates and prints syntax highlighting information for unsolved
 -- meta-variables and certain unsolved constraints.

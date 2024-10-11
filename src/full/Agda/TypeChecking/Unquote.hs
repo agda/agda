@@ -112,13 +112,23 @@ runUnquoteM m = do
        $ unpackUnquoteM m cxt (Clean, s)
   case z of
     Left err              -> return $ Left err
-    Right ((x, _), decls) -> Right (x, decls) <$ mapM_ isDefined decls
+    Right ((v, _), decls) -> Right (v, decls) <$ mapM_ isDefined decls
   where
     isDefined x = do
-      def <- theDef <$> getConstInfo x
-      case def of
-        Function{funClauses = []} -> genericError $ "Missing definition for " ++ prettyShow x
-        _       -> return ()
+      getConstInfo x <&> theDef >>= \case
+        FunctionDefn FunctionData{ _funClauses = cl } -> when (null cl) $
+          unquoteError $ MissingDefinition x
+        -- Andreas, 2024-10-11:
+        -- some of the following cases might be __IMPOSSIBLE__
+        AxiomDefn         {} -> return ()
+        DataOrRecSigDefn  {} -> return ()
+        GeneralizableVar  {} -> return ()
+        AbstractDefn      {} -> return ()
+        DatatypeDefn      {} -> return ()
+        RecordDefn        {} -> return ()
+        ConstructorDefn   {} -> return ()
+        PrimitiveDefn     {} -> return ()
+        PrimitiveSortDefn {} -> return ()
 
 liftU1 :: (TCM (UnquoteRes a) -> TCM (UnquoteRes b)) -> UnquoteM a -> UnquoteM b
 liftU1 f m = packUnquoteM $ \ cxt s -> f (unpackUnquoteM m cxt s)
