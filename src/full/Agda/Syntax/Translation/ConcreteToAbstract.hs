@@ -1491,7 +1491,7 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
   case result of
     Left (DeclarationException loc e) -> do
       reportSLn "error" 2 $ "Error raised at " ++ prettyShow loc
-      typeError $ NicifierError e
+      setCurrentRange e $ typeError $ NicifierError e
     Right ds -> ret ds
 
 -- | Wrapper to avoid instance conflict with generic list instance.

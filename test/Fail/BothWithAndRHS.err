@@ -1,2 +1,2 @@
-BothWithAndRHS.agda:5.1-6.17: error: [Syntax.MissingWithClauses]
+BothWithAndRHS.agda:6.1-11: error: [Syntax.MissingWithClauses]
 Missing with-clauses for function f
