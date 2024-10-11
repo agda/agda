@@ -59,6 +59,7 @@ jobs:
           fancyvrb
           float
           fncychap
+          fontawesome5
           framed
           keystroke
           latexmk

@@ -121,7 +121,7 @@ htmlhelp_basename = 'Agdadoc'
 
 # -- Options for LaTeX output ------------------------------------------------
 
-latex_additional_files = ["mystyle.sty"]
+# latex_additional_files = ["mystyle.sty"]
 
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
