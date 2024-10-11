@@ -1640,6 +1640,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Failures to compute full equivalence when splitting on indexed family.
 
+.. option:: UnusedVariablesInDisplayForm
+
+     :ref:`DISPLAY <display-pragma>` forms that bind variables they do not use.
+
 .. option:: UselessAbstract
 
      ``abstract`` blocks where they have no effect.

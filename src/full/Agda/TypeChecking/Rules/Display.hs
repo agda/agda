@@ -31,7 +31,7 @@ checkDisplayPragma f ps e = do
       -- pappToTerm puts Var 0 for every variable. We get to know how many there were (n) so
       -- now we can renumber them with decreasing deBruijn indices.
       let lhs = renumberElims (n - 1) args
-      Display n lhs <$> DTerm <$> exprToTerm e
+      Display n lhs . DTerm <$> exprToTerm e
   case res of
     Left reason -> warning $ InvalidDisplayForm f reason
     Right df -> do

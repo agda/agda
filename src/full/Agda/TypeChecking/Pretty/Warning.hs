@@ -564,6 +564,20 @@ prettyWarning = \case
         , if null reason then [] else "because" : pwords reason
         ]
 
+    UnusedVariablesInDisplayForm xs -> vcat
+      [ fsep $ concat
+        [ pwords "The following"
+        , pwords $ singPlural xs "variable is" "variables are"
+        , pwords "bound on the left hand side but unused on the right hand side of the display form:"
+        ]
+      , nest 2 $ fsep $ fmap pretty xs
+      , fsep $ concat
+        [ [ "Replace" ]
+        , pwords $ singPlural xs "it by an underscore" "them by underscores"
+        , pwords "to pacify this warning"
+        ]
+      ]
+
     TooManyArgumentsToSort q args -> fsep $ concat
       [ pwords "Too many arguments given to sort"
       , [ prettyTCM q ]

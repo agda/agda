@@ -14,7 +14,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     , checkAttributes
     ) where
 
-import Prelude hiding ( null )
+import Prelude hiding ( null, (||) )
 
 import Control.Monad        ( (>=>), (<=<), foldM, forM, forM_, zipWithM, zipWithM_ )
 import Control.Applicative  ( liftA2, liftA3 )
@@ -47,6 +47,8 @@ import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern as A
   ( patternVars, checkPatternLinearity, containsAsPattern, lhsCoreApp, lhsCoreWith, noDotOrEqPattern )
 import Agda.Syntax.Abstract.Pretty
+import Agda.Syntax.Abstract.UsedNames
+  ( allUsedNames )
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
@@ -87,7 +89,7 @@ import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Options.Warnings
 
 import qualified Agda.Utils.AssocList as AssocList
-import Agda.Utils.Boolean   ( ifThenElse )
+import Agda.Utils.Boolean   ( (||), ifThenElse )
 import Agda.Utils.CallStack ( HasCallStack, withCurrentCallStack )
 import Agda.Utils.Char
 import Agda.Utils.Either
@@ -2643,9 +2645,8 @@ instance ToAbstract C.Pragma where
         -- Andreas, 2016-08-08, issue #2132
         -- Remove pattern synonyms on lhs
         (hd, ps) <- do
-          let mkP | isPatSyn  = A.PatternSynP (PatRange $ getRange lhs) (unambiguous hd)
-                  | otherwise = A.DefP (PatRange $ getRange lhs) (unambiguous hd)
-          p <- liftTCM $ expandPatternSynonyms $ mkP ps
+          p <- liftTCM $ expandPatternSynonyms $
+            (if isPatSyn then A.PatternSynP else A.DefP) (PatRange $ getRange lhs) (unambiguous hd) ps
           case p of
             A.DefP _ f ps | Just hd <- getUnambiguous f -> return (hd, ps)
             A.ConP _ c ps | Just hd <- getUnambiguous c -> return (hd, ps)
@@ -2653,6 +2654,14 @@ instance ToAbstract C.Pragma where
             _ -> err
 
         rhs <- liftTCM $ toAbstract rhs
+
+        -- Andreas, 2024-10-06, issue #7533:
+        -- Check that all pattern variables occur on the rhs.
+        -- Otherwise, there might be a misunderstanding of what display forms do.
+        let used = allUsedNames rhs
+        List1.unlessNull (filter (not . (isNoName || (`Set.member` used))) $ patternVars ps) $
+          warning . UnusedVariablesInDisplayForm
+
         return $ A.DisplayPragma hd ps rhs
     where
       failure :: forall a. String -> MaybeT ScopeM a

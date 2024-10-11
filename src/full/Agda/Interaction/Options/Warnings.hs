@@ -342,6 +342,7 @@ data WarningName
   | UselessPublic_
   | UserWarning_
   | InvalidDisplayForm_
+  | UnusedVariablesInDisplayForm_
   | WithClauseProjectionFixityMismatch_
   | WithoutKFlagPrimEraseEquality_
   | ConflictingPragmaOptions_
@@ -567,6 +568,7 @@ warningNameDescription = \case
   UnsolvedMetaVariables_           -> "Unsolved meta variables."
   UserWarning_                     -> "User-defined warnings via one of the 'WARNING_ON_*' pragmas."
   InvalidDisplayForm_              -> "Invalid display forms."
+  UnusedVariablesInDisplayForm_    -> "Bound but unused variables in display forms."
   TooManyArgumentsToSort_          -> "Extra arguments given to a sort."
   WithClauseProjectionFixityMismatch_ -> "With clauses using projections in different fixities than their parent clauses."
   WithoutKFlagPrimEraseEquality_   -> "Uses of `primEraseEquality' with the without-K flags."

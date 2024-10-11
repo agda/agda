@@ -16,6 +16,18 @@ Pragmas and options
 * New warning `InvalidDisplayForm` instead of hard error
   when a display form is illegal (and thus ignored).
 
+* New warning `UnusedVariablesInDisplayForm` when DISPLAY pragma
+  binds variables that are not used.
+  Example:
+  ```agda
+  {-# DISPLAY List (Fin n) = ListFin #-}
+  ```
+  Since pattern variable `n` is not used on the right hand side `ListFin`,
+  Agda throws a warning and recommeds to rewrite it as:
+  ```agda
+  {-# DISPLAY List (Fin _) = ListFin #-}
+  ```
+
 * New warning `WithClauseProjectionFixityMismatch` instead of hard error
   when in a with-clause a projection is used in a different fixity
   (prefix vs. postfix) than in its parent clause.

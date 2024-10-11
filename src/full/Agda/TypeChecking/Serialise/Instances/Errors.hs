@@ -131,6 +131,7 @@ instance EmbPrj Warning where
     -- TODO: linearity
     -- FixingQuantity a b c                        -> icodeN 68 FixingQuantity a b c
     FixingRelevance a b c                       -> icodeN 69 FixingRelevance a b c
+    UnusedVariablesInDisplayForm a              -> icodeN 70 UnusedVariablesInDisplayForm a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -204,6 +205,7 @@ instance EmbPrj Warning where
     -- TODO: linearity
     -- [68, a, b, c]        -> valuN FixingQuantity a b c
     [69, a, b, c]        -> valuN FixingRelevance a b c
+    [70, a]              -> valuN UnusedVariablesInDisplayForm a
     _ -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where
