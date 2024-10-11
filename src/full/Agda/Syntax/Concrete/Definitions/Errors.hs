@@ -321,7 +321,7 @@ instance HasRange DeclarationException' where
   getRange (DeclarationPanic _)                 = noRange
   getRange (WrongContentBlock _ r)              = r
   getRange (InvalidMeasureMutual r)             = r
-  getRange (UnquoteDefRequiresSignature x)      = getRange x
+  getRange (UnquoteDefRequiresSignature xs)     = getRange xs
   getRange (BadMacroDef d)                      = getRange d
   getRange (UnfoldingOutsideOpaque kwr)         = getRange kwr
   getRange (OpaqueInMutual kwr)                 = getRange kwr

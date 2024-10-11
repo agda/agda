@@ -4736,6 +4736,7 @@ data UnquoteError
       -- ^ Attempt to @unquoteDecl@ with 'Hiding' other than 'NotHidden'.
   | ConInsteadOfDef QName String String
   | DefInsteadOfCon QName String String
+  | MissingDeclaration QName
   | MissingDefinition QName
   | NakedUnquote
   | NonCanonical String I.Term

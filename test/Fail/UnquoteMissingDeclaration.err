@@ -1,0 +1,2 @@
+UnquoteMissingDeclaration.agda:18.1-60: error: [Unquote.MissingDeclaration]
+Missing declaration for id-ok

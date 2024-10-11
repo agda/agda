@@ -381,6 +381,7 @@ data UnquoteError_
   | CannotDeclareHiddenFunction_
   | ConInsteadOfDef_
   | DefInsteadOfCon_
+  | MissingDeclaration_
   | MissingDefinition_
   | NakedUnquote_
   | NonCanonical_

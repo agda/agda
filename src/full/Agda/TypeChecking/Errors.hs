@@ -1726,6 +1726,9 @@ instance PrettyTCM UnquoteError where
       pwords ("Use " ++ def ++ " instead of " ++ con ++ " for non-constructor")
       ++ [prettyTCM x]
 
+    MissingDeclaration x -> fsep $
+      pwords "Missing declaration for" ++ [ prettyTCM x ]
+
     MissingDefinition x -> fsep $
       pwords "Missing definition for" ++ [ prettyTCM x ]
 

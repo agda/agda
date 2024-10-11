@@ -1034,9 +1034,9 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         primUnitUnit
 
     tcDefineData :: QName -> [(QName, (Quantity, R.Type))] -> UnquoteM Term
-    tcDefineData x cs = inOriginalContext $ (setDirty >>) $ liftTCM $ do
-      caseEitherM (getConstInfo' x)
-        (const $ genericError $ "Missing declaration for " ++ prettyShow x) $ \def -> do
+    tcDefineData x cs = inOriginalContext $ (setDirty >>) $ liftTCM $ getConstInfo' x >>= \case
+      Left _    -> unquoteError $ MissingDeclaration x
+      Right def -> do
         npars <- case theDef def of
                    DataOrRecSig n -> return n
                    _              -> genericError $ prettyShow x ++
@@ -1096,7 +1096,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcDefineFun :: QName -> [R.Clause] -> UnquoteM Term
     tcDefineFun x cs = inOriginalContext $ (setDirty >>) $ liftTCM $ do
       whenM (isLeft <$> getConstInfo' x) $
-        genericError $ "Missing declaration for " ++ prettyShow x
+        unquoteError $ MissingDeclaration x
       cs <- mapM (toAbstract_ . QNamed x) cs
       alwaysReportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
       let accessDontCare = __IMPOSSIBLE__  -- or ConcreteDef, value not looked at
