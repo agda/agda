@@ -245,8 +245,8 @@ advantage of pattern matching binds::
 
   _=?=_ : (A B : Type) → TC (A ≡ B)
   nat      =?= nat      = pure refl
-  nat      =?= (_ => _) = typeError "type mismatch: nat ‌≠ _ => _"
-  (_ => _) =?= nat      = typeError "type mismatch: _ => _ ≠ nat"
+  nat      =?= (_ => _) = typeError "type mismatch: expected nat, got _ => _"
+  (_ => _) =?= nat      = typeError "type mismatch: expected _ => _, got nat"
   (A => B) =?= (A₁ => B₁) = do
     refl ← A =?= A₁
     refl ← B =?= B₁
