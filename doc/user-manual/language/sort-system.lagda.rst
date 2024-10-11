@@ -87,8 +87,8 @@ Universe example
 So why are universes useful? Because sometimes it is necessary to
 define and prove theorems about functions that operate not just on
 sets but on large sets. In fact, most Agda users sooner or later
-experience an error message where Agda complains that ``Set₁ !=
-Set``. These errors usually mean that a small set was used where a
+experience an error message where Agda complains that ``Set₁ != Set``.
+These errors usually mean that a small set was used where a
 large one was expected, or vice versa.
 
 For example, suppose you have defined the usual datatypes for lists
