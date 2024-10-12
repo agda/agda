@@ -15,6 +15,7 @@ import Agda.Utils.CallStack.Base
     , HasCallStack
     , prettyCallStack
     , withCallerCallStack
+    , withNBackCallStack
     )
 
 -- | \"Impossible\" errors, annotated with a file name and a line
@@ -100,13 +101,21 @@ class CatchImpossible m where
 instance CatchImpossible IO where
   catchImpossibleJust = catchJust
 
--- | Throw an "Impossible" error reporting the *caller's* call site.
-
-__IMPOSSIBLE__ :: HasCallStack => a
-__IMPOSSIBLE__ = withCallerCallStack $ throwImpossible . Impossible
-
+-- | Construct a value of 'Impossible' reporting the location where you call
+--   this function.
 impossible :: HasCallStack => Impossible
 impossible = withCallerCallStack Impossible
+
+-- | Throw an 'Impossible' error reporting the location where you
+--   place '__IMPOSSIBLE__'.
+
+__IMPOSSIBLE__ :: HasCallStack => a
+__IMPOSSIBLE__ = withNBackCallStack 0 $ throwImpossible . Impossible
+
+-- | Throw an 'Impossible' error reporting the *caller's* call site.
+
+__IMPOSSIBLE__1 :: HasCallStack => a
+__IMPOSSIBLE__1 = withNBackCallStack 1 $ throwImpossible . Impossible
 
 -- | Throw an "Unreachable" error reporting the *caller's* call site.
 -- Note that this call to "withFileAndLine" will be filtered out
