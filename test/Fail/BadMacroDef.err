@@ -1,0 +1,2 @@
+BadMacroDef.agda:4.8-19: error: [Syntax.BadMacroDef]
+Data types are not allowed in macro blocks
