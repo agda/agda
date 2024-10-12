@@ -33,7 +33,6 @@ data DeclarationException = DeclarationException
 -- | The exception type.
 data DeclarationException'
   = MultipleEllipses Pattern
-  | InvalidName Name
   | DuplicateDefinition Name
   | DuplicateAnonDeclaration Range
   | MissingWithClauses Name LHS
@@ -66,7 +65,6 @@ data DeclarationException'
 declarationExceptionString :: DeclarationException' -> String
 declarationExceptionString = \case
   MultipleEllipses            {} -> "MultipleEllipses"
-  InvalidName                 {} -> "InvalidName"
   DuplicateDefinition         {} -> "DuplicateDefinition"
   DuplicateAnonDeclaration    {} -> "DuplicateAnonDeclaration"
   MissingWithClauses          {} -> "MissingWithClauses"
@@ -311,7 +309,6 @@ instance HasRange DeclarationException where
 
 instance HasRange DeclarationException' where
   getRange (MultipleEllipses d)                 = getRange d
-  getRange (InvalidName x)                      = getRange x
   getRange (DuplicateDefinition x)              = getRange x
   getRange (DuplicateAnonDeclaration r)         = r
   getRange (MissingWithClauses x lhs)           = getRange lhs
@@ -380,8 +377,6 @@ instance HasRange DeclarationWarning' where
 instance Pretty DeclarationException' where
   pretty (MultipleEllipses p) = fsep $
     pwords "Multiple ellipses in left-hand side" ++ [pretty p]
-  pretty (InvalidName x) = fsep $
-    pwords "Invalid name:" ++ [pretty x]
   pretty (DuplicateDefinition x) = fsep $
     pwords "Duplicate definition of" ++ [pretty x]
   pretty (DuplicateAnonDeclaration _) = fsep $

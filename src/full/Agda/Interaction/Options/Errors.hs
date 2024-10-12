@@ -307,7 +307,6 @@ data DeclarationException_
   | DuplicateAnonDeclaration_
   | DuplicateDefinition_
   | InvalidMeasureMutual_
-  | InvalidName_
   | MissingWithClauses_
   | MultipleEllipses_
   | OpaqueInMutual_

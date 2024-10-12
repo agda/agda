@@ -251,7 +251,6 @@ declarationExceptionName = \case
   DuplicateAnonDeclaration         {} -> DuplicateAnonDeclaration_
   DuplicateDefinition              {} -> DuplicateDefinition_
   InvalidMeasureMutual             {} -> InvalidMeasureMutual_
-  InvalidName                      {} -> InvalidName_
   MissingWithClauses               {} -> MissingWithClauses_
   MultipleEllipses                 {} -> MultipleEllipses_
   OpaqueInMutual                   {} -> OpaqueInMutual_
