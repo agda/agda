@@ -333,6 +333,7 @@ unquoteErrorName = \case
   NonCanonical                {} -> NonCanonical_
   BlockedOnMeta               {} -> BlockedOnMeta_
   PatLamWithoutClauses        {} -> PatLamWithoutClauses_
+  StaleMeta                   {} -> StaleMeta_
   UnquotePanic                {} -> UnquotePanic_
 
 -- -- * Printing names of errors

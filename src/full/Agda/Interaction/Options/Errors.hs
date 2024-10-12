@@ -387,6 +387,7 @@ data UnquoteError_
   | NonCanonical_
   | BlockedOnMeta_
   | PatLamWithoutClauses_
+  | StaleMeta_
   | UnquotePanic_
   deriving (Show, Generic, Enum, Bounded)
 

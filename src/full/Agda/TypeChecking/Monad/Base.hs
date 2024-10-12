@@ -4742,6 +4742,8 @@ data UnquoteError
   | NonCanonical String I.Term
   | BlockedOnMeta TCState Blocker
   | PatLamWithoutClauses I.Term
+  | StaleMeta TopLevelModuleName MetaId
+      -- ^ Attempt to unquote a serialized meta.
   | UnquotePanic String
   deriving (Show, Generic)
 

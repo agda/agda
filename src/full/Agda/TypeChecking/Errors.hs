@@ -1744,6 +1744,12 @@ instance PrettyTCM UnquoteError where
     PatLamWithoutClauses _ -> fsep $
       pwords "Cannot unquote pattern lambda without clauses. Use a single `absurd-clause` for absurd lambdas."
 
+    StaleMeta m x ->
+      sep
+        [ "Cannot unquote stale metavariable"
+        , pretty m <> "._" <> pretty (metaId x)
+        ]
+
     UnquotePanic err -> __IMPOSSIBLE__
 
 instance PrettyTCM MissingTypeSignatureInfo where

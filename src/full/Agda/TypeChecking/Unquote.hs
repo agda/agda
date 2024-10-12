@@ -448,16 +448,12 @@ instance Unquote Blocker where
 
 instance Unquote MetaId where
   unquote t = do
-    t <- reduceQuotedTerm t
-    case t of
-      Lit (LitMeta m x) -> liftTCM $ do
-        live <- (Just m ==) <$> currentTopLevelModule
-        unless live $
-            typeError . GenericDocError =<<
-              sep [ "Can't unquote stale metavariable"
-                  , pretty m <> "._" <> pretty (metaId x) ]
-        return x
-      _ -> throwError $ NonCanonical "meta variable" t
+    reduceQuotedTerm t >>= \case
+      Lit (LitMeta m x) -> x <$ do
+        -- We cannot unquote a meta from a different file.
+        unlessM ((Just m ==) <$> currentTopLevelModule) do
+          throwError $ StaleMeta m x
+      t -> throwError $ NonCanonical "meta variable" t
 
 instance Unquote a => Unquote (Dom a) where
   unquote t = domFromArg <$> unquote t
