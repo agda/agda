@@ -49,7 +49,6 @@ SplitError.CosplitNoTarget
 SplitError.GenericSplitError
 Syntax.BadMacroDef
 Syntax.DeclarationPanic
-Syntax.MultipleEllipses
 Syntax.UnfoldingOutsideOpaque
 Syntax.WrongDefinition
 Unquote.BadVisibility
