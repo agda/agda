@@ -47,7 +47,6 @@ GeneralizeCyclicDependency
 SplitError.CannotCreateMissingClause
 SplitError.CosplitNoTarget
 SplitError.GenericSplitError
-Syntax.UnfoldingOutsideOpaque
 Unquote.BadVisibility
 Unquote.BlockedOnMeta
 Unquote.UnquotePanic
