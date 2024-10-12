@@ -20,7 +20,7 @@ import qualified Data.Text as T
 import Data.Word
 
 import System.Directory (doesFileExist, getPermissions, executable)
-import System.Process ( readProcessWithExitCode )
+import System.Process.Text ( readProcessWithExitCode )
 import System.Exit ( ExitCode(..) )
 
 import Agda.Syntax.Common hiding ( Nat )
@@ -1194,11 +1194,8 @@ tcExec exe args stdIn = do
       unlessM (liftIO $ executable <$> getPermissions fp) $ raiseExeNotExecutable exe fp
 
       let strArgs    = T.unpack <$> args
-      let strStdIn   = T.unpack stdIn
-      (datExitCode, strStdOut, strStdErr) <- lift $ readProcessWithExitCode fp strArgs strStdIn
+      (datExitCode, txtStdOut, txtStdErr) <- liftIO $ readProcessWithExitCode fp strArgs stdIn
       let natExitCode = exitCodeToNat datExitCode
-      let txtStdOut   = T.pack strStdOut
-      let txtStdErr   = T.pack strStdErr
       toR <- toTerm
       return $ toR (natExitCode, (txtStdOut, txtStdErr))
 
