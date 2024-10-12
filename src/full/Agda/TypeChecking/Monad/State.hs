@@ -395,14 +395,9 @@ setTopLevelModule top = do
 currentTopLevelModule ::
   (MonadTCEnv m, ReadTCState m) => m (Maybe TopLevelModuleName)
 currentTopLevelModule = do
-  m <- useR stCurrentModule
-  case m of
+  useR stCurrentModule >>= \case
     Just (_, top) -> return (Just top)
-    Nothing       -> do
-      p <- asksTC envImportPath
-      return $ case p of
-        top : _ -> Just top
-        []      -> Nothing
+    Nothing       -> listToMaybe <$> asksTC envImportPath
 
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.
