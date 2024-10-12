@@ -382,8 +382,7 @@ data ExecError_
   deriving (Show, Generic, Enum, Bounded)
 
 data UnquoteError_
-  = BadVisibility_
-  | CannotDeclareHiddenFunction_
+  = CannotDeclareHiddenFunction_
   | ConInsteadOfDef_
   | DefInsteadOfCon_
   | MissingDeclaration_

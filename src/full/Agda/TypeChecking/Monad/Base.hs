@@ -4731,8 +4731,7 @@ data UnificationFailure
   deriving (Show, Generic)
 
 data UnquoteError
-  = BadVisibility String (Arg I.Term)
-  | CannotDeclareHiddenFunction QName
+  = CannotDeclareHiddenFunction QName
       -- ^ Attempt to @unquoteDecl@ with 'Hiding' other than 'NotHidden'.
   | ConInsteadOfDef QName String String
   | DefInsteadOfCon QName String String

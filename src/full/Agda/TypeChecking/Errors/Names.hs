@@ -328,7 +328,6 @@ unquotableName = \case
 
 unquoteErrorName :: UnquoteError -> UnquoteError_
 unquoteErrorName = \case
-  BadVisibility               {} -> BadVisibility_
   CannotDeclareHiddenFunction {} -> CannotDeclareHiddenFunction_
   ConInsteadOfDef             {} -> ConInsteadOfDef_
   DefInsteadOfCon             {} -> DefInsteadOfCon_

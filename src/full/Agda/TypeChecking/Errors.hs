@@ -1750,9 +1750,6 @@ instance PrettyTCM InteractionError where
 instance PrettyTCM UnquoteError where
   prettyTCM = \case
 
-    BadVisibility msg arg -> fsep $
-      pwords $ "Unable to unquote the argument. It should be `" ++ msg ++ "'."
-
     CannotDeclareHiddenFunction f -> fsep $
       pwords "Cannot declare hidden function" ++ [ prettyTCM f ]
 

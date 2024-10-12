@@ -1,5 +1,7 @@
 module Agda.TypeChecking.Unquote where
 
+import Prelude hiding (null)
+
 import Control.Arrow          ( first, second, (&&&) )
 import Control.Monad          ( (<=<) )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
@@ -24,6 +26,7 @@ import System.Process.Text ( readProcessWithExitCode )
 import System.Exit ( ExitCode(..) )
 
 import Agda.Syntax.Common hiding ( Nat )
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
@@ -70,7 +73,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
-import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Utils.Null
 import qualified Agda.Interaction.Options.Lenses as Lens
 
 import Agda.Utils.Impossible
@@ -163,10 +166,11 @@ reduceQuotedTerm t = locallyReduceAllDefs $ do
 class Unquote a where
   unquote :: I.Term -> UnquoteM a
 
+-- | Unquote an @'Arg' 'Term'@ assuming the 'ArgInfo' does not contain information.
+-- (This means, it should be visible, relevant, etc., like 'defaultArg').
 unquoteN :: Unquote a => Arg Term -> UnquoteM a
-unquoteN a | visible a && isRelevant a =
-    unquote $ unArg a
-unquoteN a = throwError $ BadVisibility "visible" a
+unquoteN (Arg info v) =
+  if null info then unquote v else __IMPOSSIBLE__1  -- throw the impossible not here, but in our caller
 
 choice :: Monad m => [(m Bool, m a)] -> m a -> m a
 choice [] dflt = dflt
