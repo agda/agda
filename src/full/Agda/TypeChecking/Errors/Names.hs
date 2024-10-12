@@ -246,7 +246,6 @@ declarationExceptionName = \case
   N.AmbiguousConstructor           {} -> AmbiguousConstructorN_
   AmbiguousFunClauses              {} -> AmbiguousFunClauses_
   BadMacroDef                      {} -> BadMacroDef_
-  DeclarationPanic                 {} -> DeclarationPanic_
   DisallowedInterleavedMutual      {} -> DisallowedInterleavedMutual_
   DuplicateAnonDeclaration         {} -> DuplicateAnonDeclaration_
   DuplicateDefinition              {} -> DuplicateDefinition_

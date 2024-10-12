@@ -302,7 +302,6 @@ data DeclarationException_
   = AmbiguousConstructorN_
   | AmbiguousFunClauses_
   | BadMacroDef_
-  | DeclarationPanic_
   | DisallowedInterleavedMutual_
   | DuplicateAnonDeclaration_
   | DuplicateDefinition_

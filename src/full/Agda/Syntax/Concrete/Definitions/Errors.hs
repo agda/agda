@@ -37,7 +37,6 @@ data DeclarationException'
   | DuplicateAnonDeclaration Range
   | MissingWithClauses Name LHS
   | WrongDefinition Name DataRecOrFun DataRecOrFun
-  | DeclarationPanic String
   | WrongContentBlock KindOfBlock Range
   | AmbiguousFunClauses LHS (List1 Name)
       -- ^ In a mutual block, a clause could belong to any of the ≥2 type signatures ('Name').
@@ -69,7 +68,6 @@ declarationExceptionString = \case
   DuplicateAnonDeclaration    {} -> "DuplicateAnonDeclaration"
   MissingWithClauses          {} -> "MissingWithClauses"
   WrongDefinition             {} -> "WrongDefinition"
-  DeclarationPanic            {} -> "DeclarationPanic"
   WrongContentBlock           {} -> "WrongContentBlock"
   AmbiguousFunClauses         {} -> "AmbiguousFunClauses"
   AmbiguousConstructor        {} -> "AmbiguousConstructor"
@@ -315,7 +313,6 @@ instance HasRange DeclarationException' where
   getRange (WrongDefinition x k k')             = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
   getRange (AmbiguousConstructor r _ _)         = r
-  getRange (DeclarationPanic _)                 = noRange
   getRange (WrongContentBlock _ r)              = r
   getRange (InvalidMeasureMutual r)             = r
   getRange (UnquoteDefRequiresSignature xs)     = getRange xs
@@ -411,7 +408,6 @@ instance Pretty DeclarationException' where
     pwords "Missing type signatures for unquoteDef" ++ map pretty (List1.toList xs)
   pretty (BadMacroDef nd) = fsep $
     text (declName nd) : pwords "are not allowed in macro blocks"
-  pretty (DeclarationPanic s) = text s
   pretty (UnfoldingOutsideOpaque _) = fsep . pwords $
     "Unfolding declarations can only appear as the first declaration immediately contained in an opaque block."
   pretty (OpaqueInMutual _) = fsep $
