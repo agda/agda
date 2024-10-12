@@ -1156,6 +1156,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     splitPars 0 e = ([] , e)
     splitPars npars (A.Pi _ (n :| _) e) = first (n :) (splitPars (npars - 1) e)
     splitPars npars e = __IMPOSSIBLE__
+
 ------------------------------------------------------------------------
 -- * Trusted executables
 ------------------------------------------------------------------------
@@ -1186,31 +1187,15 @@ tcExec exe args stdIn = do
   requireAllowExec
   exes <- optTrustedExecutables <$> commandLineOptions
   case Map.lookup exe exes of
-    Nothing -> raiseExeNotTrusted exe exes
+    Nothing -> execError $ ExeNotTrusted exe exes
     Just fp -> do
       -- Check that the executable exists.
-      unlessM (liftIO $ doesFileExist fp) $ raiseExeNotFound exe fp
+      unlessM (liftIO $ doesFileExist fp) $ execError $ ExeNotFound exe fp
       -- Check that the executable is executable.
-      unlessM (liftIO $ executable <$> getPermissions fp) $ raiseExeNotExecutable exe fp
+      unlessM (liftIO $ executable <$> getPermissions fp) $ execError $ ExeNotExecutable exe fp
 
       let strArgs    = T.unpack <$> args
       (datExitCode, txtStdOut, txtStdErr) <- liftIO $ readProcessWithExitCode fp strArgs stdIn
       let natExitCode = exitCodeToNat datExitCode
       toR <- toTerm
       return $ toR (natExitCode, (txtStdOut, txtStdErr))
-
--- | Raise an error if the trusted executable cannot be found.
---
-raiseExeNotTrusted :: ExeName -> Map ExeName FilePath -> TCM a
-raiseExeNotTrusted exe exes = genericDocError =<< do
-  vcat . map pretty $
-    ("Could not find '" ++ T.unpack exe ++ "' in list of trusted executables:") :
-    [ "  - " ++ T.unpack exe | exe <- Map.keys exes ]
-
-raiseExeNotFound :: ExeName -> FilePath -> TCM a
-raiseExeNotFound exe fp = genericDocError =<< do
-  text $ "Could not find file '" ++ fp ++ "' for trusted executable " ++ T.unpack exe
-
-raiseExeNotExecutable :: ExeName -> FilePath -> TCM a
-raiseExeNotExecutable exe fp = genericDocError =<< do
-  text $ "File '" ++ fp ++ "' for trusted executable" ++ T.unpack exe ++ " does not have permission to execute"

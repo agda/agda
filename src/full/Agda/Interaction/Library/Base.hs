@@ -24,6 +24,7 @@ import System.Directory
 
 import Agda.Interaction.Options.Warnings
 
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Position
 
 import Agda.Utils.IO               ( showIOException )
@@ -32,7 +33,6 @@ import Agda.Utils.List1            ( List1, toList )
 import Agda.Utils.List2            ( List2, toList )
 import qualified Agda.Utils.List1  as List1
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty
 
 -- | A symbolic library name.
 --
@@ -49,6 +49,7 @@ data LibrariesFile = LibrariesFile
 -- | A symbolic executable name.
 --
 type ExeName = Text
+type ExeMap  = Map ExeName FilePath
 
 data ExecutablesFile = ExecutablesFile
   { efPath   :: FilePath

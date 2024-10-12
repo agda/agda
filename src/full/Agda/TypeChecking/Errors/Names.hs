@@ -16,6 +16,7 @@ typeErrorString = errorNameString . typeErrorName
 typeErrorName :: TypeError -> ErrorName
 typeErrorName = \case
   -- Error groups (alphabetically) with named sub errors
+  ExecError                err -> ExecError_             $ execErrorName                  err
   GHCBackendError          err -> GHCBackendError_       $ ghcBackendErrorName            err
   JSBackendError           err -> JSBackendError_        $ jsBackendErrorName             err
   ImpossibleConstructor _  err -> ImpossibleConstructor_ $ impossibleConstructorErrorName err
@@ -258,6 +259,12 @@ declarationExceptionName = \case
   UnquoteDefRequiresSignature      {} -> UnquoteDefRequiresSignature_
   WrongContentBlock                {} -> WrongContentBlock_
   WrongDefinition                  {} -> WrongDefinition_
+
+execErrorName :: ExecError -> ExecError_
+execErrorName = \case
+  ExeNotTrusted    {} -> ExeNotTrusted_
+  ExeNotFound      {} -> ExeNotFound_
+  ExeNotExecutable {} -> ExeNotExecutable_
 
 ghcBackendErrorName :: GHCBackendError -> GHCBackendError_
 ghcBackendErrorName = \case

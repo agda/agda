@@ -72,7 +72,8 @@ data NotAValidLetExpression
 
 data ErrorName
   -- Error groups (alphabetically) with named sub errors
-  = GHCBackendError_       GHCBackendError_
+  = ExecError_             ExecError_
+  | GHCBackendError_       GHCBackendError_
   | ImpossibleConstructor_ NegativeUnification_
   | InteractionError_      InteractionError_
   | JSBackendError_        JSBackendError_
@@ -376,6 +377,12 @@ data CannotQuote_
   | CannotQuotePattern_
   deriving (Show, Generic, Enum, Bounded)
 
+data ExecError_
+  = ExeNotTrusted_
+  | ExeNotFound_
+  | ExeNotExecutable_
+  deriving (Show, Generic, Enum, Bounded)
+
 data UnquoteError_
   = BadVisibility_
   | CannotDeclareHiddenFunction_
@@ -402,6 +409,7 @@ erasedDatatypeReasonString = show
 
 errorNameString :: ErrorName -> String
 errorNameString = \case
+  ExecError_              err -> "Exec." ++ execErrorNameString err
   GHCBackendError_        err -> "GHCBackend." ++ ghcBackendErrorNameString err
   ImpossibleConstructor_  err -> "ImpossibleConstructor." ++ negativeUnificationErrorNameString err
   InteractionError_       err -> "Interaction." ++ interactionErrorNameString err
@@ -478,6 +486,9 @@ cannotQuoteTermNameString :: CannotQuoteTerm -> String
 cannotQuoteTermNameString = \case
   CannotQuoteTermHidden      -> "Hidden"
   CannotQuoteTermNothing     -> "Nothing"
+
+execErrorNameString :: ExecError_ -> String
+execErrorNameString = defaultErrorNameString
 
 unquoteErrorNameString :: UnquoteError_ -> String
 unquoteErrorNameString = defaultErrorNameString

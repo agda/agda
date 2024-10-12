@@ -35,8 +35,10 @@ import qualified Data.IntSet as IntSet
 import Data.List (sortBy, dropWhileEnd, intercalate)
 import qualified Data.List as List
 import Data.Maybe
+import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import System.FilePath
 import qualified Text.PrettyPrint.Boxes as Boxes
 
@@ -84,6 +86,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Set1 as Set1
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -202,6 +205,8 @@ instance PrettyTCM TypeError where
     GenericError s -> fwords s
 
     GenericDocError d -> return d
+
+    ExecError err -> prettyTCM err
 
     NicifierError err -> pretty err
 
@@ -1619,6 +1624,39 @@ instance PrettyTCM TypeError where
     prettyPat _ (I.LitP _ l) = prettyTCM l
     prettyPat _ (I.ProjP _ p) = "." <> prettyTCM p
     prettyPat _ (I.IApplyP _ _ _ _) = "_"
+
+
+instance PrettyTCM ExecError where
+  prettyTCM = \case
+
+    ExeNotTrusted exe exes -> vcat $
+      (fsep $ concat
+         [ pwords "Could not find"
+         , q exe
+         , pwords "in list of trusted executables:"
+         ]) :
+      [ text $ "  - " ++ Text.unpack exe | exe <- Map.keys exes ]
+
+    ExeNotFound exe fp -> fsep $ concat
+      [ pwords "Could not find file"
+      , q fp
+      , pwords "for trusted executable"
+      , q fp
+      ]
+
+    ExeNotExecutable exe fp -> fsep $ concat
+      [ [ "File" ]
+      , q fp
+      , pwords "for trusted executable"
+      , q exe
+      , pwords "does not have permission to execute"
+      ]
+
+    where
+      q :: (MonadPretty m, P.Pretty a) => a -> [m Doc]
+      q = singleton . quotes . pretty
+
+
 
 instance PrettyTCM GHCBackendError where
   prettyTCM = \case

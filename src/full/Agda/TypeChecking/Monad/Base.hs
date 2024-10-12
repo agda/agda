@@ -113,7 +113,7 @@ import Agda.Interaction.Response.Base (Response_boot(..))
 import Agda.Interaction.Highlighting.Precise
   (HighlightingInfo, NameKind)
 import Agda.Interaction.Library
-import Agda.Interaction.Library.Base (LibErrors)
+import Agda.Interaction.Library.Base ( ExeName, ExeMap, LibErrors )
 
 import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.BiMap (BiMap, HasTag(..))
@@ -4747,6 +4747,16 @@ data UnquoteError
   | UnquotePanic String
   deriving (Show, Generic)
 
+-- | Error when trying to call an external executable during reflection.
+data ExecError
+  = ExeNotTrusted ExeName ExeMap
+      -- ^ The given executable is not listed as trusted.
+  | ExeNotFound ExeName FilePath
+      -- ^ The given executable could not be found under the given path.
+  | ExeNotExecutable ExeName FilePath
+      -- ^ The given file path does not have executable permissions.
+  deriving (Show, Generic)
+
 data TypeError
         = InternalError String
         | NotImplemented String
@@ -5068,6 +5078,7 @@ data TypeError
         | InstanceNoCandidate Type [(Term, TCErr)]
             -- ^ The list can be empty.
     -- Reflection errors
+        | ExecError ExecError
         | UnquoteFailed UnquoteError
         | DeBruijnIndexOutOfScope Nat Telescope [Name]
             -- ^ The list can be empty.
@@ -5958,6 +5969,9 @@ syntaxError = locatedTypeError SyntaxError
 unquoteError :: (HasCallStack, MonadTCError m) => UnquoteError -> m a
 unquoteError = locatedTypeError UnquoteFailed
 
+execError :: (HasCallStack, MonadTCError m) => ExecError -> m a
+execError = locatedTypeError ExecError
+
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
 runTCM :: MonadIO m => TCEnv -> TCState -> TCMT m a -> m (a, TCState)
@@ -6361,3 +6375,4 @@ instance NFData WhyNotAHaskellType
 instance NFData InteractionError
 instance NFData IsAmbiguous
 instance NFData CannotQuote
+instance NFData ExecError
