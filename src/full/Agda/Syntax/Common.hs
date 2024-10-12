@@ -664,6 +664,10 @@ sameModality :: (LensModality a, LensModality b) => a -> b -> Bool
 sameModality x y = case (getModality x , getModality y) of
   (Modality r q c , Modality r' q' c') -> sameRelevance r r' && sameQuantity q q' && sameCohesion c c'
 
+instance Null Modality where
+  empty = defaultModality
+  null (Modality r q c) = and [ null r, null q, null c ]
+
 -- boilerplate instances
 
 instance HasRange Modality where
@@ -1002,6 +1006,10 @@ unitQuantity = Quantityω mempty
 -- | Absorptive element is ω.
 topQuantity :: Quantity
 topQuantity = Quantityω mempty
+
+instance Null Quantity where
+  empty = defaultQuantity
+  null = hasQuantityω
 
 -- | @m `moreUsableQuantity` m'@ means that an @m@ can be used
 --   where ever an @m'@ is required.
@@ -1581,6 +1589,10 @@ topRelevance = relevant
 defaultRelevance :: Relevance
 defaultRelevance = unitRelevance
 
+instance Null Relevance where
+  empty = defaultRelevance
+  null = isRelevant
+
 -- | Irrelevant function arguments may appear non-strictly in the codomain type.
 irrelevantToShapeIrrelevant :: Relevance -> Relevance
 irrelevantToShapeIrrelevant Irrelevant{} = shapeIrrelevant
@@ -1614,6 +1626,10 @@ instance KillRange Annotation where
 
 defaultAnnotation :: Annotation
 defaultAnnotation = Annotation defaultLock
+
+instance Null Annotation where
+  empty = defaultAnnotation
+  null (Annotation lock) = null lock
 
 instance NFData Annotation where
   rnf (Annotation l) = rnf l
@@ -1661,6 +1677,9 @@ data Lock
 
 defaultLock :: Lock
 defaultLock = IsNotLock
+
+instance Null Lock where
+  empty = defaultLock
 
 instance NFData Lock where
   rnf IsNotLock          = ()
@@ -1863,6 +1882,10 @@ topCohesion = Flat
 -- | Default Cohesion is the identity element under composition
 defaultCohesion :: Cohesion
 defaultCohesion = unitCohesion
+
+instance Null Cohesion where
+  empty = defaultCohesion
+  null = isContinuous
 
 ---------------------------------------------------------------------------
 -- * Origin of arguments (user-written, inserted or reflected)
@@ -2088,6 +2111,10 @@ instance LensCohesion ArgInfo where
   getCohesion = getCohesionMod
   setCohesion = setCohesionMod
   mapCohesion = mapCohesionMod
+
+instance Null ArgInfo where
+  empty = defaultArgInfo
+  null (ArgInfo h m _o _fv ann) = and [ null h, null m, null ann ]
 
 defaultArgInfo :: ArgInfo
 defaultArgInfo =  ArgInfo
