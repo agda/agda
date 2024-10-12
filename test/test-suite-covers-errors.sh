@@ -48,7 +48,6 @@ SplitError.CannotCreateMissingClause
 SplitError.CosplitNoTarget
 SplitError.GenericSplitError
 Syntax.UnfoldingOutsideOpaque
-Syntax.WrongDefinition
 Unquote.BadVisibility
 Unquote.BlockedOnMeta
 Unquote.UnquotePanic

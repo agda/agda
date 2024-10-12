@@ -1,0 +1,3 @@
+SyntaxWrongDefinition.agda:4.6-7: error: [Syntax.WrongDefinition]
+R has been declared as a record type, but is being defined as a
+data type
