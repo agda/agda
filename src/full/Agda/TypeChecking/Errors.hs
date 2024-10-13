@@ -1781,8 +1781,6 @@ instance PrettyTCM UnquoteError where
         , pretty m <> "._" <> pretty (metaId x)
         ]
 
-    UnquotePanic err -> __IMPOSSIBLE__
-
 instance PrettyTCM MissingTypeSignatureInfo where
   prettyTCM = \case
     MissingDataSignature x       -> fsep [ "data"  , "definition", prettyTCM x ]

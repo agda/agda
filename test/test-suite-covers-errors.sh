@@ -48,7 +48,6 @@ SplitError.CannotCreateMissingClause
 SplitError.CosplitNoTarget
 SplitError.GenericSplitError
 Unquote.BlockedOnMeta
-Unquote.UnquotePanic
 EOF
 
 # Errors covered by the testsuite.

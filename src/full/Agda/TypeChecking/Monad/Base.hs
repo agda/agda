@@ -4822,7 +4822,6 @@ data UnquoteError
   | PatLamWithoutClauses I.Term
   | StaleMeta TopLevelModuleName MetaId
       -- ^ Attempt to unquote a serialized meta.
-  | UnquotePanic String
   deriving (Show, Generic)
 
 -- | Error when trying to call an external executable during reflection.
