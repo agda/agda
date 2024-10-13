@@ -391,7 +391,6 @@ data UnquoteError_
   | BlockedOnMeta_
   | PatLamWithoutClauses_
   | StaleMeta_
-  | UnquotePanic_
   deriving (Show, Generic, Enum, Bounded)
 
 -- * Printing error names
