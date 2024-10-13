@@ -1,4 +1,4 @@
-{-# OPTIONS --level-universe #-}
+{-# OPTIONS --level-universe --safe #-}
 
 module Common.Reflection where
 
@@ -16,7 +16,7 @@ open import Agda.Builtin.Reflection public renaming
   ; Visibility    to Hiding
   ; Name          to QName)
 open import Common.Level
-open import Common.Prelude hiding (_>>=_)
+open import Common.SafePrelude
 
 pattern defaultModality = modality relevant quantity-ω
 pattern vArg x = arg (argInfo visible defaultModality) x

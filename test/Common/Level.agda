@@ -1,4 +1,5 @@
-{-# OPTIONS --cubical-compatible --level-universe #-}
+{-# OPTIONS --cubical-compatible --level-universe --safe #-}
+
 ------------------------------------------------------------------------
 -- Universe levels
 ------------------------------------------------------------------------

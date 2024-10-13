@@ -1,6 +1,6 @@
-{-# OPTIONS --cubical-compatible --level-universe #-}
+{-# OPTIONS --cubical-compatible --level-universe --safe #-}
 
-module Common.Prelude where
+module Common.SafePrelude where
 
 import Common.Level
 
@@ -8,7 +8,6 @@ open import Agda.Builtin.Unit public
 open import Common.Bool   public
 open import Common.Char   public
 open import Common.Float  public
-open import Common.IO     public  -- not --safe because of FFI use
 open import Common.List   public
 open import Common.Maybe  public
 open import Common.Nat    public
