@@ -1,4 +1,5 @@
-{-# OPTIONS --cubical-compatible --level-universe #-}
+{-# OPTIONS --cubical-compatible --level-universe --safe #-}
+
 module Common.Bool where
 
 open import Agda.Builtin.Bool public
@@ -14,4 +15,3 @@ notnot false = not (not false)
 if_then_else_ : ∀ {a} {A : Set a} → Bool → A → A → A
 if true  then t else f = t
 if false then t else f = f
-

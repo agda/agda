@@ -1,0 +1,2 @@
+Issue2782.agda:33.3-132: error: [GenericDocError]
+Cannot postulate ' Iseg : Izero ≡ Ione ' with safe flag

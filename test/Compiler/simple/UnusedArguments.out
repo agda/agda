@@ -5,24 +5,24 @@ out > -- used args: _ _ _ _ e f g
 out > UnusedArguments.maybe[stripped] =
 out >   λ a b c →
 out >     case c of
-out >       Common.Maybe.Maybe.nothing → a
-out >       Common.Maybe.Maybe.just d → b d
+out >       Agda.Builtin.Maybe.Maybe.just d → b d
+out >       Agda.Builtin.Maybe.Maybe.nothing → a
 out > UnusedArguments.maybe =
 out >   λ _ _ _ _ a b c →
 out >     case c of
-out >       Common.Maybe.Maybe.nothing → a
-out >       Common.Maybe.Maybe.just d → b d
+out >       Agda.Builtin.Maybe.Maybe.just d → b d
+out >       Agda.Builtin.Maybe.Maybe.nothing → a
 out > -- used args: _ _ _ _ e f
 out > UnusedArguments.mapMaybe[stripped] =
 out >   λ a b →
 out >     UnusedArguments.maybe
-out >       _ _ _ _ Common.Maybe.Maybe.nothing
-out >       (λ c → Common.Maybe.Maybe.just (a c)) b
+out >       _ _ _ _ Agda.Builtin.Maybe.Maybe.nothing
+out >       (λ c → Agda.Builtin.Maybe.Maybe.just (a c)) b
 out > UnusedArguments.mapMaybe =
 out >   λ _ _ _ _ a b →
 out >     UnusedArguments.maybe
-out >       _ _ _ _ Common.Maybe.Maybe.nothing
-out >       (λ c → Common.Maybe.Maybe.just (a c)) b
+out >       _ _ _ _ Agda.Builtin.Maybe.Maybe.nothing
+out >       (λ c → Agda.Builtin.Maybe.Maybe.just (a c)) b
 out > UnusedArguments.maybeToNat =
 out >   λ a → UnusedArguments.maybe _ _ _ _ 0 (λ b → b) a
 out > -- used args: _ _ c d e
@@ -42,13 +42,13 @@ out > UnusedArguments.main =
 out >   Common.IO.then
 out >     () () _ _
 out >     (Common.IO.printNat
-out >        (UnusedArguments.maybeToNat (Common.Maybe.Maybe.just 42)))
+out >        (UnusedArguments.maybeToNat (Agda.Builtin.Maybe.Maybe.just 42)))
 out >     (Common.IO.then
 out >        () () _ _
 out >        (Common.IO.printNat
 out >           (UnusedArguments.maybeToNat
 out >              (UnusedArguments.mapMaybe
-out >                 _ _ _ _ (_+_ 10) (Common.Maybe.Maybe.just 42))))
+out >                 _ _ _ _ (_+_ 10) (Agda.Builtin.Maybe.Maybe.just 42))))
 out >        (Common.IO.printNat
 out >           (UnusedArguments.foldr
 out >              _ _ _+_ 0

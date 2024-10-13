@@ -1,4 +1,5 @@
-{-# OPTIONS --cubical-compatible --level-universe #-}
+{-# OPTIONS --cubical-compatible --level-universe --safe #-}
+
 module Common.Nat where
 
 open import Agda.Builtin.Nat public
@@ -9,4 +10,3 @@ open import Agda.Builtin.Nat public
 pred : Nat → Nat
 pred zero    = zero
 pred (suc n) = n
-
