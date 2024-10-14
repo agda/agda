@@ -12,7 +12,6 @@ instance search, so having an instance argument
 when checking that the expression (n : ℕ) ⦃ q : n == zero → ⊥ ⦄ → ℕ
 is a type
 
-Issue1322.agda:20.19-21: error: [GenericError]
-Instance search cannot be used to find elements in an explicit
-function type
+Issue1322.agda:20.19-21: error: [InvalidInstanceHeadType]
+Instance search cannot be used to find elements in an explicit function type
 when checking that the expression it has type n == zero → ⊥

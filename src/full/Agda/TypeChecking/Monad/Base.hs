@@ -5098,6 +5098,7 @@ data TypeError
     -- Instance search errors
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
+        | InvalidInstanceHeadType Type WhyInvalidInstanceType
     -- Interaction errors
         | InteractionError InteractionError
     -- Backend errors
@@ -5114,6 +5115,15 @@ data TypeError
         | UnknownBackend BackendName (Set BackendName)
             -- ^ Unknown backend requested, known ones are in the 'Set'.
           deriving (Show, Generic)
+
+-- | Reason for why the instance type is invalid.
+data WhyInvalidInstanceType
+  = ImproperInstHead
+    -- ^ The type isn't headed by a local, a definition, or a postulate
+    -- (e.g. it's a universe)
+  | ImproperInstTele
+    -- ^ The type we're looking for has a visible argument
+  deriving (Show, Generic)
 
 -- | Errors raised in @--interaction@ mode.
 data InteractionError
@@ -6361,6 +6371,7 @@ instance NFData NegativeUnification
 instance NFData UnificationFailure
 instance NFData UnquoteError
 instance NFData TypeError
+instance NFData WhyInvalidInstanceType
 instance NFData InvalidFileNameReason
 instance NFData LHSOrPatSyn
 instance NFData DataOrRecordE

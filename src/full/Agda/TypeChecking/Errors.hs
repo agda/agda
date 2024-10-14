@@ -1346,6 +1346,10 @@ instance PrettyTCM TypeError where
     TriedToCopyConstrainedPrim q -> fsep $
       pwords "Cannot create a module containing a copy of" ++ [prettyTCM q]
 
+    InvalidInstanceHeadType _ why -> fsep $ case why of
+      ImproperInstHead -> pwords "Instance search can only be used to find elements in a named type"
+      ImproperInstTele -> pwords "Instance search cannot be used to find elements in an explicit function type"
+
     SortOfSplitVarError _ doc -> return doc
 
     ReferencesFutureVariables term (disallowed :| _) lock leftmost
