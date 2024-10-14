@@ -1,0 +1,2 @@
+UnquoteCommitTC.agda:8.1-10.11: error: [GenericError]
+Cannot use commitTC after declaring new definitions.
