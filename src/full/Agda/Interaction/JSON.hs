@@ -21,7 +21,7 @@ import qualified Data.Aeson.Key as Key
 #endif
 
 import Data.Text (Text)
-import GHC.Int (Int32)
+import Data.Word (Word32)
 
 -- import qualified Agda.Syntax.Translation.InternalToAbstract as I2A
 -- import qualified Agda.Syntax.Translation.AbstractToConcrete as A2C
@@ -126,7 +126,7 @@ instance {-# OVERLAPPING #-} EncodeTCM String
 
 instance EncodeTCM Bool where
 instance EncodeTCM Int where
-instance EncodeTCM Int32 where
+instance EncodeTCM Word32 where
 instance EncodeTCM Value where
 instance EncodeTCM Doc where
 

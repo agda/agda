@@ -74,7 +74,7 @@ import Control.Monad.Writer (runWriter, tell)
 
 import qualified Data.Foldable as Fold
 import Data.Function (on)
-import Data.Int
+import Data.Word (Word32)
 import Data.List (sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -118,11 +118,11 @@ import Agda.Utils.Impossible
 data Position' a = Pn
   { srcFile :: !a
     -- ^ File.
-  , posPos  :: !Int32
+  , posPos  :: !Word32
     -- ^ Position, counting from 1.
-  , posLine :: !Int32
+  , posLine :: !Word32
     -- ^ Line number, counting from 1.
-  , posCol  :: !Int32
+  , posCol  :: !Word32
     -- ^ Column number, counting from 1.
   }
   deriving (Show, Functor, Foldable, Traversable, Generic)
@@ -131,7 +131,7 @@ positionInvariant :: Position' a -> Bool
 positionInvariant p =
   posPos p > 0 && posLine p > 0 && posCol p > 0
 
-importantPart :: Position' a -> (a, Int32)
+importantPart :: Position' a -> (a, Word32)
 importantPart p = (srcFile p, posPos p)
 
 instance Eq a => Eq (Position' a) where
@@ -236,7 +236,7 @@ posToInterval f p1 p2 = setIntervalFile f $
   else Interval p2 p1
 
 -- | The length of an interval.
-iLength :: Interval' a -> Int32
+iLength :: Interval' a -> Word32
 iLength i = posPos (iEnd i) - posPos (iStart i)
 
 -- | A range is a file name, plus a sequence of intervals, assumed to

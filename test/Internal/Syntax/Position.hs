@@ -12,7 +12,7 @@ import Agda.Utils.Null ( null )
 
 import Control.Monad
 
-import Data.Int
+import Data.Word (Word32)
 import Data.List (sort)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -33,17 +33,17 @@ import System.FilePath
 -- | The positions corresponding to the interval. The positions do not
 -- refer to characters, but to the positions between characters, with
 -- zero pointing to the position before the first character.
-iPositions :: Interval' a -> Set Int32
+iPositions :: Interval' a -> Set Word32
 iPositions i = Set.fromList [posPos (iStart i) .. posPos (iEnd i)]
 
 -- | The positions corresponding to the range, including the
 -- end-points.
-rPositions :: Range' a -> Set Int32
+rPositions :: Range' a -> Set Word32
 rPositions r = Set.unions (map iPositions $ rangeIntervals r)
 
 -- | Constructs the least interval containing all the elements in the
 -- set.
-makeInterval :: Set Int32 -> Set Int32
+makeInterval :: Set Word32 -> Set Word32
 makeInterval s
   | Set.null s = Set.empty
   | otherwise  = Set.fromList [Set.findMin s .. Set.findMax s]

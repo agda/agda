@@ -36,7 +36,7 @@ import Control.Exception ( displayException )
 import Control.Monad.Except
 import Control.Monad.State
 
-import Data.Int
+import Data.Word  ( Word32 )
 import Data.Maybe ( listToMaybe )
 
 import Agda.Interaction.Options.Warnings
@@ -104,7 +104,7 @@ data LayoutBlock
     deriving Show
 
 -- | A (layout) column.
-type Column = Int32
+type Column = Word32
 
 -- | Status of a layout column (see #1145).
 --   A layout column is 'Tentative' until we encounter a new line.

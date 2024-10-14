@@ -32,7 +32,7 @@ import Control.Parallel             ( pseq )
 import Data.Array (Ix)
 import Data.DList (DList)
 import Data.Function (on)
-import Data.Int
+import Data.Word (Word32)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -3405,7 +3405,7 @@ instance Pretty TermHead where
 -- ** Mutual blocks
 ---------------------------------------------------------------------------
 
-newtype MutualId = MutId Int32
+newtype MutualId = MutId Word32
   deriving (Eq, Ord, Show, Num, Enum, NFData)
 
 ---------------------------------------------------------------------------

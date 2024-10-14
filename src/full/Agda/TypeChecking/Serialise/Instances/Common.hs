@@ -14,7 +14,7 @@ import Data.Array.IArray
 import Data.Word
 import qualified Data.Foldable as Fold
 import Data.Hashable
-import Data.Int (Int32)
+import Data.Word (Word32)
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -81,17 +81,17 @@ instance EmbPrj Integer where
   value i = (! i) <$!> gets integerE
 
 instance EmbPrj Word64 where
-  icod_ i = icodeN' (undefined :: Int32 -> Int32 -> Int32) (int32 q) (int32 r)
+  icod_ i = icodeN' (undefined :: Word32 -> Word32 -> Word32) (word32 q) (word32 r)
     where (q, r) = quotRem i (2 ^ 32)
-          int32 :: Word64 -> Int32
-          int32 = fromIntegral
+          word32 :: Word64 -> Word32
+          word32 = fromIntegral
 
   value = vcase valu where
     valu [a, b] = return $! n * mod (fromIntegral a) n + mod (fromIntegral b) n
     valu _      = malformed
     n = 2 ^ 32
 
-instance EmbPrj Int32 where
+instance EmbPrj Word32 where
   icod_ i = return i
   value i = return i
 
@@ -246,7 +246,7 @@ instance (EmbPrj k, EmbPrj v, EmbPrj (BiMap.Tag v)) =>
 
 
 -- | Encode a list of key-value pairs as a flat list.
-mapPairsIcode :: (EmbPrj k, EmbPrj v) => [(k, v)] -> S Int32
+mapPairsIcode :: (EmbPrj k, EmbPrj v) => [(k, v)] -> S Word32
 mapPairsIcode xs = icodeNode =<< convert Empty xs where
   -- As we need to call `convert' in the tail position, the resulting list is
   -- written (and read) in reverse order, with the highest pair first in the
@@ -257,7 +257,7 @@ mapPairsIcode xs = icodeNode =<< convert Empty xs where
     entry <- icode entry
     convert (Cons start (Cons entry ys)) xs
 
-mapPairsValue :: (EmbPrj k, EmbPrj v) => [Int32] -> R [(k, v)]
+mapPairsValue :: (EmbPrj k, EmbPrj v) => [Word32] -> R [(k, v)]
 mapPairsValue = convert [] where
   convert ys [] = return ys
   convert ys (start:entry:xs) = do

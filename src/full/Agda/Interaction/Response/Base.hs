@@ -17,7 +17,7 @@ module Agda.Interaction.Response.Base
   ) where
 
 import Control.Monad.Trans ( MonadIO(liftIO) )
-import Data.Int (Int32)
+import Data.Word (Word32)
 import Data.Set (Set)
 
 import Agda.Interaction.Base
@@ -53,7 +53,7 @@ data Response_boot tcErr tcWarning warningsAndNonFatalErrors
         HighlightingMethod
         ModuleToSource
     | Resp_Status Status
-    | Resp_JumpToError FilePath Int32
+    | Resp_JumpToError FilePath Word32
     | Resp_InteractionPoints [InteractionId]
     | Resp_GiveAction InteractionId GiveResult
     | Resp_MakeCase InteractionId MakeCaseVariant [String]
