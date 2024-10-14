@@ -23,10 +23,9 @@ Code of conduct
   release manager via the tool `src/release-tools/closed-issues-for-milestone`.
   See [Closing issues](#closing-issues).
 
-* Run the full testsuite before pushing patches!
+* Changes should go through a pull request.
 
-  The recommended way is to run the testsuite on via our CI (continuous integration suite).
-  It is automatically started when submitting a pull request.
+  Opening a pull request will also run the testsuite via our CI (continuous integration suite).
 
 Note: Some instructions in this document are likely outdated,
 so take everything with a grain of salt.
@@ -83,45 +82,22 @@ This could be either `origin` (if you have push rights) or your own fork of Agda
     # * "Rebase and merge" if each commit is meaningful and compiles and ideally passes all tests.
     # Creating merge commits is discouraged but might be preferable in exceptional cases..
 
-Finding the commit that introduced a regression
------------------------------------------------
+Working with `gh`
+-----------------
 
-If you want to find the commit that introduced a regression that
-caused Module-that-should-be-accepted to be rejected, then you can try
-the following recipe:
-  ```sh
-    git clone <agda repository> agda-bug
-    cd agda-bug
-    git switch <suitable branch>
-    cabal sandbox init
-    git bisect start <bad commit> <good commit>
-    cp <some path>/Module-that-should-be-accepted.agda .
-    git bisect run sh -c \
-      "cabal install --force-reinstalls \
-                     --disable-library-profiling \
-                     --disable-documentation || exit 125; \
-       .cabal-sandbox/bin/agda --ignore-interfaces \
-         Module-that-should-be-accepted.agda"
-  ```
-An alternative is to use the program agda-bisect from
-`src/agda-bisect`:
-  ```sh
-    git clone <agda repository> agda-bug
-    cd agda-bug
-    cp <some path>/Module-that-should-be-accepted.agda .
-    agda-bisect --bad <bad commit> --good <good commit> \
-      Module-that-should-be-accepted.agda
-  ```
-See `agda-bisect --help` for usage information.
+`gh` is a command line interface to parts of the `github.com` API.
+Useful commands:
 
-The following command temporarily enables Bash completion for
-`agda-bisect`:
-  ```sh
-    source < (agda-bisect --bash-completion-script `which agda-bisect`)
-  ```
-Bash completion can perhaps be enabled more permanently by storing the
-output of the command above in a file in a suitable directory (like
-`/etc/bash_completion.d/`).
+`gh set-default`:  Set the upstream repo default for other commands.  Only has to be once.
+
+`gh pr create --fill` or `--fill-first`:  Open a new pull request from the current branch.
+
+`gh pr checkout NNNN`: Checkout PR `NNNN`.
+
+`gh run list`: Show status of the CI.
+
+`gh browse FILE`: Open FILE in your browser (e.g. to do a blame).
+
 
 Standard library submodule
 --------------------------
@@ -192,6 +168,13 @@ Testing and documentation
   This path is `.gitignored` and will be loaded if it exists. Put custom
   overrides there.
 
+* The Agda binary to use with the test can be set via the `AGDA_BIN` variable.
+  E.g. to build and test with an unoptimized version of Agda:
+  ```sh
+    make quicker-install-bin
+    make AGDA_BIN=agda-quicker succeed
+  ```
+
 * Test parallelization can be controlled via the `PARALLEL_TESTS` Makefile
   variable. If unset, it will default to the number of CPUs available.
   This variable can be customized per-run as usual:
@@ -224,7 +207,10 @@ Testing and documentation
   ```sh
     make AGDA_TESTS_OPTIONS="-i -j8 -p MAlonzo.simple" compiler-test
   ```
-  You can use the `AGDA_ARGS` environment variable to pass additional
+  To automatically accept new golden values, use
+  `AGDA_TESTS_OPTIONS=--accept`.
+
+* You can use the `AGDA_ARGS` environment variable to pass additional
   arguments to Agda when executing the Succeed/Fail/Compiler tests.
 
 * Tests under `test/Fail` can fail if an error message has changed.
@@ -272,7 +258,7 @@ Testing and documentation
 * [One way](https://mpickering.github.io/posts/2019-11-07-hs-speedscope.html)
   to obtain time profiles is to compile with profiling enabled, using
   the GHC option
-  [`-fprof-late`](https://downloads.haskell.org/ghc/9.4.2/docs/users_guide/profiling.html#ghc-flag--fprof-late)
+  [`-fprof-late`](https://downloads.haskell.org/ghc/latest/docs/users_guide/profiling.html#ghc-flag--fprof-late)
   (which is available starting from GHC 9.4.1), and to run Agda with
   the run-time options `+RTS -p -l-au`. One should then obtain a
   `.eventlog` file which can be converted to a `.eventlog.json` file
@@ -388,8 +374,8 @@ The GitHub workflows will check for the phrase in the head commit
 commit's message is checked for the phrase).
 
 | Phrase | Effect |
-|---|---|
-| `[ci skip]` | Skips both Travis jobs and GitHub workflows |
+|--------|--------|
+| `[ci skip]` | Skips GitHub workflows |
 | `[skip ci]` | As-per `[ci skip]` |
 
 Some Agda Hacking Lore
@@ -409,12 +395,15 @@ Some Agda Hacking Lore
   Calls to error can make Agda fail with an error message in the
   `*ghci*` buffer.
 
+  To include a function in the trace printed by `__IMPOSSIBLE__`
+  add a `HasCallStack` constraint (from `Agda.Utils.CallStack`).
+
 * GHC warnings are turned on globally in `Agda.cabal`. If you want to
   turn on or off an individual warning in a specific file, use an
   `OPTIONS_GHC` pragma. Don't use `-Wall`, because the meaning of this
   flag can vary between different versions of GHC.
 
-* The GHC documentation (7.10.1) contains the following information
+* The GHC documentation contains the following information
   about orphan instances:
 
   > GHC identifies orphan modules, and visits the interface file of
@@ -423,39 +412,16 @@ Some Agda Hacking Lore
   your best to have as few orphan modules as possible.
 
   See:
-  https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/separate-compilation.html#orphan-modules
+  https://downloads.haskell.org/ghc/latest/docs/users_guide/separate_compilation.html#orphan-modules
   .
 
   In order to avoid *unnecessary* orphan instances the flag
   `-fwarn-orphans` is turned on. If you feel that you really want to use
   an orphan instance, place
   ```haskell
-      {-# OPTIONS_GHC -fno-warn-orphans #-}
+      {-# OPTIONS_GHC -Wno-orphans #-}
   ```
   at the top of the module containing the instance.
-
-Haskell-mode and the Agda codebase
-==================================
-
-* If you're using a recent haskell-mode (use `M-x package-install
-  haskell-mode` to be sure, what's packaged by Debian is not enough),
-  and you're editing an Haskell file, you can load it up in by tapping
-  `C-c C-l`, and agreeing to Emacs proposals about paths and whatsnot.
-
-* You can toggle from `:load` to `:reload` with `C-u C-c C-l`, which
-  you probably want since otherwise you'll load up the world each
-  time.
-
-* You have semantic jumps with `M-.`. No more pesky T.A.G.S.!
-
-* You can jump to errors and warnings with `C-x`.  You can probably do
-  many other things, Emacs is your oyster.
-
-* One little caveat: GHCi needs some generated files to work.  To make
-  sure you have them, you can issue `cabal build` and kill it when it
-  starts compiling modules. There doesn't seem to be a programmatic
-  way to instruct cabal to do so. They're pretty stable so you don't
-  have to do that often.
 
 Emacs mode
 ==========
@@ -530,13 +496,46 @@ Since: July 2019.
   can be run via `make -C test/interaction AGDA_BIN=agda-quicker`.
 
 
-Cabal stuff
-===========
+Bisecting: Finding the commit that introduced a regression
+==========================================================
 
-* For running `cabal repl` use the following command (see
-  https://code.google.com/p/agda/issues/detail?id=1196):
+If you want to find the commit that introduced a regression that
+caused Module-that-should-be-accepted to be rejected, then you can try
+the following recipe:
+  ```sh
+    git clone <agda repository> agda-bug
+    cd agda-bug
+    git switch <suitable branch>
+    git bisect start <bad commit> <good commit>
+    cp <some path>/Module-that-should-be-accepted.agda .
+    git bisect run sh -c \
+      "cabal build exe:Agda || exit 125; \
+       cabal run exe:Agda -- \
+         --ignore-interfaces \
+         Module-that-should-be-accepted.agda"
+  ```
+An alternative is to use the program agda-bisect from
+`src/agda-bisect`:
+  ```sh
+    git clone <agda repository> agda-bug
+    cd agda-bug
+    cp <some path>/Module-that-should-be-accepted.agda .
+    agda-bisect --bad <bad commit> --good <good commit> \
+      Module-that-should-be-accepted.agda
+  ```
+Note however that agda-bisect uses the v1 interface to `cabal` and sandboxes,
+which were removed in `cabal-3.4`.  So one needs `cabal-3.2` or lower installed.
+Option `--with-cabal=cabal-3.2` could be helpful to locally switch cabal version.
+See `agda-bisect --help` for usage information.
 
-      cabal repl --ghc-options=-Wwarn
+The following command temporarily enables Bash completion for
+`agda-bisect`:
+  ```sh
+    source < (agda-bisect --bash-completion-script `which agda-bisect`)
+  ```
+Bash completion can perhaps be enabled more permanently by storing the
+output of the command above in a file in a suitable directory (like
+`/etc/bash_completion.d/`).
 
 
 Developing with Stack
@@ -548,7 +547,7 @@ tools like `Cabal` and `Makefile`.
 To develop Agda with `Stack`, copy one of the stack-x.y.z.yaml files of your
 choice, and rename it to `stack.yaml`. For example:
 
-    cp stack-8.4.4.yaml stack.yaml
+    cp stack-9.4.8.yaml stack.yaml
 
 And you are good to go!
 
@@ -561,8 +560,16 @@ To run `Ghci`:
 
     stack repl
 
+Closed issues reported in the CHANGELOG
+=======================================
+
+Before releasing for example Agda 1.2.3 we add to the `CHANGELOG`
+*all* the closed issues with milestone 1.2.3 except those issues
+tagged with the labels listed in `labelsNotInChangelog` in the
+`src/release-tools/closed-issues-for-milestone/Main.hs` file.
+
 Closed issues by milestone program
-==================================
+----------------------------------
 
 The `closed-issues-by-milestone` program requires a GitHub personal
 access token in the `GITHUBTOKEN` environment variable, i.e,
@@ -574,18 +581,11 @@ The personal access token can be generated from your GitHub user:
     Settings -> Developer settings -> Personal access tokens
 
 
-Closed issues reported in the CHANGELOG
-=======================================
-
-Before releasing for example Agda 1.2.3 we add to the `CHANGELOG`
-*all* the closed issues with milestone 1.2.3 except those issues
-tagged with the labels listed in `labelsNotInChangelog` in the
-`src/release-tools/closed-issues-for-milestone/Main.hs` file.
-
 Documentation
 =============
 
 See http://agda.readthedocs.io/en/latest/contribute/documentation.html .
+
 
 How To…
 =======
