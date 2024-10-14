@@ -1,0 +1,11 @@
+packages: Agda.cabal
+
+-- ghc-wasm uses head.hackage.haskell.org in addition to the default repository.
+-- This causes dependency resolution failures, so remove that and just force the
+-- default repository.
+active-repositories: hackage.haskell.org
+
+-- Make zlib to compile its own zlib (thus targeting wasm) rather than using
+-- the system one.
+package zlib
+  flags: +bundled-c-zlib -pkg-config
