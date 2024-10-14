@@ -30,6 +30,7 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract (TypedBindingInfo(tbTacticAttr))
 import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.ConcreteToAbstract
@@ -68,6 +69,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl
 import Agda.TypeChecking.Rules.Data
 
+import Agda.Utils.CallStack           ( HasCallStack )
 import Agda.Utils.Either
 import Agda.Utils.Lens
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -77,7 +79,6 @@ import Agda.Utils.Null
 import qualified Agda.Interaction.Options.Lenses as Lens
 
 import Agda.Utils.Impossible
-import Agda.Syntax.Abstract (TypedBindingInfo(tbTacticAttr))
 
 agdaTermType :: TCM Type
 agdaTermType = El (mkType 0) <$> primAgdaTerm
@@ -168,9 +169,10 @@ class Unquote a where
 
 -- | Unquote an @'Arg' 'Term'@ assuming the 'ArgInfo' does not contain information.
 -- (This means, it should be visible, relevant, etc., like 'defaultArg').
-unquoteN :: Unquote a => Arg Term -> UnquoteM a
+unquoteN :: (HasCallStack, Unquote a) => Arg Term -> UnquoteM a
 unquoteN (Arg info v) =
-  if null info then unquote v else __IMPOSSIBLE__1  -- throw the impossible not here, but in our caller
+  if null info then unquote v else __IMPOSSIBLE__
+    -- because we have a CallStack, this also includes the caller
 
 choice :: Monad m => [(m Bool, m a)] -> m a -> m a
 choice [] dflt = dflt
