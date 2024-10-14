@@ -208,6 +208,7 @@ typeErrorName = \case
   TooManyPatternsInWithClause                                {} -> TooManyPatternsInWithClause_
   TooManyPolarities                                          {} -> TooManyPolarities_
   TriedToCopyConstrainedPrim                                 {} -> TriedToCopyConstrainedPrim_
+  InvalidInstanceHeadType                                    {} -> InvalidInstanceHeadType_
   UnboundVariablesInPatternSynonym                           {} -> UnboundVariablesInPatternSynonym_
   UnequalCohesion                                            {} -> UnequalCohesion_
   UnequalFiniteness                                          {} -> UnequalFiniteness_

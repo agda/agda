@@ -261,6 +261,7 @@ data ErrorName
   | TooManyPatternsInWithClause_
   | TooManyPolarities_
   | TriedToCopyConstrainedPrim_
+  | InvalidInstanceHeadType_
   | UnboundVariablesInPatternSynonym_
   | UnequalCohesion_
   | UnequalFiniteness_
