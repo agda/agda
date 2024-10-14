@@ -70,10 +70,12 @@ instance Hashable Node where
 
     combine :: Word -> Word -> Word
     combine x y = foldedMul (xor x y) factor where
+      -- We use a version of fibonacci hashing, where our multiplier is the
+      -- nearest prime to 2^64/phi or 2^32/phi. See https://stackoverflow.com/q/4113278.
 #if WORD_SIZE_IN_BITS == 64
-    factor = 11400714819323198549
+      factor = 11400714819323198549
 #else
-    factor = 2654435741
+      factor = 2654435741
 #endif
 
     go :: Word -> Node -> Word
@@ -82,9 +84,9 @@ instance Hashable Node where
 
   hash = hashWithSalt seed where
 #if WORD_SIZE_IN_BITS == 64
-    seed = 3032525626373534813
+      seed = 3032525626373534813
 #else
-    seed = 1103515245
+      seed = 1103515245
 #endif
 
 instance B.Binary Node where
