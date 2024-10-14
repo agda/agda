@@ -55,6 +55,8 @@ import Agda.Utils.Monad
 import Agda.Utils.Pointer
 import Agda.Utils.TypeLevel
 
+#include <MachDeps.h>
+
 -- | Constructor tag (maybe omitted) and argument indices.
 data Node = Empty | Cons !Int32 !Node deriving Eq
 
@@ -67,13 +69,23 @@ instance Hashable Node where
     foldedMul (W# x) (W# y) = case timesWord2# x y of (# hi, lo #) -> W# (xor# hi lo)
 
     combine :: Word -> Word -> Word
-    combine x y = foldedMul (xor x y) 11400714819323198549
+    combine x y = foldedMul (xor x y) factor where
+#if WORD_SIZE_IN_BITS == 64
+    factor = 11400714819323198549
+#else
+    factor = 2654435741
+#endif
 
     go :: Word -> Node -> Word
     go !h Empty       = h
     go  h (Cons n ns) = go (combine h (fromIntegral n)) ns
 
-  hash = hashWithSalt 3032525626373534813
+  hash = hashWithSalt seed where
+#if WORD_SIZE_IN_BITS == 64
+    seed = 3032525626373534813
+#else
+    seed = 1103515245
+#endif
 
 instance B.Binary Node where
 
