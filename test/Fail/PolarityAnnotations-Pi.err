@@ -1,4 +1,4 @@
-PolarityAnnotations-Pi.agda:6,13-14
+PolarityAnnotations-Pi.agda:6.13-14: error: [VariableIsOfUnusablePolarity]
 Variable A is bound with strictly positive polarity, so it cannot
 be used here at a negative position
 when checking that the expression A has type _0
