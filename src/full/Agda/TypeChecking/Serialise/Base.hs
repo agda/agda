@@ -30,7 +30,7 @@ import Data.Array.IO
 import qualified Data.HashMap.Strict as Hm
 import qualified Data.ByteString.Lazy as L
 import Data.Hashable
-import Data.Int (Int32)
+import Data.Word (Word32)
 import Data.Maybe
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
@@ -58,7 +58,7 @@ import Agda.Utils.TypeLevel
 #include <MachDeps.h>
 
 -- | Constructor tag (maybe omitted) and argument indices.
-data Node = Empty | Cons !Int32 !Node deriving Eq
+data Node = Empty | Cons !Word32 !Node deriving Eq
 
 instance Hashable Node where
   -- Adapted from https://github.com/tkaitchuck/aHash/wiki/AHash-fallback-algorithm
@@ -139,12 +139,12 @@ lookupME proxy fprint me found notfound = go fprint me where
 --   and counting hash map hits (i.e. when no fresh identifier required).
 #ifdef DEBUG_SERIALISATION
 data FreshAndReuse = FreshAndReuse
-  { farFresh :: !Int32 -- ^ Number of hash map misses.
-  , farReuse :: !Int32 -- ^ Number of hash map hits.
+  { farFresh :: !Word32 -- ^ Number of hash map misses.
+  , farReuse :: !Word32 -- ^ Number of hash map hits.
   }
 #else
 newtype FreshAndReuse = FreshAndReuse
-  { farFresh :: Int32 -- ^ Number of hash map misses.
+  { farFresh :: Word32 -- ^ Number of hash map misses.
   }
 #endif
 
@@ -154,12 +154,12 @@ farEmpty = FreshAndReuse 0
                            0
 #endif
 
-lensFresh :: Lens' FreshAndReuse Int32
+lensFresh :: Lens' FreshAndReuse Word32
 lensFresh f r = f (farFresh r) <&> \ i -> r { farFresh = i }
 {-# INLINE lensFresh #-}
 
 #ifdef DEBUG_SERIALISATION
-lensReuse :: Lens' FreshAndReuse Int32
+lensReuse :: Lens' FreshAndReuse Word32
 lensReuse f r = f (farReuse r) <&> \ i -> r { farReuse = i }
 {-# INLINE lensReuse #-}
 #endif
@@ -174,19 +174,19 @@ qnameId (QName (MName ns) n) = map nameId $ n:ns
 -- | State of the the encoder.
 data Dict = Dict
   -- Dictionaries which are serialized:
-  { nodeD        :: !(HashTable Node    Int32)    -- ^ Written to interface file.
-  , stringD      :: !(HashTable String  Int32)    -- ^ Written to interface file.
-  , lTextD       :: !(HashTable TL.Text Int32)    -- ^ Written to interface file.
-  , sTextD       :: !(HashTable T.Text  Int32)    -- ^ Written to interface file.
-  , integerD     :: !(HashTable Integer Int32)    -- ^ Written to interface file.
-  , doubleD      :: !(HashTable Double  Int32)    -- ^ Written to interface file.
+  { nodeD        :: !(HashTable Node    Word32)    -- ^ Written to interface file.
+  , stringD      :: !(HashTable String  Word32)    -- ^ Written to interface file.
+  , lTextD       :: !(HashTable TL.Text Word32)    -- ^ Written to interface file.
+  , sTextD       :: !(HashTable T.Text  Word32)    -- ^ Written to interface file.
+  , integerD     :: !(HashTable Integer Word32)    -- ^ Written to interface file.
+  , doubleD      :: !(HashTable Double  Word32)    -- ^ Written to interface file.
   -- Dicitionaries which are not serialized, but provide
   -- short cuts to speed up serialization:
-  , termD        :: !(HashTable (Ptr Term) Int32) -- ^ Not written to interface file.
+  , termD        :: !(HashTable (Ptr Term) Word32) -- ^ Not written to interface file.
   -- Andreas, Makoto, AIM XXI
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
-  , nameD        :: !(HashTable NameId  Int32)    -- ^ Not written to interface file.
-  , qnameD       :: !(HashTable QNameId Int32)    -- ^ Not written to interface file.
+  , nameD        :: !(HashTable NameId  Word32)    -- ^ Not written to interface file.
+  , qnameD       :: !(HashTable QNameId Word32)    -- ^ Not written to interface file.
   -- Fresh UIDs and reuse statistics:
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
@@ -231,16 +231,16 @@ emptyDict collectStats = Dict
   <*> pure collectStats
 
 -- | Univeral memo structure, to introduce sharing during decoding
-type Memo = IOArray Int32 MemoEntry
+type Memo = IOArray Word32 MemoEntry
 
 -- | State of the decoder.
 data St = St
-  { nodeE     :: !(Array Int32 [Int32])  -- ^ Obtained from interface file.
-  , stringE   :: !(Array Int32 String)   -- ^ Obtained from interface file.
-  , lTextE    :: !(Array Int32 TL.Text)  -- ^ Obtained from interface file.
-  , sTextE    :: !(Array Int32 T.Text)   -- ^ Obtained from interface file.
-  , integerE  :: !(Array Int32 Integer)  -- ^ Obtained from interface file.
-  , doubleE   :: !(Array Int32 Double)   -- ^ Obtained from interface file.
+  { nodeE     :: !(Array Word32 [Word32])  -- ^ Obtained from interface file.
+  , stringE   :: !(Array Word32 String)   -- ^ Obtained from interface file.
+  , lTextE    :: !(Array Word32 TL.Text)  -- ^ Obtained from interface file.
+  , sTextE    :: !(Array Word32 T.Text)   -- ^ Obtained from interface file.
+  , integerE  :: !(Array Word32 Integer)  -- ^ Obtained from interface file.
+  , doubleE   :: !(Array Word32 Double)   -- ^ Obtained from interface file.
   , nodeMemo  :: !Memo
     -- ^ Created and modified by decoder.
     --   Used to introduce sharing while deserializing objects.
@@ -269,9 +269,9 @@ malformed = liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
 {-# NOINLINE malformed #-} -- 2023-10-2 András: cold code, so should be out-of-line.
 
 class Typeable a => EmbPrj a where
-  icode :: a -> S Int32  -- ^ Serialization (wrapper).
-  icod_ :: a -> S Int32  -- ^ Serialization (worker).
-  value :: Int32 -> R a  -- ^ Deserialization.
+  icode :: a -> S Word32  -- ^ Serialization (wrapper).
+  icod_ :: a -> S Word32  -- ^ Serialization (worker).
+  value :: Word32 -> R a  -- ^ Deserialization.
 
   icode a = do
     !r <- icod_ a
@@ -280,14 +280,14 @@ class Typeable a => EmbPrj a where
   {-# INLINE icode #-}
 
   -- Simple enumeration types can be (de)serialized using (from/to)Enum.
-  default value :: (Enum a, Bounded a) => Int32 -> R a
+  default value :: (Enum a, Bounded a) => Word32 -> R a
   value i =
     let i' = fromIntegral i in
     if i' >= fromEnum (minBound :: a) && i' <= fromEnum (maxBound :: a)
     then pure $! toEnum i'
     else malformed
 
-  default icod_ :: (Enum a, Bounded a) => a -> S Int32
+  default icod_ :: (Enum a, Bounded a) => a -> S Word32
   icod_ x = return $! fromIntegral $! fromEnum x
 
 -- | The actual logic of `tickICode` is cold code, so it's out-of-line,
@@ -326,9 +326,9 @@ runGetState g s n = feed (B.runGetIncremental g) (L.toChunks s)
 --       }
 --
 -- type ICodeX k
---   =  (Dict -> HashTable k Int32)
---   -> (Dict -> IORef Int32)
---   -> k -> S Int32
+--   =  (Dict -> HashTable k Word32)
+--   -> (Dict -> IORef Word32)
+--   -> k -> S Word32
 -- {-# SPECIALIZE icodeX :: ICodeX String  #-}
 -- {-# SPECIALIZE icodeX :: ICodeX Integer #-}
 -- {-# SPECIALIZE icodeX :: ICodeX Double  #-}
@@ -340,9 +340,9 @@ runGetState g s n = feed (B.runGetIncremental g) (L.toChunks s)
 -- instruction cache misses.
 -- {-# INLINE icodeX #-}
 icodeX :: (Eq k, Hashable k)
-  =>  (Dict -> HashTable k Int32)
+  =>  (Dict -> HashTable k Word32)
   -> (Dict -> IORef FreshAndReuse)
-  -> k -> S Int32
+  -> k -> S Word32
 icodeX dict counter key = do
   d <- asks dict
   c <- asks counter
@@ -363,7 +363,7 @@ icodeX dict counter key = do
 -- its four uses: Integer, String, Double, Node.
 -- Not a great gain (hardly noticeable), but not harmful.
 
-icodeInteger :: Integer -> S Int32
+icodeInteger :: Integer -> S Word32
 icodeInteger key = do
   d <- asks integerD
   c <- asks integerC
@@ -380,7 +380,7 @@ icodeInteger key = do
         H.insert d key fresh
         return fresh
 
-icodeDouble :: Double -> S Int32
+icodeDouble :: Double -> S Word32
 icodeDouble key = do
   d <- asks doubleD
   c <- asks doubleC
@@ -397,7 +397,7 @@ icodeDouble key = do
         H.insert d key fresh
         return fresh
 
-icodeString :: String -> S Int32
+icodeString :: String -> S Word32
 icodeString key = do
   d <- asks stringD
   c <- asks stringC
@@ -414,7 +414,7 @@ icodeString key = do
         H.insert d key fresh
         return fresh
 
-icodeNode :: Node -> S Int32
+icodeNode :: Node -> S Word32
 icodeNode key = do
   d <- asks nodeD
   c <- asks nodeC
@@ -431,17 +431,17 @@ icodeNode key = do
         H.insert d key fresh
         return fresh
 
--- icodeN :: [Int32] -> S Int32
+-- icodeN :: [Word32] -> S Word32
 -- icodeN = icodeX nodeD nodeC
 
 -- | @icode@ only if thing has not seen before.
 icodeMemo
   :: (Ord a, Hashable a)
-  => (Dict -> HashTable a Int32)    -- ^ Memo structure for thing of key @a@.
+  => (Dict -> HashTable a Word32)    -- ^ Memo structure for thing of key @a@.
   -> (Dict -> IORef FreshAndReuse)  -- ^ Statistics.
   -> a        -- ^ Key to the thing.
-  -> S Int32  -- ^ Fallback computation to encode the thing.
-  -> S Int32  -- ^ Encoded thing.
+  -> S Word32  -- ^ Fallback computation to encode the thing.
+  -> S Word32  -- ^ Encoded thing.
 icodeMemo getDict getCounter a icodeP = do
     h  <- asks getDict
     mi <- liftIO $ H.lookup h a
@@ -459,11 +459,11 @@ icodeMemo getDict getCounter a icodeP = do
         return i
 
 {-# INLINE vcase #-}
--- | @vcase value ix@ decodes thing represented by @ix :: Int32@
+-- | @vcase value ix@ decodes thing represented by @ix :: Word32@
 --   via the @valu@ function and stores it in 'nodeMemo'.
 --   If @ix@ is present in 'nodeMemo', @valu@ is not used, but
 --   the thing is read from 'nodeMemo' instead.
-vcase :: forall a . EmbPrj a => ([Int32] -> R a) -> Int32 -> R a
+vcase :: forall a . EmbPrj a => ([Word32] -> R a) -> Word32 -> R a
 vcase valu = \ix -> do
     memo <- gets nodeMemo
     let fp = fingerprintNoinline (typeRep (Proxy :: Proxy a))
@@ -479,7 +479,7 @@ vcase valu = \ix -> do
          return v
 
 -- | @icodeArgs proxy (a1, ..., an)@ maps @icode@ over @a1@, ..., @an@
---   and returns the corresponding list of @Int32@.
+--   and returns the corresponding list of @Word32@.
 
 class ICODE t b where
   icodeArgs :: IsBase t ~ b => All EmbPrj (Domains t) =>
@@ -502,21 +502,21 @@ instance ICODE t (IsBase t) => ICODE (a -> t) 'False where
 --   It corresponds to @icodeNode . (tag :) =<< mapM icode [a1, ..., an]@
 
 {-# INLINE icodeN #-}
-icodeN :: forall t. ICODE t (IsBase t) => StrictCurrying (Domains t) (S Int32) =>
+icodeN :: forall t. ICODE t (IsBase t) => StrictCurrying (Domains t) (S Word32) =>
           All EmbPrj (Domains t) =>
-          Int32 -> t -> Arrows (Domains t) (S Int32)
+          Word32 -> t -> Arrows (Domains t) (S Word32)
 icodeN tag _ =
-  strictCurrys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ !args -> do
+  strictCurrys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Word32)) $ \ !args -> do
     !node <- icodeArgs (Proxy :: Proxy t) args
     icodeNode $ Cons tag node
 
 -- | @icodeN'@ is the same as @icodeN@ except that there is no tag
 {-# INLINE icodeN' #-}
-icodeN' :: forall t. ICODE t (IsBase t) => StrictCurrying (Domains t) (S Int32) =>
+icodeN' :: forall t. ICODE t (IsBase t) => StrictCurrying (Domains t) (S Word32) =>
            All EmbPrj (Domains t) =>
-           t -> Arrows (Domains t) (S Int32)
+           t -> Arrows (Domains t) (S Word32)
 icodeN' _ =
-  strictCurrys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ !args -> do
+  strictCurrys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Word32)) $ \ !args -> do
     !node <- icodeArgs (Proxy :: Proxy t) args
     icodeNode node
 
@@ -528,11 +528,11 @@ class VALU t b where
 
   valuN' :: b ~ IsBase t =>
             All EmbPrj (Domains t) =>
-            t -> StrictProducts (Constant Int32 (Domains t)) -> R (CoDomain t)
+            t -> StrictProducts (Constant Word32 (Domains t)) -> R (CoDomain t)
 
   valueArgs :: b ~ IsBase t =>
                All EmbPrj (CoDomain t ': Domains t) =>
-               Proxy t -> [Int32] -> Maybe (StrictProducts (Constant Int32 (Domains t)))
+               Proxy t -> [Word32] -> Maybe (StrictProducts (Constant Word32 (Domains t)))
 
 instance VALU t 'True where
   {-# INLINE valuN' #-}
@@ -558,17 +558,17 @@ instance VALU t (IsBase t) => VALU (a -> t) 'False where
 
 {-# INLINE valuN #-}
 valuN :: forall t. VALU t (IsBase t) =>
-         StrictCurrying (Constant Int32 (Domains t)) (R (CoDomain t)) =>
+         StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)) =>
          All EmbPrj (Domains t) =>
-         t -> Arrows (Constant Int32 (Domains t)) (R (CoDomain t))
-valuN f = strictCurrys (Proxy :: Proxy (Constant Int32 (Domains t)))
+         t -> Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+valuN f = strictCurrys (Proxy :: Proxy (Constant Word32 (Domains t)))
                  (Proxy :: Proxy (R (CoDomain t)))
                  (valuN' f)
 
 {-# INLINE valueN #-}
 valueN :: forall t. VALU t (IsBase t) =>
           All EmbPrj (CoDomain t ': Domains t) =>
-          t -> Int32 -> R (CoDomain t)
+          t -> Word32 -> R (CoDomain t)
 valueN t = vcase valu where
   valu int32s = case valueArgs (Proxy :: Proxy t) int32s of
                   Nothing -> malformed

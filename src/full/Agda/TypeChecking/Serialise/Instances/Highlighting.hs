@@ -6,7 +6,7 @@ module Agda.TypeChecking.Serialise.Instances.Highlighting where
 
 import qualified Data.Map.Strict as Map
 import Data.Strict.Tuple (Pair(..))
-import Data.Int (Int32)
+import Data.Word (Word32)
 
 import qualified Agda.Interaction.Highlighting.Range   as HR
 import qualified Agda.Interaction.Highlighting.Precise as HP
@@ -139,7 +139,7 @@ instance EmbPrj a => EmbPrj (RM.RangeMap a) where
       convert (Cons start (Cons end (Cons entry ys))) xs
 
   value = vcase (fmap (RM.RangeMap . Map.fromDistinctAscList) . convert []) where
-    convert :: [(Int, RM.PairInt a)] -> [Int32] -> R [(Int, RM.PairInt a)]
+    convert :: [(Int, RM.PairInt a)] -> [Word32] -> R [(Int, RM.PairInt a)]
     convert !ys [] = return ys
     convert  ys (start:end:entry:xs) = do
       !start <- value start
