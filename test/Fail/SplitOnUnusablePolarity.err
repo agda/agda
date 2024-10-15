@@ -1,0 +1,3 @@
+SplitOnUnusablePolarity.agda:8.5-9: error: [SplitOnUnusablePolarity]
+Cannot pattern match against unused argument of type Bool
+when checking that the pattern true has type Bool
