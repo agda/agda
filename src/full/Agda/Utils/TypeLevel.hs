@@ -57,7 +57,7 @@ data ConsMap1 :: (Function k l -> Type) -> k -> Function [l] [l] -> Type
 type instance Apply (ConsMap0 f)    a = ConsMap1 f a
 type instance Apply (ConsMap1 f a) tl = Apply f a ': tl
 
-type family Constant (b :: l) (as :: [k]) :: [l] where
+type family Constant (b :: Type) (as :: [k]) :: [Type] where
   Constant b as = Map (Constant1 b) as
 
 ------------------------------------------------------------------
