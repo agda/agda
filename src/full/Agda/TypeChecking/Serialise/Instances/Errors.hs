@@ -132,6 +132,8 @@ instance EmbPrj Warning where
     -- FixingQuantity a b c                        -> icodeN 68 FixingQuantity a b c
     FixingRelevance a b c                       -> icodeN 69 FixingRelevance a b c
     UnusedVariablesInDisplayForm a              -> icodeN 70 UnusedVariablesInDisplayForm a
+    NothingAppliedToHiddenArg a                 -> __IMPOSSIBLE__
+    NothingAppliedToInstanceArg a               -> __IMPOSSIBLE__
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b

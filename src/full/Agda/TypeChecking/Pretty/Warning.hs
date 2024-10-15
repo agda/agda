@@ -558,6 +558,14 @@ prettyWarning = \case
 
     UselessOpaque -> "This `opaque` block has no effect."
 
+    NothingAppliedToHiddenArg e -> fsep $
+      [pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
+      pwords "a function expecting an implicit argument."
+
+    NothingAppliedToInstanceArg e -> fsep $
+      [pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
+      pwords "a function expecting an instance argument."
+
     InvalidDisplayForm x reason -> fsep $ concat
         [ pwords "Ignoring invalid display form for"
         , [ prettyTCM x ]

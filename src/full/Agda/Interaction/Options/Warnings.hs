@@ -182,6 +182,10 @@ errorWarnings = Set.fromList
   , RewriteMaybeNonConfluent_
   , RewriteAmbiguousRules_
   , RewriteMissingRule_
+
+  -- Recoverable scope-checking errors
+  , NothingAppliedToHiddenArg_
+  , NothingAppliedToInstanceArg_
   ]
 
 allWarnings :: Set WarningName
@@ -359,6 +363,9 @@ data WarningName
   | UnfoldingWrongName_
   | UnfoldTransparentName_
   | UselessOpaque_
+  -- Recoverable scope checking errors
+  | NothingAppliedToHiddenArg_
+  | NothingAppliedToInstanceArg_
   -- Cubical
   | FaceConstraintCannotBeHidden_
   | FaceConstraintCannotBeNamed_
@@ -585,6 +592,11 @@ warningNameDescription = \case
   UnfoldingWrongName_              -> "Names in `unfolding` clause that are not unambiguous functions."
   UnfoldTransparentName_           -> "Non-`opaque` names mentioned in an `unfolding` clause."
   UselessOpaque_                   -> "`opaque` blocks that have no effect."
+
+  -- Recoverable scope-checking errors
+  NothingAppliedToHiddenArg_       -> "Hidden argument with no matching function."
+  NothingAppliedToInstanceArg_     -> "Instance argument with no matching function."
+
   -- Cubical
   FaceConstraintCannotBeHidden_    -> "Face constraint patterns that are given as implicit arguments."
   FaceConstraintCannotBeNamed_     -> "Face constraint patterns that are given as named arguments."

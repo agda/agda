@@ -921,14 +921,6 @@ instance PrettyTCM TypeError where
     NotValidBeforeField nd -> fwords $
       "This declaration is illegal in a record before the last field"
 
-    NothingAppliedToHiddenArg e -> fsep $
-      [pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
-      pwords "a function expecting an implicit argument."
-
-    NothingAppliedToInstanceArg e -> fsep $
-      [pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
-      pwords "a function expecting an instance argument."
-
     NoParseForApplication es -> fsep (
       pwords "Could not parse the application" ++ [pretty $ C.RawApp noRange es])
 

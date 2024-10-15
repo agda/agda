@@ -6,7 +6,9 @@ module _ (A B : Set) where
 postulate
   _ : { { A } } → B
 
--- Expected: ERROR or WARNING
+  _ : { { A } } → B
+
+-- Expected: 2 fatal warnings
 -- For instance:
 -- {A} cannot appear by itself. It needs to be the argument to a
 -- function expecting an implicit argument.
