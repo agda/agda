@@ -1,4 +1,4 @@
-PolarityAnnotations-Data.agda:9,3-27
+PolarityAnnotations-Data.agda:9.3-27: error: [VariableIsOfUnusablePolarity]
 Variable A is bound with strictly positive polarity, so it cannot
 be used here at a negative position
 when checking the constructor cons in the declaration of Wrong

@@ -2169,12 +2169,13 @@ instance Verbalize PolarityModality where
   verbalize (PolarityModality p o l) = verbalize p
 
 instance Verbalize Modality where
+  verbalize mod | mod == defaultModality || mod == defaultCheckModality = "default"
   verbalize mod | mod == defaultModality = "default"
   verbalize (Modality rel qnt coh pol) = intercalate ", " $
     [ verbalize rel | rel /= defaultRelevance ] ++
     [ verbalize qnt | qnt /= defaultQuantity ] ++
     [ verbalize coh | coh /= defaultCohesion ] ++
-    [ verbalize pol | pol /= defaultPolarity ]
+    [ verbalize pol | pol /= defaultPolarity , pol /= modPolarity defaultCheckModality ]
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a

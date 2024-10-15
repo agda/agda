@@ -89,7 +89,8 @@ instance Pretty (ThingWithFixity Name) where
 -- showing modalities outside of binders.
 attributesForModality :: Modality -> Doc
 attributesForModality mod@(Modality r q c p)
-  | mod == defaultModality = text "@ω"
+  | mod == defaultCheckModality = text "@ω"
+  | mod == defaultModality      = text "@ω"
   | otherwise = fsep $ catMaybes [relevance, quantity, cohesion, polarity]
   where
     relevance = case r of
@@ -105,7 +106,7 @@ attributesForModality mod@(Modality r q c p)
       Continuous{} -> Nothing
       Squash{}     -> Just "@⊤"
     polarity = case modPolarityAnn p of
-      MixedPolarity    -> Nothing
+      MixedPolarity    -> Just "@mixed"
       Positive         -> Just "@+"
       Negative         -> Just "@-"
       StrictlyPositive -> Just "@++"
