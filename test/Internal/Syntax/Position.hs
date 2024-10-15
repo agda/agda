@@ -12,10 +12,9 @@ import Agda.Utils.Null ( null )
 
 import Control.Monad
 
-import Data.Int
 import Data.List (sort)
-import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import qualified Data.Text as T
 
 import Internal.Helpers
@@ -33,20 +32,20 @@ import System.FilePath
 -- | The positions corresponding to the interval. The positions do not
 -- refer to characters, but to the positions between characters, with
 -- zero pointing to the position before the first character.
-iPositions :: Interval' a -> Set Int32
-iPositions i = Set.fromList [posPos (iStart i) .. posPos (iEnd i)]
+iPositions :: Interval' a -> IntSet
+iPositions i = IntSet.fromList [fromIntegral (posPos (iStart i)) .. fromIntegral (posPos (iEnd i))]
 
 -- | The positions corresponding to the range, including the
 -- end-points.
-rPositions :: Range' a -> Set Int32
-rPositions r = Set.unions (map iPositions $ rangeIntervals r)
+rPositions :: Range' a -> IntSet
+rPositions r = IntSet.unions (map iPositions $ rangeIntervals r)
 
 -- | Constructs the least interval containing all the elements in the
 -- set.
-makeInterval :: Set Int32 -> Set Int32
+makeInterval :: IntSet -> IntSet
 makeInterval s
-  | Set.null s = Set.empty
-  | otherwise  = Set.fromList [Set.findMin s .. Set.findMax s]
+  | IntSet.null s = IntSet.empty
+  | otherwise  = IntSet.fromList [IntSet.findMin s .. IntSet.findMax s]
 
 prop_iLength :: Interval' Integer -> Bool
 prop_iLength i = iLength i >= 0
@@ -123,7 +122,7 @@ prop_fuseIntervals i1 =
     let i = fuseIntervals i1 i2 in
     intervalInvariant i &&
     iPositions i ==
-      makeInterval (Set.union (iPositions i1) (iPositions i2))
+      makeInterval (IntSet.union (iPositions i1) (iPositions i2))
 
 prop_fuseRanges :: Range -> Property
 prop_fuseRanges r1 =
@@ -131,7 +130,7 @@ prop_fuseRanges r1 =
     let r = fuseRanges r1 r2 in
     rangeInvariant r
       &&
-    rPositions r == Set.union (rPositions r1) (rPositions r2)
+    rPositions r == IntSet.union (rPositions r1) (rPositions r2)
 
 prop_beginningOf :: Range -> Bool
 prop_beginningOf r = rangeInvariant (beginningOf r)

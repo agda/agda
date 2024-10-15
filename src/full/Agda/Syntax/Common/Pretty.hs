@@ -19,7 +19,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.IntSet (IntSet)
 import Data.IntMap (IntMap)
-import Data.Word (Word64)
+import Data.Word (Word64, Word32)
 import Data.Text (Text)
 import Data.Int (Int32)
 import Data.Map (Map)
@@ -84,6 +84,7 @@ instance Pretty Bool    where pretty = text . show
 instance Pretty Int     where pretty = text . show
 instance Pretty Int32   where pretty = text . show
 instance Pretty Integer where pretty = text . show
+instance Pretty Word32  where pretty = text . show
 instance Pretty Word64  where pretty = text . show
 instance Pretty Double  where pretty = text . toStringWithoutDotZero
 instance Pretty Text    where pretty = text . T.unpack
