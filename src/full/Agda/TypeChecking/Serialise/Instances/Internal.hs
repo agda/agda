@@ -212,8 +212,8 @@ instance EmbPrj DisplayTerm where
     valu _            = malformed
 
 instance EmbPrj MutualId where
-  icod_ (MutId a) = icode a
-  value n         = MutId <$!> value n
+  icod_ (MutualId a) = icode a
+  value n            = MutualId <$!> value n
 
 instance EmbPrj CompKit where
   icod_ (CompKit a b) = icodeN' CompKit a b

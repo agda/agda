@@ -95,7 +95,14 @@ instance EmbPrj Int32 where
   icod_ i = return i
   value i = return i
 
+-- Andreas, Agda Hackathon 2024-10-15
+-- Are we sure we never use an Int that does not fit into 32 bits?
 instance EmbPrj Int where
+  icod_ i = return $! fromIntegral i
+  value i = return $! fromIntegral i
+
+-- For now, do the same unsafe thing as for Int.
+instance EmbPrj Word32 where
   icod_ i = return $! fromIntegral i
   value i = return $! fromIntegral i
 

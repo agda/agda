@@ -170,7 +170,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   -- The following debug statement is part of a test case for Issue
   -- #3590.
   reportSLn "term.mutual.id" 40 $
-    "Termination checking mutual block " ++ show mid
+    "Termination checking mutual block " ++ prettyShow mid
   reportSLn "term.mutual" 10 $ "Termination checking " ++ prettyShow allNames
 
   -- NO_TERMINATION_CHECK

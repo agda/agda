@@ -1,5 +1,6 @@
--- The debug output should include the text "Termination checking
--- mutual block MutId 0" once, not three times.
+-- The debug output should include the text
+-- "Termination checking mutual block 0"
+-- once, not three times.
 
 {-# OPTIONS -vterm.mutual.id:40 #-}
 

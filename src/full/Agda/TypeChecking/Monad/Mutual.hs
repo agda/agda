@@ -5,7 +5,7 @@ module Agda.TypeChecking.Monad.Mutual where
 import Prelude hiding (null)
 
 import qualified Data.Set as Set
-import qualified Data.Map as Map
+import qualified Data.IntMap as IntMap
 
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
@@ -32,7 +32,8 @@ inMutualBlock m = do
 -- | Set the mutual block info for a block if non-existing.
 
 insertMutualBlockInfo :: MutualId -> Info.MutualInfo -> TCM ()
-insertMutualBlockInfo mi info = stMutualBlocks `modifyTCLens` Map.alter f mi
+insertMutualBlockInfo (MutualId i) info =
+  stMutualBlocks `modifyTCLens` IntMap.alter f (fromIntegral i)
   where
   f Nothing = Just $ MutualBlock info empty
   f (Just mb@(MutualBlock info0 xs))
@@ -42,9 +43,9 @@ insertMutualBlockInfo mi info = stMutualBlocks `modifyTCLens` Map.alter f mi
 -- | Set the mutual block for a definition.
 
 setMutualBlock :: MutualId -> QName -> TCM ()
-setMutualBlock i x = do
-  stMutualBlocks `modifyTCLens` Map.alter f i
-  stSignature    `modifyTCLens` updateDefinition x (\ defn -> defn { defMutual = i })
+setMutualBlock m@(MutualId i) x = do
+  stMutualBlocks `modifyTCLens` IntMap.alter f (fromIntegral i)
+  stSignature    `modifyTCLens` updateDefinition x \ defn -> defn { defMutual = m }
   where
   f Nothing                    = Just $ MutualBlock empty $ Set.singleton x
   f (Just (MutualBlock mi xs)) = Just $ MutualBlock mi $ Set.insert x xs
@@ -55,5 +56,6 @@ currentOrFreshMutualBlock :: TCM MutualId
 currentOrFreshMutualBlock = maybe fresh return =<< asksTC envMutualBlock
 
 lookupMutualBlock :: ReadTCState tcm => MutualId -> tcm MutualBlock
-lookupMutualBlock mi = Map.findWithDefault empty mi <$> useTC stMutualBlocks
-   -- can be empty if we ask for the current mutual block and there is none
+lookupMutualBlock (MutualId i) =
+  IntMap.findWithDefault empty (fromIntegral i) <$> useTC stMutualBlocks
+    -- can be empty if we ask for the current mutual block and there is none

@@ -32,7 +32,7 @@ import Control.Parallel             ( pseq )
 import Data.Array (Ix)
 import Data.DList (DList)
 import Data.Function (on)
-import Data.Int
+import Data.Word (Word32)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -309,7 +309,7 @@ data PostScopeState = PostScopeState
     -- ^ Counters to collect various statistics about meta variables etc.
     --   Only for current file.
   , stPostTCWarnings          :: !(Set TCWarning)
-  , stPostMutualBlocks        :: !(Map MutualId MutualBlock)
+  , stPostMutualBlocks        :: !MutualBlocks
   , stPostLocalBuiltins       :: !(BuiltinThings PrimFun)
   , stPostFreshMetaId         :: !MetaId
   , stPostFreshMutualId       :: !MutualId
@@ -333,16 +333,6 @@ data PostScopeState = PostScopeState
     -- ^ Associates each opaque QName to the block it was defined in.
   }
   deriving (Generic)
-
--- | A mutual block of names in the signature.
-data MutualBlock = MutualBlock
-  { mutualInfo  :: MutualInfo
-    -- ^ The original info of the mutual block.
-  , mutualNames :: Set QName
-  } deriving (Show, Eq, Generic)
-
-instance Null MutualBlock where
-  empty = MutualBlock empty empty
 
 -- | A part of the state which is not reverted when an error is thrown
 -- or the state is reset.
@@ -475,7 +465,7 @@ initPostScopeState = PostScopeState
   , stPostShadowingNames       = Map.empty
   , stPostStatistics           = Map.empty
   , stPostTCWarnings           = empty
-  , stPostMutualBlocks         = Map.empty
+  , stPostMutualBlocks         = empty
   , stPostLocalBuiltins        = Map.empty
   , stPostFreshMetaId          = initialMetaId
   , stPostFreshMutualId        = 0
@@ -787,7 +777,7 @@ stTCWarnings f s =
   f (stPostTCWarnings (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostTCWarnings = x}}
 
-stMutualBlocks :: Lens' TCState (Map MutualId MutualBlock)
+stMutualBlocks :: Lens' TCState MutualBlocks
 stMutualBlocks f s =
   f (stPostMutualBlocks (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostMutualBlocks = x}}
@@ -3405,8 +3395,24 @@ instance Pretty TermHead where
 -- ** Mutual blocks
 ---------------------------------------------------------------------------
 
-newtype MutualId = MutId Int32
+newtype MutualId = MutualId Word32
   deriving (Eq, Ord, Show, Num, Enum, NFData)
+
+instance Pretty MutualId where
+  pretty (MutualId i) = pretty i
+
+-- | Map 'MutualId' to 'MutualBlock'.
+type MutualBlocks = IntMap MutualBlock
+
+-- | A mutual block of names in the signature.
+data MutualBlock = MutualBlock
+  { mutualInfo  :: MutualInfo
+    -- ^ The original info of the mutual block.
+  , mutualNames :: Set QName
+  } deriving (Show, Eq, Generic)
+
+instance Null MutualBlock where
+  empty = MutualBlock empty empty
 
 ---------------------------------------------------------------------------
 -- ** Statistics
