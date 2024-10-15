@@ -1835,6 +1835,16 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      Unsolved meta variables.
 
+.. option:: NothingAppliedToHiddenArg
+
+     Hidden arguments ``{ x }`` can only appear as arguments to
+     functions, not as expressions by themselves.
+
+.. option:: NothingAppliedToInstanceArg
+
+     Instance arguments ``⦃ x ⦄`` can only appear as arguments to
+     functions, not as expressions by themselves.
+
 
 Command-line examples
 ---------------------
