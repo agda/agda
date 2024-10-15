@@ -661,6 +661,10 @@ topModality = Modality topRelevance topQuantity topCohesion topPolarity
 defaultModality :: Modality
 defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion defaultPolarity
 
+-- | The default Modality terms are checked against.
+defaultCheckModality :: Modality
+defaultCheckModality = defaultModality { modPolarity = withStandardLock StrictlyPositive }
+
 -- | Extract the positional modality component for checks regarding only them.
 positionalModalityComponent :: Modality -> Modality
 positionalModalityComponent m =
