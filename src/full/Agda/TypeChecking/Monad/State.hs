@@ -140,10 +140,6 @@ freshTCM m = do
 -- * Lens for persistent states and its fields
 ---------------------------------------------------------------------------
 
-lensPersistentState :: Lens' TCState PersistentTCState
-lensPersistentState f s =
-  f (stPersistentState s) <&> \ p -> s { stPersistentState = p }
-
 updatePersistentState
   :: (PersistentTCState -> PersistentTCState) -> (TCState -> TCState)
 updatePersistentState f s = s { stPersistentState = f (stPersistentState s) }

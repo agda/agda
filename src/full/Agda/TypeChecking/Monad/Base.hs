@@ -189,6 +189,10 @@ instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m)
 instance Show TCState where
   show _ = "TCSt{}"
 
+type BackendForeignCode = Map BackendName ForeignCodeStack
+type ImportedModules    = Set TopLevelModuleName
+type UserWarnings       = Map QName Text
+
 data PreScopeState = PreScopeState
   { stPreTokens             :: !HighlightingInfo
     -- ^ Highlighting info for tokens and Happy parser warnings (but
@@ -197,7 +201,7 @@ data PreScopeState = PreScopeState
   , stPreImports            :: !Signature  -- XX populated by scope checker
     -- ^ Imported declared identifiers.
     --   Those most not be serialized!
-  , stPreImportedModules    :: !(Set TopLevelModuleName)
+  , stPreImportedModules    :: !ImportedModules
       -- Andreas, 2023-08-05, issue #6750, don't make this a 'HashSet'
       -- because then the order of its @toList@ is undefined,
       -- leading to undefined deserialization order.
@@ -216,13 +220,13 @@ data PreScopeState = PreScopeState
   , stPrePragmaOptions      :: !PragmaOptions
     -- ^ Options applying to the current file. @OPTIONS@
     -- pragmas only affect this field.
-  , stPreImportedBuiltins   :: !(BuiltinThings PrimFun)
+  , stPreImportedBuiltins   :: !BuiltinThings
   , stPreImportedDisplayForms :: !DisplayForms
     -- ^ Display forms added by someone else to imported identifiers
   , stPreFreshInteractionId :: !InteractionId
-  , stPreImportedUserWarnings :: !(Map A.QName Text)
+  , stPreImportedUserWarnings :: !UserWarnings
     -- ^ Imported @UserWarning@s, not to be stored in the @Interface@
-  , stPreLocalUserWarnings    :: !(Map A.QName Text)
+  , stPreLocalUserWarnings    :: !UserWarnings
     -- ^ Locally defined @UserWarning@s, to be stored in the @Interface@
   , stPreWarningOnImport      :: !(Strict.Maybe Text)
     -- ^ Whether the current module should raise a warning when opened
@@ -283,7 +287,7 @@ data PostScopeState = PostScopeState
     --   context of the module parameters.
   , stPostImportsDisplayForms :: !DisplayForms
     -- ^ Display forms we add for imported identifiers
-  , stPostForeignCode         :: !(Map BackendName ForeignCodeStack)
+  , stPostForeignCode         :: !BackendForeignCode
     -- ^ @{-\# FOREIGN \#-}@ code that should be included in the compiled output.
     -- Does not include code for imported modules.
   , stPostCurrentModule       ::
@@ -311,7 +315,7 @@ data PostScopeState = PostScopeState
     --   Only for current file.
   , stPostTCWarnings          :: !(Set TCWarning)
   , stPostMutualBlocks        :: !MutualBlocks
-  , stPostLocalBuiltins       :: !(BuiltinThings PrimFun)
+  , stPostLocalBuiltins       :: !BuiltinThings
   , stPostFreshMetaId         :: !MetaId
   , stPostFreshMutualId       :: !MutualId
   , stPostFreshProblemId      :: !ProblemId
@@ -487,110 +491,306 @@ initPostScopeState = PostScopeState
 
 initState :: TCState
 initState = TCSt
-  { stPreScopeState   = initPreScopeState
+  { stPersistentState = initPersistentState
+  , stPreScopeState   = initPreScopeState
   , stPostScopeState  = initPostScopeState
-  , stPersistentState = initPersistentState
   }
 
--- * st-prefixed lenses
+-- * Lenses for 'TCState'
+
+-- ** Components of 'TCState'
+
+lensPersistentState :: Lens' TCState PersistentTCState
+lensPersistentState f s = f (stPersistentState s) <&> \ x -> s { stPersistentState = x }
+
+lensPreScopeState :: Lens' TCState PreScopeState
+lensPreScopeState f s = f (stPreScopeState s) <&> \ x -> s { stPreScopeState = x }
+
+lensPostScopeState :: Lens' TCState PostScopeState
+lensPostScopeState f s = f (stPostScopeState s) <&> \ x -> s { stPostScopeState = x }
+
+-- ** Components of 'PersistentTCState'
+
+lensLoadedFileCache :: Lens' PersistentTCState (Strict.Maybe LoadedFileCache)
+lensLoadedFileCache f s = f (stPersistLoadedFileCache s) <&> \ x -> s { stPersistLoadedFileCache = x }
+
+lensBackends :: Lens' PersistentTCState [Backend_boot TCM]
+lensBackends f s = f (stPersistBackends s) <&> \ x -> s { stPersistBackends = x }
+
+lensTopLevelModuleNames :: Lens' PersistentTCState (BiMap RawTopLevelModuleName ModuleNameHash)
+lensTopLevelModuleNames f s =
+  f (stPersistentTopLevelModuleNames s) <&> \ x -> s { stPersistentTopLevelModuleNames = x }
+
+-- ** Components of 'PreScopeState'
+
+lensPreTokens :: Lens' PreScopeState HighlightingInfo
+lensPreTokens f s = f (stPreTokens s) <&> \ x -> s { stPreTokens = x }
+
+lensImports :: Lens' PreScopeState Signature
+lensImports f s = f (stPreImports s) <&> \ x -> s { stPreImports = x }
+
+lensImportedModules :: Lens' PreScopeState ImportedModules
+lensImportedModules f s = f (stPreImportedModules s) <&> \ x -> s { stPreImportedModules = x }
+
+lensModuleToSource :: Lens' PreScopeState ModuleToSource
+lensModuleToSource f s = f (stPreModuleToSource s ) <&> \ x -> s { stPreModuleToSource = x }
+
+lensVisitedModules :: Lens' PreScopeState VisitedModules
+lensVisitedModules f s = f (stPreVisitedModules s ) <&> \ x -> s { stPreVisitedModules = x }
+
+lensScope :: Lens' PreScopeState ScopeInfo
+lensScope f s = f (stPreScope s ) <&> \ x -> s { stPreScope = x }
+
+lensPatternSyns :: Lens' PreScopeState A.PatternSynDefns
+lensPatternSyns f s = f (stPrePatternSyns s ) <&> \ x -> s { stPrePatternSyns = x }
+
+lensPatternSynImports :: Lens' PreScopeState A.PatternSynDefns
+lensPatternSynImports f s = f (stPrePatternSynImports s ) <&> \ x -> s { stPrePatternSynImports = x }
+
+lensGeneralizedVars :: Lens' PreScopeState (Strict.Maybe (Set QName))
+lensGeneralizedVars f s = f (stPreGeneralizedVars s ) <&> \ x -> s { stPreGeneralizedVars = x }
+
+lensPrePragmaOptions :: Lens' PreScopeState PragmaOptions
+lensPrePragmaOptions f s = f (stPrePragmaOptions s ) <&> \ x -> s { stPrePragmaOptions = x }
+
+lensImportedBuiltins :: Lens' PreScopeState BuiltinThings
+lensImportedBuiltins f s = f (stPreImportedBuiltins s ) <&> \ x -> s { stPreImportedBuiltins = x }
+
+lensFreshInteractionId :: Lens' PreScopeState InteractionId
+lensFreshInteractionId f s = f (stPreFreshInteractionId s ) <&> \ x -> s { stPreFreshInteractionId = x }
+
+lensImportedUserWarnings :: Lens' PreScopeState UserWarnings
+lensImportedUserWarnings f s = f (stPreImportedUserWarnings s ) <&> \ x -> s { stPreImportedUserWarnings = x }
+
+lensLocalUserWarnings :: Lens' PreScopeState UserWarnings
+lensLocalUserWarnings f s = f (stPreLocalUserWarnings s ) <&> \ x -> s { stPreLocalUserWarnings = x }
+
+lensWarningOnImport :: Lens' PreScopeState (Strict.Maybe Text)
+lensWarningOnImport f s = f (stPreWarningOnImport s) <&> \ x -> s { stPreWarningOnImport = x }
+
+lensImportedPartialDefs :: Lens' PreScopeState (Set QName)
+lensImportedPartialDefs f s = f (stPreImportedPartialDefs s) <&> \ x -> s { stPreImportedPartialDefs = x }
+
+lensProjectConfigs :: Lens' PreScopeState (Map FilePath ProjectConfig)
+lensProjectConfigs f s = f (stPreProjectConfigs s) <&> \ x -> s { stPreProjectConfigs = x }
+
+lensAgdaLibFiles :: Lens' PreScopeState (Map FilePath AgdaLibFile)
+lensAgdaLibFiles f s = f (stPreAgdaLibFiles s) <&> \ x -> s { stPreAgdaLibFiles = x }
+
+lensImportedMetaStore :: Lens' PreScopeState RemoteMetaStore
+lensImportedMetaStore f s = f (stPreImportedMetaStore s) <&> \x -> s { stPreImportedMetaStore = x }
+
+lensCopiedNames :: Lens' PreScopeState (HashMap QName QName)
+lensCopiedNames f s = f (stPreCopiedNames s) <&> \ x -> s { stPreCopiedNames = x }
+
+lensNameCopies :: Lens' PreScopeState (HashMap QName (HashSet QName))
+lensNameCopies f s = f (stPreNameCopies s) <&> \ x -> s { stPreNameCopies = x }
+
+-- ** Components of PostScopeState
+
+lensForeignCode :: Lens' PostScopeState BackendForeignCode
+lensForeignCode f s = f (stPostForeignCode s ) <&> \ x -> s { stPostForeignCode = x }
+
+lensLocalPartialDefs :: Lens' PostScopeState (Set QName)
+lensLocalPartialDefs f s = f (stPostLocalPartialDefs s) <&> \ x -> s { stPostLocalPartialDefs = x }
+
+lensFreshNameId :: Lens' PostScopeState NameId
+lensFreshNameId f s = f (stPostFreshNameId s) <&> \ x -> s { stPostFreshNameId = x }
+
+lensFreshOpaqueId :: Lens' PostScopeState OpaqueId
+lensFreshOpaqueId f s = f (stPostFreshOpaqueId s) <&> \ x -> s { stPostFreshOpaqueId = x }
+
+lensOpaqueBlocks :: Lens' PostScopeState (Map OpaqueId OpaqueBlock)
+lensOpaqueBlocks f s = f (stPostOpaqueBlocks s) <&> \ x -> s { stPostOpaqueBlocks = x }
+
+lensOpaqueIds :: Lens' PostScopeState (Map QName OpaqueId)
+lensOpaqueIds f s = f (stPostOpaqueIds s) <&> \ x -> s { stPostOpaqueIds = x }
+
+lensSyntaxInfo :: Lens' PostScopeState HighlightingInfo
+lensSyntaxInfo f s = f (stPostSyntaxInfo s) <&> \ x -> s { stPostSyntaxInfo = x }
+
+lensDisambiguatedNames :: Lens' PostScopeState DisambiguatedNames
+lensDisambiguatedNames f s = f (stPostDisambiguatedNames s) <&> \ x -> s { stPostDisambiguatedNames = x }
+
+lensOpenMetaStore :: Lens' PostScopeState LocalMetaStore
+lensOpenMetaStore f s = f (stPostOpenMetaStore s) <&> \ x -> s { stPostOpenMetaStore = x }
+
+lensSolvedMetaStore :: Lens' PostScopeState LocalMetaStore
+lensSolvedMetaStore f s = f (stPostSolvedMetaStore s) <&> \ x -> s { stPostSolvedMetaStore = x }
+
+lensInteractionPoints :: Lens' PostScopeState InteractionPoints
+lensInteractionPoints f s = f (stPostInteractionPoints s) <&> \ x -> s { stPostInteractionPoints = x }
+
+lensAwakeConstraints :: Lens' PostScopeState Constraints
+lensAwakeConstraints f s = f (stPostAwakeConstraints s) <&> \ x -> s { stPostAwakeConstraints = x }
+
+lensSleepingConstraints :: Lens' PostScopeState Constraints
+lensSleepingConstraints f s = f (stPostSleepingConstraints s) <&> \ x -> s { stPostSleepingConstraints = x }
+
+lensDirty :: Lens' PostScopeState Bool
+lensDirty f s = f (stPostDirty s) <&> \ x -> s { stPostDirty = x }
+
+lensOccursCheckDefs :: Lens' PostScopeState (Set QName)
+lensOccursCheckDefs f s = f (stPostOccursCheckDefs s) <&> \ x -> s { stPostOccursCheckDefs = x }
+
+lensSignature :: Lens' PostScopeState Signature
+lensSignature f s = f (stPostSignature s) <&> \ x -> s { stPostSignature = x }
+
+lensModuleCheckpoints :: Lens' PostScopeState (Map ModuleName CheckpointId)
+lensModuleCheckpoints f s = f (stPostModuleCheckpoints s) <&> \ x -> s { stPostModuleCheckpoints = x }
+
+lensImportsDisplayForms :: Lens' PostScopeState DisplayForms
+lensImportsDisplayForms f s = f (stPostImportsDisplayForms s) <&> \ x -> s { stPostImportsDisplayForms = x }
+
+lensImportedDisplayForms :: Lens' PreScopeState DisplayForms
+lensImportedDisplayForms f s = f (stPreImportedDisplayForms s) <&> \ x -> s { stPreImportedDisplayForms = x }
+
+lensTemporaryInstances :: Lens' PostScopeState (Set QName)
+lensTemporaryInstances f s = f (stPostTemporaryInstances s) <&> \ x -> s { stPostTemporaryInstances = x }
+
+lensConcreteNames :: Lens' PostScopeState ConcreteNames
+lensConcreteNames f s = f (stPostConcreteNames s) <&> \ x -> s { stPostConcreteNames = x }
+
+lensUsedNames :: Lens' PostScopeState (Map RawName (DList RawName))
+lensUsedNames f s = f (stPostUsedNames s) <&> \ x -> s { stPostUsedNames = x }
+
+lensShadowingNames :: Lens' PostScopeState (Map Name (DList RawName))
+lensShadowingNames f s = f (stPostShadowingNames s) <&> \ x -> s { stPostShadowingNames = x }
+
+lensStatistics :: Lens' PostScopeState Statistics
+lensStatistics f s = f (stPostStatistics s) <&> \ x -> s { stPostStatistics = x }
+
+lensTCWarnings :: Lens' PostScopeState (Set TCWarning)
+lensTCWarnings f s = f (stPostTCWarnings s) <&> \ x -> s { stPostTCWarnings = x }
+
+lensMutualBlocks :: Lens' PostScopeState MutualBlocks
+lensMutualBlocks f s = f (stPostMutualBlocks s) <&> \ x -> s { stPostMutualBlocks = x }
+
+lensLocalBuiltins :: Lens' PostScopeState BuiltinThings
+lensLocalBuiltins f s = f (stPostLocalBuiltins s) <&> \ x -> s { stPostLocalBuiltins = x }
+
+lensFreshMetaId :: Lens' PostScopeState MetaId
+lensFreshMetaId f s = f (stPostFreshMetaId s) <&> \ x -> s { stPostFreshMetaId = x }
+
+lensFreshMutualId :: Lens' PostScopeState MutualId
+lensFreshMutualId f s = f (stPostFreshMutualId s) <&> \ x -> s { stPostFreshMutualId = x }
+
+lensFreshProblemId :: Lens' PostScopeState ProblemId
+lensFreshProblemId f s = f (stPostFreshProblemId s) <&> \ x -> s { stPostFreshProblemId = x }
+
+lensFreshCheckpointId :: Lens' PostScopeState CheckpointId
+lensFreshCheckpointId f s = f (stPostFreshCheckpointId s) <&> \ x -> s { stPostFreshCheckpointId = x }
+
+lensFreshInt :: Lens' PostScopeState Int
+lensFreshInt f s = f (stPostFreshInt s) <&> \ x -> s { stPostFreshInt = x }
+
+lensAreWeCaching :: Lens' PostScopeState Bool
+lensAreWeCaching f s = f (stPostAreWeCaching s) <&> \x -> s { stPostAreWeCaching = x }
+
+lensPostponeInstanceSearch :: Lens' PostScopeState Bool
+lensPostponeInstanceSearch f s = f (stPostPostponeInstanceSearch s) <&> \ x -> s { stPostPostponeInstanceSearch = x }
+
+lensConsideringInstance :: Lens' PostScopeState Bool
+lensConsideringInstance f s = f (stPostConsideringInstance s) <&> \ x -> s { stPostConsideringInstance = x }
+
+lensInstantiateBlocking :: Lens' PostScopeState Bool
+lensInstantiateBlocking f s = f (stPostInstantiateBlocking s) <&> \ x -> s { stPostInstantiateBlocking = x }
+
+-- * @st@-prefixed lenses
 ------------------------------------------------------------------------
 
+-- ** Persistent state
+
+stLoadedFileCache :: Lens' TCState (Maybe LoadedFileCache)
+stLoadedFileCache = lensPersistentState . lensLoadedFileCache . Strict.lensMaybeLazy
+
+stBackends :: Lens' TCState [Backend_boot TCM]
+stBackends = lensPersistentState . lensBackends
+
+stTopLevelModuleNames :: Lens' TCState (BiMap RawTopLevelModuleName ModuleNameHash)
+stTopLevelModuleNames = lensPersistentState . lensTopLevelModuleNames
+
+-- ** Pre scope state
+
 stTokens :: Lens' TCState HighlightingInfo
-stTokens f s =
-  f (stPreTokens (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreTokens = x}}
+stTokens = lensPreScopeState . lensPreTokens
 
 stImports :: Lens' TCState Signature
-stImports f s =
-  f (stPreImports (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreImports = x}}
+stImports = lensPreScopeState . lensImports
 
-stImportedModules ::
-  Lens' TCState (Set TopLevelModuleName)
-stImportedModules f s =
-  f (stPreImportedModules (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedModules = x}}
+stImportedModules :: Lens' TCState ImportedModules
+stImportedModules = lensPreScopeState . lensImportedModules
 
 stModuleToSource :: Lens' TCState ModuleToSource
-stModuleToSource f s =
-  f (stPreModuleToSource (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreModuleToSource = x}}
+stModuleToSource = lensPreScopeState . lensModuleToSource
 
 stVisitedModules :: Lens' TCState VisitedModules
-stVisitedModules f s =
-  f (stPreVisitedModules (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreVisitedModules = x}}
+stVisitedModules = lensPreScopeState . lensVisitedModules
 
 stScope :: Lens' TCState ScopeInfo
-stScope f s =
-  f (stPreScope (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreScope = x}}
+stScope = lensPreScopeState . lensScope
 
 stPatternSyns :: Lens' TCState A.PatternSynDefns
-stPatternSyns f s =
-  f (stPrePatternSyns (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPrePatternSyns = x}}
+stPatternSyns = lensPreScopeState . lensPatternSyns
 
 stPatternSynImports :: Lens' TCState A.PatternSynDefns
-stPatternSynImports f s =
-  f (stPrePatternSynImports (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPrePatternSynImports = x}}
+stPatternSynImports = lensPreScopeState . lensPatternSynImports
 
 stGeneralizedVars :: Lens' TCState (Maybe (Set QName))
-stGeneralizedVars f s =
-  f (Strict.toLazy $ stPreGeneralizedVars (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreGeneralizedVars = Strict.toStrict x}}
+stGeneralizedVars = lensPreScopeState . lensGeneralizedVars . Strict.lensMaybeLazy
 
 stPragmaOptions :: Lens' TCState PragmaOptions
-stPragmaOptions f s =
-  f (stPrePragmaOptions (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPrePragmaOptions = x}}
+stPragmaOptions = lensPreScopeState . lensPrePragmaOptions
 
-stImportedBuiltins :: Lens' TCState (BuiltinThings PrimFun)
-stImportedBuiltins f s =
-  f (stPreImportedBuiltins (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedBuiltins = x}}
+stImportedBuiltins :: Lens' TCState BuiltinThings
+stImportedBuiltins = lensPreScopeState . lensImportedBuiltins
 
-stForeignCode :: Lens' TCState (Map BackendName ForeignCodeStack)
-stForeignCode f s =
-  f (stPostForeignCode (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostForeignCode = x}}
+stForeignCode :: Lens' TCState BackendForeignCode
+stForeignCode = lensPostScopeState . lensForeignCode
 
 stFreshInteractionId :: Lens' TCState InteractionId
-stFreshInteractionId f s =
-  f (stPreFreshInteractionId (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreFreshInteractionId = x}}
+stFreshInteractionId = lensPreScopeState . lensFreshInteractionId
 
-stImportedUserWarnings :: Lens' TCState (Map A.QName Text)
-stImportedUserWarnings f s =
-  f (stPreImportedUserWarnings (stPreScopeState s)) <&>
-  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedUserWarnings = x}}
+stImportedUserWarnings :: Lens' TCState UserWarnings
+stImportedUserWarnings = lensPreScopeState . lensImportedUserWarnings
 
-stLocalUserWarnings :: Lens' TCState (Map A.QName Text)
-stLocalUserWarnings f s =
-  f (stPreLocalUserWarnings (stPreScopeState s)) <&>
-  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreLocalUserWarnings = x}}
+stLocalUserWarnings :: Lens' TCState UserWarnings
+stLocalUserWarnings = lensPreScopeState . lensLocalUserWarnings
 
-getUserWarnings :: ReadTCState m => m (Map A.QName Text)
+getUserWarnings :: ReadTCState m => m UserWarnings
 getUserWarnings = do
   iuw <- useR stImportedUserWarnings
   luw <- useR stLocalUserWarnings
   return $ iuw `Map.union` luw
 
 stWarningOnImport :: Lens' TCState (Maybe Text)
-stWarningOnImport f s =
-  f (Strict.toLazy $ stPreWarningOnImport (stPreScopeState s)) <&>
-  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreWarningOnImport = Strict.toStrict x}}
+stWarningOnImport = lensPreScopeState . lensWarningOnImport . Strict.lensMaybeLazy
 
 stImportedPartialDefs :: Lens' TCState (Set QName)
-stImportedPartialDefs f s =
-  f (stPreImportedPartialDefs (stPreScopeState s)) <&>
-  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedPartialDefs = x}}
+stImportedPartialDefs = lensPreScopeState . lensImportedPartialDefs
+
+stProjectConfigs :: Lens' TCState (Map FilePath ProjectConfig)
+stProjectConfigs = lensPreScopeState . lensProjectConfigs
+
+stAgdaLibFiles :: Lens' TCState (Map FilePath AgdaLibFile)
+stAgdaLibFiles = lensPreScopeState . lensAgdaLibFiles
+
+stImportedMetaStore :: Lens' TCState RemoteMetaStore
+stImportedMetaStore = lensPreScopeState . lensImportedMetaStore
+
+stCopiedNames :: Lens' TCState (HashMap QName QName)
+stCopiedNames = lensPreScopeState . lensCopiedNames
+
+stNameCopies :: Lens' TCState (HashMap QName (HashSet QName))
+stNameCopies = lensPreScopeState . lensNameCopies
+
+stImportedDisplayForms :: Lens' TCState DisplayForms
+stImportedDisplayForms = lensPreScopeState . lensImportedDisplayForms
+
+-- ** Post scope state
 
 stLocalPartialDefs :: Lens' TCState (Set QName)
-stLocalPartialDefs f s =
-  f (stPostLocalPartialDefs (stPostScopeState s)) <&>
-  \ x -> s {stPostScopeState = (stPostScopeState s) {stPostLocalPartialDefs = x}}
+stLocalPartialDefs = lensPostScopeState . lensLocalPartialDefs
 
 getPartialDefs :: ReadTCState m => m (Set QName)
 getPartialDefs = do
@@ -598,132 +798,53 @@ getPartialDefs = do
   lpd <- useR stLocalPartialDefs
   return $ ipd `Set.union` lpd
 
-stLoadedFileCache :: Lens' TCState (Maybe LoadedFileCache)
-stLoadedFileCache f s =
-  f (Strict.toLazy $ stPersistLoadedFileCache (stPersistentState s)) <&>
-  \x -> s {stPersistentState = (stPersistentState s) {stPersistLoadedFileCache = Strict.toStrict x}}
-
-stBackends :: Lens' TCState [Backend_boot TCM]
-stBackends f s =
-  f (stPersistBackends (stPersistentState s)) <&>
-  \x -> s {stPersistentState = (stPersistentState s) {stPersistBackends = x}}
-
-stProjectConfigs :: Lens' TCState (Map FilePath ProjectConfig)
-stProjectConfigs f s =
-  f (stPreProjectConfigs (stPreScopeState s)) <&>
-  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreProjectConfigs = x}}
-
-stAgdaLibFiles :: Lens' TCState (Map FilePath AgdaLibFile)
-stAgdaLibFiles f s =
-  f (stPreAgdaLibFiles (stPreScopeState s)) <&>
-  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreAgdaLibFiles = x}}
-
-stTopLevelModuleNames ::
-  Lens' TCState (BiMap RawTopLevelModuleName ModuleNameHash)
-stTopLevelModuleNames f s =
-  f (stPersistentTopLevelModuleNames (stPersistentState s)) <&>
-  \ x -> s {stPersistentState =
-              (stPersistentState s) {stPersistentTopLevelModuleNames = x}}
-
-stImportedMetaStore :: Lens' TCState RemoteMetaStore
-stImportedMetaStore f s =
-  f (stPreImportedMetaStore (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedMetaStore = x}}
-
-stCopiedNames :: Lens' TCState (HashMap QName QName)
-stCopiedNames f s =
-  f (stPreCopiedNames (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreCopiedNames = x}}
-
-stNameCopies :: Lens' TCState (HashMap QName (HashSet QName))
-stNameCopies f s =
-  f (stPreNameCopies (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreNameCopies = x}}
-
 stFreshNameId :: Lens' TCState NameId
-stFreshNameId f s =
-  f (stPostFreshNameId (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshNameId = x}}
+stFreshNameId = lensPostScopeState . lensFreshNameId
 
 stFreshOpaqueId :: Lens' TCState OpaqueId
-stFreshOpaqueId f s =
-  f (stPostFreshOpaqueId (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshOpaqueId = x}}
+stFreshOpaqueId = lensPostScopeState . lensFreshOpaqueId
 
 stOpaqueBlocks :: Lens' TCState (Map OpaqueId OpaqueBlock)
-stOpaqueBlocks f s =
-  f (stPostOpaqueBlocks (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostOpaqueBlocks = x}}
+stOpaqueBlocks = lensPostScopeState . lensOpaqueBlocks
 
 stOpaqueIds :: Lens' TCState (Map QName OpaqueId)
-stOpaqueIds f s =
-  f (stPostOpaqueIds (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostOpaqueIds = x}}
+stOpaqueIds = lensPostScopeState . lensOpaqueIds
 
 stSyntaxInfo :: Lens' TCState HighlightingInfo
-stSyntaxInfo f s =
-  f (stPostSyntaxInfo (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostSyntaxInfo = x}}
+stSyntaxInfo = lensPostScopeState . lensSyntaxInfo
 
 stDisambiguatedNames :: Lens' TCState DisambiguatedNames
-stDisambiguatedNames f s =
-  f (stPostDisambiguatedNames (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostDisambiguatedNames = x}}
+stDisambiguatedNames = lensPostScopeState . lensDisambiguatedNames
 
 stOpenMetaStore :: Lens' TCState LocalMetaStore
-stOpenMetaStore f s =
-  f (stPostOpenMetaStore (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostOpenMetaStore = x}}
+stOpenMetaStore = lensPostScopeState . lensOpenMetaStore
 
 stSolvedMetaStore :: Lens' TCState LocalMetaStore
-stSolvedMetaStore f s =
-  f (stPostSolvedMetaStore (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostSolvedMetaStore = x}}
+stSolvedMetaStore = lensPostScopeState . lensSolvedMetaStore
 
 stInteractionPoints :: Lens' TCState InteractionPoints
-stInteractionPoints f s =
-  f (stPostInteractionPoints (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostInteractionPoints = x}}
+stInteractionPoints = lensPostScopeState . lensInteractionPoints
 
 stAwakeConstraints :: Lens' TCState Constraints
-stAwakeConstraints f s =
-  f (stPostAwakeConstraints (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostAwakeConstraints = x}}
+stAwakeConstraints = lensPostScopeState . lensAwakeConstraints
 
 stSleepingConstraints :: Lens' TCState Constraints
-stSleepingConstraints f s =
-  f (stPostSleepingConstraints (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostSleepingConstraints = x}}
+stSleepingConstraints = lensPostScopeState . lensSleepingConstraints
 
 stDirty :: Lens' TCState Bool
-stDirty f s =
-  f (stPostDirty (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostDirty = x}}
+stDirty = lensPostScopeState . lensDirty
 
 stOccursCheckDefs :: Lens' TCState (Set QName)
-stOccursCheckDefs f s =
-  f (stPostOccursCheckDefs (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostOccursCheckDefs = x}}
+stOccursCheckDefs = lensPostScopeState . lensOccursCheckDefs
 
 stSignature :: Lens' TCState Signature
-stSignature f s =
-  f (stPostSignature (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostSignature = x}}
+stSignature = lensPostScopeState . lensSignature
 
 stModuleCheckpoints :: Lens' TCState (Map ModuleName CheckpointId)
-stModuleCheckpoints f s =
-  f (stPostModuleCheckpoints (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostModuleCheckpoints = x}}
+stModuleCheckpoints = lensPostScopeState . lensModuleCheckpoints
 
 stImportsDisplayForms :: Lens' TCState DisplayForms
-stImportsDisplayForms f s =
-  f (stPostImportsDisplayForms (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostImportsDisplayForms = x}}
-
-stImportedDisplayForms :: Lens' TCState DisplayForms
-stImportedDisplayForms f s =
-  f (stPreImportedDisplayForms (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedDisplayForms = x}}
+stImportsDisplayForms = lensPostScopeState . lensImportsDisplayForms
 
 -- | Note that the lens is \"strict\".
 
@@ -737,6 +858,16 @@ stCurrentModule f s =
                   Nothing         -> Nothing
                   Just (!m, !top) -> Just (m, top)}}
 
+-- TODO: turn this into a composition of shallow lenses
+
+-- lensCurrentModule :: Lens' PostScopeState (Maybe (ModuleName, TopLevelModuleName))
+-- lensCurrentModule f s = f (stPostCurrentModule s) <&> \ x -> s { stPostCurrentModule = x }
+
+-- -- | Note that the lens is \"strict\".
+
+-- stCurrentModule :: Lens' TCState (Maybe (ModuleName, TopLevelModuleName))
+-- stCurrentModule = lensPostScopeState . lensCurrentModule . fmap (fmap \ (!m, !top) -> Just (m, top))
+
 stInstanceDefs :: Lens' TCState TempInstanceTable
 stInstanceDefs f s =
   f ( s ^. stSignature . sigInstances
@@ -747,94 +878,61 @@ stInstanceDefs f s =
       (s { stPostScopeState = (stPostScopeState s) { stPostPendingInstances = x }})
 
 stTemporaryInstances :: Lens' TCState (Set QName)
-stTemporaryInstances f s = f (stPostTemporaryInstances (stPostScopeState s)) <&> \x -> s {
-  stPostScopeState = (stPostScopeState s) { stPostTemporaryInstances = x } }
+stTemporaryInstances = lensPostScopeState . lensTemporaryInstances
+
+stConcreteNames :: Lens' TCState ConcreteNames
+stConcreteNames = lensPostScopeState . lensConcreteNames
+
+stUsedNames :: Lens' TCState (Map RawName (DList RawName))
+stUsedNames = lensPostScopeState . lensUsedNames
+
+stShadowingNames :: Lens' TCState (Map Name (DList RawName))
+stShadowingNames = lensPostScopeState . lensShadowingNames
+
+stStatistics :: Lens' TCState Statistics
+stStatistics = lensPostScopeState . lensStatistics
+
+stTCWarnings :: Lens' TCState (Set TCWarning)
+stTCWarnings = lensPostScopeState . lensTCWarnings
+
+stMutualBlocks :: Lens' TCState MutualBlocks
+stMutualBlocks = lensPostScopeState . lensMutualBlocks
+
+stLocalBuiltins :: Lens' TCState BuiltinThings
+stLocalBuiltins = lensPostScopeState . lensLocalBuiltins
+
+stFreshMetaId :: Lens' TCState MetaId
+stFreshMetaId = lensPostScopeState . lensFreshMetaId
+
+stFreshMutualId :: Lens' TCState MutualId
+stFreshMutualId = lensPostScopeState . lensFreshMutualId
+
+stFreshProblemId :: Lens' TCState ProblemId
+stFreshProblemId = lensPostScopeState . lensFreshProblemId
+
+stFreshCheckpointId :: Lens' TCState CheckpointId
+stFreshCheckpointId = lensPostScopeState . lensFreshCheckpointId
+
+stFreshInt :: Lens' TCState Int
+stFreshInt = lensPostScopeState . lensFreshInt
+
+-- | use @areWeCaching@ from the Caching module instead.
+stAreWeCaching :: Lens' TCState Bool
+stAreWeCaching = lensPostScopeState . lensAreWeCaching
+
+stPostponeInstanceSearch :: Lens' TCState Bool
+stPostponeInstanceSearch = lensPostScopeState . lensPostponeInstanceSearch
+
+stConsideringInstance :: Lens' TCState Bool
+stConsideringInstance = lensPostScopeState . lensConsideringInstance
+
+stInstantiateBlocking :: Lens' TCState Bool
+stInstantiateBlocking = lensPostScopeState . lensInstantiateBlocking
 
 stInstanceTree :: Lens' TCState (DiscrimTree QName)
 stInstanceTree = stSignature . sigInstances . itableTree
 
-stConcreteNames :: Lens' TCState ConcreteNames
-stConcreteNames f s =
-  f (stPostConcreteNames (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostConcreteNames = x}}
-
-stUsedNames :: Lens' TCState (Map RawName (DList RawName))
-stUsedNames f s =
-  f (stPostUsedNames (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostUsedNames = x}}
-
-stShadowingNames :: Lens' TCState (Map Name (DList RawName))
-stShadowingNames f s =
-  f (stPostShadowingNames (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostShadowingNames = x}}
-
-stStatistics :: Lens' TCState Statistics
-stStatistics f s =
-  f (stPostStatistics (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostStatistics = x}}
-
-stTCWarnings :: Lens' TCState (Set TCWarning)
-stTCWarnings f s =
-  f (stPostTCWarnings (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostTCWarnings = x}}
-
-stMutualBlocks :: Lens' TCState MutualBlocks
-stMutualBlocks f s =
-  f (stPostMutualBlocks (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostMutualBlocks = x}}
-
-stLocalBuiltins :: Lens' TCState (BuiltinThings PrimFun)
-stLocalBuiltins f s =
-  f (stPostLocalBuiltins (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostLocalBuiltins = x}}
-
-stFreshMetaId :: Lens' TCState MetaId
-stFreshMetaId f s =
-  f (stPostFreshMetaId (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshMetaId = x}}
-
-stFreshMutualId :: Lens' TCState MutualId
-stFreshMutualId f s =
-  f (stPostFreshMutualId (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshMutualId = x}}
-
-stFreshProblemId :: Lens' TCState ProblemId
-stFreshProblemId f s =
-  f (stPostFreshProblemId (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshProblemId = x}}
-
-stFreshCheckpointId :: Lens' TCState CheckpointId
-stFreshCheckpointId f s =
-  f (stPostFreshCheckpointId (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshCheckpointId = x}}
-
-stFreshInt :: Lens' TCState Int
-stFreshInt f s =
-  f (stPostFreshInt (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshInt = x}}
-
--- use @areWeCaching@ from the Caching module instead.
-stAreWeCaching :: Lens' TCState Bool
-stAreWeCaching f s =
-  f (stPostAreWeCaching (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostAreWeCaching = x}}
-
-stPostponeInstanceSearch :: Lens' TCState Bool
-stPostponeInstanceSearch f s =
-  f (stPostPostponeInstanceSearch (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostPostponeInstanceSearch = x}}
-
-stConsideringInstance :: Lens' TCState Bool
-stConsideringInstance f s =
-  f (stPostConsideringInstance (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostConsideringInstance = x}}
-
-stInstantiateBlocking :: Lens' TCState Bool
-stInstantiateBlocking f s =
-  f (stPostInstantiateBlocking (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstantiateBlocking = x}}
-
-stBuiltinThings :: TCState -> BuiltinThings PrimFun
+stBuiltinThings :: TCState -> BuiltinThings
 stBuiltinThings s = Map.unionWith unionBuiltin (s ^. stLocalBuiltins) (s ^. stImportedBuiltins)
 
 -- | Union two 'Builtin's.  Only defined for 'BuiltinRewriteRelations'.
@@ -1083,11 +1181,11 @@ data Interface = Interface
     -- ^ Instantiations for meta-variables that come from this module.
   , iDisplayForms    :: DisplayForms
     -- ^ Display forms added for imported identifiers.
-  , iUserWarnings    :: Map A.QName Text
+  , iUserWarnings    :: UserWarnings
     -- ^ User warnings for imported identifiers
   , iImportWarning   :: Maybe Text
     -- ^ Whether this module should raise a warning when imported
-  , iBuiltin         :: BuiltinThings (PrimitiveId, QName)
+  , iBuiltin         :: BuiltinThings' (PrimitiveId, QName)
   , iForeignCode     :: Map BackendName ForeignCodeStack
   , iHighlighting    :: HighlightingInfo
   , iDefaultPragmaOptions :: [OptionsPragma]
@@ -3638,7 +3736,8 @@ data BuiltinInfo =
    BuiltinInfo { builtinName :: BuiltinId
                , builtinDesc :: BuiltinDescriptor }
 
-type BuiltinThings pf = Map SomeBuiltin (Builtin pf)
+type BuiltinThings = BuiltinThings' PrimFun
+type BuiltinThings' pf = Map SomeBuiltin (Builtin pf)
 
 data Builtin pf
         = Builtin Term

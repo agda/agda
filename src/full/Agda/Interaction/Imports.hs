@@ -273,10 +273,10 @@ mergeInterface i = do
 addImportedThings
   :: Signature
   -> RemoteMetaStore
-  -> BuiltinThings PrimFun
+  -> BuiltinThings
   -> A.PatternSynDefns
   -> DisplayForms
-  -> Map A.QName Text      -- ^ Imported user warnings
+  -> UserWarnings      -- ^ Imported user warnings
   -> Set QName             -- ^ Name of imported definitions which are partial
   -> Set TCWarning
   -> Map OpaqueId OpaqueBlock

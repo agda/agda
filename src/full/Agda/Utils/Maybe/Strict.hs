@@ -15,9 +15,12 @@ module Agda.Utils.Maybe.Strict
 
 import Prelude hiding (Maybe(..), maybe)
 
+import qualified Data.Maybe as Lazy
 import Data.Strict.Classes
 import Data.Strict.Maybe
 
+import Agda.Utils.Functor ( (<.>) )
+import Agda.Utils.Lens    ( Lens' )
 import Agda.Utils.Null
 
 -- | Note that strict Maybe is an 'Applicative' only modulo strictness.
@@ -34,6 +37,11 @@ instance Applicative Maybe where
 instance Null (Maybe a) where
   empty = Nothing
   null = isNothing
+
+-- * Conversion to lazy @Maybe@.
+
+lensMaybeLazy :: Lens' (Maybe a) (Lazy.Maybe a)
+lensMaybeLazy f = toStrict <.> f . toLazy
 
 -- * Collection operations.
 
