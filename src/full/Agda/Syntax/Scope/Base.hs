@@ -1181,21 +1181,46 @@ scopeLookup :: InScope a => C.QName -> ScopeInfo -> [a]
 scopeLookup q scope = map fst $ scopeLookup' q scope
 
 scopeLookup' :: forall a. InScope a => C.QName -> ScopeInfo -> [(a, Access)]
-scopeLookup' q scope =
-  nubOn fst $
-    findName q root ++ maybeToList topImports ++ imports
+scopeLookup' q scope = nubOn fst $ inAllScopes ++ topImports ++ imports
   where
-
     -- 1. Finding a name in the current scope and its parents.
+    inAllScopes :: [(a, Access)]
+    inAllScopes = concatMap (findName q) allScopes
+
+    -- 2. Finding a name in the top imports.
+    topImports :: [(a, Access)]
+    topImports = case (inScopeTag :: InScopeTag a) of
+      NameTag   -> []
+      ModuleTag -> first (`AbsModule` Defined) <$> imported q
+
+    -- 3. Finding a name in the imports belonging to an initial part of the qualifier.
+    imports :: [(a, Access)]
+    imports = do
+      let -- return all possible splittings, e.g.
+          -- splitName X.Y.Z = [(X, Y.Z), (X.Y, Z)]
+          splitName :: C.QName -> [(C.QName, C.QName)]
+          splitName (C.QName x)  = []
+          splitName (C.Qual x q) =
+            (C.QName x, q) : [ (C.Qual x m, r) | (m, r) <- splitName q ]
+
+      (m, x) <- splitName q
+      m <- fst <$> imported m
+      findName x $ restrictPrivate $ moduleScope m
+
+    --------------------------------------------------------------------------------
 
     moduleScope :: A.ModuleName -> Scope
     moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
 
-    current :: Scope
-    current = moduleScope $ scope ^. scopeCurrent
+    allScopes :: [Scope]
+    allScopes = current : map moduleScope (scopeParents current) where
+      current = moduleScope $ scope ^. scopeCurrent
 
-    root    :: Scope
-    root    = mergeScopes $ current : map moduleScope (scopeParents current)
+    imported :: C.QName -> [(A.ModuleName, Access)]
+    imported q = do
+      s <- allScopes
+      m <- maybeToList $ Map.lookup q $ scopeImports s
+      return (m, PublicAccess)
 
     -- Find a concrete, possibly qualified name in scope @s@.
     findName :: forall a. InScope a => C.QName -> Scope -> [(a, Access)]
@@ -1225,31 +1250,6 @@ scopeLookup' q scope =
         -- trace ("ss' = " ++ show ss') $ do
         s' <- maybeToList ss'
         findName q s'
-
-    -- 2. Finding a name in the top imports.
-
-    topImports :: Maybe (a, Access)
-    topImports = case (inScopeTag :: InScopeTag a) of
-      NameTag   -> Nothing
-      ModuleTag -> first (`AbsModule` Defined) <$> imported q
-
-    imported :: C.QName -> Maybe (A.ModuleName, Access)
-    imported q = fmap (,PublicAccess) $ Map.lookup q $ scopeImports root
-
-    -- 3. Finding a name in the imports belonging to an initial part of the qualifier.
-
-    imports :: [(a, Access)]
-    imports = do
-      (m, x) <- splitName q
-      m <- maybeToList $ fst <$> imported m
-      findName x $ restrictPrivate $ moduleScope m
-
-    -- return all possible splittings, e.g.
-    -- splitName X.Y.Z = [(X, Y.Z), (X.Y, Z)]
-    splitName :: C.QName -> [(C.QName, C.QName)]
-    splitName (C.QName x)  = []
-    splitName (C.Qual x q) =
-      (C.QName x, q) : [ (C.Qual x m, r) | (m, r) <- splitName q ]
 
 
 -- * Inverse look-up
