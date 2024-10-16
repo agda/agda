@@ -30,6 +30,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Null
 import qualified Agda.Syntax.Common.Aspect as Asp
 import Agda.Syntax.Common.Pretty
+import Agda.Interaction.Options ( HasOptions(pragmaOptions), optPolarity )
 
 import Agda.Utils.Impossible
 
@@ -209,11 +210,12 @@ instance Pretty Modality where
 -- (e.g. using at-syntax rather than dots). For the default modality,
 -- the result is at-ω (rather than the empty document). Suitable for
 -- showing modalities outside of binders.
-attributesForModality :: Modality -> Doc
+attributesForModality :: HasOptions m => Modality -> m Doc
 attributesForModality mod@(Modality r q c p)
-  | mod == defaultCheckModality = text "@ω"
-  | mod == defaultModality      = text "@ω"
-  | otherwise = fsep $ catMaybes [relevance, quantity, cohesion, polarity]
+  | mod `elem` [defaultCheckModality, defaultModality] = do
+      showPolarity <- optPolarity <$> pragmaOptions
+      pure $ text "@ω" <+> if showPolarity then polarity else empty
+  | otherwise = pure $ fsep $ catMaybes [relevance, quantity, cohesion, Just polarity]
   where
     relevance = case r of
       Relevant        {} -> Nothing
@@ -228,11 +230,11 @@ attributesForModality mod@(Modality r q c p)
       Continuous{} -> Nothing
       Squash{}     -> Just "@⊤"
     polarity = case modPolarityAnn p of
-      MixedPolarity    -> Just "@mixed"
-      Positive         -> Just "@+"
-      Negative         -> Just "@-"
-      StrictlyPositive -> Just "@++"
-      UnusedPolarity   -> Just "@unused"
+      MixedPolarity    -> "@mixed"
+      Positive         -> "@+"
+      Negative         -> "@-"
+      StrictlyPositive -> "@++"
+      UnusedPolarity   -> "@unused"
 
 instance Pretty (OpApp Expr) where
   pretty (Ordinary e) = pretty e
