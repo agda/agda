@@ -111,7 +111,7 @@ treelessPrimName p =
     PIf     -> __IMPOSSIBLE__
 
 -- | Haskell modules to be imported for BUILT-INs
-importsForPrim :: BuiltinThings PrimFun -> [Definition] -> [HS.ModuleName]
+importsForPrim :: BuiltinThings -> [Definition] -> [HS.ModuleName]
 importsForPrim builtinThings defs = xForPrim table builtinThings defs ++ [HS.ModuleName "Data.Text"]
   where
   table = Map.fromList $ map (second HS.ModuleName)
@@ -143,7 +143,7 @@ importsForPrim builtinThings defs = xForPrim table builtinThings defs ++ [HS.Mod
 
 --------------
 
-xForPrim :: Map SomeBuiltin a -> BuiltinThings PrimFun -> [Definition] -> [a]
+xForPrim :: Map SomeBuiltin a -> BuiltinThings -> [Definition] -> [a]
 xForPrim table builtinThings defs = catMaybes
     [ Map.lookup s table
     | (s, def) <- Map.toList builtinThings

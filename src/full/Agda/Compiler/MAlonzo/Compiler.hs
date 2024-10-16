@@ -460,7 +460,7 @@ ghcMayEraseType q = getHaskellPragma q <&> \case
 -- Compilation ------------------------------------------------------------
 
 imports ::
-  BuiltinThings PrimFun -> Set TopLevelModuleName -> [Definition] ->
+  BuiltinThings -> Set TopLevelModuleName -> [Definition] ->
   [HS.ImportDecl]
 imports builtinThings usedModules defs = hsImps ++ imps where
   hsImps :: [HS.ImportDecl]

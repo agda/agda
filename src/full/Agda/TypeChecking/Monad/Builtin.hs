@@ -106,7 +106,7 @@ litType = \case
   where
     el t = El (mkType 0) t
 
-setBuiltinThings :: BuiltinThings PrimFun -> TCM ()
+setBuiltinThings :: BuiltinThings -> TCM ()
 setBuiltinThings b = stLocalBuiltins `setTCLens` b
 
 bindBuiltinName :: BuiltinId -> Term -> TCM ()
