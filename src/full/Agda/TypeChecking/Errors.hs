@@ -1563,7 +1563,7 @@ instance PrettyTCM TypeError where
             ( fsep ( pwords "This clause has target type"
                   ++ [prettyTCM t]
                   ++ pwords "which is not usable at the required modality"
-                  ++ [pure (attributesForModality mod) <> "."]
+                  ++ [attributesForModality mod <> "."]
                    )
             : explanation "the target type")
 
@@ -1573,7 +1573,7 @@ instance PrettyTCM TypeError where
             ( fsep (pwords "The argument" ++ [prettyTCM the_arg] ++ pwords "has type")
             : nest 2 (prettyTCM t)
             : fsep ( pwords "which is not usable at the required modality"
-                  ++ [pure (attributesForModality mod) <> "."] )
+                  ++ [attributesForModality mod <> "."] )
             : explanation "this argument's type")
 
         -- Note: if a generated clause is modality-incorrect, that's a
@@ -1582,9 +1582,9 @@ instance PrettyTCM TypeError where
           __IMPOSSIBLE_VERBOSE__ . show =<<
                    prettyTCM t
               <+> "is not usable at the required modality"
-              <+> pure (attributesForModality mod)
+              <+> attributesForModality mod
         _ -> prettyTCM t <+> "is not usable at the required modality"
-         <+> pure (attributesForModality mod)
+         <+> attributesForModality mod
 
     CubicalCompilationNotSupported cubical -> fsep $ concat
       [ pwords $ "Compilation of code that uses"
