@@ -4459,8 +4459,8 @@ data Warning
   | UselessOpaque
 
   -- Recoverable scope-checking errors
-  | NothingAppliedToHiddenArg C.Expr
-  | NothingAppliedToInstanceArg C.Expr
+  | HiddenNotInArgumentPosition C.Expr
+  | InstanceNotInArgumentPosition C.Expr
 
   -- Display form warnings
   | InvalidDisplayForm QName String
@@ -4595,8 +4595,8 @@ warningName = \case
   UnfoldTransparentName{} -> UnfoldTransparentName_
 
   -- Recoverable scope-checking errors
-  NothingAppliedToHiddenArg{}   -> NothingAppliedToHiddenArg_
-  NothingAppliedToInstanceArg{} -> NothingAppliedToInstanceArg_
+  HiddenNotInArgumentPosition{}   -> HiddenNotInArgumentPosition_
+  InstanceNotInArgumentPosition{} -> InstanceNotInArgumentPosition_
 
   -- Display forms
   InvalidDisplayForm{}                 -> InvalidDisplayForm_

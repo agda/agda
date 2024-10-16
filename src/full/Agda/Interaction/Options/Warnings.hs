@@ -184,8 +184,8 @@ errorWarnings = Set.fromList
   , RewriteMissingRule_
 
   -- Recoverable scope-checking errors
-  , NothingAppliedToHiddenArg_
-  , NothingAppliedToInstanceArg_
+  , HiddenNotInArgumentPosition_
+  , InstanceNotInArgumentPosition_
   ]
 
 allWarnings :: Set WarningName
@@ -364,8 +364,8 @@ data WarningName
   | UnfoldTransparentName_
   | UselessOpaque_
   -- Recoverable scope checking errors
-  | NothingAppliedToHiddenArg_
-  | NothingAppliedToInstanceArg_
+  | HiddenNotInArgumentPosition_
+  | InstanceNotInArgumentPosition_
   -- Cubical
   | FaceConstraintCannotBeHidden_
   | FaceConstraintCannotBeNamed_
@@ -594,8 +594,8 @@ warningNameDescription = \case
   UselessOpaque_                   -> "`opaque` blocks that have no effect."
 
   -- Recoverable scope-checking errors
-  NothingAppliedToHiddenArg_       -> "Hidden argument with no matching function."
-  NothingAppliedToInstanceArg_     -> "Instance argument with no matching function."
+  HiddenNotInArgumentPosition_     -> "Hidden argument with no matching function."
+  InstanceNotInArgumentPosition_   -> "Instance argument with no matching function."
 
   -- Cubical
   FaceConstraintCannotBeHidden_    -> "Face constraint patterns that are given as implicit arguments."

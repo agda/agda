@@ -994,11 +994,11 @@ instance ToAbstract C.Expr where
   -- Misplaced hidden argument. We can treat these as parentheses and
   -- raise an error-warning
       C.HiddenArg _ e' -> do
-        warning (NothingAppliedToHiddenArg e)
+        warning (HiddenNotInArgumentPosition e)
         toAbstract (namedThing e')
 
       C.InstanceArg _ e' -> do
-        warning (NothingAppliedToInstanceArg e)
+        warning (InstanceNotInArgumentPosition e)
         toAbstract (namedThing e')
 
   -- Lambda

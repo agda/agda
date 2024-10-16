@@ -518,8 +518,8 @@ warningHighlighting' b w = case tcWarning w of
   FaceConstraintCannotBeHidden{}  -> deadcodeHighlighting w
   FaceConstraintCannotBeNamed{}   -> deadcodeHighlighting w
 
-  NothingAppliedToHiddenArg{}   -> errorWarningHighlighting w
-  NothingAppliedToInstanceArg{} -> errorWarningHighlighting w
+  HiddenNotInArgumentPosition{}   -> errorWarningHighlighting w
+  InstanceNotInArgumentPosition{} -> errorWarningHighlighting w
 
   NicifierIssue (DeclarationWarning _ w) -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of

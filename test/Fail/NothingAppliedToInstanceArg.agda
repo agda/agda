@@ -1,5 +1,5 @@
 -- Andreas, 2024-07-19, PR #7379
--- Trigger error NothingAppliedToInstanceArg
+-- Trigger error InstanceNotInArgumentPosition
 
 bad = {{x}}
 
