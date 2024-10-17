@@ -31,7 +31,7 @@ import Agda.TypeChecking.Monad.Benchmark
 import Agda.TypeChecking.Monad.Trace
 
 import Agda.Interaction.FindFile
-import Agda.Interaction.Options
+import Agda.Interaction.Options hiding (setPragmaOptions)
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Library
 import Agda.Interaction.Library.Base (libAbove, libFile)

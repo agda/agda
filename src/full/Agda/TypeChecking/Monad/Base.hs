@@ -550,8 +550,8 @@ lensPatternSynImports f s = f (stPrePatternSynImports s ) <&> \ x -> s { stPrePa
 lensGeneralizedVars :: Lens' PreScopeState (Strict.Maybe (Set QName))
 lensGeneralizedVars f s = f (stPreGeneralizedVars s ) <&> \ x -> s { stPreGeneralizedVars = x }
 
-lensPrePragmaOptions :: Lens' PreScopeState PragmaOptions
-lensPrePragmaOptions f s = f (stPrePragmaOptions s ) <&> \ x -> s { stPrePragmaOptions = x }
+instance LensPragmaOptions PreScopeState where
+  lensPragmaOptions f s = f (stPrePragmaOptions s ) <&> \ x -> s { stPrePragmaOptions = x }
 
 lensImportedBuiltins :: Lens' PreScopeState BuiltinThings
 lensImportedBuiltins f s = f (stPreImportedBuiltins s ) <&> \ x -> s { stPreImportedBuiltins = x }
@@ -739,8 +739,11 @@ stPatternSynImports = lensPreScopeState . lensPatternSynImports
 stGeneralizedVars :: Lens' TCState (Maybe (Set QName))
 stGeneralizedVars = lensPreScopeState . lensGeneralizedVars . Strict.lensMaybeLazy
 
+instance LensPragmaOptions TCState where
+  lensPragmaOptions = lensPreScopeState . lensPragmaOptions
+
 stPragmaOptions :: Lens' TCState PragmaOptions
-stPragmaOptions = lensPreScopeState . lensPrePragmaOptions
+stPragmaOptions = lensPragmaOptions
 
 stImportedBuiltins :: Lens' TCState BuiltinThings
 stImportedBuiltins = lensPreScopeState . lensImportedBuiltins
