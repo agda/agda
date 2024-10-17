@@ -30,7 +30,6 @@ import Control.Monad.Trans.Maybe    ( MaybeT(..) )
 import Control.Parallel             ( pseq )
 
 import Data.Array (Ix)
-import Data.DList (DList)
 import Data.Function (on)
 import Data.Word (Word32)
 import Data.IntMap (IntMap)
@@ -255,6 +254,8 @@ data DisambiguatedName = DisambiguatedName NameKind A.QName
 type DisambiguatedNames = IntMap DisambiguatedName
 
 type ConcreteNames = Map Name (List1 C.Name)
+type ShadowingNames = Map Name (Set1 RawName)
+type UsedNames = Map RawName (Set1 RawName)
 
 data PostScopeState = PostScopeState
   { stPostSyntaxInfo          :: !HighlightingInfo
@@ -301,12 +302,12 @@ data PostScopeState = PostScopeState
   , stPostConcreteNames       :: !ConcreteNames
     -- ^ Map keeping track of concrete names assigned to each abstract name
     --   (can be more than one name in case the first one is shadowed)
-  , stPostUsedNames           :: !(Map RawName (DList RawName))
+  , stPostUsedNames           :: !UsedNames
     -- ^ Map keeping track for each name root (= name w/o numeric
     -- suffixes) what names with the same root have been used during a
     -- TC computation. This information is used to build the
     -- @ShadowingNames@ map.
-  , stPostShadowingNames      :: !(Map Name (DList RawName))
+  , stPostShadowingNames      :: !ShadowingNames
     -- ^ Map keeping track for each (abstract) name the list of all
     -- (raw) names that it could maybe be shadowed by.
   , stPostStatistics          :: !Statistics
@@ -650,10 +651,10 @@ lensTemporaryInstances f s = f (stPostTemporaryInstances s) <&> \ x -> s { stPos
 lensConcreteNames :: Lens' PostScopeState ConcreteNames
 lensConcreteNames f s = f (stPostConcreteNames s) <&> \ x -> s { stPostConcreteNames = x }
 
-lensUsedNames :: Lens' PostScopeState (Map RawName (DList RawName))
+lensUsedNames :: Lens' PostScopeState UsedNames
 lensUsedNames f s = f (stPostUsedNames s) <&> \ x -> s { stPostUsedNames = x }
 
-lensShadowingNames :: Lens' PostScopeState (Map Name (DList RawName))
+lensShadowingNames :: Lens' PostScopeState ShadowingNames
 lensShadowingNames f s = f (stPostShadowingNames s) <&> \ x -> s { stPostShadowingNames = x }
 
 lensStatistics :: Lens' PostScopeState Statistics
@@ -885,10 +886,10 @@ stTemporaryInstances = lensPostScopeState . lensTemporaryInstances
 stConcreteNames :: Lens' TCState ConcreteNames
 stConcreteNames = lensPostScopeState . lensConcreteNames
 
-stUsedNames :: Lens' TCState (Map RawName (DList RawName))
+stUsedNames :: Lens' TCState UsedNames
 stUsedNames = lensPostScopeState . lensUsedNames
 
-stShadowingNames :: Lens' TCState (Map Name (DList RawName))
+stShadowingNames :: Lens' TCState ShadowingNames
 stShadowingNames = lensPostScopeState . lensShadowingNames
 
 stStatistics :: Lens' TCState Statistics

@@ -15,13 +15,18 @@ module Agda.Utils.Set1
   , module Set1
   ) where
 
-import Data.Set (Set)
+import Data.Set (Set, empty)
 import Data.Set.NonEmpty as Set1
 
 type Set1 = Set1.NESet
 
 ifNull :: Set a -> b -> (Set1 a -> b) -> b
 ifNull s b f = Set1.withNonEmpty b f s
+
+-- | Lossless 'toSet'.  Opposite of 'nonEmptySet'.
+
+toSet' :: Maybe (Set1 a) -> Set a
+toSet' = maybe empty toSet
 
 -- | A more general type would be @Null m => Set a -> (Set1 a -> m) -> m@
 --   but this type is problematic as we do not have a general
