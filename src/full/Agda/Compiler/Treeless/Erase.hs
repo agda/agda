@@ -26,8 +26,6 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 
-import {-# SOURCE #-} Agda.Compiler.Backend
-  (activeBackendMayEraseType)
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Unused
 

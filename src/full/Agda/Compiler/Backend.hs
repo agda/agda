@@ -9,23 +9,17 @@ module Agda.Compiler.Backend
   , module Agda.Syntax.Treeless
   , module Agda.TypeChecking.Monad
   , module CheckResult
-  , activeBackendMayEraseType
     -- For Agda.Main
   , backendInteraction
   , parseBackendOptions
     -- For InteractionTop
   , callBackend
-    -- Tools
-  , lookupBackend
-  , activeBackend
   ) where
 
 import Prelude hiding (null)
 
 import Control.DeepSeq
-import Control.Monad.Trans.Maybe
 
-import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -61,8 +55,6 @@ import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Null
 
-import Agda.Utils.Impossible
-
 -- Public interface -------------------------------------------------------
 
 -- | Call the 'compilerMain' function of the given backend.
@@ -81,27 +73,6 @@ callBackend name iMain checkResult = lookupBackend name >>= \case
 
 otherBackends :: [BackendName]
 otherBackends = ["GHCNoMain", "QuickLaTeX"]
-
--- | Look for a backend of the given name.
-
-lookupBackend :: BackendName -> TCM (Maybe Backend)
-lookupBackend name = useTC stBackends <&> \ backends ->
-  listToMaybe [ b | b@(Backend b') <- backends, backendName b' == name ]
-
--- | Get the currently active backend (if any).
-
-activeBackend :: TCM (Maybe Backend)
-activeBackend = runMaybeT $ do
-  bname <- MaybeT $ asksTC envActiveBackendName
-  lift $ fromMaybe __IMPOSSIBLE__ <$> lookupBackend bname
-
--- | Ask the active backend whether a type may be erased.
---   See issue #3732.
-
-activeBackendMayEraseType :: QName -> TCM Bool
-activeBackendMayEraseType q = do
-  Backend b <- fromMaybe __IMPOSSIBLE__ <$> activeBackend
-  mayEraseType b q
 
 -- Internals --------------------------------------------------------------
 
