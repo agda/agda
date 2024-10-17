@@ -2,25 +2,12 @@ module Agda.TypeChecking.Monad.Base where
 
 import Control.Monad.IO.Class (MonadIO)
 import Data.IORef (IORef)
-import Data.Map (Map)
-
-import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
-import Agda.Utils.FileName (AbsolutePath)
 
 data Definition
 data Warning
 
 data TCErr
 data TCWarning
-data NamedMeta
-data HighlightingMethod
-instance Show HighlightingMethod
-instance Read HighlightingMethod
-
-data HighlightingLevel
-instance Show HighlightingLevel
-instance Read HighlightingLevel
-
 
 data TCEnv
 data TCState
@@ -36,9 +23,3 @@ instance MonadIO m => MonadIO (TCMT m)
 instance Monad m => Monad (TCMT m) where
 
 type TCM = TCMT IO
-
-type ModuleToSource = Map TopLevelModuleName AbsolutePath
-
-data Comparison
-data Polarity
-data IPFace' a

@@ -1053,15 +1053,6 @@ instance FreshName () where
   freshName_ () = freshNoName_
 
 ---------------------------------------------------------------------------
--- ** Managing file names
----------------------------------------------------------------------------
-
--- | Maps top-level module names to the corresponding source file
--- names.
-
-type ModuleToSource = Map TopLevelModuleName AbsolutePath
-
----------------------------------------------------------------------------
 -- ** Associating concrete names to an abstract name
 ---------------------------------------------------------------------------
 
@@ -1416,9 +1407,6 @@ instance TermLike Constraint where
 
 instance AllMetas Constraint
 
-data Comparison = CmpEq | CmpLeq
-  deriving (Eq, Show, Generic)
-
 instance Pretty Comparison where
   pretty CmpEq  = "="
   pretty CmpLeq = "=<"
@@ -1721,12 +1709,6 @@ instance LensQuantity MetaInfo where
 instance LensRelevance MetaInfo where
   mapRelevance f = mapModality (mapRelevance f)
 
--- | For printing, we couple a meta with its name suggestion.
-data NamedMeta = NamedMeta
-  { nmSuggestion :: MetaNameSuggestion
-  , nmid         :: MetaId
-  }
-
 -- | Append an 'ArgName' to a 'MetaNameSuggestion', for computing the
 -- name suggestions of eta-expansion metas. If the 'MetaNameSuggestion'
 -- is empty or an underscore, the field name is taken as the suggestion.
@@ -1881,13 +1863,6 @@ type InteractionPoints = BiMap InteractionId InteractionPoint
 --   (as stored in MetaInfo).
 data Overapplied = Overapplied | NotOverapplied
   deriving (Eq, Show, Generic)
-
--- | Datatype representing a single boundary condition:
---   x_0 = u_0, ... ,x_n = u_n ⊢ t = ?n es
-data IPFace' t = IPFace'
-  { faceEqns :: [(t, t)]
-  , faceRHS  :: t
-  }
 
 newtype IPBoundary' t = IPBoundary
   { getBoundary :: Map (IntMap Bool) t
@@ -2293,14 +2268,6 @@ defaultDefn info x t lang def = Defn
   , defLanguage       = lang
   , theDef            = def
   }
-
--- | Polarity for equality and subtype checking.
-data Polarity
-  = Covariant      -- ^ monotone
-  | Contravariant  -- ^ antitone
-  | Invariant      -- ^ no information (mixed variance)
-  | Nonvariant     -- ^ constant
-  deriving (Show, Eq, Generic)
 
 instance Pretty Polarity where
   pretty = text . \case
@@ -3749,26 +3716,6 @@ data Builtin pf
 ---------------------------------------------------------------------------
 -- * Highlighting levels
 ---------------------------------------------------------------------------
-
--- | How much highlighting should be sent to the user interface?
-
-data HighlightingLevel
-  = None
-  | NonInteractive
-  | Interactive
-    -- ^ This includes both non-interactive highlighting and
-    -- interactive highlighting of the expression that is currently
-    -- being type-checked.
-    deriving (Eq, Ord, Show, Read, Generic)
-
--- | How should highlighting be sent to the user interface?
-
-data HighlightingMethod
-  = Direct
-    -- ^ Via stdout.
-  | Indirect
-    -- ^ Both via files and via stdout.
-    deriving (Eq, Show, Read, Generic)
 
 -- | @ifTopLevelAndHighlightingLevelIs l b m@ runs @m@ when we're
 -- type-checking the top-level module (or before we've started doing

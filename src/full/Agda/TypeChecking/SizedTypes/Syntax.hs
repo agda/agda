@@ -16,7 +16,7 @@ import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 
-import Agda.TypeChecking.Monad.Base.Types
+import Agda.TypeChecking.Monad.Base.Types hiding (Polarity)
 import Agda.TypeChecking.SizedTypes.Utils
 
 import Agda.Utils.Function
