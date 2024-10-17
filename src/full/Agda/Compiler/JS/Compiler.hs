@@ -9,7 +9,9 @@ import Control.Monad.Trans
 
 import Data.Char     ( isSpace )
 import Data.Foldable ( forM_ )
+import Data.Functor  ( (<&>) )
 import Data.List     ( dropWhileEnd, elemIndex, intercalate, partition )
+import Data.Maybe    ( listToMaybe )
 import Data.Set      ( Set )
 
 import qualified Data.Set as Set
@@ -45,6 +47,7 @@ import Agda.TypeChecking.Reduce ( instantiateFull )
 import Agda.TypeChecking.Substitute as TC ( TelV(..), raise, subst )
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Telescope ( telViewPath )
+import Agda.TypeChecking.Warnings  ( warning )
 
 import Agda.Utils.FileName ( isNewerThan )
 import Agda.Utils.Function ( iterate' )
@@ -52,7 +55,7 @@ import Agda.Utils.List ( downFrom, headWithDefault )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, fromMaybe, whenNothing )
-import Agda.Utils.Monad ( ifM, when )
+import Agda.Utils.Monad ( ifM, when, whenM )
 import Agda.Utils.Null  ( null )
 import Agda.Syntax.Common.Pretty (prettyShow, render)
 import qualified Agda.Syntax.Common.Pretty as P
@@ -66,7 +69,7 @@ import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.EliminateDefaults
 import Agda.Compiler.Treeless.EliminateLiteralPatterns
 import Agda.Compiler.Treeless.GuardsToPrims
-import Agda.Compiler.Treeless.Erase ( computeErasedConstructorArgs )
+import Agda.Compiler.Treeless.Erase ( computeErasedConstructorArgs, isErasable )
 import Agda.Compiler.Treeless.Subst ()
 import Agda.Compiler.Backend (Backend,Backend_boot(..), Backend',Backend'_boot(..), Recompile(..))
 
@@ -392,10 +395,15 @@ definition kit (q,d) = do
 -- | Ensure that there is at most one pragma for a name.
 checkCompilerPragmas :: QName -> TCM ()
 checkCompilerPragmas q =
-  caseMaybeM (getUniqueCompilerPragma jsBackendName q) (return ()) $ \ (CompilerPragma r s) ->
-  setCurrentRange r $ case words s of
-    "=" : _ -> return ()
-    _       -> typeError $ JSBackendError BadCompilePragma
+  caseMaybeM (getUniqueCompilerPragma jsBackendName q) (return ()) $ \ (CompilerPragma r s) -> do
+  setCurrentRange r do
+    -- Issue #3545: Warn user about ignored COMPILE pragma for defined functions.
+    getConstInfo q <&> theDef >>= \case
+      FunctionDefn{} -> whenM (isErasable q) $ warning $ PragmaCompileErased jsBackendName q
+      _ -> return()
+    -- If the pragma is not of the form "q = bla", complain.
+    when (listToMaybe (words s) /= Just "=") do
+      typeError $ JSBackendError BadCompilePragma
 
 defJSDef :: Definition -> Maybe String
 defJSDef def =
