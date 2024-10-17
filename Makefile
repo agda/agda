@@ -87,16 +87,8 @@ ifeq ($(GHC_RTS_OPTS),)
 #
 ifeq ("$(shell $(GHC) --info | grep 'target word size' | cut -d\" -f4)","4")
 GHC_RTS_OPTS := -M2.3G
-else ifeq ($(GHC_VERSION),9.10)
-GHC_RTS_OPTS := -M5G
-else ifeq ($(GHC_VERSION),9.6)
-GHC_RTS_OPTS := -M6G
-else ifeq ($(GHC_VERSION),9.0)
-GHC_RTS_OPTS := -M6G
-else ifeq ($(GHC_VERSION),8.10)
-GHC_RTS_OPTS := -M6G
 else
-GHC_RTS_OPTS := -M4G
+GHC_RTS_OPTS := -M6G
 endif
 #
 endif
