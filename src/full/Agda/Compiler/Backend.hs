@@ -3,7 +3,7 @@
 -- | Interface for compiler backend writers.
 module Agda.Compiler.Backend
   ( module Agda.Compiler.Backend.Base
-  , Backend, Backend', Recompile(..), IsMain(..)
+  , Recompile(..), IsMain(..)
   , Flag
   , toTreeless
   , module Agda.Syntax.Treeless
@@ -64,10 +64,6 @@ import Agda.Utils.Null
 import Agda.Utils.Impossible
 
 -- Public interface -------------------------------------------------------
-
-type Backend = Backend_boot TCM
-
-type Backend' opts env menv mod def = Backend'_boot TCM opts env menv mod def
 
 -- | Call the 'compilerMain' function of the given backend.
 
