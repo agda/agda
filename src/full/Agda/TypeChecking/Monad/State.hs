@@ -4,20 +4,20 @@ module Agda.TypeChecking.Monad.State where
 
 import qualified Control.Exception as E
 
-import Control.Monad       (void, when)
-import Control.Monad.Trans (MonadIO, liftIO)
-import Control.Exception (evaluate)
-import Control.DeepSeq   (rnf)
+import Control.DeepSeq           (rnf)
+import Control.Exception         (evaluate)
+import Control.Monad.Trans       (MonadIO, liftIO)
+import Control.Monad.Trans.Maybe (MaybeT(MaybeT), runMaybeT)
 
 import Data.Maybe
-
+import qualified Data.HashMap.Strict as HMap
 import qualified Data.Map as Map
-
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.HashMap.Strict as HMap
 
 import Agda.Benchmarking
+
+import Agda.Compiler.Backend.Base (pattern Backend, backendName, mayEraseType)
 
 import Agda.Interaction.Response
   (InteractionOutputCallback, Response)
@@ -42,7 +42,7 @@ import Agda.TypeChecking.CompiledClause
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Lens
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Monad (bracket_)
+import Agda.Utils.Monad
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Tuple
 
@@ -416,8 +416,29 @@ currentModuleNameHash = do
   return h
 
 ---------------------------------------------------------------------------
--- * Foreign code
+-- * Backends and foreign code
 ---------------------------------------------------------------------------
+
+-- | Look for a backend of the given name.
+
+lookupBackend :: BackendName -> TCM (Maybe Backend)
+lookupBackend name = useTC stBackends <&> \ backends ->
+  listToMaybe [ b | b@(Backend b') <- backends, backendName b' == name ]
+
+-- | Get the currently active backend (if any).
+
+activeBackend :: TCM (Maybe Backend)
+activeBackend = runMaybeT $ do
+  bname <- MaybeT $ asksTC envActiveBackendName
+  lift $ fromMaybe __IMPOSSIBLE__ <$> lookupBackend bname
+
+-- | Ask the active backend whether a type may be erased.
+--   See issue #3732.
+
+activeBackendMayEraseType :: QName -> TCM Bool
+activeBackendMayEraseType q = do
+  Backend b <- fromMaybe __IMPOSSIBLE__ <$> activeBackend
+  mayEraseType b q
 
 addForeignCode :: BackendName -> String -> TCM ()
 addForeignCode backend code = do
