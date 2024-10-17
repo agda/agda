@@ -1041,6 +1041,10 @@ instance ToConcrete A.LetBinding where
                    e C.NoWhere False
                ]
           _ -> __IMPOSSIBLE__
+    bindToConcrete (A.LetAxiom i info x t) ret = bindToConcrete x \x -> do
+      t <- toConcrete t
+      ret $ addInstanceB (if isInstance info then Just empty else Nothing) $
+        [ C.TypeSig info empty (C.boundName x) t ]
     -- TODO: bind variables
     bindToConcrete (LetPatBind i p e) ret = do
         p <- toConcrete p

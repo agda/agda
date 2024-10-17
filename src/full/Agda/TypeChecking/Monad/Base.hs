@@ -950,6 +950,11 @@ instance FreshName Range where
 instance FreshName () where
   freshName_ () = freshNoName_
 
+instance FreshName Name where
+  freshName_ (Name _ con can bs fix rn) = do
+    i <- fresh
+    pure $ Name i con can bs fix rn
+
 ---------------------------------------------------------------------------
 -- ** Managing file names
 ---------------------------------------------------------------------------

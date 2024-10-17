@@ -241,6 +241,8 @@ data Pragma
 data LetBinding
   = LetBind LetInfo ArgInfo BindName Type Expr
     -- ^ @LetBind info rel name type defn@
+  | LetAxiom LetInfo ArgInfo BindName Type
+    -- ^ Function declarations in a let with no matching body.
   | LetPatBind LetInfo Pattern Expr
     -- ^ Irrefutable pattern binding.
   | LetApply ModuleInfo Erased ModuleName ModuleApplication
@@ -739,11 +741,12 @@ instance HasRange WhereDeclarations where
   getRange (WhereDecls _ _ ds) = getRange ds
 
 instance HasRange LetBinding where
-    getRange (LetBind i _ _ _ _     ) = getRange i
-    getRange (LetPatBind  i _ _      ) = getRange i
-    getRange (LetApply i _ _ _ _ _   ) = getRange i
-    getRange (LetOpen  i _ _         ) = getRange i
-    getRange (LetDeclaredVariable x)  = getRange x
+  getRange (LetBind i _ _ _ _)     = getRange i
+  getRange (LetAxiom i _ _ _)      = getRange i
+  getRange (LetPatBind  i _ _)     = getRange i
+  getRange (LetApply i _ _ _ _ _)  = getRange i
+  getRange (LetOpen  i _ _)        = getRange i
+  getRange (LetDeclaredVariable x) = getRange x
 
 -- setRange for patterns applies the range to the outermost pattern constructor
 instance SetRange (Pattern' a) where
@@ -888,11 +891,12 @@ instance KillRange WhereDeclarations where
   killRange (WhereDecls a b c) = killRangeN WhereDecls a b c
 
 instance KillRange LetBinding where
-  killRange (LetBind   i info a b c) = killRangeN LetBind i info a b c
-  killRange (LetPatBind i a b       ) = killRangeN LetPatBind i a b
-  killRange (LetApply   i a b c d e ) = killRangeN LetApply i a b c d e
-  killRange (LetOpen    i x dir     ) = killRangeN LetOpen  i x dir
-  killRange (LetDeclaredVariable x)  = killRangeN LetDeclaredVariable x
+  killRange (LetBind i info a b c)  = killRangeN LetBind i info a b c
+  killRange (LetAxiom i a b c)      = killRangeN LetAxiom i a b c
+  killRange (LetPatBind i a b)      = killRangeN LetPatBind i a b
+  killRange (LetApply i a b c d e)  = killRangeN LetApply i a b c d e
+  killRange (LetOpen i x dir)       = killRangeN LetOpen  i x dir
+  killRange (LetDeclaredVariable x) = killRangeN LetDeclaredVariable x
 
 instance NFData Expr
 instance NFData ScopeCopyInfo

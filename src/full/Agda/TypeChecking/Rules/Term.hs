@@ -1622,6 +1622,18 @@ checkLetBinding b@(A.LetBind i info x t e) ret =
     v <- applyModalityToContext info $ check CmpLeq e t
     addLetBinding info UserWritten (A.unBind x) v t ret
 
+checkLetBinding b@(A.LetAxiom i info x t) ret = traceCall (CheckLetBinding b) do
+  t <- workOnTypes $ isType_ t
+  current <- currentModule
+
+  -- Note: if addConstant is called under a nontrivial context then
+  -- it'll automatically quantify the type we give it over the context
+  axn <- qualify current <$> freshName_ (A.unBind x)
+  addConstant' axn info t defaultAxiom
+
+  val <- Def axn . fmap Apply <$> getContextArgs
+  addLetBinding info UserWritten (A.unBind x) val t ret
+
 checkLetBinding b@(A.LetPatBind i p e) ret =
   traceCall (CheckLetBinding b) $ do
     p <- expandPatternSynonyms p

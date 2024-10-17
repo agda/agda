@@ -1513,164 +1513,181 @@ instance ToAbstract LetDefs where
 
 instance ToAbstract LetDef where
   type AbsOfCon LetDef = List1 A.LetBinding
-  toAbstract (LetDef d) =
-    case d of
-      NiceMutual _ _ _ _ d@[C.FunSig _ _ _ instanc macro info _ _ x t, C.FunDef _ _ abstract _ _ _ _ [cl]] ->
-          do  when (abstract == AbstractDef) do
-                notAValidLetBinding $ Just AbstractNotAllowed
-              when (macro == MacroDef) do
-                notAValidLetBinding $ Just MacrosNotAllowed
-              t <- toAbstract t
-              -- We bind the name here to make sure it's in scope for the LHS (#917).
-              -- It's unbound for the RHS in letToAbstract.
-              fx <- getConcreteFixity x
-              x  <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
-              (x', e) <- letToAbstract cl
-              -- If InstanceDef set info to Instance
-              let info' = case instanc of
-                    InstanceDef _  -> makeInstance info
-                    NotInstanceDef -> info
-              -- There are sometimes two instances of the
-              -- let-bound variable, one declaration and one
-              -- definition. The first list element below is
-              -- used to highlight the declared instance in the
-              -- right way (see Issue 1618).
-              return $ A.LetDeclaredVariable (A.mkBindName (setRange (getRange x') x)) :|
-                     [ A.LetBind (LetRange $ getRange d) info' (A.mkBindName x) t e
-                     ]
+  toAbstract (LetDef d) = case d of
+    NiceMutual _ _ _ _ d@[C.FunSig _ _ _ instanc macro info _ _ x t, C.FunDef _ _ abstract _ _ _ _ [cl]] -> do
+      when (abstract == AbstractDef) do
+        notAValidLetBinding $ Just AbstractNotAllowed
 
-      -- irrefutable let binding, like  (x , y) = rhs
-      NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p0 [] []) rhs0 wh ca) -> do
+      when (macro == MacroDef) do
+        notAValidLetBinding $ Just MacrosNotAllowed
+
+      t <- toAbstract t
+      -- We bind the name here to make sure it's in scope for the LHS (#917).
+      -- It's unbound for the RHS in letToAbstract.
+      fx <- getConcreteFixity x
+      x  <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
+      (x', e) <- letToAbstract cl
+
+      -- If InstanceDef set info to Instance
+      let info' = case instanc of
+            InstanceDef _  -> makeInstance info
+            NotInstanceDef -> info
+
+      -- There are sometimes two instances of the let-bound variable,
+      -- one declaration and one definition. The first list element
+      -- below is used to highlight the declared instance in the right
+      -- way (see Issue 1618).
+      return $ A.LetDeclaredVariable (A.mkBindName (setRange (getRange x') x)) :|
+        [ A.LetBind (LetRange $ getRange d) info' (A.mkBindName x) t e
+        ]
+
+    -- Function signature without a body
+    C.Axiom _ _ abs instanc info x t -> do
+      t <- toAbstract t
+      fx <- getConcreteFixity x
+      x  <- toAbstract (NewName LetBound $ mkBoundName x fx)
+
+      let
+        info' = case instanc of
+          InstanceDef _  -> makeInstance info
+          NotInstanceDef -> info
+
+      pure $ A.LetAxiom (LetRange (getRange d)) info' x t :| []
+
+    -- irrefutable let binding, like  (x , y) = rhs
+    NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p0 [] []) rhs0 wh ca) -> do
+      noWhereInLetBinding wh
+      rhs <- letBindingMustHaveRHS rhs0
+      -- Expand puns if optHiddenArgumentPuns is True.
+      p0   <- expandPunsOpt p0
+      mp   <- setCurrentRange p0 $
+                (Right <$> parsePattern p0)
+                  `catchError`
+                (return . Left)
+      case mp of
+        Right p -> do
+          rhs <- toAbstract rhs
+          setCurrentRange p0 $ do
+            p   <- toAbstract p
+            checkValidLetPattern p
+            checkPatternLinearity p $ \ys ->
+              typeError $ RepeatedVariablesInPattern ys
+            bindVarsToBind
+            p   <- toAbstract p
+            return $ singleton $ A.LetPatBind (LetRange r) p rhs
+        -- It's not a record pattern, so it should be a prefix left-hand side
+        Left err ->
+          case definedName p0 of
+            Nothing -> throwError err
+            Just x  -> toAbstract $ LetDef $ NiceMutual empty tc cc YesPositivityCheck
+              [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef
+                  (setOrigin Inserted defaultArgInfo) tc cc x (C.Underscore (getRange x) Nothing)
+              , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
+                [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
+              ]
+          where
+            definedName (C.IdentP _ (C.QName x)) = Just x
+            definedName C.IdentP{}             = Nothing
+            definedName (C.RawAppP _ (List2 p _ _)) = definedName p
+            definedName (C.ParenP _ p)         = definedName p
+            definedName C.WildP{}              = Nothing   -- for instance let _ + x = x in ... (not allowed)
+            definedName C.AbsurdP{}            = Nothing
+            definedName C.AsP{}                = Nothing
+            definedName C.DotP{}               = Nothing
+            definedName C.EqualP{}             = Nothing
+            definedName C.LitP{}               = Nothing
+            definedName C.RecP{}               = Nothing
+            definedName C.QuoteP{}             = Nothing
+            definedName C.HiddenP{}            = Nothing -- Not impossible, see issue #2291
+            definedName C.InstanceP{}          = Nothing
+            definedName C.WithP{}              = Nothing
+            definedName C.AppP{}               = Nothing -- Not impossible, see issue #4586
+            definedName C.OpAppP{}             = __IMPOSSIBLE__
+            definedName C.EllipsisP{}          = Nothing -- Not impossible, see issue #3937
+
+    -- You can't open public in a let
+    NiceOpen r x dirs -> do
+      whenJust (publicOpen dirs) $ \r -> setCurrentRange r $ warning UselessPublic
+      m    <- toAbstract (OldModuleName x)
+      adir <- openModule_ LetOpenModule x dirs
+      let minfo = ModuleInfo
+            { minfoRange  = r
+            , minfoAsName = Nothing
+            , minfoAsTo   = renamingRange dirs
+            , minfoOpenShort = Nothing
+            , minfoDirective = Just dirs
+            }
+      return $ singleton $ A.LetOpen minfo m adir
+
+    NiceModuleMacro r p erased x modapp open dir -> do
+      whenJust (publicOpen dir) $ \ r -> setCurrentRange r $ warning UselessPublic
+      -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
+      -- to be private
+      singleton <$> checkModuleMacro LetApply LetOpenModule r
+                      privateAccessInserted erased x modapp open dir
+
+    _ -> notAValidLetBinding Nothing
+
+    where
+      letToAbstract (C.Clause top _catchall (C.LHS p [] []) rhs0 wh []) = do
         noWhereInLetBinding wh
         rhs <- letBindingMustHaveRHS rhs0
-        -- Expand puns if optHiddenArgumentPuns is True.
-        p0   <- expandPunsOpt p0
-        mp   <- setCurrentRange p0 $
-                  (Right <$> parsePattern p0)
-                    `catchError`
-                  (return . Left)
-        case mp of
-          Right p -> do
-            rhs <- toAbstract rhs
-            setCurrentRange p0 $ do
-              p   <- toAbstract p
-              checkValidLetPattern p
-              checkPatternLinearity p $ \ys ->
-                typeError $ RepeatedVariablesInPattern ys
-              bindVarsToBind
-              p   <- toAbstract p
-              return $ singleton $ A.LetPatBind (LetRange r) p rhs
-          -- It's not a record pattern, so it should be a prefix left-hand side
-          Left err ->
-            case definedName p0 of
-              Nothing -> throwError err
-              Just x  -> toAbstract $ LetDef $ NiceMutual empty tc cc YesPositivityCheck
-                [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef
-                    (setOrigin Inserted defaultArgInfo) tc cc x (C.Underscore (getRange x) Nothing)
-                , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
-                  [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
-                ]
-            where
-              definedName (C.IdentP _ (C.QName x)) = Just x
-              definedName C.IdentP{}             = Nothing
-              definedName (C.RawAppP _ (List2 p _ _)) = definedName p
-              definedName (C.ParenP _ p)         = definedName p
-              definedName C.WildP{}              = Nothing   -- for instance let _ + x = x in ... (not allowed)
-              definedName C.AbsurdP{}            = Nothing
-              definedName C.AsP{}                = Nothing
-              definedName C.DotP{}               = Nothing
-              definedName C.EqualP{}             = Nothing
-              definedName C.LitP{}               = Nothing
-              definedName C.RecP{}               = Nothing
-              definedName C.QuoteP{}             = Nothing
-              definedName C.HiddenP{}            = Nothing -- Not impossible, see issue #2291
-              definedName C.InstanceP{}          = Nothing
-              definedName C.WithP{}              = Nothing
-              definedName C.AppP{}               = Nothing -- Not impossible, see issue #4586
-              definedName C.OpAppP{}             = __IMPOSSIBLE__
-              definedName C.EllipsisP{}          = Nothing -- Not impossible, see issue #3937
+        (x, args) <- do
+          res <- setCurrentRange p $ parseLHS NoDisplayLHS (C.QName top) p
+          case res of
+            C.LHSHead x args -> return (x, args)
+            C.LHSProj{}      -> __IMPOSSIBLE__  -- notAValidLetBinding $ Just CopatternsNotAllowed
+            C.LHSWith{}      -> __IMPOSSIBLE__  -- notAValidLetBinding $ Just WithPatternsNotAllowed
+            C.LHSEllipsis{}  -> __IMPOSSIBLE__  -- notAValidLetBinding $ Just EllipsisNotAllowed
 
-      -- You can't open public in a let
-      NiceOpen r x dirs -> do
-        whenJust (publicOpen dirs) $ \r -> setCurrentRange r $ warning UselessPublic
-        m    <- toAbstract (OldModuleName x)
-        adir <- openModule_ LetOpenModule x dirs
-        let minfo = ModuleInfo
-              { minfoRange  = r
-              , minfoAsName = Nothing
-              , minfoAsTo   = renamingRange dirs
-              , minfoOpenShort = Nothing
-              , minfoDirective = Just dirs
-              }
-        return $ singleton $ A.LetOpen minfo m adir
+        e <- localToAbstract args $ \args -> do
+          bindVarsToBind
+          -- Make sure to unbind the function name in the RHS, since lets are non-recursive.
+          rhs <- unbindVariable top $ toAbstract rhs
+          foldM lambda rhs (reverse args)  -- just reverse because these are DomainFree
+        return (x, e)
 
-      NiceModuleMacro r p erased x modapp open dir -> do
-        whenJust (publicOpen dir) $ \ r -> setCurrentRange r $ warning UselessPublic
-        -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
-        -- to be private
-        singleton <$> checkModuleMacro LetApply LetOpenModule r
-                        privateAccessInserted erased x modapp open dir
+      letToAbstract _ = notAValidLetBinding Nothing
 
-      _   -> notAValidLetBinding Nothing
-    where
-        letToAbstract (C.Clause top _catchall (C.LHS p [] []) rhs0 wh []) = do
-            noWhereInLetBinding wh
-            rhs <- letBindingMustHaveRHS rhs0
-            (x, args) <- do
-              res <- setCurrentRange p $ parseLHS NoDisplayLHS (C.QName top) p
-              case res of
-                C.LHSHead x args -> return (x, args)
-                C.LHSProj{}      -> __IMPOSSIBLE__  -- notAValidLetBinding $ Just CopatternsNotAllowed
-                C.LHSWith{}      -> __IMPOSSIBLE__  -- notAValidLetBinding $ Just WithPatternsNotAllowed
-                C.LHSEllipsis{}  -> __IMPOSSIBLE__  -- notAValidLetBinding $ Just EllipsisNotAllowed
+      -- Named patterns not allowed in let definitions
+      lambda e (Arg info (Named Nothing (A.VarP x))) =
+              return $ A.Lam i (A.mkDomainFree $ unnamedArg info $ A.mkBinder x) e
+          where i = ExprRange (fuseRange x e)
+      lambda e (Arg info (Named Nothing (A.WildP i))) =
+          do  x <- freshNoName (getRange i)
+              return $ A.Lam i' (A.mkDomainFree $ unnamedArg info $ A.mkBinder_ x) e
+          where i' = ExprRange (fuseRange i e)
+      lambda _ _ = notAValidLetBinding Nothing
 
-            e <- localToAbstract args $ \args -> do
-                bindVarsToBind
-                -- Make sure to unbind the function name in the RHS, since lets are non-recursive.
-                rhs <- unbindVariable top $ toAbstract rhs
-                foldM lambda rhs (reverse args)  -- just reverse because these are DomainFree
-            return (x, e)
-        letToAbstract _ = notAValidLetBinding Nothing
+      noWhereInLetBinding :: C.WhereClause -> ScopeM ()
+      noWhereInLetBinding = \case
+        NoWhere -> return ()
+        wh -> setCurrentRange wh $ notAValidLetBinding $ Just WhereClausesNotAllowed
+      letBindingMustHaveRHS :: C.RHS -> ScopeM C.Expr
+      letBindingMustHaveRHS = \case
+        C.RHS e -> return e
+        C.AbsurdRHS -> notAValidLetBinding $ Just MissingRHS
 
-        -- Named patterns not allowed in let definitions
-        lambda e (Arg info (Named Nothing (A.VarP x))) =
-                return $ A.Lam i (A.mkDomainFree $ unnamedArg info $ A.mkBinder x) e
-            where i = ExprRange (fuseRange x e)
-        lambda e (Arg info (Named Nothing (A.WildP i))) =
-            do  x <- freshNoName (getRange i)
-                return $ A.Lam i' (A.mkDomainFree $ unnamedArg info $ A.mkBinder_ x) e
-            where i' = ExprRange (fuseRange i e)
-        lambda _ _ = notAValidLetBinding Nothing
-
-        noWhereInLetBinding :: C.WhereClause -> ScopeM ()
-        noWhereInLetBinding = \case
-          NoWhere -> return ()
-          wh -> setCurrentRange wh $ notAValidLetBinding $ Just WhereClausesNotAllowed
-        letBindingMustHaveRHS :: C.RHS -> ScopeM C.Expr
-        letBindingMustHaveRHS = \case
-          C.RHS e -> return e
-          C.AbsurdRHS -> notAValidLetBinding $ Just MissingRHS
-
-        -- Only record patterns allowed, but we do not exclude data constructors here.
-        -- They will fail in the type checker.
-        checkValidLetPattern :: A.Pattern' e -> ScopeM ()
-        checkValidLetPattern = \case
-            A.VarP{}             -> yes
-            A.ConP _ _ ps        -> mapM_ (checkValidLetPattern . namedArg) ps
-            A.ProjP{}            -> no
-            A.DefP{}             -> no
-            A.WildP{}            -> yes
-            A.AsP _ _ p          -> checkValidLetPattern p
-            A.DotP{}             -> no
-            A.AbsurdP{}          -> no
-            A.LitP{}             -> no
-            A.PatternSynP _ _ ps -> mapM_ (checkValidLetPattern . namedArg) ps
-            A.RecP _ fs          -> mapM_ (checkValidLetPattern . _exprFieldA) fs
-            A.EqualP{}           -> no
-            A.WithP{}            -> no
-          where
-          yes = return ()
-          no  = notAValidLetBinding $ Just NotAValidLetPattern
+      -- Only record patterns allowed, but we do not exclude data constructors here.
+      -- They will fail in the type checker.
+      checkValidLetPattern :: A.Pattern' e -> ScopeM ()
+      checkValidLetPattern = \case
+          A.VarP{}             -> yes
+          A.ConP _ _ ps        -> mapM_ (checkValidLetPattern . namedArg) ps
+          A.ProjP{}            -> no
+          A.DefP{}             -> no
+          A.WildP{}            -> yes
+          A.AsP _ _ p          -> checkValidLetPattern p
+          A.DotP{}             -> no
+          A.AbsurdP{}          -> no
+          A.LitP{}             -> no
+          A.PatternSynP _ _ ps -> mapM_ (checkValidLetPattern . namedArg) ps
+          A.RecP _ fs          -> mapM_ (checkValidLetPattern . _exprFieldA) fs
+          A.EqualP{}           -> no
+          A.WithP{}            -> no
+        where
+        yes = return ()
+        no  = notAValidLetBinding $ Just NotAValidLetPattern
 
 
 instance ToAbstract NiceDeclaration where
