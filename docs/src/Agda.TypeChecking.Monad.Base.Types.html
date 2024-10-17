@@ -1,0 +1,309 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | Data structures for the type checker.</span><span>
+</span><span id="line-2"></span><span class="hs-comment">--</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Part of &quot;Agda.TypeChecking.Monad.Base&quot;, extracted to avoid import cycles.</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base.Types</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span>                       </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span>                   </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Generic</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Info.html"><span class="hs-identifier">Agda.Syntax.Info</span></a></span><span>               </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Info.html#MetaNameSuggestion"><span class="hs-identifier">MetaNameSuggestion</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName</span></a></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier">TopLevelModuleName</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html"><span class="hs-identifier">Agda.Utils.FileName</span></a></span><span>            </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier">AbsolutePath</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-17"></span><span class="annot"><span class="hs-comment">-- * Context</span></span><span>
+</span><span id="line-18"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="annot"><span class="hs-comment">-- | The @Context@ is a stack of 'ContextEntry's.</span></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">type</span><span> </span><span id="Context"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#Context"><span class="hs-identifier hs-var">Context</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#ContextEntry"><span class="hs-identifier hs-type">ContextEntry</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">type</span><span> </span><span id="ContextEntry"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#ContextEntry"><span class="hs-identifier hs-var">ContextEntry</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Dom"><span class="hs-identifier hs-type">Dom</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-25"></span><span class="annot"><span class="hs-comment">-- * Conversion</span></span><span>
+</span><span id="line-26"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">data</span><span> </span><span id="Comparison"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#Comparison"><span class="hs-identifier hs-var">Comparison</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CmpEq"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#CmpEq"><span class="hs-identifier hs-var">CmpEq</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="CmpLeq"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#CmpLeq"><span class="hs-identifier hs-var">CmpLeq</span></a></span></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681659061"><span id="local-6989586621681659066"><span class="annot"><span class="annottext">Comparison -&gt; Comparison -&gt; Bool
+(Comparison -&gt; Comparison -&gt; Bool)
+-&gt; (Comparison -&gt; Comparison -&gt; Bool) -&gt; Eq Comparison
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Comparison -&gt; Comparison -&gt; Bool
+== :: Comparison -&gt; Comparison -&gt; Bool
+$c/= :: Comparison -&gt; Comparison -&gt; Bool
+/= :: Comparison -&gt; Comparison -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681659071"><span id="local-6989586621681659073"><span id="local-6989586621681659077"><span class="annot"><span class="annottext">Int -&gt; Comparison -&gt; ShowS
+[Comparison] -&gt; ShowS
+Comparison -&gt; String
+(Int -&gt; Comparison -&gt; ShowS)
+-&gt; (Comparison -&gt; String)
+-&gt; ([Comparison] -&gt; ShowS)
+-&gt; Show Comparison
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Comparison -&gt; ShowS
+showsPrec :: Int -&gt; Comparison -&gt; ShowS
+$cshow :: Comparison -&gt; String
+show :: Comparison -&gt; String
+$cshowList :: [Comparison] -&gt; ShowS
+showList :: [Comparison] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681659082"><span id="local-6989586621681659084"><span class="annot"><span class="annottext">(forall x. Comparison -&gt; Rep Comparison x)
+-&gt; (forall x. Rep Comparison x -&gt; Comparison) -&gt; Generic Comparison
+forall x. Rep Comparison x -&gt; Comparison
+forall x. Comparison -&gt; Rep Comparison x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. Comparison -&gt; Rep Comparison x
+from :: forall x. Comparison -&gt; Rep Comparison x
+$cto :: forall x. Rep Comparison x -&gt; Comparison
+to :: forall x. Rep Comparison x -&gt; Comparison
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="annot"><span class="hs-comment">-- | Polarity for equality and subtype checking.</span></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">data</span><span> </span><span id="Polarity"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#Polarity"><span class="hs-identifier hs-var">Polarity</span></a></span></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Covariant"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#Covariant"><span class="hs-identifier hs-var">Covariant</span></a></span></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ monotone</span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Contravariant"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#Contravariant"><span class="hs-identifier hs-var">Contravariant</span></a></span></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ antitone</span></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Invariant"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#Invariant"><span class="hs-identifier hs-var">Invariant</span></a></span></span><span>      </span><span class="annot"><span class="hs-comment">-- ^ no information (mixed variance)</span></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Nonvariant"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#Nonvariant"><span class="hs-identifier hs-var">Nonvariant</span></a></span></span><span>     </span><span class="annot"><span class="hs-comment">-- ^ constant</span></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681659094"><span id="local-6989586621681659096"><span id="local-6989586621681659100"><span class="annot"><span class="annottext">Int -&gt; Polarity -&gt; ShowS
+[Polarity] -&gt; ShowS
+Polarity -&gt; String
+(Int -&gt; Polarity -&gt; ShowS)
+-&gt; (Polarity -&gt; String) -&gt; ([Polarity] -&gt; ShowS) -&gt; Show Polarity
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Polarity -&gt; ShowS
+showsPrec :: Int -&gt; Polarity -&gt; ShowS
+$cshow :: Polarity -&gt; String
+show :: Polarity -&gt; String
+$cshowList :: [Polarity] -&gt; ShowS
+showList :: [Polarity] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681659103"><span id="local-6989586621681659107"><span class="annot"><span class="annottext">Polarity -&gt; Polarity -&gt; Bool
+(Polarity -&gt; Polarity -&gt; Bool)
+-&gt; (Polarity -&gt; Polarity -&gt; Bool) -&gt; Eq Polarity
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Polarity -&gt; Polarity -&gt; Bool
+== :: Polarity -&gt; Polarity -&gt; Bool
+$c/= :: Polarity -&gt; Polarity -&gt; Bool
+/= :: Polarity -&gt; Polarity -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681659111"><span id="local-6989586621681659113"><span class="annot"><span class="annottext">(forall x. Polarity -&gt; Rep Polarity x)
+-&gt; (forall x. Rep Polarity x -&gt; Polarity) -&gt; Generic Polarity
+forall x. Rep Polarity x -&gt; Polarity
+forall x. Polarity -&gt; Rep Polarity x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. Polarity -&gt; Rep Polarity x
+from :: forall x. Polarity -&gt; Rep Polarity x
+$cto :: forall x. Rep Polarity x -&gt; Polarity
+to :: forall x. Rep Polarity x -&gt; Polarity
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-40"></span><span class="annot"><span class="hs-comment">-- * Cubical</span></span><span>
+</span><span id="line-41"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- | Datatype representing a single boundary condition:</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--   x_0 = u_0, ... ,x_n = u_n &#8866; t = ?n es</span><span>
+</span><span id="line-45"></span><span class="hs-keyword">data</span><span> </span><span id="IPFace%27"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#IPFace%27"><span class="hs-identifier hs-var">IPFace'</span></a></span></span><span> </span><span id="local-6989586621681659037"><span class="annot"><a href="#local-6989586621681659037"><span class="hs-identifier hs-type">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="IPFace%27"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#IPFace%27"><span class="hs-identifier hs-var">IPFace'</span></a></span></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="faceEqns"><span class="annot"><span class="annottext">forall t. IPFace' t -&gt; [(t, t)]
+</span><a href="Agda.TypeChecking.Monad.Base.Types.html#faceEqns"><span class="hs-identifier hs-var hs-var">faceEqns</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681659037"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681659037"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="faceRHS"><span class="annot"><span class="annottext">forall t. IPFace' t -&gt; t
+</span><a href="Agda.TypeChecking.Monad.Base.Types.html#faceRHS"><span class="hs-identifier hs-var hs-var">faceRHS</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621681659037"><span class="hs-identifier hs-type">t</span></a></span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-51"></span><span class="annot"><span class="hs-comment">-- * Highlighting</span></span><span>
+</span><span id="line-52"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="annot"><span class="hs-comment">-- | How much highlighting should be sent to the user interface?</span></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-keyword">data</span><span> </span><span id="HighlightingLevel"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#HighlightingLevel"><span class="hs-identifier hs-var">HighlightingLevel</span></a></span></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="None"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#None"><span class="hs-identifier hs-var">None</span></a></span></span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="NonInteractive"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#NonInteractive"><span class="hs-identifier hs-var">NonInteractive</span></a></span></span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Interactive"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#Interactive"><span class="hs-identifier hs-var">Interactive</span></a></span></span><span>
+</span><span id="line-60"></span><span>    </span><span class="hs-comment">-- ^ This includes both non-interactive highlighting and</span><span>
+</span><span id="line-61"></span><span>    </span><span class="hs-comment">-- interactive highlighting of the expression that is currently</span><span>
+</span><span id="line-62"></span><span>    </span><span class="hs-comment">-- being type-checked.</span><span>
+</span><span id="line-63"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681659122"><span id="local-6989586621681659126"><span class="annot"><span class="annottext">HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+(HighlightingLevel -&gt; HighlightingLevel -&gt; Bool)
+-&gt; (HighlightingLevel -&gt; HighlightingLevel -&gt; Bool)
+-&gt; Eq HighlightingLevel
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+== :: HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+$c/= :: HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+/= :: HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681659132"><span id="local-6989586621681659136"><span id="local-6989586621681659140"><span id="local-6989586621681659144"><span id="local-6989586621681659147"><span id="local-6989586621681659150"><span id="local-6989586621681659153"><span class="annot"><span class="annottext">Eq HighlightingLevel
+Eq HighlightingLevel =&gt;
+(HighlightingLevel -&gt; HighlightingLevel -&gt; Ordering)
+-&gt; (HighlightingLevel -&gt; HighlightingLevel -&gt; Bool)
+-&gt; (HighlightingLevel -&gt; HighlightingLevel -&gt; Bool)
+-&gt; (HighlightingLevel -&gt; HighlightingLevel -&gt; Bool)
+-&gt; (HighlightingLevel -&gt; HighlightingLevel -&gt; Bool)
+-&gt; (HighlightingLevel -&gt; HighlightingLevel -&gt; HighlightingLevel)
+-&gt; (HighlightingLevel -&gt; HighlightingLevel -&gt; HighlightingLevel)
+-&gt; Ord HighlightingLevel
+HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+HighlightingLevel -&gt; HighlightingLevel -&gt; Ordering
+HighlightingLevel -&gt; HighlightingLevel -&gt; HighlightingLevel
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: HighlightingLevel -&gt; HighlightingLevel -&gt; Ordering
+compare :: HighlightingLevel -&gt; HighlightingLevel -&gt; Ordering
+$c&lt; :: HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+&lt; :: HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+$c&lt;= :: HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+&lt;= :: HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+$c&gt; :: HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+&gt; :: HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+$c&gt;= :: HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+&gt;= :: HighlightingLevel -&gt; HighlightingLevel -&gt; Bool
+$cmax :: HighlightingLevel -&gt; HighlightingLevel -&gt; HighlightingLevel
+max :: HighlightingLevel -&gt; HighlightingLevel -&gt; HighlightingLevel
+$cmin :: HighlightingLevel -&gt; HighlightingLevel -&gt; HighlightingLevel
+min :: HighlightingLevel -&gt; HighlightingLevel -&gt; HighlightingLevel
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681659161"><span id="local-6989586621681659163"><span id="local-6989586621681659167"><span class="annot"><span class="annottext">Int -&gt; HighlightingLevel -&gt; ShowS
+[HighlightingLevel] -&gt; ShowS
+HighlightingLevel -&gt; String
+(Int -&gt; HighlightingLevel -&gt; ShowS)
+-&gt; (HighlightingLevel -&gt; String)
+-&gt; ([HighlightingLevel] -&gt; ShowS)
+-&gt; Show HighlightingLevel
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; HighlightingLevel -&gt; ShowS
+showsPrec :: Int -&gt; HighlightingLevel -&gt; ShowS
+$cshow :: HighlightingLevel -&gt; String
+show :: HighlightingLevel -&gt; String
+$cshowList :: [HighlightingLevel] -&gt; ShowS
+showList :: [HighlightingLevel] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681659170"><span id="local-6989586621681659174"><span id="local-6989586621681659177"><span id="local-6989586621681659183"><span class="annot"><span class="annottext">ReadPrec [HighlightingLevel]
+ReadPrec HighlightingLevel
+Int -&gt; ReadS HighlightingLevel
+ReadS [HighlightingLevel]
+(Int -&gt; ReadS HighlightingLevel)
+-&gt; ReadS [HighlightingLevel]
+-&gt; ReadPrec HighlightingLevel
+-&gt; ReadPrec [HighlightingLevel]
+-&gt; Read HighlightingLevel
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+$creadsPrec :: Int -&gt; ReadS HighlightingLevel
+readsPrec :: Int -&gt; ReadS HighlightingLevel
+$creadList :: ReadS [HighlightingLevel]
+readList :: ReadS [HighlightingLevel]
+$creadPrec :: ReadPrec HighlightingLevel
+readPrec :: ReadPrec HighlightingLevel
+$creadListPrec :: ReadPrec [HighlightingLevel]
+readListPrec :: ReadPrec [HighlightingLevel]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681659190"><span id="local-6989586621681659192"><span class="annot"><span class="annottext">(forall x. HighlightingLevel -&gt; Rep HighlightingLevel x)
+-&gt; (forall x. Rep HighlightingLevel x -&gt; HighlightingLevel)
+-&gt; Generic HighlightingLevel
+forall x. Rep HighlightingLevel x -&gt; HighlightingLevel
+forall x. HighlightingLevel -&gt; Rep HighlightingLevel x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. HighlightingLevel -&gt; Rep HighlightingLevel x
+from :: forall x. HighlightingLevel -&gt; Rep HighlightingLevel x
+$cto :: forall x. Rep HighlightingLevel x -&gt; HighlightingLevel
+to :: forall x. Rep HighlightingLevel x -&gt; HighlightingLevel
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="annot"><span class="hs-comment">-- | How should highlighting be sent to the user interface?</span></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">data</span><span> </span><span id="HighlightingMethod"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#HighlightingMethod"><span class="hs-identifier hs-var">HighlightingMethod</span></a></span></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Direct"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#Direct"><span class="hs-identifier hs-var">Direct</span></a></span></span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Via stdout.</span></span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Indirect"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#Indirect"><span class="hs-identifier hs-var">Indirect</span></a></span></span><span>
+</span><span id="line-71"></span><span>    </span><span class="annot"><span class="hs-comment">-- ^ Both via files and via stdout.</span></span><span>
+</span><span id="line-72"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681659197"><span id="local-6989586621681659201"><span class="annot"><span class="annottext">HighlightingMethod -&gt; HighlightingMethod -&gt; Bool
+(HighlightingMethod -&gt; HighlightingMethod -&gt; Bool)
+-&gt; (HighlightingMethod -&gt; HighlightingMethod -&gt; Bool)
+-&gt; Eq HighlightingMethod
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: HighlightingMethod -&gt; HighlightingMethod -&gt; Bool
+== :: HighlightingMethod -&gt; HighlightingMethod -&gt; Bool
+$c/= :: HighlightingMethod -&gt; HighlightingMethod -&gt; Bool
+/= :: HighlightingMethod -&gt; HighlightingMethod -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681659205"><span id="local-6989586621681659207"><span id="local-6989586621681659211"><span class="annot"><span class="annottext">Int -&gt; HighlightingMethod -&gt; ShowS
+[HighlightingMethod] -&gt; ShowS
+HighlightingMethod -&gt; String
+(Int -&gt; HighlightingMethod -&gt; ShowS)
+-&gt; (HighlightingMethod -&gt; String)
+-&gt; ([HighlightingMethod] -&gt; ShowS)
+-&gt; Show HighlightingMethod
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; HighlightingMethod -&gt; ShowS
+showsPrec :: Int -&gt; HighlightingMethod -&gt; ShowS
+$cshow :: HighlightingMethod -&gt; String
+show :: HighlightingMethod -&gt; String
+$cshowList :: [HighlightingMethod] -&gt; ShowS
+showList :: [HighlightingMethod] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681659214"><span id="local-6989586621681659218"><span id="local-6989586621681659221"><span id="local-6989586621681659225"><span class="annot"><span class="annottext">ReadPrec [HighlightingMethod]
+ReadPrec HighlightingMethod
+Int -&gt; ReadS HighlightingMethod
+ReadS [HighlightingMethod]
+(Int -&gt; ReadS HighlightingMethod)
+-&gt; ReadS [HighlightingMethod]
+-&gt; ReadPrec HighlightingMethod
+-&gt; ReadPrec [HighlightingMethod]
+-&gt; Read HighlightingMethod
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+$creadsPrec :: Int -&gt; ReadS HighlightingMethod
+readsPrec :: Int -&gt; ReadS HighlightingMethod
+$creadList :: ReadS [HighlightingMethod]
+readList :: ReadS [HighlightingMethod]
+$creadPrec :: ReadPrec HighlightingMethod
+readPrec :: ReadPrec HighlightingMethod
+$creadListPrec :: ReadPrec [HighlightingMethod]
+readListPrec :: ReadPrec [HighlightingMethod]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681659228"><span id="local-6989586621681659230"><span class="annot"><span class="annottext">(forall x. HighlightingMethod -&gt; Rep HighlightingMethod x)
+-&gt; (forall x. Rep HighlightingMethod x -&gt; HighlightingMethod)
+-&gt; Generic HighlightingMethod
+forall x. Rep HighlightingMethod x -&gt; HighlightingMethod
+forall x. HighlightingMethod -&gt; Rep HighlightingMethod x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. HighlightingMethod -&gt; Rep HighlightingMethod x
+from :: forall x. HighlightingMethod -&gt; Rep HighlightingMethod x
+$cto :: forall x. Rep HighlightingMethod x -&gt; HighlightingMethod
+to :: forall x. Rep HighlightingMethod x -&gt; HighlightingMethod
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-75"></span><span class="annot"><span class="hs-comment">-- * Managing file names</span></span><span>
+</span><span id="line-76"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- | Maps top-level module names to the corresponding source file</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- names.</span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="hs-keyword">type</span><span> </span><span id="ModuleToSource"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#ModuleToSource"><span class="hs-identifier hs-var">ModuleToSource</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html#AbsolutePath"><span class="hs-identifier hs-type">AbsolutePath</span></a></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-84"></span><span class="annot"><span class="hs-comment">-- * Meta variables</span></span><span>
+</span><span id="line-85"></span><span class="hs-comment">---------------------------------------------------------------------------</span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="annot"><span class="hs-comment">-- | For printing, we couple a meta with its name suggestion.</span></span><span>
+</span><span id="line-88"></span><span class="hs-keyword">data</span><span> </span><span id="NamedMeta"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#NamedMeta"><span class="hs-identifier hs-var">NamedMeta</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="NamedMeta"><span class="annot"><a href="Agda.TypeChecking.Monad.Base.Types.html#NamedMeta"><span class="hs-identifier hs-var">NamedMeta</span></a></span></span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="nmSuggestion"><span class="annot"><span class="annottext">NamedMeta -&gt; String
+</span><a href="Agda.TypeChecking.Monad.Base.Types.html#nmSuggestion"><span class="hs-identifier hs-var hs-var">nmSuggestion</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Info.html#MetaNameSuggestion"><span class="hs-identifier hs-type">MetaNameSuggestion</span></a></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="nmid"><span class="annot"><span class="annottext">NamedMeta -&gt; MetaId
+</span><a href="Agda.TypeChecking.Monad.Base.Types.html#nmid"><span class="hs-identifier hs-var hs-var">nmid</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#MetaId"><span class="hs-identifier hs-type">MetaId</span></a></span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- Feel free to move more types from Agda.TypeChecking.Monad.Base here when needed...</span><span>
+</span><span id="line-94"></span></pre></body></html>
