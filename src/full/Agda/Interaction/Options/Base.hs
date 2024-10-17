@@ -41,6 +41,7 @@ module Agda.Interaction.Options.Base
     , inputFlag
     , standardOptions, deadStandardOptions
     , getOptSimple
+    , sizePreservationExplicitlySet
     -- * Lenses for 'PragmaOptions'
     , lensOptShowImplicit
     , lensOptShowIrrelevant
@@ -59,6 +60,10 @@ module Agda.Interaction.Options.Base
     , lensOptOmegaInOmega
     , lensOptCumulativity
     , lensOptSizedTypes
+    , lensOptTypeBasedTermination
+    , lensOptTypeBasedTerminationEncoding
+    , lensOptSizePreservation
+    , lensOptSyntaxBasedTermination
     , lensOptGuardedness
     , lensOptInjectiveTypeConstructors
     , lensOptUniversePolymorphism
@@ -123,6 +128,10 @@ module Agda.Interaction.Options.Base
     , optOmegaInOmega
     , optCumulativity
     , optSizedTypes
+    , optTypeBasedTermination
+    , optTypeBasedTerminationEncoding
+    , optSizePreservation
+    , optSyntaxBasedTermination
     , optGuardedness
     , optInjectiveTypeConstructors
     , optUniversePolymorphism
@@ -337,6 +346,10 @@ data PragmaOptions = PragmaOptions
   , _optOmegaInOmega              :: WithDefault 'False
   , _optCumulativity              :: WithDefault 'False
   , _optSizedTypes                :: WithDefault 'False
+  , _optTypeBasedTermination      :: WithDefault 'False
+  , _optTypeBasedTerminationEncoding :: WithDefault 'True
+  , _optSizePreservation          :: WithDefault 'True
+  , _optSyntaxBasedTermination    :: WithDefault 'True
   , _optGuardedness               :: WithDefault 'False
   , _optInjectiveTypeConstructors :: WithDefault 'False
   , _optUniversePolymorphism      :: WithDefault 'True
@@ -503,6 +516,10 @@ optUniverseCheck             :: PragmaOptions -> Bool
 optOmegaInOmega              :: PragmaOptions -> Bool
 optCumulativity              :: PragmaOptions -> Bool
 optSizedTypes                :: PragmaOptions -> Bool
+optTypeBasedTermination      :: PragmaOptions -> Bool
+optTypeBasedTerminationEncoding :: PragmaOptions -> Bool
+optSizePreservation          :: PragmaOptions -> Bool
+optSyntaxBasedTermination    :: PragmaOptions -> Bool
 optGuardedness               :: PragmaOptions -> Bool
 optInjectiveTypeConstructors :: PragmaOptions -> Bool
 optUniversePolymorphism      :: PragmaOptions -> Bool
@@ -566,6 +583,10 @@ optUniverseCheck             = collapseDefault . _optUniverseCheck
 optOmegaInOmega              = collapseDefault . _optOmegaInOmega
 optCumulativity              = collapseDefault . _optCumulativity
 optSizedTypes                = collapseDefault . _optSizedTypes
+optTypeBasedTermination      = collapseDefault . _optTypeBasedTermination
+optTypeBasedTerminationEncoding = collapseDefault . _optTypeBasedTerminationEncoding
+optSizePreservation          = collapseDefault . _optSizePreservation
+optSyntaxBasedTermination    = collapseDefault . _optSyntaxBasedTermination
 optGuardedness               = collapseDefault . _optGuardedness
 optInjectiveTypeConstructors = collapseDefault . _optInjectiveTypeConstructors
 optUniversePolymorphism      = collapseDefault . _optUniversePolymorphism
@@ -698,6 +719,23 @@ lensOptCumulativity f o = f (_optCumulativity o) <&> \ i -> o{ _optCumulativity 
 
 lensOptSizedTypes :: Lens' PragmaOptions _
 lensOptSizedTypes f o = f (_optSizedTypes o) <&> \ i -> o{ _optSizedTypes = i }
+
+lensOptTypeBasedTermination :: Lens' PragmaOptions _
+lensOptTypeBasedTermination f o = f (_optTypeBasedTermination o) <&> \ i -> o{ _optTypeBasedTermination = i }
+
+lensOptTypeBasedTerminationEncoding :: Lens' PragmaOptions _
+lensOptTypeBasedTerminationEncoding f o = f (_optTypeBasedTerminationEncoding o) <&> \ i -> o{ _optTypeBasedTerminationEncoding = i }
+
+lensOptSizePreservation :: Lens' PragmaOptions _
+lensOptSizePreservation f o = f (_optSizePreservation o) <&> \ i -> o{ _optSizePreservation = i }
+
+sizePreservationExplicitlySet :: PragmaOptions -> Bool
+sizePreservationExplicitlySet opts = case _optSizePreservation opts of
+  Default -> False
+  _ -> True
+
+lensOptSyntaxBasedTermination :: Lens' PragmaOptions _
+lensOptSyntaxBasedTermination f o = f (_optSyntaxBasedTermination o) <&> \ i -> o{ _optSyntaxBasedTermination = i }
 
 lensOptGuardedness :: Lens' PragmaOptions _
 lensOptGuardedness f o = f (_optGuardedness o) <&> \ i -> o{ _optGuardedness = i }
@@ -912,6 +950,10 @@ defaultPragmaOptions = PragmaOptions
   , _optOmegaInOmega              = Default
   , _optCumulativity              = Default
   , _optSizedTypes                = Default
+  , _optTypeBasedTermination      = Default
+  , _optTypeBasedTerminationEncoding = Default
+  , _optSizePreservation          = Default
+  , _optSyntaxBasedTermination    = Default
   , _optGuardedness               = Default
   , _optInjectiveTypeConstructors = Default
   , _optUniversePolymorphism      = Default
@@ -1109,6 +1151,8 @@ unsafePragmaOptions opts =
   [ "--without-K and --large-indices"   | optWithoutK opts, optLargeIndices opts            ] ++
   [ "--large-indices and --forced-argument-recursion"
   | optLargeIndices opts, optForcedArgumentRecursion opts ] ++
+  [ "--no-type-based-termination and --no-syntax-based-termination"
+  | not (optTypeBasedTermination opts), not (optSyntaxBasedTermination opts) ] ++
   []
 
 -- | This function returns 'True' if the file should be rechecked.
@@ -1461,6 +1505,10 @@ terminationDepthFlag s o =
        return $ o { _optTerminationDepth = CutOff $ k-1 }
     where usage = throwError "argument to termination-depth should be >= 1"
 
+sizePreservationFlag :: Flag PragmaOptions
+sizePreservationFlag o = undefined
+  -- k <-
+
 confluenceCheckFlag :: ConfluenceCheck -> Flag PragmaOptions
 confluenceCheckFlag f o = return $ o { _optConfluenceCheck = Just f }
 
@@ -1697,6 +1745,18 @@ pragmaOptions = concat
   , pragmaFlag      "sized-types" lensOptSizedTypes
                     "enable sized types" "(inconsistent with --guardedness)"
                     $ Just "disable sized types"
+  , pragmaFlag      "type-based-termination" lensOptTypeBasedTermination
+                    "enable type-based termination checker" "(implies --size-preservation, --type-based-termination-encoding)"
+                    $ Just "disable type-based termination checker"
+  , pragmaFlag      "type-based-termination-encoding" lensOptTypeBasedTerminationEncoding
+                    "enable preprocessing of definitions for the type-based termination checker" ""
+                    $ Just "disable preprocessing for the type-based termination checker"
+  , pragmaFlag      "size-preservation" lensOptSizePreservation
+                    "enable size preservation inference during type-based termination checking" "(implies --type-based-termination)"
+                    $ Just "disable size preservation inference during type-based termination checking. Also implies --type-based-termination"
+  , pragmaFlag      "syntax-based-termination" lensOptSyntaxBasedTermination
+                    "enable syntax-based termination checker" "(required for --guardedness, --sized-types)"
+                    $ Just "disable syntax-based termination checker"
   , pragmaFlag      "cohesion" lensOptCohesion
                     "enable the cohesion modalities" "(in particular @flat)"
                     Nothing

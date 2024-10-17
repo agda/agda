@@ -93,6 +93,49 @@ Additions to the Agda syntax.
 
   See [#4275](https://github.com/agda/agda/issues/4275) for the proposal.
 
+* Type-based termination checker
+
+  Agda is now able to use signatures of polymorphic functions during termination checking:
+
+  ```agda
+   apply : {A B : Set} → (A → B) → A → B
+   apply f x = f x
+
+   fun : Nat → Nat
+   fun zero = zero
+   fun (suc x) = apply fun x
+   ```
+
+  Some non-polymoprphic functions may also be recognized as size preserving, which leads to acceptance of the following functions:
+
+  ```agda
+  div : Nat → Nat → Nat
+  div zero    y = zero
+  div (suc x) y = suc (div (minus x y) y)
+
+  qsort : {A : Set} → (A → A → Bool) → List A → List A
+  qsort _ nil = nil
+  qsort cmp (cons x xs) = qsort cmp (filter (cmp x) xs) ++ cons x (qsort cmp (filter (λ y → cmp y x) xs))
+  ```
+
+  Type-based termination checking also works for coinduction, which improves the guardedness predicate.
+
+  ```agda
+  -- This function is size-preserving
+  map : {A B : Set} → (A → B) → Stream A → Stream B
+  map f s .hd = f (s .hd)
+  map f s .tl = map f (s .tl)
+
+  increaseByIndex : Stream Nat → Stream Nat
+  increaseByIndex s .hd = s .hd
+  -- the corecursive call is not guarded by constructors here,
+  -- so the syntactic guardedness check fails
+  increaseByIndex s .tl = map (_+_ 1) (increaseByIndex (s .tl))
+  ```
+
+  See [user manual](https://agda.readthedocs.io/en/v2.8.0/tools/type-based-termination-checking.html)
+  for more.
+
 * It is now always possible to refer to the name of a record type's
   constructor, even if a name was not explicitly specified. This is done
   using the new `(Record name).constructor` syntax; See [issue

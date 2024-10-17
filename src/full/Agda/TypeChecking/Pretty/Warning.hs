@@ -247,9 +247,10 @@ prettyWarning = \case
 
     NoGuardednessFlag q ->
       fsep $ [ prettyTCM q ] ++ pwords "is declared coinductive, but option" ++
-             pwords "--guardedness is not enabled. Coinductive functions on" ++
+             pwords "--guardedness, --sized-types, or --type-based-termination " ++
+             pwords "is not enabled. Coinductive functions on" ++
              pwords "this type will likely be rejected by the termination" ++
-             pwords "checker unless this flag is enabled."
+             pwords "checker unless one of these flags is enabled."
 
     InvalidCharacterLiteral c -> fsep $
       pwords "Invalid character literal" ++ [text $ show c] ++

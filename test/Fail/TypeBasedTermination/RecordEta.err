@@ -1,0 +1,6 @@
+TypeBasedTermination/RecordEta.agda:11.1-12.49: error: [TerminationIssue]
+Termination checking failed for the following functions:
+  foldSS
+Problematic calls:
+  foldSS f tail
+    (at TypeBasedTermination/RecordEta.agda:12.35-41)
