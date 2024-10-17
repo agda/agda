@@ -165,8 +165,6 @@ typeErrorName = \case
   NotInScope                                                 {} -> NotInScope_
   NotLeqSort                                                 {} -> NotLeqSort_
   NotValidBeforeField                                        {} -> NotValidBeforeField_
-  NothingAppliedToHiddenArg                                  {} -> NothingAppliedToHiddenArg_
-  NothingAppliedToInstanceArg                                {} -> NothingAppliedToInstanceArg_
   OpenEverythingInRecordWhere                                {} -> OpenEverythingInRecordWhere_
   OverlappingProjects                                        {} -> OverlappingProjects_
   PatternInPathLambda                                        {} -> PatternInPathLambda_

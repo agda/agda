@@ -217,8 +217,6 @@ data ErrorName
   | NotInScope_
   | NotLeqSort_
   | NotValidBeforeField_
-  | NothingAppliedToHiddenArg_
-  | NothingAppliedToInstanceArg_
   | OpenEverythingInRecordWhere_
   | OverlappingProjects_
   | PatternInPathLambda_

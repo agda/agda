@@ -1,4 +1,10 @@
-NothingAppliedToInstanceArg.agda:4.7-12: error: [NothingAppliedToInstanceArg]
+NothingAppliedToInstanceArg.agda:4.7-12: error: [InstanceNotInArgumentPosition]
 ⦃ x ⦄ cannot appear by itself. It needs to be the argument to a
 function expecting an instance argument.
 when scope checking ⦃ x ⦄
+
+NothingAppliedToInstanceArg.agda:4.9-10: error: [NotInScope]
+Not in scope:
+  x
+  at NothingAppliedToInstanceArg.agda:4.9-10
+when scope checking x

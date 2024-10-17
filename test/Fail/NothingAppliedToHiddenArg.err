@@ -1,4 +1,10 @@
-NothingAppliedToHiddenArg.agda:3.7-10: error: [NothingAppliedToHiddenArg]
+NothingAppliedToHiddenArg.agda:3.7-10: error: [HiddenNotInArgumentPosition]
 {x} cannot appear by itself. It needs to be the argument to a
 function expecting an implicit argument.
 when scope checking {x}
+
+NothingAppliedToHiddenArg.agda:3.8-9: error: [NotInScope]
+Not in scope:
+  x
+  at NothingAppliedToHiddenArg.agda:3.8-9
+when scope checking x

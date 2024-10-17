@@ -121,12 +121,6 @@ import qualified Agda.Syntax.Common as A
 notAnExpression :: (HasCallStack, MonadTCError m) => C.Expr -> m a
 notAnExpression = locatedTypeError NotAnExpression
 
-nothingAppliedToHiddenArg :: (HasCallStack, MonadTCError m) => C.Expr -> m a
-nothingAppliedToHiddenArg = locatedTypeError NothingAppliedToHiddenArg
-
-nothingAppliedToInstanceArg :: (HasCallStack, MonadTCError m) => C.Expr -> m a
-nothingAppliedToInstanceArg = locatedTypeError NothingAppliedToInstanceArg
-
 notAValidLetBinding :: (HasCallStack, MonadTCError m) => Maybe NotAValidLetBinding -> m a
 notAValidLetBinding = locatedTypeError NotAValidLetBinding
 
@@ -997,9 +991,15 @@ instance ToAbstract C.Expr where
         es <- mapM (toAbstractCtx WithArgCtx) es
         return $ A.WithApp (ExprRange r) e es
 
-  -- Misplaced hidden argument
-      C.HiddenArg _ _ -> nothingAppliedToHiddenArg e
-      C.InstanceArg _ _ -> nothingAppliedToInstanceArg e
+  -- Misplaced hidden argument. We can treat these as parentheses and
+  -- raise an error-warning
+      C.HiddenArg _ e' -> do
+        warning (HiddenNotInArgumentPosition e)
+        toAbstract (namedThing e')
+
+      C.InstanceArg _ e' -> do
+        warning (InstanceNotInArgumentPosition e)
+        toAbstract (namedThing e')
 
   -- Lambda
       C.AbsurdLam r h -> return $ A.AbsurdLam (ExprRange r) h

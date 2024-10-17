@@ -4458,6 +4458,10 @@ data Warning
   | UnfoldTransparentName QName
   | UselessOpaque
 
+  -- Recoverable scope-checking errors
+  | HiddenNotInArgumentPosition C.Expr
+  | InstanceNotInArgumentPosition C.Expr
+
   -- Display form warnings
   | InvalidDisplayForm QName String
       -- ^ DISPLAY form for 'QName' is invalid because 'String'.
@@ -4589,6 +4593,10 @@ warningName = \case
   UselessOpaque{}         -> UselessOpaque_
   UnfoldingWrongName{}    -> UnfoldingWrongName_
   UnfoldTransparentName{} -> UnfoldTransparentName_
+
+  -- Recoverable scope-checking errors
+  HiddenNotInArgumentPosition{}   -> HiddenNotInArgumentPosition_
+  InstanceNotInArgumentPosition{} -> InstanceNotInArgumentPosition_
 
   -- Display forms
   InvalidDisplayForm{}                 -> InvalidDisplayForm_
@@ -5037,8 +5045,6 @@ data TypeError
         | NotAValidLetBinding (Maybe NotAValidLetBinding)
         | NotAValidLetExpression NotAValidLetExpression
         | NotValidBeforeField NiceDeclaration
-        | NothingAppliedToHiddenArg C.Expr
-        | NothingAppliedToInstanceArg C.Expr
         | OpenEverythingInRecordWhere
         | PrivateRecordField
         | QualifiedLocalModule
