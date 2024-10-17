@@ -1,0 +1,4 @@
+UnequalPolarity.agda:9.5-6: error: [UnequalPolarity]
+@++ Set → Set !=< Set → Set because they do not have the same
+polarity annotations
+when checking that the expression f has type Set → Set

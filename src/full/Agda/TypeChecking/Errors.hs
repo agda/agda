@@ -260,6 +260,9 @@ instance PrettyTCM TypeError where
     WrongCohesionInLambda ->
       fwords "Incorrect cohesion annotation in lambda"
 
+    WrongPolarityInLambda ->
+      fwords "Incorrect polarity annotation in lambda"
+
     WrongNamedArgument a xs0 -> fsep $
       pwords "Function does not accept argument "
       ++ [prettyTCM a] -- ++ pwords " (wrong argument name)"
@@ -448,6 +451,10 @@ instance PrettyTCM TypeError where
       pwords "Cannot pattern match against" ++ [text $ verbalize $ getCohesion t] ++
       pwords "argument of type" ++ [prettyTCM $ unDom t]
 
+    SplitOnUnusablePolarity t -> fsep $
+      pwords "Cannot pattern match against" ++ [text $ verbalize $ getModalPolarity t] ++
+      pwords "argument of type" ++ [prettyTCM $ unDom t]
+
     -- UNUSED:
     -- SplitOnErased t -> fsep $
     --   pwords "Cannot pattern match against" ++ [text $ verbalize $ getQuantity t] ++
@@ -515,6 +522,12 @@ instance PrettyTCM TypeError where
       , pretty (defName def) <+> ":" <+> prettyTCM (defType def)
       ]
 
+    VariableIsOfUnusablePolarity x c -> fsep $
+      ["Variable", prettyTCM (nameConcrete x), "is bound with", text (verbalize p)] ++  pwords "polarity, so it cannot be used here at" ++
+      [text (verbalize (Indefinite l)), "position"]
+      where
+        PolarityModality _ p l = c
+
     UnequalTerms cmp s t a -> case (s,t) of
       (Sort s1      , Sort s2      )
         | CmpEq  <- cmp              -> prettyTCM $ UnequalSorts s1 s2
@@ -549,6 +562,10 @@ instance PrettyTCM TypeError where
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
       pwords "because one is a non-flat function type and the other is a flat function type"
       -- FUTURE Cohesion: update message if/when introducing sharp.
+
+    UnequalPolarity cmp a b -> fsep $
+      [prettyTCM a, notCmp cmp, prettyTCM b] ++
+      pwords "because they do not have the same polarity annotations"
 
     UnequalFiniteness cmp a b -> fsep $
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
@@ -1331,6 +1348,9 @@ instance PrettyTCM TypeError where
 
     NonFatalErrors ws -> vsep $ fmap prettyTCM $ Set1.toAscList ws
 
+    ExplicitPolarityVsPragma p -> fsep $
+      pwords "Polarity pragma used for " ++ [ prettyTCM p ] ++ pwords " but its type is already annotated with polarities."
+
     InstanceSearchDepthExhausted c a d -> fsep $
       pwords ("Instance search depth exhausted (max depth: " ++ show d ++ ") for candidate") ++
       [hang (prettyTCM c <+> ":") 2 (prettyTCM a)]
@@ -1543,7 +1563,7 @@ instance PrettyTCM TypeError where
             ( fsep ( pwords "This clause has target type"
                   ++ [prettyTCM t]
                   ++ pwords "which is not usable at the required modality"
-                  ++ [pure (attributesForModality mod) <> "."]
+                  ++ [attributesForModality mod <> "."]
                    )
             : explanation "the target type")
 
@@ -1553,7 +1573,7 @@ instance PrettyTCM TypeError where
             ( fsep (pwords "The argument" ++ [prettyTCM the_arg] ++ pwords "has type")
             : nest 2 (prettyTCM t)
             : fsep ( pwords "which is not usable at the required modality"
-                  ++ [pure (attributesForModality mod) <> "."] )
+                  ++ [attributesForModality mod <> "."] )
             : explanation "this argument's type")
 
         -- Note: if a generated clause is modality-incorrect, that's a
@@ -1562,9 +1582,9 @@ instance PrettyTCM TypeError where
           __IMPOSSIBLE_VERBOSE__ . show =<<
                    prettyTCM t
               <+> "is not usable at the required modality"
-              <+> pure (attributesForModality mod)
+              <+> attributesForModality mod
         _ -> prettyTCM t <+> "is not usable at the required modality"
-         <+> pure (attributesForModality mod)
+         <+> attributesForModality mod
 
     CubicalCompilationNotSupported cubical -> fsep $ concat
       [ pwords $ "Compilation of code that uses"
@@ -2074,12 +2094,26 @@ instance Verbalize Cohesion where
       Continuous -> "continuous"
       Squash     -> "squashed"
 
+instance Verbalize ModalPolarity where
+  verbalize r =
+    case r of
+      UnusedPolarity -> "unused"
+      StrictlyPositive -> "strictly positive"
+      Positive -> "positive"
+      Negative -> "negative"
+      MixedPolarity -> "mixed"
+
+instance Verbalize PolarityModality where
+  verbalize (PolarityModality p o l) = verbalize p
+
 instance Verbalize Modality where
+  verbalize mod | mod == defaultModality || mod == defaultCheckModality = "default"
   verbalize mod | mod == defaultModality = "default"
-  verbalize (Modality rel qnt coh) = intercalate ", " $
+  verbalize (Modality rel qnt coh pol) = intercalate ", " $
     [ verbalize rel | rel /= defaultRelevance ] ++
     [ verbalize qnt | qnt /= defaultQuantity ] ++
-    [ verbalize coh | coh /= defaultCohesion ]
+    [ verbalize coh | coh /= defaultCohesion ] ++
+    [ verbalize pol | pol /= defaultPolarity , pol /= modPolarity defaultCheckModality ]
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a

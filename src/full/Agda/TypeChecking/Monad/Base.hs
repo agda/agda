@@ -1619,6 +1619,10 @@ instance LensQuantity MetaInfo where
 instance LensRelevance MetaInfo where
   mapRelevance f = mapModality (mapRelevance f)
 
+instance LensModalPolarity MetaInfo where
+  getModalPolarity   = getModalPolarity . getModality
+  mapModalPolarity f = mapModality (mapModalPolarity f)
+
 -- | For printing, we couple a meta with its name suggestion.
 data NamedMeta = NamedMeta
   { nmSuggestion :: MetaNameSuggestion
@@ -1682,6 +1686,9 @@ instance LensRelevance RemoteMetaVariable where
 
 instance LensQuantity RemoteMetaVariable where
   mapQuantity f = mapModality (mapQuantity f)
+
+instance LensModalPolarity RemoteMetaVariable where
+  mapModalPolarity f = mapModality (mapModalPolarity f)
 
 normalMetaPriority :: MetaPriority
 normalMetaPriority = MetaPriority 0
@@ -2157,6 +2164,7 @@ instance LensArgInfo Definition where
 instance LensModality  Definition where
 instance LensQuantity  Definition where
 instance LensRelevance Definition where
+instance LensModalPolarity Definition where
 
 data NumGeneralizableArgs
   = NoGeneralizableArgs
@@ -4129,6 +4137,7 @@ currentModality = do
   q <- viewTC eQuantity
   return Modality
     { modRelevance = r
+    , modPolarity  = defaultPolarity
     , modQuantity  = q
     , modCohesion  = unitCohesion
     }
@@ -4825,6 +4834,8 @@ data TypeError
             -- ^ Wrong user-given quantity annotation in lambda.
         | WrongCohesionInLambda
             -- ^ Wrong user-given cohesion annotation in lambda.
+        | WrongPolarityInLambda
+            -- ^ Wrong user-given polarity annotation in lambda.
         | QuantityMismatch Quantity Quantity
             -- ^ The given quantity does not correspond to the expected quantity.
         | HidingMismatch Hiding Hiding
@@ -4851,6 +4862,7 @@ data TypeError
         | SplitOnCoinductive
         | SplitOnIrrelevant (Dom Type)
         | SplitOnUnusableCohesion (Dom Type)
+        | SplitOnUnusablePolarity (Dom Type)
         -- UNUSED: -- | SplitOnErased (Dom Type)
         | SplitOnNonVariable Term Type
         | SplitOnNonEtaRecord QName
@@ -4865,6 +4877,7 @@ data TypeError
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion
         | InvalidModalTelescopeUse Term Modality Modality Definition
+        | VariableIsOfUnusablePolarity Name PolarityModality
         | UnequalLevel Comparison Level Level
         | UnequalTerms Comparison Term Term CompareAs
         | UnequalRelevance Comparison Term Term
@@ -4873,6 +4886,8 @@ data TypeError
             -- ^ The two function types have different relevance.
         | UnequalCohesion Comparison Term Term
             -- ^ The two function types have different cohesion.
+        | UnequalPolarity Comparison Term Term
+            -- ^ The two function types have different polarity.
         | UnequalFiniteness Comparison Term Term
             -- ^ One of the function types has a finite domain (i.e. is a @Partia@l@) and the other isonot.
         | UnequalHiding Term Term
@@ -5034,6 +5049,7 @@ data TypeError
         | GeneralizedVarInLetOpenedModule A.QName
         | MultipleFixityDecls (List1 (C.Name, Pair Fixity'))
         | MultiplePolarityPragmas (List1 C.Name)
+        | ExplicitPolarityVsPragma QName
         | ConstructorNameOfNonRecord ResolvedName
     -- Concrete to Abstract errors
         | CannotQuote CannotQuote
