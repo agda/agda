@@ -128,7 +128,7 @@ import Prelude hiding (null)
 
 import Control.Monad.State  ( gets, modify, evalStateT )
 import Control.Monad.Writer ( WriterT(..), MonadWriter(..) )
-import Control.Monad.Except ( runExceptT, MonadError )
+import Control.Monad.Except ( runExceptT )
 
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
@@ -145,7 +145,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Conversion.Pure
+import Agda.TypeChecking.Conversion.Pure (pureEqualTerm, pureEqualType)
 import Agda.TypeChecking.Constraints ()
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance
@@ -163,7 +163,6 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Unify.Types
 import Agda.TypeChecking.Rules.LHS.Unify.LeftInverse
 
-import Agda.Utils.Benchmark
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -212,27 +211,25 @@ data UnificationResult' a
 --
 --   The result is the most general unifier of @us@ and @vs@.
 unifyIndices
-  :: (PureTCM m, MonadBench m, BenchPhase m ~ Bench.Phase, MonadError TCErr m)
-  => Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
+  :: Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
   -> Telescope       -- ^ @gamma@
   -> FlexibleVars    -- ^ @flex@
   -> Type            -- ^ @a@
   -> Args            -- ^ @us@
   -> Args            -- ^ @vs@
-  -> m UnificationResult
+  -> TCM UnificationResult
 unifyIndices linv tel flex a us vs =
   Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $
     fmap (\(a,b,c,_) -> (a,b,c)) <$> unifyIndices' linv tel flex a us vs
 
 unifyIndices'
-  :: (PureTCM m, MonadError TCErr m)
-  => Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
+  :: Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
   -> Telescope     -- ^ @gamma@
   -> FlexibleVars  -- ^ @flex@
   -> Type          -- ^ @a@
   -> Args          -- ^ @us@
   -> Args          -- ^ @vs@
-  -> m FullUnificationResult
+  -> TCM FullUnificationResult
 unifyIndices' linv tel flex a [] [] = return $ Unifies (tel, idS, [], Right (idS, raiseS 1))
 unifyIndices' linv tel flex a us vs = do
     reportSDoc "tc.lhs.unify" 10 $
@@ -523,9 +520,8 @@ skipIrrelevantStrategy k s = do
 -- Actually doing the unification
 ----------------------------------------------------
 
-unifyStep
-  :: (PureTCM m, MonadWriter UnifyOutput m, MonadError TCErr m)
-  => UnifyState -> UnifyStep -> m (UnificationResult' UnifyState)
+unifyStep ::
+  UnifyState -> UnifyStep -> WriterT UnifyOutput TCM (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
     isReflexive <- addContext (varTel s) $ runBlocked $ pureEqualTerm a u v
@@ -581,7 +577,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- a left inverse for the overall match, so as a slight optimisation
   -- we just don't bother computing it. __IMPOSSIBLE__ because that
   -- field in the result is never evaluated.
-  res <- addContext (varTel s) $ unifyIndices' (Just __IMPOSSIBLE__)
+  res <- addContext (varTel s) $ lift $ unifyIndices' (Just __IMPOSSIBLE__)
            hduTel
            (allFlexVars notforced hduTel)
            (raise (size ctel) dtype)
@@ -778,11 +774,10 @@ data RetryNormalised = RetryNormalised | DontRetryNormalised
   deriving (Eq, Show)
 
 solutionStep
-  :: (PureTCM m, MonadWriter UnifyOutput m)
-  => RetryNormalised
+  :: RetryNormalised
   -> UnifyState
   -> UnifyStep
-  -> m (UnificationResult' UnifyState)
+  -> WriterT UnifyOutput TCM (UnificationResult' UnifyState)
 solutionStep retry s
   step@Solution{ solutionAt   = k
                , solutionType = dom@Dom{ unDom = a }
@@ -800,7 +795,7 @@ solutionStep retry s
   let forcedVars | inMakeCase = IntMap.empty
                  | otherwise  = IntMap.fromList [ (flexVar fi, getModality fi) | fi <- flexVars s,
                                                                                  flexForced fi == Forced ]
-  (p, bound) <- patternBindingForcedVars forcedVars u
+  (p, bound) <- lift $ patternBindingForcedVars forcedVars u
 
   -- To maintain the invariant that each variable in varTel is bound exactly once in the pattern
   -- substitution we need to turn the bound variables in `p` into dot patterns in the rest of the
@@ -892,16 +887,14 @@ solutionStep retry s
     Right True -> return $ UnifyStuck [UnifyUnusableModality (varTel s) a i u mod]
 solutionStep _ _ _ = __IMPOSSIBLE__
 
-unify
-  :: (PureTCM m, MonadWriter UnifyLog' m, MonadError TCErr m)
-  => UnifyState -> UnifyStrategy -> m (UnificationResult' UnifyState)
+unify :: UnifyState -> UnifyStrategy -> WriterT UnifyLog' TCM (UnificationResult' UnifyState)
 unify s strategy = if isUnifyStateSolved s
                    then return $ Unifies s
                    else tryUnifyStepsAndContinue (strategy s)
   where
     tryUnifyStepsAndContinue
-      :: (PureTCM m, MonadWriter UnifyLog' m, MonadError TCErr m)
-      => ListT m UnifyStep -> m (UnificationResult' UnifyState)
+      ::    ListT (WriterT UnifyLog' TCM) UnifyStep
+         -> WriterT UnifyLog' TCM (UnificationResult' UnifyState)
     tryUnifyStepsAndContinue steps = do
       x <- foldListT tryUnifyStep failure steps
       case x of
@@ -910,14 +903,13 @@ unify s strategy = if isUnifyStateSolved s
         UnifyBlocked b -> return $ UnifyBlocked b
         UnifyStuck err -> return $ UnifyStuck err
 
-    tryUnifyStep :: (PureTCM m, MonadWriter UnifyLog' m, MonadError TCErr m)
-                 => UnifyStep
-                 -> m (UnificationResult' UnifyState)
-                 -> m (UnificationResult' UnifyState)
+    tryUnifyStep :: UnifyStep
+                 -> WriterT UnifyLog' TCM (UnificationResult' UnifyState)
+                 -> WriterT UnifyLog' TCM (UnificationResult' UnifyState)
     tryUnifyStep step fallback = do
       addContext (varTel s) $
         reportSDoc "tc.lhs.unify" 20 $ "trying unifyStep" <+> prettyTCM step
-      (x, output) <- runWriterT $ unifyStep s step
+      (x, output) <- lift $ runWriterT $ unifyStep s step
       case x of
         Unifies s'   -> do
           reportSDoc "tc.lhs.unify" 20 $ "unifyStep successful."
@@ -943,7 +935,7 @@ unify s strategy = if isUnifyStateSolved s
 
 -- | Turn a term into a pattern while binding as many of the given forced variables as possible (in
 --   non-forced positions).
-patternBindingForcedVars :: PureTCM m => IntMap Modality -> Term -> m (DeBruijnPattern, IntMap Modality)
+patternBindingForcedVars :: IntMap Modality -> Term -> TCM (DeBruijnPattern, IntMap Modality)
 patternBindingForcedVars forced v = do
   let v' = precomputeFreeVars_ v
   runWriterT (evalStateT (go unitModality v') forced)

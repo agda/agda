@@ -58,7 +58,7 @@ import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Conversion.Pure
+import qualified Agda.TypeChecking.Conversion.Pure as PureConv
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance ( isIrrelevantOrPropM )
@@ -383,11 +383,11 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
         -- of a rewrite rule (actual global confluence then follows
         -- from the triangle property which was checked before).
         GlobalConfluenceCheck -> do
-          (f, t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
+          (f, t) <- fromMaybe __IMPOSSIBLE__ <$> liftReduce (getTypedHead (hd []))
 
           let checkEqualLHS :: RewriteRule -> TCM Bool
               checkEqualLHS (RewriteRule q delta _ ps _ _ _) = do
-                onlyReduceTypes (nonLinMatch delta (t , hd) ps es) >>= \case
+                onlyReduceTypes (liftReduce (nonLinMatch delta (t , hd) ps es)) >>= \case
                   Left _    -> return False
                   Right sub -> do
                     let us = applySubst sub $ map var $ downFrom $ size delta
@@ -407,7 +407,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
                   Nothing -> return False
 
           rews <- getAllRulesFor f
-          let sameRHS = onlyReduceTypes $ pureEqualTerm a rhs1 rhs2
+          let sameRHS = onlyReduceTypes $ PureConv.pureEqualTerm a rhs1 rhs2
           unlessM (sameRHS `or2M` anyM rews checkEqualLHS) $ addContext gamma $
             warning $ RewriteAmbiguousRules (hd es) rhs1 rhs2
 
@@ -433,7 +433,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
         reportSDoc "rewriting.confluence.global" 30 $ fsep
           [ prettyTCM u , " reduces to " , prettyTCM v
           ]
-        eq <- onlyReduceTypes $ pureEqualTerm a v w
+        eq <- onlyReduceTypes $ PureConv.pureEqualTerm a v w
         when eq $ reportSDoc "rewriting.confluence.global" 30 $ fsep
           [ "  which is equal to" , prettyTCM w
           ]
@@ -463,7 +463,8 @@ sortRulesOfSymbol f = do
           def <- getConstInfo $ rewHead r1
           (t, hd) <- makeHead def (rewType r2)
           (vs :: Elims) <- nlPatToTerm $ rewPats r2
-          res <- isRight <$> onlyReduceTypes (nonLinMatch (rewContext r1) (t, hd) (rewPats r1) vs)
+          res <- isRight <$> onlyReduceTypes
+                    (liftReduce (nonLinMatch (rewContext r1) (t, hd) (rewPats r1) vs))
           when res $ reportSDoc "rewriting.confluence.sort" 55 $
             "the lhs of " <+> prettyTCM (rewName r1) <+>
             "is more general than the lhs of" <+> prettyTCM (rewName r2)
@@ -558,14 +559,14 @@ topLevelReductions :: (MonadParallelReduce m, MonadPlus m) => (Elims -> Term) ->
 topLevelReductions hd es = do
   reportSDoc "rewriting.parreduce" 30 $ "topLevelReductions" <+> prettyTCM (hd es)
   -- Get type of head symbol
-  (f , t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
+  (f , t) <- fromMaybe __IMPOSSIBLE__ <$> liftReduce (getTypedHead (hd []))
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: head symbol" <+> prettyTCM (hd []) <+> ":" <+> prettyTCM t
   RewriteRule q gamma _ ps rhs b c <- scatterMP (getAllRulesFor f)
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: trying rule" <+> prettyTCM q
   -- Don't reduce if underapplied
   guard $ length es >= length ps
   let (es0 , es1) = splitAt (length ps) es
-  onlyReduceTypes (nonLinMatch gamma (t,hd) ps es0) >>= \case
+  onlyReduceTypes (liftReduce (nonLinMatch gamma (t,hd) ps es0)) >>= \case
     -- Matching failed: no reduction
     Left block -> empty
     -- Matching succeeded

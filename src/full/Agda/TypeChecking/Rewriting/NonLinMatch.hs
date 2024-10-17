@@ -37,7 +37,7 @@ import qualified Data.IntSet as IntSet
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Conversion.Pure
+import Agda.TypeChecking.Conversion.Pure (pureEqualTerm)
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Irrelevance (isPropM)
@@ -115,7 +115,7 @@ tellSub r i a v = do
     Just (r',v')
       | isIrrelevant r  -> return ()
       | isIrrelevant r' -> nlmSub %= IntMap.insert i (r,v)
-      | otherwise       -> whenJustM (equal a v v') matchingBlocked
+      | otherwise       -> whenJustM (liftReduce (equal a v v')) matchingBlocked
 
 tellEq :: Telescope -> Context -> Type -> Term -> Term -> NLM ()
 tellEq gamma k a u v = do
@@ -397,16 +397,13 @@ instance Match NLPat Term where
 extendContext :: MonadAddContext m => Context -> ArgName -> Dom Type -> m Context
 extendContext cxt x a = withFreshName empty x \ y -> return $ fmap (y,) a : cxt
 
-
 makeSubstitution :: Telescope -> Sub -> Maybe Substitution
 makeSubstitution gamma sub =
   parallelS <$> traverse val [0 .. size gamma-1]
     where
       val i = IntMap.lookup i sub <&> \ (rel, v) -> applyWhen (isIrrelevant rel) dontCare v
 
-{-# SPECIALIZE checkPostponedEquations :: Substitution -> PostponedEquations -> TCM (Maybe Blocked_) #-}
-checkPostponedEquations :: PureTCM m
-                        => Substitution -> PostponedEquations -> m (Maybe Blocked_)
+checkPostponedEquations :: Substitution -> PostponedEquations -> ReduceM (Maybe Blocked_)
 checkPostponedEquations sub eqs = forM' eqs $
   \ (PostponedEquation k a lhs rhs) -> do
       let lhs' = applySubst (liftS (size k) sub) lhs
@@ -416,8 +413,8 @@ checkPostponedEquations sub eqs = forM' eqs $
       addContext k $ equal a lhs' rhs
 
 -- main function
-nonLinMatch :: (PureTCM m, Match a b)
-            => Telescope -> TypeOf b -> a -> b -> m (Either Blocked_ Substitution)
+nonLinMatch :: (Match a b)
+            => Telescope -> TypeOf b -> a -> b -> ReduceM (Either Blocked_ Substitution)
 nonLinMatch gamma t p v = do
   let no msg b = traceSDoc "rewriting.match" 10 (sep
                    [ "matching failed during" <+> text msg
@@ -436,7 +433,7 @@ nonLinMatch gamma t p v = do
 -- | Typed βη-equality, also handles empty record types.
 --   Returns `Nothing` if the terms are equal, or `Just b` if the terms are not
 --   (where b contains information about possible metas blocking the comparison)
-equal :: PureTCM m => Type -> Term -> Term -> m (Maybe Blocked_)
+equal :: Type -> Term -> Term -> ReduceM (Maybe Blocked_)
 equal a u v = runBlocked (pureEqualTerm a u v) >>= \case
   Left b      -> return $ Just $ Blocked b ()
   Right True  -> return Nothing
@@ -448,7 +445,7 @@ equal a u v = runBlocked (pureEqualTerm a u v) >>= \case
 
 -- | Utility function for getting the name and type of a head term (i.e. a
 --   `Def` or `Con` with no arguments)
-getTypedHead :: PureTCM m => Term -> m (Maybe (QName, Type))
+getTypedHead :: Term -> ReduceM (Maybe (QName, Type))
 getTypedHead = \case
   Def f []   -> Just . (f,) . defType <$> getConstInfo f
   Con (ConHead { conName = c }) _ [] -> do
