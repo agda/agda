@@ -366,18 +366,20 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         modMod _        _  = id
 
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
-    checkLetBindings lbs (ret EmptyTel)
+  checkLetBindings lbs (ret EmptyTel)
 
 -- | After a typed binding has been checked, add the patterns it binds
 addTypedPatterns :: List1 (NamedArg A.Binder) -> TCM a -> TCM a
 addTypedPatterns xps ret = do
-  let ps  = List1.mapMaybe (A.extractPattern . namedArg) xps
-  let lbs = map letBinding ps
-  checkLetBindings lbs ret
-  where
+  let
+    ps  = List1.mapMaybe (A.extractPattern . namedArg) xps
+    lbs = map letBinding ps
+
     letBinding :: (A.Pattern, A.BindName) -> A.LetBinding
     letBinding (p, n) = A.LetPatBind (A.LetRange r) p (A.Var $ A.unBind n)
       where r = fuseRange p n
+
+  checkLetBindings' lbs ret
 
 -- | Check a tactic attribute. Should have type Term → TC ⊤.
 checkTacticAttribute :: LamOrPi -> Ranged A.Expr -> TCM Term
@@ -420,13 +422,29 @@ checkLambda :: Comparison -> A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda cmp (A.TLet _ lbs) body target =
   checkLetBindings lbs (checkExpr body target)
 checkLambda cmp b@(A.TBind r tac xps0 typ) body target = do
-  reportSDoc "tc.term.lambda" 30 $ vcat
-    [ "checkLambda before insertion xs =" <+> prettyA xps0
-    ]
+  (tel, tgt0) <- splitImplicitBinderT (List1.head xps0) target
+
   -- Andreas, 2020-03-25, issue #4481: since we have named lambdas now,
   -- we need to insert skipped hidden arguments.
-  xps <- insertImplicitBindersT1 xps0 target
-  checkLambda' cmp r tac xps typ body target
+
+  -- Amy, 2024-10-17: we can't simply insert the new binders into this
+  -- same TBind, since those are all assumed to be of the same type.
+  -- This matters when we're skipping binders to reach something of a
+  -- different type, e.g. in
+  --
+  --    (λ {C = C} → C) : {A B : Set} {C : Nat} → Nat
+  --
+  -- The previous implementation would add two binders and check them
+  -- with the same type as that of {C}, i.e. something like
+  --
+  --    (λ {A B C : _} → C)
+  --
+  -- which fails. The new strategy is to lob domains off the type until
+  -- we reach the right argument, then just add them to the context, and
+  -- bind them after returning.
+
+  teleLam tel <$> addContext tel do
+    checkLambda' cmp r tac xps0 typ body tgt0
 
 checkLambda' ::
      Comparison                -- ^ @cmp@
@@ -1608,21 +1626,24 @@ inferExprForWith (Arg info e) = verboseBracket "tc.with.infer" 20 "inferExprForW
 -- * Let bindings
 ---------------------------------------------------------------------------
 
-checkLetBindings :: Foldable t => t A.LetBinding -> TCM a -> TCM a
-checkLetBindings = foldr ((.) . checkLetBinding) id
+checkLetBindings' :: Foldable t => t A.LetBinding -> TCM a -> TCM a
+checkLetBindings' = foldr ((.) . checkLetBinding') id
 
-checkLetBinding :: A.LetBinding -> TCM a -> TCM a
+checkLetBinding' :: A.LetBinding -> TCM a -> TCM a
 
-checkLetBinding b@(A.LetBind i info x t e) ret =
-  traceCall (CheckLetBinding b) $ do
-    -- #4131: Only DontExpandLast if no user written type signature
-    let check | getOrigin info == Inserted = checkDontExpandLast
-              | otherwise                  = checkExpr'
-    t <- workOnTypes $ isType_ t
-    v <- applyModalityToContext info $ check CmpLeq e t
-    addLetBinding info UserWritten (A.unBind x) v t ret
+checkLetBinding' b@(A.LetBind i info x t e) ret = do
+  -- #4131: Only DontExpandLast if no user written type signature
+  let
+    check
+      | getOrigin info == Inserted = checkDontExpandLast
+      | otherwise                  = checkExpr'
 
-checkLetBinding b@(A.LetAxiom i info x t) ret = traceCall (CheckLetBinding b) do
+  t <- workOnTypes $ isType_ t
+  v <- applyModalityToContext info $ check CmpLeq e t
+
+  addLetBinding info UserWritten (A.unBind x) v t ret
+
+checkLetBinding' b@(A.LetAxiom i info x t) ret = do
   t <- workOnTypes $ isType_ t
   current <- currentModule
 
@@ -1634,8 +1655,7 @@ checkLetBinding b@(A.LetAxiom i info x t) ret = traceCall (CheckLetBinding b) do
   val <- Def axn . fmap Apply <$> getContextArgs
   addLetBinding info UserWritten (A.unBind x) val t ret
 
-checkLetBinding b@(A.LetPatBind i p e) ret =
-  traceCall (CheckLetBinding b) $ do
+checkLetBinding' b@(A.LetPatBind i p e) ret = do
     p <- expandPatternSynonyms p
     (v, t) <- inferExpr' ExpandLast e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide
@@ -1701,7 +1721,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         -- We add all the bindings to the context.
         foldr (uncurry4 $ flip addLetBinding UserWritten) ret $ List.zip4 infos xs sigma ts
 
-checkLetBinding (A.LetApply i erased x modapp copyInfo dir) ret = do
+checkLetBinding' (A.LetApply i erased x modapp copyInfo dir) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.
   -- Example: @f x y = let open M t in u@.
@@ -1724,5 +1744,13 @@ checkLetBinding (A.LetApply i erased x modapp copyInfo dir) ret = do
     dir{ publicOpen = Nothing }
   withAnonymousModule x new ret
 -- LetOpen and LetDeclaredVariable are only used for highlighting.
-checkLetBinding A.LetOpen{} ret = ret
-checkLetBinding (A.LetDeclaredVariable _) ret = ret
+checkLetBinding' A.LetOpen{} ret = ret
+checkLetBinding' (A.LetDeclaredVariable _) ret = ret
+
+-- | Version of checkLetBinding which traces the fact that we're
+-- checking each binding in the Call.
+checkLetBinding :: A.LetBinding -> TCM a -> TCM a
+checkLetBinding b = traceCallCPS' (CheckLetBinding b) (checkLetBinding' b)
+
+checkLetBindings :: Foldable t => t A.LetBinding -> TCM a -> TCM a
+checkLetBindings = foldr ((.) . checkLetBinding) id

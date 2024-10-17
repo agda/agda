@@ -1582,7 +1582,7 @@ instance ToAbstract LetDef where
           InstanceDef _  -> makeInstance info
           NotInstanceDef -> info
 
-      pure $ A.LetAxiom (LetRange (getRange d)) info' x t :| []
+      pure $ A.LetAxiom (LetRange $ getRange d) info' x t :| []
 
     -- irrefutable let binding, like  (x , y) = rhs
     NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p0 [] []) rhs0 whcl ca) -> do
@@ -1679,14 +1679,55 @@ instance ToAbstract LetDef where
 
       letToAbstract _ = notAValidLetBinding Nothing
 
+      -- These patterns all have a chance of being accepted in a lambda:
+      allowedPat A.VarP{}      = True
+      allowedPat A.ConP{}      = True
+      allowedPat A.WildP{}     = True
+      allowedPat (A.AsP _ _ x) = allowedPat x
+      allowedPat (A.RecP _ as) = all (allowedPat . view exprFieldA) as
+      allowedPat (A.PatternSynP _ _ as) = all (allowedPat . namedArg) as
+
+      -- These have no chance:
+      allowedPat A.AbsurdP{}     = False
+      allowedPat A.ProjP{}       = False
+      allowedPat A.DefP{}        = False
+      allowedPat A.EqualP{}      = False
+      allowedPat A.WithP{}       = False
+      allowedPat A.DotP{}        = False
+      allowedPat A.LitP{}        = False
+
+      patternName (A.VarP bn)    = Just bn
+      patternName (A.AsP _ bn _) = Just bn
+      patternName _ = Nothing
+
       -- Named patterns not allowed in let definitions
-      lambda e (Arg info (Named Nothing (A.VarP x))) =
-              return $ A.Lam i (A.mkDomainFree $ unnamedArg info $ A.mkBinder x) e
-          where i = ExprRange (fuseRange x e)
-      lambda e (Arg info (Named Nothing (A.WildP i))) =
-          do  x <- freshNoName (getRange i)
-              return $ A.Lam i' (A.mkDomainFree $ unnamedArg info $ A.mkBinder_ x) e
-          where i' = ExprRange (fuseRange i e)
+      lambda :: A.Expr -> A.NamedArg (A.Pattern' C.Expr) -> TCM A.Expr
+      lambda e ai@(Arg info (Named thing pat)) | allowedPat pat = do
+        let
+          i = ExprRange (fuseRange pat e)
+
+        pat <- toAbstract pat
+
+        bn <- case pat of
+          A.VarP bn    -> pure bn
+          A.AsP _ bn _ -> pure bn
+          _ -> fmap mkBindName . freshAbstractName_ =<< freshConcreteName (getRange pat) 0 patternInTeleName
+
+        -- Annoyingly, for the lambdas to be elaborated properly, we
+        -- have to generate domainful binders. Domain-free binders can
+        -- not be named (or have pattern matching!).
+        --
+        -- Moreover, we need to avoid generating named patterns that are
+        -- like {B = B @ B}.
+
+        let
+          pat' = case pat of
+            A.VarP{} -> Nothing
+            pat -> Just pat
+          binder = Arg info (Named thing (A.Binder pat' bn)) :| []
+
+        pure $ A.Lam i (A.DomainFull (A.TBind (getRange ai) empty binder (A.Underscore empty))) e
+
       lambda _ _ = notAValidLetBinding Nothing
 
       noWhereInLetBinding :: C.WhereClause -> ScopeM ()
@@ -1701,23 +1742,8 @@ instance ToAbstract LetDef where
       -- Only record patterns allowed, but we do not exclude data constructors here.
       -- They will fail in the type checker.
       checkValidLetPattern :: A.Pattern' e -> ScopeM ()
-      checkValidLetPattern = \case
-          A.VarP{}             -> yes
-          A.ConP _ _ ps        -> mapM_ (checkValidLetPattern . namedArg) ps
-          A.ProjP{}            -> no
-          A.DefP{}             -> no
-          A.WildP{}            -> yes
-          A.AsP _ _ p          -> checkValidLetPattern p
-          A.DotP{}             -> no
-          A.AbsurdP{}          -> no
-          A.LitP{}             -> no
-          A.PatternSynP _ _ ps -> mapM_ (checkValidLetPattern . namedArg) ps
-          A.RecP _ fs          -> mapM_ (checkValidLetPattern . _exprFieldA) fs
-          A.EqualP{}           -> no
-          A.WithP{}            -> no
-        where
-        yes = return ()
-        no  = notAValidLetBinding $ Just NotAValidLetPattern
+      checkValidLetPattern a = unless (allowedPat a) do
+        notAValidLetBinding $ Just NotAValidLetPattern
 
 
 instance ToAbstract NiceDeclaration where

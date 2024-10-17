@@ -557,6 +557,9 @@ prettyWarning = \case
     UnfoldTransparentName qn -> fsep $
       pwords "The name" ++ [prettyTCM qn <> ","] ++ pwords "mentioned by an unfolding clause, does not belong to an opaque block. This has no effect."
 
+    AbstractInLetBindings -> fsep $ pwords "Abstract definitions are not allowed in let bindings."
+    MacroInLetBindings    -> fsep $ pwords "Macros can not be defined in let bindings."
+
     UselessOpaque -> "This `opaque` block has no effect."
 
     HiddenNotInArgumentPosition e -> fsep $
@@ -566,9 +569,6 @@ prettyWarning = \case
     InstanceNotInArgumentPosition e -> fsep $
       [pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
       pwords "a function expecting an instance argument."
-
-    AbstractInLetBindings -> fsep $ pwords (verbalizeNotAValidLetBinding AbstractNotAllowed)
-    MacroInLetBindings    -> fsep $ pwords (verbalizeNotAValidLetBinding MacrosNotAllowed)
 
     InvalidDisplayForm x reason -> fsep $ concat
         [ pwords "Ignoring invalid display form for"
