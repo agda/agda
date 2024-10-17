@@ -96,7 +96,7 @@ import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
 
 import Agda.TypeChecking.DiscrimTree.Types
 
-import Agda.Compiler.Backend.Base
+import Agda.Compiler.Backend.Base (Backend_boot, Backend'_boot)
 
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Errors as ErrorName
@@ -183,9 +183,11 @@ instance ReadTCState m => ReadTCState (ReaderT r m)
 instance ReadTCState m => ReadTCState (StateT s m)
 instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m)
 
-
 instance Show TCState where
   show _ = "TCSt{}"
+
+type Backend = Backend_boot Definition TCM
+type Backend' opts env menv mod def = Backend'_boot Definition TCM opts env menv mod def
 
 type BackendForeignCode = Map BackendName ForeignCodeStack
 type ImportedModules    = Set TopLevelModuleName
@@ -360,7 +362,7 @@ data PersistentTCState = PersistentTCSt
   , stPersistLoadedFileCache :: !(Strict.Maybe LoadedFileCache)
     -- ^ Cached typechecking state from the last loaded file.
     --   Should be @Nothing@ when checking imports.
-  , stPersistBackends   :: [Backend_boot TCM]
+  , stPersistBackends   :: [Backend]
     -- ^ Current backends with their options
   }
   deriving Generic
@@ -514,7 +516,7 @@ lensPostScopeState f s = f (stPostScopeState s) <&> \ x -> s { stPostScopeState 
 lensLoadedFileCache :: Lens' PersistentTCState (Strict.Maybe LoadedFileCache)
 lensLoadedFileCache f s = f (stPersistLoadedFileCache s) <&> \ x -> s { stPersistLoadedFileCache = x }
 
-lensBackends :: Lens' PersistentTCState [Backend_boot TCM]
+lensBackends :: Lens' PersistentTCState [Backend]
 lensBackends f s = f (stPersistBackends s) <&> \ x -> s { stPersistBackends = x }
 
 lensTopLevelModuleNames :: Lens' PersistentTCState (BiMap RawTopLevelModuleName ModuleNameHash)
@@ -704,7 +706,7 @@ lensInstantiateBlocking f s = f (stPostInstantiateBlocking s) <&> \ x -> s { stP
 stLoadedFileCache :: Lens' TCState (Maybe LoadedFileCache)
 stLoadedFileCache = lensPersistentState . lensLoadedFileCache . Strict.lensMaybeLazy
 
-stBackends :: Lens' TCState [Backend_boot TCM]
+stBackends :: Lens' TCState [Backend]
 stBackends = lensPersistentState . lensBackends
 
 stTopLevelModuleNames :: Lens' TCState (BiMap RawTopLevelModuleName ModuleNameHash)

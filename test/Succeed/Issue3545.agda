@@ -1,3 +1,5 @@
+{-# OPTIONS --no-main #-}
+
 module Issue3545 where
 
 open import Agda.Builtin.Nat
@@ -12,6 +14,8 @@ createElem n = Nat
 {-# COMPILE JS createElem = function (x0) {
     return x0;
 } #-}
+
+{-# COMPILE GHC createElem = \ _ -> ()} #-}
 
 -- WAS: silently accepted
 -- WANT: `createElem` is going to be erased; don't do that!

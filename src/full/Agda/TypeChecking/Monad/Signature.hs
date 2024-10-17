@@ -57,9 +57,6 @@ import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 import {-# SOURCE #-} Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Opacity
 
-import {-# SOURCE #-} Agda.Compiler.Treeless.Erase
-import {-# SOURCE #-} Agda.Compiler.Builtin
-
 import Agda.Utils.CallStack.Base
 import Agda.Utils.Either
 import Agda.Utils.Function ( applyWhen )
@@ -236,25 +233,9 @@ mkPragma s = CompilerPragma <$> getCurrentRange <*> pure s
 
 -- | Add a compiler pragma `{-\# COMPILE <backend> <name> <text> \#-}`
 addPragma :: BackendName -> QName -> String -> TCM ()
-addPragma b q s = ifM erased
-  {- then -} (warning $ PragmaCompileErased b q)
-  {- else -} $ do
+addPragma b q s = do
     pragma <- mkPragma s
     modifySignature $ updateDefinition q $ addCompilerPragma b pragma
-
-  where
-
-  erased :: TCM Bool
-  erased = do
-    def <- theDef <$> getConstInfo q
-    case def of
-      -- If we have a defined symbol, we check whether it is erasable
-      Function{} ->
-        locallyTC      eActiveBackendName (const $ Just b) $
-        locallyTCState stBackends         (const $ builtinBackends) $
-        isErasable q
-     -- Otherwise (Axiom, Datatype, Record type, etc.) we keep it
-      _ -> pure False
 
 getUniqueCompilerPragma :: BackendName -> QName -> TCM (Maybe CompilerPragma)
 getUniqueCompilerPragma backend q = do
