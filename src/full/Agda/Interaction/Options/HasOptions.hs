@@ -12,7 +12,7 @@ import Control.Monad.Trans.Identity (IdentityT)
 import Control.Monad.Trans.Maybe (MaybeT)
 import Control.Monad.Writer (WriterT)
 
-import Agda.Interaction.Options.Base (PragmaOptions, CommandLineOptions)
+import Agda.Interaction.Options.Types (PragmaOptions, CommandLineOptions)
 import Agda.Utils.Update (ChangeT)
 import Agda.Utils.ListT (ListT)
 

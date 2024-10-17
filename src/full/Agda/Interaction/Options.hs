@@ -1,9 +1,11 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.Interaction.Options
-    ( module Opts.Base
-    , module Opts.HasOptions
+    ( module Agda.Interaction.Options.Base
+    , module Agda.Interaction.Options.HasOptions
+    , module Agda.Interaction.Options.Types
     ) where
 
-import Agda.Interaction.Options.Base as Opts.Base
-import Agda.Interaction.Options.HasOptions as Opts.HasOptions
+import Agda.Interaction.Options.Base
+import Agda.Interaction.Options.HasOptions
+import Agda.Interaction.Options.Types
