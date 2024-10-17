@@ -21,7 +21,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.Interaction.Library (getPrimitiveLibDir)
 import Agda.Interaction.Options
 
-import Agda.Utils.Lens
+import Agda.Utils.Lens        ()
 import Agda.Utils.FileName
 import Agda.Utils.Functor     ( (<.>) )
 import Agda.Utils.WithDefault (pattern Value)
@@ -29,27 +29,6 @@ import Agda.Utils.WithDefault (pattern Value)
 ---------------------------------------------------------------------------
 -- * Pragma options
 ---------------------------------------------------------------------------
-
-class LensPragmaOptions a where
-  getPragmaOptions  :: a -> PragmaOptions
-  setPragmaOptions  :: PragmaOptions -> a -> a
-  mapPragmaOptions  :: (PragmaOptions -> PragmaOptions) -> a -> a
-  lensPragmaOptions :: Lens' a PragmaOptions
-  -- lensPragmaOptions :: forall f. Functor f => (PragmaOptions -> f PragmaOptions) -> a -> f a
-
-  -- default implementations
-  setPragmaOptions     = mapPragmaOptions . const
-  mapPragmaOptions f a = setPragmaOptions (f $ getPragmaOptions a) a
-
-instance LensPragmaOptions CommandLineOptions where
-  getPragmaOptions = optPragmaOptions
-  setPragmaOptions opts st = st { optPragmaOptions = opts }
-  lensPragmaOptions f st = f (optPragmaOptions st) <&> \ opts -> st { optPragmaOptions = opts }
-
-instance LensPragmaOptions TCState where
-  getPragmaOptions = (^. stPragmaOptions)
-  setPragmaOptions = set stPragmaOptions
-  lensPragmaOptions = stPragmaOptions
 
 modifyPragmaOptions :: MonadTCState m => (PragmaOptions -> PragmaOptions) -> m ()
 modifyPragmaOptions = modifyTC . mapPragmaOptions

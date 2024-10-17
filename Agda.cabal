@@ -859,6 +859,7 @@ library
       Agda.Interaction.Highlighting.LaTeX.Base
       Agda.Interaction.Options.Base
       Agda.Interaction.Options.HasOptions
+      Agda.Interaction.Options.Types
       Agda.Utils.CallStack.Base
       Agda.Utils.CallStack.Pretty
 
