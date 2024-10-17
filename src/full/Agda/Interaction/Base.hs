@@ -16,7 +16,7 @@ import qualified Data.Map                     as Map
 import           Data.Maybe                   (listToMaybe)
 import qualified Data.Text                    as T
 
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Base.Types
   (HighlightingLevel, HighlightingMethod, Comparison, Polarity)
 
 import           Agda.Syntax.Abstract         (QName)

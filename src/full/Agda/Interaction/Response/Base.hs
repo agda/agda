@@ -36,7 +36,7 @@ import Agda.Syntax.Concrete       (Expr)
 import Agda.Syntax.Concrete.Name  (Name, QName, NameInScope)
 import Agda.Syntax.Scope.Base     (WhyInScopeData)
 import qualified Agda.Syntax.Internal as I
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Base.Types
   (HighlightingMethod, ModuleToSource, NamedMeta, IPFace')
 import Agda.Utils.Impossible
 import Agda.Utils.Time
