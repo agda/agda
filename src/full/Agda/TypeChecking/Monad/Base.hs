@@ -4466,6 +4466,8 @@ data Warning
   -- Recoverable scope-checking errors
   | HiddenNotInArgumentPosition C.Expr
   | InstanceNotInArgumentPosition C.Expr
+  | MacroInLetBindings
+  | AbstractInLetBindings
 
   -- Display form warnings
   | InvalidDisplayForm QName String
@@ -4602,6 +4604,8 @@ warningName = \case
   -- Recoverable scope-checking errors
   HiddenNotInArgumentPosition{}   -> HiddenNotInArgumentPosition_
   InstanceNotInArgumentPosition{} -> InstanceNotInArgumentPosition_
+  MacroInLetBindings{}            -> MacroInLetBindings_
+  AbstractInLetBindings{}         -> AbstractInLetBindings_
 
   -- Display forms
   InvalidDisplayForm{}                 -> InvalidDisplayForm_

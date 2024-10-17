@@ -48,6 +48,7 @@ import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
 import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.Interaction.Options
+import Agda.Interaction.Options.Errors
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.FileName ( filePath )
@@ -565,6 +566,9 @@ prettyWarning = \case
     InstanceNotInArgumentPosition e -> fsep $
       [pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
       pwords "a function expecting an instance argument."
+
+    AbstractInLetBindings -> fsep $ pwords (verbalizeNotAValidLetBinding AbstractNotAllowed)
+    MacroInLetBindings    -> fsep $ pwords (verbalizeNotAValidLetBinding MacrosNotAllowed)
 
     InvalidDisplayForm x reason -> fsep $ concat
         [ pwords "Ignoring invalid display form for"
