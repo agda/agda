@@ -186,6 +186,8 @@ errorWarnings = Set.fromList
   -- Recoverable scope-checking errors
   , HiddenNotInArgumentPosition_
   , InstanceNotInArgumentPosition_
+  , MacroInLetBindings_
+  , AbstractInLetBindings_
   ]
 
 allWarnings :: Set WarningName
@@ -366,6 +368,8 @@ data WarningName
   -- Recoverable scope checking errors
   | HiddenNotInArgumentPosition_
   | InstanceNotInArgumentPosition_
+  | MacroInLetBindings_
+  | AbstractInLetBindings_
   -- Cubical
   | FaceConstraintCannotBeHidden_
   | FaceConstraintCannotBeNamed_
@@ -596,6 +600,8 @@ warningNameDescription = \case
   -- Recoverable scope-checking errors
   HiddenNotInArgumentPosition_     -> "Hidden argument with no matching function."
   InstanceNotInArgumentPosition_   -> "Instance argument with no matching function."
+  MacroInLetBindings_              -> "Macros can not be let-bound."
+  AbstractInLetBindings_           -> "Let bindings can not contain abstract declarations."
 
   -- Cubical
   FaceConstraintCannotBeHidden_    -> "Face constraint patterns that are given as implicit arguments."

@@ -1,0 +1,4 @@
+LetAxiomInstance.agda:18.14-15: error: [MissingDefinitions]
+The following names are declared but not accompanied by a
+definition: x
+when scope checking let instance x : Foo Nat in foo

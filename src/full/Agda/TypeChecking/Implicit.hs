@@ -8,7 +8,7 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.IO.Class
 
-import Agda.Syntax.Position (beginningOf, getRange)
+import Agda.Syntax.Position (HasRange, beginningOf, getRange)
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract (Binder, mkBinder_)
 import Agda.Syntax.Info ( MetaKind (InstanceMeta, UnificationMeta) )
@@ -32,54 +32,27 @@ import Agda.Utils.Tuple
 
 -- Cut and paste from insertImplicitPatternsT:
 
--- | Insert implicit binders in a list of binders, but not at the end.
-insertImplicitBindersT
-  :: (PureTCM m, MonadError TCErr m, MonadFresh NameId m, MonadTrace m)
-  => [NamedArg Binder]     -- ^ Should be non-empty, otherwise nothing happens.
-  -> Type                  -- ^ Function type eliminated by arguments given by binders.
-  -> m [NamedArg Binder] -- ^ Padded binders.
-insertImplicitBindersT = \case
-  []     -> \ _ -> return []
-  b : bs -> List1.toList <.> insertImplicitBindersT1 (b :| bs)
+-- | Split a given Pi 'Type' until you reach the given named argument,
+-- returning the number of arguments skipped to reach the right plicity
+-- and name.
+splitImplicitBinderT :: HasRange a => NamedArg a -> Type -> TCM (Telescope, Type)
+splitImplicitBinderT narg ty = do
+  -- Split off any invisible arguments at the front (so if the first
+  -- argument is visible, return tel = EmptyTel)
+  TelV tel ty0 <- telViewUpTo' (-1) (not . visible) ty
 
--- | Insert implicit binders in a list of binders, but not at the end.
-insertImplicitBindersT1
-  :: (PureTCM m, MonadError TCErr m, MonadFresh NameId m, MonadTrace m)
-  => List1 (NamedArg Binder)        -- ^ Non-empty.
-  -> Type                           -- ^ Function type eliminated by arguments given by binders.
-  -> m (List1 (NamedArg Binder))  -- ^ Padded binders.
-insertImplicitBindersT1 bs@(b :| _) a = setCurrentRange b $ do
-  TelV tel ty0 <- telViewUpTo' (-1) (not . visible) a
-  reportSDoc "tc.term.lambda.imp" 20 $
-    vcat [ "insertImplicitBindersT"
-         , nest 2 $ "bs  = " <+> do
-             brackets $ fsep $ punctuate comma $ fmap prettyA bs
-         , nest 2 $ "tel = " <+> prettyTCM tel
-         , nest 2 $ "ty  = " <+> addContext tel (prettyTCM ty0)
-         ]
-  reportSDoc "tc.term.lambda.imp" 70 $
-    vcat [ "insertImplicitBindersT"
-         , nest 2 $ "bs  = " <+> (text . show . List1.toList) bs
-         , nest 2 $ "tel = " <+> (text . show) tel
-         , nest 2 $ "ty  = " <+> (text . show) ty0
-         ]
-  hs <- insImp b tel
-  -- Continue with implicit binders inserted before @b@.
-  let bs0@(b1 :| bs1) = List1.prependList hs bs
-  reduce a >>= piOrPath >>= \case
-    -- If @a@ is a function (or path) type, continue inserting after @b1@.
-    Left (_, ty) -> (b1 :|) <$> insertImplicitBindersT bs1 (absBody ty)
-    -- Otherwise, we are done.
-    Right{}      -> return bs0
-  where
-  insImp b EmptyTel = return []
-  insImp b tel = case insertImplicit b $ telToList tel of
-    BadImplicits   -> typeError WrongHidingInLHS
-    NoSuchName x   -> typeError WrongHidingInLHS
-    ImpInsert doms -> mapM implicitArg doms
-      where
-      implicitArg d = setOrigin Inserted . unnamedArg (domInfo d) . mkBinder_ <$> do
-        freshNoName $ beginningOf $ getRange b
+  case tel of
+    -- If we didn't lob off any arguments then we can use the original
+    -- type and the empty telescope
+    EmptyTel -> pure (EmptyTel, ty)
+
+    -- Otherwise we try inserting implicit arguments.
+    _ -> setCurrentRange narg case insertImplicit narg $ telToList tel of
+      BadImplicits   -> typeError WrongHidingInLHS
+      NoSuchName x   -> typeError WrongHidingInLHS
+      ImpInsert doms ->
+        let (here, there) = splitTelescopeAt (length doms) tel
+        in pure (here, abstract there ty0)
 
 -- | @implicitArgs n expand t@ generates up to @n@ implicit argument
 --   metas (unbounded if @n<0@), as long as @t@ is a function type

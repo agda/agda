@@ -1845,6 +1845,14 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
      Instance arguments ``⦃ x ⦄`` can only appear as arguments to
      functions, not as expressions by themselves.
 
+.. option:: MacroInLetBindings
+
+     Macros can not be let-bound.
+
+.. option:: AbstractInLetBindings
+
+     Let bindings can not be made abstract.
+
 
 Command-line examples
 ---------------------

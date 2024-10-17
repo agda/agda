@@ -48,6 +48,7 @@ import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
 import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.Interaction.Options
+import Agda.Interaction.Options.Errors
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.FileName ( filePath )
@@ -555,6 +556,9 @@ prettyWarning = \case
 
     UnfoldTransparentName qn -> fsep $
       pwords "The name" ++ [prettyTCM qn <> ","] ++ pwords "mentioned by an unfolding clause, does not belong to an opaque block. This has no effect."
+
+    AbstractInLetBindings -> fsep $ pwords "Abstract definitions are not allowed in let bindings."
+    MacroInLetBindings    -> fsep $ pwords "Macros can not be defined in let bindings."
 
     UselessOpaque -> "This `opaque` block has no effect."
 

@@ -134,6 +134,8 @@ instance EmbPrj Warning where
     UnusedVariablesInDisplayForm a              -> icodeN 70 UnusedVariablesInDisplayForm a
     HiddenNotInArgumentPosition a               -> __IMPOSSIBLE__
     InstanceNotInArgumentPosition a             -> __IMPOSSIBLE__
+    MacroInLetBindings                          -> __IMPOSSIBLE__
+    AbstractInLetBindings                       -> __IMPOSSIBLE__
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
