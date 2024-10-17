@@ -3,14 +3,16 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
   inputs.flake-parts.url = "github:hercules-ci/flake-parts";
+  inputs.ghc-wasm.url = "git+https://gitlab.haskell.org/ghc/ghc-wasm-meta.git";
 
   outputs = inputs:
       inputs.flake-parts.lib.mkFlake { inputs = inputs; } {
     # Support all the OSes
     systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-    perSystem = {pkgs, ...}: let
+    perSystem = {pkgs, inputs', ...}: let
       hlib = pkgs.haskell.lib.compose;
       hpkgs = pkgs.haskellPackages;
+      ghc-wasm = inputs'.ghc-wasm;
 
       # The `agda` and `agda-mode` programs, built with `cabal build`
       # (and GHC & Haskell libraries from the nixpkgs snapshot)
@@ -34,6 +36,12 @@
             pkgs.haskell-language-server
             pkgs.icu
             hpkgs.fix-whitespace
+
+            ghc-wasm.packages.wasm32-wasi-ghc-9_10
+            ghc-wasm.packages.wasm32-wasi-cabal-9_10
+            hpkgs.alex
+            hpkgs.happy
+
             # Tools for building the agda docs
             (pkgs.python3.withPackages (py3pkgs: [
               py3pkgs.sphinx
