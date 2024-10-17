@@ -83,6 +83,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Syntax.Common.Aspect as Asp
 import Agda.Utils.Set1 (Set1)
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix
 
@@ -378,9 +379,7 @@ pickConcreteName x y = modifyConcreteNames $ flip Map.alter x $ Just . \case
 -- | For the given abstract name, return the names that could shadow it.
 shadowingNames :: (ReadTCState m, MonadStConcreteNames m)
                => A.Name -> m (Set RawName)
-shadowingNames x =
-  Set.fromList . Fold.toList . Map.findWithDefault mempty x <$>
-    useR stShadowingNames
+shadowingNames x = Set1.toSet' . Map.lookup x <$> useR stShadowingNames
 
 toConcreteName :: MonadToConcrete m => A.Name -> m C.Name
 toConcreteName x | y <- nameConcrete x , isNoName y = return y

@@ -13,7 +13,6 @@ import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer         ( WriterT )
 
-import qualified Data.DList as DL
 import Data.Foldable
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -38,6 +37,7 @@ import Agda.Utils.List ((!!!), downFrom)
 import Agda.Utils.ListT
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Maybe
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
@@ -243,7 +243,7 @@ withShadowingNameTCM x f = do
             rawX      = nameToRawName concreteX
             rootX     = nameRoot concreteX
         modifyTCLens (stUsedNames . key rootX) $
-          Just . (rawX `DL.cons`) . fold
+          Just . (Set1.insertSet rawX) . Set1.toSet'
 
       tellShadowing x useds = case Map.lookup (nameRoot $ nameConcrete x) useds of
         Just shadows -> do
