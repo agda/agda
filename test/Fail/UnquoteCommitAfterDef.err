@@ -1,0 +1,8 @@
+UnquoteCommitAfterDef.agda:5.5-8.11: error: [Unquote.CommitAfterDef]
+Cannot use commitTC after declaring new definitions
+when checking that the expression
+unquote
+λ _ →
+  freshName "aux" >>=
+  λ aux → declareDef (vArg aux) (def (quote ⊥) []) >>= λ _ → commitTC
+has type Nat

@@ -4806,18 +4806,21 @@ data UnificationFailure
   deriving (Show, Generic)
 
 data UnquoteError
-  = CannotDeclareHiddenFunction QName
+  = BlockedOnMeta TCState Blocker
+  | CannotDeclareHiddenFunction QName
       -- ^ Attempt to @unquoteDecl@ with 'Hiding' other than 'NotHidden'.
+  | CommitAfterDef
   | ConInsteadOfDef QName String String
+  | DefineDataNotData QName
   | DefInsteadOfCon QName String String
   | MissingDeclaration QName
   | MissingDefinition QName
   | NakedUnquote
   | NonCanonical String I.Term
-  | BlockedOnMeta TCState Blocker
   | PatLamWithoutClauses I.Term
   | StaleMeta TopLevelModuleName MetaId
       -- ^ Attempt to unquote a serialized meta.
+  | UnboundName QName
   deriving (Show, Generic)
 
 -- | Error when trying to call an external executable during reflection.
@@ -4924,6 +4927,8 @@ data TypeError
         | VariableIsIrrelevant Name
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion
+        | LambdaIsErased
+        | RecordIsErased
         | InvalidModalTelescopeUse Term Modality Modality Definition
         | UnequalLevel Comparison Level Level
         | UnequalTerms Comparison Term Term CompareAs
@@ -4952,8 +4957,14 @@ data TypeError
         | GenericDocError Doc
         | SortOfSplitVarError (Maybe Blocker) Doc
           -- ^ the meta is what we might be blocked on.
+        | WrongSharpArity A.QName
         | BuiltinMustBeConstructor BuiltinId A.Expr
+        | BuiltinMustBeData BuiltinId Int
+        | BuiltinMustBeDef BuiltinId
+        | BuiltinMustBeFunction BuiltinId
+        | BuiltinMustBePostulate BuiltinId
         | NoSuchBuiltinName String
+        | InvalidBuiltin String
         | DuplicateBuiltinBinding BuiltinId Term Term
         | NoBindingForBuiltin BuiltinId
         | NoBindingForPrimitive PrimitiveId
@@ -4979,7 +4990,7 @@ data TypeError
         | TooFewPatternsInWithClause
         | TooManyPatternsInWithClause
         | FieldOutsideRecord
-        | ModuleArityMismatch A.ModuleName Telescope (List1 (NamedArg A.Expr))
+        | ModuleArityMismatch A.ModuleName Telescope (Either (List1 (NamedArg A.Expr)) Args)
         | GeneralizeCyclicDependency
         | ReferencesFutureVariables Term (List1 Int) (Arg Term) Int
           -- ^ The first term references the given list of variables,
@@ -5007,6 +5018,8 @@ data TypeError
             -- ^ Cannot generate transport clause because type is not fibrant.
         | ExpectedIntervalLiteral A.Expr
             -- ^ Expected an interval literal (0 or 1) but found 'A.Expr'.
+        | FaceConstraintDisjunction
+        | FaceConstraintUnsatisfiable
         | PatternInPathLambda
             -- ^ Attempt to pattern match in an abstraction of interval type.
         | PatternInSystem
@@ -5021,6 +5034,7 @@ data TypeError
         | SortCannotDependOnItsIndex QName Type
     -- Modality errors
         | UnusableAtModality WhyCheckModality Modality Term
+        | InvalidFieldModality Cohesion
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
@@ -5042,6 +5056,7 @@ data TypeError
         | FunctionTypeInSizeUniv Term
             -- ^ This term, a function type constructor, lives in
             --   @SizeUniv@, which is not allowed.
+        | PostulatedSizeInModule
     -- Import errors
         | LibraryError LibErrors
             -- ^ Collected errors when processing the @.agda-lib@ file.
@@ -5068,6 +5083,7 @@ data TypeError
           -- the include path says contains the module.
         | InvalidFileName AbsolutePath InvalidFileNameReason
           -- ^ The file name does not correspond to a module name.
+        | ModuleNameHashCollision RawTopLevelModuleName (Maybe RawTopLevelModuleName)
     -- Scope errors
         | AbstractConstructorNotInScope A.QName
         | CopatternHeadNotProjection C.QName

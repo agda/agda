@@ -1,0 +1,3 @@
+FaceConstraintDisjunction.agda:7.10-20: error: [FaceConstraintDisjunction]
+Cannot have disjunctions in a face constraint
+when checking that the pattern (i ∨ j = i1) has type IsOne (i ∨ j)

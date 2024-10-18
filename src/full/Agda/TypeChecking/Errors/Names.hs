@@ -65,6 +65,10 @@ typeErrorName = \case
   BadArgumentsToPatternSynonym                               {} -> BadArgumentsToPatternSynonym_
   BuiltinInParameterisedModule                               {} -> BuiltinInParameterisedModule_
   BuiltinMustBeConstructor                                   {} -> BuiltinMustBeConstructor_
+  BuiltinMustBeData                                          {} -> BuiltinMustBeData_
+  BuiltinMustBeDef                                           {} -> BuiltinMustBeDef_
+  BuiltinMustBeFunction                                      {} -> BuiltinMustBeFunction_
+  BuiltinMustBePostulate                                     {} -> BuiltinMustBePostulate_
   CannotEliminateWithPattern                                 {} -> CannotEliminateWithPattern_
   CannotEliminateWithProjection                              {} -> CannotEliminateWithProjection_
   CannotGenerateHCompClause                                  {} -> CannotGenerateHCompClause_
@@ -102,6 +106,8 @@ typeErrorName = \case
   ExpectedBindingForParameter                                {} -> ExpectedBindingForParameter_
   ExpectedIntervalLiteral                                    {} -> ExpectedIntervalLiteral_
   FieldOutsideRecord                                         {} -> FieldOutsideRecord_
+  FaceConstraintDisjunction                                  {} -> FaceConstraintDisjunction_
+  FaceConstraintUnsatisfiable                                {} -> FaceConstraintUnsatisfiable_
   FileNotFound                                               {} -> FileNotFound_
   ForcedConstructorNotInstantiated                           {} -> ForcedConstructorNotInstantiated_
   FunctionTypeInSizeUniv                                     {} -> FunctionTypeInSizeUniv_
@@ -110,7 +116,9 @@ typeErrorName = \case
   GeneralizedVarInLetOpenedModule                            {} -> GeneralizedVarInLetOpenedModule_
   HidingMismatch                                             {} -> HidingMismatch_
   IdiomBracketError                                          {} -> IdiomBracketError_
+  InvalidBuiltin                                             {} -> InvalidBuiltin_
   InvalidDottedExpression                                    {} -> InvalidDottedExpression_
+  InvalidFieldModality                                       {} -> InvalidFieldModality_
   IllTypedPatternAfterWithAbstraction                        {} -> IllTypedPatternAfterWithAbstraction_
   IllegalDeclarationBeforeTopLevelModule                     {} -> IllegalDeclarationBeforeTopLevelModule_
   IllegalDeclarationInDataDefinition                         {} -> IllegalDeclarationInDataDefinition_
@@ -128,6 +136,7 @@ typeErrorName = \case
   InvalidPattern                                             {} -> InvalidPattern_
   InvalidProjectionParameter                                 {} -> InvalidProjectionParameter_
   InvalidTypeSort                                            {} -> InvalidTypeSort_
+  LambdaIsErased                                             {} -> LambdaIsErased_
   LibTooFarDown                                              {} -> LibTooFarDown_
   LiteralTooBig                                              {} -> LiteralTooBig_
   MacroResultTypeMismatch                                    {} -> MacroResultTypeMismatch_
@@ -138,6 +147,7 @@ typeErrorName = \case
   ModuleArityMismatch                                        {} -> ModuleArityMismatch_
   ModuleDefinedInOtherFile                                   {} -> ModuleDefinedInOtherFile_
   ModuleNameDoesntMatchFileName                              {} -> ModuleNameDoesntMatchFileName_
+  ModuleNameHashCollision                                    {} -> ModuleNameHashCollision_
   ModuleNameUnexpected                                       {} -> ModuleNameUnexpected_
   MultipleFixityDecls                                        {} -> MultipleFixityDecls_
   MultiplePolarityPragmas                                    {} -> MultiplePolarityPragmas_
@@ -169,10 +179,12 @@ typeErrorName = \case
   OverlappingProjects                                        {} -> OverlappingProjects_
   PatternInPathLambda                                        {} -> PatternInPathLambda_
   PatternInSystem                                            {} -> PatternInSystem_
+  PostulatedSizeInModule                                     {} -> PostulatedSizeInModule_
   PrivateRecordField                                         {} -> PrivateRecordField_
   ProjectionIsIrrelevant                                     {} -> ProjectionIsIrrelevant_
   QualifiedLocalModule                                       {} -> QualifiedLocalModule_
   QuantityMismatch                                           {} -> QuantityMismatch_
+  RecordIsErased                                             {} -> RecordIsErased_
   RecursiveRecordNeedsInductivity                            {} -> RecursiveRecordNeedsInductivity_
   ReferencesFutureVariables                                  {} -> ReferencesFutureVariables_
   RelevanceMismatch                                          {} -> RelevanceMismatch_
@@ -239,6 +251,7 @@ typeErrorName = \case
   WrongNamedArgument                                         {} -> WrongNamedArgument_
   WrongNumberOfConstructorArguments                          {} -> WrongNumberOfConstructorArguments_
   WrongQuantityInLambda                                      {} -> WrongQuantityInLambda_
+  WrongSharpArity                                            {} -> WrongSharpArity_
 
 declarationExceptionName :: DeclarationException' -> DeclarationException_
 declarationExceptionName = \case
@@ -327,16 +340,19 @@ unquotableName = \case
 
 unquoteErrorName :: UnquoteError -> UnquoteError_
 unquoteErrorName = \case
+  BlockedOnMeta               {} -> BlockedOnMeta_
   CannotDeclareHiddenFunction {} -> CannotDeclareHiddenFunction_
+  CommitAfterDef              {} -> CommitAfterDef_
   ConInsteadOfDef             {} -> ConInsteadOfDef_
+  DefineDataNotData           {} -> DefineDataNotData_
   DefInsteadOfCon             {} -> DefInsteadOfCon_
   MissingDeclaration          {} -> MissingDeclaration_
   MissingDefinition           {} -> MissingDefinition_
   NakedUnquote                {} -> NakedUnquote_
   NonCanonical                {} -> NonCanonical_
-  BlockedOnMeta               {} -> BlockedOnMeta_
   PatLamWithoutClauses        {} -> PatLamWithoutClauses_
   StaleMeta                   {} -> StaleMeta_
+  UnboundName                 {} -> UnboundName_
 
 -- -- * Printing names of errors
 

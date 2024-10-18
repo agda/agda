@@ -781,56 +781,52 @@ checkExtendedLambda ::
   List1 A.Clause -> A.Expr -> Type -> TCM Term
 checkExtendedLambda cmp i di erased qname cs e t = do
   mod <- currentModality
-  if isErased erased && not (hasQuantity0 mod) then
-    genericError $ unwords
-      [ "Erased pattern-matching lambdas may only be used in erased"
-      , "contexts"
-      ]
-   else setModeUnlessInHardCompileTimeMode erased $ do
-        -- Erased pattern-matching lambdas are checked in hard
-        -- compile-time mode. For non-erased pattern-matching lambdas
-        -- run-time mode is used, unless the current mode is hard
-        -- compile-time mode.
-   -- Andreas, 2016-06-16 issue #2045
-   -- Try to get rid of unsolved size metas before we
-   -- fix the type of the extended lambda auxiliary function
-   solveSizeConstraints DontDefaultToInfty
-   lamMod <- inFreshModuleIfFreeParams currentModule  -- #2883: need a fresh module if refined params
-   t <- instantiateFull t
-   ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t -> do
-     j   <- currentOrFreshMutualBlock
-     mod <- currentModality
-     let info = setModality mod defaultArgInfo
+  when (isErased erased && not (hasQuantity0 mod)) $ typeError LambdaIsErased
+  setModeUnlessInHardCompileTimeMode erased do
+         -- Erased pattern-matching lambdas are checked in hard
+         -- compile-time mode. For non-erased pattern-matching lambdas
+         -- run-time mode is used, unless the current mode is hard
+         -- compile-time mode.
+    -- Andreas, 2016-06-16 issue #2045
+    -- Try to get rid of unsolved size metas before we
+    -- fix the type of the extended lambda auxiliary function
+    solveSizeConstraints DontDefaultToInfty
+    lamMod <- inFreshModuleIfFreeParams currentModule  -- #2883: need a fresh module if refined params
+    t <- instantiateFull t
+    ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') \ _ t -> do
+      j   <- currentOrFreshMutualBlock
+      mod <- currentModality
+      let info = setModality mod defaultArgInfo
 
-     reportSDoc "tc.term.exlam" 20 $ vcat
-       [ hsep
-         [ text $ show $ A.defAbstract di
-         , "extended lambda's implementation"
-         , doubleQuotes $ prettyTCM qname
-         , "has type:"
-         ]
-       , prettyTCM t -- <+> " where clauses: " <+> text (show cs)
-       ]
-     args     <- getContextArgs
+      reportSDoc "tc.term.exlam" 20 $ vcat
+        [ hsep
+          [ text $ show $ A.defAbstract di
+          , "extended lambda's implementation"
+          , doubleQuotes $ prettyTCM qname
+          , "has type:"
+          ]
+        , prettyTCM t -- <+> " where clauses: " <+> text (show cs)
+        ]
+      args     <- getContextArgs
 
-     -- Andreas, Ulf, 2016-02-02: We want to postpone type checking an extended lambda
-     -- in case the lhs checker failed due to insufficient type info for the patterns.
-     -- Issues 480, 1159, 1811.
-     abstract (A.defAbstract di) $ do
-       -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
-       -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
-       addConstant qname =<< do
-         lang <- getLanguage
-         fun  <- emptyFunction
-         useTerPragma $
-           (defaultDefn info qname t lang fun)
-             { defMutual = j }
-       checkFunDef' t info (Just $ ExtLamInfo lamMod False empty) Nothing di qname $
-         List1.toList cs
-       whenNothingM (asksTC envMutualBlock) $
-         -- Andrea 10-03-2018: Should other checks be performed here too? e.g. termination/positivity/..
-         checkIApplyConfluence_ qname
-       return $ Def qname $ map Apply args
+      -- Andreas, Ulf, 2016-02-02: We want to postpone type checking an extended lambda
+      -- in case the lhs checker failed due to insufficient type info for the patterns.
+      -- Issues 480, 1159, 1811.
+      abstract (A.defAbstract di) do
+        -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
+        -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
+        addConstant qname =<< do
+          lang <- getLanguage
+          fun  <- emptyFunction
+          useTerPragma $
+            (defaultDefn info qname t lang fun)
+              { defMutual = j }
+        checkFunDef' t info (Just $ ExtLamInfo lamMod False empty) Nothing di qname $
+          List1.toList cs
+        whenNothingM (asksTC envMutualBlock) $
+          -- Andrea 10-03-2018: Should other checks be performed here too? e.g. termination/positivity/..
+          checkIApplyConfluence_ qname
+        return $ Def qname $ map Apply args
   where
     -- Concrete definitions cannot use information about abstract things.
     abstract ConcreteDef = inConcreteMode
@@ -988,10 +984,7 @@ checkRecordExpression cmp style mfs e t = do
       -- constructors can only be used in compile-time mode.
       constructorQ <- getQuantity <$> getConstInfo (conName con)
       currentQ     <- viewTC eQuantity
-      unless (constructorQ `moreQuantity` currentQ) $
-        typeError $ GenericError $
-        "A record expression corresponding to an erased record " ++
-        "constructor must only be used in erased settings"
+      unless (constructorQ `moreQuantity` currentQ) $ typeError RecordIsErased
 
       -- Andreas, 2018-09-06, issue #3122.
       -- Associate the concrete record field names used in the record expression

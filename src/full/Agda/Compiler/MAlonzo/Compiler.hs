@@ -362,8 +362,9 @@ ghcPostCompile _cenv _isMain mods = do
   -- FIXME: @curMName@ and @curIF@ are evil TCM state, but there does not appear to be
   --------- another way to retrieve the compilation root ("main" module or interaction focused).
   rootModuleName <- curMName
-  rootModule <- ifJust (Map.lookup rootModuleName mods) pure
-                $ genericError $ "Module " <> prettyShow rootModuleName <> " was not compiled!"
+  -- Mario, 2024-10-16: cannot trigger this error:
+  -- genericError $ "Module " <> prettyShow rootModuleName <> " was not compiled!"
+  let rootModule = Map.findWithDefault __IMPOSSIBLE__ rootModuleName mods
   flip runReaderT rootModule $ do
     copyRTEModules
     callGHC

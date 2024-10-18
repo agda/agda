@@ -38,12 +38,14 @@ EOF
 # Errors we currently do not cover by the testsuite (TODO!).
 #
 cat >> $ERRORS <<EOF
+BuiltinMustBeFunction
 ContradictorySizeConstraint
 Exec.ExeNotExecutable
 Exec.ExeNotFound
 Exec.ExeNotTrusted
 FunctionTypeInSizeUniv
 GeneralizeCyclicDependency
+ModuleNameHashCollision
 SplitError.CannotCreateMissingClause
 SplitError.CosplitNoTarget
 SplitError.GenericSplitError

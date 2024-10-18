@@ -1,0 +1,2 @@
+PostulatedSizeInModule.agda:7.11-19: error: [PostulatedSizeInModule]
+We don't like postulated sizes in parametrized modules.
