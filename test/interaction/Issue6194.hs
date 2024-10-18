@@ -1,11 +1,13 @@
-{-# LANGUAGE NondecreasingIndentation, RecordWildCards #-}
+{-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE RecordWildCards #-}
 
-import Control.Exception
+import Control.Exception ( finally )
 
-import System.Directory
-import System.Process
+import System.Directory  ( removePathForcibly, withCurrentDirectory )
+import System.Process    ( callProcess )
 
-import RunAgda
+import RunAgda           ( runAgda, command, AgdaCommands(AgdaCommands), readUntilPrompt, send )
 
 main :: IO ()
 main = do
@@ -28,8 +30,8 @@ main = do
   let
     -- Compile the given file and wait for Agda to complete.
     compile f = do
-      send $ command "compile" f Nothing
-               (Just $ "GHC " ++ show f ++ " []")
+      let c = command "compile" f Nothing (Just $ "GHC " ++ show f ++ " []")
+      send c
       readUntilPrompt
 
   -- Discard the first prompt.
@@ -37,9 +39,11 @@ main = do
 
   -- Compile Issue6194-A/Main.agda and wait for Agda to complete.
   compile "Main.agda"
+    -- IOTCM "Main.agda" None Indirect (Cmd_compile GHC "Main.agda" [])
 
   -- Compile Issue6194-B/Main.agda and wait for Agda to complete.
   compile "../Issue6194-B/Main.agda"
+    -- IOTCM "../Issue6194-B/Main.agda" None Indirect (Cmd_compile GHC "../Issue6194-B/Main.agda" [])
 
   -- Run Issue6194-B/Main.
   callProcess "../Issue6194-B/Main" []

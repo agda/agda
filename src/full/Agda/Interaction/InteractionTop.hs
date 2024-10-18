@@ -620,7 +620,7 @@ interpret (Cmd_load_highlighting_info source) = do
     setCommandLineOpts =<< lift commandLineOptions
     resp <- lift $ liftIO . tellToUpdateHighlighting =<< do
       ex        <- liftIO $ doesFileExist source
-      absSource <- liftIO $ SourceFile <$> absolute source
+      absSource <- srcFromPath =<< liftIO (absolute source)
       if ex
         then
            do
@@ -907,7 +907,8 @@ cmd_load' file argv unsolvedOK mode cmd = do
     --
     -- Note that options are set below.
     fp  <- liftIO $ absolute file
-    src <- lift $ Imp.parseSource (SourceFile fp)
+    sf  <- liftTCM $ srcFromPath fp
+    src <- lift $ Imp.parseSource sf
     -- Andreas, 2024-08-03, see test/interaction/FileNotFound:
     -- Run 'getModificationTime' after 'parseSource',
     -- otherwise the user gets a weird error for non-existing files.

@@ -30,7 +30,7 @@ import GHC.Generics (Generic)
 import Agda.Compiler.Backend (Backend,Backend_boot(..), Backend',Backend'_boot(..), Definition, Recompile(..))
 import Agda.Compiler.Common (curIF, IsMain)
 
-import Agda.Interaction.FindFile (findFile, srcFilePath)
+import Agda.Interaction.FindFile (findFile)
 import Agda.Interaction.Library
 import Agda.Interaction.Options
   ( ArgDescr(ReqArg)
@@ -48,6 +48,7 @@ import Agda.TypeChecking.Monad
   , internalError
   , reportSDoc
   , getAgdaLibFiles
+  , srcFilePath
   )
 import Agda.TypeChecking.Pretty
 
@@ -179,8 +180,9 @@ postModuleDot cenv DotModuleEnv _main m _defs = do
   include <- case dotCompileEnvLibraries cenv of
     Nothing -> return True
     Just ls -> liftTCM $ do
-      f    <- findFile m
-      libs <- getAgdaLibFiles (srcFilePath f) m
+      sf   <- findFile m
+      f    <- srcFilePath sf
+      libs <- getAgdaLibFiles f m
 
       let incLibs = filter (\l -> _libName l `HashSet.member` ls) libs
           inLib   = not (null incLibs)
