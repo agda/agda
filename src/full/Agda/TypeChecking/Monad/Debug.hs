@@ -8,7 +8,6 @@ module Agda.TypeChecking.Monad.Debug
 import qualified Control.Exception as E
 import qualified Control.DeepSeq as DeepSeq (force)
 
-import Control.Applicative          ( liftA2 )
 import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -19,7 +18,6 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Writer
 
 import Data.Maybe
-import Data.Time                    ( getCurrentTime, getCurrentTimeZone, utcToLocalTime )
 import Data.Time.Format.ISO8601     ( iso8601Show )
 
 import {-# SOURCE #-} Agda.TypeChecking.Errors
@@ -38,6 +36,7 @@ import Agda.Utils.Monad
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.ProfileOptions
 import Agda.Utils.Update
+import Agda.Utils.Time
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Impossible
@@ -150,7 +149,7 @@ instance MonadDebug TCM where
 
     -- Andreas, 2022-06-15, prefix with time stamp if `-v debug.time:100`:
     msg <- ifNotM (hasVerbosity "debug.time" 100) {-then-} (return s) {-else-} $ do
-      now <- liftIO $ trailingZeros . iso8601Show <$> liftA2 utcToLocalTime getCurrentTimeZone getCurrentTime
+      now <- liftIO $ trailingZeros . iso8601Show <$> getLocalTime
       return $ concat [ now, ": ", s ]
 
     cb $ Resp_RunningInfo n msg
