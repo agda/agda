@@ -685,15 +685,15 @@ when importing ``Agda.Primitive``.
 
 .. code-block:: agda
 
-{-# BUILTIN PROP           Prop      #-}
-{-# BUILTIN TYPE           Set       #-}
-{-# BUILTIN STRICTSET      SSet      #-}
+  {-# BUILTIN PROP           Prop      #-}
+  {-# BUILTIN TYPE           Set       #-}
+  {-# BUILTIN STRICTSET      SSet      #-}
 
-{-# BUILTIN PROPOMEGA      Propω     #-}
-{-# BUILTIN SETOMEGA       Setω      #-}
-{-# BUILTIN STRICTSETOMEGA SSetω     #-}
+  {-# BUILTIN PROPOMEGA      Propω     #-}
+  {-# BUILTIN SETOMEGA       Setω      #-}
+  {-# BUILTIN STRICTSETOMEGA SSetω     #-}
 
-{-# BUILTIN LEVELUNIV      LevelUniv #-}
+  {-# BUILTIN LEVELUNIV      LevelUniv #-}
 
 The primitive sort `Set` is automatically imported at the
 top of every top-level Agda module, unless the
