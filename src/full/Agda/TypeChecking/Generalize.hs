@@ -118,9 +118,9 @@ module Agda.TypeChecking.Generalize
 
 import Prelude hiding (null)
 
-import Control.Arrow ((&&&), first)
 import Control.Monad.Except ( MonadError(..) )
 
+import Data.Bifunctor (first)
 import qualified Data.IntSet as IntSet
 import Data.Set (Set)
 import qualified Data.Set as Set

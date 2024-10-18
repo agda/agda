@@ -13,6 +13,7 @@ import Control.Monad.Writer         ( WriterT  (WriterT  ), runWriterT   )
 
 import qualified Data.Set as Set
 
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Parser (PM, runPMIO)
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Position as P
@@ -31,7 +32,6 @@ import Agda.Utils.Function
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty (prettyShow)
 
 ---------------------------------------------------------------------------
 -- * Trace
@@ -226,10 +226,11 @@ instance MonadTrace TCM where
   printHighlightingInfo remove info = do
     modToSrc <- useTC stModuleToSource
     method   <- viewTC eHighlightingMethod
-    reportS "highlighting" 50
+    reportSDoc "highlighting" 50 $ pure $ vcat
       [ "Printing highlighting info:"
-      , show info
-      , "  modToSrc = " ++ show modToSrc
+      , nest 2 $ (text . show) info
+      , "File modules:"
+      , nest 2 $ pretty modToSrc
       ]
     unless (null info) $ do
       appInteractionOutputCallback $

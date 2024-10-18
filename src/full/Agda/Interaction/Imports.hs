@@ -127,7 +127,7 @@ data Source = Source
 -- | Parses a source file and prepares the 'Source' record.
 
 parseSource :: SourceFile -> TCM Source
-parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
+parseSource sourceFile = Bench.billTo [Bench.Parsing] $ do
   -- Issue #7303:
   -- The parser previously used mdo to avoid the duplicate parsing for the
   -- bootstrapping of the TopLevelModuleName in Range.
@@ -141,6 +141,8 @@ parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   -- so early, as all the ranges from one file have the same file id.
   -- It would be sufficient to fill in the file name/id when the mixing
   -- with other files starts, e.g. during scope checking.)
+
+  f <- srcFilePath sourceFile
 
   -- Read the source text.
   let rf0 = mkRangeFile f Nothing
@@ -453,8 +455,9 @@ typeCheckMain mode src = do
 
       -- We don't want to generate highlighting information for Agda.Primitive.
       withHighlightingLevel None $
-        forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
-          primSource <- parseSource (SourceFile $ mkAbsolute f)
+        forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) \ f -> do
+          sf <- srcFromPath (mkAbsolute f)
+          primSource <- parseSource sf
           checkModuleName' (srcModuleName primSource) (srcOrigin primSource)
           void $ getNonMainInterface (srcModuleName primSource) (Just primSource)
 
@@ -531,12 +534,14 @@ getInterface x isMain msrc =
           -- To prevent this, we register the connection in @ModuleToSource@ here,
           -- where we have the correct spelling of the file name.
           let file = srcOrigin src
-          modifyTCLens stModuleToSource $ Map.insert x (srcFilePath file)
+          modifyTCLens stModuleToSourceId $ Map.insert x file
           pure file
-      reportSLn "import.iface" 15 $ List.intercalate "\n" $ map ("  " ++)
-        [ "module: " ++ prettyShow x
-        , "file:   " ++ prettyShow file
-        ]
+      reportSDoc "import.iface" 15 do
+        path <- srcFilePath file
+        P.text $ List.intercalate "\n" $ map ("  " ++)
+          [ "module: " ++ prettyShow x
+          , "file:   " ++ prettyShow path
+          ]
 
       reportSLn "import.iface" 10 $ "  Check for cycle"
       checkForImportCycle
@@ -559,8 +564,9 @@ getInterface x isMain msrc =
 
             -- Ensure that the given module name matches the one in the file.
             let topLevelName = iTopLevelModuleName (miInterface modl)
-            unless (topLevelName == x) $
-              typeError $ OverlappingProjects (srcFilePath file) topLevelName x
+            unless (topLevelName == x) do
+              path <- srcFilePath file
+              typeError $ OverlappingProjects path topLevelName x
 
             return modl
 
@@ -646,7 +652,9 @@ getStoredInterface x file msrc = do
   -- is invalid, missing, or skipped for some other reason.
   let checkSourceHashET ifaceH = do
         sourceH <- case msrc of
-                    Nothing -> liftIO $ hashTextFile (srcFilePath file)
+                    Nothing -> do
+                      path <- srcFilePath file
+                      liftIO $ hashTextFile path
                     Just src -> return $ hashText (srcText src)
 
         unless (sourceH == ifaceH) $
@@ -665,7 +673,7 @@ getStoredInterface x file msrc = do
         throwError "we're ignoring all interface files"
 
       whenM ignoreInterfaces $
-        unlessM (lift $ Lens.isBuiltinModule (filePath $ srcFilePath file)) $
+        unlessM (lift . Lens.isBuiltinModule . filePath =<< srcFilePath file) $
             throwError "we're ignoring non-builtin interface files"
 
       (ifile, hashes) <- getIFileHashesET
@@ -682,10 +690,11 @@ getStoredInterface x file msrc = do
 
         -- Ensure that the given module name matches the one in the file.
         let topLevelName = iTopLevelModuleName i
-        unless (topLevelName == x) $
-          lift $ typeError $ OverlappingProjects (srcFilePath file) topLevelName x
+        unless (topLevelName == x) do
+          path <- srcFilePath file
+          lift $ typeError $ OverlappingProjects path topLevelName x
 
-        isPrimitiveModule <- lift $ Lens.isPrimitiveModule (filePath $ srcFilePath file)
+        isPrimitiveModule <- lift . Lens.isPrimitiveModule . filePath =<< srcFilePath file
 
         lift $ chaseMsg "Loading " x $ Just ifp
         -- print imported warnings
@@ -744,8 +753,9 @@ loadDecodedModule
      -- ^ File we process.
   -> ModuleInfo
   -> ExceptT String TCM ModuleInfo
-loadDecodedModule file mi = do
-  let fp = filePath $ srcFilePath file
+loadDecodedModule sf mi = do
+  file <- srcFilePath sf
+  let fp = filePath file
   let i = miInterface mi
 
   -- Check that it's the right version
@@ -758,7 +768,7 @@ loadDecodedModule file mi = do
   -- Jesper, 2021-04-18: Check for changed options in library files!
   -- (see #5250)
   libOptions <- lift $ getLibraryOptions
-    (srcFilePath file)
+    file
     (iTopLevelModuleName i)
   lift $ mapM_ setOptionsFromPragma (libOptions ++ iFilePragmaOptions i)
 
@@ -786,7 +796,7 @@ loadDecodedModule file mi = do
   lift $ mergeInterface i
   Bench.billTo [Bench.Highlighting] $
     lift $ ifTopLevelAndHighlightingLevelIs NonInteractive $
-      highlightFromInterface i file
+      highlightFromInterface i sf
 
   return mi
 
@@ -905,10 +915,11 @@ highlightFromInterface
   -> SourceFile
      -- ^ The corresponding file.
   -> TCM ()
-highlightFromInterface i file = do
-  reportSLn "import.iface" 5 $
-    "Generating syntax info for " ++ filePath (srcFilePath file) ++
-    " (read from interface)."
+highlightFromInterface i sf = do
+  reportSDoc "import.iface" 5 do
+    file <- srcFilePath sf
+    P.text $ "Generating syntax info for " ++ filePath file ++
+      " (read from interface)."
   printHighlightingInfo KeepHighlighting (iHighlighting i)
 
 -- | Read interface file corresponding to a module.
@@ -987,9 +998,10 @@ createInterface
   -> MainInterface         -- ^ Are we dealing with the main module?
   -> Maybe Source      -- ^ Optional information about the source code.
   -> TCM ModuleInfo
-createInterface mname file isMain msrc = do
+createInterface mname sf isMain msrc = do
   let x = mname
-  let fp = filePath $ srcFilePath file
+  file <- srcFilePath sf
+  let fp = filePath file
   let checkMsg = case isMain of
                    MainInterface ScopeCheck -> "Reading "
                    _                        -> "Checking"
@@ -1002,7 +1014,7 @@ createInterface mname file isMain msrc = do
 
   withMsgs $
     Bench.billTo [Bench.TopModule mname] $
-    localTC (\e -> e { envCurrentPath = Just (srcFilePath file) }) $ do
+    localTC (\e -> e { envCurrentPath = Just file }) $ do
 
     let onlyScope = isMain == MainInterface ScopeCheck
 
@@ -1012,9 +1024,9 @@ createInterface mname file isMain msrc = do
       visited <- prettyShow <$> getPrettyVisitedModules
       reportSLn "import.iface.create" 10 $ "  visited: " ++ visited
 
-    src <- maybe (parseSource file) pure msrc
+    src <- maybe (parseSource sf) pure msrc
 
-    let srcPath = srcFilePath $ srcOrigin src
+    srcPath <- srcFilePath $ srcOrigin src
 
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
       generateTokenInfoFromSource
@@ -1044,7 +1056,7 @@ createInterface mname file isMain msrc = do
     reportSLn "import.iface.create" 7 "Starting scope checking."
     topLevel <- Bench.billTo [Bench.Scoping] $ do
       let topDecls = C.modDecls $ srcModule src
-      concreteToAbstract_ (TopLevel srcPath mname topDecls)
+      concreteToAbstract_ (TopLevel (srcOrigin src) mname topDecls)
     reportSLn "import.iface.create" 7 "Finished scope checking."
 
     let ds    = topLevelDecls topLevel
@@ -1195,7 +1207,7 @@ createInterface mname file isMain msrc = do
         reportSLn "import.iface.create" 7 "Actually calling writeInterface."
         -- The file was successfully type-checked (and no warnings were
         -- encountered), so the interface should be written out.
-        ifile <- toIFile file
+        ifile <- toIFile sf
         serializedIface <- writeInterface ifile i
         reportSLn "import.iface.create" 7 "Finished writing to interface file."
         return serializedIface

@@ -1324,8 +1324,8 @@ scopeCheckModule r e x qm tel checkDs = do
 
 -- | Temporary data type to scope check a file.
 data TopLevel a = TopLevel
-  { topLevelPath           :: AbsolutePath
-    -- ^ The file path from which we loaded this module.
+  { topLevelSourceFile     :: SourceFile
+    -- ^ The file from which we loaded this module.
   , topLevelExpectedName   :: TopLevelModuleName
     -- ^ The expected module name
     --   (coming from the import statement that triggered scope checking this file).
@@ -1351,7 +1351,7 @@ topLevelModuleName = (^. scopeCurrent) . topLevelScope
 instance ToAbstract (TopLevel [C.Declaration]) where
     type AbsOfCon (TopLevel [C.Declaration]) = TopLevelInfo
 
-    toAbstract (TopLevel file expectedMName ds) =
+    toAbstract (TopLevel src expectedMName ds) =
       -- A file is a bunch of preliminary decls (imports etc.)
       -- plus a single module decl.
       case C.spanAllowedBeforeModule ds of
@@ -1393,6 +1393,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
 
                     -- Otherwise, reconstruct the top-level module name
                     _ -> do
+                      file <- srcFilePath src
                       let m = C.QName $ setRange (getRange m0) $
                               C.simpleName $ stringToRawName $
                               rootNameModule file
@@ -1415,7 +1416,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
                 -- checker.
                   top <- S.topLevelModuleName
                            (rawTopLevelModuleNameForQName m0)
-                  checkModuleName top (SourceFile file) (Just expectedMName)
+                  checkModuleName top src (Just expectedMName)
                   return (m0, top)
           setTopLevelModule top
           am <- toAbstract (NewModuleQName m)

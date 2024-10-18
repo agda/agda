@@ -9,23 +9,25 @@ module Agda.Interaction.Highlighting.Emacs
 
 import Prelude hiding (null)
 
+import qualified Data.List as List
+import Data.Maybe
+
+import Agda.Syntax.Common.Pretty (prettyShow)
+
 import Agda.Interaction.Highlighting.Common
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range (Range(..))
 import Agda.Interaction.EmacsCommand
 import Agda.Interaction.Response
-import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource)
-import Agda.Utils.FileName (filePath)
-import Agda.Utils.IO.TempFile (writeToTempFile)
-import Agda.Syntax.Common.Pretty (prettyShow)
-import Agda.Utils.String (quote)
 
-import qualified Data.List as List
-import qualified Data.Map as Map
-import Data.Maybe
+import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource, topLevelModuleFilePath)
 
+import Agda.Utils.CallStack    (HasCallStack)
+import Agda.Utils.FileName     (AbsolutePath, filePath)
+import Agda.Utils.IO.TempFile  (writeToTempFile)
 import Agda.Utils.Null
-import Agda.Utils.Impossible
+import Agda.Utils.String       (quote)
+
 
 ------------------------------------------------------------------------
 -- Read/show functions
@@ -51,7 +53,9 @@ showAspects modFile (r, m) = L $
   where
   defSite (DefinitionSite m p _ _) =
     Cons (A $ quote $ filePath f) (A $ show p)
-    where f = Map.findWithDefault __IMPOSSIBLE__ m modFile
+    where
+      f :: HasCallStack => AbsolutePath
+      f = topLevelModuleFilePath modFile m  -- partial function, so use CallStack!
 
   dropNils = List.dropWhileEnd (== A "nil")
 
