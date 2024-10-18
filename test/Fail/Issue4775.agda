@@ -23,9 +23,5 @@ test = λ (y1 , isSuc y2) → Nat
 -- ERROR NOW (2024-10-17):
 --
 -- Expected record pattern
--- when checking that the expression
--- λ .patternInTele0 @ (y1 , isSuc y2) → Nat has type
+-- when checking that the expression λ (y1 , isSuc y2) → Nat has type
 -- Σ Nat IsSuc → Set
---
--- which still mentions one desugaring artifact but is closer to
--- something the user wrote.

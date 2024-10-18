@@ -1121,13 +1121,18 @@ instance ToAbstract c => ToAbstract (FieldAssignment' c) where
 instance ToAbstract (C.Binder' (NewName C.BoundName)) where
   type AbsOfCon (C.Binder' (NewName C.BoundName)) = A.Binder
 
-  toAbstract (C.Binder p n) = do
+  toAbstract (C.Binder p o n) = do
     let name = C.boundName $ newName n
+
     -- If we do have a pattern then the variable needs to be inserted
     -- so we do need a proper internal name for it.
-    n <- if not (isNoName name && isJust p) then pure n else do
-           n' <- freshConcreteName (getRange $ newName n) 0 patternInTeleName
-           pure $ fmap (\ n -> n { C.boundName = n' }) n
+    --
+    -- Amy, 2024-10-18: If we generated a name, then mark the binder
+    -- name as being inserted.
+    (n, o) <- if not (isNoName name && isJust p) then pure (n, o) else do
+      n' <- freshConcreteName (getRange $ newName n) 0 patternInTeleName
+      pure (fmap (\ n -> n { C.boundName = n' }) n, InsertedBinderName)
+
     n <- toAbstract n
     -- Expand puns if optHiddenArgumentPuns is True.
     p <- traverse expandPunsOpt p
@@ -1139,7 +1144,7 @@ instance ToAbstract (C.Binder' (NewName C.BoundName)) where
       typeError $ RepeatedVariablesInPattern ys
     bindVarsToBind
     p <- toAbstract p
-    pure $ A.Binder p n
+    pure $ A.Binder p o n
 
 instance ToAbstract C.LamBinding where
   type AbsOfCon C.LamBinding = Maybe A.LamBinding
@@ -1266,7 +1271,7 @@ class EnsureNoLetStms a where
   ensureNoLetStms = traverse_ ensureNoLetStms
 
 instance EnsureNoLetStms C.Binder where
-  ensureNoLetStms arg@(C.Binder p n) =
+  ensureNoLetStms arg@(C.Binder p _ n) =
     when (isJust p) $ typeError $ IllegalPatternInTelescope arg
 
 instance EnsureNoLetStms C.TypedBinding where
@@ -1724,7 +1729,7 @@ instance ToAbstract LetDef where
           pat' = case pat of
             A.VarP{} -> Nothing
             pat -> Just pat
-          binder = Arg info (Named thing (A.Binder pat' bn)) :| []
+          binder = Arg info (Named thing (A.Binder pat' InsertedBinderName bn)) :| []
 
         pure $ A.Lam i (A.DomainFull (A.TBind (getRange ai) empty binder (A.Underscore empty))) e
 
@@ -3610,7 +3615,7 @@ toAbstractOpApp op ns es = do
         x <- freshName noRange "section"
         let i = setOrigin Inserted $ argInfo a
         (ls, ns) <- replacePlaceholders as
-        return ( A.mkDomainFree (unnamedArg i $ A.mkBinder_ x) : ls
+        return ( A.mkDomainFree (unnamedArg i $ A.insertedBinder_ x) : ls
                , set (Left (Var x)) a : ns
                )
       where

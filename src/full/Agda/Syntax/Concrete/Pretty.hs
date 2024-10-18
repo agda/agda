@@ -329,13 +329,17 @@ isLabeled x
   | otherwise              = Nothing
 
 instance Pretty a => Pretty (Binder' a) where
-  pretty (Binder mpat n) =
+  pretty (Binder mpat UserBinderName n) =
     applyWhenJust mpat (\ pat -> (<+> ("@" <+> parens (pretty pat)))) $ pretty n
+
+  pretty (Binder pat InsertedBinderName _) = case pat of
+    Just pat -> parens (pretty pat)
+    Nothing  -> __IMPOSSIBLE__
 
 instance Pretty NamedBinding where
   pretty (NamedBinding withH
            x@(Arg (ArgInfo h (Modality r q c) _o _fv (Annotation lock))
-               (Named _mn xb@(Binder _mp (BName _y _fix t _fin))))) =
+               (Named _mn xb@(Binder _mp _ (BName _y _fix t _fin))))) =
     applyWhen withH prH $
     applyWhenJust (isLabeled x) (\ l -> (text l <+>) . ("=" <+>)) (pretty xb)
       -- isLabeled looks at _mn and _y

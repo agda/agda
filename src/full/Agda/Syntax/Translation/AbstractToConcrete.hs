@@ -999,10 +999,10 @@ forceNameIfHidden x
 instance ToConcrete a => ToConcrete (A.Binder' a) where
   type ConOfAbs (A.Binder' a) = C.Binder' (ConOfAbs a)
 
-  bindToConcrete (A.Binder p a) ret =
+  bindToConcrete (A.Binder p o a) ret =
     bindToConcrete a $ \ a ->
     bindToConcrete p $ \ p ->
-    ret $ C.Binder p a
+    ret $ C.Binder p o a
 
 instance ToConcrete A.LamBinding where
     type ConOfAbs A.LamBinding = Maybe C.LamBinding

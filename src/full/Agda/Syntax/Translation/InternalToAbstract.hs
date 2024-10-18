@@ -1207,7 +1207,7 @@ instance Binder A.Pattern where
     A.WithP _ _         -> empty
 
 instance Binder a => Binder (A.Binder' a) where
-  varsBoundIn (A.Binder p n) = varsBoundIn (p, n)
+  varsBoundIn (A.Binder p _ n) = varsBoundIn (p, n)
 
 instance Binder A.LamBinding where
   varsBoundIn (A.DomainFree _ x) = varsBoundIn x

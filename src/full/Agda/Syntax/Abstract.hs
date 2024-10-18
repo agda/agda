@@ -265,20 +265,27 @@ type TacticAttribute = TacticAttribute' Expr
 
 -- A Binder @x\@p@, the pattern is optional
 data Binder' a = Binder
-  { binderPattern :: Maybe Pattern
-  , binderName    :: a
+  { binderPattern    :: Maybe Pattern
+  , binderNameOrigin :: BinderNameOrigin
+  , binderName       :: a
   } deriving (Show, Eq, Functor, Foldable, Traversable, Generic)
 
 type Binder = Binder' BindName
 
 mkBinder :: a -> Binder' a
-mkBinder = Binder Nothing
+mkBinder = Binder Nothing UserBinderName
 
 mkBinder_ :: Name -> Binder
 mkBinder_ = mkBinder . mkBindName
 
+insertedBinder :: a -> Binder' a
+insertedBinder = Binder Nothing InsertedBinderName
+
+insertedBinder_ :: Name -> Binder
+insertedBinder_ = insertedBinder . mkBindName
+
 extractPattern :: Binder' a -> Maybe (Pattern, a)
-extractPattern (Binder p a) = (,a) <$> p
+extractPattern (Binder p _ a) = (,a) <$> p
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
@@ -641,7 +648,7 @@ instance LensHiding TypedBinding where
   mapHiding f b@TLet{}             = b
 
 instance HasRange a => HasRange (Binder' a) where
-  getRange (Binder p n) = fuseRange p n
+  getRange (Binder p _ n) = fuseRange p n
 
 instance HasRange LamBinding where
     getRange (DomainFree _ x) = getRange x
@@ -764,8 +771,9 @@ instance SetRange (Pattern' a) where
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
     setRange r (WithP i p)          = WithP (setRange r i) p
 
+
 instance KillRange a => KillRange (Binder' a) where
-  killRange (Binder a b) = killRangeN Binder a b
+  killRange (Binder a o b) = killRangeN Binder a o b
 
 instance KillRange LamBinding where
   killRange (DomainFree t x) = killRangeN DomainFree t x

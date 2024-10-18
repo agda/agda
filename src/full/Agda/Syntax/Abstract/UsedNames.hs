@@ -153,7 +153,7 @@ instance BoundAndUsed TypedBinding where
   boundAndUsed (TLet _ bs)       = boundAndUsed bs
 
 instance BoundAndUsed name => BoundAndUsed (Binder' name) where
-  boundAndUsed (Binder p x) = parBindings p x
+  boundAndUsed (Binder p _ x) = parBindings p x
 
 instance BoundAndUsed BindName where
   boundAndUsed x = singleBind (unBind x)
