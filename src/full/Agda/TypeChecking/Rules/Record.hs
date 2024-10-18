@@ -632,7 +632,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         then unless (getCohesion ai == Continuous)
                     -- Andrea TODO: properly update the context/type of the projection when we add Sharp
                     __IMPOSSIBLE__
-        else genericError $ "Cannot have record fields with modality " ++ show (getCohesion ai)
+        else typeError $ InvalidFieldModality (getCohesion ai)
 
       -- The telescope tel includes the variable of record type as last one
       -- e.g. for cartesion product it is

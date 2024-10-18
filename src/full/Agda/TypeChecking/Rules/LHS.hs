@@ -1197,12 +1197,12 @@ checkLHS mf = updateModality checkLHS_ where
          reportSDoc "tc.lhs.split.partial" 30 $ text "phi           =" <+> pretty phi
          phi <- reduce phi
          reportSDoc "tc.lhs.split.partial" 10 $ text "phi (reduced) =" <+> prettyTCM phi
-         refined <- forallFaceMaps phi (\ bs m t -> typeError $ GenericError $ "face blocked on meta")
+         refined <- forallFaceMaps phi (\ bs m t -> patternViolation m)
                             (\_ sigma -> (,sigma) <$> getContextTelescope)
          case refined of
            [(gamma,sigma)] -> return (gamma,sigma)
-           []              -> typeError $ GenericError $ "The face constraint is unsatisfiable."
-           _               -> typeError $ GenericError $ "Cannot have disjunctions in a face constraint."
+           []              -> typeError FaceConstraintUnsatisfiable
+           _               -> typeError FaceConstraintDisjunction
       itisone <- liftTCM primItIsOne
       -- substitute the literal in p1 and dpi
       reportSDoc "tc.lhs.faces" 60 $ text $ show sigma

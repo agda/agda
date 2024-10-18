@@ -438,6 +438,8 @@ instance PrettyTCM TypeError where
       pwords "Functions may not return sizes, thus, function type " ++
       [ prettyTCM v ] ++ pwords " is illegal"
 
+    PostulatedSizeInModule -> fwords "We don't like postulated sizes in parametrized modules."
+
     SplitOnCoinductive -> fsep $ pwords "Pattern matching on coinductive types is not allowed"
 
     SplitOnIrrelevant t -> fsep $
@@ -506,6 +508,12 @@ instance PrettyTCM TypeError where
 
     VariableIsOfUnusableCohesion x c -> fsep
       ["Variable", prettyTCM (nameConcrete x), "is declared", text (show c), "so it cannot be used here"]
+
+    LambdaIsErased -> fwords $ "Erased pattern-matching lambdas may only be used in erased contexts"
+
+    RecordIsErased -> fwords $
+      "A record expression corresponding to an erased record " ++
+      "constructor must only be used in erased settings"
 
     InvalidModalTelescopeUse t used avail def -> fsep
       [ "Telescope variable" <+> prettyTCM t
@@ -638,11 +646,30 @@ instance PrettyTCM TypeError where
            , "since (part of) the solution was created in an erased context"
            ]
 
+    WrongSharpArity c -> fsep $
+      [prettyA c] ++ pwords "must be applied to exactly one argument"
+
     BuiltinMustBeConstructor s e -> fsep $
       [prettyA e] ++ pwords "must be a constructor in the binding to builtin" ++ [pretty s]
 
+    BuiltinMustBeData s n -> fsep $
+      pwords "The builtin" ++ [pretty s] ++ pwords "must be a datatype with" ++
+      if n == 1 then pwords "a single constructor or an (inductive) record type"
+      else [pretty n] ++ pwords "constructors"
+
+    BuiltinMustBeDef s -> fsep $
+      pwords "The argument to BUILTIN" ++ [pretty s] ++ pwords "must be a defined name"
+
+    BuiltinMustBeFunction s -> fsep $
+      pwords "Builtin" ++ [pretty s] ++ pwords "must be bound to a function"
+
+    BuiltinMustBePostulate s -> fsep $
+      pwords "The argument to BUILTIN" ++ [pretty s] ++ pwords "must be a postulated name"
+
     NoSuchBuiltinName s -> fsep $
       pwords "There is no built-in thing called" ++ [pretty s]
+
+    InvalidBuiltin s -> fwords s
 
     DuplicateBuiltinBinding b x y -> fsep $
       pwords "Duplicate binding for built-in thing" ++ [pretty b <> comma] ++
@@ -802,6 +829,15 @@ instance PrettyTCM TypeError where
       canon = CaseInsens.mk . P.render
       dGiven    = P.pretty given
       dExpected = P.pretty expected
+
+    ModuleNameHashCollision raw raw' -> fwords $ case raw' of
+      Nothing ->
+        "The module name " ++ prettyShow raw ++ " has a reserved " ++
+        "hash (you may want to consider renaming the module with this name)"
+      Just raw' ->
+        "Module name hash collision for " ++ prettyShow raw ++
+        " and " ++ prettyShow raw' ++ " (you may want to consider " ++
+        "renaming one of these modules)"
 
 
     ModuleNameDoesntMatchFileName given files ->
@@ -1458,10 +1494,16 @@ instance PrettyTCM TypeError where
         ]
 
     PatternInPathLambda ->
-      fwords $ "Patterns are not allowed in Path-lambdas"
+      fwords "Patterns are not allowed in Path-lambdas"
 
     PatternInSystem ->
-      fwords $ "Pattern matching or path copatterns not allowed in systems"
+      fwords "Pattern matching or path copatterns not allowed in systems"
+
+    FaceConstraintDisjunction ->
+      fwords "Cannot have disjunctions in a face constraint"
+
+    FaceConstraintUnsatisfiable ->
+      fwords "The face constraint is unsatisfiable"
 
     IllTypedPatternAfterWithAbstraction p -> vcat
       [ "Ill-typed pattern after with abstraction: " <+> prettyA p
@@ -1565,6 +1607,9 @@ instance PrettyTCM TypeError where
               <+> pure (attributesForModality mod)
         _ -> prettyTCM t <+> "is not usable at the required modality"
          <+> pure (attributesForModality mod)
+
+    InvalidFieldModality coh -> fsep $
+      pwords "Cannot have record fields with modality" ++ [pretty coh]
 
     CubicalCompilationNotSupported cubical -> fsep $ concat
       [ pwords $ "Compilation of code that uses"
@@ -1746,12 +1791,21 @@ instance PrettyTCM InteractionError where
 instance PrettyTCM UnquoteError where
   prettyTCM = \case
 
+    BlockedOnMeta _ m -> fsep $
+      pwords $ "Unquote failed because of unsolved meta variables."
+
     CannotDeclareHiddenFunction f -> fsep $
       pwords "Cannot declare hidden function" ++ [ prettyTCM f ]
+
+    CommitAfterDef -> fwords "Cannot use commitTC after declaring new definitions"
 
     ConInsteadOfDef x def con -> fsep $
       pwords ("Use " ++ con ++ " instead of " ++ def ++ " for constructor") ++
       [prettyTCM x]
+
+    DefineDataNotData x -> fsep $
+      [prettyTCM x] ++
+      pwords "is not declared as a datatype or record, or it already has a definition."
 
     DefInsteadOfCon x def con -> fsep $
       pwords ("Use " ++ def ++ " instead of " ++ con ++ " for non-constructor")
@@ -1769,9 +1823,6 @@ instance PrettyTCM UnquoteError where
       fwords ("Cannot unquote non-canonical " ++ kind)
       $$ nest 2 (prettyTCM t)
 
-    BlockedOnMeta _ m -> fsep $
-      pwords $ "Unquote failed because of unsolved meta variables."
-
     PatLamWithoutClauses _ -> fsep $
       pwords "Cannot unquote pattern lambda without clauses. Use a single `absurd-clause` for absurd lambdas."
 
@@ -1780,6 +1831,8 @@ instance PrettyTCM UnquoteError where
         [ "Cannot unquote stale metavariable"
         , pretty m <> "._" <> pretty (metaId x)
         ]
+
+    UnboundName x -> fsep $ pwords "Unbound name:" ++ [prettyTCM x]
 
 instance PrettyTCM MissingTypeSignatureInfo where
   prettyTCM = \case
