@@ -22,6 +22,7 @@ ${AGDA_BIN:-agda} --help=error | sed -nr 's/^([A-Z][a-z\.]+[A-Z][A-Za-z\.]+).*/\
 #
 cat > $ERRORS <<EOF
 CustomBackendError
+GenericError
 InternalError
 NonFatalErrors
 EOF
