@@ -784,6 +784,7 @@ library
       Agda.Utils.Fail
       Agda.Utils.Favorites
       Agda.Utils.FileName
+      Agda.Utils.FileId
       Agda.Utils.Float
       Agda.Utils.Functor
       Agda.Utils.Function

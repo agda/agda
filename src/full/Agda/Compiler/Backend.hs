@@ -37,13 +37,7 @@ import Agda.Syntax.Common (BackendName)
 import Agda.Syntax.Treeless
 
 import Agda.TypeChecking.Errors (getAllWarnings)
--- Agda.TypeChecking.Monad.Base imports us, relying on the .hs-boot file to
--- resolve the circular dependency. Fine. However, ghci loads the module after
--- compilation, so it brings in all of the symbols. That causes .Base to see
--- getBenchmark (defined in Agda.TypeChecking.Monad.State) *and* the one
--- defined in Agda.Utils.Benchmark, which causes an error. So we explicitly
--- hide it here to prevent it from being seen there and causing an error.
-import Agda.TypeChecking.Monad hiding (getBenchmark)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Warnings

@@ -9,7 +9,7 @@ module RunAgda
   , writeUTF8File
   ) where
 
-import Control.Exception
+import Control.Exception   ( bracket )
 import Control.Monad
 import System.Environment
 import System.IO

@@ -8,6 +8,7 @@ import Control.Monad              ( (<=<), (<$!>) )
 import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Except       ( MonadError(..) )
 import Control.Monad.Reader       ( MonadReader(..), asks )
+import Control.Monad.State        ( runStateT )
 import Control.Monad.State.Strict ( gets, modify )
 
 import Data.Array.IArray
@@ -43,10 +44,12 @@ import Agda.Syntax.TopLevelModuleName
 import Agda.Interaction.FindFile
 import Agda.Interaction.Library
 
+import Agda.TypeChecking.Monad.Base.Types
 import Agda.TypeChecking.Serialise.Base
 
 import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
+import Agda.Utils.FileId (getIdFile)
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2 (List2(List2))
@@ -313,11 +316,13 @@ instance EmbPrj RangeFile where
             <- value r
     mf      <- gets modFile
     incs    <- gets includes
-    (r, mf) <- liftIO $ findFile'' incs m mf
+    (r, mf) <- liftIO $ runStateT (findFile'' incs m) mf
     modify $ \s -> s { modFile = mf }
     case r of
       Left err -> liftIO $ E.throwIO $ E.ErrorCall $ "file not found: " ++ show err
-      Right f  -> let !sfp = srcFilePath f in return $ RangeFile sfp (Just m)
+      Right (SourceFile i)  -> do
+        let fp = getIdFile (fileDict mf) i
+        return $ RangeFile fp (Just m)
 
 -- | Ranges are always deserialised as 'noRange'.
 

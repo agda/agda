@@ -235,7 +235,8 @@ runAgdaWithOptions interactor progName opts = do
                      then Imp.ScopeCheck
                      else Imp.TypeCheck
 
-          result <- Imp.typeCheckMain mode =<< Imp.parseSource (SourceFile inputFile)
+          src <- srcFromPath inputFile
+          result <- Imp.typeCheckMain mode =<< Imp.parseSource src
 
           unless (crMode result == ModuleScopeChecked) $
             Imp.raiseNonFatalErrors result

@@ -43,7 +43,7 @@ import Unsafe.Coerce
 
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal (Term, QName(..), ModuleName(..), nameId)
-import Agda.TypeChecking.Monad.Base (ModuleToSource)
+import Agda.TypeChecking.Monad.Base.Types (ModuleToSource)
 
 import Agda.Utils.FileName
 import Agda.Utils.HashTable (HashTable)
