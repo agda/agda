@@ -98,6 +98,29 @@ Additions to the Agda syntax.
   using the new `(Record name).constructor` syntax; See [issue
   #6964](https://github.com/agda/agda/issues/6964) for the motivation.
 
+* The *left-hand-sides* of functions bound in a `let` expression can now
+  contain the same types of patterns that are allowed in lambda
+  expressions, in dependent function types, and in other `let` bindings.
+
+  This means that
+
+  ```agda
+  let
+    f : A → B → C
+    f p1 p2 = ...
+  in ...
+  ```
+
+  should be accepted exactly when, and have the same meaning as,
+
+  ```agda
+  let
+    f : A → B → C
+    f = λ p1 p2 → ...
+  ```
+
+  See [#7572](https://github.com/agda/agda/pull/7572).
+
 Language
 --------
 

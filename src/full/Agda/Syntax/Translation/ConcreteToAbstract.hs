@@ -1503,7 +1503,7 @@ instance ToAbstract Declarations where
   toAbstract (Declarations ds) = niceDecls DoWarn ds toAbstract
 
 -- | Where did these 'LetDef's come from?
-data WhereLetDef
+data LetDefOrigin
   = ExprLetDef
   -- ^ A let expression or do statement
   | RecordWhereLetDef
@@ -1512,8 +1512,8 @@ data WhereLetDef
   -- ^ Definitions in a record declaration, before the last field
   deriving (Eq, Show)
 
-data LetDefs = LetDefs WhereLetDef (List1 C.Declaration)
-data LetDef = LetDef WhereLetDef NiceDeclaration
+data LetDefs = LetDefs LetDefOrigin (List1 C.Declaration)
+data LetDef = LetDef LetDefOrigin NiceDeclaration
 
 instance ToAbstract LetDefs where
   type AbsOfCon LetDefs = [A.LetBinding]
@@ -1525,7 +1525,7 @@ instance ToAbstract LetDefs where
 -- | Raise appropriate (error-)warnings for if a declaration with
 -- illegal access, macro flag, or abstractness appear in a let
 -- expression.
-checkLetDefInfo :: WhereLetDef -> Access -> IsMacro -> IsAbstract -> ScopeM ()
+checkLetDefInfo :: LetDefOrigin -> Access -> IsMacro -> IsAbstract -> ScopeM ()
 checkLetDefInfo wh access macro abstract = do
   when (abstract == AbstractDef) $ warning AbstractInLetBindings
 
