@@ -333,7 +333,7 @@ setIncludeDirs incs root = do
     setTCLens stAgdaLibFiles agdaLibFiles
     setInteractionOutputCallback ho
     setDecodedModules keptDecodedModules
-    setTCLens stModuleToSource modFile
+    setTCLens stModuleToSourceId modFile
 
   Lens.putAbsoluteIncludePaths $ List1.toList incs
   where
@@ -351,7 +351,7 @@ setIncludeDirs incs root = do
   modulesToKeep
     :: List1 AbsolutePath -- New include directories.
     -> DecodedModules  -- Old decoded modules.
-    -> TCM (DecodedModules, ModuleToSource)
+    -> TCM (DecodedModules, ModuleToSourceId)
   modulesToKeep incs old = process Map.empty Map.empty modules
     where
     -- A graph with one node per module in old, and an edge from m to
@@ -389,8 +389,8 @@ setIncludeDirs incs root = do
       G.sccs' dependencyGraph
 
     process ::
-      Map TopLevelModuleName ModuleInfo -> ModuleToSource ->
-      [ModuleInfo] -> TCM (DecodedModules, ModuleToSource)
+      Map TopLevelModuleName ModuleInfo -> ModuleToSourceId ->
+      [ModuleInfo] -> TCM (DecodedModules, ModuleToSourceId)
     process !keep !modFile [] = return
       ( Map.fromList $
         Map.toList keep
@@ -403,7 +403,7 @@ setIncludeDirs incs root = do
         if not depsKept then return (keep, modFile) else do
         let t = iTopLevelModuleName $ miInterface m
         oldF            <- findFile' t
-        (newF, modFile) <- liftIO $ findFile'' incs t modFile
+        (newF, modFile) <- runStateT (findFile'_ incs t) modFile
         return $ case (oldF, newF) of
           (Right f1, Right f2) | f1 == f2 ->
             (Map.insert t m keep, modFile)

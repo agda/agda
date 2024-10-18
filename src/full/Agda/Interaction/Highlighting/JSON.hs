@@ -4,19 +4,19 @@
 
 module Agda.Interaction.Highlighting.JSON (jsonifyHighlightingInfo) where
 
+import qualified Data.ByteString.Lazy.Char8 as BS
+
 import Agda.Interaction.Highlighting.Common
 import Agda.Interaction.Highlighting.Precise hiding (String)
 import Agda.Interaction.Highlighting.Range (Range(..))
 import Agda.Interaction.JSON
 import Agda.Interaction.Response
-import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource)
-import Agda.Utils.FileName (filePath)
-import Agda.Utils.IO.TempFile (writeToTempFile)
 
-import qualified Data.ByteString.Lazy.Char8 as BS
-import qualified Data.Map as Map
+import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource, topLevelModuleFilePath)
 
-import Agda.Utils.Impossible
+import Agda.Utils.FileName     (AbsolutePath, filePath)
+import Agda.Utils.IO.TempFile  (writeToTempFile)
+import Agda.Utils.CallStack    (HasCallStack)
 
 -- | Encode meta information into a JSON Value
 showAspects
@@ -32,9 +32,12 @@ showAspects modFile (range, aspect) = object
   ]
   where
     defSite (DefinitionSite mdl position _ _) = object
-      [ "filepath" .= filePath (Map.findWithDefault __IMPOSSIBLE__ mdl modFile)
+      [ "filepath" .= filePath f
       , "position" .= position
       ]
+      where
+        f :: HasCallStack => AbsolutePath
+        f = topLevelModuleFilePath modFile mdl  -- partial function, so use CallStack!
 
 instance EncodeTCM TokenBased where
 instance ToJSON TokenBased where

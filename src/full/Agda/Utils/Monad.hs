@@ -7,7 +7,6 @@ module Agda.Utils.Monad
     )
     where
 
-import Control.Applicative    ( liftA2 )
 import Control.Monad.Except   ( MonadError(catchError, throwError) )
 import Control.Monad.Identity ( runIdentity )
 import Control.Monad.State    ( MonadState(get, put) )
@@ -29,6 +28,9 @@ import Agda.Utils.Singleton
 import Agda.Utils.Impossible
 
 -- Reexport Control.Monad
+import Control.Applicative as X
+  ( liftA2
+  )
 import Control.Monad as X
   ( MonadPlus(..), (<$!>), (>=>), (<=<)
   , filterM, foldM, forM, forM_

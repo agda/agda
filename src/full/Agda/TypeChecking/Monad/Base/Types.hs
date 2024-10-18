@@ -2,16 +2,26 @@
 --
 -- Part of "Agda.TypeChecking.Monad.Base", extracted to avoid import cycles.
 
-module Agda.TypeChecking.Monad.Base.Types where
+module Agda.TypeChecking.Monad.Base.Types
+  ( module Agda.TypeChecking.Monad.Base.Types
+  , module X
+  )
+where
 
+import Prelude hiding (null)
+
+import Control.DeepSeq                ( NFData )
 import Data.Map                       ( Map )
 import GHC.Generics                   ( Generic )
 
 import Agda.Syntax.Info               ( MetaNameSuggestion )
 import Agda.Syntax.Internal
-import Agda.Syntax.TopLevelModuleName ( TopLevelModuleName )
+import Agda.Syntax.TopLevelModuleName as X ( TopLevelModuleName )
 
-import Agda.Utils.FileName            ( AbsolutePath )
+import Agda.Utils.FileId              as X ( FileId, FileDictBuilder )
+import Agda.Utils.FileName            as X ( AbsolutePath )
+import Agda.Utils.Lens                ( Lens', (&&&), iso )
+import Agda.Utils.Null                ( Null(..) )
 
 ---------------------------------------------------------------------------
 -- * Context
@@ -75,10 +85,22 @@ data HighlightingMethod
 -- * Managing file names
 ---------------------------------------------------------------------------
 
--- | Maps top-level module names to the corresponding source file
--- names.
+-- | 'SourceFile's must exist and be registered in our file dictionary.
 
-type ModuleToSource = Map TopLevelModuleName AbsolutePath
+newtype SourceFile = SourceFile { srcFileId :: FileId }
+  deriving (Eq, Ord, Show, Generic)
+
+-- | Maps top-level module names to the corresponding source file ids.
+
+type ModuleToSourceId = Map TopLevelModuleName SourceFile
+
+data ModuleToSource = ModuleToSource
+  { fileDict         :: FileDictBuilder
+  , moduleToSourceId :: ModuleToSourceId
+  }
+
+lensPairModuleToSource :: Lens' (FileDictBuilder, ModuleToSourceId) ModuleToSource
+lensPairModuleToSource = iso (uncurry ModuleToSource) (fileDict &&& moduleToSourceId)
 
 ---------------------------------------------------------------------------
 -- * Meta variables
@@ -90,4 +112,16 @@ data NamedMeta = NamedMeta
   , nmid         :: MetaId
   }
 
+
+
 -- Feel free to move more types from Agda.TypeChecking.Monad.Base here when needed...
+
+-- Null instances
+
+instance Null ModuleToSource where
+  empty = ModuleToSource empty empty
+  null (ModuleToSource dict m2s) = null dict && null m2s
+
+-- NFData instances
+
+instance NFData SourceFile
