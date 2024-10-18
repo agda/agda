@@ -15,7 +15,6 @@ module Agda.Syntax.Notation where
 
 import Prelude hiding (null)
 
-import Control.Arrow ( (&&&) )
 import Control.DeepSeq
 import Control.Monad
 import Control.Monad.Except
