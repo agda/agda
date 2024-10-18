@@ -402,7 +402,7 @@ instance Hilite ArgInfo where
   hilite (ArgInfo _hiding modality _origin _fv _a) = hilite modality
 
 instance Hilite Modality where
-  hilite (Modality _relevance quantity _cohesion) = hilite quantity
+  hilite (Modality _relevance quantity _cohesion _polarity) = hilite quantity
 
 -- | If the 'Quantity' attribute comes with a 'Range', highlight the
 -- corresponding attribute as 'Symbol'.

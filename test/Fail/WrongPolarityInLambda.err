@@ -1,0 +1,4 @@
+WrongPolarityInLambda.agda:5.5-16: error: [WrongPolarityInLambda]
+Incorrect polarity annotation in lambda
+when checking that the expression λ (@- A) → A has type
+@++ Set → Set
