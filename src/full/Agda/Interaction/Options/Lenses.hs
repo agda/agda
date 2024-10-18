@@ -22,7 +22,6 @@ import Agda.Interaction.Library (getPrimitiveLibDir)
 import Agda.Interaction.Options
 
 import Agda.Utils.Lens        ()
-import Agda.Utils.FileName
 import Agda.Utils.Functor     ( (<.>) )
 import Agda.Utils.WithDefault (pattern Value)
 

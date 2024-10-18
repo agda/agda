@@ -10,7 +10,7 @@ module Agda.Interaction.FindFile
   ( SourceFile(..), InterfaceFile(intFilePath)
   , toIFile, mkInterfaceFile
   , FindError(..), findErrorToTypeError
-  , findFile, findFile', findFile''
+  , findFile, findFile', findFile'_, findFile''
   , findInterfaceFile', findInterfaceFile
   , checkModuleName
   , moduleName
@@ -22,6 +22,7 @@ import Prelude hiding (null)
 
 import Control.Monad
 import Control.Monad.Except
+import Control.Monad.State
 import Control.Monad.Trans
 import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
@@ -50,6 +51,7 @@ import Agda.TypeChecking.Warnings    (warning)
 import Agda.Version ( version )
 
 import Agda.Utils.Applicative ( (?$>) )
+import Agda.Utils.FileId
 import Agda.Utils.FileName
 import Agda.Utils.List  ( stripSuffix, nubOn )
 import Agda.Utils.List1 ( List1, pattern (:|) )
@@ -63,17 +65,15 @@ import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
--- | Type aliases for source files and interface files.
---   We may only produce one of these if we know for sure that the file
---   does exist. We can always output an @AbsolutePath@ if we are not sure.
+-- This instance isn't producing something pretty.
+-- instance Pretty SourceFile where
+--   pretty = pretty . srcFileId
 
--- TODO: do not export @SourceFile@ and force users to check the
--- @AbsolutePath@ does exist.
-newtype SourceFile    = SourceFile    { srcFilePath :: AbsolutePath } deriving (Eq, Ord, Show)
+-- | File must exist.
 newtype InterfaceFile = InterfaceFile { intFilePath :: AbsolutePath }
 
-instance Pretty SourceFile    where pretty = pretty . srcFilePath
-instance Pretty InterfaceFile where pretty = pretty . intFilePath
+instance Pretty InterfaceFile where
+  pretty = pretty . intFilePath
 
 -- | Makes an interface file from an AbsolutePath candidate.
 --   If the file does not exist, then fail by returning @Nothing@.
@@ -89,7 +89,8 @@ mkInterfaceFile fp = do
 --   name. Note that we do not guarantee that the file exists.
 
 toIFile :: SourceFile -> TCM AbsolutePath
-toIFile (SourceFile src) = do
+toIFile (SourceFile fi) = do
+  src <- fileFromId fi
   let fp = filePath src
   let localIFile = replaceModuleExtension ".agdai" src
   mroot <- libToTCM $ findProjectRoot (takeDirectory fp)
@@ -122,11 +123,11 @@ replaceModuleExtension ext = replaceModuleExtension ('.':ext)
 -- Invariant: All paths are absolute.
 
 data FindError
-  = NotFound [SourceFile]
-    -- ^ The file was not found. It should have had one of the given
-    -- file names.
-  | Ambiguous (List2 SourceFile)
-    -- ^ Several matching files were found.
+  = NotFound [AbsolutePath]
+      -- ^ The file was not found.
+      --   It should have had one of the given file names.
+  | Ambiguous (List2 AbsolutePath)
+      -- ^ Several matching files were found.
   deriving Show
 
 -- | Given the module name which the error applies to this function
@@ -134,8 +135,13 @@ data FindError
 
 findErrorToTypeError :: TopLevelModuleName -> FindError -> TypeError
 findErrorToTypeError m = \case
-  NotFound  files -> FileNotFound m $ map srcFilePath files
-  Ambiguous files -> AmbiguousTopLevelModuleName m $ fmap srcFilePath files
+  NotFound  files -> FileNotFound m files
+  Ambiguous files -> AmbiguousTopLevelModuleName m files
+
+-- findErrorToTypeError :: MonadFileId m => TopLevelModuleName -> FindError -> m TypeError
+-- findErrorToTypeError m = \case
+--   NotFound  files -> FileNotFound m <$> mapM srcFilePath files
+--   Ambiguous files -> AmbiguousTopLevelModuleName m <$> mapM srcFilePath files
 
 -- | Finds the source file corresponding to a given top-level module
 -- name. The returned paths are absolute.
@@ -155,35 +161,53 @@ findFile m = do
 --   SIDE EFFECT:  Updates 'stModuleToSource'.
 findFile' :: TopLevelModuleName -> TCM (Either FindError SourceFile)
 findFile' m = do
-    dirs         <- getIncludeDirs
-    modFile      <- useTC stModuleToSource
-    (r, modFile) <- liftIO $ findFile'' dirs m modFile
-    stModuleToSource `setTCLens` modFile
+    dirs     <- getIncludeDirs
+    modToSrc <- useTC stModuleToSource
+    (r, modToSrc) <- liftIO $ runStateT (findFile'' dirs m) modToSrc
+    stModuleToSource `setTCLens` modToSrc
     return r
+
+-- | A variant of 'findFile'' which manipulates an extra 'ModuleToSourceId'
+
+findFile'_ ::
+     List1 AbsolutePath
+       -- ^ Include paths.
+  -> TopLevelModuleName
+  -> StateT ModuleToSourceId TCM (Either FindError SourceFile)
+findFile'_ incs m = do
+  dict <- useTC stFileDict
+  m2s  <- get
+  (r, ModuleToSource dict' m2s') <- liftIO $
+    runStateT (findFile'' incs m) $ ModuleToSource dict m2s
+  setTCLens stFileDict dict'
+  put m2s'
+  return r
 
 -- | A variant of 'findFile'' which does not require 'TCM'.
 
 findFile'' ::
      List1 AbsolutePath
-  -- ^ Include paths.
+       -- ^ Include paths.
   -> TopLevelModuleName
-  -> ModuleToSource
-  -- ^ Cached invocations of 'findFile'''. An updated copy is returned.
-  -> IO (Either FindError SourceFile, ModuleToSource)
-findFile'' dirs m modFile =
-  case Map.lookup m modFile of
-    Just f  -> return (Right (SourceFile f), modFile)
+  -> StateT ModuleToSource IO (Either FindError SourceFile)
+findFile'' dirs m = do
+  ModuleToSource dict modToSrc <- get
+  case Map.lookup m modToSrc of
+    Just sf -> return $ Right sf
     Nothing -> do
-      files          <- fileList acceptableFileExts
-      filesShortList <- fileList $ List2.toList parseFileExtsShortList
-      existingFiles  <-
-        liftIO $ filterM (doesFileExistCaseSensitive . filePath . srcFilePath) files
-      return $ case nubOn id existingFiles of
-        []     -> (Left (NotFound filesShortList), modFile)
-        [file] -> (Right file, Map.insert m (srcFilePath file) modFile)
-        f0:f1:fs -> (Left (Ambiguous $ List2 f0 f1 fs), modFile)
+      files          <- liftIO $ fileList acceptableFileExts
+      filesShortList <- liftIO $ fileList $ List2.toList parseFileExtsShortList
+      existingFiles  <- liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
+      case nubOn id existingFiles of
+        [file]   -> do
+          let (i, dict') = registerFileId file dict
+          let src = SourceFile i
+          put $ ModuleToSource dict' $ Map.insert m src modToSrc
+          return (Right src)
+        []       -> return (Left (NotFound filesShortList))
+        f0:f1:fs -> return (Left (Ambiguous $ List2 f0 f1 fs))
   where
-    fileList exts = mapM (fmap SourceFile . absolute)
+    fileList exts = mapM absolute
                     [ filePath dir </> file
                     | dir  <- List1.toList dirs
                     , file <- map (moduleNameToFileName m) exts
@@ -213,28 +237,29 @@ findInterfaceFile m = findInterfaceFile' =<< findFile m
 -- corresponding to the module name (according to the include path)
 -- has to be the same as the given file name.
 
-checkModuleName
-  :: TopLevelModuleName
-     -- ^ The name of the module.
+checkModuleName ::
+     TopLevelModuleName
+       -- ^ The name of the module.
   -> SourceFile
-     -- ^ The file from which it was loaded.
+       -- ^ The file from which it was loaded.
   -> Maybe TopLevelModuleName
-     -- ^ The expected name, coming from an import statement.
+       -- ^ The expected name, coming from an import statement.
   -> TCM ()
-checkModuleName name (SourceFile file) mexpected = do
+checkModuleName name src0 mexpected = do
+  file <- srcFilePath src0
   findFile' name >>= \case
 
     Left (NotFound files)  -> typeError $
       case mexpected of
-        Nothing -> ModuleNameDoesntMatchFileName name (map srcFilePath files)
+        Nothing -> ModuleNameDoesntMatchFileName name files
         Just expected -> ModuleNameUnexpected name expected
 
     Left (Ambiguous files) -> typeError $
-      AmbiguousTopLevelModuleName name $ fmap srcFilePath files
+      AmbiguousTopLevelModuleName name files
 
     Right src -> do
-      let file' = srcFilePath src
-      file <- liftIO $ absolute (filePath file)
+      file' <- srcFilePath src
+      file  <- liftIO $ absolute $ filePath file
       unlessM (liftIO $ sameFile file file') $
         typeError $ ModuleDefinedInOtherFile name file file'
 
@@ -242,7 +267,7 @@ checkModuleName name (SourceFile file) mexpected = do
   -- that we do not end up with a mismatch between expected
   -- and actual module name.
 
-  forM_ mexpected $ \ expected ->
+  forM_ mexpected \ expected ->
     unless (name == expected) $
       typeError $ OverlappingProjects file name expected
       -- OverlappingProjects is the correct error for

@@ -16,8 +16,6 @@ import Control.Monad.Trans.Maybe
 import qualified Data.Map as Map
 import qualified Text.PrettyPrint.Boxes as Boxes
 
-import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
-
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 

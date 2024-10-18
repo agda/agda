@@ -40,6 +40,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 
 import qualified Agda.Utils.BiMap as BiMap
+import Agda.Utils.FileId ( getIdFile, registerFileId )
 import Agda.Utils.Lens
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
@@ -340,6 +341,14 @@ updateDefCopatternLHS f def@Defn{ defCopatternLHS = b } = def { defCopatternLHS 
 
 updateDefBlocked :: (Blocked_ -> Blocked_) -> Definition -> Definition
 updateDefBlocked f def@Defn{ defBlocked = b } = def { defBlocked = f b }
+
+---------------------------------------------------------------------------
+-- * File identification
+---------------------------------------------------------------------------
+
+instance MonadFileId TCM where
+  fileFromId fi = useTC stFileDict <&> (`getIdFile` fi)
+  idFromFile = stateTCLens stFileDict . registerFileId
 
 ---------------------------------------------------------------------------
 -- * Top level module
