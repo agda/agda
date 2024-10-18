@@ -1970,6 +1970,22 @@ instance LensOrigin (WithOrigin a) where
   setOrigin h (WithOrigin _ a) = WithOrigin h a
   mapOrigin f (WithOrigin h a) = WithOrigin (f h) a
 
+------------------------------------------------------------------------
+-- Origin of binder names
+------------------------------------------------------------------------
+
+data BinderNameOrigin
+  = UserBinderName
+  | InsertedBinderName
+  deriving (Show, Eq, Generic)
+
+instance KillRange BinderNameOrigin where
+  killRange = \case
+    InsertedBinderName -> InsertedBinderName
+    UserBinderName     -> UserBinderName
+
+instance NFData BinderNameOrigin
+
 -----------------------------------------------------------------------------
 -- * Free variable annotations
 -----------------------------------------------------------------------------

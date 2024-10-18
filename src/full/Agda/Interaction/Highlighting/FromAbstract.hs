@@ -360,6 +360,7 @@ instance Hilite A.ModuleApplication where
 instance Hilite A.LetBinding where
   hilite = \case
       A.LetBind    _r ai x t e     -> hl ai <> hl x <> hl t <> hl e
+      A.LetAxiom   _r ai x t       -> hl ai <> hl x <> hl t
       A.LetPatBind _r p e          -> hl p  <> hl e
       A.LetApply mi er x es _c dir -> hl mi <> hl er <> hl x <>
                                       hl es <> hl dir
@@ -382,7 +383,7 @@ instance Hilite A.LamBinding where
     A.DomainFull bind      -> hilite bind
 
 instance Hilite a => Hilite (A.Binder' a) where
-  hilite (A.Binder p x) = hilite p <> hilite x
+  hilite (A.Binder p _ x) = hilite p <> hilite x
 
 instance Hilite A.BindName where
   hilite (A.BindName x) = hiliteBound x

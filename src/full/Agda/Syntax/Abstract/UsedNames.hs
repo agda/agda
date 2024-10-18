@@ -138,6 +138,7 @@ instance (BoundAndUsed x, BoundAndUsed p, BoundAndUsed e) => BoundAndUsed (Rewri
 instance BoundAndUsed LetBinding where
   boundAndUsed = \ case   -- Note: binder last since it's not recursive
     LetBind _ _ x ty e     -> boundAndUsed ((ty, e), x)
+    LetAxiom _ _ x ty      -> boundAndUsed (ty, x)
     LetPatBind _ p e       -> boundAndUsed (e, p)
     LetApply _ _ _ app _ _ -> boundAndUsed app
     LetOpen{}              -> mempty
@@ -152,7 +153,7 @@ instance BoundAndUsed TypedBinding where
   boundAndUsed (TLet _ bs)       = boundAndUsed bs
 
 instance BoundAndUsed name => BoundAndUsed (Binder' name) where
-  boundAndUsed (Binder p x) = parBindings p x
+  boundAndUsed (Binder p _ x) = parBindings p x
 
 instance BoundAndUsed BindName where
   boundAndUsed x = singleBind (unBind x)

@@ -1,0 +1,7 @@
+LetAbstract.agda:6.7-7.14: error: [AbstractInLetBindings]
+Abstract definitions are not allowed in let bindings.
+when scope checking
+let abstract
+      x : Set _
+      x = Set
+in x

@@ -1,0 +1,4 @@
+LetAxiom.agda:9.5-6: error: [MissingDefinitions]
+The following names are declared but not accompanied by a
+definition: x
+when scope checking let x : Nat in x

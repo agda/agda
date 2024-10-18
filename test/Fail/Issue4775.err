@@ -1,3 +1,4 @@
-Issue4775.agda:16.11-24: error: [ShouldBeRecordPattern]
+Issue4775.agda:16.8-31: error: [ShouldBeRecordPattern]
 Expected record pattern
-when checking the let binding y1 , isSuc y2 = .patternInTele0
+when checking that the expression λ (y1 , isSuc y2) → Nat has type
+Σ Nat IsSuc → Set
