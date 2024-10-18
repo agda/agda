@@ -1,2 +1,8 @@
-UnquoteUnbound.agda:9.1-13.32: error: [GenericError]
-Unbound name: UnquoteUnbound.a-fresh-name
+UnquoteUnbound.agda:9.1-13.32: error: [NotInScope]
+Not in scope:
+  UnquoteUnbound.a-fresh-name
+  at UnquoteUnbound.agda:1.8-22
+    (did you mean
+       'Agda.Builtin.Reflection.freshName' or
+       'Common.Reflection.freshName' or
+       'freshName'?)

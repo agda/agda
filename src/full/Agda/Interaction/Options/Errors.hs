@@ -110,6 +110,10 @@ data ErrorName
   | BadArgumentsToPatternSynonym_
   | BuiltinInParameterisedModule_
   | BuiltinMustBeConstructor_
+  | BuiltinMustBeData_
+  | BuiltinMustBeDef_
+  | BuiltinMustBeFunction_
+  | BuiltinMustBePostulate_
   | CannotEliminateWithPattern_
   | CannotEliminateWithProjection_
   | CannotGenerateHCompClause_
@@ -148,15 +152,20 @@ data ErrorName
   | ExpectedBindingForParameter_
   | ExpectedIntervalLiteral_
   | FieldOutsideRecord_
+  | FaceConstraintDisjunction_
+  | FaceConstraintUnsatisfiable_
   | FileNotFound_
   | ForcedConstructorNotInstantiated_
   | FunctionTypeInSizeUniv_
   | GeneralizeCyclicDependency_
   | GeneralizeNotSupportedHere_
   | GeneralizedVarInLetOpenedModule_
+  | ModuleNameHashCollision_
   | HidingMismatch_
   | IdiomBracketError_
+  | InvalidBuiltin_
   | InvalidDottedExpression_
+  | InvalidFieldModality_
   | IllTypedPatternAfterWithAbstraction_
   | IllegalDeclarationBeforeTopLevelModule_
   | IllegalDeclarationInDataDefinition_
@@ -175,6 +184,7 @@ data ErrorName
   | InvalidProjectionParameter_
   | InvalidPun_ ConstructorOrPatternSynonym
   | InvalidTypeSort_
+  | LambdaIsErased_
   | LibTooFarDown_
   | LiteralTooBig_
   | MacroResultTypeMismatch_
@@ -222,10 +232,12 @@ data ErrorName
   | PatternInPathLambda_
   | PatternInSystem_
   | PatternSynonymArgumentShadows_ ConstructorOrPatternSynonym
+  | PostulatedSizeInModule_
   | PrivateRecordField_
   | ProjectionIsIrrelevant_
   | QualifiedLocalModule_
   | QuantityMismatch_
+  | RecordIsErased_
   | RecursiveRecordNeedsInductivity_
   | ReferencesFutureVariables_
   | RelevanceMismatch_
@@ -292,6 +304,7 @@ data ErrorName
   | WrongNamedArgument_
   | WrongNumberOfConstructorArguments_
   | WrongQuantityInLambda_
+  | WrongSharpArity_
   deriving (Show, Generic)
   deriving (Enum, Bounded) via (FiniteEnumeration ErrorName)
 
@@ -382,7 +395,9 @@ data ExecError_
 
 data UnquoteError_
   = CannotDeclareHiddenFunction_
+  | CommitAfterDef_
   | ConInsteadOfDef_
+  | DefineDataNotData_
   | DefInsteadOfCon_
   | MissingDeclaration_
   | MissingDefinition_

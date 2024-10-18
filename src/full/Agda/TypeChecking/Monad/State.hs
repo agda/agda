@@ -355,16 +355,10 @@ topLevelModuleName raw = do
     Just hash -> return (unsafeTopLevelModuleName raw hash)
     Nothing   -> do
       let hash = hashRawTopLevelModuleName raw
-      when (hash == noModuleNameHash) $ typeError $ GenericError $
-        "The module name " ++ prettyShow raw ++ " has a reserved " ++
-        "hash (you may want to consider renaming the module with " ++
-        "this name)"
+      when (hash == noModuleNameHash) $ typeError $ ModuleNameHashCollision raw Nothing
       raw' <- BiMap.invLookup hash <$> useR stTopLevelModuleNames
       case raw' of
-        Just raw' -> typeError $ GenericError $
-          "Module name hash collision for " ++ prettyShow raw ++
-          " and " ++ prettyShow raw' ++ " (you may want to consider " ++
-          "renaming one of these modules)"
+        Just raw' -> typeError $ ModuleNameHashCollision raw (Just raw')
         Nothing -> do
           stTopLevelModuleNames `modifyTCLens'`
             BiMap.insert (killRange raw) hash
