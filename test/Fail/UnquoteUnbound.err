@@ -1,2 +1,2 @@
-UnquoteUnbound.agda:9.1-13.32: error: [GenericError]
+UnquoteUnbound.agda:9.1-13.32: error: [Unquote.UnboundName]
 Unbound name: UnquoteUnbound.a-fresh-name

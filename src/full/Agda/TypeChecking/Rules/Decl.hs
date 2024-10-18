@@ -628,8 +628,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   -- modules!
   when (kind == AxiomName) $ do
     whenM ((== SizeUniv) <$> do reduce $ getSort t) $ do
-      whenM ((> 0) <$> getContextSize) $ do
-        typeError $ GenericError $ "We don't like postulated sizes in parametrized modules."
+      whenM ((> 0) <$> getContextSize) $ typeError PostulatedSizeInModule
 
   -- Ensure that polarity pragmas do not contain too many occurrences.
   (occs, pols) <- case mp of
@@ -892,7 +891,7 @@ checkModuleArity m tel = \case
   []   -> return tel
   a:as -> check1 tel a as
     where
-    bad = typeError $ ModuleArityMismatch m tel (a :| as)
+    bad = typeError $ ModuleArityMismatch m tel (Left (a :| as))
 
     check :: Telescope -> [NamedArg A.Expr] -> TCM Telescope
     check tel []             = return tel
@@ -1069,8 +1068,7 @@ checkSectionApplication'
     [ nest 2 $ "vs      =" <+> text (show vs)
     -- , nest 2 $ "args    =" <+> text (show args)
     ]
-  when (tel == EmptyTel) $
-    typeError $ GenericError $ prettyShow (qnameToConcrete name) ++ " is not a parameterised section"
+  when (tel == EmptyTel) $ typeError $ ModuleArityMismatch x EmptyTel (Right vs)
 
   addContext telInst $ do
     vs <- moduleParamsToApply x

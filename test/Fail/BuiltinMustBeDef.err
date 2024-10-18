@@ -1,0 +1,4 @@
+BuiltinMustBeDef.agda:5.1-32: error: [BuiltinMustBeDef]
+The argument to BUILTIN FROMNAT must be a defined name
+when scope checking the declaration
+  {-# BUILTIN FROMNAT fromNat #-}

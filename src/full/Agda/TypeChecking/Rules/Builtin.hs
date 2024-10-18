@@ -619,17 +619,7 @@ inductiveCheck b n t = do
     Lam _ b -> headSymbol $ lazyAbsApp b __DUMMY_TERM__
     _       -> return Nothing
 
-  no
-    | n == 1 = typeError $ GenericError $ unwords
-        [ "The builtin", getBuiltinId b
-        , "must be a datatype with a single constructor"
-        , "or an (inductive) record type"
-        ]
-    | otherwise = typeError $ GenericError $ unwords
-        [ "The builtin", getBuiltinId b
-        , "must be a datatype with", show n
-        , "constructors"
-        ]
+  no = typeError $ BuiltinMustBeData b n
 
 -- | @bindPostulatedName builtin q m@ checks that @q@ is a postulated
 -- name, and binds the builtin @builtin@ to the term @m q def@,
@@ -645,9 +635,7 @@ bindPostulatedName builtin x m = do
     _        -> err
   where
   err :: forall m a. MonadTCError m => m a
-  err = typeError $ GenericError $
-          "The argument to BUILTIN " ++ getBuiltinId builtin ++
-          " must be a postulated name"
+  err = typeError $ BuiltinMustBePostulate builtin
   getName = \case
     DefinedName _ d NoSuffix -> return $ anameName d
     _ -> err
@@ -671,7 +659,7 @@ checkBuiltinBool = do
   true  <- getBuiltin' builtinTrue
   false <- getBuiltin' builtinFalse
   when (true == false) $
-    genericError "Cannot bind TRUE and FALSE to the same constructor"
+    typeError $ InvalidBuiltin "Cannot bind TRUE and FALSE to the same constructor"
 
 bindBuiltinInt :: Term -> TCM ()
 bindBuiltinInt = bindAndSetHaskellCode builtinInteger "= type Integer"
@@ -713,7 +701,7 @@ bindBuiltinUnit t = do
     Record { recFields = [], recConHead = con } -> do
       bindBuiltinName builtinUnit t
       bindBuiltinName builtinUnitUnit (Con con ConOSystem [])
-    _ -> genericError "Builtin UNIT must be a singleton record type"
+    _ -> typeError $ InvalidBuiltin "Builtin UNIT must be a singleton record type"
 
 bindBuiltinSigma :: Term -> TCM ()
 bindBuiltinSigma t = do
@@ -722,7 +710,7 @@ bindBuiltinSigma t = do
   case def of
     Record { recFields = [fst,snd], recConHead = con } -> do
       bindBuiltinName builtinSigma t
-    _ -> genericError "Builtin SIGMA must be a record type with two fields"
+    _ -> typeError $ InvalidBuiltin "Builtin SIGMA must be a record type with two fields"
 
 -- | Bind BUILTIN EQUALITY and BUILTIN REFL.
 bindBuiltinEquality :: ResolvedName -> TCM ()
@@ -735,7 +723,7 @@ bindBuiltinEquality x = do
   -- Check that the type is the type of a polymorphic relation, i.e.,
   -- Γ → (A : Set _) → A → A → Set _
   TelV eqTel eqCore <- telView $ defType def
-  let no = genericError "The type of BUILTIN EQUALITY must be a polymorphic relation"
+  let no = typeError $ InvalidBuiltin "The type of BUILTIN EQUALITY must be a polymorphic relation"
 
   -- The target is a sort since eq is a data type.
   unless (isJust $ isSort $ unEl eqCore) __IMPOSSIBLE__
@@ -772,9 +760,9 @@ bindBuiltinEquality x = do
           unless (deBruijnView b == Just 0) wrongRefl
           bindBuiltinName builtinRefl (Con (ConHead c IsData Inductive []) ConOSystem [])
         _ -> __IMPOSSIBLE__
-    _ -> genericError "Builtin EQUALITY must be a data type with a single constructor"
+    _ -> typeError $ InvalidBuiltin "Builtin EQUALITY must be a data type with a single constructor"
   where
-  wrongRefl = genericError "Wrong type of constructor of BUILTIN EQUALITY"
+  wrongRefl = typeError $ InvalidBuiltin "Wrong type of constructor of BUILTIN EQUALITY"
 
 bindBuiltinInfo :: BuiltinInfo -> A.Expr -> TCM ()
 bindBuiltinInfo (BuiltinInfo s d) e = do
@@ -842,15 +830,14 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             -- needed? yes, for checking equations for mul
             bindBuiltinName s v
 
-          _ -> typeError $ GenericError $ "Builtin " ++ getBuiltinId s ++ " must be bound to a function"
+          _ -> typeError $ BuiltinMustBeFunction s
 
       BuiltinSort{} -> __IMPOSSIBLE__ -- always a "BuiltinNoDef"
 
       BuiltinPostulate rel t -> do
         t' <- t
         v <- applyRelevanceToContext rel $ checkExpr e t'
-        let err = typeError $ GenericError $
-                    "The argument to BUILTIN " ++ getBuiltinId s ++ " must be a postulated name"
+        let err = typeError $ BuiltinMustBePostulate s
         case e of
           A.Def q -> do
             def <- getConstInfo q
@@ -874,7 +861,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           (,t) <$> checkExpr e t
         f v t
         if | s == builtinRewrite -> runMaybeT (getQNameFromTerm v) >>= \case
-              Nothing -> genericError "Invalid rewrite relation"
+              Nothing -> typeError $ InvalidBuiltin "Invalid rewrite relation"
               Just q  -> bindBuiltinRewriteRelation q
            | otherwise           -> bindBuiltinName s v
 
@@ -954,7 +941,7 @@ bindUntypedBuiltin b = \case
   PatternSynResName xs -> err xs
   where
   bind x = bindBuiltinName b (Def (anameName x) [])
-  wrong  = genericError $ "The argument to BUILTIN " ++ getBuiltinId b ++ " must be a defined name"
+  wrong  = typeError $ BuiltinMustBeDef b
   amb x  = genericDocError =<< do text "Name " <+> prettyTCM x <+> text " is ambiguous"
   err (x :| xs1)
     | null xs1  = wrong

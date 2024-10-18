@@ -1,4 +1,4 @@
-InstanceArgumentsModNotParameterised.agda:14.6-7: error: [GenericError]
-InstanceArgumentsModNotParameterised.C is not a parameterised
-section
+InstanceArgumentsModNotParameterised.agda:14.6-7: error: [ModuleArityMismatch]
+The module C is not parameterized, but is being applied to
+arguments
 when checking the module application module _ = C {{...}}
