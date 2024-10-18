@@ -1,0 +1,3 @@
+WrongSharpArity.agda:18.10-12: error: [WrongSharpArity]
+♯_ must be applied to exactly one argument
+when checking that the expression ♯_ has type Set → ∞ Set
