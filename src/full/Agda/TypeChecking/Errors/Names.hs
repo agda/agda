@@ -340,6 +340,7 @@ unquotableName = \case
 
 unquoteErrorName :: UnquoteError -> UnquoteError_
 unquoteErrorName = \case
+  BlockedOnMeta               {} -> BlockedOnMeta_
   CannotDeclareHiddenFunction {} -> CannotDeclareHiddenFunction_
   CommitAfterDef              {} -> CommitAfterDef_
   ConInsteadOfDef             {} -> ConInsteadOfDef_
@@ -349,9 +350,9 @@ unquoteErrorName = \case
   MissingDefinition           {} -> MissingDefinition_
   NakedUnquote                {} -> NakedUnquote_
   NonCanonical                {} -> NonCanonical_
-  BlockedOnMeta               {} -> BlockedOnMeta_
   PatLamWithoutClauses        {} -> PatLamWithoutClauses_
   StaleMeta                   {} -> StaleMeta_
+  UnboundName                 {} -> UnboundName_
 
 -- -- * Printing names of errors
 

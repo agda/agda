@@ -364,7 +364,7 @@ ghcPostCompile _cenv _isMain mods = do
   rootModuleName <- curMName
   -- Mario, 2024-10-16: cannot trigger this error:
   -- genericError $ "Module " <> prettyShow rootModuleName <> " was not compiled!"
-  rootModule <- ifJust (Map.lookup rootModuleName mods) pure __IMPOSSIBLE__
+  let rootModule = Map.findWithDefault __IMPOSSIBLE__ rootModuleName mods
   flip runReaderT rootModule $ do
     copyRTEModules
     callGHC

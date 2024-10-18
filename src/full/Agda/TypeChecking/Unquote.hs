@@ -756,7 +756,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcCommit :: UnquoteM Term
     tcCommit = do
       dirty <- gets fst
-      when (dirty == Dirty) $ liftTCM $ unquoteError CommitAfterDef
+      when (dirty == Dirty) $ throwError CommitAfterDef
       s <- getTC
       modify (second $ const s)
       liftTCM primUnitUnit
@@ -916,7 +916,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
 
     constInfo :: QName -> TCM Definition
     constInfo x = either err return =<< getConstInfo' x
-      where err _ = typeError $ NotInScope $ qnameToConcrete x
+      where err _ = unquoteError $ UnboundName x
 
     tcGetType :: QName -> TCM Term
     tcGetType x = do

@@ -4797,7 +4797,8 @@ data UnificationFailure
   deriving (Show, Generic)
 
 data UnquoteError
-  = CannotDeclareHiddenFunction QName
+  = BlockedOnMeta TCState Blocker
+  | CannotDeclareHiddenFunction QName
       -- ^ Attempt to @unquoteDecl@ with 'Hiding' other than 'NotHidden'.
   | CommitAfterDef
   | ConInsteadOfDef QName String String
@@ -4807,10 +4808,10 @@ data UnquoteError
   | MissingDefinition QName
   | NakedUnquote
   | NonCanonical String I.Term
-  | BlockedOnMeta TCState Blocker
   | PatLamWithoutClauses I.Term
   | StaleMeta TopLevelModuleName MetaId
       -- ^ Attempt to unquote a serialized meta.
+  | UnboundName QName
   deriving (Show, Generic)
 
 -- | Error when trying to call an external executable during reflection.

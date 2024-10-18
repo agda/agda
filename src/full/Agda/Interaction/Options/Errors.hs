@@ -394,7 +394,8 @@ data ExecError_
   deriving (Show, Generic, Enum, Bounded)
 
 data UnquoteError_
-  = CannotDeclareHiddenFunction_
+  = BlockedOnMeta_
+  | CannotDeclareHiddenFunction_
   | CommitAfterDef_
   | ConInsteadOfDef_
   | DefineDataNotData_
@@ -403,9 +404,9 @@ data UnquoteError_
   | MissingDefinition_
   | NakedUnquote_
   | NonCanonical_
-  | BlockedOnMeta_
   | PatLamWithoutClauses_
   | StaleMeta_
+  | UnboundName_
   deriving (Show, Generic, Enum, Bounded)
 
 -- * Printing error names

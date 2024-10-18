@@ -1609,7 +1609,7 @@ instance PrettyTCM TypeError where
          <+> pure (attributesForModality mod)
 
     InvalidFieldModality coh -> fsep $
-      pwords "Cannot have record fields with modality " ++ [pretty coh]
+      pwords "Cannot have record fields with modality" ++ [pretty coh]
 
     CubicalCompilationNotSupported cubical -> fsep $ concat
       [ pwords $ "Compilation of code that uses"
@@ -1791,6 +1791,9 @@ instance PrettyTCM InteractionError where
 instance PrettyTCM UnquoteError where
   prettyTCM = \case
 
+    BlockedOnMeta _ m -> fsep $
+      pwords $ "Unquote failed because of unsolved meta variables."
+
     CannotDeclareHiddenFunction f -> fsep $
       pwords "Cannot declare hidden function" ++ [ prettyTCM f ]
 
@@ -1820,9 +1823,6 @@ instance PrettyTCM UnquoteError where
       fwords ("Cannot unquote non-canonical " ++ kind)
       $$ nest 2 (prettyTCM t)
 
-    BlockedOnMeta _ m -> fsep $
-      pwords $ "Unquote failed because of unsolved meta variables."
-
     PatLamWithoutClauses _ -> fsep $
       pwords "Cannot unquote pattern lambda without clauses. Use a single `absurd-clause` for absurd lambdas."
 
@@ -1831,6 +1831,8 @@ instance PrettyTCM UnquoteError where
         [ "Cannot unquote stale metavariable"
         , pretty m <> "._" <> pretty (metaId x)
         ]
+
+    UnboundName x -> fsep $ pwords "Unbound name:" ++ [prettyTCM x]
 
 instance PrettyTCM MissingTypeSignatureInfo where
   prettyTCM = \case
