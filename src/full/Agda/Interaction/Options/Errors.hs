@@ -51,9 +51,7 @@ data NotAllowedInDotPatterns
 -- | Reasons for error 'NotAValidLetBinding'.
 
 data NotAValidLetBinding
-  = AbstractNotAllowed
-  | MacrosNotAllowed
-  | MissingRHS
+  = MissingRHS
   | NotAValidLetPattern
   | WhereClausesNotAllowed
   -- These cannot be triggered:
@@ -503,8 +501,6 @@ helpErrors = unlines $ concat
 
 verbalizeNotAValidLetBinding :: NotAValidLetBinding -> String
 verbalizeNotAValidLetBinding = \case
-  AbstractNotAllowed     -> "`abstract` not allowed in let bindings"
-  MacrosNotAllowed       -> "Macros cannot be defined in let bindings"
   MissingRHS             -> "Missing right hand side in let binding"
   NotAValidLetPattern    -> "Not a valid let pattern"
   WhereClausesNotAllowed -> "`where` clauses not allowed in let bindings"

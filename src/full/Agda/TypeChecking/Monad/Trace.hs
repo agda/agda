@@ -118,6 +118,9 @@ class (MonadTCEnv m, ReadTCState m) => MonadTrace m where
     => RemoveTokenBasedHighlighting -> HighlightingInfo -> m ()
   printHighlightingInfo r i = lift $ printHighlightingInfo r i
 
+traceCallCPS' :: MonadTrace m => Call -> (m b -> m b) -> m b -> m b
+traceCallCPS' c k ret = traceCallCPS c (\ret -> k (ret ())) (\() -> ret)
+
 instance MonadTrace m => MonadTrace (IdentityT m) where
   traceClosureCall c f = IdentityT $ traceClosureCall c $ runIdentityT f
 

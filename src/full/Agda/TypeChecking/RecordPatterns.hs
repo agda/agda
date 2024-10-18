@@ -23,6 +23,7 @@ import Agda.Syntax.Common.Pretty (Pretty(..), prettyShow)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
+import Agda.Syntax.Info
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree

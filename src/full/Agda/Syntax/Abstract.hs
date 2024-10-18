@@ -241,6 +241,8 @@ data Pragma
 data LetBinding
   = LetBind LetInfo ArgInfo BindName Type Expr
     -- ^ @LetBind info rel name type defn@
+  | LetAxiom LetInfo ArgInfo BindName Type
+    -- ^ Function declarations in a let with no matching body.
   | LetPatBind LetInfo Pattern Expr
     -- ^ Irrefutable pattern binding.
   | LetApply ModuleInfo Erased ModuleName ModuleApplication
@@ -263,20 +265,27 @@ type TacticAttribute = TacticAttribute' Expr
 
 -- A Binder @x\@p@, the pattern is optional
 data Binder' a = Binder
-  { binderPattern :: Maybe Pattern
-  , binderName    :: a
+  { binderPattern    :: Maybe Pattern
+  , binderNameOrigin :: BinderNameOrigin
+  , binderName       :: a
   } deriving (Show, Eq, Functor, Foldable, Traversable, Generic)
 
 type Binder = Binder' BindName
 
 mkBinder :: a -> Binder' a
-mkBinder = Binder Nothing
+mkBinder = Binder Nothing UserBinderName
 
 mkBinder_ :: Name -> Binder
 mkBinder_ = mkBinder . mkBindName
 
+insertedBinder :: a -> Binder' a
+insertedBinder = Binder Nothing InsertedBinderName
+
+insertedBinder_ :: Name -> Binder
+insertedBinder_ = insertedBinder . mkBindName
+
 extractPattern :: Binder' a -> Maybe (Pattern, a)
-extractPattern (Binder p a) = (,a) <$> p
+extractPattern (Binder p _ a) = (,a) <$> p
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
@@ -639,7 +648,7 @@ instance LensHiding TypedBinding where
   mapHiding f b@TLet{}             = b
 
 instance HasRange a => HasRange (Binder' a) where
-  getRange (Binder p n) = fuseRange p n
+  getRange (Binder p _ n) = fuseRange p n
 
 instance HasRange LamBinding where
     getRange (DomainFree _ x) = getRange x
@@ -739,11 +748,12 @@ instance HasRange WhereDeclarations where
   getRange (WhereDecls _ _ ds) = getRange ds
 
 instance HasRange LetBinding where
-    getRange (LetBind i _ _ _ _     ) = getRange i
-    getRange (LetPatBind  i _ _      ) = getRange i
-    getRange (LetApply i _ _ _ _ _   ) = getRange i
-    getRange (LetOpen  i _ _         ) = getRange i
-    getRange (LetDeclaredVariable x)  = getRange x
+  getRange (LetBind i _ _ _ _)     = getRange i
+  getRange (LetAxiom i _ _ _)      = getRange i
+  getRange (LetPatBind  i _ _)     = getRange i
+  getRange (LetApply i _ _ _ _ _)  = getRange i
+  getRange (LetOpen  i _ _)        = getRange i
+  getRange (LetDeclaredVariable x) = getRange x
 
 -- setRange for patterns applies the range to the outermost pattern constructor
 instance SetRange (Pattern' a) where
@@ -761,8 +771,9 @@ instance SetRange (Pattern' a) where
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
     setRange r (WithP i p)          = WithP (setRange r i) p
 
+
 instance KillRange a => KillRange (Binder' a) where
-  killRange (Binder a b) = killRangeN Binder a b
+  killRange (Binder a o b) = killRangeN Binder a o b
 
 instance KillRange LamBinding where
   killRange (DomainFree t x) = killRangeN DomainFree t x
@@ -888,11 +899,12 @@ instance KillRange WhereDeclarations where
   killRange (WhereDecls a b c) = killRangeN WhereDecls a b c
 
 instance KillRange LetBinding where
-  killRange (LetBind   i info a b c) = killRangeN LetBind i info a b c
-  killRange (LetPatBind i a b       ) = killRangeN LetPatBind i a b
-  killRange (LetApply   i a b c d e ) = killRangeN LetApply i a b c d e
-  killRange (LetOpen    i x dir     ) = killRangeN LetOpen  i x dir
-  killRange (LetDeclaredVariable x)  = killRangeN LetDeclaredVariable x
+  killRange (LetBind i info a b c)  = killRangeN LetBind i info a b c
+  killRange (LetAxiom i a b c)      = killRangeN LetAxiom i a b c
+  killRange (LetPatBind i a b)      = killRangeN LetPatBind i a b
+  killRange (LetApply i a b c d e)  = killRangeN LetApply i a b c d e
+  killRange (LetOpen i x dir)       = killRangeN LetOpen  i x dir
+  killRange (LetDeclaredVariable x) = killRangeN LetDeclaredVariable x
 
 instance NFData Expr
 instance NFData ScopeCopyInfo

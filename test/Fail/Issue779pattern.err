@@ -1,7 +1,3 @@
-Issue779pattern.agda:6.3-7.12: error: [NotAValidLetBinding]
-Not a valid let binding
-when scope checking the declaration
-  record R where
-    bla : D → D
-    bla c = c
-    field F : Set
+Issue779pattern.agda:7.7-12: error: [ShouldBeRecordPattern]
+Expected record pattern
+when checking that the expression λ (c) → c has type D → D

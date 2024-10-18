@@ -248,8 +248,9 @@ data DoStmt
 
 -- | A Binder @x\@p@, the pattern is optional
 data Binder' a = Binder
-  { binderPattern :: Maybe Pattern
-  , binderName    :: a
+  { binderPattern    :: Maybe Pattern
+  , binderNameOrigin :: BinderNameOrigin
+  , binderName       :: a
   } deriving (Eq, Functor, Foldable, Traversable)
 
 type Binder = Binder' BoundName
@@ -258,7 +259,7 @@ mkBinder_ :: Name -> Binder
 mkBinder_ = mkBinder . mkBoundName_
 
 mkBinder :: a -> Binder' a
-mkBinder = Binder Nothing
+mkBinder = Binder Nothing UserBinderName
 
 -- | A lambda binding is either domain free or typed.
 
@@ -839,8 +840,8 @@ isBinderP = \case
   IdentP _ qn
              -> mkBinder_ <$> isUnqualified qn
   WildP r    -> pure $ mkBinder_ $ setRange r simpleHole
-  AsP r n p  -> pure $ Binder (Just p) $ mkBoundName_ n
-  ParenP r p -> pure $ Binder (Just p) $ mkBoundName_ $ setRange r simpleHole
+  AsP r n p  -> pure $ Binder (Just p) UserBinderName $ mkBoundName_ n
+  ParenP r p -> pure $ Binder (Just p) UserBinderName $ mkBoundName_ $ setRange r simpleHole
   _ -> Nothing
 
 {--------------------------------------------------------------------------
@@ -933,7 +934,7 @@ instance HasRange Expr where
 --     getRange (TeleFun x y) = fuseRange x y
 
 instance HasRange Binder where
-  getRange (Binder a b) = fuseRange a b
+  getRange (Binder a _ b) = fuseRange a b
 
 instance HasRange TypedBinding where
   getRange (TBind r _ _) = r
@@ -1109,7 +1110,7 @@ instance KillRange AsName where
   killRange (AsName n _) = killRangeN (flip AsName noRange) n
 
 instance KillRange Binder where
-  killRange (Binder a b) = killRangeN Binder a b
+  killRange (Binder a o b) = killRangeN Binder a o b
 
 instance KillRange BoundName where
   killRange (BName n f t b) = killRangeN BName n f t b
@@ -1463,7 +1464,7 @@ instance NFData a => NFData (LamBinding' a) where
   rnf (DomainFull a) = rnf a
 
 instance NFData Binder where
-  rnf (Binder a b) = rnf a `seq` rnf b
+  rnf (Binder a o b) = rnf (a, o, b)
 
 instance NFData BoundName where
   rnf (BName a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d

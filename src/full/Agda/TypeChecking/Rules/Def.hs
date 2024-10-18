@@ -912,8 +912,8 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
     -- @using@ clauses
     usingEqnRHS :: List1 (A.Pattern, A.Expr) -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
     usingEqnRHS pes rs = do
-      let letBindings = for (List1.toList pes) $ \(p, e) -> A.LetPatBind (LetRange $ getRange e) p e
-      checkLetBindings letBindings $ rewriteEqnsRHS rs strippedPats rhs wh
+      let letBindings = for (List1.toList pes) $ \(p, e) -> A.LetPatBind (LetRange (getRange e)) p e
+      checkLetBindings' letBindings $ rewriteEqnsRHS rs strippedPats rhs wh
 
     -- @invert@ clauses
     invertEqnRHS :: QName -> List1 (Named A.BindName (A.Pattern,A.Expr)) -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)

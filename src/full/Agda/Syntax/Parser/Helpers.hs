@@ -174,7 +174,7 @@ mkQName ss | Just (ss0, ss1) <- initLast ss = do
 mkQName _ = __IMPOSSIBLE__ -- The lexer never gives us an empty list of parts
 
 mkDomainFree_ :: (NamedArg Binder -> NamedArg Binder) -> Maybe Pattern -> Name -> NamedArg Binder
-mkDomainFree_ f p n = f $ defaultNamedArg $ Binder p $ mkBoundName_ n
+mkDomainFree_ f p n = f $ defaultNamedArg $ Binder p UserBinderName $ mkBoundName_ n
 
 mkRString :: (Interval, String) -> RString
 mkRString (i, s) = Ranged (getRange i) s
@@ -361,7 +361,7 @@ boundNamesOrAbsurd es
         Nothing   -> parseError $ "expected sequence of bound identifiers"
         Just good -> fmap Left $ forM good $ \ (n, me) -> do
                        p <- traverse exprToPattern me
-                       return (defaultNamedArg (Binder p (mkBoundName_ n)))
+                       return (defaultNamedArg (Binder p UserBinderName (mkBoundName_ n)))
 
   where
 
@@ -501,18 +501,18 @@ patternSynArgs = mapM \ x -> do
   case x of
 
     -- Invariant: fixity is not used here, and neither finiteness
-    Arg ai (Named mn (Binder mp (BName n fix mtac fin)))
+    Arg ai (Named mn (Binder mp _ (BName n fix mtac fin)))
       | not $ null fix -> __IMPOSSIBLE__
       | fin            -> __IMPOSSIBLE__
 
     -- Error cases:
-    Arg _ (Named _ (Binder (Just _) _)) ->
+    Arg _ (Named _ (Binder (Just _) _ _)) ->
       abort "Arguments to pattern synonyms cannot be patterns themselves"
-    Arg _ (Named _ (Binder _ (BName _ _ tac _))) | not (null tac) ->
+    Arg _ (Named _ (Binder _ _ (BName _ _ tac _))) | not (null tac) ->
       abort $ noAnn "Tactic"
 
     -- Benign case:
-    Arg ai (Named mn (Binder Nothing (BName n _ _ _)))
+    Arg ai (Named mn (Binder Nothing _ (BName n _ _ _)))
       -- allow {n = n} for backwards compat with Agda 2.6
       | maybe True ((C.nameToRawName n ==) . rangedThing . woThing) mn ->
         case ai of
