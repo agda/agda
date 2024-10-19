@@ -22,6 +22,7 @@ ${AGDA_BIN:-agda} --help=error | sed -nr 's/^([A-Z][a-z\.]+[A-Z][A-Za-z\.]+).*/\
 #
 cat > $ERRORS <<EOF
 CustomBackendError
+GenericError
 InternalError
 NonFatalErrors
 EOF
@@ -38,12 +39,14 @@ EOF
 # Errors we currently do not cover by the testsuite (TODO!).
 #
 cat >> $ERRORS <<EOF
+BuiltinMustBeFunction
 ContradictorySizeConstraint
 Exec.ExeNotExecutable
 Exec.ExeNotFound
 Exec.ExeNotTrusted
 FunctionTypeInSizeUniv
 GeneralizeCyclicDependency
+ModuleNameHashCollision
 SplitError.CannotCreateMissingClause
 SplitError.CosplitNoTarget
 SplitError.GenericSplitError

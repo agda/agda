@@ -736,7 +736,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcFreshName :: Text -> TCM Term
     tcFreshName s = do
       whenM (viewTC eCurrentlyElaborating) $
-        typeError $ GenericError "Not supported: declaring new names from an edit-time macro"
+        typeError $ NotSupported "declaring new names from an edit-time macro"
       m <- currentModule
       quoteName . qualify m <$> freshName_ (T.unpack s)
 
@@ -756,8 +756,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcCommit :: UnquoteM Term
     tcCommit = do
       dirty <- gets fst
-      when (dirty == Dirty) $
-        liftTCM $ typeError $ GenericError "Cannot use commitTC after declaring new definitions."
+      when (dirty == Dirty) $ throwError CommitAfterDef
       s <- getTC
       modify (second $ const s)
       liftTCM primUnitUnit
@@ -917,7 +916,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
 
     constInfo :: QName -> TCM Definition
     constInfo x = either err return =<< getConstInfo' x
-      where err _ = genericError $ "Unbound name: " ++ prettyShow x
+      where err _ = unquoteError $ UnboundName x
 
     tcGetType :: QName -> TCM Term
     tcGetType x = do
@@ -997,8 +996,9 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
           , nest 2 $ prettyR a
           ]
         a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
-        alreadyDefined <- isRight <$> getConstInfo' x
-        when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
+        getConstInfo' x >>= \case
+          Left _    -> pure ()
+          Right def -> typeError $ ClashingDefinition (qnameToConcrete x) (defName def) Nothing
         addConstant' x i a defn
         when (isInstance i) $ addTypedInstance x a
         primUnitUnit
@@ -1024,8 +1024,9 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
           [ "declare Data" <+> prettyTCM x <+> ":"
           , nest 2 $ prettyR t
           ]
-        alreadyDefined <- isRight <$> getConstInfo' x
-        when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
+        getConstInfo' x >>= \case
+          Left _    -> pure ()
+          Right def -> typeError $ ClashingDefinition (qnameToConcrete x) (defName def) Nothing
         e <- toAbstract_ t
         -- The type to be checked with @checkSig@ is without parameters.
         let (tel, e') = splitPars (fromInteger npars) e
@@ -1041,8 +1042,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       Right def -> do
         npars <- case theDef def of
                    DataOrRecSig n -> return n
-                   _              -> genericError $ prettyShow x ++
-                     " is not declared as a datatype or record, or it already has a definition."
+                   _              -> unquoteError $ DefineDataNotData x
 
         -- For some reasons, reifying parameters and adding them to the context via
         -- `addContext` before `toAbstract_` is different from substituting the type after
@@ -1055,9 +1055,9 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         t   <- instantiateFull . defType =<< instantiateDef def
         tel <- reify =<< theTel <$> telViewUpTo npars t
 
-        es' <- case mapM (uncurry (substNames' tel) . splitPars npars) es of
-                 Nothing -> genericError $ "Number of parameters doesn't match!"
-                 Just es -> return es
+        -- Mario, 2024-10-18: cannot trigger this error:
+        -- genericError "Number of parameters doesn't match!"
+        let es' = map (fromMaybe __IMPOSSIBLE__ . uncurry (substNames' tel) . splitPars npars) es
 
         ac <- asksTC (^. lensIsAbstract)
         let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
