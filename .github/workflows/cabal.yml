@@ -52,13 +52,13 @@ jobs:
       run: |
         PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
         echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> "${GITHUB_ENV}"
-        # # print some information to debug pkg-config
-        # echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
-        # echo "$ ls -l ${PKG_CONFIG_PATH}"
-        # ls -l "${PKG_CONFIG_PATH}"
-        # export PKG_CONFIG_PATH
-        # echo "$ pkg-config --modversion icu-i18n"
-        # pkg-config --modversion icu-i18n
+        # print some information to debug pkg-config
+        echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
+        echo "$ ls -l ${PKG_CONFIG_PATH}"
+        ls -l "${PKG_CONFIG_PATH}"
+        export PKG_CONFIG_PATH
+        echo "$ pkg-config --modversion icu-i18n"
+        pkg-config --modversion icu-i18n
     - name: Determine the ICU version
       run: |
         ICU_VER=$(pkg-config --modversion icu-i18n)
