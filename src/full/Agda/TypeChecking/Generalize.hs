@@ -935,7 +935,7 @@ createGenValue x = setCurrentRange x $ do
 -- | Create a not-yet correct record type for the generalized telescope. It's not yet correct since
 --   we haven't computed the telescope yet, and we need the record type to do it.
 createGenRecordType :: Type -> [MetaId] -> TCM (QName, ConHead, [QName])
-createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
+createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = noMutualBlock $ do
   current <- currentModule
   let freshQName s = qualify current <$> freshName_ (s :: String)
       mkFieldName  = freshQName . (generalizedFieldName ++) <=< getMetaNameSuggestion
