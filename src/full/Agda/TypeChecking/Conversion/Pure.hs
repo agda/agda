@@ -28,9 +28,13 @@ pureConversion rigidblock flexblock nonblocked = \m ->
     res <- (Right <$> m) `catchError` \case
       PatternErr block ->
         pure $ Left block
+
+      -- András 2024-10-21: we treat this as a rigid blocker. Not sure why,
+      -- but the old code did it like this.
       TypeError{} -> do
         debugResult "type error"
-        __IMPOSSIBLE__ -- András 2024-10-21: how can this be not impossible?
+        pure $ Left neverUnblock
+
       GenericException{} -> __IMPOSSIBLE__
       IOException{}      -> __IMPOSSIBLE__
       ParserError{}      -> __IMPOSSIBLE__
