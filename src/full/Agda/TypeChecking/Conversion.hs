@@ -9,15 +9,18 @@ module Agda.TypeChecking.Conversion where
 
 import Control.Arrow (second)
 import Control.Monad.Except ( MonadError(..) )
+import Control.Monad.State
 
 import Data.Function (on)
 import Data.Semigroup ((<>))
 import Data.IntMap (IntMap)
+import Data.String (IsString)
 
 import qualified Data.List   as List
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.Set    as Set
+import qualified Data.Coerce
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -47,7 +50,7 @@ import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.ProjectionLike
-import Agda.TypeChecking.Warnings (MonadWarning)
+import Agda.TypeChecking.Warnings
 import Agda.Interaction.Options
 
 import Agda.Utils.Functor
@@ -64,8 +67,10 @@ import qualified Agda.Utils.BoolSet as BoolSet
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Unsafe ( unsafeComparePointers )
-
+import Agda.Utils.Null (Null)
 import Agda.Utils.Impossible
+
+----------------------------------------------------------------------------------------------------
 
 type MonadConversion m =
   ( PureTCM m
@@ -77,6 +82,116 @@ type MonadConversion m =
   , MonadFresh ProblemId m
   , MonadFresh Int m
   )
+
+----------------------------------------------------------------------------------------------------
+
+newtype ConvM a = ConvM {unConvM :: TCM a}
+  deriving (
+      Functor
+    , Applicative
+    , Monad
+    , HasBuiltins
+    , MonadTCEnv
+    , HasConstInfo
+    , HasOptions
+    , MonadDebug
+    , MonadAddContext
+    , ReadTCState
+    , MonadReduce
+    , MonadBlock
+    , MonadFresh NameId
+    , IsString
+
+    , PureTCM
+    , MonadError TCErr
+    , MonadFresh ProblemId
+    , MonadFresh Int
+    )
+
+deriving instance Null (ConvM Doc)
+deriving instance Semigroup a => Semigroup (ConvM a)
+
+switchPureMode :: TCM a -> ConvM a -> ConvM a
+switchPureMode impure pure = do
+  e <- askTC
+  if envPureConversion e then pure else ConvM impure
+{-# INLINE switchPureMode #-}
+
+instance MonadConstraint ConvM where
+  addConstraint u c = switchPureMode (addConstraint u c) $
+    patternViolation u
+
+  addAwakeConstraint u c = switchPureMode (addAwakeConstraint u c) $
+    patternViolation u
+
+  solveConstraint c = switchPureMode (solveConstraint c) $
+    patternViolation alwaysUnblock -- TODO: does this happen?
+
+  solveSomeAwakeConstraints x y = switchPureMode (solveSomeAwakeConstraints x y) $
+    return ()
+
+  wakeConstraints x = switchPureMode (wakeConstraints x) $
+    return ()
+
+  stealConstraints x = switchPureMode (stealConstraints x) $
+    return ()
+
+  modifyAwakeConstraints f = switchPureMode (modifyAwakeConstraints f) $
+    patternViolation alwaysUnblock -- TODO: does this happen?
+
+  modifySleepingConstraints f   = switchPureMode (modifySleepingConstraints f) $
+    patternViolation alwaysUnblock -- TODO: does this happen?
+
+
+instance MonadMetaSolver ConvM where
+  newMeta' a b c d e f = switchPureMode (newMeta' a b c d e f) $
+    patternViolation alwaysUnblock -- TODO: does this happen?
+
+  assignV a m b v c = switchPureMode (assignV a m b v c) $ do
+    bv <- isBlocked v
+    let blocker = caseMaybe bv id unblockOnEither $ unblockOnMeta m
+    patternViolation blocker
+
+  assignTerm' m tel v = switchPureMode (assignTerm' m tel v) $ do
+    bv <- isBlocked v
+    let blocker = caseMaybe bv id unblockOnEither $ unblockOnMeta m
+    patternViolation blocker
+
+  etaExpandMeta x y = switchPureMode (etaExpandMeta x y) $
+    return ()
+
+  updateMetaVar x y = switchPureMode (updateMetaVar x y) $
+    patternViolation alwaysUnblock -- TODO: does this happen?
+
+  speculateMetas fallback m = switchPureMode (speculateMetas (unConvM fallback) (unConvM m)) $
+    (m >>= \case
+      KeepMetas     -> return ()
+      RollBackMetas -> fallback)
+
+instance MonadInteractionPoints ConvM where
+  freshInteractionId = switchPureMode freshInteractionId $
+    patternViolation alwaysUnblock  -- TODO: does this happen?
+
+  modifyInteractionPoints x = switchPureMode (modifyInteractionPoints x) $
+    patternViolation alwaysUnblock  -- TODO: does this happen?
+
+-- This is a bogus instance that promptly forgets all concrete names,
+-- but we don't really care
+instance MonadStConcreteNames ConvM where
+  runStConcreteNames m = switchPureMode (runStConcreteNames (Data.Coerce.coerce m)) $ do
+    concNames <- useR stConcreteNames
+    fst <$> runStateT m concNames
+
+instance MonadWarning ConvM where
+  addWarning w = switchPureMode (addWarning w) $ case classifyWarning (tcWarning w) of
+    ErrorWarnings -> patternViolation neverUnblock
+    AllWarnings   -> return ()
+
+instance MonadStatistics ConvM where
+  modifyCounter x y = switchPureMode (modifyCounter x y) $
+    return ()
+
+----------------------------------------------------------------------------------------------------
 
 -- | Try whether a computation runs without errors or new constraints
 --   (may create new metas, though).
@@ -95,7 +210,7 @@ tryConversion'
   => m a -> m (Maybe a)
 tryConversion' m = tryMaybe $ noConstraints m
 
--- | Check if to lists of arguments are the same (and all variables).
+-- | Check if two lists of arguments are the same (and all variables).
 --   Precondition: the lists have the same length.
 sameVars :: Elims -> Elims -> Bool
 sameVars xs ys = and $ zipWith same xs ys

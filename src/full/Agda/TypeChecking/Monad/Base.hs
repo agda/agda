@@ -3860,6 +3860,11 @@ data TCEnv =
           , envTermCheckReducing :: Bool
                 -- ^ Are we currently trying to reduce away function calls using
                 --   non-recursive clauses during termination checking?
+          , envPureConversion :: !Bool
+                -- ^ Are we currently computing pure conversion? If so, we
+                -- cannot modify constraint or metavariable state, and we
+                -- instead throw `patternViolation`-s.
+                -- See `Agda.TypeChecking.Conversion`.
           }
     deriving (Generic)
 
@@ -3927,6 +3932,7 @@ initEnv = TCEnv { envContext             = []
                 , envSyntacticEqualityFuel  = Strict.Nothing
                 , envCurrentOpaqueId        = Nothing
                 , envTermCheckReducing      = False
+                , envPureConversion         = False
                 }
 
 class LensTCEnv a where
@@ -4119,6 +4125,9 @@ eConflComputingOverlap f e = f (envConflComputingOverlap e) <&> \ x -> e { envCo
 
 eCurrentlyElaborating :: Lens' TCEnv Bool
 eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurrentlyElaborating = x }
+
+ePureConversion :: Lens' TCEnv Bool
+ePureConversion f e = f (envPureConversion e) <&> \ x -> e { envPureConversion = x }
 
 {-# SPECIALISE currentModality :: TCM Modality #-}
 -- | The current modality.
