@@ -15,12 +15,14 @@ import Data.Function (on)
 import Data.Semigroup ((<>))
 import Data.IntMap (IntMap)
 import Data.String (IsString)
+import Data.IORef
 
 import qualified Data.List   as List
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.Set    as Set
 import qualified Data.Coerce
+import qualified System.IO.Unsafe as Unsafe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -190,6 +192,72 @@ instance MonadWarning ConvM where
 instance MonadStatistics ConvM where
   modifyCounter x y = switchPureMode (modifyCounter x y) $
     return ()
+
+-- unsafeNewTCStateRef :: TCState -> IORef TCState
+-- unsafeNewTCStateRef s = Unsafe.unsafeDupablePerformIO (newIORef s)
+-- {-# NOINLINE unsafeNewIORef #-}
+
+-- runConversion :: forall a m. MonadConversion m => ConvM a -> m a
+-- runConversion (ConvM ma) = verboseBracket "tc.conv" 40 "runConversion" $ do
+--   !e       <- askTC
+--   !s       <- getTCState
+--   let action :: IO (a, TCState)
+--       action = do
+--         !ref <- newIORef s
+--         !res <- unTCM ma ref e
+--         !s   <- readIORef ref
+--         pure (res, s)
+--   case Unsafe.unsafeDupablePerformIO action of
+--     (a, s) -> do
+--       setTC
+
+  -- case
+  -- let (res,  = unsafeDupablePerformIO $ do
+  --               !ref <- newIORef s
+  --               !res <- unTCM ma ref e
+  --               !s   <- readIORef ref
+  --               pure (res, s)
+
+  -- let !ref <- unsafeNewTCStateRef s
+  -- let res = <- unTCM m
+
+  -- i   <- useR stFreshInt
+  -- pid <-
+
+-- newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
+
+
+
+-- runPureConversion
+--   :: (MonadBlock m, PureTCM m)
+--   => PureConversionT m a -> m (Maybe a)
+-- runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $
+--   verboseBracket "tc.conv.pure" 40 "runPureConversion" $ do
+--   i <- useR stFreshInt
+--   pid <- useR stFreshProblemId
+--   nid <- useR stFreshNameId
+--   let frsh = FreshThings i pid nid
+--   result <- fst <$> runStateT (runExceptT m) frsh
+--   case result of
+--     Left (PatternErr block)
+--      | block == neverUnblock -> do
+--          debugResult "stuck"
+--          return Nothing
+--      | otherwise             -> do
+--          debugResult $ "blocked on" <+> prettyTCM block
+--          patternViolation block
+--     Left TypeError{}         -> do
+--       debugResult "type error"
+--       return Nothing
+--     Left GenericException{}  -> __IMPOSSIBLE__
+--     Left IOException{}       -> __IMPOSSIBLE__
+--     Left ParserError{}       -> __IMPOSSIBLE__
+--     Right x                  -> do
+--       debugResult "success"
+--       return $ Just x
+--   where
+--     debugResult msg = reportSDoc "tc.conv.pure" 40 $ "runPureConversion result: " <+> msg
+
 
 ----------------------------------------------------------------------------------------------------
 

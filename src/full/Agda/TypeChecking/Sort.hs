@@ -59,8 +59,7 @@ import Agda.Utils.Impossible
 --   straight away, return that. Otherwise, return @UnivSort s@ and add a
 --   constraint to ensure we can compute the sort eventually.
 inferUnivSort
-  :: (PureTCM m, MonadConstraint m)
-  => Sort -> m Sort
+  :: (MonadReduce m) => Sort -> m Sort
 inferUnivSort s = do
   s <- reduce s
   case univSort' s of
