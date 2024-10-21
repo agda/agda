@@ -71,8 +71,7 @@ inferUnivSort s = do
       -- addConstraint $ HasBiggerSort s
       return $ UnivSort s
 
-{-# SPECIALIZE sortFitsIn :: Sort -> Sort -> TCM () #-}
-sortFitsIn :: MonadConversion m => Sort -> Sort -> m ()
+sortFitsIn :: Sort -> Sort -> TCM ()
 sortFitsIn a b = do
   b' <- inferUnivSort a
   ifM (optCumulativity <$> pragmaOptions)

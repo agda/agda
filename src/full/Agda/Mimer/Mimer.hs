@@ -1463,7 +1463,7 @@ dumbUnifier t1 t2 = isNothing <$> dumbUnifierErr t1 t2
 dumbUnifierErr :: Type -> Type -> SM (Maybe TCErr)
 dumbUnifierErr t1 t2 = bench [Bench.UnifyIndices] $ do
   updateStat incTypeEqChecks
-  noConstraints (Nothing <$ equalType t2 t1) `catchError` \err -> do
+  noConstraints (Nothing <$ lift (equalType t2 t1)) `catchError` \err -> do
     reportSDoc "mimer.unify" 80 $ sep [ "Unification failed with error:", nest 2 $ prettyTCM err ]
     return $ Just err
 

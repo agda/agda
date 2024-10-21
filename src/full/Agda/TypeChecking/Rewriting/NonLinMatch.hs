@@ -37,7 +37,7 @@ import qualified Data.IntSet as IntSet
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Conversion.Pure (pureEqualTerm)
+import Agda.TypeChecking.Conversion.Pure (pureBlockOrEqualTermInReduceM)
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Irrelevance (isPropM)
@@ -434,7 +434,7 @@ nonLinMatch gamma t p v = do
 --   Returns `Nothing` if the terms are equal, or `Just b` if the terms are not
 --   (where b contains information about possible metas blocking the comparison)
 equal :: Type -> Term -> Term -> ReduceM (Maybe Blocked_)
-equal a u v = runBlocked (pureEqualTerm a u v) >>= \case
+equal a u v = pureBlockOrEqualTermInReduceM a u v >>= \case
   Left b      -> return $ Just $ Blocked b ()
   Right True  -> return Nothing
   Right False -> traceSDoc "rewriting.match" 10 (sep

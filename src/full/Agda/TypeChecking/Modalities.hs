@@ -13,7 +13,6 @@ import Agda.Interaction.Options
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Monad
@@ -27,7 +26,7 @@ import Agda.Utils.Monad
 
 -- | The second argument is the definition of the first.
 --   Returns 'Nothing' if ok, otherwise the error message.
-checkRelevance' :: (MonadConversion m) => QName -> Definition -> m (Maybe TypeError)
+checkRelevance' :: QName -> Definition -> TCM (Maybe TypeError)
 checkRelevance' x def = do
   case getRelevance def of
     Relevant{} -> return Nothing -- relevance functions can be used in any context.
@@ -49,7 +48,7 @@ checkRelevance' x def = do
 
 -- | The second argument is the definition of the first.
 --   Returns 'Nothing' if ok, otherwise the error message.
-checkQuantity' :: (MonadConversion m) => QName -> Definition -> m (Maybe TypeError)
+checkQuantity' :: QName -> Definition -> TCM (Maybe TypeError)
 checkQuantity' x def = do
   case getQuantity def of
     dq@Quantityω{} -> do
@@ -67,19 +66,19 @@ checkQuantity' x def = do
       return $ boolToMaybe (not $ dq `moreQuantity` q) $ DefinitionIsErased x
 
 -- | The second argument is the definition of the first.
-checkModality' :: (MonadConversion m) => QName -> Definition -> m (Maybe TypeError)
+checkModality' :: QName -> Definition -> TCM (Maybe TypeError)
 checkModality' x def = do
   relOk <- checkRelevance' x def
   qtyOk <- checkQuantity' x def
   return $ relOk <|> qtyOk
 
 -- | The second argument is the definition of the first.
-checkModality :: (MonadConversion m) => QName -> Definition -> m ()
+checkModality :: QName -> Definition -> TCM ()
 checkModality x def = checkModality' x def >>= mapM_ typeError
 
 -- | Checks that the given implicitely inserted arguments, are used in a modally
 --   correct way.
-checkModalityArgs :: (MonadConversion m) => Definition -> Args -> m ()
+checkModalityArgs :: Definition -> Args -> TCM ()
 checkModalityArgs d vs = do
   let
     vmap :: VarMap
