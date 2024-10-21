@@ -209,6 +209,8 @@ instance PrettyTCM InteractionId              where prettyTCM = pretty ; {-# INL
 instance PrettyTCM Relevance                  where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
 instance PrettyTCM Quantity                   where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
 instance PrettyTCM Erased                     where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM ModalPolarity              where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
+instance PrettyTCM PolarityModality           where prettyTCM = pretty ; {-# INLINE prettyTCM #-}
 
 instance PrettyTCM A.Expr                     where prettyTCM = prettyA; {-# INLINE prettyTCM #-}
 instance PrettyTCM A.Pattern                  where prettyTCM = prettyA; {-# INLINE prettyTCM #-}
@@ -354,6 +356,7 @@ instance PrettyTCM Modality where
   prettyTCM mod = hsep
     [ prettyTCM (getQuantity mod)
     , prettyTCM (getRelevance mod)
+    , prettyTCM (getModalPolarity mod)
     ]
 {-# SPECIALIZE prettyTCM :: Modality -> TCM Doc #-}
 

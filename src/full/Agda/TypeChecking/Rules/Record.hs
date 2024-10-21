@@ -18,6 +18,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 
+import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Substitute
@@ -633,6 +634,11 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                     -- Andrea TODO: properly update the context/type of the projection when we add Sharp
                     __IMPOSSIBLE__
         else genericError $ "Cannot have record fields with modality " ++ show (getCohesion ai)
+
+      -- For now, we forbid any polarity annotations on record fields (we would need to do as above,
+      -- and eta-equality or projection existence would be in danger).
+      unless (getModalPolarity ai `samePolarity` (withStandardLock MixedPolarity)) $
+        genericError $ "Cannot have record field with " ++ verbalize (getModalPolarity ai) ++ " polarity"
 
       -- The telescope tel includes the variable of record type as last one
       -- e.g. for cartesion product it is
