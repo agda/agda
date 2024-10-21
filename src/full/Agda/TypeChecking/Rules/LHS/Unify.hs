@@ -932,6 +932,7 @@ unify s strategy = if isUnifyStateSolved s
 
     failure :: Monad m => m (UnificationResult' a)
     failure = return $ UnifyStuck []
+{-# INLINE unify #-}
 
 -- | Turn a term into a pattern while binding as many of the given forced variables as possible (in
 --   non-forced positions).
