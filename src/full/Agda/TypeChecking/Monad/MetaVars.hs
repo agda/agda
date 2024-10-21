@@ -523,8 +523,10 @@ instance MonadInteractionPoints m => MonadInteractionPoints (StateT s m)
 instance (MonadInteractionPoints m, Monoid w) => MonadInteractionPoints (WriterT w m)
 
 instance MonadInteractionPoints TCM where
-  freshInteractionId = fresh
-  modifyInteractionPoints f = stInteractionPoints `modifyTCLens` f
+  -- TODO: does the pure mode happen?
+  freshInteractionId = switchPureMode fresh (patternViolation alwaysUnblock)
+  -- TODO: does the pure mode happen?
+  modifyInteractionPoints f = switchPureMode (stInteractionPoints `modifyTCLens` f) (patternViolation alwaysUnblock)
 
 -- | Register an interaction point during scope checking.
 --   If there is no interaction id yet, create one.

@@ -25,6 +25,7 @@ import Agda.Utils.Impossible
 runPureConversion :: TCM a -> TCM a
 runPureConversion = undefined
 
+-- | Compare terms, catch and return pattern violation.
 pureBlockOrEqualTerm :: Type -> Term -> Term -> TCM (Either Blocker Bool)
 pureBlockOrEqualTerm = undefined
 
@@ -38,7 +39,6 @@ pureBlockOrEqualTermInReduceM = undefined
 pureBlockOrEqualType :: Type -> Type -> TCM (Either Blocker Bool)
 pureBlockOrEqualType = undefined
 
--- | Do a pure conversion but don't catch the pattern violation.
 pureCompareAs :: Comparison -> CompareAs -> Term -> Term -> TCM Bool
 pureCompareAs = undefined
 

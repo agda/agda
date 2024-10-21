@@ -37,6 +37,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning )
 
 import Agda.Syntax.Abstract.Name ( QName )
 import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Syntax.Internal.Blockers (neverUnblock)
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
 
@@ -74,9 +75,12 @@ instance MonadWarning m => MonadWarning (StateT s m)
 instance (MonadWarning m, Monoid w) => MonadWarning (WriterT w m)
 
 instance MonadWarning TCM where
-  addWarning tcwarn = do
-    stTCWarnings `modifyTCLens` Set.insert tcwarn
-    highlightWarning tcwarn
+  addWarning w = switchPureMode
+    (do stTCWarnings `modifyTCLens` Set.insert w
+        highlightWarning w)
+    (case classifyWarning (tcWarning w) of
+      ErrorWarnings -> patternViolation neverUnblock
+      AllWarnings   -> return ())
 
 -- * Raising warnings
 ---------------------------------------------------------------------------

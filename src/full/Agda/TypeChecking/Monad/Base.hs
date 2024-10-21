@@ -977,7 +977,10 @@ class Monad m => MonadStConcreteNames m where
   modifyConcreteNames = runStConcreteNames . modify
 
 instance MonadStConcreteNames TCM where
-  runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
+  runStConcreteNames m =
+    switchPureMode (stateTCLensM stConcreteNames $ runStateT m) $ do
+      concNames <- useR stConcreteNames
+      fst <$> runStateT m concNames
 
 -- | The concrete names get lost in case of an exception.
 instance MonadStConcreteNames m => MonadStConcreteNames (ExceptT e m) where
@@ -5795,6 +5798,12 @@ instance Applicative m => Applicative (TCMT m) where
 apTCMT :: Applicative m => TCMT m (a -> b) -> TCMT m a -> TCMT m b
 apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> mf r e <*> m r e
 {-# INLINE apTCMT #-}
+
+switchPureMode :: TCM a -> TCM a -> TCM a
+switchPureMode impure pure = do
+  e <- askTC
+  if envPureConversion e then pure else impure
+{-# INLINE switchPureMode #-}
 
 instance MonadTrans TCMT where
     lift m = TCM $ \_ _ -> m; {-# INLINE lift #-}

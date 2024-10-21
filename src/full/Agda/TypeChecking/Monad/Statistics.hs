@@ -41,7 +41,7 @@ instance MonadStatistics m => MonadStatistics (StateT  s m)
 instance (MonadStatistics m, Monoid w) => MonadStatistics (WriterT w m)
 
 instance MonadStatistics TCM where
-  modifyCounter x f = modifyStatistics $ force . update
+  modifyCounter x f = switchPureMode (modifyStatistics $ force . update) (return ())
     where
       -- We need to be strict in the map.
       -- Andreas, 2014-03-22:  Could we take Data.Map.Strict instead of this hack?

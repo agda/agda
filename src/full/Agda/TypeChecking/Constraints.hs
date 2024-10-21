@@ -47,14 +47,22 @@ import Agda.Utils.Singleton
 import Agda.Utils.Impossible
 
 instance MonadConstraint TCM where
-  addConstraint             = addConstraintTCM
-  addAwakeConstraint        = addAwakeConstraint'
-  solveConstraint           = solveConstraintTCM
-  solveSomeAwakeConstraints = solveSomeAwakeConstraintsTCM
-  wakeConstraints           = wakeConstraintsTCM
-  stealConstraints          = stealConstraintsTCM
-  modifyAwakeConstraints    = modifyTC . mapAwakeConstraints
-  modifySleepingConstraints = modifyTC . mapSleepingConstraints
+  addConstraint u c = switchPureMode (addConstraintTCM u c) $ patternViolation u
+  addAwakeConstraint u c  = switchPureMode (addAwakeConstraint' u c) $ patternViolation u
+
+  solveConstraint c = switchPureMode (solveConstraintTCM c) $
+    patternViolation alwaysUnblock -- TODO: does this happen?
+
+  solveSomeAwakeConstraints s f = switchPureMode (solveSomeAwakeConstraintsTCM s f) $ return ()
+  wakeConstraints w             = switchPureMode (wakeConstraintsTCM w)  $ return ()
+  stealConstraints w            = switchPureMode (stealConstraintsTCM w) $ return ()
+
+  modifyAwakeConstraints f = switchPureMode (modifyTC (mapAwakeConstraints f)) $
+     patternViolation alwaysUnblock -- TODO: does this happen?
+
+  modifySleepingConstraints f = switchPureMode (modifyTC (mapSleepingConstraints f)) $
+    patternViolation alwaysUnblock -- TODO: does this happen?
+
 
 addConstraintTCM :: Blocker -> Constraint -> TCM ()
 addConstraintTCM unblock c = do
