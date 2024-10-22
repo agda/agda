@@ -4,7 +4,7 @@ module Agda.TypeChecking.Rules.LHS.Unify.Types where
 
 import Prelude hiding (null)
 
-import Control.Monad
+
 import Control.Monad.Writer (WriterT(..), MonadWriter(..))
 
 import Data.Foldable (toList)
@@ -28,6 +28,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Singleton
@@ -475,5 +476,5 @@ writeUnifyLog ::
   MonadWriter UnifyLog' m => (UnifyLogEntry, UnifyState) -> m ()
 writeUnifyLog x = tell (singleton x) -- UnifyOutput IdS IdS [x]
 
-runUnifyLogT :: Functor m => UnifyLogT m a -> m (a, UnifyLog)
+runUnifyLogT :: Monad m => UnifyLogT m a -> m (a, UnifyLog)
 runUnifyLogT m = mapSnd toList <$!> runWriterT m
