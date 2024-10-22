@@ -1402,17 +1402,18 @@ instance InstantiateFull t => InstantiateFull (IPBoundary' t)
 -- Tuples:
 
 instance (InstantiateFull a, InstantiateFull b) => InstantiateFull (a,b) where
-    instantiateFull' (x,y) = (,) <$> instantiateFull' x <*> instantiateFull' y
+    instantiateFull' (a, b) = (,) <$!> instantiateFull' a <*!> instantiateFull' b
+    {-# INLINE instantiateFull' #-}
 
 instance (InstantiateFull a, InstantiateFull b, InstantiateFull c) => InstantiateFull (a,b,c) where
-    instantiateFull' (x,y,z) =
-        do  (x,(y,z)) <- instantiateFull' (x,(y,z))
-            return (x,y,z)
+    instantiateFull' (a, b, c) =
+        (,,) <$!> instantiateFull' a <*!> instantiateFull' b <*!> instantiateFull' c
+    {-# INLINE instantiateFull' #-}
 
 instance (InstantiateFull a, InstantiateFull b, InstantiateFull c, InstantiateFull d) => InstantiateFull (a,b,c,d) where
-    instantiateFull' (x,y,z,w) =
-        do  (x,(y,z,w)) <- instantiateFull' (x,(y,z,w))
-            return (x,y,z,w)
+    instantiateFull' (a, b, c, d) =
+        (,,,) <$!> instantiateFull' a <*!> instantiateFull' b <*!> instantiateFull' c <*!> instantiateFull' d
+    {-# INLINE instantiateFull' #-}
 
 -- Base types:
 

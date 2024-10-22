@@ -59,6 +59,7 @@ import qualified Data.Text.Lazy as TL
 import Data.IORef
 
 import GHC.Generics (Generic)
+import GHC.Exts (oneShot)
 
 import System.IO (hFlush, stdout)
 
@@ -5479,9 +5480,9 @@ instance ReadTCState ReduceM where
   locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
 
 runReduceM :: ReduceM a -> TCM a
-runReduceM m = TCM $ \ r e -> do
+runReduceM m = TCM (oneShot (\ r e -> do
   s <- readIORef r
-  E.evaluate $ unReduceM m $ ReduceEnv e s Nothing
+  E.evaluate $ unReduceM m $ ReduceEnv e s Nothing))
   -- Andreas, 2021-05-13, issue #5379
   -- This was the following, which is apparently not strict enough
   -- to force all unsafePerformIOs...
@@ -5489,6 +5490,7 @@ runReduceM m = TCM $ \ r e -> do
   --   e <- askTC
   --   s <- getTC
   --   return $! unReduceM m (ReduceEnv e s)
+{-# INLINE runReduceM #-}
 
 runReduceF :: (a -> ReduceM b) -> TCM (a -> b)
 runReduceF f = do

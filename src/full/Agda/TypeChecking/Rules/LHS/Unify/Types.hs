@@ -41,9 +41,9 @@ import Agda.Utils.Impossible
 ----------------------------------------------------
 
 data Equality = Equal
-  { _eqType  :: Dom Type
-  , _eqLeft  :: Term
-  , _eqRight :: Term
+  { _eqType  :: !(Dom Type)
+  , _eqLeft  :: !Term
+  , _eqRight :: !Term
   }
 
 -- Jesper, 2020-01-19: The type type lives in the context of the
@@ -54,10 +54,10 @@ data Equality = Equal
 --   reduce' (Equal a u v) = Equal <$> reduce' a <*> reduce' u <*> reduce' v
 
 eqConstructorForm :: HasBuiltins m => Equality -> m Equality
-eqConstructorForm (Equal a u v) = Equal a <$> constructorForm u <*> constructorForm v
+eqConstructorForm (Equal a u v) = Equal a <$!> constructorForm u <*!> constructorForm v
 
 eqUnLevel :: (HasBuiltins m, HasOptions m) => Equality -> m Equality
-eqUnLevel (Equal a u v) = Equal a <$> unLevel u <*> unLevel v
+eqUnLevel (Equal a u v) = Equal a <$!> unLevel u <*!> unLevel v
   where
     unLevel (Level l) = reallyUnLevelView l
     unLevel u         = return u
@@ -67,11 +67,11 @@ eqUnLevel (Equal a u v) = Equal a <$> unLevel u <*> unLevel v
 ----------------------------------------------------
 
 data UnifyState = UState
-  { varTel   :: Telescope     -- ^ Don't reduce!
-  , flexVars :: FlexibleVars
-  , eqTel    :: Telescope     -- ^ Can be reduced eagerly.
-  , eqLHS    :: [Arg Term]    -- ^ Ends up in dot patterns (should not be reduced eagerly).
-  , eqRHS    :: [Arg Term]    -- ^ Ends up in dot patterns (should not be reduced eagerly).
+  { varTel   :: !Telescope     -- ^ Don't reduce!
+  , flexVars :: !FlexibleVars
+  , eqTel    :: !Telescope     -- ^ Can be reduced eagerly.
+  , eqLHS    :: ![Arg Term]    -- ^ Ends up in dot patterns (should not be reduced eagerly).
+  , eqRHS    :: ![Arg Term]    -- ^ Ends up in dot patterns (should not be reduced eagerly).
   } deriving (Show)
 -- Issues #3578 and #4125: avoid unnecessary reduction in unifier.
 
@@ -138,11 +138,10 @@ instance PrettyTCM UnifyState where
       prettyEquality x y = prettyTCM x <+> "=?=" <+> prettyTCM y
 
 initUnifyState
-  :: PureTCM m
-  => Telescope -> FlexibleVars -> Type -> Args -> Args -> m UnifyState
+  :: Telescope -> FlexibleVars -> Type -> Args -> Args -> TCM UnifyState
 initUnifyState tel flex a lhs rhs = do
   (tel, a, lhs, rhs) <- instantiateFull (tel, a, lhs, rhs)
-  let n = size lhs
+  let !n = size lhs
   unless (n == size rhs) __IMPOSSIBLE__
   TelV eqTel _ <- telView a
   unless (n == size eqTel) __IMPOSSIBLE__
@@ -290,72 +289,72 @@ solveEq k u s = (,sigma) $ s
 
 data UnifyStep
   = Deletion
-    { deleteAt           :: Int
-    , deleteType         :: Type
-    , deleteLeft         :: Term
-    , deleteRight        :: Term
+    { deleteAt           :: !Int
+    , deleteType         :: !Type
+    , deleteLeft         :: !Term
+    , deleteRight        :: !Term
     }
   | Solution
-    { solutionAt         :: Int
-    , solutionType       :: Dom Type
-    , solutionVar        :: FlexibleVar Int
-    , solutionTerm       :: Term
-    , solutionSide       :: Either () ()
+    { solutionAt         :: !Int
+    , solutionType       :: !(Dom Type)
+    , solutionVar        :: !(FlexibleVar Int)
+    , solutionTerm       :: !Term
+    , solutionSide       :: !(Either () ())
       -- ^ side of the equation where the variable is.
     }
   | Injectivity
-    { injectAt           :: Int
-    , injectType         :: Type
-    , injectDatatype     :: QName
-    , injectParameters   :: Args
-    , injectIndices      :: Args
-    , injectConstructor  :: ConHead
+    { injectAt           :: !Int
+    , injectType         :: !Type
+    , injectDatatype     :: !QName
+    , injectParameters   :: !Args
+    , injectIndices      :: !Args
+    , injectConstructor  :: !ConHead
     }
   | Conflict
-    { conflictAt         :: Int
-    , conflictType       :: Type
-    , conflictDatatype   :: QName
-    , conflictParameters :: Args
-    , conflictLeft       :: Term
-    , conflictRight      :: Term
+    { conflictAt         :: !Int
+    , conflictType       :: !Type
+    , conflictDatatype   :: !QName
+    , conflictParameters :: !Args
+    , conflictLeft       :: !Term
+    , conflictRight      :: !Term
     }
   | Cycle
-    { cycleAt            :: Int
-    , cycleType          :: Type
-    , cycleDatatype      :: QName
-    , cycleParameters    :: Args
-    , cycleVar           :: Int
-    , cycleOccursIn      :: Term
+    { cycleAt            :: !Int
+    , cycleType          :: !Type
+    , cycleDatatype      :: !QName
+    , cycleParameters    :: !Args
+    , cycleVar           :: !Int
+    , cycleOccursIn      :: !Term
     }
   | EtaExpandVar
-    { expandVar           :: FlexibleVar Int
-    , expandVarRecordType :: QName
-    , expandVarParameters :: Args
+    { expandVar           :: !(FlexibleVar Int)
+    , expandVarRecordType :: !(QName)
+    , expandVarParameters :: !(Args)
     }
   | EtaExpandEquation
-    { expandAt           :: Int
-    , expandRecordType   :: QName
-    , expandParameters   :: Args
+    { expandAt           :: !Int
+    , expandRecordType   :: !QName
+    , expandParameters   :: !Args
     }
   | LitConflict
-    { litConflictAt      :: Int
-    , litType            :: Type
-    , litConflictLeft    :: Literal
-    , litConflictRight   :: Literal
+    { litConflictAt      :: !Int
+    , litType            :: !Type
+    , litConflictLeft    :: !Literal
+    , litConflictRight   :: !Literal
     }
   | StripSizeSuc
-    { stripAt            :: Int
-    , stripArgLeft       :: Term
-    , stripArgRight      :: Term
+    { stripAt            :: !Int
+    , stripArgLeft       :: !Term
+    , stripArgRight      :: !Term
     }
   | SkipIrrelevantEquation
-    { skipIrrelevantAt   :: Int
+    { skipIrrelevantAt   :: !Int
     }
   | TypeConInjectivity
-    { typeConInjectAt    :: Int
-    , typeConstructor    :: QName
-    , typeConArgsLeft    :: Args
-    , typeConArgsRight   :: Args
+    { typeConInjectAt    :: !Int
+    , typeConstructor    :: !QName
+    , typeConArgsLeft    :: !Args
+    , typeConArgsRight   :: !Args
     } deriving (Show)
 
 instance PrettyTCM UnifyStep where
@@ -435,7 +434,7 @@ instance PrettyTCM UnifyStep where
 
 data UnifyLogEntry
  -- = UnificationDone  UnifyState
-  = UnificationStep UnifyState UnifyStep UnifyOutput
+  = UnificationStep !UnifyState !UnifyStep !UnifyOutput
 
 type UnifyLog = [(UnifyLogEntry,UnifyState)]
 
@@ -445,9 +444,9 @@ type UnifyLog' = DList (UnifyLogEntry, UnifyState)
 
 -- Given varΓ ⊢ eqΓ, varΓ ⊢ us, vs : eqΓ
 data UnifyOutput = UnifyOutput
-  { unifySubst :: PatternSubstitution -- varΓ' ⊢ σ : varΓ
-  , unifyProof :: PatternSubstitution -- varΓ',eqΓ' ⊢ ps : eqΓ[σ]
-                                      -- varΓ', us' =_eqΓ' vs' ⊢ ap(ps) : us[σ] =_{eqΓ[σ]} vs[σ]
+  { unifySubst :: !PatternSubstitution -- varΓ' ⊢ σ : varΓ
+  , unifyProof :: !PatternSubstitution -- varΓ',eqΓ' ⊢ ps : eqΓ[σ]
+                                       -- varΓ', us' =_eqΓ' vs' ⊢ ap(ps) : us[σ] =_{eqΓ[σ]} vs[σ]
 --  , unifyLog   :: UnifyLog
   }
 
@@ -462,9 +461,9 @@ instance Monoid UnifyOutput where
   mempty  = UnifyOutput IdS IdS -- []
   mappend = (<>)
 
-type UnifyLogT m a = WriterT UnifyLog' m a
+type UnifyLogT m = WriterT UnifyLog' m
 
-type UnifyStepT m a = WriterT UnifyOutput m a
+type UnifyStepT m = WriterT UnifyOutput m
 
 tellUnifySubst :: MonadWriter UnifyOutput m => PatternSubstitution -> m ()
 tellUnifySubst sub = tell $ UnifyOutput sub IdS
@@ -477,4 +476,4 @@ writeUnifyLog ::
 writeUnifyLog x = tell (singleton x) -- UnifyOutput IdS IdS [x]
 
 runUnifyLogT :: Functor m => UnifyLogT m a -> m (a, UnifyLog)
-runUnifyLogT m = mapSnd toList <$> runWriterT m
+runUnifyLogT m = mapSnd toList <$!> runWriterT m

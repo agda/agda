@@ -411,7 +411,7 @@ telViewUpTo' n p t = do
     Pi a b | p a ->
           -- Force the name to avoid retaining the rest of b.
       let !bn = absName b in
-      absV a bn <$> do
+      absV a bn <$!> do
         underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
     _ -> return $ TelV EmptyTel t
 
