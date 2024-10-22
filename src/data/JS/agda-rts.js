@@ -85,7 +85,7 @@ exports._primFloatRound = function(x) {
         return null;
     }
     else {
-        return Math.round(x);
+        return BigInt(Math.round(x));
     }
 };
 exports._primFloatFloor = function(x) {
@@ -93,7 +93,7 @@ exports._primFloatFloor = function(x) {
         return null;
     }
     else {
-        return Math.floor(x);
+        return BigInt(Math.floor(x));
     }
 };
 exports._primFloatCeiling = function(x) {
@@ -101,24 +101,24 @@ exports._primFloatCeiling = function(x) {
         return null;
     }
     else {
-        return Math.ceil(x);
+        return BigInt(Math.ceil(x));
     }
 };
 exports._primFloatToRatio = function(x) {
     if (exports.primFloatIsNaN(x)) {
-        return {numerator: 0.0, denominator: 0.0};
+        return {numerator: BigInt(0), denominator: BigInt(0)};
     }
     else if (x < 0.0 && exports.primFloatIsInfinite(x)) {
-        return {numerator: -1.0, denominator: 0.0};
+        return {numerator: BigInt(-1), denominator: BigInt(0)};
     }
     else if (x > 0.0 && exports.primFloatIsInfinite(x)) {
-        return {numerator: 1.0, denominator: 0.0};
+        return {numerator: BigInt(1), denominator: BigInt(0)};
     }
     else if (exports.primFloatIsNegativeZero(x)) {
-        return {numerator: 0.0, denominator: 1.0};
+        return {numerator: BigInt(0), denominator: BigInt(1)};
     }
     else if (x == 0.0) {
-        return {numerator: 0.0, denominator: 1.0};
+        return {numerator: BigInt(0), denominator: BigInt(1)};
     }
     else {
         var numerator = Math.round(x*1e9);
@@ -126,7 +126,7 @@ exports._primFloatToRatio = function(x) {
         var gcf = _primFloatGreatestCommonFactor(numerator, denominator);
         numerator /= gcf;
         denominator /= gcf;
-        return {numerator: numerator, denominator: denominator};
+        return {numerator: BigInt(numerator), denominator: BigInt(denominator)};
     }
 };
 exports._primFloatDecode = function(x) {
@@ -149,7 +149,7 @@ exports._primFloatDecode = function(x) {
             mantissa /= 2.0;
             exponent += 1;
         }
-        return {mantissa: mantissa, exponent: exponent};
+        return {mantissa: BigInt(mantissa), exponent: BigInt(exponent)};
     }
 };
 exports.uprimFloatEquality = function(x, y) {
