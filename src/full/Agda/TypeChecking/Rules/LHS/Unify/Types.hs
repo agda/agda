@@ -4,11 +4,6 @@ module Agda.TypeChecking.Rules.LHS.Unify.Types where
 
 import Prelude hiding (null)
 
-
-import Control.Monad.Writer (WriterT(..), MonadWriter(..))
-
-import Data.Foldable (toList)
-import Data.DList (DList)
 import qualified Data.List as List
 
 import Agda.Syntax.Common
@@ -31,9 +26,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Singleton
 import Agda.Utils.Size
-import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 
@@ -439,42 +432,32 @@ data UnifyLogEntry
 
 type UnifyLog = [(UnifyLogEntry,UnifyState)]
 
--- | This variant of 'UnifyLog' is used to ensure that 'tell' is not
--- expensive.
-type UnifyLog' = DList (UnifyLogEntry, UnifyState)
-
 -- Given varΓ ⊢ eqΓ, varΓ ⊢ us, vs : eqΓ
 data UnifyOutput = UnifyOutput
   { unifySubst :: !PatternSubstitution -- varΓ' ⊢ σ : varΓ
   , unifyProof :: !PatternSubstitution -- varΓ',eqΓ' ⊢ ps : eqΓ[σ]
                                        -- varΓ', us' =_eqΓ' vs' ⊢ ap(ps) : us[σ] =_{eqΓ[σ]} vs[σ]
---  , unifyLog   :: UnifyLog
   }
 
 instance Semigroup UnifyOutput where
   x <> y = UnifyOutput
     { unifySubst = unifySubst y `composeS` unifySubst x
     , unifyProof = unifyProof y `composeS` unifyProof x
---    , unifyLog   = unifyLog x ++ unifyLog y
     }
 
 instance Monoid UnifyOutput where
   mempty  = UnifyOutput IdS IdS -- []
   mappend = (<>)
 
-type UnifyLogT m = WriterT UnifyLog' m
+-- tellUnifySubst :: MonadWriter UnifyOutput m => PatternSubstitution -> m ()
+-- tellUnifySubst sub = tell $ UnifyOutput sub IdS
 
-type UnifyStepT m = WriterT UnifyOutput m
+-- tellUnifyProof :: MonadWriter UnifyOutput m => PatternSubstitution -> m ()
+-- tellUnifyProof sub = tell $ UnifyOutput IdS sub
 
-tellUnifySubst :: MonadWriter UnifyOutput m => PatternSubstitution -> m ()
-tellUnifySubst sub = tell $ UnifyOutput sub IdS
+-- writeUnifyLog ::
+--   MonadWriter UnifyLog' m => (UnifyLogEntry, UnifyState) -> m ()
+-- writeUnifyLog x = tell (singleton x) -- UnifyOutput IdS IdS [x]
 
-tellUnifyProof :: MonadWriter UnifyOutput m => PatternSubstitution -> m ()
-tellUnifyProof sub = tell $ UnifyOutput IdS sub
-
-writeUnifyLog ::
-  MonadWriter UnifyLog' m => (UnifyLogEntry, UnifyState) -> m ()
-writeUnifyLog x = tell (singleton x) -- UnifyOutput IdS IdS [x]
-
-runUnifyLogT :: Monad m => UnifyLogT m a -> m (a, UnifyLog)
-runUnifyLogT m = mapSnd toList <$!> runWriterT m
+-- runUnifyLogT :: Monad m => UnifyLogT m a -> m (a, UnifyLog)
+-- runUnifyLogT m = mapSnd toList <$!> runWriterT m
