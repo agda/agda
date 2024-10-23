@@ -27,6 +27,7 @@ module Agda.Syntax.Parser.Parser (
     ) where
 
 import Prelude hiding ( null )
+import qualified Prelude
 
 import Control.Applicative ( (<|>) )
 import Control.Monad
