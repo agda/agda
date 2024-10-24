@@ -635,16 +635,7 @@ instance ToAbstract MaybeOldQName where
       DefinedName _ d suffix -> do
         raiseWarningsOnUsage $ anameName d
         -- then we take note of generalized names used
-        case anameKind d of
-          GeneralizeName -> do
-            gvs <- useTC stGeneralizedVars
-            case gvs of   -- Subtle: Use (left-biased) union instead of insert to keep the old name if
-                          -- already present. This way we can sort by source location when generalizing
-                          -- (Issue 3354).
-                Just s -> stGeneralizedVars `setTCLens` Just (s `Set.union` Set.singleton (anameName d))
-                Nothing -> typeError $ GeneralizeNotSupportedHere $ anameName d
-          DisallowedGeneralizeName -> typeError $ GeneralizedVarInLetOpenedModule $ anameName d
-          _ -> return ()
+        addGeneralizable d
         -- and then we return the name
         return $ withSuffix suffix $ nameToExpr d
         where
@@ -677,7 +668,11 @@ instance ToAbstract ResolveQName where
   type AbsOfCon ResolveQName = ResolvedName
   toAbstract (ResolveQName x) = resolveName x >>= \case
     UnknownName -> notInScopeError x
-    q -> return q
+    q -> do
+      case q of
+        DefinedName _ d _ -> addGeneralizable d
+        _ -> return ()
+      return q
 
 -- | A name resolved in a pattern.
 data APatName
@@ -2342,6 +2337,18 @@ unGeneralized t = (mempty, t)
 
 alreadyGeneralizing :: ScopeM Bool
 alreadyGeneralizing = isJust <$> useTC stGeneralizedVars
+
+addGeneralizable :: AbstractName -> ScopeM ()
+addGeneralizable d = case anameKind d of
+  GeneralizeName -> do
+    gvs <- useTC stGeneralizedVars
+    case gvs of   -- Subtle: Use (left-biased) union instead of insert to keep the old name if
+                  -- already present. This way we can sort by source location when generalizing
+                  -- (Issue 3354).
+        Just s -> stGeneralizedVars `setTCLens` Just (s `Set.union` Set.singleton (anameName d))
+        Nothing -> typeError $ GeneralizeNotSupportedHere $ anameName d
+  DisallowedGeneralizeName -> typeError $ GeneralizedVarInLetOpenedModule $ anameName d
+  _ -> return ()
 
 collectGeneralizables :: ScopeM a -> ScopeM (Set A.QName, a)
 collectGeneralizables m =
