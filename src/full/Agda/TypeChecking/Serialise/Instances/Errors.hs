@@ -136,6 +136,7 @@ instance EmbPrj Warning where
     InstanceNotInArgumentPosition a             -> __IMPOSSIBLE__
     MacroInLetBindings                          -> __IMPOSSIBLE__
     AbstractInLetBindings                       -> __IMPOSSIBLE__
+    TopLevelPolarity a b                        -> __IMPOSSIBLE__
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
