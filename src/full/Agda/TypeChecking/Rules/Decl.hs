@@ -65,7 +65,7 @@ import Agda.TypeChecking.Rules.Display ( checkDisplayPragma )
 
 import Agda.Termination.TermCheck
 
-import Agda.Utils.Function ( applyUnless )
+import Agda.Utils.Function ( applyUnless, applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List1 ( List1, pattern (:|) )
@@ -601,7 +601,9 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   -- For now, top-level polarity annotations are forbidden
   when (p /= defaultPolarity) $ warning $ TopLevelPolarity x p
 
-  applyPolarityToContext p $ applyCohesionToContext c $ do
+  polarityEnabled <- optPolarity <$> pragmaOptions
+
+  applyWhen polarityEnabled (applyPolarityToContext p) $ applyCohesionToContext c $ do
 
   reportSDoc "tc.decl.ax" 20 $ sep
     [ text $ "checking type signature"
