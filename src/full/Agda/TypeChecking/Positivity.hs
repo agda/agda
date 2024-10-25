@@ -26,6 +26,7 @@ import Data.Strict.These
 
 import Debug.Trace
 
+import Agda.Interaction.Options.Base ( optPolarity )
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
@@ -529,8 +530,11 @@ computeOccurrences q = flatten <$> computeOccurrences' q
 -- | Returns the occurences given explicitely as polarity annotations in the function type
 getOccurrencesFromType :: Type -> TCM [Occurrence]
 getOccurrencesFromType t = do
-  telList <- telToList . theTel <$> telView t
-  return $ modalPolarityToOccurrence . modPolarityAnn . getModalPolarity <$> telList
+  polarityEnabled <- optPolarity <$> pragmaOptions
+  if polarityEnabled then do
+    telList <- telToList . theTel <$> telView t
+    return $ modalPolarityToOccurrence . modPolarityAnn . getModalPolarity <$> telList
+  else return []
 
 -- | Computes the occurrences in the given definition.
 computeOccurrences' :: QName -> TCM OccurrencesBuilder
