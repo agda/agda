@@ -637,8 +637,13 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
     whenM ((== SizeUniv) <$> do reduce $ getSort t) $ do
       whenM ((> 0) <$> getContextSize) $ typeError PostulatedSizeInModule
 
-  TelV tel _ <- telView t
-  let eoccs = modalPolarityToOccurrence . modPolarityAnn . getModalPolarity <$> telToList tel
+  -- get explicitely specified occurences (by looking at polarity annotations, if enabled)
+  eoccs <-
+    if polarityEnabled
+      then do
+        args <- telToList . theTel <$> telView t
+        return $ fmap (modalPolarityToOccurrence . modPolarityAnn . getModalPolarity) args
+      else return []
 
   -- Lucas, 2022-11-30: If this is a datatype, forbid polarity annotations for indices
   when (kind == DataName && any (/= Mixed) (drop npars eoccs)) $
