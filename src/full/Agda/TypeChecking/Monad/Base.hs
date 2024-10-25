@@ -4550,6 +4550,9 @@ data Warning
     -- ^ The with-clause uses projection in a different fixity style
     --   than the parent clause.
 
+  | TopLevelPolarity QName PolarityModality
+    -- ^ Definition with non-default polarity annotation.
+
   -- Cubical
   | FaceConstraintCannotBeHidden ArgInfo
     -- ^ Face constraint patterns @(i = 0)@ must be visible arguments.
@@ -4675,6 +4678,7 @@ warningName = \case
   -- Type checking
   TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
   WithClauseProjectionFixityMismatch{} -> WithClauseProjectionFixityMismatch_
+  TopLevelPolarity{}                   -> TopLevelPolarity_
 
   -- Cubical
   FaceConstraintCannotBeHidden{} -> FaceConstraintCannotBeHidden_
