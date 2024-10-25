@@ -62,7 +62,7 @@ import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
-import Agda.Utils.Function ( applyWhen )
+import Agda.Utils.Function ( applyWhen, applyWhenM )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -324,7 +324,8 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
               ]
 
         -- Needed to calculate the proper fullType below.
-        applyPolarityToContext ai $ applyCohesionToContext ai $ do
+        applyWhenM (optPolarity <$> pragmaOptions) (applyPolarityToContext ai) $
+          applyCohesionToContext ai $ do
 
         -- Systems have their own coverage and "coherence" check, we
         -- also add an absurd clause for the cases not needed.
