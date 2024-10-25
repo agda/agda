@@ -296,7 +296,7 @@ checkDomain lamOrPi xs e = do
 
     t <- applyQuantityToJudgement q $
          applyCohesionToContext c $
-         applyPolarityToContext negativePolarity $
+         applyWhenM (optPolarity <$> pragmaOptions) (applyPolarityToContext negativePolarity) $
          modEnv lamOrPi $ isType_ e
     -- Andrea TODO: also make sure that LockUniv implies IsLock
     when (any (\x -> case getLock x of { IsLock{} -> True ; _ -> False }) xs) $ do
