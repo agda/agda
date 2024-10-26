@@ -113,8 +113,9 @@ jobs:
         echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
       shell: pwsh
     - if: ${{ runner.os == 'macOS' }}
-      name: Set up for the ICU library (macOS)
+      name: Install the ICU library (macOS)
       run: |
+        brew install icu4c
         ICU4C=$(brew --prefix)/opt/icu4c
         # echo "${ICU4C}/bin" >> "${GITHUB_PATH}" ## Only needed for uconv
         ICU_DIR=${ICU4C}/lib
@@ -238,9 +239,9 @@ jobs:
       if: ${{ github.ref == 'refs/heads/master' }}
       name: Create/replace the nightly release and upload artifacts as release assets
       run: |
-        gh release delete 'nightly' --repo ${GITHUB_REPOSITORY} --cleanup-tag --yes || true
+        gh release delete 'nightly' --repo "${GITHUB_REPOSITORY}" --cleanup-tag --yes || true
         ls -R artifacts
-        gh release create 'nightly' artifacts/**/* --repo ${GITHUB_REPOSITORY} --generate-notes --notes-start-tag v2.7.0 --prerelease --title "${{ needs.build.outputs.sha }}@master"
+        gh release create 'nightly' artifacts/**/* --repo "${GITHUB_REPOSITORY}" --generate-notes --notes-start-tag v2.7.0 --prerelease --title "${{ needs.build.outputs.sha }}@master"
     - env:
         GITHUB_TOKEN: ${{ github.token }}
       if: startsWith(github.ref, 'refs/tags/v')
@@ -249,10 +250,10 @@ jobs:
         echo "GITHUB_REF_NAME=${GITHUB_REF_NAME}"
         echo "GITHUB_REPOSITORY=${GITHUB_REPOSITORY}"
 
-        gh release delete "${GITHUB_REF_NAME}" --repo ${GITHUB_REPOSITORY} --yes || true
+        gh release delete "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --yes || true
         gh release create "${GITHUB_REF_NAME}" -d --notes-file CHANGELOG.md --title "${GITHUB_REF_NAME}"
         ls -R artifacts
-        gh release upload "${GITHUB_REF_NAME}" artifacts/**/* --repo ${GITHUB_REPOSITORY}
+        gh release upload "${GITHUB_REF_NAME}" artifacts/**/* --repo "${GITHUB_REPOSITORY}"
 name: Deploy
 'on':
   push:
