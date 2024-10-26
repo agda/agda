@@ -48,8 +48,9 @@ jobs:
         echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
       shell: pwsh
     - if: runner.os == 'macOS'
-      name: Set up pkg-config for the ICU library (macOS)
+      name: Install the ICU library (macOS)
       run: |
+        brew install icu4c
         PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
         echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> "${GITHUB_ENV}"
         # # print some information to debug pkg-config
