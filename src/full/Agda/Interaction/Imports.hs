@@ -86,6 +86,7 @@ import Agda.Interaction.Options.Warnings (unsolvedWarnings)
 import Agda.Interaction.Response
   (RemoveTokenBasedHighlighting(KeepHighlighting))
 
+import Agda.Utils.CallStack (HasCallStack)
 import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
@@ -620,8 +621,8 @@ getOptionsCompatibilityWarnings isMain isPrim currentOptions i = runMaybeT $ exc
 
 -- | Try to get the interface from interface file or cache.
 
-getStoredInterface
-  :: TopLevelModuleName
+getStoredInterface :: HasCallStack
+  => TopLevelModuleName
      -- ^ Module name of file we process.
   -> SourceFile
      -- ^ File we process.
