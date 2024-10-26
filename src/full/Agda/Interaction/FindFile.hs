@@ -51,6 +51,7 @@ import Agda.TypeChecking.Warnings    (warning)
 import Agda.Version ( version )
 
 import Agda.Utils.Applicative ( (?$>) )
+import Agda.Utils.CallStack   ( HasCallStack )
 import Agda.Utils.FileId
 import Agda.Utils.FileName
 import Agda.Utils.List  ( stripSuffix, nubOn )
@@ -88,9 +89,9 @@ mkInterfaceFile fp = do
 -- | Converts an Agda file name to the corresponding interface file
 --   name. Note that we do not guarantee that the file exists.
 
-toIFile :: SourceFile -> TCM AbsolutePath
+toIFile :: HasCallStack => SourceFile -> TCM AbsolutePath
 toIFile (SourceFile fi) = do
-  src <- fileFromId fi
+  src <- fileFromId fi -- partial function, thus HasCallStack
   let fp = filePath src
   let localIFile = replaceModuleExtension ".agdai" src
   mroot <- libToTCM $ findProjectRoot (takeDirectory fp)
@@ -218,10 +219,11 @@ findFile'' dirs m = do
 --
 -- Raises 'Nothing' if the interface file cannot be found.
 
-findInterfaceFile'
-  :: SourceFile                 -- ^ Path to the source file
+findInterfaceFile' :: HasCallStack  -- We are calling partial function toIFile, thus want a call stack.
+  => SourceFile                 -- ^ Path to the source file
   -> TCM (Maybe InterfaceFile)  -- ^ Maybe path to the interface file
 findInterfaceFile' fp = liftIO . mkInterfaceFile =<< toIFile fp
+
 
 -- | Finds the interface file corresponding to a given top-level
 -- module file. The returned paths are absolute.
@@ -230,7 +232,8 @@ findInterfaceFile' fp = liftIO . mkInterfaceFile =<< toIFile fp
 -- 'Nothing' if the source file can be found but not the interface
 -- file.
 
-findInterfaceFile :: TopLevelModuleName -> TCM (Maybe InterfaceFile)
+findInterfaceFile :: HasCallStack  -- because of calling a partial function
+  => TopLevelModuleName -> TCM (Maybe InterfaceFile)
 findInterfaceFile m = findInterfaceFile' =<< findFile m
 
 -- | Ensures that the module name matches the file name. The file
