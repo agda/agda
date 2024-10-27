@@ -1832,6 +1832,11 @@ instance PrettyTCM UnquoteError where
         , pretty m <> "._" <> pretty (metaId x)
         ]
 
+    TooManyParameters npars e -> sep
+      [ fsep $ concat [ pwords "Cannot shave", [pretty npars], pwords "parameters off type" ]
+      , prettyTCM e
+      ]
+
     UnboundName x -> fsep $ pwords "Unbound name:" ++ [prettyTCM x]
 
 instance PrettyTCM MissingTypeSignatureInfo where

@@ -4820,6 +4820,8 @@ data UnquoteError
   | PatLamWithoutClauses I.Term
   | StaleMeta TopLevelModuleName MetaId
       -- ^ Attempt to unquote a serialized meta.
+  | TooManyParameters Nat A.Expr
+      -- ^ Attempt to shave of 'Nat' many parameters from function type 'A.Expr'.
   | UnboundName QName
   deriving (Show, Generic)
 

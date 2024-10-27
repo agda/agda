@@ -1,0 +1,2 @@
+Issue7576.agda:6.1-7.34: error: [Unquote.TooManyParameters]
+Cannot shave 1 parameters off type Set₀

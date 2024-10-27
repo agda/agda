@@ -352,6 +352,7 @@ unquoteErrorName = \case
   NonCanonical                {} -> NonCanonical_
   PatLamWithoutClauses        {} -> PatLamWithoutClauses_
   StaleMeta                   {} -> StaleMeta_
+  TooManyParameters           {} -> TooManyParameters_
   UnboundName                 {} -> UnboundName_
 
 -- -- * Printing names of errors
