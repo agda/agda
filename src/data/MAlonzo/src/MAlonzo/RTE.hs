@@ -2,10 +2,18 @@
 
 module MAlonzo.RTE where
 
-import Unsafe.Coerce
-import qualified GHC.Exts as GHC (Any)
-import Data.Char
+import Prelude
+  ( Bool, Char, Double, Integer, String
+  , Enum(..), Eq(..), Ord(..), Integral(..), Num(..)
+  , ($), error, otherwise
+  , (++), fromIntegral
+  )
+
+import Data.Char ( GeneralCategory(Surrogate), generalCategory )
+import Data.Kind ( Type)
 import qualified Data.Word
+import qualified GHC.Exts as GHC ( Any )
+import Unsafe.Coerce ( unsafeCoerce )
 
 type AgdaAny = GHC.Any
 
@@ -109,5 +117,5 @@ lt64 = (<)
 
 -- Support for musical coinduction.
 
-data Inf                   a = Sharp { flat :: a }
-type Infinity (level :: *) a = Inf a
+data Inf                      a = Sharp { flat :: a }
+type Infinity (level :: Type) a = Inf a
