@@ -31,7 +31,7 @@ jobs:
     runs-on: Ubuntu-latest # Required, but it can be anything here.
 
     steps:
-    - uses: styfle/cancel-workflow-action@0.11.0
+    - uses: styfle/cancel-workflow-action@0.12.1
       with:
         access_token: ${{ github.token }}
 
@@ -40,117 +40,118 @@ jobs:
 
     timeout-minutes: 60
 
+    # In these fields, we cannot refer to `env` (or even `runner.os`).
+    # Thus, we need redundant entries in the matrix.
+    name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04]
-        ghc-ver: [9.4.4, 9.2.5, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
-        cabal-ver: ['3.8']
+        os: [ubuntu-24.04]
+        description: [Linux]      ## This just for pretty-printing the job name.
+        ghc-ver: [9.10.1, 9.8.2, 9.6.6, 9.4.8, 9.2.8, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        cabal-flags: ['--enable-tests -f enable-cluster-counting']
         include:
-          ## Latest GHC
-          # Linux
-          - os: ubuntu-22.04
-            ghc-ver: 9.4.4
-            cabal-ver: '3.8'
-            ## Andreas, 2022-11-23: Test mtl-2.3.1 here which has breaking changes.
-            cabal-flags: "-c 'mtl >= 2.3.1'"
-          # macOS
-          - os: macos-12
-            ghc-ver: 9.4.4
-            cabal-ver: '3.8'
-          # Windows
+          ## Latest GHC, special builds
+
+          # Linux, without -f enable-cluster-counting but with -f debug
+          - os: ubuntu-24.04
+            description: Linux debug
+            ghc-ver: '9.10.1'
+            cabal-flags: '--enable-tests -f debug'
+
+          # macOS with default flags
+          - os: macos-14
+            description: macOS
+            ghc-ver: '9.10.1'
+
+          # Windows with default flags
           - os: windows-2022
-            ghc-ver: 9.4.4
-            cabal-ver: '3.8'
+            description: Windows
+            ghc-ver: '9.10.1'
+
+    # Default values
     env:
-      FLAGS: "-f enable-cluster-counting"
-      # ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip'
+      GHC_VER:   ${{ matrix.ghc-ver || '9.10.1' }}
+      FLAGS:     ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting' }}
 
     steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
+    - uses: actions/checkout@v4
 
-    - uses: haskell/actions/setup@v2
+    - name: Switch off XDG directories for cabal (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        mkdir -p ~/.cabal
+      # The presence of ~/.cabal should switch cabal 3.10 to not use the XDG layout.
+
+    - uses: haskell-actions/setup@v2
       id: setup-haskell
       with:
-        ghc-version: ${{ matrix.ghc-ver }}
-        cabal-version: ${{ matrix.cabal-ver }}
+        ghc-version:   ${{ env.GHC_VER }}
+        cabal-version: latest
+        cabal-update:  true
 
-    - name: Environment settings based on the Haskell setup
-      run: |
-        export GHC_VER=$(ghc --numeric-version)
-        export CABAL_VER=$(cabal --numeric-version)
-        echo "GHC_VER   = ${GHC_VER}"
-        echo "CABAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
-        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
-      # From now on, use env.{GHC|CABAL}_VER rather than matrix.{ghc|cabal}-ver!
-
-    # from: https://github.com/haskell/text-icu/blob/c73d7fe6f29e178d3ea40160e904ab39236e3c9d/.github/workflows/cabal-mac-win.yml#L29-L32
-    - name: Setup MSYS path (Windows)
-      if: ${{ runner.os == 'Windows' }}
+    # See: https://github.com/haskell/text-icu/pull/86
+    # pacman needs MSYS /usr/bin in PATH, but this breaks the latest cache action.
+    # -  https://github.com/actions/cache/issues/1073
+    # MSYS' pkg-config needs MSYS /mingw64/bin which we can safely add to the PATH
+    #
+    - name: Install the ICU library (Windows)
+      if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+        $env:PATH = "C:\msys64\usr\bin;$env:PATH"
+        pacman --noconfirm -S msys2-keyring mingw-w64-x86_64-pkgconf mingw-w64-x86_64-icu
+        echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
 
-    - name: Install the ICU library (Windows)
-      if: ${{ runner.os == 'Windows' }}
+    - name: Install the ICU library (macOS)
+      if: runner.os == 'macOS'
       run: |
-        pacman --noconfirm -Sy msys2-keyring mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
+        brew install icu4c
+        PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
+        echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> "${GITHUB_ENV}"
+        # # print some information to debug pkg-config
+        # echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
+        # echo "$ ls -l ${PKG_CONFIG_PATH}"
+        # ls -l "${PKG_CONFIG_PATH}"
+        # export PKG_CONFIG_PATH
+        # echo "$ pkg-config --modversion icu-i18n"
+        # pkg-config --modversion icu-i18n
 
-    - name: Set up pkg-config for the ICU library (macOS)
-      if: ${{ runner.os == 'macOS' }}
+    - name: Determine the ICU version
       run: |
-        export PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
-        echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> ${GITHUB_ENV}
-        # print some information to debug pkg-config
-        echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
-        echo "$ ls -l ${PKG_CONFIG_PATH}"
-        ls -l ${PKG_CONFIG_PATH}
-        echo "$ pkg-config --modversion icu-i18n"
-        pkg-config --modversion icu-i18n
-
-    # Andreas, 2022-02-07: This step seem no longer necessary for Ubuntu 20.04.
-    # But keep it here commented-out, we might need it in the future again.
-    # - name: Install the icu library (Ubuntu)
-    #   if: ${{ runner.os == 'Linux' }}
-    #   run: |
-    #     sudo apt-get update -qq
-    #     sudo apt-get install libicu-dev -qq
-
-    # Andreas, 2022-02-07: Installing with pacman is easier.
-    # Keep this here commented out, in case we need it again.
-    # - name: Download the icu4c library from unicode-org (Windows)
-    #   if: ${{ runner.os == 'Windows' }}
-    #   env:
-    #     ICU_DIR: '/c/icu4c'
-    #     ICU_FILE: '/tmp/icu4c.zip'
-    #   run: |
-    #     curl -sSLo ${ICU_FILE} ${ICU_URL}
-    #     7z e ${ICU_FILE} -o${ICU_DIR}
-    #     mkdir -p ${ICU_DIR}/include/unicode
-    #     mv ${ICU_DIR}/*.h ${ICU_DIR}/include/unicode
-
-    #     cabal user-config update --augment="extra-lib-dirs: $(cygpath -w ${ICU_DIR})" --augment="extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)"
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
 
     - name: Configure the build plan
       run: |
-        cabal update
-        cabal configure ${FLAGS} -O0 ${{ matrix.cabal-flags }}
+        cabal configure -O0 ${FLAGS}
+        cabal build --dry-run
+      # cabal build --dry-run creates dist-newstyle/cache/plan.json
+      # This does not download the dependencies, except with buggy `cabal-3.9`:
+      # https://github.com/haskell/cabal/issues/8706
 
-    - uses: actions/cache@v3
-      name: Cache dependencies
+    - name: Restore cache from approximate key
+      uses: actions/cache/restore@v4
       id: cache
       with:
-        path: |
+        # We don't cache dist-newstyle because it is too fat (e.g. >400MB on GHC 9.4.4)
+        path: &cache_path |
           ${{ steps.setup-haskell.outputs.cabal-store }}
-        # The file `plan.json` contains the build information.
-        key: ${{ runner.os }}-cabal-01-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
+
+        # Append the build plan to the cache key so that a new cache gets saved when dependencies update.
+        # `plan.json` is a good cache key because it does not contain time stamps (unlike `cabal.project.freeze`).
+        key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
+        restore-keys: ${{ env.key }}
+      env:
+        key: cabal.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
 
     - name: Install dependencies
-      if: ${{ !steps.cache.outputs.cache-hit }}
+      # Since we save the cache even when building failed, it may be incomplete.
+      # Thus, do not skip this step:
+      # if: steps.cache.outputs.cache-hit != 'true'
       run: |
         cabal build --only-dependencies
 
@@ -158,7 +159,20 @@ jobs:
       run: |
         cabal build
 
-    - name: Build Agda without enable-cluster-counting
-      run: |
-        cabal configure -O0
-        cabal build
+    # - name: Clear old cache
+    #   if:   ${{ steps.cache.outputs.cache-hit == 'true' }}
+    #   env:
+    #     KEY: ${{ steps.cache.outputs.cache-matched-key }}
+    #     GH_TOKEN: ${{ github.token }}
+    #   run: |
+    #     gh extension install actions/gh-actions-cache
+    #     gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
+    #   # Don't fail if cache cannot be deleted
+    #   continue-on-error: true
+
+    - name: Save cache
+      uses: actions/cache/save@v4
+      if:   always() && steps.cache.outputs.cache-hit != 'true'
+      with:
+        key:  ${{ steps.cache.outputs.cache-primary-key }}
+        path: *cache_path

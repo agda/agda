@@ -24,9 +24,9 @@ jobs:
         # since this often does not point at the latest version;
         # not for the virtual environments, and also haskell/action/setup
         # is usually not up-to-date.
-        os: [ubuntu-22.04]
-        ghc-ver: ['9.4']
-        cabal-ver: ['3.8']
+        os: [ubuntu-24.04]
+        ghc-ver: ['9.10.1']
+          # Use the versions that come with the virtual environment, if possible.
 
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
@@ -36,43 +36,46 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
-    steps:
-    - uses: actions/checkout@v3
+    env:
+      FLAGS: -fenable-cluster-counting --disable-library-profiling --enable-documentation
+      # --enable-documentation build documentation for the dependencies too
+      # This is default in cabal-3.8.1.0 (not in 3.6.2.0).
+      # Could be turned off with --disable-documentation.
 
-    - uses: haskell/actions/setup@v2
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: haskell-actions/setup@v2
       id: setup-haskell
       with:
-        ghc-version: ${{ matrix.ghc-ver }}
-        cabal-version: ${{ matrix.cabal-ver }}
+        ghc-version:   ${{ matrix.ghc-ver }}
+        cabal-version: latest
+        cabal-update:  true
 
-    - name: Environment settings based on the Haskell setup
+    - name: Configure the build plan
       run: |
-        export GHC_VER=$(ghc --numeric-version)
-        export CABAL_VER=$(cabal --numeric-version)
-        echo "GHC_VER    = ${GHC_VER}"
-        echo "CABLAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"         >> ${GITHUB_ENV}
-        echo "CABAL_VER=${CABAL_VER}"     >> ${GITHUB_ENV}
-      # From now on, use env.{GHC|CABAL}_VER rather than matrix.{ghc|cabal}-ver!
+        cabal configure ${FLAGS}
+        cabal build --dry-run
+      # cabal build --dry-run creates dist-newstyle/cache/plan.json
+      # Keep a watch on this `cabal-3.9 build --dry-run` bug:
+      # https://github.com/haskell/cabal/issues/8706
 
-    - name: Resolve dependencies
-      run: |
-        cabal update
-        cabal configure -fenable-cluster-counting --enable-tests --disable-library-profiling
-
-    - uses: actions/cache@v3
-      name: Cache dependencies
+    - name: Cache dependencies
+      uses: actions/cache@v4
       id: cache
       with:
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
-        key: ${{ runner.os }}-cabal-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
+        key: ${{ env.key }}-plan-${{ hashFiles('**/plan.json') }}
+        restore-keys: ${{ env.key }}-
+      env:
+        key: haddock.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
 
     - name: Install dependencies
-      if: ${{ !steps.cache.outputs.cache-hit }}
+      if: steps.cache.outputs.cache-hit != 'true'
       run: |
-        cabal build --dependencies-only --force-reinstalls
+        cabal build --dependencies-only
 
     # Testing Haddock [Issue 1773]
     - name: Build Haddock
@@ -82,10 +85,12 @@ jobs:
     - name: Prepare to upload built htmls
       run: |
         find dist-newstyle -path '*/doc/html/Agda' -type d -exec cp -R {} html \;
+        find html -name '*.md' -delete
         ls -R html
+      # The but-last step is to fix #6502; the .md files can make Jekyll choke.
 
     - name: Deploy haddock
-      uses: peaceiris/actions-gh-pages@v3
+      uses: peaceiris/actions-gh-pages@v4
       if: github.ref == 'refs/heads/master'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}

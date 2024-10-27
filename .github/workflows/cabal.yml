@@ -17,82 +17,95 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.11.0
+    - uses: styfle/cancel-workflow-action@0.12.1
       with:
         access_token: ${{ github.token }}
   cabal:
     env:
-      FLAGS: -f enable-cluster-counting
+      FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
+        }}
+      GHC_VER: ${{ matrix.ghc-ver || '9.10.1' }}
+    name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
+    - uses: actions/checkout@v4
+    - if: runner.os == 'Linux'
+      name: Switch off XDG directories for cabal (Linux)
+      run: |
+        mkdir -p ~/.cabal
     - id: setup-haskell
-      uses: haskell/actions/setup@v2
+      uses: haskell-actions/setup@v2
       with:
-        cabal-version: ${{ matrix.cabal-ver }}
-        ghc-version: ${{ matrix.ghc-ver }}
-    - name: Environment settings based on the Haskell setup
-      run: |
-        export GHC_VER=$(ghc --numeric-version)
-        export CABAL_VER=$(cabal --numeric-version)
-        echo "GHC_VER   = ${GHC_VER}"
-        echo "CABAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
-        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
-    - if: ${{ runner.os == 'Windows' }}
-      name: Setup MSYS path (Windows)
-      run: |
-        echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-      shell: pwsh
-    - if: ${{ runner.os == 'Windows' }}
+        cabal-update: true
+        cabal-version: latest
+        ghc-version: ${{ env.GHC_VER }}
+    - if: runner.os == 'Windows'
       name: Install the ICU library (Windows)
       run: |
-        pacman --noconfirm -Sy msys2-keyring mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
-    - if: ${{ runner.os == 'macOS' }}
-      name: Set up pkg-config for the ICU library (macOS)
+        $env:PATH = "C:\msys64\usr\bin;$env:PATH"
+        pacman --noconfirm -S msys2-keyring mingw-w64-x86_64-pkgconf mingw-w64-x86_64-icu
+        echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
+      shell: pwsh
+    - if: runner.os == 'macOS'
+      name: Install the ICU library (macOS)
       run: |
-        export PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
-        echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> ${GITHUB_ENV}
-        # print some information to debug pkg-config
-        echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
-        echo "$ ls -l ${PKG_CONFIG_PATH}"
-        ls -l ${PKG_CONFIG_PATH}
-        echo "$ pkg-config --modversion icu-i18n"
-        pkg-config --modversion icu-i18n
+        brew install icu4c
+        PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
+        echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> "${GITHUB_ENV}"
+        # # print some information to debug pkg-config
+        # echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
+        # echo "$ ls -l ${PKG_CONFIG_PATH}"
+        # ls -l "${PKG_CONFIG_PATH}"
+        # export PKG_CONFIG_PATH
+        # echo "$ pkg-config --modversion icu-i18n"
+        # pkg-config --modversion icu-i18n
+    - name: Determine the ICU version
+      run: |
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - name: Configure the build plan
       run: |
-        cabal update
-        cabal configure ${FLAGS} -O0 ${{ matrix.cabal-flags }}
-    - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v3
+        cabal configure -O0 ${FLAGS}
+        cabal build --dry-run
+    - env:
+        key: cabal.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version
+          }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
+      id: cache
+      name: Restore cache from approximate key
+      uses: actions/cache/restore@v4
       with:
-        key: ${{ runner.os }}-cabal-01-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{
-          hashFiles('**/plan.json') }}
+        key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
-    - if: ${{ !steps.cache.outputs.cache-hit }}
-      name: Install dependencies
+        restore-keys: ${{ env.key }}
+    - name: Install dependencies
       run: |
         cabal build --only-dependencies
     - name: Build Agda
       run: |
         cabal build
-    - name: Build Agda without enable-cluster-counting
-      run: |
-        cabal configure -O0
-        cabal build
+    - if: always() && steps.cache.outputs.cache-hit != 'true'
+      name: Save cache
+      uses: actions/cache/save@v4
+      with:
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
     strategy:
       fail-fast: false
       matrix:
-        cabal-ver:
-        - '3.8'
+        cabal-flags:
+        - --enable-tests -f enable-cluster-counting
+        description:
+        - Linux
         ghc-ver:
-        - 9.4.4
-        - 9.2.5
+        - 9.10.1
+        - 9.8.2
+        - 9.6.6
+        - 9.4.8
+        - 9.2.8
         - 9.0.2
         - 8.10.7
         - 8.8.4
@@ -101,18 +114,18 @@ jobs:
         - 8.2.2
         - 8.0.2
         include:
-        - cabal-flags: -c 'mtl >= 2.3.1'
-          cabal-ver: '3.8'
-          ghc-ver: 9.4.4
-          os: ubuntu-22.04
-        - cabal-ver: '3.8'
-          ghc-ver: 9.4.4
-          os: macos-12
-        - cabal-ver: '3.8'
-          ghc-ver: 9.4.4
+        - cabal-flags: --enable-tests -f debug
+          description: Linux debug
+          ghc-ver: 9.10.1
+          os: ubuntu-24.04
+        - description: macOS
+          ghc-ver: 9.10.1
+          os: macos-14
+        - description: Windows
+          ghc-ver: 9.10.1
           os: windows-2022
         os:
-        - ubuntu-22.04
+        - ubuntu-24.04
     timeout-minutes: 60
 name: Build (cabal)
 'on':

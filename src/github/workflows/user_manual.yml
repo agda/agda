@@ -20,39 +20,75 @@ jobs:
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
 
-    runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        python-version: [3.7]
+    runs-on: ubuntu-24.04
+    env:
+      python-version: '3.12'
     steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+    - uses: actions/checkout@v4
+
+    - name: Install imagemagick (convert)
+      run: |
+        sudo apt-get update
+        sudo apt-get install imagemagick
+
+    - name: Set up Python ${{ env.python-version }}
+      uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: ${{ env.python-version }}
+
     - name: Install dependencies
       run: |
         pip install -r doc/user-manual/requirements.txt
-    - name: Install Tex Live and LaTeX packages
-      run: |
-        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
-        curl -Lo /tmp/texlive.tar.gz https://github.com/jimhester/ubuntu-bin/releases/download/latest/texlive.tar.gz
-        tar xzf /tmp/texlive.tar.gz -C ~
-        tlmgr option repository http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2017/tlnet-final
-        tlmgr update --self
-        tlmgr install anyfontsize bbm capt-of cmap dvipng fncychap keystroke latexmk needspace tex-gyre
+
+    - name: Setup TeX Live
+      uses: teatimeguest/setup-texlive-action@v3
+      with:
+        packages: >-
+          scheme-basic
+          anyfontsize
+          bbm
+          bbm-macros
+          booktabs
+          capt-of
+          cmap
+          colortbl
+          dvipng
+          ellipse
+          etoolbox
+          fancyvrb
+          float
+          fncychap
+          fontawesome5
+          framed
+          keystroke
+          latexmk
+          mathtools
+          needspace
+          parskip
+          pict2e
+          psnfss
+          stmaryrd
+          tabulary
+          tex-gyre
+          titlesec
+          upquote
+          varwidth
+          wrapfig
+          xcolor
+          zapfchan
+
     - name: Build User Manual in HTML
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-html
+
     - name: Build User Manual in PDF
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-pdf
-    - uses: actions/upload-artifact@v3
+
+    - uses: actions/upload-artifact@v4
       with:
         name: user-manual-pdf
         path: doc/user-manual.pdf
