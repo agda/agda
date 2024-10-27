@@ -429,7 +429,9 @@ instance EmbPrj Defn where
   icod_ (PrimitiveSort a b)                             = icodeN 6 PrimitiveSort a b
   icod_ AbstractDefn{}                                  = __IMPOSSIBLE__
   icod_ (GeneralizableVar a)                            = icodeN 7 GeneralizableVar a
-  icod_ DataOrRecSig{}                                  = __IMPOSSIBLE__
+  icod_ (DataOrRecSig a)                                = icodeN 8 DataOrRecSig a
+    -- Andreas, 2024-10-27
+    -- DataOrRecSig is possible via unquoteDecl in meta-programming, see #7576
 
   value = vcase valu where
     valu [0, a]                                        = valuN Axiom a
@@ -441,6 +443,7 @@ instance EmbPrj Defn where
     valu [5, a, b, c, d, e, f]                         = valuN Primitive   a b c d e f
     valu [6, a, b]                                     = valuN PrimitiveSort a b
     valu [7, a]                                        = valuN GeneralizableVar a
+    valu [8, a]                                        = valuN DataOrRecSig a
     valu _                                             = malformed
 
 instance EmbPrj LazySplit where
