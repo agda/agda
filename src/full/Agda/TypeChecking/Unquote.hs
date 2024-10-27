@@ -1019,35 +1019,33 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcDeclareData x npars t = inOriginalContext $ do
       setDirty
       tell [x]
-      liftTCM $ do
-        alwaysReportSDoc "tc.unquote.decl" 10 $ sep
-          [ "declare Data" <+> prettyTCM x <+> ":"
-          , nest 2 $ prettyR t
-          ]
-        getConstInfo' x >>= \case
-          Left _    -> pure ()
-          Right def -> typeError $ ClashingDefinition (qnameToConcrete x) (defName def) Nothing
-        e <- toAbstract_ t
-        -- The type to be checked with @checkSig@ is without parameters.
-        let (tel, e') = splitPars (fromInteger npars) e
-        ac <- asksTC (^. lensIsAbstract)
-        let defIn = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
-        checkSig DataName defIn defaultErased x
-          (A.GeneralizeTel Map.empty tel) e'
-        primUnitUnit
+      alwaysReportSDoc "tc.unquote.decl" 10 $ sep
+        [ "declare Data" <+> prettyTCM x <+> ":"
+        , nest 2 $ prettyR t
+        ]
+      getConstInfo' x >>= \case
+        Left _    -> pure ()
+        Right def -> liftTCM $ typeError $ ClashingDefinition (qnameToConcrete x) (defName def) Nothing
+      e <- liftTCM $ toAbstract_ t
+      -- The type to be checked with @checkSig@ is without parameters.
+      (tel, e') <- splitPars (fromInteger npars) e
+      ac <- asksTC (^. lensIsAbstract)
+      let defIn = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
+      liftTCM $ checkSig DataName defIn defaultErased x (A.GeneralizeTel Map.empty tel) e'
+      liftTCM primUnitUnit
 
     tcDefineData :: QName -> [(QName, (Quantity, R.Type))] -> UnquoteM Term
-    tcDefineData x cs = inOriginalContext $ (setDirty >>) $ liftTCM $ getConstInfo' x >>= \case
-      Left _    -> unquoteError $ MissingDeclaration x
+    tcDefineData x cs = inOriginalContext $ (setDirty >>) $ getConstInfo' x >>= \case
+      Left _    -> throwError $ MissingDeclaration x
       Right def -> do
         npars <- case theDef def of
                    DataOrRecSig n -> return n
-                   _              -> unquoteError $ DefineDataNotData x
+                   _              -> throwError $ DefineDataNotData x
 
         -- For some reasons, reifying parameters and adding them to the context via
         -- `addContext` before `toAbstract_` is different from substituting the type after
         -- `toAbstract_, so some dummy parameters are added and removed later.
-        es <- mapM (toAbstract_ . addDummy npars . snd . snd) cs
+        es <- liftTCM $ mapM (toAbstract_ . addDummy npars . snd . snd) cs
         alwaysReportSDoc "tc.unquote.def" 10 $ vcat $
           [ "declaring constructors of" <+> prettyTCM x <+> ":" ] ++ map prettyA es
 
@@ -1055,9 +1053,11 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         t   <- instantiateFull . defType =<< instantiateDef def
         tel <- reify =<< theTel <$> telViewUpTo npars t
 
-        -- Mario, 2024-10-18: cannot trigger this error:
-        -- genericError "Number of parameters doesn't match!"
-        let es' = map (fromMaybe __IMPOSSIBLE__ . uncurry (substNames' tel) . splitPars npars) es
+        es' <- forM es \ e -> do
+          (ptel, core) <- splitPars npars e
+          -- Mario, 2024-10-18: cannot trigger this error:
+          -- genericError "Number of parameters doesn't match!"
+          return $ fromMaybe __IMPOSSIBLE__ $ substNames' tel ptel core
 
         ac <- asksTC (^. lensIsAbstract)
         let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
@@ -1071,8 +1071,8 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
           [ "checking datatype: " <+> prettyTCM x <+> " with constructors:"
           , nest 2 (vcat (map prettyTCM conNames))
           ]
-        checkDataDef i x YesUniverseCheck (A.DataDefParams Set.empty lams) as
-        primUnitUnit
+        liftTCM $ checkDataDef i x YesUniverseCheck (A.DataDefParams Set.empty lams) as
+        liftTCM primUnitUnit
       where
         addDummy :: Int -> R.Type -> R.Type
         addDummy 0 t = t
@@ -1158,10 +1158,13 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         solveSomeAwakeConstraints isInstance True  -- Force solving them now!
       primUnitUnit
 
-    splitPars :: Int -> A.Expr -> ([A.TypedBinding], A.Expr)
-    splitPars 0 e = ([] , e)
-    splitPars npars (A.Pi _ (n :| _) e) = first (n :) (splitPars (npars - 1) e)
-    splitPars npars e = __IMPOSSIBLE__
+    splitPars :: Int -> A.Expr -> UnquoteM ([A.TypedBinding], A.Expr)
+    splitPars 0     = return . ([],)
+    splitPars npars = \case
+      A.Pi _ (n :| _) e -> first (n :) <$> splitPars (npars - 1) e
+      A.Fun{}           -> __IMPOSSIBLE__  -- trusting the original author of this function
+      A.ScopedExpr{}    -> __IMPOSSIBLE__  -- trusting the original author of this function
+      e                 -> throwError $ TooManyParameters npars e
 
 ------------------------------------------------------------------------
 -- * Trusted executables

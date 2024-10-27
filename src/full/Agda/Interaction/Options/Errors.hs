@@ -404,6 +404,7 @@ data UnquoteError_
   | NonCanonical_
   | PatLamWithoutClauses_
   | StaleMeta_
+  | TooManyParameters_
   | UnboundName_
   deriving (Show, Generic, Enum, Bounded)
 
