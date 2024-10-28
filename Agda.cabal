@@ -668,7 +668,7 @@ library
     ghc-options: -fprint-potential-instances
                  -- Initially, we disable all the warnings.
                  -w
-                 -Werror
+                 -Wwarn
                  -- This option must be the first one after disabling the
                  -- warnings. See Issue #2094.
                  -Wno-unrecognised-warning-flags
@@ -705,74 +705,74 @@ library
   else
     ghc-options: -fprint-potential-instances
                  -- ASR (2022-05-31). Workaround to Issue #5932.
-                 -Werror
+                 -Wwarn
                  -Wno-unrecognised-warning-flags
                  -Wno-deprecated-flags
-                 -Werror=deriving-typeable
-                 -Werror=dodgy-exports
-                 -Werror=dodgy-foreign-imports
-                 -Werror=dodgy-imports
-                 -Werror=duplicate-exports
-                 -Werror=empty-enumerations
-                 -Werror=identities
-                 -Werror=inline-rule-shadowing
-                 -Werror=missing-fields
-                 -Werror=missing-methods
-                 -Werror=missing-pattern-synonym-signatures
-                 -Werror=missing-signatures
-                 -Werror=noncanonical-monad-instances
-                 -Werror=noncanonical-monoid-instances
-                 -Werror=overflowed-literals
-                 -Werror=overlapping-patterns
-                 -Werror=tabs
-                 -Werror=typed-holes
+                 -Wwarn=deriving-typeable
+                 -Wwarn=dodgy-exports
+                 -Wwarn=dodgy-foreign-imports
+                 -Wwarn=dodgy-imports
+                 -Wwarn=duplicate-exports
+                 -Wwarn=empty-enumerations
+                 -Wwarn=identities
+                 -Wwarn=inline-rule-shadowing
+                 -Wwarn=missing-fields
+                 -Wwarn=missing-methods
+                 -Wwarn=missing-pattern-synonym-signatures
+                 -Wwarn=missing-signatures
+                 -Wwarn=noncanonical-monad-instances
+                 -Wwarn=noncanonical-monoid-instances
+                 -Wwarn=overflowed-literals
+                 -Wwarn=overlapping-patterns
+                 -Wwarn=tabs
+                 -Wwarn=typed-holes
                  -Wno-unrecognised-pragmas
-                 -Werror=unticked-promoted-constructors
-                 -Werror=unused-do-bind
-                 -Werror=unused-foralls
+                 -Wwarn=unticked-promoted-constructors
+                 -Wwarn=unused-do-bind
+                 -Wwarn=unused-foralls
                  -Wno-warnings-deprecations
-                 -Werror=wrong-do-bind
+                 -Wwarn=wrong-do-bind
                  -Wno-x-data-list-nonempty-unzip
                  -Wno-x-partial
 
   if impl(ghc >= 8.2)
-    ghc-options: -Werror=cpp-undef
-                 -Werror=missing-home-modules
-                 -Werror=simplifiable-class-constraints
-                 -Werror=unbanged-strict-patterns
+    ghc-options: -Wwarn=cpp-undef
+                 -Wwarn=missing-home-modules
+                 -Wwarn=simplifiable-class-constraints
+                 -Wwarn=unbanged-strict-patterns
 
   if impl(ghc >= 8.6)
-    ghc-options: -Werror=inaccessible-code
-                 -Werror=star-binder
-                 -Werror=star-is-type
+    ghc-options: -Wwarn=inaccessible-code
+                 -Wwarn=star-binder
+                 -Wwarn=star-is-type
 
   -- The following warning is an error in GHC >= 8.10.
   if impl(ghc >= 8.6) && impl(ghc < 8.10)
-    ghc-options: -Werror=implicit-kind-vars
+    ghc-options: -Wwarn=implicit-kind-vars
 
   if impl(ghc >= 8.8)
-    ghc-options: -Werror=missed-extra-shared-lib
+    ghc-options: -Wwarn=missed-extra-shared-lib
 
   if impl(ghc >= 8.10)
-    ghc-options: -Werror=deriving-defaults
-                 -Werror=redundant-record-wildcards
-                 -Werror=unused-packages
-                 -Werror=unused-record-wildcards
+    ghc-options: -Wwarn=deriving-defaults
+                 -Wwarn=redundant-record-wildcards
+                 -Wwarn=unused-packages
+                 -Wwarn=unused-record-wildcards
 
   if impl(ghc >= 9.0)
-    ghc-options: -Werror=invalid-haddock
+    ghc-options: -Wwarn=invalid-haddock
                  -- #6137: coverage checker works only sufficiently well from GHC 9.0
-                 -Werror=incomplete-patterns
-                 -Werror=incomplete-record-updates
+                 -Wwarn=incomplete-patterns
+                 -Wwarn=incomplete-record-updates
 
   -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
   -- from 9.2.1 and added back in 9.2.2.
   if impl(ghc == 9.0.2)
-    ghc-options: -Werror=unicode-bidirectional-format-characters
+    ghc-options: -Wwarn=unicode-bidirectional-format-characters
 
   if impl(ghc >= 9.2.2)
-    ghc-options: -Werror=redundant-bang-patterns
-                 -Werror=unicode-bidirectional-format-characters
+    ghc-options: -Wwarn=redundant-bang-patterns
+                 -Wwarn=unicode-bidirectional-format-characters
 
   default-language: Haskell2010
 
@@ -1011,7 +1011,7 @@ test-suite agda-tests
     ghc-options: -threaded
                  -- Initially, we disable all the warnings.
                  -w
-                 -Werror
+                 -Wwarn
                  -- This option must be the first one after disabling the
                  -- warnings. See Issue #2094.
                  -Wno-unrecognised-warning-flags
@@ -1048,42 +1048,42 @@ test-suite agda-tests
   else
     ghc-options: -threaded
                  -- ASR (2022-05-31). Workaround to Issue #5932.
-                 -Werror
+                 -Wwarn
                  -Wno-unrecognised-warning-flags
                  -Wno-deprecated-flags
-                 -Werror=deriving-typeable
-                 -Werror=dodgy-exports
-                 -Werror=dodgy-foreign-imports
-                 -Werror=dodgy-imports
-                 -Werror=duplicate-exports
-                 -Werror=empty-enumerations
-                 -Werror=identities
-                 -Werror=inline-rule-shadowing
-                 -Werror=missing-fields
-                 -Werror=missing-methods
-                 -Werror=missing-pattern-synonym-signatures
-                 -Werror=missing-signatures
-                 -Werror=noncanonical-monad-instances
-                 -Werror=noncanonical-monoid-instances
-                 -Werror=overflowed-literals
-                 -Werror=overlapping-patterns
-                 -Werror=tabs
-                 -Werror=typed-holes
+                 -Wwarn=deriving-typeable
+                 -Wwarn=dodgy-exports
+                 -Wwarn=dodgy-foreign-imports
+                 -Wwarn=dodgy-imports
+                 -Wwarn=duplicate-exports
+                 -Wwarn=empty-enumerations
+                 -Wwarn=identities
+                 -Wwarn=inline-rule-shadowing
+                 -Wwarn=missing-fields
+                 -Wwarn=missing-methods
+                 -Wwarn=missing-pattern-synonym-signatures
+                 -Wwarn=missing-signatures
+                 -Wwarn=noncanonical-monad-instances
+                 -Wwarn=noncanonical-monoid-instances
+                 -Wwarn=overflowed-literals
+                 -Wwarn=overlapping-patterns
+                 -Wwarn=tabs
+                 -Wwarn=typed-holes
                  -Wno-unrecognised-pragmas
-                 -Werror=unticked-promoted-constructors
-                 -Werror=unused-do-bind
-                 -Werror=unused-foralls
+                 -Wwarn=unticked-promoted-constructors
+                 -Wwarn=unused-do-bind
+                 -Wwarn=unused-foralls
                  -Wno-warnings-deprecations
-                 -Werror=wrong-do-bind
+                 -Wwarn=wrong-do-bind
                  -Wno-x-data-list-nonempty-unzip
                  -Wno-x-partial
 
-  -- ASR (2017-04-11). TODO: Using -Werror=missing-home-modules generates an
+  -- ASR (2017-04-11). TODO: Using -Wwarn=missing-home-modules generates an
   -- error.
   if impl(ghc >= 8.2)
-    ghc-options: -Werror=cpp-undef
-                 -Werror=simplifiable-class-constraints
-                 -Werror=unbanged-strict-patterns
+    ghc-options: -Wwarn=cpp-undef
+                 -Wwarn=simplifiable-class-constraints
+                 -Wwarn=unbanged-strict-patterns
                  -- For some reason the missing-home-modules warning
                  -- can be triggered for Internal.Helpers if the
                  -- following line is removed, cabal repl tests -O0 is
@@ -1092,34 +1092,34 @@ test-suite agda-tests
                  -Wno-missing-home-modules
 
   if impl(ghc >= 8.6)
-    ghc-options: -Werror=inaccessible-code
-                 -Werror=star-binder
-                 -Werror=star-is-type
+    ghc-options: -Wwarn=inaccessible-code
+                 -Wwarn=star-binder
+                 -Wwarn=star-is-type
   -- The following warning is an error in GHC >= 8.10.
   if impl(ghc >= 8.6) && impl(ghc < 8.10)
-    ghc-options: -Werror=implicit-kind-vars
+    ghc-options: -Wwarn=implicit-kind-vars
 
   if impl(ghc >= 8.8)
-    ghc-options: -Werror=missed-extra-shared-lib
+    ghc-options: -Wwarn=missed-extra-shared-lib
 
   if impl(ghc >= 8.10)
-    ghc-options: -Werror=deriving-defaults
-                 -Werror=redundant-record-wildcards
-                 -Werror=unused-packages
-                 -Werror=unused-record-wildcards
+    ghc-options: -Wwarn=deriving-defaults
+                 -Wwarn=redundant-record-wildcards
+                 -Wwarn=unused-packages
+                 -Wwarn=unused-record-wildcards
 
   if impl(ghc >= 9.0)
-    ghc-options: -Werror=compat-unqualified-imports
-                 -Werror=invalid-haddock
+    ghc-options: -Wwarn=compat-unqualified-imports
+                 -Wwarn=invalid-haddock
                  -- #6137: coverage checker works only sufficiently well from GHC 9.0
-                 -Werror=incomplete-patterns
-                 -Werror=incomplete-record-updates
+                 -Wwarn=incomplete-patterns
+                 -Wwarn=incomplete-record-updates
 
   -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
   -- from 9.2.1 and added back in 9.2.2.
   if impl(ghc == 9.0.2)
-    ghc-options: -Werror=unicode-bidirectional-format-characters
+    ghc-options: -Wwarn=unicode-bidirectional-format-characters
 
   if impl(ghc >= 9.2.2)
-    ghc-options: -Werror=redundant-bang-patterns
-                 -Werror=unicode-bidirectional-format-characters
+    ghc-options: -Wwarn=redundant-bang-patterns
+                 -Wwarn=unicode-bidirectional-format-characters
