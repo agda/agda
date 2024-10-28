@@ -6,6 +6,7 @@ open import Agda.Builtin.Sigma
 
 open import Common.Unit
 open import Common.IO
+open import Agda.Builtin.String
 
 -- Using this function (instead of `with` clauses) avoids
 -- compile-time evaluation, which can hide backend bugs
@@ -33,4 +34,4 @@ d = case primFloatDecode 1234.5 of λ where
   _ → 0
 
 main : IO Unit
-main = return unit
+main = putStr "OK"
