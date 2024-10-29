@@ -5,7 +5,7 @@ compiler-check: match-exact
 # Local packages specified by relative directory name.
 packages:
 - '.'
-- 'src/size-solver'
+
 
 # Libraries shipped with GHC 9.10.1:
 extra-deps:
