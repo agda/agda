@@ -37,7 +37,7 @@ jobs:
         # "most canonical", since this is the deploy action.
         # As of today (2024-02-05), the actual version information can be found in
         # https://github.com/actions/runner-images#available-images
-        os: [windows-latest, macos-14, macos-14-arm64, ubuntu-latest]
+        os: [windows-latest, macos-14, macos-13, ubuntu-latest]
         ghc-ver: ['9.10']
         cabal-ver: [latest]
 
@@ -87,7 +87,7 @@ jobs:
           echo exe="agda.exe"                                       >> "${GITHUB_OUTPUT}"
           echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
 
-        elif [[ "$MATRIX_OS" == "macos-14" ]]; then
+        elif [[ "$MATRIX_OS" == "macos-13" ]]; then
 
           filename="${bindist}-macOS-x64.tar.xz"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
@@ -96,7 +96,7 @@ jobs:
           echo exe="agda"                                           >> "${GITHUB_OUTPUT}"
           echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
 
-        elif [[ "$MATRIX_OS" == "macos-14-arm" ]]; then
+        elif [[ "$MATRIX_OS" == "macos-14" ]]; then
 
           filename="${bindist}-macOS-arm64.tar.xz"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
