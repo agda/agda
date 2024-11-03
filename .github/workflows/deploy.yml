@@ -57,7 +57,7 @@ jobs:
           echo exe="agda.exe"                                       >> "${GITHUB_OUTPUT}"
           echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
 
-        elif [[ "$MATRIX_OS" == "macos-15" ]]; then
+        elif [[ "$MATRIX_OS" == "macos-14" ]]; then
 
           filename="${bindist}-macOS-x64.tar.xz"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
@@ -66,7 +66,7 @@ jobs:
           echo exe="agda"                                           >> "${GITHUB_OUTPUT}"
           echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
 
-        elif [[ "$MATRIX_OS" == "macos-15-arm" ]]; then
+        elif [[ "$MATRIX_OS" == "macos-14-arm" ]]; then
 
           filename="${bindist}-macOS-arm64.tar.xz"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
@@ -231,8 +231,8 @@ jobs:
         - '9.10'
         os:
         - windows-latest
-        - macos-15
-        - macos-15-arm64
+        - macos-14
+        - macos-14-arm64
         - ubuntu-latest
   deploy:
     if: ${{ !cancelled() }}
