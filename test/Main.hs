@@ -91,7 +91,6 @@ fdebugTestFilter = concat
   [   SUCCEED.fdebugTestFilter
   ,   FAIL.fdebugTestFilter
   ,   COMPILER.fdebugTestFilter
-  ,   INTERACTIVE.fdebugTestFilter
   ]
 
 -- | Tests with system dependencies
