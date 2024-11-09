@@ -668,11 +668,10 @@ instance ToAbstract ResolveQName where
   type AbsOfCon ResolveQName = ResolvedName
   toAbstract (ResolveQName x) = resolveName x >>= \case
     UnknownName -> notInScopeError x
-    q -> do
-      case q of
-        DefinedName _ d _ -> addGeneralizable d
-        _ -> return ()
-      return q
+    q -> q <$ addGeneralizable q
+      -- Issue #7575:
+      -- If the name is a @variable@, add it to the things we wish to generalize.
+      -- If generalization is not supported here, this will throw an error.
 
 -- | A name resolved in a pattern.
 data APatName
@@ -2338,17 +2337,39 @@ unGeneralized t = (mempty, t)
 alreadyGeneralizing :: ScopeM Bool
 alreadyGeneralizing = isJust <$> useTC stGeneralizedVars
 
-addGeneralizable :: AbstractName -> ScopeM ()
-addGeneralizable d = case anameKind d of
-  GeneralizeName -> do
-    gvs <- useTC stGeneralizedVars
-    case gvs of   -- Subtle: Use (left-biased) union instead of insert to keep the old name if
-                  -- already present. This way we can sort by source location when generalizing
-                  -- (Issue 3354).
-        Just s -> stGeneralizedVars `setTCLens` Just (s `Set.union` Set.singleton (anameName d))
-        Nothing -> typeError $ GeneralizeNotSupportedHere $ anameName d
-  DisallowedGeneralizeName -> typeError $ GeneralizedVarInLetOpenedModule $ anameName d
-  _ -> return ()
+-- | In the context of scope checking an expression, given a resolved name @d@:
+--
+--   * If @d@ is a @variable@ (generalizable), add it to the collection 'stGeneralizedVars'
+--     of variables we wish to abstract over.
+--
+--   * Otherwise, do nothing.
+--
+class AddGeneralizable a where
+  addGeneralizable :: a -> ScopeM ()
+
+instance AddGeneralizable AbstractName where
+  addGeneralizable :: AbstractName -> ScopeM ()
+  addGeneralizable d = case anameKind d of
+    GeneralizeName -> do
+      gvs <- useTC stGeneralizedVars
+      case gvs of   -- Subtle: Use (left-biased) union instead of insert to keep the old name if
+                    -- already present. This way we can sort by source location when generalizing
+                    -- (Issue 3354).
+          Just s -> stGeneralizedVars `setTCLens` Just (s `Set.union` Set.singleton (anameName d))
+          Nothing -> typeError $ GeneralizeNotSupportedHere $ anameName d
+    DisallowedGeneralizeName -> typeError $ GeneralizedVarInLetOpenedModule $ anameName d
+    _ -> return ()
+
+instance AddGeneralizable ResolvedName where
+  addGeneralizable = \case
+    -- Only 'DefinedName' can be a @variable@.
+    DefinedName _ d NoSuffix -> addGeneralizable d
+    DefinedName _ d Suffix{} -> return ()
+    VarName{}                -> return ()
+    FieldName{}              -> return ()
+    ConstructorName{}        -> return ()
+    PatternSynResName{}      -> return ()
+    UnknownName{}            -> return ()
 
 collectGeneralizables :: ScopeM a -> ScopeM (Set A.QName, a)
 collectGeneralizables m =
