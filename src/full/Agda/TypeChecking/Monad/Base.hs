@@ -3847,7 +3847,7 @@ data TCEnv =
     TCEnv { envContext             :: Context
           , envLetBindings         :: LetBindings
           , envCurrentModule       :: ModuleName
-          , envCurrentPath         :: Maybe AbsolutePath
+          , envCurrentPath         :: Maybe FileId
             -- ^ The path to the file that is currently being
             -- type-checked.  'Nothing' if we do not have a file
             -- (like in interactive mode see @CommandLine@).
@@ -4114,7 +4114,7 @@ eLetBindings f e = f (envLetBindings e) <&> \ x -> e { envLetBindings = x }
 eCurrentModule :: Lens' TCEnv ModuleName
 eCurrentModule f e = f (envCurrentModule e) <&> \ x -> e { envCurrentModule = x }
 
-eCurrentPath :: Lens' TCEnv (Maybe AbsolutePath)
+eCurrentPath :: Lens' TCEnv (Maybe FileId)
 eCurrentPath f e = f (envCurrentPath e) <&> \ x -> e { envCurrentPath = x }
 
 eAnonymousModules :: Lens' TCEnv [(ModuleName, Nat)]

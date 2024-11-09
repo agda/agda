@@ -999,7 +999,7 @@ createInterface
   -> MainInterface         -- ^ Are we dealing with the main module?
   -> Maybe Source      -- ^ Optional information about the source code.
   -> TCM ModuleInfo
-createInterface mname sf isMain msrc = do
+createInterface mname sf@(SourceFile sfi) isMain msrc = do
   let x = mname
   file <- srcFilePath sf
   let fp = filePath file
@@ -1015,7 +1015,7 @@ createInterface mname sf isMain msrc = do
 
   withMsgs $
     Bench.billTo [Bench.TopModule mname] $
-    localTC (\e -> e { envCurrentPath = Just file }) $ do
+    localTC (\ e -> e { envCurrentPath = Just sfi }) do
 
     let onlyScope = isMain == MainInterface ScopeCheck
 

@@ -57,6 +57,7 @@ newtype ReplM a = ReplM { unReplM :: ReaderT ReplEnv (StateT ReplState IM) a }
     , HasOptions, MonadTCEnv, ReadTCState, MonadTCState, MonadTCM
     , MonadError TCErr
     , MonadReader ReplEnv, MonadState ReplState
+    , MonadFileId
     )
 
 runReplM :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM CheckResult) -> ReplM () -> TCM ()
@@ -173,7 +174,8 @@ continueAfter m = withCurrentFile $ do
 withCurrentFile :: ReplM a -> ReplM a
 withCurrentFile cont = do
   mpath <- gets currentFile
-  localTC (\ e -> e { envCurrentPath = mpath }) cont
+  i <- traverse idFromFile mpath
+  localTC (\ e -> e { envCurrentPath = i }) cont
 
 loadFile :: ReplM () -> [String] -> ReplM ()
 loadFile reload [file] = do

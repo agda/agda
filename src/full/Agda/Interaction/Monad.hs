@@ -9,16 +9,6 @@ module Agda.Interaction.Monad
   , readline
   ) where
 
-import Agda.TypeChecking.Monad
-  ( HasOptions
-  , MonadTCEnv
-  , MonadTCM
-  , MonadTCState
-  , ReadTCState
-  , TCErr
-  , TCM, TCMT(..)
-  , mapTCMT
-  )
 import Control.Exception (throwIO)
 import Control.Monad.Except (MonadError (..))
 import Control.Monad.Trans (MonadIO, lift, liftIO)
@@ -29,11 +19,25 @@ import qualified System.Console.Haskeline as Haskeline
 import qualified Control.Monad.Catch as Haskeline (catch)
 #endif
 
+import Agda.TypeChecking.Monad
+  ( HasOptions
+  , MonadFileId
+  , MonadTCEnv
+  , MonadTCM
+  , MonadTCState
+  , ReadTCState
+  , TCErr
+  , TCM, TCMT(..)
+  , mapTCMT
+  )
+
 -- | Interaction monad.
 newtype IM a = IM {unIM :: TCMT (Haskeline.InputT IO) a}
   deriving
   ( Functor, Applicative, Monad, MonadIO
-  , HasOptions, MonadTCEnv, ReadTCState, MonadTCState, MonadTCM )
+  , HasOptions, MonadTCEnv, ReadTCState, MonadTCState, MonadTCM
+  , MonadFileId
+  )
 
 runIM :: IM a -> TCM a
 runIM = mapTCMT (Haskeline.runInputT Haskeline.defaultSettings) . unIM

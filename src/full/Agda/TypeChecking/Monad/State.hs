@@ -322,7 +322,7 @@ updateDefBlocked f def@Defn{ defBlocked = b } = def { defBlocked = f b }
 -- * File identification
 ---------------------------------------------------------------------------
 
-instance MonadFileId TCM where
+instance MonadIO m => MonadFileId (TCMT m) where
   fileFromId fi = useTC stFileDict <&> (`getIdFile` fi)
   idFromFile = stateTCLens stFileDict . registerFileId
 
