@@ -1,0 +1,4 @@
+Issue7575.agda:4.1-26: error: [GeneralizeNotSupportedHere]
+Generalizable variable Issue7575.x is not supported here
+when scope checking the declaration
+  {-# BUILTIN NATPLUS x #-}

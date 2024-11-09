@@ -217,7 +217,9 @@ data PreScopeState = PreScopeState
   , stPrePatternSynImports  :: !A.PatternSynDefns
     -- ^ Imported pattern synonyms.  Must not be serialized!
   , stPreGeneralizedVars    :: !(Strict.Maybe (Set QName))
-    -- ^ Collected generalizable variables; used during scope checking of terms
+    -- ^ Collected variables we wish to generalize over; used during scope checking of terms.
+    --   If 'Nothing', we are in a position where we do not support generalization,
+    --   and do not accept additions to this collection.
   , stPrePragmaOptions      :: !PragmaOptions
     -- ^ Options applying to the current file. @OPTIONS@
     -- pragmas only affect this field.
