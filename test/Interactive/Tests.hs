@@ -1,4 +1,4 @@
-module Interactive.Tests where
+module Interactive.Tests ( tests ) where
 
 import Data.Foldable
 import Data.Text (Text)
@@ -20,28 +20,32 @@ testDir = "test" </> "Interactive"
 
 tests :: TestTree
 tests = testGroup "Interactive"
-  [ testCase "Issue1430" $ do
-    runAgda ["--no-libraries", testDir </> "Issue1430.agda"] "Issue1430"
+  [ fileTest "Issue1430"
   , bareTest "Naked"
   , bareTest "Load"
   ]
   where
     bareTest name = testCase name $ runAgda ["--no-libraries"] name
-    agdaArgs = [ "-I", "-i.", "-i..", "-itest/Interactive", "--ignore-interfaces" ]
-    runAgda :: [String] -> FilePath -> IO ()
-    runAgda extraArgs testName = do
-      inp <- TIO.readFile (testDir </> testName <.> "in")
-      ret@(c, stdout, stderr) <- readAgdaProcessWithExitCode Nothing (agdaArgs ++ extraArgs) inp
-      assertBool ("Agda returned error code: " ++ show ret) (c == ExitSuccess)
-      let stdoutFp = testDir </> testName <.> "stdout" <.> "expected"
-          stderrFp = testDir </> testName <.> "stderr" <.> "expected"
+    fileTest name = testCase name $ runAgda ["--no-libraries", testDir </> name <.> "agda" ] name
 
-      -- Check that every line in testName.stdout.expected (if exists) is a substring of stdout. Same for stderr.
-      whenM (doesFileExist $ testDir </> testName <.> "stdout" <.> "expected") $ do
-        expected <- TIO.readFile stdoutFp
-        for_ (Text.lines expected) $
-          assertBool ("Invalid stdout: " ++ show stdout) . (`Text.isInfixOf` stdout)
-      whenM (doesFileExist $ testDir </> testName <.> "stderr" <.> "expected") $ do
-        expected <- TIO.readFile stderrFp
-        for_ (Text.lines expected) $
-          assertBool ("Invalid stderr: " ++ show stderr) . (`Text.isInfixOf` stderr)
+agdaArgs :: [String]
+agdaArgs = [ "-I", "-i.", "-i..", "-itest/Interactive", "--ignore-interfaces" ]
+
+runAgda :: [String] -> FilePath -> IO ()
+runAgda extraArgs testName = do
+  inp <- TIO.readFile (testDir </> testName <.> "in")
+  ret@(c, stdout, stderr) <- readAgdaProcessWithExitCode Nothing (agdaArgs ++ extraArgs) inp
+  assertBool ("Agda returned error code: " ++ show ret) (c == ExitSuccess)
+  let stdoutFp = testDir </> testName <.> "stdout" <.> "expected"
+      stderrFp = testDir </> testName <.> "stderr" <.> "expected"
+  checkOutput ("Invalid stdout: " ++ show stdout) stdout stdoutFp
+  checkOutput ("Invalid stderr: " ++ show stderr) stderr stderrFp
+
+checkOutput :: String -> Text -> FilePath -> IO ()
+checkOutput msg output goldenFile = do
+  whenM (doesFileExist goldenFile) do
+    expected <- TIO.readFile goldenFile
+    -- assertEqual msg expected output -- Does not work as agda -I prints repl stuff.
+    -- Check that every line in testName.stdout.expected (if exists) is a substring of stdout. Same for stderr.
+    forM_ (Text.lines expected) $
+      assertBool msg . (`Text.isInfixOf` output)
