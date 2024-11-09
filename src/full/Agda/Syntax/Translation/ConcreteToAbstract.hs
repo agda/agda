@@ -590,9 +590,6 @@ data MaybeOldQName = MaybeOldQName OldQName
 --
 newtype OldName a = OldName a
 
--- | Wrapper to resolve a name to a 'ResolvedName' (rather than an 'A.Expr').
-data ResolveQName = ResolveQName C.QName
-
 -- | Wrapper to resolve a name in a pattern.
 data PatName = PatName
   C.QName
@@ -635,16 +632,7 @@ instance ToAbstract MaybeOldQName where
       DefinedName _ d suffix -> do
         raiseWarningsOnUsage $ anameName d
         -- then we take note of generalized names used
-        case anameKind d of
-          GeneralizeName -> do
-            gvs <- useTC stGeneralizedVars
-            case gvs of   -- Subtle: Use (left-biased) union instead of insert to keep the old name if
-                          -- already present. This way we can sort by source location when generalizing
-                          -- (Issue 3354).
-                Just s -> stGeneralizedVars `setTCLens` Just (s `Set.union` Set.singleton (anameName d))
-                Nothing -> typeError $ GeneralizeNotSupportedHere $ anameName d
-          DisallowedGeneralizeName -> typeError $ GeneralizedVarInLetOpenedModule $ anameName d
-          _ -> return ()
+        addGeneralizable d
         -- and then we return the name
         return $ withSuffix suffix $ nameToExpr d
         where
@@ -672,12 +660,15 @@ instance ToAbstract MaybeOldQName where
         x :| [] -> raiseWarningsOnUsage x
         _       -> return ()
 
-
-instance ToAbstract ResolveQName where
-  type AbsOfCon ResolveQName = ResolvedName
-  toAbstract (ResolveQName x) = resolveName x >>= \case
+-- | Resolve a name and fail hard if it is not in scope.
+--
+resolveQName :: C.QName -> ScopeM ResolvedName
+resolveQName x = resolveName x >>= \case
     UnknownName -> notInScopeError x
-    q -> return q
+    q -> q <$ addGeneralizable q
+      -- Issue #7575:
+      -- If the name is a @variable@, add it to the things we wish to generalize.
+      -- If generalization is not supported here, this will throw an error.
 
 -- | A name resolved in a pattern.
 data APatName
@@ -2343,6 +2334,40 @@ unGeneralized t = (mempty, t)
 alreadyGeneralizing :: ScopeM Bool
 alreadyGeneralizing = isJust <$> useTC stGeneralizedVars
 
+-- | In the context of scope checking an expression, given a resolved name @d@:
+--
+--   * If @d@ is a @variable@ (generalizable), add it to the collection 'stGeneralizedVars'
+--     of variables we wish to abstract over.
+--
+--   * Otherwise, do nothing.
+--
+class AddGeneralizable a where
+  addGeneralizable :: a -> ScopeM ()
+
+instance AddGeneralizable AbstractName where
+  addGeneralizable :: AbstractName -> ScopeM ()
+  addGeneralizable d = case anameKind d of
+    GeneralizeName -> do
+      gvs <- useTC stGeneralizedVars
+      case gvs of   -- Subtle: Use (left-biased) union instead of insert to keep the old name if
+                    -- already present. This way we can sort by source location when generalizing
+                    -- (Issue 3354).
+          Just s -> stGeneralizedVars `setTCLens` Just (s `Set.union` Set.singleton (anameName d))
+          Nothing -> typeError $ GeneralizeNotSupportedHere $ anameName d
+    DisallowedGeneralizeName -> typeError $ GeneralizedVarInLetOpenedModule $ anameName d
+    _ -> return ()
+
+instance AddGeneralizable ResolvedName where
+  addGeneralizable = \case
+    -- Only 'DefinedName' can be a @variable@.
+    DefinedName _ d NoSuffix -> addGeneralizable d
+    DefinedName _ d Suffix{} -> return ()
+    VarName{}                -> return ()
+    FieldName{}              -> return ()
+    ConstructorName{}        -> return ()
+    PatternSynResName{}      -> return ()
+    UnknownName{}            -> return ()
+
 collectGeneralizables :: ScopeM a -> ScopeM (Set A.QName, a)
 collectGeneralizables m =
   -- #5683: No nested generalization
@@ -2649,7 +2674,7 @@ instance ToAbstract C.Pragma where
 
   toAbstract pragma@(C.BuiltinPragma _ rb qx)
     | Just b' <- b, isUntypedBuiltin b' = do
-        q <- toAbstract $ ResolveQName qx
+        q <- resolveQName qx
         bindUntypedBuiltin b' q
         return [ A.BuiltinPragma rb q ]
         -- Andreas, 2015-02-14
@@ -2672,7 +2697,7 @@ instance ToAbstract C.Pragma where
               "Pragma BUILTIN " ++ getBuiltinId b' ++ ": expected unqualified identifier, " ++
               "but found " ++ prettyShow qx
     | otherwise = do
-          q0 <- toAbstract $ ResolveQName qx
+          q0 <- resolveQName qx
 
           -- Andreas, 2020-04-12, pr #4574.  For highlighting purposes:
           -- Rebind 'BuiltinPrim' as 'PrimName' and similar.
