@@ -13,8 +13,8 @@ import           Control.Monad.Reader  (ReaderT)
 import           Control.Monad.State   (StateT)
 import           Control.Monad.Trans   (MonadTrans, lift)
 
-import           Data.IntMap           (IntMap)
-import qualified Data.IntMap           as IntMap
+import           Data.EnumMap          (EnumMap)
+import qualified Data.EnumMap          as EnumMap
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import           Data.Word             (Word32)
@@ -36,7 +36,7 @@ newtype FileId = FileId { theFileId :: Word32 }
 -- * Mapping between files and their unique identifiers.
 
 type FileToId = Map File FileId
-type IdToFile = IntMap File
+type IdToFile = EnumMap FileId File
 
 data FileDict = FileDict
   { fileToId :: FileToId
@@ -66,7 +66,7 @@ registerFileId  f d@(FileDictBuilder n (FileDict fileToId idToFile)) =
     Nothing -> (n, FileDictBuilder (n + 1) (FileDict fileToId' idToFile'))
   where
     fileToId' = Map.insert f n fileToId
-    idToFile' = IntMap.insert (fromEnum n) f idToFile
+    idToFile' = EnumMap.insert n f idToFile
 
 -- * Monadic interface
 
@@ -100,7 +100,7 @@ instance GetFileId FileDictBuilder where
 
 instance GetIdFile IdToFile where
   getIdFile :: IdToFile -> FileId -> File
-  getIdFile m i = IntMap.findWithDefault __IMPOSSIBLE__ (fromEnum i) m
+  getIdFile m i = EnumMap.findWithDefault __IMPOSSIBLE__ i m
 
 instance GetIdFile FileDict where
   getIdFile = getIdFile . idToFile

@@ -22,6 +22,10 @@ import Data.Maybe             ( isNothing )
 import qualified Data.ByteString.Char8 as ByteStringChar8
 import qualified Data.ByteString.Lazy as ByteStringLazy
 
+import Data.EnumMap (EnumMap)
+import qualified Data.EnumMap as EnumMap
+import Data.EnumSet (EnumSet)
+import qualified Data.EnumSet as EnumSet
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
 import Data.HashSet (HashSet)
@@ -94,6 +98,14 @@ instance Null [a] where
 instance Null (Bag a) where
   empty = Bag.empty
   null  = Bag.null
+
+instance Null (EnumMap k a) where
+  empty = EnumMap.empty
+  null  = EnumMap.null
+
+instance Null (EnumSet a) where
+  empty = EnumSet.empty
+  null  = EnumSet.null
 
 instance Null (IntMap a) where
   empty = IntMap.empty
