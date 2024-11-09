@@ -9,6 +9,8 @@ import           Prelude               hiding (null)
 
 import           Control.DeepSeq       (NFData)
 import           Control.Monad.Except  (ExceptT)
+import           Control.Monad.Reader  (ReaderT)
+import           Control.Monad.State   (StateT)
 import           Control.Monad.Trans   (MonadTrans, lift)
 
 import           Data.IntMap           (IntMap)
@@ -79,6 +81,8 @@ class Monad m => MonadFileId m where
   idFromFile = lift . idFromFile
 
 instance MonadFileId m => MonadFileId (ExceptT e m)
+instance MonadFileId m => MonadFileId (ReaderT r m)
+instance MonadFileId m => MonadFileId (StateT s m)
 
 -- Instances for GetFileId
 

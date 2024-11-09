@@ -960,7 +960,8 @@ cmd_load' file argv unsolvedOK mode cmd = do
 withCurrentFile :: CommandM a -> CommandM a
 withCurrentFile m = do
   mfile <- gets $ fmap currentFilePath . theCurrentFile
-  localTC (\ e -> e { envCurrentPath = mfile }) m
+  i <- traverse idFromFile mfile
+  localTC (\ e -> e { envCurrentPath = i }) m
 
 atTopLevel :: CommandM a -> CommandM a
 atTopLevel cmd = liftCommandMT B.atTopLevel cmd
