@@ -23,16 +23,10 @@ jobs:
         shell: bash
     env:
       EXTRA_ARGS: --fast
-      ICU_URL: https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst
       NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:debug
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - if: runner.os == 'macOS'
-      name: Set up for the ICU library (macOS)
-      run: |
-        ICU4C=$(brew --prefix)/opt/icu4c
-        echo "PKG_CONFIG_PATH=${ICU4C}/lib/pkgconfig" >> "${GITHUB_ENV}"
     - uses: actions/checkout@v4
     - id: haskell-setup
       uses: haskell-actions/setup@v2
@@ -59,8 +53,14 @@ jobs:
         GHC_VER=$(ghc --numeric-version)
         echo "GHC_VER=${GHC_VER}"                                       >> "${GITHUB_ENV}"
         echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> "${GITHUB_ENV}"
-    - if: ${{ runner.os == 'Windows' }}
-      name: Install the icu library (Windows)
+    - if: runner.os == 'macOS'
+      name: Install the ICU library (macOS)
+      run: |
+        brew install icu4c
+        ICU4C=$(brew --prefix)/opt/icu4c
+        echo "PKG_CONFIG_PATH=${ICU4C}/lib/pkgconfig" >> "${GITHUB_ENV}"
+    - if: runner.os == 'Windows'
+      name: Install the ICU library (Windows)
       run: |
         # stack exec ${ARGS} -- pacman --noconfirm -Syuu
         # stack exec ${ARGS} -- pacman --noconfirm -S msys2-keyring

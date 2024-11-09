@@ -72,41 +72,12 @@ jobs:
       EXTRA_ARGS: "--fast"
       NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:debug"
 
-      # Liang-Ting Chen (2021-08-18):
-      # Let pacman choose the file name for ICU4C.
-      #
-      # # The following is used by Windows only
-      # ICU_FILE: "mingw-w64-x86_64-icu-68.2-3-any.pkg.tar.zst"
-      # Amélia Liao (2022-08-16):
-      # Use a known-good version of ICU from the msys2 repository since
-      # GHC does not work with ICU ≠ 69
-      ICU_URL: "https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst"
-      # ICU_VER: "69.1"
-      # # Andreas, 2023-01-21: the ICU_VER is needed for Windows, it is automatically determined on Linux/macOS.
-
     # Need bash on Windows for piping and evaluation.
     defaults:
       run:
         shell: bash
 
     steps:
-
-    - name: Set up for the ICU library (macOS)
-      if: runner.os == 'macOS'
-      run: |
-        ICU4C=$(brew --prefix)/opt/icu4c
-        echo "PKG_CONFIG_PATH=${ICU4C}/lib/pkgconfig" >> "${GITHUB_ENV}"
-      # echo "${ICU4C}/bin" >> "${GITHUB_PATH}"
-        ## path only needed for running uconv
-
-    # - name: Determine the ICU version (Linux, macOS)
-    #   if: ${{ runner.os != 'Windows' }}
-    #   run: |
-    #     uconv --version
-    #     export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
-    #     echo "ICU_VER=${ICU_VER}"
-    #     echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
-    #   # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
 
     # Checkout is needed before the first call to stack exec ${ARGS}
     # because it provides the stack-*.yaml file.
@@ -140,20 +111,29 @@ jobs:
         echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> "${GITHUB_ENV}"
     # From now on, use env.GHC_VER rather than matrix.ghc-ver
 
+    - name: Install the ICU library (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install icu4c
+        ICU4C=$(brew --prefix)/opt/icu4c
+        echo "PKG_CONFIG_PATH=${ICU4C}/lib/pkgconfig" >> "${GITHUB_ENV}"
+
     # Note that msys2 libraries have to be installed via
     #   stack exec ${ARGS} -- pacman ...
     # because stack comes with its own msys2 instance, see
     #   https://docs.haskellstack.org/en/stable/developing_on_windows/
     # NB: the ${ARGS} is necessary, otherwise stack installs another GHC...
-    # Andreas, 2022-02-04, issue #5768:
-    # To work around keyring problems, we update msys2-keyring before installing ICU.
-    # Andreas, 2022-05-15, pr #5909: the keyring problem was solved upstream by
-    # updating Stack-MSYS to 2022-05-03.
     #
-    # Liang-Ting, 2022-06-30: Always update msys2-keyring in case it is broken upstream again.
-    # Amélia, 2022-08-16: Download a good version of ICU
-    - name: Install the icu library (Windows)
-      if: ${{ runner.os == 'Windows' }}
+    # # Andreas, 2022-02-04, issue #5768:
+    # # To work around keyring problems, we update msys2-keyring before installing ICU.
+    # # Andreas, 2022-05-15, pr #5909: the keyring problem was solved upstream by
+    # # updating Stack-MSYS to 2022-05-03.
+    # #
+    # # Liang-Ting, 2022-06-30: Always update msys2-keyring in case it is broken upstream again.
+    # # Amélia, 2022-08-16: Download a good version of ICU
+
+    - name: Install the ICU library (Windows)
+      if: runner.os == 'Windows'
       run: |
         # stack exec ${ARGS} -- pacman --noconfirm -Syuu
         # stack exec ${ARGS} -- pacman --noconfirm -S msys2-keyring
@@ -161,6 +141,11 @@ jobs:
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-icu
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkgconf
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-zlib
+      # env:
+      #   # Amélia Liao (2022-08-16):
+      #   # Use a known-good version of ICU from the msys2 repository since
+      #   # GHC does not work with ICU ≠ 69
+      #   ICU_URL: "https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst"
 
     - name: Determine the ICU version
       run: |
