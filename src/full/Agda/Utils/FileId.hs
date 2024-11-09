@@ -31,7 +31,7 @@ type File = AbsolutePath
 
 -- | Unique identifier of a file.
 newtype FileId = FileId { theFileId :: Word32 }
-  deriving (Eq, Ord, Show, Generic, Enum, Num, Real, Integral)
+  deriving (Eq, Ord, Show, Generic, Enum, Num)
 
 -- * Mapping between files and their unique identifiers.
 
@@ -66,7 +66,7 @@ registerFileId  f d@(FileDictBuilder n (FileDict fileToId idToFile)) =
     Nothing -> (n, FileDictBuilder (n + 1) (FileDict fileToId' idToFile'))
   where
     fileToId' = Map.insert f n fileToId
-    idToFile' = IntMap.insert (fromIntegral $ theFileId n) f idToFile
+    idToFile' = IntMap.insert (fromEnum n) f idToFile
 
 -- * Monadic interface
 
@@ -100,7 +100,7 @@ instance GetFileId FileDictBuilder where
 
 instance GetIdFile IdToFile where
   getIdFile :: IdToFile -> FileId -> File
-  getIdFile m i = IntMap.findWithDefault __IMPOSSIBLE__ (fromIntegral i) m
+  getIdFile m i = IntMap.findWithDefault __IMPOSSIBLE__ (fromEnum i) m
 
 instance GetIdFile FileDict where
   getIdFile = getIdFile . idToFile
