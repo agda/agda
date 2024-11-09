@@ -22,6 +22,7 @@ jobs:
       ARGS: --disable-executable-profiling --disable-library-profiling
       LINUX_ARGS: --enable-executable-static  --enable-split-sections
       MACOS_ARGS: --flags=enable-cluster-counting
+      MATRIX_OS: ${{ matrix.os }}
       WIN64_ARGS: --flags=enable-cluster-counting  --enable-split-sections
     if: ${{ !cancelled() }}
     needs: auto-cancel
@@ -56,9 +57,18 @@ jobs:
           echo exe="agda.exe"                                       >> "${GITHUB_OUTPUT}"
           echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
 
-        elif [[ "$OSTYPE" == "darwin"* ]]; then
+        elif [[ "$MATRIX_OS" == "macos-13" ]]; then
 
-          filename="${bindist}-macOS.tar.xz"
+          filename="${bindist}-macOS-x64.tar.xz"
+          echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} ${bindist}"    >> "${GITHUB_OUTPUT}"
+          echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
+          echo exe="agda"                                           >> "${GITHUB_OUTPUT}"
+          echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
+
+        elif [[ "$MATRIX_OS" == "macos-14" ]]; then
+
+          filename="${bindist}-macOS-arm64.tar.xz"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
           echo compress-cmd="tar -a -cvf ${filename} ${bindist}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
@@ -221,7 +231,8 @@ jobs:
         - '9.10'
         os:
         - windows-latest
-        - macos-latest
+        - macos-14
+        - macos-13
         - ubuntu-latest
   deploy:
     if: ${{ !cancelled() }}
