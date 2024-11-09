@@ -294,14 +294,14 @@ typeOf s =
     do  e  <- parseExpr (unwords s)
         e0 <- typeInCurrent Normalised e
         e1 <- typeInCurrent AsIs e
-        liftIO . putStrLn =<< showA e1
+        liftIO . print =<< prettyA e1
 
 typeIn :: [String] -> TCM ()
 typeIn s@(_:_:_) =
     actOnMeta s $ \i e ->
     do  e1 <- typeInMeta i Normalised e
         e2 <- typeInMeta i AsIs e
-        liftIO . putStrLn =<< showA e1
+        liftIO . print =<< prettyA e1
 typeIn _ = liftIO $ putStrLn ":typeIn meta expr"
 
 showContext :: [String] -> TCM ()
