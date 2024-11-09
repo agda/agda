@@ -16,6 +16,10 @@ import Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
 import Data.List.NonEmpty (NonEmpty(..))
 
+import Data.EnumMap (EnumMap)
+import qualified Data.EnumMap as EnumMap
+import Data.EnumSet (EnumSet)
+import qualified Data.EnumSet as EnumSet
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -42,27 +46,21 @@ class (Semigroup coll, Monoid coll, Singleton el coll) => Collection el coll
   fromList :: [el] -> coll
   fromList = mconcat . map singleton
 
-instance Collection a       [a]           where fromList = id
-instance Collection a       ([a] -> [a])  where fromList = (++)
-instance Collection a       (Endo [a])    where fromList = Endo . fromList
-instance Collection a       (DList a)     where fromList = DL.fromList
-instance Collection a       (Seq a)       where fromList = Seq.fromList
-instance Collection Int     IntSet        where fromList = IntSet.fromList
-instance Collection (Int,a) (IntMap a)    where fromList = IntMap.fromList
+instance Collection a        [a]          where fromList = id
+instance Collection a        ([a] -> [a]) where fromList = (++)
+instance Collection a        (Endo [a])   where fromList = Endo . fromList
+instance Collection a        (DList a)    where fromList = DL.fromList
+instance Collection a        (Seq a)      where fromList = Seq.fromList
+instance Collection Int      IntSet       where fromList = IntSet.fromList
+instance Collection (Int, a) (IntMap a)   where fromList = IntMap.fromList
 
-instance Ord a =>
-         Collection a       (Set a)       where fromList = Set.fromList
-
-instance Ord k =>
-         Collection (k, a)  (Map k a)     where fromList = Map.fromList
-
-instance (Eq a, Hashable a) =>
-         Collection a       (HashSet a)   where fromList = HashSet.fromList
-
-instance (Eq k, Hashable k) =>
-         Collection (k, a)  (HashMap k a) where fromList = HashMap.fromList
-
-instance SmallSetElement a => Collection a (SmallSet a) where fromList = SmallSet.fromList
+instance Enum k             => Collection k      (EnumSet k)   where fromList = EnumSet.fromList
+instance Enum k             => Collection (k, a) (EnumMap k a) where fromList = EnumMap.fromList
+instance (Eq k, Hashable k) => Collection k      (HashSet k)   where fromList = HashSet.fromList
+instance (Eq k, Hashable k) => Collection (k, a) (HashMap k a) where fromList = HashMap.fromList
+instance Ord k              => Collection k      (Set k)       where fromList = Set.fromList
+instance Ord k              => Collection (k, a) (Map k a)     where fromList = Map.fromList
+instance SmallSetElement k  => Collection k      (SmallSet k)  where fromList = SmallSet.fromList
 
 -- | Create-only collection with at most one element.
 
@@ -78,24 +76,26 @@ instance CMaybe a [a]       where cMaybe = maybeToList
 class Singleton el coll | coll -> el where
   singleton :: el -> coll
 
-instance Singleton a   (Maybe a)   where singleton = Just
-instance Singleton a   [a]         where singleton = (:[])
-instance Singleton a  ([a] -> [a]) where singleton = (:)
-instance Singleton a   (Endo [a])  where singleton = Endo . (:)
-instance Singleton a   (DList a)   where singleton = DL.singleton
-instance Singleton a   (NESet a)   where singleton = Set1.singleton
-instance Singleton a   (NonEmpty a)
-                                   where singleton = (:| [])
-instance Singleton a   (Seq a)     where singleton = Seq.singleton
-instance Singleton a   (Set a)     where singleton = Set.singleton
-instance Singleton Int IntSet      where singleton = IntSet.singleton
+instance Singleton a   (Maybe a)    where singleton = Just
+instance Singleton a   [a]          where singleton = (:[])
+instance Singleton a   ([a] -> [a]) where singleton = (:)
+instance Singleton a   (Endo [a])   where singleton = Endo . (:)
+instance Singleton a   (DList a)    where singleton = DL.singleton
+instance Singleton a   (NESet a)    where singleton = Set1.singleton
+instance Singleton a   (NonEmpty a) where singleton = (:| [])
+instance Singleton a   (Seq a)      where singleton = Seq.singleton
+instance Singleton a   (Set a)      where singleton = Set.singleton
+instance Singleton Int IntSet       where singleton = IntSet.singleton
+
+instance Enum a            => Singleton a (EnumSet  a) where singleton = EnumSet.singleton
 instance SmallSetElement a => Singleton a (SmallSet a) where singleton = SmallSet.singleton
 
-instance Singleton (k  ,a) (Map  k a) where singleton = uncurry Map.singleton
-instance Singleton (Int,a) (IntMap a) where singleton = uncurry IntMap.singleton
+instance Singleton (k  ,a) (Map  k a)                  where singleton = uncurry Map.singleton
+instance Singleton (Int,a) (IntMap a)                  where singleton = uncurry IntMap.singleton
 
-instance Hashable a => Singleton a     (HashSet   a) where singleton = HashSet.singleton
-instance Hashable k => Singleton (k,a) (HashMap k a) where singleton = uncurry HashMap.singleton
+instance Hashable k => Singleton k     (HashSet   k)   where singleton = HashSet.singleton
+instance Hashable k => Singleton (k,a) (HashMap k a)   where singleton = uncurry HashMap.singleton
+instance Enum k     => Singleton (k,a) (EnumMap k a)   where singleton = uncurry EnumMap.singleton
 
 -- Testing newtype-deriving:
 
