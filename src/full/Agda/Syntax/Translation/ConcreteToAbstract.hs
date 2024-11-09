@@ -590,9 +590,6 @@ data MaybeOldQName = MaybeOldQName OldQName
 --
 newtype OldName a = OldName a
 
--- | Wrapper to resolve a name to a 'ResolvedName' (rather than an 'A.Expr').
-data ResolveQName = ResolveQName C.QName
-
 -- | Wrapper to resolve a name in a pattern.
 data PatName = PatName
   C.QName
@@ -663,10 +660,10 @@ instance ToAbstract MaybeOldQName where
         x :| [] -> raiseWarningsOnUsage x
         _       -> return ()
 
-
-instance ToAbstract ResolveQName where
-  type AbsOfCon ResolveQName = ResolvedName
-  toAbstract (ResolveQName x) = resolveName x >>= \case
+-- | Resolve a name and fail hard if it is not in scope.
+--
+resolveQName :: C.QName -> ScopeM ResolvedName
+resolveQName x = resolveName x >>= \case
     UnknownName -> notInScopeError x
     q -> q <$ addGeneralizable q
       -- Issue #7575:
@@ -2677,7 +2674,7 @@ instance ToAbstract C.Pragma where
 
   toAbstract pragma@(C.BuiltinPragma _ rb qx)
     | Just b' <- b, isUntypedBuiltin b' = do
-        q <- toAbstract $ ResolveQName qx
+        q <- resolveQName qx
         bindUntypedBuiltin b' q
         return [ A.BuiltinPragma rb q ]
         -- Andreas, 2015-02-14
@@ -2700,7 +2697,7 @@ instance ToAbstract C.Pragma where
               "Pragma BUILTIN " ++ getBuiltinId b' ++ ": expected unqualified identifier, " ++
               "but found " ++ prettyShow qx
     | otherwise = do
-          q0 <- toAbstract $ ResolveQName qx
+          q0 <- resolveQName qx
 
           -- Andreas, 2020-04-12, pr #4574.  For highlighting purposes:
           -- Rebind 'BuiltinPrim' as 'PrimName' and similar.
