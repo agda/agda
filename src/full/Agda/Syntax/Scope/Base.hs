@@ -1146,7 +1146,7 @@ everythingInScopeQualified scope =
 -- | Get all concrete names in scope. Includes bound variables.
 concreteNamesInScope :: ScopeInfo -> Set C.QName
 concreteNamesInScope scope =
-  Set.unions [ build allNamesInScope root, imported, locals ]
+  Set.unions [ build id allNamesInScope root, imported, locals ]
   where
     current = moduleScope $ scope ^. scopeCurrent
     root    = mergeScopes $ current : map moduleScope (scopeParents current)
@@ -1154,24 +1154,22 @@ concreteNamesInScope scope =
     locals  = Set.fromList [ C.QName x | (x, _) <- scope ^. scopeLocals ]
 
     imported = Set.unions
-               [ qual c (build exportedNamesInScope $ moduleScope a)
-               | (c, a) <- Map.toList $ scopeImports root ]
-    qual c = Set.map (q c)
+               [ build (qual c) exportedNamesInScope $ moduleScope a
+               | (c, a) <- Map.toList $ scopeImports root
+               ]
       where
-        q (C.QName x)  = C.Qual x
-        q (C.Qual m x) = C.Qual m . q x
+        qual (C.QName x)  = C.Qual x
+        qual (C.Qual m x) = C.Qual m . qual x
 
-    build :: (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Set C.QName
-    build getNames s = Set.unions $
-        Set.fromAscList
-          (map C.QName $
-           Map.keys (getNames s :: ThingsInScope AbstractName)) :
-          [ Set.mapMonotonic (\ y -> C.Qual x y) $
-              build exportedNamesInScope $ moduleScope m
-          | (x, mods) <- Map.toList (getNames s)
-          , prettyShow x /= "_"
-          , AbsModule m _ <- List1.toList mods
-          ]
+    build :: (C.QName -> C.QName) -> (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Set C.QName
+    build qual getNames s = Set.unions $
+        Set.mapMonotonic (qual . C.QName) (Map.keysSet (getNames s :: ThingsInScope AbstractName))
+        :
+        [ build (qual . C.Qual x) exportedNamesInScope $ moduleScope m
+        | (x, mods) <- Map.toList (getNames s)
+        , not $ isNoName x
+        , AbsModule m _ <- List1.toList mods
+        ]
 
     moduleScope :: A.ModuleName -> Scope
     moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
