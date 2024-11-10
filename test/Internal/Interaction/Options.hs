@@ -2,12 +2,13 @@
 
 module Internal.Interaction.Options ( tests ) where
 
-import Agda.Interaction.Library (getPrimitiveLibDir)
-import Agda.Interaction.Options
-import Agda.Interaction.Options.Lenses
+import Agda.Syntax.Parser ()
 
+import Agda.Interaction.Library
+import Agda.Interaction.Options
+
+import Agda.Utils.FileName ( filePath )
 import Agda.Utils.Monad
-import Agda.Syntax.Parser
 
 import Data.List (intercalate)
 import qualified Data.Set as Set
@@ -47,10 +48,10 @@ prop_allBuiltinsSafePostulatesOrNot = ioProperty helper
   where
     helper :: IO Bool
     helper = do
-      libdirPrim <- getPrimitiveLibDir
-      allFiles <- getAgdaFilesInDir Rec libdirPrim
-      let builtinFiles = Set.map (libdirPrim </>) builtinModules
-      let diff = Set.difference (Set.fromList allFiles) builtinFiles
+      libdirPrim <- filePath <$> getPrimitiveLibDir
+      allFiles <- Set.fromList <$> getAgdaFilesInDir Rec libdirPrim
+      let builtinFiles = Set.mapMonotonic (libdirPrim </>) builtinModules
+      let diff = Set.difference allFiles builtinFiles
       if null diff then return True else do
         putStrLn $ "Missing/spurious builtins: " ++ show diff
         return False

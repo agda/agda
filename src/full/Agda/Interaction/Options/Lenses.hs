@@ -8,21 +8,10 @@
 
 module Agda.Interaction.Options.Lenses where
 
-import Control.Monad.IO.Class   ( MonadIO(..) )
-
-import qualified Data.List as List
-import Data.Set (Set)
-import qualified Data.Set as Set
-
-import System.FilePath ((</>), joinPath, splitDirectories)
-
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
-import Agda.Interaction.Library (getPrimitiveLibDir)
 import Agda.Interaction.Options
 
-import Agda.Utils.Lens        ()
-import Agda.Utils.Functor     ( (<.>) )
 import Agda.Utils.WithDefault (pattern Value)
 
 ---------------------------------------------------------------------------
@@ -119,89 +108,6 @@ modifySafeMode = modifyTC . mapSafeMode
 
 putSafeMode :: MonadTCState m => SafeMode -> m ()
 putSafeMode = modifyTC . setSafeMode
-
--- | These builtins may use postulates, and are still considered --safe
-
-builtinModulesWithSafePostulates :: Set FilePath
-builtinModulesWithSafePostulates =
-  primitiveModules `Set.union` (Set.fromList
-  [ "Agda" </> "Builtin" </> "Bool.agda"
-  , "Agda" </> "Builtin" </> "Char.agda"
-  , "Agda" </> "Builtin" </> "Char" </> "Properties.agda"
-  , "Agda" </> "Builtin" </> "Coinduction.agda"
-  , "Agda" </> "Builtin" </> "Cubical" </> "Equiv.agda"
-  , "Agda" </> "Builtin" </> "Cubical" </> "Glue.agda"
-  , "Agda" </> "Builtin" </> "Cubical" </> "HCompU.agda"
-  , "Agda" </> "Builtin" </> "Cubical" </> "Id.agda"
-  , "Agda" </> "Builtin" </> "Cubical" </> "Path.agda"
-  , "Agda" </> "Builtin" </> "Cubical" </> "Sub.agda"
-  , "Agda" </> "Builtin" </> "Equality" </> "Erase.agda"
-  , "Agda" </> "Builtin" </> "Equality.agda"
-  , "Agda" </> "Builtin" </> "Float.agda"
-  , "Agda" </> "Builtin" </> "Float" </> "Properties.agda"
-  , "Agda" </> "Builtin" </> "FromNat.agda"
-  , "Agda" </> "Builtin" </> "FromNeg.agda"
-  , "Agda" </> "Builtin" </> "FromString.agda"
-  , "Agda" </> "Builtin" </> "Int.agda"
-  , "Agda" </> "Builtin" </> "IO.agda"
-  , "Agda" </> "Builtin" </> "List.agda"
-  , "Agda" </> "Builtin" </> "Maybe.agda"
-  , "Agda" </> "Builtin" </> "Nat.agda"
-  , "Agda" </> "Builtin" </> "Reflection.agda"
-  , "Agda" </> "Builtin" </> "Reflection" </> "Properties.agda"
-  , "Agda" </> "Builtin" </> "Reflection" </> "External.agda"
-  , "Agda" </> "Builtin" </> "Sigma.agda"
-  , "Agda" </> "Builtin" </> "Size.agda"
-  , "Agda" </> "Builtin" </> "Strict.agda"
-  , "Agda" </> "Builtin" </> "String.agda"
-  , "Agda" </> "Builtin" </> "String" </> "Properties.agda"
-  , "Agda" </> "Builtin" </> "Unit.agda"
-  , "Agda" </> "Builtin" </> "Word.agda"
-  , "Agda" </> "Builtin" </> "Word" </> "Properties.agda"
-  ])
-
--- | These builtins may not use postulates under --safe. They are not
---   automatically unsafe, but will be if they use an unsafe feature.
-
-builtinModulesWithUnsafePostulates :: Set FilePath
-builtinModulesWithUnsafePostulates = Set.fromList
-  [ "Agda" </> "Builtin" </> "TrustMe.agda"
-  , "Agda" </> "Builtin" </> "Equality" </> "Rewrite.agda"
-  ]
-
-primitiveModules :: Set FilePath
-primitiveModules = Set.fromList
-  [ "Agda" </> "Primitive.agda"
-  , "Agda" </> "Primitive" </> "Cubical.agda"
-  ]
-
-builtinModules :: Set FilePath
-builtinModules = builtinModulesWithSafePostulates `Set.union`
-                 builtinModulesWithUnsafePostulates
-
-isPrimitiveModule :: MonadIO m => FilePath -> m Bool
-isPrimitiveModule = isPrimitiveModuleFrom primitiveModules
-
-isBuiltinModule :: MonadIO m => FilePath -> m Bool
-isBuiltinModule = isPrimitiveModuleFrom builtinModules
-
-isBuiltinModuleWithSafePostulates :: MonadIO m => FilePath -> m Bool
-isBuiltinModuleWithSafePostulates = isPrimitiveModuleFrom builtinModulesWithSafePostulates
-
--- | Check whether a 'FilePath' is one of the primitive modules mentioned in @Set FilePath@.
---
-isPrimitiveModuleFrom :: MonadIO m => Set FilePath -> FilePath -> m Bool
-isPrimitiveModuleFrom s = maybe False (`Set.member` s) <.> stripPrimitiveLibDir
-
--- | Strip the 'getPrimitiveLibDir' off the given 'FilePath',
---   returning the suffix if successful.
---
-stripPrimitiveLibDir :: MonadIO m => FilePath -> m (Maybe FilePath)
-stripPrimitiveLibDir file = liftIO $ do
-  primPath <- splitDirectories <$> getPrimitiveLibDir
-  let filePath = splitDirectories file
-  return $ fmap joinPath $ List.stripPrefix primPath filePath
-
 
 ---------------------------------------------------------------------------
 -- ** Include directories

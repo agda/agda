@@ -11,6 +11,8 @@ where
 import Prelude hiding (null)
 
 import Control.DeepSeq                ( NFData )
+import Data.EnumMap                   ( EnumMap )
+import Data.Functor                   ( (<&>) )
 import Data.Map                       ( Map )
 import GHC.Generics                   ( Generic )
 
@@ -85,6 +87,36 @@ data HighlightingMethod
 -- * Managing file names
 ---------------------------------------------------------------------------
 
+-- | Discern Agda's primitive modules from other file modules.
+--   @IsPrimitiveModule `implies` IsBuiltinModuleWithSafePostulate `implies` isBuiltinModule.
+
+--   Keep constructors in this order!
+data IsBuiltinModule
+  = IsPrimitiveModule
+      -- ^ Very magical module, e.g. @Agda.Primitive@.
+  | IsBuiltinModuleWithSafePostulates
+      -- ^ Safe module, e.g. @Agda.Builtin.Equality@.
+  | IsBuiltinModule
+      -- ^ Any builtin module.
+  deriving (Eq, Ord, Show, Generic)
+
+-- | Collection of 'FileId's of primitive modules.
+
+type BuiltinModuleIds = EnumMap FileId IsBuiltinModule
+
+-- | Translation between 'AbsolutePath' and 'FileId' that also knows about Agda's builtin modules.
+
+data FileDictWithBuiltins = FileDictWithBuiltins
+  { fileDictBuilder  :: !FileDictBuilder
+      -- ^ (Building a) translation between 'AbsolutePath' and 'FileId'.
+  , builtinModuleIds :: !BuiltinModuleIds
+      -- ^ For the known 'FileId's, remember whether they refer to Agda's builtin modules.
+  , primitiveLibDir  :: !AbsolutePath
+      -- ^ The absolute path to the directory with the builtin modules.
+      --   Needs to be set upon initialization.
+  }
+  deriving Generic
+
 -- | 'SourceFile's must exist and be registered in our file dictionary.
 
 newtype SourceFile = SourceFile { srcFileId :: FileId }
@@ -95,11 +127,19 @@ newtype SourceFile = SourceFile { srcFileId :: FileId }
 type ModuleToSourceId = Map TopLevelModuleName SourceFile
 
 data ModuleToSource = ModuleToSource
-  { fileDict         :: FileDictBuilder
-  , moduleToSourceId :: ModuleToSourceId
+  { fileDict         :: !FileDictWithBuiltins
+  , moduleToSourceId :: !ModuleToSourceId
   }
 
-lensPairModuleToSource :: Lens' (FileDictBuilder, ModuleToSourceId) ModuleToSource
+-- ** Lenses
+
+lensFileDictFileDictBuilder :: Lens' FileDictWithBuiltins FileDictBuilder
+lensFileDictFileDictBuilder f s = f (fileDictBuilder s) <&> \ x -> s { fileDictBuilder = x }
+
+lensFileDictBuiltinModuleIds :: Lens' FileDictWithBuiltins BuiltinModuleIds
+lensFileDictBuiltinModuleIds f s = f (builtinModuleIds s) <&> \ x -> s { builtinModuleIds = x }
+
+lensPairModuleToSource :: Lens' (FileDictWithBuiltins, ModuleToSourceId) ModuleToSource
 lensPairModuleToSource = iso (uncurry ModuleToSource) (fileDict &&& moduleToSourceId)
 
 ---------------------------------------------------------------------------
@@ -118,10 +158,18 @@ data NamedMeta = NamedMeta
 
 -- Null instances
 
-instance Null ModuleToSource where
-  empty = ModuleToSource empty empty
-  null (ModuleToSource dict m2s) = null dict && null m2s
+-- Andreas, 2024-11-10: Let's not have these instances because there is no default primLibDir:
+--
+-- instance Null FileDictWithBuiltins where
+--   empty = FileDictWithBuiltins empty empty __IMPOSSIBLE__
+--   null (FileDictWithBuiltins a b _primLibDir) = null a && null b
+--
+-- instance Null ModuleToSource where
+--   empty = ModuleToSource empty empty
+--   null (ModuleToSource dict m2s) = null dict && null m2s
 
 -- NFData instances
 
+instance NFData FileDictWithBuiltins
 instance NFData SourceFile
+instance NFData IsBuiltinModule

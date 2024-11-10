@@ -32,7 +32,6 @@ import System.Directory
 import System.FilePath
 
 import Agda.TypeChecking.Monad as TCM
-  hiding (initState, setCommandLineOptions)
 import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
@@ -371,15 +370,8 @@ maybeAbort m = do
             _ -> return (Command (Just x))
         Right a -> do
           liftIO $ popAbortedCommands q a
-          putTC $ initState
-            { stPersistentState = stPersistentState tcState
-            , stPreScopeState   =
-                (stPreScopeState initState)
-                  { stPrePragmaOptions =
-                      stPrePragmaOptions
-                        (stPreScopeState tcState)
-                  }
-            }
+          putTC $ set lensPragmaOptions (tcState ^. lensPragmaOptions) $
+            initStateFromPersistentState $ stPersistentState tcState
           put $ (initCommandState (commandQueue commandState))
             { optionsOnReload = optionsOnReload commandState
             }

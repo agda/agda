@@ -456,7 +456,7 @@ typeCheckMain mode src = do
 
       -- We don't want to generate highlighting information for Agda.Primitive.
       withHighlightingLevel None $
-        forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) \ f -> do
+        forM_ (map (filePath libdirPrim </>) $ Set.toList primitiveModules) \ f -> do
           sf <- srcFromPath (mkAbsolute f)
           primSource <- parseSource sf
           checkModuleName' (srcModuleName primSource) (srcOrigin primSource)
@@ -628,7 +628,7 @@ getStoredInterface :: HasCallStack
      -- ^ File we process.
   -> Maybe Source
   -> ExceptT String TCM ModuleInfo
-getStoredInterface x file msrc = do
+getStoredInterface x file@(SourceFile fi) msrc = do
   -- Check whether interface file exists and is in cache
   --  in the correct version (as testified by the interface file hash).
   --
@@ -674,7 +674,7 @@ getStoredInterface x file msrc = do
         throwError "we're ignoring all interface files"
 
       whenM ignoreInterfaces $
-        unlessM (lift . Lens.isBuiltinModule . filePath =<< srcFilePath file) $
+        whenNothingM (isBuiltinModule fi) $
             throwError "we're ignoring non-builtin interface files"
 
       (ifile, hashes) <- getIFileHashesET
@@ -695,7 +695,7 @@ getStoredInterface x file msrc = do
           path <- srcFilePath file
           lift $ typeError $ OverlappingProjects path topLevelName x
 
-        isPrimitiveModule <- lift . Lens.isPrimitiveModule . filePath =<< srcFilePath file
+        isPrimitiveMod <- isPrimitiveModule fi
 
         lift $ chaseMsg "Loading " x $ Just ifp
         -- print imported warnings
@@ -704,7 +704,7 @@ getStoredInterface x file msrc = do
         loadDecodedModule file $ ModuleInfo
           { miInterface = i
           , miWarnings = empty
-          , miPrimitive = isPrimitiveModule
+          , miPrimitive = isPrimitiveMod
           , miMode = ModuleTypeChecked
           }
 
@@ -754,7 +754,7 @@ loadDecodedModule
      -- ^ File we process.
   -> ModuleInfo
   -> ExceptT String TCM ModuleInfo
-loadDecodedModule sf mi = do
+loadDecodedModule sf@(SourceFile fi) mi = do
   file <- srcFilePath sf
   let fp = filePath file
   let i = miInterface mi
@@ -775,7 +775,7 @@ loadDecodedModule sf mi = do
 
   -- Check that options that matter haven't changed compared to
   -- current options (issue #2487)
-  unlessM (lift $ Lens.isBuiltinModule fp) $ do
+  whenNothingM (isBuiltinModule fi) do
     current <- useTC stPragmaOptions
     when (recheckBecausePragmaOptionsChanged (iOptionsUsed i) current) $
       throwError "options changed"
@@ -1226,12 +1226,12 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     lensAccumStatistics `modifyTCLens` Map.unionWith (+) localStatistics
     reportSLn "import.iface" 5 "Accumulated statistics."
 
-    isPrimitiveModule <- Lens.isPrimitiveModule (filePath srcPath)
+    isPrimitiveMod <- isPrimitiveModule sfi
 
     return ModuleInfo
       { miInterface = finalIface
       , miWarnings = mallWarnings
-      , miPrimitive = isPrimitiveModule
+      , miPrimitive = isPrimitiveMod
       , miMode = moduleCheckMode isMain
       }
 

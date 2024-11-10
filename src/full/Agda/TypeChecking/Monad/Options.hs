@@ -292,9 +292,7 @@ setIncludeDirs incs root = do
   incs <- return $ fmap (mkAbsolute . (filePath root </>)) incs
 
   -- Andreas, 2013-10-30  Add default include dir
-      -- NB: This is an absolute file name, but
-      -- Agda.Utils.FilePath wants to check absoluteness anyway.
-  primdir <- liftIO $ mkAbsolute <$> getPrimitiveLibDir
+  primdir <- liftIO getPrimitiveLibDir
       -- We add the default dir at the end, since it is then
       -- printed last in error messages.
       -- Might also be useful to overwrite default imports...

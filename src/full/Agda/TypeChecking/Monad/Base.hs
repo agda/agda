@@ -120,7 +120,7 @@ import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Boolean   ( fromBool, toBool )
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.FileId    as X ( FileId, MonadFileId( idFromFile, fileFromId ) )
-import Agda.Utils.FileId    ( FileDictBuilder, getIdFile )
+import Agda.Utils.FileId    ( FileDictBuilder, GetFileId(getFileId), GetIdFile(getIdFile) )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash
@@ -355,10 +355,13 @@ data SessionTCState = SessionTCState
       --   Needs to be a strict field to avoid space leaks!
   , stSessionBackends  :: [Backend]
       -- ^ Backends with their options.
-  , stSessionFileDict  :: !FileDictBuilder
+  , stSessionFileDict  :: !FileDictWithBuiltins
       -- ^ Map file names to unique 'FileId' and back.
       --   Assuming we do not see terribly many different files during one Agda session,
       --   this map needs not be garbage-collected.
+      --
+      --   Also informs about whether a 'FileId' belongs to one of
+      --   Agda's primitive and builtin modules.
   }
   deriving (Generic)
 
@@ -412,10 +415,11 @@ type CurrentTypeCheckLog = [(TypeCheckAction, PostScopeState)]
 --
 --   * 'EnterSection', entering the main module.
 --
---   * 'Decl'/'EnterSection'/'LeaveSection', for declarations and nested
+--   * 'Decl'\/'EnterSection'\/'LeaveSection', for declarations and nested
 --     modules
 --
 --   * 'LeaveSection', leaving the main module.
+--
 data TypeCheckAction
   = EnterSection !Erased !ModuleName !A.Telescope
   | LeaveSection !ModuleName
@@ -427,29 +431,30 @@ data TypeCheckAction
 
 -- | Empty session state.
 
-instance Null SessionTCState where
-  empty = SessionTCState
-    { stSessionFileDict  = empty
+initFileDict :: AbsolutePath -> FileDictWithBuiltins
+initFileDict primLibDir = FileDictWithBuiltins empty empty primLibDir
+
+initSessionState :: AbsolutePath -> SessionTCState
+initSessionState primLibDir = SessionTCState
+    { stSessionFileDict  = initFileDict primLibDir
     , stSessionBenchmark = empty
     , stSessionBackends  = empty
     }
-  null (SessionTCState a b c) = and
-    [ null a
-    , null b
-    , null c
-    ]
 
 -- | Empty persistent state.
 
-initPersistentState :: PersistentTCState
-initPersistentState = PersistentTCSt
-  { stPersistentSession         = empty
-  , stPersistentOptions         = defaultOptions
+initPersistentState :: AbsolutePath -> PersistentTCState
+initPersistentState = initPersistentStateFromSessionState . initSessionState
+
+initPersistentStateFromSessionState :: SessionTCState -> PersistentTCState
+initPersistentStateFromSessionState s = PersistentTCSt
+  { stPersistentSession             = s
+  , stPersistentOptions             = defaultOptions
   , stPersistentTopLevelModuleNames = empty
-  , stDecodedModules            = Map.empty
-  , stInteractionOutputCallback = defaultInteractionOutputCallback
-  , stAccumStatistics           = Map.empty
-  , stPersistLoadedFileCache    = empty
+  , stDecodedModules                = Map.empty
+  , stInteractionOutputCallback     = defaultInteractionOutputCallback
+  , stAccumStatistics               = Map.empty
+  , stPersistLoadedFileCache        = empty
   }
 
 -- | An initial 'MetaId'.
@@ -529,9 +534,18 @@ initPostScopeState = PostScopeState
   , stPostForeignCode          = Map.empty
   }
 
-initState :: TCState
-initState = TCSt
-  { stPersistentState = initPersistentState
+initStateIO :: IO TCState
+initStateIO = initState <$> getPrimitiveLibDir
+
+initState :: AbsolutePath -> TCState
+initState = initStateFromSessionState . initSessionState
+
+initStateFromSessionState :: SessionTCState -> TCState
+initStateFromSessionState = initStateFromPersistentState . initPersistentStateFromSessionState
+
+initStateFromPersistentState :: PersistentTCState -> TCState
+initStateFromPersistentState s = TCSt
+  { stPersistentState = s
   , stPreScopeState   = initPreScopeState
   , stPostScopeState  = initPostScopeState
   }
@@ -560,8 +574,14 @@ lensBackends f s = f (stSessionBackends s) <&> \ x -> s { stSessionBackends = x 
 lensBenchmark :: Lens' SessionTCState Benchmark
 lensBenchmark f s = f (stSessionBenchmark s) <&> \ x -> s { stSessionBenchmark = x }
 
-lensFileDict :: Lens' SessionTCState FileDictBuilder
+lensFileDict :: Lens' SessionTCState FileDictWithBuiltins
 lensFileDict f s = f (stSessionFileDict s) <&> \ x -> s { stSessionFileDict = x }
+
+lensFileDictBuilder :: Lens' SessionTCState FileDictBuilder
+lensFileDictBuilder = lensFileDict . lensFileDictFileDictBuilder
+
+lensBuiltinModuleIds :: Lens' SessionTCState BuiltinModuleIds
+lensBuiltinModuleIds = lensFileDict . lensFileDictBuiltinModuleIds
 
 -- ** Components of 'PersistentTCState'
 
@@ -753,19 +773,24 @@ lensInstantiateBlocking f s = f (stPostInstantiateBlocking s) <&> \ x -> s { stP
 -- * @st@-prefixed lenses
 ------------------------------------------------------------------------
 
--- ** Persistent state
-
-stFileDict :: Lens' TCState FileDictBuilder
-stFileDict = lensSessionState . lensFileDict
-
-stLoadedFileCache :: Lens' TCState (Maybe LoadedFileCache)
-stLoadedFileCache = lensPersistentState . lensLoadedFileCache . Strict.lensMaybeLazy
+-- ** Session state
 
 stBackends :: Lens' TCState [Backend]
 stBackends = lensSessionState . lensBackends
 
 stBenchmark :: Lens' TCState Benchmark
 stBenchmark = lensSessionState . lensBenchmark
+
+stFileDict :: Lens' TCState FileDictWithBuiltins
+stFileDict = lensSessionState . lensFileDict
+
+stBuiltinModuleIds :: Lens' TCState BuiltinModuleIds
+stBuiltinModuleIds = lensSessionState . lensBuiltinModuleIds
+
+-- ** Persistent state
+
+stLoadedFileCache :: Lens' TCState (Maybe LoadedFileCache)
+stLoadedFileCache = lensPersistentState . lensLoadedFileCache . Strict.lensMaybeLazy
 
 stTopLevelModuleNames :: Lens' TCState (BiMap RawTopLevelModuleName ModuleNameHash)
 stTopLevelModuleNames = lensPersistentState . lensTopLevelModuleNames
@@ -1172,6 +1197,12 @@ instance (MonadStConcreteNames m, Monoid w) => MonadStConcreteNames (WriterT w m
 ---------------------------------------------------------------------------
 -- * File handling
 ---------------------------------------------------------------------------
+
+instance GetFileId FileDictWithBuiltins where
+  getFileId = getFileId . fileDictBuilder
+
+instance GetIdFile FileDictWithBuiltins where
+  getIdFile = getIdFile . fileDictBuilder
 
 -- | Get the file name of a 'SourceFile'.
 
@@ -6172,7 +6203,7 @@ runTCMTop m = (Right <$> runTCMTop' m) `E.catch` (return . Left)
 
 runTCMTop' :: MonadIO m => TCMT m a -> m a
 runTCMTop' m = do
-  r <- liftIO $ newIORef initState
+  r <- liftIO $ newIORef =<< initStateIO
   unTCM m r initEnv
 
 -- | 'runSafeTCM' runs a safe 'TCM' action (a 'TCM' action which

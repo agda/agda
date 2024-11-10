@@ -44,7 +44,7 @@ import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
   (getIncludeDirs, libToTCM)
-import Agda.TypeChecking.Monad.State (topLevelModuleName)
+import Agda.TypeChecking.Monad.State ( registerFileIdWithBuiltin, topLevelModuleName )
 import Agda.TypeChecking.Monad.Trace (runPM, setCurrentRange)
 import Agda.TypeChecking.Warnings    (warning)
 
@@ -201,7 +201,7 @@ findFile'' dirs m = do
       existingFiles  <- liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
       case nubOn id existingFiles of
         [file]   -> do
-          let (i, dict') = registerFileId file dict
+          let (i, dict') = registerFileIdWithBuiltin file dict
           let src = SourceFile i
           put $ ModuleToSource dict' $ Map.insert m src modToSrc
           return (Right src)

@@ -13,10 +13,12 @@ import           Control.Monad.Reader  (ReaderT)
 import           Control.Monad.State   (StateT)
 import           Control.Monad.Trans   (MonadTrans, lift)
 
+import           Data.Bifunctor        (second)
 import           Data.EnumMap          (EnumMap)
 import qualified Data.EnumMap          as EnumMap
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
+import           Data.Maybe            (fromMaybe)
 import           Data.Word             (Word32)
 
 import           GHC.Generics          (Generic)
@@ -60,10 +62,23 @@ data FileDictBuilder = FileDictBuilder
 
 -- | Register a new file identifier or retrieve an existing one.
 registerFileId :: File -> FileDictBuilder -> (FileId, FileDictBuilder)
-registerFileId  f d@(FileDictBuilder n (FileDict fileToId idToFile)) =
+registerFileId f d = second (fromMaybe d) $ registerFileId'' f d
+
+-- | Register a new file identifier ('True') or retrieve an existing one ('False').
+registerFileId' :: File -> FileDictBuilder -> ((FileId, Bool), FileDictBuilder)
+registerFileId' f d =
+  case registerFileId'' f d of
+    (i, Nothing) -> ((i, False), d)
+    (i, Just d') -> ((i, True), d')
+
+-- | Register a new file identifier or retrieve an existing one.
+--
+--   If 'Nothing' is returned, the file was already registered.
+registerFileId'' :: File -> FileDictBuilder -> (FileId, Maybe FileDictBuilder)
+registerFileId''  f d@(FileDictBuilder n (FileDict fileToId idToFile)) =
   case Map.lookup f fileToId of
-    Just i  -> (i, d)
-    Nothing -> (n, FileDictBuilder (n + 1) (FileDict fileToId' idToFile'))
+    Just i  -> (i, Nothing)
+    Nothing -> (n, Just $ FileDictBuilder (n + 1) (FileDict fileToId' idToFile'))
   where
     fileToId' = Map.insert f n fileToId
     idToFile' = EnumMap.insert n f idToFile
