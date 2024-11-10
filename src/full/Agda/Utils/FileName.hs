@@ -148,6 +148,14 @@ relativizeAbsolutePath apath aroot
     -- always be different from @path@ if @path@ is relative to @root@.
     -- In the extreme case, @root = "/"@ and @path == "/" ++ rest@.
 
+-- -- Andreas, 2024-11-10, extracted from 'stripPrimitiveLibDir':
+-- -- This is a simple implementation of 'relativizeAbsolutePath' using 'splitDirectories'.
+-- stripDir :: AbsolutePath -> AbsolutePath -> Maybe FilePath
+-- stripDir dir file =
+--   joinPath <$> List.stripPrefix (split dir) (split file)
+--   where
+--     split = splitDirectories . filePath
+
 -- | Makes a path relative to a root without assuming that either path is
 -- canonical.
 

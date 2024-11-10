@@ -1463,7 +1463,7 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
   safeButNotBuiltin <- and2M
     -- NB: BlockArguments allow bullet-point style argument lists using @do@, hehe!
     do pure isSafe
-    do not <$> do Lens.isBuiltinModuleWithSafePostulates . filePath =<< getCurrentPath
+    do not <$> do isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< asksTC envCurrentPath
 
   -- We need to pass the fixities to the nicifier for clause grouping.
   fixs <- useScope scopeFixities
@@ -1768,7 +1768,7 @@ instance ToAbstract NiceDeclaration where
       -- check that we do not postulate in --safe mode, unless it is a
       -- builtin module with safe postulates
       whenM ((Lens.getSafeMode <$> commandLineOptions) `and2M`
-             (not <$> (Lens.isBuiltinModuleWithSafePostulates . filePath =<< getCurrentPath)))
+             (not <$> (isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< asksTC envCurrentPath)))
             (warning $ SafeFlagPostulate x)
       -- check the postulate
       singleton <$> toAbstractNiceAxiom AxiomName d
