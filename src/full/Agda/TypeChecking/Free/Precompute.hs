@@ -5,21 +5,20 @@ module Agda.TypeChecking.Free.Precompute
   ( PrecomputeFreeVars, precomputeFreeVars
   , precomputedFreeVars, precomputeFreeVars_ ) where
 
-import Control.Monad.Writer
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
+import Control.Monad.Writer ( Writer, runWriter, censor, listen, tell )
+
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-
-
-type FV = Writer IntSet
+type FV = Writer VarSet
 
 precomputeFreeVars_ :: PrecomputeFreeVars a => a -> a
 precomputeFreeVars_ = fst . runWriter . precomputeFreeVars
 
-precomputedFreeVars :: PrecomputeFreeVars a => a -> IntSet
+precomputedFreeVars :: PrecomputeFreeVars a => a -> VarSet
 precomputedFreeVars = snd . runWriter . precomputeFreeVars
 
 class PrecomputeFreeVars a where
@@ -51,14 +50,14 @@ instance PrecomputeFreeVars a => PrecomputeFreeVars (Dom a) where
 instance PrecomputeFreeVars a => PrecomputeFreeVars (Abs a) where
   precomputeFreeVars (NoAbs x b) = NoAbs x <$> precomputeFreeVars b
   precomputeFreeVars (Abs x b) =
-    censor (IntSet.map (subtract 1) . IntSet.delete 0) $
+    censor (VarSet.mapMonotonic pred . VarSet.delete 0) $
       Abs x <$> precomputeFreeVars b
 
 instance PrecomputeFreeVars Term where
   precomputeFreeVars t =
     case t of
       Var x es -> do
-        tell (IntSet.singleton x)
+        tell (VarSet.singleton x)
         Var x <$> precomputeFreeVars es
       Lam i b    -> Lam i      <$> precomputeFreeVars b
       Lit{}      -> pure t
