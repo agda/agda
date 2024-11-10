@@ -102,7 +102,10 @@ data Binder a = Binder Int a
 
 instance HasFree a => HasFree (Binder a) where
   freeVars (Binder 0 x) = freeVars x
-  freeVars (Binder k x) = IntMap.filterWithKey (\ k _ -> k >= 0) $ IntMap.mapKeysMonotonic (subtract k) $ freeVars x
+  freeVars (Binder k x) = dropNeg $ IntMap.mapKeysMonotonic (subtract k) $ freeVars x
+    where
+      -- keep only elements > -1
+      dropNeg = snd . IntMap.split (-1)
 
 newtype InSeq a = InSeq a
 

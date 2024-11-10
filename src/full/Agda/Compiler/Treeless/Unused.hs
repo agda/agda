@@ -82,7 +82,7 @@ computeUnused q t = iterateUntilM (==) $ \ used -> do
 
     underBinder = underBinders 1
     underBinders 0 = id
-    underBinders n = VarSet.filter (>= 0) . VarSet.subtract n
+    underBinders n = VarSet.filterGE 0 . VarSet.subtract n
 
 stripUnusedArguments :: [ArgUsage] -> TTerm -> TTerm
 stripUnusedArguments used t = mkTLam m $ applySubst rho b
