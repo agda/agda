@@ -7,16 +7,8 @@ module Agda.Compiler.Treeless.Unused
 
 import Data.Maybe
 
-import qualified Data.Set as Set
-  -- Andreas, 2021-02-10
-  -- TODO: Replace Set by IntSet.
-  -- However, this has to wait until we can comfortably bump to
-  -- containers-0.6.3.1, which is the first to contain IntSet.mapMonotonic.
-  -- Currently, such a constraints gets us into cabal hell.
-  -- GHC 8.10 is still shipped with 0.6.2.1, so we either have to wait
-  -- until we drop GHC 8 or until we adopt v2-cabal.
-
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty   ( prettyShow )
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
@@ -25,7 +17,7 @@ import Agda.Compiler.Treeless.Pretty () -- instance only
 
 import Agda.Utils.Function ( iterateUntilM )
 import Agda.Utils.List     ( downFrom )
-import Agda.Syntax.Common.Pretty   ( prettyShow )
+import qualified Agda.Utils.VarSet as VarSet
 
 usedArguments :: QName -> TTerm -> TCM [ArgUsage]
 usedArguments q t = computeUnused q b (replicate n ArgUnused)
@@ -47,42 +39,42 @@ computeUnused q t = iterateUntilM (==) $ \ used -> do
   -- The new usage information is the free variables of @t@,
   -- computed under the current usage assumptions of the functions it calls.
   fv <- go t
-  return $ [ if Set.member i fv then ArgUsed else ArgUnused
+  return $ [ if VarSet.member i fv then ArgUsed else ArgUnused
            | i <- downFrom (length used)
            ]
   where
     go = \case
-      TVar x    -> pure $ Set.singleton x
-      TPrim{}   -> pure Set.empty
-      TDef{}    -> pure Set.empty
-      TLit{}    -> pure Set.empty
-      TCon{}    -> pure Set.empty
+      TVar x    -> pure $ VarSet.singleton x
+      TPrim{}   -> pure VarSet.empty
+      TDef{}    -> pure VarSet.empty
+      TLit{}    -> pure VarSet.empty
+      TCon{}    -> pure VarSet.empty
 
       TApp (TDef f) ts -> do
         used <- fromMaybe [] <$> getCompiledArgUse f
-        Set.unions <$> sequence [ go t | (t, ArgUsed) <- zip ts $ used ++ repeat ArgUsed ]
+        VarSet.unions <$> sequence [ go t | (t, ArgUsed) <- zip ts $ used ++ repeat ArgUsed ]
 
-      TApp f ts -> Set.unions <$> mapM go (f : ts)
+      TApp f ts -> VarSet.unions <$> mapM go (f : ts)
       TLam b    -> underBinder <$> go b
       TLet e b  -> do
         uses <- go b
-        if | Set.member 0 uses -> Set.union (underBinder uses) <$> go e
-           | otherwise         -> pure (underBinder uses)
+        if | VarSet.member 0 uses -> VarSet.union (underBinder uses) <$> go e
+           | otherwise            -> pure (underBinder uses)
       TCase x i d bs ->
         let e    = caseErased i
-            cont = Set.unions <$> ((:) <$> go d <*> mapM (goAlt e) bs) in
+            cont = VarSet.unions <$> ((:) <$> go d <*> mapM (goAlt e) bs) in
         case e of
           Erased{}    -> cont
-          NotErased{} -> Set.insert x <$> cont
-      TUnit{}   -> pure Set.empty
-      TSort{}   -> pure Set.empty
-      TErased{} -> pure Set.empty
-      TError{}  -> pure Set.empty
+          NotErased{} -> VarSet.insert x <$> cont
+      TUnit{}   -> pure VarSet.empty
+      TSort{}   -> pure VarSet.empty
+      TErased{} -> pure VarSet.empty
+      TError{}  -> pure VarSet.empty
       TCoerce t -> go t
 
     goAlt _ (TALit _   b) = go b
     goAlt e (TAGuard g b) = case e of
-      NotErased{} -> Set.union <$> go g <*> go b
+      NotErased{} -> VarSet.union <$> go g <*> go b
       Erased{}    -> -- The guard will not be executed if the match
                      -- is on an erased argument.
                      go b
@@ -90,7 +82,7 @@ computeUnused q t = iterateUntilM (==) $ \ used -> do
 
     underBinder = underBinders 1
     underBinders 0 = id
-    underBinders n = Set.filter (>= 0) . Set.mapMonotonic (subtract n)
+    underBinders n = VarSet.filter (>= 0) . VarSet.subtract n
 
 stripUnusedArguments :: [ArgUsage] -> TTerm -> TTerm
 stripUnusedArguments used t = mkTLam m $ applySubst rho b

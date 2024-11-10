@@ -222,9 +222,9 @@ makeEnv scope = do
         , foldPatternSynonyms = foldPatSyns
         }
   where
-    defs = Set.map nameParts . Map.keysSet $
-        Map.filterWithKey usefulDef $
-        nsNames $ everythingInScope scope
+    defs = Set.fromList $ map (nameParts . fst) $
+        filter (uncurry usefulDef) $
+        Map.toList $ nsNames $ everythingInScope scope
 
     -- Jesper, 2018-12-10: It's fine to shadow generalizable names as
     -- they will never show up directly in printed terms.
@@ -443,10 +443,9 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
   where
     takenNames :: MonadToConcrete m => m (Set RawName)
     takenNames = do
-      ys0 <- asks takenVarNames
-      reportSLn "toConcrete.bindName" 90 $ render $ "abstract names of local vars: " <+> prettyList_ (map (C.nameToRawName . nameConcrete) $ Set.toList ys0)
-      ys <- Set.fromList . concat <$> mapM hasConcreteNames (Set.toList ys0)
-      return $ Set.map C.nameToRawName ys
+      ys0 <- Set.toList <$> asks takenVarNames
+      reportSLn "toConcrete.bindName" 90 $ render $ "abstract names of local vars: " <+> prettyList_ (map (C.nameToRawName . nameConcrete) ys0)
+      Set.fromList . map C.nameToRawName . concat <$> mapM hasConcreteNames ys0
 
 
 -- | Add a abstract name to the scope and produce an available concrete version of it.

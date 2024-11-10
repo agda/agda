@@ -24,8 +24,6 @@ import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
-import qualified Data.IntSet as IntSet
-import Data.IntSet (IntSet)
 
 import qualified Agda.Benchmarking as Bench
 
@@ -57,6 +55,8 @@ import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Size
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
@@ -941,9 +941,9 @@ killedType args b = do
   let n = length args
   let iargs = zip (downFrom n) args
 
-  -- Turn list of bools into an IntSet containing the variables we want to kill
+  -- Turn list of bools into an VarSet containing the variables we want to kill
   -- (indices relative to b).
-  let tokill = IntSet.fromList [ i | (i, (_, True)) <- iargs ]
+  let tokill = VarSet.fromList [ i | (i, (_, True)) <- iargs ]
 
   -- First, check the free variables of b to see if they prevent any kills.
   (tokill, b) <- reallyNotFreeIn tokill b
@@ -951,13 +951,13 @@ killedType args b = do
   -- Then recurse over the telescope (right-to-left), building up the final type.
   (killed, b) <- go (reverse $ map fst args) tokill b
 
-  -- Turn the IntSet of killed variables into the list of Arg Bool's to return.
-  let kills = [ Arg (getArgInfo dom) (IntSet.member i killed)
+  -- Turn the VarSet of killed variables into the list of Arg Bool's to return.
+  let kills = [ Arg (getArgInfo dom) (VarSet.member i killed)
               | (i, (dom, _)) <- iargs ]
   return (kills, b)
   where
-    down = IntSet.map pred
-    up   = IntSet.map succ
+    down = VarSet.mapMonotonic pred
+    up   = VarSet.mapMonotonic succ
 
     -- go Δ xs B
     -- Invariants:
@@ -969,19 +969,19 @@ killedType args b = do
     --    where Δ' ⊆ Δ  (possibly reduced to remove dependencies, see #3177)
     --          ys ⊆ xs are the variables that were dropped from Δ
     --          B' = strengthen ys B
-    go :: (MonadReduce m) => [Dom (ArgName, Type)] -> IntSet -> Type -> m (IntSet, Type)
-    go [] xs b | IntSet.null xs = return (xs, b)
+    go :: (MonadReduce m) => [Dom (ArgName, Type)] -> VarSet -> Type -> m (VarSet, Type)
+    go [] xs b | VarSet.null xs = return (xs, b)
                | otherwise      = __IMPOSSIBLE__
     go (arg : args) xs b  -- go (Δ (x : A)) xs B, (x = deBruijn index 0)
-      | IntSet.member 0 xs = do
+      | VarSet.member 0 xs = do
           -- Case x ∈ xs. We know x ∉ FV(B), so we can safely drop x from the
           -- telescope. Drop x from xs (and shift indices) and recurse with
           -- `strengthen x B`.
-          let ys = down (IntSet.delete 0 xs)
+          let ys = down (VarSet.delete 0 xs)
           (ys, b) <- go args ys $ strengthen impossible b
           -- We need to return a set of killed variables relative to Δ (x : A), so
           -- shift ys and add x back in.
-          return (IntSet.insert 0 $ up ys, b)
+          return (VarSet.insert 0 $ up ys, b)
       | otherwise = do
           -- Case x ∉ xs. We either can't or don't want to get rid of x. In
           -- this case we have to check A for potential dependencies preventing
@@ -995,23 +995,23 @@ killedType args b = do
           -- Shift back up to make it relative to Δ (x : A) again.
           return (up zs, b)
 
-reallyNotFreeIn :: (MonadReduce m) => IntSet -> Type -> m (IntSet, Type)
-reallyNotFreeIn xs a | IntSet.null xs = return (xs, a) -- Shortcut
+reallyNotFreeIn :: (MonadReduce m) => VarSet -> Type -> m (VarSet, Type)
+reallyNotFreeIn xs a | VarSet.null xs = return (xs, a) -- Shortcut
 reallyNotFreeIn xs a = do
   let fvs      = freeVars a
       anywhere = allVars fvs
-      rigid    = IntSet.unions [stronglyRigidVars fvs, unguardedVars fvs]
-      nonrigid = IntSet.difference anywhere rigid
-      hasNo    = IntSet.disjoint xs
+      rigid    = VarSet.unions [stronglyRigidVars fvs, unguardedVars fvs]
+      nonrigid = VarSet.difference anywhere rigid
+      hasNo    = VarSet.disjoint xs
   if hasNo nonrigid
     then
        -- No non-rigid occurrences. We can't do anything about the rigid
        -- occurrences so drop those and leave `a` untouched.
-       return (IntSet.difference xs rigid, a)
+       return (VarSet.difference xs rigid, a)
     else do
       -- If there are non-rigid occurrences we need to reduce a to see if
       -- we can get rid of them (#3177).
-      (fvs, a) <- forceNotFree (IntSet.difference xs rigid) a
+      (fvs, a) <- forceNotFree (VarSet.difference xs rigid) a
       let xs = IntMap.keysSet $ IntMap.filter (== NotFree) fvs
       return (xs, a)
 
