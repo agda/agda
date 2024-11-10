@@ -51,7 +51,7 @@ instance PrecomputeFreeVars a => PrecomputeFreeVars (Dom a) where
 instance PrecomputeFreeVars a => PrecomputeFreeVars (Abs a) where
   precomputeFreeVars (NoAbs x b) = NoAbs x <$> precomputeFreeVars b
   precomputeFreeVars (Abs x b) =
-    censor (IntSet.map (subtract 1) . IntSet.delete 0) $
+    censor (IntSet.mapMonotonic pred . IntSet.delete 0) $
       Abs x <$> precomputeFreeVars b
 
 instance PrecomputeFreeVars Term where

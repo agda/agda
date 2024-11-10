@@ -17,7 +17,7 @@ import Data.IntSet as IntSet
 type VarSet = IntSet
 
 subtract :: Int -> VarSet -> VarSet
-subtract n = IntSet.map (Prelude.subtract n)
+subtract n = IntSet.mapMonotonic (Prelude.subtract n)
 
 {-
 import Data.Bits

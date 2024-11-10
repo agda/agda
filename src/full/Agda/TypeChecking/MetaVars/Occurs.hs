@@ -956,8 +956,8 @@ killedType args b = do
               | (i, (dom, _)) <- iargs ]
   return (kills, b)
   where
-    down = IntSet.map pred
-    up   = IntSet.map succ
+    down = IntSet.mapMonotonic pred
+    up   = IntSet.mapMonotonic succ
 
     -- go Δ xs B
     -- Invariants:
