@@ -37,6 +37,7 @@ jobs:
         # "most canonical", since this is the deploy action.
         # As of today (2024-02-05), the actual version information can be found in
         # https://github.com/actions/runner-images#available-images
+        # 2024-11-03, #7601: macos-13 for deploying Intel binary, macos-14 for ARM
         os: [windows-latest, macos-14, macos-13, ubuntu-latest]
         ghc-ver: ['9.10']
         cabal-ver: [latest]
@@ -283,7 +284,7 @@ jobs:
 
     - name: Display the version information
       run: |
-        ${{ steps.vars.outputs.bindist }}/bin/agda --version
+        Agda_datadir="${{ steps.vars.outputs.bindist }}/data" "${{ steps.vars.outputs.bindist }}/bin/agda" --version
 
     - name: Pack artefacts
       run: |

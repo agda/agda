@@ -212,7 +212,7 @@ jobs:
         file "${{ steps.vars.outputs.bindist }}/bin/agda"
     - name: Display the version information
       run: |
-        ${{ steps.vars.outputs.bindist }}/bin/agda --version
+        Agda_datadir="${{ steps.vars.outputs.bindist }}/data" "${{ steps.vars.outputs.bindist }}/bin/agda" --version
     - name: Pack artefacts
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
