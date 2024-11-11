@@ -61,12 +61,11 @@ runAgda backends = runAgda' $ builtinBackends ++ backends
 
 -- | The main function without importing built-in backends
 runAgda' :: [Backend] -> IO ()
-runAgda' backends = runTCMPrettyErrors $ do
-  progName <- liftIO getProgName
-  argv     <- liftIO getArgs
+runAgda' backends = do
+  progName <- getProgName
+  argv     <- getArgs
   let (z, warns) = runOptM $ parseBackendOptions backends argv defaultOptions
-  mapM_ (warning . OptionWarning) warns
-  conf     <- liftIO $ runExceptT $ do
+  conf     <- runExceptT $ do
     (bs, opts) <- ExceptT $ pure z
     -- The absolute path of the input file, if provided
     inputFile <- liftIO $ mapM absolute $ optInputFile opts
@@ -74,30 +73,33 @@ runAgda' backends = runTCMPrettyErrors $ do
     return (bs, opts, mode)
 
   case conf of
-    Left err -> liftIO $ optionError err
+    Left err -> optionError err
     Right (bs, opts, mode) -> do
 
-      when (optTransliterate opts) $ liftIO $ do
-        -- When --interaction or --interaction-json is used, then we
-        -- use UTF-8 when writing to stdout (and when reading from
-        -- stdin).
-        if optGHCiInteraction opts || optJSONInteraction opts
-        then optionError $
-               "The option --transliterate must not be combined with " ++
-               "--interaction or --interaction-json"
-        else do
-          -- Transliterate unsupported code points.
-          enc <- IO.mkTextEncoding
-                   (show IO.localeEncoding ++ "//TRANSLIT")
-          IO.hSetEncoding IO.stdout enc
-          IO.hSetEncoding IO.stderr enc
-
       case mode of
-        MainModePrintHelp hp     -> liftIO $ printUsage bs hp
-        MainModePrintVersion o   -> liftIO $ printVersion bs o
-        MainModePrintAgdaDataDir -> liftIO $ printAgdaDataDir
-        MainModePrintAgdaAppDir  -> liftIO $ printAgdaAppDir
-        MainModeRun interactor   -> do
+        MainModePrintHelp hp     -> printUsage bs hp
+        MainModePrintVersion o   -> printVersion bs o
+        MainModePrintAgdaDataDir -> printAgdaDataDir
+        MainModePrintAgdaAppDir  -> printAgdaAppDir
+
+        MainModeRun interactor   -> runTCMPrettyErrors do
+
+          mapM_ (warning . OptionWarning) warns
+
+          when (optTransliterate opts) $ liftIO $ do
+            -- When --interaction or --interaction-json is used, then we
+            -- use UTF-8 when writing to stdout (and when reading from
+            -- stdin).
+            if optGHCiInteraction opts || optJSONInteraction opts
+            then optionError $
+                   "The option --transliterate must not be combined with " ++
+                   "--interaction or --interaction-json"
+            else do
+              -- Transliterate unsupported code points.
+              enc <- IO.mkTextEncoding (show IO.localeEncoding ++ "//TRANSLIT")
+              IO.hSetEncoding IO.stdout enc
+              IO.hSetEncoding IO.stderr enc
+
           setTCLens stBackends bs
           runAgdaWithOptions interactor progName opts
 
