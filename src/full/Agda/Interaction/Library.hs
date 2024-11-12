@@ -252,12 +252,6 @@ builtinModules :: Set FilePath
 builtinModules = builtinModulesWithSafePostulates `Set.union`
                  builtinModulesWithUnsafePostulates
 
--- UNUSED:
--- -- | Determine whether the given absolute path refers to one of Agda's primitive modules.
--- --
--- classifyBuiltinModule :: MonadIO m => AbsolutePath -> m (Maybe IsBuiltinModule)
--- classifyBuiltinModule fp = liftIO getPrimitiveLibDir <&> (`classifyBuiltinModule_` fp)
-
 -- | Determine whether the second absolute path refers to one of Agda's primitive modules.
 --   The first argument should be the result of 'getPrimitiveLibDir'.
 --
@@ -268,12 +262,6 @@ classifyBuiltinModule_ primLibDir fp = do
   if f `Set.member` builtinModulesWithUnsafePostulates then return IsBuiltinModule
   else if f `Set.member` primitiveModules then return IsPrimitiveModule
   else return IsBuiltinModuleWithSafePostulates
-
--- | Strip the (absolute) 'getPrimitiveLibDir' off the given absolute 'FilePath',
---   returning the suffix if successful.
---
-stripPrimitiveLibDir :: MonadIO m => AbsolutePath -> m (Maybe FilePath)
-stripPrimitiveLibDir file = relativizeAbsolutePath file <$> liftIO getPrimitiveLibDir
 
 ------------------------------------------------------------------------
 -- * Get the libraries for the current project

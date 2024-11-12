@@ -443,7 +443,7 @@ typeCheckMain mode src = do
 
   when loadPrims $ do
     reportSLn "import.main" 10 "Importing the primitive modules."
-    libdirPrim <- liftIO getPrimitiveLibDir
+    libdirPrim <- useTC stPrimitiveLibDir
     reportSLn "import.main" 20 $ "Library primitive dir = " ++ show libdirPrim
     -- Turn off import-chasing messages.
     -- We have to modify the persistent verbosity setting, since

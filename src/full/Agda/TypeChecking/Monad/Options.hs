@@ -292,7 +292,7 @@ setIncludeDirs incs root = do
   incs <- return $ fmap (mkAbsolute . (filePath root </>)) incs
 
   -- Andreas, 2013-10-30  Add default include dir
-  primdir <- liftIO getPrimitiveLibDir
+  primdir <- useTC stPrimitiveLibDir
       -- We add the default dir at the end, since it is then
       -- printed last in error messages.
       -- Might also be useful to overwrite default imports...

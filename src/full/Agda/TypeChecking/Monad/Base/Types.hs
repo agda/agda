@@ -111,11 +111,13 @@ data FileDictWithBuiltins = FileDictWithBuiltins
       -- ^ (Building a) translation between 'AbsolutePath' and 'FileId'.
   , builtinModuleIds :: !BuiltinModuleIds
       -- ^ For the known 'FileId's, remember whether they refer to Agda's builtin modules.
-  , primitiveLibDir  :: !AbsolutePath
+  , primitiveLibDir  :: !PrimitiveLibDir
       -- ^ The absolute path to the directory with the builtin modules.
       --   Needs to be set upon initialization.
   }
   deriving Generic
+
+type PrimitiveLibDir = AbsolutePath
 
 -- | 'SourceFile's must exist and be registered in our file dictionary.
 
@@ -138,6 +140,9 @@ lensFileDictFileDictBuilder f s = f (fileDictBuilder s) <&> \ x -> s { fileDictB
 
 lensFileDictBuiltinModuleIds :: Lens' FileDictWithBuiltins BuiltinModuleIds
 lensFileDictBuiltinModuleIds f s = f (builtinModuleIds s) <&> \ x -> s { builtinModuleIds = x }
+
+lensFileDictPrimitiveLibDir :: Lens' FileDictWithBuiltins PrimitiveLibDir
+lensFileDictPrimitiveLibDir f s = f (primitiveLibDir s) <&> \ x -> s { primitiveLibDir = x }
 
 lensPairModuleToSource :: Lens' (FileDictWithBuiltins, ModuleToSourceId) ModuleToSource
 lensPairModuleToSource = iso (uncurry ModuleToSource) (fileDict &&& moduleToSourceId)

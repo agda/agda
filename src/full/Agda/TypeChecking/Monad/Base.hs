@@ -583,6 +583,9 @@ lensFileDictBuilder = lensFileDict . lensFileDictFileDictBuilder
 lensBuiltinModuleIds :: Lens' SessionTCState BuiltinModuleIds
 lensBuiltinModuleIds = lensFileDict . lensFileDictBuiltinModuleIds
 
+lensPrimitiveLibDir :: Lens' SessionTCState PrimitiveLibDir
+lensPrimitiveLibDir = lensFileDict . lensFileDictPrimitiveLibDir
+
 -- ** Components of 'PersistentTCState'
 
 lensPersistentSession :: Lens' PersistentTCState SessionTCState
@@ -786,6 +789,9 @@ stFileDict = lensSessionState . lensFileDict
 
 stBuiltinModuleIds :: Lens' TCState BuiltinModuleIds
 stBuiltinModuleIds = lensSessionState . lensBuiltinModuleIds
+
+stPrimitiveLibDir :: Lens' TCState PrimitiveLibDir
+stPrimitiveLibDir = lensSessionState . lensPrimitiveLibDir
 
 -- ** Persistent state
 
