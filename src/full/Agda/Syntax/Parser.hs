@@ -107,7 +107,7 @@ data Parser a = Parser
   }
 
 type LiterateParser a =
-  Parser a -> [Layer] -> PM (a, Attributes)
+  Parser a -> SrcFile -> [Layer] -> PM (a, Attributes)
 
 -- | Initial state for lexing.
 
@@ -136,13 +136,13 @@ parseFileFromString src p = wrapM . return . M.parseFromSrc (parseFlags p) layou
 -- | Parse with top-level layout.
 
 parseLiterateWithoutComments :: LiterateParser a
-parseLiterateWithoutComments p layers = parseFileFromString (literateSrcFile layers) p $ illiterate layers
+parseLiterateWithoutComments p f layers = parseFileFromString f p $ illiterate layers
 
 -- | Parse with top-level layout.
 
 parseLiterateWithComments :: LiterateParser [Token]
-parseLiterateWithComments p layers = do
-  (code, coh) <- parseLiterateWithoutComments p layers
+parseLiterateWithComments p f layers = do
+  (code, coh) <- parseLiterateWithoutComments p f layers
   let literate = filter (not . isCodeLayer) layers
   let (terms, overlaps) = interleaveRanges (map Left code) (map Right literate)
 
@@ -151,8 +151,8 @@ parseLiterateWithComments p layers = do
 
   return . (,coh) . forMaybe terms $ \case
       Left t                           -> Just t
-      Right (Layer Comment interval s) -> Just $ TokTeX    (interval, s)
-      Right (Layer Markup  interval s) -> Just $ TokMarkup (interval, s)
+      Right (Layer Comment interval s) -> Just $ TokTeX    (f <$ interval, s)
+      Right (Layer Markup  interval s) -> Just $ TokMarkup (f <$ interval, s)
       Right (Layer Code _ _)           -> Nothing
 
 
@@ -165,10 +165,9 @@ parseLiterateFile
      -- ^ The file contents. Note that the file is /not/ read from
      -- disk.
   -> PM (a, Attributes)
-parseLiterateFile po p path = parseLiterate p p . po (startPos (Just path))
+parseLiterateFile po p path = parseLiterate p p (pure path) . po (startPos' ())
 
-parsePosString ::
-  Parser a -> Position -> String -> PM (a, Attributes)
+parsePosString :: Parser a -> Position -> String -> PM (a, Attributes)
 parsePosString p pos = wrapM . return . M.parsePosString pos (parseFlags p) normalLexState (parser p)
 
 -- | Extensions supported by `parseFile`.

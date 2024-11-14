@@ -142,7 +142,7 @@ instance Pretty PositionWithoutFile where
   pretty p = pretty (p { srcFile = Strict.Nothing } :: Position)
 
 instance Pretty IntervalWithoutFile where
-  pretty (Interval s e) = start <> "-" <> end
+  pretty (Interval () s e) = start <> "-" <> end
     where
       sl = posLine s
       el = posLine e
@@ -157,10 +157,10 @@ instance Pretty IntervalWithoutFile where
         | otherwise = pretty el <> dot <> pretty ec
 
 instance Pretty a => Pretty (Interval' (Strict.Maybe a)) where
-  pretty i@(Interval s _) = file <> pretty (setIntervalFile () i)
+  pretty i@(Interval f s e) = file <> pretty (Interval () s e)
     where
       file :: Doc
-      file = case srcFile s of
+      file = case f of
                Strict.Nothing -> empty
                Strict.Just f  -> pretty f <> colon
 

@@ -5,6 +5,7 @@ module Agda.Utils.Tuple
   , mapFst
   , mapSnd
   , (/\)
+  , sortPair
   , fst3
   , snd3
   , thd3
@@ -43,6 +44,12 @@ mapSnd = second
 -- | Lifted pairing.
 (/\) :: (a -> b) -> (a -> c) -> a -> (b,c)
 (/\) = (&&&)
+
+-- | Order a pair.
+sortPair :: Ord a => (a, a) -> (a, a)
+sortPair p@(x, y)
+  | x <= y    = p
+  | otherwise = (y, x)
 
 -- * Triple (stolen from Data.Tuple.HT)
 

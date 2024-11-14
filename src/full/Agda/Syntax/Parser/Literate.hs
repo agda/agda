@@ -5,7 +5,6 @@
 module Agda.Syntax.Parser.Literate
   ( literateProcessors
   , literateExtsShortList
-  , literateSrcFile
   , literateTeX
   , literateRsT
   , literateMd
@@ -48,7 +47,7 @@ data LayerRole = Markup | Comment | Code
 
 data Layer = Layer
   { layerRole    :: LayerRole
-  , interval     :: Interval
+  , interval     :: IntervalWithoutFile
   , layerContent :: String
   } deriving Show
 
@@ -57,16 +56,19 @@ data Layer = Layer
 type Layers = [Layer]
 
 instance HasRange Layer where
-  getRange = getRange . interval
+  getRange = getRange . (f <$) . interval
+    where
+      f :: SrcFile
+      f = __IMPOSSIBLE__
 
 -- | Annotates a tokenized string with position information.
 
-mkLayers :: Position -> [(LayerRole, String)] -> Layers
+mkLayers :: PositionWithoutFile -> [(LayerRole, String)] -> Layers
 mkLayers pos []            = emptyLiterate pos
 mkLayers pos ((_,"") : xs) = mkLayers pos xs
                              -- Empty layers are ignored.
 mkLayers pos ((ty,s) : xs) =
-  Layer ty (Interval pos next) s : mkLayers next xs
+  Layer ty (Interval () pos next) s : mkLayers next xs
   where
   next = movePosByString pos s
 
@@ -85,11 +87,7 @@ atomizeLayers = (fmap <$> ((,) . fst) <*> snd) <=< unMkLayers
 --
 --   proposition> f pos s >>= layerContent == s
 
-type Processor = Position -> String -> [Layer]
-
-literateSrcFile :: [Layer] -> SrcFile
-literateSrcFile []                    = __IMPOSSIBLE__
-literateSrcFile (Layer{interval} : _) = getIntervalFile interval
+type Processor = PositionWithoutFile -> String -> [Layer]
 
 -- | List of valid extensions for literate Agda files, and their
 --   corresponding preprocessors.
@@ -162,8 +160,8 @@ caseLine a k = \case
 
 -- | Canonical decomposition of an empty literate file.
 
-emptyLiterate :: Position -> [Layer]
-emptyLiterate pos = [Layer Markup (Interval pos pos) ""]
+emptyLiterate :: PositionWithoutFile -> [Layer]
+emptyLiterate pos = [Layer Markup (Interval () pos pos) ""]
 
 -- | Create a regular expression that:
 --   - Must match the whole string
@@ -176,7 +174,7 @@ rex s =
 
 -- | Preprocessor for literate TeX.
 
-literateTeX :: Position -> String -> [Layer]
+literateTeX :: Processor
 literateTeX pos s = mkLayers pos (tex s)
   where
   tex :: String -> [(LayerRole, String)]
@@ -202,7 +200,7 @@ literateTeX pos s = mkLayers pos (tex s)
 
 -- | Preprocessor for Markdown.
 
-literateMd :: Position -> String -> [Layer]
+literateMd :: Processor
 literateMd pos s = mkLayers pos $ md s
   where
   md :: String -> [(LayerRole, String)]
@@ -240,7 +238,7 @@ literateMd pos s = mkLayers pos $ md s
 
 -- | Preprocessor for reStructuredText.
 
-literateRsT :: Position -> String -> [Layer]
+literateRsT :: Processor
 literateRsT pos s = mkLayers pos $ rst s
   where
   rst :: String -> [(LayerRole, String)]
@@ -287,7 +285,7 @@ literateRsT pos s = mkLayers pos $ rst s
 
 -- | Preprocessor for Org mode documents.
 
-literateOrg :: Position -> String -> [Layer]
+literateOrg :: Processor
 literateOrg pos s = mkLayers pos $ org s
   where
   org :: String -> [(LayerRole, String)]
@@ -318,7 +316,7 @@ literateOrg pos s = mkLayers pos $ org s
 
 -- | Preprocessor for Forester documents
 
-literateTree :: Position -> String -> [Layer]
+literateTree :: Processor
 literateTree pos s = mkLayers pos (tree s)
   where
   tree :: String -> [(LayerRole, String)]

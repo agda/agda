@@ -1914,7 +1914,11 @@ exprWhereParser :: Parser ExprWhere
 moduleParser :: Parser Module
 
 -- | Parse a display pragma.
-parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
+parseDisplayPragma ::
+      Range     -- ^ Range of the whole DISPLAY pragma.
+   -> Position  -- ^ Start of the name the thing we want to display.
+   -> String    -- ^ The DISPLAY pragma content.
+   -> Parser Pragma
 parseDisplayPragma r pos s =
   case parsePosString pos defaultParseFlags [normal] funclauseParser s of
     ParseOk s (FunClause (LHS lhs [] []) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->

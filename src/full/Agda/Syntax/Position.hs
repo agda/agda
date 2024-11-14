@@ -22,13 +22,14 @@ module Agda.Syntax.Position
     -- * Intervals
   , Interval
   , IntervalWithoutFile
-  , Interval'(..)
+  , Interval'(Interval, iStart', iEnd')
   , intervalInvariant
+  , iStart
+  , iEnd
   , posToInterval
   , getIntervalFile
   , iLength
   , fuseIntervals
-  , setIntervalFile
 
     -- * Ranges
   , Range
@@ -99,6 +100,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Set1 (Set1)
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.TypeLevel (IsBase, All, Domains)
+import Agda.Utils.Tuple (sortPair)
 
 import Agda.Utils.Impossible
 
@@ -196,7 +198,11 @@ instance NFData PositionWithoutFile where
 -- | An interval. The @iEnd@ position is not included in the interval.
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
-data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
+data Interval' a = Interval
+  { getIntervalFile :: a
+  , iStart' :: !PositionWithoutFile
+  , iEnd'   :: !PositionWithoutFile
+  }
   deriving (Show, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Interval            = Interval' SrcFile
@@ -209,31 +215,23 @@ instance NFData IntervalWithoutFile where
   rnf = (`seq` ())
 
 intervalInvariant :: Ord a => Interval' a -> Bool
-intervalInvariant i =
-  all positionInvariant [iStart i, iEnd i]
-    &&
-  iStart i <= iEnd i
-    &&
-  srcFile (iStart i) == srcFile (iEnd i)
+intervalInvariant i = and
+  [ positionInvariant $ iStart i
+  , positionInvariant $ iEnd i
+  , iStart i <= iEnd i
+  ]
 
--- | Sets the 'srcFile' components of the interval.
+iStart :: Interval' a -> Position' a
+iStart (Interval f s _) = f <$ s
 
-setIntervalFile :: a -> Interval' b -> Interval' a
-setIntervalFile f (Interval p1 p2) =
-  Interval (p1 { srcFile = f }) (p2 { srcFile = f })
-
--- | Gets the 'srcFile' component of the interval. Because of the invariant,
---   they are both the same.
-getIntervalFile :: Interval' a -> a
-getIntervalFile = srcFile . iStart
+iEnd   :: Interval' a -> Position' a
+iEnd   (Interval f _ e) = f <$ e
 
 -- | Converts a file name and two positions to an interval.
+--   Sort the positions ascendingly.
 posToInterval ::
   a -> PositionWithoutFile -> PositionWithoutFile -> Interval' a
-posToInterval f p1 p2 = setIntervalFile f $
-  if p1 < p2
-  then Interval p1 p2
-  else Interval p2 p1
+posToInterval f p1 p2 = uncurry (Interval f) $ sortPair (p1, p2)
 
 -- | The length of an interval.
 iLength :: Interval' a -> Word32
@@ -327,7 +325,7 @@ rightMargin :: Range -> Range
 rightMargin r@NoRange      = r
 rightMargin r@(Range f is) = case Seq.viewr is of
   Seq.EmptyR -> __IMPOSSIBLE__
-  _ Seq.:> i -> intervalToRange f (i { iStart = iEnd i })
+  _ Seq.:> Interval () s e -> intervalToRange f (Interval () e e)
 
 -- | Wrapper to indicate that range should be printed.
 newtype PrintRange a = PrintRange a
@@ -342,9 +340,7 @@ class HasRange a where
   {-# INLINABLE getRange #-}
 
 instance HasRange Interval where
-    getRange i =
-      intervalToRange (srcFile (iStart i))
-                      (setIntervalFile () i)
+  getRange (Interval f p1 p2) = intervalToRange f (Interval () p1 p2)
 
 instance HasRange Range where
     getRange = id
@@ -570,30 +566,21 @@ intervalToRange f i = Range f (Seq.singleton i)
 -- | Converts a range to an interval, if possible.
 rangeToIntervalWithFile :: Range' a -> Maybe (Interval' a)
 rangeToIntervalWithFile NoRange      = Nothing
-rangeToIntervalWithFile (Range f is) = case (Seq.viewl is, Seq.viewr is) of
-  (head Seq.:< _, _ Seq.:> last) -> Just $ setIntervalFile f $
-                                      Interval { iStart = iStart head
-                                               , iEnd   = iEnd   last
-                                               }
-  _                              -> __IMPOSSIBLE__
+rangeToIntervalWithFile (Range f is) =
+  case (Seq.viewl is, Seq.viewr is) of
+    (head Seq.:< _, _ Seq.:> last) -> Just $ Interval f (iStart head) (iEnd last)
+    _ -> __IMPOSSIBLE__
 
--- | Converts a range to an interval, if possible. Note that the
--- information about the source file is lost.
+-- | Converts a range to an interval, if possible.
+-- Note that the information about the source file is lost.
 rangeToInterval :: Range' a -> Maybe IntervalWithoutFile
-rangeToInterval NoRange      = Nothing
-rangeToInterval (Range _ is) = case (Seq.viewl is, Seq.viewr is) of
-  (head Seq.:< _, _ Seq.:> last) -> Just $
-                                      Interval { iStart = iStart head
-                                               , iEnd   = iEnd   last
-                                               }
-  _                              -> __IMPOSSIBLE__
+rangeToInterval = rangeToIntervalWithFile . void
 
 -- | Returns the shortest continuous range containing the given one.
 continuous :: Range' a -> Range' a
 continuous NoRange = NoRange
-continuous r@(Range f _) = case rangeToInterval r of
-  Nothing -> __IMPOSSIBLE__
-  Just i  -> intervalToRange f i
+continuous r@(Range f _) =
+  maybe __IMPOSSIBLE__ (intervalToRange f) $ rangeToInterval r
 
 -- | Removes gaps between intervals on the same line.
 continuousPerLine :: Ord a => Range' a -> Range' a
@@ -629,12 +616,8 @@ rEnd r@(Range f _) = (\p -> p { srcFile = f }) <$> rEnd' r
 
 -- | Finds the least interval which covers the arguments.
 --
--- Precondition: The intervals must point to the same file.
-fuseIntervals :: Ord a => Interval' a -> Interval' a -> Interval' a
-fuseIntervals x y = Interval { iStart = s, iEnd = e }
-    where
-    s = headWithDefault __IMPOSSIBLE__ $ sort [iStart x, iStart y]
-    e = lastWithDefault __IMPOSSIBLE__ $ sort [iEnd   x, iEnd   y]
+fuseIntervals :: IntervalWithoutFile -> IntervalWithoutFile -> IntervalWithoutFile
+fuseIntervals (Interval () s1 e1) (Interval () s2 e2) = Interval () (min s1 s2) (max e1 e2)
 
 -- | @fuseRanges r r'@ unions the ranges @r@ and @r'@.
 --
@@ -665,7 +648,7 @@ fuseRanges (Range f is1) (Range _ is2) = Range f (fuse is1 is2)
 
   mergeTouching l e s r = l Seq.>< i Seq.<| r
     where
-    i = Interval { iStart = iStart e, iEnd = iEnd s }
+    i = Interval () (iStart e) (iEnd s)
 
   -- The following two functions could use binary search instead of
   -- linear.
