@@ -1,0 +1,4 @@
+Issue7530.agda:19.9-13: error: [UnequalTerms]
+fst p != snd p of type A
+when checking that the expression refl has type
+_≡_ {Agda.Primitive.lzero} {A} (fst p) (snd p)
