@@ -3,6 +3,7 @@
 
 module Agda.Interaction.Base where
 
+import           Control.Applicative          ( liftA3 )
 import           Control.Concurrent.STM.TChan
 import           Control.Concurrent.STM.TVar
 import           Control.Monad                ( mplus, liftM2, liftM4 )
@@ -400,7 +401,7 @@ instance Read a => Read (Range' a) where
 instance Read a => Read (Interval' a) where
     readsPrec = parseToReadsPrec $ do
         exact "Interval"
-        liftM2 Interval readParse readParse
+        liftA3 Interval readParse readParse readParse
 
 instance Read AbsolutePath where
     readsPrec = parseToReadsPrec $ do

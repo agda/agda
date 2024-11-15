@@ -303,7 +303,7 @@ instance EmbPrj a => EmbPrj (Seq a) where
   value s = Seq.fromList <$!> value s
 
 instance EmbPrj a => EmbPrj (P.Interval' a) where
-  icod_ (P.Interval p q) = icodeN' P.Interval p q
+  icod_ (P.Interval f p q) = icodeN' P.Interval f p q
 
   value = valueN P.Interval
 
