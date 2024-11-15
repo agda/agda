@@ -7,6 +7,8 @@ module Agda.Syntax.Parser.Tokens
     , Symbol(..)
     ) where
 
+import Data.Functor (void)
+
 import Agda.Syntax.Literal (RLiteral)
 import Agda.Syntax.Position
 
@@ -112,3 +114,6 @@ instance HasRange Token where
   getRange (TokComment (i, _)) = getRange i
   getRange TokDummy            = noRange
   getRange (TokEOF i)          = getRange i
+
+instance HasRangeWithoutFile Token where
+  getRangeWithoutFile = void . getRange

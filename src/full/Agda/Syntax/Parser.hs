@@ -147,7 +147,7 @@ parseLiterateWithComments p f layers = do
   let (terms, overlaps) = interleaveRanges (map Left code) (map Right literate)
 
   forM_ (map fst overlaps) $ \c ->
-    warning $ OverlappingTokensWarning { warnRange = getRange c }
+    warning $ OverlappingTokensWarning { warnRange = f <$ getRangeWithoutFile c }
 
   return . (,coh) . forMaybe terms $ \case
       Left t                           -> Just t

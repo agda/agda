@@ -33,6 +33,7 @@ module Agda.Syntax.Position
 
     -- * Ranges
   , Range
+  , RangeWithoutFile
   , Range'(..)
   , rangeInvariant
   , consecutiveAndSeparated
@@ -54,6 +55,7 @@ module Agda.Syntax.Position
   , continuousPerLine
   , PrintRange(..)
   , HasRange(..)
+  , HasRangeWithoutFile(..)
   , SetRange(..)
   , KillRange(..)
   , KillRangeT
@@ -249,6 +251,7 @@ data Range' a
     (Show, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Range = Range' SrcFile
+type RangeWithoutFile = Range' ()
 
 instance NFData a => NFData (Range' a)
 
@@ -403,6 +406,58 @@ instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e, HasRange f
 
 instance (HasRange a, HasRange b) => HasRange (Either a b) where
     getRange = either getRange getRange
+
+-- | Things that have a 'RangeWithoutFile' are instances of this class.
+
+class HasRangeWithoutFile a where
+  getRangeWithoutFile :: a -> RangeWithoutFile
+
+  default getRangeWithoutFile :: (Foldable t, HasRangeWithoutFile b, t b ~ a) => a -> RangeWithoutFile
+  getRangeWithoutFile = Fold.foldr fuseRangeWithoutFile noRange
+  {-# INLINABLE getRangeWithoutFile #-}
+
+instance HasRangeWithoutFile IntervalWithoutFile where
+  getRangeWithoutFile = intervalToRange ()
+
+instance HasRangeWithoutFile RangeWithoutFile where
+    getRangeWithoutFile = id
+
+instance HasRangeWithoutFile () where
+  getRangeWithoutFile _ = noRange
+
+instance HasRangeWithoutFile Bool where
+    getRangeWithoutFile _ = noRange
+
+-- UNUSED:
+-- instance HasRangeWithoutFile (TopLevelModuleName' RangeWithoutFile) where
+--   getRangeWithoutFile = moduleNameRange
+
+instance HasRangeWithoutFile a => HasRangeWithoutFile [a]
+instance HasRangeWithoutFile a => HasRangeWithoutFile (List1 a)
+instance HasRangeWithoutFile a => HasRangeWithoutFile (List2 a)
+instance HasRangeWithoutFile a => HasRangeWithoutFile (Maybe a)
+instance HasRangeWithoutFile a => HasRangeWithoutFile (Set1 a)
+
+instance (HasRangeWithoutFile a, HasRangeWithoutFile b) => HasRangeWithoutFile (a,b) where
+    getRangeWithoutFile = uncurry fuseRangeWithoutFile
+
+instance (HasRangeWithoutFile a, HasRangeWithoutFile b, HasRangeWithoutFile c) => HasRangeWithoutFile (a,b,c) where
+    getRangeWithoutFile (x,y,z) = getRangeWithoutFile (x,(y,z))
+
+instance (HasRangeWithoutFile a, HasRangeWithoutFile b, HasRangeWithoutFile c, HasRangeWithoutFile d) => HasRangeWithoutFile (a,b,c,d) where
+    getRangeWithoutFile (x,y,z,w) = getRangeWithoutFile (x,(y,(z,w)))
+
+instance (HasRangeWithoutFile a, HasRangeWithoutFile b, HasRangeWithoutFile c, HasRangeWithoutFile d, HasRangeWithoutFile e) => HasRangeWithoutFile (a,b,c,d,e) where
+    getRangeWithoutFile (x,y,z,w,v) = getRangeWithoutFile (x,(y,(z,(w,v))))
+
+instance (HasRangeWithoutFile a, HasRangeWithoutFile b, HasRangeWithoutFile c, HasRangeWithoutFile d, HasRangeWithoutFile e, HasRangeWithoutFile f) => HasRangeWithoutFile (a,b,c,d,e,f) where
+    getRangeWithoutFile (x,y,z,w,v,u) = getRangeWithoutFile (x,(y,(z,(w,(v,u)))))
+
+instance (HasRangeWithoutFile a, HasRangeWithoutFile b, HasRangeWithoutFile c, HasRangeWithoutFile d, HasRangeWithoutFile e, HasRangeWithoutFile f, HasRangeWithoutFile g) => HasRangeWithoutFile (a,b,c,d,e,f,g) where
+    getRangeWithoutFile (x,y,z,w,v,u,t) = getRangeWithoutFile (x,(y,(z,(w,(v,(u,t))))))
+
+instance (HasRangeWithoutFile a, HasRangeWithoutFile b) => HasRangeWithoutFile (Either a b) where
+    getRangeWithoutFile = either getRangeWithoutFile getRangeWithoutFile
 
 -- | If it is also possible to set the range, this is the class.
 --
@@ -667,6 +722,12 @@ fuseRanges (Range f is1) (Range _ is2) = Range f (fuse is1 is2)
 fuseRange :: (HasRange u, HasRange t) => u -> t -> Range
 fuseRange x y = fuseRanges (getRange x) (getRange y)
 
+{-# INLINE fuseRangeWithoutFile #-}
+-- | Precondition: The ranges must point to the same file (or be
+-- empty).
+fuseRangeWithoutFile :: (HasRangeWithoutFile u, HasRangeWithoutFile t) => u -> t -> RangeWithoutFile
+fuseRangeWithoutFile x y = fuseRanges (getRangeWithoutFile x) (getRangeWithoutFile y)
+
 -- | @beginningOf r@ is an empty range (a single, empty interval)
 -- positioned at the beginning of @r@. If @r@ does not have a
 -- beginning, then 'noRange' is returned.
@@ -695,14 +756,14 @@ x `withRangeOf` y = setRange (getRange y) x
 --   is placed first. In case of a tie, the element with the earliest
 --   ending position is placed first. If both tie, the element from the
 --   first list is placed first.
-interleaveRanges :: (HasRange a) => [a] -> [a] -> ([a], [(a,a)])
+interleaveRanges :: forall a. (HasRangeWithoutFile a) => [a] -> [a] -> ([a], [(a,a)])
 interleaveRanges as bs = runWriter $ go as bs
   where
     go []         as = return as
     go as         [] = return as
     go as@(a:as') bs@(b:bs') =
-      let ra = getRange a
-          rb = getRange b
+      let ra = getRangeWithoutFile a
+          rb = getRangeWithoutFile b
 
           ra0 = rStart ra
           rb0 = rStart rb

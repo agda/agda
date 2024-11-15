@@ -55,11 +55,8 @@ data Layer = Layer
 
 type Layers = [Layer]
 
-instance HasRange Layer where
-  getRange = getRange . (f <$) . interval
-    where
-      f :: SrcFile
-      f = __IMPOSSIBLE__
+instance HasRangeWithoutFile Layer where
+  getRangeWithoutFile = getRangeWithoutFile . interval
 
 -- | Annotates a tokenized string with position information.
 
