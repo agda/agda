@@ -9,6 +9,7 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.List ( distinct )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null ( null )
+import Agda.Utils.Tuple ( sortPair )
 
 import Control.Monad
 
@@ -116,9 +117,8 @@ prop_continuousPerLine r =
       s = posLine (iStart i)
       e = posLine (iEnd   i)
 
-prop_fuseIntervals :: Interval' Integer -> Property
-prop_fuseIntervals i1 =
-  forAll (intervalInSameFileAs i1) $ \i2 ->
+prop_fuseIntervals :: IntervalWithoutFile -> IntervalWithoutFile -> Bool
+prop_fuseIntervals i1 i2 =
     let i = fuseIntervals i1 i2 in
     intervalInvariant i &&
     iPositions i ==
@@ -151,11 +151,10 @@ instance Arbitrary a => Arbitrary (Position' a) where
 -- | Generates an interval located in the same file as the given
 -- interval.
 
-intervalInSameFileAs ::
-  (Arbitrary a, Ord a) => Interval' a -> Gen (Interval' a)
-intervalInSameFileAs i =
-  setIntervalFile (srcFile $ iStart i) <$>
-    (arbitrary :: Gen IntervalWithoutFile)
+intervalInSameFileAs :: Arbitrary a => Interval' a -> Gen (Interval' a)
+intervalInSameFileAs (Interval f _ _) = do
+  i :: IntervalWithoutFile <- arbitrary
+  pure $ f <$ i
 
 prop_intervalInSameFileAs :: Interval' Integer -> Property
 prop_intervalInSameFileAs i =
@@ -212,9 +211,10 @@ instance Arbitrary RangeFile where
 
 instance (Arbitrary a, Ord a) => Arbitrary (Interval' a) where
   arbitrary = do
-    (p1, p2 :: Position' a) <- liftM2 (,) arbitrary arbitrary
-    let [p1', p2'] = sort [p1, p2 { srcFile = srcFile p1 }]
-    return (Interval p1' p2')
+    f <- arbitrary
+    (p1, p2 :: PositionWithoutFile) <- liftM2 (,) arbitrary arbitrary
+    let (p1', p2') = sortPair (p1, p2)
+    return (Interval f p1' p2')
 
 instance (Ord a, Arbitrary a) => Arbitrary (Range' a) where
   arbitrary = do

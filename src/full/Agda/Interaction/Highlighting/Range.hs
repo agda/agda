@@ -93,9 +93,7 @@ rangesToPositions (Ranges rs) = concatMap rangeToPositions rs
 rToR :: P.Range -> Ranges
 rToR r = Ranges (map iToR (P.rangeIntervals r))
   where
-  iToR (P.Interval { P.iStart = P.Pn { P.posPos = pos1 }
-                   , P.iEnd   = P.Pn { P.posPos = pos2 }
-                   }) =
+  iToR (P.Interval () P.Pn{ P.posPos = pos1 } P.Pn{ P.posPos = pos2 }) =
     Range { from = fromIntegral pos1, to = fromIntegral pos2 }
 
 -- | Converts a 'P.Range', seen as a continuous range, to a 'Range'.
@@ -104,9 +102,10 @@ rangeToRange :: P.Range -> Range
 rangeToRange r =
   case P.rangeToInterval r of
     Nothing -> Range { from = 0, to = 0 }
-    Just i  -> Range { from = fromIntegral $ P.posPos $ P.iStart i
-                     , to   = fromIntegral $ P.posPos $ P.iEnd i
-                     }
+    Just (P.Interval _ s e) -> Range
+      { from = fromIntegral $ P.posPos s
+      , to   = fromIntegral $ P.posPos e
+      }
 
 ------------------------------------------------------------------------
 -- Operations

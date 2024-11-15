@@ -112,7 +112,7 @@ instance ToJSON (Position' ()) where
 instance EncodeTCM Range where
 instance ToJSON Range where
   toJSON = toJSON . map prettyInterval . rangeIntervals
-    where prettyInterval i = object [ "start" .= iStart i, "end" .= iEnd i ]
+    where prettyInterval (Interval f s e) = object [ "start" .= (f <$ s), "end" .= (f <$ e) ]
 
 instance EncodeTCM ProblemId where
 instance EncodeTCM MetaId    where
