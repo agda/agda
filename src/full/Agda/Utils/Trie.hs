@@ -43,7 +43,10 @@ instance (NFData k, NFData v) => NFData (Trie k v) where
 -- | Empty trie.
 instance Null (Trie k v) where
   empty = Trie Strict.Nothing Map.empty
-  null (Trie v t) = null v && null t
+  null (Trie v t) = null v && all null t
+    -- Andreas, 2024-11-16: since we allow non-canoncial tries,
+    -- we have to check that every subtrie is empty,
+    -- not just that there are no subtries.
 
 -- | Helper function used to implement 'singleton' and 'everyPrefix'.
 singletonOrEveryPrefix :: Bool -> [k] -> v -> Trie k v

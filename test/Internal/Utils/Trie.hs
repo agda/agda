@@ -65,6 +65,10 @@ prop_everyPrefix ks v =
   everyPrefix ks v ==
   foldr union empty [ singleton ks' v | ks' <- inits ks ]
 
+-- Test whether @null@ is robust wrt. non-canonical tries.
+prop_empty_insert_delete :: [Key] -> Val -> Bool
+prop_empty_insert_delete k v = null $ delete k $ insert k v empty
+
 ------------------------------------------------------------------------
 -- * All tests
 ------------------------------------------------------------------------
