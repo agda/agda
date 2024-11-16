@@ -65,6 +65,23 @@ prop_everyPrefix ks v =
   everyPrefix ks v ==
   foldr union empty [ singleton ks' v | ks' <- inits ks ]
 
+-- Andreas 2024-11-16: delete is as of now not the inverse of insert
+-- because it does not clean up the Trie.
+-- It should remove the subtrees that do not contain a single value,
+-- but does not.
+-- E.g.
+-- @
+--    t  := insert [a,b] v empty = Nothing --a--> Nothing --b--> Just v
+--    t' := delete [a,b] t       = Nothing --a--> Nothing --b--> Nothing
+--    t == t' = False
+-- @
+-- Fixing the representation of tries would fix this test:
+--
+-- prop_insert_delete :: Model -> [Key] -> Val -> Property
+-- prop_insert_delete m k v = not (member k t) ==> delete k (insert k v t) == t
+--   where
+--     t = modelToTrie m
+
 -- Test whether @null@ is robust wrt. non-canonical tries.
 prop_empty_insert_delete :: [Key] -> Val -> Bool
 prop_empty_insert_delete k v = null $ delete k $ insert k v empty
