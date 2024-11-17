@@ -31,7 +31,8 @@ instance Show ModuleNameHash where
   showsPrec p (ModuleNameHash h) = showParen (p > 0) $
     showString "ModuleNameHash " . shows h
 
-type TopLevelModuleNameParts = List1 Text
+type TopLevelModuleNamePart  = Text
+type TopLevelModuleNameParts = List1 TopLevelModuleNamePart
 
 data TopLevelModuleName' range = TopLevelModuleName
   { moduleNameRange :: range
