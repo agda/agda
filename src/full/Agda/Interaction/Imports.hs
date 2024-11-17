@@ -77,6 +77,7 @@ import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.DeadCode
+import qualified Agda.TypeChecking.Monad.Base.Types as ModuleToFile ( insert )
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TheTypeChecker
@@ -496,9 +497,12 @@ typeCheckMain mode src = do
       -- We don't want to generate highlighting information for Agda.Primitive.
       withHighlightingLevel None $
         forM_ (map (filePath libdirPrim </>) $ Set.toList primitiveModules) \ f -> do
+          reportSLn "import.main" 90 $ "Importing the primitive module " ++ prettyShow f
           sf <- srcFromPath (mkAbsolute f)
           primSource <- parseSource sf
+          reportSLn "import.main" 90 $ "Parsed the primitive module " ++ prettyShow f
           checkModuleName' (srcModuleName primSource) (srcOrigin primSource)
+          reportSLn "import.main" 90 $ "Getting the interface of the primitive module " ++ prettyShow f
           void $ getNonMainInterface (srcModuleName primSource) (Just primSource)
 
     reportSLn "import.main" 10 $ "Done importing the primitive modules."
@@ -519,7 +523,8 @@ typeCheckMain mode src = do
     -- Andreas, 2016-07-11, issue 2092
     -- The error range should be set to the file with the wrong module name
     -- not the importing one (which would be the default).
-    setCurrentRange m $ checkModuleName m f Nothing
+    setCurrentRange m $
+      checkModuleName m f Nothing
 
 -- | Tries to return the interface associated to the given (imported) module.
 --   The time stamp of the relevant interface file is also returned.
@@ -574,7 +579,7 @@ getInterface x isMain msrc =
           -- To prevent this, we register the connection in @ModuleToSource@ here,
           -- where we have the correct spelling of the file name.
           let file = srcOrigin src
-          modifyTCLens stModuleToSourceId $ Map.insert x file
+          modifyTCLens stModuleToFile $ ModuleToFile.insert x file
           pure file
       reportSDoc "import.iface" 15 do
         path <- srcFilePath file

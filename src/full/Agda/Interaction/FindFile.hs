@@ -19,6 +19,8 @@ module Agda.Interaction.FindFile
 
 import Prelude hiding (null)
 
+-- import Debug.Trace ( traceIO )
+
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
@@ -30,6 +32,8 @@ import System.FilePath
 
 import Agda.Interaction.Library ( findProjectRoot )
 
+import Agda.Syntax.Common.Pretty ( Pretty(..), prettyShow )
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser
 import Agda.Syntax.Parser.Literate (literateExtsShortList)
@@ -38,11 +42,13 @@ import Agda.Syntax.TopLevelModuleName
 
 import Agda.Interaction.Options ( optLocalInterfaces )
 
+import qualified Agda.TypeChecking.Monad.Base.Types as ModuleToFile ( insert, lookupSourceFile )
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
   (getIncludeDirs, libToTCM)
+import Agda.TypeChecking.Monad.Debug ( reportSLn )
 import Agda.TypeChecking.Monad.State ( registerFileIdWithBuiltin, topLevelModuleName )
 import Agda.TypeChecking.Monad.Trace (runPM, setCurrentRange)
 import Agda.TypeChecking.Warnings    (warning)
@@ -59,8 +65,6 @@ import Agda.Utils.List2 ( List2, pattern List2 )
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Monad ( ifM, unlessM )
-import Agda.Syntax.Common.Pretty ( Pretty(..), prettyShow )
-import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
@@ -161,26 +165,27 @@ findFile m = do
 --   SIDE EFFECT:  Updates 'stModuleToSource'.
 findFile' :: TopLevelModuleName -> TCM (Either FindError SourceFile)
 findFile' m = do
+    reportSLn "import.findFile" 90 $ "findFile' " ++ prettyShow m
     dirs     <- getIncludeDirs
     modToSrc <- useTC stModuleToSource
     (r, modToSrc) <- liftIO $ runStateT (findFile'' dirs m) modToSrc
     stModuleToSource `setTCLens` modToSrc
     return r
 
--- | A variant of 'findFile'' which manipulates an extra 'ModuleToSourceId'
+-- | A variant of 'findFile'' which manipulates an extra 'ModuleToFile'
 
 findFile'_ ::
      List1 AbsolutePath
        -- ^ Include paths.
   -> TopLevelModuleName
-  -> StateT ModuleToSourceId TCM (Either FindError SourceFile)
+  -> StateT ModuleToFile TCM (Either FindError SourceFile)
 findFile'_ incs m = do
   dict <- useTC stFileDict
-  m2s  <- get
-  (r, ModuleToSource dict' m2s') <- liftIO $
-    runStateT (findFile'' incs m) $ ModuleToSource dict m2s
+  m2f  <- get
+  (r, ModuleToSource dict' m2f') <- liftIO $
+    runStateT (findFile'' incs m) $ ModuleToSource dict m2f
   setTCLens stFileDict dict'
-  put m2s'
+  put m2f'
   return r
 
 -- | A variant of 'findFile'' which does not require 'TCM'.
@@ -191,18 +196,26 @@ findFile'' ::
   -> TopLevelModuleName
   -> StateT ModuleToSource IO (Either FindError SourceFile)
 findFile'' dirs m = do
-  ModuleToSource dict modToSrc <- get
-  case Map.lookup m modToSrc of
+  -- reportSLn "import.fileFile" 90 $ "findFile'' " ++ prettyShow m  -- not possible in IO
+  -- liftIO $ traceIO $ "findFile'' " ++ prettyShow m
+  m2s@(ModuleToSource dict modToFile) <- get
+  -- liftIO $ traceIO $ "moduleToSource:\n" ++ prettyShow m2s
+  case ModuleToFile.lookupSourceFile m modToFile of
     Just sf -> return $ Right sf
     Nothing -> do
+      -- liftIO $ traceIO $ unwords [ "findFile'':", prettyShow m, "not found, searching..." ]
       files          <- liftIO $ fileList acceptableFileExts
       filesShortList <- liftIO $ fileList $ List2.toList parseFileExtsShortList
       existingFiles  <- liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
       case nubOn id existingFiles of
         [file]   -> do
+          -- liftIO $ traceIO $ unwords [ "findFile'':", prettyShow file, "found, registering..." ]
           let (i, dict') = registerFileIdWithBuiltin file dict
           let src = SourceFile i
-          put $ ModuleToSource dict' $ Map.insert m src modToSrc
+          let modToFile' = ModuleToFile.insert m src modToFile
+          let m2s' = ModuleToSource dict' modToFile'
+          -- liftIO $ traceIO $ "moduleToSource:\n" ++ prettyShow m2s'
+          put m2s'
           return (Right src)
         []       -> return (Left (NotFound filesShortList))
         f0:f1:fs -> return (Left (Ambiguous $ List2 f0 f1 fs))

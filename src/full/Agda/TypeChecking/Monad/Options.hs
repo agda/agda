@@ -325,7 +325,7 @@ setIncludeDirs incs root = do
     setTCLens stLibCache libCache
     setInteractionOutputCallback ho
     setDecodedModules keptDecodedModules
-    setTCLens stModuleToSourceId modFile
+    setTCLens stModuleToFile modFile
 
   Lens.putAbsoluteIncludePaths $ List1.toList incs
   where
@@ -343,8 +343,8 @@ setIncludeDirs incs root = do
   modulesToKeep
     :: List1 AbsolutePath -- New include directories.
     -> DecodedModules  -- Old decoded modules.
-    -> TCM (DecodedModules, ModuleToSourceId)
-  modulesToKeep incs old = process Map.empty Map.empty modules
+    -> TCM (DecodedModules, ModuleToFile)
+  modulesToKeep incs old = process empty empty modules
     where
     -- A graph with one node per module in old, and an edge from m to
     -- n if the module corresponding to m imports the module
@@ -381,8 +381,8 @@ setIncludeDirs incs root = do
       G.sccs' dependencyGraph
 
     process ::
-      Map TopLevelModuleName ModuleInfo -> ModuleToSourceId ->
-      [ModuleInfo] -> TCM (DecodedModules, ModuleToSourceId)
+      Map TopLevelModuleName ModuleInfo -> ModuleToFile ->
+      [ModuleInfo] -> TCM (DecodedModules, ModuleToFile)
     process !keep !modFile [] = return
       ( Map.fromList $
         Map.toList keep

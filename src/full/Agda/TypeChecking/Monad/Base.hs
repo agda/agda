@@ -208,7 +208,7 @@ data PreScopeState = PreScopeState
       -- because then the order of its @toList@ is undefined,
       -- leading to undefined deserialization order.
     -- ^ The top-level modules imported by the current module.
-  , stPreModuleToSourceId   :: !ModuleToSourceId -- imports
+  , stPreModuleToFile       :: !ModuleToFile     -- imports
   , stPreVisitedModules     :: !VisitedModules   -- imports
       -- ^ Modules loaded so far.
       --   In contrast 'stDecodedModules', contains also modules that are only scope-checked.
@@ -469,7 +469,7 @@ initPreScopeState = PreScopeState
   { stPreTokens               = mempty
   , stPreImports              = emptySignature
   , stPreImportedModules      = empty
-  , stPreModuleToSourceId     = Map.empty
+  , stPreModuleToFile         = empty
   , stPreVisitedModules       = Map.empty
   , stPreScope                = emptyScopeInfo
   , stPrePatternSyns          = Map.empty
@@ -605,8 +605,8 @@ lensImports f s = f (stPreImports s) <&> \ x -> s { stPreImports = x }
 lensImportedModules :: Lens' PreScopeState ImportedModules
 lensImportedModules f s = f (stPreImportedModules s) <&> \ x -> s { stPreImportedModules = x }
 
-lensModuleToSourceId :: Lens' PreScopeState ModuleToSourceId
-lensModuleToSourceId f s = f (stPreModuleToSourceId s ) <&> \ x -> s { stPreModuleToSourceId = x }
+lensModuleToFile :: Lens' PreScopeState ModuleToFile
+lensModuleToFile f s = f (stPreModuleToFile s ) <&> \ x -> s { stPreModuleToFile = x }
 
 lensVisitedModules :: Lens' PreScopeState VisitedModules
 lensVisitedModules f s = f (stPreVisitedModules s ) <&> \ x -> s { stPreVisitedModules = x }
@@ -805,11 +805,11 @@ stImports = lensPreScopeState . lensImports
 stImportedModules :: Lens' TCState ImportedModules
 stImportedModules = lensPreScopeState . lensImportedModules
 
-stModuleToSourceId :: Lens' TCState ModuleToSourceId
-stModuleToSourceId = lensPreScopeState . lensModuleToSourceId
+stModuleToFile :: Lens' TCState ModuleToFile
+stModuleToFile = lensPreScopeState . lensModuleToFile
 
 stModuleToSource :: Lens' TCState ModuleToSource
-stModuleToSource = lensProduct stFileDict stModuleToSourceId . lensPairModuleToSource
+stModuleToSource = lensProduct stFileDict stModuleToFile . lensPairModuleToSource
 
 stVisitedModules :: Lens' TCState VisitedModules
 stVisitedModules = lensPreScopeState . lensVisitedModules
@@ -1210,15 +1210,17 @@ srcFromPath :: MonadFileId m => AbsolutePath -> m SourceFile
 srcFromPath p = SourceFile <$> idFromFile p
 
 instance Pretty ModuleToSource where
-  pretty (ModuleToSource dict mods) = vcat
-    [ hsep [ "-", pretty m, "->", pretty $ getIdFile dict i ]
-    | (m, SourceFile i) <- Map.toList mods
-    ]
+  pretty (ModuleToSource dict (ModuleToFile mods _))
+    | null mods = "(empty)"
+    | otherwise = vcat
+        [ hsep [ "-", pretty m, "->", pretty $ getIdFile dict i ]
+        | (m, SourceFile i) <- Map.toList mods
+        ]
 
 -- | Lookup the path of a top level module name, which must be a known one.
 
 topLevelModuleFilePath :: ModuleToSource -> TopLevelModuleName -> AbsolutePath
-topLevelModuleFilePath (ModuleToSource dict m2s) m =
+topLevelModuleFilePath (ModuleToSource dict (ModuleToFile m2s _)) m =
   getIdFile dict $ srcFileId $ Map.findWithDefault __IMPOSSIBLE__ m m2s
 
 ---------------------------------------------------------------------------

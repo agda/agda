@@ -456,6 +456,7 @@ library
         -- module Data.Strict.Classes entered in strict-0.4
     , text                 >= 1.2.4.0   && < 2.2
     , time                 >= 1.9.3     && < 1.15
+    , these                >= 1.1.1.1   && < 1.3
     , transformers         >= 0.5.6.2   && < 0.7
     , unordered-containers >= 0.2.10.0  && < 0.3
     , uri-encode           >= 1.5.0.7   && < 1.6
@@ -774,6 +775,7 @@ library
       Agda.Utils.Bag
       Agda.Utils.Benchmark
       Agda.Utils.BiMap
+      Agda.Utils.BiMapTrieEnum
       Agda.Utils.Boolean
       Agda.Utils.BoolSet
       Agda.Utils.CallStack
