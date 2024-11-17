@@ -96,7 +96,7 @@ data Encoded = Encoded
 encode :: EmbPrj a => a -> TCM Encoded
 encode a = do
     collectStats <- hasProfileOption Profile.Serialize
-    newD@(Dict nD ltD stD bD iD dD _tD
+    newD@(Dict nD ltD stD bD iD dD
       _nameD
       _qnameD
       nC ltC stC bC iC dC tC

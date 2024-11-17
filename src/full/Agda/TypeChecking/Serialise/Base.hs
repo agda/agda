@@ -52,7 +52,6 @@ import Agda.Utils.IORef
 import Agda.Utils.Lens
 import Agda.Utils.List1 (List1)
 import Agda.Utils.Monad
-import Agda.Utils.Pointer
 import Agda.Utils.TypeLevel
 
 #include <MachDeps.h>
@@ -182,7 +181,6 @@ data Dict = Dict
   , doubleD      :: !(HashTable Double  Word32)    -- ^ Written to interface file.
   -- Dicitionaries which are not serialized, but provide
   -- short cuts to speed up serialization:
-  , termD        :: !(HashTable (Ptr Term) Word32) -- ^ Not written to interface file.
   -- Andreas, Makoto, AIM XXI
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
   , nameD        :: !(HashTable NameId  Word32)    -- ^ Not written to interface file.
@@ -210,7 +208,6 @@ emptyDict
   -> IO Dict
 emptyDict collectStats = Dict
   <$> H.empty
-  <*> H.empty
   <*> H.empty
   <*> H.empty
   <*> H.empty

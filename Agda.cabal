@@ -821,7 +821,6 @@ library
       Agda.Utils.Parser.MemoisedCPS
       Agda.Utils.PartialOrd
       Agda.Utils.Permutation
-      Agda.Utils.Pointer
       Agda.Utils.POMonoid
       Agda.Utils.ProfileOptions
       Agda.Utils.RangeMap
