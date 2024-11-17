@@ -21,7 +21,8 @@ import Control.Monad ((<$!>))
 import Control.Monad.Except
 import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Reader
-import Control.Monad.State.Strict (StateT, gets)
+import Control.Monad.State        ( runStateT )
+import Control.Monad.State.Strict ( StateT, gets, modify )
 
 import Data.Proxy
 
@@ -29,6 +30,8 @@ import Data.Array.IArray
 import Data.Array.IO
 import qualified Data.HashMap.Strict as Hm
 import qualified Data.ByteString.Lazy as L
+import qualified Data.EnumMap.Strict as EnumMap
+import Data.EnumMap.Strict (EnumMap)
 import Data.Hashable
 import Data.Word (Word32)
 import Data.Maybe
@@ -43,7 +46,12 @@ import Unsafe.Coerce
 
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal (Term, QName(..), ModuleName(..), nameId)
-import Agda.TypeChecking.Monad.Base.Types (ModuleToSource)
+import Agda.Syntax.TopLevelModuleName ( pattern RawTopLevelModuleName, hashRawTopLevelModuleName, unsafeTopLevelModuleName )
+
+import Agda.TypeChecking.Monad.Base.Types
+  ( FileId, ModuleToFile, ModuleToSource, SourceFile(SourceFile), TopLevelModuleNameParts )
+
+import Agda.Interaction.FindFile ( findFile'' )
 
 import Agda.Utils.FileName
 import Agda.Utils.HashTable (HashTable)
@@ -52,6 +60,7 @@ import Agda.Utils.IORef
 import Agda.Utils.Lens
 import Agda.Utils.List1 (List1)
 import Agda.Utils.Monad
+import Agda.Utils.Null (empty)
 import Agda.Utils.TypeLevel
 
 #include <MachDeps.h>
@@ -179,6 +188,7 @@ data Dict = Dict
   , sTextD       :: !(HashTable T.Text  Word32)    -- ^ Written to interface file.
   , integerD     :: !(HashTable Integer Word32)    -- ^ Written to interface file.
   , doubleD      :: !(HashTable Double  Word32)    -- ^ Written to interface file.
+  , fileIdD      :: !(HashTable FileId  Word32)    -- ^ Written to interface file.
   -- Dicitionaries which are not serialized, but provide
   -- short cuts to speed up serialization:
   -- Andreas, Makoto, AIM XXI
@@ -192,22 +202,28 @@ data Dict = Dict
   , sTextC       :: !(IORef FreshAndReuse)
   , integerC     :: !(IORef FreshAndReuse)
   , doubleC      :: !(IORef FreshAndReuse)
-  , termC        :: !(IORef FreshAndReuse)
+  , fileIdC      :: !(IORef FreshAndReuse)
   , nameC        :: !(IORef FreshAndReuse)
   , qnameC       :: !(IORef FreshAndReuse)
   , stats        :: !(HashTable String Int)
   , collectStats :: !Bool
     -- ^ If @True@ collect in @stats@ the quantities of
     --   calls to @icode@ for each @Typeable a@.
+  , fileD        :: !ModuleToFile
+      -- ^ Translation between top level module names, file names, and file ids.
+      --   A part of this is serialized: the map from file ids to module names.
   }
 
 -- | Creates an empty dictionary.
-emptyDict
-  :: Bool
-     -- ^ Collect statistics for @icode@ calls?
+emptyDict ::
+     Bool
+       -- ^ Collect statistics for @icode@ calls?
+  -> ModuleToFile
+       -- ^ Translation between modules, filenames, and file ids.
   -> IO Dict
-emptyDict collectStats = Dict
+emptyDict collectStats m2f = Dict
   <$> H.empty
+  <*> H.empty
   <*> H.empty
   <*> H.empty
   <*> H.empty
@@ -226,6 +242,7 @@ emptyDict collectStats = Dict
   <*> newIORef farEmpty
   <*> H.empty
   <*> pure collectStats
+  <*> pure m2f
 
 -- | Univeral memo structure, to introduce sharing during decoding
 type Memo = IOArray Word32 MemoEntry
@@ -238,6 +255,7 @@ data St = St
   , sTextE    :: !(Array Word32 T.Text)   -- ^ Obtained from interface file.
   , integerE  :: !(Array Word32 Integer)  -- ^ Obtained from interface file.
   , doubleE   :: !(Array Word32 Double)   -- ^ Obtained from interface file.
+  , fileIdE   :: !(Array Word32 TopLevelModuleNameParts)   -- ^ Obtained from interface file.
   , nodeMemo  :: !Memo
     -- ^ Created and modified by decoder.
     --   Used to introduce sharing while deserializing objects.
@@ -245,7 +263,38 @@ data St = St
     -- ^ Maps module names to file names. Constructed by the decoder.
   , includes  :: !(List1 AbsolutePath)
     -- ^ The include directories.
+  , fileIdShortCut :: !(EnumMap Word32 FileId)
+      -- ^ Decoding of 'FileId's that does not go through module names.
+      --   Constructed by the decoder.
   }
+
+-- | Decoding a 'FileId', attempting (and in case of no success, updating) 'fileIdShortCut'.
+decodeFileId :: Word32 -> R FileId
+decodeFileId i = do
+  shortCut <- gets fileIdShortCut
+  case EnumMap.lookup i shortCut of
+    Just fi -> return fi
+    Nothing -> do
+      incs <- gets includes
+      mf   <- gets modFile
+      -- Resolve the file id via its module name, introducing a shortcut.
+      xs <- (! i) <$!> gets fileIdE
+
+      -- TODO: get rid of TopLevelModuleName and the module hashes
+      let raw  = RawTopLevelModuleName empty xs
+      let hash = hashRawTopLevelModuleName raw
+      let m    = unsafeTopLevelModuleName raw hash
+
+      (r, mf) <- liftIO $ runStateT (findFile'' incs m) mf
+      case r of
+        Left err -> liftIO $ E.throwIO $ E.ErrorCall $ "file not found: " ++ show err
+        Right (SourceFile fi) -> do
+          modify \ s -> s
+            { modFile        = mf
+            , fileIdShortCut = EnumMap.insert i fi shortCut
+            }
+          return fi
+
 
 -- | Monad used by the encoder.
 
@@ -357,8 +406,25 @@ icodeX dict counter key = do
         return fresh
 
 -- Instead of inlining icodeX, we manually specialize it to
--- its four uses: Integer, String, Double, Node.
+-- its uses: FileId, Integer, String, Double, Node.
 -- Not a great gain (hardly noticeable), but not harmful.
+
+icodeFileId :: FileId -> S Word32
+icodeFileId key = do
+  d <- asks fileIdD
+  c <- asks fileIdC
+  liftIO $ do
+    mi <- H.lookup d key
+    case mi of
+      Just i  -> do
+#ifdef DEBUG_SERIALISATION
+        modifyIORef' c $ over lensReuse (+ 1)
+#endif
+        return $! i
+      Nothing -> do
+        !fresh <- (^. lensFresh) <$> do readModifyIORef' c $ over lensFresh (+ 1)
+        H.insert d key fresh
+        return fresh
 
 icodeInteger :: Integer -> S Word32
 icodeInteger key = do
