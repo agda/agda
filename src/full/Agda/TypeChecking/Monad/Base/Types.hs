@@ -19,7 +19,8 @@ import           GHC.Generics                   ( Generic )
 
 import           Agda.Syntax.Info               ( MetaNameSuggestion )
 import           Agda.Syntax.Internal
-import           Agda.Syntax.TopLevelModuleName as X ( TopLevelModuleName, TopLevelModuleNamePart, moduleNameParts )
+import           Agda.Syntax.TopLevelModuleName as X
+  ( TopLevelModuleName, TopLevelModuleNamePart, TopLevelModuleNameParts, moduleNameParts )
 
 import           Agda.Utils.BiMapTrieEnum       ( BiMapTrieEnum )
 import qualified Agda.Utils.BiMapTrieEnum       as BiMapTrieEnum
@@ -180,6 +181,9 @@ insert x src@(SourceFile fi) (ModuleToFile m2s m2f) = ModuleToFile m2s' m2f'
 
 lookupSourceFile :: TopLevelModuleName -> ModuleToFile -> Maybe SourceFile
 lookupSourceFile x = Map.lookup x . moduleToSourceId
+
+lookupModuleName :: FileId -> ModuleToFile -> Maybe TopLevelModuleNameParts
+lookupModuleName fi = fmap List1.fromList . BiMapTrieEnum.lookupInv fi . moduleToFileId
 
 -- ** Lenses
 
