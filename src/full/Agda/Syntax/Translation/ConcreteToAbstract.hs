@@ -1180,25 +1180,50 @@ scopeCheckNiceModule
   -> ScopeM [A.Declaration]
   -> ScopeM A.Declaration
        -- ^ The returned declaration is an 'A.Section'.
-scopeCheckNiceModule r p e name tel checkDs
-  | telHasOpenStmsOrModuleMacros tel = do
-      -- Andreas, 2013-12-10:
-      -- If the module telescope contains open statements
-      -- or module macros (Issue 1299),
-      -- add an extra anonymous module around the current one.
-      -- Otherwise, the open statements would create
-      -- identifiers in the parent scope of the current module.
-      -- But open statements in the module telescope should
-      -- only affect the current module!
-      scopeCheckNiceModule noRange p e noName_ [] $ singleton <$>
-        scopeCheckNiceModule_ PublicAccess  -- See #4350
-
-  | otherwise = do
-        scopeCheckNiceModule_ p
+scopeCheckNiceModule r p e name tel checkDs = checkWrappedModules p (splitModuleTelescope tel)
   where
+    -- Andreas, 2013-12-10:
+    -- If the module telescope contains open statements
+    -- or module macros (Issue 1299),
+    -- add an extra anonymous module around the current one.
+    -- Otherwise, the open statements would create
+    -- identifiers in the parent scope of the current module.
+    -- But open statements in the module telescope should
+    -- only affect the current module!
+    -- Ulf, 2024-11-21 (#7440): We need the wrapper module to have to correct parameters, otherwise
+    -- open public of a module created in the telescope will behave incorrectly when applying the
+    -- outer module.
+    splitModuleTelescope :: C.Telescope -> [C.Telescope]
+    splitModuleTelescope [] = [[]]
+    splitModuleTelescope (b : tel) =
+      case b of
+        C.TLet _ ds | any needsWrapper ds -> [] : addBind b (splitModuleTelescope tel)
+        _ -> addBind b $ splitModuleTelescope tel
+      where
+        addBind b (tel : ms) = (b : tel) : ms
+        addBind _ [] = __IMPOSSIBLE__
+
+        needsWrapper C.ModuleMacro{}    = True
+        needsWrapper C.Open{}           = True
+        needsWrapper C.Import{}         = True -- not __IMPOSSIBLE__, see Issue #1718
+          -- However, it does not matter what we return here, as this will
+          -- become an error later: "Not a valid let-declaration".
+          -- (Andreas, 2015-11-17)
+        needsWrapper (C.Mutual   _ ds)  = any needsWrapper ds
+        needsWrapper (C.Abstract _ ds)  = any needsWrapper ds
+        needsWrapper (C.Private _ _ ds) = any needsWrapper ds
+        needsWrapper _                  = False
+
+    checkWrappedModules :: Access -> [C.Telescope] -> ScopeM A.Declaration
+    checkWrappedModules _ []           = __IMPOSSIBLE__
+    checkWrappedModules p [tel]        = scopeCheckNiceModule_ r p name tel checkDs
+    checkWrappedModules p (tel : tels) =
+      scopeCheckNiceModule_ noRange p noName_ tel $ singleton <$>
+        checkWrappedModules PublicAccess tels -- Inner modules are PublicAccess (see #4350)
+
     -- The actual workhorse:
-    scopeCheckNiceModule_ :: Access -> ScopeM A.Declaration
-    scopeCheckNiceModule_ p = do
+    scopeCheckNiceModule_ :: Range -> Access -> C.Name -> C.Telescope -> ScopeM [A.Declaration] -> ScopeM A.Declaration
+    scopeCheckNiceModule_ r p name tel checkDs = do
 
       -- Check whether we are dealing with an anonymous module.
       -- This corresponds to a Coq/LEGO section.
@@ -1221,31 +1246,6 @@ scopeCheckNiceModule r p e name tel checkDs
         openModule TopOpenModule (Just aname) (C.QName name) $
           defaultImportDir { publicOpen = boolToMaybe (p == PublicAccess) empty }
       return d
-
--- | Check whether a telescope has open declarations or module macros.
-telHasOpenStmsOrModuleMacros :: C.Telescope -> Bool
-telHasOpenStmsOrModuleMacros = any yesBind
-  where
-    yesBind C.TBind{}     = False
-    yesBind (C.TLet _ ds) = any yes ds
-    yes C.ModuleMacro{}   = True
-    yes C.Open{}          = True
-    yes C.Import{}        = True -- not __IMPOSSIBLE__, see Issue #1718
-      -- However, it does not matter what we return here, as this will
-      -- become an error later: "Not a valid let-declaration".
-      -- (Andreas, 2015-11-17)
-    yes (C.Mutual   _ ds) = any yes ds
-    yes (C.Abstract _ ds) = any yes ds
-    yes (C.Private _ _ ds) = any yes ds
-    yes _                 = False
-
-{- UNUSED
-telHasLetStms :: C.Telescope -> Bool
-telHasLetStms = any isLetBind
-  where
-    isLetBind C.TBind{} = False
-    isLetBind C.TLet{}  = True
--}
 
 -- | We for now disallow let-bindings in @data@ and @record@ telescopes.
 --   This due "nested datatypes"; there is no easy interpretation of
