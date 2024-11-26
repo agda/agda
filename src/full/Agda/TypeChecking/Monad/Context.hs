@@ -431,7 +431,7 @@ getLetBindings = do
   forM (Map.toList bs) $ \ (n, o) -> (,) n <$> getOpen o
 
 -- | Add a let bound variable
-{-# SPECIALIZE addLetBinding' :: Origin -> Name -> Term -> Dom Type -> TCM a -> TCM a #-}
+{-# SPECIALIZE defaultAddLetBinding' :: Origin -> Name -> Term -> Dom Type -> TCM a -> TCM a #-}
 defaultAddLetBinding' :: (ReadTCState m, MonadTCEnv m) => Origin -> Name -> Term -> Dom Type -> m a -> m a
 defaultAddLetBinding' o x v t ret = do
     vt <- makeOpen $ LetBinding o v t
