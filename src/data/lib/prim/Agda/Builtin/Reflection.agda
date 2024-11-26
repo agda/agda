@@ -285,7 +285,7 @@ postulate
   checkType        : Term → Type → TC Term
   normalise        : Term → TC Term
   reduce           : Term → TC Term
-  catchTC          : ∀ {a} {A : Set a} → TC A → TC A → TC A
+  catchTC          : ∀ {a} {A : Set a} → TC A → (String → TC A) → TC A
   quoteTC          : ∀ {a} {A : Set a} → A → TC Term
   unquoteTC        : ∀ {a} {A : Set a} → Term → TC A
   quoteωTC         : ∀ {A : Setω} → A → TC Term

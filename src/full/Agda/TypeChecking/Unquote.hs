@@ -672,7 +672,8 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     -- Don't catch Unquote errors!
     tcCatchError :: Term -> Term -> UnquoteM Term
     tcCatchError m h =
-      liftU2 (\ m1 m2 -> m1 `catchError` \ _ -> m2) (evalTCM m) (evalTCM h)
+      liftU1 (\ m1 -> m1 `catchError` \e -> (evalTCM (h `apply` [defaultArg (Lit (LitString (T.pack (show e)))) ])))
+        (evalTCM m)
 
     tcAskLens :: ToTerm a => Lens' TCEnv a -> UnquoteM Term
     tcAskLens l = liftTCM (toTerm <*> asksTC (\ e -> e ^. l))
