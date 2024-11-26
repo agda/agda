@@ -1542,10 +1542,14 @@ instance ReduceAndEtaContract a => ReduceAndEtaContract (Arg a)
 
 instance ReduceAndEtaContract Term where
   reduceAndEtaContract u = do
-    reduce u >>= \case
+    reportSDoc "tc.meta" 30 $ "trying to eta-contract u =" <+> prettyTCM u
+    u <- reduce u
+    reportSDoc "tc.meta" 30 $ "               reduced u =" <+> prettyTCM u
+    case u of
       -- In case of lambda or record constructor, it makes sense to
       -- reduce further.
-      Lam ai (Abs x b) -> etaLam ai x =<< reduceAndEtaContract b
+      Lam ai bAbs -> underAbstraction_ bAbs $ \b ->
+        etaLam ai (absName bAbs) =<< reduceAndEtaContract b
       Con c ci es -> etaCon c ci es $ \ r c ci args -> do
         args <- reduceAndEtaContract args
         etaContractRecord r c ci args
