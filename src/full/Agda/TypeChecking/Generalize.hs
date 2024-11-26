@@ -177,7 +177,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   let s = Map.keysSet vars
   ((cxtNames, tel, letbinds), namedMetas, allmetas) <-
     createMetasAndTypeCheck s $ typecheckAction $ \ tel -> do
-      xs <- take (size tel) <$> getContextNames
+      xs <- take (size tel) <$> getContextNames'
       lbs <- getLetBindings -- This gives let-bindings valid in the current context
       return (xs, tel, lbs)
 
