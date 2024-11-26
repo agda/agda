@@ -126,6 +126,7 @@ liftU1 f m = packUnquoteM $ \ cxt s -> f (unpackUnquoteM m cxt s)
 liftU2 :: (TCM (UnquoteRes a) -> TCM (UnquoteRes b) -> TCM (UnquoteRes c)) -> UnquoteM a -> UnquoteM b -> UnquoteM c
 liftU2 f m1 m2 = packUnquoteM $ \ cxt s -> f (unpackUnquoteM m1 cxt s) (unpackUnquoteM m2 cxt s)
 
+
 inOriginalContext :: UnquoteM a -> UnquoteM a
 inOriginalContext m =
   packUnquoteM $ \ cxt s -> do
@@ -672,9 +673,11 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     -- Don't catch Unquote errors!
     tcCatchError :: Term -> Term -> UnquoteM Term
     tcCatchError m h =
-      liftU1 (\ m1 -> m1 `catchError` \e -> (evalTCM (h `apply` [defaultArg (Lit (LitString (T.pack (show e)))) ])))
-        (evalTCM m)
-
+       packUnquoteM $ \ cxt s ->
+             (unpackUnquoteM (evalTCM m) cxt s) `catchError`
+              (\e -> (unpackUnquoteM (evalTCM (h `apply`
+                                                [defaultArg (Lit (LitString (T.pack (show e)))) ])) cxt s))
+         
     tcAskLens :: ToTerm a => Lens' TCEnv a -> UnquoteM Term
     tcAskLens l = liftTCM (toTerm <*> asksTC (\ e -> e ^. l))
 
