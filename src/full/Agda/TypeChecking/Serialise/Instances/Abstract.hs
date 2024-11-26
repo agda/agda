@@ -66,7 +66,7 @@ instance EmbPrj Access where
     _ -> malformed
 
 instance EmbPrj NameSpace where
-  icod_ (NameSpace a b c) = icodeN' NameSpace a b c
+  icod_ (NameSpace a b c d) = icodeN' NameSpace a b c d
 
   value = valueN NameSpace
 
@@ -250,8 +250,8 @@ instance EmbPrj Precedence where
     valu _         = malformed
 
 instance EmbPrj ScopeInfo where
-  icod_ (ScopeInfo a b c d e f g h i j k) = icodeN' (\ a b c d e -> ScopeInfo a b c d e f g h i j k) a b c d e
+  icod_ (ScopeInfo a b c d e f g h i j k l) = icodeN' (\ a b c d e f -> ScopeInfo a b c d e f g h i j k l) a b c d e f
 
-  value = valueN (\ a b c d e -> ScopeInfo a b c d e Map.empty Map.empty Set.empty Map.empty Map.empty Map.empty)
+  value = valueN (\ a b c d e f -> ScopeInfo a b c d e f Map.empty Map.empty Set.empty Map.empty Map.empty Map.empty)
 
 instance EmbPrj NameOrModule
