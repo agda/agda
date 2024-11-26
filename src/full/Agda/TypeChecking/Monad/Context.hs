@@ -464,15 +464,15 @@ getContext = asksTC envContext
 
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
-getContextSize :: (Applicative m, MonadTCEnv m) => m Nat
+getContextSize :: (MonadTCEnv m) => m Nat
 getContextSize = length <$> getContext
 
 {-# SPECIALIZE getContextVars :: TCM [(Int, Dom Name)] #-}
-getContextVars :: (Applicative m, MonadTCEnv m) => m [(Int, Dom Name)]
+getContextVars :: (MonadTCEnv m) => m [(Int, Dom Name)]
 getContextVars = contextVars <$> getContext
 
 {-# SPECIALIZE getContextVars' :: TCM [(Int, Dom Name)] #-}
-getContextVars' :: (Applicative m, MonadTCEnv m) => m [(Int, Dom Name)]
+getContextVars' :: (MonadTCEnv m) => m [(Int, Dom Name)]
 getContextVars' = contextVars' <$> getContext
 
 contextVars :: Context -> [(Int, Dom Name)]
@@ -485,7 +485,7 @@ contextVars' = zipWith mkVar [0..]
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all bound variables in the context.
 {-# SPECIALIZE getContextArgs :: TCM Args #-}
-getContextArgs :: (Applicative m, MonadTCEnv m) => m Args
+getContextArgs :: (MonadTCEnv m) => m Args
 getContextArgs = contextArgs <$> getContext
 
 contextArgs :: Context -> Args
@@ -493,7 +493,7 @@ contextArgs = map (\(i,x) -> var i <$ argFromDom x) . contextVars
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextTerms :: TCM [Term] #-}
-getContextTerms :: (Applicative m, MonadTCEnv m) => m [Term]
+getContextTerms :: (MonadTCEnv m) => m [Term]
 getContextTerms = map unArg <$> getContextArgs
 
 contextTerms :: Context -> [Term]
@@ -501,7 +501,7 @@ contextTerms = map unArg . contextArgs
 
 -- | Get the current context as a 'Telescope'.
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
-getContextTelescope :: (Applicative m, MonadTCEnv m) => m Telescope
+getContextTelescope :: (MonadTCEnv m) => m Telescope
 getContextTelescope = contextToTel <$> getContext
 
 contextToTel :: Context -> Telescope
@@ -512,11 +512,11 @@ contextToTel = go . reverse
 
 -- | Get the names of all declarations in the context.
 {-# SPECIALIZE getContextNames :: TCM [Name] #-}
-getContextNames :: (Applicative m, MonadTCEnv m) => m [Name]
+getContextNames :: (MonadTCEnv m) => m [Name]
 getContextNames = contextNames <$> getContext
 
 {-# SPECIALIZE getContextNames' :: TCM [Name] #-}
-getContextNames' :: (Applicative m, MonadTCEnv m) => m [Name]
+getContextNames' :: (MonadTCEnv m) => m [Name]
 getContextNames' = contextNames' <$> getContext
 
 contextNames :: Context -> [Name]
@@ -555,19 +555,19 @@ ctxEntryType :: ContextEntry -> Type
 ctxEntryType = unDom . ctxEntryDom
 
 {-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
-domOfBV :: (Applicative m, MonadDebug m, MonadTCEnv m) => Nat -> m (Dom Type)
+domOfBV :: (MonadDebug m, MonadTCEnv m) => Nat -> m (Dom Type)
 domOfBV n = ctxEntryDom <$> lookupBV n
 
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
-typeOfBV :: (Applicative m, MonadDebug m, MonadTCEnv m) => Nat -> m Type
+typeOfBV :: (MonadDebug m, MonadTCEnv m) => Nat -> m Type
 typeOfBV i = unDom <$> domOfBV i
 
 {-# SPECIALIZE nameOfBV' :: Nat -> TCM (Maybe Name) #-}
-nameOfBV' :: (Applicative m, MonadDebug m, MonadTCEnv m) => Nat -> m (Maybe Name)
+nameOfBV' :: (MonadTCEnv m) => Nat -> m (Maybe Name)
 nameOfBV' n = fmap ctxEntryName <$> lookupBV' n
 
 {-# SPECIALIZE nameOfBV :: Nat -> TCM Name #-}
-nameOfBV :: (Applicative m, MonadDebug m, MonadTCEnv m) => Nat -> m Name
+nameOfBV :: (MonadDebug m, MonadTCEnv m) => Nat -> m Name
 nameOfBV n = ctxEntryName <$> lookupBV n
 
 -- | Get the term corresponding to a named variable. If it is a lambda bound
