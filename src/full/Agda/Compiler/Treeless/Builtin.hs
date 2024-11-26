@@ -93,6 +93,12 @@ transform BuiltinKit{..} = tr
         --       builtin minus is monus. The simplifier will do it if it can see
         --       that it won't underflow.
 
+      -- Replace calls to primForce with the primitive seq, by binding the
+      -- forced expression to a fresh variable and weaken appropriately.
+      --
+      -- primForce e f es
+      -- >>>
+      -- let e (seq x⁰ ((raise 1 f) x⁰) (raise 1 es))
       TApp (TDef q) (_ : _ : _ : _ : e : f : es)
         | isForce q -> tr $ TLet e $ mkTApp (tOp PSeq (TVar 0) $ mkTApp (raise 1 f) [TVar 0]) $ raise 1 es
 
