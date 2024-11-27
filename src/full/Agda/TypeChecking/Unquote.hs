@@ -1,7 +1,7 @@
 module Agda.TypeChecking.Unquote where
 
 import Control.Arrow          ( first, second, (&&&) )
-import Control.Monad          ( (<=<) )
+import Control.Monad          ( (<=<) , (>=>) )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader   ( ReaderT(..), runReaderT )
@@ -22,6 +22,8 @@ import Data.Word
 import System.Directory (doesFileExist, getPermissions, executable)
 import System.Process ( readProcessWithExitCode )
 import System.Exit ( ExitCode(..) )
+
+import qualified Text.PrettyPrint.Annotated as P
 
 import Agda.Syntax.Common hiding ( Nat )
 import Agda.Syntax.Internal as I
@@ -675,8 +677,8 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcCatchError m h =
        packUnquoteM $ \ cxt s ->
              (unpackUnquoteM (evalTCM m) cxt s) `catchError`
-              (\e -> (unpackUnquoteM (evalTCM (h `apply`
-                                                [defaultArg (Lit (LitString (T.pack (show e)))) ])) cxt s))
+              (prettyTCM >=> \e -> (unpackUnquoteM (evalTCM (h `apply`
+                                                [defaultArg (Lit (LitString (T.pack (P.render e)))) ])) cxt s))
          
     tcAskLens :: ToTerm a => Lens' TCEnv a -> UnquoteM Term
     tcAskLens l = liftTCM (toTerm <*> asksTC (\ e -> e ^. l))
