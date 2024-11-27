@@ -642,6 +642,27 @@ mergeNamesMany = Map.unionsWith List1.union
 -- * Operations on name spaces
 ------------------------------------------------------------------------
 
+-- | Compute the name parts map corresponding to a `NamesInScope`.
+namePartsOfNamesInScope :: NamesInScope -> NamePartsInScope
+namePartsOfNamesInScope =
+  Map.foldl'
+    (\acc absnames -> foldl'
+       (\acc absname ->
+          foldl'
+            (\acc notPart -> case notPart of
+                IdPart rs ->
+                   Map.insertWith
+                     (<>)
+                     (rangedThing rs)
+                     (List1.singleton absname)
+                     acc
+                _ -> acc)
+            acc
+            (theNotation $ nameFixity $ qnameName $ anameName absname))
+       acc
+       absnames)
+    Map.empty
+
 -- | The empty name space.
 emptyNameSpace :: NameSpace
 emptyNameSpace = NameSpace Map.empty Map.empty Map.empty Set.empty
@@ -653,8 +674,9 @@ mapNameSpace :: (NamesInScope     -> NamesInScope     ) ->
                 (InScopeSet       -> InScopeSet       ) ->
                 NameSpace -> NameSpace
 mapNameSpace fd fm fs ns =
-  ns { nsNames     = fd $ nsNames   ns
-     , nsNameParts = mempty
+  let names' = fd $ nsNames ns in
+  ns { nsNames     = names'
+     , nsNameParts = namePartsOfNamesInScope names'
      , nsModules   = fm $ nsModules ns
      , nsInScope   = fs $ nsInScope ns
      }
@@ -665,8 +687,9 @@ zipNameSpace :: (NamesInScope     -> NamesInScope     -> NamesInScope  ) ->
                 (InScopeSet       -> InScopeSet       -> InScopeSet    ) ->
                 NameSpace -> NameSpace -> NameSpace
 zipNameSpace fd fm fs ns1 ns2 =
-  ns1 { nsNames     = nsNames     ns1 `fd` nsNames     ns2
-      , nsNameParts = mempty
+  let names' = nsNames ns1 `fd` nsNames ns2 in
+  ns1 { nsNames     = names'
+      , nsNameParts = namePartsOfNamesInScope names'
       , nsModules   = nsModules   ns1 `fm` nsModules   ns2
       , nsInScope   = nsInScope   ns1 `fs` nsInScope   ns2
       }
@@ -681,7 +704,10 @@ mapNameSpaceM fd fm fs ns =
     update ns <$> fd (nsNames ns) <*> fm (nsModules ns) <*> fs (nsInScope ns)
   where
     update ns ds ms is =
-      ns { nsNames = ds, nsNameParts = mempty, nsModules = ms, nsInScope = is }
+      ns { nsNames     = ds
+         , nsNameParts = namePartsOfNamesInScope ds
+         , nsModules   = ms
+         , nsInScope   = is }
 
 ------------------------------------------------------------------------
 -- * General operations on scopes
@@ -763,6 +789,12 @@ mapScope fd fm fs = updateScopeNameSpaces $ AssocList.mapWithKey mapNS
   where
     mapNS acc = mapNameSpace (fd acc) (fm acc) (fs acc)
 
+-- | Map function over the namespaces in a scope, without automatically
+--   maintaining the `NamePartsInScope`.
+unsafeMapScope :: (NameSpaceId -> NameSpace -> NameSpace)
+               -> Scope -> Scope
+unsafeMapScope f = updateScopeNameSpaces $ AssocList.mapWithKey f
+
 -- | Same as 'mapScope' but applies the same function to all name spaces.
 mapScope_ :: (NamesInScope   -> NamesInScope  ) ->
              (ModulesInScope -> ModulesInScope) ->
@@ -819,6 +851,26 @@ zipScope fd fm fs s1 s2 =
     assert False = __IMPOSSIBLE__
     zipNS acc = zipNameSpace (fd acc) (fm acc) (fs acc)
 
+-- | Zip together two scopes. The resulting scope has the same name as the
+--   first scope. The `NamePartsInScope` is not automatically maintained
+--   in the result.
+unsafeZipScope ::
+     (NameSpaceId -> NameSpace -> NameSpace -> NameSpace)
+  -> Scope -> Scope -> Scope
+unsafeZipScope f s1 s2 =
+  s1 { scopeNameSpaces =
+         [ (nsid, f nsid ns1 ns2)
+         | ((nsid, ns1), (nsid', ns2)) <-
+             fromMaybe __IMPOSSIBLE__ $
+               zipWith' (,) (scopeNameSpaces s1) (scopeNameSpaces s2)
+         , assert (nsid == nsid')
+         ]
+     , scopeImports  = (Map.union `on` scopeImports)  s1 s2
+     }
+  where
+    assert True  = True
+    assert False = __IMPOSSIBLE__
+
 -- | Same as 'zipScope' but applies the same function to both the public and
 --   private name spaces.
 zipScope_ ::
@@ -840,35 +892,14 @@ recomputeInScopeSets = updateScopeNameSpaces (map $ second recomputeInScope)
 --   NamesInScope. When we do an arbitrary NamesInScope modification, we have
 --   to recompute NamePartsInScope.
 recomputeNameParts :: Scope -> Scope
-recomputeNameParts = updateScopeNameSpaces (map $ second update)
-  where
-    update :: NameSpace -> NameSpace
-    update ns = ns {nsNameParts = recomp (nsNames ns)}
-
-    recomp :: NamesInScope -> NamePartsInScope
-    recomp = Map.foldl'
-      (\acc absnames -> foldl'
-         (\acc absname ->
-            foldl'
-              (\acc notPart -> case notPart of
-                  IdPart rs ->
-                     Map.insertWith
-                       (<>)
-                       (rangedThing rs)
-                       (List1.singleton absname)
-                       acc
-                  _ -> acc)
-              acc
-              (theNotation $ nameFixity $ qnameName $ anameName absname))
-         acc
-         absnames)
-      Map.empty
+recomputeNameParts =
+  updateScopeNameSpaces $
+    map $ second (\ns -> ns {nsNameParts = namePartsOfNamesInScope (nsNames ns)})
 
 -- | Filter a scope keeping only concrete names matching the predicates.
 --   The first predicate is applied to the names and the second to the modules.
 filterScope :: (C.Name -> Bool) -> (C.Name -> Bool) -> Scope -> Scope
 filterScope pd pm =
-  recomputeNameParts   .
   recomputeInScopeSets .
   mapScope_ (Map.filterKeys pd) (Map.filterKeys pm) id
 
