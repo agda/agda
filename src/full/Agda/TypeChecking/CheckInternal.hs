@@ -406,4 +406,8 @@ instance CheckInternal PlusLevel where
 ---------------------------------------------------------------------------
 
 instance CheckInternal CompiledClauses where
-  checkInternal' _ _ _ _ = undefined
+  checkInternal' act cc@(Done _ t) cmp ty = checkInternal' act t cmp ty
+  checkInternal' act cc@(Fail _) cmp ty = do
+    --TODO make sure it's indeed an absurd clause
+    return cc
+  checkInternal' act cc@(Case _ _) cmp ty = return cc
