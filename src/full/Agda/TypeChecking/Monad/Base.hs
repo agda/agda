@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
 -- {-# LANGUAGE UndecidableInstances #-}  -- ghc >= 8.2, GeneralizedNewtypeDeriving MonadTransControl BlockT
 
 module Agda.TypeChecking.Monad.Base
@@ -5936,7 +5937,10 @@ instance MonadBlock m => MonadBlock (ReaderT e m) where
 
 -- | The type checking monad transformer.
 -- Adds readonly 'TCEnv' and mutable 'TCState'.
-newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
+newtype TCMTC (c :: Capability) m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
+
+type TCMT = TCMTC 'CapTCM
+type TCMC c = TCMTC c IO
 
 -- | Type checking monad.
 type TCM = TCMT IO

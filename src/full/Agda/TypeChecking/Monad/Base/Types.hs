@@ -26,6 +26,14 @@ import Agda.Utils.Lens                ( Lens', (&&&), iso )
 import Agda.Utils.Null                ( Null(..) )
 
 ---------------------------------------------------------------------------
+-- * Capabilities
+---------------------------------------------------------------------------
+
+-- | Capabilities. There are only two concrete capabilities, but by being polymorphic you can get
+--   more fine-grained control.
+data Capability = CapTCM | CapReduce
+
+---------------------------------------------------------------------------
 -- * Context
 ---------------------------------------------------------------------------
 
