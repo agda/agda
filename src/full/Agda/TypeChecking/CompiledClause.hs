@@ -76,6 +76,9 @@ data CompiledClauses' a
 
 type CompiledClauses = CompiledClauses' Term
 
+-- needed for checkInternal, we only store the "return type" here
+type instance TypeOf CompiledClauses = Type
+
 litCase :: Literal -> c -> Case c
 litCase l x = Branches False Map.empty Nothing (Map.singleton l x) Nothing (Just False) False
 

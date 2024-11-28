@@ -17,6 +17,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage
@@ -27,7 +28,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free.Precompute
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.CheckInternal
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
@@ -109,7 +110,7 @@ compileClauses mt cs = do
           [ "double checking compiled clauses of " <+> prettyTCM q
           , nest 2 $ return $ P.pretty cc
           ]
-        noConstraints $ withFrozenMetas $ checkInternal cc undefined undefined
+        noConstraints $ withFrozenMetas $ checkInternal cc CmpLeq t
       return (Just splitTree, becameCopatternLHS, fmap precomputeFreeVars_ cc)
 
 -- | Stripped-down version of 'Agda.Syntax.Internal.Clause'
