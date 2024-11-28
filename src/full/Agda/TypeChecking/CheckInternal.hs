@@ -428,17 +428,76 @@ instance CheckInternal CompiledClauses where
     let
       n      = size gamma
       xs     = map (setOrigin Inserted) $ teleNamedArgs gamma
-      sstate = CClause gamma _ (defaultDom a) q
-    checkClauses act cc cmp ty sstate
+      sstate = CClause gamma xs (defaultDom a) q
+    (_, r) <- checkClauses act cc cmp sstate
+    return r
 
 checkClauses
   :: (MonadCheckInternal m)
   => Action m
   -> CompiledClauses
   -> Comparison
-  -> TypeOf CompiledClauses
   -> CheckClause
   -> m (CheckClause, CompiledClauses)
-checkClauses act (Done arg t) cmp ty s = _
-checkClauses act (Fail arg) cmp ty s = _
-checkClauses act (Case arg cases) cmp ty s = _
+checkClauses act (Done arg t) cmp s = do
+  let funnySubst :: Term -> Term
+      -- from co-positions to deBruijn indices
+      funnySubst = undefined
+  nt <- addContext (ccTel s) $ checkInternal' act (funnySubst t) cmp (unDom . ccTarget $ s)
+  return (s, Done arg nt)
+checkClauses act (Fail arg) cmp s = _
+checkClauses act (Case arg cases) cmp s = _
+
+{-
+Examples
+----------------------------
+
+f : List A -> List A -> ?
+f (Cons x xs) (Cons y (Cons z zs)) = ?
+
+Telescope: [x : ?, zs: ?, y : ?, z : ?, xs : ?]
+
+Pats: [(Cons x@4 xs@0), (Cons y@2 (Cons z@1 zs@3))]
+      [(Cons x#0 xs#1), (Cons y#2 (Cons z#3 zs#4))]
+      [(Cons x#0 xs#1), (Cons (Cons t#2 p#3) (Cons z#4 zs#5))]
+
+f = Case #2 -> ...
+~
+f = Case @2 -> ...
+
+f = Case #3 -> ...
+~
+f = Case @1 -> ...
+
+----------------
+
+g : (a b : Nat) -> a = b + b -> ?
+g .(b+b) b refl = t b
+
+Telescope before : [a : ?, b : ?, eq : ?]
+Telescope after  : [b : ?]
+
+Pats before: [a@2, b@1, eq@0]
+Pats after:  [.(b@0 + b@0), b@0, refl]
+             [.(b + b)#0, b#1, refl]
+
+Return: t b@0
+
+----------------------------
+
+g : (A : Type) (a b : Nat) -> a = b + b -> Type
+g A .(b+b) b refl = A
+
+Telescope before : [A@3, a@2 : ?, b@1 : ?, eq@0 : ?]
+Telescope after  : [A@1, b@0 : ?]
+
+Pats before: [A@3, a@2, b@1, eq@0]
+Pats after:  [A, .(b@0 + b@0), b@0, refl]
+             [A#0, .(b + b)#1, b#2, refl]
+
+Return: @@2
+Return: @1
+
+
+use `prependS` to construct a substitution from co-positions to deBruijn levels
+-}
