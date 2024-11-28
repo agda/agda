@@ -1669,7 +1669,7 @@ POINTS must be a list of integers, and its length must be 0 or 2."
   (if points
       (format "(intervalsToRange (Just (mkAbsolute %s)) %s)"
               (agda2-string-quote (file-truename (buffer-file-name)))
-              (format "[Interval %s %s]"
+              (format "[Interval () %s %s]"
                       (agda2-mkPos (car points))
                       (agda2-mkPos (cadr points))))
     "noRange"))
