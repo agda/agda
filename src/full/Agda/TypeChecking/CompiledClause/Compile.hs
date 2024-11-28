@@ -28,7 +28,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free.Precompute
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Telescope
+--import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
