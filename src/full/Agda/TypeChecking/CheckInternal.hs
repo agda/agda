@@ -31,6 +31,7 @@ import Agda.TypeChecking.Records (shouldBeProjectible)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.Function (applyWhen, applyWhenM)
 import Agda.Utils.Functor (($>))
@@ -399,3 +400,10 @@ instance CheckInternal PlusLevel where
     checkLevelAtom l = do
       lvl <- levelType'
       checkInternal' action l CmpLeq lvl
+
+---------------------------------------------------------------------------
+-- * Double-checking the clauses
+---------------------------------------------------------------------------
+
+instance CheckInternal CompiledClauses where
+  checkInternal' _ _ _ _ = undefined
