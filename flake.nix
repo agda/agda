@@ -41,7 +41,7 @@
           enableStaticLibraries     = false;  # Saved  -1 seconds
         }) agda-pkg-minimal;
 
-      # An even faster Agda build, achieved by asking GHC to optimize less 
+      # An even faster Agda build, achieved by asking GHC to optimize less
       agda-pkg-quicker =
         # `appendConfigureFlag` passes a raw argument to ./Setup
         hlib.appendConfigureFlag "-O0" agda-pkg;
@@ -52,11 +52,14 @@
 
       # Agda supporting the `-v` option
       agda-pkg-debug = hlib.enableCabalFlag "debug" agda-pkg;
+      # when entering a nix devshell, -fenable-cluster-counting is on in the shell default build for cabal
+      # but text-icu isn't picked up by cabal2nix, so we have to force it from upfront
+      agda-cluster = hlib.enableCabalFlag "-fenable-cluster-counting" agda-pkg;
 
       # Development environment with tools for hacking on agda
       agda-dev-shell = hpkgs.shellFor {
         # Which haskell packages to prepare a dev env for
-        packages = _: [agda-pkg];
+        packages = _: [agda-cluster];
         # Extra software to provide in the dev shell
         nativeBuildInputs = [
             # Tools for building agda
