@@ -638,6 +638,9 @@ mergeNames = Map.unionWith List1.union
 mergeNamesMany :: Eq a => [ThingsInScope a] -> ThingsInScope a
 mergeNamesMany = Map.unionsWith List1.union
 
+mergeNameParts :: NamePartsInScope -> NamePartsInScope -> NamePartsInScope
+mergeNameParts = Map.unionWith List1.union
+
 ------------------------------------------------------------------------
 -- * Operations on name spaces
 ------------------------------------------------------------------------
@@ -851,9 +854,8 @@ zipScope fd fm fs s1 s2 =
     assert False = __IMPOSSIBLE__
     zipNS acc = zipNameSpace (fd acc) (fm acc) (fs acc)
 
--- | Zip together two scopes. The resulting scope has the same name as the
---   first scope. The `NamePartsInScope` is not automatically maintained
---   in the result.
+-- | Zip together two scopes. The `NamePartsInScope` is not automatically
+--   maintained in the result.
 unsafeZipScope ::
      (NameSpaceId -> NameSpace -> NameSpace -> NameSpace)
   -> Scope -> Scope -> Scope
@@ -888,13 +890,13 @@ recomputeInScopeSets = updateScopeNameSpaces (map $ second recomputeInScope)
     allANames :: NamesInScope -> InScopeSet
     allANames = Set.fromList . map anameName . List1.concat . Map.elems
 
--- | As an invariant, NamePartsInScope is keyed by all name parts in
---   NamesInScope. When we do an arbitrary NamesInScope modification, we have
---   to recompute NamePartsInScope.
-recomputeNameParts :: Scope -> Scope
-recomputeNameParts =
-  updateScopeNameSpaces $
-    map $ second (\ns -> ns {nsNameParts = namePartsOfNamesInScope (nsNames ns)})
+-- -- | As an invariant, NamePartsInScope is keyed by all name parts in
+-- --   NamesInScope. When we do an arbitrary NamesInScope modification, we have
+-- --   to recompute NamePartsInScope.
+-- recomputeNameParts :: Scope -> Scope
+-- recomputeNameParts =
+--   updateScopeNameSpaces $
+--     map $ second (\ns -> ns {nsNameParts = namePartsOfNamesInScope (nsNames ns)})
 
 -- | Filter a scope keeping only concrete names matching the predicates.
 --   The first predicate is applied to the names and the second to the modules.
@@ -949,7 +951,11 @@ thingsInScope fs s =
 
 -- | Merge two scopes. The result has the name of the first scope.
 mergeScope :: Scope -> Scope -> Scope
-mergeScope = zipScope_ mergeNames mergeNames Set.union
+mergeScope = unsafeZipScope $ \id (NameSpace ns1 nps1 ms1 sc1) (NameSpace ns2 nps2 ms2 sc2) ->
+  NameSpace (mergeNames ns1 ns2)
+            (mergeNameParts nps1 nps2)
+            (mergeNames ms1 ms2)
+            (Set.union sc1 sc2)
 
 -- | Merge a non-empty list of scopes. The result has the name of the first
 --   scope in the list.
