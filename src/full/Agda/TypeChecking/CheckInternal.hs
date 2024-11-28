@@ -22,6 +22,8 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Coverage.SplitClause
+import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
@@ -405,9 +407,38 @@ instance CheckInternal PlusLevel where
 -- * Double-checking the clauses
 ---------------------------------------------------------------------------
 
+{-
+data needed for the main loop:
+  telescope : - scTel
+  target type : Dom Type - scTarget
+  scPats   :: [NamedArg SplitPattern] -- list of patterns
+  name of the function : QName
+--  list of patterns - same type as scPats - mapping from CompiledClauses to scTel - to convert from deBruijn levels to proper deBruijn indices
+-}
+data CheckClause = CClause
+  { ccTel    :: Telescope
+  , ccPats   :: [NamedArg SplitPattern]
+  , ccTarget :: Dom Type
+  , ccName   :: QName
+  }
+
 instance CheckInternal CompiledClauses where
-  checkInternal' act cc@(Done _ t) cmp ty = checkInternal' act t cmp ty
-  checkInternal' act cc@(Fail _) cmp ty = do
-    --TODO make sure it's indeed an absurd clause
-    return cc
-  checkInternal' act cc@(Case _ _) cmp ty = return cc
+  checkInternal' act cc cmp (q, t) = do
+    TelV gamma a <- telViewUpTo (-1) t
+    let
+      n      = size gamma
+      xs     = map (setOrigin Inserted) $ teleNamedArgs gamma
+      sstate = CClause gamma _ (defaultDom a) q
+    checkClauses act cc cmp ty sstate
+
+checkClauses
+  :: (MonadCheckInternal m)
+  => Action m
+  -> CompiledClauses
+  -> Comparison
+  -> TypeOf CompiledClauses
+  -> CheckClause
+  -> m (CheckClause, CompiledClauses)
+checkClauses act (Done arg t) cmp ty s = _
+checkClauses act (Fail arg) cmp ty s = _
+checkClauses act (Case arg cases) cmp ty s = _

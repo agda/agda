@@ -114,7 +114,7 @@ coverageCheck f t cs = do
   let -- n             = arity
       -- xs            = variable patterns fitting lgamma
       n            = size gamma
-      xs           =  map (setOrigin Inserted) $ teleNamedArgs gamma
+      xs           = map (setOrigin Inserted) $ teleNamedArgs gamma
 
   reportSLn "tc.cover.top" 30 $ "coverageCheck: getDefFreeVars"
 
