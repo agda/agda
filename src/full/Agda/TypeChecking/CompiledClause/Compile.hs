@@ -110,7 +110,7 @@ compileClauses mt cs = do
           [ "double checking compiled clauses of " <+> prettyTCM q
           , nest 2 $ return $ P.pretty cc
           ]
-        noConstraints $ withFrozenMetas $ checkInternal cc CmpLeq t
+        noConstraints $ withFrozenMetas $ checkInternal cc CmpLeq (q, t)
       return (Just splitTree, becameCopatternLHS, fmap precomputeFreeVars_ cc)
 
 -- | Stripped-down version of 'Agda.Syntax.Internal.Clause'
