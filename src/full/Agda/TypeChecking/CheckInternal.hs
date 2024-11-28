@@ -22,7 +22,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Coverage.SplitClause
+--import Agda.TypeChecking.Coverage.SplitClause
 import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Level
@@ -445,8 +445,8 @@ checkClauses act (Done arg t) cmp s = do
       funnySubst = undefined
   nt <- addContext (ccTel s) $ checkInternal' act (funnySubst t) cmp (unDom . ccTarget $ s)
   return (s, Done arg nt)
-checkClauses act (Fail arg) cmp s = _
-checkClauses act (Case arg cases) cmp s = _
+checkClauses act (Fail arg) cmp s = undefined
+checkClauses act (Case arg cases) cmp s = undefined
 
 {-
 Examples
