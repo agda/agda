@@ -472,7 +472,7 @@ instance IsBuiltin BuiltinId where
     BuiltinAgdaBlockerAny                    -> "AGDABLOCKERANY"
     BuiltinAgdaBlockerAll                    -> "AGDABLOCKERALL"
     BuiltinAgdaBlockerMeta                   -> "AGDABLOCKERMETA"
-    BuiltinAgdaTCMGetCurrentPath             -> "TCMGETCURRENTPATH"
+    BuiltinAgdaTCMGetCurrentPath             -> "AGDATCMGETCURRENTPATH"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which
