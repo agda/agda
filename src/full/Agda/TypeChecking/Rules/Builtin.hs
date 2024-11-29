@@ -392,6 +392,7 @@ coreBuiltins =
   , builtinAgdaTCMQuoteOmegaTerm             |-> builtinPostulate (hPi "A" tsetOmega $ elInf (varM 0) --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMBlock                      |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tblocker --> tTCM 1 (varM 0))
   , builtinAgdaTCMCommit                     |-> builtinPostulate (tTCM_ primUnit)
+  , builtinAgdaTCMGetCurrentPath             |-> builtinPostulate (tTCM_ primString)
   , builtinAgdaTCMIsMacro                    |-> builtinPostulate (tqname --> tTCM_ primBool)
   , builtinAgdaTCMWithNormalisation          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMWithReconstructed          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))

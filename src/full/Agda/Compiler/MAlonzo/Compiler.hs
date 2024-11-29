@@ -288,6 +288,7 @@ ghcPreCompile flags = do
       , builtinAgdaTCMGetDefinition
       , builtinAgdaTCMBlock
       , builtinAgdaTCMCommit
+      , builtinAgdaTCMGetCurrentPath
       , builtinAgdaTCMIsMacro
       , builtinAgdaTCMWithNormalisation
       , builtinAgdaTCMWithReconstructed

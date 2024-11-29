@@ -245,6 +245,7 @@ data BuiltinId
   | BuiltinAgdaTCMSolveInstances
   | BuiltinAgdaTCMPragmaForeign
   | BuiltinAgdaTCMPragmaCompile
+  | BuiltinAgdaTCMGetCurrentPath
   | BuiltinAgdaBlocker
   | BuiltinAgdaBlockerAny
   | BuiltinAgdaBlockerAll
@@ -471,6 +472,7 @@ instance IsBuiltin BuiltinId where
     BuiltinAgdaBlockerAny                    -> "AGDABLOCKERANY"
     BuiltinAgdaBlockerAll                    -> "AGDABLOCKERALL"
     BuiltinAgdaBlockerMeta                   -> "AGDABLOCKERMETA"
+    BuiltinAgdaTCMGetCurrentPath             -> "TCMGETCURRENTPATH"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which
@@ -593,7 +595,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMGetInstances,
   builtinAgdaTCMSolveInstances,
   builtinAgdaTCMPragmaForeign,
-  builtinAgdaTCMPragmaCompile
+  builtinAgdaTCMPragmaCompile, builtinAgdaTCMGetCurrentPath
   :: BuiltinId
 
 builtinNat                               = BuiltinNat
@@ -794,6 +796,7 @@ builtinAgdaTCMExec                       = BuiltinAgdaTCMExec
 builtinAgdaTCMCheckFromString            = BuiltinAgdaTCMCheckFromString
 builtinAgdaTCMGetInstances               = BuiltinAgdaTCMGetInstances
 builtinAgdaTCMSolveInstances             = BuiltinAgdaTCMSolveInstances
+builtinAgdaTCMGetCurrentPath             = BuiltinAgdaTCMGetCurrentPath
 builtinAgdaTCMPragmaForeign              = BuiltinAgdaTCMPragmaForeign
 builtinAgdaTCMPragmaCompile              = BuiltinAgdaTCMPragmaCompile
 builtinAgdaBlocker                       = BuiltinAgdaBlocker
@@ -1077,7 +1080,7 @@ instance IsBuiltin PrimitiveId where
     PrimMetaToNat                         -> "primMetaToNat"
     PrimMetaToNatInjective                -> "primMetaToNatInjective"
     PrimLockUniv                          -> "primLockUniv"
-
+ 
 builtinConId, builtinIdElim, builtinSubOut,
   builtinIMin, builtinIMax, builtinINeg,
   builtinGlue, builtin_glue, builtin_unglue, builtin_glueU, builtin_unglueU,

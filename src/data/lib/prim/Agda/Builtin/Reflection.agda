@@ -285,7 +285,7 @@ postulate
   checkType        : Term → Type → TC Term
   normalise        : Term → TC Term
   reduce           : Term → TC Term
-  catchTC          : ∀ {a} {A : Set a} → TC A → (String → TC A) → TC A
+  catchWithErrorTC : ∀ {a} {A : Set a} → TC A → (String → TC A) → TC A
   quoteTC          : ∀ {a} {A : Set a} → A → TC Term
   unquoteTC        : ∀ {a} {A : Set a} → Term → TC A
   quoteωTC         : ∀ {A : Setω} → A → TC Term
@@ -356,6 +356,8 @@ postulate
   -- the resulting term (when successful).
   checkFromStringTC : String → Type → TC Term
 
+  getCurrentPathTC : TC String
+
 {-# BUILTIN AGDATCM                           TC                         #-}
 {-# BUILTIN AGDATCMRETURN                     returnTC                   #-}
 {-# BUILTIN AGDATCMBIND                       bindTC                     #-}
@@ -365,7 +367,7 @@ postulate
 {-# BUILTIN AGDATCMCHECKTYPE                  checkType                  #-}
 {-# BUILTIN AGDATCMNORMALISE                  normalise                  #-}
 {-# BUILTIN AGDATCMREDUCE                     reduce                     #-}
-{-# BUILTIN AGDATCMCATCHERROR                 catchTC                    #-}
+{-# BUILTIN AGDATCMCATCHERROR                 catchWithErrorTC           #-}
 {-# BUILTIN AGDATCMQUOTETERM                  quoteTC                    #-}
 {-# BUILTIN AGDATCMUNQUOTETERM                unquoteTC                  #-}
 {-# BUILTIN AGDATCMQUOTEOMEGATERM             quoteωTC                   #-}
@@ -401,6 +403,7 @@ postulate
 {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
 {-# BUILTIN AGDATCMSOLVEINSTANCES             solveInstanceConstraints   #-}
 {-# BUILTIN AGDATCMCHECKFROMSTRING            checkFromStringTC          #-}
+{-# BUILTIN AGDATCMGETCURRENTPATH             getCurrentPathTC           #-}
 
 -- All the TC primitives are compiled to functions that return
 -- undefined, rather than just undefined, in an attempt to make sure
@@ -414,7 +417,7 @@ postulate
 {-# COMPILE JS checkType         = _ => _ =>           undefined #-}
 {-# COMPILE JS normalise         = _ =>                undefined #-}
 {-# COMPILE JS reduce            = _ =>                undefined #-}
-{-# COMPILE JS catchTC           = _ => _ => _ => _ => undefined #-}
+{-# COMPILE JS catchWithErrorTC  = _ => _ => _ => _ => undefined #-}
 {-# COMPILE JS quoteTC           = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS unquoteTC         = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS quoteωTC          = _ => _ =>           undefined #-}
@@ -478,6 +481,9 @@ private
 onlyReduceDefs dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
 onlyReduceDefs defs x = bindTC askReduceDefs (λ exDefs → withReduceDefs (combineReduceDefs (true  , defs) exDefs) x)
 dontReduceDefs defs x = bindTC askReduceDefs (λ exDefs → withReduceDefs (combineReduceDefs (false , defs) exDefs) x)
+
+catchTC : ∀ {a} {A : Set a} → TC A → TC A → TC A
+catchTC x y = catchWithErrorTC x (λ _ → y)
 
 blockOnMeta   : ∀ {a} {A : Set a} → Meta → TC A
 blockOnMeta m = blockTC (blockerMeta m)

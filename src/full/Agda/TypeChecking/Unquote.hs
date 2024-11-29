@@ -69,12 +69,14 @@ import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.Either
 import Agda.Utils.Lens
+import Agda.Utils.Maybe (caseMaybe)
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
 import Agda.Syntax.Common.Pretty (prettyShow)
 import qualified Agda.Interaction.Options.Lenses as Lens
 
+import Agda.Utils.FileName (textPath)
 import Agda.Utils.Impossible
 import Agda.Syntax.Abstract (TypedBindingInfo(tbTacticAttr))
 
@@ -601,6 +603,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
              , (f `isDef` getBuiltin' builtinAgdaTCMAskExpandLast,    tcAskExpandLast)
              , (f `isDef` getBuiltin' builtinAgdaTCMAskReduceDefs,    tcAskReduceDefs)
              , (f `isDef` getBuiltin' builtinAgdaTCMSolveInstances,   tcSolveInstances)
+             , (f `isDef` getBuiltin' builtinAgdaTCMGetCurrentPath,   tcGetCurrentPath)
              ]
              failEval
     I.Def f [u] ->
@@ -672,6 +675,14 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     mkT l a = El s a
       where s = Type $ atomicLevel l
 
+    tcGetCurrentPath :: UnquoteM Term
+    tcGetCurrentPath = 
+       liftTCM ((toTerm <*>
+                  (fmap (\case
+                            Nothing -> ""
+                            Just ap -> textPath ap)
+                  (asksTC (\ e -> e ^. eCurrentPath))) ))
+          
     -- Don't catch Unquote errors!
     tcCatchError :: Term -> Term -> UnquoteM Term
     tcCatchError m h =
