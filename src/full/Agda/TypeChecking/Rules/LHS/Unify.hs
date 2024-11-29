@@ -163,7 +163,6 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Unify.Types
 import Agda.TypeChecking.Rules.LHS.Unify.LeftInverse
 
-import Agda.Utils.Benchmark
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -212,14 +211,14 @@ data UnificationResult' a
 --
 --   The result is the most general unifier of @us@ and @vs@.
 unifyIndices
-  :: (PureTCM m, MonadBench m, BenchPhase m ~ Bench.Phase, MonadError TCErr m)
+  :: (CapDebug c, CapBench c, CapInteractionPoints c)
   => Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
   -> Telescope       -- ^ @gamma@
   -> FlexibleVars    -- ^ @flex@
   -> Type            -- ^ @a@
   -> Args            -- ^ @us@
   -> Args            -- ^ @vs@
-  -> m UnificationResult
+  -> TCMC c UnificationResult
 unifyIndices linv tel flex a us vs =
   Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $
     fmap (\(a,b,c,_) -> (a,b,c)) <$> unifyIndices' linv tel flex a us vs
