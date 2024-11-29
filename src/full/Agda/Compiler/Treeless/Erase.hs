@@ -84,14 +84,14 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
         case h of
           Erasable -> pure TErased
           Empty    -> pure TErased
-          _        -> tApp (TCon c) <$> zipWithM eraseRel rs vs
+          _        -> tApp (TCon c) <$> zipWithM eraseArg rs vs
 
       (TDef f, vs) -> do
         (rs, h) <- getFunInfo f
         case h of
           Erasable -> pure TErased
           Empty    -> pure TErased
-          _        -> tApp (TDef f) <$> zipWithM eraseRel (rs ++ repeat NotErasable) vs
+          _        -> tApp (TDef f) <$> zipWithM eraseArg (rs ++ repeat NotErasable) vs
 
       _ -> case t of
         TVar{}         -> pure t
@@ -173,8 +173,11 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
 
     isErased t = t == TErased || isUnreachable t
 
-    eraseRel r t | erasable r = pure TErased
-                 | otherwise  = erase t
+    -- #7532: for strict backends, look at the term as well as the type
+    -- when deciding whether to erase arguments
+    eraseArg r t
+      | erasable r && eval == LazyEvaluation = pure TErased
+      | otherwise                            = erase t
 
     eraseAlt = \case
       TALit l b   -> TALit l   <$> erase b
