@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE TypeApplications #-}
 
 {-| Coverage checking, case splitting, and splitting for refine tactics.
 

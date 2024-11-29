@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 -- | Data structures for the type checker.
 --
 -- Part of "Agda.TypeChecking.Monad.Base", extracted to avoid import cycles.
@@ -32,6 +33,9 @@ import Agda.Utils.Null                ( Null(..) )
 -- | Capabilities. There are only two concrete capabilities, but by being polymorphic you can get
 --   more fine-grained control.
 data Capability = CapTCM | CapReduce
+
+class CapIO (c :: Capability)
+instance CapIO 'CapTCM
 
 ---------------------------------------------------------------------------
 -- * Context

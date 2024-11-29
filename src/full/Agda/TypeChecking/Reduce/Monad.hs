@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -75,13 +76,13 @@ instance MonadDebug ReduceM where
   traceDebugMessage k n s cont = do
     ReduceEnv env st _ <- askR
     unsafePerformIO $ do
-      _ <- runTCM env st $ displayDebugMessage k n s
+      _ <- runTCM @'CapTCM env st $ displayDebugMessage k n s
       return $ cont
 
   formatDebugMessage k n d = do
     ReduceEnv env st _ <- askR
     unsafePerformIO $ do
-      (s , _) <- runTCM env st $ formatDebugMessage k n d
+      (s , _) <- runTCM @'CapTCM env st $ formatDebugMessage k n d
       return $ return s
 
 #ifdef DEBUG

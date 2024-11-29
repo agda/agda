@@ -95,13 +95,11 @@ import Agda.Utils.Impossible
 -- * Top level function
 ---------------------------------------------------------------------------
 
-{-# SPECIALIZE renderError :: TCErr -> TCM String #-}
-renderError :: MonadTCM tcm => TCErr -> tcm String
+renderError :: TCErr -> TCMC c String
 renderError = fmap show . prettyError
 
-{-# SPECIALIZE prettyError :: TCErr -> TCM Doc #-}
-prettyError :: MonadTCM tcm => TCErr -> tcm Doc
-prettyError = liftTCM . flip renderError' [] where
+prettyError :: TCErr -> TCMC c Doc
+prettyError = grantAllCapabilities . flip renderError' [] where
   renderError' :: TCErr -> [TCErr] -> TCM Doc
   renderError' err errs
     | length errs > 3 = fsep (

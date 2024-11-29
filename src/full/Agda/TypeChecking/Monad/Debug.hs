@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
 
 module Agda.TypeChecking.Monad.Debug
   ( module Agda.TypeChecking.Monad.Debug
@@ -44,7 +45,7 @@ import Agda.Utils.Impossible
 
 class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
-  formatDebugMessage :: VerboseKey -> VerboseLevel -> TCM Doc -> m String
+  formatDebugMessage :: VerboseKey -> VerboseLevel -> TCMC c Doc -> m String
   traceDebugMessage  :: VerboseKey -> VerboseLevel -> String -> m a -> m a
 
   -- | Print brackets around debug messages issued by a computation.
@@ -63,7 +64,7 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
   default formatDebugMessage
     :: (MonadTrans t, MonadDebug n, m ~ t n)
-    => VerboseKey -> VerboseLevel -> TCM Doc -> m String
+    => VerboseKey -> VerboseLevel -> TCMC c Doc -> m String
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
 
   default traceDebugMessage
@@ -140,7 +141,11 @@ catchAndPrintImpossible k n m = catchImpossibleJust catchMe m $ \ imposs -> do
     Unreachable{}           -> False
     ImpMissingDefinitions{} -> False
 
-instance MonadDebug TCM where
+class CapDebug (c :: Capability)
+instance CapDebug 'CapTCM
+instance CapDebug 'CapReduce
+
+instance (CapIO c, CapDebug c) => MonadDebug (TCMC c) where
 
   traceDebugMessage k n s cont = do
     -- Andreas, 2019-08-20, issue #4016:
@@ -153,7 +158,7 @@ instance MonadDebug TCM where
       now <- liftIO $ trailingZeros . iso8601Show <$> liftA2 utcToLocalTime getCurrentTimeZone getCurrentTime
       return $ concat [ now, ": ", s ]
 
-    cb $ Resp_RunningInfo n msg
+    grantAllCapabilities $ cb $ Resp_RunningInfo n msg
     cont
     where
     -- Surprisingly, iso8601Show gives us _up to_ 6 fractional digits (microseconds),
@@ -164,7 +169,7 @@ instance MonadDebug TCM where
     trailingZeros = take 26 . (++ repeat '0')
 
   formatDebugMessage k n d = catchAndPrintImpossible k n $ do
-    render <$> d `catchError` \ err -> do
+    render <$> castCapabilities d `catchError` \ err -> do
       renderError err <&> \ s -> vcat
         [ sep $ map text
           [ "Printing debug message"

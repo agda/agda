@@ -5511,7 +5511,7 @@ instance Null WarningsAndNonFatalErrors where
 -- * Accessing options
 -----------------------------------------------------------------------------
 
-instance MonadIO m => HasOptions (TCMT m) where
+instance MonadIO m => HasOptions (TCMTC c m) where
   pragmaOptions = useTC stPragmaOptions
   {-# INLINE pragmaOptions #-}
 
@@ -5945,11 +5945,18 @@ type TCMC c = TCMTC c IO
 -- | Type checking monad.
 type TCM = TCMT IO
 
+-- | Danger territory. Only use if you absolutely must.
+castCapabilities :: TCMTC c' m a -> TCMTC c m a
+castCapabilities (TCM m) = TCM m
+
+grantAllCapabilities :: TCMT m a -> TCMTC c m a
+grantAllCapabilities = castCapabilities
+
 {-# SPECIALIZE INLINE mapTCMT :: (forall a. IO a -> IO a) -> TCM a -> TCM a #-}
-mapTCMT :: (forall a. m a -> n a) -> TCMT m a -> TCMT n a
+mapTCMT :: forall c m n a. (forall a. m a -> n a) -> TCMTC c m a -> TCMTC c n a
 mapTCMT f (TCM m) = TCM $ \ s e -> f (m s e)
 
-pureTCM :: MonadIO m => (TCState -> TCEnv -> a) -> TCMT m a
+pureTCM :: MonadIO m => (TCState -> TCEnv -> a) -> TCMTC c m a
 pureTCM f = TCM $ \ r e -> do
   s <- liftIO $ readIORef r
   return (f s e)
@@ -5965,30 +5972,30 @@ pureTCM f = TCM $ \ r e -> do
 -- [1] When compiled with -auto-all and run with -p: roughly 750%
 -- faster for one example.
 
-returnTCMT :: Applicative m => a -> TCMT m a
+returnTCMT :: Applicative m => a -> TCMTC c m a
 returnTCMT = \x -> TCM $ \_ _ -> pure x
 {-# INLINE returnTCMT #-}
 
-bindTCMT :: Monad m => TCMT m a -> (a -> TCMT m b) -> TCMT m b
+bindTCMT :: Monad m => TCMTC c m a -> (a -> TCMTC c m b) -> TCMTC c m b
 bindTCMT = \(TCM m) k -> TCM $ \r e -> m r e >>= \x -> unTCM (k x) r e
 {-# INLINE bindTCMT #-}
 
-thenTCMT :: Applicative m => TCMT m a -> TCMT m b -> TCMT m b
+thenTCMT :: Applicative m => TCMTC c m a -> TCMTC c m b -> TCMTC c m b
 thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e *> m2 r e
 {-# INLINE thenTCMT #-}
 
-instance Functor m => Functor (TCMT m) where
+instance Functor m => Functor (TCMTC c m) where
   fmap = fmapTCMT; {-# INLINE fmap #-}
 
-fmapTCMT :: Functor m => (a -> b) -> TCMT m a -> TCMT m b
+fmapTCMT :: Functor m => (a -> b) -> TCMTC c m a -> TCMTC c m b
 fmapTCMT = \f (TCM m) -> TCM $ \r e -> fmap f (m r e)
 {-# INLINE fmapTCMT #-}
 
-instance Applicative m => Applicative (TCMT m) where
+instance Applicative m => Applicative (TCMTC c m) where
   pure  = returnTCMT; {-# INLINE pure #-}
   (<*>) = apTCMT; {-# INLINE (<*>) #-}
 
-apTCMT :: Applicative m => TCMT m (a -> b) -> TCMT m a -> TCMT m b
+apTCMT :: Applicative m => TCMTC c m (a -> b) -> TCMTC c m a -> TCMTC c m b
 apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> mf r e <*> m r e
 {-# INLINE apTCMT #-}
 
@@ -5999,15 +6006,15 @@ instance MonadTrans TCMT where
 -- Andreas, 2022-02-02, issue #5659:
 -- @transformers-0.6@ requires exactly a @Monad@ superclass constraint here
 -- if we want @instance MonadTrans TCMT@.
-instance Monad m => Monad (TCMT m) where
+instance Monad m => Monad (TCMTC c m) where
     return = pure; {-# INLINE return #-}
     (>>=)  = bindTCMT; {-# INLINE (>>=) #-}
     (>>)   = (*>); {-# INLINE (>>) #-}
 
-instance (CatchIO m, MonadIO m) => MonadFail (TCMT m) where
+instance (CapIO c, CatchIO m, MonadIO m) => MonadFail (TCMTC c m) where
   fail = internalError
 
-instance MonadIO m => MonadIO (TCMT m) where
+instance (CapIO c, MonadIO m) => MonadIO (TCMTC c m) where
   liftIO m = TCM $ \ s env -> do
     liftIO $ wrap s (envRange env) $ do
       x <- m
@@ -6017,16 +6024,16 @@ instance MonadIO m => MonadIO (TCMT m) where
         s <- readIORef s
         E.throwIO $ IOException (Just s) r err
 
-instance MonadIO m => MonadTCEnv (TCMT m) where
+instance MonadIO m => MonadTCEnv (TCMTC c m) where
   askTC             = TCM $ \ _ e -> return e; {-# INLINE askTC #-}
   localTC f (TCM m) = TCM $ \ s e -> m s (f e); {-# INLINE localTC #-}
 
-instance MonadIO m => MonadTCState (TCMT m) where
+instance MonadIO m => MonadTCState (TCMTC c m) where
   getTC   = TCM $ \ r _e -> liftIO (readIORef r); {-# INLINE getTC #-}
   putTC s = TCM $ \ r _e -> liftIO (writeIORef r s); {-# INLINE putTC #-}
   modifyTC f = putTC . f =<< getTC; {-# INLINE modifyTC #-}
 
-instance MonadIO m => ReadTCState (TCMT m) where
+instance MonadIO m => ReadTCState (TCMTC c m) where
   getTCState = getTC; {-# INLINE getTCState #-}
   locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l); {-# INLINE locallyTCState #-}
 
@@ -6042,7 +6049,7 @@ instance MonadBlock TCM where
            PatternErr u -> handle u
            _            -> throwError err
 
-instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
+instance (CatchIO m, CapIO c, MonadIO m) => MonadError TCErr (TCMTC c m) where
   throwError = liftIO . E.throwIO
   catchError m h = TCM $ \ r e -> do  -- now we are in the monad m
     oldState <- liftIO $ readIORef r
@@ -6062,7 +6069,7 @@ instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
 --
 --   The intended use is to catch internal errors during debug printing.
 --   In debug printing, we are not expecting state changes.
-instance CatchImpossible TCM where
+instance CatchImpossible (TCMC c) where
   catchImpossibleJust f m h = TCM $ \ r e -> do
     -- save the state
     s <- readIORef r
@@ -6073,7 +6080,7 @@ instance CatchImpossible TCM where
 instance MonadIO m => MonadReduce (TCMT m) where
   liftReduce = liftTCM . runReduceM; {-# INLINE liftReduce #-}
 
-instance (IsString a, MonadIO m) => IsString (TCMT m a) where
+instance (IsString a, MonadIO m) => IsString (TCMTC c m a) where
   fromString s = return (fromString s)
 
 -- | Strict (non-shortcut) semigroup.
@@ -6082,21 +6089,21 @@ instance (IsString a, MonadIO m) => IsString (TCMT m a) where
 --   for TCM All we might want 'Agda.Utils.Monad.and2M' as concatenation,
 --   to shortcut conjunction in case we already have 'False'.
 --
-instance {-# OVERLAPPABLE #-} (MonadIO m, Semigroup a) => Semigroup (TCMT m a) where
+instance {-# OVERLAPPABLE #-} (MonadIO m, Semigroup a) => Semigroup (TCMTC c m a) where
   (<>) = liftA2 (<>)
 
 -- | Strict (non-shortcut) monoid.
-instance {-# OVERLAPPABLE #-} (MonadIO m, Semigroup a, Monoid a) => Monoid (TCMT m a) where
+instance {-# OVERLAPPABLE #-} (MonadIO m, Semigroup a, Monoid a) => Monoid (TCMTC c m a) where
   mempty  = pure mempty
   mappend = (<>)
   mconcat = mconcat <.> sequence
 
-instance {-# OVERLAPPABLE #-} (MonadIO m, Null a) => Null (TCMT m a) where
+instance {-# OVERLAPPABLE #-} (MonadIO m, Null a) => Null (TCMTC c m a) where
   empty = return empty
   null  = __IMPOSSIBLE__
 
 -- | Preserve the state of the failing computation.
-catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
+catchError_ :: TCMC c a -> (TCErr -> TCMC c a) -> TCMC c a
 catchError_ m h = TCM $ \r e ->
   unTCM m r e
   `E.catch` \err -> unTCM (h err) r e
@@ -6105,7 +6112,7 @@ catchError_ m h = TCM $ \r e ->
 --   Does not catch any errors.
 --   In case both the regular computation and the finalizer
 --   throw an exception, the one of the finalizer is propagated.
-finally_ :: TCM a -> TCM b -> TCM a
+finally_ :: CapIO c => TCMC c a -> TCMC c b -> TCMC c a
 finally_ m f = do
     x <- m `catchError_` \ err -> f >> throwError err
     _ <- f
@@ -6138,11 +6145,14 @@ instance MonadTCM tcm => MonadTCM (ReaderT r tcm)
 instance MonadTCM tcm => MonadTCM (StateT s tcm)
 instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm)
 
+class CapIO c => CapBench (c :: Capability)
+instance CapBench 'CapTCM
+
 -- | We store benchmark statistics in an IORef.
 --   This enables benchmarking pure computation, see
 --   "Agda.Benchmarking".
-instance MonadBench TCM where
-  type BenchPhase TCM = Phase
+instance CapBench c => MonadBench (TCMC c) where
+  type BenchPhase (TCMC c) = Phase
   getBenchmark = liftIO $ getBenchmark
   putBenchmark = liftIO . putBenchmark
   finally = finally_
@@ -6200,7 +6210,7 @@ execError = locatedTypeError ExecError
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
-runTCM :: MonadIO m => TCEnv -> TCState -> TCMT m a -> m (a, TCState)
+runTCM :: forall c m a. MonadIO m => TCEnv -> TCState -> TCMTC c m a -> m (a, TCState)
 runTCM e s m = do
   r <- liftIO $ newIORef s
   a <- unTCM m r e
@@ -6211,7 +6221,7 @@ runTCM e s m = do
 runTCMTop :: TCM a -> IO (Either TCErr a)
 runTCMTop m = (Right <$> runTCMTop' m) `E.catch` (return . Left)
 
-runTCMTop' :: MonadIO m => TCMT m a -> m a
+runTCMTop' :: MonadIO m => TCMTC c m a -> m a
 runTCMTop' m = do
   r <- liftIO $ newIORef =<< initStateIO
   unTCM m r initEnv
