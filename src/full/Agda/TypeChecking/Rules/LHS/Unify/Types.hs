@@ -462,9 +462,9 @@ instance Monoid UnifyOutput where
   mempty  = UnifyOutput IdS IdS -- []
   mappend = (<>)
 
-type UnifyLogT m a = WriterT UnifyLog' m a
+type UnifyLogT = WriterT UnifyLog'
 
-type UnifyStepT m a = WriterT UnifyOutput m a
+type UnifyStepT = WriterT UnifyOutput
 
 tellUnifySubst :: MonadWriter UnifyOutput m => PatternSubstitution -> m ()
 tellUnifySubst sub = tell $ UnifyOutput sub IdS

@@ -46,6 +46,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Rules.LHS (DataOrRecord, checkSortOfSplitVar)
 import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
 import Agda.TypeChecking.Rules.LHS.Unify
+import Agda.TypeChecking.Rules.LHS.Unify.Types (runUnifyLogT)
 import Agda.TypeChecking.Rules.Term (unquoteTactic)
 
 import Agda.TypeChecking.Coverage.Match
@@ -993,6 +994,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
   r <- withKIfStrict $ lift $
          Bench.billTo [Bench.Coverage, Bench.UnifyIndices] $
+           fmap fst $ runUnifyLogT $
            unifyIndices' flatSplit
              delta1Gamma
              flex
