@@ -18,6 +18,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Signature
 
 import Agda.Utils.ListT
@@ -33,7 +34,7 @@ class
   , ReadTCState m
   ) => PureTCM m where
 
-instance PureTCM TCM where
+instance (CapIO c, CapDebug c, CapInteractionPoints c) => PureTCM (TCMC c) where
 instance PureTCM m => PureTCM (BlockT m)
 instance PureTCM m => PureTCM (ChangeT m)
 instance PureTCM m => PureTCM (ExceptT e m)

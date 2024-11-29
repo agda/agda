@@ -1069,7 +1069,7 @@ instance (MonadFresh i m, Monoid w) => MonadFresh i (WriterT w m)
 instance MonadFresh i m => MonadFresh i (ListT m)
 instance MonadFresh i m => MonadFresh i (IdentityT m)
 
-instance HasFresh i => MonadFresh i TCM where
+instance HasFresh i => MonadFresh i (TCMC c) where
   fresh = do
         !s <- getTC
         let (!c , !s') = nextFresh s
@@ -1169,7 +1169,7 @@ class Monad m => MonadStConcreteNames m where
   modifyConcreteNames :: (ConcreteNames -> ConcreteNames) -> m ()
   modifyConcreteNames = runStConcreteNames . modify
 
-instance MonadStConcreteNames TCM where
+instance MonadStConcreteNames (TCMC c) where
   runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
 
 -- | The concrete names get lost in case of an exception.
@@ -5668,7 +5668,7 @@ instance ReadTCState ReduceM where
   getTCState = ReduceM redSt
   locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
 
-runReduceM :: ReduceM a -> TCM a
+runReduceM :: ReduceM a -> TCMC c a
 runReduceM m = TCM $ \ r e -> do
   s <- readIORef r
   E.evaluate $ unReduceM m $ ReduceEnv e s Nothing
@@ -6077,8 +6077,8 @@ instance CatchImpossible (TCMC c) where
       writeIORef r s
       unTCM (h err) r e
 
-instance MonadIO m => MonadReduce (TCMT m) where
-  liftReduce = liftTCM . runReduceM; {-# INLINE liftReduce #-}
+instance MonadIO m => MonadReduce (TCMTC c m) where
+  liftReduce = mapTCMT liftIO . runReduceM; {-# INLINE liftReduce #-}
 
 instance (IsString a, MonadIO m) => IsString (TCMTC c m a) where
   fromString s = return (fromString s)

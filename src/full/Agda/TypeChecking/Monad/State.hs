@@ -37,7 +37,7 @@ import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Warnings
 
-import Agda.TypeChecking.Monad.Debug (reportSDoc, reportSLn, verboseS)
+import Agda.TypeChecking.Monad.Debug (reportSDoc, reportSLn, verboseS, CapDebug)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 
@@ -189,7 +189,7 @@ localScope m = do
   return x
 
 -- | Scope error.
-notInScopeError :: C.QName -> TCM a
+notInScopeError :: (CapDebug c, CapIO c) => C.QName -> TCMC c a
 notInScopeError x = do
   printScope "unbound" 25 ""
   typeError $ NotInScope x
@@ -200,7 +200,7 @@ notInScopeWarning x = do
   warning $ NotInScopeW x
 
 -- | Debug print the scope.
-printScope :: String -> Int -> String -> TCM ()
+printScope :: (CapDebug c, CapIO c) => String -> Int -> String -> TCMC c ()
 printScope tag v s = verboseS ("scope." ++ tag) v $ do
   scope <- getScope
   reportSDoc ("scope." ++ tag) v $ return $ vcat [ text s, pretty scope ]

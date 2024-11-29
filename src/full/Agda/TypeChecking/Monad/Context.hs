@@ -97,7 +97,7 @@ escapeContext err n = updateContext (strengthenS err n) $ drop n
 {-# SPECIALIZE checkpoint :: Substitution -> TCM a -> TCM a #-}
 -- | Add a new checkpoint. Do not use directly!
 checkpoint
-  :: (MonadDebug tcm, MonadTCM tcm, MonadFresh CheckpointId tcm, ReadTCState tcm)
+  :: (MonadDebug tcm, MonadTCEnv tcm, MonadTCState tcm, MonadFresh CheckpointId tcm, ReadTCState tcm)
   => Substitution -> tcm a -> tcm a
 checkpoint sub k = do
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 $ "New checkpoint {"
@@ -220,7 +220,7 @@ instance MonadAddContext m => MonadAddContext (ListT m) where
 -- | Run the given TCM action, and register the given variable as
 --   being shadowed by all the names with the same root that are added
 --   to the context during this TCM action.
-withShadowingNameTCM :: Name -> TCM b -> TCM b
+withShadowingNameTCM :: (CapDebug c, CapIO c) => Name -> TCMC c b -> TCMC c b
 withShadowingNameTCM x f = do
   reportSDoc "tc.cxt.shadowing" 80 $ pure $ "registered" <+> pretty x <+> "for shadowing"
   when (isInScope x == InScope) $ tellUsedName x
@@ -253,7 +253,7 @@ withShadowingNameTCM x f = do
           modifyTCLens stShadowingNames $ Map.insertWith (<>) x shadows
         Nothing      -> return ()
 
-instance MonadAddContext TCM where
+instance (CapIO c, CapDebug c) => MonadAddContext (TCMC c) where
   addCtx x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddCtx x a ret
 

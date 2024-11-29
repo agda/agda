@@ -56,7 +56,7 @@ instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m)
 
 deriving instance HasBuiltins m => HasBuiltins (BlockT m)
 
-instance MonadIO m => HasBuiltins (TCMT m) where
+instance MonadIO m => HasBuiltins (TCMTC c m) where
   getBuiltinThing b =
     liftM2 (unionMaybeWith unionBuiltin)
       (Map.lookup b <$> useTC stLocalBuiltins)

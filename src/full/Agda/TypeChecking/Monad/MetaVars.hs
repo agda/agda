@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Monad.MetaVars where
@@ -522,7 +523,10 @@ instance MonadInteractionPoints m => MonadInteractionPoints (ReaderT r m)
 instance MonadInteractionPoints m => MonadInteractionPoints (StateT s m)
 instance (MonadInteractionPoints m, Monoid w) => MonadInteractionPoints (WriterT w m)
 
-instance MonadInteractionPoints TCM where
+class CapInteractionPoints (c :: Capability)
+instance CapInteractionPoints 'CapTCM
+
+instance CapInteractionPoints c => MonadInteractionPoints (TCMC c) where
   freshInteractionId = fresh
   modifyInteractionPoints f = stInteractionPoints `modifyTCLens` f
 

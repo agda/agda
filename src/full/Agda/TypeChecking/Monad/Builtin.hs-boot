@@ -7,7 +7,7 @@ import Control.Monad.State          ( StateT )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans          ( MonadTrans, lift )
 
-import Agda.TypeChecking.Monad.Base (TCMT, Builtin, PrimFun)
+import Agda.TypeChecking.Monad.Base (TCMTC, Builtin, PrimFun)
 import Agda.Syntax.Builtin (SomeBuiltin)
 
 class ( Functor m
@@ -22,4 +22,4 @@ instance HasBuiltins m => HasBuiltins (IdentityT m)
 instance HasBuiltins m => HasBuiltins (ReaderT e m)
 instance HasBuiltins m => HasBuiltins (StateT s m)
 
-instance MonadIO m => HasBuiltins (TCMT m)
+instance MonadIO m => HasBuiltins (TCMTC c m)

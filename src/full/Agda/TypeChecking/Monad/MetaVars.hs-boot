@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.TypeChecking.Monad.MetaVars where
@@ -31,6 +32,8 @@ instance MonadInteractionPoints m => MonadInteractionPoints (ReaderT r m)
 instance MonadInteractionPoints m => MonadInteractionPoints (StateT s m)
 instance (MonadInteractionPoints m, Monoid w) => MonadInteractionPoints (WriterT w m)
 
-instance MonadInteractionPoints TCM
+class CapInteractionPoints (c :: Capability)
+instance CapInteractionPoints 'CapTCM
+instance CapInteractionPoints c => MonadInteractionPoints (TCMC c)
 
 isInteractionMeta :: ReadTCState m => MetaId -> m (Maybe InteractionId)
