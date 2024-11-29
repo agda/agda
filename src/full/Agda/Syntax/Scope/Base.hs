@@ -813,6 +813,10 @@ mapScopeNS :: NameSpaceId
            -> Scope -> Scope
 mapScopeNS nsid fd fm fs = modifyNameSpace nsid $ mapNameSpace fd fm fs
 
+-- | Same as 'unsafeMapScope' but applies the function only on the given name space.
+unsafeMapScopeNS :: NameSpaceId -> (NameSpace -> NameSpace) -> Scope -> Scope
+unsafeMapScopeNS = modifyNameSpace
+
 -- | Map monadic functions over the names and modules in a scope.
 mapScopeM :: Applicative m =>
   (NameSpaceId -> NamesInScope   -> m NamesInScope  ) ->
@@ -935,16 +939,18 @@ namesInScope ids s =
 
 allThingsInScope :: Scope -> NameSpace
 allThingsInScope s =
+  let ns = allNamesInScope s in
   NameSpace { nsNames     = allNamesInScope s
-            , nsNameParts = mempty
+            , nsNameParts = namePartsOfNamesInScope ns
             , nsModules   = allNamesInScope s
             , nsInScope   = Set.unions $ map (nsInScope . snd) $ scopeNameSpaces s
             }
 
 thingsInScope :: [NameSpaceId] -> Scope -> NameSpace
 thingsInScope fs s =
-  NameSpace { nsNames     = namesInScope fs s
-            , nsNameParts = mempty
+  let ns = namesInScope fs s in
+  NameSpace { nsNames     = ns
+            , nsNameParts = namePartsOfNamesInScope ns
             , nsModules   = namesInScope fs s
             , nsInScope   = Set.unions [ nsInScope $ scopeNameSpace nsid s | nsid <- fs ]
             }
@@ -992,10 +998,27 @@ modifyNameSpace nsid f = updateScopeNameSpaces $ AssocList.updateAt nsid f
 -- | Add a name to a scope.
 addNameToScope :: NameSpaceId -> C.Name -> AbstractName -> Scope -> Scope
 addNameToScope nsid x y =
-  mapScopeNS nsid
-    (Map.insertWith (flip List1.union) x $ singleton y)  -- bind name x ↦ y
-    id                                        -- no change to modules
-    (Set.insert $ anameName y)                -- y is in scope now
+  unsafeMapScopeNS nsid
+    \(NameSpace ns nps ms ins) ->
+
+      -- add all new name parts
+      let nps' = foldl'
+            (\acc notPart -> case notPart of
+                IdPart rs ->
+                   Map.insertWith
+                     (flip List1.union)
+                     (rangedThing rs)
+                     (List1.singleton y)
+                     acc
+                _ -> acc)
+            nps
+            (theNotation $ nameFixity $ qnameName $ anameName y)
+
+      in NameSpace
+          (Map.insertWith (flip List1.union) x (singleton y) ns)
+          nps'
+          ms
+          (Set.insert (anameName y) ins)
 
 -- | Remove a name from a scope. Caution: does not update the nsInScope set.
 --   This is only used by rebindName and in that case we add the name right
@@ -1005,8 +1028,11 @@ removeNameFromScope nsid x = mapScopeNS nsid (Map.delete x) id id
 
 -- | Add a module to a scope.
 addModuleToScope :: NameSpaceId -> C.Name -> AbstractModule -> Scope -> Scope
-addModuleToScope nsid x m = mapScopeNS nsid id addM id
-  where addM = Map.insertWith (flip List1.union) x (singleton m)
+addModuleToScope nsid x m = unsafeMapScopeNS \(NameSpanc ns nps ms ins) ->
+  NameSpace ns nps (Map.insertWith (flip List1.union) x (singleton m) ms)
+
+-- nsid id addM id
+--   where addM = Map.insertWith (flip List1.union) x (singleton m)
 
 -- | When we get here we cannot have both @using@ and @hiding@.
 data UsingOrHiding
