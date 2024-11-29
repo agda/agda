@@ -65,6 +65,8 @@ import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.Highlighting.Precise hiding (Error, Postulate, singleton)
 import Agda.Interaction.Imports  ( Mode, pattern ScopeCheck, pattern TypeCheck )
 import qualified Agda.Interaction.Imports as Imp
+import Agda.Interaction.Command
+  (CommandM, liftLocalState, revLift, revLiftTC, localStateCommandM)
 import Agda.Interaction.Highlighting.Generate
 
 import Agda.Compiler.Backend
@@ -91,51 +93,6 @@ import Agda.Utils.WithDefault (lensCollapseDefault, lensKeepDefault)
 
 import Agda.Utils.Impossible
 import Agda.TypeChecking.Opacity (saturateOpaqueBlocks)
-
-------------------------------------------------------------------------
--- The CommandM monad
-
-type CommandM = StateT CommandState TCM
-
--- | Restore both 'TCState' and 'CommandState'.
-
-localStateCommandM :: CommandM a -> CommandM a
-localStateCommandM m = do
-  cSt <- get
-  tcSt <- getTC
-  x <- m
-  putTC tcSt
-  put cSt
-  return x
-
--- | Restore 'TCState', do not touch 'CommandState'.
-
-liftLocalState :: TCM a -> CommandM a
-liftLocalState = lift . localTCState
-
--- | Build an opposite action to 'lift' for state monads.
-
-revLift
-    :: MonadState st m
-    => (forall c . m c -> st -> k (c, st))      -- ^ run
-    -> (forall b . k b -> m b)                  -- ^ lift
-    -> (forall x . (m a -> k x) -> k x) -> m a  -- ^ reverse lift in double negative position
-revLift run lift' f = do
-    st <- get
-    (a, st') <- lift' $ f (`run` st)
-    put st'
-    return a
-
-revLiftTC
-    :: MonadTCState m
-    => (forall c . m c -> TCState -> k (c, TCState))  -- ^ run
-    -> (forall b . k b -> m b)                        -- ^ lift
-    -> (forall x . (m a -> k x) -> k x) -> m a        -- ^ reverse lift in double negative position
-revLiftTC run lift' f = do
-    st <- getTC
-    (a, st') <- lift' $ f (`run` st)
-    putTC st'
-    return a
 
 -- | Opposite of 'liftIO' for 'CommandM'.
 --
@@ -467,6 +424,8 @@ independent _                               = False
 updateInteractionPointsAfter :: Interaction -> Bool
 updateInteractionPointsAfter Cmd_load{}                          = True
 updateInteractionPointsAfter Cmd_compile{}                       = True
+updateInteractionPointsAfter Cmd_backend_top{}                   = True
+updateInteractionPointsAfter Cmd_backend_hole{}                  = True
 updateInteractionPointsAfter Cmd_constraints{}                   = False
 updateInteractionPointsAfter Cmd_metas{}                         = False
 updateInteractionPointsAfter Cmd_load_no_metas{}                 = False
@@ -508,6 +467,13 @@ updateInteractionPointsAfter Cmd_exit{}                          = False
 
 -- | Interpret an interaction
 
+getBackendName :: CompilerBackend -> BackendName
+getBackendName = \case
+  LaTeX -> "LaTeX"
+  QuickLaTeX -> "LaTeX"
+  OtherBackend "GHCNoMain" -> "GHC"
+  OtherBackend b -> b
+
 interpret :: Interaction -> CommandM ()
 
 interpret (Cmd_load m argv) =
@@ -520,20 +486,24 @@ interpret (Cmd_compile backend file argv) =
     ws <- lift $ applyFlagsToTCWarnings $ crWarnings checkResult
     case null ws of
       True -> do
-        lift $ case backend of
-          LaTeX                    -> callBackend "LaTeX" IsMain checkResult
-          QuickLaTeX               -> callBackend "LaTeX" IsMain checkResult
-          OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain checkResult   -- for backwards compatibility
-          OtherBackend b           -> callBackend b IsMain checkResult
+        lift $ callBackend (getBackendName backend) isMain checkResult
         display_info . Info_CompilationOk backend =<< lift B.getWarningsAndNonFatalErrors
       False -> display_info $ Info_Error $ Info_CompilationError ws
   where
   allowUnsolved = backend `elem` [LaTeX, QuickLaTeX]
   mode | QuickLaTeX <- backend = ScopeCheck
        | otherwise             = TypeCheck
+  isMain | OtherBackend "GHCNoMain" <- backend = NotMain
+         | otherwise                           = IsMain
+
+interpret (Cmd_backend_top backend cmd) =
+  callBackendInteractTop (getBackendName backend) cmd
+
+interpret (Cmd_backend_hole ii rng s backend cmd) =
+  callBackendInteractHole (getBackendName backend) cmd ii rng s
 
 interpret Cmd_constraints =
-    display_info . Info_Constraints =<< lift B.getConstraints
+  display_info . Info_Constraints =<< lift B.getConstraints
 
 interpret (Cmd_metas norm) = do
   ms <- lift $ B.getGoals' norm (max Simplified norm)

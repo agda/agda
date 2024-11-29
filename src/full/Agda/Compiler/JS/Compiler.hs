@@ -112,6 +112,8 @@ jsBackend' = Backend'
       -- @data@/@record@, you might want to tell the treeless compiler
       -- not to erase these types even if they have no content,
       -- to get a stable interface.
+  , backendInteractTop    = Nothing
+  , backendInteractHole   = Nothing
   }
 
 --- Options ---

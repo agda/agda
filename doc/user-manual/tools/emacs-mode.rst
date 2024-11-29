@@ -108,38 +108,41 @@ Global commands
      ``main`` function using a given backend (the ``GHC`` backend is
      used by default).
 
+:kbd:`C-c C-i`
+     Call a given backend's top-level **i**\ nteraction command (if any).
+
 :kbd:`C-c C-x C-q`
-     **Q**\ uit, kill the Agda process
+     **Q**\ uit, kill the Agda process.
 
 :kbd:`C-c C-x C-r`
-     Kill and **r**\ estart the Agda process
+     Kill and **r**\ estart the Agda process.
 
 :kbd:`C-c C-x C-a`
-     **A**\ bort a command
+     **A**\ bort a command.
 
 :kbd:`C-c C-x C-d`
-     Remove goals and highlighting (**d**\ eactivate)
+     Remove goals and highlighting (**d**\ eactivate).
 
 :kbd:`C-c C-x C-h`
-     Toggle display of **h**\ idden arguments
+     Toggle display of **h**\ idden arguments.
 
 :kbd:`C-c C-x C-i`
-     Toggle display of **i**\ rrelevant arguments
+     Toggle display of **i**\ rrelevant arguments.
 
 :kbd:`C-c C-=`
-     Show constraints
+     Show constraints.
 
 :kbd:`C-c C-s`
-     **S**\ olve constraints
+     **S**\ olve constraints.
 
 :kbd:`C-c C-?`
-     Show all goals
+     Show all goals.
 
 :kbd:`C-c C-f`
-     Move to next goal (**f**\ orward)
+     Move to next goal (**f**\ orward).
 
 :kbd:`C-c C-b`
-     Move to previous goal (**b**\ ackwards)
+     Move to previous goal (**b**\ ackwards).
 
 :kbd:`C-c C-d`
      Infer (**d**\ educe) type. The system asks for a term and infers
@@ -147,7 +150,7 @@ Global commands
      contents of the hole as input (if any).
 
 :kbd:`C-c C-o`
-     M\ **o**\ dule c\ **o**\ ntents
+     M\ **o**\ dule c\ **o**\ ntents.
 
 :kbd:`C-c C-z`
      :ref:`search-about`
@@ -158,16 +161,16 @@ Global commands
      the contents of the hole as input (if any).
 
 :kbd:`C-u C-c C-n`
-     Compute normal form, ignoring ``abstract``
+     Compute normal form, ignoring ``abstract``.
 
 :kbd:`C-u C-u C-c C-n`
-     Compute and print normal form of ``show <expression>``
+     Compute and print normal form of ``show <expression>``.
 
 :kbd:`C-c C-x M-;`
-     Comment/uncomment rest of buffer
+     Comment/uncomment rest of buffer.
 
 :kbd:`C-c C-x C-s`
-     Switch to a different Agda version
+     Switch to a different Agda version.
 
 .. _emacs-context-sensitive-commands:
 
@@ -211,16 +214,16 @@ will either use the text inside the goal or ask the user for input.
 
 :kbd:`C-c C-h`
      Compute type of **h**\ elper function and add type
-     signature to kill ring (clipboard)
+     signature to kill ring (clipboard).
 
 :kbd:`C-c C-t`
-     Goal **t**\ ype
+     Goal **t**\ ype.
 
 :kbd:`C-c C-e`
-     Context (**e**\ nvironment)
+     Context (**e**\ nvironment).
 
 :kbd:`C-c C-d`
-     Infer (**d**\ educe) type
+     Infer (**d**\ educe) type.
 
 :kbd:`C-c C-,`
      Goal type and context. Shows the goal type, i.e. the type
@@ -228,46 +231,49 @@ will either use the text inside the goal or ask the user for input.
      defined identifiers.
 
 :kbd:`C-c C-.`
-     Goal type, context and inferred type
+     Goal type, context and inferred type.
 
 :kbd:`C-c C-;`
-     Goal type, context and checked term
+     Goal type, context and checked term.
 
 :kbd:`C-c C-o`
-     M\ **o**\ dule c\ **o**\ ntents
+     M\ **o**\ dule c\ **o**\ ntents.
 
 :kbd:`C-c C-n`
-     Compute **n**\ ormal form
+     Compute **n**\ ormal form.
 
 :kbd:`C-u C-c C-n`
-     Compute normal form, ignoring ``abstract``
+     Compute normal form, ignoring ``abstract``.
 
 :kbd:`C-u C-u C-c C-n`
-     Compute and print normal form of ``show <expression>``
+     Compute and print normal form of ``show <expression>``.
 
 :kbd:`C-c C-w`
-     Why in scope, given a defined name returns how it was brought into scope and its definition
+     Why in scope, given a defined name returns how it was brought into scope and its definition.
+
+:kbd:`C-c C-i`
+     Call a given backend's hole-level **i**\ nteraction command (if any).
 
 Other commands
 ~~~~~~~~~~~~~~
 
 :kbd:`TAB`
-     Indent current line, cycles between points
+     Indent current line, cycles between points.
 
 :kbd:`S-TAB`
-     Indent current line, cycles in opposite direction
+     Indent current line, cycles in opposite direction.
 
 :kbd:`M-.`
-     Go to definition of identifier under point
+     Go to definition of identifier under point.
 
 :guilabel:`Middle mouse button`
-     Go to definition of identifier clicked on
+     Go to definition of identifier clicked on.
 
 :kbd:`M-*`
-     Go back (Emacs < 25.1)
+     Go back (Emacs < 25.1).
 
 :kbd:`M-,`
-     Go back (Emacs ≥ 25.1)
+     Go back (Emacs ≥ 25.1).
 
 .. _unicode-input:
 
