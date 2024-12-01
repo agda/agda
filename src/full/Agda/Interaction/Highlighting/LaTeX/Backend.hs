@@ -114,6 +114,8 @@ latexBackend' = Backend'
   , postCompile           = postCompileLaTeX
   , scopeCheckingSuffices = True
   , mayEraseType          = const $ return False
+  , backendInteractTop    = Nothing
+  , backendInteractHole   = Nothing
   }
 
 runLogLaTeXWithMonadDebug :: MonadDebug m => LogLaTeXT m a -> m a

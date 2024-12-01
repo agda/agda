@@ -89,6 +89,8 @@ data CurrentFile = CurrentFile
       -- ^ The modification time stamp of the file when it was loaded.
   } deriving (Show)
 
+type CommandM' = StateT CommandState
+
 ------------------------------------------------------------------------
 -- Command queues
 
@@ -138,11 +140,7 @@ type Interaction = Interaction' Range
 data Interaction' range
     -- | @cmd_load m argv@ loads the module in file @m@, using
     -- @argv@ as the command-line options.
-  = Cmd_load            FilePath [String]
-
-    -- | @cmd_compile b m argv@ compiles the module in file @m@ using
-    -- the backend @b@, using @argv@ as the command-line options.
-  | Cmd_compile         CompilerBackend FilePath [String]
+  = Cmd_load FilePath [String]
 
   | Cmd_constraints
 
@@ -158,9 +156,7 @@ data Interaction' range
 
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the top-level scope.
-  | Cmd_show_module_contents_toplevel
-                        Rewrite
-                        String
+  | Cmd_show_module_contents_toplevel Rewrite String
 
     -- | Shows all the top-level names in scope which mention all the given
     -- identifiers in their type.
@@ -177,14 +173,32 @@ data Interaction' range
 
     -- | Parse the given expression (as if it were defined at the
     -- top-level of the current module) and infer its type.
-  | Cmd_infer_toplevel  Rewrite  -- Normalise the type?
-                        String
-
+  | Cmd_infer_toplevel Rewrite -- Normalise the type?
+                       String
 
     -- | Parse and type check the given expression (as if it were defined
     -- at the top-level of the current module) and normalise it.
-  | Cmd_compute_toplevel ComputeMode
-                         String
+  | Cmd_compute_toplevel ComputeMode String
+
+    ------------------------------------------------------------------------
+    -- Backend commands
+
+    -- | @cmd_compile b m argv@ compiles the module in file @m@ using
+    -- the backend @b@, using @argv@ as the command-line options.
+  | Cmd_compile CompilerBackend FilePath [String]
+
+    -- | Custom top-level command for backends.
+  | Cmd_backend_top
+      CompilerBackend -- ^ which backend
+      String          -- ^ arbitrary user payload
+
+    -- | Custom hole-level command for backends.
+  | Cmd_backend_hole
+      InteractionId   -- ^ the hole's ID
+      range           -- ^ range of the hole
+      String          -- ^ text inside the hole
+      CompilerBackend -- ^ which backend
+      String          -- ^ arbitrary payload
 
     ------------------------------------------------------------------------
     -- Syntax highlighting
@@ -228,7 +242,7 @@ data Interaction' range
     -- Implicit arguments
 
     -- | Tells Agda whether or not to show implicit arguments.
-  | ShowImplicitArgs    Bool -- Show them?
+  | ShowImplicitArgs Bool-- Show them?
 
 
     -- | Toggle display of implicit arguments.
@@ -238,8 +252,7 @@ data Interaction' range
     -- Irrelevant arguments
 
     -- | Tells Agda whether or not to show irrelevant arguments.
-  | ShowIrrelevantArgs    Bool -- Show them?
-
+  | ShowIrrelevantArgs Bool -- Show them?
 
     -- | Toggle display of irrelevant arguments.
   | ToggleIrrelevantArgs

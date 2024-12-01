@@ -445,7 +445,7 @@ currentModuleNameHash = do
 
 -- | Look for a backend of the given name.
 
-lookupBackend :: BackendName -> TCM (Maybe Backend)
+lookupBackend :: ReadTCState m => BackendName -> m (Maybe Backend)
 lookupBackend name = useTC stBackends <&> \ backends ->
   listToMaybe [ b | b@(Backend b') <- backends, backendName b' == name ]
 
