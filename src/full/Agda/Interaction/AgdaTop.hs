@@ -18,6 +18,7 @@ import Agda.Interaction.ExitCode
 import Agda.Interaction.Response as R
 import Agda.Interaction.InteractionTop
 import Agda.Interaction.Options
+import Agda.Interaction.Command ( CommandM )
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench

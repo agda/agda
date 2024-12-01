@@ -101,6 +101,8 @@ ghcBackend' = Backend'
   , compileDef            = ghcCompileDef
   , scopeCheckingSuffices = False
   , mayEraseType          = ghcMayEraseType
+  , backendInteractTop    = Nothing
+  , backendInteractHole   = Nothing
   }
 
 --- Command-line flags ---
