@@ -16,6 +16,7 @@ import           Control.Monad.Trans   (MonadTrans, lift)
 import           Data.Bifunctor        (second)
 import           Data.EnumMap          (EnumMap)
 import qualified Data.EnumMap          as EnumMap
+import           Data.Hashable         (Hashable)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import           Data.Maybe            (fromMaybe)
@@ -132,6 +133,10 @@ instance Null FileDict where
 instance Null FileDictBuilder where
   empty = FileDictBuilder 1 empty
   null (FileDictBuilder _ d) = null d
+
+-- Instances for Hashable
+
+instance Hashable FileId
 
 -- Instances for NFData
 

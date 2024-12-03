@@ -114,6 +114,10 @@ instance EmbPrj Double where
   icod_   = icodeDouble
   value i = (! i) <$!> gets doubleE
 
+instance EmbPrj FileId where
+  icod_   = icodeFileId
+  value   = decodeFileId
+
 instance EmbPrj Void where
   icod_ = absurd
   value = vcase valu where valu _ = malformed
