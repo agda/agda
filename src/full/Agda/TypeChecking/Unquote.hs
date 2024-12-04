@@ -3,7 +3,7 @@ module Agda.TypeChecking.Unquote where
 import Prelude hiding (null)
 
 import Control.Arrow          ( first, second, (&&&) )
-import Control.Monad          ( (<=<) )
+import Control.Monad          ( (<=<) , (>=>) )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader   ( ReaderT(..), runReaderT )
@@ -24,6 +24,8 @@ import Data.Word
 import System.Directory (doesFileExist, getPermissions, executable)
 import System.Process.Text ( readProcessWithExitCode )
 import System.Exit ( ExitCode(..) )
+
+import qualified Text.PrettyPrint.Annotated as P
 
 import Agda.Syntax.Common hiding ( Nat )
 import Agda.Syntax.Common.Pretty (prettyShow)
@@ -72,12 +74,14 @@ import Agda.TypeChecking.Rules.Data
 import Agda.Utils.CallStack           ( HasCallStack )
 import Agda.Utils.Either
 import Agda.Utils.Lens
+import Agda.Utils.Maybe (caseMaybe)
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Interaction.Options.Lenses as Lens
 
+import Agda.Utils.FileName (textPath)
 import Agda.Utils.Impossible
 
 agdaTermType :: TCM Type
@@ -139,6 +143,7 @@ liftU1 f m = packUnquoteM $ \ cxt s -> f (unpackUnquoteM m cxt s)
 
 liftU2 :: (TCM (UnquoteRes a) -> TCM (UnquoteRes b) -> TCM (UnquoteRes c)) -> UnquoteM a -> UnquoteM b -> UnquoteM c
 liftU2 f m1 m2 = packUnquoteM $ \ cxt s -> f (unpackUnquoteM m1 cxt s) (unpackUnquoteM m2 cxt s)
+
 
 inOriginalContext :: UnquoteM a -> UnquoteM a
 inOriginalContext m =
@@ -610,6 +615,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
              , (f `isDef` getBuiltin' builtinAgdaTCMAskExpandLast,    tcAskExpandLast)
              , (f `isDef` getBuiltin' builtinAgdaTCMAskReduceDefs,    tcAskReduceDefs)
              , (f `isDef` getBuiltin' builtinAgdaTCMSolveInstances,   tcSolveInstances)
+             , (f `isDef` getBuiltin' builtinAgdaTCMGetCurrentPath,   tcGetCurrentPath)
              ]
              failEval
     I.Def f [u] ->
@@ -681,11 +687,22 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     mkT l a = El s a
       where s = Type $ atomicLevel l
 
+    tcGetCurrentPath :: UnquoteM Term
+    tcGetCurrentPath = 
+       liftTCM ((toTerm <*>
+                  (fmap (\case
+                            Nothing -> ""
+                            Just ap -> textPath ap)
+                  (asksTC (\ e -> e ^. eCurrentPath))) ))
+          
     -- Don't catch Unquote errors!
     tcCatchError :: Term -> Term -> UnquoteM Term
     tcCatchError m h =
-      liftU2 (\ m1 m2 -> m1 `catchError` \ _ -> m2) (evalTCM m) (evalTCM h)
-
+       packUnquoteM $ \ cxt s ->
+             (unpackUnquoteM (evalTCM m) cxt s) `catchError`
+              (prettyTCM >=> \e -> (unpackUnquoteM (evalTCM (h `apply`
+                                                [defaultArg (Lit (LitString (T.pack (P.render e)))) ])) cxt s))
+         
     tcAskLens :: ToTerm a => Lens' TCEnv a -> UnquoteM Term
     tcAskLens l = liftTCM (toTerm <*> asksTC (\ e -> e ^. l))
 
