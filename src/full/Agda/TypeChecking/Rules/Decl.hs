@@ -1001,7 +1001,9 @@ checkSectionApplication'
         nest 2 $ "eta  =" <+> escapeContext impossible (size ptel) (addContext tel'' $ prettyTCM etaTel)
 
     -- Now, type check arguments.
-    ts <- noConstraints (checkArguments_ CmpEq DontExpandLast (getRange i) args tel') >>= \case
+    -- Andreas, 2024-12-06: We fake a head A.Expr for the application.
+    let hd = A.Def $ mnameToQName m2
+    ts <- noConstraints (checkArguments_ CmpEq DontExpandLast hd args tel') >>= \case
       (ts', etaTel') | (size etaTel == size etaTel')
                      , Just ts <- allApplyElims ts' -> return ts
       _ -> __IMPOSSIBLE__

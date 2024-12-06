@@ -1780,8 +1780,8 @@ data PrincipalArgTypeMetas = PrincipalArgTypeMetas
 
 data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
-  | CheckArgs Comparison ExpandHidden Range [NamedArg A.Expr] Type Type (ArgsCheckState CheckedTarget -> TCM Term)
-  | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (List1 QName) A.Args Type Int Term Type PrincipalArgTypeMetas
+  | CheckArgs Comparison ExpandHidden A.Expr [NamedArg A.Expr] Type Type (ArgsCheckState CheckedTarget -> TCM Term)
+  | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (List1 QName) A.Expr A.Args Type Int Term Type PrincipalArgTypeMetas
   | CheckLambda Comparison (Arg (List1 (WithHiding Name), Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
     --   This is not an instance of 'CheckExpr' as the domain type
@@ -3638,7 +3638,7 @@ data Call
   | IsType_ A.Expr
   | InferVar Name
   | InferDef QName
-  | CheckArguments Range [NamedArg A.Expr] Type (Maybe Type)
+  | CheckArguments A.Expr [NamedArg A.Expr] Type (Maybe Type)
   | CheckMetaSolution Range MetaId Type Term
   | CheckTargetType Range Type Type
   | CheckDataDef Range QName [A.LamBinding] [A.Constructor]
@@ -3726,7 +3726,7 @@ instance HasRange Call where
     getRange (IsType_ e)                         = getRange e
     getRange (InferVar x)                        = getRange x
     getRange (InferDef f)                        = getRange f
-    getRange (CheckArguments r _ _ _)            = r
+    getRange (CheckArguments fun _ _ _)          = getRange fun
     getRange (CheckMetaSolution r _ _ _)         = r
     getRange (CheckTargetType r _ _)             = r
     getRange (CheckDataDef i _ _ _)              = getRange i
@@ -4447,8 +4447,10 @@ data CheckedArg = CheckedArg
 data ArgsCheckState a = ACState
   { acCheckedArgs :: [CheckedArg]
       -- ^ Checked and inserted arguments so far.
+  , acFun         :: A.Expr
+      -- ^ The function applied to the already checked arguments.
   , acType        :: Type
-      -- ^ Type for the rest of the application.
+      -- ^ Type of the function (for checking the remaining arguments).
   , acData        :: a
   }
   deriving Show

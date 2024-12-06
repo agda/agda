@@ -317,9 +317,9 @@ solveConstraint_ (UsableAtModality cc ms mod t) = usableAtModality' ms cc mod t
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem = \case
   CheckExpr cmp e t              -> checkExpr' cmp e t
-  CheckArgs cmp eh r args t0 t1 k -> checkArguments cmp eh r args t0 t1 k
-  CheckProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt patm ->
-    checkProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt patm
+  CheckArgs cmp eh hd args t0 t1 k -> checkArguments cmp eh hd args t0 t1 k
+  CheckProjAppToKnownPrincipalArg cmp e o ds hd args t k v0 pt patm ->
+    checkProjAppToKnownPrincipalArg cmp e o ds hd args t k v0 pt patm
   CheckLambda cmp args body target -> checkPostponedLambda cmp args body target
   DoQuoteTerm cmp et t           -> doQuoteTerm cmp et t
 

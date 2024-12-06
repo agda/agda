@@ -997,14 +997,13 @@ checkRecordExpression cmp style mfs e t = do
 
       -- Compute a list of metas for the missing visible fields.
       scope <- getScope
-      let re = getRange e
-          meta x = A.Underscore $ A.MetaInfo re scope Nothing (prettyShow x) A.UnificationMeta
+      let meta x = A.Underscore $ A.MetaInfo (getRange e) scope Nothing (prettyShow x) A.UnificationMeta
       -- In @es@ omitted explicit fields are replaced by underscores.
       -- Omitted implicit or instance fields
       -- are still left out and inserted later by checkArguments_.
       es <- insertMissingFieldsWarn style r meta fs cxs
 
-      args <- checkArguments_ cmp ExpandLast re es (_recTel def `apply` vs) >>= \case
+      args <- checkArguments_ cmp ExpandLast e es (_recTel def `apply` vs) >>= \case
         (elims, remainingTel) | null remainingTel
                               , Just args <- allApplyElims elims -> return args
         _ -> __IMPOSSIBLE__
