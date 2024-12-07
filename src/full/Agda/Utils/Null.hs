@@ -205,3 +205,7 @@ unlessNullM ma k = ma >>= (`unlessNull` k)
 
 applyUnlessNull :: (Null a) => a -> (a -> b -> b) -> (b -> b)
 applyUnlessNull a f = if null a then id else f a
+
+-- | Disjunction (interpreting @null _@ as @False@).
+catchNull :: Null a => a -> a -> a
+catchNull a b = if null a then b else a
