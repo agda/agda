@@ -419,6 +419,12 @@ instance PrettyTCM TypeError where
     ShouldBePath t -> fsep $
       prettyTCM t : pwords "should be a Path or PathP type, but it isn't"
 
+    CannotApply e t -> sep
+      [ "Expression used as function but does not have function type:"
+      , nest 2 $ "expr:" <+> prettyA e
+      , nest 2 $ "type:" <+> prettyTCM t
+      ]
+
     InvalidTypeSort s -> fsep $ prettyTCM s : pwords "is not a valid sort"
 
     CannotSolveSizeConstraints ccs reason -> do

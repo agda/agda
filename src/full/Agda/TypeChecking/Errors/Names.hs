@@ -69,6 +69,7 @@ typeErrorName = \case
   BuiltinMustBeDef                                           {} -> BuiltinMustBeDef_
   BuiltinMustBeFunction                                      {} -> BuiltinMustBeFunction_
   BuiltinMustBePostulate                                     {} -> BuiltinMustBePostulate_
+  CannotApply                                                {} -> CannotApply_
   CannotEliminateWithPattern                                 {} -> CannotEliminateWithPattern_
   CannotEliminateWithProjection                              {} -> CannotEliminateWithProjection_
   CannotGenerateHCompClause                                  {} -> CannotGenerateHCompClause_

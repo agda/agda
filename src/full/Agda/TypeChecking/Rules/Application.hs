@@ -653,10 +653,10 @@ checkArgumentsE'
         -- 1. We ran out of function types.
         let shouldBePi =
               -- a) It is an explicit argument, but we ran out of function types.
-              if visible info then liftTCM . typeError $ ShouldBePi sFunType
+              if visible info then liftTCM . typeError $ CannotApply sFun sFunType
               -- b) It is an implicit argument, and we did not insert any implicits.
               --    Thus, the type was not a function type to start with.
-              else List1.ifNull xs {-then-} (liftTCM . typeError $ ShouldBePi sFunType)
+              else List1.ifNull xs {-then-} (liftTCM . typeError $ CannotApply sFun sFunType)
               -- c) We did insert implicits, but we ran out of implicit function types.
               --    Then, we should inform the user that we did not find his one.
               {-else-} (liftTCM . typeError . WrongNamedArgument arg)
