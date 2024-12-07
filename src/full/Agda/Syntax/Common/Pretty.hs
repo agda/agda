@@ -145,7 +145,9 @@ instance Pretty PositionWithoutFile where
   pretty p = pretty (p { srcFile = Strict.Nothing } :: Position)
 
 instance Pretty IntervalWithoutFile where
-  pretty (Interval () s e) = start <> "-" <> end
+  pretty (Interval () s e)
+    | s == e    = start
+    | otherwise = start <> "-" <> end
     where
       sl = posLine s
       el = posLine e
