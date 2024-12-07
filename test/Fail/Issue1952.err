@@ -170,49 +170,57 @@ Failed to solve the following constraints:
   Structure.Type D =< _r_57 .Structure.Type (blocked on _r_57)
   Structure.Type C =< _r_51 .Structure.Type (blocked on _r_51)
 
-Issue1952.agda:29.23-33.108: error: [UnsolvedMetaVariables]
+Issue1952.agda:29.23-33.109: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue1952.agda:29.23-24
-  Issue1952.agda:29.25-26
+  Issue1952.agda:29.26-27
   Issue1952.agda:29.27-28
   Issue1952.agda:29.31-38
-  Issue1952.agda:29.39-40
+  Issue1952.agda:29.40-41
   Issue1952.agda:29.41-48
   Issue1952.agda:31.23-30
   Issue1952.agda:31.23-40
-  Issue1952.agda:31.31-32
+  Issue1952.agda:31.32-33
   Issue1952.agda:31.33-40
-  Issue1952.agda:31.41-42
+  Issue1952.agda:31.42-43
   Issue1952.agda:31.43-54
   Issue1952.agda:31.47-48
   Issue1952.agda:31.47-52
-  Issue1952.agda:31.49-50
+  Issue1952.agda:31.50-51
   Issue1952.agda:31.51-52
   Issue1952.agda:33.40-57
   Issue1952.agda:33.40-101
-  Issue1952.agda:33.40-57
-  Issue1952.agda:33.44-47
   Issue1952.agda:33.44-54
+  Issue1952.agda:33.47-48
   Issue1952.agda:33.53-54
-  Issue1952.agda:33.58-59
+  Issue1952.agda:33.57-58
+  Issue1952.agda:33.59-60
   Issue1952.agda:33.60-65
   Issue1952.agda:33.60-101
-  Issue1952.agda:33.66-67
+  Issue1952.agda:33.65-66
+  Issue1952.agda:33.67-68
   Issue1952.agda:33.69-74
   Issue1952.agda:33.69-95
   Issue1952.agda:33.69-101
-  Issue1952.agda:33.75-76
+  Issue1952.agda:33.74-75
+  Issue1952.agda:33.76-77
   Issue1952.agda:33.78-80
   Issue1952.agda:33.78-85
   Issue1952.agda:33.78-95
-  Issue1952.agda:33.81-82
+  Issue1952.agda:33.80-81
+  Issue1952.agda:33.82-83
   Issue1952.agda:33.83-85
-  Issue1952.agda:33.86-87
+  Issue1952.agda:33.85-86
+  Issue1952.agda:33.87-88
   Issue1952.agda:33.88-90
   Issue1952.agda:33.88-95
-  Issue1952.agda:33.91-92
+  Issue1952.agda:33.90-91
+  Issue1952.agda:33.92-93
   Issue1952.agda:33.93-95
-  Issue1952.agda:33.97-98
+  Issue1952.agda:33.95-96
+  Issue1952.agda:33.98-99
   Issue1952.agda:33.99-101
-  Issue1952.agda:33.103-104
+  Issue1952.agda:33.101-102
+  Issue1952.agda:33.104-105
   Issue1952.agda:33.105-108
+  Issue1952.agda:33.108-109

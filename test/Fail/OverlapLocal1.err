@@ -6,6 +6,6 @@ Failed to solve the following constraints:
     local : {x : Bool} → C x
     (stuck)
 
-OverlapLocal1.agda:15.5-13: error: [UnsolvedMetaVariables]
+OverlapLocal1.agda:15.13-14: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  OverlapLocal1.agda:15.5-13
+  OverlapLocal1.agda:15.13-14

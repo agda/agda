@@ -6,6 +6,6 @@ Failed to solve the following constraints:
     [overlaps] CaI : {a : Set} → C a Int
     (stuck)
 
-Overlap1.agda:19.5-16: error: [UnsolvedMetaVariables]
+Overlap1.agda:19.16-17: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Overlap1.agda:19.5-16
+  Overlap1.agda:19.16-17

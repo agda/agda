@@ -55,8 +55,8 @@ Failed to solve the following constraints:
     : Set
     (blocked on any(_B_103, _x_128))
 
-Issue3882.agda:72.72-78.34: error: [UnsolvedMetaVariables]
+Issue3882.agda:72.75-78.34: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue3882.agda:72.72-75
+  Issue3882.agda:72.75-76
   Issue3882.agda:78.19-34
-  Issue3882.agda:78.19-33
+  Issue3882.agda:78.33-34

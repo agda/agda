@@ -6,6 +6,6 @@ Failed to solve the following constraints:
     <-suc : {m = m₁ : Nat} {n = n₁ : Nat} ⦃ _ : m₁ < n₁ ⦄ → m₁ < suc n₁
     (stuck)
 
-NonUniqueInstance2.agda:16.27-39: error: [UnsolvedMetaVariables]
+NonUniqueInstance2.agda:16.39-40: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  NonUniqueInstance2.agda:16.27-39
+  NonUniqueInstance2.agda:16.39-40

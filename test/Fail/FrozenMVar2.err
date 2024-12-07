@@ -10,7 +10,7 @@ Failed to solve the following constraints:
   ℕ =< _A_28 (blocked on _A_28)
   _A_28 =< ℕ (blocked on _A_28)
 
-FrozenMVar2.agda:20.6-32.26: error: [UnsolvedMetaVariables]
+FrozenMVar2.agda:20.24-32.26: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  FrozenMVar2.agda:20.6-24
+  FrozenMVar2.agda:20.24-25
   FrozenMVar2.agda:32.23-26
