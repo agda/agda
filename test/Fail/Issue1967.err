@@ -5,7 +5,9 @@ type, are never considered by instance search, so having an
 instance argument ⦃ A : Set ⦄ has no effect.
 when checking that the expression ⦃ A : Set ⦄ → Set is a type
 
-Issue1967.agda:5.22-23: error: [ShouldBePi]
-Set should be a function type, but it isn't
+Issue1967.agda:5.22-23: error: [CannotApply]
+Expression used as function but does not have function type:
+  expr: D
+  type: Set
 when checking that A is a valid argument to a function of type
 ⦃ A = A₁ : Set ⦄ → Set

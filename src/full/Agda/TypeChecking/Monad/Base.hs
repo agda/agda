@@ -5036,6 +5036,9 @@ data TypeError
         | ShouldBePath Type
         | ShouldBeRecordType Type
         | ShouldBeRecordPattern DeBruijnPattern
+        | CannotApply A.Expr Type
+            -- ^ The given expression is used as a function
+            --   but its type is not a function type.
         | InvalidTypeSort Sort
             -- ^ This sort is not a type expression.
         | SplitOnCoinductive

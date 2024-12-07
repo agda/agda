@@ -112,6 +112,7 @@ data ErrorName
   | BuiltinMustBeDef_
   | BuiltinMustBeFunction_
   | BuiltinMustBePostulate_
+  | CannotApply_
   | CannotEliminateWithPattern_
   | CannotEliminateWithProjection_
   | CannotGenerateHCompClause_
