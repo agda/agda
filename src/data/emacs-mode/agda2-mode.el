@@ -972,8 +972,8 @@ The buffer is returned.")
       (compilation-mode "AgdaInfo")
       ;; Support for jumping to positions mentioned in the text.
       (set (make-local-variable 'compilation-error-regexp-alist)
-           '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\)\\.\\([0-9]+\\)-\\(\\([0-9]+\\)\\.\\)?\\([0-9]+\\)"
-              1 (2 . 5) (3 . 6))))
+           '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\)\\.\\([0-9]+\\)\\(-\\(\\([0-9]+\\)\\.\\)?\\([0-9]+\\)\\)?"
+              1 (2 . 6) (3 . 7))))
       ;; Do not skip errors that start in the same position as the
       ;; current one.
       (set (make-local-variable 'compilation-skip-to-next-location) nil)

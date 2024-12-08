@@ -5,5 +5,5 @@ Failed to solve the following constraints:
 Issue2120.agda:16.10-54: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2120.agda:16.10-36
-  Issue2120.agda:16.48-49
+  Issue2120.agda:16.49-50
   Issue2120.agda:16.50-54

@@ -8,5 +8,5 @@ Failed to solve the following constraints:
 
 Issue878.agda:30.7-13: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue878.agda:30.7-10
   Issue878.agda:30.7-13
+  Issue878.agda:30.10-11

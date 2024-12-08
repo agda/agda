@@ -29,6 +29,7 @@ Unsolved interaction metas at the following locations:
 Issue2993.agda:62.40-66.87: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2993.agda:62.40-43
-  Issue2993.agda:66.80-83
+  Issue2993.agda:62.43-44
   Issue2993.agda:66.80-87
+  Issue2993.agda:66.83-84
   Issue2993.agda:66.84-85

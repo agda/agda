@@ -7,7 +7,7 @@ Failed to solve the following constraints:
     (stuck)
   (_r_30 Semiring.+ a) c = c +N a : Nat (blocked on _r_30)
 
-InstanceErrorMessageMultiple.agda:32.16-26: error: [UnsolvedMetaVariables]
+InstanceErrorMessageMultiple.agda:32.17-26: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  InstanceErrorMessageMultiple.agda:32.16-17
+  InstanceErrorMessageMultiple.agda:32.17-18
   InstanceErrorMessageMultiple.agda:32.22-26

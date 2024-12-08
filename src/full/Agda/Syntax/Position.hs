@@ -66,6 +66,8 @@ module Agda.Syntax.Position
   , fuseRanges
   , beginningOf
   , beginningOfFile
+  , endOf
+  , rangeAfter
   , interleaveRanges
   ) where
 
@@ -727,6 +729,24 @@ fuseRange x y = fuseRanges (getRange x) (getRange y)
 -- empty).
 fuseRangeWithoutFile :: (HasRangeWithoutFile u, HasRangeWithoutFile t) => u -> t -> RangeWithoutFile
 fuseRangeWithoutFile x y = fuseRanges (getRangeWithoutFile x) (getRangeWithoutFile y)
+
+-- | @endOf r@ is an empty range (a single, empty interval)
+-- positioned at the end of @r@. If @r@ does not have a
+-- end, then 'noRange' is returned.
+endOf :: Range -> Range
+endOf NoRange       = NoRange
+endOf r@(Range f _) = case rEnd' r of
+  Nothing  -> __IMPOSSIBLE__
+  Just pos -> posToRange' f pos pos
+
+-- | @rangeAfter r@ is a one-character range immediately following @r@.
+--   If @r@ does not have a end, then 'noRange' is returned.
+--   Note: @endOf1 r@ may be beyond the end of the file.
+rangeAfter :: Range -> Range
+rangeAfter NoRange       = NoRange
+rangeAfter r@(Range f _) = case rEnd' r of
+  Nothing  -> __IMPOSSIBLE__
+  Just pos -> posToRange' f pos $ movePos pos ' '
 
 -- | @beginningOf r@ is an empty range (a single, empty interval)
 -- positioned at the beginning of @r@. If @r@ does not have a

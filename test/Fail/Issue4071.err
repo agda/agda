@@ -6,7 +6,7 @@ Failed to solve the following constraints:
     List-is-list-like : List-like List
     (stuck)
 
-Issue4071.agda:15.5-14: error: [UnsolvedMetaVariables]
+Issue4071.agda:15.12-14: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue4071.agda:15.5-12
+  Issue4071.agda:15.12-13
   Issue4071.agda:15.13-14

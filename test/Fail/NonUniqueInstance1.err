@@ -6,6 +6,6 @@ Failed to solve the following constraints:
     x : NonZero n
     (stuck)
 
-NonUniqueInstance1.agda:16.10-17: error: [UnsolvedMetaVariables]
+NonUniqueInstance1.agda:16.17-18: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  NonUniqueInstance1.agda:16.10-17
+  NonUniqueInstance1.agda:16.17-18

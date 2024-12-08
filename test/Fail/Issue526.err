@@ -1,10 +1,10 @@
-Issue526.agda:11.8-22.10: error: [UnsolvedMetaVariables]
+Issue526.agda:11.9-22.10: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue526.agda:11.8-9
-  Issue526.agda:11.8-13
-  Issue526.agda:14.9-17
-  Issue526.agda:14.9-22
+  Issue526.agda:11.9-10
+  Issue526.agda:11.13-14
   Issue526.agda:14.16-17
+  Issue526.agda:14.17-18
+  Issue526.agda:14.22-23
   Issue526.agda:20.11-12
   Issue526.agda:22.9-10
 

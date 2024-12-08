@@ -8,7 +8,7 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.IO.Class
 
-import Agda.Syntax.Position (HasRange, beginningOf, getRange)
+import Agda.Syntax.Position (HasRange, getRange, rangeAfter)
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract (Binder, mkBinder_)
 import Agda.Syntax.Info ( MetaKind (InstanceMeta, UnificationMeta) )
@@ -94,7 +94,12 @@ implicitNamedArgs n expand t0 = do
               ]
 
             return InstanceMeta
-          (_, v) <- newMetaArg kind info x CmpLeq a
+          -- Andreas, 2024-12-07, set meta range to the end position
+          -- of the current range (improves accuracy).
+          -- N.B.: use @rangeAfter@ (one-character range) instead of @endOf@ (empty range)
+          -- so that we get some visible highlighting.
+          (_, v) <- locallyTC eRange rangeAfter $
+            newMetaArg kind info x CmpLeq a
           whenJust tac $ \ tac -> liftTCM $
             applyModalityToContext info $ unquoteTactic tac v a
           let narg = Arg info (Named (Just $ WithOrigin Inserted $ unranged x) v)
