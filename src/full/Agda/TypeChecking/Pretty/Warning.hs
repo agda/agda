@@ -618,6 +618,10 @@ prettyWarning = \case
 
     CustomBackendWarning backend warn -> (text backend <> ":") <?> pure warn
 
+    TopLevelPolarity x p -> fsep $
+      ["Definition", prettyTCM x, "has explicit polarity annotation", pretty p, "which is currently not supported"]
+
+
 {-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
 prettyRecordFieldWarning = \case

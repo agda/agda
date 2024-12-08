@@ -182,6 +182,7 @@ errorWarnings = Set.fromList
   , RewriteMaybeNonConfluent_
   , RewriteAmbiguousRules_
   , RewriteMissingRule_
+  , TopLevelPolarity_
 
   -- Recoverable scope-checking errors
   , HiddenNotInArgumentPosition_
@@ -353,6 +354,7 @@ data WarningName
   | WithoutKFlagPrimEraseEquality_
   | ConflictingPragmaOptions_
   | WrongInstanceDeclaration_
+  | TopLevelPolarity_
   -- Checking consistency of options
   | CoInfectiveImport_
   | InfectiveImport_
@@ -584,6 +586,7 @@ warningNameDescription = \case
   WithClauseProjectionFixityMismatch_ -> "With clauses using projections in different fixities than their parent clauses."
   WithoutKFlagPrimEraseEquality_   -> "Uses of `primEraseEquality' with the without-K flags."
   WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."
+  TopLevelPolarity_                -> "Declaring definitions with an explicit polarity annotation."
   -- Checking consistency of options
   CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does."
   InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which does not."

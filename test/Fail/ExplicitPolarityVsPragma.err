@@ -1,0 +1,3 @@
+ExplicitPolarityVsPragma.agda:5.11-34: error: [ExplicitPolarityVsPragma]
+Polarity pragma used for f but its type is already annotated with
+polarities.

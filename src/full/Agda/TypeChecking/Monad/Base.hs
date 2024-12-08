@@ -1839,6 +1839,10 @@ instance LensQuantity MetaInfo where
 instance LensRelevance MetaInfo where
   mapRelevance f = mapModality (mapRelevance f)
 
+instance LensModalPolarity MetaInfo where
+  getModalPolarity   = getModalPolarity . getModality
+  mapModalPolarity f = mapModality (mapModalPolarity f)
+
 -- | Append an 'ArgName' to a 'MetaNameSuggestion', for computing the
 -- name suggestions of eta-expansion metas. If the 'MetaNameSuggestion'
 -- is empty or an underscore, the field name is taken as the suggestion.
@@ -1896,6 +1900,9 @@ instance LensRelevance RemoteMetaVariable where
 
 instance LensQuantity RemoteMetaVariable where
   mapQuantity f = mapModality (mapQuantity f)
+
+instance LensModalPolarity RemoteMetaVariable where
+  mapModalPolarity f = mapModality (mapModalPolarity f)
 
 normalMetaPriority :: MetaPriority
 normalMetaPriority = MetaPriority 0
@@ -2364,6 +2371,7 @@ instance LensArgInfo Definition where
 instance LensModality  Definition where
 instance LensQuantity  Definition where
 instance LensRelevance Definition where
+instance LensModalPolarity Definition where
 
 data NumGeneralizableArgs
   = NoGeneralizableArgs
@@ -4309,6 +4317,7 @@ currentModality = do
   q <- viewTC eQuantity
   return Modality
     { modRelevance = r
+    , modPolarity  = defaultPolarity
     , modQuantity  = q
     , modCohesion  = unitCohesion
     }
@@ -4666,6 +4675,9 @@ data Warning
     -- ^ The with-clause uses projection in a different fixity style
     --   than the parent clause.
 
+  | TopLevelPolarity QName PolarityModality
+    -- ^ Definition with non-default polarity annotation.
+
   -- Cubical
   | FaceConstraintCannotBeHidden ArgInfo
     -- ^ Face constraint patterns @(i = 0)@ must be visible arguments.
@@ -4791,6 +4803,7 @@ warningName = \case
   -- Type checking
   TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
   WithClauseProjectionFixityMismatch{} -> WithClauseProjectionFixityMismatch_
+  TopLevelPolarity{}                   -> TopLevelPolarity_
 
   -- Cubical
   FaceConstraintCannotBeHidden{} -> FaceConstraintCannotBeHidden_
@@ -5015,6 +5028,8 @@ data TypeError
             -- ^ Wrong user-given quantity annotation in lambda.
         | WrongCohesionInLambda
             -- ^ Wrong user-given cohesion annotation in lambda.
+        | WrongPolarityInLambda
+            -- ^ Wrong user-given polarity annotation in lambda.
         | QuantityMismatch Quantity Quantity
             -- ^ The given quantity does not correspond to the expected quantity.
         | HidingMismatch Hiding Hiding
@@ -5044,6 +5059,7 @@ data TypeError
         | SplitOnCoinductive
         | SplitOnIrrelevant (Dom Type)
         | SplitOnUnusableCohesion (Dom Type)
+        | SplitOnUnusablePolarity (Dom Type)
         -- UNUSED: -- | SplitOnErased (Dom Type)
         | SplitOnNonVariable Term Type
         | SplitOnNonEtaRecord QName
@@ -5060,6 +5076,7 @@ data TypeError
         | LambdaIsErased
         | RecordIsErased
         | InvalidModalTelescopeUse Term Modality Modality Definition
+        | VariableIsOfUnusablePolarity Name PolarityModality
         | UnequalLevel Comparison Level Level
         | UnequalTerms Comparison Term Term CompareAs
         | UnequalRelevance Comparison Term Term
@@ -5068,6 +5085,8 @@ data TypeError
             -- ^ The two function types have different relevance.
         | UnequalCohesion Comparison Term Term
             -- ^ The two function types have different cohesion.
+        | UnequalPolarity Comparison Term Term
+            -- ^ The two function types have different polarity.
         | UnequalFiniteness Comparison Term Term
             -- ^ One of the function types has a finite domain (i.e. is a @Partia@l@) and the other isonot.
         | UnequalHiding Term Term
@@ -5240,6 +5259,7 @@ data TypeError
         | GeneralizedVarInLetOpenedModule A.QName
         | MultipleFixityDecls (List1 (C.Name, Pair Fixity'))
         | MultiplePolarityPragmas (List1 C.Name)
+        | ExplicitPolarityVsPragma QName
         | ConstructorNameOfNonRecord ResolvedName
     -- Concrete to Abstract errors
         | CannotQuote CannotQuote

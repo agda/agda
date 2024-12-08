@@ -585,6 +585,8 @@ warningHighlighting' b w = case tcWarning w of
   -- Backends
   CustomBackendWarning{} -> mempty
 
+  TopLevelPolarity{} -> errorWarningHighlighting w
+
 recordFieldWarningHighlighting ::
   RecordFieldWarning -> HighlightingInfoBuilder
 recordFieldWarningHighlighting = \case

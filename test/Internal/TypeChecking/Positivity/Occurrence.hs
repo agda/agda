@@ -30,7 +30,7 @@ instance Arbitrary Where where
     [ return LeftOfArrow
     , DefArg <$> arbitrary <*> arbitrary
     , return UnderInf
-    , return VarArg
+    , VarArg <$> arbitrary <*> arbitrary
     , return MetaArg
     , ConArgType <$> arbitrary
     , IndArgType <$> arbitrary
@@ -47,7 +47,7 @@ instance CoArbitrary Where where
   coarbitrary LeftOfArrow    = variant 0
   coarbitrary (DefArg a b)   = variant 1 . coarbitrary (a, b)
   coarbitrary UnderInf       = variant 2
-  coarbitrary VarArg         = variant 3
+  coarbitrary (VarArg p b)   = variant 3 . coarbitrary (p, b)
   coarbitrary MetaArg        = variant 4
   coarbitrary (ConArgType a) = variant 5 . coarbitrary a
   coarbitrary (IndArgType a) = variant 6 . coarbitrary a

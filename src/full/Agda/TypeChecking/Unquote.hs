@@ -218,6 +218,7 @@ pickName a =
       where lc = toLower c
 
 -- TODO: reflect Cohesion
+-- TODO: reflect ModalPolarity
 instance Unquote Modality where
   unquote t = do
     t <- reduceQuotedTerm t
@@ -227,7 +228,8 @@ instance Unquote Modality where
           [(c `isCon` getBuiltin' builtinModalityConstructor,
               Modality <$> unquoteN r
                        <*> unquoteN q
-                       <*> pure defaultCohesion)]
+                       <*> pure defaultCohesion
+                       <*> pure defaultPolarity)]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "modality" t
