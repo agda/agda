@@ -2,7 +2,7 @@ Issue3676.agda:24.11-12: error: [InstanceNoCandidate]
 No instance of type Monad _M_16 was found in scope.
 - F-monad was ruled out because
   Issue3676.agda:24.11-12: error: [CannotApply]
-  Expression used as function but does not have function type:
+  Expression used as function but does not have function type (did you supply too many arguments?):
     expr: m
     type: Nat
   when checking that n is a valid argument to a function of type Nat

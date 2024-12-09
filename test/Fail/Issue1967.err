@@ -6,7 +6,7 @@ instance argument ⦃ A : Set ⦄ has no effect.
 when checking that the expression ⦃ A : Set ⦄ → Set is a type
 
 Issue1967.agda:5.22-23: error: [CannotApply]
-Expression used as function but does not have function type:
+Expression used as function but does not have function type (did you supply too many arguments?):
   expr: D
   type: Set
 when checking that A is a valid argument to a function of type

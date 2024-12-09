@@ -1,5 +1,5 @@
 Issue799a.agda:11.5-6: error: [CannotApply]
-Expression used as function but does not have function type:
+Expression used as function but does not have function type (did you supply too many arguments?):
   expr: d
   type: D Set
 when checking that {B = _} is a valid argument to a function of
