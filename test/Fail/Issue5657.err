@@ -1,5 +1,5 @@
 Issue5657.agda:11.11-12: error: [CannotApply]
-Expression used as function but does not have function type:
+Expression used as function but does not have function type (did you supply too many arguments?):
   expr: .A
   type: Set
 when checking that r is a valid argument to a function of type Set

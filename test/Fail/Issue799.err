@@ -1,5 +1,5 @@
 Issue799.agda:8.5-6: error: [CannotApply]
-Expression used as function but does not have function type:
+Expression used as function but does not have function type (did you supply too many arguments?):
   expr: d
   type: D
 when checking that {_} {_} {interesting-argument = _} {_} {_} {_}

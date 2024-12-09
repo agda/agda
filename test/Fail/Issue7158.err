@@ -1,5 +1,5 @@
 Issue7158.agda:21.8-11: error: [CannotApply]
-Expression used as function but does not have function type:
+Expression used as function but does not have function type (did you supply too many arguments?):
   expr: foo
   type: T
 when checking that zero is a valid argument to a function of type T

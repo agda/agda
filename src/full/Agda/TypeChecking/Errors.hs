@@ -67,7 +67,7 @@ import Agda.TypeChecking.Pretty.Call
 import Agda.TypeChecking.Pretty.Warning
 import Agda.TypeChecking.SizedTypes.Pretty ()
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Reduce (instantiate)
+import Agda.TypeChecking.Reduce (instantiate, reduceB)
 
 import Agda.Interaction.Library.Base (formatLibErrors, libFile)
 
@@ -190,6 +190,17 @@ prettyDisambProj = prettyDisamb $ lastMaybe . filter (noRange /=) . map nameBind
 --   Print the range in 'qnameName'. This fixes the bad error message in #4130.
 prettyDisambCons :: MonadPretty m => QName -> m Doc
 prettyDisambCons = prettyDisamb $ Just . nameBindingSite . qnameName
+
+-- | If we try to apply a function whose type is not a function type
+--   but also not blocked on anything, then the user might by accident
+--   have supplied too many arguments.
+--
+tooManyArgumentsHintIfReallyNotBlocked :: MonadPretty m => I.Type -> m Doc
+tooManyArgumentsHintIfReallyNotBlocked t = do
+  reduceB t >>= \case
+    NotBlocked ReallyNotBlocked _ ->
+      return "(did you supply too many arguments?)"
+    _ -> return empty
 
 instance PrettyTCM TypeError where
   prettyTCM :: forall m. MonadPretty m => TypeError -> m Doc
@@ -414,13 +425,16 @@ instance PrettyTCM TypeError where
       prettyTCM t : pwords "should be a sort, but it isn't"
 
     ShouldBePi t -> fsep $
-      prettyTCM t : pwords "should be a function type, but it isn't"
+      prettyTCM t : pwords "should be a function type, but it isn't" ++
+      [ tooManyArgumentsHintIfReallyNotBlocked t ]
 
     ShouldBePath t -> fsep $
       prettyTCM t : pwords "should be a Path or PathP type, but it isn't"
 
     CannotApply e t -> sep
-      [ "Expression used as function but does not have function type:"
+      [ ("Expression used as function but does not have function type"
+         <+> tooManyArgumentsHintIfReallyNotBlocked t)
+        <> ":"
       , nest 2 $ "expr:" <+> prettyA e
       , nest 2 $ "type:" <+> prettyTCM t
       ]

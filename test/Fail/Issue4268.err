@@ -1,5 +1,5 @@
 Issue4268.agda:7.9-24: error: [CannotApply]
-Expression used as function but does not have function type:
+Expression used as function but does not have function type (did you supply too many arguments?):
   expr: A → (_ : B) → _
   type: funSort Set (piSort Set (λ z → _4 (_ = z)))
 when checking that _ is a valid argument to a function of type
