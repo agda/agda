@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wunused-imports #-}
-
 {-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -18,6 +16,9 @@ versionWithCommitInfo = version ++ maybe "" ("-" ++) commitInfo
 
 -- | Information about current git commit, generated at compile time
 commitInfo :: Maybe String
+#ifdef wasm32_HOST_ARCH
+commitInfo = Nothing
+#else
 commitInfo
   | hash == "UNKNOWN" = Nothing
   | otherwise         = Just $ abbrev hash ++ dirty
@@ -30,3 +31,4 @@ commitInfo
 
     -- Abbreviate a commit hash while keeping it unambiguous
     abbrev = take 7
+#endif

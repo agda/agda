@@ -1,8 +1,10 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# LANGUAGE CPP #-}
 
 module Agda.Utils.IO.Directory
   ( copyDirContent
   , copyIfChanged
+  , tryTakeDirectory
   )
 where
 
@@ -72,3 +74,30 @@ copyIfChanged src dst = do
     new <- BS.readFile src
     old <- BS.readFile dst
     unless (old == new) $ copyFile src dst
+
+--- Find the parent directory of the given path, returning `None' if at a root
+-- directory.
+--
+-- Note that "going up" one directory is OS dependent
+-- if the directory is a symlink.
+--
+-- Quoting from https://hackage.haskell.org/package/directory-1.3.6.1/docs/System-Directory.html#v:canonicalizePath :
+--
+--   Note that on Windows parent directories .. are always fully
+--   expanded before the symbolic links, as consistent with the
+--   rest of the Windows API (such as GetFullPathName). In
+--   contrast, on POSIX systems parent directories .. are
+--   expanded alongside symbolic links from left to right. To
+--   put this more concretely: if L is a symbolic link for R/P,
+--   then on Windows L\.. refers to ., whereas on other
+--   operating systems L/.. refers to R.
+tryTakeDirectory :: FilePath -> IO (Maybe FilePath)
+tryTakeDirectory path = do
+#ifdef wasm32_HOST_ARCH
+  -- canonicalizePath "foo/.." returns "foo/.." rather than "foo" on wasm32-wasi,
+  -- so we just use takeDirectory and cope with the broken symlink behaviour.
+  let up = takeDirectory path
+#else
+  up <- canonicalizePath $ path </> ".."
+#endif
+  if up == path then return Nothing else return $ Just up

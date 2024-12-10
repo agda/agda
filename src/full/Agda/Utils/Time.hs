@@ -3,6 +3,8 @@
 -- To avoid warning on derived Integral instance for CPUTime.
 {-# OPTIONS_GHC -fno-warn-identities #-}
 
+{-# LANGUAGE CPP #-}
+
 -- | Time-related utilities.
 
 module Agda.Utils.Time
@@ -12,6 +14,7 @@ module Agda.Utils.Time
   , measureTime
   , CPUTime(..)
   , fromMilliseconds
+  , getLocalTime
   ) where
 
 import Control.DeepSeq
@@ -59,3 +62,12 @@ measureTime m = do
   x     <- m
   stop  <- liftIO $ getCPUTime
   return (x, stop - start)
+
+-- | Get the current local time
+getLocalTime :: IO Data.Time.LocalTime
+#ifdef wasm32_HOST_ARCH
+-- tzset is not available on wasm, so just default to utc instead.
+getLocalTime = Data.Time.utcToLocalTime Data.Time.utc <$> Data.Time.getCurrentTime
+#else
+getLocalTime = liftA2 Data.Time.utcToLocalTime Data.Time.getCurrentTimeZone Data.Time.getCurrentTime
+#endif
