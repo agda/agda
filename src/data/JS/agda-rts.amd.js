@@ -350,14 +350,6 @@ exports.primSubOut = _ => _ => _ => _ => x => x;
 exports.prim_glueU = _ => _ => _ => _ => _ => x => x;
 exports.prim_unglueU = _ => _ => _ => _ => x => x;
 exports.primFaceForall = f => f(true) == true && f(false) == false;
-exports.primDepIMin =
-    i => f => i ? f({ "tt" : a => a["tt"]() }) : false;
-exports.primConId = _ => _ => _ => _ => i => p => { return { "i" : i, "p" : p } };
-exports.primIdFace = _ => _ => _ => _ => x => x["i"];
-exports.primIdPath = _ => _ => _ => _ => x => x["p"];
-exports.primIdJ = _ => _ => _ => _ => _ => x => _ => _ => x;
-exports.primIdElim =
-    _ => _ => _ => _ => _ => f => x => y => f(y["i"])(x)(y["p"]);
 
 // Other stuff
 

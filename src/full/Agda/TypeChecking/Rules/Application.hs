@@ -420,7 +420,6 @@ checkHeadApplication :: Comparison -> A.Expr -> Type -> A.Expr -> [NamedArg A.Ex
 checkHeadApplication cmp e t hd args = do
   SortKit{..} <- sortKit
   sharp <- fmap nameOfSharp <$> coinductionKit
-  conId  <- getNameOfConstrained builtinConId
   pOr    <- getNameOfConstrained builtinPOr
   pComp  <- getNameOfConstrained builtinComp
   pHComp <- getNameOfConstrained builtinHComp
@@ -438,7 +437,6 @@ checkHeadApplication cmp e t hd args = do
     A.Def c | Just c == pComp -> defaultResult' $ Just $ checkPrimComp c
     A.Def c | Just c == pHComp -> defaultResult' $ Just $ checkPrimHComp c
     A.Def c | Just c == pTrans -> defaultResult' $ Just $ checkPrimTrans c
-    A.Def c | Just c == conId -> defaultResult' $ Just $ checkConId c
     A.Def c | Just c == pOr   -> defaultResult' $ Just $ checkPOr c
     A.Def c | Just c == mglue -> defaultResult' $ Just $ check_glue c
     A.Def c | Just c == mglueU -> defaultResult' $ Just $ check_glueU c
@@ -1770,29 +1768,6 @@ checkPrimTrans c rs vs _ = do
 blockArg :: HasRange r => Type -> r -> Arg Term -> TCM () -> TCM (Arg Term)
 blockArg t r a m =
   setCurrentRange (getRange $ r) $ fmap (a $>) $ blockTerm t $ m >> return (unArg a)
-
-checkConId :: QName -> MaybeRanges -> Args -> Type -> TCM Args
-checkConId c rs vs t1 = do
-  case vs of
-   args@[_, _, _, _, phi, p] -> do
-      iv@(PathType s _ l a x y) <- idViewAsPath t1
-      let ty = pathUnview iv
-      -- the following duplicates reduction of phi
-      const_x <- blockTerm ty $ do
-          equalTermOnFace (unArg phi) (El s (unArg a)) (unArg x) (unArg y)
-          pathAbs iv (NoAbs (stringToArgName "_") (unArg x))
-      p <- blockArg ty (rs !!! 5) p $ do
-        equalTermOnFace (unArg phi) ty (unArg p) const_x   -- G, phi |- p = \ i . x
-      return $ initWithDefault __IMPOSSIBLE__ args ++ [p]
-      -- phi <- reduce phi
-      -- forallFaceMaps (unArg phi) $ \ alpha -> do
-      --   iv@(PathType s _ l a x y) <- idViewAsPath (applySubst alpha t1)
-      --   let ty = pathUnview iv
-      --   equalTerm (El s (unArg a)) (unArg x) (unArg y) -- precondition for cx being well-typed at ty
-      --   cx <- pathAbs iv (NoAbs (stringToArgName "_") (applySubst alpha (unArg x)))
-      --   equalTerm ty (applySubst alpha (unArg p)) cx   -- G, phi |- p = \ i . x
-   _ -> typeError $ CubicalPrimitiveNotFullyApplied c
-
 
 -- The following comment contains silly ' escapes to calm CPP about ∨ (\vee).
 -- May not be haddock-parseable.
