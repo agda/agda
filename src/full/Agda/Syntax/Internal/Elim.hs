@@ -5,7 +5,6 @@ module Agda.Syntax.Internal.Elim where
 import Control.DeepSeq
 
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Pretty () -- Pretty Arg instance
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 

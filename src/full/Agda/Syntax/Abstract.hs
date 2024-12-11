@@ -26,6 +26,7 @@ import GHC.Generics (Generic)
 
 import Agda.Syntax.Concrete (FieldAssignment'(..), TacticAttribute'(..))
 import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Common

@@ -106,8 +106,6 @@ instance (Arbitrary a, Arbitrary b) => Arbitrary (ImportedName' a b) where
     b <- arbitrary
     elements [ ImportedModule a, ImportedName b ]
 
-deriving instance (Show a, Show b) => Show (Using' a b)
-
 instance (Arbitrary a, Arbitrary b) => Arbitrary (Using' a b) where
   arbitrary = do
     xs <- arbitrary

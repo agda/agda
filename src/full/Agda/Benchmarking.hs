@@ -15,7 +15,6 @@ import GHC.Generics (Generic)
 
 import System.IO.Unsafe
 
-import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import Agda.Utils.Benchmark (MonadBench(..))

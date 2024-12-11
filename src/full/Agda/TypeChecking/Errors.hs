@@ -50,7 +50,7 @@ import Agda.Syntax.Common.Pretty ( prettyShow, render )
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Concrete.Definitions (notSoNiceDeclarations)
 import Agda.Syntax.Concrete.Definitions.Errors (declarationExceptionString)
-import Agda.Syntax.Concrete.Pretty (attributesForModality, prettyHiding, prettyRelevance)
+import Agda.Syntax.Concrete.Pretty (attributesForModality)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
