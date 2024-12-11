@@ -315,7 +315,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMGetInstances,
     primAgdaTCMSolveInstances,
     primAgdaTCMPragmaForeign,
-    primAgdaTCMPragmaCompile
+    primAgdaTCMPragmaCompile,
+    primAgdaTCMGetCurrentPath
     :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Term
 
 primInteger                           = getBuiltin builtinInteger
@@ -535,6 +536,7 @@ primAgdaTCMGetInstances               = getBuiltin builtinAgdaTCMGetInstances
 primAgdaTCMSolveInstances             = getBuiltin builtinAgdaTCMSolveInstances
 primAgdaTCMPragmaForeign              = getBuiltin builtinAgdaTCMPragmaForeign
 primAgdaTCMPragmaCompile              = getBuiltin builtinAgdaTCMPragmaCompile
+primAgdaTCMGetCurrentPath             = getBuiltin builtinAgdaTCMGetCurrentPath
 
 -- | The coinductive primitives.
 

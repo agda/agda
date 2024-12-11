@@ -4,6 +4,7 @@
 module Agda.Utils.FileName
   ( AbsolutePath(AbsolutePath)
   , filePath
+  , textPath
   , mkAbsolute
   , absolute
   , canonicalizeAbsolutePath
