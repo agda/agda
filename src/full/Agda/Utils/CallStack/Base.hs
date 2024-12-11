@@ -8,7 +8,7 @@ module Agda.Utils.CallStack.Base (
   , SrcLocFile
   , SrcLocLine
   , SrcLocCol
-  , CallSite
+  , CallSite(..)
   , CallSiteFilter
 
   -- * String-based "pretty" representations
@@ -75,7 +75,7 @@ type SrcLocLine = Int
 type SrcLocCol = Int
 
 -- | Type of an entry in  a @CallStack@
-type CallSite = (SrcFun, SrcLoc)
+newtype CallSite = CallSite { unCallSite :: (SrcFun, SrcLoc) }
 
 -- | Type of a filter for @CallSite@
 type CallSiteFilter = CallSite -> Bool
@@ -86,14 +86,14 @@ type CallSiteFilter = CallSite -> Bool
 -- | The same as the un-exported internal function in @GHC.Exceptions (prettyCallStackLines)@
 --  Prints like: @doFoo, called at foo.hs:190:24 in main:Main@
 prettyCallSite :: CallSite -> String
-prettyCallSite (fun, loc) = fun ++ ", called at " ++ prettySrcLoc loc
+prettyCallSite (CallSite (fun, loc)) = fun ++ ", called at " ++ prettySrcLoc loc
 
 -- | Pretty-print a @CallStack@. This has a few differences from @GHC.Stack.prettyCallStackLines@.
 -- We omit the "CallStack (from GetCallStack)" header line for brevity.
 -- If there is only one entry (which is common, due to the manual nature of the @HasCallStack@ constraint),
 -- shows the entry on one line. If there are multiple, then the following lines are indented.
 prettyCallStack :: CallStack -> String
-prettyCallStack cs = case map prettyCallSite (getCallStack cs) of
+prettyCallStack cs = case map (prettyCallSite . CallSite) (getCallStack cs) of
   []                  -> "(empty CallStack)"
   firstLoc : restLocs -> intercalate "\n" (firstLoc : (map ("  " ++) restLocs))
 
@@ -101,15 +101,15 @@ prettyCallStack cs = case map prettyCallSite (getCallStack cs) of
 
 -- | Get the most recent @CallSite@ in a @CallStack@, if there is one.
 headCallSite :: CallStack -> Maybe CallSite
-headCallSite = listToMaybe . getCallStack
+headCallSite = fmap CallSite . listToMaybe . getCallStack
 
 -- | @CallStack@ comprising only the most recent @CallSite@
 truncatedCallStack :: CallStack -> CallStack
-truncatedCallStack cs = maybe emptyCallStack (fromCallSiteList . pure) (headCallSite cs)
+truncatedCallStack cs = maybe emptyCallStack (fromCallSiteList . pure) (fmap unCallSite $ headCallSite cs)
 
 -- | Transform a @CallStack@ by transforming its list of @CallSite@
 overCallSites :: ([CallSite] -> [CallSite]) -> CallStack -> CallStack
-overCallSites f = fromCallSiteList . f . getCallStack
+overCallSites f = fromCallSiteList . (map unCallSite . f . map CallSite) . getCallStack
 
 -- | Transform a @CallStack@ by filtering each @CallSite@
 filterCallStack :: CallSiteFilter -> CallStack -> CallStack
