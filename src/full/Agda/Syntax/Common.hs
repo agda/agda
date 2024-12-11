@@ -35,12 +35,15 @@ import GHC.Generics (Generic)
 import Agda.Syntax.Common.Aspect (Induction(..))
 import Agda.Syntax.Common.KeywordRange
 import Agda.Syntax.Common.Pretty
+import Agda.Syntax.Concrete.Glyph
 import Agda.Syntax.Position
 
 import Agda.Utils.BiMap (HasTag(..))
 import Agda.Utils.Boolean (Boolean(fromBool), IsBool(toBool))
+import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List  ( lastMaybe )
 import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -522,6 +525,19 @@ sameHiding x y =
     (Instance{}, Instance{}) -> True
     (hx, hy)                 -> hx == hy
 
+-- | @prettyHiding info visible doc@ puts the correct braces
+--   around @doc@ according to info @info@ and returns
+--   @visible doc@ if the we deal with a visible thing.
+prettyHiding :: LensHiding a => a -> (Doc -> Doc) -> Doc -> Doc
+prettyHiding a parens =
+  case getHiding a of
+    Hidden     -> braces'
+    Instance{} -> dbraces
+    NotHidden  -> parens
+
+instance Pretty a => Pretty (WithHiding a) where
+  pretty w = prettyHiding w id $ pretty $ dget w
+
 ---------------------------------------------------------------------------
 -- * Modalities
 ---------------------------------------------------------------------------
@@ -586,6 +602,13 @@ instance Monoid (UnderAddition Modality) where
 
 instance POSemigroup (UnderAddition Modality) where
 instance POMonoid (UnderAddition Modality) where
+
+instance Pretty Modality where
+  pretty (Modality r q c) = hsep
+    [ pretty r
+    , pretty q
+    , pretty c
+    ]
 
 -- | @m `moreUsableModality` m'@ means that an @m@ can be used
 --   where ever an @m'@ is required.
@@ -826,6 +849,11 @@ instance NFData Q0Origin where
     Q0       _ -> ()
     Q0Erased _ -> ()
 
+instance Pretty Q0Origin where
+  pretty = \case
+    Q0Inferred -> empty
+    Q0{}       -> "@0"
+    Q0Erased{} -> "@erased"
 -- *** Instances for 'Q1Origin'.
 
 -- | Right-biased composition, because the left quantity
@@ -868,6 +896,12 @@ instance NFData Q1Origin where
     Q1       _ -> ()
     Q1Linear _ -> ()
 
+instance Pretty Q1Origin where
+  pretty = \case
+    Q1Inferred -> empty
+    Q1{}       -> "@1"
+    Q1Linear{} -> "@linear"
+
 -- *** Instances for 'QωOrigin'.
 
 -- | Right-biased composition, because the left quantity
@@ -909,6 +943,12 @@ instance NFData QωOrigin where
     QωInferred -> ()
     Qω       _ -> ()
     QωPlenty _ -> ()
+
+instance Pretty QωOrigin where
+  pretty = \case
+    QωInferred -> empty
+    Qω{}       -> "@ω"
+    QωPlenty{} -> "@plenty"
 
 -- ** Quantity.
 
@@ -976,6 +1016,12 @@ instance PartialOrd Quantity where
     (_, Quantityω{})  -> POGT
     -- others are uncomparable
     _ -> POAny
+
+instance Pretty Quantity where
+  pretty = \case
+    Quantity0 o -> ifNull (pretty o) "@0" id
+    Quantity1 o -> ifNull (pretty o) "@1" id
+    Quantityω o -> pretty o
 
 -- | 'Quantity' forms an additive monoid with zero Quantity0.
 addQuantity :: Quantity -> Quantity -> Quantity
@@ -1149,6 +1195,9 @@ isQuantityω a = case getQuantity a of
   Quantityω{} -> True
   _ -> False
 
+prettyQuantity :: LensQuantity a => a -> Doc -> Doc
+prettyQuantity a = (pretty (getQuantity a) <+>)
+
 -- ** Erased.
 
 -- | A special case of 'Quantity': erased or not.
@@ -1200,6 +1249,9 @@ instance KillRange Erased where
     Erased o    -> Erased $ killRange o
     NotErased o -> NotErased $ killRange o
 
+instance Pretty Erased where
+  pretty = pretty . asQuantity
+
 -- | Composition of values of type 'Erased'.
 --
 -- 'Erased' is dominant.
@@ -1216,6 +1268,9 @@ composeErased = curry $ \case
 
 instance Semigroup (UnderComposition Erased) where
   (<>) = liftA2 composeErased
+
+prettyErased :: Erased -> Doc -> Doc
+prettyErased = prettyQuantity . asQuantity
 
 ---------------------------------------------------------------------------
 -- * Relevance
@@ -1374,6 +1429,25 @@ instance NFData OriginShapeIrrelevant where
     OShIrrDotDot _          -> ()
     OShIrrShIrr _           -> ()
     OShIrrShapeIrrelevant _ -> ()
+
+instance Pretty OriginRelevant where
+  pretty = \case
+    ORelInferred {} -> empty
+    ORelRelevant {} -> "@relevant"
+
+instance Pretty OriginIrrelevant where
+  pretty = \case
+    OIrrInferred   {} -> empty
+    OIrrDot        {} -> "."
+    OIrrIrr        {} -> "@irr"
+    OIrrIrrelevant {} -> "@irrelevant"
+
+instance Pretty OriginShapeIrrelevant where
+  pretty = \case
+    OShIrrInferred        {} -> empty
+    OShIrrDotDot          {} -> ".."
+    OShIrrShIrr           {} -> "@shirr"
+    OShIrrShapeIrrelevant {} -> "@shape-irrelevant"
 
 -- ** Relevance levels
 
@@ -1607,6 +1681,18 @@ shapeIrrelevantToIrrelevant :: Relevance -> Relevance
 shapeIrrelevantToIrrelevant ShapeIrrelevant{} = irrelevant
 shapeIrrelevantToIrrelevant rel = rel
 
+prettyRelevance :: LensRelevance a => a -> Doc -> Doc
+prettyRelevance a = if lastMaybe (render d) == Just '.' then (d <>) else (d <+>)
+  where
+    d = pretty $ getRelevance a
+
+instance Pretty Relevance where
+  pretty = \case
+    Relevant        o -> pretty o
+    Irrelevant      o -> ifNull (pretty o) "." id
+    ShapeIrrelevant o -> ifNull (pretty o) ".." id
+
+
 ---------------------------------------------------------------------------
 -- * Annotations
 ---------------------------------------------------------------------------
@@ -1709,6 +1795,15 @@ instance LensLock (Arg t) where
   getLock = getLock . getArgInfo
   setLock = mapArgInfo . setLock
 
+instance Pretty Lock where
+  pretty = \case
+    IsLock LockOLock -> "@lock"
+    IsLock LockOTick -> "@tick"
+    IsNotLock -> empty
+
+prettyLock :: LensLock a => a -> Doc -> Doc
+prettyLock a = (pretty (getLock a) <+>)
+
 ---------------------------------------------------------------------------
 -- * Cohesion
 ---------------------------------------------------------------------------
@@ -1739,6 +1834,11 @@ instance NFData Cohesion where
   rnf Flat       = ()
   rnf Continuous = ()
   rnf Squash     = ()
+
+instance Pretty Cohesion where
+  pretty Flat   = "@♭"
+  pretty Continuous = mempty
+  pretty Squash  = "@⊤"
 
 -- | A lens to access the 'Cohesion' attribute in data structures.
 --   Minimal implementation: @getCohesion@ and @mapCohesion@ or @LensModality@.
@@ -1886,6 +1986,9 @@ defaultCohesion = unitCohesion
 instance Null Cohesion where
   empty = defaultCohesion
   null = isContinuous
+
+prettyCohesion :: LensCohesion a => a -> Doc -> Doc
+prettyCohesion a = (pretty (getCohesion a) <+>)
 
 ---------------------------------------------------------------------------
 -- * Origin of arguments (user-written, inserted or reflected)
@@ -2258,31 +2361,14 @@ instance KillRange a => KillRange (Arg a) where
 --         showFVs UnknownFVs    s = s
 --         showFVs (KnownFVs fv) s = "fv" ++ show (IntSet.toList fv) ++ s
 
--- -- defined in Concrete.Pretty
--- instance Pretty a => Pretty (Arg a) where
---     pretty (Arg (ArgInfo h (Modality r q) o fv) a) = prettyFVs fv $ prettyQ q $ prettyR r $ prettyO o $ prettyH h $ pretty a
---       where
---         prettyH Hidden       s = "{" <> s <> "}"
---         prettyH NotHidden    s = "(" <> s <> ")"
---         prettyH (Instance o) s = prettyOv o <> "{{" <> s <> "}}"
---           where prettyOv YesOverlap = "overlap "
---                 prettyOv NoOverlap  = ""
---         prettyR r s = case r of
---           Irrelevant   -> "." <> s
---           ShapeIrrelevant    -> "?" <> s
---           Relevant     -> "r" <> s -- Andreas: I want to see it explicitly
---         prettyQ q s = case q of
---           Quantity0   -> "0" <> s
---           Quantity1   -> "1" <> s
---           Quantityω   -> "ω" <> s
---         prettyO o s = case o of
---           UserWritten -> "u" <> s
---           Inserted    -> "i" <> s
---           Reflected   -> "g" <> s -- generated by reflection
---           CaseSplit   -> "c" <> s -- generated by case split
---           Substitution -> "s" <> s
---         prettyFVs UnknownFVs    s = s
---         prettyFVs (KnownFVs fv) s = "fv" <> pretty (IntSet.toList fv) <> s
+-- Andreas 2010-09-21: do not print relevance in general, only in function types!
+-- Andreas 2010-09-24: and in record fields
+instance Pretty a => Pretty (Arg a) where
+  prettyPrec p (Arg ai e) = prettyHiding ai localParens $ prettyPrec p' e
+      where p' | visible ai = p
+               | otherwise  = 0
+            localParens | getOrigin ai == Substitution = parens
+                        | otherwise = id
 
 instance NFData e => NFData (Arg e) where
   rnf (Arg a b) = rnf a `seq` rnf b
@@ -2495,6 +2581,11 @@ instance (KillRange name, KillRange a) => KillRange (Named name a) where
 
 instance (NFData name, NFData a) => NFData (Named name a) where
   rnf (Named a b) = rnf a `seq` rnf b
+
+instance Pretty e => Pretty (Named_ e) where
+  prettyPrec p (Named nm e)
+    | Just s <- bareNameOf nm = mparens (p > 0) $ sep [ text s <+> "=", pretty e ]
+    | otherwise               = prettyPrec p e
 
 -- | Only 'Hidden' arguments can have names.
 type NamedArg a = Arg (Named_ a)
@@ -3001,10 +3092,21 @@ instance NFData FixityLevel where
   rnf Unrelated   = ()
   rnf (Related _) = ()
 
+instance Pretty FixityLevel where
+  pretty = \case
+    Unrelated  -> empty
+    Related d  -> text $ toStringWithoutDotZero d
+
 -- | Associativity.
 
 data Associativity = NonAssoc | LeftAssoc | RightAssoc
    deriving (Eq, Ord, Show)
+
+instance Pretty Associativity where
+  pretty = \case
+    LeftAssoc  -> "infixl"
+    RightAssoc -> "infixr"
+    NonAssoc   -> "infix"
 
 -- | Fixity of operators.
 
@@ -3042,6 +3144,11 @@ instance KillRange Fixity where
 
 instance NFData Fixity where
   rnf (Fixity _ _ _) = ()     -- Ranges are not forced, the other fields are strict.
+
+instance Pretty Fixity where
+  pretty (Fixity _ level ass) = case level of
+    Unrelated  -> empty
+    Related{}  -> pretty ass <+> pretty level
 
 -- * Notation coupled with 'Fixity'
 
@@ -3114,7 +3221,7 @@ data ImportDirective' n m = ImportDirective
       -- ^ Only for @open@. Exports the opened names from the current module.
       --   Range of the @public@ keyword.
   }
-  deriving Eq
+  deriving (Eq, Show)
 
 type HidingDirective'   n m = [ImportedName' n m]
 type RenamingDirective' n m = [Renaming' n m]
@@ -3152,7 +3259,7 @@ isDefaultImportDir dir = null dir && null (publicOpen dir)
 data Using' n m
   = UseEverything              -- ^ No @using@ clause given.
   | Using [ImportedName' n m]  -- ^ @using@ the specified names.
-  deriving Eq
+  deriving (Eq, Show)
 
 instance Semigroup (Using' n m) where
   UseEverything <> u             = u
@@ -3213,7 +3320,7 @@ data Renaming' n m = Renaming
   , renToRange :: Range
     -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
   }
-  deriving Eq
+  deriving (Eq, Show)
 
 -- ** HasRange instances
 
@@ -3247,6 +3354,46 @@ instance (KillRange a, KillRange b) => KillRange (Renaming' a b) where
 instance (KillRange a, KillRange b) => KillRange (ImportedName' a b) where
   killRange (ImportedModule n) = killRangeN ImportedModule n
   killRange (ImportedName   n) = killRangeN ImportedName   n
+
+-- ** Pretty instances
+
+instance (Pretty a, Pretty b) => Pretty (ImportDirective' a b) where
+    pretty i =
+        sep [ public (publicOpen i)
+            , pretty $ using i
+            , prettyHiding $ hiding i
+            , rename $ impRenaming i
+            ]
+        where
+            public Just{}  = "public"
+            public Nothing = empty
+
+            prettyHiding [] = empty
+            prettyHiding xs = "hiding" <+> parens (fsep $ punctuate ";" $ map pretty xs)
+
+            rename [] = empty
+            rename xs = hsep [ "renaming"
+                             , parens $ fsep $ punctuate ";" $ map pretty xs
+                             ]
+
+instance (Pretty a, Pretty b) => Pretty (Using' a b) where
+    pretty UseEverything = empty
+    pretty (Using xs)    =
+        "using" <+> parens (fsep $ punctuate ";" $ map pretty xs)
+
+instance (Pretty a, Pretty b) => Pretty (ImportedName' a b) where
+    pretty (ImportedName   a) = pretty a
+    pretty (ImportedModule b) = "module" <+> pretty b
+
+instance (Pretty a, Pretty b) => Pretty (Renaming' a b) where
+    pretty (Renaming from to mfx _r) = hsep
+      [ pretty from
+      , "to"
+      , maybe empty pretty mfx
+      , case to of
+          ImportedName a   -> pretty a
+          ImportedModule b -> pretty b   -- don't print "module" here
+      ]
 
 -- ** NFData instances
 

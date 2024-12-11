@@ -1283,7 +1283,7 @@ newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
   warnForPlentyInHardCompileTimeMode e
   setHardCompileTimeModeIfErased e $ do
   reportSDoc "tc.section" 10 $
-    "checking section" <+> (C.prettyErased e <$> prettyTCM m) <+>
+    "checking section" <+> (prettyErased e <$> prettyTCM m) <+>
     fsep (map prettyA tel)
 
   checkGeneralizeTelescope (Just m) gtel $ \ _ tel' -> do

@@ -36,7 +36,7 @@ import qualified Agda.Syntax.Translation.ReflectedToAbstract as R
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract.Pretty as AP
-import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons, prettyHiding)
+import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
 import qualified Agda.Syntax.Concrete.Pretty as CP
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Scope.Base  (AbstractName(..))
@@ -381,8 +381,8 @@ instance PrettyTCM TypeCheckingProblem where
   prettyTCM (CheckProjAppToKnownPrincipalArg cmp e _ _ _ _ t _ _ _ _) = prettyTCM (CheckExpr cmp e t)
   prettyTCM (CheckLambda cmp (Arg ai (xs, mt)) e t) =
     sep [ pure CP.lambda <+>
-          (CP.prettyRelevance ai .
-           CP.prettyHiding ai (if isNothing mt && natSize xs == 1 then id
+          (prettyRelevance ai .
+           prettyHiding ai (if isNothing mt && natSize xs == 1 then id
                                else P.parens) <$> do
             fsep $
               map prettyTCM (List1.toList xs) ++
@@ -398,7 +398,7 @@ instance PrettyTCM TypeCheckingProblem where
 {-# SPECIALIZE prettyTCM :: TypeCheckingProblem -> TCM Doc #-}
 
 instance PrettyTCM a => PrettyTCM (WithHiding a) where
-  prettyTCM (WithHiding h a) = CP.prettyHiding h id <$> prettyTCM a
+  prettyTCM (WithHiding h a) = prettyHiding h id <$> prettyTCM a
 {-# SPECIALIZE prettyTCM :: PrettyTCM a => WithHiding a -> TCM Doc #-}
 
 instance PrettyTCM Telescope where
