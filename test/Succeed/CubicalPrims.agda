@@ -6,7 +6,6 @@ open import Agda.Primitive.Cubical renaming (primIMin to _∧_; primIMax to _∨
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Cubical.Sub renaming (Sub to _[_↦_]; primSubOut to outS)
 open import Agda.Builtin.Cubical.Path
-open import Agda.Builtin.Cubical.Id renaming (IdJ to J)
 open import Agda.Builtin.Cubical.Glue renaming (primGlue to Glue; prim^glue to glue; prim^unglue to unglue)
 open import Agda.Builtin.Sigma
 open import Agda.Builtin.List
@@ -88,13 +87,6 @@ module IntervalEquations where
 
   test-n8 : ∀ {i} → P (i ∧ i1) ≡ P i
   test-n8 = refl
-
-reflId' : ∀ {l} {A : Set l} {x : A} → Id x x
-reflId' = conid i1 refl
-
-J-comp : ∀ {ℓ ℓ'} {A : Set ℓ} {x : A} {P : ∀ y → Id x y → Set ℓ'} →
-         (d : P x reflId') → J P d reflId' ≡ d
-J-comp _ = refl
 
 outPartial : ∀ {ℓ} {A : Set ℓ} → Partial i1 A → A
 outPartial = λ f → f itIsOne

@@ -19,7 +19,6 @@ import Agda.Builtin.Coinduction
 import Agda.Builtin.Cubical.Equiv
 import Agda.Builtin.Cubical.Glue
 import Agda.Builtin.Cubical.HCompU
-import Agda.Builtin.Cubical.Id
 import Agda.Builtin.Cubical.Path
 import Agda.Builtin.Cubical.Sub
 import Agda.Builtin.Equality

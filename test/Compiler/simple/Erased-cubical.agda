@@ -10,7 +10,6 @@
 open import Agda.Builtin.Cubical.Glue
 
 open import Agda.Builtin.Cubical.HCompU
-open import Agda.Builtin.Cubical.Id
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Sub
 open import Agda.Builtin.IO
