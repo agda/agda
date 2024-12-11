@@ -15,7 +15,7 @@ import Control.Monad.Trans.Maybe  ( MaybeT(MaybeT), runMaybeT )
 import Control.Applicative
 
 import Data.Either ( partitionEithers )
-import Data.Foldable (all, traverse_)
+import Data.Foldable (all, traverse_, foldl')
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.HashMap.Strict as HMap
@@ -197,6 +197,9 @@ getLocalVars = useScope scopeLocals
 modifyLocalVars :: (LocalVars -> LocalVars) -> ScopeM ()
 modifyLocalVars = modifyScope_ . updateScopeLocals
 
+modifyLocalNameParts :: (Map RawName (List1 A.Name) -> Map RawName (List1 A.Name)) -> ScopeM ()
+modifyLocalNameParts = modifyScope_ . updateScopeLocalNameParts
+
 setLocalVars :: LocalVars -> ScopeM ()
 setLocalVars vars = modifyLocalVars $ const vars
 
@@ -257,6 +260,17 @@ bindVarsToBind :: ScopeM ()
 bindVarsToBind = do
   vars <- getVarsToBind
   modifyLocalVars (vars ++)
+
+  -- modifyLocalNameParts $ \nps ->
+  --   foldl'
+  --     (\nps (_, x) ->
+  --        foldl'
+  --          (\nps notPart -> _)
+  --          nps
+  --          (theNotation (nameFixity (localVar x))))
+  --     nps
+  --     vars
+
   printLocals 30 "bound variables:"
   modifyScope_ $ setVarsToBind []
 

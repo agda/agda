@@ -645,25 +645,21 @@ mergeNameParts = Map.unionWith List1.union
 -- * Operations on name spaces
 ------------------------------------------------------------------------
 
+addNamePartsOfAbstractName :: AbstractName -> NamePartsInScope -> NamePartsInScope
+addNamePartsOfAbstractName name nps = foldl'
+  (\nps notPart -> case notPart of
+      IdPart rs ->
+         Map.insertWith (<>) (rangedThing rs) _ nps
+      _ -> nps)
+  nps
+  (theNotation $ nameFixity name)
+
 -- | Compute the name parts map corresponding to a `NamesInScope`.
 namePartsOfNamesInScope :: NamesInScope -> NamePartsInScope
 namePartsOfNamesInScope =
   Map.foldl'
-    (\acc absnames -> foldl'
-       (\acc absname ->
-          foldl'
-            (\acc notPart -> case notPart of
-                IdPart rs ->
-                   Map.insertWith
-                     (<>)
-                     (rangedThing rs)
-                     (List1.singleton absname)
-                     acc
-                _ -> acc)
-            acc
-            (theNotation $ nameFixity $ qnameName $ anameName absname))
-       acc
-       absnames)
+    (\acc absnames ->
+       foldl' (\acc absname -> addNamePartsOfName (qnameName $ anameName absname)) acc absnames)
     Map.empty
 
 -- | The empty name space.
@@ -1028,11 +1024,8 @@ removeNameFromScope nsid x = mapScopeNS nsid (Map.delete x) id id
 
 -- | Add a module to a scope.
 addModuleToScope :: NameSpaceId -> C.Name -> AbstractModule -> Scope -> Scope
-addModuleToScope nsid x m = unsafeMapScopeNS \(NameSpanc ns nps ms ins) ->
-  NameSpace ns nps (Map.insertWith (flip List1.union) x (singleton m) ms)
-
--- nsid id addM id
---   where addM = Map.insertWith (flip List1.union) x (singleton m)
+addModuleToScope nsid x m = unsafeMapScopeNS nsid $ \(NameSpace ns nps ms ins) ->
+  NameSpace ns nps (Map.insertWith (flip List1.union) x (singleton m) ms) ins
 
 -- | When we get here we cannot have both @using@ and @hiding@.
 data UsingOrHiding

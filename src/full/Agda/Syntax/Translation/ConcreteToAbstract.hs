@@ -533,9 +533,8 @@ localToAbstract x ret = fst <$> localToAbstract' x ret
 -- | Like 'localToAbstract' but returns the scope after the completion of the
 --   second argument.
 localToAbstract' :: ToAbstract c => c -> (AbsOfCon c -> ScopeM b) -> ScopeM (b, ScopeInfo)
-localToAbstract' x ret = do
-  scope <- getScope
-  withScope scope $ ret =<< toAbstract x
+localToAbstract' x ret =
+  localScope $ ret =<< toAbstract x
 
 instance ToAbstract () where
   type AbsOfCon () = ()
