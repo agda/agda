@@ -150,8 +150,8 @@ parseVariables f cxt asb ii rng ss = do
       (_              , LambdaBound ) -> failLocal s
       -- Case 1f: let-bound variable
       (_              , LetBound    ) -> failLetBound s
-      -- Case 1g: with-bound variable (not used?)
-      (_              , WithBound   ) -> __IMPOSSIBLE__
+      -- Case 1g: with-bound variable
+      (_              , WithBound   ) -> failWithBound s
       -- Case 1h: macro-bound variable (interactive command impossible in macro context)
       (_              , MacroBound   ) -> __IMPOSSIBLE__
     -- Case 2: variable has no binding site, so we check if it can be
@@ -185,6 +185,9 @@ parseVariables f cxt asb ii rng ss = do
     "Cannot make hidden module parameter " ++ s ++ " visible"
   failLetBound s = interactionError $ CaseSplitError $ P.text $
     "Cannot split on let-bound variable " ++ s
+  failWithBound s = interactionError $ CaseSplitError $ P.text $
+    "Cannot split on variable " ++ s ++
+    ", because it is an equality proof bound by a with-abstraction"
   failInstantiatedVar s v = interactionError . CaseSplitError =<< sep
       [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
       , prettyTCM v
