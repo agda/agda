@@ -1832,6 +1832,10 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      Failed termination checks.
 
+.. option:: TopLevelPolarity
+
+     Declaring definitions with an explicit polarity annotation.
+
 .. option:: UnsolvedConstraints
 
      Unsolved constraints.
