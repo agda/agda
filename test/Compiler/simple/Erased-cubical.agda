@@ -62,24 +62,6 @@ n₂ = primSubOut s
 i₂ : I
 i₂ = primFaceForall (λ _ → i1)
 
-i₃ : Id 12 12
-i₃ = conid i0 p₄
-
-i₄ : I
-i₄ = primDepIMin i1 (λ _ → i0)
-
-i₅ : I
-i₅ = primIdFace i₃
-
-p₅ : 12 ≡ 12
-p₅ = primIdPath i₃
-
-n₃ : Nat
-n₃ = IdJ (λ _ _ → Nat) 14 i₃
-
-n₄ : Nat
-n₄ = primIdElim (λ _ _ → Nat) (λ _ _ _ → 14) i₃
-
 infix 2 _⊎_
 
 data _⊎_ (A B : Set) : Set where
