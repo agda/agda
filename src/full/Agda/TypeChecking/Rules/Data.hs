@@ -1747,9 +1747,17 @@ fitsIn con uc forceds conT s = do
                     _              -> Nothing
     case vt of
       Just (isPath, dom, b) -> do
-        -- Lucas, 23-11-2022: we re-check the type of the constructor argument
-        -- with the right polarity annotations in context.
         polarity <- optPolarity <$> pragmaOptions
+        -- When the --polarity option is enabled, the type of
+        -- every constructor argument is re-checked using the internal
+        -- type checker, to ensure that their usage of datatype parameters is
+        -- consistent with polarity annotations (of the parameters).
+        -- This may impact type checking performance, as the internal checker
+        -- does more work than just checking polarity.
+        -- A simpler check dedicated to polarity could be implemented,
+        -- but would likely lead to duplicated logic.
+        -- For further discussion on why this check is necessary, see:
+        -- https://github.com/agda/agda/pull/6385#issuecomment-1349672456
         when polarity $ do
           arg <- instantiateFull (unEl (unDom dom))
           reportSDoc "tc.polarity" 40 $
