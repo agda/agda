@@ -75,8 +75,6 @@ data BuiltinId
   | BuiltinNothing
   | BuiltinJust
   | BuiltinIO
-  | BuiltinId
-  | BuiltinReflId
   | BuiltinPath
   | BuiltinPathP
   | BuiltinIntervalUniv
@@ -297,8 +295,6 @@ instance IsBuiltin BuiltinId where
     BuiltinNothing                           -> "NOTHING"
     BuiltinJust                              -> "JUST"
     BuiltinIO                                -> "IO"
-    BuiltinId                                -> "ID"
-    BuiltinReflId                            -> "REFLID"
     BuiltinPath                              -> "PATH"
     BuiltinPathP                             -> "PATHP"
     BuiltinIntervalUniv                      -> "CUBEINTERVALUNIV"
@@ -490,8 +486,6 @@ builtinsNoDef =
   sizeBuiltins ++
    -- builtinConId,
   [ builtinIntervalUniv
-  , builtinId
-  , builtinReflId
   , builtinInterval
   , builtinPartial
   , builtinPartialP
@@ -532,7 +526,6 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinSub, builtinSubIn,
   builtinEquiv, builtinEquivFun, builtinEquivProof,
   builtinTranspProof,
-  builtinId, builtinReflId,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
   builtinInf, builtinSharp, builtinFlat,
@@ -626,8 +619,6 @@ builtinMaybe                             = BuiltinMaybe
 builtinNothing                           = BuiltinNothing
 builtinJust                              = BuiltinJust
 builtinIO                                = BuiltinIO
-builtinId                                = BuiltinId
-builtinReflId                            = BuiltinReflId
 builtinPath                              = BuiltinPath
 builtinPathP                             = BuiltinPathP
 builtinIntervalUniv                      = BuiltinIntervalUniv
@@ -811,9 +802,7 @@ builtinById = flip M.lookup m where
 -- | A primitive name, defined by the @primitive@ block.
 data PrimitiveId
   -- Cubical
-  = PrimConId
-  | PrimIdElim
-  | PrimIMin
+  = PrimIMin
   | PrimIMax
   | PrimINeg
   | PrimPartial
@@ -828,9 +817,6 @@ data PrimitiveId
   | PrimComp
   | PrimPOr
   | PrimTrans
-  | PrimDepIMin
-  | PrimIdFace
-  | PrimIdPath
   | PrimHComp
   --  Integer
   | PrimShowInteger
@@ -953,8 +939,6 @@ instance IsBuiltin PrimitiveId where
 
   getBuiltinId = \case
     -- Cubical
-    PrimConId                             -> "primConId"
-    PrimIdElim                            -> "primIdElim"
     PrimIMin                              -> "primIMin"
     PrimIMax                              -> "primIMax"
     PrimINeg                              -> "primINeg"
@@ -970,9 +954,6 @@ instance IsBuiltin PrimitiveId where
     PrimComp                              -> "primComp"
     PrimPOr                               -> "primPOr"
     PrimTrans                             -> "primTransp"
-    PrimDepIMin                           -> "primDepIMin"
-    PrimIdFace                            -> "primIdFace"
-    PrimIdPath                            -> "primIdPath"
     PrimHComp                             -> "primHComp"
     --  Integer
     PrimShowInteger                       -> "primShowInteger"
@@ -1078,15 +1059,12 @@ instance IsBuiltin PrimitiveId where
     PrimMetaToNatInjective                -> "primMetaToNatInjective"
     PrimLockUniv                          -> "primLockUniv"
 
-builtinConId, builtinIdElim, builtinSubOut,
+builtinSubOut,
   builtinIMin, builtinIMax, builtinINeg,
   builtinGlue, builtin_glue, builtin_unglue, builtin_glueU, builtin_unglueU,
   builtinFaceForall, builtinComp, builtinPOr,
-  builtinTrans,  builtinDepIMin,
-  builtinIdFace, builtinIdPath, builtinHComp, builtinLockUniv
+  builtinTrans,  builtinHComp, builtinLockUniv
   :: PrimitiveId
-builtinConId                             = PrimConId
-builtinIdElim                            = PrimIdElim
 builtinIMin                              = PrimIMin
 builtinIMax                              = PrimIMax
 builtinINeg                              = PrimINeg
@@ -1100,9 +1078,6 @@ builtinFaceForall                        = PrimFaceForall
 builtinComp                              = PrimComp
 builtinPOr                               = PrimPOr
 builtinTrans                             = PrimTrans
-builtinDepIMin                           = PrimDepIMin
-builtinIdFace                            = PrimIdFace
-builtinIdPath                            = PrimIdPath
 builtinHComp                             = PrimHComp
 builtinLockUniv                          = PrimLockUniv
 

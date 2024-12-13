@@ -295,11 +295,6 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $ List.loo
   , Prim_unglueU      |-> return "\\_ _ _ _ x -> x"
   , PrimFaceForall    |-> return
                             "\\f -> f True == True && f False == True"
-  , PrimDepIMin       |-> return "\\i f -> if i then f () else False"
-  , PrimIdFace        |-> return "\\_ _ _ _ -> fst"
-  , PrimIdPath        |-> return "\\_ _ _ _ -> snd"
-  , PrimIdElim        |-> return
-                            "\\_ _ _ _ _ f x y -> f (fst y) x (snd y)"
   ]
   where
   x |-> s = (x, Left <$> s)

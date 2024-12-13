@@ -91,8 +91,6 @@ data GHCEnv = GHCEnv
   , ghcEnvPathP
   , ghcEnvSub
   , ghcEnvSubIn
-  , ghcEnvId
-  , ghcEnvConId
     :: Maybe QName
     -- Various (possibly) builtin names.
   , ghcEnvIsTCBuiltin :: QName -> Bool

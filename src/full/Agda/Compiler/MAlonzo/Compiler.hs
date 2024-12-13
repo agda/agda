@@ -259,8 +259,6 @@ ghcPreCompile flags = do
   mpathp      <- getBuiltinName builtinPathP
   msub        <- getBuiltinName builtinSub
   msubin      <- getBuiltinName builtinSubIn
-  mid         <- getBuiltinName builtinId
-  mconid      <- getPrimitiveName' builtinConId
 
   istcbuiltin <- do
     builtins <- mapM getBuiltinName
@@ -351,8 +349,6 @@ ghcPreCompile flags = do
     , ghcEnvPathP       = mpathp
     , ghcEnvSub         = msub
     , ghcEnvSubIn       = msubin
-    , ghcEnvId          = mid
-    , ghcEnvConId       = mconid
     , ghcEnvIsTCBuiltin = istcbuiltin
     , ghcEnvListArity   = listArity
     , ghcEnvMaybeArity  = maybeArity
@@ -686,39 +682,6 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
           [ HS.FunBind
               [HS.Match (dname q) []
                  (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ x -> x"))
-                 emptyBinds]
-          ]
-
-      -- Id x y is compiled as a pair of a boolean and whatever
-      -- Path x y is compiled to.
-      Datatype{} | is ghcEnvId -> do
-        sequence_ [primInterval]
-        Just int <- getBuiltinName builtinInterval
-        int      <- xhqn TypeK int
-        -- re  #3733: implement reflId
-        retDecls $
-          [ HS.TypeDecl (unqhname TypeK q)
-              [] -- [HS.UnkindedVar (ihname A i) | i <- [0..3]]
-              (HS.TyApp (HS.FakeType "(,) Bool")
-                 (HS.TyFun (HS.TyCon int) mazAnyType))
-          , HS.FunBind
-              [HS.Match (dname q) []
-                 (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ _ -> ()"))
-                 emptyBinds]
-          ]
-
-      -- conid.
-      Primitive{} | is ghcEnvConId -> do
-        strict <- optGhcStrictData <$> askGhcOpts
-        let var = applyWhen strict HS.PBangPat . HS.PVar
-        retDecls $
-          [ HS.FunBind
-              [HS.Match (dname q)
-                 [ var (ihname A i) | i <- [0..1] ]
-                 (HS.UnGuardedRhs $
-                  HS.App (HS.App (HS.FakeExp "(,)")
-                            (HS.Var (HS.UnQual (ihname A 0))))
-                    (HS.Var (HS.UnQual (ihname A 1))))
                  emptyBinds]
           ]
 

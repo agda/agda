@@ -2,7 +2,6 @@
 
 module Agda.TypeChecking.Primitive.Cubical
   ( module Agda.TypeChecking.Primitive.Cubical
-  , module Agda.TypeChecking.Primitive.Cubical.Id
   , module Agda.TypeChecking.Primitive.Cubical.Base
   , module Agda.TypeChecking.Primitive.Cubical.Glue
   , module Agda.TypeChecking.Primitive.Cubical.HCompU
@@ -54,7 +53,6 @@ import qualified Agda.Utils.BoolSet as BoolSet
 import Agda.TypeChecking.Primitive.Cubical.HCompU
 import Agda.TypeChecking.Primitive.Cubical.Glue
 import Agda.TypeChecking.Primitive.Cubical.Base
-import Agda.TypeChecking.Primitive.Cubical.Id
 
 primPOr :: TCM PrimitiveImpl
 primPOr = do
@@ -486,7 +484,6 @@ primTransHComp cmd ts nelims = do
 
         mHComp <- getPrimitiveName' builtinHComp
         mGlue <- getPrimitiveName' builtinGlue
-        mId   <- getBuiltinName' builtinId
         pathV <- pathView'
 
         -- By cases on the family, determine what Kan operation we defer
@@ -530,10 +527,6 @@ primTransHComp cmd ts nelims = do
           -- Only compute the Kan operation if there's >0 eliminations.
           d | PathType _ _ _ bA x y <- pathV (El __DUMMY_SORT__ d) -> do
             if nelims > 0 then doPathPKanOp operation l ((bA, x, y) <$ t) else fallback
-
-          -- Identity types:
-          Def q [Apply _ , Apply bA , Apply x , Apply y] | Just q == mId -> do
-            maybe fallback return =<< doIdKanOp operation l ((bA, x, y) <$ t)
 
           Def q es -> do
             info <- getConstInfo q

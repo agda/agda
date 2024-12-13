@@ -869,11 +869,6 @@ primitives = Set.fromList
   , builtin_glueU
   , builtin_unglueU
   , builtinFaceForall
-  , PrimDepIMin
-  , PrimIdFace
-  , PrimIdPath
-  , builtinIdElim
-  , builtinConId
   -- , builtinGlue                   -- missing
   -- , builtin_glue                  -- missing
   -- , builtin_unglue                -- missing

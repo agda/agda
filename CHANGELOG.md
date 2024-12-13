@@ -145,6 +145,15 @@ Language
 
 Changes to type checker and other components defining the Agda language.
 
+* **BREAKING**: The primitive "cubical identity type", previously
+  exported from `Agda.Builtin.Cubical.Id`, has been removed. Its
+  computational behaviour is exactly replicated by the user-definable
+  identity type, which is also exported from `Agda.Builtin.Equality`.
+
+  See [agda/cubical#1005](https://github.com/agda/cubical/pull/1005) for
+  the PR removing it from the library, and
+  [#7652](https://github.com/agda/agda/pull/7652) for the compiler.
+
 Reflection
 ----------
 
