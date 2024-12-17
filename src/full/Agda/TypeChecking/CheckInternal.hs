@@ -18,6 +18,7 @@ module Agda.TypeChecking.CheckInternal
 import Control.Monad
 
 import Agda.Syntax.Common
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern (dbPatPerm)
 import Agda.Syntax.Common.Pretty (prettyShow)
@@ -431,6 +432,9 @@ type DbCoLevel = Int
 
 instance CheckInternal CompiledClauses where
   checkInternal' act cc cmp (q, t) = do
+    reportSDoc "tc.check.internal.cc" 20 $ vcat
+      [ "checking internal compiled clauses of " <+> prettyTCM q
+      , nest 2 $ return $ P.pretty cc ]
     TelV gamma a <- telViewUpTo (-1) t
     let
       n      = size gamma
@@ -449,7 +453,10 @@ checkClauses
   -> Comparison
   -> CheckClause
   -> m (CheckClause, CompiledClauses)
-checkClauses act (Done arg t) cmp s = addContext (ccTel s) $ do
+checkClauses act c@(Done arg t) cmp s = addContext (ccTel s) $ do
+  reportSDoc "tc.check.internal.cc" 50 $ vcat
+    [ "checking internal done clause of " <+> prettyTCM (ccName s)
+    , nest 2 $ return $ P.pretty c ]
   let sub = renamingR $ fromMaybe __IMPOSSIBLE__ $ checkClausePerm s
   nt <- checkInternal' act (applySubst sub t) cmp (unDom . ccTarget $ s)
   return (s, Done arg nt)
