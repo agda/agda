@@ -17,7 +17,6 @@ import Control.DeepSeq
 import Control.Monad.Trans (MonadIO)
 
 import           Data.Functor ( (<&>) )
-import qualified Data.Map     as Map
 import           Data.Map     ( Map )
 import qualified Data.Text    as T
 
@@ -39,10 +38,12 @@ import Agda.Interaction.Options
 import Agda.Syntax.Position (mkRangeFile, rangeFilePath)
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName, projectRoot)
 
+import qualified Agda.TypeChecking.Monad.Base.Types as ModuleToFile ( lookupSourceFile )
+
 import Agda.TypeChecking.Monad
   ( HasOptions(commandLineOptions)
   , MonadDebug
-  , stModuleToSourceId
+  , stModuleToFile
   , useTC
   , ReadTCState
   , reportS
@@ -128,8 +129,8 @@ resolveLaTeXOptions :: (HasOptions m, ReadTCState m, MonadFileId m)
   -> m LaTeXOptions
 resolveLaTeXOptions flags moduleName = do
   options <- commandLineOptions
-  modFiles <- useTC stModuleToSourceId
-  let msrc = Map.lookup moduleName modFiles
+  modFiles <- useTC stModuleToFile
+  let msrc = ModuleToFile.lookupSourceFile moduleName modFiles
   mf <- traverse srcFilePath msrc
   let
     mSrcFileName = mf <&> \ f ->
