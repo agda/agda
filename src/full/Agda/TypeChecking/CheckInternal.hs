@@ -426,9 +426,42 @@ data CheckClause = CClause
   , ccName   :: QName
   }
 
-type DbIndex   = Int
-type DbLevel   = Int
-type DbCoLevel = Int
+type DbIndex    = Int
+type DbLevel    = Int
+type Position   = Int
+type CoPosition = Int
+
+checkClausePerm :: CheckClause -> Maybe Permutation
+checkClausePerm = dbPatPerm . fromSplitPatterns . ccPats
+
+getVars :: CheckClause -> [Maybe DbIndex]
+getVars cc = pats $ ccPats cc
+  where
+    pats :: [NamedArg SplitPattern] -> [Maybe DbIndex]
+    -- also works for any Pattern' _
+    pats [] = []
+    pats (h : t) = (conv (namedArg h)) ++ pats t
+
+    conv :: SplitPattern -> [Maybe DbIndex]
+    conv (VarP _ v) = [Just $ splitPatVarIndex v]
+    conv (DotP _ _) = [Nothing]
+    conv (ConP _ _ ls) = pats ls
+    conv (LitP _ _) = []
+    conv (ProjP _ _) = []
+    conv (IApplyP _ _ _ v) = [Just $ splitPatVarIndex v]
+    conv (DefP _ _ _) = []
+
+lookupPos :: CheckClause -> Position -> Maybe DbIndex
+lookupPos cc p = (getVars cc) !! p
+
+lookupLvlPos :: CheckClause -> Position -> Maybe DbLevel
+lookupLvlPos cc p = (\x -> size (ccTel cc) - x - 1) <$> lookupPos cc p
+
+getTerms :: CheckClause -> [Maybe Term]
+getTerms cc = map (fmap var) (getVars cc)
+
+checkClauseSubst :: CheckClause -> Substitution
+checkClauseSubst cc = prependS __IMPOSSIBLE__ (reverse $ getTerms cc) idS
 
 instance CheckInternal CompiledClauses where
   checkInternal' act cc cmp (q, t) = do
@@ -443,9 +476,6 @@ instance CheckInternal CompiledClauses where
     (_, r) <- checkClauses act cc cmp sstate
     return r
 
-checkClausePerm :: CheckClause -> Maybe Permutation
-checkClausePerm = dbPatPerm . fromSplitPatterns . ccPats
-
 checkClauses
   :: (MonadCheckInternal m)
   => Action m
@@ -457,11 +487,12 @@ checkClauses act c@(Done arg t) cmp s = addContext (ccTel s) $ do
   reportSDoc "tc.check.internal.cc" 50 $ vcat
     [ "checking internal done clause of " <+> prettyTCM (ccName s)
     , nest 2 $ return $ P.pretty c ]
-  let sub = renamingR $ fromMaybe __IMPOSSIBLE__ $ checkClausePerm s
+--  let sub = renamingR $ fromMaybe __IMPOSSIBLE__ $ checkClausePerm s
+  let sub = checkClauseSubst s
   nt <- checkInternal' act (applySubst sub t) cmp (unDom . ccTarget $ s)
   return (s, Done arg nt)
-checkClauses act (Fail arg) cmp s = undefined
 checkClauses act (Case arg cases) cmp s = undefined
+checkClauses act (Fail arg) cmp s = undefined
 
 {-
 Examples
