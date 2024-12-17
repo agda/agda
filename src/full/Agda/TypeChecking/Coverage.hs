@@ -110,7 +110,7 @@ coverageCheck f t cs = do
   let -- n             = arity
       -- xs            = variable patterns fitting lgamma
       n            = size gamma
-      xs           =  map (setOrigin Inserted) $ teleNamedArgs gamma
+      xs           = map (setOrigin Inserted) $ teleNamedArgs gamma
 
   reportSLn "tc.cover.top" 30 $ "coverageCheck: getDefFreeVars"
 
@@ -1064,7 +1064,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
       debugPlugged delta' ps'
 
       let cps'  = applySplitPSubst rho cps
-
+      --TODO: Bohdan & Mario: the nothing can be computed here
       return $ Just . (,unifyInfo) $ SClause delta' ps' rho cps' Nothing -- target fixed later
 
   where
@@ -1303,6 +1303,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
         then computeLitNeighborhoods
         else computeNeighborhoods
 
+  --TODO: Bohdan & Mario: this fix can be done in computeNeighbourhood in computeNeighbourhoods
   ns <- case target of
     Just a  -> forM ns $ \ (con,(sc,info)) -> lift $ (con,) . (,info) <$>
                  fixTargetType (getQuantity t) con sc a
