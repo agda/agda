@@ -19,6 +19,7 @@ import Control.Monad
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern (dbPatPerm)
 import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.TypeChecking.Conversion
@@ -38,8 +39,8 @@ import Agda.TypeChecking.CompiledClause
 import Agda.Utils.Function (applyWhen, applyWhenM)
 import Agda.Utils.Functor (($>))
 import Agda.Utils.Maybe
-import Agda.Utils.Either
 import Agda.Utils.Size
+import Agda.Utils.Permutation
 
 import Agda.Utils.Impossible
 
@@ -428,76 +429,6 @@ type DbIndex   = Int
 type DbLevel   = Int
 type DbCoLevel = Int
 
-atLevel :: CheckClause -> DbLevel -> Maybe DbIndex
-atLevel (CClause { ccPats = pats }) i = maybeRight $ at pats i
-  where
-    at :: [NamedArg SplitPattern] -> DbLevel -> Either DbLevel DbIndex
-    at []      i = Right i
-    at (h : t) i = case atc (namedThing . unArg $ h) i of
-      Left j -> at t j
-      Right ix -> Right ix
-
-    atc :: SplitPattern -> DbLevel -> Either DbLevel DbIndex
-    atc _          i | i < 0      = __IMPOSSIBLE__ -- negative level
-    atc (VarP _ x) i | i == 0     = Right $ splitPatVarIndex x
-                     | otherwise  = Left $ i - 1
-    atc (DotP _ t) i | i == 0     = __IMPOSSIBLE__ -- indexing into a dot pattern
-    atc (DotP _ t) i | otherwise  = Left $ i - 1
-    atc (ConP _ _ s) i            = at s i
-    atc (LitP _ _) i              = Left $ i - 1
-    atc (ProjP _ _) i             = __IMPOSSIBLE__
-                                    -- TODO: fix, cubical stuff, idk what to do with it
-    atc (IApplyP _ t1 t2 x) i     = __IMPOSSIBLE__
-                                    -- TODO: fix, cubical stuff, idk what to do with it_
-    atc (DefP _ _ s) i            = at s i
-
-atCoLevel :: CheckClause -> DbCoLevel -> Maybe DbIndex
-atCoLevel (CClause { ccPats = pats }) i = maybeRight $ at (reverse pats) i
-  where
-    -- we traverse patterns right-to-left, so empty case means we are at the "head"
-    -- of the original list
-    at :: [NamedArg SplitPattern] -> DbCoLevel -> Either DbCoLevel DbIndex
-    at []      i = Right i
-    at (h : t) i = case atc (namedThing . unArg $ h) i of
-      Left j -> at t j
-      Right ix -> Right ix
-
-    -- this is essentially the same as for Levels, except we reverse
-    -- the list of patterns in ConP for the recursive call
-    atc :: SplitPattern -> DbCoLevel -> Either DbCoLevel DbIndex
-    atc _          i | i < 0      = __IMPOSSIBLE__ -- negative level
-    atc (VarP _ x) i | i == 0     = Right $ splitPatVarIndex x
-                     | otherwise  = Left $ i - 1
-    atc (DotP _ t) i | i == 0     = __IMPOSSIBLE__ -- indexing into a dot pattern
-    atc (DotP _ t) i | otherwise  = Left $ i - 1
-    atc (ConP _ _ s) i            = at (reverse s) i
-    atc (LitP _ _) i              = Left $ i - 1
-    atc (ProjP _ _) i             = __IMPOSSIBLE__ -- TODO: fix
-    atc (IApplyP _ t1 t2 x) i     = __IMPOSSIBLE__ -- TODO: fix, cubical stuff, idk what to do with it
-    atc (DefP _ _ s) i            = at s i -- TODO: fix, cubical stuff, idk what to do with it_
-
-retSubst :: CheckClause -> Substitution
-retSubst (CClause { ccPats = pats }) = _ $ res
-  where
-    res = retPats pats 0
-
-    retPats :: [NamedArg SplitPattern] -> DbLevel -> [(DbLevel, Maybe DbIndex)]
-    retPats [] i = []
-    retPats (h : t) i =
-      let rh = retPat (namedThing . unArg $ h) i
-          j  = fst . last $ rh
-      in retPats t j
-
-    retPat :: SplitPattern -> DbLevel -> [(DbLevel, Maybe DbIndex)]
-    retPat (VarP _ x)        i = [(i, Just $ splitPatVarIndex x)]
-    retPat (DotP _ t)        i = [(i, Nothing)]
-    retPat (ConP _ _ s)      i = retPats s i
-    retPat (LitP _ _)        i = []
-    retPat (ProjP _ _)       i = __IMPOSSIBLE__ -- TODO: fix
-    retPat (IApplyP _ _ _ _) i = __IMPOSSIBLE__ -- TODO: fix, cubical stuff, idk what to do with it
-    retPat (DefP _ _ _)      i = __IMPOSSIBLE__ -- TODO: fix, cubical stuff, idk what to do with it
-
-
 instance CheckInternal CompiledClauses where
   checkInternal' act cc cmp (q, t) = do
     TelV gamma a <- telViewUpTo (-1) t
@@ -508,6 +439,9 @@ instance CheckInternal CompiledClauses where
     (_, r) <- checkClauses act cc cmp sstate
     return r
 
+checkClausePerm :: CheckClause -> Maybe Permutation
+checkClausePerm = dbPatPerm . fromSplitPatterns . ccPats
+
 checkClauses
   :: (MonadCheckInternal m)
   => Action m
@@ -515,8 +449,9 @@ checkClauses
   -> Comparison
   -> CheckClause
   -> m (CheckClause, CompiledClauses)
-checkClauses act (Done arg t) cmp s = do
-  nt <- addContext (ccTel s) $ checkInternal' act (applySubst (retSubst s) t) cmp (unDom . ccTarget $ s)
+checkClauses act (Done arg t) cmp s = addContext (ccTel s) $ do
+  let sub = renamingR $ fromMaybe __IMPOSSIBLE__ $ checkClausePerm s
+  nt <- checkInternal' act (applySubst sub t) cmp (unDom . ccTarget $ s)
   return (s, Done arg nt)
 checkClauses act (Fail arg) cmp s = undefined
 checkClauses act (Case arg cases) cmp s = undefined
