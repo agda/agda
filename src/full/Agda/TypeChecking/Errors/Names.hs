@@ -69,6 +69,7 @@ typeErrorName = \case
   BuiltinMustBeDef                                           {} -> BuiltinMustBeDef_
   BuiltinMustBeFunction                                      {} -> BuiltinMustBeFunction_
   BuiltinMustBePostulate                                     {} -> BuiltinMustBePostulate_
+  CannotApply                                                {} -> CannotApply_
   CannotEliminateWithPattern                                 {} -> CannotEliminateWithPattern_
   CannotEliminateWithProjection                              {} -> CannotEliminateWithProjection_
   CannotGenerateHCompClause                                  {} -> CannotGenerateHCompClause_
@@ -151,6 +152,7 @@ typeErrorName = \case
   ModuleNameUnexpected                                       {} -> ModuleNameUnexpected_
   MultipleFixityDecls                                        {} -> MultipleFixityDecls_
   MultiplePolarityPragmas                                    {} -> MultiplePolarityPragmas_
+  ExplicitPolarityVsPragma                                   {} -> ExplicitPolarityVsPragma_
   NamedWhereModuleInRefinedContext                           {} -> NamedWhereModuleInRefinedContext_
   NeedOptionAllowExec                                        {} -> NeedOptionAllowExec_
   NeedOptionCopatterns                                       {} -> NeedOptionCopatterns_
@@ -211,6 +213,7 @@ typeErrorName = \case
   SplitOnPartial                                             {} -> SplitOnPartial_
   SplitOnUnchecked                                           {} -> SplitOnUnchecked_
   SplitOnUnusableCohesion                                    {} -> SplitOnUnusableCohesion_
+  SplitOnUnusablePolarity                                    {} -> SplitOnUnusablePolarity_
   TacticAttributeNotAllowed                                  {} -> TacticAttributeNotAllowed_
   TooFewArgumentsToPatternSynonym                            {} -> TooFewArgumentsToPatternSynonym_
   TooFewPatternsInWithClause                                 {} -> TooFewPatternsInWithClause_
@@ -226,6 +229,7 @@ typeErrorName = \case
   UnequalLevel                                               {} -> UnequalLevel_
   UnequalQuantity                                            {} -> UnequalQuantity_
   UnequalRelevance                                           {} -> UnequalRelevance_
+  UnequalPolarity                                            {} -> UnequalPolarity_
   UnequalSorts                                               {} -> UnequalSorts_
   UnequalTerms                                               {} -> UnequalTerms_
   UnexpectedModalityAnnotationInParameter                    {} -> UnexpectedModalityAnnotationInParameter_
@@ -238,11 +242,13 @@ typeErrorName = \case
   VariableIsErased                                           {} -> VariableIsErased_
   VariableIsIrrelevant                                       {} -> VariableIsIrrelevant_
   VariableIsOfUnusableCohesion                               {} -> VariableIsOfUnusableCohesion_
+  VariableIsOfUnusablePolarity                               {} -> VariableIsOfUnusablePolarity_
   WithClausePatternMismatch                                  {} -> WithClausePatternMismatch_
   WithOnFreeVariable                                         {} -> WithOnFreeVariable_
   WrongAnnotationInLambda                                    {} -> WrongAnnotationInLambda_
   WrongArgInfoForPrimitive                                   {} -> WrongArgInfoForPrimitive_
   WrongCohesionInLambda                                      {} -> WrongCohesionInLambda_
+  WrongPolarityInLambda                                      {} -> WrongPolarityInLambda_
   WrongHidingInApplication                                   {} -> WrongHidingInApplication_
   WrongHidingInLHS                                           {} -> WrongHidingInLHS_
   WrongHidingInLambda                                        {} -> WrongHidingInLambda_

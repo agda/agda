@@ -115,7 +115,6 @@ data-files:
     lib/prim/Agda/Builtin/Char/Properties.agda
     lib/prim/Agda/Builtin/Coinduction.agda
     lib/prim/Agda/Builtin/Cubical/Path.agda
-    lib/prim/Agda/Builtin/Cubical/Id.agda
     lib/prim/Agda/Builtin/Cubical/Sub.agda
     lib/prim/Agda/Builtin/Cubical/Glue.agda
     lib/prim/Agda/Builtin/Cubical/Equiv.agda
@@ -511,6 +510,7 @@ library
       Agda.Interaction.AgdaTop
       Agda.Interaction.Base
       Agda.Interaction.BasicOps
+      Agda.Interaction.Command
       Agda.Interaction.SearchAbout
       Agda.Interaction.CommandLine
       Agda.Interaction.EmacsCommand
@@ -711,7 +711,6 @@ library
       Agda.TypeChecking.Primitive
       Agda.TypeChecking.Primitive.Base
       Agda.TypeChecking.Primitive.Cubical
-      Agda.TypeChecking.Primitive.Cubical.Id
       Agda.TypeChecking.Primitive.Cubical.Glue
       Agda.TypeChecking.Primitive.Cubical.Base
       Agda.TypeChecking.Primitive.Cubical.HCompU

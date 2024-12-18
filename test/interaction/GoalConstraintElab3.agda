@@ -3,7 +3,6 @@
 open import Agda.Primitive renaming (Set to Type)
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Glue
-open import Agda.Builtin.Cubical.Id
 open import Agda.Builtin.Sigma
 open import Agda.Primitive.Cubical
   renaming

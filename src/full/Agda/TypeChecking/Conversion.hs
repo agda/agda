@@ -749,13 +749,14 @@ compareAtom cmp t m n =
                 [ "t1 =" <+> prettyTCM t1
                 , "t2 =" <+> prettyTCM t2
                 ]
-              compareDom cmp dom2 dom1 b1 b2 errH errR errQ errC errF $
+              compareDom cmp dom2 dom1 b1 b2 errH errR errQ errC errP errF $
                 compareType cmp (absBody b1) (absBody b2)
             where
             errH = typeError $ UnequalHiding t1 t2
             errR = typeError $ UnequalRelevance cmp t1 t2
             errQ = typeError $ UnequalQuantity  cmp t1 t2
             errC = typeError $ UnequalCohesion cmp t1 t2
+            errP = typeError $ UnequalPolarity cmp t1 t2
             errF = typeError $ UnequalFiniteness cmp t1 t2
           _ -> __IMPOSSIBLE__
 
@@ -818,17 +819,19 @@ compareDom :: (MonadConversion m , Free c)
   -> m ()     -- ^ Continuation if mismatch in 'Relevance'.
   -> m ()     -- ^ Continuation if mismatch in 'Quantity'.
   -> m ()     -- ^ Continuation if mismatch in 'Cohesion'.
+  -> m ()     -- ^ Continuation if mismatch in 'Polarity'.
   -> m ()     -- ^ Continuation if mismatch in 'annFinite'.
   -> m ()     -- ^ Continuation if comparison is successful.
   -> m ()
 compareDom cmp0
   dom1@(Dom{domInfo = i1, unDom = a1})
   dom2@(Dom{domInfo = i2, unDom = a2})
-  b1 b2 errH errR errQ errC errF cont = do
+  b1 b2 errH errR errQ errC errP errF cont = do
   if | not $ sameHiding dom1 dom2 -> errH
      | not $ (==)         (getRelevance dom1) (getRelevance dom2) -> errR
      | not $ sameQuantity (getQuantity  dom1) (getQuantity  dom2) -> errQ
      | not $ sameCohesion (getCohesion  dom1) (getCohesion  dom2) -> errC
+     | not $ samePolarity (getModalPolarity dom1) (getModalPolarity dom2) -> errP
      | not $ domIsFinite dom1 == domIsFinite dom2 -> errF
      | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
@@ -2117,7 +2120,7 @@ forallFaceMaps t kb k = do
       let t = foldr (\ x r -> and `apply` [argN x,argN r]) io ts
       ifBlocked t blocked unblocked
     addBindings [] m = m
-    addBindings ((Dom{domInfo = info,unDom = (nm,ty)},t):bs) m = addLetBinding info Inserted nm t ty (addBindings bs m)
+    addBindings ((CtxVar nm Dom{domInfo = info,unDom = ty},t):bs) m = addLetBinding info Inserted nm t ty (addBindings bs m)
 
     substContextN :: MonadConversion m => Context -> [(Int,Term)] -> m (Context , Substitution)
     substContextN c [] = return (c, idS)

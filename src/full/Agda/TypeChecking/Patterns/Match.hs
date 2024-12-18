@@ -19,7 +19,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad hiding (constructorForm)
-import Agda.TypeChecking.Monad.Builtin (getName',builtinHComp, builtinConId)
+import Agda.TypeChecking.Monad.Builtin (getName', builtinHComp)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 
@@ -285,13 +285,10 @@ matchPattern p u = case (p, u) of
   isMatchable' :: HasBuiltins m => m (Blocked Term -> Maybe Term)
   isMatchable' = do
     mhcomp <- getName' builtinHComp
-    mconid <- getName' builtinConId
     return $ \ r ->
       case ignoreBlocking r of
         t@Con{} -> Just t
         t@(Def q [l,a,phi,u,u0]) | Just q == mhcomp
-                -> Just t
-        t@(Def q [l,a,x,y,phi,p]) | Just q == mconid
                 -> Just t
         -- TODO this covers the transpIx functions, but it's a hack.
         t@(Def q _) | NotBlocked{blockingStatus = MissingClauses _} <- r -> Just t

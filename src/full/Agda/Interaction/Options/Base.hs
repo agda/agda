@@ -102,6 +102,7 @@ module Agda.Interaction.Options.Base
     , lensOptConfluenceCheck
     , lensOptCohesion
     , lensOptFlatSplit
+    , lensOptPolarity
     , lensOptImportSorts
     , lensOptLoadPrimitives
     , lensOptAllowExec
@@ -159,6 +160,7 @@ module Agda.Interaction.Options.Base
     , optCallByName
     , optCohesion
     , optFlatSplit
+    , optPolarity
     , optImportSorts
     , optLoadPrimitives
     , optAllowExec
@@ -328,6 +330,7 @@ optCallByName                :: PragmaOptions -> Bool
 -- | 'optCohesion' is implied by 'optFlatSplit'.
 optCohesion                  :: PragmaOptions -> Bool
 optFlatSplit                 :: PragmaOptions -> Bool
+optPolarity                  :: PragmaOptions -> Bool
 -- | 'optImportSorts' requires 'optLoadPrimitives'.
 optImportSorts               :: PragmaOptions -> Bool
 optLoadPrimitives            :: PragmaOptions -> Bool
@@ -391,6 +394,7 @@ optCallByName                = collapseDefault . _optCallByName
 -- --flat-split implies --cohesion
 optCohesion                  = collapseDefault . _optCohesion      || optFlatSplit
 optFlatSplit                 = collapseDefault . _optFlatSplit
+optPolarity                  = collapseDefault . _optPolarity
 -- --no-load-primitives implies --no-import-sorts
 optImportSorts               = collapseDefault . _optImportSorts   && optLoadPrimitives
 optLoadPrimitives            = collapseDefault . _optLoadPrimitives
@@ -614,6 +618,9 @@ lensOptCohesion f o = f (_optCohesion o) <&> \ i -> o{ _optCohesion = i }
 lensOptFlatSplit :: Lens' PragmaOptions _
 lensOptFlatSplit f o = f (_optFlatSplit o) <&> \ i -> o{ _optFlatSplit = i }
 
+lensOptPolarity :: Lens' PragmaOptions _
+lensOptPolarity f o = f (_optPolarity o) <&> \ i -> o{ _optPolarity = i}
+
 lensOptImportSorts :: Lens' PragmaOptions _
 lensOptImportSorts f o = f (_optImportSorts o) <&> \ i -> o{ _optImportSorts = i }
 
@@ -741,6 +748,7 @@ defaultPragmaOptions = PragmaOptions
   , _optConfluenceCheck           = Nothing
   , _optCohesion                  = Default
   , _optFlatSplit                 = Default
+  , _optPolarity                  = Default
   , _optImportSorts               = Default
   , _optLoadPrimitives            = Default
   , _optAllowExec                 = Default
@@ -1009,6 +1017,7 @@ infectiveCoinfectiveOptions =
   , infectiveOption optSizedTypes             "--sized-types"
   , infectiveOption optGuardedness            "--guardedness"
   , infectiveOption optFlatSplit              "--flat-split"
+  , infectiveOption optPolarity               "--polarity"
   , infectiveOption optCohesion               "--cohesion"
   , infectiveOption optErasure                "--erasure"
   , infectiveOption optErasedMatches          "--erased-matches"
@@ -1474,6 +1483,9 @@ pragmaOptions = concat
                     Nothing
   , pragmaFlag      "flat-split" lensOptFlatSplit
                     "allow splitting on `(@flat x : A)' arguments" "(implies --cohesion)"
+                    Nothing
+  , pragmaFlag      "polarity" lensOptPolarity
+                    "enable the polarity modalities (@++, @mixed, etc.) and their integration in the positivity checker" ""
                     Nothing
   , pragmaFlag      "guardedness" lensOptGuardedness
                     "enable constructor-based guarded corecursion" "(inconsistent with --sized-types)"

@@ -254,7 +254,6 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primIsOne, primItIsOne, primIsOne1, primIsOne2, primIsOneEmpty,
     primSub, primSubIn, primSubOut,
     primTrans, primHComp,
-    primId, primConId, primIdElim,
     primEquiv, primEquivFun, primEquivProof,
     primTranspProof,
     primGlue, prim_glue, prim_unglue,
@@ -337,9 +336,6 @@ primMaybe                             = getBuiltin builtinMaybe
 primNothing                           = getBuiltin builtinNothing
 primJust                              = getBuiltin builtinJust
 primIO                                = getBuiltin builtinIO
-primId                                = getBuiltin builtinId
-primConId                             = getPrimitiveTerm builtinConId
-primIdElim                            = getPrimitiveTerm builtinIdElim
 primPath                              = getBuiltin builtinPath
 primPathP                             = getBuiltin builtinPathP
 primIntervalUniv                      = getBuiltin builtinIntervalUniv
@@ -719,19 +715,6 @@ pathView' = do
       | Just path' == mpathp, Just path <- mpathp -> PathType s path level typ lhs rhs
     _ -> OType t0
 
-{-# SPECIALIZE idViewAsPath :: Type -> TCM PathView  #-}
--- | Non dependent Path
-idViewAsPath :: HasBuiltins m => Type -> m PathView
-idViewAsPath t0@(El s t) = do
-  mid <- fmap getPrimName <$> getBuiltin' builtinId
-  mpath <- fmap getPrimName <$> getBuiltin' builtinPath
-  case mid of
-   Just path | isJust mpath -> case t of
-    Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
-      | path' == path -> return $ PathType s (fromJust mpath) level typ lhs rhs
-    _ -> return $ OType t0
-   _ -> return $ OType t0
-
 boldPathView :: Type -> PathView
 boldPathView t0@(El s t) = do
   case t of
@@ -747,24 +730,6 @@ pathUnview :: PathView -> Type
 pathUnview (OType t) = t
 pathUnview (PathType s path l t lhs rhs) =
   El s $ Def path $ map Apply [l, t, lhs, rhs]
-
-------------------------------------------------------------------------
--- * Swan's Id Equality
-------------------------------------------------------------------------
-
-{-# INLINABLE conidView' #-}
--- f x (< phi , p > : Id A x _) = Just (phi,p)
-conidView' :: HasBuiltins m => m (Term -> Term -> Maybe (Arg Term,Arg Term))
-conidView' = do
-  mn <- sequence <$> mapM getName' [someBuiltin builtinReflId, someBuiltin builtinConId]
-  mio <- getTerm' builtinIOne
-  let fallback = return $ \ _ _ -> Nothing
-  caseMaybe mn fallback $ \ [refl,conid] ->
-   caseMaybe mio fallback $ \ io -> return $ \ x t ->
-    case t of
-      Con h _ [] | conName h == refl -> Just (defaultArg io,defaultArg (Lam defaultArgInfo $ NoAbs "_" $ x))
-      Def d es | Just [l,a,x,y,phi,p] <- allApplyElims es, d == conid -> Just (phi, p)
-      _ -> Nothing
 
 ------------------------------------------------------------------------
 -- * Builtin equality
@@ -825,8 +790,7 @@ instance EqualityUnview EqualityTypeData where
 -- | Primitives with typechecking constrants.
 constrainedPrims :: [PrimitiveId]
 constrainedPrims =
-  [ builtinConId
-  , builtinPOr
+  [ builtinPOr
   , builtinComp
   , builtinHComp
   , builtinTrans

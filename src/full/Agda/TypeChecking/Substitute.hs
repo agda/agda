@@ -1079,6 +1079,10 @@ instance Subst LetBinding where
   type SubstArg LetBinding = Term
   applySubst rho (LetBinding o v t) = LetBinding o (applySubst rho v) (applySubst rho t)
 
+instance Subst ContextEntry where
+  type SubstArg ContextEntry = Term
+  applySubst rho (CtxVar x a)   = CtxVar x $ applySubst rho a
+
 instance Subst a => Subst (Maybe a) where
   type SubstArg (Maybe a) = SubstArg a
 

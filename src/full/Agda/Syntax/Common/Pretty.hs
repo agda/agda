@@ -103,6 +103,9 @@ instance a ~ Aspects => Pretty (P.Doc a) where
 instance Pretty () where
   pretty _ = P.empty
 
+instance (Pretty a, Pretty b) => Pretty (a, b) where
+    pretty (a, b) = parens $ (pretty a <> comma) <+> pretty b
+
 instance Pretty a => Pretty (Maybe a) where
   prettyPrec p Nothing  = P.empty
   prettyPrec p (Just x) = prettyPrec p x

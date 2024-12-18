@@ -140,14 +140,15 @@ checkApplication cmp hd args e t =
     , nest 2 $ text $ "e    = " ++ show (deepUnscope e)
     , nest 2 $ text $ "t    = " ++ show t
     ]
-  case unScope hd of
+  hd <- pure $ unScope hd
+  case hd of
     -- Subcase: unambiguous projection
     A.Proj o p | Just x <- getUnambiguous p -> do
       checkUnambiguousProjectionApplication cmp e t x o hd args
 
     -- Subcase: ambiguous projection
     A.Proj o p -> do
-      checkProjApp cmp e o (unAmbQ p) args t
+      checkProjApp cmp e o (unAmbQ p) hd args t
 
     -- Subcase: unambiguous constructor
     A.Con ambC | Just c <- getUnambiguous ambC -> do
@@ -156,12 +157,12 @@ checkApplication cmp hd args e t =
         fromRightM
           (sigError (typeError $ AbstractConstructorNotInScope c)) $
           getOrigConHead c
-      checkConstructorApplication cmp e t con args
+      checkConstructorApplication cmp e t con hd args
 
     -- Subcase: ambiguous constructor
     A.Con (AmbQ cs0) -> disambiguateConstructor cs0 args t >>= \ case
       Left unblock -> postponeTypeCheckingProblem (CheckExpr cmp e t) unblock
-      Right c      -> checkConstructorApplication cmp e t c args
+      Right c      -> checkConstructorApplication cmp e t c hd args
 
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
@@ -231,10 +232,11 @@ checkApplication cmp hd args e t =
           tel    <- metaTel args                    -- (x : X) (y : Y x)
           target <- addContext tel newTypeMeta_     -- Z x y
           let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
-          (Just vs, EmptyTel) <- mapFst allApplyElims <$> checkArguments_ CmpLeq ExpandLast (getRange args) args tel
+          let hd       = namedArg arg
+          (Just vs, EmptyTel) <- mapFst allApplyElims <$> checkArguments_ CmpLeq ExpandLast hd args tel
                                                     -- a b : (x : X) (y : Y x)
           (_, hole) <- newValueMeta RunMetaOccursCheck CmpLeq holeType
-          unquoteM (namedArg arg) hole holeType
+          unquoteM hd hole holeType
           let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
           coerce CmpEq (apply hole vs) (applySubst rho target) t -- H a b : A
       where
@@ -264,17 +266,16 @@ inferApplication exh hd args e | not (defOrVar hd) = do
 inferApplication exh hd args e = postponeInstanceConstraints $ do
   SortKit{..} <- sortKit
   case unScope hd of
-    A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) args
+    A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) hd args
     A.Def' x s | Just (sz, u) <- isNameOfUniv x -> inferUniv sz u e x s args
     _ -> do
       (f, t0) <- inferHead hd
-      let r = getRange hd
-      res <- runExceptT $ checkArgumentsE CmpEq exh (getRange hd) args t0 Nothing
+      res <- runExceptT $ checkArgumentsE CmpEq exh hd args t0 Nothing
       case res of
         Right st@(ACState{acType = t1}) -> fmap (,t1) $ unfoldInlined =<< checkHeadConstraints f st
         Left problem -> do
           t <- workOnTypes $ newTypeMeta_
-          v <- postponeArgs problem CmpEq exh r args t $ \ st -> unfoldInlined =<< checkHeadConstraints f st
+          v <- postponeArgs problem CmpEq exh hd args t0 t $ \ st -> unfoldInlined =<< checkHeadConstraints f st
           return (v, t)
 
 -----------------------------------------------------------------------------
@@ -317,6 +318,9 @@ inferHead e = do
 
       unless (usableCohesion a) $
         typeError $ VariableIsOfUnusableCohesion x (getCohesion a)
+
+      unless (usablePolarity a) $
+        typeError $ VariableIsOfUnusablePolarity x (getModalPolarity a)
 
       return (applyE u, unDom a)
 
@@ -419,7 +423,6 @@ checkHeadApplication :: Comparison -> A.Expr -> Type -> A.Expr -> [NamedArg A.Ex
 checkHeadApplication cmp e t hd args = do
   SortKit{..} <- sortKit
   sharp <- fmap nameOfSharp <$> coinductionKit
-  conId  <- getNameOfConstrained builtinConId
   pOr    <- getNameOfConstrained builtinPOr
   pComp  <- getNameOfConstrained builtinComp
   pHComp <- getNameOfConstrained builtinHComp
@@ -437,7 +440,6 @@ checkHeadApplication cmp e t hd args = do
     A.Def c | Just c == pComp -> defaultResult' $ Just $ checkPrimComp c
     A.Def c | Just c == pHComp -> defaultResult' $ Just $ checkPrimHComp c
     A.Def c | Just c == pTrans -> defaultResult' $ Just $ checkPrimTrans c
-    A.Def c | Just c == conId -> defaultResult' $ Just $ checkConId c
     A.Def c | Just c == pOr   -> defaultResult' $ Just $ checkPOr c
     A.Def c | Just c == mglue -> defaultResult' $ Just $ check_glue c
     A.Def c | Just c == mglueU -> defaultResult' $ Just $ check_glueU c
@@ -450,7 +452,7 @@ checkHeadApplication cmp e t hd args = do
   defaultResult' mk = do
     (f, t0) <- inferHead hd
     expandLast <- asksTC envExpandLast
-    checkArguments cmp expandLast (getRange hd) args t0 t $ \ st@(ACState cas t1 checkedTarget) -> do
+    checkArguments cmp expandLast hd args t0 t $ \ st@(ACState cas _fun t1 checkedTarget) -> do
       let check :: Maybe (TCM Args)
           check = do
             k <- mk
@@ -498,18 +500,35 @@ coerce' cmp (CheckedTarget (Just pid)) v _        expected = blockTermOnProblem 
 --   type @t0'@ (which should be a subtype of @t1@) and any constraints @cs@
 --   that have to be solved for everything to be well-formed.
 
-checkArgumentsE :: Comparison -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Maybe Type ->
-                   ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM (ArgsCheckState CheckedTarget)
-checkArgumentsE sComp sExpand sRange sArgs sFun sApp = do
+checkArgumentsE ::
+     Comparison
+       -- ^ How the inferred type should be compared to the expected result type.
+  -> ExpandHidden
+       -- ^ Insert trailing hidden arguments?
+  -> A.Expr
+       -- ^ The function.
+  -> [NamedArg A.Expr]
+       -- ^ The arguments.
+  -> Type
+       -- ^ Type of the function.
+  -> Maybe Type
+       -- ^ Optional: expected result type (type of the whole application).
+  -> ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM (ArgsCheckState CheckedTarget)
+       -- ^ Upon failure, return the current state for creating a postponed type checking problem.
+checkArgumentsE cmp exph hd args t0 t = do
   sPathView <- pathView'
   checkArgumentsE'
     S{ sChecked       = NotCheckedTarget
-     , sArgs          = zip sArgs $
-                        List.suffixesSatisfying visible sArgs
-     , sArgsLen       = length sArgs
+     , sComp          = cmp
+     , sExpand        = exph
+     , sFun           = hd
+     , sArgs          = zip args $ List.suffixesSatisfying visible args
+     , sArgsLen       = length args
+     , sFunType       = t0
+     , sResultType    = t
      , sSizeLtChecked = False
      , sSkipCheck     = DontSkip
-     , ..
+     , sPathView      = sPathView
      }
 
 -- | State used by 'checkArgumentsE''.
@@ -521,19 +540,19 @@ data CheckArgumentsE'State = S
     -- ^ Comparison to use if checking the target type.
   , sExpand :: ExpandHidden
     -- ^ Insert trailing hidden arguments?
-  , sRange :: Range
-    -- ^ Range of the function.
+  , sFun :: A.Expr
+    -- ^ The function.
   , sArgs :: [(NamedArg A.Expr, Bool)]
     -- ^ Arguments, along with information about whether a given
     -- argument and all remaining arguments are 'visible'.
   , sArgsLen :: !Nat
     -- ^ The length of 'sArgs'.
-  , sFun :: Type
+  , sFunType :: Type
     -- ^ The function's type.
-  , sApp :: Maybe Type
+  , sResultType :: Maybe Type
     -- ^ The type of the application.
   , sSizeLtChecked :: !Bool
-    -- ^ Have we checked if 'sApp' is 'BoundedLt'?
+    -- ^ Have we checked if 'sResultType' is 'BoundedLt'?
   , sSkipCheck :: !SkipCheck
     -- ^ Should the target type check be skipped?
   , sPathView :: Type -> PathView
@@ -559,17 +578,19 @@ checkArgumentsE' S{ sArgs = [], .. }
   | isDontExpandLast sExpand =
     return $ ACState
       { acCheckedArgs = []
-      , acType        = sFun
+      , acFun         = sFun
+      , acType        = sFunType
       , acData        = sChecked
       }
 
 -- Case: no arguments, but need to insert trailing hiddens.
 checkArgumentsE' S{ sArgs = [], .. } =
-  traceCallE (CheckArguments sRange [] sFun sApp) $ lift $ do
-    sApp    <- traverse (unEl <.> reduce) sApp
-    (us, t) <- implicitArgs (-1) (expand sApp) sFun
+  traceCallE (CheckArguments sFun [] sFunType sResultType) $ lift $ do
+    sResultType <- traverse (unEl <.> reduce) sResultType
+    (us, t)     <- implicitArgs (-1) (expand sResultType) sFunType
     return $ ACState
       { acCheckedArgs = map (defaultCheckedArg . Apply) us
+      , acFun         = sFun
       , acType        = t
       , acData        = sChecked
       }
@@ -584,14 +605,15 @@ checkArgumentsE' S{ sArgs = [], .. } =
 checkArgumentsE'
   s@S{ sArgs = sArgs@((arg@(Arg info e), sArgsVisible) : args), .. } =
 
-    traceCallE (CheckArguments sRange (map fst sArgs) sFun sApp) $ do
+    traceCallE (CheckArguments sFun (map fst sArgs) sFunType sResultType) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
         [ "checkArgumentsE"
 --        , "  sArgs =" <+> prettyA sArgs
         , nest 2 $ vcat
-          [ "e     =" <+> prettyA e
-          , "sFun  =" <+> prettyTCM sFun
-          , "sApp  =" <+> maybe "Nothing" prettyTCM sApp
+          [ "e (argument) =" <+> prettyA e
+          , "sFun         =" <+> prettyA sFun
+          , "sFunType     =" <+> prettyTCM sFunType
+          , "sResultType  =" <+> maybe "Nothing" prettyTCM sResultType
           ]
         ]
       -- First, insert implicit arguments, depending on current argument @arg@.
@@ -605,11 +627,10 @@ checkArgumentsE'
           expand hy        y = not (sameHiding hy hx) || maybe False (y /=) mx
       reportSDoc "tc.term.args" 30 $ vcat
         [ "calling implicitNamedArgs"
-        , nest 2 $ "sFun = " <+> prettyTCM sFun
-        , nest 2 $ "hx   = " <+> text (show hx)
-        , nest 2 $ "mx   = " <+> maybe "nothing" prettyTCM mx
+        , nest 2 $ "hx       = " <+> text (show hx)
+        , nest 2 $ "mx       = " <+> maybe "nothing" prettyTCM mx
         ]
-      (nargs, sFun) <- lift $ implicitNamedArgs (-1) expand sFun
+      (nargs, sFunType) <- lift $ implicitNamedArgs (-1) expand sFunType
       -- Separate names from args.
       let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Apply $ Arg ai u)) nargs
           xs        = catMaybes mxs
@@ -617,25 +638,26 @@ checkArgumentsE'
       -- We need a function type here, but we don't know which kind
       -- (implicit/explicit). But it might be possible to use injectivity to
       -- force a pi.
-      sFun <- lift $ forcePiUsingInjectivity sFun
+      sFunType <- lift $ forcePiUsingInjectivity sFunType
 
       -- We are done inserting implicit args.  Now, try to check @arg@.
-      ifBlocked sFun
-        (\_ sFun -> throwError $ ACState
+      ifBlocked sFunType
+        (\ _ sFunType -> throwError $ ACState
             { acCheckedArgs = map defaultCheckedArg us
-            , acType        = sFun
+            , acFun         = sFun
+            , acType        = sFunType
             , acData        = map fst sArgs
-            }) $ \_ sFun -> do
+            }) {- else -} $ \ _ sFunType -> do
 
         -- What can go wrong?
 
         -- 1. We ran out of function types.
         let shouldBePi =
               -- a) It is an explicit argument, but we ran out of function types.
-              if visible info then liftTCM . typeError $ ShouldBePi sFun
+              if visible info then liftTCM . typeError $ CannotApply sFun sFunType
               -- b) It is an implicit argument, and we did not insert any implicits.
               --    Thus, the type was not a function type to start with.
-              else List1.ifNull xs {-then-} (liftTCM . typeError $ ShouldBePi sFun)
+              else List1.ifNull xs {-then-} (liftTCM . typeError $ CannotApply sFun sFunType)
               -- c) We did insert implicits, but we ran out of implicit function types.
               --    Then, we should inform the user that we did not find his one.
               {-else-} (liftTCM . typeError . WrongNamedArgument arg)
@@ -645,7 +667,7 @@ checkArgumentsE'
         --    (Otherwise we would have ran out of function types instead.)
         let wrongPi = List1.ifNull xs
               -- b) We have not inserted any implicits.
-                {-then-} (liftTCM . typeError $ WrongHidingInApplication sFun)
+                {-then-} (liftTCM . typeError $ WrongHidingInApplication sFunType)
               -- c) We inserted implicits, but did not find his one.
                 {-else-} (liftTCM . typeError . WrongNamedArgument arg)
 
@@ -657,21 +679,21 @@ checkArgumentsE'
                 EQ -> (True,  DontSkip)
                 GT -> (True,  SkipNext (n - 1))
 
-        s <- return s
-          { sRange     = fuseRange sRange e
+        s <- pure s
+          { sFun       = A.App (A.defaultAppInfo $ getRange (sFun, arg)) sFun arg
           , sArgs      = args
           , sArgsLen   = sArgsLen - 1
-          , sFun       = sFun
+          , sFunType   = sFunType
           , sSkipCheck = next
           }
 
         -- Check the target type if we can get away with it.
         s <- lift $
-          case (sChecked, skip, sApp) of
-            (NotCheckedTarget, False, Just sApp) | sArgsVisible -> do
+          case (sChecked, skip, sResultType) of
+            (NotCheckedTarget, False, Just sResultType) | sArgsVisible -> do
               -- How many visible Π's (up to at most sArgsLen) does
-              -- sFun start with?
-              TelV tel tgt <- telViewUpTo' sArgsLen visible sFun
+              -- sFunType start with?
+              TelV tel tgt <- telViewUpTo' sArgsLen visible sFunType
               let visiblePis = size tel
 
                   -- The free variables less than visiblePis in tgt.
@@ -710,17 +732,17 @@ checkArgumentsE'
                   -- Andreas, 2019-03-28, issue #3248:
                   -- If the target type is SIZELT, we need coerce, leqType is insufficient.
                   -- For example, we have i : Size <= (Size< ↑ i), but not Size <= (Size< ↑ i).
-                  (isSizeLt, sApp, s) <-
+                  (isSizeLt, sResultType, s) <-
                     if sSizeLtChecked
-                    then return (False, sApp, s)
+                    then return (False, sResultType, s)
                     else do
-                      sApp     <- reduce sApp
-                      isSizeLt <- isSizeType sApp <&> \case
+                      sResultType <- reduce sResultType
+                      isSizeLt    <- isSizeType sResultType <&> \case
                         Just (BoundedLt _) -> True
                         _                  -> False
                       return ( isSizeLt
-                             , sApp
-                             , s{ sApp           = Just sApp
+                             , sResultType
+                             , s{ sResultType    = Just sResultType
                                 , sSizeLtChecked = True
                                 , sSkipCheck     =
                                     if isSizeLt then Skip else DontSkip
@@ -734,21 +756,21 @@ checkArgumentsE'
                   reportSDoc "tc.term.args.target" 30 $ vcat
                     [ "Checking target types first"
                     , nest 2 $ "inferred =" <+> prettyTCM tgt1
-                    , nest 2 $ "expected =" <+> prettyTCM sApp ]
+                    , nest 2 $ "expected =" <+> prettyTCM sResultType ]
                   chk <-
                     traceCall
                       (CheckTargetType
-                         (fuseRange sRange sArgs) tgt1 sApp) $
+                         (fuseRange sFun sArgs) tgt1 sResultType) $
                       CheckedTarget <$>
-                        ifNoConstraints_ (compareType sComp tgt1 sApp)
+                        ifNoConstraints_ (compareType sComp tgt1 sResultType)
                           (return Nothing) (return . Just)
                   return s{ sChecked = chk }
 
             _ -> return s
 
-        -- sFun <- lift $ forcePi (getHiding info)
-        --                  (maybe "_" rangedThing $ nameOf e) sFun
-        case unEl sFun of
+        -- sFunType <- lift $ forcePi (getHiding info)
+        --                  (maybe "_" rangedThing $ nameOf e) sFunType
+        case unEl sFunType of
           Pi (Dom{domInfo = info', domName = dname, unDom = a}) b
             | let name = bareNameWithDefault "_" dname,
               sameHiding info info'
@@ -773,17 +795,17 @@ checkArgumentsE'
                 let
                   c = case getLock info' of
                     IsLock{} -> Just $ Abs "t" $
-                        CheckLockedVars (Var 0 []) (raise 1 sFun)
+                        CheckLockedVars (Var 0 []) (raise 1 sFunType)
                           (raise 1 $ Arg info' u) (raise 1 a)
                     _ -> Nothing
                 lift $ reportSDoc "tc.term.lock" 40 $ text "lock =" <+> text (show $ getLock info')
                 lift $ reportSDoc "tc.term.lock" 40 $
-                  addContext (defaultDom $ sFun) $
+                  addContext (defaultDom $ sFunType) $
                   maybe (text "nothing") (prettyTCM . absBody) c
                 -- save relevance info' from domain in argument
                 let ca = CheckedArg{ caElim = Apply (Arg info' u), caRange = Just (getRange e), caConstraint = c }
                 addCheckedArgs us ca $
-                  checkArgumentsE' s{ sFun = absApp b u }
+                  checkArgumentsE' s{ sFunType = absApp b u }
             | otherwise -> do
                 reportSDoc "error" 10 $ nest 2 $ vcat
                   [ text $ "info      = " ++ show info
@@ -794,7 +816,7 @@ checkArgumentsE'
                 wrongPi
           _
             | visible info
-            , PathType sort _ _ bA x y <- sPathView sFun -> do
+            , PathType sort _ _ bA x y <- sPathView sFunType -> do
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
                 u <- lift $ checkExpr (namedThing e) =<< primIntervalType
                 let ca = CheckedArg
@@ -805,7 +827,7 @@ checkArgumentsE'
                 addCheckedArgs us ca $
                   checkArgumentsE'
                     s{ sChecked = NotCheckedTarget
-                     , sFun     = El sort $ unArg bA `apply` [argN u]
+                     , sFunType = El sort $ unArg bA `apply` [argN u]
                      }
           _ -> shouldBePi
   where
@@ -882,16 +904,16 @@ isRigid _ (El _ t) = case t of
 checkArguments_
   :: Comparison           -- ^ Comparison for target
   -> ExpandHidden         -- ^ Eagerly insert trailing hidden arguments?
-  -> Range                -- ^ Range of application.
+  -> A.Expr               -- ^ Function.
   -> [NamedArg A.Expr]    -- ^ Arguments to check.
   -> Telescope            -- ^ Telescope to check arguments against.
   -> TCM (Elims, Telescope)
      -- ^ Checked arguments and remaining telescope if successful.
-checkArguments_ cmp exh r args tel = postponeInstanceConstraints $ do
+checkArguments_ cmp exh fun args tel = postponeInstanceConstraints $ do
     z <- runExceptT $
-      checkArgumentsE cmp exh r args (telePi tel __DUMMY_TYPE__) Nothing
+      checkArgumentsE cmp exh fun args (telePi tel __DUMMY_TYPE__) Nothing
     case z of
-      Right (ACState cas t _) -> do
+      Right (ACState cas _ t _) -> do
         unless (all (isNothing . caConstraint) cas) do
           typeError $ NotSupported $
             "Head constraints are not (yet) supported in this position."
@@ -899,39 +921,70 @@ checkArguments_ cmp exh r args tel = postponeInstanceConstraints $ do
         return (map caElim cas, tel')
       Left _ -> __IMPOSSIBLE__  -- type cannot be blocked as it is generated by telePi
 
--- | @checkArguments cmp exph r args t0 t k@ tries @checkArgumentsE exph args t0 t@.
+-- | @checkArguments cmp exph hd args t0 t k@ tries @checkArgumentsE cmp exph hd args t0 t@.
 -- If it succeeds, it continues @k@ with the returned results.  If it fails,
 -- it registers a postponed typechecking problem and returns the resulting new
 -- meta variable.
 --
--- Checks @e := ((_ : t0) args) : t@.
+-- Checks @e := ((hd : t0) args) : t@.
 checkArguments ::
-  Comparison -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-  (ArgsCheckState CheckedTarget -> TCM Term) -> TCM Term
-checkArguments cmp exph r args t0 t k = postponeInstanceConstraints $ do
-  z <- runExceptT $ checkArgumentsE cmp exph r args t0 (Just t)
+     Comparison
+       -- ^ How the inferred type should be compared to the expected result type.
+  -> ExpandHidden
+       -- ^ Insert trailing hidden arguments?
+  -> A.Expr
+       -- ^ The function (a head).
+  -> [NamedArg A.Expr]
+       -- ^ The arguments to check.
+  -> Type
+       -- ^ Type of the function.
+  -> Type
+       -- ^ Expected result type (type of the whole application).
+  -> (ArgsCheckState CheckedTarget -> TCM Term)
+       -- ^ Continuation receiving the check arguments.
+  -> TCM Term
+checkArguments cmp exph hd args t0 t k = postponeInstanceConstraints $ do
+  z <- runExceptT $ checkArgumentsE cmp exph hd args t0 (Just t)
   case z of
     Right st -> k st
-      -- vs = evaluated args
-      -- t1 = remaining type (needs to be subtype of t)
-    Left problem -> postponeArgs problem cmp exph r args t k
+    Left problem -> postponeArgs problem cmp exph hd args t0 t k
       -- if unsuccessful, postpone checking until t0 unblocks
 
-postponeArgs :: (ArgsCheckState [NamedArg A.Expr]) -> Comparison -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type ->
-                (ArgsCheckState CheckedTarget -> TCM Term) -> TCM Term
-postponeArgs (ACState cas t0 es) cmp exph r args t k = do
+postponeArgs ::
+     (ArgsCheckState [NamedArg A.Expr])
+       -- ^ The last sound state of the arguments checker.
+  -> Comparison
+       -- ^ How the inferred type should be compared to the expected result type.
+  -> ExpandHidden
+       -- ^ Insert trailing hidden arguments?
+  -> A.Expr
+       -- ^ The original function (a head).
+  -> [NamedArg A.Expr]
+       -- ^ The original arguments to check.
+  -> Type
+       -- ^ Type of the original function.
+  -> Type
+       -- ^ Expected result type (type of the whole application).
+  -> (ArgsCheckState CheckedTarget -> TCM Term)
+       -- ^ Continuation receiving the check arguments.
+  -> TCM Term
+postponeArgs (ACState cas fun t1 es) cmp exph hd args t0 t k = do
   reportSDoc "tc.term.expr.args" 80 $
     sep [ "postponed checking arguments"
         , nest 4 $ prettyList (map (prettyA . namedThing . unArg) args)
         , nest 2 $ "against"
-        , nest 4 $ prettyTCM t0 ] $$
+        , nest 4 $ prettyTCM t0
+        ] $$
     sep [ "progress:"
         , nest 2 $ "checked" <+> prettyList (map (prettyTCM . caElim) cas)
-        , nest 2 $ "remaining" <+> sep [ prettyList (map (prettyA . namedThing . unArg) es)
-                                            , nest 2 $ ":" <+> prettyTCM t0 ] ]
+        , nest 2 $ "remaining" <+> sep
+            [ prettyList (map (prettyA . namedThing . unArg) es)
+            , nest 2 $ ":" <+> prettyTCM t1
+            ]
+        ]
   postponeTypeCheckingProblem_ $
-    CheckArgs cmp exph r es t0 t $ \ (ACState cas' t pid) ->
-      k $ ACState (cas ++ cas') t pid
+    CheckArgs cmp exph fun es t1 t $ \ (ACState cas' func t pid) ->
+      k $ ACState (cas ++ cas') func t pid
 
 -----------------------------------------------------------------------------
 -- * Constructors
@@ -940,8 +993,21 @@ postponeArgs (ACState cas t0 es) cmp exph r args t k = do
 -- | Check the type of a constructor application. This is easier than
 --   a general application since the implicit arguments can be inserted
 --   without looking at the arguments to the constructor.
-checkConstructorApplication :: Comparison -> A.Expr -> Type -> ConHead -> [NamedArg A.Expr] -> TCM Term
-checkConstructorApplication cmp org t c args = do
+checkConstructorApplication ::
+  Comparison
+       -- ^ How the inferred type of the application should be compared to the expected type.
+  -> A.Expr
+       -- ^ The whole application expression.
+  -> Type
+       -- ^ The expected type of the whole application.
+  -> ConHead
+       -- ^ The head of the application.
+  -> A.Expr
+       -- ^ The original head of the application.
+  -> [NamedArg A.Expr]
+       -- ^ The arguments.
+  -> TCM Term
+checkConstructorApplication cmp org t c hd args = do
   reportSDoc "tc.term.con" 50 $ vcat
     [ "entering checkConstructorApplication"
     , nest 2 $ vcat
@@ -997,7 +1063,7 @@ checkConstructorApplication cmp org t c args = do
                args' = dropArgs pnames args
            -- check the non-parameter arguments
            expandLast <- asksTC envExpandLast
-           checkArguments cmp expandLast (getRange c) args' ctype' t $ \ st@(ACState _ t' targetCheck) -> do
+           checkArguments cmp expandLast hd args' ctype' t \ st@(ACState _ _ t' targetCheck) -> do
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
                [ text "es     =" <+> prettyTCM es
                , text "t'     =" <+> prettyTCM t' ]
@@ -1219,25 +1285,37 @@ checkUnambiguousProjectionApplication cmp e t x o hd args = do
 -- | Inferring the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
-inferProjApp :: A.Expr -> ProjOrigin -> List1 QName -> A.Args -> TCM (Term, Type)
-inferProjApp e o ds args0 = do
-  (v, t, _) <- inferOrCheckProjApp e o ds args0 Nothing
+inferProjApp :: A.Expr -> ProjOrigin -> List1 QName -> A.Expr -> A.Args -> TCM (Term, Type)
+inferProjApp e o ds hd args0 = do
+  (v, t, _) <- inferOrCheckProjApp e o ds hd args0 Nothing
   return (v, t)
 
 -- | Checking the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
-checkProjApp  :: Comparison -> A.Expr -> ProjOrigin -> List1 QName -> A.Args -> Type -> TCM Term
-checkProjApp cmp e o ds args0 t = do
-  (v, ti, targetCheck) <- inferOrCheckProjApp e o ds args0 (Just (cmp, t))
+checkProjApp  :: Comparison -> A.Expr -> ProjOrigin -> List1 QName -> A.Expr -> A.Args -> Type -> TCM Term
+checkProjApp cmp e o ds hd args0 t = do
+  (v, ti, targetCheck) <- inferOrCheckProjApp e o ds hd args0 (Just (cmp, t))
   coerce' cmp targetCheck v ti t
 
 -- | Checking the type of an overloaded projection application.
 --   See 'inferOrCheckProjAppToKnownPrincipalArg'.
 
-checkProjAppToKnownPrincipalArg  :: Comparison -> A.Expr -> ProjOrigin -> List1 QName -> A.Args -> Type -> Int -> Term -> Type -> PrincipalArgTypeMetas -> TCM Term
-checkProjAppToKnownPrincipalArg cmp e o ds args0 t k v0 pt patm = do
-  (v, ti, targetCheck) <- inferOrCheckProjAppToKnownPrincipalArg e o ds args0 (Just (cmp, t)) k v0 pt (Just patm)
+checkProjAppToKnownPrincipalArg ::
+  Comparison
+  -> A.Expr
+  -> ProjOrigin
+  -> List1 QName
+  -> A.Expr
+  -> A.Args
+  -> Type
+  -> Int
+  -> Term
+  -> Type
+  -> PrincipalArgTypeMetas
+  -> TCM Term
+checkProjAppToKnownPrincipalArg cmp e o ds hd args0 t k v0 pt patm = do
+  (v, ti, targetCheck) <- inferOrCheckProjAppToKnownPrincipalArg e o ds hd args0 (Just (cmp, t)) k v0 pt (Just patm)
   coerce' cmp targetCheck v ti t
 
 -- | Inferring or Checking an overloaded projection application.
@@ -1252,13 +1330,15 @@ inferOrCheckProjApp
      -- ^ The origin of the projection involved in this projection application.
   -> List1 QName
      -- ^ The projection name (potentially ambiguous).
+  -> A.Expr
+     -- ^ The projection as expression.
   -> A.Args
      -- ^ The arguments to the projection.
   -> Maybe (Comparison, Type)
      -- ^ The expected type of the expression (if 'Nothing', infer it).
   -> TCM (Term, Type, CheckedTarget)
      -- ^ The type-checked expression and its type (if successful).
-inferOrCheckProjApp e o ds args mt = do
+inferOrCheckProjApp e o ds hd args mt = do
   reportSDoc "tc.proj.amb" 20 $ vcat
     [ "checking ambiguous projection"
     , text $ "  ds   = " ++ prettyShow ds
@@ -1313,7 +1393,7 @@ inferOrCheckProjApp e o ds args mt = do
         [ "  principal arg " <+> prettyTCM arg
         , "  has type "      <+> prettyTCM ta
         ]
-      inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta Nothing
+      inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta Nothing
 
 -- | Same arguments 'inferOrCheckProjApp' above but also gets the position,
 --   value and type of the principal argument.
@@ -1324,6 +1404,8 @@ inferOrCheckProjAppToKnownPrincipalArg
      -- ^ The origin of the projection involved in this projection application.
   -> List1 QName
      -- ^ The projection name (potentially ambiguous).
+  -> A.Expr
+     -- ^ The projection (as application head).
   -> A.Args
      -- ^ The arguments to the projection.
   -> Maybe (Comparison, Type)
@@ -1339,11 +1421,11 @@ inferOrCheckProjAppToKnownPrincipalArg
      --   picking up a postponed problem. 'Nothing', otherwise.
   -> TCM (Term, Type, CheckedTarget)
      -- ^ The type-checked expression and its type (if successful).
-inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
+inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
   let cmp = caseMaybe mt CmpEq fst
       postpone b patm = do
         tc <- caseMaybe mt newTypeMeta_ (return . snd)
-        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta patm) b
+        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds hd args tc k v0 ta patm) b
         return (v, tc, NotCheckedTarget)
   -- ta should be a record type (after introducing the hidden args in v0)
   patm@(PrincipalArgTypeMetas vargs ta) <- case mpatm of
@@ -1425,14 +1507,16 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
 
           -- Check parameters
           tfull <- typeOfConst d
-          (_,_) <- checkKnownArguments (take k args) pars tfull
+          (args0, princArg : args') <- pure $ splitAt k args
+          (_,_) <- checkKnownArguments args0 pars tfull
 
           -- Check remaining arguments
-          let r     = getRange e
-              args' = drop (k + 1) args
-          z <- runExceptT $ checkArgumentsE cmp ExpandLast r args' tb (snd <$> mt)
+          fun <- pure $ A.App (A.defaultAppInfo $ getRange (hd, args0, princArg))
+            (A.unAppView $ A.Application hd args0)
+             princArg
+          z <- runExceptT $ checkArgumentsE cmp ExpandLast fun args' tb (snd <$> mt)
           case z of
-            Right st@(ACState _ trest targetCheck) -> do
+            Right st@(ACState _ _ trest targetCheck) -> do
               v <- checkHeadConstraints (u `applyE`) st
               return (v, trest, targetCheck)
             Left problem -> do
@@ -1440,7 +1524,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
               -- To create a postponed type checking problem,
               -- we do not use typeDontCare, but create a meta.
               tc <- caseMaybe mt newTypeMeta_ (return . snd)
-              v  <- postponeArgs problem cmp ExpandLast r args' tc $ \ st@(ACState _ trest targetCheck) -> do
+              v  <- postponeArgs problem cmp ExpandLast fun args' tb tc \ st@(ACState _ _ trest targetCheck) -> do
                       v <- checkHeadConstraints (u `applyE`) st
                       coerce' cmp targetCheck v trest tc
 
@@ -1687,29 +1771,6 @@ checkPrimTrans c rs vs _ = do
 blockArg :: HasRange r => Type -> r -> Arg Term -> TCM () -> TCM (Arg Term)
 blockArg t r a m =
   setCurrentRange (getRange $ r) $ fmap (a $>) $ blockTerm t $ m >> return (unArg a)
-
-checkConId :: QName -> MaybeRanges -> Args -> Type -> TCM Args
-checkConId c rs vs t1 = do
-  case vs of
-   args@[_, _, _, _, phi, p] -> do
-      iv@(PathType s _ l a x y) <- idViewAsPath t1
-      let ty = pathUnview iv
-      -- the following duplicates reduction of phi
-      const_x <- blockTerm ty $ do
-          equalTermOnFace (unArg phi) (El s (unArg a)) (unArg x) (unArg y)
-          pathAbs iv (NoAbs (stringToArgName "_") (unArg x))
-      p <- blockArg ty (rs !!! 5) p $ do
-        equalTermOnFace (unArg phi) ty (unArg p) const_x   -- G, phi |- p = \ i . x
-      return $ initWithDefault __IMPOSSIBLE__ args ++ [p]
-      -- phi <- reduce phi
-      -- forallFaceMaps (unArg phi) $ \ alpha -> do
-      --   iv@(PathType s _ l a x y) <- idViewAsPath (applySubst alpha t1)
-      --   let ty = pathUnview iv
-      --   equalTerm (El s (unArg a)) (unArg x) (unArg y) -- precondition for cx being well-typed at ty
-      --   cx <- pathAbs iv (NoAbs (stringToArgName "_") (applySubst alpha (unArg x)))
-      --   equalTerm ty (applySubst alpha (unArg p)) cx   -- G, phi |- p = \ i . x
-   _ -> typeError $ CubicalPrimitiveNotFullyApplied c
-
 
 -- The following comment contains silly ' escapes to calm CPP about ∨ (\vee).
 -- May not be haddock-parseable.

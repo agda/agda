@@ -3,7 +3,7 @@ module Agda.Utils.CallStack.Pretty
   ) where
 
 import Agda.Utils.CallStack.Base
-  ( CallSite
+  ( CallSite(..)
   , CallStack
   , SrcLoc(..)
   , getCallStack
@@ -24,7 +24,7 @@ instance Pretty SrcLoc where
         logicalLoc = hcat [text srcLocPackage, colon, text srcLocModule]
 
 instance Pretty CallSite where
-  pretty (fun, loc) = hsep [text fun <> comma, "called at", pretty loc]
+  pretty (CallSite (fun, loc)) = hsep [text fun <> comma, "called at", pretty loc]
 
 instance Pretty CallStack where
   pretty cs = case fmap pretty (getCallStack cs) of

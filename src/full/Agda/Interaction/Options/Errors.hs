@@ -1,4 +1,4 @@
--- | Provide names for the errors Agda throws.
+-- | Provide names for the errors Agda throws.Options/Er
 
 module Agda.Interaction.Options.Errors where
 
@@ -112,6 +112,7 @@ data ErrorName
   | BuiltinMustBeDef_
   | BuiltinMustBeFunction_
   | BuiltinMustBePostulate_
+  | CannotApply_
   | CannotEliminateWithPattern_
   | CannotEliminateWithProjection_
   | CannotGenerateHCompClause_
@@ -197,6 +198,7 @@ data ErrorName
   | ModuleNameUnexpected_
   | MultipleFixityDecls_
   | MultiplePolarityPragmas_
+  | ExplicitPolarityVsPragma_
   | ConstructorNameOfNonRecord_
   | NamedWhereModuleInRefinedContext_
   | NeedOptionAllowExec_
@@ -262,6 +264,7 @@ data ErrorName
   | SplitOnPartial_
   | SplitOnUnchecked_
   | SplitOnUnusableCohesion_
+  | SplitOnUnusablePolarity_
   | TacticAttributeNotAllowed_
   | TooFewArgumentsToPatternSynonym_
   | TooFewPatternsInWithClause_
@@ -277,6 +280,7 @@ data ErrorName
   | UnequalLevel_
   | UnequalQuantity_
   | UnequalRelevance_
+  | UnequalPolarity_
   | UnequalSorts_
   | UnequalTerms_
   | UnexpectedModalityAnnotationInParameter_
@@ -289,11 +293,13 @@ data ErrorName
   | VariableIsErased_
   | VariableIsIrrelevant_
   | VariableIsOfUnusableCohesion_
+  | VariableIsOfUnusablePolarity_
   | WithClausePatternMismatch_
   | WithOnFreeVariable_
   | WrongAnnotationInLambda_
   | WrongArgInfoForPrimitive_
   | WrongCohesionInLambda_
+  | WrongPolarityInLambda_
   | WrongHidingInApplication_
   | WrongHidingInLHS_
   | WrongHidingInLambda_

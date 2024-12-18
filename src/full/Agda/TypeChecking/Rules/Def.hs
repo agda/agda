@@ -62,7 +62,7 @@ import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
-import Agda.Utils.Function ( applyWhen )
+import Agda.Utils.Function ( applyWhen, applyWhenM )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -324,7 +324,8 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
               ]
 
         -- Needed to calculate the proper fullType below.
-        applyCohesionToContext ai $ do
+        applyWhenM (optPolarity <$> pragmaOptions) (applyPolarityToContext ai) $
+          applyCohesionToContext ai $ do
 
         -- Systems have their own coverage and "coherence" check, we
         -- also add an absurd clause for the cases not needed.
@@ -694,7 +695,7 @@ checkClause
 
 checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
   let withSub       = fst <$> withSubAndLets
-  cxtNames <- reverse . map (fst . unDom) <$> getContext
+  cxtNames <- getContextNames
   checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit ixsplit) -> do
 
     let installInheritedLets k
@@ -1283,7 +1284,7 @@ newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
   warnForPlentyInHardCompileTimeMode e
   setHardCompileTimeModeIfErased e $ do
   reportSDoc "tc.section" 10 $
-    "checking section" <+> (C.prettyErased e <$> prettyTCM m) <+>
+    "checking section" <+> (prettyErased e <$> prettyTCM m) <+>
     fsep (map prettyA tel)
 
   checkGeneralizeTelescope (Just m) gtel $ \ _ tel' -> do

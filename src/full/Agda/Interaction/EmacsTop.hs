@@ -34,7 +34,7 @@ import Agda.Interaction.Response as R
 import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
-import Agda.Interaction.InteractionTop (localStateCommandM)
+import Agda.Interaction.Command (localStateCommandM)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe
@@ -343,6 +343,9 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
         attribute = c ++ if null c then "" else " "
           where c = prettyShow (getCohesion ai)
 
+        pol :: ModalPolarity
+        pol = modPolarityAnn $ getModalPolarity ai
+
         extras :: [Doc]
         extras = concat $
           [ [ "not in scope" | isInScope nis == C.NotInScope ]
@@ -352,6 +355,7 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
           , [ text $ verbalize r
                              | let r = getRelevance mod `inverseComposeRelevance` getRelevance ai
                              , not $ isRelevant r ]
+          , [ text $ verbalize pol | not $ pol == MixedPolarity ]
             -- Print "instance" if variable is considered by instance search.
           , [ "instance"     | isInstance ai ]
           ]

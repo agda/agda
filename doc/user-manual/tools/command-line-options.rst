@@ -807,6 +807,15 @@ Pattern matching and equality
 
      Default, opposite of :option:`--flat-split`.
 
+.. option:: --polarity, --no-polarity
+
+     .. versionadded:: 2.6.5
+
+     Enables the use of modal polarity annotations, and their interaction with
+     the positivity checker. See :ref:`polarity`.
+
+     Default: :option:`--no-polarity`.
+
 .. option:: --no-pattern-matching
 
      .. versionadded:: 2.4.0
@@ -1823,6 +1832,10 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      Failed termination checks.
 
+.. option:: TopLevelPolarity
+
+     Declaring definitions with an explicit polarity annotation.
+
 .. option:: UnsolvedConstraints
 
      Unsolved constraints.
@@ -1891,6 +1904,7 @@ are infective:
 * :option:`--erasure`
 * :option:`--flat-split`
 * :option:`--guarded`
+* :option:`--polarity`
 * :option:`--prop`
 * :option:`--rewriting`
 * :option:`--two-level`
@@ -1969,6 +1983,7 @@ again, the source file is re-typechecked instead:
 * :option:`--no-universe-polymorphism`
 * :option:`--omega-in-omega`
 * :option:`--backtracking-instance-search`
+* :option:`--polarity`
 * :option:`--prop`
 * :option:`--qualified-instances`
 * :option:`--rewriting`

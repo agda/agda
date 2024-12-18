@@ -247,3 +247,13 @@ module ExactSplit where
   isZero : Nat → Bool
   isZero 0 = true
   isZero _ = false  -- This should have smoke highlighting (no exact split)
+
+-- Andreas, 2024-12-07, issue #7641
+
+module Issue7641 where
+
+  record R7641 : Set where
+    field f7641 : Set
+
+  -- There should be a error-warning highlighting
+  -- since the field is too big for the record.

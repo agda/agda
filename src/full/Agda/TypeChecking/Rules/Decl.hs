@@ -65,7 +65,7 @@ import Agda.TypeChecking.Rules.Display ( checkDisplayPragma )
 
 import Agda.Termination.TermCheck
 
-import Agda.Utils.Function ( applyUnless )
+import Agda.Utils.Function ( applyUnless, applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List1 ( List1, pattern (:|) )
@@ -594,9 +594,16 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   -- Andrea, 2019-07-16 Cohesion is purely based on left-division, it
   -- does not take envModality into account.
   let c = getCohesion info0
-  let mod  = Modality rel (getQuantity info0) c
+  let p = getModalPolarity info0
+  let mod  = Modality rel (getQuantity info0) c p
   let info = setModality mod info0
-  applyCohesionToContext c $ do
+
+  -- For now, top-level polarity annotations are forbidden
+  when (p /= defaultPolarity) $ warning $ TopLevelPolarity x p
+
+  polarityEnabled <- optPolarity <$> pragmaOptions
+
+  applyWhen polarityEnabled (applyPolarityToContext p) $ applyCohesionToContext c $ do
 
   reportSDoc "tc.decl.ax" 20 $ sep
     [ text $ "checking type signature"
@@ -630,22 +637,34 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
     whenM ((== SizeUniv) <$> do reduce $ getSort t) $ do
       whenM ((> 0) <$> getContextSize) $ typeError PostulatedSizeInModule
 
-  -- Ensure that polarity pragmas do not contain too many occurrences.
-  (occs, pols) <- case mp of
-    Nothing    -> return ([], [])
+  -- get explicitely specified occurences (by looking at polarity annotations, if enabled)
+  eoccs <-
+    if polarityEnabled
+      then do
+        args <- telToList . theTel <$> telView t
+        return $ fmap (modalPolarityToOccurrence . modPolarityAnn . getModalPolarity) args
+      else return []
+
+  -- Lucas, 2022-11-30: If this is a datatype, forbid polarity annotations for indices
+  when (kind == DataName && any (/= Mixed) (drop npars eoccs)) $
+    typeError $ GenericError "Cannot annotate datatype indices with polarity other than Mixed."
+
+  occs <- case mp of
+    Nothing -> return eoccs
     Just occs1 -> do
+      -- If any polarity retrieved from the type is not Mixed, it means an explicit
+      -- annotation was given, so we throw an error because the pragma shouldn't be used
+      when (any (/= Mixed) eoccs) $ typeError (ExplicitPolarityVsPragma x)
+
+      -- Ensure that polarity pragmas do not contain too many occurrences.
       let occs = List1.toList occs1
       let m = length occs
       TelV tel _ <- telViewUpTo m t
       let n = size tel
       when (n < m) $
         typeError $ TooManyPolarities x n
-      let pols = map polFromOcc occs
-      reportSLn "tc.polarity.pragma" 10 $
-        "Setting occurrences and polarity for " ++ prettyShow x ++ ":\n  " ++
-        prettyShow occs ++ "\n  " ++ prettyShow pols
-      return (occs, pols)
 
+      return occs
 
   -- Set blocking tag to MissingClauses if we still expect clauses
   let blk = case kind of
@@ -670,6 +689,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         where
           fun = FunctionDefn $ set funAbstr_ (Info.defAbstract i) funD{ _funOpaque = Info.defOpaque i }
 
+  let pols = map polFromOcc occs
+
   addConstant x =<< do
     useTerPragma $ defn
         { defArgOccurrences    = occs
@@ -677,6 +698,10 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         , defGeneralizedParams = genParams
         , defBlocked           = blk
         }
+
+  reportSLn "tc.polarity" 10 $
+    "Setting occurrences and polarity for " ++ prettyShow x ++ ":\n  " ++
+    prettyShow occs ++ "\n  " ++ prettyShow pols
 
   -- Add the definition to the instance table, if needed
   case Info.defInstance i of
@@ -1001,7 +1026,9 @@ checkSectionApplication'
         nest 2 $ "eta  =" <+> escapeContext impossible (size ptel) (addContext tel'' $ prettyTCM etaTel)
 
     -- Now, type check arguments.
-    ts <- noConstraints (checkArguments_ CmpEq DontExpandLast (getRange i) args tel') >>= \case
+    -- Andreas, 2024-12-06: We fake a head A.Expr for the application.
+    let hd = A.Def $ mnameToQName m2
+    ts <- noConstraints (checkArguments_ CmpEq DontExpandLast hd args tel') >>= \case
       (ts', etaTel') | (size etaTel == size etaTel')
                      , Just ts <- allApplyElims ts' -> return ts
       _ -> __IMPOSSIBLE__

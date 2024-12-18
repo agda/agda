@@ -1,0 +1,3 @@
+TopLevelPolarity.agda:5.4-5: error: [TopLevelPolarity]
+Definition B has explicit polarity annotation @-
+which is currently not supported

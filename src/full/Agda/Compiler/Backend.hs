@@ -14,6 +14,8 @@ module Agda.Compiler.Backend
   , parseBackendOptions
     -- For InteractionTop
   , callBackend
+  , callBackendInteractTop
+  , callBackendInteractHole
   ) where
 
 import Prelude hiding (null)
@@ -49,23 +51,46 @@ import Agda.Utils.IndexedList
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Maybe
+import Agda.Syntax.Common (InteractionId)
+import Agda.Syntax.Position (Range)
+
+import Agda.Interaction.Command (CommandM)
 
 -- Public interface -------------------------------------------------------
 
 -- | Call the 'compilerMain' function of the given backend.
-
 callBackend :: BackendName -> IsMain -> CheckResult -> TCM ()
-callBackend name iMain checkResult = lookupBackend name >>= \case
-  Just (Backend b) -> compilerMain b iMain checkResult
-  Nothing -> do
-    backends <- useTC stBackends
-    let backendSet = Set.fromList $
-          otherBackends ++ [ backendName b | Backend b <- backends ]
-    typeError $ UnknownBackend name backendSet
+callBackend name iMain checkResult =
+  withKnownBackend name $ \(Backend b) ->
+    compilerMain b iMain checkResult
+
+-- | Call the 'backendInteractTop' function of the given backend.
+callBackendInteractTop :: BackendName -> String -> CommandM ()
+callBackendInteractTop name cmd =
+  withKnownBackend name $ \(Backend b) ->
+    whenJust (backendInteractTop b) \bi ->
+      bi cmd
+
+-- | Call the 'backendInteractHole' function of the given backend.
+callBackendInteractHole ::
+  BackendName -> String -> InteractionId -> Range -> String -> CommandM ()
+callBackendInteractHole name cmd ii rng s =
+  withKnownBackend name $ \(Backend b) ->
+    whenJust (backendInteractHole b) \bi ->
+      bi cmd ii rng s
+
+-- | Run a monadic action given an existing backend.
+-- Throws an error if the user requested an unknown backend.
+withKnownBackend ::
+  (MonadTCError m, ReadTCState m) => BackendName -> (Backend -> m ()) -> m ()
+withKnownBackend name k = ifJustM (lookupBackend name) k $ do
+  backends <- useTC stBackends
+  let backendSet = otherBackends ++ [ backendName b | Backend b <- backends ]
+  typeError $ UnknownBackend name (Set.fromList backendSet)
 
 -- | Backends that are not included in the state, but still available
 --   to the user.
-
 otherBackends :: [BackendName]
 otherBackends = ["GHCNoMain", "QuickLaTeX"]
 

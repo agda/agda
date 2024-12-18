@@ -55,6 +55,25 @@ Pragmas and options
   As a consequence, only `Irrelevant Empty` is displayed as `⊥`, not just any
   `Irrelevant A`.
 
+Polarity
+--------
+
+* Support for polarity annotations can be enabled by the feature flag
+  `--polarity`.
+
+  This flag is infective.
+
+  Uses of variables bound with polarity annotations are checked through modal
+  typing rules, and the positivity checker has been expanded to take annotations
+  into account. This means that the following is now definable:
+
+  ```agda
+  {-# OPTIONS --polarity #-}
+
+  data Mu (F : @++ Set → Set) : Set where
+    fix : F (Mu F) → Mu F
+  ```
+
 Syntax
 ------
 
@@ -126,6 +145,15 @@ Language
 
 Changes to type checker and other components defining the Agda language.
 
+* **BREAKING**: The primitive "cubical identity type", previously
+  exported from `Agda.Builtin.Cubical.Id`, has been removed. Its
+  computational behaviour is exactly replicated by the user-definable
+  identity type, which is also exported from `Agda.Builtin.Equality`.
+
+  See [agda/cubical#1005](https://github.com/agda/cubical/pull/1005) for
+  the PR removing it from the library, and
+  [#7652](https://github.com/agda/agda/pull/7652) for the compiler.
+
 Reflection
 ----------
 
@@ -173,6 +201,8 @@ Interaction and emacs mode
 
 Backends
 --------
+
+* New `backendInteractTop/backendInteractHole` fields for providing backend-specific interaction commands (run with keyboard shortcut `C-c C-i`).
 
 Other issues closed
 -------------------

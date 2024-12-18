@@ -1571,6 +1571,18 @@ instance Reify i => Reify (Dom i) where
     reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i
     {-# INLINE reify #-}
 
+
+instance Reify ContextEntry where
+  type ReifiesTo ContextEntry = A.TypedBinding
+
+  reify (CtxVar x a) = do
+    Arg info (y,t) <- reify $ (x,) <$> a
+    let r = getRange x
+        name = domName a
+        xs = singleton $ Arg info $ Named name $ A.mkBinder_ y
+    tac <- TacticAttribute <$> do traverse (Ranged noRange <.> reify) $ domTactic a
+    return $ TBind r (TypedBindingInfo tac (domIsFinite a)) xs t
+
 instance Reify i => Reify (I.Elim' i)  where
   type ReifiesTo (I.Elim' i) = I.Elim' (ReifiesTo i)
 

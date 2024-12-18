@@ -178,8 +178,15 @@ addConstant q d = do
   i <- currentOrFreshMutualBlock
   setMutualBlock i q
   where
-    new +++ old = new { defDisplay = defDisplay new ++ defDisplay old
-                      , defInstance = defInstance new `mplus` defInstance old }
+    new +++ old = new { defDisplay        = defDisplay new ++ defDisplay old
+                      , defInstance       = defInstance new `mplus` defInstance old
+                      , defArgOccurrences = if null (defArgOccurrences new)
+                                              then defArgOccurrences old
+                                              else defArgOccurrences new
+                      , defPolarity       = if null (defPolarity new)
+                                              then defPolarity old
+                                              else defPolarity new
+                      }
 
 -- | A combination of 'addConstant' and 'defaultDefn'. The 'Language'
 -- does not need to be supplied.
@@ -522,7 +529,9 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
       -- definition we get will have signature μ \ Δ → B.  This is only valid
       -- for pure modality systems though.
       let ai = defArgInfo def
-          m = unitModality { modCohesion = getCohesion ai }
+          m = unitModality { modCohesion = getCohesion ai
+                           , modPolarity = getModalPolarity ai
+                           }
       localTC (over eContext (map (mapModality (m `inverseComposeModality`)))) $
         copyDef' ts' np def
       where
@@ -1256,11 +1265,11 @@ instantiateDef
 instantiateDef d = do
   vs  <- freeVarsToApply $ defName d
   verboseS "tc.sig.inst" 30 $ do
-    ctx <- getContext
+    ctx <- getContextNames
     m   <- currentModule
     reportSDoc "tc.sig.inst" 30 $
       "instDef in" <+> pretty m <> ":" <+> pretty (defName d) <+>
-      fsep (map pretty $ zipWith (<$) (reverse $ map (fst . unDom) ctx) vs)
+      fsep (map pretty $ zipWith (<$) ctx vs)
   return $ d `apply` vs
 
 instantiateRewriteRule :: (Functor m, HasConstInfo m, HasOptions m,

@@ -35,12 +35,15 @@ import GHC.Generics (Generic)
 import Agda.Syntax.Common.Aspect (Induction(..))
 import Agda.Syntax.Common.KeywordRange
 import Agda.Syntax.Common.Pretty
+import Agda.Syntax.Concrete.Glyph
 import Agda.Syntax.Position
 
 import Agda.Utils.BiMap (HasTag(..))
 import Agda.Utils.Boolean (Boolean(fromBool), IsBool(toBool))
+import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List  ( lastMaybe )
 import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -522,6 +525,19 @@ sameHiding x y =
     (Instance{}, Instance{}) -> True
     (hx, hy)                 -> hx == hy
 
+-- | @prettyHiding info visible doc@ puts the correct braces
+--   around @doc@ according to info @info@ and returns
+--   @visible doc@ if the we deal with a visible thing.
+prettyHiding :: LensHiding a => a -> (Doc -> Doc) -> Doc -> Doc
+prettyHiding a parens =
+  case getHiding a of
+    Hidden     -> braces'
+    Instance{} -> dbraces
+    NotHidden  -> parens
+
+instance Pretty a => Pretty (WithHiding a) where
+  pretty w = prettyHiding w id $ pretty $ dget w
+
 ---------------------------------------------------------------------------
 -- * Modalities
 ---------------------------------------------------------------------------
@@ -554,11 +570,13 @@ data Modality = Modality
       -- ^ Cohesion/what was in Agda-flat.
       --   see "Brouwer's fixed-point theorem in real-cohesive homotopy type theory" (arXiv:1509.07584)
       --   Currently only the comonad is implemented.
+  , modPolarity :: PolarityModality
+      -- ^ Polarity annotations (strictly positive, ...)
   } deriving (Eq, Ord, Show, Generic)
 
 -- | Dominance ordering.
 instance PartialOrd Modality where
-  comparable (Modality r q c) (Modality r' q' c') = comparable (r, (q, c)) (r', (q', c'))
+  comparable (Modality r q c p) (Modality r' q' c' p') = comparable (r, (q, (c, p))) (r', (q', (c', p')))
 
 -- | Pointwise composition.
 instance Semigroup (UnderComposition Modality) where
@@ -587,6 +605,14 @@ instance Monoid (UnderAddition Modality) where
 instance POSemigroup (UnderAddition Modality) where
 instance POMonoid (UnderAddition Modality) where
 
+instance Pretty Modality where
+  pretty (Modality r q c p) = hsep
+    [ pretty r
+    , pretty q
+    , pretty c
+    , pretty p
+    ]
+
 -- | @m `moreUsableModality` m'@ means that an @m@ can be used
 --   where ever an @m'@ is required.
 
@@ -594,15 +620,16 @@ moreUsableModality :: Modality -> Modality -> Bool
 moreUsableModality m m' = related m POLE m'
 
 usableModality :: LensModality a => a -> Bool
-usableModality a = usableRelevance m && usableQuantity m && usableCohesion m
+usableModality a = usableRelevance m && usableQuantity m && usableCohesion m && usablePolarity m
   where m = getModality a
 
 -- | Multiplicative monoid (standard monoid).
 composeModality :: Modality -> Modality -> Modality
-composeModality (Modality r q c) (Modality r' q' c') =
+composeModality (Modality r q c p) (Modality r' q' c' p') =
     Modality (r `composeRelevance` r')
              (q `composeQuantity` q')
              (c `composeCohesion` c')
+             (p `composePolarity` p')
 
 -- | Compose with modality flag from the left.
 --   This function is e.g. used to update the modality information
@@ -616,10 +643,11 @@ applyModality m = mapModality (m `composeModality`)
 --   iff
 --   @(r \`inverseComposeModality\` x) \`moreUsableModality\` y@ (Galois connection).
 inverseComposeModality :: Modality -> Modality -> Modality
-inverseComposeModality (Modality r q c) (Modality r' q' c') =
+inverseComposeModality (Modality r q c p) (Modality r' q' c' p') =
   Modality (r `inverseComposeRelevance` r')
            (q `inverseComposeQuantity`  q')
            (c `inverseComposeCohesion`  c')
+           (p `inverseComposePolarity`  p')
 
 -- | Left division by a 'Modality'.
 --   Used e.g. to modify context when going into a @m@ argument.
@@ -633,25 +661,33 @@ inverseApplyModalityButNotQuantity m =
 
 -- | 'Modality' forms a pointwise additive monoid.
 addModality :: Modality -> Modality -> Modality
-addModality (Modality r q c) (Modality r' q' c') = Modality (addRelevance r r') (addQuantity q q') (addCohesion c c')
+addModality (Modality r q c p) (Modality r' q' c' p') =
+  Modality (addRelevance r r')
+           (addQuantity  q q')
+           (addCohesion  c c')
+           (addPolarity  p p')
 
 -- | Identity under addition
 zeroModality :: Modality
-zeroModality = Modality zeroRelevance zeroQuantity zeroCohesion
+zeroModality = Modality zeroRelevance zeroQuantity zeroCohesion zeroPolarity
 
 -- | Identity under composition
 unitModality :: Modality
-unitModality = Modality unitRelevance unitQuantity unitCohesion
+unitModality = Modality unitRelevance unitQuantity unitCohesion unitPolarity
 
 -- | Absorptive element under addition.
 topModality :: Modality
-topModality = Modality topRelevance topQuantity topCohesion
+topModality = Modality topRelevance topQuantity topCohesion topPolarity
 
 -- | The default Modality
 --   Beware that this is neither the additive unit nor the unit under
 --   composition, because the default quantity is ω.
 defaultModality :: Modality
-defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
+defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion defaultPolarity
+
+-- | The default Modality terms are checked against.
+defaultCheckModality :: Modality
+defaultCheckModality = defaultModality { modPolarity = withStandardLock StrictlyPositive }
 
 -- | Extract the positional modality component for checks regarding only them.
 positionalModalityComponent :: Modality -> Modality
@@ -662,19 +698,19 @@ positionalModalityComponent m =
 
 sameModality :: (LensModality a, LensModality b) => a -> b -> Bool
 sameModality x y = case (getModality x , getModality y) of
-  (Modality r q c , Modality r' q' c') -> sameRelevance r r' && sameQuantity q q' && sameCohesion c c'
+  (Modality r q c p , Modality r' q' c' p') -> sameRelevance r r' && sameQuantity q q' && sameCohesion c c' && samePolarity p p'
 
 instance Null Modality where
   empty = defaultModality
-  null (Modality r q c) = and [ null r, null q, null c ]
+  null (Modality r q c p) = and [ null r, null q, null c, null p ]
 
 -- boilerplate instances
 
 instance HasRange Modality where
-  getRange (Modality r q c) = getRange (r, q, c)
+  getRange (Modality r q c p) = getRange (r, q, c, p)
 
 instance KillRange Modality where
-  killRange (Modality r q c) = killRangeN Modality r q c
+  killRange (Modality r q c p) = killRangeN Modality r q c p
 
 instance NFData Modality where
 
@@ -688,6 +724,9 @@ lModQuantity f m = f (modQuantity m) <&> \ q -> m { modQuantity = q }
 
 lModCohesion :: Lens' Modality Cohesion
 lModCohesion f m = f (modCohesion m) <&> \ q -> m { modCohesion = q }
+
+lModPolarity :: Lens' Modality PolarityModality
+lModPolarity f m = f (modPolarity m) <&> \ p -> m { modPolarity = p }
 
 class LensModality a where
 
@@ -724,6 +763,11 @@ instance LensCohesion Modality where
   setCohesion h m = m { modCohesion = h }
   mapCohesion f m = m { modCohesion = f (modCohesion m) }
 
+instance LensModalPolarity Modality where
+  getModalPolarity = modPolarity
+  setModalPolarity h m = m { modPolarity = h }
+  mapModalPolarity f m = m { modPolarity = f (modPolarity m) }
+
 -- default accessors for Relevance
 
 getRelevanceMod :: LensModality a => LensGet a Relevance
@@ -756,6 +800,17 @@ setCohesionMod = mapModality . setCohesion
 
 mapCohesionMod :: LensModality a => LensMap a Cohesion
 mapCohesionMod = mapModality . mapCohesion
+
+-- default accessors for Polarity
+
+getPolarityMod :: LensModality a => LensGet a PolarityModality
+getPolarityMod = getModalPolarity . getModality
+
+setPolarityMod :: LensModality a => LensSet a PolarityModality
+setPolarityMod = mapModality . setModalPolarity
+
+mapPolarityMod :: LensModality a => LensMap a PolarityModality
+mapPolarityMod = mapModality . mapModalPolarity
 
 ---------------------------------------------------------------------------
 -- * Quantities
@@ -826,6 +881,11 @@ instance NFData Q0Origin where
     Q0       _ -> ()
     Q0Erased _ -> ()
 
+instance Pretty Q0Origin where
+  pretty = \case
+    Q0Inferred -> empty
+    Q0{}       -> "@0"
+    Q0Erased{} -> "@erased"
 -- *** Instances for 'Q1Origin'.
 
 -- | Right-biased composition, because the left quantity
@@ -868,6 +928,12 @@ instance NFData Q1Origin where
     Q1       _ -> ()
     Q1Linear _ -> ()
 
+instance Pretty Q1Origin where
+  pretty = \case
+    Q1Inferred -> empty
+    Q1{}       -> "@1"
+    Q1Linear{} -> "@linear"
+
 -- *** Instances for 'QωOrigin'.
 
 -- | Right-biased composition, because the left quantity
@@ -909,6 +975,12 @@ instance NFData QωOrigin where
     QωInferred -> ()
     Qω       _ -> ()
     QωPlenty _ -> ()
+
+instance Pretty QωOrigin where
+  pretty = \case
+    QωInferred -> empty
+    Qω{}       -> "@ω"
+    QωPlenty{} -> "@plenty"
 
 -- ** Quantity.
 
@@ -976,6 +1048,12 @@ instance PartialOrd Quantity where
     (_, Quantityω{})  -> POGT
     -- others are uncomparable
     _ -> POAny
+
+instance Pretty Quantity where
+  pretty = \case
+    Quantity0 o -> ifNull (pretty o) "@0" id
+    Quantity1 o -> ifNull (pretty o) "@1" id
+    Quantityω o -> pretty o
 
 -- | 'Quantity' forms an additive monoid with zero Quantity0.
 addQuantity :: Quantity -> Quantity -> Quantity
@@ -1149,6 +1227,9 @@ isQuantityω a = case getQuantity a of
   Quantityω{} -> True
   _ -> False
 
+prettyQuantity :: LensQuantity a => a -> Doc -> Doc
+prettyQuantity a = (pretty (getQuantity a) <+>)
+
 -- ** Erased.
 
 -- | A special case of 'Quantity': erased or not.
@@ -1200,6 +1281,9 @@ instance KillRange Erased where
     Erased o    -> Erased $ killRange o
     NotErased o -> NotErased $ killRange o
 
+instance Pretty Erased where
+  pretty = pretty . asQuantity
+
 -- | Composition of values of type 'Erased'.
 --
 -- 'Erased' is dominant.
@@ -1216,6 +1300,9 @@ composeErased = curry $ \case
 
 instance Semigroup (UnderComposition Erased) where
   (<>) = liftA2 composeErased
+
+prettyErased :: Erased -> Doc -> Doc
+prettyErased = prettyQuantity . asQuantity
 
 ---------------------------------------------------------------------------
 -- * Relevance
@@ -1374,6 +1461,25 @@ instance NFData OriginShapeIrrelevant where
     OShIrrDotDot _          -> ()
     OShIrrShIrr _           -> ()
     OShIrrShapeIrrelevant _ -> ()
+
+instance Pretty OriginRelevant where
+  pretty = \case
+    ORelInferred {} -> empty
+    ORelRelevant {} -> "@relevant"
+
+instance Pretty OriginIrrelevant where
+  pretty = \case
+    OIrrInferred   {} -> empty
+    OIrrDot        {} -> "."
+    OIrrIrr        {} -> "@irr"
+    OIrrIrrelevant {} -> "@irrelevant"
+
+instance Pretty OriginShapeIrrelevant where
+  pretty = \case
+    OShIrrInferred        {} -> empty
+    OShIrrDotDot          {} -> ".."
+    OShIrrShIrr           {} -> "@shirr"
+    OShIrrShapeIrrelevant {} -> "@shape-irrelevant"
 
 -- ** Relevance levels
 
@@ -1607,6 +1713,18 @@ shapeIrrelevantToIrrelevant :: Relevance -> Relevance
 shapeIrrelevantToIrrelevant ShapeIrrelevant{} = irrelevant
 shapeIrrelevantToIrrelevant rel = rel
 
+prettyRelevance :: LensRelevance a => a -> Doc -> Doc
+prettyRelevance a = if lastMaybe (render d) == Just '.' then (d <>) else (d <+>)
+  where
+    d = pretty $ getRelevance a
+
+instance Pretty Relevance where
+  pretty = \case
+    Relevant        o -> pretty o
+    Irrelevant      o -> ifNull (pretty o) "." id
+    ShapeIrrelevant o -> ifNull (pretty o) ".." id
+
+
 ---------------------------------------------------------------------------
 -- * Annotations
 ---------------------------------------------------------------------------
@@ -1709,6 +1827,15 @@ instance LensLock (Arg t) where
   getLock = getLock . getArgInfo
   setLock = mapArgInfo . setLock
 
+instance Pretty Lock where
+  pretty = \case
+    IsLock LockOLock -> "@lock"
+    IsLock LockOTick -> "@tick"
+    IsNotLock -> empty
+
+prettyLock :: LensLock a => a -> Doc -> Doc
+prettyLock a = (pretty (getLock a) <+>)
+
 ---------------------------------------------------------------------------
 -- * Cohesion
 ---------------------------------------------------------------------------
@@ -1739,6 +1866,11 @@ instance NFData Cohesion where
   rnf Flat       = ()
   rnf Continuous = ()
   rnf Squash     = ()
+
+instance Pretty Cohesion where
+  pretty Flat   = "@♭"
+  pretty Continuous = mempty
+  pretty Squash  = "@⊤"
 
 -- | A lens to access the 'Cohesion' attribute in data structures.
 --   Minimal implementation: @getCohesion@ and @mapCohesion@ or @LensModality@.
@@ -1886,6 +2018,262 @@ defaultCohesion = unitCohesion
 instance Null Cohesion where
   empty = defaultCohesion
   null = isContinuous
+
+prettyCohesion :: LensCohesion a => a -> Doc -> Doc
+prettyCohesion a = (pretty (getCohesion a) <+>)
+
+---------------------------------------------------------------------------
+-- * Polarity
+---------------------------------------------------------------------------
+
+-- | The different polarity options
+data ModalPolarity
+  = UnusedPolarity    -- ^ argument will not be used.
+  | StrictlyPositive  -- ^ argument will only be used in strictly positive position.
+  | Positive          -- ^ argument will only be used in positive position.
+  | Negative          -- ^ argument will only be used in negative position.
+  | MixedPolarity     -- ^ we don't know anything, argument can be used anywhere.
+    deriving (Show, Ord, Enum, Eq, Bounded, Generic)
+
+allModalPolarities :: [ModalPolarity]
+allModalPolarities = [minBound..maxBound]
+
+-- | The derived Ord instance for ModalPolarity is just used for
+--   serialisation and has no particular meaning. The actual order on
+--   modalities is a partial order.
+instance PartialOrd ModalPolarity where
+  comparable x y | x == y = POEQ
+  comparable _ UnusedPolarity = POLT
+  comparable UnusedPolarity _ = POGT
+  comparable _ MixedPolarity = POGT
+  comparable MixedPolarity _ = POLT
+  comparable _ Negative = POAny
+  comparable Negative _ = POAny
+  comparable Positive StrictlyPositive = POLT
+  comparable StrictlyPositive Positive = POGT
+  comparable _ _ = __IMPOSSIBLE__
+
+instance Pretty ModalPolarity where
+  pretty p = case p of
+    UnusedPolarity -> "@unused"
+    StrictlyPositive -> "@++"
+    Positive -> "@+"
+    Negative -> "@-"
+    MixedPolarity -> mempty
+
+-- | @morePolarity' x y@ is True whenever a variable of polarity x can be
+--   used anywhere where a variable of polarity y is expected.
+--   Note that @morePolarity' x y@ actually means x <= y.
+morePolarity' :: ModalPolarity -> ModalPolarity -> Bool
+morePolarity' x y = case comparable x y of
+  POLT -> True
+  POLE -> True
+  POEQ -> True
+  _    -> False
+
+-- | @splittablePolarity pol == False@ iff we cannot split on a variable of @pol@.
+splittablePolarity :: LensModalPolarity a => a -> Bool
+splittablePolarity a = modPolarityAnn (getModalPolarity a) `morePolarity'` MixedPolarity
+
+-- | 'ModalPolarity' composition.
+--   'UnusedPolarity' is dominant, 'StrictlyPositive' is neutral.
+composePolarity' :: ModalPolarity -> ModalPolarity -> ModalPolarity
+composePolarity' p p' =
+  case (p, p') of
+    (UnusedPolarity, _)  -> UnusedPolarity
+    (_, UnusedPolarity)  -> UnusedPolarity
+    (MixedPolarity, _)   -> MixedPolarity
+    (_, MixedPolarity)   -> MixedPolarity
+    (Negative, Negative) -> Positive
+    (Negative, _) -> Negative
+    (_, Negative) -> Negative
+    (StrictlyPositive, StrictlyPositive) -> StrictlyPositive
+    (_, _) -> Positive
+
+-- | @inverseComposePolarity r x@ returns the least @y@
+--   such that forall @x@, @y@ we have
+--   @x \`morePolarity'\` (r \`composePolarity\` y)@
+--   iff
+--   @(r \`inverseComposePolarity\` x) \`morePolarity'\` y@ (Galois connection).
+inverseComposePolarity' :: ModalPolarity -> ModalPolarity -> ModalPolarity
+inverseComposePolarity' p x =
+  case (p, x) of
+    (MixedPolarity, MixedPolarity) -> MixedPolarity
+    (MixedPolarity, _) -> UnusedPolarity
+    (StrictlyPositive , x) -> x
+    (UnusedPolarity, _) -> MixedPolarity
+    (Positive, StrictlyPositive) -> UnusedPolarity
+    (Positive, x) -> x
+    (Negative, Positive) -> Negative
+    (Negative, Negative) -> Positive
+    (Negative, MixedPolarity) -> MixedPolarity
+    (Negative, _) -> UnusedPolarity
+
+-- | Combine inferred 'ModalPolarity'.
+--   The unit is 'UnusedPolarity'.
+addPolarity' :: ModalPolarity -> ModalPolarity -> ModalPolarity
+addPolarity' p p' = case (p, p') of
+  (MixedPolarity, _) -> MixedPolarity
+  (_, MixedPolarity) -> MixedPolarity
+  (UnusedPolarity, x) -> x
+  (x, UnusedPolarity) -> x
+  (Negative, Negative) -> Negative
+  (Negative, _) -> MixedPolarity
+  (_, Negative) -> MixedPolarity
+  (Positive, _) -> Positive
+  (_, Positive) -> Positive
+  (StrictlyPositive, StrictlyPositive) -> StrictlyPositive
+
+
+data PolarityModality = PolarityModality
+  { modPolarityAnn :: ModalPolarity    -- ^ The actual polarity of the variable
+  , modPolarityOrigin :: ModalPolarity -- ^ The original polarity annotation by the user
+  , modPolarityLock :: ModalPolarity   -- ^ The locks of the variable (= composition of all denominators the variable has been left divided by)
+  } deriving (Show, Ord, Bounded, Generic)
+
+instance Eq PolarityModality where
+  (PolarityModality p o l) == (PolarityModality p' o' l') = p == p'
+
+withStandardLock :: ModalPolarity -> PolarityModality
+withStandardLock p = PolarityModality p p StrictlyPositive
+
+instance HasRange PolarityModality where
+  getRange _ = noRange
+
+instance SetRange PolarityModality where
+  setRange _ = id
+
+instance KillRange PolarityModality where
+  killRange rel = rel -- no range to kill
+
+instance NFData PolarityModality where
+  rnf (PolarityModality p o l) = ()
+
+instance Pretty PolarityModality where
+  pretty (PolarityModality p _ _) = pretty p
+
+instance PartialOrd PolarityModality where
+  comparable (PolarityModality p _ _) (PolarityModality p' _ _) = comparable p p'
+
+-- | A lens to access the 'PolarityModality' attribute in data structures.
+--   Minimal implementation: @getModalPolarity@ and @mapModalPolarity@ or @LensModality@.
+class LensModalPolarity a where
+
+  getModalPolarity :: a -> PolarityModality
+
+  setModalPolarity :: PolarityModality -> a -> a
+  setModalPolarity h = mapModalPolarity (const h)
+
+  mapModalPolarity :: (PolarityModality -> PolarityModality) -> a -> a
+
+  default getModalPolarity :: LensModality a => a -> PolarityModality
+  getModalPolarity = modPolarity . getModality
+
+  default mapModalPolarity :: LensModality a => (PolarityModality -> PolarityModality) -> a -> a
+  mapModalPolarity f = mapModality $ \ ai -> ai { modPolarity = f $ modPolarity ai }
+
+instance LensModalPolarity PolarityModality where
+  getModalPolarity = id
+  setModalPolarity = const
+  mapModalPolarity = id
+
+-- | Equality for polarities.
+samePolarity :: PolarityModality -> PolarityModality -> Bool
+samePolarity (PolarityModality p _ _) (PolarityModality p' _ _) = p == p'
+
+morePolarity :: PolarityModality -> PolarityModality -> Bool
+morePolarity (PolarityModality p _ _) (PolarityModality p' _ _) = morePolarity' p p'
+
+-- | @usablePolarity pol == False@ iff we cannot use a variable of @pol@.
+usablePolarity :: LensModalPolarity a => a -> Bool
+usablePolarity a = modPolarityAnn pol `morePolarity'` StrictlyPositive
+  where
+    pol = getModalPolarity a
+
+-- | 'PolarityModality' composition.
+--
+composePolarity :: PolarityModality -> PolarityModality -> PolarityModality
+composePolarity (PolarityModality p o l) (PolarityModality p' o' l') =
+  PolarityModality (composePolarity' p p') o' l'
+
+-- | Compose with polarity flag from the left.
+--   This function is e.g. used to update the polarity information
+--   on pattern variables @a@ after a match against something of polarity @pol@.
+applyPolarity :: LensModalPolarity a => PolarityModality -> a -> a
+applyPolarity pol = mapModalPolarity (pol `composePolarity`)
+
+-- | @inverseComposePolarity r x@ returns the least @y@
+--   such that forall @x@, @y@ we have
+--   @x \`morePolarity'\` (r \`composePolarity\` y)@
+--   iff
+--   @(r \`inverseComposePolarity\` x) \`morePolarity'\` y@ (Galois connection).
+inverseComposePolarity :: PolarityModality -> PolarityModality -> PolarityModality
+inverseComposePolarity (PolarityModality p o l) (PolarityModality p' o' l') =
+  PolarityModality (inverseComposePolarity' p p') o' (composePolarity' l' p)
+
+-- | Left division by a 'PolarityModality'.
+--   Used e.g. to modify context when going into a @pol@ argument.
+inverseApplyPolarity :: LensModalPolarity a => PolarityModality -> a -> a
+inverseApplyPolarity pol = mapModalPolarity (pol `inverseComposePolarity`)
+
+-- | 'ModalPolarity' forms a semigroup under composition.
+instance Semigroup (UnderComposition PolarityModality) where
+  (<>) = liftA2 composePolarity
+
+-- | 'Continous' is the multiplicative unit.
+instance Monoid (UnderComposition PolarityModality) where
+  mempty  = pure unitPolarity
+  mappend = (<>)
+
+instance POSemigroup (UnderComposition PolarityModality) where
+instance POMonoid (UnderComposition PolarityModality) where
+
+instance LeftClosedPOMonoid (UnderComposition PolarityModality) where
+  inverseCompose = liftA2 inverseComposePolarity
+
+-- | 'ModalPolarity' forms a semigroup under addition.
+instance Semigroup (UnderAddition PolarityModality) where
+  (<>) = liftA2 addPolarity
+
+-- | '' is the additive unit.
+instance Monoid (UnderAddition PolarityModality) where
+  mempty  = pure zeroPolarity
+  mappend = (<>)
+
+instance POSemigroup (UnderAddition PolarityModality) where
+instance POMonoid (UnderAddition PolarityModality) where
+
+-- | Combine inferred 'PolarityModality'.
+--
+addPolarity :: PolarityModality -> PolarityModality -> PolarityModality
+addPolarity (PolarityModality p o l) (PolarityModality p' o' l') =
+  PolarityModality (addPolarity' p p') o' l'
+
+-- | 'ModalPolarity' forms a monoid under addition, and even a semiring.
+zeroPolarity :: PolarityModality
+zeroPolarity = withStandardLock UnusedPolarity
+
+-- | Identity under composition
+unitPolarity :: PolarityModality
+unitPolarity = withStandardLock StrictlyPositive
+
+-- | Alias for Negative polarity
+negativePolarity :: PolarityModality
+negativePolarity = withStandardLock Negative
+
+-- | Absorptive element under addition.
+topPolarity :: PolarityModality
+topPolarity = withStandardLock MixedPolarity
+
+-- | Default used when not caring about polarity
+defaultPolarity :: PolarityModality
+defaultPolarity = withStandardLock MixedPolarity
+
+instance Null PolarityModality where
+  empty = defaultPolarity
+
+prettyPolarity :: LensModalPolarity a => a -> Doc -> Doc
+prettyPolarity a = (pretty (getModalPolarity a) <+>)
 
 ---------------------------------------------------------------------------
 -- * Origin of arguments (user-written, inserted or reflected)
@@ -2077,6 +2465,7 @@ class LensArgInfo a where
   setArgInfo ai = mapArgInfo (const ai)
   mapArgInfo :: (ArgInfo -> ArgInfo) -> a -> a
   mapArgInfo f a = setArgInfo (f $ getArgInfo a) a
+  {-# MINIMAL getArgInfo , (setArgInfo | mapArgInfo) #-}
 
 instance LensArgInfo ArgInfo where
   getArgInfo = id
@@ -2127,6 +2516,11 @@ instance LensCohesion ArgInfo where
   getCohesion = getCohesionMod
   setCohesion = setCohesionMod
   mapCohesion = mapCohesionMod
+
+instance LensModalPolarity ArgInfo where
+  getModalPolarity = getPolarityMod
+  setModalPolarity = setPolarityMod
+  mapModalPolarity = mapPolarityMod
 
 instance Null ArgInfo where
   empty = defaultArgInfo
@@ -2257,31 +2651,14 @@ instance KillRange a => KillRange (Arg a) where
 --         showFVs UnknownFVs    s = s
 --         showFVs (KnownFVs fv) s = "fv" ++ show (IntSet.toList fv) ++ s
 
--- -- defined in Concrete.Pretty
--- instance Pretty a => Pretty (Arg a) where
---     pretty (Arg (ArgInfo h (Modality r q) o fv) a) = prettyFVs fv $ prettyQ q $ prettyR r $ prettyO o $ prettyH h $ pretty a
---       where
---         prettyH Hidden       s = "{" <> s <> "}"
---         prettyH NotHidden    s = "(" <> s <> ")"
---         prettyH (Instance o) s = prettyOv o <> "{{" <> s <> "}}"
---           where prettyOv YesOverlap = "overlap "
---                 prettyOv NoOverlap  = ""
---         prettyR r s = case r of
---           Irrelevant   -> "." <> s
---           ShapeIrrelevant    -> "?" <> s
---           Relevant     -> "r" <> s -- Andreas: I want to see it explicitly
---         prettyQ q s = case q of
---           Quantity0   -> "0" <> s
---           Quantity1   -> "1" <> s
---           Quantityω   -> "ω" <> s
---         prettyO o s = case o of
---           UserWritten -> "u" <> s
---           Inserted    -> "i" <> s
---           Reflected   -> "g" <> s -- generated by reflection
---           CaseSplit   -> "c" <> s -- generated by case split
---           Substitution -> "s" <> s
---         prettyFVs UnknownFVs    s = s
---         prettyFVs (KnownFVs fv) s = "fv" <> pretty (IntSet.toList fv) <> s
+-- Andreas 2010-09-21: do not print relevance in general, only in function types!
+-- Andreas 2010-09-24: and in record fields
+instance Pretty a => Pretty (Arg a) where
+  prettyPrec p (Arg ai e) = prettyHiding ai localParens $ prettyPrec p' e
+      where p' | visible ai = p
+               | otherwise  = 0
+            localParens | getOrigin ai == Substitution = parens
+                        | otherwise = id
 
 instance NFData e => NFData (Arg e) where
   rnf (Arg a b) = rnf a `seq` rnf b
@@ -2329,6 +2706,11 @@ instance LensCohesion (Arg e) where
   getCohesion = getCohesionMod
   setCohesion = setCohesionMod
   mapCohesion = mapCohesionMod
+
+instance LensModalPolarity (Arg e) where
+  getModalPolarity = getPolarityMod
+  setModalPolarity = setPolarityMod
+  mapModalPolarity = mapPolarityMod
 
 defaultArg :: a -> Arg a
 defaultArg = Arg defaultArgInfo
@@ -2494,6 +2876,11 @@ instance (KillRange name, KillRange a) => KillRange (Named name a) where
 
 instance (NFData name, NFData a) => NFData (Named name a) where
   rnf (Named a b) = rnf a `seq` rnf b
+
+instance Pretty e => Pretty (Named_ e) where
+  prettyPrec p (Named nm e)
+    | Just s <- bareNameOf nm = mparens (p > 0) $ sep [ text s <+> "=", pretty e ]
+    | otherwise               = prettyPrec p e
 
 -- | Only 'Hidden' arguments can have names.
 type NamedArg a = Arg (Named_ a)
@@ -3000,10 +3387,21 @@ instance NFData FixityLevel where
   rnf Unrelated   = ()
   rnf (Related _) = ()
 
+instance Pretty FixityLevel where
+  pretty = \case
+    Unrelated  -> empty
+    Related d  -> text $ toStringWithoutDotZero d
+
 -- | Associativity.
 
 data Associativity = NonAssoc | LeftAssoc | RightAssoc
    deriving (Eq, Ord, Show)
+
+instance Pretty Associativity where
+  pretty = \case
+    LeftAssoc  -> "infixl"
+    RightAssoc -> "infixr"
+    NonAssoc   -> "infix"
 
 -- | Fixity of operators.
 
@@ -3041,6 +3439,11 @@ instance KillRange Fixity where
 
 instance NFData Fixity where
   rnf (Fixity _ _ _) = ()     -- Ranges are not forced, the other fields are strict.
+
+instance Pretty Fixity where
+  pretty (Fixity _ level ass) = case level of
+    Unrelated  -> empty
+    Related{}  -> pretty ass <+> pretty level
 
 -- * Notation coupled with 'Fixity'
 
@@ -3113,7 +3516,7 @@ data ImportDirective' n m = ImportDirective
       -- ^ Only for @open@. Exports the opened names from the current module.
       --   Range of the @public@ keyword.
   }
-  deriving Eq
+  deriving (Eq, Show)
 
 type HidingDirective'   n m = [ImportedName' n m]
 type RenamingDirective' n m = [Renaming' n m]
@@ -3151,7 +3554,7 @@ isDefaultImportDir dir = null dir && null (publicOpen dir)
 data Using' n m
   = UseEverything              -- ^ No @using@ clause given.
   | Using [ImportedName' n m]  -- ^ @using@ the specified names.
-  deriving Eq
+  deriving (Eq, Show)
 
 instance Semigroup (Using' n m) where
   UseEverything <> u             = u
@@ -3212,7 +3615,7 @@ data Renaming' n m = Renaming
   , renToRange :: Range
     -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
   }
-  deriving Eq
+  deriving (Eq, Show)
 
 -- ** HasRange instances
 
@@ -3246,6 +3649,46 @@ instance (KillRange a, KillRange b) => KillRange (Renaming' a b) where
 instance (KillRange a, KillRange b) => KillRange (ImportedName' a b) where
   killRange (ImportedModule n) = killRangeN ImportedModule n
   killRange (ImportedName   n) = killRangeN ImportedName   n
+
+-- ** Pretty instances
+
+instance (Pretty a, Pretty b) => Pretty (ImportDirective' a b) where
+    pretty i =
+        sep [ public (publicOpen i)
+            , pretty $ using i
+            , prettyHiding $ hiding i
+            , rename $ impRenaming i
+            ]
+        where
+            public Just{}  = "public"
+            public Nothing = empty
+
+            prettyHiding [] = empty
+            prettyHiding xs = "hiding" <+> parens (fsep $ punctuate ";" $ map pretty xs)
+
+            rename [] = empty
+            rename xs = hsep [ "renaming"
+                             , parens $ fsep $ punctuate ";" $ map pretty xs
+                             ]
+
+instance (Pretty a, Pretty b) => Pretty (Using' a b) where
+    pretty UseEverything = empty
+    pretty (Using xs)    =
+        "using" <+> parens (fsep $ punctuate ";" $ map pretty xs)
+
+instance (Pretty a, Pretty b) => Pretty (ImportedName' a b) where
+    pretty (ImportedName   a) = pretty a
+    pretty (ImportedModule b) = "module" <+> pretty b
+
+instance (Pretty a, Pretty b) => Pretty (Renaming' a b) where
+    pretty (Renaming from to mfx _r) = hsep
+      [ pretty from
+      , "to"
+      , maybe empty pretty mfx
+      , case to of
+          ImportedName a   -> pretty a
+          ImportedModule b -> pretty b   -- don't print "module" here
+      ]
 
 -- ** NFData instances
 

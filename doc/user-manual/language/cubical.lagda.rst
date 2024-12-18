@@ -23,12 +23,6 @@
           ; equiv-proof
           ; _≃_
           ; primGlue )
-  open import Agda.Builtin.Cubical.Id public
-    using ( Id
-          ; conid
-          ; primIdElim
-          ; reflId
-          )
 
   open import Agda.Builtin.Sigma public
   open import Agda.Builtin.Bool public
@@ -1144,27 +1138,3 @@ them more pleasant to use:
        → (Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A))
        → Set ℓ'
   Glue A Te = primGlue A (λ x → Te x .fst) (λ x → Te x .snd)
-
-The ``Agda.Builtin.Cubical.Id`` exports the cubical identity types:
-
-.. code-block:: agda
-
-  postulate
-    Id : ∀ {ℓ} {A : Set ℓ} → A → A → Set ℓ
-
-  {-# BUILTIN ID           Id       #-}
-  {-# BUILTIN CONID        conid    #-}
-  {-# BUILTIN REFLID       reflId   #-}
-
-  primitive
-    primDepIMin : _
-    primIdFace : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → I
-    primIdPath : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → x ≡ y
-
-  primitive
-    primIdElim : ∀ {a c} {A : Set a} {x : A}
-                   (C : (y : A) → Id x y → Set c) →
-                   ((φ : I) (y : A [ φ ↦ (λ _ → x) ])
-                    (w : (x ≡ outS y) [ φ ↦ λ{ (φ = i1) _ → x } ]) →
-                    C (outS y) (conid φ (outS w))) →
-                   {y : A} (p : Id x y) → C y p

@@ -4,7 +4,7 @@
 module Agda.TypeChecking.Primitive.Cubical.Base
   ( requireCubical
   , primIntervalType
-  , primIMin', primIMax', primDepIMin', primINeg'
+  , primIMin', primIMax', primINeg'
   , imax, imin, ineg
 
   , Command(..), KanOperation(..), kanOpName, TermPosition(..), headStop
@@ -113,43 +113,6 @@ primINeg' = do
         OTerm t -> return $ NoReduction [reduced sx]
         _       -> redReturn (unview $ f ix)
     _ -> __IMPOSSIBLE_VERBOSE__ "implementation of primINeg called with wrong arity"
-
--- | 'primDepIMin' expresses that cofibrations are closed under @Σ@.
--- Thus, it serves as a dependent version of 'primIMin' (which, recall,
--- implements @_∧_@). This is required for the construction of the Kan
--- operations in @Id@.
-primDepIMin' :: TCM PrimitiveImpl
-primDepIMin' = do
-  requireCubical CErased
-  t <- runNamesT [] $
-       nPi' "φ" primIntervalType $ \ φ ->
-       pPi' "o" φ (\ o -> primIntervalType) --> primIntervalType
-  -- Note that the type here is @(φ : I) → (.(IsOne φ) → I) → I@, since
-  -- @Partial φ I@ is not well-sorted.
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \case
-    [x,y] -> do
-      sx <- reduceB' x
-      ix <- intervalView (unArg $ ignoreBlocking sx)
-      itisone <- getTerm "primDepIMin" builtinItIsOne
-      case ix of
-        -- Σ 0 iy is 0, and additionally P is def.eq. to isOneEmpty.
-        IZero -> redReturn =<< intervalUnview IZero
-        -- Σ 1 iy is (iy 1=1).
-        IOne  -> redReturn =<< (pure (unArg y) <@> pure itisone)
-        _     -> do
-          -- Hack: We cross our fingers and really hope that eventually
-          -- ix may turn out to be i1. Regardless we evaluate iy 1=1, to
-          -- short-circuit evaluate a couple of cases:
-          sy <- reduceB' y
-          iy <- intervalView =<< reduce' =<< (pure (unArg $ ignoreBlocking sy) <@> pure itisone)
-          case iy of
-            -- Σ _ (λ _ → 0) is always 0
-            IZero -> redReturn =<< intervalUnview IZero
-            -- Σ ix (λ _ → 1) only depends on ix
-            IOne  -> redReturn (unArg $ ignoreBlocking sx)
-            -- Otherwise we're well and truly blocked.
-            _     -> return $ NoReduction [reduced sx, reduced sy]
-    _ -> __IMPOSSIBLE_VERBOSE__ "implementation of primDepIMin called with wrong arity"
 
 -- | Internal helper for constructing binary operations on the interval,
 -- parameterised by their unit and absorbing elements.

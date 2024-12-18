@@ -344,7 +344,6 @@ getTypeInfo t0 = do
   typeInfo :: QName -> E TypeInfo
   typeInfo q = ifM (erasureForbidden q) (return NotErasable) $ {-else-} do
     memoRec (typeMap . key q) Erasable $ do  -- assume recursive occurrences are erasable
-      mId    <- lift $ getName' builtinId
       msizes <- lift $ mapM getBuiltinName
                          [builtinSize, builtinSizeLt]
       def    <- lift $ getConstInfo q
@@ -353,7 +352,6 @@ getTypeInfo t0 = do
                   I.Record{ recConHead = c }  -> Just [conName c]
                   _                           -> Nothing
       case mcs of
-        _ | Just q == mId        -> return NotErasable
         _ | Just q `elem` msizes -> return Erasable
         Just [c] -> do
           (ts, _) <- lift $ typeWithoutParams c

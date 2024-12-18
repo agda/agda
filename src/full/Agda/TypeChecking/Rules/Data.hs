@@ -27,6 +27,7 @@ import Agda.Syntax.Scope.Monad
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Conversion
+import {-# SOURCE #-} Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Implicit
@@ -1746,6 +1747,29 @@ fitsIn con uc forceds conT s = do
                     _              -> Nothing
     case vt of
       Just (isPath, dom, b) -> do
+        polarity <- optPolarity <$> pragmaOptions
+        -- When the --polarity option is enabled, the type of
+        -- every constructor argument is re-checked using the internal
+        -- type checker, to ensure that their usage of datatype parameters is
+        -- consistent with polarity annotations (of the parameters).
+        -- This may impact type checking performance, as the internal checker
+        -- does more work than just checking polarity.
+        -- A simpler check dedicated to polarity could be implemented,
+        -- but would likely lead to duplicated logic.
+        -- For further discussion on why this check is necessary, see:
+        -- https://github.com/agda/agda/pull/6385#issuecomment-1349672456
+        when polarity $ do
+          arg <- instantiateFull (unEl (unDom dom))
+          reportSDoc "tc.polarity" 40 $
+            sep [ "checking constructor domain"
+                , prettyTCM (unEl $ unDom dom)
+                , "("
+                , prettyTCM (show arg)
+                , ")"
+                , "against sort"
+                , prettyTCM (getSort dom)
+                ]
+          checkInternal arg CmpLeq (sort (getSort dom))
         let
           (forced, forceds') = nextIsForced forceds
           isf = isForced forced

@@ -23,7 +23,6 @@ import GHC.Generics (Generic)
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
-import Agda.Syntax.Concrete.Pretty (prettyHiding)
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal.Blockers
 import Agda.Syntax.Internal.Elim
@@ -116,6 +115,7 @@ instance LensAnnotation    (Dom' t e) where
 instance LensRelevance (Dom' t e) where
 instance LensQuantity  (Dom' t e) where
 instance LensCohesion  (Dom' t e) where
+instance LensModalPolarity (Dom' t e) where
 
 argFromDom :: Dom' t a -> Arg a
 argFromDom Dom{domInfo = i, unDom = a} = Arg i a
@@ -1335,10 +1335,10 @@ instance Pretty Term where
       Def q els            -> pretty q `pApp` els
       Con c ci vs          -> pretty (conName c) `pApp` vs
       Pi a (NoAbs _ b)     -> mparens (p > 0) $
-        sep [ prettyPrec 1 (unDom a) <+> "->"
+        sep [ pretty (getModality a) <+> prettyPrec 1 (unDom a) <+> "->"
             , nest 2 $ pretty b ]
       Pi a b               -> mparens (p > 0) $
-        sep [ pDom (domInfo a) (text (absName b) <+> ":" <+> pretty (unDom a)) <+> "->"
+        sep [ pDom (domInfo a) (pretty (getModality a) <+> text (absName b) <+> ":" <+> pretty (unDom a)) <+> "->"
             , nest 2 $ pretty (unAbs b) ]
       Sort s      -> prettyPrec p s
       Level l     -> prettyPrec p l
@@ -1354,7 +1354,7 @@ instance Pretty t => Pretty (Abs t) where
   pretty (NoAbs x t) = "NoAbs" <+> (text x <> ".") <+> pretty t
 
 instance (Pretty t, Pretty e) => Pretty (Dom' t e) where
-  pretty dom = pLock <+> pTac <+> pDom dom (pretty $ unDom dom)
+  pretty dom = pLock <+> pTac <+> pDom dom (pretty (getModality dom) <+> pretty (unDom dom))
     where
       pTac | Just t <- domTactic dom = "@" <> parens ("tactic" <+> pretty t)
            | otherwise               = empty

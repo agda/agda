@@ -119,7 +119,7 @@ parseVariables f cxt asb ii rng ss = do
   -- Step 2: Resolve each abstract name to a de Bruijn index.
 
   -- First, get context names of the clause.
-  let clauseCxtNames = map (fst . unDom) cxt
+  let clauseCxtNames = contextNames' cxt
 
   -- Valid names to split on are pattern variables of the clause,
   -- plus as-bindings that refer to a variable.
@@ -150,8 +150,8 @@ parseVariables f cxt asb ii rng ss = do
       (_              , LambdaBound ) -> failLocal s
       -- Case 1f: let-bound variable
       (_              , LetBound    ) -> failLetBound s
-      -- Case 1g: with-bound variable (not used?)
-      (_              , WithBound   ) -> __IMPOSSIBLE__
+      -- Case 1g: with-bound variable
+      (_              , WithBound   ) -> failWithBound s
       -- Case 1h: macro-bound variable (interactive command impossible in macro context)
       (_              , MacroBound   ) -> __IMPOSSIBLE__
     -- Case 2: variable has no binding site, so we check if it can be
@@ -185,6 +185,9 @@ parseVariables f cxt asb ii rng ss = do
     "Cannot make hidden module parameter " ++ s ++ " visible"
   failLetBound s = interactionError $ CaseSplitError $ P.text $
     "Cannot split on let-bound variable " ++ s
+  failWithBound s = interactionError $ CaseSplitError $ P.text $
+    "Cannot split on variable " ++ s ++
+    ", because it is an equality proof bound by a with-abstraction"
   failInstantiatedVar s v = interactionError . CaseSplitError =<< sep
       [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
       , prettyTCM v
@@ -381,7 +384,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
 
     -- If any of the split variables is hidden by the ellipsis, we
     -- should force the expansion of the ellipsis.
-    let splitNames = map (\i -> fst $ unDom $ clauseCxt !! i) toSplit
+    let splitNames = map (\i -> ctxEntryName $ clauseCxt !! i) toSplit
     shouldExpandEllipsis <- return (not $ null toShow) `or2M` anyEllipsisVar f absCl splitNames
     let ell' | shouldExpandEllipsis = NoEllipsis
              | otherwise            = ell

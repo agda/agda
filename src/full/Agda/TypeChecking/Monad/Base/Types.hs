@@ -26,6 +26,10 @@ import Agda.Utils.FileName            as X ( AbsolutePath )
 import Agda.Utils.Lens                ( Lens', (&&&), iso )
 import Agda.Utils.Null                ( Null(..) )
 
+import Agda.Syntax.Internal           ( Dom, Name, Type )
+import Agda.Syntax.Common
+  ( LensArgInfo(..), LensCohesion, LensHiding, LensModality, LensOrigin, LensQuantity, LensRelevance, LensModalPolarity )
+
 ---------------------------------------------------------------------------
 -- * Capabilities
 ---------------------------------------------------------------------------
@@ -42,8 +46,27 @@ instance CapIO 'CapTCM
 ---------------------------------------------------------------------------
 
 -- | The @Context@ is a stack of 'ContextEntry's.
-type Context      = [ContextEntry]
-type ContextEntry = Dom (Name, Type)
+type Context = [ContextEntry]
+
+data ContextEntry
+  = CtxVar
+    { ceName :: Name
+    , ceType :: Dom Type
+    }
+  -- N.B. 2024-11-29 there might be CtxLet in the future.
+  deriving (Show, Generic)
+
+instance LensArgInfo ContextEntry where
+  getArgInfo (CtxVar _ a) = getArgInfo a
+  mapArgInfo f (CtxVar x a) = CtxVar x $ mapArgInfo f a
+
+instance LensModality  ContextEntry
+instance LensRelevance ContextEntry
+instance LensCohesion  ContextEntry
+instance LensOrigin    ContextEntry
+instance LensQuantity  ContextEntry
+instance LensHiding    ContextEntry
+instance LensModalPolarity ContextEntry
 
 ---------------------------------------------------------------------------
 -- * Conversion
@@ -187,6 +210,7 @@ data NamedMeta = NamedMeta
 
 -- NFData instances
 
+instance NFData ContextEntry
 instance NFData FileDictWithBuiltins
 instance NFData SourceFile
 instance NFData IsBuiltinModule

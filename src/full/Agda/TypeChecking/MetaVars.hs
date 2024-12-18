@@ -439,10 +439,10 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
     -- we base our decisions on the names of the context entries.
     -- Ideally, Agda would organize contexts in ancestry trees
     -- with substitutions to move between parent and child.
-    let glen = length gamma
-    let dlen = length delta
-    let gxs  = map (fst . unDom) gamma
-    let dxs  = map (fst . unDom) delta
+    let gxs  = contextNames' gamma
+    let dxs  = contextNames' delta
+    let glen = length gxs
+    let dlen = length dxs
     reportSDoc "tc.interaction" 20 $ vcat
       [ "reusing meta"
       , nest 2 $ "creation context:" <+> pretty gxs
@@ -515,7 +515,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
         let numFields = glen - g1len - g0len
         if numFields <= 0 then return $ vs1 ++ vs0 else do
           -- Get the record type.
-          let t = snd . unDom . fromMaybe __IMPOSSIBLE__ $ delta !!! k
+          let t = (unDom . ctxEntryDom) $ fromMaybe __IMPOSSIBLE__ $ delta !!! k
           -- Get the record field names.
           fs <- getRecordTypeFields t
           -- Field arguments to the original meta are projections from the record var.
@@ -524,7 +524,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
           return $ vs1 ++ reverse (take numFields vfs) ++ vs0
 
     -- Use ArgInfo from Γ.
-    let args = reverse $ zipWith (<$) rev_args $ map argFromDom gamma
+    let args = zipWith (<$) (reverse rev_args) $ contextArgs gamma
     -- Take the permutation into account (see TC.Monad.MetaVars.getMetaContextArgs).
     let vs = permute (takeP (length args) p) args
     reportSDoc "tc.interaction" 20 $ vcat
@@ -609,7 +609,7 @@ postponeTypeCheckingProblem_ p = do
   where
     unblock (CheckExpr _ _ t)         = unblockedTester t
     unblock (CheckArgs _ _ _ _ t _ _) = unblockedTester t  -- The type of the head of the application.
-    unblock (CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ _ _ t _) = unblockedTester t -- The type of the principal argument
+    unblock (CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ _ _ _ t _) = unblockedTester t -- The type of the principal argument
     unblock (CheckLambda _ _ _ t)     = unblockedTester t
     unblock (DoQuoteTerm _ _ _)       = __IMPOSSIBLE__     -- also quoteTerm problems
 
@@ -654,7 +654,7 @@ postponeTypeCheckingProblem p unblock = do
 problemType :: TypeCheckingProblem -> Type
 problemType (CheckExpr _ _ t         ) = t
 problemType (CheckArgs _ _ _ _ _ t _ ) = t  -- The target type of the application.
-problemType (CheckProjAppToKnownPrincipalArg _ _ _ _ _ t _ _ _ _) = t -- The target type of the application
+problemType (CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ t _ _ _ _) = t -- The target type of the application
 problemType (CheckLambda _ _ _ t     ) = t
 problemType (DoQuoteTerm _ _ t)        = t
 
@@ -1073,7 +1073,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
             let earlierThan l j = j > l
             TelV tel' _ <- telViewUpToPath (length args) t
             forM_ ids $ \(i,u) -> do
-              d <- lookupBV i
+              d <- domOfBV i
               case getLock (getArgInfo d) of
                 IsNotLock -> pure ()
                 IsLock{} -> do
@@ -1413,6 +1413,7 @@ checkSubtypeIsEqual a b = do
           | getRelevance a1 /= getRelevance b1 -> patternViolation neverUnblock -- Can we recover from this?
           | getQuantity  a1 /= getQuantity  b1 -> patternViolation neverUnblock
           | getCohesion  a1 /= getCohesion  b1 -> patternViolation neverUnblock
+          | getModalPolarity a1 /= getModalPolarity b1 -> patternViolation neverUnblock
           | otherwise -> do
               checkSubtypeIsEqual (unDom b1) (unDom a1)
               underAbstractionAbs a1 a2 $ \a2' -> checkSubtypeIsEqual a2' (absBody b2)
@@ -1695,6 +1696,7 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
                         { modRelevance  = max (getRelevance info) (getRelevance info')
                         , modQuantity   = max (getQuantity  info) (getQuantity  info')
                         , modCohesion   = max (getCohesion  info) (getCohesion  info')
+                        , modPolarity   = addPolarity (getModalPolarity info) (getModalPolarity info') -- XXX
                         }
                       , argInfoOrigin   = min (getOrigin info) (getOrigin info')
                       , argInfoFreeVariables = unknownFreeVariables
