@@ -34,7 +34,7 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Options hiding (setPragmaOptions)
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Library
-import Agda.Interaction.Library.Base (LibCache(LibCache), libAbove, libFile)
+import Agda.Interaction.Library.Base (LibCache(LibCache), libAbove, libFile, runLibM)
 
 import Agda.Utils.FileName
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
@@ -113,14 +113,10 @@ setCommandLineOptions' root opts = do
 
 libToTCM :: LibM a -> TCM a
 libToTCM m = do
-  cachedConfs <- useTC stProjectConfigs
-  cachedLibs  <- useTC stAgdaLibFiles
+  libCache <- useTC stLibCache
+  ((z, warns), libCache') <- liftIO $ runLibM m libCache
 
-  ((z, warns), LibCache cachedConfs' cachedLibs') <- liftIO $
-    (`runStateT` LibCache cachedConfs cachedLibs) $ runWriterT $ runExceptT m
-
-  modifyTCLens stProjectConfigs $ const cachedConfs'
-  modifyTCLens stAgdaLibFiles   $ const cachedLibs'
+  setTCLens stLibCache libCache'
 
   List1.unlessNull warns \ warns -> warnings $ fmap LibraryWarning warns
   case z of
@@ -321,14 +317,12 @@ setIncludeDirs incs root = do
   when (sort oldIncs /= sort (List1.toList incs)) $ do
     ho <- getInteractionOutputCallback
     tcWarnings <- useTC stTCWarnings -- restore already generated warnings
-    projectConfs <- useTC stProjectConfigs  -- restore cached project configs & .agda-lib
-    agdaLibFiles <- useTC stAgdaLibFiles    -- files, since they use absolute paths
+    libCache   <- useTC stLibCache   -- restore cached project configs & .agda-lib files, since they use absolute paths
     decodedModules <- getDecodedModules
     (keptDecodedModules, modFile) <- modulesToKeep incs decodedModules
     resetAllState
     setTCLens stTCWarnings tcWarnings
-    setTCLens stProjectConfigs projectConfs
-    setTCLens stAgdaLibFiles agdaLibFiles
+    setTCLens stLibCache libCache
     setInteractionOutputCallback ho
     setDecodedModules keptDecodedModules
     setTCLens stModuleToSourceId modFile

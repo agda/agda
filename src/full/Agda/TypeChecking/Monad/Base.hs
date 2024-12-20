@@ -112,7 +112,7 @@ import Agda.Interaction.Response.Base (Response_boot(..))
 import Agda.Interaction.Highlighting.Precise
   (HighlightingInfo, NameKind)
 import Agda.Interaction.Library
-import Agda.Interaction.Library.Base ( ExeName, ExeMap, LibErrors )
+import Agda.Interaction.Library.Base ( ExeName, ExeMap, LibCache, LibErrors )
 
 import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.BiMap (BiMap, HasTag(..))
@@ -238,11 +238,8 @@ data PreScopeState = PreScopeState
     -- ^ Whether the current module should raise a warning when opened
   , stPreImportedPartialDefs :: !(Set QName)
     -- ^ Imported partial definitions, not to be stored in the @Interface@
-  , stPreProjectConfigs :: !(Map FilePath ProjectConfig)
-    -- ^ Map from directories to paths of closest enclosing .agda-lib
-    --   files (or @Nothing@ if there are none).
-  , stPreAgdaLibFiles   :: !(Map FilePath AgdaLibFile)
-    -- ^ Contents of .agda-lib files that have already been parsed.
+  , stPreLibCache            :: !LibCache
+    -- ^ Cached @.agda-lib@ files.
   , stPreImportedMetaStore :: !RemoteMetaStore
     -- ^ Used for meta-variables from other modules.
   , stPreCopiedNames       :: !(HashMap A.QName A.QName)
@@ -486,8 +483,7 @@ initPreScopeState = PreScopeState
   , stPreLocalUserWarnings    = Map.empty
   , stPreWarningOnImport      = empty
   , stPreImportedPartialDefs  = Set.empty
-  , stPreProjectConfigs       = Map.empty
-  , stPreAgdaLibFiles         = Map.empty
+  , stPreLibCache             = empty
   , stPreImportedMetaStore    = HMap.empty
   , stPreCopiedNames          = HMap.empty
   , stPreNameCopies           = HMap.empty
@@ -648,11 +644,8 @@ lensWarningOnImport f s = f (stPreWarningOnImport s) <&> \ x -> s { stPreWarning
 lensImportedPartialDefs :: Lens' PreScopeState (Set QName)
 lensImportedPartialDefs f s = f (stPreImportedPartialDefs s) <&> \ x -> s { stPreImportedPartialDefs = x }
 
-lensProjectConfigs :: Lens' PreScopeState (Map FilePath ProjectConfig)
-lensProjectConfigs f s = f (stPreProjectConfigs s) <&> \ x -> s { stPreProjectConfigs = x }
-
-lensAgdaLibFiles :: Lens' PreScopeState (Map FilePath AgdaLibFile)
-lensAgdaLibFiles f s = f (stPreAgdaLibFiles s) <&> \ x -> s { stPreAgdaLibFiles = x }
+lensLibCache :: Lens' PreScopeState LibCache
+lensLibCache f s = f (stPreLibCache s) <&> \ x -> s { stPreLibCache = x }
 
 lensImportedMetaStore :: Lens' PreScopeState RemoteMetaStore
 lensImportedMetaStore f s = f (stPreImportedMetaStore s) <&> \x -> s { stPreImportedMetaStore = x }
@@ -866,11 +859,8 @@ stWarningOnImport = lensPreScopeState . lensWarningOnImport . Strict.lensMaybeLa
 stImportedPartialDefs :: Lens' TCState (Set QName)
 stImportedPartialDefs = lensPreScopeState . lensImportedPartialDefs
 
-stProjectConfigs :: Lens' TCState (Map FilePath ProjectConfig)
-stProjectConfigs = lensPreScopeState . lensProjectConfigs
-
-stAgdaLibFiles :: Lens' TCState (Map FilePath AgdaLibFile)
-stAgdaLibFiles = lensPreScopeState . lensAgdaLibFiles
+stLibCache :: Lens' TCState LibCache
+stLibCache = lensPreScopeState . lensLibCache
 
 stImportedMetaStore :: Lens' TCState RemoteMetaStore
 stImportedMetaStore = lensPreScopeState . lensImportedMetaStore
