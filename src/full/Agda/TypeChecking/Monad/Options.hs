@@ -34,7 +34,7 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Options hiding (setPragmaOptions)
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Library
-import Agda.Interaction.Library.Base (libAbove, libFile)
+import Agda.Interaction.Library.Base (LibCache(LibCache), libAbove, libFile)
 
 import Agda.Utils.FileName
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
@@ -116,8 +116,8 @@ libToTCM m = do
   cachedConfs <- useTC stProjectConfigs
   cachedLibs  <- useTC stAgdaLibFiles
 
-  ((z, warns), (cachedConfs', cachedLibs')) <- liftIO $
-    (`runStateT` (cachedConfs, cachedLibs)) $ runWriterT $ runExceptT m
+  ((z, warns), LibCache cachedConfs' cachedLibs') <- liftIO $
+    (`runStateT` LibCache cachedConfs cachedLibs) $ runWriterT $ runExceptT m
 
   modifyTCLens stProjectConfigs $ const cachedConfs'
   modifyTCLens stAgdaLibFiles   $ const cachedLibs'
