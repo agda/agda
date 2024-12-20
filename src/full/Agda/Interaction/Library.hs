@@ -33,7 +33,7 @@ module Agda.Interaction.Library
   , builtinModulesWithSafePostulates
   , builtinModulesWithUnsafePostulates
   , primitiveModules
-  , LibName
+  , LibName, parseLibName
   , OptionsPragma(..)
   , AgdaLibFile(..)
   , ExeName
@@ -44,7 +44,6 @@ module Agda.Interaction.Library
   , libraryWarningName
   , ProjectConfig(..)
   -- * Exported for testing
-  , VersionView(..), versionView, unVersionView
   , findLib'
   ) where
 
@@ -54,7 +53,6 @@ import Control.Monad.Writer   ( Writer, runWriterT, tell )
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Bifunctor ( second )
-import Data.Char
 import Data.Either
 import Data.Function (on)
 import qualified Data.List as List
@@ -96,16 +94,6 @@ import Paths_Agda ( getDataFileName )
 ------------------------------------------------------------------------
 -- * Types and Monads
 ------------------------------------------------------------------------
-
--- | Library names are structured into the base name and a suffix of version
---   numbers, e.g. @mylib-1.2.3@.  The version suffix is optional.
-data VersionView = VersionView
-  { vvBase    :: LibName
-      -- ^ Actual library name.
-  , vvNumbers :: [Integer]
-      -- ^ Major version, minor version, subminor version, etc., all non-negative.
-      --   Note: a priori, there is no reason why the version numbers should be @Int@s.
-  } deriving (Eq, Show)
 
 -- | Raise collected 'LibErrors' as exception.
 --
@@ -377,7 +365,7 @@ readDefaultsFile = do
     let file = agdaDir </> defaultsFile
     ifNotM (liftIO $ doesFileExist file) (return []) $ {-else-} do
       ls <- liftIO $ map snd . stripCommentLines <$> UTF8.readFile file
-      return $ concatMap splitCommas ls
+      return $ map parseLibName $ concatMap splitCommas ls
   `catchIO` \ e -> do
     raiseErrors' [ ReadError e "Failed to read defaults file." ]
     return []
@@ -596,46 +584,15 @@ findLib' :: (a -> LibName) -> LibName -> [a] -> [a]
 findLib' libName x libs =
   case ls of
     -- Take the first and all exact matches (modulo leading zeros in version numbers).
-    l : ls' -> l : takeWhile (((==) `on` versionMeasure) l) ls'
+    l : ls' -> l : takeWhile (((==) `on` libName) l) ls'
     []      -> []
   where
     -- @LibName@s that match @x@, sorted descendingly.
     -- The unversioned LibName, if any, will come first.
-    ls = List.sortBy (flip compare `on` versionMeasure)
-                     [ l | l <- libs, x `hasMatch` libName l ]
-
+    ls = List.sortBy (flip compare `on` libName) [ l | l <- libs, x `hasMatch` libName l ]
     -- foo > foo-2.2 > foo-2.0.1 > foo-2 > foo-1.0
-    versionMeasure l = (rx, null vs, vs)
-      where
-        VersionView rx vs = versionView (libName l)
 
--- | @x `hasMatch` y@ if @x@ and @y@ have the same @vvBase@ and
+-- | @x `hasMatch` y@ if @x@ and @y@ have the same base and
 --   either @x@ has no version qualifier or the versions also match.
 hasMatch :: LibName -> LibName -> Bool
-hasMatch x y = rx == ry && (vx == vy || null vx)
-  where
-    VersionView rx vx = versionView x
-    VersionView ry vy = versionView y
-
--- | Split a library name into basename and a list of version numbers.
---
---   > versionView "foo-1.2.3"    == VersionView "foo" [1, 2, 3]
---   > versionView "foo-01.002.3" == VersionView "foo" [1, 2, 3]
---
---   Note that because of leading zeros, @versionView@ is not injective.
---   (@unVersionView . versionView@ would produce a normal form.)
-versionView :: LibName -> VersionView
-versionView s =
-  case span (\ c -> isDigit c || c == '.') (reverse $ T.unpack s) of
-    (v, '-' : x) | valid vs ->
-      VersionView (T.pack $ reverse x) $ reverse $ map (read . reverse) vs
-      where vs = chopWhen (== '.') v
-            valid [] = False
-            valid vs = not $ any null vs
-    _ -> VersionView s []
-
--- | Print a @VersionView@, inverse of @versionView@ (modulo leading zeros).
-unVersionView :: VersionView -> LibName
-unVersionView = \case
-  VersionView base [] -> base
-  VersionView base vs -> T.pack $ T.unpack base ++ "-" ++ List.intercalate "." (map show vs)
+hasMatch (LibName rx vx) (LibName ry vy) = rx == ry && (vx == vy || null vx)

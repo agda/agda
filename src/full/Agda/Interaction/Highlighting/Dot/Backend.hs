@@ -23,7 +23,6 @@ import qualified Data.HashSet as HashSet
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
-import qualified Data.Text as T
 import qualified Data.Text.Lazy as L
 
 import GHC.Generics (Generic)
@@ -57,7 +56,6 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional
   (Graph, WithUniqueInt)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
-import Agda.Utils.String (trim)
 
 -- ------------------------------------------------------------------------
 
@@ -95,7 +93,7 @@ includeFlag s o = return $
           Just s  -> Just (HashSet.insert l s)
     }
   where
-    l = T.pack $ trim s
+    l = parseLibName s
 
 data DotCompileEnv = DotCompileEnv
   { dotCompileEnvDestination :: FilePath

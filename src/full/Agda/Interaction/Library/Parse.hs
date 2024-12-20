@@ -97,12 +97,12 @@ agdaLibFields =
   -- Andreas, 2017-08-23, issue #2708, field "name" is optional.
   [ optionalField "name"    (\_ -> parseName)                     libName
   , optionalField "include" (\_ -> pure . concatMap parsePaths)   libIncludes
-  , optionalField "depend"  (\_ -> pure . concatMap splitCommas)  libDepends
+  , optionalField "depend"  (\_ -> pure . map parseLibName . concatMap splitCommas)  libDepends
   , optionalField "flags"   (\r -> pure . foldMap (parseFlags r)) libPragmas
   ]
   where
     parseName :: [String] -> P LibName
-    parseName [s] | [name] <- words s = pure $ T.pack name
+    parseName [s] | [name] <- words s = pure $ parseLibName name
     parseName ls = throwError $ BadLibraryName $ unwords ls
 
     parsePaths :: String -> [FilePath]
@@ -287,8 +287,8 @@ trimLineComment :: String -> String
 trimLineComment = stripComments . ltrim
 
 -- | Break a comma-separated string.  Result strings are @trim@med.
-splitCommas :: String -> [Text]
-splitCommas = map T.pack . words . map (\c -> if c == ',' then ' ' else c)
+splitCommas :: String -> [String]
+splitCommas = words . map (\c -> if c == ',' then ' ' else c)
 
 -- | ...and trailing, but not leading, whitespace.
 stripComments :: String -> String
