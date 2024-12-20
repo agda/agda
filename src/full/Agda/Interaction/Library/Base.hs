@@ -9,10 +9,11 @@ import qualified Control.Exception as E
 
 import Control.Monad.Except
 import Control.Monad.State
-import Control.Monad.Writer        ( WriterT, MonadWriter, tell )
+import Control.Monad.Writer        ( WriterT, runWriterT, MonadWriter, tell )
 import Control.Monad.IO.Class      ( MonadIO(..) )
 
 import Data.Bifunctor              ( first , second )
+import Data.Function               ( (&) )
 import Data.Map                    ( Map )
 import qualified Data.Map          as Map
 import Data.Semigroup              ( Semigroup(..) )
@@ -273,11 +274,17 @@ type LibErrorIO = WriterT LibErrWarns (StateT LibState IO)
 -- | Throws 'LibErrors' exceptions, still collects 'LibWarning's.
 type LibM = ExceptT LibErrors (WriterT [LibWarning] (StateT LibState IO))
 
+type LibState = LibCache
+
 -- | Cache locations of project configurations and parsed @.agda-lib@ files.
-type LibState =
-  ( Map FilePath ProjectConfig
-  , Map FilePath AgdaLibFile
-  )
+data LibCache = LibCache
+  { projectConfigs :: !(Map FilePath ProjectConfig)
+      -- ^ Map from directories to paths of closest enclosing @.agda-lib@
+      --   files (or 'DefaultProjectConfig' if there are none).
+  , agdaLibFiles   :: !(Map FilePath AgdaLibFile)
+      -- ^ Contents of @.agda-lib@ files that have already been parsed.
+  }
+  deriving (Generic)
 
 -- | Collected errors when processing an @.agda-lib@ file.
 --
@@ -286,34 +293,36 @@ data LibErrors = LibErrors
   , libErrors                   :: List1 LibError
   } deriving (Show, Generic)
 
+runLibM :: LibM a -> LibState -> IO ((Either LibErrors a, [LibWarning]), LibState)
+runLibM m s = m & runExceptT & runWriterT & (`runStateT` s)
+
 getCachedProjectConfig
   :: (MonadState LibState m, MonadIO m)
   => FilePath -> m (Maybe ProjectConfig)
 getCachedProjectConfig path = do
   path <- liftIO $ canonicalizePath path
-  cache <- gets fst
-  return $ Map.lookup path cache
+  Map.lookup path <$> gets projectConfigs
 
 storeCachedProjectConfig
   :: (MonadState LibState m, MonadIO m)
   => FilePath -> ProjectConfig -> m ()
 storeCachedProjectConfig path conf = do
   path <- liftIO $ canonicalizePath path
-  modify $ first $ Map.insert path conf
+  modify \ s -> s { projectConfigs = Map.insert path conf $ projectConfigs s }
 
 getCachedAgdaLibFile
   :: (MonadState LibState m, MonadIO m)
   => FilePath -> m (Maybe AgdaLibFile)
 getCachedAgdaLibFile path = do
   path <- liftIO $ canonicalizePath path
-  gets $ Map.lookup path . snd
+  Map.lookup path <$> gets agdaLibFiles
 
 storeCachedAgdaLibFile
   :: (MonadState LibState m, MonadIO m)
   => FilePath -> AgdaLibFile -> m ()
 storeCachedAgdaLibFile path lib = do
   path <- liftIO $ canonicalizePath path
-  modify $ second $ Map.insert path lib
+  modify \ s -> s { agdaLibFiles = Map.insert path lib $ agdaLibFiles s }
 
 ------------------------------------------------------------------------
 -- * Prettyprinting errors and warnings
@@ -465,6 +474,14 @@ instance Pretty LibWarning' where
   pretty (UnknownField s) = text $ "Unknown field '" ++ s ++ "'"
 
 ------------------------------------------------------------------------
+-- Null instances
+------------------------------------------------------------------------
+
+instance Null LibCache where
+  empty = LibCache empty empty
+  null (LibCache a b) = null a && null b
+
+------------------------------------------------------------------------
 -- NFData instances
 ------------------------------------------------------------------------
 
@@ -472,6 +489,7 @@ instance NFData ExecutablesFile
 instance NFData LibrariesFile
 instance NFData ProjectConfig
 instance NFData AgdaLibFile
+instance NFData LibCache
 instance NFData LibPositionInfo
 instance NFData LibWarning
 instance NFData LibWarning'
