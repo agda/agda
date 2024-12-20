@@ -5,30 +5,30 @@
 
 module Agda.Utils.FileId where
 
-import           Prelude               hiding (null)
+import           Prelude                   hiding (null)
 
-import           Control.DeepSeq       (NFData)
-import           Control.Monad.Except  (ExceptT)
-import           Control.Monad.Reader  (ReaderT)
-import           Control.Monad.State   (StateT)
-import           Control.Monad.Trans   (MonadTrans, lift)
+import           Control.DeepSeq           (NFData)
+import           Control.Monad.Except      (ExceptT)
+import           Control.Monad.Reader      (ReaderT)
+import           Control.Monad.State       (StateT)
+import           Control.Monad.Trans       (MonadTrans, lift)
 
-import           Data.Bifunctor        (second)
-import           Data.EnumMap          (EnumMap)
-import qualified Data.EnumMap          as EnumMap
-import           Data.Hashable         (Hashable)
-import           Data.Map              (Map)
-import qualified Data.Map              as Map
-import           Data.Maybe            (fromMaybe)
-import           Data.Word             (Word32)
+import           Data.Bifunctor            (second)
+import           Data.EnumMap              (EnumMap)
+import qualified Data.EnumMap              as EnumMap
+import           Data.Hashable             (Hashable)
+import           Data.Map                  (Map)
+import qualified Data.Map                  as Map
+import           Data.Maybe                (fromMaybe)
+import           Data.Word                 (Word32)
 
-import           GHC.Generics          (Generic)
+import           GHC.Generics              (Generic)
 
-import           Agda.Utils.CallStack  (HasCallStack)
-import           Agda.Utils.FileName   (AbsolutePath)
-import           Agda.Utils.Null       (Null(..))
+import           Agda.Utils.CallStack.Base (HasCallStack)
+import           Agda.Utils.FileName       (AbsolutePath)
+import           Agda.Utils.Null           (Null(..))
 
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
+import           Agda.Utils.Impossible     (__IMPOSSIBLE__)
 
 type File = AbsolutePath
 
@@ -125,6 +125,10 @@ instance GetIdFile FileDictBuilder where
   getIdFile = getIdFile . fileDict
 
 -- Instances for Null
+
+instance Null FileId where
+  empty = FileId 0
+  null (FileId fi) = fi == 0
 
 instance Null FileDict where
   empty = FileDict empty empty
