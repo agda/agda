@@ -13,11 +13,15 @@ import Control.Monad.Writer        ( WriterT, runWriterT, MonadWriter, tell )
 import Control.Monad.IO.Class      ( MonadIO(..) )
 
 import Data.Bifunctor              ( first , second )
-import Data.Function               ( (&) )
+import Data.Char                   ( isDigit )
+import Data.Function               ( (&), on )
+import Data.Hashable               ( Hashable )
+import qualified Data.List         as List
 import Data.Map                    ( Map )
 import qualified Data.Map          as Map
 import Data.Semigroup              ( Semigroup(..) )
 import Data.Text                   ( Text, unpack )
+import qualified Data.Text         as T
 
 import GHC.Generics                ( Generic )
 
@@ -30,6 +34,7 @@ import Agda.Syntax.Position
 
 import Agda.Utils.IO               ( showIOException )
 import Agda.Utils.Lens
+import Agda.Utils.List             ( chopWhen )
 import Agda.Utils.List1            ( List1, toList )
 import Agda.Utils.List2            ( List2, toList )
 import qualified Agda.Utils.List1  as List1
@@ -37,8 +42,45 @@ import Agda.Utils.Null
 
 -- | A symbolic library name.
 --
--- Trimmed, non-empty, may include the version number.
-type LibName = Text
+--   Library names are structured into the base name and a suffix of version
+--   numbers, e.g. @mylib-1.2.3@.  The version suffix is optional.
+data LibName = LibName
+  { libNameBase    :: Text
+      -- ^ Actual library name.
+  , libNameVersion :: [Integer]
+      -- ^ Major version, minor version, subminor version, etc., all non-negative.
+  } deriving (Eq, Show, Generic)
+
+-- | In comparisons, a missing version number is assumed to be infinity.
+--   E.g. @foo > foo-2.2 > foo-2.0.1 > foo-2 > foo-1.0@.
+instance Ord LibName where
+  compare = compare `on` versionMeasure
+    where
+      versionMeasure :: LibName -> (Text, Bool, [Integer])
+      versionMeasure (LibName rx vs) = (rx, null vs, vs)
+
+instance Pretty LibName where
+  pretty = \case
+    LibName base [] -> pretty base
+    LibName base vs -> hcat [ pretty base, "-", text $ List.intercalate "." $ map show vs ]
+
+-- | Split a library name into basename and a list of version numbers.
+--
+--   > parseLibName "foo-1.2.3"    == LibName "foo" [1, 2, 3]
+--   > parseLibName "foo-01.002.3" == LibName "foo" [1, 2, 3]
+--
+--   Note that because of leading zeros, @parseLibName@ is not injective.
+--   (@prettyShow . parseLibName@ would produce a normal form.)
+parseLibName :: String -> LibName
+parseLibName s =
+  case span (\ c -> isDigit c || c == '.') (reverse s) of
+    (v, '-' : x) | valid vs ->
+      LibName (T.pack $ reverse x) $ reverse $ map (read . reverse) vs
+      where
+        vs = chopWhen (== '.') v
+        valid [] = False
+        valid vs = not $ any null vs
+    _ -> LibName (T.pack s) []
 
 data LibrariesFile = LibrariesFile
   { lfPath   :: FilePath
@@ -65,7 +107,7 @@ data ExecutablesFile = ExecutablesFile
 --   should count as a project root.
 --
 libNameForCurrentDir :: LibName
-libNameForCurrentDir = "."
+libNameForCurrentDir = LibName "." []
 
 -- | A file can either belong to a project located at a given root
 --   containing one or more .agda-lib files, or be part of the default
@@ -129,7 +171,7 @@ data AgdaLibFile = AgdaLibFile
 
 emptyLibFile :: AgdaLibFile
 emptyLibFile = AgdaLibFile
-  { _libName     = ""
+  { _libName     = empty
   , _libFile     = ""
   , _libAbove    = 0
   , _libIncludes = []
@@ -475,8 +517,18 @@ instance Pretty LibWarning' where
   pretty (UnknownField s) = text $ "Unknown field '" ++ s ++ "'"
 
 ------------------------------------------------------------------------
+-- Hashable instances
+------------------------------------------------------------------------
+
+instance Hashable LibName
+
+------------------------------------------------------------------------
 -- Null instances
 ------------------------------------------------------------------------
+
+instance Null LibName where
+  empty = LibName empty empty
+  null (LibName a b) = null a && null b
 
 instance Null LibCache where
   empty = LibCache empty empty
@@ -490,6 +542,7 @@ instance NFData ExecutablesFile
 instance NFData LibrariesFile
 instance NFData ProjectConfig
 instance NFData AgdaLibFile
+instance NFData LibName
 instance NFData LibCache
 instance NFData LibPositionInfo
 instance NFData LibWarning
