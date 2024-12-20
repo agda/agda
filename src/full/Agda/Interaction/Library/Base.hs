@@ -37,7 +37,8 @@ import Agda.Utils.Null
 
 -- | A symbolic library name.
 --
-type LibName = String
+-- Trimmed, non-empty, may include the version number.
+type LibName = Text
 
 data LibrariesFile = LibrariesFile
   { lfPath   :: FilePath
@@ -396,7 +397,7 @@ prettyInstalledLibraries installed =
   vcat $ ("Installed libraries:" :) $
     map (nest 2) $
     if null installed then ["(none)"]
-    else [ sep [ text $ _libName l, nest 2 $ parens $ text $ _libFile l ]
+    else [ sep [ pretty $ _libName l, nest 2 $ parens $ text $ _libFile l ]
          | l <- installed
          ]
 
@@ -411,7 +412,7 @@ instance Pretty LibError' where
       ]
 
     LibNotFound file lib -> vcat $
-      [ text $ "Library '" ++ lib ++ "' not found."
+      [ hcat [ "Library '", pretty lib, "' not found." ]
       , sep [ "Add the path to its .agda-lib file to"
             , nest 2 $ text $ "'" ++ lfPath file ++ "'"
             , "to install."
@@ -419,10 +420,10 @@ instance Pretty LibError' where
       ]
 
     AmbiguousLib lib tgts -> vcat $
-      sep [ text $ "Ambiguous library '" ++ lib ++ "'."
+      sep [ hcat [ "Ambiguous library '", pretty lib, "'." ]
             , "Could refer to any one of"
           ]
-        : [ nest 2 $ text (_libName l) <+> parens (text $ _libFile l) | l <- tgts ]
+        : [ nest 2 $ pretty (_libName l) <+> parens (text $ _libFile l) | l <- tgts ]
 
     LibParseError err -> pretty err
 

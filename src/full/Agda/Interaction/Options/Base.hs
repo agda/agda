@@ -196,6 +196,7 @@ import Data.Map                 ( Map )
 import qualified Data.Map as Map
 import Data.Set                 ( Set )
 import qualified Data.Set as Set
+import qualified Data.Text as T
 
 import GHC.Generics (Generic)
 
@@ -236,7 +237,7 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad         ( tell1 )
 import Agda.Utils.Null
 import Agda.Utils.ProfileOptions
-import Agda.Utils.String        ( unwords1 )
+import Agda.Utils.String        ( trim, unwords1 )
 import qualified Agda.Utils.String       as String
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
@@ -1193,7 +1194,7 @@ includeFlag :: FilePath -> Flag CommandLineOptions
 includeFlag d o = return $ o { optIncludePaths = d : optIncludePaths o }
 
 libraryFlag :: String -> Flag CommandLineOptions
-libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }
+libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [T.pack $ trim s] }
 
 overrideLibrariesFileFlag :: String -> Flag CommandLineOptions
 overrideLibrariesFileFlag s o =

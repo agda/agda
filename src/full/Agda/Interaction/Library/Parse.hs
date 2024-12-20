@@ -34,6 +34,8 @@ import Control.Monad.Except
 import Control.Monad.Writer
 import Data.Char
 import qualified Data.List as List
+import Data.Text (Text)
+import qualified Data.Text as T
 import System.FilePath
 
 import Agda.Interaction.Library.Base
@@ -73,14 +75,16 @@ data GenericEntry = GenericEntry
 
 -- | Library file field format format [sic!].
 data Field = forall a. Field
-  { fName     :: String            -- ^ Name of the field.
-  , fOptional :: Bool              -- ^ Is it optional?
+  { fName     :: String
+      -- ^ Name of the field.
+  , fOptional :: Bool
+      -- ^ Is it optional?
   , fParse    :: Range -> [String] -> P a
-                 -- ^ Content parser for this field.
-                 --
-                 -- The range points to the start of the file.
+      -- ^ Content parser for this field.
+      --
+      -- The range points to the start of the file.
   , fSet      :: LensSet AgdaLibFile a
-    -- ^ Sets parsed content in 'AgdaLibFile' structure.
+      -- ^ Sets parsed content in 'AgdaLibFile' structure.
   }
 
 optionalField ::
@@ -98,7 +102,7 @@ agdaLibFields =
   ]
   where
     parseName :: [String] -> P LibName
-    parseName [s] | [name] <- words s = pure name
+    parseName [s] | [name] <- words s = pure $ T.pack name
     parseName ls = throwError $ BadLibraryName $ unwords ls
 
     parsePaths :: String -> [FilePath]
@@ -134,14 +138,16 @@ parseLibFile file = do
 parseLib
   :: AbsolutePath
      -- ^ The parsed file.
-  -> String -> P AgdaLibFile
+  -> String
+  -> P AgdaLibFile
 parseLib file s = fromGeneric file =<< parseGeneric s
 
 -- | Parse 'GenericFile' with 'agdaLibFields' descriptors.
 fromGeneric
   :: AbsolutePath
      -- ^ The parsed file.
-  -> GenericFile -> P AgdaLibFile
+  -> GenericFile
+  -> P AgdaLibFile
 fromGeneric file = fromGeneric' file agdaLibFields
 
 -- | Given a list of 'Field' descriptors (with their custom parsers),
@@ -153,7 +159,9 @@ fromGeneric file = fromGeneric' file agdaLibFields
 fromGeneric'
   :: AbsolutePath
      -- ^ The parsed file.
-  -> [Field] -> GenericFile -> P AgdaLibFile
+  -> [Field]
+  -> GenericFile
+  -> P AgdaLibFile
 fromGeneric' file fields fs = do
   checkFields fields (map geHeader fs)
   foldM upd emptyLibFile fs
@@ -279,8 +287,8 @@ trimLineComment :: String -> String
 trimLineComment = stripComments . ltrim
 
 -- | Break a comma-separated string.  Result strings are @trim@med.
-splitCommas :: String -> [String]
-splitCommas = words . map (\c -> if c == ',' then ' ' else c)
+splitCommas :: String -> [Text]
+splitCommas = map T.pack . words . map (\c -> if c == ',' then ' ' else c)
 
 -- | ...and trailing, but not leading, whitespace.
 stripComments :: String -> String
