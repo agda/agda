@@ -13,7 +13,6 @@ module Agda.Interaction.FindFile
   , findFile, findFile', findFile'_, findFile''
   , findInterfaceFile', findInterfaceFile
   , checkModuleName
-  , moduleName
   , rootNameModule
   , replaceModuleExtension
   ) where
@@ -277,40 +276,6 @@ checkModuleName name src0 mexpected = do
       -- test/Fail/customized/NestedProjectRoots
       -- -- typeError $ ModuleNameUnexpected name expected
 
-
--- | Computes the module name of the top-level module in the given
--- file.
---
--- If no top-level module name is given, then an attempt is made to
--- use the file name as a module name.
-
--- TODO: Perhaps it makes sense to move this procedure to some other
--- module.
-
-moduleName
-  :: AbsolutePath
-     -- ^ The path to the file.
-  -> Module
-     -- ^ The parsed module.
-  -> TCM TopLevelModuleName
-moduleName file parsedModule = billTo [Bench.ModuleName] $ do
-  let defaultName = rootNameModule file
-      raw         = rawTopLevelModuleNameForModule parsedModule
-  topLevelModuleName =<< if isNoName raw
-    then setCurrentRange (rangeFromAbsolutePath file) do
-      m <- runPM (fst <$> parse moduleNameParser defaultName)
-             `catchError` \_ ->
-           typeError $ InvalidFileName file DoesNotCorrespondToValidModuleName
-      case m of
-        Qual {} ->
-          typeError $ InvalidFileName file $
-            RootNameModuleNotAQualifiedModuleName $ T.pack defaultName
-        QName {} ->
-          return $ RawTopLevelModuleName
-            { rawModuleNameRange = getRange m
-            , rawModuleNameParts = singleton (T.pack defaultName)
-            }
-    else return raw
 
 parseFileExtsShortList :: List2 String
 parseFileExtsShortList = List2.cons ".agda" literateExtsShortList
