@@ -86,7 +86,6 @@ import qualified Agda.Utils.List2   as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
-import Agda.Utils.String ( trim )
 import Agda.Utils.Tuple ( mapSndM )
 
 import Agda.Version
@@ -548,7 +547,7 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
         return []
       Right file -> embedWriter $ (dot ++) . incs <$> find file [] xs
   where
-    (dots, xs) = List.partition (== libNameForCurrentDir) $ map trim xs0
+    (dots, xs) = List.partition (== libNameForCurrentDir) xs0
     incs       = nubOn id . concatMap _libIncludes
     dot        = [ "." | not $ null dots ]
 
@@ -627,9 +626,9 @@ hasMatch x y = rx == ry && (vx == vy || null vx)
 --   (@unVersionView . versionView@ would produce a normal form.)
 versionView :: LibName -> VersionView
 versionView s =
-  case span (\ c -> isDigit c || c == '.') (reverse s) of
+  case span (\ c -> isDigit c || c == '.') (reverse $ T.unpack s) of
     (v, '-' : x) | valid vs ->
-      VersionView (reverse x) $ reverse $ map (read . reverse) vs
+      VersionView (T.pack $ reverse x) $ reverse $ map (read . reverse) vs
       where vs = chopWhen (== '.') v
             valid [] = False
             valid vs = not $ any null vs
@@ -639,4 +638,4 @@ versionView s =
 unVersionView :: VersionView -> LibName
 unVersionView = \case
   VersionView base [] -> base
-  VersionView base vs -> base ++ "-" ++ List.intercalate "." (map show vs)
+  VersionView base vs -> T.pack $ T.unpack base ++ "-" ++ List.intercalate "." (map show vs)
