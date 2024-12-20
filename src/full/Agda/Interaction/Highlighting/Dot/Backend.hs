@@ -38,6 +38,7 @@ import Agda.Interaction.Options
   , OptDescr(..)
   )
 
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 
 import Agda.TypeChecking.Monad
@@ -55,13 +56,12 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional
   (Graph, WithUniqueInt)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
-import Agda.Syntax.Common.Pretty ( prettyShow )
 
 -- ------------------------------------------------------------------------
 
 data DotFlags = DotFlags
   { dotFlagDestination :: Maybe FilePath
-  , dotFlagLibraries   :: Maybe (HashSet String)
+  , dotFlagLibraries   :: Maybe (HashSet LibName)
     -- ^ Only include modules from the given libraries.
   } deriving (Eq, Generic)
 
@@ -86,16 +86,18 @@ dependencyGraphFlag :: FilePath -> Flag DotFlags
 dependencyGraphFlag f o = return $ o { dotFlagDestination = Just f }
 
 includeFlag :: String -> Flag DotFlags
-includeFlag l o = return $
+includeFlag s o = return $
   o { dotFlagLibraries =
         case dotFlagLibraries o of
           Nothing -> Just (HashSet.singleton l)
           Just s  -> Just (HashSet.insert l s)
     }
+  where
+    l = parseLibName s
 
 data DotCompileEnv = DotCompileEnv
   { dotCompileEnvDestination :: FilePath
-  , dotCompileEnvLibraries   :: Maybe (HashSet String)
+  , dotCompileEnvLibraries   :: Maybe (HashSet LibName)
     -- ^ Only include modules from the given libraries.
   }
 
@@ -191,7 +193,7 @@ postModuleDot cenv DotModuleEnv _main m _defs = do
 
       reportSDoc "dot.include" 10 $ do
         let name = pretty m
-            list = nest 2 . vcat . map (text . _libName)
+            list = nest 2 . vcat . map (pretty . _libName)
         if inLib then
           fsep
             ([ "Including"

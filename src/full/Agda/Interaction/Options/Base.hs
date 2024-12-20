@@ -196,6 +196,7 @@ import Data.Map                 ( Map )
 import qualified Data.Map as Map
 import Data.Set                 ( Set )
 import qualified Data.Set as Set
+import qualified Data.Text as T
 
 import GHC.Generics (Generic)
 
@@ -209,7 +210,7 @@ import Text.Read                ( readMaybe )
 
 import Agda.Termination.CutOff  ( CutOff(..), defaultCutOff )
 
-import Agda.Interaction.Library ( ExeName, LibName, OptionsPragma(..) )
+import Agda.Interaction.Library ( ExeName, LibName, OptionsPragma(..), parseLibName )
 import Agda.Interaction.Options.Help
   ( Help(HelpFor, GeneralHelp)
   , string2HelpTopic
@@ -1193,7 +1194,7 @@ includeFlag :: FilePath -> Flag CommandLineOptions
 includeFlag d o = return $ o { optIncludePaths = d : optIncludePaths o }
 
 libraryFlag :: String -> Flag CommandLineOptions
-libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }
+libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [parseLibName s] }
 
 overrideLibrariesFileFlag :: String -> Flag CommandLineOptions
 overrideLibrariesFileFlag s o =

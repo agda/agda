@@ -112,7 +112,7 @@ import Agda.Interaction.Response.Base (Response_boot(..))
 import Agda.Interaction.Highlighting.Precise
   (HighlightingInfo, NameKind)
 import Agda.Interaction.Library
-import Agda.Interaction.Library.Base ( ExeName, ExeMap, LibErrors )
+import Agda.Interaction.Library.Base ( ExeName, ExeMap, LibCache, LibErrors )
 
 import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.BiMap (BiMap, HasTag(..))
@@ -208,7 +208,7 @@ data PreScopeState = PreScopeState
       -- because then the order of its @toList@ is undefined,
       -- leading to undefined deserialization order.
     -- ^ The top-level modules imported by the current module.
-  , stPreModuleToSourceId   :: !ModuleToSourceId -- imports
+  , stPreModuleToFile       :: !ModuleToFile     -- imports
   , stPreVisitedModules     :: !VisitedModules   -- imports
       -- ^ Modules loaded so far.
       --   In contrast 'stDecodedModules', contains also modules that are only scope-checked.
@@ -238,11 +238,8 @@ data PreScopeState = PreScopeState
     -- ^ Whether the current module should raise a warning when opened
   , stPreImportedPartialDefs :: !(Set QName)
     -- ^ Imported partial definitions, not to be stored in the @Interface@
-  , stPreProjectConfigs :: !(Map FilePath ProjectConfig)
-    -- ^ Map from directories to paths of closest enclosing .agda-lib
-    --   files (or @Nothing@ if there are none).
-  , stPreAgdaLibFiles   :: !(Map FilePath AgdaLibFile)
-    -- ^ Contents of .agda-lib files that have already been parsed.
+  , stPreLibCache            :: !LibCache
+    -- ^ Cached @.agda-lib@ files.
   , stPreImportedMetaStore :: !RemoteMetaStore
     -- ^ Used for meta-variables from other modules.
   , stPreCopiedNames       :: !(HashMap A.QName A.QName)
@@ -472,7 +469,7 @@ initPreScopeState = PreScopeState
   { stPreTokens               = mempty
   , stPreImports              = emptySignature
   , stPreImportedModules      = empty
-  , stPreModuleToSourceId     = Map.empty
+  , stPreModuleToFile         = empty
   , stPreVisitedModules       = Map.empty
   , stPreScope                = emptyScopeInfo
   , stPrePatternSyns          = Map.empty
@@ -486,8 +483,7 @@ initPreScopeState = PreScopeState
   , stPreLocalUserWarnings    = Map.empty
   , stPreWarningOnImport      = empty
   , stPreImportedPartialDefs  = Set.empty
-  , stPreProjectConfigs       = Map.empty
-  , stPreAgdaLibFiles         = Map.empty
+  , stPreLibCache             = empty
   , stPreImportedMetaStore    = HMap.empty
   , stPreCopiedNames          = HMap.empty
   , stPreNameCopies           = HMap.empty
@@ -609,8 +605,8 @@ lensImports f s = f (stPreImports s) <&> \ x -> s { stPreImports = x }
 lensImportedModules :: Lens' PreScopeState ImportedModules
 lensImportedModules f s = f (stPreImportedModules s) <&> \ x -> s { stPreImportedModules = x }
 
-lensModuleToSourceId :: Lens' PreScopeState ModuleToSourceId
-lensModuleToSourceId f s = f (stPreModuleToSourceId s ) <&> \ x -> s { stPreModuleToSourceId = x }
+lensModuleToFile :: Lens' PreScopeState ModuleToFile
+lensModuleToFile f s = f (stPreModuleToFile s ) <&> \ x -> s { stPreModuleToFile = x }
 
 lensVisitedModules :: Lens' PreScopeState VisitedModules
 lensVisitedModules f s = f (stPreVisitedModules s ) <&> \ x -> s { stPreVisitedModules = x }
@@ -648,11 +644,8 @@ lensWarningOnImport f s = f (stPreWarningOnImport s) <&> \ x -> s { stPreWarning
 lensImportedPartialDefs :: Lens' PreScopeState (Set QName)
 lensImportedPartialDefs f s = f (stPreImportedPartialDefs s) <&> \ x -> s { stPreImportedPartialDefs = x }
 
-lensProjectConfigs :: Lens' PreScopeState (Map FilePath ProjectConfig)
-lensProjectConfigs f s = f (stPreProjectConfigs s) <&> \ x -> s { stPreProjectConfigs = x }
-
-lensAgdaLibFiles :: Lens' PreScopeState (Map FilePath AgdaLibFile)
-lensAgdaLibFiles f s = f (stPreAgdaLibFiles s) <&> \ x -> s { stPreAgdaLibFiles = x }
+lensLibCache :: Lens' PreScopeState LibCache
+lensLibCache f s = f (stPreLibCache s) <&> \ x -> s { stPreLibCache = x }
 
 lensImportedMetaStore :: Lens' PreScopeState RemoteMetaStore
 lensImportedMetaStore f s = f (stPreImportedMetaStore s) <&> \x -> s { stPreImportedMetaStore = x }
@@ -812,11 +805,11 @@ stImports = lensPreScopeState . lensImports
 stImportedModules :: Lens' TCState ImportedModules
 stImportedModules = lensPreScopeState . lensImportedModules
 
-stModuleToSourceId :: Lens' TCState ModuleToSourceId
-stModuleToSourceId = lensPreScopeState . lensModuleToSourceId
+stModuleToFile :: Lens' TCState ModuleToFile
+stModuleToFile = lensPreScopeState . lensModuleToFile
 
 stModuleToSource :: Lens' TCState ModuleToSource
-stModuleToSource = lensProduct stFileDict stModuleToSourceId . lensPairModuleToSource
+stModuleToSource = lensProduct stFileDict stModuleToFile . lensPairModuleToSource
 
 stVisitedModules :: Lens' TCState VisitedModules
 stVisitedModules = lensPreScopeState . lensVisitedModules
@@ -866,11 +859,8 @@ stWarningOnImport = lensPreScopeState . lensWarningOnImport . Strict.lensMaybeLa
 stImportedPartialDefs :: Lens' TCState (Set QName)
 stImportedPartialDefs = lensPreScopeState . lensImportedPartialDefs
 
-stProjectConfigs :: Lens' TCState (Map FilePath ProjectConfig)
-stProjectConfigs = lensPreScopeState . lensProjectConfigs
-
-stAgdaLibFiles :: Lens' TCState (Map FilePath AgdaLibFile)
-stAgdaLibFiles = lensPreScopeState . lensAgdaLibFiles
+stLibCache :: Lens' TCState LibCache
+stLibCache = lensPreScopeState . lensLibCache
 
 stImportedMetaStore :: Lens' TCState RemoteMetaStore
 stImportedMetaStore = lensPreScopeState . lensImportedMetaStore
@@ -1220,15 +1210,17 @@ srcFromPath :: MonadFileId m => AbsolutePath -> m SourceFile
 srcFromPath p = SourceFile <$> idFromFile p
 
 instance Pretty ModuleToSource where
-  pretty (ModuleToSource dict mods) = vcat
-    [ hsep [ "-", pretty m, "->", pretty $ getIdFile dict i ]
-    | (m, SourceFile i) <- Map.toList mods
-    ]
+  pretty (ModuleToSource dict (ModuleToFile mods _))
+    | null mods = "(empty)"
+    | otherwise = vcat
+        [ hsep [ "-", pretty m, "->", pretty $ getIdFile dict i ]
+        | (m, SourceFile i) <- Map.toList mods
+        ]
 
 -- | Lookup the path of a top level module name, which must be a known one.
 
 topLevelModuleFilePath :: ModuleToSource -> TopLevelModuleName -> AbsolutePath
-topLevelModuleFilePath (ModuleToSource dict m2s) m =
+topLevelModuleFilePath (ModuleToSource dict (ModuleToFile m2s _)) m =
   getIdFile dict $ srcFileId $ Map.findWithDefault __IMPOSSIBLE__ m m2s
 
 ---------------------------------------------------------------------------
