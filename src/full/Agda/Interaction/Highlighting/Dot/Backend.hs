@@ -4,6 +4,8 @@ module Agda.Interaction.Highlighting.Dot.Backend
   ( dotBackend
   ) where
 
+import Prelude hiding (null)
+
 import Agda.Interaction.Highlighting.Dot.Base (renderDotToFile)
 
 import Control.Monad.Except
@@ -38,6 +40,7 @@ import Agda.Interaction.Options
   , OptDescr(..)
   )
 
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 
 import Agda.TypeChecking.Monad
@@ -55,13 +58,13 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional
   (Graph, WithUniqueInt)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
-import Agda.Syntax.Common.Pretty ( prettyShow )
+import Agda.Utils.Null
 
 -- ------------------------------------------------------------------------
 
 data DotFlags = DotFlags
   { dotFlagDestination :: Maybe FilePath
-  , dotFlagLibraries   :: Maybe (HashSet String)
+  , dotFlagLibraries   :: HashSet LibName
     -- ^ Only include modules from the given libraries.
   } deriving (Eq, Generic)
 
@@ -70,7 +73,7 @@ instance NFData DotFlags
 defaultDotFlags :: DotFlags
 defaultDotFlags = DotFlags
   { dotFlagDestination = Nothing
-  , dotFlagLibraries   = Nothing
+  , dotFlagLibraries   = empty
   }
 
 dotFlagsDescriptions :: [OptDescr (Flag DotFlags)]
@@ -86,17 +89,15 @@ dependencyGraphFlag :: FilePath -> Flag DotFlags
 dependencyGraphFlag f o = return $ o { dotFlagDestination = Just f }
 
 includeFlag :: String -> Flag DotFlags
-includeFlag l o = return $
-  o { dotFlagLibraries =
-        case dotFlagLibraries o of
-          Nothing -> Just (HashSet.singleton l)
-          Just s  -> Just (HashSet.insert l s)
+includeFlag s o = return $
+  o { dotFlagLibraries = HashSet.insert (parseLibName s) $ dotFlagLibraries o
     }
 
 data DotCompileEnv = DotCompileEnv
   { dotCompileEnvDestination :: FilePath
-  , dotCompileEnvLibraries   :: Maybe (HashSet String)
-    -- ^ Only include modules from the given libraries.
+  , dotCompileEnvLibraries   :: HashSet LibName
+      -- ^ Only include modules from the given libraries.
+      --   If the set is empty, include all libraries.
   }
 
 -- Currently unused
@@ -179,9 +180,10 @@ postModuleDot
 postModuleDot cenv DotModuleEnv _main m _defs = do
   i <- curIF
   let importedModuleNames = Set.fromList $ fst <$> (iImportedModules i)
-  include <- case dotCompileEnvLibraries cenv of
-    Nothing -> return True
-    Just ls -> liftTCM $ do
+  let ls = dotCompileEnvLibraries cenv
+  include <- case null ls of
+    True  -> return True
+    False -> liftTCM do
       sf   <- findFile m
       f    <- srcFilePath sf
       libs <- getAgdaLibFiles f m
@@ -191,7 +193,7 @@ postModuleDot cenv DotModuleEnv _main m _defs = do
 
       reportSDoc "dot.include" 10 $ do
         let name = pretty m
-            list = nest 2 . vcat . map (text . _libName)
+            list = nest 2 . vcat . map (pretty . _libName)
         if inLib then
           fsep
             ([ "Including"

@@ -8,22 +8,28 @@ module Agda.TypeChecking.Monad.Base.Types
   )
 where
 
-import Prelude hiding (null)
+import           Prelude                        hiding (null)
 
-import Control.DeepSeq                ( NFData )
-import Data.EnumMap                   ( EnumMap )
-import Data.Functor                   ( (<&>) )
-import Data.Map                       ( Map )
-import GHC.Generics                   ( Generic )
+import           Control.DeepSeq                ( NFData )
+import           Data.EnumMap                   ( EnumMap )
+import           Data.Functor                   ( (<&>) )
+import           Data.Map                       ( Map )
+import qualified Data.Map                       as Map
+import           GHC.Generics                   ( Generic )
 
-import Agda.Syntax.Info               ( MetaNameSuggestion )
-import Agda.Syntax.Internal
-import Agda.Syntax.TopLevelModuleName as X ( TopLevelModuleName )
+import           Agda.Syntax.Info               ( MetaNameSuggestion )
+import           Agda.Syntax.Internal
+import           Agda.Syntax.TopLevelModuleName as X
+  ( TopLevelModuleName, TopLevelModuleNamePart, TopLevelModuleNameParts, moduleNameParts )
 
-import Agda.Utils.FileId              as X ( FileId, FileDictBuilder )
-import Agda.Utils.FileName            as X ( AbsolutePath )
-import Agda.Utils.Lens                ( Lens', (&&&), iso )
-import Agda.Utils.Null                ( Null(..) )
+import           Agda.Utils.BiMapTrieEnum       ( BiMapTrieEnum )
+import qualified Agda.Utils.BiMapTrieEnum       as BiMapTrieEnum
+import           Agda.Utils.FileId              as X ( FileId, FileDictBuilder )
+import           Agda.Utils.FileName            as X ( AbsolutePath )
+import           Agda.Utils.Lens                ( Lens', (&&&), iso )
+import qualified Agda.Utils.List1               as List1
+import           Agda.Utils.Null                ( Null(..) )
+
 
 import Agda.Syntax.Internal           ( Dom, Name, Type )
 import Agda.Syntax.Common
@@ -151,10 +157,33 @@ newtype SourceFile = SourceFile { srcFileId :: FileId }
 
 type ModuleToSourceId = Map TopLevelModuleName SourceFile
 
+type ModuleToFileId = BiMapTrieEnum TopLevelModuleNamePart FileId
+
+data ModuleToFile = ModuleToFile
+  { moduleToSourceId :: !ModuleToSourceId
+  , moduleToFileId   :: !ModuleToFileId
+  } deriving (Generic)
+
 data ModuleToSource = ModuleToSource
   { fileDict         :: !FileDictWithBuiltins
-  , moduleToSourceId :: !ModuleToSourceId
+  , moduleToFile     :: !ModuleToFile
   }
+
+-- ** ModuleToFile structure
+
+-- TODO: move ModuleToFile to its own module (e.g. Agda.FileHandling.ModuleToFile)
+
+insert :: TopLevelModuleName -> SourceFile -> ModuleToFile -> ModuleToFile
+insert x src@(SourceFile fi) (ModuleToFile m2s m2f) = ModuleToFile m2s' m2f'
+  where
+    m2s' = Map.insert x src m2s
+    m2f' = BiMapTrieEnum.insert (List1.toList $ moduleNameParts x) fi m2f
+
+lookupSourceFile :: TopLevelModuleName -> ModuleToFile -> Maybe SourceFile
+lookupSourceFile x = Map.lookup x . moduleToSourceId
+
+lookupModuleName :: FileId -> ModuleToFile -> Maybe TopLevelModuleNameParts
+lookupModuleName fi = fmap List1.fromList . BiMapTrieEnum.lookupInv fi . moduleToFileId
 
 -- ** Lenses
 
@@ -167,8 +196,8 @@ lensFileDictBuiltinModuleIds f s = f (builtinModuleIds s) <&> \ x -> s { builtin
 lensFileDictPrimitiveLibDir :: Lens' FileDictWithBuiltins PrimitiveLibDir
 lensFileDictPrimitiveLibDir f s = f (primitiveLibDir s) <&> \ x -> s { primitiveLibDir = x }
 
-lensPairModuleToSource :: Lens' (FileDictWithBuiltins, ModuleToSourceId) ModuleToSource
-lensPairModuleToSource = iso (uncurry ModuleToSource) (fileDict &&& moduleToSourceId)
+lensPairModuleToSource :: Lens' (FileDictWithBuiltins, ModuleToFile) ModuleToSource
+lensPairModuleToSource = iso (uncurry ModuleToSource) (fileDict &&& moduleToFile)
 
 ---------------------------------------------------------------------------
 -- * Meta variables
@@ -186,6 +215,10 @@ data NamedMeta = NamedMeta
 
 -- Null instances
 
+instance Null ModuleToFile where
+  empty = ModuleToFile empty empty
+  null (ModuleToFile a b) = null a && null b
+
 -- Andreas, 2024-11-10: Let's not have these instances because there is no default primLibDir:
 --
 -- instance Null FileDictWithBuiltins where
@@ -196,9 +229,10 @@ data NamedMeta = NamedMeta
 --   empty = ModuleToSource empty empty
 --   null (ModuleToSource dict m2s) = null dict && null m2s
 
--- NFData instances
+-- NFData instances (alphabetical order)
 
 instance NFData ContextEntry
 instance NFData FileDictWithBuiltins
-instance NFData SourceFile
 instance NFData IsBuiltinModule
+instance NFData ModuleToFile
+instance NFData SourceFile

@@ -58,6 +58,7 @@ import qualified Codec.Compression.Zlib.Internal as Z
 
 import GHC.Compact as C
 
+import qualified Agda.TypeChecking.Monad.Base.Types as ModuleToFile
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Serialise.Base
@@ -78,7 +79,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20241114 * 10 + 0
+currentInterfaceVersion = 20241220 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 
@@ -95,14 +96,15 @@ data Encoded = Encoded
 
 encode :: EmbPrj a => a -> TCM Encoded
 encode a = do
+    m2f <- useTC stModuleToFile
     collectStats <- hasProfileOption Profile.Serialize
-    newD@(Dict nD ltD stD bD iD dD
+    newD@(Dict nD ltD stD bD iD dD fiD
       _nameD
       _qnameD
       nC ltC stC bC iC dC tC
       nameC
       qnameC
-      stats _) <- liftIO $ emptyDict collectStats
+      stats _ _) <- liftIO $ emptyDict collectStats m2f
     root <- liftIO $ (`runReaderT` newD) $ icode a
     nL  <- benchSort $ l nD
     stL <- benchSort $ l stD
@@ -110,6 +112,8 @@ encode a = do
     bL  <- benchSort $ l bD
     iL  <- benchSort $ l iD
     dL  <- benchSort $ l dD
+    fiL <- benchSort $ l fiD
+    let mnL = map (\ fi -> ModuleToFile.lookupModuleName fi m2f) fiL
     -- Record reuse statistics.
     whenProfile Profile.Sharing $ do
       statistics "pointers" tC
@@ -129,7 +133,7 @@ encode a = do
       modifyStatistics $ Map.unionWith (+) stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
-      return $!! B.encode (root, nL, ltL, stL, bL, iL, dL)
+      return $!! B.encode (root, nL, ltL, stL, bL, iL, dL, mnL)
     let compressParams = G.defaultCompressParams
           { G.compressLevel    = G.bestSpeed
           , G.compressStrategy = G.huffmanOnlyStrategy
@@ -139,6 +143,10 @@ encode a = do
     let x = B.encode currentInterfaceVersion <> cbits
     return (Encoded { uncompressed = bits1, compressed = x })
   where
+    -- Since the hashmaps are surjective maps onto an interval @[0..n)@,
+    -- their inverse is an array of length @n@.
+    -- @l@ constructs the contents of this array as a list.
+    -- The deserializer will then build an actual array.
     l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
     benchSort = Bench.billTo [Bench.Serialization, Bench.Sort] . liftIO
     statistics :: String -> IORef FreshAndReuse -> TCM ()
@@ -208,13 +216,14 @@ decode s = do
   -- such errors can be caught by the handler here.
 
   res <- liftIO $ E.handle (\(E.ErrorCall s) -> pure $ Left s) $ do
-    ((r, nL, ltL, stL, bL, iL, dL), s, _) <- return $ runGetState B.get s 0
-    let ar = unListLike
+    ((r, nL, ltL, stL, bL, iL, dL, fiL), s, _) <- return $ runGetState B.get s 0
     when (not (null s)) $ E.throwIO $ E.ErrorCall "Garbage at end."
-    let nL' = ar nL
-    st <- St nL' (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
+    let nL' = unListLike nL
+    st <- St nL' (unListLike ltL) (unListLike stL) (unListLike bL) (unListLike iL) (unListLike dL) (unListLike fiL)
             <$> liftIO (newArray (bounds nL') MEEmpty)
-            <*> return mf <*> return incs
+            <*> pure mf
+            <*> pure incs
+            <*> pure empty
     (r, st) <- runStateT (value r) st
     let !mf = modFile st
     return $ Right (mf, r)
