@@ -574,6 +574,8 @@ resolveInstanceOverlap
   -> TCM [item]
 resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
   wrapper
+    | not overlapOk = pure cands
+
     -- If all the candidates are incoherent: choose the leftmost candidate.
     | all (isIncoherent . candidateOverlap . itemC) cands
     , (c:_) <- cands = pure [c]
@@ -585,8 +587,6 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
     -- If none of the candidates have a special overlap mode: there's no
     -- reason to do any work.
     | all ((DefaultOverlap ==) . candidateOverlap . itemC) cands = pure cands
-
-    | not overlapOk = pure cands
 
     -- If some of the candidates are overlappable/overlapping, then we
     -- should do the work.
@@ -712,7 +712,10 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
 
   case cands of
     [] -> return cands
-    cvd : _ | isIrrelevant rel -> do
+    -- If overlap is not OK, then picking the first instance if the meta is irrelevant
+    -- is also not OK for the same reason: more work might reveal that some of the
+    -- candidates are invalid.
+    cvd : _ | overlapOk, isIrrelevant rel -> do
       reportSLn "tc.instance" 30 "dropSameCandidates: Meta is irrelevant so any candidate will do."
       return [cvd]
     cvd@(_, v, _) : vas
@@ -723,7 +726,7 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
       where
         equal :: (Candidate, Term, a) -> TCM Bool
         equal (c, v', _)
-            | isIncoherent c = return True   -- See 'sinkIncoherent'
+            | overlapOk, isIncoherent c = return True   -- See 'sinkIncoherent'
             | freshMetas v'  = return False  -- If there are fresh metas we can't compare
             | otherwise      =
           verboseBracket "tc.instance" 30 "dropSameCandidates: " $ do
@@ -824,7 +827,7 @@ checkCandidates m t cands =
           debugConstraints
 
           -- Apply hidden and instance arguments (in case of
-          -- --overlapping-instances, this performs recursive
+          -- --backtracking-instance-search, this performs recursive
           -- inst. search!).
           (args, t'') <- implicitArgs (-1) (\h -> notVisible h) t'
 
