@@ -349,7 +349,7 @@ allIrrelevantOrPropTel =
 isFibrant :: (LensSort a, PureTCM m, MonadBlock m) => a -> m Bool
 isFibrant = fromRightM patternViolation . isFibrant'
 
-isFibrant' :: (LensSort a, PureTCM m, MonadBlock m) => a -> m (Either Blocker Bool)
+isFibrant' :: (LensSort a, PureTCM m) => a -> m (Either Blocker Bool)
 isFibrant' s =
   ifBlocked (getSort s) (\ blocker _ -> return $ Left blocker) \ _ ->
     return . Right . \case
@@ -369,11 +369,8 @@ isFibrant' s =
 
 -- | Cofibrant types are those that could be the domain of a fibrant
 --   pi type. (Notion by C. Sattler).
-isCoFibrantSort :: (LensSort a, PureTCM m, MonadBlock m) => a -> m Bool
-isCoFibrantSort = fromRightM patternViolation . isCoFibrantSort'
-
-isCoFibrantSort' :: (LensSort a, PureTCM m, MonadBlock m) => a -> m (Either Blocker Bool)
-isCoFibrantSort' s =
+isCoFibrantSort :: (LensSort a, PureTCM m) => a -> m (Either Blocker Bool)
+isCoFibrantSort s =
   ifBlocked (getSort s) (\ blocker _ -> return $ Left blocker) \ _ ->
     return . Right . \case
       Univ u _       -> univFibrancy u == IsFibrant
