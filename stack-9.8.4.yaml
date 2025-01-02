@@ -1,5 +1,5 @@
-resolver: nightly-2024-09-30
-compiler: ghc-9.8.2
+resolver: lts-23.2
+compiler: ghc-9.8.4
 compiler-check: match-exact
 
 # Local packages specified by relative directory name.

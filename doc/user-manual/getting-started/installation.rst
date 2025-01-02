@@ -308,7 +308,7 @@ Agda has been tested with GHC
 9.2.8,
 9.4.8,
 9.6.6,
-9.8.2 and
+9.8.4 and
 9.10.1.
 
 
