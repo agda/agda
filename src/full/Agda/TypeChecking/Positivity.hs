@@ -276,15 +276,8 @@ checkStrictlyPositive mi qset = do
 
 getDefArity :: Definition -> TCM Int
 getDefArity def = do
-  subtract (projectionArgs def) <$> arity' (defType def)
-  where
-  -- A variant of "\t -> arity <$> instantiateFull t".
-  arity' :: Type -> TCM Int
-  arity' t = do
-    t <- instantiate t
-    case unEl t of
-      Pi _ t -> succ <$> arity' (unAbs t)
-      _      -> return 0
+  TelV tel _ <- telView (defType def)
+  return $ size tel - projectionArgs def
 
 -- Computing occurrences --------------------------------------------------
 
