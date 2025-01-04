@@ -36,8 +36,6 @@ import Agda.Syntax.Parser.Literate (literateExtsShortList)
 import Agda.Syntax.Position
 import Agda.Syntax.TopLevelModuleName
 
-import Agda.Interaction.Options ( optLocalInterfaces )
-
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -45,7 +43,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
   (getIncludeDirs, libToTCM)
 import Agda.TypeChecking.Monad.State ( registerFileIdWithBuiltin, topLevelModuleName )
 import Agda.TypeChecking.Monad.Trace (runPM, setCurrentRange)
-import Agda.TypeChecking.Warnings    (warning)
 
 import Agda.Version ( version )
 
@@ -100,19 +97,7 @@ toIFile (SourceFile fi) = do
       let buildDir = root </> "_build" </> version </> "agda"
       fileName <- liftIO $ makeRelativeCanonical root (filePath localIFile)
       let separatedIFile = mkAbsolute $ buildDir </> fileName
-          ifilePreference = ifM (optLocalInterfaces <$> commandLineOptions)
-            (pure (localIFile, separatedIFile))
-            (pure (separatedIFile, localIFile))
-      separatedIFileExists <- liftIO $ doesFileExistCaseSensitive $ filePath separatedIFile
-      localIFileExists <- liftIO $ doesFileExistCaseSensitive $ filePath localIFile
-      case (separatedIFileExists, localIFileExists) of
-        (False, False) -> fst <$> ifilePreference
-        (False, True) -> pure localIFile
-        (True, False) -> pure separatedIFile
-        (True, True) -> do
-          ifiles <- ifilePreference
-          warning $ uncurry DuplicateInterfaceFiles ifiles
-          pure $ fst ifiles
+      pure separatedIFile
 
 replaceModuleExtension :: String -> AbsolutePath -> AbsolutePath
 replaceModuleExtension ext@('.':_) = mkAbsolute . (++ ext) .  dropAgdaExtension . filePath

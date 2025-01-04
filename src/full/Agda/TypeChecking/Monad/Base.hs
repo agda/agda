@@ -4675,8 +4675,6 @@ data Warning
     -- ^ Face constraint patterns @(i = 0)@ must be unnamed arguments.
 
   -- Not source code related
-  | DuplicateInterfaceFiles AbsolutePath AbsolutePath
-    -- ^ `DuplicateInterfaceFiles selectedInterfaceFile ignoredInterfaceFile`
   | CustomBackendWarning String Doc
     -- ^ Used for backend-specific warnings. The string is the backend name.
   deriving (Show, Generic)
@@ -4799,9 +4797,6 @@ warningName = \case
   FaceConstraintCannotBeHidden{} -> FaceConstraintCannotBeHidden_
   FaceConstraintCannotBeNamed{}  -> FaceConstraintCannotBeNamed_
 
-  -- Not source code related
-  DuplicateInterfaceFiles{}      -> DuplicateInterfaceFiles_
-
   -- Backend warnings
   CustomBackendWarning{} -> CustomBackendWarning_
 
@@ -4829,7 +4824,6 @@ illegalRewriteWarningName = \case
 --
 isSourceCodeWarning :: WarningName -> Bool
 isSourceCodeWarning = \case
-  DuplicateInterfaceFiles_ -> False
   WarningProblem_ -> False
   _ -> True
 

@@ -101,8 +101,6 @@ instance EmbPrj Warning where
     FaceConstraintCannotBeHidden a        -> icodeN 47 FaceConstraintCannotBeHidden a
     FaceConstraintCannotBeNamed a         -> icodeN 48 FaceConstraintCannotBeNamed a
     PatternShadowsConstructor a b         -> icodeN 49 PatternShadowsConstructor a b
-    -- Not source code related, therefore they should never be serialized
-    DuplicateInterfaceFiles a b           -> __IMPOSSIBLE__
     ConfluenceCheckingIncompleteBecauseOfMeta a -> icodeN 50 ConfluenceCheckingIncompleteBecauseOfMeta a
     BuiltinDeclaresIdentifier a                 -> icodeN 51 BuiltinDeclaresIdentifier a
     ConfluenceForCubicalNotSupported            -> icodeN 52 ConfluenceForCubicalNotSupported

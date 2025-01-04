@@ -375,8 +375,6 @@ data WarningName
   -- Cubical
   | FaceConstraintCannotBeHidden_
   | FaceConstraintCannotBeNamed_
-  -- Not source code related
-  | DuplicateInterfaceFiles_
   -- Backends
   | CustomBackendWarning_
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
@@ -609,7 +607,5 @@ warningNameDescription = \case
   -- Cubical
   FaceConstraintCannotBeHidden_    -> "Face constraint patterns that are given as implicit arguments."
   FaceConstraintCannotBeNamed_     -> "Face constraint patterns that are given as named arguments."
-  -- Not source code related
-  DuplicateInterfaceFiles_         -> "Duplicate interface files."
   -- Backends
   CustomBackendWarning_            -> "Custom warnings from backends."

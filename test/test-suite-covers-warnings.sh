@@ -24,7 +24,6 @@ ${AGDA_BIN:-agda} --help=warning | sed -nr 's/^([A-Z][a-z]+[A-Z][A-Za-z]+).*/\1/
 cat > $BENIGNWARNS <<EOF
 CustomBackendWarning
 DeprecationWarning
-DuplicateInterfaceFiles
 LibUnknownField
 EOF
 

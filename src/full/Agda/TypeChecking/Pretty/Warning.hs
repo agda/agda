@@ -283,13 +283,6 @@ prettyWarning = \case
 
     ParseWarning pw -> pretty pw
 
-    DuplicateInterfaceFiles selected ignored -> vcat
-      [ fwords "There are two interface files:"
-      , nest 4 $ text $ filePath selected
-      , nest 4 $ text $ filePath ignored
-      , nest 2 $ fsep $ pwords "Using" ++ [text $ filePath selected] ++ pwords "for now but please remove at least one of them."
-      ]
-
     DeprecationWarning old new version -> fsep $
       [text old] ++ pwords "has been deprecated. Use" ++ [text new] ++ pwords
       "instead. This will be an error in Agda" ++ [text version <> "."]
