@@ -38,9 +38,6 @@ import Agda.Syntax.Common
 --   more fine-grained control.
 data Capability = CapTCM | CapReduce
 
-class CapIO (c :: Capability)
-instance CapIO 'CapTCM
-
 ---------------------------------------------------------------------------
 -- * Context
 ---------------------------------------------------------------------------

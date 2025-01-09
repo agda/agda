@@ -40,11 +40,6 @@ type MonadPretty m =
   , Semigroup (m Doc)
   )
 
--- This instance is to satify the constraints of superclass MonadPretty:
--- This instance is more specific than a generic instance
--- @Semigroup a => Semigroup (TCM a)@.
-instance {-# OVERLAPPING #-} Semigroup (TCM Doc)
-
 class PrettyTCM a where
   prettyTCM :: MonadPretty m => a -> m Doc
 

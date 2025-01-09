@@ -178,12 +178,6 @@ superscript = pretty . reverse . go where
 
 type MonadPretty m = MonadAbsToCon m
 
--- This instance is to satify the constraints of superclass MonadPretty:
--- | This instance is more specific than a generic instance
--- @Semigroup a => Semigroup (TCM a)@.
-instance {-# OVERLAPPING #-} Semigroup (TCM Doc) where
-  (<>) = liftA2 (<>) ; {-# INLINE (<>) #-}
-
 class PrettyTCM a where
   prettyTCM :: MonadPretty m => a -> m Doc
 

@@ -6020,10 +6020,10 @@ instance Monad m => Monad (TCMTC c m) where
     (>>=)  = bindTCMT; {-# INLINE (>>=) #-}
     (>>)   = (*>); {-# INLINE (>>) #-}
 
-instance (CapIO c, CatchIO m, MonadIO m) => MonadFail (TCMTC c m) where
+instance (CatchIO m, MonadIO m) => MonadFail (TCMTC c m) where
   fail = internalError
 
-instance (CapIO c, MonadIO m) => MonadIO (TCMTC c m) where
+instance MonadIO m => MonadIO (TCMTC c m) where
   liftIO m = TCM $ \ s env -> do
     liftIO $ wrap s (envRange env) $ do
       x <- m
@@ -6058,7 +6058,7 @@ instance MonadBlock TCM where
            PatternErr u -> handle u
            _            -> throwError err
 
-instance (CatchIO m, CapIO c, MonadIO m) => MonadError TCErr (TCMTC c m) where
+instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMTC c m) where
   throwError = liftIO . E.throwIO
   catchError m h = TCM $ \ r e -> do  -- now we are in the monad m
     oldState <- liftIO $ readIORef r
@@ -6121,7 +6121,7 @@ catchError_ m h = TCM $ \r e ->
 --   Does not catch any errors.
 --   In case both the regular computation and the finalizer
 --   throw an exception, the one of the finalizer is propagated.
-finally_ :: CapIO c => TCMC c a -> TCMC c b -> TCMC c a
+finally_ :: TCMC c a -> TCMC c b -> TCMC c a
 finally_ m f = do
     x <- m `catchError_` \ err -> f >> throwError err
     _ <- f
@@ -6154,21 +6154,14 @@ instance MonadTCM tcm => MonadTCM (ReaderT r tcm)
 instance MonadTCM tcm => MonadTCM (StateT s tcm)
 instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm)
 
-class CapIO c => CapBench (c :: Capability)
-instance CapBench 'CapTCM
-
 -- | We store benchmark statistics in an IORef.
 --   This enables benchmarking pure computation, see
 --   "Agda.Benchmarking".
-instance CapBench c => MonadBench (TCMC c) where
+instance MonadBench (TCMC c) where
   type BenchPhase (TCMC c) = Phase
   getBenchmark = liftIO $ getBenchmark
   putBenchmark = liftIO . putBenchmark
   finally = finally_
-
-instance Null (TCM Doc) where
-  empty = return empty
-  null = __IMPOSSIBLE__
 
 internalError :: (HasCallStack, MonadTCError m) => String -> m a
 internalError s = withCallerCallStack $ \ loc ->

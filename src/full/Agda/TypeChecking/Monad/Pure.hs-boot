@@ -26,7 +26,7 @@ class
   , ReadTCState m
   ) => PureTCM m where
 
-instance (CapIO c, CapDebug c, CapInteractionPoints c) => PureTCM (TCMC c) where
+instance CapInteractionPoints c => PureTCM (TCMC c) where
 instance PureTCM m => PureTCM (ExceptT e m)
 instance PureTCM m => PureTCM (IdentityT m)
 instance PureTCM m => PureTCM (MaybeT m)

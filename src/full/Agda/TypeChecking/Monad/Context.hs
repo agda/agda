@@ -222,7 +222,7 @@ instance MonadAddContext m => MonadAddContext (ListT m) where
 -- | Run the given TCM action, and register the given variable as
 --   being shadowed by all the names with the same root that are added
 --   to the context during this TCM action.
-withShadowingNameTCM :: (CapDebug c, CapIO c) => Name -> TCMC c b -> TCMC c b
+withShadowingNameTCM :: Name -> TCMC c b -> TCMC c b
 withShadowingNameTCM x f = do
   reportSDoc "tc.cxt.shadowing" 80 $ pure $ "registered" <+> pretty x <+> "for shadowing"
   when (isInScope x == InScope) $ tellUsedName x
@@ -255,7 +255,7 @@ withShadowingNameTCM x f = do
           modifyTCLens stShadowingNames $ Map.insertWith (<>) x shadows
         Nothing      -> return ()
 
-instance (CapIO c, CapDebug c) => MonadAddContext (TCMC c) where
+instance MonadAddContext (TCMC c) where
   addCtx x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddCtx x a ret
 

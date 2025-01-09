@@ -848,7 +848,7 @@ notSoPrettySigCubicalNotErasure q =
 
 -- | Generates an error message corresponding to
 -- 'SigCubicalNotErasure' for a given 'QName'.
-prettySigCubicalNotErasure :: MonadPretty m => QName -> m Doc
+prettySigCubicalNotErasure :: CapInteractionPoints c => QName -> TCMC c Doc
 prettySigCubicalNotErasure q = fsep $
   pwords "The name" ++
   [prettyTCM q] ++
@@ -932,7 +932,7 @@ defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
 getOriginalProjection :: HasConstInfo m => QName -> m QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
-instance (CapIO c, CapDebug c, CapInteractionPoints c) => HasConstInfo (TCMC c) where
+instance CapInteractionPoints c => HasConstInfo (TCMC c) where
   getRewriteRulesFor = defaultGetRewriteRulesFor
   getConstInfo' q = do
     st  <- getTC

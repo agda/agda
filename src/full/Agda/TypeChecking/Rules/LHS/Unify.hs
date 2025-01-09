@@ -211,7 +211,7 @@ data UnificationResult' a
 --
 --   The result is the most general unifier of @us@ and @vs@.
 unifyIndices
-  :: (CapDebug c, CapBench c, CapInteractionPoints c)
+  :: CapInteractionPoints c
   => Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
   -> Telescope       -- ^ @gamma@
   -> FlexibleVars    -- ^ @flex@
@@ -225,7 +225,7 @@ unifyIndices linv tel flex a us vs =
       (fmap (\(a,b,c,_) -> (a,b,c)) <$> unifyIndices' linv tel flex a us vs)
 
 unifyIndices'
-  :: (CapDebug c, CapBench c, CapInteractionPoints c, Monoid w)
+  :: (CapInteractionPoints c, Monoid w)
   => Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
   -> Telescope     -- ^ @gamma@
   -> FlexibleVars  -- ^ @flex@
@@ -266,7 +266,7 @@ unifyIndices' linv tel flex a us vs = do
 
 
 type UnifyStrategyM w c = ListT (WriterT w (TCMC c))
-type UnifyStrategy = forall w c. (Monoid w, CapIO c, CapInteractionPoints c, CapDebug c)
+type UnifyStrategy = forall w c. (Monoid w, CapInteractionPoints c)
                       => UnifyState -> UnifyStrategyM w c UnifyStep
 
 
@@ -441,7 +441,7 @@ etaExpandEquationStrategy k s = do
     ]
   return $ EtaExpandEquation k d pars
   where
-    shouldProject :: (Monoid w, CapIO c, CapDebug c, CapInteractionPoints c) => Term -> UnifyStrategyM w c Bool
+    shouldProject :: (Monoid w, CapInteractionPoints c) => Term -> UnifyStrategyM w c Bool
     shouldProject = \case
       Def f es   -> usesCopatterns f
       Con c _ _  -> isJust <$> isRecordConstructor (conName c)
@@ -526,7 +526,7 @@ skipIrrelevantStrategy k s = do
 ----------------------------------------------------
 
 unifyStep
-  :: (CapIO c, CapDebug c, CapBench c, CapInteractionPoints c)
+  :: CapInteractionPoints c
   => UnifyState -> UnifyStep -> UnifyLogStepT (TCMC c) (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
@@ -780,7 +780,7 @@ data RetryNormalised = RetryNormalised | DontRetryNormalised
   deriving (Eq, Show)
 
 solutionStep
-  :: (CapIO c, CapDebug c, CapInteractionPoints c)
+  :: CapInteractionPoints c
   => RetryNormalised
   -> UnifyState
   -> UnifyStep
@@ -895,7 +895,7 @@ solutionStep retry s
 solutionStep _ _ _ = __IMPOSSIBLE__
 
 unify
-  :: forall c. (CapIO c, CapDebug c, CapBench c, CapInteractionPoints c)
+  :: forall c. CapInteractionPoints c
   => UnifyState -> UnifyStrategy -> UnifyLogT (TCMC c) (UnificationResult' UnifyState)
 unify s strategy = if isUnifyStateSolved s
                    then return $ Unifies s
@@ -944,7 +944,7 @@ unify s strategy = if isUnifyStateSolved s
 
 -- | Turn a term into a pattern while binding as many of the given forced variables as possible (in
 --   non-forced positions).
-patternBindingForcedVars :: (CapIO c, CapDebug c, CapInteractionPoints c)
+patternBindingForcedVars :: CapInteractionPoints c
                          => IntMap Modality
                          -> Term
                          -> UnifyLogStepT (TCMC c) (DeBruijnPattern, IntMap Modality)

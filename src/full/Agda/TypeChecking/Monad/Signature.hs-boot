@@ -11,10 +11,9 @@ import Agda.Syntax.Internal (ModuleName, Telescope)
 import Agda.TypeChecking.Monad.Base
   ( TCM, TCMC, ReadTCState, HasOptions, MonadTCEnv
   , Definition, RewriteRules
-  , CapIO
   )
 import {-# SOURCE #-} Agda.TypeChecking.Monad.MetaVars (CapInteractionPoints)
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug (CapDebug, MonadDebug)
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug (MonadDebug)
 
 import Agda.Syntax.Common.Pretty (prettyShow)
 
@@ -50,7 +49,7 @@ class ( Functor m
 instance HasConstInfo m => HasConstInfo (ReaderT r m)
 instance HasConstInfo m => HasConstInfo (StateT s m)
 
-instance (CapIO c, CapDebug c, CapInteractionPoints c) => HasConstInfo (TCMC c) where
+instance CapInteractionPoints c => HasConstInfo (TCMC c) where
 
 inFreshModuleIfFreeParams :: TCM a -> TCM a
 lookupSection :: (Functor m, ReadTCState m) => ModuleName -> m Telescope

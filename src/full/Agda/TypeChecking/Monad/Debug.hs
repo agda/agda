@@ -141,11 +141,7 @@ catchAndPrintImpossible k n m = catchImpossibleJust catchMe m $ \ imposs -> do
     Unreachable{}           -> False
     ImpMissingDefinitions{} -> False
 
-class CapDebug (c :: Capability)
-instance CapDebug 'CapTCM
-instance CapDebug 'CapReduce
-
-instance (CapIO c, CapDebug c) => MonadDebug (TCMC c) where
+instance MonadDebug (TCMC c) where
 
   traceDebugMessage k n s cont = do
     -- Andreas, 2019-08-20, issue #4016:

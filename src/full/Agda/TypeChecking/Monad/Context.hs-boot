@@ -11,7 +11,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.TypeChecking.Monad.Base
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug
 
 checkpointSubstitution :: MonadTCEnv tcm => CheckpointId -> tcm Substitution
 
@@ -48,4 +47,4 @@ instance MonadAddContext m => MonadAddContext (IdentityT m) where
 instance MonadAddContext m => MonadAddContext (ReaderT r m) where
 instance MonadAddContext m => MonadAddContext (StateT r m) where
 
-instance (CapIO c, CapDebug c) => MonadAddContext (TCMC c) where
+instance MonadAddContext (TCMC c) where
