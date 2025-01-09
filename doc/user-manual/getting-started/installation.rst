@@ -336,6 +336,10 @@ When installing Agda the following flags can be used:
      Enable debug mode in the parser. This makes parsing slower.
      Default: off.
 
+.. option:: dump-core
+     Save GHC Core output during compilation of Agda.
+     Default: off.
+
 .. option:: enable-cluster-counting
 
      Enable :ref:`cluster counting <grapheme-clusters>`.

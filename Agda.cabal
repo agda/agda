@@ -161,6 +161,11 @@ source-repository this
 -- Build flags
 ---------------------------------------------------------------------------
 
+flag dump-core
+  default: False
+  manual: True
+  description: Write GHC core output.
+
 flag debug
   default: False
   manual: True
@@ -216,6 +221,12 @@ common language
     ghc-options:
       -fexpose-all-unfoldings
       -fspecialise-aggressively
+
+  if flag(dump-core)
+    ghc-options:
+      -dsuppress-coercions -ddump-simpl -dsuppress-idinfo
+      -dsuppress-type-applications -dsuppress-uniques
+      -dsuppress-module-prefixes -ddump-to-file
 
   ghc-options:
       -- ASR (2022-05-31). Workaround to Issue #5932.
