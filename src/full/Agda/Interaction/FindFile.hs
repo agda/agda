@@ -13,7 +13,6 @@ module Agda.Interaction.FindFile
   , findFile, findFile', findFile'_, findFile''
   , findInterfaceFile', findInterfaceFile
   , checkModuleName
-  , moduleName
   , rootNameModule
   , replaceModuleExtension
   ) where
@@ -37,8 +36,6 @@ import Agda.Syntax.Parser.Literate (literateExtsShortList)
 import Agda.Syntax.Position
 import Agda.Syntax.TopLevelModuleName
 
-import Agda.Interaction.Options ( optLocalInterfaces )
-
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -46,7 +43,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
   (getIncludeDirs, libToTCM)
 import Agda.TypeChecking.Monad.State ( registerFileIdWithBuiltin, topLevelModuleName )
 import Agda.TypeChecking.Monad.Trace (runPM, setCurrentRange)
-import Agda.TypeChecking.Warnings    (warning)
 
 import Agda.Version ( version )
 
@@ -101,19 +97,7 @@ toIFile (SourceFile fi) = do
       let buildDir = root </> "_build" </> version </> "agda"
       fileName <- liftIO $ makeRelativeCanonical root (filePath localIFile)
       let separatedIFile = mkAbsolute $ buildDir </> fileName
-          ifilePreference = ifM (optLocalInterfaces <$> commandLineOptions)
-            (pure (localIFile, separatedIFile))
-            (pure (separatedIFile, localIFile))
-      separatedIFileExists <- liftIO $ doesFileExistCaseSensitive $ filePath separatedIFile
-      localIFileExists <- liftIO $ doesFileExistCaseSensitive $ filePath localIFile
-      case (separatedIFileExists, localIFileExists) of
-        (False, False) -> fst <$> ifilePreference
-        (False, True) -> pure localIFile
-        (True, False) -> pure separatedIFile
-        (True, True) -> do
-          ifiles <- ifilePreference
-          warning $ uncurry DuplicateInterfaceFiles ifiles
-          pure $ fst ifiles
+      pure separatedIFile
 
 replaceModuleExtension :: String -> AbsolutePath -> AbsolutePath
 replaceModuleExtension ext@('.':_) = mkAbsolute . (++ ext) .  dropAgdaExtension . filePath
@@ -277,40 +261,6 @@ checkModuleName name src0 mexpected = do
       -- test/Fail/customized/NestedProjectRoots
       -- -- typeError $ ModuleNameUnexpected name expected
 
-
--- | Computes the module name of the top-level module in the given
--- file.
---
--- If no top-level module name is given, then an attempt is made to
--- use the file name as a module name.
-
--- TODO: Perhaps it makes sense to move this procedure to some other
--- module.
-
-moduleName
-  :: AbsolutePath
-     -- ^ The path to the file.
-  -> Module
-     -- ^ The parsed module.
-  -> TCM TopLevelModuleName
-moduleName file parsedModule = billTo [Bench.ModuleName] $ do
-  let defaultName = rootNameModule file
-      raw         = rawTopLevelModuleNameForModule parsedModule
-  topLevelModuleName =<< if isNoName raw
-    then setCurrentRange (rangeFromAbsolutePath file) do
-      m <- runPM (fst <$> parse moduleNameParser defaultName)
-             `catchError` \_ ->
-           typeError $ InvalidFileName file DoesNotCorrespondToValidModuleName
-      case m of
-        Qual {} ->
-          typeError $ InvalidFileName file $
-            RootNameModuleNotAQualifiedModuleName $ T.pack defaultName
-        QName {} ->
-          return $ RawTopLevelModuleName
-            { rawModuleNameRange = getRange m
-            , rawModuleNameParts = singleton (T.pack defaultName)
-            }
-    else return raw
 
 parseFileExtsShortList :: List2 String
 parseFileExtsShortList = List2.cons ".agda" literateExtsShortList

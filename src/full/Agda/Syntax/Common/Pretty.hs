@@ -136,16 +136,21 @@ instance Pretty AbsolutePath where
 instance Pretty RangeFile where
   pretty = pretty . rangeFilePath
 
+prettyLineColumn :: Position' a -> Doc
+prettyLineColumn (Pn _ _ l c) = pretty l <> dot <> pretty c
+
 instance Pretty a => Pretty (Position' (Strict.Maybe a)) where
-  pretty (Pn Strict.Nothing  _ l c) = pretty l <> dot <> pretty c
-  pretty (Pn (Strict.Just f) _ l c) =
-    pretty f <> colon <> pretty l <> dot <> pretty c
+  pretty p = case srcFile p of
+    Strict.Nothing -> prettyLineColumn p
+    Strict.Just f  -> pretty f <> colon <> prettyLineColumn p
 
 instance Pretty PositionWithoutFile where
-  pretty p = pretty (p { srcFile = Strict.Nothing } :: Position)
+  pretty = prettyLineColumn
 
 instance Pretty IntervalWithoutFile where
-  pretty (Interval () s e) = start <> "-" <> end
+  pretty (Interval () s e)
+    | s == e    = start
+    | otherwise = start <> "-" <> end
     where
       sl = posLine s
       el = posLine e

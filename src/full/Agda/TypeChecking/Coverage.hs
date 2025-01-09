@@ -1251,7 +1251,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
         -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
         -- cons = constructors of this datatype
         (dr, d, s, pars, ixs, cons', isHIT) <- inContextOfT $ isDatatype ind t
-        isFib <- lift $ isFibrant t
+        isFib <- fromRight (const False) <$> lift (isFibrant' t)
         cons <- case checkEmpty of
           CheckEmpty   -> ifM (liftTCM $ inContextOfT $ isEmptyType $ unDom t) (pure []) (pure cons')
           NoCheckEmpty -> pure cons'

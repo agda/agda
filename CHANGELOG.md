@@ -13,6 +13,8 @@ Installation
 Pragmas and options
 -------------------
 
+* Option `--local-interfaces` and warning `DuplicateInterfaceFiles` have been removed.
+
 * New warning `InvalidDisplayForm` instead of hard error
   when a display form is illegal (and thus ignored).
 

@@ -99,7 +99,7 @@ Data types
 ^^^^^^^^^^
 
 Non-opaque Haskell data types can be mapped to Agda datatypes using the ``data`` form
-of the ``COMPILED`` pragma::
+of the ``COMPILE`` pragma::
 
   data Maybe (A : Set) : Set where
     nothing : Maybe A

@@ -2061,13 +2061,13 @@ checkSortOfSplitVar dr a tel mtarget = do
 
     -- Cofibrant types are those that could be the domain of a fibrant
     -- pi type. (Notion by C. Sattler).
-    checkIsCoFibrant t = runBlocked (isCoFibrantSort t) >>= \case
+    checkIsCoFibrant t = isCoFibrantSort t >>= \case
       Left b      -> splitOnFibrantError' t $ Just b
       Right False -> unlessM (isInterval t) $
                        splitOnFibrantError' t $ Nothing
       Right True  -> return ()
 
-    checkIsFibrant t = runBlocked (isFibrant t) >>= \case
+    checkIsFibrant t = isFibrant' t >>= \case
       Left b      -> splitOnFibrantError $ Just b
       Right False -> splitOnFibrantError Nothing
       Right True  -> return ()

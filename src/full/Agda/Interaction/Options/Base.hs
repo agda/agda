@@ -196,6 +196,7 @@ import Data.Map                 ( Map )
 import qualified Data.Map as Map
 import Data.Set                 ( Set )
 import qualified Data.Set as Set
+import qualified Data.Text as T
 
 import GHC.Generics (Generic)
 
@@ -209,7 +210,7 @@ import Text.Read                ( readMaybe )
 
 import Agda.Termination.CutOff  ( CutOff(..), defaultCutOff )
 
-import Agda.Interaction.Library ( ExeName, LibName, OptionsPragma(..) )
+import Agda.Interaction.Library ( ExeName, LibName, OptionsPragma(..), parseLibName )
 import Agda.Interaction.Options.Help
   ( Help(HelpFor, GeneralHelp)
   , string2HelpTopic
@@ -678,7 +679,6 @@ defaultOptions = Options
   , optGenerateVimFile       = False
   , optIgnoreInterfaces      = False
   , optIgnoreAllInterfaces   = False
-  , optLocalInterfaces       = False
   , optPragmaOptions         = defaultPragmaOptions
   , optOnlyScopeChecking     = False
   , optTransliterate         = False
@@ -1090,9 +1090,6 @@ ignoreInterfacesFlag o = return $ o { optIgnoreInterfaces = True }
 ignoreAllInterfacesFlag :: Flag CommandLineOptions
 ignoreAllInterfacesFlag o = return $ o { optIgnoreAllInterfaces = True }
 
-localInterfacesFlag :: Flag CommandLineOptions
-localInterfacesFlag o = return $ o { optLocalInterfaces = True }
-
 traceImportsFlag :: Maybe String -> Flag CommandLineOptions
 traceImportsFlag arg o = do
   mode <- case arg of
@@ -1193,7 +1190,7 @@ includeFlag :: FilePath -> Flag CommandLineOptions
 includeFlag d o = return $ o { optIncludePaths = d : optIncludePaths o }
 
 libraryFlag :: String -> Flag CommandLineOptions
-libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }
+libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [parseLibName s] }
 
 overrideLibrariesFileFlag :: String -> Flag CommandLineOptions
 overrideLibrariesFileFlag s o =
@@ -1309,8 +1306,6 @@ standardOptions =
                     "generate Vim highlighting files"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
                     "ignore interface files (re-type check everything)"
-    , Option []     ["local-interfaces"] (NoArg localInterfacesFlag)
-                    "put new interface files next to the Agda files they correspond to"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
                     "look for imports in DIR"
     , Option ['l']  ["library"] (ReqArg libraryFlag "LIB")
@@ -1335,6 +1330,7 @@ deadStandardOptions :: [OptDescr (Flag CommandLineOptions)]
 deadStandardOptions =
     [ removedOption "sharing"    msgSharing
     , removedOption "no-sharing" msgSharing
+    , removedOption "local-interfaces" "(in 2.8.0)"
     , Option []     ["ignore-all-interfaces"] (NoArg ignoreAllInterfacesFlag) -- not deprecated! Just hidden
                     "ignore all interface files (re-type check everything, including builtin files)"
       -- https://github.com/agda/agda/issues/3522#issuecomment-461010898

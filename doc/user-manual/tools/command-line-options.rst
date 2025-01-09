@@ -312,14 +312,6 @@ Imports and libraries
 
      Use ``FILE`` instead of the standard ``libraries`` file.
 
-.. option:: --local-interfaces
-
-     .. versionadded:: 2.6.1
-
-     Prefer to read and write interface files next to the Agda files they
-     correspond to (i.e. do not attempt to regroup them in a ``_build/``
-     directory at the project's root, except if they already exist there).
-
 .. option:: --no-default-libraries
 
      .. versionadded:: 2.5.1
@@ -1289,10 +1281,6 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 .. option:: DuplicateFields
 
      ``record`` expression with duplicate field names.
-
-.. option:: DuplicateInterfaceFiles
-
-     There exists both a local interface file and an interface file in ``_build``.
 
 .. option:: DuplicateRecordDirective
 

@@ -419,6 +419,7 @@ instance Reduce Type where
     reduceB' (El s t) = workOnTypes $ fmap (El s) <$> reduceB' t
 
 instance Reduce Sort where
+    -- Does not return a 'NotBlocked' 'PiSort', 'FunSort', or 'UnivSort'.
     reduceB' s = do
       s <- instantiate' s
       let done | MetaS x _ <- s = return $ blocked x s

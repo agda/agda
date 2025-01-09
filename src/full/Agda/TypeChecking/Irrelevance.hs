@@ -86,9 +86,12 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute.Class
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.Either (fromRightM)
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+
+import Agda.Utils.Impossible
 
 -- | Check whether something can be used in a position of the given relevance.
 --
@@ -343,37 +346,42 @@ allIrrelevantOrPropTel =
 
 -- | Is a type fibrant (i.e. Type, Prop)?
 
-isFibrant
-  :: (LensSort a, PureTCM m, MonadBlock m)
-  => a -> m Bool
-isFibrant a = abortIfBlocked (getSort a) <&> \case
-  Univ u _   -> univFibrancy u == IsFibrant
-  Inf u _    -> univFibrancy u == IsFibrant
-  SizeUniv{} -> False
-  LockUniv{} -> False
-  LevelUniv{}  -> False
-  IntervalUniv{} -> False
-  PiSort{}   -> False
-  FunSort{}  -> False
-  UnivSort{} -> False
-  MetaS{}    -> False
-  DefS{}     -> False
-  DummyS{}   -> False
+isFibrant :: (LensSort a, PureTCM m, MonadBlock m) => a -> m Bool
+isFibrant = fromRightM patternViolation . isFibrant'
+
+isFibrant' :: (LensSort a, PureTCM m) => a -> m (Either Blocker Bool)
+isFibrant' s =
+  ifBlocked (getSort s) (\ blocker _ -> return $ Left blocker) \ _ ->
+    return . Right . \case
+      Univ u _       -> univFibrancy u == IsFibrant
+      Inf u _        -> univFibrancy u == IsFibrant
+      SizeUniv{}     -> False
+      LockUniv{}     -> False
+      LevelUniv{}    -> False
+      IntervalUniv{} -> False
+      PiSort{}       -> __IMPOSSIBLE__
+      FunSort{}      -> __IMPOSSIBLE__
+      UnivSort{}     -> __IMPOSSIBLE__
+      MetaS{}        -> __IMPOSSIBLE__
+      DefS{}         -> False
+      DummyS{}       -> False
 
 
 -- | Cofibrant types are those that could be the domain of a fibrant
 --   pi type. (Notion by C. Sattler).
-isCoFibrantSort :: (LensSort a, PureTCM m, MonadBlock m) => a -> m Bool
-isCoFibrantSort a = abortIfBlocked (getSort a) <&> \case
-  Univ u _   -> univFibrancy u == IsFibrant
-  Inf u _    -> univFibrancy u == IsFibrant
-  SizeUniv{} -> False
-  LockUniv{} -> True
-  LevelUniv{}  -> False
-  IntervalUniv{} -> True
-  PiSort{}   -> False
-  FunSort{}  -> False
-  UnivSort{} -> False
-  MetaS{}    -> False
-  DefS{}     -> False
-  DummyS{}   -> False
+isCoFibrantSort :: (LensSort a, PureTCM m) => a -> m (Either Blocker Bool)
+isCoFibrantSort s =
+  ifBlocked (getSort s) (\ blocker _ -> return $ Left blocker) \ _ ->
+    return . Right . \case
+      Univ u _       -> univFibrancy u == IsFibrant
+      Inf u _        -> univFibrancy u == IsFibrant
+      SizeUniv{}     -> False
+      LockUniv{}     -> True
+      LevelUniv{}    -> False
+      IntervalUniv{} -> True
+      PiSort{}       -> __IMPOSSIBLE__
+      FunSort{}      -> __IMPOSSIBLE__
+      UnivSort{}     -> __IMPOSSIBLE__
+      MetaS{}        -> __IMPOSSIBLE__
+      DefS{}         -> False
+      DummyS{}       -> False

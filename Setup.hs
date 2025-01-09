@@ -76,15 +76,12 @@ copyHook' pd lbi hooks flags = do
 -- If we're installing *just* the library, the interface files are not needed
 -- and, most importantly, the executable will not be available to be run (cabal#10235)
 wantInterfaces :: CopyFlags -> Bool
-wantInterfaces _flags = do
-#if MIN_VERSION_Cabal(3,11,0)
-    any isAgdaExe (copyArgs _flags)
+wantInterfaces flags =
+    null args || any isAgdaExe args
       where
+        args = copyArgs flags
         isAgdaExe "exe:agda" = True
         isAgdaExe _ = False
-#else
-  True
-#endif
 
 -- Used to add .agdai files to data-files
 expandAgdaExt :: PackageDescription -> FilePath -> [FilePath]

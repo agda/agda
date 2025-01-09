@@ -41,6 +41,7 @@ import qualified Data.HashMap.Strict as HMap
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 
 import System.Directory (doesFileExist, removeFile)
@@ -53,11 +54,17 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty hiding (Mode)
 import Agda.Syntax.Parser
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.TopLevelModuleName
-import Agda.Syntax.Translation.ConcreteToAbstract as CToA
+import Agda.Syntax.Translation.ConcreteToAbstract
+  ( TopLevel( TopLevel )
+  , TopLevelInfo( TopLevelInfo, topLevelDecls, topLevelScope)
+  , checkAttributes, concreteToAbstract_
+  )
+import qualified Agda.Syntax.Translation.ConcreteToAbstract as CToA
 
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Errors
@@ -88,15 +95,15 @@ import Agda.Interaction.Response
 
 import Agda.Utils.CallStack (HasCallStack)
 import Agda.Utils.FileName
+import Agda.Utils.Hash
+import Agda.Utils.IO.Binary
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.IO.Binary
-import Agda.Syntax.Common.Pretty hiding (Mode)
 import qualified Agda.Utils.ProfileOptions as Profile
-import Agda.Utils.Hash
+import Agda.Utils.Singleton
 import qualified Agda.Utils.Set1 as Set1
 import qualified Agda.Utils.Trie as Trie
 
@@ -169,6 +176,38 @@ parseSource sourceFile = Bench.billTo [Bench.Parsing] $ do
     , srcProjectLibs = libs
     , srcAttributes  = attrs
     }
+
+
+-- | Computes the module name of the top-level module in the given file.
+--
+-- If no top-level module name is given, then an attempt is made to
+-- use the file name as a module name.
+
+moduleName ::
+     AbsolutePath
+     -- ^ The path to the file.
+  -> C.Module
+     -- ^ The parsed module.
+  -> TCM TopLevelModuleName
+moduleName file parsedModule = Bench.billTo [Bench.ModuleName] $ do
+  let defaultName = rootNameModule file
+      raw         = rawTopLevelModuleNameForModule parsedModule
+  topLevelModuleName =<< if isNoName raw
+    then setCurrentRange (rangeFromAbsolutePath file) do
+      m <- runPM (fst <$> parse moduleNameParser defaultName)
+             `catchError` \_ ->
+           typeError $ InvalidFileName file DoesNotCorrespondToValidModuleName
+      case m of
+        C.Qual{} ->
+          typeError $ InvalidFileName file $
+            RootNameModuleNotAQualifiedModuleName $ T.pack defaultName
+        C.QName{} ->
+          return $ RawTopLevelModuleName
+            { rawModuleNameRange = getRange m
+            , rawModuleNameParts = singleton (T.pack defaultName)
+            }
+    else return raw
+
 
 srcDefaultPragmas :: Source -> [OptionsPragma]
 srcDefaultPragmas src = map _libPragmas (srcProjectLibs src)
