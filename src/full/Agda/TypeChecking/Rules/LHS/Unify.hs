@@ -265,7 +265,9 @@ unifyIndices' linv tel flex a us vs = do
 
 
 
-type UnifyStrategy = forall m. (PureTCM m, MonadPlus m) => UnifyState -> m UnifyStep
+type UnifyStrategyM w c = ListT (WriterT w (TCMC c))
+type UnifyStrategy = forall w c. (Monoid w, CapIO c, CapInteractionPoints c, CapDebug c)
+                      => UnifyState -> UnifyStrategyM w c UnifyStep
 
 
 --UNUSED Liang-Ting Chen 2019-07-16
@@ -439,7 +441,7 @@ etaExpandEquationStrategy k s = do
     ]
   return $ EtaExpandEquation k d pars
   where
-    shouldProject :: PureTCM m => Term -> m Bool
+    shouldProject :: (Monoid w, CapIO c, CapDebug c, CapInteractionPoints c) => Term -> UnifyStrategyM w c Bool
     shouldProject = \case
       Def f es   -> usesCopatterns f
       Con c _ _  -> isJust <$> isRecordConstructor (conName c)
@@ -525,7 +527,7 @@ skipIrrelevantStrategy k s = do
 
 unifyStep
   :: (CapIO c, CapDebug c, CapBench c, CapInteractionPoints c)
-  => UnifyState -> UnifyStep -> UnifyStepT (UnifyLogT (TCMC c)) (UnificationResult' UnifyState)
+  => UnifyState -> UnifyStep -> UnifyLogStepT (TCMC c) (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
     isReflexive <- addContext (varTel s) $ runBlocked $ pureEqualTerm a u v
@@ -538,7 +540,7 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
                    -> return $ UnifyStuck [UnifyReflexiveEq (varTel s) a u]
       Right True   -> do
         let (s', sigma) = solveEq k u s
-        tellUnifyProof sigma
+        tellUnifyProof' sigma
         Unifies <$> lensEqTel reduce s'
 
 unifyStep s step@Solution{} = solutionStep RetryNormalised s step
@@ -581,7 +583,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- a left inverse for the overall match, so as a slight optimisation
   -- we just don't bother computing it. __IMPOSSIBLE__ because that
   -- field in the result is never evaluated.
-  res <- addContext (varTel s) $ lift $ unifyIndices' (Just __IMPOSSIBLE__)
+  res <- addContext (varTel s) $ unifyIndices' (Just __IMPOSSIBLE__)
            hduTel
            (allFlexVars notforced hduTel)
            (raise (size ctel) dtype)
@@ -609,7 +611,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
           eqTel'  = eqTel1' `abstract` eqTel2'
           rho     = liftS (size eqTel2) rho3
 
-      tellUnifyProof rho
+      tellUnifyProof' rho
 
       eqTel' <- addContext (varTel s) $ reduce eqTel'
 
@@ -644,7 +646,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
           eqTel'  = eqTel1' `abstract` eqTel2'
           rho     = liftS (size eqTel2) rho3
 
-      tellUnifyProof rho
+      tellUnifyProof' rho
 
       eqTel' <- addContext (varTel s) $ reduce eqTel'
 
@@ -687,7 +689,7 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
   let nfields         = size delta
       (varTel', rho)  = expandTelescopeVar (varTel s) (m-1-i) delta c
       projectFlexible = [ FlexibleVar (getArgInfo fi) (flexForced fi) (projFlexKind j) (flexPos fi) (i + j) | j <- [0 .. nfields - 1] ]
-  tellUnifySubst $ rho
+  tellUnifySubst' $ rho
   return $ Unifies $ UState
     { varTel   = varTel'
     , flexVars = projectFlexible ++ liftFlexibles nfields (flexVars s)
@@ -719,7 +721,7 @@ unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParamet
   lhs   <- expandKth $ eqLHS s
   rhs   <- expandKth $ eqRHS s
   let (tel, sigma) = expandTelescopeVar (eqTel s) k delta c
-  tellUnifyProof sigma
+  tellUnifyProof' sigma
   Unifies <$> do
    lensEqTel reduce $ s
     { eqTel    = tel
@@ -758,7 +760,7 @@ unifyStep s (StripSizeSuc k u v) = do
 unifyStep s (SkipIrrelevantEquation k) = do
   let lhs = eqLHS s
       (s', sigma) = solveEq k (DontCare $ unArg $ indexWithDefault __IMPOSSIBLE__ lhs k) s
-  tellUnifyProof sigma
+  tellUnifyProof' sigma
   return $ Unifies s'
 
 unifyStep s (TypeConInjectivity k d us vs) = do
@@ -778,11 +780,11 @@ data RetryNormalised = RetryNormalised | DontRetryNormalised
   deriving (Eq, Show)
 
 solutionStep
-  :: (PureTCM m, MonadWriter UnifyOutput m)
+  :: (CapIO c, CapDebug c, CapInteractionPoints c)
   => RetryNormalised
   -> UnifyState
   -> UnifyStep
-  -> m (UnificationResult' UnifyState)
+  -> UnifyLogStepT (TCMC c) (UnificationResult' UnifyState)
 solutionStep retry s
   step@Solution{ solutionAt   = k
                , solutionType = dom@Dom{ unDom = a }
@@ -883,9 +885,9 @@ solutionStep retry s
           return $ UnifyStuck [UnifyRecursiveEq (varTel s) a i u]
         Just (s', sub) -> do
           let rho = sub `composeS` dotSub
-          tellUnifySubst rho
+          tellUnifySubst' rho
           let (s'', sigma) = solveEq k (applyPatSubst rho u) s'
-          tellUnifyProof sigma
+          tellUnifyProof' sigma
           return $ Unifies s''
           -- Andreas, 2019-02-23, issue #3578: do not eagerly reduce
           -- Unifies <$> liftTCM (reduce s'')
@@ -916,7 +918,7 @@ unify s strategy = if isUnifyStateSolved s
     tryUnifyStep step fallback = do
       addContext (varTel s) $
         reportSDoc "tc.lhs.unify" 20 $ "trying unifyStep" <+> prettyTCM step
-      (x, output) <- runWriterT $ unifyStep s step
+      (x, output) <- runUnifyLogStepT $ unifyStep s step
       case x of
         Unifies s'   -> do
           reportSDoc "tc.lhs.unify" 20 $ "unifyStep successful."
