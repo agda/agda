@@ -944,7 +944,10 @@ unify s strategy = if isUnifyStateSolved s
 
 -- | Turn a term into a pattern while binding as many of the given forced variables as possible (in
 --   non-forced positions).
-patternBindingForcedVars :: PureTCM m => IntMap Modality -> Term -> m (DeBruijnPattern, IntMap Modality)
+patternBindingForcedVars :: (CapIO c, CapDebug c, CapInteractionPoints c)
+                         => IntMap Modality
+                         -> Term
+                         -> UnifyLogStepT (TCMC c) (DeBruijnPattern, IntMap Modality)
 patternBindingForcedVars forced v = do
   let v' = precomputeFreeVars_ v
   runWriterT (evalStateT (go unitModality v') forced)
