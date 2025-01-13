@@ -65,7 +65,7 @@ import qualified Data.Text as T
 import System.Directory
 import System.FilePath
 import System.Environment
-import System.IO.Error ( isPermissionError )
+import System.IO.Error ( isDoesNotExistErrorType, isPermissionError, ioeGetErrorType )
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
@@ -85,6 +85,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple ( mapSndM )
+import Agda.Utils.IO.Directory ( tryTakeDirectory )
 
 import Agda.Version
 
@@ -269,13 +270,13 @@ findProjectConfig'
 findProjectConfig' root = do
   getCachedProjectConfig root >>= \case
     Just conf -> return conf
-    Nothing   -> handlePermissionException do
+    Nothing   -> handleIOException do
       libFiles <- liftIO $ getDirectoryContents root >>=
         filterM (\file -> and2M
           (pure $ takeExtension file == ".agda-lib")
           (doesFileExist (root </> file)))
       case libFiles of
-        []     -> liftIO (upPath root) >>= \case
+        []     -> liftIO (tryTakeDirectory root) >>= \case
           Just up -> do
             conf <- findProjectConfig' up
             conf <- return $ case conf of
@@ -294,29 +295,13 @@ findProjectConfig' root = do
 
   where
     -- Andreas, 2024-06-26, issue #7331:
-    -- In case of missing permission we terminate our search for the project file
-    -- with the default value.
-    handlePermissionException :: LibErrorIO ProjectConfig -> LibErrorIO ProjectConfig
-    handlePermissionException = flip catchIO \ e ->
-      if isPermissionError e then return DefaultProjectConfig else liftIO $ E.throwIO e
-
-    -- Note that "going up" one directory is OS dependent
-    -- if the directory is a symlink.
-    --
-    -- Quoting from https://hackage.haskell.org/package/directory-1.3.6.1/docs/System-Directory.html#v:canonicalizePath :
-    --
-    --   Note that on Windows parent directories .. are always fully
-    --   expanded before the symbolic links, as consistent with the
-    --   rest of the Windows API (such as GetFullPathName). In
-    --   contrast, on POSIX systems parent directories .. are
-    --   expanded alongside symbolic links from left to right. To
-    --   put this more concretely: if L is a symbolic link for R/P,
-    --   then on Windows L\.. refers to ., whereas on other
-    --   operating systems L/.. refers to R.
-    upPath :: FilePath -> IO (Maybe FilePath)
-    upPath root = do
-      up <- canonicalizePath $ root </> ".."
-      if up == root then return Nothing else return $ Just up
+    -- In case of missing permission or a missing directory, we terminate our
+    -- search for the project file with the default value.
+    handleIOException :: LibErrorIO ProjectConfig -> LibErrorIO ProjectConfig
+    handleIOException = flip catchIO \ e ->
+      if isPermissionError e || isDoesNotExistErrorType (ioeGetErrorType e)
+      then return DefaultProjectConfig 
+      else liftIO $ E.throwIO e
 
 
 -- | Get project root
