@@ -277,13 +277,7 @@ findProjectConfig' root = do
       case libFiles of
         []     -> liftIO (upPath root) >>= \case
           Just up -> do
-            conf <- findProjectConfig' up
-            conf <- return $ case conf of
-                  DefaultProjectConfig{} -> conf
-                  ProjectConfig{..}      ->
-                    ProjectConfig{ configAbove = configAbove + 1
-                                 , ..
-                                 }
+            conf <- over lensConfigAbove (+ 1) <$> findProjectConfig' up
             storeCachedProjectConfig root conf
             return conf
           Nothing -> return DefaultProjectConfig

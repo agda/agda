@@ -179,7 +179,18 @@ emptyLibFile = AgdaLibFile
   , _libPragmas  = mempty
   }
 
--- | Lenses for AgdaLibFile
+---------------------------------------------------------------------------
+-- * Lenses
+---------------------------------------------------------------------------
+
+-- ** Lenses for 'ProjectConfig'
+
+lensConfigAbove :: Lens' ProjectConfig Int
+lensConfigAbove f = \case
+  DefaultProjectConfig -> DefaultProjectConfig <$ f 0
+  c@ProjectConfig{} -> f (configAbove c) <&> \ !i -> c{ configAbove = i }
+
+-- ** Lenses for 'AgdaLibFile'
 
 libName :: Lens' AgdaLibFile LibName
 libName f a = f (_libName a) <&> \ x -> a { _libName = x }
