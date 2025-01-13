@@ -115,10 +115,11 @@ libNameForCurrentDir = LibName "." []
 data ProjectConfig
   = ProjectConfig
     { configRoot         :: FilePath
+        -- ^ Directory which contains the @.agda-lib@ file(s) for the current project.
     , configAgdaLibFiles :: [FilePath]
+        -- ^ @.agda-lib@ files relative to 'configRoot' (filenames only, no directory).
     , configAbove        :: !Int
-      -- ^ How many directories above the Agda file is the @.agda-lib@
-      -- file located?
+        -- ^ How many directories above the Agda file is the @.agda-lib@ file located?
     }
   | DefaultProjectConfig
   deriving Generic
