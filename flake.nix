@@ -12,21 +12,46 @@
       hlib = pkgs.haskell.lib.compose;
       hpkgs = pkgs.haskellPackages;
 
-      # The `agda` and `agda-mode` programs, built with `cabal build`
-      # (and GHC & Haskell libraries from the nixpkgs snapshot)
-      agda-with-opts = opts: hpkgs.developPackage {
+      # Minimal nix code for building the `agda` executable.
+      # GHC & Haskell libraries are taken from the nixpkgs snapshot.
+      agda-pkg-minimal = hpkgs.developPackage {
+          # N.B. this nix code never calls the `cabal` executable,
+          # instead `hpkgs.developPackage` compiles Setup.hs with ghc
+          # then runs ./Setup several times. This is implemented at
+          # https://github.com/NixOS/nixpkgs/blob/a781ff33ae/pkgs/development/haskell-modules/generic-builder.nix
           root = ./.;
-          cabal2nixOptions = opts;
-          modifier = hlib.dontCheck;
-          # TODO Make check phase work
-          # At least requires:
-          #   Setting AGDA_BIN (or using the Makefile, which at least requires cabal-install)
-          #   Making agda-stdlib available (or disabling the relevant tests somehow)
         };
 
-      # Various builds of agda with different cabal flags set
-      agda-pkg = agda-with-opts "";
-      agda-pkg-debug = agda-with-opts "-fdebug";
+      # Various builds of Agda
+
+      # Recommended build
+      agda-pkg = hlib.overrideCabal (_: {
+          # These settings are documented at
+          # https://ryantm.github.io/nixpkgs/languages-frameworks/haskell/#haskell-mkderivation
+
+          # Don't run the test suite every build
+          # (which is slow, and currently broken in nix)
+          doCheck                   = false;
+
+          # Disable optional outputs to speed up Agda's build
+          enableLibraryProfiling    = false;  # Saved 221 seconds
+          doHaddock                 = false;  # Saved  72 seconds
+          doCoverage                = false;  # Saved   2 seconds
+          enableExecutableProfiling = false;  # Saved   1 seconds
+          enableStaticLibraries     = false;  # Saved  -1 seconds
+        }) agda-pkg-minimal;
+
+      # An even faster Agda build, achieved by asking GHC to optimize less 
+      agda-pkg-quicker =
+        # `appendConfigureFlag` passes a raw argument to ./Setup
+        hlib.appendConfigureFlag "-O0" agda-pkg;
+
+      # No-output Agda build (type check only)
+      agda-pkg-tc =
+        hlib.appendConfigureFlags ["--ghc-option" "-fno-code"] agda-pkg-quicker;
+
+      # Agda supporting the `-v` option
+      agda-pkg-debug = hlib.enableCabalFlag "debug" agda-pkg;
 
       # Development environment with tools for hacking on agda
       agda-dev-shell = hpkgs.shellFor {
@@ -54,9 +79,11 @@
       };
 
     in {
-      packages.default = agda-pkg;        # Entry point for `nix build`
-      packages.debug   = agda-pkg-debug;  # Entry point for `nix build .#debug`
-      devShells.default = agda-dev-shell; # Entry point for `nix develop`
+      packages.default    = agda-pkg;        # Entry point for `nix build`
+      packages.quicker    = agda-pkg-quicker;# Entry point for `nix build .#quicker`
+      packages.debug      = agda-pkg-debug;  # Entry point for `nix build .#debug`
+      packages.type-check = agda-pkg-tc;     # Entry point for `nix build .#type-check`
+      devShells.default   = agda-dev-shell;  # Entry point for `nix develop`
 
       # Allow power users to set this flake's agda
       # as a drop-in replacement for nixpkgs's agda
