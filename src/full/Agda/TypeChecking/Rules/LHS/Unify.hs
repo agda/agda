@@ -145,7 +145,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Conversion.Pure
+import Agda.TypeChecking.Conversion.Pure (pureEqualTermB, pureEqualTypeB)
 import Agda.TypeChecking.Constraints ()
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance
@@ -524,7 +524,7 @@ unifyStep
   :: UnifyState -> UnifyStep -> UnifyStepT TCM (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
-    isReflexive <- addContext (varTel s) $ runBlocked $ pureEqualTerm a u v
+    isReflexive <- addContext (varTel s) $ pureEqualTermB a u v
     withoutK <- withoutKOption
     splitOnStrict <- asksTC envSplitOnStrict
     case isReflexive of
@@ -825,10 +825,10 @@ solutionStep retry s
   -- Check that the type of the variable is equal to the type of the equation
   -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).
   let dom'@Dom{ unDom = a' } = getVarType (m-1-i) s
-  equalTypes <- addContext (varTel s) $ runBlocked $ do
+  equalTypes <- addContext (varTel s) $ do
     reportSDoc "tc.lhs.unify" 45 $ "Equation type: " <+> prettyTCM a
     reportSDoc "tc.lhs.unify" 45 $ "Variable type: " <+> prettyTCM a'
-    pureEqualType a a'
+    pureEqualTypeB a a'
 
   -- The conditions on the relevances are as follows (see #2640):
   -- - If the type of the equation is relevant, then the solution must be
