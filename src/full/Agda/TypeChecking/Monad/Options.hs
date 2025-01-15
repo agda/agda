@@ -154,7 +154,7 @@ getAgdaLibFilesWithoutTopLevelModuleName
   -> TCM [AgdaLibFile]
 getAgdaLibFilesWithoutTopLevelModuleName f = do
   useLibs <- optUseLibs <$> commandLineOptions
-  if | useLibs   -> libToTCM $ mkLibM [] $ getAgdaLibFiles' root
+  if | useLibs   -> libToTCM $ getAgdaLibFile root
      | otherwise -> return []
   where
   root = takeDirectory $ filePath f

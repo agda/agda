@@ -170,6 +170,11 @@ Changes to the meta-programming facilities.
 Library management
 ------------------
 
+* **BREAKING**: Agda no longer accepts several `.agda-lib` files in the root
+  of an Agda project.
+  (Previously, it allowed this and took the union of their contents.)
+
+
 Interaction and emacs mode
 --------------------------
 

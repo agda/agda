@@ -99,25 +99,26 @@ The ``.agda-lib`` files associated to a given Agda file
 -------------------------------------------------------
 
 When a given file is type-checked Agda uses the options from the
-``flags`` fields of zero or more library files. If the command-line
-option :option:`--no-libraries` is used, then no library files are
-used. Otherwise library files are found in the following way:
+``flags`` fields of its library file (if there is such).
+If the command-line option :option:`--no-libraries` is used,
+then no library file is used.
+Otherwise the library file is found in the following way:
 
 - First the file's root directory is found. If the top-level module in
   the file is called ``A.B.C``, then it has to be in the directory
   ``root/A/B`` or ``root\A\B``. The root directory is the directory
   ``root``.
 
-- If ``root`` contains any ``.agda-lib`` files, then these files are
-  used.
+- If ``root`` contains any ``.agda-lib`` files, then the search stops.
+  If there is exactly one such file, it is used,
+  otherwise an error is raised.
 
-- Otherwise a search is made upwards in the directory hierarchy, and
+- If ``root`` contains no ``.agda-lib`` files,
+  a search is made upwards in the directory hierarchy, and
   the search stops once one or more ``.agda-lib`` files are found in a
-  directory. If no ``.agda-lib`` files are found, then none are used.
-
-Note that if the search finds two or more ``.agda-lib`` files, then
-the flags from all of these files are used, and flags from different
-files are ordered in an unspecified way.
+  directory.
+  If no ``.agda-lib`` files are found all the way to the top of the directory hierarchy,
+  then none are used.
 
 Note also that there must not be any ``.agda-lib`` files below the
 root, on the path to the Agda file. For instance, if the top-level

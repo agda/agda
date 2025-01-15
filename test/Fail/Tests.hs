@@ -30,13 +30,15 @@ tests = do
   inpFiles <- getAgdaFilesInDir NonRec testDir
   return $ testGroup "Fail" $ concat $
     -- A list written with ':' to quickly switch lines
-    map mkFailTest inpFiles :
-    -- The some of the customized tests fail with agda-quicker
+    [ mkFailTest issue7678Dir (issue7678Dir </> "Issue7678.agda") ] :
+    map (mkFailTest testDir) inpFiles :
+    -- Some of the customized tests fail with agda-quicker
     -- (because they refer to the name of the Agda executable),
     -- so put them last.
     customizedTests :
     []
   where
+  issue7678Dir = testDir </> "Issue7678"
   customizedTests =
     [ testGroup "customised" $
         issue6465 :
@@ -51,10 +53,11 @@ data TestResult
   = TestResult T.Text -- the cleaned stdout
   | TestUnexpectedSuccess ProgramResult
 
-mkFailTest
-  :: FilePath -- ^ Input file (Agda file).
+mkFailTest ::
+     FilePath -- ^ Directory
+  -> FilePath -- ^ Input file (Agda file).
   -> TestTree
-mkFailTest agdaFile =
+mkFailTest testDir agdaFile =
   goldenTestIO1
     testName
     readGolden

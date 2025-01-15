@@ -4,4 +4,4 @@ Add the path to its .agda-lib file to
   installed-libs/libraries'
 to install.
 Installed libraries:
-  test-succeed (succeed2.agda-lib)
+  test-succeed (succeed.agda-lib)
