@@ -58,7 +58,7 @@ import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Conversion.Pure
+import Agda.TypeChecking.Conversion.Pure ( pureEqualTerm )
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance ( isIrrelevantOrPropM )

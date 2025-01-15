@@ -37,7 +37,7 @@ import qualified Data.IntSet as IntSet
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Conversion.Pure
+import Agda.TypeChecking.Conversion.Pure (pureEqualTerm)
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Irrelevance (isPropM)

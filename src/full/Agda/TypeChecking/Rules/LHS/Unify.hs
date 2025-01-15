@@ -145,7 +145,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Conversion.Pure
+import Agda.TypeChecking.Conversion.Pure (pureEqualTerm, pureEqualType)
 import Agda.TypeChecking.Constraints ()
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance
