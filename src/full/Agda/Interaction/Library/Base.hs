@@ -257,7 +257,7 @@ data LibError'
       -- ^ Raised when a library name could not successfully be resolved
       --   to an @.agda-lib@ file.
       --
-  | AmbiguousLib LibName [AgdaLibFile]
+  | AmbiguousLib LibName (List2 AgdaLibFile)
       -- ^ Raised when a library name is defined in several @.agda-lib files@.
   | LibParseError LibParseError
       -- ^ The @.agda-lib@ file could not be parsed.
@@ -477,7 +477,7 @@ instance Pretty LibError' where
       sep [ hcat [ "Ambiguous library '", pretty lib, "'." ]
             , "Could refer to any one of"
           ]
-        : [ nest 2 $ pretty (_libName l) <+> parens (text $ _libFile l) | l <- tgts ]
+        : [ nest 2 $ pretty (_libName l) <+> parens (text $ _libFile l) | l <- toList tgts ]
 
     LibParseError err -> pretty err
 

@@ -547,7 +547,7 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
           ml <- case findLib x libs of
             [l] -> pure (Just l)
             []  -> Nothing <$ raiseErrors' [LibNotFound file x]
-            ls  -> Nothing <$ raiseErrors' [AmbiguousLib x ls]
+            l1 : l2 : ls  -> Nothing <$ raiseErrors' [AmbiguousLib x $ List2 l1 l2 ls]
           -- If it is found, add its dependencies to work list
           let xs' = foldMap _libDepends ml ++ xs
           mcons ml <$> find file (x : visited) xs'
