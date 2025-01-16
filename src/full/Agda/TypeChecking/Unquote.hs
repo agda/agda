@@ -689,7 +689,9 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       liftU2 (\ m1 m2 -> m1 `catchError` \ _ -> m2) (evalTCM m) (evalTCM h)
 
     tcAskLens :: ToTerm a => Lens' TCEnv a -> UnquoteM Term
-    tcAskLens l = liftTCM (toTerm <*> asksTC (\ e -> e ^. l))
+    tcAskLens l = liftTCM $ do
+      toTm <- toTermTCM
+      toTm =<< asksTC (\ e -> e ^. l)
 
     tcWithLens :: Unquote a => Lens' TCEnv a -> Term -> Term -> UnquoteM Term
     tcWithLens l b m = do
@@ -885,7 +887,9 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
           return $ (s, d'):ds'
 
         quoteDomWithName :: (ArgName, Dom Type) -> TCM Term
-        quoteDomWithName (x, a) = toTerm <*> pure (T.pack x, a)
+        quoteDomWithName (x, a) = do
+          toTm <- toTermTCM
+          toTm (T.pack x, a)
 
     extendCxt :: Text -> Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt s' a m = withFreshName noRange (T.unpack s') $ \s -> do
@@ -1209,4 +1213,4 @@ tcExec exe args stdIn = do
       (datExitCode, txtStdOut, txtStdErr) <- liftIO $ readProcessWithExitCode fp strArgs stdIn
       let natExitCode = exitCodeToNat datExitCode
       toR <- toTerm
-      return $ toR (natExitCode, (txtStdOut, txtStdErr))
+      runReduceM $ toR (natExitCode, (txtStdOut, txtStdErr))

@@ -3374,12 +3374,12 @@ redReturn = return . YesReduction YesSimplification
 
 -- | Conceptually: @redBind m f k = either (return . Left . f) k =<< m@
 
-redBind :: ReduceM (Reduced a a') -> (a -> b) ->
+redBind :: ReduceM (Reduced a a') -> (a -> ReduceM b) ->
            (a' -> ReduceM (Reduced b b')) -> ReduceM (Reduced b b')
 redBind ma f k = do
   r <- ma
   case r of
-    NoReduction x    -> return $ NoReduction $ f x
+    NoReduction x    -> NoReduction <$> f x
     YesReduction _ y -> k y
 
 -- | Three cases: 1. not reduced, 2. reduced, but blocked, 3. reduced, not blocked.
@@ -5688,12 +5688,6 @@ runReduceM m = TCM $ \ r e -> do
   --   e <- askTC
   --   s <- getTC
   --   return $! unReduceM m (ReduceEnv e s)
-
-runReduceF :: (a -> ReduceM b) -> TCM (a -> b)
-runReduceF f = do
-  e <- askTC
-  s <- getTC
-  return $ \x -> unReduceM (f x) (ReduceEnv e s Nothing)
 
 instance MonadTCEnv ReduceM where
   askTC   = ReduceM redEnv
