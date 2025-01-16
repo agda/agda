@@ -530,7 +530,7 @@ unifyStep
   => UnifyState -> UnifyStep -> UnifyLogStepT (TCMC c) (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
-    isReflexive <- addContext (varTel s) $ pureEqualTermB a u v
+    isReflexive <- lift $ addContext (varTel s) $ pureEqualTermB a u v
     withoutK <- withoutKOption
     splitOnStrict <- asksTC envSplitOnStrict
     case isReflexive of
@@ -831,7 +831,7 @@ solutionStep retry s
   -- Check that the type of the variable is equal to the type of the equation
   -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).
   let dom'@Dom{ unDom = a' } = getVarType (m-1-i) s
-  equalTypes <- addContext (varTel s) $ do
+  equalTypes <- lift $ addContext (varTel s) $ do
     reportSDoc "tc.lhs.unify" 45 $ "Equation type: " <+> prettyTCM a
     reportSDoc "tc.lhs.unify" 45 $ "Variable type: " <+> prettyTCM a'
     pureEqualTypeB a a'
