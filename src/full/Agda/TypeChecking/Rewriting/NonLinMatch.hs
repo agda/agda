@@ -20,7 +20,7 @@ we seek a substitution Γ ⊢ σ : Δ such that
 
 -}
 
-module Agda.TypeChecking.Rewriting.NonLinMatch where
+module Agda.TypeChecking.Rewriting.NonLinMatch (nonLinMatch) where
 
 import Prelude hiding (null, sequence)
 
@@ -446,22 +446,3 @@ equal a u v = pureEqualTermB a u v >>= \case
       ]) $ do
     return $ Just $ NotBlocked ReallyNotBlocked ()
 
--- | Utility function for getting the name and type of a head term (i.e. a
---   `Def` or `Con` with no arguments)
-getTypedHead :: PureTCM m => Term -> m (Maybe (QName, Type))
-getTypedHead = \case
-  Def f []   -> Just . (f,) . defType <$> getConstInfo f
-  Con (ConHead { conName = c }) _ [] -> do
-    -- Andreas, 2018-09-08, issue #3211:
-    -- discount module parameters for constructor heads
-    vs <- freeVarsToApply c
-    -- Jesper, 2020-06-17, issue #4755: add dummy arguments in
-    -- case we don't have enough parameters
-    getNumberOfParameters c >>= \case
-      Just npars -> do
-        let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
-        t0 <- defType <$> getConstInfo c
-        t <- t0 `piApplyM` (vs ++ ws)
-        return $ Just (c , t)
-      Nothing -> return Nothing
-  _ -> return Nothing
