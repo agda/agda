@@ -39,6 +39,10 @@ applys t vs = apply t $ map defaultArg vs
 apply1 :: Apply t => t -> Term -> t
 apply1 t u = applys t [ u ]
 
+-- | Apply to two default arguments.
+apply2 :: Apply t => t -> Term -> Term -> t
+apply2 t u v = applys t [u, v]
+
 ---------------------------------------------------------------------------
 -- * Abstraction
 ---------------------------------------------------------------------------
