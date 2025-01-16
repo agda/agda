@@ -34,9 +34,9 @@ import Agda.Syntax.Common
 -- * Capabilities
 ---------------------------------------------------------------------------
 
--- | Capabilities. There are only two concrete capabilities, but by being polymorphic you can get
+-- | Capabilities. There are only three concrete capabilities, but by being polymorphic you can get
 --   more fine-grained control.
-data Capability = CapTCM | CapReduce
+data Capability = CapTCM | CapReduce | CapPure
 
 ---------------------------------------------------------------------------
 -- * Context
