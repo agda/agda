@@ -359,6 +359,7 @@ common language
       TypeOperators
       TypeSynonymInstances
       ViewPatterns
+      TypeApplications
 
   other-extensions:
       AllowAmbiguousTypes
@@ -376,7 +377,6 @@ common language
       PolyKinds
       RebindableSyntax
       TemplateHaskell
-      TypeApplications
       UnboxedTuples
       UndecidableInstances
 
