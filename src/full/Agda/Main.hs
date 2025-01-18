@@ -133,18 +133,31 @@ type Interactor a
     -- Main transformed action.
     -> TCM a
 
+-- | Major mode of operation, not including the standard mode (checking the given main module).
 data FrontendType
-  = FrontEndEmacs
-  | FrontEndJson
+  = FrontEndInteraction InteractionFormat
+      -- ^ @--interaction@ or @--interaction-json@.
   | FrontEndRepl
+      -- ^ @--interactive@.
 
--- Emacs mode. Note that it ignores the "check" action because it calls typeCheck directly.
-emacsModeInteractor :: Interactor ()
-emacsModeInteractor setup _check = mimicGHCi setup
+data InteractionFormat
+  = InteractionEmacs
+      -- ^ @--interaction@.
+  | InteractionJson
+      -- ^ @--interaction-json@.
 
--- JSON mode. Note that it ignores the "check" action because it calls typeCheck directly.
-jsonModeInteractor :: Interactor ()
-jsonModeInteractor setup _check = jsonREPL setup
+pattern FrontEndEmacs :: FrontendType
+pattern FrontEndEmacs = FrontEndInteraction InteractionEmacs
+
+pattern FrontEndJson :: FrontendType
+pattern FrontEndJson  = FrontEndInteraction InteractionJson
+
+{-# COMPLETE FrontEndEmacs, FrontEndJson, FrontEndRepl #-}
+
+-- | Emacs/JSON mode. Note that it ignores the "check" action because it calls typeCheck directly.
+interactionInteractor :: InteractionFormat -> Interactor ()
+interactionInteractor InteractionEmacs setup _check = mimicGHCi setup
+interactionInteractor InteractionJson  setup _check = jsonREPL  setup
 
 -- The deprecated repl mode.
 replInteractor :: Maybe AbsolutePath -> Interactor ()
@@ -165,10 +178,8 @@ getInteractor configuredBackends maybeInputFile opts =
     (_,              _:_:_,           []) -> throwError $ concat ["Must not specify multiple ", enabledFrontendNames]
     (_,              [fe],            []) | optOnlyScopeChecking opts -> errorFrontendScopeChecking fe
     (_,              [FrontEndRepl],  []) -> return $ Just $ replInteractor maybeInputFile
-    (Nothing,        [FrontEndEmacs], []) -> return $ Just $ emacsModeInteractor
-    (Nothing,        [FrontEndJson],  []) -> return $ Just $ jsonModeInteractor
-    (Just inputFile, [FrontEndEmacs], []) -> errorFrontendFileDisallowed inputFile FrontEndEmacs
-    (Just inputFile, [FrontEndJson],  []) -> errorFrontendFileDisallowed inputFile FrontEndJson
+    (Nothing,        [  FrontEndInteraction i], []) -> return $ Just $ interactionInteractor i
+    (Just inputFile, [i@FrontEndInteraction{}], []) -> errorFrontendFileDisallowed inputFile i
   where
     -- NOTE: The notion of a backend being "enabled" *just* refers to this top-level interaction mode selection. The
     -- interaction/interactive front-ends may still invoke available backends even if they are not "enabled".
