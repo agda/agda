@@ -256,11 +256,7 @@ findWithInfo recurse filt dir = Find.fold recurse act [] dir
   where
   -- Add file to list front when it matches the filter
   act :: [Find.FileInfo] -> Find.FileInfo -> [Find.FileInfo]
-  act = flip $ consIf $ Find.evalClause filt
-
--- | Prepend element if it satisfies the given condition.
-consIf :: (a -> Bool) -> a -> [a] -> [a]
-consIf p a = if p a then (a :) else id
+  act fs f = if Find.evalClause filt f then f : fs else fs
 
 -- | An Agda file path as test name
 asTestName :: FilePath -> FilePath -> String
