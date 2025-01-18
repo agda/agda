@@ -181,7 +181,6 @@ findFile'' dirs m = do
     Just sf -> return $ Right sf
     Nothing -> do
       files          <- liftIO $ fileList agdaFileExtensions
-      filesShortList <- liftIO $ fileList $ List2.toList parseFileExtsShortList
       existingFiles  <- liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
       case nubOn id existingFiles of
         [file]   -> do
@@ -189,7 +188,9 @@ findFile'' dirs m = do
           let src = SourceFile i
           put $ ModuleToSource dict' $ Map.insert m src modToSrc
           return (Right src)
-        []       -> return (Left (NotFound filesShortList))
+        []       -> do
+          filesShortList <- liftIO $ fileList $ List2.toList parseFileExtsShortList
+          return (Left (NotFound filesShortList))
         f0:f1:fs -> return (Left (Ambiguous $ List2 f0 f1 fs))
   where
     fileList exts = mapM absolute
