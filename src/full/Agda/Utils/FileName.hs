@@ -12,10 +12,8 @@ module Agda.Utils.FileName
   , isNewerThan
   , relativizeAbsolutePath
   , makeRelativeCanonical
+  , stripAnyOfExtensions
   ) where
-
-import System.Directory
-import System.FilePath
 
 import Control.Applicative ( liftA2 )
 import Control.DeepSeq
@@ -26,8 +24,12 @@ import System.Win32        ( findFirstFile, findClose, getFindDataFileName )
 
 import Data.Function (on)
 import Data.Hashable       ( Hashable )
+import Data.Maybe          ( catMaybes, listToMaybe )
 import Data.Text           ( Text )
 import qualified Data.Text as Text
+
+import System.Directory
+import System.FilePath
 
 import Agda.Utils.Monad
 
@@ -161,3 +163,7 @@ relativizeAbsolutePath apath aroot
 
 makeRelativeCanonical :: FilePath -> FilePath -> IO FilePath
 makeRelativeCanonical = liftA2 makeRelative `on` canonicalizePath
+
+-- | Generalizes 'stripExtension'.
+stripAnyOfExtensions :: [String] -> FilePath -> Maybe FilePath
+stripAnyOfExtensions exts p = listToMaybe $ catMaybes $ map (`stripExtension` p) exts

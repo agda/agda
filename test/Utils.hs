@@ -45,9 +45,12 @@ import qualified Text.Regex.TDFA.Text as RT ( compile )
 import Agda.Syntax.Parser             ( agdaFileExtensions )
 import Agda.Compiler.MAlonzo.Compiler ( ghcInvocationStrings )
 import Agda.Interaction.ExitCode      ( AgdaError(..), agdaErrorFromInt )
+
 import Agda.Utils.Maybe
 import Agda.Utils.Environment
+import Agda.Utils.FileName            ( stripAnyOfExtensions )
 import Agda.Utils.Functor
+
 import qualified Agda.Version (package)
 
 data ProgramResult = ProgramResult
@@ -160,10 +163,6 @@ helperExtensions =
   , ".err"          -- Produced by test/Fail
   , ".in", ".out"   -- For running test/interaction
   ]
-
--- | Generalizes 'stripExtension'.
-stripAnyOfExtensions :: [String] -> FilePath -> Maybe FilePath
-stripAnyOfExtensions exts p = listToMaybe $ catMaybes $ map (`stripExtension` p) exts
 
 stripAgdaExtension :: FilePath -> Maybe FilePath
 stripAgdaExtension = stripAnyOfExtensions agdaFileExtensions
