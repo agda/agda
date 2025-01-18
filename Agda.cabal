@@ -432,6 +432,7 @@ library
     , equivalence          >= 0.3.5     && < 0.5
     , exceptions           >= 0.10.4    && < 0.11
     , filepath             >= 1.4.2.1   && < 1.6
+    , filemanip            >= 0.3.6.3   && < 0.4
     , generic-data         >= 0.9.2.0   && < 1.2
         -- generic-data-0.9.2.0 adds instance of Bounded for FiniteEnumeration
     , ghc-compact          == 0.1.*
@@ -1002,7 +1003,7 @@ test-suite agda-tests
     , containers
     , directory
     , filepath
-    , filemanip         >= 0.3.6.3   && < 0.4
+    , filemanip
     , mtl
     , process
     , process-extras

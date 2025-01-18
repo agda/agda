@@ -53,6 +53,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Environment
 import Agda.Utils.FileName            ( stripAnyOfExtensions )
 import Agda.Utils.Functor
+import Agda.Utils.IO.Directory        ( findWithInfo )
 
 import qualified Agda.Version (package)
 
@@ -222,21 +223,6 @@ getAgdaFilesInDir recurse dir = do
     | otherwise   = old
   -- Test cases from up to one week ago are considered new.
   consideredNew = 7 * 24 * 60 * 60
-
--- | Search a directory recursively, with recursion controlled by a
---   'RecursionPredicate'.  Lazily return a unsorted list of all files
---   matching the given 'FilterPredicate'.  Any errors that occur are
---   ignored, with warnings printed to 'stderr'.
-findWithInfo
-  :: Find.RecursionPredicate  -- ^ Control recursion into subdirectories.
-  -> Find.FilterPredicate     -- ^ Decide whether a file appears in the result.
-  -> FilePath                 -- ^ Directory to start searching.
-  -> IO [Find.FileInfo]       -- ^ Files that matched the 'FilterPredicate'.
-findWithInfo recurse filt dir = Find.fold recurse act [] dir
-  where
-  -- Add file to list front when it matches the filter
-  act :: [Find.FileInfo] -> Find.FileInfo -> [Find.FileInfo]
-  act fs f = if Find.evalClause filt f then f : fs else fs
 
 -- | An Agda file path as test name
 asTestName :: FilePath -> FilePath -> String
