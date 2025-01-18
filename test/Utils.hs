@@ -1,7 +1,10 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
-module Utils (module Utils,
-              AgdaError(..)) where
+module Utils
+  ( module Utils
+  , AgdaError(..)
+  , dropAgdaExtension
+  ) where
 
 import Control.Applicative
 import Control.Arrow ((&&&))
@@ -42,9 +45,9 @@ import Test.Tasty.Silver.Advanced ( GDiff(..), pattern ShowText, goldenTest1, re
 import qualified Text.Regex.TDFA as R
 import qualified Text.Regex.TDFA.Text as RT ( compile )
 
-import Agda.Syntax.Parser             ( agdaFileExtensions )
 import Agda.Compiler.MAlonzo.Compiler ( ghcInvocationStrings )
 import Agda.Interaction.ExitCode      ( AgdaError(..), agdaErrorFromInt )
+import Agda.Interaction.FindFile      ( dropAgdaExtension, hasAgdaExtension, stripAgdaExtension )
 
 import Agda.Utils.Maybe
 import Agda.Utils.Environment
@@ -164,20 +167,8 @@ helperExtensions =
   , ".in", ".out"   -- For running test/interaction
   ]
 
-stripAgdaExtension :: FilePath -> Maybe FilePath
-stripAgdaExtension = stripAnyOfExtensions agdaFileExtensions
-
 stripHelperExtension :: FilePath -> Maybe FilePath
 stripHelperExtension = stripAnyOfExtensions helperExtensions
-
--- | Checks if a String has Agda extension
-hasAgdaExtension :: FilePath -> Bool
-hasAgdaExtension = isJust . stripAgdaExtension
-
-dropAgdaExtension :: FilePath -> FilePath
-dropAgdaExtension p =
-  fromMaybe (error $ "Utils.hs: Path " ++ p ++ " does not have an Agda extension") $
-  stripAgdaExtension p
 
 dropAgdaOrOtherExtension :: FilePath -> FilePath
 dropAgdaOrOtherExtension = fromMaybe <$> dropExtension <*> stripAgdaExtension

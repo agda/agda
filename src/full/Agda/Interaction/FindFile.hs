@@ -15,6 +15,7 @@ module Agda.Interaction.FindFile
   , checkModuleName
   , rootNameModule
   , replaceModuleExtension
+  , dropAgdaExtension, hasAgdaExtension, stripAgdaExtension
   ) where
 
 import Prelude hiding (null)
@@ -23,7 +24,7 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Trans
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, fromMaybe, isJust)
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import System.FilePath
@@ -266,11 +267,18 @@ checkModuleName name src0 mexpected = do
 parseFileExtsShortList :: List2 String
 parseFileExtsShortList = List2.cons ".agda" literateExtsShortList
 
-dropAgdaExtension :: String -> String
-dropAgdaExtension s = case catMaybes [ stripSuffix ext s
-                                     | ext <- agdaFileExtensions ] of
-    [name] -> name
-    _      -> __IMPOSSIBLE__
+-- | Remove an Agda file extension from a filepath, if possible.
+stripAgdaExtension :: FilePath -> Maybe FilePath
+stripAgdaExtension = stripAnyOfExtensions agdaFileExtensions
+
+-- | Check if a file path has an Agda extension.
+hasAgdaExtension :: FilePath -> Bool
+hasAgdaExtension = isJust . stripAgdaExtension
+
+-- | Remove an existing Agda file extension from a file path.
+dropAgdaExtension :: FilePath -> FilePath
+dropAgdaExtension = fromMaybe __IMPOSSIBLE__ . stripAgdaExtension
+
 
 rootNameModule :: AbsolutePath -> String
 rootNameModule = dropAgdaExtension . snd . splitFileName . filePath
