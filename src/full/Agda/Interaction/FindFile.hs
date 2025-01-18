@@ -180,7 +180,7 @@ findFile'' dirs m = do
   case Map.lookup m modToSrc of
     Just sf -> return $ Right sf
     Nothing -> do
-      files          <- liftIO $ fileList acceptableFileExts
+      files          <- liftIO $ fileList agdaFileExtensions
       filesShortList <- liftIO $ fileList $ List2.toList parseFileExtsShortList
       existingFiles  <- liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
       case nubOn id existingFiles of
@@ -267,7 +267,7 @@ parseFileExtsShortList = List2.cons ".agda" literateExtsShortList
 
 dropAgdaExtension :: String -> String
 dropAgdaExtension s = case catMaybes [ stripSuffix ext s
-                                     | ext <- acceptableFileExts ] of
+                                     | ext <- agdaFileExtensions ] of
     [name] -> name
     _      -> __IMPOSSIBLE__
 

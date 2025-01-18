@@ -42,6 +42,7 @@ import Test.Tasty.Silver.Advanced ( GDiff(..), pattern ShowText, goldenTest1, re
 import qualified Text.Regex.TDFA as R
 import qualified Text.Regex.TDFA.Text as RT ( compile )
 
+import Agda.Syntax.Parser             ( agdaFileExtensions )
 import Agda.Compiler.MAlonzo.Compiler ( ghcInvocationStrings )
 import Agda.Interaction.ExitCode      ( AgdaError(..), agdaErrorFromInt )
 import Agda.Utils.Maybe
@@ -150,17 +151,6 @@ getAgdaBin = getProg "agda"
 getProg :: String -> EnvVars -> FilePath
 getProg prog = fromMaybe prog . lookup (map toUpper prog ++ "_BIN")
 
--- | List of possible extensions of agda files.
-agdaExtensions :: [String]
-agdaExtensions =
-  [ ".agda"
-  , ".lagda"
-  , ".lagda.tex"
-  , ".lagda.rst"
-  , ".lagda.md"
-  , ".lagda.org"
-  ]
-
 -- | List of files paired with agda files by the test suites.
 -- E.g. files recording the accepted output or error message.
 helperExtensions :: [String]
@@ -176,7 +166,7 @@ stripAnyOfExtensions :: [String] -> FilePath -> Maybe FilePath
 stripAnyOfExtensions exts p = listToMaybe $ catMaybes $ map (`stripExtension` p) exts
 
 stripAgdaExtension :: FilePath -> Maybe FilePath
-stripAgdaExtension = stripAnyOfExtensions agdaExtensions
+stripAgdaExtension = stripAnyOfExtensions agdaFileExtensions
 
 stripHelperExtension :: FilePath -> Maybe FilePath
 stripHelperExtension = stripAnyOfExtensions helperExtensions
