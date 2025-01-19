@@ -2,7 +2,7 @@
 
 \p{This is test file}
 \agda{
-module M where
+module Simple where
 
   data Bool : Set where
             true : Bool
