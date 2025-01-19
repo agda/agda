@@ -18,6 +18,12 @@ Installation
 Pragmas and options
 -------------------
 
+* New main mode of operation `--build-library` (issue [#4338](https://github.com/agda/agda/issues/4338)).
+  Invoking `agda --build-library` will look for an `.agda-lib` file starting in the current directory.
+  It will then extract the `include` directories of this library,
+  collect all Agda files in these directories and their subdirectories,
+  and check all these files.
+
 * Option `--local-interfaces` and warning `DuplicateInterfaceFiles` have been removed.
 
 * New warning `InvalidDisplayForm` instead of hard error

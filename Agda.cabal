@@ -522,6 +522,7 @@ library
       Agda.Interaction.AgdaTop
       Agda.Interaction.Base
       Agda.Interaction.BasicOps
+      Agda.Interaction.BuildLibrary
       Agda.Interaction.Command
       Agda.Interaction.SearchAbout
       Agda.Interaction.CommandLine

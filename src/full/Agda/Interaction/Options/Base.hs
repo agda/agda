@@ -671,6 +671,7 @@ defaultOptions = Options
   , optPrintAgdaAppDir       = False
   , optPrintVersion          = Nothing
   , optPrintHelp             = Nothing
+  , optBuildLibrary          = False
   , optInteractive           = False
   , optGHCiInteraction       = False
   , optJSONInteraction       = False
@@ -1285,7 +1286,8 @@ standardOptions =
     , Option []     ["print-agda-data-dir"] (NoArg printAgdaDataDirFlag)
                     ("print the Agda data directory exit")
 
-
+    , Option []     ["build-library"] (NoArg \ o -> return o{ optBuildLibrary = True })
+                    "build all modules included by the @.agda-lib@ file in the current directory"
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
                     "start in interactive mode"
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)
