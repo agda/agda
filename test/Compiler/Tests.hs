@@ -1,6 +1,3 @@
-{-# LANGUAGE DoAndIfThenElse      #-}
-{-# LANGUAGE LambdaCase           #-}
-{-# LANGUAGE PatternGuards        #-}
 
 module Compiler.Tests where
 
