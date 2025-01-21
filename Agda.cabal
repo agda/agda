@@ -937,6 +937,7 @@ test-suite agda-tests
   main-is:          Main.hs
   other-modules:
       Bugs.Tests
+      BuildSucceed.Tests
       Compiler.Tests
       CubicalSucceed.Tests
       Fail.Tests
