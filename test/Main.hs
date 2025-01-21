@@ -1,26 +1,27 @@
 module Main where
 
-import qualified Compiler.Tests as COMPILER
-import qualified Succeed.Tests as SUCCEED
-import qualified Fail.Tests as FAIL
-import qualified Interactive.Tests as INTERACTIVE
-import qualified Internal.Tests as INTERNAL
-import qualified LaTeXAndHTML.Tests as LATEXHTML
-import qualified LibSucceed.Tests as LIBSUCCEED
-import qualified CubicalSucceed.Tests as CUBICALSUCCEED
-import qualified UserManual.Tests as USERMANUAL
-import qualified Bugs.Tests as BUGS
+import           Control.Monad                  (when)
+import qualified Data.Text                      as T
 
-import Test.Tasty as T
-import Test.Tasty.Silver.Interactive as TM
-import Test.Tasty.Silver.Filter (RegexFilter)
+import           System.Environment             (getEnvironment)
+import           System.Exit                    (exitFailure)
 
-import System.Environment (getEnvironment)
-import System.Exit
+import           Test.Tasty                     as T
+import           Test.Tasty.Silver.Interactive  as TM
+import           Test.Tasty.Silver.Filter       (RegexFilter)
 
-import Utils
-import Control.Monad (when)
-import qualified Data.Text as T
+import qualified Bugs.Tests
+import qualified Compiler.Tests
+import qualified CubicalSucceed.Tests
+import qualified Fail.Tests
+import qualified Interactive.Tests
+import qualified Internal.Tests
+import qualified LaTeXAndHTML.Tests
+import qualified LibSucceed.Tests
+import qualified Succeed.Tests
+import qualified UserManual.Tests
+
+import           Utils
 
 main :: IO ()
 main = do
@@ -66,16 +67,16 @@ allTests = do
     sequence $
       -- N.B.: This list is written using (:) so that lines can be swapped easily:
       -- (The number denotes the order of the Makefile as of 2021-08-25.)
-      {- 1 -} sg SUCCEED.tests     :
-      {- 2 -} sg FAIL.tests        :
-      {- 3 -} sg BUGS.tests        :
-      {- 4 -} pu INTERACTIVE.tests :
-      {- 9 -} sg USERMANUAL.tests  :
-      {- 5 -} sg LATEXHTML.tests   :
-      {- 6 -} pu INTERNAL.tests    :
-      {- 7 -} sg COMPILER.tests    :
-      {- 8 -} sg LIBSUCCEED.tests  :
-      {- 9 -} sg CUBICALSUCCEED.tests  :
+      {- 1 -} sg Succeed.Tests.tests        :
+      {- 2 -} sg Fail.Tests.tests           :
+      {- 3 -} sg Bugs.Tests.tests           :
+      {- 4 -} pu Interactive.Tests.tests    :
+      {- 9 -} sg UserManual.Tests.tests     :
+      {- 5 -} sg LaTeXAndHTML.Tests.tests   :
+      {- 6 -} pu Internal.Tests.tests       :
+      {- 7 -} sg Compiler.Tests.tests       :
+      {- 8 -} sg LibSucceed.Tests.tests     :
+      {- 9 -} sg CubicalSucceed.Tests.tests :
       []
   where
   sg = id
@@ -88,9 +89,9 @@ allTests = do
 
 fdebugTestFilter :: [RegexFilter]
 fdebugTestFilter = concat
-  [   SUCCEED.fdebugTestFilter
-  ,   FAIL.fdebugTestFilter
-  ,   COMPILER.fdebugTestFilter
+  [ Succeed.Tests.fdebugTestFilter
+  , Fail.Tests.fdebugTestFilter
+  , Compiler.Tests.fdebugTestFilter
   ]
 
 -- | Tests with system dependencies
@@ -99,20 +100,20 @@ fdebugTestFilter = concat
 
 testsWithSystemDeps :: [RegexFilter]
 testsWithSystemDeps = concat
-  [ LATEXHTML.latexTests
-  , LATEXHTML.icuTests
-  , COMPILER.stdlibTestFilter
+  [ LaTeXAndHTML.Tests.latexTests
+  , LaTeXAndHTML.Tests.icuTests
+  , Compiler.Tests.stdlibTestFilter
   ]
 
 -- | Some tests get extra setup through the @Makefile@.
 
 makefileDependentTests :: [RegexFilter]
-makefileDependentTests = SUCCEED.makefileDependentTests
+makefileDependentTests = Succeed.Tests.makefileDependentTests
 
 -- | Tests that are always disabled
 alwaysDisabledTests :: [RegexFilter]
 alwaysDisabledTests = concat
-  [ COMPILER.disabledTests
-  , LIBSUCCEED.disabledTests
-  , LATEXHTML.disabledTests
+  [ Compiler.Tests.disabledTests
+  , LibSucceed.Tests.disabledTests
+  , LaTeXAndHTML.Tests.disabledTests
   ]
