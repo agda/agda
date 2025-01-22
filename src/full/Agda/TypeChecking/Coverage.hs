@@ -994,7 +994,6 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
   r <- withKIfStrict $ lift $
          Bench.billTo [Bench.Coverage, Bench.UnifyIndices] $
-           fmap fst $ runUnifyLogT $
            unifyIndices' flatSplit
              delta1Gamma
              flex

@@ -221,18 +221,17 @@ unifyIndices
   -> TCMC c UnificationResult
 unifyIndices linv tel flex a us vs =
   Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $
-    fst <$> runUnifyLogT
-      (fmap (\(a,b,c,_) -> (a,b,c)) <$> unifyIndices' linv tel flex a us vs)
+    fmap (\(a,b,c,_) -> (a,b,c)) <$> unifyIndices' linv tel flex a us vs
 
 unifyIndices'
-  :: (CapInteractionPoints c, Monoid w)
+  :: CapInteractionPoints c
   => Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
   -> Telescope     -- ^ @gamma@
   -> FlexibleVars  -- ^ @flex@
   -> Type          -- ^ @a@
   -> Args          -- ^ @us@
   -> Args          -- ^ @vs@
-  -> WriterT w (TCMC c) FullUnificationResult
+  -> TCMC c FullUnificationResult
 unifyIndices' linv tel flex a [] [] = return $ Unifies (tel, idS, [], Right (idS, raiseS 1))
 unifyIndices' linv tel flex a us vs = do
     reportSDoc "tc.lhs.unify" 10 $
@@ -245,7 +244,7 @@ unifyIndices' linv tel flex a us vs = do
           ]
     initialState    <- initUnifyState tel flex a us vs
     reportSDoc "tc.lhs.unify" 20 $ "initial unifyState:" <+> prettyTCM initialState
-    (result,log) <- lift $ runUnifyLogT $ unify initialState rightToLeftStrategy
+    (result, log) <- runUnifyLogT $ unify initialState rightToLeftStrategy
     forM result $ \ s -> do -- Unifies case
         let output = mconcat [output | (UnificationStep _ _ output,_) <- log ]
         let ps = applySubst (unifyProof output) $ teleNamedArgs (eqTel initialState)
@@ -265,9 +264,9 @@ unifyIndices' linv tel flex a us vs = do
 
 
 
-type UnifyStrategyM w c = ListT (WriterT w (TCMC c))
-type UnifyStrategy = forall w c. (Monoid w, CapInteractionPoints c)
-                      => UnifyState -> UnifyStrategyM w c UnifyStep
+type UnifyStrategyM c = ListT (TCMC c)
+type UnifyStrategy = forall c. CapInteractionPoints c
+                      => UnifyState -> UnifyStrategyM c UnifyStep
 
 
 --UNUSED Liang-Ting Chen 2019-07-16
@@ -441,7 +440,7 @@ etaExpandEquationStrategy k s = do
     ]
   return $ EtaExpandEquation k d pars
   where
-    shouldProject :: (Monoid w, CapInteractionPoints c) => Term -> UnifyStrategyM w c Bool
+    shouldProject :: CapInteractionPoints c => Term -> UnifyStrategyM c Bool
     shouldProject = \case
       Def f es   -> usesCopatterns f
       Con c _ _  -> isJust <$> isRecordConstructor (conName c)
@@ -583,7 +582,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- a left inverse for the overall match, so as a slight optimisation
   -- we just don't bother computing it. __IMPOSSIBLE__ because that
   -- field in the result is never evaluated.
-  res <- addContext (varTel s) $ unifyIndices' (Just __IMPOSSIBLE__)
+  res <- lift $ addContext (varTel s) $ unifyIndices' (Just __IMPOSSIBLE__)
            hduTel
            (allFlexVars notforced hduTel)
            (raise (size ctel) dtype)
@@ -901,11 +900,12 @@ unify s strategy = if isUnifyStateSolved s
                    then return $ Unifies s
                    else tryUnifyStepsAndContinue (strategy s)
   where
+
     tryUnifyStepsAndContinue
-      :: ListT (UnifyLogT (TCMC c)) UnifyStep
+      :: ListT (TCMC c) UnifyStep
       -> UnifyLogT (TCMC c) (UnificationResult' UnifyState)
     tryUnifyStepsAndContinue steps = do
-      x <- foldListT tryUnifyStep failure steps
+      x <- foldListT tryUnifyStep failure (liftListT lift steps)
       case x of
         Unifies s'     -> unify s' strategy
         NoUnify err    -> return $ NoUnify err
@@ -998,3 +998,4 @@ patternBindingForcedVars forced v = do
           -- It would be if we had reduced to `constructorForm`,
           -- however, turning a `LitNat` into constructors would only result in churn,
           -- since literals have no variables that could be bound.
+
