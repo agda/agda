@@ -128,7 +128,7 @@ import Prelude hiding (null)
 
 import Control.Monad.State  ( gets, modify, evalStateT )
 import Control.Monad.Writer ( WriterT(..), MonadWriter(..) )
-import Control.Monad.Except ( runExceptT, MonadError )
+import Control.Monad.Except ( runExceptT )
 
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
@@ -163,7 +163,6 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Unify.Types
 import Agda.TypeChecking.Rules.LHS.Unify.LeftInverse
 
-import Agda.Utils.Benchmark
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -212,27 +211,25 @@ data UnificationResult' a
 --
 --   The result is the most general unifier of @us@ and @vs@.
 unifyIndices
-  :: (PureTCM m, MonadBench m, BenchPhase m ~ Bench.Phase, MonadError TCErr m)
-  => Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
+  :: Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
   -> Telescope       -- ^ @gamma@
   -> FlexibleVars    -- ^ @flex@
   -> Type            -- ^ @a@
   -> Args            -- ^ @us@
   -> Args            -- ^ @vs@
-  -> m UnificationResult
+  -> TCM UnificationResult
 unifyIndices linv tel flex a us vs =
   Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $
     fmap (\(a,b,c,_) -> (a,b,c)) <$> unifyIndices' linv tel flex a us vs
 
 unifyIndices'
-  :: (PureTCM m, MonadError TCErr m)
-  => Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
+  :: Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
   -> Telescope     -- ^ @gamma@
   -> FlexibleVars  -- ^ @flex@
   -> Type          -- ^ @a@
   -> Args          -- ^ @us@
   -> Args          -- ^ @vs@
-  -> m FullUnificationResult
+  -> TCM FullUnificationResult
 unifyIndices' linv tel flex a [] [] = return $ Unifies (tel, idS, [], Right (idS, raiseS 1))
 unifyIndices' linv tel flex a us vs = do
     reportSDoc "tc.lhs.unify" 10 $
@@ -265,7 +262,7 @@ unifyIndices' linv tel flex a us vs = do
 
 
 
-type UnifyStrategy = forall m. (PureTCM m, MonadPlus m) => UnifyState -> m UnifyStep
+type UnifyStrategy = UnifyState -> ListT TCM UnifyStep
 
 
 --UNUSED Liang-Ting Chen 2019-07-16
@@ -524,8 +521,7 @@ skipIrrelevantStrategy k s = do
 ----------------------------------------------------
 
 unifyStep
-  :: (PureTCM m, MonadWriter UnifyOutput m, MonadError TCErr m)
-  => UnifyState -> UnifyStep -> m (UnificationResult' UnifyState)
+  :: UnifyState -> UnifyStep -> UnifyStepT TCM (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
     isReflexive <- addContext (varTel s) $ runBlocked $ pureEqualTerm a u v
@@ -581,7 +577,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- a left inverse for the overall match, so as a slight optimisation
   -- we just don't bother computing it. __IMPOSSIBLE__ because that
   -- field in the result is never evaluated.
-  res <- addContext (varTel s) $ unifyIndices' (Just __IMPOSSIBLE__)
+  res <- lift $ addContext (varTel s) $ unifyIndices' (Just __IMPOSSIBLE__)
            hduTel
            (allFlexVars notforced hduTel)
            (raise (size ctel) dtype)
@@ -892,32 +888,28 @@ solutionStep retry s
     Right True -> return $ UnifyStuck [UnifyUnusableModality (varTel s) a i u mod]
 solutionStep _ _ _ = __IMPOSSIBLE__
 
-unify
-  :: (PureTCM m, MonadWriter UnifyLog' m, MonadError TCErr m)
-  => UnifyState -> UnifyStrategy -> m (UnificationResult' UnifyState)
+unify :: UnifyState -> UnifyStrategy -> UnifyLogT TCM (UnificationResult' UnifyState)
 unify s strategy = if isUnifyStateSolved s
                    then return $ Unifies s
                    else tryUnifyStepsAndContinue (strategy s)
   where
     tryUnifyStepsAndContinue
-      :: (PureTCM m, MonadWriter UnifyLog' m, MonadError TCErr m)
-      => ListT m UnifyStep -> m (UnificationResult' UnifyState)
+      :: ListT TCM UnifyStep -> UnifyLogT TCM (UnificationResult' UnifyState)
     tryUnifyStepsAndContinue steps = do
-      x <- foldListT tryUnifyStep failure steps
+      x <- foldListT tryUnifyStep failure (liftListT lift steps)
       case x of
         Unifies s'     -> unify s' strategy
         NoUnify err    -> return $ NoUnify err
         UnifyBlocked b -> return $ UnifyBlocked b
         UnifyStuck err -> return $ UnifyStuck err
 
-    tryUnifyStep :: (PureTCM m, MonadWriter UnifyLog' m, MonadError TCErr m)
-                 => UnifyStep
-                 -> m (UnificationResult' UnifyState)
-                 -> m (UnificationResult' UnifyState)
+    tryUnifyStep :: UnifyStep
+                 -> UnifyLogT TCM (UnificationResult' UnifyState)
+                 -> UnifyLogT TCM (UnificationResult' UnifyState)
     tryUnifyStep step fallback = do
       addContext (varTel s) $
         reportSDoc "tc.lhs.unify" 20 $ "trying unifyStep" <+> prettyTCM step
-      (x, output) <- runWriterT $ unifyStep s step
+      (x, output) <- lift $ runWriterT $ unifyStep s step
       case x of
         Unifies s'   -> do
           reportSDoc "tc.lhs.unify" 20 $ "unifyStep successful."
