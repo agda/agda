@@ -23,7 +23,7 @@ Tutorials and lecture notes
 ===========================
 
 - Martín Escardó and Dan Licata (2022). `Lecture notes for the HoTTEST Summer School <https://martinescardo.github.io/HoTTEST-Summer-School/>`__.
-- Banel Ahman and Andrej Bauer (2021). `Logic in Computer Science <https://www.andrej.com/zapiski/ISRM-LOGRAC-2022/>`__.
+- Danel Ahman and Andrej Bauer (2021). `Logic in Computer Science <https://www.andrej.com/zapiski/ISRM-LOGRAC-2022/>`__.
 - Jesper Cockx (2021). `Programming and Proving in Agda
   <https://github.com/jespercockx/agda-lecture-notes/blob/master/agda.pdf>`__.
   An introduction to Agda for a general audience of functional
