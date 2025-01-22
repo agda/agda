@@ -22,6 +22,8 @@ Books on Agda
 Tutorials and lecture notes
 ===========================
 
+- Martín Escardó and Dan Licata (2022). `Lecture notes for the HoTTEST Summer School <https://martinescardo.github.io/HoTTEST-Summer-School/>`__.
+- Banel Ahman and Andrej Bauer (2021). `Logic in Computer Science <https://www.andrej.com/zapiski/ISRM-LOGRAC-2022/>`__.
 - Jesper Cockx (2021). `Programming and Proving in Agda
   <https://github.com/jespercockx/agda-lecture-notes/blob/master/agda.pdf>`__.
   An introduction to Agda for a general audience of functional
@@ -29,8 +31,10 @@ Tutorials and lecture notes
   to using equational reasoning to formally prove correctness of
   functional programs.
 - effectfully (2020). `Inference in Agda <https://github.com/effectfully/inference-in-agda>`__.
+- Martín Hötzel Escardó. `Introduction to Univalent Foundations of Mathematics with Agda <https://martinescardo.github.io/HoTT-UF-in-Agda-Lecture-Notes/>`__.
 - Musa Al-hassy (2019). `A slow-paced introduction to reflection in Agda <https://github.com/alhassy/gentle-intro-to-reflection>`__.
 - Jesper Cockx (2019). `Formalize all the things (in Agda) <https://jesper.sikanda.be/posts/formalize-all-the-things.html>`__.
+- Peter Dybjer (2017). `An Introduction to Programming and Proving in Agda (incomplete draft) <https://www.cse.chalmers.se/edu/year/2017/course/DAT350/LectureNotes.pdf>`__.
 - Jan Malakhovski (2013). `Brutal [Meta]Introduction to Dependent
   Types in Agda <https://oxij.org/note/BrutalDepTypes/>`__.
 - Diviánszky Péter (2012). `Agda Tutorial
@@ -59,6 +63,14 @@ Videos on Agda
 - Jesper Cockx (2024). `Programming and Proving in Agda
   <https://www.youtube.com/watch?v=AVRsH_YH7XU>`__.
   (Lecture at ZuriHac 2024).
+- André Muricy (2023). `Super Haskell: an introduction to Agda <https://www.youtube.com/watch?v=OSDgVxdP20g>`__.
+- Andrej Bauer (2022). `Logic in Computer Science <https://www.youtube.com/playlist?list=PL-47DDuiZOMA4vH2OzQpo2ATDLw29ATbv>`__.
+- `HoTTEST Summer School 2022 <https://www.youtube.com/playlist?list=PLtIZ5qxwSNnzpNqfXzJjlHI9yCAzRzKtx>`__.
+- Jacques Carette (2022). `What I learned from formalizing Category Theory in Agda <https://www.youtube.com/watch?v=VQiQtH47pbM>`__.
+- Fredrik Nordvall Forsberg (2022). `Advanced Functional Programming <https://www.youtube.com/playlist?list=PLtMyCt65_Zw6BFmNsr7RUO3XK0cofN0Z4>`__ (videos of lectures).
+- Peter Selinger (2021). `Lectures on Agda <https://www.mathstat.dal.ca/~selinger/agda-lectures/>`__.
+- Anders Mörtberg (2021). `Cubical Agda <https://www.youtube.com/watch?v=w13B4JWFEm8>`__.
+- Philip Wadler (2019). `(Programming Languages) in Agda = Programming (Languages in Agda) <https://www.youtube.com/watch?v=9yplm_dsQHE>`__ (Lecture at YOW! 2019).
 - Conor McBride (2014). `Introduction to Dependently Typed Programming
   using Agda
   <https://www.youtube.com/playlist?list=PL44F162A8B8CB7C87>`__.
