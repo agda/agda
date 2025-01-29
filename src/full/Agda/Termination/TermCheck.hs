@@ -1104,7 +1104,7 @@ maskSizeLt !dom = liftTCM $ do
 
      Compare the list of de Bruijn patterns (=parameters) @pats@
      with a list of arguments @es@ and create a call maxtrix
-     with |es| + 1 rows and |pats| + 1 columns.
+     with |es| + 2 rows and |pats| + 2 columns.
 
      The guardedness is the number of projection patterns in @pats@
      minus the number of projections in @es@.
@@ -1120,16 +1120,6 @@ compareArgs es = do
   --   "annotated patterns = " <+> sep (map prettyTCM apats)
   -- matrix <- forM es $ \ e -> forM apats $ \ (b, p) -> terSetUseSizeLt b $ compareElim e p
   matrix <- withUsableVars pats $ forM es $ \ e -> forM pats $ \ p -> compareElim e p
-  let patsLen = size pats
-
-  -- We pretend there is one extra dummy argument involved in every function
-  -- call as this helps termination in some cases.
-  -- See: https://github.com/agda/agda/issues/7693
-
-  -- TODO: Is there a more sensible index to use here?
-  let discard = notMasked (varP (DBPatVar "_" $ -1))
-  newCol <- traverse (\e -> compareElim e discard) es
-  let matrix' = replicate (patsLen + 1) Order.le : zipWith (:) newCol matrix
 
   -- Count the number of coinductive projection(pattern)s in caller and callee.
   -- Only recursive coinductive projections are eligible (Issue 1209).
@@ -1150,7 +1140,7 @@ compareArgs es = do
     , nest 2 $ text $ "projsCallee = " ++ prettyShow projsCallee
     , nest 2 $ text $ "guardedness of call: " ++ prettyShow guardedness
     ]
-  return $ addGuardedness guardedness (size es + 1, patsLen + 1, matrix')
+  addGuardedness guardedness <$> addDummy es (size es, size pats, matrix)
 
 -- | Traverse patterns from left to right.
 --   When we come to a projection pattern,
@@ -1236,6 +1226,18 @@ compareProj d d'
 makeCM :: Int -> Int -> [[Order]] -> CallMatrix
 makeCM ncols nrows matrix = CallMatrix $
   Matrix.fromLists (Matrix.Size nrows ncols) matrix
+
+-- | 'addDummy' adds a row and column to the call matrix, simulating the effect
+-- of both functions having extra base-constructor "dummy" arguments, which
+-- can aid termination checking in some cases.
+-- See issue #7693
+addDummy :: [Elim] -> (Int, Int, [[Order]]) -> TerM (Int, Int, [[Order]])
+addDummy es (nrows, ncols, m) = do
+  -- TODO: Is there a more sensible index to use here?
+  let discard = notMasked (varP (DBPatVar "_" $ -1))
+  newCol <- traverse (\e -> compareElim e discard) es
+  let newRow = replicate (ncols + 1) Order.le
+  pure (nrows + 1, ncols + 1, newRow : zipWith (:) newCol m)
 
 -- | 'addGuardedness' adds guardedness flag in the upper left corner
 -- (0,0).
