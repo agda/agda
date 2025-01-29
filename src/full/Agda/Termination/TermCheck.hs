@@ -1104,7 +1104,7 @@ maskSizeLt !dom = liftTCM $ do
 
      Compare the list of de Bruijn patterns (=parameters) @pats@
      with a list of arguments @es@ and create a call maxtrix
-     with |es| rows and |pats| columns.
+     with |es| + 1 rows and |pats| + 1 columns.
 
      The guardedness is the number of projection patterns in @pats@
      minus the number of projections in @es@.
@@ -1120,6 +1120,12 @@ compareArgs es = do
   --   "annotated patterns = " <+> sep (map prettyTCM apats)
   -- matrix <- forM es $ \ e -> forM apats $ \ (b, p) -> terSetUseSizeLt b $ compareElim e p
   matrix <- withUsableVars pats $ forM es $ \ e -> forM pats $ \ p -> compareElim e p
+  -- We pretend there is one extra dummy argument as this helps termination
+  -- in some cases.
+  -- See: https://github.com/agda/agda/issues/7693
+
+  let patsLen = size pats
+  let matrix' = fmap (Decr True 0 :) $ replicate patsLen (Decr True 0) : matrix
 
   -- Count the number of coinductive projection(pattern)s in caller and callee.
   -- Only recursive coinductive projections are eligible (Issue 1209).
@@ -1140,7 +1146,7 @@ compareArgs es = do
     , nest 2 $ text $ "projsCallee = " ++ prettyShow projsCallee
     , nest 2 $ text $ "guardedness of call: " ++ prettyShow guardedness
     ]
-  return $ addGuardedness guardedness (size es, size pats, matrix)
+  return $ addGuardedness guardedness (size es + 1, patsLen + 1, matrix')
 
 -- | Traverse patterns from left to right.
 --   When we come to a projection pattern,
