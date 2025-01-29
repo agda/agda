@@ -1120,12 +1120,12 @@ compareArgs es = do
   --   "annotated patterns = " <+> sep (map prettyTCM apats)
   -- matrix <- forM es $ \ e -> forM apats $ \ (b, p) -> terSetUseSizeLt b $ compareElim e p
   matrix <- withUsableVars pats $ forM es $ \ e -> forM pats $ \ p -> compareElim e p
-  -- We pretend there is one extra dummy argument as this helps termination
-  -- in some cases.
-  -- See: https://github.com/agda/agda/issues/7693
-
   let patsLen = size pats
-  let matrix' = fmap (Decr True 0 :) $ replicate patsLen (Decr True 0) : matrix
+
+  -- We pretend there is one extra dummy argument involved in every function
+  -- call as this helps termination in some cases.
+  -- See: https://github.com/agda/agda/issues/7693
+  let matrix' = replicate (patsLen + 1) Order.le : fmap (Order.unknown :) matrix
 
   -- Count the number of coinductive projection(pattern)s in caller and callee.
   -- Only recursive coinductive projections are eligible (Issue 1209).
