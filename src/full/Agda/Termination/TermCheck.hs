@@ -1125,7 +1125,11 @@ compareArgs es = do
   -- We pretend there is one extra dummy argument involved in every function
   -- call as this helps termination in some cases.
   -- See: https://github.com/agda/agda/issues/7693
-  let matrix' = replicate (patsLen + 1) Order.le : fmap (Order.unknown :) matrix
+
+  -- TODO: Is there a more sensible index to use here?
+  let discard = notMasked (varP (DBPatVar "_" $ -1))
+  newCol <- traverse (\e -> compareElim e discard) es
+  let matrix' = replicate (patsLen + 1) Order.le : zipWith (:) newCol matrix
 
   -- Count the number of coinductive projection(pattern)s in caller and callee.
   -- Only recursive coinductive projections are eligible (Issue 1209).

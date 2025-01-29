@@ -1,8 +1,6 @@
 open import Agda.Builtin.Nat using () renaming (Nat to ℕ; zero to ze; suc to su)
 open import Agda.Builtin.Equality using (_≡_; refl)
 
-module _ where
-
 data Sort : Set where
   V   : Sort
   T>V : ∀ q → q ≡ V → Sort
