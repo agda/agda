@@ -34,7 +34,7 @@ requirements: req-cabal
 # https://github.com/snoyberg/yaml/issues/194
 
 req-cabal:
-	cabal install yaml -f-no-exe
+	cabal install yaml -f-no-exe --ignore-project
 
 STACK_OPTS = --system-ghc
 req-stack:
