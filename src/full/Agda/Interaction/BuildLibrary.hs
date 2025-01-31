@@ -5,13 +5,14 @@ module Agda.Interaction.BuildLibrary (buildLibrary) where
 import           Control.Monad.Except             (throwError)
 import           Control.Monad.IO.Class           (liftIO)
 
+import           Data.Functor                     (void)
 import qualified Data.Set as Set
 
 import           System.Directory                 (getCurrentDirectory)
 import           System.FilePath                  ( (</>) )
 import qualified System.FilePath.Find             as Find
 
-import           Agda.Interaction.FindFile        (hasAgdaExtension)
+import           Agda.Interaction.FindFile        (hasAgdaExtension, checkModuleName)
 import qualified Agda.Interaction.Imports         as Imp
 import           Agda.Interaction.Library         (pattern AgdaLibFile, _libIncludes, getAgdaLibFile)
 import           Agda.Interaction.Options         (optOnlyScopeChecking)
@@ -24,7 +25,7 @@ import           Agda.TypeChecking.Warnings       (pattern AllWarnings, classify
 import           Agda.Utils.FileName              (absolute)
 import           Agda.Utils.Functor               ()
 import           Agda.Utils.IO.Directory          (findWithInfo)
-import           Agda.Utils.Monad                 (forM, forM_, unless)
+import           Agda.Utils.Monad                 (forM, forM_, unless, bracket_)
 import           Agda.Utils.Null                  (unlessNullM)
 import           Agda.Utils.String                (delimiter)
 
@@ -61,14 +62,22 @@ buildLibrary = do
 
     -- TODO: isolated check
     -- typeCheckMain does not isolate
-    src <- srcFromPath =<< liftIO (absolute inputFile)
-    result <- Imp.typeCheckMain mode =<< Imp.parseSource src
+    sf <- srcFromPath =<< liftIO (absolute inputFile)
+    src <- Imp.parseSource sf
+    let m = Imp.srcModuleName src
+    -- checkModuleName m (Imp.srcOrigin src) Nothing
+    -- void $ Imp.getNonMainInterface m (Just src)
+    -- Preserve/restore the current pragma options, which will be mutated when loading
+    -- and checking the interface.
+    result <- bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $
+      Imp.typeCheckMain mode src
 
-    unless (Imp.crMode result == ModuleScopeChecked) $
-      Imp.raiseNonFatalErrors result
+    -- unless (Imp.crMode result == ModuleScopeChecked) $
+    --   Imp.raiseNonFatalErrors result
 
     -- let i = crInterface result
     -- reportSDoc "main" 50 $ pretty i
+    return ()
 
   -- Print accumulated warnings
   unlessNullM (tcWarnings . classifyWarnings . Set.toAscList <$> getAllWarnings AllWarnings) $ \ ws -> do
