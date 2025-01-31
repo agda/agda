@@ -3,9 +3,13 @@
 -- This is a larger example for the termination checker, to test performance.
 -- In 2014-02-X, it exhausted the heap.
 
--- 2013-03-17
+-- 2014-03-17
 -- The termination checker now rejects this code instead of crashing.
 -- I do not know whether it is supposed to terminate.
+
+-- 2025-01-31
+-- The termination checker extended with "dummy arguments" (see issue #7693) now
+-- accepts this code.
 
 {-# OPTIONS --allow-unsolved-metas #-}
 
