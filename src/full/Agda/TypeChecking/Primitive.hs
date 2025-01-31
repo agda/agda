@@ -40,6 +40,7 @@ import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Char
 import Agda.Utils.Float
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe (fromMaybeM)
 import Agda.Utils.Monad
@@ -154,50 +155,47 @@ instance PrimTerm a => PrimTerm (IO a) where
 -- From Agda term to Haskell value
 
 class ToTerm a where
-  toTerm  :: TCM (a -> Term)
-  toTermR :: TCM (a -> ReduceM Term)
+  toTerm  :: TCM (a -> ReduceM Term)
 
-  toTermR = (pure .) <$> toTerm
+toTermTCM :: ToTerm a => TCM (a -> TCM Term)
+toTermTCM = (runReduceM .) <$> toTerm
 
-instance ToTerm Nat     where toTerm = return $ Lit . LitNat . toInteger
-instance ToTerm Word64  where toTerm = return $ Lit . LitWord64
-instance ToTerm Lvl     where toTerm = return $ Level . ClosedLevel . unLvl
-instance ToTerm Double  where toTerm = return $ Lit . LitFloat
-instance ToTerm Char    where toTerm = return $ Lit . LitChar
-instance ToTerm Text    where toTerm = return $ Lit . LitString
-instance ToTerm QName   where toTerm = return $ Lit . LitQName
+instance ToTerm Nat     where toTerm = return $ pure . Lit . LitNat . toInteger
+instance ToTerm Word64  where toTerm = return $ pure . Lit . LitWord64
+instance ToTerm Lvl     where toTerm = return $ pure . Level . ClosedLevel . unLvl
+instance ToTerm Double  where toTerm = return $ pure . Lit . LitFloat
+instance ToTerm Char    where toTerm = return $ pure . Lit . LitChar
+instance ToTerm Text    where toTerm = return $ pure . Lit . LitString
+instance ToTerm QName   where toTerm = return $ pure . Lit . LitQName
 instance ToTerm MetaId  where
   toTerm = do
     top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
-    return $ Lit . LitMeta top
+    return $ pure . Lit . LitMeta top
 
 instance ToTerm Integer where
   toTerm = do
     pos     <- primIntegerPos
     negsuc  <- primIntegerNegSuc
-    fromNat <- toTerm :: TCM (Nat -> Term)
-    let intToTerm = fromNat . fromIntegral :: Integer -> Term
-    let fromInt n | n >= 0    = apply pos    [defaultArg $ intToTerm n]
-                  | otherwise = apply negsuc [defaultArg $ intToTerm (-n - 1)]
+    fromNat <- toTerm @Nat
+    let intToTerm = fromNat . fromIntegral @Integer
+    let fromInt n | n >= 0    = apply1 pos    <$> intToTerm n
+                  | otherwise = apply1 negsuc <$> intToTerm (-n - 1)
     return fromInt
 
 instance ToTerm Bool where
   toTerm = do
     true  <- primTrue
     false <- primFalse
-    return $ \b -> if b then true else false
+    return $ \b -> pure $ if b then true else false
 
 instance ToTerm Term where
-  toTerm  = do kit <- quotingKit; runReduceF (quoteTermWithKit kit)
-  toTermR = do quoteTermWithKit <$> quotingKit;
+  toTerm = do quoteTermWithKit <$> quotingKit
 
 instance ToTerm (Dom Type) where
-  toTerm  = do kit <- quotingKit; runReduceF (quoteDomWithKit kit)
-  toTermR = do quoteDomWithKit <$> quotingKit
+  toTerm = do quoteDomWithKit <$> quotingKit
 
 instance ToTerm Type where
-  toTerm  = do kit <- quotingKit; runReduceF (quoteTypeWithKit kit)
-  toTermR = quoteTypeWithKit <$> quotingKit
+  toTerm = quoteTypeWithKit <$> quotingKit
 
 instance ToTerm ArgInfo where
   toTerm = do
@@ -207,7 +205,7 @@ instance ToTerm ArgInfo where
     ins  <- primInstance
     rel  <- primRelevant
     irr  <- primIrrelevant
-    return $ \ i -> info `applys`
+    return $ \ i -> pure $ info `applys`
       [ case getHiding i of
           NotHidden  -> vis
           Hidden     -> hid
@@ -227,14 +225,14 @@ instance ToTerm Fixity where
     aToTm  <- toTerm
     fixity <- primFixityFixity
     return $ \ Fixity{fixityAssoc = a, fixityLevel = l} ->
-      fixity `apply` [defaultArg (aToTm a), defaultArg (lToTm l)]
+      apply2 fixity <$> aToTm a <*> lToTm l
 
 instance ToTerm Associativity where
   toTerm = do
     lassoc <- primAssocLeft
     rassoc <- primAssocRight
     nassoc <- primAssocNon
-    return $ \ a ->
+    return $ \ a -> pure $
       case a of
         NonAssoc   -> nassoc
         LeftAssoc  -> lassoc
@@ -247,22 +245,22 @@ instance ToTerm Blocker where
     meta <- primAgdaBlockerMeta
     lists <- buildList
     metaTm <- toTerm
-    let go (UnblockOnAny xs)    = any `apply` [defaultArg (lists (go <$> Set.toList xs))]
-        go (UnblockOnAll xs)    = all `apply` [defaultArg (lists (go <$> Set.toList xs))]
-        go (UnblockOnMeta m)    = meta `apply` [defaultArg (metaTm m)]
+    let go (UnblockOnAny xs)    = apply1 any . lists <$> mapM go (Set.toList xs)
+        go (UnblockOnAll xs)    = apply1 all . lists <$> mapM go (Set.toList xs)
+        go (UnblockOnMeta m)    = apply1 meta <$> metaTm m
         go (UnblockOnDef _)     = __IMPOSSIBLE__
         go (UnblockOnProblem _) = __IMPOSSIBLE__
     pure go
 
 instance ToTerm FixityLevel where
   toTerm = do
-    (iToTm :: PrecedenceLevel -> Term) <- toTerm
+    iToTm <- toTerm
     related   <- primPrecRelated
     unrelated <- primPrecUnrelated
     return $ \ p ->
       case p of
-        Unrelated -> unrelated
-        Related n -> related `apply` [defaultArg $ iToTm n]
+        Unrelated -> pure unrelated
+        Related n -> apply1 related <$> iToTm n
 
 instance (ToTerm a, ToTerm b) => ToTerm (a, b) where
   toTerm = do
@@ -270,7 +268,7 @@ instance (ToTerm a, ToTerm b) => ToTerm (a, b) where
     let con = Con (sigmaCon sigKit) ConOSystem []
     fromA <- toTerm
     fromB <- toTerm
-    pure $ \ (a, b) -> con `apply` map defaultArg [fromA a, fromB b]
+    pure $ \ (a, b) -> apply2 con <$> fromA a <*> fromB b
 
 -- | @buildList A ts@ builds a list of type @List A@. Assumes that the terms
 --   @ts@ all have type @A@.
@@ -286,14 +284,14 @@ instance ToTerm a => ToTerm [a] where
   toTerm = do
     mkList <- buildList
     fromA  <- toTerm
-    return $ mkList . map fromA
+    return $ mkList <.> mapM fromA
 
 instance ToTerm a => ToTerm (Maybe a) where
   toTerm = do
     nothing <- primNothing
     just    <- primJust
     fromA   <- toTerm
-    return $ maybe nothing (apply1 just . fromA)
+    return $ maybe (pure nothing) (apply1 just <.> fromA)
 
 -- From Haskell value to Agda term
 
@@ -316,11 +314,11 @@ instance FromTerm Integer where
         Con c ci [Apply u]
           | c == pos    ->
             redBind (toNat u)
-              (\ u' -> notReduced $ arg $ Con c ci [Apply $ ignoreReduced u']) $ \ n ->
+              (\ u' -> pure $ notReduced $ arg $ Con c ci [Apply $ ignoreReduced u']) $ \ n ->
             redReturn $ fromIntegral n
           | c == negsuc ->
             redBind (toNat u)
-              (\ u' -> notReduced $ arg $ Con c ci [Apply $ ignoreReduced u']) $ \ n ->
+              (\ u' -> pure $ notReduced $ arg $ Con c ci [Apply $ ignoreReduced u']) $ \ n ->
             redReturn $ fromIntegral $ -n - 1
         _ -> return $ NoReduction (reduced b)
 
@@ -400,10 +398,12 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
           Con c ci es
             | c == cons, Just [x,xs] <- allApplyElims es ->
               redBind (toA x)
-                  (\x' -> notReduced $ arg $ Con c ci (map Apply [ignoreReduced x',xs])) $ \y ->
+                  (\x' -> pure $ notReduced $ arg $ Con c ci (map Apply [ignoreReduced x',xs])) $ \y ->
               redBind
                   (mkList nil cons toA fromA xs)
-                  (fmap $ \xs' -> arg $ Con c ci (map Apply [defaultArg $ fromA y, xs'])) $ \ys ->
+                  (\ xsR -> do
+                    yTm <- fromA y
+                    pure $ for xsR $ \xs' -> arg $ Con c ci (map Apply [defaultArg yTm, xs'])) $ \ys ->
               redReturn (y : ys)
           _ -> return $ NoReduction (reduced b)
 
@@ -422,7 +422,7 @@ instance FromTerm a => FromTerm (Maybe a) where
         Con c ci es
           | c == just, Just [x] <- allApplyElims es ->
             redBind (toA x)
-              (\ x' -> notReduced $ arg $ Con c ci [Apply (ignoreReduced x')])
+              (\ x' -> pure $ notReduced $ arg $ Con c ci [Apply (ignoreReduced x')])
               (redReturn . Just)
         _ -> return $ NoReduction (reduced b)
 
@@ -687,12 +687,12 @@ mkPrimFun1TCM :: (FromTerm a, ToTerm b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
     toA   <- fromTerm
-    fromB <- toTermR
+    fromB <- toTerm
     t     <- mt
     return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ts ->
       case ts of
         [v] ->
-          redBind (toA v) singleton $ \ x -> do
+          redBind (toA v) (pure . singleton) $ \ x -> do
             b <- fromB =<< f x
             case allMetas Set.singleton b of
               ms | Set.null ms -> redReturn b
@@ -709,8 +709,8 @@ mkPrimFun1 f = do
     return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ts ->
       case ts of
         [v] ->
-          redBind (toA v) singleton $ \ x ->
-          redReturn $ fromB $ f x
+          redBind (toA v) (pure . singleton) $ \ x ->
+          redReturn =<< fromB (f x)
         _ -> __IMPOSSIBLE__
 
 mkPrimFun2 :: ( PrimType a, FromTerm a, ToTerm a
@@ -727,11 +727,13 @@ mkPrimFun2 f = do
       case ts of
         [v,w] ->
           redBind (toA v)
-              (\v' -> [v', notReduced w]) $ \x ->
+              (\v' -> pure [v', notReduced w]) $ \x ->
           redBind (toB w)
-              (\w' -> [ reduced $ notBlocked $ Arg (argInfo v) (fromA x)
-                      , w']) $ \y ->
-          redReturn $ fromC $ f x y
+              (\w' -> do
+                xTm <- fromA x
+                pure [reduced $ notBlocked $ Arg (argInfo v) xTm , w']
+              ) $ \y ->
+          redReturn =<< fromC (f x y)
         _ -> __IMPOSSIBLE__
 
 mkPrimFun3 :: ( PrimType a, FromTerm a, ToTerm a
@@ -747,16 +749,22 @@ mkPrimFun3 f = do
     t <- primType f
     return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ts ->
       let argFrom fromX a x =
-            reduced $ notBlocked $ Arg (argInfo a) (fromX x)
+            reduced . notBlocked . Arg (argInfo a) <$> fromX x
       in case ts of
         [a,b,c] ->
           redBind (toA a)
-              (\a' -> [a', notReduced b, notReduced c]) $ \x ->
+              (\a' -> pure [a', notReduced b, notReduced c]) $ \x ->
           redBind (toB b)
-              (\b' -> [argFrom fromA a x, b', notReduced c]) $ \y ->
+              (\b' -> sequence
+                [ argFrom fromA a x
+                , pure b'
+                , pure $ notReduced c ]) $ \y ->
           redBind (toC c)
-              (\c' -> [ argFrom fromA a x, argFrom fromB b y, c']) $ \z ->
-          redReturn $ fromD $ f x y z
+              (\c' -> sequence
+                [ argFrom fromA a x
+                , argFrom fromB b y
+                , pure c' ]) $ \z ->
+          redReturn =<< fromD (f x y z)
         _ -> __IMPOSSIBLE__
 
 mkPrimFun4 :: ( PrimType a, FromTerm a, ToTerm a
@@ -774,24 +782,31 @@ mkPrimFun4 f = do
     t <- primType f
     return $ PrimImpl t $ primFun __IMPOSSIBLE__ 4 $ \ts ->
       let argFrom fromX a x =
-            reduced $ notBlocked $ Arg (argInfo a) (fromX x)
+            reduced . notBlocked . Arg (argInfo a) <$> fromX x
       in case ts of
         [a,b,c,d] ->
           redBind (toA a)
-              (\a' -> a' : map notReduced [b,c,d]) $ \x ->
+              (\a' -> pure $ a' : map notReduced [b, c, d]) $ \x ->
           redBind (toB b)
-              (\b' -> [argFrom fromA a x, b', notReduced c, notReduced d]) $ \y ->
+              (\b' -> sequence
+                [ argFrom fromA a x
+                , pure b'
+                , pure $ notReduced c
+                , pure $ notReduced d ]) $ \y ->
           redBind (toC c)
-              (\c' -> [ argFrom fromA a x
-                      , argFrom fromB b y
-                      , c', notReduced d]) $ \z ->
+              (\c' -> sequence
+                [ argFrom fromA a x
+                , argFrom fromB b y
+                , pure c'
+                , pure $ notReduced d ]) $ \z ->
           redBind (toD d)
-              (\d' -> [ argFrom fromA a x
-                      , argFrom fromB b y
-                      , argFrom fromC c z
-                      , d']) $ \w ->
+              (\d' -> sequence
+                [ argFrom fromA a x
+                , argFrom fromB b y
+                , argFrom fromC c z
+                , pure d' ]) $ \w ->
 
-          redReturn $ fromE $ f x y z w
+          redReturn =<< fromE (f x y z w)
         _ -> __IMPOSSIBLE__
 
 
