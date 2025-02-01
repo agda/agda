@@ -54,6 +54,7 @@ jobs:
 
     - name: Configure the build plan
       run: |
+        # shellcheck disable=SC2086
         cabal configure ${FLAGS}
         cabal build --dry-run
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
@@ -80,6 +81,7 @@ jobs:
     # Testing Haddock [Issue 1773]
     - name: Build Haddock
       run: |
+        # shellcheck disable=SC2016
         cabal haddock --haddock-html-location='https://hackage.haskell.org/package/$pkg-$version/docs' --haddock-hyperlink-source --haddock-quickjump
 
     - name: Prepare to upload built htmls

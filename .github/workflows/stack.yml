@@ -65,11 +65,11 @@ jobs:
         # stack exec ${ARGS} -- pacman --noconfirm -Syuu
         # stack exec ${ARGS} -- pacman --noconfirm -S msys2-keyring
         # stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
-        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-icu
-        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkgconf
-        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-zlib
+        # shellcheck disable=SC2086
+        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-icu mingw-w64-x86_64-pkgconf mingw-w64-x86_64-zlib
     - name: Determine the ICU version
       run: |
+        # shellcheck disable=SC2086
         ICU_VER=$(stack exec ${ARGS} -- pkg-config --modversion icu-i18n)
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
@@ -92,12 +92,18 @@ jobs:
           ${{ env.STACK_ROOT }}
         restore-keys: ${{ env.key}}-
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
-      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
+      run: |
+        # shellcheck disable=SC2086
+        stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests`
         (i.e. the test suite).
-      run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
+      run: |
+        # shellcheck disable=SC2086
+        stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
     - name: Build Agda with the non-default flags Agda.cabal.
-      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
+      run: |
+        # shellcheck disable=SC2086
+        stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
     - if: always() && steps.cache.outputs.cache-matched-key != steps.cache.outputs.cache-primary-key
       name: Save cache
       uses: actions/cache/save@v4
