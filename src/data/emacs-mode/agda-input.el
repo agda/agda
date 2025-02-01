@@ -213,9 +213,9 @@ order for the change to take effect."
 
   ;; Inequality and similar symbols.
 
-  ("leq"  . ,(agda-input-to-string-list "<≪⋘≤≦≲ ≶≺≼≾⊂⊆ ⋐⊏⊑ ⊰⊲⊴⋖⋚⋜⋞＜"))
+  ("leq"  . ,(agda-input-to-string-list "<≪⋘≤≦≲ ≶≺≼≾⊂⊆⫇⫉ ⋐⊏⊑ ⊰⊲⊴⋖⋚⋜⋞＜"))
   ("leqn" . ,(agda-input-to-string-list "≮  ≰≨≴⋦≸⊀ ⋨⊄⊈⊊  ⋢⋤ ⋪⋬   ⋠"))
-  ("geq"  . ,(agda-input-to-string-list ">≫⋙≥≧≳ ≷≻≽≿⊃⊇ ⋑⊐⊒ ⊱⊳⊵⋗⋛⋝⋟＞"))
+  ("geq"  . ,(agda-input-to-string-list ">≫⋙≥≧≳ ≷≻≽≿⊃⊇⫈⫊ ⋑⊐⊒ ⊱⊳⊵⋗⋛⋝⋟＞"))
   ("geqn" . ,(agda-input-to-string-list "≯  ≱≩≵⋧≹⊁ ⋩⊅⊉⊋  ⋣⋥ ⋫⋭   ⋡"))
 
   ("<="   . ("≤"))  (">="   . ("≥"))
@@ -230,6 +230,8 @@ order for the change to take effect."
   ("subn"  . ("⊄"))  ("supn"  . ("⊅"))
   ("sub="  . ("⊆"))  ("sup="  . ("⊇"))
   ("sub=n" . ("⊈"))  ("sup=n" . ("⊉"))
+  ("sub~"  . ("⫇"))  ("sup~"  . ("⫈"))
+  ("sub~~"  . ("⫉"))  ("sup~~"  . ("⫊"))
 
   ("squb"   . ("⊏"))  ("squp"   . ("⊐"))
   ("squb="  . ("⊑"))  ("squp="  . ("⊒"))
