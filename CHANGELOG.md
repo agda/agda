@@ -18,8 +18,8 @@ Installation
   is not writeable by the Agda users, you need to manually generate these files,
   e.g. using these shell commands:
   ```sh
-    cd $(agda --print-agda-data-dir)/lib/prim
-    for i in $(find -name "*.agda"); do agda $i; done
+    cd "$(agda --print-agda-data-dir)/lib/prim"
+    find . -name "*.agda" -exec agda {} \;
   ```
   Binary distributions of Agda should come equipped with these files.
   So, if you are a packager, please include this step in your packaging routine.

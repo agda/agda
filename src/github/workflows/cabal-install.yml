@@ -67,6 +67,7 @@ jobs:
 
     - name: Configure the build plan
       run: |
+        # shellcheck disable=SC2086
         cabal configure ${FLAGS}
         cabal build --dry-run
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
@@ -91,6 +92,7 @@ jobs:
 
     - name: Install Agda
       run: |
+        # shellcheck disable=SC2086
         cabal install ${FLAGS} ${{ matrix.install_flags }}
 
     - name: Debug
@@ -108,10 +110,7 @@ jobs:
         echo "AGDA_VERSION  = ${AGDA_VERSION}"
         echo "AGDA_DATA_DIR = ${AGDA_DATA_DIR}"
         cd "${AGDA_DATA_DIR}/lib/prim"
-        for i in $(find . -name "*.agda"); do
-          echo "Building ${i}i"
-          agda $i
-        done
+        find . -name "*.agda" -exec echo "Building {}i" \; -exec agda {} \;
 
     - name: Save cache
       uses: actions/cache/save@v4
