@@ -145,7 +145,6 @@ name: Build (cabal)
     paths:
     - .github/workflows/cabal.yml
     - Agda.cabal
-    - Setup.hs
     - src/agda-mode/**
     - src/full/**
     - src/main/**
@@ -158,7 +157,6 @@ name: Build (cabal)
     paths:
     - .github/workflows/cabal.yml
     - Agda.cabal
-    - Setup.hs
     - src/agda-mode/**
     - src/full/**
     - src/main/**

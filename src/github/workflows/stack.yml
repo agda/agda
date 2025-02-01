@@ -10,7 +10,6 @@ on:
     paths: &trigger_path_list
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
-    - 'Setup.hs'
     - 'stack-*.yaml'
     - 'src/size-solver/size-solver.cabal'
     # Andreas, 2023-01-27, issue #8460:

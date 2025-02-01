@@ -131,7 +131,6 @@ name: Build (stack)
     paths:
     - .github/workflows/stack.yml
     - Agda.cabal
-    - Setup.hs
     - stack-*.yaml
     - src/size-solver/size-solver.cabal
   push:
@@ -142,7 +141,6 @@ name: Build (stack)
     paths:
     - .github/workflows/stack.yml
     - Agda.cabal
-    - Setup.hs
     - stack-*.yaml
     - src/size-solver/size-solver.cabal
   workflow_dispatch: null
