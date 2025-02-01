@@ -21,4 +21,7 @@ Desired rewriting:
 
 Jesper, 2019-11-21, new rewriting:
   ... | itt .k = ?
+
+Jesper, 2025-01-31, newer rewriting:
+  ... | itt r = ?
 -}
