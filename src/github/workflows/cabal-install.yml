@@ -11,7 +11,6 @@ on:
     paths: &trigger_path_list
     - '.github/workflows/cabal-install.yml'
     - 'Agda.cabal'
-    - 'Setup.hs'
     - 'src/full/**'
     - 'src/main/**'
   pull_request:
@@ -68,6 +67,7 @@ jobs:
 
     - name: Configure the build plan
       run: |
+        # shellcheck disable=SC2086
         cabal configure ${FLAGS}
         cabal build --dry-run
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
@@ -92,6 +92,7 @@ jobs:
 
     - name: Install Agda
       run: |
+        # shellcheck disable=SC2086
         cabal install ${FLAGS} ${{ matrix.install_flags }}
 
     - name: Debug
@@ -101,14 +102,15 @@ jobs:
         ls -l ~/.cabal/bin
         tree -L 3 ~/.cabal/store
 
-    - name: Check for Agda library interface files
+    - name: Build Agda library interface files
       if: matrix.name != '--lib'
       run: |
         AGDA_VERSION=$(agda --numeric-version)
         AGDA_DATA_DIR=$(agda --print-agda-data-dir)
         echo "AGDA_VERSION  = ${AGDA_VERSION}"
         echo "AGDA_DATA_DIR = ${AGDA_DATA_DIR}"
-        ls -l "${AGDA_DATA_DIR}/lib/prim/_build/${AGDA_VERSION}/agda/Agda/Primitive.agdai"
+        cd "${AGDA_DATA_DIR}/lib/prim"
+        find . -name "*.agda" -exec echo "Building {}i" \; -exec agda {} \;
 
     - name: Save cache
       uses: actions/cache/save@v4

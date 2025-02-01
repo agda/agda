@@ -11,6 +11,19 @@ Installation
 
 * Agda supports GHC versions 8.8.4 to 9.10.1.
 
+* **Breaking**: Custom `Setup.hs` has been removed.
+  Agda will no longer build the `.agdai` files for the primitive and builtin modules
+  as part of the installation.
+  So if you do a system-wide installation where the installation location
+  is not writeable by the Agda users, you need to manually generate these files,
+  e.g. using these shell commands:
+  ```sh
+    cd "$(agda --print-agda-data-dir)/lib/prim"
+    find . -name "*.agda" -exec agda {} \;
+  ```
+  Binary distributions of Agda should come equipped with these files.
+  So, if you are a packager, please include this step in your packaging routine.
+
 * Added cabal build flag `dump-core` to save the optimised GHC Core code during
   compilation of Agda. This can be useful for people working on improving the
   performance of the Agda implementation.

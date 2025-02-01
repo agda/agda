@@ -36,6 +36,7 @@ jobs:
         ghc-version: '9.10'
     - name: Configure the build plan
       run: |
+        # shellcheck disable=SC2086
         cabal configure ${FLAGS}
         cabal build --dry-run
     - env:
@@ -53,6 +54,7 @@ jobs:
         cabal build --only-dependencies
     - name: Install Agda
       run: |
+        # shellcheck disable=SC2086
         cabal install ${FLAGS} ${{ matrix.install_flags }}
     - if: matrix.name != '--lib'
       name: Debug
@@ -61,13 +63,14 @@ jobs:
         ls -l ~/.cabal/bin
         tree -L 3 ~/.cabal/store
     - if: matrix.name != '--lib'
-      name: Check for Agda library interface files
+      name: Build Agda library interface files
       run: |
         AGDA_VERSION=$(agda --numeric-version)
         AGDA_DATA_DIR=$(agda --print-agda-data-dir)
         echo "AGDA_VERSION  = ${AGDA_VERSION}"
         echo "AGDA_DATA_DIR = ${AGDA_DATA_DIR}"
-        ls -l "${AGDA_DATA_DIR}/lib/prim/_build/${AGDA_VERSION}/agda/Agda/Primitive.agdai"
+        cd "${AGDA_DATA_DIR}/lib/prim"
+        find . -name "*.agda" -exec echo "Building {}i" \; -exec agda {} \;
     - if: always() && steps.cache.outputs.cache-hit != 'true'
       name: Save cache
       uses: actions/cache/save@v4
@@ -89,7 +92,6 @@ name: Install (v2-cabal)
     paths:
     - .github/workflows/cabal-install.yml
     - Agda.cabal
-    - Setup.hs
     - src/full/**
     - src/main/**
   push:
@@ -100,6 +102,5 @@ name: Install (v2-cabal)
     paths:
     - .github/workflows/cabal-install.yml
     - Agda.cabal
-    - Setup.hs
     - src/full/**
     - src/main/**

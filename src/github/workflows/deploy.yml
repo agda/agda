@@ -64,6 +64,9 @@ jobs:
 
     - name: Set up platform-dependent variables
       id: vars
+      # We would like to disable SC2129 "Consider using { cmd1; cmd2; } >> file"
+      # for the entire script but just placing it in the beginning does not work.
+      # # shellcheck disable=SC2129
       run: |
         sha="$(git rev-parse --short=7 HEAD)"
 
