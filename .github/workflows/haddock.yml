@@ -25,6 +25,7 @@ jobs:
         ghc-version: ${{ matrix.ghc-ver }}
     - name: Configure the build plan
       run: |
+        # shellcheck disable=SC2086
         cabal configure ${FLAGS}
         cabal build --dry-run
     - env:
@@ -44,6 +45,7 @@ jobs:
         cabal build --dependencies-only
     - name: Build Haddock
       run: |
+        # shellcheck disable=SC2016
         cabal haddock --haddock-html-location='https://hackage.haskell.org/package/$pkg-$version/docs' --haddock-hyperlink-source --haddock-quickjump
     - name: Prepare to upload built htmls
       run: |
