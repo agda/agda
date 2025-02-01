@@ -174,8 +174,8 @@ This can be done by running the following commands:
 
 .. code-block:: bash
 
-  cd $(agda --print-agda-data-dir)/lib/prim
-  for i in $(find -name "*.agda"); do agda $i; done
+  cd "$(agda --print-agda-data-dir)/lib/prim"
+  find . -name "*.agda" -exec agda {} \;
 
 Any binary distribution of Agda should already include these interface files.
 So, if you are a packager, please include this step in your packaging routine.
