@@ -26,7 +26,7 @@ module Agda.Interaction.Library
   , getInstalledLibraries
   , getTrustedExecutables
   , libraryIncludePaths
-  , getAgdaLibFiles'
+  , getAgdaLibFile
   , getPrimitiveLibDir
   , classifyBuiltinModule_
   , builtinModules
@@ -79,6 +79,7 @@ import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1             ( List1, pattern (:|) )
+import Agda.Utils.List2             ( pattern List2 )
 import qualified Agda.Utils.List1   as List1
 import qualified Agda.Utils.List2   as List2
 import Agda.Utils.Maybe
@@ -258,15 +259,12 @@ classifyBuiltinModule_ primLibDir fp = do
 --
 --   If there are none, look in the parent directories until one is found.
 
-findProjectConfig
-  :: FilePath                          -- ^ Candidate (init: the directory Agda was called in)
-  -> LibM ProjectConfig                -- ^ Actual root and @.agda-lib@ files for this project
-findProjectConfig root = mkLibM [] $ findProjectConfig' root
-
-findProjectConfig'
-  :: FilePath                          -- ^ Candidate (init: the directory Agda was called in)
-  -> LibErrorIO ProjectConfig          -- ^ Actual root and @.agda-lib@ files for this project
-findProjectConfig' root = do
+findProjectConfig ::
+     FilePath
+       -- ^ Candidate (initially: the directory Agda was called in).
+  -> LibM ProjectConfig
+       -- ^ Actual root and @.agda-lib@ file for this project.
+findProjectConfig root = do
   getCachedProjectConfig root >>= \case
     Just conf -> return conf
     Nothing   -> handlePermissionException do
@@ -277,26 +275,22 @@ findProjectConfig' root = do
       case libFiles of
         []     -> liftIO (upPath root) >>= \case
           Just up -> do
-            conf <- findProjectConfig' up
-            conf <- return $ case conf of
-                  DefaultProjectConfig{} -> conf
-                  ProjectConfig{..}      ->
-                    ProjectConfig{ configAbove = configAbove + 1
-                                 , ..
-                                 }
+            conf <- over lensConfigAbove (+ 1) <$> findProjectConfig up
             storeCachedProjectConfig root conf
             return conf
           Nothing -> return DefaultProjectConfig
-        files -> do
-          let conf = ProjectConfig root files 0
+        [file] -> do
+          let conf = ProjectConfig root file 0
           storeCachedProjectConfig root conf
           return conf
+        f1:f2:files -> throwError $ LibErrors [] $ singleton $ LibError Nothing $
+          SeveralAgdaLibFiles root $ List2 f1 f2 files
 
   where
     -- Andreas, 2024-06-26, issue #7331:
     -- In case of missing permission we terminate our search for the project file
     -- with the default value.
-    handlePermissionException :: LibErrorIO ProjectConfig -> LibErrorIO ProjectConfig
+    handlePermissionException :: LibM ProjectConfig -> LibM ProjectConfig
     handlePermissionException = flip catchIO \ e ->
       if isPermissionError e then return DefaultProjectConfig else liftIO $ E.throwIO e
 
@@ -327,13 +321,13 @@ findProjectRoot root = findProjectConfig root <&> \case
   DefaultProjectConfig -> Nothing
 
 
--- | Get the contents of @.agda-lib@ files in the given project root.
-getAgdaLibFiles' :: FilePath -> LibErrorIO [AgdaLibFile]
-getAgdaLibFiles' path = findProjectConfig' path >>= \case
+-- | Get the content of the @.agda-lib@ file in the given project root.
+getAgdaLibFile :: FilePath -> LibM [AgdaLibFile]
+getAgdaLibFile path = findProjectConfig path >>= \case
   DefaultProjectConfig          -> return []
-  ProjectConfig root libs above ->
+  ProjectConfig root file above -> mkLibM [] $
     map (set libAbove above) <$>
-    parseLibFiles Nothing (map ((0,) . (root </>)) libs)
+    parseLibFiles Nothing [(0, root </> file)]
 
 -- | Get dependencies and include paths for given project root:
 --
@@ -345,10 +339,10 @@ getDefaultLibraries
   :: FilePath  -- ^ Project root.
   -> Bool      -- ^ Use @defaults@ if no @.agda-lib@ file exists for this project?
   -> LibM ([LibName], [FilePath])  -- ^ The returned @LibName@s are all non-empty strings.
-getDefaultLibraries root optDefaultLibs = mkLibM [] $ do
-  libs <- getAgdaLibFiles' root
+getDefaultLibraries root optDefaultLibs = do
+  libs <- getAgdaLibFile root
   if null libs
-    then (,[]) <$> if optDefaultLibs then (libNameForCurrentDir :) <$> readDefaultsFile else return []
+    then (,[]) <$> if optDefaultLibs then mkLibM [] $ (libNameForCurrentDir :) <$> readDefaultsFile else return []
     else return $ libsAndPaths libs
   where
     libsAndPaths ls = ( concatMap _libDepends ls
@@ -553,7 +547,7 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
           ml <- case findLib x libs of
             [l] -> pure (Just l)
             []  -> Nothing <$ raiseErrors' [LibNotFound file x]
-            ls  -> Nothing <$ raiseErrors' [AmbiguousLib x ls]
+            l1 : l2 : ls  -> Nothing <$ raiseErrors' [AmbiguousLib x $ List2 l1 l2 ls]
           -- If it is found, add its dependencies to work list
           let xs' = foldMap _libDepends ml ++ xs
           mcons ml <$> find file (x : visited) xs'

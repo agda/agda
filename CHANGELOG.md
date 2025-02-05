@@ -8,7 +8,12 @@ Installation
 ------------
 
 * Dropped support for GHC 8.6.
+
 * Agda supports GHC versions 8.8.4 to 9.10.1.
+
+* Added cabal build flag `dump-core` to save the optimised GHC Core code during
+  compilation of Agda. This can be useful for people working on improving the
+  performance of the Agda implementation.
 
 Pragmas and options
 -------------------
@@ -169,6 +174,11 @@ Changes to the meta-programming facilities.
 
 Library management
 ------------------
+
+* **BREAKING**: Agda no longer accepts several `.agda-lib` files in the root
+  of an Agda project.
+  (Previously, it allowed this and took the union of their contents.)
+
 
 Interaction and emacs mode
 --------------------------

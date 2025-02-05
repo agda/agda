@@ -110,15 +110,15 @@ libNameForCurrentDir :: LibName
 libNameForCurrentDir = LibName "." []
 
 -- | A file can either belong to a project located at a given root
---   containing one or more .agda-lib files, or be part of the default
---   project.
+--   containing an .agda-lib file, or be part of the default project.
 data ProjectConfig
   = ProjectConfig
     { configRoot         :: FilePath
-    , configAgdaLibFiles :: [FilePath]
+        -- ^ Directory which contains the @.agda-lib@ file for the current project.
+    , configAgdaLibFile  :: FilePath
+        -- ^ @.agda-lib@ file relative to 'configRoot' (filename only, no directory).
     , configAbove        :: !Int
-      -- ^ How many directories above the Agda file is the @.agda-lib@
-      -- file located?
+        -- ^ How many directories above the Agda file is the @.agda-lib@ file located?
     }
   | DefaultProjectConfig
   deriving Generic
@@ -179,7 +179,18 @@ emptyLibFile = AgdaLibFile
   , _libPragmas  = mempty
   }
 
--- | Lenses for AgdaLibFile
+---------------------------------------------------------------------------
+-- * Lenses
+---------------------------------------------------------------------------
+
+-- ** Lenses for 'ProjectConfig'
+
+lensConfigAbove :: Lens' ProjectConfig Int
+lensConfigAbove f = \case
+  DefaultProjectConfig -> DefaultProjectConfig <$ f 0
+  c@ProjectConfig{} -> f (configAbove c) <&> \ !i -> c{ configAbove = i }
+
+-- ** Lenses for 'AgdaLibFile'
 
 libName :: Lens' AgdaLibFile LibName
 libName f a = f (_libName a) <&> \ x -> a { _libName = x }
@@ -245,8 +256,10 @@ data LibError'
       -- ^ Raised when a library name could not successfully be resolved
       --   to an @.agda-lib@ file.
       --
-  | AmbiguousLib LibName [AgdaLibFile]
+  | AmbiguousLib LibName (List2 AgdaLibFile)
       -- ^ Raised when a library name is defined in several @.agda-lib files@.
+  | SeveralAgdaLibFiles FilePath (List2 FilePath)
+      -- ^ The given project root contains more than one @.agda-lib@ file.
   | LibParseError LibParseError
       -- ^ The @.agda-lib@ file could not be parsed.
   | ReadError
@@ -465,7 +478,12 @@ instance Pretty LibError' where
       sep [ hcat [ "Ambiguous library '", pretty lib, "'." ]
             , "Could refer to any one of"
           ]
-        : [ nest 2 $ pretty (_libName l) <+> parens (text $ _libFile l) | l <- tgts ]
+        : [ nest 2 $ pretty (_libName l) <+> parens (text $ _libFile l) | l <- toList tgts ]
+
+    SeveralAgdaLibFiles root files -> vcat $
+      sep [ "The project root", pretty root ]
+        : "may contain only one .agda-lib file, but I found several:"
+        : map (("-" <+>) . pretty) (List.sort $ toList files)
 
     LibParseError err -> pretty err
 

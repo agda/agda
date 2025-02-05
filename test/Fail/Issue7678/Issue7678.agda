@@ -1,0 +1,2 @@
+-- Andreas, 2025-01-15, issue #7678
+-- Disallow several library files in one directory.

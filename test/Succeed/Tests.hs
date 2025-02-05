@@ -1,4 +1,3 @@
-{-# LANGUAGE DoAndIfThenElse   #-}
 
 module Succeed.Tests where
 

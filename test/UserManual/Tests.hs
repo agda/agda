@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP               #-}
-{-# LANGUAGE DoAndIfThenElse   #-}
+{-# LANGUAGE CPP #-}
 
 module UserManual.Tests (tests, examplesInUserManual) where
 

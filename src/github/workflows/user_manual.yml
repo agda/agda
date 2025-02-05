@@ -22,7 +22,7 @@ jobs:
 
     runs-on: ubuntu-24.04
     env:
-      python-version: '3.12'
+      python-version: '3.13'
     steps:
 
     - uses: actions/checkout@v4
@@ -39,7 +39,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -r doc/user-manual/requirements.txt
+        make -C doc/user-manual requirements
 
     - name: Setup TeX Live
       uses: teatimeguest/setup-texlive-action@v3
@@ -79,6 +79,7 @@ jobs:
           zapfchan
 
     - name: Build User Manual in HTML
+      # Note: latex is already needed to build HTML (for math formulas).
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-html

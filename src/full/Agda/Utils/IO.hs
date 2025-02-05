@@ -5,6 +5,7 @@
 module Agda.Utils.IO where
 
 import Control.Exception
+import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer
 
@@ -20,6 +21,11 @@ class CatchIO m where
 --
 instance CatchIO IO where
   catchIO = catch
+
+-- | Upon exception, the error is lost.
+
+instance CatchIO m => CatchIO (ExceptT e m) where
+  catchIO m h = ExceptT $ runExceptT m `catchIO` \ e -> runExceptT (h e)
 
 -- | Upon exception, the written output is lost.
 --

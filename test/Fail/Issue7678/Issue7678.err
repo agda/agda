@@ -1,0 +1,5 @@
+error: [LibraryError]
+The project root Issue7678
+may contain only one .agda-lib file, but I found several:
+- one.agda-lib
+- two.agda-lib

@@ -1270,7 +1270,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- check that a is indeed the type of lit (otherwise fail softly)
       -- if not, fail softly since it could be instantiated by a later split.
-      suspendErrors $ equalType a =<< litType lit
+      suspendErrors $ addContext delta1 $ equalType a =<< litType lit
 
       -- Compute the new state
       let problem' = set problemEqs eqs' problem

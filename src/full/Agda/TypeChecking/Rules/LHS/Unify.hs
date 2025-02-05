@@ -526,7 +526,7 @@ skipIrrelevantStrategy k s = do
 
 unifyStep
   :: CapInteractionPoints c
-  => UnifyState -> UnifyStep -> UnifyLogStepT (TCMC c) (UnificationResult' UnifyState)
+  => UnifyState -> UnifyStep -> UnifyStepT (TCMC c) (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
     isReflexive <- lift $ addContext (varTel s) $ pureEqualTermB a u v
@@ -918,7 +918,7 @@ unify s strategy = if isUnifyStateSolved s
     tryUnifyStep step fallback = do
       addContext (varTel s) $
         reportSDoc "tc.lhs.unify" 20 $ "trying unifyStep" <+> prettyTCM step
-      (x, output) <- runUnifyLogStepT $ unifyStep s step
+      (x, output) <- lift $ runWriterT $ unifyStep s step
       case x of
         Unifies s'   -> do
           reportSDoc "tc.lhs.unify" 20 $ "unifyStep successful."

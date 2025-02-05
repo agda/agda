@@ -15,6 +15,7 @@ module Agda.Interaction.FindFile
   , checkModuleName
   , rootNameModule
   , replaceModuleExtension
+  , dropAgdaExtension, hasAgdaExtension, stripAgdaExtension
   ) where
 
 import Prelude hiding (null)
@@ -23,7 +24,7 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Trans
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, fromMaybe, isJust)
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import System.FilePath
@@ -180,8 +181,7 @@ findFile'' dirs m = do
   case Map.lookup m modToSrc of
     Just sf -> return $ Right sf
     Nothing -> do
-      files          <- liftIO $ fileList acceptableFileExts
-      filesShortList <- liftIO $ fileList $ List2.toList parseFileExtsShortList
+      files          <- liftIO $ fileList agdaFileExtensions
       existingFiles  <- liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
       case nubOn id existingFiles of
         [file]   -> do
@@ -189,7 +189,9 @@ findFile'' dirs m = do
           let src = SourceFile i
           put $ ModuleToSource dict' $ Map.insert m src modToSrc
           return (Right src)
-        []       -> return (Left (NotFound filesShortList))
+        []       -> do
+          filesShortList <- liftIO $ fileList $ List2.toList parseFileExtsShortList
+          return (Left (NotFound filesShortList))
         f0:f1:fs -> return (Left (Ambiguous $ List2 f0 f1 fs))
   where
     fileList exts = mapM absolute
@@ -265,11 +267,18 @@ checkModuleName name src0 mexpected = do
 parseFileExtsShortList :: List2 String
 parseFileExtsShortList = List2.cons ".agda" literateExtsShortList
 
-dropAgdaExtension :: String -> String
-dropAgdaExtension s = case catMaybes [ stripSuffix ext s
-                                     | ext <- acceptableFileExts ] of
-    [name] -> name
-    _      -> __IMPOSSIBLE__
+-- | Remove an Agda file extension from a filepath, if possible.
+stripAgdaExtension :: FilePath -> Maybe FilePath
+stripAgdaExtension = stripAnyOfExtensions agdaFileExtensions
+
+-- | Check if a file path has an Agda extension.
+hasAgdaExtension :: FilePath -> Bool
+hasAgdaExtension = isJust . stripAgdaExtension
+
+-- | Remove an existing Agda file extension from a file path.
+dropAgdaExtension :: FilePath -> FilePath
+dropAgdaExtension = fromMaybe __IMPOSSIBLE__ . stripAgdaExtension
+
 
 rootNameModule :: AbsolutePath -> String
 rootNameModule = dropAgdaExtension . snd . splitFileName . filePath

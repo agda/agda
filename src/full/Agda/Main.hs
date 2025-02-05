@@ -49,6 +49,7 @@ import qualified Agda.Syntax.Common.Pretty.ANSI as ANSI
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.FileName (absolute, filePath, AbsolutePath)
 import Agda.Utils.String
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 
@@ -133,18 +134,31 @@ type Interactor a
     -- Main transformed action.
     -> TCM a
 
+-- | Major mode of operation, not including the standard mode (checking the given main module).
 data FrontendType
-  = FrontEndEmacs
-  | FrontEndJson
+  = FrontEndInteraction InteractionFormat
+      -- ^ @--interaction@ or @--interaction-json@.
   | FrontEndRepl
+      -- ^ @--interactive@.
 
--- Emacs mode. Note that it ignores the "check" action because it calls typeCheck directly.
-emacsModeInteractor :: Interactor ()
-emacsModeInteractor setup _check = mimicGHCi setup
+data InteractionFormat
+  = InteractionEmacs
+      -- ^ @--interaction@.
+  | InteractionJson
+      -- ^ @--interaction-json@.
 
--- JSON mode. Note that it ignores the "check" action because it calls typeCheck directly.
-jsonModeInteractor :: Interactor ()
-jsonModeInteractor setup _check = jsonREPL setup
+pattern FrontEndEmacs :: FrontendType
+pattern FrontEndEmacs = FrontEndInteraction InteractionEmacs
+
+pattern FrontEndJson :: FrontendType
+pattern FrontEndJson  = FrontEndInteraction InteractionJson
+
+{-# COMPLETE FrontEndEmacs, FrontEndJson, FrontEndRepl #-}
+
+-- | Emacs/JSON mode. Note that it ignores the "check" action because it calls typeCheck directly.
+interactionInteractor :: InteractionFormat -> Interactor ()
+interactionInteractor InteractionEmacs setup _check = mimicGHCi setup
+interactionInteractor InteractionJson  setup _check = jsonREPL  setup
 
 -- The deprecated repl mode.
 replInteractor :: Maybe AbsolutePath -> Interactor ()
@@ -155,20 +169,33 @@ defaultInteractor :: AbsolutePath -> Interactor ()
 defaultInteractor file setup check = do setup; void $ check file
 
 getInteractor :: MonadError String m => [Backend] -> Maybe AbsolutePath -> CommandLineOptions -> m (Maybe (Interactor ()))
-getInteractor configuredBackends maybeInputFile opts =
-  case (maybeInputFile, enabledFrontends, enabledBackends) of
-    (Just inputFile, [],             _:_) -> return $ Just $ backendInteraction inputFile enabledBackends
-    (Just inputFile, [],              []) -> return $ Just $ defaultInteractor inputFile
-    (Nothing,        [],              []) -> return Nothing -- No backends, frontends, or input files specified.
-    (Nothing,        [],             _:_) -> throwError $ concat ["No input file specified for ", enabledBackendNames]
-    (_,              _:_,            _:_) -> throwError $ concat ["Cannot mix ", enabledFrontendNames, " with ", enabledBackendNames]
-    (_,              _:_:_,           []) -> throwError $ concat ["Must not specify multiple ", enabledFrontendNames]
-    (_,              [fe],            []) | optOnlyScopeChecking opts -> errorFrontendScopeChecking fe
-    (_,              [FrontEndRepl],  []) -> return $ Just $ replInteractor maybeInputFile
-    (Nothing,        [FrontEndEmacs], []) -> return $ Just $ emacsModeInteractor
-    (Nothing,        [FrontEndJson],  []) -> return $ Just $ jsonModeInteractor
-    (Just inputFile, [FrontEndEmacs], []) -> errorFrontendFileDisallowed inputFile FrontEndEmacs
-    (Just inputFile, [FrontEndJson],  []) -> errorFrontendFileDisallowed inputFile FrontEndJson
+getInteractor configuredBackends maybeInputFile opts = do
+
+  case enabledFrontends of
+    _:_:_ -> throwError $ concat ["Must not specify multiple ", enabledFrontendNames]
+
+    -- standard mode of operation
+    [] -> do
+      case (maybeInputFile, enabledBackends) of
+        (Just inputFile, _:_) -> return $ Just $ backendInteraction inputFile enabledBackends
+        (Just inputFile,  []) -> return $ Just $ defaultInteractor inputFile
+        (Nothing,         []) -> return Nothing -- No backends, frontends, or input files specified.
+        (Nothing,        _:_) -> throwError $ concat ["No input file specified for ", enabledBackendNames]
+
+    -- special mode of operation
+    [fe] -> do
+      case fe of
+        -- --interactive
+        FrontEndRepl -> do
+          noBackends fe
+          notJustScopeChecking fe
+          return $ Just $ replInteractor maybeInputFile
+        -- --interaction(-json)
+        FrontEndInteraction i -> do
+          noBackends fe
+          notJustScopeChecking fe
+          noInputFile fe
+          return $ Just $ interactionInteractor i
   where
     -- NOTE: The notion of a backend being "enabled" *just* refers to this top-level interaction mode selection. The
     -- interaction/interactive front-ends may still invoke available backends even if they are not "enabled".
@@ -189,6 +216,10 @@ getInteractor configuredBackends maybeInputFile opts =
       FrontEndEmacs -> "interaction"
       FrontEndJson -> "interaction-json"
       FrontEndRepl -> "interactive"
+    noBackends fe = unless (null enabledBackends) $
+      throwError $ concat ["Cannot mix ", frontendFlagName fe, " with ", enabledBackendNames]
+    noInputFile fe = whenJust maybeInputFile \ inputFile -> errorFrontendFileDisallowed inputFile fe
+    notJustScopeChecking = when (optOnlyScopeChecking opts) . errorFrontendScopeChecking
     errorFrontendScopeChecking fe = throwError $
       concat ["The --only-scope-checking flag cannot be combined with ", frontendFlagName fe]
     errorFrontendFileDisallowed inputFile fe = throwError $

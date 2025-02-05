@@ -1,7 +1,10 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
-module Utils (module Utils,
-              AgdaError(..)) where
+module Utils
+  ( module Utils
+  , AgdaError(..)
+  , dropAgdaExtension
+  ) where
 
 import Control.Applicative
 import Control.Arrow ((&&&))
@@ -44,9 +47,14 @@ import qualified Text.Regex.TDFA.Text as RT ( compile )
 
 import Agda.Compiler.MAlonzo.Compiler ( ghcInvocationStrings )
 import Agda.Interaction.ExitCode      ( AgdaError(..), agdaErrorFromInt )
+import Agda.Interaction.FindFile      ( dropAgdaExtension, hasAgdaExtension, stripAgdaExtension )
+
 import Agda.Utils.Maybe
 import Agda.Utils.Environment
+import Agda.Utils.FileName            ( stripAnyOfExtensions )
 import Agda.Utils.Functor
+import Agda.Utils.IO.Directory        ( findWithInfo )
+
 import qualified Agda.Version (package)
 
 data ProgramResult = ProgramResult
@@ -150,17 +158,6 @@ getAgdaBin = getProg "agda"
 getProg :: String -> EnvVars -> FilePath
 getProg prog = fromMaybe prog . lookup (map toUpper prog ++ "_BIN")
 
--- | List of possible extensions of agda files.
-agdaExtensions :: [String]
-agdaExtensions =
-  [ ".agda"
-  , ".lagda"
-  , ".lagda.tex"
-  , ".lagda.rst"
-  , ".lagda.md"
-  , ".lagda.org"
-  ]
-
 -- | List of files paired with agda files by the test suites.
 -- E.g. files recording the accepted output or error message.
 helperExtensions :: [String]
@@ -171,24 +168,8 @@ helperExtensions =
   , ".in", ".out"   -- For running test/interaction
   ]
 
--- | Generalizes 'stripExtension'.
-stripAnyOfExtensions :: [String] -> FilePath -> Maybe FilePath
-stripAnyOfExtensions exts p = listToMaybe $ catMaybes $ map (`stripExtension` p) exts
-
-stripAgdaExtension :: FilePath -> Maybe FilePath
-stripAgdaExtension = stripAnyOfExtensions agdaExtensions
-
 stripHelperExtension :: FilePath -> Maybe FilePath
 stripHelperExtension = stripAnyOfExtensions helperExtensions
-
--- | Checks if a String has Agda extension
-hasAgdaExtension :: FilePath -> Bool
-hasAgdaExtension = isJust . stripAgdaExtension
-
-dropAgdaExtension :: FilePath -> FilePath
-dropAgdaExtension p =
-  fromMaybe (error $ "Utils.hs: Path " ++ p ++ " does not have an Agda extension") $
-  stripAgdaExtension p
 
 dropAgdaOrOtherExtension :: FilePath -> FilePath
 dropAgdaOrOtherExtension = fromMaybe <$> dropExtension <*> stripAgdaExtension
@@ -242,25 +223,6 @@ getAgdaFilesInDir recurse dir = do
     | otherwise   = old
   -- Test cases from up to one week ago are considered new.
   consideredNew = 7 * 24 * 60 * 60
-
--- | Search a directory recursively, with recursion controlled by a
---   'RecursionPredicate'.  Lazily return a unsorted list of all files
---   matching the given 'FilterPredicate'.  Any errors that occur are
---   ignored, with warnings printed to 'stderr'.
-findWithInfo
-  :: Find.RecursionPredicate  -- ^ Control recursion into subdirectories.
-  -> Find.FilterPredicate     -- ^ Decide whether a file appears in the result.
-  -> FilePath                 -- ^ Directory to start searching.
-  -> IO [Find.FileInfo]       -- ^ Files that matched the 'FilterPredicate'.
-findWithInfo recurse filt dir = Find.fold recurse act [] dir
-  where
-  -- Add file to list front when it matches the filter
-  act :: [Find.FileInfo] -> Find.FileInfo -> [Find.FileInfo]
-  act = flip $ consIf $ Find.evalClause filt
-
--- | Prepend element if it satisfies the given condition.
-consIf :: (a -> Bool) -> a -> [a] -> [a]
-consIf p a = if p a then (a :) else id
 
 -- | An Agda file path as test name
 asTestName :: FilePath -> FilePath -> String
