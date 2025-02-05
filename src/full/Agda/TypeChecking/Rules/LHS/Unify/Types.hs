@@ -4,9 +4,8 @@ module Agda.TypeChecking.Rules.LHS.Unify.Types where
 
 import Prelude hiding (null)
 
-import Control.Arrow (second)
 import Control.Monad
-import Control.Monad.Writer (WriterT(..), MonadWriter(..), mapWriterT)
+import Control.Monad.Writer (WriterT(..), MonadWriter(..))
 
 import Data.Foldable (toList)
 import Data.DList (DList)
@@ -465,22 +464,12 @@ instance Monoid UnifyOutput where
 
 type UnifyLogT = WriterT UnifyLog'
 type UnifyStepT = WriterT UnifyOutput
-type UnifyLogStepT = WriterT (UnifyLog', UnifyOutput)
-
-runUnifyLogStepT :: Monad m => UnifyLogStepT m a -> UnifyLogT m (a, UnifyOutput)
-runUnifyLogStepT = mapWriterT $ fmap $ \ (x, (l, o)) -> ((x, o), l)
 
 tellUnifySubst :: MonadWriter UnifyOutput m => PatternSubstitution -> m ()
 tellUnifySubst sub = tell $ UnifyOutput sub IdS
 
 tellUnifyProof :: MonadWriter UnifyOutput m => PatternSubstitution -> m ()
 tellUnifyProof sub = tell $ UnifyOutput IdS sub
-
-tellUnifyProof' :: Monad m => PatternSubstitution -> UnifyLogStepT m ()
-tellUnifyProof' = mapWriterT (fmap $ second (mempty,)) . tellUnifyProof
-
-tellUnifySubst' :: Monad m => PatternSubstitution -> UnifyLogStepT m ()
-tellUnifySubst' = mapWriterT (fmap $ second (mempty,)) . tellUnifySubst
 
 writeUnifyLog ::
   MonadWriter UnifyLog' m => (UnifyLogEntry, UnifyState) -> m ()

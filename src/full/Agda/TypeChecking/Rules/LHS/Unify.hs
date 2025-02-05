@@ -539,7 +539,7 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
                    -> return $ UnifyStuck [UnifyReflexiveEq (varTel s) a u]
       Right True   -> do
         let (s', sigma) = solveEq k u s
-        tellUnifyProof' sigma
+        tellUnifyProof sigma
         Unifies <$> lensEqTel reduce s'
 
 unifyStep s step@Solution{} = solutionStep RetryNormalised s step
@@ -610,7 +610,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
           eqTel'  = eqTel1' `abstract` eqTel2'
           rho     = liftS (size eqTel2) rho3
 
-      tellUnifyProof' rho
+      tellUnifyProof rho
 
       eqTel' <- addContext (varTel s) $ reduce eqTel'
 
@@ -645,7 +645,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
           eqTel'  = eqTel1' `abstract` eqTel2'
           rho     = liftS (size eqTel2) rho3
 
-      tellUnifyProof' rho
+      tellUnifyProof rho
 
       eqTel' <- addContext (varTel s) $ reduce eqTel'
 
@@ -688,7 +688,7 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
   let nfields         = size delta
       (varTel', rho)  = expandTelescopeVar (varTel s) (m-1-i) delta c
       projectFlexible = [ FlexibleVar (getArgInfo fi) (flexForced fi) (projFlexKind j) (flexPos fi) (i + j) | j <- [0 .. nfields - 1] ]
-  tellUnifySubst' $ rho
+  tellUnifySubst $ rho
   return $ Unifies $ UState
     { varTel   = varTel'
     , flexVars = projectFlexible ++ liftFlexibles nfields (flexVars s)
@@ -720,7 +720,7 @@ unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParamet
   lhs   <- expandKth $ eqLHS s
   rhs   <- expandKth $ eqRHS s
   let (tel, sigma) = expandTelescopeVar (eqTel s) k delta c
-  tellUnifyProof' sigma
+  tellUnifyProof sigma
   Unifies <$> do
    lensEqTel reduce $ s
     { eqTel    = tel
@@ -759,7 +759,7 @@ unifyStep s (StripSizeSuc k u v) = do
 unifyStep s (SkipIrrelevantEquation k) = do
   let lhs = eqLHS s
       (s', sigma) = solveEq k (DontCare $ unArg $ indexWithDefault __IMPOSSIBLE__ lhs k) s
-  tellUnifyProof' sigma
+  tellUnifyProof sigma
   return $ Unifies s'
 
 unifyStep s (TypeConInjectivity k d us vs) = do
@@ -783,7 +783,7 @@ solutionStep
   => RetryNormalised
   -> UnifyState
   -> UnifyStep
-  -> UnifyLogStepT (TCMC c) (UnificationResult' UnifyState)
+  -> UnifyStepT (TCMC c) (UnificationResult' UnifyState)
 solutionStep retry s
   step@Solution{ solutionAt   = k
                , solutionType = dom@Dom{ unDom = a }
@@ -884,9 +884,9 @@ solutionStep retry s
           return $ UnifyStuck [UnifyRecursiveEq (varTel s) a i u]
         Just (s', sub) -> do
           let rho = sub `composeS` dotSub
-          tellUnifySubst' rho
+          tellUnifySubst rho
           let (s'', sigma) = solveEq k (applyPatSubst rho u) s'
-          tellUnifyProof' sigma
+          tellUnifyProof sigma
           return $ Unifies s''
           -- Andreas, 2019-02-23, issue #3578: do not eagerly reduce
           -- Unifies <$> liftTCM (reduce s'')
@@ -947,7 +947,7 @@ unify s strategy = if isUnifyStateSolved s
 patternBindingForcedVars :: CapInteractionPoints c
                          => IntMap Modality
                          -> Term
-                         -> UnifyLogStepT (TCMC c) (DeBruijnPattern, IntMap Modality)
+                         -> UnifyStepT (TCMC c) (DeBruijnPattern, IntMap Modality)
 patternBindingForcedVars forced v = do
   let v' = precomputeFreeVars_ v
   runWriterT (evalStateT (go unitModality v') forced)
