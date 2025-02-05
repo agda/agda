@@ -378,6 +378,37 @@ commit's message is checked for the phrase).
 | `[ci skip]` | Skips GitHub workflows |
 | `[skip ci]` | As-per `[ci skip]` |
 
+### Editing the GitHub Actions
+
+The actions residing in the standard location `.github/workflows` are
+generated from their respective sources in `src/github/workflows`.
+The reason is that GitHub Actions YAML is not a full-fledged YAML,
+in particular, it does not support sharing (`*` and `&` syntax).
+Sharing is useful however to maintain SST (single source of truth)
+and DRY (don't repeat yourself); e.g., common steps in a different
+jobs of an action can be shared on the YAML level.
+
+To generate GitHub Action compatible YAML, we normalize
+by converting to JSON and then back to YAML:
+
+    make workflows
+
+Conversion is done through the tools provided by the Haskell `yaml`
+package you can set up on your system via:
+
+    make -C .github/workflows requirements
+
+It is advisable to run modified actions through the `actionlint` tool.
+This tool also invokes `shellcheck` on the shell snippets in the actions.
+
+Sometimes `shellcheck` will give irrelevant warnings, these can be turned
+off with comments like
+
+    # shellcheck disable=SC2086
+
+that would disable shellcheck's warning 2086 for the following line.
+
+
 Some Agda Hacking Lore
 ======================
 
