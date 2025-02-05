@@ -18,6 +18,7 @@ module Agda.Interaction.Imports
   , scopeCheckImport
   , parseSource
   , typeCheckMain
+  , getNonMainInterface
   , raiseNonFatalErrors
 
   -- Currently only used by test/api/Issue1168.hs:

@@ -27,6 +27,15 @@ General options
        List warning groups and individual warnings and their default status.
        Instruct how to toggle benign warnings.
 
+.. option:: --build-library
+
+     .. versionadded:: 2.8.0
+
+     Expects an ``.agda-lib`` file in the current directory
+     (or in a parent directory) and type-checks all Agda files
+     found in the ``include`` directories of the library or
+     in subdirectories thereof.
+
 .. option:: --interaction
 
      For use with the Emacs mode (no need to invoke yourself).

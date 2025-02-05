@@ -57,10 +57,14 @@ data CommandLineOptions = Options
   , optPrintAgdaAppDir       :: Bool
   , optPrintVersion          :: Maybe PrintAgdaVersion
   , optPrintHelp             :: Maybe Help
+  , optBuildLibrary          :: Bool
+      -- ^ @--build-library@: Build all modules in the current library.
   , optInteractive           :: Bool
       -- ^ Agda REPL (@-I@).
   , optGHCiInteraction       :: Bool
+      -- ^ @--interaction@ mode.
   , optJSONInteraction       :: Bool
+      -- ^ @--interaction-json@ mode.
   , optExitOnError           :: !Bool
       -- ^ Exit if an interactive command fails.
   , optCompileDir            :: Maybe FilePath
