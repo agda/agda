@@ -1355,7 +1355,7 @@ compareTerm' v mp@(Masked m p) = do
     -- deepest variable in @p@.
     -- For sized types, the depth is maximally
     -- the number of SIZELT hypotheses one can have in a context.
-    (MetaV{}, p) -> Order.decr True False . 
+    (MetaV{}, p) -> Order.decr True False .
       max (if m then 0 else patternDepth p) . pred <$>
       terAsks _terSizeDepth
 
@@ -1389,7 +1389,8 @@ compareTerm' v mp@(Masked m p) = do
     (Con{}, ConP c _ ps) | any (isSubTerm v . namedArg) ps ->
       decr True lhsMin <$> offsetFromConstructor (conName c)
 
-    -- It should be impossible to get 'lt' after this point
+    -- It should be impossible to get 'lt' after this point if the LHS is a
+    -- base constructor
     (Con{}, _) | lhsMin -> return Order.leBase
 
     (Con c _ es, ConP c' _ ps) | conName c == conName c' ->

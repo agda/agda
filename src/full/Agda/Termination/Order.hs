@@ -64,11 +64,11 @@ data Order
     --   not in inductive pattern match or a coinductive copattern match.
     --   See issue #2331.
     --
-    --   The second @Bool@ indicates whether the callee argument is a base 
-    --   constructor (i.e. minimal w.r.t. structural ordering). This is 
+    --   The second @Bool@ indicates whether the callee argument is a base
+    --   constructor (i.e. minimal w.r.t. structural ordering). This is
     --   worth keeping around for cases like 't -> u -> C' where the ordering
-    --   between 't' and 'u' is 'Unknown' but the ordering between 'u' and 'C' 
-    --   is 'Decr True True 0'. In this case, the composition of orderings 
+    --   between 't' and 'u' is 'Unknown' but the ordering between 'u' and 'C'
+    --   is 'Decr True True 0'. In this case, the composition of orderings
     --   should be 'Decr True True 0', not 'Unknown', as the chain still ends in
     --   a base constructor.
     --
@@ -95,7 +95,7 @@ instance HasZero Order where
 --   Call graph completion works toward losing the good calls,
 --   tending towards Unknown (the least information).
 instance PartialOrd Order where
-  -- NOTE: Strictly speaking, it is not obvious e.g. whether an 
+  -- NOTE: Strictly speaking, it is not obvious e.g. whether an
   -- unusable-decrease-by-2 or a usable-decrease-by-1-into-a-base-constructor
   -- has more information. We give usability or to-base-constructor-ness
   -- priority if the we have a decrease.
@@ -216,20 +216,15 @@ instance Pretty Order where
 -- | Multiplication of 'Order's.
 --   (Corresponds to sequential composition.)
 
--- I think this funny pattern matching is because overlapping patterns
--- are producing a warning and thus an error (strict compilation settings)
--- TODO: I have now implemented this function with overlapping patterns
--- (much neater IMO). Might need to add back the extra case splits...
-
 (.*.) :: (?cutoff :: CutOff) => Order -> Order -> Order
--- TODO: Order of arguments is now important for this function. Have I
--- gotten it right?
+-- TODO: Order of arguments is now very important for this function. Do callers
+-- always respect this?
 Unknown      .*. o
-  | toBase o                   = Decr False True 0
+  | toBase o                   = leBase
   | otherwise                  = Unknown
 o            .*. Unknown       = Unknown
 -- if one is usable, so is the composition
-(Decr u b k) .*. (Decr u' _ l) = decr (u || u') b (k + l) 
+(Decr u b k) .*. (Decr u' _ l) = decr (u || u') b (k + l)
 
 -- | collapse @m@
 --
@@ -269,7 +264,7 @@ maxO o1 o2 = case comparable o1 o2 of
   POAny -> o1
   POGE  -> o1
   POGT  -> o1
-  
+
 -- | The infimum of a (non empty) list of 'Order's.
 --   Gets the worst information.
 --  'Unknown' is the least element, thus, dominant.
