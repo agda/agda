@@ -1132,7 +1132,7 @@ compareArgs es = do
   useGuardedness <- liftTCM guardednessOption
   let guardedness =
         if useGuardedness
-        then decr True $ projsCaller - projsCallee
+        then decr True False $ projsCaller - projsCallee
         else Order.le
   liftTCM $ reportSDoc "term.guardedness" 30 $ sep
     [ "compareArgs:"
@@ -1331,6 +1331,12 @@ compareTerm' v mp@(Masked m p) = do
   let ?cutoff = cutoff
   v <- liftTCM (instantiate v)
   p <- liftTCM $ reduceConPattern p
+
+  -- LHS is structurally minimal (i.e. is a base constructor)
+  let lhsMin = case v of
+        (Con _ _ []) -> True
+        _            -> False
+
   case (v, p) of
 
     -- Andreas, 2013-11-20 do not drop projections,
@@ -1349,8 +1355,9 @@ compareTerm' v mp@(Masked m p) = do
     -- deepest variable in @p@.
     -- For sized types, the depth is maximally
     -- the number of SIZELT hypotheses one can have in a context.
-    (MetaV{}, p) -> Order.decr True . max (if m then 0 else patternDepth p) . pred <$>
-       terAsks _terSizeDepth
+    (MetaV{}, p) -> Order.decr True False . 
+      max (if m then 0 else patternDepth p) . pred <$>
+      terAsks _terSizeDepth
 
     -- Successor on both sides cancel each other.
     -- We ignore the mask for sizes.
@@ -1380,13 +1387,14 @@ compareTerm' v mp@(Masked m p) = do
     -- Andreas, 2011-04-19 give subterm priority over matrix order
 
     (Con{}, ConP c _ ps) | any (isSubTerm v . namedArg) ps ->
-      decr True <$> offsetFromConstructor (conName c)
+      decr True lhsMin <$> offsetFromConstructor (conName c)
 
-    (Con c _ es, ConP c' _ ps) | conName c == conName c'->
+    -- It should be impossible to get 'lt' after this point
+    (Con{}, _) | lhsMin -> return Order.leBase
+
+    (Con c _ es, ConP c' _ ps) | conName c == conName c' ->
       let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es in
       compareConArgs ts ps
-
-    (Con _ _ [], _) -> return Order.le
 
     -- new case for counting constructors / projections
     -- register also increase
