@@ -17,6 +17,8 @@ import qualified Agda.Interaction.Imports         as Imp
 import           Agda.Interaction.Library         (pattern AgdaLibFile, _libIncludes, getAgdaLibFile)
 import           Agda.Interaction.Options         (optOnlyScopeChecking)
 
+import           Agda.Syntax.Abstract.Name        (noModuleName)
+
 import           Agda.TypeChecking.Monad
 import           Agda.TypeChecking.Pretty         (prettyTCM, text, vsep)
 import           Agda.TypeChecking.Pretty.Warning (getAllWarnings)
@@ -59,24 +61,13 @@ buildLibrary = do
              else Imp.TypeCheck
 
   forM_ files \ inputFile -> do
-
-    -- TODO: isolated check
-    -- typeCheckMain does not isolate
     sf <- srcFromPath =<< liftIO (absolute inputFile)
     src <- Imp.parseSource sf
     let m = Imp.srcModuleName src
-    -- checkModuleName m (Imp.srcOrigin src) Nothing
-    -- void $ Imp.getNonMainInterface m (Just src)
-    -- Preserve/restore the current pragma options, which will be mutated when loading
-    -- and checking the interface.
-    result <- bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $
-      Imp.typeCheckMain mode src
-
-    -- unless (Imp.crMode result == ModuleScopeChecked) $
-    --   Imp.raiseNonFatalErrors result
-
-    -- let i = crInterface result
-    -- reportSDoc "main" 50 $ pretty i
+    checkModuleName m (Imp.srcOrigin src) Nothing
+    void $ withCurrentModule noModuleName
+         $ withTopLevelModule m
+         $ Imp.getNonMainInterface m (Just src)
     return ()
 
   -- Print accumulated warnings
