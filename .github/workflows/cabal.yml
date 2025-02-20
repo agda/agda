@@ -22,8 +22,7 @@ jobs:
         access_token: ${{ github.token }}
   cabal:
     env:
-      FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
-        }}
+      FLAGS: ${{ matrix.cabal-flags }}
       GHC_VER: ${{ matrix.ghc-ver || '9.10.1' }}
     name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
@@ -68,8 +67,8 @@ jobs:
     - name: Configure the build plan
       run: |
         # shellcheck disable=SC2086
-        cabal configure -O0 ${FLAGS}
-        cabal build --dry-run
+        cabal configure all -O0 ${FLAGS}
+        cabal build all --dry-run
     - env:
         key: cabal.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version
           }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
@@ -83,10 +82,10 @@ jobs:
         restore-keys: ${{ env.key }}
     - name: Install dependencies
       run: |
-        cabal build --only-dependencies
+        cabal build all --only-dependencies
     - name: Build Agda
       run: |
-        cabal build
+        cabal build all
     - if: matrix.doctest
       name: Run doctest
       run: |
@@ -102,7 +101,7 @@ jobs:
       fail-fast: false
       matrix:
         cabal-flags:
-        - --enable-tests -f enable-cluster-counting
+        - -f enable-cluster-counting
         description:
         - Linux
         doctest:
@@ -117,24 +116,26 @@ jobs:
         - 8.10.7
         - 8.8.4
         include:
-        - cabal-flags: --disable-tests
+        - cabal-flags: ''
           description: Linux doctest
           doctest: true
           ghc-ver: 9.10.1
           os: ubuntu-24.04
-        - cabal-flags: --enable-tests -f debug
+        - cabal-flags: -f debug
           description: Linux debug
           ghc-ver: 9.10.1
           os: ubuntu-24.04
-        - cabal-flags: --enable-tests -f enable-cluster-counting -f debug -f debug-serialisation
+        - cabal-flags: -f enable-cluster-counting -f debug -f debug-serialisation
             -f debug-parsing
           description: Linux debug all
           ghc-ver: 9.10.1
           os: ubuntu-24.04
-        - description: macOS
+        - cabal-flags: -f enable-cluster-counting
+          description: macOS
           ghc-ver: 9.10.1
           os: macos-14
-        - description: Windows
+        - cabal-flags: -f enable-cluster-counting
+          description: Windows
           ghc-ver: 9.10.1
           os: windows-2022
         os:

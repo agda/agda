@@ -38,7 +38,6 @@ main = do
     putStrLn $ unlines
       [ "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
       , "@ The AGDA_BIN environment variable is not set.                             @"
-      , "@ Maybe you are running 'cabal test' or 'cabal v1-install --runtests'?      @"
       , "@ This will only run parts of the Agda test-suite.                          @"
       , "@ The preferred way of running the tests is via the Makefile ('make test'). @"
       , "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
