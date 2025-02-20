@@ -142,6 +142,72 @@ Standard library submodule
 
   See: https://www.git-scm.com/book/en/v2/Git-Tools-Submodules
 
+
+Building Agda
+=============
+
+Since: February 2025.
+
+* The cabal flag `Werror` turns (our selection of) GHC warnings into errors.
+  During development, this flag should be on.
+
+  - When building Agda with `cabal`, pass `-f Werror`.
+    Or make sure to have either `flags: +Werror` in a `cabal.project.local`
+    of the following in `cabal.project`:
+    ```
+    package Agda`2
+      flags: +Werror
+    ```
+  - When building with `stack`, pass `--flag Agda:Werror`.
+    Or put the following in your `stack.yaml`:
+    ```yaml
+    flags:
+      Agda:
+        Werror: true
+    ```
+
+  All build commands in the `Makefile`, e.g. `make install`, automatically switch on `Werror`.
+
+Faster compilation of Agda
+--------------------------
+
+Since: November 2021.
+
+* When you run `make install`, then the option optimise-heavily is by
+  default activated. If you want to override this option (for faster
+  build times, at the cost of possibly making Agda slower), then you
+  can include the following text in `mk/config.mk`, which is ignored
+  by Git:
+  ```
+  CABAL_FLAG_OPTIM_HEAVY =
+  STACK_FLAG_OPTIM_HEAVY =
+  ```
+
+Since: April 2020.
+
+* `make type-check` just type-checks the Agda source, generating no code.
+  Can be 7 times faster as `make quicker-install-bin` (max 40s vs. max 5min).
+  Once all type errors are fixed, switch to `quicker-install-bin` or `install-bin`
+  for testing.
+
+Since: July 2019.
+
+* `make quicker-install-bin` compiles Agda will all optimizations turned off (`-O0`).
+  This could be e.g. 5 times as fast (5min instead of 25min).
+
+* Recommended during the development process of a refactoring, new feature or bug fix.
+  Not recommended when building Agda for Agda development.
+  Unoptimized Agda is slooooow.
+
+* The generated executables have the suffix `-quicker`, e.g., `agda-quicker`.
+
+* In Emacs, activate this version of Agda via
+  `M-x agda2-set-program-version RET quicker RET`.
+
+* Running the testsuite requires some tinkering.  E.g., the interactive testsuite
+  can be run via `make -C test/interaction AGDA_BIN=agda-quicker`.
+
+
 Testing and documentation
 =========================
 
@@ -486,45 +552,6 @@ Emacs mode
                   (goto-char (point-max))
                   (insert "\n")))))))
   ```
-
-Faster compilation of Agda
-==========================
-
-Since: November 2021.
-
-* When you run `make install`, then the option optimise-heavily is by
-  default activated. If you want to override this option (for faster
-  build times, at the cost of possibly making Agda slower), then you
-  can include the following text in `mk/config.mk`, which is ignored
-  by Git:
-  ```
-  CABAL_FLAG_OPTIM_HEAVY =
-  STACK_FLAG_OPTIM_HEAVY =
-  ```
-
-Since: April 2020.
-
-* `make type-check` just type-checks the Agda source, generating no code.
-  Can be 7 times faster as `make quicker-install-bin` (max 40s vs. max 5min).
-  Once all type errors are fixed, switch to `quicker-install-bin` or `install-bin`
-  for testing.
-
-Since: July 2019.
-
-* `make quicker-install-bin` compiles Agda will all optimizations turned off (`-O0`).
-  This could be e.g. 5 times as fast (5min instead of 25min).
-
-* Recommended during the development process of a refactoring, new feature or bug fix.
-  Not recommended when building Agda for Agda development.
-  Unoptimized Agda is slooooow.
-
-* The generated executables have the suffix `-quicker`, e.g., `agda-quicker`.
-
-* In Emacs, activate this version of Agda via
-  `M-x agda2-set-program-version RET quicker RET`.
-
-* Running the testsuite requires some tinkering.  E.g., the interactive testsuite
-  can be run via `make -C test/interaction AGDA_BIN=agda-quicker`.
 
 
 Bisecting: Finding the commit that introduced a regression

@@ -22,7 +22,7 @@ jobs:
       run:
         shell: bash
     env:
-      EXTRA_ARGS: --fast
+      EXTRA_ARGS: --fast --flag Agda:Werror
       NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:debug
     needs: auto-cancel
     runs-on: ${{ matrix.os }}

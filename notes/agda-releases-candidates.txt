@@ -110,10 +110,7 @@ followed:
 
 3) Remove the Cabal test-suite from Agda.cabal.
 
-4) Remove -Werror from Agda.cabal (this is required by `cabal
-   --check`).
-
-5) Remove unnecessary dependencies from stack-XYZ.yaml files:
+4) Remove unnecessary dependencies from stack-XYZ.yaml files:
 
   + Remove the `packages` section.
   + Remove dependencies QuickCheck, random, splitmix

@@ -28,6 +28,9 @@ Installation
   compilation of Agda. This can be useful for people working on improving the
   performance of the Agda implementation.
 
+* New cabal flag `Werror` that turns our selection of GHC warnings into errors
+  during compilation of Agda.  Should be interesting to developers only.
+
 Pragmas and options
 -------------------
 

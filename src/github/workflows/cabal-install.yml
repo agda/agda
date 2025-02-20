@@ -53,7 +53,7 @@ jobs:
           install_flags: "--lib"
 
     env:
-      FLAGS: "-O0 -f enable-cluster-counting"
+      FLAGS: "-O0 -f enable-cluster-counting -f Werror"
 
     steps:
     - uses: actions/checkout@v4

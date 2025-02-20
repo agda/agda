@@ -22,8 +22,8 @@ jobs:
         access_token: ${{ github.token }}
   cabal:
     env:
-      FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
-        }}
+      FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting
+        -f Werror' }}
       GHC_VER: ${{ matrix.ghc-ver || '9.10.1' }}
     name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
@@ -102,7 +102,7 @@ jobs:
       fail-fast: false
       matrix:
         cabal-flags:
-        - --enable-tests -f enable-cluster-counting
+        - --enable-tests -f enable-cluster-counting -f Werror
         description:
         - Linux
         doctest:
@@ -117,17 +117,17 @@ jobs:
         - 8.10.7
         - 8.8.4
         include:
-        - cabal-flags: --disable-tests
+        - cabal-flags: --disable-tests -f Werror
           description: Linux doctest
           doctest: true
           ghc-ver: 9.10.1
           os: ubuntu-24.04
-        - cabal-flags: --enable-tests -f debug
+        - cabal-flags: --enable-tests -f debug -f Werror
           description: Linux debug
           ghc-ver: 9.10.1
           os: ubuntu-24.04
         - cabal-flags: --enable-tests -f enable-cluster-counting -f debug -f debug-serialisation
-            -f debug-parsing
+            -f debug-parsing -f Werror
           description: Linux debug all
           ghc-ver: 9.10.1
           os: ubuntu-24.04
