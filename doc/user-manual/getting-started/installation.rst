@@ -384,6 +384,13 @@ When installing Agda the following flags can be used:
      Optimise Agda heavily. (In this case it might make sense to limit
      GHC's memory usage.) Default: off.
 
+.. option:: Werror
+
+     Turns GHC warnings into errors during compilation of Agda itself.
+     Has no effect on the resulting Agda binary.
+     Only interesting for developing Agda.
+     Default: off.
+
 .. hint:: During ``cabal install`` you can add build flags using the ``-f`` argument:
     ``cabal install -fenable-cluster-counting``. Whereas stack uses ``--flag`` and an
     ``Agda:`` prefix, like this: ``stack install --flag Agda:enable-cluster-counting``.

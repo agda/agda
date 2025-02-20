@@ -68,7 +68,7 @@ jobs:
     env:
       ## ARGS is set later, depending on the actually picked GHC version
       # ARGS: "--stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal"
-      EXTRA_ARGS: "--fast"
+      EXTRA_ARGS: "--fast --flag Agda:Werror"
       NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:debug"
 
     # Need bash on Windows for piping and evaluation.

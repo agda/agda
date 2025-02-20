@@ -46,8 +46,9 @@ STACK_FLAG_ICU    = --flag Agda:enable-cluster-counting
 CABAL_FLAG_OPTIM_HEAVY ?= -foptimise-heavily
 STACK_FLAG_OPTIM_HEAVY ?= --flag Agda:optimise-heavily
 
-CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) $(CABAL_OPT_NO_DOCS)
-STACK_INSTALL_HELPER = $(STACK) build Agda $(STACK_OPT_NO_DOCS)
+# This is the base for all build commands.
+CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) $(CABAL_OPT_NO_DOCS) -fWerror
+STACK_INSTALL_HELPER = $(STACK) build Agda $(STACK_OPT_NO_DOCS) --flag Agda:Werror
 
 # 2016-07-15. We use a different build directory in the quick
 # installation for avoiding recompilation (see Issue #2083 and
