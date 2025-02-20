@@ -13,7 +13,7 @@ include ./mk/paths.mk
 include ./mk/cabal.mk
 include ./mk/stack.mk
 
-# mk/prtty.mk pretty prints information, depending on whether it is run on Travis on not
+# mk/pretty.mk defines 'decorate'.
 include ./mk/pretty.mk
 
 # Run in interactive and parallel mode by default
@@ -48,16 +48,6 @@ STACK_FLAG_OPTIM_HEAVY ?= --flag Agda:optimise-heavily
 
 CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) $(CABAL_OPT_NO_DOCS)
 STACK_INSTALL_HELPER = $(STACK) build Agda $(STACK_OPT_NO_DOCS)
-
-# If running on Travis, use --system-ghc.
-# Developers running `make` will usually want to use the GHC version they've
-# specified in their stack.yaml. Otherwise they can put that option in
-# themselves.
-# Note that some GitHub workflows currently do not use the Makefile, but instead
-# invoke `stack` directly. (See: .github/workflows/stack.yml)
-ifneq ($(TRAVIS),)
-STACK_INSTALL_HELPER += --system-ghc
-endif
 
 # 2016-07-15. We use a different build directory in the quick
 # installation for avoiding recompilation (see Issue #2083 and
