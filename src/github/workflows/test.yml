@@ -85,6 +85,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
 
     runs-on: &runs_on ubuntu-24.04
+
     steps:
     - name: Info about the context
       run: |
@@ -118,6 +119,11 @@ jobs:
     - name: "Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml"
       run:  cp stack-${{ env.GHC_VER }}.yaml stack.yaml
 
+    # Get the list of dependencies and versions to create a correct cache key.
+    - name: "List dependencies and versions"
+      run: |
+        ${STACK} ls dependencies | tee deps.txt
+
     - &icu
       name: Determine the ICU version
       run: |
@@ -142,7 +148,7 @@ jobs:
         # Thus, we include Agda.cabal in the hash.
         # Note that a 'stack.yaml.lock' file would not be sufficient (I think),
         # because it does not list all the dependencies.
-        key: &cache_key test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{ steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
+        key: &cache_key test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{ steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
         restore-keys: test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{ steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-
           # Andreas, 2024-05-17, note to myself: not using the env.key trick here because of *cache_key references below...
 
@@ -156,8 +162,8 @@ jobs:
     - name: "Build Agda"
       run: make BUILD_DIR="${BUILD_DIR}" install-bin
 
+      # Save products to use in the remaining jobs.
     - name: "Pack artifacts"
-      # This step should go into the Makefile.
       run: |
         strip "${BUILD_DIR}"/build/agda-tests/agda-tests \
           "${BUILD_DIR}"/build/agda/agda \
@@ -168,7 +174,7 @@ jobs:
           "${BUILD_DIR}"/build/agda/agda \
           "${BUILD_DIR}"/build/agda-mode/agda-mode
 
-        tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock
+        tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock deps.txt
 
     - name: "Upload artifacts"
       uses: actions/upload-artifact@v4
