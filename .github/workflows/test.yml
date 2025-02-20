@@ -44,9 +44,6 @@ jobs:
         stack-version: latest
     - name: Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml
       run: cp stack-${{ env.GHC_VER }}.yaml stack.yaml
-    - name: List dependencies and versions
-      run: |
-        ${STACK} ls dependencies | tee deps.txt
     - name: Determine the ICU version
       run: |
         ICU_VER=$(pkg-config --modversion icu-i18n)
@@ -58,7 +55,7 @@ jobs:
       with:
         key: test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
-          hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
+          hashFiles('Agda.cabal','stack.yaml') }}
         path: ${{ steps.setup-haskell.outputs.stack-root }}
         restore-keys: test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-
@@ -77,7 +74,7 @@ jobs:
           "${BUILD_DIR}"/build/agda/agda \
           "${BUILD_DIR}"/build/agda-mode/agda-mode
 
-        tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock deps.txt
+        tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -93,7 +90,7 @@ jobs:
       with:
         key: test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
-          hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
+          hashFiles('Agda.cabal','stack.yaml') }}
         path: ${{ steps.setup-haskell.outputs.stack-root }}
   cubical:
     needs: build
@@ -126,7 +123,7 @@ jobs:
       with:
         key: test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
-          hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
+          hashFiles('Agda.cabal','stack.yaml') }}
         path: ${{ steps.setup-haskell.outputs.stack-root }}
     - name: Cubical library test
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
@@ -163,7 +160,7 @@ jobs:
       with:
         key: test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
-          hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
+          hashFiles('Agda.cabal','stack.yaml') }}
         path: ${{ steps.setup-haskell.outputs.stack-root }}
     - name: Install Tex Live and Emacs
       run: |
@@ -224,7 +221,7 @@ jobs:
       with:
         key: test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
-          hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
+          hashFiles('Agda.cabal','stack.yaml') }}
         path: ${{ steps.setup-haskell.outputs.stack-root }}
     - name: Run tests for the size solver
       run: |
@@ -261,7 +258,7 @@ jobs:
       with:
         key: test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
-          hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
+          hashFiles('Agda.cabal','stack.yaml') }}
         path: ${{ steps.setup-haskell.outputs.stack-root }}
     - name: Standard library test
       run: |
@@ -311,7 +308,7 @@ jobs:
       with:
         key: test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
-          hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
+          hashFiles('Agda.cabal','stack.yaml') }}
         path: ${{ steps.setup-haskell.outputs.stack-root }}
     - name: Suite of tests for bugs
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs

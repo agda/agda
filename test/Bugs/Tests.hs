@@ -1,5 +1,3 @@
-{-# LANGUAGE MultiWayIf #-}
-
 module Bugs.Tests where
 
 import Data.Function (on)

@@ -1,0 +1,8 @@
+packages:
+  ./
+  test/
+
+-- Andreas, 2025-02-20.
+-- This project file is used by developers, so we want debug printing on.
+package Agda
+  flags: +debug +enable-cluster-counting

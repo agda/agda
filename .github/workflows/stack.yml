@@ -94,13 +94,12 @@ jobs:
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
       run: |
         # shellcheck disable=SC2086
-        stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
-    - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests`
-        (i.e. the test suite).
+        stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --only-dependencies
+    - name: Build Agda with the default flags in Agda.cabal.
       run: |
         # shellcheck disable=SC2086
-        stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
-    - name: Build Agda with the non-default flags Agda.cabal.
+        stack build ${ARGS} ${EXTRA_ARGS}
+    - name: Build Agda with the non-default flags of Agda.cabal.
       run: |
         # shellcheck disable=SC2086
         stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
@@ -139,6 +138,7 @@ name: Build (stack)
     - Agda.cabal
     - stack-*.yaml
     - src/size-solver/size-solver.cabal
+    - test/agda-tests.cabal
   push:
     branches:
     - master
@@ -149,4 +149,5 @@ name: Build (stack)
     - Agda.cabal
     - stack-*.yaml
     - src/size-solver/size-solver.cabal
+    - test/agda-tests.cabal
   workflow_dispatch: null

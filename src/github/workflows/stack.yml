@@ -12,6 +12,7 @@ on:
     - 'Agda.cabal'
     - 'stack-*.yaml'
     - 'src/size-solver/size-solver.cabal'
+    - 'test/agda-tests.cabal'
     # Andreas, 2023-01-27, issue #8460:
     # Restrict this workflow to changes in the *.cabal and stack*.yaml files
     # - 'src/agda-mode/**'
@@ -183,16 +184,14 @@ jobs:
       # if: steps.cache.outputs.cache-hit != 'true'
       run: |
         # shellcheck disable=SC2086
-        stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
+        stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --only-dependencies
 
-    - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
+    - name: Build Agda with the default flags in Agda.cabal.
       run: |
         # shellcheck disable=SC2086
-        stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
-      ## Since we do not cache .stack-work and .stack-work-fast, we can fuse them.
-      # run: stack build ${ARGS} ${EXTRA_ARGS} --work-dir=.stack-work-fast --test --no-run-tests
+        stack build ${ARGS} ${EXTRA_ARGS}
 
-    - name: Build Agda with the non-default flags Agda.cabal.
+    - name: Build Agda with the non-default flags of Agda.cabal.
       run: |
         # shellcheck disable=SC2086
         stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}

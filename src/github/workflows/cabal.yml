@@ -50,24 +50,23 @@ jobs:
         os: [ubuntu-24.04]
         description: [Linux]      ## This just for pretty-printing the job name.
         ghc-ver: [9.10.1, 9.8.4, 9.6.6, 9.4.8, 9.2.8, 9.0.2, 8.10.7, 8.8.4]
-        cabal-flags: ['--enable-tests -f enable-cluster-counting']
+        cabal-flags: ['-f enable-cluster-counting']
         doctest: [false]
         include:
           ## Latest GHC, special builds
 
-          # Linux, without tests but with doctest
+          # Linux, without cluster counting nor debug but with doctest
           - os: ubuntu-24.04
             description: Linux doctest
             ghc-ver: '9.10.1'
-            # Can't leave cabal-flags empty here lest it becomes the default value.
-            cabal-flags: '--disable-tests'
+            cabal-flags: ''
             doctest: true
 
           # Linux, without -f enable-cluster-counting but with -f debug
           - os: ubuntu-24.04
             description: Linux debug
             ghc-ver: '9.10.1'
-            cabal-flags: '--enable-tests -f debug'
+            cabal-flags: '-f debug'
 
           # Linux, with all debug options
           - os: ubuntu-24.04
@@ -77,22 +76,25 @@ jobs:
             ## Note: -c 'containers >= 0.7' with single quotes does not get communicated properly.
             ## (The single quotes stay, and "-c 'containers" is an option parse error for cabal.)
             cabal-flags: >-
-              --enable-tests -f enable-cluster-counting -f debug -f debug-serialisation -f debug-parsing
+              -f enable-cluster-counting -f debug -f debug-serialisation -f debug-parsing
 
           # macOS with default flags
           - os: macos-14
             description: macOS
             ghc-ver: '9.10.1'
+            cabal-flags: '-f enable-cluster-counting'
 
           # Windows with default flags
           - os: windows-2022
             description: Windows
             ghc-ver: '9.10.1'
+            cabal-flags: '-f enable-cluster-counting'
 
     # Default values
     env:
       GHC_VER:   ${{ matrix.ghc-ver || '9.10.1' }}
-      FLAGS:     ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting' }}
+      FLAGS:     ${{ matrix.cabal-flags }}
+        # No default value for flags.
 
     steps:
     - uses: actions/checkout@v4
@@ -146,9 +148,9 @@ jobs:
     - name: Configure the build plan
       run: |
         # shellcheck disable=SC2086
-        cabal configure -O0 ${FLAGS}
-        cabal build --dry-run
-      # cabal build --dry-run creates dist-newstyle/cache/plan.json
+        cabal configure all -O0 ${FLAGS}
+        cabal build all --dry-run
+      # cabal build all --dry-run creates dist-newstyle/cache/plan.json
       # This does not download the dependencies, except with buggy `cabal-3.9`:
       # https://github.com/haskell/cabal/issues/8706
 
@@ -172,11 +174,11 @@ jobs:
       # Thus, do not skip this step:
       # if: steps.cache.outputs.cache-hit != 'true'
       run: |
-        cabal build --only-dependencies
+        cabal build all --only-dependencies
 
     - name: Build Agda
       run: |
-        cabal build
+        cabal build all
 
     - name: Run doctest
       if: matrix.doctest
