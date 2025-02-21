@@ -78,7 +78,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Singleton
 import qualified Agda.Utils.IO.UTF8 as UTF8
 
-import Paths_Agda
+import Agda.Setup ( getDataDir )
 
 import Agda.Utils.Impossible
 

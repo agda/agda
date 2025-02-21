@@ -63,7 +63,7 @@ import qualified Distribution.Text
 import Agda.Packaging.Config
 import Agda.Packaging.Monad
 import Agda.Packaging.Types
-import Paths_Agda
+import Agda.Setup
   ( getDataDir )
 
 -------------------------------------------------------------------------------

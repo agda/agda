@@ -16,12 +16,10 @@ import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
-import System.Environment
-import System.Exit
+import System.Environment ( getArgs, getProgName )
+import System.Exit ( exitSuccess, ExitCode )
 import System.Console.GetOpt
 import qualified System.IO as IO
-
-import Paths_Agda            ( getDataDir )
 
 import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode as ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
@@ -42,7 +40,8 @@ import Agda.TypeChecking.Pretty
 import Agda.Compiler.Backend
 import Agda.Compiler.Builtin
 
-import Agda.VersionCommit
+import Agda.Setup ( getAgdaAppDir, getDataDir, setup )
+import Agda.VersionCommit ( versionWithCommitInfo )
 
 import qualified Agda.Utils.Benchmark as UtilsBench
 import qualified Agda.Syntax.Common.Pretty.ANSI as ANSI
@@ -54,7 +53,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
-import Agda.Interaction.Library (getAgdaAppDir)
 
 -- | The main function
 runAgda :: [Backend] -> IO ()
@@ -82,8 +80,12 @@ runAgda' backends = do
         MainModePrintVersion o   -> printVersion bs o
         MainModePrintAgdaDataDir -> printAgdaDataDir
         MainModePrintAgdaAppDir  -> printAgdaAppDir
+        MainModeSetup            -> Agda.Setup.setup True
 
-        MainModeRun interactor   -> runTCMPrettyErrors do
+        MainModeRun interactor   -> do
+
+         Agda.Setup.setup False
+         runTCMPrettyErrors do
 
           mapM_ (warning . OptionWarning) warns
 
@@ -111,6 +113,7 @@ data MainMode
   | MainModePrintVersion PrintAgdaVersion
   | MainModePrintAgdaDataDir
   | MainModePrintAgdaAppDir
+  | MainModeSetup
 
 -- | Determine the main execution mode to run, based on the configured backends and command line options.
 -- | This is pure.
@@ -120,6 +123,7 @@ getMainMode configuredBackends maybeInputFile opts
   | Just o  <- optPrintVersion opts = return $ MainModePrintVersion o
   | optPrintAgdaDataDir opts        = return $ MainModePrintAgdaDataDir
   | optPrintAgdaAppDir opts         = return $ MainModePrintAgdaAppDir
+  | optSetup opts                   = return $ MainModeSetup
   | otherwise = do
       mi <- getInteractor configuredBackends maybeInputFile opts
       -- If there was no selection whatsoever (e.g. just invoked "agda"), we just show help and exit.

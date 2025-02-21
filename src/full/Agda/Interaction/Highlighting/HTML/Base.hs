@@ -49,8 +49,6 @@ import Text.Blaze.Html.Renderer.Text ( renderHtml )
   -- The imported operator (!) attaches an Attribute to an Html value
   -- The defined operator (!!) attaches a list of such Attributes
 
-import Paths_Agda
-
 import Agda.Interaction.Highlighting.Precise hiding (toList)
 
 import Agda.Syntax.Common
@@ -59,6 +57,8 @@ import Agda.Syntax.TopLevelModuleName
 import qualified Agda.TypeChecking.Monad as TCM
   ( Interface(..)
   )
+
+import Agda.Setup ( getDataFileName )
 
 import Agda.Utils.Function
 import Agda.Utils.List1 (String1, pattern (:|))
