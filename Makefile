@@ -478,16 +478,16 @@ common :
 .PHONY : succeed ##
 succeed :
 	@$(call decorate, "Suite of successful tests", \
-		echo $(shell which $(AGDA_BIN)) > test/Succeed/exec-tc/executables && \
+		echo $(shell which $(AGDA_BIN)) > test/helpers/exec-tc/executables && \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
-		rm test/Succeed/exec-tc/executables )
+		rm test/helpers/exec-tc/executables )
 
 .PHONY : fast-succeed ##
 fast-succeed :
 	@$(call decorate, "Suite of successful tests (using agda-fast)", \
-		echo $(shell which $(AGDA_FAST_BIN)) > test/Succeed/exec-tc/executables && \
+		echo $(shell which $(AGDA_FAST_BIN)) > test/helpers/exec-tc/executables && \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
-		rm test/Succeed/exec-tc/executables )
+		rm test/helpers/exec-tc/executables )
 
 .PHONY : fail ##
 fail :
