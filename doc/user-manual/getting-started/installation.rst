@@ -7,7 +7,6 @@ Installation
 To get started with Agda, follow these three steps:
 
 * :ref:`install-agda`
-* :ref:`build-builtin-library`
 * :ref:`install-agda-stdlib`
 * :ref:`install-text-editor`
 
@@ -151,35 +150,6 @@ An OS-independent binary installation of Agda is provided by the :ref:`python in
 See :ref:`prebuilt-packages` for a list of known systems and their system-specific instructions.
 
 
-.. _build-builtin-library:
-
-Step 1a: Build the Agda Builtin Library
-=======================================
-
-Agda ships with a few Agda modules (such as ``Agda.Primitive`` or ``Agda.Builtin.Equality``)
-that are placed in the ``lib/prim`` subfolder of :envvar:`Agda_datadir`.
-(You can retrieve the value of :envvar:`Agda_datadir`
-with ``agda --print-agda-data-dir``, see option :option:`--print-agda-data-dir`.)
-
-Before version 2.8.0, the interface (``.agdai``) files for these modules were generated
-during the installation of Agda.
-Since 2.8.0, interfaces are no longer generated during installation,
-but case-by-case whenever you import such a module in your code.
-This is not any issue as long as the ``lib/prim`` directory is writeable.
-
-In case Agda is installed into a location that is not writeable by the user(s),
-e.g. when Agda is installed system-wide,
-these interfaces need to be generated manually to complete the installation.
-This can be done by running the following commands:
-
-.. code-block:: bash
-
-  cd "$(agda --print-agda-data-dir)/lib/prim"
-  find . -name "*.agda" -exec agda {} \;
-
-Any binary distribution of Agda should already include these interface files.
-So, if you are a packager, please include this step in your packaging routine.
-
 .. _install-agda-stdlib:
 
 Step 2: Install the Agda Standard Library (agda-stdlib)
@@ -234,7 +204,12 @@ After installing the ``agda-mode`` program using ``cabal`` or
 
   agda-mode setup
 
-The above command tries to set up Emacs for use with Agda via the
+The above command will first write the Agda data files to the
+Agda data directory (see :option:`--print-agda-data-dir`)
+if this directory does not exist yet.
+(To force writing the data files there use the :option:`--setup` option of ``agda``.)
+
+It then tries to set up Emacs for use with Agda via the
 :ref:`Emacs mode <emacs-mode>`. As an alternative you can copy the
 following text to your *.emacs* file:
 
