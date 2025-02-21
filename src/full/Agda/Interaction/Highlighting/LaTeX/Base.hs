@@ -52,8 +52,6 @@ import qualified Data.HashSet as Set
 import qualified Data.IntMap  as IntMap
 import qualified Data.List    as List
 
-import Paths_Agda
-
 import Agda.Syntax.Common
 import Agda.Syntax.Parser.Literate (literateTeX, LayerRole, atomizeLayers)
 import qualified Agda.Syntax.Parser.Literate as L
@@ -64,6 +62,8 @@ import Agda.Syntax.TopLevelModuleName
 import Agda.Interaction.Highlighting.Precise hiding (toList)
 
 import Agda.TypeChecking.Monad (Interface(..)) --, reportSLn)
+
+import Agda.Setup ( getDataFileName )
 
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor  ((<&>))

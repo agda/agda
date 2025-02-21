@@ -96,58 +96,63 @@ extra-source-files:
     stack-9.0.2.yaml
     stack-8.10.7.yaml
     stack-8.8.4.yaml
-
-data-dir:
-    src/data
-
-data-files:
-    emacs-mode/*.el
-    html/Agda.css
-    html/highlight-hover.js
-    JS/agda-rts.mjs
-    JS/agda-rts.js
-    JS/agda-rts.amd.js
-    latex/agda.sty
-    latex/postprocess-latex.pl
-    lib/prim/agda-builtins.agda-lib
-    lib/prim/Agda/Builtin/Bool.agda
-    lib/prim/Agda/Builtin/Char.agda
-    lib/prim/Agda/Builtin/Char/Properties.agda
-    lib/prim/Agda/Builtin/Coinduction.agda
-    lib/prim/Agda/Builtin/Cubical/Path.agda
-    lib/prim/Agda/Builtin/Cubical/Sub.agda
-    lib/prim/Agda/Builtin/Cubical/Glue.agda
-    lib/prim/Agda/Builtin/Cubical/Equiv.agda
-    lib/prim/Agda/Builtin/Cubical/HCompU.agda
-    lib/prim/Agda/Builtin/Equality.agda
-    lib/prim/Agda/Builtin/Equality/Erase.agda
-    lib/prim/Agda/Builtin/Equality/Rewrite.agda
-    lib/prim/Agda/Builtin/Float.agda
-    lib/prim/Agda/Builtin/Float/Properties.agda
-    lib/prim/Agda/Builtin/FromNat.agda
-    lib/prim/Agda/Builtin/FromNeg.agda
-    lib/prim/Agda/Builtin/FromString.agda
-    lib/prim/Agda/Builtin/IO.agda
-    lib/prim/Agda/Builtin/Int.agda
-    lib/prim/Agda/Builtin/List.agda
-    lib/prim/Agda/Builtin/Maybe.agda
-    lib/prim/Agda/Builtin/Nat.agda
-    lib/prim/Agda/Builtin/Reflection.agda
-    lib/prim/Agda/Builtin/Reflection/External.agda
-    lib/prim/Agda/Builtin/Reflection/Properties.agda
-    lib/prim/Agda/Builtin/Sigma.agda
-    lib/prim/Agda/Builtin/Size.agda
-    lib/prim/Agda/Builtin/Strict.agda
-    lib/prim/Agda/Builtin/String.agda
-    lib/prim/Agda/Builtin/String/Properties.agda
-    lib/prim/Agda/Builtin/TrustMe.agda
-    lib/prim/Agda/Builtin/Unit.agda
-    lib/prim/Agda/Builtin/Word.agda
-    lib/prim/Agda/Builtin/Word/Properties.agda
-    lib/prim/Agda/Primitive.agda
-    lib/prim/Agda/Primitive/Cubical.agda
-    MAlonzo/src/MAlonzo/*.hs
-    MAlonzo/src/MAlonzo/RTE/*.hs
+    -- Agda's data files, embedded by module Agda.Setup.
+    -- Keep in sync with the list in Agda.Setup.DataFiles!
+    src/data/emacs-mode/agda-input.el
+    src/data/emacs-mode/agda2-abbrevs.el
+    src/data/emacs-mode/agda2-highlight.el
+    src/data/emacs-mode/agda2-mode-pkg.el
+    src/data/emacs-mode/agda2-mode.el
+    src/data/emacs-mode/agda2-queue.el
+    src/data/emacs-mode/agda2.el
+    src/data/emacs-mode/annotation.el
+    src/data/emacs-mode/eri.el
+    src/data/html/Agda.css
+    src/data/html/highlight-hover.js
+    src/data/JS/agda-rts.mjs
+    src/data/JS/agda-rts.js
+    src/data/JS/agda-rts.amd.js
+    src/data/latex/agda.sty
+    src/data/latex/postprocess-latex.pl
+    src/data/lib/prim/agda-builtins.agda-lib
+    src/data/lib/prim/Agda/Builtin/Bool.agda
+    src/data/lib/prim/Agda/Builtin/Char.agda
+    src/data/lib/prim/Agda/Builtin/Char/Properties.agda
+    src/data/lib/prim/Agda/Builtin/Coinduction.agda
+    src/data/lib/prim/Agda/Builtin/Cubical/Path.agda
+    src/data/lib/prim/Agda/Builtin/Cubical/Sub.agda
+    src/data/lib/prim/Agda/Builtin/Cubical/Glue.agda
+    src/data/lib/prim/Agda/Builtin/Cubical/Equiv.agda
+    src/data/lib/prim/Agda/Builtin/Cubical/HCompU.agda
+    src/data/lib/prim/Agda/Builtin/Equality.agda
+    src/data/lib/prim/Agda/Builtin/Equality/Erase.agda
+    src/data/lib/prim/Agda/Builtin/Equality/Rewrite.agda
+    src/data/lib/prim/Agda/Builtin/Float.agda
+    src/data/lib/prim/Agda/Builtin/Float/Properties.agda
+    src/data/lib/prim/Agda/Builtin/FromNat.agda
+    src/data/lib/prim/Agda/Builtin/FromNeg.agda
+    src/data/lib/prim/Agda/Builtin/FromString.agda
+    src/data/lib/prim/Agda/Builtin/IO.agda
+    src/data/lib/prim/Agda/Builtin/Int.agda
+    src/data/lib/prim/Agda/Builtin/List.agda
+    src/data/lib/prim/Agda/Builtin/Maybe.agda
+    src/data/lib/prim/Agda/Builtin/Nat.agda
+    src/data/lib/prim/Agda/Builtin/Reflection.agda
+    src/data/lib/prim/Agda/Builtin/Reflection/External.agda
+    src/data/lib/prim/Agda/Builtin/Reflection/Properties.agda
+    src/data/lib/prim/Agda/Builtin/Sigma.agda
+    src/data/lib/prim/Agda/Builtin/Size.agda
+    src/data/lib/prim/Agda/Builtin/Strict.agda
+    src/data/lib/prim/Agda/Builtin/String.agda
+    src/data/lib/prim/Agda/Builtin/String/Properties.agda
+    src/data/lib/prim/Agda/Builtin/TrustMe.agda
+    src/data/lib/prim/Agda/Builtin/Unit.agda
+    src/data/lib/prim/Agda/Builtin/Word.agda
+    src/data/lib/prim/Agda/Builtin/Word/Properties.agda
+    src/data/lib/prim/Agda/Primitive.agda
+    src/data/lib/prim/Agda/Primitive/Cubical.agda
+    src/data/MAlonzo/src/MAlonzo/RTE.hs
+    src/data/MAlonzo/src/MAlonzo/RTE/Float.hs
 
 source-repository head
   type:     git
@@ -401,10 +406,20 @@ library
 
   if flag(enable-cluster-counting)
     cpp-options:    -DCOUNT_CLUSTERS
-    build-depends:  text-icu >= 0.7.1.0
+    build-depends:
+      text-icu             >= 0.7.1.0   && < 0.9
 
   if os(windows)
-    build-depends:  Win32 >= 2.6.1.0 && < 2.15
+    build-depends:
+      Win32                >= 2.6.1.0   && < 2.15
+
+  -- We need instance TH.Lift ByteString in Agda.Setup.
+  -- bytestring-0.11.2.0 adds "Lift instances for all flavors of ByteString"
+  -- GHC 9.2 comes with bytestring-0.11.4.0
+  -- Older GHCs can get the instance from th-lift-instances.
+  if impl(ghc < 9.2)
+    build-depends:
+      th-lift-instances    >= 0.1.18    && < 0.1.21
 
   -- For libraries that come with GHC, we take the shipped version as default lower bound.
   -- For the other libraries, we take the lower bound from the oldest LTS we support.
@@ -455,6 +470,7 @@ library
     , STMonadTrans         >= 0.4.5     && < 0.5
     , strict               >= 0.4.0.1   && < 0.6
         -- module Data.Strict.Classes entered in strict-0.4
+    , template-haskell     >= 2.15.0.0  && < 2.24
     , text                 >= 1.2.4.0   && < 2.2
     , time                 >= 1.9.3     && < 1.15
     , transformers         >= 0.5.6.2   && < 0.7
@@ -549,6 +565,8 @@ library
       Agda.Main
       Agda.Mimer.Mimer
       Agda.Mimer.Options
+      Agda.Setup
+      Agda.Setup.DataFiles
       Agda.Syntax.Abstract.Name
       Agda.Syntax.Abstract.Pattern
       Agda.Syntax.Abstract.PatternSynonyms

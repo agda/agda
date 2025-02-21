@@ -53,10 +53,15 @@ data CommandLineOptions = Options
        -- ^ Configure notifications about imported modules.
   , optTrustedExecutables    :: Map ExeName FilePath
        -- ^ Map names of trusted executables to absolute paths.
+
+  -- Main modes that do something small and quit:
   , optPrintAgdaDataDir      :: Bool
   , optPrintAgdaAppDir       :: Bool
   , optPrintVersion          :: Maybe PrintAgdaVersion
   , optPrintHelp             :: Maybe Help
+  , optSetup                 :: Bool
+      -- ^ Tell Agda to self-setup and quit.
+
   , optInteractive           :: Bool
       -- ^ Agda REPL (@-I@).
   , optGHCiInteraction       :: Bool
