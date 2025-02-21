@@ -671,6 +671,7 @@ defaultOptions = Options
   , optPrintAgdaAppDir       = False
   , optPrintVersion          = Nothing
   , optPrintHelp             = Nothing
+  , optSetup                 = False
   , optInteractive           = False
   , optGHCiInteraction       = False
   , optJSONInteraction       = False
@@ -1053,6 +1054,9 @@ printAgdaDataDirFlag o = return $ o { optPrintAgdaDataDir = True }
 printAgdaAppDirFlag :: Flag CommandLineOptions
 printAgdaAppDirFlag o = return $ o { optPrintAgdaAppDir = True }
 
+setupFlag :: Flag CommandLineOptions
+setupFlag o = return $ o { optSetup = True }
+
 versionFlag :: Flag CommandLineOptions
 versionFlag o = return $ o { optPrintVersion = Just PrintAgdaVersion }
 
@@ -1285,6 +1289,8 @@ standardOptions =
     , Option []     ["print-agda-data-dir"] (NoArg printAgdaDataDirFlag)
                     ("print the Agda data directory exit")
 
+    , Option []     ["setup"] (NoArg setupFlag)
+                    ("setup the Agda data directory exit")
 
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
                     "start in interactive mode"
