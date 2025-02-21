@@ -128,6 +128,9 @@ jobs:
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
           hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
         path: ${{ steps.setup-haskell.outputs.stack-root }}
+    - name: Setup Agda
+      run: |
+        "${GITHUB_WORKSPACE}/${BUILD_DIR}"/build/agda/agda --setup
     - name: Cubical library test
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
     - name: Successful tests using the cubical library
@@ -165,6 +168,9 @@ jobs:
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
           hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
         path: ${{ steps.setup-haskell.outputs.stack-root }}
+    - name: Setup Agda
+      run: |
+        "${GITHUB_WORKSPACE}/${BUILD_DIR}"/build/agda/agda --setup
     - name: Install Tex Live and Emacs
       run: |
         sudo apt-get update
@@ -226,6 +232,9 @@ jobs:
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
           hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
         path: ${{ steps.setup-haskell.outputs.stack-root }}
+    - name: Setup Agda
+      run: |
+        "${GITHUB_WORKSPACE}/${BUILD_DIR}"/build/agda/agda --setup
     - name: Run tests for the size solver
       run: |
         export PATH=${HOME}/.local/bin:${PATH}
@@ -263,6 +272,9 @@ jobs:
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
           hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
         path: ${{ steps.setup-haskell.outputs.stack-root }}
+    - name: Setup Agda
+      run: |
+        "${GITHUB_WORKSPACE}/${BUILD_DIR}"/build/agda/agda --setup
     - name: Standard library test
       run: |
         # ASR (2021-01-17). `cabal update` is required due to #5138.
@@ -313,6 +325,9 @@ jobs:
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
           hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
         path: ${{ steps.setup-haskell.outputs.stack-root }}
+    - name: Setup Agda
+      run: |
+        "${GITHUB_WORKSPACE}/${BUILD_DIR}"/build/agda/agda --setup
     - name: Suite of tests for bugs
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
     - if: always()

@@ -224,6 +224,11 @@ jobs:
         path: *cache_path
         key:  *cache_key
 
+    - &agda_setup
+      name: Setup Agda
+      run: |
+        "${GITHUB_WORKSPACE}/${BUILD_DIR}"/build/agda/agda --setup
+
     - name: "Suite of tests for bugs"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
       #    14s (2022-06-17)
@@ -283,6 +288,7 @@ jobs:
     - *unpack_artifact
     - *icu
     - *cache
+    - *agda_setup
 
     - name: "Standard library test"
       run: |
@@ -324,6 +330,7 @@ jobs:
     - *unpack_artifact
     - *icu
     - *cache
+    - *agda_setup
 
     - name: "Install Tex Live and Emacs"
       run: |
@@ -379,6 +386,7 @@ jobs:
     - *unpack_artifact
     - *icu
     - *cache
+    - *agda_setup
 
     - name: "Cubical library test"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
@@ -400,6 +408,7 @@ jobs:
     - *unpack_artifact
     - *icu
     - *cache
+    - *agda_setup
 
     - name: "Run tests for the size solver"
       run: |
