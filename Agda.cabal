@@ -913,16 +913,35 @@ executable agda
 ---------------------------------------------------------------------------
 
 executable agda-mode
-  hs-source-dirs:   src/agda-mode
+  import:           language
+
+  hs-source-dirs:   src/agda-mode src/setup
   main-is:          Main.hs
-  autogen-modules:  Paths_Agda
-  other-modules:    Paths_Agda
+  autogen-modules:
+    Paths_Agda
+  other-modules:
+    Paths_Agda
+    Agda.Setup
+    Agda.Setup.DataFiles
+    Agda.Version
+    Agda.VersionCommit
+
+  -- We need instance TH.Lift ByteString in Agda.Setup.
+  -- bytestring-0.11.2.0 adds "Lift instances for all flavors of ByteString"
+  -- GHC 9.2 comes with bytestring-0.11.4.0
+  -- Older GHCs can get the instance from th-lift-instances.
+  if impl(ghc < 9.2)
+    build-depends:
+      th-lift-instances    >= 0.1.18    && < 0.1.21
+
   build-depends:
-    , base      >= 4.13.0.0 && < 4.21
-    , directory >= 1.3.6.0  && < 1.4
-    , filepath  >= 1.4.2.1  && < 1.6
-    , process   >= 1.6.9.0  && < 1.7
-  default-language: Haskell2010
+    , base                 >= 4.13.0.0  && < 4.21
+    , bytestring           >= 0.10.10.1 && < 0.13
+    , directory            >= 1.3.6.0   && < 1.4
+    , filepath             >= 1.4.2.1   && < 1.6
+    , gitrev               >= 1.3.1     && < 2
+    , process              >= 1.6.9.0   && < 1.7
+    , template-haskell     >= 2.15.0.0  && < 2.24
 
 -- Cabal testsuite integration has some serious bugs, but we
 -- can still make it work. See also:

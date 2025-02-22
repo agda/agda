@@ -9,13 +9,15 @@ module Main (main) where
 import Control.Exception as E
 import Control.Applicative
 import Control.Monad
+
 import Data.Bifunctor (first, second)
 import Data.Bool (bool)
 import Data.Char
 import Data.List (intercalate, isInfixOf)
 import Data.Maybe
-import Data.Version
+
 import Numeric
+
 import System.Directory
 import System.Environment
 import System.Exit
@@ -24,7 +26,8 @@ import System.IO
 -- import System.IO.Error (isDoesNotExistError)
 import System.Process
 
-import Paths_Agda (getDataDir, version)
+import Agda.Version (version)
+import Agda.Setup as Agda (getDataDir, setup)
 
 -- | The program.
 
@@ -33,16 +36,30 @@ main = do
   prog <- getProgName
   args <- getArgs
   case args of
-    [arg] | arg == locateFlag -> printEmacsModeFile
-          | arg == setupFlag  -> do
-             dotEmacs <- findDotEmacs
-             setupDotEmacs (Files { thisProgram = prog
-                                  , dotEmacs    = dotEmacs
-                                  })
-          | arg == compileFlag ->
-             compileElispFiles
-    _  -> do inform usage
-             exitFailure
+    [arg]
+      | arg == locateFlag -> printEmacsModeFile
+
+      | arg == setupFlag  -> do
+
+          -- Ensure that Agda has been setup so the Emacs mode is available.
+          Agda.setup False
+
+          dotEmacs <- findDotEmacs
+          setupDotEmacs (Files { thisProgram = prog
+                               , dotEmacs    = dotEmacs
+                               })
+
+      | arg == compileFlag -> do
+
+          -- Ensure that Agda has been setup so the Emacs mode is available.
+          Agda.setup False
+
+          compileElispFiles
+
+    _  -> do
+      dir <- getDataDir
+      inform $ usage dir
+      exitFailure
 
 -- Command line options.
 
@@ -57,14 +74,19 @@ compileFlag = "compile"
 
 -- | Usage information.
 
-usage :: String
-usage = unlines
-  [ "This program, which is part of Agda version " ++ ver ++ ", can be run"
+usage :: FilePath -> String
+usage dataDir = unlines
+  [ "This program, which is part of Agda version " ++ version ++ ", can be run"
   , "in three modes, depending on which option it is invoked with:"
   , ""
   , setupFlag
   , ""
-  , "  The program tries to add setup code for Agda's Emacs mode to the"
+  , "  The program unloads Agda's data files, including the Emacs mode,"
+  , "  to the following location:"
+  , ""
+  , "    " ++ dataDir
+  , ""
+  , "  It then tries to add setup code for Agda's Emacs mode to the"
   , "  current user's .emacs file. It is assumed that the .emacs file"
   , "  uses the character encoding specified by the locale."
   , ""
@@ -76,17 +98,16 @@ usage = unlines
   , ""
   , compileFlag
   , ""
-  , "  The program tries to compile Agda's Emacs mode's source files."
+  , "  The program unloads Agda's data files, including the Emacs mode,"
+  , "  to the following location:"
+  , ""
+  , "    " ++ dataDir
+  , ""
+  , "  It then tries to compile Agda's Emacs mode's source files."
   , ""
   , "  WARNING: If you reinstall the Agda mode without recompiling the Emacs"
   , "  Lisp files, then Emacs may continue using the old, compiled files."
   ]
-
--- | The current version of Agda.
-
-ver :: String
-ver = intercalate "." $ map show $
-        versionBranch version
 
 ------------------------------------------------------------------------
 -- Locating the Agda mode
