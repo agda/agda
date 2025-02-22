@@ -46,8 +46,13 @@ main = do
 
 -- Command line options.
 
+setupFlag :: String
 setupFlag   = "setup"
+
+locateFlag :: String
 locateFlag  = "locate"
+
+compileFlag :: String
 compileFlag = "compile"
 
 -- | Usage information.
@@ -193,7 +198,7 @@ askEmacs query = do
       exitFailure
     withFile file ReadMode $ \h -> do
       result <- hGetContents h
-      evaluate (length result)
+      _ <- evaluate (length result)
       -- Uses evaluate to ensure that the file is not closed
       -- prematurely.
       return result
@@ -284,7 +289,9 @@ compileElispFiles = do
 -- These functions inform the user about something by printing on
 -- stderr.
 
+inform :: String -> IO ()
 inform   = hPutStr   stderr
+informLn :: String -> IO ()
 informLn = hPutStrLn stderr
 
 parens :: String -> String
