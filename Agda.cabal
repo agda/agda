@@ -381,7 +381,7 @@ common language
 library
   import:           language
 
-  hs-source-dirs:   src/full
+  hs-source-dirs:   src/full src/setup
 
   -- Andreas, 2021-03-10:
   -- All packages we depend upon should be mentioned in an unconditional

@@ -126,7 +126,7 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 
 .PHONY: ensure-hash-is-correct
 ensure-hash-is-correct:
-	touch src/full/Agda/VersionCommit.hs
+	touch src/setup/Agda/VersionCommit.hs
 
 .PHONY: copy-bins-with-suffix-% ## Copy binaries to local bin directory with suffix
 copy-bins-with-suffix-%:

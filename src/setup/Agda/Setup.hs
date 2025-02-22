@@ -11,7 +11,7 @@ module Agda.Setup
   )
 where
 
-import           Control.Monad              ( forM, forM_ )
+import           Control.Monad              ( forM, forM_, unless, when )
 
 import           Data.ByteString            ( ByteString )
 import qualified Data.ByteString            as BS
@@ -34,8 +34,6 @@ import           System.FilePath            ( (</>), joinPath, splitFileName )
 
 import           Agda.Setup.DataFiles       ( dataFiles, dataPath )
 import           Agda.VersionCommit         ( versionWithCommitInfo )
-
-import           Agda.Utils.Monad
 
 -- Tell TH that all the dataFiles are needed for compilation.
 [] <$ mapM_ (qAddDependentFile . dataPath) dataFiles
@@ -100,9 +98,12 @@ getDataFileName f = getDataDir <&> (</> f)
 setup :: Bool -> IO ()
 setup force = do
   dir <- getDataDir
-  whenM (pure force `or2M` (not <$> doesDirectoryExist dir)) do
-    -- perform the setup
-    dumpDataDir force dir
+  let doSetup = dumpDataDir force dir
+
+  if force then doSetup else do
+    ex <- doesDirectoryExist dir
+    unless ex doSetup
+
 
 -- | Spit out the embedded files into the given directory.
 
