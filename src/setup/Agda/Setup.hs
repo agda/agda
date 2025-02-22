@@ -11,11 +11,13 @@ module Agda.Setup
   )
 where
 
-import           Control.Monad              ( forM, forM_, unless, when )
+import           Control.Exception          ( IOException, try )
+import           Control.Monad              ( forM, forM_, unless, void, when )
 
 import           Data.ByteString            ( ByteString )
 import qualified Data.ByteString            as BS
 import           Data.Functor               ( (<&>) )
+import           Data.List                  ( intercalate )
 
 import           Language.Haskell.TH.Syntax ( qAddDependentFile, runIO )
 
@@ -27,13 +29,25 @@ import           Instances.TH.Lift          ()
 import           System.Directory
   ( XdgDirectory (..)
   , canonicalizePath, createDirectoryIfMissing, doesDirectoryExist
-  , getAppUserDataDirectory, getXdgDirectory
+  , getAppUserDataDirectory, getXdgDirectory, removeFile
   )
 import           System.Environment         ( lookupEnv )
-import           System.FilePath            ( (</>), joinPath, splitFileName )
+import           System.FileLock            ( pattern Exclusive, withFileLock )
+import           System.FilePath            ( (</>), joinPath, splitFileName, takeFileName )
 
 import           Agda.Setup.DataFiles       ( dataFiles, dataPath )
 import           Agda.VersionCommit         ( versionWithCommitInfo )
+
+-- | What to append to the @AGDA_DIR@ to construct the Agda data directory.
+
+dataDirNameParts :: [FilePath]
+dataDirNameParts = [ "share", versionWithCommitInfo ]
+
+-- | Given the `AGDA_DIR`, what should the Agda data dir be?
+
+mkDataDir :: FilePath -> FilePath
+mkDataDir base = joinPath $ base : dataDirNameParts
+
 
 -- Tell TH that all the dataFiles are needed for compilation.
 [] <$ mapM_ (qAddDependentFile . dataPath) dataFiles
@@ -79,9 +93,7 @@ getAgdaAppDir = do
 -- | This overrides the 'getDataDir' from ''Paths_Agda''.
 
 getDataDir :: IO FilePath
-getDataDir = do
-  base <- getAgdaAppDir
-  return $ joinPath [ base, "share", versionWithCommitInfo ]
+getDataDir = mkDataDir <$> getAgdaAppDir
 
 -- | This overrides the 'getDataFileName' from ''Paths_Agda''.
 
@@ -97,22 +109,39 @@ getDataFileName f = getDataDir <&> (</> f)
 
 setup :: Bool -> IO ()
 setup force = do
-  dir <- getDataDir
+  dir <- getAgdaAppDir
   let doSetup = dumpDataDir force dir
 
   if force then doSetup else do
-    ex <- doesDirectoryExist dir
+    ex <- doesDirectoryExist $ mkDataDir dir
     unless ex doSetup
 
 
--- | Spit out the embedded files into the given directory.
+-- | Spit out the embedded files into Agda data directory relative to the given directory.
+--   Lock the directory while doing so.
 
 dumpDataDir :: Bool -> FilePath -> IO ()
-dumpDataDir verbose base = do
-  forM_ embeddedDataDir \ (relativePath, content) -> do
-    let (relativeDir, file) = splitFileName relativePath
-    let dir  = base </> relativeDir
-    let path = dir </> file
-    when verbose $ putStrLn $ "Writing " ++ path
-    createDirectoryIfMissing True dir
-    BS.writeFile path content
+dumpDataDir verbose agdaDir = do
+  let dataDir = mkDataDir agdaDir
+  createDirectoryIfMissing True dataDir
+
+  -- Create a file lock to prevent races caused by the dataDir already created
+  -- but not filled with its contents.
+  let lock = agdaDir </> intercalate "-" (".lock" : dataDirNameParts)
+  withFileLock lock Exclusive \ _lock -> do
+
+    forM_ embeddedDataDir \ (relativePath, content) -> do
+
+      -- Make sure we also create the directories along the way.
+      let (relativeDir, file) = splitFileName relativePath
+      let dir  = dataDir </> relativeDir
+      createDirectoryIfMissing True dir
+
+      -- Write out the file contents.
+      let path = dir </> file
+      when verbose $ putStrLn $ "Writing " ++ path
+      BS.writeFile path content
+
+  -- Remove the lock (this is surprisingly not done by withFileLock).
+  -- Ignore any IOException (e.g. if the file does not exist).
+  void $ try @IOException $ removeFile lock
