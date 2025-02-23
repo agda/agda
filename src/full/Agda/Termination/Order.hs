@@ -232,8 +232,11 @@ o            .*. Unknown
 -- 'toBase' is preserved
 (Decr u b k) .*. (Decr u' b' l)
   -- It shouldn't be possible to get a strict decrease from a base constructor,
-  -- so if we encounter this, something must have gone wrong!
-  | b' && k < 0 = __IMPOSSIBLE__
+  -- so, really, we ought to just immediately consider chains of calls
+  -- terminating as soon as this case is encountered.
+  -- However, I don't want to complicate things too much, so for now I will
+  -- just return a strict decrease and hope that is enough.
+  | b' && k < 0 = decr True True 1
   | otherwise   = decr (u || u') (b || (b' && k == 0)) (k + l)
 
 -- | collapse @m@

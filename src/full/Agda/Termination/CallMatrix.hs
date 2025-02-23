@@ -14,7 +14,7 @@ module Agda.Termination.CallMatrix where
 
 import Agda.Termination.CutOff
 import Agda.Termination.Order as Order
-import Agda.Termination.SparseMatrix as Matrix hiding (mul)
+import Agda.Termination.SparseMatrix as Matrix
 import Agda.Termination.Semiring (HasZero(..))
 
 import Agda.Utils.Favorites (Favorites)
