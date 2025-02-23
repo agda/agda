@@ -108,6 +108,8 @@ instance PartialOrd Order where
     (Decr _ True k, Decr _ False l) | k > 0 || k >= l -> POGT
     (Decr False _ k, Decr True _ l) | l > 0 || l >= k -> POLT
     (Decr True _ k, Decr False _ l) | k > 0 || k >= l -> POGT
+    -- We aren't really respecting equality here. Probably doesn't matter, but
+    -- I think worth mentioning.
     (Decr _ _ k, Decr _ _ l) -> if l > k then POLT else POGT
 
 -- | A partial order, aimed at deciding whether a call graph gets
@@ -228,7 +230,11 @@ o            .*. Unknown
   | otherwise                   = Unknown
 -- if one is usable, so is the composition
 -- 'toBase' is preserved
-(Decr u b k) .*. (Decr u' _ l) = decr (u || u') b (k + l)
+(Decr u b k) .*. (Decr u' b' l)
+  -- It shouldn't be possible to get a strict decrease from a base constructor,
+  -- so if we encounter this, something must have gone wrong!
+  | b' && k < 0 = __IMPOSSIBLE__
+  | otherwise   = decr (u || u') (b || (b' && k == 0)) (k + l)
 
 -- | collapse @m@
 --
