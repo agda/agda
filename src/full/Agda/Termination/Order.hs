@@ -96,18 +96,18 @@ instance HasZero Order where
 --   tending towards Unknown (the least information).
 instance PartialOrd Order where
   -- NOTE: Strictly speaking, it is not obvious e.g. whether an
-  -- unusable-decrease-by-2 or a usable-decrease-by-1-into-a-base-constructor
-  -- has more information. We give usability or to-base-constructor-ness
+  -- decrease-by-1 or a decrease-by-0-into-a-base-constructor
+  -- has more information. We give to-base-constructor-ness and then usability
   -- priority if the we have a decrease.
   comparable o o' = case (o, o') of
     (Unknown, Unknown)    -> POEQ
     (Unknown, _      )    -> POLT
     (_      , Unknown)    -> POGT
     -- TODO: Should we conservatively return 'POLE'/POGE' some of these cases?
-    (Decr False _ k, Decr True _ l) | l > 0 || k == l -> POLT
-    (Decr True _ k, Decr False _ l) | k > 0 || k == l -> POGT
-    (Decr _ False k, Decr _ True l) | l > 0 || k == l -> POLT
-    (Decr _ True k, Decr _ False l) | k > 0 || k == l -> POGT
+    (Decr _ False k, Decr _ True l) | l > 0 || l >= k -> POLT
+    (Decr _ True k, Decr _ False l) | k > 0 || k >= l -> POGT
+    (Decr False _ k, Decr True _ l) | l > 0 || l >= k -> POLT
+    (Decr True _ k, Decr False _ l) | k > 0 || k >= l -> POGT
     (Decr _ _ k, Decr _ _ l) -> if l > k then POLT else POGT
 
 -- | A partial order, aimed at deciding whether a call graph gets
@@ -144,7 +144,7 @@ instance (Ord i, HasZero o, NotWorse o) => NotWorse (Matrix i o) where
 increase :: Int -> Order -> Order
 increase i = \case
   Unknown  -> Unknown
-  -- TODO: should we set u to False if k - i < 0 ?
+  -- TODO: should we set u to False if k - i <= 0 ?
   Decr u b k -> Decr u b $ k - i
 
 -- | Raw decrease which does not cut off.
@@ -208,8 +208,11 @@ isDecr :: Order -> Bool
 isDecr o = decreasing o
 
 instance Pretty Order where
-  pretty (Decr u _ 0) = "="
-  pretty (Decr u _ k) = mparens (not u) $ text $ show (negate k)
+  pretty (Decr u b k) = mparens (not u && k /= 0) $ text $ k' <> b'
+    where k' = case k of
+            0 -> "="
+            _ -> show (negate k)
+          b' = if b then "*" else ""
   pretty Unknown      = "?"
 
 
@@ -219,11 +222,12 @@ instance Pretty Order where
 (.*.) :: (?cutoff :: CutOff) => Order -> Order -> Order
 -- TODO: Order of arguments is now very important for this function. Do callers
 -- always respect this?
-Unknown      .*. o
-  | toBase o                   = leBase
-  | otherwise                  = Unknown
-o            .*. Unknown       = Unknown
+Unknown      .*. o              = Unknown
+o            .*. Unknown
+  | toBase o                    = leBase
+  | otherwise                   = Unknown
 -- if one is usable, so is the composition
+-- 'toBase' is preserved
 (Decr u b k) .*. (Decr u' _ l) = decr (u || u') b (k + l)
 
 -- | collapse @m@
@@ -258,6 +262,12 @@ supremum = foldr maxO Unknown
 
 maxO :: (?cutoff :: CutOff) => Order -> Order -> Order
 maxO o1 o2 = case comparable o1 o2 of
+  -- Because the ordering is imperfect, we will sometimes make poor decisions
+  -- here.
+  -- I think a proper implementation would require 'Decr' to store two 'Int's
+  -- (one for the best decrease into a base constructor, and one for the best
+  -- decrease not into a base constructor), to ensure nothing useful is ever
+  -- forgotten.
   POLT  -> o2
   POLE  -> o2
   POEQ  -> o1
@@ -286,10 +296,14 @@ minO o1 o2 = case comparable o1 o2 of
 --   since implicit arguments cannot occur in instance constraints,
 --   like @instance (?cutoff :: Int) => SemiRing Order@.
 
+-- 'Order' with 'toBase' info is no longer a valid semiring!
+-- e.g. 'Decr False True 0 .*. Unknown = Decr False True 0'
+-- Specifically, 'Unknown' is still an additive zero, but is no longer a
+-- multiplicative zero.
 orderSemiring :: (?cutoff :: CutOff) => Semiring Order
 orderSemiring = Semiring.Semiring
   { Semiring.add  = maxO
   , Semiring.mul  = (.*.)
   , Semiring.zero = Unknown
-  -- , Semiring.one  = Le
+  -- , Semiring.one  = le
   }

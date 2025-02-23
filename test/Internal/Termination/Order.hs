@@ -34,17 +34,20 @@ instance (?cutoff :: CutOff) => Arbitrary Order where
 instance Arbitrary Order where
   arbitrary = frequency
     [(30, return Unknown)
-    ,(70, elements [0,1] >>= return . Decr True)
+    -- If we returned 'Decr _ True _'s here, we would expect
+    -- 'prop_orderSemiring' test to fail as 'Order' is not quite a lawful
+    -- semiring.
+    ,(70, elements [0,1] >>= return . Decr True False)
     ] -- no embedded matrices generated for now.
 
 instance CoArbitrary Order where
-  coarbitrary (Decr _ k) = variant 0
+  coarbitrary (Decr _ _ k) = variant 0
   coarbitrary Unknown  = variant 1
 
 ------------------------------------------------------------------------------
 
-prop_decr :: (?cutoff :: CutOff) => Bool -> Int -> Bool
-prop_decr u = isOrder . decr u
+prop_decr :: (?cutoff :: CutOff) => Bool -> Bool -> Int -> Bool
+prop_decr u b = isOrder . decr u b
 
 prop_orderSemiring :: (?cutoff :: CutOff) => Order -> Order -> Order -> Bool
 prop_orderSemiring = Semiring.semiringInvariant orderSemiring

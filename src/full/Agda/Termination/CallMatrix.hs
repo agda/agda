@@ -14,7 +14,7 @@ module Agda.Termination.CallMatrix where
 
 import Agda.Termination.CutOff
 import Agda.Termination.Order as Order
-import Agda.Termination.SparseMatrix as Matrix
+import Agda.Termination.SparseMatrix as Matrix hiding (mul)
 import Agda.Termination.Semiring (HasZero(..))
 
 import Agda.Utils.Favorites (Favorites)
@@ -122,7 +122,10 @@ class CallComb a where
 --   @m1 >*< m2@ has dimensions @ar(h) × ar(f)@.
 
 instance CallComb CallMatrix where
-  CallMatrix m1 >*< CallMatrix m2 = CallMatrix $ mul orderSemiring m2 m1
+  CallMatrix m1 >*< CallMatrix m2
+    -- TODO: 'mul' should probably be used for performance if we know @m2@
+    -- contains no 'Unknown's
+    = CallMatrix $ naiveMul orderSemiring m2 m1
 
 {- UNUSED, BUT DON'T REMOVE!
 -- | Call matrix addition = minimum = pick worst information.

@@ -38,6 +38,7 @@ module Agda.Termination.SparseMatrix
   , intersectWith
   , interAssocWith
   , mul
+  , naiveMul
   , transpose
   , Diagonal(..)
   , toSparseRows
@@ -382,6 +383,26 @@ mul semiring m1 m2 = Matrix (Size { rows = rows (size m1), cols = cols (size m2)
      times = Semiring.mul  semiring
      inner v w = List.foldl' plus zero $
                    map snd $ interAssocWith times v w
+
+-- | @'naiveMul' semiring m1 m2@ multiplies matrices @m1@ and @m2@.
+--   Uses the operations of the semiring @semiring@ to perform the
+--   multiplication.
+--
+--   On lawful semirings, should produce the same result as @mul@. Performs the
+--   multiplication densely instead of sparsely, enabling more accurate results
+--   on possible on unlawful semirings.
+naiveMul :: (Integral i, HasZero a)
+         => Semiring a -> Matrix i a -> Matrix i a -> Matrix i a
+naiveMul semiring m1 m2
+  = fromLists (Size (rows (size m1)) (cols (size m2)))
+  $ fmap (\r -> fmap (\c -> List.foldl' plus zero (zipWith times r c)) m2T) m1'
+  where
+    plus  = Semiring.add  semiring
+    times = Semiring.mul  semiring
+    zero  = Semiring.zero semiring
+
+    m1'   = toLists m1
+    m2T   = toLists $ transpose m2
 
 -- | Pointwise comparison.
 --   Only matrices with the same dimension are comparable.
