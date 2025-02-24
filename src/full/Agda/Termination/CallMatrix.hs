@@ -124,7 +124,7 @@ class CallComb a where
 instance CallComb CallMatrix where
   CallMatrix m1 >*< CallMatrix m2
     -- TODO: 'mul' should probably be used for performance if we know @m2@
-    -- contains no 'Unknown's
+    -- contains no 'toBase' decreases
     = CallMatrix $ naiveMul orderSemiring m2 m1
 
 {- UNUSED, BUT DON'T REMOVE!
