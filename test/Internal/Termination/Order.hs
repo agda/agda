@@ -43,6 +43,7 @@ instance Arbitrary Order where
 instance CoArbitrary Order where
   coarbitrary (Decr _ _ k) = variant 0
   coarbitrary Unknown  = variant 1
+  coarbitrary Imp      = variant 3
 
 ------------------------------------------------------------------------------
 
