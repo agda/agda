@@ -84,4 +84,6 @@ idempotent  :: (?cutoff :: CutOff) => CallMatrixAug cinfo -> Bool
 idempotent (CallMatrixAug m _) = (m >*< m) `notWorse` m
 
 hasDecrease :: CallMatrixAug cinfo -> Bool
-hasDecrease = any isDecr . diagonal
+hasDecrease m = any isDecr (diagonal m)
+             -- TODO: Is this necessary?
+             || any isImp (fmap snd $ unM $ mat $ augCallMatrix m)
