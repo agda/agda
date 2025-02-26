@@ -1,2 +1,2 @@
 include: .
-flags: --sized-types
+flags: --cubical
