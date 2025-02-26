@@ -151,7 +151,7 @@ data Interaction' range
     -- | Load a file and fail if there are any unsolved
     -- meta-variables. By default no output is generated if the
     -- command is successful.
-    -- (This command is used in Agda's installation script (Setup.hs)).
+    -- (This command was previously used in Agda's installation script (Setup.hs)).
   | Cmd_load_no_metas FilePath
 
     -- | Shows all the top-level names in the given module, along with

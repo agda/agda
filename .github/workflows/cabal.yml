@@ -67,6 +67,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - name: Configure the build plan
       run: |
+        # shellcheck disable=SC2086
         cabal configure -O0 ${FLAGS}
         cabal build --dry-run
     - env:
@@ -145,7 +146,6 @@ name: Build (cabal)
     paths:
     - .github/workflows/cabal.yml
     - Agda.cabal
-    - Setup.hs
     - src/agda-mode/**
     - src/full/**
     - src/main/**
@@ -158,7 +158,6 @@ name: Build (cabal)
     paths:
     - .github/workflows/cabal.yml
     - Agda.cabal
-    - Setup.hs
     - src/agda-mode/**
     - src/full/**
     - src/main/**

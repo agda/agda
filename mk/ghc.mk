@@ -20,8 +20,7 @@ endif
 # GHC version removing the patchlevel number (e.g. in GHC 7.10.3, the
 # patchlevel number is 3).
 
-# We ask if GHC is available for removing a warning on Travis when
-# testing the documentation.
+# We ask if GHC is available to prevent potential warnings.
 ifneq ($(GHC),)
 
   # major.minor.subminor, e.g. 8.10.2
