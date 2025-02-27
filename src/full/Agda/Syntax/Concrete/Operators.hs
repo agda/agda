@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE DataKinds #-}
 
 {-| The parser doesn't know about operators and parses everything as normal
     function application. This module contains the functions that parses the
@@ -19,7 +19,7 @@ module Agda.Syntax.Concrete.Operators
     , parsePatternSyn
     ) where
 
-import Control.Applicative ( Alternative((<|>)))
+import Control.Applicative ( Alternative( (<|>) ) )
 import Control.Monad.Except (throwError)
 
 import Data.Either (partitionEithers)
@@ -406,33 +406,63 @@ buildParsers kind exprNames = do
               Agda.Utils.List.asum $
                 applyWhen includeHigher (higher :) $
                 catMaybes [nonAssoc, preRights, postLefts]
-            where
-            choice :: forall k.
-                      NK k -> [NotationSection] ->
-                      Parser e (OperatorType k e)
-            choice k =
+          where
+            -- Andreas, 2025-02-27
+            -- Break up the choice function into its three cases,
+            -- so that matching on @k@ does not have to be performed
+            -- inside the mapped function @(\ sect -> ...)@.
+            --
+            -- choice :: forall k.
+            --           NK k -> [NotationSection] ->
+            --           Parser e (OperatorType k e)
+            -- choice k =
+            --   Agda.Utils.List.asum .
+            --   map (\sect ->
+            --     let n = sectNotation sect
+
+            --         inner :: forall k.
+            --                  NK k -> Parser e (OperatorType k e)
+            --         inner = opP parseSections p0 n
+            --     in
+            --     case k of
+            --       In   -> inner In
+
+            --       Pre  -> if isinfix n || ispostfix n
+            --               then flip ($) <$> placeholder Beginning
+            --                             <*> inner In
+            --               else inner Pre
+
+            --       Post -> if isinfix n || isprefix n
+            --               then flip <$> inner In
+            --                         <*> placeholder End
+            --               else inner Post
+
+            --       Non  -> __IMPOSSIBLE__)
+
+            choiceIn :: [NotationSection] -> Parser e (OperatorType 'InfixNotation e)
+            choiceIn =
               Agda.Utils.List.asum .
-              map (\sect ->
+              map \ sect -> opP parseSections p0 (sectNotation sect) In
+
+            choicePre :: [NotationSection] -> Parser e (OperatorType 'PrefixNotation e)
+            choicePre =
+              Agda.Utils.List.asum .
+              map \ sect -> do
                 let n = sectNotation sect
+                if   isinfix n || ispostfix n
+                then flip ($) <$> placeholder Beginning
+                              <*> opP parseSections p0 n In
+                else opP parseSections p0 n Pre
 
-                    inner :: forall k.
-                             NK k -> Parser e (OperatorType k e)
-                    inner = opP parseSections p0 n
-                in
-                case k of
-                  In   -> inner In
-
-                  Pre  -> if isinfix n || ispostfix n
-                          then flip ($) <$> placeholder Beginning
-                                        <*> inner In
-                          else inner Pre
-
-                  Post -> if isinfix n || isprefix n
-                          then flip <$> inner In
-                                    <*> placeholder End
-                          else inner Post
-
-                  Non  -> __IMPOSSIBLE__)
+            choicePost :: [NotationSection] -> Parser e (OperatorType 'PostfixNotation e)
+            choicePost =
+              Agda.Utils.List.asum .
+              map \ sect -> do
+                let n = sectNotation sect
+                if isinfix n || isprefix n
+                then flip <$> opP parseSections p0 n In
+                          <*> placeholder End
+                else opP parseSections p0 n Post
 
             nonAssoc :: Maybe (Parser e e)
             nonAssoc = case filter (isInfix NonAssoc) ops of
@@ -440,7 +470,7 @@ buildParsers kind exprNames = do
               ops -> Just $
                 (\x f y -> f (noPlaceholder x) (noPlaceholder y))
                   <$> higher
-                  <*> choice In ops
+                  <*> choiceIn ops
                   <*> higher
 
             or p1 []   p2 []   = Nothing
@@ -450,10 +480,10 @@ buildParsers kind exprNames = do
 
             preRight :: Maybe (Parser e (MaybePlaceholder e -> e))
             preRight =
-              or (choice Pre)
+              or choicePre
                  (filter isPrefix ops)
                  (\ops -> flip ($) <$> (noPlaceholder <$> higher)
-                                   <*> choice In ops)
+                                   <*> choiceIn ops)
                  (filter (isInfix RightAssoc) ops)
 
             preRights :: Maybe (Parser e e)
@@ -465,9 +495,9 @@ buildParsers kind exprNames = do
 
             postLeft :: Maybe (Parser e (MaybePlaceholder e -> e))
             postLeft =
-              or (choice Post)
+              or choicePost
                  (filter isPostfix ops)
-                 (\ops -> flip <$> choice In ops
+                 (\ops -> flip <$> choiceIn ops
                                <*> (noPlaceholder <$> higher))
                  (filter (isInfix LeftAssoc) ops)
 
