@@ -23,7 +23,6 @@ import Control.Applicative ( Alternative((<|>)))
 import Control.Monad.Except (throwError)
 
 import Data.Either (partitionEithers)
-import qualified Data.Foldable as Fold
 import qualified Data.Function
 import qualified Data.List as List
 import Data.Maybe
@@ -328,7 +327,7 @@ buildParsers kind exprNames = do
 
     let g = Data.Function.fix $ \p -> InternalParsers
               { pTop    = memoise TopK $
-                          Fold.asum $
+                          Agda.Utils.List.asum $
                             foldr (\(l, ns) higher ->
                                        mkP (Right l) parseSections
                                            (pTop p) ns higher True) (pApp p)
@@ -339,7 +338,7 @@ buildParsers kind exprNames = do
               , pApp    = memoise AppK $ appP (pNonfix p) (pArgs p)
               , pArgs   = argsP (pNonfix p)
               , pNonfix = memoise NonfixK $
-                          Fold.asum $
+                          Agda.Utils.List.asum $
                             pAtom p :
                             map (\sect ->
                               let n = sectNotation sect
@@ -404,7 +403,7 @@ buildParsers kind exprNames = do
             -> Parser e e
         mkP key parseSections p0 ops higher includeHigher =
             memoise (NodeK key) $
-              Fold.asum $
+              Agda.Utils.List.asum $
                 applyWhen includeHigher (higher :) $
                 catMaybes [nonAssoc, preRights, postLefts]
             where
@@ -412,7 +411,7 @@ buildParsers kind exprNames = do
                       NK k -> [NotationSection] ->
                       Parser e (OperatorType k e)
             choice k =
-              Fold.asum .
+              Agda.Utils.List.asum .
               map (\sect ->
                 let n = sectNotation sect
 
