@@ -13,6 +13,7 @@ module Agda.TypeChecking.InstanceArguments
   , OutputTypeName(..)
   , getOutputTypeName
   , addTypedInstance
+  , readdTypedInstance
   , addTypedInstance'
   , pruneTemporaryInstances
   , resolveInstanceHead
@@ -990,18 +991,27 @@ addTypedInstance ::
      QName  -- ^ Name of instance.
   -> Type   -- ^ Type of instance.
   -> TCM ()
-addTypedInstance = addTypedInstance' True Nothing
+addTypedInstance = addTypedInstance' True False Nothing
+
+-- | Like 'addTypedInstance', but delete any existing entries for the
+-- given name from the discrimination tree.
+readdTypedInstance ::
+     QName  -- ^ Name of instance.
+  -> Type   -- ^ Type of instance.
+  -> TCM ()
+readdTypedInstance = addTypedInstance' True True Nothing
 
 -- | Register the definition with the given type as an instance.
 addTypedInstance'
   :: Bool               -- ^ Should we print warnings for unusable instance declarations?
+  -> Bool               -- ^ Is this the second time we're adding this QName as an instance?
   -> Maybe InstanceInfo -- ^ Is this instance a copy?
   -> QName              -- ^ Name of instance.
   -> Type               -- ^ Type of instance.
   -> TCM ()
-addTypedInstance' w orig x t = do
+addTypedInstance' w readd orig inst t = do
   reportSDoc "tc.instance.add" 30 $ vcat
-    [ "adding typed instance" <+> prettyTCM x <+> "with type"
+    [ "adding typed instance" <+> prettyTCM inst <+> "with type"
     , prettyTCM =<< flip abstract t <$> getContextTelescope
     ]
 
@@ -1013,12 +1023,25 @@ addTypedInstance' w orig x t = do
       -- Insert the instance into the instance table, putting it in the
       -- discrimination tree *and* bumping the total number of instances
       -- for this class.
+      tree <- useTC stInstanceTree
 
-      tree <- insertDT (length tele) hdt x =<< getsTC (view stInstanceTree)
-      setTCLens stInstanceTree tree
+      -- Amélia, 2025-02-28: If the instance we're adding has no type
+      -- signature, we end up adding it to the tree twice: once with a
+      -- useless type, and once after checking the RHS (which will have
+      -- narrowed the type).
+      --
+      -- To avoid spurious overlap, the useful key should trump the
+      -- useless key, so we filter this QName out of the tree when
+      -- re-adding an instance.
+      let
+        tree' | readd     = deleteFromDT (Set.singleton inst) tree
+              | otherwise = tree
+
+      tree' <- insertDT (length tele) hdt inst $! tree'
+      setTCLens stInstanceTree tree'
 
       modifyTCLens' (stSignature . sigInstances . itableCounts) $
-        Map.insertWith (+) n 1
+        if readd then Map.insertWith (+) n 1 else id
 
       let
         info = flip fromMaybe orig InstanceInfo
@@ -1029,31 +1052,31 @@ addTypedInstance' w orig x t = do
       -- This is no longer used to build the instance table for imported
       -- modules, but it is still used to know if an instance should be
       -- copied when applying a section.
-      modifySignature $ updateDefinition x \ d -> d { defInstance = Just info }
+      modifySignature $ updateDefinition inst \ d -> d { defInstance = Just info }
 
       -- If there's anything visible in the context, which will
       -- eventually end up in the instance's type, let's make a note to
       -- get rid of it before serialising the instance table.
-      con <- isConstructor x
+      con <- isConstructor inst
       -- However, do note that data constructors can have "visible
       -- arguments" in their global type which.. aren't actually
       -- visible: the parameters.
-      when (any visible tele && not con) $ modifyTCLens' stTemporaryInstances $ Set.insert x
+      when (any visible tele && not con) $ modifyTCLens' stTemporaryInstances $ Set.insert inst
 
     OutputTypeNameNotYetKnown b -> do
-      addUnknownInstance x
-      addConstraint b $ ResolveInstanceHead x
+      addUnknownInstance inst
+      addConstraint b $ ResolveInstanceHead inst
 
     NoOutputTypeName    -> when w $ warning $ WrongInstanceDeclaration
     OutputTypeVar       -> when w $ warning $ WrongInstanceDeclaration
-    OutputTypeVisiblePi -> when w $ warning $ InstanceWithExplicitArg x
+    OutputTypeVisiblePi -> when w $ warning $ InstanceWithExplicitArg inst
 
 resolveInstanceHead :: QName -> TCM ()
 resolveInstanceHead q = do
   clearUnknownInstance q
   -- Andreas, 2022-12-04, issue #6380:
   -- Do not warn about unusable instances here.
-  addTypedInstance' False Nothing q =<< typeOfConst q
+  addTypedInstance' False True Nothing q =<< typeOfConst q
 
 -- | Try to solve the instance definitions whose type is not yet known, report
 --   an error if it doesn't work and return the instance table otherwise.
@@ -1091,5 +1114,5 @@ pruneTemporaryInstances int = do
     , "todo:" <+> prettyTCM todo
     ]
 
-  let sig' = over (sigInstances . itableTree) (flip deleteFromDT todo) (iSignature int)
+  let sig' = over (sigInstances . itableTree) (deleteFromDT todo) (iSignature int)
   pure int{ iSignature = sig' }

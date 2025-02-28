@@ -200,14 +200,15 @@ termPath toplevel local acc (tm:todo) = do
   -- instance heads, for issue #6941, to ensure that each instance ends
   -- up in the right 'class'. See the comment in `splitTermKey` about
   -- abstract definitions.
-  (k, as, _) <-
+  (k, as, blk) <-
     if toplevel
       then ignoreAbstractMode (splitTermKey True local tm)
       else splitTermKey True local tm
 
   reportSDoc "tc.instance.discrim.add" 666 $ vcat
-    [ "k:  " <+> prettyTCM k
-    , "as: " <+> prettyTCM as
+    [ "k:   " <+> prettyTCM k
+    , "as:  " <+> prettyTCM as
+    , "blk: " <+> prettyTCM blk
     ]
   termPath False local (k:acc) (as <> todo)
 
@@ -411,19 +412,17 @@ doneDT s = DoneDT s
 
 -- | Remove a set of values from the discrimination tree. The tree is
 -- rebuilt so that cases with no leaves are removed.
-deleteFromDT :: Ord a => DiscrimTree a -> Set.Set a -> DiscrimTree a
-deleteFromDT dt gone = case dt of
+deleteFromDT :: Ord a => Set.Set a -> DiscrimTree a -> DiscrimTree a
+deleteFromDT gone = \case
   EmptyDT -> EmptyDT
-  DoneDT s ->
-    let s' = Set.difference s gone
-     in doneDT s'
+  DoneDT s -> doneDT $! Set.difference s gone
   CaseDT i s k ->
     let
-      del x = case deleteFromDT x gone of
+      del x = case deleteFromDT gone x of
         EmptyDT -> Nothing
         dt'     -> Just dt'
 
       s' = Map.mapMaybe del s
-      k' = deleteFromDT k gone
+      k' = deleteFromDT gone k
     in if | Map.null s' -> k'
           | otherwise   -> CaseDT i s' k'
