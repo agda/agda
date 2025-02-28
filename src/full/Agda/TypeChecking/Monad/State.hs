@@ -66,7 +66,12 @@ resetAllState = modifyTC \ s -> initStateFromSessionState (s ^. lensSessionState
 
 -- | Overwrite the 'TCState', but not the 'SessionTCState' part.
 putTCPreservingSession :: TCState -> TCM ()
-putTCPreservingSession = bracket_ (useTC lensSessionState) (setTCLens lensSessionState) . putTC
+putTCPreservingSession = bracket_ get put . putTC where
+  get = (,) <$> useTC lensSessionState <*> useTC stStatistics
+
+  put (sess, stat) = do
+    setTCLens lensSessionState sess
+    setTCLens stStatistics stat
 
 -- | Restore 'TCState' after performing subcomputation.
 --
