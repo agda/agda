@@ -372,7 +372,9 @@ doesCandidateSpecialise c1@Candidate{candidateType = t1} c2@Candidate{candidateT
 
   TelV tel t1 <- telView t1
   addContext tel $ wrap $ do
-    (args, t2) <- implicitArgs (-1) (\h -> notVisible h) t2
+    -- Amy, 2025-02-28: Have to raise the type of the other candidate to
+    -- live in t1's context!
+    (args, t2) <- implicitArgs (-1) (\h -> notVisible h) (raise (length tel) t2)
 
     reportSDoc "tc.instance.sort" 30 $ "Does" <+> prettyTCM (raise (length tel) c1) <+> "specialise" <+> (prettyTCM (raise (length tel) c2) <> "?")
     reportSDoc "tc.instance.sort" 60 $ vcat
