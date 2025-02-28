@@ -176,7 +176,7 @@ splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
         ret' = case isNoAbs (unEl <$> ret) of
           Just b  -> b
           Nothing -> __DUMMY_TERM__
-      in pure (PiK, [unEl (unDom dom), ret'], neverUnblock)
+      in pure (PiK (getHiding dom), [unEl (unDom dom), ret'], neverUnblock)
 
     Lam _ body
       -- Constant lambdas come up quite a bit, particularly (in cubical
@@ -239,7 +239,7 @@ keyArity :: Key -> Int
 keyArity = \case
   RigidK _ a -> a
   LocalK _ a -> a
-  PiK        -> 2
+  PiK _      -> 2
   ConstK     -> 1
   SortK      -> 0
   FlexK      -> 0
