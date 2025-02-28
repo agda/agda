@@ -514,31 +514,39 @@ buildParsers kind exprNames = do
 -- * Parse functions
 ---------------------------------------------------------------------------
 
--- | Returns the list of possible parses.
+-- | Parses all 'RawAppP' in the given pattern using the given parser.
+--   Returns the list of possible parses.
+--
+--   Naturally, does not recurse into 'DotP' as this contains no pattern.
+--
+--   Returns the empty list if the given parser does so
+--   or if a 'HiddenP' or 'InstanceP' is encountered.
 parsePat
   :: ([Pattern] -> [Pattern]) -- ^ Turns a 'RawAppP' into possible parses.
   -> Pattern                  -- ^ Pattern possibly containing 'RawAppP's.
   -> [Pattern]                -- ^ Possible parses, not containing 'RawAppP's.
-parsePat prs = \case
+parsePat parse = loop
+  where
+  loop = \case
     AppP p (Arg info q) ->
-        fullParen' <$> (AppP <$> parsePat prs p <*> (Arg info <$> traverse (parsePat prs) q))
-    RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< prs (List2.toList ps))
-    OpAppP r d ns ps -> fullParen' . OpAppP r d ns <$> (mapM . traverse . traverse) (parsePat prs) ps
+        fullParen' <$> (AppP <$> loop p <*> (Arg info <$> traverse loop q))
+    RawAppP _ ps     -> fullParen' <$> (loop =<< parse (List2.toList ps))
+    OpAppP r d ns ps -> fullParen' . OpAppP r d ns <$> (mapM . traverse . traverse) loop ps
     HiddenP _ _      -> fail "bad hidden argument"
     InstanceP _ _    -> fail "bad instance argument"
-    AsP r x p        -> AsP r x <$> parsePat prs p
+    AsP r x p        -> AsP r x <$> loop p
     p@DotP{}         -> return p
-    ParenP r p       -> fullParen' <$> parsePat prs p
+    ParenP r p       -> fullParen' <$> loop p
     p@WildP{}        -> return p
     p@AbsurdP{}      -> return p
     p@LitP{}         -> return p
     p@QuoteP{}       -> return p
     p@IdentP{}       -> return p
-    RecP r fs        -> RecP r <$> mapM (traverse (parsePat prs)) fs
+    RecP r fs        -> RecP r <$> mapM (traverse loop) fs
     p@EqualP{}       -> return p -- Andrea: cargo culted from DotP
     EllipsisP r mp   -> caseMaybe mp (fail "bad ellipsis") $ \p ->
-                          EllipsisP r . Just <$> parsePat prs p
-    WithP r p        -> WithP r <$> parsePat prs p
+                          EllipsisP r . Just <$> loop p
+    WithP r p        -> WithP r <$> loop p
 
 
 {- Implement parsing of copattern left hand sides, e.g.
