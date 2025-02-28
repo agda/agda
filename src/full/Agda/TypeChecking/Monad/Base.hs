@@ -341,6 +341,9 @@ data PostScopeState = PostScopeState
     -- ^ Associates opaque identifiers to their actual blocks.
   , stPostOpaqueIds           :: Map QName OpaqueId
     -- ^ Associates each opaque QName to the block it was defined in.
+  , stPostFinalChecks         :: !Bool
+    -- ^ Are we doing the post-mutual-block checks? Used to decide
+    -- whether to postpone instances.
   }
   deriving (Generic)
 
@@ -491,43 +494,44 @@ initPreScopeState = PreScopeState
 
 initPostScopeState :: PostScopeState
 initPostScopeState = PostScopeState
-  { stPostSyntaxInfo           = mempty
-  , stPostDisambiguatedNames   = IntMap.empty
-  , stPostOpenMetaStore        = Map.empty
-  , stPostSolvedMetaStore      = Map.empty
-  , stPostInteractionPoints    = empty
-  , stPostAwakeConstraints     = []
-  , stPostSleepingConstraints  = []
-  , stPostDirty                = False
-  , stPostOccursCheckDefs      = Set.empty
-  , stPostSignature            = emptySignature
-  , stPostModuleCheckpoints    = Map.empty
-  , stPostImportsDisplayForms  = HMap.empty
-  , stPostCurrentModule        = empty
-  , stPostPendingInstances     = Set.empty
-  , stPostTemporaryInstances   = Set.empty
-  , stPostConcreteNames        = Map.empty
-  , stPostUsedNames            = Map.empty
-  , stPostShadowingNames       = Map.empty
-  , stPostStatistics           = Map.empty
-  , stPostTCWarnings           = empty
-  , stPostMutualBlocks         = empty
-  , stPostLocalBuiltins        = Map.empty
-  , stPostFreshMetaId          = initialMetaId
-  , stPostFreshMutualId        = 0
-  , stPostFreshProblemId       = 1
-  , stPostFreshCheckpointId    = 1
-  , stPostFreshInt             = 0
-  , stPostFreshNameId          = NameId 0 noModuleNameHash
-  , stPostFreshOpaqueId        = OpaqueId 0 noModuleNameHash
-  , stPostAreWeCaching         = False
+  { stPostSyntaxInfo             = mempty
+  , stPostDisambiguatedNames     = IntMap.empty
+  , stPostOpenMetaStore          = Map.empty
+  , stPostSolvedMetaStore        = Map.empty
+  , stPostInteractionPoints      = empty
+  , stPostAwakeConstraints       = []
+  , stPostSleepingConstraints    = []
+  , stPostDirty                  = False
+  , stPostOccursCheckDefs        = Set.empty
+  , stPostSignature              = emptySignature
+  , stPostModuleCheckpoints      = Map.empty
+  , stPostImportsDisplayForms    = HMap.empty
+  , stPostCurrentModule          = empty
+  , stPostPendingInstances       = Set.empty
+  , stPostTemporaryInstances     = Set.empty
+  , stPostConcreteNames          = Map.empty
+  , stPostUsedNames              = Map.empty
+  , stPostShadowingNames         = Map.empty
+  , stPostStatistics             = Map.empty
+  , stPostTCWarnings             = empty
+  , stPostMutualBlocks           = empty
+  , stPostLocalBuiltins          = Map.empty
+  , stPostFreshMetaId            = initialMetaId
+  , stPostFreshMutualId          = 0
+  , stPostFreshProblemId         = 1
+  , stPostFreshCheckpointId      = 1
+  , stPostFreshInt               = 0
+  , stPostFreshNameId            = NameId 0 noModuleNameHash
+  , stPostFreshOpaqueId          = OpaqueId 0 noModuleNameHash
+  , stPostAreWeCaching           = False
   , stPostPostponeInstanceSearch = False
-  , stPostConsideringInstance  = False
-  , stPostInstantiateBlocking  = False
-  , stPostLocalPartialDefs     = Set.empty
-  , stPostOpaqueBlocks         = Map.empty
-  , stPostOpaqueIds            = Map.empty
-  , stPostForeignCode          = Map.empty
+  , stPostConsideringInstance    = False
+  , stPostInstantiateBlocking    = False
+  , stPostLocalPartialDefs       = Set.empty
+  , stPostOpaqueBlocks           = Map.empty
+  , stPostOpaqueIds              = Map.empty
+  , stPostForeignCode            = Map.empty
+  , stPostFinalChecks            = False
   }
 
 initStateIO :: IO TCState
@@ -766,6 +770,9 @@ lensConsideringInstance f s = f (stPostConsideringInstance s) <&> \ x -> s { stP
 lensInstantiateBlocking :: Lens' PostScopeState Bool
 lensInstantiateBlocking f s = f (stPostInstantiateBlocking s) <&> \ x -> s { stPostInstantiateBlocking = x }
 
+lensFinalChecks :: Lens' PostScopeState Bool
+lensFinalChecks f s = f (stPostFinalChecks s) <&> \ x -> s { stPostFinalChecks = x }
+
 -- * @st@-prefixed lenses
 ------------------------------------------------------------------------
 
@@ -896,6 +903,9 @@ stOpaqueBlocks = lensPostScopeState . lensOpaqueBlocks
 
 stOpaqueIds :: Lens' TCState (Map QName OpaqueId)
 stOpaqueIds = lensPostScopeState . lensOpaqueIds
+
+stFinalChecks :: Lens' TCState Bool
+stFinalChecks = lensPostScopeState . lensFinalChecks
 
 stSyntaxInfo :: Lens' TCState HighlightingInfo
 stSyntaxInfo = lensPostScopeState . lensSyntaxInfo

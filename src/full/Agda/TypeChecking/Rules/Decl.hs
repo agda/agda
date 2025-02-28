@@ -215,9 +215,10 @@ checkDecl d = setCurrentRange d $ do
         defaultLevelsToZero (openMetas metas)
 
       -- Post-typing checks.
-      whenJust finalChecks $ \ theMutualChecks -> do
+      whenJust finalChecks \theMutualChecks -> do
         reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
-        wakeupConstraints_   -- solve emptiness and instance constraints
+        locallyTCState stFinalChecks (const True) $
+          wakeupConstraints_   -- solve emptiness and instance constraints
 
         checkingWhere <- asksTC envCheckingWhere
         solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
@@ -535,9 +536,12 @@ whenAbstractFreezeMetasAfter :: A.DefInfo -> TCM a -> TCM a
 whenAbstractFreezeMetasAfter Info.DefInfo{defAccess, defAbstract, defOpaque} m = do
   if (defAbstract == ConcreteDef && defOpaque == TransparentDef) then m else do
     (a, ms) <- metasCreatedBy m
-    reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
-    wakeupConstraints_   -- solve emptiness and instance constraints
-    xs <- freezeMetas (openMetas ms)
+
+    xs <- locallyTCState stFinalChecks (const True) do
+      reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
+      wakeupConstraints_   -- solve emptiness and instance constraints
+      freezeMetas (openMetas ms)
+
     reportSDoc "tc.decl.ax" 20 $ vcat
       [ "Abstract type signature produced new open metas: " <+>
         sep (map prettyTCM $ MapS.keys (openMetas ms))
