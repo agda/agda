@@ -136,7 +136,7 @@ splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
     Def q as | ReallyNotBlocked <- b, (as, _) <- splitApplyElims as -> do
       info <- getConstInfo q
       case theDef info of
-        AbstractDefn{} -> pure (FlexK, [], neverUnblock)
+        AbstractDefn{} | precise -> pure (FlexK, [], neverUnblock)
         _ -> do
           (arity, as) <- termKeyElims precise (pure (defType info)) as
           pure (RigidK q arity, as, neverUnblock)
