@@ -783,12 +783,12 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
     cvd : _ | isIrrelevant rel -> do
       reportSLn "tc.instance" 30 "dropSameCandidates: Meta is irrelevant so any candidate will do."
       return [cvd]
-    cvd@(_, v, _) : vas
-      | freshMetas v -> do
-          reportSLn "tc.instance" 30 "dropSameCandidates: Solution of instance meta has fresh metas so we don't filter equal candidates yet"
-          return (cvd : vas)
-      | otherwise -> (cvd :) <$> dropWhileM equal vas
-      where
+
+    -- If there's nothing, try not to reduce the candidate.
+    [cvd] -> pure [cvd]
+
+    cvd@(_, v, _) : vas -> do
+      let
         equal :: (Candidate, Term, a) -> TCM Bool
         equal (c, v', _)
             | isIncoherent c = return True   -- See 'sinkIncoherent'
@@ -800,6 +800,16 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
           pureEqualTermB a v v' <&> \case
             Left{}  -> False
             Right b -> b
+
+      -- If we do actually have to remove overlap then we have to reduce
+      -- the candidate to eliminate any "phantom" dependencies on fresh
+      -- metas.
+      v <- reduce v
+      if
+        | freshMetas v -> do
+          reportSLn "tc.instance" 30 "dropSameCandidates: Solution of instance meta has fresh metas so we don't filter equal candidates yet"
+          return (cvd : vas)
+        | otherwise -> (cvd :) <$> dropWhileM equal vas
 
 data YesNo = Yes Term Bool | No | NoBecause TCErr | HellNo TCErr
   deriving (Show)
@@ -932,8 +942,10 @@ checkCandidates m t cands =
             -- We need instantiateFull here to remove 'local' metas
             v <- instantiateFull =<< (term `applyDroppingParameters` args)
             reportSDoc "tc.instance" 15 $
-              sep [ ("instance search: found solution for" <+> prettyTCM m) <> ":"
+              vcat [ sep [ ("instance search: found solution for" <+> prettyTCM m) <> ":"
                   , nest 2 $ prettyTCM v ]
+                  , "app: " <+> (nest 2 $ prettyTCM =<< (term `applyDroppingParameters` args))
+                  ]
 
             reportSDoc "tc.instance.overlap" 30 $
               "candidate" <+> prettyTCM v <+> "okay for overlap?" <+> prettyTCM overlapOk
