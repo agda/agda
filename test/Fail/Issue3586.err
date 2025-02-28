@@ -1,4 +1,6 @@
-Issue3586.agda:15.1-14: error: [InvalidPattern]
-y ^ z is not a valid pattern
+Issue3586.agda:15.1-14: error: [NoParseForLHS]
+Could not parse the left-hand side foo x@(y ^ z)
+Operators used in the grammar:
+  ^ (prefix operator, level 5) [^_ (Issue3586.agda:9.3-5)]
 when scope checking the left-hand side foo x@(y ^ z) in the
 definition of foo
