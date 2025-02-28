@@ -46,7 +46,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State (getScope)
 
-import Agda.Utils.Function (applyWhen)
+import Agda.Utils.Function (applyWhen, applyWhenJust)
 import Agda.Utils.Either
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.List
@@ -88,10 +88,6 @@ data InternalParsers e = InternalParsers
   , pAtom   :: Parser e e
   }
 
--- | Expression kinds: Expressions or patterns.
-data ExprKind = IsExpr | IsPattern
-  deriving (Eq, Show)
-
 -- | The data returned by 'buildParsers'.
 
 data Parsers e = Parsers
@@ -128,6 +124,8 @@ buildParsers
   :: forall e. IsExpr e
   => ExprKind
      -- ^ Should expressions or patterns be parsed?
+  -> Maybe QName
+     -- ^ Are we trying to parse the lhs of the function given here?
   -> [QName]
      -- ^ This list must include every name part in the
      -- expression/pattern to be parsed (excluding name parts inside
@@ -137,10 +135,11 @@ buildParsers
      -- grammar if all of the notation's name parts are present in
      -- the list of names.
   -> ScopeM (Parsers e)
-buildParsers kind exprNames = do
+buildParsers kind top exprNames0 = do
+    let exprNames = applyWhenJust top (:) exprNames0
     flat         <- flattenScope (qualifierModules exprNames) <$>
                       getScope
-    (names, ops0) <- localNames flat
+    (names, ops0) <- localNames kind top flat
     let ops | kind == IsPattern = filter (not . isLambdaNotation) ops0
             | otherwise         = ops0
 
@@ -621,7 +620,7 @@ parseLHS' NoDisplayLHS IsLHS (Just qn) WildP{} =
 parseLHS' displayLhs lhsOrPatSyn top p = do
 
     -- Build parser.
-    patP <- buildParsers IsPattern (patternQNames p)
+    patP <- buildParsers IsPattern top (patternQNames p)
 
     -- Run parser, forcing result.
     let ps   = let result = parsePat (parser patP) p
@@ -844,7 +843,7 @@ parseApplication :: List2 Expr -> ScopeM Expr
 parseApplication es  = billToParser IsExpr $ do
     let es0 = List2.toList es
     -- Build the parser
-    p <- buildParsers IsExpr [ q | Ident q <- es0 ]
+    p <- buildParsers IsExpr Nothing [ q | Ident q <- es0 ]
 
     -- Parse
     let result = parser p es0
@@ -873,7 +872,7 @@ parseArguments hd = \case
     let es2 = List2 hd e1 rest
 
     -- Build the arguments parser
-    p <- buildParsers IsExpr [ q | Ident q <- es ]
+    p <- buildParsers IsExpr Nothing [ q | Ident q <- es ]
 
     -- Parse
     -- TODO: not sure about forcing
