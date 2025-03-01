@@ -7,31 +7,40 @@
 module Main (main) where
 
 import System.Environment ( getArgs, getProgName )
-import System.Exit ( exitFailure )
+import System.Exit        ( exitFailure )
+import System.FilePath    ( takeFileName )
 
-import Agda.Setup as Agda (getDataDir, setup)
+import Agda.Setup as Agda ( getDataDir, setup )
 import Agda.Setup.EmacsMode
-import Agda.Version (version)
+import Agda.Version       ( version )
 
 -- | The program.
 
 main :: IO ()
 main = do
-  prog <- getProgName
+  self <- takeFileName <$> getProgName
+  inform $ unlines
+    [ "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+    , "@  Warning: " ++ self ++ " has been deprecated with Agda 2.8.0   @"
+    , "@  and will be removed in the future.                       @"
+    , "@  From Agda 2.8.0 on, use `agda --emacs-mode` instead.     @"
+    , "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+    , ""
+    ]
+
   args <- getArgs
   case args of
     [arg]
-      | arg == locateFlag -> printEmacsModeFile
+      | arg == locateFlag -> do
+
+          printEmacsModeFile
 
       | arg == setupFlag  -> do
 
           -- Ensure that Agda has been setup so the Emacs mode is available.
           Agda.setup False
 
-          dotEmacs <- findDotEmacs
-          setupDotEmacs (Files { thisProgram = prog
-                               , dotEmacs    = dotEmacs
-                               })
+          setupDotEmacs "agda"
 
       | arg == compileFlag -> do
 

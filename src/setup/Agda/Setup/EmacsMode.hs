@@ -1,24 +1,24 @@
-{-# OPTIONS_GHC -Wunused-imports #-}
+-- {-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Setup up the emacs mode for Agda.
 
 module Agda.Setup.EmacsMode
-  ( Files(..)
+  ( help
   -- * Locate
   , locateFlag
   , printEmacsModeFile
   -- * Setup
   , setupFlag
-  , findDotEmacs
   , setupDotEmacs
   -- * Compile
-  , compileElispFiles
   , compileFlag
+  , compileElispFiles
   -- * Utilities
   , inform
   )
 where
 
+import Control.Applicative    ( liftA2 )
 import Control.Exception as E ( bracket, catch, evaluate, IOException )
 import Control.Monad          ( unless )
 
@@ -33,7 +33,7 @@ import Numeric                ( showHex )
 
 import System.Directory       ( doesFileExist, findExecutable, getTemporaryDirectory, removeFile )
 import System.Exit            ( exitFailure, ExitCode(ExitSuccess) )
-import System.FilePath        ( (</>), getSearchPath, takeFileName )
+import System.FilePath        ( (</>), getSearchPath )
 import System.IO              ( IOMode(ReadMode)
                               , hClose, hSetEncoding, hGetContents, hPutStr, hPutStrLn
                               , openTempFile, stderr, stdout, utf8, withFile
@@ -54,6 +54,39 @@ locateFlag  = "locate"
 compileFlag :: String
 compileFlag = "compile"
 
+-- | Help topic for @--emacs-mode@.
+
+help :: String
+help = unlines
+  [ "Option --emacs-mode allows to administer the Agda Emacs mode."
+  , "It accepts three commands:"
+  , ""
+  , setupFlag
+  , ""
+  , "  This command unpacks Agda's data files, including the Emacs mode,"
+  , "  into Agda's data directory (see option --print-agda-data-dir)."
+  , ""
+  , "  It then tries to add setup code for Agda's Emacs mode to the"
+  , "  current user's .emacs file. It is assumed that the .emacs file"
+  , "  uses the character encoding specified by the locale."
+  , ""
+  , compileFlag
+  , ""
+  , "  This command unpacks Agda's data files, including the Emacs mode,"
+  , "  into Agda's data directory."
+  , ""
+  , "  It then tries to compile Agda's Emacs mode's source files."
+  , ""
+  , "  WARNING: If you reinstall the Agda mode without recompiling the Emacs"
+  , "  Lisp files, then Emacs may continue using the old, compiled files."
+  , ""
+  , locateFlag
+  , ""
+  , "  The path to the Emacs mode's main file is printed on standard"
+  , "  output (using the UTF-8 character encoding and no trailing"
+  , "  newline)."
+  ]
+
 ------------------------------------------------------------------------
 -- Locating the Agda mode
 
@@ -70,28 +103,25 @@ printEmacsModeFile = do
 ------------------------------------------------------------------------
 -- Setting up the .emacs file
 
-data Files = Files
-  { dotEmacs :: FilePath
-      -- ^ The .emacs file.
-  , thisProgram :: FilePath
-      -- ^ The name of the current program.
-  }
-
 -- | Tries to set up the Agda mode in the given .emacs file.
 
-setupDotEmacs :: Files -> IO ()
-setupDotEmacs files = do
-  informLn $ "The .emacs file used: " ++ dotEmacs files
+setupDotEmacs :: String -> IO ()
+setupDotEmacs agda = do
+  let cmd   = agda ++ " --emacs-mode"
+  let elisp = setupString cmd
 
-  alreadyInstalled files >>= \case
+  dotEmacs <- findDotEmacs
+  informLn $ "The .emacs file used: " ++ dotEmacs
+
+  alreadyInstalled cmd dotEmacs >>= \case
     True  -> do
       informLn "It seems as if setup has already been performed."
     False -> do
-      appendFile (dotEmacs files) (setupString files)
+      appendFile dotEmacs elisp
       inform $ unlines $
         [ "Setup done. Try to (re)start Emacs and open an Agda file."
         , "The following text was appended to the .emacs file:"
-        ] ++ lines (setupString files)
+        ] ++ lines elisp
 
 -- | Tries to find the user's .emacs file by querying Emacs.
 
@@ -100,30 +130,29 @@ findDotEmacs = askEmacs "(expand-file-name user-init-file)"
 
 -- | Has the Agda mode already been set up?
 
-alreadyInstalled :: Files -> IO Bool
-alreadyInstalled files = do
-  doesFileExist (dotEmacs files) >>= \case
+alreadyInstalled :: String -> FilePath -> IO Bool
+alreadyInstalled cmd dotEmacs = do
+  doesFileExist dotEmacs >>= \case
     False -> return False
-    True  -> withFile (dotEmacs files) ReadMode \ f -> do
+    True  -> withFile dotEmacs ReadMode \ f -> do
       txt <- hGetContents f
-      evaluate $ identifier files `isInfixOf` txt
+      evaluate $ identifier cmd `isInfixOf` txt
         -- Uses evaluate to ensure that the file is not closed prematurely.
 
 -- | If this string occurs in the .emacs file, then it is assumed that
 -- setup has already been performed.
 
-identifier :: Files -> String
-identifier files =
-  takeFileName (thisProgram files) ++ " " ++ locateFlag
+identifier :: String -> String
+identifier cmd = cmd ++ " " ++ locateFlag
 
 -- | The string appended to the end of the .emacs file.
 
-setupString :: Files -> String
-setupString files = unlines
+setupString :: String -> String
+setupString cmd = unlines
   [ ""
   , "(load-file (let ((coding-system-for-read 'utf-8))"
   , "                (shell-command-to-string \""
-                        ++ identifier files ++ "\")))"
+                        ++ identifier cmd ++ "\")))"
   ]
 
 ------------------------------------------------------------------------
@@ -139,7 +168,7 @@ askEmacs :: String -> IO String
 askEmacs query = do
   tempDir <- getTemporaryDirectory
   bracket (openTempFile tempDir "askEmacs")
-          (removeFile . fst) $ \(file, h) -> do
+          (removeFile . fst) $ \ (file, h) -> do
     hClose h
     exit <- rawSystemWithDiagnostics "emacs"
       [ "--batch"
