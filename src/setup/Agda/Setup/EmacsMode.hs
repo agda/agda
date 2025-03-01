@@ -19,25 +19,29 @@ module Agda.Setup.EmacsMode
   )
 where
 
-import Control.Exception as E
-import Control.Monad
+import Control.Exception as E ( bracket, catch, evaluate, IOException )
+import Control.Monad          ( unless )
 
-import Data.Bifunctor (first, second)
-import Data.Bool (bool)
-import Data.Char
-import Data.List (isInfixOf)
-import Data.Maybe
+import Data.Bifunctor         ( first, second )
+import Data.Bool              ( bool )
+import Data.Char              ( isAscii, isPrint )
+import Data.Functor           ( (<&>) )
+import Data.List              ( isInfixOf )
+import Data.Maybe             ( catMaybes, fromMaybe )
 
-import Numeric
+import Numeric                ( showHex )
 
-import System.Directory
-import System.Exit
-import System.FilePath
-import System.IO
-import System.Process
+import System.Directory       ( doesFileExist, findExecutable, getTemporaryDirectory, removeFile )
+import System.Exit            ( exitFailure, ExitCode(ExitSuccess) )
+import System.FilePath        ( (</>), getSearchPath, takeFileName )
+import System.IO              ( IOMode(ReadMode)
+                              , hClose, hSetEncoding, hGetContents, hPutStr, hPutStrLn
+                              , openTempFile, stderr, stdout, utf8, withFile
+                              )
+import System.Process         ( rawSystem, showCommandForUser )
 
-import Agda.Setup ( getDataDir )
-import Agda.Setup.DataFiles ( emacsLispFiles )
+import Agda.Setup             ( getDataDir )
+import Agda.Setup.DataFiles   ( emacsLispFiles, emacsModeDir )
 
 -- Command line options.
 
@@ -59,7 +63,7 @@ compileFlag = "compile"
 printEmacsModeFile :: IO ()
 printEmacsModeFile = do
   dataDir <- getDataDir
-  let path = dataDir </> "emacs-mode" </> "agda2.el"
+  let path = dataDir </> emacsModeDir </> "agda2.el"
   hSetEncoding stdout utf8
   putStr path
 
@@ -79,16 +83,15 @@ setupDotEmacs :: Files -> IO ()
 setupDotEmacs files = do
   informLn $ "The .emacs file used: " ++ dotEmacs files
 
-  already <- alreadyInstalled files
-  if already then
-    informLn "It seems as if setup has already been performed."
-   else do
-
-    appendFile (dotEmacs files) (setupString files)
-    inform $ unlines $
-      [ "Setup done. Try to (re)start Emacs and open an Agda file."
-      , "The following text was appended to the .emacs file:"
-      ] ++ lines (setupString files)
+  alreadyInstalled files >>= \case
+    True  -> do
+      informLn "It seems as if setup has already been performed."
+    False -> do
+      appendFile (dotEmacs files) (setupString files)
+      inform $ unlines $
+        [ "Setup done. Try to (re)start Emacs and open an Agda file."
+        , "The following text was appended to the .emacs file:"
+        ] ++ lines (setupString files)
 
 -- | Tries to find the user's .emacs file by querying Emacs.
 
@@ -99,11 +102,12 @@ findDotEmacs = askEmacs "(expand-file-name user-init-file)"
 
 alreadyInstalled :: Files -> IO Bool
 alreadyInstalled files = do
-  exists <- doesFileExist (dotEmacs files)
-  if not exists then return False else
-    withFile (dotEmacs files) ReadMode $ (evaluate . (identifier files `isInfixOf`)) <=< hGetContents
-      -- Uses evaluate to ensure that the file is not closed
-      -- prematurely.
+  doesFileExist (dotEmacs files) >>= \case
+    False -> return False
+    True  -> withFile (dotEmacs files) ReadMode \ f -> do
+      txt <- hGetContents f
+      evaluate $ identifier files `isInfixOf` txt
+        -- Uses evaluate to ensure that the file is not closed prematurely.
 
 -- | If this string occurs in the .emacs file, then it is assumed that
 -- setup has already been performed.
@@ -156,14 +160,13 @@ askEmacs query = do
           -- Going via the temp file we can let this stuff go to stdout without
           -- affecting the output we care about.
       ]
-    unless (exit == ExitSuccess) $ do
+    unless (exit == ExitSuccess) do
       informLn "Unable to query Emacs."
       exitFailure
-    withFile file ReadMode $ \h -> do
+    withFile file ReadMode \ h -> do
       result <- hGetContents h
       _ <- evaluate (length result)
-      -- Uses evaluate to ensure that the file is not closed
-      -- prematurely.
+        -- Uses evaluate to ensure that the file is not closed prematurely.
       return result
 
 -- | Like 'rawSystem' but handles 'IOException' by printing diagnostics
@@ -201,7 +204,7 @@ escape s = "\"" ++ concatMap esc s ++ "\""
 
 compileElispFiles :: IO ()
 compileElispFiles = do
-  dataDir <- (</> "emacs-mode") <$> getDataDir
+  dataDir <- getDataDir <&> (</> emacsModeDir)
   let elFiles = map (dataDir </>) emacsLispFiles
   (existing, missing) <- partitionM doesFileExist elFiles
   failed <- catMaybes <$> mapM (compile dataDir) existing

@@ -16,7 +16,7 @@ dataPath = ("src/data/" ++)
 -- KEEP IN SYNC with the list in Agda.cabal under extra-source-files!
 dataFiles :: [FilePath]
 dataFiles =
-  map ("emacs-mode/" ++) emacsLispFiles ++
+  map ((emacsModeDir ++ "/") ++) emacsLispFiles ++
   -- N.B.: agda2-mode-pkg.el is not part of emacsLispFiles as it need not be compiled.
   [ "emacs-mode/agda2-mode-pkg.el"
   , "html/Agda.css"
@@ -66,6 +66,11 @@ dataFiles =
   , "MAlonzo/src/MAlonzo/RTE.hs"
   , "MAlonzo/src/MAlonzo/RTE/Float.hs"
   ]
+
+-- | The subdirectory in the Agda data directory containing the emacs mode.
+
+emacsModeDir :: FilePath
+emacsModeDir = "emacs-mode"
 
 -- | The Agda mode's Emacs Lisp files, given in the order in which
 -- they should be compiled.

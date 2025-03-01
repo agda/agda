@@ -6,8 +6,8 @@
 
 module Main (main) where
 
-import System.Environment
-import System.Exit
+import System.Environment ( getArgs, getProgName )
+import System.Exit ( exitFailure )
 
 import Agda.Setup as Agda (getDataDir, setup)
 import Agda.Setup.EmacsMode
