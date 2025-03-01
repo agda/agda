@@ -4,8 +4,9 @@
 Emacs Mode
 **********
 
-Agda programs are commonly edited using `Emacs
-<http://www.gnu.org/software/emacs/>`_ using ``agda-mode``. To use it, first ensure
+Agda programs can be edited in
+`Emacs <http://www.gnu.org/software/emacs/>`_ with support by the ``agda-mode``.
+To use it, first ensure
 you have :ref:`installed Agda <installation>` and the :ref:`Emacs agda-mode <install-agda-mode>`.
 
 To edit a module in Emacs, open a file ending in ``.agda`` and load it by pressing
