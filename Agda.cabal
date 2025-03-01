@@ -924,6 +924,7 @@ executable agda-mode
     Paths_Agda
     Agda.Setup
     Agda.Setup.DataFiles
+    Agda.Setup.EmacsMode
     Agda.Version
     Agda.VersionCommit
 
