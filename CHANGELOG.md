@@ -235,6 +235,8 @@ Interaction and emacs mode
 * Emacs: new face `agda2-highlight-instance-problem-face`
   for highlighting the new aspect `InstanceProblem`.
 
+* Emacs: added `lexical-binding: t` to `.el` files for Emacs 30 compatibility.
+
 
 Backends
 --------

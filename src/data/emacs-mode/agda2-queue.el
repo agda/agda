@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t; -*-
 ;;; agda2-queue.el --- Simple FIFO character queues.
 ;; SPDX-License-Identifier: MIT License
 
