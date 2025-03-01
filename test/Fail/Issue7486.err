@@ -1,0 +1,11 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  Resolve instance argument _9 : A
+  Candidates
+    a : A
+    i : {d : D} → F d
+    (stuck)
+
+Issue7486.agda:39.5-7: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue7486.agda:39.5-7
