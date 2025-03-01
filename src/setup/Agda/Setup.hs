@@ -34,6 +34,7 @@ import           System.Directory
 import           System.Environment         ( lookupEnv )
 import           System.FileLock            ( pattern Exclusive, withFileLock )
 import           System.FilePath            ( (</>), joinPath, splitFileName, takeFileName )
+import           System.IO                  ( hPutStrLn, stderr )
 
 import           Agda.Setup.DataFiles       ( dataFiles, dataPath )
 import           Agda.VersionCommit         ( versionWithCommitInfo )
@@ -80,7 +81,7 @@ getAgdaAppDir = do
       True  -> canonicalizePath dir
       False -> do
         d <- agdaDir
-        putStrLn $ "Warning: Environment variable AGDA_DIR points to non-existing directory " ++ show dir ++ ", using " ++ show d ++ " instead."
+        inform $ "Warning: Environment variable AGDA_DIR points to non-existing directory " ++ show dir ++ ", using " ++ show d ++ " instead."
         return d
   where
     -- System-specific command to build the path to ~/.agda (Unix) or %APPDATA%\agda (Win)
@@ -139,9 +140,13 @@ dumpDataDir verbose agdaDir = do
 
       -- Write out the file contents.
       let path = dir </> file
-      when verbose $ putStrLn $ "Writing " ++ path
+      when verbose $ inform $ "Writing " ++ path
       BS.writeFile path content
 
   -- Remove the lock (this is surprisingly not done by withFileLock).
   -- Ignore any IOException (e.g. if the file does not exist).
   void $ try @IOException $ removeFile lock
+
+-- | Dump line of warning or information to stderr.
+inform :: String -> IO ()
+inform = hPutStrLn stderr
