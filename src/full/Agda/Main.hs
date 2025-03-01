@@ -12,6 +12,7 @@ import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 import qualified Data.List as List
+import Data.Function          ( (&) )
 import Data.Functor
 import Data.Maybe
 import qualified Data.Set as Set
@@ -67,27 +68,40 @@ runAgda' backends = do
   let (z, warns) = runOptM $ parseBackendOptions backends argv defaultOptions
   conf     <- runExceptT $ do
     (bs, opts) <- ExceptT $ pure z
-    -- Setup Agda if requested
-    when (optSetup opts) $ liftIO $ Agda.Setup.setup True
     -- The absolute path of the input file, if provided
     inputFile <- liftIO $ mapM absolute $ optInputFile opts
-    mode      <- getMainMode bs inputFile opts
+    mode      <- getInteractor bs inputFile opts
     return (bs, opts, mode)
 
   case conf of
     Left err -> optionError err
     Right (bs, opts, mode) -> do
 
+      -- Setup Agda if requested
+      when (optSetup opts) $ Agda.Setup.setup True
+
+      -- Print information as requested
+      whenJust (optPrintVersion opts) $ printVersion bs
+      whenJust (optPrintHelp    opts) $ printUsage   bs
+      when (optPrintAgdaAppDir  opts) $ printAgdaAppDir
+      when (optPrintAgdaDataDir opts) $ printAgdaDataDir
+
       case mode of
-        MainModePrintHelp hp     -> printUsage bs hp
-        MainModePrintVersion o   -> printVersion bs o
-        MainModePrintAgdaDataDir -> printAgdaDataDir
-        MainModePrintAgdaAppDir  -> printAgdaAppDir
-        MainModeSetup            -> return ()
+        Nothing -> do
+          let
+            something = or
+              [ opts & optSetup
+              , opts & optPrintVersion & isJust
+              , opts & optPrintHelp    & isJust
+              , opts & optPrintAgdaAppDir
+              , opts & optPrintAgdaDataDir
+              ]
+          -- if no task was given to Agda
+          unless something $ optionError "No task given."
 
-        MainModeRun interactor   -> do
+        Just interactor -> do
+         unless (optSetup opts) $ Agda.Setup.setup False
 
-         Agda.Setup.setup False
          runTCMPrettyErrors do
 
           mapM_ (warning . OptionWarning) warns
@@ -108,32 +122,6 @@ runAgda' backends = do
 
           setTCLens stBackends bs
           runAgdaWithOptions interactor progName opts
-
--- | Main execution mode
-data MainMode
-  = MainModeRun (Interactor ())
-  | MainModePrintHelp Help
-  | MainModePrintVersion PrintAgdaVersion
-  | MainModePrintAgdaDataDir
-  | MainModePrintAgdaAppDir
-  | MainModeSetup
-      -- ^ Only if @--setup@ is given without any other main mode.
-
--- | Determine the main execution mode to run, based on the configured backends and command line options.
--- | This is pure.
-getMainMode :: MonadError String m => [Backend] -> Maybe AbsolutePath -> CommandLineOptions -> m MainMode
-getMainMode configuredBackends maybeInputFile opts
-  | Just hp <- optPrintHelp opts    = return $ MainModePrintHelp hp
-  | Just o  <- optPrintVersion opts = return $ MainModePrintVersion o
-  | optPrintAgdaDataDir opts        = return $ MainModePrintAgdaDataDir
-  | optPrintAgdaAppDir opts         = return $ MainModePrintAgdaAppDir
-  | otherwise = do
-      getInteractor configuredBackends maybeInputFile opts <&> \case
-        Just i -> MainModeRun i
-        Nothing
-          | optSetup opts -> MainModeSetup
-          | otherwise     -> MainModePrintHelp GeneralHelp
-      -- If there was no selection whatsoever (e.g. just invoked "agda"), we just show help and exit.
 
 type Interactor a
     -- Setup/initialization action.

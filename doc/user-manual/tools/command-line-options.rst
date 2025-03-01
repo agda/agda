@@ -12,11 +12,35 @@ Where noted, these options can also serve as *pragma options*,
 i.e., be supplied in a file via the ``{-# OPTIONS ... #-}`` pragma
 or in the ``flags`` section of an ``.agda-lib`` file.
 
-Administrative runs
+Setup and printing
 ~~~~~~~~~~~~~~~~~~~
 
-Some options cause Agda to print out some information or do some
-administrative action rather than actually processing an Agda code.
+Some options cause Agda to perform tasks at startup like mandatory setup
+or printing some information.
+These options are not exclusive, they can be used with other options,
+albeit this seldom makes sense.
+They are not executed in the order given on the command line,
+but in the fixed order listed in the following:
+
+.. option:: --setup
+
+     .. versionadded:: 2.8.0
+
+     Extract Agda' data files (primitive library, emacs mode etc.)
+     to ``share/VERSION/`` under the (:envvar:`AGDA_DIR`)
+     where ``VERSION`` is the numeric version of Agda.
+
+.. option:: --version, -V
+
+     Show version number and cabal flags used in this build of Agda.
+
+     Overwrites :option:`--numeric-version`.
+
+.. option:: --numeric-version
+
+     Show just the version number.
+
+     Overwrites :option:`--version`.
 
 .. option:: --help[={TOPIC}], -?[{TOPIC}]
 
@@ -30,13 +54,7 @@ administrative action rather than actually processing an Agda code.
        List warning groups and individual warnings and their default status.
        Instruct how to toggle benign warnings.
 
-.. option:: --version, -V
-
-     Show version number and cabal flags used in this build of Agda.
-
-.. option:: --numeric-version
-
-     Show just the version number.
+     Overwrites itself, i.e., only the last of several :option:`--help` options is effective.
 
 .. option:: --print-agda-app-dir
 
@@ -63,14 +81,6 @@ administrative action rather than actually processing an Agda code.
 
 General options
 ~~~~~~~~~~~~~~~
-
-.. option:: --setup
-
-     .. versionadded:: 2.8.0
-
-     Extract Agda' data files (primitive library, emacs mode etc.)
-     to ``share/VERSION/`` under the (:envvar:`AGDA_DIR`)
-     where ``VERSION`` is the numeric version of Agda.
 
 .. option:: --interaction
 
