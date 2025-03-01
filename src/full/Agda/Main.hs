@@ -12,6 +12,7 @@ import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 import qualified Data.List as List
+import Data.Functor
 import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -66,6 +67,8 @@ runAgda' backends = do
   let (z, warns) = runOptM $ parseBackendOptions backends argv defaultOptions
   conf     <- runExceptT $ do
     (bs, opts) <- ExceptT $ pure z
+    -- Setup Agda if requested
+    when (optSetup opts) $ liftIO $ Agda.Setup.setup True
     -- The absolute path of the input file, if provided
     inputFile <- liftIO $ mapM absolute $ optInputFile opts
     mode      <- getMainMode bs inputFile opts
@@ -80,7 +83,7 @@ runAgda' backends = do
         MainModePrintVersion o   -> printVersion bs o
         MainModePrintAgdaDataDir -> printAgdaDataDir
         MainModePrintAgdaAppDir  -> printAgdaAppDir
-        MainModeSetup            -> Agda.Setup.setup True
+        MainModeSetup            -> return ()
 
         MainModeRun interactor   -> do
 
@@ -114,6 +117,7 @@ data MainMode
   | MainModePrintAgdaDataDir
   | MainModePrintAgdaAppDir
   | MainModeSetup
+      -- ^ Only if @--setup@ is given without any other main mode.
 
 -- | Determine the main execution mode to run, based on the configured backends and command line options.
 -- | This is pure.
@@ -123,11 +127,13 @@ getMainMode configuredBackends maybeInputFile opts
   | Just o  <- optPrintVersion opts = return $ MainModePrintVersion o
   | optPrintAgdaDataDir opts        = return $ MainModePrintAgdaDataDir
   | optPrintAgdaAppDir opts         = return $ MainModePrintAgdaAppDir
-  | optSetup opts                   = return $ MainModeSetup
   | otherwise = do
-      mi <- getInteractor configuredBackends maybeInputFile opts
+      getInteractor configuredBackends maybeInputFile opts <&> \case
+        Just i -> MainModeRun i
+        Nothing
+          | optSetup opts -> MainModeSetup
+          | otherwise     -> MainModePrintHelp GeneralHelp
       -- If there was no selection whatsoever (e.g. just invoked "agda"), we just show help and exit.
-      return $ maybe (MainModePrintHelp GeneralHelp) MainModeRun mi
 
 type Interactor a
     -- Setup/initialization action.

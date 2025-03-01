@@ -38,14 +38,6 @@ administrative action rather than actually processing an Agda code.
 
      Show just the version number.
 
-.. option:: --setup
-
-     .. versionadded:: 2.8.0
-
-     Extract Agda' data files (primitive library, emacs mode etc.)
-     to ``share/VERSION/`` under the (:envvar:`AGDA_DIR`)
-     where ``VERSION`` is the numeric version of Agda.
-
 .. option:: --print-agda-app-dir
 
      .. versionadded:: 2.6.4.1
@@ -71,6 +63,14 @@ administrative action rather than actually processing an Agda code.
 
 General options
 ~~~~~~~~~~~~~~~
+
+.. option:: --setup
+
+     .. versionadded:: 2.8.0
+
+     Extract Agda' data files (primitive library, emacs mode etc.)
+     to ``share/VERSION/`` under the (:envvar:`AGDA_DIR`)
+     where ``VERSION`` is the numeric version of Agda.
 
 .. option:: --interaction
 

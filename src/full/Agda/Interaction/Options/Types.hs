@@ -59,9 +59,9 @@ data CommandLineOptions = Options
   , optPrintAgdaAppDir       :: Bool
   , optPrintVersion          :: Maybe PrintAgdaVersion
   , optPrintHelp             :: Maybe Help
-  , optSetup                 :: Bool
-      -- ^ Tell Agda to self-setup and quit.
 
+  , optSetup                 :: Bool
+      -- ^ Force Agda to self-setup at startup.
   , optInteractive           :: Bool
       -- ^ Agda REPL (@-I@).
   , optGHCiInteraction       :: Bool
