@@ -91,6 +91,21 @@ jobs:
         echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
         echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
 
+    # - name: Install the ICU library (Windows)
+    #   if: runner.os == 'Windows'
+    #   shell: pwsh
+    #   run: |
+    #     $env:PATH = "C:\msys64\usr\bin;$env:PATH"
+    #     pacman --noconfirm -S msys2-keyring mingw-w64-x86_64-pkgconf mingw-w64-x86_64-icu
+    #     echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
+
+    # - name: Install the ICU library (macOS)
+    #   if: runner.os == 'macOS'
+    #   run: |
+    #     brew install icu4c
+    #     PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
+    #     echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> "${GITHUB_ENV}"
+
     - name: Augment cabal config with executable-dynamic
       if: matrix.dynamic == 'cabal-config'
       run: |
@@ -101,10 +116,10 @@ jobs:
       run: |
         echo "LFLAGS=--enable-executable-dynamic" >> "${GITHUB_ENV}"
 
-    - name: Cabal flag enable-cluster-counting
-      if: runner.os != 'Windows'
-      run: |
-        echo "CFLAGS=-f enable-cluster-counting"  >> "${GITHUB_ENV}"
+    # - name: Cabal flag enable-cluster-counting
+    #   if: runner.os != 'Windows'
+    #   run: |
+    #     echo "CFLAGS=-f enable-cluster-counting"  >> "${GITHUB_ENV}"
 
     - name: Configure the build plan
       run: |

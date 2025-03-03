@@ -51,10 +51,6 @@ jobs:
       name: Cabal config with --enable-executable-dynamic
       run: |
         echo "LFLAGS=--enable-executable-dynamic" >> "${GITHUB_ENV}"
-    - if: runner.os != 'Windows'
-      name: Cabal flag enable-cluster-counting
-      run: |
-        echo "CFLAGS=-f enable-cluster-counting"  >> "${GITHUB_ENV}"
     - name: Configure the build plan
       run: |
         cabal configure ${FLAGS} ${CFLAGS} ${LFLAGS}
