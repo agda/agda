@@ -568,6 +568,7 @@ library
       Agda.Mimer.Options
       Agda.Setup
       Agda.Setup.DataFiles
+      Agda.Setup.EmacsMode
       Agda.Syntax.Abstract.Name
       Agda.Syntax.Abstract.Pattern
       Agda.Syntax.Abstract.PatternSynonyms
@@ -924,6 +925,7 @@ executable agda-mode
     Paths_Agda
     Agda.Setup
     Agda.Setup.DataFiles
+    Agda.Setup.EmacsMode
     Agda.Version
     Agda.VersionCommit
 

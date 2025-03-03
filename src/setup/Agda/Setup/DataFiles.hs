@@ -16,15 +16,9 @@ dataPath = ("src/data/" ++)
 -- KEEP IN SYNC with the list in Agda.cabal under extra-source-files!
 dataFiles :: [FilePath]
 dataFiles =
-  [ "emacs-mode/agda-input.el"
-  , "emacs-mode/agda2-abbrevs.el"
-  , "emacs-mode/agda2-highlight.el"
-  , "emacs-mode/agda2-mode-pkg.el"
-  , "emacs-mode/agda2-mode.el"
-  , "emacs-mode/agda2-queue.el"
-  , "emacs-mode/agda2.el"
-  , "emacs-mode/annotation.el"
-  , "emacs-mode/eri.el"
+  map ((emacsModeDir ++ "/") ++) emacsLispFiles ++
+  -- N.B.: agda2-mode-pkg.el is not part of emacsLispFiles as it need not be compiled.
+  [ "emacs-mode/agda2-mode-pkg.el"
   , "html/Agda.css"
   , "html/highlight-hover.js"
   , "JS/agda-rts.mjs"
@@ -72,3 +66,25 @@ dataFiles =
   , "MAlonzo/src/MAlonzo/RTE.hs"
   , "MAlonzo/src/MAlonzo/RTE/Float.hs"
   ]
+
+-- | The subdirectory in the Agda data directory containing the emacs mode.
+
+emacsModeDir :: FilePath
+emacsModeDir = "emacs-mode"
+
+-- | The Agda mode's Emacs Lisp files, given in the order in which
+-- they should be compiled.
+
+emacsLispFiles :: [FilePath]
+emacsLispFiles =
+  [ "agda2-abbrevs.el"
+  , "annotation.el"
+  , "agda2-queue.el"
+  , "eri.el"
+  , "agda2.el"
+  , "agda-input.el"
+  , "agda2-highlight.el"
+  , "agda2-mode.el"
+  ]
+  -- N.B.: We also ship agda2-mode-pkg.el for melpa,
+  -- but this is not part of the emacs mode and need not be compiled.

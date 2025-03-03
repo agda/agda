@@ -69,7 +69,7 @@ Now that you have ``cabal`` installed, use it to install Agda as a Haskell packa
   cabal update
   cabal install Agda
 
-You should now have the ``agda`` and ``agda-mode`` commands available.
+You should now have the ``agda`` command available.
 
 .. hint:: If these commands aren't available, check that programs installed by ``cabal``
   are on your shell's search path. This should have been done during the installation
@@ -190,19 +190,19 @@ Emacs
 Emacs has good support for unicode input, and the ``agda-mode`` for emacs is maintained
 by the Agda developers in the main Agda repository and offers many advanced features.
 
-Running the ``agda-mode`` program
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Administering the ``agda-mode``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. Warning::
   Installing ``agda-mode`` via ``melpa`` is discouraged.
   It is strongly advised to install ``agda-mode`` for ``emacs`` as described below:
 
-After installing the ``agda-mode`` program using ``cabal`` or
+After installing the ``agda`` program using ``cabal`` or
 ``stack`` run the following command:
 
 .. code-block:: bash
 
-  agda-mode setup
+  agda --emacs-mode setup
 
 The above command will first write the Agda data files to the
 Agda data directory (see :option:`--print-agda-data-dir`)
@@ -216,14 +216,14 @@ following text to your *.emacs* file:
 .. code-block:: emacs
 
   (load-file (let ((coding-system-for-read 'utf-8))
-                  (shell-command-to-string "agda-mode locate")))
+                  (shell-command-to-string "agda --emacs-mode locate")))
 
 It is also possible (but not necessary) to compile the Emacs mode's
 files:
 
 .. code-block:: bash
 
-  agda-mode compile
+  agda --emacs-mode compile
 
 This can, in some cases, give a noticeable speedup.
 
@@ -531,12 +531,12 @@ https://nixos.org/nixos. Install Agda (and the standard library) via:
   .. code-block:: bash
 
     nix-env -f "<nixpkgs>" -iE "nixpkgs: (nixpkgs {}).agda.withPackages (p: [ p.standard-library ])"
-    agda-mode setup
+    agda --emacs-mode setup
     echo "standard-library" > ~/.agda/defaults
 
   The second command tries to set up the Agda emacs mode. Skip this if
   you don't want to set up the emacs mode. See :ref:`Installation from
-  source <install-agda-dev>` above for more details about ``agda-mode setup``. The
+  source <install-agda-dev>` above for more details about ``agda --emacs-mode setup``. The
   third command sets the ``standard-library`` as a default library so
   it is always available to Agda. If you don't want to do this you can
   omit this step and control library imports on a per project basis
@@ -548,7 +548,7 @@ https://nixos.org/nixos. Install Agda (and the standard library) via:
   .. code-block:: bash
 
     nix-env -f "<nixpkgs>" -iA agda
-    agda-mode setup
+    agda --emacs-mode setup
 
 
   For more information on the Agda infrastructure in nix, and how to
@@ -587,7 +587,7 @@ Terminal app and run the following commands:
 .. code-block:: bash
 
   brew install agda
-  agda-mode setup
+  agda --emacs-mode setup
 
 This process should take less than a minute, and it installs Agda together with
 its Emacs mode and its standard library. For more information about the ``brew``
@@ -618,7 +618,7 @@ To configure the way of editing agda files, follow the section
 
 .. NOTE::
 
-   If Emacs cannot find the ``agda-mode`` executable, it might help to
+   If Emacs cannot find the ``agda`` executable, it might help to
    install the `exec-path-from-shell <https://github.com/purcell/exec-path-from-shell>`_
    package by doing ``M-x package-install RET exec-path-from-shell RET`` and adding
    the line ``(exec-path-from-shell-initialize)`` to your ``.emacs`` file.

@@ -11,18 +11,27 @@ Installation
 
 * Agda supports GHC versions 8.8.4 to 9.10.1.
 
-* The `agda` binary now contains all its data files,
-  like primitive and builtin modules,
-  supplements for the HTML and LaTeX backends,
-  the runtimes for the `JS` and `GHC` backends,
-  and the emacs mode.
+* The `agda` binary now contains everything
+  to set itself up, it need not be shipped with additional files.
 
-  These will be written to `${AGDA_DIR}/share/${VERSION}`
-  on the first invocation of `agda` or an invocation of
-  `agda --setup`, `agda-mode setup`, or `agda-mode compile`.
-  Herein, `${VERSION}` is the Agda version and `${AGDA_DIR}`
-  the Agda application directory, on Unix-like systems
-  defaulting to `${HOME}/.config/agda` or `${HOME}/.agda`.
+  1. The functionality of the `agda-mode` executable has been replicated
+     under the new option `--emacs-mode`.
+     The `agda-mode` executable is now deprecated.
+     References to `agda-mode` in your `.emacs` file should be replaced
+     by `agda --emacs-mode`.
+
+  2. Agda now contains all its data files,
+     like primitive and builtin modules,
+     supplements for the HTML and LaTeX backends,
+     the runtimes for the `JS` and `GHC` backends,
+     and the emacs mode.
+
+     These will be written to `${AGDA_DIR}/share/${VERSION}`
+     on the first invocation of `agda` or an invocation of
+     `agda --setup`, `agda --emacs-mode setup`, or `agda --emacs-mode compile`.
+     Herein, `${VERSION}` is the Agda version and `${AGDA_DIR}`
+     the Agda application directory, on Unix-like systems
+     defaulting to `${HOME}/.config/agda` or `${HOME}/.agda`.
 
   The Cabal/Stack custom installation `Setup.hs` has been removed
   that previously generated the `.agdai` files for the builtin and primitive modules.
@@ -40,8 +49,11 @@ Installation
 Pragmas and options
 -------------------
 
-* Option `--setup` writes out the Agda data files (see above)
+* New option `--setup` that writes out the Agda data files (see above)
   and can be used to regenerate them.
+
+* New option `--emacs-mode` to administer the Emacs mode
+  as previously done by the `agda-mode` executable.
 
 * Option `--local-interfaces` and warning `DuplicateInterfaceFiles` have been removed.
 

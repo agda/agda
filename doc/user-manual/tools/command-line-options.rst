@@ -12,8 +12,8 @@ Where noted, these options can also serve as *pragma options*,
 i.e., be supplied in a file via the ``{-# OPTIONS ... #-}`` pragma
 or in the ``flags`` section of an ``.agda-lib`` file.
 
-Setup and printing
-~~~~~~~~~~~~~~~~~~~
+Setup and information
+~~~~~~~~~~~~~~~~~~~~~
 
 Some options cause Agda to perform tasks at startup like mandatory setup
 or printing some information.
@@ -47,6 +47,9 @@ but in the fixed order listed in the following:
      Show basically this help, or more help about ``TOPIC``.
      Available topics:
 
+     - ``emacs-mode``:
+       Explain the option :option:`--emacs-mode`.
+
      - ``error``:
        List the names of Agda's errors.
 
@@ -78,6 +81,29 @@ but in the fixed order listed in the following:
      files such as core libraries, style files for the backends, etc.
 
      Since 2.8.0, this is ``share/VERSION/`` under the (:envvar:`AGDA_DIR`).
+
+.. option:: --emacs-mode={COMMAND}
+
+     .. versionadded:: 2.8.0
+
+     Administer the Agda Emacs mode,
+     a task previously managed by the ``agda-mode`` executable.
+
+     Available commands:
+
+     - ``setup``:
+       Install the Emacs mode into ``.emacs``.
+
+     - ``compile``:
+       Compile the Elisp files of the Emacs mode.
+
+     - ``locate``:
+       Print the path to the Emacs mode.
+
+     More information in :ref:`Section Emacs <install-agda-mode>`.
+
+     This option can be given several times to perform several commands.
+
 
 General options
 ~~~~~~~~~~~~~~~

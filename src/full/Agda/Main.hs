@@ -20,6 +20,7 @@ import qualified Data.Text as T
 
 import System.Environment ( getArgs, getProgName )
 import System.Exit ( exitSuccess, ExitCode )
+import System.FilePath ( takeFileName )
 import System.Console.GetOpt
 import qualified System.IO as IO
 
@@ -43,6 +44,7 @@ import Agda.Compiler.Backend
 import Agda.Compiler.Builtin
 
 import Agda.Setup ( getAgdaAppDir, getDataDir, setup )
+import Agda.Setup.EmacsMode
 import Agda.VersionCommit ( versionWithCommitInfo )
 
 import qualified Agda.Utils.Benchmark as UtilsBench
@@ -86,6 +88,20 @@ runAgda' backends = do
       when (optPrintAgdaAppDir  opts) $ printAgdaAppDir
       when (optPrintAgdaDataDir opts) $ printAgdaDataDir
 
+      -- Setup emacs mode
+      when (EmacsModeSetup `Set.member` optEmacsMode opts) do
+        unless (optSetup opts) $ Agda.Setup.setup False
+        setupDotEmacs $ takeFileName progName
+
+      -- Compile emacs mode
+      when (EmacsModeCompile `Set.member` optEmacsMode opts) do
+        unless (optSetup opts) $ Agda.Setup.setup False
+        compileElispFiles
+
+      -- Locate emacs mode
+      when (EmacsModeLocate `Set.member` optEmacsMode opts) do
+        printEmacsModeFile
+
       case mode of
         Nothing -> do
           let
@@ -95,6 +111,7 @@ runAgda' backends = do
               , opts & optPrintHelp    & isJust
               , opts & optPrintAgdaAppDir
               , opts & optPrintAgdaDataDir
+              , opts & optEmacsMode    & not . null
               ]
           -- if no task was given to Agda
           unless something $ optionError "No task given."
@@ -122,6 +139,7 @@ runAgda' backends = do
 
           setTCLens stBackends bs
           runAgdaWithOptions interactor progName opts
+
 
 type Interactor a
     -- Setup/initialization action.
