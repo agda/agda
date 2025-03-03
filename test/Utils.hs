@@ -72,6 +72,25 @@ toProgramResult (c, o, e) = ProgramResult c o e
 printProgramResult :: ProgramResult -> Text
 printProgramResult = printProcResult . fromProgramResult
 
+-- | Call out to an executable with given arguments,
+--   new environment, and standard input,
+--   recording exit code, standard output and standard error.
+readProcessWithEnv ::
+     EnvVars   -- ^ New environment, replacing existing environment for the call.
+  -> FilePath  -- ^ Executable.
+  -> [String]  -- ^ Arguments to executable.
+  -> Text      -- ^ @stdin@.
+  -> IO (ExitCode, Text, Text)
+readProcessWithEnv env cmd args input = do
+  let process = (proc cmd args)
+        { create_group = True
+        , env          = Just env
+        , cwd          = Just "."
+            -- Andreas, 2023-10-07, issue #6905:
+            -- Setting cwd='.' works around a bug in process-1.6.14..17 on macOS.
+        }
+  PT.readCreateProcessWithExitCode process input
+
 type AgdaArgs = [String]
 
 -- | Call out to @AGDA_BIN@ with given arguments and standard input,
@@ -81,21 +100,14 @@ readAgdaProcessWithExitCode ::
   -> AgdaArgs       -- ^ Arguments to @agda@.
   -> Text           -- ^ @stdin@.
   -> IO (ExitCode, Text, Text)
-readAgdaProcessWithExitCode extraEnv args inp = do
+readAgdaProcessWithExitCode extraEnv args input = do
   origEnv <- getEnvironment
   home <- getHomeDirectory
   let env = expandEnvVarTelescope home $ maybe origEnv (origEnv ++) extraEnv
   let envArgs = maybe [] words $ lookup "AGDA_ARGS" env
   let agdaBin = getAgdaBin env
   -- hPutStrLn stderr $ unwords $ agdaBin : envArgs ++ args
-  let agdaProc = (proc agdaBin (envArgs ++ args))
-        { create_group = True
-        , env          = Just env
-        , cwd          = Just "."
-            -- Andreas, 2023-10-07, issue #6905:
-            -- Setting cwd='.' works around a bug in process-1.6.14..17 on macOS.
-        }
-  PT.readCreateProcessWithExitCode agdaProc inp
+  readProcessWithEnv env agdaBin (envArgs ++ args) input
 
 data AgdaResult
   = AgdaSuccess (Maybe Text)          -- ^ A success can come with warnings
