@@ -39,21 +39,25 @@ jobs:
 
     timeout-minutes: 60
 
-    name: cabal install ${{ matrix.name }}
-    runs-on: ubuntu-24.04
-
+    name: ${{ matrix.os }} dyn ${{ matrix.dynamic }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-        # OBS: name also used in conditional below
-        - name:  ""
-          install_flags: ""
-        - name:  "--lib"
-          install_flags: "--lib"
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        ghc-ver: ['9.10.1']
+        cabal-ver: ['3.12.1.0']
+        # Issue #7163: does install work with dynamic linking?
+        dynamic:
+          - no
+          - cabal-config
+          - command-line
 
     env:
-      FLAGS: "-O0 -f enable-cluster-counting"
+      FLAGS: "-O0"
 
     steps:
     - uses: actions/checkout@v4
@@ -61,14 +65,50 @@ jobs:
     - uses: haskell-actions/setup@v2
       id: setup-haskell
       with:
-        ghc-version:   '9.10'
-        cabal-version: latest
+        ghc-version:   ${{ matrix.ghc-ver }}
+        cabal-version: ${{ matrix.cabal-ver }}
         cabal-update:  true
+
+    # # 2023-08-21: skipping setup does not work out of the box
+    # # since then cabal uses the XDG directory structure.
+    # # In particular, the ~/.cabal/store is somewhere else.
+    # # A workaround is to create the .cabal directory.
+    # # In case we switch to XDG we need to reset the cache then so cabal does not get
+    # # confused if there is both the restored .cabal/store and the XDG store.
+
+    # - name: Set up cabal
+    #   run: |
+    #     mkdir -p ~/.cabal
+    #     cabal update
+
+    - name: Environment settings based on the Haskell setup
+      run: |
+        GHC_VER=$(ghc --numeric-version)
+        CABAL_VER=$(cabal --numeric-version)
+        echo "GHC_VER   = ${GHC_VER}"
+        echo "CABAL_VER = ${CABAL_VER}"
+        echo "PATH      = ${PATH}"
+        echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
+        echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
+
+    - name: Augment cabal config with executable-dynamic
+      if: matrix.dynamic == 'cabal-config'
+      run: |
+        cabal user-config update --augment="executable-dynamic: True"
+
+    - name: Cabal config with --enable-executable-dynamic
+      if: matrix.dynamic == 'command-line'
+      run: |
+        echo "LFLAGS=--enable-executable-dynamic" >> "${GITHUB_ENV}"
+
+    - name: Cabal flag enable-cluster-counting
+      if: runner.os != 'Windows'
+      run: |
+        echo "CFLAGS=-f enable-cluster-counting"  >> "${GITHUB_ENV}"
 
     - name: Configure the build plan
       run: |
-        # shellcheck disable=SC2086
-        cabal configure ${FLAGS}
+        cabal configure ${FLAGS} ${CFLAGS} ${LFLAGS}
         cabal build --dry-run
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
 
@@ -76,7 +116,7 @@ jobs:
       uses: actions/cache/restore@v4
       id: cache
       env:
-        key: cabal-install.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
+        key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-dynamic-${{ matrix.dynamic }}
       with:
         path: &cache_path ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
@@ -93,7 +133,21 @@ jobs:
     - name: Install Agda
       run: |
         # shellcheck disable=SC2086
-        cabal install ${FLAGS} ${{ matrix.install_flags }}
+        cabal install ${FLAGS} ${CFLAGS} ${LFLAGS}
+
+    - name: Agda version
+      run: |
+        agda --version
+
+    - name: Check agda for dynamic libraries (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        otool -L "$(which agda)"
+
+    - name: Check agda for dynamic libraries (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        ldd "$(which agda)"
 
     - name: Save cache
       uses: actions/cache/save@v4
