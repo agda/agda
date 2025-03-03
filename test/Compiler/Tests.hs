@@ -160,15 +160,14 @@ tests = do
     Nothing -> putStrLn "No JS node binary found, skipping JS tests."
     Just n -> putStrLn $ "Using JS node binary at " ++ n
 
-  ts <- mapM forComp enabledCompilers
-  return $ testGroup "Compiler" ts
-  where
-    forComp comp = testGroup (map spaceToUnderscore $ show comp) . catMaybes
+  ts <- forM enabledCompilers \ comp -> do
+    testGroup (map spaceToUnderscore $ show comp) . catMaybes
         <$> sequence
             [ Just <$> simpleTests comp
             , Just <$> stdlibTests comp
             , specialTests comp]
-
+  return $ testGroup "Compiler" ts
+  where
     spaceToUnderscore ' ' = '_'
     spaceToUnderscore c = c
 
