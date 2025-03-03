@@ -288,7 +288,7 @@ Cabal install fails due to dynamic linking issues
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you have setting ``executable-dynamic: True`` in your cabal configuration
-then installation might fail on Linux and Windows.
+then installation will likely fail on Windows.
 
 Cure: change to default ``executable-dynamic: False``.
 
