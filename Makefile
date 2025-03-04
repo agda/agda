@@ -306,15 +306,15 @@ install-prof-bin : install-deps ensure-hash-is-correct
 
 .PHONY : compile-emacs-mode ## Compile Agda's Emacs mode using Emacs.
 compile-emacs-mode: install-bin
-	$(AGDA_MODE) compile
+	$(AGDA_BIN) --emacs-mode compile
 
 .PHONY : setup-emacs-mode ## Configure Agda's Emacs mode.
 setup-emacs-mode : install-bin
 	@echo
-	@echo "If the agda-mode command is not found, make sure that the directory"
+	@echo "If the agda is not found, make sure that the directory"
 	@echo "in which it was installed is located on your shell's search path."
 	@echo
-	$(AGDA_MODE) setup
+	$(AGDA_BIN) --emacs-mode setup
 
 ##############################################################################
 ## Clean
