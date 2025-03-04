@@ -65,7 +65,6 @@ env:
 
   # Variables of/for the Makefile
   PARALLEL_TESTS: 2
-  BUILD_DIR: "dist" # relative path, please!
   AGDA_TESTS_OPTIONS: "-j${PARALLEL_TESTS} --hide-successes"
   STACK: "stack --system-ghc"
 
@@ -148,8 +147,8 @@ jobs:
         # Thus, we include Agda.cabal in the hash.
         # Note that a 'stack.yaml.lock' file would not be sufficient (I think),
         # because it does not list all the dependencies.
-        key: &cache_key test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{ steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
-        restore-keys: test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{ steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-
+        key: &cache_key test.yml-1-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{ steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal','stack.yaml','deps.txt') }}
+        restore-keys: test.yml-1-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{ steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-
           # Andreas, 2024-05-17, note to myself: not using the env.key trick here because of *cache_key references below...
 
     - name: "Install dependencies for Agda and its test suites"
@@ -160,20 +159,11 @@ jobs:
       ## but printing stuff might not hurt here.
 
     - name: "Build Agda"
-      run: make BUILD_DIR="${BUILD_DIR}" install-bin
+      run: make install-bin
 
       # Save products to use in the remaining jobs.
     - name: "Pack artifacts"
       run: |
-        strip "${BUILD_DIR}"/build/agda-tests/agda-tests \
-          "${BUILD_DIR}"/build/agda/agda \
-          "${BUILD_DIR}"/build/agda-mode/agda-mode
-
-        tar --use-compress-program zstd -cvf dist.tzst \
-          "${BUILD_DIR}"/build/agda-tests/agda-tests \
-          "${BUILD_DIR}"/build/agda/agda \
-          "${BUILD_DIR}"/build/agda-mode/agda-mode
-
         tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock deps.txt
 
     - name: "Upload artifacts"
@@ -183,12 +173,11 @@ jobs:
         retention-days: 1
         name: agda-${{ runner.os }}-${{ github.sha }}
         path: |
-          dist.tzst
           stack-work.tzst
 
     - name: Save cache
       uses: actions/cache/save@v4
-      if:   always() && steps.cache.outputs.cache-hit != 'true'  # save cache even when build fails
+      if:   steps.cache.outputs.cache-hit != 'true'  # don't save cache when build fails as it may get in the way
       with:
         key:  *cache_key
         path: *cache_path
@@ -212,7 +201,6 @@ jobs:
     - &unpack_artifact
       name: "Unpack artifacts"
       run: |
-        tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
 
     - *icu
@@ -226,50 +214,49 @@ jobs:
 
     - &agda_setup
       name: Setup Agda
-      run: |
-        "${GITHUB_WORKSPACE}/${BUILD_DIR}"/build/agda/agda --setup
+      run: make setup-agda
 
     - name: "Suite of tests for bugs"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
+      run: make bugs
       #    14s (2022-06-17)
 
     - name: "Suite of successful tests: mini-library Common"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" common
+      run: make common
       if: always() # run test even if a previous test failed
       #     8s (2022-06-17)
 
     - name: "Suite of successful tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" succeed
+      run: make succeed
       if: always() # run test even if a previous test failed
       # 4m 14s (2022-06-17)
 
     - name: "Suite of failing tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" fail
+      run: make fail
       if: always() # run test even if a previous test failed
       # 2m  0s (2022-06-17)
 
     - name: "Suite of examples"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" examples
+      run: make examples
       if: always() # run test even if a previous test failed
       #    41s (2022-06-17)
 
     - name: "Suite of interactive tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interactive
+      run: make interactive
       if: always() # run test even if a previous test failed
       #     0s (2022-06-17)
 
     - name: "Successful tests using Agda as a Haskell library"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" api-test
+      run: make api-test
       if: always() # run test even if a previous test failed
       #    21s (2022-06-17)
 
     - name: "Internal test suite"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" internal-tests
+      run: make internal-tests
       if: always() # run test even if a previous test failed
       #    11s (2022-06-17)
 
     - name: "Compiler tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" compiler-test
+      run: make compiler-test
       if: always() # run test even if a previous test failed
       # 9m 34s (2022-06-17)
 
@@ -295,25 +282,25 @@ jobs:
         # ASR (2021-01-17). `cabal update` is required due to #5138.
         # We should also use `stack` in this test.
         cabal update
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-test
+        make std-lib-test
 
     # Andreas, 2023-09-13: Benchmark `any` uses the standard library,
     # so benchmarks should be run here (or split out the std-lib benchmarks).
     - name: "Benchmark"
       run: |
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-without-logs
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-summary
+        make benchmark-without-logs
+        make benchmark-summary
       if: always() # run test even if a previous test failed
       # 6m  3s (2022-06-17)
 
     - name: "Standard library compiler tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-compiler-test
+      run: make std-lib-compiler-test
 
     - name: "Successful tests using the standard library"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-succeed
+      run: make std-lib-succeed
 
     - name: "Interaction tests using the standard library"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-interaction
+      run: make std-lib-interaction
 
 
   # Step 2c: testing the interaction and the LaTeX/HTML backend
@@ -339,35 +326,35 @@ jobs:
         sudo apt-get install ${APT_GET_OPTS} texlive-binaries emacs-nox
 
     - name: "Suite of tests for the LaTeX and HTML backends"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" DONT_RUN_LATEX=Y latex-html-test
+      run: make DONT_RUN_LATEX=Y latex-html-test
 
     - name: "Testing the Emacs mode"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
+      run: make testing-emacs-mode
       if: always() # run test even if a previous test failed
 
     - name: "User manual (test)"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-test
+      run: make user-manual-test
       if: always() # run test even if a previous test failed
       #    13s (2022-06-17)
 
     - name: "User manual covers all options"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-covers-options
+      run: make user-manual-covers-options
       if: always() # run test even if a previous test failed
 
     - name: "User manual covers all warnings"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-covers-warnings
+      run: make user-manual-covers-warnings
       if: always() # run test even if a previous test failed
 
     - name: "Test suite covers all warnings"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" test-suite-covers-warnings
+      run: make test-suite-covers-warnings
       if: always() # run test even if a previous test failed
 
     - name: "Test suite covers all errors"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" test-suite-covers-errors
+      run: make test-suite-covers-errors
       if: always() # run test even if a previous test failed
 
     - name: "Suite of interaction tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
+      run: make interaction
       if: always() # run test even if a previous test failed
       # 2m 39s (2022-06-17)
       # This test has erratic outages (#5619), so we place it late in the queue.
@@ -389,10 +376,10 @@ jobs:
     - *agda_setup
 
     - name: "Cubical library test"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
+      run: make cubical-test
 
     - name: "Successful tests using the cubical library"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-succeed
+      run: make cubical-succeed
 
   ## Andreas, 2025-03-04: disable the size-solver-test
   #
@@ -415,4 +402,4 @@ jobs:
   #   - name: "Run tests for the size solver"
   #     run: |
   #       export PATH=${HOME}/.local/bin:${PATH}
-  #       make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
+  #       make size-solver-test

@@ -8,10 +8,12 @@ PROFILEOPTS=--profile=internal
 
 TOP=.
 
-# mk/path.mk uses TOP, so include after the definition of TOP.
-include ./mk/paths.mk
 include ./mk/cabal.mk
 include ./mk/stack.mk
+
+# mk/path.mk uses TOP, so include after the definition of TOP.
+# It also uses HAS_STACK, so include after stack.mk
+include ./mk/paths.mk
 
 # mk/pretty.mk defines 'decorate'.
 include ./mk/pretty.mk
@@ -56,17 +58,17 @@ STACK_INSTALL_HELPER = $(STACK) build Agda $(STACK_OPT_NO_DOCS)
 # quicker install: -O0, no tests
 
 QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) $(CABAL_OPT_FAST) --builddir=$(QUICK_BUILD_DIR)
-QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) $(STACK_OPT_FAST) --work-dir=$(QUICK_STACK_BUILD_DIR)
+QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) $(STACK_OPT_FAST) --work-dir=$(QUICK_STACK_WORK_DIR)
 
 # fast install: -O0, but tests
 
 FAST_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) $(CABAL_OPT_TESTS) $(CABAL_OPT_FAST) --builddir=$(FAST_BUILD_DIR)
-FAST_STACK_INSTALL = $(STACK_INSTALL_HELPER) $(STACK_OPT_TESTS) $(STACK_OPT_FAST) --work-dir=$(FAST_STACK_BUILD_DIR)
+FAST_STACK_INSTALL = $(STACK_INSTALL_HELPER) $(STACK_OPT_TESTS) $(STACK_OPT_FAST) --work-dir=$(FAST_STACK_WORK_DIR)
 
 # ordinary install: optimizations and tests
 
 SLOW_CABAL_INSTALL_OPTS = $(CABAL_OPT_TESTS) $(CABAL_FLAG_OPTIM_HEAVY) --builddir=$(BUILD_DIR)
-SLOW_STACK_INSTALL_OPTS = $(STACK_OPT_TESTS) $(STACK_FLAG_OPTIM_HEAVY)
+SLOW_STACK_INSTALL_OPTS = $(STACK_OPT_TESTS) $(STACK_FLAG_OPTIM_HEAVY) --work-dir=$(STACK_WORK_DIR)
 
 CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) $(SLOW_CABAL_INSTALL_OPTS)
 STACK_INSTALL           = $(STACK_INSTALL_HELPER) $(SLOW_STACK_INSTALL_OPTS)
@@ -122,7 +124,11 @@ CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
 default: install-bin
 
 .PHONY: install ## Install Agda, test suites, and Emacs mode
-install: install-bin compile-emacs-mode setup-emacs-mode
+install: install-bin setup-agda compile-emacs-mode setup-emacs-mode
+
+.PHONY: setup-agda
+setup-agda:
+	$(AGDA_BIN) --setup
 
 .PHONY: ensure-hash-is-correct
 ensure-hash-is-correct:
@@ -132,8 +138,8 @@ ensure-hash-is-correct:
 copy-bins-with-suffix-%:
 ifdef HAS_STACK
 	mkdir -p $(shell $(STACK) path --local-bin)
-	cp $(shell $(STACK) --work-dir=$(STACK_BUILD_DIR) path --dist-dir)/build/agda/agda $(shell $(STACK) path --local-bin)/agda-$*
-	cp $(shell $(STACK) --work-dir=$(STACK_BUILD_DIR) path --dist-dir)/build/agda-mode/agda-mode $(shell $(STACK) path --local-bin)/agda-mode-$*
+	cp $(shell $(STACK) --work-dir=$(STACK_WORK_DIR) path --dist-dir)/build/agda/agda $(shell $(STACK) path --local-bin)/agda-$*
+	cp $(shell $(STACK) --work-dir=$(STACK_WORK_DIR) path --dist-dir)/build/agda-mode/agda-mode $(shell $(STACK) path --local-bin)/agda-mode-$*
 endif
 
 .PHONY: install-deps ## Install Agda dependencies.
@@ -153,8 +159,6 @@ install-bin: install-deps ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-	mkdir -p $(BUILD_DIR)/build/
-	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
 	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
@@ -168,8 +172,6 @@ install-bin-no-debug: install-deps ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS_NODEBUG)
-	mkdir -p $(BUILD_DIR)/build/
-	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
 	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
@@ -184,8 +186,6 @@ v1-install:  ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL_HELPER) $(STACK_INSTALL_BIN_OPTS) $(STACK_OPT_TESTS)
-	mkdir -p $(BUILD_DIR)/build/
-	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
 	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)
 else
 	@echo "===================== Installing using Cabal with test suites ============"
@@ -200,9 +200,7 @@ fast-install-bin: install-deps fast-install-bin-no-deps
 ifdef HAS_STACK
 	@echo "============= Installing using Stack with -O0 and test suites ============"
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-	mkdir -p $(FAST_BUILD_DIR)/build/
-	cp -r $(shell $(STACK) path --work-dir=$(FAST_STACK_BUILD_DIR) --dist-dir)/build $(FAST_BUILD_DIR)
-	$(MAKE) copy-bins-with-suffix-fast STACK_BUILD_DIR=$(FAST_STACK_BUILD_DIR)
+	$(MAKE) copy-bins-with-suffix-fast STACK_WORK_DIR=$(FAST_STACK_WORK_DIR)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
@@ -220,7 +218,7 @@ quicker-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-	$(MAKE) copy-bins-with-suffix-quicker STACK_BUILD_DIR=$(QUICK_STACK_BUILD_DIR)
+	$(MAKE) copy-bins-with-suffix-quicker STACK_WORK_DIR=$(QUICK_STACK_WORK_DIR)
 else
 	@echo "===================== Installing using Cabal with -O0 ===================="
 	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=-quicker
@@ -312,7 +310,7 @@ clean : ## Clean all local builds
 	$(call clean_helper,$(BUILD_DIR))
 	$(call clean_helper,$(QUICK_BUILD_DIR))
 	which $(STACK) > /dev/null 2>&1 && $(STACK) clean --full || true
-	which $(STACK) > /dev/null 2>&1 && $(STACK) clean --full --work-dir=$(QUICK_STACK_BUILD_DIR) || true
+	which $(STACK) > /dev/null 2>&1 && $(STACK) clean --full --work-dir=$(QUICK_STACK_WORK_DIR) || true
 
 ##############################################################################
 ## Haddock
@@ -633,7 +631,7 @@ test-suite-covers-errors :
 .PHONY : testing-emacs-mode ## Compile the emacs mode and run basic tests.
 testing-emacs-mode:
 	@$(call decorate, "Testing the Emacs mode", \
-	  $(AGDA_MODE) compile)
+	  $(AGDA_BIN) --emacs-mode compile)
 
 .PHONY : doc-test ## Install and run doctest for the Agda library.
 doc-test: install-doctest run-doctest
@@ -791,6 +789,7 @@ debug : ## Print debug information.
 	@echo "SLOW_CABAL_INSTALL_OPTS        = $(SLOW_CABAL_INSTALL_OPTS)"
 	@echo "SLOW_STACK_INSTALL_OPTS        = $(SLOW_STACK_INSTALL_OPTS)"
 	@echo "STACK                          = $(STACK)"
+	@echo "STACK_WORK_DIR                 = $(STACK_WORK_DIR)"
 	@echo "STACK_FLAG_ICU                 = $(STACK_FLAG_ICU)"
 	@echo "STACK_FLAG_OPTIM_HEAVY         = $(STACK_FLAG_OPTIM_HEAVY)"
 	@echo "STACK_INSTALL                  = $(STACK_INSTALL)"
