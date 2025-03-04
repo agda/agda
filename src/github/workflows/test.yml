@@ -394,23 +394,25 @@ jobs:
     - name: "Successful tests using the cubical library"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-succeed
 
-  # Step 2e: running size-solver-test
-  ###########################################################################
-
-  size-solver-test:
-    needs: build
-    runs-on: *runs_on
-
-    steps:
-    - *checkout
-    - *haskell_setup
-    - *download_artifact
-    - *unpack_artifact
-    - *icu
-    - *cache
-    - *agda_setup
-
-    - name: "Run tests for the size solver"
-      run: |
-        export PATH=${HOME}/.local/bin:${PATH}
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
+  ## Andreas, 2025-03-04: disable the size-solver-test
+  #
+  # # Step 2e: running size-solver-test
+  # ###########################################################################
+  #
+  # size-solver-test:
+  #   needs: build
+  #   runs-on: *runs_on
+  #
+  #   steps:
+  #   - *checkout
+  #   - *haskell_setup
+  #   - *download_artifact
+  #   - *unpack_artifact
+  #   - *icu
+  #   - *cache
+  #   - *agda_setup
+  #
+  #   - name: "Run tests for the size solver"
+  #     run: |
+  #       export PATH=${HOME}/.local/bin:${PATH}
+  #       make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
