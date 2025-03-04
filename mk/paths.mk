@@ -22,15 +22,28 @@ FULL_SRC_DIR   = $(SRC_DIR)/full
 # Andreas, 2020-10-26 further refinement:
 # I often switch GHC version, so indexing v1-style build directories
 # by GHC version x.y.z makes sense.
-BUILD_DIR             = $(TOP)/dist-$(VERSION)-ghc-$(GHC_VER)
-QUICK_BUILD_DIR       = $(BUILD_DIR)-quick
-FAST_BUILD_DIR        = $(BUILD_DIR)-fast
-DEBUG_BUILD_DIR       = $(BUILD_DIR)-debug
-QUICK_DEBUG_BUILD_DIR = $(BUILD_DIR)-debug-quick
 
-STACK_BUILD_DIR       = .stack-work
-QUICK_STACK_BUILD_DIR = $(STACK_BUILD_DIR)-quick
-FAST_STACK_BUILD_DIR  = $(STACK_BUILD_DIR)-fast
+# N.B. don't use TOP here, stack anyway looks upward for stack.yaml
+STACK_WORK_DIR       ?= .stack-work
+QUICK_STACK_WORK_DIR ?= $(STACK_WORK_DIR)-quick
+FAST_STACK_WORK_DIR  ?= $(STACK_WORK_DIR)-fast
+
+# The basic stack command needs to always set the --work-dir.
+STACK_SLOW  = $(STACK) --work-dir=$(STACK_WORK_DIR)
+STACK_QUICK = $(STACK) --work-dir=$(QUICK_STACK_WORK_DIR)
+STACK_FAST  = $(STACK) --work-dir=$(FAST_STACK_WORK_DIR)
+
+ifdef HAS_STACK
+# Where does Stack place build/ etc.?  (Will contain e.g. the GHC version.)
+  BUILD_DIR       ?= $(TOP)/$(shell $(STACK_SLOW)  path --dist-dir)
+  QUICK_BUILD_DIR ?= $(TOP)/$(shell $(STACK_QUICK) path --dist-dir)
+  FAST_BUILD_DIR  ?= $(TOP)/$(shell $(STACK_FAST)  path --dist-dir)
+else
+# Where does v1-Cabal place build/ etc.? Originally in dist/, but we refine this.
+  BUILD_DIR       ?= $(TOP)/dist-$(VERSION)-ghc-$(GHC_VER)
+  QUICK_BUILD_DIR ?= $(BUILD_DIR)-quick
+  FAST_BUILD_DIR  ?= $(BUILD_DIR)-fast
+endif
 
 AGDA_BIN ?= $(BUILD_DIR)/build/agda/agda
 AGDA_BIN := $(abspath $(AGDA_BIN))

@@ -1,4 +1,6 @@
-STACK=stack
+# Andreas, 2025-03-05, STACK might be set in the environment
+# (e.g. in workflow test.yml); in this case, don't override.
+STACK ?= stack
 
 # Andreas, 2022-03-10: suppress chatty announcements like
 # "Stack has not been tested with GHC versions above 9.0, and using 9.2.2, this may fail".
