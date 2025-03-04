@@ -263,27 +263,14 @@ type-check: install-deps type-check-no-deps
 .PHONY: type-check-no-deps ##
 type-check-no-deps :
 	@echo "=============== Type checking using v1 Cabal with -fno-code =============="
-	-$(CABAL) $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
-          --ghc-options=-fno-code \
-          --ghc-options=-fwrite-interface \
-		  --ghc-options=-fwrite-ide-info \
-		  --ghc-options=-hiedir=dist-hiefiles \
+	-$(CABAL) v1-build --builddir=$(BUILD_DIR)-no-code \
+	  --ghc-options=-fno-code \
+	  --ghc-options=-fwrite-interface \
+	  --ghc-options=-fwrite-ide-info \
+	  --ghc-options=-hiedir=dist-hiefiles \
           2>&1 \
           | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
                    -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
-
-## Andreas, 2021-10-14: This does not work, agda-tests is not type-checked.
-## Maybe because cabal fails with an error after type-checking the library component.
-# .PHONY: type-check-with-tests ## Type check only, including tests
-# type-check-with-tests :
-# 	@echo "================= Type checking using Cabal with -fno-code ==============="
-# 	$(CABAL) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS) --builddir=$(BUILD_DIR)-no-code
-# 	-time $(CABAL) $(CABAL_BUILD_CMD) agda-tests --builddir=$(BUILD_DIR)-no-code \
-#           --ghc-options=-fno-code \
-#           --ghc-options=-fwrite-interface \
-#           2>&1 \
-#           | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
-#                    -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
 
 # The default is to not include cost centres for libraries, but to
 # include cost centres for Agda using -fprof-late. (The use of
