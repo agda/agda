@@ -698,7 +698,7 @@ remove-default-stack-file : ##
 
 .PHONY : have-bin-%
 have-bin-% :
-	@($* --help > /dev/null) || $(CABAL) $(CABAL_INSTALL_CMD) $*
+	@($* --help > /dev/null) || $(CABAL) install --ignore-project $*
 
 ## Whitespace-related #######################################################
 # Agda can fail to compile on Windows if files which are CPP-processed
@@ -718,7 +718,7 @@ check-whitespace : have-bin-$(FIXW_BIN)
 .PHONY : install-agda-bisect ## Install agda-bisect.
 install-agda-bisect :
 	@$(call decorate, "Installing the agda-bisect program", \
-		cd src/agda-bisect && $(CABAL) $(CABAL_INSTALL_CMD))
+		cd src/agda-bisect && $(CABAL) install)
 
 ## HPC #######################################################################
 .PHONY: hpc-build ##
