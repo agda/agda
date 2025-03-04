@@ -31,18 +31,6 @@ Let's suppose the new version of GHC is X.Y.Z.
 
   `make haddock`
 
-* Remove the `hs-tags` program and test it:
-
-  `make TAGS`
-
-* Test the size-solver program:
-
-  ```bash
-  make install-size-solver
-  cabal install shelltestrunner
-  make test-size-solver
-  ```
-
 * Test the agda-bisect program:
 
   `make install-agda-bisect`

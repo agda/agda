@@ -6,8 +6,6 @@ cradle:
       component: 'Agda:exe:agda'
     - path: './src/agda-mode'
       component: 'Agda:exe:agda-mode'
-    - path: './src/size-solver'
-      component: 'size-solver:exe:size-solver'
     - path: './test'
       component: 'Agda:test:agda-tests'
 

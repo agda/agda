@@ -661,22 +661,24 @@ run-doctest:
 	@$(call decorate, "Running doctest", \
 	  $(CABAL) repl Agda -w doctest --repl-options=-w)
 
-##############################################################################
-## Size solver
-
-# NB. It is necessary to install the Agda library (i.e run `
-#		make install-bin`)
-# before installing the `size-solver` program.
-
-.PHONY : install-size-solver ## Install the size solver.
-install-size-solver :
-	@$(call decorate, "Installing the size-solver program", \
-		$(MAKE) -C src/size-solver STACK_INSTALL_OPTS='$(SLOW_STACK_INSTALL_OPTS) $(STACK_INSTALL_BIN_OPTS)' CABAL_INSTALL_OPTS='$(SLOW_CABAL_INSTALL_OPTS) $(CABAL_INSTALL_OPTS)' install-bin)
-
-.PHONY : size-solver-test ##
-size-solver-test : install-size-solver
-	@$(call decorate, "Testing the size-solver program", \
-		$(MAKE) -C src/size-solver test)
+## Andreas, 2025-03-04: disable the size-solver-test
+#
+# ##############################################################################
+# ## Size solver
+#
+# # NB. It is necessary to install the Agda library (i.e run `
+# #		make install-bin`)
+# # before installing the `size-solver` program.
+#
+# .PHONY : install-size-solver ## Install the size solver.
+# install-size-solver :
+# 	@$(call decorate, "Installing the size-solver program", \
+# 		$(MAKE) -C src/size-solver STACK_INSTALL_OPTS='$(SLOW_STACK_INSTALL_OPTS) $(STACK_INSTALL_BIN_OPTS)' CABAL_INSTALL_OPTS='$(SLOW_CABAL_INSTALL_OPTS) $(CABAL_INSTALL_OPTS)' install-bin)
+#
+# .PHONY : size-solver-test ##
+# size-solver-test : install-size-solver
+# 	@$(call decorate, "Testing the size-solver program", \
+# 		$(MAKE) -C src/size-solver test)
 
 ##############################################################################
 ## Development
