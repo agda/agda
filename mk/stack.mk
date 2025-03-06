@@ -1,3 +1,9 @@
+# All makefiles must define TOP, corresponding to the Agda root directory.
+# This is so that they can be imported from a Makefile in a subdirectory.
+ifeq ($(TOP),)
+  $(error "Makefiles must define the TOP variable to correspond with the Agda source root")
+endif
+
 # Andreas, 2025-03-05, STACK might be set in the environment
 # (e.g. in workflow test.yml); in this case, don't override.
 STACK ?= stack
