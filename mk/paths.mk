@@ -1,3 +1,9 @@
+# All makefiles must define TOP, corresponding to the Agda root directory.
+# This is so that they can be imported from a Makefile in a subdirectory.
+ifeq ($(TOP),)
+  $(error "Makefiles must define the TOP variable to correspond with the Agda source root")
+endif
+
 include $(TOP)/mk/common.mk
 include $(TOP)/mk/versions.mk
 include $(TOP)/mk/ghc.mk
@@ -33,6 +39,7 @@ STACK_SLOW  = $(STACK) --work-dir=$(STACK_WORK_DIR)
 STACK_QUICK = $(STACK) --work-dir=$(QUICK_STACK_WORK_DIR)
 STACK_FAST  = $(STACK) --work-dir=$(FAST_STACK_WORK_DIR)
 
+# BUILD_DIR can be set in the system environment.
 ifdef HAS_STACK
 # Where does Stack place build/ etc.?  (Will contain e.g. the GHC version.)
   BUILD_DIR       ?= $(TOP)/$(shell $(STACK_SLOW)  path --dist-dir)
@@ -45,12 +52,15 @@ else
   FAST_BUILD_DIR  ?= $(BUILD_DIR)-fast
 endif
 
+# AGDA_BIN can be set in the system environment.
 AGDA_BIN ?= $(BUILD_DIR)/build/agda/agda
 AGDA_BIN := $(abspath $(AGDA_BIN))
 
+# AGDA_MODE can be set in the system environment.
 AGDA_MODE ?= $(BUILD_DIR)/build/agda-mode/agda-mode
 AGDA_MODE := $(abspath $(AGDA_MODE))
 
+# AGDA_TESTS_BIN can be set in the system environment.
 AGDA_TESTS_BIN ?= $(BUILD_DIR)/build/agda-tests/agda-tests
 AGDA_TESTS_BIN := $(abspath $(AGDA_TESTS_BIN))
 

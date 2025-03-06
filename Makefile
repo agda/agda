@@ -12,7 +12,8 @@ include ./mk/cabal.mk
 include ./mk/stack.mk
 
 # mk/path.mk uses TOP, so include after the definition of TOP.
-# It also uses HAS_STACK, so include after stack.mk
+# It also uses HAS_STACK, so include after stack.mk.
+# Note that paths.mk also loads common.mk (which loads config.mk) and ghc.mk.
 include ./mk/paths.mk
 
 # mk/pretty.mk defines 'decorate'.
@@ -24,9 +25,7 @@ include ./mk/pretty.mk
 # tests. The default is one per processor. Invoke make like this:
 #   make PARALLEL_TESTS=123 test
 # Or set it in ./mk/config.mk, which is .gitignored
-ifeq ($(PARALLEL_TESTS),)
-PARALLEL_TESTS := $(shell getconf _NPROCESSORS_ONLN)
-endif
+PARALLEL_TESTS ?= $(shell getconf _NPROCESSORS_ONLN)
 
 AGDA_BIN_SUFFIX = -$(VERSION)
 AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
@@ -784,6 +783,7 @@ debug : ## Print debug information.
 	@echo "GHC_VER                        = $(GHC_VER)"
 	@echo "GHC_VERSION                    = $(GHC_VERSION)"
 	@echo "PARALLEL_TESTS                 = $(PARALLEL_TESTS)"
+	@echo "PROFILEOPTS                    = $(PROFILEOPTS)"
 	@echo "QUICK_CABAL_INSTALL            = $(QUICK_CABAL_INSTALL)"
 	@echo "QUICK_STACK_INSTALL            = $(QUICK_STACK_INSTALL)"
 	@echo "SLOW_CABAL_INSTALL_OPTS        = $(SLOW_CABAL_INSTALL_OPTS)"
@@ -801,7 +801,6 @@ debug : ## Print debug information.
 	@echo "STACK_OPTS                     = $(STACK_OPTS)"
 	@echo "STACK_OPT_FAST                 = $(STACK_OPT_FAST)"
 	@echo "STACK_OPT_NO_DOCS              = $(STACK_OPT_NO_DOCS)"
-	@echo "PROFILEOPTS                    = $(PROFILEOPTS)"
 	@echo
 	@echo "Run \`make -pq\` to get a detailed report."
 	@echo
