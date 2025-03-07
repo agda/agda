@@ -27,11 +27,14 @@
       # Various builds of agda with different cabal flags set
       agda-pkg = agda-with-opts "";
       agda-pkg-debug = agda-with-opts "-fdebug";
+      # when entering a nix devshell, -fenable-cluster-counting is on
+      # but text-icu isn't picked up by cabal2nix
+      agda-cluster = agda-with-opts "-fenable-cluster-counting";
 
       # Development environment with tools for hacking on agda
       agda-dev-shell = hpkgs.shellFor {
         # Which haskell packages to prepare a dev env for
-        packages = _: [agda-pkg];
+        packages = _: [agda-cluster];
         # Extra software to provide in the dev shell
         nativeBuildInputs = [
             # Tools for building agda
@@ -47,7 +50,6 @@
             # Tools for running the agda test-suite
             pkgs.nodejs_22
           ];
-
         # Include an offline-usable `hoogle` command
         # pre-loaded with all the haskell dependencies
         withHoogle = true;
