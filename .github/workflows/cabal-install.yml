@@ -22,7 +22,7 @@ jobs:
         access_token: ${{ github.token }}
   cabal-install:
     env:
-      FLAGS: -O0 -f enable-cluster-counting
+      FLAGS: -O0 -f enable-cluster-counting -f Werror
     name: cabal install ${{ matrix.name }}
     needs: auto-cancel
     runs-on: ubuntu-24.04

@@ -50,7 +50,7 @@ jobs:
         os: [ubuntu-24.04]
         description: [Linux]      ## This just for pretty-printing the job name.
         ghc-ver: [9.10.1, 9.8.4, 9.6.6, 9.4.8, 9.2.8, 9.0.2, 8.10.7, 8.8.4]
-        cabal-flags: ['--enable-tests -f enable-cluster-counting']
+        cabal-flags: ['--enable-tests -f enable-cluster-counting -f Werror']
         doctest: [false]
         include:
           ## Latest GHC, special builds
@@ -60,14 +60,14 @@ jobs:
             description: Linux doctest
             ghc-ver: '9.10.1'
             # Can't leave cabal-flags empty here lest it becomes the default value.
-            cabal-flags: '--disable-tests'
+            cabal-flags: '--disable-tests -f Werror'
             doctest: true
 
           # Linux, without -f enable-cluster-counting but with -f debug
           - os: ubuntu-24.04
             description: Linux debug
             ghc-ver: '9.10.1'
-            cabal-flags: '--enable-tests -f debug'
+            cabal-flags: '--enable-tests -f debug -f Werror'
 
           # Linux, with all debug options
           - os: ubuntu-24.04
@@ -77,7 +77,7 @@ jobs:
             ## Note: -c 'containers >= 0.7' with single quotes does not get communicated properly.
             ## (The single quotes stay, and "-c 'containers" is an option parse error for cabal.)
             cabal-flags: >-
-              --enable-tests -f enable-cluster-counting -f debug -f debug-serialisation -f debug-parsing
+              --enable-tests -f enable-cluster-counting -f debug -f debug-serialisation -f debug-parsing -f Werror
 
           # macOS with default flags
           - os: macos-14
@@ -92,7 +92,7 @@ jobs:
     # Default values
     env:
       GHC_VER:   ${{ matrix.ghc-ver || '9.10.1' }}
-      FLAGS:     ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting' }}
+      FLAGS:     ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting -f Werror' }}
 
     steps:
     - uses: actions/checkout@v4
