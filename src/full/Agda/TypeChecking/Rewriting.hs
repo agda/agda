@@ -289,10 +289,16 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
             freeVars  = allFreeVars (ps,rhs)
             allVars   = IntSet.fromList $ downFrom $ size gamma
             usedVars  = case theDef def of
-              Function{}     -> usedArgs def
-              Axiom{}        -> allVars
-              AbstractDefn{} -> allVars
-              _              -> __IMPOSSIBLE__
+              Function{}         -> usedArgs def
+              Axiom{}            -> allVars
+              AbstractDefn{}     -> allVars
+              Constructor{}      -> allVars
+              Primitive{}        -> allVars
+              DataOrRecSig{}     -> __IMPOSSIBLE__
+              GeneralizableVar{} -> __IMPOSSIBLE__
+              Datatype{}         -> __IMPOSSIBLE__
+              Record{}           -> __IMPOSSIBLE__
+              PrimitiveSort{}    -> __IMPOSSIBLE__
         reportSDoc "rewriting" 70 $
           "variables bound by the pattern: " <+> text (show boundVars)
         reportSDoc "rewriting" 70 $
