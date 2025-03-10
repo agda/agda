@@ -292,6 +292,8 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
               Function{}     -> usedArgs def
               Axiom{}        -> allVars
               AbstractDefn{} -> allVars
+              Constructor{}  -> allVars
+              Primitive{}    -> allVars
               _              -> __IMPOSSIBLE__
         reportSDoc "rewriting" 70 $
           "variables bound by the pattern: " <+> text (show boundVars)
