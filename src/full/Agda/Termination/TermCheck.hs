@@ -243,19 +243,7 @@ termMutual' = do
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   r <- billToTerGraph $ Term.terminates calls1
-  r <-
-       -- Andrea: 22/04/2020.
-       -- With cubical we will always have a clause where the dot
-       -- patterns are instead replaced with a variable, so they
-       -- cannot be relied on for termination.
-       -- See issue #4606 for a counterexample involving HITs.
-       --
-       -- Without the presence of HITs I conjecture that dot patterns
-       -- could be turned into actual splits, because no-confusion
-       -- would make the other cases impossible, so I do not disable
-       -- this for --without-K entirely.
-       ifM (isJust <$> cubicalOption) (return r) {- else -} $
-       case r of
+  r <- case r of
          r@Right{} -> return r
          Left{}    -> do
            -- Try again, but include the dot patterns this time.
@@ -400,20 +388,7 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
      cutoff <- terGetCutOff
      let ?cutoff = cutoff
      r <- billToTerGraph $ Term.terminatesFilter (== index) calls1
-
-     -- Andrea: 22/04/2020.
-     -- With cubical we will always have a clause where the dot
-     -- patterns are instead replaced with a variable, so they
-     -- cannot be relied on for termination.
-     -- See issue #4606 for a counterexample involving HITs.
-     --
-     -- Without the presence of HITs I conjecture that dot patterns
-     -- could be turned into actual splits, because no-confusion
-     -- would make the other cases impossible, so I do not disable
-     -- this for --without-K entirely.
-     --
-     -- Andreas, 2022-03-21: The check for --cubical was missing here.
-     ifM (isJust <$> cubicalOption) (return r) {- else -} $ case r of
+     case r of
        Right () -> return $ Right ()
        Left{}   -> do
          -- Try again, but include the dot patterns this time.
@@ -611,7 +586,7 @@ targetElem ds = terGetTarget <&> \case
 --   The term is first normalized and stripped of all non-coinductive projections.
 
 termToDBP :: Term -> TerM DeBruijnPattern
-termToDBP t =
+termToDBP t = ifNotM terGetUseDotPatterns (return unusedVar) $ {- else -} do
   termToPattern =<< do liftTCM $ stripAllProjections =<< normalise t
 
 -- | Convert a term (from a dot pattern) to a pattern for the purposes of the termination checker.
@@ -635,9 +610,9 @@ instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
 instance TermToPattern Term DeBruijnPattern where
   termToPattern t = liftTCM (constructorForm t) >>= \case
     -- Constructors.
-    Con c _ args -> ifDotPatsOrRecord c $
+    Con c _ args -> ifNotConsOfHIT c $
       ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
-    Def s [Apply arg] -> ifDotPats $ do
+    Def s [Apply arg] -> do
       suc <- terGetSizeSuc
       if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
        else fallback
@@ -648,11 +623,22 @@ instance TermToPattern Term DeBruijnPattern where
     Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
     t           -> fallback
     where
-    -- Andreas, 2022-06-14, issues #5953 and #4725
-    -- Recognize variable and record patterns in dot patterns regardless
-    -- of whether dot-pattern termination is on.
-    ifDotPats           = ifNotM terGetUseDotPatterns fallback
-    ifDotPatsOrRecord c = ifM (pure (IsData == conDataRecord c) `and2M` do not <$> terGetUseDotPatterns) fallback
+    -- Andrea: 22/04/2020.
+    -- With cubical we will always have a clause where the dot
+    -- patterns are instead replaced with a variable, so they
+    -- cannot be relied on for termination.
+    -- See issue #4606 for a counterexample involving HITs.
+    --
+    -- Without the presence of HITs I conjecture that dot patterns
+    -- could be turned into actual splits, because no-confusion
+    -- would make the other cases impossible, so I do not disable
+    -- this for --without-K entirely.
+    --
+    -- Szumi, 2025-03-11:
+    -- Instead of completely turning off dot-pattern termination for cubical,
+    -- it should be enough to only ignore constructors of HITs in dot patterns.
+    -- This way, the issues #5953 and #4725 are also avoided.
+    ifNotConsOfHIT c    = ifM (consOfHIT (conName c)) fallback
     fallback            = return $ dotP t
 
 -- | Masks all non-data/record type patterns if --without-K.
