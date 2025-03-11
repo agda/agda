@@ -21,7 +21,7 @@ all-sucs : (x : N) → IsSuc x
 all-sucs x = primTransp (λ i → IsSuc (eq x i)) i0 (is-suc x)
 
 -- This should not termination check,
--- since dot-pattern termination is off without-K.
+-- since dotted HIT constructors are ignored for termination.
 not-suc : (x : N) → IsSuc x → ⊥
 not-suc .(suc x) (is-suc x) = not-suc x (all-sucs x)
   -- This would be changed by forcing to the following,
