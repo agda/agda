@@ -547,7 +547,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
         mapM (getOccurrences []) cs
 
     Datatype{dataClause = Just c} -> getOccurrences [] =<< instantiateFull c
-    Datatype{dataPars = np0, dataCons = cs} -> do
+    Datatype{dataPars = np0, dataCons = cs, dataTranspIx = trx} -> do
       -- Andreas, 2013-02-27 (later edited by someone else): First,
       -- include each index of an inductive family.
       TelV telD _ <- telView $ defType def
@@ -607,7 +607,11 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
                 Level{}    -> __IMPOSSIBLE__  -- not a type
                 DontCare{} -> __IMPOSSIBLE__  -- not a type
                 Dummy{}    -> __IMPOSSIBLE__
-      mconcat $ pure ioccs : map conOcc cs
+
+      -- If the data type has a transport constructor (i.e. it's an
+      -- indexed family in cubical mode) we should also consider it for
+      -- positivity.
+      mconcat $ pure ioccs : map conOcc (cs ++ maybeToList trx)
 
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
