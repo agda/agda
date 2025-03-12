@@ -192,9 +192,10 @@ splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
       reportSDoc "tc.instance.split" 30 $ pretty tm
       pure (FlexK, [], neverUnblock)
 
-termPath :: Bool -> Int -> [Key] -> [Term] -> TCM [Key]
-termPath toplevel local acc []        = pure $! reverse acc
-termPath toplevel local acc (tm:todo) = do
+termPath :: Int -> Bool -> Int -> [Key] -> [Term] -> TCM [Key]
+termPath 0 _ _ acc _                        = pure $! reverse acc
+termPath limit toplevel local acc []        = pure $! reverse acc
+termPath limit toplevel local acc (tm:todo) = do
 
   -- We still want to ignore abstractness at the very top-level of
   -- instance heads, for issue #6941, to ensure that each instance ends
@@ -206,11 +207,23 @@ termPath toplevel local acc (tm:todo) = do
       else splitTermKey True local tm
 
   reportSDoc "tc.instance.discrim.add" 666 $ vcat
-    [ "k:   " <+> prettyTCM k
-    , "as:  " <+> prettyTCM as
-    , "blk: " <+> prettyTCM blk
+    [ "k:  " <+> prettyTCM k
+    , "as: " <+> prettyTCM as
+    , "blk:" <+> prettyTCM blk
+    , "lim:" <+> prettyTCM limit
     ]
-  termPath False local (k:acc) (as <> todo)
+  termPath (limit - 1) False local (k:acc) (as <> todo)
+
+-- | Maximum length for the keys (thus, depth for the discrimination
+-- tree) that should be used.
+--
+-- Adding an instance still causes reduction of everything 'rigid' in
+-- the type of the instance (so if normalisation is slow, so will be
+-- adding the instance) but this limit prevents us from building a
+-- discrimination tree with 2^32 intermediate @case 0 of suc → ...@
+-- nodes.
+discrimTreeDepthLimit :: Int
+discrimTreeDepthLimit = 16
 
 -- | Insert a value into the discrimination tree, turning variables into
 -- rigid locals or wildcards depending on the given scope.
@@ -222,7 +235,7 @@ insertDT
   -> DiscrimTree a
   -> TCM (DiscrimTree a)
 insertDT local key val tree = do
-  path <- termPath True local [] [key]
+  path <- termPath discrimTreeDepthLimit True local [] [key]
   let it = singletonDT path val
   reportSDoc "tc.instance.discrim.add" 20 $ vcat
     [ "added value" <+> prettyTCM val <+> "to discrimination tree with case"
