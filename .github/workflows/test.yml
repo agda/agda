@@ -7,7 +7,7 @@
 ######################################################
 env:
   AGDA_TESTS_OPTIONS: -j${PARALLEL_TESTS} --hide-successes
-  GHC_VER: 9.12.1
+  GHC_VER: 9.12.2
   PARALLEL_TESTS: 2
   STACK: stack --system-ghc
   TASTY_ANSI_TRICKS: 'false'

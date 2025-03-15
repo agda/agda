@@ -63,7 +63,7 @@ jobs:
     strategy:
       matrix:
         ghc-ver:
-        - 9.12.1
+        - 9.12.2
         os:
         - ubuntu-24.04
 name: Haddock
