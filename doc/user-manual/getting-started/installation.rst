@@ -313,8 +313,9 @@ Agda has been tested with GHC
 9.2.8,
 9.4.8,
 9.6.6,
-9.8.4 and
-9.10.1.
+9.8.4,
+9.10.1, and
+9.12.1.
 
 
 .. _installation-flags:

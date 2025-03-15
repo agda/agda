@@ -9,7 +9,7 @@ Installation
 
 * Dropped support for GHC 8.6.
 
-* Agda supports GHC versions 8.8.4 to 9.10.1.
+* Agda supports GHC versions 8.8.4 to 9.12.1.
 
 * The `agda` binary now contains everything
   to set itself up, it need not be shipped with additional files.

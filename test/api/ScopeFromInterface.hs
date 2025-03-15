@@ -20,7 +20,6 @@ import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Typeable (Typeable)
 
 import System.Environment ( getArgs )
 ------------------------------------------------------------------------------
@@ -55,7 +54,7 @@ data TruncatedInterface = TruncatedInterface
     -- ^ Scope defined by this module. (Not serialized.)
   , tiInsideScope     :: ScopeInfo
     -- ^ Scope after we loaded this interface.
-  } deriving (Typeable)
+  }
 
 instance EmbPrj TruncatedInterface where
   icod_ = __IMPOSSIBLE__
