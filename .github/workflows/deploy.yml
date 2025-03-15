@@ -228,7 +228,7 @@ jobs:
         cabal-ver:
         - latest
         ghc-ver:
-        - '9.10'
+        - 9.12.2
         os:
         - windows-latest
         - macos-14

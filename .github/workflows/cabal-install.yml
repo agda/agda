@@ -33,7 +33,7 @@ jobs:
       with:
         cabal-update: true
         cabal-version: latest
-        ghc-version: '9.12'
+        ghc-version: 9.12.2
     - name: Configure the build plan
       run: |
         # shellcheck disable=SC2086
