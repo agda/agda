@@ -447,7 +447,6 @@ library
     , enummapset           >= 0.6.0.3   && < 0.8
     , equivalence          >= 0.3.5     && < 0.5
     , exceptions           >= 0.10.4    && < 0.11
-    , filelock             >= 0.1.1.5   && < 0.2
     , filepath             >= 1.4.2.1   && < 1.6
     , filemanip            >= 0.3.6.3   && < 0.4
     , generic-data         >= 0.9.2.0   && < 1.2
@@ -481,6 +480,11 @@ library
     , vector               >= 0.12.1.2  && < 0.14
     , vector-hashtables    >= 0.1.1.1   && < 0.2
     , zlib                 >= 0.6.2.2   && < 0.8
+
+  if !arch(wasm32)
+    build-depends:
+        -- TODO: Total hack. See src/setup/Agda/Setup.hs
+      , filelock             >= 0.1.1.5   && < 0.2
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tool-depends` field can not be modified in Hackage.
@@ -908,9 +912,11 @@ executable agda
   -- been idle for 0.3 s. This feature turned out to be annoying, so
   -- the idle GC is now by default turned off (-I0).
   ghc-options:
-    -threaded
     -rtsopts
     -with-rtsopts=-I0
+
+  if !arch(wasm32)
+    ghc-options: -threaded
 
 -- agda-mode executable
 ---------------------------------------------------------------------------
