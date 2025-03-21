@@ -160,3 +160,4 @@ data SharedExclusive = Exclusive
 withFileLock :: FilePath -> SharedExclusive -> (() -> IO a) -> IO a
 withFileLock _ _ f = f ()
 #endif
+
