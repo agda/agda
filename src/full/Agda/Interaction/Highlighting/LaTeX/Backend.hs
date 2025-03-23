@@ -6,8 +6,7 @@ module Agda.Interaction.Highlighting.LaTeX.Backend
 
 import Agda.Interaction.Highlighting.LaTeX.Base
   ( LaTeXOptions(..)
-  , LogLaTeXT
-  , runLogLaTeXTWith
+  , MonadLogLaTeX(logLaTeX)
   , logMsgToText
   , generateLaTeXIO
   , prepareCommonAssets
@@ -118,8 +117,12 @@ latexBackend' = Backend'
   , backendInteractHole   = Nothing
   }
 
-runLogLaTeXWithMonadDebug :: MonadDebug m => LogLaTeXT m a -> m a
-runLogLaTeXWithMonadDebug = runLogLaTeXTWith $ (reportS "compile.latex" 1) . T.unpack . logMsgToText
+-- | A wrapper to implement 'MonadLogLaTeX'.
+newtype LogLaTeXDebugT m a = LogLaTeXDebugT { runLogLaTeXDebugT :: m a }
+  deriving (Functor, Applicative, Monad, MonadIO)
+
+instance MonadDebug m => MonadLogLaTeX (LogLaTeXDebugT m) where
+  logLaTeX = LogLaTeXDebugT . (reportS "compile.latex" 1) . T.unpack . logMsgToText
 
 -- Resolve the raw flags into usable LaTeX options.
 resolveLaTeXOptions :: (HasOptions m, ReadTCState m, MonadFileId m)
@@ -187,7 +190,7 @@ postModuleLaTeX
   -> m LaTeXModule
 postModuleLaTeX _cenv (LaTeXModuleEnv latexOpts) _main _moduleName _defs = do
   i <- curIF
-  runLogLaTeXWithMonadDebug $ do
+  runLogLaTeXDebugT do
     -- FIXME: It would be better to do "prepareCommonAssets" in @preCompileLaTeX@, but because
     -- the output directory depends on the module-relative project root (when in emacs-mode),
     -- we can't do that until we see the module.

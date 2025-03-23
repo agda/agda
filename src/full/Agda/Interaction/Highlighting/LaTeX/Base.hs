@@ -4,14 +4,12 @@
 -- Agda source.
 
 module Agda.Interaction.Highlighting.LaTeX.Base
-  ( generateLaTeXIO
+  ( LaTeXOptions(..)
+  , generateLaTeXIO
   , prepareCommonAssets
-  , runLogLaTeXTWith
-  , logMsgToText
+  , MonadLogLaTeX(logLaTeX)
   , LogMessage(..)
-  , MonadLogLaTeX
-  , LogLaTeXT
-  , LaTeXOptions(..)
+  , logMsgToText
   ) where
 
 import Prelude hiding (log)
@@ -36,7 +34,7 @@ import Control.Monad.IO.Class
 
 import System.Directory
 import System.FilePath
-import System.Process
+import System.Process ( readProcess )
 
 import Data.Text (Text)
 import qualified Data.Text               as T
@@ -77,9 +75,6 @@ import Agda.Utils.Impossible
 ------------------------------------------------------------------------
 -- * Logging
 
-class Monad m => MonadLogLaTeX m where
-  logLaTeX :: LogMessage -> m ()
-
 -- | Log LaTeX messages using a provided action.
 --
 -- This could be accomplished by putting logs into the RWST output and splitting it
@@ -88,36 +83,25 @@ class Monad m => MonadLogLaTeX m where
 --
 -- We want the logging to be reasonably polymorphic, avoid space leaks that can occur
 -- with WriterT, and also be usable during outer phases such as directory preparation.
---
--- I'm not certain this is the best way to do it, but whatever.
-type LogLaTeXT m = ReaderT (LogMessage -> m ()) m
 
-instance Monad m => MonadLogLaTeX (LogLaTeXT m) where
-  logLaTeX message = do
-    doLog <- ask
-    lift $ doLog message
+class Monad m => MonadLogLaTeX m where
+  logLaTeX :: LogMessage -> m ()
 
-runLogLaTeXTWith :: Monad m => (LogMessage -> m ()) -> LogLaTeXT m a -> m a
-runLogLaTeXTWith = flip runReaderT
-
--- Not currently used, but for example:
--- runLogLaTeXWithIO :: MonadIO m => LogLaTeXT m a -> m a
--- runLogLaTeXWithIO = runLogLaTeXTWith $ liftIO . T.putStrLn . logMsgToText
+data LogMessage = LogMessage Debug Text [Text] deriving Show
 
 ------------------------------------------------------------------------
--- * Datatypes.
+-- * The monad and its associated data types.
 
--- | The @LaTeX@ monad is a combination of @ExceptT@, @RWST@ and
--- a logger @m@. The error part is just used to keep track whether we finished or
--- not, the reader part contains static options used, the writer is where the
--- output goes and the state is for keeping track of the tokens and some
--- other useful info, and the MonadLogLaTeX part is used for printing debugging info.
+-- | The @LaTeX@ monad is a combination of @RWST@ and a logger @m@.
+--
+-- The reader part contains static options used,
+-- the writer is where the output goes,
+-- the state is for keeping track of the tokens and some other useful info, and
+-- the MonadLogLaTeX part is used for printing debugging info.
 
 type LaTeX a = forall m. MonadLogLaTeX m => RWST Env [Output] State m a
 
 -- | Output items.
-
-data LogMessage = LogMessage Debug Text [Text] deriving Show
 
 data Output
   = Text !Text
