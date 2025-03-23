@@ -99,7 +99,13 @@ data LogMessage = LogMessage Debug Text [Text] deriving Show
 -- the state is for keeping track of the tokens and some other useful info, and
 -- the MonadLogLaTeX part is used for printing debugging info.
 
-type LaTeX a = forall m. MonadLogLaTeX m => RWST Env [Output] State m a
+type LaTeXT = RWST Env [Output] State
+type LaTeX a = forall m. MonadLogLaTeX m => LaTeXT m a
+-- Andreas, 2025-03-23 we sometimes expand @a -> LaTeX b@
+-- to @forall m. MonadLogLaTeX m => a -> LaTeXT m b@
+-- to combat changes in the type checker of GHC 9 over GHC 8.
+-- Originally (by asr, 2021-02-07) we used eta-expansions in these places
+-- to circumvent the GHC type checker regressions (see Issue #4955).
 
 -- | Output items.
 
@@ -186,10 +192,8 @@ data Debug = MoveColumn | NonCode | Code | Spaces | Output | FileSystem
 
 -- | Run function for the @LaTeX@ monad.
 runLaTeX :: MonadLogLaTeX m =>
-  LaTeX a -> Env -> State -> m (a, State, [Output])
--- ASR (2021-02-07). The eta-expansion is required by GHC >= 9.0.1
--- (see Issue #4955).
-runLaTeX l = runRWST l
+  LaTeXT m a -> Env -> State -> m (a, State, [Output])
+runLaTeX = runRWST
 
 emptyState :: State
 emptyState = State
@@ -238,12 +242,9 @@ replaceSpaces = T.map (\c -> if isSpaceNotNewline c then ' ' else c)
 --   by the length of the token. Otherwise, `moveColumnForToken` is a no-op.
 moveColumnForToken :: Token -> LaTeX ()
 moveColumnForToken Token{ text = t } = do
-  unless (isSpaces t) $ do
+  unless (isSpaces t) do
     log MoveColumn t
-    -- ASR (2021-02-07). The eta-expansion is required by GHC >= 9.0.1
-    -- (see Issue #4955).
-    n <- size t
-    moveColumn n
+    moveColumn =<< size t
 
 -- | Merges 'columns' into 'columnsPrev', resets 'column' and
 -- 'columns'
@@ -261,8 +262,8 @@ resetColumn = modify $ \s ->
     where
     leastNew = columnColumn (last1 n ns)
 
-moveColumn :: Int -> LaTeX ()
-moveColumn i = modify $ \s -> s { column = i + column s }
+moveColumn :: MonadLogLaTeX m => Int -> LaTeXT m ()
+moveColumn i = modify \ s -> s { column = i + column s }
 
 -- | Registers a column of the given kind. The column is returned.
 
@@ -345,7 +346,7 @@ log Code text = do
   logHelper Code text ["columns=", tshow cols, "col=", tshow col]
 log debug text = logHelper debug text []
 
-output :: Output -> LaTeX ()
+output :: MonadLogLaTeX m => Output -> LaTeXT m ()
 output item = do
   log Output $ tshow item
   tell [item]
@@ -431,31 +432,26 @@ cmdArg x = "{" <> x <> "}"
 ------------------------------------------------------------------------
 -- * Output generation from a stream of labelled tokens.
 
-processLayers :: [(LayerRole, Tokens)] -> LaTeX ()
--- ASR (2021-02-07). The eta-expansion on @lt@ is required by GHC >=
--- 9.0.1 (see Issue #4955).
-processLayers lt = forM_ lt $ \ (layerRole,toks) -> do
+processLayers :: MonadLogLaTeX m => [(LayerRole, Tokens)] -> LaTeXT m ()
+processLayers = mapM_ \ (layerRole, toks) -> do
   case layerRole of
     L.Markup  -> processMarkup  toks
     L.Comment -> processComment toks
     L.Code    -> processCode    toks
 
 -- | Deals with markup, which is output verbatim.
-processMarkup :: Tokens -> LaTeX ()
--- ASR (2021-02-07). The eta-expansion on @ts@ is required by GHC >=
--- 9.0.1 (see Issue #4955).
-processMarkup ts = forM_ ts $ \ t' -> do
-  moveColumnForToken t'
-  output (Text (text t'))
+processMarkup :: MonadLogLaTeX m => Tokens -> LaTeXT m ()
+processMarkup = mapM_ \ t -> do
+  moveColumnForToken t
+  output $ Text $ text t
 
 -- | Deals with literate text, which is output verbatim
-processComment :: Tokens -> LaTeX ()
--- ASR (2021-02-07). The eta-expansion with @ts@ is required by GHC >=
--- 9.0.1 (see Issue #4955).
-processComment ts = forM_ ts $ \ t' -> do
-  unless ("%" == T.take 1 (T.stripStart (text t'))) $ do
-    moveColumnForToken t'
-  output (Text (text t'))
+processComment :: MonadLogLaTeX m => Tokens -> LaTeXT m ()
+processComment = mapM_ \ t -> do
+  let t' = text t
+  unless ("%" == T.take 1 (T.stripStart t')) $ do
+    moveColumnForToken t
+  output $ Text t'
 
 -- | Deals with code blocks. Every token, except spaces, is pretty
 -- printed as a LaTeX command.
@@ -495,9 +491,7 @@ processCode toks' = do
     ptOpenWhenColumnZero col =
         when (col == 0) $ do
           registerColumnZero
-          -- ASR (2021-02-07). The eta-expansion @\o -> output o@ is
-          -- required by GHC >= 9.0.1 (see Issue #4955).
-          (\o -> output o). Text . ptOpen =<< columnZero
+          output . Text . ptOpen =<< columnZero
 
     -- Translation from OtherAspect to command strings. So far it happens
     -- to correspond to @show@ but it does not have to (cf. fromAspect)
@@ -579,10 +573,8 @@ spaces [] = return ()
 -- Newlines.
 spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
   col <- gets column
-  when (col == 0) $
-    -- ASR (2021-02-07). The eta-expansion @\o -> output o@ is
-    -- required by GHC >= 9.0.1 (see Issue #4955).
-    (\o -> output o) . Text . ptOpen =<< columnZero
+  when (col == 0) do
+    output . Text . ptOpen =<< columnZero
   output $ Text $ ptClose <> ptNL <>
                   T.replicate (T.length s - 1) ptEmptyLine
   resetColumn
