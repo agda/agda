@@ -1,3 +1,4 @@
+;; -*- lexical-binding: t -*-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Agda mode code which should run before the first Agda file is
 ;; loaded

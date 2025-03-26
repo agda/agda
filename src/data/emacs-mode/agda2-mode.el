@@ -1,3 +1,4 @@
+;; -*- lexical-binding: t -*-
 ;;; agda2-mode.el --- Major mode for Agda
 ;; SPDX-License-Identifier: MIT License
 
@@ -289,7 +290,7 @@ menus.")
 (defvar agda2-goal-map
   (let ((map (make-sparse-keymap "Agda goal")))
     (dolist (d (reverse agda2-command-table))
-      (cl-destructuring-bind (f &optional keys kinds desc) d
+      (cl-destructuring-bind (f &optional _keys kinds desc) d
         (if (member 'local kinds)
             (define-key map
               (vector (intern desc)) (cons desc f)))))
@@ -615,7 +616,7 @@ successful."
   (setq agda2-highlight-in-progress nil
         agda2-last-responses        nil))
 
-(defun agda2-output-filter (proc chunk)
+(defun agda2-output-filter (_proc chunk)
   "Evaluate the Agda process's commands.
 This filter function assumes that every line contains either some
 kind of error message (which cannot be parsed as a list), or
@@ -1140,7 +1141,7 @@ commands have completed."
     (when (buffer-live-p agda2-process-buffer)
       (kill-buffer agda2-process-buffer))))
 
-(defun agda2-kill-process-buffer (&optional process event)
+(defun agda2-kill-process-buffer (&optional _process _event)
   "Kills the Agda process buffer, if any.
 But only if the Agda process does not exist or has terminated.
 
@@ -1197,7 +1198,7 @@ The form of the result depends on the prefix argument:
        ;; Those called from a goal, grab the value present there (if any)
        ;; Whereas those called globally always use a prompt
        (interactive ,(pcase spec
-                       (`(fromgoal ,want)
+                       (`(fromgoal ,_want)
                         "P")
                        (`(global ,prompt)
                         (if prompt
@@ -1612,7 +1613,7 @@ ways."
      (overlay-put o 'face               'highlight)
      (overlay-put o 'after-string       (propertize (format "%s" n) 'face 'highlight)))))
 
-(defun agda2-protect-goal-markers (ol action beg end &optional length)
+(defun agda2-protect-goal-markers (ol action beg end &optional _length)
   "Ensures that the goal markers cannot be tampered with.
 Except if `inhibit-read-only' is non-nil or /all/ of the goal is
 modified."

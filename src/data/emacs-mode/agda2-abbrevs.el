@@ -1,3 +1,4 @@
+;; -*- lexical-binding: t -*-
 ;; agda2-abbrevs.el --- Default Agda abbrevs
 ;; SPDX-License-Identifier: MIT License
 
