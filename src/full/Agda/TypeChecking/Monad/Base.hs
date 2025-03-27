@@ -5228,6 +5228,7 @@ data TypeError
           -- ^ The file name does not correspond to a module name.
         | ModuleNameHashCollision RawTopLevelModuleName (Maybe RawTopLevelModuleName)
     -- Scope errors
+        | BothWithAndRHS
         | AbstractConstructorNotInScope A.QName
         | CopatternHeadNotProjection C.QName
         | NotAllowedInDotPatterns NotAllowedInDotPatterns
