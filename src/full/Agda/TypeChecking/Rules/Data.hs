@@ -286,11 +286,8 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         debugFitsIn s
         -- To allow propositional squash, we turn @Prop ℓ@ into @Set ℓ@
         -- for the purpose of checking the type of the constructors.
-        let s' = case s of
-              Prop l -> Type l
-              _      -> s
         arity <- applyQuantityToJudgement ai $
-          fitsIn c uc forcedArgs t s'
+          fitsIn c uc forcedArgs t $ propToType s
         -- this may have instantiated some metas in s, so we reduce
         s <- reduce s
         debugAdd c t

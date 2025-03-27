@@ -119,9 +119,7 @@ compactDef bEnv def rewr = do
 
   -- WARNING: don't use isPropM here because it relies on reduction,
   -- which causes an infinite loop.
-  let isPrp = case getSort (defType def) of
-        Prop{} -> True
-        _      -> False
+  let isPrp = isProp $ getSort $ defType def
 
   shouldReduce <- shouldReduceDef (defName def)
   allowed <- asksTC envAllowedReductions

@@ -306,10 +306,11 @@ compareTerm' cmp a m n =
       , "mlvl =" <+> pretty mlvl
       , text $ "(Just (unEl a') == mlvl) = " ++ show (Just (unEl a') == mlvl)
       ]
-    blockOnError bs $ case s of
-      Prop{} | propIrr -> compareIrrelevant a' m n
-      _    | isSize   -> compareSizes cmp m n
-      _               -> case unEl a' of
+    blockOnError bs
+      case unEl a' of
+        _ | propIrr
+          , isProp s  -> compareIrrelevant a' m n
+        _ | isSize    -> compareSizes cmp m n
         a | Just a == mlvl -> do
           a <- levelView m
           b <- levelView n

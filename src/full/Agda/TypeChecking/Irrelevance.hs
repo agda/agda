@@ -87,7 +87,6 @@ import Agda.TypeChecking.Substitute.Class
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either (fromRightM)
-import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
@@ -321,14 +320,12 @@ usableAtModality = usableAtModality' Nothing
 
 -- | Is a type a proposition?  (Needs reduction.)
 
-isPropM
-  :: (LensSort a, PrettyTCM a, PureTCM m, MonadBlock m)
-  => a -> m Bool
+{-# SPECIALIZE isPropM :: Dom Type -> TCM Bool #-}
+isPropM :: (LensSort a, PrettyTCM a, PureTCM m, MonadBlock m) => a -> m Bool
 isPropM a = do
-  traceSDoc "tc.prop" 80 ("Is " <+> prettyTCM a <+> "of sort" <+> prettyTCM (getSort a) <+> "in Prop?") $ do
-  abortIfBlocked (getSort a) <&> \case
-    Prop{} -> True
-    _      -> False
+  let s = getSort a
+  traceSDoc "tc.prop" 80 ("Is " <+> prettyTCM a <+> "of sort" <+> prettyTCM s <+> "in Prop?") do
+  isProp <$> abortIfBlocked s
 
 {-# SPECIALIZE isIrrelevantOrPropM :: Dom Type -> TCM Bool #-}
 isIrrelevantOrPropM
