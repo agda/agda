@@ -2023,14 +2023,15 @@ checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
                         LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
                     => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
 checkSortOfSplitVar dr a tel mtarget = do
-  liftTCM (reduce $ getSort a) >>= \case
-    Type{} -> whenM isTwoLevelEnabled checkFibrantSplit
-    Prop{} -> checkPropSplit
-    SSet{} -> return ()
-    Inf u _ -> when (univFibrancy u == IsFibrant) $ whenM isTwoLevelEnabled checkFibrantSplit
-    sa      -> softTypeError =<< do
+  let s = getSort a
+  sa <- liftTCM $ reduce s
+  case sortUniv sa of
+    Just UType{} -> whenM isTwoLevelEnabled checkFibrantSplit
+    Just UProp{} -> checkPropSplit
+    Just USSet{} -> return ()
+    Nothing      -> softTypeError =<< do
       liftTCM $ SortOfSplitVarError <$> isBlocked sa <*> sep
-        [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
+        [ "Cannot split on datatype in sort" , prettyTCM s]
 
   where
     checkPropSplit

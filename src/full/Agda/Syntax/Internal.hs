@@ -343,14 +343,6 @@ pattern SSet l = Univ USSet l
 
 type Sort = Sort' Term
 
--- | Is this a strict universe inhabitable by data types?
-isStrictDataSort :: Sort' t -> Bool
-isStrictDataSort = \case
-  Univ u _ -> univFibrancy u == IsStrict
-  Inf  u _ -> univFibrancy u == IsStrict
-  _ -> False
-
-
 -- | A level is a maximum expression of a closed level and 0..n
 --   'PlusLevel' expressions each of which is an atom plus a number.
 data Level' t = Max !Integer [PlusLevel' t]
@@ -918,13 +910,39 @@ mkProp n = Prop $ ClosedLevel n
 mkSSet :: Integer -> Sort
 mkSSet n = SSet $ ClosedLevel n
 
+impossibleTerm :: CallStack -> Term
+impossibleTerm = flip Dummy [] . show . Impossible
+
+---------------------------------------------------------------------------
+-- * Sorts.
+---------------------------------------------------------------------------
+
 isSort :: Term -> Maybe Sort
 isSort = \case
   Sort s -> Just s
   _      -> Nothing
 
-impossibleTerm :: CallStack -> Term
-impossibleTerm = flip Dummy [] . show . Impossible
+-- | Get the flavor of the universe. 'Nothing' could also mean "don't know".
+sortUniv :: Sort' t -> Maybe Univ
+sortUniv = \case
+  Univ u _ -> Just u
+  Inf  u _ -> Just u
+  _        -> Nothing
+
+-- | Is this a Prop universe?  Answers are yes ('True') or maybe ('False').
+isProp :: Sort' t -> Bool
+isProp = maybe False (UProp ==) . sortUniv
+
+-- | Is this a strict universe inhabitable by data types?
+isStrictDataSort :: Sort' t -> Bool
+isStrictDataSort = maybe False ((IsStrict ==) . univFibrancy) . sortUniv
+
+-- | Turn a known 'UProp' sort into a 'UType' sort, leave others unchanged.
+propToType :: Sort' t -> Sort' t
+propToType = \case
+  Univ UProp l -> Univ UType l
+  Inf  UProp l -> Inf  UType l
+  s -> s
 
 ---------------------------------------------------------------------------
 -- * Telescopes.

@@ -1,0 +1,3 @@
+Issue7761.agda:13.7-11: error: [SplitInProp]
+Cannot split on datatype in Prop unless target is in Prop
+when checking that the pattern sq n has type SqNatω
