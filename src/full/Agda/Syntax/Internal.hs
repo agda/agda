@@ -842,10 +842,8 @@ dummyLocName cs = maybe __IMPOSSIBLE__ prettyCallSite (headCallSite cs)
 dummyTermWith :: DummyTermKind -> CallStack -> Term
 dummyTermWith kind cs = flip Dummy [] $ concat [kind, ": ", dummyLocName cs]
 
--- | A dummy level to constitute a level/sort created at location.
---   Note: use macro __DUMMY_LEVEL__ !
-dummyLevel :: CallStack -> Level
-dummyLevel = atomicLevel . dummyTermWith "dummyLevel"
+__DUMMY_TERM_WITH__ :: HasCallStack => DummyTermKind -> Term
+__DUMMY_TERM_WITH__ = withCallerCallStack . dummyTermWith
 
 -- | A dummy term created at location.
 --   Note: use macro __DUMMY_TERM__ !
@@ -854,6 +852,11 @@ dummyTerm = dummyTermWith "dummyTerm"
 
 __DUMMY_TERM__ :: HasCallStack => Term
 __DUMMY_TERM__ = withCallerCallStack dummyTerm
+
+-- | A dummy level to constitute a level/sort created at location.
+--   Note: use macro __DUMMY_LEVEL__ !
+dummyLevel :: CallStack -> Level
+dummyLevel = atomicLevel . dummyTermWith "dummyLevel"
 
 __DUMMY_LEVEL__ :: HasCallStack => Level
 __DUMMY_LEVEL__ = withCallerCallStack dummyLevel

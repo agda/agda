@@ -1369,8 +1369,8 @@ leqSort s1 s2 = do
       (_       , LevelUniv) -> equalSort s1 s2
       (_       , IntervalUniv) -> equalSort s1 s2
       (_       , SizeUniv) -> equalSort s1 s2
-      (_       , Prop (Max 0 [])) -> equalSort s1 s2
-      (_       , Type (Max 0 []))
+      (_       , Prop (ClosedLevel 0)) -> equalSort s1 s2
+      (_       , Type (ClosedLevel 0))
         | not propEnabled  -> equalSort s1 s2
 
       -- @SizeUniv@, @LockUniv@ and @LevelUniv@ are unrelated to any @Set l@ or @Prop l@

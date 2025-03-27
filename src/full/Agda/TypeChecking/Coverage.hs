@@ -1160,7 +1160,7 @@ splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either
 splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 [] [] True False)
   where sc = SClause tel (toSplitPatterns ps) empty empty target
         -- TODO 2ltt: allows (Empty_fib -> Empty_strict) which is not conservative
-        target = (Just $ defaultDom $ El (Prop (Max 0 [])) $ Dummy "splitLastTarget" [])
+        target = (Just $ defaultDom $ El (mkProp 0) $ __DUMMY_TERM_WITH__ "splitLastTarget")
 
 -- | @split ind splitClause x = return res@
 --   splits @splitClause@ at pattern var @x@ (de Bruijn index).
