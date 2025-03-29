@@ -1,6 +1,7 @@
 -- Andreas, 2024-03-02, issue #6945:
 -- Reported and original testcase by Matthias Hutzler.
 -- Missing warnings for useless private and other useless block.
+-- Andreas, 2025-03-29, issue #7765: useless private in where block
 
 postulate
   Nat : Set
@@ -8,25 +9,31 @@ postulate
 module M where
 
   f : Nat → Nat
-  f x = x
+  f x = y
+    where
+      private  -- useless, Andreas, 2025-03-29, issue #7765
+        module _ where
+          private  -- not useless
+            y = x
+          z = y
+        y = z
 
-  private
+  private  -- useless
     syntax f x = [ x ]
 
-  -- Expected: Warning about useless private.
-
 h : Nat → Nat
-h x = M.[ x ]  -- This is accepted, showing that the [ ] syntax is not private.
+h x = M.[ y ]  -- This is accepted, showing that the [ ] syntax is not private.
+  module H where
+    private  -- not useless
+      y = x
 
 postulate
   _#_ : Nat → Nat → Nat
 
-private
+private  -- useless
   infixl 5 _#_
 
--- Expected: Warning about useless private.
-
-private
+private  -- useless
   {-# POLARITY _#_ + - #-}
   {-# POLARITY Nat     #-}  -- Andreas, 2024-10-10 this useless pragma should be ignored (#7546).
 
@@ -36,19 +43,19 @@ private
 -- Similar warnings for other blocks.
 
 postulate A : Set
-abstract
+abstract  -- useless
   infix 0 A
 
 postulate I : Set
-instance
+instance  -- useless
   infix 0 I
 
 postulate M : Set
-macro
+macro  -- useless
   infix 0 M
 
 postulate O : Set
-opaque
+opaque  -- useless
   infix 0 O
 
 ---------------------------------------------------------------------------

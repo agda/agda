@@ -1255,9 +1255,16 @@ niceDeclarations fixs ds = do
       -> Nice [NiceDeclaration]
     privateBlock r o ds = do
       (ds', anyChange) <- runChangeT $ mkPrivate r o ds
-      if anyChange then return ds' else do
-        when (o == UserWritten) $ declarationWarning $ UselessPrivate r
-        return ds -- no change!
+      -- Warn if user-written 'private' does not accomplish anything.
+      when (o == UserWritten) do
+        if anyChange then
+          -- Andreas, 2025-03-29, user-written 'private' is useless in anonymous 'where' modules
+          -- since Agda automatically inserts a 'private' there.
+          whenM ((AnyWhere_ ==) <$> asks checkingWhere) warn
+        else warn
+      return $ if anyChange then ds' else ds
+      where
+        warn = declarationWarning $ UselessPrivate r
 
     instanceBlock
       :: KwRange  -- Range of @instance@ keyword.
