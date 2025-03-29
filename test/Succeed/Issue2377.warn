@@ -1,37 +1,57 @@
 Issue2377.agda:7.30-36: warning: -W[no]UselessPublic
-Keyword 'public' is ignored here
+Ignoring 'public'; cannot reexport outside of the 'module' body
 when scope checking the declaration
   open import Agda.Builtin.Nat public
 
 Issue2377.agda:12.8-14: warning: -W[no]UselessPublic
-Keyword 'public' is ignored here
+Ignoring 'public'; cannot reexport outside of the 'module' body
 when scope checking the declaration
   open B public
 
 Issue2377.agda:20.23-29: warning: -W[no]UselessPublic
-Keyword 'public' is ignored here
+Ignoring 'public'; useless in let bindings
 when scope checking let open B public in Set
 
 Issue2377.agda:24.35-41: warning: -W[no]UselessPublic
-Keyword 'public' is ignored here
+Ignoring 'public'; useless in let bindings
 when scope checking let open module C = B public in Set
+
+Issue2377.agda:27.34-40: warning: -W[no]UselessPublic
+Ignoring 'public'; useless without 'open' here
+when scope checking the declaration
+  import Agda.Builtin.Bool as Bool public
+
+Issue2377.agda:30.14-20: warning: -W[no]UselessPublic
+Ignoring 'public'; useless without 'open' here
+when scope checking the declaration
+  module C = B public
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue2377.agda:7.30-36: warning: -W[no]UselessPublic
-Keyword 'public' is ignored here
+Ignoring 'public'; cannot reexport outside of the 'module' body
 when scope checking the declaration
   open import Agda.Builtin.Nat public
 
 Issue2377.agda:12.8-14: warning: -W[no]UselessPublic
-Keyword 'public' is ignored here
+Ignoring 'public'; cannot reexport outside of the 'module' body
 when scope checking the declaration
   open B public
 
 Issue2377.agda:20.23-29: warning: -W[no]UselessPublic
-Keyword 'public' is ignored here
+Ignoring 'public'; useless in let bindings
 when scope checking let open B public in Set
 
 Issue2377.agda:24.35-41: warning: -W[no]UselessPublic
-Keyword 'public' is ignored here
+Ignoring 'public'; useless in let bindings
 when scope checking let open module C = B public in Set
+
+Issue2377.agda:27.34-40: warning: -W[no]UselessPublic
+Ignoring 'public'; useless without 'open' here
+when scope checking the declaration
+  import Agda.Builtin.Bool as Bool public
+
+Issue2377.agda:30.14-20: warning: -W[no]UselessPublic
+Ignoring 'public'; useless without 'open' here
+when scope checking the declaration
+  module C = B public

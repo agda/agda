@@ -22,3 +22,9 @@ test-let = let open B public in Set
 -- Warning #4
 test-letm : Set₁
 test-letm = let open module C = B public in Set
+
+-- Warning #5
+import Agda.Builtin.Bool as Bool public
+
+-- Warning #6
+module C = B public

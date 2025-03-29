@@ -1,4 +1,4 @@
 Erased-modules-12.agda:11.45-51: warning: -W[no]UselessPublic
-Keyword 'public' is ignored here
+Ignoring 'public'; useless in let bindings
 when scope checking
 let open module M = Agda.Builtin.Bool public in Set₁

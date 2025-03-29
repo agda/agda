@@ -67,6 +67,9 @@ instance PrettyTCM TCWarning where
   prettyTCM w@(TCWarning loc _ _ doc _ _) = doc <$ do
     reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow loc
 
+instance PrettyTCM Warning where
+  prettyTCM = prettyWarning
+
 {-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
 prettyWarning :: MonadPretty m => Warning -> m Doc
 prettyWarning = \case
@@ -210,7 +213,16 @@ prettyWarning = \case
       [ "`pattern' attribute ignored for", s, "record" ]
       -- the @s@ is a qualifier like "eta" or "coinductive"
 
-    UselessPublic -> fwords $ "Keyword `public' is ignored here"
+    UselessPublic reason ->
+      case reason of
+         UselessPublicLet
+           -> fwords $ "Ignoring `public'; useless in let bindings"
+         UselessPublicNoOpen
+           -> fwords $ "Ignoring `public'; useless without `open' here"
+         UselessPublicPreamble
+           -> fwords $ "Ignoring `public'; cannot reexport outside of the `module' body"
+         UselessPublicAnonymousModule
+           -> fwords $ "Ignoring `public'; cannot reexport from unopened anonymous module"
 
     UselessHiding xs -> fsep $ concat
       [ pwords "Ignoring names in `hiding' directive:"

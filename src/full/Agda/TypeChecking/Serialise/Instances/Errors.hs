@@ -50,7 +50,7 @@ instance EmbPrj Warning where
     InteractionMetaBoundaries a           -> __IMPOSSIBLE__
     OldBuiltin a b                        -> icodeN 1 OldBuiltin a b
     EmptyRewritePragma                    -> icodeN 2 EmptyRewritePragma
-    UselessPublic                         -> icodeN 3 UselessPublic
+    UselessPublic a                       -> icodeN 3 UselessPublic a
     UselessInline a                       -> icodeN 4 UselessInline a
     InvalidCharacterLiteral a             -> __IMPOSSIBLE__
     SafeFlagPostulate a                   -> __IMPOSSIBLE__
@@ -140,7 +140,7 @@ instance EmbPrj Warning where
     [0, a, b]            -> valuN UnreachableClauses a b
     [1, a, b]            -> valuN OldBuiltin a b
     [2]                  -> valuN EmptyRewritePragma
-    [3]                  -> valuN UselessPublic
+    [3, a]               -> valuN UselessPublic a
     [4, a]               -> valuN UselessInline a
     [5, a]               -> valuN DuplicateRecordDirective a
     [6, a, b, c]         -> valuN DeprecationWarning a b c
@@ -210,6 +210,8 @@ instance EmbPrj Warning where
     [69, a, b, c]        -> valuN FixingRelevance a b c
     [70, a]              -> valuN UnusedVariablesInDisplayForm a
     _ -> malformed
+
+instance EmbPrj UselessPublicReason
 
 instance EmbPrj IllegalRewriteRuleReason where
   icod_ = \case
