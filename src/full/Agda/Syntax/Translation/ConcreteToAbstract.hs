@@ -2894,18 +2894,18 @@ whereToAbstract r wh inner = do
   case wh of
     NoWhere       -> ret
     AnyWhere _ [] -> warnEmptyWhere
-    AnyWhere _ ds -> enter $ do
+    AnyWhere _ ds -> enter do
       -- Andreas, 2016-07-17 issues #2081 and #2101
       -- where-declarations are automatically private.
       -- This allows their type signature to be checked InAbstractMode.
       whereToAbstract1 r defaultErased Nothing
         (singleton $ C.Private empty Inserted ds) inner
     SomeWhere _ e m a ds0 -> enter $
-      List1.ifNull ds0 warnEmptyWhere {-else-} $ \ds -> do
+      List1.ifNull ds0 warnEmptyWhere {-else-} \ ds ->
       -- Named where-modules do not default to private.
       whereToAbstract1 r e (Just (m, a)) ds inner
   where
-  enter = localTC $ \env -> env { envCheckingWhere = True }
+  enter = localTC \ env -> env { envCheckingWhere = True }
   ret = (,A.noWhereDecls) <$> inner
   warnEmptyWhere = do
     setCurrentRange r $ warning EmptyWhere
