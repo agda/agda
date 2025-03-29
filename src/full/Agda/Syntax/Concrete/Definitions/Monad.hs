@@ -15,6 +15,7 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (TerminationCheck())
+import Agda.Syntax.Concrete ( WhereClause_ )
 import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete.Definitions.Types
 import Agda.Syntax.Concrete.Definitions.Errors
@@ -49,6 +50,8 @@ instance Null a => Null (Nice a) where
 data NiceEnv = NiceEnv
   { safeButNotBuiltin :: Bool
        -- ^ We are in a module declared @--safe@ which is not a builtin module.
+  , checkingWhere     :: WhereClause_
+       -- ^ Are we checking a @where@ module?
   }
 
 -- | Nicifier state.

@@ -57,7 +57,9 @@ module Agda.Syntax.Concrete
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
   , LamClause(..)
-  , RHS, RHS'(..), WhereClause, WhereClause'(..), ExprWhere(..)
+  , RHS, RHS'(..)
+  , WhereClause, WhereClause'(..), WhereClause_(..), ExprWhere(..)
+  , whereClause_
   , DoStmt(..)
   , Pragma(..)
   , Module(..)
@@ -400,7 +402,7 @@ data RHS' e
 -- | @where@ block following a clause.
 type WhereClause = WhereClause' [Declaration]
 
--- The generalization @WhereClause'@ is for the sake of Concrete.Generic.
+-- | The generalization @WhereClause'@ is for the sake of "Agda.Concrete.Generic".
 data WhereClause' decls
   = NoWhere
       -- ^ No @where@ clauses.
@@ -414,6 +416,19 @@ data WhereClause' decls
       --   and is propagated from the parent function.
       --   List of declarations can be empty.
   deriving (Eq, Functor, Foldable, Traversable)
+
+-- | Type of @where@ block following a clause.
+data WhereClause_
+  = NoWhere_     -- ^ No @where@ clauses.
+  | AnyWhere_    -- ^ Ordinary @where@.
+  | SomeWhere_   -- ^ Named where: @module M where ...@.
+  deriving (Eq, Generic)
+
+whereClause_ :: WhereClause' a -> WhereClause_
+whereClause_ = \case
+  NoWhere  {} -> NoWhere_
+  AnyWhere {} -> AnyWhere_
+  SomeWhere{} -> SomeWhere_
 
 data LamClause = LamClause
   { lamLHS      :: [Pattern]   -- ^ Possibly empty sequence.
@@ -859,6 +874,12 @@ instance Null (WhereClause' a) where
   null NoWhere = True
   null AnyWhere{} = False
   null SomeWhere{} = False
+
+instance Null WhereClause_ where
+  empty = NoWhere_
+  null NoWhere_ = True
+  null AnyWhere_ = False
+  null SomeWhere_ = False
 
 -- Lenses
 ------------------------------------------------------------------------
@@ -1455,6 +1476,8 @@ instance NFData a => NFData (WhereClause' a) where
   rnf NoWhere               = ()
   rnf (AnyWhere _ a)        = rnf a
   rnf (SomeWhere _ a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+
+instance NFData WhereClause_
 
 instance NFData LamClause where
   rnf (LamClause a b c) = rnf (a, b, c)

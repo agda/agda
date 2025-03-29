@@ -3910,7 +3910,7 @@ data TCEnv =
           , envMakeCase            :: Bool                 -- ^ are we inside a make-case (if so, ignore forcing analysis in unifier)
           , envSolvingConstraints  :: Bool
                 -- ^ Are we currently in the process of solving active constraints?
-          , envCheckingWhere       :: Bool
+          , envCheckingWhere       :: C.WhereClause_
                 -- ^ Have we stepped into the where-declarations of a clause?
                 --   Everything under a @where@ will be checked with this flag on.
           , envWorkingOnTypes      :: Bool
@@ -4064,7 +4064,7 @@ initEnv = TCEnv { envContext             = []
                 , envCoverageCheck       = YesCoverageCheck
                 , envMakeCase            = False
                 , envSolvingConstraints  = False
-                , envCheckingWhere       = False
+                , envCheckingWhere       = C.NoWhere_
                 , envActiveProblems      = Set.empty
                 , envUnquoteProblem      = Nothing
                 , envWorkingOnTypes      = False
@@ -4174,7 +4174,7 @@ eMakeCase f e = f (envMakeCase e) <&> \ x -> e { envMakeCase = x }
 eSolvingConstraints :: Lens' TCEnv Bool
 eSolvingConstraints f e = f (envSolvingConstraints e) <&> \ x -> e { envSolvingConstraints = x }
 
-eCheckingWhere :: Lens' TCEnv Bool
+eCheckingWhere :: Lens' TCEnv C.WhereClause_
 eCheckingWhere f e = f (envCheckingWhere e) <&> \ x -> e { envCheckingWhere = x }
 
 eWorkingOnTypes :: Lens' TCEnv Bool

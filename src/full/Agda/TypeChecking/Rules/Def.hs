@@ -1252,7 +1252,7 @@ checkWhere wh@(A.WhereDecls whmod whNamed ds) ret = do
       Nothing -> ret
       -- [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds  -- IMPOSSIBLE
       Just (A.Section _ e m tel ds) -> newSection e m tel $ do
-          localTC (\ e -> e { envCheckingWhere = True }) $ do
+          localTC (\ e -> e { envCheckingWhere = if whNamed then C.SomeWhere_ else C.AnyWhere_ }) $ do
             checkDecls ds
             ret
       _ -> __IMPOSSIBLE__

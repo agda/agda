@@ -1183,7 +1183,11 @@ scopeCheckNiceModule
   -> ScopeM [A.Declaration]
   -> ScopeM A.Declaration
        -- ^ The returned declaration is an 'A.Section'.
-scopeCheckNiceModule r p e name tel checkDs = checkWrappedModules p (splitModuleTelescope tel)
+scopeCheckNiceModule r p e name tel checkDs = do
+    -- Andreas, 2025-03-29: clear @envCheckingWhere@
+    -- We are no longer directly in a @where@ block if we enter a module.
+    localTC (\ env -> env{ envCheckingWhere = C.NoWhere_ }) $
+      checkWrappedModules p (splitModuleTelescope tel)
   where
     -- Andreas, 2013-12-10:
     -- If the module telescope contains open statements
@@ -1470,9 +1474,10 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
 
   -- We need to pass the fixities to the nicifier for clause grouping.
   fixs <- useScope scopeFixities
+  niceEnv <- NiceEnv safeButNotBuiltin <$> asksTC envCheckingWhere
 
   -- Run nicifier.
-  let (result, warns) = runNice (NiceEnv safeButNotBuiltin) $ niceDeclarations fixs ds
+  let (result, warns) = runNice niceEnv $ niceDeclarations fixs ds
 
   -- Respect the @DoWarn@ directive. For this to be sound, we need to know for
   -- sure that each @Declaration@ is checked at least once with @DoWarn@.
@@ -2323,7 +2328,7 @@ updateDefInfoOpacity di = (\a -> di { Info.defOpaque = a }) <$> contextIsOpaque
 notAffectedByOpaque :: ScopeM a -> ScopeM a
 notAffectedByOpaque k = do
   t <- asksTC envCheckingWhere
-  unless t $
+  when (t == NoWhere_) $
     maybe (pure ()) (const (warning NotAffectedByOpaque)) =<< asksTC envCurrentOpaqueId
   notUnderOpaque k
 
@@ -2900,7 +2905,11 @@ whereToAbstract r wh inner = do
     AnyWhere _ ds -> enter do
       -- Andreas, 2016-07-17 issues #2081 and #2101
       -- where-declarations are automatically private.
-      -- This allows their type signature to be checked InAbstractMode.
+      -- Andreas, 2025-03-29
+      -- While since PR #5192 (Feb 2021, issue #481) it is no longer the case
+      -- that we check their type signatures in abstract mode,
+      -- we still need to mark the declaration as private
+      -- e.g. to avoid spurious UnknownFixityInMixfixDecl warnings (issue #2889).
       whereToAbstract1 r defaultErased Nothing
         (singleton $ C.Private empty Inserted ds) inner
     SomeWhere _ e m a ds0 -> enter $
@@ -2908,7 +2917,7 @@ whereToAbstract r wh inner = do
       -- Named where-modules do not default to private.
       whereToAbstract1 r e (Just (m, a)) ds inner
   where
-  enter = localTC \ env -> env { envCheckingWhere = True }
+  enter = localTC \ env -> env { envCheckingWhere = C.whereClause_ wh }
   ret = (,A.noWhereDecls) <$> inner
   warnEmptyWhere = do
     setCurrentRange r $ warning EmptyWhere
