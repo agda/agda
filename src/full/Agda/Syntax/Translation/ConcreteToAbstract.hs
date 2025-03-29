@@ -355,10 +355,15 @@ checkModuleMacro apply kind r p e x modapp open dir = do
 -- | The @public@ keyword must only be used together with @open@.
 
 notPublicWithoutOpen :: OpenShortHand -> C.ImportDirective -> ScopeM C.ImportDirective
-notPublicWithoutOpen DoOpen   dir = return dir
-notPublicWithoutOpen DontOpen dir = do
-  whenJust (publicOpen dir) $ \ r ->
-    setCurrentRange r $ warning UselessPublic
+notPublicWithoutOpen DoOpen   = return
+notPublicWithoutOpen DontOpen = uselessPublic UselessPublicNoOpen
+
+-- | Warn about useless @public@.
+
+uselessPublic :: UselessPublicReason -> C.ImportDirective -> ScopeM C.ImportDirective
+uselessPublic reason dir = do
+  whenJust (publicOpen dir) \ r ->
+    setCurrentRange r $ warning $ UselessPublic reason
   return $ dir { publicOpen = Nothing }
 
 -- | Computes the range of all the \"to\" keywords used in a renaming
@@ -375,8 +380,8 @@ checkOpen
   -> C.ImportDirective    -- ^ Scope modifier.
   -> ScopeM (ModuleInfo, A.ModuleName, A.ImportDirective) -- ^ Arguments of 'A.Open'
 checkOpen r mam x dir = do
+  cm <- getCurrentModule
   reportSDoc "scope.decl" 70 $ do
-    cm <- getCurrentModule
     vcat $
       [ text   "scope checking NiceOpen " <> return (pretty x)
       , text   "  getCurrentModule       = " <> prettyA cm
@@ -384,9 +389,7 @@ checkOpen r mam x dir = do
       , text $ "  C.ImportDirective      = " ++ prettyShow dir
       ]
   -- Andreas, 2017-01-01, issue #2377: warn about useless `public`
-  whenJust (publicOpen dir) $ \ r -> do
-    whenM ((A.noModuleName ==) <$> getCurrentModule) $ do
-      setCurrentRange r $ warning UselessPublic
+  dir <- if null cm then uselessPublic UselessPublicPreamble dir else return dir
 
   m <- caseMaybe mam (toAbstract (OldModuleName x)) return
   printScope "open" 40 $ "opening " ++ prettyShow x
@@ -1633,21 +1636,21 @@ instance ToAbstract LetDef where
             definedName C.EllipsisP{}          = Nothing -- Not impossible, see issue #3937
 
     -- You can't open public in a let
-    NiceOpen r x dirs -> do
-      whenJust (publicOpen dirs) $ \r -> setCurrentRange r $ warning UselessPublic
+    NiceOpen r x dir -> do
+      dir  <- uselessPublic UselessPublicLet dir
       m    <- toAbstract (OldModuleName x)
-      adir <- openModule_ LetOpenModule x dirs
+      adir <- openModule_ LetOpenModule x dir
       let minfo = ModuleInfo
             { minfoRange  = r
             , minfoAsName = Nothing
-            , minfoAsTo   = renamingRange dirs
+            , minfoAsTo   = renamingRange dir
             , minfoOpenShort = Nothing
-            , minfoDirective = Just dirs
+            , minfoDirective = Just dir
             }
       return $ singleton $ A.LetOpen minfo m adir
 
     NiceModuleMacro r p erased x modapp open dir -> do
-      whenJust (publicOpen dir) $ \ r -> setCurrentRange r $ warning UselessPublic
+      dir <- uselessPublic UselessPublicLet dir
       -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
       -- to be private
       singleton <$> checkModuleMacro LetApply LetOpenModule r

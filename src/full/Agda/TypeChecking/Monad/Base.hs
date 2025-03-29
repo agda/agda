@@ -7,6 +7,7 @@ module Agda.TypeChecking.Monad.Base
   , module X
   , HasOptions (..)
   , RecordFieldWarning
+  , UselessPublicReason(..)
   ) where
 
 import Prelude hiding (null)
@@ -86,7 +87,7 @@ import Agda.Syntax.Info ( MetaKind(InstanceMeta, UnificationMeta), MetaNameSugge
 
 import           Agda.TypeChecking.Monad.Base.Types
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
-import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning)
+import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning, UselessPublicReason(..))
 import           Agda.TypeChecking.SizedTypes.Syntax  (HypSizeConstraint)
 
 import Agda.TypeChecking.CompiledClause
@@ -4531,7 +4532,7 @@ data Warning
   | UselessPragma Range Doc
     -- ^ Warning when pragma is useless and thus ignored.
     --   'Range' is for dead code highlighting.
-  | UselessPublic
+  | UselessPublic UselessPublicReason
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
   | UselessHiding (List1 C.ImportedName)
