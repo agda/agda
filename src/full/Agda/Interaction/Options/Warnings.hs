@@ -248,8 +248,8 @@ data WarningName
   | MissingDataDeclaration_
   | MissingDefinitions_
   | NotAllowedInMutual_
-  | OpenPublicAbstract_
-  | OpenPublicPrivate_
+  | OpenImportAbstract_
+  | OpenImportPrivate_
   | PolarityPragmasButNotPostulates_
   | PragmaCompiled_
   | PragmaNoTerminationCheck_
@@ -477,8 +477,8 @@ warningNameDescription = \case
   MissingDataDeclaration_          -> "Constructor definitions not associated to a data declaration."
   MissingDefinitions_              -> "Declarations not associated to a definition."
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
-  OpenPublicAbstract_              -> "'open public' directives in 'abstract' blocks."
-  OpenPublicPrivate_               -> "'open public' directives in 'private' blocks."
+  OpenImportAbstract_              -> "`open' or `import' statements in 'abstract' blocks."
+  OpenImportPrivate_               -> "`open' or `import' statements in 'private' blocks."
   PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
   PragmaCompiled_                  -> "'COMPILE' pragmas in safe mode."
   PragmaNoTerminationCheck_        -> "`NO_TERMINATION_CHECK' pragmas; such are deprecated."

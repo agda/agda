@@ -555,8 +555,8 @@ warningHighlighting' b w = case tcWarning w of
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting w
     InvalidCoverageCheckPragma{}     -> deadcodeHighlighting w
     InvalidConstructorBlock{}        -> deadcodeHighlighting w
-    OpenPublicAbstract{}             -> deadcodeHighlighting w
-    OpenPublicPrivate{}              -> deadcodeHighlighting w
+    OpenImportAbstract{}             -> cosmeticProblemHighlighting w
+    OpenImportPrivate{}              -> cosmeticProblemHighlighting w
     SafeFlagEta                   {} -> errorWarningHighlighting w
     SafeFlagInjective             {} -> errorWarningHighlighting w
     SafeFlagNoCoverageCheck       {} -> errorWarningHighlighting w

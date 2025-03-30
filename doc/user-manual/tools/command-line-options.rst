@@ -1512,13 +1512,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Deprecated :ref:`BUILTIN<built-ins>` pragmas.
 
-.. option:: OpenPublicAbstract
+.. option:: OpenImportAbstract
 
-     ``open public`` directives in ``abstract`` blocks.
+     ``open`` or ``import`` statements in ``abstract`` blocks.
 
-.. option:: OpenPublicPrivate
+.. option:: OpenImportPrivate
 
-     ``open public`` directives in ``private`` blocks.
+     ``open`` or ``import`` statements in ``private`` blocks.
 
 .. option:: OptionRenamed
 
