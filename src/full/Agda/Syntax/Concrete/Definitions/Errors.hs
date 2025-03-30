@@ -126,12 +126,15 @@ data DeclarationWarning'
   | MissingDefinitions (List1 (Name, Range))
       -- ^ Declarations (e.g. type signatures) without a definition.
   | NotAllowedInMutual Range String
-  | OpenPublicPrivate KwRange
-      -- ^ @private@ has no effect on @open public@.  (But the user might think so.)
-      --   'KwRange' is the range of the @public@ keyword.
-  | OpenPublicAbstract KwRange
-      -- ^ @abstract@ has no effect on @open public@.  (But the user might think so.)
-      --   'KwRange' is the range of the @public@ keyword.
+  | OpenImportPrivate Range KwRange KwRange OpenOrImport
+      -- ^ @private@ has no effect on @open (import) public@.  (But the user might think so.)
+      --   'Range' is the range of the @open public@ or @open import public@ declaration.
+      --   The first 'KwRange' is the range of the @public@ keyword.
+      --   The second 'KwRange' is the range of the @private@ keyword.
+  | OpenImportAbstract Range KwRange OpenOrImport
+      -- ^ @abstract@ has no effect on @open@ or @import@.  (But the user might think so.)
+      --   'Range' is the range of the @open@ or @import@ declaration.
+      --   'KwRange' is the range of the @abstract@ keyword.
   | PolarityPragmasButNotPostulates (Set1 Name)
   | PragmaNoTerminationCheck Range
       -- ^ Pragma @{-\# NO_TERMINATION_CHECK \#-}@ has been replaced
@@ -148,6 +151,7 @@ data DeclarationWarning'
   | SafeFlagTerminating       Range -- ^ @TERMINATING@         pragma is unsafe.
   | ShadowingInTelescope (List1 (Name, List2 Range))
   | UnknownFixityInMixfixDecl (Set1 Name)
+      -- ^ Public mixfix identifiers without a fixity declaration.
   | UnknownNamesInFixityDecl (Set1 Name)
   | UnknownNamesInPolarityPragmas (Set1 Name)
   | UselessAbstract KwRange
@@ -159,6 +163,12 @@ data DeclarationWarning'
   | UselessPrivate KwRange
       -- ^ @private@ block with nothing that can (newly) be made private.
   deriving (Show, Generic)
+
+-- | @open@ or @import@
+data OpenOrImport
+  = OpenNotImport  -- ^ @open@.
+  | ImportMayOpen  -- ^ @import@ or @open import@.
+  deriving (Show, Generic, Enum, Bounded)
 
 declarationWarningName :: DeclarationWarning -> WarningName
 declarationWarningName = declarationWarningName' . dwWarning
@@ -187,8 +197,8 @@ declarationWarningName' = \case
   MissingDataDeclaration{}          -> MissingDataDeclaration_
   MissingDefinitions{}              -> MissingDefinitions_
   NotAllowedInMutual{}              -> NotAllowedInMutual_
-  OpenPublicPrivate{}               -> OpenPublicPrivate_
-  OpenPublicAbstract{}              -> OpenPublicAbstract_
+  OpenImportPrivate{}               -> OpenImportPrivate_
+  OpenImportAbstract{}              -> OpenImportAbstract_
   PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
   PragmaNoTerminationCheck{}        -> PragmaNoTerminationCheck_
   PragmaCompiled{}                  -> PragmaCompiled_
@@ -237,8 +247,8 @@ unsafeDeclarationWarning' = \case
   MissingDataDeclaration{}          -> True  -- not safe
   MissingDefinitions{}              -> True  -- not safe
   NotAllowedInMutual{}              -> False -- really safe?
-  OpenPublicPrivate{}               -> False
-  OpenPublicAbstract{}              -> False
+  OpenImportPrivate{}               -> False
+  OpenImportAbstract{}              -> False
   PolarityPragmasButNotPostulates{} -> False
   PragmaNoTerminationCheck{}        -> True  -- not safe
   PragmaCompiled{}                  -> True  -- not safe
@@ -347,8 +357,8 @@ instance HasRange DeclarationWarning' where
     MissingDataDeclaration x           -> getRange x
     MissingDefinitions xs              -> getRange xs
     NotAllowedInMutual r x             -> r
-    OpenPublicAbstract kwr             -> getRange kwr
-    OpenPublicPrivate kwr              -> getRange kwr
+    OpenImportAbstract r _kwr _        -> getRange r
+    OpenImportPrivate  _r kwr _kwr _   -> getRange kwr
     PolarityPragmasButNotPostulates xs -> getRange xs
     PragmaCompiled r                   -> r
     PragmaNoTerminationCheck r         -> r
@@ -515,11 +525,17 @@ instance Pretty DeclarationWarning' where
     PragmaCompiled _ -> fsep $
       pwords "COMPILE pragma not allowed in safe mode."
 
-    OpenPublicAbstract _ -> fsep $
-      pwords "public does not have any effect in an abstract block."
+    OpenImportAbstract _ _ openOrImport -> fsep $ concat
+      [ pwords "`abstract' does not have any effect on"
+      , [ pretty openOrImport ]
+      , pwords "so better place this statement outside of the abstract block"
+      ]
 
-    OpenPublicPrivate _ -> fsep $
-      pwords "public does not have any effect in a private block."
+    OpenImportPrivate _ _ _ _openOrImport -> fsep $ concat
+      [ pwords "`private' does not have any effect on"
+      , pwords "`open public'"
+      , pwords "so better place this statement outside of the private block"
+      ]
 
     ShadowingInTelescope nrs -> fsep $
       pwords "Shadowing in telescope, repeated variable names:"
@@ -537,6 +553,12 @@ instance Pretty DeclarationWarning' where
     where
       unsafePragma s = fsep $ ["Cannot", "use", s] ++ pwords "pragma with safe flag."
 
+instance Pretty OpenOrImport where
+  pretty = \case
+    OpenNotImport -> "`open'"
+    ImportMayOpen -> "`import'"
+
 instance NFData DeclarationException'
 instance NFData DeclarationWarning
 instance NFData DeclarationWarning'
+instance NFData OpenOrImport

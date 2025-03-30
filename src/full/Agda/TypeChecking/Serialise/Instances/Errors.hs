@@ -9,7 +9,8 @@ import Agda.TypeChecking.Serialise.Instances.Common   ( SerialisedRange(..) )
 import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
 import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 
-import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..), DeclarationWarning'(..))
+import Agda.Syntax.Concrete.Definitions.Errors
+    ( DeclarationWarning(..), DeclarationWarning'(..), OpenOrImport(..) )
 import Agda.Syntax.Parser.Monad
 import Agda.TypeChecking.Monad.Base
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
@@ -327,8 +328,8 @@ instance EmbPrj DeclarationWarning' where
     EmptyField r                      -> icodeN 23 EmptyField r
     ShadowingInTelescope nrs          -> icodeN 24 ShadowingInTelescope nrs
     InvalidCoverageCheckPragma r      -> icodeN 25 InvalidCoverageCheckPragma r
-    OpenPublicAbstract r              -> icodeN 26 OpenPublicAbstract r
-    OpenPublicPrivate r               -> icodeN 27 OpenPublicPrivate r
+    OpenImportAbstract r kwr a        -> icodeN 26 OpenImportAbstract r kwr a
+    OpenImportPrivate r kwr kwr' a    -> icodeN 27 OpenImportPrivate r kwr kwr' a
     EmptyConstructor a                -> icodeN 28 EmptyConstructor a
     -- 29 removed
     -- 30 removed
@@ -373,8 +374,8 @@ instance EmbPrj DeclarationWarning' where
     [23,r]   -> valuN EmptyField r
     [24,nrs] -> valuN ShadowingInTelescope nrs
     [25,r]   -> valuN InvalidCoverageCheckPragma r
-    [26,r]   -> valuN OpenPublicAbstract r
-    [27,r]   -> valuN OpenPublicPrivate r
+    [26,r,kwr,a] -> valuN OpenImportAbstract r kwr a
+    [27,r,kwr,kwr',a] -> valuN OpenImportPrivate r kwr kwr' a
     [28,r]   -> valuN EmptyConstructor r
     -- 29 removed
     -- 30 removed
@@ -384,6 +385,8 @@ instance EmbPrj DeclarationWarning' where
     [34,r]   -> valuN UselessMacro r
     [35,r]   -> valuN EmptyPolarityPragma r
     _ -> malformed
+
+instance EmbPrj OpenOrImport
 
 instance EmbPrj LibWarning where
   icod_ = \case

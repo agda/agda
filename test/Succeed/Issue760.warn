@@ -1,13 +1,17 @@
-Issue760.agda:11.10-16: warning: -W[no]OpenPublicAbstract
-public does not have any effect in an abstract block.
+Issue760.agda:11.3-16: warning: -W[no]OpenImportAbstract
+'abstract' does not have any effect on 'open' so better place this
+statement outside of the abstract block
 
-Issue760.agda:27.10-16: warning: -W[no]OpenPublicPrivate
-public does not have any effect in a private block.
+Issue760.agda:27.10-16: warning: -W[no]OpenImportPrivate
+'private' does not have any effect on 'open public' so better place
+this statement outside of the private block
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue760.agda:11.10-16: warning: -W[no]OpenPublicAbstract
-public does not have any effect in an abstract block.
+Issue760.agda:11.3-16: warning: -W[no]OpenImportAbstract
+'abstract' does not have any effect on 'open' so better place this
+statement outside of the abstract block
 
-Issue760.agda:27.10-16: warning: -W[no]OpenPublicPrivate
-public does not have any effect in a private block.
+Issue760.agda:27.10-16: warning: -W[no]OpenImportPrivate
+'private' does not have any effect on 'open public' so better place
+this statement outside of the private block

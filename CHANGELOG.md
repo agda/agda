@@ -104,8 +104,12 @@ Warnings
 * Warning `AbsurdPatternRequiresNoRHS` has been renamed to
   `AbsurdPatternRequiresAbsentRHS`.
 
+* Warnings `OpenPublicAbstract` and `OpenPublicPrivate` have been replaced
+  by new warnings `OpenImportAbstract` and `OpenImportPrivate`.
+
 * Warning `NoGuardednessFlag` has been removed.
   Instead Agda a hint when `--guardedness` would help with termination checking.
+
 
 Polarity
 --------
