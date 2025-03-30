@@ -1976,22 +1976,35 @@ the argument is a positive number, otherwise turn it off."
 ;; Switching to a different version of Agda
 
 (defun agda2-get-agda-program-versions ()
-  "Get \"version strings\" of executables starting with
-\\='agda-mode\\=' in current path."
+  "Get suffixes (\"version strings\") of executables starting with
+\\='agda-\\=' in exec-path."
+  (interactive) ;; for debugging purposes
   (delete-dups
    (mapcar (lambda (path)
-             ;; strip 'agda-mode' prefix
-             (replace-regexp-in-string "^agda-mode-?" ""
+             ;; strip 'agda-' prefix
+             (replace-regexp-in-string "^agda-?" ""
                                        (file-name-nondirectory path)))
            (cl-remove-if-not 'file-executable-p
              ;; concatenate result
              (cl-reduce 'append
                      ;; for each directory in exec-path, get list of
-                     ;; files whose name starts with 'agda-mode'
+                     ;; files whose name starts with 'agda-'
                      (mapcar (lambda (path)
                                (when (file-accessible-directory-p path)
-                                 (directory-files path 't "^agda-mode")))
+                                 (directory-files path 't "^agda-")))
                              exec-path))))))
+
+
+(defun agda2-old-version (version)
+  "Check if the given version is less that 2.8.
+
+Agda 2.8 is the version where the agda-mode executable was deprecated.
+
+If the version cannot be parsed, the answer is no.
+So e.g. agda-fast would be interpreted as not older than agda-2.8.0"
+  ;; If the given string does not have a numeric prefix, we answer no.
+  (and (string-match "^[0-9][0-9.]*" version)
+       (version< (match-string 0 version) "2.8")))
 
 ;; Note that other versions of Agda may use different protocols, so
 ;; this function unloads the Emacs mode.
@@ -2000,12 +2013,20 @@ the argument is a positive number, otherwise turn it off."
   "Tries to switch to Agda version VERSION.
 
 This command assumes that the agda and agda-mode executables for
-Agda version VERSION are called agda-VERSION and
-agda-mode-VERSION, and that they are located on the PATH. (If
-VERSION is empty, then agda and agda-mode are used instead.)
+Agda version VERSION are called agda-VERSION and agda-mode-VERSION.
+It searches for these executables on the exec-path
+which is often identical to PATH but can be different
+depending how Emacs is configured and invoked.
 
-An attempt is made to preserve the default value of
-`agda2-mode-hook'."
+Only if VERSION is numeric and less than \"2.8\"
+the agda-mode executable is used to locate the respective agda2.el,
+otherwise \"agda --emacs-mode locate\" is invoked.
+
+If VERSION is empty or \"agda\", then agda is used.
+A prefix \"agda-\" is stripped from VERSION,
+so one can invoke this function e.g. with \"agda-2.8.0\" instead of \"2.8.0\".
+
+An attempt is made to preserve the default value of `agda2-mode-hook'."
   (interactive
    (list (completing-read "Version: " (agda2-get-agda-program-versions))))
 
@@ -2019,6 +2040,22 @@ An attempt is made to preserve the default value of
 
        (default-hook (default-value 'agda2-mode-hook))
 
+       ;; Sanitize version.
+       ;; * Strip "agda-" prefix from version.
+       ;; * Replace version "agda" by just "".
+       ;;
+       ;; Rationale:
+       ;; The user might by accident enter "agda-2.8.0" instead of "2.8.0",
+       ;; or "agda" instead of "".
+       (version
+        (cond
+         ;; Strip "agda-" prefix from version.
+         ((string-prefix-p "agda-" version) (substring version (length "agda-")))
+         ;; Replace version "agda" by just "".
+         ((equal version "agda") "")
+         ;; Default.
+         (t version)))
+
        (version-suffix (if (or (equal version "")
                                (equal version nil))
                            ""
@@ -2027,14 +2064,16 @@ An attempt is made to preserve the default value of
        ;; Run agda-mode<version-suffix> and make sure that it returns
        ;; successfully.
        (coding-system-for-read 'utf-8)
-       (agda-mode-prog (concat "agda-mode" version-suffix))
+       (old-agda (agda2-old-version version))
+       (agda-mode-prog (concat (if old-agda "agda-mode" "agda") version-suffix))
        (agda-mode-path
         (condition-case nil
             (with-temp-buffer
               (unless
-                  (equal 0 (call-process agda-mode-prog
-                                         nil (current-buffer) nil
-                                         "locate"))
+                  (equal 0
+                    (if old-agda
+                        (call-process agda-mode-prog nil (current-buffer) nil "locate")
+                        (call-process agda-mode-prog nil (current-buffer) nil "--emacs-mode" "locate")))
                 (error "%s" (concat "Error when running "
                                     agda-mode-prog)))
               (buffer-string))

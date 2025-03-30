@@ -3,6 +3,13 @@
 -- | A program which either tries to add setup code for Agda's Emacs
 -- mode to the users .emacs file, or provides information to Emacs
 -- about where the Emacs mode is installed.
+--
+-- This executable is deprecated, its functionality covered since 2.8
+-- by the @--emacs-mode@ flag of the agda executable.
+--
+-- However, we will continue to ship it with Agda
+-- because the emacs mode of older Agda versions assumes its existence
+-- for the version switching functionality @agda2-set-program-version@.
 
 module Main (main) where
 
@@ -19,14 +26,6 @@ import Agda.Version       ( version )
 main :: IO ()
 main = do
   self <- takeFileName <$> getProgName
-  inform $ unlines
-    [ "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
-    , "@  Warning: " ++ self ++ " has been deprecated with Agda 2.8.0   @"
-    , "@  and will be removed in the future.                       @"
-    , "@  From Agda 2.8.0 on, use `agda --emacs-mode` instead.     @"
-    , "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
-    , ""
-    ]
 
   args <- getArgs
   case args of
@@ -36,6 +35,7 @@ main = do
           printEmacsModeFile
 
       | arg == setupFlag  -> do
+          inform $ deprecation self
 
           -- Ensure that Agda has been setup so the Emacs mode is available.
           Agda.setup False
@@ -43,6 +43,7 @@ main = do
           setupDotEmacs "agda"
 
       | arg == compileFlag -> do
+          inform $ deprecation self
 
           -- Ensure that Agda has been setup so the Emacs mode is available.
           Agda.setup False
@@ -51,6 +52,7 @@ main = do
 
     _  -> do
       dir <- getDataDir
+      inform $ deprecation self
       inform $ usage dir
       exitFailure
 
@@ -89,4 +91,16 @@ usage dataDir = unlines
   , ""
   , "  WARNING: If you reinstall the Agda mode without recompiling the Emacs"
   , "  Lisp files, then Emacs may continue using the old, compiled files."
+  ]
+
+-- | Deprecation warning.
+
+deprecation :: String -> String
+deprecation self = unlines
+  [ "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+  , "@  Warning: " ++ self ++ " has been deprecated with Agda 2.8.0   @"
+  , "@  and will be removed in the future.                       @"
+  , "@  From Agda 2.8.0 on, use `agda --emacs-mode` instead.     @"
+  , "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+  , ""
   ]
