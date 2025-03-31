@@ -4485,7 +4485,7 @@ data Warning
     -- ^ 'Clause' was turned into copattern matching clause(s) by an @{-# INLINE constructor #-}@
     --   and thus is not a definitional equality any more.
   | NotStrictlyPositive      QName (Seq OccursWhere)
-  | ConstructorDoesNotFitInData QName Sort Sort TCErr
+  | ConstructorDoesNotFitInData DataOrRecord_ QName Sort Sort TCErr
       -- ^ Checking whether constructor 'QName' 'Sort' fits into @data@ 'Sort'
       --   produced 'TCErr'.
   | CoinductiveEtaRecord QName
@@ -6603,7 +6603,6 @@ instance NFData TypeError
 instance NFData WhyInvalidInstanceType
 instance NFData InvalidFileNameReason
 instance NFData LHSOrPatSyn
-instance NFData DataOrRecordE
 instance NFData InductionAndEta
 instance NFData IllegalRewriteRuleReason
 instance NFData IncorrectTypeForRewriteRelationReason

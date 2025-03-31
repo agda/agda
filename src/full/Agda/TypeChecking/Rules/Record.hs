@@ -274,7 +274,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
         NotInstanceDef -> pure ()
 
       -- Check that the fields fit inside the sort
-      _ <- fitsIn conName uc [] contype s
+      _ <- fitsIn IsRecord_ conName uc [] contype s
 
       -- Check that the sort admits record declarations.
       checkDataSort name s

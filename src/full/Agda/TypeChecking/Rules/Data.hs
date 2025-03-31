@@ -287,7 +287,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- To allow propositional squash, we turn @Prop ℓ@ into @Set ℓ@
         -- for the purpose of checking the type of the constructors.
         arity <- applyQuantityToJudgement ai $
-          fitsIn c uc forcedArgs t $ propToType s
+          fitsIn IsData c uc forcedArgs t $ propToType s
         -- this may have instantiated some metas in s, so we reduce
         s <- reduce s
         debugAdd c t
@@ -1715,8 +1715,8 @@ bindParameter npars ps x a b ret =
 --
 --   As a side effect, return the arity of the constructor.
 
-fitsIn :: QName -> UniverseCheck -> [IsForced] -> Type -> Sort -> TCM Int
-fitsIn con uc forceds conT s = do
+fitsIn :: DataOrRecord_ -> QName -> UniverseCheck -> [IsForced] -> Type -> Sort -> TCM Int
+fitsIn dataOrRecord con uc forceds conT s = do
   reportSDoc "tc.data.fits" 10 $
     sep [ "does" <+> prettyTCM conT
         , "of sort" <+> prettyTCM (getSort conT)
@@ -1784,7 +1784,7 @@ fitsIn con uc forceds conT s = do
         return 0
   -- catch hard error from sort comparison to turn it into a soft error
   fitSort sa s = leqSort sa s `catchError` \ err ->
-    warning $ ConstructorDoesNotFitInData con sa s err
+    warning $ ConstructorDoesNotFitInData dataOrRecord con sa s err
 
 -- | When --without-K is enabled, we should check that the sorts of
 --   the index types fit into the sort of the datatype.

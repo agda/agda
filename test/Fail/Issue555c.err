@@ -1,7 +1,7 @@
 Issue555c.agda:7.8-9: error: [ConstructorDoesNotFitInData]
 Constructor R.constructor
-of sort Set a
-does not fit into data type of sort Set.
+of inferred sort Set a
+does not fit into record type of sort Set.
 (Reason: Set a is not less or equal than Set)
 when checking that the type A of an argument to the constructor
 R.constructor fits in the sort Set of the datatype.

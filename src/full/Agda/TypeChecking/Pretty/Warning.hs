@@ -139,7 +139,7 @@ prettyWarning = \case
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
 
-    ConstructorDoesNotFitInData c s1 s2 err -> msg $$
+    ConstructorDoesNotFitInData dataOrRecord c s1 s2 err -> msg $$
       case err of
         TypeError _loc s e -> withTCState (const s) $ enterClosure e \ e ->
           parens ("Reason:" <+> prettyTCM e)
@@ -148,8 +148,8 @@ prettyWarning = \case
       where
         msg = sep
           [ "Constructor" <+> prettyTCM c
-          , "of sort" <+> prettyTCM s1
-          , ("does not fit into data type of sort" <+> prettyTCM s2) <> "."
+          , "of inferred sort" <+> prettyTCM s1
+          , ("does not fit into" <+> prettyTCM dataOrRecord <+> "type of sort" <+> prettyTCM s2) <> "."
           ]
 
     CoinductiveEtaRecord name -> vcat
@@ -625,6 +625,11 @@ prettyWarning = \case
 
     TopLevelPolarity x p -> fsep $
       ["Definition", prettyTCM x, "has explicit polarity annotation", pretty p, "which is currently not supported"]
+
+instance PrettyTCM DataOrRecord_ where
+  prettyTCM = \case
+    IsData{}   -> "data"
+    IsRecord{} -> "record"
 
 
 {-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}

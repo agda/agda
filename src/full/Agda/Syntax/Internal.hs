@@ -154,6 +154,10 @@ data DataOrRecord' p
   deriving (Show, Eq, Generic)
 
 type DataOrRecord = DataOrRecord' PatternOrCopattern
+type DataOrRecord_ = DataOrRecord' ()
+
+pattern IsRecord_ :: DataOrRecord_
+pattern IsRecord_ = IsRecord ()
 
 instance PatternMatchingAllowed DataOrRecord where
   patternMatchingAllowed = \case
@@ -1525,7 +1529,7 @@ instance NFData PlusLevel where
 instance NFData e => NFData (Dom e) where
   rnf (Dom a c d e f) = rnf a `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
 
-instance NFData DataOrRecord
+instance NFData a => NFData (DataOrRecord' a)
 instance NFData ConHead
 instance NFData a => NFData (Abs a)
 instance NFData a => NFData (Tele a)
