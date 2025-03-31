@@ -23,6 +23,7 @@ zero    + n    = zero
 
 eq : ℕ → ℕ → Bool
 eq zero    zero    = true
+{-# CATCHALL #-}  -- UselessPragma
 eq (suc m) (suc n) = eq m n
 {-# CATCHALL #-}
 {-# CATCHALL #-}  -- InvalidCatchallPragma, ignored

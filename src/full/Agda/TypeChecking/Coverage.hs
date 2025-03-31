@@ -21,6 +21,7 @@ import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 import Control.Monad.Except ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.State  ( State, evalState, state )
 
+import Data.Either (partitionEithers)
 import Data.Foldable (for_)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -142,12 +143,12 @@ coverageCheck f t cs = do
   -- some indices in @used@ and @noex@ point outside of @cs@,
   -- since missing hcomp clauses have been added during the course of @cover@.
   -- We simply delete theses indices from @noex@.
-  noex <- return $ List.filter (< length cs) $ IntSet.toList noex
+  noex <- return $ IntSet.filter (< length cs) noex
 
   reportSDoc "tc.cover.top" 10 $ vcat
     [ "cover computed!"
     , text $ "used clauses: " ++ show used
-    , text $ "non-exact clauses: " ++ show noex
+    , text $ "non-exact clauses: " ++ show (IntSet.toList noex)
     ]
   reportSDoc "tc.cover.splittree" 10 $ vcat
     [ "generated split tree for" <+> prettyTCM f
@@ -227,15 +228,24 @@ coverageCheck f t cs = do
     let ranges = fmap clauseFullRange unreached
     setCurrentRange ranges $ warning $ UnreachableClauses f ranges
 
+  -- Partition clauses into exact and non-exact ones.
+  let (noexclauses, exclauses) = partitionEithers $
+        zipWith (\ i c  -> if i `IntSet.member` noex then Left c else Right c) [0..] cs1
+
   -- Report a warning if there are clauses that are not preserved as
   -- definitional equalities and --exact-split is enabled
   -- and they are not labelled as CATCHALL.
-  let noexclauses = forMaybe noex $ \ i -> do
-        let cl = indexWithDefault __IMPOSSIBLE__ cs1 i
-        if null (clauseCatchall cl) then Just cl else Nothing
-  List1.unlessNull noexclauses \ noexclauses -> do
+  List1.unlessNull (filter (null . clauseCatchall) noexclauses) \ noexclauses -> do
       setCurrentRange (fmap clauseLHSRange noexclauses) $
         warning $ CoverageNoExactSplit f noexclauses
+
+  -- Warn about unused CATCHALL pragmas.
+  forM_ exclauses \ c ->
+    case clauseCatchall c of
+      YesCatchall r | not (null r)
+        -> setCurrentRange r $ warning $ UselessPragma r $ "Superfluous CATCHALL pragma"
+      _ -> pure ()
+
   return splitTree
 
 -- | Top-level function for eliminating redundant clauses in the interactive
