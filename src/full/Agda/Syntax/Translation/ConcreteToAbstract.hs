@@ -2327,9 +2327,9 @@ updateDefInfoOpacity di = (\a -> di { Info.defOpaque = a }) <$> contextIsOpaque
 -- affected by opacity, but only if we are actually in an Opaque block.
 notAffectedByOpaque :: ScopeM a -> ScopeM a
 notAffectedByOpaque k = do
-  t <- asksTC envCheckingWhere
-  when (t == NoWhere_) $
-    maybe (pure ()) (const (warning NotAffectedByOpaque)) =<< asksTC envCurrentOpaqueId
+  whenM ((NoWhere_ ==) <$> asksTC envCheckingWhere) $
+    whenJustM (asksTC envCurrentOpaqueId) \ _ ->
+      warning NotAffectedByOpaque
   notUnderOpaque k
 
 -- * Helper functions for @variable@ generalization
