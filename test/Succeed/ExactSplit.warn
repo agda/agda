@@ -4,7 +4,11 @@ The CATCHALL pragma can only precede a function clause.
 ExactSplit.agda:22.1-17: warning: -W[no]InvalidCatchallPragma
 The CATCHALL pragma can only precede a function clause.
 
-ExactSplit.agda:28.1-17: warning: -W[no]InvalidCatchallPragma
+ExactSplit.agda:26.1-17: warning: -W[no]UselessPragma
+Superfluous CATCHALL pragma
+when checking the definition of eq
+
+ExactSplit.agda:29.1-17: warning: -W[no]InvalidCatchallPragma
 The CATCHALL pragma can only precede a function clause.
 
 ———— All done; warnings encountered ————————————————————————
@@ -15,5 +19,9 @@ The CATCHALL pragma can only precede a function clause.
 ExactSplit.agda:22.1-17: warning: -W[no]InvalidCatchallPragma
 The CATCHALL pragma can only precede a function clause.
 
-ExactSplit.agda:28.1-17: warning: -W[no]InvalidCatchallPragma
+ExactSplit.agda:26.1-17: warning: -W[no]UselessPragma
+Superfluous CATCHALL pragma
+when checking the definition of eq
+
+ExactSplit.agda:29.1-17: warning: -W[no]InvalidCatchallPragma
 The CATCHALL pragma can only precede a function clause.
