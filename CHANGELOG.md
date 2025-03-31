@@ -57,6 +57,24 @@ Pragmas and options
 
 * Option `--local-interfaces` and warning `DuplicateInterfaceFiles` have been removed.
 
+* New option `--js-es6` for generating JavaScript with ES6 module syntax.
+
+* `DISPLAY` pragmas can now define display forms that match on defined names
+  beyond constructors ([issue #7533](https://github.com/agda/agda/issues/7533)).
+  Example:
+  ```agda
+  {-# DISPLAY Irrelevant Empty = ⊥ #-}
+  ```
+  `Empty` used to be interpreted as a pattern variable, effectively installing
+  the display form `Irrelevant _ = ⊥`.
+  Now `Empty` is treated as a matchable name, as one would intuitively expect
+  from a display form.
+  As a consequence, only `Irrelevant Empty` is displayed as `⊥`, not just any
+  `Irrelevant A`.
+
+Warnings
+--------
+
 * New warning `InvalidDisplayForm` instead of hard error
   when a display form is illegal (and thus ignored).
 
@@ -72,32 +90,19 @@ Pragmas and options
   {-# DISPLAY List (Fin _) = ListFin #-}
   ```
 
+* Unused `CATCHALL` pragmas now trigger `UselessPragma` warnings.
+
+* New warning `EmptyPolarityPragma` for POLARITY pragma without polarities.
+  E.g. triggered by `{-# POLARITY F #-}`.
+
 * New warning `WithClauseProjectionFixityMismatch` instead of hard error
   when in a with-clause a projection is used in a different fixity
   (prefix vs. postfix) than in its parent clause.
 
 * New error warning `TooManyArgumentsToSort` instead of hard error.
 
-* New warning `EmptyPolarityPragma` for POLARITY pragma without polarities.
-  E.g. triggered by `{-# POLARITY F #-}`.
-
 * Warning `AbsurdPatternRequiresNoRHS` has been renamed to
   `AbsurdPatternRequiresAbsentRHS`.
-
-* New option `--js-es6` for generating JavaScript with ES6 module syntax.
-
-* DISPLAY pragmas can now define display forms that match on defined names
-  beyond constructors ([issue #7533](https://github.com/agda/agda/issues/7533)).
-  Example:
-  ```agda
-  {-# DISPLAY Irrelevant Empty = ⊥ #-}
-  ```
-  `Empty` used to be interpreted as a pattern variable, effectively installing
-  the display form `Irrelevant _ = ⊥`.
-  Now `Empty` is treated as a matchable name, as one would intuitively expect
-  from a display form.
-  As a consequence, only `Irrelevant Empty` is displayed as `⊥`, not just any
-  `Irrelevant A`.
 
 Polarity
 --------
