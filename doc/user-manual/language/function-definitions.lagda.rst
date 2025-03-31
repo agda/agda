@@ -269,3 +269,6 @@ The :option:`--no-exact-split` flag can be used to override a global
 :option:`--exact-split` in a file, by adding a pragma
 ``{-# OPTIONS --no-exact-split #-}``. This option is enabled by
 default.
+
+Since version 2.8.0, Agda warns about superfluous CATCHALL pragmas,
+flagging a :option:`UselessPragma`.
