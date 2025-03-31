@@ -164,10 +164,10 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
                        , etaBranch      = eta
                        , litBranches    = litMap
                        , fallThrough    = fT
-                       , catchAllBranch = catchAll
+                       , catchallBranch = catchall
                        , lazyMatch      = lazy } = do
 
-      catchAll <- traverse loop catchAll
+      catchall <- traverse loop catchall
       litMap   <- traverse loop litMap
       (conMap, eta) <- do
         let noEtaCase = (, Nothing) <$> (traverse . traverse) loop conMap
@@ -188,7 +188,7 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
                         , etaBranch      = eta
                         , litBranches    = litMap
                         , fallThrough    = fT
-                        , catchAllBranch = catchAll
+                        , catchallBranch = catchall
                         }
 
 
@@ -310,7 +310,7 @@ recordExpressionsToCopatterns = \case
                       zipWith (\ f v -> (unDom f, WithArity 0 $ Done xs v)) fs vs
                   , etaBranch      = Nothing
                   , litBranches    = Map.empty
-                  , catchAllBranch = Nothing
+                  , catchallBranch = Nothing
                   , fallThrough    = Nothing
                   , lazyMatch      = False
                   }

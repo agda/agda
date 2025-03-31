@@ -233,7 +233,7 @@ instance ExprLike Declaration where
      TypeSig ai t x e          -> TypeSig ai (mapE t) x (mapE e)
      FieldSig i t n e          -> FieldSig i (mapE t) n (mapE e)
      Field r fs                -> Field r                              $ map (mapExpr f) fs
-     FunClause lhs rhs wh ca   -> FunClause (mapE lhs) (mapE rhs) (mapE wh) (mapE ca)
+     FunClause lhs rhs wh ca   -> FunClause (mapE lhs) (mapE rhs) (mapE wh) ca
      DataSig r er x bs e       -> DataSig r er x (mapE bs)             $ mapE e
      DataDef r n bs cs         -> DataDef r n (mapE bs)                $ mapE cs
      Data r er n bs e cs       -> Data r er n (mapE bs) (mapE e)       $ mapE cs

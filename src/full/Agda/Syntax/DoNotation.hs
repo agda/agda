@@ -27,6 +27,8 @@
  -}
 module Agda.Syntax.DoNotation (desugarDoNotation) where
 
+import Prelude hiding (null)
+
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Concrete
@@ -38,6 +40,8 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.List1  ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Syntax.Common.Pretty ( prettyShow )
+
+import Agda.Utils.Null
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
@@ -116,7 +120,7 @@ matchingBind qBind r p e body cs =
   where
     mainClause = LamClause { lamLHS      = [p]
                            , lamRHS      = RHS body
-                           , lamCatchAll = False }
+                           , lamCatchall = empty }
 
     -- Add parens to left-hand sides.
     addParens c = c { lamLHS = addP (lamLHS c) }

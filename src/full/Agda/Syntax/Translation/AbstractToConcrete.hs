@@ -951,7 +951,7 @@ instance ToConcrete A.Expr where
             C.RecWhere r . map (either fieldToDecl moduleToDecl) <$> toConcreteTop fs
             where
               fieldToDecl (C.FieldAssignment x e) = C.FunClause (C.LHS (C.IdentP True $ C.QName x) [] [])
-                                                                (C.RHS e) C.NoWhere False
+                                                                (C.RHS e) C.NoWhere empty
               -- record where cannot contain modules
               moduleToDecl = __IMPOSSIBLE__
 
@@ -1036,7 +1036,7 @@ instance ToConcrete A.LetBinding where
                [ C.TypeSig info empty (C.boundName x) t
                , C.FunClause
                    (C.LHS (C.IdentP True $ C.QName $ C.boundName x) [] [])
-                   e C.NoWhere False
+                   e C.NoWhere empty
                ]
           _ -> __IMPOSSIBLE__
     bindToConcrete (A.LetAxiom i info x t) ret = bindToConcrete x \x -> do
@@ -1047,7 +1047,7 @@ instance ToConcrete A.LetBinding where
     bindToConcrete (LetPatBind i p e) ret = do
         p <- toConcrete p
         e <- toConcrete e
-        ret [ C.FunClause (C.LHS p [] []) (C.RHS e) NoWhere False ]
+        ret [ C.FunClause (C.LHS p [] []) (C.RHS e) NoWhere empty ]
     bindToConcrete (LetApply i erased x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp

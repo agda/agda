@@ -880,3 +880,12 @@ instance EmbPrj RecordDirective where
     [2, a]    -> valuN Induction a
     [3, a]    -> valuN PatternOrCopattern a
     _ -> malformed
+
+instance EmbPrj Catchall where
+  icod_ NoCatchall  = icodeN' NoCatchall
+  icod_ (YesCatchall x) = icodeN' YesCatchall x
+
+  value = vcase valu where
+    valu []  = valuN NoCatchall
+    valu [x] = valuN YesCatchall x
+    valu _   = malformed

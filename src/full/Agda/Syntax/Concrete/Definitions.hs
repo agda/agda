@@ -350,7 +350,7 @@ niceDeclarations fixs ds = do
                -- The x'@NoName{} is the unique version of x@NoName{}.
                removeLoneSig x
                ds  <- expandEllipsis fits
-               cs  <- mkClauses x' ds False
+               cs  <- mkClauses x' ds empty
                return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck covCheck x' cs] , rest)
 
             -- case: clauses match more than one sigs (ambiguity)
@@ -572,7 +572,7 @@ niceDeclarations fixs ds = do
 
     nicePragma (CatchallPragma r) ds =
       if canHaveCatchallPragma ds then
-        withCatchallPragma True $ nice1 ds
+        withCatchallPragma (YesCatchall r) $ nice1 ds
       else do
         declarationWarning $ InvalidCatchallPragma r
         nice1 ds
@@ -725,7 +725,7 @@ niceDeclarations fixs ds = do
     -- Create a function definition.
     mkFunDef info termCheck covCheck x mt ds0 = do
       ds <- expandEllipsis ds0
-      cs <- mkClauses x ds False
+      cs <- mkClauses x ds empty
       return [ FunSig (fuseRange x t) PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x t
              , FunDef (getRange ds0) ds0 ConcreteDef NotInstanceDef termCheck covCheck x cs ]
         where
@@ -770,18 +770,24 @@ niceDeclarations fixs ds = do
     -- Turn function clauses into nice function clauses.
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]
     mkClauses _ [] _ = return []
+
+    -- A CATCHALL pragma after the last clause is useless.
+    mkClauses x [Pragma (CatchallPragma r)] _ = [] <$ do
+      declarationWarning $ InvalidCatchallPragma r
+
     mkClauses x (Pragma (CatchallPragma r) : cs) catchall = do
-      when (catchall || null cs) $ declarationWarning $ InvalidCatchallPragma r
-      mkClauses x cs True
+      -- Warn about consecutive CATCHALL pragmas
+      unless (null catchall) $ declarationWarning $ InvalidCatchallPragma r
+      mkClauses x cs (YesCatchall r)
 
     mkClauses x (FunClause lhs rhs wh ca : cs) catchall
       | null (lhsWithExpr lhs) || hasEllipsis lhs  =
-      (Clause x (ca || catchall) lhs rhs wh [] :) <$> mkClauses x cs False   -- Will result in an error later.
+      (Clause x (ca <> catchall) lhs rhs wh [] :) <$> mkClauses x cs empty   -- Will result in an error later.
 
     mkClauses x (FunClause lhs rhs wh ca : cs) catchall = do
       when (null withClauses) $ declarationException $ MissingWithClauses x lhs
-      wcs <- mkClauses x withClauses False
-      (Clause x (ca || catchall) lhs rhs wh wcs :) <$> mkClauses x cs' False
+      wcs <- mkClauses x withClauses empty
+      (Clause x (ca <> catchall) lhs rhs wh wcs :) <$> mkClauses x cs' empty
       where
         (withClauses, cs') = subClauses cs
 
@@ -957,7 +963,7 @@ niceDeclarations fixs ds = do
             [(n, fits0, rest)] -> do
               let (checkss, fits) = unzip fits0
               ds <- lift $ expandEllipsis fits
-              cs <- lift $ mkClauses n ds False
+              cs <- lift $ mkClauses n ds empty
               case Map.lookup n m of
                 Just (InterleavedFun i0 sig cs0) -> do
                   let (cs', i') = case cs0 of

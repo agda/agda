@@ -3450,7 +3450,7 @@ instance Pretty Fixity where
     Unrelated  -> empty
     Related{}  -> pretty ass <+> pretty level
 
--- * Notation coupled with 'Fixity'
+-- ** Notation coupled with 'Fixity'
 
 -- | The notation is handled as the fixity in the renamer.
 --   Hence, they are grouped together in this type.
@@ -3781,8 +3781,35 @@ instance KillRange UniverseCheck where
 instance NFData UniverseCheck
 
 -----------------------------------------------------------------------------
--- * Universe checking
+-- * Coverage
 -----------------------------------------------------------------------------
+
+-- | 'Range' of the CATCHALL pragma for a clause, if any.
+--   'Nothing' means no such pragma.
+data Catchall = YesCatchall Range | NoCatchall
+  deriving (Eq, Show, Generic)
+
+-- | Composition is left-biased, taking the left 'Range' if both have one.
+instance Semigroup Catchall where
+  NoCatchall         <> c                   = c
+  c                  <> NoCatchall          = c
+  c1@(YesCatchall r) <> c2@(YesCatchall r') = if null r then c2 else c1
+
+instance Monoid Catchall where
+  mempty = empty
+
+instance Null Catchall where
+  empty = NoCatchall
+
+instance KillRange Catchall where
+  killRange = \case
+    YesCatchall _ -> YesCatchall noRange
+    NoCatchall    -> NoCatchall
+
+instance NFData Catchall where
+  rnf = \case
+    YesCatchall _ -> ()
+    NoCatchall    -> ()
 
 -- | Coverage check? (Default is yes).
 data CoverageCheck = YesCoverageCheck | NoCoverageCheck

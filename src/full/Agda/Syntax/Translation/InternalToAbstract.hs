@@ -1467,7 +1467,7 @@ instance Reify (QNamed System) where
 
       lhs <- SpineLHS empty f <$> stripImplicits mempty [] ps
       rhs <- reify u <&> (`RHS` Nothing)
-      return $ A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
+      return $ A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls empty
 {-# SPECIALIZE reify :: QNamed System -> TCM (ReifiesTo (QNamed System)) #-}
 
 instance Reify I.Type where

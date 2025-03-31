@@ -231,7 +231,7 @@ recheckAbstractClause t sub acl = checkClauseLHS t sub acl $ \ lhs -> do
                   , namedClausePats   = lhsPatterns lhs
                   , clauseBody        = Nothing -- We don't need the body for make case
                   , clauseType        = Just (lhsBodyType lhs)
-                  , clauseCatchall    = False
+                  , clauseCatchall    = empty
                   , clauseRecursive   = Nothing
                   , clauseUnreachable = Nothing
                   , clauseEllipsis    = lhsEllipsis $ A.spLhsInfo $ A.clauseLHS acl
@@ -511,7 +511,7 @@ makeAbsurdClause f ell (SClause tel sps _ _ t) = do
       , namedClausePats = ps
       , clauseBody      = Nothing
       , clauseType      = argFromDom <$> t
-      , clauseCatchall    = False
+      , clauseCatchall    = empty
       , clauseRecursive   = Nothing
       , clauseUnreachable = Nothing
       , clauseEllipsis    = ell
@@ -525,7 +525,7 @@ makeAbstractClause f rhs ell cl = do
 
   lhs <- A.clauseLHS <$> makeAbsurdClause f ell cl
   reportSDoc "interaction.case" 60 $ "reified lhs: " <+> prettyA lhs
-  return $ A.Clause lhs [] rhs A.noWhereDecls False
+  return $ A.Clause lhs [] rhs A.noWhereDecls empty
   -- let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
   --                              -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
   -- let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n

@@ -316,7 +316,7 @@ extOrAbsLam lambdaRange attrs cs = case cs of
   Right es -> do
     -- It is of the form @\ { p1 ... () }@.
     e  <- onlyErased attrs
-    cl <- mkAbsurdLamClause False es
+    cl <- mkAbsurdLamClause empty es
     return $ ExtendedLam (getRange (lambdaRange, e, es)) e $ singleton cl
   Left (bs, h) -> do
     mapM_ (\a -> parseWarning $
@@ -547,15 +547,15 @@ patternSynArgs = mapM \ x -> do
           abort "Arguments to pattern synonyms cannot be named"
 
 mkLamClause
-  :: Bool   -- ^ Catch-all?
+  :: Catchall
   -> [Expr] -- ^ Possibly empty list of patterns.
   -> RHS
   -> Parser LamClause
-mkLamClause catchAll es rhs = mapM exprToPattern es <&> \ ps ->
-  LamClause{ lamLHS = ps, lamRHS = rhs, lamCatchAll = catchAll }
+mkLamClause catchall es rhs = mapM exprToPattern es <&> \ ps ->
+  LamClause{ lamLHS = ps, lamRHS = rhs, lamCatchall = catchall }
 
-mkAbsurdLamClause :: Bool -> List1 Expr -> Parser LamClause
-mkAbsurdLamClause catchAll es = mkLamClause catchAll (List1.toList es) AbsurdRHS
+mkAbsurdLamClause :: Catchall -> List1 Expr -> Parser LamClause
+mkAbsurdLamClause catchall es = mkLamClause catchall (List1.toList es) AbsurdRHS
 
 {- RHS or type signature -}
 
@@ -584,7 +584,7 @@ funClauseOrTypeSigs attrs lhs' with mrhs wh = do
   case mrhs of
     JustRHS rhs   -> do
       unless (null attrs) $ parseErrorRange attrs $ "A function clause cannot have attributes"
-      return $ singleton $ FunClause lhs rhs wh False
+      return $ singleton $ FunClause lhs rhs wh empty
     TypeSigsRHS e -> case wh of
       NoWhere -> case lhs of
         LHS p _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
