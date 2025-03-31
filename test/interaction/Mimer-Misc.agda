@@ -1,7 +1,10 @@
+{-# OPTIONS --guardedness #-}
 
-open import Agda.Builtin.Equality
 open import Agda.Builtin.Bool
+open import Agda.Builtin.Coinduction
+open import Agda.Builtin.Equality
 open import Agda.Builtin.Maybe
+
 open import Auto.Prelude
 
 -- using a type argument as a proof
@@ -69,3 +72,7 @@ module Issue2853 where
 
 skip-solutions : Maybe Bool
 skip-solutions = {!-s 1!}
+
+-- Andreas, 2025-03-31, issue #7662: ♭ needs to be printed prefix rather than postfix
+issue7662 : ∞ Bool → Bool
+issue7662 x = {!!}
