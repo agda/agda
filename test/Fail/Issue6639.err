@@ -1,7 +1,7 @@
 Issue6639.agda:16.3-4: error: [ConstructorDoesNotFitInData]
 Constructor c
 of inferred sort Prop₁
-does not fit into data type of sort Set.
+does not fit into data type of sort Prop.
 (Reason: Set₁ is not less or equal than Set)
 when checking that the type (P : Prop) → P → P of an argument to
 the constructor c fits in the sort Set of the datatype.

@@ -284,10 +284,8 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
         debugFitsIn s
-        -- To allow propositional squash, we turn @Prop ℓ@ into @Set ℓ@
-        -- for the purpose of checking the type of the constructors.
         arity <- applyQuantityToJudgement ai $
-          fitsIn IsData c uc forcedArgs t $ propToType s
+          fitsIn IsData c uc forcedArgs t s
         -- this may have instantiated some metas in s, so we reduce
         s <- reduce s
         debugAdd c t
@@ -1732,9 +1730,20 @@ fitsIn dataOrRecord con uc forceds conT s = do
     usableAtModality' (Just s) ConstructorType (setQuantity q unitModality) (unEl conT)
 
   li <- optLargeIndices <$> pragmaOptions
-  fitsIn' li forceds conT s
+  -- To allow propositional squash in data constructors, we turn @Prop ℓ@ into @Set ℓ@
+  -- for the purpose of checking the sort of the constructor.
+  -- This would be invalid for record constructors as we could unsquash
+  -- by projecting out the squashed data.
+  fitsIn' li forceds conT s $ applyWhen (dataOrRecord == IsData) propToType s
   where
-  fitsIn' li forceds t s = do
+  fitsIn' ::
+       Bool        -- Are large indices allowed?
+    -> [IsForced]  -- Which constructor arguments are forced?
+    -> Type        -- Type of the constructor.
+    -> Sort        -- Original sort of the data or record type.
+    -> Sort        -- For @data@, prop-to-type converted sort.
+    -> TCM Int     -- Constructor arity computed from the type.
+  fitsIn' li forceds t s0 s = do
     vt <- do
       t <- pathViewAsPi t
       return $ case t of
@@ -1775,16 +1784,16 @@ fitsIn dataOrRecord con uc forceds conT s = do
           sa <- reduce $ getSort dom
           unless (isPath || uc == NoUniverseCheck || sa == SizeUniv) $
             traceCall (CheckConArgFitsIn con isf (unDom dom) s) $
-            fitSort sa s
+            fitSort sa s0 s
 
         addContext (absName b, dom) $ do
-          succ <$> fitsIn' li forceds' (absBody b) (raise 1 s)
+          succ <$> fitsIn' li forceds' (absBody b) (raise 1 s0) (raise 1 s)
       _ -> do
-        fitSort (getSort t) s
+        fitSort (getSort t) s0 s
         return 0
   -- catch hard error from sort comparison to turn it into a soft error
-  fitSort sa s = leqSort sa s `catchError` \ err ->
-    warning $ ConstructorDoesNotFitInData dataOrRecord con sa s err
+  fitSort sa s0 s = leqSort sa s `catchError` \ err ->
+    warning $ ConstructorDoesNotFitInData dataOrRecord con sa s0 err
 
 -- | When --without-K is enabled, we should check that the sorts of
 --   the index types fit into the sort of the datatype.

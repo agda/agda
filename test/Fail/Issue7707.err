@@ -1,0 +1,15 @@
+Issue7707.agda:14.8-11: error: [ConstructorDoesNotFitInData]
+Constructor ExR.constructor
+of inferred sort Set
+does not fit into record type of sort Prop.
+(Reason: Set is not less or equal than Prop)
+when checking that the type A of an argument to the constructor
+ExR.constructor fits in the sort Prop of the datatype.
+
+Issue7707.agda:25.3-5: error: [ConstructorDoesNotFitInData]
+Constructor mk
+of inferred sort Prop₁
+does not fit into data type of sort Prop.
+(Reason: Set₁ is not less or equal than Set)
+when checking that the type A of an argument to the constructor mk
+fits in the sort Set of the datatype.
