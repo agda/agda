@@ -107,7 +107,7 @@ initNiceState = NiceState
   , _termChk  = TerminationCheck
   , _posChk   = YesPositivityCheck
   , _uniChk   = YesUniverseCheck
-  , _catchall = False
+  , _catchall = empty
   , _covChk   = YesCoverageCheck
   , niceWarn  = []
   , _nameId   = NameId 1 noModuleNameHash
@@ -258,7 +258,7 @@ catchallPragma f e = f (_catchall e) <&> \ s -> e { _catchall = s }
 popCatchallPragma :: Nice Catchall
 popCatchallPragma = do
   ca <- use catchallPragma
-  catchallPragma .= False
+  catchallPragma .= empty
   return ca
 
 withCatchallPragma :: Catchall -> Nice a -> Nice a

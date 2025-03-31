@@ -46,10 +46,10 @@ data Case c = Branches
     --   present, there should not be any conBranches or litBranches.
   , litBranches    :: Map Literal c
     -- ^ Map from literal to case subtree.
-  , catchAllBranch :: Maybe c
+  , catchallBranch :: Maybe c
     -- ^ (Possibly additional) catch-all clause.
   , fallThrough :: Maybe Bool
-    -- ^ (if True) In case of non-canonical argument use catchAllBranch.
+    -- ^ (if True) In case of non-canonical argument use catchallBranch.
   , lazyMatch :: Bool
     -- ^ Lazy pattern match. Requires single (non-copattern) branch with no lit
     --   branches and no catch-all.
@@ -88,8 +88,8 @@ etaCase c x = Branches False Map.empty (Just (c, x)) Map.empty Nothing (Just Fal
 projCase :: QName -> c -> Case c
 projCase c x = Branches True (Map.singleton c $ WithArity 0 x) Nothing Map.empty Nothing (Just False) False
 
-catchAll :: c -> Case c
-catchAll x = Branches False Map.empty Nothing Map.empty (Just x) (Just True) False
+catchall :: c -> Case c
+catchall x = Branches False Map.empty Nothing Map.empty (Just x) (Just True) False
 
 -- | Check that the requirements on lazy matching (single inductive case) are
 --   met, and set lazy to False otherwise.
@@ -97,19 +97,19 @@ checkLazyMatch :: Case c -> Case c
 checkLazyMatch b = b { lazyMatch = lazyMatch b && requirements }
   where
     requirements = and
-      [ null (catchAllBranch b)
+      [ null (catchallBranch b)
       , Map.size (conBranches b) <= 1
       , null (litBranches b)
       , not $ projPatterns b ]
 
 -- | Check whether a case tree has a catch-all clause.
-hasCatchAll :: CompiledClauses -> Bool
-hasCatchAll = getAny . loop
+hasCatchall :: CompiledClauses -> Bool
+hasCatchall = getAny . loop
   where
   loop cc = case cc of
     Fail{}    -> mempty
     Done{}    -> mempty
-    Case _ br -> maybe (foldMap loop br) (const $ Any True) $ catchAllBranch br
+    Case _ br -> maybe (foldMap loop br) (const $ Any True) $ catchallBranch br
 
 -- | Check whether a case tree has any projection patterns
 hasProjectionPatterns :: CompiledClauses -> Bool

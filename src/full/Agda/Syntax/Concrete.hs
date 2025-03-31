@@ -433,7 +433,7 @@ whereClause_ = \case
 data LamClause = LamClause
   { lamLHS      :: [Pattern]   -- ^ Possibly empty sequence.
   , lamRHS      :: RHS
-  , lamCatchAll :: Bool
+  , lamCatchall :: Catchall
   }
   deriving Eq
 
@@ -510,7 +510,7 @@ data Declaration
   | FieldSig IsInstance TacticAttribute Name (Arg Expr)
   | Generalize KwRange [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
   | Field KwRange [FieldSignature]
-  | FunClause LHS RHS WhereClause Bool
+  | FunClause LHS RHS WhereClause Catchall
   | DataSig     Range Erased Name [LamBinding] Expr -- ^ lone data signature in mutual block
   | Data        Range Erased Name [LamBinding] Expr
                 [TypeSignatureOrInstanceBlock]

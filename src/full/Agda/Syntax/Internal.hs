@@ -413,7 +413,7 @@ data Clause = Clause
       --   Used, e.g., by @TermCheck@.
       --   Can be 'Irrelevant' if we encountered an irrelevant projection
       --   pattern on the lhs.
-    , clauseCatchall    :: Bool
+    , clauseCatchall    :: Catchall
       -- ^ Clause has been labelled as CATCHALL.
     , clauseRecursive   :: Maybe Bool
       -- ^ @clauseBody@ contains recursive calls; computed by termination checker.
@@ -1136,7 +1136,7 @@ instance Null (Tele a) where
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
 instance Null Clause where
-  empty = Clause empty empty empty empty empty empty False Nothing Nothing empty empty
+  empty = Clause empty empty empty empty empty empty empty empty empty empty empty
   null (Clause _ _ tel pats body _ _ _ _ _ wm)
     =  null tel
     && null pats

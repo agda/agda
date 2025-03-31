@@ -954,16 +954,16 @@ LamBindsAbsurd
 -- Andreas, 2020-03-28: And also not in sight either nine years later.
 NonAbsurdLamClause :: { LamClause }
 NonAbsurdLamClause
-  : Application3PossiblyEmpty '->' Expr {% mkLamClause False $1 (RHS $3) }
+  : Application3PossiblyEmpty '->' Expr {% mkLamClause empty $1 (RHS $3) }
   | CatchallPragma
-    Application3PossiblyEmpty '->' Expr {% mkLamClause True  $2 (RHS $4) }
+    Application3PossiblyEmpty '->' Expr {% mkLamClause (YesCatchall (getRange $1))  $2 (RHS $4) }
 
 AbsurdLamClause :: { LamClause }
 AbsurdLamClause
 -- FNF, 2011-05-09: By being more liberal here, we avoid shift/reduce and reduce/reduce errors.
 -- Later stages such as scope checking will complain if we let something through which we should not
-  : Application                {% mkAbsurdLamClause False $1 }
-  | CatchallPragma Application {% mkAbsurdLamClause True  $2 }
+  : Application                {% mkAbsurdLamClause empty $1 }
+  | CatchallPragma Application {% mkAbsurdLamClause (YesCatchall (getRange $1))  $2 }
 
 LamClause :: { LamClause }
 LamClause

@@ -135,13 +135,13 @@ compileWithSplitTree t cs = case t of
                               , etaBranch   = Nothing
                               , litBranches = lits
                               , fallThrough = fT
-                              , catchAllBranch = catchAll
+                              , catchallBranch = catchall
                               , lazyMatch = lazy }
       = br{ conBranches    = updCons cons
           , etaBranch      = Nothing
           , litBranches    = updLits lits
           , fallThrough    = fT
-          , catchAllBranch = updCatchall catchAll
+          , catchallBranch = updCatchall catchall
           , lazyMatch      = lazy || lz == LazySplit
           }
       where
@@ -220,8 +220,8 @@ isVar ProjP{}   = False
 --   if @single@.
 splitOn :: Bool -> Int -> Cls -> Case Cls
 splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $
-  -- (\ cs -> trace ("splitting on " ++ show n ++ " after expandCatchAlls " ++ show single ++ ": " ++ prettyShow (P.prettyList cs)) cs) $
-    expandCatchAlls single n cs
+  -- (\ cs -> trace ("splitting on " ++ show n ++ " after expandCatchalls " ++ show single ++ ": " ++ prettyShow (P.prettyList cs)) cs) $
+    expandCatchalls single n cs
 
 splitC :: Int -> Cl -> Case Cl
 splitC n (Cl ps b) = caseMaybe mp fallback $ \case
@@ -238,7 +238,7 @@ splitC n (Cl ps b) = caseMaybe mp fallback $ \case
     (ps0, rest) = splitAt n ps
     mp          = unArg <$> listToMaybe rest
     ps1         = drop 1 rest
-    fallback    = catchAll $ Cl ps b
+    fallback    = catchall $ Cl ps b
 
 -- | Expand catch-alls that appear before actual matches.
 --
@@ -308,8 +308,8 @@ splitC n (Cl ps b) = caseMaybe mp fallback $ \case
 --     _  -> case j of
 --             i1 -> base
 -- @
-expandCatchAlls :: Bool -> Int -> Cls -> Cls
-expandCatchAlls single n cs =
+expandCatchalls :: Bool -> Int -> Cls -> Cls
+expandCatchalls single n cs =
   case cs of
     _ -- Andreas, 2013-03-22
       -- if there is a single case (such as for record splits)
@@ -318,12 +318,12 @@ expandCatchAlls single n cs =
 
       -- If all clauses have a variable at the nth argument, expansion
       -- would have no effect
-      | all (isCatchAllNth . clPats) cs -> cs
+      | all (isCatchallNth . clPats) cs -> cs
 
     c@(Cl ps b):cs
       -- If the head clause does not have a catch-all pattern for the
       -- nth argument, we can keep it at the head and do no expansion
-      | not (isCatchAllNth ps) -> c : expandCatchAlls False n cs
+      | not (isCatchallNth ps) -> c : expandCatchalls False n cs
 
       -- If there's a DefP clause for this argument later on, then it
       -- should take priority over catch-all clauses, so we rotate them
@@ -331,13 +331,13 @@ expandCatchAlls single n cs =
       -- DefP clauses are always inserted by the system and should
       -- "defeat" user-written inexact patterns.
       | (defps@(_:_), rest) <- partition isDefPNth (c:cs)
-      -> defps ++ expandCatchAlls False n rest
+      -> defps ++ expandCatchalls False n rest
 
       -- If the head clause *does* have an irrefutable pattern for the
       -- nth argument, and there's nothing more important after, then we
       -- duplicate the subsequent overlapping clauses with c's RHS
       -- instead.
-      | otherwise -> map (expand c) expansions ++ c : expandCatchAlls False n cs
+      | otherwise -> map (expand c) expansions ++ c : expandCatchalls False n cs
     _ -> __IMPOSSIBLE__
   where
     -- In case there is only one branch in the split tree, we expand all
@@ -345,14 +345,14 @@ expandCatchAlls single n cs =
     -- The @expansions@ are collected from all the clauses @cs@ then.
     -- Note: @expansions@ could be empty, so we keep the orignal clause.
     doExpand c@(Cl ps _)
-      | exCatchAllNth ps = map (expand c) expansions ++ [c]
+      | exCatchallNth ps = map (expand c) expansions ++ [c]
       | otherwise = [c]
 
     -- True if nth pattern is variable or there are less than n patterns.
-    isCatchAllNth ps = all (isVar . unArg) $ take 1 $ drop n ps
+    isCatchallNth ps = all (isVar . unArg) $ take 1 $ drop n ps
 
     -- True if nth pattern exists and is variable.
-    exCatchAllNth ps = any (isVar . unArg) $ take 1 $ drop n ps
+    exCatchallNth ps = any (isVar . unArg) $ take 1 $ drop n ps
 
     classify (LitP _ l)   = Left l
     classify (ConP c _ _) = Right (Left c)

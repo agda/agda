@@ -89,13 +89,13 @@ match' ((c, es, patch) : stack) = do
           lam x t        = Lam (argInfo x) (Abs (unArg x) t)
 
       -- splitting on an eta-record constructor
-      Case (Arg _ n) Branches{etaBranch = Just (c, cc), catchAllBranch = ca} ->
+      Case (Arg _ n) Branches{etaBranch = Just (c, cc), catchallBranch = ca} ->
         case splitAt n es of
           (_, []) -> no (NotBlocked Underapplied) es
           (es0, MaybeRed _ e@(Apply (Arg _ v0)) : es1) ->
               let projs = [ MaybeRed NotReduced $ Apply $ Arg ai $ relToDontCare ai $ v0 `applyE` [Proj ProjSystem f] | Arg ai f <- fs ]
-                  catchAllFrame stack = maybe stack (\c -> (c, es, patch) : stack) ca in
-              match' $ (content cc, es0 ++ projs ++ es1, patchEta) : catchAllFrame stack
+                  catchallFrame stack = maybe stack (\c -> (c, es, patch) : stack) ca in
+              match' $ (content cc, es0 ++ projs ++ es1, patchEta) : catchallFrame stack
             where
               fs = conFields c
               patchEta es = patch (es0 ++ [e] ++ es1)
@@ -119,7 +119,7 @@ match' ((c, es, patch) : stack) = do
                 -- replace the @n@th argument by its reduced form
                 es' = es0 ++ [MaybeRed (Reduced $ () <$ eb) e] ++ es1
                 -- if a catch-all clause exists, put it on the stack
-                catchAllFrame stack = maybe stack (\c -> (c, es', patch) : stack) (catchAllBranch bs)
+                catchallFrame stack = maybe stack (\c -> (c, es', patch) : stack) (catchallBranch bs)
                 -- If our argument is @Lit l@, we push @litFrame l@ onto the stack.
                 litFrame l stack =
                   case Map.lookup l (litBranches bs) of
@@ -156,7 +156,7 @@ match' ((c, es, patch) : stack) = do
             --    mo <- getBuiltinName' builtinIOne
             --    return $ Set.fromList $ catMaybes [mi,mo]
 
-            fallThrough <- return $ Just True == fallThrough bs && isJust (catchAllBranch bs)
+            fallThrough <- return $ Just True == fallThrough bs && isJust (catchallBranch bs)
 
             let
               isCon b =
@@ -171,21 +171,21 @@ match' ((c, es, patch) : stack) = do
                 let cFrame stack = case cv of
                       Con c ci vs -> conFrame c ci vs stack
                       _        -> stack
-                match' $ litFrame l $ cFrame $ catchAllFrame stack
+                match' $ litFrame l $ cFrame $ catchallFrame stack
 
               NotBlocked _ (Apply (Arg info v@(Def q vs))) | Just{} <- Map.lookup q (conBranches bs) -> performedSimplification $ do
-                match' $ conFrame' q (Def q) vs $ catchAllFrame $ stack
+                match' $ conFrame' q (Def q) vs $ catchallFrame $ stack
 
               -- In case of a constructor, push the conFrame
               b | Just (Con c ci vs) <- isCon b -> performedSimplification $
-                match' $ conFrame c ci vs $ catchAllFrame $ stack
+                match' $ conFrame c ci vs $ catchallFrame $ stack
 
               -- In case of a projection, push the projFrame
               NotBlocked _ (Proj _ p) -> performedSimplification $
-                match' $ projFrame p $ stack -- catchAllFrame $ stack
+                match' $ projFrame p $ stack -- catchallFrame $ stack
                 -- Issue #1986: no catch-all for copattern matching!
 
-              _ | fallThrough -> match' $ catchAllFrame $ stack
+              _ | fallThrough -> match' $ catchallFrame $ stack
 
               Blocked x _            -> no (Blocked x) es'
 

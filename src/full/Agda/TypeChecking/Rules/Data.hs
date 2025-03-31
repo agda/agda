@@ -591,7 +591,7 @@ defineCompData d con params names fsT t boundary = do
           , namedClausePats   = pats
           , clauseFullRange   = noRange
           , clauseLHSRange    = noRange
-          , clauseCatchall    = False
+          , clauseCatchall    = empty
           , clauseBody        = Just $ body
           , clauseRecursive   = Nothing
               -- Andreas 2020-02-06 TODO
@@ -1265,7 +1265,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
             , namedClausePats   = ps
             , clauseFullRange   = noRange
             , clauseLHSRange    = noRange
-            , clauseCatchall    = False
+            , clauseCatchall    = empty
             , clauseBody        = Just $ rhs
             , clauseRecursive   = Nothing
             -- it is indirectly recursive through transp, does it count?

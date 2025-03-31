@@ -165,7 +165,7 @@ checkAlias t ai i name e mc =
                         , clauseStrippedPats = []
                         , clauseRHS          = A.RHS e mc
                         , clauseWhereDecls   = A.noWhereDecls
-                        , clauseCatchall     = False } in
+                        , clauseCatchall     = empty } in
   atClause name 0 t Nothing clause $ do
   reportSDoc "tc.def.alias" 10 $ "checkAlias" <+> vcat
     [ text (prettyShow name) <+> colon  <+> prettyTCM t
@@ -201,7 +201,7 @@ checkAlias t ai i name e mc =
               , namedClausePats   = []
               , clauseBody        = Just $ bodyMod v
               , clauseType        = Just $ Arg ai t
-              , clauseCatchall    = False
+              , clauseCatchall    = empty
               , clauseRecursive   = Nothing   -- we don't know yet
               , clauseUnreachable = Just False
               , clauseEllipsis    = NoEllipsis
@@ -340,7 +340,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
                        , namedClausePats = teleNamedArgs tel
                        , clauseBody      = Nothing
                        , clauseType      = Just (defaultArg t)
-                       , clauseCatchall    = False
+                       , clauseCatchall    = empty
                        , clauseRecursive   = Just False
                        , clauseUnreachable = Just False
                        , clauseEllipsis    = NoEllipsis
@@ -777,7 +777,7 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
 
         -- absurd clauses don't define computational behaviour, so it's fine to
         -- treat them as catchalls.
-        let catchall' = catchall || isNothing body
+        let catchall' = if isNothing body then YesCatchall empty else catchall
 
         return $ (, CPC psplit)
           Clause { clauseLHSRange  = getRange i
@@ -943,7 +943,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
           -- Andreas, 2014-03-05 kill range of copied patterns
           -- since they really do not have a source location.
           cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
-                 strippedPats rhs'' outerWhere False
+                 strippedPats rhs'' outerWhere empty
 
       reportSDoc "tc.invert" 60 $ vcat
         [ text "invert"
@@ -1023,7 +1023,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
           -- Andreas, 2014-03-05 kill range of copied patterns
           -- since they really do not have a source location.
           cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
-                 strippedPats rhs'' outerWhere False
+                 strippedPats rhs'' outerWhere empty
 
       reportSDoc "tc.rewrite" 60 $ vcat
         [ text "rewrite"

@@ -671,7 +671,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                             Function{funProjection = Right p} -> projDropParsApply p ProjSystem rel ts'
                             _ -> Def x $ map Apply ts'
                         , clauseType        = Just $ defaultArg t
-                        , clauseCatchall    = False
+                        , clauseCatchall    = empty
                         , clauseRecursive   = Just False -- definitely not recursive
                         , clauseUnreachable = Just False -- definitely not unreachable
                         , clauseEllipsis    = NoEllipsis

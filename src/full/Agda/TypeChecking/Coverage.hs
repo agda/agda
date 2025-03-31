@@ -187,7 +187,7 @@ coverageCheck f t cs = do
                       , namedClausePats = applySubst sub ps
                       , clauseBody      = Nothing
                       , clauseType      = Nothing
-                      , clauseCatchall    = True       -- absurd clauses are safe as catch-all
+                      , clauseCatchall    = YesCatchall empty       -- absurd clauses are safe as catch-all
                       , clauseRecursive   = Just False
                       , clauseUnreachable = Just False
                       , clauseEllipsis    = NoEllipsis
@@ -232,7 +232,7 @@ coverageCheck f t cs = do
   -- and they are not labelled as CATCHALL.
   let noexclauses = forMaybe noex $ \ i -> do
         let cl = indexWithDefault __IMPOSSIBLE__ cs1 i
-        if clauseCatchall cl then Nothing else Just cl
+        if null (clauseCatchall cl) then Just cl else Nothing
   List1.unlessNull noexclauses \ noexclauses -> do
       setCurrentRange (fmap clauseLHSRange noexclauses) $
         warning $ CoverageNoExactSplit f noexclauses
@@ -669,7 +669,7 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
                   , namedClausePats = fromSplitPatterns ps
                   , clauseBody      = Just rhs
                   , clauseType      = Just (argFromDom t)
-                  , clauseCatchall    = False
+                  , clauseCatchall    = empty
                   , clauseRecursive   = Nothing     -- could be recursive
                   , clauseUnreachable = Just False  -- missing, thus, not unreachable
                   , clauseEllipsis    = NoEllipsis

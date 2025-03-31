@@ -6,6 +6,8 @@
 
 module Agda.TypeChecking.Rules.Builtin.Coinduction where
 
+import Prelude hiding (null)
+
 import Agda.Interaction.Options.Base
 
 import qualified Agda.Syntax.Abstract as A
@@ -25,6 +27,7 @@ import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
 
 import Agda.Utils.Lens
+import Agda.Utils.Null
 
 -- | The type of @∞@.
 
@@ -141,7 +144,7 @@ bindBuiltinFlat x =
               ConP sharpCon cpi [ argN $ Named Nothing $ debruijnNamedVar "x" 0 ] ]
           , clauseBody      = Just $ var 0
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
-          , clauseCatchall    = False
+          , clauseCatchall    = empty
           , clauseRecursive   = Just False
           , clauseUnreachable = Just False
           , clauseEllipsis    = NoEllipsis

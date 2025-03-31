@@ -486,7 +486,7 @@ checkRecordWhere r ds0 mkRec = do
             (C.LHS (C.IdentP True (C.QName l)) [] [])
             (C.RHS (C.Ident (C.qualify m r)))
             NoWhere
-            False
+            empty
 
 {--------------------------------------------------------------------------
     Translation
@@ -1618,7 +1618,7 @@ instance ToAbstract LetDef where
               [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef
                   (setOrigin Inserted defaultArgInfo) tc cc x (C.Underscore (getRange x) Nothing)
               , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
-                [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
+                [C.Clause x (ca <> catchall) lhs (C.RHS rhs) NoWhere []]
               ]
           where
             definedName (C.IdentP _ (C.QName x)) = Just x
