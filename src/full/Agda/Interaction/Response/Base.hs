@@ -140,7 +140,7 @@ data Info_Error_boot tcErr tcWarning
 data GoalTypeAux
     = GoalOnly
     | GoalAndHave A.Expr [IPFace' Expr]
-    | GoalAndElaboration I.Term
+    | GoalAndElaboration A.Expr
 
 -- | Entry in context.
 

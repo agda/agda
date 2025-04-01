@@ -235,8 +235,8 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
             GoalAndHave expr bndry -> do
               doc <- prettyATop expr
               return $ ("Have:" <+> doc) $$ vcat (boundaryDoc ("Boundary (actual)") bndry)
-            GoalAndElaboration term -> do
-              doc <- TCP.prettyTCM term
+            GoalAndElaboration expr -> do
+              doc <- prettyATop expr
               return $ "Elaborates to:" <+> doc
       let constraintsDoc
             | null constraints = []
