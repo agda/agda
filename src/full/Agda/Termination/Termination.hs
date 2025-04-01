@@ -18,6 +18,11 @@ module Agda.Termination.Termination
   , idempotent
   ) where
 
+import Prelude hiding ((&&), null)
+
+import Control.DeepSeq (NFData)
+import GHC.Generics (Generic)
+
 import Agda.Termination.CutOff
 import Agda.Termination.CallGraph
 import Agda.Termination.CallMatrix hiding (toList)
@@ -25,12 +30,15 @@ import qualified Agda.Termination.CallMatrix as CMSet
 import Agda.Termination.Order
 import Agda.Termination.SparseMatrix
 
+import Agda.Utils.Boolean
+import Agda.Utils.Null
 import Agda.Utils.Three
 
 -- | Would termination go through with guardedness?
 data GuardednessHelps
   = GuardednessHelpsYes  -- ^ Guardedness would provide termination evidence.
   | GuardednessHelpsNot  -- ^ Guardedness does not help with termination.
+  deriving (Eq, Show, Generic, Enum, Bounded)
 
 -- | Result of running the termination checker.
 data Terminates cinfo
@@ -67,7 +75,7 @@ terminatesFilter f cs
   | cm:_ <- needGuardedness = TerminatesNot GuardednessHelpsYes $ augCallInfo cm
   | otherwise               = Terminates
   where
-    f' c = f (source c) && f (target c)
+    f' = f . source && f . target
     -- Every idempotent call must have decrease in the diagonal.
     idems = filter idempotent $ endos $ filter f' $ toList $ complete cs
     hasDecr cm = case diagonal cm of
@@ -91,3 +99,20 @@ endos cs = [ m | c <- cs, source c == target c
 --   worse.
 idempotent  :: (?cutoff :: CutOff) => CallMatrixAug cinfo -> Bool
 idempotent (CallMatrixAug m _) = (m >*< m) `notWorse` m
+
+-- Instances
+
+instance Null GuardednessHelps where
+  empty = GuardednessHelpsNot
+
+instance Boolean GuardednessHelps where
+  fromBool = \case
+    True  -> GuardednessHelpsYes
+    False -> GuardednessHelpsNot
+
+instance IsBool GuardednessHelps where
+  toBool = \case
+    GuardednessHelpsYes -> True
+    GuardednessHelpsNot -> False
+
+instance NFData GuardednessHelps

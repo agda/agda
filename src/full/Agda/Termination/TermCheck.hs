@@ -282,9 +282,9 @@ termMutual' = do
   names <- terGetUserNames
   case r of
 
-    TerminatesNot guardednessHelp calls -> do
+    TerminatesNot guardednessHelps calls -> do
       mapM_ (`setTerminates` False) allNames
-      return $ singleton $ terminationError names calls
+      return $ singleton $ terminationError names calls guardednessHelps
 
     Terminates -> do
       liftTCM $ reportSLn "term.warn.yes" 2 $
@@ -294,8 +294,8 @@ termMutual' = do
 
 -- | Smart constructor for 'TerminationError'.
 --   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
-terminationError :: Set QName -> CallPath -> TerminationError
-terminationError names calls = TerminationError names' calls'
+terminationError :: Set QName -> CallPath -> GuardednessHelps -> TerminationError
+terminationError names calls guardednessHelps = TerminationError names' calls' guardednessHelps
   where
   calls'    = callInfos calls
   mentioned = map callInfoTarget calls'
@@ -428,7 +428,7 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
 
           -- Functions must terminate, so we report the error.
           _ -> do
-            let err = TerminationError [name | name `elem` names] calls
+            let err = TerminationError [name | name `elem` names] calls guardednessHelps
             return $ singleton err
 
       Terminates -> do
