@@ -1,5 +1,20 @@
 
-module Agda.TypeChecking.Pretty.Warning where
+module Agda.TypeChecking.Pretty.Warning
+  ( applyFlagsToTCWarnings
+  , applyFlagsToTCWarningsPreserving
+  , filterTCWarnings
+  , getAllUnsolvedWarnings
+  , getAllWarnings
+  , getAllWarningsOfTCErr
+  , getAllWarningsPreserving
+  , prettyDuplicateFields
+  , prettyTCWarnings
+  , prettyTCWarnings'
+  , prettyTooManyFields
+  , prettyWarning
+  , tcWarningsToError
+  )
+where
 
 import Prelude hiding ( null )
 
