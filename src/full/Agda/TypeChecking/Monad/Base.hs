@@ -97,6 +97,8 @@ import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
 
 import Agda.TypeChecking.DiscrimTree.Types
 
+import Agda.Termination.Termination (GuardednessHelps(..))
+
 import Agda.Compiler.Backend.Base (Backend_boot, Backend'_boot)
 
 import Agda.Interaction.Options
@@ -4896,6 +4898,8 @@ data TerminationError = TerminationError
     -- automatically generated functions.)
   , termErrCalls :: [CallInfo]
     -- ^ The problematic call sites.
+  , termErrGuardednessHelps :: GuardednessHelps
+    -- ^ Is the termination error resolved by activating @--guardedness@?
   } deriving (Show, Generic)
 
 -- | Error when splitting a pattern variable into possible constructor patterns.

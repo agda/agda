@@ -5,6 +5,7 @@ by the termination checker unless this flag is enabled.
 when checking the definition of Stream
 Issue1209-5.agda:11.1-13.26: error: [TerminationIssue]
 Termination checking failed for the following functions:
+(Option --guardedness might fix this problem.)
   repeat
 Problematic calls:
   repeat x

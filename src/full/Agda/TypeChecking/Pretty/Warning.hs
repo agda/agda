@@ -66,12 +66,14 @@ import Agda.Interaction.Options
 import Agda.Interaction.Options.Errors
 import Agda.Interaction.Options.Warnings
 
+import Agda.Utils.Boolean  ( toBool )
 import Agda.Utils.FileName ( filePath )
 import Agda.Utils.Functor  ( (<.>) )
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Monad ( ifM )
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Set1 as Set1
@@ -110,18 +112,29 @@ prettyWarning = \case
           , nest 2 $ return $ P.vcat $ List.nub pcs
           ]
 
-    TerminationIssue because -> do
+    TerminationIssue errs1 -> do
       dropTopLevel <- topLevelModuleDropper
-      vcat
-        [ fwords "Termination checking failed for the following functions:"
-        , nest 2 $ fsep $ punctuate comma $
-            map (pretty . dropTopLevel) $
-              concatMap termErrFunctions because
-        , fwords "Problematic calls:"
-        , nest 2 $ fmap (P.vcat . List.nub) $
-            mapM prettyTCM $ List.sortOn getRange $
-              concatMap termErrCalls because
-        ]
+      let errs = List1.toList errs1
+      let (guardednessHelps, guardednessHelpsNot) =
+            List.partition (toBool . termErrGuardednessHelps) errs
+      let report hint because = if null because then empty else do
+            vcat
+              [ fwords "Termination checking failed for the following functions:"
+              , hint
+              , nest 2 $ fsep $ punctuate comma $
+                  map (pretty . dropTopLevel) $
+                    concatMap termErrFunctions because
+              , fwords "Problematic calls:"
+              , nest 2 $ fmap (P.vcat . List.nub) $
+                  mapM prettyTCM $ List.sortOn getRange $
+                    concatMap termErrCalls because
+              ]
+      -- Andreas, 2025-04-01, issue #6657
+      -- Hint towards --guardedness where appropriate, but not when --sized-types is on.
+      ifM (optSizedTypes <$> pragmaOptions) (report empty errs) {-else-} do
+        vcat [ report "(Option --guardedness might fix this problem.)" guardednessHelps
+             , report empty guardednessHelpsNot
+             ]
 
     UnreachableClauses _f pss -> "Unreachable" <+> pluralS pss "clause"
 
