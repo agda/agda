@@ -104,6 +104,9 @@ Warnings
 * Warning `AbsurdPatternRequiresNoRHS` has been renamed to
   `AbsurdPatternRequiresAbsentRHS`.
 
+* Warning `NoGuardednessFlag` has been removed.
+  Instead Agda a hint when `--guardedness` would help with termination checking.
+
 Polarity
 --------
 

@@ -1491,10 +1491,6 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Multiple attributes given where only erasure is accepted.
 
-.. option:: NoGuardednessFlag
-
-     Coinductive record but no :option:`--guardedness` flag.
-
 .. option:: NoMain
 
      Invoking the compiler on a module without a ``main`` function.
