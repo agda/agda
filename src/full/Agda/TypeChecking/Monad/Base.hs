@@ -4553,9 +4553,6 @@ data Warning
   --   top-level instances.
   | InversionDepthReached    QName
   -- ^ The --inversion-max-depth was reached.
-  | NoGuardednessFlag        QName
-  -- ^ A coinductive record was declared but neither --guardedness nor
-  --   --sized-types is enabled.
 
   -- Safe flag errors
   | SafeFlagPostulate C.Name
@@ -4731,7 +4728,6 @@ warningName = \case
   InversionDepthReached{}      -> InversionDepthReached_
   InteractionMetaBoundaries{}  -> InteractionMetaBoundaries_{}
   ModuleDoesntExport{}         -> ModuleDoesntExport_
-  NoGuardednessFlag{}          -> NoGuardednessFlag_
   NotInScopeW{}                -> NotInScope_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
   ConstructorDoesNotFitInData{}-> ConstructorDoesNotFitInData_

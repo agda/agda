@@ -205,12 +205,6 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
         else pure haveEta0
       reportSDoc "tc.rec" 30 $ "record constructor is " <+> prettyTCM con
 
-      -- Jesper, 2021-05-26: Warn when declaring coinductive record
-      -- but neither --guardedness nor --sized-types is enabled.
-      when (conInduction == CoInductive) $ do
-        unlessM ((optGuardedness || optSizedTypes) <$> pragmaOptions) $
-          warning $ NoGuardednessFlag name
-
       -- Add the record definition.
 
       -- Andreas, 2016-06-17, Issue #2018:

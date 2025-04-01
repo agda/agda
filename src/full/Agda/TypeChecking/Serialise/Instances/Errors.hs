@@ -90,7 +90,7 @@ instance EmbPrj Warning where
     RewriteAmbiguousRules a b c           -> icodeN 36 RewriteAmbiguousRules a b c
     RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
     ParseWarning a                        -> icodeN 38 ParseWarning a
-    NoGuardednessFlag a                   -> icodeN 39 NoGuardednessFlag a
+    -- 39 unused
     UnsupportedIndexedMatch f             -> icodeN 40 UnsupportedIndexedMatch f
     OptionWarning a                       -> icodeN 41 OptionWarning a
     PlentyInHardCompileTimeMode a         -> icodeN 42 PlentyInHardCompileTimeMode a
@@ -176,7 +176,7 @@ instance EmbPrj Warning where
     [36, a, b, c]        -> valuN RewriteAmbiguousRules a b c
     [37, a, b, c]        -> valuN RewriteMissingRule a b c
     [38, a]              -> valuN ParseWarning a
-    [39, a]              -> valuN NoGuardednessFlag a
+    -- 39 unused
     [40, a]              -> valuN UnsupportedIndexedMatch a
     [41, a]              -> valuN OptionWarning a
     [42, a]              -> valuN PlentyInHardCompileTimeMode a
