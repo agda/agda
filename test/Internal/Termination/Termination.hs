@@ -9,9 +9,16 @@ import Agda.Termination.Order
 import Agda.Termination.SparseMatrix
 import Agda.Termination.Termination
 
-import Agda.Utils.Either
-
 import Internal.Helpers -- hiding (idempotent)
+
+isRight :: Terminates a -> Bool
+isRight = \case
+  Terminates                          -> True
+  TerminatesNot GuardednessHelpsYes _ -> True
+  TerminatesNot GuardednessHelpsNot _ -> False
+
+isLeft :: Terminates a -> Bool
+isLeft = not . isRight
 
 ------------------------------------------------------------------------
 -- Some examples
