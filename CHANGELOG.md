@@ -259,6 +259,11 @@ Interaction and emacs mode
 * Emacs: new face `agda2-highlight-instance-problem-face`
   for highlighting the new aspect `InstanceProblem`.
 
+* When generating clauses after case splitting on a datatype defined in a parameterised module,
+  Agda now prints constructor names without a module prefix rather than fully qualified (see issue #3209).
+  This is only a surface-level fix, since Agda might still fail to find the properly qualified name for
+  the constructor in scope, but should at least make more sense in most situations.
+
 
 Backends
 --------

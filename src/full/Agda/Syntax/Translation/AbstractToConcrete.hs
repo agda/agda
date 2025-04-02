@@ -16,6 +16,7 @@ module Agda.Syntax.Translation.AbstractToConcrete
     , abstractToConcreteQName
     , abstractToConcreteScope
     , abstractToConcreteTelescope
+    , abstractToConcreteUnqualify
     , RangeAndPragma(..)
     , noTakenNames
     ) where
@@ -130,6 +131,10 @@ abstractToConcreteQName :: MonadAbsToCon m
   => AllowAmbiguousNames -> A.QName -> m (C.QName)
 abstractToConcreteQName amb = runAbsToCon . lookupQName amb
 
+abstractToConcreteUnqualify :: (ToConcrete a, MonadAbsToCon m)
+  => a -> m (ConOfAbs a)
+abstractToConcreteUnqualify = runAbsToCon . doUnqualifyOutOfScopeNames . toConcrete
+
 ---------------------------------------------------------------------------
 -- * The Monad for the implementation
 ---------------------------------------------------------------------------
@@ -189,6 +194,8 @@ data Env = Env
   , preserveIIds :: Bool
       -- ^ Preserve interaction point ids?
   , foldPatternSynonyms :: Bool
+  , unqualifyOutOfScopeNames :: Bool
+      -- ^ Print out-of-scope names unqualified (`a` instead of `A.B.a`).
   }
 
 makeEnv :: MonadAbsToCon m => ScopeInfo -> m Env
@@ -220,6 +227,7 @@ makeEnv scope = do
         , builtins     = Map.fromListWith __IMPOSSIBLE__ builtinList
         , preserveIIds = False
         , foldPatternSynonyms = foldPatSyns
+        , unqualifyOutOfScopeNames = False
         }
   where
     defs = Set.fromList $ map (nameParts . fst) $
@@ -272,6 +280,9 @@ noTakenNames = local $ \e -> e { takenVarNames = Set.empty }
 
 dontFoldPatternSynonyms :: MonadToConcrete m => m a -> m a
 dontFoldPatternSynonyms = local $ \ e -> e { foldPatternSynonyms = False }
+
+doUnqualifyOutOfScopeNames :: MonadToConcrete m => m a -> m a
+doUnqualifyOutOfScopeNames = local $ \ e -> e { unqualifyOutOfScopeNames = True }
 
 -- | Get a function to check if a name refers to a particular builtin function.
 isBuiltinFun :: MonadToConcrete m => m (A.QName -> BuiltinId -> Bool)
@@ -336,9 +347,16 @@ lookupQName ambCon x = ignoreAbstractMode (isExistingRecordConstructor x) >>= \c
     loop (qy@(C.QName y) : ys) = lookupNameInScope y >>= \case
       Just x' | x' /= qnameName x -> loop ys
       _ -> return qy
-    -- Found no concrete name: make up a new one
+    -- Found no concrete name:
     loop [] = case qnameToConcrete x of
-      qy@Qual{}    -> return $ setNotInScope qy
+      -- The name is qualified: in this case, we are likely dealing with a parameterised
+      -- module, and the unqualified name might actually be in scope (see #3209).
+      -- To make case splitting more useful in that situation, we unqualify the name
+      -- if we are generating clauses for a case split.
+      qy@Qual{} -> do
+          doUnqualify <- asks unqualifyOutOfScopeNames
+          return $ setNotInScope $ if doUnqualify then C.QName (unqualify qy) else qy
+      -- The name is unqualified: make up a new one
       qy@C.QName{} -> C.QName <$> chooseName (qnameName x)
 
 lookupModule :: MonadToConcrete m => A.ModuleName -> m C.QName
