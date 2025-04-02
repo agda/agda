@@ -144,7 +144,7 @@ fromSplitVar x = DBPatVar (splitPatVarName x) (splitPatVarIndex x)
 
 instance DeBruijn SplitPatVar where
   deBruijnView x = deBruijnView (fromSplitVar x)
-  debruijnNamedVar n i = toSplitVar (debruijnNamedVar n i)
+  deBruijnNamedVar n i = toSplitVar (deBruijnNamedVar n i)
 
 toSplitPatterns :: [NamedArg DeBruijnPattern] -> [NamedArg SplitPattern]
 toSplitPatterns = (fmap . fmap . fmap . fmap) toSplitVar

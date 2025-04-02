@@ -129,7 +129,7 @@ teleNamedArgs = map namedArgFromDom . teleDoms
 --   Precondition: the two telescopes have the same length.
 tele2NamedArgs :: (DeBruijn a) => Telescope -> Telescope -> [NamedArg a]
 tele2NamedArgs tel0 tel =
-  [ Arg info (Named (Just $ WithOrigin Inserted $ unranged $ argNameToString argName) (debruijnNamedVar varName i))
+  [ Arg info (Named (Just $ WithOrigin Inserted $ unranged $ argNameToString argName) (deBruijnNamedVar varName i))
   | (i, Dom{domInfo = info, unDom = (argName,_)}, Dom{unDom = (varName,_)}) <- zip3 (downFrom $ size l) l0 l ]
   where
   l  = telToList tel

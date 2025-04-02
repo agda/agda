@@ -757,7 +757,7 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
             asb          = asb0 ++ asb1
 
         -- Rename internal patterns with these names
-        let makeVar     = maybe deBruijnVar $ debruijnNamedVar . nameToArgName
+        let makeVar     = maybe deBruijnVar $ deBruijnNamedVar . nameToArgName
             ren         = parallelS $ zipWith makeVar (reverse vars) [0..]
 
         qs <- transferOrigins (cps ++ ps) $ applySubst ren qs0
