@@ -553,6 +553,8 @@ class ToConcrete a where
     toConcrete     x     = bindToConcrete x return
     bindToConcrete x ret = ret =<< toConcrete x
 
+    {-# MINIMAL toConcrete | bindToConcrete #-}
+
 -- | Translate something in a context of the given precedence.
 toConcreteCtx :: MonadToConcrete m => ToConcrete a => Precedence -> a -> m (ConOfAbs a)
 toConcreteCtx p x = withPrecedence p $ toConcrete x

@@ -73,6 +73,8 @@ class Pretty a where
   prettyPrec  = const pretty
   prettyList  = brackets . prettyList_
 
+  {-# MINIMAL pretty | prettyPrec #-}
+
 -- | Use instead of 'show' when printing to world.
 
 prettyShow :: Pretty a => a -> String

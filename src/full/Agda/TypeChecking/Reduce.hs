@@ -414,6 +414,8 @@ class Reduce t where
   reduce'  t = ignoreBlocking <$> reduceB' t
   reduceB' t = notBlocked <$> reduce' t
 
+  {-# MINIMAL reduce' | reduceB' #-}
+
 instance Reduce Type where
     reduce'  (El s t) = workOnTypes $ El s <$> reduce' t
     reduceB' (El s t) = workOnTypes $ fmap (El s) <$> reduceB' t

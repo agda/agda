@@ -21,6 +21,8 @@ class DeBruijn a where
   --   If yes, what is its index?
   deBruijnView :: a -> Maybe Int
 
+  {-# MINIMAL (deBruijnVar | deBruijnNamedVar) , deBruijnView #-}
+
 -- | We can substitute @Term@s for variables.
 instance DeBruijn Term where
   deBruijnVar = var
