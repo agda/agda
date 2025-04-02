@@ -24,3 +24,8 @@ showATop x = show <$> abstractToConcreteCtx TopCtx x
 
 prettyATop :: (ToConcrete a, Pretty (ConOfAbs a),  MonadAbsToCon m) => a -> m Doc
 prettyATop x = pretty <$> abstractToConcreteCtx TopCtx x
+
+-- | Variant of 'prettyA' which unqualifies out-of-scope names.
+
+prettyAUnqualify :: (ToConcrete a, Pretty (ConOfAbs a), MonadAbsToCon m) => a -> m Doc
+prettyAUnqualify x = pretty <$> abstractToConcreteUnqualify x

@@ -758,7 +758,7 @@ interpret (Cmd_make_case ii rng s) = do
   liftCommandMT (withInteractionId ii) $ do
     tel <- lift $ lookupSection (qnameModule f) -- don't shadow the names in this telescope
     unicode <- getsTC $ optUseUnicode . getPragmaOptions
-    pcs      :: [Doc]      <- lift $ inTopContext $ addContext tel $ mapM prettyA cs
+    pcs      :: [Doc]      <- lift $ inTopContext $ addContext tel $ mapM prettyAUnqualify cs
     let pcs' :: [String]    = List.map (extlam_dropName unicode casectxt . decorate) pcs
     lift $ reportSDoc "interaction.case" 60 $ TCP.vcat
       [ "InteractionTop.Cmd_make_case"
