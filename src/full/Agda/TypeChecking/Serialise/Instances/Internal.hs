@@ -566,6 +566,7 @@ instance EmbPrj I.PatOrigin where
   icod_ PatORec     = icodeN 6 PatORec
   icod_ PatOLit     = icodeN 7 PatOLit
   icod_ PatOAbsurd  = icodeN 8 PatOAbsurd
+  icod_ (PatOSplitArg a) = icodeN 9 PatOSplitArg a
 
   value = vcase valu where
     valu []     = valuN PatOSystem
@@ -577,6 +578,7 @@ instance EmbPrj I.PatOrigin where
     valu [6]    = valuN PatORec
     valu [7]    = valuN PatOLit
     valu [8]    = valuN PatOAbsurd
+    valu [9, a] = valuN PatOSplitArg a
     valu _      = malformed
 
 instance EmbPrj a => EmbPrj (I.Pattern' a) where

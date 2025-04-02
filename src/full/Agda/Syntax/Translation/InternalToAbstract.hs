@@ -1321,6 +1321,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
     reifyDotP o v = do
       keepVars <- optKeepPatternVariables <$> pragmaOptions
       if | PatOVar x <- o , keepVars       -> return $ A.VarP $ mkBindName x
+         | PatOSplitArg x <- o , keepVars  -> A.VarP . mkBindName <$> freshName noRange x
          | otherwise                       -> A.DotP patNoRange <$> reify v
 
     reifyConP :: MonadReify m
