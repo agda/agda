@@ -737,6 +737,7 @@ patsToElims = map $ toElim . fmap namedThing
     toTerm p = case patOrigin $ fromMaybe __IMPOSSIBLE__ $ patternInfo p of
       PatOSystem -> toDisplayPattern p
       PatOSplit  -> toDisplayPattern p
+      PatOSplitArg{} -> toVarOrDot p
       PatOVar{}  -> toVarOrDot p
       PatODot    -> DDot $ patternToTerm p
       PatOWild   -> toVarOrDot p
