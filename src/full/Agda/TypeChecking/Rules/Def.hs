@@ -348,16 +348,24 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
                        }
                  return (cs ++ [c], pure sys)
 
+        -- The macro or inline tags might be on the type signature
+        info <- getConstInfo name
+        let
+          ismacro  = isMacro (theDef info)
+          isinline = isInlineFun (theDef info)
+
         -- Annotate the clauses with which arguments are actually used.
         cs <- instantiateFull {- =<< mapM rebindClause -} cs
+
         -- Andreas, 2010-11-12
         -- rebindClause is the identity, and instantiateFull eta-contracts
         -- removing this eta-contraction fixes issue 361
         -- however, Data.Star.Decoration.gmapAll no longer type-checks
         -- possibly due to missing eta-contraction!?
 
-        -- Inline copattern record constructors on demand.
-        cs <- concat <$> do
+        -- Inline copattern record constructors on demand, unless the
+        -- function is marked inline.
+        cs <- if isinline then pure cs else concat <$> do
           forM cs $ \ cl -> do
             (cls, nonExactSplit) <- runChangeT $ recordRHSToCopatterns cl
             when nonExactSplit do
@@ -415,9 +423,6 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
               , nest 2 $ pretty cc
               ]
 
-        -- The macro tag might be on the type signature
-        ismacro <- isMacro . theDef <$> getConstInfo name
-
         covering <- funCovering . theDef <$> getConstInfo name
 
         -- Add the definition
@@ -430,8 +435,11 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
 
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
+          --
+          -- Amy, 2025-04-03: If the function was marked INLINE before
+          -- the clauses were checked the result should also be INLINE.
           fun  <- emptyFunctionData
-          defn <- autoInline $ FunctionDefn $
+          defn <- autoInline $ set funInline isinline $ FunctionDefn $
            set funMacro_ (ismacro || Info.defMacro i == MacroDef) $
            set funAbstr_ (Info.defAbstract i) $
            fun
