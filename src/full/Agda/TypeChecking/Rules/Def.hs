@@ -310,10 +310,6 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
         reportSDoc "tc.def.fun" 70 $ inTopContext $ do
           sep $ "checked clauses:" : map (nest 2 . text . show) cs
 
-        -- After checking, remove the clauses again.
-        -- (Otherwise, @checkInjectivity@ loops for issue 801).
-        modifyFunClauses name (const [])
-
         reportSDoc "tc.cc" 25 $ inTopContext $ do
           sep [ "clauses before injectivity test"
               , nest 2 $ prettyTCM $ map (QNamed name) cs  -- broken, reify (QNamed n cl) expect cl to live at top level
@@ -373,6 +369,15 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
               -- issue a warning that the clause does not hold as definitional equality.
               warning $ InlineNoExactSplit name cl
             return cls
+
+        -- After checking, remove the clauses again.
+        -- (Otherwise, @checkInjectivity@ loops for issue 801).
+        --
+        -- Amy, 2025-04-03: We can't remove the clauses before doing
+        -- record→copattern translation, since we might need the
+        -- previous clauses to come up with the types of the projected
+        -- fields; see 'test/Succeed/IApplyRecConstrInline'.
+        modifyFunClauses name (const [])
 
         -- Check if the function is injective.
         -- Andreas, 2015-07-01 we do it here in order to resolve metas

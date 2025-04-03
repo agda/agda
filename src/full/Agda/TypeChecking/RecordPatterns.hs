@@ -274,6 +274,12 @@ recordRHSToCopatterns cl = do
 
               mt' :: Maybe (Arg Type) <- fuse <$> traverse (traverse inst) mt
 
+              reportSDoc "tc.inline.con" 50 $ vcat
+                [ "for field" <+> prettyTCM (unArg f) <+> ": "
+                , "  mt  =" <+> prettyTCM mt
+                , "  mt' =" <+> prettyTCM mt'
+                ]
+
               -- Make clause ... .f = v
               return cl
                 { namedClausePats = ps ++ [ unnamed . ProjP ProjSystem <$> f ]
