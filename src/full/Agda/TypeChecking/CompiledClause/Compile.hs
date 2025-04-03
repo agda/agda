@@ -37,14 +37,14 @@ import Agda.Utils.Impossible
 data RunRecordPatternTranslation = RunRecordPatternTranslation | DontRunRecordPatternTranslation
   deriving (Eq)
 
-compileClauses' :: RunRecordPatternTranslation -> [Clause] -> Maybe SplitTree -> TCM CompiledClauses
-compileClauses' recpat cs mSplitTree = do
+compileClauses' :: QName -> RunRecordPatternTranslation -> [Clause] -> Maybe SplitTree -> TCM CompiledClauses
+compileClauses' q recpat cs mSplitTree = do
 
   -- Throw away the unreachable clauses (#2723).
   let notUnreachable = (Just True /=) . clauseUnreachable
   cs <- map unBruijn <$> normaliseProjP (filter notUnreachable cs)
 
-  let translate | recpat == RunRecordPatternTranslation = runIdentityT . translateCompiledClauses
+  let translate | recpat == RunRecordPatternTranslation = runIdentityT . translateCompiledClauses q
                 | otherwise                             = return
 
   translate $ caseMaybe mSplitTree (compile cs) $ \splitTree ->
@@ -87,12 +87,15 @@ compileClauses mt cs = do
           map (prettyTCM . map unArg . clPats) cls
       reportSDoc "tc.cc" 50 $
         "clauses of " <+> prettyTCM q <+> " before compilation" <?> pretty cs
+
       let cc = compileWithSplitTree splitTree cls
       reportSDoc "tc.cc" 20 $ sep
         [ "compiled clauses of " <+> prettyTCM q <+> " (still containing record splits)"
         , nest 2 $ return $ P.pretty cc
         ]
-      (cc, becameCopatternLHS) <- runChangeT $ translateCompiledClauses cc
+
+      (cc, becameCopatternLHS) <- runChangeT $ translateCompiledClauses q cc
+
       reportSDoc "tc.cc" 12 $ sep
         [ "compiled clauses of " <+> prettyTCM q
         , nest 2 $ return $ P.pretty cc

@@ -210,6 +210,22 @@ Changes to type checker and other components defining the Agda language.
   the PR removing it from the library, and
   [#7652](https://github.com/agda/agda/pull/7652) for the compiler.
 
+* Inlining constructors no longer happens on the right-hand-sides of
+  `INLINE` functions. This allows using `INLINE` functions to define
+  "smart constructors" for record types which have the same reduction
+  behaviour as using the actual constructor would. Small example:
+
+  ```agda
+  triple : Nat → Nat → Nat → Nat × Nat × Nat
+  {-# INLINE triple #-}
+  triple x y z = record { fst = x ; snd = y , z }
+
+  ex = triple 1 2 3
+  ```
+
+  Here, constructor inlining happens on the right hand side *of `ex`*
+  rather than of `triple`.
+
 Reflection
 ----------
 
