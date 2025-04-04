@@ -1,4 +1,12 @@
 {-# OPTIONS --cubical #-}
+
+-- This test case justifies why the clauses for a record value
+-- definition need to be available in the state (signature)
+-- during the record-to-copatterns translation,
+-- at least for Cubical Agda.
+--
+-- For more context, see the implementation of Agda.TypeChecking.Rules.Def.
+
 module IApplyRecConstrInline where
 
 open import Agda.Builtin.Nat
@@ -36,8 +44,8 @@ c : Category
 c .Ob   = X
 c .Hom  = H
 
--- The coverage checker says this clause has type c .Hom; but the record
--- constructs H; so the field inliner needs to see c's clauses for this
--- reduction to work.
+-- The coverage checker says the following clause has type c .Hom,
+-- but the record constructs H; so the field inliner needs to see c's
+-- clauses for this reduction to work.
 
 c .id _ = record { x = 1 ; y = 2 }

@@ -376,7 +376,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
         -- Amy, 2025-04-03: We can't remove the clauses before doing
         -- record→copattern translation, since we might need the
         -- previous clauses to come up with the types of the projected
-        -- fields; see 'IApplyRecConstrInline'.
+        -- fields; see 'test/Succeed/IApplyRecConstrInline'.
         modifyFunClauses name (const [])
 
         -- Check if the function is injective.
