@@ -614,6 +614,20 @@ defaultIrrelevantArg a = makeIrrelevant a . defaultArg
 defaultShapeIrrelevantArg :: HasRange a => a -> b -> Arg b
 defaultShapeIrrelevantArg a = makeShapeIrrelevant a . defaultArg
 
+makeIrrelevantM :: (HasRange a, LensRelevance b) => a -> b -> Parser b
+makeIrrelevantM r x = do
+  assertPristineRelevance r x
+  return $ makeIrrelevant r x
+
+makeShapeIrrelevantM :: (HasRange a, LensRelevance b) => a -> b -> Parser b
+makeShapeIrrelevantM r x = do
+  assertPristineRelevance r x
+  return $ makeShapeIrrelevant r x
+
+assertPristineRelevance :: (HasRange a, LensRelevance b) => a -> b -> Parser ()
+assertPristineRelevance r x = unless (null $ getRelevance x) $
+  parseErrorRange r $ "Conflicting relevance information"
+
 ------------------------------------------------------------------------
 -- * Attributes
 
@@ -697,3 +711,17 @@ errorConflictingAttributes :: [Attr] -> Parser a
 errorConflictingAttributes [a] = errorConflictingAttribute a
 errorConflictingAttributes as  = parseErrorRange as $
   "Conflicting attributes: " ++ unwords (map attrName as)
+
+-- | Apply some attributes to some binders.
+applyAttributes :: Functor f
+  => List1 Attr
+       -- ^ Can contain @tactic@ attribute.
+  -> ArgInfo
+       -- ^ If the attributes to be set are not at default value here, crash.
+  -> f (NamedArg Binder)
+       -- ^ Binders to apply attributes to.
+  -> Parser (f (NamedArg Binder))
+       -- ^ Binders with attributes applied.
+applyAttributes attrs ai bs = do
+  applyAttrs1 attrs ai <&> \ ai' ->
+    fmap (setTacticAttr attrs . setArgInfo ai') bs

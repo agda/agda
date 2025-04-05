@@ -844,38 +844,54 @@ TypedBindings
 -- Andreas, 2011-04-27: or ..(x1 .. xn : A) or ..{y1 .. ym : B}
 TypedBinding :: { TypedBinding }
 TypedBinding
-    : '.' '(' TBindWithHiding ')'    { setRange (getRange ($2,$3,$4)) $
-                             makeIrrelevant $1 $3 }
-    | '.' '{' TBind '}'    { setRange (getRange ($2,$3,$4)) $
-                             setHiding Hidden $
-                             makeIrrelevant $1 $3 }
-    | '.' '{{' TBind DoubleCloseBrace
-                           { setRange (getRange ($2,$3,$4)) $
-                             makeInstance $
-                             makeIrrelevant $1 $3 }
-    | '..' '(' TBindWithHiding ')'   { setRange (getRange ($2,$3,$4)) $
-                             makeShapeIrrelevant $1 $3 }
-    | '..' '{' TBind '}'   { setRange (getRange ($2,$3,$4)) $
-                             setHiding Hidden $
-                             makeShapeIrrelevant $1 $3 }
-    | '..' '{{' TBind DoubleCloseBrace
-                           { setRange (getRange ($2,$3,$4)) $
-                             makeInstance $
-                             makeShapeIrrelevant $1 $3 }
-    | '(' TBindWithHiding ')'        { setRange (getRange ($1,$2,$3)) $2 }
-    | '(' ModalTBindWithHiding ')'        { setRange (getRange ($1,$2,$3)) $2 }
-    | '{{' TBind DoubleCloseBrace
-                           { setRange (getRange ($1,$2,$3)) $
-                             makeInstance $2 }
-    | '{{' ModalTBind DoubleCloseBrace
-                           { setRange (getRange ($1,$2,$3)) $
-                             makeInstance $2 }
-    | '{' TBind '}'        { setRange (getRange ($1,$2,$3)) $
-                             setHiding Hidden $2 }
-    | '{' ModalTBind '}'   { setRange (getRange ($1,$2,$3)) $
-                             setHiding Hidden $2 }
-    | '(' Open ')'               { TLet (getRange ($1,$3)) $2 }
+    : '(' Open ')'               { TLet (getRange ($1,$3)) $2 }
     | '(' 'let' Declarations ')' { TLet (getRange ($1,$4)) $3 }
+-- relevant
+    | '(' TBindWithHiding ')'                { setRange (getRange ($1,$2,$3)) $
+                                               $2 }
+    | '{' TBind '}'                          { setRange (getRange ($1,$2,$3)) $
+                                               hide $2 }
+    | '{{' TBind DoubleCloseBrace            { setRange (getRange ($1,$2,$3)) $
+                                               makeInstance $2 }
+-- irrelevant
+    | '.' '(' TBindWithHiding ')'            { setRange (getRange ($2,$3,$4)) $
+                                               makeIrrelevant $1 $3 }
+    | '.' '{' TBind '}'                      { setRange (getRange ($2,$3,$4)) $
+                                               hide $
+                                               makeIrrelevant $1 $3 }
+    | '.' '{{' TBind DoubleCloseBrace        { setRange (getRange ($2,$3,$4)) $
+                                               makeInstance $
+                                               makeIrrelevant $1 $3 }
+-- shape-irrelevant
+    | '..' '(' TBindWithHiding ')'           { setRange (getRange ($2,$3,$4)) $
+                                               makeShapeIrrelevant $1 $3 }
+    | '..' '{' TBind '}'                     { setRange (getRange ($2,$3,$4)) $
+                                               hide $
+                                               makeShapeIrrelevant $1 $3 }
+    | '..' '{{' TBind DoubleCloseBrace       { setRange (getRange ($2,$3,$4)) $
+                                               makeInstance $
+                                               makeShapeIrrelevant $1 $3 }
+-- attributes, relevant
+    | '(' ModalTBindWithHiding ')'           { setRange (getRange ($1,$2,$3)) $
+                                               $2 }
+    | '{{' ModalTBind DoubleCloseBrace       { setRange (getRange ($1,$2,$3)) $
+                                               makeInstance $2 }
+    | '{' ModalTBind '}'                     { setRange (getRange ($1,$2,$3)) $
+                                               hide $2 }
+-- attributes, irrelevant
+    | '.' '(' ModalTBindWithHiding ')'       {% setRange (getRange ($2,$3,$4)) <\$>
+                                                makeIrrelevantM $1 $3 }
+    | '.' '{' ModalTBind '}'                 {% setRange (getRange ($2,$3,$4)) . hide <\$>
+                                                makeIrrelevantM $1 $3 }
+    | '.' '{{' ModalTBind DoubleCloseBrace   {% setRange (getRange ($2,$3,$4)) . makeInstance <\$>
+                                                makeIrrelevantM $1 $3 }
+-- attributes, shape-irrelevant
+    | '..' '(' ModalTBindWithHiding ')'      {% setRange (getRange ($2,$3,$4)) <\$>
+                                                makeShapeIrrelevantM $1 $3 }
+    | '..' '{' ModalTBind '}'                {% setRange (getRange ($2,$3,$4)) . hide <\$>
+                                                makeShapeIrrelevantM $1 $3 }
+    | '..' '{{' ModalTBind DoubleCloseBrace  {% setRange (getRange ($2,$3,$4)) . makeInstance <\$>
+                                                makeShapeIrrelevantM $1 $3 }
 
 
 -- x1 .. xn : A
@@ -1031,22 +1047,32 @@ DomainFreeBindingAbsurd
     | '..' BId MaybeAsPattern { Left . singleton $ mkDomainFree_ (makeShapeIrrelevant $1) $3 $2 }
     | '(' Application ')'     {% exprToPattern (rawApp $2) >>= \ p ->
                                  pure . Left . singleton $ mkDomainFree_ id (Just p) $ simpleHole }
+    | '{' CommaBIdAndAbsurds '}'
+         { first (fmap hide) $2 }
+    | '{{' CommaBIds DoubleCloseBrace { Left $ fmap makeInstance $2 }
+-- additonal attributes, e.g. @tactic
     | '(' Attributes1 CommaBIdAndAbsurds ')'
          {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
               first (fmap (setTacticAttr $2 . setArgInfo ai)) $3 }
-    | '{' CommaBIdAndAbsurds '}'
-         { first (fmap hide) $2 }
     | '{' Attributes1 CommaBIdAndAbsurds '}'
          {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
               first (fmap (hide . setTacticAttr $2 . setArgInfo ai)) $3 }
-    | '{{' CommaBIds DoubleCloseBrace { Left $ fmap makeInstance $2 }
     | '{{' Attributes1 CommaBIds DoubleCloseBrace
-         {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
-              Left $ fmap (makeInstance . setTacticAttr $2 . setArgInfo ai) $3 }
+         {% Left <\$> applyAttributes $2 (makeInstance defaultArgInfo) $3 }
+-- additional irrelevance
     | '.' '{' CommaBIds '}' { Left $ fmap (hide . makeIrrelevant $1) $3 }
     | '.' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . makeIrrelevant $1) $3 }
     | '..' '{' CommaBIds '}' { Left $ fmap (hide . makeShapeIrrelevant $1) $3 }
     | '..' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . makeShapeIrrelevant $1) $3 }
+-- additional irrelevance and attributes
+    | '.' '{' Attributes1 CommaBIds '}'
+         {% Left <\$> applyAttributes $3 (makeIrrelevant $1 $ hide defaultArgInfo) $4 }
+    | '.' '{{' Attributes1 CommaBIds DoubleCloseBrace
+         {% Left <\$> applyAttributes $3 (makeIrrelevant $1 $ makeInstance defaultArgInfo) $4 }
+    | '..' '{' Attributes1 CommaBIds '}'
+         {% Left <\$> applyAttributes $3 (makeShapeIrrelevant $1 $ hide defaultArgInfo) $4 }
+    | '..' '{{' Attributes1 CommaBIds DoubleCloseBrace
+         {% Left <\$> applyAttributes $3 (makeShapeIrrelevant $1 $ makeInstance defaultArgInfo) $4 }
 
 
 {--------------------------------------------------------------------------
