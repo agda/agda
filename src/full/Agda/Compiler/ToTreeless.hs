@@ -74,7 +74,7 @@ getCompiledClauses q = do
   reportSDoc "treeless.convert" 70 $
     caseMaybe mst "-- not using split tree" $ \st ->
       "-- using split tree" $$ pretty st
-  CC.compileClauses' translate cs mst
+  CC.compileClauses' q translate cs mst
 
 -- ** Types of pipelines; different backends might use their own custom pipeline.
 type BuildPipeline = Int -> QName -> Pipeline

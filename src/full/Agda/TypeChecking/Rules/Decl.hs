@@ -316,7 +316,7 @@ revisitRecordPatternTranslation qs = do
   -- qccs: compiled clauses of definitions
   (rs, qccs) <- partitionEithers . catMaybes <$> mapM classify qs
   unless (null rs) $ forM_ qccs $ \(q,cc) -> do
-    (cc, recordExpressionBecameCopatternLHS) <- runChangeT $ translateCompiledClauses cc
+    (cc, recordExpressionBecameCopatternLHS) <- runChangeT $ translateCompiledClauses q cc
     modifySignature $ updateDefinition q
       $ updateTheDef (updateCompiledClauses $ const $ Just cc)
       . updateDefCopatternLHS (|| recordExpressionBecameCopatternLHS)

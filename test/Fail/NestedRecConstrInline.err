@@ -1,0 +1,3 @@
+NestedRecConstrInline.agda:49.5-9: error: [UnequalTerms]
+x != inc (inc 1 2) 3 of type Bar
+when checking that the expression refl has type x ≡ inc (inc 1 2) 3
