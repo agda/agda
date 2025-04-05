@@ -528,18 +528,6 @@ SpaceBIds
     : BId SpaceBIds { $1 <| $2 }
     | BId           { singleton $1 }
 
-{- DOES PRODUCE REDUCE/REDUCE CONFLICTS!
--- Space-separated list of binding identifiers. Used in dependent
--- function spaces: (x y z : Nat) -> ...
--- (Used to be comma-separated; hence the name)
--- QUESTION: Should this be replaced by SpaceBIds above?
---CommaBIds :: { [(Relevance,Name)] }
-CommaBIds :: { [Name] }
-CommaBIds
-    : CommaBIds BId { $1 ++ [$2] }  -- SWITCHING DOES NOT HELP
-    | BId           { [$1] }
--}
-
 -- Space-separated list of binding identifiers. Used in dependent
 -- function spaces: (x y z : Nat) -> ...
 -- (Used to be comma-separated; hence the name)
