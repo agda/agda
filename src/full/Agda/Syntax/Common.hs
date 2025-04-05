@@ -1090,9 +1090,12 @@ unitQuantity = Quantityω mempty
 topQuantity :: Quantity
 topQuantity = Quantityω mempty
 
+-- | 'null' means no information, not even origin or range.
 instance Null Quantity where
   empty = defaultQuantity
-  null = hasQuantityω
+  null = \case
+    Quantityω o -> null o
+    _ -> False
 
 -- | @m `moreUsableQuantity` m'@ means that an @m@ can be used
 --   where ever an @m'@ is required.
@@ -1700,9 +1703,12 @@ topRelevance = relevant
 defaultRelevance :: Relevance
 defaultRelevance = unitRelevance
 
+-- | 'null' means no information, not even origin or range.
 instance Null Relevance where
   empty = defaultRelevance
-  null = isRelevant
+  null = \case
+    Relevant o -> null o
+    _ -> False
 
 -- | Irrelevant function arguments may appear non-strictly in the codomain type.
 irrelevantToShapeIrrelevant :: Relevance -> Relevance
@@ -2020,9 +2026,12 @@ topCohesion = Flat
 defaultCohesion :: Cohesion
 defaultCohesion = unitCohesion
 
+-- | 'null' shall mean no information, not even origin or range.
 instance Null Cohesion where
   empty = defaultCohesion
-  null = isContinuous
+  null = \case
+    Continuous -> True
+    _ -> False
 
 prettyCohesion :: LensCohesion a => a -> Doc -> Doc
 prettyCohesion a = (pretty (getCohesion a) <+>)
@@ -3893,7 +3902,6 @@ data ExpandedEllipsis
   deriving (Show, Eq)
 
 instance Null ExpandedEllipsis where
-  null  = (== NoEllipsis)
   empty = NoEllipsis
 
 instance Semigroup ExpandedEllipsis where

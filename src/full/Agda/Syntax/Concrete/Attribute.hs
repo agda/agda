@@ -3,6 +3,8 @@
 
 module Agda.Syntax.Concrete.Attribute where
 
+import Prelude hiding (null)
+
 import Control.Arrow (second)
 import Control.Monad (foldM)
 
@@ -19,6 +21,7 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Position
 
 import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.Null
 
 import Agda.Utils.Impossible
 
@@ -198,7 +201,7 @@ setAttributes attrs arg = foldl' (flip setAttribute) arg attrs
 
 setPristineRelevance :: (LensRelevance a) => Relevance -> a -> Maybe a
 setPristineRelevance r a
-  | getRelevance a == defaultRelevance = Just $ setRelevance r a
+  | null (getRelevance a) = Just $ setRelevance r a
   | otherwise = Nothing
 
 -- | Setting 'Quantity' if unset.
@@ -212,7 +215,7 @@ setPristineQuantity q a
 
 setPristineCohesion :: (LensCohesion a) => Cohesion -> a -> Maybe a
 setPristineCohesion c a
-  | getCohesion a == defaultCohesion = Just $ setCohesion c a
+  | null (getCohesion a) = Just $ setCohesion c a
   | otherwise = Nothing
 
 -- | Setting 'ModalPolarity' if unset.

@@ -1030,9 +1030,11 @@ MaybeAsPattern
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBindingAbsurd :: { Either (List1 (NamedArg Binder)) (List1 Expr)}
 DomainFreeBindingAbsurd
+-- no parentheses
     : BId      MaybeAsPattern { Left . singleton $ mkDomainFree_ id $2 $1 }
     | '.' BId  MaybeAsPattern { Left . singleton $ mkDomainFree_ (makeIrrelevant $1) $3 $2 }
     | '..' BId MaybeAsPattern { Left . singleton $ mkDomainFree_ (makeShapeIrrelevant $1) $3 $2 }
+-- just parentheses
     | '(' Application ')'     {% exprToPattern (rawApp $2) >>= \ p ->
                                  pure . Left . singleton $ mkDomainFree_ id (Just p) $ simpleHole }
     | '{' CommaBIdAndAbsurds '}'
@@ -1048,15 +1050,23 @@ DomainFreeBindingAbsurd
     | '{{' Attributes1 CommaBIds DoubleCloseBrace
          {% Left <\$> applyAttributes $2 (makeInstance defaultArgInfo) $3 }
 -- additional irrelevance
-    | '.' '{' CommaBIds '}' { Left $ fmap (hide . makeIrrelevant $1) $3 }
-    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . makeIrrelevant $1) $3 }
-    | '..' '{' CommaBIds '}' { Left $ fmap (hide . makeShapeIrrelevant $1) $3 }
+    | '.'  '('  CommaBIds ')'              { Left $ fmap (makeIrrelevant $1) $3 }
+    | '.'  '{'  CommaBIds '}'              { Left $ fmap (hide . makeIrrelevant $1) $3 }
+    | '.'  '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . makeIrrelevant $1) $3 }
+-- additional shape-irrelevance
+    | '..' '('  CommaBIds ')'              { Left $ fmap (makeShapeIrrelevant $1) $3 }
+    | '..' '{'  CommaBIds '}'              { Left $ fmap (hide . makeShapeIrrelevant $1) $3 }
     | '..' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . makeShapeIrrelevant $1) $3 }
 -- additional irrelevance and attributes
+    | '.' '(' Attributes1 CommaBIds ')'
+         {% Left <\$> applyAttributes $3 (makeIrrelevant $1 defaultArgInfo) $4 }
     | '.' '{' Attributes1 CommaBIds '}'
          {% Left <\$> applyAttributes $3 (makeIrrelevant $1 $ hide defaultArgInfo) $4 }
     | '.' '{{' Attributes1 CommaBIds DoubleCloseBrace
          {% Left <\$> applyAttributes $3 (makeIrrelevant $1 $ makeInstance defaultArgInfo) $4 }
+-- additional shape-irrelevance and attributes
+    | '..' '(' Attributes1 CommaBIds ')'
+         {% Left <\$> applyAttributes $3 (makeShapeIrrelevant $1 defaultArgInfo) $4 }
     | '..' '{' Attributes1 CommaBIds '}'
          {% Left <\$> applyAttributes $3 (makeShapeIrrelevant $1 $ hide defaultArgInfo) $4 }
     | '..' '{{' Attributes1 CommaBIds DoubleCloseBrace
