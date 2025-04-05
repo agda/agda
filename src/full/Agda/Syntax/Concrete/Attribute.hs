@@ -166,10 +166,10 @@ stringToAttribute = (`Map.lookup` attributesMap)
 
 -- | Parsing an expression into an attribute.
 
-exprToAttribute :: Expr -> Maybe Attribute
-exprToAttribute = \case
-  e@(Paren _ (Tactic _ t)) -> Just $ TacticAttribute $ Ranged (getRange e) t
-  e -> setRange (getRange e) $ stringToAttribute $ prettyShow e
+exprToAttribute :: Range -> Expr -> Maybe Attribute
+exprToAttribute r = \case
+  e@(Paren _ (Tactic _ t)) -> Just $ TacticAttribute $ Ranged r t
+  e -> setRange r $ stringToAttribute $ prettyShow e
 
 -- | Setting an attribute (in e.g. an 'Arg').  Overwrites previous value.
 

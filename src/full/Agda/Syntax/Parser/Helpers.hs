@@ -634,7 +634,7 @@ assertPristineRelevance r x = unless (null $ getRelevance x) $
 -- | Parse an attribute.
 toAttribute :: Range -> Expr -> Parser Attr
 toAttribute r e = do
-  attr <- maybe failure (return . Attr r s) $ exprToAttribute e
+  attr <- maybe failure (return . Attr r s) $ exprToAttribute r e
   modify' (\ st -> st{ parseAttributes = attr : parseAttributes st })
   return attr
   where

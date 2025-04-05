@@ -1,10 +1,10 @@
-Issue6781TacticModalityExplicitArgument.agda:22.9-27: warning: -W[no]UselessTactic
+Issue6781TacticModalityExplicitArgument.agda:22.8-27: warning: -W[no]UselessTactic
 Ignoring 'tactic' attribute for non-hidden (explicit or instance)
 binder
 when scope checking
 (@(tactic super-tac) n : Nat) (@(tactic solver n) x : A) → A
 
-Issue6781TacticModalityExplicitArgument.agda:23.9-26: warning: -W[no]UselessTactic
+Issue6781TacticModalityExplicitArgument.agda:23.8-26: warning: -W[no]UselessTactic
 Ignoring 'tactic' attribute for non-hidden (explicit or instance)
 binder
 when scope checking
