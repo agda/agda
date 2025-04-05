@@ -631,25 +631,11 @@ assertPristineRelevance r x = unless (null $ getRelevance x) $
 ------------------------------------------------------------------------
 -- * Attributes
 
--- | Parsed attribute.
-
-data Attr = Attr
-  { attrRange :: Range       -- ^ Range includes the @.
-  , attrName  :: String      -- ^ Concrete, user written attribute for error reporting.
-  , theAttr   :: Attribute   -- ^ Parsed attribute.
-  }
-
-instance HasRange Attr where
-  getRange = attrRange
-
-instance SetRange Attr where
-  setRange r (Attr _ x a) = Attr r x a
-
 -- | Parse an attribute.
 toAttribute :: Range -> Expr -> Parser Attr
 toAttribute r e = do
   attr <- maybe failure (return . Attr r s) $ exprToAttribute e
-  modify' (\ st -> st{ parseAttributes = (theAttr attr, r, s) : parseAttributes st })
+  modify' (\ st -> st{ parseAttributes = attr : parseAttributes st })
   return attr
   where
   s = prettyShow e

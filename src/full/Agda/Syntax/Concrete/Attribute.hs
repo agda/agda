@@ -60,6 +60,23 @@ instance KillRange Attribute where
     TacticAttribute e    -> TacticAttribute    $ killRange e
     LockAttribute l      -> LockAttribute l
 
+-- | Parsed attribute.
+
+data Attr = Attr
+  { attrRange :: Range       -- ^ Range includes the @.
+  , attrName  :: String      -- ^ Concrete, user written attribute for error reporting.
+  , theAttr   :: Attribute   -- ^ Parsed attribute.
+  } deriving (Show)
+
+instance HasRange Attr where
+  getRange = attrRange
+
+instance SetRange Attr where
+  setRange r (Attr _ x a) = Attr r x a
+
+instance KillRange Attr where
+  killRange (Attr _ x a) = Attr noRange x (killRange a)
+
 -- | (Conjunctive constraint.)
 
 type LensAttribute a = (LensRelevance a, LensQuantity a, LensCohesion a, LensModalPolarity a, LensLock a)
@@ -109,7 +126,7 @@ cohesionAttributeTable =
 -- 'Agda.Syntax.Translation.ConcreteToAbstract.checkAttributes', which
 -- should not be called until after pragma options have been set.
 
-type Attributes = [(Attribute, Range, String)]
+type Attributes = [Attr]
 
 -- | Modifiers for 'Polarity'.
 

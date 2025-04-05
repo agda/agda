@@ -3671,7 +3671,7 @@ toAbstractOpApp op ns es = do
 
 checkAttributes :: Attributes -> ScopeM ()
 checkAttributes []                     = return ()
-checkAttributes ((attr, r, s) : attrs) =
+checkAttributes (Attr r s attr : attrs) =
   case attr of
     RelevanceAttribute{}    -> cont
     CA.TacticAttribute{}    -> cont
