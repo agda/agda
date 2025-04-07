@@ -376,13 +376,14 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
     , nest 2 $ "ps  = " <+> fsep (punctuate comma $ map prettyA ps)
     , nest 2 $ "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
     , nest 2 $ "psi = " <+> fsep (punctuate comma $ map prettyA psi)
-    , nest 2 $ "qs  = " <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
+    , nest 2 $ addContext delta $
+               "qs  = " <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
     , nest 2 $ "perm= " <+> text (show perm)
     ]
 
   -- Andreas, 2015-11-09 Issue 1710: self starts with parent-function, not with-function!
   (ps', strippedPats) <- runWriterT $ strip (Def parent []) t psi qs
-  reportSDoc "tc.with.strip" 50 $ nest 2 $
+  unless (null strippedPats) $ reportSDoc "tc.with.strip" 50 $ nest 2 $
     "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
   let psp = permute perm ps'
   reportSDoc "tc.with.strip" 10 $ vcat
