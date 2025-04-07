@@ -4,4 +4,4 @@ postulate
   Foo : ∀ {A : Set} {P : .A → Set} .(@relevant x) → P x
 
 -- Expected error: [ParseError]
--- Conflicting attribute: relevant
+-- Conflicting attribute: @relevant

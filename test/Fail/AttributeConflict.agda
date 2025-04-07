@@ -4,4 +4,4 @@ postulate
   @0 @ω A : Set
 
 -- Should fail with error:
--- Conflicting attributes: 0 ω
+-- Conflicting attributes: @0 @ω

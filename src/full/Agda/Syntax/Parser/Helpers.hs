@@ -639,7 +639,7 @@ toAttribute r e = do
   return attr
   where
   s = prettyShow e
-  failure = parseErrorRange e $ "Unknown attribute: " ++ s
+  failure = parseErrorRange e $ "Unknown attribute: @" ++ s
 
 -- | Apply an attribute to thing (usually `Arg`).
 --   This will fail if one of the attributes is already set
@@ -689,14 +689,18 @@ checkForUniqueAttribute p attrs = do
 
 -- | Report an attribute as conflicting (e.g., with an already set value).
 errorConflictingAttribute :: Attr -> Parser a
-errorConflictingAttribute a = parseErrorRange a $ "Conflicting attribute: " ++ attrName a
+errorConflictingAttribute a = parseErrorRange a $
+  "Conflicting attribute: " ++ prettyAttr a
 
 -- | Report attributes as conflicting (e.g., with each other).
 --   Precondition: List not emtpy.
 errorConflictingAttributes :: [Attr] -> Parser a
 errorConflictingAttributes [a] = errorConflictingAttribute a
 errorConflictingAttributes as  = parseErrorRange as $
-  "Conflicting attributes: " ++ unwords (map attrName as)
+  "Conflicting attributes: " ++ unwords (map prettyAttr as)
+
+prettyAttr :: Attr -> String
+prettyAttr = ("@" ++) . attrName
 
 -- | Apply some attributes to some binders.
 applyAttributes :: Functor f
