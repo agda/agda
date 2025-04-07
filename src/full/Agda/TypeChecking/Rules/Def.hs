@@ -1125,8 +1125,10 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
 
         reportSDoc "tc.with.top" 20 $ vcat $
           let (vs, as) = List1.unzipWith unArg vtys in
-          [ "    with arguments" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyList (fmap prettyTCM vs)
-          , "             types" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyList (fmap prettyTCM as)
+          -- Andreas, 2025-04-07, escapeContext impossible Δ leads to crash if e.g. vs has metas defined in Δ.
+          -- Thus, we use unsafeEscapeContext instead.
+          [ "    with arguments" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyList (fmap prettyTCM vs)
+          , "             types" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyList (fmap prettyTCM as)
           , "           context" <+> (prettyTCM =<< getContextTelescope)
           , "             delta" <+> do escapeContext impossible (size delta) $ prettyTCM delta
           , "            delta1" <+> do escapeContext impossible (size delta) $ prettyTCM delta1

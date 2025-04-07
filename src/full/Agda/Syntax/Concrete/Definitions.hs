@@ -733,7 +733,8 @@ niceDeclarations fixs ds = do
 
     underscore r = Underscore r Nothing
 
-
+    -- Search for the first clause that does not have an ellipsis (usually the very first one)
+    -- and then use its lhs pattern to replace ellipses in the subsequent clauses (if any).
     expandEllipsis :: [Declaration] -> Nice [Declaration]
     expandEllipsis [] = return []
     expandEllipsis (d@(FunClause lhs@(LHS p _ _) _ _ _) : ds)

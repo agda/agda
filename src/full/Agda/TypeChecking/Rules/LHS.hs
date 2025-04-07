@@ -672,8 +672,8 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
 
         reportSDoc "tc.lhs.top" 20 $ vcat
           [ "lhs: final checks with remaining equations"
-          , nest 2 $ if null eqs then "(none)" else addContext delta $ vcat $ map prettyTCM eqs
-          , "qs0 =" <+> addContext delta (prettyTCMPatternList qs0)
+          , nest 4 $ if null eqs then "(none)" else addContext delta $ vcat $ map prettyTCM eqs
+          , nest 2 $ "qs0 =" <+> addContext delta (prettyTCMPatternList qs0)
           ]
 
         unless (null rps) __IMPOSSIBLE__
@@ -698,6 +698,13 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
           -- transport. See #5448.
 
         arity_a <- arityPiPath a
+
+        reportSDoc "tc.lhs.top" 30 $ vcat
+          [ nest 2 $ "a        =" <+> prettyTCM a
+          , nest 2 $ "arity_a  =" <+> prettyTCM arity_a
+          , nest 2 $ "withSub' =" <+> prettyTCM withSub'
+          ]
+
         -- Compute substitution from the out patterns @qs0@
         let notProj ProjP{} = False
             notProj _       = True
