@@ -271,7 +271,7 @@ order for the change to take effect."
   ("tack" . ,(agda-input-to-string-list "⟘⟙⟛⟝⟞⫫⫪"))
   ("Bot"  . ("⟘")) ;; similar to Glb/Lub vs. glb/lub
   ("Top"  . ("⟙"))
-  ("-||-" . ("⟛))
+  ("-||-" . ("⟛"))
   ("|--"  . ("⟝"))
   ("--|"  . ("⟞"))
   ("bbot" . ("⫫")) ;; similar to bN for blackboard N
