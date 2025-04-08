@@ -1,0 +1,6 @@
+Issue7759.agda:25.1-4: error: [TooFewPatternsInWithClause]
+Too few arguments given in with-clause
+when checking that the clause
+f A a with f A _
+f A a = refl
+has type (A : Set) (a : A) → Eq (Eq A a a) refl refl
