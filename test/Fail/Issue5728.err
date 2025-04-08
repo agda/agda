@@ -1,5 +1,6 @@
-Issue5728.agda:6.1-4: error: [AbsentRHSRequiresAbsurdPattern]
-The right-hand side can only be omitted if there is an absurd
-pattern, () or {}, in the left-hand side.
-when checking that the clause Issue5728.with-4 has type
-(w : Set₁) → w
+Issue5728.agda:6.1-4: error: [TooFewPatternsInWithClause]
+Too few arguments given in with-clause
+when checking that the clause
+test with Set
+test
+has type Set

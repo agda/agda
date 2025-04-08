@@ -232,7 +232,7 @@ buildWithFunction
 buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM buildWithClause cs
   where
     -- Nested with-functions will iterate this function once for each parent clause.
-    buildWithClause (A.Clause (A.SpineLHS i _ allPs) inheritedPats rhs wh catchall) = do
+    buildWithClause (A.Clause lhs@(A.SpineLHS i _ allPs) inheritedPats rhs wh catchall) = do
       let (ps, wps)    = splitOffTrailingWithPatterns allPs
           (wps0, wps1) = splitAt n wps
           ps0          = map (updateNamedArg fromWithP) wps0
@@ -247,6 +247,14 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
         , nest 2 $ "wps0 =" <+> prettyA wps0
         , nest 2 $ "wps1 =" <+> prettyA wps1
         ]
+
+      -- Andreas, 2025-04-07, issue #7759
+      -- Usually the following is impossible because the with-clause collection
+      -- already looks for the correct number of with-patterns.
+      -- However, if the lhs is just an ellipsis, we can slip through the cracks.
+      -- Thus, we install another check here to enforce the correct number of with-patterns.
+      when (length wps0 < n) $
+        setCurrentRange lhs $ typeError TooFewPatternsInWithClause
 
       reportSDoc "tc.with" 50 $ "inheritedPats:" <+> vcat
         [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a
