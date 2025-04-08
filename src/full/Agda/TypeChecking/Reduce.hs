@@ -837,7 +837,8 @@ reduceHead v = do -- ignoreAbstractMode $ do
         _                               -> return $ notBlocked v
     _ -> return $ notBlocked v
 
--- | Unfold a single inlined function.
+-- | Unfold as many copies as possible, and then potentially a single
+-- inline function.
 unfoldInlined :: PureTCM m => Term -> m Term
 unfoldInlined v = do
   inTypes <- viewTC eWorkingOnTypes
@@ -845,8 +846,14 @@ unfoldInlined v = do
     _ | inTypes -> return v -- Don't inline in types (to avoid unfolding of goals)
     Def f es -> do
       info <- getConstInfo f
-      let def = theDef info
-          irr = isIrrelevant $ defArgInfo info
+
+      let
+        def = theDef info
+        irr = isIrrelevant $ defArgInfo info
+        continue
+          | defCopy info = fmap notBlocked . unfoldInlined
+          | otherwise    = return . notBlocked
+
       case def of
         Function{} ->
           reportSLn "tc.inline" 90 $
@@ -857,12 +864,13 @@ unfoldInlined v = do
             , "funCompiled = " ++ prettyShow (funCompiled def)
             ]
         _ -> pure ()
-      case def of   -- Only for simple definitions with no pattern matching (TODO: maybe copatterns?)
+
+      case def of -- Only for simple definitions with no pattern matching (TODO: maybe copatterns?)
         Function{ funCompiled = Just Done{} }
-          | def ^. funInline , not irr -> do
-              reportSLn "tc.inline" 70 $ "asking to inline " ++ prettyShow f
-              liftReduce $
-                ignoreBlocking <$> unfoldDefinitionE (return . notBlocked) (Def f []) f es
+          | (defCopy info || def ^. funInline), not irr -> do
+            reportSLn "tc.inline" 70 $ "asking to inline " ++ prettyShow f
+            liftReduce $
+              ignoreBlocking <$> unfoldDefinitionE continue (Def f []) f es
         _ -> return v
     _ -> return v
 
