@@ -82,7 +82,6 @@ import Agda.Interaction.Base (Rewrite(..))
 import Agda.Interaction.BasicOps (normalForm)
 import Agda.Interaction.Options.Base (parseVerboseKey)
 import Agda.Utils.List (lastWithDefault)
-import Text.Blaze.Html5 (search)
 
 data MimerResult
   = MimerExpr String -- ^ Returns 'String' rather than 'Expr' because the give action expects a string.
