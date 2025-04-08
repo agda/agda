@@ -735,8 +735,12 @@ instance Null (Substitution' a) where
 
 data EqualityView
   = EqualityViewType EqualityTypeData
-  | OtherType Type -- ^ reduced
-  | IdiomType Type -- ^ reduced
+      -- ^ A type of the form @u ≡ v@ decomposed into its parts.
+      --   Used as type for the @rewrite@ expression.
+  | OtherType Type
+      -- ^ A reduced type used as type for a @with@ expression.
+  | IdiomType Type
+      -- ^ A reduced type used as type for the @with@ inspect idiom.
 
 data EqualityTypeData = EqualityTypeData
     { _eqtSort   :: Sort        -- ^ Sort of this type.
