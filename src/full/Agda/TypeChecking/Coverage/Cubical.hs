@@ -933,14 +933,23 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
       -- with Δ' and ps' introduced by fixTarget.
       -- So final clause will be:
       -- tel ⊢ ps ↦ rhs_we_define{wkS ..} ps'
+
       getLevel t = do
         s <- reduce $ getSort t
         case s of
           Type l -> pure (Level l)
-          s      -> do
-            reportSDoc "tc.cover.hcomp" 20 $ text "getLevel, s = " <+> prettyTCM s
-            typeError . GenericDocError =<<
-                    (text "The sort of" <+> prettyTCM t <+> text "should be of the form \"Set l\"")
+
+          -- Impossible since we only have HITs in Type:
+          s -> do
+            reportSDoc "tc.cover.hcomp" 20 $ vcat
+              [ "sort of blocking variable when creating hcomp clause is not Type"
+              , nest 2 ("t =" <+> prettyTCM t)
+              , nest 2 ("s =" <+> prettyTCM s)
+              , ""
+              , "clause:"
+              , nest 2 $ prettyTCM (QNamed f empty{ clauseTel = tel, namedClausePats = fromSplitPatterns ps })
+              ]
+            __IMPOSSIBLE__
 
       -- Γ ⊢ hdelta = (x : H)(δ : Δ)
       (gamma,hdelta@(ExtendTel hdom delta)) = splitTelescopeAt (size old_tel - (blockingVarNo x + 1)) old_tel
