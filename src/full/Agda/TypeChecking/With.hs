@@ -130,12 +130,12 @@ withFunctionType
   -> Telescope                          -- ^ @Δ₁ ⊢ Δ₂@                   context extension to type with-expressions.
   -> Type                               -- ^ @Δ₁,Δ₂ ⊢ b@                 type of rhs.
   -> [(Int,(Term,Term))]                -- ^ @Δ₁,Δ₂ ⊢ [(i,(u0,u1))] : b  boundary.
-  -> TCM (Type, Nat1)
+  -> TCM (Type, (Nat1, Nat))
     -- ^ @Δ₁ → wtel → Δ₂′ → b′@ such that
     --     @[vs/wtel]wtel = as@ and
     --     @[vs/wtel]Δ₂′ = Δ₂@ and
     --     @[vs/wtel]b′ = b@.
-    -- Plus the final number of with-arguments.
+    -- Plus the final number of with-arguments and the number of visible ones.
 withFunctionType delta1 vtys delta2 b bndry = addContext delta1 $ do
 
   reportSLn "tc.with.abstract" 20 $ "preparing for with-abstraction"
@@ -157,7 +157,8 @@ withFunctionType delta1 vtys delta2 b bndry = addContext delta1 $ do
   wd2b <- foldrM piAbstract d2b vtys
   dbg 30 "wΓ → Δ₂ → B" wd2b
 
-  let nwithargs = countWithArgs (fmap (snd . unArg) vtys)
+  let nwithargs = countWithArgs $ fmap (snd . unArg) vtys
+  let nwithpats = countWithPats vtys
 
   TelV wtel _ <- telViewUpTo nwithargs wd2b
 
@@ -170,14 +171,31 @@ withFunctionType delta1 vtys delta2 b bndry = addContext delta1 $ do
 
   dbg 30 "Δ₁ → wΓ → Δ₂ → B" d1wd2b
 
-  return (d1wd2b, nwithargs)
+  return (d1wd2b, (nwithargs, nwithpats))
 
-countWithArgs :: List1 EqualityView -> Nat1
+-- | Count the number of arguments introduced into the type of the with-function.
+countWithArgs :: (Functor f, Foldable f) => f EqualityView -> Nat1
 countWithArgs = sum . fmap countArgs
   where
     countArgs OtherType{}    = 1
     countArgs IdiomType{}    = 2
     countArgs EqualityType{} = 2
+
+-- | Count the number of with-patterns in the with-clause
+--   that need to be transformed to regular patterns
+--   in the **current round** of with-abstraction
+--   (important for nested with).
+countWithPats :: (Functor f, Foldable f) => f (Arg (Term, EqualityView)) -> Nat1
+countWithPats = sum . fmap \case
+    -- Andreas, 2025-04-08, see issue #7788.
+    Arg ai (_, OtherType   {}) -> if visible ai then 1 else 0
+      -- A hidden @with@ (issue #500) does not have a with-pattern in the abstract syntax.
+    Arg ai (_, IdiomType   {}) -> if visible ai then 2 else 1
+      -- The hidden version of the inspect idiom has just one with-pattern in the abstract syntax.
+    Arg ai (_, EqualityType{}) -> if visible ai then 2 else __IMPOSSIBLE__
+      -- The desugaring of @rewrite@ produces two new with-patterns in the abstract syntax.
+      -- They are always @NotHidden@.
+
 
 -- | From a list of @with@ and @rewrite@ expressions and their types,
 --   compute the list of final @with@ expressions (after expanding the @rewrite@s).
@@ -221,6 +239,15 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
             where
             fromWithP (A.WithP _ p) = p
             fromWithP _ = __IMPOSSIBLE__
+
+      reportSDoc "tc.with.split" 40 $ vcat
+        [ "buildWithClause"
+        , nest 2 $ "n    =" <+> prettyTCM n
+        , nest 2 $ "wps  =" <+> prettyA wps
+        , nest 2 $ "wps0 =" <+> prettyA wps0
+        , nest 2 $ "wps1 =" <+> prettyA wps1
+        ]
+
       reportSDoc "tc.with" 50 $ "inheritedPats:" <+> vcat
         [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a
         | A.ProblemEq p v a <- inheritedPats

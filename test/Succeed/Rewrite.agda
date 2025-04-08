@@ -42,6 +42,12 @@ thm : ∀ a b c → a + (b + c) ≡ (c + b) + a
 thm a b c rewrite com b c with c + b
 ... | cb = com a cb
 
+-- rewrite followed by nested with
+thm' : ∀ a b c → a + (b + c) ≡ (c + b) + a
+thm' a b c rewrite com b c with c + b
+... | cb with com a cb
+... | p rewrite p = refl
+
 data List (A : Set) : Set where
   [] : List A
   _∷_ : (x : A)(xs : List A) → List A

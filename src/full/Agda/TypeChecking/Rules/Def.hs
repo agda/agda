@@ -1176,7 +1176,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   delta1 <- modifyAllowedReductions (const reds) $ normalise delta1
 
   -- Generate the type of the with function
-  (withFunType, n) <- do
+  (withFunType, (nwithargs, nwithpats)) <- do
     let ps = renaming impossible (reverseP perm') `applySubst` qs
     reportSDoc "tc.with.bndry" 40 $ addContext delta1 $ addContext delta2
                                   $ text "ps =" <+> pretty ps
@@ -1193,7 +1193,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   reportSDoc "tc.with.type" 50 $ sep [ "with-function type:", nest 2 $ pretty withFunType ]
 
   call_in_parent <- do
-    (TelV tel _,bs) <- telViewUpToPathBoundaryP (n + size delta) withFunType
+    (TelV tel _,bs) <- telViewUpToPathBoundaryP (nwithargs + size delta) withFunType
     return $ argsS `applySubst` Def aux (teleElims tel bs)
 
   reportSDoc "tc.with.top" 20 $ addContext delta $ "with function call" <+> prettyTCM call_in_parent
@@ -1209,7 +1209,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
     noConstraints $ checkType withFunType
 
   -- With display forms are closed
-  df <- inTopContext $ makeOpen =<< withDisplayForm f aux delta1 delta2 n qs perm' perm
+  df <- inTopContext $ makeOpen =<< withDisplayForm f aux delta1 delta2 nwithargs qs perm' perm
 
   reportSLn "tc.with.top" 20 "created with display form"
 
@@ -1240,7 +1240,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
 
   -- Construct the body for the with function
   cs <- return $ fmap (A.lhsToSpine) cs
-  cs <- buildWithFunction cxtNames f aux t delta qs npars withSub finalPerm (size delta1) n cs
+  cs <- buildWithFunction cxtNames f aux t delta qs npars withSub finalPerm (size delta1) nwithpats cs
   cs <- return $ fmap (A.spineToLhs) cs
 
   -- #4833: inherit abstract mode from parent
