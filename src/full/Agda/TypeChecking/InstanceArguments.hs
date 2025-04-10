@@ -320,8 +320,8 @@ initialInstanceCandidates blockOverlap instTy = do
           -- Amy, 2025-04-10: it's possible that an instance in the
           -- discrimination tree has a type which, in the current
           -- context, has visible quantifiers (e.g. because we're
-          -- outside the parametrised module it was defined in). 
-          -- 
+          -- outside the parametrised module it was defined in).
+          --
           -- Discard them early so that they don't count towards
           -- potentially blocking on "overlap".
           TelV tele _ <- telView t
