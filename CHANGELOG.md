@@ -283,6 +283,7 @@ Interaction and emacs mode
   This is only a surface-level fix, since Agda might still fail to find the properly qualified name for
   the constructor in scope, but should at least make more sense in most situations.
 
+* New bindings for unicode 'tacks' (⟘⟙⟛⟝⟞⫫⫪) via \tack (as well as specialised names for each of them)
 
 Backends
 --------
