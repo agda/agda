@@ -1,0 +1,5 @@
+Issue7796.agda:13.1-14.13: error: [TerminationIssue]
+Termination checking failed for the following functions:
+  u
+Problematic calls:
+  u (at Issue7796.agda:14.12-13)

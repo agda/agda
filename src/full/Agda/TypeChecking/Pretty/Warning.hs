@@ -77,6 +77,7 @@ import Agda.Utils.Monad ( ifM )
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Set1 as Set1
+import Agda.Utils.WithDefault  ( pattern Value )
 
 import Agda.Utils.Impossible
 
@@ -131,7 +132,17 @@ prettyWarning = \case
               ]
       -- Andreas, 2025-04-01, issue #6657
       -- Hint towards --guardedness where appropriate, but not when --sized-types is on.
-      ifM (optSizedTypes <$> pragmaOptions) (report empty errs) {-else-} do
+      -- Andreas, 2025-04-12, issue #7796
+      -- Also not when --no-guardedness is explicitly given (rather than the default).
+      opts <- pragmaOptions
+      let haveSizedTypes = optSizedTypes opts
+      let guardedness    = _optGuardedness opts
+      reportSDoc "tc.warning.termination" 50 $ vcat
+        [ "printing TerminationIssue"
+        , "sized-types = " <+> (text . show) haveSizedTypes
+        , "guardedness = " <+> (text . show) guardedness
+        ]
+      if haveSizedTypes || guardedness == Value False then report empty errs else do
         vcat [ report "(Option --guardedness might fix this problem.)" guardednessHelps
              , report empty guardednessHelpsNot
              ]

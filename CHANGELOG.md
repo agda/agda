@@ -111,7 +111,8 @@ Warnings
   by new warnings `OpenImportAbstract` and `OpenImportPrivate`.
 
 * Warning `NoGuardednessFlag` has been removed.
-  Instead Agda a hint when `--guardedness` would help with termination checking.
+  Instead Agda gives a hint when `--guardedness` would help with termination checking,
+  unless options `--sized-types` or `--no-guardedness` are set.
 
 
 Polarity
