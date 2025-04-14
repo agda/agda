@@ -9,8 +9,10 @@ open import Auto.Prelude
 
 -- using a type argument as a proof
 
-h0 : (x₁ x₂ : ⊥) → x₁ ≡ x₂
+h0 : (A : Set) (x₁ x₂ : ⊥) → ⊥  -- x₁ ≡ x₂
 h0 = {!!}
+-- Andreas, 2025-04-14, issue #7587
+-- Removed the broken heuristics for absurd lambda.
 --h0 = λ ()
 
 -- using dependent pair to define non-dep pair
@@ -76,3 +78,6 @@ skip-solutions = {!-s 1!}
 -- Andreas, 2025-03-31, issue #7662: ♭ needs to be printed prefix rather than postfix
 issue7662 : ∞ Bool → Bool
 issue7662 x = {!!}
+
+issue7587 : (A : Set) → ⊥ → ⊥
+issue7587 = ?

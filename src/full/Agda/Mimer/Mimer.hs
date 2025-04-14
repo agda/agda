@@ -1078,12 +1078,8 @@ refine branch = withBranchState branch $ do
 
     -- Lambda-abstract as far as possible
     tryLamAbs goal1 goalType1 branch1 >>= \case
-      -- Abstracted with absurd pattern: solution found.
-      Left expr -> do
-        reportSDoc "mimer.refine" 30 $ "Abstracted with absurd lambda. Result:" <+> prettyTCM expr
-        return [ResultExpr expr]
       -- Normal abstraction
-      Right (goal2, goalType2, branch2) -> withBranchAndGoal branch2 goal2 $ do
+      (goal2, goalType2, branch2) -> withBranchAndGoal branch2 goal2 $ do
         (branch3, components) <- prepareComponents goal2 branch2
         withBranchAndGoal branch3 goal2 $ do
 
@@ -1131,20 +1127,27 @@ tryLet goal goalType branch = withBranchAndGoal branch goal $ do
   mapM checkSolved newBranches
 
 -- | Returns @Right@ for normal lambda abstraction and @Left@ for absurd lambda.
-tryLamAbs :: Goal -> Type -> SearchBranch -> SM (Either Expr (Goal, Type, SearchBranch))
+tryLamAbs :: Goal -> Type -> SearchBranch -> SM (Goal, Type, SearchBranch)
 tryLamAbs goal goalType branch =
   case unEl goalType of
     Pi dom abs -> do
-     isEmptyType (unDom dom) >>= \case -- TODO: Is this the correct way of checking if absurd lambda is applicable?
-      True -> do
-        let argInf = defaultArgInfo{argInfoOrigin = Inserted} -- domInfo dom
-            term = Lam argInf absurdBody
-        newMetaIds <- assignMeta (goalMeta goal) term goalType
-        unless (null newMetaIds) (__IMPOSSIBLE__)
-        -- TODO: Represent absurd lambda as a Term instead of Expr.
-        -- Left . fromMaybe __IMPOSSIBLE__ <$> getMetaInstantiation (goalMeta metaId)
-        return $ Left $ AbsurdLam exprNoRange NotHidden
-      False -> do
+      -- Andreas, 2025-04-14, issue 7587: remove broken heuristics for absurd lambda.
+      -- In case of an empty domain, we want to solve the branch by an absurd lambda
+      -- and signal that there are no more subgoals.
+      -- The now-commented out code returned an absurd-lambda *expression* which was then
+      -- considered as solution of the *original goal* rather than the current goal.
+      -- Returning an expression here is just too broken to attempt a fix.
+      --
+      -- isEmptyType (unDom dom) >>= \case -- TODO: Is this the correct way of checking if absurd lambda is applicable?
+      --  True -> do
+      --    let argInf = defaultArgInfo{argInfoOrigin = Inserted} -- domInfo dom
+      --        term = Lam argInf absurdBody
+      --    newMetaIds <- assignMeta (goalMeta goal) term goalType
+      --    unless (null newMetaIds) (__IMPOSSIBLE__)
+      --    -- TODO: Represent absurd lambda as a Term instead of Expr.
+      --    -- Left . fromMaybe __IMPOSSIBLE__ <$> getMetaInstantiation (goalMeta metaId)
+      --    return $ Left $ AbsurdLam exprNoRange NotHidden
+      --  False -> do
         let bindName | isNoName (absName abs) = "z"
                      | otherwise              = absName abs
         newName <- freshName_ bindName
@@ -1165,9 +1168,11 @@ tryLamAbs goal goalType branch =
         withEnv env $ do
           branch' <- updateBranch newMetaIds branch
           tryLamAbs (Goal metaId') bodyType branch'
-    _ -> do
+    _ -> done
+  where
+    done = do
       branch' <- updateBranch [] branch -- TODO: Is this necessary?
-      return $ Right (goal, goalType, branch')
+      return (goal, goalType, branch')
 
 
 genRecCalls :: Component -> SM [Component]
