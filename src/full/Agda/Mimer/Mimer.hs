@@ -57,7 +57,7 @@ import Agda.TypeChecking.Records (isRecord, isRecursiveRecord)
 import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Rules.LHS.Problem (AsBinding(..))
 import Agda.TypeChecking.Rules.Term  (lambdaAddContext)
-import Agda.TypeChecking.Substitute.Class (apply, applyE, NoSubst(..))
+import Agda.TypeChecking.Substitute (apply, applyE, piApply, NoSubst(..))
 import Agda.TypeChecking.Telescope (piApplyM, flattenTel, teleArgs)
 import Agda.Utils.Benchmark (billTo)
 import Agda.Utils.FileName (filePath)
@@ -541,12 +541,11 @@ collectComponents opts costs ii mDefName whereNames metaId = do
 qnameToComponent :: (HasConstInfo tcm, ReadTCState tcm, MonadFresh CompId tcm, MonadTCM tcm)
   => Cost -> QName -> tcm Component
 qnameToComponent cost qname = do
-  info <- getConstInfo qname
-  typ  <- typeOfConst qname
-  -- #7120: typeOfConst is the type inside the module, so we need to apply the module params here
+  defn <- getConstInfo qname
+  -- #7120: we need to apply the module params to everything
   mParams <- freeVarsToApply qname
   let def = (Def qname [] `apply` mParams, 0)
-      (term, pars) = case theDef info of
+  let (term, pars) = case theDef defn of
         c@Constructor{}    -> (Con (conSrcCon c) ConOCon [], conPars c - length mParams)
         Axiom{}            -> def
         GeneralizableVar{} -> def
@@ -557,7 +556,7 @@ qnameToComponent cost qname = do
         PrimitiveSort{}    -> def
         DataOrRecSig{}     -> __IMPOSSIBLE__
         AbstractDefn{}     -> __IMPOSSIBLE__
-  newComponentQ [] cost qname pars term typ
+  newComponentQ [] cost qname pars term (defType defn `piApply` mParams)
 
 getEverythingInScope :: MonadTCM tcm => MetaVariable -> tcm [QName]
 getEverythingInScope metaVar = do
