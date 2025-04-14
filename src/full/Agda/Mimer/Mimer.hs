@@ -1004,7 +1004,7 @@ applyToMetasG maxArgs comp = do
       (metaId, metaTerm) <- createMeta domainType
       let arg = setOrigin Inserted $ metaTerm <$ argFromDom dom
       newType <- reduce =<< piApplyM (compType comp) metaTerm
-      -- Constructors the parameters are not included in the term
+      -- Constructor parameters are not included in the term
       let skip = compPars comp
           newTerm | skip > 0  = compTerm comp
                   | otherwise = apply (compTerm comp) [arg]
@@ -1279,8 +1279,10 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
 
     tryData :: Defn -> SM [SearchStepResult]
     tryData dataDefn = do
+      let constructors = dataCons dataDefn
+      reportSDoc "mimer.try" 40 $ hsep $ "tryData" : map prettyTCM constructors
       cost <- asks (costDataCon . searchCosts)
-      comps <- mapM (qnameToComponent cost) $ dataCons dataDefn
+      comps <- mapM (qnameToComponent cost) constructors
       newBranches <- mapM (tryRefineAddMetas goal goalType branch) comps
       -- TODO: Reduce overlap between e.g. tryLocals, this and tryRecord
       mapM checkSolved (catMaybes newBranches)
