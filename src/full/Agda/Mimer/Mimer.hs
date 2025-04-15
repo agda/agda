@@ -613,7 +613,6 @@ collectLHSVars ii = do
           -- Telescope for the body of the clause
           let cTel = clauseTel clause
           -- HACK: To get the correct indices, we shift by the difference in telescope lengths
-          -- TODO: Difference between teleArgs and telToArgs?
           let shift = length (telToArgs iTel) - length (telToArgs cTel)
 
           reportSDoc "mimer" 60 $ vcat

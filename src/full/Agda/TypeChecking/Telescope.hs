@@ -103,7 +103,7 @@ teleNames :: Telescope -> [ArgName]
 teleNames = map (fst . unDom) . telToList
 
 teleArgNames :: Telescope -> [Arg ArgName]
-teleArgNames = map (argFromDom . fmap fst) . telToList
+teleArgNames = telToArgs
 
 teleArgs :: (DeBruijn a) => Tele (Dom t) -> [Arg a]
 teleArgs = map argFromDom . teleDoms
