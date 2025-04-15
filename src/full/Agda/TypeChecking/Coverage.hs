@@ -1384,7 +1384,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
       when (allowPartialCover == NoAllowPartialCover && not overlap) $
         for_ ns $ \(tag, (sc, _)) -> do
           unless (tag `Set.member` all_tags) $ do
-            isImpossibleClause <- liftTCM $ isEmptyTel $ scTel sc
+            isImpossibleClause <- isEmptyTel $ scTel sc
             unless isImpossibleClause $ do
               liftTCM $ reportSDoc "tc.cover" 10 $ vcat
                 [ text "Missing case for" <+> prettyTCM tag
