@@ -46,6 +46,7 @@ import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcrete_)
 
 import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Constraints (noConstraints)
+import Agda.TypeChecking.Datatypes (isDataOrRecord)
 import Agda.TypeChecking.Conversion (equalType)
 import Agda.TypeChecking.Empty (isEmptyType)
 import Agda.TypeChecking.Free (flexRigOccurrenceIn, freeVars)
@@ -378,14 +379,12 @@ metaInstantiation metaId = lookupLocalMeta metaId <&> mvInstantiation >>= \case
   InstV inst -> return $ Just $ instBody inst
   _ -> return Nothing
 
+-- TODO: why not also accept pattern record types here?
 isTypeDatatype :: (MonadTCM tcm, MonadReduce tcm, HasConstInfo tcm) => Type -> tcm Bool
-isTypeDatatype typ = do
-  typ' <- reduce typ
-  case unEl typ' of
-    Def qname _ -> theDef <$> getConstInfo qname >>= \case
-      Datatype{} -> return True
-      _ -> return False
-    _ -> return False
+isTypeDatatype typ = liftTCM do
+  reduce typ <&> unEl >>= isDataOrRecord <&> \case
+    Just (_, IsData) -> True
+    _ -> False
 
 ------------------------------------------------------------------------------
 -- * Components
