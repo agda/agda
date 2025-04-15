@@ -378,13 +378,7 @@ nextBranchMeta branch = case sbGoals branch of
 -- TODO: Rename (see metaInstantiation)
 getMetaInstantiation :: (MonadTCM tcm, PureTCM tcm, MonadDebug tcm, MonadInteractionPoints tcm, MonadFresh NameId tcm)
   => MetaId -> tcm (Maybe Expr)
-getMetaInstantiation = metaInstantiation >=> go
-  where
-    -- TODO: Cleaner way of juggling the maybes here?
-    go Nothing = return Nothing
-    go (Just term) = do
-      expr <- instantiateFull term >>= reify
-      return $ Just expr
+getMetaInstantiation = metaInstantiation >=> traverse (instantiateFull >=> reify)
 
 metaInstantiation :: (MonadTCM tcm, MonadDebug tcm, ReadTCState tcm) => MetaId -> tcm (Maybe Term)
 metaInstantiation metaId = lookupLocalMeta metaId <&> mvInstantiation >>= \case
