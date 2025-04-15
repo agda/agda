@@ -59,12 +59,12 @@ ensureEmptyType r t = caseEitherM (checkEmptyType r t) failure return
   failure Fail              = typeError $ ShouldBeEmpty t []
 
 -- | Check whether a type is empty.
-isEmptyType :: Type -> TCM Bool
-isEmptyType ty = isRight <$> checkEmptyType noRange ty
+isEmptyType :: MonadTCM tcm => Type -> tcm Bool
+isEmptyType ty = liftTCM $ isRight <$> checkEmptyType noRange ty
 
 -- | Check whether some type in a telescope is empty.
-isEmptyTel :: Telescope -> TCM Bool
-isEmptyTel tel = isRight <$> checkEmptyTel noRange tel
+isEmptyTel :: MonadTCM tcm => Telescope -> tcm Bool
+isEmptyTel tel = liftTCM $ isRight <$> checkEmptyTel noRange tel
 
 -- Either the type is possibly non-empty (Left err) or it is really empty
 -- (Right ()).

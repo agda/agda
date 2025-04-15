@@ -47,7 +47,7 @@ import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcrete_)
 import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Constraints (noConstraints)
 import Agda.TypeChecking.Conversion (equalType)
-import qualified Agda.TypeChecking.Empty as Empty -- (isEmptyType)
+import Agda.TypeChecking.Empty (isEmptyType)
 import Agda.TypeChecking.Free (flexRigOccurrenceIn, freeVars)
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.MetaVars (newValueMeta)
@@ -297,10 +297,6 @@ predNat n | n > 0 = n - 1
 getRecordFields :: (HasConstInfo tcm, MonadTCM tcm) => QName -> tcm [QName]
 getRecordFields = fmap (map unDom . recFields . theDef) . getConstInfo
 
-
--- TODO: Change the signature in original module instead.
-isEmptyType :: Type -> SM Bool
-isEmptyType = liftTCM . Empty.isEmptyType
 
 -- TODO: Currently not using this function. Is it useful anywhere?
 getDomainType :: Type -> Type
