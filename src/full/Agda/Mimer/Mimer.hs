@@ -297,13 +297,6 @@ predNat n | n > 0 = n - 1
 getRecordFields :: (HasConstInfo tcm, MonadTCM tcm) => QName -> tcm [QName]
 getRecordFields = fmap (map unDom . recFields . theDef) . getConstInfo
 
-
--- TODO: Currently not using this function. Is it useful anywhere?
-getDomainType :: Type -> Type
-getDomainType typ = case unEl typ of
-  Pi dom _ -> unDom dom
-  _ -> __IMPOSSIBLE__
-
 allOpenMetas :: (AllMetas t, ReadTCState tcm) => t -> tcm [MetaId]
 allOpenMetas t = do
   openMetas <- getOpenMetas
