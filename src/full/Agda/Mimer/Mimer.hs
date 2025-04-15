@@ -63,7 +63,7 @@ import Agda.Utils.Benchmark (billTo)
 import Agda.Utils.FileName (filePath)
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Maybe (catMaybes)
-import Agda.Utils.Monad (ifM)
+import Agda.Utils.Monad (ifM, and2M)
 import qualified Agda.Utils.Maybe.Strict as SMaybe
 -- import Agda.Utils.Permutation (idP, permute, takeP)
 import Agda.Utils.Time (CPUTime(..), getCPUTime, fromMilliseconds)
@@ -406,9 +406,9 @@ collectComponents opts costs ii mDefName whereNames metaId = do
       <+> prettyList (map prettyTypedTerm typedLhsVars))
   -- TODO: For now, we *never* split on implicit arguments even if they are
   -- written explicitly on the LHS.
-  splitVarsTyped <- filterM (\(term, typ) ->
-                 ((argInfoHiding (domInfo typ) == NotHidden) &&) <$> isTypeDatatype (unDom typ))
-               typedLhsVars
+  splitVarsTyped <-
+    filterM (\ (term, dom) -> pure (visible dom) `and2M` isTypeDatatype (unDom dom))
+            typedLhsVars
   reportSDoc "mimer.components" 40 $
     "Splittable variables" <+> prettyList (map prettyTCMTypedTerm splitVarsTyped) <+> parens ("or"
       <+> prettyList (map prettyTypedTerm splitVarsTyped))
