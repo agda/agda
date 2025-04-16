@@ -32,6 +32,9 @@ main = do
     [arg]
       | arg == locateFlag -> do
 
+          -- Ensure that Agda has been setup so the Emacs mode is available.
+          Agda.setup False
+
           printEmacsModeFile
 
       | arg == setupFlag  -> do
