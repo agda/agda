@@ -225,8 +225,8 @@ give_ elaborating force ii mr e = do
 --
 --   Returns the given expression unchanged
 --   (for convenient generalization to @'refine'@).
-give
-  :: UseForce       -- ^ Skip safety checks?
+give ::
+     UseForce       -- ^ Skip safety checks?
   -> InteractionId  -- ^ Hole.
   -> Maybe Range
   -> Expr           -- ^ The expression to give.
