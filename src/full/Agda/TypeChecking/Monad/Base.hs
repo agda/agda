@@ -344,9 +344,10 @@ data PostScopeState = PostScopeState
     -- ^ Associates opaque identifiers to their actual blocks.
   , stPostOpaqueIds           :: Map QName OpaqueId
     -- ^ Associates each opaque QName to the block it was defined in.
-  , stPostFinalChecks         :: !Bool
-    -- ^ Are we doing the post-mutual-block checks? Used to decide
-    -- whether to postpone instances.
+  , stPostInstanceHack        :: !Bool
+    -- ^ Is this a context where we should always try every possible
+    -- instance candidate? Used to support "inert improvement", see
+    -- @shouldBlockOverlap@ in InstanceArguments.
   }
   deriving (Generic)
 
@@ -534,7 +535,7 @@ initPostScopeState = PostScopeState
   , stPostOpaqueBlocks           = Map.empty
   , stPostOpaqueIds              = Map.empty
   , stPostForeignCode            = Map.empty
-  , stPostFinalChecks            = False
+  , stPostInstanceHack           = False
   }
 
 initStateIO :: IO TCState
@@ -773,8 +774,8 @@ lensConsideringInstance f s = f (stPostConsideringInstance s) <&> \ x -> s { stP
 lensInstantiateBlocking :: Lens' PostScopeState Bool
 lensInstantiateBlocking f s = f (stPostInstantiateBlocking s) <&> \ x -> s { stPostInstantiateBlocking = x }
 
-lensFinalChecks :: Lens' PostScopeState Bool
-lensFinalChecks f s = f (stPostFinalChecks s) <&> \ x -> s { stPostFinalChecks = x }
+lensInstanceHack :: Lens' PostScopeState Bool
+lensInstanceHack f s = f (stPostInstanceHack s) <&> \ x -> s { stPostInstanceHack = x }
 
 -- * @st@-prefixed lenses
 ------------------------------------------------------------------------
@@ -907,8 +908,8 @@ stOpaqueBlocks = lensPostScopeState . lensOpaqueBlocks
 stOpaqueIds :: Lens' TCState (Map QName OpaqueId)
 stOpaqueIds = lensPostScopeState . lensOpaqueIds
 
-stFinalChecks :: Lens' TCState Bool
-stFinalChecks = lensPostScopeState . lensFinalChecks
+stInstanceHack :: Lens' TCState Bool
+stInstanceHack = lensPostScopeState . lensInstanceHack
 
 stSyntaxInfo :: Lens' TCState HighlightingInfo
 stSyntaxInfo = lensPostScopeState . lensSyntaxInfo
