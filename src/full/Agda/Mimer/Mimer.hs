@@ -458,7 +458,7 @@ collectComponents opts costs ii mDefName whereNames metaId = do
 
     isNotMutual qname f = case mDefName of
       Nothing -> True
-      Just defName -> defName /= qname && fmap ((defName `elem`)) (funMutual f) /= Just True
+      Just defName -> defName /= qname && fmap (defName `elem`) (funMutual f) /= Just True
 
     go comps qname = go' comps qname =<< getConstInfo qname
 
