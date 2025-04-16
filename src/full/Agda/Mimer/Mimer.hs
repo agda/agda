@@ -367,14 +367,13 @@ withBranchAndGoal br goal ma = inGoalEnv goal $ withBranchState br ma
 inGoalEnv :: Goal -> SM a -> SM a
 inGoalEnv goal = withMetaId (goalMeta goal)
 
-nextBranchMeta' :: SearchBranch -> SM (Goal, SearchBranch)
-nextBranchMeta' = fmap (fromMaybe __IMPOSSIBLE__) . nextBranchMeta
-
-nextBranchMeta :: SearchBranch -> SM (Maybe (Goal, SearchBranch))
-nextBranchMeta branch = case sbGoals branch of
-  [] -> return Nothing
-  (goal : goals) ->
-    return $ Just (goal, branch{sbGoals=goals})
+-- | Take the first goal off a search branch.
+--   Precondition: the set of goals is non-empty.
+nextGoal :: SearchBranch -> (Goal, SearchBranch)
+nextGoal branch =
+  case sbGoals branch of
+    [] -> __IMPOSSIBLE__
+    goal : goals -> (goal, branch{ sbGoals = goals })
 
 -- TODO: Rename (see metaInstantiation)
 getMetaInstantiation :: (MonadTCM tcm, PureTCM tcm, MonadDebug tcm, MonadInteractionPoints tcm, MonadFresh NameId tcm)
@@ -1050,7 +1049,7 @@ branchInstantiationDoc branch = withBranchState branch topInstantiationDoc
 
 refine :: SearchBranch -> SM [SearchStepResult]
 refine branch = withBranchState branch $ do
-  (goal1, branch1) <- nextBranchMeta' branch
+  let (goal1, branch1) = nextGoal branch
 
   withBranchAndGoal branch1 goal1 $ do
     goalType1 <- bench [Bench.Reduce] $ reduce =<< getMetaTypeInContext (goalMeta goal1)
