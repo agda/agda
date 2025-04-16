@@ -218,7 +218,7 @@ checkDecl d = setCurrentRange d $ do
       -- Post-typing checks.
       whenJust finalChecks \theMutualChecks -> do
         reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
-        locallyTCState stFinalChecks (const True) $
+        locallyTCState stInstanceHack (const True) $
           wakeupConstraints_   -- solve emptiness and instance constraints
 
         checkingWhere <- asksTC envCheckingWhere
@@ -538,10 +538,9 @@ whenAbstractFreezeMetasAfter Info.DefInfo{defAccess, defAbstract, defOpaque} m =
   if (defAbstract == ConcreteDef && defOpaque == TransparentDef) then m else do
     (a, ms) <- metasCreatedBy m
 
-    xs <- locallyTCState stFinalChecks (const True) do
-      reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
-      wakeupConstraints_   -- solve emptiness and instance constraints
-      freezeMetas (openMetas ms)
+    reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
+    wakeupConstraints_   -- solve emptiness and instance constraints
+    xs <- freezeMetas (openMetas ms)
 
     reportSDoc "tc.decl.ax" 20 $ vcat
       [ "Abstract type signature produced new open metas: " <+>
@@ -1032,8 +1031,14 @@ checkSectionApplication'
 
     -- Now, type check arguments.
     -- Andreas, 2024-12-06: We fake a head A.Expr for the application.
-    let hd = A.Def $ mnameToQName m2
-    ts <- noConstraints (checkArguments_ CmpEq DontExpandLast hd args tel') >>= \case
+    let
+      hd = A.Def $ mnameToQName m2
+      -- Amy, 2025-04-16, issue #7799: for parity with checking
+      -- declaration right-hand-sides we have to check section
+      -- applications with the 'instance hack' enabled.
+      k = locallyTCState stInstanceHack (const True) . noConstraints
+
+    ts <- k (checkArguments_ CmpEq DontExpandLast hd args tel') >>= \case
       (ts', etaTel') | (size etaTel == size etaTel')
                      , Just ts <- allApplyElims ts' -> return ts
       _ -> __IMPOSSIBLE__
