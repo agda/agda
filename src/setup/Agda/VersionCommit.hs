@@ -13,10 +13,11 @@ import Development.GitRev
 
 import Agda.Version
 
+-- | Agda's version suffixed with the git commit hash.
 versionWithCommitInfo :: String
 versionWithCommitInfo = version ++ maybe "" ("-" ++) commitInfo
 
--- | Information about current git commit, generated at compile time
+-- | Information about current git commit, generated at compile time.
 commitInfo :: Maybe String
 commitInfo
   | hash == "UNKNOWN" = Nothing

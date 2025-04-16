@@ -129,7 +129,7 @@ install: install-bin setup-agda compile-emacs-mode setup-emacs-mode
 setup-agda:
 	$(AGDA_BIN) --setup
 
-.PHONY: ensure-hash-is-correct
+.PHONY: ensure-hash-is-correct ## Ensure Agda's version contains the latest git commit hash.
 ensure-hash-is-correct:
 	touch src/setup/Agda/VersionCommit.hs
 
