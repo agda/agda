@@ -140,8 +140,7 @@ checkApplication cmp hd args e t =
     , nest 2 $ text $ "e    = " ++ show (deepUnscope e)
     , nest 2 $ text $ "t    = " ++ show t
     ]
-  hd <- pure $ unScope hd
-  case hd of
+  case unScope hd of
     -- Subcase: unambiguous projection
     A.Proj o p | Just x <- getUnambiguous p -> do
       checkUnambiguousProjectionApplication cmp e t x o hd args
