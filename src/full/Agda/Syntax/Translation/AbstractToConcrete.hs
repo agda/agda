@@ -263,14 +263,16 @@ currentPrecedence = asks $ (^. scopePrecedence) . currentScope
 preserveInteractionIds :: MonadToConcrete m => m a -> m a
 preserveInteractionIds = local $ \ e -> e { preserveIIds = True }
 
+localPrecedenceStack :: MonadToConcrete m
+  => (PrecedenceStack -> PrecedenceStack) -> m a -> m a
+localPrecedenceStack f = local \ env ->
+  env{ currentScope = over scopePrecedence f (currentScope env) }
+
 withPrecedence' :: MonadToConcrete m => PrecedenceStack -> m a -> m a
-withPrecedence' ps = local $ \e ->
-  e { currentScope = set scopePrecedence ps (currentScope e) }
+withPrecedence' = localPrecedenceStack . const
 
 withPrecedence :: MonadToConcrete m => Precedence -> m a -> m a
-withPrecedence p ret = do
-  ps <- currentPrecedence
-  withPrecedence' (pushPrecedence p ps) ret
+withPrecedence = localPrecedenceStack . pushPrecedence
 
 withScope :: MonadToConcrete m => ScopeInfo -> m a -> m a
 withScope scope = local $ \e -> e { currentScope = scope }
