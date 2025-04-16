@@ -93,25 +93,32 @@ data MimerResult
 
 instance NFData MimerResult
 
+-- | Entry point.
+--   Run Mimer on the given interaction point, returning the desired solution(s).
+--   Also debug prints timing statistics.
 mimer :: MonadTCM tcm
-  => Rewrite
-  -> InteractionId
-  -> Range
-  -> String
+  => Rewrite         -- ^ Degree of normalization of solution terms.
+  -> InteractionId   -- ^ Hole to run on.
+  -> Range           -- ^ Range of hole (for parse errors).
+  -> String          -- ^ Content of hole (to parametrize Mimer).
   -> tcm MimerResult
 mimer norm ii rng argStr = liftTCM $ do
-    reportSDoc "mimer.top" 10 ("Running Mimer on interaction point" <+> pretty ii <+> "with argument string" <+> text (show argStr))
+    reportSDoc "mimer.top" 10 do
+      "Running Mimer on interaction point" <+> pretty ii <+> "with argument string" <+> text (show argStr)
 
     start <- liftIO $ getCPUTime
 
     opts <- parseOptions ii rng argStr
     reportS "mimer.top" 15 ("Mimer options: " ++ show opts)
 
-    oldState <- getTC
+    -- Andreas, 2025-04-16, changing the plain getTC/putTC bracket to localTCState.
+    -- localTCState should be used by default,
+    -- it keeps the Statistics about metas and constraints.
+    -- Was there a reason to use plain getTC/putTC or is it "don't care" since
+    -- mimer is an interactive command and no one looks at the statistics?
+    sols <- localTCState $ runSearch norm opts ii rng
 
-    sols <- runSearch norm opts ii rng
-    putTC oldState
-
+    -- Turn the solutions into the desired results (first solution or list of solutions).
     sol <- case drop (optSkip opts) $ zip [0..] sols of
           [] -> do
             reportSLn "mimer.top" 10 "No solution found"
@@ -121,12 +128,12 @@ mimer norm ii rng argStr = liftTCM $ do
             reportSDoc "mimer.top" 10 $ "Solution:" <+> prettyTCM sol
             return sol
 
-    putTC oldState
-
+    -- Print timing statistic.
     stop <- liftIO $ getCPUTime
     let time = stop - start
     reportSDoc "mimer.top" 10 ("Total elapsed time:" <+> pretty time)
     verboseS "mimer.stats" 50 $ writeTime ii (if null sols then Nothing else Just time)
+
     return sol
 
 
