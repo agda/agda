@@ -48,6 +48,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.DiscrimTree.Types
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
@@ -351,6 +352,8 @@ instance PrettyTCM Elim where
   prettyTCM (Apply v) = "$" <+> prettyTCM v
   prettyTCM (Proj _ f)= "." <> prettyTCM f
 {-# SPECIALIZE prettyTCM :: Elim -> TCM Doc #-}
+
+deriving instance (PrettyTCM x, PrettyTCM a) => PrettyTCM (Boundary' x a)
 
 instance PrettyTCM Modality where
   prettyTCM mod = hsep

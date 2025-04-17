@@ -15,8 +15,9 @@ import Data.Maybe
 import Data.Monoid
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty ( Pretty )
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Internal.Pattern ( patternToTerm )
 
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad
@@ -429,16 +430,51 @@ telViewUpToPath n t = if n == 0 then done t else do
     done t      = return $ TelV EmptyTel t
     recurse a b = absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
 
--- | [[ (i,(x,y)) ]] = [(i=0) -> x, (i=1) -> y]
-type Boundary = Boundary' (Term,Term)
-type Boundary' a = [(Term,a)]
+-- | Boundary conditions @[[ (i,(x,y)) ]] = [(i=0) -> x, (i=1) -> y]@.
+-- For instance, if @p : Path A a b@, then @p i@ has boundary condition @(i,(a,b))@.
+-- We call @i@ the /dimension/ and @(x,y)@ its /boundary/.
+newtype Boundary' x a = Boundary { theBoundary :: [(x,(a,a))] }
+  deriving (Show, Null)
 
+-- | Usually, the dimensions of a boundary condition are interval /variables/,
+-- represented by a de Bruijn index @Int@.
+type Boundary = Boundary' Int Term
+
+-- | Substitution formally creates dimensions that are interval /expressions/,
+-- represented by a @Term@.
+-- However, in practice these terms should be of the form @'var' i@.
+type TmBoundary = Boundary' Term Term
+
+-- | Turn dimension variables @i@ into dimension expressions @'var' i@.
+tmBoundary :: Boundary' Int a -> Boundary' Term a
+tmBoundary = Boundary . map (first var) . theBoundary
+
+-- | Turn dimension expressions into dimension variables.
+-- Formally this is a partial operation, but should only be called when the precondition is met.
+--
+-- Precondition: the dimension terms in the boundary are all of the form @'var' i@.
+varBoundary :: Boundary' Term a -> Boundary' Int a
+varBoundary = Boundary . map (first unVar) . theBoundary
+  where
+    unVar (Var i []) = i
+    unVar _ = __IMPOSSIBLE__
+
+-- | Substitution into a 'Boundary' a priori creates a 'TmBoundary' which we convert back via 'varBoundary'.
+-- A priori, this is a partial operation.
+instance Subst Boundary where
+  type SubstArg Boundary = Term
+  applySubst sub = varBoundary . applySubst sub . tmBoundary
+
+instance Subst TmBoundary where
+  type SubstArg TmBoundary = Term
+  applySubst sub = Boundary . applySubst sub . theBoundary
+
+deriving instance (Pretty x, Pretty a) => Pretty (Boundary' x a)
 
 {-# SPECIALIZE telViewUpToPathBoundary' :: Int -> Type -> TCM (TelView, Boundary) #-}
--- | Like @telViewUpToPath@ but also returns the @Boundary@ expected
--- by the Path types encountered. The boundary terms live in the
--- telescope given by the @TelView@.
--- Each point of the boundary has the type of the codomain of the Path type it got taken from, see @fullBoundary@.
+-- | Like 'telViewUpToPath' but also returns the 'Boundary' expected by the Path types encountered.
+-- The boundary terms live in the telescope given by the 'TelView'.
+-- Each point of the boundary has the type of the codomain of the Path type it got taken from, see 'fullBoundary'.
 --
 -- @
 --  (TelV Γ b, [(i,t_i,u_i)]) <- telViewUpToPathBoundary' n a
@@ -458,11 +494,11 @@ telViewUpToPathBoundary' n t = if n == 0 then done t else do
     Right (El _ (Pi a b)) -> recurse a b
     Right t               -> done t
   where
-    done t      = return (TelV EmptyTel t, [])
+    done t      = return (TelV EmptyTel t, empty)
     recurse a b = first (absV a (absName b)) <$> do
       underAbstractionAbs a b $ \b -> telViewUpToPathBoundary' (n - 1) b
-    addEndPoints xy (telv@(TelV tel _), cs) =
-      (telv, (var $ size tel - 1, raise (size tel) xy) : cs)
+    addEndPoints xy (telv@(TelV tel _), Boundary cs) =
+      (telv, Boundary $ (size tel - 1, raise (size tel) xy) : cs)
 
 
 fullBoundary :: Telescope -> Boundary -> Boundary
@@ -476,7 +512,7 @@ fullBoundary tel bs =
       -- Δ.Γ | PiPath Γ bs A ⊢ teleElims tel bs : b
    let es = teleElims tel bs
        l  = size tel
-   in map (\ (t@(Var i []), xy) -> (t, xy `applyE` (drop (l - i) es))) bs
+   in Boundary $ map (\ (i, xy) -> (i, xy `applyE` (drop (l - i) es))) $ theBoundary bs
 
 {-# SPECIALIZE telViewUpToPathBoundary :: Int -> Type -> TCM (TelView, Boundary) #-}
 -- | @(TelV Γ b, [(i,t_i,u_i)]) <- telViewUpToPathBoundary n a@
@@ -484,13 +520,13 @@ fullBoundary tel bs =
 --  Output: ΔΓ ⊢ b
 --          ΔΓ ⊢ i : I
 --          ΔΓ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : b
-telViewUpToPathBoundary :: PureTCM m => Int -> Type -> m (TelView,Boundary)
+telViewUpToPathBoundary :: PureTCM m => Int -> Type -> m (TelView, Boundary)
 telViewUpToPathBoundary i a = do
    (telv@(TelV tel b), bs) <- telViewUpToPathBoundary' i a
-   return $ (telv, fullBoundary tel bs)
+   return (telv, fullBoundary tel bs)
 
 {-# INLINE telViewPathBoundary #-}
-telViewPathBoundary :: PureTCM m => Type -> m (TelView,Boundary)
+telViewPathBoundary :: PureTCM m => Type -> m (TelView, Boundary)
 telViewPathBoundary = telViewUpToPathBoundary' (-1)
 
 
@@ -500,15 +536,11 @@ telViewPathBoundary = telViewUpToPathBoundary' (-1)
 --          Δ.Γ ⊢ i : I
 --          Δ.Γ ⊢ bs = [ (i=0) -> t_i; (i=1) -> u_i ] : T
 --  Output: Δ.Γ | PiPath Γ bs A ⊢ es : A
-teleElims :: DeBruijn a => Telescope -> Boundary' (a,a) -> [Elim' a]
-teleElims tel [] = map Apply $ teleArgs tel
-teleElims tel boundary = recurse (teleArgs tel)
+teleElims :: DeBruijn a => Telescope -> Boundary' Int a -> [Elim' a]
+teleElims tel (Boundary []) = map Apply $ teleArgs tel
+teleElims tel (Boundary boundary) = map updateArg $ teleArgs tel
   where
-    recurse = fmap updateArg
-    matchVar x =
-      snd <$> find (\case
-        (Var i [],_) -> i == x
-        _            -> __IMPOSSIBLE__) boundary
+    matchVar i = snd <$> find ((i ==) . fst) boundary
     updateArg a@(Arg info p) =
       case deBruijnView p of
         Just i | Just (t,u) <- matchVar i -> IApply t u p
@@ -600,14 +632,11 @@ telePatterns = telePatterns' teleNamedArgs
 
 telePatterns' :: DeBruijn a =>
                 (forall a. (DeBruijn a) => Telescope -> [NamedArg a]) -> Telescope -> Boundary -> [NamedArg (Pattern' a)]
-telePatterns' f tel [] = f tel
-telePatterns' f tel boundary = recurse $ f tel
+telePatterns' f tel (Boundary []) = f tel
+telePatterns' f tel (Boundary boundary) = recurse $ f tel
   where
     recurse = (fmap . fmap . fmap) updateVar
-    matchVar x =
-      snd <$> find (\case
-        (Var i [],_) -> i == x
-        _            -> __IMPOSSIBLE__) boundary
+    matchVar i = snd <$> find ((i ==) . fst) boundary
     updateVar x =
       case deBruijnView x of
         Just i | Just (t,u) <- matchVar i -> IApplyP defaultPatternInfo t u x

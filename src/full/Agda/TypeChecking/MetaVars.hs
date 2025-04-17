@@ -1344,11 +1344,12 @@ assignMeta' m x t n ids v = do
     assignTerm x (telToArgs tel') v'
   where
     blockOnBoundary :: TelView -> Boundary -> Term -> TCM Term
-    blockOnBoundary telv         [] v = return v
-    blockOnBoundary (TelV tel t) bs v = addContext tel $
+    blockOnBoundary telv         (Boundary []) v = return v
+    blockOnBoundary (TelV tel t) (Boundary bs) v = addContext tel $
       blockTerm t $ do
         neg <- primINeg
-        forM_ bs $ \ (r,(x,y)) -> do
+        forM_ bs $ \ (i,(x,y)) -> do
+          let r = var i
           equalTermOnFace (neg `apply1` r) t x v
           equalTermOnFace r  t y v
         return v

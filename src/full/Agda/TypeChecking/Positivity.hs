@@ -503,6 +503,9 @@ instance ComputeOccurrences a => ComputeOccurrences (Elim' a) where
   occurrences (Apply a)      = occurrences a
   occurrences (IApply x y a) = occurrences (x,(y,a)) -- TODO Andrea: conservative
 
+instance (ComputeOccurrences x, ComputeOccurrences a) => ComputeOccurrences (Boundary' x a) where
+  occurrences = occurrences . theBoundary
+
 instance ComputeOccurrences a => ComputeOccurrences (Arg a)   where
 instance ComputeOccurrences a => ComputeOccurrences (Dom a)   where
 instance ComputeOccurrences a => ComputeOccurrences [a]       where
@@ -510,6 +513,9 @@ instance ComputeOccurrences a => ComputeOccurrences (Maybe a) where
 
 instance (ComputeOccurrences a, ComputeOccurrences b) => ComputeOccurrences (a, b) where
   occurrences (x, y) = occurrences x <> occurrences y
+
+instance ComputeOccurrences Int where
+  occurrences _ = mempty
 
 -- | Computes the number of occurrences of different 'Item's in the
 -- given definition.

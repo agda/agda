@@ -35,14 +35,14 @@ import Agda.Utils.Impossible
 --   ∀ b ∈ {0,1}.  Γ.Δ0 | lams Δ1 (u_i .b) : (telePiPath f Δ1 t bs)(i = b) -- kinda: see lams
 --   Γ ⊢ telePiPath f Δ t bs
 telePiPath :: (Abs Type -> Abs Type) -> ([Arg ArgName] -> Term -> Term) -> Telescope -> Type -> Boundary -> TCM Type
-telePiPath = \ reAbs lams tel t bs -> do
+telePiPath = \ reAbs lams tel t (Boundary bs) -> do
   pathP <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPathP
   let
     loop :: [Int] -> Telescope -> TCM Type
     loop []     EmptyTel          = return t
     loop (x:xs) (ExtendTel a tel) = do
         b <- traverse (loop xs) tel
-        case List.find (\ (t,_) -> t == var x) bs of
+        case List.find ((x ==) . fst) bs of
           Just (_,u) -> do
             let names = teleArgNames $ unAbs tel
             -- assume a = 𝕀
@@ -88,13 +88,13 @@ telePiPath = \ reAbs lams tel t bs -> do
 --   Δ ⊢ t
 --   i ∈ Δ
 --   Δ ⊢ u_b : t  for  b ∈ {0,1}
-telePiPath_ :: Telescope -> Type -> [(Int,(Term,Term))] -> TCM Type
+telePiPath_ :: Telescope -> Type -> Boundary -> TCM Type
 telePiPath_ tel t bndry = do
   reportSDoc "tc.tel.path" 40                  $ text "tel  " <+> prettyTCM tel
   reportSDoc "tc.tel.path" 40 $ addContext tel $ text "type " <+> prettyTCM t
   reportSDoc "tc.tel.path" 40 $ addContext tel $ text "bndry" <+> pretty bndry
 
-  telePiPath id argsLam tel t [(var i, u) | (i , u) <- bndry]
+  telePiPath id argsLam tel t bndry
  where
    argsLam args tm = strengthenS impossible 1 `applySubst`
      foldr (\ Arg{argInfo = ai, unArg = x} -> Lam ai . Abs x) tm args

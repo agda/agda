@@ -129,7 +129,7 @@ withFunctionType
   -> List1 (Arg (Term, EqualityView))   -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions and their type.
   -> Telescope                          -- ^ @Δ₁ ⊢ Δ₂@                   context extension to type with-expressions.
   -> Type                               -- ^ @Δ₁,Δ₂ ⊢ b@                 type of rhs.
-  -> [(Int,(Term,Term))]                -- ^ @Δ₁,Δ₂ ⊢ [(i,(u0,u1))] : b  boundary.
+  -> Boundary                           -- ^ @Δ₁,Δ₂ ⊢ [(i,(u0,u1))] : b  boundary.
   -> TCM (Type, (Nat1, Nat))
     -- ^ @Δ₁ → wtel → Δ₂′ → b′@ such that
     --     @[vs/wtel]wtel = as@ and
@@ -163,7 +163,7 @@ withFunctionType delta1 vtys delta2 b bndry = addContext delta1 $ do
   TelV wtel _ <- telViewUpTo nwithargs wd2b
 
   -- select the boundary for "Δ₁" abstracting over "wΓ.Δ₂"
-  let bndry' = [(i - sd2,(lams u0, lams u1)) | (i,(u0,u1)) <- bndry, i >= sd2]
+  let bndry' = Boundary [(i - sd2,(lams u0, lams u1)) | (i,(u0,u1)) <- theBoundary bndry, i >= sd2]
         where sd2 = size delta2
               lams u = teleNoAbs wtel (abstract delta2 u)
 

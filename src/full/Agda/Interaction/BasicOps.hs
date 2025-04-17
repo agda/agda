@@ -997,7 +997,7 @@ metaHelperType norm ii rng s = case words s of
       let arity = size atel
           (delta1, delta2, _, a', vtys') = splitTelForWith tel a vtys
       a <- runInPrintingEnvironment $ do
-        reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' []
+        reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' empty
       reportSDoc "interaction.helper" 10 do
         let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ }
         let (vs, as)   = List1.unzipWith (fmap extractOtherType . unArg) vtys
