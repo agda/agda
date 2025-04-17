@@ -290,7 +290,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         s <- reduce s
         debugAdd c t
 
-        (TelV fields _, boundary) <- telViewUpToPathBoundaryP (-1) t
+        (TelV fields _, boundary) <- telViewPathBoundary t
 
         -- We assume that the current context matches the parameters
         -- of the datatype in an empty context (c.f. getContextSize above).

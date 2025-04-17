@@ -415,10 +415,10 @@ telViewPath :: PureTCM m => Type -> m TelView
 telViewPath = telViewUpToPath (-1)
 
 {-# SPECIALIZE telViewUpToPath :: Int -> Type -> TCM TelView #-}
--- | @telViewUpToPath n t@ takes off $t$
+-- | @telViewUpToPath n t@ takes off @t@
 --   the first @n@ (or arbitrary many if @n < 0@) function domains or Path types.
 --
--- @telViewUpToPath n t = fst <$> telViewUpToPathBoundary'n t@
+-- @telViewUpToPath n t = fst <$> telViewUpToPathBoundary' n t@
 telViewUpToPath :: PureTCM m => Int -> Type -> m TelView
 telViewUpToPath n t = if n == 0 then done t else do
   pathViewAsPi t >>= \case
@@ -439,6 +439,18 @@ type Boundary' a = [(Term,a)]
 -- by the Path types encountered. The boundary terms live in the
 -- telescope given by the @TelView@.
 -- Each point of the boundary has the type of the codomain of the Path type it got taken from, see @fullBoundary@.
+--
+-- @
+--  (TelV Γ b, [(i,t_i,u_i)]) <- telViewUpToPathBoundary' n a
+--  Input:  Δ ⊢ a
+--  Output: Δ.Γ ⊢ b
+--          Δ.Γ ⊢ T is the codomain of the PathP at variable i
+--          Δ.Γ ⊢ i : I
+--          Δ.Γ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : T
+-- @
+--
+-- Useful to reconstruct IApplyP patterns after teleNamedArgs Γ.
+--
 telViewUpToPathBoundary' :: PureTCM m => Int -> Type -> m (TelView, Boundary)
 telViewUpToPathBoundary' n t = if n == 0 then done t else do
   pathViewAsPi' t >>= \case
@@ -477,20 +489,9 @@ telViewUpToPathBoundary i a = do
    (telv@(TelV tel b), bs) <- telViewUpToPathBoundary' i a
    return $ (telv, fullBoundary tel bs)
 
-{-# INLINE telViewUpToPathBoundaryP #-}
--- | @(TelV Γ b, [(i,t_i,u_i)]) <- telViewUpToPathBoundaryP n a@
---  Input:  Δ ⊢ a
---  Output: Δ.Γ ⊢ b
---          Δ.Γ ⊢ T is the codomain of the PathP at variable i
---          Δ.Γ ⊢ i : I
---          Δ.Γ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : T
--- Useful to reconstruct IApplyP patterns after teleNamedArgs Γ.
-telViewUpToPathBoundaryP :: PureTCM m => Int -> Type -> m (TelView,Boundary)
-telViewUpToPathBoundaryP = telViewUpToPathBoundary'
-
-{-# INLINE telViewPathBoundaryP #-}
-telViewPathBoundaryP :: PureTCM m => Type -> m (TelView,Boundary)
-telViewPathBoundaryP = telViewUpToPathBoundaryP (-1)
+{-# INLINE telViewPathBoundary #-}
+telViewPathBoundary :: PureTCM m => Type -> m (TelView,Boundary)
+telViewPathBoundary = telViewUpToPathBoundary' (-1)
 
 
 -- | @teleElimsB args bs = es@

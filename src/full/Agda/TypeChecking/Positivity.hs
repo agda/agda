@@ -567,7 +567,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
             -- Allow UnconfimedReductions here to make sure we get the constructor type
             -- in same way as it was obtained when the data types was checked.
             (TelV tel t, bnd) <- putAllowedReductions allReductions $
-              telViewUpToPathBoundary' (-1) . defType =<< getConstInfo c
+              telViewPathBoundary . defType =<< getConstInfo c
             let (tel0,tel1) = splitTelescopeAt np tel
             -- Do not collect occurrences in the data parameters.
             -- Normalization needed e.g. for test/succeed/Bush.agda.

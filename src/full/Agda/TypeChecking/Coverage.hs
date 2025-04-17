@@ -955,7 +955,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   -- Lookup the type of the constructor at the given parameters
   (gamma0, cixs, boundary) <- do
     (TelV gamma0 (El _ d), boundary) <- liftTCM $ addContext delta1 $
-      telViewPathBoundaryP (ctype `piApply` pars)
+      telViewPathBoundary (ctype `piApply` pars)
     let Def _ es = d
         Just cixs = allApplyElims es
     return (gamma0, cixs, boundary)

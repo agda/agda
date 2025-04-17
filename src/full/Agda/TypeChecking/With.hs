@@ -594,7 +594,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
       where
         recurse v = do
           let piOrPathApplyM t v = do
-                (TelV tel t', bs) <- telViewUpToPathBoundaryP 1 t
+                (TelV tel t', bs) <- telViewUpToPathBoundary' 1 t
                 unless (size tel == 1) $ __IMPOSSIBLE__
                 return (teleElims tel bs, subst 0 v t')
           (e, t') <- piOrPathApplyM t v
@@ -625,7 +625,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           -- Compute the argument telescope for the constructor
           let ct' = ct `piApply` take np us
           TelV tel' _ <- liftTCM $ telViewPath ct'
-          -- (TelV tel' _, _boundary) <- liftTCM $ telViewPathBoundaryP ct'
+          -- (TelV tel' _, _boundary) <- liftTCM $ telViewPathBoundary ct'
 
           reportSDoc "tc.with.strip" 20 $
             vcat [ "ct  = " <+> prettyTCM ct

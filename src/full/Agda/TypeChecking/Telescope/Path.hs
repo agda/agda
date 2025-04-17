@@ -28,7 +28,7 @@ import Agda.Utils.Impossible
 
 
 -- | In an ambient context Γ, @telePiPath f lams Δ t bs@ builds a type that
--- can be @telViewPathBoundaryP'ed@ into (TelV Δ t, bs').
+-- can be @'telViewPathBoundary'@ed into (TelV Δ t, bs').
 --   Γ.Δ ⊢ t
 --   bs = [(i,u_i)]
 --   Δ = Δ0,(i : I),Δ1

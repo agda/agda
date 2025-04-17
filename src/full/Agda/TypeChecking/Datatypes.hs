@@ -157,7 +157,7 @@ fullyApplyCon' c vs t0 ret err = do
     , " at type "
     , prettyTCM t0
     ]
-  (TelV tel t, boundary) <- telViewPathBoundaryP t0
+  (TelV tel t, boundary) <- telViewPathBoundary t0
   -- The type of the constructor application may still be a function
   -- type.  In this case, we introduce the domains @tel@ into the context
   -- and apply the constructor to these fresh variables.

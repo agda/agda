@@ -1195,7 +1195,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   reportSDoc "tc.with.type" 50 $ sep [ "with-function type:", nest 2 $ pretty withFunType ]
 
   call_in_parent <- do
-    (TelV tel _,bs) <- telViewUpToPathBoundaryP (nwithargs + size delta) withFunType
+    (TelV tel _,bs) <- telViewUpToPathBoundary' (nwithargs + size delta) withFunType
     return $ argsS `applySubst` Def aux (teleElims tel bs)
 
   reportSDoc "tc.with.top" 20 $ addContext delta $ "with function call" <+> prettyTCM call_in_parent
