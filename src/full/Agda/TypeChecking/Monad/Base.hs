@@ -5137,6 +5137,7 @@ data TypeError
         | IllTypedPatternAfterWithAbstraction A.Pattern
         | TooFewPatternsInWithClause
         | TooManyPatternsInWithClause
+        | PathAbstractionFailed (Abs Type)
         | FieldOutsideRecord
         | ModuleArityMismatch A.ModuleName Telescope (Either (List1 (NamedArg A.Expr)) Args)
         | GeneralizeCyclicDependency

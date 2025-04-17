@@ -230,6 +230,7 @@ data ErrorName
   | NotValidBeforeField_
   | OpenEverythingInRecordWhere_
   | OverlappingProjects_
+  | PathAbstractionFailed_
   | PatternInPathLambda_
   | PatternInSystem_
   | PatternSynonymArgumentShadows_ ConstructorOrPatternSynonym

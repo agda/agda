@@ -1,0 +1,7 @@
+Issue7811.agda:13.1-14.14: error: [PathAbstractionFailed]
+Path abstraction failed for type Set (lsuc (_3 (i = i))) → Set₁.
+The type may be non-fibrant or its sort depends on an interval variable
+when checking that the clause
+p i with Set _
+... | _ = Set
+has type Set ≡ Set
