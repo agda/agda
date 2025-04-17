@@ -165,6 +165,8 @@ inCompilerEnv checkResult cont = do
       setTCLens (stPragmaOptions . lensOptCubical) $ Just CFull
     when (any ("--erased-cubical" `elem`) $ iFilePragmaStrings mainI) $
       setTCLens (stPragmaOptions . lensOptCubical) $ Just CErased
+    when (any ("--cubical-without-glue" `elem`) $ iFilePragmaStrings mainI) $
+      setTCLens (stPragmaOptions . lensOptCubical) $ Just CWithoutGlue
 
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
     ignoreAbstractMode cont

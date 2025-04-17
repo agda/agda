@@ -220,8 +220,9 @@ data GHCDefinition = GHCDefinition
 ghcPreCompile :: GHCFlags -> TCM GHCEnv
 ghcPreCompile flags = do
   whenJustM cubicalOption \case
-    CErased -> pure ()
-    CFull   -> typeError $ CubicalCompilationNotSupported CFull
+    CWithoutGlue -> pure ()
+    CErased      -> pure ()
+    CFull        -> typeError $ CubicalCompilationNotSupported CFull
 
   outDir <- compileDir
   let ghcOpts = GHCOptions
@@ -381,9 +382,10 @@ ghcPreModule cenv isMain m mifile =
       cubical <- cubicalOption
       case cubical of
         -- Code that uses --cubical is not compiled.
-        Just CFull   -> noComp
-        Just CErased -> check
-        Nothing      -> check)
+        Just CFull        -> noComp
+        Just CErased      -> check
+        Just CWithoutGlue -> check
+        Nothing           -> check)
     `runReaderT` GHCModuleEnv cenv (HsModuleEnv m (isMain == IsMain))
   where
     uptodate = case mifile of

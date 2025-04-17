@@ -73,7 +73,8 @@ requireCubical' wanted reason = do
   inErasedContext <- hasQuantity0 <$> viewTC eQuantity
   case cubical of
     Just CFull -> return ()
-    Just CErased | wanted == CErased || inErasedContext -> return ()
+    Just CErased | wanted /= CFull || inErasedContext -> return ()
+    Just CWithoutGlue | wanted == CWithoutGlue -> return ()
     _ -> typeError $ NeedOptionCubical wanted reason
 
 -- | Our good friend the interval type.
@@ -84,7 +85,7 @@ primIntervalType = El intervalSort <$> primInterval
 -- their implementation is handled here.
 primINeg' :: TCM PrimitiveImpl
 primINeg' = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t <- primIntervalType --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \case
     [x] -> do
@@ -118,7 +119,7 @@ primINeg' = do
 -- parameterised by their unit and absorbing elements.
 primIBin :: IntervalView -> IntervalView -> TCM PrimitiveImpl
 primIBin unit absorber = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t <- primIntervalType --> primIntervalType --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \case
     [x,y] -> do
@@ -150,14 +151,14 @@ primIBin unit absorber = do
 -- cofibration classifier.
 primIMin' :: TCM PrimitiveImpl
 primIMin' = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   primIBin IOne IZero
 
 -- | Implements both the @max@ connection /and/ disjunction on the
 -- cofibration classifier.
 primIMax' :: TCM PrimitiveImpl
 primIMax' = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   primIBin IZero IOne
 
 -- | A helper for evaluating @max@ on the interval in TCM&co.

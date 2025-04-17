@@ -1020,7 +1020,8 @@ infectiveCoinfectiveOptions =
                                               "--no-universe-polymorphism"
   , coinfectiveOption (not . optCumulativity) "--no-cumulativity"
   , coinfectiveOption optLevelUniverse        "--level-universe"
-  , infectiveOption (isJust . optCubical)     "--cubical/--erased-cubical"
+  , infectiveOption (isJust . optCubical)     "--cubical/--erased-cubical/--cubical-without-glue"
+  , cubicalWithoutGlue
   , infectiveOption optGuarded                "--guarded"
   , infectiveOption optProp                   "--prop"
   , infectiveOption optTwoLevel               "--two-level"
@@ -1050,6 +1051,22 @@ infectiveCoinfectiveOptions =
                &&
              not (optSafe current)
         else True
+      }
+
+  cubicalWithoutGlue =
+    let flagName = "--cubical-without-glue" in
+    (infectiveOption (\o -> optCubical o == Just CWithoutGlue) flagName)
+      { icOptionOK = \current imported ->
+        -- If the current module uses Cubical without glue,
+        -- then the imported modules cannot use glue.
+          case (optCubical current, optCubical imported) of
+            (Just CWithoutGlue, Just CFull)   -> False
+            (Just CWithoutGlue, Just CErased) -> False
+            _ -> True
+      , icOptionWarning = \m -> fsep $
+          pwords "Importing module" ++ [pretty m] ++
+          pwords "which might contain glue to a module with the option" ++
+          pwords (flagName ++ ".")
       }
 
 inputFlag :: FilePath -> Flag CommandLineOptions
@@ -1606,6 +1623,8 @@ pragmaOptions = concat
                     "enable cubical features (e.g. overloads lambdas for paths), implies --cubical-compatible"
     , Option []     ["erased-cubical"] (NoArg $ cubicalFlag CErased)
                     "enable cubical features (some only in erased settings), implies --cubical-compatible"
+    , Option []     ["cubical-without-glue"] (NoArg $ cubicalFlag CWithoutGlue)
+                    "enable cubical features (but without Glue), implies --cubical-compatible"
     ]
   , pragmaFlag      "guarded" lensOptGuarded
                     "enable @lock/@tick attributes" ""

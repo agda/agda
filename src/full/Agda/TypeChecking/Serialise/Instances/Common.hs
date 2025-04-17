@@ -191,12 +191,14 @@ instance EmbPrj FileType where
     _ -> malformed
 
 instance EmbPrj Cubical where
-  icod_ CErased = icodeN'  CErased
-  icod_ CFull   = icodeN 0 CFull
+  icod_ CWithoutGlue = icodeN'  CWithoutGlue
+  icod_ CErased      = icodeN 0 CErased
+  icod_ CFull        = icodeN 1 CFull
 
   value = vcase $ \case
-    []  -> valuN CErased
-    [0] -> valuN CFull
+    []  -> valuN CWithoutGlue
+    [0] -> valuN CErased
+    [1] -> valuN CFull
     _   -> malformed
 
 instance EmbPrj Language where
