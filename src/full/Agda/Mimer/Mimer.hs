@@ -4,6 +4,8 @@ module Agda.Mimer.Mimer
   )
   where
 
+import Prelude hiding (null)
+
 import Control.DeepSeq (force, NFData(..))
 import Control.Monad
 import Control.Monad.Except (catchError)
@@ -60,6 +62,7 @@ import Agda.TypeChecking.Rules.LHS.Problem (AsBinding(..))
 import Agda.TypeChecking.Rules.Term  (lambdaAddContext)
 import Agda.TypeChecking.Substitute (apply, applyE, piApply, NoSubst(..), pattern TelV, telView')
 import Agda.TypeChecking.Telescope (piApplyM, flattenTel, teleArgs)
+
 import Agda.Utils.Benchmark (billTo)
 import Agda.Utils.FileName (filePath)
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
@@ -67,6 +70,7 @@ import Agda.Utils.Maybe (catMaybes)
 import Agda.Utils.Monad (ifM, and2M)
 import qualified Agda.Utils.Maybe.Strict as SMaybe
 -- import Agda.Utils.Permutation (idP, permute, takeP)
+import Agda.Utils.Null
 import Agda.Utils.Time (CPUTime(..), getCPUTime, fromMilliseconds)
 import Agda.Utils.Tuple (mapFst, mapSnd)
 import Agda.Utils.FileName (AbsolutePath(..))
@@ -401,25 +405,12 @@ isTypeDatatype typ = liftTCM do
 collectComponents :: Options -> Costs -> InteractionId -> Maybe QName -> [QName] -> MetaId -> TCM BaseComponents
 collectComponents opts costs ii mDefName whereNames metaId = do
 
-  -- Compute the hintSplitVars from the pattern variables of function at the interaction point.
-  lhsVars' <- collectLHSVars ii
-  let recVars = lhsVars' <&> \ vars -> [ (tm, NoSubst i) | (tm, Just i) <- vars ]
-  lhsVars <- getOpen $ map fst <$> lhsVars'
-  typedLocals <- getLocalVarTerms 0
-  reportSDoc "mimer.components" 40 $ "All LHS variables:" <+> prettyTCM lhsVars <+> parens ("or" <+> pretty lhsVars)
-  let typedLhsVars = filter (\(term,typ) -> term `elem` lhsVars) typedLocals
-  reportSDoc "mimer.components" 40 $
-    "LHS variables with types:" <+> prettyList (map prettyTCMTypedTerm typedLhsVars) <+> parens ("or"
-      <+> prettyList (map prettyTypedTerm typedLhsVars))
-  -- TODO: For now, we *never* split on implicit arguments even if they are
-  -- written explicitly on the LHS.
-  splitVarsTyped <-
-    filterM (\ (term, dom) -> pure (visible dom) `and2M` isTypeDatatype (unDom dom))
-            typedLhsVars
-  reportSDoc "mimer.components" 40 $
-    "Splittable variables" <+> prettyList (map prettyTCMTypedTerm splitVarsTyped) <+> parens ("or"
-      <+> prettyList (map prettyTypedTerm splitVarsTyped))
-  splitVars <- makeOpen $ map fst splitVarsTyped
+  lhsVars <- collectLHSVars ii
+  let recVars = lhsVars <&> \ vars -> [ (tm, NoSubst i) | (tm, Just i) <- vars ]
+
+  -- TODO: implement case splitting
+  -- splitVars <- getSplitVars lhsVars
+  splitVars <- makeOpen []
 
   -- Prepare the initial component record
   letVars <- getLetVars (costLet costs)
@@ -519,10 +510,6 @@ collectComponents opts costs ii mDefName whereNames metaId = do
           addFn     = qnameToComponent (costFn      costs) qname <&> \ comp -> comps{hintFns       = comp : hintFns comps}
           addData   = qnameToComponent (costSet     costs) qname <&> \ comp -> comps{hintDataTypes = comp : hintDataTypes comps}
 
-    prettyTCMTypedTerm :: (PrettyTCM tm, PrettyTCM ty) => (tm, ty) -> TCM Doc
-    prettyTCMTypedTerm (term, typ) = prettyTCM term <+> ":" <+> prettyTCM typ
-    prettyTypedTerm (term, typ) = pretty term <+> ":" <+> pretty typ
-
 -- | Is an element of the given type computing a level?
 --
 -- The returned checker is only sound but not complete because the type is taken as-is
@@ -600,7 +587,7 @@ getLetVars cost = do
       return $ opn <&> \ (LetBinding _origin term typ) ->
                 mkComponent cId [] cost (Just name) 0 term (unDom typ)
 
--- IDEA:
+-- IDEA for implementing case-splitting:
 -- [x] 1. Modify the collectRecVarCandidates to get all variables.
 -- [ ] 2. Go through all variables to see if they are data types (not records)
 -- [ ] 3. Run makeCase for those variables.
@@ -609,6 +596,31 @@ getLetVars cost = do
 -- [ ] 6. Run make-case again to introduce those variables.
 -- [ ] 7. Redo the reification in the new clauses.
 -- [ ] 8. Return the new clauses and follow Auto for insertion.
+
+getSplitVars :: Open [(Term, Maybe Int)] -> TCM (Open [Term])
+getSplitVars lhsVars' = do
+
+    -- Compute the hintSplitVars from the pattern variables of function at the interaction point.
+    lhsVars <- getOpen $ map fst <$> lhsVars'
+    typedLocals <- getLocalVarTerms 0
+    reportSDoc "mimer.components" 40 $ "All LHS variables:" <+> prettyTCM lhsVars <+> parens ("or" <+> pretty lhsVars)
+    let typedLhsVars = filter (\(term,typ) -> term `elem` lhsVars) typedLocals
+    reportSDoc "mimer.components" 40 $
+      "LHS variables with types:" <+> prettyList (map prettyTCMTypedTerm typedLhsVars) <+> parens ("or"
+        <+> prettyList (map prettyTypedTerm typedLhsVars))
+    -- TODO: For now, we *never* split on implicit arguments even if they are
+    -- written explicitly on the LHS.
+    splitVarsTyped <-
+      filterM (\ (term, dom) -> pure (visible dom) `and2M` isTypeDatatype (unDom dom))
+              typedLhsVars
+    reportSDoc "mimer.components" 40 $
+      "Splittable variables" <+> prettyList (map prettyTCMTypedTerm splitVarsTyped) <+> parens ("or"
+        <+> prettyList (map prettyTypedTerm splitVarsTyped))
+    makeOpen $ map fst splitVarsTyped
+  where
+    prettyTCMTypedTerm :: (PrettyTCM tm, PrettyTCM ty) => (tm, ty) -> TCM Doc
+    prettyTCMTypedTerm (term, typ) = prettyTCM term <+> ":" <+> prettyTCM typ
+    prettyTypedTerm (term, typ) = pretty term <+> ":" <+> pretty typ
 
 -- | Returns the variables as terms together with whether they where found under
 -- some constructor, and if so which argument of the function they appeared in. This
