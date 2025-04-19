@@ -4,6 +4,8 @@ module Agda.Mimer.Mimer
   )
   where
 
+import Prelude hiding (null)
+
 import Control.DeepSeq (force, NFData(..))
 import Control.Monad
 import Control.Monad.Except (catchError)
@@ -58,8 +60,9 @@ import Agda.TypeChecking.Records (isRecord, isRecursiveRecord)
 import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Rules.LHS.Problem (AsBinding(..))
 import Agda.TypeChecking.Rules.Term  (lambdaAddContext)
-import Agda.TypeChecking.Substitute (apply, applyE, piApply, NoSubst(..))
+import Agda.TypeChecking.Substitute (apply, applyE, piApply, NoSubst(..), pattern TelV, telView')
 import Agda.TypeChecking.Telescope (piApplyM, flattenTel, teleArgs)
+
 import Agda.Utils.Benchmark (billTo)
 import Agda.Utils.FileName (filePath)
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
@@ -67,6 +70,7 @@ import Agda.Utils.Maybe (catMaybes)
 import Agda.Utils.Monad (ifM, and2M)
 import qualified Agda.Utils.Maybe.Strict as SMaybe
 -- import Agda.Utils.Permutation (idP, permute, takeP)
+import Agda.Utils.Null
 import Agda.Utils.Time (CPUTime(..), getCPUTime, fromMilliseconds)
 import Agda.Utils.Tuple (mapFst, mapSnd)
 import Agda.Utils.FileName (AbsolutePath(..))
@@ -396,33 +400,20 @@ isTypeDatatype typ = liftTCM do
 -- * Components
 ------------------------------------------------------------------------------
 
--- ^ NOTE: Collects components from the *current* context, not the context of
+-- | NOTE: Collects components from the *current* context, not the context of
 -- the 'InteractionId'.
 collectComponents :: Options -> Costs -> InteractionId -> Maybe QName -> [QName] -> MetaId -> TCM BaseComponents
 collectComponents opts costs ii mDefName whereNames metaId = do
-  lhsVars' <- collectLHSVars ii
-  let recVars = lhsVars' <&> \ vars -> [ (tm, NoSubst i) | (tm, Just i) <- vars ]
-  lhsVars <- getOpen $ map fst <$> lhsVars'
-  typedLocals <- getLocalVarTerms 0
-  reportSDoc "mimer.components" 40 $ "All LHS variables:" <+> prettyTCM lhsVars <+> parens ("or" <+> pretty lhsVars)
-  let typedLhsVars = filter (\(term,typ) -> term `elem` lhsVars) typedLocals
-  reportSDoc "mimer.components" 40 $
-    "LHS variables with types:" <+> prettyList (map prettyTCMTypedTerm typedLhsVars) <+> parens ("or"
-      <+> prettyList (map prettyTypedTerm typedLhsVars))
-  -- TODO: For now, we *never* split on implicit arguments even if they are
-  -- written explicitly on the LHS.
-  splitVarsTyped <-
-    filterM (\ (term, dom) -> pure (visible dom) `and2M` isTypeDatatype (unDom dom))
-            typedLhsVars
-  reportSDoc "mimer.components" 40 $
-    "Splittable variables" <+> prettyList (map prettyTCMTypedTerm splitVarsTyped) <+> parens ("or"
-      <+> prettyList (map prettyTypedTerm splitVarsTyped))
 
-  splitVars <- makeOpen $ map fst splitVarsTyped
+  lhsVars <- collectLHSVars ii
+  let recVars = lhsVars <&> \ vars -> [ (tm, NoSubst i) | (tm, Just i) <- vars ]
 
+  -- TODO: implement case splitting
+  -- splitVars <- getSplitVars lhsVars
+  splitVars <- makeOpen []
+
+  -- Prepare the initial component record
   letVars <- getLetVars (costLet costs)
-
-
   let components = BaseComponents
         { hintFns = []
         , hintDataTypes = []
@@ -435,9 +426,14 @@ collectComponents opts costs ii mDefName whereNames metaId = do
         , hintLetVars = letVars
         , hintSplitVars = splitVars
         }
-  metaVar <- lookupLocalMeta metaId
-  hintNames <- getEverythingInScope metaVar
-  components' <- foldM go components $ explicitHints ++ (hintNames \\ explicitHints)
+
+  -- Extract additional components from the names given as hints.
+  hintNames <- getEverythingInScope <$> lookupLocalMeta metaId
+  isToLevel <- endsInLevelTester
+  scope <- getScope
+  components' <- foldM (go isToLevel scope) components $
+    explicitHints ++ (hintNames \\ explicitHints)
+
   return BaseComponents
     { hintFns = doSort $ hintFns components'
     , hintDataTypes = doSort $ hintDataTypes components'
@@ -460,33 +456,22 @@ collectComponents opts costs ii mDefName whereNames metaId = do
       Nothing -> True
       Just defName -> defName /= qname && fmap (defName `elem`) (funMutual f) /= Just True
 
-    go comps qname = go' comps qname =<< getConstInfo qname
-
-    go' comps qname info
-      | isExtendedLambda (theDef info) = return comps    -- We can't use pattern lambdas as components
-      | isWithFunction   (theDef info) = return comps    -- or with functions
-      | otherwise = do
-        typ <- typeOfConst qname
-        scope <- getScope
-        let addLevel  = qnameToComponent (costLevel   costs) qname <&> \ comp -> comps{hintLevel     = comp : hintLevel  comps}
-            addAxiom  = qnameToComponent (costAxiom   costs) qname <&> \ comp -> comps{hintAxioms    = comp : hintAxioms comps}
-            addThisFn = qnameToComponent (costRecCall costs) qname <&> \ comp -> comps{hintThisFn    = Just comp{ compRec = True }}
-            addFn     = qnameToComponent (costFn      costs) qname <&> \ comp -> comps{hintFns       = comp : hintFns comps}
-            addData   = qnameToComponent (costSet     costs) qname <&> \ comp -> comps{hintDataTypes = comp : hintDataTypes comps}
-        case theDef info of
-          Axiom{} | isToLevel typ    -> addLevel
-                  | shouldKeep scope -> addAxiom
-                  | otherwise        -> return comps
-          -- TODO: Check if we want to use these
-          DataOrRecSig{}     -> return comps
-          GeneralizableVar{} -> return comps
-          AbstractDefn{}     -> return comps
+    go isToLevel scope comps qname = do
+        def <- getConstInfo qname
+        let typ = defType def
+        case theDef def of
+          Axiom{}
+            | isToLevel typ -> addLevel
+            | shouldKeep    -> addAxiom
+            | otherwise     -> done
+          -- We can't use pattern lambdas as components nor with-functions.
           -- If the function is in the same mutual block, do not include it.
-          f@Function{}
-            | Just qname == mDefName                  -> addThisFn
-            | isToLevel typ && isNotMutual qname f    -> addLevel
-            | isNotMutual qname f && shouldKeep scope -> addFn
-            | otherwise                               -> return comps
+          f@Function{ funWith = Nothing, funExtLam = Nothing }
+            | Just qname == mDefName   -> addThisFn
+            | notMutual, isToLevel typ -> addLevel
+            | notMutual, shouldKeep    -> addFn
+            where notMutual = isNotMutual qname f
+          Function{} -> done
           Datatype{} -> addData
           Record{} -> do
             projections <- mapM (qnameToComponent (costSpeculateProj costs)) =<< getRecordFields qname
@@ -494,14 +479,23 @@ collectComponents opts costs ii mDefName whereNames metaId = do
             return comps{ hintRecordTypes = comp : hintRecordTypes comps
                         , hintProjections = projections ++ hintProjections comps }
           -- We look up constructors when we need them
-          Constructor{} -> return comps
+          Constructor{} -> done
           -- TODO: special treatment for primitives?
-          Primitive{} | isToLevel typ    -> addLevel
-                      | shouldKeep scope -> addFn
-                      | otherwise        -> return comps
-          PrimitiveSort{} -> return comps
+          Primitive{}
+            | isToLevel typ  -> addLevel
+            | shouldKeep     -> addFn
+            | otherwise      -> done
+          PrimitiveSort{}    -> done
+          -- TODO: Check if we want to use these
+          DataOrRecSig{}     -> done
+          GeneralizableVar{} -> done
+          AbstractDefn{}     -> done
         where
-          shouldKeep scope = or
+          done = return comps
+          -- TODO: There is probably a better way of finding the module name
+          mThisModule = qnameModule <$> mDefName
+
+          shouldKeep = or
             [ qname `elem` explicitHints
             , qname `elem` whereNames
             , case hintMode of
@@ -510,21 +504,27 @@ collectComponents opts costs ii mDefName whereNames metaId = do
                 Module      -> Just (qnameModule qname) == mThisModule
                 NoHints     -> False
             ]
+          addLevel  = qnameToComponent (costLevel   costs) qname <&> \ comp -> comps{hintLevel     = comp : hintLevel  comps}
+          addAxiom  = qnameToComponent (costAxiom   costs) qname <&> \ comp -> comps{hintAxioms    = comp : hintAxioms comps}
+          addThisFn = qnameToComponent (costRecCall costs) qname <&> \ comp -> comps{hintThisFn    = Just comp{ compRec = True }}
+          addFn     = qnameToComponent (costFn      costs) qname <&> \ comp -> comps{hintFns       = comp : hintFns comps}
+          addData   = qnameToComponent (costSet     costs) qname <&> \ comp -> comps{hintDataTypes = comp : hintDataTypes comps}
 
-          -- TODO: There is probably a better way of finding the module name
-          mThisModule = qnameModule <$> mDefName
+-- | Is an element of the given type computing a level?
+--
+-- The returned checker is only sound but not complete because the type is taken as-is
+-- rather than being reduced.
+endsInLevelTester :: TCM (Type -> Bool)
+endsInLevelTester = do
+  getBuiltinName builtinLevel >>= \case
+    Nothing    -> return $ const False
+    Just level -> return \ t ->
+      -- NOTE: We do not reduce the type before checking, so some user definitions
+      -- will not be included here.
+      case telView' t of
+        TelV _ (El _ (Def x _)) -> x == level
+        _ -> False
 
-    -- NOTE: We do not reduce the type before checking, so some user definitions
-    -- will not be included here.
-    isToLevel :: Type -> Bool
-    isToLevel typ = case unEl typ of
-      Pi _ abs -> isToLevel (unAbs abs)
-      Def qname _ -> P.prettyShow qname == builtinLevelName
-      _ -> False
-
-    prettyTCMTypedTerm :: (PrettyTCM tm, PrettyTCM ty) => (tm, ty) -> TCM Doc
-    prettyTCMTypedTerm (term, typ) = prettyTCM term <+> ":" <+> prettyTCM typ
-    prettyTypedTerm (term, typ) = pretty term <+> ":" <+> pretty typ
 
 qnameToComponent :: (HasConstInfo tcm, ReadTCState tcm, MonadFresh CompId tcm, MonadTCM tcm)
   => Cost -> QName -> tcm Component
@@ -546,7 +546,10 @@ qnameToComponent cost qname = do
         AbstractDefn{}     -> __IMPOSSIBLE__
   newComponentQ [] cost qname pars term (defType defn `piApply` mParams)
 
-getEverythingInScope :: MonadTCM tcm => MetaVariable -> tcm [QName]
+-- | From the scope of the given meta variable,
+--   extract all names in scope that we could use during synthesis.
+--   (This excludes macros, generalizable variables, pattern synonyms.)
+getEverythingInScope :: MetaVariable -> [QName]
 getEverythingInScope metaVar = do
   let scope = clScope $ getMetaInfo metaVar
   let nameSpace = Scope.everythingInScope scope
@@ -570,23 +573,21 @@ getEverythingInScope metaVar = do
              . filter (validKind . Scope.anameKind)
              . map NonEmptyList.head
              $ Map.elems names
-  return qnames
+  qnames
 
-getLetVars :: (MonadFresh CompId tcm, MonadTCM tcm, Monad tcm) => Cost -> tcm [Open Component]
+-- | Turn the let bindings of the current 'TCEnv' into components.
+getLetVars :: forall tcm. (MonadFresh CompId tcm, MonadTCM tcm, Monad tcm) => Cost -> tcm [Open Component]
 getLetVars cost = do
   bindings <- asksTC envLetBindings
   mapM makeComp $ Map.toAscList bindings
   where
-    -- makeComp :: (Name, Open LetBinding) -> tcm (Open Component)
+    makeComp :: (Name, Open LetBinding) -> tcm (Open Component)
     makeComp (name, opn) = do
       cId <- fresh
-      return $ opn <&> \ (LetBinding _ term typ) ->
+      return $ opn <&> \ (LetBinding _origin term typ) ->
                 mkComponent cId [] cost (Just name) 0 term (unDom typ)
 
-builtinLevelName :: String
-builtinLevelName = "Agda.Primitive.Level"
-
--- IDEA:
+-- IDEA for implementing case-splitting:
 -- [x] 1. Modify the collectRecVarCandidates to get all variables.
 -- [ ] 2. Go through all variables to see if they are data types (not records)
 -- [ ] 3. Run makeCase for those variables.
@@ -595,6 +596,31 @@ builtinLevelName = "Agda.Primitive.Level"
 -- [ ] 6. Run make-case again to introduce those variables.
 -- [ ] 7. Redo the reification in the new clauses.
 -- [ ] 8. Return the new clauses and follow Auto for insertion.
+
+getSplitVars :: Open [(Term, Maybe Int)] -> TCM (Open [Term])
+getSplitVars lhsVars' = do
+
+    -- Compute the hintSplitVars from the pattern variables of function at the interaction point.
+    lhsVars <- getOpen $ map fst <$> lhsVars'
+    typedLocals <- getLocalVarTerms 0
+    reportSDoc "mimer.components" 40 $ "All LHS variables:" <+> prettyTCM lhsVars <+> parens ("or" <+> pretty lhsVars)
+    let typedLhsVars = filter (\(term,typ) -> term `elem` lhsVars) typedLocals
+    reportSDoc "mimer.components" 40 $
+      "LHS variables with types:" <+> prettyList (map prettyTCMTypedTerm typedLhsVars) <+> parens ("or"
+        <+> prettyList (map prettyTypedTerm typedLhsVars))
+    -- TODO: For now, we *never* split on implicit arguments even if they are
+    -- written explicitly on the LHS.
+    splitVarsTyped <-
+      filterM (\ (term, dom) -> pure (visible dom) `and2M` isTypeDatatype (unDom dom))
+              typedLhsVars
+    reportSDoc "mimer.components" 40 $
+      "Splittable variables" <+> prettyList (map prettyTCMTypedTerm splitVarsTyped) <+> parens ("or"
+        <+> prettyList (map prettyTypedTerm splitVarsTyped))
+    makeOpen $ map fst splitVarsTyped
+  where
+    prettyTCMTypedTerm :: (PrettyTCM tm, PrettyTCM ty) => (tm, ty) -> TCM Doc
+    prettyTCMTypedTerm (term, typ) = prettyTCM term <+> ":" <+> prettyTCM typ
+    prettyTypedTerm (term, typ) = pretty term <+> ":" <+> pretty typ
 
 -- | Returns the variables as terms together with whether they where found under
 -- some constructor, and if so which argument of the function they appeared in. This
