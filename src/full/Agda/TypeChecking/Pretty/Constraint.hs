@@ -29,6 +29,7 @@ import Agda.Utils.Null
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Impossible
 
+{-# SPECIALIZE prettyConstraint :: ProblemConstraint -> TCM Doc #-}
 prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc
 prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ prettyTCM c)
   where
@@ -37,21 +38,28 @@ prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ pret
     f d = if null $ P.pretty r
           then d
           else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
-{-# SPECIALIZE prettyConstraint :: ProblemConstraint -> TCM Doc #-}
 
-interestingConstraint :: ProblemConstraint -> Bool
-interestingConstraint pc = go $ clValue (theConstraint pc) where
-  go (UnBlock mi) = False
-  go _            = True
+{-# SPECIALIZE interestingConstraint :: ProblemConstraint -> TCM Bool #-}
+interestingConstraint :: MonadPretty m => ProblemConstraint -> m Bool
+interestingConstraint pc =
+  case clValue (theConstraint pc) of
+    UnBlock m -> lookupMetaInstantiation m >>= \case
+      PostponedTypeCheckingProblem cl -> enterClosure cl \case
+        DisambiguateConstructor{} -> return True
+        _ -> return False
+      _ -> return False
+    _ -> return True
 
+{-# SPECIALIZE prettyInterestingConstraints :: [ProblemConstraint] -> TCM [Doc] #-}
 prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
-prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
-  where
+prettyInterestingConstraints cs = do
+  cs' <- filterM interestingConstraint cs
+  let
     isBlocked = not . null . allBlockingProblems . constraintUnblocker
-    cs' = filter interestingConstraint cs
     interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs'
     stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
-{-# SPECIALIZE prettyInterestingConstraints :: [ProblemConstraint] -> TCM [Doc] #-}
+  mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
+
 
 prettyRangeConstraint ::
   (MonadPretty m, Foldable f, Null (f ProblemId)) => Range -> f ProblemId -> Blocker -> Doc -> m Doc
@@ -94,9 +102,7 @@ instance PrettyTCM Constraint where
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
         SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
         UnBlock m   -> do
-            -- BlockedConst t <- mvInstantiation <$> lookupMeta m
-            mi <- lookupMetaInstantiation m
-            case mi of
+            lookupMetaInstantiation m >>= \case
               BlockedConst t -> prettyCmp ":=" m t
               PostponedTypeCheckingProblem cl -> enterClosure cl $ \p ->
                 prettyCmp ":=" m p

@@ -463,6 +463,9 @@ instance Reify Constraint where
           DoQuoteTerm cmp v t -> do
             tm <- A.App defaultAppInfo_ (A.QuoteTerm exprNoRange) . defaultNamedArg <$> reify v
             OfType tm <$> reify t
+          DisambiguateConstructor (ConstructorDisambiguationData c0 _cands args t) _cont -> do
+            t <- reify t
+            return $ TypedAssign m' (foldl (A.App empty)  (A.Con $ unambiguous c0) args) t
         OpenMeta{}  -> __IMPOSSIBLE__
         InstV{} -> __IMPOSSIBLE__
   reify (FindInstance m mcands) = FindInstanceOF

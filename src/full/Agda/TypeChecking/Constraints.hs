@@ -322,6 +322,7 @@ checkTypeCheckingProblem = \case
     checkProjAppToKnownPrincipalArg cmp e o ds hd args t k v0 pt patm
   CheckLambda cmp args body target -> checkPostponedLambda cmp args body target
   DoQuoteTerm cmp et t           -> doQuoteTerm cmp et t
+  DisambiguateConstructor bcd k  -> disambiguateConstructor' bcd k
 
 debugConstraints :: TCM ()
 debugConstraints = verboseS "tc.constr" 50 $ do

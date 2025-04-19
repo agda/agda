@@ -73,7 +73,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Monad ( ifM )
+import Agda.Utils.Monad ( anyM, ifM )
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Set1 as Set1
@@ -742,20 +742,20 @@ prettyTCWarnings :: Set TCWarning -> TCM String
 prettyTCWarnings = List.intercalate "\n" <.> map P.render <.> prettyTCWarnings'
 
 prettyTCWarnings' :: Set TCWarning -> TCM [Doc]
-prettyTCWarnings' = traverse prettyTCM . filterTCWarnings
+prettyTCWarnings' = traverse prettyTCM <=< filterTCWarnings
 
 -- | If there are several warnings, remove the unsolved-constraints warning
 -- in case there are no interesting constraints to list.
-filterTCWarnings :: Set TCWarning -> [TCWarning]
+filterTCWarnings :: Set TCWarning -> TCM [TCWarning]
 filterTCWarnings wset = case Set.toAscList wset of
   -- #4065: Always keep the only warning
-  [w] -> [w]
+  [w] -> return [w]
   -- Andreas, 2019-09-10, issue #4065:
   -- If there are several warnings, remove the unsolved-constraints warning
   -- in case there are no interesting constraints to list.
-  ws  -> (`filter` ws) $ \ w -> case tcWarning w of
-    UnsolvedConstraints cs -> any interestingConstraint cs
-    _ -> True
+  ws  -> (`filterM` ws) $ \ w -> case tcWarning w of
+    UnsolvedConstraints cs -> anyM cs interestingConstraint
+    _ -> pure True
 
 
 -- | Turns warnings, if any, into errors.

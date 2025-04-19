@@ -290,20 +290,27 @@ instance EncodeTCM Blocker where
   encodeTCM (UnblockOnAny us)    = kind "UnblockOnAny" [ "blockers" @= Set.toList us ]
 
 instance EncodeTCM DisplayInfo where
-  encodeTCM (Info_CompilationOk backend wes) = kind "CompilationOk"
-    [ "backend"           @= encodePretty backend
-    , "warnings"          #= encodeTCM (filterTCWarnings (tcWarnings wes))
-    , "errors"            #= encodeTCM (filterTCWarnings (nonFatalErrors wes))
-    ]
+  encodeTCM :: DisplayInfo -> TCM Value
+  encodeTCM (Info_CompilationOk backend wes) = do
+    ws <- filterTCWarnings (tcWarnings wes)
+    es <- filterTCWarnings (nonFatalErrors wes)
+    kind "CompilationOk"
+      [ "backend"           @= encodePretty backend
+      , "warnings"          #= encodeTCM ws
+      , "errors"            #= encodeTCM es
+      ]
   encodeTCM (Info_Constraints constraints) = kind "Constraints"
     [ "constraints"       #= forM constraints encodeTCM
     ]
-  encodeTCM (Info_AllGoalsWarnings (vis, invis) wes) = kind "AllGoalsWarnings"
-    [ "visibleGoals"      #= forM vis (\i -> withInteractionId (B.outputFormId $ OutputForm noRange [] alwaysUnblock i) $ encodeOC encodeTCM encodePrettyTCM i)
-    , "invisibleGoals"    #= forM invis (encodeOC encodeTCM encodePrettyTCM)
-    , "warnings"          #= encodeTCM (filterTCWarnings (tcWarnings wes))
-    , "errors"            #= encodeTCM (filterTCWarnings (nonFatalErrors wes))
-    ]
+  encodeTCM (Info_AllGoalsWarnings (vis, invis) wes) = do
+    ws <- filterTCWarnings (tcWarnings wes)
+    es <- filterTCWarnings (nonFatalErrors wes)
+    kind "AllGoalsWarnings"
+      [ "visibleGoals"      #= forM vis (\i -> withInteractionId (B.outputFormId $ OutputForm noRange [] alwaysUnblock i) $ encodeOC encodeTCM encodePrettyTCM i)
+      , "invisibleGoals"    #= forM invis (encodeOC encodeTCM encodePrettyTCM)
+      , "warnings"          #= encodeTCM ws
+      , "errors"            #= encodeTCM es
+      ]
   encodeTCM (Info_Time time) = kind "Time"
     [ "time"              @= time
     ]
@@ -399,11 +406,13 @@ encodeGoalSpecific ii = go
     ]
 
 instance EncodeTCM Info_Error where
-  encodeTCM (Info_GenericError err) = kind "Error"
-    [ "warnings"          #= (getAllWarningsOfTCErr err
-                            >>= encodeTCM . filterTCWarnings)
-    , "error"             #= encodeTCM err
-    ]
+  encodeTCM :: Info_Error -> TCM Value
+  encodeTCM (Info_GenericError err) = do
+    ws <- filterTCWarnings =<< getAllWarningsOfTCErr err
+    kind "Error"
+      [ "warnings"          #= encodeTCM ws
+      , "error"             #= encodeTCM err
+      ]
   encodeTCM err = kind "Error"
     [ "warnings"          @= ([] :: [String])
     , "error"             #= obj

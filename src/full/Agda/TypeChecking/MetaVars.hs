@@ -612,6 +612,7 @@ postponeTypeCheckingProblem_ p = do
     unblock (CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ _ _ _ t _) = unblockedTester t -- The type of the principal argument
     unblock (CheckLambda _ _ _ t)     = unblockedTester t
     unblock (DoQuoteTerm _ _ _)       = __IMPOSSIBLE__     -- also quoteTerm problems
+    unblock (DisambiguateConstructor _ _) = __IMPOSSIBLE__  -- Used with explicit blocker only.
 
 -- | Create a postponed type checking problem @e : t@ that waits for conditon
 --   @unblock@.  A new meta is created in the current context that has as
@@ -657,6 +658,7 @@ problemType (CheckArgs _ _ _ _ _ t _ ) = t  -- The target type of the applicatio
 problemType (CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ t _ _ _ _) = t -- The target type of the application
 problemType (CheckLambda _ _ _ t     ) = t
 problemType (DoQuoteTerm _ _ t)        = t
+problemType (DisambiguateConstructor (ConstructorDisambiguationData _ _ _ t) _) = t
 
 -- | Eta-expand a local meta-variable, if it is of the specified kind.
 --   Don't do anything if the meta-variable is a blocked term.

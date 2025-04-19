@@ -6,6 +6,7 @@ module Agda.TypeChecking.Rules.Application
   , checkApplication
   , inferApplication
   , checkProjAppToKnownPrincipalArg
+  , disambiguateConstructor'
   , univChecks
   , suffixToLevel
   ) where
@@ -159,9 +160,9 @@ checkApplication cmp hd args e t =
       checkConstructorApplication cmp e t con hd args
 
     -- Subcase: ambiguous constructor
-    A.Con (AmbQ cs0) -> disambiguateConstructor cs0 args t >>= \ case
-      Left unblock -> postponeTypeCheckingProblem (CheckExpr cmp e t) unblock
-      Right c      -> checkConstructorApplication cmp e t c hd args
+    A.Con (AmbQ cs0) -> do
+      let cont c = checkConstructorApplication cmp e t c hd args
+      afterDisambiguation cont $ disambiguateConstructor cs0 args t
 
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
@@ -1106,7 +1107,7 @@ checkConstructorApplication cmp org t c hd args = do
         dropPar _ [] = Nothing
 
 -- | Return an unblocking action in case of failure.
-type DisambiguateConstructor = TCM (Either Blocker ConHead)
+type DisambiguateConstructor = TCM (Either (Blocker, ConstructorDisambiguationData) ConHead)
 
 -- | Successfully disambiguate constructor with given choice.
 decideOn :: ConHead -> DisambiguateConstructor
@@ -1144,11 +1145,23 @@ disambiguateConstructor cs0 args t = do
         t   <- defType <$> getConstInfo c
         def <- getConInfo con
         pure (getData (theDef def), t, setConName c con)
-      resolveAmbiguousConstructor c0 dcs args t
+      resolveAmbiguousConstructor $ ConstructorDisambiguationData c0 dcs args t
+
+-- | Retry a constructor disambiguation.
+disambiguateConstructor' :: ConstructorDisambiguationData -> (ConHead -> TCM Term) -> TCM Term
+disambiguateConstructor' bcd cont = do
+  afterDisambiguation cont $ resolveAmbiguousConstructor bcd
+
+-- | Postpone a failing disambiguation or call given continuation.
+afterDisambiguation :: (ConHead -> TCM Term) -> DisambiguateConstructor -> TCM Term
+afterDisambiguation cont run =
+  run >>= \case
+    Left (unblock, bcd) -> postponeTypeCheckingProblem (DisambiguateConstructor bcd cont) unblock
+    Right c -> cont c
 
 -- | Resolve ambiguous constructor by looking at target type and argument skeleton.
-resolveAmbiguousConstructor :: QName -> List1 (QName, Type, ConHead) -> A.Args -> Type -> DisambiguateConstructor
-resolveAmbiguousConstructor c0 dcs1 args t = do
+resolveAmbiguousConstructor :: ConstructorDisambiguationData -> DisambiguateConstructor
+resolveAmbiguousConstructor bcd@(ConstructorDisambiguationData c0 dcs1 args t) = do
       let dcs = List1.toList dcs1
 
       -- Lets look at the target type at this point
@@ -1169,7 +1182,7 @@ resolveAmbiguousConstructor c0 dcs1 args t = do
                       typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $
                         fmap conName $ c :| cs
   where
-    postpone b = return $ Left b
+    postpone b = return $ Left (b, bcd)
     badCon t = typeError $ ConstructorDoesNotTargetGivenType c0 t
 
 -- | Disambiguate constructor by looking at its arguments.
