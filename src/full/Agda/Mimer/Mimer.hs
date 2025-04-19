@@ -462,46 +462,10 @@ collectComponents opts costs ii mDefName whereNames metaId = do
 
     go comps qname = go' comps qname =<< getConstInfo qname
 
-    go' comps qname info
-      | isExtendedLambda (theDef info) = return comps    -- We can't use pattern lambdas as components
-      | isWithFunction   (theDef info) = return comps    -- or with functions
-      | otherwise = do
-        typ <- typeOfConst qname
+    go' comps qname info = do
         scope <- getScope
-        let addLevel  = qnameToComponent (costLevel   costs) qname <&> \ comp -> comps{hintLevel     = comp : hintLevel  comps}
-            addAxiom  = qnameToComponent (costAxiom   costs) qname <&> \ comp -> comps{hintAxioms    = comp : hintAxioms comps}
-            addThisFn = qnameToComponent (costRecCall costs) qname <&> \ comp -> comps{hintThisFn    = Just comp{ compRec = True }}
-            addFn     = qnameToComponent (costFn      costs) qname <&> \ comp -> comps{hintFns       = comp : hintFns comps}
-            addData   = qnameToComponent (costSet     costs) qname <&> \ comp -> comps{hintDataTypes = comp : hintDataTypes comps}
-        case theDef info of
-          Axiom{} | isToLevel typ    -> addLevel
-                  | shouldKeep scope -> addAxiom
-                  | otherwise        -> return comps
-          -- TODO: Check if we want to use these
-          DataOrRecSig{}     -> return comps
-          GeneralizableVar{} -> return comps
-          AbstractDefn{}     -> return comps
-          -- If the function is in the same mutual block, do not include it.
-          f@Function{}
-            | Just qname == mDefName                  -> addThisFn
-            | isToLevel typ && isNotMutual qname f    -> addLevel
-            | isNotMutual qname f && shouldKeep scope -> addFn
-            | otherwise                               -> return comps
-          Datatype{} -> addData
-          Record{} -> do
-            projections <- mapM (qnameToComponent (costSpeculateProj costs)) =<< getRecordFields qname
-            comp <- qnameToComponent (costSet costs) qname
-            return comps{ hintRecordTypes = comp : hintRecordTypes comps
-                        , hintProjections = projections ++ hintProjections comps }
-          -- We look up constructors when we need them
-          Constructor{} -> return comps
-          -- TODO: special treatment for primitives?
-          Primitive{} | isToLevel typ    -> addLevel
-                      | shouldKeep scope -> addFn
-                      | otherwise        -> return comps
-          PrimitiveSort{} -> return comps
-        where
-          shouldKeep scope = or
+        let
+          shouldKeep = or
             [ qname `elem` explicitHints
             , qname `elem` whereNames
             , case hintMode of
@@ -510,10 +474,49 @@ collectComponents opts costs ii mDefName whereNames metaId = do
                 Module      -> Just (qnameModule qname) == mThisModule
                 NoHints     -> False
             ]
-
+          addLevel  = qnameToComponent (costLevel   costs) qname <&> \ comp -> comps{hintLevel     = comp : hintLevel  comps}
+          addAxiom  = qnameToComponent (costAxiom   costs) qname <&> \ comp -> comps{hintAxioms    = comp : hintAxioms comps}
+          addThisFn = qnameToComponent (costRecCall costs) qname <&> \ comp -> comps{hintThisFn    = Just comp{ compRec = True }}
+          addFn     = qnameToComponent (costFn      costs) qname <&> \ comp -> comps{hintFns       = comp : hintFns comps}
+          addData   = qnameToComponent (costSet     costs) qname <&> \ comp -> comps{hintDataTypes = comp : hintDataTypes comps}
+        case theDef info of
+          Axiom{}
+            | isToLevel typ -> addLevel
+            | shouldKeep    -> addAxiom
+            | otherwise     -> done
+          -- We can't use pattern lambdas as components nor with-functions.
+          -- If the function is in the same mutual block, do not include it.
+          f@Function{ funWith = Nothing, funExtLam = Nothing }
+            | Just qname == mDefName   -> addThisFn
+            | notMutual, isToLevel typ -> addLevel
+            | notMutual, shouldKeep    -> addFn
+            where notMutual = isNotMutual qname f
+          Function{} -> done
+          Datatype{} -> addData
+          Record{} -> do
+            projections <- mapM (qnameToComponent (costSpeculateProj costs)) =<< getRecordFields qname
+            comp <- qnameToComponent (costSet costs) qname
+            return comps{ hintRecordTypes = comp : hintRecordTypes comps
+                        , hintProjections = projections ++ hintProjections comps }
+          -- We look up constructors when we need them
+          Constructor{} -> done
+          -- TODO: special treatment for primitives?
+          Primitive{}
+            | isToLevel typ  -> addLevel
+            | shouldKeep     -> addFn
+            | otherwise      -> done
+          PrimitiveSort{}    -> done
+          -- TODO: Check if we want to use these
+          DataOrRecSig{}     -> done
+          GeneralizableVar{} -> done
+          AbstractDefn{}     -> done
+        where
+          done = return comps
+          typ = defType info
           -- TODO: There is probably a better way of finding the module name
           mThisModule = qnameModule <$> mDefName
 
+    -- Is an element of the given type computing a level?
     -- NOTE: We do not reduce the type before checking, so some user definitions
     -- will not be included here.
     isToLevel :: Type -> Bool
