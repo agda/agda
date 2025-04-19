@@ -437,7 +437,7 @@ collectComponents opts costs ii mDefName whereNames metaId = do
         }
 
   -- Extract additional components from the names given as hints.
-  hintNames <- getEverythingInScope =<< lookupLocalMeta metaId
+  hintNames <- getEverythingInScope <$> lookupLocalMeta metaId
   isToLevel <- endsInLevelTester
   scope <- getScope
   components' <- foldM (go isToLevel scope) components $
@@ -559,7 +559,10 @@ qnameToComponent cost qname = do
         AbstractDefn{}     -> __IMPOSSIBLE__
   newComponentQ [] cost qname pars term (defType defn `piApply` mParams)
 
-getEverythingInScope :: MonadTCM tcm => MetaVariable -> tcm [QName]
+-- | From the scope of the given meta variable,
+--   extract all names in scope that we could use during synthesis.
+--   (This excludes macros, generalizable variables, pattern synonyms.)
+getEverythingInScope :: MetaVariable -> [QName]
 getEverythingInScope metaVar = do
   let scope = clScope $ getMetaInfo metaVar
   let nameSpace = Scope.everythingInScope scope
@@ -583,17 +586,18 @@ getEverythingInScope metaVar = do
              . filter (validKind . Scope.anameKind)
              . map NonEmptyList.head
              $ Map.elems names
-  return qnames
+  qnames
 
-getLetVars :: (MonadFresh CompId tcm, MonadTCM tcm, Monad tcm) => Cost -> tcm [Open Component]
+-- | Turn the let bindings of the current 'TCEnv' into components.
+getLetVars :: forall tcm. (MonadFresh CompId tcm, MonadTCM tcm, Monad tcm) => Cost -> tcm [Open Component]
 getLetVars cost = do
   bindings <- asksTC envLetBindings
   mapM makeComp $ Map.toAscList bindings
   where
-    -- makeComp :: (Name, Open LetBinding) -> tcm (Open Component)
+    makeComp :: (Name, Open LetBinding) -> tcm (Open Component)
     makeComp (name, opn) = do
       cId <- fresh
-      return $ opn <&> \ (LetBinding _ term typ) ->
+      return $ opn <&> \ (LetBinding _origin term typ) ->
                 mkComponent cId [] cost (Just name) 0 term (unDom typ)
 
 -- IDEA:
