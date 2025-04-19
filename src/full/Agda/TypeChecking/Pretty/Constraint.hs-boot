@@ -7,6 +7,6 @@ import Agda.TypeChecking.Pretty (MonadPretty, PrettyTCM)
 import Agda.TypeChecking.Monad.Base (ProblemConstraint)
 
 prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
-interestingConstraint        :: ProblemConstraint -> Bool
+interestingConstraint        :: MonadPretty m => ProblemConstraint -> m Bool
 
 instance PrettyTCM ProblemConstraint

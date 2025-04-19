@@ -401,6 +401,9 @@ instance PrettyTCM TypeCheckingProblem where
   prettyTCM (DoQuoteTerm _ v _) = do
     e <- reify v
     prettyTCM (A.App A.defaultAppInfo_ (A.QuoteTerm A.exprNoRange) (defaultNamedArg e))
+  prettyTCM (DisambiguateConstructor (ConstructorDisambiguationData c0 cands args t) _) = do
+    let e = foldl (A.App empty) (A.Con $ unambiguous c0) args
+    "ambiguous constructor" <+> prettyA e <+> ":" <+> prettyTCM t
 {-# SPECIALIZE prettyTCM :: TypeCheckingProblem -> TCM Doc #-}
 
 instance PrettyTCM a => PrettyTCM (WithHiding a) where

@@ -1,0 +1,15 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  _18 := ambiguous constructor c ? : _9 (blocked on _9)
+  Check definition of test : _7 → Set
+    stuck because
+      Issue7660.agda:17.7-10: error: [SplitError.BlockedType]
+      Cannot split on argument of unresolved type _7
+      when checking that the pattern c x has type _7
+    (blocked on _7)
+
+Issue7660.agda:16.8-20.18: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue7660.agda:16.8-9
+  Issue7660.agda:19.9-10
+  Issue7660.agda:20.9-18

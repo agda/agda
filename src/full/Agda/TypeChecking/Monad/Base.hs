@@ -1794,8 +1794,23 @@ data TypeCheckingProblem
     --     @(λ (x y : Fin _) → e) : (x : Fin n) → ?@
     --   we want to postpone @(λ (y : Fin n) → e) : ?@ where @Fin n@
     --   is a 'Type' rather than an 'A.Expr'.
+  | DisambiguateConstructor ConstructorDisambiguationData (ConHead -> TCM Term)
+    -- ^ A stuck constructor disambiguation with the bits to retry it on and the success continuation.
   | DoQuoteTerm Comparison Term Type -- ^ Quote the given term and check type against `Term`
   deriving Generic
+
+-- | Information we have constructored in the middle of disambiguating a constructor.
+data ConstructorDisambiguationData = ConstructorDisambiguationData
+  -- bcd for blocked constructor disambiguation
+  { bcdConName    :: QName
+      -- ^ One of the eligible ambiguous names (for error messages).
+  , bcdCandidates :: List1 (QName, Type, ConHead)
+      -- ^ The possible candidates for disambiguation
+  , bcdArguments  :: A.Args
+      -- ^ The arguments given to the constructor.
+  , bcdType       :: Type
+      -- ^ The type of the constructor application
+  } deriving Generic
 
 instance Pretty MetaInstantiation where
   pretty = \case
@@ -6619,3 +6634,4 @@ instance NFData InteractionError
 instance NFData IsAmbiguous
 instance NFData CannotQuote
 instance NFData ExecError
+instance NFData ConstructorDisambiguationData

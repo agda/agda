@@ -45,6 +45,8 @@ checkProjAppToKnownPrincipalArg ::
   -> PrincipalArgTypeMetas
   -> TCM Term
 
+disambiguateConstructor' :: ConstructorDisambiguationData -> (ConHead -> TCM Term) -> TCM Term
+
 univChecks :: Univ -> TCM ()
 
 suffixToLevel :: Suffix -> Integer
