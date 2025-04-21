@@ -171,11 +171,13 @@ A useful feature is the ability to re-export names from another module. For inst
 
 The module ``Prelude`` above exports the names ``Nat``, ``zero``, ``Bool``, etc., in addition to ``isZero``.
 
+.. _parameterised-modules:
+
 Parameterised modules
 ---------------------
 So far, the module system features discussed have dealt solely with scope manipulation. We now turn our attention to some more advanced features.
 
-It is sometimes useful to be able to work temporarily in a given signature. For instance, when defining functions for sorting lists it is convenient to assume a set of list elements ``A`` and an ordering over ``A``. In Coq this can be done in two ways: using a functor, which is essentially a function between modules, or using a section. A section allows you to abstract some arguments from several definitions at once. We introduce parameterised modules analogous to sections in Coq. When declaring a module you can give a telescope of module parameters which are abstracted from all the definitions in the module. For instance, a simple implementation of a sorting function looks like this:
+It is sometimes useful to be able to work temporarily in a given signature. For instance, when defining functions for sorting lists it is convenient to assume a set of list elements ``A`` and an ordering over ``A``. In Coq this can be done in two ways: using a functor, which is essentially a function between modules, or using a section. A section allows you to abstract some arguments from several definitions at once. We introduce parameterised modules analogous to sections in Coq. When declaring a module you can give a :ref:`telescope<telescopes>` of module parameters which are abstracted from all the definitions in the module. For instance, a simple implementation of a sorting function looks like this:
 ::
 
   module Sort (A : Set)(_≤_ : A → A → Bool) where

@@ -39,7 +39,7 @@ and the type of the addition function for vectors is:
 
     (A : Set) → (n : Nat) → (u : Vec A n) → (v : Vec A n) → Vec A n
 
-where ``Set`` is the type of sets and ``Vec A n`` is the type of vectors with ``n`` elements of type ``A``. Arrows between consecutive hypotheses of the form ``(x : A)`` may also be omitted, and ``(x : A) (y : A)`` may be shortened to ``(x y : A)``:
+where ``Set`` is the type of sets and ``Vec A n`` is the type of vectors with ``n`` elements of type ``A``. Arrows between consecutive hypotheses of the form ``(x : A)`` may also be omitted, and ``(x : A) (y : A)`` may be shortened to ``(x y : A)`` (see also :ref:`telescopes<telescopes>`):
 
 ..
   ::

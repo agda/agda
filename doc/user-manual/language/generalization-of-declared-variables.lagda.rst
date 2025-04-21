@@ -49,8 +49,8 @@ as an argument to ``_∷_``. The resulting declaration is
 See `Placement of generalized bindings`_ below for more details on where bindings
 are inserted.
 
-Variables are generalized in top-level type signatures, module telescopes, and record
-and datatype parameter telescopes.
+Variables are generalized in top-level type signatures, :ref:`module<module-system>` :ref:`telescopes<telescopes>`, and :ref:`record<record-types>`
+and :ref:`datatype<data-types>` parameter telescopes.
 
 Issues related to this feature are marked with
 `generalize <https://github.com/agda/agda/labels/generalize>`_ in the issue
@@ -277,11 +277,11 @@ Placement of generalized bindings
 
 The following rules are used to place generalized variables:
 
-- Generalized variables are placed at the front of the type signature or telescope.
-- Type signatures appearing inside other type signatures, for instance in let bindings or
+- Generalized variables are placed at the front of the type signature or :ref:`telescope<telescopes>`.
+- Type signatures appearing inside other type signatures, for instance in :ref:`let bindings<let-expressions>` or
   dependent function arguments are not generalized. Instead any generalizable variables
   in such types are generalized over in the parent signature.
-- Variables mentioned eariler are placed before variables mentioned later, where
+- Variables mentioned earlier are placed before variables mentioned later, where
   nested variables count as being mentioned together with their parent.
 
 .. note::
