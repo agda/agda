@@ -102,7 +102,24 @@ will be translated internally to as
 
 This is not allowed if ``R`` is declared ``coinductive``.
 
+
+.. _let-open:
+
+Let binding record patterns
+---------------------------
+
+Let-expressions can be used to locally open a :ref:`module<module-system>`.
+For example:
+
+.. code-block:: agda
+
+  let z = x + y
+      open M z
+  in  u          -- using definitions from M
+
+
 .. _where-blocks:
+
 
 where-blocks
 ============
