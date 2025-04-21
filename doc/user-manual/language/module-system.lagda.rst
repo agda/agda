@@ -11,15 +11,6 @@
 Module System
 *************
 
-.. _module-application:
-
-Module application
-------------------
-
-.. _anonymous-modules:
-
-Anonymous modules
------------------
 
 .. _module-basics:
 
@@ -72,6 +63,7 @@ Modules can also be opened within a local scope by putting the ``open B`` within
 
     ff₁ : Nat → Nat
     ff₁ x = f (f x) where open B
+
 
 Private definitions
 -------------------
@@ -202,6 +194,12 @@ As mentioned parametrising a module has the effect of abstracting the parameters
 
 For function definitions, explicit module parameter become explicit arguments to the abstracted function, and implicit parameters become implicit arguments. For constructors, however, the parameters are always implicit arguments. This is a consequence of the fact that module parameters are turned into datatype parameters, and the datatype parameters are implicit arguments to the constructors. It also happens to be the reasonable thing to do.
 
+
+.. _module-application:
+
+Module application
+~~~~~~~~~~~~~~~~~~
+
 Something which you cannot do in Coq is to apply a section to its arguments. We allow this through the module application statement. In our example:
 
 .. code-block:: agda
@@ -237,6 +235,26 @@ for
 
   module M1 Δ = M2 terms mods
   open M1 [public]
+
+
+.. _anonymous-modules:
+
+Anonymous modules
+~~~~~~~~~~~~~~~~~
+
+An anonymous module is a module that has the name ``_`` (underscore).
+Anonymous modules are especially useful when many definitions share the same arguments.
+For example:
+
+.. code-block:: agda
+
+  module _ (A : Set) where
+    f : A → A
+    -- ...
+    g : A → A → A
+    -- ...
+
+Anonymous modules are automatically opened immediately after their definition, and cannot be applied.
 
 Splitting a program over multiple files
 ---------------------------------------
