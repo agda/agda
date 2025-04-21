@@ -136,3 +136,50 @@ called eta-equality:
 
     eta : (p@(a , b) : Σ A B) → p ≡ (a , b)
     eta p = refl
+
+
+Let Bindings in Telescopes
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+..
+  ::
+  module let-bind-in-tele where
+
+
+Telescopes of function types and parameterised modules (but not of data and record types) can also contain :ref:`let bindings<let-expressions>`.
+When used in this manner, the let-binding should be surrounded by parentheses
+and the ``in`` part of the syntax is omitted. For example:
+
+::
+
+  postulate
+    g : (x : Nat) (let y = x + x) (v : Vec Nat y) → Nat
+
+Let-bound variables in a module telescope are available in the whole module. For example:
+
+::
+
+  module O (X : Set) (let LX = List X) (l : LX) where
+
+    extend : LX → LX
+    extend m = l ++ m
+
+In general, any valid let-binding can also be used in a telescope.
+For example, it is possible to pattern match on a record type with a let-binding:
+
+::
+
+  postulate
+    h : (f : Nat → (Bool × Bool)) (let (x0 , y0) = f 0) (tx : IsTrue x0) → IsTrue y0
+
+Another notable example is opening a :ref:`module<module-system>` in a telescope:
+
+::
+
+  module M1 (X : Set) (let open M X) where
+
+This can also be written more compactly with just ``open`` (without the ``let``):
+
+::
+
+  module M2 (X : Set) (open M X) where
