@@ -39,15 +39,10 @@ import           System.IO                  ( hPutStrLn, stderr )
 import           Agda.Setup.DataFiles       ( dataFiles, dataPath )
 import           Agda.VersionCommit         ( versionWithCommitInfo )
 
--- | What to append to the @AGDA_DIR@ to construct the Agda data directory.
-
-dataDirNameParts :: [FilePath]
-dataDirNameParts = [ "share", versionWithCommitInfo ]
-
--- | Given the `AGDA_DIR`, what should the Agda data dir be?
+-- | Given the `Agda_datadir`, what should the Agda data dir be?
 
 mkDataDir :: FilePath -> FilePath
-mkDataDir base = joinPath $ base : dataDirNameParts
+mkDataDir = (</> versionWithCommitInfo)
 
 
 -- Tell TH that all the dataFiles are needed for compilation.
@@ -92,9 +87,26 @@ getAgdaAppDir = do
         False -> getXdgDirectory XdgConfig "agda"
 
 -- | This overrides the 'getDataDir' from ''Paths_Agda''.
+--   The base data directory defaults to $XDG_DATA_HOME/agda and can be overwritten
+--   by the @Agda_datadir@ environment variable.
+--   The data directory is then obtained by appending the version
+--   (and optional commit information).
+
+getBaseDataDir :: IO FilePath
+getBaseDataDir = do
+  lookupEnv "Agda_datadir" >>= \case
+    Nothing -> dataDir
+    Just dir ->  doesDirectoryExist dir >>= \case
+      True  -> canonicalizePath dir
+      False -> do
+        d <- dataDir
+        inform $ "Warning: Environment variable Agda_datadir points to non-existing directory " ++ show dir ++ ", using " ++ show d ++ " instead."
+        return d
+  where
+    dataDir = getXdgDirectory XdgData "agda"
 
 getDataDir :: IO FilePath
-getDataDir = mkDataDir <$> getAgdaAppDir
+getDataDir = mkDataDir <$> getBaseDataDir
 
 -- | This overrides the 'getDataFileName' from ''Paths_Agda''.
 
@@ -110,7 +122,7 @@ getDataFileName f = getDataDir <&> (</> f)
 
 setup :: Bool -> IO ()
 setup force = do
-  dir <- getAgdaAppDir
+  dir <- getBaseDataDir
   let doSetup = dumpDataDir force dir
 
   if force then doSetup else do
@@ -122,13 +134,13 @@ setup force = do
 --   Lock the directory while doing so.
 
 dumpDataDir :: Bool -> FilePath -> IO ()
-dumpDataDir verbose agdaDir = do
-  let dataDir = mkDataDir agdaDir
+dumpDataDir verbose baseDataDir = do
+  let dataDir = mkDataDir baseDataDir
   createDirectoryIfMissing True dataDir
 
   -- Create a file lock to prevent races caused by the dataDir already created
   -- but not filled with its contents.
-  let lock = agdaDir </> intercalate "-" (".lock" : dataDirNameParts)
+  let lock = baseDataDir </> intercalate "-" [".lock", versionWithCommitInfo]
   withFileLock lock Exclusive \ _lock -> do
 
     forM_ embeddedDataDir \ (relativePath, content) -> do
