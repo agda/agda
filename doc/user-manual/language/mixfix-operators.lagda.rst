@@ -182,7 +182,7 @@ Operators in telescopes
 =======================
 
 Agda does not yet support declaring the fixity of operators declared in
-telescopes, see `Issue #1235 <https://github.com/agda/agda/issues/1235>`.
+:ref:`telescopes<telescopes>`, see `Issue #1235 <https://github.com/agda/agda/issues/1235>`.
 
 However, the following hack currently works:
 
