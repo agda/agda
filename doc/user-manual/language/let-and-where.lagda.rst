@@ -61,6 +61,13 @@ After type-checking, the meaning of this is simply the substitution
 substitutes away let-bindings, they do not show up in terms Agda
 prints, nor in the goal display in interactive mode.
 
+
+.. warning::
+  The :ref:`internal syntax used by Agda<core-language>` does not have let-expressions as a construct.
+  As a result, Agda inlines all let-bound variables during type checking.
+  If sharing is important to the complexity of an algorithm, it is recommended to use a ``where`` block or a helper function instead of a let-expression.
+
+
 .. _let-record-pattern:
 
 Let binding record patterns
