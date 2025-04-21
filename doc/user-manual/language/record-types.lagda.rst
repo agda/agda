@@ -307,6 +307,9 @@ constructor:
   _ = S.constructor
   -- Constructor S.constructor is abstract, thus, not in scope here
 
+
+.. _decomposing-records:
+
 Decomposing record values
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
