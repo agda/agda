@@ -21,7 +21,7 @@ import           Agda.Syntax.Abstract.Name        (noModuleName)
 
 import           Agda.TypeChecking.Monad
 import           Agda.TypeChecking.Pretty         (prettyTCM, text, vsep)
-import           Agda.TypeChecking.Pretty.Warning (getAllWarnings)
+import           Agda.TypeChecking.Pretty.Warning (getAllWarnings, tcWarningsToError)
 import           Agda.TypeChecking.Warnings       (pattern AllWarnings, classifyWarnings)
 
 import           Agda.Utils.FileName              (absolute)
@@ -73,7 +73,7 @@ buildLibrary = do
     checkModuleName m (Imp.srcOrigin src) Nothing
     void $ withCurrentModule noModuleName
          $ withTopLevelModule m
-         $ Imp.getNonMainInterface m (Just src)
+         $ checkModule m src
     return ()
 
   -- Print accumulated warnings
@@ -81,3 +81,14 @@ buildLibrary = do
     let banner = text $ "\n" ++ delimiter "All done; warnings encountered"
     alwaysReportSDoc "warning" 1 $
       vsep $ (banner :) $ map prettyTCM $ Set.toAscList ws
+
+checkModule :: TopLevelModuleName -> Imp.Source -> TCM ()
+checkModule m src = do
+  mi <- Imp.getNonMainModuleInfo m (Just src)
+  -- Here we ignore InfectiveImport warnings since we don't have an actual parent module that can
+  -- be infected.
+  let isInfectiveWarning InfectiveImport{} = True
+      isInfectiveWarning _                 = False
+      warns = filter (not . isInfectiveWarning . tcWarning) $ Set.toAscList $ miWarnings mi
+  tcWarningsToError warns
+  return ()

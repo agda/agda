@@ -19,6 +19,8 @@ module Agda.Interaction.Imports
   , parseSource
   , typeCheckMain
   , getNonMainInterface
+  , getNonMainModuleInfo
+  , getInterface
   , importPrimitiveModules
   , raiseNonFatalErrors
 
@@ -542,12 +544,20 @@ getNonMainInterface
      -- ^ Optional: the source code and some information about the source code.
   -> TCM Interface
 getNonMainInterface x msrc = do
-  -- Preserve/restore the current pragma options, which will be mutated when loading
-  -- and checking the interface.
-  mi <- bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $
-          getInterface x NotMainInterface msrc
+  mi <- getNonMainModuleInfo x msrc
   tcWarningsToError $ Set.toAscList $ miWarnings mi
   return (miInterface mi)
+
+getNonMainModuleInfo
+  :: TopLevelModuleName
+  -> Maybe Source
+     -- ^ Optional: the source code and some information about the source code.
+  -> TCM ModuleInfo
+getNonMainModuleInfo x msrc =
+  -- Preserve/restore the current pragma options, which will be mutated when loading
+  -- and checking the interface.
+  bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $
+           getInterface x NotMainInterface msrc
 
 -- | A more precise variant of 'getNonMainInterface'. If warnings are
 -- encountered then they are returned instead of being turned into
