@@ -65,7 +65,7 @@ prints, nor in the goal display in interactive mode.
 .. warning::
   The :ref:`internal syntax used by Agda<core-language>` does not have let-expressions as a construct.
   As a result, Agda inlines all let-bound variables during type checking.
-  If sharing is important to the complexity of an algorithm, it is recommended to use a ``where`` block or a helper function instead of a let-expression.
+  In particular, let-binding cannot be used to introduce sharing.
 
 
 .. _let-record-pattern:
