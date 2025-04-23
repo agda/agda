@@ -13,6 +13,7 @@ module Agda.TypeChecking.InstanceArguments
   , OutputTypeName(..)
   , getOutputTypeName
   , addTypedInstance
+  , readdTypedInstance
   , addTypedInstance'
   , pruneTemporaryInstances
   , resolveInstanceHead
@@ -179,6 +180,68 @@ initialInstanceCandidates blockOverlap instTy = do
            ] ++) <$>
           instanceFields' False (LocalCandidate, unArg arg, t)
 
+    -- Compute whether we should block this instance constraint at the
+    -- discrimination tree stage.
+    shouldBlockOverlap :: Blocker -> Set.Set QName -> TCM Bool
+    shouldBlockOverlap bs cands = do
+      recursive <- useTC stConsideringInstance
+      prefreeze <- useTC stFinalChecks
+
+      mutual <- caseMaybeM (asksTC envMutualBlock) (pure mempty) \mb ->
+        mutualNames <$> lookupMutualBlock mb
+
+      pure $! and
+        [ blockOverlap
+          -- For the getInstances reflection primitive, we don't want
+          -- to block on overlap, so that the user can do their thing.
+
+        , not (Set.null (allBlockingMetas bs))
+          -- Don't block if there's no metas to block on
+
+        , length cands > 1
+          -- It's possible that the discrimination tree forced a
+          -- metavariable even if there's exactly one candidate. In this
+          -- case, we should not block, because this instance constraint
+          -- might be the only thing that can solve the blocking metas.
+
+        , not prefreeze
+          -- To support 'inert improvement' (see ImproveInertRHS), we
+          -- try all the candidates even if the discrimination tree
+          -- thinks that there will be overlap. This is because it's
+          -- possible we have e.g.
+          --
+          --   instance ?1 : Foo ?0, candidates {Foo T, Foo S}
+          --      blocker ?0
+          --   ?0 = T (blocked on ?0)
+          --
+          -- If we block ?1 on ?0 again (as we would've done during the
+          -- body), then both of these go unsolved. But if we try all
+          -- the candidates, we'll see that 'Foo T' is the only possible
+          -- candidate, thus solving both constraints.
+
+        , Set.disjoint mutual cands
+          -- Work around for #7186: the result of termination checking
+          -- depends on whether we solve instance metas eagerly or late.
+          -- Consider
+          --
+          --   instance Show-List = record { show = go }
+          --   go (x ∷ xs) = show x <> show ⦃ ?0 ⦄ xs
+          --
+          -- If we solve ?0 eagerly, the term we use is the literal
+          -- record constructor. The 'show' projection unfolds in 'go'
+          -- and the termination check is happy.
+          --
+          -- If we solve it late, we run the risk of the clause
+          -- compiler applying copattern translation to Show-List. The
+          -- 'show' projection does not eagerly unfold, and the
+          -- termination check explodes.
+
+        , not recursive
+          -- Blocking instance selection *on a meta* while considering
+          -- an instance causes the recursive instance constraint to
+          -- get repeatedly woken up. Not good for performance.
+        ]
+
     getScopeDefs :: QName -> BlockT TCM [Candidate]
     getScopeDefs n = do
       rel <- viewTC eRelevance
@@ -186,20 +249,23 @@ initialInstanceCandidates blockOverlap instTy = do
       InstanceTable tree counts <- lift getInstanceDefs
       QueryResult qs blocker <- lift $ lookupDT (unEl instTy) tree
 
-      mutual <- caseMaybeM (asksTC envMutualBlock) (pure mempty) \mb ->
-        mutualNames <$> lookupMutualBlock mb
-
       reportSDoc "tc.instance.candidates.search" 20 $ vcat
         [ "instance candidates from signature for goal:"
         , nest 2 (prettyTCM =<< instantiateFull instTy)
-        , nest 2 (prettyTCM qs) <+> "length:" <+> prettyTCM (length qs)
+        , nest 2 (prettyTCM qs)
+        , "length:" <+> prettyTCM (length qs)
         , "blocker:"
         , nest 2 (prettyTCM blocker)
-        , "mutual block:"
-        , nest 2 (prettyTCM mutual)
         ]
 
       cands <- catMaybes <$> mapM (lift . candidate rel) (toList qs)
+
+      should <- lift (shouldBlockOverlap blocker qs)
+      when (length cands > 1 && should) do
+        reportSDoc "tc.instance.defer" 20 $ vcat
+          [ "Postponing because of discrimination tree overlap."
+          ]
+        patternViolation blocker
 
       -- Some more class-specific profiling.
       lift $ whenProfile Profile.Instances case Map.lookup n counts of
@@ -251,7 +317,17 @@ initialInstanceCandidates blockOverlap instTy = do
               Just i  -> instanceOverlap i
               Nothing -> DefaultOverlap
 
-          return $ Just $ Candidate (GlobalCandidate q) v t mode
+          -- Amy, 2025-04-10: it's possible that an instance in the
+          -- discrimination tree has a type which, in the current
+          -- context, has visible quantifiers (e.g. because we're
+          -- outside the parametrised module it was defined in).
+          --
+          -- Discard them early so that they don't count towards
+          -- potentially blocking on "overlap".
+          TelV tele _ <- telView t
+          return do
+            guard (all (not . visible) tele)
+            Just $ Candidate (GlobalCandidate q) v t mode
       where
         -- unbound constant throws an internal error
         handle (TypeError _ _ (Closure {clValue = InternalError _})) = return Nothing
@@ -372,7 +448,9 @@ doesCandidateSpecialise c1@Candidate{candidateType = t1} c2@Candidate{candidateT
 
   TelV tel t1 <- telView t1
   addContext tel $ wrap $ do
-    (args, t2) <- implicitArgs (-1) (\h -> notVisible h) t2
+    -- Amy, 2025-02-28: Have to raise the type of the other candidate to
+    -- live in t1's context!
+    (args, t2) <- implicitArgs (-1) (\h -> notVisible h) (raise (length tel) t2)
 
     reportSDoc "tc.instance.sort" 30 $ "Does" <+> prettyTCM (raise (length tel) c1) <+> "specialise" <+> (prettyTCM (raise (length tel) c2) <> "?")
     reportSDoc "tc.instance.sort" 60 $ vcat
@@ -715,12 +793,12 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
     cvd : _ | isIrrelevant rel -> do
       reportSLn "tc.instance" 30 "dropSameCandidates: Meta is irrelevant so any candidate will do."
       return [cvd]
-    cvd@(_, v, _) : vas
-      | freshMetas v -> do
-          reportSLn "tc.instance" 30 "dropSameCandidates: Solution of instance meta has fresh metas so we don't filter equal candidates yet"
-          return (cvd : vas)
-      | otherwise -> (cvd :) <$> dropWhileM equal vas
-      where
+
+    -- If there's nothing, try not to reduce the candidate.
+    [cvd] -> pure [cvd]
+
+    cvd@(_, v, _) : vas -> do
+      let
         equal :: (Candidate, Term, a) -> TCM Bool
         equal (c, v', _)
             | isIncoherent c = return True   -- See 'sinkIncoherent'
@@ -732,6 +810,16 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
           pureEqualTermB a v v' <&> \case
             Left{}  -> False
             Right b -> b
+
+      -- If we do actually have to remove overlap then we have to reduce
+      -- the candidate to eliminate any "phantom" dependencies on fresh
+      -- metas.
+      v <- reduce v
+      if
+        | freshMetas v -> do
+          reportSLn "tc.instance" 30 "dropSameCandidates: Solution of instance meta has fresh metas so we don't filter equal candidates yet"
+          return (cvd : vas)
+        | otherwise -> (cvd :) <$> dropWhileM equal vas
 
 data YesNo = Yes Term Bool | No | NoBecause TCErr | HellNo TCErr
   deriving (Show)
@@ -864,8 +952,10 @@ checkCandidates m t cands =
             -- We need instantiateFull here to remove 'local' metas
             v <- instantiateFull =<< (term `applyDroppingParameters` args)
             reportSDoc "tc.instance" 15 $
-              sep [ ("instance search: found solution for" <+> prettyTCM m) <> ":"
+              vcat [ sep [ ("instance search: found solution for" <+> prettyTCM m) <> ":"
                   , nest 2 $ prettyTCM v ]
+                  , "app: " <+> (nest 2 $ prettyTCM =<< (term `applyDroppingParameters` args))
+                  ]
 
             reportSDoc "tc.instance.overlap" 30 $
               "candidate" <+> prettyTCM v <+> "okay for overlap?" <+> prettyTCM overlapOk
@@ -988,18 +1078,27 @@ addTypedInstance ::
      QName  -- ^ Name of instance.
   -> Type   -- ^ Type of instance.
   -> TCM ()
-addTypedInstance = addTypedInstance' True Nothing
+addTypedInstance = addTypedInstance' True False Nothing
+
+-- | Like 'addTypedInstance', but delete any existing entries for the
+-- given name from the discrimination tree.
+readdTypedInstance ::
+     QName  -- ^ Name of instance.
+  -> Type   -- ^ Type of instance.
+  -> TCM ()
+readdTypedInstance = addTypedInstance' True True Nothing
 
 -- | Register the definition with the given type as an instance.
 addTypedInstance'
   :: Bool               -- ^ Should we print warnings for unusable instance declarations?
+  -> Bool               -- ^ Is this the second time we're adding this QName as an instance?
   -> Maybe InstanceInfo -- ^ Is this instance a copy?
   -> QName              -- ^ Name of instance.
   -> Type               -- ^ Type of instance.
   -> TCM ()
-addTypedInstance' w orig x t = do
+addTypedInstance' w readd orig inst t = do
   reportSDoc "tc.instance.add" 30 $ vcat
-    [ "adding typed instance" <+> prettyTCM x <+> "with type"
+    [ "adding typed instance" <+> prettyTCM inst <+> "with type"
     , prettyTCM =<< flip abstract t <$> getContextTelescope
     ]
 
@@ -1011,12 +1110,25 @@ addTypedInstance' w orig x t = do
       -- Insert the instance into the instance table, putting it in the
       -- discrimination tree *and* bumping the total number of instances
       -- for this class.
+      tree <- useTC stInstanceTree
 
-      tree <- insertDT (length tele) hdt x =<< getsTC (view stInstanceTree)
-      setTCLens stInstanceTree tree
+      -- Amélia, 2025-02-28: If the instance we're adding has no type
+      -- signature, we end up adding it to the tree twice: once with a
+      -- useless type, and once after checking the RHS (which will have
+      -- narrowed the type).
+      --
+      -- To avoid spurious overlap, the useful key should trump the
+      -- useless key, so we filter this QName out of the tree when
+      -- re-adding an instance.
+      let
+        tree' | readd     = deleteFromDT (Set.singleton inst) tree
+              | otherwise = tree
+
+      tree' <- insertDT (length tele) hdt inst $! tree'
+      setTCLens stInstanceTree tree'
 
       modifyTCLens' (stSignature . sigInstances . itableCounts) $
-        Map.insertWith (+) n 1
+        if readd then Map.insertWith (+) n 1 else id
 
       let
         info = flip fromMaybe orig InstanceInfo
@@ -1027,31 +1139,31 @@ addTypedInstance' w orig x t = do
       -- This is no longer used to build the instance table for imported
       -- modules, but it is still used to know if an instance should be
       -- copied when applying a section.
-      modifySignature $ updateDefinition x \ d -> d { defInstance = Just info }
+      modifySignature $ updateDefinition inst \ d -> d { defInstance = Just info }
 
       -- If there's anything visible in the context, which will
       -- eventually end up in the instance's type, let's make a note to
       -- get rid of it before serialising the instance table.
-      con <- isConstructor x
+      con <- isConstructor inst
       -- However, do note that data constructors can have "visible
       -- arguments" in their global type which.. aren't actually
       -- visible: the parameters.
-      when (any visible tele && not con) $ modifyTCLens' stTemporaryInstances $ Set.insert x
+      when (any visible tele && not con) $ modifyTCLens' stTemporaryInstances $ Set.insert inst
 
     OutputTypeNameNotYetKnown b -> do
-      addUnknownInstance x
-      addConstraint b $ ResolveInstanceHead x
+      addUnknownInstance inst
+      addConstraint b $ ResolveInstanceHead inst
 
     NoOutputTypeName    -> when w $ warning $ WrongInstanceDeclaration
     OutputTypeVar       -> when w $ warning $ WrongInstanceDeclaration
-    OutputTypeVisiblePi -> when w $ warning $ InstanceWithExplicitArg x
+    OutputTypeVisiblePi -> when w $ warning $ InstanceWithExplicitArg inst
 
 resolveInstanceHead :: QName -> TCM ()
 resolveInstanceHead q = do
   clearUnknownInstance q
   -- Andreas, 2022-12-04, issue #6380:
   -- Do not warn about unusable instances here.
-  addTypedInstance' False Nothing q =<< typeOfConst q
+  addTypedInstance' False True Nothing q =<< typeOfConst q
 
 -- | Try to solve the instance definitions whose type is not yet known, report
 --   an error if it doesn't work and return the instance table otherwise.
@@ -1089,5 +1201,5 @@ pruneTemporaryInstances int = do
     , "todo:" <+> prettyTCM todo
     ]
 
-  let sig' = over (sigInstances . itableTree) (flip deleteFromDT todo) (iSignature int)
+  let sig' = over (sigInstances . itableTree) (deleteFromDT todo) (iSignature int)
   pure int{ iSignature = sig' }

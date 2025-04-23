@@ -1,4 +1,5 @@
 {-# OPTIONS --cohesion --erasure --guarded #-}
+{-# OPTIONS -WnoEmptyPrivate #-}
 
 module Highlighting where
 
@@ -257,3 +258,6 @@ module Issue7641 where
 
   -- There should be a error-warning highlighting
   -- since the field is too big for the record.
+
+private -- No highlighting as warning is disabled.
+  -- Triggers warning EmptyPrivate, but the warning is disabled.

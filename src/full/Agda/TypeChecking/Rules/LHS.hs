@@ -672,8 +672,8 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
 
         reportSDoc "tc.lhs.top" 20 $ vcat
           [ "lhs: final checks with remaining equations"
-          , nest 2 $ if null eqs then "(none)" else addContext delta $ vcat $ map prettyTCM eqs
-          , "qs0 =" <+> addContext delta (prettyTCMPatternList qs0)
+          , nest 4 $ if null eqs then "(none)" else addContext delta $ vcat $ map prettyTCM eqs
+          , nest 2 $ "qs0 =" <+> addContext delta (prettyTCMPatternList qs0)
           ]
 
         unless (null rps) __IMPOSSIBLE__
@@ -698,6 +698,13 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
           -- transport. See #5448.
 
         arity_a <- arityPiPath a
+
+        reportSDoc "tc.lhs.top" 30 $ vcat
+          [ nest 2 $ "a        =" <+> prettyTCM a
+          , nest 2 $ "arity_a  =" <+> prettyTCM arity_a
+          , nest 2 $ "withSub' =" <+> prettyTCM withSub'
+          ]
+
         -- Compute substitution from the out patterns @qs0@
         let notProj ProjP{} = False
             notProj _       = True
@@ -757,7 +764,7 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
             asb          = asb0 ++ asb1
 
         -- Rename internal patterns with these names
-        let makeVar     = maybe deBruijnVar $ debruijnNamedVar . nameToArgName
+        let makeVar     = maybe deBruijnVar $ deBruijnNamedVar . nameToArgName
             ren         = parallelS $ zipWith makeVar (reverse vars) [0..]
 
         qs <- transferOrigins (cps ++ ps) $ applySubst ren qs0
@@ -2023,14 +2030,15 @@ checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
                         LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
                     => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
 checkSortOfSplitVar dr a tel mtarget = do
-  liftTCM (reduce $ getSort a) >>= \case
-    Type{} -> whenM isTwoLevelEnabled checkFibrantSplit
-    Prop{} -> checkPropSplit
-    SSet{} -> return ()
-    Inf u _ -> when (univFibrancy u == IsFibrant) $ whenM isTwoLevelEnabled checkFibrantSplit
-    sa      -> softTypeError =<< do
+  let s = getSort a
+  sa <- liftTCM $ reduce s
+  case sortUniv sa of
+    Just UType{} -> whenM isTwoLevelEnabled checkFibrantSplit
+    Just UProp{} -> checkPropSplit
+    Just USSet{} -> return ()
+    Nothing      -> softTypeError =<< do
       liftTCM $ SortOfSplitVarError <$> isBlocked sa <*> sep
-        [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
+        [ "Cannot split on datatype in sort" , prettyTCM s]
 
   where
     checkPropSplit

@@ -10,11 +10,18 @@
 --     Chin Soon Lee, Neil Jones, and Amir Ben-Amram (POPL'01).
 
 module Agda.Termination.Termination
-  ( terminates
+  ( Terminates(..)
+  , GuardednessHelps(..)
+  , terminates
   , terminatesFilter
   , endos
   , idempotent
   ) where
+
+import Prelude hiding ((&&), null)
+
+import Control.DeepSeq (NFData)
+import GHC.Generics (Generic)
 
 import Agda.Termination.CutOff
 import Agda.Termination.CallGraph
@@ -23,25 +30,29 @@ import qualified Agda.Termination.CallMatrix as CMSet
 import Agda.Termination.Order
 import Agda.Termination.SparseMatrix
 
-import Agda.Utils.Maybe
+import Agda.Utils.Boolean
+import Agda.Utils.Null
+import Agda.Utils.Three
+
+-- | Would termination go through with guardedness?
+data GuardednessHelps
+  = GuardednessHelpsYes  -- ^ Guardedness would provide termination evidence.
+  | GuardednessHelpsNot  -- ^ Guardedness does not help with termination.
+  deriving (Eq, Show, Generic, Enum, Bounded)
+
+-- | Result of running the termination checker.
+data Terminates cinfo
+  = Terminates
+      -- ^ Termination proved without considering guardedness.
+  | TerminatesNot GuardednessHelps cinfo
+      -- ^ Termination could not be proven,
+      --   witnessed by the supplied problematic call path.
+      --   Guardedness could help, though.
 
 
-
--- | TODO: This comment seems to be partly out of date.
---
--- @'terminates' cs@ checks if the functions represented by @cs@
+-- | @'terminates' cs@ checks if the functions represented by @cs@
 -- terminate. The call graph @cs@ should have one entry ('Call') per
 -- recursive function application.
---
--- @'Right' perms@ is returned if the functions are size-change terminating.
---
--- If termination can not be established, then @'Left' problems@ is
--- returned instead. Here @problems@ contains an
--- indication of why termination cannot be established. See 'lexOrder'
--- for further details.
---
--- Note that this function assumes that all data types are strictly
--- positive.
 --
 -- The termination criterion is taken from Jones et al.
 -- In the completed call graph, each idempotent call-matrix
@@ -51,28 +62,34 @@ import Agda.Utils.Maybe
 -- This criterion is strictly more liberal than searching for a
 -- lexicographic order (and easier to implement, but harder to justify).
 
-terminates :: (Monoid cinfo, ?cutoff :: CutOff) => CallGraph cinfo -> Either cinfo ()
-terminates cs = checkIdems $ endos $ toList $ complete cs
+terminates :: (Monoid cinfo, ?cutoff :: CutOff) => CallGraph cinfo -> Terminates cinfo
+terminates = terminatesFilter $ const True
 
-terminatesFilter :: (Monoid cinfo, ?cutoff :: CutOff) =>
-  (Node -> Bool) -> CallGraph cinfo -> Either cinfo ()
-terminatesFilter f cs = checkIdems $ endos $ filter f' $ toList $ complete cs
-  where f' c = f (source c) && f (target c)
+terminatesFilter ::
+     (Monoid cinfo, ?cutoff :: CutOff)
+  => (Node -> Bool)    -- ^ Only consider calls whose source and target satisfy this predicate.
+  -> CallGraph cinfo   -- ^ Callgraph augmented with @cinfo@.
+  -> Terminates cinfo  -- ^ A bad call path of type @cinfo@, if termination could not be proven.
+terminatesFilter f cs
+  | cm:_ <- bad             = TerminatesNot GuardednessHelpsNot $ augCallInfo cm
+  | cm:_ <- needGuardedness = TerminatesNot GuardednessHelpsYes $ augCallInfo cm
+  | otherwise               = Terminates
+  where
+    f' = f . source && f . target
+    -- Every idempotent call must have decrease in the diagonal.
+    idems = filter idempotent $ endos $ filter f' $ toList $ complete cs
+    hasDecr cm = case diagonal cm of
+      g : xs
+        | any isDecr xs -> In1 ()        -- Evidence found without guardedness.
+        | isDecr g      -> In2 cm        -- Evidence found in guardedness.
+        | otherwise     -> In3 cm        -- No evidence found.
+      []                -> In3 cm        -- No information means no evidence for termination.
+    (good, needGuardedness, bad) = partitionEithers3 $ map hasDecr idems
 
 endos :: [Call cinfo] -> [CallMatrixAug cinfo]
 endos cs = [ m | c <- cs, source c == target c
                , m <- CMSet.toList $ callMatrixSet c
            ]
-
-checkIdems :: (?cutoff :: CutOff) => [CallMatrixAug cinfo] -> Either cinfo ()
-checkIdems calls = caseMaybe (listToMaybe offending) (Right ()) $ Left . augCallInfo
-  where
-    -- Every idempotent call must have decrease, otherwise it offends us.
-    offending = filter (not . hasDecrease) $ filter idempotent calls
-
--- UNUSED Liang-Ting 2019-07-15
---checkIdem :: (?cutoff :: CutOff) => CallMatrixAug cinfo -> Bool
---checkIdem c = if idempotent c then hasDecrease c else True
 
 -- | A call @c@ is idempotent if it is an endo (@'source' == 'target'@)
 --   of order 1.
@@ -83,5 +100,19 @@ checkIdems calls = caseMaybe (listToMaybe offending) (Right ()) $ Left . augCall
 idempotent  :: (?cutoff :: CutOff) => CallMatrixAug cinfo -> Bool
 idempotent (CallMatrixAug m _) = (m >*< m) `notWorse` m
 
-hasDecrease :: CallMatrixAug cinfo -> Bool
-hasDecrease = any isDecr . diagonal
+-- Instances
+
+instance Null GuardednessHelps where
+  empty = GuardednessHelpsNot
+
+instance Boolean GuardednessHelps where
+  fromBool = \case
+    True  -> GuardednessHelpsYes
+    False -> GuardednessHelpsNot
+
+instance IsBool GuardednessHelps where
+  toBool = \case
+    GuardednessHelpsYes -> True
+    GuardednessHelpsNot -> False
+
+instance NFData GuardednessHelps

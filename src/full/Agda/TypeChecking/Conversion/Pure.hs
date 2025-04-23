@@ -166,7 +166,7 @@ instance ReadTCState m => MonadStConcreteNames (PureConversionT m) where
     fst <$> runStateT m concNames
 
 instance PureTCM m => MonadWarning (PureConversionT m) where
-  addWarning w = case classifyWarning (tcWarning w) of
+  addWarning _enabled w = case classifyWarning (tcWarning w) of
     ErrorWarnings -> patternViolation neverUnblock
     AllWarnings   -> return ()
 

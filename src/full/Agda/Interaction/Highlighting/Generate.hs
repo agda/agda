@@ -415,7 +415,7 @@ warningHighlighting' :: Bool -- ^ should we generate highlighting for unsolved m
 warningHighlighting' b w = case tcWarning w of
   TerminationIssue terrs     -> terminationErrorHighlighting terrs
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
-  ConstructorDoesNotFitInData c s1 s2 err -> errorWarningHighlighting $
+  ConstructorDoesNotFitInData _dataOrRecord c _s1 _s2 _err -> errorWarningHighlighting $
      getRange c `catchNull` getRange w
   CoinductiveEtaRecord _x    -> deadcodeHighlighting w
   -- #3965 highlight each unreachable clause independently: they
@@ -450,6 +450,7 @@ warningHighlighting' b w = case tcWarning w of
   UselessHiding xs           -> foldMap deadcodeHighlighting xs
   UselessInline{}            -> mempty
   UselessPatternDeclarationForRecord{} -> deadcodeHighlighting w
+  UselessTactic{}            -> deadcodeHighlighting w
   ClashesViaRenaming _ xs    -> foldMap deadcodeHighlighting xs
     -- #4154, TODO: clashing renamings are not dead code, but introduce problems.
     -- Should we have a different color?
@@ -458,7 +459,6 @@ warningHighlighting' b w = case tcWarning w of
   InstanceNoOutputTypeName{}   -> instanceProblemHighlighting w
   InstanceArgWithExplicitArg{} -> instanceProblemHighlighting w
   InversionDepthReached{}    -> mempty
-  NoGuardednessFlag{}        -> mempty
   -- Andreas, 2020-03-21, issue #4456:
   -- Error warnings that do not have dedicated highlighting
   -- are highlighted as errors.
@@ -556,8 +556,8 @@ warningHighlighting' b w = case tcWarning w of
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting w
     InvalidCoverageCheckPragma{}     -> deadcodeHighlighting w
     InvalidConstructorBlock{}        -> deadcodeHighlighting w
-    OpenPublicAbstract{}             -> deadcodeHighlighting w
-    OpenPublicPrivate{}              -> deadcodeHighlighting w
+    OpenImportAbstract{}             -> cosmeticProblemHighlighting w
+    OpenImportPrivate{}              -> cosmeticProblemHighlighting w
     SafeFlagEta                   {} -> errorWarningHighlighting w
     SafeFlagInjective             {} -> errorWarningHighlighting w
     SafeFlagNoCoverageCheck       {} -> errorWarningHighlighting w

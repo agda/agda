@@ -47,7 +47,6 @@ Exec.ExeNotTrusted
 FunctionTypeInSizeUniv
 GeneralizeCyclicDependency
 ModuleNameHashCollision
-SplitError.CannotCreateMissingClause
 SplitError.CosplitNoTarget
 SplitError.GenericSplitError
 Unquote.BlockedOnMeta

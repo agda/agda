@@ -160,15 +160,14 @@ tests = do
     Nothing -> putStrLn "No JS node binary found, skipping JS tests."
     Just n -> putStrLn $ "Using JS node binary at " ++ n
 
-  ts <- mapM forComp enabledCompilers
-  return $ testGroup "Compiler" ts
-  where
-    forComp comp = testGroup (map spaceToUnderscore $ show comp) . catMaybes
+  ts <- forM enabledCompilers \ comp -> do
+    testGroup (map spaceToUnderscore $ show comp) . catMaybes
         <$> sequence
             [ Just <$> simpleTests comp
             , Just <$> stdlibTests comp
             , specialTests comp]
-
+  return $ testGroup "Compiler" ts
+  where
     spaceToUnderscore ' ' = '_'
     spaceToUnderscore c = c
 
@@ -265,8 +264,8 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
           let exec = getExecForComp comp compDir inpFile
           case comp of
             JS{} -> do
-              setEnv "NODE_PATH" compDir
-              (ret, out', err') <- PT.readProcessWithExitCode "node" [exec] inp'
+              env <- (("NODE_PATH", compDir) :) <$> getEnvironment
+              (ret, out', err') <- readProcessWithEnv env "node" [exec] inp'
               return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
             _ -> do
               (ret, out', err') <- PT.readProcessWithExitCode exec (runtimeOptions opts) inp'

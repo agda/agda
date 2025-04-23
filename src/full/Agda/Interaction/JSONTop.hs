@@ -369,8 +369,8 @@ instance EncodeTCM GoalTypeAux where
   encodeTCM GoalOnly = kind "GoalOnly" []
   encodeTCM (GoalAndHave expr _) = kind "GoalAndHave"
     [ "expr" #= encodePrettyTCM expr ]
-  encodeTCM (GoalAndElaboration term) = kind "GoalAndElaboration"
-    [ "term" #= encodePrettyTCM term ]
+  encodeTCM (GoalAndElaboration expr) = kind "GoalAndElaboration"
+    [ "term" #= encodePrettyTCM expr ]
 
 encodeGoalSpecific :: InteractionId -> GoalDisplayInfo -> TCM Value
 encodeGoalSpecific ii = go

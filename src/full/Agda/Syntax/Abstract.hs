@@ -402,7 +402,7 @@ data Clause' lhs = Clause
       --   These live in the context of the parent clause left-hand side.
   , clauseRHS        :: RHS
   , clauseWhereDecls :: WhereDeclarations
-  , clauseCatchall   :: Bool
+  , clauseCatchall   :: Catchall
   } deriving (Show, Functor, Foldable, Traversable, Eq, Generic)
 
 data WhereDeclarations = WhereDecls

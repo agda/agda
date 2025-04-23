@@ -563,7 +563,7 @@ instance PrettyTCM Key where
   prettyTCM = \case
     RigidK q a -> prettyTCM q <> superscript a
     LocalK i a -> "@" <> pretty i <> superscript a
-    PiK        -> "Pi"
+    PiK h      -> "Pi" <+> pretty h
     ConstK     -> "Const"
     SortK      -> "Sort"
     FlexK      -> "_"

@@ -566,6 +566,7 @@ instance EmbPrj I.PatOrigin where
   icod_ PatORec     = icodeN 6 PatORec
   icod_ PatOLit     = icodeN 7 PatOLit
   icod_ PatOAbsurd  = icodeN 8 PatOAbsurd
+  icod_ (PatOSplitArg a) = icodeN 9 PatOSplitArg a
 
   value = vcase valu where
     valu []     = valuN PatOSystem
@@ -577,6 +578,7 @@ instance EmbPrj I.PatOrigin where
     valu [6]    = valuN PatORec
     valu [7]    = valuN PatOLit
     valu [8]    = valuN PatOAbsurd
+    valu [9, a] = valuN PatOSplitArg a
     valu _      = malformed
 
 instance EmbPrj a => EmbPrj (I.Pattern' a) where
@@ -657,7 +659,7 @@ instance EmbPrj RemoteMetaVariable where
 instance EmbPrj Key where
   icod_ (RigidK x y) = icodeN 0 RigidK x y
   icod_ (LocalK x y) = icodeN 1 LocalK x y
-  icod_ PiK          = icodeN 2 PiK
+  icod_ (PiK h)      = icodeN 2 PiK h
   icod_ FlexK        = icodeN 3 FlexK
   icod_ ConstK       = icodeN 4 ConstK
   icod_ SortK        = icodeN 5 SortK
@@ -665,7 +667,7 @@ instance EmbPrj Key where
   value = vcase valu where
     valu [0, x, y] = valuN RigidK x y
     valu [1, x, y] = valuN LocalK x y
-    valu [2]       = valuN PiK
+    valu [2, h]    = valuN PiK h
     valu [3]       = valuN FlexK
     valu [4]       = valuN ConstK
     valu [5]       = valuN SortK

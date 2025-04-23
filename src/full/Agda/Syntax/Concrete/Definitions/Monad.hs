@@ -15,6 +15,7 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (TerminationCheck())
+import Agda.Syntax.Concrete ( WhereClause_ )
 import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete.Definitions.Types
 import Agda.Syntax.Concrete.Definitions.Errors
@@ -49,6 +50,8 @@ instance Null a => Null (Nice a) where
 data NiceEnv = NiceEnv
   { safeButNotBuiltin :: Bool
        -- ^ We are in a module declared @--safe@ which is not a builtin module.
+  , checkingWhere     :: WhereClause_
+       -- ^ Are we checking a @where@ module?
   }
 
 -- | Nicifier state.
@@ -104,7 +107,7 @@ initNiceState = NiceState
   , _termChk  = TerminationCheck
   , _posChk   = YesPositivityCheck
   , _uniChk   = YesUniverseCheck
-  , _catchall = False
+  , _catchall = empty
   , _covChk   = YesCoverageCheck
   , niceWarn  = []
   , _nameId   = NameId 1 noModuleNameHash
@@ -255,7 +258,7 @@ catchallPragma f e = f (_catchall e) <&> \ s -> e { _catchall = s }
 popCatchallPragma :: Nice Catchall
 popCatchallPragma = do
   ca <- use catchallPragma
-  catchallPragma .= False
+  catchallPragma .= empty
   return ca
 
 withCatchallPragma :: Catchall -> Nice a -> Nice a

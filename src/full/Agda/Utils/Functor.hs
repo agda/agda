@@ -51,6 +51,8 @@ class Functor t => Decoration t where
   distributeF :: (Functor m) => t (m a) -> m (t a)
   distributeF = traverseF id
 
+  {-# MINIMAL traverseF | distributeF #-}
+
 -- | Any decoration is traversable with @traverse = traverseF@.
 --   Just like any 'Traversable' is a functor, so is
 --   any decoration, given by just @traverseF@, a functor.

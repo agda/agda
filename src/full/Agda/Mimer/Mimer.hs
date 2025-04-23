@@ -43,6 +43,8 @@ import Agda.Syntax.Position (Range, rangeFile, rangeFilePath)
 import qualified Agda.Syntax.Scope.Base as Scope
 import Agda.Syntax.Translation.InternalToAbstract (reify, NamedClause(..))
 import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcrete_)
+
+import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Constraints (noConstraints)
 import Agda.TypeChecking.Conversion (equalType)
 import qualified Agda.TypeChecking.Empty as Empty -- (isEmptyType)
@@ -240,6 +242,8 @@ data SearchOptions = SearchOptions
   , searchCosts :: Costs
   , searchStats :: IORef MimerStats
   , searchRewrite :: Rewrite
+  , searchBuiltinFlat :: Maybe QName
+      -- Cache BUILTIN_FLAT for issue #7662 workaround
   }
 
 type Cost = Int
@@ -787,6 +791,7 @@ runSearch norm options ii rng = withInteractionId ii $ do
 
       statsRef <- liftIO $ newIORef emptyMimerStats
       checkpoint <- viewTC eCurrentCheckpoint
+      mflat <- getBuiltinName BuiltinFlat
       let searchOptions = SearchOptions
             { searchBaseComponents = components
             , searchHintMode = optHintMode options
@@ -804,6 +809,7 @@ runSearch norm options ii rng = withInteractionId ii $ do
             , searchCosts = costs
             , searchStats = statsRef
             , searchRewrite = norm
+            , searchBuiltinFlat = mflat
             }
 
       reportSDoc "mimer.init" 20 $ "Using search options:" $$ nest 2 (prettyTCM searchOptions)
@@ -975,7 +981,10 @@ getRecordInfo typ = case unEl typ of
 applyProj :: Args -> Component -> QName -> SM Component
 applyProj recordArgs comp' qname = do
   cost <- asks (costProj . searchCosts)
-  let newTerm = applyE (compTerm comp') [Proj ProjSystem qname]
+  -- Andreas, 2025-03-31, issue #7662: hack to prevent postfix printing of ♭
+  projOrigin <- maybe ProjSystem (\ flat -> if qname == flat then ProjPrefix else ProjSystem)
+    <$> asks searchBuiltinFlat
+  let newTerm = applyE (compTerm comp') [Proj projOrigin qname]
   projType <- defType <$> getConstInfo qname
   projTypeWithArgs <- piApplyM projType recordArgs
   newType <- piApplyM projTypeWithArgs (compTerm comp')

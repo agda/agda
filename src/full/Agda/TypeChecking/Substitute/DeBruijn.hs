@@ -11,15 +11,17 @@ class DeBruijn a where
 
   -- | Produce a variable without name suggestion.
   deBruijnVar  :: Int -> a
-  deBruijnVar = debruijnNamedVar underscore
+  deBruijnVar = deBruijnNamedVar underscore
 
   -- | Produce a variable with name suggestion.
-  debruijnNamedVar :: String -> Int -> a
-  debruijnNamedVar _ = deBruijnVar
+  deBruijnNamedVar :: String -> Int -> a
+  deBruijnNamedVar _ = deBruijnVar
 
   -- | Are we dealing with a variable?
   --   If yes, what is its index?
   deBruijnView :: a -> Maybe Int
+
+  {-# MINIMAL (deBruijnVar | deBruijnNamedVar) , deBruijnView #-}
 
 -- | We can substitute @Term@s for variables.
 instance DeBruijn Term where
@@ -45,10 +47,10 @@ instance DeBruijn Level where
       _ -> Nothing
 
 instance DeBruijn DBPatVar where
-  debruijnNamedVar = DBPatVar
+  deBruijnNamedVar = DBPatVar
   deBruijnView = Just . dbPatVarIndex
 
 
 instance DeBruijn a => DeBruijn (Named_ a) where
-  debruijnNamedVar nm i = unnamed $ debruijnNamedVar nm i
+  deBruijnNamedVar nm i = unnamed $ deBruijnNamedVar nm i
   deBruijnView = deBruijnView . namedThing

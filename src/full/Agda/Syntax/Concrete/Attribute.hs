@@ -3,6 +3,8 @@
 
 module Agda.Syntax.Concrete.Attribute where
 
+import Prelude hiding (null)
+
 import Control.Arrow (second)
 import Control.Monad (foldM)
 
@@ -19,6 +21,7 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Position
 
 import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.Null
 
 import Agda.Utils.Impossible
 
@@ -59,6 +62,23 @@ instance KillRange Attribute where
     PolarityAttribute p  -> PolarityAttribute  $ killRange p
     TacticAttribute e    -> TacticAttribute    $ killRange e
     LockAttribute l      -> LockAttribute l
+
+-- | Parsed attribute.
+
+data Attr = Attr
+  { attrRange :: Range       -- ^ Range includes the @.
+  , attrName  :: String      -- ^ Concrete, user written attribute for error reporting.
+  , theAttr   :: Attribute   -- ^ Parsed attribute.
+  } deriving (Show)
+
+instance HasRange Attr where
+  getRange = attrRange
+
+instance SetRange Attr where
+  setRange r (Attr _ x a) = Attr r x a
+
+instance KillRange Attr where
+  killRange (Attr _ x a) = Attr noRange x (killRange a)
 
 -- | (Conjunctive constraint.)
 
@@ -109,7 +129,7 @@ cohesionAttributeTable =
 -- 'Agda.Syntax.Translation.ConcreteToAbstract.checkAttributes', which
 -- should not be called until after pragma options have been set.
 
-type Attributes = [(Attribute, Range, String)]
+type Attributes = [Attr]
 
 -- | Modifiers for 'Polarity'.
 
@@ -149,10 +169,10 @@ stringToAttribute = (`Map.lookup` attributesMap)
 
 -- | Parsing an expression into an attribute.
 
-exprToAttribute :: Expr -> Maybe Attribute
-exprToAttribute = \case
-  e@(Paren _ (Tactic _ t)) -> Just $ TacticAttribute $ Ranged (getRange e) t
-  e -> setRange (getRange e) $ stringToAttribute $ prettyShow e
+exprToAttribute :: Range -> Expr -> Maybe Attribute
+exprToAttribute r = \case
+  e@(Paren _ (Tactic _ t)) -> Just $ TacticAttribute $ Ranged r t
+  e -> setRange r $ stringToAttribute $ prettyShow e
 
 -- | Setting an attribute (in e.g. an 'Arg').  Overwrites previous value.
 
@@ -181,7 +201,7 @@ setAttributes attrs arg = foldl' (flip setAttribute) arg attrs
 
 setPristineRelevance :: (LensRelevance a) => Relevance -> a -> Maybe a
 setPristineRelevance r a
-  | getRelevance a == defaultRelevance = Just $ setRelevance r a
+  | null (getRelevance a) = Just $ setRelevance r a
   | otherwise = Nothing
 
 -- | Setting 'Quantity' if unset.
@@ -195,7 +215,7 @@ setPristineQuantity q a
 
 setPristineCohesion :: (LensCohesion a) => Cohesion -> a -> Maybe a
 setPristineCohesion c a
-  | getCohesion a == defaultCohesion = Just $ setCohesion c a
+  | null (getCohesion a) = Just $ setCohesion c a
   | otherwise = Nothing
 
 -- | Setting 'ModalPolarity' if unset.

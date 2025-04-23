@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE DataKinds #-}
 
 {-| The parser doesn't know about operators and parses everything as normal
     function application. This module contains the functions that parses the
@@ -19,11 +19,10 @@ module Agda.Syntax.Concrete.Operators
     , parsePatternSyn
     ) where
 
-import Control.Applicative ( Alternative((<|>)))
+import Control.Applicative ( Alternative( (<|>) ) )
 import Control.Monad.Except (throwError)
 
 import Data.Either (partitionEithers)
-import qualified Data.Foldable as Fold
 import qualified Data.Function
 import qualified Data.List as List
 import Data.Maybe
@@ -47,7 +46,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State (getScope)
 
-import Agda.Utils.Function (applyWhen)
+import Agda.Utils.Function (applyWhen, applyWhenJust)
 import Agda.Utils.Either
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.List
@@ -89,10 +88,6 @@ data InternalParsers e = InternalParsers
   , pAtom   :: Parser e e
   }
 
--- | Expression kinds: Expressions or patterns.
-data ExprKind = IsExpr | IsPattern
-  deriving (Eq, Show)
-
 -- | The data returned by 'buildParsers'.
 
 data Parsers e = Parsers
@@ -129,6 +124,8 @@ buildParsers
   :: forall e. IsExpr e
   => ExprKind
      -- ^ Should expressions or patterns be parsed?
+  -> Maybe QName
+     -- ^ Are we trying to parse the lhs of the function given here?
   -> [QName]
      -- ^ This list must include every name part in the
      -- expression/pattern to be parsed (excluding name parts inside
@@ -138,10 +135,11 @@ buildParsers
      -- grammar if all of the notation's name parts are present in
      -- the list of names.
   -> ScopeM (Parsers e)
-buildParsers kind exprNames = do
+buildParsers kind top exprNames0 = do
+    let exprNames = applyWhenJust top (:) exprNames0
     flat         <- flattenScope (qualifierModules exprNames) <$>
                       getScope
-    (names, ops0) <- localNames flat
+    (names, ops0) <- localNames kind top flat
     let ops | kind == IsPattern = filter (not . isLambdaNotation) ops0
             | otherwise         = ops0
 
@@ -328,7 +326,7 @@ buildParsers kind exprNames = do
 
     let g = Data.Function.fix $ \p -> InternalParsers
               { pTop    = memoise TopK $
-                          Fold.asum $
+                          Agda.Utils.List.asum $
                             foldr (\(l, ns) higher ->
                                        mkP (Right l) parseSections
                                            (pTop p) ns higher True) (pApp p)
@@ -339,7 +337,7 @@ buildParsers kind exprNames = do
               , pApp    = memoise AppK $ appP (pNonfix p) (pArgs p)
               , pArgs   = argsP (pNonfix p)
               , pNonfix = memoise NonfixK $
-                          Fold.asum $
+                          Agda.Utils.List.asum $
                             pAtom p :
                             map (\sect ->
                               let n = sectNotation sect
@@ -404,36 +402,66 @@ buildParsers kind exprNames = do
             -> Parser e e
         mkP key parseSections p0 ops higher includeHigher =
             memoise (NodeK key) $
-              Fold.asum $
+              Agda.Utils.List.asum $
                 applyWhen includeHigher (higher :) $
                 catMaybes [nonAssoc, preRights, postLefts]
-            where
-            choice :: forall k.
-                      NK k -> [NotationSection] ->
-                      Parser e (OperatorType k e)
-            choice k =
-              Fold.asum .
-              map (\sect ->
+          where
+            -- Andreas, 2025-02-27
+            -- Break up the choice function into its three cases,
+            -- so that matching on @k@ does not have to be performed
+            -- inside the mapped function @(\ sect -> ...)@.
+            --
+            -- choice :: forall k.
+            --           NK k -> [NotationSection] ->
+            --           Parser e (OperatorType k e)
+            -- choice k =
+            --   Agda.Utils.List.asum .
+            --   map (\sect ->
+            --     let n = sectNotation sect
+
+            --         inner :: forall k.
+            --                  NK k -> Parser e (OperatorType k e)
+            --         inner = opP parseSections p0 n
+            --     in
+            --     case k of
+            --       In   -> inner In
+
+            --       Pre  -> if isinfix n || ispostfix n
+            --               then flip ($) <$> placeholder Beginning
+            --                             <*> inner In
+            --               else inner Pre
+
+            --       Post -> if isinfix n || isprefix n
+            --               then flip <$> inner In
+            --                         <*> placeholder End
+            --               else inner Post
+
+            --       Non  -> __IMPOSSIBLE__)
+
+            choiceIn :: [NotationSection] -> Parser e (OperatorType 'InfixNotation e)
+            choiceIn =
+              Agda.Utils.List.asum .
+              map \ sect -> opP parseSections p0 (sectNotation sect) In
+
+            choicePre :: [NotationSection] -> Parser e (OperatorType 'PrefixNotation e)
+            choicePre =
+              Agda.Utils.List.asum .
+              map \ sect -> do
                 let n = sectNotation sect
+                if   isinfix n || ispostfix n
+                then flip ($) <$> placeholder Beginning
+                              <*> opP parseSections p0 n In
+                else opP parseSections p0 n Pre
 
-                    inner :: forall k.
-                             NK k -> Parser e (OperatorType k e)
-                    inner = opP parseSections p0 n
-                in
-                case k of
-                  In   -> inner In
-
-                  Pre  -> if isinfix n || ispostfix n
-                          then flip ($) <$> placeholder Beginning
-                                        <*> inner In
-                          else inner Pre
-
-                  Post -> if isinfix n || isprefix n
-                          then flip <$> inner In
-                                    <*> placeholder End
-                          else inner Post
-
-                  Non  -> __IMPOSSIBLE__)
+            choicePost :: [NotationSection] -> Parser e (OperatorType 'PostfixNotation e)
+            choicePost =
+              Agda.Utils.List.asum .
+              map \ sect -> do
+                let n = sectNotation sect
+                if isinfix n || isprefix n
+                then flip <$> opP parseSections p0 n In
+                          <*> placeholder End
+                else opP parseSections p0 n Post
 
             nonAssoc :: Maybe (Parser e e)
             nonAssoc = case filter (isInfix NonAssoc) ops of
@@ -441,7 +469,7 @@ buildParsers kind exprNames = do
               ops -> Just $
                 (\x f y -> f (noPlaceholder x) (noPlaceholder y))
                   <$> higher
-                  <*> choice In ops
+                  <*> choiceIn ops
                   <*> higher
 
             or p1 []   p2 []   = Nothing
@@ -451,10 +479,10 @@ buildParsers kind exprNames = do
 
             preRight :: Maybe (Parser e (MaybePlaceholder e -> e))
             preRight =
-              or (choice Pre)
+              or choicePre
                  (filter isPrefix ops)
                  (\ops -> flip ($) <$> (noPlaceholder <$> higher)
-                                   <*> choice In ops)
+                                   <*> choiceIn ops)
                  (filter (isInfix RightAssoc) ops)
 
             preRights :: Maybe (Parser e e)
@@ -466,9 +494,9 @@ buildParsers kind exprNames = do
 
             postLeft :: Maybe (Parser e (MaybePlaceholder e -> e))
             postLeft =
-              or (choice Post)
+              or choicePost
                  (filter isPostfix ops)
-                 (\ops -> flip <$> choice In ops
+                 (\ops -> flip <$> choiceIn ops
                                <*> (noPlaceholder <$> higher))
                  (filter (isInfix LeftAssoc) ops)
 
@@ -485,31 +513,39 @@ buildParsers kind exprNames = do
 -- * Parse functions
 ---------------------------------------------------------------------------
 
--- | Returns the list of possible parses.
+-- | Parses all 'RawAppP' in the given pattern using the given parser.
+--   Returns the list of possible parses.
+--
+--   Naturally, does not recurse into 'DotP' as this contains no pattern.
+--
+--   Returns the empty list if the given parser does so
+--   or if a 'HiddenP' or 'InstanceP' is encountered.
 parsePat
   :: ([Pattern] -> [Pattern]) -- ^ Turns a 'RawAppP' into possible parses.
   -> Pattern                  -- ^ Pattern possibly containing 'RawAppP's.
   -> [Pattern]                -- ^ Possible parses, not containing 'RawAppP's.
-parsePat prs = \case
+parsePat parse = loop
+  where
+  loop = \case
     AppP p (Arg info q) ->
-        fullParen' <$> (AppP <$> parsePat prs p <*> (Arg info <$> traverse (parsePat prs) q))
-    RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< prs (List2.toList ps))
-    OpAppP r d ns ps -> fullParen' . OpAppP r d ns <$> (mapM . traverse . traverse) (parsePat prs) ps
+        fullParen' <$> (AppP <$> loop p <*> (Arg info <$> traverse loop q))
+    RawAppP _ ps     -> fullParen' <$> (loop =<< parse (List2.toList ps))
+    OpAppP r d ns ps -> fullParen' . OpAppP r d ns <$> (mapM . traverse . traverse) loop ps
     HiddenP _ _      -> fail "bad hidden argument"
     InstanceP _ _    -> fail "bad instance argument"
-    AsP r x p        -> AsP r x <$> parsePat prs p
+    AsP r x p        -> AsP r x <$> loop p
     p@DotP{}         -> return p
-    ParenP r p       -> fullParen' <$> parsePat prs p
+    ParenP r p       -> fullParen' <$> loop p
     p@WildP{}        -> return p
     p@AbsurdP{}      -> return p
     p@LitP{}         -> return p
     p@QuoteP{}       -> return p
     p@IdentP{}       -> return p
-    RecP r fs        -> RecP r <$> mapM (traverse (parsePat prs)) fs
+    RecP r fs        -> RecP r <$> mapM (traverse loop) fs
     p@EqualP{}       -> return p -- Andrea: cargo culted from DotP
     EllipsisP r mp   -> caseMaybe mp (fail "bad ellipsis") $ \p ->
-                          EllipsisP r . Just <$> parsePat prs p
-    WithP r p        -> WithP r <$> parsePat prs p
+                          EllipsisP r . Just <$> loop p
+    WithP r p        -> WithP r <$> loop p
 
 
 {- Implement parsing of copattern left hand sides, e.g.
@@ -584,7 +620,7 @@ parseLHS' NoDisplayLHS IsLHS (Just qn) WildP{} =
 parseLHS' displayLhs lhsOrPatSyn top p = do
 
     -- Build parser.
-    patP <- buildParsers IsPattern (patternQNames p)
+    patP <- buildParsers IsPattern top (patternQNames p)
 
     -- Run parser, forcing result.
     let ps   = let result = parsePat (parser patP) p
@@ -807,7 +843,7 @@ parseApplication :: List2 Expr -> ScopeM Expr
 parseApplication es  = billToParser IsExpr $ do
     let es0 = List2.toList es
     -- Build the parser
-    p <- buildParsers IsExpr [ q | Ident q <- es0 ]
+    p <- buildParsers IsExpr Nothing [ q | Ident q <- es0 ]
 
     -- Parse
     let result = parser p es0
@@ -836,7 +872,7 @@ parseArguments hd = \case
     let es2 = List2 hd e1 rest
 
     -- Build the arguments parser
-    p <- buildParsers IsExpr [ q | Ident q <- es ]
+    p <- buildParsers IsExpr Nothing [ q | Ident q <- es ]
 
     -- Parse
     -- TODO: not sure about forcing

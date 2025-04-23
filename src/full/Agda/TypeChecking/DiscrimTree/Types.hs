@@ -12,6 +12,7 @@ import GHC.Generics (Generic)
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
+import Agda.Syntax.Common
 
 import Agda.Utils.Impossible
 import Agda.Utils.Null
@@ -23,7 +24,7 @@ data Key
   | LocalK {-# UNPACK #-} !Int {-# UNPACK #-} !Int
     -- ^ Local variables.
 
-  | PiK
+  | PiK Hiding
     -- ^ Dependent function types. The domain will be represented
     -- accurately, for the case of a genuine dependent function type,
     -- the codomain will be a dummy.

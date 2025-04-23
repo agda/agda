@@ -144,7 +144,7 @@ fromSplitVar x = DBPatVar (splitPatVarName x) (splitPatVarIndex x)
 
 instance DeBruijn SplitPatVar where
   deBruijnView x = deBruijnView (fromSplitVar x)
-  debruijnNamedVar n i = toSplitVar (debruijnNamedVar n i)
+  deBruijnNamedVar n i = toSplitVar (deBruijnNamedVar n i)
 
 toSplitPatterns :: [NamedArg DeBruijnPattern] -> [NamedArg SplitPattern]
 toSplitPatterns = (fmap . fmap . fmap . fmap) toSplitVar
@@ -435,7 +435,12 @@ matchPat p q = case p of
     ProjP _ d' -> do
       d <- getOriginalProjection d
       if d == d' then yes mempty else no
-    _          -> __IMPOSSIBLE__
+    VarP{}     -> no  -- not impossible, see issue #7753
+    DotP{}     -> __IMPOSSIBLE__
+    ConP{}     -> __IMPOSSIBLE__
+    DefP{}     -> __IMPOSSIBLE__
+    LitP{}     -> __IMPOSSIBLE__
+    IApplyP{}  -> __IMPOSSIBLE__
 
   IApplyP _ _ _ x ->
     yes $ singleton (fromMaybe __IMPOSSIBLE__ (deBruijnView x), q)

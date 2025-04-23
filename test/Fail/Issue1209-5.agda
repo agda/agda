@@ -1,4 +1,4 @@
-{-# OPTIONS --safe --no-guardedness #-}
+{-# OPTIONS --safe #-}
 
 record Stream (A : Set) : Set where
   coinductive

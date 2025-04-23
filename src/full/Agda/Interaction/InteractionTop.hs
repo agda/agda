@@ -32,10 +32,10 @@ import System.Directory
 import System.FilePath
 
 import Agda.TypeChecking.Monad as TCM
-import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.TypeChecking.Pretty as TCP
-import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Opacity (saturateOpaqueBlocks)
+import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Warnings (warning)
 
 import Agda.Syntax.Fixity
@@ -49,6 +49,7 @@ import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Info (mkDefInfo)
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
+import Agda.Syntax.Translation.InternalToAbstract (reify)
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.TopLevelModuleName
 
@@ -92,7 +93,6 @@ import Agda.Utils.Tuple
 import Agda.Utils.WithDefault (lensCollapseDefault, lensKeepDefault)
 
 import Agda.Utils.Impossible
-import Agda.TypeChecking.Opacity (saturateOpaqueBlocks)
 
 -- | Opposite of 'liftIO' for 'CommandM'.
 --
@@ -735,14 +735,14 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
   cmd_goal_type_context_and aux norm ii rng s
 
 interpret (Cmd_goal_type_context_check norm ii rng s) = do
-  term <- liftLocalState $ withInteractionId ii $ do
+  expr <- liftLocalState $ withInteractionId ii $ do
     expr <- B.parseExprIn ii rng s
     goal <- B.typeOfMeta AsIs ii
     term <- case goal of
       OfType _ ty -> checkExpr expr =<< isType_ ty
       _           -> __IMPOSSIBLE__
-    B.normalForm norm term
-  cmd_goal_type_context_and (GoalAndElaboration term) norm ii rng s
+    reify =<< B.normalForm norm term
+  cmd_goal_type_context_and (GoalAndElaboration expr) norm ii rng s
 
 interpret (Cmd_show_module_contents norm ii rng s) =
   liftCommandMT (withInteractionId ii) $ showModuleContents norm rng s
@@ -758,7 +758,7 @@ interpret (Cmd_make_case ii rng s) = do
   liftCommandMT (withInteractionId ii) $ do
     tel <- lift $ lookupSection (qnameModule f) -- don't shadow the names in this telescope
     unicode <- getsTC $ optUseUnicode . getPragmaOptions
-    pcs      :: [Doc]      <- lift $ inTopContext $ addContext tel $ mapM prettyA cs
+    pcs      :: [Doc]      <- lift $ inTopContext $ addContext tel $ mapM prettyAUnqualify cs
     let pcs' :: [String]    = List.map (extlam_dropName unicode casectxt . decorate) pcs
     lift $ reportSDoc "interaction.case" 60 $ TCP.vcat
       [ "InteractionTop.Cmd_make_case"

@@ -1,0 +1,6 @@
+Issue7751.agda:6.1-8.9: error: [TerminationIssue]
+Termination checking failed for the following functions:
+  Bad
+Problematic calls:
+  Bad
+    (at Issue7751.agda:7.8-11)

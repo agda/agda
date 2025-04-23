@@ -3,7 +3,7 @@
 --
 -- See also:
 -- * DuplicateExecutable.vars
--- * DuplicateExecutable/executables
+-- * test/helpers/DuplicateExecutable/executables
 
 {-# OPTIONS --allow-exec #-}
 

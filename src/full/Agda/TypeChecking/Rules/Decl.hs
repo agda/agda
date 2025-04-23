@@ -25,6 +25,7 @@ import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Concrete (pattern NoWhere_)
 import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Base ( KindOfName(..) )
 
@@ -215,12 +216,13 @@ checkDecl d = setCurrentRange d $ do
         defaultLevelsToZero (openMetas metas)
 
       -- Post-typing checks.
-      whenJust finalChecks $ \ theMutualChecks -> do
+      whenJust finalChecks \theMutualChecks -> do
         reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
-        wakeupConstraints_   -- solve emptiness and instance constraints
+        locallyTCState stFinalChecks (const True) $
+          wakeupConstraints_   -- solve emptiness and instance constraints
 
         checkingWhere <- asksTC envCheckingWhere
-        solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
+        solveSizeConstraints $ if checkingWhere /= NoWhere_ then DontDefaultToInfty else DefaultToInfty
         wakeupConstraints_   -- Size solver might have unblocked some constraints
         theMutualChecks
 
@@ -314,7 +316,7 @@ revisitRecordPatternTranslation qs = do
   -- qccs: compiled clauses of definitions
   (rs, qccs) <- partitionEithers . catMaybes <$> mapM classify qs
   unless (null rs) $ forM_ qccs $ \(q,cc) -> do
-    (cc, recordExpressionBecameCopatternLHS) <- runChangeT $ translateCompiledClauses cc
+    (cc, recordExpressionBecameCopatternLHS) <- runChangeT $ translateCompiledClauses q cc
     modifySignature $ updateDefinition q
       $ updateTheDef (updateCompiledClauses $ const $ Just cc)
       . updateDefCopatternLHS (|| recordExpressionBecameCopatternLHS)
@@ -535,9 +537,12 @@ whenAbstractFreezeMetasAfter :: A.DefInfo -> TCM a -> TCM a
 whenAbstractFreezeMetasAfter Info.DefInfo{defAccess, defAbstract, defOpaque} m = do
   if (defAbstract == ConcreteDef && defOpaque == TransparentDef) then m else do
     (a, ms) <- metasCreatedBy m
-    reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
-    wakeupConstraints_   -- solve emptiness and instance constraints
-    xs <- freezeMetas (openMetas ms)
+
+    xs <- locallyTCState stFinalChecks (const True) do
+      reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
+      wakeupConstraints_   -- solve emptiness and instance constraints
+      freezeMetas (openMetas ms)
+
     reportSDoc "tc.decl.ax" 20 $ vcat
       [ "Abstract type signature produced new open metas: " <+>
         sep (map prettyTCM $ MapS.keys (openMetas ms))
@@ -714,7 +719,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
     -- Andreas, 2016-06-21, issue #2054
     -- Do not default size metas to ∞ in local type signatures
     checkingWhere <- asksTC envCheckingWhere
-    solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
+    solveSizeConstraints $ if checkingWhere /= NoWhere_ then DontDefaultToInfty else DefaultToInfty
 
 -- | Type check a primitive function declaration.
 checkPrimitive :: A.DefInfo -> QName -> Arg A.Expr -> TCM ()

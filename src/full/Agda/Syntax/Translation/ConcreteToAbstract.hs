@@ -355,10 +355,15 @@ checkModuleMacro apply kind r p e x modapp open dir = do
 -- | The @public@ keyword must only be used together with @open@.
 
 notPublicWithoutOpen :: OpenShortHand -> C.ImportDirective -> ScopeM C.ImportDirective
-notPublicWithoutOpen DoOpen   dir = return dir
-notPublicWithoutOpen DontOpen dir = do
-  whenJust (publicOpen dir) $ \ r ->
-    setCurrentRange r $ warning UselessPublic
+notPublicWithoutOpen DoOpen   = return
+notPublicWithoutOpen DontOpen = uselessPublic UselessPublicNoOpen
+
+-- | Warn about useless @public@.
+
+uselessPublic :: UselessPublicReason -> C.ImportDirective -> ScopeM C.ImportDirective
+uselessPublic reason dir = do
+  whenJust (publicOpen dir) \ r ->
+    setCurrentRange r $ warning $ UselessPublic reason
   return $ dir { publicOpen = Nothing }
 
 -- | Computes the range of all the \"to\" keywords used in a renaming
@@ -375,8 +380,8 @@ checkOpen
   -> C.ImportDirective    -- ^ Scope modifier.
   -> ScopeM (ModuleInfo, A.ModuleName, A.ImportDirective) -- ^ Arguments of 'A.Open'
 checkOpen r mam x dir = do
+  cm <- getCurrentModule
   reportSDoc "scope.decl" 70 $ do
-    cm <- getCurrentModule
     vcat $
       [ text   "scope checking NiceOpen " <> return (pretty x)
       , text   "  getCurrentModule       = " <> prettyA cm
@@ -384,9 +389,7 @@ checkOpen r mam x dir = do
       , text $ "  C.ImportDirective      = " ++ prettyShow dir
       ]
   -- Andreas, 2017-01-01, issue #2377: warn about useless `public`
-  whenJust (publicOpen dir) $ \ r -> do
-    whenM ((A.noModuleName ==) <$> getCurrentModule) $ do
-      setCurrentRange r $ warning UselessPublic
+  dir <- if null cm then uselessPublic UselessPublicPreamble dir else return dir
 
   m <- caseMaybe mam (toAbstract (OldModuleName x)) return
   printScope "open" 40 $ "opening " ++ prettyShow x
@@ -483,7 +486,7 @@ checkRecordWhere r ds0 mkRec = do
             (C.LHS (C.IdentP True (C.QName l)) [] [])
             (C.RHS (C.Ident (C.qualify m r)))
             NoWhere
-            False
+            empty
 
 {--------------------------------------------------------------------------
     Translation
@@ -1141,9 +1144,18 @@ instance ToAbstract C.LamBinding where
   type AbsOfCon C.LamBinding = Maybe A.LamBinding
 
   toAbstract (C.DomainFree x)  = do
-    tac <- traverse toAbstract $ bnameTactic $ C.binderName $ namedArg x
+    tac <- scopeCheckTactic x
     Just . A.DomainFree tac <$> toAbstract (updateNamedArg (fmap $ NewName LambdaBound) x)
   toAbstract (C.DomainFull tb) = fmap A.DomainFull <$> toAbstract tb
+
+-- | Scope check tactic attribute, make sure they are only used in hidden arguments.
+scopeCheckTactic :: NamedArg C.Binder -> ScopeM A.TacticAttribute
+scopeCheckTactic x = do
+  let ctac = bnameTactic $ C.binderName $ namedArg x
+  let r = getRange ctac
+  setCurrentRange r $ do
+    tac <- traverse toAbstract ctac
+    if null tac || hidden x then return tac else empty <$ warning UselessTactic
 
 makeDomainFull :: C.LamBinding -> C.TypedBinding
 makeDomainFull (C.DomainFull b) = b
@@ -1155,13 +1167,10 @@ instance ToAbstract C.TypedBinding where
 
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    tac <- C.TacticAttribute <$> do
-     traverse toAbstract $
-      -- Invariant: all tactics are the same
-      -- (distributed in the parser, TODO: don't)
-      case List1.mapMaybe (theTacticAttribute . bnameTactic . C.binderName . namedArg) xs of
-        []      -> Nothing
-        tac : _ -> Just tac
+    -- Invariant: all tactics are the same
+    -- (distributed in the parser, TODO: don't)
+    let tacArg = List1.find (not . null . bnameTactic . C.binderName . namedArg) xs
+    tac <- maybe (pure empty) scopeCheckTactic tacArg
 
     let fin = all (bnameIsFinite . C.binderName . namedArg) xs
     xs' <- toAbstract $ fmap (updateNamedArg (fmap $ NewName LambdaBound)) xs
@@ -1180,7 +1189,11 @@ scopeCheckNiceModule
   -> ScopeM [A.Declaration]
   -> ScopeM A.Declaration
        -- ^ The returned declaration is an 'A.Section'.
-scopeCheckNiceModule r p e name tel checkDs = checkWrappedModules p (splitModuleTelescope tel)
+scopeCheckNiceModule r p e name tel checkDs = do
+    -- Andreas, 2025-03-29: clear @envCheckingWhere@
+    -- We are no longer directly in a @where@ block if we enter a module.
+    localTC (\ env -> env{ envCheckingWhere = C.NoWhere_ }) $
+      checkWrappedModules p (splitModuleTelescope tel)
   where
     -- Andreas, 2013-12-10:
     -- If the module telescope contains open statements
@@ -1467,9 +1480,10 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
 
   -- We need to pass the fixities to the nicifier for clause grouping.
   fixs <- useScope scopeFixities
+  niceEnv <- NiceEnv safeButNotBuiltin <$> asksTC envCheckingWhere
 
   -- Run nicifier.
-  let (result, warns) = runNice (NiceEnv safeButNotBuiltin) $ niceDeclarations fixs ds
+  let (result, warns) = runNice niceEnv $ niceDeclarations fixs ds
 
   -- Respect the @DoWarn@ directive. For this to be sound, we need to know for
   -- sure that each @Declaration@ is checked at least once with @DoWarn@.
@@ -1610,7 +1624,7 @@ instance ToAbstract LetDef where
               [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef
                   (setOrigin Inserted defaultArgInfo) tc cc x (C.Underscore (getRange x) Nothing)
               , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
-                [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
+                [C.Clause x (ca <> catchall) lhs (C.RHS rhs) NoWhere []]
               ]
           where
             definedName (C.IdentP _ (C.QName x)) = Just x
@@ -1633,21 +1647,21 @@ instance ToAbstract LetDef where
             definedName C.EllipsisP{}          = Nothing -- Not impossible, see issue #3937
 
     -- You can't open public in a let
-    NiceOpen r x dirs -> do
-      whenJust (publicOpen dirs) $ \r -> setCurrentRange r $ warning UselessPublic
+    NiceOpen r x dir -> do
+      dir  <- uselessPublic UselessPublicLet dir
       m    <- toAbstract (OldModuleName x)
-      adir <- openModule_ LetOpenModule x dirs
+      adir <- openModule_ LetOpenModule x dir
       let minfo = ModuleInfo
             { minfoRange  = r
             , minfoAsName = Nothing
-            , minfoAsTo   = renamingRange dirs
+            , minfoAsTo   = renamingRange dir
             , minfoOpenShort = Nothing
-            , minfoDirective = Just dirs
+            , minfoDirective = Just dir
             }
       return $ singleton $ A.LetOpen minfo m adir
 
     NiceModuleMacro r p erased x modapp open dir -> do
-      whenJust (publicOpen dir) $ \ r -> setCurrentRange r $ warning UselessPublic
+      dir <- uselessPublic UselessPublicLet dir
       -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
       -- to be private
       singleton <$> checkModuleMacro LetApply LetOpenModule r
@@ -2319,9 +2333,9 @@ updateDefInfoOpacity di = (\a -> di { Info.defOpaque = a }) <$> contextIsOpaque
 -- affected by opacity, but only if we are actually in an Opaque block.
 notAffectedByOpaque :: ScopeM a -> ScopeM a
 notAffectedByOpaque k = do
-  t <- asksTC envCheckingWhere
-  unless t $
-    maybe (pure ()) (const (warning NotAffectedByOpaque)) =<< asksTC envCurrentOpaqueId
+  whenM ((NoWhere_ ==) <$> asksTC envCheckingWhere) $
+    whenJustM (asksTC envCurrentOpaqueId) \ _ ->
+      warning NotAffectedByOpaque
   notUnderOpaque k
 
 -- * Helper functions for @variable@ generalization
@@ -2894,18 +2908,22 @@ whereToAbstract r wh inner = do
   case wh of
     NoWhere       -> ret
     AnyWhere _ [] -> warnEmptyWhere
-    AnyWhere _ ds -> enter $ do
+    AnyWhere _ ds -> enter do
       -- Andreas, 2016-07-17 issues #2081 and #2101
       -- where-declarations are automatically private.
-      -- This allows their type signature to be checked InAbstractMode.
+      -- Andreas, 2025-03-29
+      -- While since PR #5192 (Feb 2021, issue #481) it is no longer the case
+      -- that we check their type signatures in abstract mode,
+      -- we still need to mark the declaration as private
+      -- e.g. to avoid spurious UnknownFixityInMixfixDecl warnings (issue #2889).
       whereToAbstract1 r defaultErased Nothing
         (singleton $ C.Private empty Inserted ds) inner
     SomeWhere _ e m a ds0 -> enter $
-      List1.ifNull ds0 warnEmptyWhere {-else-} $ \ds -> do
+      List1.ifNull ds0 warnEmptyWhere {-else-} \ ds ->
       -- Named where-modules do not default to private.
       whereToAbstract1 r e (Just (m, a)) ds inner
   where
-  enter = localTC $ \env -> env { envCheckingWhere = True }
+  enter = localTC \ env -> env { envCheckingWhere = C.whereClause_ wh }
   ret = (,A.noWhereDecls) <$> inner
   warnEmptyWhere = do
     setCurrentRange r $ warning EmptyWhere
@@ -3087,7 +3105,7 @@ instance ToAbstract RightHandSide where
                    toAbstract (RightHandSide [] es cs rhs NoWhere)
     return $ RewriteRHS' eqs rhs ds
   toAbstract (RightHandSide [] []    (_  , _:_) _          _)  = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] (_:_) _         (C.RHS _)   _)  = __IMPOSSIBLE__  -- see test/Fail/BothWithAndRHS: triggers MissingWithClauses first
+  toAbstract (RightHandSide [] (_:_) _         (C.RHS _)   _)  = typeError BothWithAndRHS -- issue #7760
   toAbstract (RightHandSide [] []    (_  , []) rhs         NoWhere) = toAbstract rhs
   toAbstract (RightHandSide [] (z:zs)(lv , c:cs) C.AbsurdRHS NoWhere) = do
     let (ns, es) = List1.unzipWith (\ (Named nm e) -> (NewName WithBound . C.mkBoundName_ <$> nm, e)) $ z :| zs
@@ -3653,7 +3671,7 @@ toAbstractOpApp op ns es = do
 
 checkAttributes :: Attributes -> ScopeM ()
 checkAttributes []                     = return ()
-checkAttributes ((attr, r, s) : attrs) =
+checkAttributes (Attr r s attr : attrs) =
   case attr of
     RelevanceAttribute{}    -> cont
     CA.TacticAttribute{}    -> cont

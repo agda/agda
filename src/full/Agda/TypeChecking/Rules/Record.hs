@@ -205,12 +205,6 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
         else pure haveEta0
       reportSDoc "tc.rec" 30 $ "record constructor is " <+> prettyTCM con
 
-      -- Jesper, 2021-05-26: Warn when declaring coinductive record
-      -- but neither --guardedness nor --sized-types is enabled.
-      when (conInduction == CoInductive) $ do
-        unlessM ((optGuardedness || optSizedTypes) <$> pragmaOptions) $
-          warning $ NoGuardednessFlag name
-
       -- Add the record definition.
 
       -- Andreas, 2016-06-17, Issue #2018:
@@ -274,7 +268,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
         NotInstanceDef -> pure ()
 
       -- Check that the fields fit inside the sort
-      _ <- fitsIn conName uc [] contype s
+      _ <- fitsIn IsRecord_ conName uc [] contype s
 
       -- Check that the sort admits record declarations.
       checkDataSort name s
@@ -523,7 +517,7 @@ defineKanOperationR cmd name params fsT fns rect = do
                          , namedClausePats = pats
                          , clauseBody      = Just $ rhs
                          , clauseType      = Just $ argN t
-                         , clauseCatchall    = False
+                         , clauseCatchall    = empty
                          , clauseRecursive   = Just False  -- definitely non-recursive!
                          , clauseUnreachable = Just False
                          , clauseEllipsis    = NoEllipsis
@@ -540,7 +534,7 @@ defineKanOperationR cmd name params fsT fns rect = do
                          , namedClausePats = pats
                          , clauseBody      = Just body
                          , clauseType      = Just $ argN (unDom clause_ty)
-                         , clauseCatchall    = False
+                         , clauseCatchall    = empty
                          , clauseRecursive   = Nothing
                              -- Andreas 2020-02-06 TODO
                              -- Or: Just False;  is it known to be non-recursive?
@@ -721,7 +715,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                             , namedClausePats = [conp]
                             , clauseBody      = body
                             , clauseType      = cltype
-                            , clauseCatchall  = False
+                            , clauseCatchall  = empty
                             , clauseRecursive   = Just False
                             , clauseUnreachable = Just False
                             , clauseEllipsis    = NoEllipsis

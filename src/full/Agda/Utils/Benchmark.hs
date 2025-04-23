@@ -144,6 +144,8 @@ class (Ord (BenchPhase m), Functor m, MonadIO m) => MonadBench m where
   -- | We need to be able to terminate benchmarking in case of an exception.
   finally :: m b -> m c -> m b
 
+  {-# MINIMAL getBenchmark , (putBenchmark | modifyBenchmark) , finally #-}
+
 getsBenchmark :: MonadBench m => (Benchmark (BenchPhase m) -> c) -> m c
 getsBenchmark f = f <$> getBenchmark
 

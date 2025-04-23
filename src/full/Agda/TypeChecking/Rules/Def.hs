@@ -165,7 +165,7 @@ checkAlias t ai i name e mc =
                         , clauseStrippedPats = []
                         , clauseRHS          = A.RHS e mc
                         , clauseWhereDecls   = A.noWhereDecls
-                        , clauseCatchall     = False } in
+                        , clauseCatchall     = empty } in
   atClause name 0 t Nothing clause $ do
   reportSDoc "tc.def.alias" 10 $ "checkAlias" <+> vcat
     [ text (prettyShow name) <+> colon  <+> prettyTCM t
@@ -201,7 +201,7 @@ checkAlias t ai i name e mc =
               , namedClausePats   = []
               , clauseBody        = Just $ bodyMod v
               , clauseType        = Just $ Arg ai t
-              , clauseCatchall    = False
+              , clauseCatchall    = empty
               , clauseRecursive   = Nothing   -- we don't know yet
               , clauseUnreachable = Just False
               , clauseEllipsis    = NoEllipsis
@@ -215,7 +215,7 @@ checkAlias t ai i name e mc =
   -- Andreas, 2017-01-01, issue #2372:
   -- Add the definition to the instance table, if needed, to update its type.
   case Info.defInstance i of
-    InstanceDef _r -> setCurrentRange name $ addTypedInstance name t
+    InstanceDef _r -> setCurrentRange name $ readdTypedInstance name t
       -- Put highlighting on the name only;
       -- @(getRange (r, name))@ does not give good results.
     NotInstanceDef -> pure ()
@@ -310,10 +310,6 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
         reportSDoc "tc.def.fun" 70 $ inTopContext $ do
           sep $ "checked clauses:" : map (nest 2 . text . show) cs
 
-        -- After checking, remove the clauses again.
-        -- (Otherwise, @checkInjectivity@ loops for issue 801).
-        modifyFunClauses name (const [])
-
         reportSDoc "tc.cc" 25 $ inTopContext $ do
           sep [ "clauses before injectivity test"
               , nest 2 $ prettyTCM $ map (QNamed name) cs  -- broken, reify (QNamed n cl) expect cl to live at top level
@@ -340,7 +336,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
                        , namedClausePats = teleNamedArgs tel
                        , clauseBody      = Nothing
                        , clauseType      = Just (defaultArg t)
-                       , clauseCatchall    = False
+                       , clauseCatchall    = empty
                        , clauseRecursive   = Just False
                        , clauseUnreachable = Just False
                        , clauseEllipsis    = NoEllipsis
@@ -348,16 +344,24 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
                        }
                  return (cs ++ [c], pure sys)
 
+        -- The macro or inline tags might be on the type signature
+        info <- getConstInfo name
+        let
+          ismacro  = isMacro (theDef info)
+          isinline = isInlineFun (theDef info)
+
         -- Annotate the clauses with which arguments are actually used.
         cs <- instantiateFull {- =<< mapM rebindClause -} cs
+
         -- Andreas, 2010-11-12
         -- rebindClause is the identity, and instantiateFull eta-contracts
         -- removing this eta-contraction fixes issue 361
         -- however, Data.Star.Decoration.gmapAll no longer type-checks
         -- possibly due to missing eta-contraction!?
 
-        -- Inline copattern record constructors on demand.
-        cs <- concat <$> do
+        -- Inline copattern record constructors on demand, unless the
+        -- function is marked inline.
+        cs <- if isinline then pure cs else concat <$> do
           forM cs $ \ cl -> do
             (cls, nonExactSplit) <- runChangeT $ recordRHSToCopatterns cl
             when nonExactSplit do
@@ -365,6 +369,15 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
               -- issue a warning that the clause does not hold as definitional equality.
               warning $ InlineNoExactSplit name cl
             return cls
+
+        -- After checking, remove the clauses again.
+        -- (Otherwise, @checkInjectivity@ loops for issue 801).
+        --
+        -- Amy, 2025-04-03: We can't remove the clauses before doing
+        -- record→copattern translation, since we might need the
+        -- previous clauses to come up with the types of the projected
+        -- fields; see 'test/Succeed/IApplyRecConstrInline'.
+        modifyFunClauses name (const [])
 
         -- Check if the function is injective.
         -- Andreas, 2015-07-01 we do it here in order to resolve metas
@@ -415,9 +428,6 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
               , nest 2 $ pretty cc
               ]
 
-        -- The macro tag might be on the type signature
-        ismacro <- isMacro . theDef <$> getConstInfo name
-
         covering <- funCovering . theDef <$> getConstInfo name
 
         -- Add the definition
@@ -430,8 +440,11 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
 
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
+          --
+          -- Amy, 2025-04-03: If the function was marked INLINE before
+          -- the clauses were checked the result should also be INLINE.
           fun  <- emptyFunctionData
-          defn <- autoInline $ FunctionDefn $
+          defn <- autoInline $ set funInline isinline $ FunctionDefn $
            set funMacro_ (ismacro || Info.defMacro i == MacroDef) $
            set funAbstr_ (Info.defAbstract i) $
            fun
@@ -777,7 +790,7 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
 
         -- absurd clauses don't define computational behaviour, so it's fine to
         -- treat them as catchalls.
-        let catchall' = catchall || isNothing body
+        let catchall' = if isNothing body then YesCatchall empty else catchall
 
         return $ (, CPC psplit)
           Clause { clauseLHSRange  = getRange i
@@ -943,7 +956,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
           -- Andreas, 2014-03-05 kill range of copied patterns
           -- since they really do not have a source location.
           cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
-                 strippedPats rhs'' outerWhere False
+                 strippedPats rhs'' outerWhere empty
 
       reportSDoc "tc.invert" 60 $ vcat
         [ text "invert"
@@ -1023,7 +1036,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
           -- Andreas, 2014-03-05 kill range of copied patterns
           -- since they really do not have a source location.
           cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
-                 strippedPats rhs'' outerWhere False
+                 strippedPats rhs'' outerWhere empty
 
       reportSDoc "tc.rewrite" 60 $ vcat
         [ text "rewrite"
@@ -1112,8 +1125,10 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
 
         reportSDoc "tc.with.top" 20 $ vcat $
           let (vs, as) = List1.unzipWith unArg vtys in
-          [ "    with arguments" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyList (fmap prettyTCM vs)
-          , "             types" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyList (fmap prettyTCM as)
+          -- Andreas, 2025-04-07, escapeContext impossible Δ leads to crash if e.g. vs has metas defined in Δ.
+          -- Thus, we use unsafeEscapeContext instead.
+          [ "    with arguments" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyList (fmap prettyTCM vs)
+          , "             types" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyList (fmap prettyTCM as)
           , "           context" <+> (prettyTCM =<< getContextTelescope)
           , "             delta" <+> do escapeContext impossible (size delta) $ prettyTCM delta
           , "            delta1" <+> do escapeContext impossible (size delta) $ prettyTCM delta1
@@ -1163,7 +1178,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   delta1 <- modifyAllowedReductions (const reds) $ normalise delta1
 
   -- Generate the type of the with function
-  (withFunType, n) <- do
+  (withFunType, (nwithargs, nwithpats)) <- do
     let ps = renaming impossible (reverseP perm') `applySubst` qs
     reportSDoc "tc.with.bndry" 40 $ addContext delta1 $ addContext delta2
                                   $ text "ps =" <+> pretty ps
@@ -1180,7 +1195,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   reportSDoc "tc.with.type" 50 $ sep [ "with-function type:", nest 2 $ pretty withFunType ]
 
   call_in_parent <- do
-    (TelV tel _,bs) <- telViewUpToPathBoundaryP (n + size delta) withFunType
+    (TelV tel _,bs) <- telViewUpToPathBoundaryP (nwithargs + size delta) withFunType
     return $ argsS `applySubst` Def aux (teleElims tel bs)
 
   reportSDoc "tc.with.top" 20 $ addContext delta $ "with function call" <+> prettyTCM call_in_parent
@@ -1196,7 +1211,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
     noConstraints $ checkType withFunType
 
   -- With display forms are closed
-  df <- inTopContext $ makeOpen =<< withDisplayForm f aux delta1 delta2 n qs perm' perm
+  df <- inTopContext $ makeOpen =<< withDisplayForm f aux delta1 delta2 nwithargs qs perm' perm
 
   reportSLn "tc.with.top" 20 "created with display form"
 
@@ -1227,7 +1242,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
 
   -- Construct the body for the with function
   cs <- return $ fmap (A.lhsToSpine) cs
-  cs <- buildWithFunction cxtNames f aux t delta qs npars withSub finalPerm (size delta1) n cs
+  cs <- buildWithFunction cxtNames f aux t delta qs npars withSub finalPerm (size delta1) nwithpats cs
   cs <- return $ fmap (A.spineToLhs) cs
 
   -- #4833: inherit abstract mode from parent
@@ -1252,7 +1267,7 @@ checkWhere wh@(A.WhereDecls whmod whNamed ds) ret = do
       Nothing -> ret
       -- [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds  -- IMPOSSIBLE
       Just (A.Section _ e m tel ds) -> newSection e m tel $ do
-          localTC (\ e -> e { envCheckingWhere = True }) $ do
+          localTC (\ e -> e { envCheckingWhere = if whNamed then C.SomeWhere_ else C.AnyWhere_ }) $ do
             checkDecls ds
             ret
       _ -> __IMPOSSIBLE__

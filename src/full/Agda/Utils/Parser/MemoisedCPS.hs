@@ -218,10 +218,10 @@ instance ParserClass (Parser k r tok) k r tok where
 -- | An extended parser type, with some support for printing parsers.
 
 data ParserWithGrammar k r tok a =
-  PG (Bool -> Either (Parser k r tok a) (Docs k))
-  -- ^ Invariant: If the boolean is 'True', then the result must be
-  -- @'Left' something@, and if the boolean is 'False', then the
-  -- result must be @'Right' something@.
+  -- | This must be a lazy tuple so that we don't generate the docs eagerly.
+  PG { parser :: Parser k r tok a
+     , docs   :: Docs k
+     }
 
 -- | Documents paired with precedence levels.
 
@@ -260,20 +260,10 @@ atomP = 50
 
 type Docs k = State (HashMap k (Maybe DocP)) DocP
 
--- | A smart constructor.
+-- | The constructor.
 
 pg :: Parser k r tok a -> Docs k -> ParserWithGrammar k r tok a
-pg p d = PG $ \b -> if b then Left p else Right d
-
--- | Extracts the parser.
-
-parser :: ParserWithGrammar k r tok a -> Parser k r tok a
-parser (PG p) = either id __IMPOSSIBLE__ (p True)
-
--- | Extracts the documents.
-
-docs :: ParserWithGrammar k r tok a -> Docs k
-docs (PG p) = either __IMPOSSIBLE__ id (p False)
+pg = PG
 
 instance Monad (ParserWithGrammar k r tok) where
   return  = pure

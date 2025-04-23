@@ -74,7 +74,7 @@ getCompiledClauses q = do
   reportSDoc "treeless.convert" 70 $
     caseMaybe mst "-- not using split tree" $ \st ->
       "-- using split tree" $$ pretty st
-  CC.compileClauses' translate cs mst
+  CC.compileClauses' q translate cs mst
 
 -- ** Types of pipelines; different backends might use their own custom pipeline.
 type BuildPipeline = Int -> QName -> Pipeline
@@ -98,7 +98,7 @@ data CCSubst   = EraseUnused | IgnoreUnused deriving Eq
 data CCEnv = CCEnv
   { ccCxt         :: CCContext
     -- ^ Maps case tree de-bruijn indices to TTerm de-bruijn indices.
-  , ccCatchAll    :: Maybe Int
+  , ccCatchall    :: Maybe Int
     -- ^ TTerm de-bruijn index of the current catch all.
     -- If an inner case has no catch-all clause, we use the one from its parent.
   , ccEvaluation  :: EvaluationStrategy
@@ -113,7 +113,7 @@ type CCConfig  = (EvaluationStrategy, CCSubst)
 initCCEnv :: CCConfig -> CCEnv
 initCCEnv (eval, su) = CCEnv
   { ccCxt         = []
-  , ccCatchAll    = Nothing
+  , ccCatchall    = Nothing
   , ccEvaluation  = eval
   , ccSubstUnused = su
   }
@@ -271,14 +271,14 @@ casetree cc = do
     CC.Case _ (CC.Branches True _ _ _ Just{} _ _) -> __IMPOSSIBLE__
     CC.Case (Arg _ n) (CC.Branches True conBrs _ _ Nothing _ _) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
-    CC.Case (Arg i n) (CC.Branches False conBrs etaBr litBrs catchAll _ lazy) -> lambdasUpTo (n + 1) $ do
+    CC.Case (Arg i n) (CC.Branches False conBrs etaBr litBrs catchall _ lazy) -> lambdasUpTo (n + 1) $ do
       -- re #3733 TODO: revise when compiling --cubical
       conBrs <- fmap Map.fromList $ filterM (isConstructor . fst) (Map.toList conBrs)
                     -- We can treat eta-matches as regular matches here.
       let conBrs' = caseMaybe etaBr conBrs $ \ (c, br) -> Map.insertWith (\ new old -> old) (conName c) br conBrs
       if Map.null conBrs' && Map.null litBrs then do
         -- there are no branches, just return default
-        updateCatchAll catchAll fromCatchAll
+        updateCatchall catchall fromCatchall
       else do
         -- Get the type of the scrutinee.
         caseTy <-
@@ -296,9 +296,9 @@ casetree cc = do
             ([], LitQName  _ : _) -> return C.CTQName
             _ -> __IMPOSSIBLE__
 
-        updateCatchAll catchAll $ do
+        updateCatchall catchall $ do
           x <- asks (lookupLevel n . ccCxt)
-          def <- fromCatchAll
+          def <- fromCatchall
           let caseInfo = C.CaseInfo
                 { caseType   = caseTy
                 , caseLazy   = lazy
@@ -312,8 +312,8 @@ casetree cc = do
   where
     -- normally, Agda should make sure that a pattern match is total,
     -- so we set the default to unreachable if no default has been provided.
-    fromCatchAll :: CC C.TTerm
-    fromCatchAll = asks (maybe C.tUnreachable C.TVar . ccCatchAll)
+    fromCatchall :: CC C.TTerm
+    fromCatchall = asks (maybe C.tUnreachable C.TVar . ccCatchall)
 
 commonArity :: CC.CompiledClauses -> Int
 commonArity cc =
@@ -334,21 +334,21 @@ commonArity cc =
 
     wArities cxt (WithArity k c) = map (\ x -> x - k + 1) $ arities (cxt - 1 + k) c
 
-updateCatchAll :: Maybe CC.CompiledClauses -> (CC C.TTerm -> CC C.TTerm)
-updateCatchAll Nothing cont = cont
-updateCatchAll (Just cc) cont = do
+updateCatchall :: Maybe CC.CompiledClauses -> (CC C.TTerm -> CC C.TTerm)
+updateCatchall Nothing cont = cont
+updateCatchall (Just cc) cont = do
   def <- casetree cc
   cxt <- asks ccCxt
   reportS "treeless.convert.lambdas" 40 $
-    [ "-- updateCatchAll:"
+    [ "-- updateCatchall:"
     , "--   cxt =" <+> prettyPure cxt
     , "--   def =" <+> prettyPure def
     ]
-  local (\ e -> e { ccCatchAll = Just 0, ccCxt = shift 1 cxt }) $ do
+  local (\ e -> e { ccCatchall = Just 0, ccCxt = shift 1 cxt }) $ do
     C.mkLet def <$> cont
 
 -- | Shrinks or grows the context to the given size.
--- Does not update the catchAll expression, the catchAll expression
+-- Does not update the catchall expression, the catchall expression
 -- MUST NOT be used inside `cont`.
 withContextSize :: Int -> CC C.TTerm -> CC C.TTerm
 withContextSize n cont = do
@@ -415,8 +415,8 @@ withContextSize n cont = do
       cont <&> (`C.mkTApp` map C.TVar (downFrom diff'))
 
 -- | Prepend the given positive number of lambdas.
--- Does not update the catchAll expression,
--- the catchAll expression must be updated separately (or not be used).
+-- Does not update the catchall expression,
+-- the catchall expression must be updated separately (or not be used).
 createLambdas :: Int -> CC C.TTerm -> CC C.TTerm
 createLambdas diff cont = do
   unless (diff >= 1) __IMPOSSIBLE__
@@ -431,7 +431,7 @@ createLambdas diff cont = do
     cont <&> \ t -> List.iterate C.TLam t !! diff
 
 -- | Adds lambdas until the context has at least the given size.
--- Updates the catchAll expression to take the additional lambdas into account.
+-- Updates the catchall expression to take the additional lambdas into account.
 lambdasUpTo :: Int -> CC C.TTerm -> CC C.TTerm
 lambdasUpTo n cont = do
   diff <- asks (((n -) . length) . ccCxt)
@@ -439,22 +439,22 @@ lambdasUpTo n cont = do
   if diff <= 0 then cont -- no new lambdas needed
   else do
     createLambdas diff $ do
-      asks ccCatchAll >>= \case
-        Just catchAll -> do
+      asks ccCatchall >>= \case
+        Just catchall -> do
           cxt <- asks ccCxt
           reportS "treeless.convert.lambdas" 40 $
             [ "lambdasUpTo: n =" <+> (text . show) n
             , "  diff         =" <+> (text . show) n
-            , "  catchAll     =" <+> prettyPure catchAll
+            , "  catchall     =" <+> prettyPure catchall
             , "  ccCxt        =" <+> prettyPure cxt
             ]
           -- the catch all doesn't know about the additional lambdas, so just directly
           -- apply it again to the newly introduced lambda arguments.
           -- we also bind the catch all to a let, to avoid code duplication
-          local (\e -> e { ccCatchAll = Just 0
+          local (\e -> e { ccCatchall = Just 0
                          , ccCxt = shift 1 cxt }) $ do
-            let catchAllArgs = map C.TVar $ downFrom diff
-            C.mkLet (C.mkTApp (C.TVar $ catchAll + diff) catchAllArgs)
+            let catchallArgs = map C.TVar $ downFrom diff
+            C.mkLet (C.mkTApp (C.TVar $ catchall + diff) catchallArgs)
               <$> cont
         Nothing -> cont
 
@@ -484,7 +484,7 @@ replaceVar x n cont = do
          (ys, _:zs) = splitAt i cxt
          -- compute the de-bruijn indexes of the newly inserted variables
          ixs = [0..(n - 1)]
-  local (\e -> e { ccCxt = upd (ccCxt e) , ccCatchAll = (+ n) <$> ccCatchAll e }) $
+  local (\e -> e { ccCxt = upd (ccCxt e) , ccCatchall = (+ n) <$> ccCatchall e }) $
     cont
 
 

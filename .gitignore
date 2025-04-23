@@ -1,5 +1,6 @@
 # Keep this file in alphabetic order please!
-# Sort with the command `sort -uf`
+# Sort with the command `sort -ufo .gitignore .gitignore`
+# which is short for `sort --unique --ignore-case --output=.gitignore .gitignore`.
 *.agdai
 *.aux
 *.dump-hi
@@ -13,12 +14,14 @@
 *.o
 *.project.local
 *.ptb
+*.tix
 *.tmp
 *.tmp.*
 *~
 .*.sw[a-p]
 .*.vim
 .cabal-sandbox/
+.direnv
 .DS_Store
 .ghc.environment.*
 .stack-work-*/
@@ -30,6 +33,8 @@
 /benchmark/Create/import-*
 /benchmark/Create/import0-*
 /benchmark/logs
+/doc/**/MAlonzo
+/doc/user-manual.pdf
 /examples/**/MAlonzo
 /examples/compiler/main
 /hie.yaml
@@ -41,9 +46,10 @@
 /src/full/Agda/Syntax/Parser/Parser.info
 /src/full/TAGS
 /test/**/MAlonzo
+/test/api/*.api
 /test/Compiler/simple/agda-rts.js
-/test/Compiler/simple/highlight-hover.js
 /test/Compiler/simple/Erasure-Issue2640
+/test/Compiler/simple/highlight-hover.js
 /test/Compiler/simple/Issue4168
 /test/Compiler/simple/Issue4168-4185
 /test/Compiler/simple/Issue4168-shirr
@@ -54,8 +60,8 @@
 /test/Compiler/simple/VecReverseErased
 /test/Compiler/simple/VecReverseHand
 /test/Compiler/simple/Word
-/test/Compiler/with-stdlib/AllStdLib
 /test/Compiler/with-stdlib/agda-rts.js
+/test/Compiler/with-stdlib/AllStdLib
 /test/Compiler/with-stdlib/highlight-hover.js
 /test/interaction/Issue6261?.out
 /test/Succeed/agda-rts.js
@@ -63,9 +69,6 @@
 /test/Succeed/Issue867
 /test/Succeed/Options-in-right-order
 /test/Succeed/WErrorOverride
-/test/Succeed/exec-tc/executables
-agda-ffi/dist
-agda-stdlib
 autom4te.cache
 cabal.sandbox.config
 config.log
@@ -73,16 +76,14 @@ config.status
 configure
 dist-*/
 dist/
-doc/user-manual.pdf
-exec-test*
 hlint-report.html
 jAgda.*.js
 module-dependency-graph.dot
 module-dependency-graph.pdf
 pkg-build*
-stack.yaml
+result
 stack*.yaml.lock
+stack.yaml
+TAGS
 trash.txt
 \#*\#
-.direnv
-result

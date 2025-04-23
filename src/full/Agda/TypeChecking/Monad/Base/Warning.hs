@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.Monad.Base.Warning where
 
+import           Control.DeepSeq            (NFData)
 import           GHC.Generics               (Generic)
 
 import           Agda.Syntax.Abstract.Name
@@ -17,3 +18,12 @@ data RecordFieldWarning
       -- ^ Record type, fields not supplied by user, non-fields but supplied.
       --   The redundant fields come with a range of associated dead code.
   deriving (Show, Generic)
+
+data UselessPublicReason
+  = UselessPublicPreamble
+  | UselessPublicLet
+  | UselessPublicNoOpen
+  | UselessPublicAnonymousModule
+  deriving (Show, Generic, Enum, Bounded)
+
+instance NFData UselessPublicReason

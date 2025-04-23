@@ -873,6 +873,8 @@ instance PrettyTCM TypeError where
       , prettyTCM q
       ] ++ pwords "is abstract, thus, not in scope here"
 
+    BothWithAndRHS -> fsep $ pwords "Unexpected right hand side"
+
     CopatternHeadNotProjection x -> fsep $ concat
       [ pwords "Head of copattern needs to be a projection, but"
       , [ prettyTCM x ]

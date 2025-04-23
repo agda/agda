@@ -63,6 +63,7 @@ typeErrorName = \case
   AttributeKindNotEnabled                                    {} -> AttributeKindNotEnabled_
   BackendDoesNotSupportOnlyScopeChecking                     {} -> BackendDoesNotSupportOnlyScopeChecking_
   BadArgumentsToPatternSynonym                               {} -> BadArgumentsToPatternSynonym_
+  BothWithAndRHS                                             {} -> BothWithAndRHS_
   BuiltinInParameterisedModule                               {} -> BuiltinInParameterisedModule_
   BuiltinMustBeConstructor                                   {} -> BuiltinMustBeConstructor_
   BuiltinMustBeData                                          {} -> BuiltinMustBeData_

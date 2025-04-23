@@ -1,6 +1,6 @@
 Issue4461.agda:4.3-4: error: [ConstructorDoesNotFitInData]
 Constructor m
-of sort univSort _4
+of inferred sort univSort _4
 does not fit into data type of sort Set.
 (Reason: Agda.Primitive.lzero != Agda.Primitive.lsuc _7)
 when checking that the type _4 of an argument to the constructor m

@@ -1,4 +1,5 @@
 # All makefiles must define TOP, corresponding to the Agda root directory.
+# This is so that they can be imported from a Makefile in a subdirectory.
 ifeq ($(TOP),)
   $(error "Makefiles must define the TOP variable to correspond with the Agda source root")
 endif

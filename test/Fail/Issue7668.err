@@ -1,0 +1,6 @@
+Issue7668.agda:32.1-35.51: error: [NotStrictlyPositive]
+Bad is not strictly positive, because it occurs
+in the second argument of I._≡_
+to the left of an arrow
+in the type of the constructor seg
+in the definition of Bad.

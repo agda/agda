@@ -1,3 +1,4 @@
+;; -*- lexical-binding: t -*-
 ;;; annotation.el --- Functions for annotating text with faces and help bubbles
 
 ;; Version: 1.0
@@ -35,7 +36,6 @@ display the target position."
   (let (source-pos
         source-window
         source-buffer
-        source-file-name
         target)
     (cond ((eventp link)
            (let ((pn (event-end link)))
@@ -169,25 +169,25 @@ with)."
             (props nil))
         (when faces
           (annotation-merge-faces start end faces)
-          (add-to-list 'props 'face)
-          (add-to-list 'props 'annotation-faces))
+          (cl-pushnew 'face props)
+          (cl-pushnew 'annotation-faces props))
         (when token-based
           (add-text-properties start end
                                `(annotation-token-based t))
-          (add-to-list 'props 'annotation-token-based))
+          (cl-pushnew 'annotation-token-based props))
         (when (consp goto)
           (add-text-properties start end
                                `(annotation-goto ,goto
                                  mouse-face highlight))
-          (add-to-list 'props 'annotation-goto)
-          (add-to-list 'props 'mouse-face))
+          (cl-pushnew 'annotation-goto props)
+          (cl-pushnew 'mouse-face props))
         (when info
           (add-text-properties start end
                                `(mouse-face highlight help-echo ,info))
-          (add-to-list 'props 'mouse-face)
-          (add-to-list 'props 'help-echo))
+          (cl-pushnew 'mouse-face props)
+          (cl-pushnew 'help-echo props))
         (when props
-          (add-to-list 'props 'annotation-annotated)
+          (cl-pushnew 'annotation-annotated props)
           (let ((pos start)
                 mid)
             (while (< pos end)

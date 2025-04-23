@@ -1,3 +1,4 @@
+open import Agda.Builtin.Equality
 open import Agda.Builtin.Nat
 
 data Vec (A : Set) : Nat → Set where
@@ -18,3 +19,15 @@ foo : ∀ {A} m n (xs : Vec A m) (ys : Vec A n) → T (xs ++ ys)
 foo m n xs ys with {m + n} | xs ++ ys
 ... | []     = 0
 ... | z ∷ zs = []
+
+-- Andreas, 2025-04-08, issue #7788
+-- Needs also to work with nested with.
+
+postulate
+  com : ∀ n m → n + m ≡ m + n
+
+thm : ∀ a b c → a + (b + c) ≡ (c + b) + a
+thm a b c with {b + c} | com b c
+... | refl with c + b
+... | cb with com a cb
+... | p rewrite p = refl

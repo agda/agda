@@ -234,9 +234,9 @@ instance Pretty a => Pretty (Binder' a) where
   pretty (Binder mpat UserBinderName n) =
     applyWhenJust mpat (\ pat -> (<+> ("@" <+> parens (pretty pat)))) $ pretty n
 
-  pretty (Binder pat InsertedBinderName _) = case pat of
+  pretty (Binder pat InsertedBinderName n) = case pat of
     Just pat -> parens (pretty pat)
-    Nothing  -> __IMPOSSIBLE__
+    Nothing  -> pretty n
 
 instance Pretty NamedBinding where
   pretty (NamedBinding withH

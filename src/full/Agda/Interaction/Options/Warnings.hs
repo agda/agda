@@ -248,8 +248,8 @@ data WarningName
   | MissingDataDeclaration_
   | MissingDefinitions_
   | NotAllowedInMutual_
-  | OpenPublicAbstract_
-  | OpenPublicPrivate_
+  | OpenImportAbstract_
+  | OpenImportPrivate_
   | PolarityPragmasButNotPostulates_
   | PragmaCompiled_
   | PragmaNoTerminationCheck_
@@ -285,7 +285,6 @@ data WarningName
   | InteractionMetaBoundaries_
   | InversionDepthReached_
   | ModuleDoesntExport_
-  | NoGuardednessFlag_
   | NotInScope_
   | NotStrictlyPositive_
   | ConstructorDoesNotFitInData_
@@ -347,6 +346,7 @@ data WarningName
   | UselessInline_
   | UselessPatternDeclarationForRecord_
   | UselessPublic_
+  | UselessTactic_
   | UserWarning_
   | InvalidDisplayForm_
   | UnusedVariablesInDisplayForm_
@@ -478,8 +478,8 @@ warningNameDescription = \case
   MissingDataDeclaration_          -> "Constructor definitions not associated to a data declaration."
   MissingDefinitions_              -> "Declarations not associated to a definition."
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
-  OpenPublicAbstract_              -> "'open public' directives in 'abstract' blocks."
-  OpenPublicPrivate_               -> "'open public' directives in 'private' blocks."
+  OpenImportAbstract_              -> "`open' or `import' statements in 'abstract' blocks."
+  OpenImportPrivate_               -> "`open' or `import' statements in 'private' blocks."
   PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
   PragmaCompiled_                  -> "'COMPILE' pragmas in safe mode."
   PragmaNoTerminationCheck_        -> "`NO_TERMINATION_CHECK' pragmas; such are deprecated."
@@ -495,6 +495,7 @@ warningNameDescription = \case
   UselessPrivate_                  -> "`private' blocks where they have no effect."
   UselessPublic_                   -> "`public' directives that have no effect."
   UselessPatternDeclarationForRecord_ -> "`pattern' attributes where they have no effect."
+  UselessTactic_                   -> "`@tactic` attributes where they have no effect."
   -- Scope and Type Checking Warnings
   AbsurdPatternRequiresAbsentRHS_  -> "Clauses with an absurd pattern that have a right hand side."
   AsPatternShadowsConstructorOrPatternSynonym_ -> "@-patterns that shadow constructors or pattern synonyms."
@@ -515,7 +516,6 @@ warningNameDescription = \case
   InstanceArgWithExplicitArg_      -> "Instance arguments with explicit arguments; those are never considered by instance search."
   InstanceWithExplicitArg_         -> "`instance` declarations with explicit arguments; those are never considered by instance search."
   InversionDepthReached_           -> "Inversions of pattern-matching failures due to exhausted inversion depth."
-  NoGuardednessFlag_               -> "Coinductive records without --guardedness flag."
   ModuleDoesntExport_              -> "Imported names that are not actually exported."
   DuplicateUsing_                  -> "Repeated names in using directive."
   FixityInRenamingModule_          -> "Fixity annotations in `renaming' directive for `module'."

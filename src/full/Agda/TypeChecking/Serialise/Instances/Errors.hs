@@ -9,7 +9,8 @@ import Agda.TypeChecking.Serialise.Instances.Common   ( SerialisedRange(..) )
 import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
 import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 
-import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..), DeclarationWarning'(..))
+import Agda.Syntax.Concrete.Definitions.Errors
+    ( DeclarationWarning(..), DeclarationWarning'(..), OpenOrImport(..) )
 import Agda.Syntax.Parser.Monad
 import Agda.TypeChecking.Monad.Base
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
@@ -50,7 +51,7 @@ instance EmbPrj Warning where
     InteractionMetaBoundaries a           -> __IMPOSSIBLE__
     OldBuiltin a b                        -> icodeN 1 OldBuiltin a b
     EmptyRewritePragma                    -> icodeN 2 EmptyRewritePragma
-    UselessPublic                         -> icodeN 3 UselessPublic
+    UselessPublic a                       -> icodeN 3 UselessPublic a
     UselessInline a                       -> icodeN 4 UselessInline a
     InvalidCharacterLiteral a             -> __IMPOSSIBLE__
     SafeFlagPostulate a                   -> __IMPOSSIBLE__
@@ -90,7 +91,7 @@ instance EmbPrj Warning where
     RewriteAmbiguousRules a b c           -> icodeN 36 RewriteAmbiguousRules a b c
     RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
     ParseWarning a                        -> icodeN 38 ParseWarning a
-    NoGuardednessFlag a                   -> icodeN 39 NoGuardednessFlag a
+    UselessTactic                         -> icodeN 39 UselessTactic
     UnsupportedIndexedMatch f             -> icodeN 40 UnsupportedIndexedMatch f
     OptionWarning a                       -> icodeN 41 OptionWarning a
     PlentyInHardCompileTimeMode a         -> icodeN 42 PlentyInHardCompileTimeMode a
@@ -140,7 +141,7 @@ instance EmbPrj Warning where
     [0, a, b]            -> valuN UnreachableClauses a b
     [1, a, b]            -> valuN OldBuiltin a b
     [2]                  -> valuN EmptyRewritePragma
-    [3]                  -> valuN UselessPublic
+    [3, a]               -> valuN UselessPublic a
     [4, a]               -> valuN UselessInline a
     [5, a]               -> valuN DuplicateRecordDirective a
     [6, a, b, c]         -> valuN DeprecationWarning a b c
@@ -176,7 +177,7 @@ instance EmbPrj Warning where
     [36, a, b, c]        -> valuN RewriteAmbiguousRules a b c
     [37, a, b, c]        -> valuN RewriteMissingRule a b c
     [38, a]              -> valuN ParseWarning a
-    [39, a]              -> valuN NoGuardednessFlag a
+    [39]                 -> valuN UselessTactic
     [40, a]              -> valuN UnsupportedIndexedMatch a
     [41, a]              -> valuN OptionWarning a
     [42, a]              -> valuN PlentyInHardCompileTimeMode a
@@ -210,6 +211,8 @@ instance EmbPrj Warning where
     [69, a, b, c]        -> valuN FixingRelevance a b c
     [70, a]              -> valuN UnusedVariablesInDisplayForm a
     _ -> malformed
+
+instance EmbPrj UselessPublicReason
 
 instance EmbPrj IllegalRewriteRuleReason where
   icod_ = \case
@@ -325,8 +328,8 @@ instance EmbPrj DeclarationWarning' where
     EmptyField r                      -> icodeN 23 EmptyField r
     ShadowingInTelescope nrs          -> icodeN 24 ShadowingInTelescope nrs
     InvalidCoverageCheckPragma r      -> icodeN 25 InvalidCoverageCheckPragma r
-    OpenPublicAbstract r              -> icodeN 26 OpenPublicAbstract r
-    OpenPublicPrivate r               -> icodeN 27 OpenPublicPrivate r
+    OpenImportAbstract r kwr a        -> icodeN 26 OpenImportAbstract r kwr a
+    OpenImportPrivate r kwr kwr' a    -> icodeN 27 OpenImportPrivate r kwr kwr' a
     EmptyConstructor a                -> icodeN 28 EmptyConstructor a
     -- 29 removed
     -- 30 removed
@@ -371,8 +374,8 @@ instance EmbPrj DeclarationWarning' where
     [23,r]   -> valuN EmptyField r
     [24,nrs] -> valuN ShadowingInTelescope nrs
     [25,r]   -> valuN InvalidCoverageCheckPragma r
-    [26,r]   -> valuN OpenPublicAbstract r
-    [27,r]   -> valuN OpenPublicPrivate r
+    [26,r,kwr,a] -> valuN OpenImportAbstract r kwr a
+    [27,r,kwr,kwr',a] -> valuN OpenImportPrivate r kwr kwr' a
     [28,r]   -> valuN EmptyConstructor r
     -- 29 removed
     -- 30 removed
@@ -382,6 +385,8 @@ instance EmbPrj DeclarationWarning' where
     [34,r]   -> valuN UselessMacro r
     [35,r]   -> valuN EmptyPolarityPragma r
     _ -> malformed
+
+instance EmbPrj OpenOrImport
 
 instance EmbPrj LibWarning where
   icod_ = \case

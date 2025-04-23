@@ -74,7 +74,7 @@ data QNamed a = QNamed
 -- The 'SetRange' instance for module names sets all individual ranges
 -- to the given one.
 newtype ModuleName = MName { mnameToList :: [Name] }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, NFData, Null)
 
 -- | Ambiguous qualified names. Used for overloaded constructors.
 --
@@ -488,6 +488,3 @@ instance NFData Name where
 
 instance NFData QName where
   rnf (QName a b) = rnf a `seq` rnf b
-
-instance NFData ModuleName where
-  rnf (MName a) = rnf a

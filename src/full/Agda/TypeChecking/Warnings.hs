@@ -13,7 +13,7 @@ module Agda.TypeChecking.Warnings
   , classifyWarnings
   ) where
 
-import Control.Monad ( forM, unless )
+import Control.Monad ( forM, unless, when )
 import Control.Monad.Except ( MonadError(..) )
 import Control.Monad.Reader ( ReaderT )
 import Control.Monad.State  ( StateT )
@@ -61,12 +61,15 @@ import Agda.Utils.Impossible
 
 class (MonadPretty m, MonadError TCErr m) => MonadWarning m where
   -- | Store a warning and generate highlighting from it.
-  addWarning :: TCWarning -> m ()
+  addWarning ::
+       Bool       -- ^ Is the warning enabled?
+    -> TCWarning  -- ^ The warning.
+    -> m ()
 
   default addWarning
     :: (MonadWarning n, MonadTrans t, t n ~ m)
-    => TCWarning -> m ()
-  addWarning = lift . addWarning
+    => Bool -> TCWarning -> m ()
+  addWarning enabled = lift . addWarning enabled
 
 instance MonadWarning m => MonadWarning (MaybeT m)
 instance MonadWarning m => MonadWarning (ReaderT r m)
@@ -74,9 +77,10 @@ instance MonadWarning m => MonadWarning (StateT s m)
 instance (MonadWarning m, Monoid w) => MonadWarning (WriterT w m)
 
 instance MonadWarning TCM where
-  addWarning tcwarn = do
+  addWarning enabled tcwarn = do
     stTCWarnings `modifyTCLens` Set.insert tcwarn
-    highlightWarning tcwarn
+    -- Andreas, 2025-04-01, issue #6994, no highlighting for disabled warnings
+    when enabled $ highlightWarning tcwarn
 
 -- * Raising warnings
 ---------------------------------------------------------------------------
@@ -126,16 +130,19 @@ warning_ = withCallerCallStack . flip warning'_
 warnings' :: MonadWarning m => CallStack -> List1 Warning -> m ()
 warnings' loc ws = do
 
-  wmode <- optWarningMode <$> pragmaOptions
+  WarningMode enabledWarnings wError <- optWarningMode <$> pragmaOptions
 
-  -- We collect *all* of the warnings no matter whether they are in the @warningSet@
-  -- or not. If we find one which should be turned into an error, we keep processing
+  -- We collect *all* of the warnings no matter whether they are enabled or not.
+  -- If we find an enabled warning which should be turned into an error, we keep processing
   -- the rest of the warnings and *then* report all of the errors at once.
   merrs <- forM ws $ \ w' -> do
+    let wn = warningName w'
+    let enabled = wn `elem` enabledWarnings
     tcwarn <- warning'_ loc w'
-    if wmode ^. warn2Error && warningName w' `elem` wmode ^. warningSet
+    if wError && enabled
     then pure (Just tcwarn)
-    else Nothing <$ addWarning tcwarn
+    else Nothing <$ addWarning (enabled  || wn `elem` exactSplitWarnings) tcwarn
+      -- Andreas, 2025-04-01, issue #6994: always highlight non-exact splits
 
   List1.unlessNull (List1.catMaybes merrs) \ errs ->
     typeError' loc $ NonFatalErrors $ Set1.fromList errs

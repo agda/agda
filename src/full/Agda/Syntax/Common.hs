@@ -164,6 +164,11 @@ instance IsBool DisplayLHS where
     YesDisplayLHS -> True
     NoDisplayLHS -> False
 
+-- | Expression kinds: Expressions or patterns.
+
+data ExprKind = IsExpr | IsPattern
+  deriving (Eq, Show)
+
 ---------------------------------------------------------------------------
 -- * Record Directives
 ---------------------------------------------------------------------------
@@ -1085,9 +1090,12 @@ unitQuantity = Quantityω mempty
 topQuantity :: Quantity
 topQuantity = Quantityω mempty
 
+-- | 'null' means no information, not even origin or range.
 instance Null Quantity where
   empty = defaultQuantity
-  null = hasQuantityω
+  null = \case
+    Quantityω o -> null o
+    _ -> False
 
 -- | @m `moreUsableQuantity` m'@ means that an @m@ can be used
 --   where ever an @m'@ is required.
@@ -1695,9 +1703,12 @@ topRelevance = relevant
 defaultRelevance :: Relevance
 defaultRelevance = unitRelevance
 
+-- | 'null' means no information, not even origin or range.
 instance Null Relevance where
   empty = defaultRelevance
-  null = isRelevant
+  null = \case
+    Relevant o -> null o
+    _ -> False
 
 -- | Irrelevant function arguments may appear non-strictly in the codomain type.
 irrelevantToShapeIrrelevant :: Relevance -> Relevance
@@ -2015,9 +2026,12 @@ topCohesion = Flat
 defaultCohesion :: Cohesion
 defaultCohesion = unitCohesion
 
+-- | 'null' shall mean no information, not even origin or range.
 instance Null Cohesion where
   empty = defaultCohesion
-  null = isContinuous
+  null = \case
+    Continuous -> True
+    _ -> False
 
 prettyCohesion :: LensCohesion a => a -> Doc -> Doc
 prettyCohesion a = (pretty (getCohesion a) <+>)
@@ -3445,7 +3459,7 @@ instance Pretty Fixity where
     Unrelated  -> empty
     Related{}  -> pretty ass <+> pretty level
 
--- * Notation coupled with 'Fixity'
+-- ** Notation coupled with 'Fixity'
 
 -- | The notation is handled as the fixity in the renamer.
 --   Hence, they are grouped together in this type.
@@ -3776,8 +3790,35 @@ instance KillRange UniverseCheck where
 instance NFData UniverseCheck
 
 -----------------------------------------------------------------------------
--- * Universe checking
+-- * Coverage
 -----------------------------------------------------------------------------
+
+-- | 'Range' of the CATCHALL pragma for a clause, if any.
+--   'Nothing' means no such pragma.
+data Catchall = YesCatchall Range | NoCatchall
+  deriving (Eq, Show, Generic)
+
+-- | Composition is left-biased, taking the left 'Range' if both have one.
+instance Semigroup Catchall where
+  NoCatchall         <> c                   = c
+  c                  <> NoCatchall          = c
+  c1@(YesCatchall r) <> c2@(YesCatchall r') = if null r then c2 else c1
+
+instance Monoid Catchall where
+  mempty = empty
+
+instance Null Catchall where
+  empty = NoCatchall
+
+instance KillRange Catchall where
+  killRange = \case
+    YesCatchall _ -> YesCatchall noRange
+    NoCatchall    -> NoCatchall
+
+instance NFData Catchall where
+  rnf = \case
+    YesCatchall _ -> ()
+    NoCatchall    -> ()
 
 -- | Coverage check? (Default is yes).
 data CoverageCheck = YesCoverageCheck | NoCoverageCheck
@@ -3861,7 +3902,6 @@ data ExpandedEllipsis
   deriving (Show, Eq)
 
 instance Null ExpandedEllipsis where
-  null  = (== NoEllipsis)
   empty = NoEllipsis
 
 instance Semigroup ExpandedEllipsis where

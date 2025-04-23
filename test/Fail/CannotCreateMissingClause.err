@@ -1,0 +1,5 @@
+CannotCreateMissingClause.agda:12.1-5: error: [SplitError.CannotCreateMissingClause]
+Cannot generate inferred clause for test. Case to handle:
+  test P (primHComp {.lzero} {.S¹} {φ = φ} u a) x
+Cannot transport with type family: P.
+when checking the definition of test

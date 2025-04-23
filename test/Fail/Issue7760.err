@@ -1,0 +1,6 @@
+Issue7760.agda:6.1-8.14: error: [BothWithAndRHS]
+Unexpected right hand side
+when scope checking the declarations
+  test with Set
+  ... | Set with Set = Set
+  ... | x = Set

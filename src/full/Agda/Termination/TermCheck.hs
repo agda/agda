@@ -42,7 +42,7 @@ import qualified Agda.Termination.CallGraph as CallGraph
 import Agda.Termination.CallMatrix hiding (toList)
 import Agda.Termination.Order     as Order
 import qualified Agda.Termination.SparseMatrix as Matrix
-import Agda.Termination.Termination (endos, idempotent)
+import Agda.Termination.Termination (Terminates(..), GuardednessHelps(..), endos, idempotent)
 import qualified Agda.Termination.Termination  as Term
 import Agda.Termination.RecCheck
 
@@ -223,6 +223,44 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
          -- Else: Old check, all at once.
          (runTerm $ termMutual')
 
+-- | Run the termination checker possibly twice and take the best result.
+--   Run it first without extracting descent information from dot patterns.
+--   If this proves termination, we are done.
+--   If this did not manage to prove termination, try with dot patterns.
+--   If this did not manage to prove termination either, return the offending paths.
+--   Otherwise, if the first run proved termination subject to (deactivated) guardedness,
+--   return this result.
+--   Otherwise, return the second result.
+withOrWithoutDotPatterns ::
+     (Node -> Bool)
+  -> TerM Calls
+  -> TerM (Terminates CallPath)
+withOrWithoutDotPatterns filt collect = do
+    useGuardedness <- liftTCM guardednessOption
+    cutoff <- terGetCutOff
+    let ?cutoff = cutoff
+    -- Run the continuation @k@ with the result of @m@ unless @m@ already certifies termination.
+    let unlessTerminates m k = m >>= \case
+          Terminates
+            -> return Terminates
+          TerminatesNot GuardednessHelpsYes _ | useGuardedness
+            -> return Terminates
+          r -> k r
+
+    -- First try to termination check ignoring the dot patterns
+    calls1 <- terSetUseDotPatterns False collect
+    reportCalls "no " calls1
+    unlessTerminates (billToTerGraph $ Term.terminatesFilter filt calls1) \ r1 -> do
+      -- Try again, but include the dot patterns this time.
+      calls2 <- terSetUseDotPatterns True collect
+      reportCalls "" calls2
+      unlessTerminates (billToTerGraph $ Term.terminatesFilter filt calls2) \ r2 -> do
+        case r1 of
+          TerminatesNot GuardednessHelpsNot _ -> return r2
+            -- We might terminate with guardedness and dot patterns (r2).
+          _              -> return r1
+            -- Since r2 did not certify termination, the simpler r1 is preferable.
+
 -- | @termMutual'@ checks all names of the current mutual block,
 --   henceforth called @allNames@, for termination.
 --
@@ -234,45 +272,21 @@ termMutual' = do
 
   -- collect all recursive calls in the block
   allNames <- terGetMutual
-  let collect = forM' allNames termDef
+  let collect :: TerM Calls
+      collect = forM' allNames termDef
 
-  -- first try to termination check ignoring the dot patterns
-  calls1 <- collect
-  reportCalls "no " calls1
-
-  cutoff <- terGetCutOff
-  let ?cutoff = cutoff
-  r <- billToTerGraph $ Term.terminates calls1
-  r <-
-       -- Andrea: 22/04/2020.
-       -- With cubical we will always have a clause where the dot
-       -- patterns are instead replaced with a variable, so they
-       -- cannot be relied on for termination.
-       -- See issue #4606 for a counterexample involving HITs.
-       --
-       -- Without the presence of HITs I conjecture that dot patterns
-       -- could be turned into actual splits, because no-confusion
-       -- would make the other cases impossible, so I do not disable
-       -- this for --without-K entirely.
-       ifM (isJust <$> cubicalOption) (return r) {- else -} $
-       case r of
-         r@Right{} -> return r
-         Left{}    -> do
-           -- Try again, but include the dot patterns this time.
-           calls2 <- terSetUseDotPatterns True $ collect
-           reportCalls "" calls2
-           billToTerGraph $ Term.terminates calls2
+  r <- withOrWithoutDotPatterns (const True) collect
 
   -- @names@ is taken from the 'Abstract' syntax, so it contains only
   -- the names the user has declared.  This is for error reporting.
   names <- terGetUserNames
   case r of
 
-    Left calls -> do
+    TerminatesNot guardednessHelps calls -> do
       mapM_ (`setTerminates` False) allNames
-      return $ singleton $ terminationError names calls
+      return $ singleton $ terminationError names calls guardednessHelps
 
-    Right{} -> do
+    Terminates -> do
       liftTCM $ reportSLn "term.warn.yes" 2 $
         prettyShow (names) ++ " does termination check"
       mapM_ (`setTerminates` True) allNames
@@ -280,8 +294,8 @@ termMutual' = do
 
 -- | Smart constructor for 'TerminationError'.
 --   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
-terminationError :: Set QName -> CallPath -> TerminationError
-terminationError names calls = TerminationError names' calls'
+terminationError :: Set QName -> CallPath -> GuardednessHelps -> TerminationError
+terminationError names calls guardednessHelps = TerminationError names' calls' guardednessHelps
   where
   calls'    = callInfos calls
   mentioned = map callInfoTarget calls'
@@ -392,39 +406,13 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
             -- Jump the trampoline.
             return $ Right (todo', done', calls')
 
-    -- First try to termination check ignoring the dot patterns
-    calls1 <- terSetUseDotPatterns False $ collect
-    reportCalls "no " calls1
-
-    r <- do
-     cutoff <- terGetCutOff
-     let ?cutoff = cutoff
-     r <- billToTerGraph $ Term.terminatesFilter (== index) calls1
-
-     -- Andrea: 22/04/2020.
-     -- With cubical we will always have a clause where the dot
-     -- patterns are instead replaced with a variable, so they
-     -- cannot be relied on for termination.
-     -- See issue #4606 for a counterexample involving HITs.
-     --
-     -- Without the presence of HITs I conjecture that dot patterns
-     -- could be turned into actual splits, because no-confusion
-     -- would make the other cases impossible, so I do not disable
-     -- this for --without-K entirely.
-     --
-     -- Andreas, 2022-03-21: The check for --cubical was missing here.
-     ifM (isJust <$> cubicalOption) (return r) {- else -} $ case r of
-       Right () -> return $ Right ()
-       Left{}   -> do
-         -- Try again, but include the dot patterns this time.
-         calls2 <- terSetUseDotPatterns True $ collect
-         reportCalls "" calls2
-         billToTerGraph $ Term.terminatesFilter (== index) calls2
+    r <- withOrWithoutDotPatterns (== index) collect
 
     names <- terGetUserNames
-    case mapLeft callInfos r of
+    case r of
 
-      Left calls -> do
+      TerminatesNot guardednessHelps callpaths -> do
+        let calls = callInfos callpaths
         -- Mark as non-terminating.
         setTerminates name False
 
@@ -440,10 +428,10 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
 
           -- Functions must terminate, so we report the error.
           _ -> do
-            let err = TerminationError [name | name `elem` names] calls
+            let err = TerminationError [name | name `elem` names] calls guardednessHelps
             return $ singleton err
 
-      Right () -> do
+      Terminates -> do
         reportSLn "term.warn.yes" 2 $
           prettyShow name ++ " does termination check"
         setTerminates name True
@@ -611,7 +599,7 @@ targetElem ds = terGetTarget <&> \case
 --   The term is first normalized and stripped of all non-coinductive projections.
 
 termToDBP :: Term -> TerM DeBruijnPattern
-termToDBP t =
+termToDBP t = ifNotM terGetUseDotPatterns (return unusedVar) $ {- else -} do
   termToPattern =<< do liftTCM $ stripAllProjections =<< normalise t
 
 -- | Convert a term (from a dot pattern) to a pattern for the purposes of the termination checker.
@@ -635,9 +623,9 @@ instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
 instance TermToPattern Term DeBruijnPattern where
   termToPattern t = liftTCM (constructorForm t) >>= \case
     -- Constructors.
-    Con c _ args -> ifDotPatsOrRecord c $
+    Con c _ args -> ifNotConsOfHIT c $
       ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
-    Def s [Apply arg] -> ifDotPats $ do
+    Def s [Apply arg] -> do
       suc <- terGetSizeSuc
       if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
        else fallback
@@ -648,11 +636,22 @@ instance TermToPattern Term DeBruijnPattern where
     Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
     t           -> fallback
     where
-    -- Andreas, 2022-06-14, issues #5953 and #4725
-    -- Recognize variable and record patterns in dot patterns regardless
-    -- of whether dot-pattern termination is on.
-    ifDotPats           = ifNotM terGetUseDotPatterns fallback
-    ifDotPatsOrRecord c = ifM (pure (IsData == conDataRecord c) `and2M` do not <$> terGetUseDotPatterns) fallback
+    -- Andrea: 22/04/2020.
+    -- With cubical we will always have a clause where the dot
+    -- patterns are instead replaced with a variable, so they
+    -- cannot be relied on for termination.
+    -- See issue #4606 for a counterexample involving HITs.
+    --
+    -- Without the presence of HITs I conjecture that dot patterns
+    -- could be turned into actual splits, because no-confusion
+    -- would make the other cases impossible, so I do not disable
+    -- this for --without-K entirely.
+    --
+    -- Szumi, 2025-03-11:
+    -- Instead of completely turning off dot-pattern termination for cubical,
+    -- it should be enough to only ignore constructors of HITs in dot patterns.
+    -- This way, the issues #5953 and #4725 are also avoided.
+    ifNotConsOfHIT c    = ifM (consOfHIT (conName c)) fallback
     fallback            = return $ dotP t
 
 -- | Masks all non-data/record type patterns if --without-K.
@@ -1129,11 +1128,7 @@ compareArgs es = do
     filterM (isCoinductiveProjection True) $ mapMaybe (fmap snd . isProjElim) es
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  useGuardedness <- liftTCM guardednessOption
-  let guardedness =
-        if useGuardedness
-        then decr True $ projsCaller - projsCallee
-        else Order.le
+  let guardedness = decr True $ projsCaller - projsCallee
   liftTCM $ reportSDoc "term.guardedness" 30 $ sep
     [ "compareArgs:"
     , nest 2 $ text $ "projsCaller = " ++ prettyShow projsCaller

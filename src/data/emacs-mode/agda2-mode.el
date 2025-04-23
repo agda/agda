@@ -1,3 +1,4 @@
+;; -*- lexical-binding: t -*-
 ;;; agda2-mode.el --- Major mode for Agda
 ;; SPDX-License-Identifier: MIT License
 
@@ -289,7 +290,7 @@ menus.")
 (defvar agda2-goal-map
   (let ((map (make-sparse-keymap "Agda goal")))
     (dolist (d (reverse agda2-command-table))
-      (cl-destructuring-bind (f &optional keys kinds desc) d
+      (cl-destructuring-bind (f &optional _keys kinds desc) d
         (if (member 'local kinds)
             (define-key map
               (vector (intern desc)) (cons desc f)))))
@@ -615,7 +616,7 @@ successful."
   (setq agda2-highlight-in-progress nil
         agda2-last-responses        nil))
 
-(defun agda2-output-filter (proc chunk)
+(defun agda2-output-filter (_proc chunk)
   "Evaluate the Agda process's commands.
 This filter function assumes that every line contains either some
 kind of error message (which cannot be parsed as a list), or
@@ -1140,7 +1141,7 @@ commands have completed."
     (when (buffer-live-p agda2-process-buffer)
       (kill-buffer agda2-process-buffer))))
 
-(defun agda2-kill-process-buffer (&optional process event)
+(defun agda2-kill-process-buffer (&optional _process _event)
   "Kills the Agda process buffer, if any.
 But only if the Agda process does not exist or has terminated.
 
@@ -1197,7 +1198,7 @@ The form of the result depends on the prefix argument:
        ;; Those called from a goal, grab the value present there (if any)
        ;; Whereas those called globally always use a prompt
        (interactive ,(pcase spec
-                       (`(fromgoal ,want)
+                       (`(fromgoal ,_want)
                         "P")
                        (`(global ,prompt)
                         (if prompt
@@ -1543,7 +1544,7 @@ ways."
        ;; Don't run modification hooks: we don't want this function to
        ;; trigger agda2-abort-highlighting.
        (inhibit-modification-hooks t))
-      ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--\\|^%.*\\\\begin{code}\\|\\\\begin{code}\\|\\\\end{code}\\|```\\|\\#\\+begin_src agda2\\|\\#\\+end_src agda2" nil t))
+      ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--\\|^%.*\\\\begin{code}\\|\\\\begin{code}\\|\\\\end{code}\\|```\\|\\#\\+begin_src agda2\\|\\#\\+end_src" nil t))
        ;; is-proper checks whether string s (e.g. "?" or "--") is proper
        ;; i.e., is not part of an identifier.
        ;; comment-starter is true if s starts a comment (e.g. "--")
@@ -1579,7 +1580,7 @@ ways."
           ("\\begin{code}"     (when (outside-code)               (pop stk)))
           ("\\end{code}"       (when (not stk)                    (push 'outside stk)))
           ("#+begin_src agda2" (when (outside-code)               (pop stk)))
-          ("#+end_src agda2"   (when (not stk)                    (push 'outside stk)))
+          ("#+end_src"         (when (not stk)                    (push 'outside stk)))
           ("```"               (if   (outside-code)               (pop stk)
                                (when (not stk)                    (push 'outside stk))))
           ("--"                (when (and (not stk)
@@ -1612,7 +1613,7 @@ ways."
      (overlay-put o 'face               'highlight)
      (overlay-put o 'after-string       (propertize (format "%s" n) 'face 'highlight)))))
 
-(defun agda2-protect-goal-markers (ol action beg end &optional length)
+(defun agda2-protect-goal-markers (ol action beg end &optional _length)
   "Ensures that the goal markers cannot be tampered with.
 Except if `inhibit-read-only' is non-nil or /all/ of the goal is
 modified."
@@ -1975,22 +1976,35 @@ the argument is a positive number, otherwise turn it off."
 ;; Switching to a different version of Agda
 
 (defun agda2-get-agda-program-versions ()
-  "Get \"version strings\" of executables starting with
-\\='agda-mode\\=' in current path."
+  "Get suffixes (\"version strings\") of executables starting with
+\\='agda-\\=' in exec-path."
+  (interactive) ;; for debugging purposes
   (delete-dups
    (mapcar (lambda (path)
-             ;; strip 'agda-mode' prefix
-             (replace-regexp-in-string "^agda-mode-?" ""
+             ;; strip 'agda-' prefix
+             (replace-regexp-in-string "^agda-?" ""
                                        (file-name-nondirectory path)))
            (cl-remove-if-not 'file-executable-p
              ;; concatenate result
              (cl-reduce 'append
                      ;; for each directory in exec-path, get list of
-                     ;; files whose name starts with 'agda-mode'
+                     ;; files whose name starts with 'agda-'
                      (mapcar (lambda (path)
                                (when (file-accessible-directory-p path)
-                                 (directory-files path 't "^agda-mode")))
+                                 (directory-files path 't "^agda-")))
                              exec-path))))))
+
+
+(defun agda2-old-version (version)
+  "Check if the given version is less that 2.8.
+
+Agda 2.8 is the version where the agda-mode executable was deprecated.
+
+If the version cannot be parsed, the answer is no.
+So e.g. agda-fast would be interpreted as not older than agda-2.8.0"
+  ;; If the given string does not have a numeric prefix, we answer no.
+  (and (string-match "^[0-9][0-9.]*" version)
+       (version< (match-string 0 version) "2.8")))
 
 ;; Note that other versions of Agda may use different protocols, so
 ;; this function unloads the Emacs mode.
@@ -1999,12 +2013,20 @@ the argument is a positive number, otherwise turn it off."
   "Tries to switch to Agda version VERSION.
 
 This command assumes that the agda and agda-mode executables for
-Agda version VERSION are called agda-VERSION and
-agda-mode-VERSION, and that they are located on the PATH. (If
-VERSION is empty, then agda and agda-mode are used instead.)
+Agda version VERSION are called agda-VERSION and agda-mode-VERSION.
+It searches for these executables on the exec-path
+which is often identical to PATH but can be different
+depending how Emacs is configured and invoked.
 
-An attempt is made to preserve the default value of
-`agda2-mode-hook'."
+Only if VERSION is numeric and less than \"2.8\"
+the agda-mode executable is used to locate the respective agda2.el,
+otherwise \"agda --emacs-mode locate\" is invoked.
+
+If VERSION is empty or \"agda\", then agda is used.
+A prefix \"agda-\" is stripped from VERSION,
+so one can invoke this function e.g. with \"agda-2.8.0\" instead of \"2.8.0\".
+
+An attempt is made to preserve the default value of `agda2-mode-hook'."
   (interactive
    (list (completing-read "Version: " (agda2-get-agda-program-versions))))
 
@@ -2018,6 +2040,22 @@ An attempt is made to preserve the default value of
 
        (default-hook (default-value 'agda2-mode-hook))
 
+       ;; Sanitize version.
+       ;; * Strip "agda-" prefix from version.
+       ;; * Replace version "agda" by just "".
+       ;;
+       ;; Rationale:
+       ;; The user might by accident enter "agda-2.8.0" instead of "2.8.0",
+       ;; or "agda" instead of "".
+       (version
+        (cond
+         ;; Strip "agda-" prefix from version.
+         ((string-prefix-p "agda-" version) (substring version (length "agda-")))
+         ;; Replace version "agda" by just "".
+         ((equal version "agda") "")
+         ;; Default.
+         (t version)))
+
        (version-suffix (if (or (equal version "")
                                (equal version nil))
                            ""
@@ -2026,14 +2064,16 @@ An attempt is made to preserve the default value of
        ;; Run agda-mode<version-suffix> and make sure that it returns
        ;; successfully.
        (coding-system-for-read 'utf-8)
-       (agda-mode-prog (concat "agda-mode" version-suffix))
+       (old-agda (agda2-old-version version))
+       (agda-mode-prog (concat (if old-agda "agda-mode" "agda") version-suffix))
        (agda-mode-path
         (condition-case nil
             (with-temp-buffer
               (unless
-                  (equal 0 (call-process agda-mode-prog
-                                         nil (current-buffer) nil
-                                         "locate"))
+                  (equal 0
+                    (if old-agda
+                        (call-process agda-mode-prog nil (current-buffer) nil "locate")
+                        (call-process agda-mode-prog nil (current-buffer) nil "--emacs-mode" "locate")))
                 (error "%s" (concat "Error when running "
                                     agda-mode-prog)))
               (buffer-string))

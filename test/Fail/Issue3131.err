@@ -1,5 +1,7 @@
 Issue3131.agda:3.3-4: error: [ConstructorDoesNotFitInData]
-Constructor C of sort Set₂ does not fit into data type of sort Set.
+Constructor C
+of inferred sort Set₂
+does not fit into data type of sort Set.
 (Reason: Set₂ is not less or equal than Set)
 when checking that the type Set₁ of an argument to the constructor
 C fits in the sort Set of the datatype.

@@ -37,6 +37,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Interaction.Options
 
+import qualified Agda.Utils.SmallSet as SmallSet
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -131,25 +132,35 @@ getEtaAndArity SplitCatchall = return (False, 1)
 
 translateCompiledClauses
   :: forall m. (HasConstInfo m, MonadChange m)
-  => CompiledClauses -> m CompiledClauses
-translateCompiledClauses cc = ignoreAbstractMode $ do
+  => QName
+  -> CompiledClauses
+  -> m CompiledClauses
+translateCompiledClauses defn cc = ignoreAbstractMode $ do
   reportSDoc "tc.cc.record" 20 $ vcat
     [ "translate record patterns in compiled clauses"
     , nest 2 $ return $ pretty cc
     ]
+
   cc <- loop cc
   reportSDoc "tc.cc.record" 20 $ vcat
     [ "translated compiled clauses (no eta record patterns):"
     , nest 2 $ return $ pretty cc
     ]
-  cc <- recordExpressionsToCopatterns cc
-  reportSDoc "tc.cc.record" 20 $ vcat
-    [ "translated compiled clauses (record expressions to copatterns):"
-    , nest 2 $ return $ pretty cc
-    ]
-  return cc
-  where
 
+  -- If the function these clauses belong to is marked INLINE then we do
+  -- not perform record expression to copattern translation.
+  isinl <- isInlineFun . theDef <$> getConstInfo defn
+  if
+    | isinl -> cc <$ do
+      reportSDoc "tc.cc.record" 20 $ "record expressions to copatterns skipped because" <+> prettyTCM defn <+> "is inline"
+    | otherwise -> do
+      cc <- recordExpressionsToCopatterns cc
+      reportSDoc "tc.cc.record" 20 $ vcat
+        [ "translated compiled clauses (record expressions to copatterns):"
+        , nest 2 $ return $ pretty cc
+        ]
+      pure cc
+  where
     loop :: CompiledClauses -> m (CompiledClauses)
     loop cc = case cc of
       Fail{}    -> return cc
@@ -164,10 +175,10 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
                        , etaBranch      = eta
                        , litBranches    = litMap
                        , fallThrough    = fT
-                       , catchAllBranch = catchAll
+                       , catchallBranch = catchall
                        , lazyMatch      = lazy } = do
 
-      catchAll <- traverse loop catchAll
+      catchall <- traverse loop catchall
       litMap   <- traverse loop litMap
       (conMap, eta) <- do
         let noEtaCase = (, Nothing) <$> (traverse . traverse) loop conMap
@@ -188,7 +199,7 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
                         , etaBranch      = eta
                         , litBranches    = litMap
                         , fallThrough    = fT
-                        , catchAllBranch = catchAll
+                        , catchallBranch = catchall
                         }
 
 
@@ -263,6 +274,12 @@ recordRHSToCopatterns cl = do
 
               mt' :: Maybe (Arg Type) <- fuse <$> traverse (traverse inst) mt
 
+              reportSDoc "tc.inline.con" 50 $ vcat
+                [ "for field" <+> prettyTCM (unArg f) <+> ": "
+                , "  mt  =" <+> prettyTCM mt
+                , "  mt' =" <+> prettyTCM mt'
+                ]
+
               -- Make clause ... .f = v
               return cl
                 { namedClausePats = ps ++ [ unnamed . ProjP ProjSystem <$> f ]
@@ -310,7 +327,7 @@ recordExpressionsToCopatterns = \case
                       zipWith (\ f v -> (unDom f, WithArity 0 $ Done xs v)) fs vs
                   , etaBranch      = Nothing
                   , litBranches    = Map.empty
-                  , catchAllBranch = Nothing
+                  , catchallBranch = Nothing
                   , fallThrough    = Nothing
                   , lazyMatch      = False
                   }
@@ -347,7 +364,7 @@ translateSplitTree = snd <.> loop
         return (xs, t')
 
     -- @loops i ts = return (x, xs, ts')@ cf. @loop@
-    -- @x@ says wether at arg @i@ we have a record pattern split
+    -- @x@ says whether at arg @i@ we have a record pattern split
     -- that can be removed
     loops :: Int -> SplitTrees -> TCM (Bool, [Bool], SplitTrees)
     loops i ts = do

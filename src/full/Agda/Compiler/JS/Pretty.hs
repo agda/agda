@@ -210,6 +210,8 @@ class Pretty a where
     pretty = prettyPrec 0
     prettyPrec = const pretty
 
+    {-# MINIMAL pretty | prettyPrec #-}
+
 prettyShow :: Pretty a => Bool -> JSModuleStyle -> a -> String
 prettyShow minify ms = render minify . pretty (0, minify, ms)
 

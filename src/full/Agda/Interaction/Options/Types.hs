@@ -12,6 +12,7 @@ module Agda.Interaction.Options.Types where
 import           Control.DeepSeq                   ( NFData )
 import           Data.Functor                      ( (<&>) )
 import           Data.Map                          ( Map )
+import           Data.Set                          ( Set )
 import           GHC.Generics                      ( Generic )
 
 import           Agda.Syntax.Common                ( Cubical )
@@ -53,12 +54,23 @@ data CommandLineOptions = Options
        -- ^ Configure notifications about imported modules.
   , optTrustedExecutables    :: Map ExeName FilePath
        -- ^ Map names of trusted executables to absolute paths.
+
+  -- Setup and printing
   , optPrintAgdaDataDir      :: Bool
   , optPrintAgdaAppDir       :: Bool
   , optPrintVersion          :: Maybe PrintAgdaVersion
   , optPrintHelp             :: Maybe Help
   , optBuildLibrary          :: Bool
       -- ^ @--build-library@: Build all modules in the current library.
+  , optSetup                 :: Bool
+      -- ^ Force Agda to self-setup at startup.
+  , optEmacsMode             :: Set EmacsModeCommand
+      -- ^ Emacs mode administration
+      --   (formerly done by the @agda-mode@ executable).
+      --   Accepted subcommands: @locate@, @setup@, @compile@.
+      --   Can be given several times,
+      --   subcommands are accumulated in the set.
+
   , optInteractive           :: Bool
       -- ^ Agda REPL (@-I@).
   , optGHCiInteraction       :: Bool
@@ -227,6 +239,17 @@ data DiagnosticsColours
   | AutoColour
   deriving (Show, Generic)
 
+-- | If several @--emacs-mode@ commands are given,
+--   they are executed in the order as given in this datatype.
+data EmacsModeCommand
+  = EmacsModeCompile
+      -- ^ Compile the @.el@ files to @.elc@.
+  | EmacsModeSetup
+      -- ^ Add the initialization lines to @.emacs@.
+  | EmacsModeLocate
+      -- ^ Print the installation location of @agda2.el@.
+  deriving (Eq, Ord, Show, Generic)
+
 -- | Infective or coinfective?
 data InfectiveCoinfective
   = Infective
@@ -236,9 +259,9 @@ data InfectiveCoinfective
 -- | Options @--version@ and @--numeric-version@ (last wins).
 data PrintAgdaVersion
   = PrintAgdaVersion
-      -- ^ Print Agda version information and exit.
+      -- ^ Print Agda version information.
   | PrintAgdaNumericVersion
-      -- ^ Print Agda version number and exit.
+      -- ^ Print Agda version number.
   deriving (Show, Generic)
 
 type VerboseKey     = String
@@ -276,5 +299,6 @@ instance NFData PragmaOptions
 
 instance NFData ConfluenceCheck
 instance NFData DiagnosticsColours
+instance NFData EmacsModeCommand
 instance NFData InfectiveCoinfective
 instance NFData PrintAgdaVersion

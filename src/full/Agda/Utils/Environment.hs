@@ -41,7 +41,7 @@ expandEnvVarTelescope home = reverse . foldl  -- foldl reverses, so re-reverse a
 -- | Tokenization for environment variable substitution.
 data Token
   = Home        -- ^ @~@.
-  | Var String  -- ^ @$VARIABLE@ or @${VARIABLE}$.
+  | Var String  -- ^ @$VARIABLE@ or @${VARIABLE}@.
   | Str String  -- ^ Ordinary characters.
   deriving (Eq, Show)
 

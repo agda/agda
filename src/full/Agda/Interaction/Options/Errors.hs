@@ -106,6 +106,7 @@ data ErrorName
   | AttributeKindNotEnabled_
   | BackendDoesNotSupportOnlyScopeChecking_
   | BadArgumentsToPatternSynonym_
+  | BothWithAndRHS_
   | BuiltinInParameterisedModule_
   | BuiltinMustBeConstructor_
   | BuiltinMustBeData_

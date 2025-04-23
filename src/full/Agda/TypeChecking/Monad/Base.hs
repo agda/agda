@@ -7,6 +7,7 @@ module Agda.TypeChecking.Monad.Base
   , module X
   , HasOptions (..)
   , RecordFieldWarning
+  , UselessPublicReason(..)
   ) where
 
 import Prelude hiding (null)
@@ -86,7 +87,7 @@ import Agda.Syntax.Info ( MetaKind(InstanceMeta, UnificationMeta), MetaNameSugge
 
 import           Agda.TypeChecking.Monad.Base.Types
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
-import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning)
+import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning, UselessPublicReason(..))
 import           Agda.TypeChecking.SizedTypes.Syntax  (HypSizeConstraint)
 
 import Agda.TypeChecking.CompiledClause
@@ -95,6 +96,8 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
 
 import Agda.TypeChecking.DiscrimTree.Types
+
+import Agda.Termination.Termination (GuardednessHelps(..))
 
 import Agda.Compiler.Backend.Base (Backend_boot, Backend'_boot)
 
@@ -341,6 +344,9 @@ data PostScopeState = PostScopeState
     -- ^ Associates opaque identifiers to their actual blocks.
   , stPostOpaqueIds           :: Map QName OpaqueId
     -- ^ Associates each opaque QName to the block it was defined in.
+  , stPostFinalChecks         :: !Bool
+    -- ^ Are we doing the post-mutual-block checks? Used to decide
+    -- whether to postpone instances.
   }
   deriving (Generic)
 
@@ -491,43 +497,44 @@ initPreScopeState = PreScopeState
 
 initPostScopeState :: PostScopeState
 initPostScopeState = PostScopeState
-  { stPostSyntaxInfo           = mempty
-  , stPostDisambiguatedNames   = IntMap.empty
-  , stPostOpenMetaStore        = Map.empty
-  , stPostSolvedMetaStore      = Map.empty
-  , stPostInteractionPoints    = empty
-  , stPostAwakeConstraints     = []
-  , stPostSleepingConstraints  = []
-  , stPostDirty                = False
-  , stPostOccursCheckDefs      = Set.empty
-  , stPostSignature            = emptySignature
-  , stPostModuleCheckpoints    = Map.empty
-  , stPostImportsDisplayForms  = HMap.empty
-  , stPostCurrentModule        = empty
-  , stPostPendingInstances     = Set.empty
-  , stPostTemporaryInstances   = Set.empty
-  , stPostConcreteNames        = Map.empty
-  , stPostUsedNames            = Map.empty
-  , stPostShadowingNames       = Map.empty
-  , stPostStatistics           = Map.empty
-  , stPostTCWarnings           = empty
-  , stPostMutualBlocks         = empty
-  , stPostLocalBuiltins        = Map.empty
-  , stPostFreshMetaId          = initialMetaId
-  , stPostFreshMutualId        = 0
-  , stPostFreshProblemId       = 1
-  , stPostFreshCheckpointId    = 1
-  , stPostFreshInt             = 0
-  , stPostFreshNameId          = NameId 0 noModuleNameHash
-  , stPostFreshOpaqueId        = OpaqueId 0 noModuleNameHash
-  , stPostAreWeCaching         = False
+  { stPostSyntaxInfo             = mempty
+  , stPostDisambiguatedNames     = IntMap.empty
+  , stPostOpenMetaStore          = Map.empty
+  , stPostSolvedMetaStore        = Map.empty
+  , stPostInteractionPoints      = empty
+  , stPostAwakeConstraints       = []
+  , stPostSleepingConstraints    = []
+  , stPostDirty                  = False
+  , stPostOccursCheckDefs        = Set.empty
+  , stPostSignature              = emptySignature
+  , stPostModuleCheckpoints      = Map.empty
+  , stPostImportsDisplayForms    = HMap.empty
+  , stPostCurrentModule          = empty
+  , stPostPendingInstances       = Set.empty
+  , stPostTemporaryInstances     = Set.empty
+  , stPostConcreteNames          = Map.empty
+  , stPostUsedNames              = Map.empty
+  , stPostShadowingNames         = Map.empty
+  , stPostStatistics             = Map.empty
+  , stPostTCWarnings             = empty
+  , stPostMutualBlocks           = empty
+  , stPostLocalBuiltins          = Map.empty
+  , stPostFreshMetaId            = initialMetaId
+  , stPostFreshMutualId          = 0
+  , stPostFreshProblemId         = 1
+  , stPostFreshCheckpointId      = 1
+  , stPostFreshInt               = 0
+  , stPostFreshNameId            = NameId 0 noModuleNameHash
+  , stPostFreshOpaqueId          = OpaqueId 0 noModuleNameHash
+  , stPostAreWeCaching           = False
   , stPostPostponeInstanceSearch = False
-  , stPostConsideringInstance  = False
-  , stPostInstantiateBlocking  = False
-  , stPostLocalPartialDefs     = Set.empty
-  , stPostOpaqueBlocks         = Map.empty
-  , stPostOpaqueIds            = Map.empty
-  , stPostForeignCode          = Map.empty
+  , stPostConsideringInstance    = False
+  , stPostInstantiateBlocking    = False
+  , stPostLocalPartialDefs       = Set.empty
+  , stPostOpaqueBlocks           = Map.empty
+  , stPostOpaqueIds              = Map.empty
+  , stPostForeignCode            = Map.empty
+  , stPostFinalChecks            = False
   }
 
 initStateIO :: IO TCState
@@ -766,6 +773,9 @@ lensConsideringInstance f s = f (stPostConsideringInstance s) <&> \ x -> s { stP
 lensInstantiateBlocking :: Lens' PostScopeState Bool
 lensInstantiateBlocking f s = f (stPostInstantiateBlocking s) <&> \ x -> s { stPostInstantiateBlocking = x }
 
+lensFinalChecks :: Lens' PostScopeState Bool
+lensFinalChecks f s = f (stPostFinalChecks s) <&> \ x -> s { stPostFinalChecks = x }
+
 -- * @st@-prefixed lenses
 ------------------------------------------------------------------------
 
@@ -896,6 +906,9 @@ stOpaqueBlocks = lensPostScopeState . lensOpaqueBlocks
 
 stOpaqueIds :: Lens' TCState (Map QName OpaqueId)
 stOpaqueIds = lensPostScopeState . lensOpaqueIds
+
+stFinalChecks :: Lens' TCState Bool
+stFinalChecks = lensPostScopeState . lensFinalChecks
 
 stSyntaxInfo :: Lens' TCState HighlightingInfo
 stSyntaxInfo = lensPostScopeState . lensSyntaxInfo
@@ -3899,7 +3912,7 @@ data TCEnv =
           , envMakeCase            :: Bool                 -- ^ are we inside a make-case (if so, ignore forcing analysis in unifier)
           , envSolvingConstraints  :: Bool
                 -- ^ Are we currently in the process of solving active constraints?
-          , envCheckingWhere       :: Bool
+          , envCheckingWhere       :: C.WhereClause_
                 -- ^ Have we stepped into the where-declarations of a clause?
                 --   Everything under a @where@ will be checked with this flag on.
           , envWorkingOnTypes      :: Bool
@@ -4053,7 +4066,7 @@ initEnv = TCEnv { envContext             = []
                 , envCoverageCheck       = YesCoverageCheck
                 , envMakeCase            = False
                 , envSolvingConstraints  = False
-                , envCheckingWhere       = False
+                , envCheckingWhere       = C.NoWhere_
                 , envActiveProblems      = Set.empty
                 , envUnquoteProblem      = Nothing
                 , envWorkingOnTypes      = False
@@ -4163,7 +4176,7 @@ eMakeCase f e = f (envMakeCase e) <&> \ x -> e { envMakeCase = x }
 eSolvingConstraints :: Lens' TCEnv Bool
 eSolvingConstraints f e = f (envSolvingConstraints e) <&> \ x -> e { envSolvingConstraints = x }
 
-eCheckingWhere :: Lens' TCEnv Bool
+eCheckingWhere :: Lens' TCEnv C.WhereClause_
 eCheckingWhere f e = f (envCheckingWhere e) <&> \ x -> e { envCheckingWhere = x }
 
 eWorkingOnTypes :: Lens' TCEnv Bool
@@ -4474,7 +4487,7 @@ data Warning
     -- ^ 'Clause' was turned into copattern matching clause(s) by an @{-# INLINE constructor #-}@
     --   and thus is not a definitional equality any more.
   | NotStrictlyPositive      QName (Seq OccursWhere)
-  | ConstructorDoesNotFitInData QName Sort Sort TCErr
+  | ConstructorDoesNotFitInData DataOrRecord_ QName Sort Sort TCErr
       -- ^ Checking whether constructor 'QName' 'Sort' fits into @data@ 'Sort'
       --   produced 'TCErr'.
   | CoinductiveEtaRecord QName
@@ -4521,13 +4534,15 @@ data Warning
   | UselessPragma Range Doc
     -- ^ Warning when pragma is useless and thus ignored.
     --   'Range' is for dead code highlighting.
-  | UselessPublic
+  | UselessPublic UselessPublicReason
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
   | UselessHiding (List1 C.ImportedName)
     -- ^ Names in `hiding` directive that don't hide anything
     --   imported by a `using` directive.
   | UselessInline            QName
+  | UselessTactic
+    -- ^ A tactic attribute applied to a non-hidden (visible or instance) argument.
   | WrongInstanceDeclaration
   | InstanceWithExplicitArg  QName
   -- ^ An instance was declared with an implicit argument, which means it
@@ -4540,9 +4555,6 @@ data Warning
   --   top-level instances.
   | InversionDepthReached    QName
   -- ^ The --inversion-max-depth was reached.
-  | NoGuardednessFlag        QName
-  -- ^ A coinductive record was declared but neither --guardedness nor
-  --   --sized-types is enabled.
 
   -- Safe flag errors
   | SafeFlagPostulate C.Name
@@ -4718,7 +4730,6 @@ warningName = \case
   InversionDepthReached{}      -> InversionDepthReached_
   InteractionMetaBoundaries{}  -> InteractionMetaBoundaries_{}
   ModuleDoesntExport{}         -> ModuleDoesntExport_
-  NoGuardednessFlag{}          -> NoGuardednessFlag_
   NotInScopeW{}                -> NotInScope_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
   ConstructorDoesNotFitInData{}-> ConstructorDoesNotFitInData_
@@ -4740,6 +4751,7 @@ warningName = \case
   UselessInline{}              -> UselessInline_
   UselessPublic{}              -> UselessPublic_
   UselessPatternDeclarationForRecord{} -> UselessPatternDeclarationForRecord_
+  UselessTactic{}              -> UselessTactic_
   ClashesViaRenaming{}         -> ClashesViaRenaming_
   UserWarning{}                -> UserWarning_
   InfectiveImport{}            -> InfectiveImport_
@@ -4885,6 +4897,8 @@ data TerminationError = TerminationError
     -- automatically generated functions.)
   , termErrCalls :: [CallInfo]
     -- ^ The problematic call sites.
+  , termErrGuardednessHelps :: GuardednessHelps
+    -- ^ Is the termination error resolved by activating @--guardedness@?
   } deriving (Show, Generic)
 
 -- | Error when splitting a pattern variable into possible constructor patterns.
@@ -5218,6 +5232,7 @@ data TypeError
           -- ^ The file name does not correspond to a module name.
         | ModuleNameHashCollision RawTopLevelModuleName (Maybe RawTopLevelModuleName)
     -- Scope errors
+        | BothWithAndRHS
         | AbstractConstructorNotInScope A.QName
         | CopatternHeadNotProjection C.QName
         | NotAllowedInDotPatterns NotAllowedInDotPatterns
@@ -6591,7 +6606,6 @@ instance NFData TypeError
 instance NFData WhyInvalidInstanceType
 instance NFData InvalidFileNameReason
 instance NFData LHSOrPatSyn
-instance NFData DataOrRecordE
 instance NFData InductionAndEta
 instance NFData IllegalRewriteRuleReason
 instance NFData IncorrectTypeForRewriteRelationReason

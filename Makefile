@@ -8,10 +8,13 @@ PROFILEOPTS=--profile=internal
 
 TOP=.
 
-# mk/path.mk uses TOP, so include after the definition of TOP.
-include ./mk/paths.mk
 include ./mk/cabal.mk
 include ./mk/stack.mk
+
+# mk/path.mk uses TOP, so include after the definition of TOP.
+# It also uses HAS_STACK, so include after stack.mk.
+# Note that paths.mk also loads common.mk (which loads config.mk) and ghc.mk.
+include ./mk/paths.mk
 
 # mk/pretty.mk defines 'decorate'.
 include ./mk/pretty.mk
@@ -22,9 +25,7 @@ include ./mk/pretty.mk
 # tests. The default is one per processor. Invoke make like this:
 #   make PARALLEL_TESTS=123 test
 # Or set it in ./mk/config.mk, which is .gitignored
-ifeq ($(PARALLEL_TESTS),)
-PARALLEL_TESTS := $(shell getconf _NPROCESSORS_ONLN)
-endif
+PARALLEL_TESTS ?= $(shell getconf _NPROCESSORS_ONLN)
 
 AGDA_BIN_SUFFIX = -$(VERSION)
 AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
@@ -56,17 +57,17 @@ STACK_INSTALL_HELPER = $(STACK) build Agda $(STACK_OPT_NO_DOCS)
 # quicker install: -O0, no tests
 
 QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) $(CABAL_OPT_FAST) --builddir=$(QUICK_BUILD_DIR)
-QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) $(STACK_OPT_FAST) --work-dir=$(QUICK_STACK_BUILD_DIR)
+QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) $(STACK_OPT_FAST) --work-dir=$(QUICK_STACK_WORK_DIR)
 
 # fast install: -O0, but tests
 
 FAST_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) $(CABAL_OPT_TESTS) $(CABAL_OPT_FAST) --builddir=$(FAST_BUILD_DIR)
-FAST_STACK_INSTALL = $(STACK_INSTALL_HELPER) $(STACK_OPT_TESTS) $(STACK_OPT_FAST) --work-dir=$(FAST_STACK_BUILD_DIR)
+FAST_STACK_INSTALL = $(STACK_INSTALL_HELPER) $(STACK_OPT_TESTS) $(STACK_OPT_FAST) --work-dir=$(FAST_STACK_WORK_DIR)
 
 # ordinary install: optimizations and tests
 
 SLOW_CABAL_INSTALL_OPTS = $(CABAL_OPT_TESTS) $(CABAL_FLAG_OPTIM_HEAVY) --builddir=$(BUILD_DIR)
-SLOW_STACK_INSTALL_OPTS = $(STACK_OPT_TESTS) $(STACK_FLAG_OPTIM_HEAVY)
+SLOW_STACK_INSTALL_OPTS = $(STACK_OPT_TESTS) $(STACK_FLAG_OPTIM_HEAVY) --work-dir=$(STACK_WORK_DIR)
 
 CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) $(SLOW_CABAL_INSTALL_OPTS)
 STACK_INSTALL           = $(STACK_INSTALL_HELPER) $(SLOW_STACK_INSTALL_OPTS)
@@ -122,18 +123,22 @@ CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
 default: install-bin
 
 .PHONY: install ## Install Agda, test suites, and Emacs mode
-install: install-bin compile-emacs-mode setup-emacs-mode
+install: install-bin setup-agda compile-emacs-mode setup-emacs-mode
+
+.PHONY: setup-agda
+setup-agda:
+	$(AGDA_BIN) --setup
 
 .PHONY: ensure-hash-is-correct
 ensure-hash-is-correct:
-	touch src/full/Agda/VersionCommit.hs
+	touch src/setup/Agda/VersionCommit.hs
 
 .PHONY: copy-bins-with-suffix-% ## Copy binaries to local bin directory with suffix
 copy-bins-with-suffix-%:
 ifdef HAS_STACK
 	mkdir -p $(shell $(STACK) path --local-bin)
-	cp $(shell $(STACK) --work-dir=$(STACK_BUILD_DIR) path --dist-dir)/build/agda/agda $(shell $(STACK) path --local-bin)/agda-$*
-	cp $(shell $(STACK) --work-dir=$(STACK_BUILD_DIR) path --dist-dir)/build/agda-mode/agda-mode $(shell $(STACK) path --local-bin)/agda-mode-$*
+	cp $(shell $(STACK) --work-dir=$(STACK_WORK_DIR) path --dist-dir)/build/agda/agda $(shell $(STACK) path --local-bin)/agda-$*
+	cp $(shell $(STACK) --work-dir=$(STACK_WORK_DIR) path --dist-dir)/build/agda-mode/agda-mode $(shell $(STACK) path --local-bin)/agda-mode-$*
 endif
 
 .PHONY: install-deps ## Install Agda dependencies.
@@ -153,8 +158,6 @@ install-bin: install-deps ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-	mkdir -p $(BUILD_DIR)/build/
-	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
 	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
@@ -168,8 +171,6 @@ install-bin-no-debug: install-deps ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS_NODEBUG)
-	mkdir -p $(BUILD_DIR)/build/
-	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
 	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
@@ -184,8 +185,6 @@ v1-install:  ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL_HELPER) $(STACK_INSTALL_BIN_OPTS) $(STACK_OPT_TESTS)
-	mkdir -p $(BUILD_DIR)/build/
-	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
 	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)
 else
 	@echo "===================== Installing using Cabal with test suites ============"
@@ -200,9 +199,7 @@ fast-install-bin: install-deps fast-install-bin-no-deps
 ifdef HAS_STACK
 	@echo "============= Installing using Stack with -O0 and test suites ============"
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-	mkdir -p $(FAST_BUILD_DIR)/build/
-	cp -r $(shell $(STACK) path --work-dir=$(FAST_STACK_BUILD_DIR) --dist-dir)/build $(FAST_BUILD_DIR)
-	$(MAKE) copy-bins-with-suffix-fast STACK_BUILD_DIR=$(FAST_STACK_BUILD_DIR)
+	$(MAKE) copy-bins-with-suffix-fast STACK_WORK_DIR=$(FAST_STACK_WORK_DIR)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
@@ -220,7 +217,7 @@ quicker-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-	$(MAKE) copy-bins-with-suffix-quicker STACK_BUILD_DIR=$(QUICK_STACK_BUILD_DIR)
+	$(MAKE) copy-bins-with-suffix-quicker STACK_WORK_DIR=$(QUICK_STACK_WORK_DIR)
 else
 	@echo "===================== Installing using Cabal with -O0 ===================="
 	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=-quicker
@@ -263,27 +260,14 @@ type-check: install-deps type-check-no-deps
 .PHONY: type-check-no-deps ##
 type-check-no-deps :
 	@echo "=============== Type checking using v1 Cabal with -fno-code =============="
-	-$(CABAL) $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
-          --ghc-options=-fno-code \
-          --ghc-options=-fwrite-interface \
-		  --ghc-options=-fwrite-ide-info \
-		  --ghc-options=-hiedir=dist-hiefiles \
+	-$(CABAL) v1-build --builddir=$(BUILD_DIR)-no-code \
+	  --ghc-options=-fno-code \
+	  --ghc-options=-fwrite-interface \
+	  --ghc-options=-fwrite-ide-info \
+	  --ghc-options=-hiedir=dist-hiefiles \
           2>&1 \
           | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
                    -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
-
-## Andreas, 2021-10-14: This does not work, agda-tests is not type-checked.
-## Maybe because cabal fails with an error after type-checking the library component.
-# .PHONY: type-check-with-tests ## Type check only, including tests
-# type-check-with-tests :
-# 	@echo "================= Type checking using Cabal with -fno-code ==============="
-# 	$(CABAL) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS) --builddir=$(BUILD_DIR)-no-code
-# 	-time $(CABAL) $(CABAL_BUILD_CMD) agda-tests --builddir=$(BUILD_DIR)-no-code \
-#           --ghc-options=-fno-code \
-#           --ghc-options=-fwrite-interface \
-#           2>&1 \
-#           | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
-#                    -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
 
 # The default is to not include cost centres for libraries, but to
 # include cost centres for Agda using -fprof-late. (The use of
@@ -306,15 +290,15 @@ install-prof-bin : install-deps ensure-hash-is-correct
 
 .PHONY : compile-emacs-mode ## Compile Agda's Emacs mode using Emacs.
 compile-emacs-mode: install-bin
-	$(AGDA_MODE) compile
+	$(AGDA_BIN) --emacs-mode compile
 
 .PHONY : setup-emacs-mode ## Configure Agda's Emacs mode.
 setup-emacs-mode : install-bin
 	@echo
-	@echo "If the agda-mode command is not found, make sure that the directory"
+	@echo "If the agda is not found, make sure that the directory"
 	@echo "in which it was installed is located on your shell's search path."
 	@echo
-	$(AGDA_MODE) setup
+	$(AGDA_BIN) --emacs-mode setup
 
 ##############################################################################
 ## Clean
@@ -325,7 +309,7 @@ clean : ## Clean all local builds
 	$(call clean_helper,$(BUILD_DIR))
 	$(call clean_helper,$(QUICK_BUILD_DIR))
 	which $(STACK) > /dev/null 2>&1 && $(STACK) clean --full || true
-	which $(STACK) > /dev/null 2>&1 && $(STACK) clean --full --work-dir=$(QUICK_STACK_BUILD_DIR) || true
+	which $(STACK) > /dev/null 2>&1 && $(STACK) clean --full --work-dir=$(QUICK_STACK_WORK_DIR) || true
 
 ##############################################################################
 ## Haddock
@@ -478,16 +462,16 @@ common :
 .PHONY : succeed ##
 succeed :
 	@$(call decorate, "Suite of successful tests", \
-		echo $(shell which $(AGDA_BIN)) > test/Succeed/exec-tc/executables && \
+		echo $(shell which $(AGDA_BIN)) > test/helpers/exec-tc/executables && \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
-		rm test/Succeed/exec-tc/executables )
+		rm test/helpers/exec-tc/executables )
 
 .PHONY : fast-succeed ##
 fast-succeed :
 	@$(call decorate, "Suite of successful tests (using agda-fast)", \
-		echo $(shell which $(AGDA_FAST_BIN)) > test/Succeed/exec-tc/executables && \
+		echo $(shell which $(AGDA_FAST_BIN)) > test/helpers/exec-tc/executables && \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
-		rm test/Succeed/exec-tc/executables )
+		rm test/helpers/exec-tc/executables )
 
 .PHONY : fail ##
 fail :
@@ -600,7 +584,7 @@ ghc-compiler-test :
 .PHONY : js-compiler-test ##
 js-compiler-test :
 	@$(call decorate, "JS Compiler tests", \
-		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler/JS_MinifiedOptimized --regex-exclude AllStdLib)
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler/JS_CJS_MinifiedOptimized --regex-exclude AllStdLib)
 
 .PHONY : std-lib-compiler-test ##
 std-lib-compiler-test :
@@ -656,7 +640,7 @@ test-suite-covers-errors :
 .PHONY : testing-emacs-mode ## Compile the emacs mode and run basic tests.
 testing-emacs-mode:
 	@$(call decorate, "Testing the Emacs mode", \
-	  $(AGDA_MODE) compile)
+	  $(AGDA_BIN) --emacs-mode compile)
 
 .PHONY : doc-test ## Install and run doctest for the Agda library.
 doc-test: install-doctest run-doctest
@@ -671,22 +655,24 @@ run-doctest:
 	@$(call decorate, "Running doctest", \
 	  $(CABAL) repl Agda -w doctest --repl-options=-w)
 
-##############################################################################
-## Size solver
-
-# NB. It is necessary to install the Agda library (i.e run `
-#		make install-bin`)
-# before installing the `size-solver` program.
-
-.PHONY : install-size-solver ## Install the size solver.
-install-size-solver :
-	@$(call decorate, "Installing the size-solver program", \
-		$(MAKE) -C src/size-solver STACK_INSTALL_OPTS='$(SLOW_STACK_INSTALL_OPTS) $(STACK_INSTALL_BIN_OPTS)' CABAL_INSTALL_OPTS='$(SLOW_CABAL_INSTALL_OPTS) $(CABAL_INSTALL_OPTS)' install-bin)
-
-.PHONY : size-solver-test ##
-size-solver-test : install-size-solver
-	@$(call decorate, "Testing the size-solver program", \
-		$(MAKE) -C src/size-solver test)
+## Andreas, 2025-03-04: disable the size-solver-test
+#
+# ##############################################################################
+# ## Size solver
+#
+# # NB. It is necessary to install the Agda library (i.e run `
+# #		make install-bin`)
+# # before installing the `size-solver` program.
+#
+# .PHONY : install-size-solver ## Install the size solver.
+# install-size-solver :
+# 	@$(call decorate, "Installing the size-solver program", \
+# 		$(MAKE) -C src/size-solver STACK_INSTALL_OPTS='$(SLOW_STACK_INSTALL_OPTS) $(STACK_INSTALL_BIN_OPTS)' CABAL_INSTALL_OPTS='$(SLOW_CABAL_INSTALL_OPTS) $(CABAL_INSTALL_OPTS)' install-bin)
+#
+# .PHONY : size-solver-test ##
+# size-solver-test : install-size-solver
+# 	@$(call decorate, "Testing the size-solver program", \
+# 		$(MAKE) -C src/size-solver test)
 
 ##############################################################################
 ## Development
@@ -706,7 +692,7 @@ remove-default-stack-file : ##
 
 .PHONY : have-bin-%
 have-bin-% :
-	@($* --help > /dev/null) || $(CABAL) $(CABAL_INSTALL_CMD) $*
+	@($* --help > /dev/null) || $(CABAL) install --ignore-project $*
 
 ## Whitespace-related #######################################################
 # Agda can fail to compile on Windows if files which are CPP-processed
@@ -726,22 +712,7 @@ check-whitespace : have-bin-$(FIXW_BIN)
 .PHONY : install-agda-bisect ## Install agda-bisect.
 install-agda-bisect :
 	@$(call decorate, "Installing the agda-bisect program", \
-		cd src/agda-bisect && $(CABAL) $(CABAL_INSTALL_CMD))
-
-## HPC #######################################################################
-.PHONY: hpc-build ##
-hpc-build: ensure-hash-is-correct
-	$(CABAL) $(CABAL_CLEAN_CMD) $(CABAL_OPTS)
-	$(CABAL) $(CABAL_CONFIGURE_CMD) --enable-library-coverage $(CABAL_INSTALL_OPTS)
-	$(CABAL) $(CABAL_BUILD_CMD) $(CABAL_OPTS)
-
-agda.tix: ./examples/agda.tix ./test/common/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix ##
-	hpc sum --output=$@ $^
-
-.PHONY: hpc ## Generate a code coverage report
-hpc: hpc-build test agda.tix
-	hpc report --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda.tix
-	hpc markup --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda --destdir=hpc-report
+		cd src/agda-bisect && $(CABAL) install)
 
 ## Lines of Code #############################################################
 
@@ -822,11 +793,13 @@ debug : ## Print debug information.
 	@echo "GHC_VER                        = $(GHC_VER)"
 	@echo "GHC_VERSION                    = $(GHC_VERSION)"
 	@echo "PARALLEL_TESTS                 = $(PARALLEL_TESTS)"
+	@echo "PROFILEOPTS                    = $(PROFILEOPTS)"
 	@echo "QUICK_CABAL_INSTALL            = $(QUICK_CABAL_INSTALL)"
 	@echo "QUICK_STACK_INSTALL            = $(QUICK_STACK_INSTALL)"
 	@echo "SLOW_CABAL_INSTALL_OPTS        = $(SLOW_CABAL_INSTALL_OPTS)"
 	@echo "SLOW_STACK_INSTALL_OPTS        = $(SLOW_STACK_INSTALL_OPTS)"
 	@echo "STACK                          = $(STACK)"
+	@echo "STACK_WORK_DIR                 = $(STACK_WORK_DIR)"
 	@echo "STACK_FLAG_ICU                 = $(STACK_FLAG_ICU)"
 	@echo "STACK_FLAG_OPTIM_HEAVY         = $(STACK_FLAG_OPTIM_HEAVY)"
 	@echo "STACK_INSTALL                  = $(STACK_INSTALL)"
@@ -838,7 +811,6 @@ debug : ## Print debug information.
 	@echo "STACK_OPTS                     = $(STACK_OPTS)"
 	@echo "STACK_OPT_FAST                 = $(STACK_OPT_FAST)"
 	@echo "STACK_OPT_NO_DOCS              = $(STACK_OPT_NO_DOCS)"
-	@echo "PROFILEOPTS                    = $(PROFILEOPTS)"
 	@echo
 	@echo "Run \`make -pq\` to get a detailed report."
 	@echo

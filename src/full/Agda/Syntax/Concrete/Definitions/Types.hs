@@ -94,8 +94,6 @@ type TerminationCheck = Common.TerminationCheck Measure
 -- | Termination measure is, for now, a variable name.
 type Measure = Name
 
-type Catchall = Bool
-
 -- | Only 'Axiom's.
 type NiceConstructor = NiceTypeSignature
 

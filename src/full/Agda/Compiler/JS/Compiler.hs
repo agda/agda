@@ -25,7 +25,7 @@ import System.Environment ( setEnv )
 import System.FilePath    ( splitFileName, (</>) )
 import System.Process     ( callCommand )
 
-import Paths_Agda
+import Agda.Setup         ( getDataDir )
 
 import Agda.Interaction.Options
 

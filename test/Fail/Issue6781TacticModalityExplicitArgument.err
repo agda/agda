@@ -1,0 +1,20 @@
+Issue6781TacticModalityExplicitArgument.agda:22.8-27: warning: -W[no]UselessTactic
+Ignoring 'tactic' attribute for non-hidden (explicit or instance)
+binder
+when scope checking
+(@(tactic super-tac) n : Nat) (@(tactic solver n) x : A) → A
+
+Issue6781TacticModalityExplicitArgument.agda:23.8-26: warning: -W[no]UselessTactic
+Ignoring 'tactic' attribute for non-hidden (explicit or instance)
+binder
+when scope checking
+(@(tactic super-tac) n : Nat) (@(tactic solver n) x : A) → A
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  _x_16 = 102 : Nat (blocked on _x_16)
+
+Issue6781TacticModalityExplicitArgument.agda:27.14-30.13: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue6781TacticModalityExplicitArgument.agda:27.14-15
+  Issue6781TacticModalityExplicitArgument.agda:27.16-17
+  Issue6781TacticModalityExplicitArgument.agda:30.9-13

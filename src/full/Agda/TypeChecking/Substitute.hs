@@ -1142,7 +1142,7 @@ instance Subst EqualityTypeData where
     (applySubst rho b)
 
 instance DeBruijn a => DeBruijn (Pattern' a) where
-  debruijnNamedVar n i             = varP $ debruijnNamedVar n i
+  deBruijnNamedVar n i             = varP $ deBruijnNamedVar n i
   -- deBruijnView returns Nothing, to prevent consS and the like
   -- from dropping the names and origins when building a substitution.
   deBruijnView _                   = Nothing

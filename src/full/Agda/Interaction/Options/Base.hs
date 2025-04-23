@@ -12,11 +12,12 @@ module Agda.Interaction.Options.Base
     , OptionWarning(..), optionWarningName
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity, VerboseKey, VerboseLevel
-    , WarningMode(..)
     , ConfluenceCheck(..)
+    , DiagnosticsColours(..)
+    , EmacsModeCommand(..)
     , PrintAgdaVersion(..)
     , UnicodeOrAscii(..)
-    , DiagnosticsColours(..)
+    , WarningMode(..)
     , checkOpts
     , parsePragmaOptions
     , parsePluginOptions
@@ -224,6 +225,8 @@ import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) 
 import Agda.Syntax.Common (Cubical(..))
 import Agda.Syntax.Common.Pretty
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
+
+import qualified Agda.Setup.EmacsMode as EmacsMode
 
 import Agda.Utils.Boolean
 import Agda.Utils.FileName      ( AbsolutePath )
@@ -672,6 +675,8 @@ defaultOptions = Options
   , optPrintVersion          = Nothing
   , optPrintHelp             = Nothing
   , optBuildLibrary          = False
+  , optSetup                 = False
+  , optEmacsMode             = Set.empty
   , optInteractive           = False
   , optGHCiInteraction       = False
   , optJSONInteraction       = False
@@ -1054,6 +1059,9 @@ printAgdaDataDirFlag o = return $ o { optPrintAgdaDataDir = True }
 printAgdaAppDirFlag :: Flag CommandLineOptions
 printAgdaAppDirFlag o = return $ o { optPrintAgdaAppDir = True }
 
+setupFlag :: Flag CommandLineOptions
+setupFlag o = return $ o { optSetup = True }
+
 versionFlag :: Flag CommandLineOptions
 versionFlag o = return $ o { optPrintVersion = Just PrintAgdaVersion }
 
@@ -1064,8 +1072,43 @@ helpFlag :: Maybe String -> Flag CommandLineOptions
 helpFlag Nothing    o = return $ o { optPrintHelp = Just GeneralHelp }
 helpFlag (Just str) o = case string2HelpTopic str of
   Just hpt -> return $ o { optPrintHelp = Just (HelpFor hpt) }
-  Nothing -> throwError $ "unknown help topic " ++ str ++ " (available: " ++
-                           intercalate ", " (map fst allHelpTopics) ++ ")"
+  Nothing -> throwError $ concat
+    [ "unknown help topic ", str, " (", printHelpTopics "topic", ")" ]
+
+-- | Helper to explain @--help@.
+printHelpTopics :: String -> String
+printHelpTopics mvar = concat
+  [ "available"
+  , ifNull mvar "" {-else-} \ topic -> " " ++ String.pluralS allHelpTopics topic
+  , ": "
+  , intercalate ", " $ map fst allHelpTopics
+  ]
+
+emacsModeFlag :: String -> Flag CommandLineOptions
+emacsModeFlag s o
+  | s == EmacsMode.setupFlag   = add EmacsModeSetup
+  | s == EmacsMode.compileFlag = add EmacsModeCompile
+  | s == EmacsMode.locateFlag  = add EmacsModeLocate
+  | otherwise = throwError $ concat
+     [ "unknown emacs-mode command "
+     , s
+     , " ("
+     , printEmacsModeCommands "commands"
+     , ")"
+     ]
+  where
+    add m = return o{ optEmacsMode = Set.insert m $ optEmacsMode o }
+
+printEmacsModeCommands :: String -> String
+printEmacsModeCommands mvar = concat
+  [ "available"
+  , ifNull mvar "" {-else-} \ cmd -> " " ++ cmd
+  , ": "
+  , intercalate ", " emacsModeCommands
+  ]
+
+emacsModeCommands :: [String]
+emacsModeCommands = [EmacsMode.setupFlag, EmacsMode.compileFlag, EmacsMode.locateFlag]
 
 safeFlag :: Flag PragmaOptions
 safeFlag o = do
@@ -1265,29 +1308,35 @@ integerArgument flag s = maybe usage return $ readMaybe s
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
     [ Option ['V']  ["version"] (NoArg versionFlag)
-                    ("print version information and exit")
+                    ("print version information")
 
     , Option []     ["numeric-version"] (NoArg numericVersionFlag)
-                    ("print version number and exit")
+                    ("print version number")
 
-    , Option ['?']  ["help"]    (OptArg helpFlag "TOPIC") $ concat
-                    [ "print help and exit; available "
-                    , String.pluralS allHelpTopics "TOPIC"
-                    , ": "
-                    , intercalate ", " $ map fst allHelpTopics
+    , Option ['?']  ["help"]    (OptArg helpFlag "TOPIC")
+                    ("print help; " ++ printHelpTopics "TOPIC")
+
+    , Option []     ["emacs-mode"] (ReqArg emacsModeFlag "COMMAND") $ concat
+                    [ "administer the Emacs Agda mode; "
+                    , printEmacsModeCommands "COMMANDs"
+                    , "; confer --help=emacs-mode"
                     ]
 
     , Option []     ["print-agda-dir"] (NoArg printAgdaDataDirFlag)
-                    ("print the Agda data directory exit")
+                    ("print the Agda data directory")
 
     , Option []     ["print-agda-app-dir"] (NoArg printAgdaAppDirFlag)
-                    ("print $AGDA_DIR and exit")
+                    ("print $AGDA_DIR")
 
     , Option []     ["print-agda-data-dir"] (NoArg printAgdaDataDirFlag)
-                    ("print the Agda data directory exit")
+                    ("print the Agda data directory")
 
     , Option []     ["build-library"] (NoArg \ o -> return o{ optBuildLibrary = True })
                     "build all modules included by the @.agda-lib@ file in the current directory"
+
+    , Option []     ["setup"] (NoArg setupFlag)
+                    ("setup the Agda data directory")
+
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
                     "start in interactive mode"
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)

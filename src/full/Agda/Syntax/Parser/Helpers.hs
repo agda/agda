@@ -316,7 +316,7 @@ extOrAbsLam lambdaRange attrs cs = case cs of
   Right es -> do
     -- It is of the form @\ { p1 ... () }@.
     e  <- onlyErased attrs
-    cl <- mkAbsurdLamClause False es
+    cl <- mkAbsurdLamClause empty es
     return $ ExtendedLam (getRange (lambdaRange, e, es)) e $ singleton cl
   Left (bs, h) -> do
     mapM_ (\a -> parseWarning $
@@ -547,15 +547,15 @@ patternSynArgs = mapM \ x -> do
           abort "Arguments to pattern synonyms cannot be named"
 
 mkLamClause
-  :: Bool   -- ^ Catch-all?
+  :: Catchall
   -> [Expr] -- ^ Possibly empty list of patterns.
   -> RHS
   -> Parser LamClause
-mkLamClause catchAll es rhs = mapM exprToPattern es <&> \ ps ->
-  LamClause{ lamLHS = ps, lamRHS = rhs, lamCatchAll = catchAll }
+mkLamClause catchall es rhs = mapM exprToPattern es <&> \ ps ->
+  LamClause{ lamLHS = ps, lamRHS = rhs, lamCatchall = catchall }
 
-mkAbsurdLamClause :: Bool -> List1 Expr -> Parser LamClause
-mkAbsurdLamClause catchAll es = mkLamClause catchAll (List1.toList es) AbsurdRHS
+mkAbsurdLamClause :: Catchall -> List1 Expr -> Parser LamClause
+mkAbsurdLamClause catchall es = mkLamClause catchall (List1.toList es) AbsurdRHS
 
 {- RHS or type signature -}
 
@@ -584,7 +584,7 @@ funClauseOrTypeSigs attrs lhs' with mrhs wh = do
   case mrhs of
     JustRHS rhs   -> do
       unless (null attrs) $ parseErrorRange attrs $ "A function clause cannot have attributes"
-      return $ singleton $ FunClause lhs rhs wh False
+      return $ singleton $ FunClause lhs rhs wh empty
     TypeSigsRHS e -> case wh of
       NoWhere -> case lhs of
         LHS p _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
@@ -614,32 +614,32 @@ defaultIrrelevantArg a = makeIrrelevant a . defaultArg
 defaultShapeIrrelevantArg :: HasRange a => a -> b -> Arg b
 defaultShapeIrrelevantArg a = makeShapeIrrelevant a . defaultArg
 
+makeIrrelevantM :: (HasRange a, LensRelevance b) => a -> b -> Parser b
+makeIrrelevantM r x = do
+  assertPristineRelevance r x
+  return $ makeIrrelevant r x
+
+makeShapeIrrelevantM :: (HasRange a, LensRelevance b) => a -> b -> Parser b
+makeShapeIrrelevantM r x = do
+  assertPristineRelevance r x
+  return $ makeShapeIrrelevant r x
+
+assertPristineRelevance :: (HasRange a, LensRelevance b) => a -> b -> Parser ()
+assertPristineRelevance r x = unless (null $ getRelevance x) $
+  parseErrorRange r $ "Conflicting relevance information"
+
 ------------------------------------------------------------------------
 -- * Attributes
-
--- | Parsed attribute.
-
-data Attr = Attr
-  { attrRange :: Range       -- ^ Range includes the @.
-  , attrName  :: String      -- ^ Concrete, user written attribute for error reporting.
-  , theAttr   :: Attribute   -- ^ Parsed attribute.
-  }
-
-instance HasRange Attr where
-  getRange = attrRange
-
-instance SetRange Attr where
-  setRange r (Attr _ x a) = Attr r x a
 
 -- | Parse an attribute.
 toAttribute :: Range -> Expr -> Parser Attr
 toAttribute r e = do
-  attr <- maybe failure (return . Attr r s) $ exprToAttribute e
-  modify' (\ st -> st{ parseAttributes = (theAttr attr, r, s) : parseAttributes st })
+  attr <- maybe failure (return . Attr r s) $ exprToAttribute r e
+  modify' (\ st -> st{ parseAttributes = attr : parseAttributes st })
   return attr
   where
   s = prettyShow e
-  failure = parseErrorRange e $ "Unknown attribute: " ++ s
+  failure = parseErrorRange e $ "Unknown attribute: @" ++ s
 
 -- | Apply an attribute to thing (usually `Arg`).
 --   This will fail if one of the attributes is already set
@@ -689,11 +689,29 @@ checkForUniqueAttribute p attrs = do
 
 -- | Report an attribute as conflicting (e.g., with an already set value).
 errorConflictingAttribute :: Attr -> Parser a
-errorConflictingAttribute a = parseErrorRange a $ "Conflicting attribute: " ++ attrName a
+errorConflictingAttribute a = parseErrorRange a $
+  "Conflicting attribute: " ++ prettyAttr a
 
 -- | Report attributes as conflicting (e.g., with each other).
 --   Precondition: List not emtpy.
 errorConflictingAttributes :: [Attr] -> Parser a
 errorConflictingAttributes [a] = errorConflictingAttribute a
 errorConflictingAttributes as  = parseErrorRange as $
-  "Conflicting attributes: " ++ unwords (map attrName as)
+  "Conflicting attributes: " ++ unwords (map prettyAttr as)
+
+prettyAttr :: Attr -> String
+prettyAttr = ("@" ++) . attrName
+
+-- | Apply some attributes to some binders.
+applyAttributes :: Functor f
+  => List1 Attr
+       -- ^ Can contain @tactic@ attribute.
+  -> ArgInfo
+       -- ^ If the attributes to be set are not at default value here, crash.
+  -> f (NamedArg Binder)
+       -- ^ Binders to apply attributes to.
+  -> Parser (f (NamedArg Binder))
+       -- ^ Binders with attributes applied.
+applyAttributes attrs ai bs = do
+  applyAttrs1 attrs ai <&> \ ai' ->
+    fmap (setTacticAttr attrs . setArgInfo ai') bs

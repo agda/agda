@@ -1,10 +1,13 @@
--- Andreas, 2022-06-14, issue #5953 reported by Szumi Xi
+-- Andreas, 2022-06-14, issue #5953 reported by Szumi Xie
 -- Cubical Agda switches dot-pattern termination off (#4606).
 -- However, this breaks also some benign cases.
 --
 -- In this example with inductive-inductive types,
 -- dotted variables should still be recognized
 -- as variable patterns for termination certification.
+--
+-- Szumi, 2025-03-11:
+-- Dot-pattern termination is now re-enabled for Cubical Agda.
 
 {-# OPTIONS --cubical #-}  -- worked with --without-K but not --cubical
 

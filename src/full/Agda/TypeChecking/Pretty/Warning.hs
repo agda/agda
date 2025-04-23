@@ -1,5 +1,20 @@
 
-module Agda.TypeChecking.Pretty.Warning where
+module Agda.TypeChecking.Pretty.Warning
+  ( applyFlagsToTCWarnings
+  , applyFlagsToTCWarningsPreserving
+  , filterTCWarnings
+  , getAllUnsolvedWarnings
+  , getAllWarnings
+  , getAllWarningsOfTCErr
+  , getAllWarningsPreserving
+  , prettyDuplicateFields
+  , prettyTCWarnings
+  , prettyTCWarnings'
+  , prettyTooManyFields
+  , prettyWarning
+  , tcWarningsToError
+  )
+where
 
 import Prelude hiding ( null )
 
@@ -51,21 +66,27 @@ import Agda.Interaction.Options
 import Agda.Interaction.Options.Errors
 import Agda.Interaction.Options.Warnings
 
+import Agda.Utils.Boolean  ( toBool )
 import Agda.Utils.FileName ( filePath )
 import Agda.Utils.Functor  ( (<.>) )
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Monad ( ifM )
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Set1 as Set1
+import Agda.Utils.WithDefault  ( pattern Value )
 
 import Agda.Utils.Impossible
 
 instance PrettyTCM TCWarning where
   prettyTCM w@(TCWarning loc _ _ doc _ _) = doc <$ do
     reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow loc
+
+instance PrettyTCM Warning where
+  prettyTCM = prettyWarning
 
 {-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
 prettyWarning :: MonadPretty m => Warning -> m Doc
@@ -92,18 +113,39 @@ prettyWarning = \case
           , nest 2 $ return $ P.vcat $ List.nub pcs
           ]
 
-    TerminationIssue because -> do
+    TerminationIssue errs1 -> do
       dropTopLevel <- topLevelModuleDropper
-      vcat
-        [ fwords "Termination checking failed for the following functions:"
-        , nest 2 $ fsep $ punctuate comma $
-            map (pretty . dropTopLevel) $
-              concatMap termErrFunctions because
-        , fwords "Problematic calls:"
-        , nest 2 $ fmap (P.vcat . List.nub) $
-            mapM prettyTCM $ List.sortOn getRange $
-              concatMap termErrCalls because
+      let errs = List1.toList errs1
+      let (guardednessHelps, guardednessHelpsNot) =
+            List.partition (toBool . termErrGuardednessHelps) errs
+      let report hint because = if null because then empty else do
+            vcat
+              [ fwords "Termination checking failed for the following functions:"
+              , hint
+              , nest 2 $ fsep $ punctuate comma $
+                  map (pretty . dropTopLevel) $
+                    concatMap termErrFunctions because
+              , fwords "Problematic calls:"
+              , nest 2 $ fmap (P.vcat . List.nub) $
+                  mapM prettyTCM $ List.sortOn getRange $
+                    concatMap termErrCalls because
+              ]
+      -- Andreas, 2025-04-01, issue #6657
+      -- Hint towards --guardedness where appropriate, but not when --sized-types is on.
+      -- Andreas, 2025-04-12, issue #7796
+      -- Also not when --no-guardedness is explicitly given (rather than the default).
+      opts <- pragmaOptions
+      let haveSizedTypes = optSizedTypes opts
+      let guardedness    = _optGuardedness opts
+      reportSDoc "tc.warning.termination" 50 $ vcat
+        [ "printing TerminationIssue"
+        , "sized-types = " <+> (text . show) haveSizedTypes
+        , "guardedness = " <+> (text . show) guardedness
         ]
+      if haveSizedTypes || guardedness == Value False then report empty errs else do
+        vcat [ report "(Option --guardedness might fix this problem.)" guardednessHelps
+             , report empty guardednessHelpsNot
+             ]
 
     UnreachableClauses _f pss -> "Unreachable" <+> pluralS pss "clause"
 
@@ -136,7 +178,7 @@ prettyWarning = \case
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
 
-    ConstructorDoesNotFitInData c s1 s2 err -> msg $$
+    ConstructorDoesNotFitInData dataOrRecord c s1 s2 err -> msg $$
       case err of
         TypeError _loc s e -> withTCState (const s) $ enterClosure e \ e ->
           parens ("Reason:" <+> prettyTCM e)
@@ -145,8 +187,8 @@ prettyWarning = \case
       where
         msg = sep
           [ "Constructor" <+> prettyTCM c
-          , "of sort" <+> prettyTCM s1
-          , ("does not fit into data type of sort" <+> prettyTCM s2) <> "."
+          , "of inferred sort" <+> prettyTCM s1
+          , ("does not fit into" <+> prettyTCM dataOrRecord <+> "type of sort" <+> prettyTCM s2) <> "."
           ]
 
     CoinductiveEtaRecord name -> vcat
@@ -210,7 +252,16 @@ prettyWarning = \case
       [ "`pattern' attribute ignored for", s, "record" ]
       -- the @s@ is a qualifier like "eta" or "coinductive"
 
-    UselessPublic -> fwords $ "Keyword `public' is ignored here"
+    UselessPublic reason ->
+      case reason of
+         UselessPublicLet
+           -> fwords $ "Ignoring `public'; useless in let bindings"
+         UselessPublicNoOpen
+           -> fwords $ "Ignoring `public'; useless without `open' here"
+         UselessPublicPreamble
+           -> fwords $ "Ignoring `public'; cannot reexport outside of the `module' body"
+         UselessPublicAnonymousModule
+           -> fwords $ "Ignoring `public'; cannot reexport from unopened anonymous module"
 
     UselessHiding xs -> fsep $ concat
       [ pwords "Ignoring names in `hiding' directive:"
@@ -220,6 +271,8 @@ prettyWarning = \case
     UselessInline q -> fsep $
       pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
       pwords "to have a separate Haskell definition"
+
+    UselessTactic -> fwords $ "Ignoring `tactic' attribute for non-hidden (explicit or instance) binder"
 
     WrongInstanceDeclaration -> fwords $
       "Instances should be of type {Γ} → C, where C evaluates to a postulated name or the name of " ++
@@ -245,12 +298,6 @@ prettyWarning = \case
              pwords "Most likely this means you have an unsatisfiable constraint, but it could" ++
              pwords "also mean that you need to increase the maximum depth using the flag" ++
              pwords "--inversion-max-depth=N"
-
-    NoGuardednessFlag q ->
-      fsep $ [ prettyTCM q ] ++ pwords "is declared coinductive, but option" ++
-             pwords "--guardedness is not enabled. Coinductive functions on" ++
-             pwords "this type will likely be rejected by the termination" ++
-             pwords "checker unless this flag is enabled."
 
     InvalidCharacterLiteral c -> fsep $
       pwords "Invalid character literal" ++ [text $ show c] ++
@@ -613,6 +660,11 @@ prettyWarning = \case
 
     TopLevelPolarity x p -> fsep $
       ["Definition", prettyTCM x, "has explicit polarity annotation", pretty p, "which is currently not supported"]
+
+instance PrettyTCM DataOrRecord_ where
+  prettyTCM = \case
+    IsData{}   -> "data"
+    IsRecord{} -> "record"
 
 
 {-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}

@@ -1321,6 +1321,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
     reifyDotP o v = do
       keepVars <- optKeepPatternVariables <$> pragmaOptions
       if | PatOVar x <- o , keepVars       -> return $ A.VarP $ mkBindName x
+         | PatOSplitArg x <- o , keepVars  -> A.VarP . mkBindName <$> freshName noRange x
          | otherwise                       -> A.DotP patNoRange <$> reify v
 
     reifyConP :: MonadReify m
@@ -1467,7 +1468,7 @@ instance Reify (QNamed System) where
 
       lhs <- SpineLHS empty f <$> stripImplicits mempty [] ps
       rhs <- reify u <&> (`RHS` Nothing)
-      return $ A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
+      return $ A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls empty
 {-# SPECIALIZE reify :: QNamed System -> TCM (ReifiesTo (QNamed System)) #-}
 
 instance Reify I.Type where

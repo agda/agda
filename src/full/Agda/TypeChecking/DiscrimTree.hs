@@ -136,7 +136,7 @@ splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
     Def q as | ReallyNotBlocked <- b, (as, _) <- splitApplyElims as -> do
       info <- getConstInfo q
       case theDef info of
-        AbstractDefn{} -> pure (FlexK, [], neverUnblock)
+        AbstractDefn{} | precise -> pure (FlexK, [], neverUnblock)
         _ -> do
           (arity, as) <- termKeyElims precise (pure (defType info)) as
           pure (RigidK q arity, as, neverUnblock)
@@ -176,7 +176,7 @@ splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
         ret' = case isNoAbs (unEl <$> ret) of
           Just b  -> b
           Nothing -> __DUMMY_TERM__
-      in pure (PiK, [unEl (unDom dom), ret'], neverUnblock)
+      in pure (PiK (getHiding dom), [unEl (unDom dom), ret'], neverUnblock)
 
     Lam _ body
       -- Constant lambdas come up quite a bit, particularly (in cubical
@@ -192,15 +192,16 @@ splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
       reportSDoc "tc.instance.split" 30 $ pretty tm
       pure (FlexK, [], neverUnblock)
 
-termPath :: Bool -> Int -> [Key] -> [Term] -> TCM [Key]
-termPath toplevel local acc []        = pure $! reverse acc
-termPath toplevel local acc (tm:todo) = do
+termPath :: Int -> Bool -> Int -> [Key] -> [Term] -> TCM [Key]
+termPath 0 _ _ acc _                        = pure $! reverse acc
+termPath limit toplevel local acc []        = pure $! reverse acc
+termPath limit toplevel local acc (tm:todo) = do
 
   -- We still want to ignore abstractness at the very top-level of
   -- instance heads, for issue #6941, to ensure that each instance ends
   -- up in the right 'class'. See the comment in `splitTermKey` about
   -- abstract definitions.
-  (k, as, _) <-
+  (k, as, blk) <-
     if toplevel
       then ignoreAbstractMode (splitTermKey True local tm)
       else splitTermKey True local tm
@@ -208,8 +209,21 @@ termPath toplevel local acc (tm:todo) = do
   reportSDoc "tc.instance.discrim.add" 666 $ vcat
     [ "k:  " <+> prettyTCM k
     , "as: " <+> prettyTCM as
+    , "blk:" <+> prettyTCM blk
+    , "lim:" <+> prettyTCM limit
     ]
-  termPath False local (k:acc) (as <> todo)
+  termPath (limit - 1) False local (k:acc) (as <> todo)
+
+-- | Maximum length for the keys (thus, depth for the discrimination
+-- tree) that should be used.
+--
+-- Adding an instance still causes reduction of everything 'rigid' in
+-- the type of the instance (so if normalisation is slow, so will be
+-- adding the instance) but this limit prevents us from building a
+-- discrimination tree with 2^32 intermediate @case 0 of suc → ...@
+-- nodes.
+discrimTreeDepthLimit :: Int
+discrimTreeDepthLimit = 16
 
 -- | Insert a value into the discrimination tree, turning variables into
 -- rigid locals or wildcards depending on the given scope.
@@ -221,7 +235,7 @@ insertDT
   -> DiscrimTree a
   -> TCM (DiscrimTree a)
 insertDT local key val tree = do
-  path <- termPath True local [] [key]
+  path <- termPath discrimTreeDepthLimit True local [] [key]
   let it = singletonDT path val
   reportSDoc "tc.instance.discrim.add" 20 $ vcat
     [ "added value" <+> prettyTCM val <+> "to discrimination tree with case"
@@ -239,7 +253,7 @@ keyArity :: Key -> Int
 keyArity = \case
   RigidK _ a -> a
   LocalK _ a -> a
-  PiK        -> 2
+  PiK _      -> 2
   ConstK     -> 1
   SortK      -> 0
   FlexK      -> 0
@@ -411,19 +425,17 @@ doneDT s = DoneDT s
 
 -- | Remove a set of values from the discrimination tree. The tree is
 -- rebuilt so that cases with no leaves are removed.
-deleteFromDT :: Ord a => DiscrimTree a -> Set.Set a -> DiscrimTree a
-deleteFromDT dt gone = case dt of
+deleteFromDT :: Ord a => Set.Set a -> DiscrimTree a -> DiscrimTree a
+deleteFromDT gone = \case
   EmptyDT -> EmptyDT
-  DoneDT s ->
-    let s' = Set.difference s gone
-     in doneDT s'
+  DoneDT s -> doneDT $! Set.difference s gone
   CaseDT i s k ->
     let
-      del x = case deleteFromDT x gone of
+      del x = case deleteFromDT gone x of
         EmptyDT -> Nothing
         dt'     -> Just dt'
 
       s' = Map.mapMaybe del s
-      k' = deleteFromDT k gone
+      k' = deleteFromDT gone k
     in if | Map.null s' -> k'
           | otherwise   -> CaseDT i s' k'

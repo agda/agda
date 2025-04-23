@@ -11,6 +11,8 @@ import Data.List as X (uncons)
 -- Regular imports
 
 import Control.Monad (filterM)
+import Control.Applicative (Alternative, (<|>))
+import qualified Control.Applicative as A
 
 import Data.Array (Array, array, listArray)
 import qualified Data.Array as Array
@@ -160,6 +162,24 @@ initMaybe = \case
 initWithDefault :: [a] -> [a] -> [a]
 initWithDefault as []     = as
 initWithDefault _  (a:as) = init1 a as
+
+---------------------------------------------------------------------------
+-- * Iterators
+---------------------------------------------------------------------------
+
+-- | A version of 'Foldable.asum' that avoids a final 'A.empty'.
+--   It is right-folding just like 'Foldable.asum'.
+--
+--   Precondition: the right-unit law holds, i.e. @m <|> A.empty = m@.
+asum :: Alternative m => [m a] -> m a
+asum []     = A.empty
+asum (x:xs) = asum1 x xs
+
+-- | A right-folding 'Foldable.asum' for nonempty lists,
+--   never producing 'A.empty'.
+asum1 :: Alternative m => m a -> [m a] -> m a
+asum1 x []     = x
+asum1 x (y:ys) = x <|> asum1 y ys
 
 ---------------------------------------------------------------------------
 -- * Lookup and indexing

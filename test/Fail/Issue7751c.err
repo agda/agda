@@ -1,0 +1,10 @@
+Issue7751c.agda:10.1-12.9: error: [TerminationIssue]
+Termination checking failed for the following functions:
+  Bad
+Problematic calls:
+  Bad
+    (at Issue7751c.agda:11.8-11)
+
+Issue7751c.agda:15.6-11: error: [SplitError.NotADatatype]
+Cannot split on argument of non-datatype Bad
+when checking that the pattern neg f has type Bad

@@ -284,13 +284,8 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
         debugFitsIn s
-        -- To allow propositional squash, we turn @Prop ℓ@ into @Set ℓ@
-        -- for the purpose of checking the type of the constructors.
-        let s' = case s of
-              Prop l -> Type l
-              _      -> s
         arity <- applyQuantityToJudgement ai $
-          fitsIn c uc forcedArgs t s'
+          fitsIn IsData c uc forcedArgs t s
         -- this may have instantiated some metas in s, so we reduce
         s <- reduce s
         debugAdd c t
@@ -596,7 +591,7 @@ defineCompData d con params names fsT t boundary = do
           , namedClausePats   = pats
           , clauseFullRange   = noRange
           , clauseLHSRange    = noRange
-          , clauseCatchall    = False
+          , clauseCatchall    = empty
           , clauseBody        = Just $ body
           , clauseRecursive   = Nothing
               -- Andreas 2020-02-06 TODO
@@ -1270,7 +1265,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
             , namedClausePats   = ps
             , clauseFullRange   = noRange
             , clauseLHSRange    = noRange
-            , clauseCatchall    = False
+            , clauseCatchall    = empty
             , clauseBody        = Just $ rhs
             , clauseRecursive   = Nothing
             -- it is indirectly recursive through transp, does it count?
@@ -1718,8 +1713,8 @@ bindParameter npars ps x a b ret =
 --
 --   As a side effect, return the arity of the constructor.
 
-fitsIn :: QName -> UniverseCheck -> [IsForced] -> Type -> Sort -> TCM Int
-fitsIn con uc forceds conT s = do
+fitsIn :: DataOrRecord_ -> QName -> UniverseCheck -> [IsForced] -> Type -> Sort -> TCM Int
+fitsIn dataOrRecord con uc forceds conT s = do
   reportSDoc "tc.data.fits" 10 $
     sep [ "does" <+> prettyTCM conT
         , "of sort" <+> prettyTCM (getSort conT)
@@ -1735,9 +1730,20 @@ fitsIn con uc forceds conT s = do
     usableAtModality' (Just s) ConstructorType (setQuantity q unitModality) (unEl conT)
 
   li <- optLargeIndices <$> pragmaOptions
-  fitsIn' li forceds conT s
+  -- To allow propositional squash in data constructors, we turn @Prop ℓ@ into @Set ℓ@
+  -- for the purpose of checking the sort of the constructor.
+  -- This would be invalid for record constructors as we could unsquash
+  -- by projecting out the squashed data.
+  fitsIn' li forceds conT s $ applyWhen (dataOrRecord == IsData) propToType s
   where
-  fitsIn' li forceds t s = do
+  fitsIn' ::
+       Bool        -- Are large indices allowed?
+    -> [IsForced]  -- Which constructor arguments are forced?
+    -> Type        -- Type of the constructor.
+    -> Sort        -- Original sort of the data or record type.
+    -> Sort        -- For @data@, prop-to-type converted sort.
+    -> TCM Int     -- Constructor arity computed from the type.
+  fitsIn' li forceds t s0 s = do
     vt <- do
       t <- pathViewAsPi t
       return $ case t of
@@ -1778,16 +1784,16 @@ fitsIn con uc forceds conT s = do
           sa <- reduce $ getSort dom
           unless (isPath || uc == NoUniverseCheck || sa == SizeUniv) $
             traceCall (CheckConArgFitsIn con isf (unDom dom) s) $
-            fitSort sa s
+            fitSort sa s0 s
 
         addContext (absName b, dom) $ do
-          succ <$> fitsIn' li forceds' (absBody b) (raise 1 s)
+          succ <$> fitsIn' li forceds' (absBody b) (raise 1 s0) (raise 1 s)
       _ -> do
-        fitSort (getSort t) s
+        fitSort (getSort t) s0 s
         return 0
   -- catch hard error from sort comparison to turn it into a soft error
-  fitSort sa s = leqSort sa s `catchError` \ err ->
-    warning $ ConstructorDoesNotFitInData con sa s err
+  fitSort sa s0 s = leqSort sa s `catchError` \ err ->
+    warning $ ConstructorDoesNotFitInData dataOrRecord con sa s0 err
 
 -- | When --without-K is enabled, we should check that the sorts of
 --   the index types fit into the sort of the datatype.

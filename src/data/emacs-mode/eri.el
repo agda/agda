@@ -1,3 +1,4 @@
+;; -*- lexical-binding: t -*-
 ;;; eri.el --- Enhanced relative indentation (eri)
 
 ;; SPDX-License-Identifier: MIT License
@@ -51,7 +52,7 @@ Example (positions marked with ^ are returned):
   ^ ^ ^ ^ ^ ^ ^     ^  |
                        |
                        MAX"
-  (let ((result))
+  (let ((result nil))
     (save-excursion
       (save-restriction
         (beginning-of-line)
@@ -65,7 +66,7 @@ Example (positions marked with ^ are returned):
                 (when (not (null pos))
                   (let ((pos1 (- pos (line-beginning-position))))
                     (when (or (null max) (< pos1 max))
-                      (add-to-list 'result pos1))))
+                      (cl-pushnew pos1 result))))
                 (and pos
                      (< (point) (line-end-position))
                      (or (null max) (< (current-column) max))))))

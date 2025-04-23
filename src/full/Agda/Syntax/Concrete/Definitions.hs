@@ -350,7 +350,7 @@ niceDeclarations fixs ds = do
                -- The x'@NoName{} is the unique version of x@NoName{}.
                removeLoneSig x
                ds  <- expandEllipsis fits
-               cs  <- mkClauses x' ds False
+               cs  <- mkClauses x' ds empty
                return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck covCheck x' cs] , rest)
 
             -- case: clauses match more than one sigs (ambiguity)
@@ -572,7 +572,7 @@ niceDeclarations fixs ds = do
 
     nicePragma (CatchallPragma r) ds =
       if canHaveCatchallPragma ds then
-        withCatchallPragma True $ nice1 ds
+        withCatchallPragma (YesCatchall r) $ nice1 ds
       else do
         declarationWarning $ InvalidCatchallPragma r
         nice1 ds
@@ -725,7 +725,7 @@ niceDeclarations fixs ds = do
     -- Create a function definition.
     mkFunDef info termCheck covCheck x mt ds0 = do
       ds <- expandEllipsis ds0
-      cs <- mkClauses x ds False
+      cs <- mkClauses x ds empty
       return [ FunSig (fuseRange x t) PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x t
              , FunDef (getRange ds0) ds0 ConcreteDef NotInstanceDef termCheck covCheck x cs ]
         where
@@ -733,7 +733,8 @@ niceDeclarations fixs ds = do
 
     underscore r = Underscore r Nothing
 
-
+    -- Search for the first clause that does not have an ellipsis (usually the very first one)
+    -- and then use its lhs pattern to replace ellipses in the subsequent clauses (if any).
     expandEllipsis :: [Declaration] -> Nice [Declaration]
     expandEllipsis [] = return []
     expandEllipsis (d@(FunClause lhs@(LHS p _ _) _ _ _) : ds)
@@ -770,18 +771,24 @@ niceDeclarations fixs ds = do
     -- Turn function clauses into nice function clauses.
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]
     mkClauses _ [] _ = return []
+
+    -- A CATCHALL pragma after the last clause is useless.
+    mkClauses x [Pragma (CatchallPragma r)] _ = [] <$ do
+      declarationWarning $ InvalidCatchallPragma r
+
     mkClauses x (Pragma (CatchallPragma r) : cs) catchall = do
-      when (catchall || null cs) $ declarationWarning $ InvalidCatchallPragma r
-      mkClauses x cs True
+      -- Warn about consecutive CATCHALL pragmas
+      unless (null catchall) $ declarationWarning $ InvalidCatchallPragma r
+      mkClauses x cs (YesCatchall r)
 
     mkClauses x (FunClause lhs rhs wh ca : cs) catchall
       | null (lhsWithExpr lhs) || hasEllipsis lhs  =
-      (Clause x (ca || catchall) lhs rhs wh [] :) <$> mkClauses x cs False   -- Will result in an error later.
+      (Clause x (ca <> catchall) lhs rhs wh [] :) <$> mkClauses x cs empty   -- Will result in an error later.
 
     mkClauses x (FunClause lhs rhs wh ca : cs) catchall = do
       when (null withClauses) $ declarationException $ MissingWithClauses x lhs
-      wcs <- mkClauses x withClauses False
-      (Clause x (ca || catchall) lhs rhs wh wcs :) <$> mkClauses x cs' False
+      wcs <- mkClauses x withClauses empty
+      (Clause x (ca <> catchall) lhs rhs wh wcs :) <$> mkClauses x cs' empty
       where
         (withClauses, cs') = subClauses cs
 
@@ -957,7 +964,7 @@ niceDeclarations fixs ds = do
             [(n, fits0, rest)] -> do
               let (checkss, fits) = unzip fits0
               ds <- lift $ expandEllipsis fits
-              cs <- lift $ mkClauses n ds False
+              cs <- lift $ mkClauses n ds empty
               case Map.lookup n m of
                 Just (InterleavedFun i0 sig cs0) -> do
                   let (cs', i') = case cs0 of
@@ -1241,7 +1248,7 @@ niceDeclarations fixs ds = do
       -> [NiceDeclaration]
       -> Nice [NiceDeclaration]
     abstractBlock r ds = do
-      (ds', anyChange) <- runChangeT $ mkAbstract ds
+      (ds', anyChange) <- runChangeT $ mkAbstract r ds
       let inherited = null r
       if anyChange then return ds' else do
         -- hack to avoid failing on inherited abstract blocks in where clauses
@@ -1255,9 +1262,16 @@ niceDeclarations fixs ds = do
       -> Nice [NiceDeclaration]
     privateBlock r o ds = do
       (ds', anyChange) <- runChangeT $ mkPrivate r o ds
-      if anyChange then return ds' else do
-        when (o == UserWritten) $ declarationWarning $ UselessPrivate r
-        return ds -- no change!
+      -- Warn if user-written 'private' does not accomplish anything.
+      when (o == UserWritten) do
+        if anyChange then
+          -- Andreas, 2025-03-29, user-written 'private' is useless in anonymous 'where' modules
+          -- since Agda automatically inserts a 'private' there.
+          whenM ((AnyWhere_ ==) <$> asks checkingWhere) warn
+        else warn
+      return $ if anyChange then ds' else ds
+      where
+        warn = declarationWarning $ UselessPrivate r
 
     instanceBlock
       :: KwRange  -- Range of @instance@ keyword.
@@ -1338,10 +1352,13 @@ instance MakeMacro NiceDeclaration where
 -- Then, nested @abstract@s would sometimes also be complained about.
 
 class MakeAbstract a where
-  mkAbstract :: UpdaterT Nice a
+  mkAbstract ::
+       KwRange
+         -- ^ Range of the keyword @abstract@.
+    -> UpdaterT Nice a
 
-  default mkAbstract :: (Traversable f, MakeAbstract a', a ~ f a') => UpdaterT Nice a
-  mkAbstract = traverse mkAbstract
+  default mkAbstract :: (Traversable f, MakeAbstract a', a ~ f a') => KwRange -> UpdaterT Nice a
+  mkAbstract = traverse . mkAbstract
 
 instance MakeAbstract a => MakeAbstract [a]
 
@@ -1350,58 +1367,61 @@ instance MakeAbstract a => MakeAbstract [a]
 --   mkAbstract = traverse mkAbstract
 
 instance MakeAbstract IsAbstract where
-  mkAbstract = \case
+  mkAbstract _ = \case
     a@AbstractDef -> return a
     ConcreteDef -> dirty $ AbstractDef
 
 instance MakeAbstract NiceDeclaration where
-  mkAbstract = \case
-      NiceMutual r termCheck cc pc ds  -> NiceMutual r termCheck cc pc <$> mkAbstract ds
-      NiceLoneConstructor r ds         -> NiceLoneConstructor r <$> mkAbstract ds
-      FunDef r ds a i tc cc x cs       -> (\ a -> FunDef r ds a i tc cc x) <$> mkAbstract a <*> mkAbstract cs
-      NiceDataDef r o a pc uc x ps cs  -> (\ a -> NiceDataDef r o a pc uc x ps) <$> mkAbstract a <*> mkAbstract cs
-      NiceRecDef r o a pc uc x dir ps cs -> (\ a -> NiceRecDef r o a pc uc x dir ps cs) <$> mkAbstract a
-      NiceFunClause r p a tc cc catchall d  -> (\ a -> NiceFunClause r p a tc cc catchall d) <$> mkAbstract a
-      -- The following declarations have an @InAbstract@ field
-      -- but are not really definitions, so we do count them into
-      -- the declarations which can be made abstract
-      -- (thus, do not notify progress with @dirty@).
-      Axiom r p a i rel x e          -> return $ Axiom             r p AbstractDef i rel x e
-      FunSig r p a i m rel tc cc x e -> return $ FunSig            r p AbstractDef i m rel tc cc x e
-      NiceRecSig  r er p a pc uc x ls t -> return $ NiceRecSig  r er p AbstractDef pc uc x ls t
-      NiceDataSig r er p a pc uc x ls t -> return $ NiceDataSig r er p AbstractDef pc uc x ls t
-      NiceField r p _ i tac x e      -> return $ NiceField         r p AbstractDef i tac x e
-      PrimitiveFunction r p _ x e    -> return $ PrimitiveFunction r p AbstractDef x e
-      -- Andreas, 2016-07-17 it does have effect on unquoted defs.
-      -- Need to set updater state to dirty!
-      NiceUnquoteDecl r p _ i tc cc x e -> tellDirty $> NiceUnquoteDecl r p AbstractDef i tc cc x e
-      NiceUnquoteDef r p _ tc cc x e    -> tellDirty $> NiceUnquoteDef r p AbstractDef tc cc x e
-      NiceUnquoteData r p _ tc cc x xs e -> tellDirty $> NiceUnquoteData r p AbstractDef tc cc x xs e
-      d@NiceModule{}                 -> return d
-      d@NiceModuleMacro{}            -> return d
-      d@NicePragma{}                 -> return d
-      d@(NiceOpen _ _ directives)              -> do
-        whenJust (publicOpen directives) $ lift . declarationWarning . OpenPublicAbstract
-        return d
-      d@NiceImport{}                 -> return d
-      d@NicePatternSyn{}             -> return d
-      d@NiceGeneralize{}             -> return d
-      NiceOpaque r ns ds             -> NiceOpaque r ns <$> mkAbstract ds
+  mkAbstract :: KwRange -> UpdaterT Nice NiceDeclaration
+  mkAbstract kwr = \case
+    NiceMutual r termCheck cc pc ds      -> NiceMutual r termCheck cc pc <$> mkAbstract kwr ds
+    NiceLoneConstructor r ds             -> NiceLoneConstructor r <$> mkAbstract kwr ds
+    FunDef r ds a i tc cc x cs           -> (\ a -> FunDef r ds a i tc cc x) <$> mkAbstract kwr a <*> mkAbstract kwr cs
+    NiceDataDef r o a pc uc x ps cs      -> (\ a -> NiceDataDef r o a pc uc x ps) <$> mkAbstract kwr a <*> mkAbstract kwr cs
+    NiceRecDef r o a pc uc x dir ps cs   -> (\ a -> NiceRecDef r o a pc uc x dir ps cs) <$> mkAbstract kwr a
+    NiceFunClause r p a tc cc catchall d -> (\ a -> NiceFunClause r p a tc cc catchall d) <$> mkAbstract kwr a
+    -- The following declarations have an @InAbstract@ field
+    -- but are not really definitions, so we do count them into
+    -- the declarations which can be made abstract
+    -- (thus, do not notify progress with @dirty@).
+    Axiom r p a i rel x e                -> return $ Axiom             r p AbstractDef i rel x e
+    FunSig r p a i m rel tc cc x e       -> return $ FunSig            r p AbstractDef i m rel tc cc x e
+    NiceRecSig  r er p a pc uc x ls t    -> return $ NiceRecSig     r er p AbstractDef pc uc x ls t
+    NiceDataSig r er p a pc uc x ls t    -> return $ NiceDataSig    r er p AbstractDef pc uc x ls t
+    NiceField r p _ i tac x e            -> return $ NiceField         r p AbstractDef i tac x e
+    PrimitiveFunction r p _ x e          -> return $ PrimitiveFunction r p AbstractDef x e
+    -- Andreas, 2016-07-17 it does have effect on unquoted defs.
+    -- Need to set updater state to dirty!
+    NiceUnquoteDecl r p _ i tc cc x e    -> tellDirty $> NiceUnquoteDecl r p AbstractDef i tc cc x e
+    NiceUnquoteDef r p _ tc cc x e       -> tellDirty $> NiceUnquoteDef  r p AbstractDef tc cc x e
+    NiceUnquoteData r p _ tc cc x xs e   -> tellDirty $> NiceUnquoteData r p AbstractDef tc cc x xs e
+    d@NiceModule{}                       -> return d
+    d@NiceModuleMacro{}                  -> return d
+    d@NicePragma{}                       -> return d
+    d@NiceOpen{}                         -> d <$ do
+      unless (null kwr) $
+        lift $ declarationWarning $ OpenImportAbstract (getRange d) kwr OpenNotImport
+    d@NiceImport{}                       -> d <$ do
+      unless (null kwr) $
+        lift $ declarationWarning $ OpenImportAbstract (getRange d) kwr ImportMayOpen
+    d@NicePatternSyn{}                   -> return d
+    d@NiceGeneralize{}                   -> return d
+    NiceOpaque r ns ds                   -> NiceOpaque r ns <$> mkAbstract kwr ds
 
 instance MakeAbstract Clause where
-  mkAbstract (Clause x catchall lhs rhs wh with) = do
-    Clause x catchall lhs rhs <$> mkAbstract wh <*> mkAbstract with
+  mkAbstract kwr (Clause x catchall lhs rhs wh with) = do
+    Clause x catchall lhs rhs <$> mkAbstract kwr wh <*> mkAbstract kwr with
 
 -- | Contents of a @where@ clause are abstract if the parent is.
 --
 --   These are inherited 'Abstract' blocks, indicated by an empty range
 --   for the @abstract@ keyword.
 instance MakeAbstract WhereClause where
-  mkAbstract  NoWhere               = return $ NoWhere
-  mkAbstract (AnyWhere r ds)        = dirty $ AnyWhere r
-                                                [Abstract empty ds]
-  mkAbstract (SomeWhere r e m a ds) = dirty $ SomeWhere r e m a
-                                                [Abstract empty ds]
+  mkAbstract _  NoWhere               = return $ NoWhere
+  mkAbstract _ (AnyWhere r ds)        = dirty $ AnyWhere r
+                                                  [Abstract empty ds]
+  mkAbstract _ (SomeWhere r e m a ds) = dirty $ SomeWhere r e m a
+                                                  [Abstract empty ds]
 
 -- | Make a declaration private.
 --
@@ -1413,7 +1433,12 @@ instance MakeAbstract WhereClause where
 -- Then, nested @private@s would sometimes also be complained about.
 
 class MakePrivate a where
-  mkPrivate :: KwRange -> Origin -> UpdaterT Nice a
+  mkPrivate ::
+       KwRange
+         -- ^ Range of the @private@ keyword.
+    -> Origin
+         -- ^ Origin of the @private@ block.
+    -> UpdaterT Nice a
 
   default mkPrivate :: (Traversable f, MakePrivate a', a ~ f a') => KwRange -> Origin -> UpdaterT Nice a
   mkPrivate kwr o = traverse $ mkPrivate kwr o
@@ -1448,10 +1473,14 @@ instance MakePrivate NiceDeclaration where
       NiceGeneralize r p i tac x t             -> (\ p -> NiceGeneralize r p i tac x t)         <$> mkPrivate kwr o p
       NiceOpaque r ns ds                       -> (\ p -> NiceOpaque r ns p)                    <$> mkPrivate kwr o ds
       d@NicePragma{}                           -> return d
-      d@(NiceOpen _ _ directives)              -> do
-        whenJust (publicOpen directives) $ lift . declarationWarning . OpenPublicPrivate
-        return d
-      d@NiceImport{}                           -> return d
+      d@(NiceOpen r _x dir)                    -> d <$ do
+        unless (null kwr) $
+          whenJust (publicOpen dir) \ kwrPublic ->
+            lift $ declarationWarning $ OpenImportPrivate r kwrPublic kwr OpenNotImport
+      d@(NiceImport r _x _as _open dir)        -> d <$ do
+        unless (null kwr) $
+          whenJust (publicOpen dir) \ kwrPublic ->
+            lift $ declarationWarning $ OpenImportPrivate r kwrPublic kwr ImportMayOpen
       -- Andreas, 2016-07-08, issue #2089
       -- we need to propagate 'private' to the named where modules
       FunDef r ds a i tc cc x cls              -> FunDef r ds a i tc cc x <$> mkPrivate kwr o cls
@@ -1470,7 +1499,7 @@ instance MakePrivate WhereClause where
     -- thus, they are effectively private by default.
     d@AnyWhere{} -> return d
     -- Andreas, 2016-07-08
-    -- A @where@-module is private if the parent function is private.
+    -- A named @where@-module is private if the parent function is private.
     -- The contents of this module are not private, unless declared so!
     -- Thus, we do not recurse into the @ds@ (could not anyway).
     SomeWhere r e m a ds ->
