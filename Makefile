@@ -129,7 +129,10 @@ install: install-bin setup-agda compile-emacs-mode setup-emacs-mode
 setup-agda:
 	$(AGDA_BIN) --setup
 
-.PHONY: ensure-hash-is-correct ## Ensure Agda's version contains the latest git commit hash.
+# GHC doesn't realise that the Template Haskell changes in the VersionCommit module
+# even if the source code does not. Simply touching the source is not enough to force
+# GHC to rebuild, so we remove the object file from the build directory.
+.PHONY: ensure-hash-is-correct
 ensure-hash-is-correct:
 	rm -f $(BUILD_DIR)/build/Agda/VersionCommit.o
 
