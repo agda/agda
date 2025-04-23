@@ -51,6 +51,9 @@ buildLibrary = do
 
   checkAndSetOptionsFromPragma libOpts
 
+  -- Import the primitive modules
+  Imp.importPrimitiveModules
+
   -- Find all modules in the include paths of the library.
   files <- map Find.infoPath . concat <$> forM paths \ path -> do
     liftIO $ findWithInfo (pure True) (hasAgdaExtension <$> Find.filePath) path
