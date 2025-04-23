@@ -14,7 +14,7 @@ import qualified System.FilePath.Find             as Find
 
 import           Agda.Interaction.FindFile        (hasAgdaExtension, checkModuleName)
 import qualified Agda.Interaction.Imports         as Imp
-import           Agda.Interaction.Library         (pattern AgdaLibFile, _libIncludes, getAgdaLibFile)
+import           Agda.Interaction.Library         (pattern AgdaLibFile, _libIncludes, _libPragmas, getAgdaLibFile)
 import           Agda.Interaction.Options         (optOnlyScopeChecking)
 
 import           Agda.Syntax.Abstract.Name        (noModuleName)
@@ -43,10 +43,13 @@ buildLibrary = do
 
   -- Read the library file.
   ls <- libToTCM $ getAgdaLibFile cwd
-  libFile@AgdaLibFile{ _libIncludes = paths } <- case ls of
+  libFile@AgdaLibFile{ _libIncludes = paths
+                     , _libPragmas  = libOpts } <- case ls of
     [l] -> pure l
     []  -> throwError $ GenericException "No library found to build"
     _   -> __IMPOSSIBLE__
+
+  checkAndSetOptionsFromPragma libOpts
 
   -- Find all modules in the include paths of the library.
   files <- map Find.infoPath . concat <$> forM paths \ path -> do
