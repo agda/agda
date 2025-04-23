@@ -52,7 +52,7 @@ useNamesFromPattern ps tel = telFromList (zipWith ren ps telList ++ telRemaining
           | otherwise                  -> dom
 
 useNamesFromProblemEqs
-  :: forall m. PureTCM m
+  :: forall m. (PureTCM m, MonadFresh NameId m)
   => [ProblemEq] -> Telescope -> m Telescope
 useNamesFromProblemEqs eqs tel = addContext tel $ do
   names <- fst . getUserVariableNames tel . patternVariables <$> getLeftoverPatterns eqs

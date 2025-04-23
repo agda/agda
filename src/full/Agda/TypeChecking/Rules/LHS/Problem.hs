@@ -11,14 +11,13 @@ module Agda.TypeChecking.Rules.LHS.Problem
 
 import Prelude hiding (null)
 
-import Control.Arrow        ( (***) )
 import Control.Monad        ( zipWithM )
 import Control.Monad.Writer ( MonadWriter(..), Writer, runWriter )
 
 import Data.Functor (($>))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.List ( partition )
+import Data.List ( sortOn )
 import Data.Semigroup ( Semigroup, (<>) )
 import qualified Data.Set as Set
 
@@ -37,6 +36,7 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
@@ -213,7 +213,7 @@ problemCont f p = f (_problemCont p) <&> \x -> p {_problemCont = x}
 problemInPats :: Problem a -> [A.Pattern]
 problemInPats = map problemInPat . (^. problemEqs)
 
-data AsBinding = AsB Name Term Type Modality
+data AsBinding = AsB Name Term (Dom Type)
 data DotPattern = Dot A.Expr Term (Dom Type)
 data AbsurdPattern = Absurd Range Type
 data AnnotationPattern = Ann A.Expr Type
@@ -256,7 +256,7 @@ data PatVarPosition = PVLocal | PVParam
   deriving (Show, Eq)
 
 data LeftoverPatterns = LeftoverPatterns
-  { patternVariables :: IntMap [(A.Name,PatVarPosition)]
+  { patternVariables :: IntMap [(Arg A.Name,PatVarPosition)]
   , asPatterns       :: [AsBinding]
   , dotPatterns      :: [DotPattern]
   , absurdPatterns   :: [AbsurdPattern]
@@ -300,33 +300,46 @@ instance PrettyTCM LeftoverPatterns where
 --   variables, as patterns, dot patterns, and absurd patterns.
 --   Precondition: there are no more constructor patterns.
 getLeftoverPatterns
-  :: forall m. PureTCM m
+  :: forall m. (PureTCM m, MonadFresh NameId m)
   => [ProblemEq] -> m LeftoverPatterns
 getLeftoverPatterns eqs = do
   reportSDoc "tc.lhs.top" 30 $ "classifying leftover patterns"
   params <- Set.fromList . teleNames <$> (lookupSection =<< currentModule)
-  let isParamName = (`Set.member` params) . nameToArgName
+  let isParamName x = if nameToArgName x `Set.member` params then PVParam else PVLocal
   mconcat <$> mapM (getLeftoverPattern isParamName) eqs
   where
-    patternVariable x i  = empty { patternVariables = singleton (i,[(x,PVLocal)]) }
-    moduleParameter x i  = empty { patternVariables = singleton (i,[(x,PVParam)]) }
-    asPattern x v a      = empty { asPatterns       = singleton (AsB x v (unDom a) (getModality a)) }
+    patternVariable x i isPar = empty { patternVariables = singleton (i,[(x,isPar)]) }
+    asPattern x v a      = empty { asPatterns       = singleton (AsB x v a) }
     dotPattern e v a     = empty { dotPatterns      = singleton (Dot e v a) }
     absurdPattern info a = empty { absurdPatterns   = singleton (Absurd info a) }
     otherPattern p       = empty { otherPatterns    = singleton p }
 
-    getLeftoverPattern :: (A.Name -> Bool) -> ProblemEq -> m LeftoverPatterns
+    getLeftoverPattern :: (A.Name -> PatVarPosition) -> ProblemEq -> m LeftoverPatterns
     getLeftoverPattern isParamName (ProblemEq p v a) = case p of
-      (A.VarP A.BindName{unBind = x}) -> isEtaVar v (unDom a) >>= \case
-        Just i  | isParamName x -> return $ moduleParameter x i
-                | otherwise     -> return $ patternVariable x i
-        Nothing -> return $ asPattern x v a
-      (A.WildP _)       -> return mempty
+      (A.VarP A.BindName{unBind = x}) -> isEtaVar v (unDom a) <&> \case
+        Just i -> patternVariable (argFromDom a $> x) i (isParamName x)
+        Nothing -> asPattern x v a
+      (A.WildP r)
+        | isInstance a ->
+            -- Issue #7392: If the wildcard appears in an instance position
+            -- and is not already bound as an instance in the context,
+            -- add it as a let binding.
+            ifM (isInstanceVar v $ unDom a) (return mempty) $ do
+              -- TODO: avoid fresh name by assigning unique `NameId` to `WildP`s?
+              x <- freshNoName (getRange r)
+              return $ asPattern x v a
+        | otherwise -> return mempty
       (A.AsP info A.BindName{unBind = x} p)  -> (asPattern x v a `mappend`) <$> do
         getLeftoverPattern isParamName $ ProblemEq p v a
       (A.DotP info e)   -> return $ dotPattern e v a
       (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
       _                 -> return $ otherPattern p
+
+      where
+        isInstanceVar :: Term -> Type -> m Bool
+        isInstanceVar v a = isEtaVar v a >>= \case
+            Just i -> isInstance <$> domOfBV i
+            Nothing -> return False
 
 -- | Build a renaming for the internal patterns using variable names from
 --   the user patterns. If there are multiple user names for the same internal
@@ -335,23 +348,26 @@ getLeftoverPatterns eqs = do
 --   those that are.
 getUserVariableNames
   :: Telescope                         -- ^ The telescope of pattern variables
-  -> IntMap [(A.Name,PatVarPosition)]  -- ^ The list of user names for each pattern variable
+  -> IntMap [(Arg A.Name,PatVarPosition)]  -- ^ The list of user names for each pattern variable
   -> ([Maybe A.Name], [AsBinding])
 getUserVariableNames tel names = runWriter $
   zipWithM makeVar (flattenTel tel) (downFrom $ size tel)
 
   where
     makeVar :: Dom Type -> Int -> Writer [AsBinding] (Maybe A.Name)
-    makeVar a i = case partitionIsParam (IntMap.findWithDefault [] i names) of
-      ([]     , [])   -> return Nothing
-      ((x:xs) , [])   -> tellAsBindings xs $> (Just x)
-      (xs     , y:ys) -> tellAsBindings (xs ++ ys) $> (Just y)
+    makeVar a i =
+      case map fst $ sortOn ((== PVLocal) . snd) (IntMap.findWithDefault [] i names) of
+        [] -> return Nothing
+        (z:zs) -> do
+          tellAsBindings $
+            -- Issue #7392: if the name that we picked comes from an instance argument
+            -- but we are *not* binding it in an instance position, we should
+            -- preserve the instance by *also* adding it as a let-binding.
+            if isInstance z && not (isInstance a) then z:zs else zs
+          return $ Just (unArg z)
       where
-        tellAsBindings = tell . map (\y -> AsB y (var i) (unDom a) (getModality a))
-
-    partitionIsParam :: [(A.Name,PatVarPosition)] -> ([A.Name],[A.Name])
-    partitionIsParam = (map fst *** map fst) . partition ((== PVParam) . snd)
-
+        -- Use hiding status of the variable as written rather than from the telescope
+        tellAsBindings = tell . map (\y -> AsB (unArg y) (var i) (setHiding (getHiding y) a))
 
 instance Subst (Problem a) where
   type SubstArg (Problem a) = Term
@@ -359,7 +375,7 @@ instance Subst (Problem a) where
 
 instance Subst AsBinding where
   type SubstArg AsBinding = Term
-  applySubst rho (AsB x v a m) = (\(v,a) -> AsB x v a m) $ applySubst rho (v, a)
+  applySubst rho (AsB x v a) = (\(v,a) -> AsB x v a) $ applySubst rho (v, a)
 
 instance Subst DotPattern where
   type SubstArg DotPattern = Term
@@ -377,7 +393,7 @@ instance PrettyTCM ProblemEq where
     ]
 
 instance PrettyTCM AsBinding where
-  prettyTCM (AsB x v a m) =
+  prettyTCM (AsB x v a) =
     sep [ prettyTCM x <> "@" <> parens (prettyTCM v)
         , nest 2 $ ":" <+> prettyTCM a
         ]
@@ -396,12 +412,12 @@ instance PrettyTCM AnnotationPattern where
   prettyTCM (Ann a p) = prettyTCM p <+> ":" <+> prettyA a
 
 instance PP.Pretty AsBinding where
-  pretty (AsB x v a m) =
+  pretty (AsB x v a) =
     PP.pretty x PP.<+> "=" PP.<+>
       PP.hang (PP.pretty v PP.<+> ":") 2 (PP.pretty a)
 
 instance InstantiateFull AsBinding where
-  instantiateFull' (AsB x v a m) = AsB x <$> instantiateFull' v <*> instantiateFull' a <*> pure m
+  instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a
 
 instance PrettyTCM (LHSState a) where
   prettyTCM (LHSState tel outPat (Problem eqs rps _) target _ _) = vcat
