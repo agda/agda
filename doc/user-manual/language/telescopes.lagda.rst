@@ -33,6 +33,11 @@ For example, the same telescope can be written equivalently as ``(x : Nat) (y z 
 The type of each variable can depend on the previous variables in the telescope,
 for example ``(A : Set) (n : Nat) (v : Vec A n)``.
 
+.. note::
+  The terminology is due to de Bruijn :ref:`[1] <telescopes-refs>`:
+  "The word was inspired, of course, by the old-fashioned instrument consisting of segments that slide one into another."
+  Each variable binding corresponds to a segment of the telescope, which can slide into (i.e. depend on) the previous ones.
+
 Telescopes appear in the following parts of the Agda syntax:
 
 * :ref:`Function types<function-types>`
@@ -183,3 +188,11 @@ This can also be written more compactly with just ``open`` (without the ``let``)
 ::
 
   module M2 (X : Set) (open M X) where
+
+.. _telescopes-refs:
+
+References
+==========
+
+[1] N.G. de Bruijn. "`Telescopic mappings in typed lambda calculus. <https://doi.org/10.1016/0890-5401(91)90066-B>`_"
+Information and Computation, Volume 91, Issue 2, 1991.
