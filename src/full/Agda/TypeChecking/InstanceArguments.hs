@@ -185,7 +185,7 @@ initialInstanceCandidates blockOverlap instTy = do
     shouldBlockOverlap :: Blocker -> Set.Set QName -> TCM Bool
     shouldBlockOverlap bs cands = do
       recursive <- useTC stConsideringInstance
-      prefreeze <- useTC stFinalChecks
+      hack <- useTC stInstanceHack
 
       mutual <- caseMaybeM (asksTC envMutualBlock) (pure mempty) \mb ->
         mutualNames <$> lookupMutualBlock mb
@@ -204,7 +204,7 @@ initialInstanceCandidates blockOverlap instTy = do
           -- case, we should not block, because this instance constraint
           -- might be the only thing that can solve the blocking metas.
 
-        , not prefreeze
+        , not hack
           -- To support 'inert improvement' (see ImproveInertRHS), we
           -- try all the candidates even if the discrimination tree
           -- thinks that there will be overlap. This is because it's
@@ -212,7 +212,7 @@ initialInstanceCandidates blockOverlap instTy = do
           --
           --   instance ?1 : Foo ?0, candidates {Foo T, Foo S}
           --      blocker ?0
-          --   ?0 = T (blocked on ?0)
+          --   ?0 X = T X (blocked on ?0)
           --
           -- If we block ?1 on ?0 again (as we would've done during the
           -- body), then both of these go unsolved. But if we try all

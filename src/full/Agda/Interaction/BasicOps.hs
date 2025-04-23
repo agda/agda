@@ -225,8 +225,8 @@ give_ elaborating force ii mr e = do
 --
 --   Returns the given expression unchanged
 --   (for convenient generalization to @'refine'@).
-give
-  :: UseForce       -- ^ Skip safety checks?
+give ::
+     UseForce       -- ^ Skip safety checks?
   -> InteractionId  -- ^ Hole.
   -> Maybe Range
   -> Expr           -- ^ The expression to give.
@@ -463,6 +463,9 @@ instance Reify Constraint where
           DoQuoteTerm cmp v t -> do
             tm <- A.App defaultAppInfo_ (A.QuoteTerm exprNoRange) . defaultNamedArg <$> reify v
             OfType tm <$> reify t
+          DisambiguateConstructor (ConstructorDisambiguationData c0 _cands args t) _cont -> do
+            t <- reify t
+            return $ TypedAssign m' (foldl (A.App empty)  (A.Con $ unambiguous c0) args) t
         OpenMeta{}  -> __IMPOSSIBLE__
         InstV{} -> __IMPOSSIBLE__
   reify (FindInstance m mcands) = FindInstanceOF
@@ -997,7 +1000,7 @@ metaHelperType norm ii rng s = case words s of
       let arity = size atel
           (delta1, delta2, _, a', vtys') = splitTelForWith tel a vtys
       a <- runInPrintingEnvironment $ do
-        reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' []
+        reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' empty
       reportSDoc "interaction.helper" 10 do
         let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ }
         let (vs, as)   = List1.unzipWith (fmap extractOtherType . unArg) vtys

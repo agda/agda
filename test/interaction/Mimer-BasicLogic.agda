@@ -44,8 +44,11 @@ h6 A B C x = {!-c!}
 --h6 A B C (∨-i₁ (∨-i₂ x)) = ∨-i₂ (∨-i₁ x)
 --h6 A B C (∨-i₂ x) = ∨-i₂ (∨-i₂ x)
 
+-- Andreas, 2025-04-14, issue #7587
+-- Removed the broken heuristics for absurd lambda.
 h7 : (A : Set) → ⊥ → A
-h7 A = {!!}
+h7 A x = {!-c!}
+-- No solution
 
 h8 : ∀ A → A → ¬ (¬ A)
 h8 = {!!}

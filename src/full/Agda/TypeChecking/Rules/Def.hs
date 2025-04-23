@@ -1183,11 +1183,11 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
     reportSDoc "tc.with.bndry" 40 $ addContext delta1 $ addContext delta2
                                   $ text "ps =" <+> pretty ps
     let vs = iApplyVars ps
-    bndry <- if null vs then return [] else do
+    bndry <- if null vs then return empty else do
       iz <- primIZero
       io <- primIOne
       let tm = Def f (patternsToElims ps)
-      return [(i,(inplaceS i iz `applySubst` tm, inplaceS i io `applySubst` tm)) | i <- vs]
+      return $ Boundary [(i,(inplaceS i iz `applySubst` tm, inplaceS i io `applySubst` tm)) | i <- vs]
     reportSDoc "tc.with.bndry" 40 $ addContext delta1 $ addContext delta2
                                   $ text "bndry =" <+> pretty bndry
     withFunctionType delta1 vtys delta2 b bndry
@@ -1195,7 +1195,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   reportSDoc "tc.with.type" 50 $ sep [ "with-function type:", nest 2 $ pretty withFunType ]
 
   call_in_parent <- do
-    (TelV tel _,bs) <- telViewUpToPathBoundaryP (nwithargs + size delta) withFunType
+    (TelV tel _,bs) <- telViewUpToPathBoundary' (nwithargs + size delta) withFunType
     return $ argsS `applySubst` Def aux (teleElims tel bs)
 
   reportSDoc "tc.with.top" 20 $ addContext delta $ "with function call" <+> prettyTCM call_in_parent

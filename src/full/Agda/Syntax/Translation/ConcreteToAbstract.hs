@@ -1231,7 +1231,7 @@ scopeCheckNiceModule r p e name tel checkDs = do
     checkWrappedModules _ []           = __IMPOSSIBLE__
     checkWrappedModules p [tel]        = scopeCheckNiceModule_ r p name tel checkDs
     checkWrappedModules p (tel : tels) =
-      scopeCheckNiceModule_ noRange p noName_ tel $ singleton <$>
+      scopeCheckNiceModule_ r p noName_ tel $ singleton <$>
         checkWrappedModules PublicAccess tels -- Inner modules are PublicAccess (see #4350)
 
     -- The actual workhorse:

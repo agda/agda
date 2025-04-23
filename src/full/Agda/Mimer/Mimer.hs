@@ -4,6 +4,8 @@ module Agda.Mimer.Mimer
   )
   where
 
+import Prelude hiding (null)
+
 import Control.DeepSeq (force, NFData(..))
 import Control.Monad
 import Control.Monad.Except (catchError)
@@ -46,8 +48,9 @@ import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcrete_)
 
 import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Constraints (noConstraints)
+import Agda.TypeChecking.Datatypes (isDataOrRecord)
 import Agda.TypeChecking.Conversion (equalType)
-import qualified Agda.TypeChecking.Empty as Empty -- (isEmptyType)
+import Agda.TypeChecking.Empty (isEmptyType)
 import Agda.TypeChecking.Free (flexRigOccurrenceIn, freeVars)
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.MetaVars (newValueMeta)
@@ -57,15 +60,17 @@ import Agda.TypeChecking.Records (isRecord, isRecursiveRecord)
 import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Rules.LHS.Problem (AsBinding(..))
 import Agda.TypeChecking.Rules.Term  (lambdaAddContext)
-import Agda.TypeChecking.Substitute.Class (apply, applyE, NoSubst(..))
+import Agda.TypeChecking.Substitute (apply, applyE, piApply, NoSubst(..), pattern TelV, telView')
 import Agda.TypeChecking.Telescope (piApplyM, flattenTel, teleArgs)
+
 import Agda.Utils.Benchmark (billTo)
 import Agda.Utils.FileName (filePath)
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Maybe (catMaybes)
-import Agda.Utils.Monad (ifM)
+import Agda.Utils.Monad (ifM, and2M)
 import qualified Agda.Utils.Maybe.Strict as SMaybe
 -- import Agda.Utils.Permutation (idP, permute, takeP)
+import Agda.Utils.Null
 import Agda.Utils.Time (CPUTime(..), getCPUTime, fromMilliseconds)
 import Agda.Utils.Tuple (mapFst, mapSnd)
 import Agda.Utils.FileName (AbsolutePath(..))
@@ -92,25 +97,32 @@ data MimerResult
 
 instance NFData MimerResult
 
+-- | Entry point.
+--   Run Mimer on the given interaction point, returning the desired solution(s).
+--   Also debug prints timing statistics.
 mimer :: MonadTCM tcm
-  => Rewrite
-  -> InteractionId
-  -> Range
-  -> String
+  => Rewrite         -- ^ Degree of normalization of solution terms.
+  -> InteractionId   -- ^ Hole to run on.
+  -> Range           -- ^ Range of hole (for parse errors).
+  -> String          -- ^ Content of hole (to parametrize Mimer).
   -> tcm MimerResult
 mimer norm ii rng argStr = liftTCM $ do
-    reportSDoc "mimer.top" 10 ("Running Mimer on interaction point" <+> pretty ii <+> "with argument string" <+> text (show argStr))
+    reportSDoc "mimer.top" 10 do
+      "Running Mimer on interaction point" <+> pretty ii <+> "with argument string" <+> text (show argStr)
 
     start <- liftIO $ getCPUTime
 
     opts <- parseOptions ii rng argStr
     reportS "mimer.top" 15 ("Mimer options: " ++ show opts)
 
-    oldState <- getTC
+    -- Andreas, 2025-04-16, changing the plain getTC/putTC bracket to localTCState.
+    -- localTCState should be used by default,
+    -- it keeps the Statistics about metas and constraints.
+    -- Was there a reason to use plain getTC/putTC or is it "don't care" since
+    -- mimer is an interactive command and no one looks at the statistics?
+    sols <- localTCState $ runSearch norm opts ii rng
 
-    sols <- runSearch norm opts ii rng
-    putTC oldState
-
+    -- Turn the solutions into the desired results (first solution or list of solutions).
     sol <- case drop (optSkip opts) $ zip [0..] sols of
           [] -> do
             reportSLn "mimer.top" 10 "No solution found"
@@ -120,12 +132,12 @@ mimer norm ii rng argStr = liftTCM $ do
             reportSDoc "mimer.top" 10 $ "Solution:" <+> prettyTCM sol
             return sol
 
-    putTC oldState
-
+    -- Print timing statistic.
     stop <- liftIO $ getCPUTime
     let time = stop - start
     reportSDoc "mimer.top" 10 ("Total elapsed time:" <+> pretty time)
     verboseS "mimer.stats" 50 $ writeTime ii (if null sols then Nothing else Just time)
+
     return sol
 
 
@@ -297,17 +309,6 @@ predNat n | n > 0 = n - 1
 getRecordFields :: (HasConstInfo tcm, MonadTCM tcm) => QName -> tcm [QName]
 getRecordFields = fmap (map unDom . recFields . theDef) . getConstInfo
 
-
--- TODO: Change the signature in original module instead.
-isEmptyType :: Type -> SM Bool
-isEmptyType = liftTCM . Empty.isEmptyType
-
--- TODO: Currently not using this function. Is it useful anywhere?
-getDomainType :: Type -> Type
-getDomainType typ = case unEl typ of
-  Pi dom _ -> unDom dom
-  _ -> __IMPOSSIBLE__
-
 allOpenMetas :: (AllMetas t, ReadTCState tcm) => t -> tcm [MetaId]
 allOpenMetas t = do
   openMetas <- getOpenMetas
@@ -370,71 +371,49 @@ withBranchAndGoal br goal ma = inGoalEnv goal $ withBranchState br ma
 inGoalEnv :: Goal -> SM a -> SM a
 inGoalEnv goal = withMetaId (goalMeta goal)
 
-nextBranchMeta' :: SearchBranch -> SM (Goal, SearchBranch)
-nextBranchMeta' = fmap (fromMaybe __IMPOSSIBLE__) . nextBranchMeta
-
-nextBranchMeta :: SearchBranch -> SM (Maybe (Goal, SearchBranch))
-nextBranchMeta branch = case sbGoals branch of
-  [] -> return Nothing
-  (goal : goals) ->
-    return $ Just (goal, branch{sbGoals=goals})
+-- | Take the first goal off a search branch.
+--   Precondition: the set of goals is non-empty.
+nextGoal :: SearchBranch -> (Goal, SearchBranch)
+nextGoal branch =
+  case sbGoals branch of
+    [] -> __IMPOSSIBLE__
+    goal : goals -> (goal, branch{ sbGoals = goals })
 
 -- TODO: Rename (see metaInstantiation)
 getMetaInstantiation :: (MonadTCM tcm, PureTCM tcm, MonadDebug tcm, MonadInteractionPoints tcm, MonadFresh NameId tcm)
   => MetaId -> tcm (Maybe Expr)
-getMetaInstantiation = metaInstantiation >=> go
-  where
-    -- TODO: Cleaner way of juggling the maybes here?
-    go Nothing = return Nothing
-    go (Just term) = do
-      expr <- instantiateFull term >>= reify
-      return $ Just expr
+getMetaInstantiation = metaInstantiation >=> traverse (instantiateFull >=> reify)
 
 metaInstantiation :: (MonadTCM tcm, MonadDebug tcm, ReadTCState tcm) => MetaId -> tcm (Maybe Term)
 metaInstantiation metaId = lookupLocalMeta metaId <&> mvInstantiation >>= \case
   InstV inst -> return $ Just $ instBody inst
   _ -> return Nothing
 
+-- TODO: why not also accept pattern record types here?
 isTypeDatatype :: (MonadTCM tcm, MonadReduce tcm, HasConstInfo tcm) => Type -> tcm Bool
-isTypeDatatype typ = do
-  typ' <- reduce typ
-  case unEl typ' of
-    Def qname _ -> theDef <$> getConstInfo qname >>= \case
-      Datatype{} -> return True
-      _ -> return False
-    _ -> return False
+isTypeDatatype typ = liftTCM do
+  reduce typ <&> unEl >>= isDataOrRecord <&> \case
+    Just (_, IsData) -> True
+    _ -> False
 
 ------------------------------------------------------------------------------
 -- * Components
 ------------------------------------------------------------------------------
 
--- ^ NOTE: Collects components from the *current* context, not the context of
+-- | NOTE: Collects components from the *current* context, not the context of
 -- the 'InteractionId'.
 collectComponents :: Options -> Costs -> InteractionId -> Maybe QName -> [QName] -> MetaId -> TCM BaseComponents
 collectComponents opts costs ii mDefName whereNames metaId = do
-  lhsVars' <- collectLHSVars ii
-  let recVars = lhsVars' <&> \ vars -> [ (tm, NoSubst i) | (tm, Just i) <- vars ]
-  lhsVars <- getOpen $ map fst <$> lhsVars'
-  typedLocals <- getLocalVarTerms 0
-  reportSDoc "mimer.components" 40 $ "All LHS variables:" <+> prettyTCM lhsVars <+> parens ("or" <+> pretty lhsVars)
-  let typedLhsVars = filter (\(term,typ) -> term `elem` lhsVars) typedLocals
-  reportSDoc "mimer.components" 40 $
-    "LHS variables with types:" <+> prettyList (map prettyTCMTypedTerm typedLhsVars) <+> parens ("or"
-      <+> prettyList (map prettyTypedTerm typedLhsVars))
-  -- TODO: For now, we *never* split on implicit arguments even if they are
-  -- written explicitly on the LHS.
-  splitVarsTyped <- filterM (\(term, typ) ->
-                 ((argInfoHiding (domInfo typ) == NotHidden) &&) <$> isTypeDatatype (unDom typ))
-               typedLhsVars
-  reportSDoc "mimer.components" 40 $
-    "Splittable variables" <+> prettyList (map prettyTCMTypedTerm splitVarsTyped) <+> parens ("or"
-      <+> prettyList (map prettyTypedTerm splitVarsTyped))
 
-  splitVars <- makeOpen $ map fst splitVarsTyped
+  lhsVars <- collectLHSVars ii
+  let recVars = lhsVars <&> \ vars -> [ (tm, NoSubst i) | (tm, Just i) <- vars ]
 
+  -- TODO: implement case splitting
+  -- splitVars <- getSplitVars lhsVars
+  splitVars <- makeOpen []
+
+  -- Prepare the initial component record
   letVars <- getLetVars (costLet costs)
-
-
   let components = BaseComponents
         { hintFns = []
         , hintDataTypes = []
@@ -447,9 +426,14 @@ collectComponents opts costs ii mDefName whereNames metaId = do
         , hintLetVars = letVars
         , hintSplitVars = splitVars
         }
-  metaVar <- lookupLocalMeta metaId
-  hintNames <- getEverythingInScope metaVar
-  components' <- foldM go components $ explicitHints ++ (hintNames \\ explicitHints)
+
+  -- Extract additional components from the names given as hints.
+  hintNames <- getEverythingInScope <$> lookupLocalMeta metaId
+  isToLevel <- endsInLevelTester
+  scope <- getScope
+  components' <- foldM (go isToLevel scope) components $
+    explicitHints ++ (hintNames \\ explicitHints)
+
   return BaseComponents
     { hintFns = doSort $ hintFns components'
     , hintDataTypes = doSort $ hintDataTypes components'
@@ -470,35 +454,24 @@ collectComponents opts costs ii mDefName whereNames metaId = do
 
     isNotMutual qname f = case mDefName of
       Nothing -> True
-      Just defName -> defName /= qname && fmap ((defName `elem`)) (funMutual f) /= Just True
+      Just defName -> defName /= qname && fmap (defName `elem`) (funMutual f) /= Just True
 
-    go comps qname = go' comps qname =<< getConstInfo qname
-
-    go' comps qname info
-      | isExtendedLambda (theDef info) = return comps    -- We can't use pattern lambdas as components
-      | isWithFunction   (theDef info) = return comps    -- or with functions
-      | otherwise = do
-        typ <- typeOfConst qname
-        scope <- getScope
-        let addLevel  = qnameToComponent (costLevel   costs) qname <&> \ comp -> comps{hintLevel     = comp : hintLevel  comps}
-            addAxiom  = qnameToComponent (costAxiom   costs) qname <&> \ comp -> comps{hintAxioms    = comp : hintAxioms comps}
-            addThisFn = qnameToComponent (costRecCall costs) qname <&> \ comp -> comps{hintThisFn    = Just comp{ compRec = True }}
-            addFn     = qnameToComponent (costFn      costs) qname <&> \ comp -> comps{hintFns       = comp : hintFns comps}
-            addData   = qnameToComponent (costSet     costs) qname <&> \ comp -> comps{hintDataTypes = comp : hintDataTypes comps}
-        case theDef info of
-          Axiom{} | isToLevel typ    -> addLevel
-                  | shouldKeep scope -> addAxiom
-                  | otherwise        -> return comps
-          -- TODO: Check if we want to use these
-          DataOrRecSig{}     -> return comps
-          GeneralizableVar{} -> return comps
-          AbstractDefn{}     -> return comps
+    go isToLevel scope comps qname = do
+        def <- getConstInfo qname
+        let typ = defType def
+        case theDef def of
+          Axiom{}
+            | isToLevel typ -> addLevel
+            | shouldKeep    -> addAxiom
+            | otherwise     -> done
+          -- We can't use pattern lambdas as components nor with-functions.
           -- If the function is in the same mutual block, do not include it.
-          f@Function{}
-            | Just qname == mDefName                  -> addThisFn
-            | isToLevel typ && isNotMutual qname f    -> addLevel
-            | isNotMutual qname f && shouldKeep scope -> addFn
-            | otherwise                               -> return comps
+          f@Function{ funWith = Nothing, funExtLam = Nothing }
+            | Just qname == mDefName   -> addThisFn
+            | notMutual, isToLevel typ -> addLevel
+            | notMutual, shouldKeep    -> addFn
+            where notMutual = isNotMutual qname f
+          Function{} -> done
           Datatype{} -> addData
           Record{} -> do
             projections <- mapM (qnameToComponent (costSpeculateProj costs)) =<< getRecordFields qname
@@ -506,14 +479,23 @@ collectComponents opts costs ii mDefName whereNames metaId = do
             return comps{ hintRecordTypes = comp : hintRecordTypes comps
                         , hintProjections = projections ++ hintProjections comps }
           -- We look up constructors when we need them
-          Constructor{} -> return comps
+          Constructor{} -> done
           -- TODO: special treatment for primitives?
-          Primitive{} | isToLevel typ    -> addLevel
-                      | shouldKeep scope -> addFn
-                      | otherwise        -> return comps
-          PrimitiveSort{} -> return comps
+          Primitive{}
+            | isToLevel typ  -> addLevel
+            | shouldKeep     -> addFn
+            | otherwise      -> done
+          PrimitiveSort{}    -> done
+          -- TODO: Check if we want to use these
+          DataOrRecSig{}     -> done
+          GeneralizableVar{} -> done
+          AbstractDefn{}     -> done
         where
-          shouldKeep scope = or
+          done = return comps
+          -- TODO: There is probably a better way of finding the module name
+          mThisModule = qnameModule <$> mDefName
+
+          shouldKeep = or
             [ qname `elem` explicitHints
             , qname `elem` whereNames
             , case hintMode of
@@ -522,31 +504,36 @@ collectComponents opts costs ii mDefName whereNames metaId = do
                 Module      -> Just (qnameModule qname) == mThisModule
                 NoHints     -> False
             ]
+          addLevel  = qnameToComponent (costLevel   costs) qname <&> \ comp -> comps{hintLevel     = comp : hintLevel  comps}
+          addAxiom  = qnameToComponent (costAxiom   costs) qname <&> \ comp -> comps{hintAxioms    = comp : hintAxioms comps}
+          addThisFn = qnameToComponent (costRecCall costs) qname <&> \ comp -> comps{hintThisFn    = Just comp{ compRec = True }}
+          addFn     = qnameToComponent (costFn      costs) qname <&> \ comp -> comps{hintFns       = comp : hintFns comps}
+          addData   = qnameToComponent (costSet     costs) qname <&> \ comp -> comps{hintDataTypes = comp : hintDataTypes comps}
 
-          -- TODO: There is probably a better way of finding the module name
-          mThisModule = qnameModule <$> mDefName
+-- | Is an element of the given type computing a level?
+--
+-- The returned checker is only sound but not complete because the type is taken as-is
+-- rather than being reduced.
+endsInLevelTester :: TCM (Type -> Bool)
+endsInLevelTester = do
+  getBuiltinName builtinLevel >>= \case
+    Nothing    -> return $ const False
+    Just level -> return \ t ->
+      -- NOTE: We do not reduce the type before checking, so some user definitions
+      -- will not be included here.
+      case telView' t of
+        TelV _ (El _ (Def x _)) -> x == level
+        _ -> False
 
-    -- NOTE: We do not reduce the type before checking, so some user definitions
-    -- will not be included here.
-    isToLevel :: Type -> Bool
-    isToLevel typ = case unEl typ of
-      Pi _ abs -> isToLevel (unAbs abs)
-      Def qname _ -> P.prettyShow qname == builtinLevelName
-      _ -> False
-
-    prettyTCMTypedTerm :: (PrettyTCM tm, PrettyTCM ty) => (tm, ty) -> TCM Doc
-    prettyTCMTypedTerm (term, typ) = prettyTCM term <+> ":" <+> prettyTCM typ
-    prettyTypedTerm (term, typ) = pretty term <+> ":" <+> pretty typ
 
 qnameToComponent :: (HasConstInfo tcm, ReadTCState tcm, MonadFresh CompId tcm, MonadTCM tcm)
   => Cost -> QName -> tcm Component
 qnameToComponent cost qname = do
-  info <- getConstInfo qname
-  typ  <- typeOfConst qname
-  -- #7120: typeOfConst is the type inside the module, so we need to apply the module params here
+  defn <- getConstInfo qname
+  -- #7120: we need to apply the module params to everything
   mParams <- freeVarsToApply qname
   let def = (Def qname [] `apply` mParams, 0)
-      (term, pars) = case theDef info of
+  let (term, pars) = case theDef defn of
         c@Constructor{}    -> (Con (conSrcCon c) ConOCon [], conPars c - length mParams)
         Axiom{}            -> def
         GeneralizableVar{} -> def
@@ -557,9 +544,12 @@ qnameToComponent cost qname = do
         PrimitiveSort{}    -> def
         DataOrRecSig{}     -> __IMPOSSIBLE__
         AbstractDefn{}     -> __IMPOSSIBLE__
-  newComponentQ [] cost qname pars term typ
+  newComponentQ [] cost qname pars term (defType defn `piApply` mParams)
 
-getEverythingInScope :: MonadTCM tcm => MetaVariable -> tcm [QName]
+-- | From the scope of the given meta variable,
+--   extract all names in scope that we could use during synthesis.
+--   (This excludes macros, generalizable variables, pattern synonyms.)
+getEverythingInScope :: MetaVariable -> [QName]
 getEverythingInScope metaVar = do
   let scope = clScope $ getMetaInfo metaVar
   let nameSpace = Scope.everythingInScope scope
@@ -583,23 +573,21 @@ getEverythingInScope metaVar = do
              . filter (validKind . Scope.anameKind)
              . map NonEmptyList.head
              $ Map.elems names
-  return qnames
+  qnames
 
-getLetVars :: (MonadFresh CompId tcm, MonadTCM tcm, Monad tcm) => Cost -> tcm [Open Component]
+-- | Turn the let bindings of the current 'TCEnv' into components.
+getLetVars :: forall tcm. (MonadFresh CompId tcm, MonadTCM tcm, Monad tcm) => Cost -> tcm [Open Component]
 getLetVars cost = do
   bindings <- asksTC envLetBindings
   mapM makeComp $ Map.toAscList bindings
   where
-    -- makeComp :: (Name, Open LetBinding) -> tcm (Open Component)
+    makeComp :: (Name, Open LetBinding) -> tcm (Open Component)
     makeComp (name, opn) = do
       cId <- fresh
-      return $ opn <&> \ (LetBinding _ term typ) ->
+      return $ opn <&> \ (LetBinding _origin term typ) ->
                 mkComponent cId [] cost (Just name) 0 term (unDom typ)
 
-builtinLevelName :: String
-builtinLevelName = "Agda.Primitive.Level"
-
--- IDEA:
+-- IDEA for implementing case-splitting:
 -- [x] 1. Modify the collectRecVarCandidates to get all variables.
 -- [ ] 2. Go through all variables to see if they are data types (not records)
 -- [ ] 3. Run makeCase for those variables.
@@ -608,6 +596,31 @@ builtinLevelName = "Agda.Primitive.Level"
 -- [ ] 6. Run make-case again to introduce those variables.
 -- [ ] 7. Redo the reification in the new clauses.
 -- [ ] 8. Return the new clauses and follow Auto for insertion.
+
+getSplitVars :: Open [(Term, Maybe Int)] -> TCM (Open [Term])
+getSplitVars lhsVars' = do
+
+    -- Compute the hintSplitVars from the pattern variables of function at the interaction point.
+    lhsVars <- getOpen $ map fst <$> lhsVars'
+    typedLocals <- getLocalVarTerms 0
+    reportSDoc "mimer.components" 40 $ "All LHS variables:" <+> prettyTCM lhsVars <+> parens ("or" <+> pretty lhsVars)
+    let typedLhsVars = filter (\(term,typ) -> term `elem` lhsVars) typedLocals
+    reportSDoc "mimer.components" 40 $
+      "LHS variables with types:" <+> prettyList (map prettyTCMTypedTerm typedLhsVars) <+> parens ("or"
+        <+> prettyList (map prettyTypedTerm typedLhsVars))
+    -- TODO: For now, we *never* split on implicit arguments even if they are
+    -- written explicitly on the LHS.
+    splitVarsTyped <-
+      filterM (\ (term, dom) -> pure (visible dom) `and2M` isTypeDatatype (unDom dom))
+              typedLhsVars
+    reportSDoc "mimer.components" 40 $
+      "Splittable variables" <+> prettyList (map prettyTCMTypedTerm splitVarsTyped) <+> parens ("or"
+        <+> prettyList (map prettyTypedTerm splitVarsTyped))
+    makeOpen $ map fst splitVarsTyped
+  where
+    prettyTCMTypedTerm :: (PrettyTCM tm, PrettyTCM ty) => (tm, ty) -> TCM Doc
+    prettyTCMTypedTerm (term, typ) = prettyTCM term <+> ":" <+> prettyTCM typ
+    prettyTypedTerm (term, typ) = pretty term <+> ":" <+> pretty typ
 
 -- | Returns the variables as terms together with whether they where found under
 -- some constructor, and if so which argument of the function they appeared in. This
@@ -632,7 +645,6 @@ collectLHSVars ii = do
           -- Telescope for the body of the clause
           let cTel = clauseTel clause
           -- HACK: To get the correct indices, we shift by the difference in telescope lengths
-          -- TODO: Difference between teleArgs and telToArgs?
           let shift = length (telToArgs iTel) - length (telToArgs cTel)
 
           reportSDoc "mimer" 60 $ vcat
@@ -1005,7 +1017,7 @@ applyToMetasG maxArgs comp = do
       (metaId, metaTerm) <- createMeta domainType
       let arg = setOrigin Inserted $ metaTerm <$ argFromDom dom
       newType <- reduce =<< piApplyM (compType comp) metaTerm
-      -- Constructors the parameters are not included in the term
+      -- Constructor parameters are not included in the term
       let skip = compPars comp
           newTerm | skip > 0  = compTerm comp
                   | otherwise = apply (compTerm comp) [arg]
@@ -1063,7 +1075,7 @@ branchInstantiationDoc branch = withBranchState branch topInstantiationDoc
 
 refine :: SearchBranch -> SM [SearchStepResult]
 refine branch = withBranchState branch $ do
-  (goal1, branch1) <- nextBranchMeta' branch
+  let (goal1, branch1) = nextGoal branch
 
   withBranchAndGoal branch1 goal1 $ do
     goalType1 <- bench [Bench.Reduce] $ reduce =<< getMetaTypeInContext (goalMeta goal1)
@@ -1079,12 +1091,8 @@ refine branch = withBranchState branch $ do
 
     -- Lambda-abstract as far as possible
     tryLamAbs goal1 goalType1 branch1 >>= \case
-      -- Abstracted with absurd pattern: solution found.
-      Left expr -> do
-        reportSDoc "mimer.refine" 30 $ "Abstracted with absurd lambda. Result:" <+> prettyTCM expr
-        return [ResultExpr expr]
       -- Normal abstraction
-      Right (goal2, goalType2, branch2) -> withBranchAndGoal branch2 goal2 $ do
+      (goal2, goalType2, branch2) -> withBranchAndGoal branch2 goal2 $ do
         (branch3, components) <- prepareComponents goal2 branch2
         withBranchAndGoal branch3 goal2 $ do
 
@@ -1132,20 +1140,27 @@ tryLet goal goalType branch = withBranchAndGoal branch goal $ do
   mapM checkSolved newBranches
 
 -- | Returns @Right@ for normal lambda abstraction and @Left@ for absurd lambda.
-tryLamAbs :: Goal -> Type -> SearchBranch -> SM (Either Expr (Goal, Type, SearchBranch))
+tryLamAbs :: Goal -> Type -> SearchBranch -> SM (Goal, Type, SearchBranch)
 tryLamAbs goal goalType branch =
   case unEl goalType of
     Pi dom abs -> do
-     isEmptyType (unDom dom) >>= \case -- TODO: Is this the correct way of checking if absurd lambda is applicable?
-      True -> do
-        let argInf = defaultArgInfo{argInfoOrigin = Inserted} -- domInfo dom
-            term = Lam argInf absurdBody
-        newMetaIds <- assignMeta (goalMeta goal) term goalType
-        unless (null newMetaIds) (__IMPOSSIBLE__)
-        -- TODO: Represent absurd lambda as a Term instead of Expr.
-        -- Left . fromMaybe __IMPOSSIBLE__ <$> getMetaInstantiation (goalMeta metaId)
-        return $ Left $ AbsurdLam exprNoRange NotHidden
-      False -> do
+      -- Andreas, 2025-04-14, issue 7587: remove broken heuristics for absurd lambda.
+      -- In case of an empty domain, we want to solve the branch by an absurd lambda
+      -- and signal that there are no more subgoals.
+      -- The now-commented out code returned an absurd-lambda *expression* which was then
+      -- considered as solution of the *original goal* rather than the current goal.
+      -- Returning an expression here is just too broken to attempt a fix.
+      --
+      -- isEmptyType (unDom dom) >>= \case -- TODO: Is this the correct way of checking if absurd lambda is applicable?
+      --  True -> do
+      --    let argInf = defaultArgInfo{argInfoOrigin = Inserted} -- domInfo dom
+      --        term = Lam argInf absurdBody
+      --    newMetaIds <- assignMeta (goalMeta goal) term goalType
+      --    unless (null newMetaIds) (__IMPOSSIBLE__)
+      --    -- TODO: Represent absurd lambda as a Term instead of Expr.
+      --    -- Left . fromMaybe __IMPOSSIBLE__ <$> getMetaInstantiation (goalMeta metaId)
+      --    return $ Left $ AbsurdLam exprNoRange NotHidden
+      --  False -> do
         let bindName | isNoName (absName abs) = "z"
                      | otherwise              = absName abs
         newName <- freshName_ bindName
@@ -1166,9 +1181,11 @@ tryLamAbs goal goalType branch =
         withEnv env $ do
           branch' <- updateBranch newMetaIds branch
           tryLamAbs (Goal metaId') bodyType branch'
-    _ -> do
+    _ -> done
+  where
+    done = do
       branch' <- updateBranch [] branch -- TODO: Is this necessary?
-      return $ Right (goal, goalType, branch')
+      return (goal, goalType, branch')
 
 
 genRecCalls :: Component -> SM [Component]
@@ -1280,8 +1297,10 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
 
     tryData :: Defn -> SM [SearchStepResult]
     tryData dataDefn = do
+      let constructors = dataCons dataDefn
+      reportSDoc "mimer.try" 40 $ hsep $ "tryData" : map prettyTCM constructors
       cost <- asks (costDataCon . searchCosts)
-      comps <- mapM (qnameToComponent cost) $ dataCons dataDefn
+      comps <- mapM (qnameToComponent cost) constructors
       newBranches <- mapM (tryRefineAddMetas goal goalType branch) comps
       -- TODO: Reduce overlap between e.g. tryLocals, this and tryRecord
       mapM checkSolved (catMaybes newBranches)

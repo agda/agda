@@ -634,6 +634,11 @@ instance PrettyTCM TypeError where
       pwords "With clause pattern " ++ [prettyA p] ++
       pwords " is not an instance of its parent pattern " ++ [P.fsep <$> prettyTCMPatterns [q]]
 
+    PathAbstractionFailed b -> vcat
+      [ ("Path abstraction failed for type" <+> prettyTCM (unAbs b)) <> "."
+      , "The type may be non-fibrant or its sort depends on an interval variable"
+      ]
+
     MetaCannotDependOn m v i ->
       ifM (isSortMeta m `and2M` (not <$> hasUniversePolymorphism))
       ( {- then -}

@@ -290,7 +290,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         s <- reduce s
         debugAdd c t
 
-        (TelV fields _, boundary) <- telViewUpToPathBoundaryP (-1) t
+        (TelV fields _, boundary) <- telViewPathBoundary t
 
         -- We assume that the current context matches the parameters
         -- of the datatype in an empty context (c.f. getContextSize above).
@@ -397,14 +397,15 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         ]
 checkConstructor _ _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
-defineCompData :: QName      -- datatype name
-               -> ConHead
-               -> Telescope  -- Γ parameters
-               -> [QName]    -- projection names
-               -> Telescope  -- Γ ⊢ Φ field types
-               -> Type       -- Γ ⊢ T target type
-               -> Boundary   -- [(i,t_i,b_i)],  Γ.Φ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : B_i
-               -> TCM CompKit
+defineCompData ::
+     QName         -- ^ Datatype name.
+  -> ConHead       -- ^ Constructor.
+  -> Telescope     -- ^ @Γ@ parameters.
+  -> [QName]       -- ^ Projection names.
+  -> Telescope     -- ^ @Γ ⊢ Φ@ field types.
+  -> Type          -- ^ @Γ ⊢ T@ target type.
+  -> Boundary      -- ^ @[(i,t_i,b_i)],  Γ.Φ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : B_i@
+  -> TCM CompKit
 defineCompData d con params names fsT t boundary = do
   required <- mapM getTerm'
     [ someBuiltin builtinInterval
@@ -528,7 +529,7 @@ defineCompData d con params names fsT t boundary = do
                   return $ (psi, alpha)
 
             -- Γ ⊢ Abs i. [(ψ_n,α_n : [ψ] → R (δ i))]
-            faces <- mapM mkFace bs
+            faces <- mapM mkFace $ theBoundary $ tmBoundary bs
 
             runNamesT [] $ do
                 -- Γ
@@ -741,7 +742,7 @@ defineTranspIx d = do
 
       -- record type in 'exponentiated' context
       -- (params : Γ)(ixs : Δ^I), i : I |- T[params, ixs i]
-      let rect' = sub ixs `applySubst` El (raise (size ixs) s) (Def d (teleElims (abstract params ixs) []))
+      let rect' = sub ixs `applySubst` El (raise (size ixs) s) (Def d (teleElims (abstract params ixs) empty))
       addContext params $ reportSDoc "tc.data.ixs" 20 $ "deltaI:" <+> prettyTCM deltaI
       addContext params $ addContext deltaI $ addContext ("i"::String, defaultDom interval) $ do
         reportSDoc "tc.data.ixs" 20 $ "rect':" <+> pretty (sub ixs)
@@ -756,7 +757,7 @@ defineTranspIx d = do
       reportSDoc "tc.data.ixs" 20 $ "transpIx:" <+> prettyTCM theType
       let
         ctel = abstract params $ abstract deltaI $ ExtendTel (defaultDom $ subst 0 iz rect') (Abs "t" EmptyTel)
-        ps = telePatterns ctel []
+        ps = telePatterns ctel empty
         cpi = noConPatternInfo { conPType = Just (defaultArg interval) }
         pat :: NamedArg (Pattern' DBPatVar)
         pat = defaultNamedArg $ ConP c cpi []
@@ -864,7 +865,7 @@ defineTranspFun d mtrX cons pathCons = do
           (defaultDefn defaultArgInfo trD theType (Cubical CErased) fun)
         let
           ctel = abstract telI $ ExtendTel (defaultDom $ subst 0 iz dTs) (Abs "t" EmptyTel)
-          ps = telePatterns ctel []
+          ps = telePatterns ctel empty
           cpi = noConPatternInfo { conPType = Just (defaultArg interval)
                                  , conPFallThrough = True
                                  }
@@ -1132,7 +1133,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
           let aTelNames = teleNames aTel
               aTelArgs = teleArgNames aTel
           con_ixs <- open $ AbsN (teleNames prm ++ teleNames aTel) $ map unArg con_ixs
-          bndry <- open $ AbsN (teleNames prm ++ teleNames aTel) $ boundary
+          bndry <- open $ AbsN (teleNames prm ++ teleNames aTel) $ tmBoundary boundary
           u    <- open $ AbsN (teleNames prm ++ aTelNames) $ Con chead ConOSystem (teleElims aTel boundary)
           aTel <- open $ AbsN (teleNames prm) aTel
           -- bsys : Abs Δ.Args ([phi] → ty)
@@ -1143,7 +1144,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
               ty <- open ty
               bs <- bndry `applyN` ts
               xs <- mapM (\(phi,u) -> (,) <$> open phi <*> open u) $ do
-                (i,(l,r)) <- bs
+                (i,(l,r)) <- theBoundary bs
                 let pElem t = Lam defaultIrrelevantArgInfo $ NoAbs "o" t
                 [(tINeg `apply` [argN i],pElem l),(i,pElem r)]
               combineSys' l ty xs
@@ -1158,7 +1159,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
           let aTel0 = aTel `applyN` map (<@> pure iz) delta
 
           -- telePatterns is not context invariant, so we need an open here where the context ends in aTel0.
-          ps0 <- (open =<<) $ (telePatterns <$> aTel0 <*> applyN bndry (map (<@> pure iz) delta ++ map (fmap unArg) as0))
+          ps0 <- (open =<<) $ (telePatterns <$> aTel0 <*> (varBoundary <$> applyN bndry (map (<@> pure iz) delta ++ map (fmap unArg) as0)))
 
           let deltaArg i = do
                 i <- i

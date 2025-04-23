@@ -180,6 +180,7 @@ typeErrorName = \case
   NotValidBeforeField                                        {} -> NotValidBeforeField_
   OpenEverythingInRecordWhere                                {} -> OpenEverythingInRecordWhere_
   OverlappingProjects                                        {} -> OverlappingProjects_
+  PathAbstractionFailed                                      {} -> PathAbstractionFailed_
   PatternInPathLambda                                        {} -> PatternInPathLambda_
   PatternInSystem                                            {} -> PatternInSystem_
   PostulatedSizeInModule                                     {} -> PostulatedSizeInModule_

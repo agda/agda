@@ -120,6 +120,9 @@ defaultAppInfo r = AppInfo{ appRange = r, appOrigin = Inserted, appParens = Pref
 defaultAppInfo_ :: AppInfo
 defaultAppInfo_ = defaultAppInfo noRange
 
+instance Null AppInfo where
+  empty = defaultAppInfo_
+
 instance HasRange AppInfo where
   getRange = appRange
 

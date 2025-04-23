@@ -397,7 +397,7 @@ addCompositionForRecord name eta con tel fs ftel rect = do
 
     -- Record has no fields: attach composition data to record constructor
     if null fs then do
-      kit <- defineCompData name con (abstract cxt tel) [] ftel rect []
+      kit <- defineCompData name con (abstract cxt tel) [] ftel rect empty
       modifySignature $ updateDefinition (conName con) $ updateTheDef $ \case
         r@Constructor{} -> r { conComp = kit, conProj = Just [] }  -- no projections
         _ -> __IMPOSSIBLE__
@@ -406,7 +406,7 @@ addCompositionForRecord name eta con tel fs ftel rect = do
     -- matching): define composition as for a data type, attach it to
     -- the record.
     else if theEtaEquality eta == NoEta PatternMatching then do
-      kit <- defineCompData name con (abstract cxt tel) (unArg <$> fs) ftel rect []
+      kit <- defineCompData name con (abstract cxt tel) (unArg <$> fs) ftel rect empty
       modifySignature $ updateDefinition name $ updateTheDef $ \case
         r@Record{} -> r { recComp = kit }
         _ -> __IMPOSSIBLE__

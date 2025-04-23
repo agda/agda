@@ -11,7 +11,6 @@ import Data.Maybe
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -28,22 +27,23 @@ import Agda.Utils.Impossible
 
 
 -- | In an ambient context Γ, @telePiPath f lams Δ t bs@ builds a type that
--- can be @telViewPathBoundaryP'ed@ into (TelV Δ t, bs').
+-- can be @'telViewPathBoundary'@ed into (TelV Δ t, bs').
 --   Γ.Δ ⊢ t
 --   bs = [(i,u_i)]
 --   Δ = Δ0,(i : I),Δ1
 --   ∀ b ∈ {0,1}.  Γ.Δ0 | lams Δ1 (u_i .b) : (telePiPath f Δ1 t bs)(i = b) -- kinda: see lams
 --   Γ ⊢ telePiPath f Δ t bs
 telePiPath :: (Abs Type -> Abs Type) -> ([Arg ArgName] -> Term -> Term) -> Telescope -> Type -> Boundary -> TCM Type
-telePiPath = \ reAbs lams tel t bs -> do
+telePiPath = \ reAbs lams tel t (Boundary bs) -> do
   pathP <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPathP
   let
     loop :: [Int] -> Telescope -> TCM Type
     loop []     EmptyTel          = return t
     loop (x:xs) (ExtendTel a tel) = do
         b <- traverse (loop xs) tel
-        case List.find (\ (t,_) -> t == var x) bs of
-          Just (_,u) -> do
+        case List.find ((x ==) . fst) bs of
+          -- Create a Path type.
+          Just (_,(u0,u1)) -> do
             let names = teleArgNames $ unAbs tel
             -- assume a = 𝕀
             l <- getLevel b
@@ -51,10 +51,11 @@ telePiPath = \ reAbs lams tel t bs -> do
               pathP `apply`
                 [ argH (Level l)
                 , argN (Lam defaultArgInfo (unEl <$> b))
-                , argN $ lams names (fst u)
-                , argN $ lams names (snd u)
+                , argN $ lams names u0
+                , argN $ lams names u1
                 ]
           Nothing    -> do
+            -- Create a Π type.
             return $ El (mkPiSort a b) (Pi a (reAbs b))
     loop (_:_) EmptyTel    = __IMPOSSIBLE__
     loop []    ExtendTel{} = __IMPOSSIBLE__
@@ -65,11 +66,13 @@ telePiPath = \ reAbs lams tel t bs -> do
     getLevel :: Abs Type -> TCM Level
     getLevel b = do
       s <- reduce $ getSort <$> b
-      case s of
+      -- 'reAbs' ensures that 'Abs' correctly indicates an occurrence of the bound variable.
+      case reAbs s of
         NoAbs _ (Type l) -> return l
-        Abs n (Type l) | not (freeIn 0 s) -> return $ noabsApp __IMPOSSIBLE__ (Abs n l)
-        _ -> __IMPOSSIBLE__
-          -- 2024-10-07 Andreas, issue #7413
+        _ -> typeError $ PathAbstractionFailed b
+          -- Andreas, 2025-04-17, not impossible after all, see issue #7803.
+          --
+          -- Previously: 2024-10-07, issue #7413
           -- Andrea writes in https://github.com/agda/agda/issues/7413#issuecomment-2396146135
           --
           -- I believe this is actually impossible at the moment
@@ -80,21 +83,18 @@ telePiPath = \ reAbs lams tel t bs -> do
           -- which then should ensure the result type is in Type lvl
           -- for some lvl that does not depend on on the interval
           -- variable of the path.
-          --
-          -- WAS: generic error with message
-          -- text "The type is non-fibrant or its sort depends on an interval variable" <+> prettyTCM (unAbs b)
 
 -- | @telePiPath_ Δ t [(i,u)]@
 --   Δ ⊢ t
 --   i ∈ Δ
 --   Δ ⊢ u_b : t  for  b ∈ {0,1}
-telePiPath_ :: Telescope -> Type -> [(Int,(Term,Term))] -> TCM Type
+telePiPath_ :: Telescope -> Type -> Boundary -> TCM Type
 telePiPath_ tel t bndry = do
   reportSDoc "tc.tel.path" 40                  $ text "tel  " <+> prettyTCM tel
   reportSDoc "tc.tel.path" 40 $ addContext tel $ text "type " <+> prettyTCM t
   reportSDoc "tc.tel.path" 40 $ addContext tel $ text "bndry" <+> pretty bndry
 
-  telePiPath id argsLam tel t [(var i, u) | (i , u) <- bndry]
+  telePiPath id argsLam tel t bndry
  where
    argsLam args tm = strengthenS impossible 1 `applySubst`
      foldr (\ Arg{argInfo = ai, unArg = x} -> Lam ai . Abs x) tm args

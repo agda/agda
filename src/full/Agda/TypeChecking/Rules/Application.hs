@@ -6,6 +6,7 @@ module Agda.TypeChecking.Rules.Application
   , checkApplication
   , inferApplication
   , checkProjAppToKnownPrincipalArg
+  , disambiguateConstructor'
   , univChecks
   , suffixToLevel
   ) where
@@ -140,8 +141,7 @@ checkApplication cmp hd args e t =
     , nest 2 $ text $ "e    = " ++ show (deepUnscope e)
     , nest 2 $ text $ "t    = " ++ show t
     ]
-  hd <- pure $ unScope hd
-  case hd of
+  case unScope hd of
     -- Subcase: unambiguous projection
     A.Proj o p | Just x <- getUnambiguous p -> do
       checkUnambiguousProjectionApplication cmp e t x o hd args
@@ -160,9 +160,9 @@ checkApplication cmp hd args e t =
       checkConstructorApplication cmp e t con hd args
 
     -- Subcase: ambiguous constructor
-    A.Con (AmbQ cs0) -> disambiguateConstructor cs0 args t >>= \ case
-      Left unblock -> postponeTypeCheckingProblem (CheckExpr cmp e t) unblock
-      Right c      -> checkConstructorApplication cmp e t c hd args
+    A.Con (AmbQ cs0) -> do
+      let cont c = checkConstructorApplication cmp e t c hd args
+      afterDisambiguation cont $ disambiguateConstructor cs0 args t
 
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
@@ -1107,7 +1107,14 @@ checkConstructorApplication cmp org t c hd args = do
         dropPar _ [] = Nothing
 
 -- | Return an unblocking action in case of failure.
-type DisambiguateConstructor = TCM (Either Blocker ConHead)
+type DisambiguateConstructor = TCM (Either (Blocker, ConstructorDisambiguationData) ConHead)
+
+-- | Successfully disambiguate constructor with given choice.
+decideOn :: ConHead -> DisambiguateConstructor
+decideOn c = do
+  reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
+  storeDisambiguatedConstructor (conInductive c) (conName c)
+  return $ Right c
 
 -- | Returns an unblocking action in case of failure.
 disambiguateConstructor :: List1 QName -> A.Args -> Type -> DisambiguateConstructor
@@ -1133,13 +1140,29 @@ disambiguateConstructor cs0 args t = do
       let c = setConName c0 con
       reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
       decideOn c
-    (c0,_):_   -> do
-      dcs :: [(QName, Type, ConHead)] <- forM ccons $ \ (c, con) -> do
+    cons@(c0,_):conss   -> do
+      dcs :: List1 (QName, Type, ConHead) <- forM (cons :| conss) $ \ (c, con) -> do
         t   <- defType <$> getConstInfo c
         def <- getConInfo con
         pure (getData (theDef def), t, setConName c con)
-      -- Type error
-      let badCon t = typeError $ ConstructorDoesNotTargetGivenType c0 t
+      resolveAmbiguousConstructor $ ConstructorDisambiguationData c0 dcs args t
+
+-- | Retry a constructor disambiguation.
+disambiguateConstructor' :: ConstructorDisambiguationData -> (ConHead -> TCM Term) -> TCM Term
+disambiguateConstructor' bcd cont = do
+  afterDisambiguation cont $ resolveAmbiguousConstructor bcd
+
+-- | Postpone a failing disambiguation or call given continuation.
+afterDisambiguation :: (ConHead -> TCM Term) -> DisambiguateConstructor -> TCM Term
+afterDisambiguation cont run =
+  run >>= \case
+    Left (unblock, bcd) -> postponeTypeCheckingProblem (DisambiguateConstructor bcd cont) unblock
+    Right c -> cont c
+
+-- | Resolve ambiguous constructor by looking at target type and argument skeleton.
+resolveAmbiguousConstructor :: ConstructorDisambiguationData -> DisambiguateConstructor
+resolveAmbiguousConstructor bcd@(ConstructorDisambiguationData c0 dcs1 args t) = do
+      let dcs = List1.toList dcs1
 
       -- Lets look at the target type at this point
       TelV tel t1 <- telViewPath t
@@ -1147,7 +1170,7 @@ disambiguateConstructor cs0 args t = do
        reportSDoc "tc.check.term.con" 40 $ nest 2 $
          "target type: " <+> prettyTCM t1
        -- If we don't have a target type yet, try to look at the argument types.
-       ifBlocked t1 (\ b _ -> disambiguateByArgs dcs $ return $ Left b) $ \ _ t' ->
+       ifBlocked t1 (\ b _ -> disambiguateByArgs dcs args $ postpone b) $ \ _ t' ->
          caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ (d, _) -> do
            let dcs' = filter ((d ==) . fst3) dcs
            case map thd3 dcs' of
@@ -1155,25 +1178,24 @@ disambiguateConstructor cs0 args t = do
              []  -> badCon $ t' $> Def d []
              -- If the information from the target type did not eliminate ambiguity fully,
              -- try to further eliminate alternatives by looking at the arguments.
-             c:cs-> disambiguateByArgs dcs' $
+             c:cs-> disambiguateByArgs dcs' args $
                       typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $
                         fmap conName $ c :| cs
   where
-  decideOn :: ConHead -> DisambiguateConstructor
-  decideOn c = do
-    reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
-    storeDisambiguatedConstructor (conInductive c) (conName c)
-    return $ Right c
+    postpone b = return $ Left (b, bcd)
+    badCon t = typeError $ ConstructorDoesNotTargetGivenType c0 t
 
-  -- Look at simple visible arguments (variables (bound and generalizable ones) and defined names).
-  -- From these we can compute an approximate type effortlessly:
-  -- 1. Throw away hidden domains (needed for generalizable variables).
-  -- 2. If the remainder is a defined name that is not blocked on anything, we take this name as
-  --    approximate type of the argument.
-  -- This gives us a skeleton @[Maybe QName]@.  Compute the same from the constructor types
-  -- of the candidates and see if we find any mismatches that allow us to rule out the candidate.
-  disambiguateByArgs :: [(QName, Type, ConHead)] -> DisambiguateConstructor -> DisambiguateConstructor
-  disambiguateByArgs dcs fallback = do
+-- | Disambiguate constructor by looking at its arguments.
+--
+-- Look at simple visible arguments (variables (bound and generalizable ones) and defined names).
+-- From these we can compute an approximate type effortlessly:
+-- 1. Throw away hidden domains (needed for generalizable variables).
+-- 2. If the remainder is a defined name that is not blocked on anything, we take this name as
+--    approximate type of the argument.
+-- This gives us a skeleton @[Maybe QName]@.  Compute the same from the constructor types
+-- of the candidates and see if we find any mismatches that allow us to rule out the candidate.
+disambiguateByArgs :: [(QName, Type, ConHead)] -> A.Args -> DisambiguateConstructor -> DisambiguateConstructor
+disambiguateByArgs dcs args fallback = do
 
     -- Look for visible arguments that are just variables,
     -- so that we can get their type directly from the context

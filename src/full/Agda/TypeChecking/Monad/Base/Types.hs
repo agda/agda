@@ -16,8 +16,11 @@ import Data.Functor                   ( (<&>) )
 import Data.Map                       ( Map )
 import GHC.Generics                   ( Generic )
 
+import Agda.Syntax.Common
+  ( LensArgInfo(..), LensCohesion, LensHiding, LensModality, LensOrigin, LensQuantity, LensRelevance, LensModalPolarity )
+
 import Agda.Syntax.Info               ( MetaNameSuggestion )
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal           ( Dom, MetaId, Name, Type )
 import Agda.Syntax.TopLevelModuleName as X ( TopLevelModuleName )
 
 import Agda.Utils.FileId              as X ( FileId, FileDictBuilder )
@@ -25,9 +28,6 @@ import Agda.Utils.FileName            as X ( AbsolutePath )
 import Agda.Utils.Lens                ( Lens', (&&&), iso )
 import Agda.Utils.Null                ( Null(..) )
 
-import Agda.Syntax.Internal           ( Dom, Name, Type )
-import Agda.Syntax.Common
-  ( LensArgInfo(..), LensCohesion, LensHiding, LensModality, LensOrigin, LensQuantity, LensRelevance, LensModalPolarity )
 
 ---------------------------------------------------------------------------
 -- * Context

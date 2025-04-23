@@ -125,11 +125,11 @@ splitTelForWith delta t vtys = let
 -- Each @EqualityType@, coming from a @rewrite@, will turn into 2 abstractions.
 
 withFunctionType
-  :: Telescope                          -- ^ @Δ₁@                        context for types of with types.
+  :: Telescope                          -- ^ @Δ₁@                        context for types of with-expressions.
   -> List1 (Arg (Term, EqualityView))   -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions and their type.
   -> Telescope                          -- ^ @Δ₁ ⊢ Δ₂@                   context extension to type with-expressions.
   -> Type                               -- ^ @Δ₁,Δ₂ ⊢ b@                 type of rhs.
-  -> [(Int,(Term,Term))]                -- ^ @Δ₁,Δ₂ ⊢ [(i,(u0,u1))] : b  boundary.
+  -> Boundary                           -- ^ @Δ₁,Δ₂ ⊢ [(i,(u0,u1))] : b@ boundary of rhs.
   -> TCM (Type, (Nat1, Nat))
     -- ^ @Δ₁ → wtel → Δ₂′ → b′@ such that
     --     @[vs/wtel]wtel = as@ and
@@ -153,7 +153,7 @@ withFunctionType delta1 vtys delta2 b bndry = addContext delta1 $ do
 
   vtys <- etaContract =<< normalise vtys
 
-  -- wd2db = wtel → [vs : as] (Δ₂ → B)
+  -- wd2b = wtel → [vs : as] (Δ₂ → B)
   wd2b <- foldrM piAbstract d2b vtys
   dbg 30 "wΓ → Δ₂ → B" wd2b
 
@@ -163,9 +163,9 @@ withFunctionType delta1 vtys delta2 b bndry = addContext delta1 $ do
   TelV wtel _ <- telViewUpTo nwithargs wd2b
 
   -- select the boundary for "Δ₁" abstracting over "wΓ.Δ₂"
-  let bndry' = [(i - sd2,(lams u0, lams u1)) | (i,(u0,u1)) <- bndry, i >= sd2]
+  let bndry' = Boundary [(i - sd2,(lams u0, lams u1)) | (i,(u0,u1)) <- theBoundary bndry, i >= sd2]
         where sd2 = size delta2
-              lams u = teleNoAbs wtel (abstract delta2 u)
+              lams = teleNoAbs wtel . abstract delta2
 
   d1wd2b <- telePiPath_ delta1 wd2b bndry'
 
@@ -594,7 +594,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
       where
         recurse v = do
           let piOrPathApplyM t v = do
-                (TelV tel t', bs) <- telViewUpToPathBoundaryP 1 t
+                (TelV tel t', bs) <- telViewUpToPathBoundary' 1 t
                 unless (size tel == 1) $ __IMPOSSIBLE__
                 return (teleElims tel bs, subst 0 v t')
           (e, t') <- piOrPathApplyM t v
@@ -625,7 +625,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           -- Compute the argument telescope for the constructor
           let ct' = ct `piApply` take np us
           TelV tel' _ <- liftTCM $ telViewPath ct'
-          -- (TelV tel' _, _boundary) <- liftTCM $ telViewPathBoundaryP ct'
+          -- (TelV tel' _, _boundary) <- liftTCM $ telViewPathBoundary ct'
 
           reportSDoc "tc.with.strip" 20 $
             vcat [ "ct  = " <+> prettyTCM ct

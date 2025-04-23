@@ -1365,7 +1365,7 @@ checkLHS mf = updateModality checkLHS_ where
         _ -> return ()
 
       -- The type of the constructor will end in an application of the datatype
-      (TelV gamma (El _ ctarget), boundary) <- liftTCM $ telViewPathBoundaryP b
+      (TelV gamma (El _ ctarget), boundary) <- liftTCM $ telViewPathBoundary b
       let Def d' es' = ctarget
           cixs = drop (size pars) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
 

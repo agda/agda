@@ -101,6 +101,7 @@ runAgda' backends = do
 
       -- Locate emacs mode
       when (EmacsModeLocate `Set.member` optEmacsMode opts) do
+        unless (optSetup opts) $ Agda.Setup.setup False
         printEmacsModeFile
 
       case mode of

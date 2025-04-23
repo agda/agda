@@ -344,9 +344,10 @@ data PostScopeState = PostScopeState
     -- ^ Associates opaque identifiers to their actual blocks.
   , stPostOpaqueIds           :: Map QName OpaqueId
     -- ^ Associates each opaque QName to the block it was defined in.
-  , stPostFinalChecks         :: !Bool
-    -- ^ Are we doing the post-mutual-block checks? Used to decide
-    -- whether to postpone instances.
+  , stPostInstanceHack        :: !Bool
+    -- ^ Is this a context where we should always try every possible
+    -- instance candidate? Used to support "inert improvement", see
+    -- @shouldBlockOverlap@ in InstanceArguments.
   }
   deriving (Generic)
 
@@ -534,7 +535,7 @@ initPostScopeState = PostScopeState
   , stPostOpaqueBlocks           = Map.empty
   , stPostOpaqueIds              = Map.empty
   , stPostForeignCode            = Map.empty
-  , stPostFinalChecks            = False
+  , stPostInstanceHack           = False
   }
 
 initStateIO :: IO TCState
@@ -773,8 +774,8 @@ lensConsideringInstance f s = f (stPostConsideringInstance s) <&> \ x -> s { stP
 lensInstantiateBlocking :: Lens' PostScopeState Bool
 lensInstantiateBlocking f s = f (stPostInstantiateBlocking s) <&> \ x -> s { stPostInstantiateBlocking = x }
 
-lensFinalChecks :: Lens' PostScopeState Bool
-lensFinalChecks f s = f (stPostFinalChecks s) <&> \ x -> s { stPostFinalChecks = x }
+lensInstanceHack :: Lens' PostScopeState Bool
+lensInstanceHack f s = f (stPostInstanceHack s) <&> \ x -> s { stPostInstanceHack = x }
 
 -- * @st@-prefixed lenses
 ------------------------------------------------------------------------
@@ -907,8 +908,8 @@ stOpaqueBlocks = lensPostScopeState . lensOpaqueBlocks
 stOpaqueIds :: Lens' TCState (Map QName OpaqueId)
 stOpaqueIds = lensPostScopeState . lensOpaqueIds
 
-stFinalChecks :: Lens' TCState Bool
-stFinalChecks = lensPostScopeState . lensFinalChecks
+stInstanceHack :: Lens' TCState Bool
+stInstanceHack = lensPostScopeState . lensInstanceHack
 
 stSyntaxInfo :: Lens' TCState HighlightingInfo
 stSyntaxInfo = lensPostScopeState . lensSyntaxInfo
@@ -1793,8 +1794,23 @@ data TypeCheckingProblem
     --     @(λ (x y : Fin _) → e) : (x : Fin n) → ?@
     --   we want to postpone @(λ (y : Fin n) → e) : ?@ where @Fin n@
     --   is a 'Type' rather than an 'A.Expr'.
+  | DisambiguateConstructor ConstructorDisambiguationData (ConHead -> TCM Term)
+    -- ^ A stuck constructor disambiguation with the bits to retry it on and the success continuation.
   | DoQuoteTerm Comparison Term Type -- ^ Quote the given term and check type against `Term`
   deriving Generic
+
+-- | Information we have constructored in the middle of disambiguating a constructor.
+data ConstructorDisambiguationData = ConstructorDisambiguationData
+  -- bcd for blocked constructor disambiguation
+  { bcdConName    :: QName
+      -- ^ One of the eligible ambiguous names (for error messages).
+  , bcdCandidates :: List1 (QName, Type, ConHead)
+      -- ^ The possible candidates for disambiguation
+  , bcdArguments  :: A.Args
+      -- ^ The arguments given to the constructor.
+  , bcdType       :: Type
+      -- ^ The type of the constructor application
+  } deriving Generic
 
 instance Pretty MetaInstantiation where
   pretty = \case
@@ -5136,6 +5152,7 @@ data TypeError
         | IllTypedPatternAfterWithAbstraction A.Pattern
         | TooFewPatternsInWithClause
         | TooManyPatternsInWithClause
+        | PathAbstractionFailed (Abs Type)
         | FieldOutsideRecord
         | ModuleArityMismatch A.ModuleName Telescope (Either (List1 (NamedArg A.Expr)) Args)
         | GeneralizeCyclicDependency
@@ -6617,3 +6634,4 @@ instance NFData InteractionError
 instance NFData IsAmbiguous
 instance NFData CannotQuote
 instance NFData ExecError
+instance NFData ConstructorDisambiguationData
