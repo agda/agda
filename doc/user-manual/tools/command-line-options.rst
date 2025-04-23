@@ -116,7 +116,6 @@ but in the fixed order listed in the following:
 
 General options
 ~~~~~~~~~~~~~~~
->>>>>>> origin/master
 
 .. option:: --interaction
 
