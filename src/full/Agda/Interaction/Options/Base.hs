@@ -674,6 +674,7 @@ defaultOptions = Options
   , optPrintAgdaAppDir       = False
   , optPrintVersion          = Nothing
   , optPrintHelp             = Nothing
+  , optBuildLibrary          = False
   , optSetup                 = False
   , optEmacsMode             = Set.empty
   , optInteractive           = False
@@ -1329,6 +1330,9 @@ standardOptions =
 
     , Option []     ["print-agda-data-dir"] (NoArg printAgdaDataDirFlag)
                     ("print the Agda data directory")
+
+    , Option []     ["build-library"] (NoArg \ o -> return o{ optBuildLibrary = True })
+                    "build all modules included by the @.agda-lib@ file in the current directory"
 
     , Option []     ["setup"] (NoArg setupFlag)
                     ("setup the Agda data directory")

@@ -161,7 +161,10 @@ jobs:
         sudo apt-get update
         # shellcheck disable=SC2086
         sudo apt-get install ${APT_GET_OPTS} texlive-binaries emacs-nox
-    - name: Suite of tests for the LaTeX and HTML backends
+    - name: Test agda --build-library
+      run: make build-succeed-test
+    - if: always()
+      name: Suite of tests for the LaTeX and HTML backends
       run: make DONT_RUN_LATEX=Y latex-html-test
     - if: always()
       name: Testing the Emacs mode

@@ -18,6 +18,10 @@ module Agda.Interaction.Imports
   , scopeCheckImport
   , parseSource
   , typeCheckMain
+  , getNonMainInterface
+  , getNonMainModuleInfo
+  , getInterface
+  , importPrimitiveModules
   , raiseNonFatalErrors
 
   -- Currently only used by test/api/Issue1168.hs:
@@ -478,30 +482,9 @@ typeCheckMain mode src = do
 
   -- For the main interface, we also remember the pragmas from the file
   setOptionsFromSourcePragmas True src
-  loadPrims <- optLoadPrimitives <$> pragmaOptions
 
-  when loadPrims $ do
-    reportSLn "import.main" 10 "Importing the primitive modules."
-    libdirPrim <- useTC stPrimitiveLibDir
-    reportSLn "import.main" 20 $ "Library primitive dir = " ++ show libdirPrim
-    -- Turn off import-chasing messages.
-    -- We have to modify the persistent verbosity setting, since
-    -- getInterface resets the current verbosity settings to the persistent ones.
-
-    bracket_ (getsTC Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
-      Lens.modifyPersistentVerbosity
-        (Strict.Just . Trie.insert [] 0 . Strict.fromMaybe Trie.empty)
-        -- set root verbosity to 0
-
-      -- We don't want to generate highlighting information for Agda.Primitive.
-      withHighlightingLevel None $
-        forM_ (map (filePath libdirPrim </>) $ Set.toList primitiveModules) \ f -> do
-          sf <- srcFromPath (mkAbsolute f)
-          primSource <- parseSource sf
-          checkModuleName' (srcModuleName primSource) (srcOrigin primSource)
-          void $ getNonMainInterface (srcModuleName primSource) (Just primSource)
-
-    reportSLn "import.main" 10 $ "Done importing the primitive modules."
+  -- Import the Agda.Primitive modules
+  importPrimitiveModules
 
   -- Now do the type checking via getInterface.
   checkModuleName' (srcModuleName src) (srcOrigin src)
@@ -514,12 +497,38 @@ typeCheckMain mode src = do
          )
 
   return $ CheckResult' mi src
-  where
-  checkModuleName' m f =
-    -- Andreas, 2016-07-11, issue 2092
-    -- The error range should be set to the file with the wrong module name
-    -- not the importing one (which would be the default).
-    setCurrentRange m $ checkModuleName m f Nothing
+
+-- Andreas, 2016-07-11, issue 2092
+-- The error range should be set to the file with the wrong module name
+-- not the importing one (which would be the default).
+checkModuleName' :: TopLevelModuleName' Range -> SourceFile -> TCM ()
+checkModuleName' m f =
+  setCurrentRange m $ checkModuleName m f Nothing
+
+-- | Import the primitive modules (unless --no-load-primitives).
+importPrimitiveModules :: TCM ()
+importPrimitiveModules = whenM (optLoadPrimitives <$> pragmaOptions) $ do
+  reportSLn "import.main" 10 "Importing the primitive modules."
+  libdirPrim <- useTC stPrimitiveLibDir
+  reportSLn "import.main" 20 $ "Library primitive dir = " ++ show libdirPrim
+  -- Turn off import-chasing messages.
+  -- We have to modify the persistent verbosity setting, since
+  -- getInterface resets the current verbosity settings to the persistent ones.
+
+  bracket_ (getsTC Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
+    Lens.modifyPersistentVerbosity
+      (Strict.Just . Trie.insert [] 0 . Strict.fromMaybe Trie.empty)
+      -- set root verbosity to 0
+
+    -- We don't want to generate highlighting information for Agda.Primitive.
+    withHighlightingLevel None $
+      forM_ (map (filePath libdirPrim </>) $ Set.toList primitiveModules) \ f -> do
+        sf <- srcFromPath (mkAbsolute f)
+        primSource <- parseSource sf
+        checkModuleName' (srcModuleName primSource) (srcOrigin primSource)
+        void $ getNonMainInterface (srcModuleName primSource) (Just primSource)
+
+  reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
 -- | Tries to return the interface associated to the given (imported) module.
 --   The time stamp of the relevant interface file is also returned.
@@ -535,12 +544,20 @@ getNonMainInterface
      -- ^ Optional: the source code and some information about the source code.
   -> TCM Interface
 getNonMainInterface x msrc = do
-  -- Preserve/restore the current pragma options, which will be mutated when loading
-  -- and checking the interface.
-  mi <- bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $
-          getInterface x NotMainInterface msrc
+  mi <- getNonMainModuleInfo x msrc
   tcWarningsToError $ Set.toAscList $ miWarnings mi
   return (miInterface mi)
+
+getNonMainModuleInfo
+  :: TopLevelModuleName
+  -> Maybe Source
+     -- ^ Optional: the source code and some information about the source code.
+  -> TCM ModuleInfo
+getNonMainModuleInfo x msrc =
+  -- Preserve/restore the current pragma options, which will be mutated when loading
+  -- and checking the interface.
+  bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $
+           getInterface x NotMainInterface msrc
 
 -- | A more precise variant of 'getNonMainInterface'. If warnings are
 -- encountered then they are returned instead of being turned into

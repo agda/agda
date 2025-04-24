@@ -60,6 +60,8 @@ data CommandLineOptions = Options
   , optPrintAgdaAppDir       :: Bool
   , optPrintVersion          :: Maybe PrintAgdaVersion
   , optPrintHelp             :: Maybe Help
+  , optBuildLibrary          :: Bool
+      -- ^ @--build-library@: Build all modules in the current library.
   , optSetup                 :: Bool
       -- ^ Force Agda to self-setup at startup.
   , optEmacsMode             :: Set EmacsModeCommand
@@ -72,7 +74,9 @@ data CommandLineOptions = Options
   , optInteractive           :: Bool
       -- ^ Agda REPL (@-I@).
   , optGHCiInteraction       :: Bool
+      -- ^ @--interaction@ mode.
   , optJSONInteraction       :: Bool
+      -- ^ @--interaction-json@ mode.
   , optExitOnError           :: !Bool
       -- ^ Exit if an interactive command fails.
   , optCompileDir            :: Maybe FilePath

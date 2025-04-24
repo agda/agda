@@ -24,6 +24,7 @@ import System.FilePath ( takeFileName )
 import System.Console.GetOpt
 import qualified System.IO as IO
 
+import Agda.Interaction.BuildLibrary (buildLibrary)
 import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode as ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
@@ -157,6 +158,8 @@ data FrontendType
       -- ^ @--interaction@ or @--interaction-json@.
   | FrontEndRepl
       -- ^ @--interactive@.
+  | FrontEndBuildLibrary
+      -- ^ @--build-library@.
 
 data InteractionFormat
   = InteractionEmacs
@@ -170,18 +173,21 @@ pattern FrontEndEmacs = FrontEndInteraction InteractionEmacs
 pattern FrontEndJson :: FrontendType
 pattern FrontEndJson  = FrontEndInteraction InteractionJson
 
-{-# COMPLETE FrontEndEmacs, FrontEndJson, FrontEndRepl #-}
+{-# COMPLETE FrontEndBuildLibrary, FrontEndEmacs, FrontEndJson, FrontEndRepl #-}
+
+buildLibraryInteractor :: Interactor ()
+buildLibraryInteractor setup _check = do setup; buildLibrary
 
 -- | Emacs/JSON mode. Note that it ignores the "check" action because it calls typeCheck directly.
 interactionInteractor :: InteractionFormat -> Interactor ()
 interactionInteractor InteractionEmacs setup _check = mimicGHCi setup
 interactionInteractor InteractionJson  setup _check = jsonREPL  setup
 
--- The deprecated repl mode.
+-- | The (deprecated) repl mode.
 replInteractor :: Maybe AbsolutePath -> Interactor ()
 replInteractor = runInteractionLoop
 
--- The interactor to use when there are no frontends or backends specified.
+-- | The interactor to use when there are no frontends or backends specified.
 defaultInteractor :: AbsolutePath -> Interactor ()
 defaultInteractor file setup check = do setup; void $ check file
 
@@ -213,6 +219,12 @@ getInteractor configuredBackends maybeInputFile opts = do
           notJustScopeChecking fe
           noInputFile fe
           return $ Just $ interactionInteractor i
+        -- --build-library
+        FrontEndBuildLibrary -> do
+          unless (optUseLibs opts) $
+            throwError "--build-library cannot be combined with --no-libraries"
+          noInputFile fe
+          return $ Just buildLibraryInteractor
   where
     -- NOTE: The notion of a backend being "enabled" *just* refers to this top-level interaction mode selection. The
     -- interaction/interactive front-ends may still invoke available backends even if they are not "enabled".
@@ -222,6 +234,7 @@ getInteractor configuredBackends maybeInputFile opts = do
       [ [ FrontEndRepl  | optInteractive     opts ]
       , [ FrontEndEmacs | optGHCiInteraction opts ]
       , [ FrontEndJson  | optJSONInteraction opts ]
+      , [ FrontEndBuildLibrary | optBuildLibrary opts ]
       ]
     -- Constructs messages like "(no backend)", "backend ghc", "backends (ghc, ocaml)"
     pluralize w []  = concat ["(no ", w, ")"]
@@ -233,6 +246,7 @@ getInteractor configuredBackends maybeInputFile opts = do
       FrontEndEmacs -> "interaction"
       FrontEndJson -> "interaction-json"
       FrontEndRepl -> "interactive"
+      FrontEndBuildLibrary -> "build-library"
     noBackends fe = unless (null enabledBackends) $
       throwError $ concat ["Cannot mix ", frontendFlagName fe, " with ", enabledBackendNames]
     noInputFile fe = whenJust maybeInputFile \ inputFile -> errorFrontendFileDisallowed inputFile fe

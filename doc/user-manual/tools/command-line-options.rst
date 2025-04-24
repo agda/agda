@@ -59,6 +59,15 @@ but in the fixed order listed in the following:
 
      Overwrites itself, i.e., only the last of several :option:`--help` options is effective.
 
+.. option:: --build-library
+
+     .. versionadded:: 2.8.0
+
+     Expects an ``.agda-lib`` file in the current directory
+     (or in a parent directory) and type-checks all Agda files
+     found in the ``include`` directories of the library or
+     in subdirectories thereof.
+
 .. option:: --print-agda-app-dir
 
      .. versionadded:: 2.6.4.1
