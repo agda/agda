@@ -2,6 +2,15 @@ Issue5848.agda:6.1-12: warning: -W[no]ConfluenceCheckingIncompleteBecauseOfMeta
 Confluence checking incomplete because the definition of l1
 contains unsolved metavariables.
 when checking the definition of l1
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  ?2 = ?3 (i = Agda.Primitive.Cubical.i1)
+    : ?0 Agda.Primitive.Cubical.i1
+    (blocked on any(_4, _5))
+  ?1 = ?3 (i = Agda.Primitive.Cubical.i0)
+    : ?0 Agda.Primitive.Cubical.i0
+    (blocked on any(_3, _5))
+
 Issue5848.agda:5.6-11: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue5848.agda:5.6-11
