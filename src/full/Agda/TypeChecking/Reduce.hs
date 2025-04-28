@@ -657,20 +657,20 @@ unfoldDefinitionStep v0 f es =
   info <- getConstInfo f
   rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
   allowed <- asksTC envAllowedReductions
-  prp <- runBlocked $ isPropM $ defType info
-  defOk <- shouldReduceDef f
+  let prp = runBlocked $ isPropM $ defType info
+  let defOk = shouldReduceDef f
   let def = theDef info
       v   = v0 `applyE` es
       -- Non-terminating functions
       -- (i.e., those that failed the termination check)
       -- and delayed definitions
       -- are not unfolded unless explicitly permitted.
-      dontUnfold = or
-        [ defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed
-        , defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
-        , prp == Right True
-        , isIrrelevant info
-        , not defOk
+      dontUnfold = orM
+        [ pure $ defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed
+        , pure $ defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
+        , pure $ isIrrelevant info
+        , (Right True ==) <$> prp
+        , not <$> defOk
         ]
       copatterns = defCopatternLHS info
   case def of
@@ -729,12 +729,11 @@ unfoldDefinitionStep v0 f es =
           mredToBlocked (MaybeRed NotReduced  e) = notBlocked e
           mredToBlocked (MaybeRed (Reduced b) e) = e <$ b
 
-    reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> ReduceM (Reduced (Blocked Term) Term)
+    reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> ReduceM Bool -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> ReduceM (Reduced (Blocked Term) Term)
     reduceNormalE v0 f es dontUnfold def mcc rewr = {-# SCC "reduceNormal" #-} do
       traceSDoc "tc.reduce" 90 ("reduceNormalE v0 =" <+> pretty v0) $ do
+      ifM dontUnfold (traceSLn "tc.reduce" 90 "reduceNormalE: don't unfold (non-terminating or delayed)" $ defaultResult) {-else-} do
       case (def,rewr) of
-        _ | dontUnfold -> traceSLn "tc.reduce" 90 "reduceNormalE: don't unfold (non-terminating or delayed)" $
-                          defaultResult -- non-terminating or delayed
         ([],[])        -> traceSLn "tc.reduce" 90 "reduceNormalE: no clauses or rewrite rules" $ do
           -- no definition for head
           (defBlocked <$> getConstInfo f) >>= \case
