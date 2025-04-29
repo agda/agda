@@ -1385,7 +1385,7 @@ droppedPars d = case theDef d of
     Constructor{conPars = n} -> n
     Primitive{}              -> 0
     PrimitiveSort{}          -> 0
-    AbstractDefn{}           -> __IMPOSSIBLE__
+    AbstractDefn{}           -> 0 -- not impossible when quoting, PR #7828
 
 -- | Is it the name of a record projection?
 {-# SPECIALIZE isProjection :: QName -> TCM (Maybe Projection) #-}

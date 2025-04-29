@@ -315,10 +315,7 @@ quotingKit = do
       defParameters def True  = []
       defParameters def False = map par hiding
         where
-          np = case theDef def of
-                 Constructor{ conPars = np }         -> np
-                 Function{ funProjection = Right p } -> projIndex p - 1
-                 _                                   -> 0
+          np         = droppedPars def
           TelV tel _ = telView' (defType def)
           hiding     = take np $ telToList tel
           par d      = arg !@ quoteArgInfo (domInfo d)
