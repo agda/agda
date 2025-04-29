@@ -75,13 +75,7 @@ pappToTerm x f ps ret = do
   def <- getConstInfo x
   TelV tel _ <- telView $ defType def
   let dropTel n = telFromList . drop n . telToList
-      pars =
-        case theDef def of
-          Constructor { conPars = p } -> p
-          Function { funProjection = Right Projection{projIndex = i} }
-            | i > 0 -> i - 1
-          _ -> 0
-
+      pars = droppedPars def
   patternsToTerms (dropTel pars tel) ps $ \ n vs -> ret n (f vs)
 
 patternToTerm :: A.Pattern -> (Nat -> ProjOrApp -> M a) -> M a
