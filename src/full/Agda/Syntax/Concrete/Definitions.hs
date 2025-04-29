@@ -812,9 +812,9 @@ niceDeclarations fixs ds = do
     couldBeCallOf :: Maybe Fixity' -> Name -> Pattern -> Bool
     couldBeCallOf mFixity x p =
       let
-      pns        = patternNames p
+      pns        = patternQNames p
       xStrings   = nameStringParts x
-      patStrings = concatMap nameStringParts pns
+      patStrings = concatMap nameStringParts $ mapMaybe isUnqualified pns
       in
 --          trace ("x = " ++ prettyShow x) $
 --          trace ("pns = " ++ show pns) $
@@ -823,7 +823,7 @@ niceDeclarations fixs ds = do
 --          trace ("mFixity = " ++ show mFixity) $
       case (listToMaybe pns, mFixity) of
         -- first identifier in the patterns is the fun.symbol?
-        (Just y, _) | x == y -> True -- trace ("couldBe since y = " ++ prettyShow y) $ True
+        (Just y, _) | Just x == isUnqualified y -> True -- trace ("couldBe since y = " ++ prettyShow y) $ True
         -- are the parts of x contained in p
         _ | xStrings `List.isSubsequenceOf` patStrings -> True
         -- looking for a mixfix fun.symb
