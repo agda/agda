@@ -49,17 +49,22 @@ type M = ExceptT String TCM
 data ProjOrApp = IsProj QName | IsApp Term
 
 patternsToTerms :: Telescope -> [NamedArg A.Pattern] -> (Int -> Elims -> M a) -> M a
-patternsToTerms _ [] ret = ret 0 []
+patternsToTerms EmptyTel [] ret = ret 0 []
 patternsToTerms EmptyTel (p : ps) ret =
   patternToTerm (namedArg p) \n v ->
   patternsToTerms EmptyTel ps \m vs -> ret (n + m) (inheritHiding p v : vs)
-patternsToTerms (ExtendTel a tel) (p : ps) ret
-  | fromMaybe __IMPOSSIBLE__ $ fittingNamedArg p a =
-      patternToTerm (namedArg p) \n v ->
-      patternsToTerms (unAbs tel) ps \m vs -> ret (n + m) (inheritHiding p v : vs)
-  | otherwise =
-      bindWild $ patternsToTerms (unAbs tel) (p : ps) \n vs ->
+patternsToTerms (ExtendTel a tel) ps ret
+  | shouldInsertArg =
+      bindWild $ patternsToTerms (unAbs tel) ps \n vs ->
       ret (1 + n) (inheritHiding a (IsApp (Var 0 [])) : vs)
+  where
+    shouldInsertArg = case ps of
+      [] -> notVisible a
+      p : ps -> not $ fromMaybe __IMPOSSIBLE__ $ fittingNamedArg p a
+patternsToTerms (ExtendTel a tel) [] ret = ret 0 []
+patternsToTerms (ExtendTel a tel) (p : ps) ret =
+    patternToTerm (namedArg p) \n v ->
+    patternsToTerms (unAbs tel) ps \m vs -> ret (n + m) (inheritHiding p v : vs)
 
 inheritHiding :: LensHiding a => a -> ProjOrApp -> Elim
 inheritHiding a (IsProj q) = Proj ProjSystem q

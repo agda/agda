@@ -170,7 +170,9 @@ class Match a where
   match :: MonadDisplayForm m => Window -> a -> a -> MaybeT m MatchResult
 
 instance Match a => Match [a] where
-  match n xs ys = unionsMatch =<< zipWithM (match n) xs ys
+  match n xs ys
+    | length xs == length ys = unionsMatch =<< zipWithM (match n) xs ys
+    | otherwise = mzero
 
 instance Match a => Match (Arg a) where
   match n p v = IntMap.map (setOrigin (getOrigin v)) <$> match n (unArg p) (unArg v)
