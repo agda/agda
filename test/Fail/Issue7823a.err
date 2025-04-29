@@ -1,0 +1,3 @@
+Issue7823a.agda:12.5-9: error: [UnequalTerms]
+Nat !=< P suc
+when checking that the expression zero has type P suc
