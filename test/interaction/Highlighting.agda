@@ -261,3 +261,13 @@ module Issue7641 where
 
 private -- No highlighting as warning is disabled.
   -- Triggers warning EmptyPrivate, but the warning is disabled.
+
+-- Andreas, 2025-04-30, issue #7829
+
+module Issue7829 where
+
+  issue7829 : Σ Nat λ _ → Nat
+  issue7829 = record
+    where fst = 42
+          snd : Nat
+          snd = 43   -- this should also highlight as field name (WAS: no highlighting)

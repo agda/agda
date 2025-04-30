@@ -457,7 +457,7 @@ checkRecordWhere r ds0 mkRec = do
               A.EqualP{}  -> __IMPOSSIBLE__
               A.WithP{}   -> __IMPOSSIBLE__
         _ -> return []
-      let fs = [C.FieldAssignment (nameCanonical n) (A.Var n) | n <- names]
+      let fs = [C.FieldAssignment (setRange (getRange n) $ nameCanonical n) (A.Var n) | n <- names]
       return $ A.mkLet i ds' (mkRec ri fs)
   where
     rewriteConcreteOpens :: C.Declaration -> ScopeM [C.Declaration]
@@ -1564,21 +1564,34 @@ instance ToAbstract LetDef where
       -- We bind the name here to make sure it's in scope for the LHS (#917).
       -- It's unbound for the RHS in letToAbstract.
       fx <- getConcreteFixity x
-      x  <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
+
+      x <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
       (x', e) <- letToAbstract cl
+
+      -- Andreas, 2015-08-27 keeping both the range of x and x' solves Issue 1618.
+      -- The situation is
+      -- @
+      --    let y : t
+      --        y = e
+      -- @
+      -- and we need to store the ranges of both occurences of y so that
+      -- the highlighter does the right thing.
+      let x2 = setRange (fuseRange x x') x
 
       -- If InstanceDef set info to Instance
       let info' = case instanc of
             InstanceDef _  -> makeInstance info
             NotInstanceDef -> info
 
+      -- Andreas, 2025-04-30, issue #7829: this comment is outdated and will be removed:
       -- There are sometimes two instances of the let-bound variable,
       -- one declaration and one definition. The first list element
       -- below is used to highlight the declared instance in the right
       -- way (see Issue 1618).
-      return $ A.LetDeclaredVariable (A.mkBindName (setRange (getRange x') x)) :|
-        [ A.LetBind (LetRange $ getRange d) info' (A.mkBindName x) t e
-        ]
+      return $
+        -- A.LetDeclaredVariable (A.mkBindName (setRange (getRange x') x)) <|
+        A.LetBind (LetRange $ getRange d) info' (A.mkBindName x2) t e :|
+        []
 
     -- Function signature without a body
     C.Axiom _ acc abs instanc info x t -> do
