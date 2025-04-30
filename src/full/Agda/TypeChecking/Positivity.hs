@@ -526,15 +526,6 @@ instance ComputeOccurrences Int where
 computeOccurrences :: QName -> TCM (Map Item Integer)
 computeOccurrences q = flatten <$> computeOccurrences' q
 
--- | Returns the occurences given explicitely as polarity annotations in the function type
-getOccurrencesFromType :: Type -> TCM [Occurrence]
-getOccurrencesFromType t = do
-  polarityEnabled <- optPolarity <$> pragmaOptions
-  if polarityEnabled then do
-    telList <- telToList . theTel <$> telView t
-    return $ modalPolarityToOccurrence . modPolarityAnn . getModalPolarity <$> telList
-  else return []
-
 -- | Computes the occurrences in the given definition.
 computeOccurrences' :: QName -> TCM OccurrencesBuilder
 computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do

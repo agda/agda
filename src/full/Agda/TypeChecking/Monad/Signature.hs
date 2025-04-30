@@ -56,6 +56,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 import {-# SOURCE #-} Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Opacity
+import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
 import Agda.Utils.CallStack.Base
 import Agda.Utils.Either
@@ -1033,13 +1034,34 @@ setPolarity q pol = do
 getForcedArgs :: HasConstInfo m => QName -> m [IsForced]
 getForcedArgs q = defForced <$> getConstInfo q
 
+-- | Returns the occurences given explicitely as polarity annotations in the function type
+getOccurrencesFromType :: Type -> TCM [Occurrence]
+getOccurrencesFromType t = do
+  polarityEnabled <- optPolarity <$> pragmaOptions
+  if polarityEnabled then do
+    telList <- telToList . theTel <$> telView t
+    return $ modalPolarityToOccurrence . modPolarityAnn . getModalPolarity <$> telList
+  else return []
+
 -- | Get argument occurrence info for argument @i@ of definition @d@ (never fails).
 getArgOccurrence :: QName -> Nat -> TCM Occurrence
 getArgOccurrence d i = do
   def <- getConstInfo d
-  return $! case theDef def of
-    Constructor{} -> StrictPos
-    _             -> fromMaybe Mixed $ defArgOccurrences def !!! i
+  case theDef def of
+    Constructor{} -> return StrictPos
+
+    -- If the polarity checker has filled in the positivities of
+    -- arguments for this function then we believe it, because it should
+    -- agree with the signature.
+    _ | Just pol <- defArgOccurrences def !!! i ->
+      return pol
+
+    -- Otherwise we use them from the type. Since telView can do
+    -- reduction we'd rather not do this very often.
+    _ -> do
+      occs <- getOccurrencesFromType (defType def)
+
+      pure $! fromMaybe Mixed $ occs !!! i
 
 -- | Sets the 'defArgOccurrences' for the given identifier (which
 -- should already exist in the signature).
