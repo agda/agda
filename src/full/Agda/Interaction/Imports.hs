@@ -341,14 +341,14 @@ addImportedThings isig metas ibuiltin patsyns display userwarn
   stOpaqueBlocks         `modifyTCLens` \ imp -> imp `Map.union` oblock
   stOpaqueIds            `modifyTCLens` \ imp -> imp `Map.union` oid
 
--- | Scope checks the given module. A proper version of the module
--- name (with correct definition sites) is returned.
-
+-- | Scope checks the given module, generating an interface or retrieving an existing one.
+--   Returns the module name and exported scope from the interface.
+--
 scopeCheckImport ::
-  TopLevelModuleName -> ModuleName ->
-  TCM (ModuleName, Map ModuleName Scope)
-scopeCheckImport top x = do
-    reportSLn "import.scope" 15 $ "Scope checking " ++ prettyShow x
+     TopLevelModuleName
+  -> TCM (ModuleName, Map ModuleName Scope)
+scopeCheckImport top = do
+    reportSLn "import.scope" 15 $ "Scope checking " ++ prettyShow top
     verboseS "import.scope" 30 $ do
       visited <- prettyShow <$> getPrettyVisitedModules
       reportSLn "import.scope" 30 $ "  visited: " ++ visited
@@ -362,7 +362,7 @@ scopeCheckImport top x = do
 
     -- let s = publicModules $ iInsideScope i
     let s = iScope i
-    return (iModuleName i `withRangesOfQ` mnameToConcrete x, s)
+    return (iModuleName i, s)
 
 -- | If the module has already been visited (without warnings), then
 -- its interface is returned directly. Otherwise the computation is

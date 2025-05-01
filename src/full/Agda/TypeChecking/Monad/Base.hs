@@ -967,7 +967,7 @@ stCurrentModule f s =
 -- -- | Note that the lens is \"strict\".
 
 -- stCurrentModule :: Lens' TCState (Maybe (ModuleName, TopLevelModuleName))
--- stCurrentModule = lensPostScopeState . lensCurrentModule . fmap (fmap \ (!m, !top) -> Just (m, top))
+-- stCurrentModule = lensPostScopeState . lensCurrentModule . fmap (fmap \ (!m, !top) -> (m, top))
 
 stInstanceDefs :: Lens' TCState TempInstanceTable
 stInstanceDefs f s =

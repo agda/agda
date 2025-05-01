@@ -2097,13 +2097,12 @@ instance ToAbstract NiceDeclaration where
       -- the imported module.
       (m, i) <- withCurrentModule noModuleName $
                 withTopLevelModule top $ do
-        m <- toAbstract $ NewModuleQName x  -- (No longer erases the contents of @m@.)
         printScope "import" 30 "before import:"
-        (m, i) <- scopeCheckImport top m
+        (m0, i) <- scopeCheckImport top
         printScope "import" 30 $ "scope checked import: " ++ prettyShow i
         -- We don't want the top scope of the imported module (things happening
         -- before the module declaration)
-        return (m, Map.delete noModuleName i)
+        return (m0 `withRangesOfQ` x, Map.delete noModuleName i)
 
       -- Bind the desired module name to the right abstract name.
       (name, theAsSymbol, theAsName) <- case as of
