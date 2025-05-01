@@ -16,8 +16,6 @@ Here is a list of the features :option:`--safe` is incompatible with:
 
 * ``postulate``; can be used to assume any axiom.
 
-* pragma :ref:`POLARITY <polarity-pragma>`; it only applies to postulates.
-
 * :option:`--allow-unsolved-metas`; forces Agda to accept unfinished
   proofs.
 
@@ -27,9 +25,10 @@ Here is a list of the features :option:`--safe` is incompatible with:
   or through a partial proof.
 
 * :option:`--no-positivity-check`
-  and pragma :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>`;
-  make it possible to write non-terminating programs by structural "induction"
-  on non strictly positive datatypes.
+  and pragmas :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>`
+  and :ref:`POLARITY <polarity-pragma>`;
+  make it possible to write non-terminating programs via datatypes
+  that are not strictly positive.
 
 * :option:`--no-termination-check`
   and pragmas :ref:`TERMINATING <terminating-pragma>`

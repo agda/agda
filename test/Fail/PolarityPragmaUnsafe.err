@@ -1,0 +1,2 @@
+PolarityPragmaUnsafe.agda:15.1-24: error: [SafeFlagPolarity]
+Cannot use POLARITY pragma with safe flag.
