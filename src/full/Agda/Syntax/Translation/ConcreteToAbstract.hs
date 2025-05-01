@@ -69,7 +69,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State hiding (topLevelModuleName)
 import qualified Agda.TypeChecking.Monad.State as S
-import Agda.TypeChecking.Monad.Signature (notUnderOpaque)
+import Agda.TypeChecking.Monad.Signature (getSection, notUnderOpaque)
 import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern, getCurrentPath)
@@ -2105,16 +2105,26 @@ instance ToAbstract NiceDeclaration where
         return (m0 `withRangesOfQ` x, Map.delete noModuleName i)
 
       -- Bind the desired module name to the right abstract name.
-      (name, theAsSymbol, theAsName) <- case as of
+      (m, i, name, theAsSymbol, theAsName) <- case as of
 
          Just a | let y = asName a, not (isNoName y) -> do
-           bindModule privateAccessInserted y m
-           return (C.QName y, asRange a, Just y)
+           -- Clone module m under new name y
+           m' <- toAbstract $ NewModuleName y
+           let s = Map.findWithDefault __IMPOSSIBLE__ m i
+           -- (s', _) <- copyScope x m' s  -- internal error
+           let s' = s
+           let i' = Map.insert m' s' i
+           -- Also clone the parameter telescope
+           whenJustM (getSection m) \ sec ->
+             modifySignature $ over sigSections $ Map.insert m' sec
+           -- Bind the clone to concrete name y
+           bindModule privateAccessInserted y m'
+           return (m', i', C.QName y, asRange a, Just y)
 
          _ -> do
            -- Don't bind if @import ... as _@ with "no name"
            whenNothing as $ bindQModule (privateAccessInserted) x m
-           return (x, noRange, Nothing)
+           return (m, i, x, noRange, Nothing)
 
       -- Open if specified, otherwise apply import directives
       adir <- case open of
