@@ -142,7 +142,6 @@ instance BoundAndUsed LetBinding where
     LetPatBind _ p e       -> boundAndUsed (e, p)
     LetApply _ _ _ app _ _ -> boundAndUsed app
     LetOpen{}              -> mempty
-    LetDeclaredVariable{}  -> mempty   -- Only used for highlighting
 
 instance BoundAndUsed LamBinding where
   boundAndUsed (DomainFree _ b) = boundAndUsed b

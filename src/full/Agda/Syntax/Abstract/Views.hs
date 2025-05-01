@@ -335,7 +335,6 @@ instance ExprLike LetBinding where
       LetPatBind li p e     -> LetPatBind li <$> recurse p <*> recurse e
       LetApply{}            -> pure e
       LetOpen{}             -> pure e
-      LetDeclaredVariable _ -> pure e
 
   foldExpr :: forall m. FoldExprFn m LetBinding
   foldExpr f e =
@@ -345,7 +344,6 @@ instance ExprLike LetBinding where
       LetPatBind _ p e      -> fold p `mappend` fold e
       LetApply{}            -> mempty
       LetOpen{}             -> mempty
-      LetDeclaredVariable _ -> mempty
     where
       fold :: FoldExprRecFn m
       fold e = foldExpr f e
@@ -361,7 +359,6 @@ instance ExprLike LetBinding where
       LetPatBind li p e     -> LetPatBind li <$> trav p <*> trav e
       LetApply{}            -> pure e
       LetOpen{}             -> pure e
-      LetDeclaredVariable _ -> pure e
 
 instance ExprLike a => ExprLike (Pattern' a) where
 
@@ -634,7 +631,6 @@ instance DeclaredNames RHS where
 --   declaredNames (LetPatBind _ _ e)      = declaredNames e
 --   declaredNames (LetApply _ _ app _ _)  = declaredNames app
 --   declaredNames LetOpen{}               = mempty
---   declaredNames (LetDeclaredVariable _) = mempty
 
 -- instance DeclaredNames ModuleApplication where
 --   declaredNames (SectionApp bindss _ es) = declaredNames bindss <> declaredNames es

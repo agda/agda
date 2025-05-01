@@ -1754,9 +1754,8 @@ checkLetBinding' (A.LetApply i erased x modapp copyInfo dir) ret = do
     -- directive does contain "open public".
     dir{ publicOpen = Nothing }
   withAnonymousModule x new ret
--- LetOpen and LetDeclaredVariable are only used for highlighting.
+-- LetOpen and (WAS:) LetDeclaredVariable are only used for highlighting.
 checkLetBinding' A.LetOpen{} ret = ret
-checkLetBinding' (A.LetDeclaredVariable _) ret = ret
 
 -- | Version of checkLetBinding which traces the fact that we're
 -- checking each binding in the Call.

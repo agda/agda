@@ -1568,6 +1568,8 @@ instance ToAbstract LetDef where
       x <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
       (x', e) <- letToAbstract cl
 
+      -- There are sometimes two instances of the let-bound variable,
+      -- one declaration and one definition (see issue #1618).
       -- Andreas, 2015-08-27 keeping both the range of x and x' solves Issue 1618.
       -- The situation is
       -- @
@@ -1583,13 +1585,7 @@ instance ToAbstract LetDef where
             InstanceDef _  -> makeInstance info
             NotInstanceDef -> info
 
-      -- Andreas, 2025-04-30, issue #7829: this comment is outdated and will be removed:
-      -- There are sometimes two instances of the let-bound variable,
-      -- one declaration and one definition. The first list element
-      -- below is used to highlight the declared instance in the right
-      -- way (see Issue 1618).
       return $
-        -- A.LetDeclaredVariable (A.mkBindName (setRange (getRange x') x)) <|
         A.LetBind (LetRange $ getRange d) info' (A.mkBindName x2) t e :|
         []
 

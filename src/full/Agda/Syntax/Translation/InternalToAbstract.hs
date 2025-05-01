@@ -1226,7 +1226,6 @@ instance Binder A.LetBinding where
   varsBoundIn (LetPatBind _ p _)  = varsBoundIn p
   varsBoundIn LetApply{}          = empty
   varsBoundIn LetOpen{}           = empty
-  varsBoundIn LetDeclaredVariable{} = empty
 
 instance Binder a => Binder (FieldAssignment' a)
 instance Binder a => Binder (Arg a)

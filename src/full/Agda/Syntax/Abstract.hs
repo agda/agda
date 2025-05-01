@@ -252,9 +252,6 @@ data LetBinding
     -- The @ImportDirective@ is for highlighting purposes.
   | LetOpen ModuleInfo ModuleName ImportDirective
     -- ^ only for highlighting and abstractToConcrete
-  | LetDeclaredVariable BindName
-    -- ^ Only used for highlighting. Refers to the first occurrence of
-    -- @x@ in @let x : A; x = e@.
   deriving (Show, Eq, Generic)
 
 -- | Only 'Axiom's.
@@ -754,7 +751,6 @@ instance HasRange LetBinding where
   getRange (LetPatBind  i _ _)     = getRange i
   getRange (LetApply i _ _ _ _ _)  = getRange i
   getRange (LetOpen  i _ _)        = getRange i
-  getRange (LetDeclaredVariable x) = getRange x
 
 -- setRange for patterns applies the range to the outermost pattern constructor
 instance SetRange (Pattern' a) where
@@ -905,7 +901,6 @@ instance KillRange LetBinding where
   killRange (LetPatBind i a b)      = killRangeN LetPatBind i a b
   killRange (LetApply i a b c d e)  = killRangeN LetApply i a b c d e
   killRange (LetOpen i x dir)       = killRangeN LetOpen  i x dir
-  killRange (LetDeclaredVariable x) = killRangeN LetDeclaredVariable x
 
 instance NFData Expr
 instance NFData ScopeCopyInfo

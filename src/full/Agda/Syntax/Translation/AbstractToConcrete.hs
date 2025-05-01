@@ -1084,9 +1084,6 @@ instance ToConcrete A.LetBinding where
       let dir = fromMaybe defaultImportDir $ minfoDirective i
       local (openModule' x dir restrictPrivate) $
             ret [ C.Open (getRange i) x' dir ]
-    bindToConcrete (LetDeclaredVariable _) ret =
-      -- Note that the range of the declaration site is dropped.
-      ret []
 
 instance ToConcrete A.WhereDeclarations where
   type ConOfAbs A.WhereDeclarations = WhereClause

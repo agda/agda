@@ -160,7 +160,6 @@ instance (Hilite a, Hilite b) => Hilite (a, b) where
 -- | A.LetBinding
 -- ---------------------------------------------------------------------
 -- | getLet                | A.LetBind                   | bound
--- | getLet                | A.LetDeclaredVariable       | bound
 -- ---------------------------------------------------------------------
 -- | A.LamBinding
 -- ---------------------------------------------------------------------
@@ -365,7 +364,6 @@ instance Hilite A.LetBinding where
       A.LetApply mi er x es _c dir -> hl mi <> hl er <> hl x <>
                                       hl es <> hl dir
       A.LetOpen mi x dir           -> hl mi <> hl x <> hl dir
-      A.LetDeclaredVariable x      -> hl x
     where
     hl x = hilite x
 
