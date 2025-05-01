@@ -16,20 +16,36 @@ Here is a list of the features :option:`--safe` is incompatible with:
 
 * ``postulate``; can be used to assume any axiom.
 
+* pragma :ref:`POLARITY <polarity-pragma>`; it only applies to postulates.
+
 * :option:`--allow-unsolved-metas`; forces Agda to accept unfinished
   proofs.
 
-* :option:`--allow-incomplete-matches`; forces Agda to accept
-  unfinished proofs.
+* :option:`--allow-incomplete-matches`
+  and pragma :ref:`NON_COVERING <non_covering-pragma>`;
+  allows to prove false using a partial function
+  or through a partial proof.
 
-* :option:`--no-positivity-check`; makes it possible to write
-  non-terminating programs by structural "induction" on non strictly
-  positive datatypes.
+* :option:`--no-positivity-check`
+  and pragma :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>`;
+  make it possible to write non-terminating programs by structural "induction"
+  on non strictly positive datatypes.
 
-* :option:`--no-termination-check`; gives loopy programs any type.
+* :option:`--no-termination-check`
+  and pragmas :ref:`TERMINATING <terminating-pragma>`
+  and :ref:`NON_TERMINATING <non_terminating-pragma>`;
+  give loopy programs any type.
 
-* :option:`--type-in-type` and :option:`--omega-in-omega`; allow the
-  user to encode the Girard-Hurken paradox.
+* :option:`--type-in-type` and :option:`--omega-in-omega`
+  and pragma :ref:`NO_UNIVERSE_CHECK <no_universe_check-pragma>`;
+  allow the user to encode the Girard-Hurken paradox.
+
+* pragma :ref:`INJECTIVE <injective-pragma>`;
+  allows to prove false by declaring a non-injective function as injective.
+
+* pragma :ref:`ETA <eta-pragma>`;
+  can be used force eta-equality for unguarded recursive records
+  which can make Agda loop.
 
 * :option:`--injective-type-constructors`; together with excluded
   middle leads to an inconsistency via Chung-Kil Hur's construction.
@@ -66,6 +82,9 @@ Here is a list of the features :option:`--safe` is incompatible with:
 * :option:`--large-indices` together with :option:`--without-K` or
   :option:`--forced-argument-recursion`; both of these combinations are known to
   be inconsistent.
+
+* pragma :ref:`COMPILE <foreign-function-interface>`;
+  allows to change the meaning of code during compilation.
 
 The option :option:`--safe` is coinfective (see
 :ref:`consistency-checking-options`); if a module is declared safe,
