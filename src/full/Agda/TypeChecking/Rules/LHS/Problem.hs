@@ -356,7 +356,7 @@ getUserVariableNames tel names = runWriter $
   where
     makeVar :: Dom Type -> Int -> Writer [AsBinding] (Maybe A.Name)
     makeVar a i =
-      case map fst $ sortOn ((== PVLocal) . snd) (IntMap.findWithDefault [] i names) of
+      case map fst $ sortOn ((== PVParam) . snd) (IntMap.findWithDefault [] i names) of
         [] -> return Nothing
         (z:zs) -> do
           tellAsBindings $
