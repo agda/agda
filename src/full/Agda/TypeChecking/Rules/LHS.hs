@@ -585,8 +585,10 @@ bindAsPatterns (AsB x v a : asb) ret = do
 -- | Since with-abstraction can change the type of a variable, we have to
 --   recheck the stripped with patterns when checking a with function.
 recheckStrippedWithPattern :: ProblemEq -> TCM ()
-recheckStrippedWithPattern (ProblemEq p v a) = checkInternal v CmpLeq (unDom a)
-  `catchError` \_ -> typeError $ IllTypedPatternAfterWithAbstraction p
+recheckStrippedWithPattern (ProblemEq p v a)
+  | A.WildP{} <- p = return ()
+  | otherwise      = checkInternal v CmpLeq (unDom a)
+      `catchError` \_ -> typeError $ IllTypedPatternAfterWithAbstraction p
 
 -- | Result of checking the LHS of a clause.
 data LHSResult = LHSResult
