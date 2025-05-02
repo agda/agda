@@ -315,11 +315,14 @@ allOpenMetas t = do
   openMetas <- getOpenMetas
   return $ allMetas (:[]) t `intersect` openMetas
 
-getOpenComponent :: MonadTCM tcm => Open Component -> tcm Component
+getOpenComponent :: (MonadTCM tcm, MonadDebug tcm) => Open Component -> tcm Component
 getOpenComponent openComp = do
   let comp = openThing openComp
+  reportSDoc "mimer.components.open" 40 $ "Opening component" <+> prettyTCM (compId comp) <+> prettyTCM (compName comp)
   term <- getOpen $ compTerm <$> openComp
+  reportSDoc "mimer.components.open" 40 $ "  term = " <+> prettyTCM term
   typ <- getOpen $ compType <$> openComp
+  reportSDoc "mimer.components.open" 40 $ "  typ  =" <+> prettyTCM typ
   when (not $ null $ compMetas comp) __IMPOSSIBLE__
   return Component
     { compId    = compId comp
@@ -370,7 +373,9 @@ withBranchAndGoal :: SearchBranch -> Goal -> SM a -> SM a
 withBranchAndGoal br goal ma = inGoalEnv goal $ withBranchState br ma
 
 inGoalEnv :: Goal -> SM a -> SM a
-inGoalEnv goal = withMetaId (goalMeta goal)
+inGoalEnv goal  ret = do
+  reportSDoc "mimer.env" 70 $ "going into environment of goal" <+> prettyTCM (goalMeta goal)
+  withMetaId (goalMeta goal) ret
 
 -- | Take the first goal off a search branch.
 --   Precondition: the set of goals is non-empty.
@@ -634,6 +639,7 @@ collectLHSVars ii = do
   case ipc of
     IPNoClause -> makeOpen []
     IPClause{ipcQName = fnName, ipcClauseNo = clauseNr} -> do
+      reportSDoc "mimer.components" 40 $ "Collecting LHS vars for" <+> prettyTCM ii
       info <- getConstInfo fnName
       parCount <- liftTCM getCurrentModuleFreeVars
       case theDef info of
@@ -901,6 +907,7 @@ tryComponents goal goalType branch comps = withBranchAndGoal branch goal $ do
 -- returned as is.
 prepareComponents :: Goal -> SearchBranch -> SM (SearchBranch, [(Component, [Component])])
 prepareComponents goal branch = withBranchAndGoal branch goal $ do
+  reportSDoc "mimer.components" 50 $ "Preparing components for goal" <+> prettyTCM (goalMeta goal)
   checkpoint <- viewTC eCurrentCheckpoint
   -- Check if we there is something in the cache for this checkpoint
   comps <- case Map.lookup checkpoint (sbCache branch) of
@@ -956,6 +963,7 @@ genComponentsFrom :: Bool -- ^ Apply record elimination
                   -> Component
                   -> SM [Component]
 genComponentsFrom appRecElims origComp = do
+  reportSDoc "mimer.components" 50 $ "Generating components from original component" <+> prettyTCM (compId origComp) <+> prettyTCM (compName origComp)
   comps <- if | compRec origComp -> mapM (applyToMetasG Nothing) =<< genRecCalls origComp
               | otherwise        -> (:[]) <$> applyToMetasG Nothing origComp
   if appRecElims
@@ -1010,12 +1018,14 @@ applyToMetasG
   -> Component -> SM Component
 applyToMetasG (Just m) comp | m <= 0 = return comp
 applyToMetasG maxArgs comp = do
+  reportSDoc "mimer.component" 25 $ "Applying component to metas" <+> prettyTCM (compId comp) <+> prettyTCM (compTerm comp)
   ctx <- getContextTelescope
   compTyp <- reduce $ compType comp
   case unEl compTyp of
     Pi dom abs -> do
       let domainType = unDom dom
       (metaId, metaTerm) <- createMeta domainType
+      reportSDoc "mimer.component" 30 $ "New arg meta" <+> prettyTCM metaTerm
       let arg = setOrigin Inserted $ metaTerm <$ argFromDom dom
       newType <- reduce =<< piApplyM (compType comp) metaTerm
       -- Constructor parameters are not included in the term
@@ -1191,6 +1201,8 @@ tryLamAbs goal goalType branch =
 
 genRecCalls :: Component -> SM [Component]
 genRecCalls thisFn = do
+  reportSDoc "mimer.components.open" 40 $ "Generating recursive calls for component" <+> prettyTCM (compId thisFn) <+> prettyTCM (compName thisFn)
+  reportSDoc "mimer.components.open" 60 $ "  checkpoint =" <+> (prettyTCM =<< viewTC eCurrentCheckpoint)
   -- TODO: Make sure there are no pruning problems
   asks (hintRecVars . searchBaseComponents) >>= getOpen >>= \case
     -- No candidate arguments for a recursive call
@@ -1418,6 +1430,8 @@ normaliseSolution t = do
 
 checkSolved :: SearchBranch -> SM SearchStepResult
 checkSolved branch = do
+  reportSDoc "mimer" 20 $ "Checking if branch is solved"
+  reportSDoc "mimer" 30 $ "  remaining subgoals: " <+> prettyTCM (map goalMeta $ sbGoals branch)
   topMetaId <- asks searchTopMeta
   topMeta <- lookupLocalMeta topMetaId
   ii <- asks searchInteractionId
