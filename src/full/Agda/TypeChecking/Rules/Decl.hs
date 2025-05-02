@@ -540,7 +540,8 @@ whenAbstractFreezeMetasAfter Info.DefInfo{defAccess, defAbstract, defOpaque} m =
     (a, ms) <- metasCreatedBy m
 
     reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
-    wakeupConstraints_   -- solve emptiness and instance constraints
+    locallyTCState stInstanceHack (const True) $
+      wakeupConstraints_   -- solve emptiness and instance constraints
     xs <- freezeMetas (openMetas ms)
 
     reportSDoc "tc.decl.ax" 20 $ vcat
