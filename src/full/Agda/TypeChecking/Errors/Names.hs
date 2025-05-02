@@ -303,6 +303,7 @@ interactionErrorName :: InteractionError -> InteractionError_
 interactionErrorName = \case
   CaseSplitError{}              -> CaseSplitError_
   CannotRefine{}                -> CannotRefine_
+  CannotGive{}                  -> CannotGive_
   ExpectedIdentifier{}          -> ExpectedIdentifier_
   ExpectedApplication{}         -> ExpectedApplication_
   NoActionForInteractionPoint{} -> NoActionForInteractionPoint_

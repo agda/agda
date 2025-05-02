@@ -204,22 +204,13 @@ give_ elaborating force ii mr e = do
   reportSDoc "interaction.give" 10 $ "giving expression" TP.<+> prettyTCM e
   reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
   -- Try to give mi := e
-  withInteractionId ii $ do
-     setMetaOccursCheck mi DontRunMetaOccursCheck -- #589, #2710: Allow giving recursive solutions.
-     applyWhen elaborating (locallyTC eCurrentlyElaborating $ const True) $
-       giveExpr force (Just ii) mi e
-  -- Andreas, 2024-07-22
-  -- The following handler for PatternErr stems from #230 which no longer triggers it.
-  -- We do not have a reproducer for this error and I could not come up with one.
-  -- I presume the exception is caught earlier already, leading to an unsolved constraint.
-  -- In any case, this is what should happen.
-  -- So I am removing the handler
-  -- Should we absolutely have to bring back this handler, use 'catchPatternErr'...
-    -- `catchError` \ case
-    --   -- Turn PatternErr into proper error:
-    --   PatternErr{} -> typeError . GenericDocError =<< do
-    --     withInteractionId ii $ "Failed to give" TP.<+> prettyTCM e
-    --   err -> throwError err
+  withInteractionId ii do
+    setMetaOccursCheck mi DontRunMetaOccursCheck -- #589, #2710: Allow giving recursive solutions.
+    applyWhen elaborating (locallyTC eCurrentlyElaborating $ const True) do
+      -- Andreas, 2025-05-02, issue #7842 reproduces this error
+      let err _blocker = typeError $ InteractionError $ CannotGive e
+      catchPatternErr err do
+        giveExpr force (Just ii) mi e
 
 -- | Try to fill hole by expression.
 --

@@ -347,7 +347,8 @@ data JSBackendError_
   deriving (Enum, Bounded) via (FiniteEnumeration JSBackendError_)
 
 data InteractionError_
-  = CannotRefine_
+  = CannotGive_
+  | CannotRefine_
   | CaseSplitError_
   | ExpectedIdentifier_
   | ExpectedApplication_

@@ -1800,6 +1800,8 @@ instance PrettyTCM JSBackendError where
 
 instance PrettyTCM InteractionError where
   prettyTCM = \case
+    CannotGive e       -> fsep $ pwords "Failed to give" ++ [ prettyTCM e ]
+
     CannotRefine s     -> fsep $ pwords "Cannot refine" ++ pwords s
 
     CaseSplitError doc -> return doc

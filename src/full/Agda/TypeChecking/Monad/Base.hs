@@ -5381,7 +5381,9 @@ data WhyInvalidInstanceType
 
 -- | Errors raised in @--interaction@ mode.
 data InteractionError
-  = CannotRefine String
+  = CannotGive A.Expr
+      -- ^ Failure of the 'give' interactive tactic.
+  | CannotRefine String
       -- ^ Failure of the 'refine' interactive tactic.
   | CaseSplitError Doc
       -- ^ Failure of the 'makeCase' interactive tactic.
