@@ -124,7 +124,7 @@ parseVariables f cxt asb ii rng ss = do
   -- Valid names to split on are pattern variables of the clause,
   -- plus as-bindings that refer to a variable.
   let clauseVars = zip clauseCxtNames (map var [0..]) ++
-                   map (\(AsB name v _ _) -> (name,v)) asb
+                   map (\(AsB name v _) -> (name,v)) asb
 
   -- We cannot split on module parameters or make them visible
   params <- moduleParamsToApply $ qnameModule f

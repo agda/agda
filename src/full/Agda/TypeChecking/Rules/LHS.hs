@@ -194,7 +194,7 @@ updateProblemEqs eqs = do
     updates = concat <.> traverse update
 
     update :: ProblemEq -> TCM [ProblemEq]
-    update eq@(ProblemEq A.WildP{} _ _) = return []
+    update eq@(ProblemEq A.WildP{} _ _) = return [eq]
     update eq@(ProblemEq p@A.ProjP{} _ _) = typeError $ IllformedProjectionPatternAbstract p
     update eq@(ProblemEq p@(A.AsP info x p') v a) =
       (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
@@ -575,18 +575,20 @@ computeLHSContext = go [] []
 -- | Bind as patterns
 bindAsPatterns :: [AsBinding] -> TCM a -> TCM a
 bindAsPatterns []                ret = ret
-bindAsPatterns (AsB x v a m : asb) ret = do
+bindAsPatterns (AsB x v a : asb) ret = do
   reportSDoc "tc.lhs.as" 10 $ "as pattern" <+> prettyTCM x <+>
     sep [ ":" <+> prettyTCM a
         , "=" <+> prettyTCM v
         ]
-  addLetBinding (setModality m defaultArgInfo) Inserted x v a $ bindAsPatterns asb ret
+  addLetBinding' Inserted x v a $ bindAsPatterns asb ret
 
 -- | Since with-abstraction can change the type of a variable, we have to
 --   recheck the stripped with patterns when checking a with function.
 recheckStrippedWithPattern :: ProblemEq -> TCM ()
-recheckStrippedWithPattern (ProblemEq p v a) = checkInternal v CmpLeq (unDom a)
-  `catchError` \_ -> typeError $ IllTypedPatternAfterWithAbstraction p
+recheckStrippedWithPattern (ProblemEq p v a)
+  | A.WildP{} <- p = return ()
+  | otherwise      = checkInternal v CmpLeq (unDom a)
+      `catchError` \_ -> typeError $ IllTypedPatternAfterWithAbstraction p
 
 -- | Result of checking the LHS of a clause.
 data LHSResult = LHSResult
