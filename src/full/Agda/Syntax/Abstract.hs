@@ -164,7 +164,7 @@ data RecordConName
 type RecordDirectives = RecordDirectives' RecordConName
 
 data Declaration
-  = Axiom      KindOfName DefInfo ArgInfo (Maybe (List1 Occurrence)) QName Type
+  = Axiom      KindOfName DefInfo ArgInfo (Maybe PragmaPolarities) QName Type
     -- ^ Type signature (can be irrelevant, but not hidden).
     --
     -- The fourth argument contains an optional assignment of
