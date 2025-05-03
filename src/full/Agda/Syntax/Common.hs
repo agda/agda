@@ -2267,11 +2267,11 @@ addPolarity (PolarityModality p o l) (PolarityModality p' o' l') =
 zeroPolarity :: PolarityModality
 zeroPolarity = withStandardLock UnusedPolarity
 
--- | Identity under composition
+-- | Identity under composition.
 unitPolarity :: PolarityModality
 unitPolarity = withStandardLock StrictlyPositive
 
--- | Alias for Negative polarity
+-- | Alias for 'Negative' polarity.
 negativePolarity :: PolarityModality
 negativePolarity = withStandardLock Negative
 

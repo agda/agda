@@ -625,6 +625,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       -- but that would require support for a `t :c A` judgment.
       if hasLeftAdjoint (UnderComposition (getCohesion ai))
         then unless (getCohesion ai == Continuous)
+                    -- Atm, only Continuous has a left adjoint.
                     -- Andrea TODO: properly update the context/type of the projection when we add Sharp
                     __IMPOSSIBLE__
         else typeError $ InvalidFieldModality (getCohesion ai)
