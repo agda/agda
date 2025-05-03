@@ -2,7 +2,7 @@
 
 module Agda.TypeChecking.Errors where
 
-import Agda.Syntax.Common (Relevance)
+import Agda.Syntax.Common (Cohesion, PolarityModality, Relevance)
 import Agda.Syntax.Abstract.Name
 
 import Agda.TypeChecking.Monad.Base
@@ -21,4 +21,6 @@ topLevelModuleDropper :: (MonadDebug m, MonadTCEnv m, ReadTCState m) => m (QName
 class Verbalize a where
   verbalize :: a -> String
 
-instance Verbalize Relevance where
+instance Verbalize Relevance
+instance Verbalize Cohesion
+instance Verbalize PolarityModality

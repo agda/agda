@@ -272,6 +272,8 @@ data WarningName
   | InlineNoExactSplit_
   | DeprecationWarning_
   | DuplicateUsing_
+  | FixingCohesion_
+  | FixingPolarity_
   | FixingRelevance_
   -- TODO: linearity
   -- -- | FixingQuantity_
@@ -509,7 +511,9 @@ warningNameDescription = \case
   DeprecationWarning_              -> "Deprecated features."
   -- TODO: linearity
   -- FixingQuantity_                  -> "Correcting invalid user-written quantity."
-  FixingRelevance_                 -> "Correcting invalid user-written relevance."
+  FixingRelevance_                 -> "Correcting invalid user-written relevance attribute."
+  FixingCohesion_                  -> "Correcting invalid user-written cohesion attribute."
+  FixingPolarity_                  -> "Correcting invalid user-written polarity attribute."
   InvalidCharacterLiteral_         -> "Illegal character literals."
   UselessPragma_                   -> "Pragmas that get ignored."
   IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."

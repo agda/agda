@@ -81,6 +81,9 @@ Pragmas and options
 Warnings
 --------
 
+* New deadcode warnings `FixingCohesion`, `FixingPolarity` and `FixingRelevance`
+  when wrong user-written attribute was corrected automatically by Agda.
+
 * New deadcode warning `InvalidDisplayForm` instead of hard error
   when a display form is illegal (and thus ignored).
 

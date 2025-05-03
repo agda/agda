@@ -2592,20 +2592,29 @@ instance ToAbstract DataConstrDecl where
 
   toAbstract (DataConstrDecl m a p d) = traceCall (ScopeCheckDeclaration d) do
     case d of
-      C.Axiom r p1 a1 i info x t -> do -- rel==Relevant
+      C.Axiom r p1 a1 i ai x t -> do
         -- unless (p1 == p) __IMPOSSIBLE__  -- This invariant is currently violated by test/Succeed/Issue282.agda
         unless (a1 == a) __IMPOSSIBLE__
-        let msg = "of constructor"
-        info <- ensureNotLinear msg =<< ensureRelevant msg info
+        ai <- checkConstructorArgInfo ai
         t' <- toAbstractCtx TopCtx t
         -- The abstract name is the qualified one
         -- Bind it twice, once unqualified and once qualified
         f <- getConcreteFixity x
         y <- bindConstructorName m x a p
         printScope "con" 25 "bound constructor"
-        return $ A.Axiom ConName (mkDefInfoInstance x f p a i NotMacroDef r)
-                         info Nothing y t'
+        let defInfo = mkDefInfoInstance x f p a i NotMacroDef r
+        return $ A.Axiom ConName defInfo ai Nothing y t'
       _ -> errorNotConstrDecl d
+
+-- | Delete (with warning) attributes that are illegal for constructor declarations.
+checkConstructorArgInfo :: ArgInfo -> ScopeM ArgInfo
+checkConstructorArgInfo =
+    ensureRelevant msg >=>
+    ensureNotLinear msg >=>
+    ensureContinuous msg >=>
+    ensureMixedPolarity msg
+  where
+    msg = "of constructor"
 
 errorNotConstrDecl :: C.NiceDeclaration -> ScopeM a
 errorNotConstrDecl d = setCurrentRange d $
@@ -2629,6 +2638,18 @@ ensureNotLinear s info = do
       -- let q' = Quantityω QωInferred
       -- warning $ FixingQuantity s q q'
       -- return $ setQuantity q' info
+
+ensureContinuous :: LensCohesion a => String -> a -> ScopeM a
+ensureContinuous s info
+  | isContinuous info = return info
+  | otherwise = setCohesion Continuous info <$ do
+      warning $ FixingCohesion s (getCohesion info) Continuous
+
+ensureMixedPolarity :: LensModalPolarity a => String -> a -> ScopeM a
+ensureMixedPolarity s info
+  | splittablePolarity info = return info
+  | otherwise = setModalPolarity mixedPolarity info <$ do
+      warning $ FixingPolarity s (getModalPolarity info) mixedPolarity
 
 -- ** More scope checking
 ------------------------------------------------------------------------

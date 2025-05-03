@@ -233,11 +233,23 @@ prettyWarning = \case
     -- FixingQuantity s q q' -> fsep $ concat
     --   [ pwords "Replacing illegal quantity", [ pretty q ], pwords s, [ "by", pretty q' ] ]
 
-    FixingRelevance s r r' ->  fsep $ concat
+    FixingRelevance s r r' -> fsep $ concat
       [ pwords "Replacing illegal relevance", [ p r ]
       , pwords s, [ "by", p r' ]
       ]
       where p r = text $ "`" ++ verbalize r ++ "'"
+
+    FixingCohesion s c c' -> fsep $ concat
+      [ pwords "Replacing illegal cohesion", [ p c ]
+      , pwords s, [ "by", p c' ]
+      ]
+      where p c = text $ "`" ++ verbalize c ++ "'"
+
+    FixingPolarity s q q' ->  fsep $ concat
+      [ pwords "Replacing illegal polarity", [ p q ]
+      , pwords s, [ "by", p q' ]
+      ]
+      where p q = text $ "`" ++ verbalize q ++ "'"
 
     IllformedAsClause s -> fsep . pwords $
       "`as' must be followed by an identifier" ++ s

@@ -2275,13 +2275,17 @@ unitPolarity = withStandardLock StrictlyPositive
 negativePolarity :: PolarityModality
 negativePolarity = withStandardLock Negative
 
+-- | Alias for 'Mixed' polarity.
+mixedPolarity :: PolarityModality
+mixedPolarity = withStandardLock MixedPolarity
+
 -- | Absorptive element under addition.
 topPolarity :: PolarityModality
-topPolarity = withStandardLock MixedPolarity
+topPolarity = mixedPolarity
 
 -- | Default used when not caring about polarity
 defaultPolarity :: PolarityModality
-defaultPolarity = withStandardLock MixedPolarity
+defaultPolarity = mixedPolarity
 
 instance Null PolarityModality where
   empty = defaultPolarity
