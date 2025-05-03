@@ -222,7 +222,6 @@ typeErrorName = \case
   TooFewPatternsInWithClause                                 {} -> TooFewPatternsInWithClause_
   TooManyFields                                              {} -> TooManyFields_
   TooManyPatternsInWithClause                                {} -> TooManyPatternsInWithClause_
-  TooManyPolarities                                          {} -> TooManyPolarities_
   TriedToCopyConstrainedPrim                                 {} -> TriedToCopyConstrainedPrim_
   InvalidInstanceHeadType                                    {} -> InvalidInstanceHeadType_
   UnboundVariablesInPatternSynonym                           {} -> UnboundVariablesInPatternSynonym_

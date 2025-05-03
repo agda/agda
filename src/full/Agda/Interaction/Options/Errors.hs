@@ -273,7 +273,6 @@ data ErrorName
   | TooFewPatternsInWithClause_
   | TooManyFields_
   | TooManyPatternsInWithClause_
-  | TooManyPolarities_
   | TriedToCopyConstrainedPrim_
   | InvalidInstanceHeadType_
   | UnboundVariablesInPatternSynonym_

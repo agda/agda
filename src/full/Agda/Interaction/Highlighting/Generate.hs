@@ -582,6 +582,8 @@ warningHighlighting' b w = case tcWarning w of
   -- Backends
   CustomBackendWarning{} -> mempty
 
+  -- Polarities
+  TooManyPolarities _x occs -> deadcodeHighlighting occs
   TopLevelPolarity{} -> errorWarningHighlighting w
 
 recordFieldWarningHighlighting ::

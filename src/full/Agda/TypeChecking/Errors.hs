@@ -1231,11 +1231,6 @@ instance PrettyTCM TypeError where
     DatatypeIndexPolarity -> fsep $
       pwords "Cannot annotate datatype indices with polarity other than @mixed"
 
-    TooManyPolarities x n -> fsep $
-      pwords "Too many polarities given in the POLARITY pragma for" ++
-      [prettyTCM x] ++
-      pwords "(at most" ++ [text (show n)] ++ pwords "allowed)."
-
     RecursiveRecordNeedsInductivity q -> fsep $ concat
       [ pwords "Recursive record"
       , [ prettyTCM q ]

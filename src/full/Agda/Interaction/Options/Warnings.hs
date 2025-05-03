@@ -354,6 +354,7 @@ data WarningName
   | WithoutKFlagPrimEraseEquality_
   | ConflictingPragmaOptions_
   | WrongInstanceDeclaration_
+  | TooManyPolarities_
   | TopLevelPolarity_
   -- Checking consistency of options
   | CoInfectiveImport_
@@ -584,6 +585,7 @@ warningNameDescription = \case
   WithClauseProjectionFixityMismatch_ -> "With clauses using projections in different fixities than their parent clauses."
   WithoutKFlagPrimEraseEquality_   -> "Uses of `primEraseEquality' with the without-K flags."
   WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."
+  TooManyPolarities_               -> "Too many polarities given in POLARITY pragma."
   TopLevelPolarity_                -> "Declaring definitions with an explicit polarity annotation."
   -- Checking consistency of options
   CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does."

@@ -4693,6 +4693,10 @@ data Warning
     -- ^ The with-clause uses projection in a different fixity style
     --   than the parent clause.
 
+  -- Polarity warnings
+  | TooManyPolarities QName PragmaPolarities
+    -- ^ Too many polarities given in POLARITY pragma for 'QName'.
+    --   'PragmaPolarities' contains the (likely) excessive polarities.
   | TopLevelPolarity QName PolarityModality
     -- ^ Definition with non-default polarity annotation.
 
@@ -4819,6 +4823,9 @@ warningName = \case
   -- Type checking
   TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
   WithClauseProjectionFixityMismatch{} -> WithClauseProjectionFixityMismatch_
+
+  -- Polarities
+  TooManyPolarities{}                  -> TooManyPolarities_
   TopLevelPolarity{}                   -> TopLevelPolarity_
 
   -- Cubical
@@ -5206,7 +5213,6 @@ data TypeError
     -- Positivity and polarity errors
         | DatatypeIndexPolarity
             -- ^ An index of a data type has a polarity different from 'Mixed'.
-        | TooManyPolarities QName Int
         | RecursiveRecordNeedsInductivity QName
             -- ^ A record type inferred as recursive needs a manual declaration
             --   whether it should be inductively or coinductively.

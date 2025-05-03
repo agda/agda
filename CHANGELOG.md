@@ -81,7 +81,7 @@ Pragmas and options
 Warnings
 --------
 
-* New warning `InvalidDisplayForm` instead of hard error
+* New deadcode warning `InvalidDisplayForm` instead of hard error
   when a display form is illegal (and thus ignored).
 
 * New warning `UnusedVariablesInDisplayForm` when DISPLAY pragma
@@ -98,10 +98,14 @@ Warnings
 
 * Unused `CATCHALL` pragmas now trigger `UselessPragma` warnings.
 
-* New warning `EmptyPolarityPragma` for POLARITY pragma without polarities.
+* New deadcode warning `EmptyPolarityPragma` for POLARITY pragma without polarities.
   E.g. triggered by `{-# POLARITY F #-}`.
 
-* New warning `UselessTactic` when a `@tactic` attribute has no effect,
+* New deadcode warning `TooManyPolarities` instead of hard error
+  when a POLARITY pragma gives polarities that exceed the known
+  arity of the postulate.
+
+* New deadcode warning `UselessTactic` when a `@tactic` attribute has no effect,
   typically when it is attached to a non-hidden or instance argument.
 
 * New warning `WithClauseProjectionFixityMismatch` instead of hard error
