@@ -166,7 +166,6 @@ data ErrorName
   | IdiomBracketError_
   | InvalidBuiltin_
   | InvalidDottedExpression_
-  | InvalidFieldModality_
   | IllTypedPatternAfterWithAbstraction_
   | IllegalDeclarationBeforeTopLevelModule_
   | IllegalDeclarationInDataDefinition_

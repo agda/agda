@@ -1639,9 +1639,6 @@ instance PrettyTCM TypeError where
         _ -> prettyTCM t <+> "is not usable at the required modality"
          <+> attributesForModality mod
 
-    InvalidFieldModality coh -> fsep $
-      pwords "Cannot have record fields with modality" ++ [pretty coh]
-
     CubicalCompilationNotSupported cubical -> fsep $ concat
       [ pwords $ "Compilation of code that uses"
       , [ text $ cubicalOptionString cubical ]

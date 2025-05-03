@@ -5211,7 +5211,6 @@ data TypeError
         | SortCannotDependOnItsIndex QName Type
     -- Modality errors
         | UnusableAtModality WhyCheckModality Modality Term
-        | InvalidFieldModality Cohesion
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError

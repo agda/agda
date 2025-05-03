@@ -379,7 +379,8 @@ instance Pretty Declaration where
           ]
     FieldSig inst tac x (Arg i e) ->
       mkInst inst $ mkOverlap i $
-      prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $ prettyPolarity i $
+      -- We print relevance before hiding, need to clear it before printing the rest of the attributes with TypeSig.
+      prettyRelevance i $ prettyHiding i id $
       pretty $ TypeSig (setRelevance relevant i) tac x e
       where
         mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]
@@ -670,4 +671,3 @@ prettyOpApp asp q es = merge [] $ prOp ms xs $ List1.toList es
     mergeLeft d before = case before of
       []     -> (d,      [])
       b : bs -> (b <> d, bs)
-

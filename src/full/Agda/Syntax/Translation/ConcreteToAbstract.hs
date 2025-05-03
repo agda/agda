@@ -166,10 +166,11 @@ recordConstructorType decls =
           mkLet d = Just . A.TLet r <$> toAbstract (LetDef RecordLetDef d)
       setCurrentRange r $ case d of
 
-        C.NiceField r pr ab inst tac x a -> do
+        C.NiceField r pr ab inst tac x (Arg ai t) -> do
           fx  <- getConcreteFixity x
-          let bv = unnamed (C.mkBinder $ (C.mkBoundName x fx) { bnameTactic = tac }) <$ a
-          toAbstract $ C.TBind r (singleton bv) (unArg a)
+          ai  <- checkFieldArgInfo True ai
+          let bv = Arg ai $ unnamed $ C.mkBinder $ (C.mkBoundName x fx) { bnameTactic = tac }
+          toAbstract $ C.TBind r (singleton bv) t
 
         -- Public open is allowed and will take effect when scope checking as
         -- proper declarations.
@@ -1765,6 +1766,12 @@ instance ToAbstract LetDef where
       checkValidLetPattern a = unless (allowedPat a) do
         notAValidLetBinding $ Just NotAValidLetPattern
 
+checkFieldArgInfo :: Bool -> ArgInfo -> ScopeM ArgInfo
+checkFieldArgInfo warn =
+    ensureContinuous msg >=>
+    ensureMixedPolarity msg
+  where
+    msg = if warn then Just "of field" else Nothing
 
 instance ToAbstract NiceDeclaration where
   type AbsOfCon NiceDeclaration = A.Declaration
@@ -1809,16 +1816,17 @@ instance ToAbstract NiceDeclaration where
       return [A.Generalize s info i y t]
 
   -- Fields
-    C.NiceField r p a i tac x t -> do
+    C.NiceField r p a i tac x (Arg ai t) -> do
       unless (p == PublicAccess) $ typeError PrivateRecordField
+      ai  <- checkFieldArgInfo False ai  -- we already warned in recordConstructorType
+      tac <- traverse (toAbstractCtx TopCtx) tac
       -- Interaction points for record fields have already been introduced
       -- when checking the type of the record constructor.
       -- To avoid introducing interaction points (IP) twice, we turn
       -- all question marks to underscores.  (See issue 1138.)
       let maskIP (C.QuestionMark r _) = C.Underscore r Nothing
           maskIP e                     = e
-      tac <- traverse (toAbstractCtx TopCtx) tac
-      t' <- toAbstractCtx TopCtx $ mapExpr maskIP t
+      t  <- toAbstractCtx TopCtx $ mapExpr maskIP t
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
       -- Andreas, 2018-06-09 issue #2170
@@ -1831,7 +1839,7 @@ instance ToAbstract NiceDeclaration where
       --   -- Ulf: unless you turn on --irrelevant-projections
       bindName p FldName x y
       let info = (mkDefInfoInstance x f p a i NotMacroDef r) { defTactic = tac }
-      return [ A.Field info y t' ]
+      return [ A.Field info y (Arg ai t) ]
 
   -- Primitive function
     PrimitiveFunction r p a x t -> notAffectedByOpaque $ do
@@ -2614,19 +2622,19 @@ checkConstructorArgInfo =
     ensureContinuous msg >=>
     ensureMixedPolarity msg
   where
-    msg = "of constructor"
+    msg = Just "of constructor"
 
 errorNotConstrDecl :: C.NiceDeclaration -> ScopeM a
 errorNotConstrDecl d = setCurrentRange d $
   typeError $ IllegalDeclarationInDataDefinition $ notSoNiceDeclarations d
 
-ensureRelevant :: LensRelevance a => String -> a -> ScopeM a
-ensureRelevant s info = do
+ensureRelevant :: LensRelevance a => Maybe String -> a -> ScopeM a
+ensureRelevant ms info = do
   if isRelevant info then return info else do
-    warning $ FixingRelevance s (getRelevance info) relevant
+    whenJust ms \ s -> warning $ FixingRelevance s (getRelevance info) relevant
     return $ setRelevance relevant info
 
-ensureNotLinear :: LensQuantity a => String -> a -> ScopeM a
+ensureNotLinear :: LensQuantity a => Maybe String -> a -> ScopeM a
 ensureNotLinear s info = do
   case getQuantity info of
     Quantityω{} -> return info
@@ -2639,17 +2647,17 @@ ensureNotLinear s info = do
       -- warning $ FixingQuantity s q q'
       -- return $ setQuantity q' info
 
-ensureContinuous :: LensCohesion a => String -> a -> ScopeM a
-ensureContinuous s info
+ensureContinuous :: LensCohesion a => Maybe String -> a -> ScopeM a
+ensureContinuous ms info
   | isContinuous info = return info
   | otherwise = setCohesion Continuous info <$ do
-      warning $ FixingCohesion s (getCohesion info) Continuous
+      whenJust ms \ s -> warning $ FixingCohesion s (getCohesion info) Continuous
 
-ensureMixedPolarity :: LensModalPolarity a => String -> a -> ScopeM a
-ensureMixedPolarity s info
+ensureMixedPolarity :: LensModalPolarity a => Maybe String -> a -> ScopeM a
+ensureMixedPolarity ms info
   | splittablePolarity info = return info
   | otherwise = setModalPolarity mixedPolarity info <$ do
-      warning $ FixingPolarity s (getModalPolarity info) mixedPolarity
+      whenJust ms \ s -> warning $ FixingPolarity s (getModalPolarity info) mixedPolarity
 
 -- ** More scope checking
 ------------------------------------------------------------------------
