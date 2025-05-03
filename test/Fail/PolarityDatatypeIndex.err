@@ -1,0 +1,2 @@
+PolarityDatatypeIndex.agda:10.6-17: error: [DatatypeIndexPolarity]
+Cannot annotate datatype indices with polarity other than @mixed

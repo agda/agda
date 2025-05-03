@@ -90,6 +90,7 @@ typeErrorName = \case
   CubicalCompilationNotSupported                             {} -> CubicalCompilationNotSupported_
   CubicalPrimitiveNotFullyApplied                            {} -> CubicalPrimitiveNotFullyApplied_
   CyclicModuleDependency                                     {} -> CyclicModuleDependency_
+  DatatypeIndexPolarity                                      {} -> DatatypeIndexPolarity_
   DeBruijnIndexOutOfScope                                    {} -> DeBruijnIndexOutOfScope_
   DeclarationsAfterTopLevelModule                            {} -> DeclarationsAfterTopLevelModule_
   DefinitionInDifferentModule                                {} -> DefinitionInDifferentModule_
