@@ -444,6 +444,10 @@ warningHighlighting' b w = case tcWarning w of
   --   where r = getRange q
   FixingRelevance _ q _      -> if null r then cosmeticProblemHighlighting w else deadcodeHighlighting r
     where r = getRange q
+  FixingCohesion _ q _       -> if null r then cosmeticProblemHighlighting w else deadcodeHighlighting r
+    where r = getRange q
+  FixingPolarity _ q _       -> if null r then cosmeticProblemHighlighting w else deadcodeHighlighting r
+    where r = getRange q
   IllformedAsClause{}        -> deadcodeHighlighting w
   UselessPragma r _          -> deadcodeHighlighting r
   UselessPublic{}            -> deadcodeHighlighting w

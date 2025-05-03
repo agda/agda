@@ -1412,6 +1412,14 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Face constraint patterns that are given as named arguments.
 
+.. option:: FixingCohesion
+
+     Invalid cohesion annotations, automatically corrected.
+
+.. option:: FixingPolarity
+
+     Invalid polarity annotations, automatically corrected.
+
 .. option:: FixingRelevance
 
      Invalid relevance annotations, automatically corrected.

@@ -4533,6 +4533,10 @@ data Warning
   -- --   -- ^ Auto-correcting quantity pertaining to 'String' /from/ /to/.
   | FixingRelevance String Relevance Relevance
     -- ^ Auto-correcting relevance pertaining to 'String' /from/ /to/.
+  | FixingCohesion String Cohesion Cohesion
+    -- ^ Auto-correcting cohesion pertaining to 'String' /from/ /to/.
+  | FixingPolarity String PolarityModality PolarityModality
+    -- ^ Auto-correcting polarity pertaining to 'String' /from/ /to/.
   | IllformedAsClause String
     -- ^ If the user wrote something other than an unqualified name
     --   in the @as@ clause of an @import@ statement.
@@ -4738,6 +4742,8 @@ warningName = \case
   -- TODO: linearity
   -- FixingQuantity{}             -> FixingQuantity_
   FixingRelevance{}            -> FixingRelevance_
+  FixingCohesion{}             -> FixingCohesion_
+  FixingPolarity{}             -> FixingPolarity_
   IllformedAsClause{}          -> IllformedAsClause_
   WrongInstanceDeclaration{}   -> WrongInstanceDeclaration_
   InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_

@@ -1,25 +1,87 @@
-IrrelevantConstructor.agda:4.4-9: warning: -W[no]FixingRelevance
+IrrelevantConstructor.agda:7.4-9: warning: -W[no]FixingRelevance
 Replacing illegal relevance 'irrelevant' of constructor by
 'relevant'
 when scope checking the declaration
   .c : D
 
-IrrelevantConstructor.agda:11.21-38: warning: -W[no]FixingRelevance
+IrrelevantConstructor.agda:14.21-38: warning: -W[no]FixingRelevance
 Replacing illegal relevance 'shape-irrelevant' of constructor by
 'relevant'
 when scope checking the declaration
   @shape-irrelevant wrap : A → Wrap A
+
+IrrelevantConstructor.agda:19.9-16: warning: -W[no]FixingCohesion
+Replacing illegal cohesion 'flat' of constructor by 'continuous'
+when scope checking the declaration
+  @♭ c1 : DC
+
+IrrelevantConstructor.agda:20.9-16: warning: -W[no]FixingCohesion
+Replacing illegal cohesion 'flat' of constructor by 'continuous'
+when scope checking the declaration
+  @♭ c2 : DC
+
+IrrelevantConstructor.agda:23.11-19: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'strictly positive' of constructor by
+'mixed'
+when scope checking the declaration
+  @++ psp : DP
+
+IrrelevantConstructor.agda:24.11-19: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'positive' of constructor by 'mixed'
+when scope checking the declaration
+  @+ pp : DP
+
+IrrelevantConstructor.agda:25.11-19: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'negative' of constructor by 'mixed'
+when scope checking the declaration
+  @- pn : DP
+
+IrrelevantConstructor.agda:26.11-19: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'unused' of constructor by 'mixed'
+when scope checking the declaration
+  @unused pu : DP
 
 ———— All done; warnings encountered ————————————————————————
 
-IrrelevantConstructor.agda:4.4-9: warning: -W[no]FixingRelevance
+IrrelevantConstructor.agda:7.4-9: warning: -W[no]FixingRelevance
 Replacing illegal relevance 'irrelevant' of constructor by
 'relevant'
 when scope checking the declaration
   .c : D
 
-IrrelevantConstructor.agda:11.21-38: warning: -W[no]FixingRelevance
+IrrelevantConstructor.agda:14.21-38: warning: -W[no]FixingRelevance
 Replacing illegal relevance 'shape-irrelevant' of constructor by
 'relevant'
 when scope checking the declaration
   @shape-irrelevant wrap : A → Wrap A
+
+IrrelevantConstructor.agda:19.9-16: warning: -W[no]FixingCohesion
+Replacing illegal cohesion 'flat' of constructor by 'continuous'
+when scope checking the declaration
+  @♭ c1 : DC
+
+IrrelevantConstructor.agda:20.9-16: warning: -W[no]FixingCohesion
+Replacing illegal cohesion 'flat' of constructor by 'continuous'
+when scope checking the declaration
+  @♭ c2 : DC
+
+IrrelevantConstructor.agda:23.11-19: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'strictly positive' of constructor by
+'mixed'
+when scope checking the declaration
+  @++ psp : DP
+
+IrrelevantConstructor.agda:24.11-19: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'positive' of constructor by 'mixed'
+when scope checking the declaration
+  @+ pp : DP
+
+IrrelevantConstructor.agda:25.11-19: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'negative' of constructor by 'mixed'
+when scope checking the declaration
+  @- pn : DP
+
+IrrelevantConstructor.agda:26.11-19: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'unused' of constructor by 'mixed'
+when scope checking the declaration
+  @unused pu : DP
