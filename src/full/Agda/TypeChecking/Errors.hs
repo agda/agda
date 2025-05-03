@@ -2144,8 +2144,7 @@ instance Verbalize Hiding where
   verbalize = hidingToString
 
 instance Verbalize Relevance where
-  verbalize r =
-    case r of
+  verbalize = \case
       Relevant        {} -> "relevant"
       Irrelevant      {} -> "irrelevant"
       ShapeIrrelevant {} -> "shape-irrelevant"
@@ -2157,15 +2156,13 @@ instance Verbalize Quantity where
     Quantityω{} -> "unrestricted"
 
 instance Verbalize Cohesion where
-  verbalize r =
-    case r of
+  verbalize = \case
       Flat       -> "flat"
       Continuous -> "continuous"
       Squash     -> "squashed"
 
 instance Verbalize ModalPolarity where
-  verbalize r =
-    case r of
+  verbalize = \case
       UnusedPolarity -> "unused"
       StrictlyPositive -> "strictly positive"
       Positive -> "positive"

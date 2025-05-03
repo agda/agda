@@ -6,12 +6,16 @@ module Agda.Utils.Applicative
        , foldA
        , foldMapA
        , forA
+       , liftA4
        )
        where
 
 import Control.Applicative
 import Data.Monoid ( Alt(..) )
 import Data.Traversable ( for )
+
+liftA4 :: Applicative f => (a -> b -> c -> d -> e) -> f a -> f b -> f c -> f d -> f e
+liftA4 f a b c d = liftA3 f a b c <*> d
 
 -- | Better name for 'for'.
 forA :: (Traversable t, Applicative f) => t a -> (a -> f b) -> f (t b)
