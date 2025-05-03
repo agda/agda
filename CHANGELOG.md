@@ -299,6 +299,10 @@ Interaction and emacs mode
 
 * New bindings for unicode 'tacks' (⟘⟙⟛⟝⟞⫫⫪) via \tack (as well as specialised names for each of them)
 
+* Added key binding that switches to the associated mode for a
+  literate Agda file, with the option to automatically add a key
+  binding to switch back.
+
 Backends
 --------
 
