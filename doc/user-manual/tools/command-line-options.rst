@@ -1658,6 +1658,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Record expression with invalid field names.
 
+.. option:: TooManyPolarities
+
+     :ref:`POLARITY pragma <polarity-pragma>` with too many polarities given.
+
 .. option:: UnfoldingWrongName
 
      Names in an ``unfolding`` clause that are not unambiguous definitions.

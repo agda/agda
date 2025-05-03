@@ -665,12 +665,16 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
       -- Ensure that polarity pragmas do not contain too many occurrences.
       let occs = List1.toList occs1
       let m = length occs
-      TelV tel _ <- telViewUpTo m t
+      TelV tel _core <- telViewUpTo m t
       let n = size tel
-      when (n < m) $
-        typeError $ TooManyPolarities x n
+      when (n < m) do
+        -- Andreas, 2025-05-03, #7851
+        -- ifBlocked _core  then the warning might be spurious.
+        -- However, postponing this check seems like an overkill.
+        warning $ TooManyPolarities x $
+          List1.fromListSafe __IMPOSSIBLE__ $ drop n occs
 
-      return occs
+      return $ map rangedThing occs
 
   -- Set blocking tag to MissingClauses if we still expect clauses
   let blk = case kind of

@@ -271,3 +271,8 @@ module Issue7829 where
     where fst = 42
           snd : Nat
           snd = 43   -- this should also highlight as field name (WAS: no highlighting)
+
+module Issue7851 where
+
+  postulate Atom : Set
+  {-# POLARITY Atom ++ - #-}

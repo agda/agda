@@ -661,6 +661,11 @@ prettyWarning = \case
     TopLevelPolarity x p -> fsep $
       ["Definition", prettyTCM x, "has explicit polarity annotation", pretty p, "which is currently not supported"]
 
+    TooManyPolarities x occs -> fsep $
+      [prettyTCM $ length occs] ++
+      pwords "too many polarities given in the POLARITY pragma for" ++
+      [prettyTCM x]
+
 instance PrettyTCM DataOrRecord_ where
   prettyTCM = \case
     IsData{}   -> "data"

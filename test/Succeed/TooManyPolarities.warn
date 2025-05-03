@@ -1,0 +1,13 @@
+TooManyPolarities.agda:10.3-10: warning: -W[no]TooManyPolarities
+1 too many polarities given in the POLARITY pragma for A
+
+TooManyPolarities.agda:27.5-13: warning: -W[no]TooManyPolarities
+1 too many polarities given in the POLARITY pragma for F
+
+———— All done; warnings encountered ————————————————————————
+
+TooManyPolarities.agda:10.3-10: warning: -W[no]TooManyPolarities
+1 too many polarities given in the POLARITY pragma for A
+
+TooManyPolarities.agda:27.5-13: warning: -W[no]TooManyPolarities
+1 too many polarities given in the POLARITY pragma for F

@@ -136,6 +136,7 @@ instance EmbPrj Warning where
     MacroInLetBindings                          -> __IMPOSSIBLE__
     AbstractInLetBindings                       -> __IMPOSSIBLE__
     TopLevelPolarity a b                        -> __IMPOSSIBLE__
+    TooManyPolarities a b                       -> icodeN 71 TooManyPolarities a b
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -210,6 +211,7 @@ instance EmbPrj Warning where
     -- [68, a, b, c]        -> valuN FixingQuantity a b c
     [69, a, b, c]        -> valuN FixingRelevance a b c
     [70, a]              -> valuN UnusedVariablesInDisplayForm a
+    [71, a, b]           -> valuN TooManyPolarities a b
     _ -> malformed
 
 instance EmbPrj UselessPublicReason
