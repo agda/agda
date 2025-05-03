@@ -121,7 +121,6 @@ typeErrorName = \case
   IdiomBracketError                                          {} -> IdiomBracketError_
   InvalidBuiltin                                             {} -> InvalidBuiltin_
   InvalidDottedExpression                                    {} -> InvalidDottedExpression_
-  InvalidFieldModality                                       {} -> InvalidFieldModality_
   IllTypedPatternAfterWithAbstraction                        {} -> IllTypedPatternAfterWithAbstraction_
   IllegalDeclarationBeforeTopLevelModule                     {} -> IllegalDeclarationBeforeTopLevelModule_
   IllegalDeclarationInDataDefinition                         {} -> IllegalDeclarationInDataDefinition_

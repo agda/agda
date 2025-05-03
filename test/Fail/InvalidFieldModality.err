@@ -1,3 +1,0 @@
-InvalidFieldModality.agda:6.8-17: error: [InvalidFieldModality]
-Cannot have record fields with modality @♭
-when checking the projection foo : Nat

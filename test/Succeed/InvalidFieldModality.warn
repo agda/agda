@@ -1,0 +1,121 @@
+InvalidFieldModality.agda:8.13-21: warning: -W[no]FixingCohesion
+Replacing illegal cohesion 'flat' of field by 'continuous'
+when scope checking the declaration
+  record R where
+    field
+      @♭ f1 : Set
+      @- f2 : Set
+      @+ f3 : Set
+      @++ f4 : Set
+      @unused f5 : Set
+      ok : Set
+
+InvalidFieldModality.agda:9.13-21: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'negative' of field by 'mixed'
+when scope checking the declaration
+  record R where
+    field
+      @♭ f1 : Set
+      @- f2 : Set
+      @+ f3 : Set
+      @++ f4 : Set
+      @unused f5 : Set
+      ok : Set
+
+InvalidFieldModality.agda:10.13-21: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'positive' of field by 'mixed'
+when scope checking the declaration
+  record R where
+    field
+      @♭ f1 : Set
+      @- f2 : Set
+      @+ f3 : Set
+      @++ f4 : Set
+      @unused f5 : Set
+      ok : Set
+
+InvalidFieldModality.agda:11.13-21: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'strictly positive' of field by 'mixed'
+when scope checking the declaration
+  record R where
+    field
+      @♭ f1 : Set
+      @- f2 : Set
+      @+ f3 : Set
+      @++ f4 : Set
+      @unused f5 : Set
+      ok : Set
+
+InvalidFieldModality.agda:12.13-21: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'unused' of field by 'mixed'
+when scope checking the declaration
+  record R where
+    field
+      @♭ f1 : Set
+      @- f2 : Set
+      @+ f3 : Set
+      @++ f4 : Set
+      @unused f5 : Set
+      ok : Set
+
+———— All done; warnings encountered ————————————————————————
+
+InvalidFieldModality.agda:8.13-21: warning: -W[no]FixingCohesion
+Replacing illegal cohesion 'flat' of field by 'continuous'
+when scope checking the declaration
+  record R where
+    field
+      @♭ f1 : Set
+      @- f2 : Set
+      @+ f3 : Set
+      @++ f4 : Set
+      @unused f5 : Set
+      ok : Set
+
+InvalidFieldModality.agda:9.13-21: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'negative' of field by 'mixed'
+when scope checking the declaration
+  record R where
+    field
+      @♭ f1 : Set
+      @- f2 : Set
+      @+ f3 : Set
+      @++ f4 : Set
+      @unused f5 : Set
+      ok : Set
+
+InvalidFieldModality.agda:10.13-21: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'positive' of field by 'mixed'
+when scope checking the declaration
+  record R where
+    field
+      @♭ f1 : Set
+      @- f2 : Set
+      @+ f3 : Set
+      @++ f4 : Set
+      @unused f5 : Set
+      ok : Set
+
+InvalidFieldModality.agda:11.13-21: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'strictly positive' of field by 'mixed'
+when scope checking the declaration
+  record R where
+    field
+      @♭ f1 : Set
+      @- f2 : Set
+      @+ f3 : Set
+      @++ f4 : Set
+      @unused f5 : Set
+      ok : Set
+
+InvalidFieldModality.agda:12.13-21: warning: -W[no]FixingPolarity
+Replacing illegal polarity 'unused' of field by 'mixed'
+when scope checking the declaration
+  record R where
+    field
+      @♭ f1 : Set
+      @- f2 : Set
+      @+ f3 : Set
+      @++ f4 : Set
+      @unused f5 : Set
+      ok : Set
