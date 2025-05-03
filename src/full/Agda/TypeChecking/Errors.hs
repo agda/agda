@@ -1228,6 +1228,9 @@ instance PrettyTCM TypeError where
       pwords " is impossible" ++ [prettyTCM neg] ++
       pwords "Possible solution: remove the clause, or use an absurd pattern ()."
 
+    DatatypeIndexPolarity -> fsep $
+      pwords "Cannot annotate datatype indices with polarity other than @mixed"
+
     TooManyPolarities x n -> fsep $
       pwords "Too many polarities given in the POLARITY pragma for" ++
       [prettyTCM x] ++

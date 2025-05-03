@@ -134,6 +134,7 @@ data ErrorName
   | CubicalCompilationNotSupported_
   | CubicalPrimitiveNotFullyApplied_
   | CyclicModuleDependency_
+  | DatatypeIndexPolarity_
   | DeBruijnIndexOutOfScope_
   | DeclarationsAfterTopLevelModule_
   | DefinitionInDifferentModule_

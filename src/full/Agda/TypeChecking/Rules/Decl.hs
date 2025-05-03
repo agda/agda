@@ -653,7 +653,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
 
   -- Lucas, 2022-11-30: If this is a datatype, forbid polarity annotations for indices
   when (kind == DataName && any (/= Mixed) (drop npars eoccs)) $
-    typeError $ GenericError "Cannot annotate datatype indices with polarity other than Mixed."
+    typeError DatatypeIndexPolarity
 
   occs <- case mp of
     Nothing -> return eoccs
