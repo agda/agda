@@ -3,7 +3,8 @@
 -- | Occurrences.
 
 module Agda.TypeChecking.Positivity.Occurrence
-  ( Occurrence(..)
+  ( PragmaPolarities
+  , Occurrence(..)
   , OccursWhere(..)
   , Where(..)
   , boundToEverySome
@@ -31,6 +32,7 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.List1 (List1)
 import Agda.Utils.Null
 import Agda.Utils.SemiRing
 import Agda.Utils.Size
@@ -40,6 +42,9 @@ import Agda.Utils.Impossible
 -- Specification of occurrences -------------------------------------------
 
 -- Operations and instances in Agda.TypeChecking.Positivity.
+
+-- | List of polarities stemming from POLARITY pragma.
+type PragmaPolarities = List1 (Ranged Occurrence)
 
 -- | Description of an occurrence.
 data OccursWhere

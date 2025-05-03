@@ -22,7 +22,7 @@ import Agda.Syntax.Builtin (builtinById, isBuiltinNoDef)
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Position
-import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
+import Agda.TypeChecking.Positivity.Occurrence (PragmaPolarities)
 
 import Agda.Utils.CallStack (HasCallStack)
 import Agda.Utils.Functor
@@ -35,9 +35,8 @@ import Agda.Utils.Tuple (Pair(Pair))
 
 import Agda.Utils.Impossible
 
-
 type Fixities   = Map Name Fixity'
-type Polarities = Map Name (List1 Occurrence)
+type Polarities = Map Name PragmaPolarities
 
 class Monad m => MonadFixityError m where
   throwMultipleFixityDecls            :: List1 (Name, Pair Fixity') -> m a

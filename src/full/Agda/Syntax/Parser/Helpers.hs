@@ -205,7 +205,7 @@ mkNamedArg x y = do
 
 -- | Polarity parser.
 
-polarity :: (Interval, String) -> Parser (Range, Occurrence)
+polarity :: (Interval, String) -> Parser (Ranged Occurrence)
 polarity (i, s) =
   case s of
     "_"  -> ret Unused
@@ -215,7 +215,7 @@ polarity (i, s) =
     "*"  -> ret Mixed
     _    -> parseError $ "Not a valid polarity: " ++ s
   where
-  ret x = return (getRange i, x)
+  ret = return . Ranged (getRange i)
 
 recoverLayout :: [(Interval, String)] -> String
 recoverLayout [] = ""

@@ -643,7 +643,7 @@ data Pragma
     --   or to the functions in the following mutual block.
   | NoPositivityCheckPragma     Range
     -- ^ Applies to the following data/record type or mutual block.
-  | PolarityPragma              Range Name [Occurrence]
+  | PolarityPragma              Range Name [Ranged Occurrence]
   | NoUniverseCheckPragma       Range
     -- ^ Applies to the following data/record type.
   | NotProjectionLikePragma     Range QName

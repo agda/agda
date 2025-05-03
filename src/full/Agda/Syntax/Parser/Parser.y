@@ -1786,8 +1786,8 @@ NoUniverseCheckPragma
 PolarityPragma :: { Pragma }
 PolarityPragma
   : '{-#' 'POLARITY' PragmaName Polarities '#-}'
-    { let (rs, occs) = unzip (reverse $4) in
-      PolarityPragma (getRange ($1,$2,$3,rs,$5)) $3 occs }
+    { let occs = reverse $4 in
+      PolarityPragma (getRange ($1,$2,$3,occs,$5)) $3 occs }
 
 WarningOnUsagePragma :: { Pragma }
 WarningOnUsagePragma
@@ -1808,11 +1808,11 @@ WarningOnImportPragma
   }
 
 -- Possibly empty list of polarities. Reversed.
-Polarities :: { [(Range, Occurrence)] }
+Polarities :: { [Ranged Occurrence] }
 Polarities : {- empty -}          { [] }
            | Polarities Polarity  { $2 : $1 }
 
-Polarity :: { (Range, Occurrence) }
+Polarity :: { Ranged Occurrence }
 Polarity : string {% polarity $1 }
 
 {--------------------------------------------------------------------------

@@ -50,7 +50,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
-import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
+import Agda.TypeChecking.Positivity.Occurrence ( PragmaPolarities, Occurrence )
 import Agda.TypeChecking.Warnings ( warning, warning' )
 
 import qualified Agda.Utils.AssocList as AssocList
@@ -467,7 +467,7 @@ getConcreteFixity :: C.Name -> ScopeM Fixity'
 getConcreteFixity x = Map.findWithDefault noFixity' x <$> useScope scopeFixities
 
 -- | Get the polarities of a not yet bound name.
-getConcretePolarity :: C.Name -> ScopeM (Maybe (List1 Occurrence))
+getConcretePolarity :: C.Name -> ScopeM (Maybe PragmaPolarities)
 getConcretePolarity x = Map.lookup x <$> useScope scopePolarities
 
 instance MonadFixityError ScopeM where
