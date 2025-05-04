@@ -838,7 +838,7 @@ data SigError
     -- Agda, but the current language is Erased Cubical Agda, and
     -- @--erasure@ is not active.
 
--- | Generates an error message corresponding to
+-- | Generates a string error message corresponding to
 -- 'SigCubicalNotErasure' for a given 'QName'.
 notSoPrettySigCubicalNotErasure :: QName -> String
 notSoPrettySigCubicalNotErasure q =
@@ -857,11 +857,12 @@ prettySigCubicalNotErasure q = fsep $
 
 -- | An eliminator for 'SigError'. All constructors except for
 -- 'SigAbstract' are assumed to be impossible.
-sigError :: (HasCallStack, MonadDebug m) => m a -> SigError -> m a
-sigError a = \case
+sigError :: (HasCallStack, MonadDebug m) => QName -> m a -> SigError -> m a
+sigError q a = \case
   SigUnknown s         -> __IMPOSSIBLE_VERBOSE__ s
   SigAbstract          -> a
-  SigCubicalNotErasure -> __IMPOSSIBLE__
+  SigCubicalNotErasure -> __IMPOSSIBLE_VERBOSE__ $
+    notSoPrettySigCubicalNotErasure q
 
 class ( Functor m
       , Applicative m
@@ -872,13 +873,12 @@ class ( Functor m
   -- | Lookup the definition of a name. The result is a closed thing, all free
   --   variables have been abstracted over.
   getConstInfo :: QName -> m Definition
-  getConstInfo q = getConstInfo' q >>= \case
+  getConstInfo q =
+    getConstInfo' q >>= \case
       Right d -> return d
-      Left (SigUnknown err) -> __IMPOSSIBLE_VERBOSE__ err
-      Left SigAbstract      -> __IMPOSSIBLE_VERBOSE__ $
+      Left err -> flip (sigError q) err $
+        __IMPOSSIBLE_VERBOSE__ $
         "Abstract, thus, not in scope: " ++ prettyShow q
-      Left SigCubicalNotErasure -> __IMPOSSIBLE_VERBOSE__ $
-        notSoPrettySigCubicalNotErasure q
 
   -- | Version that reports exceptions:
   getConstInfo' :: QName -> m (Either SigError Definition)
@@ -942,8 +942,7 @@ instance HasConstInfo (TCMT IO) where
       Right d -> return d
       Left (SigUnknown err)     -> fail err
       Left SigAbstract          -> notInScopeError $ qnameToConcrete q
-      Left SigCubicalNotErasure ->
-        typeError . GenericDocError =<< prettySigCubicalNotErasure q
+      Left SigCubicalNotErasure -> typeError $ CubicalNotErasure q
 
 defaultGetConstInfo
   :: (HasOptions m, MonadDebug m, MonadTCEnv m)

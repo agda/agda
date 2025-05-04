@@ -155,7 +155,7 @@ checkApplication cmp hd args e t =
       -- augment c with record fields, but do not revert to original name
       con <-
         fromRightM
-          (sigError (typeError $ AbstractConstructorNotInScope c)) $
+          (sigError c (typeError $ AbstractConstructorNotInScope c)) $
           getOrigConHead c
       checkConstructorApplication cmp e t con hd args
 
@@ -340,7 +340,7 @@ inferHead e = do
       -- to the free parameters of the current context. We ignore that.
       con <-
         fromRightM
-          (sigError (typeError $ AbstractConstructorNotInScope c)) $
+          (sigError c (typeError $ AbstractConstructorNotInScope c)) $
           getOrigConHead c
       (u, a) <- inferDef (\ _ -> Con con ConOCon []) c
 

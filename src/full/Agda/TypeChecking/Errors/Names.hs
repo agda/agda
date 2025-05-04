@@ -88,6 +88,7 @@ typeErrorName = \case
   ContradictorySizeConstraint                                {} -> ContradictorySizeConstraint_
   CopatternHeadNotProjection                                 {} -> CopatternHeadNotProjection_
   CubicalCompilationNotSupported                             {} -> CubicalCompilationNotSupported_
+  CubicalNotErasure                                          {} -> CubicalNotErasure_
   CubicalPrimitiveNotFullyApplied                            {} -> CubicalPrimitiveNotFullyApplied_
   CyclicModuleDependency                                     {} -> CyclicModuleDependency_
   DatatypeIndexPolarity                                      {} -> DatatypeIndexPolarity_

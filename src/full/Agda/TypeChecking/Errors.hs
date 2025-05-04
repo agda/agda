@@ -1511,6 +1511,8 @@ instance PrettyTCM TypeError where
         , "and thus can not be transported"
         ]
 
+    CubicalNotErasure q -> prettySigCubicalNotErasure q
+
     CubicalPrimitiveNotFullyApplied c ->
       prettyTCM c <+> "must be fully applied"
 

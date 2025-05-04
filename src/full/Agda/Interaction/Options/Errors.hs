@@ -132,6 +132,7 @@ data ErrorName
   | ContradictorySizeConstraint_
   | CopatternHeadNotProjection_
   | CubicalCompilationNotSupported_
+  | CubicalNotErasure_
   | CubicalPrimitiveNotFullyApplied_
   | CyclicModuleDependency_
   | DatatypeIndexPolarity_

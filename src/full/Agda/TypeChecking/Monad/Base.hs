@@ -5185,7 +5185,6 @@ data TypeError
         | NamedWhereModuleInRefinedContext [Term] [String]
             -- ^ The lists should have the same length.
             --   TODO: enforce this by construction.
-        | CubicalPrimitiveNotFullyApplied QName
         | ComatchingDisabledForRecord QName
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
     -- Cubical errors
@@ -5193,6 +5192,10 @@ data TypeError
             -- ^ Cannot generate @hcomp@ clause because type is not fibrant.
         | CannotGenerateTransportClause QName (Closure (Abs Type))
             -- ^ Cannot generate transport clause because type is not fibrant.
+        | CubicalNotErasure QName
+            -- ^ Name was defined for @--cubical@
+            --   and for use in @--erased-cubical@ the option @--erasure@ is needed.
+        | CubicalPrimitiveNotFullyApplied QName
         | ExpectedIntervalLiteral A.Expr
             -- ^ Expected an interval literal (0 or 1) but found 'A.Expr'.
         | FaceConstraintDisjunction
