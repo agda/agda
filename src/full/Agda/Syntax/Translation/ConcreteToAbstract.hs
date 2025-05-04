@@ -1795,13 +1795,14 @@ instance ToAbstract NiceDeclaration where
 
   -- Axiom (actual postulate)
     C.Axiom r p a i rel x t -> do
+      (y, decl) <- toAbstractNiceAxiom AxiomName d
       -- check that we do not postulate in --safe mode, unless it is a
       -- builtin module with safe postulates
       whenM ((Lens.getSafeMode <$> commandLineOptions) `and2M`
              (not <$> (isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< asksTC envCurrentPath)))
-            (warning $ SafeFlagPostulate x)
+            (warning $ SafeFlagPostulate y)
       -- check the postulate
-      singleton <$> toAbstractNiceAxiom AxiomName d
+      return $ singleton decl
 
     C.NiceGeneralize r p i tac x t -> do
       reportSLn "scope.decl" 30 $ "found nice generalize: " ++ prettyShow x
@@ -1899,8 +1900,8 @@ instance ToAbstract NiceDeclaration where
 
   -- Type signatures
     C.FunSig r p a i m rel _ _ x t -> do
-      let kind = if m == MacroDef then MacroName else FunName
-      singleton <$> toAbstractNiceAxiom kind (C.Axiom r p a i rel x t)
+        let kind = if m == MacroDef then MacroName else FunName
+        singleton . snd <$> toAbstractNiceAxiom kind (C.Axiom r p a i rel x t)
 
   -- Function definitions
     C.FunDef r ds a i _ _ x cs -> do
@@ -2300,38 +2301,38 @@ instance ToAbstract NiceDeclaration where
         out <- traverse toAbstract decls
         unless (any interestingOpaqueDecl out) $ setCurrentRange kwr $ warning UselessOpaque
         pure $ UnfoldingDecl r names : out
-    where
-      -- checking postulate or type sig. without checking safe flag
-      toAbstractNiceAxiom :: KindOfName -> C.NiceDeclaration -> ScopeM A.Declaration
-      toAbstractNiceAxiom kind (C.Axiom r p a i info x t) = do
-        -- Amy, 2025-05-04, issue 7856: type signatures (more
-        -- importantly extended lambdas within them) should not belong
-        -- to opaque blocks
-        --
-        -- Note that only scope checking the type happens outside the
-        -- block since a bit below we need the proper opaque id to
-        -- possibly update the info.
-        t' <- notUnderOpaque $ toAbstractCtx TopCtx t
 
-        f  <- getConcreteFixity x
-        mp <- getConcretePolarity x
-        y  <- freshAbstractQName f x
-        let isMacro | kind == MacroName = MacroDef
-                    | otherwise         = NotMacroDef
-        bindName p kind x y
-        definfo <- updateDefInfoOpacity $ mkDefInfoInstance x f p a i isMacro r
-        return $ A.Axiom kind definfo info mp y t'
-      toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
+-- | Checking postulate or type sig. without checking safe flag.
+toAbstractNiceAxiom :: KindOfName -> C.NiceDeclaration -> ScopeM (A.QName, A.Declaration)
+toAbstractNiceAxiom kind (C.Axiom r p a i info x t) = do
+  -- Amy, 2025-05-04, issue 7856: type signatures (more
+  -- importantly extended lambdas within them) should not belong
+  -- to opaque blocks
+  --
+  -- Note that only scope checking the type happens outside the
+  -- block since a bit below we need the proper opaque id to
+  -- possibly update the info.
+  t' <- notUnderOpaque $ toAbstractCtx TopCtx t
 
-      interestingOpaqueDecl :: A.Declaration -> Bool
-      interestingOpaqueDecl (A.Mutual _ ds)     = any interestingOpaqueDecl ds
-      interestingOpaqueDecl (A.ScopedDecl _ ds) = any interestingOpaqueDecl ds
+  f  <- getConcreteFixity x
+  mp <- getConcretePolarity x
+  y  <- freshAbstractQName f x
+  let isMacro | kind == MacroName = MacroDef
+              | otherwise         = NotMacroDef
+  bindName p kind x y
+  definfo <- updateDefInfoOpacity $ mkDefInfoInstance x f p a i isMacro r
+  return (y, A.Axiom kind definfo info mp y t')
+toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
 
-      interestingOpaqueDecl A.FunDef{}      = True
-      interestingOpaqueDecl A.UnquoteDecl{} = True
-      interestingOpaqueDecl A.UnquoteDef{}  = True
+interestingOpaqueDecl :: A.Declaration -> Bool
+interestingOpaqueDecl (A.Mutual _ ds)     = any interestingOpaqueDecl ds
+interestingOpaqueDecl (A.ScopedDecl _ ds) = any interestingOpaqueDecl ds
 
-      interestingOpaqueDecl _ = False
+interestingOpaqueDecl A.FunDef{}      = True
+interestingOpaqueDecl A.UnquoteDecl{} = True
+interestingOpaqueDecl A.UnquoteDef{}  = True
+
+interestingOpaqueDecl _ = False
 
 -- ** Helper functions for @opaque@
 ------------------------------------------------------------------------

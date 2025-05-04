@@ -4577,7 +4577,7 @@ data Warning
   -- ^ The --inversion-max-depth was reached.
 
   -- Safe flag errors
-  | SafeFlagPostulate C.Name
+  | SafeFlagPostulate QName
   | SafeFlagPragma (Set String)
       -- ^ Unsafe OPTIONS.
   | SafeFlagWithoutKFlagPrimEraseEquality

@@ -1,2 +1,2 @@
-Issue2782.agda:33.3-132: error: [GenericDocError]
-Cannot postulate ' Iseg : Izero ≡ Ione ' with safe flag
+Issue2782.agda:33.3-132: error: [SafeFlagPostulate]
+Cannot postulate Iseg with safe flag

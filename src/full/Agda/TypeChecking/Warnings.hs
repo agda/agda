@@ -71,6 +71,7 @@ class (MonadPretty m, MonadError TCErr m) => MonadWarning m where
     => Bool -> TCWarning -> m ()
   addWarning enabled = lift . addWarning enabled
 
+-- instance MonadWarning m => MonadWarning (ExceptT e m)  -- Conflict with MonadError TCErr constraint
 instance MonadWarning m => MonadWarning (MaybeT m)
 instance MonadWarning m => MonadWarning (ReaderT r m)
 instance MonadWarning m => MonadWarning (StateT s m)

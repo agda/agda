@@ -1015,8 +1015,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcDeclarePostulate :: Arg QName -> R.Type -> UnquoteM Term
     tcDeclarePostulate arg@(Arg i x) a = do
       clo <- commandLineOptions
-      when (Lens.getSafeMode clo) $ liftTCM $ typeError . GenericDocError =<<
-        "Cannot postulate '" <+> prettyTCM x <+> ":" <+> prettyR a <+> "' with safe flag"
+      when (Lens.getSafeMode clo) $ liftTCM $ warning $ SafeFlagPostulate x
       tcDeclareDef_ arg a "Postulate" defaultAxiom
 
     -- A datatype is expected to be declared with a function type.

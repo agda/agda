@@ -317,8 +317,8 @@ prettyWarning = \case
 
     UselessPragma _r d -> return d
 
-    SafeFlagPostulate e -> fsep $
-      pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
+    SafeFlagPostulate q -> fsep $
+      pwords "Cannot postulate" ++ [prettyTCM q] ++ pwords "with safe flag"
 
     SafeFlagPragma sset -> vcat $ concat
       [ [ fwords $ singPlural (words =<< xs) id (++ "s") "The --safe mode does not allow OPTIONS pragma" ]
