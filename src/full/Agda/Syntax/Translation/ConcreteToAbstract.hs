@@ -1899,8 +1899,8 @@ instance ToAbstract NiceDeclaration where
 
   -- Type signatures
     C.FunSig r p a i m rel _ _ x t -> do
-        let kind = if m == MacroDef then MacroName else FunName
-        singleton <$> toAbstractNiceAxiom kind (C.Axiom r p a i rel x t)
+      let kind = if m == MacroDef then MacroName else FunName
+      singleton <$> toAbstractNiceAxiom kind (C.Axiom r p a i rel x t)
 
   -- Function definitions
     C.FunDef r ds a i _ _ x cs -> do
@@ -2304,7 +2304,15 @@ instance ToAbstract NiceDeclaration where
       -- checking postulate or type sig. without checking safe flag
       toAbstractNiceAxiom :: KindOfName -> C.NiceDeclaration -> ScopeM A.Declaration
       toAbstractNiceAxiom kind (C.Axiom r p a i info x t) = do
-        t' <- toAbstractCtx TopCtx t
+        -- Amy, 2025-05-04, issue 7856: type signatures (more
+        -- importantly extended lambdas within them) should not belong
+        -- to opaque blocks
+        --
+        -- Note that only scope checking the type happens outside the
+        -- block since a bit below we need the proper opaque id to
+        -- possibly update the info.
+        t' <- notUnderOpaque $ toAbstractCtx TopCtx t
+
         f  <- getConcreteFixity x
         mp <- getConcretePolarity x
         y  <- freshAbstractQName f x
