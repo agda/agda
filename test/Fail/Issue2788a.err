@@ -1,3 +1,4 @@
 Issue2788a.agda:3.1-27: error: [NeedOptionCubical]
-Option --cubical or --erased-cubical required
+Option --cubical or --erased-cubical or --cubical-without-glue
+required
 when checking the pragma BUILTIN INTERVAL I
