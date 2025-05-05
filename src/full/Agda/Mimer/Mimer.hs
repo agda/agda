@@ -1,3 +1,24 @@
+-- | This module contains the implementation of Mimer, the current
+-- implementation of the auto interactive command (C-c C-a) and the successor of
+-- Agsy.
+--
+-- The overall idea is that Mimer gathers a collection of "components" that it
+-- could use for building a solution and tries to refine the goal iteratively
+-- using these components. Components include global definitions, local variables,
+-- let-bound variables, and recursive calls to the function being defined.
+--
+-- Mimer manages multiple branches of the search at the same time and assigns a
+-- cost to each branch, which is the sum of the costs of all its components. The
+-- cost of a component in turn is determined by its type and the number of new
+-- metas it introduces.
+--
+-- A branch can be refined by picking one of its unsolved metavariables and
+-- refining it with all available components, resulting in a number of new
+-- branches (each one with a higher cost than the original).
+--
+-- Mimer iteratively refines the branch with the lowest cost until it finds a
+-- solution or runs out of time.
+
 module Agda.Mimer.Mimer
   ( MimerResult(..)
   , mimer
