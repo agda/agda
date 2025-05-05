@@ -41,7 +41,7 @@ import Agda.Syntax.Info (pattern UnificationMeta, exprNoRange)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars (AllMetas(..))
 import Agda.Syntax.Internal.Pattern (clausePerm)
-import Agda.Syntax.Position (Range, rangeFile, rangeFilePath)
+import Agda.Syntax.Position (Range, rangeFile, rangeFilePath, noRange)
 import qualified Agda.Syntax.Scope.Base as Scope
 import Agda.Syntax.Translation.InternalToAbstract (reify, NamedClause(..), blankNotInScope)
 import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcrete_)
@@ -59,7 +59,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records (isRecord, isRecursiveRecord)
 import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Rules.LHS.Problem (AsBinding(..))
-import Agda.TypeChecking.Rules.Term  (lambdaAddContext)
+import Agda.TypeChecking.Rules.Term  (makeAbsurdLambda)
 import Agda.TypeChecking.Substitute (apply, applyE, piApply, NoSubst(..), pattern TelV, telView')
 import Agda.TypeChecking.Telescope (piApplyM, flattenTel, teleArgs)
 
@@ -1102,8 +1102,15 @@ refine branch = withBranchState branch $ do
 
     -- Lambda-abstract as far as possible
     tryLamAbs goal1 goalType1 branch1 >>= \case
+      -- Absurd lambda
+      Left branch2 -> do
+        mimerTrace 1 10 $ sep
+              [ "Absurd bambda refinement", nest 2 $ prettyGoalInst goal1 ]
+        args <- map Apply <$> getContextArgs
+        e <- blankNotInScope =<< reify (MetaV (goalMeta goal1) args)
+        return [ResultExpr e]
       -- Normal abstraction
-      (goal2, goalType2, branch2) -> withBranchAndGoal branch2 goal2 $ do
+      Right (goal2, goalType2, branch2) -> withBranchAndGoal branch2 goal2 $ do
         (branch3, components) <- prepareComponents goal2 branch2
         withBranchAndGoal branch3 goal2 $ do
 
@@ -1151,27 +1158,16 @@ tryLet goal goalType branch = withBranchAndGoal branch goal $ do
   mapM checkSolved newBranches
 
 -- | Returns @Right@ for normal lambda abstraction and @Left@ for absurd lambda.
-tryLamAbs :: Goal -> Type -> SearchBranch -> SM (Goal, Type, SearchBranch)
+tryLamAbs :: Goal -> Type -> SearchBranch -> SM (Either SearchBranch (Goal, Type, SearchBranch))
 tryLamAbs goal goalType branch =
   case unEl goalType of
-    Pi dom abs -> do
-      -- Andreas, 2025-04-14, issue 7587: remove broken heuristics for absurd lambda.
-      -- In case of an empty domain, we want to solve the branch by an absurd lambda
-      -- and signal that there are no more subgoals.
-      -- The now-commented out code returned an absurd-lambda *expression* which was then
-      -- considered as solution of the *original goal* rather than the current goal.
-      -- Returning an expression here is just too broken to attempt a fix.
-      --
-      -- isEmptyType (unDom dom) >>= \case -- TODO: Is this the correct way of checking if absurd lambda is applicable?
-      --  True -> do
-      --    let argInf = defaultArgInfo{argInfoOrigin = Inserted} -- domInfo dom
-      --        term = Lam argInf absurdBody
-      --    newMetaIds <- assignMeta (goalMeta goal) term goalType
-      --    unless (null newMetaIds) (__IMPOSSIBLE__)
-      --    -- TODO: Represent absurd lambda as a Term instead of Expr.
-      --    -- Left . fromMaybe __IMPOSSIBLE__ <$> getMetaInstantiation (goalMeta metaId)
-      --    return $ Left $ AbsurdLam exprNoRange NotHidden
-      --  False -> do
+    Pi dom abs -> isEmptyType (unDom dom) >>= \case
+      True -> do
+        f <- liftTCM $ makeAbsurdLambda noRange dom abs
+        args <- map Apply <$> getContextArgs
+        newMetaIds <- assignMeta (goalMeta goal) (Def f args) goalType
+        Left <$> updateBranch newMetaIds branch
+      False -> do
         reportSDoc "mimer.lam" 40 $ "Trying lambda abstraction for pi type" <+> prettyTCM goalType
         let abs' | isNoName (absName abs) = abs { absName = "z" }
                  | otherwise = abs
@@ -1198,7 +1194,7 @@ tryLamAbs goal goalType branch =
   where
     done = do
       branch' <- updateBranch [] branch -- TODO: Is this necessary?
-      return (goal, goalType, branch')
+      return $ Right (goal, goalType, branch')
 
 
 genRecCalls :: Component -> SM [Component]

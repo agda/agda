@@ -751,47 +751,57 @@ checkAbsurdLambda cmp i h e t =
         | otherwise -> blockTerm t' $ do
           ensureEmptyType (getRange i) a
           -- Add helper function
-          top <- currentModule
-          aux <- qualify top <$> freshName_ (getRange i, absurdLambdaName)
-          -- if we are in irrelevant / erased position, the helper function
-          -- is added as irrelevant / erased
-          mod <- currentModality
-          reportSDoc "tc.term.absurd" 10 $ vcat
-            [ ("Adding absurd function" <+> prettyTCM mod) <> prettyTCM aux
-            , nest 2 $ "of type" <+> prettyTCM t'
-            ]
-          lang <- getLanguage
-          fun  <- emptyFunctionData
-          addConstant aux $
-            (\ d -> (defaultDefn (setModality mod info') aux t' lang d)
-                    { defPolarity       = [Nonvariant]
-                    , defArgOccurrences = [Unused] })
-            $ FunctionDefn fun
-              { _funClauses        =
-                  [ Clause
-                    { clauseLHSRange  = getRange e
-                    , clauseFullRange = getRange e
-                    , clauseTel       = telFromList [fmap (absurdPatternName,) dom]
-                    , namedClausePats = [Arg info' $ Named (Just $ WithOrigin Inserted $ unranged $ absName b) $ absurdP 0]
-                    , clauseBody      = Nothing
-                    , clauseType      = Just $ setModality mod $ defaultArg $ absBody b
-                    , clauseCatchall    = YesCatchall empty      -- absurd clauses are safe as catch-alls
-                    , clauseRecursive   = Just False
-                    , clauseUnreachable = Just True -- absurd clauses are unreachable
-                    , clauseEllipsis    = NoEllipsis
-                    , clauseWhereModule = Nothing
-                    }
-                  ]
-              , _funCompiled       = Just $ Fail [Arg info' "()"]
-              , _funSplitTree      = Just $ SplittingDone 0
-              , _funMutual         = Just []
-              , _funTerminates     = Just True
-              , _funExtLam         = Just $ ExtLamInfo top True empty
-              }
+          aux <- makeAbsurdLambda (getRange i) dom b
           -- Andreas 2012-01-30: since aux is lifted to toplevel
           -- it needs to be applied to the current telescope (issue 557)
           Def aux . map Apply . teleArgs <$> getContextTelescope
       _ -> typeError $ ShouldBePi t'
+
+-- Create an absurd lambda with the given type.
+-- Precondition: the given type is a pi type with an empty domain.
+makeAbsurdLambda :: Range -> Dom Type -> Abs Type -> TCM QName
+makeAbsurdLambda r a b = do
+  let t = Pi a b
+      s = mkPiSort a b
+      info = domInfo a
+  top <- currentModule
+  aux <- qualify top <$> freshName_ (r, absurdLambdaName)
+  -- if we are in irrelevant / erased position, the helper function
+  -- is added as irrelevant / erased
+  mod <- currentModality
+  reportSDoc "tc.term.absurd" 10 $ vcat
+    [ ("Adding absurd function" <+> prettyTCM mod) <> prettyTCM aux
+    , nest 2 $ "of type" <+> prettyTCM t
+    ]
+  lang <- getLanguage
+  fun  <- emptyFunctionData
+  addConstant aux $
+    (\ d -> (defaultDefn (setModality mod info) aux (El s t) lang d)
+            { defPolarity       = [Nonvariant]
+            , defArgOccurrences = [Unused] })
+    $ FunctionDefn fun
+      { _funClauses        =
+          [ Clause
+            { clauseLHSRange  = r
+            , clauseFullRange = r
+            , clauseTel       = telFromList [fmap (absurdPatternName,) a]
+            , namedClausePats = [Arg info $ Named (Just $ WithOrigin Inserted $ unranged $ absName b) $ absurdP 0]
+            , clauseBody      = Nothing
+            , clauseType      = Just $ setModality mod $ defaultArg $ absBody b
+            , clauseCatchall    = YesCatchall empty      -- absurd clauses are safe as catch-alls
+            , clauseRecursive   = Just False
+            , clauseUnreachable = Just True -- absurd clauses are unreachable
+            , clauseEllipsis    = NoEllipsis
+            , clauseWhereModule = Nothing
+            }
+          ]
+      , _funCompiled       = Just $ Fail [Arg info "()"]
+      , _funSplitTree      = Just $ SplittingDone 0
+      , _funMutual         = Just []
+      , _funTerminates     = Just True
+      , _funExtLam         = Just $ ExtLamInfo top True empty
+      }
+  return aux
 
 -- | @checkExtendedLambda i di erased qname cs e t@ check pattern matching lambda.
 -- Precondition: @e = ExtendedLam i di erased qname cs@
