@@ -47,7 +47,7 @@ h6 A B C x = {!-c!}
 -- Andreas, 2025-04-14, issue #7587
 -- Removed the broken heuristics for absurd lambda.
 h7 : (A : Set) → ⊥ → A
-h7 A x = {!-c!}
+h7 A = {!!}
 -- No solution
 
 h8 : ∀ A → A → ¬ (¬ A)
