@@ -1172,18 +1172,20 @@ tryLamAbs goal goalType branch =
       --    -- Left . fromMaybe __IMPOSSIBLE__ <$> getMetaInstantiation (goalMeta metaId)
       --    return $ Left $ AbsurdLam exprNoRange NotHidden
       --  False -> do
-        let bindName | isNoName (absName abs) = "z"
-                     | otherwise              = absName abs
-        newName <- freshName_ bindName
-        (metaId', bodyType, metaTerm, env) <- lambdaAddContext newName bindName dom $ do
-          goalType' <- getMetaTypeInContext (goalMeta goal)
-          bodyType <- bench [Bench.Reduce] $ reduce =<< piApplyM goalType' (Var 0 []) -- TODO: Good place to reduce?
+        reportSDoc "mimer.lam" 40 $ "Trying lambda abstraction for pi type" <+> prettyTCM goalType
+        let abs' | isNoName (absName abs) = abs { absName = "z" }
+                 | otherwise = abs
+        (metaId', bodyType, metaTerm, env) <- underAbstractionAbs dom abs' $ \bodyType -> do
+          reportSDoc "mimer.lam" 40 $ "  bodyType = " <+> prettyTCM bodyType
+          bodyType <- bench [Bench.Reduce] $ reduce bodyType -- TODO: Good place to reduce?
+          reportSDoc "mimer.lam" 40 $ "  bodyType (reduced) = " <+> prettyTCM bodyType
           (metaId', metaTerm) <- bench [Bench.Free] $ newValueMeta DontRunMetaOccursCheck CmpLeq bodyType
+          reportSDoc "mimer.lam" 40 $ "  metaId' = " <+> prettyTCM metaId'
           env <- askTC
           return (metaId', bodyType, metaTerm, env)
 
         let argInf = domInfo dom -- TODO: is this the correct arg info?
-            newAbs = Abs{absName = bindName, unAbs = metaTerm } --MetaV metaId' [] }
+            newAbs = Abs (absName abs') metaTerm
             -- look at mkLam
             term = Lam argInf newAbs
 
