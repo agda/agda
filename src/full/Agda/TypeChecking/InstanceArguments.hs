@@ -1016,6 +1016,8 @@ postponeInstanceConstraints m =
 --   In this case we drop the first 'conPars' arguments.
 --   See Issue670a.
 --   Andreas, 2013-11-07 Also do this for projections, see Issue670b.
+--   Szumi, 2025-05-05: Unapplied projections are not considered by instance
+--   search since #938.
 applyDroppingParameters :: Term -> Args -> TCM Term
 applyDroppingParameters t vs = do
   let fallback = return $ t `apply` vs
@@ -1028,15 +1030,15 @@ applyDroppingParameters t vs = do
           fv <- getDefFreeVars d
           return $ Con c ci (map Apply $ drop (n - fv) vs)
         _ -> __IMPOSSIBLE__
-    Def f [] -> do
-      -- Andreas, 2022-03-07, issue #5809: don't drop parameters of irrelevant projections.
-      mp <- isRelevantProjection f
-      case mp of
-        Just Projection{projIndex = n} -> do
-          case drop n vs of
-            []     -> return t
-            u : us -> (`apply` us) <$> applyDef ProjPrefix f u
-        _ -> fallback
+    -- Def f [] -> do
+    --   -- Andreas, 2022-03-07, issue #5809: don't drop parameters of irrelevant projections.
+    --   mp <- isRelevantProjection f
+    --   case mp of
+    --     Just Projection{projIndex = n} -> do
+    --       case drop n vs of
+    --         []     -> return t
+    --         u : us -> (`apply` us) <$> applyDef ProjPrefix f u
+    --     _ -> fallback
     _ -> fallback
 
 ---------------------------------------------------------------------------
