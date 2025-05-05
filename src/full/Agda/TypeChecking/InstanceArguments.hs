@@ -1023,7 +1023,10 @@ applyDroppingParameters t vs = do
     Con c ci [] -> do
       def <- theDef <$> getConInfo c
       case def of
-        Constructor {conPars = n} -> return $ Con c ci (map Apply $ drop n vs)
+        Constructor {conPars = n, conData = d} -> do
+          -- Szumi, 2025-05-05, issue #7853: don't drop parameters from the current module.
+          fv <- getDefFreeVars d
+          return $ Con c ci (map Apply $ drop (n - fv) vs)
         _ -> __IMPOSSIBLE__
     Def f [] -> do
       -- Andreas, 2022-03-07, issue #5809: don't drop parameters of irrelevant projections.
