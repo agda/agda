@@ -1,3 +1,4 @@
 IUnivWithoutCubical.agda:1.1-39: error: [NeedOptionCubical]
-Option --cubical or --erased-cubical required
+Option --cubical or --erased-cubical or --cubical-without-glue
+required
 when checking the pragma BUILTIN CUBEINTERVALUNIV IUniv
