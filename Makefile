@@ -122,9 +122,9 @@ CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
 .PHONY: install ## Install Agda with standard flags, compile and setup Emacs mode
 install:
 ifdef HAS_STACK
-	$(STACK) install $(STACK_INSTALL_OPTS)
+	$(STACK) install --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 else
-	$(CABAL) install $(CABAL_INSTALL_OPTS)
+	$(CABAL) install --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
 endif
 	agda --setup --emacs-mode compile --emacs-mode setup
 
