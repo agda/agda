@@ -631,6 +631,14 @@ Experimental features
      Enable a :ref:`variant<erased-cubical>` of Cubical Agda, and turn
      on :option:`--without-K`.
 
+.. option:: --cubical-without-glue
+
+     .. versionadded:: 2.9.0
+
+     Enable a :ref:`variant<cubical-without-glue>` of Cubical Agda
+     without the :ref:`Glue types<glue-types>`.
+     Turns on :option:`--cubical-compatible` and :option:`--without-K`.
+
 .. option:: --experimental-irrelevance
 
      .. versionadded:: 2.3.0
