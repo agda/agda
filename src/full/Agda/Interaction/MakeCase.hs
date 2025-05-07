@@ -22,6 +22,7 @@ import qualified Agda.Syntax.Abstract.Pattern as A
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Parser.Helpers ( mkValidName )
 import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), KindOfName(..), exceptKindsOfNames )
 import Agda.Syntax.Scope.Monad ( resolveName' )
 import Agda.Syntax.Translation.InternalToAbstract
@@ -96,7 +97,7 @@ parseVariables f cxt asb ii rng ss = do
   -- Step 1: From strings to abstract names
   abstractNames :: [(A.Name, Maybe BindingSource)] <- forM ss $ \s -> do
 
-    let cname = C.QName $ C.Name r C.InScope $ C.stringNameParts s
+    cname <- either failParseError (return . C.QName) $ mkValidName False r s
     -- Note: the range in the concrete name is only approximate.
     -- Jesper, 2018-12-19: Don't consider generalizable names since
     -- they can be shadowed by hidden variables.
@@ -172,6 +173,7 @@ parseVariables f cxt asb ii rng ss = do
 
   where
 
+  failParseError s  = interactionError $ CaseSplitError $ P.text s
   failNotVar s      = interactionError $ CaseSplitError $ P.text $ "Not a variable: " ++ s
   failUnbound s     = interactionError $ CaseSplitError $ P.text $ "Unbound variable " ++ s
   failAmbiguous s   = interactionError $ CaseSplitError $ P.text $ "Ambiguous variable " ++ s
