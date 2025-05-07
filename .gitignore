@@ -24,6 +24,7 @@
 .direnv
 .DS_Store
 .ghc.environment.*
+.python-sphinx-virtualenv/
 .stack-work-*/
 .stack-work/
 .sw[a-p]
