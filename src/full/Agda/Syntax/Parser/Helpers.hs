@@ -90,7 +90,13 @@ figureOutTopLevelModule ds =
 -- | Create a name from a string. The boolean indicates whether a part
 -- of the name can be token 'constructor'.
 mkName' :: Bool -> (Interval, String) -> Parser Name
-mkName' constructor' (i, s) = do
+mkName' constructor (i, s) =
+  either parseError return $ mkValidName constructor (getRange i) s
+
+-- | Create a name from a string. The boolean indicates whether a part
+-- of the name can be token 'constructor'.
+mkValidName :: Bool -> Range -> String -> Either String Name
+mkValidName constructor' r s = do
     let
       xs = C.stringNameParts s
 
@@ -107,8 +113,9 @@ mkName' constructor' (i, s) = do
 
     mapM_ (isValidId constructor) xs
     unless (alternating xs) $ parseError $ "a name cannot contain two consecutive underscores"
-    return $ Name (getRange i) InScope xs
+    return $ Name r InScope xs
     where
+        parseError = Left
         isValidId _ Hole   = return ()
         isValidId con (Id y) = do
           let x = rawNameToString y
