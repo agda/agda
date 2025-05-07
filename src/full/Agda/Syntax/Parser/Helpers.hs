@@ -126,7 +126,7 @@ mkValidName constructor' r s = do
             ParseOk _ TokEOF{} -> parseError err
             ParseOk _ (TokKeyword KwConstructor _) | con -> pure ()
             ParseOk _ t   -> parseError . ((err ++ " because it is ") ++) $ case t of
-              TokQId{}      -> __IMPOSSIBLE__ -- "qualified"
+              TokQId{}      -> "qualified"
               TokKeyword{}  -> "a keyword"
               TokLiteral{}  -> "a literal"
               TokSymbol s _ -> case s of
@@ -152,10 +152,10 @@ mkValidName constructor' r s = do
                 SymCloseBrace        -> "used for hidden arguments"
                 SymOpenVirtualBrace  -> __IMPOSSIBLE__
                 SymCloseVirtualBrace -> __IMPOSSIBLE__
-                SymOpenPragma        -> __IMPOSSIBLE__ -- "used for pragmas"
-                SymClosePragma       -> __IMPOSSIBLE__ -- "used for pragmas"
+                SymOpenPragma        -> "used for pragmas"
+                SymClosePragma       -> "used for pragmas"
                 SymEllipsis          -> "used for function clauses"
-                SymDotDot            -> __IMPOSSIBLE__ -- "a modality"
+                SymDotDot            -> "a modality"
                 SymEndComment        -> "the end-of-comment brace"
               TokString{}   -> __IMPOSSIBLE__
               TokTeX{}      -> __IMPOSSIBLE__  -- used by the LaTeX backend only

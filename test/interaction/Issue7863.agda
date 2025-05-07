@@ -27,3 +27,33 @@ par x = {! (x) !}  -- C-c C-c
 
 -- error: [Interaction.CaseSplitError]
 -- in the name (x), the part (x) is not valid because it is used to parenthesize expressions
+
+dd : Bool → Bool
+dd x = {! ..!}
+
+-- error: [Interaction.CaseSplitError]
+-- in the name .., the part .. is not valid because it is a modality
+
+pragma  : Bool → Bool
+pragma x = {! {-#!}
+
+-- error: [Interaction.CaseSplitError]
+-- in the name {-#, the part {-# is not valid because it is used for pragmas
+
+qual : Bool → Bool
+qual x = {! M.d!}
+
+-- error: [Interaction.CaseSplitError]
+-- in the name M.d, the part M.d is not valid because it is qualified
+
+str : Bool → Bool
+str x = {! "x"!}
+
+-- error: [Interaction.CaseSplitError]
+-- in the name "x", the part "x" is not valid because it is a literal
+
+con : Bool → Bool
+con x = {! constructor !}
+
+-- error: [Interaction.CaseSplitError]
+-- in the name constructor, the part constructor is not valid because it is a keyword
