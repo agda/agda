@@ -1449,7 +1449,7 @@ instance Reify (QNamed System) where
     view <- intervalView'
     unview <- intervalUnview'
     sys <- flip filterM sys $ \ (phi,t) -> do
-      allM phi $ \ (u,b) -> do
+      forallM phi $ \ (u,b) -> do
         u <- reduce u
         return $ case (view u, b) of
           (IZero, True) -> False

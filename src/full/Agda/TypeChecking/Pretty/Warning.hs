@@ -771,7 +771,7 @@ filterTCWarnings wset = case Set.toAscList wset of
   -- If there are several warnings, remove the unsolved-constraints warning
   -- in case there are no interesting constraints to list.
   ws  -> (`filterM` ws) $ \ w -> case tcWarning w of
-    UnsolvedConstraints cs -> anyM cs interestingConstraint
+    UnsolvedConstraints cs -> anyM interestingConstraint cs
     _ -> pure True
 
 

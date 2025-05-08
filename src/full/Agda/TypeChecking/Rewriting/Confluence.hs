@@ -408,7 +408,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
 
           rews <- getAllRulesFor f
           let sameRHS = onlyReduceTypes $ pureEqualTerm a rhs1 rhs2
-          unlessM (sameRHS `or2M` anyM rews checkEqualLHS) $ addContext gamma $
+          unlessM (sameRHS `or2M` anyM checkEqualLHS rews) $ addContext gamma $
             warning $ RewriteAmbiguousRules (hd es) rhs1 rhs2
 
     checkTrianglePropertyForRule :: RewriteRule -> TCM ()

@@ -752,7 +752,7 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
     let new = itemC newItem
     -- If the new candidate is overridden by any of the guards, we can
     -- ditch it immediately.
-    guarded <- anyM guards (`doesCandidateOverlap` new)
+    guarded <- anyM (`doesCandidateOverlap` new) guards
 
     reportSDoc "tc.instance.overlap" 40 $ vcat
       [ "inserting new candidate:"

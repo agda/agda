@@ -135,4 +135,4 @@ checkEarlierThan :: Term -> VSet.VarSet -> TCM Bool
 checkEarlierThan lk fvs = do
   getLockVar lk >>= \case
     Nothing -> return True
-    Just i  -> flip allM (isTimeless <=< typeOfBV) $ filter (<= i) $ VSet.toList fvs
+    Just i  -> allM (isTimeless <=< typeOfBV) $ filter (<= i) $ VSet.toList fvs

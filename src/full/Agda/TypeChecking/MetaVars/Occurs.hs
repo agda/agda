@@ -855,7 +855,7 @@ instance AnyRigid Level where
   anyRigid f (Max _ ls) = anyRigid f ls
 
 instance AnyRigid PlusLevel where
-  anyRigid f (Plus _ l)    = anyRigid f l
+  anyRigid f (Plus _ l) = anyRigid f l
 
 instance (Subst a, AnyRigid a) => AnyRigid (Abs a) where
   anyRigid f b = underAbstraction_ b $ anyRigid f
@@ -869,7 +869,7 @@ instance AnyRigid a => AnyRigid (Arg a) where
       anyRigid f $ unArg a
 
 instance AnyRigid a => AnyRigid (Dom a) where
-  anyRigid f dom = anyRigid f $ unDom dom
+  anyRigid f = anyRigid f . unDom
 
 instance AnyRigid a => AnyRigid (Elim' a) where
   anyRigid f (Apply a)      = anyRigid f a
@@ -877,7 +877,7 @@ instance AnyRigid a => AnyRigid (Elim' a) where
   anyRigid f Proj{}         = return False
 
 instance AnyRigid a => AnyRigid [a] where
-  anyRigid f xs = anyM xs $ anyRigid f
+  anyRigid = anyM . anyRigid
 
 instance (AnyRigid a, AnyRigid b) => AnyRigid (a,b) where
   anyRigid f (a,b) = anyRigid f a `or2M` anyRigid f b

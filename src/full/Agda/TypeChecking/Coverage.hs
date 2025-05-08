@@ -304,8 +304,8 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       let extra = drop (length $ namedClausePats cl0) ps
       exact <-
         and2M
-          (allM mps $ isTrivialPattern . snd)
-          (allM extra $ isTrivialPattern . namedArg)
+          (forallM mps $ isTrivialPattern . snd)
+          (forallM extra $ isTrivialPattern . namedArg)
       cl <- applyCl sc cl0 mps
       return $ CoverResult
         { coverSplitTree      = SplittingDone (size tel)

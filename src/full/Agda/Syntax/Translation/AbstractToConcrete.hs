@@ -419,9 +419,7 @@ toConcreteName x = hasConcreteNames x >>= loop
     isGoodName :: MonadToConcrete m => A.Name -> C.Name -> m Bool
     isGoodName x y = do
       zs <- asks (Set.toList . takenVarNames)
-      allM zs $ \z -> if x == z then return True else do
-        czs <- hasConcreteNames z
-        return $ notElem y czs
+      forallM zs $ \ z -> pure (x == z) `or2M` (notElem y <$> hasConcreteNames z)
 
 
 -- | Choose a new unshadowed name for the given abstract name

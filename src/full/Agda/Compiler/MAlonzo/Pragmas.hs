@@ -149,7 +149,7 @@ sanityCheckPragma x pragma = do
       Axiom{}    -> ok
       Datatype{} -> do
         -- We use HsType pragmas for Nat, Int and Bool
-        ifM (flip anyM ((Just (defName def) ==) <.> getBuiltinName) [builtinNat, builtinInteger, builtinBool])
+        ifM (anyM ((Just (defName def) ==) <.> getBuiltinName) [builtinNat, builtinInteger, builtinBool])
           {-then-} ok
           {-else-} notPostulate
       _ -> notPostulate
