@@ -190,7 +190,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
       ignoreAbstractMode $ do
         billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
       -- -- Andreas, 2017-03-24, use positivity info to skip non-recursive functions
-      -- skip = ignoreAbstractMode $ allM allNames $ \ x -> do
+      -- skip = ignoreAbstractMode $ forallM allNames $ \ x -> do
       --   null <$> getMutual x
       -- PROBLEMS with test/Succeed/AbstractCoinduction.agda
 
@@ -217,7 +217,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
      -- New check currently only makes a difference for copatterns and record types.
      -- Since it is slow, only invoke it if
      -- any of the definitions uses copatterns or is a record type.
-     ifM (anyM allNames $ \ q -> usesCopatterns q `or2M` (isJust <$> isRecord q))
+     ifM (existsM allNames $ \ q -> usesCopatterns q `or2M` (isJust <$> isRecord q))
          -- Then: New check, one after another.
          (runTerm $ forM' allNames $ termFunction)
          -- Else: Old check, all at once.

@@ -119,8 +119,11 @@ and2M ma mb = ifM ma mb (return False)
 andM :: (Foldable f, Monad m) => f (m Bool) -> m Bool
 andM = Fold.foldl' and2M (return True)
 
-allM :: (Foldable f, Monad m) => f a -> (a -> m Bool) -> m Bool
-allM xs f = Fold.foldl' (\b -> and2M b . f) (return True) xs
+allM :: (Foldable f, Monad m) => (a -> m Bool) -> f a -> m Bool
+allM f = Fold.foldl' (\ b -> and2M b . f) (return True)
+
+forallM :: (Foldable f, Monad m) => f a -> (a -> m Bool) -> m Bool
+forallM xs f = Fold.foldl' (\b -> and2M b . f) (return True) xs
 
 -- | Lazy monadic disjunction.
 or2M :: Monad m => m Bool -> m Bool -> m Bool
@@ -129,8 +132,11 @@ or2M ma = ifM ma (return True)
 orM :: (Foldable f, Monad m) => f (m Bool) -> m Bool
 orM = Fold.foldl' or2M (return False)
 
-anyM :: (Foldable f, Monad m) => f a -> (a -> m Bool) -> m Bool
-anyM xs f = Fold.foldl' (\b -> or2M b . f) (return False) xs
+anyM :: (Foldable f, Monad m) => (a -> m Bool) -> f a -> m Bool
+anyM f = Fold.foldl' (\ b -> or2M b . f) (return False)
+
+existsM :: (Foldable f, Monad m) => f a -> (a -> m Bool) -> m Bool
+existsM xs f = anyM f xs
 
 -- | Lazy monadic disjunction with @Either@  truth values.
 --   Returns the last error message if all fail.

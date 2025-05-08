@@ -884,7 +884,7 @@ bindBuiltin b x = do
       PatternSynResName xs -> failure
       UnknownName          -> failure
     -- For ambiguous names, we check all of their definitions:
-    unlessM (allM xs $ null <.> lookupSection . qnameModule . anameName) $
+    unlessM (forallM xs $ null <.> lookupSection . qnameModule . anameName) $
       failure
   -- Since the name was define in a parameter-free context, we can switch to the empty context.
   -- (And we should!)
