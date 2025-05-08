@@ -61,6 +61,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Patterns.Match (properlyMatching')
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Reduce
@@ -198,12 +199,11 @@ updateHeads f m = joinHeadMaps <$> mapM f' (Map.toList m)
   where f' (h, c) = (`Map.singleton` c) <$> f h c
 
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
-checkInjectivity f cs0
-  | not (any properlyMatchingClause cs) = do
+checkInjectivity f cs0 = do
+    ifM (anyM properlyMatchingClause cs) {-then-} (checkInjectivity' f cs) {-else-} do
       reportSLn "tc.inj.check.pointless" 35 $
         "Injectivity of " ++ prettyShow (A.qnameToConcrete f) ++ " would be pointless."
       return NotInjective
-  | otherwise = checkInjectivity' f cs
   where
     -- We can filter out absurd clauses.
     cs = filter (isJust . clauseBody) cs0
@@ -211,7 +211,7 @@ checkInjectivity f cs0
     -- these could be catch-all clauses.
     -- However, we need at least one proper match to get injectivity started.
     properlyMatchingClause =
-      any (properlyMatching' False False . namedArg) . namedClausePats
+      anyM (properlyMatching' False False . namedArg) . namedClausePats
 
 -- | Precondition: all the given clauses are non-absurd and contain a proper match.
 checkInjectivity' :: QName -> [Clause] -> TCM FunctionInverse

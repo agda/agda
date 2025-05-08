@@ -7,7 +7,7 @@ import Prelude hiding ( null, (!!) )
 
 import Control.Applicative hiding (empty)
 import Control.DeepSeq
-import Control.Monad.Reader ( MonadReader(..), asks, Reader, runReader )
+import Control.Monad.Reader ( MonadReader(..), asks, ReaderT, runReaderT )
 
 import Data.Either
 import qualified Data.Foldable as Fold
@@ -35,6 +35,7 @@ import Agda.Syntax.Position (HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Patterns.Match ( properlyMatching )
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
@@ -381,7 +382,7 @@ data OccEnv = OccEnv
   }
 
 -- | Monad for computing occurrences.
-type OccM = Reader OccEnv
+type OccM = ReaderT OccEnv TCM
 
 instance (Semigroup a, Monoid a) => Monoid (OccM a) where
   mempty  = return mempty
@@ -404,7 +405,7 @@ getOccurrences vars a = do
   reportSDoc "tc.pos.occ" 70 $ "computing occurrences in " <+> text (show a)
   reportSDoc "tc.pos.occ" 20 $ "computing occurrences in " <+> prettyTCM a
   reportSDoc "tc.pos.var" 20 $ "variables in context: " <+> pretty vars
-  runReader (occurrences a) . OccEnv vars . fmap nameOfInf <$> coinductionKit
+  runReaderT (occurrences a) . OccEnv vars . fmap nameOfInf =<< coinductionKit
 
 class ComputeOccurrences a where
   occurrences :: a -> OccM OccurrencesBuilder
@@ -418,14 +419,16 @@ instance ComputeOccurrences Clause where
         items = IntMap.elems $ patItems ps -- sorted from low to high DBI
     -- TODO #3733: handle hcomp/transp clauses properly
     if hasDefP ps then return mempty else do
-    (Concat (mapMaybe matching (zip [0..] ps)) <>) <$> do
+      argOccs <- mapMaybeM matching $ zip [0..] ps
+      (Concat argOccs <>) <$> do
       withExtendedOccEnv' items $
         occurrences $ clauseBody cl
     where
-      matching (i, p)
-        | properlyMatching (namedThing $ unArg p) =
-            Just $ OccursAs Matched $ OccursHere $ AnArg i []
-        | otherwise                  = Nothing
+      matching :: (Int, NamedArg (Pattern' a)) -> OccM (Maybe OccurrencesBuilder)
+      matching (i, p) = do
+        properlyMatching (namedThing $ unArg p) >>= \case
+          True -> return $ Just $ OccursAs Matched $ OccursHere $ AnArg i []
+          False -> return Nothing
 
       -- @patItems ps@ creates a map from the pattern variables of @ps@
       -- to the index of the argument they are bound in.

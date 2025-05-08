@@ -26,6 +26,7 @@ import Agda.TypeChecking.Records
 import Agda.Utils.Empty
 import Agda.Utils.Functor (for, ($>), (<&>))
 import Agda.Utils.Maybe
+import Agda.Utils.Monad ( anyM, or2M)
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
@@ -380,3 +381,25 @@ matchPatternsP :: MonadMatch m
                -> m (Match DeBruijnPattern)
 matchPatternsP ps qs = do
   mconcat <$> zipWithM matchPatternP (map namedArg ps) qs
+
+
+-- | Does the pattern perform a match that could fail?
+properlyMatching :: HasConstInfo m => Pattern' a -> m Bool
+properlyMatching = properlyMatching' True True
+
+properlyMatching' :: HasConstInfo m
+  => Bool       -- ^ Should absurd patterns count as proper match?
+  -> Bool       -- ^ Should projection patterns count as proper match?
+  -> Pattern' a -- ^ The pattern.
+  -> m Bool
+properlyMatching' absP projP = \case
+  p | absP && patternOrigin p == Just PatOAbsurd -> return True
+  ConP con ci ps    -- eta record constructors do not count as proper matches themselves
+    | conPRecord ci -> (isNothing <$> isEtaRecordConstructor (conName con)) `or2M` anyM (properlyMatching . namedArg) ps
+    | otherwise     -> return True
+  LitP{}    -> return True
+  DefP{}    -> return True
+  ProjP{}   -> return projP
+  VarP{}    -> return False
+  DotP{}    -> return False
+  IApplyP{} -> return False

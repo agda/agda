@@ -9,7 +9,7 @@ open import Common.Product
 
 -- No inverse should be created for swap by
 -- checkInjectivity, since we are dealing with a record constructor.
-swap : ∀{A B} → A × B → B × A
+swap : ∀{A B : Set} → A × B → B × A
 swap (a , b) = b , a
 
 -- The internal representation is

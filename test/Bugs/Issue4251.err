@@ -12,6 +12,7 @@ out >                        in the first argument of admit
 out >                        in the second argument of fung
 out >                        in the 4th clause
 out >                        in the definition of s), which occurs
+out >                                               as matched against
 out >                                               in the first clause
 out >                                               in the definition of Cocone.x, which occurs
 out >                                                                            in an argument of a bound
