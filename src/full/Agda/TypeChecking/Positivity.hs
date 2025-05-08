@@ -382,7 +382,7 @@ data OccEnv = OccEnv
   }
 
 -- | Monad for computing occurrences.
-type OccM = ReaderT OccEnv TCM
+type OccM = ReaderT OccEnv ReduceM
 
 instance (Semigroup a, Monoid a) => Monoid (OccM a) where
   mempty  = return mempty
@@ -405,7 +405,8 @@ getOccurrences vars a = do
   reportSDoc "tc.pos.occ" 70 $ "computing occurrences in " <+> text (show a)
   reportSDoc "tc.pos.occ" 20 $ "computing occurrences in " <+> prettyTCM a
   reportSDoc "tc.pos.var" 20 $ "variables in context: " <+> pretty vars
-  runReaderT (occurrences a) . OccEnv vars . fmap nameOfInf =<< coinductionKit
+  env <- OccEnv vars . fmap nameOfInf <$> coinductionKit
+  runReduceM $ runReaderT (occurrences a) env
 
 class ComputeOccurrences a where
   occurrences :: a -> OccM OccurrencesBuilder
