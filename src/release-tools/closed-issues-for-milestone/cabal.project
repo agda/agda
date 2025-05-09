@@ -3,15 +3,17 @@ packages: .
 -- Andreas, 2021-11-19, configuration for GHC-9.2
 -- see https://github.com/phadej/github/issues/468
 
-constraints: github +openssl
+-- constraints: github +openssl
+-- constraints: HsOpenSSL +pkg-config
 
 -- Obsoleted by https://github.com/haskell-hvr/deepseq-generics/pull/12
 -- allow-newer: deepseq-generics-0.2.0.0:base
 -- allow-newer: deepseq-generics-0.2.0.0:ghc-prim
 
--- -- Temporary addition to use unreleased github-0.29
--- constraints: github >= 0.29
+-- -- Temporary addition to use unreleased github-0.30
+-- constraints: github >= 0.30
 -- source-repository-package
 --   type: git
---   location: https://github.com/haskell-github/github
---   tag: 723884baa49627fe24424c493ba4c6436df53492
+--   -- location: https://github.com/haskell-github/github
+--   location: /Users/abel/bin/src/github/
+--   tag: 5351d3b446b3681ef4a5767ba4f562a1f52e4687
