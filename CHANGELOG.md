@@ -4,15 +4,25 @@ Release notes for Agda version 2.8.0
 Highlights
 ----------
 
+* Agda is now a self-contained single binary.
+
+* Build all Agda files reachable from paths in the `.agda-lib` file with new flag `--build-library`.
+
+* Experimental support for polarity annotations with new flag `--polarity`.
+
+* Compile to JavaScript with ES6 module syntax with new flag `--js-es6`.
+
+* Errors now have an identifier and follow the GNU standard.
+
 Installation
 ------------
 
-* Dropped support for GHC 8.6.
+* Dropped support for GHC 8.6, added support for GHC 9.12.
 
 * Agda supports GHC versions 8.8.4 to 9.12.2.
 
-* The `agda` binary now contains everything
-  to set itself up, it need not be shipped with additional files.
+* The `agda` binary now contains everything to set itself up,
+  it need not be shipped with additional files.
 
   1. The functionality of the `agda-mode` executable has been replicated
      under the new option `--emacs-mode`.
@@ -273,11 +283,253 @@ Backends
 
 * New `backendInteractTop/backendInteractHole` fields for providing backend-specific interaction commands (run with keyboard shortcut `C-c C-i`).
 
-Other issues closed
--------------------
+Issues closed
+-------------
 
-For 2.8.0, the following issues were also
+For 2.8.0, the following issues were
 [closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.8.0+is%3Aclosed)
 (see [bug tracker](https://github.com/agda/agda/issues)):
 
-NOTE: This section will be filled by output produced with `closed-issues-for-milestone 2.8.0`.
+Issues for closed for milestone 2.8.0
+- [Issue #570](https://github.com/agda/agda/issues/570): Explicit polarity annotation
+- [Issue #2004](https://github.com/agda/agda/issues/2004): `DISPLAY` should be more pragmatic
+- [Issue #4100](https://github.com/agda/agda/issues/4100): GHC backend produces code that is wrongly compiled by GHC 8.4.* and 8.6.*
+- [Issue #4338](https://github.com/agda/agda/issues/4338): Add mechanism to type check entire Agda libraries
+- [Issue #5793](https://github.com/agda/agda/issues/5793): [JS backend] add option for AMD-style and/or native JS modules support
+- [Issue #6320](https://github.com/agda/agda/issues/6320): Parse strings to terms as reflection operation
+- [Issue #6657](https://github.com/agda/agda/issues/6657): Turn `--guardedness` warning into an error-hint
+- [Issue #6781](https://github.com/agda/agda/issues/6781): Making `@tactic` arguments visible leads to unsolved constraints
+- [Issue #6916](https://github.com/agda/agda/issues/6916): Internal error at Agda/TypeChecking/Sort.hs:224:21
+- [Issue #6964](https://github.com/agda/agda/issues/6964): Allow referring to unnamed record constructors
+- [Issue #6994](https://github.com/agda/agda/issues/6994): Warnings are turned off, but code is still highlighted
+- [Issue #7057](https://github.com/agda/agda/issues/7057): Document let-bindings in telescopes
+- [Issue #7066](https://github.com/agda/agda/issues/7066): Documentation for anonymous modules
+- [Issue #7157](https://github.com/agda/agda/issues/7157): Future: cabal build-type `Setup` will be phased out in favor of `Hooks`
+- [Issue #7163](https://github.com/agda/agda/issues/7163): `cabal install Agda` fails with executable-dynamic
+- [Issue #7321](https://github.com/agda/agda/issues/7321): No warning about useless `{-# CATCHALL #-}` pragma
+- [Issue #7375](https://github.com/agda/agda/issues/7375): The specification of `--safe` misses the pragmas
+- [Issue #7381](https://github.com/agda/agda/issues/7381): Our error messages do not follow the GNU standard
+- [Issue #7392](https://github.com/agda/agda/issues/7392): Pattern matching unifier does not preserve instances
+- [Issue #7434](https://github.com/agda/agda/issues/7434): Range printed twice for "Parse error"
+- [Issue #7440](https://github.com/agda/agda/issues/7440): Unexpected hidden argument in nested records/modules
+- [Issue #7495](https://github.com/agda/agda/issues/7495): Catchall clauses with less arguments are considered exact
+- [Issue #7503](https://github.com/agda/agda/issues/7503): Cumulativity `Prop <= Set` loses canonicity
+- [Issue #7508](https://github.com/agda/agda/issues/7508): Unused-arg optimization breaks function call
+- [Issue #7517](https://github.com/agda/agda/issues/7517): `quoteTerm` accepts hidden arguments
+- [Issue #7529](https://github.com/agda/agda/issues/7529): Strange problem with --level-universe and --cubical
+- [Issue #7530](https://github.com/agda/agda/issues/7530): Generalized variable blocks projection-likeness
+- [Issue #7531](https://github.com/agda/agda/issues/7531): JS backend crashes on big case split
+- [Issue #7533](https://github.com/agda/agda/issues/7533): `DISPLAY` pragmas should treat any defined name as matchable
+- [Issue #7535](https://github.com/agda/agda/issues/7535): Regression in 2.6.4: Agda thinks large propositions can be transported
+- [Issue #7537](https://github.com/agda/agda/issues/7537): Type checking a definition with higher inductive type fails to terminate
+- [Issue #7546](https://github.com/agda/agda/issues/7546): Why do we allow empty POLARITY pragmas?
+- [Issue #7574](https://github.com/agda/agda/issues/7574): Support GHC 9.12
+- [Issue #7576](https://github.com/agda/agda/issues/7576): impossible error: parameter overflow in `declareData`
+- [Issue #7580](https://github.com/agda/agda/issues/7580): Our Setup.hs does not build with Cabal-3.14
+- [Issue #7585](https://github.com/agda/agda/issues/7585): Happy-2.1.1 causes Agda build to fail
+- [Issue #7587](https://github.com/agda/agda/issues/7587): Mimer takes an absurd lambda as the solution of the original goal rather than the current (sub)goal
+- [Issue #7618](https://github.com/agda/agda/issues/7618): De Bruijn index out of scope in the presence of rewrite rules and records
+- [Issue #7624](https://github.com/agda/agda/issues/7624): Internal error when interactively checking expression with new meta-variables
+- [Issue #7639](https://github.com/agda/agda/issues/7639): Internal error in `Agda/TypeChecking/Monad/Context.hs` using Mimer
+- [Issue #7641](https://github.com/agda/agda/issues/7641): No error highlighting when "fits in" test fails
+- [Issue #7642](https://github.com/agda/agda/issues/7642): Better not claim "Level should be a function type"
+- [Issue #7643](https://github.com/agda/agda/issues/7643): Panic: uncaught pattern violation
+- [Issue #7650](https://github.com/agda/agda/issues/7650): Internal error when utilizing Emacs case splits and `with .. in ..`
+- [Issue #7655](https://github.com/agda/agda/issues/7655): haskell/cabal#10235 can still occur with Agda-2.7.0.1
+- [Issue #7659](https://github.com/agda/agda/issues/7659): Using auto leads to `__IMPOSSIBLE__` when Σ and case_of_ are both present
+- [Issue #7660](https://github.com/agda/agda/issues/7660): Add a warning for unresolved constructor name
+- [Issue #7662](https://github.com/agda/agda/issues/7662): Using Auto with a goal involving musical coinduction `♭` produces incorrect projection
+- [Issue #7668](https://github.com/agda/agda/issues/7668): Inductive identity allowed in negative position, inconsistent in Cubical Agda
+- [Issue #7669](https://github.com/agda/agda/issues/7669): Positivity checker doesn't respect definitional equality
+- [Issue #7673](https://github.com/agda/agda/issues/7673): `nix build` skips "generation of Agda core library interface files"
+- [Issue #7675](https://github.com/agda/agda/issues/7675): `toIFile` logic from #6988 leads to scattering of `.agdai` files
+- [Issue #7678](https://github.com/agda/agda/issues/7678): Order of agda-lib files in a directory affects flag settings
+- [Issue #7692](https://github.com/agda/agda/issues/7692): Option to completely disable generation of dot patterns
+- [Issue #7696](https://github.com/agda/agda/issues/7696): Panic: de Bruijn index out of scope
+- [Issue #7707](https://github.com/agda/agda/issues/7707): ConstructorDoesNotFitInData error for record in Prop with Set fields
+- [Issue #7709](https://github.com/agda/agda/issues/7709): Slow typecheck when importing a module with instances
+- [Issue #7712](https://github.com/agda/agda/issues/7712): Embed data files using file-embed
+- [Issue #7722](https://github.com/agda/agda/issues/7722): Exponential behavior in pattern operator parser
+- [Issue #7730](https://github.com/agda/agda/issues/7730): emacs-mode files fail to build with "file has no `lexical-binding` directive"
+- [Issue #7738](https://github.com/agda/agda/issues/7738): Rewriting by a constructor
+- [Issue #7751](https://github.com/agda/agda/issues/7751): Application of module with datatype fools the termination checker
+- [Issue #7753](https://github.com/agda/agda/issues/7753): Coverage checker internal error with copatterns and dot patterns
+- [Issue #7759](https://github.com/agda/agda/issues/7759): Internal error for ellipsis without with-patterns
+- [Issue #7761](https://github.com/agda/agda/issues/7761): Propω is not actually proof irrelevant
+- [Issue #7765](https://github.com/agda/agda/issues/7765): Supply reason with UselessPublic warning
+- [Issue #7766](https://github.com/agda/agda/issues/7766): .lagda.org: {-1} outside agda code block messes up hole detection
+- [Issue #7769](https://github.com/agda/agda/issues/7769): The warning OpenPublicAbstract is wrongly formulated
+- [Issue #7777](https://github.com/agda/agda/issues/7777): Parse error when using tactic and irrelevance
+- [Issue #7788](https://github.com/agda/agda/issues/7788): TooManyPatternsInWithClause when nesting hidden `with`
+- [Issue #7792](https://github.com/agda/agda/issues/7792): Inlining happens at most twice
+- [Issue #7795](https://github.com/agda/agda/issues/7795): Polarity annotation ignored by positivity checker?
+- [Issue #7796](https://github.com/agda/agda/issues/7796): Distinguish --no-guardedness from default value in termination hints?
+- [Issue #7799](https://github.com/agda/agda/issues/7799): Potential regression related to instance resolution
+- [Issue #7811](https://github.com/agda/agda/issues/7811): Internal error with Path and with-abstraction II
+- [Issue #7815](https://github.com/agda/agda/issues/7815): Missing highlighting in module telescopes
+- [Issue #7823](https://github.com/agda/agda/issues/7823): DISPLAY matches pattern with wrong amount of arguments
+- [Issue #7825](https://github.com/agda/agda/issues/7825): DISPLAY form on irrelevant projection drops arguments
+- [Issue #7829](https://github.com/agda/agda/issues/7829): Fields with signature not highlighted in `record where`
+- [Issue #7832](https://github.com/agda/agda/issues/7832): Recursive function over inductive record treats arguments as irrelevant
+- [Issue #7851](https://github.com/agda/agda/issues/7851): Error TooManyPolarities is too eager
+- [Issue #7853](https://github.com/agda/agda/issues/7853): Subject reduction failure with instance constructors in parameterised modules
+- [Issue #7856](https://github.com/agda/agda/issues/7856): Strange interaction between `opaque` and extended lambdas
+- [Issue #7863](https://github.com/agda/agda/issues/7863): Internal error when calling MakeCase on target `__`
+
+PRs for closed for milestone 2.8.0
+- [PR #6629](https://github.com/agda/agda/issues/6629): Reflection primitive for parsing surface level syntax from string.
+- [PR #7010](https://github.com/agda/agda/issues/7010): [new] backend-end specific interaction
+- [PR #7287](https://github.com/agda/agda/issues/7287): Temporary fix for reflection of partial elements.
+- [PR #7366](https://github.com/agda/agda/issues/7366): Handle symlinks correctly when computing interface file locations
+- [PR #7374](https://github.com/agda/agda/issues/7374): New warning `WithClauseProjectionFixityMismatch` instead of GenericError
+- [PR #7377](https://github.com/agda/agda/issues/7377): New warning `RecursiveDisplayForm` instead of hard error
+- [PR #7379](https://github.com/agda/agda/issues/7379): Print error name with error message
+- [PR #7385](https://github.com/agda/agda/issues/7385): New error group GHCBackendError instead of GenericError
+- [PR #7387](https://github.com/agda/agda/issues/7387): Factor out `give_` and remove PatternErr handler
+- [PR #7388](https://github.com/agda/agda/issues/7388): GenericError crusade, continued
+- [PR #7391](https://github.com/agda/agda/issues/7391): New error NeedOptionAllowExec etc. instead of GenericError
+- [PR #7394](https://github.com/agda/agda/issues/7394): New error group InteractionError
+- [PR #7395](https://github.com/agda/agda/issues/7395): Get rid of some MonadFail in favor of __IMPOSSIBLE__
+- [PR #7396](https://github.com/agda/agda/issues/7396): instance warning
+- [PR #7403](https://github.com/agda/agda/issues/7403): New literate programming backend forester, `*.lagda.tree`
+- [PR #7409](https://github.com/agda/agda/issues/7409): GenericError crusade goes on: NeedOptionSizedTypes etc.
+- [PR #7412](https://github.com/agda/agda/issues/7412): pattern in path lambda
+- [PR #7414](https://github.com/agda/agda/issues/7414): Replace interaction `Cmd_no_metas` by `Cmd_load_no_metas`
+- [PR #7415](https://github.com/agda/agda/issues/7415): Error refactoring: use of `Exception`, generic errors
+- [PR #7418](https://github.com/agda/agda/issues/7418): New errors CannotGenerate{HComp,Transport}Clause
+- [PR #7425](https://github.com/agda/agda/issues/7425): GenericError replacements
+- [PR #7426](https://github.com/agda/agda/issues/7426): #7371: add Mimer tests for -s and -l
+- [PR #7430](https://github.com/agda/agda/issues/7430): Warnings instead of GenericError for ill-formed pragmas
+- [PR #7435](https://github.com/agda/agda/issues/7435): Print warning name on same line as location
+- [PR #7437](https://github.com/agda/agda/issues/7437): Reform printing of parse error
+- [PR #7447](https://github.com/agda/agda/issues/7447): Add new error `InvalidModalTelescopeUse` and add reproducer.
+- [PR #7451](https://github.com/agda/agda/issues/7451): New warning FixingRelevance instead of GenericError
+- [PR #7453](https://github.com/agda/agda/issues/7453): New error NotAllowedInDotPatterns instead of GenericError
+- [PR #7458](https://github.com/agda/agda/issues/7458): Add ZuriHac Video to tutorial-list
+- [PR #7459](https://github.com/agda/agda/issues/7459): NotAValidLet{Expression,Binding} instead of GenericError
+- [PR #7462](https://github.com/agda/agda/issues/7462): Naming generic syntax errors (GenericError quest)
+- [PR #7473](https://github.com/agda/agda/issues/7473): Re #6919: also separate compilation warnings by newlines
+- [PR #7478](https://github.com/agda/agda/issues/7478): Store warnings in a set rather than a list
+- [PR #7481](https://github.com/agda/agda/issues/7481): Named Backend errors instead of GenericError
+- [PR #7483](https://github.com/agda/agda/issues/7483): Some named scope errors replacing GenericError
+- [PR #7488](https://github.com/agda/agda/issues/7488): Named scope errors instead of GenericError
+- [PR #7491](https://github.com/agda/agda/issues/7491): ES6 modules
+- [PR #7492](https://github.com/agda/agda/issues/7492): Correctly print ParserWarning range, remove `mdo`
+- [PR #7496](https://github.com/agda/agda/issues/7496): Fix #7495: Check extra split clause patterns are trivial for exactness
+- [PR #7498](https://github.com/agda/agda/issues/7498): Add Left Multimap (⟜) to agda-input.el
+- [PR #7500](https://github.com/agda/agda/issues/7500): Fix & test `primShowNat`
+- [PR #7501](https://github.com/agda/agda/issues/7501): handle ProjPs in DISPLAY pragmas
+- [PR #7502](https://github.com/agda/agda/issues/7502): Make termination checking more permissive wrt non-exact clause reduction
+- [PR #7504](https://github.com/agda/agda/issues/7504): [ fix #7503 ] Use principal sort of datatype for checking if split is ok
+- [PR #7509](https://github.com/agda/agda/issues/7509): Fix #7508: remove unused-arg optimization from the JS backend
+- [PR #7510](https://github.com/agda/agda/issues/7510): Expose the names of generated record constructors (reopen #6975)
+- [PR #7511](https://github.com/agda/agda/issues/7511): Fix #7381: comply to GNU error standard: use dot instead of comma in ranges
+- [PR #7512](https://github.com/agda/agda/issues/7512): GenericError crusade
+- [PR #7513](https://github.com/agda/agda/issues/7513): Reconcile PR #7510 with commit ac2888a7ad: add Maybe Induction to scopeRecords
+- [PR #7516](https://github.com/agda/agda/issues/7516): New error CannotQuote instead of GenericError
+- [PR #7518](https://github.com/agda/agda/issues/7518): OccursCheckErrors
+- [PR #7520](https://github.com/agda/agda/issues/7520): Drop GHC 8.6
+- [PR #7534](https://github.com/agda/agda/issues/7534): Fix #7529: treat `LevelUniv` in Cubical Agda
+- [PR #7536](https://github.com/agda/agda/issues/7536): Re #7533: warn when DISPLAY form binds variables unused on the rhs
+- [PR #7539](https://github.com/agda/agda/issues/7539): Fix #7413: Cubical: a `GenericError` is actually `__IMPOSSIBLE__`
+- [PR #7543](https://github.com/agda/agda/issues/7543): DISPLAY: match on defined names
+- [PR #7545](https://github.com/agda/agda/issues/7545): Fix #7531: Preserve let bindings in the JS backend
+- [PR #7550](https://github.com/agda/agda/issues/7550): Fix #7546: warn about empty POLARITY pragmas
+- [PR #7555](https://github.com/agda/agda/issues/7555): Some error housekeeping
+- [PR #7556](https://github.com/agda/agda/issues/7556): unquote errors
+- [PR #7557](https://github.com/agda/agda/issues/7557): kill GenericError in instance search
+- [PR #7559](https://github.com/agda/agda/issues/7559): Fix compilation of serialisation code on 32 bit platforms
+- [PR #7566](https://github.com/agda/agda/issues/7566): Make dangling hidden/instance args into a warning
+- [PR #7570](https://github.com/agda/agda/issues/7570): Optimize concrete name scopeLookup
+- [PR #7572](https://github.com/agda/agda/issues/7572): Improvements to let desugaring
+- [PR #7577](https://github.com/agda/agda/issues/7577): chore: remove uses of genericError
+- [PR #7581](https://github.com/agda/agda/issues/7581): don't add generalizedTel definitions to mutual blocks
+- [PR #7583](https://github.com/agda/agda/issues/7583): Implement conversion to JS `BigInt`
+- [PR #7586](https://github.com/agda/agda/issues/7586): Support Happy 2.1.1
+- [PR #7589](https://github.com/agda/agda/issues/7589): Fix #7575: Check if variables are generalizable in builtin pragmas
+- [PR #7591](https://github.com/agda/agda/issues/7591): Fix #7588: Remove overlapping branches when simplifying chained cases
+- [PR #7593](https://github.com/agda/agda/issues/7593): Fix #7576
+- [PR #7604](https://github.com/agda/agda/issues/7604): REPL: fix printing of result of `:typeOf`
+- [PR #7613](https://github.com/agda/agda/issues/7613): Correct parameters to wrapper modules created in module telescopes
+- [PR #7617](https://github.com/agda/agda/issues/7617): Fix de Bruijn indices in Treeless primitive translation
+- [PR #7622](https://github.com/agda/agda/issues/7622): [ fix #7618 ] Use `underAbstraction_` for going under lambda in `reduceAndEtaContract`
+- [PR #7640](https://github.com/agda/agda/issues/7640): [ emacs ] adding su(b/p)(sim/approx) to input method
+- [PR #7645](https://github.com/agda/agda/issues/7645): Fix #7642: new error CannotApply that mentions also term, not only type
+- [PR #7648](https://github.com/agda/agda/issues/7648): Fix #7641: Range for ConstructorDoesNotFit warning (anon. rec. con.)
+- [PR #7651](https://github.com/agda/agda/issues/7651): Fix #7650: Throw CaseSplitError when splitting on with-abstraction equality
+- [PR #7652](https://github.com/agda/agda/issues/7652): remove the cubical identity type
+- [PR #7653](https://github.com/agda/agda/issues/7653): Print point-ranges as such (line.col rather than line:col-col)
+- [PR #7657](https://github.com/agda/agda/issues/7657): Setup: unconditionally check if we want interfaces
+- [PR #7670](https://github.com/agda/agda/issues/7670): Fix typo `COMPILED`
+- [PR #7672](https://github.com/agda/agda/issues/7672): Fix #7643: coverage: handle blocked sort in isFibrant
+- [PR #7674](https://github.com/agda/agda/issues/7674): Fix #7669: positivity checker: compute function arity up to def. eq.
+- [PR #7676](https://github.com/agda/agda/issues/7676): Remove `--local-interfaces` and warning `DuplicateInterfaceFiles`
+- [PR #7677](https://github.com/agda/agda/issues/7677): Setup: fix `wantInterfaces` check
+- [PR #7679](https://github.com/agda/agda/issues/7679): Disallow several .agda-lib files in the project root (#7678)
+- [PR #7682](https://github.com/agda/agda/issues/7682): New main mode `--build-library`
+- [PR #7685](https://github.com/agda/agda/issues/7685): Add dump-core cabal flag
+- [PR #7686](https://github.com/agda/agda/issues/7686): Monomorphise unifyIndices
+- [PR #7687](https://github.com/agda/agda/issues/7687): Make toTerm return a monadic function
+- [PR #7688](https://github.com/agda/agda/issues/7688): Add some links to lecture notes and videos on Agda
+- [PR #7697](https://github.com/agda/agda/issues/7697): Fix #7696: Add missing `addContext` when splitting on literals
+- [PR #7699](https://github.com/agda/agda/issues/7699): Remove custom Setup.hs
+- [PR #7700](https://github.com/agda/agda/issues/7700): Never generate dot patterns under --keep-pattern-variables
+- [PR #7704](https://github.com/agda/agda/issues/7704): Speed up nix build
+- [PR #7719](https://github.com/agda/agda/issues/7719): Embed data files into Agda binary
+- [PR #7726](https://github.com/agda/agda/issues/7726): Compare overlapping instances in the right context
+- [PR #7727](https://github.com/agda/agda/issues/7727): Fix #7722: in pattern parser only consider pattern-relevant operators
+- [PR #7728](https://github.com/agda/agda/issues/7728): Improvements to instance search performance
+- [PR #7729](https://github.com/agda/agda/issues/7729): Let Agda perform several of `--help`, `--version` etc. if the user requests so
+- [PR #7732](https://github.com/agda/agda/issues/7732): Duplicate `agda-mode` as `agda --emacs-mode`
+- [PR #7734](https://github.com/agda/agda/issues/7734): Doc: executable-dynamic no longer a problem on Linux
+- [PR #7739](https://github.com/agda/agda/issues/7739): Fix #7738: Allow rewrite rule defined with constructor or primitive
+- [PR #7742](https://github.com/agda/agda/issues/7742): Fix #7741: Fix printing inserted binder from operator section
+- [PR #7743](https://github.com/agda/agda/issues/7743): Re-enable dot-pattern termination for Cubical Agda
+- [PR #7745](https://github.com/agda/agda/issues/7745): Limit depth of constructed discrimination tree
+- [PR #7746](https://github.com/agda/agda/issues/7746): Compute occurrences in trX “constructors”
+- [PR #7750](https://github.com/agda/agda/issues/7750): Support GHC 9.12.2
+- [PR #7752](https://github.com/agda/agda/issues/7752): Fix #7751: Consider datatype clauses generated from module application in recursion checker
+- [PR #7758](https://github.com/agda/agda/issues/7758): Fix #7753: a possible `__IMPOSSIBLE__`
+- [PR #7763](https://github.com/agda/agda/issues/7763): Fix #7761: Include large Prop in checks whether something is a Prop
+- [PR #7764](https://github.com/agda/agda/issues/7764): Fixed #7730
+- [PR #7767](https://github.com/agda/agda/issues/7767): Fix #7766: emacs org mode: fix code block end detection
+- [PR #7768](https://github.com/agda/agda/issues/7768): Reason for UselessPublic; `private` useless in `where` blocks
+- [PR #7771](https://github.com/agda/agda/issues/7771): Fix #7769: replace warning `OpenPublic{Abstract,Private}`
+- [PR #7772](https://github.com/agda/agda/issues/7772): Fix #7707: wording of warning `ConstructorDoesNotFitInData`
+- [PR #7773](https://github.com/agda/agda/issues/7773): Fix #7662: Mimer: special case for printing ♭
+- [PR #7774](https://github.com/agda/agda/issues/7774): Fix #7321: warn about unused CATCHALL pragmas
+- [PR #7775](https://github.com/agda/agda/issues/7775): Fix #6994: highlighting only for enabled warnings
+- [PR #7776](https://github.com/agda/agda/issues/7776): Fix #7624 by reifying Term before wrapping it in GoalAndElaboration
+- [PR #7778](https://github.com/agda/agda/issues/7778): Fix #6657: termination checker hints at missing --guardedness flag
+- [PR #7782](https://github.com/agda/agda/issues/7782): re #3209: print out-of-scope names unqualified in case splits
+- [PR #7783](https://github.com/agda/agda/issues/7783): Don't inline constructors into inline functions
+- [PR #7785](https://github.com/agda/agda/issues/7785): Fix #7777: parse both attributes and irrelevance markers
+- [PR #7786](https://github.com/agda/agda/issues/7786): New warning `UselessTactic` for `tactic` attribute on non-hidden binder
+- [PR #7787](https://github.com/agda/agda/issues/7787): Small fixes for parsing and printing attributes
+- [PR #7789](https://github.com/agda/agda/issues/7789): Fix issues #7759 and #7788: wrong counting of with-patterns in nested with
+- [PR #7791](https://github.com/agda/agda/issues/7791): [ new ] unicode symbols for various 'tacks'
+- [PR #7793](https://github.com/agda/agda/issues/7793): re #7792: keep inlining after inlining a copy
+- [PR #7800](https://github.com/agda/agda/issues/7800): Fix #7796: don't hint towards --guardedness when --no-guardedness
+- [PR #7802](https://github.com/agda/agda/issues/7802): Remove broken AbsurdLam heuristics from Mimer
+- [PR #7812](https://github.com/agda/agda/issues/7812): Fix #7803 fix #7811: new error PathAbstractionFailed instead of crash
+- [PR #7814](https://github.com/agda/agda/issues/7814): Fix #7660: new DisambiguateConstructor postponed tc problem
+- [PR #7816](https://github.com/agda/agda/issues/7816): re #7815: propagate range into wrapper modules
+- [PR #7817](https://github.com/agda/agda/issues/7817): Add documentation for telescopes and some related things
+- [PR #7819](https://github.com/agda/agda/issues/7819): [ fix #7392 ] Ensure wildcards and variable instances are kept
+- [PR #7822](https://github.com/agda/agda/issues/7822): Fix issue #7537
+- [PR #7826](https://github.com/agda/agda/issues/7826): Fix #7825 by using `droppedPars` instead of hand-knitted code
+- [PR #7830](https://github.com/agda/agda/issues/7830): Disregard qualified names when assigning clauses to functions in the nicifier
+- [PR #7831](https://github.com/agda/agda/issues/7831): Fix #7829 by reactivating my own fix of #1618
+- [PR #7834](https://github.com/agda/agda/issues/7834): fix #7795: Use occurrences from type for defs
+- [PR #7840](https://github.com/agda/agda/issues/7840): Document which pragmas are unsafe
+- [PR #7849](https://github.com/agda/agda/issues/7849): Fix for #7639
+- [PR #7850](https://github.com/agda/agda/issues/7850): Re #7225: new error DatatypeIndexPolarity instead of GenericError
+- [PR #7852](https://github.com/agda/agda/issues/7852): Turn TooManyPolarities error into warning (fixes #7851)
+- [PR #7854](https://github.com/agda/agda/issues/7854): Modality warnings for constructors and fields
+- [PR #7855](https://github.com/agda/agda/issues/7855): Re #7225 name error CubicalNotErasure
+- [PR #7857](https://github.com/agda/agda/issues/7857): Forget opacity when checking signatures
+- [PR #7858](https://github.com/agda/agda/issues/7858): Fix for #7659
+- [PR #7859](https://github.com/agda/agda/issues/7859): Fix #7853: don't drop parameters of constructor in the same module
+- [PR #7860](https://github.com/agda/agda/issues/7860): [ re #7587 ] Properly reintroduce absurd lambdas to Mimer
+- [PR #7865](https://github.com/agda/agda/issues/7865): Fix #7863: properly parse names before case-splitting
+- [PR #7867](https://github.com/agda/agda/issues/7867): Fix #7832 by placing properlyMatching in monad to have isEtaRecordConstructor
