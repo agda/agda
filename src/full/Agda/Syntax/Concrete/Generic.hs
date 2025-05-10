@@ -132,9 +132,7 @@ instance ExprLike Expr where
      Fun r a b               -> f $ Fun r     (mapE <$> a) $ mapE b
      Pi tel e                -> f $ Pi          (mapE tel) $ mapE e
      Rec r es                -> f $ Rec r                  $ mapE es
-     RecWhere r es           -> f $ RecWhere r             $ mapE es
      RecUpdate r e es        -> f $ RecUpdate r (mapE e)   $ mapE es
-     RecUpdateWhere r e es   -> f $ RecUpdateWhere r (mapE e) $ mapE es
      Let r ds e              -> f $ Let r       (mapE ds)  $ mapE e
      Paren r e               -> f $ Paren r                $ mapE e
      IdiomBrackets r es      -> f $ IdiomBrackets r        $ mapE es

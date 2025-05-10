@@ -229,7 +229,6 @@ data ErrorName
   | NotInScope_
   | NotLeqSort_
   | NotValidBeforeField_
-  | OpenEverythingInRecordWhere_
   | OverlappingProjects_
   | PathAbstractionFailed_
   | PatternInPathLambda_

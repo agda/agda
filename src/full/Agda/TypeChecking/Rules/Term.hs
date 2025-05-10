@@ -979,12 +979,11 @@ expandModuleAssigns mfs xs = do
 checkRecordExpression
   :: Comparison       -- ^ How do we related the inferred type of the record expression
                       --   to the expected type?  Subtype or equal type?
-  -> A.RecStyle       -- ^ record {...} or record where ...
   -> A.RecordAssigns  -- ^ @mfs@: modules and field assignments.
   -> A.Expr           -- ^ Must be @A.Rec _ mfs@.
   -> Type             -- ^ Expected type of record expression.
   -> TCM Term         -- ^ Record value in internal syntax.
-checkRecordExpression cmp style mfs e t = do
+checkRecordExpression cmp mfs e t = do
   reportSDoc "tc.term.rec" 10 $ sep
     [ "checking record expression"
     , prettyA e
@@ -1030,7 +1029,7 @@ checkRecordExpression cmp style mfs e t = do
       -- In @es@ omitted explicit fields are replaced by underscores.
       -- Omitted implicit or instance fields
       -- are still left out and inserted later by checkArguments_.
-      es <- insertMissingFieldsWarn style r meta fs cxs
+      es <- insertMissingFieldsWarn r meta fs cxs
 
       args <- checkArguments_ cmp ExpandLast e es (_recTel def `apply` vs) >>= \case
         (elims, remainingTel) | null remainingTel
@@ -1038,10 +1037,7 @@ checkRecordExpression cmp style mfs e t = do
         _ -> __IMPOSSIBLE__
       -- Don't need to block here!
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
-      let origin = case style of
-            A.RecStyleBrace -> ConORec
-            A.RecStyleWhere -> ConORecWhere
-      return $ Con con origin (map Apply args)
+      return $ Con con ConORec (map Apply args)
     _ -> typeError $ ShouldBeRecordType t
 
   where
@@ -1092,13 +1088,13 @@ checkRecordExpression cmp style mfs e t = do
 --
 checkRecordUpdate
   :: Comparison   -- ^ @cmp@
-  -> A.RecInfo    -- ^ @ei@
+  -> A.ExprInfo   -- ^ @ei@
   -> A.Expr       -- ^ @recexpr@
   -> A.Assigns    -- ^ @fs@
   -> A.Expr       -- ^ @e = RecUpdate ei recexpr fs@
   -> Type         -- ^ Need not be reduced.
   -> TCM Term
-checkRecordUpdate cmp ei@(A.RecInfo _ style) recexpr fs eupd t = do
+checkRecordUpdate cmp ei recexpr fs eupd t = do
   ifBlocked t (\ _ _ -> tryInfer) $ {-else-} \ _ t' -> do
     caseMaybeM (isRecordType t') should $ \ (r, _pars, defn) -> do
       -- Bind the record value (before update) to a fresh @name@.
@@ -1116,13 +1112,13 @@ checkRecordUpdate cmp ei@(A.RecInfo _ style) recexpr fs eupd t = do
         -- Desugar record update expression into record expression.
         let fs' = map (\ (FieldAssignment x e) -> (x, Just e)) fs
         let axs = map argFromDom $ recordFieldNames defn
-        es  <- orderFieldsWarn style r (const Nothing) axs fs'
+        es  <- orderFieldsWarn r (const Nothing) axs fs'
         let es'  = zipWith (replaceFields name ei) projs es
         let erec = A.Rec ei [ Left (FieldAssignment x e) | (Arg _ x, Just e) <- zip axs es' ]
         -- Call the type checker on the desugared syntax.
         checkExpr' cmp erec t
   where
-    replaceFields :: Name -> A.RecInfo -> Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
+    replaceFields :: Name -> A.ExprInfo -> Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
     replaceFields name ei (Arg ai p) Nothing | visible ai = Just $
       -- omitted visible fields remain unchanged: @{ ...; p = p name; ...}@
       -- (hidden fields are supposed to be inferred)
@@ -1259,7 +1255,7 @@ checkExpr' cmp e t =
                 v = unEl t'
             coerce cmp v (sort s) t
 
-        A.Rec (A.RecInfo _ style) fs -> checkRecordExpression cmp style fs e t
+        A.Rec _ fs  -> checkRecordExpression cmp fs e t
 
         A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e t
 

@@ -153,37 +153,6 @@ Syntax
 Additions to the Agda syntax.
 
 * Add new literate agda: forester, see [#7403](https://github.com/agda/agda/pull/7403)
-* Records can now be created using module-like syntax in place of curly braces
-  and semicolons.
-
-  ```agda
-  p : Pair Nat Nat
-  p = record where
-    fst = 2
-    snd = 3
-  ```
-
-  In a `record where` block, definitions have the semantics of let-bindings: they
-  can refer to earlier bindings and may include other definitions than the fields
-  of the record, including opening of modules. For instance,
-
-  ```agda
-  p₁ : Pair Nat Nat
-  p₁ = record where
-    open Pair p using (fst)
-    n   = fst * 2
-    snd = n * n
-  ```
-
-  The syntax also works for record updates
-
-  ```agda
-  p₂ : Pair Nat Nat
-  p₂ = record p₁ where
-    snd = snd p₁ + 1
-  ```
-
-  See [#4275](https://github.com/agda/agda/issues/4275) for the proposal.
 
 * It is now always possible to refer to the name of a record type's
   constructor, even if a name was not explicitly specified. This is done

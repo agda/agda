@@ -179,7 +179,6 @@ typeErrorName = \case
   NotInScope                                                 {} -> NotInScope_
   NotLeqSort                                                 {} -> NotLeqSort_
   NotValidBeforeField                                        {} -> NotValidBeforeField_
-  OpenEverythingInRecordWhere                                {} -> OpenEverythingInRecordWhere_
   OverlappingProjects                                        {} -> OverlappingProjects_
   PathAbstractionFailed                                      {} -> PathAbstractionFailed_
   PatternInPathLambda                                        {} -> PatternInPathLambda_

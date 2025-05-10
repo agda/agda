@@ -20,7 +20,6 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Abstract.Name
-import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Internal.MetaVars (unblockOnAnyMetaIn)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
@@ -62,20 +61,18 @@ mkCon h info args = Con h info (map Apply args)
 -- | Order the fields of a record construction.
 orderFields
   :: forall a . HasRange a
-  => A.RecStyle        -- ^ Braces or where
-  -> QName             -- ^ Name of record type (for error message).
+  => QName             -- ^ Name of record type (for error message).
   -> (Arg C.Name -> a) -- ^ How to fill a missing field.
   -> [Arg C.Name]      -- ^ Field names of the record type.
   -> [(C.Name, a)]     -- ^ Provided fields with content in the record expression.
   -> Writer [RecordFieldWarning] [a]           -- ^ Content arranged in official order.
-orderFields style r fill axs fs = do
+orderFields r fill axs fs = do
   -- reportSDoc "tc.record" 30 $ vcat
   --   [ "orderFields"
   --   , "  official fields: " <+> sep (map pretty xs)
   --   , "  provided fields: " <+> sep (map pretty ys)
   --   ]
-  unless (style == A.RecStyleWhere) $   -- Don't warn about unknown fields for `record where`
-    List1.unlessNull alien   $ warn $ W.TooManyFields r missing
+  List1.unlessNull alien     $ warn $ W.TooManyFields r missing
   List1.unlessNull duplicate $ warn $ W.DuplicateFields
   return $ for axs $ \ ax -> fromMaybe (fill ax) $ lookup (unArg ax) uniq
   where
@@ -104,25 +101,23 @@ failOnRecordFieldWarnings comp = do
 --   Raise generated 'RecordFieldWarning's as warnings.
 orderFieldsWarn
   :: forall a . HasRange a
-  => A.RecStyle        -- ^ Braces or where
-  -> QName             -- ^ Name of record type (for error message).
+  => QName             -- ^ Name of record type (for error message).
   -> (Arg C.Name -> a) -- ^ How to fill a missing field.
   -> [Arg C.Name]      -- ^ Field names of the record type.
   -> [(C.Name, a)]     -- ^ Provided fields with content in the record expression.
   -> TCM [a]           -- ^ Content arranged in official order.
-orderFieldsWarn style r fill axs fs = warnOnRecordFieldWarnings $ orderFields style r fill axs fs
+orderFieldsWarn r fill axs fs = warnOnRecordFieldWarnings $ orderFields r fill axs fs
 
 -- | Order the fields of a record construction.
 --   Raise generated 'RecordFieldWarning's as errors.
 orderFieldsFail
   :: forall a . HasRange a
-  => A.RecStyle        -- ^ Braces or where
-  -> QName             -- ^ Name of record type (for error message).
+  => QName             -- ^ Name of record type (for error message).
   -> (Arg C.Name -> a) -- ^ How to fill a missing field.
   -> [Arg C.Name]      -- ^ Field names of the record type.
   -> [(C.Name, a)]     -- ^ Provided fields with content in the record expression.
   -> TCM [a]           -- ^ Content arranged in official order.
-orderFieldsFail style r fill axs fs = failOnRecordFieldWarnings $ orderFields style r fill axs fs
+orderFieldsFail r fill axs fs = failOnRecordFieldWarnings $ orderFields r fill axs fs
 
 -- | A record field assignment @record{xs = es}@ might not mention all
 --   visible fields.  @insertMissingFields@ inserts placeholders for
@@ -130,14 +125,13 @@ orderFieldsFail style r fill axs fs = failOnRecordFieldWarnings $ orderFields st
 --   of the fields in the record declaration.
 insertMissingFields
   :: forall a . HasRange a
-  => A.RecStyle           -- ^ Braces or where
-  -> QName                -- ^ Name of record type (for error reporting).
+  => QName                -- ^ Name of record type (for error reporting).
   -> (C.Name -> a)        -- ^ Function to generate a placeholder for missing visible field.
   -> [FieldAssignment' a] -- ^ Given fields.
   -> [Arg C.Name]         -- ^ All record field names with 'ArgInfo'.
   -> Writer [RecordFieldWarning] [NamedArg a]
        -- ^ Given fields enriched by placeholders for missing explicit fields.
-insertMissingFields style r placeholder fs axs = do
+insertMissingFields r placeholder fs axs = do
   -- Compute the list of given fields, decorated with the ArgInfo from the record def.
   let arg x e = caseMaybe (List.find ((x ==) . unArg) axs) (defaultNamedArg e) $ \ a ->
         nameIfHidden a e <$ a
@@ -146,7 +140,7 @@ insertMissingFields style r placeholder fs axs = do
   -- Omitted explicit fields are filled in with placeholders.
   -- Omitted implicit or instance fields
   -- are still left out and inserted later by checkArguments_.
-  catMaybes <$> orderFields style r fill axs givenFields
+  catMaybes <$> orderFields r fill axs givenFields
   where
     fill :: Arg C.Name -> Maybe (NamedArg a)
     fill ax
@@ -166,14 +160,13 @@ insertMissingFields style r placeholder fs axs = do
 --   of the fields in the record declaration.
 insertMissingFieldsWarn
   :: forall a . HasRange a
-  => A.RecStyle           -- ^ Braces or where
-  -> QName                -- ^ Name of record type (for error reporting).
+  => QName                -- ^ Name of record type (for error reporting).
   -> (C.Name -> a)        -- ^ Function to generate a placeholder for missing visible field.
   -> [FieldAssignment' a] -- ^ Given fields.
   -> [Arg C.Name]         -- ^ All record field names with 'ArgInfo'.
   -> TCM [NamedArg a]     -- ^ Given fields enriched by placeholders for missing explicit fields.
-insertMissingFieldsWarn style r placeholder fs axs =
-  warnOnRecordFieldWarnings $ insertMissingFields style r placeholder fs axs
+insertMissingFieldsWarn r placeholder fs axs =
+  warnOnRecordFieldWarnings $ insertMissingFields r placeholder fs axs
 
 -- | A record field assignment @record{xs = es}@ might not mention all
 --   visible fields.  @insertMissingFields@ inserts placeholders for
@@ -181,14 +174,13 @@ insertMissingFieldsWarn style r placeholder fs axs =
 --   of the fields in the record declaration.
 insertMissingFieldsFail
   :: forall a . HasRange a
-  => A.RecStyle           -- ^ Braces or where
-  -> QName                -- ^ Name of record type (for error reporting).
+  => QName                -- ^ Name of record type (for error reporting).
   -> (C.Name -> a)        -- ^ Function to generate a placeholder for missing visible field.
   -> [FieldAssignment' a] -- ^ Given fields.
   -> [Arg C.Name]         -- ^ All record field names with 'ArgInfo'.
   -> TCM [NamedArg a]     -- ^ Given fields enriched by placeholders for missing explicit fields.
-insertMissingFieldsFail style r placeholder fs axs =
-  failOnRecordFieldWarnings $ insertMissingFields style r placeholder fs axs
+insertMissingFieldsFail r placeholder fs axs =
+  failOnRecordFieldWarnings $ insertMissingFields r placeholder fs axs
 
 ---------------------------------------------------------------------------
 -- * Query information about records from signature

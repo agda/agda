@@ -172,9 +172,7 @@ data Expr
   | Fun Range (Arg Expr) Expr                  -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
   | Pi Telescope1 Expr                         -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
   | Rec Range RecordAssignments                -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
-  | RecWhere Range [Declaration]               -- ^ ex: @record where { open M using (x; y) ; z arg = arg + x }@
   | RecUpdate Range Expr [FieldAssignment]     -- ^ ex: @record e {x = a; y = b}@
-  | RecUpdateWhere Range Expr [Declaration]    -- ^ ex: @record e where { open M using (x); y = x + 1 }@
   | Let Range (List1 Declaration) (Maybe Expr) -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
   | Paren Range Expr                           -- ^ ex: @(e)@
   | IdiomBrackets Range [Expr]                 -- ^ ex: @(| e1 | e2 | .. | en |)@ or @(|)@
@@ -936,9 +934,7 @@ instance HasRange Expr where
       HiddenArg r _      -> r
       InstanceArg r _    -> r
       Rec r _            -> r
-      RecWhere r _       -> r
       RecUpdate r _ _    -> r
-      RecUpdateWhere r _ _ -> r
       Quote r            -> r
       QuoteTerm r        -> r
       Unquote r          -> r
@@ -1201,9 +1197,7 @@ instance KillRange Expr where
   killRange (Fun _ e1 e2)          = killRangeN (Fun noRange) e1 e2
   killRange (Pi t e)               = killRangeN Pi t e
   killRange (Rec _ ne)             = killRangeN (Rec noRange) ne
-  killRange (RecWhere _ ne)        = killRangeN (RecWhere noRange) ne
   killRange (RecUpdate _ e ne)     = killRangeN (RecUpdate noRange) e ne
-  killRange (RecUpdateWhere _ e ne) = killRangeN (RecUpdateWhere noRange) e ne
   killRange (Let _ d e)            = killRangeN (Let noRange) d e
   killRange (Paren _ e)            = killRangeN (Paren noRange) e
   killRange (IdiomBrackets _ es)   = killRangeN (IdiomBrackets noRange) es
@@ -1325,9 +1319,7 @@ instance NFData Expr where
   rnf (Fun _ a b)         = rnf a `seq` rnf b
   rnf (Pi a b)            = rnf a `seq` rnf b
   rnf (Rec _ a)           = rnf a
-  rnf (RecWhere _ a)      = rnf a
   rnf (RecUpdate _ a b)   = rnf a `seq` rnf b
-  rnf (RecUpdateWhere _ a b) = rnf a `seq` rnf b
   rnf (Let _ a b)         = rnf a `seq` rnf b
   rnf (Paren _ a)         = rnf a
   rnf (IdiomBrackets _ a) = rnf a

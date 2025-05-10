@@ -420,75 +420,6 @@ checkLiteral = \case
   LitQName  _   -> return ()
   LitMeta   _ _ -> return ()
 
--- | Check a `record where` expression.
-checkRecordWhere :: Range
-                 -> [C.Declaration]
-                 -> (RecInfo -> A.Assigns -> A.Expr)
-                 -> ScopeM A.Expr
-checkRecordWhere r ds0 mkRec = do
-  let i  = ExprRange r
-      ri = recInfoWhere r
-  -- We need to rewrite any opens or module applications opened in this
-  -- scope into a non-opening declaration and explicit bindings, so that
-  -- references inside this body refer unambiguously to things opened
-  -- here. Conveniently, this also homogenizes the things that need to be
-  -- made fields in the final `A.Rec`. If we get #3801, perhaps this
-  -- rewrite won't be necessary any more, but any `using` or `renaming`
-  -- clauses will still have to be made into field assignments somehow.
-  ds0' <- mapM' rewriteConcreteOpens ds0
-  List1.ifNull ds0' (return $ A.Rec ri []) $ \ ds -> do
-    localToAbstract (LetDefs RecordWhereLetDef ds) $ \ ds' -> do
-      names <- forM' ds' $ \case
-        A.LetBind _ _ (A.BindName name) _ _ -> return [name]
-        A.LetPatBind _ p _ -> go p
-          where
-            go = \case
-              A.VarP (A.BindName name)    -> return [name]
-              A.ConP _ _ args             -> mapM' (go . namedArg) args
-              A.RecP _ fs                 -> mapM' (go . _exprFieldA) fs
-              A.WildP _                   -> return []
-              A.AsP _ (A.BindName name) p -> (name :) <$> go p
-              A.PatternSynP _ _ args      -> mapM' (go . namedArg) args
-              -- We have run checkValidLetPattern at this point
-              A.ProjP{}   -> __IMPOSSIBLE__
-              A.DefP{}    -> __IMPOSSIBLE__
-              A.DotP{}    -> __IMPOSSIBLE__
-              A.AbsurdP{} -> __IMPOSSIBLE__
-              A.LitP{}    -> __IMPOSSIBLE__
-              A.EqualP{}  -> __IMPOSSIBLE__
-              A.WithP{}   -> __IMPOSSIBLE__
-        _ -> return []
-      let fs = [C.FieldAssignment (setRange (getRange n) $ nameCanonical n) (A.Var n) | n <- names]
-      return $ A.mkLet i ds' (mkRec ri fs)
-  where
-    rewriteConcreteOpens :: C.Declaration -> ScopeM [C.Declaration]
-    rewriteConcreteOpens = \case
-      C.Open _ m dir -> handleOpen m dir
-      C.ModuleMacro r e m mapp DoOpen dir -> do
-        m' <- case m of
-          NoName r _ -> freshConcreteName r 0 ".modulemacro"
-          n -> return n
-        ds <- handleOpen (C.QName m') dir
-        return $ C.ModuleMacro r e m' mapp DontOpen defaultImportDir : ds
-
-      C.Private r o ds -> singleton . C.Private r o <$> mapM' rewriteConcreteOpens ds
-      d -> return [d]
-
-    handleOpen :: C.QName -> C.ImportDirective -> ScopeM [C.Declaration]
-    handleOpen m ImportDirective{ using, impRenaming } = case using of
-      UseEverything ->
-        typeError OpenEverythingInRecordWhere
-      Using usingNames ->
-        return . map mkDef $
-          [(name, name) | ImportedName name <- usingNames] ++
-          [(name', name) | Renaming{ renFrom = ImportedName name, renTo = ImportedName name' } <- impRenaming]
-        where
-          mkDef (l, r) = C.FunClause
-            (C.LHS (C.IdentP True (C.QName l)) [] [])
-            (C.RHS (C.Ident (C.qualify m r)))
-            NoWhere
-            empty
-
 {--------------------------------------------------------------------------
     Translation
  --------------------------------------------------------------------------}
@@ -1045,16 +976,11 @@ instance ToAbstract C.Expr where
         let ds'  = [ d | Right (_, Just d) <- fs' ]
             fs'' = map (mapRight fst) fs'
             i    = ExprRange r
-            ri   = recInfoBrace r
-        return $ A.mkLet i ds' (A.Rec ri fs'')
-      C.RecWhere r ds -> checkRecordWhere r ds \ i fs -> A.Rec i $ map Left fs
+        return $ A.mkLet i ds' (A.Rec i fs'')
 
   -- Record update
       C.RecUpdate r e fs -> do
-        A.RecUpdate (recInfoBrace r) <$> toAbstract e <*> toAbstractCtx TopCtx fs
-      C.RecUpdateWhere r e ds -> do
-        e <- toAbstract e
-        checkRecordWhere r ds \ i fs -> A.RecUpdate i e fs
+        A.RecUpdate (ExprRange r) <$> toAbstract e <*> toAbstractCtx TopCtx fs
 
   -- Parenthesis
       C.Paren _ e -> toAbstractCtx TopCtx e

@@ -1647,9 +1647,6 @@ instance PrettyTCM TypeError where
       , pwords $ "is not supported."
       ]
 
-    OpenEverythingInRecordWhere -> fsep $
-      pwords "'open' in 'record where' expressions must provide a 'using' clause"
-
     QualifiedLocalModule -> fwords "Local modules cannot have qualified names"
 
     BackendDoesNotSupportOnlyScopeChecking backend -> fsep $ concat

@@ -5304,7 +5304,6 @@ data TypeError
         | NotAValidLetBinding (Maybe NotAValidLetBinding)
         | NotAValidLetExpression NotAValidLetExpression
         | NotValidBeforeField NiceDeclaration
-        | OpenEverythingInRecordWhere
         | PrivateRecordField
         | QualifiedLocalModule
     -- Pattern synonym errors
