@@ -32,7 +32,9 @@ import           System.Directory
   , getAppUserDataDirectory, getXdgDirectory, removeFile
   )
 import           System.Environment         ( lookupEnv )
+#ifndef wasm32_HOST_ARCH
 import           System.FileLock            ( pattern Exclusive, withFileLock )
+#endif
 import           System.FilePath            ( (</>), joinPath, splitFileName, takeFileName )
 import           System.IO                  ( hPutStrLn, stderr )
 
@@ -162,3 +164,12 @@ dumpDataDir verbose baseDataDir = do
 -- | Dump line of warning or information to stderr.
 inform :: String -> IO ()
 inform = hPutStrLn stderr
+
+-- FIXME: We can't use FileLock as it requires flock. But we shouldn't do this.
+--  This is terrible.
+#ifdef wasm32_HOST_ARCH
+data SharedExclusive = Exclusive
+withFileLock :: FilePath -> SharedExclusive -> (() -> IO a) -> IO a
+withFileLock _ _ f = f ()
+#endif
+

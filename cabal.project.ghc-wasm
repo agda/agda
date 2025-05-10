@@ -1,0 +1,12 @@
+packages: Agda.cabal
+
+-- ghc-wasm uses head.hackage.haskell.org in addition to the default repository.
+-- This causes dependency resolution failures, so remove that and just force the
+-- default repository.
+active-repositories: hackage.haskell.org
+
+-- See https://github.com/haskell-pkg-janitors/unix-compat/pull/16
+source-repository-package
+  type:     git
+  location: https://github.com/SquidDev/unix-compat.git
+  tag:      8416bec1b1a578247b03a1492e10ad849e1c2696
