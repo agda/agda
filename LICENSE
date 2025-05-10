@@ -1,18 +1,19 @@
-Copyright (c) 2005-2024 remains with the authors.
+Copyright (c) 2005-2025 remains with the authors.
 Agda 2 was originally written by Ulf Norell,
 partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama,
 and from Agdalight by Ulf Norell and Andreas Abel.
 Cubical Agda was originally contributed by Andrea Vezzosi.
 
 Agda 2 is currently actively developed mainly by Andreas Abel,
-Guillaume Allais, Liang-Ting Chen, Jesper Cockx, Matthew Daggitt,
-Nils Anders Danielsson, Amélia Liao, and Ulf Norell.
+Liang-Ting Chen, Lawrence Chonavel, Jesper Cockx,
+Nils Anders Danielsson, Amélia Liao, Ulf Norell, and Szumi Xie.
 
 Further, Agda 2 has received contributions by, amongst others,
-Arthur Adjedj, Stevan Andjelkovic,
+Arthur Adjedj,  Guillaume Allais, Malin Altenmüller, Stevan Andjelkovic,
 Marcin Benke, Jean-Philippe Bernardy, Guillaume Brunerie,
-James Chapman, Lawrence Chonavel, Jonathan Coates,
-Dominique Devriese, Péter Diviánszky, Robert Estelle,
+James Chapman, Joris Ceulemans, Jonathan Coates,
+Matthew Daggitt, Dominique Devriese, Péter Diviánszky,
+Lucas Escot, Robert Estelle,
 Naïm Favier, Kuen-Bang Hou (Favonia), Olle Fredriksson,
 Adam Gundry, Daniel Gustafsson,
 Philipp Hausmann, Alex Haršáni,
@@ -23,7 +24,7 @@ Francesco Mazzoli, Stefan Monnier, Guilhem Moulin,
 Konstantin Nisht, Fredrik Nordvall Forsberg, Andreas Nuyts,
 Josselin Poiret, Nicolas Pouillard, Jonathan Prieto,
 Christian Sattler, Michael Shulman, Andrés Sicard-Ramírez,
-Makoto Takeyama, Andrea Vezzosi, Szumi Xie, Noam Zeilberger, and Tesla Ice Zhang.
+Makoto Takeyama, Andrea Vezzosi, Noam Zeilberger, and Tesla Ice Zhang.
 The full list of contributors is available at
 https://github.com/agda/agda/graphs/contributors or from the git
 repository via ``git shortlog -sne``.

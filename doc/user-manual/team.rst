@@ -11,13 +11,13 @@ Cubical Agda was originally contributed by Andrea Vezzosi.
 Agda 2 is currently actively developed mainly by (in alphabetical order):
 
 * Andreas Abel
-* Guillaume Allais
 * Liang-Ting Chen
+* Lawrence Chonavel
 * Jesper Cockx
-* Matthew Daggitt
 * Nils Anders Danielsson
 * Amélia Liao
 * Ulf Norell
+* Szumi Xie
 
 Agda 2 has received major contributions by the following developers, amongst others.
 Some contributors have pioneered a feature which shall be mentioned here.
@@ -26,11 +26,13 @@ But many have worked on these features for improvements and maintenance.
 * Andreas Abel: *termination checker, sized types, irrelevance, copatterns, erasure, github workflows, stackage*
 * Arthur Adjedj: ``LevelUniv``
 * Guillaume Allais: *warnings, pattern guards, interleaved mutual blocks, standard library 1.0 and above*
+* Malin Altenmüller: ``--polarity``
 * Stevan Andjelkovic: *LaTeX backend*
 * Miëtek Bak: *Agda logo*
 * Marcin Benke: *original "Alonzo" compiler to Haskell*
 * Jean-Philippe Bernardy: ``syntax`` *declarations*
 * Guillaume Brunerie
+* Joris Ceulemans: ``--polarity``
 * James Chapman
 * Liang-Ting Chen: *github workflows*
 * Lawrence Chonavel
@@ -42,6 +44,7 @@ But many have worked on these features for improvements and maintenance.
 * Nils Anders Danielsson: *efficient positivity checker, HTML backend, highlighting, standard library*, :option:`--erased-cubical`, *erasure*, *performance improvements*
 * Dominique Devriese: ``instance`` *arguments*
 * Péter Diviánszky: *web frontent,* ``variable`` *declarations*
+* Lucas Escot: ``--polarity``
 * Robert Estelle: *refactoring of backends, main driver*
 * Naïm Favier
 * Olle Fredriksson: *Epic compiler backend*
@@ -64,13 +67,14 @@ But many have worked on these features for improvements and maintenance.
 * Amélia Liao: *maintenance of Cubical Agda*
 * Ting-Gan Lua
 * Francesco Mazzoli: *"tog" prototype*
+* James McKinna: *standard library 1.7 and above*
 * Stefan Monnier
 * Guilhem Moulin: *highlighting*
 * Fredrik Nordvall Forsberg: *pattern lambdas, warnings*
 * Konstantin Nisht
 * Ulf Norell: *Agda 2*
-* Andreas Nuyts
-* Josselin Poiret: some refactoring of *modalities*
+* Andreas Nuyts: ``--polarity``
+* Josselin Poiret: ``--polarity``
 * Nicolas Pouillard: *module record expressions*
 * Jonathan Prieto: *Agda package manager*
 * Christian Sattler
