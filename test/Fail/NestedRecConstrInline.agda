@@ -39,10 +39,11 @@ _ = refl
 -- And here we inline 'to' in the RHS of x, which then becomes a record
 -- constructor, and *that* constructor gets inlined
 x : Bar
-x = to record where
-  foo1 = 1
-  foo2 = 2
-  bar3 = 3
+x = to record
+  { foo1 = 1
+  ; foo2 = 2
+  ; bar3 = 3
+  }
 
 -- ... so this fails (x ≠ ...):
 _ : x ≡ inc (inc 1 2) 3
