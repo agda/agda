@@ -208,7 +208,7 @@ prim_glueU' :: TCM PrimitiveImpl
 prim_glueU' = do
 -- TODO (Amy, 2022-08-17): Same thing about duplicated code with Glue
 -- applies here.
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
        hPi' "φ" primIntervalType $ \ φ ->
@@ -235,7 +235,7 @@ prim_unglueU' :: TCM PrimitiveImpl
 prim_unglueU' = do
 -- TODO (Amy, 2022-08-17): Same thing about duplicated code with Glue
 -- applies here.
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
        hPi' "φ" primIntervalType $ \ φ ->
