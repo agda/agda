@@ -1,62 +1,85 @@
-RecordWhere.agda:25,11-28,24
-warning: -W[no]TooManyFields
+RecordWhere.agda:25.11-28.24: warning: -W[no]TooManyFields
 The record type Σ does not have the field distraction
 when checking that the expression
-record
-{ proj₂ = proj₃ ; proj₁ = proj₄ ; distraction = distraction }
+record where
+  proj₃ : _
+  proj₃ = 7
+  proj₃ : _
+  proj₃ = proj₄ + 3
+  distraction : _
+  distraction = false
 has type Nat × Nat
-RecordWhere.agda:45,11-47,14
-warning: -W[no]TooManyFields
+
+RecordWhere.agda:45.11-47.14: warning: -W[no]TooManyFields
 The record type Σ does not have the field distraction
 when checking that the expression
-record
-{ proj₁ = proj₃ ; distraction = distraction ; proj₂ = proj₄ }
+record where
+  open M using (proj₁; distraction)
+  proj₃ : _
+  proj₃ = 5
 has type Nat × Nat
-RecordWhere.agda:110,11-113,24
-warning: -W[no]TooManyFields
+
+RecordWhere.agda:110.11-113.24: warning: -W[no]TooManyFields
 The record type Σ does not have the field distraction
 when checking that the expression
-record
-{ proj₂ = proj₂ ; proj₁ = proj₁ ; distraction = distraction }
+record where
+  proj₂ : _
+  proj₂ = 7
+  proj₁ : _
+  proj₁ = proj₂ + 3
+  distraction : _
+  distraction = false
 has type Nat × Nat
-RecordWhere.agda:130,11-132,14
-warning: -W[no]TooManyFields
+
+RecordWhere.agda:130.11-132.14: warning: -W[no]TooManyFields
 The record type Σ does not have the field distraction
 when checking that the expression
-record
-{ proj₁ = proj₁ ; distraction = distraction ; proj₂ = proj₂ }
+record where
+  open M using (proj₁; distraction)
+  proj₂ : _
+  proj₂ = 5
 has type Nat × Nat
 
 ———— All done; warnings encountered ————————————————————————
 
-RecordWhere.agda:25,11-28,24
-warning: -W[no]TooManyFields
+RecordWhere.agda:25.11-28.24: warning: -W[no]TooManyFields
 The record type Σ does not have the field distraction
 when checking that the expression
-record
-{ proj₂ = proj₃ ; proj₁ = proj₄ ; distraction = distraction }
+record where
+  proj₃ : _
+  proj₃ = 7
+  proj₃ : _
+  proj₃ = proj₄ + 3
+  distraction : _
+  distraction = false
 has type Nat × Nat
 
-RecordWhere.agda:45,11-47,14
-warning: -W[no]TooManyFields
+RecordWhere.agda:45.11-47.14: warning: -W[no]TooManyFields
 The record type Σ does not have the field distraction
 when checking that the expression
-record
-{ proj₁ = proj₃ ; distraction = distraction ; proj₂ = proj₄ }
+record where
+  open M using (proj₁; distraction)
+  proj₃ : _
+  proj₃ = 5
 has type Nat × Nat
 
-RecordWhere.agda:110,11-113,24
-warning: -W[no]TooManyFields
+RecordWhere.agda:110.11-113.24: warning: -W[no]TooManyFields
 The record type Σ does not have the field distraction
 when checking that the expression
-record
-{ proj₂ = proj₂ ; proj₁ = proj₁ ; distraction = distraction }
+record where
+  proj₂ : _
+  proj₂ = 7
+  proj₁ : _
+  proj₁ = proj₂ + 3
+  distraction : _
+  distraction = false
 has type Nat × Nat
 
-RecordWhere.agda:130,11-132,14
-warning: -W[no]TooManyFields
+RecordWhere.agda:130.11-132.14: warning: -W[no]TooManyFields
 The record type Σ does not have the field distraction
 when checking that the expression
-record
-{ proj₁ = proj₁ ; distraction = distraction ; proj₂ = proj₂ }
+record where
+  open M using (proj₁; distraction)
+  proj₂ : _
+  proj₂ = 5
 has type Nat × Nat

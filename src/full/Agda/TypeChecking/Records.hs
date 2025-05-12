@@ -73,7 +73,7 @@ orderFields r fill axs fs = do
   --   , "  provided fields: " <+> sep (map pretty ys)
   --   ]
   List1.unlessNull alien     $ warn $ W.TooManyFields r missing
-  List1.unlessNull duplicate $ warn $ W.DuplicateFields
+  List1.unlessNull duplicate $ warn $ W.DuplicateFields . fmap (fmap pure)
   return $ for axs $ \ ax -> fromMaybe (fill ax) $ lookup (unArg ax) uniq
   where
     (uniq, duplicate) = nubAndDuplicatesOn fst fs   -- separating duplicate fields
