@@ -990,8 +990,9 @@ checkRecordExpression
   -> A.RecordAssigns  -- ^ @mfs@: modules and field assignments.
   -> A.Expr           -- ^ Must be @A.Rec _ mfs@.
   -> Type             -- ^ Expected type of record expression.
+  -> ConOrigin        -- ^ Is this a record expression or a @record where@ expression?
   -> TCM Term         -- ^ Record value in internal syntax.
-checkRecordExpression cmp mfs e@(A.Rec kwr _r _) t = do
+checkRecordExpression cmp mfs e@(A.Rec kwr _r _) t origin = do
   reportSDoc "tc.term.rec" 10 $ sep
     [ "checking record expression"
     , prettyA e
@@ -1038,7 +1039,7 @@ checkRecordExpression cmp mfs e@(A.Rec kwr _r _) t = do
       -- In @es@ omitted explicit fields are replaced by underscores.
       -- Omitted implicit or instance fields
       -- are still left out and inserted later by checkArguments_.
-      es <- insertMissingFieldsWarn r meta fs cxs
+      es <- insertMissingFieldsWarn origin r meta fs cxs
 
       args <- checkArguments_ cmp ExpandLast e es (_recTel def `apply` vs) >>= \case
         (elims, remainingTel) | null remainingTel
@@ -1046,9 +1047,9 @@ checkRecordExpression cmp mfs e@(A.Rec kwr _r _) t = do
         _ -> __IMPOSSIBLE__
       -- Don't need to block here!
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
-      return $ Con con ConORec (map Apply args)
+      return $ Con con origin (map Apply args)
     _ -> typeError $ ShouldBeRecordType t
-checkRecordExpression _ _ _ _ = __IMPOSSIBLE__
+checkRecordExpression _ _ _ _ _ = __IMPOSSIBLE__
 
 guessRecordType :: Comparison -> A.Expr -> [C.Name] -> Type -> TCM Term
 guessRecordType cmp e fields t = do
@@ -1121,7 +1122,7 @@ checkRecordUpdate cmp kwr ei recexpr fs eupd t = do
         -- Desugar record update expression into record expression.
         let fs' = map (\ (FieldAssignment x e) -> (x, Just e)) fs
         let axs = map argFromDom $ recordFieldNames defn
-        es  <- orderFieldsWarn r (const Nothing) axs fs'
+        es  <- orderFieldsWarn ConORec r (const Nothing) axs fs'
         let es'  = zipWith (replaceFields name ei) projs es
         let erec = A.Rec kwr ei [ Left (FieldAssignment x e) | (Arg _ x, Just e) <- zip axs es' ]
         -- Call the type checker on the desugared syntax.
@@ -1160,7 +1161,7 @@ checkRecordWhere cmp kwr ei decls fs e t = do
   let fs' = map Left fs
   -- TODO: use t to improve type inference in decls
   checkLetBindings decls $
-    checkRecordExpression cmp fs' (A.Rec kwr ei fs') t
+    checkRecordExpression cmp fs' (A.Rec kwr ei fs') t ConORecWhere
 
 ---------------------------------------------------------------------------
 -- * Literal
@@ -1280,7 +1281,7 @@ checkExpr' cmp e t =
                 v = unEl t'
             coerce cmp v (sort s) t
 
-        A.Rec _ _ fs  -> checkRecordExpression cmp fs e t
+        A.Rec _ _ fs  -> checkRecordExpression cmp fs e t ConORec
 
         A.RecUpdate kwr ei recexpr fs -> checkRecordUpdate cmp kwr ei recexpr fs e t
         A.RecWhere kwr ei decls fs    -> checkRecordWhere cmp kwr ei decls fs e t

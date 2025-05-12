@@ -1,13 +1,3 @@
-RecordWhere2.agda:5.7-7.12: warning: -W[no]TooManyFields
-The record type Σ does not have the field distraction but it would
-have the field proj₂
-when checking that the expression
-record where
-  distraction : _
-  distraction = 1
-  proj₃ : _
-  proj₃ = 2
-has type Nat × Nat
 RecordWhere2.agda:5.7-7.12: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   RecordWhere2.agda:5.7-7.12
