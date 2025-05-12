@@ -72,6 +72,7 @@ import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Syntax.Scope.Monad (freshAbstractName_)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -520,9 +521,10 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
     I.Con c ci es -> do
 
       -- If the origin is a record expression, print a record expression.
-      if ci == ConORec then recordExpression Nothing else do
-        isRecordConstructor x >>= \case
-
+      if
+        | ci == ConORec      -> recordExpression Nothing
+        | ci == ConORecWhere -> recordWhereExpr
+        | otherwise -> isRecordConstructor x >>= \case
           -- If it is a generated constructor, print a record expression.
           Just (r, def) | not (_recNamedCon def) -> recordExpression $ Just (r, def)
 
@@ -541,6 +543,23 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
             . zip (recordFieldNames def)
             . map unArg
             <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims es)
+
+        recordWhereExpr = do
+          (r, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordConstructor x
+          showImp <- showImplicitArguments
+          let
+            keep (a, _)    = showImp || visible a
+            fake (nm, exp) = do
+              qn <- freshName_ (unDom nm)
+              let decl = A.LetBind (LetRange noRange) (domInfo nm) (A.BindName qn) (A.Underscore emptyMetaInfo) exp
+              pure (decl, FieldAssignment (unDom nm) (A.Var qn))
+
+          -- The list of fake FieldAssignments tells AbstractToConcrete
+          -- to not pick disambiguators for the names we just invented.
+          fields <- filter keep . zip (recordFieldNames def) . map unArg <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims es)
+          (decl, assign) <- unzip <$> traverse fake fields
+
+          pure $ A.RecWhere empty noExprInfo decl assign
 
         constructorApplication = reifyDisplayForm x es $ do
           def <- getConstInfo x

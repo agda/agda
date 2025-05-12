@@ -988,8 +988,6 @@ instance ToAbstract C.Expr where
           ]
         return $ A.RecWhere kwr (ExprRange r) ds nms
 
-        -- error "TODO"
-
   -- Record update
       C.RecUpdate kwr r e fs -> do
         A.RecUpdate kwr (ExprRange r) <$> toAbstract e <*> toAbstractCtx TopCtx fs
@@ -1097,8 +1095,7 @@ recordWhereNames = finish <=< foldM decl st0 where
   def Nothing nm = pb (nameConcrete (qnameName nm)) (A.Def nm) (getRange nm)
 
   fromRenaming :: Maybe ScopeCopyInfo -> [A.Renaming] -> PendingBinds
-  fromRenaming ren fs
-    | (rens, _) <- partitionImportedNames (map renTo fs) = foldMap (def ren) rens
+  fromRenaming ren fs | (rens, _) <- partitionImportedNames (map renTo fs) = foldMap (def ren) rens
 
   fromImport :: Maybe ScopeCopyInfo -> A.ImportDirective -> ScopeM PendingBinds
   fromImport inv ImportDirective{ using = using, impRenaming = renaming } =
