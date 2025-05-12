@@ -95,6 +95,26 @@ module WithAccessorsInScope where
   eq₁₀ : pair₁₀ ≡ (5 , 4)
   eq₁₀ = refl
 
+  pair₁₁ : Nat × Nat
+  pair₁₁ = record where
+    p@(proj₂ , _) = pair₁₀
+    proj₁ = Σ.proj₂ p
+
+  eq₁₁ : pair₁₁ ≡ (4 , 5)
+  eq₁₁ = refl
+
+  pattern trip x y z = x , y , z
+
+  t : Nat × Nat × Nat
+  t = 5 , 6 , 7
+
+  pair₁₂ : Nat × Nat
+  pair₁₂ = record where
+    trip proj₂ _ proj₁ = t
+
+  eq₁₂ : pair₁₂ ≡ (7 , 5)
+  eq₁₂ = refl
+
 module WithoutAccessorsInScope where
   open import Common.Product hiding (proj₁; proj₂)
 
