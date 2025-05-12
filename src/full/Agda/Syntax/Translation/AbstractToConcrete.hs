@@ -970,6 +970,9 @@ instance ToConcrete A.Expr where
       bracket appBrackets $ do
         C.RecUpdate kwr (getRange i) <$> toConcrete e <*> toConcreteTop fs
 
+    toConcrete (A.RecWhere kwr i es _) = bracket appBrackets $
+      C.RecWhere kwr (getRange i) . concat . List1.toList <$> toConcrete es
+
     toConcrete (A.ScopedExpr _ e) = toConcrete e
     toConcrete (A.Quote i) = return $ C.Quote (getRange i)
     toConcrete (A.QuoteTerm i) = return $ C.QuoteTerm (getRange i)
