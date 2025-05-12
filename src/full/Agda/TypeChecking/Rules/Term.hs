@@ -1137,7 +1137,8 @@ checkRecordUpdate cmp ei recexpr fs eupd t = do
     postpone = postponeTypeCheckingProblem_ $ CheckExpr cmp eupd t
     should   = typeError $ ShouldBeRecordType t
 
--- | Check a @record where@ expression.
+-- | Check a @record where@ expression, pushing information about the
+-- type of the fields obtained from the context into the @let@-bindings.
 checkRecordWhere
   :: Comparison
   -> A.ExprInfo     -- ^ @ei@
@@ -1146,11 +1147,115 @@ checkRecordWhere
   -> A.Expr         -- ^ should be @A.RecWhere ei ds as@
   -> Type
   -> TCM Term
+
+{-
+The key problem with simply checking the let bindings and then
+checking a made-up record literal is implicit insertion. Consider:
+
+  record X : Set₁ where
+    field
+      it : {A : Set} → A → A
+  _ = record where it x = x
+
+Here we would first check `(λ x → x) : _0`, inventing a fresh meta
+for the type of `it`-qua-let-binding, solving `_0 := _1 → _1`
+because of the lambda, and then falling over when trying to unify
+`_1 → _1 =? ∀ {A} → A → A`. Indeed we also can not simply
+
+  _ = record where it : _0 ; it = ?
+
+since checking the record expression would produce something like
+record { it = λ {x} → ?0 }, where 'checkArgumentsE' has "helpfully"
+inserted implicit binders for the argument, and `x` is obviously not
+in scope in `_0`. But if we tell 'tryInsertHiddenLambda' to take a
+hike, we *can* learn the actual type of the record field by putting
+a meta there!
+
+So the strategy for pushing type information into the bindings is
+the following:
+
+  * For every field-defining LetBind, replace its body with a meta;
+    and set aside the actual expression to check later.
+
+  * Check the synthesised record{} expression, but under
+    reallyDontExpandLast.
+    If the *types* of field bindings were previously bare metas,
+    they will now be solved to the types of corresponding fields,
+    even if these have implicit arguments.
+
+  * Go back and re-check all the expressions we set aside at the
+    start.
+-}
 checkRecordWhere cmp ei decls fs e t = do
-  let fs' = map Left fs
-  -- TODO: use t to improve type inference in decls
-  checkLetBindings decls $
-    checkRecordExpression cmp fs' (A.Rec ei fs') t ConORecWhere
+  let fnames = [ x | FieldAssignment x _ <- fs ]
+  ifBlocked t (\ _ t -> guessRecordType cmp e fnames t) $ {-else-} \_ t -> do
+  caseMaybeM (isRecordType t) (typeError $ ShouldBeRecordType t) $ \ (r, _pars, defn) -> do
+
+    let
+      fs'   = map Left fs
+      recfs = Set.fromList . map unDom $ recordFieldNames defn
+      names = Set.fromList [ aname | FieldAssignment fname (A.Var aname) <- fs, fname `Set.member` recfs ]
+
+    reportSDoc "tc.record.where" 30 $ vcat
+      [ "checking `record where` at type" <+> pretty t
+      , "bound fields:" <+> pretty names
+      ]
+
+    let
+      check :: [A.LetBinding] -> ([(A.BindName, MetaId, A.Expr, Type -> TCM Term)] -> TCM a) -> TCM a
+      check (b@(A.LetBind i info x t e):bs) cont | A.unBind x `Set.member` names = do
+
+        -- We create the meta with the actual type of the binding, to
+        -- make sure that e.g. the user can choose to write a more
+        -- general signature than the record type demands.
+        t <- workOnTypes $ isType_ t
+
+        -- One minor quibble is that we should remember what let
+        -- bindings are actually in the context when the binding is
+        -- processed, and use *those*, rather than the full set of
+        -- `let`-bindings that would otherwise be available.
+        lets <- Map.keysSet <$> asksTC envLetBindings
+        let
+          restore = locallyTC eLetBindings (`Map.restrictKeys` lets)
+          -- Unlike 'checkLetBinding' which sometimes needs to
+          -- checkDontExpandLast, here we should always.
+          checkit t = restore $ applyModalityToContext info $ checkExpr' CmpLeq e t
+
+        (mv, v) <- applyModalityToContext info $ newValueMeta RunMetaOccursCheck CmpEq t
+
+        reportSDoc "tc.record.where" 30 $ "deferring field" <+> prettyA x <+> ":" <+> pretty t
+
+        -- Then just add the let binding with the value set to a meta.
+        lets `seq` addLetBinding info UserWritten (A.unBind x) v t $ check bs \as ->
+          cont ((x, mv, e, checkit):as)
+
+      -- For any other bindings we can check them on the spot (so the
+      -- hardest parts of 'checkLetBinding' don't need to be
+      -- duplicated.)
+      check (b:bs) cont = checkLetBinding b $ check bs cont
+      check [] cont = cont []
+
+    check decls \later -> do
+      -- Check the synthesised record expression, but make sure that
+      -- checkArguments won't try to do implicit insertion on us.
+      out <- reallyDontExpandLast $
+        checkRecordExpression cmp fs' (A.Rec ei fs') t ConORecWhere
+
+      -- Then we can go back and check the bindings. (The name and
+      -- expression are just for debug printing.)
+      forM_ later \(fname, mv, e, check) -> do
+        ty <- getMetaType mv
+
+        reportSDoc "tc.record.where" 30 $ vcat
+          [ "checking deferred `record where` binding for " <> prettyA fname <> ":"
+          , nest 2 $ vcat
+            [ prettyTCM mv <+> ":" <+> prettyTCM ty
+            , prettyTCM mv <+> "=" <+> prettyA e ] ]
+
+        v <- check ty
+        assign DirEq mv [] v (AsTermsOf ty)
+
+      pure out
 
 ---------------------------------------------------------------------------
 -- * Literal
