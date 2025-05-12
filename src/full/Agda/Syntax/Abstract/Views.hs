@@ -175,6 +175,7 @@ instance ExprLike Expr where
       Let ei bs e                -> Let ei <$> recurse bs <*> recurse e
       Rec kwr ei bs              -> Rec kwr ei <$> recurse bs
       RecUpdate kwr ei e bs      -> RecUpdate kwr ei <$> recurse e <*> recurse bs
+      RecWhere kwr ei bs e       -> RecWhere kwr ei <$> recurse bs <*> recurse e
       ScopedExpr sc e            -> ScopedExpr sc <$> recurse e
       Quote{}                    -> pure e0
       QuoteTerm{}                -> pure e0
@@ -207,6 +208,7 @@ instance ExprLike Expr where
       Let _ bs e             -> m `mappend` fold bs `mappend` fold e
       Rec _ _ as             -> m `mappend` fold as
       RecUpdate _ _ e as     -> m `mappend` fold e `mappend` fold as
+      RecWhere _ _ e as      -> m `mappend` fold e `mappend` fold as
       ScopedExpr _ e         -> m `mappend` fold e
       Quote{}                -> m
       QuoteTerm{}            -> m
@@ -242,6 +244,7 @@ instance ExprLike Expr where
       Let ei bs e                -> f =<< Let ei <$> trav bs <*> trav e
       Rec kwr ei bs              -> f =<< Rec kwr ei <$> trav bs
       RecUpdate kwr ei e bs      -> f =<< RecUpdate kwr ei <$> trav e <*> trav bs
+      RecWhere kwr ei e bs       -> f =<< RecWhere kwr ei <$> trav e <*> trav bs
       ScopedExpr sc e            -> f =<< ScopedExpr sc <$> trav e
       Quote{}                    -> f e
       QuoteTerm{}                -> f e

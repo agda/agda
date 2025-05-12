@@ -113,6 +113,9 @@ data Expr
       -- ^ Record construction.  The 'KwRange' is for the @record@ kewyword.
   | RecUpdate KwRange ExprInfo Expr Assigns
       -- ^ Record update.  The 'KwRange' is for the @record@ kewyword.
+  | RecWhere KwRange ExprInfo [LetBinding] Assigns
+    -- ^ @record where@ expression, the set of names is the set of names
+    -- that should become record fields. The 'KwRange' is for the @record@ keyword.
   | ScopedExpr ScopeInfo Expr          -- ^ Scope annotation.
   | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
@@ -681,6 +684,7 @@ instance HasRange Expr where
     getRange (Let i _ _)             = getRange i
     getRange (Rec _ i _)             = getRange i
     getRange (RecUpdate _ i _ _)     = getRange i
+    getRange (RecWhere _ i _ _)      = getRange i
     getRange (ScopedExpr _ e)        = getRange e
     getRange (Quote i)               = getRange i
     getRange (QuoteTerm i)           = getRange i
@@ -751,11 +755,11 @@ instance HasRange WhereDeclarations where
   getRange (WhereDecls _ _ ds) = getRange ds
 
 instance HasRange LetBinding where
-  getRange (LetBind i _ _ _ _)     = getRange i
-  getRange (LetAxiom i _ _ _)      = getRange i
-  getRange (LetPatBind  i _ _)     = getRange i
-  getRange (LetApply i _ _ _ _ _)  = getRange i
-  getRange (LetOpen  i _ _)        = getRange i
+  getRange (LetBind i _ _ _ _)    = getRange i
+  getRange (LetAxiom i _ _ _)     = getRange i
+  getRange (LetPatBind  i _ _)    = getRange i
+  getRange (LetApply i _ _ _ _ _) = getRange i
+  getRange (LetOpen  i _ _)       = getRange i
 
 -- setRange for patterns applies the range to the outermost pattern constructor
 instance SetRange (Pattern' a) where
@@ -814,6 +818,7 @@ instance KillRange Expr where
   killRange (Let i ds e)             = killRangeN Let i ds e
   killRange (Rec kwr i fs)           = killRangeN Rec kwr i fs
   killRange (RecUpdate kwr i e fs)   = killRangeN RecUpdate kwr i e fs
+  killRange (RecWhere kwr i e fs)    = killRangeN RecWhere kwr i e fs
   killRange (ScopedExpr s e)         = killRangeN (ScopedExpr s) e
   killRange (Quote i)                = killRangeN Quote i
   killRange (QuoteTerm i)            = killRangeN QuoteTerm i
@@ -1083,6 +1088,7 @@ instance SubstExpr Expr where
     Fun{}           -> __IMPOSSIBLE__
     Let{}           -> __IMPOSSIBLE__
     RecUpdate{}     -> __IMPOSSIBLE__
+    RecWhere{}      -> __IMPOSSIBLE__
     Quote{}         -> __IMPOSSIBLE__
     QuoteTerm{}     -> __IMPOSSIBLE__
     Unquote{}       -> __IMPOSSIBLE__

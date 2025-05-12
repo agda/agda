@@ -1149,6 +1149,7 @@ instance BlankVars A.Expr where
     A.Let _ _ _              -> __IMPOSSIBLE__
     A.Rec kwr i es           -> A.Rec kwr i $ blank bound es
     A.RecUpdate kwr i e es   -> uncurry (A.RecUpdate kwr i) $ blank bound (e, es)
+    A.RecWhere _ _ _ _       -> __IMPOSSIBLE__
     A.Quote {}               -> __IMPOSSIBLE__
     A.QuoteTerm {}           -> __IMPOSSIBLE__
     A.Unquote {}             -> __IMPOSSIBLE__

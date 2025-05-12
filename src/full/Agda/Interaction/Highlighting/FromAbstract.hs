@@ -268,6 +268,7 @@ instance Hilite A.Expr where
       A.Let _r bs e                 -> hl bs <> hl e
       A.Rec _kwr _r ass             -> hl ass
       A.RecUpdate _kwr _r e ass     -> hl e <> hl ass
+      A.RecWhere _kwr _r e ass      -> hl e
       A.ScopedExpr _ e              -> hl e
       A.Quote _r                    -> mempty
       A.QuoteTerm _r                -> mempty

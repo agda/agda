@@ -996,7 +996,8 @@ checkRecordExpression cmp mfs e@(A.Rec kwr _r _) t = do
     [ "checking record expression"
     , prettyA e
     ]
-  ifBlocked t (\ _ t -> guessRecordType t) {-else-} $ \ _ t -> do
+  let fields = [ x | Left (FieldAssignment x _) <- mfs ]
+  ifBlocked t (\ _ t -> guessRecordType cmp e fields t) {-else-} $ \ _ t -> do
   case unEl t of
     -- Case: We know the type of the record already.
     Def r es  -> do
@@ -1047,50 +1048,47 @@ checkRecordExpression cmp mfs e@(A.Rec kwr _r _) t = do
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
       return $ Con con ConORec (map Apply args)
     _ -> typeError $ ShouldBeRecordType t
-
-  where
-    -- Case: We don't know the type of the record.
-    guessRecordType t = do
-      let fields = [ x | Left (FieldAssignment x _) <- mfs ]
-      rs <- findPossibleRecords fields
-      reportSDoc "tc.term.rec" 30 $ "Possible records for" <+> prettyTCM t <+> "are" <?> pretty rs
-      case rs of
-          -- If there are no records with the right fields we might as well fail right away.
-        [] -> typeError $ NoKnownRecordWithSuchFields fields
-          -- If there's only one record with the appropriate fields, go with that.
-        [r] -> do
-          -- #5198: Don't generate metas for parameters of the current module. In most cases they
-          -- get solved, but not always.
-          def <- instantiateDef =<< getConstInfo r
-          ps  <- freeVarsToApply r
-          let rt = defType def
-          reportSDoc "tc.term.rec" 30 $ "Type of unique record" <+> prettyTCM rt
-          vs  <- newArgsMeta rt
-          target <- reduce $ piApply rt vs
-          s  <- case unEl target of
-                  Sort s  -> return s
-                  v       -> do
-                    reportSDoc "impossible" 10 $ vcat
-                      [ "The impossible happened when checking record expression against meta"
-                      , "Candidate record type r = " <+> prettyTCM r
-                      , "Type of r               = " <+> prettyTCM rt
-                      , "Ends in (should be sort)= " <+> prettyTCM v
-                      , text $ "  Raw                   =  " ++ show v
-                      ]
-                    __IMPOSSIBLE__
-          let inferred = El s $ Def r $ map Apply (ps ++ vs)
-          v <- checkExpr e inferred
-          coerce cmp v inferred t
-
-          -- If there are more than one possible record we postpone
-        _:_:_ -> do
-          reportSDoc "tc.term.expr.rec" 10 $ sep
-            [ "Postponing type checking of"
-            , nest 2 $ prettyA e <+> ":" <+> prettyTCM t
-            ]
-          postponeTypeCheckingProblem_ $ CheckExpr cmp e t
-
 checkRecordExpression _ _ _ _ = __IMPOSSIBLE__
+
+guessRecordType :: Comparison -> A.Expr -> [C.Name] -> Type -> TCM Term
+guessRecordType cmp e fields t = do
+  rs <- findPossibleRecords fields
+  reportSDoc "tc.term.rec" 30 $ "Possible records for" <+> prettyTCM t <+> "are" <?> pretty rs
+  case rs of
+      -- If there are no records with the right fields we might as well fail right away.
+    [] -> typeError $ NoKnownRecordWithSuchFields fields
+      -- If there's only one record with the appropriate fields, go with that.
+    [r] -> do
+      -- #5198: Don't generate metas for parameters of the current module. In most cases they
+      -- get solved, but not always.
+      def <- instantiateDef =<< getConstInfo r
+      ps  <- freeVarsToApply r
+      let rt = defType def
+      reportSDoc "tc.term.rec" 30 $ "Type of unique record" <+> prettyTCM rt
+      vs  <- newArgsMeta rt
+      target <- reduce $ piApply rt vs
+      s  <- case unEl target of
+        Sort s  -> return s
+        v       -> do
+          reportSDoc "impossible" 10 $ vcat
+            [ "The impossible happened when checking record expression against meta"
+            , "Candidate record type r = " <+> prettyTCM r
+            , "Type of r               = " <+> prettyTCM rt
+            , "Ends in (should be sort)= " <+> prettyTCM v
+            , text $ "  Raw                   =  " ++ show v
+            ]
+          __IMPOSSIBLE__
+      let inferred = El s $ Def r $ map Apply (ps ++ vs)
+      v <- checkExpr e inferred
+      coerce cmp v inferred t
+
+      -- If there are more than one possible record we postpone
+    _:_:_ -> do
+      reportSDoc "tc.term.expr.rec" 10 $ sep
+        [ "Postponing type checking of"
+        , nest 2 $ prettyA e <+> ":" <+> prettyTCM t
+        ]
+      postponeTypeCheckingProblem_ $ CheckExpr cmp e t
 
 -- | @checkRecordUpdate cmp ei recexpr fs e t@
 --
@@ -1147,6 +1145,22 @@ checkRecordUpdate cmp kwr ei recexpr fs eupd t = do
 
     postpone = postponeTypeCheckingProblem_ $ CheckExpr cmp eupd t
     should   = typeError $ ShouldBeRecordType t
+
+-- | Check a @record where@ expression.
+checkRecordWhere
+  :: Comparison
+  -> KwRange
+  -> A.ExprInfo     -- ^ @ei@
+  -> [A.LetBinding] -- ^ @ds@
+  -> A.Assigns      -- ^ @as@
+  -> A.Expr         -- ^ should be @A.RecWhere ei ds as@
+  -> Type
+  -> TCM Term
+checkRecordWhere cmp kwr ei decls fs e t = do
+  let fs' = map Left fs
+  -- TODO: use t to improve type inference in decls
+  checkLetBindings decls $
+    checkRecordExpression cmp fs' (A.Rec kwr ei fs') t
 
 ---------------------------------------------------------------------------
 -- * Literal
@@ -1269,6 +1283,7 @@ checkExpr' cmp e t =
         A.Rec _ _ fs  -> checkRecordExpression cmp fs e t
 
         A.RecUpdate kwr ei recexpr fs -> checkRecordUpdate cmp kwr ei recexpr fs e t
+        A.RecWhere kwr ei decls fs    -> checkRecordWhere cmp kwr ei decls fs e t
 
         A.DontCare e -> do
           rel <- viewTC eRelevance

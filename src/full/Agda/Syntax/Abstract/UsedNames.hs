@@ -1,6 +1,7 @@
 
 module Agda.Syntax.Abstract.UsedNames
   ( allUsedNames
+  , allBoundNames
   ) where
 
 import Data.Foldable (foldMap)
@@ -21,6 +22,9 @@ import Agda.Utils.Impossible
 --   the @n@.
 allUsedNames :: Expr -> Set Name
 allUsedNames = usedNames . boundAndUsed
+
+allBoundNames :: BoundAndUsed a => a -> Set Name
+allBoundNames = boundNames . boundAndUsed
 
 data BoundAndUsedNames = BoundAndUsedNames
   { boundNames :: Set Name
@@ -102,6 +106,7 @@ instance BoundAndUsed Expr where
     Let _ binds expr       -> boundAndUsed (binds, expr)
     Rec _ _ as             -> boundAndUsed as
     RecUpdate _ _ expr as  -> boundAndUsed expr <> boundAndUsed as
+    RecWhere _ _ bnd expr  -> boundAndUsed (bnd, expr)
     ScopedExpr _ expr      -> boundAndUsed expr
     Quote{}                -> mempty
     QuoteTerm{}            -> mempty
