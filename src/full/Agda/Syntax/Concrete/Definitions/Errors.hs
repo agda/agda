@@ -245,7 +245,7 @@ unsafeDeclarationWarning' = \case
   InvalidTerminationCheckPragma{}   -> False
   InvalidCoverageCheckPragma{}      -> False
   MissingDataDeclaration{}          -> True  -- not safe
-  MissingDefinitions{}              -> True  -- not safe
+  MissingDefinitions{}              -> False -- not safe but deferred until after typechecking
   NotAllowedInMutual{}              -> False -- really safe?
   OpenImportPrivate{}               -> False
   OpenImportAbstract{}              -> False

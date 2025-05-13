@@ -200,15 +200,15 @@ replaceSigs ps = if Map.null ps then id else \case
       FunSig r acc abst inst _ argi _ _ x' e ->
         -- #4881: Don't use the unique NameId for NoName lookups.
         let x = if isNoName x' then noName (nameRange x') else x' in
-        Just (x, Axiom r acc abst inst argi x' e)
+        Just (x, Axiom r acc abst inst (setOrigin Inserted argi) x' e)
       NiceRecSig r erased acc abst _ _ x pars t ->
         let e = Generalized $ makePi (lamBindingsToTelescope r pars) t in
         Just (x, Axiom r acc abst NotInstanceDef
-                   (setQuantity (asQuantity erased) defaultArgInfo) x e)
+                   (setOrigin Inserted (setQuantity (asQuantity erased) defaultArgInfo)) x e)
       NiceDataSig r erased acc abst _ _ x pars t ->
         let e = Generalized $ makePi (lamBindingsToTelescope r pars) t in
         Just (x, Axiom r acc abst NotInstanceDef
-                   (setQuantity (asQuantity erased) defaultArgInfo) x e)
+                   (setOrigin Inserted (setQuantity (asQuantity erased) defaultArgInfo)) x e)
       _ -> Nothing
 
 -- | Main. Fixities (or more precisely syntax declarations) are needed when

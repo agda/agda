@@ -1,0 +1,7 @@
+MissingDefinitionsDeferred.agda:3.1-7.13: error: [MissingDefinitions]
+The following names are declared but not accompanied by a
+definition: A, B, C
+
+MissingDefinitionsDeferred.agda:10.5-8: error: [UnequalSorts]
+Set₁ != Set
+when checking that the expression Set has type Set
