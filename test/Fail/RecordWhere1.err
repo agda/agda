@@ -1,4 +1,0 @@
-RecordWhere1.agda:6,7-7,9
-Syntax error: 'open' in 'record where' expressions must provide a
-'using' clause
-when scope checking record where open M

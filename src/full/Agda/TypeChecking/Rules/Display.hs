@@ -139,25 +139,26 @@ exprToTerm e =
     A.PatternSyn f   -> pure $ Def (headAmbQ f) []
     A.Macro f        -> pure $ Def f []
 
-    A.WithApp{}      -> fail "with application"
-    A.QuestionMark{} -> fail "hole"
-    A.Underscore{}   -> fail "metavariable"
-    A.Dot{}          -> fail "dotted expression"
-    A.Lam{}          -> fail "lambda"
-    A.AbsurdLam{}    -> fail "lambda"
-    A.ExtendedLam{}  -> fail "lambda"
-    A.Fun{}          -> fail "function type"
-    A.Pi{}           -> fail "function type"
-    A.Generalized{}  -> __IMPOSSIBLE__
-    A.Let{}          -> fail "let"
-    A.Rec{}          -> fail "record"
-    A.RecUpdate{}    -> fail "record update"
-    A.RecWhere{}     -> fail "record where"
-    A.ScopedExpr{}   -> __IMPOSSIBLE__
-    A.Quote{}        -> fail "quotation"
-    A.QuoteTerm{}    -> fail "quotation"
-    A.Unquote{}      -> fail "unquote"
-    A.DontCare{}     -> __IMPOSSIBLE__
+    A.WithApp{}        -> fail "with application"
+    A.QuestionMark{}   -> fail "hole"
+    A.Underscore{}     -> fail "metavariable"
+    A.Dot{}            -> fail "dotted expression"
+    A.Lam{}            -> fail "lambda"
+    A.AbsurdLam{}      -> fail "lambda"
+    A.ExtendedLam{}    -> fail "lambda"
+    A.Fun{}            -> fail "function type"
+    A.Pi{}             -> fail "function type"
+    A.Generalized{}    -> __IMPOSSIBLE__
+    A.Let{}            -> fail "let"
+    A.Rec{}            -> fail "record"
+    A.RecUpdate{}      -> fail "record update"
+    A.RecWhere{}       -> fail "record where"
+    A.RecUpdateWhere{} -> fail "record update"
+    A.ScopedExpr{}     -> __IMPOSSIBLE__
+    A.Quote{}          -> fail "quotation"
+    A.QuoteTerm{}      -> fail "quotation"
+    A.Unquote{}        -> fail "unquote"
+    A.DontCare{}       -> __IMPOSSIBLE__
   where
     fail = throwError . ("its right-hand side contains a " ++)
 
