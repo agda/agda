@@ -1782,6 +1782,9 @@ data PrincipalArgTypeMetas = PrincipalArgTypeMetas
   }
   deriving Generic
 
+instance AllMetas PrincipalArgTypeMetas where
+  allMetas f (PrincipalArgTypeMetas vs ty) = allMetas f (vs,ty)
+
 data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
   | CheckArgs Comparison ExpandHidden A.Expr [NamedArg A.Expr] Type Type (ArgsCheckState CheckedTarget -> TCM Term)

@@ -414,12 +414,12 @@ constraintMetas = \case
     -- #5147: Don't count metas in the type of a constraint. For instance the constraint u = v : t
     -- should not stop us from generalize metas in t, since we could never solve those metas based
     -- on that constraint alone.
-      ValueCmp _ _ u v         -> return $ allMetas Set.singleton (u, v)
-      ValueCmpOnFace _ p _ u v -> return $ allMetas Set.singleton (p, u, v)
-      ElimCmp _ _ _ _ es es'   -> return $ allMetas Set.singleton (es, es')
-      LevelCmp _ l l'          -> return $ allMetas Set.singleton (Level l, Level l')
-      UnquoteTactic t h g      -> return $ allMetas Set.singleton (t, h, g)
-      SortCmp _ s1 s2          -> return $ allMetas Set.singleton (Sort s1, Sort s2)
+      ValueCmp _ _ u v         -> gatherMetas (u, v)
+      ValueCmpOnFace _ p _ u v -> gatherMetas (p, u, v)
+      ElimCmp _ _ _ _ es es'   -> gatherMetas (es, es')
+      LevelCmp _ l l'          -> gatherMetas (Level l, Level l')
+      UnquoteTactic t h g      -> gatherMetas (t, h, g)
+      SortCmp _ s1 s2          -> gatherMetas (Sort s1, Sort s2)
       UnBlock x                -> Set.insert x . Set.unions <$> (mapM listenerMetas =<< getMetaListeners x)
       FindInstance x _         ->
         -- #5093: We should not generalize over metas bound by instance constraints.
@@ -434,13 +434,32 @@ constraintMetas = \case
       HasPTSRule{}             -> return mempty
       CheckDataSort{}          -> return mempty
       CheckMetaInst x          -> return mempty
-      CheckType t              -> return $ allMetas Set.singleton t
-      CheckLockedVars a b c d  -> return $ allMetas Set.singleton (a, b, c, d)
+      CheckType t              -> gatherMetas t
+      CheckLockedVars a b c d  -> gatherMetas (a, b, c, d)
       UsableAtModality{}       -> return mempty
   where
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty
     listenerMetas (CheckConstraint _ c) = constraintMetas (clValue $ theConstraint c)
+
+    gatherMetas :: AllMetas t => t -> TCM (Set MetaId)
+    gatherMetas = allMetas makeSingle
+
+    makeSingle :: MetaId -> TCM (Set MetaId)
+    makeSingle m = lookupMetaInstantiation m >>= \case
+      InstV i -> gatherMetas $ instBody i
+      OpenMeta _ -> return $ Set.singleton m
+      BlockedConst t -> Set.insert m <$> gatherMetas t
+      PostponedTypeCheckingProblem clos -> tcProblemMetas $ clValue clos
+
+    tcProblemMetas :: TypeCheckingProblem -> TCM (Set MetaId)
+    tcProblemMetas = \case
+      CheckExpr _ _ ty -> gatherMetas ty
+      CheckArgs _ _ _ _ ty1 ty2 _ -> gatherMetas (ty1, ty2)
+      CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ ty1 _ u ty2 patm -> gatherMetas (u, ty1, ty2, patm)
+      CheckLambda _ (Arg { unArg = (_ , mty)}) _ ty -> gatherMetas (mty, ty)
+      DisambiguateConstructor cdd _ -> gatherMetas $ bcdType cdd
+      DoQuoteTerm _ u ty -> gatherMetas (u, ty)
 
 -- | Create 'MetaInfo' in the current environment.
 createMetaInfo :: (MonadTCEnv m, ReadTCState m) => m MetaInfo
