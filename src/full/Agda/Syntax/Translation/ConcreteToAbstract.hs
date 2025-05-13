@@ -989,6 +989,13 @@ instance ToAbstract C.Expr where
           ]
         return $ A.RecWhere (ExprRange r) ds nms
 
+      C.RecUpdateWhere r e [] -> toAbstract e
+      C.RecUpdateWhere r e (d0:ds0) -> do
+        e <- toAbstract e
+        localToAbstract (LetDefs RecordWhereLetDef (d0 :| ds0)) $ \ds -> do
+          nms <- recordWhereNames ds
+          return $ A.RecUpdateWhere (ExprRange r) e ds nms
+
   -- Record update
       C.RecUpdate r e fs -> do
         A.RecUpdate (ExprRange r) <$> toAbstract e <*> toAbstractCtx TopCtx fs

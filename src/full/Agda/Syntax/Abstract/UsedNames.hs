@@ -85,33 +85,34 @@ instance (BoundAndUsed a, BoundAndUsed b) => BoundAndUsed (a, b) where
 
 instance BoundAndUsed Expr where
   boundAndUsed = noBindings . \ case
-    Var x                  -> singleUse x
-    Def'{}                 -> mempty
-    Proj{}                 -> mempty
-    Con{}                  -> mempty
-    PatternSyn{}           -> mempty
-    Macro{}                -> mempty
-    Lit{}                  -> mempty
-    QuestionMark{}         -> mempty
-    Underscore{}           -> mempty
-    Dot _ expr             -> boundAndUsed expr
-    App _ expr arg         -> boundAndUsed (expr, arg)
-    WithApp _ expr exprs   -> boundAndUsed (expr, exprs)
-    Lam _ bind expr        -> boundAndUsed (bind, expr)
-    AbsurdLam{}            -> mempty
-    ExtendedLam _ _ _ _ cs -> boundAndUsed cs
-    Pi _ tel expr          -> boundAndUsed (tel, expr)
-    Generalized _ expr     -> boundAndUsed expr
-    Fun _ arg expr         -> boundAndUsed (arg, expr)
-    Let _ binds expr       -> boundAndUsed (binds, expr)
-    RecWhere _ binds expr  -> boundAndUsed (binds, expr)
-    Rec _ as               -> boundAndUsed as
-    RecUpdate _ expr as    -> boundAndUsed expr <> boundAndUsed as
-    ScopedExpr _ expr      -> boundAndUsed expr
-    Quote{}                -> mempty
-    QuoteTerm{}            -> mempty
-    Unquote{}              -> mempty
-    DontCare expr          -> boundAndUsed expr
+    Var x                   -> singleUse x
+    Def'{}                  -> mempty
+    Proj{}                  -> mempty
+    Con{}                   -> mempty
+    PatternSyn{}            -> mempty
+    Macro{}                 -> mempty
+    Lit{}                   -> mempty
+    QuestionMark{}          -> mempty
+    Underscore{}            -> mempty
+    Dot _ expr              -> boundAndUsed expr
+    App _ expr arg          -> boundAndUsed (expr, arg)
+    WithApp _ expr exprs    -> boundAndUsed (expr, exprs)
+    Lam _ bind expr         -> boundAndUsed (bind, expr)
+    AbsurdLam{}             -> mempty
+    ExtendedLam _ _ _ _ cs  -> boundAndUsed cs
+    Pi _ tel expr           -> boundAndUsed (tel, expr)
+    Generalized _ expr      -> boundAndUsed expr
+    Fun _ arg expr          -> boundAndUsed (arg, expr)
+    Let _ binds expr        -> boundAndUsed (binds, expr)
+    RecWhere _ bs _         -> boundAndUsed bs
+    RecUpdateWhere _ e bs _ -> boundAndUsed (e, bs)
+    Rec _ as                -> boundAndUsed as
+    RecUpdate _ expr as     -> boundAndUsed expr <> boundAndUsed as
+    ScopedExpr _ expr       -> boundAndUsed expr
+    Quote{}                 -> mempty
+    QuoteTerm{}             -> mempty
+    Unquote{}               -> mempty
+    DontCare expr           -> boundAndUsed expr
 
 instance BoundAndUsed lhs => BoundAndUsed (Clause' lhs) where
   -- Note: where declarations are ignored. We use this only on expressions coming from

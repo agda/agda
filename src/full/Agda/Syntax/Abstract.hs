@@ -111,6 +111,9 @@ data Expr
   | RecWhere ExprInfo [LetBinding] Assigns
     -- ^ @record where@ expression, the set of names is the set of names
     -- that should become record fields.
+  | RecUpdateWhere ExprInfo Expr [LetBinding] Assigns
+    -- ^ @record where@ expression, the set of names is the set of names
+    -- that should become record fields.
   | ScopedExpr ScopeInfo Expr          -- ^ Scope annotation.
   | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
@@ -660,33 +663,34 @@ instance HasRange TypedBinding where
     getRange (TLet r _)    = r
 
 instance HasRange Expr where
-    getRange (Var x)                 = getRange x
-    getRange (Def' x _)              = getRange x
-    getRange (Proj _ x)              = getRange x
-    getRange (Con x)                 = getRange x
-    getRange (Lit i _)               = getRange i
-    getRange (QuestionMark i _)      = getRange i
-    getRange (Underscore  i)         = getRange i
-    getRange (Dot i _)               = getRange i
-    getRange (App i _ _)             = getRange i
-    getRange (WithApp i _ _)         = getRange i
-    getRange (Lam i _ _)             = getRange i
-    getRange (AbsurdLam i _)         = getRange i
-    getRange (ExtendedLam i _ _ _ _) = getRange i
-    getRange (Pi i _ _)              = getRange i
-    getRange (Generalized _ x)       = getRange x
-    getRange (Fun i _ _)             = getRange i
-    getRange (Let i _ _)             = getRange i
-    getRange (Rec i _)               = getRange i
-    getRange (RecUpdate i _ _)       = getRange i
-    getRange (RecWhere i _ _)        = getRange i
-    getRange (ScopedExpr _ e)        = getRange e
-    getRange (Quote i)               = getRange i
-    getRange (QuoteTerm i)           = getRange i
-    getRange (Unquote i)             = getRange i
-    getRange (DontCare{})            = noRange
-    getRange (PatternSyn x)          = getRange x
-    getRange (Macro x)               = getRange x
+    getRange (Var x)                  = getRange x
+    getRange (Def' x _)               = getRange x
+    getRange (Proj _ x)               = getRange x
+    getRange (Con x)                  = getRange x
+    getRange (Lit i _)                = getRange i
+    getRange (QuestionMark i _)       = getRange i
+    getRange (Underscore  i)          = getRange i
+    getRange (Dot i _)                = getRange i
+    getRange (App i _ _)              = getRange i
+    getRange (WithApp i _ _)          = getRange i
+    getRange (Lam i _ _)              = getRange i
+    getRange (AbsurdLam i _)          = getRange i
+    getRange (ExtendedLam i _ _ _ _)  = getRange i
+    getRange (Pi i _ _)               = getRange i
+    getRange (Generalized _ x)        = getRange x
+    getRange (Fun i _ _)              = getRange i
+    getRange (Let i _ _)              = getRange i
+    getRange (Rec i _)                = getRange i
+    getRange (RecUpdate i _ _)        = getRange i
+    getRange (RecWhere i _ _)         = getRange i
+    getRange (RecUpdateWhere i _ _ _) = getRange i
+    getRange (ScopedExpr _ e)         = getRange e
+    getRange (Quote i)                = getRange i
+    getRange (QuoteTerm i)            = getRange i
+    getRange (Unquote i)              = getRange i
+    getRange (DontCare{})             = noRange
+    getRange (PatternSyn x)           = getRange x
+    getRange (Macro x)                = getRange x
 
 instance HasRange Declaration where
     getRange (Axiom    _ i _ _ _ _  )  = getRange i
@@ -794,33 +798,34 @@ instance KillRange TypedBinding where
   killRange (TLet r lbs)     = killRangeN TLet r lbs
 
 instance KillRange Expr where
-  killRange (Var x)                  = killRangeN Var x
-  killRange (Def' x v)               = killRangeN Def' x v
-  killRange (Proj o x)               = killRangeN (Proj o) x
-  killRange (Con x)                  = killRangeN Con x
-  killRange (Lit i l)                = killRangeN Lit i l
-  killRange (QuestionMark i ii)      = killRangeN QuestionMark i ii
-  killRange (Underscore  i)          = killRangeN Underscore i
-  killRange (Dot i e)                = killRangeN Dot i e
-  killRange (App i e1 e2)            = killRangeN App i e1 e2
-  killRange (WithApp i e es)         = killRangeN WithApp i e es
-  killRange (Lam i b e)              = killRangeN Lam i b e
-  killRange (AbsurdLam i h)          = killRangeN AbsurdLam i h
-  killRange (ExtendedLam i n e d ps) = killRangeN ExtendedLam i n e d ps
-  killRange (Pi i a b)               = killRangeN Pi i a b
-  killRange (Generalized s x)        = killRangeN (Generalized s) x
-  killRange (Fun i a b)              = killRangeN Fun i a b
-  killRange (Let i ds e)             = killRangeN Let i ds e
-  killRange (Rec i fs)               = killRangeN Rec i fs
-  killRange (RecUpdate i e fs)       = killRangeN RecUpdate i e fs
-  killRange (RecWhere i e fs)        = killRangeN RecWhere i e fs
-  killRange (ScopedExpr s e)         = killRangeN (ScopedExpr s) e
-  killRange (Quote i)                = killRangeN Quote i
-  killRange (QuoteTerm i)            = killRangeN QuoteTerm i
-  killRange (Unquote i)              = killRangeN Unquote i
-  killRange (DontCare e)             = killRangeN DontCare e
-  killRange (PatternSyn x)           = killRangeN PatternSyn x
-  killRange (Macro x)                = killRangeN Macro x
+  killRange (Var x)                    = killRangeN Var x
+  killRange (Def' x v)                 = killRangeN Def' x v
+  killRange (Proj o x)                 = killRangeN (Proj o) x
+  killRange (Con x)                    = killRangeN Con x
+  killRange (Lit i l)                  = killRangeN Lit i l
+  killRange (QuestionMark i ii)        = killRangeN QuestionMark i ii
+  killRange (Underscore  i)            = killRangeN Underscore i
+  killRange (Dot i e)                  = killRangeN Dot i e
+  killRange (App i e1 e2)              = killRangeN App i e1 e2
+  killRange (WithApp i e es)           = killRangeN WithApp i e es
+  killRange (Lam i b e)                = killRangeN Lam i b e
+  killRange (AbsurdLam i h)            = killRangeN AbsurdLam i h
+  killRange (ExtendedLam i n e d ps)   = killRangeN ExtendedLam i n e d ps
+  killRange (Pi i a b)                 = killRangeN Pi i a b
+  killRange (Generalized s x)          = killRangeN (Generalized s) x
+  killRange (Fun i a b)                = killRangeN Fun i a b
+  killRange (Let i ds e)               = killRangeN Let i ds e
+  killRange (Rec i fs)                 = killRangeN Rec i fs
+  killRange (RecUpdate i e fs)         = killRangeN RecUpdate i e fs
+  killRange (RecWhere i e fs)          = killRangeN RecWhere i e fs
+  killRange (RecUpdateWhere i e ds fs) = killRangeN RecUpdateWhere i e ds fs
+  killRange (ScopedExpr s e)           = killRangeN (ScopedExpr s) e
+  killRange (Quote i)                  = killRangeN Quote i
+  killRange (QuoteTerm i)              = killRangeN QuoteTerm i
+  killRange (Unquote i)                = killRangeN Unquote i
+  killRange (DontCare e)               = killRangeN DontCare e
+  killRange (PatternSyn x)             = killRangeN PatternSyn x
+  killRange (Macro x)                  = killRangeN Macro x
 
 instance KillRange Suffix where
   killRange = id
@@ -1072,23 +1077,24 @@ instance SubstExpr Expr where
     Rec  i nes      -> Rec i (substExpr s nes)
     ScopedExpr si e -> ScopedExpr si (substExpr s e)
     -- The below cannot appear in pattern synonym right-hand sides
-    QuestionMark{}  -> __IMPOSSIBLE__
-    Dot{}           -> __IMPOSSIBLE__
-    WithApp{}       -> __IMPOSSIBLE__
-    Lam{}           -> __IMPOSSIBLE__
-    AbsurdLam{}     -> __IMPOSSIBLE__
-    ExtendedLam{}   -> __IMPOSSIBLE__
-    Pi{}            -> __IMPOSSIBLE__
-    Generalized{}   -> __IMPOSSIBLE__
-    Fun{}           -> __IMPOSSIBLE__
-    Let{}           -> __IMPOSSIBLE__
-    RecUpdate{}     -> __IMPOSSIBLE__
-    RecWhere{}      -> __IMPOSSIBLE__
-    Quote{}         -> __IMPOSSIBLE__
-    QuoteTerm{}     -> __IMPOSSIBLE__
-    Unquote{}       -> __IMPOSSIBLE__
-    DontCare{}      -> __IMPOSSIBLE__
-    Macro{}         -> __IMPOSSIBLE__
+    QuestionMark{}   -> __IMPOSSIBLE__
+    Dot{}            -> __IMPOSSIBLE__
+    WithApp{}        -> __IMPOSSIBLE__
+    Lam{}            -> __IMPOSSIBLE__
+    AbsurdLam{}      -> __IMPOSSIBLE__
+    ExtendedLam{}    -> __IMPOSSIBLE__
+    Pi{}             -> __IMPOSSIBLE__
+    Generalized{}    -> __IMPOSSIBLE__
+    Fun{}            -> __IMPOSSIBLE__
+    Let{}            -> __IMPOSSIBLE__
+    RecUpdate{}      -> __IMPOSSIBLE__
+    RecUpdateWhere{} -> __IMPOSSIBLE__
+    RecWhere{}       -> __IMPOSSIBLE__
+    Quote{}          -> __IMPOSSIBLE__
+    QuoteTerm{}      -> __IMPOSSIBLE__
+    Unquote{}        -> __IMPOSSIBLE__
+    DontCare{}       -> __IMPOSSIBLE__
+    Macro{}          -> __IMPOSSIBLE__
 
 -- TODO: more informative failure
 insertImplicitPatSynArgs :: forall a. HasRange a

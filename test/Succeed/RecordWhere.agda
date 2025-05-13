@@ -115,6 +115,15 @@ module WithAccessorsInScope where
   eq₁₂ : pair₁₂ ≡ (7 , 5)
   eq₁₂ = refl
 
+  -- Record update
+  pair₁₃ : Nat × Nat
+  pair₁₃ = record pair₁₂ where
+    n = 4
+    proj₂ = n * n
+
+  eq₁₃ : pair₁₃ ≡ (7 , 16)
+  eq₁₃ = refl
+
 module WithoutAccessorsInScope where
   open import Common.Product hiding (proj₁; proj₂)
 

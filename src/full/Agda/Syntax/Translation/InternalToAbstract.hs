@@ -1103,6 +1103,9 @@ instance BlankVars a => BlankVars (FieldAssignment' a)
 instance (BlankVars a, BlankVars b) => BlankVars (a, b) where
   blank bound (x, y) = (blank bound x, blank bound y)
 
+instance (BlankVars a, BlankVars b, BlankVars c) => BlankVars (a, b, c) where
+  blank bound (x, y, z) = (blank bound x, blank bound y, blank bound z)
+
 instance (BlankVars a, BlankVars b) => BlankVars (Either a b) where
   blank bound (Left x)  = Left $ blank bound x
   blank bound (Right y) = Right $ blank bound y
@@ -1168,6 +1171,7 @@ instance BlankVars A.Expr where
     A.Let _ _ _              -> __IMPOSSIBLE__
     A.Rec i es               -> A.Rec i $ blank bound es
     A.RecUpdate i e es       -> uncurry (A.RecUpdate i) $ blank bound (e, es)
+    A.RecUpdateWhere{}       -> __IMPOSSIBLE__
     A.RecWhere _ _ _         -> __IMPOSSIBLE__
     A.Quote {}               -> __IMPOSSIBLE__
     A.QuoteTerm {}           -> __IMPOSSIBLE__
