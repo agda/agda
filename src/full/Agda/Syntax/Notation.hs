@@ -121,13 +121,13 @@ mkNotation _ [] = throwError "empty notation is disallowed"
 mkNotation holes ids = do
   unless uniqueHoleNames     $ throwError "syntax must use unique argument names"
   let xs :: Notation = map mkPart ids
+  unless (isExprLinear xs)   $ throwError "syntax must use holes exactly once"
+  unless (isLambdaLinear xs) $ throwError "syntax must use binding holes exactly once"
   unless (noAdjacentHoles xs)  $ throwError $ concat
      [ "syntax must not contain adjacent holes ("
      , prettyHoles
      , ")"
      ]
-  unless (isExprLinear xs)   $ throwError "syntax must use holes exactly once"
-  unless (isLambdaLinear xs) $ throwError "syntax must use binding holes exactly once"
   -- Andreas, 2018-10-18, issue #3285:
   -- syntax that is just a single hole is ill-formed and crashes the operator parser
   when   (isSingleHole xs)   $ throwError "syntax cannot be a single hole"
