@@ -1,0 +1,2 @@
+Issue7878.agda:3.28: error: [ParseError]
+Malformed syntax declaration: syntax must use holes exactly once
