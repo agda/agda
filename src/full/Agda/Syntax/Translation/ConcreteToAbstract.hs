@@ -1723,9 +1723,12 @@ instance ToAbstract NiceDeclaration where
     C.Axiom r p a i rel x t -> do
       (y, decl) <- toAbstractNiceAxiom AxiomName d
       -- check that we do not postulate in --safe mode, unless it is a
-      -- builtin module with safe postulates
-      whenM ((Lens.getSafeMode <$> commandLineOptions) `and2M`
-             (not <$> (isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< asksTC envCurrentPath)))
+      -- builtin module with safe postulates, or the axiom is generated
+      -- from a lone signature
+      whenM (andM [ Lens.getSafeMode <$> commandLineOptions
+                  , not <$> (isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< asksTC envCurrentPath)
+                  , pure $ getOrigin rel /= Inserted
+                  ])
             (warning $ SafeFlagPostulate y)
       -- check the postulate
       return $ singleton decl
