@@ -998,8 +998,10 @@ checkRecordExpression cmp mfs e@(A.Rec kwr _r _) t origin = do
     [ "checking record expression"
     , prettyA e
     ]
-  let fields = [ x | Left (FieldAssignment x _) <- mfs ]
-  ifBlocked t (\ _ t -> guessRecordType cmp e fields t) {-else-} $ \ _ t -> do
+  let
+    resume = postponeTypeCheckingProblem_ $ CheckExpr cmp e t
+    fields = [ x | Left (FieldAssignment x _) <- mfs ]
+  ifBlocked t (\ _ t -> guessRecordType resume cmp e fields t) {-else-} $ \ _ t -> do
   case unEl t of
     -- Case: We know the type of the record already.
     Def r es  -> do
@@ -1052,8 +1054,8 @@ checkRecordExpression cmp mfs e@(A.Rec kwr _r _) t origin = do
     _ -> typeError $ ShouldBeRecordType t
 checkRecordExpression _ _ _ _ _ = __IMPOSSIBLE__
 
-guessRecordType :: Comparison -> A.Expr -> [C.Name] -> Type -> TCM Term
-guessRecordType cmp e fields t = do
+guessRecordType :: TCM Term -> Comparison -> A.Expr -> [C.Name] -> Type -> TCM Term
+guessRecordType resume cmp e fields t = do
   rs <- findPossibleRecords fields
   reportSDoc "tc.term.rec" 30 $ "Possible records for" <+> prettyTCM t <+> "are" <?> pretty rs
   case rs of
@@ -1090,7 +1092,7 @@ guessRecordType cmp e fields t = do
         [ "Postponing type checking of"
         , nest 2 $ prettyA e <+> ":" <+> prettyTCM t
         ]
-      postponeTypeCheckingProblem_ $ CheckExpr cmp e t
+      resume
 
 -- | @checkRecordUpdate cmp ei recexpr fs e t@
 --
@@ -1154,9 +1156,10 @@ checkRecordWhere
   :: Comparison
   -> KwRange
   -> A.ExprInfo     -- ^ @ei@
+  -> Maybe A.Expr   -- ^ are we updating?
   -> [A.LetBinding] -- ^ @ds@
   -> A.Assigns      -- ^ @as@
-  -> A.Expr         -- ^ should be @A.RecWhere ei ds as@
+  -> A.Expr         -- ^ the overall expression (for resumption)
   -> Type
   -> TCM Term
 
@@ -1198,14 +1201,27 @@ the following:
   * Go back and actually check all the expressions we set aside at the
     start, solving the metas that we invented.
 -}
-checkRecordWhere cmp kwr ei decls fs e t = do
-  let fnames = [ x | FieldAssignment x _ <- fs ]
-  ifBlocked t (\ _ t -> guessRecordType cmp e fnames t) $ {-else-} \_ t -> do
-  caseMaybeM (isRecordType t) (typeError $ ShouldBeRecordType t) $ \ (r, _pars, defn) -> do
+checkRecordWhere cmp kwr ei update decls fs e t = do
+  let
+    fnames  = [ x | FieldAssignment x _ <- fs ]
 
+    postpone = postponeTypeCheckingProblem_ $ CheckExpr cmp e t
+    tryinfer
+      | Just e0 <- update = do
+        (_, trec) <- inferExpr e0
+        ifBlocked trec (\ _ _ -> postpone) \_ _ -> do
+          v <- checkExpr' cmp e trec
+          coerce cmp v trec t
+      | otherwise = postpone
+
+    findtype cont = ifBlocked t (\_ t -> guessRecordType tryinfer cmp e fnames t) \_ t -> do
+      caseMaybeM (isRecordType t) (typeError $ ShouldBeRecordType t) cont
+
+  findtype \ (r, _pars, defn) -> do
     let
-      fs'   = map Left fs
-      recfs = Map.fromList . flip zip [0..] . map unDom $ recordFieldNames defn
+      ei    = A.ExprRange (getRange e)
+      cxs   = map unDom $ recordFieldNames defn
+      recfs = Map.fromList $ zip cxs [0..]
       names = Map.fromList
         [ (aname, (idx, fname))
         | FieldAssignment fname (A.Var aname) <- fs
@@ -1251,7 +1267,30 @@ checkRecordWhere cmp kwr ei decls fs e t = do
       check (b:bs) cont = checkLetBinding b $ check bs cont
       check [] cont = cont mempty
 
-    check decls \later -> do
+      -- Compute the actual synthesised field assignments we'll be
+      -- using, handling record updates along the way. If there's no
+      -- update, then the fields are just the ones that the user wrote;
+      checkUpdate cont = case update of
+        Nothing -> cont (map Left fs)
+        Just exp0 -> do
+          -- Otherwise, we check the original record value against the
+          -- expected type, and use it to fill in any field assignments
+          -- that were not given by the user.
+          v    <- checkExpr' cmp exp0 t
+          name <- freshNoName $ getRange exp0
+
+          let
+            here_keys = Set.fromList fnames
+            proj n = A.App (A.defaultAppInfo $ getRange ei) (A.Proj ProjSystem $ unambiguous n) (defaultNamedArg (A.Var name))
+            fs' =
+              [ Left (FieldAssignment fname (proj pname))
+              | (fname, Dom{unDom = pname}) <- zip cxs (_recFields defn)
+              , fname `Set.notMember` here_keys
+              ]
+
+          addLetBinding defaultArgInfo Inserted name v t $ cont (fs' ++ map Left fs)
+
+    check decls \later -> checkUpdate \fs' -> do
       -- Check the synthesised record expression, but make sure that
       -- checkArguments won't try to do implicit insertion on us.
       out <- reallyDontExpandLast $
@@ -1394,7 +1433,9 @@ checkExpr' cmp e t =
         A.Rec _ _ fs  -> checkRecordExpression cmp fs e t ConORec
 
         A.RecUpdate kwr ei recexpr fs -> checkRecordUpdate cmp kwr ei recexpr fs e t
-        A.RecWhere kwr ei decls fs    -> checkRecordWhere cmp kwr ei decls fs e t
+
+        A.RecWhere kwr ei decls fs           -> checkRecordWhere cmp kwr ei Nothing decls fs e t
+        A.RecUpdateWhere kwr ei exp decls fs -> checkRecordWhere cmp kwr ei (Just exp) decls fs e t
 
         A.DontCare e -> do
           rel <- viewTC eRelevance
