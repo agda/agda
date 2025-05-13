@@ -449,8 +449,14 @@ constraintMetas = \case
     makeSingle m = lookupMetaInstantiation m >>= \case
       InstV i -> gatherMetas $ instBody i
       OpenMeta _ -> return $ Set.singleton m
-      BlockedConst t -> Set.insert m <$> gatherMetas t
-      PostponedTypeCheckingProblem clos -> tcProblemMetas $ clValue clos
+      BlockedConst t ->
+        -- Jesper, 2025-05-13: We should really look into the
+        -- (blocked) solution here but doing so triggers a
+        -- regression in the standard library that I'm too tired
+        -- to deal with (see test/Succeed/Issue7876b.agda).
+        -- Set.insert m <$> gatherMetas t
+        return $ Set.singleton m
+      PostponedTypeCheckingProblem clos -> Set.insert m <$> tcProblemMetas (clValue clos)
 
     tcProblemMetas :: TypeCheckingProblem -> TCM (Set MetaId)
     tcProblemMetas = \case
