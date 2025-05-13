@@ -21,10 +21,10 @@ syntax=$(shell find Agda/Syntax $(find_filter) )
 typechecking=$(shell find Agda/TypeChecking $(find_filter) )
 termination=$(shell find Agda/Termination $(find_filter) )
 interaction=$(shell find Agda/Interaction $(find_filter) )
-agsy=$(shell find Agda/Auto $(find_filter) )
+mimer=$(shell find Agda/Mimer $(find_filter) )
 compiler=$(shell find Agda/Compiler $(find_filter) )
 
-locs : loc_utils loc_syntax loc_lexparse loc_typechecking loc_termination loc_interaction loc_agsy loc_compiler
+locs : loc_utils loc_syntax loc_lexparse loc_typechecking loc_termination loc_interaction loc_mimer loc_compiler
 
 loc_utils :
 	@echo "========================================================================"
@@ -101,9 +101,9 @@ tags : $(src_files) have-bin-$(hs-tags) $(hs-tags_include)
 TAGS : $(src_files) have-bin-$(hs-tags) $(hs-tags_include)
 	$(hs-tags) $(hs-tags_flags) -e $(src_files)
 
-# Andreas: create tags for everything exept Auto and Compilers
-# ignore = $(patsubst ./%,%,$(shell find ./Agda/Auto ./Agda/Compiler -name '*.hs' -o -name '*.lhs'))
-ignore = $(shell find ./Agda/Auto ./Agda/Compiler/JS ./Agda/Packaging -name '*.hs' -o -name '*.lhs')
+# Andreas: create tags for everything except Compilers
+# ignore = $(patsubst ./%,%,$(shell find ./Agda/Compiler -name '*.hs' -o -name '*.lhs'))
+ignore = $(shell find ./Agda/Compiler/JS ./Agda/Packaging -name '*.hs' -o -name '*.lhs')
 hs_boot = $(shell find . -name '*.hs-boot')
 tag_files = $(filter-out $(hs_boot),$(filter-out $(ignore),$(src_files)))
 
