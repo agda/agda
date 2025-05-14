@@ -1083,6 +1083,20 @@ Search depth and instances
 
      Default: ``--qualified-instances``.
 
+.. option:: --experimental-lazy-instances, --no-experimental-lazy-instances
+
+     .. versionadded:: 2.8.0
+
+     Opt into the experimental, faster implementation of instance
+     search. This is presently optional since it may potentially
+     introduce regressions in code which relies on the order of
+     constraint solving.
+
+     Default: ``--no-experimental-lazy-instances``.
+
+     The ``--experimental-lazy-instances`` behaviour will be made the
+     default and this flag will be removed in the future.
+
 
 Other features
 ~~~~~~~~~~~~~~
