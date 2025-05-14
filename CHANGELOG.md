@@ -88,6 +88,18 @@ Pragmas and options
   As a consequence, only `Irrelevant Empty` is displayed as `⊥`, not just any
   `Irrelevant A`.
 
+* A new **experimental** flag `--experimental-lazy-instances` causes
+  instance selection to be deferred until the type of the instance
+  constraint is determined enough to make an unamibiguous decision at
+  the discrimination tree level. This significantly improves performance
+  for cases where instances can be distinguished by rigid data.
+
+  This flag will become the default in the future, but it is currently
+  **disabled by default** because it has unexpected interactions with
+  parts of the codebase (and macros) which rely on constraint solving
+  order (see e.g. [issue #7882](https://github.com/agda/agda/issues/7883)
+  and [issue #7847](https://github.com/agda/agda/issues/7847)).
+
 Warnings
 --------
 

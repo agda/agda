@@ -222,6 +222,8 @@ data PragmaOptions = PragmaOptions
       -- constructors.
   , _optForcedArgumentRecursion   :: WithDefault 'True
       -- ^ Allow recursion on forced constructor arguments.
+  , _optExperimentalLazyInstances :: WithDefault 'False
+      -- ^ Defer instance search based on discrimination tree results
   }
   deriving (Show, Eq, Generic)
 

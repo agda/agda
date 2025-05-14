@@ -8,6 +8,7 @@ module Agda.TypeChecking.InstanceArguments
   , solveAwakeInstanceConstraints
   , shouldPostponeInstanceSearch
   , postponeInstanceConstraints
+  , flushInstanceConstraints
   , getInstanceCandidates
   , getInstanceDefs
   , OutputTypeName(..)
@@ -28,7 +29,7 @@ import Data.Function (on)
 import Data.Monoid hiding ((<>))
 import Data.Foldable (toList, foldrM)
 
-import Agda.Interaction.Options (optQualifiedInstances)
+import Agda.Interaction.Options (optQualifiedInstances, lensOptExperimentalLazyInstances)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (isQualified)
@@ -64,6 +65,7 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 
 import qualified Agda.Utils.ProfileOptions as Profile
 -- import qualified Agda.Utils.HashTable as HashTable
+import Agda.Utils.WithDefault (lensCollapseDefault)
 import Agda.Utils.Impossible
 -- import Agda.Utils.HashTable (HashTable)
 
@@ -186,14 +188,16 @@ initialInstanceCandidates blockOverlap instTy = do
     shouldBlockOverlap bs cands = do
       recursive <- useTC stConsideringInstance
       hack <- useTC stInstanceHack
+      enabled <- useTC (stPragmaOptions . lensOptExperimentalLazyInstances . lensCollapseDefault)
 
       mutual <- caseMaybeM (asksTC envMutualBlock) (pure mempty) \mb ->
         mutualNames <$> lookupMutualBlock mb
 
       pure $! and
-        [ blockOverlap
+        [ blockOverlap, enabled
           -- For the getInstances reflection primitive, we don't want
           -- to block on overlap, so that the user can do their thing.
+          -- Also disable it depending on the pragma option.
 
         , not (Set.null (allBlockingMetas bs))
           -- Don't block if there's no metas to block on
@@ -1009,6 +1013,9 @@ solveAwakeInstanceConstraints =
 postponeInstanceConstraints :: TCM a -> TCM a
 postponeInstanceConstraints m =
   locallyTCState stPostponeInstanceSearch (const True) m <* wakeupInstanceConstraints
+
+flushInstanceConstraints :: TCM ()
+flushInstanceConstraints = locallyTCState stInstanceHack (const True) $ wakeupInstanceConstraints
 
 -- | To preserve the invariant that a constructor is not applied to its
 --   parameter arguments, we explicitly check whether function term
