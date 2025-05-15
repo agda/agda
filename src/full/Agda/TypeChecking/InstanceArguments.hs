@@ -8,6 +8,7 @@ module Agda.TypeChecking.InstanceArguments
   , solveAwakeInstanceConstraints
   , shouldPostponeInstanceSearch
   , postponeInstanceConstraints
+  , flushInstanceConstraints
   , getInstanceCandidates
   , getInstanceDefs
   , OutputTypeName(..)
@@ -28,7 +29,7 @@ import Data.Function (on)
 import Data.Monoid hiding ((<>))
 import Data.Foldable (toList, foldrM)
 
-import Agda.Interaction.Options (optQualifiedInstances)
+import Agda.Interaction.Options (optQualifiedInstances, lensOptExperimentalLazyInstances)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (isQualified)
@@ -59,11 +60,13 @@ import Agda.TypeChecking.Monad.Benchmark (billTo)
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Syntax.Common.Pretty (prettyShow)
 
 import qualified Agda.Utils.ProfileOptions as Profile
 -- import qualified Agda.Utils.HashTable as HashTable
+import Agda.Utils.WithDefault (lensCollapseDefault)
 import Agda.Utils.Impossible
 -- import Agda.Utils.HashTable (HashTable)
 
@@ -184,27 +187,31 @@ initialInstanceCandidates blockOverlap instTy = do
     -- discrimination tree stage.
     shouldBlockOverlap :: Blocker -> Set.Set QName -> TCM Bool
     shouldBlockOverlap bs cands = do
-      recursive <- useTC stConsideringInstance
-      hack <- useTC stInstanceHack
+      let
+        recursive = useTC stConsideringInstance
+        hack      = useTC stInstanceHack
+        enabled   = useTC (stPragmaOptions . lensOptExperimentalLazyInstances . lensCollapseDefault)
+        mutual    = caseMaybeM (asksTC envMutualBlock) (pure mempty) \ mb ->
+          mutualNames <$> lookupMutualBlock mb
 
-      mutual <- caseMaybeM (asksTC envMutualBlock) (pure mempty) \mb ->
-        mutualNames <$> lookupMutualBlock mb
-
-      pure $! and
-        [ blockOverlap
+      andM
+        [ pure blockOverlap
           -- For the getInstances reflection primitive, we don't want
           -- to block on overlap, so that the user can do their thing.
 
-        , not (Set.null (allBlockingMetas bs))
+        , enabled
+          -- Also disable it depending on the pragma option.
+
+        , pure $ not $ Set.null $ allBlockingMetas bs
           -- Don't block if there's no metas to block on
 
-        , length cands > 1
+        , pure $ natSize cands > 1
           -- It's possible that the discrimination tree forced a
           -- metavariable even if there's exactly one candidate. In this
           -- case, we should not block, because this instance constraint
           -- might be the only thing that can solve the blocking metas.
 
-        , not hack
+        , not <$> hack
           -- To support 'inert improvement' (see ImproveInertRHS), we
           -- try all the candidates even if the discrimination tree
           -- thinks that there will be overlap. This is because it's
@@ -219,7 +226,7 @@ initialInstanceCandidates blockOverlap instTy = do
           -- the candidates, we'll see that 'Foo T' is the only possible
           -- candidate, thus solving both constraints.
 
-        , Set.disjoint mutual cands
+        , mutual <&> (`Set.disjoint` cands)
           -- Work around for #7186: the result of termination checking
           -- depends on whether we solve instance metas eagerly or late.
           -- Consider
@@ -236,7 +243,7 @@ initialInstanceCandidates blockOverlap instTy = do
           -- 'show' projection does not eagerly unfold, and the
           -- termination check explodes.
 
-        , not recursive
+        , not <$> recursive
           -- Blocking instance selection *on a meta* while considering
           -- an instance causes the recursive instance constraint to
           -- get repeatedly woken up. Not good for performance.
@@ -1009,6 +1016,9 @@ solveAwakeInstanceConstraints =
 postponeInstanceConstraints :: TCM a -> TCM a
 postponeInstanceConstraints m =
   locallyTCState stPostponeInstanceSearch (const True) m <* wakeupInstanceConstraints
+
+flushInstanceConstraints :: TCM ()
+flushInstanceConstraints = locallyTCState stInstanceHack (const True) $ wakeupInstanceConstraints
 
 -- | To preserve the invariant that a constructor is not applied to its
 --   parameter arguments, we explicitly check whether function term

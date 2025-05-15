@@ -65,6 +65,7 @@ module Agda.Interaction.Options.Base
     , lensOptUniversePolymorphism
     , lensOptIrrelevantProjections
     , lensOptExperimentalIrrelevance
+    , lensOptExperimentalLazyInstances
     , lensOptWithoutK
     , lensOptCubicalCompatible
     , lensOptCopatterns
@@ -649,6 +650,9 @@ lensOptLargeIndices f o = f (_optLargeIndices o) <&> \ i -> o{ _optLargeIndices 
 lensOptForcedArgumentRecursion :: Lens' PragmaOptions _
 lensOptForcedArgumentRecursion f o = f (_optForcedArgumentRecursion o) <&> \ i -> o{ _optForcedArgumentRecursion = i }
 
+lensOptExperimentalLazyInstances :: Lens' PragmaOptions _
+lensOptExperimentalLazyInstances f o = f (_optExperimentalLazyInstances o) <&> \ i -> o{ _optExperimentalLazyInstances = i }
+
 
 -- | Map a function over the long options. Also removes the short options.
 --   Will be used to add the plugin name to the plugin options.
@@ -737,7 +741,7 @@ defaultPragmaOptions = PragmaOptions
   , _optKeepPatternVariables      = Default
   , _optInferAbsurdClauses        = Default
   , _optInstanceSearchDepth       = 500
-  , _optBacktrackingInstances      = Default
+  , _optBacktrackingInstances     = Default
   , _optQualifiedInstances        = Default
   , _optInversionMaxDepth         = 50
   , _optSafe                      = Default
@@ -763,6 +767,7 @@ defaultPragmaOptions = PragmaOptions
   , _optKeepCoveringClauses       = Default
   , _optForcedArgumentRecursion   = Default
   , _optLargeIndices              = Default
+  , _optExperimentalLazyInstances = Default
   }
 
 -- | The options parse monad 'OptM' collects warnings that are not discarded
@@ -1687,6 +1692,9 @@ pragmaOptions = concat
                     $ Just "always check that constructor arguments live in universes compatible with that of the datatype"
   , pragmaFlag      "forced-argument-recursion" lensOptForcedArgumentRecursion
                     "allow recursion on forced constructor arguments" ""
+                    Nothing
+  , pragmaFlag      "experimental-lazy-instances" lensOptExperimentalLazyInstances
+                    "enable experimental, faster implementation of instance search" ""
                     Nothing
   ]
 

@@ -1177,6 +1177,10 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   let reds = SmallSet.fromList [ProjectionReductions]
   delta1 <- modifyAllowedReductions (const reds) $ normalise delta1
 
+  -- Amy, 2025-05-14: (InstanceHack) we have to flush instances that may
+  -- come from previous clauses, see #7882.
+  flushInstanceConstraints
+
   -- Generate the type of the with function
   (withFunType, (nwithargs, nwithpats)) <- do
     let ps = renaming impossible (reverseP perm') `applySubst` qs
