@@ -161,6 +161,11 @@ Literate Forester
 Files ending in :file:`.lagda.tree` are interpreted as literate
 Forester_ files. Literate forester use ```\agda{...}``` for code blocks.
 
+* You will need postprocessor agdaTree_ to convert `html/*.tree` to valid forester tree.
+  * `agda --html --html-highlight=code example.lagda.tree` will produce a file `html/example.tree`
+  * run `agda-tree build` at where `html/` located, this will produce `trees/` at the directory
+  * add produced `trees/` to `forest.toml`
+
 .. code-block:: text
 
    \p{This line is ordinary text, which is ignored by Agda.}
@@ -186,5 +191,6 @@ Forester_ files. Literate forester use ```\agda{...}``` for code blocks.
 .. _Forester: https://sr.ht/~jonsterling/forester/
 
 .. _lhs2TeX: https://www.andres-loeh.de/lhs2tex/
+.. _agdaTree: https://github.com/dannypsnl/agda-tree
 .. _Sphinx: http://www.sphinx-doc.org/en/stable/
 .. _Pandoc: https://pandoc.org/

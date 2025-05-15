@@ -162,7 +162,7 @@ Syntax
 
 Additions to the Agda syntax.
 
-* Add new literate agda: forester, see [#7403](https://github.com/agda/agda/pull/7403)
+* Add new literate agda: forester, see [#7403](https://github.com/agda/agda/pull/7403). You will need postprocessor `agda-tree`, view document to get more information.
 
 * It is now always possible to refer to the name of a record type's
   constructor, even if a name was not explicitly specified. This is done
