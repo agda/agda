@@ -60,6 +60,7 @@ import Agda.TypeChecking.Monad.Benchmark (billTo)
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Syntax.Common.Pretty (prettyShow)
 
@@ -186,29 +187,31 @@ initialInstanceCandidates blockOverlap instTy = do
     -- discrimination tree stage.
     shouldBlockOverlap :: Blocker -> Set.Set QName -> TCM Bool
     shouldBlockOverlap bs cands = do
-      recursive <- useTC stConsideringInstance
-      hack <- useTC stInstanceHack
-      enabled <- useTC (stPragmaOptions . lensOptExperimentalLazyInstances . lensCollapseDefault)
+      let
+        recursive = useTC stConsideringInstance
+        hack      = useTC stInstanceHack
+        enabled   = useTC (stPragmaOptions . lensOptExperimentalLazyInstances . lensCollapseDefault)
+        mutual    = caseMaybeM (asksTC envMutualBlock) (pure mempty) \ mb ->
+          mutualNames <$> lookupMutualBlock mb
 
-      mutual <- caseMaybeM (asksTC envMutualBlock) (pure mempty) \mb ->
-        mutualNames <$> lookupMutualBlock mb
-
-      pure $! and
-        [ blockOverlap, enabled
+      andM
+        [ pure blockOverlap
           -- For the getInstances reflection primitive, we don't want
           -- to block on overlap, so that the user can do their thing.
+
+        , enabled
           -- Also disable it depending on the pragma option.
 
-        , not (Set.null (allBlockingMetas bs))
+        , pure $ not $ Set.null $ allBlockingMetas bs
           -- Don't block if there's no metas to block on
 
-        , length cands > 1
+        , pure $ natSize cands > 1
           -- It's possible that the discrimination tree forced a
           -- metavariable even if there's exactly one candidate. In this
           -- case, we should not block, because this instance constraint
           -- might be the only thing that can solve the blocking metas.
 
-        , not hack
+        , not <$> hack
           -- To support 'inert improvement' (see ImproveInertRHS), we
           -- try all the candidates even if the discrimination tree
           -- thinks that there will be overlap. This is because it's
@@ -223,7 +226,7 @@ initialInstanceCandidates blockOverlap instTy = do
           -- the candidates, we'll see that 'Foo T' is the only possible
           -- candidate, thus solving both constraints.
 
-        , Set.disjoint mutual cands
+        , mutual <&> (`Set.disjoint` cands)
           -- Work around for #7186: the result of termination checking
           -- depends on whether we solve instance metas eagerly or late.
           -- Consider
@@ -240,7 +243,7 @@ initialInstanceCandidates blockOverlap instTy = do
           -- 'show' projection does not eagerly unfold, and the
           -- termination check explodes.
 
-        , not recursive
+        , not <$> recursive
           -- Blocking instance selection *on a meta* while considering
           -- an instance causes the recursive instance constraint to
           -- get repeatedly woken up. Not good for performance.
