@@ -166,6 +166,7 @@ Forester_ files. Literate forester use ```\agda{...}``` for code blocks.
   * ``agda --html --html-highlight=code example.lagda.tree`` will produce the file ``html/example.tree``.
   * Run ``agda-tree build`` at where ``html/`` is located, this will produce subdirectory ``trees/`` there.
   * Add ``trees/`` to ``forest.toml``.
+  * Add ``html/`` to ``forest.toml`` as assets.
 
 .. code-block:: text
 
