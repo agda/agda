@@ -167,6 +167,7 @@ Forester_ files. Literate forester use ```\agda{...}``` for code blocks.
   * Run ``agda-tree build`` at where ``html/`` is located, this will produce subdirectory ``trees/`` there.
   * Add ``trees/`` to ``forest.toml``.
   * Add ``html/`` to ``forest.toml`` as assets.
+  * Modify ``theme/tree.xsl`` of your forester project, add ``Agda.css``
 
 .. code-block:: text
 
