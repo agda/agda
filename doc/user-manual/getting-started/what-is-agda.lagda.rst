@@ -21,7 +21,7 @@ programming logic group at Chalmers. Other languages in this tradition are
 `Agda 1 <https://sourceforge.net/projects/agda/>`_,
 `Cayenne <https://en.wikipedia.org/wiki/Cayenne_(programming_language)>`_.
 Some other loosely related languages are
-`Coq <https://coq.inria.fr/>`_,
+`Rocq <https://rocq-prover.org/>`_ (formerly known as Coq),
 `Epigram <http://www.e-pig.org/>`_,
 `Idris <https://idris-lang.org/>`_, and
 `Lean <https://leanprover.github.io/>`_.

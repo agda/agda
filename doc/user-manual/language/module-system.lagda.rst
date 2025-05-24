@@ -169,7 +169,11 @@ Parameterised modules
 ---------------------
 So far, the module system features discussed have dealt solely with scope manipulation. We now turn our attention to some more advanced features.
 
-It is sometimes useful to be able to work temporarily in a given signature. For instance, when defining functions for sorting lists it is convenient to assume a set of list elements ``A`` and an ordering over ``A``. In Coq this can be done in two ways: using a functor, which is essentially a function between modules, or using a section. A section allows you to abstract some arguments from several definitions at once. We introduce parameterised modules analogous to sections in Coq. When declaring a module you can give a :ref:`telescope<telescopes>` of module parameters which are abstracted from all the definitions in the module. For instance, a simple implementation of a sorting function looks like this:
+When declaring a module you can give a :ref:`telescope<telescopes>` of module parameters which are abstracted from all the definitions in the module.
+This allows us to temporarily work in a given signature.
+
+For instance, when defining functions for sorting lists it is convenient to assume a set of list elements ``A`` and an ordering over ``A``.
+Thus, a simple implementation of a sorting function looks like this:
 ::
 
   module Sort (A : Set)(_≤_ : A → A → Bool) where
@@ -192,7 +196,9 @@ As mentioned parametrising a module has the effect of abstracting the parameters
   Sort.sort   : (A : Set)(_≤_ : A → A → Bool) →
                  List A → List A
 
-For function definitions, explicit module parameter become explicit arguments to the abstracted function, and implicit parameters become implicit arguments. For constructors, however, the parameters are always implicit arguments. This is a consequence of the fact that module parameters are turned into datatype parameters, and the datatype parameters are implicit arguments to the constructors. It also happens to be the reasonable thing to do.
+For function definitions, explicit module parameter become explicit arguments to the abstracted function, and implicit parameters become implicit arguments.
+For constructors, however, the parameters are always implicit arguments.
+This is a consequence of the fact that module parameters are turned into datatype parameters, and the datatype parameters are implicit arguments to the constructors.
 
 
 .. _module-application:
@@ -200,13 +206,14 @@ For function definitions, explicit module parameter become explicit arguments to
 Module application
 ~~~~~~~~~~~~~~~~~~
 
-Something which you cannot do in Coq is to apply a section to its arguments. We allow this through the module application statement. In our example:
+Parameterized modules can be instantiated via the module application statement.
+Continuing our example,
 
 .. code-block:: agda
 
   module SortNat = Sort Nat leqNat
 
-This will define a new module SortNat as follows
+This will define a new module SortNat as follows:
 
 .. code-block:: agda
 
@@ -217,19 +224,21 @@ This will define a new module SortNat as follows
     sort : List Nat → List Nat
     sort = Sort.sort Nat leqNat
 
-The new module can also be parameterised, and you can use name modifiers to control what definitions from the original module are applied and what names they have in the new module. The general form of a module application is
+The new module can also be parameterised, and you can use name modifiers to control what definitions from the original module are applied and what names they have in the new module.
+The general form of a module application is:
 
 .. code-block:: agda
 
   module M1 Δ = M2 terms modifiers
 
-A common pattern is to apply a module to its arguments and then open the resulting module. To simplify this we introduce the short-hand
+A common pattern is to apply a module to its arguments and then open the resulting module.
+To simplify this we introduce the short-hand
 
 .. code-block:: agda
 
   open module M1 Δ = M2 terms [public] mods
 
-for
+for:
 
 .. code-block:: agda
 
