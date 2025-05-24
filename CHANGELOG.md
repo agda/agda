@@ -388,6 +388,8 @@ Issues for closed for milestone 2.8.0
 - [Issue #7853](https://github.com/agda/agda/issues/7853): Subject reduction failure with instance constructors in parameterised modules
 - [Issue #7856](https://github.com/agda/agda/issues/7856): Strange interaction between `opaque` and extended lambdas
 - [Issue #7863](https://github.com/agda/agda/issues/7863): Internal error when calling MakeCase on target `__`
+- [Issue #7878](https://github.com/agda/agda/issues/7878): Impossible with malformed notation RHS
+- [Issue #7884](https://github.com/agda/agda/issues/7884): Better documentation of forester backend in CHANGELOG
 
 PRs for closed for milestone 2.8.0
 - [PR #6629](https://github.com/agda/agda/issues/6629): Reflection primitive for parsing surface level syntax from string.
@@ -546,3 +548,7 @@ PRs for closed for milestone 2.8.0
 - [PR #7860](https://github.com/agda/agda/issues/7860): [ re #7587 ] Properly reintroduce absurd lambdas to Mimer
 - [PR #7865](https://github.com/agda/agda/issues/7865): Fix #7863: properly parse names before case-splitting
 - [PR #7867](https://github.com/agda/agda/issues/7867): Fix #7832 by placing properlyMatching in monad to have isEtaRecordConstructor
+- [PR #7879](https://github.com/agda/agda/issues/7879): Fix #7878: reorder checks in `mkNotation`
+- [PR #7880](https://github.com/agda/agda/issues/7880): Defer `MissingDefinitions` error in `--safe` until after typechecking
+- [PR #7885](https://github.com/agda/agda/issues/7885): disable discrim-based instance deferral by default
+- [PR #7886](https://github.com/agda/agda/issues/7886): [doc] explain how to do postprocessing for literate forester
