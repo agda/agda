@@ -119,6 +119,9 @@ CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
 ##############################################################################
 ## Installation (via stack if stack.yaml is present)
 
+.PHONY: default
+default: install-bin
+
 .PHONY: install ## Install Agda with standard flags, compile and setup Emacs mode
 install:
 ifdef HAS_STACK
