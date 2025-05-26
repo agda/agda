@@ -171,14 +171,22 @@ isType_ e = traceCall (IsType_ e) $ do
       -- The meta was created in a context of length @n@.
       let n  = length . envContext . clEnv . miClosRange . mvInfo $ mv
       (vs, rest) <- splitAt n <$> getContextArgs
+
+      let oldCxtNames = map nameCanonical $ contextNames' $ envContext
+                      $ clEnv $ miClosRange $ mvInfo $ mv
+
+      newCxtNames <- map nameCanonical <$> getContextNames'
+
       reportSDoc "tc.ip" 20 $ vcat
         [ "  s0   = " <+> prettyTCM s0
         , "  vs   = " <+> prettyTCM vs
         , "  rest = " <+> prettyTCM rest
+        , "  oldCxtNames = " <+> prettyTCM oldCxtNames
+        , "  newCxtNames = " <+> prettyTCM newCxtNames
         ]
       -- We assume the meta variable use here is in an extension of the original context.
       -- If not we revert to the old buggy behavior of #707 (see test/Succeed/Issue2257b).
-      if (length vs /= n) then fallback else do
+      if (not $ List.isPrefixOf oldCxtNames newCxtNames) then fallback else do
       s1  <- reduce =<< piApplyM s0 vs
       reportSDoc "tc.ip" 20 $ vcat
         [ "  s1   = " <+> prettyTCM s1

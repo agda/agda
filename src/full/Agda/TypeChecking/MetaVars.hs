@@ -441,6 +441,8 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
     -- with substitutions to move between parent and child.
     let gxs  = contextNames' gamma
     let dxs  = contextNames' delta
+    let gys  = map nameCanonical gxs
+    let dys  = map nameCanonical dxs
     let glen = length gxs
     let dlen = length dxs
     reportSDoc "tc.interaction" 20 $ vcat
@@ -458,7 +460,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
       -- Case: no record variable in the context.
       -- Test whether Δ is an extension of Γ.
       Nothing -> do
-        unless (gxs `List.isSuffixOf` dxs) $ do
+        unless (gys `List.isSuffixOf` dys) $ do
           reportSDoc "impossible" 10 $ vcat
             [ "expecting meta-creation context"
             , nest 2 $ pretty gxs
@@ -481,10 +483,8 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
         let g0len = length dxs - k - 1
         -- Find out the Δ₂ and Γ₁ parts.
         -- However, as they do not share common ancestry, the @nameId@s differ,
-        -- so we consider only the original concrete names.
+        -- so we consider only the original concrete names in gys and dys.
         -- This is a bit risky... blame goes to #434.
-        let gys = map nameCanonical gxs
-        let dys = map nameCanonical dxs
         let (d2len, g1len) = findOverlap (take k dys) gys
         reportSDoc "tc.interaction" 30 $ vcat $ map (nest 2)
           [ "glen  =" <+> pretty glen
