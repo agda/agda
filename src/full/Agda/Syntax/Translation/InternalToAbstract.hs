@@ -1132,6 +1132,7 @@ instance BlankVars A.Expr where
     A.Def' _ _               -> e
     A.Proj{}                 -> e
     A.Con _                  -> e
+    A.Defs _                 -> e
     A.Lit _ _                -> e
     A.QuestionMark{}         -> e
     A.Underscore _           -> e

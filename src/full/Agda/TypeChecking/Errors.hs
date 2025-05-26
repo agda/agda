@@ -1391,6 +1391,7 @@ instance PrettyTCM TypeError where
             FieldName (a :| _) -> (prettyTCM a, "a projection")
             ConstructorName _ (a :| _) -> (prettyTCM a, "a constructor")
             PatternSynResName (a :| _) -> (prettyTCM a, "a pattern synonym")
+            OverloadedNames   (a :| _) -> (prettyTCM a, "an overloaded name")
         in fsep $ pwords "Only record types have constructor names, but" ++ [qn, "is"] ++ pwords (whatis <> ".")
 
     NonFatalErrors ws -> vsep $ fmap prettyTCM $ Set1.toAscList ws

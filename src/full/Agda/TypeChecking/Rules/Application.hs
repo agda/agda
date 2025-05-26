@@ -248,6 +248,17 @@ checkApplication cmp hd args e t =
           ExtendTel dom . Abs "x" <$>
             addContext ("x" :: String, dom) (metaTel args)
 
+    A.Defs ds | Just d <- getUnambiguous ds ->
+      checkHeadApplication cmp e t (A.Def d) args
+
+    A.Defs ds -> do
+      reportSDoc "tc.term.app" 30 $ vcat
+        [ "checkApplication: overloaded"
+        , "ds   =" <+> pretty ds
+        , "args =" <+> prettyA args
+        ]
+      checkOverloadedApplication cmp e t (unAmbQ ds) (A.Defs ds) args
+
     -- Subcase: defined symbol or variable.
     _ -> do
       v <- checkHeadApplication cmp e t hd args
@@ -1458,7 +1469,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
     Nothing -> uncurry PrincipalArgTypeMetas <$> implicitArgs (-1) (not . visible) ta
   let v = v0 `apply` vargs
   ifBlocked ta (\ m _ -> postpone m patm) {-else-} $ \ _ ta -> do
-  caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds (Just v0) ta) $ \ (q, _pars0, _) -> do
+  caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds (Just v0) ta) $ \ (q, pars0, _) -> do
 
       -- try to project it with all of the possible projections
       let try d = do
@@ -1490,7 +1501,10 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
             let orig = caseMaybe isP d projOrig
 
             -- try to eliminate
-            (dom, u, tb) <- MaybeT (projectTyped v ta o d `catchError` \ _ -> return Nothing)
+            tfull <- typeOfConst d
+            TelV tel tret <- lift $ telViewUpTo' (-1) (not . visible) tfull
+            (dom, tb) <- MaybeT ((Just <$> shouldBePi tret) `catchError` \_ -> pure Nothing)
+            u <- applyDef o d (defaultArg v)
             reportSDoc "tc.proj.amb" 30 $ vcat
               [ "  dom = " <+> prettyTCM dom
               , "  u   = " <+> prettyTCM u
@@ -1504,18 +1518,17 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
             guard (q == q')
             -- Get the type of the projection and check
             -- that the first visible argument is the record value.
-            let tfull = defType def
-            TelV tel _ <- lift $ telViewUpTo' (-1) (not . visible) tfull
             reportSDoc "tc.proj.amb" 30 $ vcat
               [ text $ "  size tel  = " ++ show (size tel)
               , text $ "  size pars = " ++ show (size pars)
+              , prettyTCM tel
               ]
             -- See issue 1960 for when the following assertion fails for
             -- the correct disambiguation.
             -- guard (natSize tel == natSize pars)
 
             guard =<< do isNothing <$> do lift $ checkModality' d def
-            return (orig, (d, (pars, (dom, u, tb))))
+            return (orig, (d, size tel, dom, u, tb))
 
       cands <- List1.groupOn fst . List1.catMaybes <$> mapM (runMaybeT . try) ds
       case cands of
@@ -1524,33 +1537,60 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
         -- case: just one matching projection d
         -- the term u = d v
         -- the type tb is the type of this application
-        [ (_orig, (d, (pars, (_dom,u,tb)))) :| _ ] -> do
+        [ (_orig, (d, pars, _dom, u, tb)) :| _ ] -> do
           storeDisambiguatedProjection d
 
           -- Check parameters
           tfull <- typeOfConst d
           (args0, princArg : args') <- pure $ splitAt k args
-          (_,_) <- checkKnownArguments args0 pars tfull
 
-          -- Check remaining arguments
-          fun <- pure $ A.App (A.defaultAppInfo $ getRange (hd, args0, princArg))
-            (A.unAppView $ A.Application hd args0)
-             princArg
-          z <- runExceptT $ checkArgumentsE cmp ExpandLast fun args' tb (snd <$> mt)
-          case z of
-            Right st@(ACState _ _ trest targetCheck) -> do
-              v <- checkHeadConstraints (u `applyE`) st
-              return (v, trest, targetCheck)
-            Left problem -> do
-              -- In the inference case:
-              -- To create a postponed type checking problem,
-              -- we do not use typeDontCare, but create a meta.
-              tc <- caseMaybe mt newTypeMeta_ (return . snd)
-              v  <- postponeArgs problem cmp ExpandLast fun args' tb tc \ st@(ACState _ _ trest targetCheck) -> do
-                      v <- checkHeadConstraints (u `applyE`) st
-                      coerce' cmp targetCheck v trest tc
+          saved <- freshNoName $ getRange princArg
+          addLetBinding defaultArgInfo Inserted saved v ta $ do
+            let
+              -- we will recheck the principal argument against the
+              -- projection type but this could be expensive so let's
+              -- replace it by something cheap.
+              args = args0 ++ namedArgFromDom (A.Var saved <$ _dom):args'
+              -- u is already applied to the principal argument, so to
+              -- apply it to the extra args we should drop both
+              -- everything before the principal argument and the new
+              -- variable
+              applyh xs = u `applyE` drop (pars + 1) xs
 
-              return (v, tc, NotCheckedTarget)
+            reportSDoc "tc.proj.amb" 30 $ vcat
+              [ "args0 =" <+> prettyTCM args0
+              , "args  =" <+> prettyTCM args
+              , "tfull =" <+> prettyTCM tfull
+              , "pars  =" <+> prettyTCM pars
+              , "dom   =" <+> prettyTCM _dom
+              -- , "trest =" <+> prettyTCM trest
+              , "ta    =" <+> prettyTCM ta
+              , "tb    =" <+> prettyTCM tb
+              , "_dom  =" <+> prettyTCM _dom
+              , "mt    =" <+> prettyTCM mt
+              , "u     =" <+> prettyTCM u
+              , "v     =" <+> prettyTCM v
+              ]
+
+            z <- runExceptT $ checkArgumentsE cmp ExpandLast hd args tfull (snd <$> mt)
+            case z of
+              Right st@(ACState _ _ trest targetCheck) -> do
+                v <- checkHeadConstraints applyh st
+                reportSDoc "tc.proj.amb" 30 $ vcat
+                  [ "result of proj:" <+> pretty v
+                  , "elims:         " <+> pretty (acElims st)
+                  ]
+                return (v, trest, targetCheck)
+              Left problem -> do
+                -- In the inference case:
+                -- To create a postponed type checking problem,
+                -- we do not use typeDontCare, but create a meta.
+                tc <- caseMaybe mt newTypeMeta_ (return . snd)
+                v  <- postponeArgs problem cmp ExpandLast hd args tfull tc \ st@(ACState _ _ trest targetCheck) -> do
+                  v <- checkHeadConstraints applyh st
+                  coerce' cmp targetCheck v trest tc
+
+                return (v, tc, NotCheckedTarget)
 
 -- | Throw 'AmbiguousOverloadedProjection' with additional explanation.
 refuseProj :: List1 QName -> TCM Doc -> TCM a
@@ -1565,6 +1605,54 @@ refuseProjNotRecordType ds pValue pType = do
   let dValue = caseMaybe pValue (return empty) prettyTCM
   refuseProj ds $ fsep $
     ["principal argument", dValue, "has type", dType, "while it should be of record type"]
+
+-----------------------------------------------------------------------------
+-- * Overloaded application
+-----------------------------------------------------------------------------
+
+checkOverloadedApplication :: Comparison -> A.Expr -> Type -> List1 QName -> A.Expr -> A.Args -> TCM Term
+checkOverloadedApplication cmp expr et qnames hd args = case filter (visible . snd) $ zip [0..] args of
+  (idx, arg):_ -> do
+    (v0, ta) <- inferExpr $ namedArg arg
+    reportSDoc "tc.app.amb" 20 $ vcat
+      [ "checking ambiguous application"
+      , "  expr = " <+> prettyTCM expr
+      , "  args = " <+> sep (map prettyTCM args)
+      , "  v0   = " <+> prettyTCM v0
+      , "  ta   = " <+> prettyTCM ta
+      , "  t    = " <+> prettyTCM et
+      ]
+
+    ifBlocked ta (\b t -> error "todo") \nb ty -> case unEl ty of
+      Def argtn _ | ReallyNotBlocked <- nb -> do
+        let
+          try d = do
+            reportSDoc "tc.app.amb" 30 $ vcat
+              [ text $ "trying function " ++ prettyShow d
+              , "  td  = " <+> caseMaybeM (getDefType d ta) "Nothing" prettyTCM
+              ]
+
+            tfull <- typeOfConst d
+            TelV tel dty <- telViewUpTo' (-1) (not . visible) tfull
+            case unEl dty of
+              Pi dom _ -> ifBlocked (unDom dom) (\b t -> error "todo") \nb ty' -> case unEl ty' of
+                Def projtn _ | ReallyNotBlocked <- nb, projtn == argtn -> pure (Just d)
+                act -> pure Nothing
+              _ -> pure Nothing
+
+        projs <- catMaybes <$> traverse try (List1.toList qnames)
+        case projs of
+          []  -> error "TODO: no matching"
+          [d] -> checkHeadApplication cmp expr et (A.Def d) args
+          _   -> error "TODO: very ambiguous"
+        -- reportSDoc "tc.app.amb" 20 $ vcat
+        --   [ "okay projs:" <+> pretty projs
+        --   ]
+        -- __IMPOSSIBLE__
+
+      _ -> error "TODO: type of expression should be normal def"
+
+  _ -> __IMPOSSIBLE__
 
 -----------------------------------------------------------------------------
 -- * Sorts

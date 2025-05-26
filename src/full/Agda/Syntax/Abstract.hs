@@ -82,6 +82,7 @@ data Expr
   | Def'  QName Suffix                 -- ^ Constant: axiom, function, data or record type,
                                        --   with a possible suffix.
   | Proj ProjOrigin AmbiguousQName     -- ^ Projection (overloaded).
+  | Defs AmbiguousQName                -- ^ Postfix application (overloaded).
   | Con  AmbiguousQName                -- ^ Constructor (overloaded).
   | PatternSyn AmbiguousQName          -- ^ Pattern synonym.
   | Macro QName                        -- ^ Macro.
@@ -661,6 +662,7 @@ instance HasRange Expr where
     getRange (Def' x _)              = getRange x
     getRange (Proj _ x)              = getRange x
     getRange (Con x)                 = getRange x
+    getRange (Defs x)                = getRange x
     getRange (Lit i _)               = getRange i
     getRange (QuestionMark i _)      = getRange i
     getRange (Underscore  i)         = getRange i
@@ -794,6 +796,7 @@ instance KillRange Expr where
   killRange (Def' x v)               = killRangeN Def' x v
   killRange (Proj o x)               = killRangeN (Proj o) x
   killRange (Con x)                  = killRangeN Con x
+  killRange (Defs x)                 = killRangeN Defs x
   killRange (Lit i l)                = killRangeN Lit i l
   killRange (QuestionMark i ii)      = killRangeN QuestionMark i ii
   killRange (Underscore  i)          = killRangeN Underscore i
@@ -1001,6 +1004,7 @@ instance NameToExpr ResolvedName where
     DefinedName _ x s    -> withSuffix s $ nameToExpr x  -- Can be 'isDefName', 'MacroName', 'QuotableName'.
     FieldName xs         -> Proj ProjSystem . AmbQ . fmap anameName $ xs
     ConstructorName _ xs -> Con . AmbQ . fmap anameName $ xs
+    OverloadedNames xs   -> Defs . AmbQ . fmap anameName $ xs
     PatternSynResName xs -> PatternSyn . AmbQ . fmap anameName $ xs
     UnknownName          -> __IMPOSSIBLE__
     where
@@ -1058,6 +1062,7 @@ instance SubstExpr Expr where
   substExpr s e = case e of
     Var n           -> fromMaybe e (lookup n s)
     Con _           -> e
+    Defs{}          -> e
     Proj{}          -> e
     Def' _ _        -> e
     PatternSyn{}    -> e
