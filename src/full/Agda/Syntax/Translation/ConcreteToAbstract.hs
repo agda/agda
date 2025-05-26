@@ -463,7 +463,7 @@ toAbstractHiding _             = toAbstractCtx TopCtx
 -- | This operation does not affect the scope, i.e. the original scope
 --   is restored upon completion.
 localToAbstract :: ToAbstract c => c -> (AbsOfCon c -> ScopeM b) -> ScopeM b
-localToAbstract x ret = fst <$> localToAbstract' x ret
+localToAbstract x ret = localScope $ ret =<< toAbstract x
 
 -- | Like 'localToAbstract' but returns the scope after the completion of the
 --   second argument.
