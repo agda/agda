@@ -54,6 +54,7 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Coverage
@@ -1230,6 +1231,17 @@ introTactic pmLambda ii = do
         makeName ("_", t) = ("x", t)
         makeName (x, t)   = (x, t)
 
+    contextDimensions :: TCM Int
+    contextDimensions = do
+      let
+        go n EmptyTel = pure n
+        go n (ExtendTel dom abs) = do
+          n' <- isInterval (unDom dom) <&> \case
+            True  -> n + 1
+            False -> n
+          underAbstraction dom abs $ go n'
+      go 0 =<< getContextTelescope
+
     introData :: AllowAmbiguousNames -> I.Type -> TCM [String]
     introData amb t = do
       let tel  = telFromList [defaultDom ("_", t)]
@@ -1237,14 +1249,28 @@ introTactic pmLambda ii = do
       -- Gallais, 2023-08-24: #6787 we need to locally ignore the
       -- --without-K or --cubical-compatible options to figure out
       -- that refl is a valid constructor for refl ≡ refl.
+
       cubical <- isJust <$> cubicalOption
       r <- (if cubical then id else
             locallyTCState (stPragmaOptions . lensOptWithoutK) (const (Value False)))
            $ splitLast CoInductive tel pat
+
+      -- If --cubical then we often get ambiguity because the coverage
+      -- checker says most path constructors could also fit the hole. In
+      -- that case we compute the number of interval variables in the
+      -- context and drop any clauses that have more IApply patterns (=
+      -- constructors that have a higher dimensionality) than the
+      -- context.
+      dim <- traverse (const contextDimensions) =<< cubicalOption
+      let
+        dimension cl = case dim of
+          Just n  -> length (iApplyVars (scPats cl)) <= n
+          Nothing -> True
+
       case r of
         Left err -> return []
         Right cov ->
-           mapM (showUnambiguousConName amb) $ concatMap (conName . scPats) $ splitClauses cov
+           mapM (showUnambiguousConName amb) $ concatMap (conName . scPats) $ filter dimension $ splitClauses cov
 
     introRec :: QName -> TCM [String]
     introRec d = do
