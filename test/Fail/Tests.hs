@@ -121,6 +121,14 @@ fdebugTestFilter =
   ]
   where disable = RFInclude
 
+-- | Filting out tests that shell out to other processes. This includes all
+-- tests that use @--ghc@ (without @--ghc-dont-call-ghc@) or @--allow-exec@.
+execTestFilter :: [RegexFilter]
+execTestFilter =
+  [ disable "Fail/Issue2248_COMPILED_TYPE"
+  ]
+  where disable = RFInclude
+
 issue6465 :: TestTree
 issue6465 =
   goldenTest1

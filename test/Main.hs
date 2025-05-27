@@ -31,6 +31,7 @@ main = do
   agdaBinExists <- doesCommandExist agdaBin
   builtWithMakefile <- doesEnvContain "AGDA_BIN"
   builtWithFDebug <- wasAgdaCompiledWithFDebug
+  skipNoExec <- doesEnvContain "AGDA_NO_EXEC"
   -- Warn/err about un-recommended builds
   when (not agdaBinExists) do
       putStrLn $ unwords ["Could not find executable", agdaBin ]
@@ -56,6 +57,7 @@ main = do
         [ if not builtWithFDebug   then fdebugTestFilter       else []
         , if not builtWithMakefile then testsWithSystemDeps    else []
         , if not builtWithMakefile then makefileDependentTests else []
+        , if skipNoExec            then execTestFilter else []
         , alwaysDisabledTests
         ]
   -- Run tests
@@ -94,6 +96,13 @@ fdebugTestFilter = concat
   [ Succeed.Tests.fdebugTestFilter
   , Fail.Tests.fdebugTestFilter
   , Compiler.Tests.fdebugTestFilter
+  ]
+
+-- | Tests which shell out to subprocesses
+execTestFilter :: [RegexFilter]
+execTestFilter = concat
+  [ Succeed.Tests.execTestFilter
+  , Fail.Tests.execTestFilter
   ]
 
 -- | Tests with system dependencies
