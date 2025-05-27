@@ -70,6 +70,7 @@
             # Tools for building/testing WASM
             ghc-wasm.packages.wasm32-wasi-ghc-9_12
             ghc-wasm.packages.wasm32-wasi-cabal-9_12
+            ghc-wasm.packages.wasmtime
 
             # Tools for building the agda docs
             (pkgs.python3.withPackages (py3pkgs: [
