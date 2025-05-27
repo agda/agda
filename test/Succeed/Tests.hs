@@ -95,6 +95,36 @@ makefileDependentTests =
   ]
   where disable = RFInclude
 
+-- | Filting out tests that shell out to other processes. This includes all
+-- tests that use @--ghc@ (without @--ghc-dont-call-ghc@) or @--allow-exec@.
+execTestFilter :: [RegexFilter]
+execTestFilter =
+  [ disable "Succeed/CompileBuiltinListWarning"
+  , disable "Succeed/ExecAgda"
+  , disable "Succeed/ForeignPragma"
+  , disable "Succeed/GHCInfixConstructor"
+  , disable "Succeed/InlineCompiled"
+  , disable "Succeed/Issue1988"
+  , disable "Succeed/Issue2248"
+  , disable "Succeed/Issue2908"
+  , disable "Succeed/Issue2909-5"
+  , disable "Succeed/Issue2909-6"
+  , disable "Succeed/Issue2913"
+  , disable "Succeed/Issue2916"
+  , disable "Succeed/Issue2953"
+  , disable "Succeed/Issue296"
+  , disable "Succeed/Issue3536"
+  , disable "Succeed/Issue3545"
+  , disable "Succeed/Issue3651"
+  , disable "Succeed/Issue3731"
+  , disable "Succeed/Issue867"
+  , disable "Succeed/Options-in-right-order"
+  , disable "Succeed/ParseErrorGHCPragma"
+  , disable "Succeed/WErrorOverride"
+  , disable "Succeed/WErrorOverride"
+  ]
+  where disable = RFInclude
+
 data TestResult
   = TestSuccess
   | TestSuccessWithWarnings T.Text -- the cleaned stdout
