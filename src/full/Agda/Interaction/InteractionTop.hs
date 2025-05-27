@@ -670,6 +670,7 @@ interpret (Cmd_autoOne norm ii rng str) = do
     MimerNoResult -> display_info $ Info_Auto "No solution found"
     MimerExpr str -> do
       insertOldInteractionScope ii iscope
+      _ <- lift $ B.parseExprIn ii rng str >>= B.give WithForce ii (Just rng)
       putResponse $ Resp_GiveAction ii $ Give_String str
       modifyTheInteractionPoints (List.delete ii)
       maybe (return ()) (display_info . Info_Time) time
@@ -693,7 +694,9 @@ interpret (Cmd_autoAll norm) = do
       case res of
         MimerNoResult -> pure []
         MimerExpr str -> do
-          insertOldInteractionScope ii =<< getOldScope ii
+          iscope <- getOldScope ii
+          insertOldInteractionScope ii iscope
+          _ <- liftTCM $ B.parseExprIn ii rng str >>= B.give WithoutForce ii (Just rng)
           putResponse $ Resp_GiveAction ii $ Give_String str
           pure [ii]
         MimerList{} -> pure []    -- Don't list solutions in autoAll
