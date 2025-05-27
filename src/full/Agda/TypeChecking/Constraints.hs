@@ -13,7 +13,6 @@ import qualified Data.Set as Set
 import Data.Either
 
 import Agda.Syntax.Common
-import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
@@ -271,35 +270,11 @@ solveConstraint_ (LevelCmp cmp a b)         = compareLevel cmp a b
 solveConstraint_ (IsEmpty r t)              = ensureEmptyType r t
 solveConstraint_ (CheckSizeLtSat t)         = checkSizeLtSat t
 solveConstraint_ (UnquoteTactic tac hole goal) = unquoteTactic tac hole goal
-solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these have their own unblocking logic (for now)
-  ifM (isFrozen m `or2M` (not <$> asksTC envAssignMetas)) (do
-        reportSDoc "tc.constr.unblock" 15 $ hsep ["not unblocking", prettyTCM m, "because",
-                                                  ifM (isFrozen m) "it's frozen" "meta assignments are turned off"]
-        addConstraint alwaysUnblock $ UnBlock m) $ do
-    inst <- lookupMetaInstantiation m
-    reportSDoc "tc.constr.unblock" 65 $ "unblocking a metavar yields the constraint:" <+> pretty inst
-    case inst of
-      BlockedConst t -> do
-        reportSDoc "tc.constr.blocked" 15 $
-          text ("blocked const " ++ prettyShow m ++ " :=") <+> prettyTCM t
-        assignTerm m [] t
-      PostponedTypeCheckingProblem cl -> enterClosure cl $ \prob -> do
-          tel <- getContextTelescope
-          v   <- liftTCM $ checkTypeCheckingProblem prob
-          assignTerm m (telToArgs tel) v
-      -- Andreas, 2009-02-09, the following were IMPOSSIBLE cases
-      -- somehow they pop up in the context of sized types
-      --
-      -- already solved metavariables: should only happen for size
-      -- metas (not sure why it does, Andreas?)
-      -- Andreas, 2017-07-11:
-      -- I think this is because the size solver instantiates
-      -- some metas with infinity but does not clean up the UnBlock constraints.
-      -- See also issue #2637.
-      -- Ulf, 2018-04-30: The size solver shouldn't touch blocked terms! They have
-      -- a twin meta that it's safe to solve.
-      InstV{} -> __IMPOSSIBLE__
-      OpenMeta{} -> __IMPOSSIBLE__
+solveConstraint_ (PostponedTypeCheckingProblem m cl) =
+  enterClosure cl $ \prob -> do
+    tel <- getContextTelescope
+    v   <- liftTCM $ checkTypeCheckingProblem prob
+    assignTerm m (telToArgs tel) v
 solveConstraint_ (FindInstance m cands) = findInstance m cands
 solveConstraint_ (ResolveInstanceHead q) = resolveInstanceHead q
 solveConstraint_ (CheckFunDef i q cs _err) = withoutCache $

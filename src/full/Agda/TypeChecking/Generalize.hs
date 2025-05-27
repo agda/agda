@@ -504,9 +504,8 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     prune _ _ [] = return ()
     prune cxt tel (x : xs) | not (isGeneralized x) = do
       -- If x is a blocked term we shouldn't instantiate it.
-      whenM (not <$> isBlockedTerm x) $ do
-        x <- if null tel then return x else prePrune x
-        pruneMeta (telFromList $ reverse cxt) x
+      x <- if null tel then return x else prePrune x
+      pruneMeta (telFromList $ reverse cxt) x
       prune cxt tel xs
     prune cxt (ExtendTel a tel) (x : xs) = prune (fmap (x,) a : cxt) (unAbs tel) xs
       where x = absName tel

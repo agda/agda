@@ -214,7 +214,7 @@ isBlockingConstraint = \case
   ValueCmp{}            -> True
   ValueCmpOnFace{}      -> True
   ElimCmp{}             -> True
-  UnBlock{}             -> True
+  PostponedTypeCheckingProblem{} -> True
   IsEmpty{}             -> True
   CheckSizeLtSat{}      -> True
   CheckFunDef{}         -> True

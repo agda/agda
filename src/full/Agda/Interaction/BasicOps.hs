@@ -428,37 +428,30 @@ instance Reify Constraint where
   reify (UnquoteTactic tac _ goal) = do
       tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
       OfType tac <$> reify goal
-  reify (UnBlock m) = do
-      mi <- lookupMetaInstantiation m
-      m' <- reify (MetaV m [])
-      case mi of
-        BlockedConst t -> do
-          e  <- reify t
-          return $ Assign m' e
-        PostponedTypeCheckingProblem cl -> enterClosure cl $ \case
-          CheckExpr cmp e a -> do
-              a  <- reify a
-              return $ TypedAssign m' e a
-          CheckLambda cmp (Arg ai (xs, mt)) body target -> do
-            domType <- maybe (return underscore) reify mt
-            target  <- reify target
-            let mkN (WithHiding h x) = setHiding h $ defaultNamedArg $ A.mkBinder_ x
-                bs = mkTBind noRange (fmap mkN xs) domType
-                e  = A.Lam Info.exprNoRange (DomainFull bs) body
-            return $ TypedAssign m' e target
-          CheckArgs _ _ _ args t0 t1 _ -> do
-            t0 <- reify t0
-            t1 <- reify t1
-            return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
-          CheckProjAppToKnownPrincipalArg cmp e _ _ _ _ t _ _ _ _ -> TypedAssign m' e <$> reify t
-          DoQuoteTerm cmp v t -> do
-            tm <- A.App defaultAppInfo_ (A.QuoteTerm exprNoRange) . defaultNamedArg <$> reify v
-            OfType tm <$> reify t
-          DisambiguateConstructor (ConstructorDisambiguationData c0 _cands args t) _cont -> do
-            t <- reify t
-            return $ TypedAssign m' (foldl (A.App empty)  (A.Con $ unambiguous c0) args) t
-        OpenMeta{}  -> __IMPOSSIBLE__
-        InstV{} -> __IMPOSSIBLE__
+  reify (PostponedTypeCheckingProblem m cl) = do
+    m' <- reify (MetaV m [])
+    enterClosure cl $ \case
+      CheckExpr cmp e a -> do
+          a  <- reify a
+          return $ TypedAssign m' e a
+      CheckLambda cmp (Arg ai (xs, mt)) body target -> do
+        domType <- maybe (return underscore) reify mt
+        target  <- reify target
+        let mkN (WithHiding h x) = setHiding h $ defaultNamedArg $ A.mkBinder_ x
+            bs = mkTBind noRange (fmap mkN xs) domType
+            e  = A.Lam Info.exprNoRange (DomainFull bs) body
+        return $ TypedAssign m' e target
+      CheckArgs _ _ _ args t0 t1 _ -> do
+        t0 <- reify t0
+        t1 <- reify t1
+        return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
+      CheckProjAppToKnownPrincipalArg cmp e _ _ _ _ t _ _ _ _ -> TypedAssign m' e <$> reify t
+      DoQuoteTerm cmp v t -> do
+        tm <- A.App defaultAppInfo_ (A.QuoteTerm exprNoRange) . defaultNamedArg <$> reify v
+        OfType tm <$> reify t
+      DisambiguateConstructor (ConstructorDisambiguationData c0 _cands args t) _cont -> do
+        t <- reify t
+        return $ TypedAssign m' (foldl (A.App empty)  (A.Con $ unambiguous c0) args) t
   reify (FindInstance m mcands) = FindInstanceOF
     <$> reify (MetaV m [])
     <*> (reify =<< getMetaType m)
@@ -649,7 +642,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         ElimCmp cmp fs t v as bs   -> Nothing
         LevelCmp cmp u v           -> Nothing
         SortCmp cmp a b            -> Nothing
-        UnBlock{}                  -> Nothing
+        PostponedTypeCheckingProblem{} -> Nothing
         FindInstance{}             -> Nothing
         ResolveInstanceHead{}      -> Nothing
         IsEmpty r t                -> isMeta (unEl t)
@@ -882,8 +875,6 @@ getSolvedInteractionPoints all norm = concat <$> do
         case mvInstantiation mv of
           InstV{}                        -> sol (MetaV m $ map Apply args)
           OpenMeta{}                     -> unsol
-          BlockedConst{}                 -> unsol
-          PostponedTypeCheckingProblem{} -> unsol
 
 typeOfMetaMI :: Rewrite -> MetaId -> TCM (OutputConstraint Expr NamedMeta)
 typeOfMetaMI norm mi =
@@ -935,13 +926,10 @@ typesOfHiddenMetas norm = liftTCM $ do
   store <- MapS.filterWithKey (implicit is) <$> useR stOpenMetaStore
   mapM (typeOfMetaMI norm) $ MapS.keys store
   where
-  implicit is x m | isJust (mvTwin m) = False
   implicit is x m =
     case mvInstantiation m of
       M.InstV{} -> __IMPOSSIBLE__
       M.OpenMeta _ -> x `notElem` is  -- OR: True in case of InstanceMeta !?
-      M.BlockedConst{} -> False
-      M.PostponedTypeCheckingProblem{} -> False
 
 -- | Create type of application of new helper function that would solve the goal.
 metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)

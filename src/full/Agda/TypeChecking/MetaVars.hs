@@ -94,27 +94,6 @@ instance MonadMetaSolver TCM where
 findIdx :: Eq a => [a] -> a -> Maybe Int
 findIdx vs v = List.elemIndex v (reverse vs)
 
--- | Does the given local meta-variable have a twin meta-variable?
-
-hasTwinMeta :: MetaId -> TCM Bool
-hasTwinMeta x = do
-    m <- lookupLocalMeta x
-    return $ isJust $ mvTwin m
-
--- | Check whether a meta variable is a place holder for a blocked term.
-isBlockedTerm :: MetaId -> TCM Bool
-isBlockedTerm x = do
-    reportSLn "tc.meta.blocked" 12 $ "is " ++ prettyShow x ++ " a blocked term? "
-    i <- lookupMetaInstantiation x
-    let r = case i of
-            BlockedConst{}                 -> True
-            PostponedTypeCheckingProblem{} -> True
-            InstV{}                        -> False
-            OpenMeta{}                     -> False
-    reportSLn "tc.meta.blocked" 12 $
-      if r then "  yes, because " ++ prettyShow i else "  no"
-    return r
-
 isEtaExpandable :: [MetaClass] -> MetaId -> TCM Bool
 isEtaExpandable classes x = do
     i <- lookupMetaInstantiation x
@@ -122,15 +101,13 @@ isEtaExpandable classes x = do
       OpenMeta UnificationMeta       -> True
       OpenMeta InstanceMeta          -> Records `notElem` classes
       InstV{}                        -> False
-      BlockedConst{}                 -> False
-      PostponedTypeCheckingProblem{} -> False
 
 -- * Performing the assignment
 
 -- | Performing the meta variable assignment.
 --
 --   The instantiation should not be an 'InstV' and the 'MetaId'
---   should point to something 'Open' or a 'BlockedConst'.
+--   should point to something 'Open'.
 --   Further, the meta variable may not be 'Frozen'.
 assignTerm :: MonadMetaSolver m => MetaId -> [Arg ArgName] -> Term -> m ()
 assignTerm x tel v = do
@@ -550,44 +527,19 @@ blockTermOnProblem t v pid = do
   ifM (return solved `or2M` isSizeProblem pid)
       (v <$ reportSLn "tc.meta.blocked" 20 ("Not blocking because " ++ show pid ++ " is " ++
                                             if solved then "solved" else "a size problem")) $ do
-    i   <- createMetaInfo
-    es  <- map Apply <$> getContextArgs
+    -- Note: since this is a blocked term, the solution is something that was written by the user
+    -- which could well contain a recursive call. For example, see test/Succeed/Issue585-17.agda.
+    -- Hence we disable the occurs check for it.
+    (x, u) <- newValueMeta' DontRunMetaOccursCheck CmpLeq t
     tel <- getContextTelescope
-    x   <- newMeta' (BlockedConst $ abstract tel v)
-                    Instantiable
-                    i
-                    lowMetaPriority
-                    (idP $ size tel)
-                    (HasType () CmpLeq $ telePi_ tel t)
-                    -- we don't instantiate blocked terms
-    inTopContext $ addConstraint (unblockOnProblem pid) (UnBlock x)
+    updateMetaVar x $ \mv -> mv { mvBrave = Just $ abstract tel v }
+    addConstraint (unblockOnProblem pid) $ ValueCmp CmpEq (AsTermsOf t) u v
     reportSDoc "tc.meta.blocked" 20 $ vcat
-      [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext
-        (prettyTCM $ abstract tel v)
+      [ "blocked" <+> prettyTCM u <+> ":=" <+>
+        (prettyTCM v)
       , "     by" <+> (prettyTCM =<< getConstraintsForProblem pid)
       ]
-    inst <- isInstantiatedMeta x
-    if inst
-      then instantiate (MetaV x es)
-      else do
-        -- We don't return the blocked term instead create a fresh metavariable
-        -- that we compare against the blocked term once it's unblocked. This way
-        -- blocked terms can be instantiated before they are unblocked, thus making
-        -- constraint solving a bit more robust against instantiation order.
-        -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
-        (m', v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
-        reportSDoc "tc.meta.blocked" 30
-          $   "setting twin of"
-          <+> prettyTCM m'
-          <+> "to be"
-          <+> prettyTCM x
-        updateMetaVar m' (\mv -> mv { mvTwin = Just x })
-        i   <- fresh
-        -- This constraint is woken up when unblocking, so it doesn't need a problem id.
-        cmp <- buildProblemConstraint_ (unblockOnMeta x) (ValueCmp CmpEq (AsTermsOf t) v (MetaV x es))
-        reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
-        listenToMeta (CheckConstraint i cmp) x
-        return v
+    instantiate u
 
 {-# SPECIALIZE blockTypeOnProblem :: Type -> ProblemId -> TCM Type #-}
 blockTypeOnProblem
@@ -627,7 +579,7 @@ postponeTypeCheckingProblem p unblock = do
   tel <- getContextTelescope
   cl  <- buildClosure p
   let t = problemType p
-  m   <- newMeta' (PostponedTypeCheckingProblem cl)
+  m   <- newMeta' (OpenMeta UnificationMeta)
                   Instantiable i normalMetaPriority (idP (size tel))
          $ HasType () CmpLeq $ telePi_ tel t
   inTopContext $ reportSDoc "tc.meta.postponed" 20 $ vcat
@@ -648,7 +600,7 @@ postponeTypeCheckingProblem p unblock = do
   reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
   i   <- liftTCM fresh
   listenToMeta (CheckConstraint i cmp) m
-  addConstraint unblock (UnBlock m)
+  addConstraint unblock (PostponedTypeCheckingProblem m cl)
   return v
 
 -- | Type of the term that is produced by solving the 'TypeCheckingProblem'.
@@ -893,11 +845,6 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
     -- IApplyConfluence can contribute boundary conditions to frozen metas
     boundary v
     patternViolation neverUnblock
-
-  -- We never get blocked terms here anymore. TODO: we actually do. why?
-  whenM (isBlockedTerm x) $ do
-    reportSLn "tc.meta.assign" 25 $ "aborting: meta is a blocked term!"
-    patternViolation (unblockOnMeta x)
 
   -- Andreas, 2010-10-15 I want to see whether rhs is blocked
   reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: I want to see whether rhs is blocked"
@@ -1364,8 +1311,6 @@ checkMetaInst x = do
   m <- lookupLocalMeta x
   let postpone = addConstraint (unblockOnMeta x) $ CheckMetaInst x
   case mvInstantiation m of
-    BlockedConst{} -> postpone
-    PostponedTypeCheckingProblem{} -> postpone
     OpenMeta{} -> postpone
     InstV inst -> do
       let n = size (instTel inst)

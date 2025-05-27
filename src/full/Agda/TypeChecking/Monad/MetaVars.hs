@@ -309,8 +309,6 @@ metaInstantiationToMetaKind :: MetaInstantiation -> MetaKind
 metaInstantiationToMetaKind = \case
   OpenMeta k                     -> k
   InstV{}                        -> empty
-  BlockedConst{}                 -> empty
-  PostponedTypeCheckingProblem{} -> empty
 
 {-# SPECIALIZE getMetaType :: MetaId -> TCM Type #-}
 getMetaType :: ReadTCState m => MetaId -> m Type
@@ -410,17 +408,23 @@ constraintMetas :: Constraint -> TCM (Set MetaId)
 constraintMetas = \case
     -- We don't use allMetas here since some constraints should not stop us from generalizing. For
     -- instance CheckSizeLtSat (see #3694). We also have to check meta listeners to get metas of
-    -- UnBlock constraints.
+    -- PostponedTypeCheckingProblem constraints.
     -- #5147: Don't count metas in the type of a constraint. For instance the constraint u = v : t
     -- should not stop us from generalize metas in t, since we could never solve those metas based
     -- on that constraint alone.
-      ValueCmp _ _ u v         -> gatherMetas (u, v)
+      ValueCmp _ _ u v         -> case (u, v) of
+        (MetaV m _ , _)        -> makeSingleIfUnsolved m $ \u -> gatherMetas (u,v)
+        (_ , MetaV m _)        -> makeSingleIfUnsolved m $ \v -> gatherMetas (u,v)
+        (u , v        )        -> gatherMetas (u, v)
       ValueCmpOnFace _ p _ u v -> gatherMetas (p, u, v)
       ElimCmp _ _ _ _ es es'   -> gatherMetas (es, es')
       LevelCmp _ l l'          -> gatherMetas (Level l, Level l')
       UnquoteTactic t h g      -> gatherMetas (t, h, g)
       SortCmp _ s1 s2          -> gatherMetas (Sort s1, Sort s2)
-      UnBlock x                -> Set.insert x . Set.unions <$> (mapM listenerMetas =<< getMetaListeners x)
+      PostponedTypeCheckingProblem m clos -> do
+        ms1 <- Set.unions <$> (mapM listenerMetas =<< getMetaListeners m)
+        ms2 <- tcProblemMetas (clValue clos)
+        return $ Set.insert m $ Set.union ms1 ms2
       FindInstance x _         ->
         -- #5093: We should not generalize over metas bound by instance constraints.
         -- We keep instance constraints even if the meta is solved, to check that it could indeed
@@ -446,17 +450,12 @@ constraintMetas = \case
     gatherMetas = allMetas makeSingle
 
     makeSingle :: MetaId -> TCM (Set MetaId)
-    makeSingle m = lookupMetaInstantiation m >>= \case
-      InstV i -> gatherMetas $ instBody i
+    makeSingle m = makeSingleIfUnsolved m gatherMetas
+
+    makeSingleIfUnsolved :: MetaId -> (Term -> TCM (Set MetaId)) -> TCM (Set MetaId)
+    makeSingleIfUnsolved m cont = lookupMetaInstantiation m >>= \case
+      InstV i -> cont $ instBody i
       OpenMeta _ -> return $ Set.singleton m
-      BlockedConst t ->
-        -- Jesper, 2025-05-13: We should really look into the
-        -- (blocked) solution here but doing so triggers a
-        -- regression in the standard library that I'm too tired
-        -- to deal with (see test/Succeed/Issue7876b.agda).
-        -- Set.insert m <$> gatherMetas t
-        return $ Set.singleton m
-      PostponedTypeCheckingProblem clos -> Set.insert m <$> tcProblemMetas (clValue clos)
 
     tcProblemMetas :: TypeCheckingProblem -> TCM (Set MetaId)
     tcProblemMetas = \case
@@ -699,7 +698,7 @@ newMetaTCM' inst frozen mi p perm j = do
                   , mvInstantiation    = inst
                   , mvListeners        = Set.empty
                   , mvFrozen           = frozen
-                  , mvTwin             = Nothing
+                  , mvBrave            = Nothing
                   }
   -- printing not available (import cycle)
   -- reportSDoc "tc.meta.new" 50 $ "new meta" <+> prettyTCM j'
@@ -753,8 +752,6 @@ getOpenMetas = MapS.keys <$> useR stOpenMetaStore
 
 isOpenMeta :: MetaInstantiation -> Bool
 isOpenMeta OpenMeta{}                     = True
-isOpenMeta BlockedConst{}                 = True
-isOpenMeta PostponedTypeCheckingProblem{} = True
 isOpenMeta InstV{}                        = False
 
 -- | @listenToMeta l m@: register @l@ as a listener to @m@. This is done

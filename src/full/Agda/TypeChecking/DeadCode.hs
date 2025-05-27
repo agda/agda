@@ -133,8 +133,6 @@ theInstantiation :: MetaVariable -> Instantiation
 theInstantiation mv = case mvInstantiation mv of
   InstV inst                     -> inst
   OpenMeta{}                     -> __IMPOSSIBLE__
-  BlockedConst{}                 -> __IMPOSSIBLE__
-  PostponedTypeCheckingProblem{} -> __IMPOSSIBLE__
 
 -- | Converts from 'MetaVariable' to 'RemoteMetaVariable'.
 --   Precondition: The instantiation must be of the form @'InstV' inst@.
