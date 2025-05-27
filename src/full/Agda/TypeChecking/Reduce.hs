@@ -210,18 +210,10 @@ instance Instantiate Term where
 
       Just (Right mv) -> case mvInstantiation mv of
          InstV inst -> cont inst
-
-         _ | Just m' <- mvTwin mv, blocking ->
-           instantiate' (MetaV m' es)
-
-         OpenMeta _ -> return t
-
-         BlockedConst u
-           | blocking  -> instantiate' . unBrave $
-                          BraveTerm u `applyE` es
+         OpenMeta _
+           | blocking, Just u <- mvBrave mv  ->
+              instantiate' . unBrave $ BraveTerm u `applyE` es
            | otherwise -> return t
-
-         PostponedTypeCheckingProblem _ -> return t
 
       Nothing -> __IMPOSSIBLE_VERBOSE__
                    ("Meta-variable not found: " ++ prettyShow x)
@@ -300,7 +292,7 @@ instance Instantiate Constraint where
     ElimCmp cmp fs <$> instantiate' t <*> instantiate' v <*> instantiate' as <*> instantiate' bs
   instantiate' (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> instantiate' (u,v)
   instantiate' (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate' (a,b)
-  instantiate' (UnBlock m)          = return $ UnBlock m
+  instantiate' c@PostponedTypeCheckingProblem{} = return c
   instantiate' (FindInstance m cs)  = FindInstance m <$> mapM instantiate' cs
   instantiate' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
   instantiate' (IsEmpty r t)        = IsEmpty r <$> instantiate' t
@@ -978,7 +970,7 @@ instance Reduce Constraint where
     ElimCmp cmp fs <$> reduce' t <*> reduce' v <*> reduce' as <*> reduce' bs
   reduce' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> reduce' (u,v)
   reduce' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> reduce' (a,b)
-  reduce' (UnBlock m)           = return $ UnBlock m
+  reduce' c@PostponedTypeCheckingProblem{} = return c
   reduce' (FindInstance m cs)   = FindInstance m <$> mapM reduce' cs
   reduce' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
   reduce' (IsEmpty r t)         = IsEmpty r <$> reduce' t
@@ -1145,7 +1137,7 @@ instance Simplify Constraint where
     ElimCmp cmp fs <$> simplify' t <*> simplify' v <*> simplify' as <*> simplify' bs
   simplify' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> simplify' (u,v)
   simplify' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> simplify' (a,b)
-  simplify' (UnBlock m)           = return $ UnBlock m
+  simplify' c@PostponedTypeCheckingProblem{} = return c
   simplify' (FindInstance m cs)   = FindInstance m <$> mapM simplify' cs
   simplify' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
   simplify' (IsEmpty r t)         = IsEmpty r <$> simplify' t
@@ -1330,7 +1322,7 @@ instance Normalise Constraint where
     ElimCmp cmp fs <$> normalise' t <*> normalise' v <*> normalise' as <*> normalise' bs
   normalise' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> normalise' (u,v)
   normalise' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> normalise' (a,b)
-  normalise' (UnBlock m)           = return $ UnBlock m
+  normalise' c@PostponedTypeCheckingProblem{} = return c
   normalise' (FindInstance m cs)   = FindInstance m <$> mapM normalise' cs
   normalise' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
   normalise' (IsEmpty r t)         = IsEmpty r <$> normalise' t
@@ -1575,7 +1567,7 @@ instance InstantiateFull Constraint where
       ElimCmp cmp fs <$> instantiateFull' t <*> instantiateFull' v <*> instantiateFull' as <*> instantiateFull' bs
     LevelCmp cmp u v    -> uncurry (LevelCmp cmp) <$> instantiateFull' (u,v)
     SortCmp cmp a b     -> uncurry (SortCmp cmp) <$> instantiateFull' (a,b)
-    UnBlock m           -> return $ UnBlock m
+    c@PostponedTypeCheckingProblem{} -> return c
     FindInstance m cs   -> FindInstance m <$> mapM instantiateFull' cs
     ResolveInstanceHead q -> return $ ResolveInstanceHead q
     IsEmpty r t         -> IsEmpty r <$> instantiateFull' t

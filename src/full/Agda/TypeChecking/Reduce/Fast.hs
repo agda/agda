@@ -985,8 +985,6 @@ reduceTm rEnv bEnv !constInfo normalisation =
               let (zs, env, !spine'') = buildEnv (instTel i) (spine' <> spine)
               runAM (evalClosure (lams zs (instBody i)) env spine'' ctrl)
             Just OpenMeta{}                     -> __IMPOSSIBLE__
-            Just BlockedConst{}                 -> __IMPOSSIBLE__
-            Just PostponedTypeCheckingProblem{} -> __IMPOSSIBLE__
 
         -- Case: unsupported. These terms are not handled by the abstract machine, so we fall back
         -- to slowReduceTerm for these.
