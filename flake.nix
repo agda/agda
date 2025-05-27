@@ -3,14 +3,16 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
   inputs.flake-parts.url = "github:hercules-ci/flake-parts";
+  inputs.ghc-wasm.url = "git+https://gitlab.haskell.org/haskell-wasm/ghc-wasm-meta.git";
 
   outputs = inputs:
       inputs.flake-parts.lib.mkFlake { inputs = inputs; } {
     # Support all the OSes
     systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-    perSystem = {pkgs, ...}: let
+    perSystem = {pkgs, inputs', ...}: let
       hlib = pkgs.haskell.lib.compose;
       hpkgs = pkgs.haskellPackages;
+      ghc-wasm = inputs'.ghc-wasm;
 
       # Minimal nix code for building the `agda` executable.
       # GHC & Haskell libraries are taken from the nixpkgs snapshot.
@@ -41,7 +43,7 @@
           enableStaticLibraries     = false;  # Saved  -1 seconds
         }) agda-pkg-minimal;
 
-      # An even faster Agda build, achieved by asking GHC to optimize less 
+      # An even faster Agda build, achieved by asking GHC to optimize less
       agda-pkg-quicker =
         # `appendConfigureFlag` passes a raw argument to ./Setup
         hlib.appendConfigureFlag "-O0" agda-pkg;
@@ -64,6 +66,11 @@
             pkgs.haskell-language-server
             pkgs.icu
             hpkgs.fix-whitespace
+
+            # Tools for building/testing WASM
+            ghc-wasm.packages.wasm32-wasi-ghc-9_12
+            ghc-wasm.packages.wasm32-wasi-cabal-9_12
+
             # Tools for building the agda docs
             (pkgs.python3.withPackages (py3pkgs: [
               py3pkgs.sphinx

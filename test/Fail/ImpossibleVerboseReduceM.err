@@ -1,4 +1,4 @@
-ret > ExitFailure 154
+ret > ExitFailure 120
 out > ReduceM should also print this debug message.
 out > An internal error has occurred. Please report this as a bug.
 out > Location of the error: __IMPOSSIBLE_VERBOSE__, called at src/full/Agda/ImpossibleTest.hs:«line»:«col» in «Agda-package»:Agda.ImpossibleTest
