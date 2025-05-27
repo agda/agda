@@ -586,8 +586,7 @@ checkArgumentsE' S{ sArgs = [], .. }
 -- Case: no arguments, but need to insert trailing hiddens.
 checkArgumentsE' S{ sArgs = [], .. } =
   traceCallE (CheckArguments sFun [] sFunType sResultType) $ lift $ do
-    sResultType <- traverse (unEl <.> reduce) sResultType
-    (us, t)     <- implicitArgs (-1) (expand sResultType) sFunType
+    (us, t)     <- implicitArgs (-1) expand sFunType
     return $ ACState
       { acCheckedArgs = map (defaultCheckedArg . Apply) us
       , acFun         = sFun
@@ -595,11 +594,9 @@ checkArgumentsE' S{ sArgs = [], .. } =
       , acData        = sChecked
       }
   where
-  expand (Just (Pi dom _)) Hidden     = not (hidden dom)
-  expand _                 Hidden     = True
-  expand (Just (Pi dom _)) Instance{} = not (isInstance dom)
-  expand _                 Instance{} = True
-  expand _                 NotHidden  = False
+  expand Hidden     = True
+  expand Instance{} = True
+  expand NotHidden  = False
 
 -- Case: argument given.
 checkArgumentsE'

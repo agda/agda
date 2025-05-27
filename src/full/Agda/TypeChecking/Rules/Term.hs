@@ -1182,7 +1182,7 @@ checkExpr' cmp e t =
           ]
     reportSDoc "tc.term.expr.top.detailed" 80 $
       "Checking" <+> fsep [ prettyTCM e, ":", text (show t) ]
-    tReduced <- reduce t
+    tReduced <- reduceB t
     reportSDoc "tc.term.expr.top" 15 $
         "    --> " <+> prettyTCM tReduced
 
@@ -1286,14 +1286,14 @@ checkExpr' cmp e t =
   -- else fallback.
   tryInsertHiddenLambda
     :: A.Expr
-    -> Type      -- Reduced.
+    -> Blocked Type      -- Reduced.
     -> TCM Term
     -> TCM Term
   tryInsertHiddenLambda e tReduced fallback
     -- Insert hidden lambda if all of the following conditions are met:
     -- type is a hidden function type, {x : A} -> B or {{x : A}} -> B
     -- expression is not a lambda with the appropriate hiding yet
-    | Pi (Dom{domInfo = info, unDom = a}) b <- unEl tReduced
+    | Pi (Dom{domInfo = info, unDom = a}) b <- unEl (ignoreBlocking tReduced)
         , let h = getHiding info
         , notVisible h
         -- expression is not a matching hidden lambda or question mark
@@ -1315,7 +1315,9 @@ checkExpr' cmp e t =
             `catchError` \_ -> fallback
           _ -> proceed
 
-    | otherwise = fallback
+    | otherwise = case tReduced of
+        Blocked b _ -> postponeTypeCheckingProblem (CheckExpr cmp e t) b
+        NotBlocked{} -> fallback
 
     where
     re = getRange e
@@ -1324,7 +1326,7 @@ checkExpr' cmp e t =
     doInsert info y = do
       x <- C.setNotInScope <$> freshName rx y
       reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-      checkExpr' cmp (A.Lam (A.ExprRange re) (domainFree info $ A.mkBinder x) e) tReduced
+      checkExpr' cmp (A.Lam (A.ExprRange re) (domainFree info $ A.mkBinder x) e) (ignoreBlocking tReduced)
 
     hiddenLambdaOrHole h = \case
       A.AbsurdLam _ h'          -> sameHiding h h'
