@@ -288,8 +288,10 @@ nameKinds hlLevel decl = do
   defnToKind   TCM.Axiom{}                           = Postulate
   defnToKind   TCM.DataOrRecSig{}                    = Postulate
   defnToKind   TCM.GeneralizableVar{}                = Generalizable
-  defnToKind d@TCM.Function{} | isProperProjection d = Field
-                            | otherwise            = Function
+  defnToKind d@TCM.Function{}
+    | isProperProjection d                           = Field
+    | isMacro d                                      = Macro          -- AIM XL, issue #7324
+    | otherwise                                      = Function
   defnToKind   TCM.Datatype{}                        = Datatype
   defnToKind   TCM.Record{}                          = Record
   defnToKind   TCM.Constructor{ TCM.conSrcCon = c }  = Constructor $ I.conInductive c
