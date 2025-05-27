@@ -483,8 +483,7 @@ library
     , enummapset           >= 0.6.0.3   && < 0.8
     , equivalence          >= 0.4.1     && < 0.5
     , exceptions           >= 0.10.4    && < 0.11
-    , filelock             >= 0.1.1.6   && < 0.2
-    , filepath             >= 1.4.2.2   && < 1.6
+    , filepath             >= 1.4.2.1   && < 1.6
     , filemanip            >= 0.3.6.3   && < 0.4
     , generic-data         >= 1.0.0.1   && < 1.2
     , ghc-bignum           >= 1.2       && < 2
@@ -519,6 +518,10 @@ library
     , vector-hashtables    >= 0.1.2.0   && < 0.2
         -- vector-hashtables-0.1.2 introduces performance gains
     , zstd                 == 0.1.3.0
+
+  if !arch(wasm32)
+    build-depends:
+      , filelock             >= 0.1.1.6   && < 0.2
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tool-depends` field can not be modified in Hackage.
@@ -621,6 +624,7 @@ library
       Agda.Setup
       Agda.Setup.DataFiles
       Agda.Setup.EmacsMode
+      Agda.Setup.LockFile
       Agda.Syntax.Abstract
       Agda.Syntax.Abstract.Name
       Agda.Syntax.Abstract.Pattern
@@ -973,9 +977,11 @@ executable agda
   -- been idle for 0.3 s. This feature turned out to be annoying, so
   -- the idle GC is now by default turned off (-I0).
   ghc-options:
-    -threaded
     -rtsopts
     -with-rtsopts=-I0
+
+  if !arch(wasm32)
+    ghc-options: -threaded
 
 -- agda-mode executable
 ---------------------------------------------------------------------------
@@ -992,6 +998,7 @@ executable agda-mode
     Agda.Setup
     Agda.Setup.DataFiles
     Agda.Setup.EmacsMode
+    Agda.Setup.LockFile
     Agda.Version
     Agda.VersionCommit
 
@@ -999,21 +1006,15 @@ executable agda-mode
     , base                 >= 4.16.4.0  && < 4.22
     , bytestring           >= 0.11.4.0  && < 0.13
     , directory            >= 1.3.6.2   && < 1.4
-    , filelock             >= 0.1.1.6   && < 0.2
     , filepath             >= 1.4.2.2   && < 1.6
     , gitrev               >= 1.3.1     && < 2
     , process              >= 1.6.16.0  && < 1.7
     , template-haskell     >= 2.18.0.0  && < 2.24
 
--- We use a Cabal `executable` instead of a `test-suite`
---   since we want to avoid re-building Agda when test data changes.
--- Unfortunately, using a `test-suite` breaks this property under nix:
---   * Cabal runs `test-suite`s as soon as they are built
---   * `developPackage` rebuilds Agda when re-building `test-suite`s
---   * https://github.com/NixOS/nixpkgs/issues/9281
--- So instead we build `agda-tests` as an `executable`
---   (alongside Agda, when building with nix),
---   and run it later manually.
+  if !arch(wasm32)
+    build-depends:
+      , filelock             >= 0.1.1.6   && < 0.2
+
 --
 -- This test suite should only be run using the Makefile.
 -- The Makefile sets up the required environment,

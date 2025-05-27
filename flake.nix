@@ -3,15 +3,17 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
   inputs.flake-parts.url = "github:hercules-ci/flake-parts";
+  inputs.ghc-wasm.url = "git+https://gitlab.haskell.org/haskell-wasm/ghc-wasm-meta.git";
 
   outputs = inputs:
       inputs.flake-parts.lib.mkFlake { inputs = inputs; } {
     # Support all the OSes
     systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-    perSystem = { system, pkgs, ... }: let
+    perSystem = { system, pkgs, inputs', ... }: let
       hlib = pkgs.haskell.lib.compose;
       hpkgs = pkgs.haskell.packages.ghc910; # pqueue fails with ghc912
       fs = pkgs.lib.fileset;
+      ghc-wasm = inputs'.ghc-wasm;
 
       # An overlay for the Haskell package set that adds various builds of Agda
       # and replaces `Agda` with a default one.
@@ -110,6 +112,12 @@
               pkgs.haskell-language-server
               pkgs.icu
               hpkgs.fix-whitespace
+
+              # Tools for building/testing WASM
+              ghc-wasm.packages.wasm32-wasi-ghc-9_10
+              ghc-wasm.packages.wasm32-wasi-cabal-9_10
+              ghc-wasm.packages.wasmtime
+
               # Tools for building the agda docs
               (pkgs.python3.withPackages (py3pkgs: [
                 py3pkgs.sphinx
