@@ -42,7 +42,7 @@ compileClauses' q recpat cs mSplitTree = do
 
   -- Throw away the unreachable clauses (#2723).
   let notUnreachable = (Just True /=) . clauseUnreachable
-  cs <- map unBruijn <$> normaliseProjP (filter notUnreachable cs)
+  cs <- map unBruijn <$> normaliseProjP (filter (notUnreachable .snd) $ zip [0..] cs)
 
   let translate | recpat == RunRecordPatternTranslation = runIdentityT . translateCompiledClauses q
                 | otherwise                             = return
@@ -66,7 +66,7 @@ compileClauses mt cs = do
   -- Construct clauses with pattern variables bound in left-to-right order.
   -- Discard de Bruijn indices in patterns.
   case mt of
-    Nothing -> (Nothing,False,) . compile . map unBruijn <$> normaliseProjP cs
+    Nothing -> (Nothing,False,) . compile . map unBruijn . zip [0..] <$> normaliseProjP cs
     Just (q, t)  -> do
       splitTree <- coverageCheck q t cs
 
@@ -78,7 +78,7 @@ compileClauses mt cs = do
       -- The coverage checker might have added some clauses (#2288)!
       -- Throw away the unreachable clauses (#2723).
       let notUnreachable = (Just True /=) . clauseUnreachable
-      cs <- normaliseProjP =<< instantiateFull =<< filter notUnreachable . defClauses <$> getConstInfo q
+      cs <- normaliseProjP =<< instantiateFull =<< filter (notUnreachable . snd) . zip [0..] . defClauses <$> getConstInfo q
 
       let cls = map unBruijn cs
 
@@ -105,21 +105,24 @@ compileClauses mt cs = do
 -- | Stripped-down version of 'Agda.Syntax.Internal.Clause'
 --   used in clause compiler.
 data Cl = Cl
-  { clPats :: [Arg Pattern]
+  { clNumber :: ClauseNumber
+      -- ^ Which original 'Clause' did this clause come from?
+  , clPats :: [Arg Pattern]
       -- ^ Pattern variables are considered in left-to-right order.
   , clBody :: Maybe Term
   } deriving (Show)
 
 instance P.Pretty Cl where
-  pretty (Cl ps b) = P.prettyList ps P.<+> "->" P.<+> maybe "_|_" P.pretty b
+  pretty (Cl no ps b) = (P.pretty no P.<> ":") P.<+> P.prettyList ps P.<+> "->" P.<+> maybe "_|_" P.pretty b
 
 type Cls = [Cl]
 
 -- | Strip down a clause. Don't forget to apply the substitution to the dot
 --   patterns!
-unBruijn :: Clause -> Cl
-unBruijn c = Cl (applySubst sub $ (map . fmap) (fmap dbPatVarName . namedThing) $ namedClausePats c)
-                (applySubst sub $ clauseBody c)
+unBruijn :: (ClauseNumber, Clause) -> Cl
+unBruijn (no, c) = Cl no
+    (applySubst sub $ (map . fmap) (fmap dbPatVarName . namedThing) $ namedClausePats c)
+    (applySubst sub $ clauseBody c)
   where
     sub = renamingR $ fromMaybe __IMPOSSIBLE__ (clausePerm c)
 
@@ -182,7 +185,7 @@ compile cs = case nextSplit cs of
 --   non-lazy matches.
 nextSplit :: Cls -> Maybe (Bool, Arg Int)
 nextSplit []             = __IMPOSSIBLE__
-nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
+nextSplit (Cl _ ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
   where
     nonLazy _ (ConP _ cpi _) = not $ conPLazy cpi
     nonLazy _ _              = True
@@ -227,21 +230,21 @@ splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $
     expandCatchalls single n cs
 
 splitC :: Int -> Cl -> Case Cl
-splitC n (Cl ps b) = caseMaybe mp fallback $ \case
-  ProjP _ d   -> projCase d $ Cl (ps0 ++ ps1) b
+splitC n (Cl no ps b) = caseMaybe mp fallback $ \case
+  ProjP _ d   -> projCase d $ Cl no (ps0 ++ ps1) b
   IApplyP{}   -> fallback
   ConP c i qs -> (conCase (conName c) (conPFallThrough i) $ WithArity (length qs) $
-                   Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b) { lazyMatch = conPLazy i }
+                   Cl no (ps0 ++ map (fmap namedThing) qs ++ ps1) b) { lazyMatch = conPLazy i }
   DefP o q qs -> (conCase q False $ WithArity (length qs) $
-                   Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b) { lazyMatch = False }
-  LitP _ l    -> litCase l $ Cl (ps0 ++ ps1) b
+                   Cl no (ps0 ++ map (fmap namedThing) qs ++ ps1) b) { lazyMatch = False }
+  LitP _ l    -> litCase l $ Cl no (ps0 ++ ps1) b
   VarP{}      -> fallback
   DotP{}      -> fallback
   where
     (ps0, rest) = splitAt n ps
     mp          = unArg <$> listToMaybe rest
     ps1         = drop 1 rest
-    fallback    = catchall $ Cl ps b
+    fallback    = catchall $ Cl no ps b
 
 -- | Expand catch-alls that appear before actual matches.
 --
@@ -323,7 +326,7 @@ expandCatchalls single n cs =
       -- would have no effect
       | all (isCatchallNth . clPats) cs -> cs
 
-    c@(Cl ps b):cs
+    c@(Cl _ ps b):cs
       -- If the head clause does not have a catch-all pattern for the
       -- nth argument, we can keep it at the head and do no expansion
       | not (isCatchallNth ps) -> c : expandCatchalls False n cs
@@ -347,7 +350,7 @@ expandCatchalls single n cs =
     -- catch-alls for this position
     -- The @expansions@ are collected from all the clauses @cs@ then.
     -- Note: @expansions@ could be empty, so we keep the orignal clause.
-    doExpand c@(Cl ps _)
+    doExpand c@(Cl _ ps _)
       | exCatchallNth ps = map (expand c) expansions ++ [c]
       | otherwise = [c]
 
@@ -383,7 +386,7 @@ expandCatchalls single n cs =
 
     expand cl (qs, q) =
       case unArg q of
-        ConP c mt qs' -> Cl (ps0 ++ [q $> ConP c mt conPArgs] ++ ps1)
+        ConP c mt qs' -> Cl no (ps0 ++ [q $> ConP c mt conPArgs] ++ ps1)
                             (substBody n' m (Con c ci (map Apply conArgs)) b)
           where
             ci       = fromConPatternInfo mt
@@ -392,8 +395,8 @@ expandCatchalls single n cs =
             -- TODO Andrea: might need these to sometimes be IApply?
             conPArgs = map (fmap ($> varP "_")) qs'
             conArgs  = zipWith (\ q' i -> q' $> var i) qs' $ downFrom m
-        LitP i l -> Cl (ps0 ++ [q $> LitP i l] ++ ps1) (substBody n' 0 (Lit l) b)
-        DefP o d qs' -> Cl (ps0 ++ [q $> DefP o d conPArgs] ++ ps1)
+        LitP i l -> Cl no (ps0 ++ [q $> LitP i l] ++ ps1) (substBody n' 0 (Lit l) b)
+        DefP o d qs' -> Cl no (ps0 ++ [q $> DefP o d conPArgs] ++ ps1)
                             (substBody n' m (Def d (map Apply conArgs)) b)
           where
             m        = length qs'
@@ -405,7 +408,7 @@ expandCatchalls single n cs =
         -- Andreas, 2016-09-19 issue #2168
         -- Due to varying function arity, some clauses might be eta-contracted.
         -- Thus, we eta-expand them.
-        Cl ps b = ensureNPatterns (n + 1) (map getArgInfo $ qs ++ [q]) cl
+        Cl no ps b = ensureNPatterns (n + 1) (map getArgInfo $ qs ++ [q]) cl
         -- The following pattern match cannot fail (by construction of @ps@).
         (ps0, _:ps1) = splitAt n ps
 
@@ -414,9 +417,9 @@ expandCatchalls single n cs =
 -- | Make sure (by eta-expansion) that clause has arity at least @n@
 --   where @n@ is also the length of the provided list.
 ensureNPatterns :: Int -> [ArgInfo] -> Cl -> Cl
-ensureNPatterns n ais0 cl@(Cl ps b)
+ensureNPatterns n ais0 cl@(Cl no ps b)
   | m <= 0    = cl
-  | otherwise = Cl (ps ++ ps') (raise m b `apply` args)
+  | otherwise = Cl no (ps ++ ps') (raise m b `apply` args)
   where
   k    = length ps
   ais  = drop k ais0
