@@ -29,6 +29,9 @@ import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 
+-- | The number of a 'Clause' (starting with 0) in the clause list of a 'FunctionData'.
+type ClauseNumber = Int
+
 data WithArity c = WithArity { arity :: Int, content :: c }
   deriving (Functor, Foldable, Traversable, Show, Generic)
 
