@@ -19,6 +19,6 @@ data T : Type where
   surf : p ∙ p ≡ p
 
 f : (x : T) → x ≡ x
-f base       = refl T.base
+f base       = refl base
 f (p i)      = refl (p i)
 f (surf i j) = refl (surf i j)
