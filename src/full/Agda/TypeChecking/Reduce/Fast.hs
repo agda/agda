@@ -380,7 +380,7 @@ fastCompiledClauses :: BuiltinEnv -> CompiledClauses -> FastCompiledClauses
 fastCompiledClauses bEnv cc =
   case cc of
     Fail{}            -> FFail
-    Done xs b         -> FDone xs b
+    Done _no xs b     -> FDone xs b
     Case (Arg _ n) Branches{ etaBranch = Just (c, cc), catchallBranch = ca } ->
       FEta n (conFields c) (fastCompiledClauses bEnv $ content cc) (fastCompiledClauses bEnv <$> ca)
     Case (Arg _ n) bs -> FCase n (fastCase bEnv bs)

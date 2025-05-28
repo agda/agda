@@ -150,7 +150,7 @@ bindBuiltinFlat x =
           , clauseEllipsis    = NoEllipsis
           , clauseWhereModule = Nothing
           }
-        cc = Case (defaultArg 0) $ conCase sharp False $ WithArity 1 $ Done [defaultArg "x"] $ var 0
+        cc = Case (defaultArg 0) $ conCase sharp False $ WithArity 1 $ Done 0 [defaultArg "x"] $ var 0
         projection = Projection
           { projProper   = Just inf
           , projOrig     = flat

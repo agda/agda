@@ -67,11 +67,12 @@ data CompiledClauses' a
     -- (counting from zero) with @bs@ as the case branches.
     -- If the @n@-th argument is a projection, we have only 'conBranches'
     -- with arity 0.
-  | Done [Arg ArgName] a
-    -- ^ @Done xs b@ stands for the body @b@ where the @xs@ contains hiding
+  | Done ClauseNumber [Arg ArgName] a
+    -- ^ @Done no xs b@ stands for the body @b@ where the @xs@ contains hiding
     --   and name suggestions for the free variables. This is needed to build
     --   lambdas on the right hand side for partial applications which can
     --   still reduce.
+    --   The @no@ is the number of the original 'Clause' this case tree leaf comes from.
   | Fail [Arg ArgName]
     -- ^ Absurd case. Add the free variables here as well so we can build correct
     --   number of lambdas for strict backends. (#4280)
@@ -178,7 +179,7 @@ prettyMap_ :: (Pretty k, Pretty v) => Map k v -> [Doc]
 prettyMap_ = map prettyAssign . Map.toList
 
 instance Pretty CompiledClauses where
-  pretty (Done hs t) = ("done" <> pretty hs) <?> pretty t
+  pretty (Done no hs t) = ("done" <+> (pretty no <> ":") <+> pretty hs) <?> pretty t
   pretty Fail{}      = "fail"
   pretty (Case n bs) | projPatterns bs =
     sep [ "record"
@@ -201,9 +202,9 @@ instance KillRange c => KillRange (Case c) where
     b lazy
 
 instance KillRange CompiledClauses where
-  killRange (Case i br) = killRangeN Case i br
-  killRange (Done xs v) = killRangeN Done xs v
-  killRange (Fail xs)   = killRangeN Fail xs
+  killRange (Case i br)    = killRangeN Case i br
+  killRange (Done no xs v) = killRangeN Done no xs v
+  killRange (Fail xs)      = killRangeN Fail xs
 
 -- * TermLike instances
 
