@@ -1,5 +1,8 @@
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
+  tt = _b_35
+    : (λ { true → ⊤ ; false → ⊥ }) (test true (c (_b_21 (n = true))))
+    (blocked on any(_31, _32))
   ⊥ =< (λ { true → ⊤ ; false → ⊥ })
        (test false (c (_b_21 (n = false))))
     (blocked on _22)

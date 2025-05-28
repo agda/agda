@@ -42,13 +42,13 @@ prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ pret
 
 {-# SPECIALIZE interestingConstraint :: ProblemConstraint -> TCM Bool #-}
 interestingConstraint :: MonadPretty m => ProblemConstraint -> m Bool
-interestingConstraint pc =
-  case clValue (theConstraint pc) of
-    ValueCmp _ _ (MetaV m _) _ -> isNothing . mvBrave <$> lookupLocalMeta m
-    PostponedTypeCheckingProblem m cl -> enterClosure cl \case
+interestingConstraint pc
+  | UnblockOnProblem{} <- constraintUnblocker pc = return False
+  | PostponedTypeCheckingProblem m cl <- clValue (theConstraint pc) =
+      enterClosure cl \case
         DisambiguateConstructor{} -> return True
         _ -> return False
-    _ -> return True
+  | otherwise = return True
 
 {-# SPECIALIZE prettyInterestingConstraints :: [ProblemConstraint] -> TCM [Doc] #-}
 prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
