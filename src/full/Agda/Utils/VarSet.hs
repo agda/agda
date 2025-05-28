@@ -18,11 +18,6 @@ import Data.IntSet as IntSet
 
 type VarSet = IntSet
 
-#if !MIN_VERSION_containers(0,6,3)
-mapMonotonic :: (Int -> Int) -> VarSet -> VarSet
-mapMonotonic f = fromDistinctAscList . fmap f . toAscList
-#endif
-
 -- | Subtract from each element.
 subtract :: Int -> VarSet -> VarSet
 subtract n = mapMonotonic (Prelude.subtract n)

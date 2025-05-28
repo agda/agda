@@ -13,11 +13,7 @@ import Control.Exception (throwIO)
 import Control.Monad.Except (MonadError (..))
 import Control.Monad.Trans (MonadIO, lift, liftIO)
 import qualified System.Console.Haskeline as Haskeline
-
--- MonadException is replaced by MonadCatch in haskeline 0.8
-#if MIN_VERSION_haskeline(0,8,0)
 import qualified Control.Monad.Catch as Haskeline (catch)
-#endif
 
 import Agda.TypeChecking.Monad
   ( HasOptions

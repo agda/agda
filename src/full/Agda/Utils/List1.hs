@@ -91,25 +91,6 @@ last2 :: List1 a -> Maybe (a, a)
 last2 (x :| y : xs) = Just $ List.last2' x y xs
 last2 _ = Nothing
 
--- | Build a list with one element.
-
-#if !(MIN_VERSION_base(4,15,0))
-singleton :: a -> List1 a
-singleton = (:| [])
-#endif
-
-#if !MIN_VERSION_base(4,16,0)
--- | Append a list to a non-empty list.
-
-appendList :: List1 a -> [a] -> List1 a
-appendList (x :| xs) ys = x :| mappend xs ys
-
--- | Prepend a list to a non-empty list.
-
-prependList :: [a] -> List1 a -> List1 a
-prependList as bs = Prelude.foldr (<|) bs as
-#endif
-
 -- | More precise type for @snoc@.
 
 snoc :: [a] -> a -> List1 a

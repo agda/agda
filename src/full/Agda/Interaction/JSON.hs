@@ -16,9 +16,7 @@ import Data.Aeson    as Export hiding (Result(..), (.=))
 
 import qualified Data.Aeson
 import Data.Aeson.Types ( Pair )
-#if MIN_VERSION_aeson(2,0,0)
 import qualified Data.Aeson.Key as Key
-#endif
 
 import Data.Text (Text)
 import Data.Word (Word32)
@@ -33,15 +31,8 @@ import Agda.Syntax.Common.Pretty
 import qualified Agda.Utils.FileName as File
 import qualified Agda.Utils.Maybe.Strict as Strict
 
-#if MIN_VERSION_aeson(2,0,0)
 toKey :: Text -> Key
 toKey = Key.fromText
-#else
-type Key = Text
-
-toKey :: Text -> Key
-toKey = id
-#endif
 
 ---------------------------------------------------------------------------
 -- * The EncodeTCM class
@@ -139,9 +130,3 @@ instance EncodeTCM a => EncodeTCM (Maybe a) where
 
 instance ToJSON File.AbsolutePath where
   toJSON (File.AbsolutePath path) = toJSON path
-
-#if !(MIN_VERSION_aeson(1,5,3))
-instance ToJSON a => ToJSON (Strict.Maybe a) where
-  toJSON (Strict.Just a) = toJSON a
-  toJSON Strict.Nothing  = Null
-#endif

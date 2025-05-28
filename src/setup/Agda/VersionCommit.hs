@@ -3,9 +3,7 @@
 {-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-#if __GLASGOW_HASKELL__ >= 900
 {-# OPTIONS_GHC -Wno-overlapping-patterns #-}
-#endif
 
 module Agda.VersionCommit where
 

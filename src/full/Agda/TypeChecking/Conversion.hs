@@ -1,9 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
-#if __GLASGOW_HASKELL__ >= 810
 {-# OPTIONS_GHC -fmax-pmcheck-models=390 #-} -- Andreas, 2023-05-12, limit determined by binary search
-#endif
 
 module Agda.TypeChecking.Conversion where
 
