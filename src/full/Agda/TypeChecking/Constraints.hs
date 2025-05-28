@@ -249,9 +249,10 @@ solveSomeAwakeConstraintsTCM solveThis force = do
       reportSDoc "tc.constr.solve" 10 $ hsep [ "Solving awake constraints."
                                              , text . show . length =<< getAwakeConstraints
                                              , "remaining." ]
-      whenJustM (takeAwakeConstraint' solveThis) $ \ c -> do
-        withConstraint solveConstraint c
-        solve
+      takeAwakeConstraints' solveThis >>= \case
+        [] -> return ()
+        cs -> do mapM_ (withConstraint solveConstraint) cs
+                 solve
 
 solveConstraintTCM :: Constraint -> TCM ()
 solveConstraintTCM c = do

@@ -116,6 +116,13 @@ takeAwakeConstraint' p = do
       modifyAwakeConstraints $ const (cs0 ++ cs)
       return $ Just c
 
+takeAwakeConstraints' :: MonadConstraint m => (ProblemConstraint -> Bool) -> m [ProblemConstraint]
+takeAwakeConstraints' p = do
+  cs <- getAwakeConstraints
+  let (taken, rest) = List.partition p cs
+  modifyAwakeConstraints $ const rest
+  return taken
+
 getAllConstraints :: ReadTCState m => m Constraints
 getAllConstraints = do
   s <- getTCState
