@@ -141,6 +141,7 @@ setup-agda:
 .PHONY: ensure-hash-is-correct
 ensure-hash-is-correct:
 	rm -f $(BUILD_DIR)/build/Agda/VersionCommit.o
+	rm -f $(BUILD_DIR)/build/agda-mode/agda-mode-tmp/Agda/VersionCommit.o
 
 .PHONY: copy-bins-with-suffix-% ## Copy binaries to local bin directory with suffix
 copy-bins-with-suffix-%:
