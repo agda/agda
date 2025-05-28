@@ -5,23 +5,25 @@ import Control.DeepSeq (NFData)
 import Data.Function (on)
 import Data.Map (Map)
 import GHC.Generics (Generic)
+import Data.IORef (IORef)
 
 import Agda.Syntax.Abstract (Expr)
-import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract qualified as A
+import Agda.Syntax.Common.Pretty qualified as P
+import Agda.Syntax.Common.Pretty (Pretty)
 import Agda.Syntax.Common (InteractionId, Nat)
 import Agda.Syntax.Internal
-
-import Agda.TypeChecking.Monad (TCState, CheckpointId, Open, TCEnv)
-import Agda.TypeChecking.Substitute (NoSubst)
-
--- import Agda.Utils.Permutation (idP, permute, takeP)
+import Agda.TypeChecking.Monad (TCState, CheckpointId, Open, TCEnv, openThing)
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Substitute (NoSubst(..))
+import Agda.Interaction.Base (Rewrite(..))
+import Agda.Utils.Tuple (mapSnd)
 
 import Agda.Mimer.Options
 
-import Data.IORef (IORef)
-
--- Temporary (used for custom cost verbosity hack)
-import Agda.Interaction.Base (Rewrite(..))
+------------------------------------------------------------------------
+-- * Results
+------------------------------------------------------------------------
 
 data MimerResult
   = MimerExpr String -- ^ Returns 'String' rather than 'Expr' because the give action expects a string.
@@ -31,6 +33,19 @@ data MimerResult
   deriving (Generic)
 
 instance NFData MimerResult
+
+data SearchStepResult
+  = ResultExpr Expr
+  | ResultClauses [A.Clause]
+  | OpenBranch SearchBranch
+  | NoSolution
+  deriving (Generic)
+
+instance NFData SearchStepResult
+
+------------------------------------------------------------------------
+-- * Search branches
+------------------------------------------------------------------------
 
 data SearchBranch = SearchBranch
   { sbTCState :: TCState
@@ -50,8 +65,8 @@ instance Eq SearchBranch where
 instance Ord SearchBranch where
   compare = compare `on` sbCost
 
--- Map source component to generated components
-type ComponentCache = Map Component (Maybe [Component])
+addBranchGoals :: [Goal] -> SearchBranch -> SearchBranch
+addBranchGoals goals branch = branch {sbGoals = goals ++ sbGoals branch}
 
 data Goal = Goal
   { goalMeta :: MetaId
@@ -62,6 +77,13 @@ instance NFData Goal
 -- TODO: Is this a reasonable Eq instance?
 instance Eq Goal where
   g1 == g2 = goalMeta g1 == goalMeta g2
+
+------------------------------------------------------------------------
+-- * Components
+------------------------------------------------------------------------
+
+-- Map source component to generated components
+type ComponentCache = Map Component (Maybe [Component])
 
 -- | Components that are not changed during search. Components that do change
 -- (local variables and let bindings) are stored in each 'SearchBranch'.
@@ -103,14 +125,29 @@ instance NFData Component
 instance Ord Component where
   compare = compare `on` compId
 
-data SearchStepResult
-  = ResultExpr Expr
-  | ResultClauses [A.Clause]
-  | OpenBranch SearchBranch
-  | NoSolution
-  deriving (Generic)
-instance NFData SearchStepResult
+mkComponent :: CompId -> [MetaId] -> Cost -> Maybe Name -> Nat -> Term -> Type -> Component
+mkComponent cId metaIds cost mName pars term typ = Component
+  { compId    = cId
+  , compName  = mName
+  , compPars  = pars
+  , compTerm  = term
+  , compType  = typ
+  , compRec   = False
+  , compMetas = metaIds
+  , compCost  = cost }
 
+mkComponentQ :: CompId -> Cost -> QName -> Nat -> Term -> Type -> Component
+mkComponentQ cId cost qname = mkComponent cId [] cost (Just $ qnameName qname)
+
+noName :: Maybe Name
+noName = Nothing
+
+addCost :: Cost -> Component -> Component
+addCost cost comp = comp { compCost = cost + compCost comp }
+
+------------------------------------------------------------------------
+-- * SearchOptions
+------------------------------------------------------------------------
 
 data SearchOptions = SearchOptions
   { searchBaseComponents :: BaseComponents
@@ -172,19 +209,19 @@ defaultCosts = Costs
   , costCompReuse = \uses -> 10 * (uses - 1) ^ 2
   }
 
-------------------------------------------------------------------------------
+------------------------------------------------------------------------
 -- * Measure performance
-------------------------------------------------------------------------------
+------------------------------------------------------------------------
 
 data MimerStats = MimerStats
-  { statCompHit :: Nat -- ^ Could make use of an already generated component
-  , statCompGen :: Nat -- ^ Could use a generator for a component
-  , statCompRegen :: Nat -- ^ Had to regenerate the cache (new context)
-  , statCompNoRegen :: Nat -- ^ Did not have to regenerate the cache
-  , statMetasCreated :: Nat -- ^ Total number of meta-variables created explicitly (not through unification)
-  , statTypeEqChecks :: Nat -- ^ Number of times type equality is tested (with unification)
+  { statCompHit       :: Nat -- ^ Could make use of an already generated component
+  , statCompGen       :: Nat -- ^ Could use a generator for a component
+  , statCompRegen     :: Nat -- ^ Had to regenerate the cache (new context)
+  , statCompNoRegen   :: Nat -- ^ Did not have to regenerate the cache
+  , statMetasCreated  :: Nat -- ^ Total number of meta-variables created explicitly (not through unification)
+  , statTypeEqChecks  :: Nat -- ^ Number of times type equality is tested (with unification)
   , statRefineSuccess :: Nat -- ^ Number of times a refinement has been successful
-  , statRefineFail :: Nat -- ^ Number of times a refinement has failed
+  , statRefineFail    :: Nat -- ^ Number of times a refinement has failed
   } deriving (Show, Eq, Generic)
 instance NFData MimerStats
 
@@ -201,4 +238,143 @@ incMetasCreated  stats = stats {statMetasCreated  = succ $ statMetasCreated stat
 incTypeEqChecks  stats = stats {statTypeEqChecks  = succ $ statTypeEqChecks stats}
 incRefineSuccess stats = stats {statRefineSuccess = succ $ statRefineSuccess stats}
 incRefineFail    stats = stats {statRefineFail    = succ $ statRefineFail stats}
+
+------------------------------------------------------------------------
+-- * Pretty printing
+------------------------------------------------------------------------
+
+haskellRecord :: Doc -> [(Doc, Doc)] -> Doc
+haskellRecord name fields = P.sep [ name, P.nest 2 $ P.braces (P.sep $ P.punctuate "," [ P.hang (k P.<+> "=") 2 v | (k, v) <- fields ]) ]
+
+keyValueList :: [(Doc, Doc)] -> Doc
+keyValueList kvs = P.braces $ P.sep $ P.punctuate "," [ P.hang (k P.<> ":") 2 v | (k, v) <- kvs ]
+
+instance Pretty Goal where
+  pretty goal = P.pretty $ goalMeta goal
+
+instance Pretty SearchBranch where
+  pretty branch = keyValueList
+    [ ("sbTCState", "[...]")
+    , ("sbGoals", P.pretty $ sbGoals branch)
+    , ("sbCost", P.pretty $ sbCost branch)
+    , ("sbComponentsUsed", P.pretty $ sbComponentsUsed branch)
+    ]
+
+instance PrettyTCM BaseComponents where
+  prettyTCM comps = do
+    let thisFn = case hintThisFn comps of
+          Nothing -> "(nothing)"
+          Just comp -> prettyComp comp
+    vcat [ "Base components:"
+         , nest 2 $ vcat
+           [ f "hintFns" (hintFns comps)
+           , f "hintDataTypes" (hintDataTypes comps)
+           , f "hintRecordTypes" (hintRecordTypes comps)
+           , f "hintAxioms" (hintAxioms comps)
+           , f "hintLevel" (hintLevel comps)
+           , f "hintProjections" (hintProjections comps)
+           , "hintThisFn:" <+> thisFn
+           , g prettyOpenComp "hintLetVars" (hintLetVars comps)
+           , "hintRecVars: Open" <+> pretty (mapSnd unNoSubst <$> openThing (hintRecVars comps))
+           , "hintSplitVars: Open" <+> pretty (openThing $ hintSplitVars comps)
+           ]
+         ]
+    where
+      prettyComp comp = pretty (compTerm comp) <+> ":" <+> pretty (compType comp)
+      prettyOpenComp openComp = "Open" <+> parens (prettyComp $ openThing openComp)
+      prettyTCMComp comp = prettyTCM (compTerm comp) <+> ":" <+> prettyTCM (compType comp)
+      f = g prettyTCMComp
+      g p n [] = n <> ": []"
+      g p n xs = (n <> ":") $+$ nest 2 (vcat $ map p xs)
+
+instance Pretty BaseComponents where
+  pretty comps = P.vcat
+      [ f "hintFns" (hintFns comps)
+      , f "hintDataTypes" (hintDataTypes comps)
+      , f "hintRecordTypes" (hintRecordTypes comps)
+      , f "hintAxioms" (hintAxioms comps)
+      , f "hintLevel" (hintLevel comps)
+      , f "hintProjections" (hintProjections comps)
+      ]
+    where
+      f n [] = n P.<> ": []"
+      f n xs = (n P.<> ":") P.$$ P.nest 2 (P.pretty xs)
+
+instance Pretty SearchOptions where
+  pretty opts = P.vcat
+    [ "searchBaseComponents:"
+    , P.nest 2 $ P.pretty $ searchBaseComponents opts
+    , keyValueList
+      [ ("searchHintMode", P.pretty $ searchHintMode opts)
+      , ("searchTimeout",  P.pretty $ searchTimeout opts)
+      , ("searchTopMeta",  P.pretty $ searchTopMeta opts)
+      , ("searchTopEnv", "[...]")
+      ]
+    , "searchCosts:"
+    , P.nest 2 (P.pretty $ searchCosts opts)
+    ]
+
+instance PrettyTCM SearchOptions where
+  prettyTCM opts = vcat
+    [ "searchBaseComponents:"
+    , nest 2 $ prettyTCM $ searchBaseComponents opts
+    , vcat
+      [ "searchHintMode:" <+> pretty (searchHintMode opts)
+      , "searchTimeout:" <+> pretty (searchTimeout opts)
+      , "searchTopMeta:" <+> prettyTCM (searchTopMeta opts)
+      , "searchTopEnv: [...]"
+      , "searchTopCheckpoint:" <+> prettyTCM (searchTopCheckpoint opts)
+      , "searchInteractionId:" <+> pretty (searchInteractionId opts)
+      , "searchFnName:" <+> pretty (searchFnName opts)
+      , "searchStats: [...]"
+      ]
+    , "searchCosts:"
+    , nest 2 $ pretty $ searchCosts opts
+    ]
+
+instance Pretty Component where
+  pretty comp = haskellRecord "Component"
+    [ ("compId", P.pretty $ compId comp)
+    , ("compTerm", P.pretty $ compTerm comp)
+    , ("compType", P.pretty $ compType comp)
+    , ("compMetas", P.pretty $ compMetas comp)
+    , ("compCost", P.pretty $ compCost comp)
+    ]
+
+instance Pretty Costs where
+  pretty costs = P.align 20 entries
+    where
+      entries =
+        [ ("costLocal:"         , P.pretty $ costLocal costs)
+        , ("costFn:"            , P.pretty $ costFn costs)
+        , ("costDataCon:"       , P.pretty $ costDataCon costs)
+        , ("costRecordCon:"     , P.pretty $ costRecordCon costs)
+        , ("costSpeculateProj:" , P.pretty $ costSpeculateProj costs)
+        , ("costProj:"          , P.pretty $ costProj costs)
+        , ("costAxiom:"         , P.pretty $ costAxiom costs)
+        , ("costLet:"           , P.pretty $ costLet costs)
+        , ("costLevel:"         , P.pretty $ costLevel costs)
+        , ("costSet:"           , P.pretty $ costSet costs)
+        , ("costRecCall:"       , P.pretty $ costRecCall costs)
+        , ("costNewMeta:"       , P.pretty $ costNewMeta costs)
+        , ("costNewHiddenMeta:" , P.pretty $ costNewHiddenMeta costs)
+        , ("costCompReuse:"     , "{function}")
+        ]
+
+instance PrettyTCM Component where
+  prettyTCM Component{..} = parens (prettyTCM compId) <+> sep
+    [ sep [ prettyTCM compTerm
+          , ":" <+> prettyTCM compType ]
+    , parens $ fsep $ punctuate ","
+      [ "cost:" <+> prettyTCM compCost
+      , "metas:" <+> prettyTCM compMetas
+      ]
+    ]
+
+instance PrettyTCM MimerResult where
+  prettyTCM = \case
+    MimerExpr expr    -> pretty expr
+    MimerClauses f cl -> "MimerClauses" <+> pretty f <+> "[..]" -- TODO: display the clauses
+    MimerNoResult     -> "MimerNoResult"
+    MimerList sols    -> "MimerList" <+> pretty sols
 
