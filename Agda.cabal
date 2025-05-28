@@ -607,6 +607,8 @@ library
       Agda.Main
       Agda.Mimer.Mimer
       Agda.Mimer.Options
+      Agda.Mimer.Types
+      Agda.Mimer.Monad
       Agda.Setup
       Agda.Setup.DataFiles
       Agda.Setup.EmacsMode
