@@ -12,8 +12,8 @@ import qualified Agda.Syntax.Concrete.Name  as C
 import           Agda.Utils.List1           (List1)
 
 data RecordFieldWarning
-  = DuplicateFields (List1 (C.Name, Range))
-      -- ^ Each redundant field comes with a range of associated dead code.
+  = DuplicateFields (List1 (C.Name, List1 Range))
+      -- ^ Each redundant field comes with ranges of associated dead code.
   | TooManyFields QName [C.Name] (List1 (C.Name, Range))
       -- ^ Record type, fields not supplied by user, non-fields but supplied.
       --   The redundant fields come with a range of associated dead code.
