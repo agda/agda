@@ -73,6 +73,9 @@ dontExpandLast = localTC $ \ e -> e { envExpandLast = DontExpandLast }
 reallyDontExpandLast :: TCM a -> TCM a
 reallyDontExpandLast = localTC $ \ e -> e { envExpandLast = ReallyDontExpandLast }
 
+dontBlockHiddenLambda :: TCM a -> TCM a
+dontBlockHiddenLambda = locallyTCState stBlockHiddenLambda $ const False
+
 -- | If the reduced did a proper match (constructor or literal pattern),
 --   then record this as simplification step.
 {-# SPECIALIZE performedSimplification :: TCM a -> TCM a #-}

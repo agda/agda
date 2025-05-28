@@ -124,6 +124,7 @@ assignTermTCM' x tel v = do
       ]
      -- verify (new) invariants
     whenM (not <$> asksTC envAssignMetas) __IMPOSSIBLE__
+    whenM (isInstantiatedMeta x) __IMPOSSIBLE__
 
     whenProfile Profile.Metas $ liftTCM $ return () {-tickMax "max-open-metas" . (fromIntegral . size) =<< getOpenMetas-}
     updateMetaVarTCM x $ \ mv ->

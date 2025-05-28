@@ -348,6 +348,10 @@ data PostScopeState = PostScopeState
     -- ^ Is this a context where we should always try every possible
     -- instance candidate? Used to support "inert improvement", see
     -- @shouldBlockOverlap@ in InstanceArguments.
+  , stPostBlockHiddenLambda :: !Bool
+    -- ^ When type-checking a term at a blocked type,
+    --   should we block until we know whether to insert
+    --   a hidden lambda?
   }
   deriving (Generic)
 
@@ -536,6 +540,7 @@ initPostScopeState = PostScopeState
   , stPostOpaqueIds              = Map.empty
   , stPostForeignCode            = Map.empty
   , stPostInstanceHack           = False
+  , stPostBlockHiddenLambda      = True
   }
 
 initStateIO :: IO TCState
@@ -777,6 +782,9 @@ lensInstantiateBlocking f s = f (stPostInstantiateBlocking s) <&> \ x -> s { stP
 lensInstanceHack :: Lens' PostScopeState Bool
 lensInstanceHack f s = f (stPostInstanceHack s) <&> \ x -> s { stPostInstanceHack = x }
 
+lensBlockHiddenLambda :: Lens' PostScopeState Bool
+lensBlockHiddenLambda f s = f (stPostBlockHiddenLambda s) <&> \ x -> s { stPostBlockHiddenLambda = x }
+
 -- * @st@-prefixed lenses
 ------------------------------------------------------------------------
 
@@ -910,6 +918,9 @@ stOpaqueIds = lensPostScopeState . lensOpaqueIds
 
 stInstanceHack :: Lens' TCState Bool
 stInstanceHack = lensPostScopeState . lensInstanceHack
+
+stBlockHiddenLambda :: Lens' TCState Bool
+stBlockHiddenLambda = lensPostScopeState . lensBlockHiddenLambda
 
 stSyntaxInfo :: Lens' TCState HighlightingInfo
 stSyntaxInfo = lensPostScopeState . lensSyntaxInfo
@@ -4252,6 +4263,7 @@ eExpandLast f e = f (envExpandLast e) <&> \ x -> e { envExpandLast = x }
 
 eExpandLastBool :: Lens' TCEnv Bool
 eExpandLastBool f e = f (isExpandLast $ envExpandLast e) <&> \ x -> e { envExpandLast = toExpandLast x }
+
 
 eAppDef :: Lens' TCEnv (Maybe QName)
 eAppDef f e = f (envAppDef e) <&> \ x -> e { envAppDef = x }

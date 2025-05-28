@@ -218,12 +218,13 @@ checkDecl d = setCurrentRange d $ do
       -- Post-typing checks.
       whenJust finalChecks \theMutualChecks -> do
         reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
-        locallyTCState stInstanceHack (const True) $
+        locallyTCState stInstanceHack (const True) $ dontBlockHiddenLambda $
           wakeupConstraints_   -- solve emptiness and instance constraints
 
-        checkingWhere <- asksTC envCheckingWhere
-        solveSizeConstraints $ if checkingWhere /= NoWhere_ then DontDefaultToInfty else DefaultToInfty
-        wakeupConstraints_   -- Size solver might have unblocked some constraints
+        whenM (optSizedTypes <$> pragmaOptions) $ do
+          checkingWhere <- asksTC envCheckingWhere
+          solveSizeConstraints $ if checkingWhere /= NoWhere_ then DontDefaultToInfty else DefaultToInfty
+          wakeupConstraints_   -- Size solver might have unblocked some constraints
 
         case d of
           A.Generalize{} -> pure ()

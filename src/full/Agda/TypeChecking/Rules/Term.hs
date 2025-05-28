@@ -1316,7 +1316,9 @@ checkExpr' cmp e t =
           _ -> proceed
 
     | otherwise = case tReduced of
-        Blocked b _ -> postponeTypeCheckingProblem (CheckExpr cmp e t) b
+        Blocked b _ -> ifM (useTC stBlockHiddenLambda)
+          (postponeTypeCheckingProblem (CheckExpr cmp e t) b)
+          fallback
         NotBlocked{} -> fallback
 
     where

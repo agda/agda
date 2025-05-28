@@ -113,7 +113,7 @@ wakeConstraintsTCM wake = do
     "waking up         " ++ show (List.map (Set.toList . constraintProblems) wakeup) ++ "\n" ++
     "  still sleeping: " ++ show (List.map (Set.toList . constraintProblems) sleepin)
   modifySleepingConstraints $ const sleepin
-  modifyAwakeConstraints (++ wakeup)
+  modifyAwakeConstraints (++ reverse wakeup)
   where
     checkWakeUp c = case wake c of
       WakeUp              -> Left c
