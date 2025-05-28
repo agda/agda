@@ -13,6 +13,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.Pure
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -36,8 +37,8 @@ import Agda.Utils.Size
 --  This is used instead of special treatment of lambdas
 --  (which was unsound: Issue #121)
 
-etaExpandClause :: MonadTCM tcm => Clause -> tcm Clause
-etaExpandClause clause = liftTCM $ do
+etaExpandClause :: PureTCM tcm => Clause -> tcm Clause
+etaExpandClause clause = do
   case clause of
     Clause _  _  ctel ps _           Nothing  _ _ _ _ _ -> return clause
     Clause _  _  ctel ps Nothing     (Just t) _ _ _ _ _ -> return clause

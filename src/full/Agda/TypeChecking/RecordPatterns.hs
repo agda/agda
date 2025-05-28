@@ -28,6 +28,7 @@ import Agda.Syntax.Info
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.Functions ( etaExpandClause )
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty hiding (pretty)
 import Agda.TypeChecking.Records
@@ -234,10 +235,10 @@ recordRHSToCopatterns ::
      forall m. (MonadChange m, PureTCM m)
   => Clause
   -> m [Clause]
-recordRHSToCopatterns cl = do
+recordRHSToCopatterns cl0 = do
   reportSLn "tc.inline.con" 40 $ "enter recordRHSToCopatterns"
 
-  case cl of
+  etaExpandClause cl0 >>= \case
 
     -- RHS must be fully applied coinductive constructor/record expression.
     cl@Clause{ namedClausePats = ps
@@ -250,7 +251,7 @@ recordRHSToCopatterns cl = do
 
           -- Only expand constructors labelled @{-# INLINE c #-}@.
       -> inlineConstructor c >>= \case
-        Nothing  -> return [cl]
+        Nothing  -> return [cl0]
         Just eta -> do
 
           mt <- traverse reduce mt
@@ -288,7 +289,7 @@ recordRHSToCopatterns cl = do
                 }
 
     -- Otherwise: no change.
-    cl -> return [cl]
+    _ -> return [cl0]
 
   where
     -- @Nothing@ means do not inline, @Just eta@ means inline.
