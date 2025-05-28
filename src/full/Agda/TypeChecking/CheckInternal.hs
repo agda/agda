@@ -16,6 +16,10 @@ module Agda.TypeChecking.CheckInternal
   ) where
 
 import Control.Monad
+import Control.Monad.Except ( MonadError(..))
+
+import qualified Data.Map as Map
+import Data.Map (Map)
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Common.Pretty as P
@@ -460,6 +464,11 @@ lookupLvlPos cc p = (\x -> size (ccTel cc) - x - 1) <$> lookupPos cc p
 getTerms :: CheckClause -> [Maybe Term]
 getTerms cc = map (fmap var) (getVars cc)
 
+isDatatypeC :: (MonadCheckInternal tcm, MonadError TCErr tcm) =>
+              Induction -> Dom Type ->
+              tcm (DataOrRecord, QName, Sort, Args, Args, [QName], Bool)
+isDatatypeC = undefined
+
 checkClauseSubst :: CheckClause -> Substitution
 checkClauseSubst cc = prependS __IMPOSSIBLE__ (reverse $ getTerms cc) idS
 
@@ -487,12 +496,47 @@ checkClauses act c@(Done arg t) cmp s = addContext (ccTel s) $ do
   reportSDoc "tc.check.internal.cc" 50 $ vcat
     [ "checking internal done clause of " <+> prettyTCM (ccName s)
     , nest 2 $ return $ P.pretty c ]
---  let sub = renamingR $ fromMaybe __IMPOSSIBLE__ $ checkClausePerm s
   let sub = checkClauseSubst s
   nt <- checkInternal' act (applySubst sub t) cmp (unDom . ccTarget $ s)
   return (s, Done arg nt)
-checkClauses act (Case arg cases) cmp s = undefined
+checkClauses act c@(Case arg cases) cmp s = do
+  reportSDoc "tc.check.internal.cc" 50 $ vcat
+    [ "checking internal case clause of " <+> prettyTCM (ccName s)
+      , nest 2 $ return $ P.pretty c ]
+  let tel = ccTel s
+      narg = unArg arg
+  -- Split the telescope at the variable
+  -- t = type of the variable,  Δ₁ ⊢ t
+  (n, t, delta1, delta2) <- do
+    let (tel1, dom : tel2) = splitAt (size tel - narg - 1) $ telToList tel
+    return (fst $ unDom dom, snd <$> dom, telFromList tel1, telFromList tel2)
+  (dr, d, s, pars, ixs, cons', _) <- inContextOfT tel narg $ isDatatypeC Inductive t
+  cons <- case False of --checkEmpty
+    True  -> undefined --ifM (liftTCM $ inContextOfT $ isEmptyType $ unDom t) (pure []) (pure cons')
+    False -> pure cons'
+  mns <- forM cons $ \ con ->
+    computeNeighbourhood delta1 n delta2 d pars ixs narg tel con
+  return undefined
+  where
+    inContextOfT :: (MonadAddContext tcm, MonadDebug tcm)
+                 => Telescope -> Int -> tcm a -> tcm a
+    inContextOfT tel x = addContext tel . escapeContext impossible (x + 1)
 checkClauses act (Fail arg) cmp s = undefined
+
+
+computeNeighbourhood
+  :: (MonadError TCErr m, MonadCheckInternal m)
+  => Telescope                    -- ^ Telescope before split point.
+  -> PatVarName                   -- ^ Name of pattern variable at split point.
+  -> Telescope                    -- ^ Telescope after split point.
+  -> QName                        -- ^ Name of datatype to split at.
+  -> Args                         -- ^ Data type parameters.
+  -> Args                         -- ^ Data type indices.
+  -> Nat                          -- ^ Index of split variable.
+  -> Telescope                    -- ^ Telescope for the patterns.
+  -> QName                        -- ^ Constructor to fit into hole.
+  -> m (Map QName (WithArity CheckClause))
+computeNeighbourhood delta1 n delta2 d pars ixs hix tel c = undefined
 
 {-
 Examples
