@@ -27,14 +27,12 @@ module Agda.Mimer.Mimer
 
 import Prelude hiding (null)
 
-import Control.DeepSeq (NFData(..))
 import Control.Monad
-import Control.Monad.Except (catchError)
 import Control.Monad.Error.Class (MonadError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), runReaderT, asks, ask, lift)
 import Data.Functor ((<&>))
-import Data.List (sortOn, intersect, (\\))
+import Data.List (sortOn, (\\))
 import qualified Data.List.NonEmpty as NonEmptyList (head)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -48,53 +46,45 @@ import Agda.Syntax.Abstract (Expr)
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
-import Agda.Syntax.Common.Pretty (Pretty)
-import qualified Agda.Syntax.Common.Pretty as P
-import qualified Agda.Syntax.Concrete.Name as C
+import Agda.Syntax.Common.Pretty qualified as P
 import Agda.Syntax.Info (pattern UnificationMeta)
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.MetaVars (AllMetas(..))
 import Agda.Syntax.Position (Range, rangeFile, rangeFilePath, noRange)
 import qualified Agda.Syntax.Scope.Base as Scope
 import Agda.Syntax.Translation.InternalToAbstract (reify, blankNotInScope)
-import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcrete_)
 
 import Agda.TypeChecking.Primitive (getBuiltinName)
-import Agda.TypeChecking.Constraints (noConstraints)
 import Agda.TypeChecking.Datatypes (isDataOrRecord)
-import Agda.TypeChecking.Conversion (equalType)
 import Agda.TypeChecking.Empty (isEmptyType)
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.MetaVars (newValueMeta)
-import Agda.TypeChecking.Monad -- (MonadTCM, lookupInteractionId, getConstInfo, liftTCM, clScope, getMetaInfo, lookupMeta, MetaVariable(..), metaType, typeOfConst, getMetaType, MetaInfo(..), getMetaTypeInContext)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records (isRecord)
 import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Rules.Term  (makeAbsurdLambda)
 import Agda.TypeChecking.Substitute (apply, applyE, piApply, NoSubst(..), pattern TelV, telView')
-import Agda.TypeChecking.Telescope (piApplyM, flattenTel)
+import Agda.TypeChecking.Telescope (piApplyM)
 
-import Agda.Utils.Benchmark (billTo)
 import Agda.Utils.FileName (filePath)
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Maybe (catMaybes)
 import Agda.Utils.Monad (ifM, and2M)
 import qualified Agda.Utils.Maybe.Strict as SMaybe
--- import Agda.Utils.Permutation (idP, permute, takeP)
 import Agda.Utils.Null
 import Agda.Utils.Time (CPUTime(..), getCPUTime, fromMilliseconds)
 import Agda.Utils.Tuple (mapFst, mapSnd)
 
 import Data.IORef (readIORef, newIORef)
 
--- Temporary (used for custom cost verbosity hack)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import qualified Agda.Utils.Trie as Trie
 import Agda.Interaction.Base (Rewrite(..))
 import Agda.Interaction.BasicOps (normalForm)
 import Agda.Interaction.Options.Base (parseVerboseKey)
 import Agda.Utils.List (lastWithDefault)
+import Agda.Utils.Monad (concatMapM)
 
 import Agda.Mimer.Types
 import Agda.Mimer.Monad
@@ -155,10 +145,6 @@ mimer norm ii rng argStr = liftTCM $ do
 
 
 ------------------------------------------------------------------------------
--- * Data types
-------------------------------------------------------------------------------
-
-------------------------------------------------------------------------------
 -- * Helper functions
 ------------------------------------------------------------------------------
 
@@ -166,63 +152,6 @@ predNat :: Nat -> Nat
 predNat n | n > 0 = n - 1
           | n == 0 = 0
           | otherwise = error "predNat of negative value"
-
-getRecordFields :: (HasConstInfo tcm, MonadTCM tcm) => QName -> tcm [QName]
-getRecordFields = fmap (map unDom . recFields . theDef) . getConstInfo
-
-allOpenMetas :: (AllMetas t, ReadTCState tcm) => t -> tcm [MetaId]
-allOpenMetas t = do
-  openMetas <- getOpenMetas
-  return $ allMetas (:[]) t `intersect` openMetas
-
-getOpenComponent :: (MonadTCM tcm, MonadDebug tcm) => Open Component -> tcm Component
-getOpenComponent openComp = do
-  let comp = openThing openComp
-  reportSDoc "mimer.components.open" 40 $ "Opening component" <+> prettyTCM (compId comp) <+> prettyTCM (compName comp)
-  term <- getOpen $ compTerm <$> openComp
-  reportSDoc "mimer.components.open" 40 $ "  term = " <+> prettyTCM term
-  typ <- getOpen $ compType <$> openComp
-  reportSDoc "mimer.components.open" 40 $ "  typ  =" <+> prettyTCM typ
-  when (not $ null $ compMetas comp) __IMPOSSIBLE__
-  return Component
-    { compId    = compId comp
-    , compName  = compName comp
-    , compPars  = compPars comp
-    , compTerm  = term
-    , compType  = typ
-    , compRec   = compRec comp
-    , compMetas = compMetas comp
-    , compCost  = compCost comp
-    }
-
-mkComponent :: CompId -> [MetaId] -> Cost -> Maybe Name -> Nat -> Term -> Type -> Component
-mkComponent cId metaIds cost mName pars term typ = Component
-  { compId    = cId
-  , compName  = mName
-  , compPars  = pars
-  , compTerm  = term
-  , compType  = typ
-  , compRec   = False
-  , compMetas = metaIds
-  , compCost  = cost }
-
-mkComponentQ :: CompId -> Cost -> QName -> Nat -> Term -> Type -> Component
-mkComponentQ cId cost qname = mkComponent cId [] cost (Just $ qnameName qname)
-
-noName :: Maybe Name
-noName = Nothing
-
-newComponent :: MonadFresh CompId m => [MetaId] -> Cost -> Maybe Name -> Nat -> Term -> Type -> m Component
-newComponent metaIds cost mName pars term typ = fresh <&> \cId -> mkComponent cId metaIds cost mName pars term typ
-
-newComponentQ :: MonadFresh CompId m => [MetaId] -> Cost -> QName -> Nat -> Term -> Type -> m Component
-newComponentQ metaIds cost qname pars term typ = fresh <&> \cId -> mkComponent cId metaIds cost (Just $ qnameName qname) pars term typ
-
-addCost :: Cost -> Component -> Component
-addCost cost comp = comp { compCost = cost + compCost comp }
-
-addBranchGoals :: [Goal] -> SearchBranch -> SearchBranch
-addBranchGoals goals branch = branch {sbGoals = goals ++ sbGoals branch}
 
 withBranchState :: SearchBranch -> SM a -> SM a
 withBranchState br ma = do
@@ -1273,107 +1202,6 @@ checkSolved branch = do
       _ -> do
         return $ OpenBranch branch { sbGoals = goals }
 
-setAt :: Int -> a -> [a] -> [a]
-setAt i x xs = case splitAt i xs of
-  (ls, _r:rs) -> ls ++ (x : rs)
-  _ -> error "setAt: index out of bounds"
-
-updateBranch' :: Maybe Component -> [MetaId] -> SearchBranch -> SM SearchBranch
-updateBranch' mComp newMetaIds branch = do
-  state <- getTC
-  let compsUsed = sbComponentsUsed branch
-  (deltaCost, compsUsed') <- case mComp of
-        Nothing -> return (0, compsUsed)
-        Just comp -> do
-          case compName comp of
-            Nothing -> return (compCost comp, compsUsed)
-            Just name -> case compsUsed Map.!? name of
-              Nothing -> return (compCost comp, Map.insert name 1 compsUsed)
-              Just uses -> do
-                reuseCost <- asks (costCompReuse . searchCosts)
-                return (compCost comp + reuseCost uses, Map.adjust succ name compsUsed)
-  return branch{ sbTCState = state
-               , sbGoals = map Goal newMetaIds ++ sbGoals branch
-               , sbCost = sbCost branch + deltaCost
-               , sbComponentsUsed = compsUsed'
-               }
-
-updateBranch :: [MetaId] -> SearchBranch -> SM SearchBranch
-updateBranch = updateBranch' Nothing
-
-updateBranchCost :: Component -> [MetaId] -> SearchBranch -> SM SearchBranch
-updateBranchCost comp = updateBranch' (Just comp)
-
-assignMeta :: MetaId -> Term -> Type -> SM [MetaId]
-assignMeta metaId term metaType = bench [Bench.CheckRHS] $ do
-  ((), newMetaStore) <- metasCreatedBy $ do
-    metaVar <- lookupLocalMeta metaId
-    metaArgs <- getMetaContextArgs metaVar
-
-    reportSMDoc "mimer.assignMeta" 60 $ vcat
-      [ "Assigning" <+> pretty term
-      , nest 2 $ vcat [ "to" <+> pretty metaId <+> ":" <+> pretty metaType
-                      , "in context" <+> (pretty =<< getContextTelescope)
-                      ]
-      ]
-
-    assignV DirLeq metaId metaArgs term (AsTermsOf metaType) `catchError` \err -> do
-      reportSMDoc "mimer.assignMeta" 30 $ vcat
-        [ "Got error from assignV:" <+> prettyTCM err
-        , nest 2 $ vcat
-          [ "when trying to assign" <+> prettyTCM term
-          , "to" <+> prettyTCM metaId <+> ":" <+> prettyTCM metaType
-          , "in context" <+> (inTopContext . prettyTCM =<< getContextTelescope)
-          ]
-        ]
-
-  let newMetaIds = Map.keys (openMetas newMetaStore)
-  return newMetaIds
-
-dumbUnifier :: Type -> Type -> SM Bool
-dumbUnifier t1 t2 = isNothing <$> dumbUnifierErr t1 t2
-
-dumbUnifierErr :: Type -> Type -> SM (Maybe TCErr)
-dumbUnifierErr t1 t2 = bench [Bench.UnifyIndices] $ do
-  updateStat incTypeEqChecks
-  noConstraints (Nothing <$ equalType t2 t1) `catchError` \err -> do
-    reportSDoc "mimer.unify" 80 $ sep [ "Unification failed with error:", nest 2 $ prettyTCM err ]
-    return $ Just err
-
--- Duplicate of a local definition in Agda.Interaction.BasicOps
-showTCM :: (MonadPretty tcm, PrettyTCM a) => a -> tcm String
-showTCM v = P.render <$> prettyTCM v
-
-bench :: NFData a => [Bench.Phase] -> SM a -> SM a
-bench k ma = billTo (mimerAccount : k) ma
-  where
-    -- Dummy account to avoid updating Bench. Doesn't matter since this is only used interactively
-    -- to debug Mimer performance.
-    mimerAccount = Bench.Sort
-
--- Local variables:
--- getContext :: MonadTCEnv m => m [Dom (Name, Type)]
--- getContextArgs :: (Applicative m, MonadTCEnv m) => m Args
--- getContextTelescope :: (Applicative m, MonadTCEnv m) => m Telescope
--- getContextTerms :: (Applicative m, MonadTCEnv m) => m [Term]
-getLocalVars :: Int -> Cost -> TCM [Component]
-getLocalVars localCxt cost = do
-  typedTerms <- getLocalVarTerms localCxt
-  let varZeroDiscount (Var 0 []) = 1
-      varZeroDiscount _          = 0
-  mapM (\(term, domTyp) -> newComponent [] (cost - varZeroDiscount term) noName 0 term (unDom domTyp)) typedTerms
-
-getLocalVarTerms :: Int -> TCM [(Term, Dom Type)]
-getLocalVarTerms localCxt = do
-  contextTerms <- getContextTerms
-  contextTypes <- flattenTel <$> getContextTelescope
-  let inScope i _ | i < localCxt = pure True   -- Ignore scope for variables we inserted ourselves
-      inScope _ Dom{ unDom = name } = do
-        x <- abstractToConcrete_ name
-        pure $ C.isInScope x == C.InScope
-  scope <- mapM (uncurry inScope) =<< getContextVars
-  return [ e | (True, e) <- zip scope $ zip contextTerms contextTypes ]
-
 
 
 prettyBranch :: SearchBranch -> SM String
@@ -1387,153 +1215,6 @@ prettyBranch branch = withBranchState branch $ do
       , "used components:" <+> pretty (Map.toList $ sbComponentsUsed branch)
       ])
 
-
-instance Pretty Goal where
-  pretty goal = P.pretty $ goalMeta goal
-
-instance Pretty SearchBranch where
-  pretty branch = keyValueList
-    [ ("sbTCState", "[...]")
-    , ("sbGoals", P.pretty $ sbGoals branch)
-    , ("sbCost", P.pretty $ sbCost branch)
-    , ("sbComponentsUsed", P.pretty $ sbComponentsUsed branch)
-    ]
-
-
-instance PrettyTCM BaseComponents where
-  prettyTCM comps = do
-    let thisFn = case hintThisFn comps of
-          Nothing -> "(nothing)"
-          Just comp -> prettyComp comp
-    vcat [ "Base components:"
-         , nest 2 $ vcat
-           [ f "hintFns" (hintFns comps)
-           , f "hintDataTypes" (hintDataTypes comps)
-           , f "hintRecordTypes" (hintRecordTypes comps)
-           , f "hintAxioms" (hintAxioms comps)
-           , f "hintLevel" (hintLevel comps)
-           , f "hintProjections" (hintProjections comps)
-           , "hintThisFn:" <+> thisFn
-           , g prettyOpenComp "hintLetVars" (hintLetVars comps)
-           , "hintRecVars: Open" <+> pretty (mapSnd unNoSubst <$> openThing (hintRecVars comps))
-           , "hintSplitVars: Open" <+> pretty (openThing $ hintSplitVars comps)
-           ]
-         ]
-    where
-      prettyComp comp = pretty (compTerm comp) <+> ":" <+> pretty (compType comp)
-      prettyOpenComp openComp = "Open" <+> parens (prettyComp $ openThing openComp)
-      prettyTCMComp comp = prettyTCM (compTerm comp) <+> ":" <+> prettyTCM (compType comp)
-      f = g prettyTCMComp
-      g p n [] = n <> ": []"
-      g p n xs = (n <> ":") $+$ nest 2 (vcat $ map p xs)
-
-
--- -- TODO: Is it possible to derive the pretty instances?
-instance Pretty BaseComponents where
-  pretty comps = P.vcat
-      [ f "hintFns" (hintFns comps)
-      , f "hintDataTypes" (hintDataTypes comps)
-      , f "hintRecordTypes" (hintRecordTypes comps)
-      , f "hintAxioms" (hintAxioms comps)
-      , f "hintLevel" (hintLevel comps)
-      , f "hintProjections" (hintProjections comps)
-      ]
-    where
-      f n [] = n P.<> ": []"
-      f n xs = (n P.<> ":") P.$$ P.nest 2 (P.pretty xs)
-
-instance Pretty SearchOptions where
-  pretty opts = P.vcat
-    [ "searchBaseComponents:"
-    , P.nest 2 $ P.pretty $ searchBaseComponents opts
-    , keyValueList
-      [ ("searchHintMode", P.pretty $ searchHintMode opts)
-      , ("searchTimeout",  P.pretty $ searchTimeout opts)
-      , ("searchTopMeta",  P.pretty $ searchTopMeta opts)
-      , ("searchTopEnv", "[...]")
-      ]
-    , "searchCosts:"
-    , P.nest 2 (P.pretty $ searchCosts opts)
-    ]
-
-instance PrettyTCM SearchOptions where
-  prettyTCM opts = vcat
-    [ "searchBaseComponents:"
-    , nest 2 $ prettyTCM $ searchBaseComponents opts
-    , vcat
-      [ "searchHintMode:" <+> pretty (searchHintMode opts)
-      , "searchTimeout:" <+> pretty (searchTimeout opts)
-      , "searchTopMeta:" <+> prettyTCM (searchTopMeta opts)
-      , "searchTopEnv: [...]"
-      , "searchTopCheckpoint:" <+> prettyTCM (searchTopCheckpoint opts)
-      , "searchInteractionId:" <+> pretty (searchInteractionId opts)
-      , "searchFnName:" <+> pretty (searchFnName opts)
-      , "searchStats: [...]"
-      ]
-    , "searchCosts:"
-    , nest 2 $ pretty $ searchCosts opts
-    ]
-
-instance Pretty Component where
-  pretty comp = haskellRecord "Component"
-    [ ("compId", P.pretty $ compId comp)
-    , ("compTerm", P.pretty $ compTerm comp)
-    , ("compType", P.pretty $ compType comp)
-    , ("compMetas", P.pretty $ compMetas comp)
-    , ("compCost", P.pretty $ compCost comp)
-    ]
-
-instance Pretty Costs where
-  pretty costs = P.align 20 entries
-    where
-      entries =
-        [ ("costLocal:"         , P.pretty $ costLocal costs)
-        , ("costFn:"            , P.pretty $ costFn costs)
-        , ("costDataCon:"       , P.pretty $ costDataCon costs)
-        , ("costRecordCon:"     , P.pretty $ costRecordCon costs)
-        , ("costSpeculateProj:" , P.pretty $ costSpeculateProj costs)
-        , ("costProj:"          , P.pretty $ costProj costs)
-        , ("costAxiom:"         , P.pretty $ costAxiom costs)
-        , ("costLet:"           , P.pretty $ costLet costs)
-        , ("costLevel:"         , P.pretty $ costLevel costs)
-        , ("costSet:"           , P.pretty $ costSet costs)
-        , ("costRecCall:"       , P.pretty $ costRecCall costs)
-        , ("costNewMeta:"       , P.pretty $ costNewMeta costs)
-        , ("costNewHiddenMeta:" , P.pretty $ costNewHiddenMeta costs)
-        , ("costCompReuse:"     , "{function}")
-        ]
-
-instance PrettyTCM Component where
-  prettyTCM Component{..} = parens (prettyTCM compId) <+> sep
-    [ sep [ prettyTCM compTerm
-          , ":" <+> prettyTCM compType ]
-    , parens $ fsep $ punctuate ","
-      [ "cost:" <+> prettyTCM compCost
-      , "metas:" <+> prettyTCM compMetas
-      ]
-    ]
-
-instance PrettyTCM MimerResult where
-  prettyTCM = \case
-    MimerExpr expr    -> pretty expr
-    MimerClauses f cl -> "MimerClauses" <+> pretty f <+> "[..]" -- TODO: display the clauses
-    MimerNoResult     -> "MimerNoResult"
-    MimerList sols    -> "MimerList" <+> pretty sols
-
-concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
-concatMapM f = fmap concat . mapM f
-
-reportSMDoc :: VerboseKey -> VerboseLevel -> SM Doc -> SM ()
-reportSMDoc vk vl md = reportSDoc vk vl . runReaderT md =<< ask
-
-mimerTrace :: Int -> VerboseLevel -> SM Doc -> SM ()
-mimerTrace ilvl vlvl doc = reportSMDoc "mimer.trace" vlvl $ nest (2 * ilvl) $ "-" <+> doc
-
-haskellRecord :: Doc -> [(Doc, Doc)] -> Doc
-haskellRecord name fields = P.sep [ name, P.nest 2 $ P.braces (P.sep $ P.punctuate "," [ P.hang (k P.<+> "=") 2 v | (k, v) <- fields ]) ]
-
-keyValueList :: [(Doc, Doc)] -> Doc
-keyValueList kvs = P.braces $ P.sep $ P.punctuate "," [ P.hang (k P.<> ":") 2 v | (k, v) <- kvs ]
 
 writeTime :: (ReadTCState m, MonadError TCErr m, MonadTCM m, MonadDebug m) => InteractionId -> Maybe CPUTime -> m ()
 writeTime ii mTime = do
