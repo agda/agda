@@ -355,6 +355,7 @@ common language
       TypeSynonymInstances
       ViewPatterns
       TypeApplications
+      ImportQualifiedPost
 
   other-extensions:
       AllowAmbiguousTypes
