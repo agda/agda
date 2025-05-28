@@ -310,7 +310,7 @@ recordExpressionsToCopatterns
 recordExpressionsToCopatterns = \case
     Case i bs -> Case i <$> traverse recordExpressionsToCopatterns bs
     cc@Fail{} -> return cc
-    cc@(Done xs (Con c ConORec es)) -> do  -- don't translate if using the record /constructor/
+    cc@(Done no xs (Con c ConORec es)) -> do  -- don't translate if using the record /constructor/
       let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       irrProj <- optIrrelevantProjections <$> pragmaOptions
       getConstructorInfo (conName c) >>= \ case
@@ -324,7 +324,7 @@ recordExpressionsToCopatterns = \case
                 traverse recordExpressionsToCopatterns $ Branches
                   { projPatterns   = True
                   , conBranches    = Map.fromListWith __IMPOSSIBLE__ $
-                      zipWith (\ f v -> (unDom f, WithArity 0 $ Done xs v)) fs vs
+                      zipWith (\ f v -> (unDom f, WithArity 0 $ Done no xs v)) fs vs
                   , etaBranch      = Nothing
                   , litBranches    = Map.empty
                   , catchallBranch = Nothing

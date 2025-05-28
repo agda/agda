@@ -161,16 +161,17 @@ compileWithSplitTree t cs = case t of
 
 compile :: Cls -> CompiledClauses
 compile [] = Fail []
-compile cs = case nextSplit cs of
-  Just (isRecP, n) -> Case n $ compile <$> splitOn isRecP (unArg n) cs
-  Nothing -> case clBody c of
-    -- It's possible to get more than one clause here due to
-    -- catch-all expansion.
-    Just t  -> Done (map (fmap name) $ clPats c) t
-    Nothing -> Fail (map (fmap name) $ clPats c)
-  where
+compile (c:cs) = case nextSplit c cs of
+  Just (isRecP, n) -> Case n $ compile <$> splitOn isRecP (unArg n) (c:cs)
+  Nothing ->
+    -- It's possible to get more than one clause here due to catch-all expansion.
+    case body of
+      Just t  -> Done no xs t
+      Nothing -> Fail xs
+    where
     -- If there are more than one clauses, take the first one.
-    c = headWithDefault __IMPOSSIBLE__ cs
+    Cl no ps body = c
+    xs = map (fmap name) ps
     name (VarP _ x) = x
     name (DotP _ _) = underscore
     name ConP{}  = __IMPOSSIBLE__
@@ -183,9 +184,8 @@ compile cs = case nextSplit cs of
 --   This the number of the first pattern that does a (non-lazy) match in the first clause.
 --   Or the first lazy match where all clauses agree on the constructor, if there are no
 --   non-lazy matches.
-nextSplit :: Cls -> Maybe (Bool, Arg Int)
-nextSplit []             = __IMPOSSIBLE__
-nextSplit (Cl _ ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
+nextSplit :: Cl -> Cls -> Maybe (Bool, Arg Int)
+nextSplit (Cl _ ps _) cs = findSplit nonLazy ps <|> findSplit allAgree ps
   where
     nonLazy _ (ConP _ cpi _) = not $ conPLazy cpi
     nonLazy _ _              = True
