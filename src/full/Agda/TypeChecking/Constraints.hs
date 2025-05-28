@@ -272,9 +272,9 @@ solveConstraint_ (CheckSizeLtSat t)         = checkSizeLtSat t
 solveConstraint_ (UnquoteTactic tac hole goal) = unquoteTactic tac hole goal
 solveConstraint_ (PostponedTypeCheckingProblem m cl) =
   enterClosure cl $ \prob -> do
-    tel <- getContextTelescope
     v   <- liftTCM $ checkTypeCheckingProblem prob
-    assignTerm m (telToArgs tel) v
+    args <- getContextArgs
+    equalTerm (problemType prob) (MetaV m $ map Apply args) v
 solveConstraint_ (FindInstance m cands) = findInstance m cands
 solveConstraint_ (ResolveInstanceHead q) = resolveInstanceHead q
 solveConstraint_ (CheckFunDef i q cs _err) = withoutCache $
@@ -288,6 +288,15 @@ solveConstraint_ (CheckDataSort q s)    = checkDataSort q s
 solveConstraint_ (CheckMetaInst m)      = checkMetaInst m
 solveConstraint_ (CheckType t)          = checkType t
 solveConstraint_ (UsableAtModality cc ms mod t) = usableAtModality' ms cc mod t
+
+-- | Type of the term that is produced by solving the 'TypeCheckingProblem'.
+problemType :: TypeCheckingProblem -> Type
+problemType (CheckExpr _ _ t         ) = t
+problemType (CheckArgs _ _ _ _ _ t _ ) = t  -- The target type of the application.
+problemType (CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ t _ _ _ _) = t -- The target type of the application
+problemType (CheckLambda _ _ _ t     ) = t
+problemType (DoQuoteTerm _ _ t)        = t
+problemType (DisambiguateConstructor (ConstructorDisambiguationData _ _ _ t) _) = t
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem = \case

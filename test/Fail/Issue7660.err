@@ -1,6 +1,6 @@
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
-  _18 := ambiguous constructor c ? : _9 (blocked on _9)
+  _14 := ambiguous constructor c ? : _9 (blocked on _9)
   Check definition of test : _7 → Set
     stuck because
       Issue7660.agda:17.7-10: error: [SplitError.BlockedType]

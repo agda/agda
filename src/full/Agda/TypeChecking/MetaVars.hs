@@ -575,42 +575,15 @@ postponeTypeCheckingProblem p unblock | unblock == alwaysUnblock = do
   reportSDoc "impossible" 2 $ "Postponed without blocker:" <?> prettyTCM p
   __IMPOSSIBLE__
 postponeTypeCheckingProblem p unblock = do
-  i   <- createMetaInfo' DontRunMetaOccursCheck
-  tel <- getContextTelescope
-  cl  <- buildClosure p
   let t = problemType p
-  m   <- newMeta' (OpenMeta UnificationMeta)
-                  Instantiable i normalMetaPriority (idP (size tel))
-         $ HasType () CmpLeq $ telePi_ tel t
+  (m , v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
   inTopContext $ reportSDoc "tc.meta.postponed" 20 $ vcat
-    [ "new meta" <+> prettyTCM m <+> ":" <+> prettyTCM (telePi_ tel t)
+    [ "new meta" <+> prettyTCM m <+> ":" <+> prettyTCM t
     , "for postponed typechecking problem" <+> prettyTCM p
     ]
-
-  -- Create the meta that we actually return
-  -- Andreas, 2012-03-15
-  -- This is an alias to the pptc meta, in order to allow pruning (issue 468)
-  -- and instantiation.
-  -- Since this meta's solution comes from user code, we do not need
-  -- to run the extended occurs check (metaOccurs) to exclude
-  -- non-terminating solutions.
-  es  <- map Apply <$> getContextArgs
-  (_, v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
-  cmp <- buildProblemConstraint_ (unblockOnMeta m) (ValueCmp CmpEq (AsTermsOf t) v (MetaV m es))
-  reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
-  i   <- liftTCM fresh
-  listenToMeta (CheckConstraint i cmp) m
+  cl <- buildClosure p
   addConstraint unblock (PostponedTypeCheckingProblem m cl)
   return v
-
--- | Type of the term that is produced by solving the 'TypeCheckingProblem'.
-problemType :: TypeCheckingProblem -> Type
-problemType (CheckExpr _ _ t         ) = t
-problemType (CheckArgs _ _ _ _ _ t _ ) = t  -- The target type of the application.
-problemType (CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ t _ _ _ _) = t -- The target type of the application
-problemType (CheckLambda _ _ _ t     ) = t
-problemType (DoQuoteTerm _ _ t)        = t
-problemType (DisambiguateConstructor (ConstructorDisambiguationData _ _ _ t) _) = t
 
 -- | Eta-expand a local meta-variable, if it is of the specified kind.
 --   Don't do anything if the meta-variable is a blocked term.

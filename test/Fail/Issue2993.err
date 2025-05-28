@@ -1,6 +1,6 @@
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
-  Resolve instance argument _AF_165 : Applicative (λ v₁ → _F_177 v₁)
+  Resolve instance argument _AF_161 : Applicative (λ v₁ → _F_173 v₁)
   Candidates
     AF : Applicative F
     applicativeComp :
@@ -8,7 +8,7 @@ Failed to solve the following constraints:
       ⦃ _ : Applicative G ⦄ →
       Applicative (F₁ o G)
     (stuck)
-  Resolve instance argument _AF_174 : Applicative (λ v → _F_175 v)
+  Resolve instance argument _AF_170 : Applicative (λ v → _F_171 v)
   Candidates
     AF : Applicative F
     applicativeComp :
@@ -16,11 +16,11 @@ Failed to solve the following constraints:
       ⦃ _ : Applicative G ⦄ →
       Applicative (F₁ o G)
     (stuck)
-  F B =< _F_175 _B_173 (blocked on _F_175)
-  _F_175 (Vec _B_173 n) =< F (Vec B n) (blocked on _F_175)
-  _F_177 (Vec _B_164 n₁) =< F (Vec B n₁)
-    (blocked on any(_B_164, _F_177))
-  F B =< _F_177 _B_164 (blocked on _F_177)
+  F B =< _F_171 _B_169 (blocked on _F_171)
+  _F_171 (Vec _B_169 n) =< F (Vec B n) (blocked on _F_171)
+  _F_173 (Vec _B_160 n₁) =< F (Vec B n₁)
+    (blocked on any(_B_160, _F_173))
+  F B =< _F_173 _B_160 (blocked on _F_173)
 
 Issue2993.agda:51.19-23: error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:

@@ -1,19 +1,19 @@
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
-  Set = _10 (m = Maybe) (mzero = mymaybemzero) (blocked on _10)
-  _12 (m = Maybe) (mzero = mymaybemzero) =< Maybe a (blocked on _12)
-  Set = _7 (m = Maybe) (mzero = mymaybemzero) (blocked on _7)
+  Set = _8 (m = Maybe) (mzero = mymaybemzero) (blocked on _8)
   _9 (m = Maybe) (mzero = mymaybemzero) =< Maybe a (blocked on _9)
+  Set = _6 (m = Maybe) (mzero = mymaybemzero) (blocked on _6)
+  _7 (m = Maybe) (mzero = mymaybemzero) =< Maybe a (blocked on _7)
   Set = _2 (m = Maybe) (blocked on _2)
-  _4 (m = Maybe) =< Maybe a (blocked on _4)
-  Set (Agda.Primitive.lsuc _a_66) = _0 (blocked on _0)
-  Set _a_66 → Set _a_66 =< _1 (blocked on _1)
+  _3 (m = Maybe) =< Maybe a (blocked on _3)
+  Set (Agda.Primitive.lsuc _a_45) = _0 (blocked on _0)
+  Set _a_45 → Set _a_45 =< _1 (blocked on _1)
   piSort Set₁
   (λ a →
-     funSort (_7 (m = m) (mzero = mzero))
-     (funSort (_10 (m = m) (mzero = mzero)) Set))
+     funSort (_6 (m = m) (mzero = mzero))
+     (funSort (_8 (m = m) (mzero = mzero)) Set))
     =< Set₁
-    (blocked on all(_7, _10))
+    (blocked on all(_6, _8))
   piSort Set₁ (λ a → funSort (_2 (m = m)) Set) =< Set₁
     (blocked on _2)
 
