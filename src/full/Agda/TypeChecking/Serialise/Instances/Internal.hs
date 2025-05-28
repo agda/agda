@@ -502,15 +502,16 @@ instance EmbPrj OpaqueBlock where
                             in OpaqueBlock id unfolding mempty Nothing)
 
 instance EmbPrj CompiledClauses where
-  icod_ (Fail a)   = icodeN' Fail a
-  icod_ (Done a b) = icodeN' Done a (P.killRange b)
-  icod_ (Case a b) = icodeN 2 Case a b
+  icod_ = \case
+    Fail a      -> icodeN' Fail a
+    Done no a b -> icodeN' Done no a (P.killRange b)
+    Case a b    -> icodeN' Case a b
 
-  value = vcase valu where
-    valu [a]       = valuN Fail a
-    valu [a, b]    = valuN Done a b
-    valu [2, a, b] = valuN Case a b
-    valu _         = malformed
+  value = vcase \case
+    [a]        -> valuN Fail a
+    [no, a, b] -> valuN Done no a b
+    [a, b]     -> valuN Case a b
+    _          -> malformed
 
 instance EmbPrj a => EmbPrj (FunctionInverse' a) where
   icod_ NotInjective = icodeN' NotInjective

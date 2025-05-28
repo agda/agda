@@ -25,6 +25,6 @@ shouldInline _ = False
 -- Only auto-inline simple definitions (no pattern matching) where no variable
 -- is used more than once, and some variables are not used at all.
 shouldInline' :: CompiledClauses -> Bool
-shouldInline' (Done xs body) = all (< 2) counts && length counts < length xs
+shouldInline' (Done _ xs body) = all (< 2) counts && length counts < length xs
   where counts = IntMap.elems $ varCounts $ freeVars body
 shouldInline' _ = False

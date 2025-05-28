@@ -1706,9 +1706,10 @@ instance InstantiateFull a => InstantiateFull (Case a) where
       <*> pure lz
 
 instance InstantiateFull CompiledClauses where
-  instantiateFull' (Fail xs)   = return $ Fail xs
-  instantiateFull' (Done m t)  = Done m <$> instantiateFull' t
-  instantiateFull' (Case n bs) = Case n <$> instantiateFull' bs
+  instantiateFull' = \case
+    Fail xs     -> return $ Fail xs
+    Done no m t -> Done no m <$> instantiateFull' t
+    Case n bs   -> Case n <$> instantiateFull' bs
 
 instance InstantiateFull Clause where
     instantiateFull' (Clause rl rf tel ps b t catchall recursive unreachable ell wm) =
