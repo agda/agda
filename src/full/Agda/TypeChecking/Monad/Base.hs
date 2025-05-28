@@ -1684,7 +1684,11 @@ data MetaVariable =
                 , mvInstantiation :: MetaInstantiation
                 , mvListeners     :: Set Listener -- ^ meta variables scheduled for eta-expansion but blocked by this one
                 , mvFrozen        :: Frozen -- ^ are we past the point where we can instantiate this meta variable?
-                , mvBrave         :: Maybe Term -- ^ for pretty-printing blocked terms
+                , mvBrave         :: Maybe Term
+                -- ^ Only for pretty-printing: when the instantiation of this meta
+                --   is blocked by a constraint, we would nevertheless like to print
+                --   it as its eventual solution. So we already store its (potentially
+                --   ill-typed) solution here.
                 }
   deriving Generic
 
