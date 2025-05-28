@@ -464,11 +464,6 @@ lookupLvlPos cc p = (\x -> size (ccTel cc) - x - 1) <$> lookupPos cc p
 getTerms :: CheckClause -> [Maybe Term]
 getTerms cc = map (fmap var) (getVars cc)
 
-isDatatypeC :: (MonadCheckInternal tcm, MonadError TCErr tcm) =>
-              Induction -> Dom Type ->
-              tcm (DataOrRecord, QName, Sort, Args, Args, [QName], Bool)
-isDatatypeC = undefined
-
 checkClauseSubst :: CheckClause -> Substitution
 checkClauseSubst cc = prependS __IMPOSSIBLE__ (reverse $ getTerms cc) idS
 
@@ -510,7 +505,7 @@ checkClauses act c@(Case arg cases) cmp s = do
   (n, t, delta1, delta2) <- do
     let (tel1, dom : tel2) = splitAt (size tel - narg - 1) $ telToList tel
     return (fst $ unDom dom, snd <$> dom, telFromList tel1, telFromList tel2)
-  (dr, d, s, pars, ixs, cons', _) <- inContextOfT tel narg $ isDatatypeC Inductive t
+  (dr, d, s, pars, ixs, cons', _) <- inContextOfT tel narg $ isDatatypeCool Inductive t
   cons <- case False of --checkEmpty
     True  -> undefined --ifM (liftTCM $ inContextOfT $ isEmptyType $ unDom t) (pure []) (pure cons')
     False -> pure cons'
