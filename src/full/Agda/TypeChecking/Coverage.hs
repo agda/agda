@@ -1257,7 +1257,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
     return (fst $ unDom dom, snd <$> dom, telFromList tel1, telFromList tel2)
 
   -- Compute the neighbourhoods for the constructors
-  let computeNeighborhoods = do
+  let computeNeighbourhoods = do
         -- Check that t is a datatype or a record
         -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
         -- cons = constructors of this datatype
@@ -1279,7 +1279,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
                , ns ++ catMaybes ([fmap (fmap (,NoInfo)) hcompsc | not $ null $ ns])
                )
 
-      computeLitNeighborhoods = do
+      computeLitNeighbourhoods = do
         typeOk <- liftTCM $ do
           t' <- litType $ headWithDefault {-'-} __IMPOSSIBLE__ plits
           liftTCM $ dontAssignMetas $ tryConversion $ equalType (unDom t) t'
@@ -1312,8 +1312,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
   -- numMatching is the number of proper constructors matching, excluding hcomp.
   -- for literals this considers the catchall clause as 1 extra constructor.
   (dr, s, isIndexed, numMatching, ns) <- if null pcons' && not (null plits)
-        then computeLitNeighborhoods
-        else computeNeighborhoods
+        then computeLitNeighbourhoods
+        else computeNeighbourhoods
 
   --TODO: Bohdan & Mario: this fix can be done in computeNeighbourhood in computeNeighbourhoods
   ns <- case target of
