@@ -2055,7 +2055,7 @@ type IPBoundary = IPBoundary' Term
 -- | Which clause is an interaction point located in?
 data IPClause = IPClause
   { ipcQName    :: QName              -- ^ The name of the function.
-  , ipcClauseNo :: Int                -- ^ The number of the clause of this function.
+  , ipcClauseNo :: ClauseNumber       -- ^ The number of the clause of this function.
   , ipcType     :: Type               -- ^ The type of the function
   , ipcWithSub  :: Maybe Substitution -- ^ Module parameter substitution
   , ipcClause   :: A.SpineClause      -- ^ The original AST clause.
