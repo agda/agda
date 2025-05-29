@@ -951,7 +951,7 @@ bindBuiltinNoDef b q = inTopContext $ do
         def fun
             | b == builtinSizeUniv = FunctionDefn $ fun
                 { _funClauses    = [ (empty :: Clause) { clauseBody = Just $ Sort sSizeUniv } ]
-                , _funCompiled   = Just (CC.Done 0 [] $ Sort sSizeUniv)
+                , _funCompiled   = Just (CC.Done 0 Nothing [] $ Sort sSizeUniv)
                 , _funMutual     = Just []
                 , _funTerminates = Just True
                 }
@@ -965,7 +965,7 @@ bindBuiltinNoDef b q = inTopContext $ do
                           , primName     = name
                           , primClauses  = []
                           , primInv      = NotInjective
-                          , primCompiled = Just (CC.Done 0 [] $ Def q [])
+                          , primCompiled = Just (CC.Done 0 Nothing [] $ Def q [])
                           , primOpaque   = TransparentDef
                           }
       lang <- getLanguage

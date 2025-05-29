@@ -166,7 +166,7 @@ compile (c:cs) = case nextSplit c cs of
   Nothing ->
     -- It's possible to get more than one clause here due to catch-all expansion.
     case body of
-      Just t  -> Done no xs t
+      Just t  -> Done no Nothing xs t
       Nothing -> Fail xs
     where
     -- If there are more than one clauses, take the first one.

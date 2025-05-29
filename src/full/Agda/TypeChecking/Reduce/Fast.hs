@@ -369,7 +369,7 @@ data FastCompiledClauses
     -- ^ Match on record constructor. Can still have a catch-all though. Just
     --   contains the fields, not the actual constructor.
   | FDone [Arg ArgName] Term
-    -- ^ @Done xs b@ stands for the body @b@ where the @xs@ contains hiding
+    -- ^ @FDone xs b@ stands for the body @b@ where the @xs@ contains hiding
     --   and name suggestions for the free variables. This is needed to build
     --   lambdas on the right hand side for partial applications which can
     --   still reduce.
@@ -380,7 +380,7 @@ fastCompiledClauses :: BuiltinEnv -> CompiledClauses -> FastCompiledClauses
 fastCompiledClauses bEnv cc =
   case cc of
     Fail{}            -> FFail
-    Done _no xs b     -> FDone xs b
+    Done _no _mr xs b -> FDone xs b
     Case (Arg _ n) Branches{ etaBranch = Just (c, cc), catchallBranch = ca } ->
       FEta n (conFields c) (fastCompiledClauses bEnv $ content cc) (fastCompiledClauses bEnv <$> ca)
     Case (Arg _ n) bs -> FCase n (fastCase bEnv bs)

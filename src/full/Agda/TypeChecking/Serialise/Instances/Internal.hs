@@ -503,14 +503,14 @@ instance EmbPrj OpaqueBlock where
 
 instance EmbPrj CompiledClauses where
   icod_ = \case
-    Fail a      -> icodeN' Fail a
-    Done no a b -> icodeN' Done no a (P.killRange b)
-    Case a b    -> icodeN' Case a b
+    Fail a         -> icodeN' Fail a
+    Done no mr a b -> icodeN' Done no mr a (P.killRange b)
+    Case a b       -> icodeN' Case a b
 
   value = vcase \case
-    [a]        -> valuN Fail a
-    [no, a, b] -> valuN Done no a b
-    [a, b]     -> valuN Case a b
+    [a]            -> valuN Fail a
+    [no, mr, a, b] -> valuN Done no mr a b
+    [a, b]         -> valuN Case a b
     _          -> malformed
 
 instance EmbPrj a => EmbPrj (FunctionInverse' a) where
