@@ -145,12 +145,12 @@ bindBuiltinFlat x =
           , clauseBody      = Just $ var 0
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           , clauseCatchall    = empty
-          , clauseRecursive   = Just False
+          , clauseRecursive   = NotRecursive
           , clauseUnreachable = Just False
           , clauseEllipsis    = NoEllipsis
           , clauseWhereModule = Nothing
           }
-        cc = Case (defaultArg 0) $ conCase sharp False $ WithArity 1 $ Done 0 Nothing [defaultArg "x"] $ var 0
+        cc = Case (defaultArg 0) $ conCase sharp False $ WithArity 1 $ Done 0 NotRecursive [defaultArg "x"] $ var 0
         projection = Projection
           { projProper   = Just inf
           , projOrig     = flat

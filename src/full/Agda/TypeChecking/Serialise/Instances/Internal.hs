@@ -501,6 +501,8 @@ instance EmbPrj OpaqueBlock where
   value = valueN (\id uf -> let !unfolding = HashSet.fromList uf
                             in OpaqueBlock id unfolding mempty Nothing)
 
+instance EmbPrj ClauseRecursive
+
 instance EmbPrj CompiledClauses where
   icod_ = \case
     Fail a         -> icodeN' Fail a

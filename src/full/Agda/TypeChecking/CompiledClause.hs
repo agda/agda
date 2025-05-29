@@ -180,12 +180,7 @@ prettyMap_ :: (Pretty k, Pretty v) => Map k v -> [Doc]
 prettyMap_ = map prettyAssign . Map.toList
 
 instance Pretty CompiledClauses where
-  pretty (Done no mr hs t) = ("done" <+> (pretty no <> prettyRecursive mr <> ":") <+> pretty hs) <?> pretty t
-    where
-      prettyRecursive = \case
-        Nothing    -> empty
-        Just True  -> "Rec"
-        Just False -> "nonRec"
+  pretty (Done no mr hs t) = ("done" <+> (pretty no <> pretty mr <> ":") <+> pretty hs) <?> pretty t
   pretty Fail{}             = "fail"
   pretty (Case n bs) | projPatterns bs =
     sep [ "record"

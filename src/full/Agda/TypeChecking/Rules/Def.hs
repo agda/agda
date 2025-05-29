@@ -202,12 +202,12 @@ checkAlias t ai i name e mc =
               , clauseBody        = Just $ bodyMod v
               , clauseType        = Just $ Arg ai t
               , clauseCatchall    = empty
-              , clauseRecursive   = Nothing   -- we don't know yet
+              , clauseRecursive   = MaybeRecursive   -- we don't know yet
               , clauseUnreachable = Just False
               , clauseEllipsis    = NoEllipsis
               , clauseWhereModule = Nothing
               } ]
-          , _funCompiled  = Just $ Done 0 Nothing [] $ bodyMod v
+          , _funCompiled  = Just $ Done 0 MaybeRecursive [] $ bodyMod v
           , _funSplitTree = Just $ SplittingDone 0
           , _funOpaque    = Info.defOpaque i
           }
@@ -337,7 +337,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
                        , clauseBody      = Nothing
                        , clauseType      = Just (defaultArg t)
                        , clauseCatchall    = empty
-                       , clauseRecursive   = Just False
+                       , clauseRecursive   = NotRecursive
                        , clauseUnreachable = Just False
                        , clauseEllipsis    = NoEllipsis
                        , clauseWhereModule = Nothing
@@ -800,7 +800,7 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
                  , clauseBody      = bodyMod body
                  , clauseType      = Just trhs
                  , clauseCatchall  = catchall'
-                 , clauseRecursive   = Nothing -- we don't know yet
+                 , clauseRecursive   = MaybeRecursive -- we don't know yet
                  , clauseUnreachable = Nothing -- we don't know yet
                  , clauseEllipsis    = lhsEllipsis i
                  , clauseWhereModule = A.whereModule wh
