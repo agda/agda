@@ -386,12 +386,28 @@ type Blocked_ = Blocked ()
 type NAPs = [NamedArg DeBruijnPattern]
 
 -- | Does the clause body contain calls to any of the mutually recursive functions?
---   @Nothing@ means that analysis has not run yet,
---   or that @clauseBody@ contains meta-variables;
---   these could be filled with recursive calls later!
---   @Just False@ means definitely no recursive call.
---   @Just True@ means definitely a recursive call.
-type ClauseRecursive = Maybe Bool
+data ClauseRecursive
+  = YesRecursive
+      -- ^ Definitely a call to a mutually recursive function.
+  | NotRecursive
+      -- ^ Definitely no call to a mutually recursive function.
+  | MaybeRecursive
+      -- ^ Possibly a recursive call.
+      --   Could be that the analysis has not run yet,
+      --   or the clause body contains a meta
+      --   that could later be filled with a recursive call.
+  deriving (Bounded, Enum, Eq, Generic, Show)
+
+couldBeRecursive :: ClauseRecursive -> Bool
+couldBeRecursive = \case
+  YesRecursive   -> True
+  NotRecursive   -> False
+  MaybeRecursive -> True
+
+decideRecursive :: Bool -> ClauseRecursive
+decideRecursive = \case
+  True  -> YesRecursive
+  False -> NotRecursive
 
 -- | A clause is a list of patterns and the clause body.
 --
@@ -423,7 +439,7 @@ data Clause = Clause
       --   pattern on the lhs.
     , clauseCatchall    :: Catchall
       -- ^ Clause has been labelled as CATCHALL.
-    , clauseRecursive   :: Maybe Bool
+    , clauseRecursive   :: ClauseRecursive
       -- ^ @clauseBody@ contains recursive calls? Computed by termination checker.
     , clauseUnreachable :: Maybe Bool
       -- ^ Clause has been labelled as unreachable by the coverage checker.
@@ -1123,6 +1139,9 @@ instance Null (Tele a) where
   null EmptyTel    = True
   null ExtendTel{} = False
 
+instance Null ClauseRecursive where
+  empty = MaybeRecursive
+
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
 instance Null Clause where
@@ -1306,6 +1325,9 @@ instance KillRange a => KillRange (Pattern' a) where
       IApplyP o u t x  -> killRangeN (IApplyP o) u t x
       DefP o q ps      -> killRangeN (DefP o) q ps
 
+instance KillRange ClauseRecursive where
+  killRange = id
+
 instance KillRange Clause where
   killRange (Clause rl rf tel ps body t catchall recursive unreachable ell wm) =
     killRangeN Clause rl rf tel ps body t catchall recursive unreachable ell wm
@@ -1382,6 +1404,12 @@ pDom i =
     NotHidden  -> parens
     Hidden     -> braces
     Instance{} -> braces . braces
+
+instance Pretty ClauseRecursive where
+  pretty = \case
+    YesRecursive   -> "+Rec"
+    NotRecursive   -> "-Rec"
+    MaybeRecursive -> "?Rec"
 
 instance Pretty Clause where
   pretty Clause{clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t} =
@@ -1524,6 +1552,7 @@ instance NFData ConHead
 instance NFData a => NFData (Abs a)
 instance NFData a => NFData (Tele a)
 instance NFData IsFibrant
+instance NFData ClauseRecursive
 instance NFData Clause
 instance NFData PatternInfo
 instance NFData PatOrigin

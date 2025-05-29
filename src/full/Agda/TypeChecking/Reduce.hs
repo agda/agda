@@ -947,7 +947,7 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
               DontKnow OnlyLazy _ -> goCls cls es
               DontKnow NonLazy  b -> rewrite b (applyE v) rewr es
               Yes simpl vs -- vs is the subst. for the variables bound in body
-                | termCheck && fromMaybe True (clauseRecursive cl) ->
+                | termCheck && couldBeRecursive (clauseRecursive cl) ->
                     return $ NoReduction __IMPOSSIBLE__
                 | Just w <- body -> do -- clause has body?
                     -- TODO: let matchPatterns also return the reduced forms
