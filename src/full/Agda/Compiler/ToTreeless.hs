@@ -226,7 +226,7 @@ alwaysInline q = do
   pure $ case def of  -- always inline with functions and pattern lambdas
     Function{funClauses = cs} -> (isJust (funExtLam def) && not recursive) || isJust (funWith def)
             where
-              recursive = any (fromMaybe True . clauseRecursive) cs
+              recursive = any (couldBeRecursive . clauseRecursive) cs
     _ -> False
 
 shift :: Int -> CCContext -> CCContext

@@ -594,9 +594,9 @@ defineCompData d con params names fsT t boundary = do
           , clauseLHSRange    = noRange
           , clauseCatchall    = empty
           , clauseBody        = Just $ body
-          , clauseRecursive   = Nothing
+          , clauseRecursive   = MaybeRecursive
               -- Andreas 2020-02-06 TODO
-              -- Or: Just False;  is it known to be non-recursive?
+              -- Or: NotRecursive;  is it known to be non-recursive?
           , clauseUnreachable = Just False
           , clauseEllipsis    = NoEllipsis
           , clauseWhereModule = Nothing
@@ -646,7 +646,7 @@ defineProjections dataName con params names fsT t = do
           , namedClausePats   = [ conp ]
           , clauseBody        = Just $ var i
           , clauseType        = Just $ argN $ applySubst sigma $ unDom ty
-          , clauseRecursive   = Just False  -- non-recursive
+          , clauseRecursive   = NotRecursive  -- non-recursive
           , clauseUnreachable = Just False
           }
 
@@ -767,7 +767,7 @@ defineTranspIx d = do
 
           , clauseBody        = Just $ var 0
           , clauseType        = Just $ defaultArg $ raise 1 $ subst 0 io rect'
-          , clauseRecursive   = Just False  -- non-recursive
+          , clauseRecursive   = NotRecursive -- non-recursive
           , clauseUnreachable = Just False
           }
 
@@ -877,7 +877,7 @@ defineTranspFun d mtrX cons pathCons = do
 
             , clauseBody        = Just $ var 0
             , clauseType        = Just $ defaultArg $ raise 1 $ subst 0 io dTs
-            , clauseRecursive   = Just False  -- non-recursive
+            , clauseRecursive   = NotRecursive  -- non-recursive
             , clauseUnreachable = Just False
             }
         let debugNoTransp cl = enterClosure cl $ \ t -> do
@@ -1268,7 +1268,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
             , clauseLHSRange    = noRange
             , clauseCatchall    = empty
             , clauseBody        = Just $ rhs
-            , clauseRecursive   = Nothing
+            , clauseRecursive   = MaybeRecursive
             -- it is indirectly recursive through transp, does it count?
             , clauseUnreachable = Just False
             , clauseEllipsis    = NoEllipsis
