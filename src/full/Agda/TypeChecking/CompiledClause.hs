@@ -67,12 +67,13 @@ data CompiledClauses' a
     -- (counting from zero) with @bs@ as the case branches.
     -- If the @n@-th argument is a projection, we have only 'conBranches'
     -- with arity 0.
-  | Done ClauseNumber [Arg ArgName] a
-    -- ^ @Done no xs b@ stands for the body @b@ where the @xs@ contains hiding
+  | Done ClauseNumber ClauseRecursive [Arg ArgName] a
+    -- ^ @Done no mr xs b@ stands for the body @b@ where the @xs@ contains hiding
     --   and name suggestions for the free variables. This is needed to build
     --   lambdas on the right hand side for partial applications which can
     --   still reduce.
     --   The @no@ is the number of the original 'Clause' this case tree leaf comes from.
+    --   @mr@ tells whether this body contains calls to the mutually recursive functions.
   | Fail [Arg ArgName]
     -- ^ Absurd case. Add the free variables here as well so we can build correct
     --   number of lambdas for strict backends. (#4280)
@@ -179,8 +180,13 @@ prettyMap_ :: (Pretty k, Pretty v) => Map k v -> [Doc]
 prettyMap_ = map prettyAssign . Map.toList
 
 instance Pretty CompiledClauses where
-  pretty (Done no hs t) = ("done" <+> (pretty no <> ":") <+> pretty hs) <?> pretty t
-  pretty Fail{}      = "fail"
+  pretty (Done no mr hs t) = ("done" <+> (pretty no <> prettyRecursive mr <> ":") <+> pretty hs) <?> pretty t
+    where
+      prettyRecursive = \case
+        Nothing    -> empty
+        Just True  -> "Rec"
+        Just False -> "nonRec"
+  pretty Fail{}             = "fail"
   pretty (Case n bs) | projPatterns bs =
     sep [ "record"
         , nest 2 $ pretty bs
@@ -202,9 +208,9 @@ instance KillRange c => KillRange (Case c) where
     b lazy
 
 instance KillRange CompiledClauses where
-  killRange (Case i br)    = killRangeN Case i br
-  killRange (Done no xs v) = killRangeN Done no xs v
-  killRange (Fail xs)      = killRangeN Fail xs
+  killRange (Case i br)       = killRangeN Case i br
+  killRange (Done no mr xs v) = killRangeN Done no mr xs v
+  killRange (Fail xs)         = killRangeN Fail xs
 
 -- * TermLike instances
 

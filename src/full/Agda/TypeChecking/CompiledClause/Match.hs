@@ -73,7 +73,7 @@ match' ((c, es, patch) : stack) = do
       Fail{} -> no (NotBlocked AbsurdMatch) es
 
       -- done matching
-      Done _no xs t
+      Done _no _mr xs t
         -- if the function was partially applied, return a lambda
         | m < n     -> yes $ applySubst (toSubst es) $ foldr lam t (drop m xs)
         -- otherwise, just apply instantiation to body

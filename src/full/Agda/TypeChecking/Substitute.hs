@@ -474,10 +474,10 @@ instance Apply Clause where
 instance Apply CompiledClauses where
   apply cc args = case cc of
     Fail hs -> Fail (drop len hs)
-    Done no hs t
+    Done no mr hs t
       | length hs >= len ->
          let sub = parallelS $ map var [0..length hs - len - 1] ++ map unArg args
-         in  Done no (List.drop len hs) $ applySubst sub t
+         in  Done no mr (List.drop len hs) $ applySubst sub t
       | otherwise -> __IMPOSSIBLE__
     Case n bs
       | unArg n >= len -> Case (n <&> \ m -> m - len) (apply bs args)
@@ -732,9 +732,9 @@ instance Abstract Clause where
 
 instance Abstract CompiledClauses where
   abstract tel cc = case cc of
-      Fail xs      -> Fail (hs ++ xs)
-      Done no xs t -> Done no (hs ++ xs) t
-      Case n bs    -> Case (n <&> \ i -> i + size tel) (abstract tel bs)
+      Fail xs         -> Fail (hs ++ xs)
+      Done no mr xs t -> Done no mr (hs ++ xs) t
+      Case n bs       -> Case (n <&> \ i -> i + size tel) (abstract tel bs)
     where
       hs = map (argFromDom . fmap fst) $ telToList tel
 

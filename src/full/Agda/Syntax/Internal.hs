@@ -385,6 +385,14 @@ type Blocked_ = Blocked ()
 -- | Named pattern arguments.
 type NAPs = [NamedArg DeBruijnPattern]
 
+-- | Does the clause body contain calls to any of the mutually recursive functions?
+--   @Nothing@ means that analysis has not run yet,
+--   or that @clauseBody@ contains meta-variables;
+--   these could be filled with recursive calls later!
+--   @Just False@ means definitely no recursive call.
+--   @Just True@ means definitely a recursive call.
+type ClauseRecursive = Maybe Bool
+
 -- | A clause is a list of patterns and the clause body.
 --
 --  The telescope contains the types of the pattern variables and the
@@ -416,12 +424,7 @@ data Clause = Clause
     , clauseCatchall    :: Catchall
       -- ^ Clause has been labelled as CATCHALL.
     , clauseRecursive   :: Maybe Bool
-      -- ^ @clauseBody@ contains recursive calls; computed by termination checker.
-      --   @Nothing@ means that termination checker has not run yet,
-      --   or that @clauseBody@ contains meta-variables;
-      --   these could be filled with recursive calls later!
-      --   @Just False@ means definitely no recursive call.
-      --   @Just True@ means definitely a recursive call.
+      -- ^ @clauseBody@ contains recursive calls? Computed by termination checker.
     , clauseUnreachable :: Maybe Bool
       -- ^ Clause has been labelled as unreachable by the coverage checker.
       --   @Nothing@ means coverage checker has not run yet (clause may be unreachable).
