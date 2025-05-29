@@ -207,7 +207,7 @@ checkAlias t ai i name e mc =
               , clauseEllipsis    = NoEllipsis
               , clauseWhereModule = Nothing
               } ]
-          , _funCompiled  = Just $ Done 0 [] $ bodyMod v
+          , _funCompiled  = Just $ Done 0 Nothing [] $ bodyMod v
           , _funSplitTree = Just $ SplittingDone 0
           , _funOpaque    = Info.defOpaque i
           }

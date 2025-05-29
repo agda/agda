@@ -178,9 +178,9 @@ instance NamesIn Clause where
 
 instance NamesIn CompiledClauses where
   namesAndMetasIn' sg = \case
-    Case _ c   -> namesAndMetasIn' sg c
-    Done _ _ v -> namesAndMetasIn' sg v
-    Fail _     -> mempty
+    Case _ c     -> namesAndMetasIn' sg c
+    Done _ _ _ v -> namesAndMetasIn' sg v
+    Fail _       -> mempty
 
 -- Andreas, 2017-07-27
 -- Why ignoring the litBranches?

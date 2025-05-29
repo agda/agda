@@ -71,9 +71,9 @@ instance DropArgs CompiledClauses where
     Case i br
       | unArg i < n   -> __IMPOSSIBLE__
       | otherwise     -> Case (i <&> \ j -> j - n) $ fmap (dropArgs n) br
-    Done no xs t
+    Done no mr xs t
       | length xs < n -> __IMPOSSIBLE__
-      | otherwise     -> Done no (drop n xs) t
+      | otherwise     -> Done no mr (drop n xs) t
     Fail xs
       | length xs < n -> __IMPOSSIBLE__
       | otherwise     -> Fail (drop n xs)
