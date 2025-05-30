@@ -530,16 +530,26 @@ blockTermOnProblem t v pid = do
     -- Note: since this is a blocked term, the solution is something that was written by the user
     -- which could well contain a recursive call. For example, see test/Succeed/Issue585-17.agda.
     -- Hence we disable the occurs check for it.
-    (x, u) <- newValueMeta' DontRunMetaOccursCheck CmpLeq t
+    (x, u) <- newBlockedConstMeta t
     tel <- getContextTelescope
     updateMetaVar x $ \mv -> mv { mvBrave = Just $ abstract tel v }
-    addConstraint (unblockOnProblem pid) $ ValueCmp CmpEq (AsTermsOf t) u v
+    addConstraint (unblockOnProblem pid) $ BlockedConst x v
     reportSDoc "tc.meta.blocked" 20 $ vcat
-      [ "blocked" <+> prettyTCM u <+> ":=" <+>
+      [ "blocked" <+> prettyTCM x <+> ":=" <+>
         (prettyTCM v)
       , "     by" <+> (prettyTCM =<< getConstraintsForProblem pid)
       ]
-    instantiate u
+    return u
+
+-- | Create a new meta for the result of a 'BlockedConst' or 'PostponedTypeChecking' problem
+--   This skips the meta occurs check and the eta-expansion step.
+newBlockedConstMeta :: MonadMetaSolver m => Type -> m (MetaId, Term)
+newBlockedConstMeta t = do
+  vs <- getContextArgs
+  tel <- getContextTelescope
+  i <- createMetaInfo' DontRunMetaOccursCheck
+  x <- newMeta Instantiable i lowMetaPriority (idP $ size tel) (HasType () CmpLeq (telePi_ tel t))
+  return (x , MetaV x $ map Apply vs)
 
 {-# SPECIALIZE blockTypeOnProblem :: Type -> ProblemId -> TCM Type #-}
 blockTypeOnProblem
@@ -576,14 +586,13 @@ postponeTypeCheckingProblem p unblock | unblock == alwaysUnblock = do
   __IMPOSSIBLE__
 postponeTypeCheckingProblem p unblock = do
   let t = problemType p
-  (m , v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
+  (m, u) <- newBlockedConstMeta t
   inTopContext $ reportSDoc "tc.meta.postponed" 20 $ vcat
     [ "new meta" <+> prettyTCM m <+> ":" <+> prettyTCM t
     , "for postponed typechecking problem" <+> prettyTCM p
     ]
-  cl <- buildClosure p
-  addConstraint unblock (PostponedTypeCheckingProblem m cl)
-  return v
+  addConstraint unblock (PostponedTypeCheckingProblem m p)
+  return u
 
 -- | Eta-expand a local meta-variable, if it is of the specified kind.
 --   Don't do anything if the meta-variable is a blocked term.

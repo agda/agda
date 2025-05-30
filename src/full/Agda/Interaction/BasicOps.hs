@@ -428,9 +428,10 @@ instance Reify Constraint where
   reify (UnquoteTactic tac _ goal) = do
       tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
       OfType tac <$> reify goal
-  reify (PostponedTypeCheckingProblem m cl) = do
+  reify (BlockedConst m v) = Assign <$> reify m <*> reify v
+  reify (PostponedTypeCheckingProblem m prob) = do
     m' <- reify (MetaV m [])
-    enterClosure cl $ \case
+    case prob of
       CheckExpr cmp e a -> do
           a  <- reify a
           return $ TypedAssign m' e a
@@ -642,6 +643,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         ElimCmp cmp fs t v as bs   -> Nothing
         LevelCmp cmp u v           -> Nothing
         SortCmp cmp a b            -> Nothing
+        BlockedConst m v           -> Nothing
         PostponedTypeCheckingProblem{} -> Nothing
         FindInstance{}             -> Nothing
         ResolveInstanceHead{}      -> Nothing

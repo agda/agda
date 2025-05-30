@@ -421,9 +421,10 @@ constraintMetas = \case
       LevelCmp _ l l'          -> gatherMetas (Level l, Level l')
       UnquoteTactic t h g      -> gatherMetas (t, h, g)
       SortCmp _ s1 s2          -> gatherMetas (Sort s1, Sort s2)
-      PostponedTypeCheckingProblem m clos -> do
+      BlockedConst m v         -> return $ Set.singleton m
+      PostponedTypeCheckingProblem m prob -> do
         ms1 <- Set.unions <$> (mapM listenerMetas =<< getMetaListeners m)
-        ms2 <- tcProblemMetas (clValue clos)
+        ms2 <- tcProblemMetas prob
         return $ Set.insert m $ Set.union ms1 ms2
       FindInstance x _         ->
         -- #5093: We should not generalize over metas bound by instance constraints.

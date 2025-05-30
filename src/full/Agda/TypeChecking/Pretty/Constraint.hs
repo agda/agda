@@ -44,8 +44,9 @@ prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ pret
 interestingConstraint :: MonadPretty m => ProblemConstraint -> m Bool
 interestingConstraint pc
   | UnblockOnProblem{} <- constraintUnblocker pc = return False
-  | PostponedTypeCheckingProblem m cl <- clValue (theConstraint pc) =
-      enterClosure cl \case
+  | BlockedConst{} <- clValue (theConstraint pc) = return False
+  | PostponedTypeCheckingProblem m prob <- clValue (theConstraint pc) =
+      case prob of
         DisambiguateConstructor{} -> return True
         _ -> return False
   | otherwise = return True
@@ -101,7 +102,8 @@ instance PrettyTCM Constraint where
         ElimCmp cmps fs t v us vs -> prettyCmp "~~" us vs   <?> (":" <+> prettyTCMCtx TopCtx t)
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
         SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
-        PostponedTypeCheckingProblem m cl -> enterClosure cl $ \p ->
+        BlockedConst m v         -> prettyCmp ":=" m v
+        PostponedTypeCheckingProblem m p ->
           prettyCmp ":=" m p
               -- Andreas, 2017-01-11, issue #2637:
               -- The size solver instantiates some metas with infinity

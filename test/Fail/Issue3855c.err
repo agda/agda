@@ -5,3 +5,7 @@ Failed to solve the following constraints:
 Issue3855c.agda:15.29-34: error: [UnsolvedInteractionMetas]
 Unsolved interaction metas at the following locations:
   Issue3855c.agda:15.29-34
+
+Issue3855c.agda:15.36-37: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue3855c.agda:15.36-37

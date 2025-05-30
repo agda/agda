@@ -1457,7 +1457,8 @@ data Constraint
     -- See 'Agda.TypeChecking.Rules.Data.checkDataSort'.
   | CheckMetaInst MetaId
   | CheckType Type
-  | PostponedTypeCheckingProblem MetaId (Closure TypeCheckingProblem)
+  | BlockedConst MetaId Term
+  | PostponedTypeCheckingProblem MetaId TypeCheckingProblem
       -- ^ Meta stands for value of the expression that is still to be type checked.
   | IsEmpty Range Type
     -- ^ The range is the one of the absurd pattern.
@@ -1498,7 +1499,8 @@ instance Free Constraint where
       ElimCmp _ _ t u es es'  -> freeVars' ((t, u), (es, es'))
       SortCmp _ s s'        -> freeVars' (s, s')
       LevelCmp _ l l'       -> freeVars' (l, l')
-      PostponedTypeCheckingProblem _ cl -> mempty -- TODO: freeVars' cl
+      BlockedConst _ v      -> freeVars' v
+      PostponedTypeCheckingProblem _ prob -> mempty -- TODO: freeVars' prob
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
       FindInstance _ cs     -> freeVars' cs
@@ -1523,7 +1525,8 @@ instance TermLike Constraint where
       CheckSizeLtSat u       -> foldTerm f u
       UnquoteTactic t h g    -> foldTerm f (t, h, g)
       SortCmp _ s1 s2        -> foldTerm f (Sort s1, Sort s2)   -- Same as LevelCmp case
-      PostponedTypeCheckingProblem _ cl -> mempty -- TODO: foldTerm f cl
+      BlockedConst _ v       -> foldTerm f v
+      PostponedTypeCheckingProblem _ prob -> mempty -- TODO: foldTerm f prob
       CheckLockedVars a b c d -> foldTerm f (a, b, c, d)
       FindInstance _ _       -> mempty
       ResolveInstanceHead q  -> mempty

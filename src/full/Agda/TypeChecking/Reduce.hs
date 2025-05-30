@@ -292,6 +292,7 @@ instance Instantiate Constraint where
     ElimCmp cmp fs <$> instantiate' t <*> instantiate' v <*> instantiate' as <*> instantiate' bs
   instantiate' (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> instantiate' (u,v)
   instantiate' (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate' (a,b)
+  instantiate' (BlockedConst m v)   = BlockedConst m <$> instantiate' v
   instantiate' c@PostponedTypeCheckingProblem{} = return c
   instantiate' (FindInstance m cs)  = FindInstance m <$> mapM instantiate' cs
   instantiate' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
@@ -970,6 +971,7 @@ instance Reduce Constraint where
     ElimCmp cmp fs <$> reduce' t <*> reduce' v <*> reduce' as <*> reduce' bs
   reduce' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> reduce' (u,v)
   reduce' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> reduce' (a,b)
+  reduce' (BlockedConst m v)   = BlockedConst m <$> reduce' v
   reduce' c@PostponedTypeCheckingProblem{} = return c
   reduce' (FindInstance m cs)   = FindInstance m <$> mapM reduce' cs
   reduce' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
@@ -1137,6 +1139,7 @@ instance Simplify Constraint where
     ElimCmp cmp fs <$> simplify' t <*> simplify' v <*> simplify' as <*> simplify' bs
   simplify' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> simplify' (u,v)
   simplify' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> simplify' (a,b)
+  simplify' (BlockedConst m v)   = BlockedConst m <$> simplify' v
   simplify' c@PostponedTypeCheckingProblem{} = return c
   simplify' (FindInstance m cs)   = FindInstance m <$> mapM simplify' cs
   simplify' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
@@ -1322,6 +1325,7 @@ instance Normalise Constraint where
     ElimCmp cmp fs <$> normalise' t <*> normalise' v <*> normalise' as <*> normalise' bs
   normalise' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> normalise' (u,v)
   normalise' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> normalise' (a,b)
+  normalise' (BlockedConst m v)    = BlockedConst m <$> normalise' v
   normalise' c@PostponedTypeCheckingProblem{} = return c
   normalise' (FindInstance m cs)   = FindInstance m <$> mapM normalise' cs
   normalise' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
@@ -1567,6 +1571,7 @@ instance InstantiateFull Constraint where
       ElimCmp cmp fs <$> instantiateFull' t <*> instantiateFull' v <*> instantiateFull' as <*> instantiateFull' bs
     LevelCmp cmp u v    -> uncurry (LevelCmp cmp) <$> instantiateFull' (u,v)
     SortCmp cmp a b     -> uncurry (SortCmp cmp) <$> instantiateFull' (a,b)
+    BlockedConst m v    -> BlockedConst m <$> instantiateFull' v
     c@PostponedTypeCheckingProblem{} -> return c
     FindInstance m cs   -> FindInstance m <$> mapM instantiateFull' cs
     ResolveInstanceHead q -> return $ ResolveInstanceHead q

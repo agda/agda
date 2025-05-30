@@ -22,6 +22,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.LevelConstraints
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Sort
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.Irrelevance
@@ -270,11 +271,10 @@ solveConstraint_ (LevelCmp cmp a b)         = compareLevel cmp a b
 solveConstraint_ (IsEmpty r t)              = ensureEmptyType r t
 solveConstraint_ (CheckSizeLtSat t)         = checkSizeLtSat t
 solveConstraint_ (UnquoteTactic tac hole goal) = unquoteTactic tac hole goal
-solveConstraint_ (PostponedTypeCheckingProblem m cl) =
-  enterClosure cl $ \prob -> do
-    v   <- liftTCM $ checkTypeCheckingProblem prob
-    args <- getContextArgs
-    equalTerm (problemType prob) (MetaV m $ map Apply args) v
+solveConstraint_ (BlockedConst m v) = solveBlockedConstMeta m v
+solveConstraint_ (PostponedTypeCheckingProblem m prob) = do
+  v <- checkTypeCheckingProblem prob
+  solveBlockedConstMeta m v
 solveConstraint_ (FindInstance m cands) = findInstance m cands
 solveConstraint_ (ResolveInstanceHead q) = resolveInstanceHead q
 solveConstraint_ (CheckFunDef i q cs _err) = withoutCache $
@@ -288,6 +288,16 @@ solveConstraint_ (CheckDataSort q s)    = checkDataSort q s
 solveConstraint_ (CheckMetaInst m)      = checkMetaInst m
 solveConstraint_ (CheckType t)          = checkType t
 solveConstraint_ (UsableAtModality cc ms mod t) = usableAtModality' ms cc mod t
+
+solveBlockedConstMeta :: MetaId -> Term -> TCM ()
+solveBlockedConstMeta m v = lookupMetaInstantiation m >>= \case
+  InstV (Instantiation _tel _u) -> do
+    args <- getContextArgs
+    a <- (`piApply` args) <$> metaType m
+    equalTerm a (MetaV m $ map Apply args) v
+  OpenMeta _ -> do
+    args <- telToArgs <$> getContextTelescope
+    assignTerm m args v
 
 -- | Type of the term that is produced by solving the 'TypeCheckingProblem'.
 problemType :: TypeCheckingProblem -> Type

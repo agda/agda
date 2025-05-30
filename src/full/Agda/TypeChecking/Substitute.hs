@@ -1027,6 +1027,7 @@ instance Subst Constraint where
     CheckSizeLtSat t         -> CheckSizeLtSat (rf t)
     FindInstance m cands     -> FindInstance m (rf cands)
     ResolveInstanceHead q    -> ResolveInstanceHead (rf q)
+    BlockedConst m v         -> BlockedConst m (rf v)
     c@PostponedTypeCheckingProblem{} -> c
     c@CheckFunDef{}          -> c
     HasBiggerSort s          -> HasBiggerSort (rf s)
