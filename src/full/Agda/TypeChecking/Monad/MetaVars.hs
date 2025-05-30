@@ -421,7 +421,7 @@ constraintMetas = \case
       UnquoteTactic t h g      -> gatherMetas (t, h, g)
       SortCmp _ s1 s2          -> gatherMetas (Sort s1, Sort s2)
       UnBlock x                -> Set.insert x . Set.unions <$> (mapM listenerMetas =<< getMetaListeners x)
-      FindInstance x _         ->
+      FindInstance _ x _       ->
         -- #5093: We should not generalize over metas bound by instance constraints.
         -- We keep instance constraints even if the meta is solved, to check that it could indeed
         -- be filled by instance search. If it's solved, look in the solution.

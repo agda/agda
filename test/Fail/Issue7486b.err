@@ -1,10 +1,11 @@
-error: [UnsolvedConstraints]
+Issue7486b.agda:24.5-7: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _11 : A
   Candidates
     i : {r : R} → F (λ _ → D) (R.proj r)
     a : A
     (stuck)
+      [ at Issue7486b.agda:24.5-7 ]
 
 Issue7486b.agda:24.5-7: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:

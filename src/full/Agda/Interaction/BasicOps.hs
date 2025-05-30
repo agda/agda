@@ -460,7 +460,7 @@ instance Reify Constraint where
             return $ TypedAssign m' (foldl (A.App empty)  (A.Con $ unambiguous c0) args) t
         OpenMeta{}  -> __IMPOSSIBLE__
         InstV{} -> __IMPOSSIBLE__
-  reify (FindInstance m mcands) = FindInstanceOF
+  reify (FindInstance _ m mcands) = FindInstanceOF
     <$> reify (MetaV m [])
     <*> (reify =<< getMetaType m)
     <*> forM (fromMaybe [] mcands) (\ (Candidate q tm ty _) -> do

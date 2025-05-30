@@ -1,7 +1,8 @@
-error: [UnsolvedConstraints]
+Issue2350.agda:12.22-23: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _a_6 : A
   Candidates
     b : A
     a : A
     (stuck)
+      [ at Issue2350.agda:12.22-23 ]

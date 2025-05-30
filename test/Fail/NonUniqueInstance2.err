@@ -1,10 +1,11 @@
-error: [UnsolvedConstraints]
+NonUniqueInstance2.agda:16.27-39: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _9 : m < n
   Candidates
     _ : m < n
     <-suc : {m = m₁ : Nat} {n = n₁ : Nat} ⦃ _ : m₁ < n₁ ⦄ → m₁ < suc n₁
     (stuck)
+      [ at NonUniqueInstance2.agda:16.27-39 ]
 
 NonUniqueInstance2.agda:16.27-39: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:

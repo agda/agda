@@ -1025,7 +1025,7 @@ instance Subst Constraint where
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
     IsEmpty r a              -> IsEmpty r (rf a)
     CheckSizeLtSat t         -> CheckSizeLtSat (rf t)
-    FindInstance m cands     -> FindInstance m (rf cands)
+    FindInstance r m cands   -> FindInstance r m (rf cands)
     ResolveInstanceHead q    -> ResolveInstanceHead (rf q)
     c@UnBlock{}              -> c
     c@CheckFunDef{}          -> c

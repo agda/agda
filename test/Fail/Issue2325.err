@@ -1,10 +1,11 @@
-error: [UnsolvedConstraints]
+Issue2325.agda:44.8-9: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _x_136 : Nat
   Candidates
     zero : Nat
     one : Nat
     (stuck)
+      [ at Issue2325.agda:44.8-9 ]
 
 Issue2325.agda:44.10-15: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:

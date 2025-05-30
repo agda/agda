@@ -1,10 +1,11 @@
-error: [UnsolvedConstraints]
+Issue4071.agda:15.5-12: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _list-like_7 : {X : Set} → List-like _F_6
   Candidates
     list-like : List-like F
     List-is-list-like : List-like List
     (stuck)
+      [ at Issue4071.agda:15.5-12 ]
 
 Issue4071.agda:15.5-14: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:

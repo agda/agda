@@ -300,7 +300,7 @@ solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these hav
       -- a twin meta that it's safe to solve.
       InstV{} -> __IMPOSSIBLE__
       OpenMeta{} -> __IMPOSSIBLE__
-solveConstraint_ (FindInstance m cands) = findInstance m cands
+solveConstraint_ (FindInstance _ m cands) = findInstance m cands
 solveConstraint_ (ResolveInstanceHead q) = resolveInstanceHead q
 solveConstraint_ (CheckFunDef i q cs _err) = withoutCache $
   -- re #3498: checking a fundef would normally be cached, but here it's

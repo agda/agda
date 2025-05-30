@@ -1,10 +1,11 @@
-error: [UnsolvedConstraints]
+NonUniqueInstance1.agda:16.10-17: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _8 : NonZero n
   Candidates
     y : NonZero n
     x : NonZero n
     (stuck)
+      [ at NonUniqueInstance1.agda:16.10-17 ]
 
 NonUniqueInstance1.agda:16.10-17: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
