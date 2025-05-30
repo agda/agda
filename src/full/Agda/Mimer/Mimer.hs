@@ -32,45 +32,37 @@ import Control.Monad.Error.Class (MonadError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), runReaderT, asks, ask, lift)
 import Data.Functor ((<&>))
-import Data.List (sortOn, (\\))
-import qualified Data.List.NonEmpty as NonEmptyList (head)
+import Data.List ((\\))
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Maybe (maybeToList, fromMaybe, isNothing)
+import Data.Maybe (maybeToList, fromMaybe)
 import Data.PQueue.Min (MinQueue)
 import qualified Data.PQueue.Min as Q
 
 import qualified Agda.Benchmarking as Bench
-import Agda.Syntax.Abstract (Expr)
 import qualified Agda.Syntax.Abstract as A
-import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty qualified as P
 import Agda.Syntax.Info (pattern UnificationMeta)
 import Agda.Syntax.Internal
 import Agda.Syntax.Position (Range, rangeFile, rangeFilePath, noRange)
-import qualified Agda.Syntax.Scope.Base as Scope
 import Agda.Syntax.Translation.InternalToAbstract (reify, blankNotInScope)
 
 import Agda.TypeChecking.Primitive (getBuiltinName)
-import Agda.TypeChecking.Datatypes (isDataOrRecord)
 import Agda.TypeChecking.Empty (isEmptyType)
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.MetaVars (newValueMeta)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Records (isRecord)
 import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Rules.Term  (makeAbsurdLambda)
-import Agda.TypeChecking.Substitute (apply, applyE, piApply, NoSubst(..), pattern TelV, telView')
-import Agda.TypeChecking.Telescope (piApplyM)
+import Agda.TypeChecking.Substitute (apply, NoSubst(..))
 
 import Agda.Utils.FileName (filePath)
-import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Maybe (catMaybes)
-import Agda.Utils.Monad (ifM, and2M)
+import Agda.Utils.Monad (ifM)
 import qualified Agda.Utils.Maybe.Strict as SMaybe
 import Agda.Utils.Null
 import Agda.Utils.Time (CPUTime(..), getCPUTime, fromMilliseconds)
@@ -89,6 +81,16 @@ import Agda.Utils.Monad (concatMapM)
 import Agda.Mimer.Types
 import Agda.Mimer.Monad
 import Agda.Mimer.Options
+
+-- IDEA for implementing case-splitting:
+--  1. Modify the collectRecVarCandidates to get all variables.
+--  2. Go through all variables to see if they are data types (not records)
+--  3. Run makeCase for those variables.
+--  4. Find out how to get the new interaction points/metas from the cases
+--  5. After search is done, compute out-of-scope variables.
+--  6. Run make-case again to introduce those variables.
+--  7. Redo the reification in the new clauses.
+--  8. Return the new clauses and follow Auto for insertion.
 
 -- | Entry point.
 --   Run Mimer on the given interaction point, returning the desired solution(s).
@@ -143,332 +145,6 @@ mimer norm ii rng argStr = liftTCM $ do
 -- - If we only use constructors if the target type is a data type, we might
 --   generate η-reducible expressions, e.g. λ xs → _∷_ 0 xs
 
-
-------------------------------------------------------------------------------
--- * Helper functions
-------------------------------------------------------------------------------
-
-predNat :: Nat -> Nat
-predNat n | n > 0 = n - 1
-          | n == 0 = 0
-          | otherwise = error "predNat of negative value"
-
-withBranchState :: SearchBranch -> SM a -> SM a
-withBranchState br ma = do
-  putTC (sbTCState br)
-  ma
-
-withBranchAndGoal :: SearchBranch -> Goal -> SM a -> SM a
-withBranchAndGoal br goal ma = inGoalEnv goal $ withBranchState br ma
-
-inGoalEnv :: Goal -> SM a -> SM a
-inGoalEnv goal  ret = do
-  reportSDoc "mimer.env" 70 $ "going into environment of goal" <+> prettyTCM (goalMeta goal)
-  withMetaId (goalMeta goal) ret
-
--- | Take the first goal off a search branch.
---   Precondition: the set of goals is non-empty.
-nextGoal :: SearchBranch -> (Goal, SearchBranch)
-nextGoal branch =
-  case sbGoals branch of
-    [] -> __IMPOSSIBLE__
-    goal : goals -> (goal, branch{ sbGoals = goals })
-
--- TODO: Rename (see metaInstantiation)
-getMetaInstantiation :: (MonadTCM tcm, PureTCM tcm, MonadDebug tcm, MonadInteractionPoints tcm, MonadFresh NameId tcm)
-  => MetaId -> tcm (Maybe Expr)
-getMetaInstantiation = metaInstantiation >=> traverse (instantiateFull >=> reify)
-
-metaInstantiation :: (MonadTCM tcm, MonadDebug tcm, ReadTCState tcm) => MetaId -> tcm (Maybe Term)
-metaInstantiation metaId = lookupLocalMeta metaId <&> mvInstantiation >>= \case
-  InstV inst -> return $ Just $ instBody inst
-  _ -> return Nothing
-
--- TODO: why not also accept pattern record types here?
-isTypeDatatype :: (MonadTCM tcm, MonadReduce tcm, HasConstInfo tcm) => Type -> tcm Bool
-isTypeDatatype typ = liftTCM do
-  reduce typ <&> unEl >>= isDataOrRecord <&> \case
-    Just (_, IsData) -> True
-    _ -> False
-
-------------------------------------------------------------------------------
--- * Components
-------------------------------------------------------------------------------
-
--- | NOTE: Collects components from the *current* context, not the context of
--- the 'InteractionId'.
-collectComponents :: Options -> Costs -> InteractionId -> Maybe QName -> [QName] -> MetaId -> TCM BaseComponents
-collectComponents opts costs ii mDefName whereNames metaId = do
-
-  lhsVars <- collectLHSVars ii
-  let recVars = lhsVars <&> \ vars -> [ (tm, NoSubst i) | (tm, Just i) <- vars ]
-
-  -- TODO: implement case splitting
-  -- splitVars <- getSplitVars lhsVars
-  splitVars <- makeOpen []
-
-  -- Prepare the initial component record
-  letVars <- getLetVars (costLet costs)
-  let components = BaseComponents
-        { hintFns = []
-        , hintDataTypes = []
-        , hintRecordTypes = []
-        , hintProjections = []
-        , hintAxioms = []
-        , hintLevel = []
-        , hintThisFn = Nothing
-        , hintRecVars = recVars
-        , hintLetVars = letVars
-        , hintSplitVars = splitVars
-        }
-
-  -- Extract additional components from the names given as hints.
-  hintNames <- getEverythingInScope <$> lookupLocalMeta metaId
-  isToLevel <- endsInLevelTester
-  scope <- getScope
-  components' <- foldM (go isToLevel scope) components $
-    explicitHints ++ (hintNames \\ explicitHints)
-
-  return BaseComponents
-    { hintFns = doSort $ hintFns components'
-    , hintDataTypes = doSort $ hintDataTypes components'
-    , hintRecordTypes = doSort $ hintRecordTypes components'
-    , hintProjections = doSort $ hintProjections components'
-    , hintAxioms = doSort $ hintAxioms components'
-    , hintLevel = doSort $ hintLevel components'
-    , hintThisFn = hintThisFn components'
-    , hintRecVars = recVars
-    , hintLetVars = letVars
-    , hintSplitVars = splitVars
-    }
-  where
-    hintMode = optHintMode opts
-    explicitHints = optExplicitHints opts
-    -- Sort by the arity of the type
-    doSort = sortOn (arity . compType)
-
-    isNotMutual qname f = case mDefName of
-      Nothing -> True
-      Just defName -> defName /= qname && fmap (defName `elem`) (funMutual f) /= Just True
-
-    go isToLevel scope comps qname = do
-        def <- getConstInfo qname
-        let typ = defType def
-        case theDef def of
-          Axiom{}
-            | isToLevel typ -> addLevel
-            | shouldKeep    -> addAxiom
-            | otherwise     -> done
-          -- We can't use pattern lambdas as components nor with-functions.
-          -- If the function is in the same mutual block, do not include it.
-          f@Function{ funWith = Nothing, funExtLam = Nothing }
-            | Just qname == mDefName   -> addThisFn
-            | notMutual, isToLevel typ -> addLevel
-            | notMutual, shouldKeep    -> addFn
-            where notMutual = isNotMutual qname f
-          Function{} -> done
-          Datatype{} -> addData
-          Record{} -> do
-            projections <- mapM (qnameToComponent (costSpeculateProj costs)) =<< getRecordFields qname
-            comp <- qnameToComponent (costSet costs) qname
-            return comps{ hintRecordTypes = comp : hintRecordTypes comps
-                        , hintProjections = projections ++ hintProjections comps }
-          -- We look up constructors when we need them
-          Constructor{} -> done
-          -- TODO: special treatment for primitives?
-          Primitive{}
-            | isToLevel typ  -> addLevel
-            | shouldKeep     -> addFn
-            | otherwise      -> done
-          PrimitiveSort{}    -> done
-          -- TODO: Check if we want to use these
-          DataOrRecSig{}     -> done
-          GeneralizableVar{} -> done
-          AbstractDefn{}     -> done
-        where
-          done = return comps
-          -- TODO: There is probably a better way of finding the module name
-          mThisModule = qnameModule <$> mDefName
-
-          shouldKeep = or
-            [ qname `elem` explicitHints
-            , qname `elem` whereNames
-            , case hintMode of
-                Unqualified -> Scope.isNameInScopeUnqualified qname scope
-                AllModules  -> True
-                Module      -> Just (qnameModule qname) == mThisModule
-                NoHints     -> False
-            ]
-          addLevel  = qnameToComponent (costLevel   costs) qname <&> \ comp -> comps{hintLevel     = comp : hintLevel  comps}
-          addAxiom  = qnameToComponent (costAxiom   costs) qname <&> \ comp -> comps{hintAxioms    = comp : hintAxioms comps}
-          addThisFn = qnameToComponent (costRecCall costs) qname <&> \ comp -> comps{hintThisFn    = Just comp{ compRec = True }}
-          addFn     = qnameToComponent (costFn      costs) qname <&> \ comp -> comps{hintFns       = comp : hintFns comps}
-          addData   = qnameToComponent (costSet     costs) qname <&> \ comp -> comps{hintDataTypes = comp : hintDataTypes comps}
-
--- | Is an element of the given type computing a level?
---
--- The returned checker is only sound but not complete because the type is taken as-is
--- rather than being reduced.
-endsInLevelTester :: TCM (Type -> Bool)
-endsInLevelTester = do
-  getBuiltinName builtinLevel >>= \case
-    Nothing    -> return $ const False
-    Just level -> return \ t ->
-      -- NOTE: We do not reduce the type before checking, so some user definitions
-      -- will not be included here.
-      case telView' t of
-        TelV _ (El _ (Def x _)) -> x == level
-        _ -> False
-
-
-qnameToComponent :: (HasConstInfo tcm, ReadTCState tcm, MonadFresh CompId tcm, MonadTCM tcm)
-  => Cost -> QName -> tcm Component
-qnameToComponent cost qname = do
-  defn <- getConstInfo qname
-  -- #7120: we need to apply the module params to everything
-  mParams <- freeVarsToApply qname
-  let def = (Def qname [] `apply` mParams, 0)
-  let (term, pars) = case theDef defn of
-        c@Constructor{}    -> (Con (conSrcCon c) ConOCon [], conPars c - length mParams)
-        Axiom{}            -> def
-        GeneralizableVar{} -> def
-        Function{}         -> def
-        Datatype{}         -> def
-        Record{}           -> def
-        Primitive{}        -> def
-        PrimitiveSort{}    -> def
-        DataOrRecSig{}     -> __IMPOSSIBLE__
-        AbstractDefn{}     -> __IMPOSSIBLE__
-  newComponentQ [] cost qname pars term (defType defn `piApply` mParams)
-
--- | From the scope of the given meta variable,
---   extract all names in scope that we could use during synthesis.
---   (This excludes macros, generalizable variables, pattern synonyms.)
-getEverythingInScope :: MetaVariable -> [QName]
-getEverythingInScope metaVar = do
-  let scope = clScope $ getMetaInfo metaVar
-  let nameSpace = Scope.everythingInScope scope
-      names = Scope.nsNames nameSpace
-      validKind = \ case
-        Scope.PatternSynName           -> False   -- could consider allowing pattern synonyms, but the problem is they can't be getConstInfo'd
-        Scope.GeneralizeName           -> False   -- and any way finding the underlying constructors should be easy
-        Scope.DisallowedGeneralizeName -> False
-        Scope.MacroName                -> False
-        Scope.QuotableName             -> False
-        Scope.ConName                  -> True
-        Scope.CoConName                -> True
-        Scope.FldName                  -> True
-        Scope.DataName                 -> True
-        Scope.RecName                  -> True
-        Scope.FunName                  -> True
-        Scope.AxiomName                -> True
-        Scope.PrimName                 -> True
-        Scope.OtherDefName             -> True
-      qnames = map Scope.anameName
-             . filter (validKind . Scope.anameKind)
-             . map NonEmptyList.head
-             $ Map.elems names
-  qnames
-
--- | Turn the let bindings of the current 'TCEnv' into components.
-getLetVars :: forall tcm. (MonadFresh CompId tcm, MonadTCM tcm, Monad tcm) => Cost -> tcm [Open Component]
-getLetVars cost = do
-  bindings <- asksTC envLetBindings
-  mapM makeComp $ Map.toAscList bindings
-  where
-    makeComp :: (Name, Open LetBinding) -> tcm (Open Component)
-    makeComp (name, opn) = do
-      cId <- fresh
-      return $ opn <&> \ (LetBinding _origin term typ) ->
-                mkComponent cId [] cost (Just name) 0 term (unDom typ)
-
--- IDEA for implementing case-splitting:
--- [x] 1. Modify the collectRecVarCandidates to get all variables.
--- [ ] 2. Go through all variables to see if they are data types (not records)
--- [ ] 3. Run makeCase for those variables.
--- [ ] 4. Find out how to get the new interaction points/metas from the cases
--- [ ] 5. After search is done, compute out-of-scope variables.
--- [ ] 6. Run make-case again to introduce those variables.
--- [ ] 7. Redo the reification in the new clauses.
--- [ ] 8. Return the new clauses and follow Auto for insertion.
-
-getSplitVars :: Open [(Term, Maybe Int)] -> TCM (Open [Term])
-getSplitVars lhsVars' = do
-
-    -- Compute the hintSplitVars from the pattern variables of function at the interaction point.
-    lhsVars <- getOpen $ map fst <$> lhsVars'
-    typedLocals <- getLocalVarTerms 0
-    reportSDoc "mimer.components" 40 $ "All LHS variables:" <+> prettyTCM lhsVars <+> parens ("or" <+> pretty lhsVars)
-    let typedLhsVars = filter (\(term,typ) -> term `elem` lhsVars) typedLocals
-    reportSDoc "mimer.components" 40 $
-      "LHS variables with types:" <+> prettyList (map prettyTCMTypedTerm typedLhsVars) <+> parens ("or"
-        <+> prettyList (map prettyTypedTerm typedLhsVars))
-    -- TODO: For now, we *never* split on implicit arguments even if they are
-    -- written explicitly on the LHS.
-    splitVarsTyped <-
-      filterM (\ (term, dom) -> pure (visible dom) `and2M` isTypeDatatype (unDom dom))
-              typedLhsVars
-    reportSDoc "mimer.components" 40 $
-      "Splittable variables" <+> prettyList (map prettyTCMTypedTerm splitVarsTyped) <+> parens ("or"
-        <+> prettyList (map prettyTypedTerm splitVarsTyped))
-    makeOpen $ map fst splitVarsTyped
-  where
-    prettyTCMTypedTerm :: (PrettyTCM tm, PrettyTCM ty) => (tm, ty) -> TCM Doc
-    prettyTCMTypedTerm (term, typ) = prettyTCM term <+> ":" <+> prettyTCM typ
-    prettyTypedTerm (term, typ) = pretty term <+> ":" <+> pretty typ
-
--- | Returns the variables as terms together with whether they where found under
--- some constructor, and if so which argument of the function they appeared in. This
--- information is used when building recursive calls, where it's important that we don't try to
--- construct non-terminating solutions.
-collectLHSVars :: (ReadTCState tcm, MonadError TCErr tcm, MonadTCM tcm, HasConstInfo tcm)
-  => InteractionId -> tcm (Open [(Term, Maybe Int)])
-collectLHSVars ii = do
-  ipc <- ipClause <$> lookupInteractionPoint ii
-  case ipc of
-    IPNoClause -> makeOpen []
-    IPClause{ipcQName = fnName, ipcClauseNo = clauseNr} -> do
-      reportSDoc "mimer.components" 40 $ "Collecting LHS vars for" <+> prettyTCM ii
-      info <- getConstInfo fnName
-      parCount <- liftTCM getCurrentModuleFreeVars
-      case theDef info of
-        fnDef@Function{} -> do
-          let clause = funClauses fnDef !! clauseNr
-              naps = namedClausePats clause
-
-          -- Telescope at interaction point
-          iTel <- getContextTelescope
-          -- Telescope for the body of the clause
-          let cTel = clauseTel clause
-          -- HACK: To get the correct indices, we shift by the difference in telescope lengths
-          let shift = length (telToArgs iTel) - length (telToArgs cTel)
-
-          reportSDoc "mimer" 60 $ vcat
-            [ "Tel:"
-            , nest 2 $ pretty iTel $$ prettyTCM iTel
-            , "CTel:"
-            , nest 2 $ pretty cTel $$ prettyTCM cTel
-            ]
-          reportSDoc "mimer" 60 $ "Shift:" <+> pretty shift
-
-          makeOpen [ (Var (n + shift) [], (i - parCount) <$ guard underCon)    -- We count arguments excluding module parameters
-                   | (i, nap) <- zip [0..] naps
-                   , (n, underCon) <- go False $ namedThing $ unArg nap
-                   ]
-        _ -> do
-          makeOpen []
-  where
-    go isUnderCon = \case
-      VarP patInf x -> [(dbPatVarIndex x, isUnderCon)]
-      DotP patInf t -> [] -- Ignore dot patterns
-      ConP conHead conPatInf namedArgs -> concatMap (go True . namedThing . unArg) namedArgs
-      LitP{} -> []
-      ProjP{} -> []
-      IApplyP{} -> [] -- Only for Cubical?
-      DefP{} -> [] -- Only for Cubical?
-
-declarationQnames :: A.Declaration -> [QName]
-declarationQnames dec = [ q | Scope.WithKind _ q <- A.declaredNames dec ]
 
 ------------------------------------------------------------------------------
 -- * Core algorithm
@@ -645,17 +321,6 @@ runSearch norm options ii rng = withInteractionId ii $ do
           "Statistics:" <+> text (show stats)
         return sols
 
-tryComponents :: Goal -> Type -> SearchBranch -> [(Component, [Component])] -> SM [SearchStepResult]
-tryComponents goal goalType branch comps = withBranchAndGoal branch goal $ do
-  checkpoint <- viewTC eCurrentCheckpoint
-  let tryFor (sourceComp, comps') = do
-        -- Clear out components that depend on meta-variables that have been used.
-        let newCache = Map.insert sourceComp Nothing (sbCache branch Map.! checkpoint)
-        newBranches <- catMaybes <$> mapM (tryRefineWith goal goalType branch) comps'
-        return $ map (\br -> br{sbCache = Map.insert checkpoint newCache (sbCache branch)}) newBranches
-  newBranches <- concatMapM tryFor comps
-  mapM checkSolved newBranches
-
 -- | If there is no cache entry for the checkpoint, create one. If there already
 -- is one, even if the components are not yet generated for some entries, it is
 -- returned as is.
@@ -688,12 +353,6 @@ prepareComponents goal branch = withBranchAndGoal branch goal $ do
   prepare (sourceComp, Nothing) = do
     updateStat incCompRegen
     (sourceComp,) <$> genComponentsFrom True sourceComp
-
-localVarCount :: SM Int
-localVarCount = do
-  top <- asks $ length . envContext . searchTopEnv
-  cur <- length <$> getContext
-  pure $ cur - top
 
 genComponents :: SM [(Component, [Component])]
 genComponents = do
@@ -739,72 +398,66 @@ genComponentsFrom appRecElims origComp = do
               concatMapM (applyProjections seenRecords') comps
     return $ comp : projComps
 
-getRecordInfo :: Type
-  -> SM (Maybe ( QName     -- Record name
-               , Args      -- Record parameters converted to (hidden) arguments
-               , [QName]   -- Field names
-               , Bool      -- Is recursive?
-               ))
-getRecordInfo typ = case unEl typ of
-  Def qname elims -> isRecord qname >>= \case
-    Nothing -> return Nothing
-    Just defn -> do
-      fields <- getRecordFields qname
-      return $ Just (qname, argsFromElims elims, fields, recRecursive_ defn)
-  _ -> return Nothing
+genRecCalls :: Component -> SM [Component]
+genRecCalls thisFn = do
+  reportSDoc "mimer.components.open" 40 $ "Generating recursive calls for component" <+> prettyTCM (compId thisFn) <+> prettyTCM (compName thisFn)
+  reportSDoc "mimer.components.open" 60 $ "  checkpoint =" <+> (prettyTCM =<< viewTC eCurrentCheckpoint)
+  -- TODO: Make sure there are no pruning problems
+  asks (hintRecVars . searchBaseComponents) >>= getOpen >>= \case
+    -- No candidate arguments for a recursive call
+    [] -> return []
+    recCandTerms -> do
+      Costs{..} <- asks searchCosts
+      n <- localVarCount
+      localVars <- lift $ getLocalVars n costLocal
+      let recCands = [ (t, i) | t@(compTerm -> v@Var{}) <- localVars, NoSubst i <- maybeToList $ lookup v recCandTerms ]
 
-applyProj :: Args -> Component -> QName -> SM Component
-applyProj recordArgs comp' qname = do
-  cost <- asks (costProj . searchCosts)
-  -- Andreas, 2025-03-31, issue #7662: hack to prevent postfix printing of ♭
-  projOrigin <- maybe ProjSystem (\ flat -> if qname == flat then ProjPrefix else ProjSystem)
-    <$> asks searchBuiltinFlat
-  let newTerm = applyE (compTerm comp') [Proj projOrigin qname]
-  projType <- defType <$> getConstInfo qname
-  projTypeWithArgs <- piApplyM projType recordArgs
-  newType <- piApplyM projTypeWithArgs (compTerm comp')
-  newComponentQ (compMetas comp') (compCost comp' + cost) qname 0 newTerm newType
+      let newRecCall = do
+            -- Apply the recursive call to new metas
+            (thisFnTerm, thisFnType, newMetas) <- lift $ applyToMetas 0 (compTerm thisFn) (compType thisFn)
+            let argGoals = map Goal newMetas
+            comp <- newComponent newMetas (compCost thisFn) (compName thisFn) 0 thisFnTerm thisFnType
+            return (comp, zip argGoals [0..])
 
-
--- TODO: currently reducing twice
-applyToMetasG
-  :: Maybe Nat -- ^ Max number of arguments to apply.
-  -> Component -> SM Component
-applyToMetasG (Just m) comp | m <= 0 = return comp
-applyToMetasG maxArgs comp = do
-  reportSDoc "mimer.component" 25 $ "Applying component to metas" <+> prettyTCM (compId comp) <+> prettyTCM (compTerm comp)
-  ctx <- getContextTelescope
-  compTyp <- reduce $ compType comp
-  case unEl compTyp of
-    Pi dom abs -> do
-      let domainType = unDom dom
-      (metaId, metaTerm) <- createMeta domainType
-      reportSDoc "mimer.component" 30 $ "New arg meta" <+> prettyTCM metaTerm
-      let arg = setOrigin Inserted $ metaTerm <$ argFromDom dom
-      newType <- reduce =<< piApplyM (compType comp) metaTerm
-      -- Constructor parameters are not included in the term
-      let skip = compPars comp
-          newTerm | skip > 0  = compTerm comp
-                  | otherwise = apply (compTerm comp) [arg]
-      cost <- asks $ (if getHiding arg == Hidden then costNewHiddenMeta else costNewMeta) . searchCosts
-      applyToMetasG (predNat <$> maxArgs)
-                    comp{ compTerm = newTerm
-                        , compType = newType
-                        , compPars = predNat skip
-                        , compMetas = metaId : compMetas comp
-                        , compCost = cost + compCost comp
-                        }
-    _ ->
-      -- Set the type to the reduced version
-      return comp{compType = compTyp}
-
-createMeta :: Type -> SM (MetaId, Term)
-createMeta typ = do
-  (metaId, metaTerm) <- newValueMeta DontRunMetaOccursCheck CmpLeq typ
-  verboseS "mimer.stats" 20 $ updateStat incMetasCreated
-  reportSDoc "mimer.components" 80 $ do
-    "Created meta-variable (type in context):" <+> pretty metaTerm <+> ":" <+> (pretty =<< getMetaTypeInContext metaId)
-  return (metaId, metaTerm)
+          -- go :: Component -- ^ Recursive call function applied to meta-variables
+          --   -> [(Goal, Int)] -- ^ Remaining parameters to try to fill
+          --   -> [(Component, Int)] -- ^ Remaining argument candidates for the current parameter
+          --   -> SM [Component]
+          go _thisFn [] _args = return []
+          go thisFn (_ : goals) [] = go thisFn goals recCands
+          go thisFn ((goal, i) : goals) ((arg, j) : args) | i == j = do
+            reportSMDoc "mimer.components.rec" 80 $ hsep
+              [ "Trying to generate recursive call"
+              , prettyTCM (compTerm thisFn)
+              , "with" <+> prettyTCM (compTerm arg)
+              , "for" <+> prettyTCM (goalMeta goal) ]
+            goalType <- getMetaTypeInContext (goalMeta goal)
+            state <- getTC
+            tryRefineWith' goal goalType arg >>= \case
+              Nothing -> do
+                putTC state
+                go thisFn ((goal, i) : goals) args
+              Just (newMetas1, newMetas2) -> do
+                let newComp = thisFn{compMetas = newMetas1 ++ newMetas2 ++ (compMetas thisFn \\ [goalMeta goal])}
+                (thisFn', goals') <- newRecCall
+                (newComp:) <$> go thisFn' (drop (length goals' - length goals - 1) goals') args
+          go thisFn goals (_ : args) = go thisFn goals args
+      (thisFn', argGoals) <- newRecCall
+      comps <- go thisFn' argGoals recCands
+      -- Compute costs for the calls:
+      --  - costNewMeta/costNewHiddenMeta for each unsolved argument
+      --  - zero for solved arguments
+      --  - costLocal for the parameter we recurse on
+      let callCost comp = (costLocal +) . sum <$> argCosts (compTerm comp)
+          argCosts (Def _ elims) = mapM argCost elims
+          argCosts _ = __IMPOSSIBLE__
+          argCost (Apply arg) = instantiate arg <&> \ case
+            Arg h MetaV{} | visible h -> costNewMeta
+                          | otherwise -> costNewHiddenMeta
+            _ -> 0
+          argCost Proj{}   = pure 0
+          argCost IApply{} = pure 0
+      mapM (\ c -> (`addCost` c) <$> callCost c) comps
 
 
 partitionStepResult :: [SearchStepResult] -> SM ([SearchBranch], [MimerResult])
@@ -822,21 +475,6 @@ partitionStepResult (x:xs) = do
       f <- fromMaybe __IMPOSSIBLE__ <$> asks searchFnName
       return $ (brs', MimerClauses f cls : sols)
 
-
-topInstantiationDoc :: SM Doc
-topInstantiationDoc = asks searchTopMeta >>= getMetaInstantiation >>= maybe (return "(nothing)") prettyTCM
-
-prettyGoalInst :: Goal -> SM Doc
-prettyGoalInst goal = inGoalEnv goal $ do
-  args <- map Apply <$> getContextArgs
-  prettyTCM =<< instantiate (MetaV (goalMeta goal) args)
-
-branchInstantiationDocCost :: SearchBranch -> SM Doc
-branchInstantiationDocCost branch = branchInstantiationDoc branch <+> parens ("cost:" <+> pretty (sbCost branch))
-
--- | For debug
-branchInstantiationDoc :: SearchBranch -> SM Doc
-branchInstantiationDoc branch = withBranchState branch topInstantiationDoc
 
 refine :: SearchBranch -> SM [SearchStepResult]
 refine branch = withBranchState branch $ do
@@ -885,6 +523,17 @@ refine branch = withBranchState branch $ do
           results1 <- tryComponents goal2 goalType2 branch3 components
           results2 <- tryDataRecord goal2 goalType2 branch3
           return $ results1 ++ results2
+
+tryComponents :: Goal -> Type -> SearchBranch -> [(Component, [Component])] -> SM [SearchStepResult]
+tryComponents goal goalType branch comps = withBranchAndGoal branch goal $ do
+  checkpoint <- viewTC eCurrentCheckpoint
+  let tryFor (sourceComp, comps') = do
+        -- Clear out components that depend on meta-variables that have been used.
+        let newCache = Map.insert sourceComp Nothing (sbCache branch Map.! checkpoint)
+        newBranches <- catMaybes <$> mapM (tryRefineWith goal goalType branch) comps'
+        return $ map (\br -> br{sbCache = Map.insert checkpoint newCache (sbCache branch)}) newBranches
+  newBranches <- concatMapM tryFor comps
+  mapM checkSolved newBranches
 
 tryFns :: Goal -> Type -> SearchBranch -> SM [SearchStepResult]
 tryFns goal goalType branch = withBranchAndGoal branch goal $ do
@@ -949,69 +598,6 @@ tryLamAbs goal goalType branch =
     done = do
       branch' <- updateBranch [] branch -- TODO: Is this necessary?
       return $ Right (goal, goalType, branch')
-
-
-genRecCalls :: Component -> SM [Component]
-genRecCalls thisFn = do
-  reportSDoc "mimer.components.open" 40 $ "Generating recursive calls for component" <+> prettyTCM (compId thisFn) <+> prettyTCM (compName thisFn)
-  reportSDoc "mimer.components.open" 60 $ "  checkpoint =" <+> (prettyTCM =<< viewTC eCurrentCheckpoint)
-  -- TODO: Make sure there are no pruning problems
-  asks (hintRecVars . searchBaseComponents) >>= getOpen >>= \case
-    -- No candidate arguments for a recursive call
-    [] -> return []
-    recCandTerms -> do
-      Costs{..} <- asks searchCosts
-      n <- localVarCount
-      localVars <- lift $ getLocalVars n costLocal
-      let recCands = [ (t, i) | t@(compTerm -> v@Var{}) <- localVars, NoSubst i <- maybeToList $ lookup v recCandTerms ]
-
-      let newRecCall = do
-            -- Apply the recursive call to new metas
-            (thisFnTerm, thisFnType, newMetas) <- applyToMetas 0 (compTerm thisFn) (compType thisFn)
-            let argGoals = map Goal newMetas
-            comp <- newComponent newMetas (compCost thisFn) (compName thisFn) 0 thisFnTerm thisFnType
-            return (comp, zip argGoals [0..])
-
-          -- go :: Component -- ^ Recursive call function applied to meta-variables
-          --   -> [(Goal, Int)] -- ^ Remaining parameters to try to fill
-          --   -> [(Component, Int)] -- ^ Remaining argument candidates for the current parameter
-          --   -> SM [Component]
-          go _thisFn [] _args = return []
-          go thisFn (_ : goals) [] = go thisFn goals recCands
-          go thisFn ((goal, i) : goals) ((arg, j) : args) | i == j = do
-            reportSMDoc "mimer.components.rec" 80 $ hsep
-              [ "Trying to generate recursive call"
-              , prettyTCM (compTerm thisFn)
-              , "with" <+> prettyTCM (compTerm arg)
-              , "for" <+> prettyTCM (goalMeta goal) ]
-            goalType <- getMetaTypeInContext (goalMeta goal)
-            state <- getTC
-            tryRefineWith' goal goalType arg >>= \case
-              Nothing -> do
-                putTC state
-                go thisFn ((goal, i) : goals) args
-              Just (newMetas1, newMetas2) -> do
-                let newComp = thisFn{compMetas = newMetas1 ++ newMetas2 ++ (compMetas thisFn \\ [goalMeta goal])}
-                (thisFn', goals') <- newRecCall
-                (newComp:) <$> go thisFn' (drop (length goals' - length goals - 1) goals') args
-          go thisFn goals (_ : args) = go thisFn goals args
-      (thisFn', argGoals) <- newRecCall
-      comps <- go thisFn' argGoals recCands
-      -- Compute costs for the calls:
-      --  - costNewMeta/costNewHiddenMeta for each unsolved argument
-      --  - zero for solved arguments
-      --  - costLocal for the parameter we recurse on
-      let callCost comp = (costLocal +) . sum <$> argCosts (compTerm comp)
-          argCosts (Def _ elims) = mapM argCost elims
-          argCosts _ = __IMPOSSIBLE__
-          argCost (Apply arg) = instantiate arg <&> \ case
-            Arg h MetaV{} | visible h -> costNewMeta
-                          | otherwise -> costNewHiddenMeta
-            _ -> 0
-          argCost Proj{}   = pure 0
-          argCost IApply{} = pure 0
-      mapM (\ c -> (`addCost` c) <$> callCost c) comps
-
 
 -- TODO: Factor out `checkSolved`
 tryDataRecord :: Goal -> Type -> SearchBranch -> SM [SearchStepResult]
@@ -1154,53 +740,6 @@ tryRefineAddMetas goal goalType branch comp = withBranchAndGoal branch goal $ do
   comp' <- applyToMetasG Nothing comp
   branch' <- updateBranch [] branch
   tryRefineWith goal goalType branch' comp'
-
--- TODO: Make sure the type is reduced the first time this is called
--- TODO: Rewrite with Component?
--- NOTE: The new metas are in left-to-right order -- the opposite of the
--- order they should be solved in.
-applyToMetas :: Nat -> Term -> Type -> SM (Term, Type, [MetaId])
-applyToMetas skip term typ = do
-  ctx <- getContextTelescope
-  case unEl typ of
-    Pi dom abs -> do
-      let domainType = unDom dom
-      -- TODO: What exactly does the occur check do?
-      (metaId', metaTerm) <- bench [Bench.Free] $ newValueMeta DontRunMetaOccursCheck CmpLeq domainType
-      let arg = setOrigin Inserted $ metaTerm <$ argFromDom dom
-      newType <- bench [Bench.Reduce] $ reduce =<< piApplyM typ metaTerm -- TODO: Is this the best place to reduce?
-      -- For records, the parameters are not included in the term
-      let newTerm = if skip > 0 then term else apply term [arg]
-      (term', typ', metas) <- applyToMetas (predNat skip) newTerm newType
-      return (term', typ', metaId' : metas)
-    _ -> return (term, typ, [])
-
-normaliseSolution :: Term -> SM Term
-normaliseSolution t = do
-  norm <- asks searchRewrite
-  lift . normalForm norm =<< instantiateFull t
-
-checkSolved :: SearchBranch -> SM SearchStepResult
-checkSolved branch = do
-  reportSDoc "mimer" 20 $ "Checking if branch is solved"
-  reportSDoc "mimer" 30 $ "  remaining subgoals: " <+> prettyTCM (map goalMeta $ sbGoals branch)
-  topMetaId <- asks searchTopMeta
-  topMeta <- lookupLocalMeta topMetaId
-  ii <- asks searchInteractionId
-  withInteractionId ii $ withBranchState branch $ do
-    metaArgs <- getMetaContextArgs topMeta
-    inst <- normaliseSolution $ apply (MetaV topMetaId []) metaArgs
-    -- Issue #7639: The subgoals as generated by `applyToMetasG` (and other functions)
-    -- are already stored in the `sbGoals` field of the branch.
-    -- Here we just prune the subgoals that are already solved by unification.
-    goals <- filterM (isNothing <.> getMetaInstantiation . goalMeta) $ sbGoals branch
-    case goals of
-      -- Issue #378: Blank out variables that are not in scope.
-      -- This might leave unsolved metas but is probably better
-      -- than generating out-of-scope variables.
-      [] -> ResultExpr <$> (blankNotInScope =<< reify inst)
-      _ -> do
-        return $ OpenBranch branch { sbGoals = goals }
 
 
 
