@@ -8,6 +8,7 @@ import Agda.Interaction.Options (optRewriting)
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad hiding (constructorForm)
@@ -17,7 +18,7 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Syntax.Common.Pretty (prettyShow)
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -65,6 +66,7 @@ match' ((c, es, patch) : stack) = do
   let no blocking es = return $ NoReduction $ blocking $ patch $ map ignoreReduced es
       yes t          = flip YesReduction t <$> asksTC envSimplification
 
+  allowedReductions <- asksTC envAllowedReductions
   do
 
     case c of
@@ -73,7 +75,9 @@ match' ((c, es, patch) : stack) = do
       Fail{} -> no (NotBlocked AbsurdMatch) es
 
       -- done matching
-      Done _no _mr xs t
+      Done _no mr xs t
+        | couldBeRecursive mr && (RecursiveReductions `SmallSet.notMember` allowedReductions) ->
+            no (NotBlocked ReallyNotBlocked) es
         -- if the function was partially applied, return a lambda
         | m < n     -> yes $ applySubst (toSubst es) $ foldr lam t (drop m xs)
         -- otherwise, just apply instantiation to body
