@@ -59,6 +59,8 @@ data Case c = Branches
   }
   deriving (Functor, Foldable, Traversable, Show, Generic)
 
+type CompiledClauses = CompiledClauses' Term
+
 -- | Case tree with bodies.
 
 data CompiledClauses' a
@@ -67,19 +69,31 @@ data CompiledClauses' a
     -- (counting from zero) with @bs@ as the case branches.
     -- If the @n@-th argument is a projection, we have only 'conBranches'
     -- with arity 0.
-  | Done ClauseNumber ClauseRecursive [Arg ArgName] a
-    -- ^ @Done no mr xs b@ stands for the body @b@ where the @xs@ contains hiding
-    --   and name suggestions for the free variables. This is needed to build
-    --   lambdas on the right hand side for partial applications which can
-    --   still reduce.
-    --   The @no@ is the number of the original 'Clause' this case tree leaf comes from.
-    --   @mr@ tells whether this body contains calls to the mutually recursive functions.
+  | Done_ (CCDone a)
   | Fail [Arg ArgName]
     -- ^ Absurd case. Add the free variables here as well so we can build correct
     --   number of lambdas for strict backends. (#4280)
   deriving (Functor, Traversable, Foldable, Show, Generic)
 
-type CompiledClauses = CompiledClauses' Term
+{-# COMPLETE Case, Done, Fail #-}
+
+-- | Data stored in 'Done' nodes of the case tree.
+--  @CCDone no mr xs b@ stands for the body @b@ where the @xs@ contains hiding
+--   and name suggestions for the free variables. This is needed to build
+--   lambdas on the right hand side for partial applications which can
+--   still reduce.
+--   The @no@ is the number of the original 'Clause' this case tree leaf comes from.
+--   @mr@ tells whether this body contains calls to the mutually recursive functions.
+data CCDone a = CCDone
+  { ccClauseNumber    :: ClauseNumber
+  , ccClauseRecursive :: ClauseRecursive
+  , ccBoundVars       :: [Arg ArgName]
+  , ccBody            :: a
+  }
+  deriving (Functor, Traversable, Foldable, Show, Generic)
+
+pattern Done :: ClauseNumber -> ClauseRecursive -> [Arg ArgName] -> a -> CompiledClauses' a
+pattern Done no mr xs b = Done_ (CCDone no mr xs b)
 
 litCase :: Literal -> c -> Case c
 litCase l x = Branches False Map.empty Nothing (Map.singleton l x) Nothing (Just False) False
@@ -125,6 +139,24 @@ hasProjectionPatterns = getAny . loop
     Done{}    -> mempty
     Case _ br -> Any (projPatterns br) <> foldMap loop br
 
+---------------------------------------------------------------------------
+-- * Traversing the 'Done' leaves
+
+class MapDone f where
+  mapDone :: (CCDone a -> CCDone b) -> f a -> f b
+
+-- instance MapDone CCDone where
+--   mapDone = id
+
+instance MapDone CompiledClauses' where
+  mapDone f = \case
+    Case n bs  -> Case n $ fmap (mapDone f) bs
+    Done_ done -> Done_ $ f done
+    Fail xs    -> Fail xs
+
+---------------------------------------------------------------------------
+-- Collection instances
+
 instance Semigroup c => Semigroup (WithArity c) where
   WithArity n1 c1 <> WithArity n2 c2
     | n1 == n2  = WithArity n1 (c1 <> c2)
@@ -160,7 +192,8 @@ instance Null (Case m) where
   empty = Branches False Map.empty Nothing Map.empty Nothing Nothing True
   null (Branches _cop cs eta ls mcatch _b _lazy) = null cs && null eta && null ls && null mcatch
 
--- * Pretty instances.
+---------------------------------------------------------------------------
+-- Pretty instances
 
 instance Pretty a => Pretty (WithArity a) where
   pretty = pretty . content
@@ -189,7 +222,8 @@ instance Pretty CompiledClauses where
   pretty (Case n bs) =
     text ("case " ++ prettyShow n ++ " of") <?> pretty bs
 
--- * KillRange instances.
+---------------------------------------------------------------------------
+-- KillRange instances
 
 instance KillRange c => KillRange (WithArity c) where
   killRange = fmap killRange
@@ -207,7 +241,8 @@ instance KillRange CompiledClauses where
   killRange (Done no mr xs v) = killRangeN Done no mr xs v
   killRange (Fail xs)         = killRangeN Fail xs
 
--- * TermLike instances
+---------------------------------------------------------------------------
+-- TermLike instances
 
 instance TermLike a => TermLike (WithArity a) where
   traverseTermM = traverse . traverseTermM
@@ -221,8 +256,14 @@ instance TermLike a => TermLike (CompiledClauses' a) where
   traverseTermM = traverse . traverseTermM
   foldTerm      = foldMap . foldTerm
 
+instance TermLike a => TermLike (CCDone a) where
+  traverseTermM = traverse . traverseTermM
+  foldTerm      = foldMap . foldTerm
+
+---------------------------------------------------------------------------
 -- NFData instances
 
 instance NFData c => NFData (WithArity c)
 instance NFData a => NFData (Case a)
 instance NFData a => NFData (CompiledClauses' a)
+instance NFData a => NFData (CCDone a)
