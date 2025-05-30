@@ -4168,9 +4168,6 @@ data TCEnv =
                 -- currently under, if any. Used by the scope checker
                 -- (to associate definitions to blocks), and by the type
                 -- checker (for unfolding control).
-          , envTermCheckReducing :: Bool
-                -- ^ Are we currently trying to reduce away function calls using
-                --   non-recursive clauses during termination checking?
           }
     deriving (Generic)
 
@@ -4237,7 +4234,6 @@ initEnv = TCEnv { envContext             = []
                 , envCurrentlyElaborating   = False
                 , envSyntacticEqualityFuel  = Strict.Nothing
                 , envCurrentOpaqueId        = Nothing
-                , envTermCheckReducing      = False
                 }
 
 class LensTCEnv a where
