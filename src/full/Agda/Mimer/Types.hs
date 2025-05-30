@@ -18,6 +18,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute (NoSubst(..))
 import Agda.Interaction.Base (Rewrite(..))
 import Agda.Utils.Tuple (mapSnd)
+import Agda.Utils.Impossible
 
 import Agda.Mimer.Options
 
@@ -78,6 +79,14 @@ instance NFData Goal
 instance Eq Goal where
   g1 == g2 = goalMeta g1 == goalMeta g2
 
+-- | Take the first goal off a search branch.
+--   Precondition: the set of goals is non-empty.
+nextGoal :: SearchBranch -> (Goal, SearchBranch)
+nextGoal branch =
+  case sbGoals branch of
+    [] -> __IMPOSSIBLE__
+    goal : goals -> (goal, branch{ sbGoals = goals })
+
 ------------------------------------------------------------------------
 -- * Components
 ------------------------------------------------------------------------
@@ -100,7 +109,6 @@ data BaseComponents = BaseComponents
   , hintThisFn :: Maybe Component
   , hintLetVars :: [Open Component]
   , hintRecVars :: Open [(Term, NoSubst Term Int)] -- ^ Variable terms and which argument they come from
-  , hintSplitVars :: Open [Term]
   }
   deriving (Generic)
 
@@ -276,7 +284,6 @@ instance PrettyTCM BaseComponents where
            , "hintThisFn:" <+> thisFn
            , g prettyOpenComp "hintLetVars" (hintLetVars comps)
            , "hintRecVars: Open" <+> pretty (mapSnd unNoSubst <$> openThing (hintRecVars comps))
-           , "hintSplitVars: Open" <+> pretty (openThing $ hintSplitVars comps)
            ]
          ]
     where
