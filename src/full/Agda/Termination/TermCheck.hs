@@ -986,8 +986,6 @@ tryReduceNonRecursiveClause g es continue fallback = do
   -- Finally, try to reduce with the non-recursive clauses (and no rewrite rules).
   r <- liftTCM $
     modifyAllowedReductions (`SmallSet.difference` recursiveOrUnConfirmedReductions) $
-    -- reduce v0
-    -- localTC (\e -> e { envTermCheckReducing = True }) $
     runReduceM $ appDefE_ g v0 (defClauses def) (defCompiled def) [] (map notReduced es)
   case r of
     NoReduction{}    -> fallback
