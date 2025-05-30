@@ -392,10 +392,7 @@ data ClauseRecursive
   | NotRecursive
       -- ^ Definitely no call to a mutually recursive function.
   | MaybeRecursive
-      -- ^ Possibly a recursive call.
-      --   Could be that the analysis has not run yet,
-      --   or the clause body contains a meta
-      --   that could later be filled with a recursive call.
+      -- ^ Don't know because the analysis has not run yet.
   deriving (Bounded, Enum, Eq, Generic, Show)
 
 couldBeRecursive :: ClauseRecursive -> Bool
