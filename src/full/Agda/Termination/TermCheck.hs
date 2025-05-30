@@ -52,7 +52,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
-import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull, appDefE')
+import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull, appDefE_)
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -72,6 +72,7 @@ import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+-- import Agda.Utils.SmallSet (SmallSet)
 import qualified Agda.Utils.SmallSet as SmallSet
 import qualified Agda.Utils.VarSet as VarSet
 
@@ -974,18 +975,20 @@ tryReduceNonRecursiveClause g es continue fallback = do
   ifM (notElem g <$> terGetMutual) fallback {-else-} $ do
   reportSLn "term.reduce" 40 $ "This call is in the current SCC!"
 
-  -- Then, collect its clauses.
-  cls <- defClauses <$> getConstInfo g
-  reportSLn "term.reduce" 40 $ unwords [ "Function has", show (length cls), "clauses"]
-  reportSDoc "term.reduce" 80 $ vcat $ map (prettyTCM . NamedClause g True) cls
-  reportSLn  "term.reduce" 80 . ("allowed reductions = " ++) . show . SmallSet.elems
-    =<< asksTC envAllowedReductions
+  def <- getConstInfo g
+  -- -- Then, collect its clauses.
+  -- cls <- defClauses <$> getConstInfo g
+  -- reportSLn "term.reduce" 40 $ unwords [ "Function has", show (length cls), "clauses"]
+  -- reportSDoc "term.reduce" 80 $ vcat $ map (prettyTCM . NamedClause g True) cls
+  -- reportSLn  "term.reduce" 80 . ("allowed reductions = " ++) . show . SmallSet.elems
+  --   =<< asksTC envAllowedReductions
 
   -- Finally, try to reduce with the non-recursive clauses (and no rewrite rules).
   r <- liftTCM $
-    modifyAllowedReductions (SmallSet.delete UnconfirmedReductions) $
-    localTC (\e -> e { envTermCheckReducing = True }) $
-    runReduceM $ appDefE' g v0 cls [] (map notReduced es)
+    modifyAllowedReductions (`SmallSet.difference` recursiveOrUnConfirmedReductions) $
+    -- reduce v0
+    -- localTC (\e -> e { envTermCheckReducing = True }) $
+    runReduceM $ appDefE_ g v0 (defClauses def) (defCompiled def) [] (map notReduced es)
   case r of
     NoReduction{}    -> fallback
     YesReduction _ v -> do
@@ -995,6 +998,9 @@ tryReduceNonRecursiveClause g es continue fallback = do
         ]
       verboseS "term.reduce" 5 $ tick "termination-checker-reduced-nonrecursive-call"
       continue v
+
+recursiveOrUnConfirmedReductions :: AllowedReductions
+recursiveOrUnConfirmedReductions = SmallSet.fromList [RecursiveReductions, UnconfirmedReductions]
 
 -- | Extract recursive calls from a term.
 
