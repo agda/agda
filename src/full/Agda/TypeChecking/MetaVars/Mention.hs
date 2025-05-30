@@ -109,9 +109,8 @@ instance MentionsMeta Constraint where
     ElimCmp _ _ t v as bs -> mm ((t, v), (as, bs))
     LevelCmp _ u v      -> mm (u, v)
     SortCmp _ a b       -> mm (a, b)
-    UnBlock _           -> True   -- this might be a postponed typechecking
-                                  -- problem and we don't have a handle on
-                                  -- what metas it depends on
+    BlockedConst m v    -> HashSet.member m xs || mentionsMetas xs v
+    PostponedTypeCheckingProblem{} -> True
     FindInstance{}      -> True   -- this needs to be woken up for any meta
     ResolveInstanceHead q -> True -- TODO
     IsEmpty r t         -> mm t

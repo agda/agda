@@ -4,7 +4,6 @@ Failed to solve the following constraints:
   Agda.Primitive.Setω =< _4 (blocked on _4)
   _7 is a sort (blocked on _4)
 
-Issue2285.agda:13.8-14.32: error: [UnsolvedMetaVariables]
+Issue2285.agda:13.8-11: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   Issue2285.agda:13.8-11
-  Issue2285.agda:14.29-32

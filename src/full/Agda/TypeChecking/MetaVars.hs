@@ -94,27 +94,6 @@ instance MonadMetaSolver TCM where
 findIdx :: Eq a => [a] -> a -> Maybe Int
 findIdx vs v = List.elemIndex v (reverse vs)
 
--- | Does the given local meta-variable have a twin meta-variable?
-
-hasTwinMeta :: MetaId -> TCM Bool
-hasTwinMeta x = do
-    m <- lookupLocalMeta x
-    return $ isJust $ mvTwin m
-
--- | Check whether a meta variable is a place holder for a blocked term.
-isBlockedTerm :: MetaId -> TCM Bool
-isBlockedTerm x = do
-    reportSLn "tc.meta.blocked" 12 $ "is " ++ prettyShow x ++ " a blocked term? "
-    i <- lookupMetaInstantiation x
-    let r = case i of
-            BlockedConst{}                 -> True
-            PostponedTypeCheckingProblem{} -> True
-            InstV{}                        -> False
-            OpenMeta{}                     -> False
-    reportSLn "tc.meta.blocked" 12 $
-      if r then "  yes, because " ++ prettyShow i else "  no"
-    return r
-
 isEtaExpandable :: [MetaClass] -> MetaId -> TCM Bool
 isEtaExpandable classes x = do
     i <- lookupMetaInstantiation x
@@ -122,15 +101,13 @@ isEtaExpandable classes x = do
       OpenMeta UnificationMeta       -> True
       OpenMeta InstanceMeta          -> Records `notElem` classes
       InstV{}                        -> False
-      BlockedConst{}                 -> False
-      PostponedTypeCheckingProblem{} -> False
 
 -- * Performing the assignment
 
 -- | Performing the meta variable assignment.
 --
 --   The instantiation should not be an 'InstV' and the 'MetaId'
---   should point to something 'Open' or a 'BlockedConst'.
+--   should point to something 'Open'.
 --   Further, the meta variable may not be 'Frozen'.
 assignTerm :: MonadMetaSolver m => MetaId -> [Arg ArgName] -> Term -> m ()
 assignTerm x tel v = do
@@ -550,44 +527,29 @@ blockTermOnProblem t v pid = do
   ifM (return solved `or2M` isSizeProblem pid)
       (v <$ reportSLn "tc.meta.blocked" 20 ("Not blocking because " ++ show pid ++ " is " ++
                                             if solved then "solved" else "a size problem")) $ do
-    i   <- createMetaInfo
-    es  <- map Apply <$> getContextArgs
+    -- Note: since this is a blocked term, the solution is something that was written by the user
+    -- which could well contain a recursive call. For example, see test/Succeed/Issue585-17.agda.
+    -- Hence we disable the occurs check for it.
+    (x, u) <- newBlockedConstMeta t
     tel <- getContextTelescope
-    x   <- newMeta' (BlockedConst $ abstract tel v)
-                    Instantiable
-                    i
-                    lowMetaPriority
-                    (idP $ size tel)
-                    (HasType () CmpLeq $ telePi_ tel t)
-                    -- we don't instantiate blocked terms
-    inTopContext $ addConstraint (unblockOnProblem pid) (UnBlock x)
+    updateMetaVar x $ \mv -> mv { mvBrave = Just $ abstract tel v }
+    addConstraint (unblockOnProblem pid) $ BlockedConst x v
     reportSDoc "tc.meta.blocked" 20 $ vcat
-      [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext
-        (prettyTCM $ abstract tel v)
+      [ "blocked" <+> prettyTCM x <+> ":=" <+>
+        (prettyTCM v)
       , "     by" <+> (prettyTCM =<< getConstraintsForProblem pid)
       ]
-    inst <- isInstantiatedMeta x
-    if inst
-      then instantiate (MetaV x es)
-      else do
-        -- We don't return the blocked term instead create a fresh metavariable
-        -- that we compare against the blocked term once it's unblocked. This way
-        -- blocked terms can be instantiated before they are unblocked, thus making
-        -- constraint solving a bit more robust against instantiation order.
-        -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
-        (m', v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
-        reportSDoc "tc.meta.blocked" 30
-          $   "setting twin of"
-          <+> prettyTCM m'
-          <+> "to be"
-          <+> prettyTCM x
-        updateMetaVar m' (\mv -> mv { mvTwin = Just x })
-        i   <- fresh
-        -- This constraint is woken up when unblocking, so it doesn't need a problem id.
-        cmp <- buildProblemConstraint_ (unblockOnMeta x) (ValueCmp CmpEq (AsTermsOf t) v (MetaV x es))
-        reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
-        listenToMeta (CheckConstraint i cmp) x
-        return v
+    return u
+
+-- | Create a new meta for the result of a 'BlockedConst' or 'PostponedTypeChecking' problem
+--   This skips the meta occurs check and the eta-expansion step.
+newBlockedConstMeta :: MonadMetaSolver m => Type -> m (MetaId, Term)
+newBlockedConstMeta t = do
+  vs <- getContextArgs
+  tel <- getContextTelescope
+  i <- createMetaInfo' DontRunMetaOccursCheck
+  x <- newMeta Instantiable i lowMetaPriority (idP $ size tel) (HasType () CmpLeq (telePi_ tel t))
+  return (x , MetaV x $ map Apply vs)
 
 {-# SPECIALIZE blockTypeOnProblem :: Type -> ProblemId -> TCM Type #-}
 blockTypeOnProblem
@@ -623,42 +585,14 @@ postponeTypeCheckingProblem p unblock | unblock == alwaysUnblock = do
   reportSDoc "impossible" 2 $ "Postponed without blocker:" <?> prettyTCM p
   __IMPOSSIBLE__
 postponeTypeCheckingProblem p unblock = do
-  i   <- createMetaInfo' DontRunMetaOccursCheck
-  tel <- getContextTelescope
-  cl  <- buildClosure p
   let t = problemType p
-  m   <- newMeta' (PostponedTypeCheckingProblem cl)
-                  Instantiable i normalMetaPriority (idP (size tel))
-         $ HasType () CmpLeq $ telePi_ tel t
+  (m, u) <- newBlockedConstMeta t
   inTopContext $ reportSDoc "tc.meta.postponed" 20 $ vcat
-    [ "new meta" <+> prettyTCM m <+> ":" <+> prettyTCM (telePi_ tel t)
+    [ "new meta" <+> prettyTCM m <+> ":" <+> prettyTCM t
     , "for postponed typechecking problem" <+> prettyTCM p
     ]
-
-  -- Create the meta that we actually return
-  -- Andreas, 2012-03-15
-  -- This is an alias to the pptc meta, in order to allow pruning (issue 468)
-  -- and instantiation.
-  -- Since this meta's solution comes from user code, we do not need
-  -- to run the extended occurs check (metaOccurs) to exclude
-  -- non-terminating solutions.
-  es  <- map Apply <$> getContextArgs
-  (_, v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
-  cmp <- buildProblemConstraint_ (unblockOnMeta m) (ValueCmp CmpEq (AsTermsOf t) v (MetaV m es))
-  reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
-  i   <- liftTCM fresh
-  listenToMeta (CheckConstraint i cmp) m
-  addConstraint unblock (UnBlock m)
-  return v
-
--- | Type of the term that is produced by solving the 'TypeCheckingProblem'.
-problemType :: TypeCheckingProblem -> Type
-problemType (CheckExpr _ _ t         ) = t
-problemType (CheckArgs _ _ _ _ _ t _ ) = t  -- The target type of the application.
-problemType (CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ t _ _ _ _) = t -- The target type of the application
-problemType (CheckLambda _ _ _ t     ) = t
-problemType (DoQuoteTerm _ _ t)        = t
-problemType (DisambiguateConstructor (ConstructorDisambiguationData _ _ _ t) _) = t
+  addConstraint unblock (PostponedTypeCheckingProblem m p)
+  return u
 
 -- | Eta-expand a local meta-variable, if it is of the specified kind.
 --   Don't do anything if the meta-variable is a blocked term.
@@ -893,11 +827,6 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
     -- IApplyConfluence can contribute boundary conditions to frozen metas
     boundary v
     patternViolation neverUnblock
-
-  -- We never get blocked terms here anymore. TODO: we actually do. why?
-  whenM (isBlockedTerm x) $ do
-    reportSLn "tc.meta.assign" 25 $ "aborting: meta is a blocked term!"
-    patternViolation (unblockOnMeta x)
 
   -- Andreas, 2010-10-15 I want to see whether rhs is blocked
   reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: I want to see whether rhs is blocked"
@@ -1364,8 +1293,6 @@ checkMetaInst x = do
   m <- lookupLocalMeta x
   let postpone = addConstraint (unblockOnMeta x) $ CheckMetaInst x
   case mvInstantiation m of
-    BlockedConst{} -> postpone
-    PostponedTypeCheckingProblem{} -> postpone
     OpenMeta{} -> postpone
     InstV inst -> do
       let n = size (instTel inst)

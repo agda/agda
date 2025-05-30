@@ -25,6 +25,7 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.Maybe
 import Agda.Utils.Null
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Impossible
@@ -41,14 +42,14 @@ prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ pret
 
 {-# SPECIALIZE interestingConstraint :: ProblemConstraint -> TCM Bool #-}
 interestingConstraint :: MonadPretty m => ProblemConstraint -> m Bool
-interestingConstraint pc =
-  case clValue (theConstraint pc) of
-    UnBlock m -> lookupMetaInstantiation m >>= \case
-      PostponedTypeCheckingProblem cl -> enterClosure cl \case
+interestingConstraint pc
+  | UnblockOnProblem{} <- constraintUnblocker pc = return False
+  | BlockedConst{} <- clValue (theConstraint pc) = return False
+  | PostponedTypeCheckingProblem m prob <- clValue (theConstraint pc) =
+      case prob of
         DisambiguateConstructor{} -> return True
         _ -> return False
-      _ -> return False
-    _ -> return True
+  | otherwise = return True
 
 {-# SPECIALIZE prettyInterestingConstraints :: [ProblemConstraint] -> TCM [Doc] #-}
 prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
@@ -101,13 +102,9 @@ instance PrettyTCM Constraint where
         ElimCmp cmps fs t v us vs -> prettyCmp "~~" us vs   <?> (":" <+> prettyTCMCtx TopCtx t)
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
         SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
-        UnBlock m   -> do
-            lookupMetaInstantiation m >>= \case
-              BlockedConst t -> prettyCmp ":=" m t
-              PostponedTypeCheckingProblem cl -> enterClosure cl $ \p ->
-                prettyCmp ":=" m p
-              OpenMeta{}  -> __IMPOSSIBLE__
-              InstV{} -> empty
+        BlockedConst m v         -> prettyCmp ":=" m v
+        PostponedTypeCheckingProblem m p ->
+          prettyCmp ":=" m p
               -- Andreas, 2017-01-11, issue #2637:
               -- The size solver instantiates some metas with infinity
               -- without cleaning up the UnBlock constraints.

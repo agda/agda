@@ -4,7 +4,7 @@ when checking that a clause of f has the correct boundary.
 
 Specifically, the terms
   comp
-  (λ i .o → f ((λ { i₁ (j = i0) → p i0 ; i₁ (j = i1) → p i₁ }) i _))
+  (λ i .o → f ((λ { i₁ (j = i0) → base ; i₁ (j = i1) → p i₁ }) i _))
   (refl (p j))
 and
   refl (surf i0 j)

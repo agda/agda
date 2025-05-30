@@ -1,6 +1,6 @@
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
-  Nat =< _B_19 zero (blocked on _B_19)
+  Nat =< _B_18 zero (blocked on _B_18)
 
 Issue2120.agda:16.10-54: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:

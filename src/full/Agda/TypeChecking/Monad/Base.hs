@@ -1457,10 +1457,9 @@ data Constraint
     -- See 'Agda.TypeChecking.Rules.Data.checkDataSort'.
   | CheckMetaInst MetaId
   | CheckType Type
-  | UnBlock MetaId
-    -- ^ Meta created for a term blocked by a postponed type checking problem or unsolved
-    --   constraints. The 'MetaInstantiation' for the meta (when unsolved) is either 'BlockedConst'
-    --   or 'PostponedTypeCheckingProblem'.
+  | BlockedConst MetaId Term
+  | PostponedTypeCheckingProblem MetaId TypeCheckingProblem
+      -- ^ Meta stands for value of the expression that is still to be type checked.
   | IsEmpty Range Type
     -- ^ The range is the one of the absurd pattern.
   | CheckSizeLtSat Term
@@ -1500,7 +1499,8 @@ instance Free Constraint where
       ElimCmp _ _ t u es es'  -> freeVars' ((t, u), (es, es'))
       SortCmp _ s s'        -> freeVars' (s, s')
       LevelCmp _ l l'       -> freeVars' (l, l')
-      UnBlock _             -> mempty
+      BlockedConst _ v      -> freeVars' v
+      PostponedTypeCheckingProblem _ prob -> mempty -- TODO: freeVars' prob
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
       FindInstance _ cs     -> freeVars' cs
@@ -1525,7 +1525,8 @@ instance TermLike Constraint where
       CheckSizeLtSat u       -> foldTerm f u
       UnquoteTactic t h g    -> foldTerm f (t, h, g)
       SortCmp _ s1 s2        -> foldTerm f (Sort s1, Sort s2)   -- Same as LevelCmp case
-      UnBlock _              -> mempty
+      BlockedConst _ v       -> foldTerm f v
+      PostponedTypeCheckingProblem _ prob -> mempty -- TODO: foldTerm f prob
       CheckLockedVars a b c d -> foldTerm f (a, b, c, d)
       FindInstance _ _       -> mempty
       ResolveInstanceHead q  -> mempty
@@ -1686,10 +1687,11 @@ data MetaVariable =
                 , mvInstantiation :: MetaInstantiation
                 , mvListeners     :: Set Listener -- ^ meta variables scheduled for eta-expansion but blocked by this one
                 , mvFrozen        :: Frozen -- ^ are we past the point where we can instantiate this meta variable?
-                , mvTwin          :: Maybe MetaId
-                  -- ^ @Just m@ means that this meta-variable will be
-                  -- equated to @m@ when the latter is unblocked. See
-                  -- 'Agda.TypeChecking.MetaVars.blockTermOnProblem'.
+                , mvBrave         :: Maybe Term
+                -- ^ Only for pretty-printing: when the instantiation of this meta
+                --   is blocked by a constraint, we would nevertheless like to print
+                --   it as its eventual solution. So we already store its (potentially
+                --   ill-typed) solution here.
                 }
   deriving Generic
 
@@ -1721,9 +1723,6 @@ data Frozen
 data MetaInstantiation
   = InstV Instantiation -- ^ Solved by 'Instantiation'.
   | OpenMeta MetaKind   -- ^ Unsolved (open to solutions).
-  | BlockedConst Term   -- ^ Solved, but solution blocked by unsolved constraints.
-  | PostponedTypeCheckingProblem (Closure TypeCheckingProblem)
-      -- ^ Meta stands for value of the expression that is still to be type checked.
   deriving Generic
 
 -- | Meta-variable instantiations.
@@ -1749,8 +1748,6 @@ data Instantiation = Instantiation
 --   freezing instantiated meta-variables.
 -- * The 'mvListeners' field is not needed, because no meta-variable
 --   should be listening to this one.
--- * The 'mvTwin' field is not needed, because the meta-variable has
---   already been instantiated.
 -- * The 'mvPermutation' is currently removed, but could be retained
 --   if it turns out to be useful for something.
 -- * The only part of the 'mvInfo' field that is kept is the
@@ -1780,7 +1777,7 @@ data PrincipalArgTypeMetas = PrincipalArgTypeMetas
   , patmRemainder :: Type -- ^ principal argument's type, stripped of hidden and
                           --   instance arguments
   }
-  deriving Generic
+  deriving (Show, Generic)
 
 instance AllMetas PrincipalArgTypeMetas where
   allMetas f (PrincipalArgTypeMetas vs ty) = allMetas f (vs,ty)
@@ -1800,7 +1797,7 @@ data TypeCheckingProblem
   | DisambiguateConstructor ConstructorDisambiguationData (ConHead -> TCM Term)
     -- ^ A stuck constructor disambiguation with the bits to retry it on and the success continuation.
   | DoQuoteTerm Comparison Term Type -- ^ Quote the given term and check type against `Term`
-  deriving Generic
+  deriving (Show, Generic)
 
 -- | Information we have constructored in the middle of disambiguating a constructor.
 data ConstructorDisambiguationData = ConstructorDisambiguationData
@@ -1813,14 +1810,12 @@ data ConstructorDisambiguationData = ConstructorDisambiguationData
       -- ^ The arguments given to the constructor.
   , bcdType       :: Type
       -- ^ The type of the constructor application
-  } deriving Generic
+  } deriving (Show, Generic)
 
 instance Pretty MetaInstantiation where
   pretty = \case
     OpenMeta UnificationMeta                 -> "Open"
     OpenMeta InstanceMeta                    -> "OpenInstance"
-    PostponedTypeCheckingProblem{}           -> "PostponedTypeCheckingProblem (...)"
-    BlockedConst t                           -> hsep [ "BlockedConst", parens (pretty t) ]
     InstV Instantiation{ instTel, instBody } -> hsep [ "InstV", pretty instTel, parens (pretty instBody) ]
 
 -- | Meta variable priority:
@@ -4424,7 +4419,7 @@ data ExpandHidden
   = ExpandLast      -- ^ Add implicit arguments in the end until type is no longer hidden 'Pi'.
   | DontExpandLast  -- ^ Do not append implicit arguments.
   | ReallyDontExpandLast -- ^ Makes 'doExpandLast' have no effect. Used to avoid implicit insertion of arguments to metavariables.
-  deriving (Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 isExpandLast :: ExpandHidden -> Bool
 isExpandLast ExpandLast           = True

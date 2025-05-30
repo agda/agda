@@ -1,6 +1,6 @@
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
-  _v.T_21 _v.i_22 =< _T_23 _i_24 (blocked on any(_v.T_21, _T_23))
+  _v.T_20 v.i =< _T_21 _i_22 (blocked on any(_v.T_20, _T_21))
 
 Issue3401.agda:12.5-8: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:

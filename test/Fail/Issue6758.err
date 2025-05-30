@@ -1,6 +1,6 @@
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
-  _57 (x = x) = x₁ x : _X_54 (blocked on _57)
+  _56 (x = x) = x₁ x : _X_53 (blocked on _56)
 
 Issue6758.agda:22.12-27.15: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
