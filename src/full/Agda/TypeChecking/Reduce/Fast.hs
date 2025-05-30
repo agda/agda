@@ -368,11 +368,13 @@ data FastCompiledClauses
   | FEta Int [Arg QName] FastCompiledClauses (Maybe FastCompiledClauses)
     -- ^ Match on record constructor. Can still have a catch-all though. Just
     --   contains the fields, not the actual constructor.
-  | FDone [Arg ArgName] Term
-    -- ^ @FDone xs b@ stands for the body @b@ where the @xs@ contains hiding
+  | FDone (CCDone Term)
+    -- ^ See 'Done'.
+    --   @FDone (CCDone _ mr xs b)@ stands for the body @b@ where the @xs@ contains hiding
     --   and name suggestions for the free variables. This is needed to build
     --   lambdas on the right hand side for partial applications which can
     --   still reduce.
+    --   @mr@ indicates whether this leaf containts recursive mutually recursive calls.
   | FFail
     -- ^ Absurd case.
 
@@ -380,7 +382,7 @@ fastCompiledClauses :: BuiltinEnv -> CompiledClauses -> FastCompiledClauses
 fastCompiledClauses bEnv cc =
   case cc of
     Fail{}            -> FFail
-    Done _no _mr xs b -> FDone xs b
+    Done_ done        -> FDone done
     Case (Arg _ n) Branches{ etaBranch = Just (c, cc), catchallBranch = ca } ->
       FEta n (conFields c) (fastCompiledClauses bEnv $ content cc) (fastCompiledClauses bEnv <$> ca)
     Case (Arg _ n) bs -> FCase n (fastCase bEnv bs)
@@ -456,7 +458,6 @@ fastReduce' norm v = do
 
       bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimErase = erase }
-  allowedReductions <- asksTC envAllowedReductions
   rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
@@ -1234,7 +1235,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
         FFail -> stuckMatch (NotBlocked AbsurdMatch ()) stack ctrl
 
         -- Matching complete. Compute the environment for the body and switch to the Eval state.
-        FDone xs body -> do
+        FDone (CCDone _ mr xs body) -> do
             -- Don't ask me why, but not being strict in the spine causes a memory leak.
             let (zs, env, !spine') = buildEnv xs spine
             runAM (Eval (Closure Unevaled (lams zs body) env spine') ctrl)
@@ -1408,7 +1409,7 @@ instance Pretty a => Pretty (FastCase a) where
       prSuc (Just x) = ["suc ->" <?> pretty x]
 
 instance Pretty FastCompiledClauses where
-  pretty (FDone xs t) = ("done" <+> prettyList xs) <?> prettyPrec 10 t
+  pretty (FDone done) = pretty done
   pretty FFail        = "fail"
   pretty (FEta n _ cc ca) =
     text ("eta " ++ show n ++ " of") <?>
