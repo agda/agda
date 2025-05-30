@@ -212,15 +212,18 @@ instance Pretty a => Pretty (Case a) where
 prettyMap_ :: (Pretty k, Pretty v) => Map k v -> [Doc]
 prettyMap_ = map prettyAssign . Map.toList
 
-instance Pretty CompiledClauses where
-  pretty (Done no mr hs t) = ("done" <+> (pretty no <> pretty mr <> ":") <+> pretty hs) <?> pretty t
-  pretty Fail{}             = "fail"
+instance Pretty a => Pretty (CompiledClauses' a) where
+  pretty (Done_ done) = pretty done
+  pretty Fail{}       = "fail"
   pretty (Case n bs) | projPatterns bs =
     sep [ "record"
         , nest 2 $ pretty bs
         ]
   pretty (Case n bs) =
     text ("case " ++ prettyShow n ++ " of") <?> pretty bs
+
+instance Pretty a => Pretty (CCDone a) where
+  pretty (CCDone no mr xs t) = ("done" <+> (pretty no <> pretty mr <> ":") <+> pretty xs) <?> prettyPrec 10 t
 
 ---------------------------------------------------------------------------
 -- KillRange instances
