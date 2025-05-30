@@ -42,7 +42,7 @@ compileClauses' q recpat cs mSplitTree = do
 
   -- Throw away the unreachable clauses (#2723).
   let notUnreachable = (Just True /=) . clauseUnreachable
-  cs <- map unBruijn <$> normaliseProjP (filter (notUnreachable .snd) $ zip [0..] cs)
+  cs <- map unBruijn <$> normaliseProjP (filter (notUnreachable . snd) $ zip [0..] cs)
 
   let translate | recpat == RunRecordPatternTranslation = runIdentityT . translateCompiledClauses q
                 | otherwise                             = return
