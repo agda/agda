@@ -362,10 +362,11 @@ initialInstanceCandidates blockOverlap instTy = do
 --   wasn't known when the constraint was generated. In that case, try to find
 --   its type again.
 findInstance :: MetaId -> Maybe [Candidate] -> TCM ()
-findInstance m Nothing =
-  ifM canDropRecursiveInstance (addConstraint neverUnblock (FindInstance m Nothing)) $
+findInstance m Nothing = do
+  r <- getMetaRange m
+  ifM canDropRecursiveInstance (addConstraint neverUnblock (FindInstance r m Nothing)) $ do
   -- Getting initial candidates can fail, in which case we should postpone (#7286)
-  catchConstraint (FindInstance m Nothing) $ do
+  catchConstraint (FindInstance r m Nothing) $ do
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
   mv <- lookupLocalMeta m
@@ -382,11 +383,12 @@ findInstance m Nothing =
     case cands of
       Left unblock -> do
         reportSLn "tc.instance" 20 "Can't figure out target of instance goal. Postponing constraint."
-        addConstraint unblock $ FindInstance m Nothing
+        addConstraint unblock $ FindInstance r m Nothing
       Right cs -> findInstance m (Just cs)
 
-findInstance m (Just cands) =                          -- Note: if no blocking meta variable this will not unblock until the end of the mutual block
-  whenJustM (findInstance' m cands) $ (\ (cands, b) -> addConstraint b $ FindInstance m $ Just cands)
+findInstance m (Just cands) = do                       -- Note: if no blocking meta variable this will not unblock until the end of the mutual block
+  r <- getMetaRange m
+  whenJustM (findInstance' m cands) $ (\ (cands, b) -> addConstraint b $ FindInstance r m $ Just cands)
 
 -- | Entry point for `tcGetInstances` primitive
 getInstanceCandidates :: MetaId -> TCM (Either Blocker [Candidate])

@@ -1,4 +1,4 @@
-error: [UnsolvedConstraints]
+Overlap2.agda:40.38-39: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument
     _r_55 : Extensional (Σ A (λ _ → A) → B) lzero
@@ -10,6 +10,7 @@ Failed to solve the following constraints:
     Extensional-default :
       {ℓ : Level} {A = A₁ : Type ℓ} → Extensional A₁ ℓ
     (stuck)
+      [ at Overlap2.agda:40.38-39 ]
 
 Overlap2.agda:40.38-39: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:

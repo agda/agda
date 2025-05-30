@@ -1,0 +1,8 @@
+Issue7911.agda:14.9-12: error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  Resolve instance argument _j_13 : I
+  Candidates
+    j : I
+    i : I
+    (stuck)
+      [ at Issue7911.agda:14.9-12 ]

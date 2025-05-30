@@ -120,7 +120,7 @@ instance PrettyTCM Constraint where
               --     ]
               --   __IMPOSSIBLE__
 
-        FindInstance m mcands -> do
+        FindInstance _ m mcands -> do
           t <- getMetaTypeInContext m
           TelV tel _ <- telViewUpTo' (-1) notVisible t
           sep [ "Resolve instance argument" <?> prettyCmp ":" m t

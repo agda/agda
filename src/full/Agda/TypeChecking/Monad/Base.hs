@@ -1465,8 +1465,8 @@ data Constraint
     -- ^ The range is the one of the absurd pattern.
   | CheckSizeLtSat Term
     -- ^ Check that the 'Term' is either not a SIZELT or a non-empty SIZELT.
-  | FindInstance MetaId (Maybe [Candidate])
-    -- ^ the first argument is the instance argument and the second one is the list of candidates
+  | FindInstance Range MetaId (Maybe [Candidate])
+    -- ^ the second argument is the instance argument and the third one is dhe list of candidates
     --   (or Nothing if we haven’t determined the list of candidates yet)
   | ResolveInstanceHead QName
     -- ^ Resolve the head symbol of the type that the given instance targets
@@ -1479,18 +1479,28 @@ data Constraint
     -- This check should run if the @Sort@ is @Nothing@ or @isFibrant@.
   deriving (Show, Generic)
 
+-- It's important to have a proper range for constraints that can remain unsolved
+-- without a corresponding unsolved to point to the location of the constraint.
 instance HasRange Constraint where
-  getRange (IsEmpty r t) = r
-  getRange _ = noRange
-{- no Range instances for Term, Type, Elm, Tele, Sort, Level, MetaId
-  getRange (ValueCmp cmp a u v) = getRange (a,u,v)
-  getRange (ElimCmp pol a v es es') = getRange (a,v,es,es')
-  getRange (TelCmp a b cmp tel tel') = getRange (a,b,tel,tel')
-  getRange (SortCmp cmp s s') = getRange (s,s')
-  getRange (LevelCmp cmp l l') = getRange (l,l')
-  getRange (UnBlock x) = getRange x
-  getRange (FindInstance x cands) = getRange x
--}
+  getRange (IsEmpty r t)         = r
+  getRange (FindInstance r _ _)  = r
+  getRange ValueCmp{}            = noRange
+  getRange ElimCmp{}             = noRange
+  getRange SortCmp{}             = noRange
+  getRange LevelCmp{}            = noRange
+  getRange UnBlock{}             = noRange
+  getRange ValueCmpOnFace{}      = noRange
+  getRange HasBiggerSort{}       = noRange
+  getRange HasPTSRule{}          = noRange
+  getRange CheckDataSort{}       = noRange
+  getRange CheckMetaInst{}       = noRange
+  getRange CheckType{}           = noRange
+  getRange CheckSizeLtSat{}      = noRange
+  getRange CheckFunDef{}         = noRange
+  getRange ResolveInstanceHead{} = noRange
+  getRange UnquoteTactic{}       = noRange
+  getRange CheckLockedVars{}     = noRange
+  getRange UsableAtModality{}    = noRange
 
 instance Free Constraint where
   freeVars' c =
@@ -1503,7 +1513,7 @@ instance Free Constraint where
       UnBlock _             -> mempty
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
-      FindInstance _ cs     -> freeVars' cs
+      FindInstance _ _ cs   -> freeVars' cs
       ResolveInstanceHead q -> mempty
       CheckFunDef{}         -> mempty
       HasBiggerSort s       -> freeVars' s
@@ -1527,7 +1537,7 @@ instance TermLike Constraint where
       SortCmp _ s1 s2        -> foldTerm f (Sort s1, Sort s2)   -- Same as LevelCmp case
       UnBlock _              -> mempty
       CheckLockedVars a b c d -> foldTerm f (a, b, c, d)
-      FindInstance _ _       -> mempty
+      FindInstance _ _ _     -> mempty
       ResolveInstanceHead q  -> mempty
       CheckFunDef{}          -> mempty
       HasBiggerSort s        -> foldTerm f s

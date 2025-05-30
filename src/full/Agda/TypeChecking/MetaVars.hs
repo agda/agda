@@ -246,7 +246,8 @@ newInstanceMetaCtx s t vs = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ nest 2 $ pretty x <+> ":" <+> prettyTCM t
     ]
-  let c = FindInstance x Nothing
+  r <- getMetaRange x
+  let c = FindInstance r x Nothing
   addAwakeConstraint alwaysUnblock c
   etaExpandMetaSafe x
   return (x, MetaV x $ map Apply vs)

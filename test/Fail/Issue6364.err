@@ -1,12 +1,14 @@
-error: [UnsolvedConstraints]
+Issue6364.agda:31.21-35.59: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _86 : Semigroup A
   Candidates
     _ : Semigroup A
     s : Semigroup A
     (stuck)
+      [ at Issue6364.agda:35.43-59 ]
   Resolve instance argument _67 : Semigroup A
   Candidates
     _ : Semigroup A
     s : Semigroup A
     (stuck)
+      [ at Issue6364.agda:31.21-37 ]

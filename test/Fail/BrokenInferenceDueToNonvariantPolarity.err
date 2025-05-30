@@ -1,9 +1,10 @@
-error: [UnsolvedConstraints]
-Failed to solve the following constraints:
-  Resolve instance argument _p_32 : False _n_31 No candidates yet
-    (blocked on _n_31)
-
 BrokenInferenceDueToNonvariantPolarity.agda:50.19-34: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
   BrokenInferenceDueToNonvariantPolarity.agda:50.19-24
   BrokenInferenceDueToNonvariantPolarity.agda:50.26-34
+
+BrokenInferenceDueToNonvariantPolarity.agda:50.26-34: error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  Resolve instance argument _p_32 : False _n_31 No candidates yet
+    (blocked on _n_31)
+      [ at BrokenInferenceDueToNonvariantPolarity.agda:50.26-34 ]

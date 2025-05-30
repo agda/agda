@@ -1,10 +1,11 @@
-error: [UnsolvedConstraints]
+InstanceArgumentsAmbiguous.agda:8.8-9: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Resolve instance argument _a_5 : A
   Candidates
     a₁ : A
     a₂ : A
     (stuck)
+      [ at InstanceArgumentsAmbiguous.agda:8.8-9 ]
 
 InstanceArgumentsAmbiguous.agda:8.8-9: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
