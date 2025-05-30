@@ -15,7 +15,7 @@ module Agda.TypeChecking.Reduce
  , unfoldCorecursion, unfoldCorecursionE
  , unfoldDefinitionE, unfoldDefinitionStep
  , unfoldInlined
- , appDef', appDefE'
+ , appDefE_, appDef', appDefE'
  , abortIfBlocked, ifBlocked, isBlocked, fromBlocked, blockOnError
  -- Simplification
  , Simplify, simplify, simplifyBlocked'
