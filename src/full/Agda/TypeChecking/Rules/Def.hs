@@ -52,7 +52,7 @@ import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Rewriting.Confluence
-import Agda.TypeChecking.CompiledClause (CompiledClauses'(..), hasProjectionPatterns)
+import Agda.TypeChecking.CompiledClause (CompiledClauses', pattern Done, hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.RecordPatterns ( recordRHSToCopatterns )
