@@ -1,11 +1,11 @@
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
-  _62 (m = Maybe) (mzero = mymaybemzero) =< Maybe a (blocked on _62)
   Set = _8 (m = Maybe) (mzero = mymaybemzero) (blocked on _8)
-  _61 (m = Maybe) (mzero = mymaybemzero) =< Maybe a (blocked on _61)
+  _9 (m = Maybe) (mzero = mymaybemzero) =< Maybe a (blocked on _9)
   Set = _6 (m = Maybe) (mzero = mymaybemzero) (blocked on _6)
-  _60 (m = Maybe) =< Maybe a (blocked on _60)
+  _7 (m = Maybe) (mzero = mymaybemzero) =< Maybe a (blocked on _7)
   Set = _2 (m = Maybe) (blocked on _2)
+  _3 (m = Maybe) =< Maybe a (blocked on _3)
   Set (Agda.Primitive.lsuc _a_45) = _0 (blocked on _0)
   Set _a_45 → Set _a_45 =< _1 (blocked on _1)
   piSort Set₁

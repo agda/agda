@@ -290,14 +290,10 @@ solveConstraint_ (CheckType t)          = checkType t
 solveConstraint_ (UsableAtModality cc ms mod t) = usableAtModality' ms cc mod t
 
 solveBlockedConstMeta :: MetaId -> Term -> TCM ()
-solveBlockedConstMeta m v = lookupMetaInstantiation m >>= \case
-  InstV (Instantiation _tel _u) -> do
-    args <- getContextArgs
-    a <- (`piApply` args) <$> metaType m
-    equalTerm a (MetaV m $ map Apply args) v
-  OpenMeta _ -> do
-    args <- telToArgs <$> getContextTelescope
-    assignTerm m args v
+solveBlockedConstMeta m v = do
+  args <- getContextArgs
+  a <- (`piApply` args) <$> metaType m
+  equalTerm a (MetaV m $ map Apply args) v
 
 -- | Type of the term that is produced by solving the 'TypeCheckingProblem'.
 problemType :: TypeCheckingProblem -> Type
