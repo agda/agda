@@ -95,7 +95,7 @@ prefix
    Pair.fst p34 = 3
    Pair.snd p34 = 4
 
-suffix (in which case they are written prefixed with a dot)
+or postfix (in which case they are written prefixed with a dot)
 
 ::
 
@@ -104,7 +104,7 @@ suffix (in which case they are written prefixed with a dot)
    p56 .Pair.snd = 6
 
 or using an :ref:`anonymous copattern-matching lambda <pattern-lambda>`
-(you may only use the suffix form of copatterns in this case)
+(you may only use the postfix form of copatterns in this case)
 
 ::
 
@@ -304,25 +304,42 @@ Decomposing record values
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 With the field name, we can project the corresponding component out of
-a record value. It is also possible to pattern match against inductive
+a record value. Projections can be used either in prefix notation like
+a function, or in postfix notation by adding a dot to the field name:
+
+::
+
+  sum-prefix : Pair Nat Nat → Nat
+  sum-prefix p = Pair.fst p + Pair.snd p
+
+  sum-postfix : Pair Nat Nat → Nat
+  sum-postfix p = p .Pair.fst + p .Pair.snd
+
+It is also possible to pattern match against inductive
 records:
 
 ::
 
-  sum : Pair Nat Nat → Nat
-  sum (x , y) = x + y
+  sum-match : Pair Nat Nat → Nat
+  sum-match (x , y) = x + y
 
 Or, using a :ref:`let binding record pattern<let-record-pattern>`:
 
 ::
 
-  sum' : Pair Nat Nat → Nat
-  sum' p = let (x , y) = p in x + y
+  sum-let : Pair Nat Nat → Nat
+  sum-let p = let (x , y) = p in x + y
 
 
 .. note::
    Naming the constructor is not required to enable pattern matching against
    record values. Record expressions can appear as patterns.
+
+
+::
+
+  sum-record-match : Pair Nat Nat → Nat
+  sum-record-match record { fst = x ; snd = y } = x + y
 
 .. _record-update:
 
