@@ -1176,7 +1176,7 @@ setMutual d m = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
 mutuallyRecursive :: QName -> QName -> TCM Bool
 mutuallyRecursive d d1 = (d `elem`) . fromMaybe __IMPOSSIBLE__ <$> getMutual d1
 
--- | A function/data/record definition is nonRecursive if it is not even mutually
+-- | A function, data, or record definition is definitely not recursive if it is not even mutually
 --   recursive with itself.
 definitelyNonRecursive_ :: Defn -> Bool
 definitelyNonRecursive_ = maybe False null . getMutual_

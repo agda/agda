@@ -985,7 +985,7 @@ tryReduceNonRecursiveClause g es continue fallback = do
 
   -- Finally, try to reduce with the non-recursive clauses (and no rewrite rules).
   r <- liftTCM $
-    modifyAllowedReductions (`SmallSet.difference` recursiveOrUnConfirmedReductions) $
+    modifyAllowedReductions (SmallSet.delete UnconfirmedReductions) $
     runReduceM $ appDefE_ g v0 (defClauses def) (defCompiled def) [] (map notReduced es)
   case r of
     NoReduction{}    -> fallback
@@ -996,9 +996,6 @@ tryReduceNonRecursiveClause g es continue fallback = do
         ]
       verboseS "term.reduce" 5 $ tick "termination-checker-reduced-nonrecursive-call"
       continue v
-
-recursiveOrUnConfirmedReductions :: AllowedReductions
-recursiveOrUnConfirmedReductions = SmallSet.fromList [RecursiveReductions, UnconfirmedReductions]
 
 -- | Extract recursive calls from a term.
 
