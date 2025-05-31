@@ -272,7 +272,7 @@ Testing and documentation
   ```sh
   cabal build \
     --disable-documentation \
-    -foptimise-heavily -fenable-cluster-counting \
+    -fenable-cluster-counting \
     --enable-profiling --program-suffix=-prof \
     --profiling-detail=none --ghc-options=-fprof-late \
     --ghc-options="+RTS -A128M -M4G -RTS"

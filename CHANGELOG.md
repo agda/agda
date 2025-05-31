@@ -17,6 +17,8 @@ Highlights
 Installation
 ------------
 
+* The `optimise-heavily` build flag is now turned on by default.
+
 * Dropped support for GHC 8.6, added support for GHC 9.12.
 
 * Agda supports GHC versions 8.8.4 to 9.12.2.
