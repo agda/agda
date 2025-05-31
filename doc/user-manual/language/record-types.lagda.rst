@@ -495,19 +495,39 @@ Eta-expansion
 
 The eta (η) rule for a record type
 
-.. code-block:: agda
+..
+  ::
+  import Agda.Builtin.Equality
+  postulate A B C : Set
 
-   record R : Set where
+::
+
+  record ABC : Set where
      field
        a : A
        b : B
        c : C
 
-states that every ``x : R`` is definitionally equal to ``record { a =
-R.a x ; b = R.b x ; c = R.c x }``. By default, all (inductive) record
-types enjoy η-equality if the positivity checker has confirmed it is
-safe to have it. The keywords ``eta-equality``/``no-eta-equality``
-enable/disable η rules for the record type being declared.
+states that every ``x : ABC`` is definitionally equal to ``record { a =
+ABC.a x ; b = ABC.b x ; c = ABC.c x }``.
+
+::
+
+  eta-ABC : (x : ABC) → x ≡ record { a = ABC.a x ; b = ABC.b x ; c = ABC.c x }
+  eta-ABC r = refl
+
+By default, all non-recursive record types enjoy η-equality. The keywords
+``eta-equality``/``no-eta-equality`` enable/disable η rules for the record type
+being declared.
+
+::
+
+  record ABC-noeta : Set where
+    no-eta-equality
+    field
+      a : A
+      b : B
+      c : C
 
 .. _recursive-records:
 
