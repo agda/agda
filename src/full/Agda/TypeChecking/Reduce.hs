@@ -667,7 +667,7 @@ unfoldDefinitionStep v0 f es =
       -- are not unfolded unless explicitly permitted.
       dontUnfold = or
         [ defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed
-        , defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
+        -- , defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
         , prp == Right True
         , isIrrelevant info
         , not defOk

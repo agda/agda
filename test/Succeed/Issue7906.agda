@@ -8,10 +8,35 @@
 
 {-# OPTIONS --allow-unsolved-metas #-}
 
+module Issue7906 where
+
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Sigma
 
 open Agda.Primitive
+
+-- Secondary issue:
+
+module IteratedReduction where
+
+  open import Agda.Builtin.Nat
+
+  record R : Set where
+    field
+      fun : Nat → Nat
+      val : Nat
+  open R
+
+  r : R
+  -- non-recursive clauses:
+  r .fun zero = zero
+  r .fun (suc n) = suc n
+  r .val = fails
+    where
+    succeeds = r .fun 42        -- this accepted by the termination checker
+    fails = r .fun (r .fun 42)  -- this should also be accepted by the termination checker
+
+-- Original issue:
 
 private variable
   l l' : Level

@@ -139,7 +139,7 @@ compactDef bEnv def rewr = do
             ]
           ]
         , not (defNonterminating def) || SmallSet.member NonTerminatingReductions allowed
-        , not (defTerminationUnconfirmed def) || SmallSet.member UnconfirmedReductions allowed
+        -- , not (defTerminationUnconfirmed def) || SmallSet.member UnconfirmedReductions allowed
         , not isPrp
         , not (isIrrelevant def)
         ]
@@ -1231,6 +1231,14 @@ reduceTm rEnv bEnv !constInfo normalisation =
 
         -- Matching complete. Compute the environment for the body and switch to the Eval state.
         FDone (CCDone _ mr xs body) -> do
+          let allowedReductions = envAllowedReductions (redEnv rEnv)
+          let undo = stuckMatch (NotBlocked ReallyNotBlocked ()) stack ctrl
+          let abort = and
+               [ couldBeRecursive mr
+               , cdefUnconfirmed (constInfo f)
+               , UnconfirmedReductions `SmallSet.notMember` allowedReductions
+               ]
+          if abort then undo else do
             -- Don't ask me why, but not being strict in the spine causes a memory leak.
             let (zs, env, !spine') = buildEnv xs spine
             runAM (Eval (Closure Unevaled (lams zs body) env spine') ctrl)

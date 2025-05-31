@@ -66,7 +66,11 @@ match' ((c, es, patch) : stack) = do
   let no blocking es = return $ NoReduction $ blocking $ patch $ map ignoreReduced es
       yes t          = flip YesReduction t <$> asksTC envSimplification
 
+  -- TODO: make this local to Done
   allowedReductions <- asksTC envAllowedReductions
+  fun <- fromMaybe __IMPOSSIBLE__ <$> asksTC envAppDef
+  def <- getConstInfo fun
+
   do
 
     case c of
@@ -76,7 +80,10 @@ match' ((c, es, patch) : stack) = do
 
       -- done matching
       Done _no mr xs t
-        | couldBeRecursive mr && (RecursiveReductions `SmallSet.notMember` allowedReductions) ->
+        | couldBeRecursive mr
+        , defTerminationUnconfirmed def
+        , UnconfirmedReductions `SmallSet.notMember` allowedReductions -> do
+            reportSLn "tc.reduce.recursive" 80 $ "Aborting reduction of " <> prettyShow fun
             no (NotBlocked ReallyNotBlocked) es
         -- if the function was partially applied, return a lambda
         | m < n     -> yes $ applySubst (toSubst es) $ foldr lam t (drop m xs)
