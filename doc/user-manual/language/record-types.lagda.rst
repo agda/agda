@@ -674,37 +674,44 @@ model "superclass" dependencies. For example::
 
   open Eq {{...}}
 
-.. code-block:: agda
+..
+  ::
 
-  record Ord (A : Set) : Set where
-    field
-      _<_ : A → A → Bool
-      {{eqA}} : Eq A
+  module Instances-no-overlap where
 
-  open Ord {{...}} hiding (eqA)
+::
+
+    record Ord (A : Set) : Set where
+      field
+        _<_ : A → A → Bool
+        {{eqA}} : Eq A
+
+    open Ord {{...}} hiding (eqA)
 
 Now anytime you have a function taking an ``Ord A`` argument the ``Eq A`` instance
 is also available by virtue of η-expansion. So this works as you would expect:
 
-.. code-block:: agda
+::
 
-  _≤_ : {A : Set} {{OrdA : Ord A}} → A → A → Bool
-  x ≤ y = (x == y) || (x < y)
+    _≤_ : {A : Set} {{OrdA : Ord A}} → A → A → Bool
+    x ≤ y = (x == y) || (x < y)
 
 There is a problem however if you have multiple record arguments with conflicting
 instance fields. For instance, suppose we also have a ``Num`` record with an ``Eq`` field
 
+::
+
+    record Num (A : Set) : Set where
+      field
+        fromNat : Nat → A
+        {{eqA}} : Eq A
+
+    open Num {{...}} hiding (eqA)
+
 .. code-block:: agda
 
-  record Num (A : Set) : Set where
-    field
-      fromNat : Nat → A
-      {{eqA}} : Eq A
-
-  open Num {{...}} hiding (eqA)
-
-  _≤3 : {A : Set} {{OrdA : Ord A}} {{NumA : Num A}} → A → Bool
-  x ≤3 = (x == fromNat 3) || (x < fromNat 3)
+    _≤3 : {A : Set} {{OrdA : Ord A}} {{NumA : Num A}} → A → Bool
+    x ≤3 = (x == fromNat 3) || (x < fromNat 3)
 
 Here the ``Eq A`` argument to ``_==_`` is not resolved since there are two conflicting
 candidates: ``Ord.eqA OrdA`` and ``Num.eqA NumA``. To solve this problem you can declare
