@@ -512,31 +512,6 @@ tryComponents goal goalType branch comps = withBranchAndGoal branch goal $ do
   newBranches <- concatMapM tryFor comps
   mapM checkSolved newBranches
 
-tryFns :: Goal -> Type -> SearchBranch -> SM [SearchStepResult]
-tryFns goal goalType branch = withBranchAndGoal branch goal $ do
-  reportSDoc "mimer.refine.fn" 50 $ "Trying functions"
-  fns <- asks (hintFns . searchBaseComponents)
-  newBranches <- catMaybes <$> mapM (tryRefineAddMetas goal goalType branch) fns
-  mapM checkSolved newBranches
-
-tryProjs :: Goal -> Type -> SearchBranch -> SM [SearchStepResult]
-tryProjs goal goalType branch = withBranchAndGoal branch goal $ do
-  projs <- asks (hintProjections . searchBaseComponents)
-  newBranches <- catMaybes <$> mapM (tryRefineAddMetas goal goalType branch) projs
-  mapM checkSolved newBranches
-
-tryAxioms :: Goal -> Type -> SearchBranch -> SM [SearchStepResult]
-tryAxioms goal goalType branch = withBranchAndGoal branch goal $ do
-  axioms <- asks (hintAxioms . searchBaseComponents)
-  newBranches <- catMaybes <$> mapM (tryRefineAddMetas goal goalType branch) axioms
-  mapM checkSolved newBranches
-
-tryLet :: Goal -> Type -> SearchBranch -> SM [SearchStepResult]
-tryLet goal goalType branch = withBranchAndGoal branch goal $ do
-  letVars <- asks (hintLetVars . searchBaseComponents) >>= mapM getOpenComponent
-  newBranches <- catMaybes <$> mapM (tryRefineAddMetas goal goalType branch) letVars
-  mapM checkSolved newBranches
-
 -- | Returns @Right@ for normal lambda abstraction and @Left@ for absurd lambda.
 tryLamAbs :: Goal -> Type -> SearchBranch -> SM (Either SearchBranch (Goal, Type, SearchBranch))
 tryLamAbs goal goalType branch =
