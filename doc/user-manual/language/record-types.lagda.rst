@@ -157,7 +157,7 @@ record. Types of later fields can depend on earlier fields.
 
 The directives available are ``eta-equality``, ``no-eta-equality``,
 ``pattern``
-(see :ref:`eta-expansion`), ``inductive`` and ``co-inductive`` (see
+(see :ref:`eta-expansion`), ``inductive`` and ``coinductive`` (see
 :ref:`recursive-records`).
 
 Constructing record values
