@@ -76,16 +76,22 @@ printProgramResult = printProcResult . fromProgramResult
 --   new environment, and standard input,
 --   recording exit code, standard output and standard error.
 readProcessWithEnv ::
-     EnvVars   -- ^ New environment, replacing existing environment for the call.
-  -> FilePath  -- ^ Executable.
-  -> [String]  -- ^ Arguments to executable.
-  -> Text      -- ^ @stdin@.
+     EnvVars
+        -- ^ New environment, replacing existing environment for the call.
+  -> Maybe FilePath
+       -- ^ Working directory, @Nothing@ for current directory.
+  -> FilePath
+       -- ^ Executable.
+  -> [String]
+       -- ^ Arguments to executable.
+  -> Text
+       -- ^ @stdin@.
   -> IO (ExitCode, Text, Text)
-readProcessWithEnv env cmd args input = do
+readProcessWithEnv env mcwd cmd args input = do
   let process = (proc cmd args)
         { create_group = True
         , env          = Just env
-        , cwd          = Just "."
+        , cwd          = Just $ fromMaybe "." mcwd
             -- Andreas, 2023-10-07, issue #6905:
             -- Setting cwd='.' works around a bug in process-1.6.14..17 on macOS.
         }
@@ -100,26 +106,46 @@ readAgdaProcessWithExitCode ::
   -> AgdaArgs       -- ^ Arguments to @agda@.
   -> Text           -- ^ @stdin@.
   -> IO (ExitCode, Text, Text)
-readAgdaProcessWithExitCode extraEnv args input = do
+readAgdaProcessWithExitCode extraEnv = readAgdaProcessWithCWD extraEnv Nothing
+
+-- | Call out to @AGDA_BIN@ with given arguments and standard input,
+--   recording exit code, standard output and standard error.
+readAgdaProcessWithCWD ::
+     Maybe EnvVars  -- ^ Extra environment variables, unexpanded.
+  -> Maybe FilePath -- ^ Working directory.
+  -> AgdaArgs       -- ^ Arguments to @agda@.
+  -> Text           -- ^ @stdin@.
+  -> IO (ExitCode, Text, Text)
+readAgdaProcessWithCWD extraEnv mcwd args input = do
   origEnv <- getEnvironment
   home <- getHomeDirectory
   let env = expandEnvVarTelescope home $ maybe origEnv (origEnv ++) extraEnv
   let envArgs = maybe [] words $ lookup "AGDA_ARGS" env
   let agdaBin = getAgdaBin env
   -- hPutStrLn stderr $ unwords $ agdaBin : envArgs ++ args
-  readProcessWithEnv env agdaBin (envArgs ++ args) input
+  readProcessWithEnv env mcwd agdaBin (envArgs ++ args) input
 
 data AgdaResult
   = AgdaSuccess (Maybe Text)          -- ^ A success can come with warnings
   | AgdaFailure Int (Maybe AgdaError) -- ^ A failure, with exit code
 
-runAgdaWithOptions
-  :: String         -- ^ test name
-  -> AgdaArgs       -- ^ options (including the name of the input file)
-  -> Maybe FilePath -- ^ file containing additional options and flags
-  -> Maybe FilePath -- ^ file containing additional environment variables
+runAgdaWithOptions ::
+     String         -- ^ Test name.
+  -> AgdaArgs       -- ^ Options (including the name of the input file).
+  -> Maybe FilePath -- ^ File containing additional options and flags.
+  -> Maybe FilePath -- ^ File containing additional environment variables.
   -> IO (ProgramResult, AgdaResult)
-runAgdaWithOptions testName opts mflag mvars = do
+runAgdaWithOptions testName = runAgdaWithCWD testName Nothing
+
+runAgdaWithCWD ::
+     String         -- ^ Test name.
+  -> Maybe FilePath -- ^ Working directory.
+  -> AgdaArgs       -- ^ Pptions (including the name of the input file).
+  -> Maybe FilePath -- ^ File containing additional options and flags.
+  -> Maybe FilePath -- ^ File containing additional environment variables.
+  -> IO (ProgramResult, AgdaResult)
+runAgdaWithCWD testName mcwd opts mflag mvars = do
+
   flags <- case mflag of
     Nothing       -> pure []
     Just flagFile -> maybe [] T.unpack <$> readTextFileMaybe flagFile
@@ -133,7 +159,7 @@ runAgdaWithOptions testName opts mflag mvars = do
 
   let agdaArgs = opts ++ words flags
   let runAgda  = \ extraArgs -> let args = agdaArgs ++ extraArgs in
-                                readAgdaProcessWithExitCode extraEnv args T.empty
+                                readAgdaProcessWithCWD extraEnv mcwd args T.empty
   (ret, stdOut, stdErr) <- do
     if not $ null $ List.intersect agdaArgs ghcInvocationStrings
       -- Andreas, 2017-04-14, issue #2317

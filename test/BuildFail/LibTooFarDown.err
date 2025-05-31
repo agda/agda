@@ -1,0 +1,6 @@
+Importing the primitive modules.
+Done importing the primitive modules.
+Error raised at (typeError, src/full/Agda/TypeChecking/Monad/Options.hs:«line»:«col» in «Agda-package»:Agda.TypeChecking.Monad.Options)
+../BuildFail/LibTooFarDown/A.agda:1.1: error: [LibTooFarDown]
+A .agda-lib file for Some.Hierarchical.Module.Name
+must not be located in the directory ../BuildFail/LibTooFarDown

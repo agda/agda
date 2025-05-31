@@ -11,6 +11,7 @@ import           Test.Tasty.Silver.Interactive  as TM
 import           Test.Tasty.Silver.Filter       (RegexFilter)
 
 import qualified Bugs.Tests
+import qualified BuildFail.Tests
 import qualified BuildSucceed.Tests
 import qualified Compiler.Tests
 import qualified CubicalSucceed.Tests
@@ -68,6 +69,7 @@ allTests = do
     sequence $
       -- N.B.: This list is written using (:) so that lines can be swapped easily:
       -- (The number denotes the order of the Makefile as of 2021-08-25.)
+      {- 2 -} sg BuildFail.Tests.tests   :
       {- 2 -} sg BuildSucceed.Tests.tests   :
       {- 1 -} sg Succeed.Tests.tests        :
       {- 2 -} sg Fail.Tests.tests           :
