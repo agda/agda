@@ -36,6 +36,10 @@ data MimerResult
 
 instance NFData MimerResult
 
+isNoResult :: MimerResult -> Bool
+isNoResult MimerNoResult = True
+isNoResult _             = False
+
 data SearchStepResult
   = ResultExpr Expr
   | ResultClauses [A.Clause]
