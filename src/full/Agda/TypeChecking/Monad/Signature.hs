@@ -198,10 +198,10 @@ addConstant' q info t def = do
   addConstant q $ defaultDefn info q t lang def
 
 -- | Set termination info of a defined function symbol.
-setTerminates :: MonadTCState m => QName -> Bool -> m ()
+setTerminates :: MonadTCState m => QName -> Maybe Bool -> m ()
 setTerminates q b = modifySignature $ updateDefinition q $ updateTheDef $ \case
-    def@Function{} -> def { funTerminates = Just b }
-    def@Record{}   -> def { recTerminates = Just b }
+    def@Function{} -> def { funTerminates = b }
+    def@Record{}   -> def { recTerminates = b }
     def -> def
 
 -- | Set CompiledClauses of a defined function symbol.
