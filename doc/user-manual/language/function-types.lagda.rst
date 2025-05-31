@@ -50,19 +50,7 @@ where ``Set`` is the type of sets and ``Vec A n`` is the type of vectors with ``
 
     (A : Set) (n : Nat)(u v : Vec A n) → Vec A n
 
-Functions are constructed by lambda abstractions, which can be either typed or untyped. For instance, both expressions below have type ``(A : Set) → A → A`` (the second expression checks against other types as well):
-
-..
-  ::
-  example₁ example₂ : (A : Set) (x : A) → A
-
-::
-
-
-  example₁ = \ (A : Set)(x : A) → x
-  example₂ = \ A x → x
-
-You can also use the Unicode symbol ``λ`` (type “\\lambda” or “\\Gl” in the Emacs Agda mode) instead of ``\`` (type “\\\\” in the Emacs Agda mode).
+Functions are constructed by :ref:`lambda expressions <lambda-abstraction>` or :ref:`function-definitions`.
 
 The application of a function ``f : (x : A) → B`` to an argument ``a : A`` is written ``f a`` and the type of this is ``B[x := a]``.
 

@@ -103,7 +103,7 @@ or postfix (in which case they are written prefixed with a dot)
    p56 .Pair.fst = 5
    p56 .Pair.snd = 6
 
-or using an :ref:`anonymous copattern-matching lambda <pattern-lambda>`
+or using an :ref:`pattern lambda <pattern-lambda>`
 (you may only use the postfix form of copatterns in this case)
 
 ::

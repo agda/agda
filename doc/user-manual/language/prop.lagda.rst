@@ -39,7 +39,7 @@ record types:
     constructor tt
 
 When defining a function from a data type in ``Prop`` to a type in
-``Set``, pattern matching is restricted to the absurd pattern ``()``:
+``Set``, pattern matching is restricted to the :ref:`absurd pattern <absurd-patterns>` ``()``:
 ::
 
   absurd : (A : Set) → ⊥ → A

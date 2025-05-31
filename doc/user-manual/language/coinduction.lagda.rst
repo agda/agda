@@ -174,7 +174,7 @@ Instead, you can use copattern matching:
     cycle a .hd = a
     cycle a .tl = cycle a
 
-It is also possible to use copattern-matching lambdas:
+It is also possible to use copatterns in a :ref:`pattern-lambda`:
 
 ::
 

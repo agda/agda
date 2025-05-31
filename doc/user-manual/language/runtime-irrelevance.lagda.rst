@@ -263,7 +263,7 @@ certain expressions/declarations if it is not in the hard compile-time
 mode:
 
 - Absurd lambdas.
-- Non-erased pattern-matching lambdas.
+- Non-erased pattern lambdas.
 - Non-erased module definitions ("``module M … = …``") or applications
   ("``M …``").
 - Applications of ``♯`` (see :ref:`old-coinduction`).

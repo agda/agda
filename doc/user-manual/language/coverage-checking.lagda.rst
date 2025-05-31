@@ -63,7 +63,7 @@ type signature.
   go'' green = true
 
 In the special case of a datatype with no constructors (i.e. an empty
-type), there should be a single *absurd clause* with an absurd pattern
+type), there should be a single *absurd clause* with an :ref:`absurd pattern <absurd-patterns>`
 `()` and no right-hand side.
 
 ::
