@@ -37,7 +37,11 @@ jobs:
         # "most canonical", since this is the deploy action.
         # As of today (2024-02-05), the actual version information can be found in
         # https://github.com/actions/runner-images#available-images
-        os: [windows-latest, macos-14, macos-13, ubuntu-latest]
+        os:
+          - windows-latest
+          - macos-14
+          - macos-13
+          - ubuntu-latest
         ghc-ver: ['9.12.2']
         cabal-ver: [latest]
 
@@ -139,9 +143,10 @@ jobs:
           g++
           gcc
           icu-static
+          libgmpxx
+          musl-dev
           ncurses-dev
           ncurses-static
-          musl-dev
           zlib-static
           zlib-dev
 
@@ -153,6 +158,7 @@ jobs:
         cabal-version: ${{ matrix.cabal-ver }}
 
     - name: Environment settings based on the Haskell setup
+      if: ${{ runner.os != 'Linux' }}
       run: |
         GHC_VER=$(ghc --numeric-version)
         CABAL_VER=$(cabal --numeric-version)
