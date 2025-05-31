@@ -737,13 +737,28 @@ beginningOf r@(Range f _) = case rStart' r of
   Nothing  -> __IMPOSSIBLE__
   Just pos -> posToRange' f pos pos
 
+class BeginningOfFile a where
+  -- | Return an empty range (a single, empty interval) at the beginning of the file.
+  beginningOfFile :: a -> Range
+
+instance BeginningOfFile SrcFile where
+  beginningOfFile f = posToRange' f p p
+    where p = startPos' ()
+
+instance BeginningOfFile RangeFile where
+  beginningOfFile = beginningOfFile . Strict.Just
+
+instance BeginningOfFile AbsolutePath where
+  beginningOfFile f = beginningOfFile $ mkRangeFile f Nothing
+
 -- | @beginningOfFile r@ is an empty range (a single, empty interval)
 -- at the beginning of @r@'s starting position's file. If there is no
 -- such position, then an empty range is returned.
-beginningOfFile :: Range -> Range
-beginningOfFile NoRange     = NoRange
-beginningOfFile (Range f _) = posToRange' f p p
-  where p = startPos' ()
+instance BeginningOfFile Range where
+  beginningOfFile :: Range -> Range
+  beginningOfFile NoRange     = NoRange
+  beginningOfFile (Range f _) = posToRange' f p p
+    where p = startPos' ()
 
 -- | @x \`withRangeOf\` y@ sets the range of @x@ to the range of @y@.
 withRangeOf :: (SetRange t, HasRange u) => t -> u -> t

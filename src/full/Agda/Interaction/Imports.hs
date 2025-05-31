@@ -158,6 +158,8 @@ parseSource sourceFile = Bench.billTo [Bench.Parsing] $ do
 
   -- Read the source text.
   let rf0 = mkRangeFile f Nothing
+  setCurrentRange (beginningOfFile rf0) do
+
   source <- runPM $ readFilePM rf0
   let txt = TL.unpack source
 
