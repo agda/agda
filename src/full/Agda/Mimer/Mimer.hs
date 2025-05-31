@@ -693,25 +693,3 @@ tryRefineAddMetas goal goalType branch comp = withBranchAndGoal branch goal $ do
   branch' <- updateBranch [] branch
   tryRefineWith goal goalType branch' comp'
 
--- Hack to let you experiment with costs using verbosity flags.
-customCosts :: TCM Costs
-customCosts = do
-  costLocal         <- cost "local"
-  costFn            <- cost "fn"
-  costDataCon       <- cost "dataCon"
-  costRecordCon     <- cost "recordCon"
-  costSpeculateProj <- cost "speculateProj"
-  costProj          <- cost "proj"
-  costAxiom         <- cost "axiom"
-  costLet           <- cost "let"
-  costLevel         <- cost "level"
-  costSet           <- cost "set"
-  costRecCall       <- cost "recCall"
-  costNewMeta       <- cost "newMeta"
-  costNewHiddenMeta <- cost "newHiddenMeta"
-  compReuse         <- cost "compReuse"
-  let costCompReuse uses = compReuse * uses ^ 2
-  pure Costs{..}
-  where
-    cost key = getVerbosityLevel ("mimer-cost." ++ key)
-

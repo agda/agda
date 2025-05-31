@@ -628,6 +628,28 @@ prettyBranch branch = withBranchState branch $ do
       , "used components:" <+> pretty (Map.toList $ sbComponentsUsed branch)
       ])
 
+-- Hack to let you experiment with costs using verbosity flags.
+customCosts :: TCM Costs
+customCosts = do
+  costLocal         <- cost "local"
+  costFn            <- cost "fn"
+  costDataCon       <- cost "dataCon"
+  costRecordCon     <- cost "recordCon"
+  costSpeculateProj <- cost "speculateProj"
+  costProj          <- cost "proj"
+  costAxiom         <- cost "axiom"
+  costLet           <- cost "let"
+  costLevel         <- cost "level"
+  costSet           <- cost "set"
+  costRecCall       <- cost "recCall"
+  costNewMeta       <- cost "newMeta"
+  costNewHiddenMeta <- cost "newHiddenMeta"
+  compReuse         <- cost "compReuse"
+  let costCompReuse uses = compReuse * uses ^ 2
+  pure Costs{..}
+  where
+    cost key = getVerbosityLevel ("mimer-cost." ++ key)
+
 ------------------------------------------------------------------------
 -- * Stats
 ------------------------------------------------------------------------
