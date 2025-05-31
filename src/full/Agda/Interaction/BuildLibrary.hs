@@ -13,11 +13,13 @@ import           System.FilePath                  ( (</>) )
 import qualified System.FilePath.Find             as Find
 
 import           Agda.Interaction.FindFile        (hasAgdaExtension, checkModuleName)
+import           Agda.Interaction.Imports         (Source)
 import qualified Agda.Interaction.Imports         as Imp
 import           Agda.Interaction.Library         (pattern AgdaLibFile, _libIncludes, _libPragmas, getAgdaLibFile)
 import           Agda.Interaction.Options         (optOnlyScopeChecking)
 
 import           Agda.Syntax.Abstract.Name        (noModuleName)
+import           Agda.Syntax.Position             (beginningOfFile)
 
 import           Agda.TypeChecking.Monad
 import           Agda.TypeChecking.Pretty         (prettyTCM, text, vsep)
@@ -67,14 +69,21 @@ buildLibrary = do
              else Imp.TypeCheck
 
   forM_ files \ inputFile -> do
-    sf <- srcFromPath =<< liftIO (absolute inputFile)
-    src <- Imp.parseSource sf
-    let m = Imp.srcModuleName src
-    checkModuleName m (Imp.srcOrigin src) Nothing
-    void $ withCurrentModule noModuleName
-         $ withTopLevelModule m
-         $ checkModule m src
-    return ()
+    path :: AbsolutePath
+      <- liftIO (absolute inputFile)
+    sf :: SourceFile
+      <- srcFromPath path
+    src :: Source
+      <- Imp.parseSource sf
+    let
+      m :: TopLevelModuleName
+      m = Imp.srcModuleName src
+    setCurrentRange (beginningOfFile path) do
+      checkModuleName m (Imp.srcOrigin src) Nothing
+      _ <- withCurrentModule noModuleName
+           $ withTopLevelModule m
+           $ checkModule m src
+      return ()
 
   -- Print accumulated warnings
   unlessNullM (tcWarnings . classifyWarnings . Set.toAscList <$> getAllWarnings AllWarnings) $ \ ws -> do
