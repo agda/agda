@@ -92,8 +92,7 @@ import Debug.Trace
 -- information needed for fast reduction from the definition.
 
 data CompactDef =
-  CompactDef { cdefNonterminating :: Bool
-             , cdefUnconfirmed    :: Bool
+  CompactDef { cdefUnconfirmed    :: Bool
              , cdefDef            :: CompactDefn
              , cdefRewriteRules   :: RewriteRules
              }
@@ -324,8 +323,7 @@ compactDef bEnv def rewr = do
           charRel _ _ = __IMPOSSIBLE__
 
   return $
-    CompactDef { cdefNonterminating = defNonterminating def
-               , cdefUnconfirmed    = defTerminationUnconfirmed def
+    CompactDef { cdefUnconfirmed    = defTerminationUnconfirmed def
                , cdefDef            = cdefn
                , cdefRewriteRules   = if allowReduce then rewr else []
                }
@@ -893,10 +891,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
         -- slow reduce for unsupported definitions.
         Def f [] ->
           evalIApplyAM spine ctrl $
-          let CompactDef{ cdefNonterminating = nonterm
-                        , cdefUnconfirmed    = unconf
-                        , cdefDef            = def } = constInfo f
-          in case def of
+          case cdefDef (constInfo f) of
             CFun{ cfunCompiled = cc } -> runAM (Match f cc spine ([] :> cl) ctrl)
             CAxiom         -> rewriteAM done
             CTyCon         -> rewriteAM done
