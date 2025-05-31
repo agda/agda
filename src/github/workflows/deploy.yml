@@ -37,7 +37,11 @@ jobs:
         # "most canonical", since this is the deploy action.
         # As of today (2024-02-05), the actual version information can be found in
         # https://github.com/actions/runner-images#available-images
-        os: [windows-latest, macos-14, macos-13, ubuntu-latest]
+        os:
+          # - windows-latest
+          # - macos-14
+          # - macos-13
+          - ubuntu-latest
         ghc-ver: ['9.12.2']
         cabal-ver: [latest]
 
@@ -130,6 +134,12 @@ jobs:
         echo "filename        = ${{ steps.vars.outputs.filename     }}"
         echo "bindist         = ${{ steps.vars.outputs.bindist      }}"
 
+    - name: Install GMP library (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install libgmp-dev
+
     - name: Set up Alpine Linux with GHC and the static library for ICU
       uses: jirutka/setup-alpine@v1
       if:  ${{ runner.os == 'Linux' }}
@@ -139,9 +149,10 @@ jobs:
           g++
           gcc
           icu-static
+          gmp-dev
+          musl-dev
           ncurses-dev
           ncurses-static
-          musl-dev
           zlib-static
           zlib-dev
 
@@ -153,6 +164,7 @@ jobs:
         cabal-version: ${{ matrix.cabal-ver }}
 
     - name: Environment settings based on the Haskell setup
+      if: ${{ runner.os != 'Linux' }}
       run: |
         GHC_VER=$(ghc --numeric-version)
         CABAL_VER=$(cabal --numeric-version)
