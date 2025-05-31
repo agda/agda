@@ -431,7 +431,7 @@ with-abstraction.
 Irrefutable With
 ~~~~~~~~~~~~~~~~
 
-When a pattern is irrefutable, we can use a pattern-matching ``with``
+When a pattern is irrefutable, we can use a pattern matching ``with``
 instead of a traditional ``with`` block. This gives us a lightweight
 syntax to make a lot of observations before using a "proper" ``with``
 block. For a basic example of such an irrefutable pattern, see this
@@ -468,7 +468,7 @@ of a vector whose length is neither 0 nor 1:
 
 Remember the example of :ref:`simultaneous
 abstraction <simultaneous-abstraction>` from above. A simultaneous
-rewrite / pattern-matching ``with`` is to be understood as being nested.
+rewrite / pattern matching ``with`` is to be understood as being nested.
 That is to say that the type refinements introduced by the first
 case analysis may be necessary to type the following ones.
 
@@ -497,7 +497,7 @@ of the vector argument using ``suc-+`` first.
                      with (before , focus ∷ after) ← splitAt m vs
                      = (before , focus , after)
 
-You can alternate arbitrarily many ``rewrite`` and pattern-matching
+You can alternate arbitrarily many ``rewrite`` and pattern matching
 ``with`` clauses and still perform a ``with`` abstraction afterwards
 if necessary.
 

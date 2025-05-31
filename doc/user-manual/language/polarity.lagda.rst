@@ -108,7 +108,7 @@ there is no such restriction when checking the codomain of a pi type, so for
 example ``(@++ A : Set) → (A → A)`` is perfectly valid!
 
 Polarity annotations can only appear on domains of function types and
-data/record type parameters. Pattern-matching on annotated arguments is only
+data/record type parameters. Pattern matching on annotated arguments is only
 supported for mixed arguments.
 
 Positivity checking
