@@ -231,9 +231,6 @@ jobs:
         ghc-ver:
         - 9.12.2
         os:
-        - windows-latest
-        - macos-14
-        - macos-13
         - ubuntu-latest
   deploy:
     if: ${{ !cancelled() }}
