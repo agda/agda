@@ -385,6 +385,27 @@ type Blocked_ = Blocked ()
 -- | Named pattern arguments.
 type NAPs = [NamedArg DeBruijnPattern]
 
+-- | Does the clause body contain calls to any of the mutually recursive functions?
+data ClauseRecursive
+  = YesRecursive
+      -- ^ Definitely a call to a mutually recursive function.
+  | NotRecursive
+      -- ^ Definitely no call to a mutually recursive function.
+  | MaybeRecursive
+      -- ^ Don't know because the analysis has not run yet.
+  deriving (Bounded, Enum, Eq, Generic, Show)
+
+couldBeRecursive :: ClauseRecursive -> Bool
+couldBeRecursive = \case
+  YesRecursive   -> True
+  NotRecursive   -> False
+  MaybeRecursive -> True
+
+decideRecursive :: Bool -> ClauseRecursive
+decideRecursive = \case
+  True  -> YesRecursive
+  False -> NotRecursive
+
 -- | A clause is a list of patterns and the clause body.
 --
 --  The telescope contains the types of the pattern variables and the
@@ -415,13 +436,8 @@ data Clause = Clause
       --   pattern on the lhs.
     , clauseCatchall    :: Catchall
       -- ^ Clause has been labelled as CATCHALL.
-    , clauseRecursive   :: Maybe Bool
-      -- ^ @clauseBody@ contains recursive calls; computed by termination checker.
-      --   @Nothing@ means that termination checker has not run yet,
-      --   or that @clauseBody@ contains meta-variables;
-      --   these could be filled with recursive calls later!
-      --   @Just False@ means definitely no recursive call.
-      --   @Just True@ means definitely a recursive call.
+    , clauseRecursive   :: ClauseRecursive
+      -- ^ @clauseBody@ contains recursive calls? Computed by termination checker.
     , clauseUnreachable :: Maybe Bool
       -- ^ Clause has been labelled as unreachable by the coverage checker.
       --   @Nothing@ means coverage checker has not run yet (clause may be unreachable).
@@ -1118,6 +1134,9 @@ instance Null (Tele a) where
   null EmptyTel    = True
   null ExtendTel{} = False
 
+instance Null ClauseRecursive where
+  empty = MaybeRecursive
+
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
 instance Null Clause where
@@ -1301,6 +1320,9 @@ instance KillRange a => KillRange (Pattern' a) where
       IApplyP o u t x  -> killRangeN (IApplyP o) u t x
       DefP o q ps      -> killRangeN (DefP o) q ps
 
+instance KillRange ClauseRecursive where
+  killRange = id
+
 instance KillRange Clause where
   killRange (Clause rl rf tel ps body t catchall recursive unreachable ell wm) =
     killRangeN Clause rl rf tel ps body t catchall recursive unreachable ell wm
@@ -1377,6 +1399,12 @@ pDom i =
     NotHidden  -> parens
     Hidden     -> braces
     Instance{} -> braces . braces
+
+instance Pretty ClauseRecursive where
+  pretty = \case
+    YesRecursive   -> "+Rec"
+    NotRecursive   -> "-Rec"
+    MaybeRecursive -> "?Rec"
 
 instance Pretty Clause where
   pretty Clause{clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t} =
@@ -1519,6 +1547,7 @@ instance NFData ConHead
 instance NFData a => NFData (Abs a)
 instance NFData a => NFData (Tele a)
 instance NFData IsFibrant
+instance NFData ClauseRecursive
 instance NFData Clause
 instance NFData PatternInfo
 instance NFData PatOrigin

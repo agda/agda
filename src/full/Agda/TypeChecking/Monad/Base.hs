@@ -2043,7 +2043,7 @@ type IPBoundary = IPBoundary' Term
 -- | Which clause is an interaction point located in?
 data IPClause = IPClause
   { ipcQName    :: QName              -- ^ The name of the function.
-  , ipcClauseNo :: Int                -- ^ The number of the clause of this function.
+  , ipcClauseNo :: ClauseNumber       -- ^ The number of the clause of this function.
   , ipcType     :: Type               -- ^ The type of the function
   , ipcWithSub  :: Maybe Substitution -- ^ Module parameter substitution
   , ipcClause   :: A.SpineClause      -- ^ The original AST clause.
@@ -4077,9 +4077,6 @@ data TCEnv =
                 -- currently under, if any. Used by the scope checker
                 -- (to associate definitions to blocks), and by the type
                 -- checker (for unfolding control).
-          , envTermCheckReducing :: Bool
-                -- ^ Are we currently trying to reduce away function calls using
-                --   non-recursive clauses during termination checking?
           }
     deriving (Generic)
 
@@ -4146,7 +4143,6 @@ initEnv = TCEnv { envContext             = []
                 , envCurrentlyElaborating   = False
                 , envSyntacticEqualityFuel  = Strict.Nothing
                 , envCurrentOpaqueId        = Nothing
-                , envTermCheckReducing      = False
                 }
 
 class LensTCEnv a where

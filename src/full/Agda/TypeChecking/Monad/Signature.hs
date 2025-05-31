@@ -198,10 +198,10 @@ addConstant' q info t def = do
   addConstant q $ defaultDefn info q t lang def
 
 -- | Set termination info of a defined function symbol.
-setTerminates :: MonadTCState m => QName -> Bool -> m ()
+setTerminates :: MonadTCState m => QName -> Maybe Bool -> m ()
 setTerminates q b = modifySignature $ updateDefinition q $ updateTheDef $ \case
-    def@Function{} -> def { funTerminates = Just b }
-    def@Record{}   -> def { recTerminates = Just b }
+    def@Function{} -> def { funTerminates = b }
+    def@Record{}   -> def { recTerminates = b }
     def -> def
 
 -- | Set CompiledClauses of a defined function symbol.
@@ -673,7 +673,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                             _ -> Def x $ map Apply ts'
                         , clauseType        = Just $ defaultArg t
                         , clauseCatchall    = empty
-                        , clauseRecursive   = Just False -- definitely not recursive
+                        , clauseRecursive   = NotRecursive -- definitely not recursive
                         , clauseUnreachable = Just False -- definitely not unreachable
                         , clauseEllipsis    = NoEllipsis
                         , clauseWhereModule = Nothing
@@ -1151,7 +1151,7 @@ setMutual d m = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
 mutuallyRecursive :: QName -> QName -> TCM Bool
 mutuallyRecursive d d1 = (d `elem`) . fromMaybe __IMPOSSIBLE__ <$> getMutual d1
 
--- | A function/data/record definition is nonRecursive if it is not even mutually
+-- | A function, data, or record definition is definitely not recursive if it is not even mutually
 --   recursive with itself.
 definitelyNonRecursive_ :: Defn -> Bool
 definitelyNonRecursive_ = maybe False null . getMutual_
