@@ -4,6 +4,7 @@ module Agda.Mimer.Types where
 import Control.DeepSeq (NFData)
 import Data.Function (on)
 import Data.Map (Map)
+import Data.List qualified as List
 import GHC.Generics (Generic)
 import Data.IORef (IORef)
 
@@ -152,6 +153,9 @@ noName = Nothing
 
 addCost :: Cost -> Component -> Component
 addCost cost comp = comp { compCost = cost + compCost comp }
+
+replaceCompMeta :: MetaId -> [MetaId] -> Component -> Component
+replaceCompMeta old new c = c{ compMetas = new ++ List.delete old (compMetas c) }
 
 ------------------------------------------------------------------------
 -- * SearchOptions
