@@ -678,7 +678,6 @@ interpret (Cmd_autoOne norm ii rng str) = do
       display_info $ Info_Auto $ unlines $
         [ "Solutions:" ] ++
         [ "  " ++ show i ++ ". " ++ s | (i, s) <- sols ]
-    MimerClauses{} -> __IMPOSSIBLE__    -- Mimer can't do case splitting yet
 
 interpret (Cmd_autoAll norm) = do
   iis <- getInteractionPoints
@@ -700,7 +699,6 @@ interpret (Cmd_autoAll norm) = do
           putResponse $ Resp_GiveAction ii $ Give_String str
           pure [ii]
         MimerList{} -> pure []    -- Don't list solutions in autoAll
-        MimerClauses{} -> __IMPOSSIBLE__  -- Mimer can't do case splitting yet
     modifyTheInteractionPoints (List.\\ solved)
 
 interpret (Cmd_context norm ii _ _) =

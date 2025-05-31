@@ -587,9 +587,6 @@ partitionStepResult (x:xs) = do
     ResultExpr exp -> do
       str <- P.render <$> prettyTCM exp
       return $ (brs', MimerExpr str : sols)
-    ResultClauses cls -> do
-      f <- fromMaybe __IMPOSSIBLE__ <$> asks searchFnName
-      return $ (brs', MimerClauses f cls : sols)
 
 ------------------------------------------------------------------------
 -- * Search options
