@@ -222,14 +222,14 @@ defaultCosts = Costs
 ------------------------------------------------------------------------
 
 data MimerStats = MimerStats
-  { statCompHit       :: Nat -- ^ Could make use of an already generated component
-  , statCompGen       :: Nat -- ^ Could use a generator for a component
-  , statCompRegen     :: Nat -- ^ Had to regenerate the cache (new context)
-  , statCompNoRegen   :: Nat -- ^ Did not have to regenerate the cache
-  , statMetasCreated  :: Nat -- ^ Total number of meta-variables created explicitly (not through unification)
-  , statTypeEqChecks  :: Nat -- ^ Number of times type equality is tested (with unification)
-  , statRefineSuccess :: Nat -- ^ Number of times a refinement has been successful
-  , statRefineFail    :: Nat -- ^ Number of times a refinement has failed
+  { statCompHit       :: !Int -- ^ Could make use of an already generated component
+  , statCompGen       :: !Int -- ^ Could use a generator for a component
+  , statCompRegen     :: !Int -- ^ Had to regenerate the cache (new context)
+  , statCompNoRegen   :: !Int -- ^ Did not have to regenerate the cache
+  , statMetasCreated  :: !Int -- ^ Total number of meta-variables created explicitly (not through unification)
+  , statTypeEqChecks  :: !Int -- ^ Number of times type equality is tested (with unification)
+  , statRefineSuccess :: !Int -- ^ Number of times a refinement has been successful
+  , statRefineFail    :: !Int -- ^ Number of times a refinement has failed
   } deriving (Show, Eq, Generic)
 instance NFData MimerStats
 
