@@ -52,16 +52,32 @@ projection functions
   Pair.fst : {A B : Set} → Pair A B → A
   Pair.snd : {A B : Set} → Pair A B → B
 
-..
+
+.. note::
+
+  The parameters ``A`` and ``B`` are implicit arguments to the projection
+  functions.
+
   ::
+
    test-fst : {A B : Set} → Pair A B → A
-   test-fst {A = A} {B = B} p = Pair.fst {A = A} {B = B} p
+   test-fst p = Pair.fst p
 
    test-snd : {A B : Set} → Pair A B → B
-   test-snd {A = A} {B = B} p = Pair.snd {A = A} {B = B} p
+   test-snd p = Pair.snd p
 
-Note that the parameters ``A`` and ``B`` are implicit arguments to the
-projection functions.
+You can ``open`` the record type to avoid the need to prefix projections
+by the name of the record type (see :ref:`record modules <record-modules>`):
+
+::
+
+   open Pair
+
+   test-fst' : {A B : Set} → Pair A B → A
+   test-fst' p = fst p
+
+   test-snd' : {A B : Set} → Pair A B → B
+   test-snd' p = snd p
 
 Elements of record types can be defined using a record expression
 
