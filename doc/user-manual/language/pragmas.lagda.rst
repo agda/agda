@@ -220,7 +220,7 @@ Inlining constructor right-hand sides
 
 .. versionadded:: 2.6.4
 
-Constructors can also be marked ``INLINE`` (for types supporting co-pattern matching)::
+Constructors can also be marked ``INLINE`` (for types supporting copattern matching)::
 
   record Stream (A : Set) : Set where
     coinductive; constructor _∷_
@@ -229,7 +229,7 @@ Constructors can also be marked ``INLINE`` (for types supporting co-pattern matc
   open Stream
   {-# INLINE _∷_ #-}
 
-Functions definitions using these constructors will be translated to use co-pattern matching instead, e.g.::
+Functions definitions using these constructors will be translated to use copattern matching instead, e.g.::
 
   nats : Nat → Stream Nat
   nats n = n ∷ nats (1 + n)

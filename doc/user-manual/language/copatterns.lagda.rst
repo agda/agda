@@ -170,7 +170,7 @@ field in the record:
     backward (enum-Nat _) (suc n) = n
 
 
-Mixing patterns and co-patterns
+Mixing patterns and copatterns
 -------------------------------
 
 Instead of allowing an arbitrary value, we want to limit the user to
