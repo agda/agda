@@ -606,7 +606,7 @@ defineCompData d con params names fsT t boundary = do
       (mst, _, cc) <- inTopContext (compileClauses Nothing cs)
       whenJust mst $ setSplitTree theName
       setCompiledClauses theName cc
-      setTerminates theName True
+      setTerminates theName $ Just True
       return $ Just theName
 
     whenDefined False _ _ = return Nothing
