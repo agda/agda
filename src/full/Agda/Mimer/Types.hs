@@ -9,7 +9,6 @@ import GHC.Generics (Generic)
 import Data.IORef (IORef)
 
 import Agda.Syntax.Abstract (Expr)
-import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Common.Pretty qualified as P
 import Agda.Syntax.Common.Pretty (Pretty)
 import Agda.Syntax.Common (InteractionId, Nat)
@@ -29,7 +28,6 @@ import Agda.Mimer.Options
 
 data MimerResult
   = MimerExpr String -- ^ Returns 'String' rather than 'Expr' because the give action expects a string.
-  | MimerClauses QName [A.Clause]
   | MimerList [(Int, String)]
   | MimerNoResult
   deriving (Generic)
@@ -42,7 +40,6 @@ isNoResult _             = False
 
 data SearchStepResult
   = ResultExpr Expr
-  | ResultClauses [A.Clause]
   | OpenBranch SearchBranch
   | NoSolution
   deriving (Generic)
@@ -389,7 +386,6 @@ instance PrettyTCM Component where
 instance PrettyTCM MimerResult where
   prettyTCM = \case
     MimerExpr expr    -> pretty expr
-    MimerClauses f cl -> "MimerClauses" <+> pretty f <+> "[..]" -- TODO: display the clauses
     MimerNoResult     -> "MimerNoResult"
     MimerList sols    -> "MimerList" <+> pretty sols
 
