@@ -729,16 +729,16 @@ bench k ma = billTo (mimerAccount : k) ma
     -- to debug Mimer performance.
     mimerAccount = Bench.Sort
 
-writeTime :: (ReadTCState m, MonadError TCErr m, MonadTCM m, MonadDebug m) => InteractionId -> Maybe CPUTime -> m ()
-writeTime ii mTime = do
-  let time = case mTime of
-        Nothing -> "n/a"
-        Just (CPUTime t) -> show t
+writeTime :: (ReadTCState m, MonadError TCErr m, MonadTCM m, MonadDebug m)
+          => InteractionId
+          -> CPUTime
+          -> m ()
+writeTime ii (CPUTime time) = do
   file <- rangeFile . ipRange <$> lookupInteractionPoint ii
   case file of
     SMaybe.Nothing ->
       reportSLn "mimer.stats" 2 "No file found for interaction id"
     SMaybe.Just file -> do
       let path = filePath (rangeFilePath file) ++ ".stats"
-      liftIO $ appendFile path (show (interactionId ii) ++ " " ++ time ++ "\n")
+      liftIO $ appendFile path (show (interactionId ii) ++ " " ++ show time ++ "\n")
 

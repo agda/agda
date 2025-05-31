@@ -59,7 +59,7 @@ import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Maybe (catMaybes)
 import Agda.Utils.Null
 import Agda.Utils.Tuple (mapFst, mapSnd)
-import Agda.Utils.Time (getCPUTime, fromMilliseconds)
+import Agda.Utils.Time (measureTime, getCPUTime, fromMilliseconds)
 
 import Data.IORef (readIORef)
 
@@ -71,7 +71,7 @@ import Agda.Mimer.Types (MimerResult(..), BaseComponents(..), Component(..),
                          SearchBranch(..), SearchStepResult(..), SearchOptions(..),
                          Goal(..), Costs(..), goalMeta, replaceCompMeta,
                          incRefineFail, incRefineSuccess, incCompRegen, incCompNoRegen,
-                         nextGoal, addCost)
+                         nextGoal, addCost, isNoResult)
 import Agda.Mimer.Monad
 import Agda.Mimer.Options
 
@@ -95,38 +95,32 @@ mimer :: MonadTCM tcm
   -> String          -- ^ Content of hole (to parametrize Mimer).
   -> tcm MimerResult
 mimer norm ii rng argStr = liftTCM $ do
-    reportSDoc "mimer.top" 10 do
-      "Running Mimer on interaction point" <+> pretty ii <+> "with argument string" <+> text (show argStr)
+  reportSDoc "mimer.top" 10 do
+    "Running Mimer on interaction point" <+> pretty ii <+> "with argument string" <+> text (show argStr)
 
-    start <- liftIO $ getCPUTime
+  (sol, time) <- measureTime $ do
 
     opts <- parseOptions ii rng argStr
     reportS "mimer.top" 15 ("Mimer options: " ++ show opts)
 
-    -- Andreas, 2025-04-16, changing the plain getTC/putTC bracket to localTCState.
-    -- localTCState should be used by default,
-    -- it keeps the Statistics about metas and constraints.
-    -- Was there a reason to use plain getTC/putTC or is it "don't care" since
-    -- mimer is an interactive command and no one looks at the statistics?
     sols <- localTCState $ runSearch norm opts ii rng
 
     -- Turn the solutions into the desired results (first solution or list of solutions).
-    sol <- case drop (optSkip opts) $ zip [0..] sols of
-          [] -> do
-            reportSLn "mimer.top" 10 "No solution found"
-            return MimerNoResult
-          sols' | optList opts -> pure $ MimerList [ (i, s) | (i, MimerExpr s) <- sols' ]
-          (_, sol) : _ -> do
-            reportSDoc "mimer.top" 10 $ "Solution:" <+> prettyTCM sol
-            return sol
+    case drop (optSkip opts) $ zip [0..] sols of
+      [] -> do
+        reportSLn "mimer.top" 10 "No solution found"
+        return MimerNoResult
+      sols' | optList opts -> pure $ MimerList [ (i, s) | (i, MimerExpr s) <- sols' ]
+      (_, sol) : _ -> do
+        reportSDoc "mimer.top" 10 $ "Solution:" <+> prettyTCM sol
+        return sol
 
-    -- Print timing statistic.
-    stop <- liftIO $ getCPUTime
-    let time = stop - start
-    reportSDoc "mimer.top" 10 ("Total elapsed time:" <+> pretty time)
-    verboseS "mimer.stats" 50 $ writeTime ii (if null sols then Nothing else Just time)
+  -- Print timing statistic.
+  reportSDoc "mimer.top" 10 ("Total elapsed time:" <+> pretty time)
+  when (not $ isNoResult sol) $
+    verboseS "mimer.stats" 50 $ writeTime ii time
 
-    return sol
+  return sol
 
 
 -- Order to try things in:
