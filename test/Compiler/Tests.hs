@@ -265,7 +265,7 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
           case comp of
             JS{} -> do
               env <- (("NODE_PATH", compDir) :) <$> getEnvironment
-              (ret, out', err') <- readProcessWithEnv env "node" [exec] inp'
+              (ret, out', err') <- readProcessWithEnv env Nothing "node" [exec] inp'
               return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
             _ -> do
               (ret, out', err') <- PT.readProcessWithExitCode exec (runtimeOptions opts) inp'

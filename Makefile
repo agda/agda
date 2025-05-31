@@ -493,6 +493,11 @@ fast-fail :
 	@$(call decorate, "Suite of failing tests (using agda-fast)", \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail)
 
+.PHONY: build-fail-test ##
+build-fail-test :
+	@$(call decorate, "Suite of failing --build-library tests", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/BuildFail)
+
 .PHONY: build-succeed-test ##
 build-succeed-test :
 	@$(call decorate, "Suite of successful --build-library tests", \
