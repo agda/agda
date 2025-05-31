@@ -413,13 +413,13 @@ allow code like the following::
     [] : Vec A zero
     _∷_ : ∀{n} → A → Vec A n → Vec A (suc n)
 
-  record R : Set where
+  record VList : Set where
     field
       {length} : Nat
       vec      : Vec Nat length
       -- More fields ...
 
-  xs : R
+  xs : VList
   xs = record { vec = 0 ∷ 1 ∷ 2 ∷ [] }
 
   ys = record xs { vec = 0 ∷ [] }
@@ -502,19 +502,19 @@ The eta (η) rule for a record type
 
 ::
 
-  record ABC : Set where
+  record R : Set where
      field
        a : A
        b : B
        c : C
 
-states that every ``x : ABC`` is definitionally equal to ``record { a =
-ABC.a x ; b = ABC.b x ; c = ABC.c x }``.
+states that every ``x : R`` is definitionally equal to ``record { a =
+R.a x ; b = R.b x ; c = R.c x }``.
 
 ::
 
-  eta-ABC : (x : ABC) → x ≡ record { a = ABC.a x ; b = ABC.b x ; c = ABC.c x }
-  eta-ABC r = refl
+  eta-R : (x : R) → x ≡ record { a = R.a x ; b = R.b x ; c = R.c x }
+  eta-R r = refl
 
 By default, all non-recursive record types enjoy η-equality. The keywords
 ``eta-equality``/``no-eta-equality`` enable/disable η rules for the record type
@@ -522,7 +522,7 @@ being declared.
 
 ::
 
-  record ABC-noeta : Set where
+  record R-noeta : Set where
     no-eta-equality
     field
       a : A
@@ -563,7 +563,7 @@ by the :ref:`positivity checker<positivity-checking>`).
   eta-Tree : {A : Set} (t : Tree A) → t ≡ tree (elem t) (subtrees t)
   eta-Tree t = refl
 
-It is possible to pattern match and recurse on inductive records if it has η-equality:
+It is possible to pattern match and recurse on an inductive record if it has η-equality:
 
 ::
 
