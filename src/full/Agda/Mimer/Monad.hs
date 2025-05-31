@@ -6,7 +6,7 @@ import Control.Monad
 import Control.Monad.Except (catchError, MonadError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), asks, ask, lift)
-import Data.IORef (modifyIORef')
+import Data.IORef (modifyIORef', newIORef)
 import Data.Map qualified as Map
 import Data.List qualified as List
 import Data.List.NonEmpty qualified as NonEmptyList (head)
@@ -36,11 +36,13 @@ import Agda.TypeChecking.Constraints (noConstraints)
 import Agda.TypeChecking.Telescope (flattenTel, piApplyM)
 import Agda.TypeChecking.Substitute (pattern TelV, telView', piApply, apply, applyE, NoSubst(..))
 import Agda.Interaction.BasicOps (normalForm)
+import Agda.Interaction.Base (Rewrite(..))
 import Agda.Benchmarking qualified as Bench
 import Agda.Utils.Benchmark (billTo)
 import Agda.Utils.Functor ((<&>), (<.>))
 import Agda.Utils.FileName (filePath)
 import Agda.Utils.Impossible
+import Agda.Utils.Monad (ifM)
 import Agda.Utils.Maybe.Strict qualified as SMaybe
 import Agda.Utils.Time (CPUTime(..))
 
@@ -497,6 +499,17 @@ createMeta typ = do
 -- * Search branches
 ------------------------------------------------------------------------
 
+startSearchBranch :: [MetaId] -> TCM SearchBranch
+startSearchBranch metaIds = do
+  state <- getTC
+  pure SearchBranch
+        { sbTCState        = state
+        , sbGoals          = map Goal metaIds
+        , sbCost           = 0
+        , sbCache          = Map.empty
+        , sbComponentsUsed = Map.empty
+        }
+
 withBranchState :: SearchBranch -> SM a -> SM a
 withBranchState br ma = do
   putTC (sbTCState br)
@@ -577,6 +590,56 @@ partitionStepResult (x:xs) = do
     ResultClauses cls -> do
       f <- fromMaybe __IMPOSSIBLE__ <$> asks searchFnName
       return $ (brs', MimerClauses f cls : sols)
+
+------------------------------------------------------------------------
+-- * Search options
+------------------------------------------------------------------------
+
+makeSearchOptions :: Rewrite
+                  -> Options
+                  -> InteractionId
+                  -> TCM SearchOptions
+makeSearchOptions norm options ii = do
+  metaId <- lookupInteractionId ii
+  (mTheFunctionQName, whereNames) <- fmap ipClause (lookupInteractionPoint ii) <&> \case
+    clause@IPClause{} -> ( Just $ ipcQName clause
+                         , case A.whereDecls $ A.clauseWhereDecls $ ipcClause clause of
+                             Just decl -> declarationQnames decl
+                             _ -> []
+                         )
+    IPNoClause -> (Nothing, [])
+
+  reportSDoc "mimer.init" 15 $ "Interaction point in function:" <+> pretty mTheFunctionQName
+  reportSDoc "mimer.init" 25 $ "Names in where-block" <+> pretty whereNames
+
+  env <- askTC
+  costs <- ifM (hasVerbosity "mimer.cost.custom" 10)
+             {- then -} customCosts
+             {- else -} (return defaultCosts)
+  reportSDoc "mimer.cost.custom" 10 $ "Using costs:" $$ nest 2 (pretty costs)
+  components <- collectComponents options costs ii mTheFunctionQName whereNames metaId
+  statsRef   <- liftIO $ newIORef emptyMimerStats
+  checkpoint <- viewTC eCurrentCheckpoint
+  mflat      <- getBuiltinName BuiltinFlat
+  pure SearchOptions
+        { searchBaseComponents         = components
+        , searchHintMode               = optHintMode options
+        , searchTimeout                = optTimeout options
+        , searchGenProjectionsLocal    = True
+        , searchGenProjectionsLet      = True
+        , searchGenProjectionsExternal = False
+        , searchGenProjectionsRec      = True
+        , searchSpeculateProjections   = True
+        , searchTopMeta                = metaId
+        , searchTopEnv                 = env
+        , searchTopCheckpoint          = checkpoint
+        , searchInteractionId          = ii
+        , searchFnName                 = mTheFunctionQName
+        , searchCosts                  = costs
+        , searchStats                  = statsRef
+        , searchRewrite                = norm
+        , searchBuiltinFlat            = mflat
+        }
 
 ------------------------------------------------------------------------
 -- * Unification

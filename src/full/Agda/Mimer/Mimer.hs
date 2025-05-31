@@ -40,7 +40,6 @@ import Data.PQueue.Min (MinQueue)
 import qualified Data.PQueue.Min as Q
 
 import qualified Agda.Benchmarking as Bench
-import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty qualified as P
 import Agda.Syntax.Info (pattern UnificationMeta)
@@ -48,7 +47,6 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Position (Range, noRange)
 import Agda.Syntax.Translation.InternalToAbstract (reify, blankNotInScope)
 
-import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Empty (isEmptyType)
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.MetaVars (newValueMeta)
@@ -60,18 +58,21 @@ import Agda.TypeChecking.Substitute (apply, NoSubst(..))
 
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Maybe (catMaybes)
-import Agda.Utils.Monad (ifM)
 import Agda.Utils.Null
 import Agda.Utils.Tuple (mapFst, mapSnd)
 import Agda.Utils.Time (getCPUTime, fromMilliseconds)
 
-import Data.IORef (readIORef, newIORef)
+import Data.IORef (readIORef)
 
 import Agda.Interaction.Base (Rewrite(..))
 import Agda.Interaction.BasicOps (normalForm)
 import Agda.Utils.Monad (concatMapM)
 
-import Agda.Mimer.Types
+import Agda.Mimer.Types (MimerResult(..), BaseComponents(..), Component(..),
+                         SearchBranch(..), SearchStepResult(..), SearchOptions(..),
+                         Goal(..), Costs(..), goalMeta,
+                         incRefineFail, incRefineSuccess, incCompRegen, incCompNoRegen,
+                         nextGoal, addCost)
 import Agda.Mimer.Monad
 import Agda.Mimer.Options
 
@@ -145,17 +146,6 @@ mimer norm ii rng argStr = liftTCM $ do
 
 runSearch :: Rewrite -> Options -> InteractionId -> Range -> TCM [MimerResult]
 runSearch norm options ii rng = withInteractionId ii $ do
-  (mTheFunctionQName, whereNames) <- fmap ipClause (lookupInteractionPoint ii) <&> \case
-    clause@IPClause{} -> ( Just $ ipcQName clause
-                         , case A.whereDecls $ A.clauseWhereDecls $ ipcClause clause of
-                             Just decl -> declarationQnames decl
-                             _ -> []
-                         )
-    IPNoClause -> (Nothing, [])
-
-  reportSDoc "mimer.init" 15 $ "Interaction point in function:" <+> pretty mTheFunctionQName
-  reportSDoc "mimer.init" 25 $ "Names in where-block" <+> pretty whereNames
-
   metaId <- lookupInteractionId ii
   metaVar <- lookupLocalMeta metaId
 
@@ -213,46 +203,8 @@ runSearch norm options ii rng = withInteractionId ii $ do
           return [sol]
         _ -> __IMPOSSIBLE__
     _ -> do
-      costs <- ifM (hasVerbosity "mimer.cost.custom" 10)
-                 {- then -} customCosts
-                 {- else -} (return defaultCosts)
-      reportSDoc "mimer.cost.custom" 10 $ "Using costs:" $$ nest 2 (pretty costs)
-      components <- collectComponents options costs ii mTheFunctionQName whereNames metaId
-      let startGoals = map Goal metaIds
-
-      state <- getTC
-      env <- askTC
-
-      let startBranch = SearchBranch
-            { sbTCState = state
-            , sbGoals = startGoals
-            , sbCost = 0
-            , sbCache = Map.empty
-            , sbComponentsUsed = Map.empty
-            }
-
-      statsRef <- liftIO $ newIORef emptyMimerStats
-      checkpoint <- viewTC eCurrentCheckpoint
-      mflat <- getBuiltinName BuiltinFlat
-      let searchOptions = SearchOptions
-            { searchBaseComponents = components
-            , searchHintMode = optHintMode options
-            , searchTimeout = optTimeout options
-            , searchGenProjectionsLocal = True
-            , searchGenProjectionsLet = True
-            , searchGenProjectionsExternal = False
-            , searchGenProjectionsRec = True
-            , searchSpeculateProjections = True
-            , searchTopMeta = metaId
-            , searchTopEnv = env
-            , searchTopCheckpoint = checkpoint
-            , searchInteractionId = ii
-            , searchFnName = mTheFunctionQName
-            , searchCosts = costs
-            , searchStats = statsRef
-            , searchRewrite = norm
-            , searchBuiltinFlat = mflat
-            }
+      startBranch   <- startSearchBranch metaIds
+      searchOptions <- makeSearchOptions norm options ii
 
       reportSDoc "mimer.init" 20 $ "Using search options:" $$ nest 2 (prettyTCM searchOptions)
       reportSDoc "mimer.init" 20 $ "Initial search branch:" $$ nest 2 (pretty startBranch)
