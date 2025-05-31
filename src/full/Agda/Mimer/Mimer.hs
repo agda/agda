@@ -774,12 +774,3 @@ customCosts = do
   where
     cost key = getVerbosityLevel ("mimer-cost." ++ key)
 
-getVerbosityLevel :: MonadDebug m => VerboseKey -> m VerboseLevel
-getVerbosityLevel k = do
-  t <- getVerbosity
-  return $ case t of
-    Strict.Nothing -> 1
-    Strict.Just t
-      | t == Trie.singleton [] 0 -> 0
-      | otherwise -> lastWithDefault 0 $ Trie.lookupPath ks t
-  where ks = parseVerboseKey k
