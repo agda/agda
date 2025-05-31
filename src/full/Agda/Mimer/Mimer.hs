@@ -28,7 +28,6 @@ module Agda.Mimer.Mimer
 import Prelude hiding (null)
 
 import Control.Monad
-import Control.Monad.Error.Class (MonadError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), runReaderT, asks, ask, lift)
 import Data.Functor ((<&>))
@@ -36,7 +35,7 @@ import Data.List ((\\))
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Maybe (maybeToList, fromMaybe)
+import Data.Maybe (maybeToList)
 import Data.PQueue.Min (MinQueue)
 import qualified Data.PQueue.Min as Q
 
@@ -46,7 +45,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty qualified as P
 import Agda.Syntax.Info (pattern UnificationMeta)
 import Agda.Syntax.Internal
-import Agda.Syntax.Position (Range, rangeFile, rangeFilePath, noRange)
+import Agda.Syntax.Position (Range, noRange)
 import Agda.Syntax.Translation.InternalToAbstract (reify, blankNotInScope)
 
 import Agda.TypeChecking.Primitive (getBuiltinName)
@@ -59,23 +58,17 @@ import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Rules.Term  (makeAbsurdLambda)
 import Agda.TypeChecking.Substitute (apply, NoSubst(..))
 
-import Agda.Utils.FileName (filePath)
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Maybe (catMaybes)
 import Agda.Utils.Monad (ifM)
-import qualified Agda.Utils.Maybe.Strict as SMaybe
 import Agda.Utils.Null
-import Agda.Utils.Time (CPUTime(..), getCPUTime, fromMilliseconds)
 import Agda.Utils.Tuple (mapFst, mapSnd)
+import Agda.Utils.Time (getCPUTime, fromMilliseconds)
 
 import Data.IORef (readIORef, newIORef)
 
-import qualified Agda.Utils.Maybe.Strict as Strict
-import qualified Agda.Utils.Trie as Trie
 import Agda.Interaction.Base (Rewrite(..))
 import Agda.Interaction.BasicOps (normalForm)
-import Agda.Interaction.Options.Base (parseVerboseKey)
-import Agda.Utils.List (lastWithDefault)
 import Agda.Utils.Monad (concatMapM)
 
 import Agda.Mimer.Types
@@ -724,33 +717,6 @@ tryRefineAddMetas goal goalType branch comp = withBranchAndGoal branch goal $ do
   comp' <- applyToMetasG Nothing comp
   branch' <- updateBranch [] branch
   tryRefineWith goal goalType branch' comp'
-
-
-
-prettyBranch :: SearchBranch -> SM String
-prettyBranch branch = withBranchState branch $ do
-    metaId <- asks searchTopMeta
-    P.render <$> "Branch" <> braces (sep $ punctuate ","
-      [ "cost:" <+> pretty (sbCost branch)
-      , "metas:" <+> prettyTCM (map goalMeta (sbGoals branch))
-      , sep [ "instantiation:"
-            , nest 2 $ pretty metaId <+> "=" <+> (prettyTCM =<< getMetaInstantiation metaId) ]
-      , "used components:" <+> pretty (Map.toList $ sbComponentsUsed branch)
-      ])
-
-
-writeTime :: (ReadTCState m, MonadError TCErr m, MonadTCM m, MonadDebug m) => InteractionId -> Maybe CPUTime -> m ()
-writeTime ii mTime = do
-  let time = case mTime of
-        Nothing -> "n/a"
-        Just (CPUTime t) -> show t
-  file <- rangeFile . ipRange <$> lookupInteractionPoint ii
-  case file of
-    SMaybe.Nothing ->
-      reportSLn "mimer.stats" 2 "No file found for interaction id"
-    SMaybe.Just file -> do
-      let path = filePath (rangeFilePath file) ++ ".stats"
-      liftIO $ appendFile path (show (interactionId ii) ++ " " ++ time ++ "\n")
 
 -- Hack to let you experiment with costs using verbosity flags.
 customCosts :: TCM Costs

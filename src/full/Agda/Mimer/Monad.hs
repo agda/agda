@@ -13,8 +13,9 @@ import Data.List.NonEmpty qualified as NonEmptyList (head)
 import Data.Maybe
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
 import Agda.Syntax.Common.Pretty qualified as P
+import Agda.Syntax.Internal
+import Agda.Syntax.Position (rangeFile, rangeFilePath)
 import Agda.Syntax.Concrete.Name qualified as C
 import Agda.Syntax.Abstract (Expr)
 import Agda.Syntax.Abstract qualified as A
@@ -38,7 +39,10 @@ import Agda.Interaction.BasicOps (normalForm)
 import Agda.Benchmarking qualified as Bench
 import Agda.Utils.Benchmark (billTo)
 import Agda.Utils.Functor ((<&>), (<.>))
+import Agda.Utils.FileName (filePath)
 import Agda.Utils.Impossible
+import Agda.Utils.Maybe.Strict qualified as SMaybe
+import Agda.Utils.Time (CPUTime(..))
 
 import Agda.Mimer.Options
 import Agda.Mimer.Types
@@ -613,6 +617,17 @@ branchInstantiationDocCost branch = branchInstantiationDoc branch <+> parens ("c
 branchInstantiationDoc :: SearchBranch -> SM Doc
 branchInstantiationDoc branch = withBranchState branch topInstantiationDoc
 
+prettyBranch :: SearchBranch -> SM String
+prettyBranch branch = withBranchState branch $ do
+    metaId <- asks searchTopMeta
+    P.render <$> "Branch" <> braces (sep $ punctuate ","
+      [ "cost:" <+> pretty (sbCost branch)
+      , "metas:" <+> prettyTCM (map goalMeta (sbGoals branch))
+      , sep [ "instantiation:"
+            , nest 2 $ pretty metaId <+> "=" <+> (prettyTCM =<< getMetaInstantiation metaId) ]
+      , "used components:" <+> pretty (Map.toList $ sbComponentsUsed branch)
+      ])
+
 ------------------------------------------------------------------------
 -- * Stats
 ------------------------------------------------------------------------
@@ -628,4 +643,17 @@ bench k ma = billTo (mimerAccount : k) ma
     -- Dummy account to avoid updating Bench. Doesn't matter since this is only used interactively
     -- to debug Mimer performance.
     mimerAccount = Bench.Sort
+
+writeTime :: (ReadTCState m, MonadError TCErr m, MonadTCM m, MonadDebug m) => InteractionId -> Maybe CPUTime -> m ()
+writeTime ii mTime = do
+  let time = case mTime of
+        Nothing -> "n/a"
+        Just (CPUTime t) -> show t
+  file <- rangeFile . ipRange <$> lookupInteractionPoint ii
+  case file of
+    SMaybe.Nothing ->
+      reportSLn "mimer.stats" 2 "No file found for interaction id"
+    SMaybe.Just file -> do
+      let path = filePath (rangeFilePath file) ++ ".stats"
+      liftIO $ appendFile path (show (interactionId ii) ++ " " ++ time ++ "\n")
 
