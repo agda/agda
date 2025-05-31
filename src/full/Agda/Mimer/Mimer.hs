@@ -460,22 +460,6 @@ genRecCalls thisFn = do
       mapM (\ c -> (`addCost` c) <$> callCost c) comps
 
 
-partitionStepResult :: [SearchStepResult] -> SM ([SearchBranch], [MimerResult])
-partitionStepResult [] = return ([],[])
-partitionStepResult (x:xs) = do
-  let rest = partitionStepResult xs
-  (brs',sols) <- rest
-  case x of
-    NoSolution -> rest
-    OpenBranch br -> return (br:brs', sols)
-    ResultExpr exp -> do
-      str <- P.render <$> prettyTCM exp
-      return $ (brs', MimerExpr str : sols)
-    ResultClauses cls -> do
-      f <- fromMaybe __IMPOSSIBLE__ <$> asks searchFnName
-      return $ (brs', MimerClauses f cls : sols)
-
-
 refine :: SearchBranch -> SM [SearchStepResult]
 refine branch = withBranchState branch $ do
   let (goal1, branch1) = nextGoal branch

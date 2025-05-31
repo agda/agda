@@ -14,6 +14,7 @@ import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Common.Pretty qualified as P
 import Agda.Syntax.Concrete.Name qualified as C
 import Agda.Syntax.Abstract (Expr)
 import Agda.Syntax.Abstract qualified as A
@@ -557,6 +558,21 @@ normaliseSolution :: Term -> SM Term
 normaliseSolution t = do
   norm <- asks searchRewrite
   lift . normalForm norm =<< instantiateFull t
+
+partitionStepResult :: [SearchStepResult] -> SM ([SearchBranch], [MimerResult])
+partitionStepResult [] = return ([],[])
+partitionStepResult (x:xs) = do
+  let rest = partitionStepResult xs
+  (brs',sols) <- rest
+  case x of
+    NoSolution -> rest
+    OpenBranch br -> return (br:brs', sols)
+    ResultExpr exp -> do
+      str <- P.render <$> prettyTCM exp
+      return $ (brs', MimerExpr str : sols)
+    ResultClauses cls -> do
+      f <- fromMaybe __IMPOSSIBLE__ <$> asks searchFnName
+      return $ (brs', MimerClauses f cls : sols)
 
 ------------------------------------------------------------------------
 -- * Unification
