@@ -534,8 +534,15 @@ being declared.
 Recursive records
 -----------------
 
-Recursive records need to be declared as either inductive or
-coinductive.
+A recursive record is a record where the record type itself appears in the type
+of one of its fields. Recursive records need to be declared as either
+``inductive`` or ``coinductive``.
+
+Inductive records
+~~~~~~~~~~~~~~~~~
+
+Inductive records are recursive records that only allow values of finite depth.
+
 ::
 
   record Tree (A : Set) : Set where
@@ -545,30 +552,33 @@ coinductive.
       elem     : A
       subtrees : List (Tree A)
 
-  record Stream (A : Set) : Set where
-    coinductive
-    constructor _::_
-    field
-      head : A
-      tail : Stream A
+  open Tree
 
-Inductive records have ``eta-equality`` on by default, while
-``no-eta-equality`` is the default for coinductive records. In fact,
-the ``eta-equality`` and ``coinductive`` directives are not allowed
-together, since this can easily make Agda loop. This can be overridden
-at your own risk by using the pragma ``ETA`` instead.
+Inductive record types (see :ref:`recursive-records`) have η-equality enabled by
+default if this does not lead to potential infinite η-expansion (as determined
+by the :ref:`positivity checker<positivity-checking>`).
 
-It is possible to pattern match on inductive records, but not on
-coinductive ones.
+::
 
-However, inductive records without η-equality do not support both matching on
-the record constructor and construction of record elements by
-copattern matching.  It has been discovered that the combination of
-both leads to loss of subject reduction, i.e., reduction does not
-preserve typing. For records without η, matching on the record
-constructor is off by default and construction by copattern matching
-is on.  If you want the converse, you can add the record directive
-``pattern``::
+  eta-Tree : {A : Set} (t : Tree A) → t ≡ tree (elem t) (subtrees t)
+  eta-Tree t = refl
+
+It is possible to pattern match and recurse on inductive records if it has η-equality:
+
+::
+
+  map-Tree : {A B : Set} → (A → B) → Tree A → Tree B
+  map-Tree {A} {B} f (tree x ts) = tree (f x) (map-subtrees ts)
+    where
+      map-subtrees : List (Tree A) → List (Tree B)
+      map-subtrees [] = []
+      map-subtrees (t ∷ ts) = map-Tree f t ∷ map-subtrees ts
+
+For inductive record types *without* η-equality, pattern matching is not allowed
+by default. Pattern matching can be turned on manually by using the ``pattern``
+record directive:
+
+::
 
   record HereditaryList : Set where
     inductive
@@ -585,8 +595,70 @@ However, if η is inferred but not declared explicitly, Agda will just
 ignore a redundant ``pattern`` directive; this is because the default
 can be changed globally by option :option:`--no-eta-equality`.
 
-Constructors of records supporting co-pattern matching may be marked
-with an ``{-# INLINE #-}`` :ref:`pragma <inline-pragma>` to assist the termination checker.
+.. note::
+
+  It is not allowed to use copattern matching to define values of inductive
+  record types with pattern matching enabled. This combination leads to either a
+  loss of canonicity or a loss of subject reduction. For example, consider the
+  following definitions:
+
+  .. code-block:: agda
+
+    record Rec : Set where
+      constructor con
+      no-eta-equality
+      field
+        f : Nat
+    open Rec
+
+    eta : (r : Rec) → r ≡ con (f r)
+    eta (con n) = refl
+
+    bar : R
+    f bar = 0
+
+  If this code were allowed, then ``eta bar`` is a closed term of type
+  ``bar ≡ con 0``. Now either ``eta bar`` reduces to
+  ``refl : bar ≡ con 0`` (contradicting the ``no-eta-equality`` directive)
+  or else ``eta bar`` is a stuck term (breaking canonicity).
+
+Coinductive records
+~~~~~~~~~~~~~~~~~~~
+
+Coinductive records are recursive records that allow values of possibly infinite
+depth.
+
+::
+
+  record Stream (A : Set) : Set where
+    coinductive
+    constructor _::_
+    field
+      head : A
+      tail : Stream A
+
+  open Stream
+
+Values of coinductive records can be defined using copatterns:
+
+::
+
+  natsFrom : Nat → Stream Nat
+  head (natsFrom n) = n
+  tail (natsFrom n) = natsFrom (suc n)
+
+Constructors of records supporting copattern matching may be marked with an
+``{-# INLINE #-}`` :ref:`pragma <inline-pragma>`. This will automatically
+convert uses of the constructor to the equivalent definition using copatterns,
+which can be useful to assist the termination checker.
+
+Eta equality for coinductive records is not allowed, since this combination
+could easily make Agda loop. This can be overridden at your own risk by using
+the :ref:`ETA <eta-pragma>` instead. Pattern matching on coinductive records is
+likewise not allowed.
+
+You can read more about coinductive records in the section on
+:ref:`coinduction <copatterns-coinductive-records>`.
 
 .. _instance-fields:
 
