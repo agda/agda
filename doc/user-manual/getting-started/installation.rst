@@ -357,8 +357,9 @@ When installing Agda the following flags can be used:
 
 .. option:: optimise-heavily
 
-     Optimise Agda heavily. (In this case it might make sense to limit
-     GHC's memory usage.) Default: off.
+     Optimise Agda heavily. If this flag is on, compiling Agda uses more memory
+     but Agda runs faster.
+     Default: on.
 
 .. hint:: During ``cabal install`` you can add build flags using the ``-f`` argument:
     ``cabal install -fenable-cluster-counting``. Whereas stack uses ``--flag`` and an

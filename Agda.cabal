@@ -201,7 +201,7 @@ flag enable-cluster-counting
     False, then the --count-clusters flag triggers an error message.)
 
 flag optimise-heavily
-  default: False
+  default: True
   manual: True
   description:
     Enable some expensive optimisations when compiling Agda.
