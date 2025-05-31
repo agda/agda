@@ -31,7 +31,6 @@ import Control.Monad
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), runReaderT, asks, ask, lift)
 import Data.Functor ((<&>))
-import Data.List ((\\))
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -70,7 +69,7 @@ import Agda.Utils.Monad (concatMapM)
 
 import Agda.Mimer.Types (MimerResult(..), BaseComponents(..), Component(..),
                          SearchBranch(..), SearchStepResult(..), SearchOptions(..),
-                         Goal(..), Costs(..), goalMeta,
+                         Goal(..), Costs(..), goalMeta, replaceCompMeta,
                          incRefineFail, incRefineSuccess, incCompRegen, incCompNoRegen,
                          nextGoal, addCost)
 import Agda.Mimer.Monad
@@ -383,7 +382,7 @@ genRecCalls thisFn = do
                 putTC state
                 go thisFn ((goal, i) : goals) args
               Just (newMetas1, newMetas2) -> do
-                let newComp = thisFn{compMetas = newMetas1 ++ newMetas2 ++ (compMetas thisFn \\ [goalMeta goal])}
+                let newComp = replaceCompMeta (goalMeta goal) (newMetas1 ++ newMetas2) thisFn
                 (thisFn', goals') <- newRecCall
                 (newComp:) <$> go thisFn' (drop (length goals' - length goals - 1) goals') args
           go thisFn goals (_ : args) = go thisFn goals args
