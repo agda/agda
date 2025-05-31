@@ -177,12 +177,12 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   -- NO_TERMINATION_CHECK
   if (Info.mutualTerminationCheck i `elem` [ NoTerminationCheck, Terminating ]) then do
       reportSLn "term.warn.yes" 10 $ "Skipping termination check for " ++ prettyShow names
-      forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
+      forM_ allNames $ \ q -> setTerminates q $ Just True -- considered terminating!
       return mempty
   -- NON_TERMINATING
   else if (Info.mutualTerminationCheck i == NonTerminating) then do
       reportSLn "term.warn.yes" 10 $ "Considering as non-terminating: " ++ prettyShow names
-      forM_ allNames $ \ q -> setTerminates q False
+      forM_ allNames $ \ q -> setTerminates q $ Just False
       return mempty
   else do
     sccs <- do
@@ -202,6 +202,10 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
     -- Actual termination checking needed: go through SCCs.
     concat <$> do
      forM sccs $ \ allNames -> do
+
+     -- Andreas, 2025-05-31, AIM XL, re issue #7906:
+     -- Clear previous information about termination to avoid loops in the termination checker.
+     forM_ allNames $ \ q -> setTerminates q Nothing
 
      -- Set the mutual names in the termination environment.
      let namesSCC = Set.filter (`Set.member` allNames) names
@@ -284,13 +288,13 @@ termMutual' = do
   case r of
 
     TerminatesNot guardednessHelps calls -> do
-      mapM_ (`setTerminates` False) allNames
+      mapM_ (`setTerminates` Just False) allNames
       return $ singleton $ terminationError names calls guardednessHelps
 
     Terminates -> do
       liftTCM $ reportSLn "term.warn.yes" 2 $
         prettyShow (names) ++ " does termination check"
-      mapM_ (`setTerminates` True) allNames
+      mapM_ (`setTerminates` Just True) allNames
       return mempty
 
 -- | Smart constructor for 'TerminationError'.
@@ -415,7 +419,7 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
       TerminatesNot guardednessHelps callpaths -> do
         let calls = callInfos callpaths
         -- Mark as non-terminating.
-        setTerminates name False
+        setTerminates name $ Just False
 
         -- Functions must be terminating, records types need not...
         case theDef def of
@@ -435,7 +439,7 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
       Terminates -> do
         reportSLn "term.warn.yes" 2 $
           prettyShow name ++ " does termination check"
-        setTerminates name True
+        setTerminates name $ Just True
         return mempty
    where
      reportTarget :: MonadDebug m => Target -> m ()
