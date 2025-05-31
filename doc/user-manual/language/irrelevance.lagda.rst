@@ -14,13 +14,20 @@
 Irrelevance
 ***********
 
-Since version 2.2.8 Agda supports irrelevancy annotations. The general rule is that anything prepended by a dot (.) is marked irrelevant, which means that it will only be typechecked but never evaluated.
+Since version 2.2.8 Agda supports irrelevancy annotations. The general rule is
+that anything prepended by a dot (``.``) is marked irrelevant, which means that it
+will only be typechecked but never evaluated or compared for equality.
+Arguments marked as irrelevant are erased by the :ref:`compiler <ghc-backend>`.
 
 .. note::
-  This section is about compile-time irrelevance. See :ref:`runtime-irrelevance` for the section on
-  run-time irrelevance.
+  This section is about compile-time irrelevance. Agda also supports a weaker
+  form of irrelevance called :ref:`runtime-irrelevance` that can be used for
+  arguments that should be  erased by the compiler but can still be relevant
+  at compile-time.
 
-The more recent :ref:`prop` serves a similar purpose and can be used to simulate irrelevance.
+.. note::
+  The :ref:`Prop <prop>` universe provides an alternative form of irrelevance
+  that does not require marking function arguments and declarations as irrelevant.
 
 Motivating example
 ==================
