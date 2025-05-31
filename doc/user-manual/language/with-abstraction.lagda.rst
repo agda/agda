@@ -708,13 +708,13 @@ Pattern lambdas
 +++++++++++++++
 
 Agda does not have a primitive ``case`` construct, but one can be emulated
-using :ref:`pattern matching lambdas <pattern-lambda>`. First you define a
+using :ref:`pattern lambdas <pattern-lambda>`. First you define a
 function ``case_of_`` as follows::
 
   case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
   case x of f = f x
 
-You can then use this function with a pattern matching lambda as the second
+You can then use this function with a pattern lambda as the second
 argument to get a Haskell-style case expression::
 
   filter : {A : Set} → (A → Bool) → List A → List A
