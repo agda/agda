@@ -29,7 +29,7 @@
 
 ;;; Code:
 
-(defvar agda2-version "2.8.0"
+(defvar agda2-version "2.7.20250601"
   "The version of the Agda mode.
 Note that the same version of the Agda executable must be used.")
 
@@ -2002,7 +2002,7 @@ Agda 2.8 is the version where the agda-mode executable was deprecated.
 
 If the version cannot be parsed, the answer is no.
 So e.g. agda-fast would be interpreted as not older than
-agda-2.8.0"
+agda-2.7.20250601"
   ;; If the given string does not have a numeric prefix, we answer no.
   (and (string-match "^[0-9][0-9.]*" version)
        (version< (match-string 0 version) "2.8")))
@@ -2026,7 +2026,7 @@ otherwise \"agda --emacs-mode locate\" is invoked.
 If VERSION is empty or \"agda\", then agda is used.
 A prefix \"agda-\" is stripped from VERSION,
 so one can invoke this function e.g. with
-\"agda-2.8.0\" instead of \"2.8.0\".
+\"agda-2.7.20250601\" instead of \"2.7.20250601\".
 
 An attempt is made to preserve the default value of `agda2-mode-hook'."
   (interactive
@@ -2047,7 +2047,7 @@ An attempt is made to preserve the default value of `agda2-mode-hook'."
        ;; * Replace version "agda" by just "".
        ;;
        ;; Rationale:
-       ;; The user might by accident enter "agda-2.8.0" instead of "2.8.0",
+       ;; The user might by accident enter "agda-2.7.20250601" instead of "2.7.20250601",
        ;; or "agda" instead of "".
        (version
         (cond
