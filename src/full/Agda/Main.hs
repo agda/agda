@@ -359,6 +359,9 @@ printVersion backends PrintAgdaVersion = do
 #ifdef DEBUG_SERIALISATION
     "debug-serialisation: extra debug info during serialisation into '.agdai' files" :
 #endif
+#ifdef USE_XDG_DATA_HOME
+    "use-xdg-data-home: install data files under $XDG_DATA_HOME/agda by default instead of the installation location defined by Cabal" :
+#endif
     []
 
 printAgdaDataDir :: IO ()

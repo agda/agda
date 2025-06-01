@@ -206,6 +206,14 @@ flag optimise-heavily
   description:
     Enable some expensive optimisations when compiling Agda.
 
+flag use-xdg-data-home
+  default: False
+  manual: True
+  description:
+    Install data files under $XDG_DATA_HOME/agda by default
+    instead of the installation location defined by Cabal.
+    This should not be enabled in declarative build environments like Nix or Guix.
+
 -- Common stanzas
 ---------------------------------------------------------------------------
 
@@ -217,6 +225,10 @@ common language
     ghc-options:
       -fexpose-all-unfoldings
       -fspecialise-aggressively
+
+  if flag(use-xdg-data-home)
+    cpp-options:
+      -DUSE_XDG_DATA_HOME
 
   if flag(dump-core)
     ghc-options:

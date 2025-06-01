@@ -19,7 +19,7 @@ jobs:
         access_token: ${{ github.token }}
   build:
     env:
-      ARGS: --disable-executable-profiling --disable-library-profiling
+      ARGS: --disable-executable-profiling --disable-library-profiling --flags=use-xdg-data-home
       LINUX_ARGS: --enable-executable-static  --enable-split-sections
       MACOS_ARGS: --flags=enable-cluster-counting
       MATRIX_OS: ${{ matrix.os }}

@@ -38,12 +38,14 @@ Installation
      the runtimes for the `JS` and `GHC` backends,
      and the emacs mode.
 
-     These will be written to `${Agda_datadir}/${VERSION}`
+     These will be written to the data directory
      on the first invocation of `agda` or an invocation of
      `agda --setup`, `agda --emacs-mode setup`, or `agda --emacs-mode compile`.
-     Herein, `${VERSION}` is the Agda version and `${Agda_datadir}`
-     the Agda data directory, on Unix-like systems
-     defaulting to `${HOME}/.local/share/agda`.
+
+     The location of the data directory can be printed using
+     `agda --print-agda-data-dir` and can be controlled by the `use-xdg-data-home`
+     flag at build time and the `Agda_datadir` environment variable at runtime; see the
+     documentation for more information.
 
   The Cabal/Stack custom installation `Setup.hs` has been removed
   that previously generated the `.agdai` files for the builtin and primitive modules.
@@ -51,8 +53,9 @@ Installation
   just as for ordinary modules.
 
   This change is **breaking** for packagers of Agda
-  as the packaging routines might need to be updated
-  (but should become simpler).
+  as the packaging routines might need to be updated: in particular,
+  declarative build systems like Nix or Guix should generate the `.agdai` files
+  by invoking Agda at build time.
 
 * Added cabal build flag `dump-core` to save the optimised GHC Core code during
   compilation of Agda. This can be useful for people working on improving the

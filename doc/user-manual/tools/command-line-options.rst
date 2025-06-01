@@ -26,9 +26,8 @@ but in the fixed order listed in the following:
 
      .. versionadded:: 2.8.0
 
-     Extract Agda' data files (primitive library, emacs mode etc.)
-     to ``VERSION/`` under the (:envvar:`Agda_datadir`)
-     where ``VERSION`` is the numeric version of Agda.
+     Extract Agda's data files (primitive library, emacs mode etc.)
+     to the data directory (see :option:`--print-agda-data-dir`).
 
 .. option:: --version, -V
 
@@ -89,8 +88,16 @@ but in the fixed order listed in the following:
      Outputs the root of the directory structure holding Agda's data
      files such as core libraries, style files for the backends, etc.
 
-     Since 2.8.0, this is ``VERSION/`` under the (:envvar:`Agda_datadir`),
-     defaulting to ``agda/`` under (:envvar:`XDG_DATA_HOME`).
+     Since 2.8.0, the data directory is determined as follows:
+
+     - The *default base data directory* is defined at build time, either
+       as the standard data directory defined by Cabal, or, if the
+       :option:`use-xdg-data-home` build flag is enabled, as ``$XDG_DATA_HOME/agda``.
+     - The *base data directory* can be set at runtime using the :envvar:`Agda_datadir`
+       environment variable, and defaults to the default base data directory.
+     - The *data directory* is obtained by appending the version (and optional
+       commit information) to the base data directory, and can be printed
+       with this flag.
 
 .. option:: --emacs-mode={COMMAND}
 

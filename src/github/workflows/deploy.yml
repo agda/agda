@@ -42,7 +42,7 @@ jobs:
         cabal-ver: [latest]
 
     env:
-      ARGS: "--disable-executable-profiling --disable-library-profiling"
+      ARGS: "--disable-executable-profiling --disable-library-profiling --flags=use-xdg-data-home"
       # Liang-Ting Chen (2021-01-01):
       # Cabal cannot compile statically with text-icu (required by the flag `enable-cluster-counting`),
       # see https://github.com/4e6/text-icu-static-example
