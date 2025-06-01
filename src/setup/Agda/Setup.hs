@@ -39,6 +39,8 @@ import           System.IO                  ( hPutStrLn, stderr )
 import           Agda.Setup.DataFiles       ( dataFiles, dataPath )
 import           Agda.VersionCommit         ( versionWithCommitInfo )
 
+import qualified Paths_Agda                 as Paths
+
 -- | Given the `Agda_datadir`, what should the Agda data dir be?
 
 mkDataDir :: FilePath -> FilePath
@@ -87,26 +89,29 @@ getAgdaAppDir = do
         False -> getXdgDirectory XdgConfig "agda"
 
 -- | This overrides the 'getDataDir' from ''Paths_Agda''.
---   The base data directory defaults to $XDG_DATA_HOME/agda and can be overwritten
---   by the @Agda_datadir@ environment variable.
---   The data directory is then obtained by appending the version
---   (and optional commit information).
+--   See the documentation for the @--print-agda-data-dir@ flag.
+
+getDataDir :: IO FilePath
+getDataDir = mkDataDir <$> getBaseDataDir
 
 getBaseDataDir :: IO FilePath
 getBaseDataDir = do
   lookupEnv "Agda_datadir" >>= \case
-    Nothing -> dataDir
-    Just dir ->  doesDirectoryExist dir >>= \case
+    Just dir -> doesDirectoryExist dir >>= \case
       True  -> canonicalizePath dir
       False -> do
-        d <- dataDir
+        d <- defaultBaseDataDir
         inform $ "Warning: Environment variable Agda_datadir points to non-existing directory " ++ show dir ++ ", using " ++ show d ++ " instead."
         return d
-  where
-    dataDir = getXdgDirectory XdgData "agda"
+    Nothing -> defaultBaseDataDir
 
-getDataDir :: IO FilePath
-getDataDir = mkDataDir <$> getBaseDataDir
+defaultBaseDataDir :: IO FilePath
+defaultBaseDataDir = do
+#ifdef USE_XDG_DATA_HOME
+  getXdgDirectory XdgData "agda"
+#else
+  Paths.getDataDir
+#endif
 
 -- | This overrides the 'getDataFileName' from ''Paths_Agda''.
 

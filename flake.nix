@@ -20,6 +20,20 @@
           # then runs ./Setup several times. This is implemented at
           # https://github.com/NixOS/nixpkgs/blob/a781ff33ae/pkgs/development/haskell-modules/generic-builder.nix
           root = ./.;
+
+          modifier = hlib.overrideCabal (drv: {
+            # Run agda --setup and typecheck the primitive modules.
+            postInstall = drv.postInstall or "" + ''
+              agdaExe=''${bin:-$out}/bin/agda
+              "$agdaExe" --setup
+
+              echo "Generating Agda core library interface files..."
+              shopt -s globstar
+              (cd "$("$agdaExe" --print-agda-data-dir)/lib/prim" && for f in **/*.agda; do
+                "$agdaExe" "$f"
+              done)
+            '';
+          });
         };
 
       # Various builds of Agda
@@ -41,7 +55,7 @@
           enableStaticLibraries     = false;  # Saved  -1 seconds
         }) agda-pkg-minimal;
 
-      # An even faster Agda build, achieved by asking GHC to optimize less 
+      # An even faster Agda build, achieved by asking GHC to optimize less
       agda-pkg-quicker =
         # `appendConfigureFlag` passes a raw argument to ./Setup
         hlib.appendConfigureFlag "-O0" agda-pkg;
