@@ -26,9 +26,8 @@ but in the fixed order listed in the following:
 
      .. versionadded:: 2.8.0
 
-     Extract Agda' data files (primitive library, emacs mode etc.)
-     to ``VERSION/`` under the (:envvar:`Agda_datadir`)
-     where ``VERSION`` is the numeric version of Agda.
+     Extract Agda's data files (primitive library, emacs mode etc.)
+     to the data directory (see :option:`--print-agda-data-dir`).
 
 .. option:: --version, -V
 
@@ -89,8 +88,8 @@ but in the fixed order listed in the following:
      Outputs the root of the directory structure holding Agda's data
      files such as core libraries, style files for the backends, etc.
 
-     Since 2.8.0, this is ``VERSION/`` under the (:envvar:`Agda_datadir`),
-     defaulting to ``agda/`` under (:envvar:`XDG_DATA_HOME`).
+     Since 2.8.0, if the :option:`data-in-home` build flag is enabled,
+     this is ``agda/VERSION/`` under :envvar:`XDG_DATA_HOME`.
 
 .. option:: --emacs-mode={COMMAND}
 
