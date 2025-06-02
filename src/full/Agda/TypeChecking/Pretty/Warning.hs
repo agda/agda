@@ -121,7 +121,7 @@ prettyWarning = \case
       let report hint because = if null because then empty else do
             vcat
               [ fwords "Termination checking failed for the following functions:"
-              , hint
+              , fwords hint
               , nest 2 $ fsep $ punctuate comma $
                   map (pretty . dropTopLevel) $
                     concatMap termErrFunctions because
@@ -142,8 +142,14 @@ prettyWarning = \case
         , "sized-types = " <+> (text . show) haveSizedTypes
         , "guardedness = " <+> (text . show) guardedness
         ]
-      if haveSizedTypes || guardedness == Value False then report empty errs else do
-        vcat [ report "(Option --guardedness might fix this problem.)" guardednessHelps
+      if guardedness == Value False then report empty errs else do
+        let
+          hint = concat $ concat
+            [ [ "(Option --guardedness might fix this problem" ]
+            , [ ", but it is not --safe to use with --sized-types" | haveSizedTypes ]
+            , [ ".)" ]
+            ]
+        vcat [ report hint guardednessHelps
              , report empty guardednessHelpsNot
              ]
 
