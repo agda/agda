@@ -332,7 +332,7 @@ addImportedThings
   -> TCM ()
 addImportedThings isig metas ibuiltin patsyns display userwarn
                   partialdefs warnings oblock oid = do
-  stImports              `modifyTCLens` \ imp -> unionSignatures [imp, isig]
+  stImports              `modifyTCLens` \ imp -> unionSignature imp isig
   stImportedMetaStore    `modifyTCLens` HMap.union metas
   stImportedBuiltins     `modifyTCLens` \ imp -> Map.union imp ibuiltin
   stImportedUserWarnings `modifyTCLens` \ imp -> Map.union imp userwarn

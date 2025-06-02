@@ -2069,6 +2069,10 @@ data Signature = Sig
       }
   deriving (Show, Generic)
 
+instance Null Signature where
+  empty = Sig empty empty empty empty
+  null (Sig a b c d) = null a && null b && null c && null d
+
 sigSections :: Lens' Signature Sections
 sigSections f s =
   f (_sigSections s) <&>
@@ -3817,6 +3821,10 @@ instance Semigroup InstanceTable where
 
 instance Monoid InstanceTable where
   mempty = InstanceTable mempty mempty
+
+instance Null InstanceTable where
+  empty = mempty
+  null (InstanceTable a b) = null a && null b
 
 itableTree :: Lens' InstanceTable (DiscrimTree QName)
 itableTree f s = f (_itableTree s) <&> \x -> s { _itableTree = x }

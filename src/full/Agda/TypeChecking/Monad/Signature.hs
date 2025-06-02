@@ -273,8 +273,9 @@ markFirstOrder = setFunctionFlag FunFirstOrder True
 
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
-  where
-    unionSignature (Sig a b c d) (Sig a' b' c' d') =
+
+unionSignature :: Signature -> Signature -> Signature
+unionSignature (Sig a b c d) (Sig a' b' c' d') =
       Sig (Map.union a a')
           (HMap.union b b')             -- definitions are unique (in at most one module)
           (HMap.unionWith mappend c c') -- rewrite rules are accumulated
