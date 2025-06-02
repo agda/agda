@@ -196,8 +196,12 @@ runSearch norm options ii rng = withInteractionId ii $ do
           return [sol]
         _ -> __IMPOSSIBLE__
     _ -> do
-      startBranch   <- startSearchBranch metaIds
       searchOptions <- makeSearchOptions norm options ii
+      -- Caution: startSearchBranch puts the current TCState in the branch, which includes
+      --          the freshId counter for components, that gets bumped in makeSearchOptions
+      --          above (computing the initial components), so it's important to not switch
+      --          these two calls around.
+      startBranch   <- startSearchBranch metaIds
 
       reportSDoc "mimer.init" 20 $ "Using search options:" $$ nest 2 (prettyTCM searchOptions)
       reportSDoc "mimer.init" 20 $ "Initial search branch:" $$ nest 2 (pretty startBranch)
