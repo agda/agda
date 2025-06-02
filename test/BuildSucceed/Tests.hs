@@ -6,7 +6,7 @@ module BuildSucceed.Tests where
 
 import           Data.Maybe                 ( isJust )
 
-import           System.Directory           ( doesFileExist, withCurrentDirectory )
+import           System.Directory           ( doesFileExist )
 import           System.FilePath            ( (</>), (<.>), takeFileName )
 import qualified System.FilePath.Find       as Find
 import           System.IO.Temp             ( withSystemTempDirectory )
@@ -71,8 +71,7 @@ mkBuildSucceedTest dir =
         , "--vim"
         ]
 
-    (res, ret) <- withCurrentDirectory dir do
-      runAgdaWithOptions testName agdaArgs (Just flagFile) (Just varFile)
+    (res, ret) <- runAgdaWithCWD testName (Just dir) agdaArgs (Just flagFile) (Just varFile)
 
     case ret of
       AgdaSuccess warn -> do
