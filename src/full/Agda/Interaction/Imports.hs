@@ -370,6 +370,13 @@ scopeCheckImport top = do
         unwords [prettyShow top, "added, all imports:"] :
         map (\ x -> unwords [ " ", "-", prettyShow x ]) imports
 
+    -- Print list of transitively imported modules in current state.
+    verboseS "import.iface.imports" 20 do
+      imports <- Set.toList <$> useTC stImportedModulesTransitive
+      reportSLn "import.iface.imports" 10 $ intercalate "\n" $
+        unwords [prettyShow top, "added, all transitive imports:"] :
+        map (\ x -> unwords [ " ", "-", prettyShow x ]) imports
+
     -- If that interface was supposed to raise a warning on import, do so.
     whenJust (iImportWarning i) $ warning . UserWarning
 
