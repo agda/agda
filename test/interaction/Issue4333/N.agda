@@ -1,4 +1,10 @@
-{-# OPTIONS --rewriting --confluence-check #-}
+{-# OPTIONS --rewriting #-}
+{-# OPTIONS --confluence-check #-}
+
+-- {-# OPTIONS -v import.iface:10 #-}
+-- {-# OPTIONS -v import.iface.imports:20 #-}
+-- {-# OPTIONS -v import.iface.confluence:20 #-}
+
 module Issue4333.N where
 
 open import Issue4333.M

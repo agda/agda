@@ -75,7 +75,7 @@ import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings hiding (warnings)
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules )
+import Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules, sortRulesOfSymbol )
 import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise
@@ -103,6 +103,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Hash
 import Agda.Utils.IO.Binary
 import Agda.Utils.Lens
+import Agda.Utils.List ( nubOn )
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
@@ -290,7 +291,7 @@ mergeInterface i = do
         bi      = Map.fromDistinctAscList bi'
         warns   = iWarnings i
     bs <- getsTC stBuiltinThings
-    reportSLn "import.iface.merge" 10 "Merging interface"
+    reportSLn "import.iface.merge" 10 $ "Merging interface " ++ prettyShow (iTopLevelModuleName i)
     reportSLn "import.iface.merge" 20 $
       "  Current builtins " ++ show (Map.keys bs) ++ "\n" ++
       "  New builtins     " ++ show (Map.keys bi)
@@ -314,9 +315,21 @@ mergeInterface i = do
     reportSLn "import.iface.merge" 50 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
-    whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> do
-      reportSLn "import.iface.confluence" 20 $ "  Checking confluence of imported rewrite rules"
-      checkConfluenceOfRules confChk $ concat $ HMap.elems $ sig ^. sigRewriteRules
+    whenJustM (optConfluenceCheck <$> pragmaOptions) \ confChk -> do
+      let rews = concat $ HMap.elems $ sig ^. sigRewriteRules
+      verboseS "import.iface.confluence" 20 do
+        if null rews then reportSLn "" 1 $ "  No rewrite rules imported"
+        else do
+          reportSDoc "" 1 $ P.vcat $ map (P.nest 2) $
+            "Checking confluence of imported rewrite rules" :
+            map (("-" P.<+>) . prettyTCM . rewName) rews
+
+      -- Andreas, 2025-06-28, PR #7934 and issue #7969:
+      -- Global confluence checker requires rules to be sorted
+      -- according to the generality of their lhs
+      when (confChk == GlobalConfluenceCheck) $
+        forM_ (nubOn id $ map rewHead rews) sortRulesOfSymbol
+      checkConfluenceOfRules confChk rews
     where
         rebind (x, q) = do
             PrimImpl _ pf <- lookupPrimitiveFunction x

@@ -885,7 +885,11 @@ class ( Functor m
   getConstInfo' :: QName -> m (Either SigError Definition)
   -- getConstInfo' q = Right <$> getConstInfo q -- conflicts with default signature
 
-  -- | Lookup the rewrite rules with the given head symbol.
+  -- | Return the rewrite rules for the given head symbol that could be tried.
+  --   Not categorically all rewrite rules are returned, in particular, none when
+  --   reduction of the head symbol is disabled.
+  --   Rewrite rules that only happen to be in the signature but are not in scope
+  --   are also not returned.
   getRewriteRulesFor :: QName -> m RewriteRules
 
   -- Lifting HasConstInfo through monad transformers:
@@ -920,8 +924,22 @@ getOriginalConstInfo q = do
         (getConstInfo q)
     _ -> return def
 
+-- | Return the rewrite rules for the given head symbol that could be tried.
+--   Not categorically all rewrite rules are returned, e.g. none when
+--   reduction of the head symbol is disabled.
+--   Rewrite rules that only happen to be in the signature but are not in scope
+--   are also not returned.
 defaultGetRewriteRulesFor :: (ReadTCState m, MonadTCEnv m) => QName -> m RewriteRules
 defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
+  getFilteredRewriteRulesFor True q
+
+-- | If the 'Bool' parameter is 'True', get the rules in scope,
+--   otherwise, get *all* rules unfiltered.
+getFilteredRewriteRulesFor :: (ReadTCState m, MonadTCEnv m)
+  => Bool            -- ^ Only return rewrite rules that are in scope?
+  -> QName           -- ^ Head symbol.
+  -> m RewriteRules  -- ^ Rules for the head symbol.
+getFilteredRewriteRulesFor filt q = do
   st <- getTCState
   let
     look :: Lens' TCState Signature -> Maybe RewriteRules
@@ -930,7 +948,7 @@ defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
   -- Restrict "imported" rewrite rules to those defined in modules we currently (transitively) import.
   let imps = st ^. stImportedModulesTransitive
   let inScope rew = rewTopModule rew `Set.member` imps
-  let rewImported = filter inScope <$> look stImports  -- stImports is actually a superset of imported symbols.
+  let rewImported = applyWhen filt (filter inScope) <$> look stImports  -- stImports is actually a superset of imported symbols.
 
   return $ mconcat $ catMaybes [look stSignature, rewImported]
 
