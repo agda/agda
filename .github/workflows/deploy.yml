@@ -26,8 +26,6 @@ jobs:
       MATRIX_OS: ${{ matrix.os }}
     if: ${{ !cancelled() }}
     needs: auto-cancel
-    outputs:
-      sha: ${{ steps.vars.outputs.sha }}
     runs-on: ${{ matrix.os }}
     steps:
     - name: Check out the master branch
@@ -35,22 +33,13 @@ jobs:
     - id: vars
       name: Set up platform-dependent variables
       run: |
-        sha="$(git rev-parse --short=7 HEAD)"
+        bindist="Agda"
 
-        if [[ "$GITHUB_REF" == "refs/tags/"* ]]; then
-          suffix=${GITHUB_REF_NAME}
-        else
-          suffix=nightly-${sha}
-        fi
-
-        bindist=Agda-${suffix}
-
-        echo sha="${sha}"                                           >> "${GITHUB_OUTPUT}"
         echo bindist="${bindist}"                                   >> "${GITHUB_OUTPUT}"
 
         if [[ "$OSTYPE" == "msys"* ]]; then
 
-          filename="${bindist}-win64.zip"
+          filename="win64.zip"
           echo args="${ARGS} ${WIN64_ARGS}"                         >> "${GITHUB_OUTPUT}"
           echo compress-cmd="7z a ${filename} ${bindist} -bb -mx=9" >> "${GITHUB_OUTPUT}"
           echo content-type="application/zip"                       >> "${GITHUB_OUTPUT}"
@@ -59,7 +48,7 @@ jobs:
 
         elif [[ "$MATRIX_OS" == "macos-13" ]]; then
 
-          filename="${bindist}-macOS-x64.tar.xz"
+          filename="macOS-x64.tar.xz"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
           echo compress-cmd="tar -a -cvf ${filename} ${bindist}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
@@ -68,7 +57,7 @@ jobs:
 
         elif [[ "$MATRIX_OS" == "macos-14" ]]; then
 
-          filename="${bindist}-macOS-arm64.tar.xz"
+          filename="macOS-arm64.tar.xz"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
           echo compress-cmd="tar -a -cvf ${filename} ${bindist}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
@@ -77,7 +66,7 @@ jobs:
 
         elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
 
-          filename="${bindist}-linux.tar.xz"
+          filename="linux.tar.xz"
           echo args="${ARGS} ${LINUX_ARGS}"                         >> "${GITHUB_OUTPUT}"
           echo compress-cmd="tar -a -cvf ${filename} ${bindist}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
@@ -94,7 +83,6 @@ jobs:
         echo "compress-cmd    = ${{ steps.vars.outputs.compress-cmd }}"
         echo "content-type    = ${{ steps.vars.outputs.content-type }}"
         echo "filename        = ${{ steps.vars.outputs.filename     }}"
-        echo "bindist         = ${{ steps.vars.outputs.bindist      }}"
     - if: ${{ runner.os == 'Linux' }}
       name: Set up Alpine Linux with GHC
       uses: jirutka/setup-alpine@v1
@@ -141,7 +129,7 @@ jobs:
     - if: ${{ runner.os == 'Linux' }}
       name: Build dependencies (on Alpine Linux)
       run: |
-        cabal update # Liang-Ting, 2024-01-26: Alpine Linux has its own GHC toolchain
+        cabal update # Liang-Ting (2024-01-26): Alpine Linux has its own GHC toolchain
         cabal configure ${{ steps.vars.outputs.args }}
         cabal build exe:agda --only-dependencies
       shell: alpine.sh {0}
@@ -154,7 +142,7 @@ jobs:
       shell: alpine.sh {0}
     - if: ${{ runner.os != 'Linux' }}
       name: Build Agda
-      run: cabal build exe:agda exe:agda-mode
+      run: cabal build exe:agda
     - name: Move artefacts to ${{ steps.vars.outputs.bindist }}
       run: |
         bindist="${{ steps.vars.outputs.bindist }}"
@@ -173,9 +161,6 @@ jobs:
         fi
 
         file "${{ steps.vars.outputs.bindist }}/agda"
-    - name: Display the version information
-      run: |
-        ${{ steps.vars.outputs.bindist }}/agda --version
     - name: Pack artefacts
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
@@ -198,8 +183,8 @@ jobs:
         - macos-13
         - ubuntu-latest
   deploy:
-    if: ${{ !cancelled() }}
-    needs: build
+    if: ${{ success() }}
+    needs: sanity-check
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -213,9 +198,12 @@ jobs:
       if: ${{ github.ref == 'refs/heads/master' }}
       name: Create/replace the nightly release and upload artifacts as release assets
       run: |
+        sha="$(git rev-parse --short=7 HEAD)"
+
         gh release delete 'nightly' --repo "${GITHUB_REPOSITORY}" --cleanup-tag --yes || true
+        for i in artifacts/**/*; do mv "$i" "$(dirname ${i})/Agda-${sha}-$(basename ${i})"; done
         ls -R artifacts
-        gh release create 'nightly' artifacts/**/* --repo "${GITHUB_REPOSITORY}" --generate-notes --notes-start-tag v2.7.0.1 --prerelease --title "${{ needs.build.outputs.sha }}@master"
+        gh release create 'nightly' artifacts/**/* --repo "${GITHUB_REPOSITORY}" --generate-notes --notes-start-tag v2.7.0.1 --prerelease --title "${sha}@master"
     - env:
         GITHUB_TOKEN: ${{ github.token }}
       if: startsWith(github.ref, 'refs/tags/v')
@@ -226,8 +214,76 @@ jobs:
 
         gh release delete "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --yes || true
         gh release create "${GITHUB_REF_NAME}" -d --notes-file CHANGELOG.md --title "${GITHUB_REF_NAME}"
+        for i in artifacts/**/*; do mv "$i" "$(dirname ${i})/Agda-${GITHUB_REF_NAME}-$(basename ${i})"; done
         ls -R artifacts
         gh release upload "${GITHUB_REF_NAME}" artifacts/**/* --repo "${GITHUB_REPOSITORY}"
+  sanity-check:
+    env:
+      MATRIX_OS: ${{ matrix.os }}
+    if: ${{ !cancelled() }}
+    needs: build
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        sparse-checkout: .
+    - id: vars
+      name: Set up platform-dependent variables
+      run: |
+        if [[ "$OSTYPE" == "msys"* ]]; then
+
+          osname="win64"
+          ext="zip"
+          decompress_cmd_base="7z x"
+
+        elif [[ "$MATRIX_OS" == "macos-13" ]]; then
+
+          osname="macOS-x64"
+          ext="tar.xz"
+          decompress_cmd_base="tar -xf"
+
+        elif [[ "$MATRIX_OS" == "macos-14" ]]; then
+
+          osname="macOS-arm64"
+          ext="tar.xz"
+          decompress_cmd_base="tar -xf"
+
+        elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+
+          osname="linux"
+          ext="tar.xz"
+          decompress_cmd_base="tar -xf"
+
+        fi
+
+        filename="${osname}.${ext}"
+        echo filename="${filename}"                              >> "${GITHUB_OUTPUT}"
+        echo decompress-cmd="${decompress_cmd_base} ${filename}" >> "${GITHUB_OUTPUT}"
+    - name: Display variables
+      run: |
+        echo "filename        = ${{ steps.vars.outputs.filename       }}"
+        echo "decompress-cmd  = ${{ steps.vars.outputs.decompress-cmd }}"
+    - uses: actions/download-artifact@v4
+      with:
+        name: ${{ steps.vars.outputs.filename }}
+    - name: Unpack artefacts
+      run: |
+        ${{ steps.vars.outputs.decompress-cmd }}
+    - name: Display the version information
+      run: |
+        if [[ "$MATRIX_OS" == "macos"* ]]; then
+          xattr -rc Agda/agda
+        fi
+
+        Agda/agda --version
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - windows-latest
+        - macos-14
+        - macos-13
+        - ubuntu-latest
 name: Deploy
 'on':
   push:

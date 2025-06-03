@@ -58,8 +58,6 @@ jobs:
       MACOS_ARGS: "--flags=optimise-heavily"
       WIN64_ARGS: "--flags=optimise-heavily --enable-split-sections"
       MATRIX_OS: ${{ matrix.os }}
-    outputs:
-      sha: ${{ steps.vars.outputs.sha }}
     runs-on: ${{ matrix.os }}
     steps:
 
@@ -72,22 +70,13 @@ jobs:
       # for the entire script but just placing it in the beginning does not work.
       # # shellcheck disable=SC2129
       run: |
-        sha="$(git rev-parse --short=7 HEAD)"
+        bindist="Agda"
 
-        if [[ "$GITHUB_REF" == "refs/tags/"* ]]; then
-          suffix=${GITHUB_REF_NAME}
-        else
-          suffix=nightly-${sha}
-        fi
-
-        bindist=Agda-${suffix}
-
-        echo sha="${sha}"                                           >> "${GITHUB_OUTPUT}"
         echo bindist="${bindist}"                                   >> "${GITHUB_OUTPUT}"
 
         if [[ "$OSTYPE" == "msys"* ]]; then
 
-          filename="${bindist}-win64.zip"
+          filename="win64.zip"
           echo args="${ARGS} ${WIN64_ARGS}"                         >> "${GITHUB_OUTPUT}"
           echo compress-cmd="7z a ${filename} ${bindist} -bb -mx=9" >> "${GITHUB_OUTPUT}"
           echo content-type="application/zip"                       >> "${GITHUB_OUTPUT}"
@@ -96,7 +85,7 @@ jobs:
 
         elif [[ "$MATRIX_OS" == "macos-13" ]]; then
 
-          filename="${bindist}-macOS-x64.tar.xz"
+          filename="macOS-x64.tar.xz"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
           echo compress-cmd="tar -a -cvf ${filename} ${bindist}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
@@ -105,7 +94,7 @@ jobs:
 
         elif [[ "$MATRIX_OS" == "macos-14" ]]; then
 
-          filename="${bindist}-macOS-arm64.tar.xz"
+          filename="macOS-arm64.tar.xz"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
           echo compress-cmd="tar -a -cvf ${filename} ${bindist}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
@@ -114,7 +103,7 @@ jobs:
 
         elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
 
-          filename="${bindist}-linux.tar.xz"
+          filename="linux.tar.xz"
           echo args="${ARGS} ${LINUX_ARGS}"                         >> "${GITHUB_OUTPUT}"
           echo compress-cmd="tar -a -cvf ${filename} ${bindist}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
@@ -132,7 +121,6 @@ jobs:
         echo "compress-cmd    = ${{ steps.vars.outputs.compress-cmd }}"
         echo "content-type    = ${{ steps.vars.outputs.content-type }}"
         echo "filename        = ${{ steps.vars.outputs.filename     }}"
-        echo "bindist         = ${{ steps.vars.outputs.bindist      }}"
 
     - name: Set up Alpine Linux with GHC
       uses: jirutka/setup-alpine@v1
@@ -182,7 +170,11 @@ jobs:
         echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
 
       ## Old method:
-      # env:
+      ##  Liang-Ting Chen (2025-06-03): To release Agda as a single executable,
+      #   the flag `enable-cluster-counting` is disabled, so the library ICU is
+      #   not needed as a dynamically linked library.
+      #
+      #   env:
       #   ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip'
       #   ICU_DIR: '/c/icu4c'
       #   ICU_FILE: 'icu4c.zip'
@@ -234,7 +226,7 @@ jobs:
       if: ${{ runner.os == 'Linux' }}
       shell: "alpine.sh {0}"
       run: |
-        cabal update # Liang-Ting, 2024-01-26: Alpine Linux has its own GHC toolchain
+        cabal update # Liang-Ting (2024-01-26): Alpine Linux has its own GHC toolchain
         cabal configure ${{ steps.vars.outputs.args }}
         cabal build exe:agda --only-dependencies
 
@@ -249,7 +241,7 @@ jobs:
 
     - name: Build Agda
       if: ${{ runner.os != 'Linux' }}
-      run: cabal build exe:agda exe:agda-mode
+      run: cabal build exe:agda
 
     - name: Move artefacts to ${{ steps.vars.outputs.bindist }}
       run: |
@@ -270,10 +262,6 @@ jobs:
 
         file "${{ steps.vars.outputs.bindist }}/agda"
 
-    - name: Display the version information
-      run: |
-        ${{ steps.vars.outputs.bindist }}/agda --version
-
     - name: Pack artefacts
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
@@ -285,12 +273,84 @@ jobs:
         if-no-files-found: error
         retention-days: 3
 
+  sanity-check:
+    if: ${{ !cancelled() }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-14, macos-13, ubuntu-latest]
+    env:
+      MATRIX_OS: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        sparse-checkout: .
+
+    - name: Set up platform-dependent variables
+      id: vars
+      run: |
+        if [[ "$OSTYPE" == "msys"* ]]; then
+
+          osname="win64"
+          ext="zip"
+          decompress_cmd_base="7z x"
+
+        elif [[ "$MATRIX_OS" == "macos-13" ]]; then
+
+          osname="macOS-x64"
+          ext="tar.xz"
+          decompress_cmd_base="tar -xf"
+
+        elif [[ "$MATRIX_OS" == "macos-14" ]]; then
+
+          osname="macOS-arm64"
+          ext="tar.xz"
+          decompress_cmd_base="tar -xf"
+
+        elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+
+          osname="linux"
+          ext="tar.xz"
+          decompress_cmd_base="tar -xf"
+
+        fi
+
+        filename="${osname}.${ext}"
+        echo filename="${filename}"                              >> "${GITHUB_OUTPUT}"
+        echo decompress-cmd="${decompress_cmd_base} ${filename}" >> "${GITHUB_OUTPUT}"
+
+    - name: Display variables
+      run: |
+        echo "filename        = ${{ steps.vars.outputs.filename       }}"
+        echo "decompress-cmd  = ${{ steps.vars.outputs.decompress-cmd }}"
+
+    - uses: actions/download-artifact@v4
+      with:
+        name: ${{ steps.vars.outputs.filename }}
+
+
+    - name: Unpack artefacts
+      run: |
+        ${{ steps.vars.outputs.decompress-cmd }}
+
+    - name: Display the version information
+# Liang-Ting Chen (2025-06-21): Agda is currently not notarized on macOS, so
+# the special attribute needs to be cleared before use.
+      run: |
+        if [[ "$MATRIX_OS" == "macos"* ]]; then
+          xattr -rc Agda/agda
+        fi
+
+        Agda/agda --version
+
   deploy: # release a bindist if triggered on master or by a tag }}
     # Andreas, 2023-02-13: Also run this part when manually triggered ('workflow_dispatch')
     # if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_run' }}
-    needs: build
+    needs: sanity-check
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() }}
+    if: ${{ success() }}
     steps:
 
     - uses: actions/checkout@v4
@@ -306,9 +366,12 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: |
+        sha="$(git rev-parse --short=7 HEAD)"
+
         gh release delete 'nightly' --repo "${GITHUB_REPOSITORY}" --cleanup-tag --yes || true
+        for i in artifacts/**/*; do mv "$i" "$(dirname ${i})/Agda-${sha}-$(basename ${i})"; done
         ls -R artifacts
-        gh release create 'nightly' artifacts/**/* --repo "${GITHUB_REPOSITORY}" --generate-notes --notes-start-tag v2.7.0.1 --prerelease --title "${{ needs.build.outputs.sha }}@master"
+        gh release create 'nightly' artifacts/**/* --repo "${GITHUB_REPOSITORY}" --generate-notes --notes-start-tag v2.7.0.1 --prerelease --title "${sha}@master"
 
     - name: Create a release with the bindist as release assets
       if: startsWith(github.ref, 'refs/tags/v')
@@ -320,5 +383,6 @@ jobs:
 
         gh release delete "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --yes || true
         gh release create "${GITHUB_REF_NAME}" -d --notes-file CHANGELOG.md --title "${GITHUB_REF_NAME}"
+        for i in artifacts/**/*; do mv "$i" "$(dirname ${i})/Agda-${GITHUB_REF_NAME}-$(basename ${i})"; done
         ls -R artifacts
         gh release upload "${GITHUB_REF_NAME}" artifacts/**/* --repo "${GITHUB_REPOSITORY}"
