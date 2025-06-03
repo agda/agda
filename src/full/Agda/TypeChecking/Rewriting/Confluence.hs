@@ -444,7 +444,12 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
 
 sortRulesOfSymbol :: QName -> TCM ()
 sortRulesOfSymbol f = do
-    rules <- sortRules =<< getRewriteRulesFor f
+    -- Andreas, 2025-06-28, PR #7934:
+    -- By getting all rewrite rules regardless of scope,
+    -- we replicate the old (unhygienic) approach to rewrite rule scoping
+    -- here to avoid a regression.
+    -- See also #7969 for a reason why the code below is questionable.
+    rules <- sortRules =<< getFilteredRewriteRulesFor False f
     modifySignature $ over sigRewriteRules $ HMap.insert f rules
   where
     sortRules :: PureTCM m => [RewriteRule] -> m [RewriteRule]
