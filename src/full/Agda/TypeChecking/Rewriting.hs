@@ -312,7 +312,8 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
           "variables bound in (erased) parameter position: " <+> text (show pars)
         unlessNull (boundVars `IntSet.intersection` IntSet.fromList pars) failureNonLinearPars
 
-        let rew = RewriteRule q gamma f ps rhs (unDom b) False
+        top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
+        let rew = RewriteRule q gamma f ps rhs (unDom b) False top
 
         reportSDoc "rewriting" 10 $ vcat
           [ "checked rewrite rule" , prettyTCM rew ]
@@ -421,7 +422,7 @@ rewriteWith :: Type
             -> RewriteRule
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
-rewriteWith t hd rew@(RewriteRule q gamma _ ps rhs b isClause) es
+rewriteWith t hd rew@(RewriteRule q gamma _ ps rhs b isClause _) es
  | isClause = return $ Left $ NotBlocked ReallyNotBlocked $ hd es
  | otherwise = do
   traceSDoc "rewriting.rewrite" 50 (sep
