@@ -49,7 +49,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04]
         description: [Linux]      ## This just for pretty-printing the job name.
-        ghc-ver: [9.12.2, 9.10.2, 9.8.4, 9.6.7, 9.4.8, 9.2.8, 9.0.2, 8.10.7, 8.8.4]
+        ghc-ver: [9.12.2, 9.10.2, 9.8.4, 9.6.7, 9.4.8, 9.2.8]
         cabal-flags: ['--enable-tests -f enable-cluster-counting']
         doctest: [false]
         include:
