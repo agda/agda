@@ -211,6 +211,8 @@ data PreScopeState = PreScopeState
       -- because then the order of its @toList@ is undefined,
       -- leading to undefined deserialization order.
     -- ^ The top-level modules imported by the current module.
+  , stPreImportedModulesTransitive :: !ImportedModules
+      -- ^ The top-level modules transitively imported by the current module.
   , stPreModuleToSourceId   :: !ModuleToSourceId -- imports
   , stPreVisitedModules     :: !VisitedModules   -- imports
       -- ^ Modules loaded so far.
@@ -476,6 +478,7 @@ initPreScopeState = PreScopeState
   { stPreTokens               = mempty
   , stPreImports              = emptySignature
   , stPreImportedModules      = empty
+  , stPreImportedModulesTransitive = empty
   , stPreModuleToSourceId     = Map.empty
   , stPreVisitedModules       = Map.empty
   , stPreScope                = emptyScopeInfo
@@ -612,6 +615,9 @@ lensImports f s = f (stPreImports s) <&> \ x -> s { stPreImports = x }
 
 lensImportedModules :: Lens' PreScopeState ImportedModules
 lensImportedModules f s = f (stPreImportedModules s) <&> \ x -> s { stPreImportedModules = x }
+
+lensImportedModulesTransitive :: Lens' PreScopeState ImportedModules
+lensImportedModulesTransitive f s = f (stPreImportedModulesTransitive s) <&> \ x -> s { stPreImportedModulesTransitive = x }
 
 lensModuleToSourceId :: Lens' PreScopeState ModuleToSourceId
 lensModuleToSourceId f s = f (stPreModuleToSourceId s ) <&> \ x -> s { stPreModuleToSourceId = x }
@@ -815,6 +821,9 @@ stImports = lensPreScopeState . lensImports
 
 stImportedModules :: Lens' TCState ImportedModules
 stImportedModules = lensPreScopeState . lensImportedModules
+
+stImportedModulesTransitive :: Lens' TCState ImportedModules
+stImportedModulesTransitive = lensPreScopeState . lensImportedModulesTransitive
 
 stModuleToSourceId :: Lens' TCState ModuleToSourceId
 stModuleToSourceId = lensPreScopeState . lensModuleToSourceId
