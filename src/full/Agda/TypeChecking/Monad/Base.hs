@@ -941,6 +941,9 @@ stOccursCheckDefs = lensPostScopeState . lensOccursCheckDefs
 stSignature :: Lens' TCState Signature
 stSignature = lensPostScopeState . lensSignature
 
+stRewriteRules :: Lens' TCState RewriteRuleMap
+stRewriteRules = stSignature . sigRewriteRules
+
 stModuleCheckpoints :: Lens' TCState (Map ModuleName CheckpointId)
 stModuleCheckpoints = lensPostScopeState . lensModuleCheckpoints
 
