@@ -9,7 +9,7 @@ Rewriting
 Rewrite rules allow you to extend Agda's evaluation relation with new
 computation rules.
 
-Rules are safe to use with ```Agda.Builtin.Equality``
+Rules are safe to use with ``Agda.Builtin.Equality``
 if :ref:`--confluence-check <confluence-check>` is enabled.
 Confluent but non-terminating rewrite rules can not break consistency,
 unlike to non-terminating functions.
