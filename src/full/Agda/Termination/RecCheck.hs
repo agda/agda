@@ -36,6 +36,7 @@ import Agda.Syntax.Internal.Defs
 import Agda.Syntax.Common.Pretty  (prettyShow)
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.Impossible
 
@@ -100,7 +101,8 @@ markNonRecursive :: QName -> TCM ()
 markNonRecursive q = modifySignature $ updateDefinition q $ updateTheDef $ \case
   def@Function{} -> def
    { funTerminates = Just True
-   , funClauses    = map (\ cl -> cl { clauseRecursive = Just False }) $ funClauses def
+   , funClauses    = map (\ cl -> cl { clauseRecursive = NotRecursive }) $ funClauses def
+   , funCompiled   = fmap (mapDone \ done -> done{ ccClauseRecursive = NotRecursive }) $ funCompiled def
    }
   def@Record{} -> def
    { recTerminates = Just True
@@ -113,7 +115,8 @@ markRecursive
   -> QName -> TCM ()
 markRecursive f q = modifySignature $ updateDefinition q $ updateTheDef $ \case
   def@Function{} -> def
-   { funClauses    = zipWith (\ i cl -> cl { clauseRecursive = Just (f i) }) [0..] $ funClauses def
+   { funClauses    = zipWith (\ i cl -> cl { clauseRecursive = decideRecursive (f i) }) [0..] $ funClauses def
+   , funCompiled   = fmap (mapDone \ done@CCDone{ ccClauseNumber = i } -> done{ ccClauseRecursive = decideRecursive (f i) }) $ funCompiled def
    }
   def -> def
 

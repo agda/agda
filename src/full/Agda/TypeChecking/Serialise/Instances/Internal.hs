@@ -501,16 +501,19 @@ instance EmbPrj OpaqueBlock where
   value = valueN (\id uf -> let !unfolding = HashSet.fromList uf
                             in OpaqueBlock id unfolding mempty Nothing)
 
-instance EmbPrj CompiledClauses where
-  icod_ (Fail a)   = icodeN' Fail a
-  icod_ (Done a b) = icodeN' Done a (P.killRange b)
-  icod_ (Case a b) = icodeN 2 Case a b
+instance EmbPrj ClauseRecursive
 
-  value = vcase valu where
-    valu [a]       = valuN Fail a
-    valu [a, b]    = valuN Done a b
-    valu [2, a, b] = valuN Case a b
-    valu _         = malformed
+instance EmbPrj CompiledClauses where
+  icod_ = \case
+    Fail a         -> icodeN' Fail a
+    Done no mr a b -> icodeN' Done no mr a (P.killRange b)
+    Case a b       -> icodeN' Case a b
+
+  value = vcase \case
+    [a]            -> valuN Fail a
+    [no, mr, a, b] -> valuN Done no mr a b
+    [a, b]         -> valuN Case a b
+    _          -> malformed
 
 instance EmbPrj a => EmbPrj (FunctionInverse' a) where
   icod_ NotInjective = icodeN' NotInjective

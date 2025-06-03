@@ -92,8 +92,7 @@ import Debug.Trace
 -- information needed for fast reduction from the definition.
 
 data CompactDef =
-  CompactDef { cdefNonterminating :: Bool
-             , cdefUnconfirmed    :: Bool
+  CompactDef { cdefUnconfirmed    :: Bool
              , cdefDef            :: CompactDefn
              , cdefRewriteRules   :: RewriteRules
              }
@@ -140,7 +139,7 @@ compactDef bEnv def rewr = do
             ]
           ]
         , not (defNonterminating def) || SmallSet.member NonTerminatingReductions allowed
-        , not (defTerminationUnconfirmed def) || SmallSet.member UnconfirmedReductions allowed
+        -- , not (defTerminationUnconfirmed def) || SmallSet.member UnconfirmedReductions allowed
         , not isPrp
         , not (isIrrelevant def)
         ]
@@ -324,8 +323,7 @@ compactDef bEnv def rewr = do
           charRel _ _ = __IMPOSSIBLE__
 
   return $
-    CompactDef { cdefNonterminating = defNonterminating def
-               , cdefUnconfirmed    = defTerminationUnconfirmed def
+    CompactDef { cdefUnconfirmed    = defTerminationUnconfirmed def
                , cdefDef            = cdefn
                , cdefRewriteRules   = if allowReduce then rewr else []
                }
@@ -368,11 +366,13 @@ data FastCompiledClauses
   | FEta Int [Arg QName] FastCompiledClauses (Maybe FastCompiledClauses)
     -- ^ Match on record constructor. Can still have a catch-all though. Just
     --   contains the fields, not the actual constructor.
-  | FDone [Arg ArgName] Term
-    -- ^ @Done xs b@ stands for the body @b@ where the @xs@ contains hiding
+  | FDone (CCDone Term)
+    -- ^ See 'Done'.
+    --   @FDone (CCDone _ mr xs b)@ stands for the body @b@ where the @xs@ contains hiding
     --   and name suggestions for the free variables. This is needed to build
     --   lambdas on the right hand side for partial applications which can
     --   still reduce.
+    --   @mr@ indicates whether this leaf containts recursive mutually recursive calls.
   | FFail
     -- ^ Absurd case.
 
@@ -380,7 +380,7 @@ fastCompiledClauses :: BuiltinEnv -> CompiledClauses -> FastCompiledClauses
 fastCompiledClauses bEnv cc =
   case cc of
     Fail{}            -> FFail
-    Done xs b         -> FDone xs b
+    Done_ done        -> FDone done
     Case (Arg _ n) Branches{ etaBranch = Just (c, cc), catchallBranch = ca } ->
       FEta n (conFields c) (fastCompiledClauses bEnv $ content cc) (fastCompiledClauses bEnv <$> ca)
     Case (Arg _ n) bs -> FCase n (fastCase bEnv bs)
@@ -456,7 +456,6 @@ fastReduce' norm v = do
 
       bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimErase = erase }
-  allowedReductions <- asksTC envAllowedReductions
   rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
@@ -892,10 +891,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
         -- slow reduce for unsupported definitions.
         Def f [] ->
           evalIApplyAM spine ctrl $
-          let CompactDef{ cdefNonterminating = nonterm
-                        , cdefUnconfirmed    = unconf
-                        , cdefDef            = def } = constInfo f
-          in case def of
+          case cdefDef (constInfo f) of
             CFun{ cfunCompiled = cc } -> runAM (Match f cc spine ([] :> cl) ctrl)
             CAxiom         -> rewriteAM done
             CTyCon         -> rewriteAM done
@@ -1234,7 +1230,15 @@ reduceTm rEnv bEnv !constInfo normalisation =
         FFail -> stuckMatch (NotBlocked AbsurdMatch ()) stack ctrl
 
         -- Matching complete. Compute the environment for the body and switch to the Eval state.
-        FDone xs body -> do
+        FDone (CCDone _ mr xs body) -> do
+          let allowedReductions = envAllowedReductions (redEnv rEnv)
+          let undo = stuckMatch (NotBlocked ReallyNotBlocked ()) stack ctrl
+          let abort = and
+               [ couldBeRecursive mr
+               , cdefUnconfirmed (constInfo f)
+               , UnconfirmedReductions `SmallSet.notMember` allowedReductions
+               ]
+          if abort then undo else do
             -- Don't ask me why, but not being strict in the spine causes a memory leak.
             let (zs, env, !spine') = buildEnv xs spine
             runAM (Eval (Closure Unevaled (lams zs body) env spine') ctrl)
@@ -1408,7 +1412,7 @@ instance Pretty a => Pretty (FastCase a) where
       prSuc (Just x) = ["suc ->" <?> pretty x]
 
 instance Pretty FastCompiledClauses where
-  pretty (FDone xs t) = ("done" <+> prettyList xs) <?> prettyPrec 10 t
+  pretty (FDone done) = pretty done
   pretty FFail        = "fail"
   pretty (FEta n _ cc ca) =
     text ("eta " ++ show n ++ " of") <?>

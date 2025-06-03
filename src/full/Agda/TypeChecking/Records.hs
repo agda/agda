@@ -1034,6 +1034,9 @@ instance NormaliseProjP Clause where
     ps <- normaliseProjP $ namedClausePats cl
     return $ cl { namedClausePats = ps }
 
+instance NormaliseProjP a => NormaliseProjP (x, a) where
+  normaliseProjP = traverse normaliseProjP
+
 instance NormaliseProjP a => NormaliseProjP [a] where
   normaliseProjP = traverse normaliseProjP
 

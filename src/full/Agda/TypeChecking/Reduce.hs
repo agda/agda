@@ -15,7 +15,7 @@ module Agda.TypeChecking.Reduce
  , unfoldCorecursion, unfoldCorecursionE
  , unfoldDefinitionE, unfoldDefinitionStep
  , unfoldInlined
- , appDef', appDefE'
+ , appDefE_, appDef', appDefE'
  , abortIfBlocked, ifBlocked, isBlocked, fromBlocked, blockOnError
  -- Simplification
  , Simplify, simplify, simplifyBlocked'
@@ -667,7 +667,7 @@ unfoldDefinitionStep v0 f es =
       -- are not unfolded unless explicitly permitted.
       dontUnfold = or
         [ defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed
-        , defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
+        -- , defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
         , prp == Right True
         , isIrrelevant info
         , not defOk
@@ -932,7 +932,7 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
               nvars = size $ clauseTel cl
           -- if clause is underapplied, skip to next clause
           if length es < npats then goCls cls es else do
-            termCheck <- asksTC envTermCheckReducing
+            allowedReductions <- asksTC envAllowedReductions
             let (es0, es1) = splitAt npats es
             (m, es0) <- matchCopatterns pats es0
             let es = es0 ++ es1
@@ -947,7 +947,8 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
               DontKnow OnlyLazy _ -> goCls cls es
               DontKnow NonLazy  b -> rewrite b (applyE v) rewr es
               Yes simpl vs -- vs is the subst. for the variables bound in body
-                | termCheck && fromMaybe True (clauseRecursive cl) ->
+                | couldBeRecursive (clauseRecursive cl)
+                , RecursiveReductions `SmallSet.notMember` allowedReductions ->
                     return $ NoReduction __IMPOSSIBLE__
                 | Just w <- body -> do -- clause has body?
                     -- TODO: let matchPatterns also return the reduced forms
@@ -1704,9 +1705,10 @@ instance InstantiateFull a => InstantiateFull (Case a) where
       <*> pure lz
 
 instance InstantiateFull CompiledClauses where
-  instantiateFull' (Fail xs)   = return $ Fail xs
-  instantiateFull' (Done m t)  = Done m <$> instantiateFull' t
-  instantiateFull' (Case n bs) = Case n <$> instantiateFull' bs
+  instantiateFull' = \case
+    Fail xs        -> return $ Fail xs
+    Done no mr m t -> Done no mr m <$> instantiateFull' t
+    Case n bs      -> Case n <$> instantiateFull' bs
 
 instance InstantiateFull Clause where
     instantiateFull' (Clause rl rf tel ps b t catchall recursive unreachable ell wm) =
