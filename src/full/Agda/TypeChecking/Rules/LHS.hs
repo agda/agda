@@ -243,7 +243,7 @@ updateProblemEqs eqs = do
 
             updates $ zipWith3 ProblemEq (map namedArg ps) (map unArg vs) bs
 
-          A.RecP pi fs -> do
+          A.RecP _ _ fs -> do
             axs <- map argFromDom . recFields . theDef <$> getConstInfo d
 
             -- Andreas, 2018-09-06, issue #3122.
@@ -454,7 +454,7 @@ transferOrigins ps qs = do
         let cpi = ConPatternInfo (PatternInfo PatOCon asB) r ft mb l
         ConP c cpi <$> transfers ps qs
 
-      ((asB , A.RecP pi fs) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+      ((asB , A.RecP _kwr pi fs) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
             axs = map (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
             cpi = ConPatternInfo (PatternInfo PatORec asB) r ft mb l
@@ -1381,7 +1381,7 @@ checkLHS mf = updateModality checkLHS_ where
         A.ConP _ _ ps -> do
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
-        A.RecP _ fs -> do
+        A.RecP _ _ fs -> do
           RecordDefn def <- theDef <$> getConstInfo d
           let axs = map argFromDom $ recordFieldNames def
           ps <- insertMissingFieldsFail d (const $ A.WildP empty) fs axs

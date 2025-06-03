@@ -63,7 +63,7 @@ instance MapNamedArgPattern NAP where
       PatternSynP i x ps -> f $ setNamedArg p $ PatternSynP i x $ mapNamedArgPattern f ps
       -- Pattern subpattern(s):
       -- RecP: we copy the NamedArg info to the subpatterns but discard it after recursion
-      RecP i fs          -> f $ setNamedArg p $ RecP i $ map (fmap namedArg) $ mapNamedArgPattern f $ map (fmap (setNamedArg p)) fs
+      RecP kwr i fs      -> f $ setNamedArg p $ RecP kwr i $ map (fmap namedArg) $ mapNamedArgPattern f $ map (fmap (setNamedArg p)) fs
       -- AsP: we hand the NamedArg info to the subpattern
       AsP i x p0         -> f $ updateNamedArg (AsP i x) $ mapNamedArgPattern f $ setNamedArg p p0
       -- WithP: like AsP
@@ -143,7 +143,7 @@ instance APatternLike (Pattern' a) where
       AsP _ _ p          -> foldrAPattern f p
       ConP _ _ ps        -> foldrAPattern f ps
       DefP _ _ ps        -> foldrAPattern f ps
-      RecP _ ps          -> foldrAPattern f ps
+      RecP _ _ ps        -> foldrAPattern f ps
       PatternSynP _ _ ps -> foldrAPattern f ps
       WithP _ p          -> foldrAPattern f p
       VarP _             -> mempty
@@ -169,7 +169,7 @@ instance APatternLike (Pattern' a) where
       A.ConP        i ds ps -> A.ConP        i ds <$> traverseAPatternM pre post ps
       A.DefP        i q  ps -> A.DefP        i q  <$> traverseAPatternM pre post ps
       A.AsP         i x  p  -> A.AsP         i x  <$> traverseAPatternM pre post p
-      A.RecP        i    ps -> A.RecP        i    <$> traverseAPatternM pre post ps
+      A.RecP    kwr i    ps -> A.RecP    kwr i    <$> traverseAPatternM pre post ps
       A.PatternSynP i x  ps -> A.PatternSynP i x  <$> traverseAPatternM pre post ps
       A.WithP       i p     -> A.WithP       i    <$> traverseAPatternM pre post p
 
@@ -280,7 +280,7 @@ substPattern' subE s = mapAPattern $ \ p -> case p of
   EqualP i es       -> EqualP i $ fmap (subE *** subE) es
   -- No action on the other patterns (besides the recursion):
   ConP _ _ _        -> p
-  RecP _ _          -> p
+  RecP _ _ _        -> p
   ProjP _ _ _       -> p
   WildP _           -> p
   AbsurdP _         -> p
@@ -333,7 +333,7 @@ instance PatternToExpr Pattern Expr where
     AbsurdP _          -> asks hidingToMetaKind <&> \ k -> Underscore emptyMetaInfo{ metaKind = k }
     LitP _ l           -> return $ Lit empty l
     PatternSynP _ c ps -> app (PatternSyn c) <$> patToExpr ps
-    RecP _ as          -> Rec exprNoRange . map Left <$> patToExpr as
+    RecP kwr _ as      -> Rec kwr exprNoRange . map Left <$> patToExpr as
     EqualP{}           -> __IMPOSSIBLE__  -- Andrea TODO: where is this used?
     WithP r p          -> __IMPOSSIBLE__
 
@@ -359,7 +359,7 @@ noDotOrEqPattern err = dot
       A.LitP i l             -> pure $ A.LitP i l
       A.DefP i f args        -> A.DefP i f <$> (traverse $ traverse $ traverse dot) args
       A.PatternSynP i c args -> A.PatternSynP i c <$> (traverse $ traverse $ traverse dot) args
-      A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
+      A.RecP kwr i fs        -> A.RecP kwr i <$> (traverse $ traverse dot) fs
       A.WithP i p            -> A.WithP i <$> dot p
 
 

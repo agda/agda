@@ -716,8 +716,8 @@ Expr3NoCurly
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }
     | '.' Expr3                         { Dot (kwRange $1) $2 }
     | '..' Expr3                        { DoubleDot (kwRange $1) $2 }
-    | 'record' '{' RecordAssignments '}' { Rec (getRange ($1,$2,$3,$4)) $3 }
-    | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (getRange ($1,$2,$3,$4,$5)) $2 $4 }
+    | 'record' '{' RecordAssignments '}' { Rec (kwRange $1) (getRange ($1,$2,$3,$4)) $3 }
+    | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (kwRange $1) (getRange ($1,$2,$3,$4,$5)) $2 $4 }
     | '...'                             { Ellipsis (getRange $1) }
     | ExprOrAttr                       { $1 }
 

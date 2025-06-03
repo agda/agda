@@ -1278,7 +1278,7 @@ introTactic pmLambda ii = do
       fs <- ifM showImplicitArguments
             (return $ map unDom hfs)
             (return [ unDom a | a <- hfs, visible a ])
-      let e = C.Rec noRange $ for fs $ \ f ->
+      let e = C.Rec empty noRange $ for fs $ \ f ->
             Left $ C.FieldAssignment f $ C.QuestionMark noRange Nothing
       return [ prettyShow e ]
       -- Andreas, 2019-02-25, remark:

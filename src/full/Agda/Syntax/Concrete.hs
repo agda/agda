@@ -171,8 +171,11 @@ data Expr
       (List1 LamClause)                        -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
   | Fun Range (Arg Expr) Expr                  -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
   | Pi Telescope1 Expr                         -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
-  | Rec Range RecordAssignments                -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
-  | RecUpdate Range Expr [FieldAssignment]     -- ^ ex: @record e {x = a; y = b}@
+  | Rec KwRange Range RecordAssignments        -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
+                                               --   The 'KwRange' is for the @record@ keyword.
+  | RecUpdate KwRange Range Expr [FieldAssignment]
+                                               -- ^ ex: @record e {x = a; y = b}@
+                                               --   The 'KwRange' is for the @record@ keyword.
   | Let Range (List1 Declaration) (Maybe Expr) -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
   | Paren Range Expr                           -- ^ ex: @(e)@
   | IdiomBrackets Range [Expr]                 -- ^ ex: @(| e1 | e2 | .. | en |)@ or @(|)@
@@ -232,7 +235,8 @@ data Pattern
   | DotP KwRange Range Expr                -- ^ @.e@, the 'KwRange' is for the dot,
                                            --   the 'Range' for the whole thing (including the dot).
   | LitP Range Literal                     -- ^ @0@, @1@, etc.
-  | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
+  | RecP KwRange Range [FieldAssignment' Pattern]
+      -- ^ @record {x = p; y = q}@.  The 'KwRange' is for the @record@ keyword.
   | EqualP Range (List1 (Expr,Expr))       -- ^ @i = i1@ i.e. cubical face lattice generator
   | EllipsisP Range (Maybe Pattern)        -- ^ @...@, only as left-most pattern.
                                            --   Second arg is @Nothing@ before expansion, and
@@ -814,9 +818,9 @@ exprToPattern fallback = loop
     Quote       r        -> pure $ QuoteP r
     Equal       r e1 e2  -> pure $ EqualP r $ singleton (e1, e2)
     Ellipsis    r        -> pure $ EllipsisP r Nothing
-    e@(Rec r es)
+    e@(Rec kwr r es)
         -- We cannot translate record expressions with module parts.
-      | Just fs <- mapM maybeLeft es -> RecP r <$> traverse (traverse loop) fs
+      | Just fs <- mapM maybeLeft es -> RecP kwr r <$> traverse (traverse loop) fs
       | otherwise -> fallback e
     -- WithApp has already lost the range information of the bars '|'
     WithApp     r e es   -> do -- ApplicativeDo
@@ -933,8 +937,8 @@ instance HasRange Expr where
       Absurd r           -> r
       HiddenArg r _      -> r
       InstanceArg r _    -> r
-      Rec r _            -> r
-      RecUpdate r _ _    -> r
+      Rec _ r _          -> r
+      RecUpdate _ r _ _  -> r
       Quote r            -> r
       QuoteTerm r        -> r
       Unquote r          -> r
@@ -1086,7 +1090,7 @@ instance HasRange Pattern where
   getRange (HiddenP r _)      = r
   getRange (InstanceP r _)    = r
   getRange (DotP _kwr r _)    = r
-  getRange (RecP r _)         = r
+  getRange (RecP _kwr r _)    = r
   getRange (EqualP r _)       = r
   getRange (EllipsisP r _)    = r
   getRange (WithP r _)        = r
@@ -1108,7 +1112,7 @@ instance SetRange Pattern where
   setRange r (HiddenP _ p)      = HiddenP r p
   setRange r (InstanceP _ p)    = InstanceP r p
   setRange r (DotP _ _ e)       = DotP empty r e
-  setRange r (RecP _ fs)        = RecP r fs
+  setRange r (RecP _ _ fs)      = RecP empty r fs
   setRange r (EqualP _ es)      = EqualP r es
   setRange r (EllipsisP _ mp)   = EllipsisP r mp
   setRange r (WithP _ p)        = WithP r p
@@ -1196,8 +1200,8 @@ instance KillRange Expr where
   killRange (ExtendedLam _ e lrw)  = killRangeN (ExtendedLam noRange) e lrw
   killRange (Fun _ e1 e2)          = killRangeN (Fun noRange) e1 e2
   killRange (Pi t e)               = killRangeN Pi t e
-  killRange (Rec _ ne)             = killRangeN (Rec noRange) ne
-  killRange (RecUpdate _ e ne)     = killRangeN (RecUpdate noRange) e ne
+  killRange (Rec _ _ ne)           = killRangeN (Rec empty noRange) ne
+  killRange (RecUpdate _ _ e ne)   = killRangeN (RecUpdate empty noRange) e ne
   killRange (Let _ d e)            = killRangeN (Let noRange) d e
   killRange (Paren _ e)            = killRangeN (Paren noRange) e
   killRange (IdiomBrackets _ es)   = killRangeN (IdiomBrackets noRange) es
@@ -1254,7 +1258,7 @@ instance KillRange Pattern where
   killRange (DotP _ _ e)      = killRangeN (DotP empty noRange) e
   killRange (LitP _ l)        = killRangeN (LitP noRange) l
   killRange (QuoteP _)        = QuoteP noRange
-  killRange (RecP _ fs)       = killRangeN (RecP noRange) fs
+  killRange (RecP _ _ fs)     = killRangeN (RecP empty noRange) fs
   killRange (EqualP _ es)     = killRangeN (EqualP noRange) es
   killRange (EllipsisP _ mp)  = killRangeN (EllipsisP noRange) mp
   killRange (WithP _ p)       = killRangeN (WithP noRange) p
@@ -1318,8 +1322,8 @@ instance NFData Expr where
   rnf (ExtendedLam _ a b) = rnf a `seq` rnf b
   rnf (Fun _ a b)         = rnf a `seq` rnf b
   rnf (Pi a b)            = rnf a `seq` rnf b
-  rnf (Rec _ a)           = rnf a
-  rnf (RecUpdate _ a b)   = rnf a `seq` rnf b
+  rnf (Rec _ _ a)         = rnf a
+  rnf (RecUpdate _ _ a b) = rnf a `seq` rnf b
   rnf (Let _ a b)         = rnf a `seq` rnf b
   rnf (Paren _ a)         = rnf a
   rnf (IdiomBrackets _ a) = rnf a
@@ -1355,7 +1359,7 @@ instance NFData Pattern where
   rnf (AsP _ a b)      = rnf a `seq` rnf b
   rnf (DotP _ _ a)     = rnf a
   rnf (LitP _ a)       = rnf a
-  rnf (RecP _ a)       = rnf a
+  rnf (RecP _ _ a)     = rnf a
   rnf (EqualP _ es)    = rnf es
   rnf (EllipsisP _ mp) = rnf mp
   rnf (WithP _ a)      = rnf a

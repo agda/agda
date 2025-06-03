@@ -387,7 +387,7 @@ instance NamesIn (A.Pattern' a) where
     A.AbsurdP _            -> mempty
     A.LitP _ l             -> namesAndMetasIn' sg l
     A.PatternSynP _ c args -> namesAndMetasIn' sg (c, args)
-    A.RecP _ fs            -> namesAndMetasIn' sg fs
+    A.RecP _ _ fs          -> namesAndMetasIn' sg fs
     A.DotP{}               -> __IMPOSSIBLE__    -- Dot patterns are not allowed in pattern synonyms
     A.EqualP{}             -> __IMPOSSIBLE__    -- Andrea: should we allow these in pattern synonyms?
     A.WithP _ p            -> namesAndMetasIn' sg p

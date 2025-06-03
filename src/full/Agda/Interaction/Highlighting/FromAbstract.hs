@@ -266,8 +266,8 @@ instance Hilite A.Expr where
       A.Generalized _qs e           -> hl e
       A.Fun _r a b                  -> hl a <> hl b
       A.Let _r bs e                 -> hl bs <> hl e
-      A.Rec _r ass                  -> hl ass
-      A.RecUpdate _r e ass          -> hl e <> hl ass
+      A.Rec _kwr _r ass             -> hl ass
+      A.RecUpdate _kwr _r e ass     -> hl e <> hl ass
       A.ScopedExpr _ e              -> hl e
       A.Quote _r                    -> mempty
       A.QuoteTerm _r                -> mempty
@@ -291,7 +291,7 @@ instance (Hilite a, IsProjP a) => Hilite (A.Pattern' a) where
       A.AbsurdP _r           -> mempty
       A.LitP _r l            -> hl l
       A.PatternSynP _r qs es -> hilitePatternSynonym qs <> hl es
-      A.RecP _r ps           -> hl ps
+      A.RecP _kwr _r ps      -> hl ps
       A.EqualP _r ps         -> hl ps
       A.WithP _ p            -> hl p
 
