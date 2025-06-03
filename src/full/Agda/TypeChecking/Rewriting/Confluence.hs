@@ -78,6 +78,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
@@ -393,7 +394,8 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
                     let us = applySubst sub $ map var $ downFrom $ size delta
                         as = applySubst sub $ flattenTel delta
                     reportSDoc "rewriting.confluence.global" 35 $
-                      prettyTCM (hd es) <+> "is an instance of the LHS of rule" <+> prettyTCM q <+> "with instantiation" <+> prettyList_ (map prettyTCM us)
+                      applyUnless (null us) (<+> ("with instantiation" <+> prettyList_ (map prettyTCM us))) $
+                        prettyTCM (hd es) <+> "is an instance of the LHS of rule" <+> prettyTCM q
                     ok <- allDistinctVars $ zip us as
                     when ok $ reportSDoc "rewriting.confluence.global" 30 $
                       "It is equal to the LHS of rewrite rule" <+> prettyTCM q
