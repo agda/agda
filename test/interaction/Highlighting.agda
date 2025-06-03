@@ -266,3 +266,16 @@ module Issue7851 where
 
   postulate Atom : Set
   {-# POLARITY Atom ++ - #-}
+
+module MissingRecordFields where
+
+  record ABC : Set₂ where
+    field
+      A B C : Set₁
+
+  test : ABC
+  test = record  -- should only highlight the record keyword in yellow
+    { A = Set
+    -- ; B = _   -- this missing field produces an unsolved meta
+    ; C = Set
+    }
