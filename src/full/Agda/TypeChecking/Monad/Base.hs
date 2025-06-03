@@ -2313,6 +2313,12 @@ data RewriteRule = RewriteRule
   , rewRHS     :: Term       -- ^ @Γ ⊢ rhs : t@.
   , rewType    :: Type       -- ^ @Γ ⊢ t@.
   , rewFromClause :: Bool    -- ^ Was this rewrite rule created from a clause in the definition of the function?
+  , rewTopModule  :: TopLevelModuleName
+      -- ^ In which file is this rewrite rule defined?
+      --   This information is used to eliminate rewrite rules that happen to be in 'stImports'
+      --   but are not actually transitively imported.
+
+      --   See issue #4343 (Andreas, 2025-06-05).
   }
     deriving (Show, Generic)
 
@@ -6449,8 +6455,8 @@ instance KillRange NLPSort where
   killRange PIntervalUniv = PIntervalUniv
 
 instance KillRange RewriteRule where
-  killRange (RewriteRule q gamma f es rhs t c) =
-    killRangeN RewriteRule q gamma f es rhs t c
+  killRange (RewriteRule q gamma f es rhs t c top) =
+    killRangeN RewriteRule q gamma f es rhs t c top
 
 instance KillRange CompiledRepresentation where
   killRange = id

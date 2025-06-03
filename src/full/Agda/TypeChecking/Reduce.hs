@@ -1638,7 +1638,7 @@ instance InstantiateFull NLPSort where
   instantiateFull' PIntervalUniv = return PIntervalUniv
 
 instance InstantiateFull RewriteRule where
-  instantiateFull' (RewriteRule q gamma f ps rhs t c) =
+  instantiateFull' (RewriteRule q gamma f ps rhs t c top) =
     RewriteRule q
       <$> instantiateFull' gamma
       <*> pure f
@@ -1646,6 +1646,7 @@ instance InstantiateFull RewriteRule where
       <*> instantiateFull' rhs
       <*> instantiateFull' t
       <*> pure c
+      <*> pure top
 
 instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)
