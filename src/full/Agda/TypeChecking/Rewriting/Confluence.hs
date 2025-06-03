@@ -386,7 +386,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
           (f, t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
 
           let checkEqualLHS :: RewriteRule -> TCM Bool
-              checkEqualLHS (RewriteRule q delta _ ps _ _ _) = do
+              checkEqualLHS (RewriteRule q delta _ ps _ _ _ _) = do
                 onlyReduceTypes (nonLinMatch delta (t , hd) ps es) >>= \case
                   Left _    -> return False
                   Right sub -> do
@@ -412,7 +412,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
             warning $ RewriteAmbiguousRules (hd es) rhs1 rhs2
 
     checkTrianglePropertyForRule :: RewriteRule -> TCM ()
-    checkTrianglePropertyForRule (RewriteRule q gamma f ps rhs b c) = addContext gamma $ do
+    checkTrianglePropertyForRule (RewriteRule q gamma f ps rhs b c _) = addContext gamma $ do
       u  <- nlPatToTerm $ PDef f ps
       -- First element in the list is the "best reduct" @ρ(u)@
       (rhou,vs) <- fromMaybe __IMPOSSIBLE__ . uncons <$> allParallelReductions u
@@ -496,7 +496,7 @@ sameRuleName :: RewriteRule -> RewriteRule -> Bool
 sameRuleName = (==) `on` rewName
 
 -- | Get both clauses and rewrite rules for the given symbol
-getAllRulesFor :: (HasConstInfo m, MonadFresh NameId m) => QName -> m [RewriteRule]
+getAllRulesFor :: (HasConstInfo m, ReadTCState m, MonadFresh NameId m) => QName -> m [RewriteRule]
 getAllRulesFor f = (++) <$> getRewriteRulesFor f <*> getClausesAsRewriteRules f
 
 -- | Build a substitution that replaces all variables in the given
@@ -560,7 +560,7 @@ topLevelReductions hd es = do
   -- Get type of head symbol
   (f , t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: head symbol" <+> prettyTCM (hd []) <+> ":" <+> prettyTCM t
-  RewriteRule q gamma _ ps rhs b c <- scatterMP (getAllRulesFor f)
+  RewriteRule q gamma _ ps rhs b c _ <- scatterMP (getAllRulesFor f)
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: trying rule" <+> prettyTCM q
   -- Don't reduce if underapplied
   guard $ length es >= length ps

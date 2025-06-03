@@ -311,7 +311,7 @@ instance NamesIn NLPSort where
 
 instance NamesIn RewriteRule where
   namesAndMetasIn' sg = \case
-    RewriteRule a b c d e f _ ->
+    RewriteRule a b c d e f _ _ ->
       namesAndMetasIn' sg (a, b, c, d, e, f)
 
 instance (NamesIn a, NamesIn b) => NamesIn (HashMap a b) where
