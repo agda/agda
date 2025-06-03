@@ -991,7 +991,7 @@ checkRecordExpression
   -> A.Expr           -- ^ Must be @A.Rec _ mfs@.
   -> Type             -- ^ Expected type of record expression.
   -> TCM Term         -- ^ Record value in internal syntax.
-checkRecordExpression cmp mfs e t = do
+checkRecordExpression cmp mfs e@(A.Rec kwr _r _) t = do
   reportSDoc "tc.term.rec" 10 $ sep
     [ "checking record expression"
     , prettyA e
@@ -1033,7 +1033,7 @@ checkRecordExpression cmp mfs e t = do
 
       -- Compute a list of metas for the missing visible fields.
       scope <- getScope
-      let meta x = A.Underscore $ A.MetaInfo (getRange e) scope Nothing (prettyShow x) A.UnificationMeta
+      let meta x = A.Underscore $ A.MetaInfo (getRange kwr) scope Nothing (prettyShow x) A.UnificationMeta
       -- In @es@ omitted explicit fields are replaced by underscores.
       -- Omitted implicit or instance fields
       -- are still left out and inserted later by checkArguments_.
@@ -1089,6 +1089,8 @@ checkRecordExpression cmp mfs e t = do
             , nest 2 $ prettyA e <+> ":" <+> prettyTCM t
             ]
           postponeTypeCheckingProblem_ $ CheckExpr cmp e t
+
+checkRecordExpression _ _ _ _ = __IMPOSSIBLE__
 
 -- | @checkRecordUpdate cmp ei recexpr fs e t@
 --
