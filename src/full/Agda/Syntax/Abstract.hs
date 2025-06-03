@@ -106,8 +106,10 @@ data Expr
   | Fun  ExprInfo (Arg Type) Type      -- ^ Non-dependent function space.
   | Let  ExprInfo (List1 LetBinding) Expr
                                        -- ^ @let bs in e@.
-  | Rec  ExprInfo RecordAssigns        -- ^ Record construction.
-  | RecUpdate ExprInfo Expr Assigns    -- ^ Record update.
+  | Rec  KwRange ExprInfo RecordAssigns
+      -- ^ Record construction.  The 'KwRange' is for the @record@ kewyword.
+  | RecUpdate KwRange ExprInfo Expr Assigns
+      -- ^ Record update.  The 'KwRange' is for the @record@ kewyword.
   | ScopedExpr ScopeInfo Expr          -- ^ Scope annotation.
   | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
@@ -533,7 +535,7 @@ data Pattern' e
   | AbsurdP PatInfo
   | LitP PatInfo Literal
   | PatternSynP PatInfo AmbiguousQName (NAPs e)
-  | RecP ConPatInfo [FieldAssignment' (Pattern' e)]
+  | RecP KwRange ConPatInfo [FieldAssignment' (Pattern' e)]
   | EqualP PatInfo (List1 (e, e))
   | WithP PatInfo (Pattern' e)  -- ^ @| p@, for with-patterns.
   deriving (Show, Functor, Foldable, Traversable, Eq, Generic)
@@ -591,8 +593,8 @@ instance Eq Expr where
   Generalized a1 b1          == Generalized a2 b2          = (a1, b1) == (a2, b2)
   Fun a1 b1 c1               == Fun a2 b2 c2               = (a1, b1, c1) == (a2, b2, c2)
   Let a1 b1 c1               == Let a2 b2 c2               = (a1, b1, c1) == (a2, b2, c2)
-  Rec a1 b1                  == Rec a2 b2                  = (a1, b1) == (a2, b2)
-  RecUpdate a1 b1 c1         == RecUpdate a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
+  Rec r1 a1 b1               == Rec r2 a2 b2               = (r1, a1, b1) == (r2, a2, b2)
+  RecUpdate r1 a1 b1 c1      == RecUpdate r2 a2 b2 c2      = (r1, a1, b1, c1) == (r2, a2, b2, c2)
   Quote a1                   == Quote a2                   = a1 == a2
   QuoteTerm a1               == QuoteTerm a2               = a1 == a2
   Unquote a1                 == Unquote a2                 = a1 == a2
@@ -674,8 +676,8 @@ instance HasRange Expr where
     getRange (Generalized _ x)       = getRange x
     getRange (Fun i _ _)             = getRange i
     getRange (Let i _ _)             = getRange i
-    getRange (Rec i _)               = getRange i
-    getRange (RecUpdate i _ _)       = getRange i
+    getRange (Rec _ i _)             = getRange i
+    getRange (RecUpdate _ i _ _)     = getRange i
     getRange (ScopedExpr _ e)        = getRange e
     getRange (Quote i)               = getRange i
     getRange (QuoteTerm i)           = getRange i
@@ -718,7 +720,7 @@ instance HasRange (Pattern' e) where
     getRange (AbsurdP i)         = getRange i
     getRange (LitP i l)          = getRange i
     getRange (PatternSynP i _ _) = getRange i
-    getRange (RecP i _)          = getRange i
+    getRange (RecP _kwr i _)     = getRange i
     getRange (EqualP i _)        = getRange i
     getRange (WithP i _)         = getRange i
 
@@ -764,7 +766,7 @@ instance SetRange (Pattern' a) where
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
     setRange r (LitP _ l)           = LitP (PatRange r) l
     setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) n as
-    setRange r (RecP i as)          = RecP (setRange r i) as
+    setRange r (RecP _ i as)        = RecP empty (setRange r i) as
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
     setRange r (WithP i p)          = WithP (setRange r i) p
 
@@ -807,8 +809,8 @@ instance KillRange Expr where
   killRange (Generalized s x)        = killRangeN (Generalized s) x
   killRange (Fun i a b)              = killRangeN Fun i a b
   killRange (Let i ds e)             = killRangeN Let i ds e
-  killRange (Rec i fs)               = killRangeN Rec i fs
-  killRange (RecUpdate i e fs)       = killRangeN RecUpdate i e fs
+  killRange (Rec kwr i fs)           = killRangeN Rec kwr i fs
+  killRange (RecUpdate kwr i e fs)   = killRangeN RecUpdate kwr i e fs
   killRange (ScopedExpr s e)         = killRangeN (ScopedExpr s) e
   killRange (Quote i)                = killRangeN Quote i
   killRange (QuoteTerm i)            = killRangeN QuoteTerm i
@@ -865,7 +867,7 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (AbsurdP i)         = killRangeN AbsurdP i
   killRange (LitP i l)          = killRangeN LitP i l
   killRange (PatternSynP i a p) = killRangeN PatternSynP i a p
-  killRange (RecP i as)         = killRangeN RecP i as
+  killRange (RecP kwr i as)     = killRangeN RecP kwr i as
   killRange (EqualP i es)       = killRangeN EqualP i es
   killRange (WithP i p)         = killRangeN WithP i p
 
@@ -1064,7 +1066,7 @@ instance SubstExpr Expr where
     Lit _ _         -> e
     Underscore   _  -> e
     App  i e e'     -> App i (substExpr s e) (substExpr s e')
-    Rec  i nes      -> Rec i (substExpr s nes)
+    Rec kwr i nes   -> Rec kwr i (substExpr s nes)
     ScopedExpr si e -> ScopedExpr si (substExpr s e)
     -- The below cannot appear in pattern synonym right-hand sides
     QuestionMark{}  -> __IMPOSSIBLE__

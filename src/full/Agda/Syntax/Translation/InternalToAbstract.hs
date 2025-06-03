@@ -535,7 +535,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
           (r, def) <- maybe (fromMaybe __IMPOSSIBLE__ <$> isRecordConstructor x) pure mrdef
           showImp <- showImplicitArguments
           let keep (a, v) = showImp || visible a
-          A.Rec noExprInfo
+          A.Rec empty noExprInfo
             . map (Left . uncurry FieldAssignment . mapFst unDom)
             . filter keep
             . zip (recordFieldNames def)
@@ -1039,7 +1039,7 @@ stripImplicits toKeep params ps = do
             p@(A.LitP _ _)      -> p
             A.AsP i x p         -> A.AsP i x $ stripPat p
             A.PatternSynP _ _ _ -> __IMPOSSIBLE__
-            A.RecP i fs         -> A.RecP i $ map (fmap stripPat) fs  -- TODO Andreas: is this right?
+            A.RecP kwr i fs     -> A.RecP kwr i $ map (fmap stripPat) fs  -- TODO Andreas: is this right?
             p@A.EqualP{}        -> p -- EqualP cannot be blanked.
             A.WithP i p         -> A.WithP i $ stripPat p -- TODO #2822: right?
 
@@ -1120,7 +1120,7 @@ instance BlankVars A.Pattern where
     A.LitP _ _    -> p
     A.AsP i n p   -> A.AsP i n $ blank bound p
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__
-    A.RecP i fs   -> A.RecP i $ blank bound fs
+    A.RecP kwr i fs -> A.RecP kwr i $ blank bound fs
     A.EqualP{}    -> p
     A.WithP i p   -> A.WithP i (blank bound p)
 
@@ -1147,8 +1147,8 @@ instance BlankVars A.Expr where
     A.Generalized {}         -> __IMPOSSIBLE__
     A.Fun i a b              -> uncurry (A.Fun i) $ blank bound (a, b)
     A.Let _ _ _              -> __IMPOSSIBLE__
-    A.Rec i es               -> A.Rec i $ blank bound es
-    A.RecUpdate i e es       -> uncurry (A.RecUpdate i) $ blank bound (e, es)
+    A.Rec kwr i es           -> A.Rec kwr i $ blank bound es
+    A.RecUpdate kwr i e es   -> uncurry (A.RecUpdate kwr i) $ blank bound (e, es)
     A.Quote {}               -> __IMPOSSIBLE__
     A.QuoteTerm {}           -> __IMPOSSIBLE__
     A.Unquote {}             -> __IMPOSSIBLE__
@@ -1202,7 +1202,7 @@ instance Binder A.Pattern where
     A.AbsurdP{}         -> empty
     A.LitP{}            -> empty
     A.PatternSynP _ _ _ -> empty
-    A.RecP _ _          -> empty
+    A.RecP _ _ _        -> empty
     A.EqualP{}          -> empty
     A.WithP _ _         -> empty
 
@@ -1354,7 +1354,7 @@ tryRecPFromConP p = do
           if _recNamedCon def && conPatOrigin ci /= ConORec then fallback else do
             let fs = recordFieldNames def
             unless (length fs == length ps) __IMPOSSIBLE__
-            return $ A.RecP ci $ zipWith mkFA fs ps
+            return $ A.RecP empty ci $ zipWith mkFA fs ps
         where
           mkFA ax nap = FieldAssignment (unDom ax) (namedArg nap)
     _ -> __IMPOSSIBLE__
@@ -1373,7 +1373,7 @@ recOrCon c co es = do
     if _recNamedCon def && co /= ConORec then fallback else do
       let fs = recordFieldNames def
       unless (length fs == length es) __IMPOSSIBLE__
-      return $ A.Rec empty $ zipWith mkFA fs es
+      return $ A.Rec empty empty $ zipWith mkFA fs es
   where
   fallback = apps (A.Con (unambiguous c)) es
   mkFA ax  = Left . FieldAssignment (unDom ax) . unArg

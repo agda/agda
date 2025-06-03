@@ -541,7 +541,7 @@ parsePat parse = loop
     p@LitP{}         -> return p
     p@QuoteP{}       -> return p
     p@IdentP{}       -> return p
-    RecP r fs        -> RecP r <$> mapM (traverse loop) fs
+    RecP kwr r fs    -> RecP kwr r <$> mapM (traverse loop) fs
     p@EqualP{}       -> return p -- Andrea: cargo culted from DotP
     EllipsisP r mp   -> caseMaybe mp (fail "bad ellipsis") $ \p ->
                           EllipsisP r . Just <$> loop p

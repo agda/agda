@@ -565,7 +565,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             -- Strip the subpatterns ps' and then continue.
             stripConP d us b c ConOCon qs' ps'
 
-          A.RecP _ fs -> caseMaybeM (liftTCM $ isRecord d) mismatch $ \ def -> do
+          A.RecP _ _ fs -> caseMaybeM (liftTCM $ isRecord d) mismatch $ \ def -> do
             ps' <- liftTCM $ insertMissingFieldsFail d (const $ A.WildP empty) fs
                                                  (map argFromDom $ recordFieldNames def)
             stripConP d us b c ConORec qs' ps'

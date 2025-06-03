@@ -182,12 +182,12 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
   icod_ (A.DefP p a b)        = icodeN 2 (A.DefP p) a b
   icod_ t@(A.WildP p)         = icodeN 3 t
   icod_ (A.AsP p a b)         = icodeN 4 (A.AsP p) a b
-  icod_ (A.DotP p a)          = icodeN 5 (A.DotP p) a
+  icod_ (A.DotP r a)          = icodeN 5 (A.DotP r) a
   icod_ t@(A.AbsurdP _)       = icodeN 6 t
   icod_ (A.LitP i a)          = icodeN 7 (A.LitP i) a
   icod_ (A.ProjP p a b)       = icodeN 8 (A.ProjP p) a b
   icod_ (A.PatternSynP p a b) = icodeN 9 (A.PatternSynP p) a b
-  icod_ (A.RecP a b)          = icodeN 10 A.RecP a b
+  icod_ (A.RecP r a b)        = icodeN 10 (A.RecP r) a b
   icod_ (A.EqualP _ a)        = __IMPOSSIBLE__
   icod_ (A.WithP i a)         = icodeN 11 (A.WithP i) a
 
@@ -202,7 +202,7 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
     valu [7, a]       = valuN (A.LitP i) a
     valu [8, a, b]    = valuN (A.ProjP i) a b
     valu [9, a, b]    = valuN (A.PatternSynP i) a b
-    valu [10, a, b]   = valuN A.RecP a b
+    valu [10, a, b]   = valuN (A.RecP empty) a b
     valu [11, a]      = valuN (A.WithP i) a
     valu _            = malformed
 

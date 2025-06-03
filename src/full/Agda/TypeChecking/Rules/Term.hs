@@ -1096,13 +1096,14 @@ checkRecordExpression cmp mfs e t = do
 --
 checkRecordUpdate
   :: Comparison   -- ^ @cmp@
+  -> KwRange      -- ^ Range of the @record@ keyword.
   -> A.ExprInfo   -- ^ @ei@
   -> A.Expr       -- ^ @recexpr@
   -> A.Assigns    -- ^ @fs@
   -> A.Expr       -- ^ @e = RecUpdate ei recexpr fs@
   -> Type         -- ^ Need not be reduced.
   -> TCM Term
-checkRecordUpdate cmp ei recexpr fs eupd t = do
+checkRecordUpdate cmp kwr ei recexpr fs eupd t = do
   ifBlocked t (\ _ _ -> tryInfer) $ {-else-} \ _ t' -> do
     caseMaybeM (isRecordType t') should $ \ (r, _pars, defn) -> do
       -- Bind the record value (before update) to a fresh @name@.
@@ -1122,7 +1123,7 @@ checkRecordUpdate cmp ei recexpr fs eupd t = do
         let axs = map argFromDom $ recordFieldNames defn
         es  <- orderFieldsWarn r (const Nothing) axs fs'
         let es'  = zipWith (replaceFields name ei) projs es
-        let erec = A.Rec ei [ Left (FieldAssignment x e) | (Arg _ x, Just e) <- zip axs es' ]
+        let erec = A.Rec kwr ei [ Left (FieldAssignment x e) | (Arg _ x, Just e) <- zip axs es' ]
         -- Call the type checker on the desugared syntax.
         checkExpr' cmp erec t
   where
@@ -1263,9 +1264,9 @@ checkExpr' cmp e t =
                 v = unEl t'
             coerce cmp v (sort s) t
 
-        A.Rec _ fs  -> checkRecordExpression cmp fs e t
+        A.Rec _ _ fs  -> checkRecordExpression cmp fs e t
 
-        A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e t
+        A.RecUpdate kwr ei recexpr fs -> checkRecordUpdate cmp kwr ei recexpr fs e t
 
         A.DontCare e -> do
           rel <- viewTC eRelevance

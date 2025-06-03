@@ -193,7 +193,7 @@ instance CPatternLike Pattern where
       ParenP _ p      -> foldrCPattern f p
       AsP _ _ p       -> foldrCPattern f p
       WithP _ p       -> foldrCPattern f p
-      RecP _ ps       -> foldrCPattern f ps
+      RecP _ _ ps     -> foldrCPattern f ps
       EllipsisP _ mp  -> foldrCPattern f mp
       -- Nonrecursive cases:
       IdentP _ _      -> mempty
@@ -214,7 +214,7 @@ instance CPatternLike Pattern where
       ParenP    r p       -> ParenP r      <$> traverseCPatternA f p
       AsP       r x p     -> AsP r x       <$> traverseCPatternA f p
       WithP     r p       -> WithP r       <$> traverseCPatternA f p
-      RecP      r ps      -> RecP r        <$> traverseCPatternA f ps
+      RecP  kwr r ps      -> RecP kwr r    <$> traverseCPatternA f ps
       EllipsisP r mp      -> EllipsisP r   <$> traverseCPatternA f mp
       -- Nonrecursive cases:
       IdentP _ _      -> pure p0
@@ -237,7 +237,7 @@ instance CPatternLike Pattern where
       ParenP    r p       -> ParenP r      <$> traverseCPatternM pre post p
       AsP       r x p     -> AsP r x       <$> traverseCPatternM pre post p
       WithP     r p       -> WithP r       <$> traverseCPatternM pre post p
-      RecP      r ps      -> RecP r        <$> traverseCPatternM pre post ps
+      RecP  kwr r ps      -> RecP kwr r    <$> traverseCPatternM pre post ps
       EllipsisP r mp      -> EllipsisP r   <$> traverseCPatternM pre post mp
       -- Nonrecursive cases:
       IdentP _ _      -> return p0
@@ -321,7 +321,7 @@ patternQNames p = foldCPattern f p `appEndo` []
     LitP _ _       -> mempty
     QuoteP _       -> mempty
     InstanceP _ _  -> mempty
-    RecP _ _       -> mempty
+    RecP _ _ _     -> mempty
     EqualP _ _     -> mempty
     EllipsisP _ _  -> mempty
 

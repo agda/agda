@@ -173,8 +173,8 @@ instance ExprLike Expr where
       Generalized  s e           -> Generalized s <$> recurse e
       Fun ei arg e               -> Fun ei <$> recurse arg <*> recurse e
       Let ei bs e                -> Let ei <$> recurse bs <*> recurse e
-      Rec ei bs                  -> Rec ei <$> recurse bs
-      RecUpdate ei e bs          -> RecUpdate ei <$> recurse e <*> recurse bs
+      Rec kwr ei bs              -> Rec kwr ei <$> recurse bs
+      RecUpdate kwr ei e bs      -> RecUpdate kwr ei <$> recurse e <*> recurse bs
       ScopedExpr sc e            -> ScopedExpr sc <$> recurse e
       Quote{}                    -> pure e0
       QuoteTerm{}                -> pure e0
@@ -205,8 +205,8 @@ instance ExprLike Expr where
       Generalized _ e        -> m `mappend` fold e
       Fun _ e e'             -> m `mappend` fold e `mappend` fold e'
       Let _ bs e             -> m `mappend` fold bs `mappend` fold e
-      Rec _ as               -> m `mappend` fold as
-      RecUpdate _ e as       -> m `mappend` fold e `mappend` fold as
+      Rec _ _ as             -> m `mappend` fold as
+      RecUpdate _ _ e as     -> m `mappend` fold e `mappend` fold as
       ScopedExpr _ e         -> m `mappend` fold e
       Quote{}                -> m
       QuoteTerm{}            -> m
@@ -240,8 +240,8 @@ instance ExprLike Expr where
       Generalized s e            -> f =<< Generalized s <$> trav e
       Fun ei arg e               -> f =<< Fun ei <$> trav arg <*> trav e
       Let ei bs e                -> f =<< Let ei <$> trav bs <*> trav e
-      Rec ei bs                  -> f =<< Rec ei <$> trav bs
-      RecUpdate ei e bs          -> f =<< RecUpdate ei <$> trav e <*> trav bs
+      Rec kwr ei bs              -> f =<< Rec kwr ei <$> trav bs
+      RecUpdate kwr ei e bs      -> f =<< RecUpdate kwr ei <$> trav e <*> trav bs
       ScopedExpr sc e            -> f =<< ScopedExpr sc <$> trav e
       Quote{}                    -> f e
       QuoteTerm{}                -> f e

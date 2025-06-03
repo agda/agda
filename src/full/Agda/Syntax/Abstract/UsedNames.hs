@@ -100,8 +100,8 @@ instance BoundAndUsed Expr where
     Generalized _ expr     -> boundAndUsed expr
     Fun _ arg expr         -> boundAndUsed (arg, expr)
     Let _ binds expr       -> boundAndUsed (binds, expr)
-    Rec _ as               -> boundAndUsed as
-    RecUpdate _ expr as    -> boundAndUsed expr <> boundAndUsed as
+    Rec _ _ as             -> boundAndUsed as
+    RecUpdate _ _ expr as  -> boundAndUsed expr <> boundAndUsed as
     ScopedExpr _ expr      -> boundAndUsed expr
     Quote{}                -> mempty
     QuoteTerm{}            -> mempty
@@ -169,7 +169,7 @@ instance BoundAndUsed e => BoundAndUsed (Pattern' e) where
     AbsurdP{}          -> mempty
     LitP{}             -> mempty
     PatternSynP _ _ ps -> parBoundAndUsed ps
-    RecP _ as          -> parBoundAndUsed as
+    RecP _ _ as        -> parBoundAndUsed as
     EqualP _ eqs       -> parBoundAndUsed eqs
     WithP _ p          -> boundAndUsed p
 

@@ -177,8 +177,9 @@ instance Pretty Expr where
             Dot _ e   -> hlSymbol "." <> pretty e
             DoubleDot _ e  -> hlSymbol ".." <> pretty e
             Absurd _  -> hlSymbol "()"
-            Rec _ xs  -> sep [hlKeyword "record", bracesAndSemicolons (map pretty xs)]
-            RecUpdate _ e xs ->
+            Rec _ _ xs ->
+              sep [hlKeyword "record", bracesAndSemicolons (map pretty xs)]
+            RecUpdate _ _ e xs ->
               sep [hlKeyword "record" <+> pretty e, bracesAndSemicolons (map pretty xs)]
             Quote _ -> hlKeyword "quote"
             QuoteTerm _ -> hlKeyword "quoteTerm"
@@ -616,7 +617,7 @@ instance Pretty Pattern where
             AbsurdP _       -> "()"
             LitP _ l        -> pretty l
             QuoteP _        -> "quote"
-            RecP _ fs       -> sep [ "record", bracesAndSemicolons (map pretty fs) ]
+            RecP _ _ fs     -> sep [ "record", bracesAndSemicolons (map pretty fs) ]
             EqualP _ es     -> sep $ for es \ (e1, e2) -> parens $ sep [pretty e1, "=", pretty e2]
             EllipsisP _ mp  -> "..."
             WithP _ p       -> "|" <+> pretty p

@@ -971,16 +971,16 @@ instance ToAbstract C.Expr where
       C.Let _ _ Nothing -> typeError $ NotAValidLetExpression MissingBody
 
   -- Record construction
-      C.Rec r fs  -> do
+      C.Rec kwr r fs -> do
         fs' <- toAbstractCtx TopCtx fs
         let ds'  = [ d | Right (_, Just d) <- fs' ]
             fs'' = map (mapRight fst) fs'
             i    = ExprRange r
-        return $ A.mkLet i ds' (A.Rec i fs'')
+        return $ A.mkLet i ds' (A.Rec kwr i fs'')
 
   -- Record update
-      C.RecUpdate r e fs -> do
-        A.RecUpdate (ExprRange r) <$> toAbstract e <*> toAbstractCtx TopCtx fs
+      C.RecUpdate kwr r e fs -> do
+        A.RecUpdate kwr (ExprRange r) <$> toAbstract e <*> toAbstractCtx TopCtx fs
 
   -- Parenthesis
       C.Paren _ e -> toAbstractCtx TopCtx e
@@ -1631,7 +1631,7 @@ instance ToAbstract LetDef where
       allowedPat A.ConP{}      = True
       allowedPat A.WildP{}     = True
       allowedPat (A.AsP _ _ x) = allowedPat x
-      allowedPat (A.RecP _ as) = all (allowedPat . view exprFieldA) as
+      allowedPat (A.RecP _ _ as) = all (allowedPat . view exprFieldA) as
       allowedPat (A.PatternSynP _ _ as) = all (allowedPat . namedArg) as
 
       -- These have no chance:
@@ -3526,7 +3526,7 @@ instance ToAbstract CPattern where
         _ -> fallback
 
     C.AbsurdP r -> return $ A.AbsurdP $ PatRange r
-    C.RecP r fs -> A.RecP (ConPatInfo ConORec (PatRange r) ConPatEager) <$> mapM (traverse $ toAbstract . wrap) fs
+    C.RecP kwr r fs -> A.RecP kwr (ConPatInfo ConORec (PatRange r) ConPatEager) <$> mapM (traverse $ toAbstract . wrap) fs
     C.WithP r p -> A.WithP (PatRange r) <$> toAbstract p  -- not in DISPLAY pragma
 
     where
