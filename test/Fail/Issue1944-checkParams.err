@@ -1,3 +1,4 @@
-Issue1944-checkParams.agda:25.18-19: error: [InvalidProjectionParameter]
-Invalid projection parameter ⦃ A = A ⦄
-when checking that the expression f ⦃ A = A ⦄ r has type _15
+Issue1944-checkParams.agda:25.10-11: error: [WrongNamedArgument]
+Function does not accept argument ⦃ A = A ⦄ (possible arguments: A)
+when checking that ⦃ A = A ⦄ _ are valid arguments to a function of
+type {A = A₁ : Set} → R A₁ → A₁

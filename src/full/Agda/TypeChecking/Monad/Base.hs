@@ -1802,6 +1802,7 @@ data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
   | CheckArgs Comparison ExpandHidden A.Expr [NamedArg A.Expr] Type Type (ArgsCheckState CheckedTarget -> TCM Term)
   | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (List1 QName) A.Expr A.Args Type Int Term Type PrincipalArgTypeMetas
+  -- CheckAmbiguousApplication Comparison A.Expr (List1 QName) A.Expr A.Args Type Int Term Type PrincipalArgTypeMetas
   | CheckLambda Comparison (Arg (List1 (WithHiding Name), Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
     --   This is not an instance of 'CheckExpr' as the domain type
@@ -4091,6 +4092,8 @@ data TCEnv =
           , envTermCheckReducing :: Bool
                 -- ^ Are we currently trying to reduce away function calls using
                 --   non-recursive clauses during termination checking?
+          , envScopingDot        :: Bool
+                -- ^ Are we scope-checking a dotted expression?
           }
     deriving (Generic)
 
@@ -4158,6 +4161,7 @@ initEnv = TCEnv { envContext             = []
                 , envSyntacticEqualityFuel  = Strict.Nothing
                 , envCurrentOpaqueId        = Nothing
                 , envTermCheckReducing      = False
+                , envScopingDot             = False
                 }
 
 class LensTCEnv a where
@@ -4350,6 +4354,9 @@ eConflComputingOverlap f e = f (envConflComputingOverlap e) <&> \ x -> e { envCo
 
 eCurrentlyElaborating :: Lens' TCEnv Bool
 eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurrentlyElaborating = x }
+
+eScopingDot :: Lens' TCEnv Bool
+eScopingDot f e = f (envScopingDot e) <&> \ x -> e { envScopingDot = x }
 
 {-# SPECIALISE currentModality :: TCM Modality #-}
 -- | The current modality.

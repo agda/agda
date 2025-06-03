@@ -108,6 +108,7 @@ parseVariables f cxt asb ii rng ss = do
       FieldName{}         -> failNotVar s
       ConstructorName{}   -> failNotVar s
       PatternSynResName{} -> failNotVar s
+      OverloadedNames{}   -> failNotVar s
 
       -- If s is a variable name, return it together with binding information.
       VarName x b -> return (x, Just b)

@@ -2,6 +2,7 @@
 
 -- Milestone 1: Check overloaded projections on rhs (without postponing).
 
+{-# OPTIONS -vtc.proj:40 --double-check #-}
 module _ (A : Set) (a : A) where
 
 module RecDefs where

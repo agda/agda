@@ -768,6 +768,7 @@ instance ToConcrete ResolvedName where
     FieldName xs         -> toConcrete (List1.head xs)
     ConstructorName _ xs -> toConcrete (List1.head xs)
     PatternSynResName xs -> toConcrete (List1.head xs)
+    OverloadedNames xs   -> toConcrete (List1.head xs)
     UnknownName          -> __IMPOSSIBLE__
 
 addSuffixConcrete :: HasOptions m => A.Suffix -> m C.QName -> m C.QName
@@ -793,6 +794,7 @@ instance ToConcrete A.Expr where
     toConcrete (Proj ProjPrefix p) = KnownIdent Asp.Field <$> toConcrete (headAmbQ p)
     toConcrete (Proj _          p) = C.Dot empty . KnownIdent Asp.Field <$> toConcrete (headAmbQ p)
     toConcrete (A.Macro x)         = KnownIdent Asp.Macro <$> toConcrete x
+    toConcrete (Defs x)            = KnownIdent Asp.Function <$> toConcrete (headAmbQ x)
     toConcrete e@(Con c)           = tryToRecoverPatternSyn e $ KnownIdent (Asp.Constructor Inductive) <$> toConcrete (headAmbQ c)
         -- for names we have to use the name from the info, since the abstract
         -- name has been resolved to a fully qualified name (except for
@@ -1758,6 +1760,7 @@ recoverOpApp bracket isLam opApp view e = case view e of
       FieldName (q :| _)         -> (q ^. lensFixity, Asp.Field)
       ConstructorName _ (q :| _) -> (q ^. lensFixity, Asp.Constructor Asp.Inductive)
       PatternSynResName (q :| _) -> (q ^. lensFixity, Asp.Constructor Asp.Inductive)
+      OverloadedNames (q :| _)   -> (q ^. lensFixity, Asp.Function)
       UnknownName                -> (noFixity, Asp.Bound)
     List1.ifNull args {-then-} mDefault {-else-} $ \ as ->
       doQName nk fx x n' as (C.nameParts $ C.unqualify x)

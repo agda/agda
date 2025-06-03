@@ -251,6 +251,7 @@ instance Hilite A.Expr where
       A.Proj _o qs                  -> hiliteAmbiguousQName Nothing qs  -- Issue #4604: not: hiliteProjection qs
                                          -- Names from @open R r@ should not be highlighted as projections
       A.Con qs                      -> hiliteAmbiguousQName Nothing qs  -- TODO? Con aspect
+      A.Defs qs                     -> hiliteAmbiguousQName Nothing qs  -- TODO? Def aspect
       A.PatternSyn qs               -> hilitePatternSynonym qs
       A.Macro q                     -> hiliteQName (Just Macro) q
       A.Lit _r l                    -> hl l
@@ -456,6 +457,7 @@ instance Hilite ResolvedName where
     VarName           x _bindSrc -> hiliteBound x
     DefinedName  _acc x _suffix  -> hilite $ anameName x
     FieldName         xs         -> hiliteProjection $ A.AmbQ $ fmap anameName xs
+    OverloadedNames   xs         -> foldMap (hilite . anameName) xs
     ConstructorName i xs         -> hiliteAmbiguousQName k $ A.AmbQ $ fmap anameName xs
       where k = kindOfNameToNameKind <$> exactConName i
     PatternSynResName xs         -> hilitePatternSynonym $ A.AmbQ $ fmap anameName xs
