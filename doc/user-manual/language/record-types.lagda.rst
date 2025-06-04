@@ -79,12 +79,29 @@ by the name of the record type (see :ref:`record modules <record-modules>`):
    test-snd' : {A B : Set} → Pair A B → B
    test-snd' p = snd p
 
-Elements of record types can be defined using a record expression
+Elements of record types can be defined using a record expression, where
+the associations are simple ``key = value`` pairs;
 
 ::
 
    p23 : Pair Nat Nat
    p23 = record { fst = 2; snd = 3 }
+
+Using a ``record where`` expression, where the associations are treated
+like :ref:`let bindings <let-expressions>`, in that they may refer to
+previous bindings, may be parametrised, etc; Fields in a ``record
+where`` expression can also be inherited from a module, by mentioning
+all the bindings that should become fields in ``using`` or ``renaming``
+clauses.
+
+::
+
+   p23' : Pair Nat Nat
+   p23' = record where
+      -- use the 'fst' binding in the module as the 'snd' field in this
+      -- record:
+      open Pair p23 using () renaming (fst to snd)
+      fst = 2
 
 or using :ref:`copatterns <copatterns>`. Copatterns may be used
 prefix
@@ -112,6 +129,7 @@ or using an :ref:`pattern lambda <pattern-lambda>`
    p78 = λ where
      .Pair.fst → 7
      .Pair.snd → 8
+
 
 If you use the ``constructor`` keyword, you can also use the named
 constructor to define elements of the record type:
@@ -362,6 +380,14 @@ Then we can update (some of) the record value’s fields in the following way:
   new : MyRecord
   new = record old { a = 0; c = 5 }
 
+or using the ``record where`` syntax
+::
+
+  new₁ : MyRecord
+  new₁ = record old where
+    a = 0
+    c = 5
+
 Here ``new`` normalises to ``record { a = 0; b = 2; c = 5 }``. Any
 expression yielding a value of type ``MyRecord`` can be used instead of
 ``old``. Using that :ref:`records can be built from module names
@@ -371,12 +397,15 @@ written as
 
 ::
 
-  new' : MyRecord
-  new'  = record { MyRecord old; a = 0; c = 5}
+  new₂ : MyRecord
+  new₂  = record { MyRecord old; a = 0; c = 5}
 
 ..
   ::
-  _ : new ≡ new' -- make sure that old and new syntax agree
+  -- make sure the syntax doesn't matter
+  _ : new ≡ new₁
+  _ = refl
+  _ : new ≡ new₂
   _ = refl
 
 Record updating is not allowed to change types: the resulting value

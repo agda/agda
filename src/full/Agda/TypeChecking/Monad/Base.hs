@@ -1158,6 +1158,11 @@ instance FreshName Name where
     i <- fresh
     pure $ Name i con can bs fix rn
 
+instance FreshName C.Name where
+  freshName_ c = do
+    i <- fresh
+    pure $ Name i c c noRange noFixity' False
+
 ---------------------------------------------------------------------------
 -- * Associating concrete names to an abstract name
 ---------------------------------------------------------------------------
