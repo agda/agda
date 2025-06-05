@@ -39,11 +39,7 @@ import           System.IO                  ( hPutStrLn, stderr )
 import           Agda.Setup.DataFiles       ( dataFiles, dataPath )
 import           Agda.VersionCommit         ( versionWithCommitInfo )
 
--- | Given the `Agda_datadir`, what should the Agda data dir be?
-
-mkDataDir :: FilePath -> FilePath
-mkDataDir = (</> versionWithCommitInfo)
-
+import qualified Paths_Agda                 as Paths
 
 -- Tell TH that all the dataFiles are needed for compilation.
 [] <$ mapM_ (qAddDependentFile . dataPath) dataFiles
@@ -87,26 +83,26 @@ getAgdaAppDir = do
         False -> getXdgDirectory XdgConfig "agda"
 
 -- | This overrides the 'getDataDir' from ''Paths_Agda''.
---   The base data directory defaults to $XDG_DATA_HOME/agda and can be overwritten
---   by the @Agda_datadir@ environment variable.
---   The data directory is then obtained by appending the version
---   (and optional commit information).
-
-getBaseDataDir :: IO FilePath
-getBaseDataDir = do
-  lookupEnv "Agda_datadir" >>= \case
-    Nothing -> dataDir
-    Just dir ->  doesDirectoryExist dir >>= \case
-      True  -> canonicalizePath dir
-      False -> do
-        d <- dataDir
-        inform $ "Warning: Environment variable Agda_datadir points to non-existing directory " ++ show dir ++ ", using " ++ show d ++ " instead."
-        return d
-  where
-    dataDir = getXdgDirectory XdgData "agda"
+--   If the @data-in-home@ build flag is enabled, the data directory
+--   is obtained by appending the version (and optional commit information)
+--   to the base data directory, which is @$XDG_DATA_HOME/agda@.
+--   Otherwise, the default data directory is used.
 
 getDataDir :: IO FilePath
-getDataDir = mkDataDir <$> getBaseDataDir
+getDataDir = do
+#ifdef DATA_IN_HOME
+  mkDataDir <$> getBaseDataDir
+#else
+  Paths.getDataDir
+#endif
+
+#ifdef DATA_IN_HOME
+getBaseDataDir :: IO FilePath
+getBaseDataDir = getXdgDirectory XdgData "agda"
+
+mkDataDir :: FilePath -> FilePath
+mkDataDir = (</> versionWithCommitInfo)
+#endif
 
 -- | This overrides the 'getDataFileName' from ''Paths_Agda''.
 
@@ -122,42 +118,48 @@ getDataFileName f = getDataDir <&> (</> f)
 
 setup :: Bool -> IO ()
 setup force = do
-  dir <- getBaseDataDir
-  let doSetup = dumpDataDir force dir
+  let doSetup = dumpDataDir force
 
   if force then doSetup else do
-    ex <- doesDirectoryExist $ mkDataDir dir
+    ex <- doesDirectoryExist =<< getDataDir
     unless ex doSetup
 
 
 -- | Spit out the embedded files into Agda data directory relative to the given directory.
 --   Lock the directory while doing so.
 
-dumpDataDir :: Bool -> FilePath -> IO ()
-dumpDataDir verbose baseDataDir = do
-  let dataDir = mkDataDir baseDataDir
+dumpDataDir :: Bool -> IO ()
+dumpDataDir verbose = do
+  dataDir <- getDataDir
+  let
+    dump = do
+      forM_ embeddedDataDir \ (relativePath, content) -> do
+
+        -- Make sure we also create the directories along the way.
+        let (relativeDir, file) = splitFileName relativePath
+        let dir  = dataDir </> relativeDir
+        createDirectoryIfMissing True dir
+
+        -- Write out the file contents.
+        let path = dir </> file
+        when verbose $ inform $ "Writing " ++ path
+        BS.writeFile path content
+
   createDirectoryIfMissing True dataDir
 
+#ifdef DATA_IN_HOME
   -- Create a file lock to prevent races caused by the dataDir already created
   -- but not filled with its contents.
+  baseDataDir <- getBaseDataDir
   let lock = baseDataDir </> intercalate "-" [".lock", versionWithCommitInfo]
-  withFileLock lock Exclusive \ _lock -> do
-
-    forM_ embeddedDataDir \ (relativePath, content) -> do
-
-      -- Make sure we also create the directories along the way.
-      let (relativeDir, file) = splitFileName relativePath
-      let dir  = dataDir </> relativeDir
-      createDirectoryIfMissing True dir
-
-      -- Write out the file contents.
-      let path = dir </> file
-      when verbose $ inform $ "Writing " ++ path
-      BS.writeFile path content
+  withFileLock lock Exclusive \ _lock -> dump
 
   -- Remove the lock (this is surprisingly not done by withFileLock).
   -- Ignore any IOException (e.g. if the file does not exist).
   void $ try @IOException $ removeFile lock
+#else
+  dump
+#endif
 
 -- | Dump line of warning or information to stderr.
 inform :: String -> IO ()
