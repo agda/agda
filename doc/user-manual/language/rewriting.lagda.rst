@@ -201,3 +201,28 @@ type may be chosen as the rewrite relation by registering it as the
 REWRITE _~_ #-}`` registers the type ``_~_`` as the rewrite
 relation. To qualify as the rewrite relation, the type must take at
 least two arguments, and the final two arguments should be visible.
+
+Importing rewrite rules
+-----------------------
+
+With ``import M``, all of ``M``'s rewrite rules get imported
+no matter whether they are ``private`` or in submodules of ``M``.
+Further, all the rewrite rules that ``M`` imports will also get imported,
+transitively.
+Thus, say module ``M0`` declares or imports some rewrite rules,
+and ``M1`` imports ``M0``,
+then any module ``M2`` importing ``M1`` will import these rewrite rules
+even if ``M2`` does not directly import ``M0``.
+
+The reason for this transitive import behavior of rewrite rules is to ensure
+the subject reduction (aka type preservation) property.
+Say ``M0`` exports a type ``A`` and a rule that rewrites ``A`` to ``Nat``,
+then ``M1`` can declare a constant ``a = zero`` of type ``A``.
+If ``M2`` could import ``A`` and ``a`` from ``M1`` but not the rewrite rule for ``A``,
+then in the context of ``M2`` the reduction from ``a`` to ``zero``
+would change its type from ``A`` to ``Nat``
+which is not equal to ``A`` in absence of the rewrite rule.
+Thus, type preservation under reduction would fail.
+
+In summary, the scoping rules for rewrite rules are same as the scoping rules for instances in
+`Haskell 2010 <https://www.haskell.org/onlinereport/haskell2010/haskellch5.html#x11-1060005.4>`_.
