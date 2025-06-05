@@ -23,12 +23,12 @@ import Agda.Syntax.Common.Pretty
 {-# INLINABLE getClausesAsRewriteRules #-}
 -- | Get all the clauses of a definition and convert them to rewrite
 --   rules.
-getClausesAsRewriteRules :: (HasConstInfo m, MonadFresh NameId m) => QName -> m [RewriteRule]
+getClausesAsRewriteRules :: (HasConstInfo m, ReadTCState m, MonadFresh NameId m) => QName -> m [RewriteRule]
 getClausesAsRewriteRules f = do
   cls <- defClauses <$> getConstInfo f
   forMaybeM (zip [1..] cls) $ \(i,cl) -> do
     clname <- clauseQName f i
-    return $ clauseToRewriteRule f clname cl
+    clauseToRewriteRule f clname cl
 
 {-# INLINABLE clauseQName #-}
 -- | Generate a sensible name for the given clause
@@ -42,17 +42,21 @@ clauseQName f i = QName (qnameModule f) <$> clauseName (qnameName f) i
 --   function @f@ to a rewrite rule with name @q@. Returns @Nothing@
 --   if @clauseBody cl@ is @Nothing@. Precondition: @clauseType cl@ is
 --   not @Nothing@.
-clauseToRewriteRule :: QName -> QName -> Clause -> Maybe RewriteRule
-clauseToRewriteRule f q cl | hasDefP (namedClausePats cl) = Nothing
-clauseToRewriteRule f q cl = clauseBody cl <&> \rhs -> RewriteRule
-  { rewName    = q
-  , rewContext = clauseTel cl
-  , rewHead    = f
-  , rewPats    = toNLPat $ namedClausePats cl
-  , rewRHS     = rhs
-  , rewType    = unArg $ fromMaybe __IMPOSSIBLE__  $ clauseType cl
-  , rewFromClause = True
-  }
+clauseToRewriteRule :: (MonadTCEnv m, ReadTCState m)
+  => QName -> QName -> Clause -> m (Maybe RewriteRule)
+clauseToRewriteRule f q cl | hasDefP (namedClausePats cl) = return  Nothing
+clauseToRewriteRule f q cl = do
+  top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
+  return $ clauseBody cl <&> \rhs -> RewriteRule
+    { rewName    = q
+    , rewContext = clauseTel cl
+    , rewHead    = f
+    , rewPats    = toNLPat $ namedClausePats cl
+    , rewRHS     = rhs
+    , rewType    = unArg $ fromMaybe __IMPOSSIBLE__  $ clauseType cl
+    , rewFromClause = True
+    , rewTopModule  = top
+    }
 
 class ToNLPat a b where
   toNLPat :: a -> b

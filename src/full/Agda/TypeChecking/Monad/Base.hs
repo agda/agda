@@ -211,6 +211,8 @@ data PreScopeState = PreScopeState
       -- because then the order of its @toList@ is undefined,
       -- leading to undefined deserialization order.
     -- ^ The top-level modules imported by the current module.
+  , stPreImportedModulesTransitive :: !ImportedModules
+      -- ^ The top-level modules transitively imported by the current module.
   , stPreModuleToSourceId   :: !ModuleToSourceId -- imports
   , stPreVisitedModules     :: !VisitedModules   -- imports
       -- ^ Modules loaded so far.
@@ -476,6 +478,7 @@ initPreScopeState = PreScopeState
   { stPreTokens               = mempty
   , stPreImports              = emptySignature
   , stPreImportedModules      = empty
+  , stPreImportedModulesTransitive = empty
   , stPreModuleToSourceId     = Map.empty
   , stPreVisitedModules       = Map.empty
   , stPreScope                = emptyScopeInfo
@@ -612,6 +615,9 @@ lensImports f s = f (stPreImports s) <&> \ x -> s { stPreImports = x }
 
 lensImportedModules :: Lens' PreScopeState ImportedModules
 lensImportedModules f s = f (stPreImportedModules s) <&> \ x -> s { stPreImportedModules = x }
+
+lensImportedModulesTransitive :: Lens' PreScopeState ImportedModules
+lensImportedModulesTransitive f s = f (stPreImportedModulesTransitive s) <&> \ x -> s { stPreImportedModulesTransitive = x }
 
 lensModuleToSourceId :: Lens' PreScopeState ModuleToSourceId
 lensModuleToSourceId f s = f (stPreModuleToSourceId s ) <&> \ x -> s { stPreModuleToSourceId = x }
@@ -815,6 +821,9 @@ stImports = lensPreScopeState . lensImports
 
 stImportedModules :: Lens' TCState ImportedModules
 stImportedModules = lensPreScopeState . lensImportedModules
+
+stImportedModulesTransitive :: Lens' TCState ImportedModules
+stImportedModulesTransitive = lensPreScopeState . lensImportedModulesTransitive
 
 stModuleToSourceId :: Lens' TCState ModuleToSourceId
 stModuleToSourceId = lensPreScopeState . lensModuleToSourceId
@@ -2313,6 +2322,12 @@ data RewriteRule = RewriteRule
   , rewRHS     :: Term       -- ^ @Γ ⊢ rhs : t@.
   , rewType    :: Type       -- ^ @Γ ⊢ t@.
   , rewFromClause :: Bool    -- ^ Was this rewrite rule created from a clause in the definition of the function?
+  , rewTopModule  :: TopLevelModuleName
+      -- ^ In which file is this rewrite rule defined?
+      --   This information is used to eliminate rewrite rules that happen to be in 'stImports'
+      --   but are not actually transitively imported.
+
+      --   See issue #4343 (Andreas, 2025-06-05).
   }
     deriving (Show, Generic)
 
@@ -6449,8 +6464,8 @@ instance KillRange NLPSort where
   killRange PIntervalUniv = PIntervalUniv
 
 instance KillRange RewriteRule where
-  killRange (RewriteRule q gamma f es rhs t c) =
-    killRangeN RewriteRule q gamma f es rhs t c
+  killRange (RewriteRule q gamma f es rhs t c top) =
+    killRangeN RewriteRule q gamma f es rhs t c top
 
 instance KillRange CompiledRepresentation where
   killRange = id

@@ -923,10 +923,16 @@ getOriginalConstInfo q = do
 defaultGetRewriteRulesFor :: (ReadTCState m, MonadTCEnv m) => QName -> m RewriteRules
 defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
   st <- getTCState
-  let sig = st ^. stSignature
-      imp = st ^. stImports
-      look s = HMap.lookup q $ s ^. sigRewriteRules
-  return $ mconcat $ catMaybes [look sig, look imp]
+  let
+    look :: Lens' TCState Signature -> Maybe RewriteRules
+    look l = HMap.lookup q $ st ^. (l . sigRewriteRules)
+
+  -- Restrict "imported" rewrite rules to those defined in modules we currently (transitively) import.
+  let imps = st ^. stImportedModulesTransitive
+  let inScope rew = rewTopModule rew `Set.member` imps
+  let rewImported = filter inScope <$> look stImports  -- stImports is actually a superset of imported symbols.
+
+  return $ mconcat $ catMaybes [look stSignature, rewImported]
 
 -- | Get the original name of the projection
 --   (the current one could be from a module application).

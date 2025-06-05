@@ -78,6 +78,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
@@ -386,14 +387,15 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
           (f, t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
 
           let checkEqualLHS :: RewriteRule -> TCM Bool
-              checkEqualLHS (RewriteRule q delta _ ps _ _ _) = do
+              checkEqualLHS (RewriteRule q delta _ ps _ _ _ _) = do
                 onlyReduceTypes (nonLinMatch delta (t , hd) ps es) >>= \case
                   Left _    -> return False
                   Right sub -> do
                     let us = applySubst sub $ map var $ downFrom $ size delta
                         as = applySubst sub $ flattenTel delta
                     reportSDoc "rewriting.confluence.global" 35 $
-                      prettyTCM (hd es) <+> "is an instance of the LHS of rule" <+> prettyTCM q <+> "with instantiation" <+> prettyList_ (map prettyTCM us)
+                      applyUnless (null us) (<+> ("with instantiation" <+> prettyList_ (map prettyTCM us))) $
+                        prettyTCM (hd es) <+> "is an instance of the LHS of rule" <+> prettyTCM q
                     ok <- allDistinctVars $ zip us as
                     when ok $ reportSDoc "rewriting.confluence.global" 30 $
                       "It is equal to the LHS of rewrite rule" <+> prettyTCM q
@@ -412,7 +414,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
             warning $ RewriteAmbiguousRules (hd es) rhs1 rhs2
 
     checkTrianglePropertyForRule :: RewriteRule -> TCM ()
-    checkTrianglePropertyForRule (RewriteRule q gamma f ps rhs b c) = addContext gamma $ do
+    checkTrianglePropertyForRule (RewriteRule q gamma f ps rhs b c _) = addContext gamma $ do
       u  <- nlPatToTerm $ PDef f ps
       -- First element in the list is the "best reduct" @ρ(u)@
       (rhou,vs) <- fromMaybe __IMPOSSIBLE__ . uncons <$> allParallelReductions u
@@ -496,7 +498,7 @@ sameRuleName :: RewriteRule -> RewriteRule -> Bool
 sameRuleName = (==) `on` rewName
 
 -- | Get both clauses and rewrite rules for the given symbol
-getAllRulesFor :: (HasConstInfo m, MonadFresh NameId m) => QName -> m [RewriteRule]
+getAllRulesFor :: (HasConstInfo m, ReadTCState m, MonadFresh NameId m) => QName -> m [RewriteRule]
 getAllRulesFor f = (++) <$> getRewriteRulesFor f <*> getClausesAsRewriteRules f
 
 -- | Build a substitution that replaces all variables in the given
@@ -560,7 +562,7 @@ topLevelReductions hd es = do
   -- Get type of head symbol
   (f , t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: head symbol" <+> prettyTCM (hd []) <+> ":" <+> prettyTCM t
-  RewriteRule q gamma _ ps rhs b c <- scatterMP (getAllRulesFor f)
+  RewriteRule q gamma _ ps rhs b c _ <- scatterMP (getAllRulesFor f)
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: trying rule" <+> prettyTCM q
   -- Don't reduce if underapplied
   guard $ length es >= length ps
