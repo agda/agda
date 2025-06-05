@@ -1,4 +1,4 @@
-{-# OPTIONS --erased-cubical --safe --no-sized-types --no-guardedness #-}
+{-# OPTIONS --cubical-without-glue --safe --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Cubical.Sub where
 
