@@ -95,19 +95,25 @@ jobs:
         echo "content-type    = ${{ steps.vars.outputs.content-type }}"
         echo "filename        = ${{ steps.vars.outputs.filename     }}"
         echo "bindist         = ${{ steps.vars.outputs.bindist      }}"
+    - if: runner.os == 'Linux'
+      name: Install GMP library (Linux)
+      run: |
+        sudo apt-get update
+        sudo apt-get install libgmp-dev
     - if: ${{ runner.os == 'Linux' }}
       name: Set up Alpine Linux with GHC and the static library for ICU
       uses: jirutka/setup-alpine@v1
       with:
         packages: |
-          cabal g++ gcc icu-static ncurses-dev ncurses-static musl-dev zlib-static zlib-dev
+          cabal g++ gcc icu-static gmp-dev musl-dev ncurses-dev ncurses-static zlib-static zlib-dev
     - id: setup-haskell
       if: ${{ runner.os != 'Linux' }}
       uses: haskell-actions/setup@v2
       with:
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
-    - name: Environment settings based on the Haskell setup
+    - if: ${{ runner.os != 'Linux' }}
+      name: Environment settings based on the Haskell setup
       run: |
         GHC_VER=$(ghc --numeric-version)
         CABAL_VER=$(cabal --numeric-version)
@@ -230,9 +236,6 @@ jobs:
         ghc-ver:
         - 9.12.2
         os:
-        - windows-latest
-        - macos-14
-        - macos-13
         - ubuntu-latest
   deploy:
     if: ${{ !cancelled() }}
