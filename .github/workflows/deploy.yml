@@ -100,14 +100,15 @@ jobs:
       uses: jirutka/setup-alpine@v1
       with:
         packages: |
-          cabal g++ gcc icu-static ncurses-dev ncurses-static musl-dev zlib-static zlib-dev
+          cabal g++ gcc gmp-dev gmp-static icu-static musl-dev ncurses-dev ncurses-static zlib-static zlib-dev
     - id: setup-haskell
       if: ${{ runner.os != 'Linux' }}
       uses: haskell-actions/setup@v2
       with:
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
-    - name: Environment settings based on the Haskell setup
+    - if: ${{ runner.os != 'Linux' }}
+      name: Environment settings based on the Haskell setup
       run: |
         GHC_VER=$(ghc --numeric-version)
         CABAL_VER=$(cabal --numeric-version)
