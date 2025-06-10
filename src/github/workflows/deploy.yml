@@ -134,12 +134,6 @@ jobs:
         echo "filename        = ${{ steps.vars.outputs.filename     }}"
         echo "bindist         = ${{ steps.vars.outputs.bindist      }}"
 
-    - name: Install GMP library (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install libgmp-dev
-
     - name: Set up Alpine Linux with GHC and the static library for ICU
       uses: jirutka/setup-alpine@v1
       if:  ${{ runner.os == 'Linux' }}
@@ -148,8 +142,9 @@ jobs:
           cabal
           g++
           gcc
-          icu-static
           gmp-dev
+          gmp-static
+          icu-static
           musl-dev
           ncurses-dev
           ncurses-static
