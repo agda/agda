@@ -38,9 +38,9 @@ jobs:
         # As of today (2024-02-05), the actual version information can be found in
         # https://github.com/actions/runner-images#available-images
         os:
-          # - windows-latest
-          # - macos-14
-          # - macos-13
+          - windows-latest
+          - macos-14
+          - macos-13
           - ubuntu-latest
         ghc-ver: ['9.12.2']
         cabal-ver: [latest]
