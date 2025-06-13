@@ -106,7 +106,8 @@ the following to the top of a file (this assumes that the
 
   {-# OPTIONS --cubical #-}
 
-  open import Cubical.Core.Everything
+  open import Cubical.Core.Primitives
+  open import Cubical.Core.Glue
 
 Follow the instructions at https://github.com/agda/cubical to install the library.
 In order to make this library visible to Agda add
