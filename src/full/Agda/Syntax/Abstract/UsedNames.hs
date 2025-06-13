@@ -85,6 +85,7 @@ instance BoundAndUsed Expr where
     Def'{}                 -> mempty
     Proj{}                 -> mempty
     Con{}                  -> mempty
+    Defs{}                 -> mempty
     PatternSyn{}           -> mempty
     Macro{}                -> mempty
     Lit{}                  -> mempty

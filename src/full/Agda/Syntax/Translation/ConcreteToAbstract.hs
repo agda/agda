@@ -563,7 +563,7 @@ instance ToAbstract MaybeOldQName where
     qx <- resolveName' allKindsOfNames ns x
     reportSLn "scope.name" 30 $ "resolved " ++ prettyShow x ++ ": " ++ prettyShow qx
     case qx of
-      VarName x' _         -> return $ Just $ A.Var x'
+      VarName x' _           -> return $ Just $ A.Var x'
       DefinedName _ d suffix -> do
         raiseWarningsOnUsage $ anameName d
         -- then we take note of generalized names used
@@ -578,6 +578,7 @@ instance ToAbstract MaybeOldQName where
       FieldName     ds     -> ambiguous (A.Proj ProjPrefix) ds
       ConstructorName _ ds -> ambiguous A.Con ds
       PatternSynResName ds -> ambiguous A.PatternSyn ds
+      OverloadedNames   ds -> ambiguous A.Defs ds
       UnknownName          -> do
         reportSLn "scope.name.unknown" 80 $ "resolved : unknown " ++ prettyShow x
         pure Nothing
@@ -672,6 +673,7 @@ instance ToQName a => ToAbstract (OldName a) where
       ConstructorName _ ds -> return $ anameName (List1.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
       FieldName ds         -> return $ anameName (List1.head ds)
       PatternSynResName ds -> return $ anameName (List1.head ds)
+      OverloadedNames ds   -> return $ anameName (List1.head ds)
 
 newtype NewModuleName      = NewModuleName      C.Name
 newtype NewModuleQName     = NewModuleQName     C.QName
@@ -994,7 +996,8 @@ instance ToAbstract C.Expr where
         toAbstractCtx TopCtx =<< desugarDoNotation r ss
 
   -- Post-fix projections
-      e0@(C.Dot _kwr e) -> A.Dot (ExprRange $ getRange e0) <$> toAbstract e
+      e0@(C.Dot _kwr e) -> A.Dot (ExprRange $ getRange e0) <$>
+        locallyTC eScopingDot (const True) (toAbstract e)
 
   -- Pattern things
       C.As _ _ _ -> notAnExpression e
@@ -2335,6 +2338,7 @@ instance AddGeneralizable ResolvedName where
     FieldName{}              -> return ()
     ConstructorName{}        -> return ()
     PatternSynResName{}      -> return ()
+    OverloadedNames{}        -> return ()
     UnknownName{}            -> return ()
 
 collectGeneralizables :: ScopeM a -> ScopeM (Set A.QName, a)
@@ -2530,6 +2534,7 @@ bindUnquoteConstructorName m p c = do
     DefinedName _ d _    -> failure $ anameName d
     FieldName ds         -> failure $ anameName $ List1.head ds
     PatternSynResName ds -> failure $ anameName $ List1.head ds
+    OverloadedNames ds   -> failure $ anameName $ List1.head ds
     VarName y _          -> failure $ qualify_ y
   return c'
 
@@ -2720,13 +2725,21 @@ instance ToAbstract C.Pragma where
           qx <- liftTCM $ resolveName' allKindsOfNames Nothing top
           case qx of
             VarName x' _                -> return . (False,) $ A.qnameFromList $ singleton x'
+
             DefinedName _ d NoSuffix    -> return . (False,) $ anameName d
             DefinedName _ d Suffix{}    -> failure $ "Invalid pattern " ++ prettyShow top
+
             FieldName     (d :| [])     -> return . (False,) $ anameName d
             FieldName ds                -> failure $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (AmbQ $ fmap anameName ds)
+
             ConstructorName _ (d :| []) -> return . (False,) $ anameName d
             ConstructorName _ ds        -> failure $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (AmbQ $ fmap anameName ds)
+
+            OverloadedNames (d :| [])   -> return . (False,) $ anameName d
+            OverloadedNames ds          -> failure $ "Unresolved overloaded name " ++ prettyShow top ++ ": " ++ prettyShow (AmbQ $ fmap anameName ds)
+
             UnknownName                 -> do liftTCM $ notInScopeWarning top; mzero
+
             PatternSynResName (d :| []) -> return . (True,) $ anameName d
             PatternSynResName ds        -> failure $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
 
@@ -2765,6 +2778,7 @@ instance ToAbstract C.Pragma where
     ys <- resolveName x >>= \case
       ConstructorName _ ds     -> return $ List1.toList ds
       FieldName ds             -> return $ List1.toList ds
+      OverloadedNames ds       -> return $ List1.toList ds
       PatternSynResName ds     -> return $ List1.toList ds
       DefinedName _ d NoSuffix -> return $ singleton d
       DefinedName _ d Suffix{} -> [] <$ notInScopeWarning x

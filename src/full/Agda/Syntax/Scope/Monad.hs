@@ -348,7 +348,7 @@ resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
 
   Right x' -> return x'
 
-tryResolveName :: forall m. (ReadTCState m, HasBuiltins m, MonadError NameResolutionError m)
+tryResolveName :: forall m. (MonadTCEnv m, ReadTCState m, HasBuiltins m, MonadError NameResolutionError m)
   => KindsOfNames
        -- ^ Restrict search to these kinds of names.
   -> Maybe (Set1 A.Name)
@@ -383,6 +383,9 @@ tryResolveName kinds names x = do
       let (xsuffix, xbase) = (C.lensQNameName . nameSuffix) (,Nothing) x
           possibleBaseNames = filter (canHaveSuffix . anameName . fst) $ possibleNames xbase
           suffixedNames = (,) <$> fromConcreteSuffix xsuffix <*> nonEmpty possibleBaseNames
+
+      dot <- viewTC eScopingDot
+
       case (nonEmpty $ possibleNames x) of
         Just ds  | Just ks <- traverse (isConName . anameKind . fst) ds
                      -- all names resolve to a constructor name
@@ -396,8 +399,14 @@ tryResolveName kinds names x = do
           return $ PatternSynResName $ fmap (upd . fst) ds
 
         Just ((d, a) :| ds) -> case (suffixedNames, ds) of
+          -- If we're scope checking a dotted expression we should
+          -- always say the name is "ambiguous" so the type checker uses
+          -- the overloading resolution logic.
+          (Nothing, ds) | dot -> return $ OverloadedNames $ fmap (upd . fst) ((d , a) :| ds)
+
           (Nothing, []) ->
             return $ DefinedName a (upd d) A.NoSuffix
+
           (Nothing, (d',_) : ds') ->
             throwAmb $ AmbiguousDeclName $ List2 d d' $ map fst ds'
           (Just (_, ss), _) ->
@@ -507,6 +516,7 @@ getNotation x ns = do
     FieldName ds        -> return $ oneNotation ds
     ConstructorName _ ds-> return $ oneNotation ds
     PatternSynResName n -> return $ oneNotation n
+    OverloadedNames n   -> return $ oneNotation n
     UnknownName         -> __IMPOSSIBLE__
   where
     notation = namesToNotation x . qnameName . anameName
@@ -550,6 +560,7 @@ bindName'' acc kind meta x y = do
         FieldName       ds  -> ambiguous (== FldName) ds
         ConstructorName i ds-> ambiguous (isJust . isConName) ds
         PatternSynResName n -> ambiguous (== PatternSynName) n
+        OverloadedNames ds  -> __IMPOSSIBLE__
         UnknownName         -> success
   let ns = if isNoName x then PrivateNS else localNameSpace acc
   traverse_ (modifyCurrentScope . addNameToScope ns x) y'
