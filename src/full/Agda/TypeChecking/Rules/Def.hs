@@ -1268,6 +1268,20 @@ checkWhere wh@(A.WhereDecls whmod whNamed mds) ret = do
   case mds of
       Nothing -> ret
       Just (A.Section _ e m tel ds) -> do
+
+        -- Andreas, 2025-06-14, issue #7943.
+        -- If we are in erased context, mark the module as erased.
+        e <- case e of
+          NotErased oo -> do
+            asksTC envQuantity >>= \case
+              Quantity0 o -> do
+                unless (oo == QωInferred) $
+                  setCurrentRange oo $ warning $ PlentyInHardCompileTimeMode oo
+                pure $ Erased o
+              Quantityω{} -> pure e
+              Quantity1{} -> __IMPOSSIBLE__
+          Erased{}      -> pure e
+
         localTC whereEnv $ newSection e m tel $ checkDecls ds
         -- Andreas, 2025-06-14, issue #7944
         -- We need to check the body in its original erasure status.

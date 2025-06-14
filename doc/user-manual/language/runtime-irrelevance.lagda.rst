@@ -258,6 +258,8 @@ There is also a *hard compile-time mode*. In this mode all definitions
 are treated as erased. The hard compile-time mode is entered when an
 erased definition is checked.
 
+Unnamed and named `where` modules in erased context are always checked in hard compile-time mode.
+
 The type-checker switches from compile-time mode to run-time mode for
 certain expressions/declarations if it is not in the hard compile-time
 mode:

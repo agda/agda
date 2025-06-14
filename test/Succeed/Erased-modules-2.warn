@@ -23,7 +23,7 @@ Erased-modules-2.agda:49.13-15: warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @plenty in hard compile-time mode
 when checking the projection C : Set
 
-Erased-modules-2.agda:50.5-52.15: warning: -W[no]PlentyInHardCompileTimeMode
+Erased-modules-2.agda:51.14-16: warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 when checking that the clause
 C′ = C″
@@ -76,7 +76,7 @@ Erased-modules-2.agda:49.13-15: warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @plenty in hard compile-time mode
 when checking the projection C : Set
 
-Erased-modules-2.agda:50.5-52.15: warning: -W[no]PlentyInHardCompileTimeMode
+Erased-modules-2.agda:51.14-16: warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 when checking that the clause
 C′ = C″
