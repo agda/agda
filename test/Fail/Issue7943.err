@@ -1,0 +1,14 @@
+Issue7943.agda:22.10-12: warning: -W[no]PlentyInHardCompileTimeMode
+Ignored use of @ω in hard compile-time mode
+when checking that the clause
+foo .R.f = Set
+  module @ω M where
+    mutual
+      syntax five ...
+      postulate five : Nat
+      five = er5
+has type R
+
+Issue7943.agda:28.14-20: error: [DefinitionIsErased]
+Identifier M.five is declared erased, so it cannot be used here
+when checking that the expression M.five has type Nat
