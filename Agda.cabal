@@ -206,6 +206,14 @@ flag optimise-heavily
   description:
     Enable some expensive optimisations when compiling Agda.
 
+flag data-in-home
+  default: True
+  manual: True
+  description:
+    Install data files in a version-specific directory under XDG_DATA_HOME
+    instead of the default install location to make the Agda executable more self-contained.
+    This should be disabled in declarative build environments like Nix or Guix.
+
 -- Common stanzas
 ---------------------------------------------------------------------------
 
@@ -217,6 +225,10 @@ common language
     ghc-options:
       -fexpose-all-unfoldings
       -fspecialise-aggressively
+
+  if flag(data-in-home)
+    cpp-options:
+      -DDATA_IN_HOME
 
   if flag(dump-core)
     ghc-options:
