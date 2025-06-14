@@ -174,7 +174,7 @@ after the ``module`` keyword:
     F : @0 Set → Set
     F A = A
 
-  module M (A : Set) where
+  module M (@0 A : Set) where
 
     record R : Set where
       field

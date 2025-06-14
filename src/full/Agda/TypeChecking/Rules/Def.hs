@@ -1263,19 +1263,20 @@ checkWhere
   :: A.WhereDeclarations -- ^ Where-declarations to check.
   -> TCM a               -- ^ Continuation.
   -> TCM a
-checkWhere wh@(A.WhereDecls whmod whNamed ds) ret = do
+checkWhere wh@(A.WhereDecls whmod whNamed mds) ret = do
   when (not whNamed) $ ensureNoNamedWhereInRefinedContext whmod
-  loop ds
-  where
-    loop = \case
+  case mds of
       Nothing -> ret
-      -- [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds  -- IMPOSSIBLE
-      Just (A.Section _ e m tel ds) -> newSection e m tel $ do
-          localTC (\ e -> e { envCheckingWhere = if whNamed then C.SomeWhere_ else C.AnyWhere_ }) $ do
-            checkDecls ds
-            ret
+      Just (A.Section _ e m tel ds) -> do
+        localTC whereEnv $ newSection e m tel $ checkDecls ds
+        -- Andreas, 2025-06-14, issue #7944
+        -- We need to check the body in its original erasure status.
+        withCurrentModule m ret
       _ -> __IMPOSSIBLE__
-
+  where
+    whereEnv e = e
+      { envCheckingWhere       = if whNamed then C.SomeWhere_ else C.AnyWhere_
+      }
     -- #2897: We can't handle named where-modules in refined contexts.
     ensureNoNamedWhereInRefinedContext Nothing = return ()
     ensureNoNamedWhereInRefinedContext (Just m) = traceCall (CheckNamedWhere m) $ do
