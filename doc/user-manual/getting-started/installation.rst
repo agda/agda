@@ -343,6 +343,7 @@ When installing Agda the following flags can be used:
      Default: off.
 
 .. option:: dump-core
+
      Save GHC Core output during compilation of Agda.
      Default: off.
 
@@ -360,6 +361,15 @@ When installing Agda the following flags can be used:
      Optimise Agda heavily. If this flag is on, compiling Agda uses more memory
      but Agda runs faster.
      Default: on.
+
+.. option:: data-in-home
+
+    .. versionadded:: 2.8.0
+
+    Install data files in a version-specific directory under :envvar:`XDG_DATA_HOME`
+    instead of the default install location to make the Agda executable more self-contained.
+    This should be disabled in declarative build environments like Nix or Guix.
+    Default: on.
 
 .. hint:: During ``cabal install`` you can add build flags using the ``-f`` argument:
     ``cabal install -fenable-cluster-counting``. Whereas stack uses ``--flag`` and an
