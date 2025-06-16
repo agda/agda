@@ -1,3 +1,4 @@
 Issue2788.agda:8.1-28: error: [NeedOptionCubical]
-Option --cubical or --erased-cubical required
+Option --cubical or --erased-cubical or --cubical-without-glue
+required
 when checking the pragma BUILTIN EQUIV Equiv
