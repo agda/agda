@@ -292,7 +292,7 @@ data PostScopeState = PostScopeState
   , stPostSignature           :: !Signature
     -- ^ Declared identifiers of the current file.
     --   These will be serialized after successful type checking.
-  , stPostModuleCheckpoints   :: !(Map ModuleName CheckpointId)
+  , stPostModuleCheckpoints   :: !ModuleCheckpoints
     -- ^ For each module remember the checkpoint corresponding to the orignal
     --   context of the module parameters.
   , stPostImportsDisplayForms :: !DisplayForms
@@ -511,7 +511,7 @@ initPostScopeState = PostScopeState
   , stPostDirty                  = False
   , stPostOccursCheckDefs        = Set.empty
   , stPostSignature              = emptySignature
-  , stPostModuleCheckpoints      = Map.empty
+  , stPostModuleCheckpoints      = ModuleCheckpointsTop
   , stPostImportsDisplayForms    = HMap.empty
   , stPostCurrentModule          = empty
   , stPostPendingInstances       = Set.empty
@@ -720,7 +720,7 @@ lensOccursCheckDefs f s = f (stPostOccursCheckDefs s) <&> \ x -> s { stPostOccur
 lensSignature :: Lens' PostScopeState Signature
 lensSignature f s = f (stPostSignature s) <&> \ x -> s { stPostSignature = x }
 
-lensModuleCheckpoints :: Lens' PostScopeState (Map ModuleName CheckpointId)
+lensModuleCheckpoints :: Lens' PostScopeState ModuleCheckpoints
 lensModuleCheckpoints f s = f (stPostModuleCheckpoints s) <&> \ x -> s { stPostModuleCheckpoints = x }
 
 lensImportsDisplayForms :: Lens' PostScopeState DisplayForms
@@ -953,7 +953,7 @@ stSignature = lensPostScopeState . lensSignature
 stRewriteRules :: Lens' TCState RewriteRuleMap
 stRewriteRules = stSignature . sigRewriteRules
 
-stModuleCheckpoints :: Lens' TCState (Map ModuleName CheckpointId)
+stModuleCheckpoints :: Lens' TCState ModuleCheckpoints
 stModuleCheckpoints = lensPostScopeState . lensModuleCheckpoints
 
 stImportsDisplayForms :: Lens' TCState DisplayForms
@@ -1168,11 +1168,79 @@ instance FreshName Name where
     pure $ Name i con can bs fix rn
 
 ---------------------------------------------------------------------------
+-- * Module Checkpoints
+--
+-- During the course of typechecking, we often need to bounce between wildly
+-- different contexts. To do this, we need to have access to a substitution
+-- that describes how our current context was built. This is handled internally
+-- via __checkpoints__. These are unique identifiers that index into a map
+-- @'envCheckpoints'@ that translates @'CheckpointId'@s into @'Substitution'@s,
+-- which allows us to cheaply look up the substitution that describes how to
+-- enter some other context.
+--
+-- Agda also uses checkpoints to manage parameterised module telescopes.
+-- This is a natural choice: we've already got a map of substitutions
+-- in the typing environment, so if we are able to associate every module name
+-- to a checkpoint, we can re-use this machinery to store substitutions
+-- @Γ ⊢ ρ : Δm@ that map our current context @Γ@ into a module parameter
+-- telescope @Δm@ for some module @m@.
+--
+-- However, things get a bit tricky when we enter and leave modules.
+-- Consider the following code:
+--
+-- > module M1 (A : Set) where
+-- >   module M2 (ff : ⊥) where
+-- >     x : Nat
+-- >     x = ... -- Typechecking here
+-- >   ...
+--
+-- When we are typechecking the RHS of @x@, the substitution associated to
+-- @M2@ ought to be a checkpoint pointing to the identity substitution
+--
+-- > A : Set, ff : ⊥ ⊢ A, ff : (A : Set, ff : ⊥).
+--
+-- Things only get tricky when we finish typechecking the body of @M2@, and
+-- re-enter the outer module @M1@. When we are back in the body of @M1@, our
+-- ambient context no longer contains a @ff : ⊥@, and the checkpoint associated to
+-- @M2@ needs to point to:
+--
+-- > A : Set ⊢ A : (A : Set).
+--
+-- To manage this, we keep track of a stack that associates a set of @'ModuleName's@ to
+-- a single @'CheckPointId'@. This makes it relatively efficient to determine when
+-- we should update the checkpoint of a group of modules. Checkpoint ids are allocated
+-- monotonically, so whenever a checkpoint goes out of scope, we can do batch updates of
+-- checkpoint ids by walking back along the stack of module names until we hit the checkpoint
+-- we are looking for.
+---------------------------------------------------------------------------
+
+-- | A stack of module checkpoints for the current module.
+--
+--   We use a hand-rolled stack over a list so that we can @UNPACK@ the @CheckpointId@
+--   and make all the fields strict.
+data ModuleCheckpoints
+  = ModuleCheckpointsTop
+  -- ^ We are in a top-level module, so we don't need to worry about checkpoints.
+  | ModuleCheckpointsSection !ModuleCheckpoints !(Set ModuleName) {-# UNPACK #-} !CheckpointId
+  -- ^ A group of modules that all share a single checkpoint.
+  deriving (Generic)
+
+-- All fields of @ModuleCheckpoints@ are strict, so we only need to force the outermost constructor.
+instance NFData ModuleCheckpoints where
+  rnf ModuleCheckpointsTop = ()
+  rnf (ModuleCheckpointsSection _ _ _) = ()
+
+instance Pretty ModuleCheckpoints where
+  pretty (ModuleCheckpointsTop) = "[]"
+  pretty (ModuleCheckpointsSection mnames chkpt mchkpts) =
+    (pretty mchkpts <> comma) <+> parens (pretty mnames <+> colon <+> pretty chkpt)
+
+---------------------------------------------------------------------------
 -- * Associating concrete names to an abstract name
 ---------------------------------------------------------------------------
 
 -- | A monad that has read and write access to the stConcreteNames
---   part of the TCState. Basically, this is a synonym for `MonadState
+--   part of the TCEnv. Basically, this is a synonym for `MonadState
 --   ConcreteNames m` (which cannot be used directly because of the
 --   limitations of Haskell's typeclass system).
 class Monad m => MonadStConcreteNames m where
@@ -1391,7 +1459,7 @@ data Closure a = Closure
   { clSignature        :: Signature
   , clEnv              :: TCEnv
   , clScope            :: ScopeInfo
-  , clModuleCheckpoints :: Map ModuleName CheckpointId
+  , clModuleCheckpoints :: ModuleCheckpoints
   , clValue            :: a
   }
     deriving (Functor, Foldable, Generic)

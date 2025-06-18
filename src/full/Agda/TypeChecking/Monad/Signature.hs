@@ -284,7 +284,8 @@ unionSignature (Sig a b c d) (Sig a' b' c' d') =
 -- | Add a section to the signature.
 --
 --   The current context will be stored as the cumulative module parameters
---   for this section.
+--   for this section, and a module checkpoint entry will be added
+--   into the module checkpoint stack.
 addSection :: ModuleName -> TCM ()
 addSection m = do
   tel <- getContextTelescope
@@ -303,14 +304,9 @@ addSection m = do
       reportSDoc "impossible" 60 $ "with content" <+> pretty sec
       __IMPOSSIBLE__
   -- Add the new section.
-  setModuleCheckpoint m
+  cp <- viewTC eCurrentCheckpoint
+  setModuleCheckpoint m cp
   modifySignature $ over sigSections $ Map.insert m sec
-
--- | Sets the checkpoint for the given module to the current checkpoint.
-setModuleCheckpoint :: ModuleName -> TCM ()
-setModuleCheckpoint m = do
-  chkpt <- viewTC eCurrentCheckpoint
-  stModuleCheckpoints `modifyTCLens` Map.insert m chkpt
 
 -- | Get a section.
 --
