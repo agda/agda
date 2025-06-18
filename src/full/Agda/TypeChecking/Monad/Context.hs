@@ -125,6 +125,12 @@ checkpoint sub k = do
                               fmap (applySubst sub) (envCheckpoints env)
     }
   newMods <- useTC stModuleCheckpoints
+  unlessDebugPrinting $ verboseS "tc.ctx.checkpoint.modules" 105 $ do
+    reportSDoc "tc.ctx.checkpoint.modules" 105 $ return $ nest 2 $ vcat
+      [ "old mod checkpoints =" <+> pretty (length oldMods)
+      , "new mod checkpoints =" <+> pretty (length newMods)
+      , "mod checkpoint diff =" <+> pretty (Map.difference newMods oldMods)
+      ]
   -- Set the checkpoint for introduced modules to the old checkpoint when the
   -- new one goes out of scope. #2897: This isn't actually sound for modules
   -- created under refined parent parameters, but as long as those modules
