@@ -1728,7 +1728,10 @@ fitsIn dataOrRecord con uc forceds conT s = do
 
   whenM withoutKOption $ do
     q <- viewTC eQuantity
-    usableAtModality' (Just s) ConstructorType (setQuantity q unitModality) (unEl conT)
+    -- Don't want to check polarities for the constructor's type,
+    -- only for its argument telescope!
+    applyPolarityToContext (withStandardLock UnusedPolarity) $
+      usableAtModality' (Just s) ConstructorType (setQuantity q unitModality) (unEl conT)
 
   li <- optLargeIndices <$> pragmaOptions
   -- To allow propositional squash in data constructors, we turn @Prop ℓ@ into @Set ℓ@
