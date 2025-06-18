@@ -38,7 +38,7 @@ import Agda.Utils.Impossible
 --   concrete name contains the source location (if any) of the name. The
 --   source location of the binding site is also recorded.
 data Name = Name
-  { nameId           :: !NameId
+  { nameId           :: {-# UNPACK #-} !NameId
   , nameConcrete     :: C.Name  -- ^ The concrete name used for this instance
   , nameCanonical    :: C.Name  -- ^ The concrete name in the original definition (needed by primShowQName, see #4735)
   , nameBindingSite  :: Range
