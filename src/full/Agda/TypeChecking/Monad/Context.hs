@@ -160,23 +160,27 @@ setModuleCheckpoint mname newChkpt =
 {-# SPECIALIZE setAllModuleCheckpoints :: CheckpointId -> TCM () #-}
 setAllModuleCheckpoints :: (MonadTCState m) => CheckpointId -> m ()
 setAllModuleCheckpoints chkpt =
-  modifyTCLens' stModuleCheckpoints (go Set.empty)
+  modifyTCLens' stModuleCheckpoints (setAll Set.empty)
   where
-    go :: Set ModuleName -> ModuleCheckpoints -> ModuleCheckpoints
-    go acc ModuleCheckpointsTop = ModuleCheckpointsSection ModuleCheckpointsTop acc chkpt
-    go acc (ModuleCheckpointsSection chkpts siblings _) = go (Set.union siblings acc) chkpts
+    setAll :: Set ModuleName -> ModuleCheckpoints -> ModuleCheckpoints
+    setAll acc ModuleCheckpointsTop = ModuleCheckpointsSection ModuleCheckpointsTop acc chkpt
+    setAll acc (ModuleCheckpointsSection chkpts siblings _) = setAll (Set.union siblings acc) chkpts
 
 -- | Unwind the module checkpoint stack until we reach a target @CheckpointId@.
 {-# SPECIALIZE unwindModuleCheckpoints :: CheckpointId -> TCM () #-}
 unwindModuleCheckpoints :: (MonadTCState m) => CheckpointId -> m ()
 unwindModuleCheckpoints unwindTo =
-  modifyTCLens' stModuleCheckpoints (go Set.empty)
+  modifyTCLens' stModuleCheckpoints (unwind Set.empty)
   where
-    go :: Set ModuleName -> ModuleCheckpoints -> ModuleCheckpoints
-    go acc ModuleCheckpointsTop = ModuleCheckpointsTop
-    go acc (ModuleCheckpointsSection chkpts siblings chkpt)
-      | chkpt <= unwindTo = ModuleCheckpointsSection chkpts (Set.union siblings acc) chkpt
-      | otherwise = go (Set.union siblings acc) chkpts
+    unwind :: Set ModuleName -> ModuleCheckpoints -> ModuleCheckpoints
+    unwind acc ModuleCheckpointsTop =
+      ModuleCheckpointsSection ModuleCheckpointsTop acc unwindTo
+    unwind acc chkptStack@(ModuleCheckpointsSection chkpts siblings chkpt)
+      | chkpt < unwindTo =
+        ModuleCheckpointsSection chkptStack acc unwindTo
+      | chkpt == unwindTo =
+        ModuleCheckpointsSection chkpts (Set.union siblings acc) chkpt
+      | otherwise = unwind (Set.union siblings acc) chkpts
 
 -- | Run a computation with no module checkpoints set.
 withoutModuleCheckpoints :: (ReadTCState m) => m a -> m a
