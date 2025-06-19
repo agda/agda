@@ -106,11 +106,11 @@ checkpoint
 checkpoint sub k = do
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 $ "New checkpoint {"
   old  <- viewTC eCurrentCheckpoint
+  oldChkpts <- useTC stModuleCheckpoints
   chkpt <- fresh
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
     cxt <- getContextTelescope
     cps <- viewTC eCheckpoints
-    mchkpts <- useTC stModuleCheckpoints
     let cps' = Map.insert chkpt IdS $ fmap (applySubst sub) cps
         prCps cps = vcat [ pshow c <+> ": " <+> pretty s | (c, s) <- Map.toList cps ]
     reportSDoc "tc.cxt.checkpoint" 105 $ return $ nest 2 $ vcat
@@ -118,7 +118,7 @@ checkpoint sub k = do
       , "new =" <+> pshow chkpt
       , "sub =" <+> pretty sub
       , "cxt =" <+> pretty cxt
-      , "mods =" <+> pretty mchkpts
+      , "mods =" <+> pretty oldChkpts
       , "old substs =" <+> prCps cps
       , "new substs =" <?> prCps cps'
       ]
@@ -128,21 +128,31 @@ checkpoint sub k = do
                               fmap (applySubst sub) (envCheckpoints env)
     }
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
-    mchkpts <- useTC stModuleCheckpoints
+    newChkpts <- useTC stModuleCheckpoints
     reportSDoc "tc.cxt.checkpoint" 105 $ return $ nest 2 $
-      "mods before unwind =" <+> pretty mchkpts
+      "mods before unwind =" <+> pretty newChkpts
 
   -- Set the checkpoint for introduced modules to the old checkpoint when the
   -- new one goes out of scope. #2897: This isn't actually sound for modules
   -- created under refined parent parameters, but as long as those modules
   -- aren't named we shouldn't look at the checkpoint. The right thing to do
   -- would be to not store these modules in the checkpoint map, but todo..
-  unwindModuleCheckpoints old
+
+  -- [HACK: Repairing module checkpoints after state resets]
+  -- Ideally, we could just walk up the current module checkpoint stack
+  -- until we hit the the @old@ checkpoint. This works in most cases, but breaks if
+  -- @k@ resets the typechecking state to a state defined *before* the call to
+  -- @checkpoint@: this can result in us discarding module checkpoints.
+  --
+  -- To prevent this, we walk up the current module checkpoint stack until
+  -- we hit our previous checkpoint, and add any module checkpoints onto
+  -- the checkpoint stack we had before we ran @k@.
+  unwindModuleCheckpointsOnto old oldChkpts
 
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
-    mchkpts <- useTC stModuleCheckpoints
+    unwoundChkpts <- useTC stModuleCheckpoints
     reportSDoc "tc.cxt.checkpoint" 105 $ return $ nest 2 $
-      "unwound mods =" <+> pretty mchkpts
+      "unwound mods =" <+> pretty unwoundChkpts
 
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 "}"
   return x
@@ -168,29 +178,30 @@ setAllModuleCheckpoints chkpt =
     setAll acc ModuleCheckpointsTop = ModuleCheckpointsSection ModuleCheckpointsTop acc chkpt
     setAll acc (ModuleCheckpointsSection chkpts siblings _) = setAll (Set.union siblings acc) chkpts
 
--- | Unwind the module checkpoint stack until we reach a target @CheckpointId@.
-{-# SPECIALIZE unwindModuleCheckpoints :: CheckpointId -> TCM () #-}
-unwindModuleCheckpoints :: (MonadTCState m) => CheckpointId -> m ()
-unwindModuleCheckpoints unwindTo =
+-- | Unwind the current module checkpoint stack until we reach a target @CheckpointId@,
+--   and place the checkpoints onto the provided @ModuleCheckpoints@ stack.
+{-# SPECIALIZE unwindModuleCheckpointsOnto :: CheckpointId -> ModuleCheckpoints -> TCM () #-}
+unwindModuleCheckpointsOnto :: (MonadTCState m) => CheckpointId -> ModuleCheckpoints -> m ()
+unwindModuleCheckpointsOnto unwindTo oldChkpts =
   -- We know that the checkpoints in the stack are sorted,
   -- so we can do a preliminary check to see if there's
   -- any work to be done.
   modifyTCLens' stModuleCheckpoints \case
     ModuleCheckpointsSection chkpts siblings chkpt | unwindTo < chkpt -> unwind siblings chkpts
-    chkpts -> chkpts
+    _ -> oldChkpts
   where
     unwind :: Set ModuleName -> ModuleCheckpoints -> ModuleCheckpoints
     unwind acc ModuleCheckpointsTop =
       ModuleCheckpointsSection ModuleCheckpointsTop acc unwindTo
-    unwind acc chkptStack@(ModuleCheckpointsSection chkpts siblings chkpt)
+    unwind acc (ModuleCheckpointsSection chkpts siblings chkpt)
       | chkpt < unwindTo =
         -- If the unwind target isnt present in the stack, we add it
         -- ourselves.
-        ModuleCheckpointsSection chkptStack acc unwindTo
+        ModuleCheckpointsSection oldChkpts acc unwindTo
       | chkpt == unwindTo =
         -- Make sure to avoid adding duplicate entries into the unwind
         -- stack: this would break later unwinds!
-        ModuleCheckpointsSection chkpts (Set.union siblings acc) chkpt
+        ModuleCheckpointsSection oldChkpts (Set.union siblings acc) chkpt
       | otherwise = unwind (Set.union siblings acc) chkpts
 
 -- | Run a computation with no module checkpoints set.
