@@ -1240,7 +1240,7 @@ instance Pretty ModuleCheckpoints where
 ---------------------------------------------------------------------------
 
 -- | A monad that has read and write access to the stConcreteNames
---   part of the TCEnv. Basically, this is a synonym for `MonadState
+--   part of the TCState. Basically, this is a synonym for `MonadState
 --   ConcreteNames m` (which cannot be used directly because of the
 --   limitations of Haskell's typeclass system).
 class Monad m => MonadStConcreteNames m where
