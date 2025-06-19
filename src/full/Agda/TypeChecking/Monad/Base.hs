@@ -1232,7 +1232,7 @@ instance NFData ModuleCheckpoints where
 
 instance Pretty ModuleCheckpoints where
   pretty (ModuleCheckpointsTop) = "[]"
-  pretty (ModuleCheckpointsSection mnames chkpt mchkpts) =
+  pretty (ModuleCheckpointsSection mchkpts mnames chkpt) =
     (pretty mchkpts <> comma) <+> parens (pretty mnames <+> colon <+> pretty chkpt)
 
 ---------------------------------------------------------------------------
