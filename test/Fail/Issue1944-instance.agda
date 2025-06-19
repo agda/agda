@@ -1,3 +1,4 @@
+--
 -- Andreas, Issue 1944, Bengtfest Marsstrand 2016-04-28
 
 -- A reason why issue 1098 (automatic opening of record modules)

@@ -881,6 +881,7 @@ bindBuiltin b x = do
       DefinedName _ x Suffix{} -> failure
       FieldName xs         -> return xs
       ConstructorName _ xs -> return xs
+      OverloadedNames xs   -> return xs
       PatternSynResName xs -> failure
       UnknownName          -> failure
     -- For ambiguous names, we check all of their definitions:
@@ -912,6 +913,8 @@ bindUntypedBuiltin b = \case
   DefinedName _ x Suffix{} -> wrong
   FieldName (x :| [])  -> bind x
   FieldName (x :| _)   -> amb x
+  OverloadedNames (x :| []) -> bind x
+  OverloadedNames (x :| _)  -> amb x
   VarName _x _bnd      -> wrong
   UnknownName          -> wrong
   ConstructorName _ xs -> err xs
