@@ -160,7 +160,9 @@ setModuleCheckpoint mname newChkpt =
 {-# SPECIALIZE setAllModuleCheckpoints :: CheckpointId -> TCM () #-}
 setAllModuleCheckpoints :: (MonadTCState m) => CheckpointId -> m ()
 setAllModuleCheckpoints chkpt =
-  modifyTCLens' stModuleCheckpoints (setAll Set.empty)
+  modifyTCLens' stModuleCheckpoints \case
+    ModuleCheckpointsTop -> ModuleCheckpointsTop
+    ModuleCheckpointsSection chkpts siblings _ -> setAll siblings chkpts
   where
     setAll :: Set ModuleName -> ModuleCheckpoints -> ModuleCheckpoints
     setAll acc ModuleCheckpointsTop = ModuleCheckpointsSection ModuleCheckpointsTop acc chkpt
@@ -170,15 +172,24 @@ setAllModuleCheckpoints chkpt =
 {-# SPECIALIZE unwindModuleCheckpoints :: CheckpointId -> TCM () #-}
 unwindModuleCheckpoints :: (MonadTCState m) => CheckpointId -> m ()
 unwindModuleCheckpoints unwindTo =
-  modifyTCLens' stModuleCheckpoints (unwind Set.empty)
+  -- We know that the checkpoints in the stack are sorted,
+  -- so we can do a preliminary check to see if there's
+  -- any work to be done.
+  modifyTCLens' stModuleCheckpoints \case
+    ModuleCheckpointsSection chkpts siblings chkpt | unwindTo < chkpt -> unwind siblings chkpts
+    chkpts -> chkpts
   where
     unwind :: Set ModuleName -> ModuleCheckpoints -> ModuleCheckpoints
     unwind acc ModuleCheckpointsTop =
       ModuleCheckpointsSection ModuleCheckpointsTop acc unwindTo
     unwind acc chkptStack@(ModuleCheckpointsSection chkpts siblings chkpt)
       | chkpt < unwindTo =
+        -- If the unwind target isnt present in the stack, we add it
+        -- ourselves.
         ModuleCheckpointsSection chkptStack acc unwindTo
       | chkpt == unwindTo =
+        -- Make sure to avoid adding duplicate entries into the unwind
+        -- stack: this would break later unwinds!
         ModuleCheckpointsSection chkpts (Set.union siblings acc) chkpt
       | otherwise = unwind (Set.union siblings acc) chkpts
 
