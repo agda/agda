@@ -1003,7 +1003,7 @@ instance ToAbstract C.Expr where
   -- Impossible things
       C.Equal{} -> syntaxError "unexpected '='" -- triggered by 'f = (x = e)'
       C.Ellipsis _ -> syntaxError "unexpected '...'"  -- triggered by 'f = ...'
-      C.DoubleDot _ _ -> __IMPOSSIBLE__
+      C.DoubleDot _ _ -> syntaxError "unexpected '..'" -- triggered by 'f = ..x'
 
   -- Quoting
       C.Quote r -> return $ A.Quote (ExprRange r)
