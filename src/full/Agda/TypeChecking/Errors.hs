@@ -834,11 +834,20 @@ instance PrettyTCM TypeError where
         RootNameModuleNotAQualifiedModuleName defaultName ->
           pretty defaultName : pwords "is not an unqualified module name."
 
-    ModuleDefinedInOtherFile mod file file' -> fsep $
-      pwords "You tried to load" ++ [text (filePath file)] ++
-      pwords "which defines the module" ++ [pretty mod <> "."] ++
-      pwords "However, according to the include path this module should" ++
-      pwords "be defined in" ++ [text (filePath file') <> "."]
+    ModuleDefinedInOtherFile mod file file' -> fsep $ concat
+      [ pwords "You tried to load"
+      , [ text (filePath file) ]
+      , if moduleNameInferred mod
+          then pwords "which seems to define the module"
+          else pwords "which defines the module"
+      , [ pretty mod <> "." ]
+      , pwords "However, according to the include path this module should be defined in"
+      , [ text (filePath file') ]
+        -- Andreas, 2025-06-21, issue #7953:
+        -- We have no test that triggers this hint, not sure it can be triggered at all.
+      , if moduleNameInferred mod then pwords "(Hint: no module header was found in this file; adding one might fix this error.)"
+        else empty
+      ]
 
     ModuleNameUnexpected given expected
       | canon dGiven == canon dExpected -> fsep $ concat
