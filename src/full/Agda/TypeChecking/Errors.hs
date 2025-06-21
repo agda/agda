@@ -758,7 +758,7 @@ instance PrettyTCM TypeError where
     LibraryError err -> return $ formatLibErrors err
 
     LibTooFarDown m lib -> vcat
-      [ text "A .agda-lib file for" <+> pretty m
+      [ text "An .agda-lib file for" <+> pretty m
       , text "must not be located in the directory" <+> text (takeDirectory (lib ^. libFile))
       ]
 
