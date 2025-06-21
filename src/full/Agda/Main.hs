@@ -359,6 +359,9 @@ printVersion backends PrintAgdaVersion = do
 #ifdef DEBUG_SERIALISATION
     "debug-serialisation: extra debug info during serialisation into '.agdai' files" :
 #endif
+#ifdef DATA_IN_HOME
+    "data-in-home: install data files under XDG_DATA_HOME" :
+#endif
     []
 
 printAgdaDataDir :: IO ()
