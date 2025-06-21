@@ -867,11 +867,21 @@ instance PrettyTCM TypeError where
         " and " ++ prettyShow raw' ++ " (you may want to consider " ++
         "renaming one of these modules)"
 
-
-    ModuleNameDoesntMatchFileName given files ->
-      fsep (pwords "The name of the top level module does not match the file name. The module" ++
-           [ pretty given ] ++ pwords "should be defined in one of the following files:")
-      $$ nest 2 (vcat $ map (text . filePath) files)
+    ModuleNameDoesntMatchFileName given files -> vcat
+      [ fsep $ concat
+        [ [ "The" ]
+        , [ "inferred" | moduleNameInferred given ]
+        , [ "name" ]
+        , [ "`" <> pretty given <> "`"]
+        , pwords "of the top level module"
+        , pwords "does not match the file name."
+        , pwords "A such named module should be defined in one of the following files:"
+        ]
+      , nest 2 (vcat $ map (text . filePath) files)
+      , if moduleNameInferred given then fsep $
+          pwords "(Hint: no module header was found in this file; adding one might fix this error.)"
+        else empty
+      ]
 
     AbstractConstructorNotInScope q -> fsep $
       [ "Constructor"

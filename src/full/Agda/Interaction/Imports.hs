@@ -211,6 +211,9 @@ moduleName file parsedModule = Bench.billTo [Bench.ModuleName] $ do
           return $ RawTopLevelModuleName
             { rawModuleNameRange = getRange m
             , rawModuleNameParts = singleton (T.pack defaultName)
+            , rawModuleNameInferred = True
+                -- Andreas, 2025-06-21, issue #7953:
+                -- Remember we made up this module name to improve errors.
             }
     else return raw
 

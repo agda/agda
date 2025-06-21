@@ -56,6 +56,7 @@ doCompile f isMain i = do
     agdaPrim = RawTopLevelModuleName
       { rawModuleNameRange = mempty
       , rawModuleNameParts = "Agda" :| "Primitive" : []
+      , rawModuleNameInferred = False
       }
       -- N.B. The Range in TopLevelModuleName is ignored for Ord, so we can set it to mempty.
 

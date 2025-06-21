@@ -306,6 +306,9 @@ instance Hashable QName where
 instance IsNoName Name where
   isNoName = isNoName . nameConcrete
 
+instance IsNoName ModuleName where
+  isNoName (MName xs) = all isNoName xs
+
 instance NumHoles Name where
   numHoles = numHoles . nameConcrete
 

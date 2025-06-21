@@ -40,6 +40,7 @@ tests = do
   issue7678Dir = testDir </> "Issue7678"
   customizedTests =
     [ testGroup "customised" $
+        issue7953 :
         issue6465 :
         issue5508 :
         issue4671 :
@@ -120,6 +121,32 @@ fdebugTestFilter =
   , disable "Fail/Issue4175"
   ]
   where disable = RFInclude
+
+-- | We need to load an agda file in a subdirectory to trigger issue #7953.
+issue7953 :: TestTree
+issue7953 =
+  goldenTest1
+    name
+    (readTextFileMaybe goldenFile)
+    doRun
+    textDiff
+    ShowText
+    (writeTextFile goldenFile)
+  where
+    name       = "Issue7953"
+    dir        = testDir </> "customised"
+    goldenFile = dir </> name <.> "err"
+    doRun = do
+      runAgdaWithOptions name agdaArgs Nothing Nothing
+        <&> printTestResult . expectFail
+      where
+        agdaArgs =
+          [ "-v0"
+          , "--no-default-libraries"
+          , "-i" ++ dir
+          -- , "-i" ++ dir </> name
+          , dir </> name </> "Test.agda"
+          ]
 
 issue6465 :: TestTree
 issue6465 =

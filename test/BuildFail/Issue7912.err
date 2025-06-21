@@ -2,9 +2,9 @@ Importing the primitive modules.
 Done importing the primitive modules.
 Error raised at (typeError, src/full/Agda/Interaction/FindFile.hs:«line»:«col» in «Agda-package»:Agda.Interaction.FindFile)
 ../BuildFail/Issue7912/F.agda:1.1: error: [ModuleNameDoesntMatchFileName]
-The name of the top level module does not match the file name. The
-module Definitely-not-F should be defined in one of the following
-files:
+The name 'Definitely-not-F' of the top level module does not match
+the file name. A such named module should be defined in one of the
+following files:
   ../BuildFail/Issue7912/Definitely-not-F.agda
   ../BuildFail/Issue7912/Definitely-not-F.lagda
   agda-default-include-path/Definitely-not-F.agda

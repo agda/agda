@@ -226,7 +226,7 @@ instance (EmbPrj a, Typeable b) => EmbPrj (WithDefault' a b) where
     _ -> malformed
 
 instance EmbPrj TopLevelModuleName where
-  icod_ (TopLevelModuleName a b c) = icodeN' TopLevelModuleName a b c
+  icod_ (TopLevelModuleName a b c d) = icodeN' TopLevelModuleName a b c d
 
   value = valueN TopLevelModuleName
 

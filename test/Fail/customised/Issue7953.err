@@ -1,0 +1,10 @@
+1.1-5: error: [ModuleNameDoesntMatchFileName]
+The inferred name 'Test' of the top level module does not match the
+file name. A such named module should be defined in one of the
+following files:
+  customised/Test.agda
+  customised/Test.lagda
+  agda-default-include-path/Test.agda
+  agda-default-include-path/Test.lagda
+(Hint: no module header was found in this file; adding one might
+fix this error.)

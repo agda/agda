@@ -358,10 +358,10 @@ instance HasRange (TopLevelModuleName' Range) where
   getRange = moduleNameRange
 
 instance SetRange (TopLevelModuleName' Range) where
-  setRange r (TopLevelModuleName _ h x) = TopLevelModuleName r h x
+  setRange r (TopLevelModuleName _ h x z) = TopLevelModuleName r h x z
 
 instance KillRange (TopLevelModuleName' Range) where
-  killRange (TopLevelModuleName _ h x) = TopLevelModuleName noRange h x
+  killRange (TopLevelModuleName _ h x z) = TopLevelModuleName noRange h x z
 
 -- | Precondition: The ranges of the list elements must point to the
 -- same file (or be empty).

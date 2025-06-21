@@ -188,6 +188,7 @@ instance Arbitrary RawTopLevelModuleName where
     return $ RawTopLevelModuleName
       { rawModuleNameRange = r
       , rawModuleNameParts = parts
+      , rawModuleNameInferred = False
       }
 
 instance Arbitrary TopLevelModuleName where
