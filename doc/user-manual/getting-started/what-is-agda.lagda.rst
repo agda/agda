@@ -15,12 +15,13 @@ Agda is a dependently typed programming language.
 It is an extension of
 `Martin-Löf's type theory <https://ncatlab.org/nlab/show/Martin-L%C3%B6f+dependent+type+theory>`_
 and is the latest in the tradition of languages developed in the
-programming logic group at Chalmers. Other languages in this tradition are
+programming logic group at Chalmers.
+Previous languages in this tradition have been
 `Alf <https://doi.org/10.1007/3-540-58085-9_78>`_,
 `Alfa <http://www.cse.chalmers.se/~hallgren/Alfa/>`_,
 `Agda 1 <https://sourceforge.net/projects/agda/>`_,
 `Cayenne <https://en.wikipedia.org/wiki/Cayenne_(programming_language)>`_.
-Some other loosely related languages are
+Some related languages of note are
 `Rocq <https://rocq-prover.org/>`_ (formerly known as Coq),
 `Epigram <http://www.e-pig.org/>`_,
 `Idris <https://idris-lang.org/>`_, and
@@ -56,7 +57,7 @@ its derivatives like `Standard ML <https://en.wikipedia.org/wiki/Standard_ML>`_ 
 come with a type expressing what type of arguments the program expects
 and what the result type is.
 
-Between these two families of languages come languages, which may or
+Between these two families of languages come languages which may or
 may not have a typing discipline. Most imperative languages do not
 come with a rich type system. For example,
 `C <https://en.wikipedia.org/wiki/C_%28programming_language%29>`_ is
@@ -86,13 +87,13 @@ Dependent types
 `Dependent types <https://ncatlab.org/nlab/show/dependent+type>`_ are
 introduced by having families of types indexed by objects in another type.
 For instance, we can define the type ``Vec n`` of vectors of length ``n``.
-This is a family of types indexed by objects in ``Nat`` (a type
+This is a family of types indexed by objects in ``ℕ`` (a type
 parameterized by natural numbers).
 
 Having dependent types, we must generalize the type of functions and
 the type of pairs.
 
-The **dependent function space** ``(a : A) -> (B a)`` is the type of the
+The **dependent function space** ``(a : A) → B a`` is the type of the
 functions taking an argument ``a`` in a type ``A`` and returning a result in ``B
 a``. Here, ``A`` is a type, and ``B`` is a family of types indexed by
 elements in ``A``.
@@ -101,10 +102,10 @@ For example, we could define the type of ``n x m`` matrices as a type
 indexed by two natural numbers. Call this type ``Mat n m``. The
 function ``identity``, which takes a natural number ``n`` as an argument
 and produces the ``n x n`` identity matrix, is then a function of type
-``identity : (n : Nat) -> (Mat n n)``.
+``identity : (n : ℕ) → Mat n n``.
 
 **Remark**: We could, of course, just specify the ``identity`` function
-with the type ``Nat -> Mat``, where ``Mat`` is the type of
+with the type ``ℕ → Mat``, where ``Mat`` is the type of
 matrices, but this is not as precise as the dependent version.
 
 The advantage of using dependent types is that it makes it possible to
@@ -116,7 +117,7 @@ multiplication is
 
 .. code-block:: agda
 
-   ∀ {i j k} → (Mat i j) -> (Mat j k) -> (Mat i k)
+   ∀ {i j k} → Mat i j → Mat j k → Mat i k
 
 and the type system can check that a program for matrix multiplication
 really produces matrices of the correct size. It can also check that
@@ -132,18 +133,19 @@ correspondence <https://en.wikipedia.org/wiki/Curry_Howard>`_, one can
 express a logical specification using dependent types. For example, using
 only typing it is  possible to define:
 
-* equality on natural numbers
-* properties of arithmetical operations
-* the type ``(n : Nat) -> (PrimRoot n)`` consisting of functions
-  computing primitive roots in modular arithmetic.
+* equality on natural numbers,
+* properties of arithmetical operations, and
+* the type ``(n : ℕ) → PrimeFactor n`` of functions
+  returning a certified prime factor of a given natural number.
 
 Of course, a program of the above type will be more difficult to write
-than the corresponding program of type ``Nat -> Nat``, which produces a
-natural number which is a primitive root. However, the difficulty can
-be compensated by the fact that the program is guaranteed to work: it
-cannot produce something which is not a primitive root.
+than the corresponding program of type ``ℕ → ℕ`` that just computes
+a prime factor without proof of its properties, namely that it is a factor and prime.
+However, the extra effort in constructing a ``PrimeFactor n``
+is compensated by the fact that the program is guaranteed to work correctly:
+it cannot produce something which is not a prime factor.
 
 On a more mathematical level, we can express formulas and prove them
-using an algorithm. For example, a function of type ``(n : Nat) ->
-(PrimRoot n)`` is also a proof that every natural number has a
-primitive root.
+using an algorithm. For example, a function of type ``(n : ℕ) →
+PrimeFactor n`` is also a proof that every natural number has a
+prime factor (which is trivial for non-composite numbers).
