@@ -6,13 +6,13 @@
 -- we construct critical pairs involving this as the main rule by
 -- searching for:
 --
--- 1. *Different* rules @f ps' ↦ v'@ where @ps@ and @ps'@ can be
---    unified@.
+-- 1. *Different* rules @f ps' ↦ ...@ where @ps@ and @ps'@ can be
+--    unified.
 --
--- 2. Subpatterns @g qs@ of @ps@ and rewrite rules @g qs' ↦ w@ where
+-- 2. Subpatterns @g qs@ of @ps@ and rewrite rules @g qs' ↦ ...@ where
 --    @qs@ and @qs'@ can be unified.
 --
--- Each of these leads to a *critical pair* @v₁ <-- u --> v₂@, which
+-- Each of these leads to a *critical pair* @v₁ <-- f us --> v₂@, which
 -- should satisfy @v₁ = v₂@.
 --
 -- For checking GLOBAL CONFLUENCE, we check the following two
@@ -26,7 +26,7 @@
 --    also be a rule @suc m + suc n = suc (suc (m + n))@.
 --
 -- 2. Each rewrite rule should satisfy the *triangle property*: For
---    any rewrite rule @u = w@ and any single-step parallel unfolding
+--    any rewrite rule @u ↦ w@ and any single-step parallel unfolding
 --    @u => v@, we should have another single-step parallel unfolding
 --    @v => w@.
 
@@ -90,7 +90,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
--- ^ Check confluence of the clauses of the given function wrt rewrite rules of the
+-- | Check confluence of the clauses of the given function wrt rewrite rules of the
 -- constructors they match against
 checkConfluenceOfClauses :: ConfluenceCheck -> QName -> TCM ()
 checkConfluenceOfClauses confChk f = do
@@ -108,7 +108,7 @@ checkConfluenceOfClauses confChk f = do
     unlessNullM (filterM hasRules ms) $ \_ -> do
       checkConfluenceOfRules confChk [rew]
 
--- ^ Check confluence of the given rewrite rules wrt all other rewrite
+-- | Check confluence of the given rewrite rules wrt all other rewrite
 --   rules (also amongst themselves).
 checkConfluenceOfRules :: ConfluenceCheck -> [RewriteRule] -> TCM ()
 checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
@@ -638,7 +638,7 @@ abstractOverMetas ms x = do
     let metaIndex x = (n-1-) <$> elemIndex x ms'
     runReaderT (metasToVars (gamma, x)) metaIndex
 
--- ^ A @OneHole p@ is a @p@ with a subpattern @f ps@ singled out.
+-- | A @OneHole p@ is a @p@ with a subpattern @f ps@ singled out.
 data OneHole a = OneHole
   { ohBoundVars :: Telescope     -- Telescope of bound variables at the hole
   , ohType      :: Type          -- Type of the term in the hole
@@ -676,7 +676,7 @@ composeHole inner outer = OneHole
 ohAddBV :: ArgName -> Dom Type -> OneHole a -> OneHole a
 ohAddBV x a oh = oh { ohBoundVars = ExtendTel a $ Abs x $ ohBoundVars oh }
 
--- ^ Given a @p : a@, @allHoles p@ lists all the possible
+-- | Given a @p : a@, @allHoles p@ lists all the possible
 --   decompositions @p = p'[(f ps)/x]@.
 class (TermSubst p, Free p) => AllHoles p where
   allHoles :: (Alternative m, PureTCM m) => TypeOf p -> p -> m (OneHole p)
@@ -750,7 +750,7 @@ forceEtaExpansion a v (e:es) = case e of
 
   IApply{} -> __IMPOSSIBLE__ -- Not yet implemented
 
--- ^ Instances for @AllHoles@
+-- Instances for @AllHoles@
 
 instance AllHoles p => AllHoles (Arg p) where
   allHoles a x = fmap (x $>) <$> allHoles (unDom a) (unArg x)
