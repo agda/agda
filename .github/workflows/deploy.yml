@@ -198,10 +198,14 @@ jobs:
       run: |
         sha="$(git rev-parse --short=7 HEAD)"
 
+        git fetch -q origin 'refs/tags/*:refs/tags/*'
+        last_tag=$(git tag -l | grep -e '^v[[:digit:]]\+\(\.[[:digit:]]\+\)\{2,\}$' | sort -Vr | head -n 1)
+        echo "last_tag  = ${last_tag}"
+
         gh release delete 'nightly' --repo "${GITHUB_REPOSITORY}" --cleanup-tag --yes || true
         for i in artifacts/**/*; do mv "$i" "$(dirname ${i})/Agda-${sha}-$(basename ${i})"; done
         ls -R artifacts
-        gh release create 'nightly' artifacts/**/* --repo "${GITHUB_REPOSITORY}" --generate-notes --notes-start-tag v2.7.0.1 --prerelease --title "${sha}@master"
+        gh release create 'nightly' artifacts/**/* --repo "${GITHUB_REPOSITORY}" --generate-notes --notes-start-tag ${last_tag} --prerelease --title "${sha}@master"
     - env:
         GITHUB_TOKEN: ${{ github.token }}
       if: startsWith(github.ref, 'refs/tags/v')
@@ -264,7 +268,7 @@ jobs:
     - name: Unpack artefacts
       run: |
         ${{ steps.vars.outputs.decompress-cmd }}
-    - name: Display the version information
+    - name: Run `agda --setup`
       run: |
         if [[ "$MATRIX_OS" == "macos"* ]]; then
           xattr -c agda
