@@ -72,45 +72,43 @@ jobs:
       run: |
         bindist="Agda"
 
-        echo bindist="${bindist}"                                   >> "${GITHUB_OUTPUT}"
-
         if [[ "$OSTYPE" == "msys"* ]]; then
 
           filename="win64.zip"
+          exe="agda.exe"
           echo args="${ARGS} ${WIN64_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="7z a ${filename} ${bindist} -bb -mx=9" >> "${GITHUB_OUTPUT}"
           echo content-type="application/zip"                       >> "${GITHUB_OUTPUT}"
-          echo exe="agda.exe"                                       >> "${GITHUB_OUTPUT}"
-          echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="cd ${bindist} && 7z a ${filename} -bb -mx=9 && mv ${filename} .." >> "${GITHUB_OUTPUT}"
 
         elif [[ "$MATRIX_OS" == "macos-13" ]]; then
 
           filename="macOS-x64.tar.xz"
+          exe="agda"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="tar -a -cvf ${filename} ${bindist}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
-          echo exe="agda"                                           >> "${GITHUB_OUTPUT}"
-          echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" ${exe}  >> "${GITHUB_OUTPUT}"
 
         elif [[ "$MATRIX_OS" == "macos-14" ]]; then
 
           filename="macOS-arm64.tar.xz"
+          exe="agda"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="tar -a -cvf ${filename} ${bindist}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
-          echo exe="agda"                                           >> "${GITHUB_OUTPUT}"
-          echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" ${exe}  >> "${GITHUB_OUTPUT}"
 
         elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
 
           filename="linux.tar.xz"
+          exe="agda"
           echo args="${ARGS} ${LINUX_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="tar -a -cvf ${filename} ${bindist}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
-          echo exe="agda"                                           >> "${GITHUB_OUTPUT}"
-          echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" ${exe}  >> "${GITHUB_OUTPUT}"
 
         fi
+
+        echo bindist="${bindist}"                                 >> "${GITHUB_OUTPUT}"
+        echo exe=${exe}                                           >> "${GITHUB_OUTPUT}"
+        echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
 
     - name: Display build variables
       run: |
@@ -284,10 +282,6 @@ jobs:
       MATRIX_OS: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
-      with:
-        sparse-checkout: .
-
     - name: Set up platform-dependent variables
       id: vars
       run: |
@@ -330,7 +324,6 @@ jobs:
       with:
         name: ${{ steps.vars.outputs.filename }}
 
-
     - name: Unpack artefacts
       run: |
         ${{ steps.vars.outputs.decompress-cmd }}
@@ -340,10 +333,10 @@ jobs:
 # the special attribute needs to be cleared before use.
       run: |
         if [[ "$MATRIX_OS" == "macos"* ]]; then
-          xattr -rc Agda/agda
+          xattr -c agda
         fi
 
-        Agda/agda --version
+        ./agda --setup
 
   deploy: # release a bindist if triggered on master or by a tag }}
     # Andreas, 2023-02-13: Also run this part when manually triggered ('workflow_dispatch')
