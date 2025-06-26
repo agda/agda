@@ -22,7 +22,42 @@ In case of installation problems, check the section on :ref:`troubleshooting <tr
 Step 1: Install Agda
 ====================
 
-There are at least three options for installing Agda:
+There are at least four options for installing Agda:
+
+.. _prebuilt-agda-from-github:
+
+Option 0: Use Pre-Built Agda Binaries (experimental)
+-----------------------------------------------------
+
+Pre-built binaries are available for the following platforms:
+
+* Windows (x86-64)
+* Linux (x86-64, statically linked)
+* macOS (x86-64)
+* macOS (arm64, i.e. Apple M-series)
+
+They can be downloaded from the `Agda GitHub releases <https://github.com/agda/agda/releases/>`_ page (under "Assets").
+
+To install, download the appropriate archive, extract the binary, and place it in a directory listed in your ``PATH`` environment variable.
+
+.. important::
+   This option does not require GHC. However, Agda programs cannot be compiled
+   into executables without it. If you need to compile Agda programs, follow the
+   `GHCup installation instructions <https://www.haskell.org/ghcup/>`_ to install GHC.
+
+.. note::
+   These binaries are compiled with the :option:`optimise-heavily` flag only,
+   which should suffice in most cases. If you require additional flags, use
+   :ref:`Option 1 <install-agda-cabal>` or :ref:`Option 2 <install-agda-dev>` instead.
+
+.. attention::
+   On macOS, these binaries are not `notarised
+   <https://developer.apple.com/documentation/Security/notarizing-macos-software-before-distribution>`_,
+   and will not run unless the quarantine attribute is removed:
+
+   .. code-block:: bash
+
+      xattr -c agda
 
 .. _install-agda-cabal:
 
@@ -192,10 +227,6 @@ by the Agda developers in the main Agda repository and offers many advanced feat
 
 Administering the ``agda-mode``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. Warning::
-  Installing ``agda-mode`` via ``melpa`` is discouraged.
-  It is strongly advised to install ``agda-mode`` for ``emacs`` as described below:
 
 After installing the ``agda`` program using ``cabal`` or
 ``stack`` run the following command:
