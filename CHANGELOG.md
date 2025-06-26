@@ -57,6 +57,15 @@ Installation
   declarative build systems like Nix or Guix should generate the `.agdai` files
   by invoking Agda at build time.
 
+* Pre-built binaries are available as release assets for the following platforms
+
+  * Windows (x86-64)
+  * Linux (x86-64)
+  * macOS (x86-64)
+  * macOS (arm64)
+
+  Installation instructions are provided in the Agda user manual.
+
 * Added cabal build flag `dump-core` to save the optimised GHC Core code during
   compilation of Agda. This can be useful for people working on improving the
   performance of the Agda implementation.
