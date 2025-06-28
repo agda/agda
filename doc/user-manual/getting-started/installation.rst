@@ -46,9 +46,10 @@ To install, download the appropriate archive, extract the binary, and place it i
    `GHCup installation instructions <https://www.haskell.org/ghcup/>`_ to install GHC.
 
 .. note::
-   These binaries are compiled with the :option:`optimise-heavily` flag only,
-   which should suffice in most cases. If you require additional flags, use
-   :ref:`Option 1 <install-agda-cabal>` or :ref:`Option 2 <install-agda-dev>` instead.
+   These binaries are compiled with the :option:`optimise-heavily` flag but
+   without :option:`enable-cluster-counting`. This configuration should suffice
+   in most cases. If you require other compiler flags, use :ref:`Option 1
+   <install-agda-cabal>` or :ref:`Option 2 <install-agda-dev>`.
 
 .. attention::
    On macOS, these binaries are not `notarised
