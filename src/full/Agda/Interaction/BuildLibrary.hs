@@ -6,6 +6,7 @@ import           Control.Monad.Except             (throwError)
 import           Control.Monad.IO.Class           (liftIO)
 
 import           Data.Functor                     (void)
+import           Data.List                        (sort)
 import qualified Data.Set as Set
 
 import           System.Directory                 (getCurrentDirectory)
@@ -57,7 +58,7 @@ buildLibrary = do
   Imp.importPrimitiveModules
 
   -- Find all modules in the include paths of the library.
-  files <- map Find.infoPath . concat <$> forM paths \ path -> do
+  files <- sort . map Find.infoPath . concat <$> forM paths \ path -> do
     liftIO $ findWithInfo (pure True) (hasAgdaExtension <$> Find.filePath) path
 
   -- Call the type-checker on all these modules.
