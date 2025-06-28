@@ -64,6 +64,8 @@ Installation
 Pragmas and options
 -------------------
 
+* Abbreviation of options, such as `--warning` to `--warn`, is no longer supported.
+
 * New main mode of operation `--build-library` (issue [#4338](https://github.com/agda/agda/issues/4338)).
   Invoking `agda --build-library` will look for an `.agda-lib` file starting in the current directory.
   It will then extract the `include` directories of this library,

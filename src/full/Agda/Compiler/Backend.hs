@@ -25,7 +25,7 @@ import Control.DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import System.Console.GetOpt
+import Agda.Utils.GetOpt
 
 import Agda.Compiler.Backend.Base
 import Agda.Compiler.Common

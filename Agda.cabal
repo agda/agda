@@ -888,6 +888,7 @@ library
       Agda.Utils.Float
       Agda.Utils.Functor
       Agda.Utils.Function
+      Agda.Utils.GetOpt
       Agda.Utils.Graph.AdjacencyMap.Unidirectional
       Agda.Utils.Graph.TopSort
       Agda.Utils.Hash

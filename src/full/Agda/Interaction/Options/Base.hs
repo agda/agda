@@ -202,7 +202,7 @@ import qualified Data.Text as T
 
 import GHC.Generics (Generic)
 
-import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
+import Agda.Utils.GetOpt        ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
                                 )
 import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
@@ -1783,7 +1783,7 @@ renamedNoArgOption old = \case
 standardOptions_ :: [OptDescr ()]
 standardOptions_ = map void standardOptions
 
--- | Simple interface for System.Console.GetOpt
+-- | Simple interface for Agda.Utils.GetOpt
 --   Could be moved to Agda.Utils.Options (does not exist yet)
 getOptSimple
   :: [String]               -- ^ command line argument words

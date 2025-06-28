@@ -21,7 +21,7 @@ import qualified Data.Text as T
 import System.Environment ( getArgs, getProgName )
 import System.Exit ( exitSuccess, ExitCode )
 import System.FilePath ( takeFileName )
-import System.Console.GetOpt
+import Agda.Utils.GetOpt
 import qualified System.IO as IO
 
 import Agda.Interaction.BuildLibrary (buildLibrary)
