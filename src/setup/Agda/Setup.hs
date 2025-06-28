@@ -44,8 +44,12 @@ import qualified Paths_Agda                 as Paths
 -- | Given the `Agda_datadir`, what should the Agda data dir be?
 
 mkDataDir :: FilePath -> FilePath
-mkDataDir = (</> versionWithCommitInfo)
-
+mkDataDir =
+#ifdef USE_XDG_DATA_HOME
+  (</> versionWithCommitInfo)
+#else
+  id
+#endif
 
 -- Tell TH that all the dataFiles are needed for compilation.
 [] <$ mapM_ (qAddDependentFile . dataPath) dataFiles

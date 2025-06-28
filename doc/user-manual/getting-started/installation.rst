@@ -366,7 +366,7 @@ When installing Agda the following flags can be used:
 
     .. versionadded:: 2.8.0
 
-    Install data files under ``$XDG_DATA_HOME/agda`` by default
+    Install data files under ``$XDG_DATA_HOME/agda/$AGDA_VERSION`` by default
     instead of the installation location defined by Cabal;
     see :option:`--print-agda-data-dir`.
     This should *not* be enabled in declarative build environments like Nix or Guix.

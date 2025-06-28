@@ -22,10 +22,9 @@
           root = ./.;
 
           modifier = hlib.overrideCabal (drv: {
-            # Run agda --setup and typecheck the primitive modules.
+            # Typecheck the primitive modules.
             postInstall = drv.postInstall or "" + ''
               agdaExe=''${bin:-$out}/bin/agda
-              "$agdaExe" --setup
 
               echo "Generating Agda core library interface files..."
               shopt -s globstar

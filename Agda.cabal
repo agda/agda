@@ -99,7 +99,7 @@ extra-source-files:
     stack-8.10.7.yaml
     stack-8.8.4.yaml
     -- Agda's data files, embedded by module Agda.Setup.
-    -- Keep in sync with the list in Agda.Setup.DataFiles!
+    -- Keep in sync with the list in Agda.Setup.DataFiles and below.
     src/data/emacs-mode/agda-input.el
     src/data/emacs-mode/agda2-abbrevs.el
     src/data/emacs-mode/agda2-highlight.el
@@ -156,6 +156,64 @@ extra-source-files:
     src/data/MAlonzo/src/MAlonzo/RTE.hs
     src/data/MAlonzo/src/MAlonzo/RTE/Float.hs
 
+data-dir: src/data
+data-files:
+    emacs-mode/agda-input.el
+    emacs-mode/agda2-abbrevs.el
+    emacs-mode/agda2-highlight.el
+    emacs-mode/agda2-mode-pkg.el
+    emacs-mode/agda2-mode.el
+    emacs-mode/agda2-queue.el
+    emacs-mode/agda2.el
+    emacs-mode/annotation.el
+    emacs-mode/eri.el
+    html/Agda.css
+    html/highlight-hover.js
+    JS/agda-rts.mjs
+    JS/agda-rts.js
+    JS/agda-rts.amd.js
+    latex/agda.sty
+    latex/postprocess-latex.pl
+    lib/prim/agda-builtins.agda-lib
+    lib/prim/Agda/Builtin/Bool.agda
+    lib/prim/Agda/Builtin/Char.agda
+    lib/prim/Agda/Builtin/Char/Properties.agda
+    lib/prim/Agda/Builtin/Coinduction.agda
+    lib/prim/Agda/Builtin/Cubical/Path.agda
+    lib/prim/Agda/Builtin/Cubical/Sub.agda
+    lib/prim/Agda/Builtin/Cubical/Glue.agda
+    lib/prim/Agda/Builtin/Cubical/Equiv.agda
+    lib/prim/Agda/Builtin/Cubical/HCompU.agda
+    lib/prim/Agda/Builtin/Equality.agda
+    lib/prim/Agda/Builtin/Equality/Erase.agda
+    lib/prim/Agda/Builtin/Equality/Rewrite.agda
+    lib/prim/Agda/Builtin/Float.agda
+    lib/prim/Agda/Builtin/Float/Properties.agda
+    lib/prim/Agda/Builtin/FromNat.agda
+    lib/prim/Agda/Builtin/FromNeg.agda
+    lib/prim/Agda/Builtin/FromString.agda
+    lib/prim/Agda/Builtin/IO.agda
+    lib/prim/Agda/Builtin/Int.agda
+    lib/prim/Agda/Builtin/List.agda
+    lib/prim/Agda/Builtin/Maybe.agda
+    lib/prim/Agda/Builtin/Nat.agda
+    lib/prim/Agda/Builtin/Reflection.agda
+    lib/prim/Agda/Builtin/Reflection/External.agda
+    lib/prim/Agda/Builtin/Reflection/Properties.agda
+    lib/prim/Agda/Builtin/Sigma.agda
+    lib/prim/Agda/Builtin/Size.agda
+    lib/prim/Agda/Builtin/Strict.agda
+    lib/prim/Agda/Builtin/String.agda
+    lib/prim/Agda/Builtin/String/Properties.agda
+    lib/prim/Agda/Builtin/TrustMe.agda
+    lib/prim/Agda/Builtin/Unit.agda
+    lib/prim/Agda/Builtin/Word.agda
+    lib/prim/Agda/Builtin/Word/Properties.agda
+    lib/prim/Agda/Primitive.agda
+    lib/prim/Agda/Primitive/Cubical.agda
+    MAlonzo/src/MAlonzo/RTE.hs
+    MAlonzo/src/MAlonzo/RTE/Float.hs
+
 source-repository head
   type:     git
   location: https://github.com/agda/agda.git
@@ -210,7 +268,7 @@ flag use-xdg-data-home
   default: False
   manual: True
   description:
-    Install data files under $XDG_DATA_HOME/agda by default
+    Install data files under $XDG_DATA_HOME/agda/$AGDA_VERSION by default
     instead of the installation location defined by Cabal.
     This should not be enabled in declarative build environments like Nix or Guix.
 

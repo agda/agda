@@ -90,14 +90,14 @@ but in the fixed order listed in the following:
 
      Since 2.8.0, the data directory is determined as follows:
 
-     - The *default base data directory* is defined at build time, either
+     - The *default data directory* is defined at build time, either
        as the standard data directory defined by Cabal, or, if the
-       :option:`use-xdg-data-home` build flag is enabled, as ``$XDG_DATA_HOME/agda``.
-     - The *base data directory* can be set at runtime using the :envvar:`Agda_datadir`
-       environment variable, and defaults to the default base data directory.
-     - The *data directory* is obtained by appending the version (and optional
-       commit information) to the base data directory, and can be printed
-       with this flag.
+       :option:`use-xdg-data-home` build flag is enabled,
+       as ``$XDG_DATA_HOME/agda/$AGDA_VERSION``.
+
+     - The *data directory* can be set at runtime using the :envvar:`Agda_datadir`
+       environment variable and defaults to the default data directory.
+       It can be printed with this flag.
 
 .. option:: --emacs-mode={COMMAND}
 

@@ -77,7 +77,10 @@ jobs:
             ## Note: -c 'containers >= 0.7' with single quotes does not get communicated properly.
             ## (The single quotes stay, and "-c 'containers" is an option parse error for cabal.)
             cabal-flags: >-
-              --enable-tests -f enable-cluster-counting -f debug -f debug-serialisation -f debug-parsing
+              --enable-tests
+              -f use-xdg-data-home
+              -f enable-cluster-counting
+              -f debug -f debug-serialisation -f debug-parsing
 
           # macOS with default flags
           - os: macos-14
@@ -177,6 +180,11 @@ jobs:
     - name: Build Agda
       run: |
         cabal build
+
+    - name: Run Agda
+      run: |
+        cabal run agda -- --version
+        cabal run agda -- --setup
 
     - name: Run doctest
       if: matrix.doctest
