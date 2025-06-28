@@ -26,13 +26,16 @@ logFiles = $(patsubst %,$(logDir)/%,$(allTests))
 
 verbose = -v0 --profile=constraints --profile=metas
 
+.PHONY: all
 all : clean $(logDir) $(logFiles)
 
 # If an error is encountered, then the logs are not removed.
+.PHONY: without-creating-logs
 without-creating-logs : all
 	@$(RUNGHC) Benchmark.hs $(TAG)
 	rm -r $(logDir)
 
+.PHONY: summary
 summary :
 	@$(RUNGHC) Benchmark.hs
 
@@ -47,5 +50,17 @@ $(LOG_DIR)/$(TAG)/% :
 	@echo "──────────────────────────────────────────────────────────────────" >> $@
 	@$(INFO) >> $@
 
+.PHONY: clean
 clean :
 	@find . -type f -name '*.agdai' -delete
+
+.PHONY: debug
+debug :
+	@echo "INFO     = $(INFO)"
+	@echo "LOG_DIR  = $(LOG_DIR)"
+	@echo "TAG      = $(TAG)"
+	@echo "verbose  = $(verbose)"
+	@echo "logDir   = $(logDir)"
+	@echo "logFiles = $(logFiles)"
+
+# EOF

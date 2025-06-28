@@ -1,6 +1,5 @@
-{-# OPTIONS --no-positivity-check
-            --no-termination-check
-  #-}
+{-# OPTIONS --no-positivity-check  #-}
+{-# OPTIONS --no-termination-check #-}
 
 -- A universe setoids
 module Setoid where
