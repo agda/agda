@@ -360,7 +360,14 @@ printVersion backends PrintAgdaVersion = do
     "debug-serialisation: extra debug info during serialisation into '.agdai' files" :
 #endif
 #ifdef USE_XDG_DATA_HOME
-    "use-xdg-data-home: install data files under $XDG_DATA_HOME/agda by default instead of the installation location defined by Cabal" :
+    concat
+      [ "use-xdg-data-home: install and locate data files under $XDG_DATA_HOME/agda/"
+      , "$AGDA_VERSION" -- , versionWithCommitInfo
+           -- Andreas, 2025-06-28, we could put in the actual version here
+           -- but I think the text is clearer in the generic form
+      , " by default instead of the location defined by Cabal"
+      ]
+    :
 #endif
     []
 

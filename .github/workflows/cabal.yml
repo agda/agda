@@ -87,6 +87,10 @@ jobs:
     - name: Build Agda
       run: |
         cabal build
+    - name: Run Agda
+      run: |
+        cabal run agda -- --version
+        cabal run agda -- --setup
     - if: matrix.doctest
       name: Run doctest
       run: |
@@ -127,8 +131,8 @@ jobs:
           description: Linux debug
           ghc-ver: 9.12.2
           os: ubuntu-24.04
-        - cabal-flags: --enable-tests -f enable-cluster-counting -f debug -f debug-serialisation
-            -f debug-parsing
+        - cabal-flags: --enable-tests -f use-xdg-data-home -f enable-cluster-counting
+            -f debug -f debug-serialisation -f debug-parsing
           description: Linux debug all
           ghc-ver: 9.12.2
           os: ubuntu-24.04
