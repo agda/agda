@@ -27,10 +27,7 @@
               agdaExe=''${bin:-$out}/bin/agda
 
               echo "Generating Agda core library interface files..."
-              shopt -s globstar
-              (cd "$("$agdaExe" --print-agda-data-dir)/lib/prim" && for f in **/*.agda; do
-                "$agdaExe" "$f"
-              done)
+              (cd "$("$agdaExe" --print-agda-data-dir)/lib/prim" && "$agdaExe" --build-library)
             '';
           });
         };
