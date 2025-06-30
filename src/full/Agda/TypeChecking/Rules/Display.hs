@@ -137,6 +137,7 @@ exprToTerm e =
 
     A.Proj _ f       -> pure $ Def (headAmbQ f) []   -- only for printing so we don't have to worry too much here
     A.PatternSyn f   -> pure $ Def (headAmbQ f) []
+    A.Defs f         -> pure $ Def (headAmbQ f) []
     A.Macro f        -> pure $ Def f []
 
     A.WithApp{}      -> fail "with application"

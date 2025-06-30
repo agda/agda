@@ -57,6 +57,7 @@ maybeProjTurnPostfix e =
   case e of
     ScopedExpr i e' -> ScopedExpr i <$> maybeProjTurnPostfix e'
     Proj _ x        -> return $ Proj ProjPostfix x
+    Defs x          -> return $ Defs x
     _               -> Nothing
 
 unAppView :: AppView -> Expr
@@ -159,6 +160,7 @@ instance ExprLike Expr where
       Var{}                      -> pure e0
       Def'{}                     -> pure e0
       Proj{}                     -> pure e0
+      Defs{}                     -> pure e0
       Con{}                      -> pure e0
       Lit{}                      -> pure e0
       QuestionMark{}             -> pure e0
@@ -190,6 +192,7 @@ instance ExprLike Expr where
       Def'{}                 -> m
       Proj{}                 -> m
       Con{}                  -> m
+      Defs{}                 -> m
       PatternSyn{}           -> m
       Macro{}                -> m
       Lit{}                  -> m
@@ -227,6 +230,7 @@ instance ExprLike Expr where
       Def'{}                     -> f e
       Proj{}                     -> f e
       Con{}                      -> f e
+      Defs{}                     -> f e
       Lit{}                      -> f e
       QuestionMark{}             -> f e
       Underscore{}               -> f e

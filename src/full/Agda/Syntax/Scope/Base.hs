@@ -547,6 +547,9 @@ data ResolvedName
   | -- | Name of pattern synonym.
     PatternSynResName (List1 AbstractName) -- ^ @('PatternSynName' ==) . 'anameKind'@ for all names.
 
+  | -- | Overloaded definitions
+    OverloadedNames (List1 AbstractName)
+
   | -- | Unbound name.
     UnknownName
   deriving (Show, Eq, Generic)
@@ -558,6 +561,7 @@ instance Pretty ResolvedName where
     FieldName xs         -> "field"       <+> pretty xs
     ConstructorName _ xs -> "constructor" <+> pretty xs
     PatternSynResName x  -> "pattern"     <+> pretty x
+    OverloadedNames x    -> "overloaded"  <+> pretty x
     UnknownName          -> "<unknown name>"
 
 instance Pretty A.Suffix where
