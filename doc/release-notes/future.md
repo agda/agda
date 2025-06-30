@@ -29,3 +29,10 @@ Pragmas and Options
   ```
 
   [See also Issue [#709](https://github.com/agda/agda/issues/709)]
+
+
+* Added support for [Cubical without Glue](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#cubical-agda-without-glue)
+  by using the flag `--cubical-without-glue`,
+  a variant of Cubical Agda which disables the Glue types.
+  For compatibility with modules using `--cubical` and `--erased-cubical`, see
+  [variants](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
