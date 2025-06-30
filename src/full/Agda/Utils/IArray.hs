@@ -10,9 +10,7 @@ import Data.Array.IArray
 import Data.Array.Base   ( IArray(..) )
 import Data.Ix           ( inRange )
 
-#if MIN_VERSION_base(4,14,0)
 import GHC.Ix            ( unsafeIndex )
-#endif
 
 -- Backported from array-0.5.6:
 
@@ -24,12 +22,7 @@ import GHC.Ix            ( unsafeIndex )
 --
 (!?) :: (IArray a e, Ix i) => a i e -> i -> Maybe e
 (!?) arr i
-  | inRange b i = Just $ unsafeAt arr $
-#if MIN_VERSION_base(4,14,0)
-    unsafeIndex b i
-#else
-    index b i
-#endif
+  | inRange b i = Just $ unsafeAt arr $ unsafeIndex b i
   | otherwise   = Nothing
   where b = bounds arr
 
