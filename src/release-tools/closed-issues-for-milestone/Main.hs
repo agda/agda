@@ -8,12 +8,13 @@
 module Main ( main ) where
 
 import Control.Monad
-import Data.Bifunctor (bimap)
+import Data.Bifunctor  ( bimap )
+import Data.Char       ( isSpace )
 import Data.Foldable
 import Data.Functor
-import Data.List (partition)
+import Data.List       ( partition )
 import Data.Maybe
-import Data.Text (Text)
+import Data.Text ( Text )
 import qualified Data.Text as Text
 import qualified Data.ByteString.Char8 as BS
 
@@ -181,6 +182,12 @@ classifyIssue mileStoneId i = Class{..}
   (badLabels, goodLabels) = bimap Set.fromList Set.fromList $
      partition (`Set.member` labelsNotInChangelog) $ issueLabelsNames i
 
+-- | Delete trailing whitespace from issue
+sanitizeIssue :: Issue -> Issue
+sanitizeIssue i = i{ issueTitle = trim $ issueTitle i }
+  where
+    trim = Text.dropWhileEnd isSpace
+
 -- | Format issue in markdown for printing.
 --
 printIssue :: Issue -> String
@@ -228,9 +235,10 @@ run mileStoneTitle = do
   -- and pull requests when using the function 'issuesForRepo''.
   issueVector <- crashOr $ github auth $ issuesForRepoR (N owner) (N repo) issueFilter FetchAll
 
-  -- Classify issues.
+  -- Classify issues and remove trailing whitespace from the issue title.
   let issues0 :: [ClassifiedIssue]
-      issues0 = reverse (toList issueVector) <&> \ i -> ClassifiedIssue i $ classifyIssue mileStoneId i
+      issues0 = reverse (toList issueVector) <&> \ i ->
+        ClassifiedIssue (sanitizeIssue i) (classifyIssue mileStoneId i)
 
   -- We progressively filter out issue numbers not included in changelog.
 
