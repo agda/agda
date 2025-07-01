@@ -268,7 +268,7 @@ flag use-xdg-data-home
   default: False
   manual: True
   description:
-    Install data files under $XDG_DATA_HOME/agda/$AGDA_VERSION by default
+    Install data files under $XDG_DATA_HOME\/agda\/$AGDA_VERSION by default
     instead of the installation location defined by Cabal.
     This should not be enabled in declarative build environments like Nix or Guix.
 
