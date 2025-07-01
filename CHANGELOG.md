@@ -17,8 +17,6 @@ Highlights
 Installation
 ------------
 
-* The `optimise-heavily` build flag is now turned on by default.
-
 * Dropped support for GHC 8.6, added support for GHC 9.12.
 
 * Agda supports GHC versions 8.8.4 to 9.12.2.
@@ -65,6 +63,11 @@ Installation
   * macOS (arm64)
 
   Installation instructions are provided in the Agda user manual.
+
+* The `optimise-heavily` build flag is now turned on by default.
+
+  This requires more resources when building Agda, but leads to a faster Agda binary.
+  Should GHC run out of memory when building Agda, turn this flag off.
 
 * Added cabal build flag `dump-core` to save the optimised GHC Core code during
   compilation of Agda. This can be useful for people working on improving the
@@ -191,12 +194,13 @@ Syntax
 Additions to the Agda syntax.
 
 * Add new literate agda: forester, see [#7403](https://github.com/agda/agda/pull/7403).
-  You will need the postprocessor [`agda-tree`](https://github.com/dannypsnl/agda-tree), see Agda user manual on literate programming for more information.
+  You will need the postprocessor [`agda-tree`](https://github.com/dannypsnl/agda-tree),
+  see Agda user manual on literate programming for more information.
 
 * It is now always possible to refer to the name of a record type's
   constructor, even if a name was not explicitly specified. This is done
-  using the new `(Record name).constructor` syntax; See [issue
-  #6964](https://github.com/agda/agda/issues/6964) for the motivation.
+  using the new `(Record name).constructor` syntax;
+  see [issue #6964](https://github.com/agda/agda/issues/6964) for the motivation.
 
 * The *left-hand-sides* of functions bound in a `let` expression can now
   contain the same types of patterns that are allowed in lambda
@@ -324,6 +328,7 @@ Issues for closed for milestone 2.8.0
 - [Issue #2004](https://github.com/agda/agda/issues/2004): `DISPLAY` should be more pragmatic
 - [Issue #4100](https://github.com/agda/agda/issues/4100): GHC backend produces code that is wrongly compiled by GHC 8.4.* and 8.6.*
 - [Issue #4338](https://github.com/agda/agda/issues/4338): Add mechanism to type check entire Agda libraries
+- [Issue #4343](https://github.com/agda/agda/issues/4343): File order of checking matters (rewrite rules)
 - [Issue #5299](https://github.com/agda/agda/issues/5299): Postfix projections are not documented
 - [Issue #5793](https://github.com/agda/agda/issues/5793): [JS backend] add option for AMD-style and/or native JS modules support
 - [Issue #5865](https://github.com/agda/agda/issues/5865): Non Pattern Match Lambdas Missing From Docs
@@ -408,7 +413,6 @@ Issues for closed for milestone 2.8.0
 - [Issue #7815](https://github.com/agda/agda/issues/7815): Missing highlighting in module telescopes
 - [Issue #7823](https://github.com/agda/agda/issues/7823): DISPLAY matches pattern with wrong amount of arguments
 - [Issue #7825](https://github.com/agda/agda/issues/7825): DISPLAY form on irrelevant projection drops arguments
-- [Issue #7829](https://github.com/agda/agda/issues/7829): Fields with signature not highlighted in `record where`
 - [Issue #7832](https://github.com/agda/agda/issues/7832): Recursive function over inductive record treats arguments as irrelevant
 - [Issue #7851](https://github.com/agda/agda/issues/7851): Error TooManyPolarities is too eager
 - [Issue #7853](https://github.com/agda/agda/issues/7853): Subject reduction failure with instance constructors in parameterised modules
@@ -421,6 +425,13 @@ Issues for closed for milestone 2.8.0
 - [Issue #7911](https://github.com/agda/agda/issues/7911): `UnsolvedConstraints` error should reference location even when all metas were solved
 - [Issue #7912](https://github.com/agda/agda/issues/7912): Missing error location for error: [ModuleNameDoesntMatchFileName]
 - [Issue #7916](https://github.com/agda/agda/issues/7916): Make `-f optimise-heavily` default
+- [Issue #7935](https://github.com/agda/agda/issues/7935): Document scoping rules for rewrite rules
+- [Issue #7938](https://github.com/agda/agda/issues/7938): Request: Expose backend-internal modules as part of the library
+- [Issue #7943](https://github.com/agda/agda/issues/7943): Local erased definition remains in compiled code
+- [Issue #7944](https://github.com/agda/agda/issues/7944): Local erased modules break erasure analysis
+- [Issue #7952](https://github.com/agda/agda/issues/7952): Primitive root example in docs
+- [Issue #7953](https://github.com/agda/agda/issues/7953): Confusing error in case of illegal declaration before top-level module in a nested file
+- [Issue #7966](https://github.com/agda/agda/issues/7966): Disallow option abbreviation
 - [PR #6629](https://github.com/agda/agda/issues/6629): Reflection primitive for parsing surface level syntax from string.
 - [PR #7010](https://github.com/agda/agda/issues/7010): [new] backend-end specific interaction
 - [PR #7023](https://github.com/agda/agda/issues/7023): Add ⧺ in agda-input.el
@@ -597,3 +608,17 @@ Issues for closed for milestone 2.8.0
 - [PR #7920](https://github.com/agda/agda/issues/7920): Fix #7916: make optimise-heavily the default
 - [PR #7924](https://github.com/agda/agda/issues/7924): Add a few notes on irrelevance
 - [PR #7925](https://github.com/agda/agda/issues/7925): Add documentation for lambda expressions and absurd lambdas
+- [PR #7931](https://github.com/agda/agda/issues/7931): Hint towards --guardedness even when --sized-types is on
+- [PR #7932](https://github.com/agda/agda/issues/7932): Add `use-xdg-data-home`
+- [PR #7934](https://github.com/agda/agda/issues/7934): Hygienic import of rewrite rules
+- [PR #7936](https://github.com/agda/agda/issues/7936): Highlight only record keyword when fields are missing
+- [PR #7939](https://github.com/agda/agda/issues/7939): Fix #7938: API: export Agda Highlighting Backend modules
+- [PR #7942](https://github.com/agda/agda/issues/7942): [ doc ] remove reference to Cubical.Core.Everything
+- [PR #7945](https://github.com/agda/agda/issues/7945): Fix #7944: do not apply `@0` from where-module to clause rhs
+- [PR #7946](https://github.com/agda/agda/issues/7946): Fix #7943: propagate erasure status to `where` blocks.
+- [PR #7956](https://github.com/agda/agda/issues/7956): Fix #7955: replace impossible with syntax error
+- [PR #7957](https://github.com/agda/agda/issues/7957): Doc: replace PrimRoot by PrimeFactor in introductory text
+- [PR #7958](https://github.com/agda/agda/issues/7958): Fix #7953: remember whether top-level module name was inferred
+- [PR #7965](https://github.com/agda/agda/issues/7965): Re #7932: restore data-files in Agda.cabal and default data-dir
+- [PR #7967](https://github.com/agda/agda/issues/7967): Fix #7966: fork GetOpt to disallow long option abbreviations
+- [PR #7971](https://github.com/agda/agda/issues/7971): flake: use --build-library to build the builtins
