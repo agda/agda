@@ -162,6 +162,13 @@ data Class = Class
   , badLabels        :: Set Label  -- ^ Labels that prevent inclusion in changelog
   }
 
+-- | Issue enriched with its classification.
+--
+data ClassifiedIssue = ClassifiedIssue
+  { theIssue   :: Issue
+  , issueClass :: Class
+  }
+
 -- | This classifies issue numbers,
 --   but the field 'happened' is only set correctly for issues, not for milestones.
 --
@@ -186,11 +193,11 @@ printIssue Issue{ issueNumber, issueTitle, issuePullRequest } = do
     , ": ", Text.unpack issueTitle
     ]
 
-debugPrintIssues :: [(Issue,Class)] -> String -> IO ()
+debugPrintIssues :: [ClassifiedIssue] -> String -> IO ()
 debugPrintIssues is title =
   unless (null is) do
     debugPrint title
-    forM_ is $ \ (i, _c) -> debugPrint $ "- " ++ printIssue i
+    forM_ is $ \ (ClassifiedIssue i _c) -> debugPrint $ "- " ++ printIssue i
     debugPrint ""
 
 
@@ -222,31 +229,31 @@ run mileStoneTitle = do
   issueVector <- crashOr $ github auth $ issuesForRepoR (N owner) (N repo) issueFilter FetchAll
 
   -- Classify issues.
-  let issues0 :: [(Issue, Class)]
-      issues0 = reverse (toList issueVector) <&> \ i -> (i, classifyIssue mileStoneId i)
+  let issues0 :: [ClassifiedIssue]
+      issues0 = reverse (toList issueVector) <&> \ i -> ClassifiedIssue i $ classifyIssue mileStoneId i
 
   -- We progressively filter out issue numbers not included in changelog.
 
   -- Filter out issues/PRs with wrong milestone:
-  let (issues1, wrongMilestone) = partition (correctMilestone . snd) issues0
+  let (issues1, wrongMilestone) = partition (correctMilestone . issueClass) issues0
   debugPrintIssues wrongMilestone "Issues/PR with wrong milestone:"
 
   -- Filter out issues that were "Closed as not planned"
-  let (issues2, didNotHappen) = partition (happened . snd) issues1
+  let (issues2, didNotHappen) = partition (happened . issueClass) issues1
   debugPrintIssues didNotHappen "Issues closed as not planned"
 
   -- Find out which PRs were closed without merging
-  issues3 <- forM issues2 $ \ ic@(i, c) -> do
+  issues3 <- forM issues2 $ \ ic@(ClassifiedIssue i c) -> do
     if isIssue c then pure ic else do
       merged <- crashOr $ github auth $ isPullRequestMergedR (N owner) (N repo) (issueNumber i)
-      pure (i, c { happened = merged })
+      pure (ClassifiedIssue i c{ happened = merged })
 
   -- Filter out PRs that were closed without merging
-  let (issues4, notMerged) = partition (happened . snd) issues3
+  let (issues4, notMerged) = partition (happened . issueClass) issues3
   debugPrintIssues notMerged "PRs closed without merging"
 
   -- Filter out issues/PRs that have a bad label
-  let (issues5, badLabel)  = partition (Set.null . badLabels . snd) issues4
+  let (issues5, badLabel)  = partition (Set.null . badLabels . issueClass) issues4
   debugPrintIssues badLabel "Issues/PRs that have a label excluding them from the changelog"
 
   -- Print issues and PRs.
@@ -255,11 +262,11 @@ run mileStoneTitle = do
   if null issues5 then debugPrint $
     "No matching closed issues or PRs in milestone " ++ ms
   else do
-    let (issues, prs) = partition (isIssue . snd) issues5
+    let (issues, prs) = partition (isIssue . issueClass) issues5
     debugPrintIssues issues $ "Issues for closed for milestone " ++ ms
     debugPrintIssues prs $ "PRs for closed for milestone " ++ ms
-    forM_ issues $ \ ic -> putStrLn $ "- " ++ printIssue (fst ic)
-    forM_ prs    $ \ ic -> putStrLn $ "- " ++ printIssue (fst ic)
+    forM_ issues $ \ ic -> putStrLn $ "- " ++ printIssue (theIssue ic)
+    forM_ prs    $ \ ic -> putStrLn $ "- " ++ printIssue (theIssue ic)
 
 
 -- | Crash on exception.
