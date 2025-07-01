@@ -181,10 +181,23 @@ jobs:
       run: |
         cabal build
 
-    - name: Run Agda
+    - name: Run agda --version
       run: |
         cabal run agda -- --version
+
+    - name: Run agda --setup
+      run: |
         cabal run agda -- --setup
+
+    - name: Run agda --help
+      run: |
+        cabal run agda -- --help
+
+    - name: Run agda --help in PowerShell (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run:  |
+        cabal run agda -- --help
 
     - name: Run doctest
       if: matrix.doctest

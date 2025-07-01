@@ -192,6 +192,30 @@ jobs:
       ## Since we do not cache .stack-work and .stack-work-fast, we can fuse them.
       # run: stack build ${ARGS} ${EXTRA_ARGS} --work-dir=.stack-work-fast --test --no-run-tests
 
+    - name: Run agda --version
+      run: |
+        # shellcheck disable=SC2086
+        stack run ${ARGS} -- --version
+
+    - name: Run agda --setup
+      run: |
+        # shellcheck disable=SC2086
+        stack run ${ARGS} -- --setup
+
+    - name: Run agda --help
+      run: |
+        # shellcheck disable=SC2086
+        stack run ${ARGS} -- --help
+
+    ## Running PowerShell does not work out of the box:
+    ## Stack tries to set itself up from scratch...
+    # - name: Run agda --help in PowerShell (Windows)
+    #   if: runner.os == 'Windows'
+    #   shell: pwsh
+    #   run: |
+    #     # shellcheck disable=SC2086
+    #     stack run ${ARGS} -- --help
+
     - name: Build Agda with the non-default flags Agda.cabal.
       run: |
         # shellcheck disable=SC2086

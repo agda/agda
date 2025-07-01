@@ -100,6 +100,18 @@ jobs:
       run: |
         # shellcheck disable=SC2086
         stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
+    - name: Run agda --version
+      run: |
+        # shellcheck disable=SC2086
+        stack run ${ARGS} -- --version
+    - name: Run agda --setup
+      run: |
+        # shellcheck disable=SC2086
+        stack run ${ARGS} -- --setup
+    - name: Run agda --help
+      run: |
+        # shellcheck disable=SC2086
+        stack run ${ARGS} -- --help
     - name: Build Agda with the non-default flags Agda.cabal.
       run: |
         # shellcheck disable=SC2086
