@@ -29,7 +29,7 @@ import Agda.Utils.Impossible
 
 -- | @abstractType a v b[v] = b@ where @a : v@.
 abstractType :: Type -> Term -> Type -> TCM Type
-abstractType a v (El s b) = El (absTerm v s) <$> abstractTerm a v (sort s) b
+abstractType a v (El s b) = El (absTerm 0 v s) <$> abstractTerm a v (sort s) b
 
 -- | @piAbstractTerm NotHidden v a b[v] = (w : a) -> b[w]@
 --   @piAbstractTerm Hidden    v a b[v] = {w : a} -> b[w]@
@@ -175,21 +175,26 @@ abstractTerm a u@Con{} b v = do
         return v
   reportSDoc "tc.abstract" 50 $ "Resulting abstraction" <?> prettyTCM res
   modifySignature $ updateDefinitions $ HMap.delete hole
-  return $ absTerm (Def hole args) res
+  return $ absTerm 0 (Def hole args) res
 
-abstractTerm _ u _ v = return $ absTerm u v -- Non-constructors can use untyped abstraction
+abstractTerm _ u _ v = return $ absTerm 0 u v -- Non-constructors can use untyped abstraction
 
 class AbsTerm a where
-  -- | @subst u . absTerm u == id@
-  absTerm :: Term -> a -> a
+  -- | @subst j u . absTerm j u == id@
+  absTerm ::
+       Nat   -- ^ De Bruijn index that should be the placeholder for the abstracted term.
+    -> Term  -- ^ Term to abstract.
+    -> a     -- ^ Where to abstract.
+    -> a     -- ^ If the given de Bruijn index is free in the result, abstraction actually happened.
 
 instance AbsTerm Term where
-  absTerm u v | Just es <- u `isPrefixOf` v = Var 0 $ absT es
-              | otherwise                   =
+  absTerm j u v
+    | Just es <- u `isPrefixOf` v = Var j $ absT es
+    | otherwise                   =
     case v of
 -- Andreas, 2013-10-20: the original impl. works only at base types
---    v | u == v  -> Var 0 []  -- incomplete see succeed/WithOfFunctionType
-      Var i vs    -> Var (i + 1) $ absT vs
+--    v | u == v  -> Var j []  -- incomplete see succeed/WithOfFunctionType
+      Var i vs    -> Var (if i < j then i else i + 1) $ absT vs
       Lam h b     -> Lam h $ absT b
       Def c vs    -> Def c $ absT vs
       Con c ci vs -> Con c ci $ absT vs
@@ -202,13 +207,13 @@ instance AbsTerm Term where
       Dummy s es   -> Dummy s $ absT es
       where
         absT :: AbsTerm b => b -> b
-        absT x = absTerm u x
+        absT x = absTerm j u x
 
 instance AbsTerm Type where
-  absTerm u (El s v) = El (absTerm u s) (absTerm u v)
+  absTerm j u (El s v) = El (absTerm j u s) (absTerm j u v)
 
 instance AbsTerm Sort where
-  absTerm u = \case
+  absTerm j u = \case
     Univ u n   -> Univ u $ absS n
     s@Inf{}    -> s
     SizeUniv   -> SizeUniv
@@ -223,35 +228,35 @@ instance AbsTerm Sort where
     s@DummyS{} -> s
     where
       absS :: AbsTerm b => b -> b
-      absS x = absTerm u x
+      absS x = absTerm j u x
 
 instance AbsTerm Level where
-  absTerm u (Max n as) = Max n $ absTerm u as
+  absTerm j u (Max n as) = Max n $ absTerm j u as
 
 instance AbsTerm PlusLevel where
-  absTerm u (Plus n l) = Plus n $ absTerm u l
+  absTerm j u (Plus n l) = Plus n $ absTerm j u l
 
 instance AbsTerm a => AbsTerm (Elim' a) where
-  absTerm = fmap . absTerm
+  absTerm j = fmap . absTerm j
 
 instance AbsTerm a => AbsTerm (Arg a) where
-  absTerm = fmap . absTerm
+  absTerm j = fmap . absTerm j
 
 instance AbsTerm a => AbsTerm (Dom a) where
-  absTerm = fmap . absTerm
+  absTerm j = fmap . absTerm j
 
 instance AbsTerm a => AbsTerm [a] where
-  absTerm = fmap . absTerm
+  absTerm j = fmap . absTerm j
 
 instance AbsTerm a => AbsTerm (Maybe a) where
-  absTerm = fmap . absTerm
+  absTerm j = fmap . absTerm j
 
 instance (TermSubst a, AbsTerm a) => AbsTerm (Abs a) where
-  absTerm u (NoAbs x v) = NoAbs x $ absTerm u v
-  absTerm u (Abs   x v) = Abs x $ swap01 $ absTerm (raise 1 u) v
+  absTerm j u (NoAbs x v) = NoAbs x $ absTerm j u v
+  absTerm j u (Abs   x v) = Abs x $ absTerm (j + 1) (raise 1 u) v
 
 instance (AbsTerm a, AbsTerm b) => AbsTerm (a, b) where
-  absTerm u (x, y) = (absTerm u x, absTerm u y)
+  absTerm j u (x, y) = (absTerm j u x, absTerm j u y)
 
 -- | This swaps @var 0@ and @var 1@.
 swap01 :: TermSubst a => a -> a
