@@ -480,19 +480,20 @@ ModalArgIds :: { ([Attr], List1 (Arg Name)) }
 ModalArgIds : Attributes ArgIds  {% ($1,) `fmap` mapM (applyAttrs $1) $2 }
 
 -- Attributes are parsed as '@' followed by an atomic expression.
+-- Unknown attributes cast a warning and are ignored.
 
-Attribute :: { Attr }
+Attribute :: { Maybe Attr }
 Attribute : '@' ExprOrAttr  {% toAttribute (getRange ($1,$2)) $2 }
 
 -- Parse a reverse list of modalities
 
 Attributes :: { [Attr] }
 Attributes : {- empty -}  { [] }
-  | Attributes Attribute { $2 : $1 }
+  | Attributes Attribute { maybe $1 (: $1) $2 }
 
-Attributes1 :: { List1 Attr }
-Attributes1 : Attribute  { singleton $1 }
-  | Attributes1 Attribute { $2 <| $1 }
+Attributes1 :: { [Attr] }
+Attributes1 : Attribute  { maybeToList $1 }
+  | Attributes1 Attribute { maybe $1 (: $1) $2 }
 
 QId :: { QName }
 QId : q_id  {% mkQName $1 }
@@ -626,7 +627,7 @@ Expr
   | Application3 '->' Expr              { Fun (getRange ($1,$2,$3))
                                               (defaultArg $ rawApp $1)
                                               $3 }
-  | Attributes1 Application3 '->' Expr  {% applyAttrs1 $1 (defaultArg $ rawApp $2) <&> \ dom ->
+  | Attributes1 Application3 '->' Expr  {% applyAttrs $1 (defaultArg $ rawApp $2) <&> \ dom ->
                                              Fun (getRange ($1,$2,$3,$4)) dom $4 }
   | Expr1 %prec LOWEST                  { $1 }
 
@@ -674,12 +675,12 @@ LetBody : 'in' Expr   { Just $2 }
 
 ExtendedOrAbsurdLam :: { Expr }
 ExtendedOrAbsurdLam
-    : '\\'             '{' LamClauses '}'                  {% extLam (getRange ($1, $2, $4))     []                $3 }
-    | '\\' Attributes1 '{' LamClauses '}'                  {% extLam (getRange ($1, $3, $5))     (List1.toList $2) $4 }
-    | '\\'             'where' vopen LamWhereClauses close {% extLam (getRange ($1, $2, $3, $5)) []                $4 }
-    | '\\' Attributes1 'where' vopen LamWhereClauses close {% extLam (getRange ($1, $3, $4, $6)) (List1.toList $2) $5 }
-    | '\\'             AbsurdLamBindings                   {% extOrAbsLam (getRange $1) []                $2 }
-    | '\\' Attributes1 AbsurdLamBindings                   {% extOrAbsLam (getRange $1) (List1.toList $2) $3 }
+    : '\\'             '{' LamClauses '}'                  {% extLam (getRange ($1, $2, $4))     [] $3 }
+    | '\\' Attributes1 '{' LamClauses '}'                  {% extLam (getRange ($1, $3, $5))     $2 $4 }
+    | '\\'             'where' vopen LamWhereClauses close {% extLam (getRange ($1, $2, $3, $5)) [] $4 }
+    | '\\' Attributes1 'where' vopen LamWhereClauses close {% extLam (getRange ($1, $3, $4, $6)) $2 $5 }
+    | '\\'             AbsurdLamBindings                   {% extOrAbsLam (getRange $1) [] $2 }
+    | '\\' Attributes1 AbsurdLamBindings                   {% extOrAbsLam (getRange $1) $2 $3 }
 
 Application3 :: { List1 Expr }
 Application3
@@ -854,7 +855,7 @@ TBind : CommaBIds ':' Expr  {
 ModalTBind :: { TypedBinding }
 ModalTBind : Attributes1 CommaBIds ':' Expr  {% do
     let r = getRange ($1,$2,$3,$4) -- the range is approximate only for TypedBindings
-    xs <- mapM (applyAttrs1 $1 . setTacticAttr $1) $2
+    xs <- mapM (applyAttrs $1 . setTacticAttr $1) $2
     return $ TBind r xs $4
   }
 
@@ -868,7 +869,7 @@ TBindWithHiding : BIdsWithHiding ':' Expr  {
 ModalTBindWithHiding :: { TypedBinding }
 ModalTBindWithHiding : Attributes1 BIdsWithHiding ':' Expr  {% do
     let r = getRange ($1,$2,$3,$4) -- the range is approximate only for TypedBindings
-    xs <- mapM (applyAttrs1 $1 . setTacticAttr $1) $2
+    xs <- mapM (applyAttrs $1 . setTacticAttr $1) $2
     return $ TBind r xs $4
   }
 
@@ -1003,10 +1004,10 @@ DomainFreeBindingAbsurd
     | '{{' CommaBIds DoubleCloseBrace { Left $ fmap makeInstance $2 }
 -- additonal attributes, e.g. @tactic
     | '(' Attributes1 CommaBIdAndAbsurds ')'
-         {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
+         {% applyAttrs $2 defaultArgInfo <&> \ ai ->
               first (fmap (setTacticAttr $2 . setArgInfo ai)) $3 }
     | '{' Attributes1 CommaBIdAndAbsurds '}'
-         {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
+         {% applyAttrs $2 defaultArgInfo <&> \ ai ->
               first (fmap (hide . setTacticAttr $2 . setArgInfo ai)) $3 }
     | '{{' Attributes1 CommaBIds DoubleCloseBrace
          {% Left <\$> applyAttributes $2 (makeInstance defaultArgInfo) $3 }
@@ -1223,7 +1224,7 @@ ArgTypeSigs
 FunClause :: { List1 Declaration }
 FunClause
   : {- emptyb -} LHS WHS RHS WhereClause {% funClauseOrTypeSigs [] $1 $2 $3 $4 }
-  | Attributes1  LHS WHS RHS WhereClause {% funClauseOrTypeSigs (List1.toList $1) $2 $3 $4 $5 }
+  | Attributes1  LHS WHS RHS WhereClause {% funClauseOrTypeSigs $1 $2 $3 $4 $5 }
 
 -- "With Hand Side", in between the Left & the Right hand ones
 WHS :: { [Either RewriteEqn (List1 (Named Name Expr))] }
@@ -1249,7 +1250,7 @@ Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
            defaultErased $2 $3 $5 $7 }
      | 'data' Attributes1 Id TypedUntypedBindings ':' Expr 'where'
             Declarations0
-       {% onlyErased (List1.toList $2) >>= \e ->
+       {% onlyErased $2 >>= \e ->
           return $ Data (getRange (($1,$2,$3,$4),($5,$6,$7,$8)))
                      e $3 $4 $6 $8 }
 
@@ -1263,7 +1264,7 @@ DataSig
   : 'data' Id TypedUntypedBindings ':' Expr
     { DataSig (getRange ($1,$2,$3,$4,$5)) defaultErased $2 $3 $5 }
   | 'data' Attributes1 Id TypedUntypedBindings ':' Expr
-    {% onlyErased (List1.toList $2) >>= \e ->
+    {% onlyErased $2 >>= \e ->
        return $ DataSig (getRange ($1,$2,$3,$4,$5,$6)) e $3 $4 $6 }
 
 -- Andreas, 2012-03-16:  The Expr3NoCurly instead of Id in everything
@@ -1280,8 +1281,8 @@ Record : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr 'where'
        | 'record' Attributes1 Expr3NoCurly TypedUntypedBindings ':' Expr
             'where'
             RecordDeclarations
-         {% onlyErased (List1.toList $2) >>= \e ->
-            exprToName $3                >>= \n ->
+         {% onlyErased $2 >>= \e ->
+            exprToName $3 >>= \n ->
             let (dir, ds) = $8 in
             return $ Record (getRange (($1,$2,$3,$4),($5,$6,$7,$8)))
                        e n dir $4 $6 ds }
@@ -1297,8 +1298,8 @@ RecordSig
        return $ RecordSig (getRange ($1,$2,$3,$4,$5))
                   defaultErased n $3 $5 }
   | 'record' Attributes1 Expr3NoCurly TypedUntypedBindings ':' Expr
-    {% onlyErased (List1.toList $2) >>= \e ->
-       exprToName $3                >>= \n ->
+    {% onlyErased $2 >>= \e ->
+       exprToName $3 >>= \n ->
        return $ RecordSig (getRange ($1,$2,$3,$4,$5,$6)) e n $4 $6 }
 
 Constructor :: { Declaration }

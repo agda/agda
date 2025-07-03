@@ -67,7 +67,7 @@ instance KillRange Attribute where
 
 data Attr = Attr
   { attrRange :: Range       -- ^ Range includes the @.
-  , attrName  :: String      -- ^ Concrete, user written attribute for error reporting.
+  , attrName  :: String      -- ^ Concrete, user written attribute for error reporting, not including the "@".
   , theAttr   :: Attribute   -- ^ Parsed attribute.
   } deriving (Show)
 

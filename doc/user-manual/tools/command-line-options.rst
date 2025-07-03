@@ -1699,6 +1699,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Non-``opaque`` names mentioned in an ``unfolding`` clause.
 
+.. option:: UnknownAttribute
+
+     Unknown attributes.
+
 .. option:: UnknownFixityInMixfixDecl
 
      Mixfix names without an associated fixity declaration.

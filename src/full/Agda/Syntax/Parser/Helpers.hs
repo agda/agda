@@ -639,14 +639,16 @@ assertPristineRelevance r x = unless (null $ getRelevance x) $
 -- * Attributes
 
 -- | Parse an attribute.
-toAttribute :: Range -> Expr -> Parser Attr
+toAttribute :: Range -> Expr -> Parser (Maybe Attr)
 toAttribute r e = do
-  attr <- maybe failure (return . Attr r s) $ exprToAttribute r e
-  modify' (\ st -> st{ parseAttributes = attr : parseAttributes st })
-  return attr
+  case exprToAttribute r e of
+    Nothing -> Nothing <$ parseWarning (UnknownAttribute r s)
+    Just a -> do
+      let attr = Attr r s a
+      modify' \ st -> st{ parseAttributes = attr : parseAttributes st }
+      return $ Just attr
   where
-  s = prettyShow e
-  failure = parseErrorRange e $ "Unknown attribute: @" ++ s
+    s = prettyShow e
 
 -- | Apply an attribute to thing (usually `Arg`).
 --   This will fail if one of the attributes is already set
@@ -672,9 +674,10 @@ applyAttrs1 :: LensAttribute a => List1 Attr -> a -> Parser a
 applyAttrs1 = applyAttrs . List1.toList
 
 -- | Set the tactic attribute of a binder
-setTacticAttr :: List1 Attr -> NamedArg Binder -> NamedArg Binder
+setTacticAttr :: [Attr] -> NamedArg Binder -> NamedArg Binder
+setTacticAttr [] = id
 setTacticAttr as = updateNamedArg $ fmap $ \ b ->
-  case getTacticAttr $ List1.toList as of
+  case getTacticAttr as of
     t | null t    -> b
       | otherwise -> b { bnameTactic = t }
 
@@ -711,7 +714,7 @@ prettyAttr = ("@" ++) . attrName
 
 -- | Apply some attributes to some binders.
 applyAttributes :: Functor f
-  => List1 Attr
+  => [Attr]
        -- ^ Can contain @tactic@ attribute.
   -> ArgInfo
        -- ^ If the attributes to be set are not at default value here, crash.
@@ -720,5 +723,5 @@ applyAttributes :: Functor f
   -> Parser (f (NamedArg Binder))
        -- ^ Binders with attributes applied.
 applyAttributes attrs ai bs = do
-  applyAttrs1 attrs ai <&> \ ai' ->
+  applyAttrs attrs ai <&> \ ai' ->
     fmap (setTacticAttr attrs . setArgInfo ai') bs
