@@ -1716,6 +1716,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Names not declared in the same scope as their polarity pragmas.
 
+.. option:: UnknownPolarity
+
+     Unknown polarities.
+
 .. option:: UnreachableClauses
 
      Unreachable function clauses.

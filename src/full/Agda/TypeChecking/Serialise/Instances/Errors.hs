@@ -284,12 +284,14 @@ instance EmbPrj ParseWarning where
     UnsupportedAttribute a b   -> icodeN 1 UnsupportedAttribute a b
     MultipleAttributes a b     -> icodeN 2 MultipleAttributes a b
     UnknownAttribute a b       -> icodeN 3 UnknownAttribute a b
+    UnknownPolarity a b        -> icodeN 4 UnknownPolarity a b
 
   value = vcase $ \case
     [0, a]    -> valuN OverlappingTokensWarning a
     [1, a, b] -> valuN UnsupportedAttribute a b
     [2, a, b] -> valuN MultipleAttributes a b
     [3, a, b] -> valuN UnknownAttribute a b
+    [4, a, b] -> valuN UnknownPolarity a b
     _ -> malformed
 
 instance EmbPrj RecordFieldWarning where

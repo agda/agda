@@ -1775,7 +1775,7 @@ Polarities : {- empty -}          { [] }
            | Polarities Polarity  { $2 : $1 }
 
 Polarity :: { Ranged Occurrence }
-Polarity : string {% polarity $1 }
+Polarity : string {% parsePolarity $1 }
 
 {--------------------------------------------------------------------------
     Sequences of declarations

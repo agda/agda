@@ -45,6 +45,8 @@ import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Tokens ( Keyword( KwMutual ) )
 
+import Agda.TypeChecking.Positivity.Occurrence ( pattern Mixed )
+
 import Agda.Utils.IO   ( showIOException )
 import Agda.Utils.List ( tailWithDefault )
 import qualified Agda.Utils.Maybe.Strict as Strict
@@ -178,6 +180,8 @@ data ParseWarning
     { warnRange :: !(Range' SrcFile)
         -- ^ The range of the bigger overlapping token.
     }
+  | UnknownPolarity Range String
+      -- ^ Unknown polarity, ignored.
   | UnknownAttribute Range String
       -- ^ Unknown attribute, ignored.
       --   The 'Range' includes the "@", the 'String' not.
@@ -189,6 +193,7 @@ data ParseWarning
 
 instance NFData ParseWarning where
   rnf (OverlappingTokensWarning _) = ()
+  rnf (UnknownPolarity _ s)        = rnf s
   rnf (UnknownAttribute _ s)       = rnf s
   rnf (UnsupportedAttribute _ s)   = rnf s
   rnf (MultipleAttributes _ s)     = rnf s
@@ -196,6 +201,7 @@ instance NFData ParseWarning where
 parseWarningName :: ParseWarning -> WarningName
 parseWarningName = \case
   OverlappingTokensWarning{} -> OverlappingTokensWarning_
+  UnknownPolarity{}          -> UnknownPolarity_
   UnknownAttribute{}         -> UnknownAttribute_
   UnsupportedAttribute{}     -> UnsupportedAttribute_
   MultipleAttributes{}       -> MultipleAttributes_
@@ -275,6 +281,9 @@ instance Pretty ParseWarning where
     OverlappingTokensWarning _r ->
       "Multi-line comment spans one or more literate text blocks."
 
+    UnknownPolarity _r s ->
+      "Replacing unknown polarity" <+> text s <+> "by" <+> pretty Mixed
+
     UnknownAttribute _r s ->
       "Ignoring unknown attribute:" <+> ("@" <> text s)
 
@@ -291,6 +300,7 @@ instance Pretty ParseWarning where
 
 instance HasRange ParseWarning where
   getRange OverlappingTokensWarning{warnRange} = warnRange
+  getRange (UnknownPolarity r _)               = r
   getRange (UnknownAttribute r _)              = r
   getRange (UnsupportedAttribute r _)          = r
   getRange (MultipleAttributes r _)            = r

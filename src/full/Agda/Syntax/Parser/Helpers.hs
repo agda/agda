@@ -211,18 +211,23 @@ mkNamedArg x y = do
   return $ defaultArg $ Named lbl var
 
 -- | Polarity parser.
+--
+--- Unknown polarities are replaced with the default polarity.
 
-polarity :: (Interval, String) -> Parser (Ranged Occurrence)
-polarity (i, s) =
+parsePolarity :: (Interval, String) -> Parser (Ranged Occurrence)
+parsePolarity (i, s) =
   case s of
     "_"  -> ret Unused
     "++" -> ret StrictPos
     "+"  -> ret JustPos
     "-"  -> ret JustNeg
     "*"  -> ret Mixed
-    _    -> parseError $ "Not a valid polarity: " ++ s
+    _    -> do
+      parseWarning (UnknownPolarity r s)
+      ret Mixed
   where
-  ret = return . Ranged (getRange i)
+    r = getRange i
+    ret = return . Ranged r
 
 recoverLayout :: [(Interval, String)] -> String
 recoverLayout [] = ""
