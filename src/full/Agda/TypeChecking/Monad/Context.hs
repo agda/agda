@@ -16,6 +16,8 @@ import Control.Monad.Writer         ( WriterT )
 import Data.Foldable
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
+import Data.Set (Set)
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
@@ -67,9 +69,9 @@ inTopContext cont =
   unsafeModifyContext (const [])
         $ locallyTC eCurrentCheckpoint (const 0)
         $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS)
-        $ locallyTCState stModuleCheckpoints (const Map.empty)
         $ locallyScope scopeLocals (const [])
         $ locallyTC eLetBindings (const Map.empty)
+        $ withoutModuleCheckpoints
         $ cont
 
 -- | Change to top (=empty) context, but don't update the checkpoints. Totally
@@ -103,8 +105,8 @@ checkpoint
   => Substitution -> tcm a -> tcm a
 checkpoint sub k = do
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 $ "New checkpoint {"
-  old     <- viewTC eCurrentCheckpoint
-  oldMods <- useTC  stModuleCheckpoints
+  old  <- viewTC eCurrentCheckpoint
+  oldChkpts <- useTC stModuleCheckpoints
   chkpt <- fresh
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
     cxt <- getContextTelescope
@@ -116,6 +118,7 @@ checkpoint sub k = do
       , "new =" <+> pshow chkpt
       , "sub =" <+> pretty sub
       , "cxt =" <+> pretty cxt
+      , "mods =" <+> pretty oldChkpts
       , "old substs =" <+> prCps cps
       , "new substs =" <?> prCps cps'
       ]
@@ -124,15 +127,88 @@ checkpoint sub k = do
     , envCheckpoints       = Map.insert chkpt IdS $
                               fmap (applySubst sub) (envCheckpoints env)
     }
-  newMods <- useTC stModuleCheckpoints
+  unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
+    newChkpts <- useTC stModuleCheckpoints
+    reportSDoc "tc.cxt.checkpoint" 105 $ return $ nest 2 $
+      "mods before unwind =" <+> pretty newChkpts
+
   -- Set the checkpoint for introduced modules to the old checkpoint when the
   -- new one goes out of scope. #2897: This isn't actually sound for modules
   -- created under refined parent parameters, but as long as those modules
   -- aren't named we shouldn't look at the checkpoint. The right thing to do
   -- would be to not store these modules in the checkpoint map, but todo..
-  stModuleCheckpoints `setTCLens` Map.union oldMods (old <$ newMods)
+
+  -- [HACK: Repairing module checkpoints after state resets]
+  -- Ideally, we could just walk up the current module checkpoint stack
+  -- until we hit the the @old@ checkpoint. This works in most cases, but breaks if
+  -- @k@ resets the typechecking state to a state defined *before* the call to
+  -- @checkpoint@: this can result in us discarding module checkpoints.
+  --
+  -- To prevent this, we walk up the current module checkpoint stack until
+  -- we hit our previous checkpoint, and add any module checkpoints onto
+  -- the checkpoint stack we had before we ran @k@.
+  unwindModuleCheckpointsOnto old oldChkpts
+
+  unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
+    unwoundChkpts <- useTC stModuleCheckpoints
+    reportSDoc "tc.cxt.checkpoint" 105 $ return $ nest 2 $
+      "unwound mods =" <+> pretty unwoundChkpts
+
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 "}"
   return x
+
+-- | Add a module checkpoint for the provided @ModuleName@.
+{-# SPECIALIZE setModuleCheckpoint :: ModuleName -> CheckpointId -> TCM () #-}
+setModuleCheckpoint :: (MonadTCState m) => ModuleName -> CheckpointId -> m ()
+setModuleCheckpoint mname newChkpt =
+  modifyTCLens' stModuleCheckpoints \case
+      (ModuleCheckpointsSection chkpts mnames chkpt) | chkpt == newChkpt ->
+        ModuleCheckpointsSection chkpts (Set.insert mname mnames) chkpt
+      chkpts -> ModuleCheckpointsSection chkpts (Set.singleton mname) newChkpt
+
+-- | Set every module checkpoint in the checkpoint stack to the provided @CheckpointId@.
+{-# SPECIALIZE setAllModuleCheckpoints :: CheckpointId -> TCM () #-}
+setAllModuleCheckpoints :: (MonadTCState m) => CheckpointId -> m ()
+setAllModuleCheckpoints chkpt =
+  modifyTCLens' stModuleCheckpoints \case
+    ModuleCheckpointsTop -> ModuleCheckpointsTop
+    ModuleCheckpointsSection chkpts siblings _ -> setAll siblings chkpts
+  where
+    setAll :: Set ModuleName -> ModuleCheckpoints -> ModuleCheckpoints
+    setAll acc ModuleCheckpointsTop = ModuleCheckpointsSection ModuleCheckpointsTop acc chkpt
+    setAll acc (ModuleCheckpointsSection chkpts siblings _) = setAll (Set.union siblings acc) chkpts
+
+-- | Unwind the current module checkpoint stack until we reach a target @CheckpointId@,
+--   and place the checkpoints onto the provided @ModuleCheckpoints@ stack.
+{-# SPECIALIZE unwindModuleCheckpointsOnto :: CheckpointId -> ModuleCheckpoints -> TCM () #-}
+unwindModuleCheckpointsOnto :: (MonadTCState m) => CheckpointId -> ModuleCheckpoints -> m ()
+unwindModuleCheckpointsOnto unwindTo oldChkpts =
+  -- We know that the checkpoints in the stack are sorted,
+  -- so we can do a preliminary check to see if there's
+  -- any work to be done.
+  modifyTCLens' stModuleCheckpoints \case
+    ModuleCheckpointsSection chkpts siblings chkpt | unwindTo < chkpt -> unwind siblings chkpts
+    _ -> oldChkpts
+  where
+    unwind :: Set ModuleName -> ModuleCheckpoints -> ModuleCheckpoints
+    unwind acc ModuleCheckpointsTop =
+      ModuleCheckpointsSection ModuleCheckpointsTop acc unwindTo
+    unwind acc (ModuleCheckpointsSection chkpts siblings chkpt)
+      | chkpt < unwindTo =
+        -- If the unwind target isnt present in the stack, we add it
+        -- ourselves.
+        ModuleCheckpointsSection oldChkpts acc unwindTo
+      | chkpt == unwindTo =
+        -- Make sure to avoid adding duplicate entries into the unwind
+        -- stack: this would break later unwinds!
+        ModuleCheckpointsSection oldChkpts (Set.union siblings acc) chkpt
+      | otherwise = unwind (Set.union siblings acc) chkpts
+
+-- | Run a computation with no module checkpoints set.
+withoutModuleCheckpoints :: (ReadTCState m) => m a -> m a
+withoutModuleCheckpoints cont =
+  locallyTCState stModuleCheckpoints (const ModuleCheckpointsTop) cont
+{-# INLINE withoutModuleCheckpoints #-}
 
 -- | Get the substitution from the context at a given checkpoint to the current context.
 checkpointSubstitution :: MonadTCEnv tcm => CheckpointId -> tcm Substitution
@@ -142,15 +218,21 @@ checkpointSubstitution = maybe __IMPOSSIBLE__ return <=< checkpointSubstitution'
 checkpointSubstitution' :: MonadTCEnv tcm => CheckpointId -> tcm (Maybe Substitution)
 checkpointSubstitution' chkpt = viewTC (eCheckpoints . key chkpt)
 
+-- | Get the @CheckpointId@ of a module name.
+getModuleCheckpoint :: ModuleName -> ModuleCheckpoints -> Maybe CheckpointId
+getModuleCheckpoint mname ModuleCheckpointsTop = Nothing
+getModuleCheckpoint mname (ModuleCheckpointsSection chkpts siblings chkid)
+  | Set.member mname siblings = Just chkid
+  | otherwise = getModuleCheckpoint mname chkpts
+
 -- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
 --   and @Γm@ is the module parameter telescope of module @m@.
 --
 --   Returns @Nothing@ in case the we don't have a checkpoint for @m@.
 getModuleParameterSub :: (MonadTCEnv m, ReadTCState m) => ModuleName -> m (Maybe Substitution)
 getModuleParameterSub m = do
-  mcp <- (^. stModuleCheckpoints . key m) <$> getTCState
-  traverse checkpointSubstitution mcp
-
+  chkpt <- getModuleCheckpoint m <$> useTC stModuleCheckpoints
+  traverse checkpointSubstitution chkpt
 
 -- * Adding to the context
 
