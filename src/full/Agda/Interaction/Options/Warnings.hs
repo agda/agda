@@ -219,6 +219,7 @@ data WarningName
       -- ^ Some warning could not be set or unset.
   -- Parser Warnings
   | OverlappingTokensWarning_
+  | MisplacedAttributes_
   | UnknownPolarity_
   | UnknownAttribute_
   | UnsupportedAttribute_
@@ -454,6 +455,7 @@ warningNameDescription = \case
   WarningProblem_                  -> "Problems with switching warnings."
   -- Parser Warnings
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
+  MisplacedAttributes_             -> "Attributes where they are not supported."
   UnknownPolarity_                 -> "Unknown polarities."
   UnknownAttribute_                -> "Unknown attributes."
   UnsupportedAttribute_            -> "Unsupported attributes."

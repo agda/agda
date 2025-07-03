@@ -180,6 +180,8 @@ data ParseWarning
     { warnRange :: !(Range' SrcFile)
         -- ^ The range of the bigger overlapping token.
     }
+  | MisplacedAttributes Range String
+      -- ^ The 'String' is the error message.
   | UnknownPolarity Range String
       -- ^ Unknown polarity, ignored.
   | UnknownAttribute Range String
@@ -193,6 +195,7 @@ data ParseWarning
 
 instance NFData ParseWarning where
   rnf (OverlappingTokensWarning _) = ()
+  rnf (MisplacedAttributes _ s)    = rnf s
   rnf (UnknownPolarity _ s)        = rnf s
   rnf (UnknownAttribute _ s)       = rnf s
   rnf (UnsupportedAttribute _ s)   = rnf s
@@ -201,6 +204,7 @@ instance NFData ParseWarning where
 parseWarningName :: ParseWarning -> WarningName
 parseWarningName = \case
   OverlappingTokensWarning{} -> OverlappingTokensWarning_
+  MisplacedAttributes{}      -> MisplacedAttributes_
   UnknownPolarity{}          -> UnknownPolarity_
   UnknownAttribute{}         -> UnknownAttribute_
   UnsupportedAttribute{}     -> UnsupportedAttribute_
@@ -281,6 +285,8 @@ instance Pretty ParseWarning where
     OverlappingTokensWarning _r ->
       "Multi-line comment spans one or more literate text blocks."
 
+    MisplacedAttributes _r s -> text s
+
     UnknownPolarity _r s ->
       "Replacing unknown polarity" <+> text s <+> "by" <+> pretty Mixed
 
@@ -300,6 +306,7 @@ instance Pretty ParseWarning where
 
 instance HasRange ParseWarning where
   getRange OverlappingTokensWarning{warnRange} = warnRange
+  getRange (MisplacedAttributes r _)           = r
   getRange (UnknownPolarity r _)               = r
   getRange (UnknownAttribute r _)              = r
   getRange (UnsupportedAttribute r _)          = r

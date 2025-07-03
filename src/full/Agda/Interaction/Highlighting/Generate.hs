@@ -514,6 +514,7 @@ warningHighlighting' b w = case tcWarning w of
   RecordFieldWarning w       -> recordFieldWarningHighlighting w
   OptionWarning w            -> mempty
   ParseWarning w             -> case w of
+    Pa.MisplacedAttributes{}      -> deadcodeHighlighting w
     Pa.UnknownPolarity{}          -> deadcodeHighlighting w
     Pa.UnknownAttribute{}         -> deadcodeHighlighting w
     Pa.UnsupportedAttribute{}     -> deadcodeHighlighting w

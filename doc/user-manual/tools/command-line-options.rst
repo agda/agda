@@ -1517,6 +1517,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Unknown fields in library files.
 
+.. option:: MisplacedAttributes
+
+     Attributes where they cannot appear.
+
 .. option:: MissingTypeSignatureForOpaque
 
      ``abstract`` or ``opaque`` definitions that lack a type signature.

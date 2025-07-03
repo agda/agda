@@ -595,7 +595,7 @@ funClauseOrTypeSigs attrs lhs' with mrhs wh = do
   -- traceShowM lhs
   case mrhs of
     JustRHS rhs   -> do
-      unless (null attrs) $ parseErrorRange attrs $ "A function clause cannot have attributes"
+      unless (null attrs) $ parseWarning $ MisplacedAttributes (getRange attrs) "A function clause cannot have attributes"
       return $ singleton $ FunClause lhs rhs wh empty
     TypeSigsRHS e -> case wh of
       NoWhere -> case lhs of
