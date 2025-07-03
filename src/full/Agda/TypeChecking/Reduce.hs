@@ -329,7 +329,7 @@ instance Instantiate EqualityView where
     <$> instantiate' t
   instantiate' (IdiomType t)            = IdiomType
     <$> instantiate' t
-  instantiate' (EqualityType s eq l t a b) = EqualityType
+  instantiate' (EqualityType r s eq l t a b) = EqualityType r
     <$> instantiate' s
     <*> return eq
     <*> mapM instantiate' l
@@ -1010,7 +1010,7 @@ instance Reduce EqualityView where
     <$> reduce' t
   reduce' (IdiomType t)            = IdiomType
     <$> reduce' t
-  reduce' (EqualityType s eq l t a b) = EqualityType
+  reduce' (EqualityType r s eq l t a b) = EqualityType r
     <$> reduce' s
     <*> return eq
     <*> mapM reduce' l
@@ -1190,7 +1190,7 @@ instance Simplify EqualityView where
     <$> simplify' t
   simplify' (IdiomType t)            = IdiomType
     <$> simplify' t
-  simplify' (EqualityType s eq l t a b) = EqualityType
+  simplify' (EqualityType r s eq l t a b) = EqualityType r
     <$> simplify' s
     <*> return eq
     <*> mapM simplify' l
@@ -1220,6 +1220,7 @@ instance Normalise t => Normalise (Strict.Maybe t)
 -- Elim' not included since it contains Arg
 instance Normalise t => Normalise (Named name t)
 instance Normalise t => Normalise (IPBoundary' t)
+instance Normalise t => Normalise (Ranged t)
 instance Normalise t => Normalise (WithHiding t)
 
 -- more boring instances:
@@ -1375,7 +1376,7 @@ instance Normalise EqualityView where
     <$> normalise' t
   normalise' (IdiomType t)            = IdiomType
     <$> normalise' t
-  normalise' (EqualityType s eq l t a b) = EqualityType
+  normalise' (EqualityType r s eq l t a b) = EqualityType r
     <$> normalise' s
     <*> return eq
     <*> mapM normalise' l
@@ -1774,7 +1775,7 @@ instance InstantiateFull EqualityView where
     <$> instantiateFull' t
   instantiateFull' (IdiomType t)            = IdiomType
     <$> instantiateFull' t
-  instantiateFull' (EqualityType s eq l t a b) = EqualityType
+  instantiateFull' (EqualityType r s eq l t a b) = EqualityType r
     <$> instantiateFull' s
     <*> return eq
     <*> mapM instantiateFull' l

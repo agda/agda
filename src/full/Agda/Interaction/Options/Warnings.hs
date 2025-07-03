@@ -355,6 +355,7 @@ data WarningName
   | UserWarning_
   | InvalidDisplayForm_
   | UnusedVariablesInDisplayForm_
+  | RewritesNothing_
   | WithClauseProjectionFixityMismatch_
   | WithoutKFlagPrimEraseEquality_
   | ConflictingPragmaOptions_
@@ -592,6 +593,7 @@ warningNameDescription = \case
   InvalidDisplayForm_              -> "Invalid display forms."
   UnusedVariablesInDisplayForm_    -> "Bound but unused variables in display forms."
   TooManyArgumentsToSort_          -> "Extra arguments given to a sort."
+  RewritesNothing_                 -> "`rewrite' clauses that do not fire."
   WithClauseProjectionFixityMismatch_ -> "With clauses using projections in different fixities than their parent clauses."
   WithoutKFlagPrimEraseEquality_   -> "Uses of `primEraseEquality' with the without-K flags."
   WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."

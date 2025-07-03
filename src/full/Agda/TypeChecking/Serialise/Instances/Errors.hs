@@ -139,6 +139,7 @@ instance EmbPrj Warning where
     TooManyPolarities a b                       -> icodeN 71 TooManyPolarities a b
     FixingCohesion a b c                        -> icodeN 72 FixingCohesion a b c
     FixingPolarity a b c                        -> icodeN 73 FixingPolarity a b c
+    RewritesNothing                             -> icodeN 74 RewritesNothing
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -216,6 +217,7 @@ instance EmbPrj Warning where
     [71, a, b]           -> valuN TooManyPolarities a b
     [72, a, b, c]        -> valuN FixingCohesion a b c
     [73, a, b, c]        -> valuN FixingPolarity a b c
+    [74]                 -> valuN RewritesNothing
     _ -> malformed
 
 instance EmbPrj UselessPublicReason

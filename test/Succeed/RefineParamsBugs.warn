@@ -1,0 +1,51 @@
+RefineParamsBugs.agda:157.39-43: warning: -W[no]RewritesNothing
+'rewrite' did not apply
+when checking that the clause
+foldr=foldl ∅ id (x ∷ xs) rewrite id x | foldl-plus x ∅ xs = Nat
+has type (∅ : A) → ((x : A) → (∅ ∙ x) ≡ (x ∙ ∅)) → List A → Set
+
+RefineParamsBugs.agda:158.40-57: warning: -W[no]RewritesNothing
+'rewrite' did not apply
+when checking that the clause
+RefineParamsBugs.Folds.FoldAssoc.-rewrite370 {A = A} _∙_ = _∙_
+  assoc = assoc
+  ∅
+  id
+  x
+  _
+  !
+  xs
+  rewrite foldl-plus x ∅ xs
+  = Nat
+has type
+{A : Set} (_∙_ : A → A → A)
+(assoc : (x y z : A) → ((x ∙ y) ∙ z) ≡ (x ∙ (y ∙ z))) (∅ : A)
+(id : (x : A) → (∅ ∙ x) ≡ (x ∙ ∅)) (x lhs : A) →
+lhs ≡ (x ∙ ∅) → (xs : List A) → Set
+
+———— All done; warnings encountered ————————————————————————
+
+RefineParamsBugs.agda:157.39-43: warning: -W[no]RewritesNothing
+'rewrite' did not apply
+when checking that the clause
+foldr=foldl ∅ id (x ∷ xs) rewrite id x | foldl-plus x ∅ xs = Nat
+has type (∅ : A) → ((x : A) → (∅ ∙ x) ≡ (x ∙ ∅)) → List A → Set
+
+RefineParamsBugs.agda:158.40-57: warning: -W[no]RewritesNothing
+'rewrite' did not apply
+when checking that the clause
+RefineParamsBugs.Folds.FoldAssoc.-rewrite370 {A = A} _∙_ = _∙_
+  assoc = assoc
+  ∅
+  id
+  x
+  _
+  !
+  xs
+  rewrite foldl-plus x ∅ xs
+  = Nat
+has type
+{A : Set} (_∙_ : A → A → A)
+(assoc : (x y z : A) → ((x ∙ y) ∙ z) ≡ (x ∙ (y ∙ z))) (∅ : A)
+(id : (x : A) → (∅ ∙ x) ≡ (x ∙ ∅)) (x lhs : A) →
+lhs ≡ (x ∙ ∅) → (xs : List A) → Set

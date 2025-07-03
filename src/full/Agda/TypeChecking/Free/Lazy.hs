@@ -576,6 +576,7 @@ instance Free t => Free (List1 t)
 instance Free t => Free (Maybe t)
 instance Free t => Free (WithHiding t)
 instance Free t => Free (Named nm t)
+instance Free t => Free (Ranged t)
 
 instance (Free t, Free u) => Free (t, u) where
   freeVars' (t, u) = freeVars' t `mappend` freeVars' u
@@ -609,4 +610,4 @@ instance Free EqualityView where
   freeVars' = \case
     OtherType t -> freeVars' t
     IdiomType t -> freeVars' t
-    EqualityType s _eq l t a b -> freeVars' (s, l, [t, a, b])
+    EqualityType _r s _eq l t a b -> freeVars' (s, l, [t, a, b])

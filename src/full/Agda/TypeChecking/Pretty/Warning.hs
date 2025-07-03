@@ -653,6 +653,8 @@ prettyWarning = \case
       , [ prettyTCM q ]
       ]
 
+    RewritesNothing -> fsep $ pwords "`rewrite' did not apply"
+
     WithClauseProjectionFixityMismatch p0 o' q o -> fsep $ concat
         [ pwords "With clause pattern"
         , [ prettyA p0 ]

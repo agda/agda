@@ -122,6 +122,8 @@ Pragmas and options
 Warnings
 --------
 
+* New warning `RewritesNothing` if a `rewrite` clause did not fire.
+
 * New deadcode warnings `FixingCohesion`, `FixingPolarity` and `FixingRelevance`
   when wrong user-written attribute was corrected automatically by Agda.
 
@@ -435,6 +437,7 @@ Issues for closed for milestone 2.8.0
 - [Issue #7952](https://github.com/agda/agda/issues/7952): Primitive root example in docs
 - [Issue #7953](https://github.com/agda/agda/issues/7953): Confusing error in case of illegal declaration before top-level module in a nested file
 - [Issue #7966](https://github.com/agda/agda/issues/7966): Disallow option abbreviation
+- [Issue #7973](https://github.com/agda/agda/issues/7973): If rewrite does not rewrite anything, give a warning
 - [Issue #7977](https://github.com/agda/agda/issues/7977): Soft error for unknown attributes
 
 PRs for closed for milestone 2.8.0
@@ -629,4 +632,5 @@ PRs for closed for milestone 2.8.0
 - [PR #7965](https://github.com/agda/agda/issues/7965): Re #7932: restore data-files in Agda.cabal and default data-dir
 - [PR #7967](https://github.com/agda/agda/issues/7967): Fix #7966: fork GetOpt to disallow long option abbreviations
 - [PR #7971](https://github.com/agda/agda/issues/7971): flake: use --build-library to build the builtins
+- [PR #7978](https://github.com/agda/agda/issues/7978): Fix #7973: print warning if `rewrite` does not fire
 - [PR #7981](https://github.com/agda/agda/issues/7981): Parse warning instead of error on unknown attributes and polarities

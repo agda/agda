@@ -1007,8 +1007,8 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
       -- and extract lhs, rhs, and their type.
 
       t' <- reduce =<< instantiateFull eqt
-      (eqt,rewriteType,rewriteFrom,rewriteTo) <- equalityView t' >>= \case
-        eqt@(EqualityType _s _eq _params (Arg _ dom) a b) -> do
+      (eqt, rewriteType, rewriteFrom, rewriteTo) <- equalityView (getRange eq) t' >>= \case
+        eqt@(EqualityType _r _s _eq _params (Arg _ dom) a b) -> do
           s <- sortOf dom
           return (eqt, El s dom, unArg a, unArg b)
           -- Note: the sort _s of the equality need not be the sort of the type @dom@!
@@ -1209,10 +1209,12 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   setCurrentRange cs $
     traceCall NoHighlighting $   -- To avoid flicker.
     traceCall (CheckWithFunctionType withFunType) $
-    -- Jesper, 2024-07-10, issue $6841:
+    -- Jesper, 2024-07-10, issue #6841:
     -- Having an ill-typed type can lead to problems in the
     -- coverage checker, so we ensure there are no constraints here.
     noConstraints $ checkType withFunType
+
+  reportSLn "tc.with.top" 20 "creating with display form..."
 
   -- With display forms are closed
   df <- inTopContext $ makeOpen =<< withDisplayForm f aux delta1 delta2 nwithargs qs perm' perm

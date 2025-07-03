@@ -4,15 +4,19 @@
 
 module Agda.TypeChecking.Abstract where
 
+import Prelude hiding ( null )
+
 import Control.Monad
 import Control.Monad.Except
 
-import Data.Function (on)
+import Data.Function ( on )
 import qualified Data.HashMap.Strict as HMap
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position ( Range )
 import Agda.Syntax.Internal
 
+import Agda.TypeChecking.Free ( freeIn )
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
@@ -22,20 +26,35 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Warnings ( warning )
 
 import Agda.Utils.Functor
 import Agda.Utils.List ( splitExactlyAt, dropEnd )
+import Agda.Utils.Null
+
 import Agda.Utils.Impossible
 
--- | @abstractType a v b[v] = b@ where @a : v@.
-abstractType :: Type -> Term -> Type -> TCM Type
-abstractType a v (El s b) = El (absTerm 0 v s) <$> abstractTerm a v (sort s) b
+-- | @abstractType r a v b[v] = b@ where @a : v@.
+abstractType ::
+     Range     -- ^ Range of the @rewrite@ expression, if any, otherwise empty.
+  -> Type      -- ^ Type of the term to abstract.
+  -> Term      -- ^ Term to abstract.
+  -> Type      -- ^ Type to abstract in.
+  -> TCM Type  -- ^ Type with hole (de Bruijn index 0) for the abstracted term.
+abstractType r a v (El s b) = do
+
+  c <- El (absTerm 0 v s) <$> abstractTerm a v (sort s) b
+  unless (null r || 0 `freeIn` c) do
+    -- Andreas, 2025-07-03, issue #7973
+    -- If with abstraction did not abstract anything, warn the user.
+    setCurrentRange r $ warning RewritesNothing
+  return c
 
 -- | @piAbstractTerm NotHidden v a b[v] = (w : a) -> b[w]@
 --   @piAbstractTerm Hidden    v a b[v] = {w : a} -> b[w]@
 piAbstractTerm :: ArgInfo -> Term -> Type -> Type -> TCM Type
 piAbstractTerm info v a b = do
-  fun <- mkPi (setArgInfo info $ defaultDom ("w", a)) <$> abstractType a v b
+  fun <- mkPi (setArgInfo info $ defaultDom ("w", a)) <$> abstractType empty a v b
   reportSDoc "tc.abstract" 50 $
     sep [ "piAbstract" <+> sep [ prettyTCM v <+> ":", nest 2 $ prettyTCM a ]
         , nest 2 $ "from" <+> prettyTCM b
@@ -57,7 +76,7 @@ piAbstractTerm info v a b = do
 piAbstract :: Arg (Term, EqualityView) -> Type -> TCM Type
 piAbstract (Arg info (v, OtherType a)) b = piAbstractTerm info v a b
 piAbstract (Arg info (v, IdiomType a)) b = do
-  b  <- raise 1 <$> abstractType a v b
+  b  <- raise 1 <$> abstractType empty a v b
   eq <- addContext ("w" :: String, defaultDom a) $ do
     -- manufacture the type @w ≡ v@
     eqName <- primEqualityName
@@ -85,14 +104,19 @@ piAbstract (Arg info (v, IdiomType a)) b = do
   pure $ mkPi (setHiding (getHiding info) $ defaultDom ("w", a))
        $ mkPi (setHiding NotHidden        $ defaultDom ("eq", eq))
        $ b
-piAbstract (Arg info (prf, EqualityViewType eqt@(EqualityTypeData _ _ _ (Arg _ a) v _))) b = do
+piAbstract (Arg info (prf, EqualityViewType eqt@(EqualityTypeData r _ _ _ (Arg _ a) v _))) b = do
   s <- sortOf a
   let prfTy :: Type
       prfTy = equalityUnview eqt
       vTy   = El s a
-  b <- abstractType prfTy prf b
+  -- Andreas, 2025-07-03, issue #7973
+  -- We alert the user when the lhs of the equality proof could not be abstracted
+  -- but not when the equality proof itself could not be abstracted.
+  -- Only the former means that the rewrite did not fire.
+  b <- abstractType empty prfTy prf b  -- @empty@ means do not warn
   b <- addContext ("w" :: String, defaultDom prfTy) $
-         abstractType (raise 1 vTy) (unArg $ raise 1 v) b
+         -- Passing range @r@ here means warn if abstraction failed to abstract anything.
+         abstractType r (raise 1 vTy) (unArg $ raise 1 v) b
   return . funType "lhs" vTy . funType "equality" eqTy' . swap01 $ b
   where
     funType str a = mkPi $ setArgInfo info $ defaultDom (str, a)

@@ -722,7 +722,8 @@ data EqualityView
       -- ^ A reduced type used as type for the @with@ inspect idiom.
 
 data EqualityTypeData = EqualityTypeData
-    { _eqtSort   :: Sort        -- ^ Sort of this type.
+    { _eqtRange  :: Range       -- ^ Range of the @rewrite@ expression, if any.
+    , _eqtSort   :: Sort        -- ^ Sort of this type.
     , _eqtName   :: QName       -- ^ Builtin EQUALITY.
     , _eqtParams :: Args        -- ^ Hidden.  Empty or @Level@.
     , _eqtType   :: Arg Term    -- ^ Hidden.
@@ -730,16 +731,17 @@ data EqualityTypeData = EqualityTypeData
     , _eqtRhs    :: Arg Term    -- ^ NotHidden.
     }
 
-pattern EqualityType
-  :: Sort
+pattern EqualityType ::
+     Range
+  -> Sort
   -> QName
   -> Args
   -> Arg Term
   -> Arg Term
   -> Arg Term
   -> EqualityView
-pattern EqualityType{ eqtSort, eqtName, eqtParams, eqtType, eqtLhs, eqtRhs } =
-  EqualityViewType (EqualityTypeData eqtSort eqtName eqtParams eqtType eqtLhs eqtRhs)
+pattern EqualityType{ eqtRange, eqtSort, eqtName, eqtParams, eqtType, eqtLhs, eqtRhs } =
+  EqualityViewType (EqualityTypeData eqtRange eqtSort eqtName eqtParams eqtType eqtLhs eqtRhs)
 
 {-# COMPLETE EqualityType, OtherType, IdiomType #-}
 
@@ -920,7 +922,7 @@ sortUniv = \case
 
 -- | Is this a Prop universe?  Answers are yes ('True') or maybe ('False').
 isProp :: Sort' t -> Bool
-isProp = maybe False (UProp ==) . sortUniv
+isProp = (Just UProp ==) . sortUniv
 
 -- | Is this a strict universe inhabitable by data types?
 isStrictDataSort :: Sort' t -> Bool

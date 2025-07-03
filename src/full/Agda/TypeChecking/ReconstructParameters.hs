@@ -45,8 +45,8 @@ reconstructParametersInTel (ExtendTel a tel) = do
     ExtendTel (ar <$ a) <$> traverse reconstructParametersInTel tel
 
 reconstructParametersInEqView :: EqualityView -> TCM EqualityView
-reconstructParametersInEqView (EqualityType s eq l a u v) =
-  EqualityType s eq l <$> traverse (reconstructParameters $ sort s) a
+reconstructParametersInEqView (EqualityType r s eq l a u v) =
+  EqualityType r s eq l <$> traverse (reconstructParameters $ sort s) a
                       <*> traverse (reconstructParameters $ El s $ unArg a) u
                       <*> traverse (reconstructParameters $ El s $ unArg a) v
 reconstructParametersInEqView (OtherType a) = OtherType <$> reconstructParametersInType a

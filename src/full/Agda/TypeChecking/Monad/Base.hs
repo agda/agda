@@ -4727,6 +4727,8 @@ data Warning
   -- Type checker warnings
   | TooManyArgumentsToSort QName (List1 (NamedArg A.Expr))
       -- ^ Extra arguments to sort (will be ignored).
+  | RewritesNothing
+      -- ^ A @rewrite@ expression that does not fire.
   | WithClauseProjectionFixityMismatch
     { withClausePattern          :: NamedArg A.Pattern
     , withClauseProjectionOrigin :: ProjOrigin
@@ -4867,6 +4869,7 @@ warningName = \case
 
   -- Type checking
   TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
+  RewritesNothing{}                    -> RewritesNothing_
   WithClauseProjectionFixityMismatch{} -> WithClauseProjectionFixityMismatch_
 
   -- Polarities

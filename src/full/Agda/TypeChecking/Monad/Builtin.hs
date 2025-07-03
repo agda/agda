@@ -758,8 +758,11 @@ primEqualityName = do
 --
 --   Precondition: type is reduced.
 
-equalityView :: Type -> TCM EqualityView
-equalityView t0@(El s t) = do
+equalityView ::
+     Range  -- ^ Range of the @rewrite@ expression, if any.
+  -> Type   -- ^ Identity type?
+  -> TCM EqualityView
+equalityView r t0@(El s t) = do
   equality <- primEqualityName
   case t of
     Def equality' es | equality' == equality -> do
@@ -767,7 +770,7 @@ equalityView t0@(El s t) = do
       let n = length vs
       unless (n >= 3) __IMPOSSIBLE__
       let (pars, [ typ , lhs, rhs ]) = splitAt (n-3) vs
-      return $ EqualityType s equality pars typ lhs rhs
+      return $ EqualityType r s equality pars typ lhs rhs
     _ -> return $ OtherType t0
 
 -- | Revert the 'EqualityView'.
@@ -784,7 +787,7 @@ instance EqualityUnview EqualityView where
     EqualityViewType eqt -> equalityUnview eqt
 
 instance EqualityUnview EqualityTypeData where
-  equalityUnview (EqualityTypeData s equality l t lhs rhs) =
+  equalityUnview (EqualityTypeData _r s equality l t lhs rhs) =
     El s $ Def equality $ map Apply (l ++ [t, lhs, rhs])
 
 -- | Primitives with typechecking constrants.

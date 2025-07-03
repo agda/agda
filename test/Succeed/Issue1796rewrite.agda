@@ -69,4 +69,4 @@ gcd-diag-erase (suc {i} n)
           -- Before fix: diff-diag-erase {i} n.
           -- The {i} was necessary, otherwise rewrite failed
           -- because an unsolved size var prevented abstraction.
-        | gcd-diag-erase n = refl
+        = refl

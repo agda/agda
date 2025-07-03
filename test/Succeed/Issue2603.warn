@@ -1,0 +1,11 @@
+Issue2603.agda:33.16-26: warning: -W[no]RewritesNothing
+'rewrite' did not apply
+when checking that the clause lemma2 rewrite elephant _ = Signal
+has type Set
+
+———— All done; warnings encountered ————————————————————————
+
+Issue2603.agda:33.16-26: warning: -W[no]RewritesNothing
+'rewrite' did not apply
+when checking that the clause lemma2 rewrite elephant _ = Signal
+has type Set

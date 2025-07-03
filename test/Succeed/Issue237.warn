@@ -1,0 +1,11 @@
+Issue237.agda:17.15-19: warning: -W[no]RewritesNothing
+'rewrite' did not apply
+when checking that the clause foo u rewrite eq u = Set has type
+Unit → Set₁
+
+———— All done; warnings encountered ————————————————————————
+
+Issue237.agda:17.15-19: warning: -W[no]RewritesNothing
+'rewrite' did not apply
+when checking that the clause foo u rewrite eq u = Set has type
+Unit → Set₁

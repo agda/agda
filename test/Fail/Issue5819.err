@@ -1,3 +1,8 @@
+Issue5819.agda:108.36-52: warning: -W[no]RewritesNothing
+'rewrite' did not apply
+when checking that the clause
+invˡ {dl″ (cons′ a l) p} rewrite invˡ {dl″ l ?} = ? has type
+{x = x₁ : DList″} → f dl-iso (f⁻¹ dl-iso x₁) ≡ x₁
 Issue5819.agda:72.1-120.45: error: [TerminationIssue]
 Termination checking failed for the following functions:
   dl-iso, Fresh→Fresh′, Fresh→AllFresh

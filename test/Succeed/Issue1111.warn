@@ -1,0 +1,25 @@
+Issue1111.agda:25.15-40: warning: -W[no]RewritesNothing
+'rewrite' did not apply
+when checking that the clause
+test0 rewrite comm {n = ?} {m = ?} = ? has type
+{x y : Nat} → x + (x + y) ≡ x + (y + x)
+
+Issue1111.agda:28.21-46: warning: -W[no]RewritesNothing
+'rewrite' did not apply
+when checking that the clause
+test {x} {y} rewrite comm {n = ?} {m = ?} = ? has type
+{x y : Nat} → x + (x + y) ≡ x + (y + x)
+
+———— All done; warnings encountered ————————————————————————
+
+Issue1111.agda:25.15-40: warning: -W[no]RewritesNothing
+'rewrite' did not apply
+when checking that the clause
+test0 rewrite comm {n = ?} {m = ?} = ? has type
+{x y : Nat} → x + (x + y) ≡ x + (y + x)
+
+Issue1111.agda:28.21-46: warning: -W[no]RewritesNothing
+'rewrite' did not apply
+when checking that the clause
+test {x} {y} rewrite comm {n = ?} {m = ?} = ? has type
+{x y : Nat} → x + (x + y) ≡ x + (y + x)

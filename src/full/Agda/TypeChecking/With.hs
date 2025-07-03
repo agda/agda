@@ -207,7 +207,7 @@ withArguments vtys = do
         case ts of
           (v, OtherType a) -> do
             return $ singleton v
-          (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> do
+          (prf, eqt@(EqualityType _r _s _eq _pars _t v _v')) -> do
             return $ unArg v :| prf : []
           (v, IdiomType t) -> do
             mkRefl <- getRefl

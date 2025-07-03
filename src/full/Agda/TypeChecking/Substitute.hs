@@ -1097,6 +1097,9 @@ instance Subst a => Subst (List1 a) where
 instance (Ord k, Subst a) => Subst (Map k a) where
   type SubstArg (Map k a) = SubstArg a
 
+instance Subst a => Subst (Ranged a) where
+  type SubstArg (Ranged a) = SubstArg a
+
 instance Subst a => Subst (WithHiding a) where
   type SubstArg (WithHiding a) = SubstArg a
 
@@ -1134,7 +1137,7 @@ instance Subst EqualityView where
 
 instance Subst EqualityTypeData where
   type SubstArg EqualityTypeData = Term
-  applySubst rho (EqualityTypeData s eq l t a b) = EqualityTypeData
+  applySubst rho (EqualityTypeData r s eq l t a b) = EqualityTypeData r
     (applySubst rho s)
     eq
     (map (applySubst rho) l)

@@ -1679,13 +1679,17 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Mutually declaration with the rewrite rule is not yet defined.
 
+.. option:: RewritesNothing
+
+     ``rewrite`` clauses that do not fire.
+
 .. option:: ShadowingInTelescope
 
      Repeated variable name in telescope.
 
 .. option:: TooManyArgumentsToSort
 
-     E.g. `Set` used with more than one argument.
+     E.g. ``Set`` used with more than one argument.
 
 .. option:: TooManyFields
 

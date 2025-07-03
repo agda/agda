@@ -119,18 +119,22 @@ instance CheckInternal Type where
 instance CheckInternal Term where
   checkInternal' :: (MonadCheckInternal m) => Action m -> Term -> Comparison -> Type -> m Term
   checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
-    reportSDoc "tc.check.internal" 20 $ sep
-      [ "checking internal "
-      , nest 2 $ sep [ prettyTCM v <+> ":"
-                    , nest 2 $ prettyTCM t ] ]
-    reportSDoc "tc.check.internal" 60 $ sep
-      [ "checking internal with DB indices"
-      , nest 2 $ sep [ pretty v <+> ":"
-                    , nest 2 $ pretty t ] ]
-    ctx <- getContextTelescope
-    unless (null ctx) $ reportSDoc "tc.check.internal" 30 $ sep
-      [ "In context"
-      , nest 2 $ sep [ prettyTCM ctx ] ]
+
+    -- Debug print
+    verboseS "tc.check.internal" 20 do
+      reportSDoc "tc.check.internal" 20 $ sep
+        [ "checking internal "
+        , nest 2 $ sep [ prettyTCM v <+> ":"
+                      , nest 2 $ prettyTCM t ] ]
+      reportSDoc "tc.check.internal" 60 $ sep
+        [ "checking internal with DB indices"
+        , nest 2 $ sep [ pretty v <+> ":"
+                      , nest 2 $ pretty t ] ]
+      ctx <- getContextTelescope
+      unless (null ctx) $ reportSDoc "tc.check.internal" 30 $ sep
+        [ "In context"
+        , nest 2 $ sep [ prettyTCM ctx ] ]
+
     -- Bring projection-like funs in post-fix form,
     -- (even lone ones by default).
     v <- elimViewAction action =<< preAction action t v
