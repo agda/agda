@@ -28,21 +28,18 @@ jobs:
     - name: Install dependencies
       run: |
         make -C doc/user-manual requirements
-    - name: Setup TeX Live
-      uses: teatimeguest/setup-texlive-action@v3
-      with:
-        packages: scheme-basic anyfontsize bbm bbm-macros booktabs capt-of cmap colortbl
-          dvipng ellipse etoolbox fancyvrb float fncychap fontawesome5 framed keystroke
-          latexmk mathtools needspace parskip pict2e psnfss stmaryrd tabulary tex-gyre
-          titlesec upquote varwidth wrapfig xcolor zapfchan
-    - name: Build User Manual in HTML
+    - name: Install dependencies
       run: |
-        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
-        make user-manual-html
+        sudo apt-get update -y
+        sudo apt install texlive-full -y
     - name: Build User Manual in PDF
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-pdf
+    - name: Build User Manual in HTML
+      run: |
+        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
+        make user-manual-html
     - uses: actions/upload-artifact@v4
       with:
         name: user-manual-pdf
