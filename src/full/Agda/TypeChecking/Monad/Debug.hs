@@ -369,40 +369,30 @@ closeVerboseBracketException k n = displayDebugMessage k n "} (exception)\n"
 --   reportSLn
 --   reportSDoc
 
+-- | Get the verbosity level for a given key.
+getVerbosityLevel :: MonadDebug m => VerboseKey -> m VerboseLevel
+getVerbosityLevel k = do
+  t <- getVerbosity
+  return $ case t of
+    Strict.Nothing -> 1
+    Strict.Just t
+      -- This code is not executed if no debug flags have been given.
+      | t == Trie.singleton [] 0 -> 0 -- A special case for "-v0".
+      | otherwise -> lastWithDefault 0 $ Trie.lookupPath ks t
+  where ks = parseVerboseKey k
+
 -- | Check whether a certain verbosity level is activated.
 --
 --   Precondition: The level must be non-negative.
 {-# SPECIALIZE hasVerbosity :: VerboseKey -> VerboseLevel -> TCM Bool #-}
 hasVerbosity :: MonadDebug m => VerboseKey -> VerboseLevel -> m Bool
-hasVerbosity k n = do
-  t <- getVerbosity
-  return $ case t of
-    Strict.Nothing -> n <= 1
-    Strict.Just t
-      -- This code is not executed if no debug flags have been given.
-      | t == Trie.singleton [] 0 ->
-        -- A special case for "-v0".
-        n <= 0
-      | otherwise ->
-        let ks = parseVerboseKey k
-            m  = lastWithDefault 0 $ Trie.lookupPath ks t
-        in n <= m
+hasVerbosity k n = (n <=) <$> getVerbosityLevel k
 
 -- | Check whether a certain verbosity level is activated (exact match).
 
 {-# SPECIALIZE hasExactVerbosity :: VerboseKey -> VerboseLevel -> TCM Bool #-}
 hasExactVerbosity :: MonadDebug m => VerboseKey -> VerboseLevel -> m Bool
-hasExactVerbosity k n = do
-  t <- getVerbosity
-  return $ case t of
-    Strict.Nothing -> n == 1
-    Strict.Just t
-      -- This code is not executed if no debug flags have been given.
-      | t == Trie.singleton [] 0 ->
-        -- A special case for "-v0".
-        n == 0
-      | otherwise ->
-        Just n == Trie.lookup (parseVerboseKey k) t
+hasExactVerbosity k n = (n ==) <$> getVerbosityLevel k
 
 -- | Run a computation if a certain verbosity level is activated (exact match).
 

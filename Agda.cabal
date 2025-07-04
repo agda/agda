@@ -425,6 +425,7 @@ common language
       TypeSynonymInstances
       ViewPatterns
       TypeApplications
+      ImportQualifiedPost
 
   other-extensions:
       AllowAmbiguousTypes
@@ -644,6 +645,8 @@ library
       Agda.Main
       Agda.Mimer.Mimer
       Agda.Mimer.Options
+      Agda.Mimer.Types
+      Agda.Mimer.Monad
       Agda.Setup
       Agda.Setup.DataFiles
       Agda.Setup.EmacsMode
