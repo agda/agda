@@ -319,7 +319,11 @@ Interaction and emacs mode
 Backends
 --------
 
-* New `backendInteractTop/backendInteractHole` fields for providing backend-specific interaction commands (run with keyboard shortcut `C-c C-i`).
+* New `backendInteractTop/backendInteractHole` fields for providing backend-specific interaction commands
+  (run with keyboard shortcut `C-c C-i`).
+
+* Buggy unused argument optimization removed from the JavaScript backend
+  ([PR #7509](https://github.com/agda/agda/pull/7509)).
 
 Issues closed
 -------------
@@ -335,7 +339,6 @@ Issues for closed for milestone 2.8.0
 - [Issue #4338](https://github.com/agda/agda/issues/4338): Add mechanism to type check entire Agda libraries
 - [Issue #4343](https://github.com/agda/agda/issues/4343): File order of checking matters (rewrite rules)
 - [Issue #5299](https://github.com/agda/agda/issues/5299): Postfix projections are not documented
-- [Issue #5793](https://github.com/agda/agda/issues/5793): [JS backend] add option for AMD-style and/or native JS modules support
 - [Issue #5865](https://github.com/agda/agda/issues/5865): Non Pattern Match Lambdas Missing From Docs
 - [Issue #6111](https://github.com/agda/agda/issues/6111): Is compile-time irrelevance supposed to be erased with `COMPILE` pragmas?
 - [Issue #6320](https://github.com/agda/agda/issues/6320): Parse strings to terms as reflection operation
