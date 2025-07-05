@@ -18,17 +18,8 @@ defaults:
     shell: bash
 
 jobs:
-  auto-cancel:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    runs-on: Ubuntu-latest
-    steps:
-    - uses: styfle/cancel-workflow-action@0.12.1
-      with:
-        access_token: ${{ github.token }}
 
   build:
-    if: ${{ !cancelled() }}
-    needs: auto-cancel
     strategy:
       fail-fast: false
       matrix:
@@ -343,7 +334,7 @@ jobs:
     # if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_run' }}
     needs: sanity-check
     runs-on: ubuntu-latest
-    if: ${{ success() }}
+    # if: ${{ success() }}
     steps:
 
     - uses: actions/checkout@v4

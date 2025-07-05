@@ -9,23 +9,13 @@ defaults:
   run:
     shell: bash
 jobs:
-  auto-cancel:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion
-      == 'success' }}
-    runs-on: Ubuntu-latest
-    steps:
-    - uses: styfle/cancel-workflow-action@0.12.1
-      with:
-        access_token: ${{ github.token }}
   build:
     env:
       ARGS: --disable-executable-profiling --disable-library-profiling --flags=use-xdg-data-home
       LINUX_ARGS: --flags=optimise-heavily --enable-executable-static  --enable-split-sections
       MACOS_ARGS: --flags=optimise-heavily
-      WIN64_ARGS: --flags=optimise-heavily --enable-split-sections
       MATRIX_OS: ${{ matrix.os }}
-    if: ${{ !cancelled() }}
-    needs: auto-cancel
+      WIN64_ARGS: --flags=optimise-heavily --enable-split-sections
     runs-on: ${{ matrix.os }}
     steps:
     - name: Check out the master branch
@@ -181,7 +171,6 @@ jobs:
         - macos-13
         - ubuntu-latest
   deploy:
-    if: ${{ success() }}
     needs: sanity-check
     runs-on: ubuntu-latest
     steps:
