@@ -44,6 +44,7 @@ extra-doc-files:
     CHANGELOG.md
     README.md
     doc/user-manual/agda.svg
+    doc/release-notes/2.8.0.md
     doc/release-notes/2.7.0.1.md
     doc/release-notes/2.7.0.md
     doc/release-notes/2.6.4.3.md
