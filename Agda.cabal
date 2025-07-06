@@ -1078,7 +1078,7 @@ test-suite agda-tests
     , mtl
     , process
     , process-extras
-    , QuickCheck        >= 2.14.3    && < 2.16
+    , QuickCheck        >= 2.14.3    && < 2.17
     , regex-tdfa
     , split
     , strict
