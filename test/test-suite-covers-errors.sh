@@ -36,6 +36,12 @@ RelevanceMismatch
 ShouldBePath
 EOF
 
+# Errors which became impossible.
+#
+cat >> $ERRORS <<EOF
+NeedOptionRewriting
+EOF
+
 # Errors we currently do not cover by the testsuite (TODO!).
 #
 cat >> $ERRORS <<EOF

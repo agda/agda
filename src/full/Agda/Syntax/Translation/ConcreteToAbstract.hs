@@ -2610,9 +2610,19 @@ instance ToAbstract C.Pragma where
 
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
 
-  toAbstract (C.RewritePragma _ _ []) = [] <$ warning EmptyRewritePragma
-  toAbstract (C.RewritePragma _ r xs) = singleton . A.RewritePragma r . catMaybes <$> do
-    forM xs \ x -> setCurrentRange x $ unambiguousConOrDef NotARewriteRule x
+  toAbstract (C.RewritePragma _ r xs) = do
+    (optRewriting <$> pragmaOptions) >>= \case
+
+      -- If --rewriting is off, ignore the pragma.
+      False -> [] <$ do
+        warning $ UselessPragma r "Ignoring REWRITE pragma since option --rewriting is off"
+
+      -- Warn about empty pragmas.
+      True -> if null xs then [] <$ warning EmptyRewritePragma else do
+
+        -- Check that names of rewrite rules are unambiguous.
+        singleton . A.RewritePragma r . catMaybes <$> do
+          forM xs \ x -> setCurrentRange x $ unambiguousConOrDef NotARewriteRule x
 
   toAbstract (C.ForeignPragma _ rb s) = [] <$ addForeignCode (rangedThing rb) s
 

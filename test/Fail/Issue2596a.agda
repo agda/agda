@@ -1,4 +1,4 @@
-{-# OPTIONS -W error #-}
+{-# OPTIONS --rewriting -W error #-}
 module Issue2596a where
 
 {-# REWRITE #-}

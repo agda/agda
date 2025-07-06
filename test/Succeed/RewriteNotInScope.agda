@@ -1,1 +1,3 @@
+{-# OPTIONS --rewriting #-}
+
 {-# REWRITE foo #-}

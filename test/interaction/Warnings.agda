@@ -1,3 +1,5 @@
+{-# OPTIONS --rewriting #-}
+
 module Warnings where
 
 -- empty rewrite pragma

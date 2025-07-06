@@ -14,6 +14,9 @@ Pragmas and options
 Warnings
 --------
 
+* `UselessPragma` warning instead of hard error `NeedOptionRewriting` when a
+  `REWRITE` or `BUILTIN REWRITE` pragma is encountered but `--rewriting` is off.
+
 Syntax
 ------
 

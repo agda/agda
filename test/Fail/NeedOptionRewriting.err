@@ -1,3 +1,17 @@
-NeedOptionRewriting.agda:6.1-28: error: [NeedOptionRewriting]
-Option --rewriting needed to add and use rewrite rules
+NeedOptionRewriting.agda:6.1-28: warning: -W[no]UselessPragma
+Ignoring BUILTIN REWRITE pragma since option --rewriting is off
 when checking the pragma BUILTIN REWRITE _≡_
+
+NeedOptionRewriting.agda:25.1-23: warning: -W[no]UselessPragma
+Ignoring REWRITE pragma since option --rewriting is off
+when scope checking the declaration
+  {-# REWRITE plus0p #-}
+
+NeedOptionRewriting.agda:26.1-25: warning: -W[no]UselessPragma
+Ignoring REWRITE pragma since option --rewriting is off
+when scope checking the declaration
+  {-# REWRITE plusSucp #-}
+
+NeedOptionRewriting.agda:29.9-13: error: [UnequalTerms]
+x + zero != x of type Nat
+when checking that the expression refl has type (x + zero) ≡ x

@@ -1,11 +1,11 @@
-RewritingEmptyPragma.agda:3.1-16: warning: -W[no]EmptyRewritePragma
-Empty REWRITE pragma
+RewritingEmptyPragma.agda:3.1-16: warning: -W[no]UselessPragma
+Ignoring REWRITE pragma since option --rewriting is off
 when scope checking the declaration
   {-# REWRITE #-}
 
 ———— All done; warnings encountered ————————————————————————
 
-RewritingEmptyPragma.agda:3.1-16: warning: -W[no]EmptyRewritePragma
-Empty REWRITE pragma
+RewritingEmptyPragma.agda:3.1-16: warning: -W[no]UselessPragma
+Ignoring REWRITE pragma since option --rewriting is off
 when scope checking the declaration
   {-# REWRITE #-}
