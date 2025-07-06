@@ -1336,9 +1336,9 @@ atTopLevel m = inConcreteMode $ do
         withScope_ scope $
           addContext gamma $ do
             -- We're going inside the top-level module, so we have to set the
-            -- checkpoint for it and all its submodules to the new checkpoint.
+            -- checkpoints for it and all its submodules to the new checkpoint.
             cp <- viewTC eCurrentCheckpoint
-            stModuleCheckpoints `modifyTCLens` fmap (const cp)
+            setAllModuleCheckpoints cp
             m
 
 -- | Parse a name.

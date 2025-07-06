@@ -357,7 +357,8 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
           tel' <- do
             r <- headWithDefault __IMPOSSIBLE__ <$> getContext
             return $ contextToTel $ r : params
-          setModuleCheckpoint m
+          cp <- viewTC eCurrentCheckpoint
+          setModuleCheckpoint m cp
           checkRecordProjections m name hasNamedCon con tel' ftel fields
 
 
