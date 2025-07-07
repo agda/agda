@@ -9,7 +9,7 @@ import Control.Arrow (second)
 import Control.DeepSeq
 import Control.Monad.Except   ( throwError )
 import Control.Monad.IO.Class ( MonadIO(..) )
-import Control.Monad.Reader   ( MonadReader(..), asks, ReaderT, runReaderT, withReaderT)
+import Control.Monad.Reader   ( MonadReader(..), asks, ReaderT, runReaderT, withReaderT )
 import Control.Monad.Trans    ( lift )
 import Control.Monad.Writer   ( MonadWriter(..), WriterT, runWriterT )
 
@@ -117,6 +117,8 @@ data GHCFlags = GHCFlags
     -- ^ Make inductive constructors strict?
   , flagGhcStrict :: Bool
     -- ^ Make functions strict?
+  , flagGhcTrace :: Bool
+    -- ^ Print function name upon entry using 'Debug.Trace.trace'?
   }
   deriving Generic
 
@@ -130,6 +132,7 @@ defaultGHCFlags = GHCFlags
   , flagGhcFlags      = []
   , flagGhcStrictData = False
   , flagGhcStrict     = False
+  , flagGhcTrace      = False
   }
 
 -- | The option to activate the GHC backend.
@@ -154,6 +157,8 @@ ghcCommandLineFlags =
                     "make inductive constructors strict"
     , Option []     ["ghc-strict"] (NoArg strict)
                     "make functions strict"
+    , Option []     ["ghc-trace"] (NoArg trace)
+                    "instrument code to debug print trace of function calls"
     ]
   where
     dontCallGHC o = pure o{ flagGhcCallGhc    = False }
@@ -162,6 +167,7 @@ ghcCommandLineFlags =
     strict      o = pure o{ flagGhcStrictData = True
                           , flagGhcStrict     = True
                           }
+    trace       o = pure o{ flagGhcTrace      = True }
 
 withCompilerFlag :: FilePath -> Flag GHCFlags
 withCompilerFlag fp o = case flagGhcBin o of
@@ -231,6 +237,7 @@ ghcPreCompile flags = do
                 , optGhcCompileDir = outDir
                 , optGhcStrictData = flagGhcStrictData flags
                 , optGhcStrict     = flagGhcStrict flags
+                , optGhcTrace      = flagGhcTrace flags
                 }
 
   mbool       <- getBuiltinName builtinBool
@@ -413,7 +420,7 @@ ghcPostModule
   -> TopLevelModuleName
   -> [GHCDefinition]   -- ^ Compiled module content.
   -> TCM GHCModule
-ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
+ghcPostModule cenv menv _isMain _moduleName ghcDefs = do
   builtinThings <- getsTC stBuiltinThings
 
   -- Accumulate all of the modules, definitions, declarations, etc.
@@ -422,7 +429,12 @@ ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
          -> (useFloat', decls', [def'], maybeToList md', imps'))
         <$> ghcDefs
 
-  let imps = mazRTEFloatImport usedFloat ++ imports builtinThings usedModules defs
+  let
+    imps = concat
+      [ mazRTEFloatImport usedFloat
+      , imports builtinThings usedModules defs
+      , [ hsImportDebugTrace | optGhcTrace (ghcEnvOpts cenv) ]
+      ]
 
   i <- curIF
 
@@ -438,6 +450,13 @@ ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
       (map fakeDecl (List.nub hsImps ++ code) ++ decls)
 
   return $ GHCModule menv mainDefs
+
+hsImportDebugTrace :: HS.ImportDecl
+hsImportDebugTrace = HS.ImportDecl
+  { importModule    = HS.ModuleName "Debug.Trace"
+  , importQualified = True
+  , importSpecs     = Just (False, [ HS.IVar $ HS.Ident "trace" ])
+  }
 
 ghcCompileDef :: GHCEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM GHCDefinition
 ghcCompileDef _cenv menv _isMain def = do
@@ -705,7 +724,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       PrimitiveSort{} -> retDecls []
 
-      Function{} -> function pragma $ functionViaTreeless q
+      Function{} -> function pragma $ functionViaTreeless def q
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
               , dataPathCons = pcs
@@ -767,8 +786,8 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
           return (imp, [tsig,def] ++ ccls)
       _ -> return (imp, ccls)
 
-  functionViaTreeless :: QName -> HsCompileM (UsesFloat, [HS.Decl])
-  functionViaTreeless q = do
+  functionViaTreeless :: Definition -> QName -> HsCompileM (UsesFloat, [HS.Decl])
+  functionViaTreeless def q = do
     strict <- optGhcStrict <$> askGhcOpts
     let eval = if strict then EagerEvaluation else LazyEvaluation
     caseMaybeM (liftTCM $ toTreeless eval q) (pure mempty) $ \ treeless -> do
@@ -777,7 +796,6 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       let dostrip = ArgUnused `elem` used
 
       -- Compute the type approximation
-      def <- getConstInfo q
       (argTypes0, resType) <- hsTelApproximation $ defType def
       let pars = case theDef def of
                    Function{ funProjection = Right Projection{ projIndex = i } } | i > 0 -> i - 1
@@ -807,6 +825,13 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
                                     ArgUnused -> HS.PIrrPat p)
                    ps0 used
 
+      -- Trace entering functions when --ghc-trace is on.
+      b <- ifM (pure (isProperProjection $ theDef def) `or2M` (not . optGhcTrace <$> askGhcOpts))
+        {-then-} (pure b)
+        {-else-} do
+          x <- render <$> prettyTCM q
+          pure $ HS.App (HS.App hsDebugTrace $ HS.Lit $ HS.String $ Text.pack x) b
+
       return (useFloat,
               if dostrip
                 then tyfunbind (dname q) argTypes resType ps0' b0 ++
@@ -823,6 +848,10 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
   axiomErr :: HS.Exp
   axiomErr = rtmError $ Text.pack $ "postulate evaluated: " ++ prettyShow q
+
+-- | The Haskell function 'Debug.Trace.trace'.
+hsDebugTrace :: HS.Exp
+hsDebugTrace = HS.Var $ HS.Qual (HS.ModuleName "Debug.Trace") $ HS.Ident "trace"
 
 constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> HsCompileM [HS.Decl]
 constructorCoverageCode q np cs hsTy hsCons = do

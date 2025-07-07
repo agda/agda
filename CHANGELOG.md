@@ -39,6 +39,10 @@ Interaction and emacs mode
 Backends
 --------
 
+* New option `--ghc-trace` for GHC Backend to instrument code
+  such that the Agda name of the function is printed to `stderr`
+  whenever a function is entered.
+
 Issues closed
 -------------
 
