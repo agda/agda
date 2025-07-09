@@ -101,7 +101,7 @@ checkFunDef i name cs = do
 
         case isAlias cs t of  -- #418: Don't use checkAlias for abstract definitions, since the type
                               -- of an abstract function must not be informed by its definition.
-          Just (e, mc, x)
+          Just (ai, e, mc, x)
             | Info.defAbstract i == ConcreteDef, Info.defOpaque i == TransparentDef ->
               traceCall (CheckFunDefCall (getRange i) name True) $ do
                 -- Andreas, 2012-11-22: if the alias is in an abstract block
@@ -111,7 +111,7 @@ checkFunDef i name cs = do
                 whenM (isFrozen x) $ do
                   xs <- allMetasList . jMetaType . mvJudgement <$> lookupLocalMeta x
                   mapM_ unfreezeMeta (x : xs)
-                checkAlias t info i name e mc
+                checkAlias t info' i name e mc
             | otherwise -> do -- Warn about abstract alias (will never work!)
               -- Ulf, 2021-11-18, #5620: Don't warn if the meta is solved. A more intuitive solution
               -- would be to not treat definitions with solved meta types as aliases, but in mutual
@@ -120,7 +120,10 @@ checkFunDef i name cs = do
               -- happens.
               whenM (isOpenMeta <$> lookupMetaInstantiation x) $
                 setCurrentRange i $ warning $ MissingTypeSignatureForOpaque name (Info.defOpaque i)
-              checkFunDef' t info Nothing Nothing i name cs
+              checkFunDef' t info' Nothing Nothing i name cs
+            where
+              -- Copy relevance info from ai
+              info' = mapRelevance (max (getRelevance ai)) info
           _ -> checkFunDef' t info Nothing Nothing i name cs
 
         -- If it's a macro check that it ends in Term → TC ⊤
@@ -143,25 +146,26 @@ checkMacroType t = do
     `catchError` \ _ -> typeError $ MacroResultTypeMismatch expectedType
 
 -- | A single clause without arguments and without type signature is an alias.
-isAlias :: [A.Clause] -> Type -> Maybe (A.Expr, Maybe C.Expr, MetaId)
+isAlias :: [A.Clause] -> Type -> Maybe (ArgInfo, A.Expr, Maybe C.Expr, MetaId)
 isAlias cs t =
         case trivialClause cs of
           -- if we have just one clause without pattern matching and
           -- without a type signature, then infer, to allow
           -- "aliases" for things starting with hidden abstractions
-          Just (e, mc) | Just x <- isMeta (unEl t) -> Just (e, mc, x)
+          Just (ai, e, mc) | Just x <- isMeta (unEl t) -> Just (ai, e, mc, x)
           _ -> Nothing
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
-    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) wh _]
-      | null wh     = Just (e, mc)
+    trivialClause [A.Clause ai (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) wh _]
+      | null wh     = Just (ai, e, mc)
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
 checkAlias :: Type -> ArgInfo -> A.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
 checkAlias t ai i name e mc =
-  let clause = A.Clause { clauseLHS          = A.SpineLHS (LHSInfo (getRange i) NoEllipsis) name []
+  let clause = A.Clause { clauseArgInfo      = ai
+                        , clauseLHS          = A.SpineLHS (LHSInfo (getRange i) NoEllipsis) name []
                         , clauseStrippedPats = []
                         , clauseRHS          = A.RHS e mc
                         , clauseWhereDecls   = A.noWhereDecls
@@ -494,8 +498,8 @@ useTerPragma def = return def
 mapLHSCores :: (A.LHSCore -> A.LHSCore) -> (A.RHS -> A.RHS)
 mapLHSCores f = \case
   A.WithRHS aux es cs -> A.WithRHS aux es $ for cs $
-    \ (A.Clause (A.LHS info core)     spats rhs                 ds catchall) ->
-       A.Clause (A.LHS info (f core)) spats (mapLHSCores f rhs) ds catchall
+    \ (A.Clause ai (A.LHS info core)     spats rhs                 ds catchall) ->
+       A.Clause ai (A.LHS info (f core)) spats (mapLHSCores f rhs) ds catchall
   A.RewriteRHS qes spats rhs wh -> A.RewriteRHS qes spats (mapLHSCores f rhs) wh
   rhs@A.AbsurdRHS -> rhs
   rhs@A.RHS{}     -> rhs
@@ -687,7 +691,7 @@ instance Monoid ClausesPostChecks where
 
 -- | The LHS part of checkClause.
 checkClauseLHS :: Type -> Maybe Substitution -> A.SpineClause -> (LHSResult -> TCM a) -> TCM a
-checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) ret = do
+checkClauseLHS t withSub c@(A.Clause _ai lhs@(A.SpineLHS i x aps) strippedPats _rhs0 _wh _catchall) ret = do
     reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
     () <- List1.unlessNull (trailingWithPatterns aps) $ \ withPats -> do
       typeError $ UnexpectedWithPatterns $ fmap namedArg withPats
@@ -706,8 +710,21 @@ checkClause
   -> A.SpineClause -- ^ Clause.
   -> TCM (Clause, ClausesPostChecks)  -- ^ Type-checked clause
 
-checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
-  let withSub       = fst <$> withSubAndLets
+checkClause t withSubAndLets c@(A.Clause ai lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
+ -- -- Andreas, 2025-07-09, issue #7989, respect clause relevance
+ -- applyRelevanceToContext ai do
+
+ --  -- Check that we do not ignore other modality info
+ --  unless (null $ setRelevance empty ai) __IMPOSSIBLE__
+
+  unlessNull (getRelevance ai) \ r' -> do
+    r <- asksTC envRelevance
+    unless (sameRelevance r r') do
+      -- Warn about ignored relevance
+      setCurrentRange r' do
+        warning $ FixingRelevance "contradicting declared relevance" r' r
+
+  let withSub = fst <$> withSubAndLets
   cxtNames <- getContextNames
   checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit ixsplit) -> do
 
@@ -743,8 +760,8 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
             updateRHS (A.RewriteRHS qes spats rhs wh) =
               A.RewriteRHS qes (applySubst patSubst spats) (updateRHS rhs) wh
 
-            updateClause (A.Clause f spats rhs wh ca) =
-              A.Clause f (applySubst patSubst spats) (updateRHS rhs) wh ca
+            updateClause (A.Clause ai f spats rhs wh ca) =
+              A.Clause ai f (applySubst patSubst spats) (updateRHS rhs) wh ca
 
         (body, with) <- bindAsPatterns asb $ checkWhere wh $ checkRHS i x aps t' lhsResult rhs
 
@@ -889,10 +906,10 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
                 Just{}  -> IdiomType ty
 
     let names = fmap (\ (Named nm e) -> nm <$ e) es
-    cs <- forM cs $ \ c@(A.Clause (A.LHS i core) eqs rhs wh b) -> do
+    cs <- forM cs $ \ c@(A.Clause ai (A.LHS i core) eqs rhs wh b) -> do
       let rhs'  = insertNames    names rhs
       let core' = insertInspects names core
-      pure $ A.Clause (A.LHS i core') eqs rhs' wh b
+      pure $ A.Clause ai (A.LHS i core') eqs rhs' wh b
 
     -- Andreas, 2016-01-23, Issue #1796
     -- Run the size constraint solver to improve with-abstraction
@@ -926,7 +943,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
     -- @using@ clauses
     usingEqnRHS :: List1 (A.Pattern, A.Expr) -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
     usingEqnRHS pes rs = do
-      let letBindings = for (List1.toList pes) $ \(p, e) -> A.LetPatBind (LetRange (getRange e)) p e
+      let letBindings = for (List1.toList pes) $ \(p, e) -> A.LetPatBind (LetRange (getRange e)) defaultArgInfo p e
       checkLetBindings' letBindings $ rewriteEqnsRHS rs strippedPats rhs wh
 
     -- @invert@ clauses
@@ -955,7 +972,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
             | otherwise = (A.RewriteRHS rs strippedPats rhs' wh, A.noWhereDecls)
           -- Andreas, 2014-03-05 kill range of copied patterns
           -- since they really do not have a source location.
-          cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
+          cl = A.Clause defaultArgInfo (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
                  strippedPats rhs'' outerWhere empty
 
       reportSDoc "tc.invert" 60 $ vcat
@@ -1035,7 +1052,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
             | otherwise = (A.RewriteRHS rs strippedPats rhs' wh, A.noWhereDecls)
           -- Andreas, 2014-03-05 kill range of copied patterns
           -- since they really do not have a source location.
-          cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
+          cl = A.Clause defaultArgInfo (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
                  strippedPats rhs'' outerWhere empty
 
       reportSDoc "tc.rewrite" 60 $ vcat

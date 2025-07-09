@@ -139,7 +139,7 @@ instance BoundAndUsed LetBinding where
   boundAndUsed = \ case   -- Note: binder last since it's not recursive
     LetBind _ _ x ty e     -> boundAndUsed ((ty, e), x)
     LetAxiom _ _ x ty      -> boundAndUsed (ty, x)
-    LetPatBind _ p e       -> boundAndUsed (e, p)
+    LetPatBind _ _ p e     -> boundAndUsed (e, p)
     LetApply _ _ _ app _ _ -> boundAndUsed app
     LetOpen{}              -> mempty
 

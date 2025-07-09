@@ -332,7 +332,7 @@ instance ExprLike LetBinding where
     case e of
       LetBind li ai x e e'  -> LetBind li ai x <$> recurse e <*> recurse e'
       LetAxiom li ai x e    -> LetAxiom li ai x <$> recurse e
-      LetPatBind li p e     -> LetPatBind li <$> recurse p <*> recurse e
+      LetPatBind li ai p e  -> LetPatBind li ai <$> recurse p <*> recurse e
       LetApply{}            -> pure e
       LetOpen{}             -> pure e
 
@@ -341,7 +341,7 @@ instance ExprLike LetBinding where
     case e of
       LetBind _ _ _ e e'    -> fold e `mappend` fold e'
       LetAxiom _ _ _ e      -> fold e
-      LetPatBind _ p e      -> fold p `mappend` fold e
+      LetPatBind _ _ p e    -> fold p `mappend` fold e
       LetApply{}            -> mempty
       LetOpen{}             -> mempty
     where
@@ -356,7 +356,7 @@ instance ExprLike LetBinding where
     case e of
       LetBind li ai x e e'  -> LetBind li ai x <$> trav e <*> trav e'
       LetAxiom li ai x e    -> LetAxiom li ai x <$> trav e
-      LetPatBind li p e     -> LetPatBind li <$> trav p <*> trav e
+      LetPatBind li ai p e  -> LetPatBind li ai <$> trav p <*> trav e
       LetApply{}            -> pure e
       LetOpen{}             -> pure e
 
@@ -364,7 +364,7 @@ instance ExprLike a => ExprLike (Pattern' a) where
 
 instance ExprLike a => ExprLike (Clause' a) where
   recurseExpr :: forall m. RecurseExprFn m (Clause' a)
-  recurseExpr f (Clause lhs spats rhs ds ca) = Clause <$> rec lhs <*> pure spats <*> rec rhs <*> rec ds <*> pure ca
+  recurseExpr f (Clause ai lhs spats rhs ds ca) = Clause ai <$> rec lhs <*> pure spats <*> rec rhs <*> rec ds <*> pure ca
     where
       rec :: RecurseExprRecFn m
       rec = recurseExpr f
@@ -549,7 +549,7 @@ instance DeclaredNames Pragma where
     OverlapPragma{}           -> mempty
 
 instance DeclaredNames Clause where
-  declaredNames (Clause _ _ rhs decls _) = declaredNames rhs <> declaredNames decls
+  declaredNames (Clause _ _ _ rhs decls _) = declaredNames rhs <> declaredNames decls
 
 instance DeclaredNames WhereDeclarations where
   declaredNames (WhereDecls _ _ ds) = declaredNames ds

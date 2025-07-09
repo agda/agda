@@ -102,7 +102,7 @@ type NiceTypeSignature  = NiceDeclaration
 
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
-data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
+data Clause = Clause Name Catchall ArgInfo LHS RHS WhereClause [Clause]
     deriving (Show, Generic)
 
 instance NFData Clause

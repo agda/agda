@@ -185,7 +185,7 @@ recordConstructorType decls =
         C.NiceMutual _ _ _ _
           [ C.FunSig _ _ _ _ macro _ _ _ _ _
           , C.FunDef _ _ abstract _ _ _ _
-             (C.Clause _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] :| [])
+             (C.Clause _ _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] :| [])
           ] | abstract /= AbstractDef && macro /= MacroDef -> do
           mkLet d
 
@@ -810,7 +810,7 @@ scopeCheckExtendedLam r e cs = do
             let p   = C.rawAppP $
                         killRange (IdentP True $ C.QName cname) :| ps
             let lhs = C.LHS p [] []
-            return $ C.Clause cname ca lhs rhs NoWhere []
+            return $ C.Clause cname ca defaultArgInfo lhs rhs NoWhere []
   scdef <- toAbstract d
 
   -- Create the abstract syntax for the extended lambda.
@@ -1492,7 +1492,15 @@ instance ToAbstract LetDef where
       fx <- getConcreteFixity x
 
       x <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
-      (x', e) <- letToAbstract cl
+      (ai, x', e) <- letToAbstract cl
+
+      -- Andreas, 2025-07-09, issue #7989.
+      -- Check that arginfo of clause matches the one of the declaration.
+      let declRel = getRelevance info
+          defRel  = getRelevance ai
+      unless (null ai || sameRelevance declRel defRel) $
+        setCurrentRange defRel $
+          warning $ FixingRelevance "Correcting relevance attribute in clause" defRel declRel
 
       -- There are sometimes two instances of the let-bound variable,
       -- one declaration and one definition (see issue #1618).
@@ -1530,8 +1538,8 @@ instance ToAbstract LetDef where
 
       pure $ A.LetAxiom (LetRange $ getRange d) info' x t :| []
 
-    -- irrefutable let binding, like  (x , y) = rhs
-    NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p0 [] []) rhs0 whcl ca) -> do
+    -- irrefutable let binding, like  .(x , y) = rhs
+    NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause ai lhs@(C.LHS p0 [] []) rhs0 whcl ca) -> do
       noWhereInLetBinding whcl
       rhs <- letBindingMustHaveRHS rhs0
       -- Expand puns if optHiddenArgumentPuns is True.
@@ -1550,17 +1558,18 @@ instance ToAbstract LetDef where
               typeError $ RepeatedVariablesInPattern ys
             bindVarsToBind
             p   <- toAbstract p
-            return $ singleton $ A.LetPatBind (LetRange r) p rhs
+            return $ singleton $ A.LetPatBind (LetRange r) ai p rhs
         -- It's not a record pattern, so it should be a prefix left-hand side
         Left err ->
           case definedName p0 of
             Nothing -> throwError err
             Just x  -> toAbstract $ LetDef wh $ NiceMutual empty tc cc YesPositivityCheck
               [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef
-                  (setOrigin Inserted defaultArgInfo) tc cc x (C.Underscore (getRange x) Nothing)
+                  info tc cc x (C.Underscore (getRange x) Nothing)
               , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
-                $ singleton $ C.Clause x (ca <> catchall) lhs (C.RHS rhs) NoWhere []
+                $ singleton $ C.Clause x (ca <> catchall) ai lhs (C.RHS rhs) NoWhere []
               ]
+              where info = setOrigin Inserted ai
           where
             definedName (C.IdentP _ (C.QName x)) = Just x
             definedName C.IdentP{}             = Nothing
@@ -1605,7 +1614,7 @@ instance ToAbstract LetDef where
     _ -> notAValidLetBinding Nothing
 
     where
-      letToAbstract (C.Clause top _catchall (C.LHS p [] []) rhs0 wh []) = do
+      letToAbstract (C.Clause top _catchall ai (C.LHS p [] []) rhs0 wh []) = do
         noWhereInLetBinding wh
         rhs <- letBindingMustHaveRHS rhs0
         (x, args) <- do
@@ -1621,7 +1630,7 @@ instance ToAbstract LetDef where
           -- Make sure to unbind the function name in the RHS, since lets are non-recursive.
           rhs <- unbindVariable top $ toAbstract rhs
           foldM lambda rhs (reverse args)  -- just reverse because these are DomainFree
-        return (x, e)
+        return (ai, x, e)
 
       letToAbstract _ = notAValidLetBinding Nothing
 
@@ -1845,7 +1854,7 @@ instance ToAbstract NiceDeclaration where
         return [ A.FunDef di x' cs ]
 
   -- Uncategorized function clauses
-    C.NiceFunClause _ _ _ _ _ _ (C.FunClause lhs _ _ _) ->
+    C.NiceFunClause _ _ _ _ _ _ (C.FunClause _ lhs _ _ _) ->
       typeError $ MissingTypeSignature $ MissingFunctionSignature lhs
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
@@ -2855,7 +2864,7 @@ scopeCheckDef warn x = do
 instance ToAbstract C.Clause where
   type AbsOfCon C.Clause = A.Clause
 
-  toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
+  toAbstract (C.Clause top catchall ai lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
     -- Jesper, 2018-12-10, #3095: pattern variables bound outside the
     -- module are locally treated as module parameters
     modifyScope_ $ updateScopeLocals $ map $ second patternToModuleBound
@@ -2874,13 +2883,13 @@ instance ToAbstract C.Clause where
       then do
         rhs <- toAbstractCtx TopCtx $ RightHandSide eqs with wcs' rhs wh
         rhs <- toAbstract rhs
-        return $ A.Clause lhs' [] rhs A.noWhereDecls catchall
+        return $ A.Clause ai lhs' [] rhs A.noWhereDecls catchall
       else do
         -- the right hand side is checked with the module of the local definitions opened
         (rhs, ds) <- whereToAbstract (getRange wh) wh $
                        toAbstractCtx TopCtx $ RightHandSide [] with wcs' rhs NoWhere
         rhs <- toAbstract rhs
-        return $ A.Clause lhs' [] rhs ds catchall
+        return $ A.Clause ai lhs' [] rhs ds catchall
 
 
 whereToAbstract

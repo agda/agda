@@ -578,14 +578,23 @@ data RHSOrTypeSigs
  | TypeSigsRHS Expr
  deriving Show
 
-patternToNames :: Pattern -> Parser (List1 (ArgInfo, Name))
+patternToNames :: Pattern -> Parser (List1 (Arg Name))
 patternToNames = \case
-    IdentP _ (QName i)           -> return $ singleton (defaultArgInfo, i)
-    WildP r                      -> return $ singleton (defaultArgInfo, C.noName r)
-    DotP kwr _ (Ident (QName i)) -> return $ singleton (makeIrrelevant kwr defaultArgInfo, i)
+    IdentP _ (QName i)           -> return $ singleton $ defaultArg i
+    WildP r                      -> return $ singleton $ defaultArg $ C.noName r
+    DotP kwr _ (Ident (QName i)) -> return $ singleton $ makeIrrelevant kwr $ defaultArg i
     RawAppP _ ps                 -> sconcat . List2.toList1 <$> mapM patternToNames ps
     p -> parseError $
       "Illegal name in type signature: " ++ prettyShow p
+
+-- | Interpret leading dot as irrelevance
+
+patternToArgPattern :: Pattern -> Arg Pattern
+patternToArgPattern = \case
+   DotP kwr _ (Ident x)        -> makeIrrelevant kwr $ defaultArg $ IdentP True x
+   DotP kwr _ (Underscore r _) -> makeIrrelevant kwr $ defaultArg $ WildP r
+   p -> defaultArg p
+
 
 funClauseOrTypeSigs :: [Attr] -> ([RewriteEqn] -> [WithExpr] -> LHS)
                     -> [Either RewriteEqn (List1 (Named Name Expr))]
@@ -598,14 +607,16 @@ funClauseOrTypeSigs attrs lhs' with mrhs wh = do
   case mrhs of
     JustRHS rhs   -> do
       unless (null attrs) $ parseWarning $ MisplacedAttributes (getRange attrs) "A function clause cannot have attributes"
-      return $ singleton $ FunClause lhs rhs wh empty
+      -- Andreas, 2025-07-09, issue #7989: extract irrelevance info from lhs pattern
+      let (Arg info p) = patternToArgPattern $ lhsOriginalPattern lhs
+      return $ singleton $ FunClause info lhs{ lhsOriginalPattern = p } rhs wh empty
     TypeSigsRHS e -> case wh of
       NoWhere -> case lhs of
         LHS p _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
         LHS _ _ (_:_) -> parseError "Illegal: with in type signature"
         LHS _ (_:_) _ -> parseError "Illegal: rewrite in type signature"
         LHS p _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
-        LHS p [] [] -> forMM (patternToNames p) $ \ (info, x) -> do
+        LHS p [] [] -> forMM (patternToNames p) $ \ (Arg info x) -> do
           info <- applyAttrs attrs info
           return $ typeSig info (getTacticAttr attrs) x e
       _ -> parseError "A type signature cannot have a where clause"

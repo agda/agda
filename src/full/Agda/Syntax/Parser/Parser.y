@@ -1931,7 +1931,7 @@ parseDisplayPragma ::
    -> Parser Pragma
 parseDisplayPragma r pos s =
   case parsePosString pos defaultParseFlags [normal] funclauseParser s of
-    ParseOk s (FunClause (LHS lhs [] []) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->
+    ParseOk s (FunClause defaultArgInfo (LHS lhs [] []) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
 

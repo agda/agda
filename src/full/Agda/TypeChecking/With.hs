@@ -231,7 +231,7 @@ buildWithFunction
 buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM buildWithClause cs
   where
     -- Nested with-functions will iterate this function once for each parent clause.
-    buildWithClause (A.Clause lhs@(A.SpineLHS i _ allPs) inheritedPats rhs wh catchall) = do
+    buildWithClause (A.Clause ai lhs@(A.SpineLHS i _ allPs) inheritedPats rhs wh catchall) = do
       let (ps, wps)    = splitOffTrailingWithPatterns allPs
           (wps0, wps1) = splitAt n wps
           ps0          = map (updateNamedArg fromWithP) wps0
@@ -265,7 +265,7 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
                                        | A.ProblemEq p v t <- strippedPats ]
       rhs <- buildRHS strippedPats rhs
       let (ps1, ps2) = splitAt n1 ps'
-      let result = A.Clause (A.SpineLHS i aux $ ps1 ++ ps0 ++ ps2 ++ wps1)
+      let result = A.Clause ai (A.SpineLHS i aux $ ps1 ++ ps0 ++ ps2 ++ wps1)
                      (inheritedPats ++ strippedPats)
                      rhs wh catchall
       reportSDoc "tc.with" 20 $ vcat
@@ -288,8 +288,8 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
     -- need to update again once the with-clause patterns have been checked.
     -- This happens in Rules.Def.checkClause before calling checkRHS.
     permuteNamedDots :: A.SpineClause -> A.SpineClause
-    permuteNamedDots (A.Clause lhs strippedPats rhs wh catchall) =
-      A.Clause lhs (applySubst withSub strippedPats) rhs wh catchall
+    permuteNamedDots (A.Clause ai lhs strippedPats rhs wh catchall) =
+      A.Clause ai lhs (applySubst withSub strippedPats) rhs wh catchall
 
 
 -- The arguments of @stripWithClausePatterns@ are documented

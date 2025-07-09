@@ -391,8 +391,9 @@ instance Pretty Declaration where
       sep [ "field"
           , nest 2 $ vcat (map pretty fs)
           ]
-    FunClause lhs rhs wh _ ->
-      sep [ pretty lhs
+    FunClause ai lhs rhs wh _ ->
+      sep [ pretty (getRelevance ai)
+          , pretty lhs
           , nest 2 $ pretty rhs
           ] $$ nest 2 (pretty wh)
     DataSig _ erased x tel e ->
