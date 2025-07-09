@@ -316,7 +316,7 @@ niceDeclarations fixs ds = do
             _ -> __IMPOSSIBLE__
           return (gs, ds)
 
-        (FunClause lhs _ _ _)         -> do
+        (FunClause ai lhs _ _ _)         -> do
           termCheck <- use terminationCheckPragma
           covCheck  <- use coverageCheckPragma
           catchall  <- popCatchallPragma
@@ -337,7 +337,7 @@ niceDeclarations fixs ds = do
               -- Subcase: The lhs is single identifier (potentially anonymous).
               -- Treat it as a function clause without a type signature.
               LHS p [] [] | Just x <- isSingleIdentifierP p -> do
-                d  <- mkFunDef (setOrigin Inserted defaultArgInfo) termCheck covCheck x Nothing $ singleton d -- fun def without type signature is relevant
+                d  <- mkFunDef (setOrigin Inserted ai) termCheck covCheck x Nothing $ singleton d -- fun def without type signature can also be irrelevant
                 return (d , ds)
               -- Subcase: The lhs is a proper pattern.
               -- This could be a let-pattern binding. Pass it on.
@@ -350,7 +350,7 @@ niceDeclarations fixs ds = do
                -- The x'@NoName{} is the unique version of x@NoName{}.
                removeLoneSig x
                ds  <- expandEllipsis fits
-               cs  <- mkClauses x' ds empty
+               cs  <- mkClauses ai x' ds empty
                return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck covCheck x' cs] , rest)
 
             -- case: clauses match more than one sigs (ambiguity)
@@ -725,7 +725,7 @@ niceDeclarations fixs ds = do
     -- Create a function definition.
     mkFunDef info termCheck covCheck x mt ds0 = do
       ds <- expandEllipsis ds0
-      cs <- mkClauses x ds empty
+      cs <- mkClauses info x ds empty
       return [ FunSig (fuseRange x t) PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x t
              , FunDef (getRange ds0) ds0 ConcreteDef NotInstanceDef termCheck covCheck x cs ]
         where
@@ -737,7 +737,7 @@ niceDeclarations fixs ds = do
     -- and then use its lhs pattern to replace ellipses in the subsequent clauses (if any).
     expandEllipsis :: [Declaration] -> Nice [Declaration]
     expandEllipsis [] = return []
-    expandEllipsis (d@(FunClause lhs@(LHS p _ _) _ _ _) : ds)
+    expandEllipsis (d@(FunClause _ lhs@(LHS p _ _) _ _ _) : ds)
       | hasEllipsis p = (d :) <$> expandEllipsis ds
       | otherwise     = (d :) <$> expand (killRange p) ds
       where
@@ -747,13 +747,13 @@ niceDeclarations fixs ds = do
           case d of
             Pragma (CatchallPragma _) -> do
                   (d :) <$> expand p ds
-            FunClause (LHS p0 eqs es) rhs wh ca -> do
+            FunClause ai (LHS p0 eqs es) rhs wh ca -> do
               case hasEllipsis' p0 of
                 ManyHoles -> declarationException $ MultipleEllipses p0
                 OneHole cxt ~(EllipsisP r Nothing) -> do
                   -- Replace the ellipsis by @p@.
                   let p1 = cxt $ EllipsisP r $ Just $ setRange r p
-                  let d' = FunClause (LHS p1 eqs es) rhs wh ca
+                  let d' = FunClause ai (LHS p1 eqs es) rhs wh ca
                   -- If we have with-expressions (es /= []) then the following
                   -- ellipses also get the additional patterns in p0.
                   (d' :) <$> expand (if null es then p else killRange p1) ds
@@ -769,26 +769,30 @@ niceDeclarations fixs ds = do
     expandEllipsis _ = __IMPOSSIBLE__
 
     -- Turn function clauses into nice function clauses.
-    mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]
-    mkClauses _ [] _ = return []
+    mkClauses :: ArgInfo -> Name -> [Declaration] -> Catchall -> Nice [Clause]
+    mkClauses _ _ [] _ = return []
 
     -- A CATCHALL pragma after the last clause is useless.
-    mkClauses x [Pragma (CatchallPragma r)] _ = [] <$ do
+    mkClauses ai x [Pragma (CatchallPragma r)] _ = [] <$ do
       declarationWarning $ InvalidCatchallPragma r
 
-    mkClauses x (Pragma (CatchallPragma r) : cs) catchall = do
+    mkClauses ai x (Pragma (CatchallPragma r) : cs) catchall = do
       -- Warn about consecutive CATCHALL pragmas
       unless (null catchall) $ declarationWarning $ InvalidCatchallPragma r
-      mkClauses x cs (YesCatchall r)
+      mkClauses ai x cs (YesCatchall r)
 
-    mkClauses x (FunClause lhs rhs wh ca : cs) catchall
+    -- mkClauses ai1 x (FunClause ai2 lhs rhs wh ca : cs) catchall
+    --   | not (null ai2 || ai1 == ai2) = __IMPOSSIBLE__ -- TODO: declarationWarning $ InvalidModality ai
+
+    mkClauses ai x (FunClause _ai lhs rhs wh ca : cs) catchall
       | null (lhsWithExpr lhs) || hasEllipsis lhs  =
-      (Clause x (ca <> catchall) lhs rhs wh [] :) <$> mkClauses x cs empty   -- Will result in an error later.
+      (Clause x (ca <> catchall) ai lhs rhs wh [] :) <$> mkClauses ai x cs empty   -- Will result in an error later.
 
-    mkClauses x (FunClause lhs rhs wh ca : cs) catchall = do
+    mkClauses ai1 x (FunClause ai2 lhs rhs wh ca : cs) catchall = do
+      let ai = reconcileArgInfo ai1 ai2
       when (null withClauses) $ declarationException $ MissingWithClauses x lhs
-      wcs <- mkClauses x withClauses empty
-      (Clause x (ca <> catchall) lhs rhs wh wcs :) <$> mkClauses x cs' empty
+      wcs <- mkClauses ai x withClauses empty
+      (Clause x (ca <> catchall) ai lhs rhs wh wcs :) <$> mkClauses ai x cs' empty
       where
         (withClauses, cs') = subClauses cs
 
@@ -798,7 +802,7 @@ niceDeclarations fixs ds = do
         numWith = numberOfWithPatterns p + length (filter visible es) where LHS p _ es = lhs
 
         subClauses :: [Declaration] -> ([Declaration],[Declaration])
-        subClauses (c@(FunClause (LHS p0 _ _) _ _ _) : cs)
+        subClauses (c@(FunClause _ (LHS p0 _ _) _ _ _) : cs)
          | isEllipsis p0 ||
            numberOfWithPatterns p0 >= numWith = mapFst (c:) (subClauses cs)
          | otherwise                           = ([], c:cs)
@@ -807,7 +811,14 @@ niceDeclarations fixs ds = do
           (cs, cs') -> (c:cs, cs')
         subClauses [] = ([],[])
         subClauses _  = __IMPOSSIBLE__
-    mkClauses _ _ _ = __IMPOSSIBLE__
+    mkClauses _ _ _ _ = __IMPOSSIBLE__
+
+    reconcileArgInfo :: ArgInfo -> ArgInfo -> ArgInfo
+    reconcileArgInfo ai1 ai2
+      | null ai1 = ai2
+      | null ai2 = ai1
+      | let r1 = getRelevance ai1, let r2 = getRelevance ai2 =
+          if sameRelevance r1 r2 then ai1 else setRelevance (max r1 r2) ai1
 
     couldBeCallOf :: Maybe Fixity' -> Name -> Pattern -> Bool
     couldBeCallOf mFixity x p =
@@ -846,7 +857,7 @@ niceDeclarations fixs ds = do
     -- for finding clauses for a type sig in mutual blocks
     couldBeFunClauseOf :: Maybe Fixity' -> Name -> Declaration -> Bool
     couldBeFunClauseOf mFixity x (Pragma (CatchallPragma{})) = True
-    couldBeFunClauseOf mFixity x (FunClause (LHS p _ _) _ _ _) =
+    couldBeFunClauseOf mFixity x (FunClause _ (LHS p _ _) _ _ _) =
        hasEllipsis p || couldBeCallOf mFixity x p
     couldBeFunClauseOf _ _ _ = False -- trace ("couldBe not (fun default)") $ False
 
@@ -945,7 +956,7 @@ niceDeclarations fixs ds = do
              KwRange
           -> [NiceDeclaration]
           -> StateT (InterleavedMutual, MutualChecks, DeclNum) Nice [(DeclNum, NiceDeclaration)]
-        addFunClauses r (nd@(NiceFunClause _ _ _ tc cc _ d@(FunClause lhs _ _ _)) : ds) = do
+        addFunClauses r (nd@(NiceFunClause _ _ _ tc cc _ d@(FunClause ai lhs _ _ _)) : ds) = do
           -- get the candidate functions that are in this interleaved mutual block
           (m, checks, i) <- get
           let sigs = mapMaybe (\ (n, d) -> n <$ isInterleavedFun d) $ Map.toList m
@@ -964,7 +975,7 @@ niceDeclarations fixs ds = do
             [(n, fits0, rest)] -> do
               let (checkss, fits) = unzip fits0
               ds <- lift $ expandEllipsis fits
-              cs <- lift $ mkClauses n ds empty
+              cs <- lift $ mkClauses ai n ds empty
               case Map.lookup n m of
                 Just (InterleavedFun i0 sig cs0) -> do
                   let (cs', i') = case cs0 of
@@ -1409,8 +1420,8 @@ instance MakeAbstract NiceDeclaration where
     NiceOpaque r ns ds                   -> NiceOpaque r ns <$> mkAbstract kwr ds
 
 instance MakeAbstract Clause where
-  mkAbstract kwr (Clause x catchall lhs rhs wh with) = do
-    Clause x catchall lhs rhs <$> mkAbstract kwr wh <*> mkAbstract kwr with
+  mkAbstract kwr (Clause x catchall ai lhs rhs wh with) = do
+    Clause x catchall ai lhs rhs <$> mkAbstract kwr wh <*> mkAbstract kwr with
 
 -- | Contents of a @where@ clause are abstract if the parent is.
 --
@@ -1489,8 +1500,8 @@ instance MakePrivate NiceDeclaration where
       d@NiceUnquoteData{}                      -> return d
 
 instance MakePrivate Clause where
-  mkPrivate kwr o (Clause x catchall lhs rhs wh with) = do
-    Clause x catchall lhs rhs <$> mkPrivate kwr o wh <*> mkPrivate kwr o with
+  mkPrivate kwr o (Clause x catchall ai lhs rhs wh with) = do
+    Clause x catchall ai lhs rhs <$> mkPrivate kwr o wh <*> mkPrivate kwr o with
 
 instance MakePrivate WhereClause where
   mkPrivate kwr o = \case

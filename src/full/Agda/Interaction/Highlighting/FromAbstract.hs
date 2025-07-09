@@ -336,7 +336,7 @@ instance (HasRange n, Hilite p, Hilite e) => Hilite (RewriteEqn' x n p e) where
     LeftLet pes   -> hilite pes
 
 instance Hilite a => Hilite (A.Clause' a) where
-  hilite (A.Clause lhs strippedPats rhs wh _catchall) =
+  hilite (A.Clause _ai lhs strippedPats rhs wh _catchall) =
     hilite lhs <> hilite strippedPats <> hilite rhs <> hilite wh
 
 instance Hilite A.ProblemEq where
@@ -360,7 +360,7 @@ instance Hilite A.LetBinding where
   hilite = \case
       A.LetBind    _r ai x t e     -> hl ai <> hl x <> hl t <> hl e
       A.LetAxiom   _r ai x t       -> hl ai <> hl x <> hl t
-      A.LetPatBind _r p e          -> hl p  <> hl e
+      A.LetPatBind _r ai p e       -> hl ai <> hl p  <> hl e
       A.LetApply mi er x es _c dir -> hl mi <> hl er <> hl x <>
                                       hl es <> hl dir
       A.LetOpen mi x dir           -> hl mi <> hl x <> hl dir

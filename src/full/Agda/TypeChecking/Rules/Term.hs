@@ -386,7 +386,7 @@ addTypedPatterns xps ret = do
     lbs = map letBinding ps
 
     letBinding :: (A.Pattern, A.BindName) -> A.LetBinding
-    letBinding (p, n) = A.LetPatBind (A.LetRange r) p (A.Var $ A.unBind n)
+    letBinding (p, n) = A.LetPatBind (A.LetRange r) defaultArgInfo p (A.Var $ A.unBind n)
       where r = fuseRange p n
 
   checkLetBindings' lbs ret
@@ -1344,7 +1344,7 @@ checkExpr' cmp e t =
       A.QuestionMark{}          -> True
       _                         -> False
 
-    hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _))) _ _ _ _) = notVisible a
+    hiddenLHS (A.Clause _ (A.LHS _ (A.LHSHead _ (a : _))) _ _ _ _) = notVisible a
     hiddenLHS _ = False
 
     -- Things with are definitely introductions,
@@ -1683,7 +1683,8 @@ checkLetBinding' b@(A.LetAxiom i info x t) ret = do
   val <- Def axn . fmap Apply <$> getContextArgs
   addLetBinding info UserWritten (A.unBind x) val t ret
 
-checkLetBinding' b@(A.LetPatBind i p e) ret = do
+checkLetBinding' b@(A.LetPatBind i ai p e) ret = do
+    unless (null ai) __IMPOSSIBLE__ -- TODO, issue #7989
     p <- expandPatternSynonyms p
     (v, t) <- inferExpr' ExpandLast e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide

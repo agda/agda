@@ -246,7 +246,7 @@ data LetBinding
     -- ^ @LetBind info rel name type defn@
   | LetAxiom LetInfo ArgInfo BindName Type
     -- ^ Function declarations in a let with no matching body.
-  | LetPatBind LetInfo Pattern Expr
+  | LetPatBind LetInfo ArgInfo Pattern Expr
     -- ^ Irrefutable pattern binding.
   | LetApply ModuleInfo Erased ModuleName ModuleApplication
       ScopeCopyInfo ImportDirective
@@ -395,7 +395,9 @@ instance Eq ProblemEq where _ == _ = True
 --   @let@. It's not obvious how to remember that the @let@ was really a
 --   @where@ clause though, so for the time being we keep it here.
 data Clause' lhs = Clause
-  { clauseLHS        :: lhs
+  { clauseArgInfo    :: ArgInfo
+      -- ^ Modalities of the clause (e.g. irrelevance of single-clause definitions).
+  , clauseLHS        :: lhs
   , clauseStrippedPats :: [ProblemEq]
       -- ^ Only in with-clauses where we inherit some already checked patterns from the parent.
       --   These live in the context of the parent clause left-hand side.
@@ -736,7 +738,7 @@ instance HasRange (LHSCore' e) where
     getRange (LHSWith h wps ps)     = h `fuseRange` wps `fuseRange` ps
 
 instance HasRange a => HasRange (Clause' a) where
-    getRange (Clause lhs _ rhs ds catchall) = getRange (lhs, rhs, ds)
+    getRange (Clause ai lhs _ rhs ds catchall) = getRange (ai, lhs, rhs, ds)
 
 instance HasRange RHS where
     getRange AbsurdRHS                 = noRange
@@ -750,7 +752,7 @@ instance HasRange WhereDeclarations where
 instance HasRange LetBinding where
   getRange (LetBind i _ _ _ _)     = getRange i
   getRange (LetAxiom i _ _ _)      = getRange i
-  getRange (LetPatBind  i _ _)     = getRange i
+  getRange (LetPatBind  i _ _ _)   = getRange i
   getRange (LetApply i _ _ _ _ _)  = getRange i
   getRange (LetOpen  i _ _)        = getRange i
 
@@ -883,7 +885,7 @@ instance KillRange e => KillRange (LHSCore' e) where
   killRange (LHSWith a b c) = killRangeN LHSWith a b c
 
 instance KillRange a => KillRange (Clause' a) where
-  killRange (Clause lhs spats rhs ds catchall) = killRangeN Clause lhs spats rhs ds catchall
+  killRange (Clause ai lhs spats rhs ds catchall) = killRangeN Clause ai lhs spats rhs ds catchall
 
 instance KillRange ProblemEq where
   killRange (ProblemEq p v a) = killRangeN ProblemEq p v a
@@ -900,7 +902,7 @@ instance KillRange WhereDeclarations where
 instance KillRange LetBinding where
   killRange (LetBind i info a b c)  = killRangeN LetBind i info a b c
   killRange (LetAxiom i a b c)      = killRangeN LetAxiom i a b c
-  killRange (LetPatBind i a b)      = killRangeN LetPatBind i a b
+  killRange (LetPatBind i ai a b)   = killRangeN LetPatBind i ai a b
   killRange (LetApply i a b c d e)  = killRangeN LetApply i a b c d e
   killRange (LetOpen i x dir)       = killRangeN LetOpen  i x dir
 
@@ -1206,7 +1208,7 @@ declarationSpine = \case
 -- | The clause spine corresponding to a clause.
 
 clauseSpine :: Clause -> ClauseSpine
-clauseSpine (Clause _ _ rhs ws _) =
+clauseSpine (Clause _ _ _ rhs ws _) =
   ClauseS (rhsSpine rhs) (whereDeclarationsSpine ws)
 
 -- | The right-hand side spine corresponding to a right-hand side.
