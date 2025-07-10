@@ -1,0 +1,3 @@
+Issue7987a.agda:9.38-39: error: [VariableIsErased]
+Variable x is declared erased, so it cannot be used here
+when checking that the expression x has type A

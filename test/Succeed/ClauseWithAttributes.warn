@@ -1,7 +1,7 @@
-ClauseWithAttributes.agda:7.1-3: warning: -W[no]MisplacedAttributes
-A function clause cannot have attributes
+ClauseWithAttributes.agda:12.1-12: warning: -W[no]MisplacedAttributes
+Ignoring tactic attribute, illegal in function clauses
 
 ———— All done; warnings encountered ————————————————————————
 
-ClauseWithAttributes.agda:7.1-3: warning: -W[no]MisplacedAttributes
-A function clause cannot have attributes
+ClauseWithAttributes.agda:12.1-12: warning: -W[no]MisplacedAttributes
+Ignoring tactic attribute, illegal in function clauses

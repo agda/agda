@@ -392,7 +392,7 @@ instance Pretty Declaration where
           , nest 2 $ vcat (map pretty fs)
           ]
     FunClause ai lhs rhs wh _ ->
-      sep [ pretty (getRelevance ai)
+      sep [ pretty (getModality ai)
           , pretty lhs
           , nest 2 $ pretty rhs
           ] $$ nest 2 (pretty wh)

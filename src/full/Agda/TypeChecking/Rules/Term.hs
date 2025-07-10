@@ -1684,12 +1684,11 @@ checkLetBinding' b@(A.LetAxiom i info x t) ret = do
   addLetBinding info UserWritten (A.unBind x) val t ret
 
 checkLetBinding' b@(A.LetPatBind i ai p e) ret = do
-    unless (null ai) __IMPOSSIBLE__ -- TODO, issue #7989
     p <- expandPatternSynonyms p
-    (v, t) <- inferExpr' ExpandLast e
+    (v, t) <- applyModalityToContext ai $ inferExpr' ExpandLast e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide
-        t0 = El (getSort t) $ Pi (defaultDom t) (NoAbs underscore __DUMMY_TYPE__)
-        p0 = Arg defaultArgInfo (Named Nothing p)
+        t0 = El (getSort t) $ Pi (defaultArgDom ai t) (NoAbs underscore __DUMMY_TYPE__)
+        p0 = Arg ai (Named Nothing p)
     reportSDoc "tc.term.let.pattern" 10 $ vcat
       [ "let-binding pattern p at type t"
       , nest 2 $ vcat

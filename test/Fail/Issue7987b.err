@@ -1,0 +1,3 @@
+Issue7987b.agda:9.28-29: error: [VariableIsErased]
+Variable p is declared erased, so it cannot be used here
+when inferring the type of p
