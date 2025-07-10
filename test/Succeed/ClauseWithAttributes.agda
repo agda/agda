@@ -1,9 +1,15 @@
--- Andreas, 2025-07-03
--- Attributes are not supported on function clauses.
+-- Andreas, 2025-07-03, issue #7987
+-- Attributes are now supported on function clauses.
 
 {-# OPTIONS --erasure #-}
 
 @0 id : (A : Set) → A → A
 @0 id A x = x
 
--- Deadcode warning expected.
+-- Should succeed.
+
+S : Set₁
+@(tactic _) S = Set
+
+-- Expected warning: -W[no]MisplacedAttributes
+-- Ignoring tactic attribute, illegal in function clauses

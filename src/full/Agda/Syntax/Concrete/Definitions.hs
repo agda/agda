@@ -339,7 +339,7 @@ niceDeclarations fixs ds = do
               -- Subcase: The lhs is single identifier (potentially anonymous).
               -- Treat it as a function clause without a type signature.
               LHS p [] [] | Just x <- isSingleIdentifierP p -> do
-                d  <- mkFunDef (setOrigin Inserted ai) termCheck covCheck x Nothing $ singleton d -- fun def without type signature can also be irrelevant
+                d  <- mkFunDef (setOrigin Inserted ai) termCheck covCheck x Nothing $ singleton d -- fun def without type signature can have modality
                 return (d , ds)
               -- Subcase: The lhs is a proper pattern.
               -- This could be a let-pattern binding. Pass it on.
@@ -352,7 +352,7 @@ niceDeclarations fixs ds = do
                -- The x'@NoName{} is the unique version of x@NoName{}.
                removeLoneSig x
                ds  <- expandEllipsis1 fits
-               cs  <- mkClauses ai x' ds empty
+               cs  <- mkClauses1 ai x' ds empty
                return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck covCheck x' cs] , rest)
 
             -- case: clauses match more than one sigs (ambiguity)
@@ -836,9 +836,6 @@ niceDeclarations fixs ds = do
       -- Warn about consecutive CATCHALL pragmas
       unless (null catchall) $ declarationWarning $ InvalidCatchallPragma r
       mkClauses ai x cs (YesCatchall r)
-
-    -- mkClauses ai1 x (FunClause ai2 lhs rhs wh ca : cs) catchall
-    --   | not (null ai2 || ai1 == ai2) = __IMPOSSIBLE__ -- TODO: declarationWarning $ InvalidModality ai
 
     mkClauses ai x (FunClause _ai lhs rhs wh ca : cs) catchall
       | null (lhsWithExpr lhs) || hasEllipsis lhs  =

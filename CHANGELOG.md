@@ -29,6 +29,16 @@ Syntax
 
 Additions to the Agda syntax.
 
+* Modality annotations in aliases and let-bindings are now supported
+  (PR [#7990]()).
+  Example:
+  ```agda
+    split : {A B C : Set} (@0 p : A × B) (k : @0 A → @0 B → C) → C
+    split p k = let @0 (x , y) = q in k x y
+      where
+      @0 q = p
+  ```
+
 Language
 --------
 

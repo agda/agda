@@ -35,6 +35,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Hash
 import Agda.Utils.List ( spanJust, chopWhen, initLast )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty hiding ((<>))
@@ -606,9 +607,13 @@ funClauseOrTypeSigs attrs lhs' with mrhs wh = do
   -- traceShowM lhs
   case mrhs of
     JustRHS rhs   -> do
-      unless (null attrs) $ parseWarning $ MisplacedAttributes (getRange attrs) "A function clause cannot have attributes"
+      whenJust (haveTacticAttr attrs) \ re ->
+        parseWarning $ MisplacedAttributes (getRange re) $
+          "Ignoring tactic attribute, illegal in function clauses"
       -- Andreas, 2025-07-09, issue #7989: extract irrelevance info from lhs pattern
       let (Arg info p) = patternToArgPattern $ lhsOriginalPattern lhs
+      -- Andreas, 2025-07-10, issue #7988: allow attributes in function clause
+      info <- applyAttrs attrs info
       return $ singleton $ FunClause info lhs{ lhsOriginalPattern = p } rhs wh empty
     TypeSigsRHS e -> case wh of
       NoWhere -> case lhs of
@@ -701,7 +706,11 @@ setTacticAttr as = updateNamedArg $ fmap $ \ b ->
 
 -- | Get the tactic attribute if present.
 getTacticAttr :: [Attr] -> TacticAttribute
-getTacticAttr as = C.TacticAttribute $
+getTacticAttr = C.TacticAttribute . haveTacticAttr
+
+-- | Check if tactic attribute is present.
+haveTacticAttr :: [Attr] -> Maybe (Ranged Expr)
+haveTacticAttr as =
   case tacticAttributes [ a | Attr _ _ a <- as ] of
     [CA.TacticAttribute e] -> Just e
     [] -> Nothing
