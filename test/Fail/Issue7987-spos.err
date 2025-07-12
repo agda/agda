@@ -1,0 +1,4 @@
+Issue7987-spos.agda:3.24-25: error: [VariableIsOfUnusablePolarity]
+Variable S is bound with strictly positive polarity, so it cannot
+be used here at a negative position
+when checking that the expression S has type _4
