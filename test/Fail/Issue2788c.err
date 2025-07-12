@@ -1,3 +1,4 @@
 Issue2788c.agda:8.1-39: error: [NeedOptionCubical]
-Option --cubical or --erased-cubical required
+Option --cubical or --erased-cubical or --cubical-without-glue
+required
 when checking the pragma BUILTIN PATHP PathP
