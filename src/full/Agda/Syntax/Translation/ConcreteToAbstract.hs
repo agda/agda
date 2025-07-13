@@ -185,7 +185,7 @@ recordConstructorType decls =
         C.NiceMutual _ _ _ _
           [ C.FunSig _ _ _ _ macro _ _ _ _ _
           , C.FunDef _ _ abstract _ _ _ _
-             [ C.Clause _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] ]
+             (C.Clause _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] :| [])
           ] | abstract /= AbstractDef && macro /= MacroDef -> do
           mkLet d
 
@@ -805,7 +805,7 @@ scopeCheckExtendedLam r e cs = do
   -- Andreas, 2019-08-20
   -- Keep the following __IMPOSSIBLE__, which is triggered by -v scope.decl.trace:80,
   -- for testing issue #4016.
-  d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname . List1.toList <$> do
+  d <- C.FunDef r __IMPOSSIBLE__ a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname <$> do
           forM cs $ \ (LamClause ps rhs ca) -> do
             let p   = C.rawAppP $
                         killRange (IdentP True $ C.QName cname) :| ps
@@ -1484,7 +1484,7 @@ instance ToAbstract LetDef where
   type AbsOfCon LetDef = List1 A.LetBinding
   toAbstract :: LetDef -> ScopeM (AbsOfCon LetDef)
   toAbstract (LetDef wh d) = setCurrentRange d case d of
-    NiceMutual _ _ _ _ d@[C.FunSig _ access _ instanc macro info _ _ x t, C.FunDef _ _ abstract _ _ _ _ [cl]] -> do
+    NiceMutual _ _ _ _ d@[C.FunSig _ access _ instanc macro info _ _ x t, C.FunDef _ _ abstract _ _ _ _ (cl :| [])] -> do
       checkLetDefInfo wh access macro abstract
 
       t <- toAbstract t
@@ -1560,7 +1560,7 @@ instance ToAbstract LetDef where
               [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef
                   (setOrigin Inserted defaultArgInfo) tc cc x (C.Underscore (getRange x) Nothing)
               , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
-                [C.Clause x (ca <> catchall) lhs (C.RHS rhs) NoWhere []]
+                $ singleton $ C.Clause x (ca <> catchall) lhs (C.RHS rhs) NoWhere []
               ]
           where
             definedName (C.IdentP _ (C.QName x)) = Just x
@@ -1835,7 +1835,7 @@ instance ToAbstract NiceDeclaration where
   -- Function definitions
     C.FunDef r ds a i _ _ x cs -> do
         printLocals 30 $ "checking def " ++ prettyShow x
-        (x',cs) <- toAbstract (OldName x,cs)
+        (x',cs) <- toAbstract (OldName x, cs)
         -- Andreas, 2017-12-04 the name must reside in the current module
         unlessM ((A.qnameModule x' ==) <$> getCurrentModule) $
           __IMPOSSIBLE__
@@ -1843,7 +1843,7 @@ instance ToAbstract NiceDeclaration where
 
         unfoldFunction x'
         di <- updateDefInfoOpacity (mkDefInfoInstance x f PublicAccess a i NotMacroDef r)
-        return [ A.FunDef di x' cs ]
+        return [ A.FunDef di x' (List1.toList cs) ] -- TODO: use List1 in A.FunDef
 
   -- Uncategorized function clauses
     C.NiceFunClause _ _ _ _ _ _ (C.FunClause lhs _ _ _) ->

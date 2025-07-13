@@ -326,11 +326,11 @@ niceDeclarations fixs ds = do
           -- if we have some clauses for 'x'
           case [ (x, (x', fits, rest))
                | (x, x') <- xs
-               , let (fits, rest) =
+               , let (fits0, rest) =
                       -- Anonymous declarations only have 1 clause each!
                       if isNoName x then ([d], ds)
                       else span (couldBeFunClauseOf (Map.lookup x fixs) x) (d : ds)
-               , not (null fits)
+               , fits <- maybeToList $ List1.nonEmpty fits0
                ] of
 
             -- case: clauses match none of the sigs
@@ -350,8 +350,8 @@ niceDeclarations fixs ds = do
             [(x,(x',fits,rest))] -> do
                -- The x'@NoName{} is the unique version of x@NoName{}.
                removeLoneSig x
-               ds  <- expandEllipsis fits
-               cs  <- mkClauses x' ds empty
+               ds  <- expandEllipsis1 fits
+               cs  <- mkClauses1 x' ds empty
                return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck covCheck x' cs] , rest)
 
             -- case: clauses match more than one sigs (ambiguity)
@@ -725,9 +725,17 @@ niceDeclarations fixs ds = do
     toPrim _                       = __IMPOSSIBLE__
 
     -- Create a function definition.
+    mkFunDef ::
+         ArgInfo
+      -> TerminationCheck
+      -> CoverageCheck
+      -> Name
+      -> Maybe Expr
+      -> List1 Declaration
+      -> Nice [NiceDeclaration]
     mkFunDef info termCheck covCheck x mt ds0 = do
-      ds <- expandEllipsis ds0
-      cs <- mkClauses x ds empty
+      ds <- expandEllipsis1 ds0
+      cs <- mkClauses1 x ds empty
       return [ FunSig (fuseRange x t) PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x t
              , FunDef (getRange ds0) ds0 ConcreteDef NotInstanceDef termCheck covCheck x cs ]
         where
@@ -739,9 +747,12 @@ niceDeclarations fixs ds = do
     -- and then use its lhs pattern to replace ellipses in the subsequent clauses (if any).
     expandEllipsis :: [Declaration] -> Nice [Declaration]
     expandEllipsis [] = return []
-    expandEllipsis (d@(FunClause lhs@(LHS p _ _) _ _ _) : ds)
-      | hasEllipsis p = (d :) <$> expandEllipsis ds
-      | otherwise     = (d :) <$> expand (killRange p) ds
+    expandEllipsis (d : ds) = List1.toList <$> expandEllipsis1 (d :| ds)
+
+    expandEllipsis1 :: List1 Declaration -> Nice (List1 Declaration)
+    expandEllipsis1 (d@(FunClause lhs@(LHS p _ _) _ _ _) :| ds)
+      | hasEllipsis p = (d :|) <$> expandEllipsis ds
+      | otherwise     = (d :|) <$> expand (killRange p) ds
       where
         expand :: Pattern -> [Declaration] -> Nice [Declaration]
         expand _ [] = return []
@@ -768,9 +779,12 @@ niceDeclarations fixs ds = do
                   -- Need to update the range also on the next with-patterns.
                   (d :) <$> expand (if null es then p else killRange p0) ds
             _ -> __IMPOSSIBLE__
-    expandEllipsis _ = __IMPOSSIBLE__
+    expandEllipsis1 _ = __IMPOSSIBLE__
 
     -- Turn function clauses into nice function clauses.
+    mkClauses1 :: Name -> List1 Declaration -> Catchall -> Nice (List1 Clause)
+    mkClauses1 x ds ca = List1.fromListSafe __IMPOSSIBLE__ <$> mkClauses x (List1.toList ds) ca
+
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]
     mkClauses _ [] _ = return []
 
@@ -934,7 +948,7 @@ niceDeclarations fixs ds = do
           addInterleavedFun n ds cs $ MutualChecks [tc] [cc] []
         addFunDef _ = __IMPOSSIBLE__
 
-        addInterleavedFun :: Name -> [Declaration] -> [Clause] -> MutualChecks -> INice ()
+        addInterleavedFun :: Name -> List1 Declaration -> List1 Clause -> MutualChecks -> INice ()
         addInterleavedFun n ds cs checks' = do
           ISt m checks i <- get
           case Map.lookup n m of
@@ -956,8 +970,8 @@ niceDeclarations fixs ds = do
           -- find the funsig candidates for the funclause of interest
           case [ (x, fits, rest)
                | x <- sigs
-               , let (fits, rest) = spanJust (couldBeNiceFunClauseOf (Map.lookup x fixs) x) (nd : ds)
-               , not (null fits)
+               , let (fits0, rest) = spanJust (couldBeNiceFunClauseOf (Map.lookup x fixs) x) (nd : ds)
+               , fits <- maybeToList $ List1.nonEmpty fits0
                ] of
             -- no candidate: keep the isolated fun clause, we'll complain about it later
             [] -> do
@@ -966,9 +980,9 @@ niceDeclarations fixs ds = do
               ((i,nd) :) <$> groupByBlocks r ds
             -- exactly one candidate: attach the funclause to the definition
             [(n, fits0, rest)] -> do
-              let (checkss, fits) = unzip fits0
-              ds <- lift $ expandEllipsis fits
-              cs <- lift $ mkClauses n ds empty
+              let (checkss, fits) = List1.unzip fits0
+              ds <- lift $ expandEllipsis1 fits
+              cs <- lift $ mkClauses1 n ds empty
               addInterleavedFun n fits {- or? ds -} cs $ Fold.fold checkss
               groupByBlocks r rest
             -- more than one candidate: fail, complaining about the ambiguity!
@@ -1358,6 +1372,7 @@ class MakeAbstract a where
   mkAbstract = traverse . mkAbstract
 
 instance MakeAbstract a => MakeAbstract [a]
+instance MakeAbstract a => MakeAbstract (List1 a)
 
 -- Leads to overlap with 'WhereClause':
 -- instance (Traversable f, MakeAbstract a) => MakeAbstract (f a) where
@@ -1441,6 +1456,7 @@ class MakePrivate a where
   mkPrivate kwr o = traverse $ mkPrivate kwr o
 
 instance MakePrivate a => MakePrivate [a]
+instance MakePrivate a => MakePrivate (List1 a)
 
 -- Leads to overlap with 'WhereClause':
 -- instance (Traversable f, MakePrivate a) => MakePrivate (f a) where
@@ -1531,7 +1547,7 @@ notSoNiceDeclarations = \case
     NiceDataSig r er _ _ _ _ x bs e  -> singleton $ DataSig r er x bs e
     NiceFunClause _ _ _ _ _ _ d      -> singleton $ d
     FunSig _ _ _ i _ rel _ _ x e     -> inst i $ TypeSig rel empty x e
-    FunDef _ ds _ _ _ _ _ _          -> List1.fromListSafe __IMPOSSIBLE__ ds -- TODO: use List1 in type of FunDef
+    FunDef _ ds _ _ _ _ _ _          -> ds
     NiceDataDef r _ _ _ _ x bs cs    -> singleton $ DataDef r x bs $ List1.concat $ fmap notSoNiceDeclarations cs
     NiceRecDef r _ _ _ _ x dir bs ds -> singleton $ RecordDef r x dir bs ds
     NicePatternSyn r _ n as p        -> singleton $ PatternSyn r n as p
