@@ -290,7 +290,8 @@ niceDeclarations fixs ds = do
 
       case d of
 
-        TypeSig info _tac x t -> do
+        TypeSig info tac x t -> do
+          dropTactic tac
           termCheck <- use terminationCheckPragma
           covCheck  <- use coverageCheckPragma
           -- Andreas, 2020-09-28, issue #4950: take only range of identifier,
@@ -706,7 +707,8 @@ niceDeclarations fixs ds = do
 
     niceAxiom :: KindOfBlock -> TypeSignatureOrInstanceBlock -> Nice [NiceDeclaration]
     niceAxiom b = \case
-      d@(TypeSig rel _tac x t) -> do
+      d@(TypeSig rel tac x t) -> do
+        dropTactic tac
         return [ Axiom (getRange d) PublicAccess ConcreteDef NotInstanceDef rel x t ]
       d@(FieldSig i tac x argt) | b == FieldBlock -> do
         return [ NiceField (getRange d) PublicAccess ConcreteDef i tac x argt ]
@@ -1504,6 +1506,13 @@ instance MakePrivate WhereClause where
     -- Thus, we do not recurse into the @ds@ (could not anyway).
     SomeWhere r e m a ds ->
       mkPrivate kwr o a <&> \a' -> SomeWhere r e m a' ds
+
+-- | Make sure that the 'TacticAttribute' is empty.
+dropTactic :: TacticAttribute -> Nice ()
+dropTactic = \case
+  TacticAttribute Nothing   -> return ()
+  TacticAttribute (Just re) -> declarationWarning $ InvalidTacticAttribute $ getRange re
+
 
 -- The following function is (at the time of writing) only used three
 -- times: for building Lets, and for printing error messages.

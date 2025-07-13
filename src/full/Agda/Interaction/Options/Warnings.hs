@@ -248,6 +248,7 @@ data WarningName
   | InvalidNoUniverseCheckPragma_
   | DuplicateRecordDirective_
   | InvalidTerminationCheckPragma_
+  | InvalidTacticAttribute_
   | MissingDataDeclaration_
   | MissingDefinitions_
   | NotAllowedInMutual_
@@ -484,6 +485,7 @@ warningNameDescription = \case
   InvalidNoPositivityCheckPragma_  -> "Positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "Universe checking pragmas before non-`data' or `record' declaration."
   DuplicateRecordDirective_        -> "Conflicting directives in a record declaration."
+  InvalidTacticAttribute_          -> "Misplaced @(tactic ...) attributes."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
   MissingDataDeclaration_          -> "Constructor definitions not associated to a data declaration."
   MissingDefinitions_              -> "Declarations not associated to a definition."

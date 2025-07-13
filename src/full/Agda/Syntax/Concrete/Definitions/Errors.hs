@@ -121,6 +121,8 @@ data DeclarationWarning'
   | InvalidTerminationCheckPragma Range
       -- ^ A {-\# TERMINATING \#-} and {-\# NON_TERMINATING \#-} pragma
       --   that does not apply to any function.
+  | InvalidTacticAttribute Range
+      -- ^ A misplaced @tactic@ attribute.
   | MissingDataDeclaration Name
       -- ^ A @data@ definition without a @data@ signature.
   | MissingDefinitions (List1 (Name, Range))
@@ -194,6 +196,7 @@ declarationWarningName' = \case
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
   InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
   InvalidCoverageCheckPragma{}      -> InvalidCoverageCheckPragma_
+  InvalidTacticAttribute{}          -> InvalidTacticAttribute_
   MissingDataDeclaration{}          -> MissingDataDeclaration_
   MissingDefinitions{}              -> MissingDefinitions_
   NotAllowedInMutual{}              -> NotAllowedInMutual_
@@ -244,6 +247,7 @@ unsafeDeclarationWarning' = \case
   InvalidNoUniverseCheckPragma{}    -> False
   InvalidTerminationCheckPragma{}   -> False
   InvalidCoverageCheckPragma{}      -> False
+  InvalidTacticAttribute{}          -> False
   MissingDataDeclaration{}          -> True  -- not safe
   MissingDefinitions{}              -> False -- not safe but deferred until after typechecking
   NotAllowedInMutual{}              -> False -- really safe?
@@ -354,6 +358,7 @@ instance HasRange DeclarationWarning' where
     InvalidNoPositivityCheckPragma r   -> r
     InvalidNoUniverseCheckPragma r     -> r
     InvalidTerminationCheckPragma r    -> r
+    InvalidTacticAttribute r           -> r
     MissingDataDeclaration x           -> getRange x
     MissingDefinitions xs              -> getRange xs
     NotAllowedInMutual r x             -> r
@@ -500,6 +505,9 @@ instance Pretty DeclarationWarning' where
     EmptyPolarityPragma _ -> fsep $ pwords "POLARITY pragma without polarities (ignored)."
 
     HiddenGeneralize _ -> fsep $ pwords "Declaring a variable as hidden has no effect in a variable block. Generalization never introduces visible arguments."
+
+    InvalidTacticAttribute _ -> fsep $
+      pwords "Ignoring misplaced tactic attribute."
 
     InvalidTerminationCheckPragma _ -> fsep $
       pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."

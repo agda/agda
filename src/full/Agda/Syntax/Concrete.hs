@@ -508,7 +508,8 @@ ungatherRecordDirectives (RecordDirectives ind eta pat con) = catMaybes
 
 data Declaration
   = TypeSig ArgInfo TacticAttribute Name Expr
-      -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
+      -- ^ Axioms and functions can be irrelevant. ('Hiding' should be 'NotHidden')
+      --   'TacticAttribute' makes only sense in 'Generalize' blocks.
   | FieldSig IsInstance TacticAttribute Name (Arg Expr)
   | Generalize KwRange [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
   | Field KwRange [FieldSignature]

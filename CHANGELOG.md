@@ -17,6 +17,13 @@ Warnings
 * `UselessPragma` warning instead of hard error `NeedOptionRewriting` when a
   `REWRITE` or `BUILTIN REWRITE` pragma is encountered but `--rewriting` is off.
 
+* New warning 'InvalidTacticAttribute' for misplaced `@(tactic ...)` attributes.
+  This was silently accepted up to Agda 2.8.0 but raises now the new warning:
+  ```agda
+  postulate
+    @(tactic not-in-scope) _ : Set
+  ```
+
 Syntax
 ------
 

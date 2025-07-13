@@ -33,3 +33,14 @@ g = true
 -- should work
 h : .{ @(tactic defaultTo true) x : Bool} → Bool
 h = true
+
+---------------------------------------------------------------------------
+
+-- Andreas, 2025-10-13, issue #7994
+-- Tactic dropped without warning.
+
+postulate
+  @(tactic not-in-scope) _ : Set
+
+-- Expected warning:  -W[no]InvalidTacticAttribute
+-- Ignoring misplaced tactic attribute.
