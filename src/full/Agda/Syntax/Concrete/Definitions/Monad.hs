@@ -7,7 +7,7 @@ import Prelude hiding ( null )
 import Control.Monad        ()
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
 import Control.Monad.Reader ( MonadReader, ReaderT, runReaderT )
-import Control.Monad.State  ( MonadState(..), modify, State, runState )
+import Control.Monad.State  ( MonadState(..), modify, State, StateT, runState )
 
 import Data.Bifunctor (second)
 import Data.Map (Map)
@@ -34,6 +34,9 @@ newtype Nice a = Nice { unNice :: ReaderT NiceEnv (ExceptT DeclarationException 
   deriving ( Functor, Applicative, Monad
            , MonadReader NiceEnv, MonadState NiceState, MonadError DeclarationException
            )
+
+-- | Extension of the nicifier monad with state to process interleaved mutual blocks.
+type INice = StateT InterleavedState Nice
 
 -- | Run a Nicifier computation, return result and warnings
 --   (in chronological order).

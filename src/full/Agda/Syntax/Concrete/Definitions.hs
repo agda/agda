@@ -859,7 +859,7 @@ niceDeclarations fixs ds = do
       -> [NiceDeclaration]     -- Declarations inside the block.
       -> Nice NiceDeclaration  -- Returns a 'NiceMutual'.
     mkInterleavedMutual kwr ds' = do
-      (other, (m, checks, _)) <- runStateT (groupByBlocks kwr ds') (empty, mempty, 0)
+      (other, ISt m checks _) <- runStateT (groupByBlocks kwr ds') $ ISt empty mempty 0
       let idecls = other ++ concatMap (uncurry interleavedDecl) (Map.toList m)
       let decls0 = map snd $ List.sortBy (compare `on` fst) idecls
       ps <- use loneSigs
@@ -876,12 +876,11 @@ niceDeclarations fixs ds = do
 
         ------------------------------------------------------------------------------
         -- Adding Signatures
-        addType :: Name -> (DeclNum -> a) -> MutualChecks
-                -> StateT (Map Name a, MutualChecks, DeclNum) Nice ()
+        addType :: Name -> (DeclNum -> InterleavedDecl) -> MutualChecks -> INice ()
         addType n c mc = do
-          (m, checks, i) <- get
+          ISt m checks i <- get
           when (isJust $ Map.lookup n m) $ lift $ declarationException $ DuplicateDefinition n
-          put (Map.insert n (c i) m, mc <> checks, i + 1)
+          put $ ISt (Map.insert n (c i) m) (mc <> checks) (i + 1)
 
         addFunType d@(FunSig _ _ _ _ _ _ tc cc n _) = do
            let checks = MutualChecks [tc] [cc] []
@@ -899,10 +898,10 @@ niceDeclarations fixs ds = do
         addDataConstructors :: Maybe Range        -- Range of the `data A where` (if any)
                             -> Maybe Name         -- Data type the constructors belong to
                             -> [NiceConstructor]  -- Constructors to add
-                            -> StateT (InterleavedMutual, MutualChecks, DeclNum) Nice ()
+                            -> INice ()
         -- if we know the type's name, we can go ahead
         addDataConstructors mr (Just n) ds = do
-          (m, checks, i) <- get
+          ISt m checks i <- get
           case Map.lookup n m of
             Just (InterleavedData i0 sig cs) -> do
               lift $ removeLoneSig n
@@ -910,7 +909,7 @@ niceDeclarations fixs ds = do
               let (cs', i') = case cs of
                     Nothing        -> ((i , ds :| [] ), i + 1)
                     Just (i1, ds1) -> ((i1, ds <| ds1), i)
-              put (Map.insert n (InterleavedData i0 sig (Just cs')) m, checks, i')
+              put $ ISt (Map.insert n (InterleavedData i0 sig (Just cs')) m) checks i'
             _ -> lift $ declarationWarning $ MissingDataDeclaration n
 
         addDataConstructors mr Nothing [] = pure ()
@@ -918,7 +917,7 @@ niceDeclarations fixs ds = do
         -- Otherwise we try to guess which datasig the constructor is referring to
         addDataConstructors mr Nothing (d : ds) = do
           -- get the candidate data types that are in this interleaved mutual block
-          (m, _, _) <- get
+          ISt m _ _ <- get
           let sigs = mapMaybe (\ (n, d) -> n <$ isInterleavedData d) $ Map.toList m
           -- check whether this constructor matches any of them
           case isConstructor sigs d of
@@ -930,26 +929,29 @@ niceDeclarations fixs ds = do
               addDataConstructors Nothing Nothing ds1
             Left (n, ns) -> lift $ declarationException $ AmbiguousConstructor (getRange d) n ns
 
-        addFunDef :: NiceDeclaration -> StateT (InterleavedMutual, MutualChecks, DeclNum) Nice ()
+        addFunDef :: NiceDeclaration -> INice ()
         addFunDef (FunDef _ ds _ _ tc cc n cs) = do
-          let check = MutualChecks [tc] [cc] []
-          (m, checks, i) <- get
+          addInterleavedFun n ds cs $ MutualChecks [tc] [cc] []
+        addFunDef _ = __IMPOSSIBLE__
+
+        addInterleavedFun :: Name -> [Declaration] -> [Clause] -> MutualChecks -> INice ()
+        addInterleavedFun n ds cs checks' = do
+          ISt m checks i <- get
           case Map.lookup n m of
             Just (InterleavedFun i0 sig cs0) -> do
               let (cs', i') = case cs0 of
                     Nothing        -> ((i,  (ds, cs) :| [] ), i + 1)
                     Just (i1, cs1) -> ((i1, (ds, cs) <| cs1), i)
-              put (Map.insert n (InterleavedFun i0 sig (Just cs')) m, check <> checks, i')
+              put $ ISt (Map.insert n (InterleavedFun i0 sig (Just cs')) m) (checks' <> checks) i'
             _ -> __IMPOSSIBLE__ -- A FunDef always come after an existing FunSig!
-        addFunDef _ = __IMPOSSIBLE__
 
         addFunClauses ::
              KwRange
           -> [NiceDeclaration]
-          -> StateT (InterleavedMutual, MutualChecks, DeclNum) Nice [(DeclNum, NiceDeclaration)]
+          -> INice [(DeclNum, NiceDeclaration)]
         addFunClauses r (nd@(NiceFunClause _ _ _ tc cc _ d@(FunClause lhs _ _ _)) : ds) = do
           -- get the candidate functions that are in this interleaved mutual block
-          (m, checks, i) <- get
+          ISt m checks i <- get
           let sigs = mapMaybe (\ (n, d) -> n <$ isInterleavedFun d) $ Map.toList m
           -- find the funsig candidates for the funclause of interest
           case [ (x, fits, rest)
@@ -960,21 +962,14 @@ niceDeclarations fixs ds = do
             -- no candidate: keep the isolated fun clause, we'll complain about it later
             [] -> do
               let check = MutualChecks [tc] [cc] []
-              put (m, check <> checks, i + 1)
+              put $ ISt m (check <> checks) (i + 1)
               ((i,nd) :) <$> groupByBlocks r ds
             -- exactly one candidate: attach the funclause to the definition
             [(n, fits0, rest)] -> do
               let (checkss, fits) = unzip fits0
               ds <- lift $ expandEllipsis fits
               cs <- lift $ mkClauses n ds empty
-              case Map.lookup n m of
-                Just (InterleavedFun i0 sig cs0) -> do
-                  let (cs', i') = case cs0 of
-                        Nothing        -> ((i,  (fits,cs) :| [] ), i + 1)
-                        Just (i1, cs1) -> ((i1, (fits,cs) <| cs1), i)
-                  let checks' = Fold.fold checkss
-                  put (Map.insert n (InterleavedFun i0 sig (Just cs')) m, checks' <> checks, i')
-                _ -> __IMPOSSIBLE__
+              addInterleavedFun n fits {- or? ds -} cs $ Fold.fold checkss
               groupByBlocks r rest
             -- more than one candidate: fail, complaining about the ambiguity!
             xf:xfs -> lift $ declarationException
@@ -985,7 +980,7 @@ niceDeclarations fixs ds = do
         groupByBlocks ::
               KwRange
           -> [NiceDeclaration]
-          -> StateT (InterleavedMutual, MutualChecks, DeclNum) Nice [(DeclNum, NiceDeclaration)]
+          -> INice [(DeclNum, NiceDeclaration)]
         groupByBlocks kwr []       = pure []
         groupByBlocks kwr (d : ds) = do
           -- for most branches we deal with the one declaration and move on
@@ -1003,8 +998,8 @@ niceDeclarations fixs ds = do
             -- We do not need to worry about RecSig vs. RecDef: we know there's exactly one
             -- of each for record definitions and leaving them in place should be enough!
             _ -> oneOff $ do
-              (m, c, i) <- get -- TODO: grab checks from c?
-              put (m, c, i + 1)
+              ISt m c i <- get -- TODO: grab checks from c?
+              put $ ISt m c (i + 1)
               pure [(i,d)]
 
     -- Extract the name of the return type (if any) of a potential constructor.

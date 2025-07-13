@@ -163,6 +163,13 @@ data InterleavedDecl
         -- ^ Function clauses associated to the function signature.
     }
 
+-- | Extra state for the 'Nice' monad to process interleaved mutual blocks.
+data InterleavedState = ISt
+  { interleavedMutual         :: InterleavedMutual
+  , interleavedMutualChecks   :: MutualChecks
+  , interleavedCurrentDeclNum :: DeclNum
+  }
+
 -- | Numbering declarations in an @interleaved mutual@ block.
 type DeclNum = Int
 
