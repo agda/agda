@@ -103,7 +103,7 @@ checkFunDef i name cs = do
                               -- of an abstract function must not be informed by its definition.
           Just (e, mc, x)
             | Info.defAbstract i == ConcreteDef, Info.defOpaque i == TransparentDef ->
-              traceCall (CheckFunDefCall (getRange i) name cs True) $ do
+              traceCall (CheckFunDefCall (getRange i) name True) $ do
                 -- Andreas, 2012-11-22: if the alias is in an abstract block
                 -- it has been frozen.  We unfreeze it to enable type inference.
                 -- See issue 729.
@@ -252,7 +252,7 @@ checkFunDefS :: Type             -- ^ the type we expect the function to have
              -> TCM ()
 checkFunDefS t ai extlam with i name withSubAndLets cs = do
 
-    traceCall (CheckFunDefCall (getRange i) name cs True) $ do
+    traceCall (CheckFunDefCall (getRange i) name True) $ do
         reportSDoc "tc.def.fun" 10 $
           sep [ "checking body of" <+> prettyTCM name
               , nest 2 $ ":" <+> prettyTCM t
@@ -260,12 +260,12 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
               ]
 
         reportSDoc "tc.def.fun" 70 $
-          sep $ "clauses:" : map (nest 2 . text . show . A.deepUnscope) cs
+          sep $ "clauses:" : fmap (nest 2 . text . show . A.deepUnscope) cs
 
-        cs <- return $ map A.lhsToSpine cs
+        cs <- return $ fmap A.lhsToSpine cs
 
         reportSDoc "tc.def.fun" 70 $
-          sep $ "spine clauses:" : map (nest 2 . text . show . A.deepUnscope) cs
+          sep $ "spine clauses:" : fmap (nest 2 . text . show . A.deepUnscope) cs
 
         -- Ensure that all clauses have the same number of trailing hidden patterns
         -- This is necessary since trailing implicits are no longer eagerly inserted.
@@ -297,7 +297,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
         let isSystem = not . null $ isOneIxs
         when isSystem do
           -- allow VarP and ConP i0/i1 fallThrough = yes, DotP
-          let pss = map namedClausePats cs
+          let pss = fmap namedClausePats cs
               allowed = \case
                 VarP{} -> True
                 -- pattern inserted by splitPartial
@@ -308,15 +308,15 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
             typeError PatternInSystem
 
         reportSDoc "tc.def.fun" 70 $ inTopContext $ do
-          sep $ "checked clauses:" : map (nest 2 . text . show) cs
+          sep $ "checked clauses:" : fmap (nest 2 . text . show) cs
 
         reportSDoc "tc.cc" 25 $ inTopContext $ do
           sep [ "clauses before injectivity test"
-              , nest 2 $ prettyTCM $ map (QNamed name) cs  -- broken, reify (QNamed n cl) expect cl to live at top level
+              , nest 2 $ prettyTCM $ fmap (QNamed name) cs  -- broken, reify (QNamed n cl) expect cl to live at top level
               ]
         reportSDoc "tc.cc" 60 $ inTopContext $ do
           sep [ "raw clauses: "
-              , nest 2 $ sep $ map (text . show . QNamed name) cs
+              , nest 2 $ sep $ fmap (text . show . QNamed name) cs
               ]
 
         -- Needed to calculate the proper fullType below.
@@ -389,12 +389,12 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
 
         reportSDoc "tc.cc" 15 $ inTopContext $ do
           sep [ "clauses before compilation"
-              , nest 2 $ sep $ map (prettyTCM . QNamed name) cs
+              , nest 2 $ sep $ fmap (prettyTCM . QNamed name) cs
               ]
 
         reportSDoc "tc.cc.raw" 65 $ do
           sep [ "clauses before compilation"
-              , nest 2 $ sep $ map (text . show) cs
+              , nest 2 $ sep $ fmap (text . show) cs
               ]
 
         -- add clauses for the coverage (& confluence) checker (needs to reduce)

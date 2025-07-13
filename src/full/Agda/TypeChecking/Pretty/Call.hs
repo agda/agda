@@ -149,7 +149,7 @@ instance PrettyTCM Call where
         pwords "fits in the sort" ++ [prettyTCM s] ++
         pwords "of the datatype."
 
-    CheckFunDefCall _ f _ _ ->
+    CheckFunDefCall _ f _ ->
       fsep $ pwords "when checking the definition of" ++ [prettyTCM f]
 
     CheckPragma _ p ->

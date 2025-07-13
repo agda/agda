@@ -189,7 +189,7 @@ instance MonadTrace TCM where
       CheckRecDef{}             -> True
       CheckConstructor{}        -> True
       CheckConArgFitsIn{}       -> False
-      CheckFunDefCall _ _ _ h   -> h
+      CheckFunDefCall _ _ h     -> h
       CheckPragma{}             -> True
       CheckPrimitive{}          -> True
       CheckIsEmpty{}            -> True

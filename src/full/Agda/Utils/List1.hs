@@ -96,6 +96,11 @@ last2 _ = Nothing
 snoc :: [a] -> a -> List1 a
 snoc as a = prependList as $ a :| []
 
+-- | Append an element to a non-empty list.
+
+snoc1 :: List1 a -> a -> List1 a
+snoc1 as a = as <> (a :| [])
+
 -- | @'groupOn' f = 'groupBy' (('==') \`on\` f) '.' 'List.sortBy' ('compare' \`on\` f)@.
 -- O(n log n).
 groupOn :: Ord b => (a -> b) -> [a] -> [List1 a]

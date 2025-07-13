@@ -818,8 +818,7 @@ scopeCheckExtendedLam r e cs = do
     A.ScopedDecl si [A.FunDef di qname' cs] -> do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
       return $
-        A.ExtendedLam (ExprRange r) di e qname' $
-        List1.fromListSafe __IMPOSSIBLE__ cs
+        A.ExtendedLam (ExprRange r) di e qname' cs
     _ -> __IMPOSSIBLE__
 
 -- | Scope check an expression.
@@ -1843,7 +1842,7 @@ instance ToAbstract NiceDeclaration where
 
         unfoldFunction x'
         di <- updateDefInfoOpacity (mkDefInfoInstance x f PublicAccess a i NotMacroDef r)
-        return [ A.FunDef di x' (List1.toList cs) ] -- TODO: use List1 in A.FunDef
+        return [ A.FunDef di x' cs ]
 
   -- Uncategorized function clauses
     C.NiceFunClause _ _ _ _ _ _ (C.FunClause lhs _ _ _) ->

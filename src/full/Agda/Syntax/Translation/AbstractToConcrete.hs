@@ -1238,7 +1238,7 @@ instance ToConcrete A.Declaration where
         -- Primitives are always relevant.
 
   toConcrete (A.FunDef i _ cs) =
-    withAbstractPrivate i $ List1.concat <$> toConcrete cs
+    withAbstractPrivate i $ List1.toList . sconcat <$> toConcrete cs
 
   toConcrete (A.DataSig i erased x bs t) =
     withAbstractPrivate i $

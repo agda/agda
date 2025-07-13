@@ -73,6 +73,7 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
+import Agda.Utils.Singleton (singleton)
 
 ---------------------------------------------------------------------------
 -- * Data structures for checking arguments
@@ -1687,7 +1688,7 @@ checkSharpApplication e t c args = do
         (defaultDefn ai c' forcedType lang fun)
         { defMutual = i }
 
-    checkFunDef info c' [clause]
+    checkFunDef info c' $ singleton clause
 
     reportSDoc "tc.term.expr.coind" 15 $ do
       def <- theDef <$> getConstInfo c'

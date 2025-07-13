@@ -3446,8 +3446,8 @@ isWithFunction def =
     Function { funWith = Just{} } -> True
     _ -> False
 
-isCopatternLHS :: [Clause] -> Bool
-isCopatternLHS = List.any (List.any (isJust . A.isProjP) . namedClausePats)
+isCopatternLHS :: Foldable f => f Clause -> Bool
+isCopatternLHS = any (any (isJust . A.isProjP) . namedClausePats)
 
 recCon :: Defn -> QName
 recCon Record{ recConHead } = conName recConHead
@@ -3772,7 +3772,7 @@ data Call
   | CheckRecDef Range QName [A.LamBinding] [A.Constructor]
   | CheckConstructor QName Telescope Sort A.Constructor
   | CheckConArgFitsIn QName Bool Type Sort
-  | CheckFunDefCall Range QName [A.Clause] Bool
+  | CheckFunDefCall Range QName Bool
     -- ^ Highlight (interactively) if and only if the boolean is 'True'.
   | CheckPragma Range A.Pragma
   | CheckPrimitive Range QName A.Expr
@@ -3860,7 +3860,7 @@ instance HasRange Call where
     getRange (CheckRecDef i _ _ _)               = getRange i
     getRange (CheckConstructor _ _ _ c)          = getRange c
     getRange (CheckConArgFitsIn c _ _ _)         = getRange c
-    getRange (CheckFunDefCall i _ _ _)           = getRange i
+    getRange (CheckFunDefCall i _ _)             = getRange i
     getRange (CheckPragma r _)                   = r
     getRange (CheckPrimitive i _ _)              = getRange i
     getRange (CheckModuleParameters _ tel)       = getRange tel

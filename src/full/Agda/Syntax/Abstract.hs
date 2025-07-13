@@ -184,7 +184,7 @@ data Declaration
     -- ^ The @ImportDirective@ is for highlighting purposes.
   | Pragma     Range      Pragma
   | Open       ModuleInfo ModuleName ImportDirective
-  | FunDef     DefInfo QName [Clause] -- ^ sequence of function clauses
+  | FunDef     DefInfo QName (List1 Clause) -- ^ sequence of function clauses
   | DataSig    DefInfo Erased QName GeneralizeTelescope Type -- ^ lone data signature
   | DataDef    DefInfo QName UniverseCheck DataDefParams [Constructor]
   | RecSig     DefInfo Erased QName GeneralizeTelescope Type -- ^ lone record signature
@@ -1145,7 +1145,7 @@ data DeclarationSpine
   | ImportS
   | PragmaS
   | OpenS
-  | FunDefS [ClauseSpine]
+  | FunDefS (List1 ClauseSpine)
   | DataSigS
   | DataDefS
   | RecSigS
@@ -1191,7 +1191,7 @@ declarationSpine = \case
   Import _ _ _            -> ImportS
   Pragma _ _              -> PragmaS
   Open _ _ _              -> OpenS
-  FunDef _ _ cs           -> FunDefS (map clauseSpine cs)
+  FunDef _ _ cs           -> FunDefS (fmap clauseSpine cs)
   DataSig _ _ _ _ _       -> DataSigS
   DataDef _ _ _ _ _       -> DataDefS
   RecSig _ _ _ _ _        -> RecSigS
