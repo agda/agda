@@ -83,12 +83,12 @@ jobs:
               -f debug -f debug-serialisation -f debug-parsing
 
           # macOS with default flags
-          - os: macos-14
+          - os: macos-15
             description: macOS
             ghc-ver: '9.12.2'
 
           # Windows with default flags
-          - os: windows-2022
+          - os: windows-2025
             description: Windows
             ghc-ver: '9.12.2'
 

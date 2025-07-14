@@ -145,10 +145,10 @@ jobs:
           os: ubuntu-24.04
         - description: macOS
           ghc-ver: 9.12.2
-          os: macos-14
+          os: macos-15
         - description: Windows
           ghc-ver: 9.12.2
-          os: windows-2022
+          os: windows-2025
         os:
         - ubuntu-24.04
     timeout-minutes: 60

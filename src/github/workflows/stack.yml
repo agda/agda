@@ -58,9 +58,9 @@ jobs:
           # If switching to a new GHC minor version needs manual action, i.e.,
           # adding the respective stack-x.y.z.yaml file.
         include:
-        - os: macos-14
+        - os: macos-15
           ghc-ver: 9.12.2
-        - os: windows-2022
+        - os: windows-2025
           ghc-ver: 9.12.2
 
     # # Try "allowed-failure" for Windows with GHC 9.2
