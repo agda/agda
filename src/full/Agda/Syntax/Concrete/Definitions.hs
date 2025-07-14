@@ -171,18 +171,18 @@ declKind NiceUnquoteDecl{}                   = OtherDecl
 declKind NiceLoneConstructor{}               = OtherDecl
 declKind NiceOpaque{}                        = OtherDecl
 
--- | Replace (Data/Rec/Fun)Sigs with Axioms for postulated names
+-- | Replace @(Data/Rec/Fun)Sigs@ with @Axiom@s for postulated names.
 --   The first argument is a list of axioms only.
 replaceSigs
-  :: LoneSigs               -- ^ Lone signatures to be turned into Axioms
-  -> [NiceDeclaration]      -- ^ Declarations containing them
-  -> [NiceDeclaration]      -- ^ In the output, everything should be defined
+  :: LoneSigs               -- ^ Lone signatures to be turned into Axioms.
+  -> [NiceDeclaration]      -- ^ Declarations containing them.
+  -> [NiceDeclaration]      -- ^ In the output, everything should be defined.
 replaceSigs ps = if Map.null ps then id else \case
   []     -> __IMPOSSIBLE__
   (d:ds) ->
     case replaceable d of
       -- If declaration d of x is mentioned in the map of lone signatures then replace
-      -- it with an axiom
+      -- it with an axiom.
       Just (x, axiom)
         | (Just (LoneSig _ x' _), ps') <- Map.updateLookupWithKey (\ _ _ -> Nothing) x ps
         , getRange x == getRange x'
@@ -197,19 +197,19 @@ replaceSigs ps = if Map.null ps then id else \case
     -- @Axiom@ out of it.
     replaceable :: NiceDeclaration -> Maybe (Name, NiceDeclaration)
     replaceable = \case
-      FunSig r acc abst inst _ argi _ _ x' e ->
+      FunSig r acc abst inst _ argi _ _ x' e -> do
         -- #4881: Don't use the unique NameId for NoName lookups.
-        let x = if isNoName x' then noName (nameRange x') else x' in
-        Just (x, Axiom r acc abst inst (setOrigin Inserted argi) x' e)
-      NiceRecSig r erased acc abst _ _ x pars t ->
-        let e = Generalized $ makePi (lamBindingsToTelescope r pars) t in
-        Just (x, Axiom r acc abst NotInstanceDef
-                   (setOrigin Inserted (setQuantity (asQuantity erased) defaultArgInfo)) x e)
-      NiceDataSig r erased acc abst _ _ x pars t ->
-        let e = Generalized $ makePi (lamBindingsToTelescope r pars) t in
-        Just (x, Axiom r acc abst NotInstanceDef
-                   (setOrigin Inserted (setQuantity (asQuantity erased) defaultArgInfo)) x e)
+        let x = if isNoName x' then noName (nameRange x') else x'
+        let ai = setOrigin Inserted argi
+        Just (x, Axiom r acc abst inst ai x' e)
+      NiceRecSig  r erased acc abst _ _ x pars t -> retAx r erased acc abst x pars t
+      NiceDataSig r erased acc abst _ _ x pars t -> retAx r erased acc abst x pars t
       _ -> Nothing
+      where
+        retAx r erased acc abst x pars t = do
+          let e = Generalized $ makePi (lamBindingsToTelescope r pars) t
+          let ai = setOrigin Inserted (setQuantity (asQuantity erased) defaultArgInfo)
+          return (x, Axiom r acc abst NotInstanceDef ai x e)
 
 -- | Main. Fixities (or more precisely syntax declarations) are needed when
 --   grouping function clauses.
