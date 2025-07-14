@@ -542,66 +542,82 @@ niceDeclarations fixs ds = do
 
         Unfolding r _ -> declarationException $ UnfoldingOutsideOpaque r
 
-    nicePragma :: Pragma -> [Declaration] -> Nice ([NiceDeclaration], [Declaration])
+    -- Some pragmas attach to the following declarations,
+    -- handle this situation here.
 
-    nicePragma (TerminationCheckPragma r (TerminationMeasure _ x)) ds =
+    nicePragma :: Pragma -> [Declaration] -> Nice ([NiceDeclaration], [Declaration])
+    nicePragma p ds = case p of
+
+     TerminationCheckPragma r NoTerminationCheck -> do
+      -- This PRAGMA has been deprecated in favour of (NON_)TERMINATING
+      -- We warn the user about it and then assume the function is NON_TERMINATING.
+      declarationWarning $ PragmaNoTerminationCheck r
+      nicePragma (TerminationCheckPragma r NonTerminating) ds
+
+     TerminationCheckPragma r (TerminationMeasure _ x) ->
       if canHaveTerminationMeasure ds then
         withTerminationCheckPragma (TerminationMeasure r x) $ nice1 ds
       else do
         declarationWarning $ InvalidTerminationCheckPragma r
         nice1 ds
 
-    nicePragma (TerminationCheckPragma r NoTerminationCheck) ds = do
-      -- This PRAGMA has been deprecated in favour of (NON_)TERMINATING
-      -- We warn the user about it and then assume the function is NON_TERMINATING.
-      declarationWarning $ PragmaNoTerminationCheck r
-      nicePragma (TerminationCheckPragma r NonTerminating) ds
-
-    nicePragma (TerminationCheckPragma r tc) ds =
+     TerminationCheckPragma r tc ->
       if canHaveTerminationCheckPragma ds then
         withTerminationCheckPragma tc $ nice1 ds
       else do
         declarationWarning $ InvalidTerminationCheckPragma r
         nice1 ds
 
-    nicePragma (NoCoverageCheckPragma r) ds =
+     NoCoverageCheckPragma r ->
       if canHaveCoverageCheckPragma ds then
         withCoverageCheckPragma NoCoverageCheck $ nice1 ds
       else do
         declarationWarning $ InvalidCoverageCheckPragma r
         nice1 ds
 
-    nicePragma (CatchallPragma r) ds =
+     CatchallPragma r ->
       if canHaveCatchallPragma ds then
         withCatchallPragma (YesCatchall r) $ nice1 ds
       else do
         declarationWarning $ InvalidCatchallPragma r
         nice1 ds
 
-    nicePragma (NoPositivityCheckPragma r) ds =
+     NoPositivityCheckPragma r ->
       if canHaveNoPositivityCheckPragma ds then
         withPositivityCheckPragma NoPositivityCheck $ nice1 ds
       else do
         declarationWarning $ InvalidNoPositivityCheckPragma r
         nice1 ds
 
-    nicePragma (NoUniverseCheckPragma r) ds =
+     NoUniverseCheckPragma r ->
       if canHaveNoUniverseCheckPragma ds then
         withUniverseCheckPragma NoUniverseCheck $ nice1 ds
       else do
         declarationWarning $ InvalidNoUniverseCheckPragma r
         nice1 ds
 
-    nicePragma p@CompilePragma{} ds = do
-      return ([NicePragma (getRange p) p], ds)
+     -- Polarity pragmas have been handled with fixity declarations, can be deleted.
+     PolarityPragma{} -> return ([], ds)
 
-    nicePragma (PolarityPragma{}) ds = return ([], ds)
+     -- The other pragmas are less context-sensitive, so nothing to do:
+     BuiltinPragma{}               -> keep
+     CompilePragma{}               -> keep
+     DisplayPragma{}               -> keep
+     EtaPragma{}                   -> keep
+     ForeignPragma{}               -> keep
+     ImpossiblePragma{}            -> keep
+     InjectiveForInferencePragma{} -> keep
+     InjectivePragma{}             -> keep
+     InlinePragma{}                -> keep
+     NotProjectionLikePragma{}     -> keep
+     OptionsPragma{}               -> keep
+     OverlapPragma{}               -> keep
+     RewritePragma{}               -> keep
+     StaticPragma{}                -> keep
+     WarningOnImport{}             -> keep
+     WarningOnUsage{}              -> keep
 
-    nicePragma (BuiltinPragma r str qn@(QName x)) ds = do
-      return ([NicePragma r (BuiltinPragma r str qn)], ds)
-
-    nicePragma p@RewritePragma{} ds = return ([NicePragma (getRange p) p], ds)
-    nicePragma p ds = return ([NicePragma (getRange p) p], ds)
+     where keep = return ([NicePragma (getRange p) p], ds)
 
     canHaveTerminationMeasure :: [Declaration] -> Bool
     canHaveTerminationMeasure [] = False
