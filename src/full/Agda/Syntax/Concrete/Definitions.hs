@@ -150,10 +150,10 @@ declKind :: NiceDeclaration -> DeclKind
 declKind (FunSig r _ _ _ _ _ tc cc x _)      = LoneSigDecl r (FunName tc cc) x
 declKind (NiceRecSig r _ _ _ pc uc x _ _)    = LoneSigDecl r (RecName pc uc) x
 declKind (NiceDataSig r _ _ _ pc uc x _ _)   = LoneSigDecl r (DataName pc uc) x
-declKind (FunDef r _ abs ins tc cc x _)      = LoneDefs (FunName tc cc) [x]
-declKind (NiceDataDef _ _ _ pc uc x pars _)  = LoneDefs (DataName pc uc) [x]
+declKind (FunDef _r _ _ _ tc cc x _)         = LoneDefs (FunName tc cc) [x]
+declKind (NiceDataDef _ _ _ pc uc x _par _)  = LoneDefs (DataName pc uc) [x]
 declKind (NiceUnquoteData _ _ _ pc uc x _ _) = LoneDefs (DataName pc uc) [x]
-declKind (NiceRecDef _ _ _ pc uc x _ pars _) = LoneDefs (RecName pc uc) [x]
+declKind (NiceRecDef _ _ _ pc uc x _ _par _) = LoneDefs (RecName pc uc) [x]
 declKind (NiceUnquoteDef _ _ _ tc cc xs _)   = LoneDefs (FunName tc cc) xs
 declKind Axiom{}                             = OtherDecl
 declKind NiceField{}                         = OtherDecl
@@ -317,7 +317,7 @@ niceDeclarations fixs ds = do
             _ -> __IMPOSSIBLE__
           return (gs, ds)
 
-        (FunClause lhs _ _ _)         -> do
+        FunClause lhs _ _ _ -> do
           termCheck <- use terminationCheckPragma
           covCheck  <- use coverageCheckPragma
           catchall  <- popCatchallPragma
@@ -683,7 +683,7 @@ niceDeclarations fixs ds = do
     -- We could add a default type signature here, but at the moment we can't
     -- infer the type of a record or datatype, so better to just fail here.
     defaultTypeSig :: DataRecOrFun -> Name -> Maybe Expr -> Nice (Maybe Expr)
-    defaultTypeSig k x t@Just{} = return t
+    defaultTypeSig _ _ t@Just{} = return t
     defaultTypeSig k x Nothing  = do
       caseMaybeM (getSig x) (return Nothing) $ \ k' -> do
         unless (sameKind k k') $ declarationException $ WrongDefinition x k' k
@@ -766,7 +766,7 @@ niceDeclarations fixs ds = do
     expandEllipsis (d : ds) = List1.toList <$> expandEllipsis1 (d :| ds)
 
     expandEllipsis1 :: List1 Declaration -> Nice (List1 Declaration)
-    expandEllipsis1 (d@(FunClause lhs@(LHS p _ _) _ _ _) :| ds)
+    expandEllipsis1 (d@(FunClause (LHS p _ _) _ _ _) :| ds)
       | hasEllipsis p = (d :|) <$> expandEllipsis ds
       | otherwise     = (d :|) <$> expand (killRange p) ds
       where
@@ -805,7 +805,7 @@ niceDeclarations fixs ds = do
     mkClauses _ [] _ = return []
 
     -- A CATCHALL pragma after the last clause is useless.
-    mkClauses x [Pragma (CatchallPragma r)] _ = [] <$ do
+    mkClauses _ [Pragma (CatchallPragma r)] _ = [] <$ do
       declarationWarning $ InvalidCatchallPragma r
 
     mkClauses x (Pragma (CatchallPragma r) : cs) catchall = do
@@ -834,7 +834,7 @@ niceDeclarations fixs ds = do
          | isEllipsis p0 ||
            numberOfWithPatterns p0 >= numWith = mapFst (c:) (subClauses cs)
          | otherwise                           = ([], c:cs)
-        subClauses (c@(Pragma (CatchallPragma r)) : cs) = case subClauses cs of
+        subClauses (c@(Pragma (CatchallPragma _r)) : cs) = case subClauses cs of
           ([], cs') -> ([], c:cs')
           (cs, cs') -> (c:cs, cs')
         subClauses [] = ([],[])
@@ -877,7 +877,7 @@ niceDeclarations fixs ds = do
 
     -- for finding clauses for a type sig in mutual blocks
     couldBeFunClauseOf :: Maybe Fixity' -> Name -> Declaration -> Bool
-    couldBeFunClauseOf mFixity x (Pragma (CatchallPragma{})) = True
+    couldBeFunClauseOf _ _ (Pragma (CatchallPragma{})) = True
     couldBeFunClauseOf mFixity x (FunClause (LHS p _ _) _ _ _) =
        hasEllipsis p || couldBeCallOf mFixity x p
     couldBeFunClauseOf _ _ _ = False -- trace ("couldBe not (fun default)") $ False
@@ -917,7 +917,7 @@ niceDeclarations fixs ds = do
            addType n (\ i -> InterleavedFun i d Nothing) checks
         addFunType _ = __IMPOSSIBLE__
 
-        addDataType d@(NiceDataSig _ _ _ _ pc uc n _ _) = do
+        addDataType d@(NiceDataSig _ _ _ _ pc _uc n _ _) = do
           let checks = MutualChecks [] [] [pc]
           addType n (\ i -> InterleavedData i d Nothing) checks
         addDataType _ = __IMPOSSIBLE__
@@ -1282,8 +1282,8 @@ niceDeclarations fixs ds = do
         unless inherited $ declarationWarning $ UselessAbstract r
         return ds -- no change!
 
-    privateBlock
-      :: KwRange  -- Range of @private@ keyword.
+    privateBlock ::
+         KwRange  -- Range of @private@ keyword.
       -> Origin   -- Origin of the private block.
       -> [NiceDeclaration]
       -> Nice [NiceDeclaration]
@@ -1300,8 +1300,8 @@ niceDeclarations fixs ds = do
       where
         warn = declarationWarning $ UselessPrivate r
 
-    instanceBlock
-      :: KwRange  -- Range of @instance@ keyword.
+    instanceBlock ::
+         KwRange  -- Range of @instance@ keyword.
       -> [NiceDeclaration]
       -> Nice [NiceDeclaration]
     instanceBlock r ds = do
@@ -1311,8 +1311,8 @@ niceDeclarations fixs ds = do
         return ds -- no change!
 
     -- Make a declaration eligible for instance search.
-    mkInstance
-      :: KwRange  -- Range of @instance@ keyword.
+    mkInstance ::
+         KwRange  -- Range of @instance@ keyword.
       -> Updater NiceDeclaration
     mkInstance r0 = \case
         Axiom r p a i rel x e          -> (\ i -> Axiom r p a i rel x e) <$> setInstance r0 i
