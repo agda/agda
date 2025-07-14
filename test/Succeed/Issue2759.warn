@@ -130,7 +130,8 @@ function clauses.
 Issue2759.agda:47.10-17: warning: -W[no]UselessPrivate
 Using private here has no effect. Private applies only to
 declarations that introduce new identifiers into the module, like
-type signatures and data, record, and module declarations.
+type signatures except for constructors, and data, record, and
+module declarations
 
 Issue2759.agda:47.18-26: warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
@@ -274,7 +275,8 @@ function clauses.
 Issue2759.agda:47.10-17: warning: -W[no]UselessPrivate
 Using private here has no effect. Private applies only to
 declarations that introduce new identifiers into the module, like
-type signatures and data, record, and module declarations.
+type signatures except for constructors, and data, record, and
+module declarations
 
 Issue2759.agda:47.18-26: warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to

@@ -471,7 +471,7 @@ instance Pretty DeclarationWarning' where
       ++ punctuate comma (fmap pretty $ Set1.toList xs)
 
     UselessPrivate _ -> fsep $
-      pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
+      pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures except for constructors, and data, record, and module declarations"
 
     UselessAbstract _ -> fsep $
       pwords "Using abstract here has no effect. Abstract applies to only definitions like data definitions, record type definitions and function clauses."

@@ -39,3 +39,13 @@ private         -- UselessPrivate
 
 data _ where    -- EmptyConstructor
   instance      -- UselessInstance
+
+module M where
+  interleaved mutual
+    data D : Set
+    private         -- Expected UselessPrivate
+      data _ where
+        c : D
+
+d : M.D
+d = M.c

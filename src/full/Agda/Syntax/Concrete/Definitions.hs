@@ -1512,7 +1512,6 @@ instance MakePrivate NiceDeclaration where
       NiceField r p a i tac x e                -> (\ p -> NiceField r p a i tac x e)            <$> mkPrivate kwr o p
       PrimitiveFunction r p a x e              -> (\ p -> PrimitiveFunction r p a x e)          <$> mkPrivate kwr o p
       NiceMutual r tc cc pc ds                 -> (\ ds-> NiceMutual r tc cc pc ds)             <$> mkPrivate kwr o ds
-      NiceLoneConstructor r ds                 -> NiceLoneConstructor r                         <$> mkPrivate kwr o ds
       NiceModule r p a e x tel ds              -> (\ p -> NiceModule r p a e x tel ds)          <$> mkPrivate kwr o p
       NiceModuleMacro r p e x ma op is         -> (\ p -> NiceModuleMacro r p e x ma op is)     <$> mkPrivate kwr o p
       FunSig r p a i m rel tc cc x e           -> (\ p -> FunSig r p a i m rel tc cc x e)       <$> mkPrivate kwr o p
@@ -1536,6 +1535,7 @@ instance MakePrivate NiceDeclaration where
       -- Andreas, 2016-07-08, issue #2089
       -- we need to propagate 'private' to the named where modules
       FunDef r ds a i tc cc x cls              -> FunDef r ds a i tc cc x <$> mkPrivate kwr o cls
+      d@NiceLoneConstructor{}                  -> return d -- Issue #7998: constructors cannot be private
       d@NiceDataDef{}                          -> return d
       d@NiceRecDef{}                           -> return d
       d@NiceUnquoteData{}                      -> return d
