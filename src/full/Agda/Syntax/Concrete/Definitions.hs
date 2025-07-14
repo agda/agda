@@ -359,7 +359,10 @@ niceDeclarations fixs ds = do
                  -- "ambiguous function clause; cannot assign it uniquely to one type signature"
 
         Field r [] -> justWarning $ EmptyField r
-        Field _ fs -> (,ds) <$> niceAxioms FieldBlock fs
+        Field _ fs -> (,ds) <$> do
+          forM fs \case
+            d@(FieldSig i tac x argt) -> pure $ NiceField (getRange d) PublicAccess ConcreteDef i tac x argt
+            d -> declarationException $ WrongContentBlock FieldBlock $ getRange d
 
         DataSig r erased x tel t -> do
           pc <- use positivityCheckPragma
@@ -726,8 +729,6 @@ niceDeclarations fixs ds = do
       d@(TypeSig rel tac x t) -> do
         dropTactic tac
         return [ Axiom (getRange d) PublicAccess ConcreteDef NotInstanceDef rel x t ]
-      d@(FieldSig i tac x argt) | b == FieldBlock -> do
-        return [ NiceField (getRange d) PublicAccess ConcreteDef i tac x argt ]
       InstanceB r decls -> do
         instanceBlock r =<< niceAxioms InstanceBlock decls
       Private r o decls | PostulateBlock <- b -> do
