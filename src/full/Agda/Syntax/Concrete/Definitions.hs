@@ -737,8 +737,8 @@ niceDeclarations fixs ds = do
       d -> declarationException $ WrongContentBlock b $ getRange d
 
     toPrim :: NiceDeclaration -> NiceDeclaration
-    toPrim (Axiom r p a i rel x t) = PrimitiveFunction r p a x (Arg rel t)
-    toPrim _                       = __IMPOSSIBLE__
+    toPrim (Axiom r p a NotInstanceDef rel x t) = PrimitiveFunction r p a x (Arg rel t)
+    toPrim _ = __IMPOSSIBLE__
 
     -- Create a function definition.
     mkFunDef ::
