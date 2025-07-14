@@ -476,8 +476,8 @@ ArgIds
 
 -- Modalities preceeding identifiers
 
-ModalArgIds :: { ([Attr], List1 (Arg Name)) }
-ModalArgIds : Attributes ArgIds  {% ($1,) `fmap` mapM (applyAttrs $1) $2 }
+ModalArgIds :: { (TacticAttribute, List1 (Arg Name)) }
+ModalArgIds : Attributes ArgIds  {% (getTacticAttr $1,) `fmap` mapM (applyAttrs $1) $2 }
 
 -- Attributes are parsed as '@' followed by an atomic expression.
 -- Unknown attributes cast a warning and are ignored.
@@ -1202,16 +1202,16 @@ Declaration
 -- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
 ArgTypeSigs :: { List1 (Arg Declaration) }
 ArgTypeSigs
-  : ModalArgIds ':' Expr { let (attrs, xs) = $1 in
-                           fmap (fmap (\ x -> typeSig defaultArgInfo (getTacticAttr attrs) x $3)) xs }
+  : ModalArgIds ':' Expr { let (tac, xs) = $1 in
+                           fmap (fmap (\ x -> typeSig defaultArgInfo tac x $3)) xs }
   | 'overlap' ModalArgIds ':' Expr {%
-      let (attrs, xs) = $2
+      let (tac, xs) = $2
           setOverlap x =
             case getHiding x of
               Instance _ -> return $ makeInstance' YesOverlap x
               _          -> parseErrorRange $1
                              "The 'overlap' keyword only applies to instance fields (fields marked with {{ }})"
-      in T.traverse (setOverlap . fmap (\ x -> typeSig defaultArgInfo (getTacticAttr attrs) x $4)) xs }
+      in T.traverse (setOverlap . fmap (\ x -> typeSig defaultArgInfo tac x $4)) xs }
   | 'instance' ArgTypeSignatures {
     let
       setInstance (TypeSig info tac x t) = TypeSig (makeInstance info) tac x t
