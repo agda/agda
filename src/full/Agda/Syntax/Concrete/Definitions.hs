@@ -454,11 +454,6 @@ niceDeclarations fixs ds = do
             [] -> justWarning $ EmptyMutual r
             _  -> (,ds) <$> (singleton <$> (mkInterleavedMutual r =<< nice ds'))
 
-        LoneConstructor r [] -> justWarning $ EmptyConstructor r
-        LoneConstructor r ds' ->
-          ((,ds) . singleton . NiceLoneConstructor r) <$> niceAxioms ConstructorBlock ds'
-
-
         Abstract r []  -> justWarning $ EmptyAbstract r
         Abstract r ds' ->
           (,ds) <$> (abstractBlock r =<< nice ds')
@@ -475,12 +470,14 @@ niceDeclarations fixs ds = do
         Macro r ds' ->
           (,ds) <$> (macroBlock r =<< nice ds')
 
-        Postulate r []  -> justWarning $ EmptyPostulate r
-        Postulate _ ds' ->
-          (,ds) <$> niceAxioms PostulateBlock ds'
+        LoneConstructor r ds' -> (,ds) <$> do
+          constructorBlock r =<< niceAxioms ConstructorBlock ds'
 
-        Primitive r []  -> justWarning $ EmptyPrimitive r
-        Primitive _ ds' -> (,ds) <$> (map toPrim <$> niceAxioms PrimitiveBlock ds')
+        Postulate r ds' -> (,ds) <$> do
+          postulateBlock r =<< niceAxioms PostulateBlock ds'
+
+        Primitive r ds' -> (,ds) <$> do
+          primitiveBlock r =<< niceAxioms PrimitiveBlock ds'
 
         Module r erased x tel ds' -> return $
           ([NiceModule r PublicAccess ConcreteDef erased x tel ds'], ds)
@@ -722,23 +719,48 @@ niceDeclarations fixs ds = do
         ]
     -- Translate axioms
     niceAxioms :: KindOfBlock -> [TypeSignatureOrInstanceBlock] -> Nice [NiceDeclaration]
-    niceAxioms b ds = List.concat <$> mapM (niceAxiom b) ds
+    niceAxioms b ds = List.concat <$> mapM niceAxiom ds
+      where
+        niceAxiom :: TypeSignatureOrInstanceBlock -> Nice [NiceDeclaration]
+        niceAxiom = \case
+          d@(TypeSig rel tac x t) -> do
+            dropTactic tac
+            return [ Axiom (getRange d) PublicAccess ConcreteDef NotInstanceDef rel x t ]
+          -- @instance@ and @private@ blocks mix well with other blocks.
+          InstanceB r ds -> instanceBlock r =<< niceAxioms b ds
+          Private r o ds | privateAllowed -> privateBlock r o =<< niceAxioms b ds
+          -- @data _ where@, @postulate@ and @primitive@ blocks exclude each other.
+          Pragma p@(RewritePragma r _ _) -> return [ NicePragma r p ]
+          Pragma p@(OverlapPragma r _ _) -> return [ NicePragma r p ]
+          d -> declarationException $ WrongContentBlock b $ getRange d
+        -- @private@ is not allowed for constructors.
+        privateAllowed :: Bool
+        privateAllowed = case b of
+          PrimitiveBlock   -> True
+          PostulateBlock   -> True
+          DataBlock        -> False
+          ConstructorBlock -> False
+          -- We do not handle @field@ blocks here.
+          FieldBlock -> __IMPOSSIBLE__
 
-    niceAxiom :: KindOfBlock -> TypeSignatureOrInstanceBlock -> Nice [NiceDeclaration]
-    niceAxiom b = \case
-      d@(TypeSig rel tac x t) -> do
-        dropTactic tac
-        return [ Axiom (getRange d) PublicAccess ConcreteDef NotInstanceDef rel x t ]
-      InstanceB r decls -> do
-        instanceBlock r =<< niceAxioms InstanceBlock decls
-      Private r o decls | PostulateBlock <- b -> do
-        privateBlock r o =<< niceAxioms b decls
-      Pragma p@(RewritePragma r _ _) -> return [ NicePragma r p ]
-      Pragma p@(OverlapPragma r _ _) -> return [ NicePragma r p ]
-      d -> declarationException $ WrongContentBlock b $ getRange d
+    constructorBlock :: KwRange -> [NiceDeclaration] -> Nice [NiceDeclaration]
+    constructorBlock r [] = [] <$ declarationWarning (EmptyConstructor r)
+    constructorBlock r ds = return $ singleton $ NiceLoneConstructor r ds
 
-    toPrim :: NiceDeclaration -> NiceDeclaration
-    toPrim (Axiom r p a NotInstanceDef rel x t) = PrimitiveFunction r p a x (Arg rel t)
+    postulateBlock :: KwRange -> [NiceDeclaration] -> Nice [NiceDeclaration]
+    postulateBlock r [] = [] <$ declarationWarning (EmptyPostulate r)
+    postulateBlock _ ds = return ds
+
+    primitiveBlock :: KwRange -> [NiceDeclaration] -> Nice [NiceDeclaration]
+    primitiveBlock r [] = [] <$ declarationWarning (EmptyPrimitive r)
+    primitiveBlock _ ds = mapM toPrim ds
+
+    toPrim :: NiceDeclaration -> Nice NiceDeclaration
+    toPrim (Axiom r p a inst rel x t) = do
+      case inst of
+        InstanceDef r  -> declarationWarning $ UselessInstance r
+        NotInstanceDef -> pure ()
+      return $ PrimitiveFunction r p a x (Arg rel t)
     toPrim _ = __IMPOSSIBLE__
 
     -- Create a function definition.

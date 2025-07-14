@@ -477,7 +477,7 @@ instance Pretty DeclarationWarning' where
       pwords "Using abstract here has no effect. Abstract applies to only definitions like data definitions, record type definitions and function clauses."
 
     UselessInstance _ -> fsep $
-      pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
+      pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms (other than primitives)."
 
     UselessMacro _ -> fsep $
       pwords "Using a macro block here has no effect. `macro' applies only to function definitions."

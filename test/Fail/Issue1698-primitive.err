@@ -1,4 +1,2 @@
-Issue1698-primitive.agda:2.3: error: [ParseError]
-data<ERROR>  D : Set where
-
--- Bad error m...
+Issue1698-primitive.agda:2.3-21: error: [Syntax.WrongContentBlock]
+Unexpected declaration

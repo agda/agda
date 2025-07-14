@@ -10,10 +10,9 @@ postulate
 {-# BUILTIN STRING String #-}
 
 primitive
-  @0 ⦃ primShowNat ⦄ : Nat → String
+  @0 primShowNat : Nat → String
 
+-- error: [WrongArgInfoForPrimitive]
 -- Wrong definition properties for primitive primShowNat
---   Got:      instance, erased
---   Expected: visible, unrestricted
--- when checking that the type of the primitive function primShowNat
--- is Nat → String
+--   Got:      at modality erased
+--   Expected: at modality default

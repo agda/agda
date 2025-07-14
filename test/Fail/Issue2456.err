@@ -1,2 +1,3 @@
 Issue2456.agda:9.12-19: error: [Syntax.WrongContentBlock]
-Unexpected declaration
+A 'postulate' block can only contain type signatures, possibly
+under keywords 'instance' and 'private'

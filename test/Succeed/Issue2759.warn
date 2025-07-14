@@ -135,7 +135,7 @@ type signatures and data, record, and module declarations.
 Issue2759.agda:47.18-26: warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
 declarations that introduce new identifiers into the module, like
-type signatures and axioms.
+type signatures and axioms (other than primitives).
 
 Issue2759.agda:47.27-32: warning: -W[no]EmptyMacro
 Empty macro block.
@@ -279,7 +279,7 @@ type signatures and data, record, and module declarations.
 Issue2759.agda:47.18-26: warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
 declarations that introduce new identifiers into the module, like
-type signatures and axioms.
+type signatures and axioms (other than primitives).
 
 Issue2759.agda:47.27-32: warning: -W[no]EmptyMacro
 Empty macro block.

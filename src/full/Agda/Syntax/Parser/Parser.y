@@ -1359,17 +1359,19 @@ Instance : 'instance' Declarations0  { InstanceB (kwRange $1) $2 }
 Macro :: { Declaration }
 Macro : 'macro' Declarations0 { Macro (kwRange $1) $2 }
 
-
 -- Postulates.
+--
+-- Checked in nicifier:
+-- Can only contain type signatures, possibly in instance and private blocks.
 Postulate :: { Declaration }
 Postulate : 'postulate' Declarations0 { Postulate (kwRange $1) $2 }
 
--- Primitives. Can only contain type signatures.
+-- Primitives.
+--
+-- Checked in nicifier:
+-- Can only contain type signatures, possibly in instance and private blocks.
 Primitive :: { Declaration }
-Primitive : 'primitive' ArgTypeSignaturesOrEmpty  {
-  let { setArg (Arg info (TypeSig _ tac x t)) = TypeSig info tac x t
-      ; setArg _ = __IMPOSSIBLE__ } in
-  Primitive (kwRange $1) (map setArg $2) }
+Primitive : 'primitive' Declarations0 { Primitive (kwRange $1) $2 }
 
 -- Unquoting declarations.
 UnquoteDecl :: { Declaration }
