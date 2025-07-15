@@ -1218,6 +1218,11 @@ ArgTypeSigs
       setInstance _ = __IMPOSSIBLE__ in
     fmap (fmap setInstance) $2 }
 
+ModalArgTypeSigs :: { List1 Declaration }
+ModalArgTypeSigs
+  : ModalArgIds ':' Expr { let (tac, xs) = $1 in
+                           fmap (\ (Arg ai x) -> typeSig ai tac x $3) xs }
+
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
 -- FunClause also handle possibly dotted type signatures.
@@ -1330,10 +1335,8 @@ Fields : 'field' ArgTypeSignaturesOrEmpty
 
 -- Variable declarations for automatic generalization
 Generalize :: { Declaration }
-Generalize : 'variable' ArgTypeSignaturesOrEmpty
-            { let
-                toGeneralize (Arg info (TypeSig _ tac x t)) = TypeSig info tac x t
-              in Generalize (kwRange $1) (map toGeneralize $2) }
+Generalize : 'variable' Block0(ModalArgTypeSigs)
+            { Generalize (kwRange $1) (List1.concat $2) }
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
@@ -1782,6 +1785,25 @@ Polarity : string {% parsePolarity $1 }
 {--------------------------------------------------------------------------
     Sequences of declarations
  --------------------------------------------------------------------------}
+
+-- A nonempty block of things.
+Block1(p)  -- :: List1 p
+  : vopen Block1i(p) close    { List1.reverse $2 }
+
+-- Inside the layout block.
+Block1i(p) -- :: List1 p
+  : Block1i(p) semi p         { $3 <| $1 }
+  | p                         { singleton $1 }
+
+-- A possibly empty block of things
+Block0(p) -- :: [p]
+    : vopen Block0i(p) close  { reverse $2 }
+
+-- Inside the layout block.
+Block0i(p)
+    : Block0i(p) semi p       { $3 : $1 }
+    | p                       { [ $1 ] }
+    | {- empty -}             { [] }
 
 -- A variant of TypeSignatures which uses ArgTypeSigs instead of
 -- TypeSigs.

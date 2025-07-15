@@ -1,0 +1,5 @@
+Issue7998VariableInstance.agda:6.3: error: [ParseError]
+instance<ERROR> 
+    X : Set
+
+-- WAS: 'instanc...

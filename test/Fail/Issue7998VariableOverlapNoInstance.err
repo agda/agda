@@ -1,0 +1,4 @@
+Issue7998VariableOverlapNoInstance.agda:5.3: error: [ParseError]
+overlap<ERROR>  X : Set
+
+-- Was error: [Parse...
