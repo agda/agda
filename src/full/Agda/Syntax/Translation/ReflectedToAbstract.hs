@@ -275,12 +275,12 @@ instance ToAbstract (QNamed R.Clause) where
     pats <- toAbstract pats
     rhs  <- toAbstract rhs
     let lhs = spineToLhs $ A.SpineLHS empty name pats
-    return $ A.Clause defaultArgInfo lhs [] (A.RHS rhs Nothing) A.noWhereDecls empty
+    return $ A.Clause lhs [] (A.RHS rhs Nothing) A.noWhereDecls empty
   toAbstract (QNamed name (R.AbsurdClause tel pats)) = withVars (map (Text.unpack *** unArg) tel) $ \_ -> do
     checkClauseTelescopeBindings tel pats
     pats <- toAbstract pats
     let lhs = spineToLhs $ A.SpineLHS empty name pats
-    return $ A.Clause defaultArgInfo lhs [] A.AbsurdRHS A.noWhereDecls empty
+    return $ A.Clause lhs [] A.AbsurdRHS A.noWhereDecls empty
 
 instance ToAbstract [QNamed R.Clause] where
   type AbsOfRef [QNamed R.Clause] = [A.Clause]

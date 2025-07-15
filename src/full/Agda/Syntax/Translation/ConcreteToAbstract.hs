@@ -2875,13 +2875,13 @@ instance ToAbstract C.Clause where
       then do
         rhs <- toAbstractCtx TopCtx $ RightHandSide eqs with wcs' rhs wh
         rhs <- toAbstract rhs
-        return $ A.Clause ai lhs' [] rhs A.noWhereDecls catchall
+        return $ A.Clause lhs' [] rhs A.noWhereDecls catchall
       else do
         -- the right hand side is checked with the module of the local definitions opened
         (rhs, ds) <- whereToAbstract (getRange wh) wh $
                        toAbstractCtx TopCtx $ RightHandSide [] with wcs' rhs NoWhere
         rhs <- toAbstract rhs
-        return $ A.Clause ai lhs' [] rhs ds catchall
+        return $ A.Clause lhs' [] rhs ds catchall
 
 
 whereToAbstract

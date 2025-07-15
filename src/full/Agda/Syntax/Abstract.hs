@@ -398,9 +398,7 @@ instance Eq ProblemEq where _ == _ = True
 --   @let@. It's not obvious how to remember that the @let@ was really a
 --   @where@ clause though, so for the time being we keep it here.
 data Clause' lhs = Clause
-  { clauseArgInfo    :: ArgInfo
-      -- ^ Modalities of the clause (e.g. irrelevance of single-clause definitions).
-  , clauseLHS        :: lhs
+  { clauseLHS        :: lhs
   , clauseStrippedPats :: [ProblemEq]
       -- ^ Only in with-clauses where we inherit some already checked patterns from the parent.
       --   These live in the context of the parent clause left-hand side.
@@ -741,7 +739,7 @@ instance HasRange (LHSCore' e) where
     getRange (LHSWith h wps ps)     = h `fuseRange` wps `fuseRange` ps
 
 instance HasRange a => HasRange (Clause' a) where
-    getRange (Clause ai lhs _ rhs ds _catchall) = getRange (ai, lhs, rhs, ds)
+    getRange (Clause lhs _ rhs ds _catchall) = getRange (lhs, rhs, ds)
 
 instance HasRange RHS where
     getRange AbsurdRHS                 = noRange
@@ -888,7 +886,7 @@ instance KillRange e => KillRange (LHSCore' e) where
   killRange (LHSWith a b c) = killRangeN LHSWith a b c
 
 instance KillRange a => KillRange (Clause' a) where
-  killRange (Clause ai lhs spats rhs ds catchall) = killRangeN Clause ai lhs spats rhs ds catchall
+  killRange (Clause lhs spats rhs ds catchall) = killRangeN Clause lhs spats rhs ds catchall
 
 instance KillRange ProblemEq where
   killRange (ProblemEq p v a) = killRangeN ProblemEq p v a
@@ -1211,7 +1209,7 @@ declarationSpine = \case
 -- | The clause spine corresponding to a clause.
 
 clauseSpine :: Clause -> ClauseSpine
-clauseSpine (Clause _ _ _ rhs ws _) =
+clauseSpine (Clause _ _ rhs ws _) =
   ClauseS (rhsSpine rhs) (whereDeclarationsSpine ws)
 
 -- | The right-hand side spine corresponding to a right-hand side.

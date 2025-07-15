@@ -1165,12 +1165,12 @@ instance ToConcrete (Constr A.Constructor) where
 instance (ToConcrete a, ConOfAbs a ~ C.LHS) => ToConcrete (A.Clause' a) where
   type ConOfAbs (A.Clause' a) = List1 C.Declaration
 
-  toConcrete (A.Clause ai lhs _ rhs wh catchall) =
+  toConcrete (A.Clause lhs _ rhs wh catchall) =
       bindToConcrete lhs $ \case
           C.LHS p _ _ -> do
             bindToConcrete wh $ \ wh' -> do
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
-                return $ FunClause ai (C.LHS p eqs with) rhs' wh' catchall :| wcs
+                return $ FunClause defaultArgInfo (C.LHS p eqs with) rhs' wh' catchall :| wcs
 
 instance ToConcrete A.ModuleApplication where
   type ConOfAbs A.ModuleApplication = C.ModuleApplication

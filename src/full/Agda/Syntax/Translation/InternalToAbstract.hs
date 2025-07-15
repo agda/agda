@@ -1092,9 +1092,9 @@ instance BlankVars A.ProblemEq where
   blank bound = id
 
 instance BlankVars A.Clause where
-  blank bound (A.Clause ai lhs strippedPats rhs wh ca)
+  blank bound (A.Clause lhs strippedPats rhs wh ca)
     | null wh =
-        A.Clause ai (blank bound' lhs)
+        A.Clause (blank bound' lhs)
                  (blank bound' strippedPats)
                  (blank bound' rhs) noWhereDecls ca
     | otherwise = __IMPOSSIBLE__
@@ -1422,7 +1422,7 @@ instance Reify NamedClause where
       return $ splitParams nfv lhs
     lhs <- stripImps rhsUsedNames params lhs
     let rhs    = caseMaybe rhsBody AbsurdRHS $ \ e -> RHS e Nothing
-        result = A.Clause defaultArgInfo (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)
+        result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)
     return result
     where
       splitParams n (SpineLHS i f ps) =
@@ -1458,7 +1458,7 @@ instance Reify (QNamed System) where
 
       lhs <- SpineLHS empty f <$> stripImplicits mempty [] ps
       rhs <- reify u <&> (`RHS` Nothing)
-      return $ A.Clause defaultArgInfo (spineToLhs lhs) [] rhs A.noWhereDecls empty
+      return $ A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls empty
 {-# SPECIALIZE reify :: QNamed System -> TCM (ReifiesTo (QNamed System)) #-}
 
 instance Reify I.Type where

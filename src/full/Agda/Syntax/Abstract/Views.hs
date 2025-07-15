@@ -364,7 +364,7 @@ instance ExprLike a => ExprLike (Pattern' a) where
 
 instance ExprLike a => ExprLike (Clause' a) where
   recurseExpr :: forall m. RecurseExprFn m (Clause' a)
-  recurseExpr f (Clause ai lhs spats rhs ds ca) = Clause ai <$> rec lhs <*> pure spats <*> rec rhs <*> rec ds <*> pure ca
+  recurseExpr f (Clause lhs spats rhs ds ca) = Clause <$> rec lhs <*> pure spats <*> rec rhs <*> rec ds <*> pure ca
     where
       rec :: RecurseExprRecFn m
       rec = recurseExpr f
@@ -549,7 +549,7 @@ instance DeclaredNames Pragma where
     OverlapPragma{}           -> mempty
 
 instance DeclaredNames Clause where
-  declaredNames (Clause _ _ _ rhs decls _) = declaredNames rhs <> declaredNames decls
+  declaredNames (Clause _ _ rhs decls _) = declaredNames rhs <> declaredNames decls
 
 instance DeclaredNames WhereDeclarations where
   declaredNames (WhereDecls _ _ ds) = declaredNames ds

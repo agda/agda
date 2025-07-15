@@ -336,7 +336,7 @@ instance (HasRange n, Hilite p, Hilite e) => Hilite (RewriteEqn' x n p e) where
     LeftLet pes   -> hilite pes
 
 instance Hilite a => Hilite (A.Clause' a) where
-  hilite (A.Clause _ai lhs strippedPats rhs wh _catchall) =
+  hilite (A.Clause lhs strippedPats rhs wh _catchall) =
     hilite lhs <> hilite strippedPats <> hilite rhs <> hilite wh
 
 instance Hilite A.ProblemEq where
