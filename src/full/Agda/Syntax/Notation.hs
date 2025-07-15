@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
 {-# OPTIONS_GHC -Wunused-binds #-}
 
 {-| As a concrete name, a notation is a non-empty list of alternating 'IdPart's and holes.
@@ -223,7 +224,7 @@ mkNotation holes ids = do
                    _          -> False)
         where
         noAdj []       = __IMPOSSIBLE__
-        noAdj [x]      = True
+        noAdj [_]      = True
         noAdj (x:y:xs) =
           not (isAHole x && isAHole y) &&
           noAdj (y:xs)
@@ -297,7 +298,7 @@ syntaxOf y
     -- numbering the holes from left to right.
     -- Result will have no 'BindingHole's.
     mkSyn :: Int -> [NamePart] -> Notation
-    mkSyn n []          = []
+    mkSyn _ []          = []
     mkSyn n (Hole : xs) = HolePart noRange (defaultNamedArg $ unranged n) : mkSyn (1 + n) xs
     mkSyn n (Id x : xs) = IdPart (unranged x) : mkSyn n xs
 
