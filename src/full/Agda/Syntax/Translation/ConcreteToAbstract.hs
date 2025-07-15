@@ -48,7 +48,7 @@ import Agda.Syntax.Abstract.Pattern as A
   ( patternVars, checkPatternLinearity, containsAsPattern, lhsCoreApp, lhsCoreWith, noDotOrEqPattern )
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Abstract.UsedNames
-  ( allUsedNames )
+  ( allUsedNames, allBoundNames )
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
@@ -64,6 +64,7 @@ import Agda.Syntax.DoNotation
 import Agda.Syntax.IdiomBrackets
 import Agda.Syntax.TopLevelModuleName
 
+import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import Agda.TypeChecking.Monad.Base hiding (ModuleInfo, MetaInfo)
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
@@ -977,6 +978,23 @@ instance ToAbstract C.Expr where
             i    = ExprRange r
         return $ A.mkLet i ds' (A.Rec kwr i fs'')
 
+      C.RecWhere kwr r [] -> pure $ A.Rec kwr (ExprRange r) []
+      C.RecWhere kwr r (d0:ds0) -> localToAbstract (LetDefs RecordWhereLetDef (d0 :| ds0)) $ \ds -> do
+        nms <- recordWhereNames ds
+        reportSDoc "scope.record.where" 30 $ vcat
+          [ "decls:"
+          , nest 2 (vcat (map prettyA ds))
+          , "names:" <+> prettyA nms
+          ]
+        return $ A.RecWhere kwr (ExprRange r) ds nms
+
+      C.RecUpdateWhere kwr r e [] -> toAbstract e
+      C.RecUpdateWhere kwr r e (d0:ds0) -> do
+        e <- toAbstract e
+        localToAbstract (LetDefs RecordWhereLetDef (d0 :| ds0)) $ \ds -> do
+          nms <- recordWhereNames ds
+          return $ A.RecUpdateWhere kwr (ExprRange r) e ds nms
+
   -- Record update
       C.RecUpdate kwr r e fs -> do
         A.RecUpdate kwr (ExprRange r) <$> toAbstract e <*> toAbstractCtx TopCtx fs
@@ -1018,6 +1036,111 @@ instance ToAbstract C.Expr where
       C.Generalized e -> do
         (s, e) <- collectGeneralizables $ toAbstract e
         pure $ A.generalized s e
+
+-- | The bindings collected while checking a @record where@ expression.
+--
+-- To each field name is associated a nonempty list of expressions
+-- (always 'A.Def' or 'A.Var') pointing to the relevant let-declaration,
+-- together with a range representing the entire declaration.
+newtype PendingBinds = PBs (Map C.Name (List1 (A.Expr, Range)))
+
+instance Semigroup PendingBinds where
+  PBs x <> PBs y = PBs (Map.unionWith (<>) x y)
+
+instance Monoid PendingBinds where
+  mempty = PBs mempty
+
+-- | State accumulated while checking a @record where@ expression.
+data RecWhereState = RecWhereState
+  { recWhereBinds :: PendingBinds
+    -- ^ The actual bindings.
+  , recWhereMods :: Map ModuleName PendingBinds
+    -- ^ A list from (locally-bound) module names to bindings associated
+    -- with that module; see #7838.
+  }
+
+-- | Chooses the appropriate field assignments for a @record where@
+-- expression given a list of @let@ declarations. Handles both local
+-- declarations and copying from a module (possibly a module
+-- application).
+recordWhereNames :: [A.LetBinding] -> ScopeM Assigns
+recordWhereNames = finish <=< foldM decl st0 where
+  st0 = RecWhereState mempty mempty
+
+  -- Turn the accumulated state into a list of assignments, potentially
+  -- choosing a binding if there are multiple for the same field; if
+  -- this is the case, also raise a warning.
+  finish :: RecWhereState -> ScopeM Assigns
+  finish (RecWhereState (PBs pending) _) = do
+    let
+      go :: Assigns
+         -> Map C.Name (List1 Range)
+         -> [(C.Name, List1 (A.Expr, Range))]
+         -> (Assigns, Map C.Name (List1 Range))
+      go !fs !ws ((con, (exp, rs) :| exps):rest) =
+        case exps of
+          []            -> go fs' ws rest
+          ((_, r):exps) -> go fs' (Map.insert con (r :| map snd exps) ws) rest
+        where fs' = FieldAssignment con exp:fs
+
+      go fs ws [] = (fs, ws)
+
+      (out, warns) = go mempty mempty (Map.toList pending)
+    List1.unlessNull (Map.toList warns) \ls -> warning . RecordFieldWarning . W.DuplicateFields $ ls
+    pure out
+
+  pb :: C.Name -> A.Expr -> Range -> PendingBinds
+  pb n e r = PBs $ Map.singleton n ((e, r) :| [])
+
+  -- Construct a single PendingBind coming from an import directive. The
+  -- name should be present in the ScopeCopyInfo if it is given (i.e. if
+  -- the import directive is associated with a local module-macro).
+  def :: Maybe ScopeCopyInfo -> A.QName -> PendingBinds
+  def (Just ren) nm = case Map.lookup nm (renNames ren) of
+    Just (new :| _) -> pb (nameConcrete (qnameName nm)) (A.Def new) (getRange nm)
+    Nothing         -> __IMPOSSIBLE__
+  def Nothing nm = pb (nameConcrete (qnameName nm)) (A.Def nm) (getRange nm)
+
+  fromRenaming :: Maybe ScopeCopyInfo -> [A.Renaming] -> PendingBinds
+  fromRenaming ren fs | (rens, _) <- partitionImportedNames (map renTo fs) = foldMap (def ren) rens
+
+  fromImport :: Maybe ScopeCopyInfo -> A.ImportDirective -> ScopeM PendingBinds
+  fromImport inv ImportDirective{ using = using, impRenaming = renaming } =
+    case using of
+      UseEverything
+        | null renaming -> pure mempty -- TODO: raise a warning?
+        | otherwise     -> pure $! fromRenaming inv renaming
+      Using using | (names, _) <- partitionImportedNames using -> pure $!
+        fromRenaming inv renaming <> foldMap (def inv) names
+
+  ins :: PendingBinds -> RecWhereState -> RecWhereState
+  ins pb (RecWhereState pb' m) = let pb'' = pb <> pb' in pb'' `seq` RecWhereState pb'' m
+
+  var :: A.Name -> Range -> RecWhereState -> RecWhereState
+  var x r = ins (pb (nameConcrete x) (A.Var x) r)
+
+  decl :: RecWhereState -> A.LetBinding -> ScopeM RecWhereState
+  decl st0 r@(A.LetBind _ _ bn _ _) = pure $! var (unBind bn) (getRange r) st0
+  decl st0 r@(A.LetAxiom _ _ bn _)  = pure $! var (unBind bn) (getRange r) st0
+  decl st0 (A.LetPatBind _ _ pat _) = pure $! Set.foldr (\x -> var x (getRange x)) st0 $ allBoundNames pat
+
+  decl st0 (A.LetApply mi _ modn _ ren idr) = do
+    reportSDoc "scope.record.where" 30 $ vcat
+      [ "module macro in `record where`:"
+      , "  ren:" <+> pure (pretty ren)
+      , "  idr:" <+> pure (pretty idr)
+      ]
+    mod_pbs <- fromImport (Just ren) idr
+    let st1 = st0{ recWhereMods = Map.insert modn mod_pbs (recWhereMods st0) }
+    case minfoOpenShort mi of
+      Just DoOpen -> pure $! ins mod_pbs st1
+      _           -> pure st1
+
+  decl st0@RecWhereState{recWhereMods = mods} (A.LetOpen _ mod idr)
+    | null idr, Just mod_pbs <- Map.lookup mod mods = pure $! ins mod_pbs st0
+  decl st0 (A.LetOpen _ _ idr) = do
+    mod_pbs <- fromImport Nothing idr
+    pure $! ins mod_pbs st0
 
 instance ToAbstract C.ModuleAssignment where
   type AbsOfCon C.ModuleAssignment = (A.ModuleName, Maybe A.LetBinding)

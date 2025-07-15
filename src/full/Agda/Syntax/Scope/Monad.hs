@@ -905,9 +905,30 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     let look x = List1.head . Map.findWithDefault __IMPOSSIBLE__ x
     -- We set the ranges to the ranges of the concrete names in order to get
     -- highlighting for the names in the import directive.
-    let definedA = for definedNames $ \case
-          ImportedName   x -> ImportedName   . (x,) . setRange (getRange x) . anameName $ look x namesInScope'
-          ImportedModule x -> ImportedModule . (x,) . setRange (getRange x) . amodName  $ look x modulesInScope'
+
+    let
+      -- Amy, 2025-05-12: to support `record where`, we also need to
+      -- update the concrete name of the "target" to match the concrete
+      -- name that the user wrote--- otherwise we get import directives
+      -- from user code like
+      --
+      --    open Some.Qualified renaming (original to new)
+      --
+      -- that print (and, more importantly, generate record fields!) like
+      --
+      --    renaming (Some.Qualifed.original to Some.Qualified.original)
+      --
+      -- because the new concrete name is a thin alias for the existing
+      -- abstract QName, rather than
+      --
+      --    renaming (Some.Qualified.Original to new)
+
+      upd :: C.Name -> A.QName -> A.QName
+      upd x nm = setRange (getRange x) $ qualify_ $ (qnameName nm) { nameConcrete = x }
+
+      definedA = for definedNames $ \case
+        ImportedName   x -> ImportedName   . (x,) . upd x . anameName $ look x namesInScope'
+        ImportedModule x -> ImportedModule . (x,) . setRange (getRange x) . amodName $ look x modulesInScope'
 
     let adir = mapImportDir namesA definedA dir
     return (adir, scope') -- TODO Issue 1714: adir

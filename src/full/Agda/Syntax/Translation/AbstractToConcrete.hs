@@ -970,6 +970,25 @@ instance ToConcrete A.Expr where
       bracket appBrackets $ do
         C.RecUpdate kwr (getRange i) <$> toConcrete e <*> toConcreteTop fs
 
+    toConcrete (A.RecWhere kwr i es ass) = bracket appBrackets $ do
+      -- InternalToAbstract generates FieldAssignments of the following
+      -- form to associate the fresh 'A.Name's generated for the record
+      -- field bindings should be printed back without disambiguators
+      Fold.for_ ass \case
+        FieldAssignment cn (A.Var an) -> pickConcreteName an cn
+        _                             -> pure ()
+      C.RecWhere kwr (getRange i) . concat . List1.toList <$> toConcrete es
+
+    toConcrete (A.RecUpdateWhere kwr i e0 es ass) = bracket appBrackets do
+      -- InternalToAbstract generates FieldAssignments of the following
+      -- form to associate the fresh 'A.Name's generated for the record
+      -- field bindings should be printed back without disambiguators
+      Fold.for_ ass \case
+        FieldAssignment cn (A.Var an) -> pickConcreteName an cn
+        _                             -> pure ()
+      e0 <- toConcrete e0
+      C.RecUpdateWhere kwr (getRange i) e0 . concat . List1.toList <$> toConcrete es
+
     toConcrete (A.ScopedExpr _ e) = toConcrete e
     toConcrete (A.Quote i) = return $ C.Quote (getRange i)
     toConcrete (A.QuoteTerm i) = return $ C.QuoteTerm (getRange i)
@@ -1041,14 +1060,17 @@ instance ToConcrete A.LetBinding where
 
     bindToConcrete (A.LetBind i info x t e) ret =
       bindToConcrete x \ x -> do
+        let
+          keep C.Underscore{} = False
+          keep _              = True
         toConcrete (t, A.RHS e Nothing) >>= \case
           (t, (e, [], [], [])) ->
            ret $ addInstanceB (if isInstance info then Just empty else Nothing) $
-               [ C.TypeSig info empty (C.boundName x) t
-               , C.FunClause info
-                   (C.LHS (C.IdentP True $ C.QName $ C.boundName x) [] [])
-                   e C.NoWhere empty
-               ]
+            [ C.TypeSig info empty (C.boundName x) t | keep t ] <>
+            [ C.FunClause info
+                (C.LHS (C.IdentP True $ C.QName $ C.boundName x) [] [])
+                e C.NoWhere empty
+            ]
           _ -> __IMPOSSIBLE__
     bindToConcrete (A.LetAxiom i info x t) ret = bindToConcrete x \x -> do
       t <- toConcrete t
