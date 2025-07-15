@@ -179,7 +179,8 @@ data Expr
   | Let Range (List1 Declaration) (Maybe Expr) -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
   | Paren Range Expr                           -- ^ ex: @(e)@
   | IdiomBrackets Range [Expr]                 -- ^ ex: @(| e1 | e2 | .. | en |)@ or @(|)@
-  | DoBlock Range (List1 DoStmt)               -- ^ ex: @do x <- m1; m2@
+  | DoBlock KwRange (List1 DoStmt)             -- ^ ex: @do x <- m1; m2@
+                                               --   The 'KwRange' is for the @do@ keyword.
   | Absurd Range                               -- ^ ex: @()@ or @{}@, only in patterns
   | As Range Name Expr                         -- ^ ex: @x\@p@, only in patterns
   | Dot KwRange Expr                           -- ^ ex: @.p@, only in patterns
@@ -931,7 +932,7 @@ instance HasRange Expr where
       Let r _ _          -> r
       Paren r _          -> r
       IdiomBrackets r _  -> r
-      DoBlock r _        -> r
+      DoBlock r ds       -> getRange (r, ds)
       As r _ _           -> r
       Dot r e            -> getRange (r, e)
       DoubleDot r e      -> getRange (r, e)
@@ -1206,7 +1207,7 @@ instance KillRange Expr where
   killRange (Let _ d e)            = killRangeN (Let noRange) d e
   killRange (Paren _ e)            = killRangeN (Paren noRange) e
   killRange (IdiomBrackets _ es)   = killRangeN (IdiomBrackets noRange) es
-  killRange (DoBlock _ ss)         = killRangeN (DoBlock noRange) ss
+  killRange (DoBlock _ ss)         = killRangeN (DoBlock empty) ss
   killRange (Absurd _)             = Absurd noRange
   killRange (As _ n e)             = killRangeN (As noRange) n e
   killRange (Dot _ e)              = killRangeN (Dot empty) e

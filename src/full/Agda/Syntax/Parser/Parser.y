@@ -665,7 +665,7 @@ Expr2
     | ExtendedOrAbsurdLam          { $1 }
     | 'forall' ForallBindings Expr { forallPi $2 $3 }
     | 'let' Declarations LetBody   { Let (getRange ($1,$2,$3)) $2 $3 }
-    | 'do' vopen DoStmts close     { DoBlock (getRange ($1, $3)) $3 }
+    | 'do' vopen DoStmts close     { DoBlock (kwRange $1) $3 }
     | Expr3                        { $1 }
     | 'tactic' Application3        { Tactic (getRange ($1, $2)) (rawApp $2) }
 

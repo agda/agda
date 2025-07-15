@@ -989,8 +989,8 @@ instance ToAbstract C.Expr where
         toAbstractCtx TopCtx =<< parseIdiomBracketsSeq r es
 
   -- Do notation
-      C.DoBlock r ss ->
-        toAbstractCtx TopCtx =<< desugarDoNotation r ss
+      C.DoBlock _kwr ss ->
+        toAbstractCtx TopCtx =<< desugarDoNotation ss
 
   -- Post-fix projections
       e0@(C.Dot _kwr e) -> A.Dot (ExprRange $ getRange e0) <$> toAbstract e
