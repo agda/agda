@@ -34,6 +34,7 @@
 --     (ConcreteToAbstract), where we are in the TCM and can produce more
 --     informative error messages.
 
+{-# OPTIONS_GHC -Wunused-matches #-}
 
 module Agda.Syntax.Concrete.Definitions
     ( NiceDeclaration(..)
@@ -1002,7 +1003,7 @@ niceDeclarations fixs ds = do
              KwRange
           -> [NiceDeclaration]
           -> INice [(DeclNum, NiceDeclaration)]
-        addFunClauses r (nd@(NiceFunClause _ _ _ tc cc _ d@(FunClause lhs _ _ _)) : ds) = do
+        addFunClauses r (nd@(NiceFunClause _ _ _ tc cc _ (FunClause lhs _ _ _)) : ds) = do
           -- get the candidate functions that are in this interleaved mutual block
           ISt m checks i <- get
           let sigs = mapMaybe (\ (n, d) -> n <$ isInterleavedFun d) $ Map.toList m
@@ -1034,7 +1035,7 @@ niceDeclarations fixs ds = do
               KwRange
           -> [NiceDeclaration]
           -> INice [(DeclNum, NiceDeclaration)]
-        groupByBlocks kwr []       = pure []
+        groupByBlocks _kwr []      = pure []
         groupByBlocks kwr (d : ds) = do
           -- for most branches we deal with the one declaration and move on
           let oneOff act = act >>= \ ns -> (ns ++) <$> groupByBlocks kwr ds
@@ -1043,7 +1044,7 @@ niceDeclarations fixs ds = do
             NiceDataDef _ _ _ _ _ n _ ds -> oneOff $ [] <$ addDataConstructors (Just n) ds
             NiceLoneConstructor _ ds     -> oneOff $ [] <$ addDataConstructors Nothing ds
             FunSig{}                     -> oneOff $ [] <$ addFunType d
-            FunDef _ _ _  _ _ _ n cs
+            FunDef _ _ _  _ _ _ n _cs
                       | not (isNoName n) -> oneOff $ [] <$ addFunDef d
             -- It's a bit different for fun clauses because we may need to grab a lot
             -- of clauses to handle ellipses properly.
@@ -1103,7 +1104,7 @@ niceDeclarations fixs ds = do
         -- Definitions of names go to the bottom.
         -- Some declarations are forbidden, as their positioning could confuse
         -- the user.
-        (top, bottom, invalid) <- forEither3M ds $ \ d -> do
+        (top, bottom, _invalid) <- forEither3M ds $ \ d -> do
           let top       = return (In1 d)
               bottom    = return (In2 d)
               invalid s = In3 d <$ do declarationWarning $ NotAllowedInMutual (getRange d) s
@@ -1147,7 +1148,7 @@ niceDeclarations fixs ds = do
             -- they all need to be.
             NiceOpaque r _ _    ->
               In3 d <$ do declarationException $ OpaqueInMutual r
-            NicePragma r pragma -> case pragma of
+            NicePragma _r pragma -> case pragma of
 
               OptionsPragma{}           -> top     -- error thrown in the type checker
 
@@ -1435,10 +1436,10 @@ instance MakeAbstract NiceDeclaration where
     -- but are not really definitions, so we do count them into
     -- the declarations which can be made abstract
     -- (thus, do not notify progress with @dirty@).
-    Axiom r p a i rel x e                -> return $ Axiom             r p AbstractDef i rel x e
-    FunSig r p a i m rel tc cc x e       -> return $ FunSig            r p AbstractDef i m rel tc cc x e
-    NiceRecSig  r er p a pc uc x ls t    -> return $ NiceRecSig     r er p AbstractDef pc uc x ls t
-    NiceDataSig r er p a pc uc x ls t    -> return $ NiceDataSig    r er p AbstractDef pc uc x ls t
+    Axiom r p _ i rel x e                -> return $ Axiom             r p AbstractDef i rel x e
+    FunSig r p _ i m rel tc cc x e       -> return $ FunSig            r p AbstractDef i m rel tc cc x e
+    NiceRecSig  r er p _ pc uc x ls t    -> return $ NiceRecSig     r er p AbstractDef pc uc x ls t
+    NiceDataSig r er p _ pc uc x ls t    -> return $ NiceDataSig    r er p AbstractDef pc uc x ls t
     NiceField r p _ i tac x e            -> return $ NiceField         r p AbstractDef i tac x e
     PrimitiveFunction r p _ x e          -> return $ PrimitiveFunction r p AbstractDef x e
     -- Andreas, 2016-07-17 it does have effect on unquoted defs.
