@@ -1234,7 +1234,7 @@ checkRecordWhere cmp kwr ei update decls fs e t = do
       ]
 
     let
-      check :: [A.LetBinding] -> (IntMap.IntMap (A.BindName, MetaId, A.Expr, Type -> TCM Term) -> TCM a) -> TCM a
+      check :: [A.LetBinding] -> (IntMap.IntMap (A.BindName, MetaId, Term, A.Expr, Type -> TCM Term) -> TCM a) -> TCM a
       check (b@(A.LetBind i info x t e):bs) cont | Just (idx, fname) <- Map.lookup (A.unBind x) names = do
 
         -- We create the meta with the actual type of the binding, to
@@ -1259,7 +1259,7 @@ checkRecordWhere cmp kwr ei update decls fs e t = do
 
         -- Then just add the let binding with the value set to a meta.
         lets `seq` addLetBinding info UserWritten (A.unBind x) v t $ check bs \as ->
-          cont (IntMap.insert idx (x, mv, e, checkit) as)
+          cont (IntMap.insert idx (x, mv, v, e, checkit) as)
 
       -- For any other bindings we can check them on the spot (so the
       -- hardest parts of 'checkLetBinding' don't need to be
@@ -1298,17 +1298,17 @@ checkRecordWhere cmp kwr ei update decls fs e t = do
 
       -- Then we can go back and check the bindings. (The name and
       -- expression are just for debug printing.)
-      forM_ (IntMap.toAscList later) \(_, (fname, mv, e, check)) -> do
-        ty <- getMetaType mv
+      forM_ (IntMap.toAscList later) \(_, (fname, mid, meta, e, check)) -> do
+        ty <- getMetaTypeInContext mid
 
         reportSDoc "tc.record.where" 30 $ vcat
           [ "checking deferred `record where` binding for " <> prettyA fname <> ":"
           , nest 2 $ vcat
-            [ prettyTCM mv <+> ":" <+> prettyTCM ty
-            , prettyTCM mv <+> "=" <+> prettyA e ] ]
+            [ prettyTCM meta <+> ":" <+> prettyTCM ty
+            , prettyTCM meta <+> "=" <+> prettyA e ] ]
 
         v <- check ty
-        assign DirEq mv [] v (AsTermsOf ty)
+        equalTerm ty meta v
 
       pure out
 
