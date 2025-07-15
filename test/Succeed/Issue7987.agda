@@ -46,3 +46,9 @@ let-flat x f =
 split-flat : {@♭ A B C : Set} (@♭ p : Σ A λ _ → B) (k : @♭ A → @♭ B → C) → C
 split-flat p k = let @♭ (x , y) = p in k x y
   -- needs option --flat-split
+
+let-flat1 : {@♭ A : Set₁} (@♭ x : A) (f : @♭ A → A) → A
+let-flat1 {A} x f =
+  let @♭ y : A
+      y = x
+  in  f y
