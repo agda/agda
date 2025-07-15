@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-binds #-}
+
 -- | Main module for JS backend.
 
 module Agda.Compiler.JS.Compiler where
@@ -442,7 +444,8 @@ definition' kit q d t ls =
     Function{} | otherwise -> do
 
       reportSDoc "compile.js" 5 $ "compiling fun:" <+> prettyTCM q
-      caseMaybeM (toTreeless T.EagerEvaluation q) (pure Nothing) $ \ treeless -> do
+      let mTreeless = toTreeless T.EagerEvaluation q
+      caseMaybeM mTreeless (pure Nothing) $ \ treeless -> do
         used <- fromMaybe [] <$> getCompiledArgUse q
         funBody <- eliminateCaseDefaults =<<
           eliminateLiteralPatterns
@@ -450,21 +453,7 @@ definition' kit q d t ls =
         reportSDoc "compile.js" 30 $ " compiled treeless fun:" <+> pretty funBody
         reportSDoc "compile.js" 40 $ " argument usage:" <+> (text . show) used
 
-        let (body, given) = lamView funBody
-              where
-                lamView :: T.TTerm -> (T.TTerm, Int)
-                lamView (T.TLam t) = (+ 1) <$> lamView t
-                lamView t = (t, 0)
-
-            -- number of eta expanded args
-            etaN = length $ dropWhileEnd (== ArgUsed) $ drop given used
-
-            unusedN = length $ filter (== ArgUnused) used
-
-        funBody' <- compileTerm kit
-                  $ iterate' (given + etaN - unusedN) T.TLam
-                  $ eraseLocalVars (map (== ArgUnused) used)
-                  $ T.mkTApp (raise etaN body) (T.TVar <$> downFrom etaN)
+        funBody' <- compileTerm kit funBody
 
         reportSDoc "compile.js" 30 $ " compiled JS fun:" <+> (text . show) funBody'
         return $
@@ -494,40 +483,72 @@ definition' kit q d t ls =
         return Nothing
 
     Constructor{} | Just e <- defJSDef d -> plainJS e
+    -- Implements Scott-Encoding of constructor definitions
+    -- (see the note "Implementing data types")
     Constructor{conData = p, conPars = nc} -> do
       TelV tel _ <- telViewPath t
-      let np = length (telToList tel) - nc
-      erased <- getErasedConArgs q
-      let nargs = np - length (filter id erased)
+      let nargs = length (telToList tel) - nc
           args = [ Local $ LocalId $ nargs - i | i <- [0 .. nargs-1] ]
       d <- getConstInfo p
       let l = List1.last ls
-      case theDef d of
-        Record { recFields = flds } -> ret $ curriedLambda nargs $
-          if optJSOptimize (fst kit)
-            then Lambda 1 $ Apply (Local (LocalId 0)) args
-            else Object $ Map.singleton l $ Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args
-        dt -> do
-          i <- index
-          ret $ curriedLambda (nargs + 1) $ Apply (Lookup (Local (LocalId 0)) i) args
-          where
-            index :: TCM MemberId
-            index
-              | Datatype{} <- dt
-              , optJSOptimize (fst kit) = do
-                  q  <- canonicalName q
-                  cs <- mapM canonicalName $ defConstructors dt
-                  case q `elemIndex` cs of
-                    Just i  -> return $ MemberIndex i (mkComment l)
-                    Nothing -> __IMPOSSIBLE_VERBOSE__ $ unwords [ "Constructor", prettyShow q, "not found in", prettyShow cs ]
-              | otherwise = return l
-            mkComment (MemberId s) = Comment s
-            mkComment _ = mempty
+      ret
+        $ curriedLambda nargs
+        $ (case theDef d of
+              Record {} -> Object . Map.singleton l
+              dt -> id)
+        $  Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args
 
     AbstractDefn{} -> __IMPOSSIBLE__
   where
     ret = return . Just . Export ls
-    plainJS = return . Just . Export ls . PlainJS
+    plainJS = ret . PlainJS
+
+-- Implementing data types
+--------------------------
+
+-- Data types are implemented using a variant of Scott Encoding,
+-- which uses JavaScript dicts instead of some lambda-expressions
+
+-- For example, given the data type
+--
+--      data Foo : Set where
+--        c1 : Foo
+--        c2 : X -> Y -> Foo
+--        c3 : Foo -> Foo
+--
+-- here is how "Foo" is compiled:
+--
+--  * A constructor definition, e.g.
+--
+--        c2 : X -> Y -> Foo
+--
+--    compiles to
+--
+--        exports["Foo"]["c2"] = x => y => k => k["c2"](x,y)
+--
+--  * A constructor application, e.g.
+--
+--        c2 x y
+--
+--    compiles to
+--
+--        exports["Foo"]["c2"](x)(y)
+--
+--  * A case split, e.g.
+--
+--        case p of
+--          (c1    ) -> E1
+--          (c2 x y) -> E2
+--          (c3 f  ) -> E3
+--
+--    compiles to
+--
+--        p(
+--          { "c1": ()    => E1
+--          , "c2": (x,y) => E2
+--          , "c3": f     => E3
+--          })
+
 
 compileTerm :: EnvWithOpts -> T.TTerm -> TCM Exp
 compileTerm kit t = go t
@@ -557,22 +578,6 @@ compileTerm kit t = go t
         return $ Object $ Map.fromListWith __IMPOSSIBLE__
           [(flatName, PlainJS evalThunk)
           ,(MemberId "__flat_helper", Lambda 0 x)]
-      T.TApp t' xs | Just f <- getDef t' -> do
-        used <- case f of
-          Left  q -> fromMaybe [] <$> getCompiledArgUse q
-          Right c -> map (\ b -> if b then ArgUnused else ArgUsed) <$> getErasedConArgs c
-            -- Andreas, 2021-02-10 NB: could be @map (bool ArgUsed ArgUnused)@
-            -- but I find it unintuitive that 'bool' takes the 'False'-branch first.
-        let given = length xs
-
-            -- number of eta expanded args
-            etaN = length $ dropWhile (== ArgUsed) $ reverse $ drop given used
-
-            args = filterUsed used $
-                     raise etaN xs ++ (T.TVar <$> downFrom etaN)
-
-        curriedLambda etaN <$> (curriedApply <$> go (raise etaN t') <*> mapM go args)
-
       T.TApp t xs -> do
             curriedApply <$> go t <*> mapM go xs
       T.TLam t -> Lambda 1 <$> go t
@@ -583,25 +588,21 @@ compileTerm kit t = go t
         e' <- substShift 1 1 [Apply (Local (LocalId 0)) []] <$> go e
         return $ Apply (Lambda 1 e') [t']
       T.TLit l -> return $ literal l
-      T.TCon q -> do
-        d <- getConstInfo q
-        qname q
+      -- Implements Scott-Encoding of constructor applications
+      -- (see the note "Implementing data types")
+      T.TCon q -> qname q
+    -- Implements Scott-Encoding of case splits
+    -- (see the note "Implementing data types")
       T.TCase sc ct def alts | T.CTData dt <- T.caseType ct -> do
         dt <- getConstInfo dt
         alts' <- traverse (compileAlt kit) alts
-        let cs  = defConstructors $ theDef dt
-            obj = Object $ Map.fromListWith __IMPOSSIBLE__ [(snd x, y) | (x, y) <- alts']
-            arr = mkArray [headWithDefault (mempty, Null) [(Comment s, y) | ((c', MemberId s), y) <- alts', c' == c] | c <- cs]
+        let obj = Object $ Map.fromListWith __IMPOSSIBLE__ alts'
         case (theDef dt, defJSDef dt) of
           (_, Just e) -> do
             return $ apply (PlainJS e) [Local (LocalId sc), obj]
-          (Record{}, _) | optJSOptimize (fst kit) -> do
-            return $ apply (Local $ LocalId sc) [snd $ headWithDefault __IMPOSSIBLE__ alts']
           (Record{}, _) -> do
             memId <- visitorName $ recCon $ theDef dt
             return $ apply (Lookup (Local $ LocalId sc) memId) [obj]
-          (Datatype{}, _) | optJSOptimize (fst kit) -> do
-            return $ curriedApply (Local (LocalId sc)) [arr]
           (Datatype{}, _) -> do
             return $ curriedApply (Local (LocalId sc)) [obj]
           _ -> __IMPOSSIBLE__
@@ -615,17 +616,8 @@ compileTerm kit t = go t
       T.TError T.TMeta{}      -> return Undefined
       T.TCoerce t -> go t
 
-    getDef (T.TDef f) = Just (Left f)
-    getDef (T.TCon c) = Just (Right c)
-    getDef (T.TCoerce x) = getDef x
-    getDef _ = Nothing
-
     unit = return Null
 
-    mkArray xs
-        | 2 * length (filter ((== Null) . snd) xs) <= length xs = Array xs
-        | otherwise = Object $ Map.fromListWith __IMPOSSIBLE__
-            [ (MemberIndex i c, x) | (i, (c, x)) <- zip [0..] xs, x /= Null ]
 
 compilePrim :: T.TPrim -> Exp
 compilePrim p =
@@ -657,24 +649,18 @@ compilePrim p =
         unOp js  = curriedLambda 1 $ apply (PlainJS js) [local 0]
         primEq   = curriedLambda 2 $ BinOp (local 1) "===" (local 0)
 
-
-compileAlt :: EnvWithOpts -> T.TAlt -> TCM ((QName, MemberId), Exp)
+-- Implements Scott-Encoding of case split cases
+-- (see the note "Implementing data types")
+compileAlt :: EnvWithOpts -> T.TAlt -> TCM (MemberId, Exp)
 compileAlt kit = \case
-  T.TACon con ar body -> do
-    erased <- getErasedConArgs con
-    let nargs = ar - length (filter id erased)
+  T.TACon con nargs body -> do
     memId <- visitorName con
-    body <- Lambda nargs <$> compileTerm kit (eraseLocalVars erased body)
-    return ((con, memId), body)
+    body <- Lambda nargs <$> compileTerm kit body
+    return (memId, body)
   _ -> __IMPOSSIBLE__
 
-eraseLocalVars :: [Bool] -> T.TTerm -> T.TTerm
-eraseLocalVars [] x = x
-eraseLocalVars (False: es) x = eraseLocalVars es x
-eraseLocalVars (True: es) x = eraseLocalVars es (TC.subst (length es) T.TErased x)
-
 visitorName :: QName -> TCM MemberId
-visitorName q = do (m,ls) <- global q; return (List1.last ls)
+visitorName q = List1.last . snd <$> global q
 
 flatName :: MemberId
 flatName = MemberId "flat"
