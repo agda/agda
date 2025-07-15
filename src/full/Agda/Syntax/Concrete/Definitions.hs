@@ -148,14 +148,14 @@ data DeclKind
   deriving (Eq, Show)
 
 declKind :: NiceDeclaration -> DeclKind
-declKind (FunSig r _ _ _ _ _ tc cc x _)      = LoneSigDecl r (FunName tc cc) x
+declKind (FunSig r _ _ _ _ ai tc cc x _)     = LoneSigDecl r (FunName ai tc cc) x
 declKind (NiceRecSig r _ _ _ pc uc x _ _)    = LoneSigDecl r (RecName pc uc) x
 declKind (NiceDataSig r _ _ _ pc uc x _ _)   = LoneSigDecl r (DataName pc uc) x
-declKind (FunDef _r _ _ _ tc cc x _)         = LoneDefs (FunName tc cc) [x]
+declKind (FunDef _r _ _ _ tc cc x (cl :| _)) = LoneDefs (FunName (getArgInfo cl) tc cc) [x]
 declKind (NiceDataDef _ _ _ pc uc x _par _)  = LoneDefs (DataName pc uc) [x]
 declKind (NiceUnquoteData _ _ _ pc uc x _ _) = LoneDefs (DataName pc uc) [x]
 declKind (NiceRecDef _ _ _ pc uc x _ _par _) = LoneDefs (RecName pc uc) [x]
-declKind (NiceUnquoteDef _ _ _ tc cc xs _)   = LoneDefs (FunName tc cc) xs
+declKind (NiceUnquoteDef _ _ _ tc cc xs _)   = LoneDefs (FunName empty tc cc) xs
 declKind Axiom{}                             = OtherDecl
 declKind NiceField{}                         = OtherDecl
 declKind PrimitiveFunction{}                 = OtherDecl
@@ -300,7 +300,7 @@ niceDeclarations fixs ds = do
           -- (like @x y z : A@) into several type signatures (with imprecise ranges).
           let r = getRange x
           -- register x as lone type signature, to recognize clauses later
-          x' <- addLoneSig r x $ FunName termCheck covCheck
+          x' <- addLoneSig r x $ FunName info termCheck covCheck
           return ([FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x' t] , ds)
 
         -- Should not show up: all FieldSig are part of a Field block
@@ -348,11 +348,13 @@ niceDeclarations fixs ds = do
                 return ([NiceFunClause (getRange d) PublicAccess ConcreteDef termCheck covCheck catchall d] , ds)
 
             -- case: clauses match exactly one of the sigs
-            [(x,(x',fits,rest))] -> do
+            [(x, (Arg info x', fits, rest))] -> do
                -- The x'@NoName{} is the unique version of x@NoName{}.
                removeLoneSig x
-               ds  <- expandEllipsis1 fits
-               cs  <- mkClauses1 ai x' ds empty
+               -- Make sure that the modality of the clause is the same as the type signature.
+               -- _ai <- checkModality info ai
+               ds <- expandEllipsis1 fits
+               cs <- mkClauses1 info x' ds empty
                return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck covCheck x' cs] , rest)
 
             -- case: clauses match more than one sigs (ambiguity)
@@ -822,37 +824,45 @@ niceDeclarations fixs ds = do
     expandEllipsis1 _ = __IMPOSSIBLE__
 
     -- Turn function clauses into nice function clauses.
-    mkClauses1 :: ArgInfo -> Name -> List1 Declaration -> Catchall -> Nice (List1 Clause)
-    mkClauses1 ai x ds ca = List1.fromListSafe __IMPOSSIBLE__ <$> mkClauses ai x (List1.toList ds) ca
+    mkClauses1 ::
+         ArgInfo
+           -- Clauses need to conform to this 'Modality'.
+      -> Name -> List1 Declaration -> Catchall -> Nice (List1 Clause)
+    mkClauses1 info x ds ca = List1.fromListSafe __IMPOSSIBLE__ <$> mkClauses info x (List1.toList ds) ca
 
-    mkClauses :: ArgInfo -> Name -> [Declaration] -> Catchall -> Nice [Clause]
+    mkClauses ::
+         ArgInfo
+           -- Clauses need to conform to this 'Modality'.
+      -> Name -> [Declaration] -> Catchall -> Nice [Clause]
     mkClauses _ _ [] _ = return []
 
     -- A CATCHALL pragma after the last clause is useless.
     mkClauses _ _ [Pragma (CatchallPragma r)] _ = [] <$ do
       declarationWarning $ InvalidCatchallPragma r
 
-    mkClauses ai x (Pragma (CatchallPragma r) : cs) catchall = do
+    mkClauses info x (Pragma (CatchallPragma r) : cs) catchall = do
       -- Warn about consecutive CATCHALL pragmas
       unless (null catchall) $ declarationWarning $ InvalidCatchallPragma r
-      mkClauses ai x cs (YesCatchall r)
+      mkClauses info x cs (YesCatchall r)
 
-    mkClauses ai x (FunClause _ai lhs rhs wh ca : cs) catchall
-      | null (lhsWithExpr lhs) || hasEllipsis lhs  =
-      (Clause x (ca <> catchall) ai lhs rhs wh [] :) <$> mkClauses ai x cs empty   -- Will result in an error later.
+    mkClauses info x (FunClause ai lhs rhs wh ca : cs) catchall
+      | null (lhsWithExpr lhs) || hasEllipsis lhs = do
+      ai <- checkModality info ai
+      (Clause x (ca <> catchall) ai lhs rhs wh [] :) <$> mkClauses info x cs empty
 
-    mkClauses ai1 x (FunClause ai2 lhs rhs wh ca : cs) catchall = do
-      let ai = reconcileArgInfo ai1 ai2
+    mkClauses info x (FunClause ai lhs rhs wh ca : cs) catchall = do
+      ai <- checkModality info ai
       when (null withClauses) $ declarationException $ MissingWithClauses x lhs
-      wcs <- mkClauses ai x withClauses empty
-      (Clause x (ca <> catchall) ai lhs rhs wh wcs :) <$> mkClauses ai x cs' empty
+      wcs <- mkClauses info x withClauses empty
+      (Clause x (ca <> catchall) ai lhs rhs wh wcs :) <$> mkClauses info x cs' empty
       where
         (withClauses, cs') = subClauses cs
 
         -- A clause is a subclause if the number of with-patterns is
         -- greater or equal to the current number of with-patterns plus the
         -- number of with arguments.
-        numWith = numberOfWithPatterns p + length (filter visible es) where LHS p _ es = lhs
+        numWith = numberOfWithPatterns p + length (filter visible es)
+          where LHS p _ es = lhs
 
         subClauses :: [Declaration] -> ([Declaration],[Declaration])
         subClauses (c@(FunClause _ (LHS p0 _ _) _ _ _) : cs)
@@ -866,12 +876,13 @@ niceDeclarations fixs ds = do
         subClauses _  = __IMPOSSIBLE__
     mkClauses _ _ _ _ = __IMPOSSIBLE__
 
-    reconcileArgInfo :: ArgInfo -> ArgInfo -> ArgInfo
-    reconcileArgInfo ai1 ai2
-      | null ai1 = ai2
-      | null ai2 = ai1
-      | let r1 = getRelevance ai1, let r2 = getRelevance ai2 =
-          if sameRelevance r1 r2 then ai1 else setRelevance (max r1 r2) ai1
+    checkModality ::
+         ArgInfo       -- Authoritative 'Modality' from type signature.
+      -> ArgInfo       -- 'Modality' from clause, has to conform.
+      -> Nice ArgInfo  -- Deviant 'Modality' conformed to authoritative source.
+    checkModality info ai
+      | (null ai || sameModality info ai) = return ai
+      | otherwise = info <$ declarationWarning (DivergentModalityInClause info ai)
 
     couldBeCallOf :: Maybe Fixity' -> Name -> Pattern -> Bool
     couldBeCallOf mFixity x p =
@@ -1009,6 +1020,7 @@ niceDeclarations fixs ds = do
 
         addFunClauses ::
              KwRange
+               -- Range of the @interleaved mutual@ keyword.
           -> [NiceDeclaration]
           -> INice [(DeclNum, NiceDeclaration)]
         addFunClauses r (nd@(NiceFunClause _ _ _ tc cc _ (FunClause ai lhs _ _ _)) : ds) = do
@@ -1041,6 +1053,7 @@ niceDeclarations fixs ds = do
 
         groupByBlocks ::
               KwRange
+                -- Range of the @interleaved mutual@ keyword.
           -> [NiceDeclaration]
           -> INice [(DeclNum, NiceDeclaration)]
         groupByBlocks _kwr []      = pure []

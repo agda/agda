@@ -111,7 +111,8 @@ checkFunDef i name cs = do
                 whenM (isFrozen x) $ do
                   xs <- allMetasList . jMetaType . mvJudgement <$> lookupLocalMeta x
                   mapM_ unfreezeMeta (x : xs)
-                checkAlias t info' i name e mc
+                checkAlias t info i name e mc
+                -- checkAlias t info' i name e mc
             | otherwise -> do -- Warn about abstract alias (will never work!)
               -- Ulf, 2021-11-18, #5620: Don't warn if the meta is solved. A more intuitive solution
               -- would be to not treat definitions with solved meta types as aliases, but in mutual
@@ -120,10 +121,11 @@ checkFunDef i name cs = do
               -- happens.
               whenM (isOpenMeta <$> lookupMetaInstantiation x) $
                 setCurrentRange i $ warning $ MissingTypeSignatureForOpaque name (Info.defOpaque i)
-              checkFunDef' t info' Nothing Nothing i name cs
-            where
-              -- Copy relevance info from ai
-              info' = mapRelevance (max (getRelevance ai)) info
+              checkFunDef' t info Nothing Nothing i name cs
+            --   checkFunDef' t info' Nothing Nothing i name cs
+            -- where
+            --   -- Copy relevance info from ai
+            --   info' = mapRelevance (max (getRelevance ai)) info
           _ -> checkFunDef' t info Nothing Nothing i name cs
 
         -- If it's a macro check that it ends in Term → TC ⊤
@@ -717,12 +719,12 @@ checkClause t withSubAndLets c@(A.Clause ai lhs@(A.SpineLHS i x aps) strippedPat
  --  -- Check that we do not ignore other modality info
  --  unless (null $ setRelevance empty ai) __IMPOSSIBLE__
 
-  unlessNull (getRelevance ai) \ r' -> do
-    r <- asksTC envRelevance
-    unless (sameRelevance r r') do
-      -- Warn about ignored relevance
-      setCurrentRange r' do
-        warning $ FixingRelevance "contradicting declared relevance" r' r
+  -- unlessNull (getRelevance ai) \ r' -> do
+  --   r <- asksTC envRelevance
+  --   unless (sameRelevance r r') do
+  --     -- Warn about ignored relevance
+  --     setCurrentRange r' do
+  --       warning $ FixingRelevance "contradicting declared relevance" r' r
 
   let withSub = fst <$> withSubAndLets
   cxtNames <- getContextNames

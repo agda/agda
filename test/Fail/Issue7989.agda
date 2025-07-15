@@ -11,9 +11,9 @@ f I = Set
 
 -- EXPECTED:
 --
--- warning: -W[no]FixingRelevance
--- Replacing illegal relevance `irrelevant' by declared relevance by `relevant'
--- when checking the definition of D
+-- warning: -W[no]DivergentModalityInClause
+-- Ignoring the modality . of the clause that diverges from the
+-- declared modality of the function
 --
 -- error: [VariableIsIrrelevant]
 -- Variable I is declared irrelevant, so it cannot be used here

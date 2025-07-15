@@ -227,6 +227,7 @@ data WarningName
   -- Library Warnings
   | LibUnknownField_
   -- Nicifer Warnings
+  | DivergentModalityInClause_
   | EmptyAbstract_
   | EmptyConstructor_
   | EmptyField_
@@ -465,6 +466,7 @@ warningNameDescription = \case
   -- Library Warnings
   LibUnknownField_                 -> "Unknown fields in library files."
   -- Nicifer Warnings
+  DivergentModalityInClause_       -> "Divergent modalities in function clauses."
   EmptyAbstract_                   -> "Empty `abstract' blocks."
   EmptyConstructor_                -> "Empty `constructor' blocks."
   EmptyField_                      -> "Empty `field` blocks."

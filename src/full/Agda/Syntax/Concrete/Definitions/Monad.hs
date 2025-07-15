@@ -4,7 +4,7 @@ module Agda.Syntax.Concrete.Definitions.Monad where
 
 import Prelude hiding ( null )
 
-import Control.Monad        ()
+import Control.Monad        ( )
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
 import Control.Monad.Reader ( MonadReader, ReaderT, runReaderT )
 import Control.Monad.State  ( MonadState(..), modify, State, StateT, runState )
@@ -12,6 +12,7 @@ import Control.Monad.State  ( MonadState(..), modify, State, StateT, runState )
 import Data.Bifunctor (second)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe (catMaybes)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (TerminationCheck())
@@ -187,8 +188,11 @@ breakImplicitMutualBlock r why = do
 
 -- | Get names of lone function signatures, plus their unique names.
 
-loneFuns :: LoneSigs -> [(Name,Name)]
-loneFuns = map (second loneSigName) . filter (isFunName . loneSigKind . snd) . Map.toList
+loneFuns :: LoneSigs -> [(Name, Arg Name)]
+loneFuns ls = catMaybes $
+   Map.toList ls <&> \case
+    (x, LoneSig _ x' (FunName ai _ _)) -> Just (x, Arg ai x')
+    _ -> Nothing
 
 -- | Create a 'LoneSigs' map from an association list.
 

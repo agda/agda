@@ -89,7 +89,10 @@ data DeclarationWarning = DeclarationWarning
 -- | Non-fatal errors encountered in the Nicifier.
 data DeclarationWarning'
   -- Please keep in (mostly) alphabetical order.
-  = EmptyAbstract    KwRange  -- ^ Empty @abstract@     block.
+  = DivergentModalityInClause ArgInfo ArgInfo
+      -- ^ The modality of the clause (second 'ArgInfo', range of the warning)
+      --   is different from the modality of the type signature (first 'ArgInfo').
+  | EmptyAbstract    KwRange  -- ^ Empty @abstract@     block.
   | EmptyConstructor KwRange  -- ^ Empty @data _ where@ block.
   | EmptyField       KwRange  -- ^ Empty @field@        block.
   | EmptyGeneralize  KwRange  -- ^ Empty @variable@     block.
@@ -178,6 +181,7 @@ declarationWarningName = declarationWarningName' . dwWarning
 declarationWarningName' :: DeclarationWarning' -> WarningName
 declarationWarningName' = \case
   -- Please keep in alphabetical order.
+  DivergentModalityInClause{}       -> DivergentModalityInClause_
   EmptyAbstract{}                   -> EmptyAbstract_
   EmptyConstructor{}                -> EmptyConstructor_
   EmptyField{}                      -> EmptyField_
@@ -229,6 +233,7 @@ unsafeDeclarationWarning = unsafeDeclarationWarning' . dwWarning
 unsafeDeclarationWarning' :: DeclarationWarning' -> Bool
 unsafeDeclarationWarning' = \case
   -- Please keep in alphabetical order.
+  DivergentModalityInClause{}       -> False
   EmptyAbstract{}                   -> False
   EmptyConstructor{}                -> False
   EmptyField{}                      -> False
@@ -340,6 +345,7 @@ instance HasRange DeclarationWarning where
 
 instance HasRange DeclarationWarning' where
   getRange = \case
+    DivergentModalityInClause _ ai     -> getRange ai
     EmptyAbstract kwr                  -> getRange kwr
     EmptyConstructor kwr               -> getRange kwr
     EmptyField kwr                     -> getRange kwr
@@ -440,6 +446,14 @@ instance Pretty DeclarationWarning where
 
 instance Pretty DeclarationWarning' where
   pretty = \case
+
+    DivergentModalityInClause sigInfo clInfo -> fsep $ concat
+      [ pwords "Ignoring the modality"
+      , [ pretty (getModality clInfo) ]
+      , pwords "of the clause that diverges from the declared modality"
+      , [ pretty (getModality sigInfo) ]
+      , pwords "of the function"
+      ]
 
     UnknownNamesInFixityDecl xs -> fsep $
       pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):"
