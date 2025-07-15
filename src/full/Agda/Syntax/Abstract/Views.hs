@@ -338,7 +338,7 @@ instance ExprLike LetBinding where
     case e of
       LetBind li ai x e e'  -> LetBind li ai x <$> recurse e <*> recurse e'
       LetAxiom li ai x e    -> LetAxiom li ai x <$> recurse e
-      LetPatBind li p e     -> LetPatBind li <$> recurse p <*> recurse e
+      LetPatBind li ai p e  -> LetPatBind li ai <$> recurse p <*> recurse e
       LetApply{}            -> pure e
       LetOpen{}             -> pure e
 
@@ -347,7 +347,7 @@ instance ExprLike LetBinding where
     case e of
       LetBind _ _ _ e e'    -> fold e `mappend` fold e'
       LetAxiom _ _ _ e      -> fold e
-      LetPatBind _ p e      -> fold p `mappend` fold e
+      LetPatBind _ _ p e    -> fold p `mappend` fold e
       LetApply{}            -> mempty
       LetOpen{}             -> mempty
     where
@@ -362,7 +362,7 @@ instance ExprLike LetBinding where
     case e of
       LetBind li ai x e e'  -> LetBind li ai x <$> trav e <*> trav e'
       LetAxiom li ai x e    -> LetAxiom li ai x <$> trav e
-      LetPatBind li p e     -> LetPatBind li <$> trav p <*> trav e
+      LetPatBind li ai p e  -> LetPatBind li ai <$> trav p <*> trav e
       LetApply{}            -> pure e
       LetOpen{}             -> pure e
 

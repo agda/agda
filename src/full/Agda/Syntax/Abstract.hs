@@ -257,7 +257,7 @@ data LetBinding
     -- ^ @LetBind info rel name type defn@
   | LetAxiom LetInfo ArgInfo BindName Type
     -- ^ Function declarations in a let with no matching body.
-  | LetPatBind LetInfo Pattern Expr
+  | LetPatBind LetInfo ArgInfo Pattern Expr
     -- ^ Irrefutable pattern binding.
   | LetApply ModuleInfo Erased ModuleName ModuleApplication
       ScopeCopyInfo ImportDirective
@@ -761,11 +761,11 @@ instance HasRange WhereDeclarations where
   getRange (WhereDecls _ _ ds) = getRange ds
 
 instance HasRange LetBinding where
-  getRange (LetBind i _ _ _ _)    = getRange i
-  getRange (LetAxiom i _ _ _)     = getRange i
-  getRange (LetPatBind  i _ _)    = getRange i
-  getRange (LetApply i _ _ _ _ _) = getRange i
-  getRange (LetOpen  i _ _)       = getRange i
+  getRange (LetBind i _ _ _ _)     = getRange i
+  getRange (LetAxiom i _ _ _)      = getRange i
+  getRange (LetPatBind i _ _ _)    = getRange i
+  getRange (LetApply i _ _ _ _ _)  = getRange i
+  getRange (LetOpen  i _ _)        = getRange i
 
 -- setRange for patterns applies the range to the outermost pattern constructor
 instance SetRange (Pattern' a) where
@@ -915,7 +915,7 @@ instance KillRange WhereDeclarations where
 instance KillRange LetBinding where
   killRange (LetBind i info a b c)  = killRangeN LetBind i info a b c
   killRange (LetAxiom i a b c)      = killRangeN LetAxiom i a b c
-  killRange (LetPatBind i a b)      = killRangeN LetPatBind i a b
+  killRange (LetPatBind i ai a b)   = killRangeN LetPatBind i ai a b
   killRange (LetApply i a b c d e)  = killRangeN LetApply i a b c d e
   killRange (LetOpen i x dir)       = killRangeN LetOpen  i x dir
 

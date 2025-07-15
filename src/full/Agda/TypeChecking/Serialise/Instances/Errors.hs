@@ -345,7 +345,7 @@ instance EmbPrj DeclarationWarning' where
     OpenImportAbstract r kwr a        -> icodeN 26 OpenImportAbstract r kwr a
     OpenImportPrivate r kwr kwr' a    -> icodeN 27 OpenImportPrivate r kwr kwr' a
     EmptyConstructor a                -> icodeN 28 EmptyConstructor a
-    -- 29 removed
+    DivergentModalityInClause ai1 ai2 -> icodeN 29 DivergentModalityInClause ai1 ai2
     InvalidTacticAttribute r          -> icodeN 30 InvalidTacticAttribute r
     InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
     MissingDataDeclaration a          -> icodeN 32 MissingDataDeclaration a
@@ -391,7 +391,7 @@ instance EmbPrj DeclarationWarning' where
     [26,r,kwr,a] -> valuN OpenImportAbstract r kwr a
     [27,r,kwr,kwr',a] -> valuN OpenImportPrivate r kwr kwr' a
     [28,r]   -> valuN EmptyConstructor r
-    -- 29 removed
+    [29,a,b] -> valuN DivergentModalityInClause a b
     [30,r]   -> valuN InvalidTacticAttribute r
     [31,r]   -> valuN InvalidConstructorBlock r
     [32,r]   -> valuN MissingDataDeclaration r

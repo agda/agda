@@ -387,7 +387,7 @@ addTypedPatterns xps ret = do
     lbs = map letBinding ps
 
     letBinding :: (A.Pattern, A.BindName) -> A.LetBinding
-    letBinding (p, n) = A.LetPatBind (A.LetRange r) p (A.Var $ A.unBind n)
+    letBinding (p, n) = A.LetPatBind (A.LetRange r) defaultArgInfo p (A.Var $ A.unBind n)
       where r = fuseRange p n
 
   checkLetBindings' lbs ret
@@ -1850,12 +1850,12 @@ checkLetBinding' b@(A.LetAxiom i info x t) ret = do
   val <- Def axn . fmap Apply <$> getContextArgs
   addLetBinding info UserWritten (A.unBind x) val t ret
 
-checkLetBinding' b@(A.LetPatBind i p e) ret = do
+checkLetBinding' b@(A.LetPatBind i ai p e) ret = do
     p <- expandPatternSynonyms p
-    (v, t) <- inferExpr' ExpandLast e
+    (v, t) <- applyModalityToContext ai $ inferExpr' ExpandLast e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide
-        t0 = El (getSort t) $ Pi (defaultDom t) (NoAbs underscore __DUMMY_TYPE__)
-        p0 = Arg defaultArgInfo (Named Nothing p)
+        t0 = El (getSort t) $ Pi (defaultArgDom ai t) (NoAbs underscore __DUMMY_TYPE__)
+        p0 = Arg ai (Named Nothing p)
     reportSDoc "tc.term.let.pattern" 10 $ vcat
       [ "let-binding pattern p at type t"
       , nest 2 $ vcat

@@ -539,6 +539,7 @@ warningHighlighting' b w = case tcWarning w of
     -- using `getRange w` still yields the most precise range information we
     -- can get.
     NotAllowedInMutual{}             -> deadcodeHighlighting w
+    DivergentModalityInClause{}      -> deadcodeHighlighting w
     EmptyAbstract{}                  -> deadcodeHighlighting w
     EmptyConstructor{}               -> deadcodeHighlighting w
     EmptyInstance{}                  -> deadcodeHighlighting w

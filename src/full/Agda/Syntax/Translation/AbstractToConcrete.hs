@@ -913,7 +913,7 @@ instance ToConcrete A.Expr where
                 return [p] -- __IMPOSSIBLE__
                   -- Andreas, this is actually not impossible,
                   -- my strictification exposed this sleeping bug
-          let decl2clause (C.FunClause (C.LHS p [] []) rhs C.NoWhere ca) = do
+          let decl2clause (C.FunClause ai (C.LHS p [] []) rhs C.NoWhere ca) = do
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
                 ps <- removeApp p
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
@@ -1067,7 +1067,7 @@ instance ToConcrete A.LetBinding where
           (t, (e, [], [], [])) ->
            ret $ addInstanceB (if isInstance info then Just empty else Nothing) $
             [ C.TypeSig info empty (C.boundName x) t | keep t ] <>
-            [ C.FunClause
+            [ C.FunClause info
                 (C.LHS (C.IdentP True $ C.QName $ C.boundName x) [] [])
                 e C.NoWhere empty
             ]
@@ -1077,10 +1077,10 @@ instance ToConcrete A.LetBinding where
       ret $ addInstanceB (if isInstance info then Just empty else Nothing) $
         [ C.TypeSig info empty (C.boundName x) t ]
     -- TODO: bind variables
-    bindToConcrete (LetPatBind i p e) ret = do
+    bindToConcrete (LetPatBind i ai p e) ret = do
         p <- toConcrete p
         e <- toConcrete e
-        ret [ C.FunClause (C.LHS p [] []) (C.RHS e) NoWhere empty ]
+        ret [ C.FunClause ai (C.LHS p [] []) (C.RHS e) NoWhere empty ]
     bindToConcrete (LetApply i erased x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
@@ -1192,7 +1192,7 @@ instance (ToConcrete a, ConOfAbs a ~ C.LHS) => ToConcrete (A.Clause' a) where
           C.LHS p _ _ -> do
             bindToConcrete wh $ \ wh' -> do
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
-                return $ FunClause (C.LHS p eqs with) rhs' wh' catchall :| wcs
+                return $ FunClause defaultArgInfo (C.LHS p eqs with) rhs' wh' catchall :| wcs
 
 instance ToConcrete A.ModuleApplication where
   type ConOfAbs A.ModuleApplication = C.ModuleApplication

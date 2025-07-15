@@ -1534,9 +1534,11 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
           (_,_) <- checkKnownArguments args0 pars tfull
 
           -- Check remaining arguments
-          fun <- pure $ A.App (A.defaultAppInfo $ getRange (hd, args0, princArg))
-            (A.unAppView $ A.Application hd args0)
-             princArg
+          let
+            fun = A.App
+              (A.defaultAppInfo $ getRange (hd, args0, princArg))
+              (A.unAppView $ A.Application hd args0)
+              princArg
           z <- runExceptT $ checkArgumentsE cmp ExpandLast fun args' tb (snd <$> mt)
           case z of
             Right st@(ACState _ _ trest targetCheck) -> do

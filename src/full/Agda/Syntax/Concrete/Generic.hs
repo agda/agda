@@ -233,7 +233,7 @@ instance ExprLike Declaration where
      TypeSig ai t x e          -> TypeSig ai (mapE t) x (mapE e)
      FieldSig i t n e          -> FieldSig i (mapE t) n (mapE e)
      Field r fs                -> Field r                              $ map (mapExpr f) fs
-     FunClause lhs rhs wh ca   -> FunClause (mapE lhs) (mapE rhs) (mapE wh) ca
+     FunClause ai lhs rhs wh ca-> FunClause ai (mapE lhs) (mapE rhs) (mapE wh) ca
      DataSig r er x bs e       -> DataSig r er x (mapE bs)             $ mapE e
      DataDef r n bs cs         -> DataDef r n (mapE bs)                $ mapE cs
      Data r er n bs e cs       -> Data r er n (mapE bs) (mapE e)       $ mapE cs
@@ -318,7 +318,7 @@ instance FoldDecl Declaration where
     FieldSig _ _ _ _        -> mempty
     Generalize _ _          -> mempty
     Field _ _               -> mempty
-    FunClause _ _ wh _      -> foldDecl f wh
+    FunClause _ _ _ wh _    -> foldDecl f wh
     DataSig _ _ _ _ _       -> mempty
     Data _ _ _ _ _ _        -> mempty
     DataDef _ _ _ _         -> mempty
@@ -373,7 +373,7 @@ instance TraverseDecl Declaration where
       FieldSig _ _ _ _           -> return d
       Generalize _ _             -> return d
       Field _ _                  -> return d
-      FunClause lhs rhs wh ca    -> preTraverseDecl f wh <&> \ wh' -> FunClause lhs rhs wh' ca
+      FunClause ai lhs rhs wh ca -> preTraverseDecl f wh <&> \ wh' -> FunClause ai lhs rhs wh' ca
       DataSig _ _ _ _ _          -> return d
       Data _ _ _ _ _ _           -> return d
       DataDef _ _ _ _            -> return d

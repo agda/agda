@@ -687,7 +687,7 @@ instance Monoid ClausesPostChecks where
 
 -- | The LHS part of checkClause.
 checkClauseLHS :: Type -> Maybe Substitution -> A.SpineClause -> (LHSResult -> TCM a) -> TCM a
-checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) ret = do
+checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats _rhs0 _wh _catchall) ret = do
     reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
     () <- List1.unlessNull (trailingWithPatterns aps) $ \ withPats -> do
       typeError $ UnexpectedWithPatterns $ fmap namedArg withPats
@@ -707,7 +707,7 @@ checkClause
   -> TCM (Clause, ClausesPostChecks)  -- ^ Type-checked clause
 
 checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
-  let withSub       = fst <$> withSubAndLets
+  let withSub = fst <$> withSubAndLets
   cxtNames <- getContextNames
   checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit ixsplit) -> do
 
@@ -926,7 +926,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
     -- @using@ clauses
     usingEqnRHS :: List1 (A.Pattern, A.Expr) -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
     usingEqnRHS pes rs = do
-      let letBindings = for (List1.toList pes) $ \(p, e) -> A.LetPatBind (LetRange (getRange e)) p e
+      let letBindings = for (List1.toList pes) $ \(p, e) -> A.LetPatBind (LetRange (getRange e)) defaultArgInfo p e
       checkLetBindings' letBindings $ rewriteEqnsRHS rs strippedPats rhs wh
 
     -- @invert@ clauses

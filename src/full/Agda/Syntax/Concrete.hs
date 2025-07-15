@@ -518,7 +518,7 @@ data Declaration
   | FieldSig IsInstance TacticAttribute Name (Arg Expr)
   | Generalize KwRange [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
   | Field KwRange [FieldSignature]
-  | FunClause LHS RHS WhereClause Catchall
+  | FunClause ArgInfo LHS RHS WhereClause Catchall -- ^ Only 'Modality' is used in 'ArgInfo'.
   | DataSig     Range Erased Name [LamBinding] Expr -- ^ lone data signature in mutual block
   | Data        Range Erased Name [LamBinding] Expr
                 [TypeSignatureOrInstanceBlock]
@@ -581,7 +581,7 @@ isPragma = \case
     FieldSig _ _ _ _        -> empty
     Generalize _ _          -> empty
     Field _ _               -> empty
-    FunClause _ _ _ _       -> empty
+    FunClause _ _ _ _ _     -> empty
     DataSig _ _ _ _ _       -> empty
     Data _ _ _ _ _ _        -> empty
     DataDef _ _ _ _         -> empty
@@ -1004,7 +1004,7 @@ instance HasRange Declaration where
   getRange (TypeSig _ _ x t)       = fuseRange x t
   getRange (FieldSig _ _ x t)      = fuseRange x t
   getRange (Field kwr ds)          = fuseRange kwr ds
-  getRange (FunClause lhs rhs wh _) = fuseRange lhs rhs `fuseRange` wh
+  getRange (FunClause ai lhs rhs wh _) = ai `fuseRange` lhs `fuseRange` rhs `fuseRange` wh
   getRange (DataSig r _ _ _ _)     = r
   getRange (Data r _ _ _ _ _)      = r
   getRange (DataDef r _ _ _)       = r
@@ -1154,11 +1154,11 @@ instance KillRange RecordDirective where
   killRange (PatternOrCopattern _) = PatternOrCopattern noRange
 
 instance KillRange Declaration where
-  killRange (TypeSig i t n e)       = killRangeN (TypeSig i) t n e
+  killRange (TypeSig ai t n e)      = killRangeN TypeSig ai t n e
   killRange (FieldSig i t n e)      = killRangeN FieldSig i t n e
   killRange (Generalize r ds )      = killRangeN (Generalize empty) ds
   killRange (Field r fs)            = killRangeN (Field empty) fs
-  killRange (FunClause l r w ca)    = killRangeN FunClause l r w ca
+  killRange (FunClause ai l r w ca) = killRangeN FunClause ai l r w ca
   killRange (DataSig _ er n l e)    = killRangeN (DataSig noRange) er n l e
   killRange (Data _ er n l e c)     = killRangeN (Data noRange) er n l e c
   killRange (DataDef _ n l c)       = killRangeN (DataDef noRange) n l c
@@ -1389,7 +1389,7 @@ instance NFData Declaration where
   rnf (FieldSig a b c d)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (Generalize _ a)        = rnf a
   rnf (Field _ fs)            = rnf fs
-  rnf (FunClause a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (FunClause a b c d e)   = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
   rnf (DataSig _ a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (Data _ a b c d e)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
                                       `seq` rnf e

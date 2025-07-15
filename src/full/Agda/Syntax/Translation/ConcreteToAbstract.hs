@@ -186,7 +186,7 @@ recordConstructorType decls =
         C.NiceMutual _ _ _ _
           [ C.FunSig _ _ _ _ macro _ _ _ _ _
           , C.FunDef _ _ abstract _ _ _ _
-             (C.Clause _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] :| [])
+             (C.Clause _ _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] :| [])
           ] | abstract /= AbstractDef && macro /= MacroDef -> do
           mkLet d
 
@@ -811,7 +811,7 @@ scopeCheckExtendedLam r e cs = do
             let p   = C.rawAppP $
                         killRange (IdentP True $ C.QName cname) :| ps
             let lhs = C.LHS p [] []
-            return $ C.Clause cname ca lhs rhs NoWhere []
+            return $ C.Clause cname ca defaultArgInfo lhs rhs NoWhere []
   scdef <- toAbstract d
 
   -- Create the abstract syntax for the extended lambda.
@@ -1122,7 +1122,7 @@ recordWhereNames = finish <=< foldM decl st0 where
   decl :: RecWhereState -> A.LetBinding -> ScopeM RecWhereState
   decl st0 r@(A.LetBind _ _ bn _ _) = pure $! var (unBind bn) (getRange r) st0
   decl st0 r@(A.LetAxiom _ _ bn _)  = pure $! var (unBind bn) (getRange r) st0
-  decl st0 (A.LetPatBind _ pat _)   = pure $! Set.foldr (\x -> var x (getRange x)) st0 $ allBoundNames pat
+  decl st0 (A.LetPatBind _ _ pat _) = pure $! Set.foldr (\x -> var x (getRange x)) st0 $ allBoundNames pat
 
   decl st0 (A.LetApply mi _ modn _ ren idr) = do
     reportSDoc "scope.record.where" 30 $ vcat
@@ -1653,8 +1653,8 @@ instance ToAbstract LetDef where
 
       pure $ A.LetAxiom (LetRange $ getRange d) info' x t :| []
 
-    -- irrefutable let binding, like  (x , y) = rhs
-    NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p0 [] []) rhs0 whcl ca) -> do
+    -- irrefutable let binding, like  .(x , y) = rhs
+    NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause ai lhs@(C.LHS p0 [] []) rhs0 whcl ca) -> do
       noWhereInLetBinding whcl
       rhs <- letBindingMustHaveRHS rhs0
       -- Expand puns if optHiddenArgumentPuns is True.
@@ -1673,17 +1673,18 @@ instance ToAbstract LetDef where
               typeError $ RepeatedVariablesInPattern ys
             bindVarsToBind
             p   <- toAbstract p
-            return $ singleton $ A.LetPatBind (LetRange r) p rhs
+            return $ singleton $ A.LetPatBind (LetRange r) ai p rhs
         -- It's not a record pattern, so it should be a prefix left-hand side
         Left err ->
           case definedName p0 of
             Nothing -> throwError err
             Just x  -> toAbstract $ LetDef wh $ NiceMutual empty tc cc YesPositivityCheck
               [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef
-                  (setOrigin Inserted defaultArgInfo) tc cc x (C.Underscore (getRange x) Nothing)
+                  info tc cc x (C.Underscore (getRange x) Nothing)
               , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
-                $ singleton $ C.Clause x (ca <> catchall) lhs (C.RHS rhs) NoWhere []
+                $ singleton $ C.Clause x (ca <> catchall) ai lhs (C.RHS rhs) NoWhere []
               ]
+              where info = setOrigin Inserted ai
           where
             definedName (C.IdentP _ (C.QName x)) = Just x
             definedName C.IdentP{}             = Nothing
@@ -1728,7 +1729,7 @@ instance ToAbstract LetDef where
     _ -> notAValidLetBinding Nothing
 
     where
-      letToAbstract (C.Clause top _catchall (C.LHS p [] []) rhs0 wh []) = do
+      letToAbstract (C.Clause top _catchall _ai (C.LHS p [] []) rhs0 wh []) = do
         noWhereInLetBinding wh
         rhs <- letBindingMustHaveRHS rhs0
         (x, args) <- do
@@ -1968,7 +1969,7 @@ instance ToAbstract NiceDeclaration where
         return [ A.FunDef di x' cs ]
 
   -- Uncategorized function clauses
-    C.NiceFunClause _ _ _ _ _ _ (C.FunClause lhs _ _ _) ->
+    C.NiceFunClause _ _ _ _ _ _ (C.FunClause _ lhs _ _ _) ->
       typeError $ MissingTypeSignature $ MissingFunctionSignature lhs
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
@@ -2978,7 +2979,7 @@ scopeCheckDef warn x = do
 instance ToAbstract C.Clause where
   type AbsOfCon C.Clause = A.Clause
 
-  toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
+  toAbstract (C.Clause top catchall ai lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
     -- Jesper, 2018-12-10, #3095: pattern variables bound outside the
     -- module are locally treated as module parameters
     modifyScope_ $ updateScopeLocals $ map $ second patternToModuleBound

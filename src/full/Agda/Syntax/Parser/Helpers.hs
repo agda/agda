@@ -35,6 +35,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Hash
 import Agda.Utils.List ( spanJust, chopWhen, initLast )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty hiding ((<>))
@@ -578,14 +579,23 @@ data RHSOrTypeSigs
  | TypeSigsRHS Expr
  deriving Show
 
-patternToNames :: Pattern -> Parser (List1 (ArgInfo, Name))
+patternToNames :: Pattern -> Parser (List1 (Arg Name))
 patternToNames = \case
-    IdentP _ (QName i)           -> return $ singleton (defaultArgInfo, i)
-    WildP r                      -> return $ singleton (defaultArgInfo, C.noName r)
-    DotP kwr _ (Ident (QName i)) -> return $ singleton (makeIrrelevant kwr defaultArgInfo, i)
+    IdentP _ (QName i)           -> return $ singleton $ defaultArg i
+    WildP r                      -> return $ singleton $ defaultArg $ C.noName r
+    DotP kwr _ (Ident (QName i)) -> return $ singleton $ makeIrrelevant kwr $ defaultArg i
     RawAppP _ ps                 -> sconcat . List2.toList1 <$> mapM patternToNames ps
     p -> parseError $
       "Illegal name in type signature: " ++ prettyShow p
+
+-- | Interpret leading dot as irrelevance
+
+patternToArgPattern :: Pattern -> Arg Pattern
+patternToArgPattern = \case
+   DotP kwr _ (Ident x)        -> makeIrrelevant kwr $ defaultArg $ IdentP True x
+   DotP kwr _ (Underscore r _) -> makeIrrelevant kwr $ defaultArg $ WildP r
+   p -> defaultArg p
+
 
 funClauseOrTypeSigs :: [Attr] -> ([RewriteEqn] -> [WithExpr] -> LHS)
                     -> [Either RewriteEqn (List1 (Named Name Expr))]
@@ -597,15 +607,21 @@ funClauseOrTypeSigs attrs lhs' with mrhs wh = do
   -- traceShowM lhs
   case mrhs of
     JustRHS rhs   -> do
-      unless (null attrs) $ parseWarning $ MisplacedAttributes (getRange attrs) "A function clause cannot have attributes"
-      return $ singleton $ FunClause lhs rhs wh empty
+      whenJust (haveTacticAttr attrs) \ re ->
+        parseWarning $ MisplacedAttributes (getRange re) $
+          "Ignoring tactic attribute, illegal in function clauses"
+      -- Andreas, 2025-07-09, issue #7989: extract irrelevance info from lhs pattern
+      let (Arg info p) = patternToArgPattern $ lhsOriginalPattern lhs
+      -- Andreas, 2025-07-10, issue #7988: allow attributes in function clause
+      info <- applyAttrs attrs info
+      return $ singleton $ FunClause info lhs{ lhsOriginalPattern = p } rhs wh empty
     TypeSigsRHS e -> case wh of
       NoWhere -> case lhs of
         LHS p _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
         LHS _ _ (_:_) -> parseError "Illegal: with in type signature"
         LHS _ (_:_) _ -> parseError "Illegal: rewrite in type signature"
         LHS p _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
-        LHS p [] [] -> forMM (patternToNames p) $ \ (info, x) -> do
+        LHS p [] [] -> forMM (patternToNames p) $ \ (Arg info x) -> do
           info <- applyAttrs attrs info
           return $ typeSig info (getTacticAttr attrs) x e
       _ -> parseError "A type signature cannot have a where clause"
@@ -690,7 +706,11 @@ setTacticAttr as = updateNamedArg $ fmap $ \ b ->
 
 -- | Get the tactic attribute if present.
 getTacticAttr :: [Attr] -> TacticAttribute
-getTacticAttr as = C.TacticAttribute $
+getTacticAttr = C.TacticAttribute . haveTacticAttr
+
+-- | Check if tactic attribute is present.
+haveTacticAttr :: [Attr] -> Maybe (Ranged Expr)
+haveTacticAttr as =
   case tacticAttributes [ a | Attr _ _ a <- as ] of
     [CA.TacticAttribute e] -> Just e
     [] -> Nothing

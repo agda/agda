@@ -1247,7 +1247,7 @@ instance Binder BindName where
 instance Binder A.LetBinding where
   varsBoundIn (LetBind _ _ x _ _) = varsBoundIn x
   varsBoundIn (LetAxiom _ _ x _)  = varsBoundIn x
-  varsBoundIn (LetPatBind _ p _)  = varsBoundIn p
+  varsBoundIn (LetPatBind _ _ p _)= varsBoundIn p
   varsBoundIn LetApply{}          = empty
   varsBoundIn LetOpen{}           = empty
 

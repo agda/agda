@@ -102,10 +102,14 @@ type NiceTypeSignature  = NiceDeclaration
 
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
-data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
+data Clause = Clause Name Catchall ArgInfo LHS RHS WhereClause [Clause]
     deriving (Show, Generic)
 
 instance NFData Clause
+
+instance LensArgInfo Clause where
+  getArgInfo (Clause _ _ ai _ _ _ _) = ai
+  mapArgInfo f (Clause x ca ai lhs rhs wh cs) = Clause x ca (f ai) lhs rhs wh cs
 
 -- | When processing a mutual block we collect the various checks present in the block
 --   before combining them.
@@ -301,7 +305,7 @@ data DataRecOrFun
     , _kindUniCheck :: UniverseCheck
     }
     -- ^ Name of a record type
-  | FunName TerminationCheck CoverageCheck
+  | FunName ArgInfo TerminationCheck CoverageCheck
     -- ^ Name of a function.
   deriving (Show, Generic)
 
@@ -327,17 +331,17 @@ sameKind :: DataRecOrFun -> DataRecOrFun -> Bool
 sameKind = (==)
 
 terminationCheck :: DataRecOrFun -> TerminationCheck
-terminationCheck (FunName tc _) = tc
+terminationCheck (FunName _ tc _) = tc
 terminationCheck _ = TerminationCheck
 
 coverageCheck :: DataRecOrFun -> CoverageCheck
-coverageCheck (FunName _ cc) = cc
+coverageCheck (FunName _ _ cc) = cc
 coverageCheck _ = YesCoverageCheck
 
 positivityCheck :: DataRecOrFun -> PositivityCheck
 positivityCheck (DataName pc _) = pc
 positivityCheck (RecName pc _)  = pc
-positivityCheck (FunName _ _)   = YesPositivityCheck
+positivityCheck (FunName _ _ _) = YesPositivityCheck
 
 mutualChecks :: DataRecOrFun -> MutualChecks
 mutualChecks k = MutualChecks [terminationCheck k] [coverageCheck k] [positivityCheck k]
@@ -345,4 +349,4 @@ mutualChecks k = MutualChecks [terminationCheck k] [coverageCheck k] [positivity
 universeCheck :: DataRecOrFun -> UniverseCheck
 universeCheck (DataName _ uc) = uc
 universeCheck (RecName _ uc)  = uc
-universeCheck (FunName _ _)   = YesUniverseCheck
+universeCheck (FunName _ _ _) = YesUniverseCheck
