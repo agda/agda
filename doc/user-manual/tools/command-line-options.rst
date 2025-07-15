@@ -1357,6 +1357,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Deprecated features.
 
+.. option:: DivergentModalityInClause
+
+     Modalities of clauses that diverge from the modality of the function.
+
 .. option:: DuplicateFields
 
      ``record`` expression with duplicate field names.
