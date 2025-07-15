@@ -1492,7 +1492,7 @@ instance ToAbstract LetDef where
       fx <- getConcreteFixity x
 
       x <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
-      (ai, x', e) <- letToAbstract cl
+      (x', e) <- letToAbstract cl
 
       -- There are sometimes two instances of the let-bound variable,
       -- one declaration and one definition (see issue #1618).
@@ -1606,7 +1606,7 @@ instance ToAbstract LetDef where
     _ -> notAValidLetBinding Nothing
 
     where
-      letToAbstract (C.Clause top _catchall ai (C.LHS p [] []) rhs0 wh []) = do
+      letToAbstract (C.Clause top _catchall _ai (C.LHS p [] []) rhs0 wh []) = do
         noWhereInLetBinding wh
         rhs <- letBindingMustHaveRHS rhs0
         (x, args) <- do
@@ -1622,7 +1622,7 @@ instance ToAbstract LetDef where
           -- Make sure to unbind the function name in the RHS, since lets are non-recursive.
           rhs <- unbindVariable top $ toAbstract rhs
           foldM lambda rhs (reverse args)  -- just reverse because these are DomainFree
-        return (ai, x, e)
+        return (x, e)
 
       letToAbstract _ = notAValidLetBinding Nothing
 
