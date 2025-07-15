@@ -165,9 +165,10 @@ doubleACosh = acosh -- NOTE: doesn't cause underflow/overflow
 doubleATanh :: Double -> Double
 doubleATanh = atanh -- NOTE: doesn't cause underflow/overflow
 
-{-# INLINE negativeZero #-}
-negativeZero :: Double
-negativeZero = -0.0
+-- UNUSED:
+-- {-# INLINE negativeZero #-}
+-- negativeZero :: Double
+-- negativeZero = -0.0
 
 positiveInfinity :: Double
 positiveInfinity = 1.0 / 0.0
@@ -199,10 +200,11 @@ doubleFloor = fmap floor . asFinite
 doubleCeiling :: Double -> Maybe Integer
 doubleCeiling = fmap ceiling . asFinite
 
-normaliseNaN :: Double -> Double
-normaliseNaN x
-  | isNaN x   = nan
-  | otherwise = x
+-- UNUSED:
+-- normaliseNaN :: Double -> Double
+-- normaliseNaN x
+--   | isNaN x   = nan
+--   | otherwise = x
 
 doubleToWord64 :: Double -> Maybe Word64
 doubleToWord64 x

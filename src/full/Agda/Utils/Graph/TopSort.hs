@@ -9,13 +9,6 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
 
--- NB:: Defined but not used
-mergeBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-mergeBy _ [] xs = xs
-mergeBy _ xs [] = xs
-mergeBy f (x:xs) (y:ys)
-    | f x y = x: mergeBy f xs (y:ys)
-    | otherwise = y: mergeBy f (x:xs) ys
 
 -- | topoligical sort with smallest-numbered available vertex first
 -- | input: nodes, edges
