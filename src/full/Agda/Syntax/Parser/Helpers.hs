@@ -1,5 +1,7 @@
 -- | Utility functions used in the Happy parser.
 
+{-# OPTIONS_GHC -Wunused-matches #-}
+
 module Agda.Syntax.Parser.Helpers where
 
 import Prelude hiding (null)
@@ -59,7 +61,7 @@ figureOutTopLevelModule ds =
     -- We need to distinguish two additional cases.
 
     -- Case 1: Regular file layout: imports followed by one module. Nothing to do.
-    (ds0, [ Module{} ]) -> ds
+    (_ds0, [ Module{} ]) -> ds
 
     -- Case 2: The declarations in the module are not indented.
     -- This is allowed for the top level module, and thus rectified here.
@@ -70,7 +72,7 @@ figureOutTopLevelModule ds =
     -- followed by non-indented declarations.  This should be a
     -- parse error and be reported later (see @toAbstract TopLevel{}@),
     -- thus, we do not do anything here.
-    (ds0, Module r _ m tel ds1 : ds2) -> ds  -- Gives parse error in scope checker.
+    (_ds0, Module{} : _) -> ds  -- Gives parse error in scope checker.
     -- OLD code causing issue 1388:
     -- (ds0, Module r m tel ds1 : ds2) -> ds0 ++ [Module r m tel $ ds1 ++ ds2]
 
@@ -235,7 +237,7 @@ recoverLayout xs@((i, _) : _) = go (iStart i) xs
   where
     c0 = posCol (iStart i)
 
-    go cur [] = ""
+    go _cur [] = ""
     go cur ((i, s) : xs) = padding cur (iStart i) ++ s ++ go (iEnd i) xs
 
     padding Pn{ posLine = l1, posCol = c1 } Pn{ posLine = l2, posCol = c2 }
@@ -389,7 +391,7 @@ boundNamesOrAbsurd es
 
 -- | Match a pattern-matching "assignment" statement @p <- e@
 exprToAssignment :: Expr -> Parser (Maybe (Pattern, Range, Expr))
-exprToAssignment e@(RawApp r es)
+exprToAssignment e@(RawApp _r es)
   | (es1, arr : es2) <- List2.break isLeftArrow es =
     case filter isLeftArrow es2 of
       arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
@@ -456,7 +458,7 @@ defaultBuildDoStmt e []      = pure $ DoThen e
 
 buildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
 buildDoStmt (Let r ds Nothing) [] = return $ DoLet r ds
-buildDoStmt e@(RawApp r _)    cs = do
+buildDoStmt e@(RawApp _ _)    cs = do
   mpatexpr <- exprToAssignment e
   case mpatexpr of
     Just (pat, r, expr) -> pure $ DoBind r pat expr cs
@@ -514,7 +516,7 @@ patternSynArgs = mapM \ x -> do
   case x of
 
     -- Invariant: fixity is not used here, and neither finiteness
-    Arg ai (Named mn (Binder mp _ (BName n fix mtac fin)))
+    Arg _ (Named _ (Binder _ _ (BName _ fix _ fin)))
       | not $ null fix -> __IMPOSSIBLE__
       | fin            -> __IMPOSSIBLE__
 
@@ -538,7 +540,7 @@ patternSynArgs = mapM \ x -> do
           ArgInfo _ _ _ _ (Annotation (IsLock _)) ->
             abort $ noAnn "Lock"
 
-          ArgInfo h (Modality r q c p) _ _ _
+          ArgInfo _ (Modality r q c p) _ _ _
             | not (isRelevant r) ->
                 abort "Arguments to pattern synonyms must be relevant"
             | not (isQuantityω q) ->
