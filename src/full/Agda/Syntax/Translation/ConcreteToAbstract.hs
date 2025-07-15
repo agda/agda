@@ -1494,14 +1494,6 @@ instance ToAbstract LetDef where
       x <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
       (ai, x', e) <- letToAbstract cl
 
-      -- -- Andreas, 2025-07-09, issue #7989.
-      -- -- Check that arginfo of clause matches the one of the declaration.
-      -- let declRel = getRelevance info
-      --     defRel  = getRelevance ai
-      -- unless (null ai || sameRelevance declRel defRel) $
-      --   setCurrentRange defRel $
-      --     warning $ FixingRelevance "Correcting relevance attribute in clause" defRel declRel
-
       -- There are sometimes two instances of the let-bound variable,
       -- one declaration and one definition (see issue #1618).
       -- Andreas, 2015-08-27 keeping both the range of x and x' solves Issue 1618.

@@ -351,8 +351,6 @@ niceDeclarations fixs ds = do
             [(x, (Arg info x', fits, rest))] -> do
                -- The x'@NoName{} is the unique version of x@NoName{}.
                removeLoneSig x
-               -- Make sure that the modality of the clause is the same as the type signature.
-               -- _ai <- checkModality info ai
                ds <- expandEllipsis1 fits
                cs <- mkClauses1 info x' ds empty
                return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck covCheck x' cs] , rest)
