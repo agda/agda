@@ -1,3 +1,6 @@
+-- {-# OPTIONS_GHC -Wunused-imports #-} -- does not work because of liftA2
+{-# OPTIONS_GHC -Wunused-matches #-}
+
 {-| Some common syntactic entities are defined in this module.
 -}
 module Agda.Syntax.Common
@@ -13,7 +16,6 @@ import Agda.Syntax.TopLevelModuleName.Boot
 import Prelude hiding (null)
 
 import Control.DeepSeq
-import Control.Arrow ((&&&))
 import Control.Applicative ((<|>), liftA2)
 
 import Data.Bifunctor
@@ -38,7 +40,6 @@ import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete.Glyph
 import Agda.Syntax.Position
 
-import Agda.Utils.BiMap (HasTag(..))
 import Agda.Utils.Boolean (Boolean(fromBool), IsBool(toBool))
 import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Functor
@@ -1136,7 +1137,7 @@ applyQuantity q = mapQuantity (q `composeQuantity`)
 inverseComposeQuantity :: Quantity -> Quantity -> Quantity
 inverseComposeQuantity = curry $ \case
     (Quantity1{} , x)              -> x             -- going to linear arg: nothing changes
-    (Quantity0{} , x)              -> topQuantity   -- going to erased arg: every thing usable
+    (Quantity0{} , _)              -> topQuantity   -- going to erased arg: every thing usable
     (Quantityω{} , x@Quantityω{})  -> x
     (Quantityω{} , _)              -> zeroQuantity  -- linear resources are unusable as arguments to unrestricted functions
 
@@ -1648,7 +1649,7 @@ inverseComposeRelevance = curry \case
   (_                 , Relevant o       ) -> Relevant o   -- can't get more relevant
   (Relevant{}        , x                ) -> x            -- going to relevant arg.: nothing changes
                                                           -- because Relevant is comp.-neutral
-  (Irrelevant{}      , x                ) -> relevant     -- going irrelevant: every thing usable
+  (Irrelevant{}      , _                ) -> relevant     -- going irrelevant: every thing usable
   (ShapeIrrelevant{} , Irrelevant o     ) -> Irrelevant o -- otherwise: irrelevant things remain unusable
   (ShapeIrrelevant{} , ShapeIrrelevant{}) -> relevant     -- but @ShapeIrrelevant@s become usable
 
@@ -1969,7 +1970,7 @@ inverseComposeCohesion r x =
   case (r, x) of
     (Continuous  , x) -> x          -- going to continous arg.: nothing changes
                                     -- because Continuous is comp.-neutral
-    (Squash, x)       -> Flat       -- in squash position everything is usable
+    (Squash, _)       -> Flat       -- in squash position everything is usable
     (Flat , Flat)     -> Flat       -- otherwise: Flat things remain Flat
     (Flat , _)        -> Squash     -- but everything else becomes unusable.
 
@@ -2146,7 +2147,7 @@ data PolarityModality = PolarityModality
   } deriving (Show, Ord, Bounded, Generic)
 
 instance Eq PolarityModality where
-  (PolarityModality p o l) == (PolarityModality p' o' l') = p == p'
+  (PolarityModality p _o _l) == (PolarityModality p' _o' _l') = p == p'
 
 withStandardLock :: ModalPolarity -> PolarityModality
 withStandardLock p = PolarityModality p p StrictlyPositive
@@ -2161,7 +2162,7 @@ instance KillRange PolarityModality where
   killRange rel = rel -- no range to kill
 
 instance NFData PolarityModality where
-  rnf (PolarityModality p o l) = ()
+  rnf (PolarityModality _p _o _l) = ()
 
 instance Pretty PolarityModality where
   pretty (PolarityModality p _ _) = pretty p
@@ -2207,7 +2208,7 @@ usablePolarity a = modPolarityAnn pol `morePolarity'` StrictlyPositive
 -- | 'PolarityModality' composition.
 --
 composePolarity :: PolarityModality -> PolarityModality -> PolarityModality
-composePolarity (PolarityModality p o l) (PolarityModality p' o' l') =
+composePolarity (PolarityModality p _o _l) (PolarityModality p' o' l') =
   PolarityModality (composePolarity' p p') o' l'
 
 -- | Compose with polarity flag from the left.
@@ -2222,7 +2223,7 @@ applyPolarity pol = mapModalPolarity (pol `composePolarity`)
 --   iff
 --   @(r \`inverseComposePolarity\` x) \`morePolarity'\` y@ (Galois connection).
 inverseComposePolarity :: PolarityModality -> PolarityModality -> PolarityModality
-inverseComposePolarity (PolarityModality p o l) (PolarityModality p' o' l') =
+inverseComposePolarity (PolarityModality p _o _l) (PolarityModality p' o' l') =
   PolarityModality (inverseComposePolarity' p p') o' (composePolarity' l' p)
 
 -- | Left division by a 'PolarityModality'.
@@ -2260,7 +2261,7 @@ instance POMonoid (UnderAddition PolarityModality) where
 -- | Combine inferred 'PolarityModality'.
 --
 addPolarity :: PolarityModality -> PolarityModality -> PolarityModality
-addPolarity (PolarityModality p o l) (PolarityModality p' o' l') =
+addPolarity (PolarityModality p _o _l) (PolarityModality p' o' l') =
   PolarityModality (addPolarity' p p') o' l'
 
 -- | 'ModalPolarity' forms a monoid under addition, and even a semiring.
@@ -2791,7 +2792,7 @@ unnamed = Named Nothing
 isUnnamed :: Named name a -> Maybe a
 isUnnamed = \case
   Named Nothing a -> Just a
-  Named Just{}  a -> Nothing
+  Named Just{}  _ -> Nothing
 
 named :: name -> a -> Named name a
 named = Named . Just
@@ -3227,7 +3228,7 @@ instance Pretty NameId where
 instance Enum NameId where
   succ (NameId n m)     = NameId (n + 1) m
   pred (NameId n m)     = NameId (n - 1) m
-  toEnum n              = __IMPOSSIBLE__  -- should not be used
+  toEnum _              = __IMPOSSIBLE__  -- should not be used
   fromEnum (NameId n _) = fromIntegral n
 
 instance NFData NameId where
@@ -3306,7 +3307,7 @@ instance Pretty OpaqueId where
 instance Enum OpaqueId where
   succ (OpaqueId n m)     = OpaqueId (n + 1) m
   pred (OpaqueId n m)     = OpaqueId (n - 1) m
-  toEnum n                = __IMPOSSIBLE__  -- should not be used
+  toEnum _                = __IMPOSSIBLE__  -- should not be used
   fromEnum (OpaqueId n _) = fromIntegral n
 
 instance NFData OpaqueId where
@@ -3604,8 +3605,8 @@ fromImportedName = \case
   ImportedName   x -> x
 
 setImportedName :: ImportedName' a a -> a -> ImportedName' a a
-setImportedName (ImportedName   x) y = ImportedName   y
-setImportedName (ImportedModule x) y = ImportedModule y
+setImportedName (ImportedName   _) y = ImportedName   y
+setImportedName (ImportedModule _) y = ImportedModule y
 
 -- | Like 'partitionEithers'.
 partitionImportedNames :: [ImportedName' n m] -> ([n], [m])
@@ -3805,7 +3806,7 @@ data Catchall = YesCatchall Range | NoCatchall
 instance Semigroup Catchall where
   NoCatchall         <> c                   = c
   c                  <> NoCatchall          = c
-  c1@(YesCatchall r) <> c2@(YesCatchall r') = if null r then c2 else c1
+  c1@(YesCatchall r) <> c2@(YesCatchall _r) = if null r then c2 else c1
 
 instance Monoid Catchall where
   mempty = empty
