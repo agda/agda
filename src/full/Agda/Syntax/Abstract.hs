@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
 
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,
@@ -348,7 +351,7 @@ type Telescope1 = List1 TypedBinding
 type Telescope  = [TypedBinding]
 
 mkPi :: ExprInfo -> Telescope -> Type -> Type
-mkPi i []     e = e
+mkPi _ []     e = e
 mkPi i (x:xs) e = Pi i (x :| xs) e
 
 data GeneralizeTelescope = GeneralizeTel
@@ -645,7 +648,7 @@ instance LensHiding TypedBinding where
   getHiding (TBind _ _ (x :| _) _) = getHiding x   -- Slightly dubious
   getHiding TLet{}                 = mempty
   mapHiding f (TBind r t xs e)     = TBind r t ((fmap . mapHiding) f xs) e
-  mapHiding f b@TLet{}             = b
+  mapHiding _ b@TLet{}             = b
 
 instance HasRange a => HasRange (Binder' a) where
   getRange (Binder p _ n) = fuseRange p n
@@ -718,7 +721,7 @@ instance HasRange (Pattern' e) where
     getRange (AsP i _ _)         = getRange i
     getRange (DotP i _)          = getRange i
     getRange (AbsurdP i)         = getRange i
-    getRange (LitP i l)          = getRange i
+    getRange (LitP i _)          = getRange i
     getRange (PatternSynP i _ _) = getRange i
     getRange (RecP _kwr i _)     = getRange i
     getRange (EqualP i _)        = getRange i
@@ -736,7 +739,7 @@ instance HasRange (LHSCore' e) where
     getRange (LHSWith h wps ps)     = h `fuseRange` wps `fuseRange` ps
 
 instance HasRange a => HasRange (Clause' a) where
-    getRange (Clause lhs _ rhs ds catchall) = getRange (lhs, rhs, ds)
+    getRange (Clause lhs _ rhs ds _catchall) = getRange (lhs, rhs, ds)
 
 instance HasRange RHS where
     getRange AbsurdRHS                 = noRange
@@ -1120,9 +1123,9 @@ insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
       -> [WithHiding Name]
       -> [NamedArg a]
       -> Maybe ([(Name, a)], [WithHiding Name])
-    matchArgs r [] []     = return ([], [])
-    matchArgs r [] as     = Nothing
-    matchArgs r (n:ns) [] | visible n = return ([], n : ns)    -- under-applied
+    matchArgs _ [] []     = return ([], [])
+    matchArgs _ [] (_:_)  = Nothing
+    matchArgs _ (n:ns) [] | visible n = return ([], n : ns)    -- under-applied
     matchArgs r (n:ns) as = do
       (p, as) <- matchNextArg r n as
       first ((whThing n, p) :) <$> matchArgs (getRange p) ns as
