@@ -354,11 +354,12 @@ hasEllipsis' = traverseCPatternA $ \ p mp ->
     EllipsisP _ Nothing -> OneHole id p
     _                   -> mp
 
+-- | Reconstruct the ellipsis, used in printing (AbstractToConcrete).
 reintroduceEllipsis :: ExpandedEllipsis -> Pattern -> Pattern
 reintroduceEllipsis (ExpandedEllipsis r k) p | hasWithPatterns p =
   let (args, wargs) = splitEllipsis k $ List1.toList $ patternAppView p
       (hd,args') = fromMaybe __IMPOSSIBLE__ $ uncons args
-      core = foldl AppP (namedArg hd) args
+      core = foldl AppP (namedArg hd) args'
   in foldl AppP (EllipsisP r $ Just $ core) wargs
 reintroduceEllipsis _ p = p
 
