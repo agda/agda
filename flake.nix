@@ -37,7 +37,7 @@
       # Recommended build
       agda-pkg = hlib.overrideCabal (_: {
           # These settings are documented at
-          # https://ryantm.github.io/nixpkgs/languages-frameworks/haskell/#haskell-mkderivation
+          # https://nixos.org/manual/nixpkgs/unstable/#haskell-mkderivation
 
           # Don't run the test suite every build
           # (which is slow, and currently broken in nix)
@@ -49,6 +49,10 @@
           doCoverage                = false;  # Saved   2 seconds
           enableExecutableProfiling = false;  # Saved   1 seconds
           enableStaticLibraries     = false;  # Saved  -1 seconds
+
+          # Place the binaries in a separate output with a much smaller closure size.
+          enableSeparateBinOutput = true;
+          mainProgram = "agda";
         }) agda-pkg-minimal;
 
       # An even faster Agda build, achieved by asking GHC to optimize less
@@ -95,16 +99,17 @@
       packages.type-check = agda-pkg-tc;     # Entry point for `nix build .#type-check`
       devShells.default   = agda-dev-shell;  # Entry point for `nix develop`
 
-      # Allow power users to set this flake's agda
-      # as a drop-in replacement for nixpkgs's agda
+      # Allow users to set this flake's agda as a drop-in replacement for nixpkgs's agda
       # (including as a dependency of other nixpkgs packages)
       # See https://flake.parts/overlays for more info
-      overlayAttrs.packages.haskellPackages.agda = agda-pkg;
-      # TODO: also replace each haskell.packages.ghcXXX.agda
+      overlayAttrs.haskell = pkgs.haskell // {
+        packageOverrides = pkgs.lib.composeExtensions pkgs.haskell.packageOverrides
+          (hfinal: hprev: {
+            Agda = agda-pkg;
+          });
+      };
     };
-    # Generate the overlays.default output from overlayAttrs above
-    # N.B. This overlay is EXPERIMENTAL and untested.
-    # Please report bugs to the Agda issue tracker.
+
     imports = [ inputs.flake-parts.flakeModules.easyOverlay ];
   };
 }

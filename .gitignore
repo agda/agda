@@ -81,6 +81,7 @@ module-dependency-graph.dot
 module-dependency-graph.pdf
 pkg-build*
 result
+result-*
 stack*.yaml.lock
 stack.yaml
 TAGS
