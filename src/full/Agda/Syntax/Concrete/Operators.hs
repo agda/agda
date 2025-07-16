@@ -1,4 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
 
 {-# LANGUAGE DataKinds #-}
 
@@ -472,9 +474,9 @@ buildParsers kind top exprNames0 = do
                   <*> choiceIn ops
                   <*> higher
 
-            or p1 []   p2 []   = Nothing
-            or p1 []   p2 ops2 = Just (p2 ops2)
-            or p1 ops1 p2 []   = Just (p1 ops1)
+            or _  []   _  []   = Nothing
+            or _  []   p2 ops2 = Just (p2 ops2)
+            or p1 ops1 _  []   = Just (p1 ops1)
             or p1 ops1 p2 ops2 = Just (p1 ops1 <|> p2 ops2)
 
             preRight :: Maybe (Parser e (MaybePlaceholder e -> e))
@@ -535,7 +537,7 @@ parsePat parse = loop
     InstanceP _ _    -> fail "bad instance argument"
     AsP r x p        -> AsP r x <$> loop p
     p@DotP{}         -> return p
-    ParenP r p       -> fullParen' <$> loop p
+    ParenP _r p      -> fullParen' <$> loop p
     p@WildP{}        -> return p
     p@AbsurdP{}      -> return p
     p@LitP{}         -> return p
@@ -741,7 +743,7 @@ parseLHS ::
 parseLHS displayLhs top p = billToParser IsPattern $ do
   (res, ops) <- parseLHS' displayLhs IsLHS (Just top) p
   case res of
-    ParseLHS f lhs -> return lhs
+    ParseLHS _f lhs -> return lhs
     _ -> typeError $ OperatorInformation ops
                    $ NoParseForLHS IsLHS [] p
 

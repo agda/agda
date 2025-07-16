@@ -34,7 +34,9 @@
 --     (ConcreteToAbstract), where we are in the TCM and can produce more
 --     informative error messages.
 
+{-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
 
 module Agda.Syntax.Concrete.Definitions
     ( NiceDeclaration(..)
@@ -55,16 +57,12 @@ import Prelude hiding (null)
 
 import Control.Monad.Except  ( )
 import Control.Monad.Reader  ( asks )
-import Control.Monad.State   ( MonadState(..), gets, StateT, runStateT )
-import Control.Monad.Trans   ( lift )
+import Control.Monad.State   ( MonadState(..), gets, runStateT )
 
-import Data.Bifunctor
-import Data.Either (isLeft, isRight)
-import Data.Function (on)
+import Data.Either           ( isRight )
+import Data.Function         ( on )
 import qualified Data.Map as Map
-import Data.Map (Map)
 import Data.Maybe
-import Data.Semigroup ( Semigroup(..) )
 import qualified Data.List as List
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
@@ -72,19 +70,15 @@ import qualified Data.Traversable as Trav
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Common hiding (TerminationCheck())
-import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Position
 import Agda.Syntax.Notation
-import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Concrete.Fixity
-import Agda.Syntax.Common.Pretty
-
 import Agda.Syntax.Concrete.Definitions.Errors
 import Agda.Syntax.Concrete.Definitions.Monad
 import Agda.Syntax.Concrete.Definitions.Types
 
 import Agda.Utils.AffineHole
-import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
+import Agda.Utils.CallStack ( HasCallStack, withCallerCallStack )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List (spanJust)

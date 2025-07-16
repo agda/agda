@@ -1,4 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
 
 -- | Generic traversal and reduce for concrete syntax,
 --   in the style of "Agda.Syntax.Internal.Generic".
@@ -168,7 +170,7 @@ instance ExprLike FieldAssignment where
 instance ExprLike ModuleAssignment where
   mapExpr      f (ModuleAssignment m es i) = ModuleAssignment m (mapExpr f es) i
   traverseExpr f (ModuleAssignment m es i) = (\es' -> ModuleAssignment m es' i) <$> traverseExpr f es
-  foldExpr     f (ModuleAssignment m es i) = foldExpr f es
+  foldExpr     f (ModuleAssignment _ es _) = foldExpr f es
 
 instance ExprLike a => ExprLike (OpApp a) where
   mapExpr f = \case

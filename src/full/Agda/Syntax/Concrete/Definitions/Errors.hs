@@ -1,3 +1,7 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
+
 module Agda.Syntax.Concrete.Definitions.Errors where
 
 import Control.DeepSeq
@@ -14,8 +18,8 @@ import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Null ( empty )
 import Agda.Utils.CallStack ( CallStack )
-import Agda.Utils.List1 (List1, pattern (:|))
-import Agda.Utils.List2 (List2, pattern List2)
+import Agda.Utils.List1 (List1)
+import Agda.Utils.List2 (List2)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Set1 (Set1)
 import qualified Agda.Utils.Set1 as Set1
@@ -328,9 +332,9 @@ instance HasRange DeclarationException' where
   getRange (MultipleEllipses d)                 = getRange d
   getRange (DuplicateDefinition x)              = getRange x
   getRange (DuplicateAnonDeclaration r)         = r
-  getRange (MissingWithClauses x lhs)           = getRange lhs
-  getRange (WrongDefinition x k k')             = getRange x
-  getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
+  getRange (MissingWithClauses _x lhs)          = getRange lhs
+  getRange (WrongDefinition x _k _k')           = getRange x
+  getRange (AmbiguousFunClauses lhs _xs)        = getRange lhs
   getRange (AmbiguousConstructor r _ _)         = r
   getRange (WrongContentBlock _ r)              = r
   getRange (InvalidMeasureMutual r)             = r
@@ -367,7 +371,7 @@ instance HasRange DeclarationWarning' where
     InvalidTacticAttribute r           -> r
     MissingDataDeclaration x           -> getRange x
     MissingDefinitions xs              -> getRange xs
-    NotAllowedInMutual r x             -> r
+    NotAllowedInMutual r _x            -> r
     OpenImportAbstract r _kwr _        -> getRange r
     OpenImportPrivate  _r kwr _kwr _   -> getRange kwr
     PolarityPragmasButNotPostulates xs -> getRange xs
@@ -399,7 +403,7 @@ instance Pretty DeclarationException' where
     pwords "Duplicate definition of" ++ [pretty x]
   pretty (DuplicateAnonDeclaration _) = fsep $
     pwords "Duplicate declaration of _"
-  pretty (MissingWithClauses x lhs) = fsep $
+  pretty (MissingWithClauses x _lhs) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
 
   pretty (WrongDefinition x k k') = fsep $ pretty x :
@@ -477,7 +481,7 @@ instance Pretty DeclarationWarning' where
      pwords "The following names are declared but not accompanied by a definition:"
      ++ punctuate comma (fmap (pretty . fst) xs)
 
-    NotAllowedInMutual r nd -> fsep $
+    NotAllowedInMutual _r nd -> fsep $
       text nd : pwords "in mutual blocks are not supported.  Suggestion: get rid of the mutual block by manually ordering declarations"
 
     PolarityPragmasButNotPostulates xs -> fsep $

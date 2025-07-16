@@ -1,3 +1,7 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
+
 module Agda.Syntax.Concrete.Definitions.Types where
 
 import Control.DeepSeq
@@ -187,13 +191,13 @@ isInterleavedData _ = Nothing
 
 interleavedDecl :: Name -> InterleavedDecl -> [(DeclNum, NiceDeclaration)]
 interleavedDecl k = \case
-  InterleavedData i d@(NiceDataSig _ _ acc abs pc uc _ pars _) ds ->
+  InterleavedData i d@(NiceDataSig _ _ _acc abs pc uc _ pars _) ds ->
     let fpars   = concatMap dropTypeAndModality pars
         r       = getRange (k, fpars)
         ddef cs = NiceDataDef (getRange (r, cs)) UserWritten
                     abs pc uc k fpars cs
     in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (sconcat (List1.reverse dss)))]) ds
-  InterleavedFun i d@(FunSig r acc abs inst mac info tc cc n e) dcs ->
+  InterleavedFun i d@(FunSig r _acc abs inst _mac _info tc cc n _e) dcs ->
     let fdef dcss = let (dss, css) = List1.unzip dcss in
                     FunDef r (sconcat dss) abs inst tc cc n (sconcat css)
     in (i,d) : maybe [] (\ (j, dcss) -> [(j, fdef (List1.reverse dcss))]) dcs
@@ -257,9 +261,9 @@ instance Pretty NiceDeclaration where
     NiceRecDef _ _ _ _ _ x  _ _ _  -> text "record" <+> pretty x <+> text "where"
     NicePatternSyn _ _ x _ _       -> text "pattern" <+> pretty x
     NiceGeneralize _ _ _ _ x _     -> text "variable" <+> pretty x
-    NiceUnquoteDecl _ _ _ _ _ _ xs _ -> text "<unquote declarations>"
-    NiceUnquoteDef _ _ _ _ _ xs _    -> text "<unquote definitions>"
-    NiceUnquoteData _ _ _ _ _ x xs _ -> text "<unquote data types>"
+    NiceUnquoteDecl _ _ _ _ _ _ _xs _  -> text "<unquote declarations>"
+    NiceUnquoteDef _ _ _ _ _ _xs _     -> text "<unquote definitions>"
+    NiceUnquoteData _ _ _ _ _ _x _xs _ -> text "<unquote data types>"
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"

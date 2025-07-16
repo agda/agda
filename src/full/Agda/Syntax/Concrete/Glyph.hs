@@ -1,4 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds   #-}
 
 {-| Choice of Unicode or ASCII glyphs.
 -}

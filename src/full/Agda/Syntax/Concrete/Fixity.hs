@@ -1,4 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
 
 -- | Collecting fixity declarations (and polarity pragmas) for concrete
 --   declarations.
@@ -58,7 +60,7 @@ plusFixities m1 m2
     | otherwise        = return $ Map.unionWithKey mergeFixites m1 m2
   where
     --  Merge two fixities, assuming there is no conflict
-    mergeFixites name (Fixity' f1 s1 r1) (Fixity' f2 s2 r2) = Fixity' f s $ fuseRange r1 r2
+    mergeFixites _name (Fixity' f1 s1 r1) (Fixity' f2 s2 r2) = Fixity' f s $ fuseRange r1 r2
               where f | null f1 = f2
                       | null f2 = f1
                       | otherwise = __IMPOSSIBLE__
@@ -228,7 +230,7 @@ declaredNames = \case
   DataDef _ _ _ cs      -> foldMap declaredNames cs
   Data _ _ x _ _ cs     -> declaresName x <> foldMap declaredNames cs
   RecordSig _ _ x _ _   -> declaresName x
-  RecordDef _ x ds _ _  -> declaresNames $     maybeToList (recDirConstructor ds)
+  RecordDef _ _x ds _ _ -> declaresNames $     maybeToList (recDirConstructor ds)
   Record _ _ x ds _ _ _ -> declaresNames $ x : maybeToList (recDirConstructor ds)
   Infix _ _             -> mempty
   Syntax _ _            -> mempty

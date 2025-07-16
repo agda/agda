@@ -1,4 +1,8 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 {-| Pretty printer for the concrete syntax.
 -}
@@ -13,16 +17,14 @@ import Data.Maybe
 import qualified Data.Foldable  as Fold
 import qualified Data.Semigroup as Semigroup
 import qualified Data.Strict.Maybe as Strict
-import qualified Data.Text as T
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Glyph
 
-import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
+import Agda.Utils.List1 ( List1, (<|) )
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
@@ -352,7 +354,7 @@ instance Pretty LHSCore where
       sep $ parens doc : map (parens . pretty) ps
     where
     doc = sep $ pretty h <$ fmap (("|" <+>) . pretty) wps
-  pretty (LHSEllipsis r p) = "..."
+  pretty (LHSEllipsis _ _) = "..."
 
 instance Pretty ModuleApplication where
   pretty (SectionApp _ bs x es) = fsep $ concat
@@ -442,7 +444,7 @@ instance Pretty Declaration where
       pRecord defaultErased x dir tel Nothing cs
     Infix f xs  ->
       pretty f <+> fsep (punctuate comma $ fmap pretty xs)
-    Syntax n xs -> "syntax" <+> pretty n <+> "..."
+    Syntax n _xs -> "syntax" <+> pretty n <+> "..."
     PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
                              <+> "=" <+> pretty p
     Mutual _ ds     -> namedBlock "mutual" ds
@@ -474,7 +476,7 @@ instance Pretty Declaration where
             prettyErased erased (pretty x) <+> fsep (map pretty tel)
           , nest 2 $ fsep $ concat [ [ "=", pretty y ], map pretty es, [ pretty i ] ]
           ]
-    ModuleMacro _ erased x (RecordModuleInstance _ rec) open i ->
+    ModuleMacro _ erased x (RecordModuleInstance _ rec) open _i ->
       sep [ pretty open <+> "module" <+> prettyErased erased (pretty x)
           , nest 2 $ "=" <+> pretty rec <+> "{{...}}"
           ]
@@ -622,7 +624,7 @@ instance Pretty Pattern where
             QuoteP _        -> "quote"
             RecP _ _ fs     -> sep [ "record", bracesAndSemicolons (map pretty fs) ]
             EqualP _ es     -> sep $ for es \ (e1, e2) -> parens $ sep [pretty e1, "=", pretty e2]
-            EllipsisP _ mp  -> "..."
+            EllipsisP _ _   -> "..."
             WithP _ p       -> "|" <+> pretty p
 
 prettyOpApp :: forall a .

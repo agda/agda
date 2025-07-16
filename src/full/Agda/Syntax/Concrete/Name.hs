@@ -1,3 +1,7 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds   #-}
+
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
 -}

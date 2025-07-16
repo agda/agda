@@ -1,4 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
 
 module Agda.Syntax.Concrete.Definitions.Monad where
 
