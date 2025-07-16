@@ -34,7 +34,7 @@ Warnings
 Syntax
 ------
 
-Additions to the Agda syntax.
+Changes to the Agda syntax.
 
 * Records can now be created using module-like syntax in place of curly braces
   and semicolons.
@@ -56,6 +56,13 @@ Additions to the Agda syntax.
     split p k = let @0 (x , y) = q in k x y
       where
       @0 q = p
+  ```
+
+* Postfix projections cannot be surrounded by parentheses anymore.
+  E.g. these postfix projection applications are now illegal in expressions:
+  ```agda
+    r (.proj)
+    r .(proj)
   ```
 
 Language

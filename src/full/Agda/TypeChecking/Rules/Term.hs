@@ -1445,7 +1445,10 @@ checkExpr' cmp e t =
           else
             internalError "DontCare may only appear in irrelevant contexts"
 
-        A.Dot{} -> typeError InvalidDottedExpression
+        -- Andreas, 2025-07-16, isse #7954.
+        -- 'A.Dot' can now only appear in the argument position of 'A.App',
+        -- where it is handled by 'appView'.
+        A.Dot{} -> __IMPOSSIBLE__ -- WAS: typeError InvalidDottedExpression
 
         -- Application
         _   | Application hd args <- appView e -> checkApplication cmp hd args e t

@@ -735,6 +735,40 @@ inferParenPreference :: C.Expr -> ParenPreference
 inferParenPreference C.Paren{} = PreferParen
 inferParenPreference _         = PreferParenless
 
+-- | Scope check the argument in an 'C.App', giving special treatment to 'C.Dot'
+--   which in some situation can be interpreted as post-fix projection.
+toAbstractArgument :: NamedArg C.Expr -> ScopeM (NamedArg A.Expr, ParenPreference)
+toAbstractArgument e = do
+  case namedArg e of
+
+    -- Andreas, 2025-07-15, issue #7954: do not allow parentheses around postfix projections.
+    C.Dot kwr ex
+      | null (getArgInfo e) -> do
+          -- @ex@ may only be an identifier
+          y <- toAbstractIdent ex $ fail InvalidDottedExpression
+          return (defaultNamedArg $ A.Dot (ExprRange $ getRange e) y, PreferParenless)
+
+      -- Andreas, 2021-02-10, issue #3289: reject @e {.p}@ and @e ⦃ .p ⦄@.
+      -- Raise an error if argument is a C.Dot with Hiding info.
+      | otherwise -> fail $ IllegalHidingInPostfixProjection e
+
+    -- Ordinary function argument.
+    _ -> do
+      let parenPref = inferParenPreference (namedArg e)
+      (,parenPref) <$> toAbstractCtx (ArgumentCtx parenPref) e
+  where
+    fail :: TypeError -> ScopeM a
+    fail = setCurrentRange e . typeError
+
+
+-- | Check an identifier in scope.
+toAbstractIdent :: C.Expr -> ScopeM A.Expr -> ScopeM A.Expr
+toAbstractIdent e fallback = traceCall (ScopeCheckExpr e) do
+  case e of
+    C.Ident        x -> toAbstract (OldQName x Nothing)
+    C.KnownIdent _ x -> toAbstract (OldQName x Nothing)
+    _ -> fallback
+
 -- | Parse a possibly dotted and braced @C.Expr@ as @A.Expr@,
 --   interpreting dots as relevance and braces as hiding.
 --   Only accept a layer of dotting/bracing if the respective accumulator is @Nothing@.
@@ -831,8 +865,8 @@ instance ToAbstract C.Expr where
     traceCall (ScopeCheckExpr e) $ annotateExpr $ case e of
 
   -- Names
-      Ident x -> toAbstract (OldQName x Nothing)
-      KnownIdent _ x -> toAbstract (OldQName x Nothing)
+      C.Ident x -> toAbstract (OldQName x Nothing)
+      C.KnownIdent _ x -> toAbstract (OldQName x Nothing)
       -- Just discard the syntax highlighting information.
 
   -- Literals
@@ -894,17 +928,9 @@ instance ToAbstract C.Expr where
 
   -- Application
       C.App r e1 e2 -> do
-        -- Andreas, 2021-02-10, issue #3289: reject @e {.p}@ and @e ⦃ .p ⦄@.
-
-        -- Raise an error if argument is a C.Dot with Hiding info.
-        case namedArg e2 of
-          C.Dot{} | notVisible e2 -> setCurrentRange e2 $ typeError $ IllegalHidingInPostfixProjection e2
-          _ -> return ()
-
-        let parenPref = inferParenPreference (namedArg e2)
-            info = (defaultAppInfo r) { appOrigin = UserWritten, appParens = parenPref }
         e1 <- toAbstractCtx FunctionCtx e1
-        e2 <- toAbstractCtx (ArgumentCtx parenPref) e2
+        (e2, parenPref) <- toAbstractArgument e2
+        let info = (defaultAppInfo r) { appOrigin = UserWritten, appParens = parenPref }
         return $ A.App info e1 e2
 
   -- Operator application
@@ -1011,7 +1037,7 @@ instance ToAbstract C.Expr where
         toAbstractCtx TopCtx =<< desugarDoNotation ss
 
   -- Post-fix projections
-      e0@(C.Dot _kwr e) -> A.Dot (ExprRange $ getRange e0) <$> toAbstract e
+      C.Dot _ _ -> typeError InvalidDottedExpression
 
   -- Pattern things
       C.As _ _ _ -> notAnExpression e
