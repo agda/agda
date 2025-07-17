@@ -26,7 +26,7 @@ import           Agda.Utils.FileName               ( AbsolutePath )
 import           Agda.Utils.Lens                   ( Lens', (^.), over )
 import           Agda.Utils.List1                  ( String1 )
 import qualified Agda.Utils.Maybe.Strict           as Strict
-import           Agda.Utils.ProfileOptions         ( ProfileOptions )
+import           Agda.Interaction.Options.ProfileOptions         ( ProfileOptions )
 import           Agda.Utils.Trie                   ( Trie )
 import           Agda.Utils.WithDefault            ( WithDefault, WithDefault' )
 
