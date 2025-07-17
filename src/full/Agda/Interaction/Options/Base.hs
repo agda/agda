@@ -1854,10 +1854,13 @@ parsePluginOptions argv opts =
 -- | The usage info message. The argument is the program name (probably
 --   agda).
 usage :: [OptDescr ()] -> String -> Help -> String
-usage options progName GeneralHelp = usageInfo (header progName) options
+usage options progName GeneralHelp = usageInfo header options
     where
-        header progName = unlines [ "Agda version " ++ version, ""
-                                  , "Usage: " ++ progName ++ " [OPTIONS...] [FILE]" ]
+        header = unlines
+          [ "Agda version " ++ version
+          , ""
+          , "Usage: " ++ progName ++ " [OPTIONS...] [FILE]"
+          ]
 
 usage options progName (HelpFor topic) = helpTopicUsage topic
 
