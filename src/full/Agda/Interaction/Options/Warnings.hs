@@ -19,7 +19,7 @@ module Agda.Interaction.Options.Warnings
        , warningModeUpdate
        , warningSets
        , WarningName (..)
-       , warningName2String
+       , warningNameToString
        , string2WarningName
        , usageWarning
        )
@@ -395,10 +395,10 @@ instance NFData WarningName
 
 string2WarningName :: String -> Maybe WarningName
 string2WarningName = (`HMap.lookup` warnings) where
-  warnings = HMap.fromList $ map (\x -> (warningName2String x, x)) [minBound..maxBound]
+  warnings = HMap.fromList $ map (\x -> (warningNameToString x, x)) [minBound..maxBound]
 
-warningName2String :: WarningName -> String
-warningName2String = initWithDefault __IMPOSSIBLE__ . show
+warningNameToString :: WarningName -> String
+warningNameToString = initWithDefault __IMPOSSIBLE__ . show
 
 -- | @warningUsage@ generated using @warningNameDescription@
 
@@ -432,7 +432,7 @@ usageWarning = intercalate "\n"
     warningTable printD ws =
       untable $ forMaybe ws $ \ w ->
         let wnd = warningNameDescription w in
-        ( warningName2String w
+        ( warningNameToString w
         , applyWhen printD ((if w `Set.member` usualWarnings then "d" else " ") ++)
           " " ++
           wnd
