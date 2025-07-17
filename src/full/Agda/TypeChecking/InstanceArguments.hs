@@ -64,7 +64,7 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Syntax.Common.Pretty (prettyShow)
 
-import qualified Agda.Utils.ProfileOptions as Profile
+import qualified Agda.Interaction.Options.ProfileOptions as Profile
 -- import qualified Agda.Utils.HashTable as HashTable
 import Agda.Utils.WithDefault (lensCollapseDefault)
 import Agda.Utils.Impossible

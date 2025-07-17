@@ -29,7 +29,7 @@ import Agda.TypeChecking.Free
 
 import Agda.TypeChecking.DiscrimTree.Types
 
-import qualified Agda.Utils.ProfileOptions as Profile
+import qualified Agda.Interaction.Options.ProfileOptions as Profile
 
 import Agda.Utils.Impossible
 import Agda.Utils.Trie (Trie(..))

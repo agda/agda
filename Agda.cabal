@@ -605,6 +605,7 @@ library
       Agda.Interaction.Options.Errors
       Agda.Interaction.Options.Help
       Agda.Interaction.Options.Lenses
+      Agda.Interaction.Options.ProfileOptions
       Agda.Interaction.Options.Warnings
       Agda.Main
       Agda.Mimer.Mimer
@@ -890,7 +891,6 @@ library
       Agda.Utils.PartialOrd
       Agda.Utils.Permutation
       Agda.Utils.POMonoid
-      Agda.Utils.ProfileOptions
       Agda.Utils.RangeMap
       Agda.Utils.SemiRing
       Agda.Utils.Semigroup

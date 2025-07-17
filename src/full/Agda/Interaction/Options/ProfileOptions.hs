@@ -1,5 +1,5 @@
 
-module Agda.Utils.ProfileOptions
+module Agda.Interaction.Options.ProfileOptions
   ( ProfileOption(..)
   , ProfileOptions
   , noProfileOptions

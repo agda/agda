@@ -80,7 +80,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty ( prettyShow )
-import qualified Agda.Utils.ProfileOptions as Profile
+import qualified Agda.Interaction.Options.ProfileOptions as Profile
 
 import Agda.Utils.Impossible
 

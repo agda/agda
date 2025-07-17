@@ -240,7 +240,7 @@ import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad         ( tell1 )
 import Agda.Utils.Null
-import Agda.Utils.ProfileOptions
+import Agda.Interaction.Options.ProfileOptions
 import Agda.Utils.String        ( unwords1 )
 import qualified Agda.Utils.String       as String
 import Agda.Utils.Trie          ( Trie )
