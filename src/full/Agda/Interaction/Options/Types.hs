@@ -58,6 +58,8 @@ data CommandLineOptions = Options
   -- Setup and printing
   , optPrintAgdaDataDir      :: Bool
   , optPrintAgdaAppDir       :: Bool
+  , optPrintOptions          :: Bool
+      -- ^ Print all options as a simple list (for implementing bash completion).
   , optPrintVersion          :: Maybe PrintAgdaVersion
   , optPrintHelp             :: Maybe Help
   , optBuildLibrary          :: Bool

@@ -58,6 +58,12 @@ but in the fixed order listed in the following:
 
      Overwrites itself, i.e., only the last of several :option:`--help` options is effective.
 
+.. option:: --print-options
+
+     .. versionadded:: 2.9.0
+
+     Print a simple list of all options, suitable for implementing bash completion.
+
 .. option:: --build-library
 
      .. versionadded:: 2.8.0

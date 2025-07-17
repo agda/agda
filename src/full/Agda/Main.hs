@@ -28,6 +28,7 @@ import Agda.Interaction.BuildLibrary (buildLibrary)
 import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode as ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
+import Agda.Interaction.Options.BashCompletion (printedOptions)
 import Agda.Interaction.Options.Help (Help (..))
 import Agda.Interaction.EmacsTop (mimicGHCi)
 import Agda.Interaction.JSONTop (jsonREPL)
@@ -88,6 +89,7 @@ runAgda' backends = do
       whenJust (optPrintHelp    opts) $ printUsage   bs
       when (optPrintAgdaAppDir  opts) $ printAgdaAppDir
       when (optPrintAgdaDataDir opts) $ printAgdaDataDir
+      when (optPrintOptions     opts) $ printOptions
 
       -- Setup emacs mode
       when (EmacsModeSetup `Set.member` optEmacsMode opts) do
@@ -113,6 +115,7 @@ runAgda' backends = do
               , opts & optPrintHelp    & isJust
               , opts & optPrintAgdaAppDir
               , opts & optPrintAgdaDataDir
+              , opts & optPrintOptions
               , opts & optEmacsMode    & not . null
               ]
           -- if no task was given to Agda
@@ -376,6 +379,9 @@ printAgdaDataDir = putStrLn =<< getDataDir
 
 printAgdaAppDir :: IO ()
 printAgdaAppDir = putStrLn =<< getAgdaAppDir
+
+printOptions :: IO ()
+printOptions = mapM_ putStrLn printedOptions
 
 -- | What to do for bad options.
 optionError :: String -> IO ()
