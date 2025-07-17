@@ -599,6 +599,8 @@ library
       Agda.Interaction.MakeCase
       Agda.Interaction.Monad
       Agda.Interaction.Options
+      Agda.Interaction.Options.Arguments
+      Agda.Interaction.Options.BashCompletion
       Agda.Interaction.Options.Errors
       Agda.Interaction.Options.Help
       Agda.Interaction.Options.Lenses

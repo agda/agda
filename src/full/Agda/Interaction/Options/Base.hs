@@ -213,6 +213,7 @@ import Text.Read                ( readMaybe )
 import Agda.Termination.CutOff  ( CutOff(..), defaultCutOff )
 
 import Agda.Interaction.Library ( ExeName, LibName, OptionsPragma(..), parseLibName )
+import Agda.Interaction.Options.Arguments
 import Agda.Interaction.Options.Help
   ( Help(HelpFor, GeneralHelp)
   , string2HelpTopic
@@ -676,6 +677,7 @@ defaultOptions = Options
   , optTrustedExecutables    = Map.empty
   , optPrintAgdaDataDir      = False
   , optPrintAgdaAppDir       = False
+  , optPrintOptions          = False
   , optPrintVersion          = Nothing
   , optPrintHelp             = Nothing
   , optBuildLibrary          = False
@@ -1064,6 +1066,9 @@ printAgdaDataDirFlag o = return $ o { optPrintAgdaDataDir = True }
 printAgdaAppDirFlag :: Flag CommandLineOptions
 printAgdaAppDirFlag o = return $ o { optPrintAgdaAppDir = True }
 
+printOptionsFlag :: Flag CommandLineOptions
+printOptionsFlag o = return $ o { optPrintOptions = True }
+
 setupFlag :: Flag CommandLineOptions
 setupFlag o = return $ o { optSetup = True }
 
@@ -1109,11 +1114,8 @@ printEmacsModeCommands mvar = concat
   [ "available"
   , ifNull mvar "" {-else-} \ cmd -> " " ++ cmd
   , ": "
-  , intercalate ", " emacsModeCommands
+  , intercalate ", " emacsModeValues
   ]
-
-emacsModeCommands :: [String]
-emacsModeCommands = [EmacsMode.setupFlag, EmacsMode.compileFlag, EmacsMode.locateFlag]
 
 safeFlag :: Flag PragmaOptions
 safeFlag o = do
@@ -1318,12 +1320,12 @@ standardOptions =
     , Option []     ["numeric-version"] (NoArg numericVersionFlag)
                     ("print version number")
 
-    , Option ['?']  ["help"]    (OptArg helpFlag "TOPIC")
-                    ("print help; " ++ printHelpTopics "TOPIC")
+    , Option ['?']  ["help"]    (OptArg helpFlag helpArg)
+                    ("print help; " ++ printHelpTopics helpArg)
 
-    , Option []     ["emacs-mode"] (ReqArg emacsModeFlag "COMMAND") $ concat
+    , Option []     ["emacs-mode"] (ReqArg emacsModeFlag emacsModeArg) $ concat
                     [ "administer the Emacs Agda mode; "
-                    , printEmacsModeCommands "COMMANDs"
+                    , printEmacsModeCommands (emacsModeArg ++ "s")
                     , "; confer --help=emacs-mode"
                     ]
 
@@ -1335,6 +1337,9 @@ standardOptions =
 
     , Option []     ["print-agda-data-dir"] (NoArg printAgdaDataDirFlag)
                     ("print the Agda data directory")
+
+    , Option []     ["print-options"] (NoArg printOptionsFlag)
+                    ("print the full list of Agda's options")
 
     , Option []     ["build-library"] (NoArg \ o -> return o{ optBuildLibrary = True })
                     "build all modules included by the @.agda-lib@ file in the current directory"
@@ -1355,8 +1360,14 @@ standardOptions =
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
 
-    , Option []     ["trace-imports"] (OptArg traceImportsFlag "LEVEL")
-                    ("print information about accessed modules during type-checking (where LEVEL=0|1|2|3, default: 2)")
+    , Option []     ["trace-imports"] (OptArg traceImportsFlag traceImportsArg)
+                    (concat
+                      [ "print information about accessed modules during type-checking (where "
+                      , traceImportsArg
+                      , "="
+                      , intercalate "|" traceImportsValues
+                      , ", default: 2)"
+                      ])
 
     , Option []     ["vim"] (NoArg vimFlag)
                     "generate Vim highlighting files"
@@ -1376,7 +1387,7 @@ standardOptions =
                     "only scope-check the top-level module, do not type-check it"
     , Option []     ["transliterate"] (NoArg transliterateFlag)
                     "transliterate unsupported code points when printing to stdout/stderr"
-    , Option []     ["colour", "color"] (OptArg diagnosticsColour "always|auto|never")
+    , Option []     ["colour", "color"] (OptArg diagnosticsColour (intercalate "|" colorValues))
                     ("whether or not to colour diagnostics output. The default is auto.")
     ] ++ map (fmap lensPragmaOptions) pragmaOptions
 
@@ -1491,8 +1502,16 @@ pragmaOptions = concat
                     Nothing
   , [ Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
                     "set verbosity level to N. Only has an effect if Agda was built with the \"debug\" flag."
-    , Option []     ["profile"] (ReqArg profileFlag "TYPE")
-                    ("turn on profiling for TYPE (where TYPE=" ++ intercalate "|" validProfileOptionStrings ++ ")")
+    , Option []     ["profile"] (ReqArg profileFlag profileArg)
+                    (concat
+                       [ "turn on profiling for "
+                       , profileArg
+                       , " (where "
+                       , profileArg
+                       , "="
+                       , intercalate "|" profileValues
+                       , ")"
+                       ])
     ]
   , pragmaFlag      "allow-unsolved-metas" lensOptAllowUnsolved
                     "succeed and create interface file regardless of unsolved meta variables" ""
@@ -1640,7 +1659,7 @@ pragmaOptions = concat
                     "disable the syntactic equality shortcut in the conversion checker"
     , Option []     ["syntactic-equality"] (OptArg syntacticEqualityFlag "FUEL")
                     "give the syntactic equality shortcut FUEL units of fuel (default: unlimited)"
-    , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")
+    , Option ['W']  ["warning"] (ReqArg warningModeFlag warningArg)
                     ("set warning flags. See --help=warning.")
     ]
   , pragmaFlag      "main" lensOptCompileMain
