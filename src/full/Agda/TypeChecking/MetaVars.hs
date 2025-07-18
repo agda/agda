@@ -63,7 +63,7 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty (Pretty, prettyShow, render)
-import qualified Agda.Utils.ProfileOptions as Profile
+import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Graph.TopSort as Graph
 import Agda.Utils.VarSet (VarSet)
