@@ -35,7 +35,7 @@
       # Various builds of Agda
 
       # Recommended build
-      agda-pkg = hlib.overrideCabal (_: {
+      agda-pkg = hlib.overrideCabal (drv: {
           # These settings are documented at
           # https://nixos.org/manual/nixpkgs/unstable/#haskell-mkderivation
 
@@ -53,6 +53,13 @@
           # Place the binaries in a separate output with a much smaller closure size.
           enableSeparateBinOutput = true;
           mainProgram = "agda";
+        } // pkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isAarch64) {
+          # A nixpkgs-specific patch for aarch64-darwin related to the separate bin output
+          # causes a warning about some functions being removed from Paths_Agda, which
+          # we can just ignore. See https://github.com/agda/agda/issues/8016
+          configureFlags = drv.configureFlags or [] ++ [
+            "--ghc-option=-Wwarn=deprecations"
+          ];
         }) agda-pkg-minimal;
 
       # An even faster Agda build, achieved by asking GHC to optimize less
