@@ -360,12 +360,12 @@ Imports and libraries
      Ignore interface files (re-type check everything, except for
      builtin and primitive modules).
 
-.. option:: --include-path={DIR}, -i={DIR}
+.. option:: --include-path={DIR}, -i {DIR}
 
      Look for imports in ``DIR``.
      This option can be given multiple times.
 
-.. option:: --library={DIR}, -l={LIB}
+.. option:: --library={DIR}, -l {LIB}
 
      .. versionadded:: 2.5.1
 
@@ -529,7 +529,7 @@ Printing and debugging
 
      Default, opposite of :option:`--show-irrelevant`.
 
-.. option:: --verbose={N}, -v={N}
+.. option:: --verbose={N}, -v {N}
 
      Set verbosity level to ``N``. This only has an effect if
      Agda was installed with the :option:`debug` flag.
