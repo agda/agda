@@ -1068,7 +1068,7 @@ instance ToAbstract C.Expr where
 -- To each field name is associated a nonempty list of expressions
 -- (always 'A.Def' or 'A.Var') pointing to the relevant let-declaration,
 -- together with a range representing the entire declaration.
-newtype PendingBinds = PBs (Map C.Name (List1 (A.Expr, Range)))
+newtype PendingBinds = PBs { getPBs :: Map C.Name (List1 (A.Expr, Range)) }
 
 instance Semigroup PendingBinds where
   PBs x <> PBs y = PBs (Map.unionWith (<>) x y)
@@ -1118,13 +1118,14 @@ recordWhereNames = finish <=< foldM decl st0 where
   pb :: C.Name -> A.Expr -> Range -> PendingBinds
   pb n e r = PBs $ Map.singleton n ((e, r) :| [])
 
-  -- Construct a single PendingBind coming from an import directive. The
-  -- name should be present in the ScopeCopyInfo if it is given (i.e. if
-  -- the import directive is associated with a local module-macro).
+  -- Construct a single PendingBind coming from an import directive. We
+  -- take the name from the ScopeCopyInfo if it is present (i.e. if the
+  -- import directive is associated with a local module-macro),
+  -- otherwise we trust that the scope checker did the right thing...
   def :: Maybe ScopeCopyInfo -> A.QName -> PendingBinds
   def (Just ren) nm = case Map.lookup nm (renNames ren) of
     Just (new :| _) -> pb (nameConcrete (qnameName nm)) (A.Def new) (getRange nm)
-    Nothing         -> __IMPOSSIBLE__
+    Nothing         -> pb (nameConcrete (qnameName nm)) (A.Def nm) (getRange nm)
   def Nothing nm = pb (nameConcrete (qnameName nm)) (A.Def nm) (getRange nm)
 
   fromRenaming :: Maybe ScopeCopyInfo -> [A.Renaming] -> PendingBinds
@@ -1142,6 +1143,13 @@ recordWhereNames = finish <=< foldM decl st0 where
   ins :: PendingBinds -> RecWhereState -> RecWhereState
   ins pb (RecWhereState pb' m) = let pb'' = pb <> pb' in pb'' `seq` RecWhereState pb'' m
 
+  applyHiding :: A.ImportDirective -> PendingBinds -> PendingBinds
+  applyHiding ImportDirective{ hiding = hiding } (PBs pb) =
+    let
+      (names, _) = partitionImportedNames hiding
+      nset = Set.fromList $ map (nameConcrete . qnameName) names
+    in PBs $ Map.filterKeys (\k -> k `Set.notMember` nset) pb
+
   var :: A.Name -> Range -> RecWhereState -> RecWhereState
   var x r = ins (pb (nameConcrete x) (A.Var x) r)
 
@@ -1150,23 +1158,47 @@ recordWhereNames = finish <=< foldM decl st0 where
   decl st0 r@(A.LetAxiom _ _ bn _)  = pure $! var (unBind bn) (getRange r) st0
   decl st0 (A.LetPatBind _ _ pat _) = pure $! Set.foldr (\x -> var x (getRange x)) st0 $ allBoundNames pat
 
-  decl st0 (A.LetApply mi _ modn _ ren idr) = do
+  decl st0 (A.LetApply mi _ modn ma ren idr) = do
+    mod_pbs  <- fromImport (Just ren) idr
+
     reportSDoc "scope.record.where" 30 $ vcat
       [ "module macro in `record where`:"
-      , "  ren:" <+> pure (pretty ren)
       , "  idr:" <+> pure (pretty idr)
+      , "  pbs:" <+> prettyTCM (getPBs mod_pbs)
       ]
-    mod_pbs <- fromImport (Just ren) idr
-    let st1 = st0{ recWhereMods = Map.insert modn mod_pbs (recWhereMods st0) }
-    case minfoOpenShort mi of
-      Just DoOpen -> pure $! ins mod_pbs st1
-      _           -> pure st1
 
-  decl st0@RecWhereState{recWhereMods = mods} (A.LetOpen _ mod idr)
-    | null idr, Just mod_pbs <- Map.lookup mod mods = pure $! ins mod_pbs st0
-  decl st0 (A.LetOpen _ _ idr) = do
-    mod_pbs <- fromImport Nothing idr
-    pure $! ins mod_pbs st0
+    -- If the module is immediately opened, then we do not keep around
+    -- the pending bindings. This is to prevent introducing fake
+    -- duplicate bindings if this module macro is opened again, and the
+    -- opens have some overlap.
+    case minfoOpenShort mi of
+      Just DoOpen -> pure $! ins mod_pbs st0
+      _ -> pure st0{ recWhereMods = Map.insert modn mod_pbs (recWhereMods st0) }
+
+  -- If we're opening a module macro which was created in the scope of
+  -- this 'record where' expression, then it might have pending bindings
+  -- from not being opened yet.
+  -- Those need to be added to the resulting expression, but any which
+  -- are mentioned in a new hiding directive should be dropped, i.e.
+  --
+  --    module A = X using (field)
+  --    open A hiding (field)
+  --
+  -- should not add a binding for field.
+  decl st0@RecWhereState{recWhereMods = mods} (A.LetOpen _ mod idr) = do
+    -- If the module is not coming from this 'record where' expression
+    -- then we can just give it the empty list of bindings.
+    let mod_pbs = applyHiding idr (fromMaybe mempty (Map.lookup mod mods))
+    this_pbs <- fromImport Nothing idr
+
+    reportSDoc "scope.record.where" 30 $ vcat
+      [ "opening module macro in `record where` with import directive:"
+      , "     idr:" <+> pure (pretty idr)
+      , " mod_pbs:" <+> prettyTCM (getPBs (applyHiding idr mod_pbs))
+      , "this_pbs:" <+> prettyTCM (getPBs this_pbs)
+      ]
+
+    pure $! ins this_pbs $! ins mod_pbs st0
 
 instance ToAbstract C.ModuleAssignment where
   type AbsOfCon C.ModuleAssignment = (A.ModuleName, Maybe A.LetBinding)
