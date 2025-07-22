@@ -11,6 +11,7 @@
     perSystem = {pkgs, ...}: let
       hlib = pkgs.haskell.lib.compose;
       hpkgs = pkgs.haskellPackages;
+      fs = pkgs.lib.fileset;
 
       # Minimal nix code for building the `agda` executable.
       # GHC & Haskell libraries are taken from the nixpkgs snapshot.
@@ -19,7 +20,21 @@
           # instead `hpkgs.developPackage` compiles Setup.hs with ghc
           # then runs ./Setup several times. This is implemented at
           # https://github.com/NixOS/nixpkgs/blob/a781ff33ae/pkgs/development/haskell-modules/generic-builder.nix
-          root = ./.;
+
+          # A minimal set of files to copy into nix's build sandbox.
+          # Whenever these files change, `nix build` recompiles Agda.
+          root = fs.toSource {
+            root = ./.;
+            fileset = fs.unions [
+              ./src/setup
+              ./src/full
+              ./src/main
+              ./src/data
+              ./src/agda-mode
+              ./Agda.cabal
+              ./LICENSE
+            ];
+          };
 
           modifier = hlib.overrideCabal (drv: {
             # Typecheck the primitive modules.
