@@ -25,3 +25,10 @@ adjustM' f k = getCompose . adjustM (Compose . f) k
 -- | Filter a map based on the keys.
 filterKeys :: (k -> Bool) -> Map k a -> Map k a
 filterKeys p = Map.filterWithKey (const . p)
+
+-- | Check whether a map is a singleton.
+isSingleMap :: Map k v -> Maybe (k, v)
+isSingleMap m
+  | Map.size m == 1  -- This is fast since the size is cached.
+  , [(k,v)] <- Map.toList m = Just (k, v)
+  | otherwise = Nothing
