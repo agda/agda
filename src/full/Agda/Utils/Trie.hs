@@ -9,6 +9,8 @@
 module Agda.Utils.Trie
   ( Trie(..)
   , empty, singleton, everyPrefix, insert, insertWith, union, unionWith
+  , fromList
+  , prefixBy
   -- Andreas 2024-11-16:
   -- Deletion does not clean up the trie, thus violates equational laws
   -- with the given Eq that does not quotient out the different representations
@@ -79,6 +81,11 @@ singleton = singletonOrEveryPrefix False
 everyPrefix :: [k] -> v -> Trie k v
 everyPrefix = singletonOrEveryPrefix True
 
+-- | Prefix every key by the given prefix.
+prefixBy :: [k] -> Trie k v -> Trie k v
+prefixBy []     t = t
+prefixBy (k:ks) t = Trie Strict.Nothing $ Map.singleton k $ prefixBy ks t
+
 -- | Left biased union.
 --
 --   @union = unionWith (\ new old -> new)@.
@@ -99,6 +106,9 @@ insert k v t = (singleton k v) `union` t
 -- | Insert with function merging new value with old value.
 insertWith :: (Ord k) => (v -> v -> v) -> [k] -> v -> Trie k v -> Trie k v
 insertWith f k v t = unionWith f (singleton k v) t
+
+fromList :: Ord k => [([k],v)] -> Trie k v
+fromList = foldl (\ t (ks, v) -> insert ks v t) empty
 
 -- Andreas, 2024-11-16: delete does not clean up empty subtrees,
 -- so it is not correct wrt. @Eq@.
