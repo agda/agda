@@ -883,6 +883,7 @@ library
       Agda.Utils.Memo
       Agda.Utils.Monad
       Agda.Utils.Monoid
+      Agda.Utils.Natural
       Agda.Utils.Null
       Agda.Utils.Parser.MemoisedCPS
       Agda.Utils.PartialOrd
@@ -908,6 +909,7 @@ library
       Agda.Utils.Update
       Agda.Utils.VarSet
       Agda.Utils.WithDefault
+      Agda.Utils.Word
       Agda.Utils.Zipper
       Agda.Version
       Agda.VersionCommit
