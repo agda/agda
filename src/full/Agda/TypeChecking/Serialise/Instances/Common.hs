@@ -61,6 +61,8 @@ import Agda.Utils.Set1 (Set1)
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Trie (Trie(..))
 import Agda.Utils.WithDefault
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 import Agda.Utils.CallStack
@@ -288,6 +290,10 @@ instance (Ord a, EmbPrj a) => EmbPrj (Set1 a) where
 instance EmbPrj IntSet where
   icod_ s = icode (IntSet.toAscList s)
   value s = IntSet.fromDistinctAscList <$!> value s
+
+instance EmbPrj VarSet where
+  icod_ s = icode (VarSet.toDescList s)
+  value s = VarSet.fromList <$!> value s
 
 instance Typeable a => EmbPrj (SmallSet a) where
   icod_ (SmallSet a) = icodeN' SmallSet a

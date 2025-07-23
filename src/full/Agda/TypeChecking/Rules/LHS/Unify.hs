@@ -132,7 +132,6 @@ import Control.Monad.Except ( runExceptT )
 
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
-import qualified Data.IntSet as IntSet
 import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
 
@@ -172,8 +171,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
-import Agda.Utils.Singleton
 import Agda.Utils.Size
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
@@ -365,7 +364,7 @@ dataStrategy k s = do
     ifOccursStronglyRigid i u ret = do
         -- Call forceNotFree to reduce u as far as possible
         -- around any occurrences of i
-        (_ , u) <- forceNotFree (singleton i) u
+        (_ , u) <- forceNotFree (VarSet.singleton i) u
         case flexRigOccurrenceIn i u of
           Just StronglyRigid -> ret
           _ -> mzero
@@ -940,7 +939,7 @@ patternBindingForcedVars forced v = do
   let v' = precomputeFreeVars_ v
   runWriterT (evalStateT (go unitModality v') forced)
   where
-    noForced v = gets $ IntSet.disjoint (precomputedFreeVars v) . IntMap.keysSet
+    noForced v = gets $ VarSet.disjoint (precomputedFreeVars v) . VarSet.fromList . IntMap.keys
 
     bind md i = do
       gets (IntMap.lookup i) >>= \case

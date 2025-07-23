@@ -57,7 +57,6 @@ import Data.Either
 import Data.Foldable (forM_)
 import qualified Data.Foldable as Fold
 import Data.Function (on)
-import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Monoid
 import qualified Data.Map as Map
@@ -99,6 +98,7 @@ import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet (VarSet)
 
 import Agda.Utils.Impossible
 
@@ -302,13 +302,14 @@ castConstraintToCurrentContext' cl = do
   -- Γ ⊢ c[σ]
   return $ applySubst sigma c
   where
-    raiseMaybe n c = do
-      -- Fine if we have to weaken or strengthening is safe.
-      guard $
-        n >= 0 ||
-        -- Are all free variables at least -n?
-        IntSet.null (fst $ IntSet.split (-n) $ allFreeVars c)
-      return $ raise n c
+    raiseMaybe n c
+      -- We are always fine to weaken.
+      | n >= 0 = pure $ raise n c
+      | otherwise =
+        case VarSet.lookupMin $ allFreeVars c of
+          Nothing -> pure $ raise n c
+          Just k | -n < k -> pure $ raise n c
+                 | otherwise -> mzero
 
 
 -- | A hazardous hack, may the Gods have mercy on us.

@@ -71,6 +71,7 @@ import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 import Agda.Utils.Singleton (singleton)
@@ -699,7 +700,7 @@ checkArgumentsE'
 
                   -- The free variables less than visiblePis in tgt.
                   freeInTgt =
-                    fst $ IntSet.split visiblePis $ freeVars tgt
+                    fst $ VarSet.split visiblePis $ freeVars tgt
 
               rigid <- isRigid s tgt
               -- The target must be rigid.
@@ -714,7 +715,7 @@ checkArgumentsE'
                     Permanent   -> skip 0
                     Unspecified -> dontSkip
                     AVar x      ->
-                      if x `IntSet.member` freeInTgt
+                      if x `VarSet.member` freeInTgt
                       then skip x
                       else skip 0
                 IsRigid -> do
@@ -726,7 +727,7 @@ checkArgumentsE'
 
                       -- Is any free variable in tgt less than
                       -- visiblePis?
-                  let dep = not (IntSet.null freeInTgt)
+                  let dep = not (VarSet.null freeInTgt)
                   -- The target must be non-dependent.
                   if dep then return s else do
 
