@@ -368,21 +368,6 @@ compareTerm' cmp a m n =
                 mCub = isJust (isCubicalPrimHead m)
                 nCub = isJust (isCubicalPrimHead n)
 
-              when (mCub || nCub) $
-                reportSDoc "tc.conv.term.cubical" 30 $ vcat
-                  [ ("m (" <> prettyTCM mNeutral <> ", " <> prettyTCM mCub <> ", " <> prettyTCM h1 <> "):")
-                  , nest 2 (prettyTCM m)
-                  , ("n (" <> prettyTCM nNeutral <> ", " <> prettyTCM nCub <> ", " <> prettyTCM h2 <> "):")
-                  , nest 2 (prettyTCM n)
-                  , "at type"
-                  , nest 2 (prettyTCM a')
-                  , "same head:" <+> prettyTCM (h1 == h2)
-                  ]
-
-              if | isMeta m || isMeta n -> do
-                     whenProfile Profile.Conversion $ tick "compare at eta-record: meta"
-                     compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
-
                  -- Amy, 2024-01-29 (fixing issue pointed out by Tom Jack):
                  --
                  -- Cubical primitives reduce to something awful, so we would like to skip comparing them (causes
@@ -392,14 +377,44 @@ compareTerm' cmp a m n =
                  -- actually neutral (causes "timeout" in KleinBottle cohomology groups, comparing a 93KiB(!) transport
                  -- against an application of set-truncation recursion to a metavariable)
                  --
-                 -- The condition for skipping eta expansion is thus:
-                 --   (a) both are neutrals (which in this case also includes a "suspended"/copattern transp/hcomp)
-                 --   (b) if both are headed by a cubical primitive, then they are the same primitive.
+                 -- The conditions for skipping eta expansion are thus:
                  --
-                 -- So we will skip expanding transp A φ u0 = transp A' φ' u0', since it's definitionally injective; We
-                 -- will skip expanding transp A φ u0 = f ?, since it's wasted work; but we will not skip
+                 --   (n)  both are neutrals (which in this case also includes a "suspended"/copattern transp/hcomp); and
+                 --
+                 --   (c1) if both are headed by a cubical primitive, then they are the same primitive; or
+                 --
+                 --   (New! 2025-07-23:)
+                 --   (c2) if one side is a cubical primitive, then the other side must be actually *blocked*
+                 --        This prevents us from not noticing things like transport (λ i → Nat × Nat) x ≡ x
+                 --        (transport on Σ is "defined by copatterns" so both sides are "neutral",
+                 --         but the transport is a pair that contains x .fst and x .snd!)
+                 --
+                 -- So we will skip expanding transp A φ u0 = transp A' φ' u0', since it's definitionally injective;
+                 -- We will skip expanding transp A φ u0 = f ?, since it's wasted work; but we will not skip
                  -- transp A φ u0 = hcomp u u0', since those must both compute if they are to be equal.
-                 | mNeutral && nNeutral && (not (mCub && nCub) || h1 == h2) -> do
+                cubSkipOk
+                  | mCub && nCub         = h1 == h2
+                  | mCub, Blocked{} <- n = True
+                  | Blocked{} <- m, nCub = True
+                  | otherwise            = mCub == nCub
+
+              when (mCub || nCub) $
+                reportSDoc "tc.conv.term.cubical" 30 $ vcat
+                  [ ("m (" <> prettyTCM mNeutral <> ", " <> prettyTCM mCub <> ", " <> prettyTCM h1 <> "):")
+                  , nest 2 (prettyTCM m)
+                  , ("n (" <> prettyTCM nNeutral <> ", " <> prettyTCM nCub <> ", " <> prettyTCM h2 <> "):")
+                  , nest 2 (prettyTCM n)
+                  , "at type"
+                  , nest 2 (prettyTCM a')
+                  , "same head:" <+> prettyTCM (h1 == h2)
+                  , "skipping:" <+> prettyTCM cubSkipOk
+                  ]
+
+              if | isMeta m || isMeta n -> do
+                     whenProfile Profile.Conversion $ tick "compare at eta-record: meta"
+                     compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
+
+                 | mNeutral && nNeutral && cubSkipOk -> do
                      whenProfile Profile.Conversion $ tick "compare at eta-record: both neutral"
                      -- Andreas 2011-03-23: (fixing issue 396)
                      -- if we are dealing with a singleton record,
