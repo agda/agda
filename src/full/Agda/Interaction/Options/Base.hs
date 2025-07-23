@@ -906,7 +906,7 @@ unsafePragmaOptions opts =
   [ "--irrelevant-projections"          | optIrrelevantProjections opts                     ] ++
   [ "--experimental-irrelevance"        | optExperimentalIrrelevance opts                   ] ++
   [ "--rewriting"                       | optRewriting opts                                 ] ++
-  [ "--cubical-compatible and --with-K" | optCubicalCompatible opts, not (optWithoutK opts) ] ++
+  [ "--cubical=compatible and --with-K" | optCubicalCompatible opts, not (optWithoutK opts) ] ++
   [ "--without-K and --flat-split"      | optWithoutK opts, optFlatSplit opts               ] ++
   [ "--cumulativity"                    | optCumulativity opts                              ] ++
   [ "--allow-exec"                      | optAllowExec opts                                 ] ++
@@ -1007,7 +1007,7 @@ coinfectiveOption opt s = ICOption
 
 -- | Infective and coinfective options.
 --
--- Note that @--cubical@ and @--erased-cubical@ are \"jointly
+-- Note that @--cubical[=full]@ and @--cubical=erased@ are \"jointly
 -- infective\": if one of them is used in one module, then one or the
 -- other must be used in all modules that depend on this module.
 
@@ -1020,7 +1020,7 @@ infectiveCoinfectiveOptions =
                                               "--no-universe-polymorphism"
   , coinfectiveOption (not . optCumulativity) "--no-cumulativity"
   , coinfectiveOption optLevelUniverse        "--level-universe"
-  , infectiveOption (isJust . optCubical)     "--cubical/--erased-cubical/--cubical-without-glue"
+  , infectiveOption (isJust . optCubical)     "--cubical[={full,erased,no-glue}]"
   , cubicalWithoutGlue
   , infectiveOption optGuarded                "--guarded"
   , infectiveOption optProp                   "--prop"
@@ -1036,9 +1036,9 @@ infectiveCoinfectiveOptions =
   ]
   where
   cubicalCompatible =
-    (coinfectiveOption optCubicalCompatible "--cubical-compatible")
+    (coinfectiveOption optCubicalCompatible "--cubical=compatible")
       { icOptionOK = \current imported ->
-        -- One must use --cubical-compatible in the imported module if
+        -- One must use --cubical=compatible in the imported module if
         -- it is used in the current module, except if the current
         -- module also uses --with-K and not --safe, and the imported
         -- module uses --with-K.
@@ -1054,7 +1054,7 @@ infectiveCoinfectiveOptions =
       }
 
   cubicalWithoutGlue =
-    let flagName = "--cubical-without-glue" in
+    let flagName = "--cubical=no-glue" in
     (infectiveOption (\o -> optCubical o == Just CWithoutGlue) flagName)
       { icOptionOK = \current imported ->
         -- If the current module uses Cubical without glue,
@@ -1213,6 +1213,19 @@ withoutKFlag o = return $ o
   , _optFlatSplit               = setDefault False $ _optFlatSplit o
   , _optErasedMatches           = setDefault False $ _optErasedMatches o
   }
+
+-- A unified flag for all cubical variants:
+-- [--cubical] defaults to Cubical
+-- [--cubical={compatible,no-glue,erased,full}] corresponds to the 4 options.
+cubicalFlagOptArg :: Maybe String -> Flag PragmaOptions
+cubicalFlagOptArg s = case s of
+  Nothing           -> cubicalFlag CFull
+  Just "full"       -> cubicalFlag CFull
+  Just "erased"     -> cubicalFlag CErased
+  Just "no-glue"    -> cubicalFlag CWithoutGlue
+  Just "compatible" -> cubicalCompatibleFlag
+  _ -> return $ throwError
+    "Cubical variant can be omitted or one of {compatible, no-glue, erased, full}."
 
 cubicalCompatibleFlag :: Flag PragmaOptions
 cubicalCompatibleFlag o =
@@ -1573,6 +1586,7 @@ pragmaOptions = concat
                     Nothing
   , [ Option []     ["with-K"] (NoArg withKFlag)
                     "enable the K rule in pattern matching (default)"
+      -- For backwards compatibility only. Use "--cubical=compatible" instead.
     , Option []     ["cubical-compatible"] (NoArg cubicalCompatibleFlag)
                     "turn on generation of auxiliary code required for --cubical, implies --without-K"
     , Option []     ["without-K"] (NoArg withoutKFlag)
@@ -1619,12 +1633,12 @@ pragmaOptions = concat
                     "enable global confluence checking of REWRITE rules (more restrictive than --local-confluence-check)"
     , Option []     ["no-confluence-check"] (NoArg noConfluenceCheckFlag)
                     "disable confluence checking of REWRITE rules (default)"
-    , Option []     ["cubical"] (NoArg $ cubicalFlag CFull)
-                    "enable cubical features (e.g. overloads lambdas for paths), implies --cubical-compatible"
+    , Option []     ["cubical"] (OptArg cubicalFlagOptArg "VARIANT")
+                    $ "enable cubical features (e.g. overloads lambdas for paths)." ++
+                      "Accepted variants: full, erased, no-glue, compatible (default: full)."
+    -- For backwards compatibility only. Use "--cubical=erased" instead.
     , Option []     ["erased-cubical"] (NoArg $ cubicalFlag CErased)
-                    "enable cubical features (some only in erased settings), implies --cubical-compatible"
-    , Option []     ["cubical-without-glue"] (NoArg $ cubicalFlag CWithoutGlue)
-                    "enable cubical features (but without Glue), implies --cubical-compatible"
+                    "enable cubical features (some only in erased settings), implies --cubical=compatible"
     ]
   , pragmaFlag      "guarded" lensOptGuarded
                     "enable @lock/@tick attributes" ""

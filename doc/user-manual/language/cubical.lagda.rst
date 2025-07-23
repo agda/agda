@@ -72,10 +72,10 @@ OPTIONS --cubical #-}`` at the top of the file.
 
 There are also two other :ref:`variants<variants>` of the cubical mode:
 
-- :option:`--erased-cubical`,
+- :option:`--cubical=erased`,
   which is described :ref:`below<erased-cubical>`, and
 
-- :option:`--cubical-without-glue`,
+- :option:`--cubical=no-glue`,
   which allows Cubical features without the :ref:`Glue types<glue-types>`,
   described :ref:`below<cubical-without-glue>`.
 
@@ -956,16 +956,16 @@ Variants
 
 Summary of variant compatibilities:
 
-.. |cwg| replace:: :option:`--cubical-without-glue`
-.. |ec|  replace:: :option:`--erased-cubical`
-.. |c|   replace:: :option:`--cubical`
+.. |cng| replace:: :option:`--cubical=no-glue`
+.. |ec|  replace:: :option:`--cubical=erased`
+.. |c|   replace:: :option:`--cubical[=full]`
 .. |v|   replace:: :math:`\checkmark`
 .. |x|   replace:: :math:`\times`
 
 +---------------------+-------+------+----------+
-| Current \\ Imported | |cwg| | |ec| | |c|      |
+| Current \\ Imported | |cng| | |ec| | |c|      |
 +=====================+=======+======+==========+
-| |cwg|               | |v|   | |x|  | |x|      |
+| |cng|               | |v|   | |x|  | |x|      |
 +---------------------+-------+------+----------+
 | |ec|                | |v|   | |v|  | |v| [#]_ |
 +---------------------+-------+------+----------+
@@ -981,14 +981,14 @@ Summary of variant compatibilities:
 Cubical Agda with erased Glue
 -----------------------------
 
-The option :option:`--erased-cubical` enables a variant of Cubical
+The option :option:`--cubical=erased` enables a variant of Cubical
 Agda in which Glue (and the other builtins defined in
 ``Agda.Builtin.Cubical.Glue``) must only be used in
 :ref:`erased<runtime-irrelevance>` settings.
 
 Regular Cubical Agda code can import code that uses
-:option:`--erased-cubical`. Regular Cubical Agda code can also be
-imported from code that uses :option:`--erased-cubical`, but names
+:option:`--cubical=erased`. Regular Cubical Agda code can also be
+imported from code that uses :option:`--cubical=erased`, but names
 defined using Cubical Agda can only be used if the option
 :option:`--erasure` is used. In that case the names are treated as if
 they had been marked as erased, with an exception related to pattern
@@ -1010,7 +1010,7 @@ Note that names that are re-exported from a Cubical Agda module using
 Cubical Agda without Glue
 -------------------------
 
-The option :option:`--cubical-without-glue` enables a variant (strict subset) of Cubical Agda,
+The option :option:`--cubical=no-glue` enables a variant (strict subset) of Cubical Agda,
 in which primitives such as ``hcomp`` and ``transp`` are still available,
 but Glue types (and the other builtins defined in ``Agda.Builtin.Cubical.Glue``) are disabled.
 Therefore, it should be sound to postulate in this variant
@@ -1018,19 +1018,19 @@ either the uniqueness of identity proofs (UIP) or univalence; but of course not 
 A source of inspiration for a Cubical Type Theory compatible with UIP is `XTT`_,
 in which UIP holds definitionally.
 
-If the current module enables the option :option:`--cubical-without-glue`, then:
+If the current module enables the option :option:`--cubical=no-glue`, then:
 
 - It cannot import from modules with the options
-  :option:`--cubical` or :option:`--erased-cubical`,
+  :option:`--cubical` or :option:`--cubical=erased`,
   since they allow the use of Glue types (to different extents).
 
 - Modules that depend on the current module must enable
   any of the Cubical (variant) options:
-  :option:`--cubical-without-glue`, :option:`--erased-cubical`, or :option:`--cubical`.
+  :option:`--cubical=no-glue`, :option:`--cubical=erased`, or :option:`--cubical`.
 
 On the other hand, if the current module enables any of the the opions
-:option:`--erased-cubical` or :option:`--cubical`,
-one can always import modules with :option:`--cubical-without-glue`.
+:option:`--cubical=erased` or :option:`--cubical`,
+one can always import modules with :option:`--cubical=no-glue`.
 
 
 

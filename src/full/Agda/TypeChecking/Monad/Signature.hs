@@ -591,10 +591,10 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defLanguage       =
                       case defLanguage d of
                         -- Note that Cubical Agda code can be imported
-                        -- when --erased-cubical is used.
+                        -- when --cubical=erased is used.
                         l@(Cubical CFull)    -> l
                         Cubical CErased      -> lang
-                        Cubical CWithoutGlue -> lang -- YJ TODO: correct?
+                        Cubical CWithoutGlue -> lang
                         WithoutK             -> lang
                         WithK                -> lang
                     , theDef            = df }

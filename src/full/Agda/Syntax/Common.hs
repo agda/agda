@@ -109,9 +109,9 @@ instance NFData Cubical
 
 cubicalOptionString :: Cubical -> String
 cubicalOptionString = \case
-  CWithoutGlue -> "--cubical-without-glue"
-  CErased -> "--erased-cubical"
-  CFull   -> "--cubical"
+  CWithoutGlue -> "--cubical=no-glue"
+  CErased -> "--cubical=erased"
+  CFull   -> "--cubical[=full]"
 
 -- | Agda variants.
 --

@@ -56,7 +56,7 @@ import Agda.Syntax.Internal
 
 
 -- | Checks that the correct variant of Cubical Agda is activated.
--- Note that @--erased-cubical@ \"counts as\" @--cubical@ in erased
+-- Note that @--cubical=erased@ \"counts as\" @--cubical@ in erased
 -- contexts.
 requireCubical
   :: Cubical -- ^ Which variant of Cubical Agda is required?

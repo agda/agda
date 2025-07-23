@@ -1291,9 +1291,9 @@ instance PrettyTCM TypeError where
         ]
       where
       opt = case cubical of
-        CFull        -> [ "--cubical" ]
-        CErased      -> pwords $ "--cubical or --erased-cubical"
-        CWithoutGlue -> pwords $ "--cubical or --erased-cubical or --cubical-without-glue"
+        CFull        -> [ "--cubical[=full]" ]
+        CErased      -> [ "--cubical={full,erased}" ]
+        CWithoutGlue -> ["--cubical={full,erased,no-glue}"]
 
     NeedOptionPatternMatching -> fsep $
       pwords "Pattern matching is disabled (use option --pattern-matching to enable it)"
