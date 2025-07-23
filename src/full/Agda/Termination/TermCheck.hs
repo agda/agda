@@ -1017,7 +1017,8 @@ instance ExtractCalls Term where
         -- A constructor preserves the guardedness of all its arguments.
         -- Andreas, 2022-09-19, issue #6108:
         -- A higher constructor does not.  So check if there is an @IApply@ amoung @es@.
-        let argsg = zip args $ repeat $ all isProperApplyElim es
+        let noIApply = all isProperApplyElim es
+        let argsg = map (,noIApply) args
 
         -- If we encounter a coinductive record constructor
         -- in a type mutual with the current target
