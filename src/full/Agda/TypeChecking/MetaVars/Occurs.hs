@@ -15,6 +15,8 @@
 
 module Agda.TypeChecking.MetaVars.Occurs where
 
+import Prelude hiding (zip, zipWith)
+
 import Control.Monad.Except ( ExceptT, runExceptT, catchError, throwError )
 import Control.Monad.Reader ( ReaderT, runReaderT, ask, asks, local )
 
@@ -50,6 +52,7 @@ import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.List (downFrom)
+import Agda.Utils.ListInf qualified as ListInf
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -57,6 +60,7 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.Zip
 
 import Agda.Utils.Impossible
 
@@ -902,7 +906,7 @@ killArgs kills m = do
       -- Andreas 2011-04-26, we allow pruning in MetaV and MetaS
       let a = jMetaType $ mvJudgement mv
       TelV tel b <- telView' <$> instantiateFull a
-      let args         = zip (telToList tel) (kills ++ repeat False)
+      let args         = zip (telToList tel) (ListInf.pad kills False)
       (kills', a') <- killedType args b
       dbg kills' a a'
       -- If there is any prunable argument, perform the pruning
@@ -1033,7 +1037,7 @@ performKill kills m a = do
   -- which are not pruned in left to right order
   -- (de Bruijn level order).
   let perm = Perm n
-             [ i | (i, Arg _ False) <- zip [0..] kills ]
+             [ i | (i, Arg _ False) <- zip (ListInf.upFrom 0) kills ]
       -- The permutation for the old meta might range over a prefix of the arguments
       oldPerm = liftP (max 0 $ n - m) p
         where p = mvPermutation mv

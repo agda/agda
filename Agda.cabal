@@ -493,6 +493,7 @@ library
     , hashable             >= 1.4.2.0   && < 1.6
     , haskeline            >= 0.8.2     && < 0.9
         -- GHC 9.2 ships with haskeline-0.8.2.1, but 9.4 backslid to 0.8.2
+    , infinite-list        >= 0.1.2     && < 0.2
     , monad-control        >= 1.0.3.1   && < 1.1
     , mtl                  >= 2.2.2     && < 2.4
     , murmur-hash          >= 0.1.0.10  && < 0.2
@@ -875,6 +876,7 @@ library
       Agda.Utils.List
       Agda.Utils.List1
       Agda.Utils.List2
+      Agda.Utils.ListInf
       Agda.Utils.ListT
       Agda.Utils.Map
       Agda.Utils.Map1
@@ -908,6 +910,7 @@ library
       Agda.Utils.Update
       Agda.Utils.VarSet
       Agda.Utils.WithDefault
+      Agda.Utils.Zip
       Agda.Utils.Zipper
       Agda.Version
       Agda.VersionCommit

@@ -11,6 +11,8 @@ module Agda.TypeChecking.Polarity
   , polFromOcc
   ) where
 
+import Prelude hiding ( zip, zipWith )
+
 import Control.Monad  ( forM_, zipWithM )
 
 import Data.Maybe
@@ -31,11 +33,13 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Positivity.Occurrence
 
 import Agda.Utils.List
+import Agda.Utils.ListInf qualified as ListInf
 import Agda.Utils.Maybe ( whenNothingM )
 import Agda.Utils.Monad
 import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.Zip
 
 import Agda.Utils.Impossible
 
@@ -416,7 +420,7 @@ instance HasPolarity Term where
     Lit _         -> mempty
     Level l       -> polarity' i p l
     Def x ts      -> getPolarity x >>== \ pols ->
-                       let ps = map (composePol p) pols ++ repeat Invariant
+                       let ps = ListInf.pad (map (composePol p) pols) Invariant
                        in  mconcat $ zipWith (polarity' i) ps ts
     Con _ _ ts    -> polarity' i p ts   -- Constructors can be seen as monotone in all args.
     Pi a b        -> polarity' i (neg p) a <> polarity' i p b

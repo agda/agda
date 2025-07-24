@@ -13,6 +13,8 @@ module Agda.Utils.List2
   , module Reexport
   ) where
 
+import Prelude hiding ( zip, zipWith )
+
 import Control.DeepSeq
 import Control.Monad                   ( (<=<) )
 
@@ -121,3 +123,11 @@ break p = List.break p . toList
 
 instance NFData a => NFData (List2 a) where
   rnf (List2 a b cs) = rnf a `seq` rnf b `seq` rnf cs
+
+-- * Zip
+
+zipWith :: (a -> b -> c) -> List2 a -> List2 b -> List2 c
+zipWith f (List2 a1 a2 as) (List2 b1 b2 bs) = List2 (f a1 b1) (f a2 b2) (List.zipWith f as bs)
+
+zip :: List2 a -> List2 b -> List2 (a, b)
+zip = zipWith (,)

@@ -19,6 +19,8 @@ module Agda.TypeChecking.Substitute
   , Substitution'(..), Substitution
   ) where
 
+import Prelude hiding ( zip, zipWith )
+
 import Control.Arrow (first, second)
 
 import Data.Coerce
@@ -32,6 +34,7 @@ import Data.HashMap.Strict (HashMap)
 import Debug.Trace (trace)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -52,12 +55,14 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.ListInf as ListInf
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
-import Agda.Syntax.Common.Pretty
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.Zip
 
 import Agda.Utils.Impossible
 
@@ -777,7 +782,7 @@ abstractArgs args x = abstract tel x
         tel   = foldr (\arg@(Arg info x) -> ExtendTel (__DUMMY_TYPE__ <$ domFromArg arg) . Abs x)
                       EmptyTel
               $ zipWith (<$) names args
-        names = cycle $ map (stringToArgName . (:[])) ['a'..'z']
+        names = ListInf.cycle $ fmap (stringToArgName . singleton) ('a' :| ['b'..'z'])
 
 ---------------------------------------------------------------------------
 -- * Substitution and shifting\/weakening\/strengthening
