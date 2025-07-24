@@ -20,7 +20,7 @@ we can still implement our set operations using bitwise ops.
 -}
 
 module Agda.Utils.VarSet
-  ( VarSet
+  ( VarSet(..)
   -- $varSetConstruct
   , empty
   , singleton
