@@ -262,12 +262,12 @@ weaken n (VarSet bs) = VarSet (bs `shiftL` n)
 
 -- | Convert a variable set to a descending list of indices.
 toDescList :: VarSet -> [Int]
-toDescList = foldl (flip (:)) []
+toDescList = foldr (:) []
 {-# INLINE toDescList #-}
 
 -- | Convert a variable set to an ascending list of indices.
 toAscList :: VarSet -> [Int]
-toAscList = foldr (:) []
+toAscList = foldl (flip (:)) []
 {-# INLINE toAscList #-}
 
 -- * Debugging

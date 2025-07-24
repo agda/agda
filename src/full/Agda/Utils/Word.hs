@@ -6,6 +6,7 @@ module Agda.Utils.Word
   ( -- * Bitwise operations
     clearBitWord#
   , lowestSetBitWord#
+  , andNot#
     -- * Folds
   , wordFoldlBitsOffset#
   , wordFoldrBitsOffset#
@@ -57,6 +58,13 @@ lowestSetBitWord# w =
   -- an instruction. However, this is the best we can do.
   clz# w `xor#` (WORD_SIZE_IN_BITS## `minusWord#` 1##)
 {-# INLINE lowestSetBitWord# #-}
+
+andNot# :: Word# -> Word# -> Word#
+andNot# w1 w2 =
+  -- This should be a single @pandn@, but the native code generator
+  -- doesn't know about this.
+  w1 `and#` not# w2
+{-# INLINE andNot# #-}
 
 --------------------------------------------------------------------------------
 -- Folds

@@ -7,6 +7,7 @@ module Agda.Utils.Natural
     naturalSizeWords
   -- * Bitwise operations
   , naturalCountTrailingZeros
+  , naturalAndNot
   -- * Folds
   , naturalFoldrBits
   , naturalFoldlBits
@@ -19,7 +20,7 @@ module Agda.Utils.Natural
 
 import GHC.Base
 import GHC.Num.BigNat
-import GHC.Num.Natural as Natural
+import GHC.Num.Natural as Natural hiding (naturalAndNot)
 
 import Agda.Utils.Word
 
@@ -56,6 +57,16 @@ naturalCountTrailingZeros (NB bs) = I# $ loop 0#
       else
         WORD_SIZE_IN_BITS# *# i +# (word2Int# $ ctz# w)
 
+-- | Perform a logical AND NOT of two natural numbers.
+--
+-- This works around the broken implementation of 'naturalAndNot'
+-- in @ghc-bignum@: see <https://gitlab.haskell.org/ghc/ghc/-/merge_requests/14552>
+naturalAndNot :: Natural -> Natural -> Natural
+naturalAndNot (NS w1) (NS w2) = NS (w1 `andNot#` w2)
+naturalAndNot (NS w1) (NB bs2) = NS (w1 `andNot#` (bigNatToWord# bs2))
+naturalAndNot (NB bs1) (NS w2) = NB (bigNatAndNotWord# bs1 w2)
+naturalAndNot (NB bs1) (NB bs2) = naturalFromBigNat# (bigNatAndNot bs1 bs2)
+
 --------------------------------------------------------------------------------
 -- Folds
 
@@ -69,10 +80,10 @@ bigNatFoldrBits# :: (Int -> a -> a) -> a -> BigNat# -> a
 bigNatFoldrBits# f a bs = loop (bigNatSize# bs -# 1#)
   where
     loop i =
-      if isTrue# (i ==# 0#) then
+      if isTrue# (i <# 0#) then
         a
       else
-        wordFoldrBitsOffset# (WORD_SIZE_IN_BITS# *# i) f (loop (i +# 1#)) (indexWordArray# bs i)
+        wordFoldrBitsOffset# (WORD_SIZE_IN_BITS# *# i) f (loop (i -# 1#)) (indexWordArray# bs i)
 
 -- | Perform a left fold over the bits of a 'Natural'.
 naturalFoldlBits :: (a -> Int -> a) -> a -> Natural -> a
