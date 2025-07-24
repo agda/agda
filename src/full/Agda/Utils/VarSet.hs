@@ -67,6 +67,8 @@ import Agda.Utils.Natural
 import qualified Agda.Utils.Null as Null
 import qualified Agda.Utils.Singleton as Singleton
 
+import Debug.Trace
+
 import Prelude hiding (null, foldr, foldl, all)
 
 -- | Variable sets.
@@ -267,3 +269,10 @@ toDescList = foldl (flip (:)) []
 toAscList :: VarSet -> [Int]
 toAscList = foldr (:) []
 {-# INLINE toAscList #-}
+
+-- * Debugging
+
+-- | Trace the size of a variable set to the eventlog.
+traceVarSetSize :: VarSet -> VarSet
+traceVarSetSize = traceEventWith \(VarSet bs) ->
+  "VarSet.size=" <> show (naturalSizeWords bs)

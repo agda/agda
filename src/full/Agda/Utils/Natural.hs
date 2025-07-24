@@ -3,8 +3,10 @@
 -- | Utilities for working with 'Natural'.
 module Agda.Utils.Natural
   (
+  -- * Size
+    naturalSizeWords
   -- * Bitwise operations
-    naturalCountTrailingZeros
+  , naturalCountTrailingZeros
   -- * Folds
   , naturalFoldrBits
   , naturalFoldlBits
@@ -20,6 +22,18 @@ import GHC.Num.BigNat
 import GHC.Num.Natural as Natural
 
 import Agda.Utils.Word
+
+--------------------------------------------------------------------------------
+-- Size
+
+-- | How many words does a 'Natural' occupy?
+naturalSizeWords# :: Natural -> Int#
+naturalSizeWords# (NS _) = 1#
+naturalSizeWords# (NB bs) = bigNatSize# bs
+
+-- | How many words does a 'Natural' occupy?
+naturalSizeWords :: Natural -> Int
+naturalSizeWords n = I# (naturalSizeWords# n)
 
 --------------------------------------------------------------------------------
 -- Bitwise Operations
