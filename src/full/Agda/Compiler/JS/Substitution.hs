@@ -3,7 +3,7 @@ module Agda.Compiler.JS.Substitution where
 import Prelude hiding ( map, lookup )
 import Data.Map ( empty, unionWith, singleton, findWithDefault )
 import qualified Data.Map as Map
-import Data.List ( genericIndex )
+import Data.Maybe ( fromMaybe )
 import qualified Data.List as List
 
 import Agda.Syntax.Common ( Nat )
@@ -11,6 +11,7 @@ import Agda.Compiler.JS.Syntax
   ( Exp(Self,Undefined,Local,Lambda,Object,Array,Apply,Lookup,If,BinOp,PreOp),
     MemberId, LocalId(LocalId) )
 import Agda.Utils.Function ( iterate' )
+import Agda.Utils.List ( (!!!) )
 
 -- Map for expressions
 
@@ -47,7 +48,7 @@ subst n es e = map 0 (substituter n es) e
 
 substituter :: Nat -> [Exp] -> Nat -> LocalId -> Exp
 substituter n es m (LocalId i) | i < m       = Local (LocalId i)
-substituter n es m (LocalId i) | (i - m) < n = shift m (genericIndex (es ++ repeat Undefined) (n - (i + 1 - m)))
+substituter n es m (LocalId i) | (i - m) < n = shift m $ fromMaybe Undefined $ es !!! (n - (i + 1 - m))
 substituter n es m (LocalId i) | otherwise   = Local (LocalId (i - n))
 
 substShift :: Nat -> Nat -> [Exp] -> Exp -> Exp
