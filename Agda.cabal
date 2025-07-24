@@ -1060,6 +1060,7 @@ test-suite agda-tests
       Internal.Utils.SmallSet
       Internal.Utils.Three
       Internal.Utils.Trie
+      Internal.Utils.VarSet
       LaTeXAndHTML.Tests
       LibSucceed.Tests
       Succeed.Tests
