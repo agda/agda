@@ -15,7 +15,7 @@
 
 module Agda.Syntax.Notation where
 
-import Prelude hiding (null)
+import Prelude hiding ( null, zip, zipWith )
 
 import Control.DeepSeq
 import Control.Monad
@@ -36,10 +36,13 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1           ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.ListInf         ( pattern (:<) )
+import qualified Agda.Utils.ListInf as ListInf
 import Agda.Utils.Set1            ( Set1 )
 import qualified Agda.Utils.Set1  as Set1
 import Agda.Utils.Null
 import Agda.Utils.Singleton
+import Agda.Utils.Zip
 
 import Agda.Utils.Impossible
 
@@ -278,7 +281,7 @@ useDefaultFixity n
 --   @M.for x ∈ xs return e@, or @x ℕ.+ y@.
 notationNames :: NewNotation -> [QName]
 notationNames (NewNotation q _ _ parts _) =
-  zipWith ($) (reQualify : repeat QName) [simpleName $ rangedThing x | IdPart x <- parts ]
+  zipWith ($) (reQualify :< ListInf.repeat QName) [ simpleName $ rangedThing x | IdPart x <- parts ]
   where
     -- The qualification of @q@.
     modules     = List1.init (qnameParts q)

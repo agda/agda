@@ -7,7 +7,7 @@
 
 module Agda.Termination.Monad where
 
-import Prelude hiding (null)
+import Prelude hiding (null, zip, zipWith)
 
 import Control.Applicative hiding (empty)
 
@@ -44,6 +44,8 @@ import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List   ( hasElem )
+import Agda.Utils.ListInf ( ListInf )
+import Agda.Utils.ListInf qualified as ListInf
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Monoid
@@ -52,6 +54,7 @@ import Agda.Syntax.Common.Pretty (Pretty, prettyShow)
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.Zip
 
 import Agda.Utils.Impossible
 
@@ -102,7 +105,7 @@ data TerEnv = TerEnv
   , terTarget  :: Target
     -- ^ Target type of the function we are currently termination checking.
     --   Only the constructors of 'Target' are considered guarding.
-  , terMaskArgs :: [Bool]
+  , terMaskArgs :: ListInf Bool
     -- ^ Only consider the 'notMasked' 'False' arguments for establishing termination.
     --   See issue #1023.
   , terMaskResult :: Bool
@@ -151,7 +154,7 @@ defaultTerEnv = TerEnv
   , terCurrent                  = __IMPOSSIBLE__ -- needs to be set!
   , terHaveInlinedWith          = False
   , terTarget                   = TargetOther
-  , terMaskArgs                 = repeat False   -- use all arguments (mask none)
+  , terMaskArgs                 = ListInf.repeat False   -- use all arguments (mask none)
   , terMaskResult               = False          -- use result (do not mask)
   , _terSizeDepth               = __IMPOSSIBLE__ -- needs to be set!
   , terPatterns                 = __IMPOSSIBLE__ -- needs to be set!
@@ -289,10 +292,10 @@ terGetHaveInlinedWith = terAsks terHaveInlinedWith
 terSetHaveInlinedWith :: TerM a -> TerM a
 terSetHaveInlinedWith = terLocal $ \ e -> e { terHaveInlinedWith = True }
 
-terGetMaskArgs :: TerM [Bool]
+terGetMaskArgs :: TerM (ListInf Bool)
 terGetMaskArgs = terAsks terMaskArgs
 
-terSetMaskArgs :: [Bool] -> TerM a -> TerM a
+terSetMaskArgs :: ListInf Bool -> TerM a -> TerM a
 terSetMaskArgs b = terLocal $ \ e -> e { terMaskArgs = b }
 
 terGetMaskResult :: TerM Bool
