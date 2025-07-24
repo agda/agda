@@ -281,6 +281,18 @@ splitExactlyAt 0 xs       = return ([], xs)
 splitExactlyAt n []       = Nothing
 splitExactlyAt n (x : xs) = mapFst (x :) <$> splitExactlyAt (n-1) xs
 
+-- | @takeExactly a n as == take n (as ++ repeat a)@
+--
+{-# SPECIALIZE takeExactly :: a -> Int -> [a] -> [a] #-}
+takeExactly :: forall a n. Integral n => a -> n -> [a] -> [a]
+takeExactly a = go
+  where
+    go n
+      | n <= 0    = const []
+      | otherwise = \case
+          []   -> List.genericReplicate n a
+          x:xs -> x : go (n - 1) xs
+
 -- | Drop from the end of a list.
 --   O(length).
 --

@@ -18,7 +18,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Compiler.Treeless.Pretty () -- instance only
 
 import Agda.Utils.Function ( iterateUntilM )
-import Agda.Utils.List     ( downFrom )
+import Agda.Utils.List     ( downFrom, takeExactly )
 import Agda.Utils.ListInf qualified as ListInf
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Zip
@@ -93,7 +93,7 @@ stripUnusedArguments used t = mkTLam m $ applySubst rho b
   where
     (n, b) = tLamView t
     m      = length $ filter (== ArgUsed) used'
-    used'  = reverse $ take n $ used ++ repeat ArgUsed
+    used'  = reverse $ takeExactly ArgUsed n used
     rho = computeSubst used'
     computeSubst (ArgUnused : bs) = TErased :# computeSubst bs
     computeSubst (ArgUsed   : bs) = liftS 1 $ computeSubst bs

@@ -13,5 +13,5 @@ flags:
     win32-2-13-1: false
 
 extra-deps:
-- infinite-lists-0.1.2
+- infinite-list-0.1.2
 - pqueue-1.5.0.0
