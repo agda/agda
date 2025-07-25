@@ -21,9 +21,10 @@
 
 module Agda.Utils.Zip where
 
-import Prelude (map, uncurry)
+import Prelude ((.), flip)
 
-import Data.List qualified as List
+import Data.List          qualified as List
+import Data.List.Infinite ( heteroZipWith )
 
 -- import Agda.Utils.List    ( pattern (:) )
 import Agda.Utils.List1   ( List1, pattern (:|) )
@@ -73,17 +74,11 @@ instance Zip List2 [] [] where
 
 -- 0/∞
 instance Zip [] ListInf [] where
-  zipWith f = go
-    where
-      go [] _ = []
-      go (a : as) (b :< bs) = f a b : go as bs
+  zipWith = flip . heteroZipWith . flip
 
 -- ∞/0
 instance Zip ListInf [] [] where
-  zipWith f = go
-    where
-      go _ [] = []
-      go (a :< as) (b : bs) = f a b : go as bs
+  zipWith = heteroZipWith
 
 -- List1 instances
 
@@ -102,11 +97,11 @@ instance Zip List2 List1 List1 where
 
 -- 1/∞
 instance Zip List1 ListInf List1 where
-  zipWith f (a :| as) (b :< bs) = f a b :| zipWith f as bs
+  zipWith = flip . heteroZipWith . flip
 
 -- ∞/1
 instance Zip ListInf List1 List1 where
-  zipWith f (a :< as) (b :| bs) = f a b :| zipWith f as bs
+  zipWith = heteroZipWith
 
 -- List2 instances
 
@@ -117,11 +112,11 @@ instance Zip List2 List2 List2 where
 
 -- 2/∞
 instance Zip List2 ListInf List2 where
-  zipWith f (List2 a1 a2 as) (b1 :< b2 :< bs) = List2 (f a1 b1) (f a2 b2) (zipWith f as bs)
+  zipWith = flip . heteroZipWith . flip
 
 -- ∞/2
 instance Zip ListInf List2 List2 where
-  zipWith f (a1 :< a2 :< as) (List2 b1 b2 bs) = List2 (f a1 b1) (f a2 b2) (zipWith f as bs)
+  zipWith = heteroZipWith
 
 -- ListInf instances
 
