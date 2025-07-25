@@ -985,18 +985,22 @@ executable agda-mode
     , process              >= 1.6.16.0  && < 1.7
     , template-haskell     >= 2.18.0.0  && < 2.24
 
--- Cabal testsuite integration has some serious bugs, but we
--- can still make it work. See also:
--- https://github.com/haskell/cabal/issues/1938
--- https://github.com/haskell/cabal/issues/2214
--- https://github.com/haskell/cabal/issues/1953
+-- We use a Cabal `executable` instead of a `test-suite`
+--   since we want to avoid re-building Agda when test data changes.
+-- Unfortuantely, using a `test-suite` breaks this property under nix:
+--   * Cabal runs `test-suite`s as soon as they are built
+--   * `developPackage` rebuilds Agda when re-building `test-suite`s
+--   * https://github.com/NixOS/nixpkgs/issues/9281
+-- So instead we build `agda-tests` as an `executable`
+--   (alongside Agda, when building with nix),
+--   and run it later manually.
 --
 -- This test suite should only be run using the Makefile.
 -- The Makefile sets up the required environment,
 -- executing the tests using cabal directly is almost
 -- guaranteed to fail. See also Issue 1490.
 --
-test-suite agda-tests
+executable agda-tests
   import:           language
 
   type:             exitcode-stdio-1.0

@@ -10,7 +10,7 @@
     systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
     perSystem = {pkgs, ...}: let
       hlib = pkgs.haskell.lib.compose;
-      hpkgs = pkgs.haskell.packages.ghc910; # pqueue fails with ghc 912
+      hpkgs = pkgs.haskell.packages.ghc910; # pqueue fails with ghc912
       fs = pkgs.lib.fileset;
 
       # Minimal nix code for building the `agda` executable.
@@ -33,6 +33,10 @@
               ./src/agda-mode
               ./Agda.cabal
               ./LICENSE
+              (fs.difference  # agda-tests Haskell source
+                (fs.fileFilter (file: file.hasExt "hs") ./test)
+                ./test/interaction  # Haskell files not for agda-tests
+              )
             ];
           };
 
@@ -49,7 +53,7 @@
 
       # Various builds of Agda
 
-      # Recommended build
+      # Basic build (no debugging information)
       agda-pkg = hlib.overrideCabal (drv: {
           # These settings are documented at
           # https://nixos.org/manual/nixpkgs/unstable/#haskell-mkderivation
@@ -114,11 +118,90 @@
         withHoogle = true;
       };
 
+      # Makefile targets to run
+      test-suites =
+        [
+
+          # Makefile targets run by `make test`:
+            "check-whitespace"
+            "check-encoding"
+            "check-mdo"
+            "common"
+            "succeed"
+            "fail"
+            "bugs"
+            # "interaction"     # runs Haskell scripts that import Agda
+            "examples"
+            # "std-lib-test"    # requires std-lib submodule, runs its cabal build
+            # "cubical-test"    # requires cubical submodule, runs its cabal build
+            "interactive"
+            # "latex-html-test" # requires agda built with `-fenable-cluster-counting`, which breaks `nix build`
+            # "api-test"        # runs Haskell scripts that import Agda
+            "internal-tests"
+            # "benchmark-without-logs"  # requires std-lib submodule
+            "compiler-test"
+            # "std-lib-compiler-test" # requires running std-lib-test first
+            # "std-lib-succeed"       # requires running std-lib-test first
+            # "std-lib-interaction"   # requires running std-lib-test first
+            # "doc-test"  # runs cabal with custom compiler
+            "user-manual-test"
+            # "size-solver-test"  # Makefile recipe commented out
+
+          # Other Makefile targets run by CI
+            "user-manual-covers-options"
+            "user-manual-covers-warnings"
+            "test-suite-covers-warnings"
+            "test-suite-covers-errors"
+        ];
+
+      # Runs `make ${target}`
+      # To run more fine-grained tests:
+      #   1. Enter the sandbox with e.g. `nix develop .#succeed`
+      #   2. Run testing commands, e.g.
+      #     * `make succeed`
+      #     * `agda-tests -p 641`
+      test-results-for = target: pkgs.stdenv.mkDerivation {
+        name = "${target}.txt";
+        src = ./.;  # Some tests scan all files in the repo work tree
+        buildInputs =
+        [
+          pkgs.which            # For Makefile
+          hpkgs.fix-whitespace  # For Makefile's `check-whitespace` target
+          hpkgs.ghc             # For agda-tests's Compiler.Tests
+          pkgs.nodejs_22        # For agda-tests's Compiler.Tests
+          agda-pkg-debug        # For manual testing with `agda` and `agda-tests`
+        ];
+        AGDA_BIN="${pkgs.lib.getBin agda-pkg-debug}/bin/agda";
+        AGDA_TESTS_BIN="${pkgs.lib.getBin agda-pkg-debug}/bin/agda-tests";
+        LC_ALL="C.UTF-8";   # Support Unicode
+        buildPhase = ''
+          set -euo pipefail
+          make ${target} | tee $name
+          '';
+        installPhase = ''
+          mkdir $out
+          cp $name $out
+        '';
+      };
+
+      # Builds a directory of test logs, one per test-suite
+      all-test-results = pkgs.symlinkJoin {
+        name = "agda-test-results";
+        paths = pkgs.lib.map test-results-for test-suites;
+      };
+
     in {
-      packages.default    = agda-pkg;        # Entry point for `nix build`
-      packages.quicker    = agda-pkg-quicker;# Entry point for `nix build .#quicker`
-      packages.debug      = agda-pkg-debug;  # Entry point for `nix build .#debug`
-      packages.type-check = agda-pkg-tc;     # Entry point for `nix build .#type-check`
+      packages = {
+        default    = agda-pkg-debug;  # Entry point for `nix build`
+        base       = agda-pkg;        # Entry point for `nix build .#base`
+        quicker    = agda-pkg-quicker;# Entry point for `nix build .#quicker`
+        debug      = agda-pkg-debug;  # Entry point for `nix build .#debug`
+        type-check = agda-pkg-tc;     # Entry point for `nix build .#type-check`
+        test       = all-test-results;# Entry point for `nix build .#test`
+      } // pkgs.lib.listToAttrs (pkgs.lib.forEach test-suites (target: {
+          name = target; # Entry point for e.g. `nix build .#compiler-test`
+          value = test-results-for target;
+        }));
       devShells.default   = agda-dev-shell;  # Entry point for `nix develop`
 
       # Allow users to set this flake's agda as a drop-in replacement for nixpkgs's agda
@@ -127,7 +210,7 @@
       overlayAttrs.haskell = pkgs.haskell // {
         packageOverrides = pkgs.lib.composeExtensions pkgs.haskell.packageOverrides
           (hfinal: hprev: {
-            Agda = agda-pkg;
+            Agda = agda-pkg-debug;
           });
       };
     };
