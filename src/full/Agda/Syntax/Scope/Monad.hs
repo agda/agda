@@ -69,6 +69,7 @@ import Agda.Utils.Set1 ( Set1 )
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix as C
+import Agda.Utils.Tuple (pattern Pair)
 
 import Agda.Utils.Impossible
 
@@ -472,7 +473,7 @@ getConcretePolarity x = Map.lookup x <$> useScope scopePolarities
 
 instance MonadFixityError ScopeM where
   throwMultipleFixityDecls xs         = case xs of
-    (x, _) :| _ -> setCurrentRange (getRange x) $ typeError $ MultipleFixityDecls xs
+    (_, Pair _ f2) :| _ -> setCurrentRange (theNameRange f2) $ typeError $ MultipleFixityDecls xs
   throwMultiplePolarityPragmas xs     = case xs of
     x :| _ -> setCurrentRange (getRange x) $ typeError $ MultiplePolarityPragmas xs
   warnUnknownNamesInFixityDecl        = scopeWarning . UnknownNamesInFixityDecl

@@ -1327,7 +1327,7 @@ instance PrettyTCM TypeError where
           , vcat $ fmap f xs
           ]
       where
-        f (x, fs) = (pretty x <> ": ") <+> fsep (fmap pretty fs)
+        f (x, fs) = (pretty x <> ": ") <+> fsep (fmap (pretty . PrintRange) fs)
 
     MultiplePolarityPragmas xs -> fsep $
       pwords "Multiple polarity pragmas for" ++ map pretty (List1.toList xs)

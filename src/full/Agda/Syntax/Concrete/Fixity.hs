@@ -156,7 +156,10 @@ fixitiesAndPolarities' = foldMap $ \case
       returnPol $ Map.singleton x occs
   -- These declarations define fixities:
   Syntax x syn    -> returnFix $ Map.singleton x (Fixity' noFixity syn $ getRange x)
-  Infix  f xs     -> returnFix $ Map.fromList $ for (List1.toList xs) $ \ x -> (x, Fixity' f noNotation $ getRange x)
+  Infix  f xs1    -> flip foldMap xs1 \ x ->
+    -- Andreas, 2025-07-25, issue #5224: Warn when @xs1@ contains duplicates.
+    -- We achieve this through 'plusFixities'.
+    returnFix $ Map.singleton x $ Fixity' f noNotation $ getRange x
   -- We look into these blocks:
   Mutual    _ ds' -> fixitiesAndPolarities' ds'
   InterleavedMutual _ ds' -> fixitiesAndPolarities' ds'

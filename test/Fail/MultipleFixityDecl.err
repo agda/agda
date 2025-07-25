@@ -1,3 +1,4 @@
-MultipleFixityDecl.agda:4.11-14: error: [MultipleFixityDecls]
+MultipleFixityDecl.agda:5.11-14: error: [MultipleFixityDecls]
 Multiple fixity or syntax declarations for
-_+_:  infixl 40 infixr 60
+_+_:  infixl 40 (at MultipleFixityDecl.agda:4.11-14)
+      infixr 60 (at MultipleFixityDecl.agda:5.11-14)

@@ -3490,6 +3490,12 @@ instance Null Fixity' where
 instance NFData Fixity' where
   rnf (Fixity' _ a _) = rnf a
 
+-- Note that there are ranges also in 'Fixity' and 'Notation',
+-- but we are biased here on the range for the error reporting.
+instance HasRange Fixity' where
+  getRange = theNameRange
+
+-- Kills all ranges, not just 'theNameRange'.
 instance KillRange Fixity' where
   killRange (Fixity' f n r) = killRangeN Fixity' f n r
 
