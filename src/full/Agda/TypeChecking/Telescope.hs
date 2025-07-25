@@ -249,7 +249,7 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
     n     = size tel
 
     is    = varDependencies tel fv
-    isC   = VarSet.all n `VarSet.difference` is
+    isC   = VarSet.complement n is
 
     perm  = Perm n $ map (n-1-) $ VarSet.toDescList is ++ VarSet.toDescList isC
 

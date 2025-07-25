@@ -44,7 +44,7 @@ module Agda.Utils.VarSet
   , empty
   , singleton
   , fromList
-  , all
+  , full
   -- * Insertion
   , insert
   -- * Deletion
@@ -62,6 +62,7 @@ module Agda.Utils.VarSet
   , intersection
   , difference
   , (\\)
+  , complement
   -- * Filters
   , split
   -- * Folds
@@ -78,7 +79,7 @@ module Agda.Utils.VarSet
   where
 
 
-import Data.Bits
+import Data.Bits hiding (complement)
 
 import Control.DeepSeq
 
@@ -88,7 +89,7 @@ import qualified Agda.Utils.Singleton as Singleton
 
 import Debug.Trace
 
-import Prelude hiding (null, foldr, foldl, all)
+import Prelude hiding (null, foldr, foldl)
 
 -- | Variable sets.
 newtype VarSet = VarSet Natural
@@ -138,13 +139,13 @@ singleton i = VarSet (bit i)
 
 -- | Construct a set of variables from a list of indices.
 fromList :: [Int] -> VarSet
-fromList is = VarSet $ (foldl' setBit 0) is
+fromList is = VarSet $ foldl' setBit 0 is
 {-# INLINE fromList #-}
 
 -- | Construct a variable set that contains the indices @0..n-1@
-all :: Int -> VarSet
-all n = VarSet (naturalOnes n)
-{-# INLINE CONLIKE all #-}
+full :: Int -> VarSet
+full n = VarSet (naturalOnes n)
+{-# INLINE CONLIKE full #-}
 
 --------------------------------------------------------------------------------
 -- Insertion
@@ -178,7 +179,8 @@ member i (VarSet bs) = testBit bs i
 -- | Find the smallest index in the variable set.
 lookupMin :: VarSet -> Maybe Int
 lookupMin (VarSet n) | naturalIsZero n = Nothing
-lookupMin (VarSet n) | otherwise = Just $ naturalCountTrailingZeros n
+lookupMin (VarSet n) | otherwise = Just $! naturalCountTrailingZeros n
+{-# INLINE lookupMin #-}
 
 -- | The number of entries in the variable set.
 size :: VarSet -> Int
@@ -218,19 +220,24 @@ difference (VarSet bs1) (VarSet bs2) = VarSet (naturalAndNot bs1 bs2)
 
 infixl 9 \\
 
+-- | Take a relative complement of a variable set.
+complement :: Int -> VarSet -> VarSet
+complement n vs = full n \\ vs
+{-# INLINE complement #-}
+
 -- | @isSubsetOf vs1 vs2@ determines if @vs1@ is a subset of @vs2@.
 isSubsetOf :: VarSet -> VarSet -> Bool
 isSubsetOf (VarSet bs1) (VarSet bs2) = (bs1 .&. bs2) == bs1
 {-# INLINE isSubsetOf #-}
 
 --------------------------------------------------------------------------------
--- Combining variable sets
+-- Filters
 
 -- | Split a variable set into elements that are strictly smaller than
 -- @n@ and elements that are strictly larger.
 split :: Int -> VarSet -> (VarSet, VarSet)
 split n vs =
-  (intersection vs (all n), difference vs (all (n + 1)))
+  (intersection vs (full n), difference vs (full (n + 1)))
 
 --------------------------------------------------------------------------------
 -- Folds
@@ -238,10 +245,12 @@ split n vs =
 -- | Fold over the elements of a variable set in descending order.
 foldr :: (Int -> a -> a) -> a -> VarSet -> a
 foldr f a (VarSet bs) = naturalFoldrBits f a bs
+{-# NOINLINE foldr #-}
 
 -- | Fold over the elements of a variable set in ascending order.
 foldl :: (a -> Int -> a) -> a -> VarSet -> a
 foldl f a (VarSet bs) = naturalFoldlBits f a bs
+{-# NOINLINE foldl #-}
 
 --------------------------------------------------------------------------------
 -- Views

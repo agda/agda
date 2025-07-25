@@ -287,7 +287,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         --    as 'used' (see #5238).
         let boundVars = nlPatVars ps
             freeVars  = allFreeVars (ps,rhs)
-            allVars   = VarSet.all $ size gamma
+            allVars   = VarSet.full $ size gamma
             usedVars  = case theDef def of
               Function{}         -> usedArgs def
               Axiom{}            -> allVars

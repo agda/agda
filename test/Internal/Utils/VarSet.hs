@@ -33,9 +33,9 @@ prop_fromList :: Property
 prop_fromList =
   forAll vars \ns -> VarSet.fromList ns `sameElems` IntSet.fromList ns
 
-prop_all :: Property
-prop_all =
-  forAll var \n -> VarSet.all n `sameElems` IntSet.fromList [0..n-1]
+prop_full :: Property
+prop_full =
+  forAll var \n -> VarSet.full n `sameElems` IntSet.fromList [0..n-1]
 
 prop_insert :: Property
 prop_insert =

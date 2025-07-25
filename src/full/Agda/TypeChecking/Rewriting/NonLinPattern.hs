@@ -155,7 +155,7 @@ instance PatternFrom Term NLPat where
                _              -> return Nothing
            case sequence mbvs of
              Just bvs | fastDistinct bvs -> do
-               let allBoundVars = VarSet.all k
+               let allBoundVars = VarSet.full k
                    ok = not (isIrrelevant r) ||
                         VarSet.fromList (map unArg bvs) == allBoundVars
                if ok then return (PVar i bvs) else done

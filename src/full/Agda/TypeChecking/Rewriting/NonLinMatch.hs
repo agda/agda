@@ -301,7 +301,7 @@ instance Match NLPat Term where
         let allowedVars :: VarSet
             allowedVars = VarSet.fromList vars
             badVars :: VarSet
-            badVars = VarSet.difference (VarSet.all n) allowedVars
+            badVars = VarSet.complement n allowedVars
             perm :: Permutation
             perm = Perm n $ reverse vars
             tel :: Telescope
