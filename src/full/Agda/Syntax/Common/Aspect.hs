@@ -18,17 +18,21 @@ data Aspect
   | String
   | Number
   | Hole
-  | Symbol                     -- ^ Symbols like forall, =, ->, etc.
-  | PrimitiveType              -- ^ Things like Set and Prop.
-  | Name (Maybe NameKind) Bool -- ^ Is the name an operator part?
-  | Pragma                     -- ^ Text occurring in pragmas that
-                               --   does not have a more specific
-                               --   aspect.
-  | Background                 -- ^ Non-code contents in literate Agda
+  | Symbol
+      -- ^ Symbols like @forall@, @=@, @->@, etc.
+  | PrimitiveType
+      -- ^ Things like @Set@ and @Prop@.
+  | Name (Maybe NameKind) Bool
+      -- ^ 'Bool': Is the name an operator part?
+  | Pragma
+      -- ^ Text occurring in pragmas
+      --   that does not have a more specific aspect.
+  | Background
+      -- ^ Non-code contents in literate Agda.
   | Markup
-    -- ^ Delimiters used to separate the Agda code blocks from the
-    -- other contents in literate Agda
-    deriving (Eq, Show, Generic)
+      -- ^ Delimiters used to separate the Agda code blocks
+      --   from the other contents in literate Agda.
+  deriving (Eq, Show, Generic)
 
 -- | @NameKind@s are figured out during scope checking.
 
