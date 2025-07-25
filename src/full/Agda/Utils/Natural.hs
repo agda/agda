@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
 -- | Utilities for working with 'Natural'.
 module Agda.Utils.Natural
   (
@@ -8,6 +9,7 @@ module Agda.Utils.Natural
   -- * Bitwise operations
   , naturalCountTrailingZeros
   , naturalAndNot
+  , naturalOnes
   -- * Folds
   , naturalFoldrBits
   , naturalFoldlBits
@@ -21,6 +23,7 @@ module Agda.Utils.Natural
 import GHC.Base
 import GHC.Num.BigNat
 import GHC.Num.Natural as Natural hiding (naturalAndNot)
+import GHC.Num.WordArray
 
 import Agda.Utils.Word
 
@@ -66,6 +69,34 @@ naturalAndNot (NS w1) (NS w2) = NS (w1 `andNot#` w2)
 naturalAndNot (NS w1) (NB bs2) = NS (w1 `andNot#` (bigNatToWord# bs2))
 naturalAndNot (NB bs1) (NS w2) = NB (bigNatAndNotWord# bs1 w2)
 naturalAndNot (NB bs1) (NB bs2) = naturalFromBigNat# (bigNatAndNot bs1 bs2)
+
+-- | Construct a 'Natural' consisting of @n@ 1 bits.
+naturalOnes :: Int -> Natural
+naturalOnes (I# n) | isTrue# (n <=# 0#) = NS 0##
+                   | isTrue# (n <=# 64#) = NS (wordOnes# n)
+                   | otherwise = NB (bigNatOnes# n)
+
+-- | Construct a 'BigNat#' consisting of @n@ 1 bits.
+bigNatOnes# :: Int# -> BigNat#
+bigNatOnes# n =
+  let !(# q, r #) = quotRemInt# n WORD_SIZE_IN_BITS# in
+  if isTrue# (r ==# 0#) then
+    withNewWordArray# q \mwa st ->
+      wordArrayFillOnes# mwa 0# q st
+  else
+    withNewWordArray# (q +# 1#) \mwa st ->
+      let st' = wordArrayFillOnes# mwa 0# q st
+      in mwaWrite# mwa q (wordOnes# r) st'
+
+-- | @wordArrayFillOnes# mwa start end st@ will fill a 'MutableWordArray#' with
+-- ones from @start@ to @end - 1@.
+wordArrayFillOnes# :: MutableWordArray# s -> Int# -> Int# -> State# s -> State# s
+wordArrayFillOnes# mwa i len st =
+  if isTrue# (i <# len) then
+    let st' = mwaWrite# mwa i (not# 0##) st
+    in wordArrayFillOnes# mwa (i +# 1#) len st'
+  else
+    st
 
 --------------------------------------------------------------------------------
 -- Folds

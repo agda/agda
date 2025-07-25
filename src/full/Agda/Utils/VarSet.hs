@@ -143,7 +143,7 @@ fromList is = VarSet $ (foldl' setBit 0) is
 
 -- | Construct a variable set that contains the indices @0..n-1@
 all :: Int -> VarSet
-all n = VarSet (2 ^ n - 1)
+all n = VarSet (naturalOnes n)
 {-# INLINE CONLIKE all #-}
 
 --------------------------------------------------------------------------------

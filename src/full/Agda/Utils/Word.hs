@@ -7,6 +7,7 @@ module Agda.Utils.Word
     clearBitWord#
   , lowestSetBitWord#
   , andNot#
+  , wordOnes#
     -- * Folds
   , wordFoldlBitsOffset#
   , wordFoldrBitsOffset#
@@ -65,6 +66,11 @@ andNot# w1 w2 =
   -- doesn't know about this.
   w1 `and#` not# w2
 {-# INLINE andNot# #-}
+
+-- | Create a 'Word#' where the first @n@ bits are 1.
+wordOnes# :: Int# -> Word#
+wordOnes# n = not# 0## `uncheckedShiftRL#` (WORD_SIZE_IN_BITS# -# n)
+{-# INLINE wordOnes# #-}
 
 --------------------------------------------------------------------------------
 -- Folds
