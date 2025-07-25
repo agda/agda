@@ -80,6 +80,7 @@ module Agda.Utils.VarSet
 
 
 import Data.Bits hiding (complement)
+import Data.List (foldl')
 
 import Control.DeepSeq
 
@@ -294,5 +295,5 @@ toAscList = foldl (flip (:)) []
 
 -- | Trace the size of a variable set to the eventlog.
 traceVarSetSize :: VarSet -> VarSet
-traceVarSetSize = traceEventWith \(VarSet bs) ->
-  "VarSet.size=" <> show (naturalSizeWords bs)
+traceVarSetSize vs@(VarSet bs) =
+  traceEvent ("VarSet.size=" <> show (naturalSizeWords bs)) vs
