@@ -84,8 +84,8 @@ wordFoldlBitsOffset# offset f a w = go w
       if isTrue# (w `eqWord#` 0##) then
         a
       else
-        let i = word2Int# $ ctz# w
-        in f (go (clearBitWord# w i)) (I# $ i +# offset)
+        let i = word2Int# (ctz# w)
+        in f (go (clearBitWord# w i)) (I# (i +# offset))
 
 -- | @wordFoldrBitsOffset# offset f a w@ performs a right fold over the bits of @w@,
 -- with every bit index passed to @f@ offset by @offset@.
@@ -96,5 +96,5 @@ wordFoldrBitsOffset# offset f a w = go w
       if isTrue# (w `eqWord#` 0##) then
         a
       else
-        let i = word2Int# $ lowestSetBitWord# w
-        in f (I# $ i +# offset) (go (clearBitWord# w i))
+        let i = word2Int# (lowestSetBitWord# w)
+        in f (I# (i +# offset)) (go (clearBitWord# w i))

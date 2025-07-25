@@ -47,8 +47,8 @@ naturalSizeWords n = I# (naturalSizeWords# n)
 -- >>> naturalCountTrailingZeros 8
 -- 3
 naturalCountTrailingZeros :: Natural -> Int
-naturalCountTrailingZeros (NS w) = I# $ word2Int# $ ctz# w
-naturalCountTrailingZeros (NB bs) = I# $ loop 0#
+naturalCountTrailingZeros (NS w) = I# (word2Int# (ctz# w))
+naturalCountTrailingZeros (NB bs) = I# (loop 0#)
   where
     loop :: Int# -> Int#
     loop i =
@@ -58,7 +58,7 @@ naturalCountTrailingZeros (NB bs) = I# $ loop 0#
       if isTrue# (eqWord# w 0##) then
         loop (i +# 1#)
       else
-        WORD_SIZE_IN_BITS# *# i +# (word2Int# $ ctz# w)
+        WORD_SIZE_IN_BITS# *# i +# (word2Int# (ctz# w))
 
 -- | Perform a logical AND NOT of two natural numbers.
 --
