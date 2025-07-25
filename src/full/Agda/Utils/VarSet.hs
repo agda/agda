@@ -1,58 +1,77 @@
+-- Needed to get haddock to pick up on identifiers with a #.
+{-# LANGUAGE MagicHash #-}
+
 {-|
 Manage sets of natural numbers (de Bruijn indices).
 
 This file contains an implementation of finite sets of integers
-that is optimized for storing sets of free variables. Notably
+that is optimized for storing sets of free variables. Notably,
 de Bruijn indices/levels are not uniformly distributed across the
-range of 'Int', and are typically very small (EG: smaller than 64).
-This makes @IntSet@ somewhat ill-suited for the task: it is designed
-to perform well for values across the entire range of 'Int', at the
-cost of lots of pointer indirections and poor memory locality.
+range of 'Int', and are always very small (EG: less than 64).
 
-Instead, 'VarSet' stores free variables as a bit-vector. When the
+This makes 'Data.Intset.IntSet' somewhat ill-suited for the task.
+'Data.Intset.IntSet' is designed to be able to handle values distributed
+across the entire range of 'Int', at the cost of pointer indirections
+and poor memory locality.
+
+Instead, t'VarSet' stores free variables as a bitvector. When the
 elements in the set are all smaller than 64, we can fit the entire set
-into a single unboxed 'Word#', which makes most of our set operations
+into a single unboxed 'GHC.Base.Word#', which makes most of our set operations
 a single instruction.
 
-When we exceed this bound, we fall back to an unboxed 'ByteArray#'. Though
-not as fast as the happy path, this has good memory locality, and
-we can still implement our set operations using bitwise ops.
+When we exceed this bound, we fall back to an unboxed 'GHC.Base.ByteArray#'.
+Experimentally, this happens less than 0.0001% of the time.
+
+= Experimental Results
+
+Agda builds instrumented with 'traceVarSetSize' give the following
+statistics for 'VarSet' sizes across the following libraries:
+
++-------------+------------------------------------------+-------------------+---------------------+
+| library     | commit hash                              | varsets allocated | non-word sized sets |
++=============+==========================================+===================+=====================+
+| 1lab        | 11f4672ca7dcfdccb1b4ce94ca4ca42c9b732e62 | 118198551         | 0                   |
++-------------+------------------------------------------+-------------------+---------------------+
+| agda-stdlib | 0e97e2ed1f999ea0d2cce2a3b2395d5a9a7bd36a | 38960049          | 2178                |
++-------------+------------------------------------------+-------------------+---------------------+
+| cubical     | 1f2af52701945bef003a525f78fa41aeadb7c6ae | 82751805          | 0                   |
++-------------+------------------------------------------+-------------------+---------------------+
 -}
 
 module Agda.Utils.VarSet
   ( VarSet(..)
-  -- $varSetConstruct
+  -- * Construction
   , empty
   , singleton
   , fromList
   , all
-  -- $varSetInsertion
+  -- * Insertion
   , insert
-  -- $varSetDeletion
+  -- * Deletion
   , delete
-  -- $varSetQuery
+  -- * Queries
   , null
   , member
   , lookupMin
   , size
   , disjoint
   , isSubsetOf
-  -- $varSetCombine
+  -- * Combining variable sets
   , union
   , unions
   , intersection
   , difference
   , (\\)
-  -- $varSetFilter
+  -- * Filters
   , split
-  -- $varSetFolds
+  -- * Folds
   , foldr
-  -- $varSetViews
+  -- * Views
   , minView
-  -- $varSetContextual
+  -- * Contextual operations
   , strengthen
   , weaken
-  -- $varSetConversions
+  -- * Conversions
   , toDescList
   , toAscList
   )
@@ -75,7 +94,7 @@ import Prelude hiding (null, foldr, foldl, all)
 newtype VarSet = VarSet Natural
   -- ^ The actual variable set, stored as the bits of a @'Natural'@.
   --
-  -- This exploits the fact that numbers smaller than @'0xffffffffffffffff'@
+  -- This exploits the fact that numbers smaller than @0xffffffffffffffff@
   -- are stored within an unboxed machine word in GHC, which means that
   -- most of our operations can be done in a single instruction.
   deriving (Eq, Ord)
@@ -103,9 +122,9 @@ instance Null.Null VarSet where
 instance Singleton.Singleton Int VarSet where
   singleton = singleton
 
--- * Construction
---
--- $varSetConstruct
+
+--------------------------------------------------------------------------------
+-- Construction
 
 -- | The empty variable set.
 empty :: VarSet
@@ -127,27 +146,24 @@ all :: Int -> VarSet
 all n = VarSet (2 ^ n - 1)
 {-# INLINE CONLIKE all #-}
 
--- * Insertion
---
--- $varSetInsertion
+--------------------------------------------------------------------------------
+-- Insertion
 
 -- | Insert an index into a variable set.
 insert :: Int -> VarSet -> VarSet
 insert i (VarSet bs) = VarSet (setBit bs i)
 {-# INLINE insert #-}
 
--- * Deletion
---
--- $varSetDeletion
+--------------------------------------------------------------------------------
+-- Deletion
 
 -- | Delete an index from a variable set.
 delete :: Int -> VarSet -> VarSet
 delete i (VarSet bs) = VarSet (clearBit bs i)
 {-# INLINE delete #-}
 
--- * Queries
---
--- $varSetQuery
+--------------------------------------------------------------------------------
+-- Queries
 
 -- | Is this the empty set?
 null :: VarSet -> Bool
@@ -174,9 +190,8 @@ disjoint :: VarSet -> VarSet -> Bool
 disjoint (VarSet bs1) (VarSet bs2) = naturalIsZero (bs1 .&. bs2)
 {-# INLINE disjoint #-}
 
--- * Combining variable sets
---
--- $varSetCombine
+--------------------------------------------------------------------------------
+-- Combining variable sets
 
 -- | Union two variable sets.
 union :: VarSet -> VarSet -> VarSet
@@ -208,9 +223,8 @@ isSubsetOf :: VarSet -> VarSet -> Bool
 isSubsetOf (VarSet bs1) (VarSet bs2) = (bs1 .&. bs2) == bs1
 {-# INLINE isSubsetOf #-}
 
--- * Filters
---
--- $varSetFilter
+--------------------------------------------------------------------------------
+-- Combining variable sets
 
 -- | Split a variable set into elements that are strictly smaller than
 -- @n@ and elements that are strictly larger.
@@ -218,21 +232,19 @@ split :: Int -> VarSet -> (VarSet, VarSet)
 split n vs =
   (intersection vs (all n), difference vs (all (n + 1)))
 
+--------------------------------------------------------------------------------
+-- Folds
 
--- * Folds
---
--- $varSetFolds
-
--- | Fold over the elements
+-- | Fold over the elements of a variable set in descending order.
 foldr :: (Int -> a -> a) -> a -> VarSet -> a
 foldr f a (VarSet bs) = naturalFoldrBits f a bs
 
+-- | Fold over the elements of a variable set in ascending order.
 foldl :: (a -> Int -> a) -> a -> VarSet -> a
 foldl f a (VarSet bs) = naturalFoldlBits f a bs
 
--- * Views
---
--- $varSetView
+--------------------------------------------------------------------------------
+-- Views
 
 -- | Retrieve the smallest index in the variable set along with the set sans that
 -- element, or 'Nothing' if the set was empty.
@@ -241,9 +253,8 @@ minView vs = do
   i <- lookupMin vs
   pure (i, delete i vs)
 
--- * Contextual operations
---
--- $varSetContextual
+--------------------------------------------------------------------------------
+-- Contextual operations
 
 -- | Remove the first @n@ entries from the variable set,
 -- and shift the indices of all other entries down by @n@.
@@ -256,9 +267,8 @@ weaken :: Int -> VarSet -> VarSet
 weaken n (VarSet bs) = VarSet (bs `shiftL` n)
 {-# INLINE weaken #-}
 
--- * Converting variable sets to other datastructures
---
--- $varSetConversions
+--------------------------------------------------------------------------------
+-- Conversions
 
 -- | Convert a variable set to a descending list of indices.
 toDescList :: VarSet -> [Int]
@@ -270,7 +280,8 @@ toAscList :: VarSet -> [Int]
 toAscList = foldl (flip (:)) []
 {-# INLINE toAscList #-}
 
--- * Debugging
+--------------------------------------------------------------------------------
+-- Debugging
 
 -- | Trace the size of a variable set to the eventlog.
 traceVarSetSize :: VarSet -> VarSet
