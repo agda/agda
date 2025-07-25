@@ -1,3 +1,4 @@
-MultipleNotations.agda:5.8-9: error: [MultipleFixityDecls]
+MultipleNotations.agda:6.8-9: error: [MultipleFixityDecls]
 Multiple fixity or syntax declarations for
-c:  syntax ⟦_⟧ syntax _+_
+c:  syntax ⟦_⟧ (at MultipleNotations.agda:5.8-9)
+    syntax _+_ (at MultipleNotations.agda:6.8-9)

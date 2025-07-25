@@ -150,7 +150,7 @@ droppedP (Perm n xs) = Perm n $ filter (notInXs !) [0 .. n - 1]
   where
   notInXs :: UArray Int Bool
   notInXs =
-    accumArray (flip const) True (0, n - 1) (zip xs (repeat False))
+    accumArray (flip const) True (0, n - 1) $ map (,False) xs
 
 -- | @liftP k@ takes a @Perm {m} n@ to a @Perm {m+k} (n+k)@.
 --   Analogous to 'Agda.TypeChecking.Substitution.liftS',

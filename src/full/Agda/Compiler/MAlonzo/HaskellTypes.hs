@@ -30,6 +30,8 @@ import Agda.Compiler.MAlonzo.Pretty () --instance only
 
 import qualified Agda.Utils.Haskell.Syntax as HS
 import Agda.Utils.List
+import Agda.Utils.ListInf ( pattern (:<) )
+import Agda.Utils.ListInf qualified as ListInf
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty (prettyShow)
@@ -161,12 +163,12 @@ haskellType q = do
   let (np, erased) =
         case theDef def of
           Constructor{ conPars, conErased }
-            -> (conPars, fromMaybe [] conErased ++ repeat False)
-          _ -> (0, repeat False)
-      stripErased (True  : es) (HS.TyFun _ t)     = stripErased es t
-      stripErased (False : es) (HS.TyFun s t)     = HS.TyFun s $ stripErased es t
-      stripErased es           (HS.TyForall xs t) = HS.TyForall xs $ stripErased es t
-      stripErased _            t                  = t
+            -> (conPars, ListInf.pad (fromMaybe [] conErased) False)
+          _ -> (0, ListInf.repeat False)
+      stripErased (True  :< es) (HS.TyFun _ t)     = stripErased es t
+      stripErased (False :< es) (HS.TyFun s t)     = HS.TyFun s $ stripErased es t
+      stripErased es            (HS.TyForall xs t) = HS.TyForall xs $ stripErased es t
+      stripErased _             t                  = t
       underPars 0 a = stripErased erased <$> haskellType' a
       underPars n a = do
         a <- reduce a

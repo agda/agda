@@ -15,7 +15,7 @@ module Agda.Termination.TermCheck
     , Result
     ) where
 
-import Prelude hiding ( null )
+import Prelude hiding ( null, zip, zipWith )
 
 import Control.Applicative  ( liftA2 )
 import Control.Monad        ( (<=<), filterM, forM, forM_, zipWithM )
@@ -66,6 +66,8 @@ import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.ListInf ( pattern (:<) )
+import Agda.Utils.ListInf qualified as ListInf
 import Agda.Utils.Maybe
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
 import Agda.Utils.Null
@@ -75,6 +77,7 @@ import Agda.Utils.Size
 -- import Agda.Utils.SmallSet (SmallSet)
 import qualified Agda.Utils.SmallSet as SmallSet
 import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.Zip
 
 import Agda.Utils.Impossible
 
@@ -574,7 +577,7 @@ setMasks t cont = do
     when d $
       reportSLn "term.mask" 20 $ "result type is not data or record type, ignoring guardedness for --without-K"
     return (ds, d)
-  terSetMaskArgs (ds ++ repeat True) $ terSetMaskResult d $ cont
+  terSetMaskArgs (ListInf.pad ds True) $ terSetMaskResult d $ cont
 
   where
     checkArgumentTypes :: Telescope -> TCM [Bool]
@@ -825,8 +828,8 @@ function g es0 = do
     -- If the function is a projection but not for a coinductive record,
     -- then preserve guardedness for its principal argument.
     isProj <- isProjectionButNotCoinductive g
-    let unguards = repeat Order.unknown
-    let guards = applyWhen isProj (guarded :) unguards
+    let unguards = ListInf.repeat Order.unknown
+    let guards = applyWhen isProj (guarded :<) unguards
     -- Collect calls in the arguments of this call.
     let args = map unArg $ argsFromElims es0
     calls <- forM' (zip guards args) $ \ (guard, a) -> do
@@ -1017,7 +1020,8 @@ instance ExtractCalls Term where
         -- A constructor preserves the guardedness of all its arguments.
         -- Andreas, 2022-09-19, issue #6108:
         -- A higher constructor does not.  So check if there is an @IApply@ amoung @es@.
-        let argsg = zip args $ repeat $ all isProperApplyElim es
+        let noIApply = all isProperApplyElim es
+        let argsg = map (,noIApply) args
 
         -- If we encounter a coinductive record constructor
         -- in a type mutual with the current target

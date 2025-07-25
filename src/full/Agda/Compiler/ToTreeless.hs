@@ -19,7 +19,6 @@ import Control.Monad.Reader ( MonadReader(..), asks, ReaderT, runReaderT )
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map  as Map
-import qualified Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -428,7 +427,7 @@ createLambdas diff cont = do
       , "--   cxt  =" <+> prettyPure cxt
       ]
     -- Prepend diff lambdas
-    cont <&> \ t -> List.iterate C.TLam t !! diff
+    iterate' diff C.TLam <$> cont
 
 -- | Adds lambdas until the context has at least the given size.
 -- Updates the catchall expression to take the additional lambdas into account.

@@ -5,6 +5,7 @@ module Agda.Compiler.MAlonzo.Compiler
   )
   where
 
+import Prelude hiding ( zip, zipWith )
 import Control.Arrow (second)
 import Control.DeepSeq
 import Control.Monad.Except   ( throwError )
@@ -73,10 +74,12 @@ import Agda.Utils.IO.Directory
 import Agda.Utils.Lens
 import Agda.Utils.List
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.ListInf as ListInf
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
 import qualified Agda.Utils.IO.UTF8 as UTF8
+import Agda.Utils.Zip
 
 import Agda.Setup ( getDataDir )
 
@@ -1185,7 +1188,7 @@ condecl q _ind = do
                    else HS.Lazy
       argTypes   = [ (Just strict, t)
                    | (t, False) <- zip (drop np argTypes0)
-                                       (fromMaybe [] erased ++ repeat False)
+                                       (ListInf.pad (fromMaybe [] erased) False)
                    ]
   return $ HS.ConDecl (unqhname ConK q) argTypes
 

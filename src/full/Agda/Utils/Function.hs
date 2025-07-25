@@ -109,9 +109,13 @@ iterateUntilM r f = loop where
 -- The applications are calculated strictly.
 
 iterate' :: Integral i => i -> (a -> a) -> a -> a
-iterate' 0 _ x             = x
-iterate' n f x | n > 0     = iterate' (n - 1) f $! f x
-               | otherwise = error "iterate': Negative input."
+iterate' n f x
+  | n >= 0    = go n x
+  | otherwise = error "iterate': Negative input."
+  where
+    go n x
+      | n > 0     = go (n - 1) $! f x
+      | otherwise = x
 
 -- * Iteration over Booleans.
 

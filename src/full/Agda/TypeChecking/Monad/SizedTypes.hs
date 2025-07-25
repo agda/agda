@@ -21,7 +21,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.CallStack
-import Agda.Utils.List
+import Agda.Utils.Function (iterate')
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -155,7 +155,7 @@ sizeSuc n v | n < 0     = __IMPOSSIBLE__
             | n == 0    = return v
             | otherwise = do
   suc <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSizeSuc
-  return $ fromMaybe __IMPOSSIBLE__ (iterate (sizeSuc_ suc) v !!! n)
+  return $ iterate' n (sizeSuc_ suc) v
 
 sizeSuc_ :: QName -> Term -> Term
 sizeSuc_ suc v = Def suc [Apply $ defaultArg v]

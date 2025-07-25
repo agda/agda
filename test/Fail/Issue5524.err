@@ -1,0 +1,4 @@
+Issue5524.agda:4.13-16: error: [MultipleFixityDecls]
+Multiple fixity or syntax declarations for
+_&_:  infix 1 (at Issue5524.agda:4.9-12)
+      infix 1 (at Issue5524.agda:4.13-16)

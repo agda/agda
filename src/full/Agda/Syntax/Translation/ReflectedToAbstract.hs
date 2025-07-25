@@ -75,7 +75,7 @@ withVar s t f = do
     notTaken xs x = isNoName x || nameConcrete x `notElem` xs
 
 withNames :: MonadReflectedToAbstract m => [String] -> ([Name] -> m a) -> m a
-withNames ss = withVars $ zip ss $ repeat R.Unknown
+withNames = withVars . map (,R.Unknown)
 
 withVars :: MonadReflectedToAbstract m => [(String, R.Type)] -> ([Name] -> m a) -> m a
 withVars ss f = case ss of
@@ -124,7 +124,7 @@ toAbstractWithoutImplicit ::
   ) => r -> m (AbsOfRef r)
 toAbstractWithoutImplicit x = do
   xs <- killRange <$> getContextNames'
-  let ctx = zip xs $ repeat R.Unknown
+  let ctx = map (,R.Unknown) xs
   runReaderT (toAbstract x) ctx
 
 instance ToAbstract r => ToAbstract (Named name r) where
