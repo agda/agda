@@ -409,12 +409,11 @@ instance Pretty DeclarationException' where
   pretty (WrongDefinition x k k') = fsep $ pretty x :
     pwords ("has been declared as a " ++ prettyShow k ++
       ", but is being defined as a " ++ prettyShow k')
-  pretty (AmbiguousFunClauses lhs xs) = sep
-    [ fsep $
-        pwords "More than one matching type signature for left hand side " ++ [pretty lhs] ++
-        pwords "it could belong to any of:"
-    , vcat $ fmap (pretty . PrintRange) xs
-    ]
+  pretty (AmbiguousFunClauses lhs xs) = vcat $
+    "More than one matching type signature for left hand side" :
+    pretty lhs :
+    "Candidates:" :
+    map (("-" <+>) . pretty . PrintRange) (List1.toList xs)
   pretty (AmbiguousConstructor _ n ns) = sep
     [ fsep (pwords "Could not find a matching data signature for constructor " ++ [pretty n])
     , vcat (case ns of
