@@ -108,7 +108,7 @@ import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.ProfileOptions as Profile
+import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Set1 as Set1
 import qualified Agda.Utils.Trie as Trie

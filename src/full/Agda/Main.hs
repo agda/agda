@@ -28,6 +28,7 @@ import Agda.Interaction.BuildLibrary (buildLibrary)
 import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode as ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
+import Agda.Interaction.Options.BashCompletion (bashComplete, printedOptions)
 import Agda.Interaction.Options.Help (Help (..))
 import Agda.Interaction.EmacsTop (mimicGHCi)
 import Agda.Interaction.JSONTop (jsonREPL)
@@ -66,9 +67,26 @@ runAgda backends = runAgda' $ builtinBackends ++ backends
 -- | The main function without importing built-in backends
 runAgda' :: [Backend] -> IO ()
 runAgda' backends = do
+  getArgs >>= \case
+
+    -- Special mode of operation for @--bash-complete@.
+    "--bash-complete" : args ->
+      case bashComplete trunc args of
+        Right s -> putStr s
+        Left err -> do
+          putStrLn err
+          exitAgdaWith ExitCode.OptionError
+      where
+        -- Truncate to max 50 completion suggestions.
+        trunc = Just 50
+
+    -- Ordinary entrypoint.
+    args -> runAgdaArgs backends args
+
+runAgdaArgs :: [Backend] -> [String] -> IO ()
+runAgdaArgs backends args = do
   progName <- getProgName
-  argv     <- getArgs
-  let (z, warns) = runOptM $ parseBackendOptions backends argv defaultOptions
+  let (z, warns) = runOptM $ parseBackendOptions backends args defaultOptions
   conf     <- runExceptT $ do
     (bs, opts) <- ExceptT $ pure z
     -- The absolute path of the input file, if provided
@@ -88,6 +106,7 @@ runAgda' backends = do
       whenJust (optPrintHelp    opts) $ printUsage   bs
       when (optPrintAgdaAppDir  opts) $ printAgdaAppDir
       when (optPrintAgdaDataDir opts) $ printAgdaDataDir
+      when (optPrintOptions     opts) $ printOptions
 
       -- Setup emacs mode
       when (EmacsModeSetup `Set.member` optEmacsMode opts) do
@@ -113,6 +132,7 @@ runAgda' backends = do
               , opts & optPrintHelp    & isJust
               , opts & optPrintAgdaAppDir
               , opts & optPrintAgdaDataDir
+              , opts & optPrintOptions
               , opts & optEmacsMode    & not . null
               ]
           -- if no task was given to Agda
@@ -376,6 +396,9 @@ printAgdaDataDir = putStrLn =<< getDataDir
 
 printAgdaAppDir :: IO ()
 printAgdaAppDir = putStrLn =<< getAgdaAppDir
+
+printOptions :: IO ()
+printOptions = mapM_ putStrLn printedOptions
 
 -- | What to do for bad options.
 optionError :: String -> IO ()
