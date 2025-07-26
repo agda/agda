@@ -9,8 +9,8 @@ that is optimized for storing sets of free variables. Notably,
 de Bruijn indices/levels are not uniformly distributed across the
 range of 'Int', and are always very small (EG: less than 64).
 
-This makes 'Data.Intset.IntSet' somewhat ill-suited for the task.
-'Data.Intset.IntSet' is designed to be able to handle values distributed
+This makes 'Data.IntSet.IntSet' somewhat ill-suited for the task.
+'Data.IntSet.IntSet' is designed to be able to handle values distributed
 across the entire range of 'Int', at the cost of pointer indirections
 and poor memory locality.
 
