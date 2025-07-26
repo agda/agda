@@ -171,7 +171,8 @@ instance PureTCM m => MonadWarning (PureConversionT m) where
     AllWarnings   -> return ()
 
 instance ReadTCState m => MonadStatistics (PureConversionT m) where
-  modifyCounter _ _ = return ()
+  tickN   _ _ = return ()
+  tickMax _ _ = return ()
 
 instance Monad m => MonadFresh ProblemId (PureConversionT m) where
   fresh = do

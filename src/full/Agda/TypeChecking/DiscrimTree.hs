@@ -81,7 +81,7 @@ termKeyElims precise ty args = do
 -- incremented.
 tickExplore :: Term -> TCM ()
 tickExplore tm = whenProfile Profile.Instances do
-  tick "flex term blocking instance"
+  tick "explore"
 
   case tm of
     Def{}      -> tick "explore: Def"
