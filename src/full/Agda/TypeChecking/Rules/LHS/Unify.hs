@@ -172,6 +172,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.Size
+import Agda.Utils.Singleton
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
@@ -364,7 +365,7 @@ dataStrategy k s = do
     ifOccursStronglyRigid i u ret = do
         -- Call forceNotFree to reduce u as far as possible
         -- around any occurrences of i
-        (_ , u) <- forceNotFree (VarSet.singleton i) u
+        (_ , u) <- forceNotFree (singleton i) u
         case flexRigOccurrenceIn i u of
           Just StronglyRigid -> ret
           _ -> mzero

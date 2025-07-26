@@ -85,8 +85,6 @@ import Data.List (foldl')
 import Control.DeepSeq
 
 import Agda.Utils.Natural
-import qualified Agda.Utils.Null as Null
-import qualified Agda.Utils.Singleton as Singleton
 
 import Debug.Trace
 
@@ -116,13 +114,6 @@ instance Semigroup VarSet where
 -- | @mempty@ is @'empty'@.
 instance Monoid VarSet where
   mempty = empty
-
-instance Null.Null VarSet where
-  empty = empty
-
-instance Singleton.Singleton Int VarSet where
-  singleton = singleton
-
 
 --------------------------------------------------------------------------------
 -- Construction
