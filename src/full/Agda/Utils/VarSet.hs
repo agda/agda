@@ -107,8 +107,7 @@ instance Show VarSet where
     showString "fromList " . shows (toDescList vs)
 
 instance NFData VarSet where
-  -- All fields of @VarSet@ are strict so it suffices to force the constructor.
-  rnf (VarSet n) = ()
+  rnf (VarSet bs) = rnf bs
 
 -- | @(<>)@ is @'union'@
 instance Semigroup VarSet where
