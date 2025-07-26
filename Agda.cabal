@@ -914,7 +914,6 @@ library
       Agda.Utils.WithDefault
       Agda.Utils.Word
       Agda.Utils.Zip
-
       Agda.Utils.Zipper
       Agda.Version
       Agda.VersionCommit
