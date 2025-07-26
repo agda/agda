@@ -12,9 +12,6 @@ import Prelude hiding ( null )
 
 import Control.Monad.Reader ( asks )
 
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Defs
@@ -40,6 +37,8 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet (VarSet)
 
 -- | Turn a term into a non-linear pattern, treating the
 --   free variables as pattern variables.
@@ -156,9 +155,9 @@ instance PatternFrom Term NLPat where
                _              -> return Nothing
            case sequence mbvs of
              Just bvs | fastDistinct bvs -> do
-               let allBoundVars = IntSet.fromList (downFrom k)
+               let allBoundVars = VarSet.full k
                    ok = not (isIrrelevant r) ||
-                        IntSet.fromList (map unArg bvs) == allBoundVars
+                        VarSet.fromList (map unArg bvs) == allBoundVars
                if ok then return (PVar i bvs) else done
              _ -> done
        | otherwise -> done
@@ -242,9 +241,9 @@ instance NLPatToTerm NLPSort Sort where
 
 -- | Gather the set of pattern variables of a non-linear pattern
 class NLPatVars a where
-  nlPatVarsUnder :: Int -> a -> IntSet
+  nlPatVarsUnder :: Int -> a -> VarSet
 
-  nlPatVars :: a -> IntSet
+  nlPatVars :: a -> VarSet
   nlPatVars = nlPatVarsUnder 0
 
 instance {-# OVERLAPPABLE #-} (Foldable f, NLPatVars a) => NLPatVars (f a) where
@@ -256,21 +255,21 @@ instance NLPatVars NLPType where
 instance NLPatVars NLPSort where
   nlPatVarsUnder k = \case
     PUniv _ l   -> nlPatVarsUnder k l
-    PInf f n  -> empty
-    PSizeUniv -> empty
-    PLockUniv -> empty
-    PLevelUniv -> empty
-    PIntervalUniv -> empty
+    PInf f n  -> VarSet.empty
+    PSizeUniv -> VarSet.empty
+    PLockUniv -> VarSet.empty
+    PLevelUniv -> VarSet.empty
+    PIntervalUniv -> VarSet.empty
 
 instance NLPatVars NLPat where
   nlPatVarsUnder k = \case
-      PVar i _  -> singleton $ i - k
+      PVar i _  -> VarSet.singleton $ i - k
       PDef _ es -> nlPatVarsUnder k es
       PLam _ p  -> nlPatVarsUnder k p
       PPi a b   -> nlPatVarsUnder k (a, b)
       PSort s   -> nlPatVarsUnder k s
       PBoundVar _ es -> nlPatVarsUnder k es
-      PTerm{}   -> empty
+      PTerm{}   -> VarSet.empty
 
 instance (NLPatVars a, NLPatVars b) => NLPatVars (a,b) where
   nlPatVarsUnder k (a,b) = nlPatVarsUnder k a `mappend` nlPatVarsUnder k b

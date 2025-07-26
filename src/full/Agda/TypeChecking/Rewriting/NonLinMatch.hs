@@ -31,8 +31,6 @@ import Control.Monad.State  ( MonadState, StateT, runStateT )
 import Data.Maybe
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -55,12 +53,13 @@ import Agda.Utils.Either
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet (VarSet)
 
 import Agda.Utils.Impossible
 
@@ -299,10 +298,10 @@ instance Match NLPat Term where
     case p of
       PVar i bvs -> traceSDoc "rewriting.match" 60 ("matching a PVar: " <+> text (show i)) $ do
         let vars = map unArg bvs
-        let allowedVars :: IntSet
-            allowedVars = IntSet.fromList vars
-            badVars :: IntSet
-            badVars = IntSet.difference (IntSet.fromList (downFrom n)) allowedVars
+        let allowedVars :: VarSet
+            allowedVars = VarSet.fromList vars
+            badVars :: VarSet
+            badVars = VarSet.complement n allowedVars
             perm :: Permutation
             perm = Perm n $ reverse vars
             tel :: Telescope

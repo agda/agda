@@ -49,8 +49,6 @@ import Control.Monad.Trans.Maybe ( MaybeT(..), runMaybeT )
 
 import Data.Either (partitionEithers)
 import Data.Foldable (toList)
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -85,6 +83,8 @@ import Agda.Utils.Null
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Size
 import qualified Agda.Utils.SmallSet as SmallSet
+import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet (VarSet)
 
 import Agda.Utils.Impossible
 import Agda.Utils.Either
@@ -218,9 +218,9 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         | Set1.IsNonEmpty ps <- allBlockingProblems b = illegalRule $ BlockedOnProblems ps
         | Set1.IsNonEmpty qs <- allBlockingDefs     b = illegalRule $ RequiresDefinitions qs
         | otherwise = __IMPOSSIBLE__
-  let failureFreeVars :: IntSet -> MaybeT TCM a
+  let failureFreeVars :: VarSet -> MaybeT TCM a
       failureFreeVars xs = illegalRule $ VariablesNotBoundByLHS xs
-  let failureNonLinearPars :: IntSet -> MaybeT TCM a
+  let failureNonLinearPars :: VarSet -> MaybeT TCM a
       failureNonLinearPars xs = illegalRule $ VariablesBoundMoreThanOnce xs
 
   -- Check that type of q targets rel.
@@ -287,7 +287,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         --    as 'used' (see #5238).
         let boundVars = nlPatVars ps
             freeVars  = allFreeVars (ps,rhs)
-            allVars   = IntSet.fromList $ downFrom $ size gamma
+            allVars   = VarSet.full $ size gamma
             usedVars  = case theDef def of
               Function{}         -> usedArgs def
               Axiom{}            -> allVars
@@ -305,12 +305,12 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
           "variables free in the rewrite rule: " <+> text (show freeVars)
         reportSDoc "rewriting" 70 $
           "variables used by the rewrite rule: " <+> text (show usedVars)
-        unlessNull (freeVars IntSet.\\ boundVars) failureFreeVars
-        unlessNull (usedVars IntSet.\\ (boundVars `IntSet.union` IntSet.fromList pars)) failureFreeVars
+        unlessNull (freeVars VarSet.\\ boundVars) failureFreeVars
+        unlessNull (usedVars VarSet.\\ (boundVars `VarSet.union` VarSet.fromList pars)) failureFreeVars
 
         reportSDoc "rewriting" 70 $
           "variables bound in (erased) parameter position: " <+> text (show pars)
-        unlessNull (boundVars `IntSet.intersection` IntSet.fromList pars) failureNonLinearPars
+        unlessNull (boundVars `VarSet.intersection` VarSet.fromList pars) failureNonLinearPars
 
         top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
         let rew = RewriteRule q gamma f ps rhs (unDom b) False top
@@ -392,8 +392,8 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         Just rew -> illegalRule DuplicateRewriteRule
         Nothing -> cont
 
-    usedArgs :: Definition -> IntSet
-    usedArgs def = IntSet.fromList $ map snd $ usedIxs
+    usedArgs :: Definition -> VarSet
+    usedArgs def = VarSet.fromList $ map snd $ usedIxs
       where
         occs = defArgOccurrences def
         allIxs = zip occs $ downFrom $ size occs

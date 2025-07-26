@@ -37,6 +37,8 @@ import qualified Data.Set.NonEmpty as Set1
 import Agda.Utils.Null     (Null, empty)
 import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
 import qualified Agda.Utils.SmallSet as SmallSet
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
 
 -- | A create-only possibly empty collection is a monoid with the possibility
 --   to inject elements.
@@ -86,6 +88,7 @@ instance Singleton a   (NonEmpty a) where singleton = (:| [])
 instance Singleton a   (Seq a)      where singleton = Seq.singleton
 instance Singleton a   (Set a)      where singleton = Set.singleton
 instance Singleton Int IntSet       where singleton = IntSet.singleton
+instance Singleton Int VarSet       where singleton = VarSet.singleton
 
 instance Enum a            => Singleton a (EnumSet  a) where singleton = EnumSet.singleton
 instance SmallSetElement a => Singleton a (SmallSet a) where singleton = SmallSet.singleton

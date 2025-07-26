@@ -61,9 +61,12 @@ import Agda.Utils.Set1 (Set1)
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Trie (Trie(..))
 import Agda.Utils.WithDefault
+import Agda.Utils.VarSet (VarSet(..))
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 import Agda.Utils.CallStack
+import Agda.Utils.Natural
 
 instance {-# OVERLAPPING #-} EmbPrj String where
   icod_   = icodeString
@@ -80,6 +83,10 @@ instance EmbPrj T.Text where
 instance EmbPrj Integer where
   icod_   = icodeInteger
   value i = (! i) <$!> gets integerE
+
+instance EmbPrj Natural where
+  icod_   = icodeNatural
+  value i = (! i) <$!> gets naturalE
 
 instance EmbPrj Word64 where
   icod_ i = icodeN' (undefined :: Word32 -> Word32 -> Word32) (word32 q) (word32 r)
@@ -288,6 +295,10 @@ instance (Ord a, EmbPrj a) => EmbPrj (Set1 a) where
 instance EmbPrj IntSet where
   icod_ s = icode (IntSet.toAscList s)
   value s = IntSet.fromDistinctAscList <$!> value s
+
+instance EmbPrj VarSet where
+  icod_ (VarSet a) = icodeN' VarSet a
+  value = valueN VarSet
 
 instance Typeable a => EmbPrj (SmallSet a) where
   icod_ (SmallSet a) = icodeN' SmallSet a

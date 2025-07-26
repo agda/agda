@@ -49,6 +49,8 @@ import Text.PrettyPrint.Annotated (Doc, isEmpty)
 
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Unsafe (unsafeComparePointers)
 import Agda.Utils.Impossible
@@ -134,6 +136,10 @@ instance Null (Seq a) where
 instance Null (Set a) where
   empty = Set.empty
   null  = Set.null
+
+instance Null VarSet where
+  empty = VarSet.empty
+  null = VarSet.null
 
 -- | A 'Maybe' is 'null' when it corresponds to the empty list.
 instance Null (Maybe a) where

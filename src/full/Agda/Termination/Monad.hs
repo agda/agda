@@ -52,8 +52,8 @@ import Agda.Utils.Monoid
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty (Pretty, prettyShow)
 import qualified Agda.Syntax.Common.Pretty as P
-import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.Zip
 
 import Agda.Utils.Impossible
@@ -360,9 +360,9 @@ withUsableVars :: UsableSizeVars a => a -> TerM b -> TerM b
 withUsableVars pats m = do
   vars <- usableSizeVars pats
   reportSLn "term.size" 70 $ "usableSizeVars = " ++ show vars
-  reportSDoc "term.size" 20 $ if null vars then "no usuable size vars" else
+  reportSDoc "term.size" 20 $ if VarSet.null vars then "no usuable size vars" else
     "the size variables amoung these variables are usable: " <+>
-      sep (map (prettyTCM . var) $ VarSet.toList vars)
+      sep (map (prettyTCM . var) $ VarSet.toAscList vars)
   terSetUsableVars vars $ m
 
 -- | Set 'terUseSizeLt' when going under constructor @c@.
