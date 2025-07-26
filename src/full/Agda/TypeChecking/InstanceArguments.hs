@@ -615,7 +615,7 @@ filterResettingState
 filterResettingState m cands f = do
   ctxArgs  <- getContextArgs
   let ctxElims = map Apply ctxArgs
-  result <- mapM (\c -> do bs <- localTCStateSaving (f c); return (c, bs)) cands
+  result <- mapM (\c -> (c,) <$> localTCStateSaving (f c)) cands
 
   -- Check that there aren't any hard failures
   case [ err | (_, (HellNo err, _)) <- result ] of
@@ -633,7 +633,12 @@ filterResettingState m cands f = do
       _ -> True
   result'' <- dropSameCandidates m overlap result'
   case result'' of
-    [(c, v, s)] -> ([], [(c, v)]) <$ putTC s
+
+    -- Have to use 'putTCPreservingSession' here otherwise the stats
+    -- accumulated from checking other candidates and from
+    -- 'dropSameCandidates' are lost.
+    [(c, v, s)] -> ([], [(c, v)]) <$ putTCPreservingSession s
+
     _           -> do
       let bad  = [ (c, err) | (c, (NoBecause err, _)) <- result ]
           good = [ (c, v) | (c, v, _) <- result'' ]
@@ -1145,7 +1150,7 @@ addTypedInstance' w readd orig inst t = do
       setTCLens stInstanceTree tree'
 
       modifyTCLens' (stSignature . sigInstances . itableCounts) $
-        if readd then Map.insertWith (+) n 1 else id
+        if readd then id else Map.insertWith (+) n 1
 
       let
         info = flip fromMaybe orig InstanceInfo

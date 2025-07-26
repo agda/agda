@@ -98,6 +98,8 @@ data Phase
     -- ^ Subphase for 'Typing': solving instance goals
   | Reflection
     -- ^ Subphase for 'Typing': evaluating elaborator reflection
+  | ApplySection
+    -- ^ Subphase for 'Typing': copying definitions for a module macro
   | InitialCandidates
     -- ^ Subphase for 'InstanceSearch': collecting initial candidates
   | FilterCandidates
