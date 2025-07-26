@@ -989,7 +989,9 @@ checkSectionApplication'
   -> A.ScopeCopyInfo     -- ^ Imported names and modules
   -> TCM ()
 checkSectionApplication'
-  i er m1 (A.SectionApp ptel m2 args) copyInfo = do
+  i er m1 (A.SectionApp ptel m2 args) copyInfo =
+  Bench.billTo [Bench.Typing, Bench.ApplySection]
+  do
   -- If the section application is erased, then hard compile-time mode
   -- is entered.
   warnForPlentyInHardCompileTimeMode er
