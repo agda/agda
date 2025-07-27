@@ -1,0 +1,6 @@
+InlineNoExactSplit.agda:17.1-10: warning: -W[no]InlineNoExactSplit
+Exact splitting is enabled, but the following clause is no longer a
+definitional equality because it was translated to a copattern
+match:
+  test .snd = record { x = _x_3 }
+when checking the definition of test
