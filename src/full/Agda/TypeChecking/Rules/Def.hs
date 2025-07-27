@@ -365,9 +365,10 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
           forM cs $ \ cl -> do
             (cls, nonExactSplit) <- runChangeT $ recordRHSToCopatterns cl
             when nonExactSplit do
-              -- If we inlined a non-eta constructor,
-              -- issue a warning that the clause does not hold as definitional equality.
-              warning $ InlineNoExactSplit name cl
+              -- If we inlined a non-eta constructor, issue a warning
+              -- (pointing at the clause lhs) that the clause does not
+              -- hold as definitional equality.
+              setCurrentRange (clauseLHSRange cl) . warning $ InlineNoExactSplit name cl
             return cls
 
         -- After checking, remove the clauses again.
