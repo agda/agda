@@ -43,10 +43,10 @@ import Agda.Utils.Functor
 checkIApplyConfluence_ :: QName -> TCM ()
 checkIApplyConfluence_ f = whenM (isJust <$> cubicalOption) $ do
   -- Andreas, 2019-03-27, iapply confluence should only be checked
-  -- when --cubical[=full] or --cubical=erased is active. See
+  -- when --cubical[={full,erased}] is active. See
   -- test/Succeed/CheckIApplyConfluence.agda.
   -- We cannot reach the following crash point unless
-  -- --cubical[=full]/--cubical=erased is active.
+  -- --cubical[={full,erased}] is active.
   __CRASH_WHEN__ "tc.cover.iapply.confluence.crash" 666
   reportSDoc "tc.cover.iapply" 10 $ text "Checking IApply confluence of" <+> pretty f
   inConcreteOrAbstractMode f $ \ d -> do

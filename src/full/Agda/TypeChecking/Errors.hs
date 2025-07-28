@@ -1286,14 +1286,14 @@ instance PrettyTCM TypeError where
       pwords "Option --copatterns needed to enable destructor patterns"
 
     NeedOptionCubical cubical reason -> fsep $ concat
-        [ [ "Option" ], opt, [ "required" ]
+        [ [ "Option" ], [ opt ], [ "required" ]
         , pwords reason
         ]
       where
       opt = case cubical of
-        CFull        -> [ "--cubical[=full]" ]
-        CErased      -> [ "--cubical={full,erased}" ]
-        CWithoutGlue -> ["--cubical={full,erased,no-glue}"]
+        CFull        -> "--cubical[=full]"
+        CErased      -> "--cubical[={full,erased}]"
+        CWithoutGlue -> "--cubical[={full,erased,no-glue}]"
 
     NeedOptionPatternMatching -> fsep $
       pwords "Pattern matching is disabled (use option --pattern-matching to enable it)"

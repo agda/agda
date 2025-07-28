@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-without-glue #-}
+{-# OPTIONS --cubical=no-glue #-}
 
 module Cubical-without-glue.Is-path-compatible where
 

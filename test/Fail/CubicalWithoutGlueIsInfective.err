@@ -1,6 +1,6 @@
 CubicalWithoutGlueIsInfective.agda:3.1-53: error: [InfectiveImport]
 Importing module Cubical-without-glue-Import.Without-glue using the
---cubical/--erased-cubical/--cubical-without-glue flag from a
-module which does not.
+--cubical[={full,erased,no-glue}] flag from a module which does
+not.
 when scope checking the declaration
   open import Cubical-without-glue-Import.Without-glue

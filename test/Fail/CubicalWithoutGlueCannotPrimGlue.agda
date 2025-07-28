@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-without-glue #-}
+{-# OPTIONS --cubical=no-glue #-}
 
 open import Agda.Primitive
 open import Agda.Primitive.Cubical
