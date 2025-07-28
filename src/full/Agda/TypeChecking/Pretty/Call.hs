@@ -27,7 +27,7 @@ import Agda.Utils.Null
 
 import Agda.Utils.Impossible
 
-import Agda.Version (docsUrl)
+import Agda.VersionCommit (docsUrl)
 
 sayWhere :: MonadPretty m => HasRange a => a -> m Doc -> m Doc
 sayWhere x d = prettyTCM (getRange x) $$ d
