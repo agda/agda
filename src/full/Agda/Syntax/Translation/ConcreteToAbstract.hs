@@ -33,6 +33,7 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.HashSet as HashSet
 import Data.Maybe
+import Data.Text qualified as Text
 import Data.Void
 
 import Agda.Syntax.Common
@@ -69,7 +70,7 @@ import Agda.TypeChecking.Monad.Base hiding (ModuleInfo, MetaInfo)
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State hiding (topLevelModuleName)
-import qualified Agda.TypeChecking.Monad.State as S
+import qualified Agda.TypeChecking.Monad.State as S (topLevelModuleName)
 import Agda.TypeChecking.Monad.Signature (notUnderOpaque)
 import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
 import Agda.TypeChecking.Monad.Debug
@@ -3140,14 +3141,13 @@ checkNoTerminationPragma b ds =
   forM_ (foldDecl (isPragma >=> isTerminationPragma) ds) \ (p, r) ->
     setCurrentRange r $ warning $ UselessPragma r $ P.vcat
       [ P.text $ show p ++ " pragmas are ignored in " ++ what b
-      , P.text $ "(see " ++ issue b ++ ")"
+      , "(see " <> issue b <> ")"
       ]
   where
     what InWhereBlock = "where clauses"
     what InRecordDef  = "record definitions"
-    github n = "https://github.com/agda/agda/issues/" ++ show n
-    issue InWhereBlock = github 3355
-    issue InRecordDef  = github 3008
+    issue InWhereBlock = P.githubIssue 3355
+    issue InRecordDef  = P.githubIssue 3008
 
     isTerminationPragma :: C.Pragma -> [(TerminationOrPositivity, Range)]
     isTerminationPragma = \case

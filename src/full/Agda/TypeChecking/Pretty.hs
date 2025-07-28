@@ -89,14 +89,20 @@ prettyA = AP.prettyA
 prettyAs :: (ToConcrete a, ConOfAbs a ~ [ce], P.Pretty ce, MonadAbsToCon m) => a -> m Doc
 prettyAs = AP.prettyAs
 
-fwords, text, multiLineText :: Applicative m => String -> m Doc
+fwords, text, multiLineText, url :: Applicative m => String -> m Doc
 fwords        = pure . P.fwords        ; {-# INLINE fwords        #-}
 text          = pure . P.text          ; {-# INLINE text          #-}
 multiLineText = pure . P.multiLineText ; {-# INLINE multiLineText #-}
+url           = pure . P.url           ; {-# INLINE url           #-}
 
 {-# INLINE pwords #-}
 pwords :: Applicative m => String -> [m Doc]
 pwords = map pure . P.pwords
+
+-- | Link to an issue on the Agda bug tracker.
+{-# INLINE githubIssue #-}
+githubIssue :: Applicative m => Int -> m Doc
+githubIssue = pure . P.githubIssue
 
 sep, fsep, hsep, hcat, vcat, vsep :: (Applicative m, Foldable t) => t (m Doc) -> m Doc
 sep  = fmap P.sep  . sequenceAFoldable  ; {-# SPECIALIZE NOINLINE sep  :: [TCM Doc] -> TCM Doc #-} ; {-# SPECIALIZE NOINLINE sep  :: List1 (TCM Doc) -> TCM Doc #-}

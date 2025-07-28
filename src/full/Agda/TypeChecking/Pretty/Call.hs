@@ -166,7 +166,7 @@ instance PrettyTCM Call where
     CheckWithFunctionType a -> fsep $
       pwords "when checking that the type" ++
       [prettyTCM a] ++ pwords "of the generated with function is well-formed" ++
-      [parens $ text $ docsUrl "language/with-abstraction.html#ill-typed-with-abstractions"]
+      [parens $ url $ docsUrl "language/with-abstraction.html#ill-typed-with-abstractions"]
 
     CheckDotPattern e v -> fsep $
       pwords "when checking that the given dot pattern" ++ [prettyA e] ++

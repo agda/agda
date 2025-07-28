@@ -6,6 +6,7 @@ import Agda.Utils.Maybe
 import GHC.Generics
 
 import Data.Set (Set)
+import Data.Text (Text)
 
 import Control.DeepSeq
 
@@ -32,6 +33,8 @@ data Aspect
   | Markup
       -- ^ Delimiters used to separate the Agda code blocks
       --   from the other contents in literate Agda.
+   | URL Text
+       -- ^ Uniform Resource Locator aka clickable link.
   deriving (Eq, Show, Generic)
 
 -- | @NameKind@s are figured out during scope checking.
