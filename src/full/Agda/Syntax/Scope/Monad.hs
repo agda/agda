@@ -12,6 +12,7 @@ import Control.Monad.Except       ( MonadError, throwError, runExceptT )
 import Control.Monad.State        ( StateT, runStateT, gets, modify )
 import Control.Monad.Trans        ( MonadTrans, lift )
 import Control.Monad.Trans.Maybe  ( MaybeT(MaybeT), runMaybeT )
+import Control.Monad.IO.Class
 import Control.Applicative
 
 import Data.Either ( partitionEithers )
@@ -21,6 +22,7 @@ import Data.Map (Map)
 import qualified Data.HashMap.Strict as HMap
 import qualified Data.HashSet as HSet
 import qualified Data.Map as Map
+import Data.IORef
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -347,7 +349,7 @@ resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
     UnknownName -> setCurrentRange x $ typeError $ I.NotInScope q
     _ -> setCurrentRange x $ typeError $ ConstructorNameOfNonRecord r
 
-  Right x' -> return x'
+  Right x' -> x' <$ markLiveName x'
 
 tryResolveName :: forall m. (ReadTCState m, HasBuiltins m, MonadError NameResolutionError m)
   => KindsOfNames
@@ -363,6 +365,7 @@ tryResolveName kinds names x = do
   let
     vars = AssocList.mapKeysMonotonic C.QName $ scope ^. scopeLocals
     throwAmb = throwError . IllegalAmbiguity
+
   case lookup x vars of
 
     -- Case: we have a local variable x, but is (perhaps) shadowed by some imports ys.
@@ -413,7 +416,7 @@ tryResolveName kinds names x = do
 
           case recd of
             DefinedName acc abs suf -> getRecordConstructor (anameName abs) >>= \case
-              Just (qn, ind) -> pure $ ConstructorName (Set1.singleton $ fromMaybe Inductive ind) $
+              Just (qn, ind) -> return $ ConstructorName (Set1.singleton $ fromMaybe Inductive ind) $
                 List1.singleton $ upd abs { anameName = qn, anameKind = ConName }
               Nothing -> throwError $ ConstrOfNonRecord r recd
             _ -> throwError $ ConstrOfNonRecord r recd
@@ -460,7 +463,9 @@ resolveModule :: C.QName -> ScopeM AbstractModule
 resolveModule x = do
   ms <- scopeLookup x <$> getScope
   caseMaybe (nonEmpty ms) (typeError $ NoSuchModule x) $ \ case
-    AbsModule m why :| [] -> return $ AbsModule (m `withRangeOf` x) why
+    AbsModule m why :| [] -> do
+      markLiveName m
+      return $ AbsModule (m `withRangeOf` x) why
     ms                    -> typeError $ AmbiguousModule x (fmap amodName ms)
 
 -- | Get the fixity of a not yet bound name.
@@ -643,36 +648,105 @@ stripNoNames = modifyScopes $ Map.map $ mapScope_ stripN stripN id
 type WSM = StateT ScopeMemo ScopeM
 
 data ScopeMemo = ScopeMemo
-  { memoNames   :: A.Ren A.QName
-  , memoModules :: Map ModuleName (ModuleName, Bool)
+  { memoNames    :: A.Ren A.QName
+  , memoModules  :: Map ModuleName (ModuleName, Bool)
     -- ^ Bool: did we copy recursively? We need to track this because we don't
     --   copy recursively when creating new modules for reexported functions
     --   (issue1985), but we might need to copy recursively later.
+  , memoTrimming :: A.ScopeCopyRef
   }
 
 memoToScopeInfo :: ScopeMemo -> ScopeCopyInfo
-memoToScopeInfo (ScopeMemo names mods) =
-  ScopeCopyInfo { renNames   = names
-                , renModules = Map.map (pure . fst) mods }
+memoToScopeInfo (ScopeMemo names mods live) =
+  ScopeCopyInfo
+    { renNames    = names
+    , renModules  = Map.map (pure . fst) mods
 
--- | Mark a name as being a copy in the TC state.
-copyName :: A.QName -> A.QName -> ScopeM ()
-copyName from to = do
-  from <- fromMaybe from . HMap.lookup from <$> useTC stCopiedNames
-  modifyTCLens stCopiedNames $ HMap.insert to from
+    -- Conservatively we need to assume that this copy belongs to the
+    -- signature, otherwise we might end up dropping things that
+    -- downstream modules will try to access.
+    --
+    -- The scope checker sets this to 'False' when it is sure that the
+    -- copy is short-lived.
+    , renPublic   = True
+
+    , renTrimming = live
+    }
+
+-- | Create a new reference to store liveness information for names in
+-- the given copied module.
+newScopeCopyRef :: A.ModuleName -> ScopeM A.ScopeCopyRef
+newScopeCopyRef mname = liftIO $ A.ScopeCopyRef mname <$> newIORef (Just mempty)
+
+-- | Mark a name as being a copy in the TC state, associating it with
+-- the given 'A.ScopeCopyRef' for liveness information.
+copyName :: A.ScopeCopyRef -> A.QName -> A.QName -> ScopeM ()
+copyName copy from to = do
+  from <- fromMaybe from . fmap snd . HMap.lookup from <$> useTC stCopiedNames
+  modifyTCLens stCopiedNames $ HMap.insert to (copy, from)
   let
     k Nothing  = Just (HSet.singleton to)
     k (Just s) = Just (HSet.insert to s)
   modifyTCLens stNameCopies $ HMap.alter k from
 
+class MarkLive n where
+  -- | Mark a name as (potentially) having been used.
+  markLiveName :: n -> ScopeM ()
+
+  default markLiveName :: forall t n'. (Traversable t, n ~ t n', MarkLive n') => n -> ScopeM ()
+  markLiveName = traverse_ markLiveName
+
+instance MarkLive n => MarkLive (List1 n)
+
+instance MarkLive A.QName where
+  markLiveName qn = HMap.lookup qn <$> useTC stCopiedNames >>= \case
+    Just (A.ScopeCopyRef _ ref, _) ->
+      liftIO $ modifyIORef' ref \case
+        Just (A.LiveNames a b) -> Just (A.LiveNames a (Set.insert qn b))
+        Nothing                -> Nothing
+    Nothing -> pure ()
+
+instance MarkLive A.ModuleName where
+  markLiveName qn = scopeIsCopy <$> getNamedScope qn >>= \case
+    Just (A.ScopeCopyRef _ ref) -> liftIO $ modifyIORef' ref \case
+      Just (A.LiveNames a b) -> Just $! A.LiveNames (Set.insert qn a) b
+      Nothing                -> Nothing
+    Nothing -> pure ()
+
+instance MarkLive A.AbstractName where
+  markLiveName = markLiveName . anameName
+
+instance MarkLive ResolvedName where
+  markLiveName = \case
+    UnknownName         -> pure ()
+    VarName{}           -> pure ()
+    DefinedName _ d _   -> markLiveName d
+    FieldName d         -> markLiveName d
+    ConstructorName _ d -> markLiveName d
+    PatternSynResName d -> markLiveName d
+
+-- | Take the 'LiveNames' from the given 'ScopeCopyRef', indicating that
+-- we will no longer use the 'ScopeCopyInfo' to which it belongs.
+takeLiveNames :: ScopeCopyRef -> ScopeM LiveNames
+takeLiveNames (ScopeCopyRef _ ref) = liftIO $
+  -- Replace the contained value with Nothing, indicating that we're
+  -- done with it, so we don't accidentally retain the entire set of
+  -- names forever.
+  atomicModifyIORef ref \case
+    Nothing -> __IMPOSSIBLE__
+    Just a  -> (Nothing, a)
+
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
 --   renamings.
 copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, ScopeCopyInfo)
-copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> runStateT (copy new0 s) (ScopeMemo mempty mempty)
+copyScope oldc new0 s =
+  do
+    live <- newScopeCopyRef new0
+    (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> runStateT (copy live new0 s) (ScopeMemo mempty mempty live)
   where
-    copy :: A.ModuleName -> Scope -> WSM Scope
-    copy new s = do
+    copy :: A.ScopeCopyRef -> A.ModuleName -> Scope -> WSM Scope
+    copy live new s = do
       lift $ reportSLn "scope.copy" 20 $ "Copying scope " ++ prettyShow old ++ " to " ++ prettyShow new
       lift $ reportSLn "scope.copy" 50 $ prettyShow s
       s0 <- lift $ getNamedScope new
@@ -682,6 +756,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
       -- Fix name and parent.
       return $ s' { scopeName    = scopeName s0
                   , scopeParents = scopeParents s0
+                  , scopeIsCopy  = Just live
                   }
       where
         rnew = getRange new
@@ -756,7 +831,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
           y <- setRange rnew . A.qualify m <$> refresh (qnameName x)
           lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ prettyShow x ++ " to " ++ prettyShow y
           addName x y
-          lift (copyName x y)
+          lift (copyName live x y)
           copyRecordConstr x y
           return y
 
@@ -801,7 +876,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
           where
             copyRec x y = do
               s0 <- lift $ getNamedScope x
-              s  <- withCurrentModule' y $ copy y s0
+              s  <- withCurrentModule' y $ copy live y s0
               lift $ modifyNamedScope y (const s)
 
 ---------------------------------------------------------------------------
