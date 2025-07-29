@@ -60,7 +60,7 @@ Here is a list of the features :option:`--safe` is incompatible with:
 * :option:`--rewriting`; turns any equation into one that holds
   definitionally.  It can at the very least break convergence.
 
-* :option:`--cubical-compatible` together with :option:`--with-K`;
+* :option:`--cubical=compatible` together with :option:`--with-K`;
   the univalence axiom is provable using cubical constructions,
   which falsifies the K axiom.
 
