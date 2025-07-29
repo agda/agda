@@ -248,7 +248,7 @@ data PreScopeState = PreScopeState
     -- ^ Cached @.agda-lib@ files.
   , stPreImportedMetaStore :: !RemoteMetaStore
     -- ^ Used for meta-variables from other modules.
-  , stPreCopiedNames       :: !(HashMap A.QName A.QName)
+  , stPreCopiedNames       :: !(HashMap A.QName (ScopeCopyRef, A.QName))
     -- ^ Associates a copied name (the key) to its original name (the
     -- value). Computed by the scope checker, used to compute opaque
     -- blocks.
@@ -665,7 +665,7 @@ lensLibCache f s = f (stPreLibCache s) <&> \ x -> s { stPreLibCache = x }
 lensImportedMetaStore :: Lens' PreScopeState RemoteMetaStore
 lensImportedMetaStore f s = f (stPreImportedMetaStore s) <&> \x -> s { stPreImportedMetaStore = x }
 
-lensCopiedNames :: Lens' PreScopeState (HashMap QName QName)
+lensCopiedNames :: Lens' PreScopeState (HashMap QName (ScopeCopyRef, QName))
 lensCopiedNames f s = f (stPreCopiedNames s) <&> \ x -> s { stPreCopiedNames = x }
 
 lensNameCopies :: Lens' PreScopeState (HashMap QName (HashSet QName))
@@ -886,7 +886,7 @@ stLibCache = lensPreScopeState . lensLibCache
 stImportedMetaStore :: Lens' TCState RemoteMetaStore
 stImportedMetaStore = lensPreScopeState . lensImportedMetaStore
 
-stCopiedNames :: Lens' TCState (HashMap QName QName)
+stCopiedNames :: Lens' TCState (HashMap QName (ScopeCopyRef, QName))
 stCopiedNames = lensPreScopeState . lensCopiedNames
 
 stNameCopies :: Lens' TCState (HashMap QName (HashSet QName))

@@ -19,6 +19,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
 import Data.Semigroup ( Semigroup(..) )
+import Data.IORef
 
 import GHC.Generics (Generic)
 
@@ -61,6 +62,8 @@ data Scope = Scope
       , scopeNameSpaces     :: ScopeNameSpaces
       , scopeImports        :: Map C.QName A.ModuleName
       , scopeDatatypeModule :: Maybe DataOrRecordModule
+      , scopeIsCopy         :: Maybe ScopeCopyRef
+        -- ^ Not serialised, always deserialised as 'Nothing'.
       }
   deriving (Eq, Show, Generic)
 
@@ -360,6 +363,58 @@ inNameSpace = case inScopeTag :: InScopeTag a of
 -- | Non-dependent tag for name or module.
 data NameOrModule = NameNotModule | ModuleNotName
   deriving (Eq, Ord, Show, Enum, Bounded, Generic)
+
+------------------------------------------------------------------------
+-- * Live names and copy trimming
+------------------------------------------------------------------------
+
+-- | A set of module and definition names that were explicitly referred
+-- to during scope checking.
+data LiveNames = LiveNames
+  { liveModules :: !(Set ModuleName)
+  , liveNames   :: !(Set A.QName)
+  }
+
+instance Semigroup LiveNames where
+  LiveNames a b <> LiveNames a' b' = LiveNames (a <> a') (b <> b')
+
+instance Monoid LiveNames where
+  mempty = LiveNames mempty mempty
+
+-- | Is the given name alive in this set?
+--
+-- Note: a qualified name can be kept alive by liveness of any of the
+-- modules it belongs to.
+isNameAlive :: A.QName -> LiveNames -> Bool
+isNameAlive qn@(A.QName mod _) live@(LiveNames mods names)
+  | qn `Set.member` names = True
+  | otherwise             = isModuleAlive mod live
+
+-- | Is the given module (or one of its parents) a member of the set?
+isModuleAlive :: A.ModuleName -> LiveNames -> Bool
+isModuleAlive (A.MName mod) (LiveNames mods _) =
+  any ((`Set.member` mods) . A.MName) (List.inits mod)
+
+-- | A reference to the information shared by everything which belongs
+-- to a copied module, used for trimming module application renamings.
+data ScopeCopyRef = ScopeCopyRef
+  { scrOriginal  :: A.ModuleName
+    -- ^ For debug printing; the name of the copied module.
+  , scrLiveNames :: !(IORef (Maybe LiveNames))
+    -- ^ Pointer to the live names from that copy. Conservatively, any
+    -- name belonging to this module which is *possibly* referred to
+    -- should belong to this set.
+    --
+    -- The type checker replaces the 'Just' by a 'Nothing' after it is
+    -- done, to release the set of names. However, we can not replace it
+    -- by an impossible since user interaction involves resolving names
+    -- even after typechecking is 'done'; and if these names are copies
+    -- they will still point to this ScopeCopyRef.
+  }
+  deriving (Eq, Generic)
+
+instance Show ScopeCopyRef where
+  show (ScopeCopyRef a _) = "<" ++ show a ++ ">"
 
 ------------------------------------------------------------------------
 -- * Decorated names
@@ -709,6 +764,7 @@ emptyScope = Scope
       -- zipScope assumes all NameSpaces to be present and in the same order.
   , scopeImports        = Map.empty
   , scopeDatatypeModule = Nothing
+  , scopeIsCopy         = Nothing
   }
 
 -- | The empty scope info.
@@ -1500,6 +1556,7 @@ instance SetRange AbstractName where
   setRange r x = x { anameName = setRange r $ anameName x }
 
 instance NFData Scope
+instance NFData ScopeCopyRef
 instance NFData DataOrRecordModule
 instance NFData NameSpaceId
 instance NFData ScopeInfo

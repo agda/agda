@@ -13,5 +13,5 @@ data _≡_ {A : Set} (x : A) : A → Set where
 
 test : (F : Foo false) → let open Foo F in (x : Bool) → _*_ x ≡ (λ x → x)
 test F x = x
-  where open Foo F
+  where open Foo F using (_*_)
 -- Don't want to see any anonymous module
