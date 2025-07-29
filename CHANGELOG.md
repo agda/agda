@@ -13,7 +13,7 @@ Pragmas and options
 
 * New option `--print-options` to print a simple list of all options.
   This list can e.g. be used to implement bash completion.
-  
+
 * Consolidated Cubical-related flags to
   | Old                    | New                                               |
   | ---------------------- | ------------------------------------------------- |
