@@ -22,11 +22,6 @@ Ignoring invalid display form for A3 because its right-hand side
 contains a metavariable
 when checking the pragma DISPLAY A3 = _
 
-InvalidDisplayForm.agda:19.1-41: warning: -W[no]InvalidDisplayForm
-Ignoring invalid display form for A4 because its right-hand side
-contains a dotted expression
-when checking the pragma DISPLAY A4 = .Set
-
 InvalidDisplayForm.agda:20.1-41: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for A5 because its right-hand side
 contains a lambda
@@ -55,11 +50,7 @@ when checking the pragma DISPLAY A9 = (X : Set) → X
 InvalidDisplayForm.agda:25.1-41: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for A10 because its right-hand side
 contains a let
-when checking the pragma
-DISPLAY A10 =
-          let x : _
-              x = Set
-          in Set
+when checking the pragma DISPLAY A10 = let x = Set in Set
 
 InvalidDisplayForm.agda:26.1-41: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for A11 because its right-hand side
@@ -183,11 +174,6 @@ Ignoring invalid display form for A3 because its right-hand side
 contains a metavariable
 when checking the pragma DISPLAY A3 = _
 
-InvalidDisplayForm.agda:19.1-41: warning: -W[no]InvalidDisplayForm
-Ignoring invalid display form for A4 because its right-hand side
-contains a dotted expression
-when checking the pragma DISPLAY A4 = .Set
-
 InvalidDisplayForm.agda:20.1-41: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for A5 because its right-hand side
 contains a lambda
@@ -216,11 +202,7 @@ when checking the pragma DISPLAY A9 = (X : Set) → X
 InvalidDisplayForm.agda:25.1-41: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for A10 because its right-hand side
 contains a let
-when checking the pragma
-DISPLAY A10 =
-          let x : _
-              x = Set
-          in Set
+when checking the pragma DISPLAY A10 = let x = Set in Set
 
 InvalidDisplayForm.agda:26.1-41: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for A11 because its right-hand side

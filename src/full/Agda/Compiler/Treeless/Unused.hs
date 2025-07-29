@@ -5,6 +5,8 @@ module Agda.Compiler.Treeless.Unused
   , stripUnusedArguments
   ) where
 
+import Prelude hiding (zip, zipWith)
+
 import Data.Maybe
 
 import Agda.Syntax.Common
@@ -16,8 +18,10 @@ import Agda.TypeChecking.Substitute
 import Agda.Compiler.Treeless.Pretty () -- instance only
 
 import Agda.Utils.Function ( iterateUntilM )
-import Agda.Utils.List     ( downFrom )
+import Agda.Utils.List     ( downFrom, takeExactly )
+import Agda.Utils.ListInf qualified as ListInf
 import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.Zip
 
 usedArguments :: QName -> TTerm -> TCM [ArgUsage]
 usedArguments q t = computeUnused q b (replicate n ArgUnused)
@@ -31,7 +35,7 @@ computeUnused q t = iterateUntilM (==) $ \ used -> do
 
   reportSLn "treeless.opt.unused" 50 $ concat
     [ "Unused approximation for ", prettyShow q, ": "
-    , unwords [ if u == ArgUsed then [x] else "_" | (x, u) <- zip ['a'..] used ]
+    , unwords [ if u == ArgUsed then [x] else "_" | (x, u) <- zip (ListInf.upFrom 'a') used ]
     ]
   -- Update usage information q to so far "best" value.
   setCompiledArgUse q used
@@ -52,7 +56,7 @@ computeUnused q t = iterateUntilM (==) $ \ used -> do
 
       TApp (TDef f) ts -> do
         used <- fromMaybe [] <$> getCompiledArgUse f
-        VarSet.unions <$> sequence [ go t | (t, ArgUsed) <- zip ts $ used ++ repeat ArgUsed ]
+        VarSet.unions <$> sequence [ go t | (t, ArgUsed) <- zip ts $ ListInf.pad used ArgUsed ]
 
       TApp f ts -> VarSet.unions <$> mapM go (f : ts)
       TLam b    -> underBinder <$> go b
@@ -89,7 +93,7 @@ stripUnusedArguments used t = mkTLam m $ applySubst rho b
   where
     (n, b) = tLamView t
     m      = length $ filter (== ArgUsed) used'
-    used'  = reverse $ take n $ used ++ repeat ArgUsed
+    used'  = reverse $ takeExactly ArgUsed n used
     rho = computeSubst used'
     computeSubst (ArgUnused : bs) = TErased :# computeSubst bs
     computeSubst (ArgUsed   : bs) = liftS 1 $ computeSubst bs

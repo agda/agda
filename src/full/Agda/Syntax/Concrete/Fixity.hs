@@ -1,4 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
 
 -- | Collecting fixity declarations (and polarity pragmas) for concrete
 --   declarations.
@@ -58,7 +60,7 @@ plusFixities m1 m2
     | otherwise        = return $ Map.unionWithKey mergeFixites m1 m2
   where
     --  Merge two fixities, assuming there is no conflict
-    mergeFixites name (Fixity' f1 s1 r1) (Fixity' f2 s2 r2) = Fixity' f s $ fuseRange r1 r2
+    mergeFixites _name (Fixity' f1 s1 r1) (Fixity' f2 s2 r2) = Fixity' f s $ fuseRange r1 r2
               where f | null f1 = f2
                       | null f2 = f1
                       | otherwise = __IMPOSSIBLE__
@@ -154,7 +156,10 @@ fixitiesAndPolarities' = foldMap $ \case
       returnPol $ Map.singleton x occs
   -- These declarations define fixities:
   Syntax x syn    -> returnFix $ Map.singleton x (Fixity' noFixity syn $ getRange x)
-  Infix  f xs     -> returnFix $ Map.fromList $ for (List1.toList xs) $ \ x -> (x, Fixity' f noNotation $ getRange x)
+  Infix  f xs1    -> flip foldMap xs1 \ x ->
+    -- Andreas, 2025-07-25, issue #5224: Warn when @xs1@ contains duplicates.
+    -- We achieve this through 'plusFixities'.
+    returnFix $ Map.singleton x $ Fixity' f noNotation $ getRange x
   -- We look into these blocks:
   Mutual    _ ds' -> fixitiesAndPolarities' ds'
   InterleavedMutual _ ds' -> fixitiesAndPolarities' ds'
@@ -220,7 +225,7 @@ declaredNames = \case
   TypeSig _ _ x _       -> declaresName x
   FieldSig _ _ x _      -> declaresName x
   Field _ fs            -> foldMap declaredNames fs
-  FunClause (LHS p [] []) _ _ _
+  FunClause _ (LHS p [] []) _ _ _
     | IdentP _ (QName x) <- removeParenP p
                         -> declaresName x
   FunClause{}           -> mempty
@@ -228,7 +233,7 @@ declaredNames = \case
   DataDef _ _ _ cs      -> foldMap declaredNames cs
   Data _ _ x _ _ cs     -> declaresName x <> foldMap declaredNames cs
   RecordSig _ _ x _ _   -> declaresName x
-  RecordDef _ x ds _ _  -> declaresNames $     maybeToList (recDirConstructor ds)
+  RecordDef _ _x ds _ _ -> declaresNames $     maybeToList (recDirConstructor ds)
   Record _ _ x ds _ _ _ -> declaresNames $ x : maybeToList (recDirConstructor ds)
   Infix _ _             -> mempty
   Syntax _ _            -> mempty

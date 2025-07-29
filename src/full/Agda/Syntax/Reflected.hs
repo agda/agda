@@ -1,4 +1,6 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
 
 module Agda.Syntax.Reflected where
 
@@ -9,10 +11,9 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal (Dom)
 
-import Agda.Utils.List1 (List1, pattern (:|))
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 (List1)
 
-type Args       = [Arg Term]
+type Args = [Arg Term]
 
 data Elim' a = Apply (Arg a) -- no record projections for now
   deriving (Show)

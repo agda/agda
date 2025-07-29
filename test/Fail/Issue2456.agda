@@ -9,3 +9,9 @@ postulate
   instance Class t
 
 -- Should give error, but not internal error.
+
+-- Error (#2456): Unexpected declaration.
+
+-- Error (PR #8000): [Syntax.WrongContentBlock]
+-- A 'postulate' block can only contain type signatures, possibly
+-- under keywords 'instance' and 'private'

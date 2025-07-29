@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
 
 module Agda.Syntax.Literal where
 
@@ -9,10 +12,9 @@ import Data.Text (Text)
 import qualified Data.Text as T
 
 import Agda.Syntax.Position
-import Agda.Syntax.Common
-import Agda.Syntax.Abstract.Name
-import Agda.Syntax.TopLevelModuleName.Boot (TopLevelModuleName')
-import Agda.Syntax.Position (Range)
+import Agda.Syntax.Common ( Ranged, MetaId )
+import Agda.Syntax.Abstract.Name ( QName )
+import Agda.Syntax.TopLevelModuleName.Boot ( TopLevelModuleName' )
 import Agda.Utils.Float ( doubleDenotEq, doubleDenotOrd )
 import Agda.Syntax.Common.Pretty
 

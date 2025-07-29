@@ -1,3 +1,7 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
+
 module Agda.Syntax.Concrete.Definitions.Errors where
 
 import Control.DeepSeq
@@ -14,8 +18,8 @@ import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Null ( empty )
 import Agda.Utils.CallStack ( CallStack )
-import Agda.Utils.List1 (List1, pattern (:|))
-import Agda.Utils.List2 (List2, pattern List2)
+import Agda.Utils.List1 (List1)
+import Agda.Utils.List2 (List2)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Set1 (Set1)
 import qualified Agda.Utils.Set1 as Set1
@@ -89,7 +93,10 @@ data DeclarationWarning = DeclarationWarning
 -- | Non-fatal errors encountered in the Nicifier.
 data DeclarationWarning'
   -- Please keep in (mostly) alphabetical order.
-  = EmptyAbstract    KwRange  -- ^ Empty @abstract@     block.
+  = DivergentModalityInClause ArgInfo ArgInfo
+      -- ^ The modality of the clause (second 'ArgInfo', range of the warning)
+      --   is different from the modality of the type signature (first 'ArgInfo').
+  | EmptyAbstract    KwRange  -- ^ Empty @abstract@     block.
   | EmptyConstructor KwRange  -- ^ Empty @data _ where@ block.
   | EmptyField       KwRange  -- ^ Empty @field@        block.
   | EmptyGeneralize  KwRange  -- ^ Empty @variable@     block.
@@ -121,6 +128,8 @@ data DeclarationWarning'
   | InvalidTerminationCheckPragma Range
       -- ^ A {-\# TERMINATING \#-} and {-\# NON_TERMINATING \#-} pragma
       --   that does not apply to any function.
+  | InvalidTacticAttribute Range
+      -- ^ A misplaced @tactic@ attribute.
   | MissingDataDeclaration Name
       -- ^ A @data@ definition without a @data@ signature.
   | MissingDefinitions (List1 (Name, Range))
@@ -176,6 +185,7 @@ declarationWarningName = declarationWarningName' . dwWarning
 declarationWarningName' :: DeclarationWarning' -> WarningName
 declarationWarningName' = \case
   -- Please keep in alphabetical order.
+  DivergentModalityInClause{}       -> DivergentModalityInClause_
   EmptyAbstract{}                   -> EmptyAbstract_
   EmptyConstructor{}                -> EmptyConstructor_
   EmptyField{}                      -> EmptyField_
@@ -194,6 +204,7 @@ declarationWarningName' = \case
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
   InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
   InvalidCoverageCheckPragma{}      -> InvalidCoverageCheckPragma_
+  InvalidTacticAttribute{}          -> InvalidTacticAttribute_
   MissingDataDeclaration{}          -> MissingDataDeclaration_
   MissingDefinitions{}              -> MissingDefinitions_
   NotAllowedInMutual{}              -> NotAllowedInMutual_
@@ -226,6 +237,7 @@ unsafeDeclarationWarning = unsafeDeclarationWarning' . dwWarning
 unsafeDeclarationWarning' :: DeclarationWarning' -> Bool
 unsafeDeclarationWarning' = \case
   -- Please keep in alphabetical order.
+  DivergentModalityInClause{}       -> False
   EmptyAbstract{}                   -> False
   EmptyConstructor{}                -> False
   EmptyField{}                      -> False
@@ -244,6 +256,7 @@ unsafeDeclarationWarning' = \case
   InvalidNoUniverseCheckPragma{}    -> False
   InvalidTerminationCheckPragma{}   -> False
   InvalidCoverageCheckPragma{}      -> False
+  InvalidTacticAttribute{}          -> False
   MissingDataDeclaration{}          -> True  -- not safe
   MissingDefinitions{}              -> False -- not safe but deferred until after typechecking
   NotAllowedInMutual{}              -> False -- really safe?
@@ -319,9 +332,9 @@ instance HasRange DeclarationException' where
   getRange (MultipleEllipses d)                 = getRange d
   getRange (DuplicateDefinition x)              = getRange x
   getRange (DuplicateAnonDeclaration r)         = r
-  getRange (MissingWithClauses x lhs)           = getRange lhs
-  getRange (WrongDefinition x k k')             = getRange x
-  getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
+  getRange (MissingWithClauses _x lhs)          = getRange lhs
+  getRange (WrongDefinition x _k _k')           = getRange x
+  getRange (AmbiguousFunClauses lhs _xs)        = getRange lhs
   getRange (AmbiguousConstructor r _ _)         = r
   getRange (WrongContentBlock _ r)              = r
   getRange (InvalidMeasureMutual r)             = r
@@ -336,6 +349,7 @@ instance HasRange DeclarationWarning where
 
 instance HasRange DeclarationWarning' where
   getRange = \case
+    DivergentModalityInClause _ ai     -> getRange ai
     EmptyAbstract kwr                  -> getRange kwr
     EmptyConstructor kwr               -> getRange kwr
     EmptyField kwr                     -> getRange kwr
@@ -354,9 +368,10 @@ instance HasRange DeclarationWarning' where
     InvalidNoPositivityCheckPragma r   -> r
     InvalidNoUniverseCheckPragma r     -> r
     InvalidTerminationCheckPragma r    -> r
+    InvalidTacticAttribute r           -> r
     MissingDataDeclaration x           -> getRange x
     MissingDefinitions xs              -> getRange xs
-    NotAllowedInMutual r x             -> r
+    NotAllowedInMutual r _x            -> r
     OpenImportAbstract r _kwr _        -> getRange r
     OpenImportPrivate  _r kwr _kwr _   -> getRange kwr
     PolarityPragmasButNotPostulates xs -> getRange xs
@@ -388,18 +403,17 @@ instance Pretty DeclarationException' where
     pwords "Duplicate definition of" ++ [pretty x]
   pretty (DuplicateAnonDeclaration _) = fsep $
     pwords "Duplicate declaration of _"
-  pretty (MissingWithClauses x lhs) = fsep $
+  pretty (MissingWithClauses x _lhs) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
 
   pretty (WrongDefinition x k k') = fsep $ pretty x :
     pwords ("has been declared as a " ++ prettyShow k ++
       ", but is being defined as a " ++ prettyShow k')
-  pretty (AmbiguousFunClauses lhs xs) = sep
-    [ fsep $
-        pwords "More than one matching type signature for left hand side " ++ [pretty lhs] ++
-        pwords "it could belong to any of:"
-    , vcat $ fmap (pretty . PrintRange) xs
-    ]
+  pretty (AmbiguousFunClauses lhs xs) = vcat $
+    "More than one matching type signature for left hand side" :
+    pretty lhs :
+    "Candidates:" :
+    map (("-" <+>) . pretty . PrintRange) (List1.toList xs)
   pretty (AmbiguousConstructor _ n ns) = sep
     [ fsep (pwords "Could not find a matching data signature for constructor " ++ [pretty n])
     , vcat (case ns of
@@ -436,6 +450,14 @@ instance Pretty DeclarationWarning where
 instance Pretty DeclarationWarning' where
   pretty = \case
 
+    DivergentModalityInClause sigInfo clInfo -> fsep $ concat
+      [ pwords "Ignoring the modality"
+      , [ pretty (getModality clInfo) ]
+      , pwords "of the clause that diverges from the declared modality"
+      , [ pretty (getModality sigInfo) ]
+      , pwords "of the function"
+      ]
+
     UnknownNamesInFixityDecl xs -> fsep $
       pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):"
       ++ punctuate comma (fmap pretty $ Set1.toList xs)
@@ -458,7 +480,7 @@ instance Pretty DeclarationWarning' where
      pwords "The following names are declared but not accompanied by a definition:"
      ++ punctuate comma (fmap (pretty . fst) xs)
 
-    NotAllowedInMutual r nd -> fsep $
+    NotAllowedInMutual _r nd -> fsep $
       text nd : pwords "in mutual blocks are not supported.  Suggestion: get rid of the mutual block by manually ordering declarations"
 
     PolarityPragmasButNotPostulates xs -> fsep $
@@ -466,13 +488,13 @@ instance Pretty DeclarationWarning' where
       ++ punctuate comma (fmap pretty $ Set1.toList xs)
 
     UselessPrivate _ -> fsep $
-      pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
+      pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures except for constructors, and data, record, and module declarations"
 
     UselessAbstract _ -> fsep $
       pwords "Using abstract here has no effect. Abstract applies to only definitions like data definitions, record type definitions and function clauses."
 
     UselessInstance _ -> fsep $
-      pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
+      pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms (other than primitives)."
 
     UselessMacro _ -> fsep $
       pwords "Using a macro block here has no effect. `macro' applies only to function definitions."
@@ -500,6 +522,9 @@ instance Pretty DeclarationWarning' where
     EmptyPolarityPragma _ -> fsep $ pwords "POLARITY pragma without polarities (ignored)."
 
     HiddenGeneralize _ -> fsep $ pwords "Declaring a variable as hidden has no effect in a variable block. Generalization never introduces visible arguments."
+
+    InvalidTacticAttribute _ -> fsep $
+      pwords "Ignoring misplaced tactic attribute."
 
     InvalidTerminationCheckPragma _ -> fsep $
       pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."

@@ -96,6 +96,11 @@ last2 _ = Nothing
 snoc :: [a] -> a -> List1 a
 snoc as a = prependList as $ a :| []
 
+-- | Append an element to a non-empty list.
+
+snoc1 :: List1 a -> a -> List1 a
+snoc1 as a = as <> (a :| [])
+
 -- | @'groupOn' f = 'groupBy' (('==') \`on\` f) '.' 'List.sortBy' ('compare' \`on\` f)@.
 -- O(n log n).
 groupOn :: Ord b => (a -> b) -> [a] -> [List1 a]
@@ -209,8 +214,11 @@ catMaybes =  Maybe.catMaybes . List1.toList
 
 -- | Like 'Maybe.mapMaybe'.
 
+#if !MIN_VERSION_base(4,23,0)
+-- Will be part of base with GHC 9.16 (base-4.23)
 mapMaybe :: (a -> Maybe b) -> List1 a -> [b]
 mapMaybe f = Maybe.mapMaybe f . List1.toList
+#endif
 
 -- | Like 'List.find'.
 

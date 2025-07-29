@@ -1,4 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
 
 {-# LANGUAGE DataKinds    #-}
 
@@ -77,7 +79,7 @@ instance IsExpr Expr where
     exprView = \case
         Ident x         -> LocalV x
         App _ e1 e2     -> AppV e1 e2
-        OpApp r d ns es -> OpAppV d ns es
+        OpApp _ d ns es -> OpAppV d ns es
         HiddenArg _ e   -> HiddenArgV e
         InstanceArg _ e -> InstanceArgV e
         Paren _ e       -> ParenV e
@@ -102,7 +104,7 @@ instance IsExpr Pattern where
         IdentP True x    -> LocalV x
         IdentP False _   -> __IMPOSSIBLE__
         AppP e1 e2       -> AppV e1 e2
-        OpAppP r d ns es -> OpAppV d ns $ (fmap . fmap . fmap) (noPlaceholder . Ordinary) es
+        OpAppP _ d ns es -> OpAppV d ns $ (fmap . fmap . fmap) (noPlaceholder . Ordinary) es
         HiddenP _ e      -> HiddenArgV e
         InstanceP _ e    -> InstanceArgV e
         ParenP _ e       -> ParenV e
@@ -298,7 +300,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
     [Name] -> Notation ->
     Parser e (Range, [Either (MaybePlaceholder e, NamedArg (Ranged Int))
                              (LamBinding, Ranged BoundVariablePosition)])
-  worker ms []              = pure (noRange, [])
+  worker _  []              = pure (noRange, [])
   worker ms (IdPart x : xs) =
     (\r1 (r2, es) -> (fuseRanges r1 r2, es))
       <$> partP ms (rangedThing x)

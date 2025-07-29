@@ -1,0 +1,4 @@
+Issue7837.agda:12.24-38: error: [RepeatedNamesInImportDirective]
+Repeated name in import directive: f
+when scope checking
+record where private open R v using (f) renaming (f to f)

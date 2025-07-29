@@ -26,7 +26,7 @@ import           Agda.Utils.FileName               ( AbsolutePath )
 import           Agda.Utils.Lens                   ( Lens', (^.), over )
 import           Agda.Utils.List1                  ( String1 )
 import qualified Agda.Utils.Maybe.Strict           as Strict
-import           Agda.Utils.ProfileOptions         ( ProfileOptions )
+import           Agda.Interaction.Options.ProfileOptions         ( ProfileOptions )
 import           Agda.Utils.Trie                   ( Trie )
 import           Agda.Utils.WithDefault            ( WithDefault, WithDefault' )
 
@@ -58,6 +58,8 @@ data CommandLineOptions = Options
   -- Setup and printing
   , optPrintAgdaDataDir      :: Bool
   , optPrintAgdaAppDir       :: Bool
+  , optPrintOptions          :: Bool
+      -- ^ Print all options as a simple list (for implementing bash completion).
   , optPrintVersion          :: Maybe PrintAgdaVersion
   , optPrintHelp             :: Maybe Help
   , optBuildLibrary          :: Bool

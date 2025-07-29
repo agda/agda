@@ -58,6 +58,8 @@ data GHCOptions = GHCOptions
     -- ^ Make inductive constructors strict?
   , optGhcStrict :: Bool
     -- ^ Make functions strict?
+  , optGhcTrace :: Bool
+    -- ^ Print function name upon entry using 'Debug.Trace.trace'?
   }
 
 -- | A static part of the GHC backend's environment that does not

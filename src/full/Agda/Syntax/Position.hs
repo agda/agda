@@ -1,6 +1,9 @@
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE UndecidableInstances #-} -- Due to KILLRANGE vararg typeclass
 
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
 
@@ -77,14 +80,12 @@ import Control.Monad.Writer (runWriter, tell)
 
 import qualified Data.Foldable as Fold
 import Data.Function (on)
-import Data.List (sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Semigroup (Semigroup(..))
 import Data.Void
 import Data.Word (Word32)
 
@@ -325,10 +326,10 @@ rangeModule = join . rangeModule'
 
 -- | Conflate a range to its right margin.
 rightMargin :: Range -> Range
-rightMargin r@NoRange      = r
-rightMargin r@(Range f is) = case Seq.viewr is of
+rightMargin r@NoRange    = r
+rightMargin (Range f is) = case Seq.viewr is of
   Seq.EmptyR -> __IMPOSSIBLE__
-  _ Seq.:> Interval () s e -> intervalToRange f (Interval () e e)
+  _ Seq.:> Interval () _s e -> intervalToRange f (Interval () e e)
 
 -- | Wrapper to indicate that range should be printed.
 newtype PrintRange a = PrintRange a
@@ -587,7 +588,7 @@ noRange = NoRange
 --   character in the next line. Any other character moves the
 --   position to the next column.
 movePos :: Position' a -> Char -> Position' a
-movePos (Pn f p l c) '\n' = Pn f (p + 1) (l + 1) 1
+movePos (Pn f p l _) '\n' = Pn f (p + 1) (l + 1) 1
 movePos (Pn f p l c) _    = Pn f (p + 1) l (c + 1)
 
 -- | Advance the position by a string.

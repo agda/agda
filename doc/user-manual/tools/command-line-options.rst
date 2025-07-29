@@ -58,6 +58,12 @@ but in the fixed order listed in the following:
 
      Overwrites itself, i.e., only the last of several :option:`--help` options is effective.
 
+.. option:: --print-options
+
+     .. versionadded:: 2.9.0
+
+     Print a simple list of all options, suitable for implementing bash completion.
+
 .. option:: --build-library
 
      .. versionadded:: 2.8.0
@@ -360,12 +366,12 @@ Imports and libraries
      Ignore interface files (re-type check everything, except for
      builtin and primitive modules).
 
-.. option:: --include-path={DIR}, -i={DIR}
+.. option:: --include-path={DIR}, -i {DIR}
 
      Look for imports in ``DIR``.
      This option can be given multiple times.
 
-.. option:: --library={DIR}, -l={LIB}
+.. option:: --library={DIR}, -l {LIB}
 
      .. versionadded:: 2.5.1
 
@@ -529,7 +535,7 @@ Printing and debugging
 
      Default, opposite of :option:`--show-irrelevant`.
 
-.. option:: --verbose={N}, -v={N}
+.. option:: --verbose={N}, -v {N}
 
      Set verbosity level to ``N``. This only has an effect if
      Agda was installed with the :option:`debug` flag.
@@ -1365,6 +1371,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Deprecated features.
 
+.. option:: DivergentModalityInClause
+
+     Modalities of clauses that diverge from the modality of the function.
+
 .. option:: DuplicateFields
 
      ``record`` expression with duplicate field names.
@@ -1512,6 +1522,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 .. option:: InvalidNoUniverseCheckPragma
 
      :ref:`NO_UNIVERSE_CHECK <no_universe_check-pragma>` pragmas before declarations other than ``data`` or ``record`` declarations.
+
+.. option:: InvalidTacticAttribute
+
+     :ref:`@(tactic ...) <tactic_arguments>` attributes where they are not supported.
 
 .. option:: InvalidTerminationCheckPragma
 

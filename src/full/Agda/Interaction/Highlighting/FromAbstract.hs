@@ -268,6 +268,8 @@ instance Hilite A.Expr where
       A.Let _r bs e                 -> hl bs <> hl e
       A.Rec _kwr _r ass             -> hl ass
       A.RecUpdate _kwr _r e ass     -> hl e <> hl ass
+      A.RecWhere _kwr _r e ass      -> hl e
+      A.RecUpdateWhere _k _r e bs _ -> hl e <> hl bs
       A.ScopedExpr _ e              -> hl e
       A.Quote _r                    -> mempty
       A.QuoteTerm _r                -> mempty
@@ -360,7 +362,7 @@ instance Hilite A.LetBinding where
   hilite = \case
       A.LetBind    _r ai x t e     -> hl ai <> hl x <> hl t <> hl e
       A.LetAxiom   _r ai x t       -> hl ai <> hl x <> hl t
-      A.LetPatBind _r p e          -> hl p  <> hl e
+      A.LetPatBind _r ai p e       -> hl ai <> hl p  <> hl e
       A.LetApply mi er x es _c dir -> hl mi <> hl er <> hl x <>
                                       hl es <> hl dir
       A.LetOpen mi x dir           -> hl mi <> hl x <> hl dir

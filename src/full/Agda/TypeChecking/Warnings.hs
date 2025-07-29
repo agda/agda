@@ -101,7 +101,7 @@ warning'_ loc w = do
         InteractionMetaBoundaries rs -> getRange rs
         _ -> r
   let wn = warningName w
-  let ws = warningName2String wn
+  let ws = warningNameToString wn
   p <- vcat
     [ pure $ P.hsep
       [ if null r' then mempty else P.pretty r' P.<> P.colon

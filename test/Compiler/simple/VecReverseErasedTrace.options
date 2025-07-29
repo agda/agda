@@ -1,0 +1,7 @@
+TestOptions
+  { forCompilers =
+      [ (MAlonzo Lazy, CompilerOptions {extraAgdaArgs = ["--ghc-trace"]})
+      ]
+  , runtimeOptions = []
+  , executeProg = True
+  }

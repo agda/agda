@@ -41,7 +41,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null ()
-import qualified Agda.Utils.ProfileOptions as Profile
+import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible

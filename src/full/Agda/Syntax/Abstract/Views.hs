@@ -175,6 +175,8 @@ instance ExprLike Expr where
       Let ei bs e                -> Let ei <$> recurse bs <*> recurse e
       Rec kwr ei bs              -> Rec kwr ei <$> recurse bs
       RecUpdate kwr ei e bs      -> RecUpdate kwr ei <$> recurse e <*> recurse bs
+      RecWhere kwr ei bs e       -> RecWhere kwr ei <$> recurse bs <*> recurse e
+      RecUpdateWhere k r e ds fs -> RecUpdateWhere k r <$> recurse e <*> recurse ds <*> recurse fs
       ScopedExpr sc e            -> ScopedExpr sc <$> recurse e
       Quote{}                    -> pure e0
       QuoteTerm{}                -> pure e0
@@ -186,32 +188,34 @@ instance ExprLike Expr where
   foldExpr :: forall m. FoldExprFn m Expr
   foldExpr f e =
     case e of
-      Var{}                  -> m
-      Def'{}                 -> m
-      Proj{}                 -> m
-      Con{}                  -> m
-      PatternSyn{}           -> m
-      Macro{}                -> m
-      Lit{}                  -> m
-      QuestionMark{}         -> m
-      Underscore{}           -> m
-      Dot _ e                -> m `mappend` fold e
-      App _ e e'             -> m `mappend` fold e `mappend` fold e'
-      WithApp _ e es         -> m `mappend` fold e `mappend` fold es
-      Lam _ b e              -> m `mappend` fold b `mappend` fold e
-      AbsurdLam{}            -> m
-      ExtendedLam _ _ _ _ cs -> m `mappend` fold cs
-      Pi _ tel e             -> m `mappend` fold tel `mappend` fold e
-      Generalized _ e        -> m `mappend` fold e
-      Fun _ e e'             -> m `mappend` fold e `mappend` fold e'
-      Let _ bs e             -> m `mappend` fold bs `mappend` fold e
-      Rec _ _ as             -> m `mappend` fold as
-      RecUpdate _ _ e as     -> m `mappend` fold e `mappend` fold as
-      ScopedExpr _ e         -> m `mappend` fold e
-      Quote{}                -> m
-      QuoteTerm{}            -> m
-      Unquote{}              -> m
-      DontCare e             -> m `mappend` fold e
+      Var{}                    -> m
+      Def'{}                   -> m
+      Proj{}                   -> m
+      Con{}                    -> m
+      PatternSyn{}             -> m
+      Macro{}                  -> m
+      Lit{}                    -> m
+      QuestionMark{}           -> m
+      Underscore{}             -> m
+      Dot _ e                  -> m `mappend` fold e
+      App _ e e'               -> m `mappend` fold e `mappend` fold e'
+      WithApp _ e es           -> m `mappend` fold e `mappend` fold es
+      Lam _ b e                -> m `mappend` fold b `mappend` fold e
+      AbsurdLam{}              -> m
+      ExtendedLam _ _ _ _ cs   -> m `mappend` fold cs
+      Pi _ tel e               -> m `mappend` fold tel `mappend` fold e
+      Generalized _ e          -> m `mappend` fold e
+      Fun _ e e'               -> m `mappend` fold e `mappend` fold e'
+      Let _ bs e               -> m `mappend` fold bs `mappend` fold e
+      Rec _ _ as               -> m `mappend` fold as
+      RecUpdate _ _ e as       -> m `mappend` fold e `mappend` fold as
+      RecWhere _ _ e as        -> m `mappend` fold e `mappend` fold as
+      RecUpdateWhere _ _ e x y -> m `mappend` fold e `mappend` fold x `mappend` fold y
+      ScopedExpr _ e           -> m `mappend` fold e
+      Quote{}                  -> m
+      QuoteTerm{}              -> m
+      Unquote{}                -> m
+      DontCare e               -> m `mappend` fold e
    where
      m = f e
      fold :: FoldExprRecFn m
@@ -242,6 +246,8 @@ instance ExprLike Expr where
       Let ei bs e                -> f =<< Let ei <$> trav bs <*> trav e
       Rec kwr ei bs              -> f =<< Rec kwr ei <$> trav bs
       RecUpdate kwr ei e bs      -> f =<< RecUpdate kwr ei <$> trav e <*> trav bs
+      RecWhere kwr ei e bs       -> f =<< RecWhere kwr ei <$> trav e <*> trav bs
+      RecUpdateWhere k r ei e bs -> f =<< RecUpdateWhere k r ei <$> trav e <*> trav bs
       ScopedExpr sc e            -> f =<< ScopedExpr sc <$> trav e
       Quote{}                    -> f e
       QuoteTerm{}                -> f e
@@ -332,7 +338,7 @@ instance ExprLike LetBinding where
     case e of
       LetBind li ai x e e'  -> LetBind li ai x <$> recurse e <*> recurse e'
       LetAxiom li ai x e    -> LetAxiom li ai x <$> recurse e
-      LetPatBind li p e     -> LetPatBind li <$> recurse p <*> recurse e
+      LetPatBind li ai p e  -> LetPatBind li ai <$> recurse p <*> recurse e
       LetApply{}            -> pure e
       LetOpen{}             -> pure e
 
@@ -341,7 +347,7 @@ instance ExprLike LetBinding where
     case e of
       LetBind _ _ _ e e'    -> fold e `mappend` fold e'
       LetAxiom _ _ _ e      -> fold e
-      LetPatBind _ p e      -> fold p `mappend` fold e
+      LetPatBind _ _ p e    -> fold p `mappend` fold e
       LetApply{}            -> mempty
       LetOpen{}             -> mempty
     where
@@ -356,7 +362,7 @@ instance ExprLike LetBinding where
     case e of
       LetBind li ai x e e'  -> LetBind li ai x <$> trav e <*> trav e'
       LetAxiom li ai x e    -> LetAxiom li ai x <$> trav e
-      LetPatBind li p e     -> LetPatBind li <$> trav p <*> trav e
+      LetPatBind li ai p e  -> LetPatBind li ai <$> trav p <*> trav e
       LetApply{}            -> pure e
       LetOpen{}             -> pure e
 

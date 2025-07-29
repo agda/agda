@@ -40,6 +40,7 @@ import Control.Monad.State.Strict
 import Control.Monad.ST.Trans
 
 import Data.Array.IArray
+import Data.Foldable (traverse_)
 import Data.Array.IO
 import Data.Word
 import Data.Word (Word32)
@@ -69,7 +70,7 @@ import Agda.Utils.Hash
 import qualified Agda.Utils.HashTable as H
 import Agda.Utils.IORef
 import Agda.Utils.Null
-import qualified Agda.Utils.ProfileOptions as Profile
+import qualified Agda.Interaction.Options.ProfileOptions as Profile
 
 import Agda.Utils.Impossible
 
@@ -78,7 +79,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20250705 * 10 + 0
+currentInterfaceVersion = 20250715 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 
@@ -124,9 +125,9 @@ encode a = do
       statistics "A.QName"     qnameC
       statistics "A.Name"      nameC
     when collectStats $ do
-      stats <- Map.fromListWith __IMPOSSIBLE__ . map (second toInteger) <$> do
+      stats <- map (second fromIntegral) <$> do
         liftIO $ List.sort <$> H.toList stats
-      modifyStatistics $ Map.unionWith (+) stats
+      traverse_ (uncurry tickN) stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
       return $!! B.encode (root, nL, ltL, stL, bL, iL, dL)

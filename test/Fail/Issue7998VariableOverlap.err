@@ -1,0 +1,4 @@
+Issue7998VariableOverlap.agda:6.3: error: [ParseError]
+overlap<ERROR>  {{X}} : Set
+
+-- WAS: 'overlap...

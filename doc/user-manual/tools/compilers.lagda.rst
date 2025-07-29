@@ -37,8 +37,13 @@ The GHC backend can be invoked from the command line using the flag
 
 .. code-block:: bash
 
-  agda --compile [--compile-dir=<DIR>] [--ghc-flag=<FLAG>]
-    [--ghc-strict-data] [--ghc-strict] <FILE>.agda
+  agda --compile
+    [--compile-dir=<DIR>]
+    [--ghc-flag=<FLAG>]
+    [--ghc-strict-data]
+    [--ghc-strict]
+    [--ghc-trace]
+    <FILE>.agda
 
 When the flag :option:`--ghc-strict-data` is used, inductive data and record
 constructors are compiled to constructors with strict arguments.
@@ -78,6 +83,10 @@ Options
 
      Generate strict Haskell code.
 
+.. option:: --ghc-trace
+
+     Instrument the code to trace function calls,
+     inserting a ``Debug.Trace.trace`` statement at the beginning of each function.
 
 Pragmas
 ^^^^^^^

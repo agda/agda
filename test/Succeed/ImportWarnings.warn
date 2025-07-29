@@ -4,19 +4,19 @@ when checking the definition of f
 Issue708quote.agda:9.1-29: warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of example
-RewritingEmptyPragma.agda:3.1-16: warning: -W[no]EmptyRewritePragma
-Empty REWRITE pragma
+RewritingEmptyPragma.agda:3.1-16: warning: -W[no]UselessPragma
+Ignoring REWRITE pragma since option --rewriting is off
 when scope checking the declaration
   {-# REWRITE #-}
 Unreachable.agda:21.1-23.19: warning: -W[no]UnreachableClauses
 Unreachable clauses
 when checking the definition of unreachable
-ImportWarningsB.agda:12.1-16: warning: -W[no]EmptyRewritePragma
-Empty REWRITE pragma
+ImportWarningsB.agda:12.1-16: warning: -W[no]UselessPragma
+Ignoring REWRITE pragma since option --rewriting is off
 when scope checking the declaration
   {-# REWRITE #-}
-ImportWarnings.agda:6.1-16: warning: -W[no]EmptyRewritePragma
-Empty REWRITE pragma
+ImportWarnings.agda:6.1-16: warning: -W[no]UselessPragma
+Ignoring REWRITE pragma since option --rewriting is off
 when scope checking the declaration
   {-# REWRITE #-}
 
@@ -26,8 +26,8 @@ Unreachable.agda:21.1-23.19: warning: -W[no]UnreachableClauses
 Unreachable clauses
 when checking the definition of unreachable
 
-ImportWarnings.agda:6.1-16: warning: -W[no]EmptyRewritePragma
-Empty REWRITE pragma
+ImportWarnings.agda:6.1-16: warning: -W[no]UselessPragma
+Ignoring REWRITE pragma since option --rewriting is off
 when scope checking the declaration
   {-# REWRITE #-}
 
@@ -35,13 +35,13 @@ Issue2243.agda:9.1-12: warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of f
 
-ImportWarningsB.agda:12.1-16: warning: -W[no]EmptyRewritePragma
-Empty REWRITE pragma
+ImportWarningsB.agda:12.1-16: warning: -W[no]UselessPragma
+Ignoring REWRITE pragma since option --rewriting is off
 when scope checking the declaration
   {-# REWRITE #-}
 
-RewritingEmptyPragma.agda:3.1-16: warning: -W[no]EmptyRewritePragma
-Empty REWRITE pragma
+RewritingEmptyPragma.agda:3.1-16: warning: -W[no]UselessPragma
+Ignoring REWRITE pragma since option --rewriting is off
 when scope checking the declaration
   {-# REWRITE #-}
 

@@ -493,6 +493,7 @@ library
     , hashable             >= 1.4.2.0   && < 1.6
     , haskeline            >= 0.8.2     && < 0.9
         -- GHC 9.2 ships with haskeline-0.8.2.1, but 9.4 backslid to 0.8.2
+    , infinite-list        >= 0.1.2     && < 0.2
     , monad-control        >= 1.0.3.1   && < 1.1
     , mtl                  >= 2.2.2     && < 2.4
     , murmur-hash          >= 0.1.0.10  && < 0.2
@@ -525,6 +526,7 @@ library
     , happy:happy >= 1.20.1.1
 
   exposed-modules:
+    -- Keep in alphabetical order, please!
       Agda.Benchmarking
       Agda.Compiler.Backend
       Agda.Compiler.Backend.Base
@@ -532,9 +534,9 @@ library
       Agda.Compiler.CallCompiler
       Agda.Compiler.Common
       Agda.Compiler.JS.Compiler
-      Agda.Compiler.JS.Syntax
-      Agda.Compiler.JS.Substitution
       Agda.Compiler.JS.Pretty
+      Agda.Compiler.JS.Substitution
+      Agda.Compiler.JS.Syntax
       Agda.Compiler.MAlonzo.Coerce
       Agda.Compiler.MAlonzo.Compiler
       Agda.Compiler.MAlonzo.Encode
@@ -565,13 +567,10 @@ library
       Agda.Interaction.BasicOps
       Agda.Interaction.BuildLibrary
       Agda.Interaction.Command
-      Agda.Interaction.SearchAbout
       Agda.Interaction.CommandLine
       Agda.Interaction.EmacsCommand
       Agda.Interaction.EmacsTop
       Agda.Interaction.ExitCode
-      Agda.Interaction.JSONTop
-      Agda.Interaction.JSON
       Agda.Interaction.FindFile
       Agda.Interaction.Highlighting.Common
       Agda.Interaction.Highlighting.Dot
@@ -584,48 +583,55 @@ library
       Agda.Interaction.Highlighting.HTML.Backend
       Agda.Interaction.Highlighting.HTML.Base
       Agda.Interaction.Highlighting.JSON
-      Agda.Interaction.Highlighting.Precise
-      Agda.Interaction.Highlighting.Range
-      Agda.Interaction.Highlighting.Vim
       Agda.Interaction.Highlighting.LaTeX
       Agda.Interaction.Highlighting.LaTeX.Backend
       Agda.Interaction.Highlighting.LaTeX.Base
+      Agda.Interaction.Highlighting.Precise
+      Agda.Interaction.Highlighting.Range
+      Agda.Interaction.Highlighting.Vim
       Agda.Interaction.Imports
       Agda.Interaction.InteractionTop
-      Agda.Interaction.Output
-      Agda.Interaction.Response
-      Agda.Interaction.Response.Base
-      Agda.Interaction.MakeCase
-      Agda.Interaction.Monad
+      Agda.Interaction.JSON
+      Agda.Interaction.JSONTop
       Agda.Interaction.Library
       Agda.Interaction.Library.Base
       Agda.Interaction.Library.Parse
+      Agda.Interaction.MakeCase
+      Agda.Interaction.Monad
       Agda.Interaction.Options
+      Agda.Interaction.Options.Arguments
+      Agda.Interaction.Options.BashCompletion
       Agda.Interaction.Options.Errors
       Agda.Interaction.Options.Help
       Agda.Interaction.Options.Lenses
+      Agda.Interaction.Options.ProfileOptions
       Agda.Interaction.Options.Warnings
+      Agda.Interaction.Output
+      Agda.Interaction.Response
+      Agda.Interaction.Response.Base
+      Agda.Interaction.SearchAbout
       Agda.Main
       Agda.Mimer.Mimer
+      Agda.Mimer.Monad
       Agda.Mimer.Options
       Agda.Mimer.Types
-      Agda.Mimer.Monad
       Agda.Setup
       Agda.Setup.DataFiles
       Agda.Setup.EmacsMode
+      Agda.Syntax.Abstract
       Agda.Syntax.Abstract.Name
       Agda.Syntax.Abstract.Pattern
       Agda.Syntax.Abstract.PatternSynonyms
       Agda.Syntax.Abstract.Pretty
       Agda.Syntax.Abstract.UsedNames
       Agda.Syntax.Abstract.Views
-      Agda.Syntax.Abstract
       Agda.Syntax.Builtin
       Agda.Syntax.Common
       Agda.Syntax.Common.Aspect
       Agda.Syntax.Common.KeywordRange
       Agda.Syntax.Common.Pretty
       Agda.Syntax.Common.Pretty.ANSI
+      Agda.Syntax.Concrete
       Agda.Syntax.Concrete.Attribute
       Agda.Syntax.Concrete.Definitions
       Agda.Syntax.Concrete.Definitions.Errors
@@ -635,12 +641,11 @@ library
       Agda.Syntax.Concrete.Generic
       Agda.Syntax.Concrete.Glyph
       Agda.Syntax.Concrete.Name
+      Agda.Syntax.Concrete.Operators
       Agda.Syntax.Concrete.Operators.Parser
       Agda.Syntax.Concrete.Operators.Parser.Monad
-      Agda.Syntax.Concrete.Operators
       Agda.Syntax.Concrete.Pattern
       Agda.Syntax.Concrete.Pretty
-      Agda.Syntax.Concrete
       Agda.Syntax.DoNotation
       Agda.Syntax.Fixity
       Agda.Syntax.IdiomBrackets
@@ -657,6 +662,7 @@ library
       Agda.Syntax.Internal.Univ
       Agda.Syntax.Literal
       Agda.Syntax.Notation
+      Agda.Syntax.Parser
       Agda.Syntax.Parser.Alex
       Agda.Syntax.Parser.Comments
       Agda.Syntax.Parser.Helpers
@@ -669,7 +675,6 @@ library
       Agda.Syntax.Parser.Parser
       Agda.Syntax.Parser.StringLiterals
       Agda.Syntax.Parser.Tokens
-      Agda.Syntax.Parser
       Agda.Syntax.Position
       Agda.Syntax.Reflected
       Agda.Syntax.Scope.Base
@@ -688,8 +693,8 @@ library
       Agda.Termination.Monad
       Agda.Termination.Order
       Agda.Termination.RecCheck
-      Agda.Termination.SparseMatrix
       Agda.Termination.Semiring
+      Agda.Termination.SparseMatrix
       Agda.Termination.TermCheck
       Agda.Termination.Termination
       Agda.TheTypeChecker
@@ -702,25 +707,25 @@ library
       Agda.TypeChecking.Conversion
       Agda.TypeChecking.Conversion.Pure
       Agda.TypeChecking.Coverage
-      Agda.TypeChecking.Coverage.Match
-      Agda.TypeChecking.Coverage.SplitTree
-      Agda.TypeChecking.Coverage.SplitClause
       Agda.TypeChecking.Coverage.Cubical
+      Agda.TypeChecking.Coverage.Match
+      Agda.TypeChecking.Coverage.SplitClause
+      Agda.TypeChecking.Coverage.SplitTree
       Agda.TypeChecking.Datatypes
       Agda.TypeChecking.DeadCode
-      Agda.TypeChecking.DisplayForm
-      Agda.TypeChecking.DropArgs
       Agda.TypeChecking.DiscrimTree
       Agda.TypeChecking.DiscrimTree.Types
+      Agda.TypeChecking.DisplayForm
+      Agda.TypeChecking.DropArgs
       Agda.TypeChecking.Empty
-      Agda.TypeChecking.EtaContract
       Agda.TypeChecking.Errors
       Agda.TypeChecking.Errors.Names
+      Agda.TypeChecking.EtaContract
+      Agda.TypeChecking.Forcing
       Agda.TypeChecking.Free
       Agda.TypeChecking.Free.Lazy
       Agda.TypeChecking.Free.Precompute
       Agda.TypeChecking.Free.Reduce
-      Agda.TypeChecking.Forcing
       Agda.TypeChecking.Functions
       Agda.TypeChecking.Generalize
       Agda.TypeChecking.IApplyConfluence
@@ -730,13 +735,14 @@ library
       Agda.TypeChecking.InstanceArguments
       Agda.TypeChecking.Irrelevance
       Agda.TypeChecking.Level
+      Agda.TypeChecking.Level.Solve
       Agda.TypeChecking.LevelConstraints
       Agda.TypeChecking.Lock
-      Agda.TypeChecking.Level.Solve
       Agda.TypeChecking.MetaVars
       Agda.TypeChecking.MetaVars.Mention
       Agda.TypeChecking.MetaVars.Occurs
       Agda.TypeChecking.Modalities
+      Agda.TypeChecking.Monad
       Agda.TypeChecking.Monad.Base
       Agda.TypeChecking.Monad.Base.Types
       Agda.TypeChecking.Monad.Base.Warning
@@ -760,7 +766,6 @@ library
       Agda.TypeChecking.Monad.State
       Agda.TypeChecking.Monad.Statistics
       Agda.TypeChecking.Monad.Trace
-      Agda.TypeChecking.Monad
       Agda.TypeChecking.Names
       Agda.TypeChecking.Opacity
       Agda.TypeChecking.Patterns.Abstract
@@ -776,8 +781,8 @@ library
       Agda.TypeChecking.Primitive
       Agda.TypeChecking.Primitive.Base
       Agda.TypeChecking.Primitive.Cubical
-      Agda.TypeChecking.Primitive.Cubical.Glue
       Agda.TypeChecking.Primitive.Cubical.Base
+      Agda.TypeChecking.Primitive.Cubical.Glue
       Agda.TypeChecking.Primitive.Cubical.HCompU
       Agda.TypeChecking.ProjectionLike
       Agda.TypeChecking.Quote
@@ -804,8 +809,8 @@ library
       Agda.TypeChecking.Rules.LHS.Problem
       Agda.TypeChecking.Rules.LHS.ProblemRest
       Agda.TypeChecking.Rules.LHS.Unify
-      Agda.TypeChecking.Rules.LHS.Unify.Types
       Agda.TypeChecking.Rules.LHS.Unify.LeftInverse
+      Agda.TypeChecking.Rules.LHS.Unify.Types
       Agda.TypeChecking.Rules.Record
       Agda.TypeChecking.Rules.Term
       Agda.TypeChecking.Serialise
@@ -814,9 +819,9 @@ library
       Agda.TypeChecking.Serialise.Instances.Abstract
       Agda.TypeChecking.Serialise.Instances.Common
       Agda.TypeChecking.Serialise.Instances.Compilers
+      Agda.TypeChecking.Serialise.Instances.Errors
       Agda.TypeChecking.Serialise.Instances.Highlighting
       Agda.TypeChecking.Serialise.Instances.Internal
-      Agda.TypeChecking.Serialise.Instances.Errors
       Agda.TypeChecking.SizedTypes
       Agda.TypeChecking.SizedTypes.Pretty
       Agda.TypeChecking.SizedTypes.Solve
@@ -839,21 +844,22 @@ library
       Agda.Utils.Bag
       Agda.Utils.Benchmark
       Agda.Utils.BiMap
-      Agda.Utils.Boolean
       Agda.Utils.BoolSet
+      Agda.Utils.Boolean
       Agda.Utils.CallStack
       Agda.Utils.Char
       Agda.Utils.Cluster
+      Agda.Utils.CompressedTrie
+      Agda.Utils.Either
       Agda.Utils.Empty
       Agda.Utils.Environment
-      Agda.Utils.Either
       Agda.Utils.Fail
       Agda.Utils.Favorites
-      Agda.Utils.FileName
       Agda.Utils.FileId
+      Agda.Utils.FileName
       Agda.Utils.Float
-      Agda.Utils.Functor
       Agda.Utils.Function
+      Agda.Utils.Functor
       Agda.Utils.GetOpt
       Agda.Utils.Graph.AdjacencyMap.Unidirectional
       Agda.Utils.Graph.TopSort
@@ -861,20 +867,21 @@ library
       Agda.Utils.HashTable
       Agda.Utils.Haskell.Syntax
       Agda.Utils.IArray
-      Agda.Utils.Impossible
-      Agda.Utils.IndexedList
-      Agda.Utils.IntSet.Infinite
       Agda.Utils.IO
       Agda.Utils.IO.Binary
       Agda.Utils.IO.Directory
       Agda.Utils.IO.TempFile
       Agda.Utils.IO.UTF8
       Agda.Utils.IORef
+      Agda.Utils.Impossible
+      Agda.Utils.IndexedList
+      Agda.Utils.IntSet.Infinite
       Agda.Utils.Lens
       Agda.Utils.Lens.Examples
       Agda.Utils.List
       Agda.Utils.List1
       Agda.Utils.List2
+      Agda.Utils.ListInf
       Agda.Utils.ListT
       Agda.Utils.Map
       Agda.Utils.Map1
@@ -884,11 +891,10 @@ library
       Agda.Utils.Monad
       Agda.Utils.Monoid
       Agda.Utils.Null
+      Agda.Utils.POMonoid
       Agda.Utils.Parser.MemoisedCPS
       Agda.Utils.PartialOrd
       Agda.Utils.Permutation
-      Agda.Utils.POMonoid
-      Agda.Utils.ProfileOptions
       Agda.Utils.RangeMap
       Agda.Utils.SemiRing
       Agda.Utils.Semigroup
@@ -908,6 +914,7 @@ library
       Agda.Utils.Update
       Agda.Utils.VarSet
       Agda.Utils.WithDefault
+      Agda.Utils.Zip
       Agda.Utils.Zipper
       Agda.Version
       Agda.VersionCommit

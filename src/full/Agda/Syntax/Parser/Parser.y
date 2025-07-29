@@ -85,7 +85,7 @@ import Agda.Utils.Impossible
 %monad { Parser }
 %lexer { lexer } { TokEOF{} }
 
-%expect 8
+%expect 7
 -- * shift/reduce for \ x y z -> foo = bar
 --   shifting means it'll parse as \ x y z -> (foo = bar) rather than
 --   (\ x y z -> foo) = bar
@@ -222,6 +222,8 @@ import Agda.Utils.Impossible
 
     string                    { TokString $$ }
     literal                   { TokLiteral $$ }
+
+    fail                      { TokDummy }    -- We never lex this
 
 %%
 
@@ -476,8 +478,8 @@ ArgIds
 
 -- Modalities preceeding identifiers
 
-ModalArgIds :: { ([Attr], List1 (Arg Name)) }
-ModalArgIds : Attributes ArgIds  {% ($1,) `fmap` mapM (applyAttrs $1) $2 }
+ModalArgIds :: { (TacticAttribute, List1 (Arg Name)) }
+ModalArgIds : Attributes ArgIds  {% (getTacticAttr $1,) `fmap` mapM (applyAttrs $1) $2 }
 
 -- Attributes are parsed as '@' followed by an atomic expression.
 -- Unknown attributes cast a warning and are ignored.
@@ -631,10 +633,29 @@ Expr
                                              Fun (getRange ($1,$2,$3,$4)) dom $4 }
   | Expr1 %prec LOWEST                  { $1 }
 
--- Level 1: Application
+{-
+  Happy supports parameterised rules [1]. We use this to make two variants of expressions: one for
+  expressions at the top-level of a LHS and one that can appear anywhere. At the moment the only
+  thing we rule out in LHSs is record update, to avoid a shift/reduce conflict between `record r
+  where ...` record updates and `record R where` record definitions.
+
+  The way it works is that we parameterise the Expr parsing hierarchy (parameterised rules ending in
+  _P) by the rule for parsing record updates. For top-level LHS we pass in `NoRecordUpdate`, which
+  always fails.
+
+  [1] https://haskell-happy.readthedocs.io/en/latest/syntax.html#parameterized-productions
+-}
+
+NoRecordUpdate :: { Expr }
+NoRecordUpdate : fail { error "impossible" }
+
 Expr1 :: { Expr }
-Expr1
-  : UnnamedWithExprs
+Expr1 : Expr1_P(RecordUpdate) { $1 }
+
+-- Level 1: Application
+-- Expr1 :: { Expr }
+Expr1_P(recordUpdate)
+  : UnnamedWithExprs_P(recordUpdate)
       {% case $1 of
            { e :| []      -> return e
            ; e :| e1 : es -> return $ WithApp (getRange (e, e1, es)) e (e1 :| es)
@@ -642,31 +663,36 @@ Expr1
       }
 
 WithExprs :: { List1 (Named Name Expr) }
-WithExprs
-  : Application3 'in' Id     '|' WithExprs { named $3  (rawApp $1) <| $5 }
-  | Application3 {- empty -} '|' WithExprs { unnamed   (rawApp $1) <| $3 }
-  | Application3 'in' Id                   { singleton (named $3 (rawApp $1)) }
-  | Application3 {- empty -}               { singleton (unnamed  (rawApp $1)) }
+WithExprs : WithExprs_P(RecordUpdate) { $1 }
+
+WithExprs_P(recordUpdate)
+  : Application3_P(recordUpdate) 'in' Id     '|' WithExprs { named $3  (rawApp $1) <| $5 }
+  | Application3_P(recordUpdate) {- empty -} '|' WithExprs { unnamed   (rawApp $1) <| $3 }
+  | Application3_P(recordUpdate) 'in' Id                   { singleton (named $3 (rawApp $1)) }
+  | Application3_P(recordUpdate) {- empty -}               { singleton (unnamed  (rawApp $1)) }
 
 UnnamedWithExprs :: { List1 Expr }
-UnnamedWithExprs
-  :  Application3 '|' UnnamedWithExprs { (rawApp $1) <| $3 }
-  | {- empty -} Application            { singleton (rawApp $1) }
+UnnamedWithExprs : UnnamedWithExprs_P(RecordUpdate) { $1 }
+
+UnnamedWithExprs_P(recordUpdate)
+  :  Application3_P(recordUpdate) '|' UnnamedWithExprs { (rawApp $1) <| $3 }
+  | {- empty -} Application_P(recordUpdate)            { singleton (rawApp $1) }
 
 Application :: { List1 Expr }
-Application
-    : Expr2             { singleton $1 }
-    | Expr3 Application { $1 <| $2 }
+Application : Application_P(RecordUpdate) { $1 }
+
+Application_P(recordUpdate)
+    : Expr2_P(recordUpdate)             { singleton $1 }
+    | Expr3_P(recordUpdate) Application { $1 <| $2 }
 
 -- Level 2: Lambdas and lets
-Expr2 :: { Expr }
-Expr2
+Expr2_P(recordUpdate)
     : '\\' LamBindings Expr        { Lam (getRange ($1,$2,$3)) $2 $3 }
     | ExtendedOrAbsurdLam          { $1 }
     | 'forall' ForallBindings Expr { forallPi $2 $3 }
     | 'let' Declarations LetBody   { Let (getRange ($1,$2,$3)) $2 $3 }
-    | 'do' vopen DoStmts close     { DoBlock (getRange ($1, $3)) $3 }
-    | Expr3                        { $1 }
+    | 'do' vopen DoStmts close     { DoBlock (kwRange $1) $3 }
+    | Expr3_P(recordUpdate)        { $1 }
     | 'tactic' Application3        { Tactic (getRange ($1, $2)) (rawApp $2) }
 
 LetBody :: { Maybe Expr }
@@ -683,9 +709,11 @@ ExtendedOrAbsurdLam
     | '\\' Attributes1 AbsurdLamBindings                   {% extOrAbsLam (getRange $1) $2 $3 }
 
 Application3 :: { List1 Expr }
-Application3
-    : Expr3              { singleton $1 }
-    | Expr3 Application3 { $1 <| $2 }
+Application3 : Application3_P(RecordUpdate) { $1 }
+
+Application3_P(recordUpdate)
+    : Expr3_P(recordUpdate)              { singleton $1 }
+    | Expr3_P(recordUpdate) Application3 { $1 <| $2 }
 
 -- Christian Sattler, 2017-08-04, issue #2671
 -- We allow empty lists of expressions for the LHS of extended lambda clauses.
@@ -693,8 +721,8 @@ Application3
 -- original type and create this copy solely for extended lambda clauses.
 Application3PossiblyEmpty :: { [Expr] }
 Application3PossiblyEmpty
-    : {- empty -}                     { [] }
-    | Expr3 Application3PossiblyEmpty { $1 : $2 }
+    : {- empty -}                                     { [] }
+    | Expr3_P(RecordUpdate) Application3PossiblyEmpty { $1 : $2 }
 
 -- Level 3: Atoms
 Expr3Curly :: { Expr }
@@ -705,7 +733,9 @@ Expr3Curly
     | '{{' DoubleCloseBrace       { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
 
 Expr3NoCurly :: { Expr }
-Expr3NoCurly
+Expr3NoCurly : Expr3NoCurly_P(RecordUpdate) { $1 }
+
+Expr3NoCurly_P(recordUpdate)
     : '?'                               { QuestionMark (getRange $1) Nothing }
     | '_'                               { Underscore (getRange $1) Nothing }
     | 'quote'                           { Quote (getRange $1) }
@@ -714,13 +744,25 @@ Expr3NoCurly
     | '(|' UnnamedWithExprs '|)'        { IdiomBrackets (getRange ($1,$2,$3)) (List1.toList $2) }
     | '(|)'                             { IdiomBrackets (getRange $1) [] }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
-    | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }
-    | '.' Expr3                         { Dot (kwRange $1) $2 }
-    | '..' Expr3                        { DoubleDot (kwRange $1) $2 }
-    | 'record' '{' RecordAssignments '}' { Rec (kwRange $1) (getRange ($1,$2,$3,$4)) $3 }
-    | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (kwRange $1) (getRange ($1,$2,$3,$4,$5)) $2 $4 }
+    | Id '@' Expr3_P(RecordUpdate)      { As (getRange ($1,$2,$3)) $1 $3 }
+    | '.' Expr3_P(RecordUpdate)         { Dot (kwRange $1) $2 }
+    | '..' Expr3_P(RecordUpdate)        { DoubleDot (kwRange $1) $2 }
+
+    | 'record' '{' RecordAssignments '}'
+      { Rec (kwRange $1) (getRange ($1,$2,$3,$4)) $3 }
+    | 'record' 'where' Declarations0
+      { RecWhere (kwRange $1) (getRange ($1,$2,$3)) $3 }
+    | recordUpdate                      { $1 }
+
     | '...'                             { Ellipsis (getRange $1) }
     | ExprOrAttr                       { $1 }
+
+RecordUpdate :: { Expr }
+RecordUpdate
+    : 'record' Expr3NoCurly '{' FieldAssignments '}'
+      { RecUpdate (kwRange $1) (getRange ($1,$2,$3,$4,$5)) $2 $4 }
+    | 'record' Expr3NoCurly 'where' Declarations0
+      { RecUpdateWhere (kwRange $1) (getRange ($1,$2,$3,$4)) $2 $4 }
 
 -- Level 4: Maybe named, or cubical faces
 Expr4 :: { Expr }
@@ -734,10 +776,13 @@ ExprOrAttr
     | '(' Expr4 ')' { Paren (getRange ($1,$2,$3)) $2 }
     -- ^ this is needed for cubical stuff
 
-Expr3 :: { Expr }
-Expr3
+-- You can't AFAIK make aliases in Happy, and having this rule creates conflicts.
+-- Expr3 :: { Expr }
+-- Expr3 : Expr3_P(RecordUpdate) { $1 }
+
+Expr3_P(recordUpdate)
     : Expr3Curly   { $1 }
-    | Expr3NoCurly { $1 }
+    | Expr3NoCurly_P(recordUpdate) { $1 }
 
 RecordAssignments :: { RecordAssignments }
 RecordAssignments
@@ -986,7 +1031,7 @@ DomainFreeBinding
 
 MaybeAsPattern :: { Maybe Pattern }
 MaybeAsPattern
-  : '@' Expr3   {% fmap Just (exprToPattern $2) }
+  : '@' Expr3_P(RecordUpdate)   {% fmap Just (exprToPattern $2) }
   | {- empty -} { Nothing }
 
 -- A domain free binding is either x or {x1 .. xn}
@@ -1129,7 +1174,7 @@ CommaImportNames1
 -- A left hand side of a function clause. We parse it as an expression, and
 -- then check that it is a valid left hand side.
 LHS :: { [RewriteEqn] -> [WithExpr] -> LHS }
-LHS : Expr1 {% exprToLHS $1 }
+LHS : Expr1_P(NoRecordUpdate) {% exprToLHS $1 }
 
 -- Parsing either an expression @e@ or a @(rewrite | with p <-) e1 | ... | en@.
 HoleContent :: { HoleContent }
@@ -1202,21 +1247,26 @@ Declaration
 -- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
 ArgTypeSigs :: { List1 (Arg Declaration) }
 ArgTypeSigs
-  : ModalArgIds ':' Expr { let (attrs, xs) = $1 in
-                           fmap (fmap (\ x -> typeSig defaultArgInfo (getTacticAttr attrs) x $3)) xs }
+  : ModalArgIds ':' Expr { let (tac, xs) = $1 in
+                           fmap (fmap (\ x -> typeSig defaultArgInfo tac x $3)) xs }
   | 'overlap' ModalArgIds ':' Expr {%
-      let (attrs, xs) = $2
+      let (tac, xs) = $2
           setOverlap x =
             case getHiding x of
               Instance _ -> return $ makeInstance' YesOverlap x
               _          -> parseErrorRange $1
                              "The 'overlap' keyword only applies to instance fields (fields marked with {{ }})"
-      in T.traverse (setOverlap . fmap (\ x -> typeSig defaultArgInfo (getTacticAttr attrs) x $4)) xs }
+      in T.traverse (setOverlap . fmap (\ x -> typeSig defaultArgInfo tac x $4)) xs }
   | 'instance' ArgTypeSignatures {
     let
       setInstance (TypeSig info tac x t) = TypeSig (makeInstance info) tac x t
       setInstance _ = __IMPOSSIBLE__ in
     fmap (fmap setInstance) $2 }
+
+ModalArgTypeSigs :: { List1 Declaration }
+ModalArgTypeSigs
+  : ModalArgIds ':' Expr { let (tac, xs) = $1 in
+                           fmap (\ (Arg ai x) -> typeSig ai tac x $3) xs }
 
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
@@ -1330,10 +1380,8 @@ Fields : 'field' ArgTypeSignaturesOrEmpty
 
 -- Variable declarations for automatic generalization
 Generalize :: { Declaration }
-Generalize : 'variable' ArgTypeSignaturesOrEmpty
-            { let
-                toGeneralize (Arg info (TypeSig _ tac x t)) = TypeSig info tac x t
-              in Generalize (kwRange $1) (map toGeneralize $2) }
+Generalize : 'variable' Block0(ModalArgTypeSigs)
+            { Generalize (kwRange $1) (List1.concat $2) }
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
@@ -1359,17 +1407,19 @@ Instance : 'instance' Declarations0  { InstanceB (kwRange $1) $2 }
 Macro :: { Declaration }
 Macro : 'macro' Declarations0 { Macro (kwRange $1) $2 }
 
-
 -- Postulates.
+--
+-- Checked in nicifier:
+-- Can only contain type signatures, possibly in instance and private blocks.
 Postulate :: { Declaration }
 Postulate : 'postulate' Declarations0 { Postulate (kwRange $1) $2 }
 
--- Primitives. Can only contain type signatures.
+-- Primitives.
+--
+-- Checked in nicifier:
+-- Can only contain type signatures, possibly in instance and private blocks.
 Primitive :: { Declaration }
-Primitive : 'primitive' ArgTypeSignaturesOrEmpty  {
-  let { setArg (Arg info (TypeSig _ tac x t)) = TypeSig info tac x t
-      ; setArg _ = __IMPOSSIBLE__ } in
-  Primitive (kwRange $1) (map setArg $2) }
+Primitive : 'primitive' Declarations0 { Primitive (kwRange $1) $2 }
 
 -- Unquoting declarations.
 UnquoteDecl :: { Declaration }
@@ -1533,7 +1583,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
 
 OpenArgs :: { [Expr] }
 OpenArgs : {- empty -}    { [] }
-         | Expr3 OpenArgs { $1 : $2 }
+         | Expr3_P(RecordUpdate) OpenArgs { $1 : $2 }
 
 ModuleApplication :: { Telescope -> Parser ModuleApplication }
 ModuleApplication : ModuleName '{{' '...' DoubleCloseBrace { (\ts ->
@@ -1781,6 +1831,25 @@ Polarity : string {% parsePolarity $1 }
     Sequences of declarations
  --------------------------------------------------------------------------}
 
+-- A nonempty block of things.
+Block1(p)  -- :: List1 p
+  : vopen Block1i(p) close    { List1.reverse $2 }
+
+-- Inside the layout block.
+Block1i(p) -- :: List1 p
+  : Block1i(p) semi p         { $3 <| $1 }
+  | p                         { singleton $1 }
+
+-- A possibly empty block of things
+Block0(p) -- :: [p]
+    : vopen Block0i(p) close  { reverse $2 }
+
+-- Inside the layout block.
+Block0i(p)
+    : Block0i(p) semi p       { $3 : $1 }
+    | p                       { [ $1 ] }
+    | {- empty -}             { [] }
+
 -- A variant of TypeSignatures which uses ArgTypeSigs instead of
 -- TypeSigs.
 ArgTypeSignatures :: { List1 (Arg TypeSignature) }
@@ -1907,7 +1976,7 @@ parseDisplayPragma ::
    -> Parser Pragma
 parseDisplayPragma r pos s =
   case parsePosString pos defaultParseFlags [normal] funclauseParser s of
-    ParseOk s (FunClause (LHS lhs [] []) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->
+    ParseOk s (FunClause defaultArgInfo (LHS lhs [] []) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
 

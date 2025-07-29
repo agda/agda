@@ -59,7 +59,7 @@ checkIApplyConfluence_ f = whenM (isJust <$> cubicalOption) $ do
         modifySignature $ updateDefinition f $ updateTheDef
           $ updateCovering (const [])
 
-      traceCall (CheckFunDefCall (getRange f) f [] False) $
+      traceCall (CheckFunDefCall (getRange f) f False) $
         forM_ cls $ checkIApplyConfluence f
     _ -> return ()
 

@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
 
 {-# LANGUAGE PatternSynonyms #-}
 
@@ -279,7 +280,7 @@ filterUsed = curry $ \case
   ([], args) -> args
   (_ , [])   -> []
   (ArgUsed   : used, a : args) -> a : filterUsed used args
-  (ArgUnused : used, a : args) ->     filterUsed used args
+  (ArgUnused : used, _ : args) ->     filterUsed used args
 
 -- NFData instances
 ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
 
 ------------------------------------------------------------------------
 -- Top-level module names
@@ -27,6 +28,7 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Position
 
 import Agda.Utils.FileName
+import Agda.Utils.Function (iterate')
 import Agda.Utils.Hash
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
@@ -208,5 +210,4 @@ moduleNameToFileName TopLevelModuleName{ moduleNameParts = ms } ext =
 
 projectRoot :: AbsolutePath -> TopLevelModuleName -> AbsolutePath
 projectRoot file TopLevelModuleName{ moduleNameParts = m } =
-  mkAbsolute $
-    iterate takeDirectory (filePath file) !! length m
+  mkAbsolute $ iterate' (length m) takeDirectory $ filePath file

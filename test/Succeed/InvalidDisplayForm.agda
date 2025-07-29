@@ -16,7 +16,7 @@ postulate
 {-# DISPLAY A1  = Set | Set          #-}
 {-# DISPLAY A2  = ?                  #-}
 {-# DISPLAY A3  = _                  #-}
-{-# DISPLAY A4  = .Set               #-}
+-- {-# DISPLAY A4  = .Set            #-} -- issue #7954: now hard error
 {-# DISPLAY A5  = λ x → x            #-}
 {-# DISPLAY A6  = λ()                #-}
 {-# DISPLAY A7  = λ{ x → x }         #-}

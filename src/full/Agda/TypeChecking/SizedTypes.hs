@@ -34,10 +34,12 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.Utils.Functor
 import Agda.Utils.List as List
 import Agda.Utils.List1 (pattern (:|))
+import Agda.Utils.ListInf (ListInf, pattern (:<))
+import Agda.Utils.ListInf qualified as ListInf
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.ProfileOptions as Profile
+import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -140,7 +142,7 @@ checkSizeVarNeverZero i = do
   ts <- map ctxEntryType . take i <$> getContext
   -- If we encountered a blocking meta in the context, we cannot
   -- say ``no'' for sure.
-  (n, blockers) <- runWriterT $ minSizeValAux ts $ repeat 0
+  (n, blockers) <- runWriterT $ minSizeValAux ts $ ListInf.repeat 0
   let blocker = unblockOnAll blockers
   if n > 0 then return True else
     if blocker == alwaysUnblock
@@ -149,12 +151,11 @@ checkSizeVarNeverZero i = do
   where
   -- Compute the least valuation for size context ts above the
   -- given valuation and return its last value.
-  minSizeValAux :: [Type] -> [Int] -> WriterT (Set Blocker) TCM Int
-  minSizeValAux _        []      = __IMPOSSIBLE__
-  minSizeValAux []       (n : _) = return n
-  minSizeValAux (t : ts) (n : ns) = do
+  minSizeValAux :: [Type] -> ListInf Int -> WriterT (Set Blocker) TCM Int
+  minSizeValAux []       (n :< _) = return n
+  minSizeValAux (t : ts) (n :< ns) = do
     reportSDoc "tc.size" 60 $
-       text ("minSizeVal (n:ns) = " ++ show (take (length ts + 2) $ n:ns) ++
+       text ("minSizeVal (n:ns) = " ++ show (ListInf.take (length ts + 2) $ n :< ns) ++
              " t =") <+> (text . show) t  -- prettyTCM t  -- Wrong context!
     -- n is the min. value for variable 0 which has type t.
     let cont = minSizeValAux ts ns
@@ -174,8 +175,8 @@ checkSizeVarNeverZero i = do
               -- Thus, we update the min value for @j@ with function @(max (n+1-m))@.
               DSizeVar (ProjectedVar j []) m -> do
                 reportSLn "tc.size" 60 $ "minSizeVal upper bound v = " ++ show v
-                let ns' = List.updateAt j (max $ n + 1 - m) ns
-                reportSLn "tc.size" 60 $ "minSizeVal ns' = " ++ show (take (length ts + 1) ns')
+                let ns' = ListInf.updateAt j (max $ n + 1 - m) ns
+                reportSLn "tc.size" 60 $ "minSizeVal ns' = " ++ show (ListInf.take (length ts + 1) ns')
                 minSizeValAux ts ns'
               DSizeMeta x _ _ -> perhaps (unblockOnMeta x)
               _ -> cont

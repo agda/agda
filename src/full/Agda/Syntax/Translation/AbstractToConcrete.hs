@@ -913,7 +913,7 @@ instance ToConcrete A.Expr where
                 return [p] -- __IMPOSSIBLE__
                   -- Andreas, this is actually not impossible,
                   -- my strictification exposed this sleeping bug
-          let decl2clause (C.FunClause (C.LHS p [] []) rhs C.NoWhere ca) = do
+          let decl2clause (C.FunClause ai (C.LHS p [] []) rhs C.NoWhere ca) = do
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
                 ps <- removeApp p
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
@@ -969,6 +969,25 @@ instance ToConcrete A.Expr where
     toConcrete (A.RecUpdate kwr i e fs) =
       bracket appBrackets $ do
         C.RecUpdate kwr (getRange i) <$> toConcrete e <*> toConcreteTop fs
+
+    toConcrete (A.RecWhere kwr i es ass) = bracket appBrackets $ do
+      -- InternalToAbstract generates FieldAssignments of the following
+      -- form to associate the fresh 'A.Name's generated for the record
+      -- field bindings should be printed back without disambiguators
+      Fold.for_ ass \case
+        FieldAssignment cn (A.Var an) -> pickConcreteName an cn
+        _                             -> pure ()
+      C.RecWhere kwr (getRange i) . concat . List1.toList <$> toConcrete es
+
+    toConcrete (A.RecUpdateWhere kwr i e0 es ass) = bracket appBrackets do
+      -- InternalToAbstract generates FieldAssignments of the following
+      -- form to associate the fresh 'A.Name's generated for the record
+      -- field bindings should be printed back without disambiguators
+      Fold.for_ ass \case
+        FieldAssignment cn (A.Var an) -> pickConcreteName an cn
+        _                             -> pure ()
+      e0 <- toConcrete e0
+      C.RecUpdateWhere kwr (getRange i) e0 . concat . List1.toList <$> toConcrete es
 
     toConcrete (A.ScopedExpr _ e) = toConcrete e
     toConcrete (A.Quote i) = return $ C.Quote (getRange i)
@@ -1041,24 +1060,27 @@ instance ToConcrete A.LetBinding where
 
     bindToConcrete (A.LetBind i info x t e) ret =
       bindToConcrete x \ x -> do
+        let
+          keep C.Underscore{} = False
+          keep _              = True
         toConcrete (t, A.RHS e Nothing) >>= \case
           (t, (e, [], [], [])) ->
            ret $ addInstanceB (if isInstance info then Just empty else Nothing) $
-               [ C.TypeSig info empty (C.boundName x) t
-               , C.FunClause
-                   (C.LHS (C.IdentP True $ C.QName $ C.boundName x) [] [])
-                   e C.NoWhere empty
-               ]
+            [ C.TypeSig info empty (C.boundName x) t | keep t ] <>
+            [ C.FunClause info
+                (C.LHS (C.IdentP True $ C.QName $ C.boundName x) [] [])
+                e C.NoWhere empty
+            ]
           _ -> __IMPOSSIBLE__
     bindToConcrete (A.LetAxiom i info x t) ret = bindToConcrete x \x -> do
       t <- toConcrete t
       ret $ addInstanceB (if isInstance info then Just empty else Nothing) $
         [ C.TypeSig info empty (C.boundName x) t ]
     -- TODO: bind variables
-    bindToConcrete (LetPatBind i p e) ret = do
+    bindToConcrete (LetPatBind i ai p e) ret = do
         p <- toConcrete p
         e <- toConcrete e
-        ret [ C.FunClause (C.LHS p [] []) (C.RHS e) NoWhere empty ]
+        ret [ C.FunClause ai (C.LHS p [] []) (C.RHS e) NoWhere empty ]
     bindToConcrete (LetApply i erased x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
@@ -1170,7 +1192,7 @@ instance (ToConcrete a, ConOfAbs a ~ C.LHS) => ToConcrete (A.Clause' a) where
           C.LHS p _ _ -> do
             bindToConcrete wh $ \ wh' -> do
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
-                return $ FunClause (C.LHS p eqs with) rhs' wh' catchall :| wcs
+                return $ FunClause defaultArgInfo (C.LHS p eqs with) rhs' wh' catchall :| wcs
 
 instance ToConcrete A.ModuleApplication where
   type ConOfAbs A.ModuleApplication = C.ModuleApplication
@@ -1238,7 +1260,7 @@ instance ToConcrete A.Declaration where
         -- Primitives are always relevant.
 
   toConcrete (A.FunDef i _ cs) =
-    withAbstractPrivate i $ List1.concat <$> toConcrete cs
+    withAbstractPrivate i $ List1.toList . sconcat <$> toConcrete cs
 
   toConcrete (A.DataSig i erased x bs t) =
     withAbstractPrivate i $

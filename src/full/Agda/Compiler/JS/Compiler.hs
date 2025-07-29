@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-binds #-}
+
 -- | Main module for JS backend.
 
 module Agda.Compiler.JS.Compiler where
@@ -595,8 +597,7 @@ compileTerm kit t = go t
       T.TCase sc ct def alts | T.CTData dt <- T.caseType ct -> do
         dt <- getConstInfo dt
         alts' <- traverse (compileAlt kit) alts
-        let cs  = defConstructors $ theDef dt
-            obj = Object $ Map.fromListWith __IMPOSSIBLE__ alts'
+        let obj = Object $ Map.fromListWith __IMPOSSIBLE__ alts'
         case (theDef dt, defJSDef dt) of
           (_, Just e) -> do
             return $ apply (PlainJS e) [Local (LocalId sc), obj]
@@ -616,17 +617,8 @@ compileTerm kit t = go t
       T.TError T.TMeta{}      -> return Undefined
       T.TCoerce t -> go t
 
-    getDef (T.TDef f) = Just (Left f)
-    getDef (T.TCon c) = Just (Right c)
-    getDef (T.TCoerce x) = getDef x
-    getDef _ = Nothing
-
     unit = return Null
 
-    mkArray xs
-        | 2 * length (filter ((== Null) . snd) xs) <= length xs = Array xs
-        | otherwise = Object $ Map.fromListWith __IMPOSSIBLE__
-            [ (MemberIndex i c, x) | (i, (c, x)) <- zip [0..] xs, x /= Null ]
 
 compilePrim :: T.TPrim -> Exp
 compilePrim p =

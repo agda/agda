@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
 
 {-|
     Desugaring for do-notation. Uses whatever `_>>=_` and `_>>_` happen to be
@@ -46,8 +47,8 @@ import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
-desugarDoNotation :: Range -> List1 DoStmt -> ScopeM Expr
-desugarDoNotation r ss = do
+desugarDoNotation :: List1 DoStmt -> ScopeM Expr
+desugarDoNotation ss = do
   let qBind = QName $ simpleBinaryOperator ">>="
       qThen = QName $ simpleBinaryOperator ">>"
       isBind DoBind{} = True

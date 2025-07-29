@@ -21,6 +21,7 @@ import Data.IntSet (IntSet)
 import Data.IntMap (IntMap)
 import Data.Word (Word64, Word32)
 import Data.Text (Text)
+import Data.Text qualified as Text
 import Data.Int (Int32)
 import Data.Map (Map)
 import Data.Set (Set)
@@ -49,7 +50,7 @@ import Agda.Syntax.Position
 import Agda.Utils.Impossible
 import Agda.Utils.FileName
 
-
+---------------------------------------------------------------------------
 -- * Pretty class
 
 -- | The type of documents. We use documents annotated by 'Aspects' to
@@ -80,6 +81,7 @@ class Pretty a where
 prettyShow :: Pretty a => a -> String
 prettyShow = render . pretty
 
+---------------------------------------------------------------------------
 -- * Pretty instances
 
 instance Pretty Bool    where pretty = text . show
@@ -181,6 +183,7 @@ instance (Pretty a, HasRange a) => Pretty (PrintRange a) where
   pretty (PrintRange a) = pretty a <+> parens ("at" <+> pretty (getRange a))
 
 
+---------------------------------------------------------------------------
 -- * Generalizing the original type from list to Foldable
 
 sep, fsep, hsep, hcat, vcat :: Foldable t => t Doc -> Doc
@@ -193,6 +196,7 @@ vcat = P.vcat . Fold.toList
 punctuate :: Foldable t => Doc -> t Doc -> [Doc]
 punctuate d = P.punctuate d . Fold.toList
 
+---------------------------------------------------------------------------
 -- * 'Doc' utilities
 
 vsep :: [Doc] -> Doc
@@ -285,6 +289,9 @@ prefixedThings kw = \case
   []           -> P.empty
   (doc : docs) -> fsep $ (kw <+> doc) : map (hlSymbol "|" <+>) docs
 
+---------------------------------------------------------------------------
+-- * Annotations
+
 -- | Attach a simple 'Aspect', rather than a full set of 'Aspects', to a
 -- document.
 annotateAspect :: Aspect -> Doc -> Doc
@@ -297,7 +304,21 @@ annotateAspect a = annotate a' where
     , tokenBased     = TokenBased
     }
 
--- * Syntax highlighting helpers
+-- * Hyperlink annotations
+
+-- | Attach a link to a document (cf. LaTeX @\href@).
+href :: Text -> Doc -> Doc
+href = annotateAspect . URL
+
+-- | A URL formatted as link (cf. LaTeX @\url@).
+url :: String -> Doc
+url s = href (Text.pack s) (text s)
+
+-- | Link to an issue on the Agda bug tracker.
+githubIssue :: Int -> Doc
+githubIssue = url . ("https://github.com/agda/agda/issues/" ++) . show
+
+-- ** Syntax highlighting helpers
 
 hlComment, hlSymbol, hlKeyword, hlString, hlNumber, hlHole, hlPrimitiveType, hlPragma
   :: Doc -> Doc
@@ -311,6 +332,7 @@ hlHole          = annotateAspect Hole
 hlPrimitiveType = annotateAspect PrimitiveType
 hlPragma        = annotateAspect Pragma
 
+---------------------------------------------------------------------------
 -- * Delimiter wrappers
 --
 -- These use the 'Symbol' highlight for the punctuation characters.

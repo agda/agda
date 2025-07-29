@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+
 module Agda.Syntax.IdiomBrackets (parseIdiomBracketsSeq) where
 
 import Control.Monad

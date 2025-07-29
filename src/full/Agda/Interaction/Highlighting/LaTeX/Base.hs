@@ -481,7 +481,7 @@ processCode toks' = do
           output $ Text $
             -- we return the escaped token wrapped in commands corresponding
             -- to its aspect (if any) and other aspects (e.g. error, unsolved meta)
-            foldr (\c t -> cmdPrefix <> T.pack c <> cmdArg t)
+            foldr (\c t -> cmdPrefix <> c <> cmdArg t)
                   (escape tok)
                   $ map fromOtherAspect (toList $ otherAspects $ info tok') ++
                     concatMap fromAspect (toList $ aspect $ info tok')
@@ -495,11 +495,12 @@ processCode toks' = do
 
     -- Translation from OtherAspect to command strings. So far it happens
     -- to correspond to @show@ but it does not have to (cf. fromAspect)
-    fromOtherAspect :: OtherAspect -> String
-    fromOtherAspect = show
+    fromOtherAspect :: OtherAspect -> Text
+    fromOtherAspect = T.pack . show
 
-    fromAspect :: Aspect -> [String]
-    fromAspect a = let s = [show a] in case a of
+    fromAspect :: Aspect -> [Text]
+    fromAspect a = let s = [T.pack $ show a] in case a of
+      URL url           -> [ "HRef", cmdArg url ]
       Comment           -> s
       Keyword           -> s
       Hole              -> s
@@ -519,9 +520,10 @@ processCode toks' = do
         --
         -- The choice of "Postulate" works for this example, but might
         -- be less appropriate for others.
-      Name (Just kind) isOp ->
-        (\c -> if isOp then ["Operator", c] else [c]) $
-        case kind of
+      Name (Just kind) isOp -> if isOp then ["Operator", c] else [c]
+        where
+        sk = T.pack $ show kind
+        c = case kind of
           Bound                     -> sk
           Generalizable             -> sk
           Constructor Inductive     -> "InductiveConstructor"
@@ -535,8 +537,6 @@ processCode toks' = do
           Record                    -> sk
           Argument                  -> sk
           Macro                     -> sk
-        where
-        sk = show kind
 
 -- | Escapes special characters.
 escape :: Text -> Text

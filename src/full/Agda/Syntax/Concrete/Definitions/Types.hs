@@ -1,3 +1,7 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
+
 module Agda.Syntax.Concrete.Definitions.Types where
 
 import Control.DeepSeq
@@ -69,7 +73,7 @@ data NiceDeclaration
     --   without type signature or a pattern lhs (e.g. for irrefutable let).
     --   The 'Declaration' is the actual 'FunClause'.
   | FunSig Range Access IsAbstract IsInstance IsMacro ArgInfo TerminationCheck CoverageCheck Name Expr
-  | FunDef Range [Declaration] IsAbstract IsInstance TerminationCheck CoverageCheck Name [Clause]
+  | FunDef Range (List1 Declaration) IsAbstract IsInstance TerminationCheck CoverageCheck Name (List1 Clause)
       -- ^ Block of function clauses (we have seen the type signature before).
       --   The 'Declaration's are the original declarations that were processed
       --   into this 'FunDef' and are only used in 'notSoNiceDeclaration'.
@@ -102,10 +106,14 @@ type NiceTypeSignature  = NiceDeclaration
 
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
-data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
+data Clause = Clause Name Catchall ArgInfo LHS RHS WhereClause [Clause]
     deriving (Show, Generic)
 
 instance NFData Clause
+
+instance LensArgInfo Clause where
+  getArgInfo (Clause _ _ ai _ _ _ _) = ai
+  mapArgInfo f (Clause x ca ai lhs rhs wh cs) = Clause x ca (f ai) lhs rhs wh cs
 
 -- | When processing a mutual block we collect the various checks present in the block
 --   before combining them.
@@ -159,9 +167,16 @@ data InterleavedDecl
         -- ^ Internal number of the function signature.
     , interleavedDeclSig  :: NiceDeclaration
         -- ^ The function signature.
-    , interleavedFunClauses :: Maybe (DeclNum, List1 ([Declaration],[Clause]))
+    , interleavedFunClauses :: Maybe (DeclNum, List1 (List1 Declaration, List1 Clause))
         -- ^ Function clauses associated to the function signature.
     }
+
+-- | Extra state for the 'Nice' monad to process interleaved mutual blocks.
+data InterleavedState = ISt
+  { interleavedMutual         :: InterleavedMutual
+  , interleavedMutualChecks   :: MutualChecks
+  , interleavedCurrentDeclNum :: DeclNum
+  }
 
 -- | Numbering declarations in an @interleaved mutual@ block.
 type DeclNum = Int
@@ -176,13 +191,13 @@ isInterleavedData _ = Nothing
 
 interleavedDecl :: Name -> InterleavedDecl -> [(DeclNum, NiceDeclaration)]
 interleavedDecl k = \case
-  InterleavedData i d@(NiceDataSig _ _ acc abs pc uc _ pars _) ds ->
+  InterleavedData i d@(NiceDataSig _ _ _acc abs pc uc _ pars _) ds ->
     let fpars   = concatMap dropTypeAndModality pars
         r       = getRange (k, fpars)
         ddef cs = NiceDataDef (getRange (r, cs)) UserWritten
                     abs pc uc k fpars cs
     in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (sconcat (List1.reverse dss)))]) ds
-  InterleavedFun i d@(FunSig r acc abs inst mac info tc cc n e) dcs ->
+  InterleavedFun i d@(FunSig r _acc abs inst _mac _info tc cc n _e) dcs ->
     let fdef dcss = let (dss, css) = List1.unzip dcss in
                     FunDef r (sconcat dss) abs inst tc cc n (sconcat css)
     in (i,d) : maybe [] (\ (j, dcss) -> [(j, fdef (List1.reverse dcss))]) dcs
@@ -190,11 +205,10 @@ interleavedDecl k = \case
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock
-  = PostulateBlock  -- ^ @postulate@
-  | PrimitiveBlock  -- ^ @primitive@.  Ensured by parser.
-  | InstanceBlock   -- ^ @instance@.  Actually, here all kinds of sub-declarations are allowed a priori.
-  | FieldBlock      -- ^ @field@.  Ensured by parser.
-  | DataBlock       -- ^ @data ... where@.  Here we got a bad error message for Agda-2.5 (Issue 1698).
+  = PostulateBlock    -- ^ @postulate@.
+  | PrimitiveBlock    -- ^ @primitive@.
+  | FieldBlock        -- ^ @field@.  Ensured by parser.
+  | DataBlock         -- ^ @data ... where@.  Here we got a bad error message for Agda-2.5 (Issue 1698).
   | ConstructorBlock  -- ^ @constructor@, in @interleaved mutual@.
   deriving (Eq, Ord, Show, Generic)
 
@@ -247,9 +261,9 @@ instance Pretty NiceDeclaration where
     NiceRecDef _ _ _ _ _ x  _ _ _  -> text "record" <+> pretty x <+> text "where"
     NicePatternSyn _ _ x _ _       -> text "pattern" <+> pretty x
     NiceGeneralize _ _ _ _ x _     -> text "variable" <+> pretty x
-    NiceUnquoteDecl _ _ _ _ _ _ xs _ -> text "<unquote declarations>"
-    NiceUnquoteDef _ _ _ _ _ xs _    -> text "<unquote definitions>"
-    NiceUnquoteData _ _ _ _ _ x xs _ -> text "<unquote data types>"
+    NiceUnquoteDecl _ _ _ _ _ _ _xs _  -> text "<unquote declarations>"
+    NiceUnquoteDef _ _ _ _ _ _xs _     -> text "<unquote definitions>"
+    NiceUnquoteData _ _ _ _ _ _x _xs _ -> text "<unquote data types>"
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -295,7 +309,7 @@ data DataRecOrFun
     , _kindUniCheck :: UniverseCheck
     }
     -- ^ Name of a record type
-  | FunName TerminationCheck CoverageCheck
+  | FunName ArgInfo TerminationCheck CoverageCheck
     -- ^ Name of a function.
   deriving (Show, Generic)
 
@@ -321,17 +335,17 @@ sameKind :: DataRecOrFun -> DataRecOrFun -> Bool
 sameKind = (==)
 
 terminationCheck :: DataRecOrFun -> TerminationCheck
-terminationCheck (FunName tc _) = tc
+terminationCheck (FunName _ tc _) = tc
 terminationCheck _ = TerminationCheck
 
 coverageCheck :: DataRecOrFun -> CoverageCheck
-coverageCheck (FunName _ cc) = cc
+coverageCheck (FunName _ _ cc) = cc
 coverageCheck _ = YesCoverageCheck
 
 positivityCheck :: DataRecOrFun -> PositivityCheck
 positivityCheck (DataName pc _) = pc
 positivityCheck (RecName pc _)  = pc
-positivityCheck (FunName _ _)   = YesPositivityCheck
+positivityCheck (FunName _ _ _) = YesPositivityCheck
 
 mutualChecks :: DataRecOrFun -> MutualChecks
 mutualChecks k = MutualChecks [terminationCheck k] [coverageCheck k] [positivityCheck k]
@@ -339,4 +353,4 @@ mutualChecks k = MutualChecks [terminationCheck k] [coverageCheck k] [positivity
 universeCheck :: DataRecOrFun -> UniverseCheck
 universeCheck (DataName _ uc) = uc
 universeCheck (RecName _ uc)  = uc
-universeCheck (FunName _ _)   = YesUniverseCheck
+universeCheck (FunName _ _ _) = YesUniverseCheck

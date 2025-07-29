@@ -43,6 +43,7 @@ import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
+import Agda.TypeChecking.Monad.Statistics
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Positivity.Occurrence
@@ -58,6 +59,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Opacity
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
+import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import Agda.Utils.CallStack.Base
 import Agda.Utils.Either
 import Agda.Utils.Function ( applyWhen )
@@ -483,6 +485,19 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
     , "old  =" <+> pretty old
     , "ts   =" <+> pretty ts
     ]
+
+  whenProfile Profile.Sections do
+    oldn <- show <$> pretty old
+
+    let
+      ds = fromIntegral $ Map.size rd
+      ms = fromIntegral $ Map.size rm
+
+    tickMax "largest copied section" (ds + ms)
+    tickN   "copied definitions"     ds
+    tickN   "copied modules"         ms
+    tickN   ("copies for " <> oldn)  (ds + ms)
+
   _ <- Map.traverseWithKey (traverse . copyDef ts) rd
   _ <- Map.traverseWithKey (traverse . copySec ts) rm
   computePolarity (Map.elems rd >>= List1.toList)

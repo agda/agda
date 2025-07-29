@@ -1,3 +1,6 @@
+-- {-# OPTIONS_GHC -Wunused-imports #-}  -- no, because of liftA2
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
 
 -- | Tools for patterns in concrete syntax.
 
@@ -309,7 +312,7 @@ patternQNames p = foldCPattern f p `appEndo` []
   f = \case
     IdentP _ x     -> Endo (x :)
     OpAppP _ x _ _ -> Endo (x :)
-    AsP _ x _      -> mempty  -- x must be a bound name, can't be a constructor!
+    AsP _ _x _     -> mempty  -- _x must be a bound name, can't be a constructor!
     AppP _ _       -> mempty
     WithP _ _      -> mempty
     RawAppP _ _    -> mempty
@@ -354,16 +357,17 @@ hasEllipsis' = traverseCPatternA $ \ p mp ->
     EllipsisP _ Nothing -> OneHole id p
     _                   -> mp
 
+-- | Reconstruct the ellipsis, used in printing (AbstractToConcrete).
 reintroduceEllipsis :: ExpandedEllipsis -> Pattern -> Pattern
 reintroduceEllipsis (ExpandedEllipsis r k) p | hasWithPatterns p =
   let (args, wargs) = splitEllipsis k $ List1.toList $ patternAppView p
       (hd,args') = fromMaybe __IMPOSSIBLE__ $ uncons args
-      core = foldl AppP (namedArg hd) args
+      core = foldl AppP (namedArg hd) args'
   in foldl AppP (EllipsisP r $ Just $ core) wargs
 reintroduceEllipsis _ p = p
 
 splitEllipsis :: (IsWithP p) => Int -> [p] -> ([p],[p])
-splitEllipsis k [] = ([] , [])
+splitEllipsis _ [] = ([] , [])
 splitEllipsis k (p:ps)
   | isJust (isWithP p) = if
       | k == 0    -> ([] , p:ps)

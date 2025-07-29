@@ -11,6 +11,7 @@
     perSystem = {pkgs, ...}: let
       hlib = pkgs.haskell.lib.compose;
       hpkgs = pkgs.haskellPackages;
+      fs = pkgs.lib.fileset;
 
       # Minimal nix code for building the `agda` executable.
       # GHC & Haskell libraries are taken from the nixpkgs snapshot.
@@ -19,7 +20,21 @@
           # instead `hpkgs.developPackage` compiles Setup.hs with ghc
           # then runs ./Setup several times. This is implemented at
           # https://github.com/NixOS/nixpkgs/blob/a781ff33ae/pkgs/development/haskell-modules/generic-builder.nix
-          root = ./.;
+
+          # A minimal set of files to copy into nix's build sandbox.
+          # Whenever these files change, `nix build` recompiles Agda.
+          root = fs.toSource {
+            root = ./.;
+            fileset = fs.unions [
+              ./src/setup
+              ./src/full
+              ./src/main
+              ./src/data
+              ./src/agda-mode
+              ./Agda.cabal
+              ./LICENSE
+            ];
+          };
 
           modifier = hlib.overrideCabal (drv: {
             # Typecheck the primitive modules.
@@ -35,9 +50,9 @@
       # Various builds of Agda
 
       # Recommended build
-      agda-pkg = hlib.overrideCabal (_: {
+      agda-pkg = hlib.overrideCabal (drv: {
           # These settings are documented at
-          # https://ryantm.github.io/nixpkgs/languages-frameworks/haskell/#haskell-mkderivation
+          # https://nixos.org/manual/nixpkgs/unstable/#haskell-mkderivation
 
           # Don't run the test suite every build
           # (which is slow, and currently broken in nix)
@@ -49,6 +64,17 @@
           doCoverage                = false;  # Saved   2 seconds
           enableExecutableProfiling = false;  # Saved   1 seconds
           enableStaticLibraries     = false;  # Saved  -1 seconds
+
+          # Place the binaries in a separate output with a much smaller closure size.
+          enableSeparateBinOutput = true;
+          mainProgram = "agda";
+        } // pkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isAarch64) {
+          # A nixpkgs-specific patch for aarch64-darwin related to the separate bin output
+          # causes a warning about some functions being removed from Paths_Agda, which
+          # we can just ignore. See https://github.com/agda/agda/issues/8016
+          configureFlags = drv.configureFlags or [] ++ [
+            "--ghc-option=-Wwarn=deprecations"
+          ];
         }) agda-pkg-minimal;
 
       # An even faster Agda build, achieved by asking GHC to optimize less
@@ -95,16 +121,17 @@
       packages.type-check = agda-pkg-tc;     # Entry point for `nix build .#type-check`
       devShells.default   = agda-dev-shell;  # Entry point for `nix develop`
 
-      # Allow power users to set this flake's agda
-      # as a drop-in replacement for nixpkgs's agda
+      # Allow users to set this flake's agda as a drop-in replacement for nixpkgs's agda
       # (including as a dependency of other nixpkgs packages)
       # See https://flake.parts/overlays for more info
-      overlayAttrs.packages.haskellPackages.agda = agda-pkg;
-      # TODO: also replace each haskell.packages.ghcXXX.agda
+      overlayAttrs.haskell = pkgs.haskell // {
+        packageOverrides = pkgs.lib.composeExtensions pkgs.haskell.packageOverrides
+          (hfinal: hprev: {
+            Agda = agda-pkg;
+          });
+      };
     };
-    # Generate the overlays.default output from overlayAttrs above
-    # N.B. This overlay is EXPERIMENTAL and untested.
-    # Please report bugs to the Agda issue tracker.
+
     imports = [ inputs.flake-parts.flakeModules.easyOverlay ];
   };
 }

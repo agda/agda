@@ -1,3 +1,8 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
+
+{-# LANGUAGE CPP #-}
 
 -- | Attributes: concrete syntax for ArgInfo, esp. modalities.
 
@@ -8,7 +13,10 @@ import Prelude hiding (null)
 import Control.Arrow (second)
 import Control.Monad (foldM)
 
+#if !MIN_VERSION_base(4,20,0)
 import Data.List (foldl')
+#endif
+
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -20,7 +28,6 @@ import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Position
 
-import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
@@ -43,7 +50,7 @@ instance HasRange Attribute where
     CohesionAttribute c  -> getRange c
     PolarityAttribute p  -> getRange p
     TacticAttribute e    -> getRange e
-    LockAttribute l      -> NoRange
+    LockAttribute _l     -> NoRange
 
 instance SetRange Attribute where
   setRange r = \case
@@ -171,7 +178,7 @@ stringToAttribute = (`Map.lookup` attributesMap)
 
 exprToAttribute :: Range -> Expr -> Maybe Attribute
 exprToAttribute r = \case
-  e@(Paren _ (Tactic _ t)) -> Just $ TacticAttribute $ Ranged r t
+  Paren _ (Tactic _ t) -> Just $ TacticAttribute $ Ranged r t
   e -> setRange r $ stringToAttribute $ prettyShow e
 
 -- | Setting an attribute (in e.g. an 'Arg').  Overwrites previous value.
@@ -183,7 +190,7 @@ setAttribute = \case
   CohesionAttribute  c -> setCohesion  c
   PolarityAttribute  p -> setModalPolarity p
   LockAttribute      l -> setLock      l
-  TacticAttribute t    -> id
+  TacticAttribute _    -> id
 
 
 -- | Setting some attributes in left-to-right order.

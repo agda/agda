@@ -32,7 +32,7 @@ import Control.Parallel             ( pseq )
 
 import Data.Array (Ix)
 import Data.Function (on)
-import Data.Word (Word32)
+import Data.Word (Word64, Word32)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -55,6 +55,7 @@ import qualified Data.Set as Set
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
+import Data.Semigroup (Sum, Max)
 
 import Data.IORef
 
@@ -459,7 +460,7 @@ initPersistentStateFromSessionState s = PersistentTCSt
   , stPersistentTopLevelModuleNames = empty
   , stDecodedModules                = Map.empty
   , stInteractionOutputCallback     = defaultInteractionOutputCallback
-  , stAccumStatistics               = Map.empty
+  , stAccumStatistics               = empty
   , stPersistLoadedFileCache        = empty
   }
 
@@ -519,7 +520,7 @@ initPostScopeState = PostScopeState
   , stPostConcreteNames          = Map.empty
   , stPostUsedNames              = Map.empty
   , stPostShadowingNames         = Map.empty
-  , stPostStatistics             = Map.empty
+  , stPostStatistics             = empty
   , stPostTCWarnings             = empty
   , stPostMutualBlocks           = empty
   , stPostLocalBuiltins          = Map.empty
@@ -1166,6 +1167,11 @@ instance FreshName Name where
   freshName_ (Name _ con can bs fix rn) = do
     i <- fresh
     pure $ Name i con can bs fix rn
+
+instance FreshName C.Name where
+  freshName_ c = do
+    i <- fresh
+    pure $ Name i c c noRange noFixity' False
 
 ---------------------------------------------------------------------------
 -- * Module Checkpoints
@@ -3446,8 +3452,8 @@ isWithFunction def =
     Function { funWith = Just{} } -> True
     _ -> False
 
-isCopatternLHS :: [Clause] -> Bool
-isCopatternLHS = List.any (List.any (isJust . A.isProjP) . namedClausePats)
+isCopatternLHS :: Foldable f => f Clause -> Bool
+isCopatternLHS = any (any (isJust . A.isProjP) . namedClausePats)
 
 recCon :: Defn -> QName
 recCon Record{ recConHead } = conName recConHead
@@ -3744,7 +3750,29 @@ instance Null MutualBlock where
 -- ** Statistics
 ---------------------------------------------------------------------------
 
-type Statistics = Map String Integer
+-- | 'Statistics' is a collection of arbitrary string counters. The keys
+-- that can be found in the map depend on what profiling options were
+-- given.
+data Statistics = Statistics
+  { statTicks :: !(HashMap String (Sum Word64))
+    -- ^ Tally counters, which should be added when merging.
+  , statMaxes :: !(HashMap String (Max Word64))
+    -- ^ Record counters, which
+  }
+  deriving (Show, Eq, Generic)
+
+instance Semigroup Statistics where
+  Statistics a b <> Statistics a' b' = Statistics
+    (HMap.unionWith (<>) a a')
+    (HMap.unionWith (<>) b b')
+
+instance Null Statistics where
+  empty = Statistics empty empty
+
+  null (Statistics a b) = HMap.null a && HMap.null b
+
+instance Monoid Statistics where
+  mempty = empty
 
 ---------------------------------------------------------------------------
 -- ** Trace
@@ -3772,7 +3800,7 @@ data Call
   | CheckRecDef Range QName [A.LamBinding] [A.Constructor]
   | CheckConstructor QName Telescope Sort A.Constructor
   | CheckConArgFitsIn QName Bool Type Sort
-  | CheckFunDefCall Range QName [A.Clause] Bool
+  | CheckFunDefCall Range QName Bool
     -- ^ Highlight (interactively) if and only if the boolean is 'True'.
   | CheckPragma Range A.Pragma
   | CheckPrimitive Range QName A.Expr
@@ -3860,7 +3888,7 @@ instance HasRange Call where
     getRange (CheckRecDef i _ _ _)               = getRange i
     getRange (CheckConstructor _ _ _ c)          = getRange c
     getRange (CheckConArgFitsIn c _ _ _)         = getRange c
-    getRange (CheckFunDefCall i _ _ _)           = getRange i
+    getRange (CheckFunDefCall i _ _)             = getRange i
     getRange (CheckPragma r _)                   = r
     getRange (CheckPrimitive i _ _)              = getRange i
     getRange (CheckModuleParameters _ tel)       = getRange tel
@@ -6756,3 +6784,4 @@ instance NFData IsAmbiguous
 instance NFData CannotQuote
 instance NFData ExecError
 instance NFData ConstructorDisambiguationData
+instance NFData Statistics

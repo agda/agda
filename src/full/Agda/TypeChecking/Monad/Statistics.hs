@@ -3,8 +3,8 @@
 -- | Collect statistics.
 
 module Agda.TypeChecking.Monad.Statistics
-    ( MonadStatistics(..), tick, tickN, tickMax, getStatistics, modifyStatistics, printStatistics
-    ) where
+  ( MonadStatistics(..), tick, getStatistics, modifyStatistics, printStatistics
+  ) where
 
 import Control.DeepSeq
 import Control.Monad.Except
@@ -13,24 +13,32 @@ import Control.Monad.State
 import Control.Monad.Writer
 import Control.Monad.Trans.Maybe
 
-import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
+import Data.Semigroup
+import Data.Coerce
+
+import Data.List
+import Data.Word
+
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 
-import Agda.Utils.Maybe
-import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.String
+import Agda.Utils.Maybe
+import Agda.Utils.Null
 
 class ReadTCState m => MonadStatistics m where
-  modifyCounter :: String -> (Integer -> Integer) -> m ()
+  tickN   :: String -> Word64 -> m ()
+  tickMax :: String -> Word64 -> m ()
 
-  default modifyCounter
-    :: (MonadStatistics n, MonadTrans t, t n ~ m)
-    =>  String -> (Integer -> Integer) -> m ()
-  modifyCounter x = lift . modifyCounter x
+  default tickN :: (MonadStatistics n, MonadTrans t, t n ~ m) => String -> Word64 -> m ()
+  tickN x = lift . tickN x
+
+  default tickMax :: (MonadStatistics n, MonadTrans t, t n ~ m) => String -> Word64 -> m ()
+  tickMax x = lift . tickMax x
 
 instance MonadStatistics m => MonadStatistics (ExceptT e m)
 instance MonadStatistics m => MonadStatistics (MaybeT m)
@@ -39,8 +47,9 @@ instance MonadStatistics m => MonadStatistics (StateT  s m)
 instance (MonadStatistics m, Monoid w) => MonadStatistics (WriterT w m)
 
 instance MonadStatistics TCM where
-  modifyCounter x f = modifyStatistics $ force . update
-    where
+  tickN x n = modifyStatistics \case
+    Statistics a b ->
+      let a' = HMap.insertWith (<>) x (Sum n) a
       -- We need to be strict in the map.
       -- Andreas, 2014-03-22:  Could we take Data.Map.Strict instead of this hack?
       -- Or force the map by looking up the very element we inserted?
@@ -52,9 +61,12 @@ instance MonadStatistics TCM where
       -- map (nor are they less hacky). It's not enough to be strict in the
       -- values stored in the map, we also need to be strict in the *structure*
       -- of the map. A less hacky solution is to deepseq the map.
-      force m = rnf m `seq` m
-      update  = Map.insertWith (\ new old -> f old) x dummy
-      dummy   = f 0
+      in rnf a' `seq` Statistics a' b
+
+  tickMax x n = modifyStatistics \case
+    Statistics a b ->
+      let b' = HMap.insertWith (<>) x (Max n) b
+       in rnf b' `seq` Statistics a b'
 
 -- | Get the statistics.
 getStatistics :: ReadTCState m => m Statistics
@@ -62,31 +74,32 @@ getStatistics = useR stStatistics
 
 -- | Modify the statistics via given function.
 modifyStatistics :: (Statistics -> Statistics) -> TCM ()
-modifyStatistics f = stStatistics `modifyTCLens` f
+modifyStatistics f = stStatistics `modifyTCLens'` f
 
 -- | Increase specified counter by @1@.
 tick :: MonadStatistics m => String -> m ()
 tick x = tickN x 1
 
--- | Increase specified counter by @n@.
-tickN :: MonadStatistics m => String -> Integer -> m ()
-tickN s n = modifyCounter s (n +)
-
--- | Set the specified counter to the maximum of its current value and @n@.
-tickMax :: MonadStatistics m => String -> Integer -> m ()
-tickMax s n = modifyCounter s (max n)
-
 -- | Print the given statistics.
 printStatistics
   :: (MonadDebug m, MonadTCEnv m, HasOptions m)
   => Maybe TopLevelModuleName -> Statistics -> m ()
-printStatistics mmname stats = do
-  unlessNull (Map.toList stats) $ \ stats -> do
-    let -- First column (left aligned) is accounts.
-        col1 = Boxes.vcat Boxes.left  $ map (Boxes.text . fst) stats
-        -- Second column (right aligned) is numbers.
-        col2 = Boxes.vcat Boxes.right $ map (Boxes.text . showThousandSep . snd) stats
-        table = Boxes.hsep 1 Boxes.left [col1, col2]
+printStatistics mmname (Statistics tick max) = do
+  let
+    counters :: [(String, Word64)]
+    counters = sortOn fst $ HMap.toList (coerce tick) <> HMap.toList (coerce max)
+
+  unlessNull counters $ \ stats -> do
+    let
+      -- First column (left aligned) is accounts.
+      col1 = Boxes.vcat Boxes.left  $ map (Boxes.text . fst) stats
+
+      -- Second column (right aligned) is numbers.
+      col2 = Boxes.vcat Boxes.right $ map (Boxes.text . showThousandSep . snd) stats
+
+      table = Boxes.hsep 1 Boxes.left [col1, col2]
+
     alwaysReportSLn "" 1 $ caseMaybe mmname "Accumulated statistics" $ \ mname ->
       "Statistics for " ++ prettyShow mname
+
     alwaysReportSLn "" 1 $ Boxes.render table

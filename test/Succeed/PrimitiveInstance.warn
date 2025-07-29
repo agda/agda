@@ -1,0 +1,113 @@
+PrimitiveInstance.agda:7.3-11: warning: -W[no]UselessInstance
+Using instance here has no effect. Instance applies only to
+declarations that introduce new identifiers into the module, like
+type signatures and axioms (other than primitives).
+
+PrimitiveInstance.agda:22.1-9: warning: -W[no]UselessInstance
+Using instance here has no effect. Instance applies only to
+declarations that introduce new identifiers into the module, like
+type signatures and axioms (other than primitives).
+
+PrimitiveInstance.agda:29.1-10: warning: -W[no]EmptyPrimitive
+Empty primitive block.
+
+PrimitiveInstance.agda:31.1-10: warning: -W[no]EmptyPrimitive
+Empty primitive block.
+
+PrimitiveInstance.agda:32.3-10: warning: -W[no]UselessPrivate
+Using private here has no effect. Private applies only to
+declarations that introduce new identifiers into the module, like
+type signatures except for constructors, and data, record, and
+module declarations
+
+PrimitiveInstance.agda:34.1-10: warning: -W[no]EmptyPostulate
+Empty postulate block.
+
+PrimitiveInstance.agda:35.3-10: warning: -W[no]UselessPrivate
+Using private here has no effect. Private applies only to
+declarations that introduce new identifiers into the module, like
+type signatures except for constructors, and data, record, and
+module declarations
+
+PrimitiveInstance.agda:37.1-8: warning: -W[no]UselessPrivate
+Using private here has no effect. Private applies only to
+declarations that introduce new identifiers into the module, like
+type signatures except for constructors, and data, record, and
+module declarations
+
+PrimitiveInstance.agda:38.3-15: warning: -W[no]EmptyConstructor
+Empty constructor block.
+
+PrimitiveInstance.agda:40.1-13: warning: -W[no]EmptyConstructor
+Empty constructor block.
+
+PrimitiveInstance.agda:41.3-11: warning: -W[no]UselessInstance
+Using instance here has no effect. Instance applies only to
+declarations that introduce new identifiers into the module, like
+type signatures and axioms (other than primitives).
+
+PrimitiveInstance.agda:46.5-12: warning: -W[no]UselessPrivate
+Using private here has no effect. Private applies only to
+declarations that introduce new identifiers into the module, like
+type signatures except for constructors, and data, record, and
+module declarations
+when scope checking the declaration
+  module M where
+
+———— All done; warnings encountered ————————————————————————
+
+PrimitiveInstance.agda:7.3-11: warning: -W[no]UselessInstance
+Using instance here has no effect. Instance applies only to
+declarations that introduce new identifiers into the module, like
+type signatures and axioms (other than primitives).
+
+PrimitiveInstance.agda:22.1-9: warning: -W[no]UselessInstance
+Using instance here has no effect. Instance applies only to
+declarations that introduce new identifiers into the module, like
+type signatures and axioms (other than primitives).
+
+PrimitiveInstance.agda:29.1-10: warning: -W[no]EmptyPrimitive
+Empty primitive block.
+
+PrimitiveInstance.agda:31.1-10: warning: -W[no]EmptyPrimitive
+Empty primitive block.
+
+PrimitiveInstance.agda:32.3-10: warning: -W[no]UselessPrivate
+Using private here has no effect. Private applies only to
+declarations that introduce new identifiers into the module, like
+type signatures except for constructors, and data, record, and
+module declarations
+
+PrimitiveInstance.agda:34.1-10: warning: -W[no]EmptyPostulate
+Empty postulate block.
+
+PrimitiveInstance.agda:35.3-10: warning: -W[no]UselessPrivate
+Using private here has no effect. Private applies only to
+declarations that introduce new identifiers into the module, like
+type signatures except for constructors, and data, record, and
+module declarations
+
+PrimitiveInstance.agda:37.1-8: warning: -W[no]UselessPrivate
+Using private here has no effect. Private applies only to
+declarations that introduce new identifiers into the module, like
+type signatures except for constructors, and data, record, and
+module declarations
+
+PrimitiveInstance.agda:38.3-15: warning: -W[no]EmptyConstructor
+Empty constructor block.
+
+PrimitiveInstance.agda:40.1-13: warning: -W[no]EmptyConstructor
+Empty constructor block.
+
+PrimitiveInstance.agda:41.3-11: warning: -W[no]UselessInstance
+Using instance here has no effect. Instance applies only to
+declarations that introduce new identifiers into the module, like
+type signatures and axioms (other than primitives).
+
+PrimitiveInstance.agda:46.5-12: warning: -W[no]UselessPrivate
+Using private here has no effect. Private applies only to
+declarations that introduce new identifiers into the module, like
+type signatures except for constructors, and data, record, and
+module declarations
+when scope checking the declaration
+  module M where

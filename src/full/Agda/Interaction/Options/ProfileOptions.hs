@@ -1,5 +1,5 @@
 
-module Agda.Utils.ProfileOptions
+module Agda.Interaction.Options.ProfileOptions
   ( ProfileOption(..)
   , ProfileOptions
   , noProfileOptions
@@ -30,16 +30,18 @@ import Agda.Utils.Null (Null, empty)
 --
 --   NOTE: Changing this data type requires bumping the interface version number in
 --   'Agda.TypeChecking.Serialise.currentInterfaceVersion'.
-data ProfileOption = Internal     -- ^ Measure time taken by various parts of the system (type checking, serialization, etc)
-                   | Modules      -- ^ Measure time spent on individual (Agda) modules
-                   | Definitions  -- ^ Measure time spent on individual (Agda) definitions
-                   | Sharing      -- ^ Measure things related to sharing
-                   | Serialize    -- ^ Collect detailed statistics about serialization
-                   | Constraints  -- ^ Collect statistics about constraint solving
-                   | Metas        -- ^ Count number of created metavariables
-                   | Interactive  -- ^ Measure time of interactive commands
-                   | Conversion   -- ^ Collect statistics about conversion checking
-                   | Instances    -- ^ Collect statistics about instance search
+data ProfileOption
+  = Internal     -- ^ Measure time taken by various parts of the system (type checking, serialization, etc)
+  | Modules      -- ^ Measure time spent on individual (Agda) modules
+  | Definitions  -- ^ Measure time spent on individual (Agda) definitions
+  | Sharing      -- ^ Measure things related to sharing
+  | Serialize    -- ^ Collect detailed statistics about serialization
+  | Constraints  -- ^ Collect statistics about constraint solving
+  | Metas        -- ^ Count number of created metavariables
+  | Interactive  -- ^ Measure time of interactive commands
+  | Conversion   -- ^ Collect statistics about conversion checking
+  | Instances    -- ^ Collect statistics about instance search
+  | Sections     -- ^ Collect statistics about section applications
   deriving (Show, Eq, Ord, Enum, Bounded, Generic)
 
 instance NFData ProfileOption

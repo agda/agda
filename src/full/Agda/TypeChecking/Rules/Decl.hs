@@ -161,7 +161,7 @@ checkDecl d = setCurrentRange d $ do
       A.Import _ _ dir         -> none $ checkImportDirective dir
       A.Pragma i p             -> none $ checkPragma i p
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
-      A.FunDef i x cs          -> impossible $ check x i $ checkFunDef i x cs
+      A.FunDef i x cs          -> impossible $ check x i $ checkFunDef i x $ List1.toList cs
       A.DataDef i x uc ps cs   -> impossible $ check x i $ checkDataDef i x uc ps cs
       A.RecDef i x uc dir ps tel cs -> impossible $ check x i $ do
                                     checkRecDef i x uc dir ps tel cs
@@ -780,7 +780,12 @@ checkPragma r p = do
     traceCall (CheckPragma r p) $ case p of
         A.BuiltinPragma rb x
           | any isUntypedBuiltin b -> return ()
-          | Just b' <- b -> bindBuiltin b' x
+          | Just b' <- b -> do
+              let go = bindBuiltin b' x
+              if b' /= builtinRewrite then go else do
+                ifM (optRewriting <$> pragmaOptions) {-then-} go {-else-} do
+                  warning $ UselessPragma r $
+                    "Ignoring BUILTIN REWRITE pragma since option --rewriting is off"
           | otherwise -> typeError $ NoSuchBuiltinName ident
           where
             ident = rangedThing rb
@@ -984,7 +989,9 @@ checkSectionApplication'
   -> A.ScopeCopyInfo     -- ^ Imported names and modules
   -> TCM ()
 checkSectionApplication'
-  i er m1 (A.SectionApp ptel m2 args) copyInfo = do
+  i er m1 (A.SectionApp ptel m2 args) copyInfo =
+  Bench.billTo [Bench.Typing, Bench.ApplySection]
+  do
   -- If the section application is erased, then hard compile-time mode
   -- is entered.
   warnForPlentyInHardCompileTimeMode er

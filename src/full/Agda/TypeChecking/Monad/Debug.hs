@@ -36,7 +36,7 @@ import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Syntax.Common.Pretty
-import Agda.Utils.ProfileOptions
+import Agda.Interaction.Options.ProfileOptions
 import Agda.Utils.Update
 import qualified Agda.Utils.Trie as Trie
 
@@ -161,7 +161,7 @@ instance MonadDebug TCM where
     -- So we need to do the padding ourselves.
     -- yyyy-mm-ddThh:mm:ss.ssssss
     -- 12345678901234567890123456
-    trailingZeros = take 26 . (++ repeat '0')
+    trailingZeros = takeExactly '0' 26
 
   formatDebugMessage k n d = catchAndPrintImpossible k n $ do
     render <$> d `catchError` \ err -> do

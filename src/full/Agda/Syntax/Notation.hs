@@ -1,4 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
+{-# OPTIONS_GHC -Wunused-binds #-}
 
 {-| As a concrete name, a notation is a non-empty list of alternating 'IdPart's and holes.
     In contrast to concrete names, holes can be binders.
@@ -13,7 +15,7 @@
 
 module Agda.Syntax.Notation where
 
-import Prelude hiding (null)
+import Prelude hiding ( null, zip, zipWith )
 
 import Control.DeepSeq
 import Control.Monad
@@ -34,10 +36,13 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1           ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.ListInf         ( pattern (:<) )
+import qualified Agda.Utils.ListInf as ListInf
 import Agda.Utils.Set1            ( Set1 )
 import qualified Agda.Utils.Set1  as Set1
 import Agda.Utils.Null
 import Agda.Utils.Singleton
+import Agda.Utils.Zip
 
 import Agda.Utils.Impossible
 
@@ -222,7 +227,7 @@ mkNotation holes ids = do
                    _          -> False)
         where
         noAdj []       = __IMPOSSIBLE__
-        noAdj [x]      = True
+        noAdj [_]      = True
         noAdj (x:y:xs) =
           not (isAHole x && isAHole y) &&
           noAdj (y:xs)
@@ -276,7 +281,7 @@ useDefaultFixity n
 --   @M.for x ∈ xs return e@, or @x ℕ.+ y@.
 notationNames :: NewNotation -> [QName]
 notationNames (NewNotation q _ _ parts _) =
-  zipWith ($) (reQualify : repeat QName) [simpleName $ rangedThing x | IdPart x <- parts ]
+  zipWith ($) (reQualify :< ListInf.repeat QName) [ simpleName $ rangedThing x | IdPart x <- parts ]
   where
     -- The qualification of @q@.
     modules     = List1.init (qnameParts q)
@@ -296,7 +301,7 @@ syntaxOf y
     -- numbering the holes from left to right.
     -- Result will have no 'BindingHole's.
     mkSyn :: Int -> [NamePart] -> Notation
-    mkSyn n []          = []
+    mkSyn _ []          = []
     mkSyn n (Hole : xs) = HolePart noRange (defaultNamedArg $ unranged n) : mkSyn (1 + n) xs
     mkSyn n (Id x : xs) = IdPart (unranged x) : mkSyn n xs
 

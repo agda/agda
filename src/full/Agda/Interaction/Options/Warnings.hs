@@ -19,7 +19,7 @@ module Agda.Interaction.Options.Warnings
        , warningModeUpdate
        , warningSets
        , WarningName (..)
-       , warningName2String
+       , warningNameToString
        , string2WarningName
        , usageWarning
        )
@@ -227,6 +227,7 @@ data WarningName
   -- Library Warnings
   | LibUnknownField_
   -- Nicifer Warnings
+  | DivergentModalityInClause_
   | EmptyAbstract_
   | EmptyConstructor_
   | EmptyField_
@@ -248,6 +249,7 @@ data WarningName
   | InvalidNoUniverseCheckPragma_
   | DuplicateRecordDirective_
   | InvalidTerminationCheckPragma_
+  | InvalidTacticAttribute_
   | MissingDataDeclaration_
   | MissingDefinitions_
   | NotAllowedInMutual_
@@ -393,10 +395,10 @@ instance NFData WarningName
 
 string2WarningName :: String -> Maybe WarningName
 string2WarningName = (`HMap.lookup` warnings) where
-  warnings = HMap.fromList $ map (\x -> (warningName2String x, x)) [minBound..maxBound]
+  warnings = HMap.fromList $ map (\x -> (warningNameToString x, x)) [minBound..maxBound]
 
-warningName2String :: WarningName -> String
-warningName2String = initWithDefault __IMPOSSIBLE__ . show
+warningNameToString :: WarningName -> String
+warningNameToString = initWithDefault __IMPOSSIBLE__ . show
 
 -- | @warningUsage@ generated using @warningNameDescription@
 
@@ -430,7 +432,7 @@ usageWarning = intercalate "\n"
     warningTable printD ws =
       untable $ forMaybe ws $ \ w ->
         let wnd = warningNameDescription w in
-        ( warningName2String w
+        ( warningNameToString w
         , applyWhen printD ((if w `Set.member` usualWarnings then "d" else " ") ++)
           " " ++
           wnd
@@ -464,6 +466,7 @@ warningNameDescription = \case
   -- Library Warnings
   LibUnknownField_                 -> "Unknown fields in library files."
   -- Nicifer Warnings
+  DivergentModalityInClause_       -> "Divergent modalities in function clauses."
   EmptyAbstract_                   -> "Empty `abstract' blocks."
   EmptyConstructor_                -> "Empty `constructor' blocks."
   EmptyField_                      -> "Empty `field` blocks."
@@ -484,6 +487,7 @@ warningNameDescription = \case
   InvalidNoPositivityCheckPragma_  -> "Positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "Universe checking pragmas before non-`data' or `record' declaration."
   DuplicateRecordDirective_        -> "Conflicting directives in a record declaration."
+  InvalidTacticAttribute_          -> "Misplaced @(tactic ...) attributes."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
   MissingDataDeclaration_          -> "Constructor definitions not associated to a data declaration."
   MissingDefinitions_              -> "Declarations not associated to a definition."

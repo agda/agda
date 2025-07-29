@@ -539,6 +539,7 @@ warningHighlighting' b w = case tcWarning w of
     -- using `getRange w` still yields the most precise range information we
     -- can get.
     NotAllowedInMutual{}             -> deadcodeHighlighting w
+    DivergentModalityInClause{}      -> deadcodeHighlighting w
     EmptyAbstract{}                  -> deadcodeHighlighting w
     EmptyConstructor{}               -> deadcodeHighlighting w
     EmptyInstance{}                  -> deadcodeHighlighting w
@@ -566,6 +567,7 @@ warningHighlighting' b w = case tcWarning w of
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting w
     InvalidCoverageCheckPragma{}     -> deadcodeHighlighting w
     InvalidConstructorBlock{}        -> deadcodeHighlighting w
+    InvalidTacticAttribute{}         -> deadcodeHighlighting w
     OpenImportAbstract{}             -> cosmeticProblemHighlighting w
     OpenImportPrivate{}              -> cosmeticProblemHighlighting w
     SafeFlagEta                   {} -> errorWarningHighlighting w
@@ -599,10 +601,10 @@ warningHighlighting' b w = case tcWarning w of
 recordFieldWarningHighlighting ::
   RecordFieldWarning -> HighlightingInfoBuilder
 recordFieldWarningHighlighting = \case
-  W.DuplicateFields xrs      -> dead xrs
-  W.TooManyFields _q _ys xrs -> dead xrs
+  W.DuplicateFields xrs      -> sconcat $ fmap (dead . snd) xrs
+  W.TooManyFields _q _ys xrs -> dead $ fmap snd xrs
   where
-  dead :: List1 (C.Name, Range) -> HighlightingInfoBuilder
+  dead :: List1 Range -> HighlightingInfoBuilder
   dead = sconcat . fmap deadcodeHighlighting
   -- Andreas, 2020-03-27 #3684: This variant seems to only highlight @x@:
   -- dead = mconcat . map f

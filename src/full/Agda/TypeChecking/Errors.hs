@@ -1328,7 +1328,7 @@ instance PrettyTCM TypeError where
           , vcat $ fmap f xs
           ]
       where
-        f (x, fs) = (pretty x <> ": ") <+> fsep (fmap pretty fs)
+        f (x, fs) = (pretty x <> ": ") <+> fsep (fmap (pretty . PrintRange) fs)
 
     MultiplePolarityPragmas xs -> fsep $
       pwords "Multiple polarity pragmas for" ++ map pretty (List1.toList xs)
@@ -1511,12 +1511,13 @@ instance PrettyTCM TypeError where
     NamedWhereModuleInRefinedContext args names -> do
       let pr x v = text (x ++ " =") <+> prettyTCM v
       vcat
-        [ fsep (pwords $ "Named where-modules are not allowed when module parameters have been refined by pattern matching. " ++
-                          "See https://github.com/agda/agda/issues/2897.")
+        [ fsep $ pwords $ "Named where-modules are not allowed when module parameters have been refined by pattern matching."
+        , "(See" <+> (githubIssue 2897 <> ".)")
         , text $ "In this case the module parameter" ++
                   (if not (null args) then "s have" else " has") ++
                   " been refined to"
-        , nest 2 $ vcat (zipWith pr names args) ]
+        , nest 2 $ vcat $ zipWith pr names args
+        ]
 
     CannotGenerateHCompClause ty -> fsep $ concat
         [ pwords "Cannot generate hcomp clause at type"

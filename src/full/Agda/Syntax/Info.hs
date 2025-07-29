@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
 
 {-| An info object contains additional information about a piece of abstract
     syntax that isn't part of the actual syntax. For instance, it might contain
@@ -10,8 +12,6 @@ module Agda.Syntax.Info where
 import Prelude hiding (null)
 
 import Control.DeepSeq
-
-import Data.Semigroup (Semigroup)
 
 import GHC.Generics (Generic)
 
@@ -98,7 +98,7 @@ instance HasRange ExprInfo where
   getRange (ExprRange r) = r
 
 instance KillRange ExprInfo where
-  killRange (ExprRange r) = exprNoRange
+  killRange (ExprRange _) = exprNoRange
 
 {--------------------------------------------------------------------------
     Application information
@@ -174,7 +174,7 @@ instance HasRange LetInfo where
   getRange (LetRange r)   = r
 
 instance KillRange LetInfo where
-  killRange (LetRange r) = LetRange noRange
+  killRange (LetRange _) = LetRange noRange
 
 {--------------------------------------------------------------------------
     Definition information (declarations that actually define something)
@@ -281,7 +281,7 @@ instance HasRange LHSInfo where
   getRange (LHSInfo r _) = r
 
 instance KillRange LHSInfo where
-  killRange (LHSInfo r ell) = LHSInfo noRange ell
+  killRange (LHSInfo _ ell) = LHSInfo noRange ell
 
 instance Null LHSInfo where
   null i = null (lhsRange i) && null (lhsEllipsis i)
@@ -320,7 +320,7 @@ instance KillRange ConPatInfo where
   killRange (ConPatInfo b i l) = ConPatInfo b (killRange i) l
 
 instance SetRange ConPatInfo where
-  setRange r (ConPatInfo b i l) = ConPatInfo b (PatRange r) l
+  setRange r (ConPatInfo b _ l) = ConPatInfo b (PatRange r) l
 
 instance NFData ConPatInfo
 

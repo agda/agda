@@ -1,0 +1,3 @@
+Issue7954a.agda:12.16-23: error: [InvalidDottedExpression]
+Invalid dotted expression
+when scope checking (proj)

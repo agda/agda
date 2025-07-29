@@ -149,7 +149,7 @@ instance PrettyTCM Call where
         pwords "fits in the sort" ++ [prettyTCM s] ++
         pwords "of the datatype."
 
-    CheckFunDefCall _ f _ _ ->
+    CheckFunDefCall _ f _ ->
       fsep $ pwords "when checking the definition of" ++ [prettyTCM f]
 
     CheckPragma _ p ->
@@ -166,7 +166,7 @@ instance PrettyTCM Call where
     CheckWithFunctionType a -> fsep $
       pwords "when checking that the type" ++
       [prettyTCM a] ++ pwords "of the generated with function is well-formed" ++
-      [parens $ text $ docsUrl "language/with-abstraction.html#ill-typed-with-abstractions"]
+      [parens $ url $ docsUrl "language/with-abstraction.html#ill-typed-with-abstractions"]
 
     CheckDotPattern e v -> fsep $
       pwords "when checking that the given dot pattern" ++ [prettyA e] ++

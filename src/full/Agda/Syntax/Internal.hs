@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-matches #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -13,10 +15,9 @@ import Prelude hiding (null)
 import Control.Monad.Identity
 import Control.DeepSeq
 
-import Data.Function (on)
 import qualified Data.List as List
 import Data.Maybe
-import Data.Semigroup ( Semigroup, (<>), Sum(..) )
+import Data.Semigroup ( Sum(..) )
 
 import GHC.Generics (Generic)
 
@@ -42,7 +43,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Null
 import Agda.Utils.Size
-import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 
@@ -957,7 +957,7 @@ propToType = \case
 
 -- | A traversal for the names in a telescope.
 mapAbsNamesM :: Applicative m => (ArgName -> m ArgName) -> Tele a -> m (Tele a)
-mapAbsNamesM f EmptyTel                  = pure EmptyTel
+mapAbsNamesM _ EmptyTel                  = pure EmptyTel
 mapAbsNamesM f (ExtendTel a (  Abs x b)) = ExtendTel a <$> (  Abs <$> f x <*> mapAbsNamesM f b)
 mapAbsNamesM f (ExtendTel a (NoAbs x b)) = ExtendTel a <$> (NoAbs <$> f x <*> mapAbsNamesM f b)
   -- Ulf, 2013-11-06: Last case is really impossible but I'd rather find out we
@@ -1347,7 +1347,7 @@ instance Pretty a => Pretty (Substitution' a) where
     where
     pr p rho = case rho of
       IdS                -> "idS"
-      EmptyS err         -> "emptyS"
+      EmptyS _err        -> "emptyS"
       t :# rho           -> mparens (p > 2) $
                             sep [ pr 2 rho <> ",", prettyPrec 3 t ]
       Strengthen _ n rho -> mparens (p > 9) $
@@ -1367,7 +1367,7 @@ instance Pretty Term where
             , nest 2 $ pretty (unAbs b) ]
       Lit l                -> pretty l
       Def q els            -> pretty q `pApp` els
-      Con c ci vs          -> pretty (conName c) `pApp` vs
+      Con c _ci vs         -> pretty (conName c) `pApp` vs
       Pi a (NoAbs _ b)     -> mparens (p > 0) $
         sep [ pretty (getModality a) <+> prettyPrec 1 (unDom a) <+> "->"
             , nest 2 $ pretty b ]
@@ -1477,7 +1477,7 @@ instance Pretty a => Pretty (Pattern' a) where
     where ps = map (fmap namedThing) nps
           lazy | conPLazy i = "~"
                | otherwise  = empty
-  prettyPrec n (DefP o q nps)= mparens (n > 0 && not (null nps)) $
+  prettyPrec n (DefP _o q nps)= mparens (n > 0 && not (null nps)) $
     pretty q <+> fsep (map (prettyPrec 10) ps)
     where ps = map (fmap namedThing) nps
   -- -- Version with printing record type:

@@ -203,7 +203,7 @@ coverageCheck f t cs = do
         , "i   = " <+> pretty i
         , "cl  = " <+> pretty (QNamed f cl)
         ]
-      addClauses f [cl]
+      addClauses f $ singleton cl
       return False
 
   -- report a warning if there are uncovered cases,
@@ -685,7 +685,7 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
                   , clauseEllipsis    = NoEllipsis
                   , clauseWhereModule = Nothing
                   }
-  addClauses f [cl]  -- Important: add at the end.
+  addClauses f $ singleton cl  -- Important: add at the end.
   return cl
 inferMissingClause _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
 
