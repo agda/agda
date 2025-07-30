@@ -673,6 +673,34 @@ memoToScopeInfo (ScopeMemo names mods live) =
     , renTrimming = live
     }
 
+---------------------------------------------------------------------------
+-- * Definition liveness & copy trimming
+---------------------------------------------------------------------------
+
+-- $liveness
+-- The purpose of these operations is to let the type checker know what
+-- definition copies are actually used for type-checking and need to be
+-- created, and which can be safely skipped ("trimmed", hence the name
+-- 'renTrimming').
+--
+-- The liveness the scope-checker reports should be a conservative
+-- over-approximation of what names are actually used.  For example,
+-- when an overloaded field/constructor name is resolved, we (have to)
+-- mark all of the names in the set as used: not only do we not know
+-- which one the type checker will actually pick, but the type checker
+-- will ask for all of their
+-- `Agda.TypeChecking.Monad.Signature.getConstInfo` when disambiguating.
+--
+-- Marking a name as live is done through the `markLiveName` function,
+-- which is called from `resolveName'`, so any names coming from
+-- concrete syntax will already be marked live. However, if potential
+-- references to copies are being inserted "synthetically" by the scope
+-- checker, they __must__ be referred to by an explicit `markLiveName`
+-- call.
+--
+-- Module names can also be `markLiveName`d, and this has the effect of
+-- transitively saving every definition having that module as a prefix.
+
 -- | Create a new reference to store liveness information for names in
 -- the given copied module.
 newScopeCopyRef :: A.ModuleName -> ScopeM A.ScopeCopyRef
@@ -689,6 +717,10 @@ copyName copy from to = do
     k (Just s) = Just (HSet.insert to s)
   modifyTCLens stNameCopies $ HMap.alter k from
 
+-- | Class for entities which contain names that can be marked live.
+-- The two fundamental instances are 'A.QName's and 'A.ModuleName's, but
+-- there are some convenience instances for things like
+-- 'A.ResolvedName's.
 class MarkLive n where
   -- | Mark a name as (potentially) having been used.
   markLiveName :: n -> ScopeM ()
@@ -733,8 +765,11 @@ takeLiveNames (ScopeCopyRef _ ref) = liftIO $
   -- done with it, so we don't accidentally retain the entire set of
   -- names forever.
   atomicModifyIORef ref \case
-    Nothing -> __IMPOSSIBLE__
     Just a  -> (Nothing, a)
+    -- This is impossible because takeLiveNames is only called by the
+    -- type checker on copies that it hasn't seen before, and the scope
+    -- checker allocates a (Just something) for each copy.
+    Nothing -> __IMPOSSIBLE__
 
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
