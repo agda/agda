@@ -141,7 +141,7 @@ instance EmbPrj a => EmbPrj (RM.RangeMap a) where
       convert (Cons start (Cons end (Cons entry ys))) xs
 
   value = vcase (fmap (RM.RangeMap . Map.fromDistinctAscList) . convert []) where
-    convert :: [(Int, RM.PairInt a)] -> [Word32] -> R [(Int, RM.PairInt a)]
+    convert :: [(Int, RM.PairInt a)] -> [Word32] -> R r [(Int, RM.PairInt a)]
     convert !ys [] = return ys
     convert  ys (start:end:entry:xs) = do
       !start <- value start

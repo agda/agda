@@ -3,6 +3,7 @@
 {-# LANGUAGE MagicHash            #-}
 {-# LANGUAGE UnboxedTuples        #-}
 {-# LANGUAGE UndecidableInstances #-} -- Due to ICODE vararg typeclass
+{-# LANGUAGE AllowAmbiguousTypes  #-} -- Due to valueN function signature
 
 {-
 András, 2023-10-2:
@@ -24,8 +25,10 @@ import Control.Monad.Reader
 import Control.Monad.State.Strict (StateT, gets)
 
 import Data.Proxy
+import GHC.Ix
 
 import Data.Array.IArray
+import Data.Array.Base (unsafeWrite, unsafeAt)
 import Data.Array.IO
 import qualified Data.HashMap.Strict as Hm
 import qualified Data.ByteString.Lazy as L
@@ -36,9 +39,8 @@ import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
 import qualified Data.Text      as T
 import qualified Data.Text.Lazy as TL
-import Data.Typeable ( cast, Typeable, TypeRep, typeRep, typeRepFingerprint )
-import GHC.Exts (Word(..), timesWord2#, xor#, Any)
-import GHC.Fingerprint.Type
+import Data.Typeable ( cast, Typeable, typeRep, (:~:)(Refl) )
+import GHC.Exts (Word(..), timesWord2#, xor#)
 import Unsafe.Coerce
 
 import Agda.Syntax.Common (NameId)
@@ -48,11 +50,13 @@ import Agda.TypeChecking.Monad.Base.Types (ModuleToSource)
 import Agda.Utils.FileName
 import Agda.Utils.HashTable (HashTable)
 import qualified Agda.Utils.HashTable as H
+import Agda.Utils.Fingerprint
+import Agda.Utils.TypeLevel
 import Agda.Utils.IORef
 import Agda.Utils.Lens
 import Agda.Utils.List1 (List1)
 import Agda.Utils.Monad
-import Agda.Utils.TypeLevel
+import Agda.Utils.Arena
 
 #include <MachDeps.h>
 
@@ -114,24 +118,17 @@ instance B.Binary Node where
 -- | Association lists mapping TypeRep fingerprints to values. In some cases
 --   values with different types have the same serialized representation. This
 --   structure disambiguates them.
-data MemoEntry = MEEmpty | MECons {-# unpack #-} !Fingerprint !Any !MemoEntry
+data MemoEntry r = MEEmpty | forall a. MECons {-# unpack #-} !(Fingerprint a) {-# UNPACK #-} !(Ptr r a) !(MemoEntry r)
 
--- 2023-10-2 András: `typeRepFingerprint` usually inlines a 4-way case, which
--- yields significant code size increase as GHC often inlines the same code into
--- the branches. This wouldn't matter in "normal" code but the serialization
--- instances use very heavy inlining. The NOINLINE cuts down on the code size.
-fingerprintNoinline :: TypeRep -> Fingerprint
-fingerprintNoinline rep = typeRepFingerprint rep
-{-# NOINLINE fingerprintNoinline #-}
 
-lookupME :: forall a b. Proxy a -> Fingerprint -> MemoEntry -> (a -> b) -> b -> b
-lookupME proxy fprint me found notfound = go fprint me where
-  go :: Fingerprint -> MemoEntry -> b
-  go fp MEEmpty =
+lookupME :: forall a b r. Arena r -> Fingerprint a -> MemoEntry r -> (a -> R r b) -> R r b -> R r b
+lookupME arena !fprint me found notfound = go fprint me where
+  go :: Fingerprint a -> MemoEntry r -> R r b
+  go !fp MEEmpty =
     notfound
-  go fp (MECons fp' x me)
-    | fp == fp' = found (unsafeCoerce x)
-    | True      = go fp me
+  go fp (MECons fp' x me) = case sameFingerprint fp fp' of
+    Just Refl -> found =<< liftIO (derefPtr arena x)
+    Nothing   -> go fp me
 {-# NOINLINE lookupME #-}
 
 -- | Structure providing fresh identifiers for hash map
@@ -228,23 +225,24 @@ emptyDict collectStats = Dict
   <*> pure collectStats
 
 -- | Univeral memo structure, to introduce sharing during decoding
-type Memo = IOArray Word32 MemoEntry
+type Memo r = IOArray Word32 (MemoEntry r)
 
 -- | State of the decoder.
-data St = St
+data St r = St
   { nodeE     :: !(Array Word32 [Word32])  -- ^ Obtained from interface file.
   , stringE   :: !(Array Word32 String)   -- ^ Obtained from interface file.
   , lTextE    :: !(Array Word32 TL.Text)  -- ^ Obtained from interface file.
   , sTextE    :: !(Array Word32 T.Text)   -- ^ Obtained from interface file.
   , integerE  :: !(Array Word32 Integer)  -- ^ Obtained from interface file.
   , doubleE   :: !(Array Word32 Double)   -- ^ Obtained from interface file.
-  , nodeMemo  :: !Memo
+  , nodeMemo  :: !(Memo r)
     -- ^ Created and modified by decoder.
     --   Used to introduce sharing while deserializing objects.
   , modFile   :: !ModuleToSource
     -- ^ Maps module names to file names. Constructed by the decoder.
   , includes  :: !(List1 AbsolutePath)
     -- ^ The include directories.
+  , region    :: !(Arena r)
   }
 
 -- | Monad used by the encoder.
@@ -255,20 +253,19 @@ type S a = ReaderT Dict IO a
 --
 -- 'TCM' is not used because the associated overheads would make
 -- decoding slower.
-
-type R = StateT St IO
+type R r = StateT (St r) IO
 
 -- | Throws an error which is suitable when the data stream is
 -- malformed.
 
-malformed :: R a
+malformed :: R r a
 malformed = liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
 {-# NOINLINE malformed #-} -- 2023-10-2 András: cold code, so should be out-of-line.
 
 class Typeable a => EmbPrj a where
-  icode :: a -> S Word32  -- ^ Serialization (wrapper).
-  icod_ :: a -> S Word32  -- ^ Serialization (worker).
-  value :: Word32 -> R a  -- ^ Deserialization.
+  icode :: a -> S Word32    -- ^ Serialization (wrapper).
+  icod_ :: a -> S Word32    -- ^ Serialization (worker).
+  value :: Word32 -> R r a  -- ^ Deserialization.
 
   icode a = do
     !r <- icod_ a
@@ -277,7 +274,7 @@ class Typeable a => EmbPrj a where
   {-# INLINE icode #-}
 
   -- Simple enumeration types can be (de)serialized using (from/to)Enum.
-  default value :: (Enum a, Bounded a) => Word32 -> R a
+  default value :: (Enum a, Bounded a) => Word32 -> R r a
   value i =
     let i' = fromIntegral i in
     if i' >= fromEnum (minBound :: a) && i' <= fromEnum (maxBound :: a)
@@ -460,20 +457,36 @@ icodeMemo getDict getCounter a icodeP = do
 --   via the @valu@ function and stores it in 'nodeMemo'.
 --   If @ix@ is present in 'nodeMemo', @valu@ is not used, but
 --   the thing is read from 'nodeMemo' instead.
-vcase :: forall a . EmbPrj a => ([Word32] -> R a) -> Word32 -> R a
+vcase :: forall a r. EmbPrj a => ([Word32] -> R r a) -> Word32 -> R r a
 vcase valu = \ix -> do
-    memo <- gets nodeMemo
-    let fp = fingerprintNoinline (typeRep (Proxy :: Proxy a))
-    -- to introduce sharing, see if we have seen a thing
-    -- represented by ix before
-    slot <- liftIO $ readArray memo ix
-    lookupME (Proxy :: Proxy a) fp slot
-      -- use the stored value
-      pure
-      -- read new value and save it
-      do !v <- valu . (! ix) =<< gets nodeE
-         liftIO $ writeArray memo ix $! MECons fp (unsafeCoerce v) slot
-         return v
+  memo  <- gets nodeMemo
+  arena <- gets region
+  nodeE <- gets nodeE
+
+  -- to introduce sharing, see if we have seen a thing
+  -- represented by ix before
+  --
+  -- Force the slot up here so it doesn't have to be forced in the
+  -- continuation passed to lookupME (it would be forced by both
+  -- lookupME *and* the constructor wrapper for MECons).
+  !slot <- liftIO $ readArray memo ix
+
+  let fp = typeFingerprint (Proxy :: Proxy a)
+
+  -- pure: use stored value
+  lookupME arena fp slot pure do
+    -- since the bounds of nodeMemo and nodeE are the same, if we know
+    -- that the read of slot succeeded, then so will reading the actual
+    -- node *and* the writing. no need for bounds checking.
+    b <- liftIO (getBounds memo)
+    let n = unsafeIndex b ix
+
+    -- read new value and save it
+    v <- valu $! unsafeAt nodeE n
+    liftIO do
+      (v, p) <- v `seq` allocPtr arena v
+      unsafeWrite memo n $! MECons fp p slot
+      pure v
 
 -- | @icodeArgs proxy (a1, ..., an)@ maps @icode@ over @a1@, ..., @an@
 --   and returns the corresponding list of @Word32@.
@@ -525,7 +538,7 @@ class VALU t b where
 
   valuN' :: b ~ IsBase t =>
             All EmbPrj (Domains t) =>
-            t -> StrictProducts (Constant Word32 (Domains t)) -> R (CoDomain t)
+            t -> StrictProducts (Constant Word32 (Domains t)) -> R r (CoDomain t)
 
   valueArgs :: b ~ IsBase t =>
                All EmbPrj (CoDomain t ': Domains t) =>
@@ -554,18 +567,18 @@ instance VALU t (IsBase t) => VALU (a -> t) 'False where
     _       -> Nothing
 
 {-# INLINE valuN #-}
-valuN :: forall t. VALU t (IsBase t) =>
-         StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)) =>
+valuN :: forall t r. VALU t (IsBase t) =>
+         StrictCurrying (Constant Word32 (Domains t)) (R r (CoDomain t)) =>
          All EmbPrj (Domains t) =>
-         t -> Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
+         t -> Arrows (Constant Word32 (Domains t)) (R r (CoDomain t))
 valuN f = strictCurrys (Proxy :: Proxy (Constant Word32 (Domains t)))
-                 (Proxy :: Proxy (R (CoDomain t)))
+                 (Proxy :: Proxy (R r (CoDomain t)))
                  (valuN' f)
 
 {-# INLINE valueN #-}
-valueN :: forall t. VALU t (IsBase t) =>
+valueN :: forall t r. VALU t (IsBase t) =>
           All EmbPrj (CoDomain t ': Domains t) =>
-          t -> Word32 -> R (CoDomain t)
+          t -> Word32 -> R r (CoDomain t)
 valueN t = vcase valu where
   valu int32s = case valueArgs (Proxy :: Proxy t) int32s of
                   Nothing -> malformed

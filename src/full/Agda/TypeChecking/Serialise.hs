@@ -66,11 +66,12 @@ import Agda.TypeChecking.Serialise.Instances () --instance only
 
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.Hash
+import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import qualified Agda.Utils.HashTable as H
 import Agda.Utils.IORef
 import Agda.Utils.Null
-import qualified Agda.Interaction.Options.ProfileOptions as Profile
+import Agda.Utils.Arena
+import Agda.Utils.Hash
 
 import Agda.Utils.Impossible
 
@@ -213,10 +214,14 @@ decode s = do
     let ar = unListLike
     when (not (null s)) $ E.throwIO $ E.ErrorCall "Garbage at end."
     let nL' = ar nL
+    rgn <- compact ()
+    withArena rgn \arena -> do
     st <- St nL' (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
-            <$> liftIO (newArray (bounds nL') MEEmpty)
-            <*> return mf <*> return incs
-    (r, st) <- runStateT (value r) st
+      <$> liftIO (newArray (bounds nL') MEEmpty)
+      <*> return mf
+      <*> return incs
+      <*> pure arena
+    (!r, st) <- runStateT (value r) st
     let !mf = modFile st
     return $ Right (mf, r)
 
@@ -227,11 +232,7 @@ decode s = do
 
     Right (mf, x) -> do
       setTCLens stModuleToSource mf
-      -- "Compact" the interfaces (without breaking sharing) to
-      -- reduce the amount of memory that is traversed by the
-      -- garbage collector.
-      Bench.billTo [Bench.Deserialization, Bench.Compaction] $
-        liftIO (Just . C.getCompact <$> C.compactWithSharing x)
+      pure (Just x)
 
 
 encodeInterface :: Interface -> TCM Encoded

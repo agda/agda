@@ -68,8 +68,6 @@ data Phase
     -- ^ Subphase for 'Termination'.
   | ModuleName
     -- ^ Subphase for 'Import'.
-  | Compaction
-    -- ^ Subphase for 'Deserialization': compacting interfaces.
   | BuildInterface
     -- ^ Subphase for 'Serialization'.
   | Sort

@@ -840,6 +840,7 @@ library
       Agda.TypeChecking.With
       Agda.Utils.AffineHole
       Agda.Utils.Applicative
+      Agda.Utils.Arena
       Agda.Utils.AssocList
       Agda.Utils.Bag
       Agda.Utils.Benchmark
@@ -857,6 +858,7 @@ library
       Agda.Utils.Favorites
       Agda.Utils.FileId
       Agda.Utils.FileName
+      Agda.Utils.Fingerprint
       Agda.Utils.Float
       Agda.Utils.Function
       Agda.Utils.Functor
