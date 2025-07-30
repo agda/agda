@@ -1,4 +1,4 @@
-{-# LANGUAGE RoleAnnotations, MagicHash #-}
+{-# LANGUAGE RoleAnnotations #-}
 -- | Compact representations for type-indexed 'Fingerprint's.
 module Agda.Utils.Fingerprint
   ( Fingerprint

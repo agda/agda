@@ -22,7 +22,7 @@ import Control.Monad ((<$!>))
 import Control.Monad.Except
 import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Reader
-import Control.Monad.State.Strict (StateT, gets)
+import Control.Monad.State.Strict (StateT(..), gets)
 
 import Data.Proxy
 import GHC.Ix
@@ -118,16 +118,16 @@ instance B.Binary Node where
 -- | Association lists mapping TypeRep fingerprints to values. In some cases
 --   values with different types have the same serialized representation. This
 --   structure disambiguates them.
-data MemoEntry r = MEEmpty | forall a. MECons {-# unpack #-} !(Fingerprint a) {-# UNPACK #-} !(Ptr r a) !(MemoEntry r)
-
+data MemoEntry r
+  = MEEmpty
+  | forall a. MECons {-# UNPACK #-} !(Fingerprint a) {-# UNPACK #-} !(Ptr r a) !(MemoEntry r)
 
 lookupME :: forall a b r. Arena r -> Fingerprint a -> MemoEntry r -> (a -> R r b) -> R r b -> R r b
 lookupME arena !fprint me found notfound = go fprint me where
   go :: Fingerprint a -> MemoEntry r -> R r b
-  go !fp MEEmpty =
-    notfound
+  go !fp MEEmpty          = notfound
   go fp (MECons fp' x me) = case sameFingerprint fp fp' of
-    Just Refl -> found =<< liftIO (derefPtr arena x)
+    Just Refl -> found (derefPtr x)
     Nothing   -> go fp me
 {-# NOINLINE lookupME #-}
 
@@ -452,15 +452,19 @@ icodeMemo getDict getCounter a icodeP = do
         liftIO $ H.insert h a i
         return i
 
+-- | 'Arena's are unlifted so we need to CPS the accessor
+withTheArena :: (Arena r -> R r a) -> R r a
+withTheArena k = StateT \s -> runStateT (k (region s)) s
+{-# INLINE withTheArena #-}
+
 {-# INLINE vcase #-}
 -- | @vcase value ix@ decodes thing represented by @ix :: Word32@
 --   via the @valu@ function and stores it in 'nodeMemo'.
 --   If @ix@ is present in 'nodeMemo', @valu@ is not used, but
 --   the thing is read from 'nodeMemo' instead.
 vcase :: forall a r. EmbPrj a => ([Word32] -> R r a) -> Word32 -> R r a
-vcase valu = \ix -> do
+vcase valu = \ix -> withTheArena \arena -> do
   memo  <- gets nodeMemo
-  arena <- gets region
   nodeE <- gets nodeE
 
   -- to introduce sharing, see if we have seen a thing
