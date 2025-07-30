@@ -183,6 +183,8 @@ permuteContext perm ctx = permuteTel perm $ contextToTel ctx
 
 -- | Recursively computes dependencies of a set of variables in a given
 --   telescope. Any dependencies outside of the telescope are ignored.
+--
+--   Note that 'varDependencies' considers a variable to depend on itself.
 varDependencies :: Telescope -> VarSet -> VarSet
 varDependencies tel = addLocks . allDependencies VarSet.empty
   where
@@ -212,6 +214,8 @@ varDependencies tel = addLocks . allDependencies VarSet.empty
 --   one of the variables in the given set (including recursive
 --   dependencies). Any dependencies outside of the telescope are
 --   ignored.
+--
+--   Unlike 'varDependencies', a variable is *not* considered to depend on itself.
 varDependents :: Telescope -> VarSet -> VarSet
 varDependents tel = allDependents
   where
