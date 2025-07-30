@@ -1,7 +1,7 @@
 {
   description = "Agda is a dependently typed programming language / interactive theorem prover.";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
   inputs.flake-parts.url = "github:hercules-ci/flake-parts";
 
   outputs = inputs:
@@ -10,7 +10,7 @@
     systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
     perSystem = {pkgs, ...}: let
       hlib = pkgs.haskell.lib.compose;
-      hpkgs = pkgs.haskellPackages;
+      hpkgs = pkgs.haskell.packages.ghc910; # pqueue fails with ghc 912
       fs = pkgs.lib.fileset;
 
       # Minimal nix code for building the `agda` executable.
