@@ -49,8 +49,19 @@ flattenTel tel = loop (size tel) tel
     loop ix EmptyTel = []
     loop ix (ExtendTel a (Abs _ tel)) = raise ix a : loop (ix - 1) tel
     loop ix (ExtendTel a (NoAbs _ tel)) = raise ix a : loop ix tel
-
 {-# SPECIALIZE flattenTel :: Telescope -> [Dom Type] #-}
+
+-- | Flatten telescope: @(Γ : Tel) -> [Type Γ]@ into a reversed list.
+--
+-- 'flattenRevTel' is lazy in both the spine and values of
+-- the resulting list.
+flattenRevTel :: TermSubst a => Tele (Dom a) -> [Dom a]
+flattenRevTel tel = loop (size tel) [] tel
+  where
+    loop ix acc EmptyTel = acc
+    loop ix acc (ExtendTel a (Abs _ tel)) = loop (ix - 1) (raise ix a : acc) tel
+    loop ix acc (ExtendTel a (NoAbs _ tel)) = loop ix (raise ix a : acc) tel
+{-# SPECIALIZE flattenRevTel :: Telescope -> [Dom Type] #-}
 
 -- | Turn a context into a flat telescope: all entries live in the whole context.
 -- @
@@ -111,9 +122,11 @@ teleNames = map (fst . unDom) . telToList
 teleArgNames :: Telescope -> [Arg ArgName]
 teleArgNames = telToArgs
 
+-- | Convert a telescope to a list of 'Arg' in descending order.
 teleArgs :: (DeBruijn a) => Tele (Dom t) -> [Arg a]
 teleArgs = map argFromDom . teleDoms
 
+-- | Convert a telescope to a list of 'Dom' in descending order.
 teleDoms :: (DeBruijn a) => Tele (Dom t) -> [Dom a]
 teleDoms tel = zipWith (\ i dom -> deBruijnVar i <$ dom) (downFrom $ size l) l
   where l = telToList tel
@@ -186,29 +199,39 @@ permuteContext perm ctx = permuteTel perm $ contextToTel ctx
 --
 --   Note that 'varDependencies' considers a variable to depend on itself.
 varDependencies :: Telescope -> VarSet -> VarSet
-varDependencies tel = addLocks . allDependencies VarSet.empty
+varDependencies tel = addLocks . allDependencies tel
   where
     addLocks :: VarSet -> VarSet
     addLocks s =
       case VarSet.lookupMin s of
         Just m ->
           let locks = catMaybes [ deBruijnView (unArg a) | (a :: Arg Term) <- teleArgs tel, IsLock{} <- pure (getLock a)]
-          in VarSet.union s $ VarSet.fromList $ filter (>= m) locks
+          -- 'teleArgs' returns indices in descending order, so both the
+          -- 'takeWhile' and 'insertsDesc' are safe.
+          in VarSet.insertsDesc (takeWhile (>= m) locks) s
         Nothing ->
           s
 
-    n  = size tel
-    ts = flattenTel tel
+    allDependencies :: Telescope -> VarSet -> VarSet
+    allDependencies tel vs = loop VarSet.empty (flattenRevTel tel) (-1) vs
+      where
+        -- Idea here is to keep a set @work@ of variables that we still need
+        -- to get deps of. At each iteration, we walk backwards along the telescope
+        -- and add its direct dependencies to the work set. This only checks dependencies
+        -- of each variable once, as telescope elements can't depend on things later in the telescope.
+        loop :: VarSet -> [Dom Type] -> Int -> VarSet -> VarSet
+        loop !deps telRev prevIx work =
+          case VarSet.minView work of
+            Nothing -> deps
+            Just (ix, work) ->
+              case drop (ix - prevIx - 1) telRev of
+                [] ->
+                  -- Ignore all deps outside the telescope
+                  deps
+                (tp:telRev) ->
+                  loop (VarSet.insert ix deps) telRev ix (VarSet.union (allFreeVars tp) work)
 
-    directDependencies :: Int -> VarSet
-    directDependencies i = allFreeVars $ indexWithDefault __IMPOSSIBLE__ ts (n-1-i)
 
-    allDependencies :: VarSet -> VarSet -> VarSet
-    allDependencies =
-      VarSet.foldr $ \j soFar ->
-        if j >= n || j `VarSet.member` soFar
-        then soFar
-        else VarSet.insert j $ allDependencies soFar $ directDependencies j
 
 -- | Computes the set of variables in a telescope whose type depend on
 --   one of the variables in the given set (including recursive
