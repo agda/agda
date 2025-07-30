@@ -127,6 +127,7 @@ displayDebugMessage k n s = traceDebugMessage k n s $ return ()
 catchAndPrintImpossible
   :: (CatchImpossible m, Monad m)
   => VerboseKey -> VerboseLevel -> m Doc -> m Doc
+{-# SPECIALIZE catchAndPrintImpossible :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM Doc #-}
 catchAndPrintImpossible k n m = catchImpossibleJust catchMe m $ \ imposs -> do
   return $ vcat
     [ text $ "Debug printing " ++ k ++ ":" ++ show n ++ " failed due to exception:"
@@ -140,19 +141,22 @@ catchAndPrintImpossible k n m = catchImpossibleJust catchMe m $ \ imposs -> do
     Unreachable{}           -> False
     ImpMissingDefinitions{} -> False
 
-instance MonadDebug TCM where
-
-  traceDebugMessage k n doc cont = do
+traceDebugMessageTCM :: VerboseKey -> VerboseLevel -> Doc -> TCM a -> TCM a
+traceDebugMessageTCM k n doc cont = do
+    -- Andreas, 2025-07-30, PR #8040:
+    -- Forcing the @doc@ introduces a massive space leak,
+    -- so for now we switch off the fix of #4016 which is just devx.
+    -- This means that attempts to debug-print __IMPOSSIBLE__s will result in internal errors again.
     -- Andreas, 2019-08-20, issue #4016:
     -- Force any lazy 'Impossible' exceptions to the surface and handle them.
-    doc <- liftIO . catchAndPrintImpossible k n . E.evaluate . DeepSeq.force $ doc
-    cb <- getsTC $ stInteractionOutputCallback . stPersistentState
+    -- doc <- liftIO . catchAndPrintImpossible k n . E.evaluate . DeepSeq.force $ doc
 
     -- Andreas, 2022-06-15, prefix with time stamp if `-v debug.time:100`:
     msg <- ifNotM (hasVerbosity "debug.time" 100) {-then-} (pure doc) {-else-} $ do
       now <- liftIO $ trailingZeros . iso8601Show <$> liftA2 utcToLocalTime getCurrentTimeZone getCurrentTime
       pure $ (text now <> ":") <+> doc
 
+    cb <- getsTC $ stInteractionOutputCallback . stPersistentState
     cb $ Resp_RunningInfo n msg
     cont
     where
@@ -163,31 +167,40 @@ instance MonadDebug TCM where
     -- 12345678901234567890123456
     trailingZeros = takeExactly '0' 26
 
-  formatDebugMessage k n doc = catchAndPrintImpossible k n do
-    -- Andreas, 2025-07-30
-    -- @liftIO . E.evaluate . DeepSeq.force@ is a (failed) attempt to tame the space leak.
-    -- Just @DeepSeq.force@ did also not help.
-    (liftIO . E.evaluate . DeepSeq.force =<< doc) `catchError` \ err -> do
-      renderError err <&> \ s -> vcat
-        [ sep $ map text
-          [ "Printing debug message"
-          , k  ++ ":" ++ show n
-          , "failed due to error:"
-          ]
-        , nest 2 $ text s
-        ]
+formatDebugMessageTCM :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM Doc
+formatDebugMessageTCM _ _ = id
+  -- formatDebugMessageTCM k n doc = catchAndPrintImpossible k n do
+  --   -- Andreas, 2025-07-30, PR #8040
+  --   -- @liftIO . E.evaluate . DeepSeq.force@ is a (failed) attempt to tame the space leak.
+  --   -- Just @DeepSeq.force@ did also not help.
+  --   -- Forcing might even trigger the space leak.
+  --   (liftIO . E.evaluate . DeepSeq.force =<< doc) `catchError` \ err -> do
+  --     renderError err <&> \ s -> vcat
+  --       [ sep $ map text
+  --         [ "Printing debug message"
+  --         , k  ++ ":" ++ show n
+  --         , "failed due to error:"
+  --         ]
+  --       , nest 2 $ text s
+  --       ]
 
+verboseBracketTCM :: VerboseKey -> VerboseLevel -> String -> TCM a -> TCM a
 #ifdef DEBUG
-  verboseBracket k n s = applyWhenVerboseS k n $ \ m -> do
+verboseBracketTCM k n s =
+  applyWhenVerboseS k n $ \ m -> do
     openVerboseBracket k n s
     (m <* closeVerboseBracket k n) `catchError` \ e -> do
       closeVerboseBracketException k n
       throwError e
 #else
-  verboseBracket k n s ma = ma
-  {-# INLINE verboseBracket #-}
+verboseBracketTCM _ _ _ = id
+{-# INLINE verboseBracketTCM #-}
 #endif
 
+instance MonadDebug TCM where
+  traceDebugMessage = traceDebugMessageTCM
+  formatDebugMessage= formatDebugMessageTCM
+  verboseBracket    = verboseBracketTCM
   getVerbosity      = defaultGetVerbosity
   getProfileOptions = defaultGetProfileOptions
   isDebugPrinting   = defaultIsDebugPrinting
@@ -245,22 +258,22 @@ alwaysReportSDoc k n d = alwaysTraceSDoc k n d (pure ())
 -- | Conditionally println debug string.
 --
 reportSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
-{-# INLINE reportSLn #-}
 #ifdef DEBUG
 reportSLn = alwaysReportSLn
 #else
 reportSLn _ _ _ = pure ()
 #endif
+{-# INLINE reportSLn #-}
 
 -- | Conditionally render debug 'Doc' and print it.
 --
-{-# INLINE reportSDoc #-}
 reportSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m ()
 #ifdef DEBUG
 reportSDoc = alwaysReportSDoc
 #else
 reportSDoc _ _ _ = pure ()
 #endif
+{-# INLINE reportSDoc #-}
 
 -- | Raise internal error with extra information.
 __IMPOSSIBLE_VERBOSE__ :: (HasCallStack, MonadDebug m) => String -> m a
@@ -327,23 +340,23 @@ alwaysTraceSDoc k n d = applyWhenVerboseS k n $ \cont -> do
 
 -- | Conditionally debug print 'String', and then continue. Works regardless of the debug flag.
 --
-{-# INLINE traceSLn #-}
 traceSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m a -> m a
 #ifdef DEBUG
 traceSLn = alwaysTraceSLn
 #else
 traceSLn _ _ _ = id
 #endif
+{-# INLINE traceSLn #-}
 
 -- | Conditionally render debug 'Doc', print it, and then continue.
 --
-{-# INLINE traceSDoc #-}
 traceSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m a -> m a
 #ifdef DEBUG
 traceSDoc = alwaysTraceSDoc
 #else
 traceSDoc _ _ _ = id
 #endif
+{-# INLINE traceSDoc #-}
 
 
 openVerboseBracket :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
