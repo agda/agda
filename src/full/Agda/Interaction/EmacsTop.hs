@@ -68,9 +68,13 @@ lispifyResponse (Resp_ClearHighlighting tokenBased) =
 lispifyResponse Resp_DoneAborting = return [ L [ A "agda2-abort-done" ] ]
 lispifyResponse Resp_DoneExiting  = return [ L [ A "agda2-exit-done"  ] ]
 lispifyResponse Resp_ClearRunningInfo = return [ clearRunningInfo ]
-lispifyResponse (Resp_RunningInfo n s)
+lispifyResponse (Resp_RunningInfo n doc)
   | n <= 1    = return [ displayRunningInfo s ]
   | otherwise = return [ L [A "agda2-verbose", A (quote s)] ]
+  where
+    -- Andreas, 2025-07-30, for now, we throw away the annotations in the Doc.
+    -- TODO: turn annotations into syntax highlighting.
+    s = render doc
 lispifyResponse (Resp_Status s)
     = return [ L [ A "agda2-status-action"
                  , A (quote $ List.intercalate "," $ catMaybes [checked, showImpl, showIrr])

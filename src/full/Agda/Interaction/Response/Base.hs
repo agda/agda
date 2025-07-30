@@ -32,6 +32,7 @@ import Agda.Interaction.Base
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common         (InteractionId(..), Arg)
+import Agda.Syntax.Common.Pretty  (Doc)
 import Agda.Syntax.Concrete       (Expr)
 import Agda.Syntax.Concrete.Name  (Name, QName, NameInScope)
 import Agda.Syntax.Scope.Base     (WhyInScopeData)
@@ -62,7 +63,7 @@ data Response_boot tcErr tcWarning warningsAndNonFatalErrors
       -- ^ Solution for one or more meta-variables.
     | Resp_Mimer InteractionId (Maybe String)
     | Resp_DisplayInfo (DisplayInfo_boot tcErr tcWarning warningsAndNonFatalErrors)
-    | Resp_RunningInfo Int String
+    | Resp_RunningInfo Int Doc
       -- ^ The integer is the message's debug level.
     | Resp_ClearRunningInfo
     | Resp_ClearHighlighting TokenBased
