@@ -216,7 +216,7 @@ varDependencies tel = addLocks . allDependencies tel
     allDependencies tel vs = loop VarSet.empty (flattenRevTel tel) (-1) vs
       where
         -- Idea here is to keep a set @work@ of variables that we still need
-        -- to get deps of. At each iteration, we walk backwards along the telescope
+        -- to get deps of. At each iteration, we skip backwards through the telescope
         -- and add its direct dependencies to the work set. This only checks dependencies
         -- of each variable once, as telescope elements can't depend on things later in the telescope.
         loop :: VarSet -> [Dom Type] -> Int -> VarSet -> VarSet
@@ -228,8 +228,8 @@ varDependencies tel = addLocks . allDependencies tel
                 [] ->
                   -- Ignore all deps outside the telescope
                   deps
-                (tp:telRev) ->
-                  loop (VarSet.insert ix deps) telRev ix (VarSet.union (allFreeVars tp) work)
+                (ti:telRev) ->
+                  loop (VarSet.insert ix deps) telRev ix (VarSet.union (allFreeVars ti) work)
 
 
 
@@ -240,23 +240,23 @@ varDependencies tel = addLocks . allDependencies tel
 --
 --   Unlike 'varDependencies', a variable is *not* considered to depend on itself.
 varDependents :: Telescope -> VarSet -> VarSet
-varDependents tel = allDependents
+varDependents tel vs =
+  loop VarSet.empty (flattenTel tel) (size tel - 1) vs
   where
-    n  = size tel
-    ts = flattenTel tel
-
-    directDependents :: VarSet -> VarSet
-    directDependents is = VarSet.fromList
-      [ j | j <- downFrom n
-          , let tj = indexWithDefault __IMPOSSIBLE__ ts (n-1-j)
-          , getAny $ runFree (Any . (`VarSet.member` is)) IgnoreNot tj
-          ]
-
-    allDependents :: VarSet -> VarSet
-    allDependents is
-     | VarSet.null new = VarSet.empty
-     | otherwise = new `VarSet.union` allDependents new
-      where new = directDependents is
+    -- Idea here is to keep a set @work@ of variables that we
+    -- want to find dependents of. At each iteration, we walk forwards through
+    -- the telescope and check if the each telescope contains any of the
+    -- variables in the work set. If it does, we add that variable to the work
+    -- and dependents set.
+    loop :: VarSet -> [Dom Type] -> Int -> VarSet -> VarSet
+    loop !deps tel ix work =
+      case tel of
+        [] -> deps
+        (ti:tel) ->
+          if getAny $ runFree (Any . (`VarSet.member` work)) IgnoreNot ti then
+            loop (VarSet.insert ix deps) tel (ix - 1) (VarSet.insert ix work)
+          else
+            loop deps tel (ix - 1) work
 
 -- | A telescope split in two.
 data SplitTel = SplitTel
