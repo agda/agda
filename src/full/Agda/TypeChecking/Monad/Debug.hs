@@ -232,27 +232,37 @@ instance ReportS [String]  where reportS k n = reportSLn  k n . unlines
 instance ReportS [Doc]     where reportS k n = reportSLn  k n . render . vcat
 instance ReportS Doc       where reportS k n = reportSLn  k n . render
 
-#ifdef DEBUG
+-- | Conditionally println debug string. Works regardless of the debug flag.
+{-# SPECIALIZE alwaysReportSLn :: VerboseKey -> VerboseLevel -> String -> TCM () #-}
+alwaysReportSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
+alwaysReportSLn k n s = alwaysTraceSLn k n s (pure ())
+
+-- | Conditionally render debug 'Doc' and print it. Works regardless of the debug flag.
+{-# SPECIALIZE alwaysReportSDoc :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM () #-}
+alwaysReportSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m ()
+alwaysReportSDoc k n d = alwaysTraceSDoc k n d (pure ())
 
 -- | Conditionally println debug string.
-{-# SPECIALIZE reportSLn :: VerboseKey -> VerboseLevel -> String -> TCM () #-}
+--
 reportSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
-reportSLn k n s = verboseS k n $ displayDebugMessage k n $ text s <> "\n"
-
-#else
-
 {-# INLINE reportSLn #-}
-reportSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
+#ifdef DEBUG
+reportSLn = alwaysReportSLn
+#else
 reportSLn _ _ _ = pure ()
-
 #endif
 
--- | Conditionally println debug string. Works regardless of the debug flag.
-{-# SPECIALIZE reportSLn :: VerboseKey -> VerboseLevel -> String -> TCM () #-}
-alwaysReportSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
-alwaysReportSLn k n s = verboseS k n $ displayDebugMessage k n $ text s <> "\n"
+-- | Conditionally render debug 'Doc' and print it.
+--
+{-# INLINE reportSDoc #-}
+reportSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m ()
+#ifdef DEBUG
+reportSDoc = alwaysReportSDoc
+#else
+reportSDoc _ _ _ = pure ()
+#endif
 
-
+-- | Raise internal error with extra information.
 __IMPOSSIBLE_VERBOSE__ :: (HasCallStack, MonadDebug m) => String -> m a
 __IMPOSSIBLE_VERBOSE__ s = do
   -- Andreas, 2023-07-19, issue #6728 is fixed by manually inlining reportSLn here.
@@ -268,42 +278,21 @@ __IMPOSSIBLE_VERBOSE__ s = do
     -- Create the "Impossible" error using *our* caller as the call site.
     err = withCallerCallStack Impossible
 
-#ifdef DEBUG
-
--- | Conditionally render debug 'Doc' and print it.
-{-# SPECIALIZE reportSDoc :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM () #-}
-reportSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m ()
-reportSDoc k n d = verboseS k n $ do
-  displayDebugMessage k n . (<> "\n") =<< formatDebugMessage k n (locallyTC eIsDebugPrinting (const True) d)
-
 -- | Debug print the result of a computation.
+--
 reportResult :: MonadDebug m => VerboseKey -> VerboseLevel -> (a -> TCM Doc) -> m a -> m a
+#ifdef DEBUG
 reportResult k n debug action = do
   x <- action
   x <$ reportSDoc k n (debug x)
-
 #else
-
--- | Conditionally render debug 'Doc' and print it.
-{-# INLINE reportSDoc #-}
-reportSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m ()
-reportSDoc _ _ _ = pure ()
-
--- | Debug print the result of a computation.
+reportResult _ _ _ = id
 {-# INLINE reportResult #-}
-reportResult :: MonadDebug m => VerboseKey -> VerboseLevel -> (a -> TCM Doc) -> m a -> m a
-reportResult _ _ _ action = action
-
 #endif
-
--- | Conditionally render debug 'Doc' and print it. Works regardless of the debug flag.
-{-# SPECIALIZE reportSDoc :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM () #-}
-alwaysReportSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m ()
-alwaysReportSDoc k n d = verboseS k n $ do
-  displayDebugMessage k n . (<> "\n") =<< formatDebugMessage k n (locallyTC eIsDebugPrinting (const True) d)
 
 unlessDebugPrinting :: MonadDebug m => m () -> m ()
 unlessDebugPrinting = unlessM isDebugPrinting
+{-# INLINE unlessDebugPrinting #-}
 
 -- | Debug print some lines if the verbosity level for the given
 --   'VerboseKey' is at least 'VerboseLevel'.
@@ -326,40 +315,45 @@ instance TraceS [String]  where traceS k n = traceSLn  k n . unlines
 instance TraceS [Doc]     where traceS k n = traceSLn  k n . render . vcat
 instance TraceS Doc       where traceS k n = traceSLn  k n . render
 
+-- | Conditionally debug print 'String', and then continue. Works regardless of the debug flag.
+alwaysTraceSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m a -> m a
+alwaysTraceSLn k n s = applyWhenVerboseS k n $ traceDebugMessage k n $ text s
 
-#ifdef DEBUG
-
-traceSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m a -> m a
-traceSLn k n s = applyWhenVerboseS k n $ traceDebugMessage k n $ text s <> "\n"
-
--- | Conditionally render debug 'Doc', print it, and then continue.
-traceSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m a -> m a
-traceSDoc k n d = applyWhenVerboseS k n $ \cont -> do
+-- | Conditionally render debug 'Doc', print it, and then continue. Works regardless of the debug flag.
+alwaysTraceSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m a -> m a
+alwaysTraceSDoc k n d = applyWhenVerboseS k n $ \cont -> do
   doc <- formatDebugMessage k n $ locallyTC eIsDebugPrinting (const True) d
-  traceDebugMessage k n (doc <> "\n") cont
+  traceDebugMessage k n doc cont
 
-#else
-
+-- | Conditionally debug print 'String', and then continue. Works regardless of the debug flag.
+--
 {-# INLINE traceSLn #-}
 traceSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m a -> m a
-traceSLn _ _ _ action = action
+#ifdef DEBUG
+traceSLn = alwaysTraceSLn
+#else
+traceSLn _ _ _ = id
+#endif
 
 -- | Conditionally render debug 'Doc', print it, and then continue.
+--
 {-# INLINE traceSDoc #-}
 traceSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m a -> m a
-traceSDoc _ _ _ action = action
-
+#ifdef DEBUG
+traceSDoc = alwaysTraceSDoc
+#else
+traceSDoc _ _ _ = id
 #endif
 
 
 openVerboseBracket :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
-openVerboseBracket k n s = displayDebugMessage k n $ ("{" <+> text s) <> "\n"
+openVerboseBracket k n s = displayDebugMessage k n $ "{" <+> text s
 
 closeVerboseBracket :: MonadDebug m => VerboseKey -> VerboseLevel -> m ()
-closeVerboseBracket k n = displayDebugMessage k n "}\n"
+closeVerboseBracket k n = displayDebugMessage k n "}"
 
 closeVerboseBracketException :: MonadDebug m => VerboseKey -> VerboseLevel -> m ()
-closeVerboseBracketException k n = displayDebugMessage k n "} (exception)\n"
+closeVerboseBracketException k n = displayDebugMessage k n "} (exception)"
 
 
 ------------------------------------------------------------------------
