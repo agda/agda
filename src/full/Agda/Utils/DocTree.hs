@@ -17,6 +17,7 @@ import GHC.Generics
 import Text.PrettyPrint.Annotated.HughesPJ (Doc)
 import Text.PrettyPrint.Annotated.HughesPJ qualified as Ppr
 
+import Agda.Utils.List (breakJust)
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
@@ -26,7 +27,8 @@ data DocTree ann
   = Node ann [DocTree ann]
   | Text Text
   | Mark ann
-     -- ^ Transient.
+     -- ^ Delimits annotation, corresponds to 'Ppr.AnnotEnd'.
+     --   Transient, does not occur in final 'DocTree'.
   deriving Generic
 
 instance Null (DocTree ann) where
@@ -69,17 +71,17 @@ renderToTree' width fill =
   where
     cont :: Ppr.AnnotDetails ann -> [DocTree ann] -> [DocTree ann]
     cont = \case
-      Ppr.AnnotStart  -> annotate []
+      Ppr.AnnotStart  -> annotate
       Ppr.NoAnnot d _ -> consText d
       Ppr.AnnotEnd a  -> (Mark a :)
 
-    annotate :: [DocTree ann] -> [DocTree ann] -> [DocTree ann]
-    annotate acc = \case
-      Mark t : ts
-        | null t    -> reverse acc <> ts
-        | otherwise -> Node t (reverse acc) : ts
-      t : ts        -> annotate (t : acc) ts
-      []            -> __IMPOSSIBLE__
+    -- Find the closing bracket 'Mark' for the annotation
+    annotate :: [DocTree ann] -> [DocTree ann]
+    annotate ts =
+      case breakJust isMark ts of
+        (ts1, a, ts2)
+          | null a    -> ts1 ++ ts2
+          | otherwise -> Node a ts1 : ts2
 
     consText :: Ppr.TextDetails -> [DocTree ann] -> [DocTree ann]
     consText (Ppr.Chr  c) (Text t : ts) = Text (c `Text.cons` t) : ts
@@ -88,3 +90,11 @@ renderToTree' width fill =
     consText (Ppr.Chr  c) ts            = Text (Text.singleton c) : ts
     consText (Ppr.Str  s) ts            = Text (Text.pack s) : ts
     consText (Ppr.PStr s) ts            = Text (Text.pack s) : ts
+
+-- * Auxiliary functions
+
+isMark :: DocTree ann -> Maybe ann
+isMark = \case
+  Mark a -> Just a
+  Node{} -> Nothing
+  Text{} -> Nothing
