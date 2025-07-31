@@ -47,7 +47,6 @@ import qualified Data.HashMap.Strict as HMap
 import qualified Data.HashSet as HashSet
 import Data.Hashable
 import Data.HashSet (HashSet)
-import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.String

@@ -13,7 +13,7 @@ import Data.Bifunctor (first, second)
 import Data.Char
 import qualified Data.List as List
 import Data.Maybe
-import Data.Semigroup ((<>), sconcat)
+import Data.Semigroup ( sconcat )
 import Data.Text (Text)
 import qualified Data.Text as T
 

@@ -32,7 +32,7 @@ import qualified Data.List as List
 import qualified Data.IntMap as IntMap
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
-import Data.Semigroup (Semigroup(..))
+import Data.Semigroup (sconcat)
 import Data.Sequence (Seq)
 import qualified Data.Set as Set
 import qualified Data.Text.Lazy as Text

@@ -32,7 +32,7 @@ import Prelude hiding (null)
 import Control.DeepSeq
 
 import Data.Function (on)
-import Data.Semigroup
+import Data.Semigroup ( Endo(..) )
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap

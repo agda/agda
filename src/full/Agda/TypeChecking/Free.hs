@@ -62,7 +62,7 @@ module Agda.TypeChecking.Free
 
 import Prelude hiding (null)
 
-import Data.Semigroup ( Semigroup, (<>), Any(..), All(..) )
+import Data.Semigroup ( Any(..), All(..) )
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 

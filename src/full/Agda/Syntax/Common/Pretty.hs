@@ -34,8 +34,6 @@ import Text.PrettyPrint.Annotated hiding
   , lbrace, rbrace
   )
 
-import Data.Semigroup ((<>))
-
 import Agda.Utils.Float
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1

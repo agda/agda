@@ -17,7 +17,6 @@ import Control.Monad.Reader   ( MonadReader(..), ReaderT(..) )
 
 import Data.DList (DList)
 import qualified Data.DList as DL
-import Data.Semigroup ( Semigroup(..) )
 import Data.Set (Set)
 import qualified Data.Set as Set
 

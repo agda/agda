@@ -14,7 +14,7 @@ import Control.DeepSeq
 
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Data.Semigroup hiding (Arg(..))
+import Data.Semigroup (Any(..))
 
 import GHC.Generics (Generic)
 

@@ -8,7 +8,6 @@ import Control.Monad.Identity
 
 import Data.Foldable (foldMap)
 import qualified Data.DList as DL
-import Data.Semigroup ((<>))
 import Data.Void
 
 import Agda.Syntax.Common

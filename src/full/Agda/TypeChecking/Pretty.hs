@@ -18,7 +18,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
 import Data.String    ()
-import Data.Semigroup (Semigroup((<>)))
 import Data.Text      (Text)
 
 import Agda.Syntax.Position

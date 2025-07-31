@@ -7,7 +7,7 @@ module Agda.Syntax.Concrete.Definitions.Types where
 import Control.DeepSeq
 
 import Data.Map (Map)
-import Data.Semigroup ( Semigroup(..) )
+import Data.Semigroup ( sconcat )
 
 import GHC.Generics (Generic)
 

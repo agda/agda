@@ -16,7 +16,6 @@ import Control.Monad
 import qualified Control.Monad.Fail as Fail
 
 import Data.Functor
-import Data.Semigroup        ( (<>), Semigroup )
 import Test.QuickCheck
 import Test.Tasty            ( testGroup, TestName, TestTree )
 import Test.Tasty.QuickCheck ( testProperties, testProperty )

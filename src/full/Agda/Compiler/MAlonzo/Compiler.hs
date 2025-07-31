@@ -24,7 +24,6 @@ import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Monoid (Monoid, mempty, mappend)
-import Data.Semigroup ((<>))
 
 import GHC.Generics (Generic)
 

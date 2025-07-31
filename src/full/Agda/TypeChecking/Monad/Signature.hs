@@ -13,6 +13,7 @@ import Control.Monad.Trans.Maybe     ( MaybeT  )
 import Control.Monad.Trans.Identity  ( IdentityT )
 import Control.Monad.Trans           ( MonadTrans, lift )
 
+import Data.Either
 import Data.Foldable (for_)
 import qualified Data.List as List
 import Data.Set (Set)
@@ -20,8 +21,6 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
-import Data.Either
-import Data.Semigroup ((<>))
 
 import Agda.Interaction.Options
 

@@ -5,7 +5,6 @@ import Control.DeepSeq
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Semigroup
 
 import GHC.Generics (Generic)
 

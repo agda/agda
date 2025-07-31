@@ -15,7 +15,6 @@ import qualified Data.IntSet as IntSet
 import Data.List (sort)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (isJust)
-import Data.Semigroup
 import Data.Strict.Tuple (Pair(..))
 
 import Agda.Interaction.Highlighting.Range

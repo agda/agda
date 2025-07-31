@@ -47,7 +47,6 @@ import qualified Data.Map as Map
 import qualified Data.Map.Strict as MapS
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
-import Data.Semigroup ((<>))
 import Data.Text (Text)
 import qualified Data.Text as T
 

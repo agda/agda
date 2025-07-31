@@ -3,7 +3,6 @@
 
 module Agda.Utils.Singleton where
 
-import Data.Semigroup (Semigroup(..))
 import Data.Maybe
 import Data.Monoid (Endo(..))
 

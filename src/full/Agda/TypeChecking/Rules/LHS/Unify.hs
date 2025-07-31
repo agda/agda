@@ -130,7 +130,7 @@ import Control.Monad.State  ( gets, modify, evalStateT )
 import Control.Monad.Writer ( WriterT(..), MonadWriter(..) )
 import Control.Monad.Except ( runExceptT )
 
-import Data.Semigroup hiding (Arg)
+import Data.Semigroup ( All(..) )
 import qualified Data.List as List
 import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)

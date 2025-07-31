@@ -9,7 +9,6 @@ import Control.Arrow (second)
 import Control.Monad.Except ( MonadError(..) )
 
 import Data.Function (on)
-import Data.Semigroup ((<>))
 import Data.IntMap (IntMap)
 
 import qualified Data.List   as List

@@ -24,8 +24,6 @@ import qualified Data.IntMap as IntMap
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
-import Data.Semigroup
-
 import Data.Strict.Tuple (Pair(..))
 
 import Agda.Interaction.Highlighting.Range
