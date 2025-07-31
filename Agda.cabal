@@ -852,6 +852,7 @@ library
       Agda.Utils.Char
       Agda.Utils.Cluster
       Agda.Utils.CompressedTrie
+      Agda.Utils.DocTree
       Agda.Utils.Either
       Agda.Utils.Empty
       Agda.Utils.Environment

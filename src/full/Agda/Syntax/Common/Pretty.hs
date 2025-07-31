@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| Pretty printing functions.
 -}
@@ -34,6 +35,11 @@ import Text.PrettyPrint.Annotated hiding
   , lbrace, rbrace
   )
 
+import Agda.Syntax.Common.Aspect
+import Agda.Syntax.Position
+
+import Agda.Utils.DocTree qualified as DocTree
+import Agda.Utils.FileName
 import Agda.Utils.Float
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
@@ -41,10 +47,7 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Utils.Size
 
-import Agda.Syntax.Common.Aspect
-import Agda.Syntax.Position
-import Agda.Utils.Impossible
-import Agda.Utils.FileName
+type DocTree = DocTree.DocTree Aspects
 
 ---------------------------------------------------------------------------
 -- * Pretty class

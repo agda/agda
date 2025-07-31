@@ -1,14 +1,16 @@
 module Agda.Syntax.Common.Aspect where
 
-import Agda.Syntax.TopLevelModuleName.Boot (TopLevelModuleName')
-import Agda.Syntax.Position (Range)
-import Agda.Utils.Maybe
-import GHC.Generics
+import Prelude hiding (null)
 
+import GHC.Generics ( Generic )
+import Control.DeepSeq ( NFData(..) )
 import Data.Set (Set)
 import Data.Text (Text)
 
-import Control.DeepSeq
+import Agda.Syntax.TopLevelModuleName.Boot (TopLevelModuleName')
+import Agda.Syntax.Position (Range)
+import Agda.Utils.Maybe ( unionMaybeWith )
+import Agda.Utils.Null ( Null(..) )
 
 data Induction = Inductive | CoInductive  -- Keep in this order!
   deriving (Eq, Ord, Show)
@@ -163,6 +165,13 @@ instance Eq DefinitionSite where
 
 data TokenBased = TokenBased | NotOnlyTokenBased
   deriving (Eq, Show)
+
+instance Null TokenBased where
+  empty = TokenBased
+
+instance Null Aspects where
+  empty = Aspects Nothing mempty "" Nothing TokenBased
+  null (Aspects a o s d t) = null a && null o && null s && null d && null t
 
 instance Eq Aspects where
   Aspects a o _ d t == Aspects a' o' _ d' t' =

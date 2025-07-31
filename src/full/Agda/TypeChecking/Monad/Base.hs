@@ -5007,7 +5007,7 @@ data TCWarning
         -- ^ Range where the warning was raised
     , tcWarning         :: Warning
         -- ^ The warning itself
-    , tcWarningDoc      :: Doc
+    , tcWarningDoc      :: Doc -- DocTree
         -- ^ The warning printed in the state and environment where it was raised
     , tcWarningString   :: String
         -- ^ Caches @render tcWarningDoc@ for the sake of an 'Ord' instance.
