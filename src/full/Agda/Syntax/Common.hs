@@ -51,6 +51,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
@@ -2397,16 +2399,16 @@ instance NFData BinderNameOrigin
 -- * Free variable annotations
 -----------------------------------------------------------------------------
 
-data FreeVariables = UnknownFVs | KnownFVs IntSet
+data FreeVariables = UnknownFVs | KnownFVs VarSet
   deriving (Eq, Ord, Show)
 
 instance Semigroup FreeVariables where
   UnknownFVs   <> _            = UnknownFVs
   _            <> UnknownFVs   = UnknownFVs
-  KnownFVs vs1 <> KnownFVs vs2 = KnownFVs (IntSet.union vs1 vs2)
+  KnownFVs vs1 <> KnownFVs vs2 = KnownFVs (VarSet.union vs1 vs2)
 
 instance Monoid FreeVariables where
-  mempty  = KnownFVs IntSet.empty
+  mempty  = KnownFVs VarSet.empty
   mappend = (<>)
 
 instance KillRange FreeVariables where
@@ -2423,7 +2425,7 @@ noFreeVariables :: FreeVariables
 noFreeVariables = mempty
 
 oneFreeVariable :: Int -> FreeVariables
-oneFreeVariable = KnownFVs . IntSet.singleton
+oneFreeVariable = KnownFVs . VarSet.singleton
 
 freeVariablesFromList :: [Int] -> FreeVariables
 freeVariablesFromList = mconcat . map oneFreeVariable
@@ -2454,7 +2456,7 @@ hasNoFreeVariables :: LensFreeVariables a => a -> Bool
 hasNoFreeVariables x =
   case getFreeVariables x of
     UnknownFVs  -> False
-    KnownFVs fv -> IntSet.null fv
+    KnownFVs fv -> VarSet.null fv
 
 ---------------------------------------------------------------------------
 -- * Argument decoration

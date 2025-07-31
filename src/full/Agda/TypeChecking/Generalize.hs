@@ -121,7 +121,6 @@ import Prelude hiding (null)
 import Control.Monad.Except ( MonadError(..) )
 
 import Data.Bifunctor (first)
-import qualified Data.IntSet as IntSet
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
@@ -169,6 +168,7 @@ import Agda.Utils.Null
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Size
 import Agda.Utils.Permutation
+import qualified Agda.Utils.VarSet as VarSet
 
 -- | Generalize a telescope over a set of generalizable variables.
 generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
@@ -561,7 +561,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         -- and we need to get rid of the dependency on Δ.
 
         -- We can only do this if A does not depend on Δ, so check this first.
-        case IntSet.minView (allFreeVars _A) of
+        case VarSet.minView (allFreeVars _A) of
           Just (j, _) | j < i -> prepruneErrorCyclicDependencies x
           _                   -> return ()
 
@@ -715,13 +715,13 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     findGenRec mv = do
       cxt <- instantiateFull =<< getContext
       let n         = length cxt
-          notPruned = IntSet.fromList $
+          notPruned = VarSet.fromList $
                       permute (takeP n $ mvPermutation mv) $
                       downFrom n
       case [ i
            | (i, CtxVar _ (Dom{unDom = (El _ (Def q _))})) <- zip [0..] cxt
            , q == genRecName
-           , i `IntSet.member` notPruned
+           , i `VarSet.member` notPruned
            ] of
         []    -> return Nothing
         _:_:_ -> __IMPOSSIBLE__

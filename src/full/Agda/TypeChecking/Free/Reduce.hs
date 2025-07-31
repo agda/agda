@@ -7,6 +7,7 @@ module Agda.TypeChecking.Free.Reduce
   , forceNotFree
   , reallyFree
   , IsFree(..)
+  , nonFreeVars
   ) where
 
 import Prelude hiding (null)
@@ -16,8 +17,7 @@ import Control.Monad.State
 
 import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
-import qualified Data.IntSet as IntSet
-import Data.IntSet (IntSet)
+import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -29,6 +29,8 @@ import Agda.TypeChecking.Free.Precompute
 
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet (VarSet)
 
 -- | A variable can either not occur (`NotFree`) or it does occur
 --   (`MaybeFree`).  In the latter case, the occurrence may disappear
@@ -43,11 +45,11 @@ data IsFree
 --   of the given variables whether it is either not free, or
 --   maybe free depending on some metavariables.
 forceNotFree :: (ForceNotFree a, Reduce a, MonadReduce m)
-             => IntSet -> a -> m (IntMap IsFree, a)
+             => VarSet -> a -> m (IntMap IsFree, a)
 forceNotFree xs a = do
   -- Initially, all variables are marked as `NotFree`. This is changed
   -- to `MaybeFree` when we find an occurrence.
-  let mxs = IntMap.fromSet (const NotFree) xs
+  let mxs = IntMap.fromDistinctAscList $ fmap (, NotFree) $ VarSet.toAscList xs
   (a, mxs) <- runStateT (runReaderT (forceNotFreeR $ precomputeFreeVars_ a) mempty) mxs
   return (mxs, a)
 
@@ -58,7 +60,7 @@ forceNotFree xs a = do
 --   reduced version of the given term) or `Left b` if the problem is
 --   blocked on a meta.
 reallyFree :: (MonadReduce m, Reduce a, ForceNotFree a)
-           => IntSet -> a -> m (Either Blocked_ (Maybe a))
+           => VarSet -> a -> m (Either Blocked_ (Maybe a))
 reallyFree xs v = do
   (mxs , v') <- forceNotFree xs v
   case IntMap.foldr pickFree NotFree mxs of
@@ -94,10 +96,18 @@ class (PrecomputeFreeVars a, Subst a) => ForceNotFree a where
   -- we avoid trying to get rid of it in other places.
   forceNotFree' :: (MonadFreeRed m) => a -> m a
 
+-- | Get the set of 'NotFree' variables from a variable map.
+nonFreeVars :: IntMap IsFree -> VarSet
+nonFreeVars xs = VarSet.fromList $ mapMaybe takeNotFree $ IntMap.toAscList xs
+  where
+    takeNotFree :: (Int, IsFree) -> Maybe Int
+    takeNotFree (!n, NotFree) = Just n
+    takeNotFree _ = Nothing
+
 -- Return the set of variables for which there is still hope that they
 -- may not occur.
-varsToForceNotFree :: (MonadFreeRed m) => m IntSet
-varsToForceNotFree = gets (IntMap.keysSet . (IntMap.filter (== NotFree)))
+varsToForceNotFree :: (MonadFreeRed m) => m VarSet
+varsToForceNotFree = gets nonFreeVars
 
 -- Reduce the argument if there are offending free variables. Doesn't call the
 -- continuation when no reduction is required.
@@ -106,7 +116,7 @@ reduceIfFreeVars :: (Reduce a, ForceNotFree a, MonadFreeRed m)
 reduceIfFreeVars k a = do
   xs <- varsToForceNotFree
   let fvs     = precomputedFreeVars a
-      notfree = IntSet.disjoint xs fvs
+      notfree = VarSet.disjoint xs fvs
   if notfree
     then return a
     else k . precomputeFreeVars_ =<< reduce a

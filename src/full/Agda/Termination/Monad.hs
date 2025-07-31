@@ -360,9 +360,9 @@ withUsableVars :: UsableSizeVars a => a -> TerM b -> TerM b
 withUsableVars pats m = do
   vars <- usableSizeVars pats
   reportSLn "term.size" 70 $ "usableSizeVars = " ++ show vars
-  reportSDoc "term.size" 20 $ if null vars then "no usuable size vars" else
+  reportSDoc "term.size" 20 $ if VarSet.null vars then "no usuable size vars" else
     "the size variables amoung these variables are usable: " <+>
-      sep (map (prettyTCM . var) $ VarSet.toList vars)
+      sep (map (prettyTCM . var) $ VarSet.toAscList vars)
   terSetUsableVars vars $ m
 
 -- | Set 'terUseSizeLt' when going under constructor @c@.

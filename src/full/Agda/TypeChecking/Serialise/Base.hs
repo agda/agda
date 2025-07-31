@@ -53,6 +53,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List1 (List1)
 import Agda.Utils.Monad
 import Agda.Utils.TypeLevel
+import Agda.Utils.VarSet (VarSet)
 
 #include <MachDeps.h>
 
@@ -178,6 +179,7 @@ data Dict = Dict
   , lTextD       :: !(HashTable TL.Text Word32)    -- ^ Written to interface file.
   , sTextD       :: !(HashTable T.Text  Word32)    -- ^ Written to interface file.
   , integerD     :: !(HashTable Integer Word32)    -- ^ Written to interface file.
+  , varSetD      :: !(HashTable VarSet Word32)    -- ^ Written to interface file.
   , doubleD      :: !(HashTable Double  Word32)    -- ^ Written to interface file.
   -- Dicitionaries which are not serialized, but provide
   -- short cuts to speed up serialization:
@@ -191,6 +193,7 @@ data Dict = Dict
   , lTextC       :: !(IORef FreshAndReuse)
   , sTextC       :: !(IORef FreshAndReuse)
   , integerC     :: !(IORef FreshAndReuse)
+  , varSetC     :: !(IORef FreshAndReuse)
   , doubleC      :: !(IORef FreshAndReuse)
   , termC        :: !(IORef FreshAndReuse)
   , nameC        :: !(IORef FreshAndReuse)
@@ -215,6 +218,8 @@ emptyDict collectStats = Dict
   <*> H.empty
   <*> H.empty
   <*> H.empty
+  <*> H.empty
+  <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
@@ -237,6 +242,7 @@ data St = St
   , lTextE    :: !(Array Word32 TL.Text)  -- ^ Obtained from interface file.
   , sTextE    :: !(Array Word32 T.Text)   -- ^ Obtained from interface file.
   , integerE  :: !(Array Word32 Integer)  -- ^ Obtained from interface file.
+  , varSetE   :: !(Array Word32 VarSet)  -- ^ Obtained from interface file.
   , doubleE   :: !(Array Word32 Double)   -- ^ Obtained from interface file.
   , nodeMemo  :: !Memo
     -- ^ Created and modified by decoder.
@@ -357,13 +363,30 @@ icodeX dict counter key = do
         return fresh
 
 -- Instead of inlining icodeX, we manually specialize it to
--- its four uses: Integer, String, Double, Node.
+-- its five uses: Integer, VarSet, String, Double, Node.
 -- Not a great gain (hardly noticeable), but not harmful.
 
 icodeInteger :: Integer -> S Word32
 icodeInteger key = do
   d <- asks integerD
   c <- asks integerC
+  liftIO $ do
+    mi <- H.lookup d key
+    case mi of
+      Just i  -> do
+#ifdef DEBUG_SERIALISATION
+        modifyIORef' c $ over lensReuse (+ 1)
+#endif
+        return $! i
+      Nothing -> do
+        !fresh <- (^. lensFresh) <$> do readModifyIORef' c $ over lensFresh (+ 1)
+        H.insert d key fresh
+        return fresh
+
+icodeVarSet :: VarSet -> S Word32
+icodeVarSet key = do
+  d <- asks varSetD
+  c <- asks varSetC
   liftIO $ do
     mi <- H.lookup d key
     case mi of

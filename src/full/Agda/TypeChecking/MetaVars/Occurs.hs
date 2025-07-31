@@ -960,9 +960,6 @@ killedType args b = do
               | (i, (dom, _)) <- iargs ]
   return (kills, b)
   where
-    down = VarSet.mapMonotonic pred
-    up   = VarSet.mapMonotonic succ
-
     -- go Δ xs B
     -- Invariants:
     --   - Δ ⊢ B
@@ -981,30 +978,30 @@ killedType args b = do
           -- Case x ∈ xs. We know x ∉ FV(B), so we can safely drop x from the
           -- telescope. Drop x from xs (and shift indices) and recurse with
           -- `strengthen x B`.
-          let ys = down (VarSet.delete 0 xs)
+          let ys = VarSet.strengthen 1 xs
           (ys, b) <- go args ys $ strengthen impossible b
           -- We need to return a set of killed variables relative to Δ (x : A), so
           -- shift ys and add x back in.
-          return (VarSet.insert 0 $ up ys, b)
+          return (VarSet.insert 0 $ VarSet.weaken 1 ys, b)
       | otherwise = do
           -- Case x ∉ xs. We either can't or don't want to get rid of x. In
           -- this case we have to check A for potential dependencies preventing
           -- us from killing variables in xs.
-          let xs'       = down xs -- Shift to make relative to Δ ⊢ A
+          let xs'       = VarSet.strengthen 1 xs -- Shift to make relative to Δ ⊢ A
               (name, a) = unDom arg
           (ys, a) <- reallyNotFreeIn xs' a
           -- Recurse on Δ, ys, and (x : A') → B, where A reduces to A' and ys ⊆ xs'
           -- not free in A'. We already know ys not free in B.
           (zs, b) <- go args ys $ mkPi ((name, a) <$ arg) b
           -- Shift back up to make it relative to Δ (x : A) again.
-          return (up zs, b)
+          return (VarSet.weaken 1 zs, b)
 
 reallyNotFreeIn :: (MonadReduce m) => VarSet -> Type -> m (VarSet, Type)
 reallyNotFreeIn xs a | VarSet.null xs = return (xs, a) -- Shortcut
 reallyNotFreeIn xs a = do
   let fvs      = freeVars a
       anywhere = allVars fvs
-      rigid    = VarSet.unions [stronglyRigidVars fvs, unguardedVars fvs]
+      rigid    = VarSet.union (stronglyRigidVars fvs) (unguardedVars fvs)
       nonrigid = VarSet.difference anywhere rigid
       hasNo    = VarSet.disjoint xs
   if hasNo nonrigid
@@ -1016,7 +1013,7 @@ reallyNotFreeIn xs a = do
       -- If there are non-rigid occurrences we need to reduce a to see if
       -- we can get rid of them (#3177).
       (fvs, a) <- forceNotFree (VarSet.difference xs rigid) a
-      let xs = IntMap.keysSet $ IntMap.filter (== NotFree) fvs
+      let xs = nonFreeVars fvs
       return (xs, a)
 
 -- | Instantiate a meta variable with a new one that only takes
