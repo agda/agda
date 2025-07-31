@@ -502,8 +502,8 @@ instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
             | otherwise = ","
 
       blockedOn (UnblockOnAll bs) | Set.null bs = empty
-      blockedOn (UnblockOnAny bs) | Set.null bs = "stuck" P.<> comma
-      blockedOn u = "blocked on" <+> (pretty u P.<> comma)
+      blockedOn (UnblockOnAny bs) | Set.null bs = "stuck" <> comma
+      blockedOn u = "blocked on" <+> (pretty u <> comma)
 
       prange r | null s = empty
                | otherwise = text $ " [ at " ++ s ++ " ]"

@@ -44,8 +44,7 @@ import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty hiding ((<>))
-import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Set1 ( Set1 )
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Map as Map
@@ -200,7 +199,7 @@ instance Ord LocalVar where
 -- | We show shadowed variables as prefixed by a ".", as not in scope.
 instance Pretty LocalVar where
   pretty (LocalVar x _ []) = pretty x
-  pretty (LocalVar x _ xs) = "." P.<> pretty x
+  pretty (LocalVar x _ xs) = "." <> pretty x
 
 -- | Shadow a local name by a non-empty list of imports.
 shadowLocal :: List1 AbstractName -> LocalVar -> LocalVar

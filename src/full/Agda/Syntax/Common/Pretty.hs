@@ -4,8 +4,6 @@
 module Agda.Syntax.Common.Pretty
     ( module Agda.Syntax.Common.Pretty
     , module Text.PrettyPrint.Annotated
-    -- This re-export can be removed once <GHC-8.4 is dropped.
-    , module Data.Semigroup
     ) where
 
 import Prelude hiding (null)

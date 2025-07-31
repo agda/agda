@@ -26,7 +26,6 @@ import qualified Data.List as List
 import qualified Data.Map  as Map
 import qualified Data.Set  as Set
 import Data.Maybe     ( catMaybes )
-import Data.Semigroup ( Semigroup, (<>) )
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
@@ -104,7 +103,7 @@ warning'_ loc w = do
   let ws = warningNameToString wn
   p <- vcat
     [ pure $ P.hsep
-      [ if null r' then mempty else P.pretty r' P.<> P.colon
+      [ if null r' then mempty else P.pretty r' <> P.colon
       , if wn `elem` errorWarnings then "error:" P.<+> P.brackets (P.text ws)
         else P.text $ "warning: -W[no]" ++ ws
         -- Only benign warnings can be deactivated with -WnoXXX.
