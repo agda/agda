@@ -51,7 +51,7 @@ unsafeUnicodeOrAsciiIORef = UNSAFE.unsafePerformIO $ newIORef UnicodeOk
 
 {-# NOINLINE unsafeSetUnicodeOrAscii #-}
 unsafeSetUnicodeOrAscii :: UnicodeOrAscii -> IO ()
-unsafeSetUnicodeOrAscii = writeIORef unsafeUnicodeOrAsciiIORef
+unsafeSetUnicodeOrAscii = writeIORef $! unsafeUnicodeOrAsciiIORef
 
 -- | Are we allowed to use unicode supscript characters?
 unsafeUnicodeOrAscii :: UnicodeOrAscii

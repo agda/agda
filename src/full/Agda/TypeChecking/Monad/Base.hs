@@ -6203,7 +6203,7 @@ instance MonadIO m => MonadTCEnv (TCMT m) where
 
 instance MonadIO m => MonadTCState (TCMT m) where
   getTC   = TCM $ \ r _e -> liftIO (readIORef r); {-# INLINE getTC #-}
-  putTC s = TCM $ \ r _e -> liftIO (writeIORef r s); {-# INLINE putTC #-}
+  putTC s = TCM $ \ r _e -> liftIO (writeIORef r $! s); {-# INLINE putTC #-}
   modifyTC f = putTC . f =<< getTC; {-# INLINE modifyTC #-}
 
 instance MonadIO m => ReadTCState (TCMT m) where
@@ -6234,7 +6234,7 @@ instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
         _            ->
           liftIO $ do
             newState <- readIORef r
-            writeIORef r $ oldState { stPersistentState = stPersistentState newState }
+            writeIORef r $! oldState { stPersistentState = stPersistentState newState }
       unTCM (h err) r e
 
 -- | Like 'catchError', but resets the state completely before running the handler.
@@ -6247,7 +6247,7 @@ instance CatchImpossible TCM where
     -- save the state
     s <- readIORef r
     catchImpossibleJust f (unTCM m r e) $ \ err -> do
-      writeIORef r s
+      writeIORef r $! s
       unTCM (h err) r e
 
 instance MonadIO m => MonadReduce (TCMT m) where

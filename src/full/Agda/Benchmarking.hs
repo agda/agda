@@ -152,7 +152,7 @@ benchmarks = unsafePerformIO $ newIORef empty
 instance MonadBench IO where
   type BenchPhase IO = Phase
   getBenchmark = readIORef benchmarks
-  putBenchmark = writeIORef benchmarks
+  putBenchmark = writeIORef $! benchmarks
   finally = E.finally
 
 -- | Benchmark an IO computation and bill it to the given account.

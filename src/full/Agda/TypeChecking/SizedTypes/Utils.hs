@@ -13,7 +13,7 @@ debug :: IORef Bool
 debug = unsafePerformIO $ newIORef False
 
 setDebugging :: Bool -> IO ()
-setDebugging = writeIORef debug
+setDebugging = writeIORef $! debug
 
 trace :: String -> a -> a
 trace s = applyWhen (unsafePerformIO $ readIORef debug) $ Debug.trace s
