@@ -34,3 +34,4 @@ foo₂ = Foo₂ r
 -- not mention
 --
 --   (x : A) → .Bug.M₂._.P r x
+
