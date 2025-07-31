@@ -262,7 +262,7 @@ singleton (I# i) =
     VS# (uncheckedBitWord# i)
   else
     VB# (bigNatBit# (int2Word# i))
-{-# INLINE singleton #-}
+{-# INLINABLE singleton #-}
 
 -- | Construct a set of variables from a list of indices.
 fromList :: [Int] -> VarSet
@@ -287,7 +287,7 @@ full (I# n) =
     VS# (uncheckedWordOnes# n)
   else
     VB# (byteArrayOnes# n)
-{-# INLINE full #-}
+{-# INLINABLE full #-}
 
 -- | Construct a variable set that contains the indices @[lo+1..hi-1]@.
 range :: Int -> Int -> VarSet
@@ -309,11 +309,11 @@ insert (I# i) (VS# w) =
   else
     VB# (bigNatSetBit# (bigNatFromWord# w) (int2Word# i))
 insert (I# i) (VB# bs) = VB# (bigNatSetBit# bs (int2Word# i))
-{-# INLINE insert #-}
 
 -- | Insert a list of variables into a @VarSet@.
 inserts :: [Int] -> VarSet -> VarSet
 inserts xs vs = Fold.foldl' (flip insert) vs xs
+{-# INLINE inserts #-}
 
 -- | Insert a list of variables sorted in descending order into a 'VarSet'.
 -- This can be more efficient than 'inserts', as we only need to perform a single
@@ -342,7 +342,6 @@ delete (I# i) vs@(VS# w) =
   else
     vs
 delete (I# i) (VB# vs) = byteArrayToVarSet# (bigNatClearBit# vs (int2Word# i))
-{-# INLINE delete #-}
 
 --------------------------------------------------------------------------------
 -- Queries
@@ -357,7 +356,7 @@ null _ = False
 member :: Int -> VarSet -> Bool
 member (I# i) (VS# w) = isTrue# ((0# <=# i) `andI#` (i <# WORD_SIZE_IN_BITS#) `andI#` (uncheckedTestBitWord# w i))
 member (I# i) (VB# bs) = isTrue# (bigNatTestBit# bs (int2Word# i))
-{-# INLINE member #-}
+{-# INLINABLE member #-}
 
 -- | Find the smallest index in the variable set.
 lookupMin :: VarSet -> Maybe Int
@@ -367,7 +366,6 @@ lookupMin (VS# w) =
   else
     Just (I# (word2Int# (lowestBitWord# w)))
 lookupMin (VB# bs) = Just (I# (lookupMinSlow# 0# bs))
-{-# INLINE lookupMin #-}
 
 -- | Slow path for 'lookupMin'.
 lookupMinSlow# :: Int# -> ByteArray# -> Int#
@@ -393,19 +391,18 @@ lookupMax (VB# bs) =
   -- as there are no leading 0 words in our varsets.
   let len = wordArraySize# bs
   in Just (I# (word2Int# (highestBitWord# (indexWordArray# bs (len -# 1#)))))
-{-# INLINE lookupMax #-}
 
 -- | The number of entries in the variable set.
 size :: VarSet -> Int
 size (VS# w) = I# (word2Int# (popCnt# w))
 size (VB# bs) = I# (word2Int# (bigNatPopCount# bs))
-{-# INLINE size #-}
+{-# INLINABLE size #-}
 
 -- | Check if two variable sets are disjoint.
 disjoint :: VarSet -> VarSet -> Bool
 disjoint (VS# w1) (VS# w2) = isTrue# (disjointWord# w1 w2)
 disjoint vs1 vs2 = isTrue# (disjointSlow# vs1 vs2)
-{-# INLINE disjoint #-}
+{-# INLINABLE disjoint #-}
 
 -- | Slow path for 'disjoint'.
 disjointSlow# :: VarSet -> VarSet -> Int#
@@ -422,7 +419,7 @@ disjointSlow# (VB# bs1) (VB# bs2) = byteArrayDisjoint# bs1 bs2
 union :: VarSet -> VarSet -> VarSet
 union (VS# w1) (VS# w2) = VS# (w1 `or#` w2)
 union vs1 vs2 = unionSlow vs1 vs2
-{-# INLINE union #-}
+{-# INLINABLE union #-}
 
 -- | Slow path for 'union'.
 unionSlow :: VarSet -> VarSet -> VarSet
@@ -441,7 +438,7 @@ unions = Fold.foldl' union empty
 intersection :: VarSet -> VarSet -> VarSet
 intersection (VS# w1) (VS# w2) = VS# (w1 `and#` w2)
 intersection vs1 vs2 = intersectionSlow vs1 vs2
-{-# INLINE intersection #-}
+{-# INLINABLE intersection #-}
 
 -- | Slow path for 'intersection'.
 intersectionSlow :: VarSet -> VarSet -> VarSet
@@ -455,7 +452,7 @@ intersectionSlow (VB# bs1) (VB# bs2) = VB# (bigNatAnd bs1 bs2)
 difference :: VarSet -> VarSet -> VarSet
 difference (VS# w1) (VS# w2) = VS# (w1 `andNot#` w2)
 difference vs1 vs2 = differenceSlow vs1 vs2
-{-# INLINE difference #-}
+{-# INLINABLE difference #-}
 
 -- | Slow path for 'difference'.
 differenceSlow :: VarSet -> VarSet -> VarSet
@@ -479,7 +476,7 @@ complement n vs = full n \\ vs
 isSubsetOf :: VarSet -> VarSet -> Bool
 isSubsetOf (VS# w1) (VS# w2) = isTrue# ((w1 `and#` w2) `eqWord#` w1)
 isSubsetOf vs1 vs2 = isTrue# (isSubsetOfSlow# vs1 vs2)
-{-# INLINE isSubsetOf #-}
+{-# INLINABLE isSubsetOf #-}
 
 -- | Slow path for 'isSubsetOf'.
 isSubsetOfSlow# :: VarSet -> VarSet -> Int#
@@ -511,6 +508,7 @@ split n vs =
   let !lo = intersection vs (full n)
       !hi = difference vs (full (n + 1))
   in (lo, hi)
+{-# INLINE split #-}
 
 -- | Filter a variable set to elements that are less than to an index.
 filterLT :: Int -> VarSet -> VarSet
@@ -580,6 +578,7 @@ minView vs =
       let !vs' = delete i vs
       in Just (i, vs')
     Nothing -> Nothing
+{-# INLINABLE minView #-}
 
 -- | Retrieve the smallest index in the variable set along with the set sans that
 -- element, or 'Nothing' if the set was empty.
@@ -590,6 +589,7 @@ maxView vs =
       let !vs' = delete i vs
       in Just (i, vs')
     Nothing -> Nothing
+{-# INLINABLE maxView #-}
 
 --------------------------------------------------------------------------------
 -- Contextual operations
@@ -604,7 +604,6 @@ strengthen (I# n) (VS# w) =
   VS# (w `shiftRL#` n)
 strengthen (I# n) (VB# bs) =
   byteArrayToVarSet# (bigNatShiftR# bs (int2Word# n))
-{-# INLINE strengthen #-}
 
 -- | Shift all indices in the variable set up by @n@.
 weaken :: Int -> VarSet -> VarSet
@@ -615,7 +614,6 @@ weaken (I# n) (VS# w) =
     VB# (bigNatShiftL# (bigNatFromWord# w) (int2Word# n))
 weaken (I# n) (VB# bs) =
   VB# (bigNatShiftL# bs (int2Word# n))
-{-# INLINE weaken #-}
 
 --------------------------------------------------------------------------------
 -- Conversions
