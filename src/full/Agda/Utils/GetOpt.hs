@@ -1,7 +1,7 @@
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Agda.Utils.GetOpt
--- Copyright   :  (c) Sven Panne 2002-2005
+-- Copyright   :  (c) Sven Panne 2002-2005, Andreas Abel 2025
 -- License     :  BSD-style
 --
 -- This module provides facilities for parsing the command-line options
@@ -24,6 +24,7 @@ module Agda.Utils.GetOpt (
 ) where
 
 import Prelude
+import Control.DeepSeq (NFData, rnf)
 import Data.List (find)
 
 -- | What to do with options following non-options.
@@ -227,3 +228,16 @@ errUnrec optStr = "unrecognized option `" ++ optStr ++ "'\n"
 
 errNoArg :: String -> OptKind a
 errNoArg optStr = OptErr ("option `" ++ optStr ++ "' doesn't allow an argument\n")
+
+-- NFData instances (new over "System.Console.GetOpt")
+
+instance NFData a => NFData (OptDescr a) where
+  rnf (Option a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+
+instance NFData a => NFData (ArgDescr a) where
+  rnf = \case
+    NoArg a       -> rnf a
+    -- Andreas, 2025-07-31, cannot serialize functions
+    -- see https://github.com/haskell/deepseq/issues/111.
+    ReqArg _fun s -> rnf s
+    OptArg _fun s -> rnf s

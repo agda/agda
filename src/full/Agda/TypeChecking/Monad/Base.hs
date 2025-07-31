@@ -6678,7 +6678,6 @@ instance NFData DisambiguatedName
 instance NFData MutualBlock
 instance NFData OpaqueBlock
 instance NFData (BiMap RawTopLevelModuleName ModuleNameHash)
-instance NFData PersistentTCState
 instance NFData SessionTCState
 instance NFData LoadedFileCache
 instance NFData TypeCheckAction
@@ -6705,7 +6704,6 @@ instance NFData Instantiation
 instance NFData RemoteMetaVariable
 instance NFData Frozen
 instance NFData PrincipalArgTypeMetas
-instance NFData TypeCheckingProblem
 instance NFData RunMetaOccursCheck
 instance NFData MetaInfo
 instance NFData InteractionPoint
@@ -6744,7 +6742,6 @@ instance NFData Defn
 instance NFData Simplification
 instance NFData AllowedReduction
 instance NFData ReduceDefs
-instance NFData PrimFun
 instance NFData c => NFData (FunctionInverse' c)
 instance NFData TermHead
 instance NFData Call
@@ -6785,3 +6782,28 @@ instance NFData CannotQuote
 instance NFData ExecError
 instance NFData ConstructorDisambiguationData
 instance NFData Statistics
+
+-- Andreas, 2025-07-31, cannot normalize functions with deepseq-1.5.2.0 (GHC 9.10.3).
+-- see https://github.com/haskell/deepseq/issues/111.
+
+instance NFData PersistentTCState where
+  rnf (PersistentTCSt a b c d _fun f g) =
+    rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf f `seq` rnf g
+
+instance NFData PrimFun where
+  rnf (PrimFun a b c _fun) = rnf a `seq` rnf b `seq` rnf c
+
+instance NFData TypeCheckingProblem where
+  rnf = \case
+    CheckExpr a b c ->
+      rnf a `seq` rnf b `seq` rnf c
+    CheckArgs a b c d e f _fun ->
+      rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
+    CheckProjAppToKnownPrincipalArg a b c d e f g h i j k ->
+      rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g `seq` rnf h `seq` rnf i `seq` rnf j `seq` rnf k
+    CheckLambda a b c d ->
+      rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+    DisambiguateConstructor a _fun ->
+      rnf a
+    DoQuoteTerm a b c ->
+      rnf a `seq` rnf b `seq` rnf c
