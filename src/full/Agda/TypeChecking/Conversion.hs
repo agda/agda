@@ -14,7 +14,6 @@ import Data.IntMap (IntMap)
 
 import qualified Data.List   as List
 import qualified Data.IntMap as IntMap
-import qualified Data.IntSet as IntSet
 import qualified Data.Set    as Set
 
 import Agda.Syntax.Common
@@ -62,6 +61,7 @@ import qualified Agda.Utils.BoolSet as BoolSet
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Unsafe ( unsafeComparePointers )
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
@@ -1356,7 +1356,7 @@ leqSort s1 s2 = do
     omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
     let infInInf = typeInTypeEnabled || omegaInOmegaEnabled
 
-    let fvsRHS = (`IntSet.member` allFreeVars s2)
+    let fvsRHS = (`VarSet.member` allFreeVars s2)
     badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
 
     postponeIfBlocked $ case (s1, s2) of

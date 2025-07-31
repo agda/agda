@@ -32,7 +32,6 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.VarSet (VarSet)
@@ -40,10 +39,16 @@ import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
--- | Flatten telescope: @(Γ : Tel) -> [Type Γ]@
+-- | Flatten telescope: @(Γ : Tel) -> [Type Γ]@.
+--
+-- 'flattenTel' is lazy in both the spine and values of
+-- the resulting list.
 flattenTel :: TermSubst a => Tele (Dom a) -> [Dom a]
-flattenTel EmptyTel          = []
-flattenTel (ExtendTel a tel) = raise (size tel + 1) a : flattenTel (absBody tel)
+flattenTel tel = loop (size tel) tel
+  where
+    loop ix EmptyTel = []
+    loop ix (ExtendTel a (Abs _ tel)) = raise ix a : loop (ix - 1) tel
+    loop ix (ExtendTel a (NoAbs _ tel)) = raise ix a : loop ix tel
 
 {-# SPECIALIZE flattenTel :: Telescope -> [Dom Type] #-}
 
@@ -178,48 +183,52 @@ permuteContext perm ctx = permuteTel perm $ contextToTel ctx
 
 -- | Recursively computes dependencies of a set of variables in a given
 --   telescope. Any dependencies outside of the telescope are ignored.
-varDependencies :: Telescope -> IntSet -> IntSet
-varDependencies tel = addLocks . allDependencies IntSet.empty
+varDependencies :: Telescope -> VarSet -> VarSet
+varDependencies tel = addLocks . allDependencies VarSet.empty
   where
-    addLocks s | IntSet.null s = s
-               | otherwise = IntSet.union s $ IntSet.fromList $ filter (>= m) locks
-      where
-        locks = catMaybes [ deBruijnView (unArg a) | (a :: Arg Term) <- teleArgs tel, IsLock{} <- pure (getLock a)]
-        m = IntSet.findMin s
+    addLocks :: VarSet -> VarSet
+    addLocks s =
+      case VarSet.lookupMin s of
+        Just m ->
+          let locks = catMaybes [ deBruijnView (unArg a) | (a :: Arg Term) <- teleArgs tel, IsLock{} <- pure (getLock a)]
+          in VarSet.union s $ VarSet.fromList $ filter (>= m) locks
+        Nothing ->
+          s
+
     n  = size tel
     ts = flattenTel tel
 
-    directDependencies :: Int -> IntSet
+    directDependencies :: Int -> VarSet
     directDependencies i = allFreeVars $ indexWithDefault __IMPOSSIBLE__ ts (n-1-i)
 
-    allDependencies :: IntSet -> IntSet -> IntSet
+    allDependencies :: VarSet -> VarSet -> VarSet
     allDependencies =
-      IntSet.foldr $ \j soFar ->
-        if j >= n || j `IntSet.member` soFar
+      VarSet.foldr $ \j soFar ->
+        if j >= n || j `VarSet.member` soFar
         then soFar
-        else IntSet.insert j $ allDependencies soFar $ directDependencies j
+        else VarSet.insert j $ allDependencies soFar $ directDependencies j
 
 -- | Computes the set of variables in a telescope whose type depend on
 --   one of the variables in the given set (including recursive
 --   dependencies). Any dependencies outside of the telescope are
 --   ignored.
-varDependents :: Telescope -> IntSet -> IntSet
+varDependents :: Telescope -> VarSet -> VarSet
 varDependents tel = allDependents
   where
     n  = size tel
     ts = flattenTel tel
 
-    directDependents :: IntSet -> IntSet
-    directDependents is = IntSet.fromList
+    directDependents :: VarSet -> VarSet
+    directDependents is = VarSet.fromList
       [ j | j <- downFrom n
           , let tj = indexWithDefault __IMPOSSIBLE__ ts (n-1-j)
-          , getAny $ runFree (Any . (`IntSet.member` is)) IgnoreNot tj
+          , getAny $ runFree (Any . (`VarSet.member` is)) IgnoreNot tj
           ]
 
-    allDependents :: IntSet -> IntSet
+    allDependents :: VarSet -> VarSet
     allDependents is
-     | null new  = empty
-     | otherwise = new `IntSet.union` allDependents new
+     | VarSet.null new = VarSet.empty
+     | otherwise = new `VarSet.union` allDependents new
       where new = directDependents is
 
 -- | A telescope split in two.
@@ -246,7 +255,7 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
     n     = size tel
 
     is    = varDependencies tel fv
-    isC   = IntSet.fromList [0..(n-1)] `IntSet.difference` is
+    isC   = VarSet.complement n is
 
     perm  = Perm n $ map (n-1-) $ VarSet.toDescList is ++ VarSet.toDescList isC
 
@@ -254,7 +263,7 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
 
     tel'  = unflattenTel (permute perm names) ts1
 
-    m     = size is
+    m     = VarSet.size is
     (tel1, tel2) = telFromList -*- telFromList $ splitAt m $ telToList tel'
 
 -- | As splitTelescope, but fails if any additional variables or reordering
@@ -329,16 +338,16 @@ instantiateTelescope tel k p = guard ok $> (tel', sigma, rho)
     -- is0 is the part of Γ that is needed to type u
     is0   = varDependencies tel $ allFreeVars u
     -- is1 is the part of Γ that depends on variable j
-    is1   = varDependents tel $ singleton j
+    is1   = varDependents tel $ VarSet.singleton j
     -- lasti is the last (rightmost) variable of is0
-    lasti = if null is0 then n else IntSet.findMin is0
+    lasti = fromMaybe n $ VarSet.lookupMin is0
     -- we move each variable in is1 to the right until it comes after
     -- all variables in is0 (i.e. after lasti)
-    (as,bs) = List.partition (`IntSet.member` is1) [ n-1 , n-2 .. lasti ]
+    (as,bs) = List.partition (`VarSet.member` is1) [ n-1 , n-2 .. lasti ]
     is    = reverse $ List.delete j $ bs ++ as ++ downFrom lasti
 
     -- if u depends on var j, we cannot instantiate
-    ok    = not $ j `IntSet.member` is0
+    ok    = not $ j `VarSet.member` is0
 
     perm  = Perm n $ is    -- works on de Bruijn indices
     rho   = reverseP perm  -- works on de Bruijn levels

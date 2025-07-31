@@ -35,8 +35,6 @@ import Data.Function (on)
 import Data.Word (Word64, Word32)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
@@ -146,6 +144,8 @@ import Agda.Utils.Set1 (Set1)
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple (Pair)
 import Agda.Utils.Update
+import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet (VarSet)
 
 import Agda.Utils.Impossible
 
@@ -5598,8 +5598,8 @@ data InductionAndEta = InductionAndEta
 -- Reason, why rewrite rule is invalid
 data IllegalRewriteRuleReason
   = LHSNotDefinitionOrConstructor
-  | VariablesNotBoundByLHS IntSet
-  | VariablesBoundMoreThanOnce IntSet
+  | VariablesNotBoundByLHS VarSet
+  | VariablesBoundMoreThanOnce VarSet
   | LHSReduces Term Term
   | HeadSymbolIsProjectionLikeFunction QName
   | HeadSymbolIsTypeConstructor QName
