@@ -9,8 +9,9 @@ import Prelude hiding (null)
 
 import Data.Text          (Text)
 import Data.Text          qualified as Text
-import Data.Text.Encoding (StrictTextBuilder, strictBuilderToText, textToStrictBuilder)
-import Data.Text.Encoding qualified as Text
+-- -- TODO: not available on text-1.2.5.0 (GHC 9.2)
+-- import Data.Text.Encoding (StrictTextBuilder, strictBuilderToText, textToStrictBuilder)
+-- import Data.Text.Encoding qualified as Text
 
 import GHC.Generics
 
@@ -45,9 +46,13 @@ type Fill  = Float
 treeToTextNoAnn :: DocTree ann -> Text
 treeToTextNoAnn = treeToText (const id)
 
+-- TODO: find text-builder for GHC <= 9.8 (older text)
+-- -- | Linearize a 'DocTree' to 'Text' with the given 'Text'-rendering of the annotations.
+-- treeToText :: (ann -> Text -> Text) -> DocTree ann -> Text
+-- treeToText ann = strictBuilderToText . renderTree' textToStrictBuilder \ a -> textToStrictBuilder . ann a . strictBuilderToText
 -- | Linearize a 'DocTree' to 'Text' with the given 'Text'-rendering of the annotations.
 treeToText :: (ann -> Text -> Text) -> DocTree ann -> Text
-treeToText ann = strictBuilderToText . renderTree' textToStrictBuilder \ a -> textToStrictBuilder . ann a . strictBuilderToText
+treeToText = renderTree' id
 
 -- | Generic 'DocTree' linearization.
 renderTree' :: forall ann t. Monoid t => (Text -> t) -> (ann -> t -> t) -> DocTree ann -> t
