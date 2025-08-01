@@ -37,6 +37,7 @@ import Agda.TypeChecking.Serialise.Base
 
 import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
+import Agda.Utils.DocTree qualified as DocTree
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2 (List2)
@@ -262,3 +263,13 @@ instance EmbPrj VarSet where
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Trie a b) where
   icod_ (Trie a b) = icodeN' Trie a b
   value = valueN Trie
+
+instance EmbPrj a => EmbPrj (DocTree.DocTree a) where
+  icod_ = \case
+    DocTree.Text a   -> icodeN' DocTree.Text a
+    DocTree.Node a b -> icodeN' DocTree.Node a b
+
+  value = vcase \case
+    [a]    -> valuN DocTree.Text a
+    [a, b] -> valuN DocTree.Node a b
+    _      -> malformed

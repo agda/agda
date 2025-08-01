@@ -5,7 +5,7 @@
 -- but rewritten to encode more invariants.
 
 module Agda.Utils.DocTree
-  ( DocTree
+  ( DocTree( Node, Text )
   , treeToTextNoAnn
   , treeToText
   , renderTree'
@@ -16,6 +16,7 @@ where
 
 import Prelude hiding (null)
 
+import Control.DeepSeq (NFData(..))
 import Data.Text          (Text)
 import Data.Text          qualified as Text
 -- -- TODO: not available on text-1.2.5.0 (GHC 9.2)
@@ -40,13 +41,15 @@ data DocTree ann
      -- ^ Stuff annotated by @ann@.
   | Text Text
      -- ^ Atom.
-  deriving Generic
+  deriving (Generic, Show)
 
 instance Null (DocTree ann) where
   empty = Text mempty
   null = \case
     Node a ts -> all null ts
     Text t    -> null t
+
+instance NFData ann => NFData (DocTree ann) where
 
 ---------------------------------------------------------------------------
 -- * Converting 'DocTree' to 'Text' et al.
