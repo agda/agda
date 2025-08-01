@@ -103,6 +103,9 @@ instance Pretty Char where
 instance a ~ Aspects => Pretty (P.Doc a) where
   pretty = id
 
+instance a ~ Aspects => Pretty (DocTree.DocTree a) where
+  pretty = DocTree.prettyDocTree
+
 instance Pretty () where
   pretty _ = P.empty
 

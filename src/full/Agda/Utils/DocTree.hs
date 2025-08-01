@@ -11,6 +11,7 @@ module Agda.Utils.DocTree
   , renderTree'
   , renderToTree
   , renderToTree'
+  , prettyDocTree
   )
 where
 
@@ -157,3 +158,11 @@ renderToTree' width fill =
         pushStr :: String -> List1 (Item ann) -> List1 (Item ann)
         pushStr "" is1 = is1
         pushStr s (Item a ts :| is) = Item a (Text (Text.pack s) : ts) :| is
+
+---------------------------------------------------------------------------
+-- * Converting 'DocTree' to 'Doc'
+
+prettyDocTree :: DocTree ann -> Doc ann
+prettyDocTree = \case
+  Text t    -> Ppr.text $ Text.unpack t  -- Bad, we should have a Doc that supports Text
+  Node a ts -> Ppr.annotate a $ foldMap prettyDocTree ts

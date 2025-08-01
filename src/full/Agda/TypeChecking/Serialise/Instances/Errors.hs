@@ -9,19 +9,21 @@ import Agda.TypeChecking.Serialise.Instances.Common   ( SerialisedRange(..) )
 import Agda.TypeChecking.Serialise.Instances.General  () --instance only
 import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
+import Agda.TypeChecking.Serialise.Instances.Highlighting () --instance only
 
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete.Definitions.Errors
     ( DeclarationWarning(..), DeclarationWarning'(..), OpenOrImport(..) )
 import Agda.Syntax.Parser.Monad
 import Agda.TypeChecking.Monad.Base
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import Agda.Interaction.Options
+import Agda.Interaction.Options.ProfileOptions
 import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Library.Base
 import Agda.Termination.CutOff
-import Agda.Syntax.Common.Pretty
-import Agda.Interaction.Options.ProfileOptions
 
+import Agda.Utils.DocTree qualified as DocTree
 import Agda.Utils.Impossible
 
 instance EmbPrj IsAmbiguous where
@@ -435,10 +437,12 @@ instance EmbPrj LibPositionInfo where
     [0, a, b, c] -> valuN LibPositionInfo a b c
     _ -> malformed
 
+-- Andreas, 2025-08-01, PR #8040:
+-- We serialize Doc as DocTree, fixing the layout,
+-- but preserving the annotations.
 instance EmbPrj Doc where
-  icod_ d = icodeN' (undefined :: String -> Doc) (render d)
-
-  value = valueN text
+  icod_ d = icodeN' (undefined :: DocTree -> Doc) (DocTree.renderToTree d)
+  value = valueN DocTree.prettyDocTree
 
 instance EmbPrj InfectiveCoinfective where
   icod_ Infective   = icodeN' Infective
