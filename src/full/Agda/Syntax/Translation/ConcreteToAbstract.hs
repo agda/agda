@@ -240,7 +240,7 @@ checkModuleApplication (C.SectionApp _ tel m es) m0 x dir' = do
     -- Set the current scope to @s'@
     modifyCurrentScope $ const s'
     printScope "mod.inst" 40 "copied source module"
-    reportSDoc "scope.mod.inst" 30 $ return $ pretty copyInfo
+    reportS "scope.mod.inst" 30 $ pretty copyInfo
     let amodapp = A.SectionApp tel' m1 args'
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checked ModuleApplication " ++ prettyShow x
@@ -355,7 +355,7 @@ checkModuleMacro apply kind r p e x modapp open dir = do
     reportSLn  "scope.decl" 90 $ "info    = " ++ show info
     reportSLn  "scope.decl" 90 $ "m       = " ++ prettyShow m
     reportSLn  "scope.decl" 90 $ "modapp' = " ++ show modapp'
-    reportSDoc "scope.decl" 90 $ return $ pretty copyInfo
+    reportS    "scope.decl" 90 $ pretty copyInfo
     reportSDoc "scope.decl" 70 $ nest 2 $ prettyA adecl
     return adecl
   where

@@ -37,7 +37,7 @@ import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Warnings
 
-import Agda.TypeChecking.Monad.Debug (reportSDoc, reportSLn, verboseS)
+import Agda.TypeChecking.Monad.Debug (reportS, reportSDoc, reportSLn, verboseS)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 
@@ -208,7 +208,7 @@ notInScopeWarning x = do
 printScope :: String -> Int -> String -> TCM ()
 printScope tag v s = verboseS ("scope." ++ tag) v $ do
   scope <- getScope
-  reportSDoc ("scope." ++ tag) v $ return $ vcat [ text s, pretty scope ]
+  reportS ("scope." ++ tag) v $ vcat [ text s, pretty scope ]
 
 ---------------------------------------------------------------------------
 -- * Signature

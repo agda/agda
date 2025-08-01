@@ -113,7 +113,7 @@ checkpoint sub k = do
     cps <- viewTC eCheckpoints
     let cps' = Map.insert chkpt IdS $ fmap (applySubst sub) cps
         prCps cps = vcat [ pshow c <+> ": " <+> pretty s | (c, s) <- Map.toList cps ]
-    reportSDoc "tc.cxt.checkpoint" 105 $ return $ nest 2 $ vcat
+    reportS "tc.cxt.checkpoint" 105 $ nest 2 $ vcat
       [ "old =" <+> pshow old
       , "new =" <+> pshow chkpt
       , "sub =" <+> pretty sub
@@ -129,7 +129,7 @@ checkpoint sub k = do
     }
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
     newChkpts <- useTC stModuleCheckpoints
-    reportSDoc "tc.cxt.checkpoint" 105 $ return $ nest 2 $
+    reportS "tc.cxt.checkpoint" 105 $ nest 2 $
       "mods before unwind =" <+> pretty newChkpts
 
   -- Set the checkpoint for introduced modules to the old checkpoint when the
@@ -151,7 +151,7 @@ checkpoint sub k = do
 
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
     unwoundChkpts <- useTC stModuleCheckpoints
-    reportSDoc "tc.cxt.checkpoint" 105 $ return $ nest 2 $
+    reportS "tc.cxt.checkpoint" 105 $ nest 2 $
       "unwound mods =" <+> pretty unwoundChkpts
 
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 "}"
@@ -306,10 +306,10 @@ instance MonadAddContext m => MonadAddContext (ListT m) where
 --   to the context during this TCM action.
 withShadowingNameTCM :: Name -> TCM b -> TCM b
 withShadowingNameTCM x f = do
-  reportSDoc "tc.cxt.shadowing" 80 $ pure $ "registered" <+> pretty x <+> "for shadowing"
+  reportS "tc.cxt.shadowing" 80 $ "registered" <+> pretty x <+> "for shadowing"
   when (isInScope x == InScope) $ tellUsedName x
   (result , useds) <- listenUsedNames f
-  reportSDoc "tc.cxt.shadowing" 90 $ pure $ "all used names: " <+> text (show useds)
+  reportSLn "tc.cxt.shadowing" 90 $ "all used names: " ++ show useds
   tellShadowing x useds
   return result
 
@@ -331,7 +331,7 @@ withShadowingNameTCM x f = do
 
       tellShadowing x useds = case Map.lookup (nameRoot $ nameConcrete x) useds of
         Just shadows -> do
-          reportSDoc "tc.cxt.shadowing" 80 $ pure $
+          reportS "tc.cxt.shadowing" 80 $
             "names shadowing" <+> pretty x <+> ": " <+>
             prettyList_ (map pretty $ toList shadows)
           modifyTCLens stShadowingNames $ Map.insertWith (<>) x shadows

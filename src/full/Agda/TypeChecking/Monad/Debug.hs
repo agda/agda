@@ -242,8 +242,8 @@ instance ReportS String    where reportS = reportSLn
 
 instance ReportS [TCM Doc] where reportS k n = reportSDoc k n . fmap vcat . sequence
 instance ReportS [String]  where reportS k n = reportSLn  k n . unlines
-instance ReportS [Doc]     where reportS k n = reportSLn  k n . render . vcat
-instance ReportS Doc       where reportS k n = reportSLn  k n . render
+instance ReportS [Doc]     where reportS k n = reportSDoc k n . pure . vcat
+instance ReportS Doc       where reportS k n = reportSDoc k n . pure
 
 -- | Conditionally println debug string. Works regardless of the debug flag.
 {-# SPECIALIZE alwaysReportSLn :: VerboseKey -> VerboseLevel -> String -> TCM () #-}
@@ -325,8 +325,8 @@ instance TraceS String    where traceS = traceSLn
 
 instance TraceS [TCM Doc] where traceS k n = traceSDoc k n . fmap vcat . sequence
 instance TraceS [String]  where traceS k n = traceSLn  k n . unlines
-instance TraceS [Doc]     where traceS k n = traceSLn  k n . render . vcat
-instance TraceS Doc       where traceS k n = traceSLn  k n . render
+instance TraceS [Doc]     where traceS k n = traceSDoc k n . pure . vcat
+instance TraceS Doc       where traceS k n = traceSDoc k n . pure
 
 -- | Conditionally debug print 'String', and then continue. Works regardless of the debug flag.
 alwaysTraceSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m a -> m a

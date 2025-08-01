@@ -22,7 +22,7 @@ import System.FilePath
 import Agda.Syntax.Common
 import Agda.Syntax.TopLevelModuleName
 
-import Agda.TypeChecking.Monad.Debug (reportSDoc)
+import Agda.TypeChecking.Monad.Debug (reportSDoc, reportS)
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Imports
@@ -294,7 +294,7 @@ setIncludeDirs incs root = do
       -- Might also be useful to overwrite default imports...
   incs <- return $ List1.fromListSafe __IMPOSSIBLE__ $ nubOn id $ List1.toList $ incs <> List1.singleton primdir
 
-  reportSDoc "setIncludeDirs" 10 $ return $ vcat
+  reportS "setIncludeDirs" 10 $ vcat
     [ "Old include directories:"
     , nest 2 $ vcat $ map pretty oldIncs
     , "New include directories:"
