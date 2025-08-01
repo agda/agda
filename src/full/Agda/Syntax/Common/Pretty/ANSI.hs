@@ -13,7 +13,8 @@ import System.Console.ANSI
 import System.Console.ANSI.Codes ( osc )
 import System.IO ( stdout )
 
-import Text.PrettyPrint.Annotated.HughesPJ ( renderDecoratedM )
+-- UNUSED:
+-- import Text.PrettyPrint.Annotated.HughesPJ ( renderDecoratedM )
 
 import Agda.Interaction.Options.HasOptions ( HasOptions(commandLineOptions) )
 import Agda.Interaction.Options.Base
@@ -80,10 +81,10 @@ aspSGR = \case
   Pragma            -> []
   Symbol            -> []
 
--- | Render an annotated, pretty-printing 'Doc'ument into a string
--- suitable for printing on VT100-compatible terminals.
-renderAnsiIO :: Doc -> IO ()
-renderAnsiIO = renderDecoratedM startAnn endAnn putStr (putStr "\n")
+-- UNUSED:
+-- -- | Render an annotated, pretty-printing 'Doc'ument to a VT100-compatible terminal.
+-- renderAnsiIO :: Doc -> IO ()
+-- renderAnsiIO = renderDecoratedM startAnn endAnn putStr (putStr "\n")
 
 putDocTree :: (MonadIO m, HasOptions m) => DocTree -> m ()
 putDocTree doc = do
