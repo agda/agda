@@ -2400,7 +2400,7 @@ instance NFData BinderNameOrigin
 -- * Free variable annotations
 -----------------------------------------------------------------------------
 
-data FreeVariables = UnknownFVs | KnownFVs VarSet
+data FreeVariables = UnknownFVs | KnownFVs !VarSet
   deriving (Eq, Ord, Show)
 
 instance Semigroup FreeVariables where
