@@ -51,6 +51,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
+import Agda.Utils.Singleton
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
@@ -2408,7 +2409,7 @@ instance Semigroup FreeVariables where
   KnownFVs vs1 <> KnownFVs vs2 = KnownFVs (VarSet.union vs1 vs2)
 
 instance Monoid FreeVariables where
-  mempty  = KnownFVs VarSet.empty
+  mempty  = KnownFVs empty
   mappend = (<>)
 
 instance KillRange FreeVariables where
@@ -2425,7 +2426,7 @@ noFreeVariables :: FreeVariables
 noFreeVariables = mempty
 
 oneFreeVariable :: Int -> FreeVariables
-oneFreeVariable = KnownFVs . VarSet.singleton
+oneFreeVariable = KnownFVs . singleton
 
 freeVariablesFromList :: [Int] -> FreeVariables
 freeVariablesFromList = mconcat . map oneFreeVariable
@@ -2456,7 +2457,7 @@ hasNoFreeVariables :: LensFreeVariables a => a -> Bool
 hasNoFreeVariables x =
   case getFreeVariables x of
     UnknownFVs  -> False
-    KnownFVs fv -> VarSet.null fv
+    KnownFVs fv -> null fv
 
 ---------------------------------------------------------------------------
 -- * Argument decoration

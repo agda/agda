@@ -32,6 +32,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.VarSet (VarSet)
@@ -213,7 +214,7 @@ varDependencies tel = addLocks . allDependencies tel
           s
 
     allDependencies :: Telescope -> VarSet -> VarSet
-    allDependencies tel vs = loop VarSet.empty (flattenRevTel tel) (-1) vs
+    allDependencies tel vs = loop empty (flattenRevTel tel) (-1) vs
       where
         -- Idea here is to keep a set @work@ of variables that we still need
         -- to get deps of. At each iteration, we skip backwards through the telescope
@@ -241,7 +242,7 @@ varDependencies tel = addLocks . allDependencies tel
 --   Unlike 'varDependencies', a variable is *not* considered to depend on itself.
 varDependents :: Telescope -> VarSet -> VarSet
 varDependents tel vs =
-  loop VarSet.empty (flattenTel tel) (size tel - 1) vs
+  loop empty (flattenTel tel) (size tel - 1) vs
   where
     -- Idea here is to keep a set @work@ of variables that we
     -- want to find dependents of. At each iteration, we walk forwards through
@@ -365,7 +366,7 @@ instantiateTelescope tel k p = guard ok $> (tel', sigma, rho)
     -- is0 is the part of Γ that is needed to type u
     is0   = varDependencies tel $ allFreeVars u
     -- is1 is the part of Γ that depends on variable j
-    is1   = varDependents tel $ VarSet.singleton j
+    is1   = varDependents tel $ singleton j
     -- lasti is the last (rightmost) variable of is0
     lasti = fromMaybe n $ VarSet.lookupMin is0
     -- we move each variable in is1 to the right until it comes after

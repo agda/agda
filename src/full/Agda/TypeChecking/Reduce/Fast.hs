@@ -35,7 +35,7 @@ Some other tricks that improves performance:
 module Agda.TypeChecking.Reduce.Fast
   ( fastReduce, fastNormalise ) where
 
-import Prelude hiding ((!!))
+import Prelude hiding ((!!), null)
 
 import Control.Applicative hiding (empty)
 import Control.Monad.ST
@@ -75,7 +75,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Null (empty)
+import Agda.Utils.Null (empty, null)
 import Agda.Utils.Functor
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
@@ -777,7 +777,7 @@ elimsToSpine env es = do
 trimEnvironment :: FreeVariables -> Env s -> Env s
 trimEnvironment UnknownFVs env = env
 trimEnvironment (KnownFVs fvs) env
-  | VarSet.null fvs = emptyEnv
+  | null fvs = emptyEnv
     -- Environment trimming is too expensive (costs 50% on some benchmarks), and while it does make
     -- some cases run in constant instead of linear space you need quite contrived examples to
     -- notice the effect.

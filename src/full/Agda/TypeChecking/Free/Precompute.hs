@@ -7,6 +7,7 @@ module Agda.TypeChecking.Free.Precompute
 
 import Control.Monad.Writer ( Writer, runWriter, censor, listen, tell )
 
+import Agda.Utils.Singleton
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
@@ -57,7 +58,7 @@ instance PrecomputeFreeVars Term where
   precomputeFreeVars t =
     case t of
       Var x es -> do
-        tell (VarSet.singleton x)
+        tell (singleton x)
         Var x <$> precomputeFreeVars es
       Lam i b    -> Lam i      <$> precomputeFreeVars b
       Lit{}      -> pure t
