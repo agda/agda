@@ -64,7 +64,7 @@ import Agda.Benchmarking (Benchmark, Phase)
 
 import {-# SOURCE #-} Agda.Compiler.Treeless.Pretty () -- Instances only
 import Agda.Syntax.Common
-import Agda.Syntax.Common.Pretty.ANSI (putDocLn)
+import Agda.Syntax.Common.Pretty.ANSI (putDocTreeLn)
 import Agda.Syntax.Builtin (SomeBuiltin, BuiltinId, PrimitiveId)
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Definitions
@@ -6461,8 +6461,8 @@ defaultInteractionOutputCallback = \case
   Resp_SolveAll {}          -> __IMPOSSIBLE__
   Resp_Mimer {}             -> __IMPOSSIBLE__
   Resp_DisplayInfo {}       -> __IMPOSSIBLE__
-  Resp_RunningInfo _ s      -> do
-                                 putDocLn s
+  Resp_RunningInfo _ msg    -> do
+                                 putDocTreeLn msg
                                  liftIO $ hFlush stdout
   Resp_ClearRunningInfo {}  -> __IMPOSSIBLE__
   Resp_ClearHighlighting {} -> __IMPOSSIBLE__

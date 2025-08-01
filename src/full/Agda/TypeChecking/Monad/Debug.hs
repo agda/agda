@@ -41,6 +41,7 @@ import Agda.Utils.Update
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Impossible
+import Agda.Utils.DocTree (renderToTree)
 
 class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
@@ -126,10 +127,10 @@ displayDebugMessage k n s = traceDebugMessage k n s $ return ()
 -- | During printing, catch internal errors of kind 'Impossible' and print them.
 catchAndPrintImpossible
   :: (CatchImpossible m, Monad m)
-  => VerboseKey -> VerboseLevel -> m Doc -> m Doc
-{-# SPECIALIZE catchAndPrintImpossible :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM Doc #-}
+  => VerboseKey -> VerboseLevel -> m DocTree -> m DocTree
+{-# SPECIALIZE catchAndPrintImpossible :: VerboseKey -> VerboseLevel -> TCM DocTree -> TCM DocTree #-}
 catchAndPrintImpossible k n m = catchImpossibleJust catchMe m $ \ imposs -> do
-  return $ vcat
+  return $ renderToTree $ vcat
     [ text $ "Debug printing " ++ k ++ ":" ++ show n ++ " failed due to exception:"
     , vcat $ map (nest 2 . text) $ lines $ show imposs
     ]
@@ -147,15 +148,15 @@ traceDebugMessageTCM k n doc cont = do
     -- Forcing the @doc@ introduces a massive space leak,
     -- so for now we switch off the fix of #4016 which is just devx.
     -- This means that attempts to debug-print __IMPOSSIBLE__s will result in internal errors again.
-    -- Andreas, 2019-08-20, issue #4016:
-    -- Force any lazy 'Impossible' exceptions to the surface and handle them.
-    -- doc <- liftIO . catchAndPrintImpossible k n . E.evaluate . DeepSeq.force $ doc
 
     -- Andreas, 2022-06-15, prefix with time stamp if `-v debug.time:100`:
-    msg <- ifNotM (hasVerbosity "debug.time" 100) {-then-} (pure doc) {-else-} $ do
+    doc <- ifNotM (hasVerbosity "debug.time" 100) {-then-} (pure doc) {-else-} $ do
       now <- liftIO $ trailingZeros . iso8601Show <$> liftA2 utcToLocalTime getCurrentTimeZone getCurrentTime
       pure $ (text now <> ":") <+> doc
 
+    -- Andreas, 2019-08-20, issue #4016:
+    -- Force any lazy 'Impossible' exceptions to the surface and handle them.
+    msg :: DocTree <- liftIO . catchAndPrintImpossible k n . E.evaluate . DeepSeq.force . renderToTree $ doc
     cb <- getsTC $ stInteractionOutputCallback . stPersistentState
     cb $ Resp_RunningInfo n msg
     cont
@@ -169,20 +170,6 @@ traceDebugMessageTCM k n doc cont = do
 
 formatDebugMessageTCM :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM Doc
 formatDebugMessageTCM _ _ = id
-  -- formatDebugMessageTCM k n doc = catchAndPrintImpossible k n do
-  --   -- Andreas, 2025-07-30, PR #8040
-  --   -- @liftIO . E.evaluate . DeepSeq.force@ is a (failed) attempt to tame the space leak.
-  --   -- Just @DeepSeq.force@ did also not help.
-  --   -- Forcing might even trigger the space leak.
-  --   (liftIO . E.evaluate . DeepSeq.force =<< doc) `catchError` \ err -> do
-  --     renderError err <&> \ s -> vcat
-  --       [ sep $ map text
-  --         [ "Printing debug message"
-  --         , k  ++ ":" ++ show n
-  --         , "failed due to error:"
-  --         ]
-  --       , nest 2 $ text s
-  --       ]
 
 verboseBracketTCM :: VerboseKey -> VerboseLevel -> String -> TCM a -> TCM a
 #ifdef DEBUG

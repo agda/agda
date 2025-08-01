@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wunused-matches #-}
 {-# OPTIONS_GHC -Wunused-binds #-}
 
-module Agda.Syntax.Common.Pretty.ANSI ( printTreeAnsi, putDocLn, putDocTree ) where
+module Agda.Syntax.Common.Pretty.ANSI ( printTreeAnsi, putDocLn, putDocTree, putDocTreeLn ) where
 
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Data.Functor ((<&>))
@@ -97,6 +97,11 @@ putDocTree doc = do
     if col
       then printTreeAnsi doc
       else Text.putStr (treeToTextNoAnn doc)
+
+putDocTreeLn :: (MonadIO m, HasOptions m) => DocTree -> m ()
+putDocTreeLn doc = do
+  putDocTree doc
+  liftIO $ putStr "\n"
 
 putDoc :: (MonadIO m, HasOptions m) => Doc -> m ()
 putDoc = putDocTree . renderToTree

@@ -28,8 +28,12 @@ import Data.Word (Word32)
 -- import qualified Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad
 import Agda.Syntax.Common.Pretty
+
+import Agda.Utils.DocTree qualified as DocTree
 import qualified Agda.Utils.FileName as File
 import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Interaction.Highlighting.Common (toAtoms)
+import qualified Data.Aeson.KeyMap as KeyMap
 
 toKey :: Text -> Key
 toKey = Key.fromText
@@ -120,6 +124,21 @@ instance EncodeTCM Int
 instance EncodeTCM Word32
 instance EncodeTCM Value
 instance EncodeTCM Doc
+instance EncodeTCM DocTree
+
+instance ToJSON DocTree where
+  toJSON = toJSON . DocTree.treeToTextNoAnn
+  -- toJSON = toJsonDocTree  -- TODO: communicate annotations to JSON client
+
+-- UNUSED code taken from
+-- https://github.com/plt-amy/agda/blob/9fd50b883f14a05792ed79a0b693fbecb2165bf5/src/full/Agda/LSP/Output.hs#L29-L35
+toJsonDocTree :: DocTree -> Value
+toJsonDocTree = \case
+    DocTree.Node tt ds -> Object $ KeyMap.fromList
+      [ ("style", toJSON (toAtoms tt))
+      , ("children", toJSONList ds)
+      ]
+    DocTree.Text t -> toJSON t
 
 instance ToJSON Doc where
   toJSON = toJSON . render

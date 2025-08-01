@@ -16,6 +16,7 @@ import Control.Monad.State    ( evalStateT )
 import Control.Monad.Trans    ( lift )
 
 import qualified Data.List as List
+import Data.Text qualified as Text
 
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty
@@ -41,6 +42,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.String
 import Agda.Utils.Time (CPUTime)
 import Agda.VersionCommit
+import Agda.Utils.DocTree (treeToTextNoAnn)
 
 ----------------------------------
 
@@ -74,7 +76,7 @@ lispifyResponse (Resp_RunningInfo n doc)
   where
     -- Andreas, 2025-07-30, for now, we throw away the annotations in the Doc.
     -- TODO: turn annotations into syntax highlighting.
-    s = render doc
+    s = Text.unpack $ treeToTextNoAnn doc
 lispifyResponse (Resp_Status s)
     = return [ L [ A "agda2-status-action"
                  , A (quote $ List.intercalate "," $ catMaybes [checked, showImpl, showIrr])

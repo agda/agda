@@ -32,7 +32,7 @@ import Agda.Interaction.Base
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common         (InteractionId(..), Arg)
-import Agda.Syntax.Common.Pretty  (Doc)
+import Agda.Syntax.Common.Pretty  (DocTree)
 import Agda.Syntax.Concrete       (Expr)
 import Agda.Syntax.Concrete.Name  (Name, QName, NameInScope)
 import Agda.Syntax.Scope.Base     (WhyInScopeData)
@@ -63,9 +63,9 @@ data Response_boot tcErr tcWarning warningsAndNonFatalErrors
       -- ^ Solution for one or more meta-variables.
     | Resp_Mimer InteractionId (Maybe String)
     | Resp_DisplayInfo (DisplayInfo_boot tcErr tcWarning warningsAndNonFatalErrors)
-    | Resp_RunningInfo Int Doc
+    | Resp_RunningInfo Int DocTree
       -- ^ The integer is the message's debug level.
-      --   The 'Doc' usually does not contain a final newline.
+      --   The 'DocTree' usually does not contain a final newline.
     | Resp_ClearRunningInfo
     | Resp_ClearHighlighting TokenBased
       -- ^ Clear highlighting of the given kind.
