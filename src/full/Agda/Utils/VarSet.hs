@@ -160,7 +160,7 @@ import Agda.Utils.Word
 -- happy path approximately 3x faster for things like 'inRange', as
 -- GHC is able to coalesce all of the happy paths.
 
--- | A set of de Bruijn indicies/levels.
+-- | A set of de Bruijn indices/levels.
 data VarSet
   = VB# ByteArray#
   -- ^ A variable set whose maximum entry is greater than or equal to 64.
@@ -207,7 +207,7 @@ instance Semigroup VarSet where
 instance Monoid VarSet where
   mempty = empty
 
--- This instances is a bit suboptimal.
+-- This instance is a bit suboptimal.
 -- Ideally, 'hashWithSalt' should directly just call an unboxed 'mixHash' when we have a 'VS#',
 -- but 'Hashable' doesn't expose enough of its internals for this.
 instance Hashable VarSet where
@@ -551,11 +551,17 @@ foldr f a (VS# w) = wordFoldrBits# f a w
 foldr f a (VB# bs) = byteArrayFoldrBits# f a bs
 
 -- | Lazily fold over the elements of a variable set in descending order.
+--
+-- This does not have the same deficiencies 'Data.List.foldl', as we can
+-- start the fold at the back of the 'VarSet'.
 foldl :: (a -> Int -> a) -> a -> VarSet -> a
 foldl f a (VS# w) = wordFoldlBits# f a w
 foldl f a (VB# bs) = byteArrayFoldlBits# f a bs
 
 -- | Strictly fold over the elements of a variable set in ascending order.
+--
+-- This does not have the same deficiencies 'Data.List.foldr'', as we can
+-- start the fold at the back of the 'VarSet'.
 foldr' :: (Int -> a -> a) -> a -> VarSet -> a
 foldr' f a (VS# w) = wordFoldrBitsStrict# f a w
 foldr' f a (VB# bs) = byteArrayFoldrBitsStrict# f a bs
