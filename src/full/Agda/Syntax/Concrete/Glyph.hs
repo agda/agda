@@ -17,13 +17,13 @@ module Agda.Syntax.Concrete.Glyph
 
 import Control.DeepSeq
 
-import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 import GHC.Generics (Generic)
 
 import Agda.Utils.Boolean
 import Agda.Utils.List
+import Agda.Utils.IORef.Strict
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 
@@ -46,16 +46,16 @@ instance IsBool UnicodeOrAscii where
     AsciiOnly -> False
 
 {-# NOINLINE unsafeUnicodeOrAsciiIORef #-}
-unsafeUnicodeOrAsciiIORef :: IORef UnicodeOrAscii
-unsafeUnicodeOrAsciiIORef = UNSAFE.unsafePerformIO $ newIORef UnicodeOk
+unsafeUnicodeOrAsciiIORef :: StrictIORef UnicodeOrAscii
+unsafeUnicodeOrAsciiIORef = UNSAFE.unsafePerformIO $ newStrictIORef UnicodeOk
 
 {-# NOINLINE unsafeSetUnicodeOrAscii #-}
 unsafeSetUnicodeOrAscii :: UnicodeOrAscii -> IO ()
-unsafeSetUnicodeOrAscii = writeIORef $! unsafeUnicodeOrAsciiIORef
+unsafeSetUnicodeOrAscii = writeStrictIORef unsafeUnicodeOrAsciiIORef
 
 -- | Are we allowed to use unicode supscript characters?
 unsafeUnicodeOrAscii :: UnicodeOrAscii
-unsafeUnicodeOrAscii = UNSAFE.unsafePerformIO (readIORef unsafeUnicodeOrAsciiIORef)
+unsafeUnicodeOrAscii = UNSAFE.unsafePerformIO (readStrictIORef unsafeUnicodeOrAsciiIORef)
 
 -- | Picking the appropriate set of special characters depending on
 -- whether we are allowed to use unicode or have to limit ourselves

@@ -9,16 +9,16 @@ module Agda.Benchmarking where
 import Control.DeepSeq
 import qualified Control.Exception as E
 
-import Data.IORef
-
 import GHC.Generics (Generic)
 
 import System.IO.Unsafe
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
+
 import Agda.Utils.Benchmark (MonadBench(..))
 import qualified Agda.Utils.Benchmark as B
+import Agda.Utils.IORef.Strict
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 
@@ -146,13 +146,13 @@ isInternalAccount _                  = True
 
 -- | Global variable to store benchmark statistics.
 {-# NOINLINE benchmarks #-}
-benchmarks :: IORef Benchmark
-benchmarks = unsafePerformIO $ newIORef empty
+benchmarks :: StrictIORef Benchmark
+benchmarks = unsafePerformIO $ newStrictIORef empty
 
 instance MonadBench IO where
   type BenchPhase IO = Phase
-  getBenchmark = readIORef benchmarks
-  putBenchmark = writeIORef $! benchmarks
+  getBenchmark = readStrictIORef benchmarks
+  putBenchmark = writeStrictIORef benchmarks
   finally = E.finally
 
 -- | Benchmark an IO computation and bill it to the given account.
