@@ -22,7 +22,7 @@ import Agda.Interaction.Monad
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty
-import Agda.Syntax.Common.Pretty.ANSI (putDoc)
+import Agda.Syntax.Common.Pretty.ANSI (putDocLn)
 import Agda.Syntax.Internal (telToList, alwaysUnblock)
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Parser
@@ -108,7 +108,7 @@ interaction prompt cmds eval = loop
                     Just _ ->
                         do  go =<< liftTCM (eval $ fromJust ms)
             `catchError` \e ->
-                do  putDoc =<< prettyError e
+                do  putDocLn =<< prettyError e
                     loop
 
 runInteractionLoop :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM CheckResult) -> TCM ()
@@ -142,7 +142,7 @@ interactionLoop = do
               -- @open import Agda.Primitive using (Set; Prop)@
               void $ liftTCM importPrimitives
           `catchError` \e -> do
-            putDoc =<< prettyError e
+            putDocLn =<< prettyError e
             liftIO $ putStrLn "Failed."
 
         commands =

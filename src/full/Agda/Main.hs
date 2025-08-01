@@ -423,7 +423,7 @@ runTCMPrettyErrors tcm = do
           `catchError` \err -> do
             s2s <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
             s1  <- prettyError err
-            ANSI.putDoc $ P.vsep $ s2s ++ [ s1 ]
+            ANSI.putDocLn $ P.vsep $ s2s ++ [ s1 ]
             liftIO $ do
               helpForLocaleError err
             return (Just TCMError)

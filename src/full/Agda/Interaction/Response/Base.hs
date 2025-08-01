@@ -65,6 +65,7 @@ data Response_boot tcErr tcWarning warningsAndNonFatalErrors
     | Resp_DisplayInfo (DisplayInfo_boot tcErr tcWarning warningsAndNonFatalErrors)
     | Resp_RunningInfo Int Doc
       -- ^ The integer is the message's debug level.
+      --   The 'Doc' usually does not contain a final newline.
     | Resp_ClearRunningInfo
     | Resp_ClearHighlighting TokenBased
       -- ^ Clear highlighting of the given kind.
