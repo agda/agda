@@ -835,7 +835,14 @@ getStoredInterface x file@(SourceFile fi) msrc = do
 reportWarningsForModule :: MonadDebug m => TopLevelModuleName -> Set TCWarning -> m ()
 reportWarningsForModule x warns = do
   unlessNull (filter ((Strict.Just (Just x) ==) . fmap rangeFileName . tcWarningOrigin) $ Set.toAscList warns) \ ws ->
-    alwaysReportSDoc "warning" 1 $ P.vsep $ map P.prettyTCM ws
+    alwaysReportSDoc "warning" 1 $
+      -- Andreas, 2025-08-01, PR #8040
+      -- Make sure that imported warnings coming from different modules are separated by an empty line.
+      -- E.g. test/Succeed/ImportWarnings
+      -- Technique from PR #7473:
+      P.vcat $ concatMap (\ w -> [ "", P.prettyTCM w ]) ws
+      -- Technique from PR #7362:
+      -- P.vsep $ map P.prettyTCM ws
 
 -- | Check whether the loaded module is up-to-date
 --   and merge into state if this is the case.
