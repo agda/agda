@@ -15,7 +15,7 @@
 
 module Agda.TypeChecking.MetaVars.Occurs where
 
-import Prelude hiding (zip, zipWith)
+import Prelude hiding (null, zip, zipWith)
 
 import Control.Monad.Except ( ExceptT, runExceptT, catchError, throwError )
 import Control.Monad.Reader ( ReaderT, runReaderT, ask, asks, local )
@@ -55,6 +55,7 @@ import Agda.Utils.List (downFrom)
 import Agda.Utils.ListInf qualified as ListInf
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Size
@@ -971,7 +972,7 @@ killedType args b = do
     --          ys ⊆ xs are the variables that were dropped from Δ
     --          B' = strengthen ys B
     go :: (MonadReduce m) => [Dom (ArgName, Type)] -> VarSet -> Type -> m (VarSet, Type)
-    go [] xs b | VarSet.null xs = return (xs, b)
+    go [] xs b | null xs = return (xs, b)
                | otherwise      = __IMPOSSIBLE__
     go (arg : args) xs b  -- go (Δ (x : A)) xs B, (x = deBruijn index 0)
       | VarSet.member 0 xs = do
@@ -997,7 +998,7 @@ killedType args b = do
           return (VarSet.weaken 1 zs, b)
 
 reallyNotFreeIn :: (MonadReduce m) => VarSet -> Type -> m (VarSet, Type)
-reallyNotFreeIn xs a | VarSet.null xs = return (xs, a) -- Shortcut
+reallyNotFreeIn xs a | null xs = return (xs, a) -- Shortcut
 reallyNotFreeIn xs a = do
   let fvs      = freeVars a
       anywhere = allVars fvs

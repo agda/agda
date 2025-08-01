@@ -256,11 +256,11 @@ closed t = getAll $ runFree (const $ All False) IgnoreNot t
 
 -- | Collect all free variables.
 allFreeVars :: Free t => t -> VarSet
-allFreeVars = runFree VarSet.singleton IgnoreNot
+allFreeVars = runFree singleton IgnoreNot
 
 -- | Collect all relevant free variables, possibly ignoring sorts.
 allRelevantVarsIgnoring :: Free t => IgnoreSorts -> t -> VarSet
-allRelevantVarsIgnoring ig = getRelevantIn . runFree (RelevantIn . VarSet.singleton) ig
+allRelevantVarsIgnoring ig = getRelevantIn . runFree (RelevantIn . singleton) ig
 
 -- | Collect all relevant free variables, excluding the "unused" ones.
 allRelevantVars :: Free t => t -> VarSet

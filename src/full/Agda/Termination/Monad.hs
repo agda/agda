@@ -51,6 +51,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Monoid
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty (Pretty, prettyShow)
+import Agda.Utils.Singleton
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
@@ -161,7 +162,7 @@ defaultTerEnv = TerEnv
   , terPatternsRaise            = 0
   , terGuarded                  = le -- not initially guarded
   , terUseSizeLt                = False -- initially, not under data constructor
-  , terUsableVars               = VarSet.empty
+  , terUsableVars               = empty
   }
 
 -- | Termination monad service class.
@@ -360,7 +361,7 @@ withUsableVars :: UsableSizeVars a => a -> TerM b -> TerM b
 withUsableVars pats m = do
   vars <- usableSizeVars pats
   reportSLn "term.size" 70 $ "usableSizeVars = " ++ show vars
-  reportSDoc "term.size" 20 $ if VarSet.null vars then "no usuable size vars" else
+  reportSDoc "term.size" 20 $ if null vars then "no usuable size vars" else
     "the size variables amoung these variables are usable: " <+>
       sep (map (prettyTCM . var) $ VarSet.toAscList vars)
   terSetUsableVars vars $ m
@@ -506,7 +507,7 @@ class UsableSizeVars a where
 
 instance UsableSizeVars DeBruijnPattern where
   usableSizeVars = foldrPattern $ \case
-    VarP _ x   -> const $ ifM terGetUseSizeLt (return $ VarSet.singleton $ dbPatVarIndex x) $
+    VarP _ x   -> const $ ifM terGetUseSizeLt (return $ singleton $ dbPatVarIndex x) $
                    {-else-} return mempty
     ConP c _ _ -> conUseSizeLt $ conName c
     LitP{}     -> none
@@ -525,7 +526,7 @@ instance UsableSizeVars [DeBruijnPattern] where
 
 instance UsableSizeVars (Masked DeBruijnPattern) where
   usableSizeVars (Masked m p) = (`foldrPattern` p) $ \case
-    VarP _ x   -> const $ ifM terGetUseSizeLt (return $ VarSet.singleton $ dbPatVarIndex x) $
+    VarP _ x   -> const $ ifM terGetUseSizeLt (return $ singleton $ dbPatVarIndex x) $
                    {-else-} return mempty
     ConP c _ _ -> if m then none else conUseSizeLt $ conName c
     LitP{}     -> none

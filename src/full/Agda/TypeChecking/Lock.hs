@@ -9,6 +9,9 @@ module Agda.TypeChecking.Lock
   )
 where
 
+import Prelude hiding (null)
+import qualified Prelude as Prelude
+
 import qualified Data.IntMap as IMap
 import qualified Data.Set as Set
 
@@ -28,6 +31,7 @@ import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Size
 
 checkLockedVars
@@ -82,7 +86,7 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
     illegalVars = rigid `VarSet.difference` allowedVars
     -- flexVars = flexibleVars fv
     -- blockingMetas = map (`lookupVarMap` flexVars) (ISet.toList $ termVars ISet.\\ allowedVars)
-  if VarSet.null illegalVars then  -- only flexible vars are infringing
+  if null illegalVars then  -- only flexible vars are infringing
     -- TODO: be more precise about which metas
     -- flexVars = flexibleVars fv
     -- blockingMetas = map (`lookupVarMap` flexVars) (ISet.toList $ termVars ISet.\\ allowedVars)

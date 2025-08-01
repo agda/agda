@@ -727,7 +727,7 @@ checkArgumentsE'
 
                       -- Is any free variable in tgt less than
                       -- visiblePis?
-                  let dep = not (VarSet.null freeInTgt)
+                  let dep = not (null freeInTgt)
                   -- The target must be non-dependent.
                   if dep then return s else do
 

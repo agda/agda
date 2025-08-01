@@ -255,21 +255,21 @@ instance NLPatVars NLPType where
 instance NLPatVars NLPSort where
   nlPatVarsUnder k = \case
     PUniv _ l   -> nlPatVarsUnder k l
-    PInf f n  -> VarSet.empty
-    PSizeUniv -> VarSet.empty
-    PLockUniv -> VarSet.empty
-    PLevelUniv -> VarSet.empty
-    PIntervalUniv -> VarSet.empty
+    PInf f n  -> empty
+    PSizeUniv -> empty
+    PLockUniv -> empty
+    PLevelUniv -> empty
+    PIntervalUniv -> empty
 
 instance NLPatVars NLPat where
   nlPatVarsUnder k = \case
-      PVar i _  -> VarSet.singleton $ i - k
+      PVar i _  -> singleton $ i - k
       PDef _ es -> nlPatVarsUnder k es
       PLam _ p  -> nlPatVarsUnder k p
       PPi a b   -> nlPatVarsUnder k (a, b)
       PSort s   -> nlPatVarsUnder k s
       PBoundVar _ es -> nlPatVarsUnder k es
-      PTerm{}   -> VarSet.empty
+      PTerm{}   -> empty
 
 instance (NLPatVars a, NLPatVars b) => NLPatVars (a,b) where
   nlPatVarsUnder k (a,b) = nlPatVarsUnder k a `mappend` nlPatVarsUnder k b
