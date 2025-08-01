@@ -264,7 +264,7 @@ mapPairsIcode xs = icodeNode =<< convert Empty xs where
     entry <- icode entry
     convert (Cons start (Cons entry ys)) xs
 
-mapPairsValue :: (EmbPrj k, EmbPrj v) => [Word32] -> R [(k, v)]
+mapPairsValue :: (EmbPrj k, EmbPrj v) => [Word32] -> R r [(k, v)]
 mapPairsValue = convert [] where
   convert ys [] = return ys
   convert ys (start:entry:xs) = do
@@ -637,7 +637,7 @@ instance EmbPrj PolarityModality where
     (p, o, l) <- polPair
     return $ PolarityModality p o l
     where
-      polPair :: R (ModalPolarity, ModalPolarity, ModalPolarity)
+      polPair :: R r (ModalPolarity, ModalPolarity, ModalPolarity)
       polPair = value n
 
 instance EmbPrj Modality where
