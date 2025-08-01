@@ -282,11 +282,12 @@ __IMPOSSIBLE_VERBOSE__ s = do
   -- reportSLn "impossible" 10 s
   -- It seems like GHC 9.6 optimization does otherwise something that throws
   -- away the debug message.
-  let k = "impossible"
-  let n = 10
-  verboseS k n $ displayDebugMessage k n $ text s
-
-  throwImpossible err
+  -- let k = "impossible"
+  -- let n = 10
+  -- verboseS k n $ displayDebugMessage k n $ text s
+  -- throwImpossible err
+  -- Andreas, 2025-08-01: Does it work with traceSLn?
+  traceSLn "impossible" 10 s $ throwImpossible err
   where
     -- Create the "Impossible" error using *our* caller as the call site.
     err = withCallerCallStack Impossible
