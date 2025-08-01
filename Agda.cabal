@@ -821,6 +821,7 @@ library
       Agda.TypeChecking.Serialise.Instances.Common
       Agda.TypeChecking.Serialise.Instances.Compilers
       Agda.TypeChecking.Serialise.Instances.Errors
+      Agda.TypeChecking.Serialise.Instances.General
       Agda.TypeChecking.Serialise.Instances.Highlighting
       Agda.TypeChecking.Serialise.Instances.Internal
       Agda.TypeChecking.SizedTypes

@@ -6,8 +6,9 @@ import Control.Monad
 
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common   ( SerialisedRange(..) )
-import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
+import Agda.TypeChecking.Serialise.Instances.General  () --instance only
 import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
+import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
 
 import Agda.Syntax.Concrete.Definitions.Errors
     ( DeclarationWarning(..), DeclarationWarning'(..), OpenOrImport(..) )
