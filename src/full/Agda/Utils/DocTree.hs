@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | A simple document tree to render @'Doc' ann@ but preserve annotations.
 --
 -- 'DocTree' and 'renderToTree'' originally taken from
@@ -20,9 +22,13 @@ import Prelude hiding (null)
 import Control.DeepSeq (NFData(..))
 import Data.Text          (Text)
 import Data.Text          qualified as Text
--- -- TODO: not available on text-1.2.5.0 (GHC 9.2)
--- import Data.Text.Encoding (StrictTextBuilder, strictBuilderToText, textToStrictBuilder)
--- import Data.Text.Encoding qualified as Text
+#if MIN_VERSION_text(2,0,2)
+import Data.Text.Encoding (strictBuilderToText, textToStrictBuilder)
+#else
+-- GHC 9.2 ships text-1.2.5.0
+import Data.Text.Lazy qualified as TL
+import Data.Text.Lazy.Builder qualified as Builder
+#endif
 
 import GHC.Generics
 
@@ -62,13 +68,18 @@ type Fill  = Float
 treeToTextNoAnn :: DocTree ann -> Text
 treeToTextNoAnn = treeToText (const id)
 
--- TODO: find text-builder for GHC <= 9.8 (older text)
--- -- | Linearize a 'DocTree' to 'Text' with the given 'Text'-rendering of the annotations.
--- treeToText :: (ann -> Text -> Text) -> DocTree ann -> Text
--- treeToText ann = strictBuilderToText . renderTree' textToStrictBuilder \ a -> textToStrictBuilder . ann a . strictBuilderToText
 -- | Linearize a 'DocTree' to 'Text' with the given 'Text'-rendering of the annotations.
 treeToText :: (ann -> Text -> Text) -> DocTree ann -> Text
-treeToText = renderTree' id
+treeToText ann =
+#if MIN_VERSION_text(2,0,2)
+  strictBuilderToText . renderTree' textToStrictBuilder \ a -> textToStrictBuilder . ann a . strictBuilderToText
+#else
+  toText . renderTree' Builder.fromText \ a -> Builder.fromText . ann a . toText
+  where
+    toText = TL.toStrict . Builder.toLazyText
+#endif
+-- Naive implementation:
+-- treeToText = renderTree' id
 
 -- | Generic 'DocTree' linearization.
 renderTree' :: forall ann t. Monoid t => (Text -> t) -> (ann -> t -> t) -> DocTree ann -> t
