@@ -24,7 +24,7 @@ import System.FilePath ( takeFileName )
 import Agda.Utils.GetOpt
 import qualified System.IO as IO
 
-import Agda.Interaction.BuildLibrary (buildLibrary)
+import Agda.Interaction.BuildLibrary (buildLibrary, printAccumulatedWarnings)
 import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode as ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
@@ -328,14 +328,8 @@ runAgdaWithOptions interactor progName opts = do
           let i = crInterface result
           reportSDoc "main" 50 $ pretty i
 
-          -- Print accumulated warnings
-          unlessNullM (tcWarnings . classifyWarnings . Set.toAscList <$> getAllWarnings AllWarnings) $ \ ws -> do
-            let banner = text $ "\n" ++ delimiter "All done; warnings encountered"
-            alwaysReportSDoc "warning" 1 $
-              vsep $ (banner :) $ map prettyTCM $ Set.toAscList ws
-
+          printAccumulatedWarnings
           return result
-
 
 
 -- | Print usage information.
