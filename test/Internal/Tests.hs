@@ -55,6 +55,7 @@ import qualified Internal.Utils.RangeMap
 import qualified Internal.Utils.SmallSet
 import qualified Internal.Utils.Three
 import qualified Internal.Utils.Trie
+import qualified Internal.Version
 
 -- Keep this list in the import order, please!
 tests :: TestTree
@@ -107,4 +108,5 @@ tests = testGroup "Internal" $
   Internal.Utils.SmallSet.tests :
   Internal.Utils.Three.tests :
   Internal.Utils.Trie.tests :
+  Internal.Version.tests :
   []

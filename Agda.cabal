@@ -861,6 +861,7 @@ library
       Agda.Utils.Function
       Agda.Utils.Functor
       Agda.Utils.GetOpt
+      Agda.Utils.Git
       Agda.Utils.Graph.AdjacencyMap.Unidirectional
       Agda.Utils.Graph.TopSort
       Agda.Utils.Hash
@@ -963,7 +964,7 @@ executable agda
 executable agda-mode
   import:           language
 
-  hs-source-dirs:   src/agda-mode src/setup
+  hs-source-dirs:   src/agda-mode src/setup src/full
   main-is:          Main.hs
   autogen-modules:
     Paths_Agda
@@ -974,6 +975,7 @@ executable agda-mode
     Agda.Setup.EmacsMode
     Agda.Version
     Agda.VersionCommit
+    Agda.Utils.Git
 
   build-depends:
     , base                 >= 4.16.4.0  && < 4.22
@@ -983,6 +985,7 @@ executable agda-mode
     , filepath             >= 1.4.2.2   && < 1.6
     , gitrev               >= 1.3.1     && < 2
     , process              >= 1.6.16.0  && < 1.7
+    , regex-tdfa           >= 1.3.2.1   && < 1.4
     , template-haskell     >= 2.18.0.0  && < 2.24
 
 -- Cabal testsuite integration has some serious bugs, but we
@@ -1065,6 +1068,7 @@ test-suite agda-tests
       Internal.Utils.SmallSet
       Internal.Utils.Three
       Internal.Utils.Trie
+      Internal.Version
       LaTeXAndHTML.Tests
       LibSucceed.Tests
       Succeed.Tests
