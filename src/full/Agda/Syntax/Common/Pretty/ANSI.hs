@@ -5,6 +5,7 @@
 module Agda.Syntax.Common.Pretty.ANSI where
 
 import Control.Monad.IO.Class ( MonadIO(..) )
+import Data.Functor ((<&>))
 import Data.Text    qualified as Text
 import Data.Text.IO qualified as Text
 
@@ -86,13 +87,10 @@ renderAnsiIO = renderDecoratedM startAnn endAnn putStr (putStr "\n")
 
 putDocTree :: (MonadIO m, HasOptions m) => DocTree -> m ()
 putDocTree doc = do
-  outputcol <- liftIO (hSupportsANSI stdout)
-  wantscol <- commandLineOptions
-  let
-    col = case optDiagnosticsColour wantscol of
-      AutoColour   -> outputcol
-      AlwaysColour -> True
-      NeverColour  -> False
+  col <- commandLineOptions <&> optDiagnosticsColour >>= \case
+    AutoColour   -> liftIO (hSupportsANSI stdout)
+    AlwaysColour -> pure True
+    NeverColour  -> pure False
 
   liftIO $ if col
     then printTreeAnsi doc
