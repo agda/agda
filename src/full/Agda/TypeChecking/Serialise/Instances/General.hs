@@ -192,7 +192,7 @@ instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
       !a  <- value n
       !as <- go ns
       return (a:as)
-    -- go _ = malformed
+    go _ = malformed
 
 instance EmbPrj a => EmbPrj (List1 a) where
   icod_ = icod_ . List1.toList
