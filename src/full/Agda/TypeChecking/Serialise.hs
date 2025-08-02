@@ -210,21 +210,22 @@ decode s = do
     let ar = unListLike
     when (not (null s)) $ E.throwIO $ E.ErrorCall "Garbage at end."
     let nodeA = ar nodeL
-    nm <- liftIO (newArray (bounds nodeA) MEEmpty)
-    let st = St
-          { nodeE = nodeA
-          , stringE = ar stringL
-          , lTextE = ar lTextL
-          , sTextE = ar sTextL
+    nm      <- liftIO (newArray (bounds nodeA) MEEmpty)
+    mfRef   <- liftIO (newIORef mf)
+    let !dec = Decode
+          { nodeE    = nodeA
+          , stringE  = ar stringL
+          , lTextE   = ar lTextL
+          , sTextE   = ar sTextL
           , integerE = ar integerL
-          , varSetE = ar varSetL
-          , doubleE = ar doubleL
+          , varSetE  = ar varSetL
+          , doubleE  = ar doubleL
           , nodeMemo = nm
-          , modFile = mf
+          , modFile  = mfRef
           , includes = incs
           }
-    (r, st) <- runStateT (value r) st
-    let !mf = modFile st
+    !r  <- runReaderT (value r) dec
+    !mf <- readIORef mfRef
     return $ Right (mf, r)
 
   case res of

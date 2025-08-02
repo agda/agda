@@ -1,6 +1,8 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+{-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+
 module Agda.TypeChecking.Serialise.Instances.Internal where
 
 import qualified Data.HashSet as HashSet
@@ -436,15 +438,15 @@ instance EmbPrj Defn where
   value = vcase valu where
     valu (N2 0 a) = valuN Axiom a
 
-    valu (1 :*: a :*: b :*: s :*: u :*: c :*: d :*: e :*: f :*: g :*: h :*: i :*: j :*: k :*: N0) =
+    valu (1 :*: a :*: b :*: s :*: u :*: c :*: d :*: e :*: f :*: N5 g h i j k) =
         valuN (\ a b s -> Function a b s Nothing) a b s u c d e f g h i j k
-    valu (2 :*: a :*: b :*: c :*: d :*: e :*: f :*: g :*: h :*: i :*: j :*: N0) =
+    valu (2 :*: a :*: b :*: c :*: d :*: e :*: N5 f g h i j) =
         valuN Datatype a b c d e f g h i j
-    valu (3 :*: a :*: b :*: c :*: d :*: e :*: f :*: g :*: h :*: i :*: j :*: k :*: l :*: m :*: N0) =
+    valu (3 :*: a :*: b :*: c :*: d :*: e :*: f :*: g :*: h :*: N5 i j k l m) =
         valuN Record a b c d e f g h i j k l m
-    valu (4 :*: a :*: b :*: c :*: d :*: e :*: f :*: g :*: h :*: i :*: j :*: k :*: N0) =
+    valu (4 :*: a :*: b :*: c :*: d :*: e :*: f :*: N5 g h i j k) =
         valuN Constructor a b c d e f g h i j k
-    valu (5 :*: a :*: b :*: c :*: d :*: e :*: f :*: N0) =
+    valu (5 :*: a :*: N5 b c d e f) =
         valuN Primitive a b c d e f
 
     valu (N3 6 a b) = valuN PrimitiveSort a b

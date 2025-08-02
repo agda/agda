@@ -5,12 +5,14 @@
 {-# OPTIONS_GHC -Wunused-matches #-}
 {-# OPTIONS_GHC -Wunused-binds #-}
 
+{-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+
 -- | Serializing types that are not Agda-specific.
 
 module Agda.TypeChecking.Serialise.Instances.General where
 
 import Control.Monad              ( (<=<), (<$!>) )
-import Control.Monad.State.Strict ( gets)
+import Control.Monad.Reader (asks)
 
 import Data.Array.IArray
 import qualified Data.Foldable as Fold
@@ -79,7 +81,7 @@ instance EmbPrj Char where
 
 instance EmbPrj Double where
   icod_   = icodeDouble
-  value i = (! i) <$!> gets doubleE
+  value i = (! i) <$!> asks doubleE
 
 -- Andreas, Agda Hackathon 2024-10-15
 -- Are we sure we never use an Int that does not fit into 32 bits?
@@ -93,7 +95,7 @@ instance EmbPrj Int32 where
 
 instance EmbPrj Integer where
   icod_   = icodeInteger
-  value i = (! i) <$!> gets integerE
+  value i = (! i) <$!> asks integerE
 
 instance EmbPrj Word32 where
   icod_ i = return i
@@ -114,15 +116,15 @@ instance EmbPrj Word64 where
 
 instance {-# OVERLAPPING #-} EmbPrj String where
   icod_   = icodeString
-  value i = (! i) <$!> gets stringE
+  value i = (! i) <$!> asks stringE
 
 instance EmbPrj TL.Text where
   icod_   = icodeX lTextD lTextC
-  value i = (! i) <$!> gets lTextE
+  value i = (! i) <$!> asks lTextE
 
 instance EmbPrj T.Text where
   icod_   = icodeX sTextD sTextC
-  value i = (! i) <$!> gets sTextE
+  value i = (! i) <$!> asks sTextE
 
 ---------------------------------------------------------------------------
 -- Non-recursive types
@@ -261,7 +263,7 @@ instance Typeable a => EmbPrj (SmallSet a) where
 
 instance EmbPrj VarSet where
   icod_   = icodeVarSet
-  value i = (! i) <$!> gets varSetE
+  value i = (! i) <$!> asks varSetE
 
 ---------------------------------------------------------------------------
 -- Trees

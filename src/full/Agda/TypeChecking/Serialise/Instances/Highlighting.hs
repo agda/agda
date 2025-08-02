@@ -2,6 +2,8 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+{-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+
 module Agda.TypeChecking.Serialise.Instances.Highlighting where
 
 import qualified Data.Map.Strict as Map

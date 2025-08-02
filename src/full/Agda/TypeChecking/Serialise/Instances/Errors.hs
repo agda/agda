@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans     #-}
 
+{-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+
 module Agda.TypeChecking.Serialise.Instances.Errors where
 
 import Control.Monad
