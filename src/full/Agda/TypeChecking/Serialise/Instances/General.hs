@@ -106,8 +106,8 @@ instance EmbPrj Word64 where
           word32 = fromIntegral
 
   value = vcase valu where
-    valu [a, b] = return $! n * fromIntegral a + fromIntegral b
-    valu _      = malformed
+    valu (N2 a b) = return $! n * fromIntegral a + fromIntegral b
+    valu _        = malformed
     n = 2 ^ 32
 
 -- Text types
@@ -147,18 +147,18 @@ instance (EmbPrj a, EmbPrj b) => EmbPrj (Either a b) where
   icod_ (Right x) = icodeN 1 Right x
 
   value = vcase valu where
-    valu [0, x] = valuN Left  x
-    valu [1, x] = valuN Right x
-    valu _   = malformed
+    valu (N2 0 x) = valuN Left  x
+    valu (N2 1 x) = valuN Right x
+    valu _        = malformed
 
 instance EmbPrj a => EmbPrj (Maybe a) where
   icod_ Nothing  = icodeN' Nothing
   icod_ (Just x) = icodeN' Just x
 
   value = vcase valu where
-    valu []  = valuN Nothing
-    valu [x] = valuN Just x
-    valu _   = malformed
+    valu N0     = valuN Nothing
+    valu (N1 x) = valuN Just x
+    valu _      = malformed
 
 instance EmbPrj a => EmbPrj (Strict.Maybe a) where
   icod_ m = icode (Strict.toLazy m)
@@ -170,9 +170,9 @@ instance (EmbPrj a, Typeable b) => EmbPrj (WithDefault' a b) where
     Value b -> icodeN' Value b
 
   value = vcase $ \case
-    []  -> valuN Default
-    [a] -> valuN Value a
-    _ -> malformed
+    N0   -> valuN Default
+    N1 a -> valuN Value a
+    _    -> malformed
 
 ---------------------------------------------------------------------------
 -- Sequences
@@ -181,9 +181,15 @@ instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
   icod_ xs = icodeNode =<< go xs where
     go :: [a] -> S Node
     go []     = pure Empty
-    go (a:as) = do {n <- icode a; ns <- go as; pure $! Cons n ns}
+    go (a:as) = do {n <- icode a; ns <- go as; pure $! (:*:) n ns}
 
-  value = vcase (mapM value)
+  value = vcase go where
+    go :: Node -> R [a]
+    go Empty      = return []
+    go (n :*: ns) = do
+      !a  <- value n
+      !as <- go ns
+      return (a:as)
 
 instance EmbPrj a => EmbPrj (List1 a) where
   icod_ = icod_ . List1.toList
@@ -207,12 +213,12 @@ mapPairsIcode xs = icodeNode =<< convert Empty xs where
   convert  ys ((start, entry):xs) = do
     start <- icode start
     entry <- icode entry
-    convert (Cons start (Cons entry ys)) xs
+    convert ((:*:) start ((:*:) entry ys)) xs
 
-mapPairsValue :: (EmbPrj k, EmbPrj v) => [Word32] -> R [(k, v)]
+mapPairsValue :: (EmbPrj k, EmbPrj v) => Node -> R [(k, v)]
 mapPairsValue = convert [] where
-  convert ys [] = return ys
-  convert ys (start:entry:xs) = do
+  convert ys Empty = return ys
+  convert ys (start :*: entry :*: xs) = do
     !start <- value start
     !entry <- value entry
     convert ((start, entry):ys) xs
@@ -270,6 +276,6 @@ instance EmbPrj a => EmbPrj (DocTree.DocTree a) where
     DocTree.Node a b -> icodeN' DocTree.Node a b
 
   value = vcase \case
-    [a]    -> valuN DocTree.Text a
-    [a, b] -> valuN DocTree.Node a b
+    N1 a   -> valuN DocTree.Text a
+    N2 a b -> valuN DocTree.Node a b
     _      -> malformed
