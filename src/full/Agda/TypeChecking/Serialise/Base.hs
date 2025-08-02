@@ -67,7 +67,7 @@ import Agda.Utils.Impossible
 -- | Constructor tag (maybe omitted) and argument indices.
 data Node
   = N0
-  -- | N1 !Word32
+  | N1# !Word32
   -- | N2# !Word64
   -- | N3# !Word64 !Word32
   -- | N4# !Word64 !Word64
@@ -104,7 +104,8 @@ packW64 a b = unsafeShiftL (fromIntegral a) 32 .|. fromIntegral b
 -- {-# complete N0, N1, N2, N3, N4, N5, (:*:) #-}
 
 pattern N1 :: Word32 -> Node
-pattern N1 a = a :*: N0
+pattern N1 a <- a :*: N0 where
+  N1 a = N1# a
 
 pattern N2 :: Word32 -> Word32 -> Node
 pattern N2 a b = a :*: b :*: N0
@@ -140,7 +141,7 @@ instance Hashable Node where
 
     go :: Word -> Node -> Word
     go !h N0           = h
-    -- go  h (N1 a)       = h `combine` fromIntegral a
+    go  h (N1# a)      = h `combine` fromIntegral a
     -- go  h (N2# a)      = h `combine` fromIntegral a
     -- go  h (N3# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
     -- go  h (N4# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
@@ -195,7 +196,7 @@ instance B.Binary Node where
     len :: Node -> Int
     len = go 0 where
       go !acc N0         = acc
-      -- go acc  N1{}       = acc + 1
+      go acc  N1#{}      = acc + 1
       -- go acc  N2#{}      = acc + 2
       -- go acc  N3#{}      = acc + 3
       -- go acc  N4#{}      = acc + 4
@@ -204,7 +205,7 @@ instance B.Binary Node where
 
     go :: Node -> B.Put
     go N0             = mempty
-    -- go (N1 a)         = B.put a
+    go (N1# a)        = B.put a
     -- go (N2 a b)       = B.put a >> B.put b
     -- go (N3 a b c)     = B.put a >> B.put b >> B.put c
     -- go (N4 a b c d)   = B.put a >> B.put b >> B.put c >> B.put d
@@ -617,11 +618,11 @@ instance ICODE t 'Zero where
   icodeArgs _ _  = return N0
   {-# INLINE icodeArgs #-}
 
--- instance ICODE (a -> t) ('Suc 'Zero) where
---   icodeArgs _ (Pair a _) = do
---     !a <- icode a
---     pure $ N1 a
---   {-# INLINE icodeArgs #-}
+instance ICODE (a -> t) ('Suc 'Zero) where
+  icodeArgs _ (Pair a _) = do
+    !a <- icode a
+    pure $ N1 a
+  {-# INLINE icodeArgs #-}
 
 -- instance ICODE (a -> b -> t) ('Suc ('Suc 'Zero)) where
 --   icodeArgs _ (Pair a (Pair b _)) = do
@@ -657,8 +658,8 @@ instance ICODE t 'Zero where
 --     pure $ N5 a b c d e
 --   {-# INLINE icodeArgs #-}
 
-instance ICODE t n
-      => ICODE (a -> t) ('Suc n) where
+instance ICODE t ('Suc n)
+      => ICODE (a -> t) ('Suc ('Suc n)) where
   icodeArgs _ (Pair a as) = do
     !hd   <- icode a
     !node <- icodeArgs (Proxy :: Proxy t) as
