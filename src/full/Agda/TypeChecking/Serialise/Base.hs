@@ -68,10 +68,10 @@ import Agda.Utils.Impossible
 data Node
   = N0
   | N1# !Word32
-  -- | N2# !Word64
-  -- | N3# !Word64 !Word32
-  -- | N4# !Word64 !Word64
-  -- | N5# !Word64 !Word64 !Word32
+  | N2# !Word64
+  | N3# !Word64 !Word32
+  | N4# !Word64 !Word64
+  | N5# !Word64 !Word64 !Word32
   | (:*:) !Word32 !Node
   deriving Eq
 infixr 5 :*:
@@ -108,16 +108,30 @@ pattern N1 a <- a :*: N0 where
   N1 a = N1# a
 
 pattern N2 :: Word32 -> Word32 -> Node
-pattern N2 a b = a :*: b :*: N0
+pattern N2 a b <- a :*: b :*: N0 where
+  N2 a b = N2# (packW64 a b)
 
 pattern N3 :: Word32 -> Word32 -> Word32 -> Node
-pattern N3 a b c = a :*: b :*: c :*: N0
+pattern N3 a b c <- a :*: b :*: c :*: N0 where
+  N3 a b c = N3# (packW64 a b) c
 
 pattern N4 :: Word32 -> Word32 -> Word32 -> Word32 -> Node
-pattern N4 a b c d = a :*: b :*: c :*: d :*: N0
+pattern N4 a b c d <- a :*: b :*: c :*: d :*: N0 where
+  N4 a b c d = N4# (packW64 a b) (packW64 c d)
 
 pattern N5 :: Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Node
-pattern N5 a b c d e = a :*: b :*: c :*: d :*: e :*: N0
+pattern N5 a b c d e <- a :*: b :*: c :*: d :*: e :*: N0 where
+  N5 a b c d e = N5# (packW64 a b) (packW64 c d) e
+{-# complete N0, N1, N2, N3, N4, N5, (:*:) #-}
+
+-- pattern N3 :: Word32 -> Word32 -> Word32 -> Node
+-- pattern N3 a b c = a :*: b :*: c :*: N0
+
+-- pattern N4 :: Word32 -> Word32 -> Word32 -> Word32 -> Node
+-- pattern N4 a b c d = a :*: b :*: c :*: d :*: N0
+
+-- pattern N5 :: Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Node
+-- pattern N5 a b c d e = a :*: b :*: c :*: d :*: e :*: N0
 {-# complete N0, N1, N2, N3, N4, N5, (:*:) #-}
 
 
@@ -142,10 +156,10 @@ instance Hashable Node where
     go :: Word -> Node -> Word
     go !h N0           = h
     go  h (N1# a)      = h `combine` fromIntegral a
-    -- go  h (N2# a)      = h `combine` fromIntegral a
-    -- go  h (N3# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
-    -- go  h (N4# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
-    -- go  h (N5# a b c)  = h `combine` fromIntegral a `combine` fromIntegral b `combine` fromIntegral c
+    go  h (N2# a)      = h `combine` fromIntegral a
+    go  h (N3# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
+    go  h (N4# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
+    go  h (N5# a b c)  = h `combine` fromIntegral a `combine` fromIntegral b `combine` fromIntegral c
     go  h ((:*:) n ns) = go (combine h (fromIntegral n)) ns
 
   hash = hashWithSalt seed where
@@ -197,20 +211,22 @@ instance B.Binary Node where
     len = go 0 where
       go !acc N0         = acc
       go acc  N1#{}      = acc + 1
-      -- go acc  N2#{}      = acc + 2
-      -- go acc  N3#{}      = acc + 3
-      -- go acc  N4#{}      = acc + 4
-      -- go acc  N5#{}      = acc + 5
+      go acc  N2#{}      = acc + 2
+      go acc  N3#{}      = acc + 3
+      go acc  N4#{}      = acc + 4
+      go acc  N5#{}      = acc + 5
       go acc ((:*:) _ n) = go (acc + 1) n
 
     go :: Node -> B.Put
-    go N0             = mempty
-    go (N1# a)        = B.put a
-    -- go (N2 a b)       = B.put a >> B.put b
-    -- go (N3 a b c)     = B.put a >> B.put b >> B.put c
-    -- go (N4 a b c d)   = B.put a >> B.put b >> B.put c >> B.put d
-    -- go (N5 a b c d e) = B.put a >> B.put b >> B.put c >> B.put d >> B.put e
-    go ((:*:) n ns)   = B.put n <> go ns
+    go N0            = mempty
+    go (N1# a)       = B.put a
+    go (N2# ab)      = let (a, b) = splitW64 ab in B.put a >> B.put b
+    go (N3# ab c)    = let (a, b) = splitW64 ab in B.put a >> B.put b >> B.put c
+    go (N4# ab cd)   = let (a, b) = splitW64 ab; (c, d) = splitW64 cd in
+                       B.put a >> B.put b >> B.put c >> B.put d
+    go (N5# ab cd e) = let (a, b) = splitW64 ab; (c, d) = splitW64 cd in
+                       B.put a >> B.put b >> B.put c >> B.put d >> B.put e
+    go ((:*:) n ns)  = B.put n <> go ns
 
 -- | Association lists mapping TypeRep fingerprints to values. In some cases
 --   values with different types have the same serialized representation. This
@@ -624,42 +640,42 @@ instance ICODE (a -> t) ('Suc 'Zero) where
     pure $ N1 a
   {-# INLINE icodeArgs #-}
 
--- instance ICODE (a -> b -> t) ('Suc ('Suc 'Zero)) where
---   icodeArgs _ (Pair a (Pair b _)) = do
---     !a <- icode a
---     !b <- icode b
---     pure $ N2 a b
---   {-# INLINE icodeArgs #-}
+instance ICODE (a -> b -> t) ('Suc ('Suc 'Zero)) where
+  icodeArgs _ (Pair a (Pair b _)) = do
+    !a <- icode a
+    !b <- icode b
+    pure $ N2 a b
+  {-# INLINE icodeArgs #-}
 
--- instance ICODE (a -> b -> c -> t) ('Suc ('Suc ('Suc 'Zero))) where
---   icodeArgs _ (Pair a (Pair b (Pair c _))) = do
---     !a <- icode a
---     !b <- icode b
---     !c <- icode c
---     pure $ N3 a b c
---   {-# INLINE icodeArgs #-}
+instance ICODE (a -> b -> c -> t) ('Suc ('Suc ('Suc 'Zero))) where
+  icodeArgs _ (Pair a (Pair b (Pair c _))) = do
+    !a <- icode a
+    !b <- icode b
+    !c <- icode c
+    pure $ N3 a b c
+  {-# INLINE icodeArgs #-}
 
--- instance ICODE (a -> b -> c -> d -> t) ('Suc ('Suc ('Suc ('Suc 'Zero)))) where
---   icodeArgs _ (Pair a (Pair b (Pair c (Pair d _)))) = do
---     !a <- icode a
---     !b <- icode b
---     !c <- icode c
---     !d <- icode d
---     pure $ N4 a b c d
---   {-# INLINE icodeArgs #-}
+instance ICODE (a -> b -> c -> d -> t) ('Suc ('Suc ('Suc ('Suc 'Zero)))) where
+  icodeArgs _ (Pair a (Pair b (Pair c (Pair d _)))) = do
+    !a <- icode a
+    !b <- icode b
+    !c <- icode c
+    !d <- icode d
+    pure $ N4 a b c d
+  {-# INLINE icodeArgs #-}
 
--- instance ICODE (a -> b -> c -> d -> e -> t) ('Suc ('Suc ('Suc ('Suc ('Suc 'Zero))))) where
---   icodeArgs _ (Pair a (Pair b (Pair c (Pair d (Pair e _))))) = do
---     !a <- icode a
---     !b <- icode b
---     !c <- icode c
---     !d <- icode d
---     !e <- icode e
---     pure $ N5 a b c d e
---   {-# INLINE icodeArgs #-}
+instance ICODE (a -> b -> c -> d -> e -> t) ('Suc ('Suc ('Suc ('Suc ('Suc 'Zero))))) where
+  icodeArgs _ (Pair a (Pair b (Pair c (Pair d (Pair e _))))) = do
+    !a <- icode a
+    !b <- icode b
+    !c <- icode c
+    !d <- icode d
+    !e <- icode e
+    pure $ N5 a b c d e
+  {-# INLINE icodeArgs #-}
 
-instance ICODE t ('Suc n)
-      => ICODE (a -> t) ('Suc ('Suc n)) where
+instance ICODE t ('Suc ('Suc ('Suc ('Suc ('Suc n)))))
+      => ICODE (a -> t) ('Suc ('Suc ('Suc ('Suc ('Suc ('Suc n)))))) where
   icodeArgs _ (Pair a as) = do
     !hd   <- icode a
     !node <- icodeArgs (Proxy :: Proxy t) as
