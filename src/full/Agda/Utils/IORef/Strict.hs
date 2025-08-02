@@ -169,7 +169,7 @@ import Data.IORef
 --
 -- @
 -- let !a' = a
--- in writeIORef ref a
+-- in writeIORef ref a'
 -- @
 --
 -- If forcing @a@ to WHNF causes an exception to get thrown, then we don't produce any IO action at
