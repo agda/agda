@@ -2,7 +2,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+-- {-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
 
 -- Only instances exported
 module Agda.TypeChecking.Serialise.Instances () where

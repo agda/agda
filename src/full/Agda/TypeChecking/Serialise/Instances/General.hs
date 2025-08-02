@@ -5,7 +5,7 @@
 {-# OPTIONS_GHC -Wunused-matches #-}
 {-# OPTIONS_GHC -Wunused-binds #-}
 
-{-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+-- {-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
 
 -- | Serializing types that are not Agda-specific.
 
@@ -182,16 +182,17 @@ instance (EmbPrj a, Typeable b) => EmbPrj (WithDefault' a b) where
 instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
   icod_ xs = icodeNode =<< go xs where
     go :: [a] -> S Node
-    go []     = pure Empty
+    go []     = pure N0
     go (a:as) = do {n <- icode a; ns <- go as; pure $! (:*:) n ns}
 
   value = vcase go where
     go :: Node -> R [a]
-    go Empty      = return []
+    go N0         = return []
     go (n :*: ns) = do
       !a  <- value n
       !as <- go ns
       return (a:as)
+    -- go _ = malformed
 
 instance EmbPrj a => EmbPrj (List1 a) where
   icod_ = icod_ . List1.toList
@@ -207,7 +208,7 @@ instance EmbPrj a => EmbPrj (Seq a) where
 
 -- | Encode a list of key-value pairs as a flat list.
 mapPairsIcode :: (EmbPrj k, EmbPrj v) => [(k, v)] -> S Word32
-mapPairsIcode xs = icodeNode =<< convert Empty xs where
+mapPairsIcode xs = icodeNode =<< convert N0 xs where
   -- As we need to call `convert' in the tail position, the resulting list is
   -- written (and read) in reverse order, with the highest pair first in the
   -- resulting list.
@@ -219,7 +220,7 @@ mapPairsIcode xs = icodeNode =<< convert Empty xs where
 
 mapPairsValue :: (EmbPrj k, EmbPrj v) => Node -> R [(k, v)]
 mapPairsValue = convert [] where
-  convert ys Empty = return ys
+  convert ys N0 = return ys
   convert ys (start :*: entry :*: xs) = do
     !start <- value start
     !entry <- value entry
