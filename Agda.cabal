@@ -221,10 +221,7 @@ source-repository this
 -- Build flags
 ---------------------------------------------------------------------------
 
-flag dump-core
-  default: False
-  manual: True
-  description: Write GHC core output.
+-- Keep the flags in alphabetical order please.
 
 flag debug
   default: False
@@ -234,17 +231,31 @@ flag debug
     building Agda slower as well. The --verbose=N option only
     has an effect when Agda was built with this flag.
 
+flag debug-parsing
+  default: False
+  manual: True
+  description:
+    Enable debug mode in parsing. This makes parsing slower.
+
 flag debug-serialisation
   default: False
   manual: True
   description:
     Enable debug mode in serialisation. This makes serialisation slower.
 
-flag debug-parsing
+flag dev
   default: False
   manual: True
   description:
-    Enable debug mode in parsing. This makes parsing slower.
+    Build development (unreleased) version of Agda.
+    Makes Agda point to the @latest@ build of the documentation
+    rather than to the version-specific one.
+
+flag dump-core
+  default: False
+  manual: True
+  description:
+    Write GHC core output.
 
 flag enable-cluster-counting
   default: False
@@ -272,6 +283,12 @@ flag use-xdg-data-home
 
 common language
 
+  if flag(dump-core)
+    ghc-options:
+      -dsuppress-coercions -ddump-simpl -dsuppress-idinfo
+      -dsuppress-type-applications -dsuppress-uniques
+      -dsuppress-module-prefixes -ddump-to-file
+
   if flag(optimise-heavily)
     cpp-options:
       -DOPTIMISE_HEAVILY
@@ -282,12 +299,6 @@ common language
   if flag(use-xdg-data-home)
     cpp-options:
       -DUSE_XDG_DATA_HOME
-
-  if flag(dump-core)
-    ghc-options:
-      -dsuppress-coercions -ddump-simpl -dsuppress-idinfo
-      -dsuppress-type-applications -dsuppress-uniques
-      -dsuppress-module-prefixes -ddump-to-file
 
   ghc-options:
       -- ASR (2022-05-31). Workaround to Issue #5932.
@@ -445,11 +456,14 @@ library
   if flag(debug)
     cpp-options:    -DDEBUG
 
+  if flag(debug-parsing)
+    cpp-options:    -DDEBUG_PARSING
+
   if flag(debug-serialisation)
     cpp-options:    -DDEBUG_SERIALISATION
 
-  if flag(debug-parsing)
-    cpp-options:    -DDEBUG_PARSING
+  if flag(dev)
+    cpp-options:    -DDEV
 
   if flag(enable-cluster-counting)
     cpp-options:    -DCOUNT_CLUSTERS

@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.Version
@@ -28,6 +30,12 @@ package = packageName (undefined :: Rep AnArbitrarySymbolInThisPackage p)
 -- | Returns a URL corresponding to the given section in the documentation for
 -- the current version.
 docsUrl :: String -> String
-docsUrl section = "https://agda.readthedocs.io/en/v" ++ version ++ "/" ++ section
+docsUrl section = "https://agda.readthedocs.io/en/" ++ v ++ "/" ++ section
+  where
+#ifdef DEV
+    v = "latest"
+#else
+    v = "v" ++ version
+#endif
 
 data AnArbitrarySymbolInThisPackage deriving Generic
