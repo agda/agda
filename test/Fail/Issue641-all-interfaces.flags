@@ -1,1 +1,1 @@
--v import.main:10 --ignore-all-interfaces
+-v import.main:10 --ignore-all-interfaces --no-write-interfaces
