@@ -5,7 +5,7 @@
 {-# LANGUAGE UndecidableInstances #-} -- Due to ICODE vararg typeclass
 {-# LANGUAGE PatternSynonyms      #-}
 
-{-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+-- {-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
 
 {-
 András, 2023-10-2:
@@ -27,13 +27,14 @@ import Control.Monad.Reader
 import Control.Monad.State.Strict (StateT, gets)
 
 import Data.Proxy
+import Data.Bits
 
 import Data.Array.IArray
 import Data.Array.IO
 import qualified Data.HashMap.Strict as Hm
 import qualified Data.ByteString.Lazy as L
 import Data.Hashable
-import Data.Word (Word32)
+import Data.Word (Word32, Word64)
 import Data.Maybe
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
@@ -41,6 +42,7 @@ import qualified Data.Text      as T
 import qualified Data.Text.Lazy as TL
 import Data.Typeable ( cast, Typeable, TypeRep, typeRep, typeRepFingerprint )
 import GHC.Exts (Word(..), timesWord2#, xor#, Any)
+import GHC.Stack
 import GHC.Fingerprint.Type
 import Unsafe.Coerce
 
@@ -57,30 +59,66 @@ import Agda.Utils.List1 (List1)
 import Agda.Utils.Monad
 import Agda.Utils.TypeLevel
 import Agda.Utils.VarSet (VarSet)
+import Agda.Utils.Impossible
 
 #include <MachDeps.h>
 
+
 -- | Constructor tag (maybe omitted) and argument indices.
-data Node = Empty | (:*:) !Word32 !Node deriving Eq
+data Node
+  = N0
+  -- | N1 !Word32
+  -- | N2# !Word64
+  -- | N3# !Word64 !Word32
+  -- | N4# !Word64 !Word64
+  -- | N5# !Word64 !Word64 !Word32
+  | (:*:) !Word32 !Node
+  deriving Eq
 infixr 5 :*:
 
-pattern N0 :: Node
-pattern N0 = Empty
+splitW64 :: Word64 -> (Word32, Word32)
+splitW64 x = let !a = fromIntegral (unsafeShiftR x 32)
+                 !b = fromIntegral (x .&. 0x00000000ffffffff)
+             in (a, b)
+{-# inline splitW64 #-}
+
+packW64 :: Word32 -> Word32 -> Word64
+packW64 a b = unsafeShiftL (fromIntegral a) 32 .|. fromIntegral b
+{-# inline packW64 #-}
+
+-- pattern N2 :: Word32 -> Word32 -> Node
+-- pattern N2 a b <- N2# (splitW64 -> (a, b)) where
+--   N2 a b = N2# (packW64 a b)
+
+-- pattern N3 :: Word32 -> Word32 -> Word32 -> Node
+-- pattern N3 a b c <- N3# (splitW64 -> (a, b)) c where
+--   N3 a b c = N3# (packW64 a b) c
+
+-- pattern N4 :: Word32 -> Word32 -> Word32 -> Word32 -> Node
+-- pattern N4 a b c d <- N4# (splitW64 -> (a, b)) (splitW64 -> (c, d)) where
+--   N4 a b c d = N4# (packW64 a b) (packW64 c d)
+
+-- pattern N5 :: Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Node
+-- pattern N5 a b c d e <- N5# (splitW64 -> (a, b)) (splitW64 -> (c, d)) e where
+--   N5 a b c d e = N5# (packW64 a b) (packW64 c d) e
+-- {-# complete N0, N1, N2, N3, N4, N5, (:*:) #-}
 
 pattern N1 :: Word32 -> Node
-pattern N1 a = a :*: Empty
+pattern N1 a = a :*: N0
 
 pattern N2 :: Word32 -> Word32 -> Node
-pattern N2 a b = a :*: b :*: Empty
+pattern N2 a b = a :*: b :*: N0
 
-pattern N3 :: Word32 -> Word32 -> Word32 ->Node
-pattern N3 a b c = a :*: b :*: c :*: Empty
+pattern N3 :: Word32 -> Word32 -> Word32 -> Node
+pattern N3 a b c = a :*: b :*: c :*: N0
 
 pattern N4 :: Word32 -> Word32 -> Word32 -> Word32 -> Node
-pattern N4 a b c d = a :*: b :*: c :*: d :*: Empty
+pattern N4 a b c d = a :*: b :*: c :*: d :*: N0
 
 pattern N5 :: Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Node
-pattern N5 a b c d e = a :*: b :*: c :*: d :*: e :*: Empty
+pattern N5 a b c d e = a :*: b :*: c :*: d :*: e :*: N0
+{-# complete N0, N1, N2, N3, N4, N5, (:*:) #-}
+
 
 instance Hashable Node where
   -- Adapted from https://github.com/tkaitchuck/aHash/wiki/AHash-fallback-algorithm
@@ -101,7 +139,12 @@ instance Hashable Node where
 #endif
 
     go :: Word -> Node -> Word
-    go !h Empty       = h
+    go !h N0           = h
+    -- go  h (N1 a)       = h `combine` fromIntegral a
+    -- go  h (N2# a)      = h `combine` fromIntegral a
+    -- go  h (N3# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
+    -- go  h (N4# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
+    -- go  h (N5# a b c)  = h `combine` fromIntegral a `combine` fromIntegral b `combine` fromIntegral c
     go  h ((:*:) n ns) = go (combine h (fromIntegral n)) ns
 
   hash = hashWithSalt seed where
@@ -116,22 +159,57 @@ instance B.Binary Node where
   get = go =<< B.get where
 
     go :: Int -> B.Get Node
-    go 0 = pure Empty
+    go 0 = pure N0
+    -- go 1 = do
+    --   !a <- B.get
+    --   pure $! N1 a
+    -- go 2 = do
+    --   !a <- B.get
+    --   !b <- B.get
+    --   pure $! N2 a b
+    -- go 3 = do
+    --   !a <- B.get
+    --   !b <- B.get
+    --   !c <- B.get
+    --   pure $! N3 a b c
+    -- go 4 = do
+    --   !a <- B.get
+    --   !b <- B.get
+    --   !c <- B.get
+    --   !d <- B.get
+    --   pure $! N4 a b c d
+    -- go 5 = do
+    --   !a <- B.get
+    --   !b <- B.get
+    --   !c <- B.get
+    --   !d <- B.get
+    --   !e <- B.get
+    --   pure $! N5 a b c d e
     go n = do
       !x    <- B.get
       !node <- go (n - 1)
-      pure $ (:*:) x node
+      pure $! (:*:) x node
 
   put n = B.put (len n) <> go n where
 
     len :: Node -> Int
     len = go 0 where
-      go !acc Empty      = acc
+      go !acc N0         = acc
+      -- go acc  N1{}       = acc + 1
+      -- go acc  N2#{}      = acc + 2
+      -- go acc  N3#{}      = acc + 3
+      -- go acc  N4#{}      = acc + 4
+      -- go acc  N5#{}      = acc + 5
       go acc ((:*:) _ n) = go (acc + 1) n
 
     go :: Node -> B.Put
-    go Empty       = mempty
-    go ((:*:) n ns) = B.put n <> go ns
+    go N0             = mempty
+    -- go (N1 a)         = B.put a
+    -- go (N2 a b)       = B.put a >> B.put b
+    -- go (N3 a b c)     = B.put a >> B.put b >> B.put c
+    -- go (N4 a b c d)   = B.put a >> B.put b >> B.put c >> B.put d
+    -- go (N5 a b c d e) = B.put a >> B.put b >> B.put c >> B.put d >> B.put e
+    go ((:*:) n ns)   = B.put n <> go ns
 
 -- | Association lists mapping TypeRep fingerprints to values. In some cases
 --   values with different types have the same serialized representation. This
@@ -292,8 +370,8 @@ type R = ReaderT Decode IO
 -- | Throws an error which is suitable when the data stream is
 -- malformed.
 
-malformed :: R a
-malformed = liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
+malformed :: HasCallStack => R a
+malformed = __IMPOSSIBLE__ -- liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
 {-# NOINLINE malformed #-} -- 2023-10-2 András: cold code, so should be out-of-line.
 
 class Typeable a => EmbPrj a where
@@ -525,41 +603,97 @@ vcase valu = \ix -> do
            liftIO $ writeArray memo ix $! MECons fp (unsafeCoerce v) slot
            return v
 
+
+-- Arity-generic functions
+----------------------------------------------------------------------------------------------------
+
 -- | @icodeArgs proxy (a1, ..., an)@ maps @icode@ over @a1@, ..., @an@
 --   and returns the corresponding list of @Word32@.
-
-class ICODE t b where
-  icodeArgs :: IsBase t ~ b => All EmbPrj (Domains t) =>
+class ICODE t (a :: Nat) where
+  icodeArgs :: Arity t ~ a => All EmbPrj (Domains t) =>
                Proxy t -> StrictProducts (Domains t) -> S Node
 
-instance IsBase t ~ 'True => ICODE t 'True where
-  icodeArgs _ _  = return Empty
+instance ICODE t 'Zero where
+  icodeArgs _ _  = return N0
   {-# INLINE icodeArgs #-}
 
-instance ICODE t (IsBase t) => ICODE (a -> t) 'False where
+-- instance ICODE (a -> t) ('Suc 'Zero) where
+--   icodeArgs _ (Pair a _) = do
+--     !a <- icode a
+--     pure $ N1 a
+--   {-# INLINE icodeArgs #-}
+
+-- instance ICODE (a -> b -> t) ('Suc ('Suc 'Zero)) where
+--   icodeArgs _ (Pair a (Pair b _)) = do
+--     !a <- icode a
+--     !b <- icode b
+--     pure $ N2 a b
+--   {-# INLINE icodeArgs #-}
+
+-- instance ICODE (a -> b -> c -> t) ('Suc ('Suc ('Suc 'Zero))) where
+--   icodeArgs _ (Pair a (Pair b (Pair c _))) = do
+--     !a <- icode a
+--     !b <- icode b
+--     !c <- icode c
+--     pure $ N3 a b c
+--   {-# INLINE icodeArgs #-}
+
+-- instance ICODE (a -> b -> c -> d -> t) ('Suc ('Suc ('Suc ('Suc 'Zero)))) where
+--   icodeArgs _ (Pair a (Pair b (Pair c (Pair d _)))) = do
+--     !a <- icode a
+--     !b <- icode b
+--     !c <- icode c
+--     !d <- icode d
+--     pure $ N4 a b c d
+--   {-# INLINE icodeArgs #-}
+
+-- instance ICODE (a -> b -> c -> d -> e -> t) ('Suc ('Suc ('Suc ('Suc ('Suc 'Zero))))) where
+--   icodeArgs _ (Pair a (Pair b (Pair c (Pair d (Pair e _))))) = do
+--     !a <- icode a
+--     !b <- icode b
+--     !c <- icode c
+--     !d <- icode d
+--     !e <- icode e
+--     pure $ N5 a b c d e
+--   {-# INLINE icodeArgs #-}
+
+instance ICODE t n
+      => ICODE (a -> t) ('Suc n) where
   icodeArgs _ (Pair a as) = do
     !hd   <- icode a
     !node <- icodeArgs (Proxy :: Proxy t) as
     pure $ (:*:) hd node
   {-# INLINE icodeArgs #-}
 
--- | @icodeN tag t a1 ... an@ serialises the arguments @a1@, ..., @an@ of the
---   constructor @t@ together with a tag @tag@ picked to disambiguate between
---   different constructors.
---   It corresponds to @icodeNode . (tag :) =<< mapM icode [a1, ..., an]@
+-- instance ICODE t ('Suc ('Suc ('Suc ('Suc ('Suc n)))))
+--       => ICODE (a -> t) ('Suc ('Suc ('Suc ('Suc ('Suc ('Suc n)))))) where
+--   icodeArgs _ (Pair a as) = do
+--     !hd   <- icode a
+--     !node <- icodeArgs (Proxy :: Proxy t) as
+--     pure $ (:*:) hd node
+--   {-# INLINE icodeArgs #-}
+
+-- -- | @icodeN tag t a1 ... an@ serialises the arguments @a1@, ..., @an@ of the
+-- --   constructor @t@ together with a tag @tag@ picked to disambiguate between
+-- --   different constructors.
+-- --   It corresponds to @icodeNode . (tag :) =<< mapM icode [a1, ..., an]@
 
 {-# INLINE icodeN #-}
-icodeN :: forall t. ICODE t (IsBase t) => StrictCurrying (Domains t) (S Word32) =>
-          All EmbPrj (Domains t) =>
+icodeN :: forall t. ICODE (Word32 -> t) (Arity (Word32 -> t))
+       => StrictCurrying (Domains (Word32 -> t)) (S Word32)
+       => All EmbPrj (Domains (Word32 -> t)) =>
           Word32 -> t -> Arrows (Domains t) (S Word32)
 icodeN tag _ =
-  strictCurrys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Word32)) $ \ !args -> do
-    !node <- icodeArgs (Proxy :: Proxy t) args
-    icodeNode $ (:*:) tag node
+   strictCurrys
+      (Proxy :: Proxy (Domains (Word32 -> t)))
+      (Proxy :: Proxy (S Word32))
+      (\ !args -> do !node <- icodeArgs (Proxy :: Proxy (Word32 -> t)) args
+                     icodeNode node)
+      tag
 
 -- | @icodeN'@ is the same as @icodeN@ except that there is no tag
 {-# INLINE icodeN' #-}
-icodeN' :: forall t. ICODE t (IsBase t) => StrictCurrying (Domains t) (S Word32) =>
+icodeN' :: forall t. ICODE t (Arity t) => StrictCurrying (Domains t) (S Word32) =>
            All EmbPrj (Domains t) =>
            t -> Arrows (Domains t) (S Word32)
 icodeN' _ =
@@ -567,44 +701,120 @@ icodeN' _ =
     !node <- icodeArgs (Proxy :: Proxy t) args
     icodeNode node
 
+
 -- Instead of having up to 25 versions of @valu N@, we define
 -- the class VALU which generates them by typeclass resolution.
 -- All of these should get inlined at compile time.
 
-class VALU t b where
-
-  valuN' :: b ~ IsBase t =>
+class VALU t (a :: Nat) where
+  valuN' :: a ~ Arity t =>
             All EmbPrj (Domains t) =>
             t -> StrictProducts (Constant Word32 (Domains t)) -> R (CoDomain t)
 
-  valueArgs :: b ~ IsBase t =>
+  valueArgs :: a ~ Arity t =>
                All EmbPrj (CoDomain t ': Domains t) =>
                Proxy t -> Node -> Maybe (StrictProducts (Constant Word32 (Domains t)))
 
-instance VALU t 'True where
+instance VALU t 'Zero where
   {-# INLINE valuN' #-}
-  valuN' c () = return c
-
+  valuN' f _ = return f
   {-# INLINE valueArgs #-}
   valueArgs _ xs = case xs of
-    Empty -> Just ()
-    _     -> Nothing
+    N0 -> Just ()
+    _  -> Nothing
+
+-- instance VALU (a -> t) ('Suc 'Zero) where
+--   {-# INLINE valuN' #-}
+--   valuN' f (Pair a _) = do
+--     !a <- value a
+--     return $! f a
+--   {-# INLINE valueArgs #-}
+--   valueArgs _ xs = case xs of
+--     N1 a -> Just (Pair a ())
+--     _    -> Nothing
+
+-- instance VALU (a -> b -> t) ('Suc ('Suc 'Zero)) where
+--   {-# INLINE valuN' #-}
+--   valuN' f (Pair a (Pair b _)) = do
+--     !a <- value a
+--     !b <- value b
+--     return $! f a b
+--   {-# INLINE valueArgs #-}
+--   valueArgs _ xs = case xs of
+--     N2 a b -> Just (Pair a (Pair b ()))
+--     _      -> Nothing
+
+-- instance VALU (a -> b -> c -> t) ('Suc ('Suc ('Suc 'Zero))) where
+--   {-# INLINE valuN' #-}
+--   valuN' f (Pair a (Pair b (Pair c _))) = do
+--     !a <- value a
+--     !b <- value b
+--     !c <- value c
+--     return $! f a b c
+--   {-# INLINE valueArgs #-}
+--   valueArgs _ xs = case xs of
+--     N3 a b c -> Just (Pair a (Pair b (Pair c ())))
+--     _        -> Nothing
+
+-- instance VALU (a -> b -> c -> d -> t) ('Suc ('Suc ('Suc ('Suc 'Zero)))) where
+--   {-# INLINE valuN' #-}
+--   valuN' f (Pair a (Pair b (Pair c (Pair d _)))) = do
+--     !a <- value a
+--     !b <- value b
+--     !c <- value c
+--     !d <- value d
+--     return $! f a b c d
+--   {-# INLINE valueArgs #-}
+--   valueArgs _ xs = case xs of
+--     N4 a b c d -> Just (Pair a (Pair b (Pair c (Pair d ()))))
+--     _          -> Nothing
+
+-- instance VALU (a -> b -> c -> d -> e -> t) ('Suc ('Suc ('Suc ('Suc ('Suc 'Zero))))) where
+--   {-# INLINE valuN' #-}
+--   valuN' f (Pair a (Pair b (Pair c (Pair d (Pair e _))))) = do
+--     !a <- value a
+--     !b <- value b
+--     !c <- value c
+--     !d <- value d
+--     !e <- value e
+--     return $! f a b c d e
+--   {-# INLINE valueArgs #-}
+--   valueArgs _ xs = case xs of
+--     N5 a b c d e -> Just (Pair a (Pair b (Pair c (Pair d (Pair e ())))))
+--     _            -> Nothing
+
+-- instance VALU t ('Suc ('Suc ('Suc ('Suc ('Suc n)))))
+--       => VALU (a -> t) ('Suc ('Suc ('Suc ('Suc ('Suc ('Suc n)))))) where
+--   {-# INLINE valuN' #-}
+--   valuN' f (Pair a as) = do
+--     !a <- value a
+--     let !fv = f a
+--     valuN' fv as
+
+--   {-# INLINE valueArgs #-}
+--   valueArgs _ xs = case xs of
+--     x :*: xs' -> Pair x <$!> valueArgs (Proxy :: Proxy t) xs'
+--     _         -> Nothing
 
 
-instance VALU t (IsBase t) => VALU (a -> t) 'False where
+instance VALU t n
+      => VALU (a -> t) ('Suc n) where
   {-# INLINE valuN' #-}
-  valuN' c (Pair a as) = do
-    !v <- value a
-    let !cv = c v
-    valuN' cv as
+  valuN' f (Pair a as) = do
+    !a <- value a
+    let !fv = f a
+    valuN' fv as
 
   {-# INLINE valueArgs #-}
   valueArgs _ xs = case xs of
     x :*: xs' -> Pair x <$!> valueArgs (Proxy :: Proxy t) xs'
     _         -> Nothing
 
+--------------------------------------------------------------------------------
+
+
 {-# INLINE valuN #-}
-valuN :: forall t. VALU t (IsBase t) =>
+valuN :: forall t. VALU t (Arity t) =>
          StrictCurrying (Constant Word32 (Domains t)) (R (CoDomain t)) =>
          All EmbPrj (Domains t) =>
          t -> Arrows (Constant Word32 (Domains t)) (R (CoDomain t))
@@ -613,7 +823,7 @@ valuN f = strictCurrys (Proxy :: Proxy (Constant Word32 (Domains t)))
                  (valuN' f)
 
 {-# INLINE valueN #-}
-valueN :: forall t. VALU t (IsBase t) =>
+valueN :: forall t. VALU t (Arity t) =>
           All EmbPrj (CoDomain t ': Domains t) =>
           t -> Word32 -> R (CoDomain t)
 valueN t = vcase valu where

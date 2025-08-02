@@ -79,7 +79,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20250801 * 10 + 0
+currentInterfaceVersion = 20250804 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 
@@ -205,7 +205,7 @@ decode s = do
   -- The decoder is (intended to be) strict enough to ensure that all
   -- such errors can be caught by the handler here.
 
-  res <- liftIO $ E.handle (\(E.ErrorCall s) -> pure $ Left s) $ do
+  (mf, x) <- liftIO $ do
     ((r, nodeL, stringL, lTextL, sTextL, integerL, varSetL, doubleL), s, _) <- return $ runGetState B.get s 0
     let ar = unListLike
     when (not (null s)) $ E.throwIO $ E.ErrorCall "Garbage at end."
@@ -226,20 +226,14 @@ decode s = do
           }
     !r  <- runReaderT (value r) dec
     !mf <- readIORef mfRef
-    return $ Right (mf, r)
+    return (mf, r)
 
-  case res of
-    Left s -> do
-      reportSLn "import.iface" 5 $ "Error when decoding interface file: " ++ s
-      pure Nothing
-
-    Right (mf, x) -> do
-      setTCLens stModuleToSource mf
-      -- "Compact" the interfaces (without breaking sharing) to
-      -- reduce the amount of memory that is traversed by the
-      -- garbage collector.
-      Bench.billTo [Bench.Deserialization, Bench.Compaction] $
-        liftIO (Just . C.getCompact <$> C.compactWithSharing x)
+  setTCLens stModuleToSource mf
+  -- "Compact" the interfaces (without breaking sharing) to
+  -- reduce the amount of memory that is traversed by the
+  -- garbage collector.
+  Bench.billTo [Bench.Deserialization, Bench.Compaction] $
+    liftIO (Just . C.getCompact <$> C.compactWithSharing x)
 
 
 encodeInterface :: Interface -> TCM Encoded
