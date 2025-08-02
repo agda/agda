@@ -6,7 +6,6 @@ module Agda.TypeChecking.Serialise.Instances.Highlighting where
 
 import qualified Data.Map.Strict as Map
 import Data.Strict.Tuple (Pair(..))
-import Data.Word (Word32)
 
 import Agda.Utils.Range (Range(..))
 import qualified Agda.Interaction.Highlighting.Precise as HP
@@ -35,19 +34,19 @@ instance EmbPrj HP.NameKind where
   icod_ HP.Generalizable   = icodeN 11 ()
 
   value = vcase valu where
-    valu []      = valuN HP.Bound
-    valu [1 , a] = valuN HP.Constructor a
-    valu [2]     = valuN HP.Datatype
-    valu [3]     = valuN HP.Field
-    valu [4]     = valuN HP.Function
-    valu [5]     = valuN HP.Module
-    valu [6]     = valuN HP.Postulate
-    valu [7]     = valuN HP.Primitive
-    valu [8]     = valuN HP.Record
-    valu [9]     = valuN HP.Argument
-    valu [10]    = valuN HP.Macro
-    valu [11]    = valuN HP.Generalizable
-    valu _       = malformed
+    valu N0       = valuN HP.Bound
+    valu (N2 1 a) = valuN HP.Constructor a
+    valu (N1 2)   = valuN HP.Datatype
+    valu (N1 3)   = valuN HP.Field
+    valu (N1 4)   = valuN HP.Function
+    valu (N1 5)   = valuN HP.Module
+    valu (N1 6)   = valuN HP.Postulate
+    valu (N1 7)   = valuN HP.Primitive
+    valu (N1 8)   = valuN HP.Record
+    valu (N1 9)   = valuN HP.Argument
+    valu (N1 10)  = valuN HP.Macro
+    valu (N1 11)  = valuN HP.Generalizable
+    valu _        = malformed
 
 instance EmbPrj HP.Aspect where
   icod_ HP.Comment        = icodeN 0 ()
@@ -64,19 +63,19 @@ instance EmbPrj HP.Aspect where
   icod_ (HP.URL a)       = icodeN 10 HP.URL a
 
   value = vcase valu where
-    valu [0]        = valuN HP.Comment
-    valu [1]        = valuN HP.Keyword
-    valu [2]        = valuN HP.String
-    valu [3]        = valuN HP.Number
-    valu []         = valuN HP.Symbol
-    valu [4]        = valuN HP.PrimitiveType
-    valu [5, mk, b] = valuN HP.Name mk b
-    valu [6]        = valuN HP.Pragma
-    valu [7]        = valuN HP.Background
-    valu [8]        = valuN HP.Markup
-    valu [9]        = valuN HP.Hole
-    valu [10, a]    = valuN HP.URL a
-    valu _          = malformed
+    valu (N1 0)      = valuN HP.Comment
+    valu (N1 1)      = valuN HP.Keyword
+    valu (N1 2)      = valuN HP.String
+    valu (N1 3)      = valuN HP.Number
+    valu N0          = valuN HP.Symbol
+    valu (N1 4)      = valuN HP.PrimitiveType
+    valu (N3 5 mk b) = valuN HP.Name mk b
+    valu (N1 6)      = valuN HP.Pragma
+    valu (N1 7)      = valuN HP.Background
+    valu (N1 8)      = valuN HP.Markup
+    valu (N1 9)      = valuN HP.Hole
+    valu (N2 10 a)   = valuN HP.URL a
+    valu _           = malformed
 
 instance EmbPrj HP.OtherAspect where
   icod_ HP.Error                = pure 0
@@ -138,12 +137,12 @@ instance EmbPrj a => EmbPrj (RM.RangeMap a) where
       !start <- icode start
       !end <- icode end
       !entry <- icode entry
-      convert (Cons start (Cons end (Cons entry ys))) xs
+      convert ((:*:) start ((:*:) end ((:*:) entry ys))) xs
 
   value = vcase (fmap (RM.RangeMap . Map.fromDistinctAscList) . convert []) where
-    convert :: [(Int, Pair Int a)] -> [Word32] -> R [(Int, Pair Int a)]
-    convert !ys [] = return ys
-    convert  ys (start:end:entry:xs) = do
+    convert :: [(Int, RM.PairInt a)] -> Node -> R [(Int, RM.PairInt a)]
+    convert !ys Empty = return ys
+    convert  ys (start :*: end :*: entry :*: xs) = do
       !start <- value start
       !end <- value end
       !entry <- value entry

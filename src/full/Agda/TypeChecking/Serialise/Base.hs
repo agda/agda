@@ -3,6 +3,7 @@
 {-# LANGUAGE MagicHash            #-}
 {-# LANGUAGE UnboxedTuples        #-}
 {-# LANGUAGE UndecidableInstances #-} -- Due to ICODE vararg typeclass
+{-# LANGUAGE PatternSynonyms      #-}
 
 {-
 András, 2023-10-2:
@@ -58,7 +59,26 @@ import Agda.Utils.VarSet (VarSet)
 #include <MachDeps.h>
 
 -- | Constructor tag (maybe omitted) and argument indices.
-data Node = Empty | Cons !Word32 !Node deriving Eq
+data Node = Empty | (:*:) !Word32 !Node deriving Eq
+infixr 5 :*:
+
+pattern N0 :: Node
+pattern N0 = Empty
+
+pattern N1 :: Word32 -> Node
+pattern N1 a = a :*: Empty
+
+pattern N2 :: Word32 -> Word32 -> Node
+pattern N2 a b = a :*: b :*: Empty
+
+pattern N3 :: Word32 -> Word32 -> Word32 ->Node
+pattern N3 a b c = a :*: b :*: c :*: Empty
+
+pattern N4 :: Word32 -> Word32 -> Word32 -> Word32 -> Node
+pattern N4 a b c d = a :*: b :*: c :*: d :*: Empty
+
+pattern N5 :: Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Node
+pattern N5 a b c d e = a :*: b :*: c :*: d :*: e :*: Empty
 
 instance Hashable Node where
   -- Adapted from https://github.com/tkaitchuck/aHash/wiki/AHash-fallback-algorithm
@@ -80,7 +100,7 @@ instance Hashable Node where
 
     go :: Word -> Node -> Word
     go !h Empty       = h
-    go  h (Cons n ns) = go (combine h (fromIntegral n)) ns
+    go  h ((:*:) n ns) = go (combine h (fromIntegral n)) ns
 
   hash = hashWithSalt seed where
 #if WORD_SIZE_IN_BITS == 64
@@ -99,18 +119,18 @@ instance B.Binary Node where
     go n = do
       !x    <- B.get
       !node <- go (n - 1)
-      pure $ Cons x node
+      pure $ (:*:) x node
 
   put n = B.put (len n) <> go n where
 
     len :: Node -> Int
     len = go 0 where
-      go !acc Empty     = acc
-      go acc (Cons _ n) = go (acc + 1) n
+      go !acc Empty      = acc
+      go acc ((:*:) _ n) = go (acc + 1) n
 
     go :: Node -> B.Put
     go Empty       = mempty
-    go (Cons n ns) = B.put n <> go ns
+    go ((:*:) n ns) = B.put n <> go ns
 
 -- | Association lists mapping TypeRep fingerprints to values. In some cases
 --   values with different types have the same serialized representation. This
@@ -125,13 +145,14 @@ fingerprintNoinline :: TypeRep -> Fingerprint
 fingerprintNoinline rep = typeRepFingerprint rep
 {-# NOINLINE fingerprintNoinline #-}
 
-lookupME :: forall a b. Proxy a -> Fingerprint -> MemoEntry -> (a -> b) -> b -> b
-lookupME proxy fprint me found notfound = go fprint me where
-  go :: Fingerprint -> MemoEntry -> b
+-- András: TODO: the NOINLINE + the function looks bad
+lookupME :: forall a. Proxy a -> Fingerprint -> MemoEntry -> (# a | (# #) #)
+lookupME proxy fprint me = go fprint me where
+  go :: Fingerprint -> MemoEntry -> (# a | (# #) #)
   go fp MEEmpty =
-    notfound
+    (# | (# #) #)
   go fp (MECons fp' x me)
-    | fp == fp' = found (unsafeCoerce x)
+    | fp == fp' = let res = unsafeCoerce x in (# res | #)
     | True      = go fp me
 {-# NOINLINE lookupME #-}
 
@@ -237,12 +258,12 @@ type Memo = IOArray Word32 MemoEntry
 
 -- | State of the decoder.
 data St = St
-  { nodeE     :: !(Array Word32 [Word32])  -- ^ Obtained from interface file.
+  { nodeE     :: !(Array Word32 Node)     -- ^ Obtained from interface file.
   , stringE   :: !(Array Word32 String)   -- ^ Obtained from interface file.
   , lTextE    :: !(Array Word32 TL.Text)  -- ^ Obtained from interface file.
   , sTextE    :: !(Array Word32 T.Text)   -- ^ Obtained from interface file.
   , integerE  :: !(Array Word32 Integer)  -- ^ Obtained from interface file.
-  , varSetE   :: !(Array Word32 VarSet)  -- ^ Obtained from interface file.
+  , varSetE   :: !(Array Word32 VarSet)   -- ^ Obtained from interface file.
   , doubleE   :: !(Array Word32 Double)   -- ^ Obtained from interface file.
   , nodeMemo  :: !Memo
     -- ^ Created and modified by decoder.
@@ -483,20 +504,22 @@ icodeMemo getDict getCounter a icodeP = do
 --   via the @valu@ function and stores it in 'nodeMemo'.
 --   If @ix@ is present in 'nodeMemo', @valu@ is not used, but
 --   the thing is read from 'nodeMemo' instead.
-vcase :: forall a . EmbPrj a => ([Word32] -> R a) -> Word32 -> R a
+vcase :: forall a . EmbPrj a => (Node -> R a) -> Word32 -> R a
 vcase valu = \ix -> do
     memo <- gets nodeMemo
     let fp = fingerprintNoinline (typeRep (Proxy :: Proxy a))
     -- to introduce sharing, see if we have seen a thing
     -- represented by ix before
     slot <- liftIO $ readArray memo ix
-    lookupME (Proxy :: Proxy a) fp slot
+    case lookupME (Proxy :: Proxy a) fp slot of
       -- use the stored value
-      pure
-      -- read new value and save it
-      do !v <- valu . (! ix) =<< gets nodeE
-         liftIO $ writeArray memo ix $! MECons fp (unsafeCoerce v) slot
-         return v
+      (# a | #) ->
+        pure a
+      _         ->
+        -- read new value and save it
+        do !v <- valu . (! ix) =<< gets nodeE
+           liftIO $ writeArray memo ix $! MECons fp (unsafeCoerce v) slot
+           return v
 
 -- | @icodeArgs proxy (a1, ..., an)@ maps @icode@ over @a1@, ..., @an@
 --   and returns the corresponding list of @Word32@.
@@ -513,7 +536,7 @@ instance ICODE t (IsBase t) => ICODE (a -> t) 'False where
   icodeArgs _ (Pair a as) = do
     !hd   <- icode a
     !node <- icodeArgs (Proxy :: Proxy t) as
-    pure $ Cons hd node
+    pure $ (:*:) hd node
   {-# INLINE icodeArgs #-}
 
 -- | @icodeN tag t a1 ... an@ serialises the arguments @a1@, ..., @an@ of the
@@ -528,7 +551,7 @@ icodeN :: forall t. ICODE t (IsBase t) => StrictCurrying (Domains t) (S Word32) 
 icodeN tag _ =
   strictCurrys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Word32)) $ \ !args -> do
     !node <- icodeArgs (Proxy :: Proxy t) args
-    icodeNode $ Cons tag node
+    icodeNode $ (:*:) tag node
 
 -- | @icodeN'@ is the same as @icodeN@ except that there is no tag
 {-# INLINE icodeN' #-}
@@ -552,7 +575,7 @@ class VALU t b where
 
   valueArgs :: b ~ IsBase t =>
                All EmbPrj (CoDomain t ': Domains t) =>
-               Proxy t -> [Word32] -> Maybe (StrictProducts (Constant Word32 (Domains t)))
+               Proxy t -> Node -> Maybe (StrictProducts (Constant Word32 (Domains t)))
 
 instance VALU t 'True where
   {-# INLINE valuN' #-}
@@ -560,8 +583,8 @@ instance VALU t 'True where
 
   {-# INLINE valueArgs #-}
   valueArgs _ xs = case xs of
-    [] -> Just ()
-    _  -> Nothing
+    Empty -> Just ()
+    _     -> Nothing
 
 
 instance VALU t (IsBase t) => VALU (a -> t) 'False where
@@ -573,8 +596,8 @@ instance VALU t (IsBase t) => VALU (a -> t) 'False where
 
   {-# INLINE valueArgs #-}
   valueArgs _ xs = case xs of
-    x : xs' -> Pair x <$!> valueArgs (Proxy :: Proxy t) xs'
-    _       -> Nothing
+    x :*: xs' -> Pair x <$!> valueArgs (Proxy :: Proxy t) xs'
+    _         -> Nothing
 
 {-# INLINE valuN #-}
 valuN :: forall t. VALU t (IsBase t) =>

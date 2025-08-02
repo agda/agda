@@ -32,9 +32,9 @@ instance EmbPrj IsAmbiguous where
     NotAmbiguous   -> icodeN' NotAmbiguous
 
   value = vcase \case
-    [a] -> valuN YesAmbiguous a
-    []  -> valuN NotAmbiguous
-    _   -> malformed
+    N1 a -> valuN YesAmbiguous a
+    N0   -> valuN NotAmbiguous
+    _    -> malformed
 
 instance EmbPrj TCWarning where
   icod_ (TCWarning fp r a b c d) = icodeN' (\ fp -> TCWarning fp . underlyingRange) fp (SerialisedRange r) a b c d
@@ -145,82 +145,82 @@ instance EmbPrj Warning where
     RewritesNothing                             -> icodeN 74 RewritesNothing
 
   value = vcase $ \ case
-    [0, a, b]            -> valuN UnreachableClauses a b
-    [1, a, b]            -> valuN OldBuiltin a b
-    [2]                  -> valuN EmptyRewritePragma
-    [3, a]               -> valuN UselessPublic a
-    [4, a]               -> valuN UselessInline a
-    [5, a]               -> valuN DuplicateRecordDirective a
-    [6, a, b, c]         -> valuN DeprecationWarning a b c
-    [7, a]               -> valuN NicifierIssue a
-    [8, a]               -> valuN InversionDepthReached a
-    [9, a]               -> valuN UserWarning a
-    [10]                 -> valuN AbsurdPatternRequiresAbsentRHS
-    [11, a, b, c, d]     -> valuN ModuleDoesntExport a b c d
-    [12, a]              -> valuN LibraryWarning a
-    [13, a, b]           -> valuN CoverageNoExactSplit a b
-    [14, a]              -> valuN CantGeneralizeOverSorts a
-    [15, a]              -> valuN IllformedAsClause a
-    [16]                 -> valuN WithoutKFlagPrimEraseEquality
-    [17, a]              -> valuN InstanceWithExplicitArg a
-    [18, a]              -> valuN InfectiveImport a
-    [19, a]              -> valuN CoInfectiveImport a
-    [20, a]              -> valuN InstanceNoOutputTypeName a
-    [21, a]              -> valuN InstanceArgWithExplicitArg a
-    [22]                 -> valuN WrongInstanceDeclaration
-    [23, a, b, c, d]     -> valuN RewriteNonConfluent a b c d
-    [24, a, b, c]        -> valuN RewriteMaybeNonConfluent a b c
-    [25, a, b]           -> valuN PragmaCompileErased a b
-    [26, a]              -> valuN FixityInRenamingModule a
-    [27, a]              -> valuN NotInScopeW a
-    [28, a, b]           -> valuN ClashesViaRenaming a b
-    [29, a]              -> valuN RecordFieldWarning a
-    [30, a]              -> valuN UselessPatternDeclarationForRecord a
-    [31]                 -> valuN EmptyWhere
-    [32, a]              -> valuN AsPatternShadowsConstructorOrPatternSynonym a
-    [33, a]              -> valuN DuplicateUsing a
-    [34, a]              -> valuN UselessHiding a
-    [35, a, b]           -> valuN UselessPragma a b
-    [36, a, b, c]        -> valuN RewriteAmbiguousRules a b c
-    [37, a, b, c]        -> valuN RewriteMissingRule a b c
-    [38, a]              -> valuN ParseWarning a
-    [39]                 -> valuN UselessTactic
-    [40, a]              -> valuN UnsupportedIndexedMatch a
-    [41, a]              -> valuN OptionWarning a
-    [42, a]              -> valuN PlentyInHardCompileTimeMode a
-    [43]                 -> valuN NotAffectedByOpaque
-    [44, a]              -> valuN UnfoldTransparentName a
-    [45]                 -> valuN UselessOpaque
-    [46, a, b]           -> valuN InlineNoExactSplit a b
-    [47, a]              -> valuN FaceConstraintCannotBeHidden a
-    [48, a]              -> valuN FaceConstraintCannotBeNamed a
-    [49, a, b]           -> valuN PatternShadowsConstructor a b
-    [50, a]              -> valuN ConfluenceCheckingIncompleteBecauseOfMeta a
-    [51, a]              -> valuN BuiltinDeclaresIdentifier a
-    [52]                 -> valuN ConfluenceForCubicalNotSupported
-    [53, a, b]           -> valuN IllegalRewriteRule a b
-    [54, a, b]           -> valuN MissingTypeSignatureForOpaque a b
-    [55, a, b]           -> valuN ConflictingPragmaOptions a b
-    [56, a, b]           -> valuN CustomBackendWarning a b
-    [57, a]              -> valuN CoinductiveEtaRecord a
-    [58, a, b, c, d]     -> valuN WithClauseProjectionFixityMismatch a b c d
-    [59, a, b]           -> valuN InvalidDisplayForm a b
-    [60, a, b]           -> valuN NotARewriteRule a b
-    [61, a, b]           -> valuN PragmaCompileWrongName a b
-    [62, a]              -> valuN PragmaCompileUnparsable a
-    [63, a, b]           -> valuN PragmaCompileWrong a b
-    [64, a, b, c]        -> valuN PragmaExpectsUnambiguousConstructorOrFunction a b c
-    [65, a, b, c]        -> valuN PragmaExpectsUnambiguousProjectionOrFunction a b c
-    [66, a, b]           -> valuN PragmaExpectsDefinedSymbol a b
-    [67, a]              -> valuN UnfoldingWrongName a
+    N3 0 a b      -> valuN UnreachableClauses a b
+    N3 1 a b      -> valuN OldBuiltin a b
+    N1 2          -> valuN EmptyRewritePragma
+    N2 3 a        -> valuN UselessPublic a
+    N2 4 a        -> valuN UselessInline a
+    N2 5 a        -> valuN DuplicateRecordDirective a
+    N4 6 a b c    -> valuN DeprecationWarning a b c
+    N2 7 a        -> valuN NicifierIssue a
+    N2 8 a        -> valuN InversionDepthReached a
+    N2 9 a        -> valuN UserWarning a
+    N1 10         -> valuN AbsurdPatternRequiresAbsentRHS
+    N5 11 a b c d -> valuN ModuleDoesntExport a b c d
+    N2 12 a       -> valuN LibraryWarning a
+    N3 13 a b     -> valuN CoverageNoExactSplit a b
+    N2 14 a       -> valuN CantGeneralizeOverSorts a
+    N2 15 a       -> valuN IllformedAsClause a
+    N1 16         -> valuN WithoutKFlagPrimEraseEquality
+    N2 17 a       -> valuN InstanceWithExplicitArg a
+    N2 18 a       -> valuN InfectiveImport a
+    N2 19 a       -> valuN CoInfectiveImport a
+    N2 20 a       -> valuN InstanceNoOutputTypeName a
+    N2 21 a       -> valuN InstanceArgWithExplicitArg a
+    N1 22         -> valuN WrongInstanceDeclaration
+    N5 23 a b c d -> valuN RewriteNonConfluent a b c d
+    N4 24 a b c   -> valuN RewriteMaybeNonConfluent a b c
+    N3 25 a b     -> valuN PragmaCompileErased a b
+    N2 26 a       -> valuN FixityInRenamingModule a
+    N2 27 a       -> valuN NotInScopeW a
+    N3 28 a b     -> valuN ClashesViaRenaming a b
+    N2 29 a       -> valuN RecordFieldWarning a
+    N2 30 a       -> valuN UselessPatternDeclarationForRecord a
+    N1 31         -> valuN EmptyWhere
+    N2 32 a       -> valuN AsPatternShadowsConstructorOrPatternSynonym a
+    N2 33 a       -> valuN DuplicateUsing a
+    N2 34 a       -> valuN UselessHiding a
+    N3 35 a b     -> valuN UselessPragma a b
+    N4 36 a b c   -> valuN RewriteAmbiguousRules a b c
+    N4 37 a b c   -> valuN RewriteMissingRule a b c
+    N2 38 a       -> valuN ParseWarning a
+    N1 39         -> valuN UselessTactic
+    N2 40 a       -> valuN UnsupportedIndexedMatch a
+    N2 41 a       -> valuN OptionWarning a
+    N2 42 a       -> valuN PlentyInHardCompileTimeMode a
+    N1 43         -> valuN NotAffectedByOpaque
+    N2 44 a       -> valuN UnfoldTransparentName a
+    N1 45         -> valuN UselessOpaque
+    N3 46 a b     -> valuN InlineNoExactSplit a b
+    N2 47 a       -> valuN FaceConstraintCannotBeHidden a
+    N2 48 a       -> valuN FaceConstraintCannotBeNamed a
+    N3 49 a b     -> valuN PatternShadowsConstructor a b
+    N2 50 a       -> valuN ConfluenceCheckingIncompleteBecauseOfMeta a
+    N2 51 a       -> valuN BuiltinDeclaresIdentifier a
+    N1 52         -> valuN ConfluenceForCubicalNotSupported
+    N3 53 a b     -> valuN IllegalRewriteRule a b
+    N3 54 a b     -> valuN MissingTypeSignatureForOpaque a b
+    N3 55 a b     -> valuN ConflictingPragmaOptions a b
+    N3 56 a b     -> valuN CustomBackendWarning a b
+    N2 57 a       -> valuN CoinductiveEtaRecord a
+    N5 58 a b c d -> valuN WithClauseProjectionFixityMismatch a b c d
+    N3 59 a b     -> valuN InvalidDisplayForm a b
+    N3 60 a b     -> valuN NotARewriteRule a b
+    N3 61 a b     -> valuN PragmaCompileWrongName a b
+    N2 62 a       -> valuN PragmaCompileUnparsable a
+    N3 63 a b     -> valuN PragmaCompileWrong a b
+    N4 64 a b c   -> valuN PragmaExpectsUnambiguousConstructorOrFunction a b c
+    N4 65 a b c   -> valuN PragmaExpectsUnambiguousProjectionOrFunction a b c
+    N3 66 a b     -> valuN PragmaExpectsDefinedSymbol a b
+    N2 67 a       -> valuN UnfoldingWrongName a
     -- TODO: linearity
     -- [68, a, b, c]        -> valuN FixingQuantity a b c
-    [69, a, b, c]        -> valuN FixingRelevance a b c
-    [70, a]              -> valuN UnusedVariablesInDisplayForm a
-    [71, a, b]           -> valuN TooManyPolarities a b
-    [72, a, b, c]        -> valuN FixingCohesion a b c
-    [73, a, b, c]        -> valuN FixingPolarity a b c
-    [74]                 -> valuN RewritesNothing
+    N4 69 a b c   -> valuN FixingRelevance a b c
+    N2 70 a       -> valuN UnusedVariablesInDisplayForm a
+    N3 71 a b     -> valuN TooManyPolarities a b
+    N4 72 a b c   -> valuN FixingCohesion a b c
+    N4 73 a b c   -> valuN FixingPolarity a b c
+    N1 74         -> valuN RewritesNothing
     _ -> malformed
 
 instance EmbPrj UselessPublicReason
@@ -245,23 +245,23 @@ instance EmbPrj IllegalRewriteRuleReason where
     DuplicateRewriteRule                        -> icodeN 15 DuplicateRewriteRule
 
   value = vcase $ \case
-    [0]       -> valuN LHSNotDefinitionOrConstructor
-    [1, a]    -> valuN VariablesNotBoundByLHS a
-    [2, a]    -> valuN VariablesBoundMoreThanOnce a
-    [3, a, b] -> valuN LHSReduces a b
+    N1 0     -> valuN LHSNotDefinitionOrConstructor
+    N2 1 a   -> valuN VariablesNotBoundByLHS a
+    N2 2 a   -> valuN VariablesBoundMoreThanOnce a
+    N3 3 a b -> valuN LHSReduces a b
     -- 4 was HeadSymbolIsProjection
-    [5, a]    -> valuN HeadSymbolIsProjectionLikeFunction a
-    [6, a]    -> valuN HeadSymbolIsTypeConstructor a
-    [7, a]    -> valuN HeadSymbolContainsMetas a
-    [8, a, b] -> valuN ConstructorParametersNotGeneral a b
-    [9, a]    -> valuN ContainsUnsolvedMetaVariables a
-    [10, a]   -> valuN BlockedOnProblems a
-    [11, a]   -> valuN RequiresDefinitions a
-    [12]      -> valuN DoesNotTargetRewriteRelation
-    [13]      -> valuN BeforeFunctionDefinition
-    [14, a]   -> valuN BeforeMutualFunctionDefinition a
-    [15]      -> valuN DuplicateRewriteRule
-    _ -> malformed
+    N2 5 a   -> valuN HeadSymbolIsProjectionLikeFunction a
+    N2 6 a   -> valuN HeadSymbolIsTypeConstructor a
+    N2 7 a   -> valuN HeadSymbolContainsMetas a
+    N3 8 a b -> valuN ConstructorParametersNotGeneral a b
+    N2 9 a   -> valuN ContainsUnsolvedMetaVariables a
+    N2 10 a  -> valuN BlockedOnProblems a
+    N2 11 a  -> valuN RequiresDefinitions a
+    N1 12    -> valuN DoesNotTargetRewriteRelation
+    N1 13    -> valuN BeforeFunctionDefinition
+    N2 14 a  -> valuN BeforeMutualFunctionDefinition a
+    N1 15    -> valuN DuplicateRewriteRule
+    _        -> malformed
 
 instance EmbPrj OptionWarning where
   icod_ = \case
@@ -269,9 +269,9 @@ instance EmbPrj OptionWarning where
     WarningProblem a  -> icodeN 1 WarningProblem a
 
   value = vcase $ \case
-    [0, a, b] -> valuN OptionRenamed a b
-    [1, a]    -> valuN WarningProblem a
-    _ -> malformed
+    N3 0 a b -> valuN OptionRenamed a b
+    N2 1 a   -> valuN WarningProblem a
+    _        -> malformed
 
 instance EmbPrj WarningModeError where
   icod_ = \case
@@ -279,9 +279,9 @@ instance EmbPrj WarningModeError where
     NoNoError a -> icodeN 1 NoNoError a
 
   value = vcase $ \case
-    [0, a] -> valuN Unknown a
-    [1, a] -> valuN NoNoError a
-    _ -> malformed
+    N2 0 a -> valuN Unknown a
+    N2 1 a -> valuN NoNoError a
+    _      -> malformed
 
 instance EmbPrj ParseWarning where
   icod_ = \case
@@ -293,13 +293,13 @@ instance EmbPrj ParseWarning where
     MisplacedAttributes a b    -> icodeN 5 MisplacedAttributes a b
 
   value = vcase $ \case
-    [0, a]    -> valuN OverlappingTokensWarning a
-    [1, a, b] -> valuN UnsupportedAttribute a b
-    [2, a, b] -> valuN MultipleAttributes a b
-    [3, a, b] -> valuN UnknownAttribute a b
-    [4, a, b] -> valuN UnknownPolarity a b
-    [5, a, b] -> valuN MisplacedAttributes a b
-    _ -> malformed
+    N2 0 a   -> valuN OverlappingTokensWarning a
+    N3 1 a b -> valuN UnsupportedAttribute a b
+    N3 2 a b -> valuN MultipleAttributes a b
+    N3 3 a b -> valuN UnknownAttribute a b
+    N3 4 a b -> valuN UnknownPolarity a b
+    N3 5 a b -> valuN MisplacedAttributes a b
+    _        -> malformed
 
 instance EmbPrj RecordFieldWarning where
   icod_ = \case
@@ -307,15 +307,15 @@ instance EmbPrj RecordFieldWarning where
     W.TooManyFields a b c -> icodeN 1 W.TooManyFields a b c
 
   value = vcase $ \case
-    [0, a]       -> valuN W.DuplicateFields a
-    [1, a, b, c] -> valuN W.TooManyFields a b c
-    _ -> malformed
+    N2 0 a     -> valuN W.DuplicateFields a
+    N4 1 a b c -> valuN W.TooManyFields a b c
+    _          -> malformed
 
 instance EmbPrj DeclarationWarning where
   icod_ (DeclarationWarning a b) = icodeN' DeclarationWarning a b
   value = vcase $ \case
-    [a, b] -> valuN DeclarationWarning a b
-    _ -> malformed
+    N2 a b -> valuN DeclarationWarning a b
+    _      -> malformed
 
 instance EmbPrj DeclarationWarning' where
   icod_ = \case
@@ -365,42 +365,42 @@ instance EmbPrj DeclarationWarning' where
     EmptyPolarityPragma r             -> icodeN 35 EmptyPolarityPragma r
 
   value = vcase $ \case
-    [0, a]   -> valuN UnknownNamesInFixityDecl a
-    [1, a]   -> valuN UnknownNamesInPolarityPragmas a
-    [2, a]   -> valuN PolarityPragmasButNotPostulates a
-    [3, a]   -> valuN UselessPrivate a
-    [4, a]   -> valuN UselessAbstract a
-    [5, a]   -> valuN UselessInstance a
-    [6, a]   -> valuN EmptyMutual a
-    [7, a]   -> valuN EmptyAbstract a
-    [8, a]   -> valuN EmptyPrivate a
-    [9, a]   -> valuN EmptyInstance a
-    [10,a]   -> valuN EmptyMacro a
-    [11,a]   -> valuN EmptyPostulate a
-    [12,a]   -> valuN InvalidTerminationCheckPragma a
-    [13,a]   -> valuN InvalidNoPositivityCheckPragma a
-    [14,a]   -> valuN InvalidCatchallPragma a
-    [15,a]   -> valuN InvalidNoUniverseCheckPragma a
-    [16,a]   -> valuN UnknownFixityInMixfixDecl a
-    [17,a]   -> valuN MissingDefinitions a
-    [18,r,a] -> valuN NotAllowedInMutual r a
-    [19,r]   -> valuN PragmaNoTerminationCheck r
-    [20,a]   -> valuN EmptyGeneralize a
-    [21,a]   -> valuN PragmaCompiled a
-    [22,a]   -> valuN EmptyPrimitive a
-    [23,r]   -> valuN EmptyField r
-    [24,nrs] -> valuN ShadowingInTelescope nrs
-    [25,r]   -> valuN InvalidCoverageCheckPragma r
-    [26,r,kwr,a] -> valuN OpenImportAbstract r kwr a
-    [27,r,kwr,kwr',a] -> valuN OpenImportPrivate r kwr kwr' a
-    [28,r]   -> valuN EmptyConstructor r
-    [29,a,b] -> valuN DivergentModalityInClause a b
-    [30,r]   -> valuN InvalidTacticAttribute r
-    [31,r]   -> valuN InvalidConstructorBlock r
-    [32,r]   -> valuN MissingDataDeclaration r
-    [33,r]   -> valuN HiddenGeneralize r
-    [34,r]   -> valuN UselessMacro r
-    [35,r]   -> valuN EmptyPolarityPragma r
+    N2 0  a            -> valuN UnknownNamesInFixityDecl a
+    N2 1  a            -> valuN UnknownNamesInPolarityPragmas a
+    N2 2  a            -> valuN PolarityPragmasButNotPostulates a
+    N2 3  a            -> valuN UselessPrivate a
+    N2 4  a            -> valuN UselessAbstract a
+    N2 5  a            -> valuN UselessInstance a
+    N2 6  a            -> valuN EmptyMutual a
+    N2 7  a            -> valuN EmptyAbstract a
+    N2 8  a            -> valuN EmptyPrivate a
+    N2 9  a            -> valuN EmptyInstance a
+    N2 10 a            -> valuN EmptyMacro a
+    N2 11 a            -> valuN EmptyPostulate a
+    N2 12 a            -> valuN InvalidTerminationCheckPragma a
+    N2 13 a            -> valuN InvalidNoPositivityCheckPragma a
+    N2 14 a            -> valuN InvalidCatchallPragma a
+    N2 15 a            -> valuN InvalidNoUniverseCheckPragma a
+    N2 16 a            -> valuN UnknownFixityInMixfixDecl a
+    N2 17 a            -> valuN MissingDefinitions a
+    N3 18 r a          -> valuN NotAllowedInMutual r a
+    N2 19 r            -> valuN PragmaNoTerminationCheck r
+    N2 20 a            -> valuN EmptyGeneralize a
+    N2 21 a            -> valuN PragmaCompiled a
+    N2 22 a            -> valuN EmptyPrimitive a
+    N2 23 r            -> valuN EmptyField r
+    N2 24 nrs          -> valuN ShadowingInTelescope nrs
+    N2 25 r            -> valuN InvalidCoverageCheckPragma r
+    N4 26 r kwr a      -> valuN OpenImportAbstract r kwr a
+    N5 27 r kwr kwr' a -> valuN OpenImportPrivate r kwr kwr' a
+    N2 28 r            -> valuN EmptyConstructor r
+    N3 29 a b          -> valuN DivergentModalityInClause a b
+    N2 30 r            -> valuN InvalidTacticAttribute r
+    N2 31 r            -> valuN InvalidConstructorBlock r
+    N2 32 r            -> valuN MissingDataDeclaration r
+    N2 33 r            -> valuN HiddenGeneralize r
+    N2 34 r            -> valuN UselessMacro r
+    N2 35 r            -> valuN EmptyPolarityPragma r
     _ -> malformed
 
 instance EmbPrj OpenOrImport
@@ -410,7 +410,7 @@ instance EmbPrj LibWarning where
     LibWarning a b -> icodeN 0 LibWarning a b
 
   value = vcase $ \case
-    [0, a, b]   -> valuN LibWarning a b
+    N3 0 a b   -> valuN LibWarning a b
     _ -> malformed
 
 instance EmbPrj LibWarning' where
@@ -418,7 +418,7 @@ instance EmbPrj LibWarning' where
     UnknownField     a   -> icodeN 0 UnknownField a
 
   value = vcase $ \case
-    [0, a]    -> valuN UnknownField a
+    N2 0 a    -> valuN UnknownField a
     _ -> malformed
 
 instance EmbPrj ExecutablesFile where
@@ -426,7 +426,7 @@ instance EmbPrj ExecutablesFile where
     ExecutablesFile a b -> icodeN 0 ExecutablesFile a b
 
   value = vcase $ \case
-    [0, a, b] -> valuN ExecutablesFile a b
+    N3 0 a b -> valuN ExecutablesFile a b
     _ -> malformed
 
 instance EmbPrj LibPositionInfo where
@@ -434,7 +434,7 @@ instance EmbPrj LibPositionInfo where
     LibPositionInfo a b c -> icodeN 0 LibPositionInfo a b c
 
   value = vcase $ \case
-    [0, a, b, c] -> valuN LibPositionInfo a b c
+    N4 0 a b c -> valuN LibPositionInfo a b c
     _ -> malformed
 
 -- Andreas, 2025-08-01, PR #8040:
@@ -449,9 +449,9 @@ instance EmbPrj InfectiveCoinfective where
   icod_ Coinfective = icodeN 0 Coinfective
 
   value = vcase valu where
-    valu []  = valuN Infective
-    valu [0] = valuN Coinfective
-    valu _   = malformed
+    valu N0     = valuN Infective
+    valu (N1 0) = valuN Coinfective
+    valu _      = malformed
 
 instance EmbPrj PragmaOptions where
   icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss) =
@@ -474,9 +474,9 @@ instance EmbPrj ConfluenceCheck where
   icod_ GlobalConfluenceCheck = icodeN 0 GlobalConfluenceCheck
 
   value = vcase valu where
-    valu []  = valuN LocalConfluenceCheck
-    valu [0] = valuN GlobalConfluenceCheck
-    valu _   = malformed
+    valu N0     = valuN LocalConfluenceCheck
+    valu (N1 0) = valuN GlobalConfluenceCheck
+    valu _      = malformed
 
 instance EmbPrj WarningMode where
   icod_ (WarningMode a b) = icodeN' WarningMode a b
@@ -490,9 +490,9 @@ instance EmbPrj WarningName
 instance EmbPrj CutOff where
   icod_ = \case
     DontCutOff -> icodeN' DontCutOff
-    CutOff a -> icodeN 0 CutOff a
+    CutOff a   -> icodeN 0 CutOff a
 
   value = vcase valu where
-    valu [] = valuN DontCutOff
-    valu [0,a] = valuN CutOff a
-    valu _ = malformed
+    valu N0       = valuN DontCutOff
+    valu (N2 0 a) = valuN CutOff a
+    valu _        = malformed

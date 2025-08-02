@@ -61,9 +61,9 @@ instance EmbPrj Cubical where
   icod_ CFull   = icodeN 0 CFull
 
   value = vcase $ \case
-    []  -> valuN CErased
-    [0] -> valuN CFull
-    _   -> malformed
+    N0   -> valuN CErased
+    N1 0 -> valuN CFull
+    _    -> malformed
 
 instance EmbPrj Language where
   icod_ WithoutK    = icodeN'  WithoutK
@@ -71,9 +71,9 @@ instance EmbPrj Language where
   icod_ (Cubical a) = icodeN 1 Cubical a
 
   value = vcase $ \case
-    []     -> valuN WithoutK
-    [0]    -> valuN WithK
-    [1, a] -> valuN Cubical a
+    N0     -> valuN WithoutK
+    N1 0   -> valuN WithK
+    N2 1 a -> valuN Cubical a
     _      -> malformed
 
 instance EmbPrj a => EmbPrj (Position' a) where
@@ -132,8 +132,8 @@ instance EmbPrj C.Name where
   icod_ (C.Name r nis xs)  = icodeN 1 C.Name r nis xs
 
   value = vcase valu where
-    valu [0, a, b]       = valuN C.NoName a b
-    valu [1, r, nis, xs] = valuN C.Name   r nis xs
+    valu (N3 0 a b)      = valuN C.NoName a b
+    valu (N4 1 r nis xs) = valuN C.Name   r nis xs
     valu _               = malformed
 
 instance EmbPrj NamePart where
@@ -141,35 +141,35 @@ instance EmbPrj NamePart where
   icod_ (Id a) = icodeN' Id a
 
   value = vcase valu where
-    valu []  = valuN Hole
-    valu [a] = valuN Id a
-    valu _   = malformed
+    valu N0     = valuN Hole
+    valu (N1 a) = valuN Id a
+    valu _      = malformed
 
 instance EmbPrj NameInScope where
   icod_ InScope    = icodeN' InScope
   icod_ NotInScope = icodeN 0 NotInScope
 
   value = vcase valu where
-    valu []  = valuN InScope
-    valu [0] = valuN NotInScope
-    valu _   = malformed
+    valu N0     = valuN InScope
+    valu (N1 0) = valuN NotInScope
+    valu _      = malformed
 
 instance EmbPrj C.QName where
   icod_ (Qual    a b) = icodeN' Qual a b
   icod_ (C.QName a  ) = icodeN' C.QName a
 
   value = vcase valu where
-    valu [a, b] = valuN Qual    a b
-    valu [a]    = valuN C.QName a
-    valu _      = malformed
+    valu (N2 a b) = valuN Qual    a b
+    valu (N1 a)   = valuN C.QName a
+    valu _        = malformed
 
 instance (EmbPrj a, EmbPrj b) => EmbPrj (ImportedName' a b) where
   icod_ (ImportedModule a) = icodeN 1 ImportedModule a
   icod_ (ImportedName a)   = icodeN 2 ImportedName a
 
   value = vcase valu where
-    valu [1, a] = valuN ImportedModule a
-    valu [2, a] = valuN ImportedName a
+    valu (N2 1 a) = valuN ImportedModule a
+    valu (N2 2 a) = valuN ImportedName a
     valu _ = malformed
 
 instance EmbPrj Associativity where
@@ -188,9 +188,9 @@ instance EmbPrj FixityLevel where
   icod_ (Related a) = icodeN' Related a
 
   value = vcase valu where
-    valu []  = valuN Unrelated
-    valu [a] = valuN Related a
-    valu _   = malformed
+    valu N0     = valuN Unrelated
+    valu (N1 a) = valuN Related a
+    valu _      = malformed
 
 instance EmbPrj Fixity where
   icod_ (Fixity a b c) = icodeN' Fixity a b c
@@ -214,11 +214,11 @@ instance EmbPrj NotationPart where
   icod_ (IdPart a)     = icodeN' IdPart a
 
   value = vcase valu where
-    valu [0, a, b] = valuN VarPart a b
-    valu [1, a, b] = valuN HolePart a b
-    valu [2, a]    = valuN WildPart a
-    valu [a]       = valuN IdPart a
-    valu _         = malformed
+    valu (N3 0 a b) = valuN VarPart a b
+    valu (N3 1 a b) = valuN HolePart a b
+    valu (N2 2 a)   = valuN WildPart a
+    valu (N1 a)     = valuN IdPart a
+    valu _          = malformed
 
 instance EmbPrj MetaId where
   icod_ (MetaId a b) = icode (a, b)
@@ -299,9 +299,9 @@ instance EmbPrj a => EmbPrj (HasEta' a) where
   icod_ (NoEta a) = icodeN' NoEta a
 
   value = vcase valu where
-    valu []  = valuN YesEta
-    valu [a] = valuN NoEta a
-    valu _   = malformed
+    valu N0     = valuN YesEta
+    valu (N1 a) = valuN NoEta a
+    valu _      = malformed
 
 instance EmbPrj PatternOrCopattern
 instance EmbPrj OverlapMode
@@ -311,9 +311,9 @@ instance EmbPrj Induction where
   icod_ CoInductive = icodeN 1 CoInductive
 
   value = vcase valu where
-    valu []  = valuN Inductive
-    valu [1] = valuN CoInductive
-    valu _   = malformed
+    valu N0     = valuN Inductive
+    valu (N1 1) = valuN CoInductive
+    valu _      = malformed
 
 instance EmbPrj Hiding where
   icod_ Hidden                = return 0
@@ -370,10 +370,10 @@ instance EmbPrj Quantity where
     Quantityω a -> icodeN'  Quantityω a  -- default quantity, shorter code
 
   value = vcase $ \case
-    [0, a] -> valuN Quantity0 a
-    [1, a] -> valuN Quantity1 a
-    [a]    -> valuN Quantityω a
-    _      -> malformed
+    (N2 0 a) -> valuN Quantity0 a
+    (N2 1 a) -> valuN Quantity1 a
+    (N1 a)   -> valuN Quantityω a
+    _        -> malformed
 
 -- -- ALT: forget quantity origin when serializing?
 -- instance EmbPrj Quantity where
@@ -424,7 +424,7 @@ instance EmbPrj Modality where
   icod_ (Modality a b c d) = icodeN' Modality a b c d
 
   value = vcase $ \case
-    [a, b, c, d] -> valuN Modality a b c d
+    (N4 a b c d) -> valuN Modality a b c d
     _ -> malformed
 
 instance EmbPrj OriginRelevant where
@@ -472,9 +472,9 @@ instance EmbPrj Relevance where
     ShapeIrrelevant a -> icodeN 1 ShapeIrrelevant a
 
   value = vcase \case
-    [a]    -> valuN Relevant a
-    [0, a] -> valuN Irrelevant a
-    [1, a] -> valuN ShapeIrrelevant a
+    N1 a   -> valuN Relevant a
+    N2 0 a -> valuN Irrelevant a
+    N2 1 a -> valuN ShapeIrrelevant a
     _      -> malformed
 
 instance EmbPrj Annotation where
@@ -520,9 +520,9 @@ instance EmbPrj FreeVariables where
   icod_ (KnownFVs a) = icodeN' KnownFVs a
 
   value = vcase valu where
-    valu []  = valuN UnknownFVs
-    valu [a] = valuN KnownFVs a
-    valu _   = malformed
+    valu N0     = valuN UnknownFVs
+    valu (N1 a) = valuN KnownFVs a
+    valu _      = malformed
 
 instance EmbPrj ConOrigin where
   icod_ ConOSystem   = return 0
@@ -558,32 +558,32 @@ instance EmbPrj Agda.Syntax.Literal.Literal where
   icod_ (LitWord64 a)   = icodeN 7 LitWord64 a
 
   value = vcase valu where
-    valu [a]       = valuN LitNat    a
-    valu [1, a]    = valuN LitFloat  a
-    valu [2, a]    = valuN LitString a
-    valu [3, a]    = valuN LitChar   a
-    valu [5, a]    = valuN LitQName  a
-    valu [6, a, b] = valuN LitMeta   a b
-    valu [7, a]    = valuN LitWord64 a
-    valu _            = malformed
+    valu (N1 a)     = valuN LitNat    a
+    valu (N2 1 a)   = valuN LitFloat  a
+    valu (N2 2 a)   = valuN LitString a
+    valu (N2 3 a)   = valuN LitChar   a
+    valu (N2 5 a)   = valuN LitQName  a
+    valu (N3 6 a b) = valuN LitMeta   a b
+    valu (N2 7 a)   = valuN LitWord64 a
+    valu _          = malformed
 
 instance EmbPrj IsAbstract where
   icod_ AbstractDef = icodeN 0 AbstractDef
   icod_ ConcreteDef = icodeN' ConcreteDef
 
   value = vcase valu where
-    valu [0] = valuN AbstractDef
-    valu []  = valuN ConcreteDef
-    valu _   = malformed
+    valu (N1 0) = valuN AbstractDef
+    valu N0     = valuN ConcreteDef
+    valu _      = malformed
 
 instance EmbPrj IsOpaque where
   icod_ (OpaqueDef a)  = icodeN' OpaqueDef a
   icod_ TransparentDef = icodeN' TransparentDef
 
   value = vcase valu where
-    valu [a] = valuN OpaqueDef a
-    valu []  = valuN TransparentDef
-    valu _   = malformed
+    valu (N1 a) = valuN OpaqueDef a
+    valu N0     = valuN TransparentDef
+    valu _      = malformed
 
 instance EmbPrj SrcLoc where
   icod_ (SrcLoc p m f sl sc el ec) = icodeN' SrcLoc p m f sl sc el ec
@@ -599,19 +599,19 @@ instance EmbPrj Impossible where
   icod_ (ImpMissingDefinitions a b) = icodeN 2 ImpMissingDefinitions a b
 
   value = vcase valu where
-    valu [0, a]    = valuN Impossible  a
-    valu [1, a]    = valuN Unreachable a
-    valu [2, a, b] = valuN ImpMissingDefinitions a b
-    valu _         = malformed
+    valu (N2 0 a)   = valuN Impossible  a
+    valu (N2 1 a)   = valuN Unreachable a
+    valu (N3 2 a b) = valuN ImpMissingDefinitions a b
+    valu _          = malformed
 
 instance EmbPrj ExpandedEllipsis where
   icod_ NoEllipsis = icodeN' NoEllipsis
   icod_ (ExpandedEllipsis a b) = icodeN 1 ExpandedEllipsis a b
 
   value = vcase valu where
-    valu []      = valuN NoEllipsis
-    valu [1,a,b] = valuN ExpandedEllipsis a b
-    valu _       = malformed
+    valu N0         = valuN NoEllipsis
+    valu (N3 1 a b) = valuN ExpandedEllipsis a b
+    valu _          = malformed
 
 instance EmbPrj OptionsPragma where
   icod_ (OptionsPragma a b) = icod_ (a, b)
@@ -626,9 +626,9 @@ instance EmbPrj SomeBuiltin where
   icod_ (PrimitiveName x) = icodeN 1 PrimitiveName x
 
   value = vcase valu where
-    valu [0, x] = valuN BuiltinName x
-    valu [1, x] = valuN PrimitiveName x
-    valu _      = malformed
+    valu (N2 0 x) = valuN BuiltinName x
+    valu (N2 1 x) = valuN PrimitiveName x
+    valu _        = malformed
 
 instance EmbPrj IsInstance where
   icod_ = \case
@@ -636,15 +636,15 @@ instance EmbPrj IsInstance where
     NotInstanceDef -> icodeN' NotInstanceDef
 
   value = vcase \case
-    [a] -> valuN InstanceDef a
-    []  -> valuN NotInstanceDef
-    _ -> malformed
+    N1 a -> valuN InstanceDef a
+    N0   -> valuN NotInstanceDef
+    _    -> malformed
 
 instance EmbPrj a => EmbPrj (RecordDirectives' a) where
   icod_ (RecordDirectives a b c d) = icodeN' RecordDirectives a b c d
 
   value = vcase \case
-    [a, b, c, d] -> valuN RecordDirectives a b c d
+    N4 a b c d -> valuN RecordDirectives a b c d
     _ -> malformed
 
 instance EmbPrj RecordDirective where
@@ -655,10 +655,10 @@ instance EmbPrj RecordDirective where
     PatternOrCopattern a -> icodeN 3 PatternOrCopattern a
 
   value = vcase \case
-    [0, a, b] -> valuN Constructor a b
-    [1, a]    -> valuN Eta a
-    [2, a]    -> valuN Induction a
-    [3, a]    -> valuN PatternOrCopattern a
+    (N3 0 a b) -> valuN Constructor a b
+    (N2 1 a)   -> valuN Eta a
+    (N2 2 a)   -> valuN Induction a
+    (N2 3 a)   -> valuN PatternOrCopattern a
     _ -> malformed
 
 instance EmbPrj Catchall where
@@ -666,6 +666,6 @@ instance EmbPrj Catchall where
   icod_ (YesCatchall x) = icodeN' YesCatchall x
 
   value = vcase valu where
-    valu []  = valuN NoCatchall
-    valu [x] = valuN YesCatchall x
-    valu _   = malformed
+    valu N0     = valuN NoCatchall
+    valu (N1 x) = valuN YesCatchall x
+    valu _      = malformed
