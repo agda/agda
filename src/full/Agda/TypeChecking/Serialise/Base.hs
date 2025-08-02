@@ -5,6 +5,8 @@
 {-# LANGUAGE UndecidableInstances #-} -- Due to ICODE vararg typeclass
 {-# LANGUAGE PatternSynonyms      #-}
 
+{-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+
 {-
 András, 2023-10-2:
 
@@ -114,8 +116,7 @@ instance B.Binary Node where
   get = go =<< B.get where
 
     go :: Int -> B.Get Node
-    go n | n <= 0 =
-      pure Empty
+    go 0 = pure Empty
     go n = do
       !x    <- B.get
       !node <- go (n - 1)
@@ -214,7 +215,7 @@ data Dict = Dict
   , lTextC       :: !(IORef FreshAndReuse)
   , sTextC       :: !(IORef FreshAndReuse)
   , integerC     :: !(IORef FreshAndReuse)
-  , varSetC     :: !(IORef FreshAndReuse)
+  , varSetC      :: !(IORef FreshAndReuse)
   , doubleC      :: !(IORef FreshAndReuse)
   , termC        :: !(IORef FreshAndReuse)
   , nameC        :: !(IORef FreshAndReuse)
@@ -256,8 +257,11 @@ emptyDict collectStats = Dict
 -- | Univeral memo structure, to introduce sharing during decoding
 type Memo = IOArray Word32 MemoEntry
 
--- | State of the decoder.
-data St = St
+-- data DecodeCold = DecodeCold {
+
+
+-- | Decoder arguments.
+data Decode = Decode
   { nodeE     :: !(Array Word32 Node)     -- ^ Obtained from interface file.
   , stringE   :: !(Array Word32 String)   -- ^ Obtained from interface file.
   , lTextE    :: !(Array Word32 TL.Text)  -- ^ Obtained from interface file.
@@ -265,10 +269,10 @@ data St = St
   , integerE  :: !(Array Word32 Integer)  -- ^ Obtained from interface file.
   , varSetE   :: !(Array Word32 VarSet)   -- ^ Obtained from interface file.
   , doubleE   :: !(Array Word32 Double)   -- ^ Obtained from interface file.
-  , nodeMemo  :: !Memo
+  , nodeMemo  :: {-# unpack #-} !Memo
     -- ^ Created and modified by decoder.
     --   Used to introduce sharing while deserializing objects.
-  , modFile   :: !ModuleToSource
+  , modFile   :: !(IORef ModuleToSource)
     -- ^ Maps module names to file names. Constructed by the decoder.
   , includes  :: !(List1 AbsolutePath)
     -- ^ The include directories.
@@ -283,7 +287,7 @@ type S a = ReaderT Dict IO a
 -- 'TCM' is not used because the associated overheads would make
 -- decoding slower.
 
-type R = StateT St IO
+type R = ReaderT Decode IO
 
 -- | Throws an error which is suitable when the data stream is
 -- malformed.
@@ -506,7 +510,7 @@ icodeMemo getDict getCounter a icodeP = do
 --   the thing is read from 'nodeMemo' instead.
 vcase :: forall a . EmbPrj a => (Node -> R a) -> Word32 -> R a
 vcase valu = \ix -> do
-    memo <- gets nodeMemo
+    memo <- asks nodeMemo
     let fp = fingerprintNoinline (typeRep (Proxy :: Proxy a))
     -- to introduce sharing, see if we have seen a thing
     -- represented by ix before
@@ -517,7 +521,7 @@ vcase valu = \ix -> do
         pure a
       _         ->
         -- read new value and save it
-        do !v <- valu . (! ix) =<< gets nodeE
+        do !v <- valu . (! ix) =<< asks nodeE
            liftIO $ writeArray memo ix $! MECons fp (unsafeCoerce v) slot
            return v
 

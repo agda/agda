@@ -5,13 +5,15 @@
 {-# OPTIONS_GHC -Wunused-matches #-}
 {-# OPTIONS_GHC -Wunused-binds #-}
 
+{-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
 import qualified Control.Exception as E
 import Control.Monad              ( (<$!>) )
 import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.State        ( runStateT )
-import Control.Monad.State.Strict ( gets, modify )
+import Control.Monad.Reader       ( asks )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Builtin
@@ -32,6 +34,7 @@ import Agda.TypeChecking.Serialise.Instances.General ()
 import Agda.Utils.FileId (getIdFile)
 import Agda.Utils.Null
 
+import Agda.Utils.IORef
 import Agda.Utils.Impossible
 import Agda.Utils.CallStack
 
@@ -96,16 +99,17 @@ instance EmbPrj RangeFile where
   icod_ (RangeFile _ (Just a)) = icode a
 
   value r = do
-    m :: TopLevelModuleName
-            <- value r
-    mf      <- gets modFile
-    incs    <- gets includes
-    (r, mf) <- liftIO $ runStateT (findFile'' incs m) mf
-    modify $ \s -> s { modFile = mf }
+    !m :: TopLevelModuleName
+              <- value r
+    !mfref    <- asks modFile
+    !mf       <- liftIO $ readIORef mfref
+    !incs     <- asks includes
+    (!r, !mf) <- liftIO $ runStateT (findFile'' incs m) mf
+    liftIO $ writeIORef mfref mf
     case r of
       Left err -> liftIO $ E.throwIO $ E.ErrorCall $ "file not found: " ++ show err
       Right (SourceFile i)  -> do
-        let fp = getIdFile (fileDict mf) i
+        let !fp = getIdFile (fileDict mf) i
         return $ RangeFile fp (Just m)
 
 -- | Ranges are always deserialised as 'noRange'.
