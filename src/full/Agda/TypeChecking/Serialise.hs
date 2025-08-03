@@ -139,13 +139,12 @@ encode a = do
   where
     l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
     benchSort = Bench.billTo [Bench.Serialization, Bench.Sort] . liftIO
-    statistics :: String -> IORef FreshAndReuse -> TCM ()
-    statistics kind ioref = do
-      FreshAndReuse fresh
+    statistics :: String -> FreshAndReuse -> TCM ()
+    statistics kind far = do
+      fresh <- liftIO $ getFresh far
 #ifdef DEBUG_SERIALISATION
-                          reused
+      reuse <- liftIO $ getReuse far
 #endif
-                                 <- liftIO $ readIORef ioref
       tickN (kind ++ "  (fresh)") $ fromIntegral fresh
 #ifdef DEBUG_SERIALISATION
       tickN (kind ++ " (reused)") $ fromIntegral reused
