@@ -3,6 +3,7 @@
 module Agda.Utils.MinimalArray.Lifted where
 
 import GHC.Exts
+import qualified GHC.Arr as GHC
 import qualified Data.Primitive.Array as A
 import Control.Monad.Primitive
 
@@ -30,3 +31,6 @@ fromList = GHC.Exts.fromList
 
 fromListN :: Int -> [a] -> Array a
 fromListN = GHC.Exts.fromListN
+
+fromGHCArray :: GHC.Array i e -> Array e
+fromGHCArray (GHC.Array _ _ _ arr) = Array (A.Array arr)

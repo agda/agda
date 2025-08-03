@@ -71,6 +71,8 @@ import qualified Agda.Utils.HashTable as H
 import Agda.Utils.IORef
 import Agda.Utils.Null
 import qualified Agda.Interaction.Options.ProfileOptions as Profile
+import qualified Agda.Utils.MinimalArray.Lifted as AL
+import qualified Agda.Utils.MinimalArray.MutableLifted as ML
 
 import Agda.Utils.Impossible
 
@@ -209,17 +211,17 @@ decode s = do
     let ar = unListLike
     when (not (null s)) $ E.throwIO $ E.ErrorCall "Garbage at end."
     let nodeA = ar nodeL
-    nm      <- liftIO (newArray (bounds nodeA) MEEmpty)
+    nm :: IOArray Word32 MemoEntry <- liftIO (newArray (bounds nodeA) MEEmpty)
     mfRef   <- liftIO (newIORef mf)
     let !dec = Decode
-          { nodeE    = nodeA
-          , stringE  = ar stringL
-          , lTextE   = ar lTextL
-          , sTextE   = ar sTextL
-          , integerE = ar integerL
-          , varSetE  = ar varSetL
-          , doubleE  = ar doubleL
-          , nodeMemo = nm
+          { nodeE    = AL.fromGHCArray nodeA
+          , stringE  = AL.fromGHCArray (ar stringL)
+          , lTextE   = AL.fromGHCArray (ar lTextL)
+          , sTextE   = AL.fromGHCArray (ar sTextL)
+          , integerE = AL.fromGHCArray (ar integerL)
+          , varSetE  = AL.fromGHCArray (ar varSetL)
+          , doubleE  = AL.fromGHCArray (ar doubleL)
+          , nodeMemo = ML.fromGHCArray nm
           , modFile  = mfRef
           , includes = incs
           }
