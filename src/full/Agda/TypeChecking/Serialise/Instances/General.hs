@@ -12,7 +12,7 @@
 module Agda.TypeChecking.Serialise.Instances.General where
 
 import Control.Monad              ( (<=<), (<$!>) )
-import Control.Monad.Reader (asks)
+import Control.Monad.Reader (asks, ReaderT(..), runReaderT)
 
 import Data.Array.IArray
 import qualified Data.Foldable as Fold
@@ -180,19 +180,27 @@ instance (EmbPrj a, Typeable b) => EmbPrj (WithDefault' a b) where
 -- Sequences
 
 instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
+
+  {-# INLINE icod_ #-}
   icod_ xs = icodeNode =<< go xs where
     go :: [a] -> S Node
-    go []     = pure N0
-    go (a:as) = do {n <- icode a; ns <- go as; pure $! (:*:) n ns}
+    go as = ReaderT \r -> case as of
+      []   -> pure N0
+      a:as -> do
+        !n  <- runReaderT (icode a) r
+        !ns <- runReaderT (go as) r
+        pure (n :*: ns)
 
+  {-# INLINE value #-}
   value = vcase go where
     go :: Node -> R [a]
-    go N0         = return []
-    go (n :*: ns) = do
-      !a  <- value n
-      !as <- go ns
-      return (a:as)
-    go _ = malformed
+    go as = ReaderT \r -> case as of
+      N0       -> return []
+      n :*: ns -> do
+        !a  <- runReaderT (value n) r
+        !as <- runReaderT (go ns) r
+        return (a:as)
+      _ -> malformedIO
 
 instance EmbPrj a => EmbPrj (List1 a) where
   icod_ = icod_ . List1.toList
@@ -214,8 +222,8 @@ mapPairsIcode xs = icodeNode =<< convert N0 xs where
   -- resulting list.
   convert !ys [] = return ys
   convert  ys ((start, entry):xs) = do
-    start <- icode start
-    entry <- icode entry
+    !start <- icode start
+    !entry <- icode entry
     convert ((:*:) start ((:*:) entry ys)) xs
 
 mapPairsValue :: (EmbPrj k, EmbPrj v) => Node -> R [(k, v)]
