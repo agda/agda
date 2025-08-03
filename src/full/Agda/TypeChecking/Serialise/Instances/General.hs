@@ -14,7 +14,6 @@ module Agda.TypeChecking.Serialise.Instances.General where
 import Control.Monad              ( (<=<), (<$!>) )
 import Control.Monad.Reader (asks, ReaderT(..), runReaderT)
 
-import Data.Array.IArray
 import qualified Data.Foldable as Fold
 import Data.Hashable
 import Data.HashMap.Strict (HashMap)
@@ -51,6 +50,7 @@ import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Trie (Trie(..))
 import Agda.Utils.VarSet (VarSet(..))
 import Agda.Utils.WithDefault
+import qualified Agda.Utils.MinimalArray.Lifted as AL
 
 ---------------------------------------------------------------------------
 -- Base types
@@ -81,7 +81,7 @@ instance EmbPrj Char where
 
 instance EmbPrj Double where
   icod_   = icodeDouble
-  value i = (! i) <$!> asks doubleE
+  value i = flip AL.unsafeIndex (fromIntegral i) <$!> asks doubleE
 
 -- Andreas, Agda Hackathon 2024-10-15
 -- Are we sure we never use an Int that does not fit into 32 bits?
@@ -95,7 +95,7 @@ instance EmbPrj Int32 where
 
 instance EmbPrj Integer where
   icod_   = icodeInteger
-  value i = (! i) <$!> asks integerE
+  value i = flip AL.unsafeIndex (fromIntegral i) <$!> asks integerE
 
 instance EmbPrj Word32 where
   icod_ i = return i
@@ -116,15 +116,15 @@ instance EmbPrj Word64 where
 
 instance {-# OVERLAPPING #-} EmbPrj String where
   icod_   = icodeString
-  value i = (! i) <$!> asks stringE
+  value i = flip AL.unsafeIndex (fromIntegral i) <$!> asks stringE
 
 instance EmbPrj TL.Text where
   icod_   = icodeX lTextD lTextC
-  value i = (! i) <$!> asks lTextE
+  value i = flip AL.index (fromIntegral i) <$!> asks lTextE
 
 instance EmbPrj T.Text where
   icod_   = icodeX sTextD sTextC
-  value i = (! i) <$!> asks sTextE
+  value i = flip AL.index (fromIntegral i) <$!> asks sTextE
 
 ---------------------------------------------------------------------------
 -- Non-recursive types
@@ -272,7 +272,7 @@ instance Typeable a => EmbPrj (SmallSet a) where
 
 instance EmbPrj VarSet where
   icod_   = icodeVarSet
-  value i = (! i) <$!> asks varSetE
+  value i = flip AL.index (fromIntegral i) <$!> asks varSetE
 
 ---------------------------------------------------------------------------
 -- Trees

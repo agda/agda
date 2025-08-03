@@ -1,6 +1,8 @@
 
 module Agda.Utils.MinimalArray.MutableLifted where
 
+import qualified GHC.Arr as GHC
+import qualified GHC.IOArray as GHC
 import Data.Coerce
 import qualified Data.Primitive.Array as A
 import qualified Agda.Utils.MinimalArray.Lifted as LA
@@ -50,3 +52,7 @@ freeze (Array arr) = LA.Array <$> A.freezeArray arr 0 (size (Array arr))
 {-# INLINE unsafeFreeze #-}
 unsafeFreeze :: PrimMonad m => Array (PrimState m) a -> m (LA.Array a)
 unsafeFreeze (Array arr) = LA.Array <$> A.unsafeFreezeArray arr
+
+fromGHCArray :: GHC.IOArray i e -> IOArray e
+fromGHCArray (GHC.IOArray (GHC.STArray _ _ _ arr)) =
+  Array (A.MutableArray arr)

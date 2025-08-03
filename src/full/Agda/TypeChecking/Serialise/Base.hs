@@ -61,9 +61,11 @@ import Agda.Utils.TypeLevel
 import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.Impossible
 import qualified Agda.Utils.MinimalArray.MutablePrim as MP
+import qualified Agda.Utils.MinimalArray.Lifted as AL
+import qualified Agda.Utils.MinimalArray.MutableLifted as ML
+
 
 #include <MachDeps.h>
-
 
 -- | Constructor tag (maybe omitted) and argument indices.
 data Node
@@ -297,20 +299,17 @@ emptyDict collectStats = Dict
   <*> pure collectStats
 
 -- | Univeral memo structure, to introduce sharing during decoding
-type Memo = IOArray Word32 MemoEntry
-
--- data DecodeCold = DecodeCold {
-
+type Memo = ML.IOArray MemoEntry
 
 -- | Decoder arguments.
 data Decode = Decode
-  { nodeE     :: !(Array Word32 Node)     -- ^ Obtained from interface file.
-  , stringE   :: !(Array Word32 String)   -- ^ Obtained from interface file.
-  , lTextE    :: !(Array Word32 TL.Text)  -- ^ Obtained from interface file.
-  , sTextE    :: !(Array Word32 T.Text)   -- ^ Obtained from interface file.
-  , integerE  :: !(Array Word32 Integer)  -- ^ Obtained from interface file.
-  , varSetE   :: !(Array Word32 VarSet)   -- ^ Obtained from interface file.
-  , doubleE   :: !(Array Word32 Double)   -- ^ Obtained from interface file.
+  { nodeE     :: !(AL.Array Node)     -- ^ Obtained from interface file.
+  , stringE   :: !(AL.Array String)   -- ^ Obtained from interface file.
+  , lTextE    :: !(AL.Array TL.Text)  -- ^ Obtained from interface file.
+  , sTextE    :: !(AL.Array T.Text)   -- ^ Obtained from interface file.
+  , integerE  :: !(AL.Array Integer)  -- ^ Obtained from interface file.
+  , varSetE   :: !(AL.Array VarSet)   -- ^ Obtained from interface file.
+  , doubleE   :: !(AL.Array Double)   -- ^ Obtained from interface file.
   , nodeMemo  :: {-# unpack #-} !Memo
     -- ^ Created and modified by decoder.
     --   Used to introduce sharing while deserializing objects.
@@ -351,12 +350,11 @@ class Typeable a => EmbPrj a where
   icod_ :: a -> S Word32  -- ^ Serialization (worker).
   value :: Word32 -> R a  -- ^ Deserialization.
 
-  icode a = icod_ a
-
-  -- icode a = do
-  --   !r <- icod_ a
-  --   tickICode a
-  --   pure r
+  -- icode a = icod_ a
+  icode a = do
+    !r <- icod_ a
+    tickICode a
+    pure r
   {-# INLINE icode #-}
 
   -- Simple enumeration types can be (de)serialized using (from/to)Enum.
@@ -564,15 +562,16 @@ vcase valu = \ix -> ReaderT \dict -> do
     let !fp = fingerprintNoinline (typeRep (Proxy :: Proxy a))
     -- to introduce sharing, see if we have seen a thing
     -- represented by ix before
-    !slot <- readArray memo ix
+    let !iix = fromIntegral ix :: Int
+    !slot <- ML.read memo iix
     case lookupME (Proxy :: Proxy a) fp slot of
       -- use the stored value
       (# a | #) ->
         pure a
       _         ->
         -- read new value and save it
-        do !v <- runReaderT (valu (nodeE dict ! ix)) dict
-           writeArray memo ix $! MECons fp (unsafeCoerce v) slot
+        do !v <- runReaderT (valu (AL.index (nodeE dict) iix)) dict
+           ML.write memo iix $! MECons fp (unsafeCoerce v) slot
            return v
 
 
