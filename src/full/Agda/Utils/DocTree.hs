@@ -8,12 +8,12 @@
 
 module Agda.Utils.DocTree
   ( DocTree( Node, Text )
-  , treeToTextNoAnn
-  , treeToText
-  , renderTree'
+  , prettyDocTree
   , renderToTree
   , renderToTree'
-  , prettyDocTree
+  , renderTree'
+  , treeToText
+  , treeToTextNoAnn
   )
 where
 
@@ -59,36 +59,12 @@ instance Null (DocTree ann) where
 instance NFData ann => NFData (DocTree ann) where
 
 ---------------------------------------------------------------------------
--- * Converting 'DocTree' to 'Text' et al.
+-- * Converting 'DocTree' to 'Doc'
 
-type Width = Int
-type Fill  = Float
-
--- | Linearize a 'DocTree' to 'Text' dropping all annotations.
-treeToTextNoAnn :: DocTree ann -> Text
-treeToTextNoAnn = treeToText (const id)
-
--- | Linearize a 'DocTree' to 'Text' with the given 'Text'-rendering of the annotations.
-treeToText :: (ann -> Text -> Text) -> DocTree ann -> Text
-treeToText ann =
-#if MIN_VERSION_text(2,0,2)
-  strictBuilderToText . renderTree' textToStrictBuilder \ a -> textToStrictBuilder . ann a . strictBuilderToText
-#else
-  toText . renderTree' Builder.fromText \ a -> Builder.fromText . ann a . toText
-  where
-    toText = TL.toStrict . Builder.toLazyText
-#endif
--- Naive implementation:
--- treeToText = renderTree' id
-
--- | Generic 'DocTree' linearization.
-renderTree' :: forall ann t. Monoid t => (Text -> t) -> (ann -> t -> t) -> DocTree ann -> t
-renderTree' txt ann = go
-  where
-    go :: DocTree ann -> t
-    go = \case
-      Node a ts -> ann a $ foldMap go ts
-      Text t    -> txt t
+prettyDocTree :: DocTree ann -> Doc ann
+prettyDocTree = \case
+  Text t    -> Ppr.text $ Text.unpack t  -- Bad, we should have a Doc that supports Text
+  Node a ts -> Ppr.annotate a $ foldMap prettyDocTree ts
 
 ---------------------------------------------------------------------------
 -- * Converting 'Doc' to 'DocTree'
@@ -117,9 +93,8 @@ instance Null ann => Null (Item ann) where
   empty = Item empty empty
   null (Item a ts) = null a && null ts
 
--- | Render a @'Doc' ann@ to a @'DocTree' ann@ using standard layout parameters.
-renderToTree :: forall ann. Null ann => Doc ann -> DocTree ann
-renderToTree = renderToTree' 100 1.5
+type Width = Int
+type Fill  = Float
 
 -- | Render a @'Doc' ann@ to a @'DocTree' ann@ with the given layout parameters.
 -- E.g. @width=100@ @fill=1.5@.
@@ -170,10 +145,35 @@ renderToTree' width fill =
         pushStr "" is1 = is1
         pushStr s (Item a ts :| is) = Item a (Text (Text.pack s) : ts) :| is
 
----------------------------------------------------------------------------
--- * Converting 'DocTree' to 'Doc'
+-- | Render a @'Doc' ann@ to a @'DocTree' ann@ using standard layout parameters.
+renderToTree :: forall ann. Null ann => Doc ann -> DocTree ann
+renderToTree = renderToTree' 100 1.5
 
-prettyDocTree :: DocTree ann -> Doc ann
-prettyDocTree = \case
-  Text t    -> Ppr.text $ Text.unpack t  -- Bad, we should have a Doc that supports Text
-  Node a ts -> Ppr.annotate a $ foldMap prettyDocTree ts
+---------------------------------------------------------------------------
+-- * Converting 'DocTree' to 'Text' et al.
+
+-- | Generic 'DocTree' linearization.
+renderTree' :: forall ann t. Monoid t => (Text -> t) -> (ann -> t -> t) -> DocTree ann -> t
+renderTree' txt ann = go
+  where
+    go :: DocTree ann -> t
+    go = \case
+      Node a ts -> ann a $ foldMap go ts
+      Text t    -> txt t
+
+-- | Linearize a 'DocTree' to 'Text' with the given 'Text'-rendering of the annotations.
+treeToText :: (ann -> Text -> Text) -> DocTree ann -> Text
+treeToText ann =
+#if MIN_VERSION_text(2,0,2)
+  strictBuilderToText . renderTree' textToStrictBuilder \ a -> textToStrictBuilder . ann a . strictBuilderToText
+#else
+  toText . renderTree' Builder.fromText \ a -> Builder.fromText . ann a . toText
+  where
+    toText = TL.toStrict . Builder.toLazyText
+#endif
+-- Naive implementation:
+-- treeToText = renderTree' id
+
+-- | Linearize a 'DocTree' to 'Text' dropping all annotations.
+treeToTextNoAnn :: DocTree ann -> Text
+treeToTextNoAnn = treeToText (const id)
