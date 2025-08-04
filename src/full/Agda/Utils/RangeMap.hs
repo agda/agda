@@ -3,7 +3,6 @@
 module Agda.Utils.RangeMap
   ( IsBasicRangeMap(..)
   , several
-  , PairInt(..)
   , RangeMap(..)
   , rangeMapInvariant
   , fromNonOverlappingNonEmptyAscendingList
@@ -76,24 +75,12 @@ several ::
   [Ranges] -> a -> hl
 several rss m = mconcat $ map (flip singleton m) rss
 
-------------------------------------------------------------------------
--- A strict pair type
-
--- | A strict pair type where the first argument must be an 'Int'.
---
--- This type is included because there is no 'NFData' instance for
--- 'Pair' in the package @strict@ before version 4.
-
-newtype PairInt a = PairInt (Pair Int a)
-  deriving Show
-
-instance NFData a => NFData (PairInt a) where
-  rnf (PairInt (_ :!: y)) = rnf y
+-- We use strict pairs.
 
 -- | Constructs a pair.
 
-pair :: Int -> a -> PairInt a
-pair x y = PairInt (x :!: y)
+pair :: Int -> a -> Pair Int a
+pair = (:!:)
 
 ------------------------------------------------------------------------
 -- The type
@@ -107,7 +94,7 @@ pair x y = PairInt (x :!: y)
 -- ('rangeMapInvariant').
 
 newtype RangeMap a = RangeMap
-  { rangeMap :: Map Int (PairInt a)
+  { rangeMap :: Map Int (Pair Int a)
     -- ^ The keys are starting points of ranges, and the pairs contain
     -- endpoints and values.
   }
@@ -139,7 +126,7 @@ instance IsBasicRangeMap a (RangeMap a) where
     RangeMap { rangeMap = Map.fromDistinctAscList rms }
     where
     rms =
-      [ (from r, pair (to r) m)
+      [ (from r, to r :!: m)
       | r <- rs
       , not (null r)
       ]
@@ -152,13 +139,13 @@ instance IsBasicRangeMap a (RangeMap a) where
       ]
 
   toList =
-    map (\(f, PairInt (t :!: a)) -> (Range { from = f, to = t } , a)) .
+    map (\ (f, t :!: a) -> (Range{ from = f, to = t }, a)) .
     Map.toAscList .
     rangeMap
 
   coveringRange f = do
     min <- fst <$> Map.lookupMin (rangeMap f)
-    max <- (\(_, PairInt (p :!: _)) -> p) <$> Map.lookupMax (rangeMap f)
+    max <- (\ (_, p :!: _) -> p) <$> Map.lookupMax (rangeMap f)
     return (Range { from = min, to = max })
 
 -- | Converts a list of pairs of ranges and values to a 'RangeMap'.
@@ -169,7 +156,7 @@ fromNonOverlappingNonEmptyAscendingList :: [(Range, a)] -> RangeMap a
 fromNonOverlappingNonEmptyAscendingList =
   RangeMap .
   Map.fromDistinctAscList .
-  map (\(r, m) -> (from r, pair (to r) m))
+  map (\(r, m) -> (from r, to r :!: m))
 
 -- | The number of ranges in the map.
 --
@@ -193,22 +180,22 @@ insert combine r m (RangeMap f)
   | null r    = RangeMap f
   | otherwise =
     case equal of
-      Just (PairInt (p :!: m')) ->
+      Just (p :!: m') ->
         case compare (to r) p of
           EQ ->
             -- The range r matches exactly.
             RangeMap $
-            Map.insert (from r) (pair p (combine m m')) f
+            Map.insert (from r) (p :!: combine m m') f
           LT ->
             -- The range r is strictly shorter.
             RangeMap $
-            Map.insert (to r) (pair p m') $
-            Map.insert (from r) (pair (to r) (combine m m')) f
+            Map.insert (to r) (p :!: m') $
+            Map.insert (from r) (to r :!: combine m m') f
           GT ->
             -- The range r is strictly longer. Continue recursively.
             insert combine (Range { from = p, to = to r }) m $
             RangeMap $
-            Map.insert (from r) (pair p (combine m m')) f
+            Map.insert (from r) (p :!: combine m m') f
       Nothing ->
         -- Find the part of r that does not overlap with anything in
         -- smaller or larger, if any.
@@ -216,13 +203,13 @@ insert combine r m (RangeMap f)
           (Nothing, Nothing) ->
             -- No overlap.
             RangeMap $
-            Map.insert (from r) (pair (to r) m) f
+            Map.insert (from r) (to r :!: m) f
           (Nothing, Just p) ->
             -- Overlap on the right. Continue recursively.
             insert combine (Range { from = p, to = to r }) m $
             RangeMap $
-            Map.insert (from r) (pair p m) f
-          (Just (p1, PairInt (p2 :!: m')), Just p3) ->
+            Map.insert (from r) (p :!: m) f
+          (Just (p1, p2 :!: m'), Just p3) ->
             -- Overlap on both sides. Continue recursively.
             insert combine (Range { from = p3, to = to r }) m $
             RangeMap $
@@ -233,29 +220,29 @@ insert combine r m (RangeMap f)
              else
                -- There is something between the left and right
                -- ranges.
-               Map.insert p2 (pair p3 m)) $
-            Map.insert (from r) (pair p2 (combine m m')) $
-            Map.insert p1 (pair (from r) m') f
-          (Just (p1, PairInt (p2 :!: m')), Nothing) ->
+               Map.insert p2 (p3 :!: m)) $
+            Map.insert (from r) (p2 :!: combine m m') $
+            Map.insert p1 (from r :!: m') f
+          (Just (p1, p2 :!: m'), Nothing) ->
             case compare p2 (to r) of
               LT ->
                 -- Overlap on the left, the left range ends before r.
                 RangeMap $
-                Map.insert p2 (pair (to r) m) $
-                Map.insert (from r) (pair p2 (combine m m')) $
-                Map.insert p1 (pair (from r) m') f
+                Map.insert p2 (to r :!: m) $
+                Map.insert (from r) (p2 :!: combine m m') $
+                Map.insert p1 (from r :!: m') f
               EQ ->
                 -- Overlap on the left, the left range ends where r
                 -- ends.
                 RangeMap $
-                Map.insert (from r) (pair (to r) (combine m m')) $
-                Map.insert p1 (pair (from r) m') f
+                Map.insert (from r) (to r :!: combine m m') $
+                Map.insert p1 (from r :!: m') f
               GT ->
                 -- Overlap on the left, the left range ends after r.
                 RangeMap $
-                Map.insert (to r) (pair p2 m') $
-                Map.insert (from r) (pair (to r) (combine m m')) $
-                Map.insert p1 (pair (from r) m') f
+                Map.insert (to r) (p2 :!: m') $
+                Map.insert (from r) (to r :!: combine m m') $
+                Map.insert p1 (from r :!: m') f
     where
     (smaller, equal, larger) = Map.splitLookup (from r) f
 
@@ -267,7 +254,7 @@ insert combine r m (RangeMap f)
 
     overlapLeft = case Map.lookupMax smaller of
       Nothing -> Nothing
-      Just s@(_, PairInt (to :!: _))
+      Just s@(_, to :!: _)
         | from r < to -> Just s
         | otherwise   -> Nothing
 
@@ -306,7 +293,7 @@ splitAt p f = (before, after)
 splitAt' ::
   Int -> RangeMap a ->
   ( RangeMap a
-  , Maybe ((Int, PairInt a), (Int, PairInt a))
+  , Maybe ((Int, Pair Int a), (Int, Pair Int a))
   , RangeMap a
   )
 splitAt' p (RangeMap f) =
@@ -320,7 +307,7 @@ splitAt' p (RangeMap f) =
       case Map.maxViewWithKey maybeOverlapping of
         Nothing ->
           (empty, Nothing, RangeMap larger)
-        Just ((from, PairInt (to :!: m)), smaller)
+        Just ((from, to :!: m), smaller)
           | to <= p ->
             ( RangeMap maybeOverlapping
             , Nothing
@@ -328,9 +315,9 @@ splitAt' p (RangeMap f) =
             )
           | otherwise ->
             -- Here from < p < to.
-            ( RangeMap (Map.insert from (pair p m) smaller)
-            , Just ((from, pair p m), (p, pair to m))
-            , RangeMap (Map.insert p (pair to m) larger)
+            ( RangeMap (Map.insert from (p :!: m) smaller)
+            , Just ((from, p :!: m), (p, to :!: m))
+            , RangeMap (Map.insert p (to :!: m) larger)
             )
   where
   (maybeOverlapping, equal, larger) = Map.splitLookup p f

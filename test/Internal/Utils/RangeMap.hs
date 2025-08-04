@@ -57,7 +57,7 @@ intersectsSplits r f =
   rangeContainingPoint' p = case Map.splitLookup p (rangeMap f) of
     (_,       Just _,  _) -> Nothing
     (smaller, Nothing, _) -> case Map.lookupMax smaller of
-      Just (p1, PairInt (p2 :!: _))
+      Just (p1, p2 :!: _)
         | p1 < p && p < p2 -> Just p2
       _                    -> Nothing
 
@@ -294,7 +294,7 @@ instance (Arbitrary a, Semigroup a) => Arbitrary (RangeMap a) where
             ns1 ++ concatMap (\n -> [n, succ n]) (ns2 :: [Int])) <$>
             arbitrary <*> arbitrary
     RangeMap . Map.fromList <$>
-      mapM (\r -> (\m -> (from r, PairInt (to r :!: m))) <$> arbitrary)
+      mapM (\r -> (\m -> (from r, to r :!: m)) <$> arbitrary)
         rs
     where
     toRanges (f : t : rs)
@@ -309,17 +309,17 @@ instance (Arbitrary a, Semigroup a) => Arbitrary (RangeMap a) where
     [ RangeMap (Map.deleteAt i (rangeMap f))
     | i <- [0 .. Map.size (rangeMap f) - 1]
     ] ++
-    [ RangeMap (Map.updateAt (\_ _ -> Just (PairInt (p :!: x)))
+    [ RangeMap (Map.updateAt (\_ _ -> Just (p :!: x))
                   i (rangeMap f))
     | i <- [0 .. Map.size (rangeMap f) - 1]
-    , let (_, PairInt (p :!: x)) = Map.elemAt i (rangeMap f)
+    , let (_, p :!: x) = Map.elemAt i (rangeMap f)
     , x <- shrink x
     ]
 
 instance CoArbitrary a => CoArbitrary (RangeMap a) where
   coarbitrary (RangeMap f) =
     coarbitrary $
-    fmap (mapSnd (\(PairInt (x :!: y)) -> (x, y))) $
+    fmap (mapSnd (\ (x :!: y) -> (x, y))) $
     Map.toAscList f
 
 -- | A range that is entirely inside a given 'RangeMap'.
