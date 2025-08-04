@@ -87,14 +87,16 @@ lispifyHighlightingInfo h remove method modFile =
     Indirect -> indirect
   where
   info :: [Lisp String]
-  info = (case remove of
-                RemoveHighlighting -> A "remove"
-                KeepHighlighting   -> A "nil") :
-             map (showAspects modFile) (toList h)
+  info =
+    A (case remove of
+        RemoveHighlighting -> "remove"
+        KeepHighlighting   -> "nil") :
+    map (showAspects modFile) (toList h)
 
   direct :: IO (Lisp String)
-  direct = return $ L (A "agda2-highlight-add-annotations" :
-                         map Q info)
+  direct = return $ L $
+    A "agda2-highlight-add-annotations" :
+    map Q info
 
   indirect :: IO (Lisp String)
   indirect = do
