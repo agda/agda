@@ -76,7 +76,7 @@ data Node
   | N4# !Word64 !Word64
   | N5# !Word64 !Word64 !Word32
   | (:*:) !Word32 !Node
-  deriving Eq
+  deriving (Eq, Show)
 infixr 5 :*:
 
 splitW64 :: Word64 -> (Word32, Word32)
@@ -90,23 +90,22 @@ packW64 a b = unsafeShiftL (fromIntegral a) 32 .|. fromIntegral b
 {-# inline packW64 #-}
 
 pattern N1 :: Word32 -> Node
-pattern N1 a <- a :*: N0 where
-  N1 a = N1# a
+pattern N1 a = N1# a
 
 pattern N2 :: Word32 -> Word32 -> Node
-pattern N2 a b <- a :*: b :*: N0 where
+pattern N2 a b <- N2# (splitW64 -> (a, b)) where
   N2 a b = N2# (packW64 a b)
 
 pattern N3 :: Word32 -> Word32 -> Word32 -> Node
-pattern N3 a b c <- a :*: b :*: c :*: N0 where
+pattern N3 a b c <- N3# (splitW64 -> (a, b)) c where
   N3 a b c = N3# (packW64 a b) c
 
 pattern N4 :: Word32 -> Word32 -> Word32 -> Word32 -> Node
-pattern N4 a b c d <- a :*: b :*: c :*: d :*: N0 where
+pattern N4 a b c d <- N4# (splitW64 -> (a, b)) (splitW64 -> (c, d)) where
   N4 a b c d = N4# (packW64 a b) (packW64 c d)
 
 pattern N5 :: Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Node
-pattern N5 a b c d e <- a :*: b :*: c :*: d :*: e :*: N0 where
+pattern N5 a b c d e <- N5# (splitW64 -> (a, b)) (splitW64 -> (c, d)) e where
   N5 a b c d e = N5# (packW64 a b) (packW64 c d) e
 {-# complete N0, N1, N2, N3, N4, N5, (:*:) #-}
 
@@ -150,6 +149,31 @@ instance B.Binary Node where
 
     go :: Int -> B.Get Node
     go 0 = pure N0
+    go 1 = do
+      !a <- B.get
+      pure $! N1 a
+    go 2 = do
+      !a <- B.get
+      !b <- B.get
+      pure $! N2 a b
+    go 3 = do
+      !a <- B.get
+      !b <- B.get
+      !c <- B.get
+      pure $! N3 a b c
+    go 4 = do
+      !a <- B.get
+      !b <- B.get
+      !c <- B.get
+      !d <- B.get
+      pure $! N4 a b c d
+    go 5 = do
+      !a <- B.get
+      !b <- B.get
+      !c <- B.get
+      !d <- B.get
+      !e <- B.get
+      pure $! N5 a b c d e
     go n = do
       !x    <- B.get
       !node <- go (n - 1)
@@ -298,9 +322,6 @@ emptyDict collectStats = Dict
   <*> H.empty
   <*> pure collectStats
 
--- | Univeral memo structure, to introduce sharing during decoding
-type Memo = ML.IOArray MemoEntry
-
 -- | Decoder arguments.
 data Decode = Decode
   { nodeE     :: !(AL.Array Node)     -- ^ Obtained from interface file.
@@ -310,7 +331,7 @@ data Decode = Decode
   , integerE  :: !(AL.Array Integer)  -- ^ Obtained from interface file.
   , varSetE   :: !(AL.Array VarSet)   -- ^ Obtained from interface file.
   , doubleE   :: !(AL.Array Double)   -- ^ Obtained from interface file.
-  , nodeMemo  :: {-# unpack #-} !Memo
+  , nodeMemo  :: !(ML.IOArray MemoEntry)
     -- ^ Created and modified by decoder.
     --   Used to introduce sharing while deserializing objects.
   , modFile   :: !(IORef ModuleToSource)
@@ -320,23 +341,16 @@ data Decode = Decode
   }
 
 -- | Monad used by the encoder.
-
 type S a = ReaderT Dict IO a
-
--- {-# INLINE mkS #-}
--- mkS :: (a -> S b) -> a -> S b
--- mkS f a = ReaderT \dict -> oneShot (runReaderT (oneShot f a)) dict
 
 -- | Monad used by the decoder.
 --
 -- 'TCM' is not used because the associated overheads would make
 -- decoding slower.
-
 type R = ReaderT Decode IO
 
 -- | Throws an error which is suitable when the data stream is
 -- malformed.
-
 malformed :: HasCallStack => R a
 malformed = __IMPOSSIBLE__ -- liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
 {-# NOINLINE malformed #-} -- 2023-10-2 András: cold code, so should be out-of-line.
@@ -686,8 +700,68 @@ instance VALU t 'Zero where
     N0 -> Just ()
     _  -> Nothing
 
-instance VALU t n
-      => VALU (a -> t) ('Suc n) where
+instance VALU (a -> t) ('Suc 'Zero) where
+  {-# INLINE valuN' #-}
+  valuN' f (Pair a _) = do
+    !a <- value a
+    return $! f a
+  {-# INLINE valueArgs #-}
+  valueArgs _ xs = case xs of
+    N1 a -> Just (Pair a ())
+    _    -> Nothing
+
+instance VALU (a -> b -> t) ('Suc ('Suc 'Zero)) where
+  {-# INLINE valuN' #-}
+  valuN' f (Pair a (Pair b _)) = do
+    !a <- value a
+    !b <- value b
+    return $! f a b
+  {-# INLINE valueArgs #-}
+  valueArgs _ xs = case xs of
+    N2 a b -> Just (Pair a (Pair b ()))
+    _      -> Nothing
+
+instance VALU (a -> b -> c -> t) ('Suc ('Suc ('Suc 'Zero))) where
+  {-# INLINE valuN' #-}
+  valuN' f (Pair a (Pair b (Pair c _))) = do
+    !a <- value a
+    !b <- value b
+    !c <- value c
+    return $! f a b c
+  {-# INLINE valueArgs #-}
+  valueArgs _ xs = case xs of
+    N3 a b c -> Just (Pair a (Pair b (Pair c ())))
+    _        -> Nothing
+
+instance VALU (a -> b -> c -> d -> t) ('Suc ('Suc ('Suc ('Suc 'Zero)))) where
+  {-# INLINE valuN' #-}
+  valuN' f (Pair a (Pair b (Pair c (Pair d _)))) = do
+    !a <- value a
+    !b <- value b
+    !c <- value c
+    !d <- value d
+    return $! f a b c d
+  {-# INLINE valueArgs #-}
+  valueArgs _ xs = case xs of
+    N4 a b c d -> Just (Pair a (Pair b (Pair c (Pair d ()))))
+    _          -> Nothing
+
+instance VALU (a -> b -> c -> d -> e -> t) ('Suc ('Suc ('Suc ('Suc ('Suc 'Zero))))) where
+  {-# INLINE valuN' #-}
+  valuN' f (Pair a (Pair b (Pair c (Pair d (Pair e _))))) = do
+    !a <- value a
+    !b <- value b
+    !c <- value c
+    !d <- value d
+    !e <- value e
+    return $! f a b c d e
+  {-# INLINE valueArgs #-}
+  valueArgs _ xs = case xs of
+    N5 a b c d e -> Just (Pair a (Pair b (Pair c (Pair d (Pair e ())))))
+    _            -> Nothing
+
+instance VALU t ('Suc ('Suc ('Suc ('Suc ('Suc n)))))
+      => VALU (a -> t) ('Suc ('Suc ('Suc ('Suc ('Suc ('Suc n)))))) where
   {-# INLINE valuN' #-}
   valuN' f (Pair a as) = do
     !a <- value a
@@ -700,7 +774,6 @@ instance VALU t n
     _         -> Nothing
 
 --------------------------------------------------------------------------------
-
 
 {-# INLINE valuN #-}
 valuN :: forall t. VALU t (Arity t) =>

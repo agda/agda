@@ -139,11 +139,26 @@ instance EmbPrj a => EmbPrj (RM.RangeMap a) where
       !start <- icode start
       !end <- icode end
       !entry <- icode entry
-      convert ((:*:) start ((:*:) end ((:*:) entry ys))) xs
+      convert (start :*: end :*: entry :*: ys) xs
 
   value = vcase (fmap (RM.RangeMap . Map.fromDistinctAscList) . convert []) where
     convert :: [(Int, RM.PairInt a)] -> Node -> R [(Int, RM.PairInt a)]
-    convert !ys N0 = return ys
+    convert  ys N0 = pure ys
+    convert  ys (N3 start end entry) = do
+      !start <- value start
+      !end   <- value end
+      !entry <- value entry
+      pure ((start, RM.PairInt (end :!: entry)):ys)
+    convert ys (start :*: N5 end entry start' end' entry') = do
+      !start  <- value start
+      !end    <- value end
+      !entry  <- value entry
+      !start' <- value start'
+      !end'   <- value end'
+      !entry' <- value entry'
+      pure (  (start', RM.PairInt (end' :!: entry'))
+            : (start, RM.PairInt (end :!: entry))
+            : ys )
     convert  ys (start :*: end :*: entry :*: xs) = do
       !start <- value start
       !end   <- value end
