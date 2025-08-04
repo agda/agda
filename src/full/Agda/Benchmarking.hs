@@ -18,7 +18,7 @@ import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 
 import Agda.Utils.Benchmark (MonadBench(..))
 import qualified Agda.Utils.Benchmark as B
-import Agda.Utils.IORef.Strict
+import qualified Agda.Utils.IORef.Strict as Strict
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 
@@ -146,13 +146,13 @@ isInternalAccount _                  = True
 
 -- | Global variable to store benchmark statistics.
 {-# NOINLINE benchmarks #-}
-benchmarks :: StrictIORef Benchmark
-benchmarks = unsafePerformIO $ newStrictIORef empty
+benchmarks :: Strict.IORef Benchmark
+benchmarks = unsafePerformIO $ Strict.newIORef empty
 
 instance MonadBench IO where
   type BenchPhase IO = Phase
-  getBenchmark = readStrictIORef benchmarks
-  putBenchmark = writeStrictIORef benchmarks
+  getBenchmark = Strict.readIORef benchmarks
+  putBenchmark = Strict.writeIORef benchmarks
   finally = E.finally
 
 -- | Benchmark an IO computation and bill it to the given account.

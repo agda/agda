@@ -23,7 +23,7 @@ import GHC.Generics (Generic)
 
 import Agda.Utils.Boolean
 import Agda.Utils.List
-import Agda.Utils.IORef.Strict
+import qualified Agda.Utils.IORef.Strict as Strict
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 
@@ -46,16 +46,16 @@ instance IsBool UnicodeOrAscii where
     AsciiOnly -> False
 
 {-# NOINLINE unsafeUnicodeOrAsciiIORef #-}
-unsafeUnicodeOrAsciiIORef :: StrictIORef UnicodeOrAscii
-unsafeUnicodeOrAsciiIORef = UNSAFE.unsafePerformIO $ newStrictIORef UnicodeOk
+unsafeUnicodeOrAsciiIORef :: Strict.IORef UnicodeOrAscii
+unsafeUnicodeOrAsciiIORef = UNSAFE.unsafePerformIO $ Strict.newIORef UnicodeOk
 
 {-# NOINLINE unsafeSetUnicodeOrAscii #-}
 unsafeSetUnicodeOrAscii :: UnicodeOrAscii -> IO ()
-unsafeSetUnicodeOrAscii = writeStrictIORef unsafeUnicodeOrAsciiIORef
+unsafeSetUnicodeOrAscii = Strict.writeIORef unsafeUnicodeOrAsciiIORef
 
 -- | Are we allowed to use unicode supscript characters?
 unsafeUnicodeOrAscii :: UnicodeOrAscii
-unsafeUnicodeOrAscii = UNSAFE.unsafePerformIO (readStrictIORef unsafeUnicodeOrAsciiIORef)
+unsafeUnicodeOrAscii = UNSAFE.unsafePerformIO (Strict.readIORef unsafeUnicodeOrAsciiIORef)
 
 -- | Picking the appropriate set of special characters depending on
 -- whether we are allowed to use unicode or have to limit ourselves

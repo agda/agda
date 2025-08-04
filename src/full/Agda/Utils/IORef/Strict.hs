@@ -1,19 +1,24 @@
 -- | A variant of 'IORef' that ensures the value stored
 -- inside the reference is always in WHNF.
+--
+-- This module should be imported qualified, ala
+-- @
+-- import qualified Agda.Utils.IORef.Strict as Strict
+-- @
 module Agda.Utils.IORef.Strict
   (
     -- $strictIORef
-    StrictIORef
-  , newStrictIORef
-  , readStrictIORef
-  , writeStrictIORef
-  , modifyStrictIORef
+    IORef
+  , newIORef
+  , readIORef
+  , writeIORef
+  , modifyIORef
   ) where
 
 import Control.Exception (evaluate)
 
 import Data.Coerce
-import Data.IORef
+import qualified Data.IORef as Lazy
 
 
 -- $strictIORef
@@ -135,7 +140,7 @@ import Data.IORef
 -- gotcha = do
 --   ref <- newStrictIORef (Just 1)
 --   loop ref (10 ^ 9)
---   n <- readStrictIORef ref
+--   n <- readIORef ref
 --   print n
 --   where
 --     loop :: StrictIORef (Maybe Int) -> Int -> IO ()
@@ -143,7 +148,7 @@ import Data.IORef
 --       if i == 0 then
 --         pure ()
 --       else do
---         n <- readStrictIORef ref
+--         n <- readIORef ref
 --         writeStrictIORef ref (fmap (+ 1) n)
 --         loop ref (i - 1)
 -- @
@@ -191,32 +196,32 @@ import Data.IORef
 -- This is a safe choice, as Agda does not rely on precise exception semantics for correctness.
 
 -- | Strict IO references.
-newtype StrictIORef a = StrictIORef (IORef a)
+newtype IORef a = StrictIORef (Lazy.IORef a)
 
 -- | Create a new 'StrictIORef'.
 --
 -- This will force the value to WHNF before creating the reference.
-newStrictIORef :: a -> IO (StrictIORef a)
-newStrictIORef = \a -> StrictIORef <$> (newIORef $! a)
-{-# INLINE newStrictIORef #-}
+newIORef :: a -> IO (IORef a)
+newIORef = \a -> StrictIORef <$> (Lazy.newIORef $! a)
+{-# INLINE newIORef #-}
 
 -- | Read the contents of a 'StrictIORef'.
-readStrictIORef :: StrictIORef a -> IO a
-readStrictIORef = \(StrictIORef ref) -> readIORef ref
-{-# INLINE readStrictIORef #-}
+readIORef :: IORef a -> IO a
+readIORef = \(StrictIORef ref) -> Lazy.readIORef ref
+{-# INLINE readIORef #-}
 
 -- | Write to a 'StrictIORef'.
 --
 -- This will force the value to WHNF before writing.
-writeStrictIORef :: StrictIORef a -> a -> IO ()
-writeStrictIORef = \(StrictIORef ref) a -> writeIORef ref $! a
-{-# INLINE writeStrictIORef #-}
+writeIORef :: IORef a -> a -> IO ()
+writeIORef = \(StrictIORef ref) a -> Lazy.writeIORef ref $! a
+{-# INLINE writeIORef #-}
 
 -- | Modify a 'StrictIORef' by a applying a function to the value stored in the reference.
 --
 -- This will force the value to WHNF before writing.
-modifyStrictIORef :: StrictIORef a -> (a -> a) -> IO ()
-modifyStrictIORef = \ref f -> do
-  a <- readStrictIORef ref
-  writeStrictIORef ref (f a)
-{-# INLINE modifyStrictIORef #-}
+modifyIORef :: IORef a -> (a -> a) -> IO ()
+modifyIORef = \ref f -> do
+  a <- readIORef ref
+  writeIORef ref (f a)
+{-# INLINE modifyIORef #-}

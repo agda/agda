@@ -6,17 +6,17 @@ import qualified Debug.Trace as Debug
 import System.IO.Unsafe
 
 import Agda.Utils.Function
-import Agda.Utils.IORef.Strict
+import qualified Agda.Utils.IORef.Strict as Strict
 
 {-# NOINLINE debug #-}
-debug :: StrictIORef Bool
-debug = unsafePerformIO $ newStrictIORef False
+debug :: Strict.IORef Bool
+debug = unsafePerformIO $ Strict.newIORef False
 
 setDebugging :: Bool -> IO ()
-setDebugging = writeStrictIORef $! debug
+setDebugging = Strict.writeIORef debug
 
 trace :: String -> a -> a
-trace s = applyWhen (unsafePerformIO $ readStrictIORef debug) $ Debug.trace s
+trace s = applyWhen (unsafePerformIO $ Strict.readIORef debug) $ Debug.trace s
 
 traceM :: Applicative f => String -> f ()
 traceM s = trace s $ pure ()
