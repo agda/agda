@@ -7,9 +7,8 @@ module Agda.Interaction.EmacsCommand
   ( Lisp(..)
   , response
   , putResponse
-  , display_info'
+  , displayInfo
   , clearRunningInfo
-  , clearWarning
   , displayRunningInfo
   ) where
 
@@ -61,42 +60,35 @@ response = (++ "\n") . map replaceNewLines . show . pretty
 putResponse :: Lisp String -> IO ()
 putResponse = putStr . response
 
--- | @displayInBuffer buffername append header content@ displays @content@
--- (with header @header@) in some suitable way in the buffer @buffername@.
+-- | @displayInfo append header content@ displays @content@
+-- (with header @header@) in some suitable way in the Agda information buffer.
 -- If @append@ is @True@, then the content is appended to previous content
 -- (if any), otherwise any previous content is deleted.
 
-displayInBuffer :: String -> Bool -> String -> String -> Lisp String
-displayInBuffer buffername append header content =
-    L [ A buffername
+displayInfo :: Bool -> String -> String -> Lisp String
+displayInfo append header content =
+    L [ A "agda2-info-action"
       , A (quote header)
       , A (quote content)
       , A (if append then "t" else "nil")
       ]
 
-display_info' :: Bool -> String -> String -> Lisp String
-display_info' = displayInBuffer "agda2-info-action"
-
 ------------------------------------------------------------------------
 -- Running info
 
--- | The name of the running info buffer.
+-- | Header to display in the Agda information buffer for "running info".
 
-runningInfoBufferName :: String
-runningInfoBufferName = "*Type-checking*"
+runningInfoHeader :: String
+runningInfoHeader = "*Type-checking*"
 
 -- | Clear the running info buffer.
 
 clearRunningInfo :: Lisp String
 clearRunningInfo =
-    display_info' False runningInfoBufferName ""
-
--- | Clear the warning buffer
-clearWarning :: Lisp String
-clearWarning = L [ A "agda2-close-warning" ]
+    displayInfo False runningInfoHeader ""
 
 -- | Display running information about what the type-checker is up to.
 
 displayRunningInfo :: String -> Lisp String
 displayRunningInfo s =
-    display_info' True runningInfoBufferName s
+    displayInfo True runningInfoHeader s

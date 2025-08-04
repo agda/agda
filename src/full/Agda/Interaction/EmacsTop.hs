@@ -268,7 +268,7 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
 -- | Format responses of DisplayInfo
 
 format :: String -> String -> TCM [Lisp String]
-format content bufname = return [ display_info' False bufname content ]
+format content header = return [ displayInfo False header content ]
 
 -- | Adds a \"last\" tag to a response.
 
