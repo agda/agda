@@ -32,7 +32,8 @@ import Agda.Interaction.AgdaTop
 import Agda.Interaction.Base
 import Agda.Interaction.BasicOps as B
 import Agda.Interaction.Response as R
-import Agda.Interaction.EmacsCommand hiding (putResponse)
+import Agda.Interaction.Emacs.Lisp
+import Agda.Interaction.EmacsCommand ( displayInfo, clearRunningInfo, displayRunningInfo)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.Command (localStateCommandM)

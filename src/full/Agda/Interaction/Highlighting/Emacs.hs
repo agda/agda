@@ -3,7 +3,9 @@
 -- | Functions which give precise syntax highlighting info to Emacs.
 
 module Agda.Interaction.Highlighting.Emacs
-  ( lispifyHighlightingInfo
+  ( HighlightingInfo
+  , lispifyHighlightingInfo
+  , lispifyHighlightingInfo_
   , lispifyTokenBased
   ) where
 
@@ -17,7 +19,7 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Interaction.Highlighting.Common
 import Agda.Interaction.Highlighting.Precise
 import Agda.Utils.Range (Range(..))
-import Agda.Interaction.EmacsCommand
+import Agda.Interaction.Emacs.Lisp
 import Agda.Interaction.Response
 
 import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource, topLevelModuleFilePath)
@@ -28,9 +30,6 @@ import Agda.Utils.IO.TempFile  (writeToTempFile)
 import Agda.Utils.Null
 import Agda.Utils.String       (quote)
 
-
-------------------------------------------------------------------------
--- Read/show functions
 
 -- | Shows meta information in such a way that it can easily be read
 -- by Emacs.
@@ -66,6 +65,14 @@ lispifyTokenBased :: TokenBased -> Lisp String
 lispifyTokenBased TokenBased        = A "t"
 lispifyTokenBased NotOnlyTokenBased = A "nil"
 
+-- | Run 'showAspects' on a whole 'RangeMap'.
+lispifyHighlightingInfo_ ::
+     ModuleToSource
+       -- ^ Must contain a mapping for every definition site's module.
+  -> HighlightingInfo
+  -> [Lisp String]
+lispifyHighlightingInfo_ m2s = map (showAspects m2s) . toList
+
 -- | Turns syntax highlighting information into a list of
 -- S-expressions.
 
@@ -91,7 +98,7 @@ lispifyHighlightingInfo h remove method modFile =
     A (case remove of
         RemoveHighlighting -> "remove"
         KeepHighlighting   -> "nil") :
-    map (showAspects modFile) (toList h)
+    lispifyHighlightingInfo_ modFile h
 
   direct :: IO (Lisp String)
   direct = return $ L $

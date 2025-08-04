@@ -569,6 +569,7 @@ library
       Agda.Interaction.BuildLibrary
       Agda.Interaction.Command
       Agda.Interaction.CommandLine
+      Agda.Interaction.Emacs.Lisp
       Agda.Interaction.EmacsCommand
       Agda.Interaction.EmacsTop
       Agda.Interaction.ExitCode
