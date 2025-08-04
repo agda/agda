@@ -24,6 +24,7 @@ import Data.Text          (Text)
 import Data.Text          qualified as Text
 #if MIN_VERSION_text(2,0,2)
 import Data.Text.Encoding (strictBuilderToText, textToStrictBuilder)
+import Data.Text.Encoding qualified
 #else
 -- GHC 9.2 ships text-1.2.5.0
 import Data.Text.Lazy qualified as TL
@@ -161,16 +162,39 @@ renderTree' txt ann = go
       Node a ts -> ann a $ foldMap go ts
       Text t    -> txt t
 
+-- Compatibility layer for different versions of package text.
+
+#if MIN_VERSION_text(2,0,2)
+
+#if MIN_VERSION_text(2,1,2)
+type Builder = Data.Text.Encoding.StrictTextBuilder
+#else
+type Builder = Data.Text.Encoding.StrictBuilder
+#endif
+
+builderToText :: Builder -> Text
+builderToText = strictBuilderToText
+
+textToBuilder :: Text -> Builder
+textToBuilder = textToStrictBuilder
+
+#else
+
+type Builder = Builder.Builder
+
+builderToText :: Builder -> Text
+builderToText = TL.toStrict . Builder.toLazyText
+
+textToBuilder :: Text -> Builder
+textToBuilder = Builder.fromText
+
+#endif
+
 -- | Linearize a 'DocTree' to 'Text' with the given 'Text'-rendering of the annotations.
 treeToText :: (ann -> Text -> Text) -> DocTree ann -> Text
-treeToText ann =
-#if MIN_VERSION_text(2,0,2)
-  strictBuilderToText . renderTree' textToStrictBuilder \ a -> textToStrictBuilder . ann a . strictBuilderToText
-#else
-  toText . renderTree' Builder.fromText \ a -> Builder.fromText . ann a . toText
-  where
-    toText = TL.toStrict . Builder.toLazyText
-#endif
+treeToText ann
+  = builderToText
+  . renderTree' textToBuilder \ a -> textToBuilder . ann a . builderToText
 -- Naive implementation:
 -- treeToText = renderTree' id
 
