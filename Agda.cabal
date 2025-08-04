@@ -899,6 +899,7 @@ library
       Agda.Utils.Parser.MemoisedCPS
       Agda.Utils.PartialOrd
       Agda.Utils.Permutation
+      Agda.Utils.Range
       Agda.Utils.RangeMap
       Agda.Utils.SemiRing
       Agda.Utils.Semigroup

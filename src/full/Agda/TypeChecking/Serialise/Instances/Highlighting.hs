@@ -8,17 +8,17 @@ import qualified Data.Map.Strict as Map
 import Data.Strict.Tuple (Pair(..))
 import Data.Word (Word32)
 
-import qualified Agda.Interaction.Highlighting.Range   as HR
+import Agda.Utils.Range (Range(..))
 import qualified Agda.Interaction.Highlighting.Precise as HP
 import qualified Agda.Utils.RangeMap                   as RM
 
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common () --instance only
 
-instance EmbPrj HR.Range where
-  icod_ (HR.Range a b) = icodeN' HR.Range a b
+instance EmbPrj Range where
+  icod_ (Range a b) = icodeN' Range a b
 
-  value = valueN HR.Range
+  value = valueN Range
 
 instance EmbPrj HP.NameKind where
   icod_ HP.Bound           = icodeN' HP.Bound

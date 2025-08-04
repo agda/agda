@@ -16,7 +16,7 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.Interaction.Highlighting.Common
 import Agda.Interaction.Highlighting.Precise
-import Agda.Interaction.Highlighting.Range (Range(..))
+import Agda.Utils.Range (Range(..))
 import Agda.Interaction.EmacsCommand
 import Agda.Interaction.Response
 

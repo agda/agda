@@ -25,7 +25,7 @@ import qualified Data.Map.Strict as Map
 
 import Data.Strict.Tuple (Pair(..))
 
-import Agda.Interaction.Highlighting.Range
+import Agda.Utils.Range
 import Agda.Utils.List
 import Agda.Utils.Null
 
