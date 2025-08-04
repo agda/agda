@@ -14,12 +14,13 @@ module Agda.Utils.DocTree
   , renderTree'
   , treeToText
   , treeToTextNoAnn
+  , treeToTextWithAnn
   )
 where
 
 import Prelude hiding (null)
 
-import Control.DeepSeq (NFData(..))
+import Control.DeepSeq    (NFData(..))
 import Data.Text          (Text)
 import Data.Text          qualified as Text
 #if MIN_VERSION_text(2,0,2)
@@ -36,12 +37,17 @@ import GHC.Generics
 import Text.PrettyPrint.Annotated.HughesPJ (Doc)
 import Text.PrettyPrint.Annotated.HughesPJ qualified as Ppr
 
+import Agda.Utils.Function (applyUnless)
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import Agda.Utils.List1 qualified as List1
+import Agda.Utils.Monoid (Fwd, pattern Fwd, appFwd)
 import Agda.Utils.Null
+import Agda.Utils.Range (Range(..))
+import Agda.Utils.RangeMap (RangeMap)
+import Agda.Utils.RangeMap qualified as RangeMap
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
-import Agda.Utils.Function (applyUnless)
 
 -- | A rendered document with annotations from type @ann@.
 data DocTree ann
@@ -201,3 +207,49 @@ treeToText ann
 -- | Linearize a 'DocTree' to 'Text' dropping all annotations.
 treeToTextNoAnn :: DocTree ann -> Text
 treeToTextNoAnn = treeToText (const id)
+
+-- ** Linearizing a 'DocTree' to a 'Text' plus a 'RangeMap'
+
+treeToTextWithAnn :: Monoid ann => DocTree ann -> (Text, RangeMap ann)
+treeToTextWithAnn = evalLin 0 . renderTree' linText linNode
+
+-- | Linearizer state.
+data LinSt ann = LinSt
+  { bstPosition    :: Int
+      -- ^ Current position.
+  , bstAnnotations :: List1 ann
+      -- ^ The top of the stack is the currently active annotation(s).
+  , bstBuilder     :: Builder
+      -- ^ Accumulated text.
+  , bstRangeMap    :: RangeMap ann
+      -- ^ Accumulated annotation information.
+  }
+
+-- | Linearizer.
+type Lin ann = Fwd (LinSt ann)
+
+-- | Run linearizer with given initial offset.
+evalLin :: Monoid ann => Int -> Lin ann -> (Text, RangeMap ann)
+evalLin start f =
+  case f `appFwd` initLinSt start of
+    LinSt _ _ b m -> (builderToText b, m)
+
+-- | Initial linearizer state with configurable offset.
+initLinSt :: Monoid ann => Int -> LinSt ann
+initLinSt start = LinSt start (singleton mempty) mempty empty
+
+-- | Outputting some text under the currently active annotations.
+linText :: Monoid ann => Text -> Lin ann
+linText t = Fwd \case
+  LinSt start as@(a :| _) b m -> LinSt end as b' m'
+    where
+      end = start + Text.length t
+      b'  = b <> textToBuilder t
+      m'  = RangeMap.insert (<>) r a m
+      r   = Range{ from = start, to = end }
+
+-- | Adding an annotation to the currently active ones.
+linNode :: Monoid ann => ann -> Lin ann -> Lin ann
+linNode a f = Fwd \case
+  st@LinSt{ bstAnnotations = as@(a' :| _) } ->
+    f `appFwd` st{ bstAnnotations = (a <> a') <| as }
