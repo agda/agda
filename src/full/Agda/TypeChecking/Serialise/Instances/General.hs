@@ -187,20 +187,44 @@ instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
     go as = ReaderT \r -> case as of
       []   -> pure N0
       a:as -> do
-        !n  <- runReaderT (icode a) r
-        !ns <- runReaderT (go as) r
-        pure (n :*: ns)
+        !a  <- runReaderT (icode a) r
+        !as <- runReaderT (go as) r
+        pure (a :*: as)
 
   {-# INLINE value #-}
   value = vcase go where
     go :: Node -> R [a]
     go as = ReaderT \r -> case as of
       N0       -> return []
+      N1 a     -> do
+        !a <- runReaderT (value a) r
+        pure [a]
+      N2 a b   -> do
+        !a <- runReaderT (value a) r
+        !b <- runReaderT (value b) r
+        pure [a, b]
+      N3 a b c -> do
+        !a <- runReaderT (value a) r
+        !b <- runReaderT (value b) r
+        !c <- runReaderT (value c) r
+        pure [a, b, c]
+      N4 a b c d -> do
+        !a <- runReaderT (value a) r
+        !b <- runReaderT (value b) r
+        !c <- runReaderT (value c) r
+        !d <- runReaderT (value d) r
+        pure [a, b, c, d]
+      N5 a b c d e -> do
+        !a <- runReaderT (value a) r
+        !b <- runReaderT (value b) r
+        !c <- runReaderT (value c) r
+        !d <- runReaderT (value d) r
+        !e <- runReaderT (value e) r
+        pure [a, b, c, d, e]
       n :*: ns -> do
         !a  <- runReaderT (value n) r
         !as <- runReaderT (go ns) r
         return (a:as)
-      _ -> malformedIO
 
 instance EmbPrj a => EmbPrj (List1 a) where
   icod_ = icod_ . List1.toList
@@ -220,20 +244,39 @@ mapPairsIcode xs = icodeNode =<< convert N0 xs where
   -- As we need to call `convert' in the tail position, the resulting list is
   -- written (and read) in reverse order, with the highest pair first in the
   -- resulting list.
-  convert !ys [] = return ys
-  convert  ys ((start, entry):xs) = do
+  convert ys [] = pure ys
+  convert ys ((start, entry):xs) = do
     !start <- icode start
     !entry <- icode entry
-    convert ((:*:) start ((:*:) entry ys)) xs
+    convert (start :*: entry :*: ys) xs
 
 mapPairsValue :: (EmbPrj k, EmbPrj v) => Node -> R [(k, v)]
 mapPairsValue = convert [] where
-  convert ys N0 = return ys
+  convert ys N0 = pure ys
+  convert ys (N2 start entry) = do
+    !start <- value start
+    !entry <- value entry
+    pure ((start, entry):ys)
+  convert ys (N4 start entry start' entry') = do
+    !start  <- value start
+    !entry  <- value entry
+    !start' <- value start'
+    !entry' <- value entry'
+    pure ((start', entry'):(start, entry):ys)
+  convert ys (start :*: N5 entry start' entry' start'' entry'') = do
+    !start   <- value start
+    !entry   <- value entry
+    !start'  <- value start'
+    !entry'  <- value entry'
+    !start'' <- value start''
+    !entry'' <- value entry''
+    pure ((start'',entry''):(start',entry'):(start,entry):ys)
   convert ys (start :*: entry :*: xs) = do
     !start <- value start
     !entry <- value entry
     convert ((start, entry):ys) xs
   convert _ _ = malformed
+
 
 ---------------------------------------------------------------------------
 -- Maps
