@@ -1047,7 +1047,7 @@ Helper factored out from agda2-info-action."
                        agda2-information-window-max-height))))))))))
 
 (defun agda2-info-action (name text append &rest annotations)
-  "Insert TEXT into the Agda info buffer and display it.
+  "Insert TEXT plus a final newline into the Agda info buffer and display it.
 NAME is displayed in the buffer's mode line.
 
 The TEXT is highlighted by the given ANNOTATIONS
@@ -1072,7 +1072,9 @@ is inserted, and point is placed before this text."
       ;; (https://github.com/haskell/haskell-mode/issues/67).
       (compilation-forget-errors)
       (unless append (erase-buffer))
-      (save-excursion
+      (unless (string-empty-p text)
+       ;; (message "text = //%s//" text)
+       (save-excursion
         (goto-char (point-max))
         ;; Andreas, 2025-08-04, PR #8047.
         ;; Experiment shows that 'face annotations do not survive in compilation-mode,
@@ -1084,7 +1086,8 @@ is inserted, and point is placed before this text."
         ;; (message "annotations = %s" annotations)
         (apply 'annotation-load nil nil text annotations)
         ;; (pp (text-properties-at 0 text))
-        (insert text))
+        (insert text)
+        (newline)))
       ;; Update the mode line of the Agda information buffer,
       ;; displaying NAME in bold
       ;; in the place where usually the file name is displayed.
@@ -1838,13 +1841,16 @@ To do: dealing with semicolon separated decls."
   "The name of the buffer used for Agda debug messages.")
 
 (defun agda2-verbose (msg)
-  "Appends the string MSG to the `agda2-debug-buffer-name' buffer.
+  "Appends the string MSG plus a final newline
+to the `agda2-debug-buffer-name' buffer.
 Note that this buffer's contents is not erased automatically when
 a file is loaded."
+ (unless (string-empty-p msg)
   (with-current-buffer (get-buffer-create agda2-debug-buffer-name)
     (save-excursion
       (goto-char (point-max))
-      (insert msg))))
+      (insert msg)
+      (newline)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Comments and paragraphs
