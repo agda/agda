@@ -520,7 +520,7 @@ library
     , uri-encode           >= 1.5.0.7   && < 1.6
     , vector               >= 0.12.3.1  && < 0.14
     , vector-hashtables    >= 0.1.1.3   && < 0.2
-    , zlib                 >= 0.6.3.0   && < 0.8
+    , zstd                 == 0.1.3.0
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tool-depends` field can not be modified in Hackage.
