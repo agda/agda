@@ -208,13 +208,76 @@ treeToText ann
 treeToTextNoAnn :: DocTree ann -> Text
 treeToTextNoAnn = treeToText (const id)
 
--- ** Linearizing a 'DocTree' to a 'Text' plus a 'RangeMap'
+-- ** Linearizing a 'DocTree' to a 'Text' plus a 'RangeMap'.
+--
+-- Outputs one annotation interval per 'Node',
+-- leaving it to the 'RangeMap' to combine annotations correctly.
 
-treeToTextWithAnn :: Monoid ann => DocTree ann -> (Text, RangeMap ann)
+treeToTextWithAnn :: (Monoid ann, Null ann) => DocTree ann -> (Text, RangeMap ann)
 treeToTextWithAnn = evalLin 0 . renderTree' linText linNode
 
 -- | Linearizer state.
 data LinSt ann = LinSt
+  { linPosition    :: Int
+      -- ^ Current position.
+  , linBuilder     :: Builder
+      -- ^ Accumulated text.
+  , linRangeMap    :: RangeMap ann
+      -- ^ Accumulated annotation information.
+  }
+
+-- | Linearizer.
+--   We need forward function composition because we process nodes left-to-right.
+type Lin ann = Fwd (LinSt ann)
+
+-- | Run linearizer with given initial offset.
+evalLin :: Monoid ann => Int -> Lin ann -> (Text, RangeMap ann)
+evalLin start f =
+  case f `appFwd` initLinSt start of
+    LinSt _ b m -> (builderToText b, m)
+
+-- | Initial linearizer state with configurable offset.
+initLinSt :: Monoid ann => Int -> LinSt ann
+initLinSt start = LinSt start mempty empty
+
+-- | Outputting some text under the currently active annotations.
+linText :: Monoid ann => Text -> Lin ann
+linText t = Fwd \case
+  LinSt start b m -> LinSt end b' m
+    where
+      end = start + Text.length t
+      b'  = b <> textToBuilder t
+
+-- | Add an annotation to the 'RangeMap'.
+linNode :: (Monoid ann, Null ann) => ann -> Lin ann -> Lin ann
+linNode a f = Fwd \case
+  st@LinSt{ linPosition = start } -> st'{ linRangeMap = m' }
+    where
+     -- Render content first to get the end position.
+     st'@LinSt{ linPosition = end, linRangeMap = m } = f `appFwd` st
+     r  = Range{ from = start, to = end }
+     -- Insert annotation, leaving it to the RangeMap to combine it with the
+     -- existing annotations.
+     m' = applyUnless (null a) (RangeMap.insert (<>) r a) m
+
+-- ** Alternative linearizer (first implementation).
+--
+-- This alternative does not need a sophisticated 'RangeMap',
+-- it takes care of the annotation composition itself
+-- and outputs the final intervals in left-to-right order.
+--
+-- The drawback is that it produces an annotation interval for each 'Text'
+-- leaf of the 'DocTree' rather than preserving continguous intervals
+-- stretching over subtrees.
+-- As 'RangeMap' does not join adjacent intervals,
+-- this leads to a lot of tiny intervals,
+-- which increases the communication load between Agda and Emacs.
+
+treeToTextWithAnnA :: Monoid ann => DocTree ann -> (Text, RangeMap ann)
+treeToTextWithAnnA = evalLinA 0 . renderTree' linAText linANode
+
+-- | Linearizer state.
+data LinASt ann = LinASt
   { bstPosition    :: Int
       -- ^ Current position.
   , bstAnnotations :: List1 ann
@@ -226,22 +289,22 @@ data LinSt ann = LinSt
   }
 
 -- | Linearizer.
-type Lin ann = Fwd (LinSt ann)
+type LinA ann = Fwd (LinASt ann)
 
 -- | Run linearizer with given initial offset.
-evalLin :: Monoid ann => Int -> Lin ann -> (Text, RangeMap ann)
-evalLin start f =
-  case f `appFwd` initLinSt start of
-    LinSt _ _ b m -> (builderToText b, m)
+evalLinA :: Monoid ann => Int -> LinA ann -> (Text, RangeMap ann)
+evalLinA start f =
+  case f `appFwd` initLinASt start of
+    LinASt _ _ b m -> (builderToText b, m)
 
 -- | Initial linearizer state with configurable offset.
-initLinSt :: Monoid ann => Int -> LinSt ann
-initLinSt start = LinSt start (singleton mempty) mempty empty
+initLinASt :: Monoid ann => Int -> LinASt ann
+initLinASt start = LinASt start (singleton mempty) mempty empty
 
 -- | Outputting some text under the currently active annotations.
-linText :: Monoid ann => Text -> Lin ann
-linText t = Fwd \case
-  LinSt start as@(a :| _) b m -> LinSt end as b' m'
+linAText :: Monoid ann => Text -> LinA ann
+linAText t = Fwd \case
+  LinASt start as@(a :| _) b m -> LinASt end as b' m'
     where
       end = start + Text.length t
       b'  = b <> textToBuilder t
@@ -249,7 +312,7 @@ linText t = Fwd \case
       r   = Range{ from = start, to = end }
 
 -- | Adding an annotation to the currently active ones.
-linNode :: Monoid ann => ann -> Lin ann -> Lin ann
-linNode a f = Fwd \case
-  st@LinSt{ bstAnnotations = as@(a' :| _) } ->
+linANode :: Monoid ann => ann -> LinA ann -> LinA ann
+linANode a f = Fwd \case
+  st@LinASt{ bstAnnotations = as@(a' :| _) } ->
     f `appFwd` st{ bstAnnotations = (a <> a') <| as }
