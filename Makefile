@@ -807,6 +807,7 @@ debug : ## Print debug information.
 	@echo "GHC_RTS_OPTS                   = $(GHC_RTS_OPTS)"
 	@echo "GHC_VER                        = $(GHC_VER)"
 	@echo "GHC_VERSION                    = $(GHC_VERSION)"
+	@echo "HAS_STACK                      = $(HAS_STACK)"
 	@echo "PARALLEL_TESTS                 = $(PARALLEL_TESTS)"
 	@echo "PROFILEOPTS                    = $(PROFILEOPTS)"
 	@echo "QUICK_CABAL_INSTALL            = $(QUICK_CABAL_INSTALL)"
