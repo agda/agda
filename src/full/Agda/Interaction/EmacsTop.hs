@@ -174,35 +174,35 @@ lispifyDisplayInfo = \case
           ]
       -- abusing the goals field since we ignore the title
         (body, _) = formatWarningsAndErrors msg warnings errors
-      format body "*Compilation result*"
+      format "*Compilation result*" body
 
     Info_Constraints s -> do
       doc <- TCP.vcat $ map prettyTCM s
-      format (render doc) "*Constraints*"
+      format "*Constraints*" (render doc)
 
     Info_AllGoalsWarnings ms ws -> do
       goals <- showGoals ms
       warnings <- prettyTCWarnings (tcWarnings ws)
       errors <- prettyTCWarnings (nonFatalErrors ws)
       let (body, title) = formatWarningsAndErrors goals warnings errors
-      format body ("*All" ++ title ++ "*")
+      format ("*All" ++ title ++ "*") body
 
     Info_Auto s ->
-      format s "*Auto*"
+      format "*Auto*" s
 
     Info_Error err -> do
       s <- showInfoError err
-      format s "*Error*"
+      format "*Error*" s
 
     Info_Time s ->
-      format (render $ prettyTimed s) "*Time*"
+      format "*Time*" (render $ prettyTimed s)
 
     Info_NormalForm state cmode time expr -> do
       exprDoc <- evalStateT prettyExpr state
       let doc = maybe empty prettyTimed time $$ exprDoc
           lbl | cmode == HeadCompute = "*Head Normal Form*"
               | otherwise            = "*Normal Form*"
-      format (render doc) lbl
+      format lbl (render doc)
       where
         prettyExpr = localStateCommandM
             $ lift
@@ -215,7 +215,7 @@ lispifyDisplayInfo = \case
     Info_InferredType state time expr -> do
       exprDoc <- evalStateT prettyExpr state
       let doc = maybe empty prettyTimed time $$ exprDoc
-      format (render doc) "*Inferred Type*"
+      format "*Inferred Type*" (render doc)
       where
         prettyExpr = localStateCommandM
             $ lift
@@ -234,7 +234,7 @@ lispifyDisplayInfo = \case
           , "Names"
           , nest 2 $ align 10 typeDocs
           ]
-      format (render doc) "*Module contents*"
+      format "*Module contents*" (render doc)
 
     Info_SearchAbout hits names -> do
       hitDocs <- forM hits $ \ (x, t) -> do
@@ -242,15 +242,15 @@ lispifyDisplayInfo = \case
         return (prettyShow x, ":" <+> doc)
       let doc = "Definitions about" <+>
                 text (List.intercalate ", " $ words names) $$ nest 2 (align 10 hitDocs)
-      format (render doc) "*Search About*"
+      format "*Search About*" (render doc)
 
     Info_WhyInScope why -> do
       doc <- explainWhyInScope why
-      format (render doc) "*Scope Info*"
+      format "*Scope Info*" (render doc)
 
     Info_Context ii ctx -> do
       doc <- localTCState (prettyResponseContext ii False ctx)
-      format (render doc) "*Context*"
+      format "*Context*" (render doc)
 
     Info_Intro_NotFound ->
       format "No introduction forms found." "*Intro*"
@@ -262,10 +262,10 @@ lispifyDisplayInfo = \case
                           mkOr (x:xs) = text x : mkOr xs
                       in nest 2 $ fsep $ punctuate comma (mkOr ss)
                     ]
-      format (render doc) "*Intro*"
+      format "*Intro*" (render doc)
 
     Info_Version ->
-      format ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
+      format "*Agda Version*" ("Agda version " ++ versionWithCommitInfo)
 
     Info_GoalSpecific ii kind ->
       lispifyGoalSpecificDisplayInfo ii kind
@@ -285,7 +285,7 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
 
     Goal_NormalForm cmode expr -> do
       doc <- showComputed cmode expr
-      format (render doc) "*Normal Form*"
+      format "*Normal Form*" (render doc)
 
     Goal_GoalType norm aux ctx bndry constraints -> do
       ctxDoc <- prettyResponseContext ii True ctx
@@ -316,20 +316,20 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
         , TCP.text (replicate 60 '\x2014')
         , return ctxDoc
         ] ++ constraintsDoc
-      format (render doc) "*Goal type etc.*"
+      format "*Goal type etc.*" (render doc)
 
     Goal_CurrentGoal norm -> do
       doc <- prettyTypeOfMeta norm ii
-      format (render doc) "*Current Goal*"
+      format "*Current Goal*" (render doc)
 
     Goal_InferredType expr -> do
       doc <- prettyATop expr
-      format (render doc) "*Inferred Type*"
+      format "*Inferred Type*" (render doc)
 
 -- | Format responses of DisplayInfo
 
 format :: String -> String -> TCM (Lisp String)
-format content header = return $ displayInfo False header content
+format header content = return $ displayInfo False header content
 
 -- | Adds a \"last\" tag to a response.
 
