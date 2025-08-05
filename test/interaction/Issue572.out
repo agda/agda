@@ -5,6 +5,6 @@
 (agda2-info-action "*All Goals*" "?0 : P p₁ ?1 : Issue572.A" nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
 (agda2-status-action "")
-(agda2-info-action "*Goal type etc.*" "Goal: P p₁ ———————————————————————————————————————————————————————————— p : P p₁ p = p₁ : Set (not in scope)" nil)
+(agda2-info-action "*Goal type etc.*" "Goal: P p₁ ———— Context ——————————————————————————————————————————————— p : P p₁ p = p₁ : Set (not in scope)" nil)
 (agda2-status-action "")
-(agda2-info-action "*Goal type etc.*" "Goal: Issue572.A ———————————————————————————————————————————————————————————— A : Set" nil)
+(agda2-info-action "*Goal type etc.*" "Goal: Issue572.A ———— Context ——————————————————————————————————————————————— A : Set" nil)

@@ -312,13 +312,15 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
               [ TCP.text $ delimiter "Constraints"
               , TCP.vcat $ map prettyTCM constraints
               ]
-      doc <- TCP.vcat $
-        [ "Goal:" TCP.<+> return goalDoc
-        , return (vcat (boundaryDoc "Boundary (wanted)" bndry))
-        , return auxDoc
-        , TCP.text (replicate 60 '\x2014')
-        , return ctxDoc
-        ] ++ constraintsDoc
+      doc <- TCP.vcat $ concat
+        [ [ "Goal:" TCP.<+> return goalDoc
+          , return (vcat (boundaryDoc "Boundary (wanted)" bndry))
+          , return auxDoc
+          ]
+        , [ TCP.text (delimiter "Context") | not $ null ctxDoc ]
+        , [ return ctxDoc ]
+        , constraintsDoc
+        ]
       format "*Goal type etc.*" doc
 
     Goal_CurrentGoal norm -> do

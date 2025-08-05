@@ -5,6 +5,6 @@
 (agda2-info-action "*All Goals*" "?0 : Pointed Nat ?1 : Set" nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
 (agda2-status-action "")
-(agda2-info-action "*Goal type etc.*" "Goal: Pointed Nat Elaborates to: record { point = 0 } ————————————————————————————————————————————————————————————" nil)
+(agda2-info-action "*Goal type etc.*" "Goal: Pointed Nat Elaborates to: record { point = 0 }" nil)
 (agda2-status-action "")
-(agda2-info-action "*Goal type etc.*" "Goal: Set Elaborates to: ?2 ————————————————————————————————————————————————————————————" nil)
+(agda2-info-action "*Goal type etc.*" "Goal: Set Elaborates to: ?2" nil)
