@@ -42,7 +42,7 @@ import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.Command (localStateCommandM)
 
-import Agda.Utils.DocTree  ( treeToTextNoAnn )
+import Agda.Utils.DocTree  ( treeToTextNoAnn, renderToTree )
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor  ( (<.>) )
 import Agda.Utils.Null
@@ -89,15 +89,12 @@ lispifyResponse = \case
   Resp_ClearRunningInfo ->
     return clearRunningInfo
 
-  Resp_RunningInfo n doc
+  Resp_RunningInfo n docTree
     | n <= 1 -> do
-        return $ displayRunningInfo s
+        displayRunningInfo docTree <$> useTC stModuleToSource
     | otherwise ->
-        return $ L [ A "agda2-verbose", A (quote s) ]
-    where
-      -- Andreas, 2025-07-30, for now, we throw away the annotations in the Doc.
-      -- TODO: turn annotations into syntax highlighting.
-      s = Text.unpack $ treeToTextNoAnn doc
+        return $ L [ A "agda2-verbose", A (quote $ Text.unpack $ treeToTextNoAnn docTree) ]
+        -- TODO: do we want colored debug-printout?
 
   Resp_Status s ->
     return $ L
@@ -334,8 +331,9 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
 -- | Format responses of DisplayInfo
 
 format :: String -> Doc -> TCM (Lisp String)
-format header content = return $
-  displayInfo False header $ render content
+format header content = do
+  m2s <- useTC stModuleToSource
+  return $ displayInfo header (renderToTree content) False (Just m2s)
 
 -- | Adds a \"last\" tag to a response.
 

@@ -989,41 +989,24 @@ The buffer is returned.")
 
       (set-syntax-table agda2-mode-syntax-table)
       (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
-      (set-input-method "Agda")))
+      (set-input-method "Agda")
+      ;; Andreas, 2025-08-05, PR #8047.
+      ;; We setup highlighting so that annotation-bindings is defined
+      ;; and can be accessed by annotation-annotate.
+      ;; This allows us to create Agda-style highlighting from aspects
+      ;; also in the Agda information buffer.
+      (agda2-highlight-setup)
+      ))
 
   ,buffer))
 
 (agda2-information-buffer agda2-info-buffer "info" "*Agda information*")
 
-(defun agda2-info-action (name text &optional append)
-  "Insert TEXT into the Agda info buffer and display it.
-NAME is displayed in the buffer's mode line.
-
-If APPEND is non-nil, then TEXT is appended at the end of the
-buffer, and point placed after this text.
-
-If APPEND is nil, then any previous text is removed before TEXT
-is inserted, and point is placed before this text."
+(defun agda2-display-information-buffer ()
+  "Make sure the Agda information buffer is displayed in the current window.
+Helper factored out from agda2-info-action."
   (interactive)
   (let ((buf (agda2-info-buffer)))
-    (with-current-buffer buf
-      ;; In some cases the jump-to-position-mentioned-in-text
-      ;; functionality (see compilation-error-regexp-alist above)
-      ;; didn't work: Emacs jumped to the wrong position. However, it
-      ;; seems to work if compilation-forget-errors is used. This
-      ;; problem may be related to Emacs bug #9679
-      ;; (http://debbugs.gnu.org/cgi/bugreport.cgi?bug=9679). The idea
-      ;; to use compilation-forget-errors comes from a comment due to
-      ;; Oleksandr Manzyuk
-      ;; (https://github.com/haskell/haskell-mode/issues/67).
-      (compilation-forget-errors)
-      (unless append (erase-buffer))
-      (save-excursion
-        (goto-char (point-max))
-        (insert text))
-      (put-text-property 0 (length name) 'face '(:weight bold) name)
-      (setq mode-line-buffer-identification name)
-      (force-mode-line-update))
     ;; If the current window displays the information buffer, then the
     ;; window configuration is left untouched.
     (unless (equal (window-buffer) buf)
@@ -1061,7 +1044,54 @@ is inserted, and point is placed before this text."
                 (fit-window-to-buffer window
                   (truncate
                     (* (frame-height)
-                       agda2-information-window-max-height))))))))
+                       agda2-information-window-max-height))))))))))
+
+(defun agda2-info-action (name text append &rest annotations)
+  "Insert TEXT into the Agda info buffer and display it.
+NAME is displayed in the buffer's mode line.
+
+The TEXT is highlighted by the given ANNOTATIONS
+which come in the same format as for agda2-highlight-apply.
+
+If APPEND is non-nil, then TEXT is appended at the end of the
+buffer, and point placed after this text.
+
+If APPEND is nil, then any previous text is removed before TEXT
+is inserted, and point is placed before this text."
+  (interactive)
+  (let ((buf (agda2-info-buffer)))
+    (with-current-buffer buf
+      ;; In some cases the jump-to-position-mentioned-in-text
+      ;; functionality (see compilation-error-regexp-alist above)
+      ;; didn't work: Emacs jumped to the wrong position. However, it
+      ;; seems to work if compilation-forget-errors is used. This
+      ;; problem may be related to Emacs bug #9679
+      ;; (http://debbugs.gnu.org/cgi/bugreport.cgi?bug=9679). The idea
+      ;; to use compilation-forget-errors comes from a comment due to
+      ;; Oleksandr Manzyuk
+      ;; (https://github.com/haskell/haskell-mode/issues/67).
+      (compilation-forget-errors)
+      (unless append (erase-buffer))
+      (save-excursion
+        (goto-char (point-max))
+        ;; Andreas, 2025-08-04, PR #8047.
+        ;; Experiment shows that 'face annotations do not survive in compilation-mode,
+        ;; but 'font-lock-face is not removed.
+        ;; https://emacs.stackexchange.com/questions/17141/how-do-i-insert-text-with-a-specific-face
+        ;; (put-text-property 0 (max 0 (- (length text) 10)) 'font-lock-face '(:weight bold) text)
+        ;; (message "text: %s" text)
+        ;; (message "length: %i" (length text))
+        ;; (message "annotations = %s" annotations)
+        (apply 'annotation-load nil nil text annotations)
+        ;; (pp (text-properties-at 0 text))
+        (insert text))
+      ;; Update the mode line of the Agda information buffer,
+      ;; displaying NAME in bold
+      ;; in the place where usually the file name is displayed.
+      (put-text-property 0 (length name) 'face '(:weight bold) name)
+      (setq mode-line-buffer-identification name)
+      (force-mode-line-update))
+    (agda2-display-information-buffer)
     ;; Move point in every window displaying the information buffer.
     ;; Exception: If we are appending, don't move point in selected
     ;; windows.
