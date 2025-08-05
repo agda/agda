@@ -41,10 +41,11 @@ import Agda.Interaction.EmacsCommand ( displayInfo, clearRunningInfo, displayRun
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.Command (localStateCommandM)
+import Agda.Interaction.Options ( DiagnosticsColours(..), optDiagnosticsColour )
 
 import Agda.Utils.DocTree  ( treeToTextNoAnn, renderToTree )
 import Agda.Utils.Function ( applyWhen )
-import Agda.Utils.Functor  ( (<.>) )
+import Agda.Utils.Functor  ( (<.>), (<&>) )
 import Agda.Utils.Null
 import Agda.Utils.Maybe
 import Agda.Utils.String
@@ -91,7 +92,7 @@ lispifyResponse = \case
 
   Resp_RunningInfo n docTree
     | n <= 1 -> do
-        displayRunningInfo docTree <$> useTC stModuleToSource
+        displayRunningInfo docTree <$> wantBufferHighlighting
     | otherwise ->
         return $ L [ A "agda2-verbose", A (quote $ Text.unpack $ treeToTextNoAnn docTree) ]
         -- TODO: do we want colored debug-printout?
@@ -332,8 +333,17 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
 
 format :: String -> Doc -> TCM (Lisp String)
 format header content = do
-  m2s <- useTC stModuleToSource
-  return $ displayInfo header (renderToTree content) False (Just m2s)
+  displayInfo header (renderToTree content) False <$> wantBufferHighlighting
+
+-- | Do we want highlighting in the Agda information buffer?
+--   'Nothing' with option @--color=never@.
+wantBufferHighlighting :: TCM (Maybe ModuleToSource)
+wantBufferHighlighting = do
+  col <- commandLineOptions <&> optDiagnosticsColour <&> \case
+    AutoColour   -> True
+    AlwaysColour -> True
+    NeverColour  -> False
+  if col then Just <$> useTC stModuleToSource else return Nothing
 
 -- | Adds a \"last\" tag to a response.
 

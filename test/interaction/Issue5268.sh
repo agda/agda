@@ -37,7 +37,7 @@ cd "${ROOT}" > /dev/null
 
 # Run Agda on symlink
 # cd sym
-$AGDA --interaction <<EOF
+$AGDA --interaction --color=never <<EOF
 IOTCM "${FILE}" None Indirect (Cmd_load "${SYM}/${FILE}" [])
 EOF
 

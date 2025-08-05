@@ -99,7 +99,15 @@ setCommandLineOptions'
   -> CommandLineOptions
   -> TCM ()
 setCommandLineOptions' root opts = do
-  -- Andreas, 2022-11-19: removed a call to checkOpts which did nothing.
+      -- Andreas, 2025-08-05, PR #8037
+      -- 'setLibraryPaths' below can fail,
+      -- and to print the error correctly
+      -- we need knowledge of the optDiagnosticsColor command line option.
+      -- Thus, we already set this option here.
+      -- Setting all the options here breaks the optAbsoluteIncludePaths logic.
+      modifyTC $ Lens.mapCommandLineOptions \ o -> o{ optDiagnosticsColour = optDiagnosticsColour opts }
+
+      -- Compute the set of include paths.
       incs <- case optAbsoluteIncludePaths opts of
         [] -> do
           opts' <- setLibraryPaths root opts
@@ -109,7 +117,7 @@ setCommandLineOptions' root opts = do
         incs -> return incs
       modifyTC $ Lens.setCommandLineOptions opts{ optAbsoluteIncludePaths = incs }
       setPragmaOptions (optPragmaOptions opts)
-      updateBenchmarkingStatus
+      -- updateBenchmarkingStatus -- already included in setPragmaOptions
 
 libToTCM :: LibM a -> TCM a
 libToTCM m = do

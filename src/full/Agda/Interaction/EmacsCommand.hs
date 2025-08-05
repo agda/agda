@@ -61,5 +61,5 @@ clearRunningInfo = displayInfo runningInfoHeader empty False Nothing
 
 -- | Display running information about what the type-checker is up to.
 
-displayRunningInfo :: DocTree -> ModuleToSource -> Lisp String
-displayRunningInfo t m2s = displayInfo runningInfoHeader t True $ Just m2s
+displayRunningInfo :: DocTree -> Maybe ModuleToSource -> Lisp String
+displayRunningInfo t = displayInfo runningInfoHeader t True
