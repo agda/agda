@@ -47,6 +47,7 @@ import Data.Word (Word32)
 import Data.ByteString.Lazy    ( ByteString )
 import Data.ByteString.Builder ( byteString, toLazyByteString )
 import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString as SB
 import qualified Data.Map as Map
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
@@ -54,8 +55,7 @@ import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function (on)
 
-import qualified Codec.Compression.GZip as G
-import qualified Codec.Compression.Zlib.Internal as Z
+import qualified Codec.Compression.Zstd as Z
 
 import GHC.Compact as C
 
@@ -86,10 +86,10 @@ currentInterfaceVersion = 20250804 * 10 + 0
 -- | The result of 'encode' and 'encodeInterface'.
 
 data Encoded = Encoded
-  { uncompressed :: ByteString
+  { uncompressed :: L.ByteString
     -- ^ The uncompressed bytestring, without hashes and the interface
     -- version.
-  , compressed :: ByteString
+  , compressed :: L.ByteString
     -- ^ The compressed bytestring.
   }
 
@@ -128,15 +128,14 @@ encode a = do
         liftIO $ List.sort <$> H.toList (stats newD)
       traverse_ (uncurry tickN) stats
     -- Encode hashmaps and root, and compress.
-    bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
+
+    !bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
       return $!! B.encode (root, nodeL, stringL, lTextL, sTextL, integerL, varSetL, doubleL)
-    let compressParams = G.defaultCompressParams
-          { G.compressLevel    = G.bestSpeed
-          , G.compressStrategy = G.huffmanOnlyStrategy
-          }
-    cbits <- Bench.billTo [ Bench.Serialization, Bench.Compress ] $
-      return $!! G.compressWith compressParams bits1
-    let x = B.encode currentInterfaceVersion <> cbits
+
+    !cbits <- Bench.billTo [ Bench.Serialization, Bench.Compress ] $
+      return $! L.fromStrict $! Z.compress 1 (L.toStrict bits1)
+
+    let !x = B.encode currentInterfaceVersion <> cbits
     return (Encoded { uncompressed = bits1, compressed = x })
   where
     l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
@@ -240,7 +239,7 @@ decode s = do
 encodeInterface :: Interface -> TCM Encoded
 encodeInterface i = do
   r <- encode i
-  return r{ compressed = hashes <> compressed r }
+  return r { compressed = hashes <> compressed r }
   where
     hashes :: ByteString
     hashes = B.runPut $ B.put (iSourceHash i) >> B.put (iFullHash i)
@@ -276,20 +275,14 @@ decodeInterface s = do
        E.evaluate $
        let (ver, s', _) = runGetState B.get (L.drop 16 s) 0 in
        if ver /= currentInterfaceVersion
-       then Left "Wrong interface version."
-       else Right $
-            toLazyByteString $
-            Z.foldDecompressStreamWithInput
-              (\s -> (byteString s <>))
-              (\s -> if null s
-                     then mempty
-                     else error "Garbage at end.")
-              (\err -> error (show err))
-              (Z.decompressST Z.gzipFormat Z.defaultDecompressParams)
-              s'
+       then error "Wrong interface version."
+       else case Z.decompress (L.toStrict s') of
+         Z.Skip         -> error "decompression error"
+         Z.Error e      -> error e
+         Z.Decompress s -> pure s
 
   case s of
-    Right s  -> decode s
+    Right s  -> decode $ L.fromStrict s
     Left err -> do
       reportSLn "import.iface" 5 $
         "Error when decoding interface file: " ++ err

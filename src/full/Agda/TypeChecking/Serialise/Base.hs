@@ -5,7 +5,7 @@
 {-# LANGUAGE UndecidableInstances #-} -- Due to ICODE vararg typeclass
 {-# LANGUAGE PatternSynonyms      #-}
 
--- {-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+{-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
 
 {-
 András, 2023-10-2:
@@ -151,29 +151,23 @@ instance B.Binary Node where
     go 0 = pure N0
     go 1 = do
       !a <- B.get
-      pure $! N1 a
+      pure $! N1# a
     go 2 = do
-      !a <- B.get
-      !b <- B.get
-      pure $! N2 a b
+      !ab <- B.get
+      pure $! N2# ab
     go 3 = do
-      !a <- B.get
-      !b <- B.get
-      !c <- B.get
-      pure $! N3 a b c
+      !ab <- B.get
+      !c  <- B.get
+      pure $! N3# ab c
     go 4 = do
-      !a <- B.get
-      !b <- B.get
-      !c <- B.get
-      !d <- B.get
-      pure $! N4 a b c d
+      !ab <- B.get
+      !cd <- B.get
+      pure $! N4# ab cd
     go 5 = do
-      !a <- B.get
-      !b <- B.get
-      !c <- B.get
-      !d <- B.get
-      !e <- B.get
-      pure $! N5 a b c d e
+      !ab <- B.get
+      !cd <- B.get
+      !e  <- B.get
+      pure $! N5# ab cd e
     go n = do
       !x    <- B.get
       !node <- go (n - 1)
@@ -194,12 +188,10 @@ instance B.Binary Node where
     go :: Node -> B.Put
     go N0            = mempty
     go (N1# a)       = B.put a
-    go (N2# ab)      = let (a, b) = splitW64 ab in B.put a >> B.put b
-    go (N3# ab c)    = let (a, b) = splitW64 ab in B.put a >> B.put b >> B.put c
-    go (N4# ab cd)   = let (a, b) = splitW64 ab; (c, d) = splitW64 cd in
-                       B.put a >> B.put b >> B.put c >> B.put d
-    go (N5# ab cd e) = let (a, b) = splitW64 ab; (c, d) = splitW64 cd in
-                       B.put a >> B.put b >> B.put c >> B.put d >> B.put e
+    go (N2# ab)      = B.put ab
+    go (N3# ab c)    = B.put ab <> B.put c
+    go (N4# ab cd)   = B.put ab <> B.put cd
+    go (N5# ab cd e) = B.put ab <> B.put cd <> B.put e
     go ((:*:) n ns)  = B.put n <> go ns
 
 -- | Association lists mapping TypeRep fingerprints to values. In some cases
