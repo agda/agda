@@ -3,30 +3,33 @@
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
     , namedMetaOf
-    , showGoals
     , showInfoError
+    , prettyGoals
+    , prettyInfoError
     , explainWhyInScope
     , prettyResponseContext
     , prettyTypeOfMeta
     ) where
+
+import Prelude hiding (null)
 
 import Control.Monad
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.State    ( evalStateT )
 import Control.Monad.Trans    ( lift )
 
-import qualified Data.List as List
+import Data.List qualified as List
 import Data.Text qualified as Text
 
 import Agda.Syntax.Common
-import Agda.Syntax.Common.Pretty
+import Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Concrete as C
 
-import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, renderError, verbalize )
-import qualified Agda.TypeChecking.Pretty as TCP
+import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, verbalize, prettyError )
+import Agda.TypeChecking.Pretty qualified as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
-import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings)
+import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings')
 import Agda.TypeChecking.Monad
 
 import Agda.Interaction.AgdaTop
@@ -39,9 +42,10 @@ import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.Command (localStateCommandM)
 
-import Agda.Utils.DocTree ( treeToTextNoAnn )
-import Agda.Utils.Function (applyWhen)
-import Agda.Utils.Null (empty)
+import Agda.Utils.DocTree  ( treeToTextNoAnn )
+import Agda.Utils.Function ( applyWhen )
+import Agda.Utils.Functor  ( (<.>) )
+import Agda.Utils.Null
 import Agda.Utils.Maybe
 import Agda.Utils.String
 import Agda.Utils.Time (CPUTime)
@@ -164,45 +168,44 @@ lispifyDisplayInfo :: DisplayInfo -> TCM (Lisp String)
 lispifyDisplayInfo = \case
 
     Info_CompilationOk backend ws -> do
-      warnings <- prettyTCWarnings (tcWarnings ws)
-      errors <- prettyTCWarnings (nonFatalErrors ws)
+      warnings <- prettyTCWarnings' (tcWarnings ws)
+      errors   <- prettyTCWarnings' (nonFatalErrors ws)
       let
-        msg = concat
+        msg = hcat
           [ "The module was successfully compiled with backend "
-          , prettyShow backend
+          , pretty backend
           , ".\n"
           ]
       -- abusing the goals field since we ignore the title
-        (body, _) = formatWarningsAndErrors msg warnings errors
+        (_title, body) = formatWarningsAndErrors msg warnings errors
       format "*Compilation result*" body
 
     Info_Constraints s -> do
       doc <- TCP.vcat $ map prettyTCM s
-      format "*Constraints*" (render doc)
+      format "*Constraints*" doc
 
     Info_AllGoalsWarnings ms ws -> do
-      goals <- showGoals ms
-      warnings <- prettyTCWarnings (tcWarnings ws)
-      errors <- prettyTCWarnings (nonFatalErrors ws)
-      let (body, title) = formatWarningsAndErrors goals warnings errors
+      goals    <- prettyGoals ms
+      warnings <- prettyTCWarnings' (tcWarnings ws)
+      errors   <- prettyTCWarnings' (nonFatalErrors ws)
+      let (title, body) = formatWarningsAndErrors goals warnings errors
       format ("*All" ++ title ++ "*") body
 
     Info_Auto s ->
-      format "*Auto*" s
+      format "*Auto*" $ P.text s
 
     Info_Error err -> do
-      s <- showInfoError err
-      format "*Error*" s
+      format "*Error*" =<< prettyInfoError err
 
-    Info_Time s ->
-      format "*Time*" (render $ prettyTimed s)
+    Info_Time time ->
+      format "*Time*" $ prettyTimed time
 
     Info_NormalForm state cmode time expr -> do
       exprDoc <- evalStateT prettyExpr state
       let doc = maybe empty prettyTimed time $$ exprDoc
           lbl | cmode == HeadCompute = "*Head Normal Form*"
               | otherwise            = "*Normal Form*"
-      format lbl (render doc)
+      format lbl doc
       where
         prettyExpr = localStateCommandM
             $ lift
@@ -215,7 +218,7 @@ lispifyDisplayInfo = \case
     Info_InferredType state time expr -> do
       exprDoc <- evalStateT prettyExpr state
       let doc = maybe empty prettyTimed time $$ exprDoc
-      format "*Inferred Type*" (render doc)
+      format "*Inferred Type*" doc
       where
         prettyExpr = localStateCommandM
             $ lift
@@ -234,7 +237,7 @@ lispifyDisplayInfo = \case
           , "Names"
           , nest 2 $ align 10 typeDocs
           ]
-      format "*Module contents*" (render doc)
+      format "*Module contents*" doc
 
     Info_SearchAbout hits names -> do
       hitDocs <- forM hits $ \ (x, t) -> do
@@ -242,18 +245,18 @@ lispifyDisplayInfo = \case
         return (prettyShow x, ":" <+> doc)
       let doc = "Definitions about" <+>
                 text (List.intercalate ", " $ words names) $$ nest 2 (align 10 hitDocs)
-      format "*Search About*" (render doc)
+      format "*Search About*" doc
 
     Info_WhyInScope why -> do
       doc <- explainWhyInScope why
-      format "*Scope Info*" (render doc)
+      format "*Scope Info*" doc
 
     Info_Context ii ctx -> do
       doc <- localTCState (prettyResponseContext ii False ctx)
-      format "*Context*" (render doc)
+      format "*Context*" doc
 
     Info_Intro_NotFound ->
-      format "No introduction forms found." "*Intro*"
+      format "*Intro*" "No introduction forms found."
 
     Info_Intro_ConstructorUnknown ss -> do
       let doc = sep [ "Don't know which constructor to introduce of"
@@ -262,10 +265,10 @@ lispifyDisplayInfo = \case
                           mkOr (x:xs) = text x : mkOr xs
                       in nest 2 $ fsep $ punctuate comma (mkOr ss)
                     ]
-      format "*Intro*" (render doc)
+      format "*Intro*" doc
 
     Info_Version ->
-      format "*Agda Version*" ("Agda version " ++ versionWithCommitInfo)
+      format "*Agda Version*" ("Agda version" <+> text versionWithCommitInfo)
 
     Info_GoalSpecific ii kind ->
       lispifyGoalSpecificDisplayInfo ii kind
@@ -285,7 +288,7 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
 
     Goal_NormalForm cmode expr -> do
       doc <- showComputed cmode expr
-      format "*Normal Form*" (render doc)
+      format "*Normal Form*" doc
 
     Goal_GoalType norm aux ctx bndry constraints -> do
       ctxDoc <- prettyResponseContext ii True ctx
@@ -316,20 +319,21 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
         , TCP.text (replicate 60 '\x2014')
         , return ctxDoc
         ] ++ constraintsDoc
-      format "*Goal type etc.*" (render doc)
+      format "*Goal type etc.*" doc
 
     Goal_CurrentGoal norm -> do
       doc <- prettyTypeOfMeta norm ii
-      format "*Current Goal*" (render doc)
+      format "*Current Goal*" doc
 
     Goal_InferredType expr -> do
       doc <- prettyATop expr
-      format "*Inferred Type*" (render doc)
+      format "*Inferred Type*" doc
 
 -- | Format responses of DisplayInfo
 
-format :: String -> String -> TCM (Lisp String)
-format header content = return $ displayInfo False header content
+format :: String -> Doc -> TCM (Lisp String)
+format header content = return $
+  displayInfo False header $ render content
 
 -- | Adds a \"last\" tag to a response.
 
@@ -343,53 +347,53 @@ showNumIId = A . show . interactionId
 
 --------------------------------------------------------------------------------
 
--- | Given strings of goals, warnings and errors, return a pair of the
---   body and the title for the info buffer
-formatWarningsAndErrors :: String -> String -> String -> (String, String)
-formatWarningsAndErrors g w e = (body, title)
+-- | Given goals, warnings and errors, return a pair of the
+--   title and the body for the info buffer.
+formatWarningsAndErrors :: Doc -> [Doc] -> [Doc] -> (String, Doc)
+formatWarningsAndErrors g ws es = (title, body)
   where
     isG = not $ null g
-    isW = not $ null w
-    isE = not $ null e
-    title = List.intercalate "," $ catMaybes
-              [ " Goals"    <$ guard isG
-              , " Errors"   <$ guard isE
-              , " Warnings" <$ guard isW
-              , " Done"     <$ guard (not (isG || isW || isE))
-              ]
+    isW = not $ null ws
+    isE = not $ null es
+    title = List.intercalate "," $ concat
+      [ [ " Goals"    | isG ]
+      , [ " Errors"   | isE ]
+      , [ " Warnings" | isW ]
+      , [ " Done"     | not (isG || isW || isE) ]
+      ]
+    body = vcat $ concat
+      [ [ g ]
+      , [ text $ delimiter "Error"    | isE && (isG || isW) ]
+      , es
+      , [ text $ delimiter "Warnings" | isW && (isG || isE) ]
+      , ws
+      ]
 
-    body = List.intercalate "\n" $ catMaybes
-             [ g                    <$ guard isG
-             , delimiter "Error"    <$ guard (isE && (isG || isW))
-             , e                    <$ guard isE
-             , delimiter "Warnings" <$ guard (isW && (isG || isE))
-             , w                    <$ guard isW
-             ]
-
-
--- | Serializing Info_Error
+-- | Serializing 'Info_Error'.
 showInfoError :: Info_Error -> TCM String
-showInfoError = \case
+showInfoError = render <.> prettyInfoError
+
+prettyInfoError :: Info_Error -> TCM Doc
+prettyInfoError = \case
 
   Info_GenericError err -> do
-    e <- renderError err
-    w <- prettyTCWarnings =<< getAllWarningsOfTCErr err
-    let (body, _) = formatWarningsAndErrors "" w e
+    e  <- prettyError err
+    ws <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
+    let (_title, body) = formatWarningsAndErrors empty ws [e]
     return body
 
   Info_CompilationError warnings -> do
-    s <- prettyTCWarnings warnings
-    return $ unlines
-      [ "You need to fix the following errors before you can compile the module:"
-      , ""
-      , s
-      ]
+    docs <- prettyTCWarnings' warnings
+    return $ vcat $
+      "You need to fix the following errors before you can compile the module:" :
+      "" :
+      docs
 
   Info_HighlightingParseError ii ->
-    return $ "Highlighting failed to parse expression in " ++ show ii
+    return $ "Highlighting failed to parse expression in" <+> pretty ii
 
   Info_HighlightingScopeCheckError ii ->
-    return $ "Highlighting failed to scope check expression in " ++ show ii
+    return $ "Highlighting failed to scope check expression in" <+> pretty ii
 
 -- | Pretty-prints the context of the given meta-variable.
 

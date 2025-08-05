@@ -827,20 +827,20 @@ getGoals' normVisible normHidden = do
   return (visibleMetas, hiddenMetas)
 
 -- | Print open metas nicely.
-showGoals :: Goals -> TCM String
-showGoals (ims, hms) = do
+prettyGoals :: Goals -> TCM Doc
+prettyGoals (ims, hms) = do
   di <- forM ims $ \ i ->
     withInteractionId (outputFormId $ OutputForm noRange [] alwaysUnblock i) $
       prettyATop i
-  dh <- mapM showA' hms
-  return $ unlines $ map show di ++ dh
+  dh <- mapM pr hms
+  return $ vcat $ di ++ dh
   where
-    showA' :: OutputConstraint A.Expr NamedMeta -> TCM String
-    showA' m = do
+    pr :: OutputConstraint A.Expr NamedMeta -> TCM Doc
+    pr m = do
       let i = nmid $ namedMetaOf m
       r <- getMetaRange i
       d <- withMetaId i (prettyATop m)
-      return $ show d ++ "  [ at " ++ prettyShow r ++ " ]"
+      return $ d <+> "[ at" <+> pretty r <+> "]"
 
 getWarningsAndNonFatalErrors :: TCM WarningsAndNonFatalErrors
 getWarningsAndNonFatalErrors = do

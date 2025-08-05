@@ -86,7 +86,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TheTypeChecker
 
-import Agda.Interaction.BasicOps ( getGoals, showGoals )
+import Agda.Interaction.BasicOps ( getGoals, prettyGoals )
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
 import qualified Agda.Interaction.Highlighting.Precise as Highlighting ( convert )
@@ -1254,7 +1254,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     openMetas <- getOpenMetas
     unless (null openMetas) $ do
       reportSLn "import.metas" 10 $ prettyShow mname ++ ": We have unsolved metas."
-      reportSLn "import.metas" 10 =<< showGoals =<< getGoals
+      reportSDoc "import.metas" 10 $ prettyGoals =<< getGoals
 
     ifTopLevelAndHighlightingLevelIs NonInteractive printUnsolvedInfo
 
