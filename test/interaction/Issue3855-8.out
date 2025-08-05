@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : Set ?1 : Set ?2 : Set ?3 : Set " nil)
+(agda2-info-action "*All Goals*" "?0 : Set ?1 : Set ?2 : Set ?3 : Set" nil)
 ((last . 1) . (agda2-goals-action '(0 1 2 3)))
 (agda2-status-action "")
 (agda2-info-action "*Goal type etc.*" "Goal: Set ———————————————————————————————————————————————————————————— E : Set (shape-irrelevant) D : Set (erased, irrelevant) C : Set (irrelevant) B : Set (erased) A : Set E = E₁ : Set (not in scope, shape-irrelevant) D = D₁ : Set (not in scope, erased, irrelevant) C = C₁ : Set (not in scope, irrelevant) B = B₁ : Set (not in scope, erased) A = A₁ : Set (not in scope)" nil)
