@@ -1558,8 +1558,10 @@ data Constraint
     -- ^ Resolve the head symbol of the type that the given instance targets
   | CheckFunDef A.DefInfo QName [A.Clause] TCErr
     -- ^ Last argument is the error causing us to postpone.
-  | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
-  | CheckLockedVars Term Type (Arg Term) Type     -- ^ @CheckLockedVars t ty lk lk_ty@ with @t : ty@, @lk : lk_ty@ and @t lk@ well-typed.
+  | UnquoteTactic Term Term Type
+    -- ^ First argument is computation and the others are hole and goal type.
+  | CheckLockedVars Term Type (Arg Term) Type
+    -- ^ @CheckLockedVars t ty lk lk_ty@ with @t : ty@, @lk : lk_ty@ and @t lk@ well-typed.
   | UsableAtModality WhyCheckModality (Maybe Sort) Modality Term
     -- ^ Is the term usable at the given modality?
     -- This check should run if the @Sort@ is @Nothing@ or @isFibrant@.

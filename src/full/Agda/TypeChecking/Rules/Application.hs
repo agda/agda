@@ -83,12 +83,6 @@ import Agda.Utils.Singleton (singleton)
 -- | Ranges of checked arguments, where present.
 type MaybeRanges = [Maybe Range]
 
-acElims :: ArgsCheckState a -> [Elim]
-acElims = map caElim . acCheckedArgs
-
-acRanges :: ArgsCheckState a -> MaybeRanges
-acRanges = map caRange . acCheckedArgs
-
 setACElims :: [Elim] -> ArgsCheckState a -> ArgsCheckState a
 setACElims es st = st{ acCheckedArgs = go es (acCheckedArgs st) }
   where
@@ -96,14 +90,12 @@ setACElims es st = st{ acCheckedArgs = go es (acCheckedArgs st) }
     go (e : es) (ca : cas) = ca{ caElim = e } : go es cas
     go _ _ = __IMPOSSIBLE__
 
--- | A checked argument without constraint or range.
-defaultCheckedArg :: Elim -> CheckedArg
-defaultCheckedArg e = CheckedArg { caElim = e, caRange = Nothing, caConstraint = Nothing }
-
 -----------------------------------------------------------------------------
 -- * Applications
 -----------------------------------------------------------------------------
 
+-- | Extract the "head constraints" (currently lock constraints 'CheckLockedVars')
+--   from the application checker (final) state.
 acHeadConstraints :: (Elims -> Term) -> ArgsCheckState a -> [Constraint]
 acHeadConstraints hd = go hd . acCheckedArgs
   where
@@ -113,10 +105,12 @@ acHeadConstraints hd = go hd . acCheckedArgs
       CheckedArg e _ mc : cas -> applyWhenJust mc (\ c -> (lazyAbsApp c (hd []) :)) $
         go (hd . (e :)) cas
 
+-- | Check the "head constraints" (currently lock constraints 'CheckLockedVars')
+--   accumulated during checking of an application.
 checkHeadConstraints :: (Elims -> Term) -> ArgsCheckState a -> TCM Term
 checkHeadConstraints hd st = do
-  mapM_ solveConstraint_ (acHeadConstraints hd st)
-  return $ hd (acElims st)
+  mapM_ solveConstraint_ $ acHeadConstraints hd st
+  return $ hd $ map caElim $ acCheckedArgs st
 
 
 -- | @checkApplication hd args e t@ checks an application.
@@ -589,9 +583,9 @@ checkArgumentsE' S{ sArgs = [], .. }
 checkArgumentsE' S{ sArgs = [], .. } =
   traceCallE (CheckArguments sFun [] sFunType sResultType) $ lift $ do
     sResultType <- traverse (unEl <.> reduce) sResultType
-    (us, t)     <- implicitArgs (-1) (expand sResultType) sFunType
+    (ncargs, t) <- implicitCheckedArgs (-1) (\ h _x -> expand sResultType h) sFunType
     return $ ACState
-      { acCheckedArgs = map (defaultCheckedArg . Apply) us
+      { acCheckedArgs = map namedThing ncargs
       , acFun         = sFun
       , acType        = t
       , acData        = sChecked
@@ -628,14 +622,14 @@ checkArgumentsE'
           -- insert an instance argument if arg is not instance  or has different name
           expand hy        y = not (sameHiding hy hx) || maybe False (y /=) mx
       reportSDoc "tc.term.args" 30 $ vcat
-        [ "calling implicitNamedArgs"
+        [ "calling implicitCheckedArgs"
         , nest 2 $ "hx       = " <+> text (show hx)
         , nest 2 $ "mx       = " <+> maybe "nothing" prettyTCM mx
         ]
-      (nargs, sFunType) <- lift $ implicitNamedArgs (-1) expand sFunType
+      (ncargs, sFunType) <- lift $ implicitCheckedArgs (-1) expand sFunType
       -- Separate names from args.
-      let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Apply $ Arg ai u)) nargs
-          xs        = catMaybes mxs
+      let (mxs, cargs) = List.unzipWith (\ (Named mx ca) -> (mx, ca)) ncargs
+          xs           = catMaybes mxs
 
       -- We need a function type here, but we don't know which kind
       -- (implicit/explicit). But it might be possible to use injectivity to
@@ -645,7 +639,7 @@ checkArgumentsE'
       -- We are done inserting implicit args.  Now, try to check @arg@.
       ifBlocked sFunType
         (\ _ sFunType -> throwError $ ACState
-            { acCheckedArgs = map defaultCheckedArg us
+            { acCheckedArgs = cargs
             , acFun         = sFun
             , acType        = sFunType
             , acData        = map fst sArgs
@@ -794,19 +788,10 @@ checkArgumentsE'
                   let e' = e { nameOf = (nameOf e) <|> dname }
                   checkNamedArg (Arg info' e') a
 
-                let
-                  c = case getLock info' of
-                    IsLock{} -> Just $ Abs "t" $
-                        CheckLockedVars (Var 0 []) (raise 1 sFunType)
-                          (raise 1 $ Arg info' u) (raise 1 a)
-                    _ -> Nothing
-                lift $ reportSDoc "tc.term.lock" 40 $ text "lock =" <+> text (show $ getLock info')
-                lift $ reportSDoc "tc.term.lock" 40 $
-                  addContext (defaultDom $ sFunType) $
-                  maybe (text "nothing") (prettyTCM . absBody) c
+                c <- lift $ makeLockConstraint sFunType u
                 -- save relevance info' from domain in argument
                 let ca = CheckedArg{ caElim = Apply (Arg info' u), caRange = Just (getRange e), caConstraint = c }
-                addCheckedArgs us ca $
+                addCheckedArgs cargs ca $
                   checkArgumentsE' s{ sFunType = absApp b u }
             | otherwise -> do
                 reportSDoc "error" 10 $ nest 2 $ vcat
@@ -826,22 +811,21 @@ checkArgumentsE'
                      , caRange      = Just (getRange e)
                      , caConstraint = Nothing
                      }
-                addCheckedArgs us ca $
+                addCheckedArgs cargs ca $
                   checkArgumentsE'
                     s{ sChecked = NotCheckedTarget
                      , sFunType = El sort $ unArg bA `apply` [argN u]
                      }
           _ -> shouldBePi
   where
-    -- Andrea: Here one would add constraints too.
     addCheckedArgs ::
-         Elims
+         [CheckedArg]
       -> CheckedArg
       -> CheckArgumentsE'
       -> CheckArgumentsE'
-    addCheckedArgs us ca cont = do
+    addCheckedArgs cas ca cont = do
       let upd :: ArgsCheckState a -> ArgsCheckState a
-          upd st = st{ acCheckedArgs = map defaultCheckedArg us ++ ca : acCheckedArgs st }
+          upd st = st{ acCheckedArgs = cas ++ ca : acCheckedArgs st }
       -- Add checked arguments to both regular and exceptional result of @cont@.
       withError upd $ upd <$> cont
 
@@ -916,11 +900,9 @@ checkArguments_ cmp exh fun args tel = postponeInstanceConstraints $ do
       checkArgumentsE cmp exh fun args (telePi tel __DUMMY_TYPE__) Nothing
     case z of
       Right (ACState cas _ t _) -> do
-        unless (all (isNothing . caConstraint) cas) do
-          typeError $ NotSupported $
-            "Head constraints are not (yet) supported in this position."
+        es <- noHeadConstraints cas
         let TelV tel' _ = telView' t
-        return (map caElim cas, tel')
+        return (es, tel')
       Left _ -> __IMPOSSIBLE__  -- type cannot be blocked as it is generated by telePi
 
 -- | @checkArguments cmp exph hd args t0 t k@ tries @checkArgumentsE cmp exph hd args t0 t@.
