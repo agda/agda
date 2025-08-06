@@ -8,16 +8,19 @@
       inputs.flake-parts.lib.mkFlake { inputs = inputs; } {
     # Support all the OSes
     systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-    perSystem = {pkgs, ...}: let
+    perSystem = { system, pkgs, ... }: let
       hlib = pkgs.haskell.lib.compose;
       hpkgs = pkgs.haskell.packages.ghc910; # pqueue fails with ghc912
       fs = pkgs.lib.fileset;
 
-      # Minimal nix code for building the `agda` executable.
-      # GHC & Haskell libraries are taken from the nixpkgs snapshot.
-      agda-pkg-minimal = hpkgs.developPackage {
+      # An overlay for the Haskell package set that adds various builds of Agda
+      # and replaces `Agda` with a default one.
+      agdaOverrides = hpkgs: hprev: {
+        # Minimal nix code for building the `agda` executable.
+        # GHC & Haskell libraries are taken from the nixpkgs snapshot.
+        Agda-minimal = hpkgs.developPackage {
           # N.B. this nix code never calls the `cabal` executable,
-          # instead `hpkgs.developPackage` compiles Setup.hs with ghc
+          # instead `developPackage` compiles Setup.hs with ghc
           # then runs ./Setup several times. This is implemented at
           # https://github.com/NixOS/nixpkgs/blob/a781ff33ae/pkgs/development/haskell-modules/generic-builder.nix
 
@@ -51,10 +54,10 @@
           });
         };
 
-      # Various builds of Agda
+        # Various builds of Agda
 
-      # Basic build (no debugging information)
-      agda-pkg = hlib.overrideCabal (drv: {
+        # Basic build (no debugging information)
+        Agda-base = hlib.overrideCabal (drv: {
           # These settings are documented at
           # https://nixos.org/manual/nixpkgs/unstable/#haskell-mkderivation
 
@@ -79,43 +82,47 @@
           configureFlags = drv.configureFlags or [] ++ [
             "--ghc-option=-Wwarn=deprecations"
           ];
-        }) agda-pkg-minimal;
+        }) hpkgs.Agda-minimal;
 
-      # An even faster Agda build, achieved by asking GHC to optimize less
-      agda-pkg-quicker =
-        # `appendConfigureFlag` passes a raw argument to ./Setup
-        hlib.appendConfigureFlag "-O0" agda-pkg;
+        # An even faster Agda build, achieved by asking GHC to optimize less
+        Agda-quicker =
+          # `appendConfigureFlag` passes a raw argument to ./Setup
+          hlib.appendConfigureFlag "-O0" hpkgs.Agda-base;
 
-      # No-output Agda build (type check only)
-      agda-pkg-tc =
-        hlib.appendConfigureFlags ["--ghc-option" "-fno-code"] agda-pkg-quicker;
+        # No-output Agda build (type check only)
+        Agda-tc =
+          hlib.appendConfigureFlags ["--ghc-option" "-fno-code"] hpkgs.Agda-quicker;
 
-      # Agda supporting the `-v` option
-      agda-pkg-debug = hlib.enableCabalFlag "debug" agda-pkg;
+        # Agda supporting the `-v` option
+        Agda-debug = hlib.enableCabalFlag "debug" hpkgs.Agda-base;
 
-      # Development environment with tools for hacking on agda
-      agda-dev-shell = hpkgs.shellFor {
-        # Which haskell packages to prepare a dev env for
-        packages = _: [agda-pkg];
-        # Extra software to provide in the dev shell
-        nativeBuildInputs = [
-            # Tools for building agda
-            pkgs.cabal-install
-            pkgs.haskell-language-server
-            pkgs.icu
-            hpkgs.fix-whitespace
-            # Tools for building the agda docs
-            (pkgs.python3.withPackages (py3pkgs: [
-              py3pkgs.sphinx
-              py3pkgs.sphinx_rtd_theme
-            ]))
-            # Tools for running the agda test-suite
-            pkgs.nodejs_22
-          ];
+        # Use a debug-enabled build by default.
+        Agda = hpkgs.Agda-debug;
 
-        # Include an offline-usable `hoogle` command
-        # pre-loaded with all the haskell dependencies
-        withHoogle = true;
+        # Development environment with tools for hacking on agda
+        Agda-dev-shell = hpkgs.shellFor {
+          # Which haskell packages to prepare a dev env for
+          packages = h: [h.Agda];
+          # Extra software to provide in the dev shell
+          nativeBuildInputs = [
+              # Tools for building agda
+              pkgs.cabal-install
+              pkgs.haskell-language-server
+              pkgs.icu
+              hpkgs.fix-whitespace
+              # Tools for building the agda docs
+              (pkgs.python3.withPackages (py3pkgs: [
+                py3pkgs.sphinx
+                py3pkgs.sphinx_rtd_theme
+              ]))
+              # Tools for running the agda test-suite
+              pkgs.nodejs_22
+            ];
+
+          # Include an offline-usable `hoogle` command
+          # pre-loaded with all the haskell dependencies
+          withHoogle = true;
+        };
       };
 
       # Makefile targets to run
@@ -169,15 +176,15 @@
           hpkgs.fix-whitespace  # For Makefile's `check-whitespace` target
           hpkgs.ghc             # For agda-tests's Compiler.Tests
           pkgs.nodejs_22        # For agda-tests's Compiler.Tests
-          agda-pkg-debug        # For manual testing with `agda` and `agda-tests`
+          hpkgs.Agda            # For manual testing with `agda` and `agda-tests`
         ];
-        AGDA_BIN="${pkgs.lib.getBin agda-pkg-debug}/bin/agda";
-        AGDA_TESTS_BIN="${pkgs.lib.getBin agda-pkg-debug}/bin/agda-tests";
-        LC_ALL="C.UTF-8";   # Support Unicode
+        AGDA_BIN = "${pkgs.lib.getBin hpkgs.Agda}/bin/agda";
+        AGDA_TESTS_BIN = "${pkgs.lib.getBin hpkgs.Agda}/bin/agda-tests";
+        LC_ALL = "C.UTF-8"; # Support Unicode
         buildPhase = ''
           set -euo pipefail
           make ${target} | tee $name
-          '';
+        '';
         installPhase = ''
           mkdir $out
           cp $name $out
@@ -191,27 +198,36 @@
       };
 
     in {
-      packages = {
-        default    = agda-pkg-debug;  # Entry point for `nix build`
-        base       = agda-pkg;        # Entry point for `nix build .#base`
-        quicker    = agda-pkg-quicker;# Entry point for `nix build .#quicker`
-        debug      = agda-pkg-debug;  # Entry point for `nix build .#debug`
-        type-check = agda-pkg-tc;     # Entry point for `nix build .#type-check`
-        test       = all-test-results;# Entry point for `nix build .#test`
-      } // pkgs.lib.listToAttrs (pkgs.lib.forEach test-suites (target: {
-          name = target; # Entry point for e.g. `nix build .#compiler-test`
-          value = test-results-for target;
-        }));
-      devShells.default   = agda-dev-shell;  # Entry point for `nix develop`
+      # Apply our overlay to the `pkgs` argument.
+      _module.args.pkgs = import inputs.nixpkgs {
+        inherit system;
+        overlays = [
+          (final: prev: {
+            haskell = prev.haskell // {
+              packageOverrides = pkgs.lib.composeExtensions prev.haskell.packageOverrides agdaOverrides;
+            };
+          })
+        ];
+      };
 
-      # Allow users to set this flake's agda as a drop-in replacement for nixpkgs's agda
+      packages = {
+        default    = hpkgs.Agda;         # Entry point for `nix build`
+        base       = hpkgs.Agda-base;    # Entry point for `nix build .#base`
+        quicker    = hpkgs.Agda-quicker; # Entry point for `nix build .#quicker`
+        debug      = hpkgs.Agda-debug;   # Entry point for `nix build .#debug`
+        type-check = hpkgs.Agda-tc;      # Entry point for `nix build .#type-check`
+        test       = all-test-results;   # Entry point for `nix build .#test`
+      } // pkgs.lib.listToAttrs (pkgs.lib.forEach test-suites (target: {
+        name = target; # Entry point for e.g. `nix build .#compiler-test`
+        value = test-results-for target;
+      }));
+      devShells.default = hpkgs.Agda-dev-shell;  # Entry point for `nix develop`
+
+      # Allow users to set this flake's Agda as a drop-in replacement for nixpkgs's Agda
       # (including as a dependency of other nixpkgs packages)
       # See https://flake.parts/overlays for more info
       overlayAttrs.haskell = pkgs.haskell // {
-        packageOverrides = pkgs.lib.composeExtensions pkgs.haskell.packageOverrides
-          (hfinal: hprev: {
-            Agda = agda-pkg-debug;
-          });
+        packageOverrides = pkgs.lib.composeExtensions pkgs.haskell.packageOverrides agdaOverrides;
       };
     };
 
