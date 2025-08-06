@@ -34,8 +34,8 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
 
-checkLockedVars
-  :: Term
+checkLockedVars ::
+     Term
      -- ^ term to check
   -> Type
      -- ^ its type
@@ -44,15 +44,23 @@ checkLockedVars
   -> Type
      -- ^ type of the lock
   -> TCM ()
-checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) $ do
+checkLockedVars t ty lk lk_ty = do
   -- Have to instantiate the lock, otherwise we might block on it even
   -- after it's been solved (e.g.: it's an interaction point, see #6528)
   -- Update (Andreas, 2023-10-23, issue #6913): need even full instantiation.
   -- Since @lk@ is typically just a variable, 'instantiateFull' is not expensive here.
   -- In #6913 it was a postulate applied to a meta, thus, 'instantiate' was not enough.
   lk <- instantiateFull lk
+  catchConstraint (CheckLockedVars t ty lk lk_ty) do
+
   reportSDoc "tc.term.lock" 40 $ "Checking locked vars.."
-  reportSDoc "tc.term.lock" 50 $ nest 2 $ vcat
+  reportSDoc "tc.term.lock" 45 $ nest 2 $ vcat
+     [ text "t     = " <+> prettyTCM t
+     , text "ty    = " <+> prettyTCM ty
+     , text "lk    = " <+> prettyTCM lk
+     , text "lk_ty = " <+> prettyTCM lk_ty
+     ]
+  reportSDoc "tc.term.lock" 80 $ nest 2 $ vcat
      [ text "t     = " <+> pretty t
      , text "ty    = " <+> pretty ty
      , text "lk    = " <+> pretty lk
@@ -64,7 +72,6 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
   caseMaybe mi (typeError (DoesNotMentionTicks t ty lk)) $ \ i -> do
 
   cxt <- getContext
-  let toCheck = zip [0..] $ zipWith raise [1..] (take i cxt)
 
   let fv = freeVarsIgnore IgnoreInAnnotations (t,ty)
   let
@@ -74,6 +81,7 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
     earlierVars = VarSet.range i (size cxt)
   if termVars `VarSet.isSubsetOf` earlierVars then return () else do
 
+  let toCheck = zip [0..] $ zipWith raise [1..] (take i cxt)
   checked <- fmap catMaybes . forM toCheck $ \ (j,ce) -> do
     ifM (isTimeless (ctxEntryType ce))
         (return $ Just j)
