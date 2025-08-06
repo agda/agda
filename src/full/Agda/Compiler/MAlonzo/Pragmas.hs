@@ -8,6 +8,9 @@ import Data.Maybe
 import Data.Char
 import qualified Data.List as List
 import qualified Data.Map as Map
+import Data.Set (Set)
+import Data.Set qualified as Set
+
 import Text.ParserCombinators.ReadP
 
 import Agda.Syntax.Position
@@ -27,6 +30,12 @@ import Agda.Utils.String ( ltrim )
 import Agda.Utils.Three
 
 import Agda.Utils.Impossible
+
+-- | Raw Haskell pragma (something enclosed in @{-# ... #-}@).
+type GHCPragma = String
+
+-- | Raw Haskell import (something starting with @import @).
+type GHCImport = String
 
 type HaskellCode = String
 type HaskellType = String
@@ -212,10 +221,12 @@ getHaskellConstructor c = do
 
 -- | Get content of @FOREIGN GHC@ pragmas, sorted by 'KindOfForeignCode':
 --   file header pragmas, import statements, rest.
-foreignHaskell :: Interface -> ([String], [String], [String])
-foreignHaskell = partitionByKindOfForeignCode classifyForeign
-    . map getCode . maybe [] (reverse . getForeignCodeStack) . Map.lookup ghcBackendName . iForeignCode
-  where getCode (ForeignCode _ code) = code
+foreignHaskell :: Interface -> (Set GHCPragma, Set GHCImport, [HaskellCode])
+foreignHaskell i = (Set.fromList pragmas, Set.fromList imports, reverse revCode)
+  where
+    getCode (ForeignCode _ code) = code
+    (pragmas, imports, revCode) = partitionByKindOfForeignCode classifyForeign
+      . map getCode . maybe [] getForeignCodeStack . Map.lookup ghcBackendName . iForeignCode $ i
 
 -- | Classify @FOREIGN@ Haskell code.
 data KindOfForeignCode

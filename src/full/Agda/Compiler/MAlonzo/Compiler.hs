@@ -424,34 +424,91 @@ ghcPostModule
   -> TCM GHCModule
 ghcPostModule cenv menv _isMain _moduleName ghcDefs = do
   builtinThings <- getsTC stBuiltinThings
-
-  -- Accumulate all of the modules, definitions, declarations, etc.
-  let (usedFloat, decls, defs, mainDefs, usedModules) = mconcat $
-        (\(GHCDefinition useFloat' decls' def' md' imps')
-         -> (useFloat', decls', [def'], maybeToList md', imps'))
-        <$> ghcDefs
-
-  let
-    imps = concat
-      [ mazRTEFloatImport usedFloat
-      , imports builtinThings usedModules defs
-      , [ hsImportDebugTrace | optGhcTrace (ghcEnvOpts cenv) ]
-      ]
-
   i <- curIF
 
-  -- Get content of FOREIGN pragmas.
-  let (headerPragmas, hsImps, code) = foreignHaskell i
+  let
+    -- Accumulate all of the modules, definitions, declarations, etc.
+    (usedFloat, decls, defs, mainDefs, usedModules) = mconcat $ ghcDefs <&>
+       \ (GHCDefinition useFloat' decls' def' md' imps') ->
+           (useFloat', decls', [def'], maybeToList md', imps')
+
+    -- Builtins used in the definitions.
+    actuallyUsedBuiltins = usedBuiltins builtinThings defs
+    useBuiltinFloat = any (`Set.member` actuallyUsedBuiltins) floatBuiltins
+    useBuiltinChar  = any (`Set.member` actuallyUsedBuiltins) charBuiltins
+
+    -- Get content of FOREIGN pragmas.
+    (headerPragmas, hsImps, code) = foreignHaskell i
+
+    -- MAlonzo.* imports
+    mazImports :: [HS.ImportDecl]
+    mazImports = concat
+      [ rteImports
+      , mazRTEFloatImport (usedFloat <> UsesFloat useBuiltinFloat)
+      , moduleImports usedModules
+      ]
+
+    -- Other imports, from FOREIGN pragmas and builtins.
+    -- The needed Haskell modules might be duplicated by FOREIGN imports
+    -- so we render them as strings and merge them with the latter,
+    -- to remove duplicates.
+    haskellImports :: [GHCImport]
+    haskellImports = Set.toAscList $ Set.union hsImps $ Set.fromList $ map prettyPrint $ concat
+      [ [ hsImportDebugTrace | optGhcTrace (ghcEnvOpts cenv) ]
+      , [ HS.qualifiedImport $ HS.ModuleName "Data.Char" | useBuiltinChar ]
+      , [ HS.qualifiedImport $ HS.ModuleName "Data.Text" ]
+      ]
 
   flip runReaderT menv $ do
     hsModuleName <- curHsMod
     writeModule $ HS.Module
       hsModuleName
-      (map HS.OtherPragma $ List.nub headerPragmas)
-      imps
-      (map fakeDecl (List.nub hsImps ++ code) ++ decls)
+      (map HS.OtherPragma $ Set.toAscList headerPragmas)
+      -- The MAlonzo.Code modules make proper import declarations in the AST.
+      mazImports
+      -- The other imports are already rendered to strings.
+      (map fakeDecl (haskellImports ++ code) ++ decls)
 
   return $ GHCModule menv mainDefs
+
+-- Imports ---------------------------------------------------------------
+
+-- | Imports for the runtime environment (RTE).
+
+rteImports :: [HS.ImportDecl]
+rteImports = [unqualRTE, HS.qualifiedImport mazRTE]
+  where
+  unqualRTE :: HS.ImportDecl
+  unqualRTE = HS.ImportDecl mazRTE False $ Just $ (False,) $ map (HS.IVar . HS.Ident) $
+    [mazCoerceName, mazErasedName, mazAnyTypeName] ++
+    map treelessPrimName
+      [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEqI,
+       T.PAdd64, T.PSub64, T.PMul64, T.PQuot64, T.PRem64, T.PLt64, T.PEq64,
+       T.PITo64, T.P64ToI] -- Excludes T.PEqF, which is defined in MAlonzo.RTE.Float
+
+-- | Imports of the compiled Agda modules, ordered alphabetically.
+
+moduleImports :: Set TopLevelModuleName -> [HS.ImportDecl]
+moduleImports = map (HS.qualifiedImport . mazMod') . List.sort . map prettyShow . Set.elems
+
+-- | Should we import @MAlonzo.RTE.Float@?
+newtype UsesFloat = UsesFloat Bool deriving (Eq, Show)
+
+pattern YesFloat :: UsesFloat
+pattern YesFloat = UsesFloat True
+
+pattern NoFloat :: UsesFloat
+pattern NoFloat = UsesFloat False
+
+instance Semigroup UsesFloat where
+  UsesFloat a <> UsesFloat b = UsesFloat (a || b)
+
+instance Monoid UsesFloat where
+  mempty  = NoFloat
+  mappend = (<>)
+
+mazRTEFloatImport :: UsesFloat -> [HS.ImportDecl]
+mazRTEFloatImport (UsesFloat b) = [ HS.qualifiedImport mazRTEFloat | b ]
 
 hsImportDebugTrace :: HS.ImportDecl
 hsImportDebugTrace = HS.ImportDecl
@@ -459,6 +516,8 @@ hsImportDebugTrace = HS.ImportDecl
   , importQualified = True
   , importSpecs     = Just (False, [ HS.IVar $ HS.Ident "trace" ])
   }
+
+-- Compilation ------------------------------------------------------------
 
 ghcCompileDef :: GHCEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM GHCDefinition
 ghcCompileDef _cenv menv _isMain def = do
@@ -476,56 +535,6 @@ ghcMayEraseType q = getHaskellPragma q <&> \case
   -- Haskell unit type.
   Just HsData{} -> False
   _ -> True
-
--- Compilation ------------------------------------------------------------
-
-imports ::
-  BuiltinThings -> Set TopLevelModuleName -> [Definition] ->
-  [HS.ImportDecl]
-imports builtinThings usedModules defs = hsImps ++ imps where
-  hsImps :: [HS.ImportDecl]
-  hsImps = [unqualRTE, decl mazRTE]
-
-  unqualRTE :: HS.ImportDecl
-  unqualRTE = HS.ImportDecl mazRTE False $ Just $
-              (False, [ HS.IVar $ HS.Ident x
-                      | x <- [mazCoerceName, mazErasedName, mazAnyTypeName] ++
-                             map treelessPrimName rtePrims ])
-
-  rtePrims = [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEqI,
-              T.PAdd64, T.PSub64, T.PMul64, T.PQuot64, T.PRem64, T.PLt64, T.PEq64,
-              T.PITo64, T.P64ToI] -- Excludes T.PEqF, which is defined in MAlonzo.RTE.Float
-
-  imps :: [HS.ImportDecl]
-  imps = map decl $ uniq $ importsForPrim builtinThings defs ++ map mazMod mnames
-
-  decl :: HS.ModuleName -> HS.ImportDecl
-  decl m = HS.ImportDecl m True Nothing
-
-  mnames :: [TopLevelModuleName]
-  mnames = Set.elems usedModules
-
-  uniq :: [HS.ModuleName] -> [HS.ModuleName]
-  uniq = List.map List1.head . List1.group . List.sort
-
--- Should we import MAlonzo.RTE.Float
-newtype UsesFloat = UsesFloat Bool deriving (Eq, Show)
-
-pattern YesFloat :: UsesFloat
-pattern YesFloat = UsesFloat True
-
-pattern NoFloat :: UsesFloat
-pattern NoFloat = UsesFloat False
-
-instance Semigroup UsesFloat where
-  UsesFloat a <> UsesFloat b = UsesFloat (a || b)
-
-instance Monoid UsesFloat where
-  mempty  = NoFloat
-  mappend = (<>)
-
-mazRTEFloatImport :: UsesFloat -> [HS.ImportDecl]
-mazRTEFloatImport (UsesFloat b) = [ HS.ImportDecl mazRTEFloat True Nothing | b ]
 
 --------------------------------------------------
 -- Main compiling clauses
