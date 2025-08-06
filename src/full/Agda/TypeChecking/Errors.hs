@@ -1432,36 +1432,49 @@ instance PrettyTCM TypeError where
 
     ReferencesFutureVariables term (disallowed :| _) lock leftmost
       | disallowed == leftmost
-      -> fsep $ pwords "The lock variable"
-             ++ pure (prettyTCM =<< nameOfBV disallowed)
-             ++ pwords "can not appear simultaneously in the \"later\" term"
-             ++ pure (prettyTCM term)
-             ++ pwords "and in the lock term"
-             ++ pure (prettyTCM lock <> ".")
+      -> fsep $ concat
+           [ pwords "The lock variable"
+           , [ prettyTCM =<< nameOfBV disallowed ]
+           , pwords "can not appear simultaneously in the \"later\" term"
+           , [ prettyTCM term ]
+           , pwords "and in the lock term"
+           , [ prettyTCM lock <> "." ]
+           ]
 
     ReferencesFutureVariables term (disallowed :| rest) lock leftmost -> do
-      explain <- (/=) <$> prettyTCM lock <*> (prettyTCM =<< nameOfBV leftmost)
       let
         name = prettyTCM =<< nameOfBV leftmost
+        lck  = prettyTCM lock
         mod = case getLock lock of
           IsLock LockOLock -> "@lock"
           IsLock LockOTick -> "@tick"
-          _ -> __IMPOSSIBLE__
+          IsNotLock -> __IMPOSSIBLE__
+      explain <- liftA2 (/=) lck name
       vcat $ concat
-        [ pure . fsep $ concat
-          [ pwords "The variable", pure (prettyTCM =<< nameOfBV disallowed), pwords "can not be mentioned here,"
-          , pwords "since it was not introduced before the variable", pure (name <> ".")
+        [ [ fsep $ concat
+            [ pwords "The variable"
+            , [ prettyTCM =<< nameOfBV disallowed ]
+            , pwords "can not be mentioned here,"
+            , pwords "since it was not introduced before the variable"
+            , [ name <> "." ]
+            ]
           ]
-        , [ fsep ( pwords "Variables introduced after"
-                ++ pure name
-                ++ pwords "can not be used, since that is the leftmost" ++ pure mod ++ pwords "variable in the locking term"
-                ++ pure (prettyTCM lock <> "."))
+        , [ fsep $ concat
+            [ pwords "Variables introduced after"
+            , [ name ]
+            , pwords "can not be used, since that is the leftmost"
+            , [ mod ]
+            , pwords "variable in the locking term"
+            , [ lck <> "." ]
+            ]
           | explain
           ]
-        , [ fsep ( pwords "The following"
-                  ++ P.singPlural rest (pwords "variable is") (pwords "variables are")
-                  ++ pwords "not allowed here, either:"
-                  ++ punctuate comma (map (prettyTCM <=< nameOfBV) rest))
+        , [ fsep $ concat
+            [ pwords "The following"
+            , P.singPlural rest (pwords "variable is") (pwords "variables are")
+            , pwords "not allowed here, either:"
+            , punctuate comma $ map (prettyTCM <=< nameOfBV) rest
+            ]
           | not (null rest)
           ]
         ]
