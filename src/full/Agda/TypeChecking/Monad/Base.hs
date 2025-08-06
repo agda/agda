@@ -54,8 +54,6 @@ import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
 import Data.Semigroup (Sum, Max)
 
-import Data.IORef
-
 import GHC.Generics (Generic)
 
 import System.IO (hFlush, stdout)
@@ -127,6 +125,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash
 import Agda.Utils.IO        ( CatchIO, catchIO, showIOException )
+import qualified Agda.Utils.IORef.Strict as Strict
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
@@ -5861,7 +5860,7 @@ instance ReadTCState ReduceM where
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = TCM $ \ r e -> do
-  s <- readIORef r
+  s <- Strict.readIORef r
   E.evaluate $ unReduceM m $ ReduceEnv e s Nothing
   -- Andreas, 2021-05-13, issue #5379
   -- This was the following, which is apparently not strict enough
@@ -6122,7 +6121,7 @@ instance MonadBlock m => MonadBlock (ReaderT e m) where
 
 -- | The type checking monad transformer.
 -- Adds readonly 'TCEnv' and mutable 'TCState'.
-newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
+newtype TCMT m a = TCM { unTCM :: Strict.IORef TCState -> TCEnv -> m a }
 
 -- | Type checking monad.
 type TCM = TCMT IO
@@ -6133,7 +6132,7 @@ mapTCMT f (TCM m) = TCM $ \ s e -> f (m s e)
 
 pureTCM :: MonadIO m => (TCState -> TCEnv -> a) -> TCMT m a
 pureTCM f = TCM $ \ r e -> do
-  s <- liftIO $ readIORef r
+  s <- liftIO $ Strict.readIORef r
   return (f s e)
 {-# INLINE pureTCM #-}
 
@@ -6196,7 +6195,7 @@ instance MonadIO m => MonadIO (TCMT m) where
       x `seq` return x
     where
       wrap s r m = E.catch m $ \ err -> do
-        s <- readIORef s
+        s <- Strict.readIORef s
         E.throwIO $ IOException (Just s) r err
 
 instance MonadIO m => MonadTCEnv (TCMT m) where
@@ -6204,8 +6203,8 @@ instance MonadIO m => MonadTCEnv (TCMT m) where
   localTC f (TCM m) = TCM $ \ s e -> m s (f e); {-# INLINE localTC #-}
 
 instance MonadIO m => MonadTCState (TCMT m) where
-  getTC   = TCM $ \ r _e -> liftIO (readIORef r); {-# INLINE getTC #-}
-  putTC s = TCM $ \ r _e -> liftIO (writeIORef r s); {-# INLINE putTC #-}
+  getTC   = TCM $ \ r _e -> liftIO (Strict.readIORef r); {-# INLINE getTC #-}
+  putTC s = TCM $ \ r _e -> liftIO (Strict.writeIORef r s); {-# INLINE putTC #-}
   modifyTC f = putTC . f =<< getTC; {-# INLINE modifyTC #-}
 
 instance MonadIO m => ReadTCState (TCMT m) where
@@ -6227,7 +6226,7 @@ instance MonadBlock TCM where
 instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
   throwError = liftIO . E.throwIO
   catchError m h = TCM $ \ r e -> do  -- now we are in the monad m
-    oldState <- liftIO $ readIORef r
+    oldState <- liftIO $ Strict.readIORef r
     unTCM m r e `catchIO` \err -> do
       -- Reset the state, but do not forget changes to the persistent
       -- component. Not for pattern violations.
@@ -6235,8 +6234,8 @@ instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
         PatternErr{} -> return ()
         _            ->
           liftIO $ do
-            newState <- readIORef r
-            writeIORef r $ oldState { stPersistentState = stPersistentState newState }
+            newState <- Strict.readIORef r
+            Strict.writeIORef r oldState { stPersistentState = stPersistentState newState }
       unTCM (h err) r e
 
 -- | Like 'catchError', but resets the state completely before running the handler.
@@ -6247,9 +6246,9 @@ instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
 instance CatchImpossible TCM where
   catchImpossibleJust f m h = TCM $ \ r e -> do
     -- save the state
-    s <- readIORef r
+    s <- Strict.readIORef r
     catchImpossibleJust f (unTCM m r e) $ \ err -> do
-      writeIORef r s
+      Strict.writeIORef r s
       unTCM (h err) r e
 
 instance MonadIO m => MonadReduce (TCMT m) where
@@ -6384,9 +6383,9 @@ execError = locatedTypeError ExecError
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
 runTCM :: MonadIO m => TCEnv -> TCState -> TCMT m a -> m (a, TCState)
 runTCM e s m = do
-  r <- liftIO $ newIORef s
+  r <- liftIO $ Strict.newIORef s
   a <- unTCM m r e
-  s <- liftIO $ readIORef r
+  s <- liftIO $ Strict.readIORef r
   return (a, s)
 
 -- | Running the type checking monad on toplevel (with initial state).
@@ -6395,7 +6394,7 @@ runTCMTop m = (Right <$> runTCMTop' m) `E.catch` (return . Left)
 
 runTCMTop' :: MonadIO m => TCMT m a -> m a
 runTCMTop' m = do
-  r <- liftIO $ newIORef =<< initStateIO
+  r <- liftIO $ Strict.newIORef =<< initStateIO
   unTCM m r initEnv
 
 -- | 'runSafeTCM' runs a safe 'TCM' action (a 'TCM' action which
