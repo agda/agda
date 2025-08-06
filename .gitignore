@@ -4,6 +4,7 @@
 *.agdai
 *.aux
 *.dump-hi
+*.elc
 *.hi
 *.hie
 *.hie-boot
@@ -14,6 +15,7 @@
 *.o
 *.project.local
 *.ptb
+*.rej
 *.tix
 *.tmp
 *.tmp.*
@@ -68,6 +70,7 @@
 /test/Succeed/Issue867
 /test/Succeed/Options-in-right-order
 /test/Succeed/WErrorOverride
+/tmp/
 autom4te.cache
 cabal.sandbox.config
 config.log
