@@ -1438,7 +1438,7 @@ instance PrettyTCM TypeError where
            , pwords "can not appear simultaneously in the \"later\" term"
            , [ prettyTCM term ]
            , pwords "and in the lock term"
-           , [ prettyTCM lock <> "." ]
+           , [ prettyTCM lock ]
            ]
 
     ReferencesFutureVariables term (disallowed :| rest) lock leftmost -> do
