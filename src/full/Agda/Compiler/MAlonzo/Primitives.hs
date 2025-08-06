@@ -2,19 +2,19 @@
 
 module Agda.Compiler.MAlonzo.Primitives where
 
-import Control.Arrow ( second )
 import Control.Monad.Trans.Maybe ( MaybeT(MaybeT, runMaybeT) )
 
-import qualified Data.List as List
-import           Data.Map (Map)
-import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
+import Data.HashMap.Strict qualified as HMap
+import Data.List qualified as List
+import Data.Map qualified as Map
 import Data.Maybe
+import Data.Set (Set)
+import Data.Set qualified as Set
 
 import Agda.Compiler.Common
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Syntax.Common
-import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Syntax.Internal
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
@@ -23,10 +23,13 @@ import Agda.TypeChecking.Reduce
 
 import Agda.Utils.Either
 import Agda.Utils.Lens
-import Agda.Utils.List   (hasElem)
-import qualified Agda.Utils.Haskell.Syntax as HS
+import Agda.Utils.List ( hasElem )
+import Agda.Utils.Haskell.Syntax qualified as HS
 
 import Agda.Utils.Impossible
+
+---------------------------------------------------------------------------
+-- * Entrypoint (@main@)
 
 newtype MainFunctionDef = MainFunctionDef Definition
 
@@ -81,6 +84,58 @@ checkTypeOfMain' m@(MainFunctionDef def) = CheckedMainFunctionDef m <$> do
     mainLHS   = HS.Ident "main"
     mainRHS   = HS.UnGuardedRhs $ HS.App mazCoerce (HS.Var $ HS.UnQual $ dname $ defName def)
 
+---------------------------------------------------------------------------
+-- * Primitives and builtins
+
+-- | These builtins need a qualified import of "Data.Char".
+charBuiltins :: [SomeBuiltin]
+charBuiltins =
+  [ someBuiltin BuiltinChar
+  , someBuiltin PrimIsAlpha
+  , someBuiltin PrimIsAscii
+  , someBuiltin PrimIsDigit
+  , someBuiltin PrimIsHexDigit
+  , someBuiltin PrimIsLatin1
+  , someBuiltin PrimIsLower
+  , someBuiltin PrimIsPrint
+  , someBuiltin PrimIsSpace
+  , someBuiltin PrimToLower
+  , someBuiltin PrimToUpper
+  ]
+
+-- | These builtins need a qualified import of "MAlonzo.RTE.Float".
+floatBuiltins :: [SomeBuiltin]
+floatBuiltins =
+  [ someBuiltin PrimFloatCeiling
+  , someBuiltin PrimFloatDecode
+  , someBuiltin PrimFloatEncode
+  , someBuiltin PrimFloatEquality
+  , someBuiltin PrimFloatFloor
+  , someBuiltin PrimFloatInequality
+  , someBuiltin PrimFloatIsSafeInteger
+  , someBuiltin PrimFloatLess
+  , someBuiltin PrimFloatRound
+  , someBuiltin PrimFloatToRatio
+  , someBuiltin PrimFloatToWord64
+  , someBuiltin PrimRatioToFloat
+  ]
+
+-- | Which builtins are actually used in the definitions?
+usedBuiltins :: BuiltinThings -> [Definition] -> Set SomeBuiltin
+usedBuiltins builtinThings defs = Set.fromList
+    [ s
+    | (s, def) <- Map.toList builtinThings
+    , maybe False elemDefs $ getName def
+    ]
+  where
+  elemDefs = hasElem $ map defName defs
+  getName = \case
+    Builtin t                 -> Just $ getPrimName t
+    Prim (PrimFun q _ _ _)    -> Just q
+    BuiltinRewriteRelations _ -> Nothing
+
+-- ** Translating primitives
+
 treelessPrimName :: TPrim -> String
 treelessPrimName p =
   case p of
@@ -109,52 +164,6 @@ treelessPrimName p =
     PSeq    -> "seq"
     -- primitives only used by GuardsToPrims transformation, which MAlonzo doesn't use
     PIf     -> __IMPOSSIBLE__
-
--- | Haskell modules to be imported for BUILT-INs
-importsForPrim :: BuiltinThings -> [Definition] -> [HS.ModuleName]
-importsForPrim builtinThings defs = xForPrim table builtinThings defs ++ [HS.ModuleName "Data.Text"]
-  where
-  table = Map.fromList $ map (second HS.ModuleName)
-    [ someBuiltin BuiltinChar                |-> "Data.Char"
-    , someBuiltin PrimFloatCeiling           |-> "MAlonzo.RTE.Float"
-    , someBuiltin PrimFloatDecode            |-> "MAlonzo.RTE.Float"
-    , someBuiltin PrimFloatEncode            |-> "MAlonzo.RTE.Float"
-    , someBuiltin PrimFloatEquality          |-> "MAlonzo.RTE.Float"
-    , someBuiltin PrimFloatFloor             |-> "MAlonzo.RTE.Float"
-    , someBuiltin PrimFloatInequality        |-> "MAlonzo.RTE.Float"
-    , someBuiltin PrimFloatIsSafeInteger     |-> "MAlonzo.RTE.Float"
-    , someBuiltin PrimFloatLess              |-> "MAlonzo.RTE.Float"
-    , someBuiltin PrimFloatRound             |-> "MAlonzo.RTE.Float"
-    , someBuiltin PrimFloatToRatio           |-> "MAlonzo.RTE.Float"
-    , someBuiltin PrimFloatToWord64          |-> "MAlonzo.RTE.Float"
-    , someBuiltin PrimIsAlpha                |-> "Data.Char"
-    , someBuiltin PrimIsAscii                |-> "Data.Char"
-    , someBuiltin PrimIsDigit                |-> "Data.Char"
-    , someBuiltin PrimIsHexDigit             |-> "Data.Char"
-    , someBuiltin PrimIsLatin1               |-> "Data.Char"
-    , someBuiltin PrimIsLower                |-> "Data.Char"
-    , someBuiltin PrimIsPrint                |-> "Data.Char"
-    , someBuiltin PrimIsSpace                |-> "Data.Char"
-    , someBuiltin PrimRatioToFloat           |-> "MAlonzo.RTE.Float"
-    , someBuiltin PrimToLower                |-> "Data.Char"
-    , someBuiltin PrimToUpper                |-> "Data.Char"
-    ]
-  (|->) = (,)
-
---------------
-
-xForPrim :: Map SomeBuiltin a -> BuiltinThings -> [Definition] -> [a]
-xForPrim table builtinThings defs = catMaybes
-    [ Map.lookup s table
-    | (s, def) <- Map.toList builtinThings
-    , maybe False elemDefs $ getName def
-    ]
-  where
-  elemDefs = hasElem $ map defName defs
-  getName = \case
-    Builtin t                 -> Just $ getPrimName t
-    Prim (PrimFun q _ _ _)    -> Just q
-    BuiltinRewriteRelations _ -> Nothing
 
 
 -- | Definition bodies for primitive functions
