@@ -4594,7 +4594,7 @@ instance HasOverlapMode Candidate where
 data CheckedArg = CheckedArg
   { caElim        :: Elim
       -- ^ Checked and inserted argument.
-  , caRange       :: Maybe Range
+  , caRange       :: Range
       -- ^ Range of checked argument, where present.
       --   E.g. inserted implicits have no correponding abstract syntax.
   , caConstraint  :: Maybe (Abs Constraint)

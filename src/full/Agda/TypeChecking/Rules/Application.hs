@@ -81,7 +81,7 @@ import Agda.Utils.Singleton (singleton)
 ---------------------------------------------------------------------------
 
 -- | Ranges of checked arguments, where present.
-type MaybeRanges = [Maybe Range]
+type ArgRanges = [Range]
 
 setACElims :: [Elim] -> ArgsCheckState a -> ArgsCheckState a
 setACElims es st = st{ acCheckedArgs = go es (acCheckedArgs st) }
@@ -444,7 +444,7 @@ checkHeadApplication cmp e t hd args = do
   where
   defaultResult :: TCM Term
   defaultResult = defaultResult' Nothing
-  defaultResult' :: Maybe (MaybeRanges -> Args -> Type -> TCM Args) -> TCM Term
+  defaultResult' :: Maybe (ArgRanges -> Args -> Type -> TCM Args) -> TCM Term
   defaultResult' mk = do
     (f, t0) <- inferHead hd
     expandLast <- asksTC envExpandLast
@@ -790,7 +790,7 @@ checkArgumentsE'
 
                 c <- lift $ makeLockConstraint sFunType u
                 -- save relevance info' from domain in argument
-                let ca = CheckedArg{ caElim = Apply (Arg info' u), caRange = Just (getRange e), caConstraint = c }
+                let ca = CheckedArg{ caElim = Apply (Arg info' u), caRange = getRange e, caConstraint = c }
                 addCheckedArgs cargs ca $
                   checkArgumentsE' s{ sFunType = absApp b u }
             | otherwise -> do
@@ -808,7 +808,7 @@ checkArgumentsE'
                 u <- lift $ checkExpr (namedThing e) =<< primIntervalType
                 let ca = CheckedArg
                      { caElim       = IApply (unArg x) (unArg y) u
-                     , caRange      = Just (getRange e)
+                     , caRange      = getRange e
                      , caConstraint = Nothing
                      }
                 addCheckedArgs cargs ca $
@@ -1713,7 +1713,7 @@ pathAbs (PathType s path l a x y) t = do
 --
 --   Check:  @u i0 = (λ _ → a) : Partial φ (A i0)@.
 --
-checkPrimComp :: QName -> MaybeRanges -> Args -> Type -> TCM Args
+checkPrimComp :: QName -> ArgRanges -> Args -> Type -> TCM Args
 checkPrimComp c rs vs _ = do
   case vs of
     -- WAS: [l, a, phi, u, a0] -> do
@@ -1734,7 +1734,7 @@ checkPrimComp c rs vs _ = do
 --
 --   Check:  @u i0 = (λ _ → a) : Partial φ A@.
 --
-checkPrimHComp :: QName -> MaybeRanges -> Args -> Type -> TCM Args
+checkPrimHComp :: QName -> ArgRanges -> Args -> Type -> TCM Args
 checkPrimHComp c rs vs _ = do
   case vs of
     -- WAS: [l, a, phi, u, a0] -> do
@@ -1756,7 +1756,7 @@ checkPrimHComp c rs vs _ = do
 --
 --   Check:  If φ, then @A i = A i0 : Set (ℓ i)@ must hold for all @i : I@.
 --
-checkPrimTrans :: QName -> MaybeRanges -> Args -> Type -> TCM Args
+checkPrimTrans :: QName -> ArgRanges -> Args -> Type -> TCM Args
 checkPrimTrans c rs vs _ = do
   case vs of
     -- Andreas, 2019-03-02, issue #3601, why exactly 4 arguments?
@@ -1789,7 +1789,7 @@ blockArg t r a m =
 -- '         → PartialP (φ₁ ∨ φ₂) A@
 -- '
 -- ' Checks: @u = v : PartialP (φ₁ ∨ φ₂) A@ whenever @IsOne (φ₁ ∧ φ₂)@.
-checkPOr :: QName -> MaybeRanges -> Args -> Type -> TCM Args
+checkPOr :: QName -> ArgRanges -> Args -> Type -> TCM Args
 checkPOr c rs vs _ = do
   case vs of
    l : phi1 : phi2 : a : u : v : rest -> do
@@ -1817,7 +1817,7 @@ checkPOr c rs vs _ = do
 --              → (t : PartialP φ T) → (a : A) → primGlue A T e@
 --
 --   Check   @φ ⊢ a = e 1=1 (t 1=1)@  or actually the equivalent:  @(\ _ → a) = (\ o -> e o (t o)) : PartialP φ A@
-check_glue :: QName -> MaybeRanges -> Args -> Type -> TCM Args
+check_glue :: QName -> ArgRanges -> Args -> Type -> TCM Args
 check_glue c rs vs _ = do
   case vs of
    -- WAS: [la, lb, bA, phi, bT, e, t, a] -> do
@@ -1850,7 +1850,7 @@ check_glue c rs vs _ = do
 --
 --   Check   @φ ⊢ a = transp (\ i -> T 1=1 (~ i)) i0 (t 1=1)@  or actually the equivalent:
 --           @(\ _ → a) = (\o -> transp (\ i -> T o (~ i)) i0 (t o)) : PartialP φ (T i0)@
-check_glueU :: QName -> MaybeRanges -> Args -> Type -> TCM Args
+check_glueU :: QName -> ArgRanges -> Args -> Type -> TCM Args
 check_glueU c rs vs _ = do
   case vs of
    -- WAS: [la, lb, bA, phi, bT, e, t, a] -> do

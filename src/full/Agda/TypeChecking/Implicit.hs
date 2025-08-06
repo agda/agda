@@ -4,6 +4,8 @@
 -}
 module Agda.TypeChecking.Implicit where
 
+import Prelude hiding (null)
+
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.IO.Class
@@ -33,6 +35,7 @@ import qualified Agda.Utils.List as List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
+import Agda.Utils.Null
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
@@ -98,8 +101,8 @@ noHeadConstraints = mapM noHeadConstraint
 
 noHeadConstraint :: CheckedArg -> TCM Elim
 noHeadConstraint (CheckedArg elim _  Nothing) = return elim
-noHeadConstraint (CheckedArg _ mrange Just{}) = do
-  applyWhenJust mrange setCurrentRange do
+noHeadConstraint (CheckedArg _ range Just{} ) = do
+  setCurrentRange range do
     typeError $ NotSupported $
      "Lock constraints are not (yet) supported in this position."
 
@@ -134,7 +137,7 @@ implicitCheckedArgs n expand t0 = do
             applyModalityToContext info $ unquoteTactic tac v a
           let name = Just $ WithOrigin Inserted $ unranged x
           mc <- liftTCM $ makeLockConstraint t0' v
-          let carg = CheckedArg{ caElim = Apply (Arg info v), caRange = Nothing, caConstraint = mc }
+          let carg = CheckedArg{ caElim = Apply (Arg info v), caRange = empty, caConstraint = mc }
           first (Named name carg :) <$> implicitCheckedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
 
