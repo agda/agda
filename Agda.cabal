@@ -828,6 +828,7 @@ library
       Agda.TypeChecking.Serialise.Instances.General
       Agda.TypeChecking.Serialise.Instances.Highlighting
       Agda.TypeChecking.Serialise.Instances.Internal
+      Agda.TypeChecking.Serialise.Node
       Agda.TypeChecking.SizedTypes
       Agda.TypeChecking.SizedTypes.Pretty
       Agda.TypeChecking.SizedTypes.Solve
@@ -872,7 +873,6 @@ library
       Agda.Utils.Graph.AdjacencyMap.Unidirectional
       Agda.Utils.Graph.TopSort
       Agda.Utils.Hash
-      Agda.Utils.HashConsTable
       Agda.Utils.HashTable
       Agda.Utils.Haskell.Syntax
       Agda.Utils.IArray
@@ -913,6 +913,7 @@ library
       Agda.Utils.RangeMap
       Agda.Utils.SemiRing
       Agda.Utils.Semigroup
+      Agda.Utils.Serializer
       Agda.Utils.Set1
       Agda.Utils.Singleton
       Agda.Utils.Size
