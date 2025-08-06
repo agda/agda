@@ -49,9 +49,6 @@ import Data.ByteString.Builder ( byteString, toLazyByteString )
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as SB
 import qualified Data.Map as Map
-import qualified Data.Binary as B
-import qualified Data.Binary.Get as B
-import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function (on)
 
@@ -70,6 +67,7 @@ import Agda.Utils.Hash
 import qualified Agda.Utils.HashTable as H
 import Agda.Utils.IORef
 import Agda.Utils.Null
+import Agda.Utils.Serializer
 import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import qualified Agda.Utils.MinimalArray.Lifted as AL
 import qualified Agda.Utils.MinimalArray.MutableLifted as ML
@@ -201,17 +199,14 @@ decode s = do
   mf   <- useTC stModuleToSource
   incs <- getIncludeDirs
 
-  -- Note that runGetState can raise errors if the input is malformed.
-  -- The decoder is (intended to be) strict enough to ensure that all
-  -- such errors can be caught by the handler here.
-
   (mf, x) <- liftIO $ do
-    ((r, nodeL, stringL, lTextL, sTextL, integerL, varSetL, doubleL), s, _) <- return $ runGetState B.get s 0
-    let ar = unListLike
-    when (not (null s)) $ E.throwIO $ E.ErrorCall "Garbage at end."
+    (r, nodeL, stringL, lTextL, sTextL, integerL, varSetL, doubleL) <- deserialize s
+
+    let ar    = unListLike
     let nodeA = ar nodeL
     nm :: IOArray Word32 MemoEntry <- liftIO (newArray (bounds nodeA) MEEmpty)
-    mfRef   <- liftIO (newIORef mf)
+    mfRef <- liftIO (newIORef mf)
+
     let !dec = Decode
           { nodeE    = AL.fromGHCArray nodeA
           , stringE  = AL.fromGHCArray (ar stringL)
@@ -224,6 +219,7 @@ decode s = do
           , modFile  = mfRef
           , includes = incs
           }
+
     !r  <- runReaderT (value r) dec
     !mf <- readIORef mfRef
     return (mf, r)
@@ -288,11 +284,11 @@ decodeInterface s = do
         "Error when decoding interface file: " ++ err
       return Nothing
 
-decodeHashes :: ByteString -> Maybe (Hash, Hash)
-decodeHashes s
-  | L.length s < 16 = Nothing
-  | otherwise       = Just $ B.runGet getH $ L.take 16 s
-  where getH = (,) <$> B.get <*> B.get
+-- decodeHashes :: ByteString -> Maybe (Hash, Hash)
+-- decodeHashes s
+--   | L.length s < 16 = Nothing
+--   | otherwise       = Just $ B.runGet getH $ L.take 16 s
+--   where getH = (,) <$> B.get <*> B.get
 
 decodeFile :: FilePath -> TCM (Maybe Interface)
 decodeFile f = decodeInterface =<< liftIO (L.readFile f)

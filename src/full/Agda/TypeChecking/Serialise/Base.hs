@@ -17,7 +17,10 @@ forces all data, eventually.
     be forced beforehand with strict `let`, strict binding or ($!).
 -}
 
-module Agda.TypeChecking.Serialise.Base where
+module Agda.TypeChecking.Serialise.Base (
+    module Agda.TypeChecking.Serialise.Node
+  , module Agda.TypeChecking.Serialise.Base
+  ) where
 
 import qualified Control.Exception as E
 import Control.Monad ((<$!>))
@@ -36,12 +39,10 @@ import qualified Data.ByteString.Lazy as L
 import Data.Hashable
 import Data.Word (Word32, Word64)
 import Data.Maybe
-import qualified Data.Binary as B
-import qualified Data.Binary.Get as B
 import qualified Data.Text      as T
 import qualified Data.Text.Lazy as TL
 import Data.Typeable ( cast, Typeable, TypeRep, typeRep, typeRepFingerprint )
-import GHC.Exts (Word(..), timesWord2#, xor#, Any, oneShot)
+import GHC.Exts
 import GHC.Stack
 import GHC.Fingerprint.Type
 import Unsafe.Coerce
@@ -49,6 +50,7 @@ import Unsafe.Coerce
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal (Term, QName(..), ModuleName(..), nameId)
 import Agda.TypeChecking.Monad.Base.Types (ModuleToSource)
+import Agda.TypeChecking.Serialise.Node
 
 import Agda.Utils.FileName
 import Agda.Utils.HashTable (HashTable)
@@ -64,135 +66,7 @@ import qualified Agda.Utils.MinimalArray.MutablePrim as MP
 import qualified Agda.Utils.MinimalArray.Lifted as AL
 import qualified Agda.Utils.MinimalArray.MutableLifted as ML
 
-
-#include <MachDeps.h>
-
--- | Constructor tag (maybe omitted) and argument indices.
-data Node
-  = N0
-  | N1# !Word32
-  | N2# !Word64
-  | N3# !Word64 !Word32
-  | N4# !Word64 !Word64
-  | N5# !Word64 !Word64 !Word32
-  | (:*:) !Word32 !Node
-  deriving (Eq, Show)
-infixr 5 :*:
-
-splitW64 :: Word64 -> (Word32, Word32)
-splitW64 x = let !a = fromIntegral (unsafeShiftR x 32)
-                 !b = fromIntegral (x .&. 0x00000000ffffffff)
-             in (a, b)
-{-# inline splitW64 #-}
-
-packW64 :: Word32 -> Word32 -> Word64
-packW64 a b = unsafeShiftL (fromIntegral a) 32 .|. fromIntegral b
-{-# inline packW64 #-}
-
-pattern N1 :: Word32 -> Node
-pattern N1 a = N1# a
-
-pattern N2 :: Word32 -> Word32 -> Node
-pattern N2 a b <- N2# (splitW64 -> (a, b)) where
-  N2 a b = N2# (packW64 a b)
-
-pattern N3 :: Word32 -> Word32 -> Word32 -> Node
-pattern N3 a b c <- N3# (splitW64 -> (a, b)) c where
-  N3 a b c = N3# (packW64 a b) c
-
-pattern N4 :: Word32 -> Word32 -> Word32 -> Word32 -> Node
-pattern N4 a b c d <- N4# (splitW64 -> (a, b)) (splitW64 -> (c, d)) where
-  N4 a b c d = N4# (packW64 a b) (packW64 c d)
-
-pattern N5 :: Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Node
-pattern N5 a b c d e <- N5# (splitW64 -> (a, b)) (splitW64 -> (c, d)) e where
-  N5 a b c d e = N5# (packW64 a b) (packW64 c d) e
-{-# complete N0, N1, N2, N3, N4, N5, (:*:) #-}
-
-instance Hashable Node where
-  -- Adapted from https://github.com/tkaitchuck/aHash/wiki/AHash-fallback-algorithm
-  hashWithSalt h n = fromIntegral (go (fromIntegral h) n) where
-    xor (W# x) (W# y) = W# (xor# x y)
-
-    foldedMul :: Word -> Word -> Word
-    foldedMul (W# x) (W# y) = case timesWord2# x y of (# hi, lo #) -> W# (xor# hi lo)
-
-    combine :: Word -> Word -> Word
-    combine x y = foldedMul (xor x y) factor where
-      -- We use a version of fibonacci hashing, where our multiplier is the
-      -- nearest prime to 2^64/phi or 2^32/phi. See https://stackoverflow.com/q/4113278.
-#if WORD_SIZE_IN_BITS == 64
-      factor = 11400714819323198549
-#else
-      factor = 2654435741
-#endif
-
-    go :: Word -> Node -> Word
-    go !h N0           = h
-    go  h (N1# a)      = h `combine` fromIntegral a
-    go  h (N2# a)      = h `combine` fromIntegral a
-    go  h (N3# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
-    go  h (N4# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
-    go  h (N5# a b c)  = h `combine` fromIntegral a `combine` fromIntegral b `combine` fromIntegral c
-    go  h ((:*:) n ns) = go (combine h (fromIntegral n)) ns
-
-  hash = hashWithSalt seed where
-#if WORD_SIZE_IN_BITS == 64
-      seed = 3032525626373534813
-#else
-      seed = 1103515245
-#endif
-
-instance B.Binary Node where
-
-  get = go =<< B.get where
-
-    go :: Int -> B.Get Node
-    go 0 = pure N0
-    go 1 = do
-      !a <- B.get
-      pure $! N1# a
-    go 2 = do
-      !ab <- B.get
-      pure $! N2# ab
-    go 3 = do
-      !ab <- B.get
-      !c  <- B.get
-      pure $! N3# ab c
-    go 4 = do
-      !ab <- B.get
-      !cd <- B.get
-      pure $! N4# ab cd
-    go 5 = do
-      !ab <- B.get
-      !cd <- B.get
-      !e  <- B.get
-      pure $! N5# ab cd e
-    go n = do
-      !x    <- B.get
-      !node <- go (n - 1)
-      pure $! (:*:) x node
-
-  put n = B.put (len n) <> go n where
-
-    len :: Node -> Int
-    len = go 0 where
-      go !acc N0         = acc
-      go acc  N1#{}      = acc + 1
-      go acc  N2#{}      = acc + 2
-      go acc  N3#{}      = acc + 3
-      go acc  N4#{}      = acc + 4
-      go acc  N5#{}      = acc + 5
-      go acc ((:*:) _ n) = go (acc + 1) n
-
-    go :: Node -> B.Put
-    go N0            = mempty
-    go (N1# a)       = B.put a
-    go (N2# ab)      = B.put ab
-    go (N3# ab c)    = B.put ab <> B.put c
-    go (N4# ab cd)   = B.put ab <> B.put cd
-    go (N5# ab cd e) = B.put ab <> B.put cd <> B.put e
-    go ((:*:) n ns)  = B.put n <> go ns
+--------------------------------------------------------------------------------
 
 -- | Association lists mapping TypeRep fingerprints to values. In some cases
 --   values with different types have the same serialized representation. This
@@ -389,18 +263,6 @@ goTickIcode p = do
 tickICode :: forall a. Typeable a => a -> S ()
 tickICode _ = whenM (asks collectStats) $ goTickIcode (Proxy :: Proxy a)
 {-# INLINE tickICode #-}
-
--- | Data.Binary.runGetState is deprecated in favour of runGetIncremental.
---   Reimplementing it in terms of the new function. The new Decoder type contains
---   strict byte strings so we need to be careful not to feed the entire lazy byte
---   string to the decoder at once.
-runGetState :: B.Get a -> L.ByteString -> B.ByteOffset -> (a, L.ByteString, B.ByteOffset)
-runGetState g s n = feed (B.runGetIncremental g) (L.toChunks s)
-  where
-    feed (B.Done s n' x) ss     = (x, L.fromChunks (s : ss), n + n')
-    feed (B.Fail _ _ err) _     = error err
-    feed (B.Partial f) (s : ss) = feed (f $ Just s) ss
-    feed (B.Partial f) []       = feed (f Nothing) []
 
 -- Specializing icodeX leads to Warning like
 -- src/full/Agda/TypeChecking/Serialise.hs:1297:1: Warning:
