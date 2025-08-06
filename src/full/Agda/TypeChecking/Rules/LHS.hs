@@ -681,9 +681,9 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
         addContext delta $ do
           mapM_ noShadowingOfConstructors eqs
 
-          -- When working --without-K or --cubical-compatible, we have
+          -- When working --without-K or --cubical=compatible, we have
           -- to check that the target type can be used at the “ambient”
-          -- modality. For --cubical-compatible, this just improves an
+          -- modality. For --cubical=compatible, this just improves an
           -- error message (printing the type rather than the generated
           -- RHS). For --without-K, it implements the same check without
           -- necessarily generating --cubical code.
@@ -832,7 +832,7 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
   return result
 
 -- | Check that this split will generate a modality-correct internal
--- clause when --cubical-compatible is used. This means that the type of
+-- clause when --cubical=compatible is used. This means that the type of
 -- anything which might be transported must be modality-correct. This is
 -- necessarily an approximate check. We assume that any argument which
 -- (a) comes after and (b) mentions a dotted argument will be
@@ -1328,7 +1328,7 @@ checkLHS mf = updateModality checkLHS_ where
         addContext delta1 $ softTypeError $ SplitOnUnusablePolarity dom
 
       -- Should we attempt to compute a left inverse for this clause? When
-      -- --cubical-compatible --flat-split is given, we don't generate a
+      -- --cubical=compatible --flat-split is given, we don't generate a
       -- left inverse (at all). This means that, when the coverage checker
       -- gets to the clause this was in, it won't generate a (malformed!)
       -- transpX clause for @♭ matching.
