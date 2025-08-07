@@ -138,6 +138,10 @@ anyM f = Fold.foldl' (\ b -> or2M b . f) (return False)
 existsM :: (Foldable f, Monad m) => f a -> (a -> m Bool) -> m Bool
 existsM xs f = anyM f xs
 
+-- https://hackage-content.haskell.org/package/extra-1.8/docs/src/Data.Foldable.Extra.html#findM
+findM :: (Foldable f, Monad m) => (a -> m Bool) -> f a -> m (Maybe a)
+findM p = foldr (\x -> ifM (p x) (pure $ Just x)) (pure Nothing)
+
 -- | Lazy monadic disjunction with @Either@  truth values.
 --   Returns the last error message if all fail.
 altM1 :: Monad m => (a -> m (Either err b)) -> [a] -> m (Either err b)

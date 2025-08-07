@@ -437,10 +437,9 @@ getExecutablesFile
 getExecutablesFile = do
   agdaDir <- getAgdaAppDir
   let defaults = List1.map (agdaDir </>) defaultExecutableFiles  -- NB: very short list
-  files <- filterM doesFileExist (List1.toList defaults)
-  case files of
-    file : _ -> return $ ExecutablesFile file True
-    []       -> return $ ExecutablesFile (List1.last defaults) False -- doesn't exist, but that's ok
+  findM doesFileExist defaults >>= \case
+    Just file -> return $ ExecutablesFile file True
+    Nothing   -> return $ ExecutablesFile (List1.last defaults) False -- doesn't exist, but that's ok
 
 -- | Return the trusted executables Agda knows about.
 --
