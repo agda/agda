@@ -470,7 +470,6 @@ library
     , array                >= 0.5.4.0   && < 0.6
     , async                >= 2.2.4     && < 2.3
     , base                 >= 4.16.4.0  && < 4.22
-    , binary               >= 0.8.9.0   && < 0.9
     , blaze-html           >= 0.9.1.2   && < 0.10
     , boxes                >= 0.1.5     && < 0.2
     , bytestring           >= 0.11.4.0  && < 0.13
@@ -913,7 +912,7 @@ library
       Agda.Utils.RangeMap
       Agda.Utils.SemiRing
       Agda.Utils.Semigroup
-      Agda.Utils.Serializer
+      Agda.Utils.Serialize
       Agda.Utils.Set1
       Agda.Utils.Singleton
       Agda.Utils.Size
