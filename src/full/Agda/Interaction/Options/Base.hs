@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 
+{-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 
@@ -187,18 +188,15 @@ module Agda.Interaction.Options.Base
 import Prelude hiding ( null, not, (&&), (||) )
 
 import Control.DeepSeq
-import Control.Monad        ( (>=>), when, unless, void )
+import Control.Monad        ( (>=>), when, void )
 import Control.Monad.Except ( ExceptT, MonadError(throwError), runExceptT )
 import Control.Monad.Writer ( Writer, runWriter, MonadWriter(..) )
 
 import Data.Function            ( (&) )
 import Data.List                ( intercalate )
 import Data.Maybe
-import Data.Map                 ( Map )
-import qualified Data.Map as Map
 import Data.Set                 ( Set )
 import qualified Data.Set as Set
-import qualified Data.Text as T
 
 import GHC.Generics (Generic)
 
@@ -212,8 +210,9 @@ import Text.Read                ( readMaybe )
 
 import Agda.Termination.CutOff  ( CutOff(..), defaultCutOff )
 
-import Agda.Interaction.Library ( ExeName, LibName, OptionsPragma(..), parseLibName )
+import Agda.Interaction.Library ( OptionsPragma(..), parseLibName )
 import Agda.Interaction.Options.Arguments
+import Agda.Interaction.Options.Default
 import Agda.Interaction.Options.Help
   ( Help(HelpFor, GeneralHelp)
   , string2HelpTopic
@@ -231,12 +230,11 @@ import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import qualified Agda.Setup.EmacsMode as EmacsMode
 
 import Agda.Utils.Boolean
-import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Function      ( applyWhen, applyUnless )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', (^.), over, set )
 import Agda.Utils.List          ( headWithDefault, initLast1 )
-import Agda.Utils.List1         ( List1, String1, pattern (:|), toList )
+import Agda.Utils.List1         ( List1, pattern (:|), toList )
 import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad         ( tell1 )
@@ -244,7 +242,6 @@ import Agda.Utils.Null
 import Agda.Interaction.Options.ProfileOptions
 import Agda.Utils.String        ( unwords1 )
 import qualified Agda.Utils.String       as String
-import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.TypeLits
 import Agda.Utils.WithDefault
@@ -662,115 +659,6 @@ mapFlag f (Option _ long arg descr) = Option [] (map f long) arg descr
 
 defaultInteractionOptions :: PragmaOptions
 defaultInteractionOptions = defaultPragmaOptions
-
-defaultOptions :: CommandLineOptions
-defaultOptions = Options
-  { optProgramName      = "agda"
-  , optInputFile             = Nothing
-  , optIncludePaths          = []
-  , optAbsoluteIncludePaths  = []
-  , optLibraries             = []
-  , optOverrideLibrariesFile = Nothing
-  , optDefaultLibs           = True
-  , optUseLibs               = True
-  , optTraceImports          = 1
-  , optTrustedExecutables    = Map.empty
-  , optPrintAgdaDataDir      = False
-  , optPrintAgdaAppDir       = False
-  , optPrintOptions          = False
-  , optPrintVersion          = Nothing
-  , optPrintHelp             = Nothing
-  , optBuildLibrary          = False
-  , optSetup                 = False
-  , optEmacsMode             = Set.empty
-  , optInteractive           = False
-  , optGHCiInteraction       = False
-  , optJSONInteraction       = False
-  , optExitOnError           = False
-  , optCompileDir            = Nothing
-  , optGenerateVimFile       = False
-  , optIgnoreInterfaces      = False
-  , optIgnoreAllInterfaces   = False
-  , optPragmaOptions         = defaultPragmaOptions
-  , optOnlyScopeChecking     = False
-  , optTransliterate         = False
-  , optDiagnosticsColour     = AutoColour
-  }
-
-defaultPragmaOptions :: PragmaOptions
-defaultPragmaOptions = PragmaOptions
-  { _optShowImplicit              = Default
-  , _optShowGeneralized           = Default
-  , _optShowIrrelevant            = Default
-  , _optUseUnicode                = Default -- UnicodeOk
-  , _optVerbose                   = Strict.Nothing
-  , _optProfiling                 = noProfileOptions
-  , _optProp                      = Default
-  , _optLevelUniverse             = Default
-  , _optTwoLevel                  = Default
-  , _optAllowUnsolved             = Default
-  , _optAllowIncompleteMatch      = Default
-  , _optPositivityCheck           = Default
-  , _optTerminationCheck          = Default
-  , _optTerminationDepth          = defaultCutOff
-  , _optUniverseCheck             = Default
-  , _optOmegaInOmega              = Default
-  , _optCumulativity              = Default
-  , _optSizedTypes                = Default
-  , _optGuardedness               = Default
-  , _optInjectiveTypeConstructors = Default
-  , _optUniversePolymorphism      = Default
-  , _optIrrelevantProjections     = Default
-  , _optExperimentalIrrelevance   = Default
-  , _optWithoutK                  = Default
-  , _optCubicalCompatible         = Default
-  , _optCopatterns                = Default
-  , _optPatternMatching           = Default
-  , _optExactSplit                = Default
-  , _optHiddenArgumentPuns        = Default
-  , _optEta                       = Default
-  , _optForcing                   = Default
-  , _optProjectionLike            = Default
-  , _optErasure                   = Default
-  , _optErasedMatches             = Default
-  , _optEraseRecordParameters     = Default
-  , _optRewriting                 = Default
-  , _optCubical                   = Nothing
-  , _optGuarded                   = Default
-  , _optFirstOrder                = Default
-  , _optRequireUniqueMetaSolutions = Default
-  , _optPostfixProjections        = Default
-  , _optKeepPatternVariables      = Default
-  , _optInferAbsurdClauses        = Default
-  , _optInstanceSearchDepth       = 500
-  , _optBacktrackingInstances     = Default
-  , _optQualifiedInstances        = Default
-  , _optInversionMaxDepth         = 50
-  , _optSafe                      = Default
-  , _optDoubleCheck               = Default
-  , _optSyntacticEquality         = Strict.Nothing
-  , _optWarningMode               = defaultWarningMode
-  , _optCompileMain               = Default
-  , _optCaching                   = Default
-  , _optCountClusters             = Default
-  , _optAutoInline                = Default
-  , _optPrintPatternSynonyms      = Default
-  , _optFastReduce                = Default
-  , _optCallByName                = Default
-  , _optConfluenceCheck           = Nothing
-  , _optCohesion                  = Default
-  , _optFlatSplit                 = Default
-  , _optPolarity                  = Default
-  , _optImportSorts               = Default
-  , _optLoadPrimitives            = Default
-  , _optAllowExec                 = Default
-  , _optSaveMetas                 = Default
-  , _optShowIdentitySubstitutions = Default
-  , _optKeepCoveringClauses       = Default
-  , _optForcedArgumentRecursion   = Default
-  , _optLargeIndices              = Default
-  , _optExperimentalLazyInstances = Default
-  }
 
 -- | The options parse monad 'OptM' collects warnings that are not discarded
 --   when a fatal error occurrs
