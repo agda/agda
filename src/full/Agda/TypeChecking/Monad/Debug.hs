@@ -24,6 +24,7 @@ import Data.Time.Format.ISO8601     ( iso8601Show )
 
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
+-- import Agda.TypeChecking.Monad.State ( appInteractionOutputCallback )  -- import cycle
 
 import Agda.Interaction.Options
 import Agda.Interaction.Response.Base (Response_boot(..))
@@ -157,7 +158,7 @@ traceDebugMessageTCM k n doc cont = do
     -- Andreas, 2019-08-20, issue #4016:
     -- Force any lazy 'Impossible' exceptions to the surface and handle them.
     msg :: DocTree <- liftIO . catchAndPrintImpossible k n . E.evaluate . DeepSeq.force . renderToTree $ doc
-    cb <- getsTC $ stInteractionOutputCallback . stPersistentState
+    cb <- useTC $ stInteractionOutputCallback
     cb $ Resp_RunningInfo n msg
     cont
     where

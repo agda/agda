@@ -323,7 +323,6 @@ setIncludeDirs incs root = do
   -- "old-path/M.agda", when the user actually meant
   -- "new-path/M.agda".
   when (sort oldIncs /= sort (List1.toList incs)) $ do
-    ho <- getInteractionOutputCallback
     tcWarnings <- useTC stTCWarnings -- restore already generated warnings
     libCache   <- useTC stLibCache   -- restore cached project configs & .agda-lib files, since they use absolute paths
     decodedModules <- getDecodedModules
@@ -331,7 +330,6 @@ setIncludeDirs incs root = do
     resetAllState
     setTCLens stTCWarnings tcWarnings
     setTCLens stLibCache libCache
-    setInteractionOutputCallback ho
     setDecodedModules keptDecodedModules
     setTCLens stModuleToSourceId modFile
 

@@ -368,6 +368,12 @@ data SessionTCState = SessionTCState
       --
       --   Also informs about whether a 'FileId' belongs to one of
       --   Agda's primitive and builtin modules.
+  , stSessionInteractionOutputCallback :: InteractionOutputCallback
+      -- ^ Callback function to call when there is a response
+      --   to give to the interactive frontend.
+      --   See the documentation of 'InteractionOutputCallback'.
+      --   Set by the interactor (Terminal (default), Emacs, JSON),
+      --   remaining fixed throughout the session.
   }
   deriving (Generic)
 
@@ -388,10 +394,6 @@ data PersistentTCState = PersistentTCSt
     -- ^ Module name hashes for top-level module names (and vice
     -- versa).
   , stPersistentOptions :: CommandLineOptions
-  , stInteractionOutputCallback  :: InteractionOutputCallback
-    -- ^ Callback function to call when there is a response
-    --   to give to the interactive frontend.
-    --   See the documentation of 'InteractionOutputCallback'.
   , stAccumStatistics   :: !Statistics
     -- ^ Should be strict field.
   , stPersistLoadedFileCache :: !(Strict.Maybe LoadedFileCache)
@@ -442,10 +444,11 @@ initFileDict primLibDir = FileDictWithBuiltins empty empty primLibDir
 
 initSessionState :: AbsolutePath -> SessionTCState
 initSessionState primLibDir = SessionTCState
-    { stSessionFileDict  = initFileDict primLibDir
-    , stSessionBenchmark = empty
-    , stSessionBackends  = empty
-    }
+  { stSessionFileDict                  = initFileDict primLibDir
+  , stSessionBenchmark                 = empty
+  , stSessionBackends                  = empty
+  , stSessionInteractionOutputCallback = defaultInteractionOutputCallback
+  }
 
 -- | Empty persistent state.
 
@@ -458,7 +461,6 @@ initPersistentStateFromSessionState s = PersistentTCSt
   , stPersistentOptions             = defaultOptions
   , stPersistentTopLevelModuleNames = empty
   , stDecodedModules                = Map.empty
-  , stInteractionOutputCallback     = defaultInteractionOutputCallback
   , stAccumStatistics               = empty
   , stPersistLoadedFileCache        = empty
   }
@@ -592,6 +594,9 @@ lensBuiltinModuleIds = lensFileDict . lensFileDictBuiltinModuleIds
 
 lensPrimitiveLibDir :: Lens' SessionTCState PrimitiveLibDir
 lensPrimitiveLibDir = lensFileDict . lensFileDictPrimitiveLibDir
+
+lensInteractionOutputCallback :: Lens' SessionTCState InteractionOutputCallback
+lensInteractionOutputCallback f s = f (stSessionInteractionOutputCallback s) <&> \ x -> s { stSessionInteractionOutputCallback = x }
 
 -- ** Components of 'PersistentTCState'
 
@@ -802,6 +807,9 @@ stBuiltinModuleIds = lensSessionState . lensBuiltinModuleIds
 
 stPrimitiveLibDir :: Lens' TCState PrimitiveLibDir
 stPrimitiveLibDir = lensSessionState . lensPrimitiveLibDir
+
+stInteractionOutputCallback :: Lens' TCState InteractionOutputCallback
+stInteractionOutputCallback = lensSessionState . lensInteractionOutputCallback
 
 -- ** Persistent state
 
@@ -6679,7 +6687,7 @@ instance NFData DisambiguatedName
 instance NFData MutualBlock
 instance NFData OpaqueBlock
 instance NFData (BiMap RawTopLevelModuleName ModuleNameHash)
-instance NFData SessionTCState
+instance NFData PersistentTCState
 instance NFData LoadedFileCache
 instance NFData TypeCheckAction
 instance NFData ModuleCheckMode
@@ -6784,15 +6792,16 @@ instance NFData ExecError
 instance NFData ConstructorDisambiguationData
 instance NFData Statistics
 
--- Andreas, 2025-07-31, cannot normalize functions with deepseq-1.5.2.0 (GHC 9.10.3).
--- see https://github.com/haskell/deepseq/issues/111.
+-- Andreas, 2025-07-31, cannot normalize functions with deepseq-1.5.2.0 (GHC 9.10.3-rc1).
+-- See https://github.com/haskell/deepseq/issues/111.
 
-instance NFData PersistentTCState where
-  rnf (PersistentTCSt a b c d _fun f g) =
-    rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf f `seq` rnf g
+instance NFData SessionTCState where
+  rnf (SessionTCState a b c _fun) =
+    rnf a `seq` rnf b `seq` rnf c
 
 instance NFData PrimFun where
-  rnf (PrimFun a b c _fun) = rnf a `seq` rnf b `seq` rnf c
+  rnf (PrimFun a b c _fun) =
+    rnf a `seq` rnf b `seq` rnf c
 
 instance NFData TypeCheckingProblem where
   rnf = \case

@@ -479,17 +479,18 @@ addForeignCode backend code = do
 -- * Interaction output callback
 ---------------------------------------------------------------------------
 
+{-# INLINE getInteractionOutputCallback #-}
 getInteractionOutputCallback :: ReadTCState m => m InteractionOutputCallback
 getInteractionOutputCallback
-  = getsTC $ stInteractionOutputCallback . stPersistentState
+  = useTC stInteractionOutputCallback
 
 appInteractionOutputCallback :: Response -> TCM ()
 appInteractionOutputCallback r
   = getInteractionOutputCallback >>= \ cb -> cb r
 
 setInteractionOutputCallback :: InteractionOutputCallback -> TCM ()
-setInteractionOutputCallback cb
-  = modifyPersistentState $ \ s -> s { stInteractionOutputCallback = cb }
+setInteractionOutputCallback
+  = setTCLens' stInteractionOutputCallback
 
 ---------------------------------------------------------------------------
 -- * Pattern synonyms
