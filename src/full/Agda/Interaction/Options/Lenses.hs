@@ -114,43 +114,25 @@ putSafeMode = modifyTC . setSafeMode
 ---------------------------------------------------------------------------
 
 class LensIncludePaths a where
-  getIncludePaths :: a -> [FilePath]
-  setIncludePaths :: [FilePath] -> a -> a
-  mapIncludePaths :: ([FilePath] -> [FilePath]) -> a -> a
-
   getAbsoluteIncludePaths :: a -> [AbsolutePath]
   setAbsoluteIncludePaths :: [AbsolutePath] -> a -> a
   mapAbsoluteIncludePaths :: ([AbsolutePath] -> [AbsolutePath]) -> a -> a
 
   -- default implementations
-  setIncludePaths     = mapIncludePaths . const
-  mapIncludePaths f a = setIncludePaths (f $ getIncludePaths a) a
   setAbsoluteIncludePaths     = mapAbsoluteIncludePaths . const
   mapAbsoluteIncludePaths f a = setAbsoluteIncludePaths (f $ getAbsoluteIncludePaths a) a
 
 instance LensIncludePaths CommandLineOptions where
-  getIncludePaths = optIncludePaths
-  setIncludePaths is opts = opts { optIncludePaths = is }
   getAbsoluteIncludePaths = optAbsoluteIncludePaths
   setAbsoluteIncludePaths is opts = opts { optAbsoluteIncludePaths = is }
 
 instance LensIncludePaths PersistentTCState where
-  getIncludePaths = getIncludePaths . getCommandLineOptions
-  mapIncludePaths = mapCommandLineOptions . mapIncludePaths
   getAbsoluteIncludePaths = getAbsoluteIncludePaths . getCommandLineOptions
   mapAbsoluteIncludePaths = mapCommandLineOptions . mapAbsoluteIncludePaths
 
 instance LensIncludePaths TCState where
-  getIncludePaths = getIncludePaths . getCommandLineOptions
-  mapIncludePaths = mapCommandLineOptions . mapIncludePaths
   getAbsoluteIncludePaths = getAbsoluteIncludePaths . getCommandLineOptions
   mapAbsoluteIncludePaths = mapCommandLineOptions . mapAbsoluteIncludePaths
-
-modifyIncludePaths :: MonadTCState m => ([FilePath] -> [FilePath]) -> m ()
-modifyIncludePaths = modifyTC . mapIncludePaths
-
-putIncludePaths :: MonadTCState m => [FilePath] -> m ()
-putIncludePaths = modifyTC . setIncludePaths
 
 modifyAbsoluteIncludePaths :: MonadTCState m => ([AbsolutePath] -> [AbsolutePath]) -> m ()
 modifyAbsoluteIncludePaths = modifyTC . mapAbsoluteIncludePaths
@@ -159,7 +141,7 @@ putAbsoluteIncludePaths :: MonadTCState m => [AbsolutePath] -> m ()
 putAbsoluteIncludePaths = modifyTC . setAbsoluteIncludePaths
 
 ---------------------------------------------------------------------------
--- ** Include directories
+-- ** Verbosity
 ---------------------------------------------------------------------------
 
 type PersistentVerbosity = Verbosity
