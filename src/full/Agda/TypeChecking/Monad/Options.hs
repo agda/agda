@@ -270,7 +270,7 @@ displayFormsEnabled = asksTC envDisplayFormsEnabled
 -- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
 -- 'setCommandLineOptions' must have run).
 
-getIncludeDirs :: HasOptions m => m (List1 AbsolutePath)
+getIncludeDirs :: TCM (List1 AbsolutePath)
 getIncludeDirs = do
   List1.fromListSafe __IMPOSSIBLE__ . optAbsoluteIncludePaths <$> commandLineOptions
 
