@@ -241,6 +241,7 @@ getInteractor configuredBackends maybeInputFile opts = do
           return $ Just $ interactionInteractor i
         -- --build-library
         FrontEndBuildLibrary -> do
+          noBackends fe  -- Issue #8024: Backends are not supported yet.
           unless (optUseLibs opts) $
             throwError "--build-library cannot be combined with --no-libraries"
           noInputFile fe
