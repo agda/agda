@@ -10,13 +10,15 @@
 
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 
-module Agda.Utils.Serializer (
+module Agda.Utils.Serialize (
     Serialize(..)
   , serialize
   , deserialize
   , ensure
   , Get(..)
   , Put(..)
+  , putByteArray#
+  , getByteArray#
   ) where
 
 import GHC.Exts
@@ -151,6 +153,26 @@ instance Serialize Word where
   {-# INLINE get #-}
   get = ensure SIZEOF_HSWORD \p' -> Get \e p s -> case readWordOffAddr# p 0# s of
     (# s, n #) -> (# p', s, W# n #)
+
+instance Serialize Word8 where
+  {-# INLINE size #-}
+  size _ = SIZEOF_WORD8
+  {-# INLINE put #-}
+  put (W8# n) = Put \p s -> case writeWord8OffAddr# p 0# n s of
+    s -> (# plusAddr# p SIZEOF_WORD8#, s #)
+  {-# INLINE get #-}
+  get = ensure SIZEOF_WORD8 \p' -> Get \e p s -> case readWord8OffAddr# p 0# s of
+    (# s, n #) -> (# p', s, W8# n #)
+
+instance Serialize Word16 where
+  {-# INLINE size #-}
+  size _ = SIZEOF_WORD16
+  {-# INLINE put #-}
+  put (W16# n) = Put \p s -> case writeWord16OffAddr# p 0# n s of
+    s -> (# plusAddr# p SIZEOF_WORD16#, s #)
+  {-# INLINE get #-}
+  get = ensure SIZEOF_WORD16 \p' -> Get \e p s -> case readWord16OffAddr# p 0# s of
+    (# s, n #) -> (# p', s, W16# n #)
 
 instance Serialize Word32 where
   {-# INLINE size #-}

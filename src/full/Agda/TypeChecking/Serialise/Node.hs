@@ -6,7 +6,7 @@ module Agda.TypeChecking.Serialise.Node where
 import GHC.Exts
 import GHC.Types
 import GHC.Word
-import Agda.Utils.Serializer
+import Agda.Utils.Serialize
 import Data.Hashable
 import Data.Bits
 

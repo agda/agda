@@ -17,10 +17,12 @@ import Prelude hiding (lookup)
 
 import Data.Hashable
 import qualified Data.Vector.Hashtables as H
+import qualified Data.Vector.Hashtables.Internal as H
 import qualified Data.Vector.Mutable as VM
 import qualified Data.Vector as V
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Primitive.MutVar
 
 -- | Hash tables.
 
@@ -70,3 +72,26 @@ keySet (HashTable h) = do
   (ks :: V.Vector k) <- H.keys h
   pure $! V.foldl' (flip Set.insert) mempty ks
 {-# INLINABLE keySet #-}
+
+-- | Iterate over key-value pairs in IO.
+forAssocs :: HashTable k v -> (k -> v -> IO ()) -> IO ()
+forAssocs (HashTable h) f = do
+  !dict <- readMutVar (H.getDRef h)
+  let !hcs   = H.hashCode dict
+      !refs  = H.refs dict
+      !key   = H.key dict
+      !value = H.value dict
+  !count <- refs H.! H.getCount
+  let go :: Int -> IO ()
+      go !i | i < 0 = pure ()
+      go i = do
+        h <- hcs H.! i
+        if h < 0 then
+          go (i - 1)
+        else do
+          !k <- key H.!~ i
+          !v <- value H.!~ i
+          !_ <- f k v
+          go (i - 1)
+  go (count - 1)
+{-# INLINE forAssocs #-}
