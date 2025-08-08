@@ -4,13 +4,18 @@ open import Agda.Builtin.Reflection
 open import Agda.Builtin.List
 open import Agda.Builtin.Unit
 
+-- (*)
+-- Andreas, 2025-08-08, issue #7001
+-- Erasure status needs to be given explicitly
+-- at inferred lambdas now, if --erasure is on.
+
 macro
 
   m-0 : Term → TC ⊤
   m-0 goal =
     bindTC (inferType goal) λ where
       (pi (arg (arg-info _ (modality _ quantity-0)) _) _) →
-        bindTC (quoteTC (λ (_ : Set) → Set))
+        bindTC (quoteTC (λ (@0 _ : Set) → Set))  -- (*)
                (unify goal)
       type → typeError (termErr type ∷ [])
 
@@ -18,7 +23,7 @@ macro
   m-ω goal =
     bindTC (inferType goal) λ where
       (pi (arg (arg-info _ (modality _ quantity-ω)) _) _) →
-        bindTC (quoteTC (λ (_ : Set) → Set))
+        bindTC (quoteTC (λ (@ω _ : Set) → Set))  -- (*)
                (unify goal)
       type → typeError (termErr type ∷ [])
 

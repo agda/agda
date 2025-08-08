@@ -65,7 +65,7 @@ Changes to the Agda syntax.
   See [#4275](https://github.com/agda/agda/issues/4275) for the proposal.
 
 * Modality annotations in aliases and let-bindings are now supported
-  (PR [#7990]()).
+  (PR [#7990](https://github.com/agda/agda/pull/7990)).
   Example:
   ```agda
     split : {A B C : Set} (@0 p : A × B) (k : @0 A → @0 B → C) → C
@@ -92,6 +92,20 @@ Changes to type checker and other components defining the Agda language.
   For compatibility with modules using `--cubical[=full]` and `--cubical=erased`, see
   [variants](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
 
+* (**BREAKING**): In the presence of `--erasure`, types of lambdas expressions
+  are not inferred unless every lambda-bound variable has been given its erasure
+  status (`@0` or `@ω`) explicitely.
+  The reason is that otherwise Agda might infer the wrong erasure status, see, e.g.,
+  [Issue #7001](https://github.com/agda/agda/issues/7001).
+
+  Now we have the following behavior:
+  ```agda
+    fails    = λ x → x + x
+    succeeds = λ (@ω x) → x + x
+    alsoOK   = λ (@ω A : Set) (@0 B : Set) → A
+  ```
+  With that change `--erasure` gets more akin to Cubical Agda that categorically
+  refuses to infer lambdas (since they could construct either functions or paths).
 
 Reflection
 ----------

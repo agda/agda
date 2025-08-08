@@ -2,6 +2,7 @@
   ::
 
   {-# OPTIONS --cubical #-}
+  {-# OPTIONS --erasure #-}
   {-# OPTIONS -WnoUnsupportedIndexedMatch #-} -- silence warnings for indexed families
 
   module language.cubical where
@@ -721,23 +722,64 @@ that the torus is equal to two circles.
   Torus≡S¹×S¹ : Torus ≡ S¹ × S¹
   Torus≡S¹×S¹ = isoToPath (iso t2c c2t t2c-c2t c2t-t2c)
 
+A type is a *proposition* if all of its elements are connected by a path::
+
+  IsProp : ∀ {ℓ} → Set ℓ → Set ℓ
+  IsProp A = (x y : A) → x ≡ y
+
 Cubical Agda also supports parameterized and recursive higher
 inductive types, for example propositional truncation (squash types)
 is defined as:
 
+..
+  ::
+
+  module PropositionalTruncationHIT where
+
 ::
 
-  data ∥_∥ {ℓ} (A : Set ℓ) : Set ℓ where
-    ∣_∣ : A → ∥ A ∥
-    squash : ∀ (x y : ∥ A ∥) → x ≡ y
+    data ∥_∥ {ℓ} (A : Set ℓ) : Set ℓ where
+      ∣_∣ : A → ∥ A ∥
+      squash : ∀ (x y : ∥ A ∥) → x ≡ y
 
-  isProp : ∀ {ℓ} → Set ℓ → Set ℓ
-  isProp A = (x y : A) → x ≡ y
+    recPropTrunc : ∀ {ℓ} {A : Set ℓ} {P : Set ℓ} → IsProp P → (A → P) → ∥ A ∥ → P
+    recPropTrunc Pprop f ∣ x ∣          = f x
+    recPropTrunc Pprop f (squash x y i) =
+      Pprop (recPropTrunc Pprop f x) (recPropTrunc Pprop f y) i
 
-  recPropTrunc : ∀ {ℓ} {A : Set ℓ} {P : Set ℓ} → isProp P → (A → P) → ∥ A ∥ → P
-  recPropTrunc Pprop f ∣ x ∣          = f x
-  recPropTrunc Pprop f (squash x y i) =
-    Pprop (recPropTrunc Pprop f x) (recPropTrunc Pprop f y) i
+
+.. _erased-constructors:
+
+Erased constructors
+-------------------
+
+In combination with :option:`--erasure` it can make sense to mark constructors as erased,
+in particular higher constructors such as ``squash``:
+
+..
+  ::
+
+  module PropositionalTruncationHITErased where
+
+::
+
+    data ∥_∥ {ℓ} (A : Set ℓ) : Set ℓ where
+      ∣_∣ : A → ∥ A ∥
+      @0 squash : ∀ (x y : ∥ A ∥) → x ≡ y
+
+    recPropTrunc : ∀ {ℓ} {A : Set ℓ} {P : Set ℓ} → @0 IsProp P → (A → P) → ∥ A ∥ → P
+    recPropTrunc Pprop f ∣ x ∣          = f x
+    recPropTrunc Pprop f (squash x y i) =
+      Pprop (recPropTrunc Pprop f x) (recPropTrunc Pprop f y) i
+
+In the code above the constructor ``squash`` is only available at
+compile-time, whereas ``∣_∣`` is also available at run-time. Clauses
+that match on erased constructors in non-erased positions are omitted
+by (at least some) compiler backends, so one can use erased names in
+the bodies of such clauses. (There is an exception for constructors
+that were not originally declared as erased, but that are currently
+treated as erased.)
+
 
 For many more examples of higher inductive types see the
 ``agda/cubical`` library or the ``1lab``.
