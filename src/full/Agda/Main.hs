@@ -29,7 +29,7 @@ import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode as ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.BashCompletion (bashComplete, printedOptions)
-import Agda.Interaction.Options.Help (Help (..))
+import Agda.Interaction.Options.Help (Help (..), helpTopicUsage)
 import Agda.Interaction.EmacsTop (mimicGHCi)
 import Agda.Interaction.JSONTop (jsonREPL)
 import Agda.Interaction.FindFile ( SourceFile(SourceFile) )
@@ -47,6 +47,8 @@ import Agda.Compiler.Builtin
 
 import Agda.Setup ( getAgdaAppDir, getDataDir, setup )
 import Agda.Setup.EmacsMode
+
+import Agda.Version (version)
 import Agda.VersionCommit ( versionWithCommitInfo )
 
 import qualified Agda.Utils.Benchmark as UtilsBench
@@ -337,13 +339,23 @@ runAgdaWithOptions interactor progName opts = do
 printUsage :: [Backend] -> Help -> IO ()
 printUsage backends hp = do
   progName <- getProgName
-  putStr $ usage standardOptions_ progName hp
-  when (hp == GeneralHelp) $ mapM_ (putStr . backendUsage) backends
-
-backendUsage :: Backend -> String
-backendUsage (Backend b) =
-  usageInfo ("\n" ++ T.unpack (backendName b) ++ " backend options") $
-    map void (commandLineFlags b)
+  putStr $ unlines
+    [ "Agda version " ++ version
+    , ""
+    , "Usage: " ++ progName ++ " [OPTIONS...] [FILE]"
+    ]
+  case hp of
+    GeneralHelp -> do
+      forM_ optionGroups \ (header, opts) -> do
+        usage header opts
+      forM_ backends \ (Backend b) -> do
+        usage (T.unpack (backendName b) ++ " backend options") (commandLineFlags b)
+    HelpFor topic -> putStr $ helpTopicUsage topic
+  where
+    fmt h = "\n" ++ h ++ ":\n"
+    width = 40
+    usage :: String -> [OptDescr a] -> IO ()
+    usage header opts = putStr $ usageInfo width (fmt header) opts
 
 -- | Print version information.
 printVersion :: [Backend] -> PrintAgdaVersion -> IO ()
