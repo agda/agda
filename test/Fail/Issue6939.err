@@ -1,0 +1,6 @@
+
+Issue6939.agda:16.16-30: warning: -W[no]MisplacedAttributes
+Ignoring misplaced @(tactic ...) attribute
+Issue6939.agda:22.27-37: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue6939.agda:22.27-37
