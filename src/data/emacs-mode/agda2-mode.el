@@ -1833,17 +1833,11 @@ characters to the \\xNNNN notation used in Haskell strings."
           (insert-char ?  indent) (backward-char (1+ indent)))))))
 
 (defun agda2-forget-all-goals ()
-  "Remove all goal annotations.
-\(Including some text properties which might be used by other
-\(minor) modes.)"
-  (annotation-preserve-mod-p-and-undo
-   (remove-text-properties (point-min) (point-max)
-                           '(category nil agda2-delim2 nil agda2-delim3 nil
-                             display nil rear-nonsticky nil)))
-  (let ((p (point-min)))
-    (while (< (setq p (next-single-char-property-change p 'agda2-gn))
-              (point-max))
-      (delete-overlay (car (agda2-goal-at p))))))
+  "Remove all goal annotations."
+  (remove-text-properties (point-min) (point-max) '(category nil))
+  (dolist (ovl (overlays-in (point-min) (point-max)))
+    (when (overlay-get ovl 'agda2-gn)
+      (delete-overlay ovl))))
 
 (defun agda2-decl-beginning ()
   "Find the beginning point of the declaration containing the point.
