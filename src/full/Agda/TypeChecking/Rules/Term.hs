@@ -462,7 +462,7 @@ checkLambda' ::
   -> Range                     -- ^ Range @r@ of the typed binding
   -> A.TypedBindingInfo        -- ^ @tac@ tactic/finiteness attribute of the typed binding
   -> List1 (NamedArg Binder)   -- ^ @xps@ variables/patterns of the typed binding
-  -> A.Type                    -- ^ @typ@ Type of the typed binding
+  -> A.Type                    -- ^ @typ@ Type of the typed binding (underscore for untyped lambda).
   -> A.Expr                    -- ^ @body@
   -> Type                      -- ^ @target@
   -> TCM Term
@@ -472,6 +472,7 @@ checkLambda' cmp r tac xps typ body target = do
     , "possiblePath   =" <+> prettyTCM possiblePath
     , "numbinds       =" <+> prettyTCM numbinds
     , "typ            =" <+> prettyA   (unScope typ)
+    , "target         =" <+> prettyTCM target
     , "tactic         =" <+> prettyA (tbTacticAttr tac)
     ]
   reportSDoc "tc.term.lambda" 60 $ vcat
@@ -496,6 +497,7 @@ checkLambda' cmp r tac xps typ body target = do
 
   where
     b = A.TBind r tac xps typ
+    xs :: List1 (NamedArg Name)
     xs = fmap (updateNamedArg (A.unBind . A.binderName)) xps
     numbinds = length xps
     possiblePath = numbinds == 1 && isUnderscore (unScope typ)
@@ -518,7 +520,7 @@ checkLambda' cmp r tac xps typ body target = do
       -- Checking λ (xs : argsT) → body : target
       verboseS "tc.term.lambda" 5 $ tick "lambda-no-target-type"
 
-      -- First check that argsT is a valid type
+      -- First check that argsT is a valid type or create a meta for it.
       argsT <- workOnTypes $ isType_ typ
       let tel = namedBindsToTel1 xs argsT
       reportSDoc "tc.term.lambda" 30 $ "dontUseTargetType tel =" <+> pretty tel
