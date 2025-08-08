@@ -227,6 +227,8 @@ General options
      are used Agda uses UTF-8 when writing to stdout (and when reading
      from stdin).
 
+.. _compilation-options:
+
 Compilation
 ~~~~~~~~~~~
 

@@ -88,6 +88,8 @@ Options
      Instrument the code to trace function calls,
      inserting a ``Debug.Trace.trace`` statement at the beginning of each function.
 
+See :ref:`compilation-options` for options common to the compiler backends.
+
 Pragmas
 ^^^^^^^
 
@@ -190,6 +192,7 @@ Options
      Except for the main module, run the generated modules through ``node``,
      to verify absence of syntax errors.
 
+See :ref:`compilation-options` for options common to the compiler backends.
 
 Optimizations
 -------------
