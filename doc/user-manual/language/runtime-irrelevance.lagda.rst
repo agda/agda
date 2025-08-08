@@ -1,12 +1,12 @@
 ..
   ::
 
-  {-# OPTIONS --cubical --erasure #-}
+  {-# OPTIONS --erasure #-}
 
   module language.runtime-irrelevance where
 
   open import Agda.Primitive
-  open import Agda.Builtin.Cubical.Path
+  open import Agda.Builtin.Equality
   open import Agda.Builtin.Nat
   open import Agda.Builtin.List
 
@@ -84,6 +84,9 @@ compiling without erasure:
         []     -> z
         x ∷ xs -> foldl (\ n -> f (1 + n)) (f 0 z x) xs
 
+Erased definitions and fields
+-----------------------------
+
 It is also possible to mark top-level function definitions as erased. This
 guarantees that they are only used in erased arguments and can be
 useful to ensure that code intended only for compile-time evaluation
@@ -98,35 +101,39 @@ bodies of erased definitions.) For instance,
 
 ..
   ::
-  spec n = n
-  impl n = n
-  proof n = λ _ → n
+  spec  n = n
+  impl  n = n
+  proof n = refl
 
 Erased record fields become erased arguments to the record constructor and the projection functions
 are treated as erased definitions.
 
-Constructors can also be marked as erased. Here is one example:
+Erased constructors
+-------------------
 
-::
+Constructors can also be marked as erased::
 
-  Is-proposition : Set a → Set a
-  Is-proposition A = (x y : A) → x ≡ y
+  data D : Set where
+    always : D
+    @0 compile-time-only : D
 
-  data ∥_∥ (A : Set a) : Set a where
-    ∣_∣        : A → ∥ A ∥
-    @0 trivial : Is-proposition ∥ A ∥
+  caseD : A → @0 A → D → A
+  caseD a c always            = a
+  caseD a c compile-time-only = c
 
-  rec : @0 Is-proposition B → (A → B) → ∥ A ∥ → B
-  rec p f ∣ x ∣           = f x
-  rec p f (trivial x y i) = p (rec p f x) (rec p f y) i
-
-In the code above the constructor ``trivial`` is only available at
-compile-time, whereas ``∣_∣`` is also available at run-time. Clauses
+In the code above the constructor ``compile-time-only`` is only available at
+compile-time, whereas ``always`` is also available at run-time. Clauses
 that match on erased constructors in non-erased positions are omitted
 by (at least some) compiler backends, so one can use erased names in
 the bodies of such clauses. (There is an exception for constructors
 that were not originally declared as erased, but that are currently
 treated as erased.)
+
+A more meaningful example for erased constructors involves higher inductive types,
+see :ref:`erased-constructors`.
+
+Erased data types
+-----------------
 
 One can also mark data and record types as erased. Such types can only
 be used in erased positions, their constructors and projections are
@@ -162,6 +169,9 @@ or record type's declaration:
     field
       x : R₁
 
+Erased modules
+--------------
+
 Finally one can mark modules as erased. The module identifier itself
 does not become erased, but all definitions inside the module. A
 module is marked as erased by writing ``@0`` or ``@erased`` right
@@ -187,6 +197,54 @@ after the ``module`` keyword:
     module @0 _ where
       C : Set
       C = A
+
+.. _erased-lambda:
+
+Lambda abstraction
+------------------
+
+Lambda-bound variables can be annotated with erasure status ``@0`` and ``@ω``.
+If the type of the lambda expression is known, such annotations are superfluous,
+they are inherited from the type in this case::
+
+  checkedLambda : _ → _
+  checkedLambda = λ x → x + x
+
+  const : {A B : Set} → A → @0 B → A
+  const = λ x y → x
+
+If the type is unknown and shall be inferred by Agda, the annotation is mandatory.
+For instance, the following definition is not accepted by Agda:
+
+.. code-block:: agda
+
+  inferredLambda = λ x → x + x
+
+It is accepted if you communicate that ``x`` is not erased::
+
+  inferredLambda = λ (@ω x) → x + x
+
+You have to annotate all lambda-bound variables with their erasure status::
+
+  Const = λ (@ω A : Set) (@0 B : Set) → A
+
+Note, however, that with :option:`--cubical` lambdas are in general not inferred.
+
+Pattern lambdas
+---------------
+
+Regular pattern lambdas are treated as non-erased function definitions.
+One can make a pattern lambda erased by writing ``@0`` or ``@erased`` before the lambda:
+
+::
+
+  @0 _ : @0 Set → Set
+  _ = λ @0 { A → A }
+
+  @0 _ : @0 Set → Set
+  _ = λ @erased where
+    A → A
+
 
 .. _run-time-irrelevance-rules:
 
