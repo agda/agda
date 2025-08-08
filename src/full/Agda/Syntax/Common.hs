@@ -1921,7 +1921,7 @@ isContinuous = (Continuous ==) . getCohesion
 moreCohesion :: Cohesion -> Cohesion -> Bool
 moreCohesion = (<=)
 
--- | Equality ignoring origin.
+-- | Equality ignoring origin.  TODO: add origin to 'Cohesion'.
 sameCohesion :: Cohesion -> Cohesion -> Bool
 sameCohesion = (==)
 
