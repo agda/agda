@@ -86,6 +86,7 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
+import Agda.Utils.Boolean (implies)
 
 ---------------------------------------------------------------------------
 -- * Types
@@ -491,10 +492,16 @@ checkLambda' cmp r tac xps typ body target = do
     _ -> __IMPOSSIBLE__
 
   TelV tel btyp <- telViewUpTo numbinds target
+  reportSDoc "tc.term.lambda" 30 $ vcat
+    [ "tel            =" <+> prettyTCM tel
+    , "btyp           =" <+> prettyTCM btyp
+    ]
   if numbinds == 1 && not (null tel) then useTargetType tel btyp
   else if possiblePath then trySeeingIfPath
-  else dontUseTargetType
-
+  else dontUseTargetType =<< do pure (null tel) `and2M` (isJust <$> isBlocked btyp)
+    -- If either @tel@ is not @null@ or @btyp@ is not blocked, then @target@ is not blocked,
+    -- so we have nothing to block on, and cannot permit @dontUseTargetType@ to postpone.
+    -- This happens e.g. in ill-typed cases like @(\ x -> x) : Nat@.
   where
     b = A.TBind r tac xps typ
     xs :: List1 (NamedArg Name)
@@ -507,21 +514,44 @@ checkLambda' cmp r tac xps typ body target = do
     trySeeingIfPath = do
       reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xps
       let postpone' blocker tgt =
-            ifM (isNothing <$> cubicalOption) {-then-} dontUseTargetType {-else-} $ postpone blocker tgt
+            ifM (isNothing <$> cubicalOption) {-then-} (dontUseTargetType True) {-else-} $ postpone blocker tgt
       ifBlocked target postpone' $ \ _ t -> do
-        ifNotM (isPathType <$> pathView t) dontUseTargetType {-else-} do
+        ifNotM (isPathType <$> pathView t) (dontUseTargetType False) {-else-} do
           -- Note that --cubical is on here since we returned from 'pathView'.
           checkPath (List1.head xps) typ body t
+
+    postpone_ = postponeTypeCheckingProblem_ $
+      CheckExpr cmp (A.Lam A.exprNoRange (A.DomainFull b) body) target
 
     postpone blocker tgt = flip postponeTypeCheckingProblem blocker $
       CheckExpr cmp (A.Lam A.exprNoRange (A.DomainFull b) body) tgt
 
-    dontUseTargetType = do
+    -- Andreas, 2025-08-08.
+    -- In case the target type does not resolve to a Pi,
+    -- we construct a Pi-type from the yet unchecked type @typ@ of the domain(s)
+    -- (which is underscore for an untyped lambda).
+    -- This strategy is hazardous in various situations:
+    --
+    -- - We might be missing implicit lambdas that should precede the given lambda.
+    --
+    -- - If no modality is given at the lambda, we might commit to the default one
+    --   which then might turn out to be the wrong one as more information surfaces.
+    --   Unfortunately, we do not have modality metas otherwise we could postpone
+    --   the decision.
+    --
+    -- To fix #7001, we could check whether the user has supplied the relevant modalities
+    -- (depending on which language flags are on), and refuse to progress if they are missing.
+    dontUseTargetType mayPostpone = ifM (pure mayPostpone `and2M` userOmittedModalities xs) postpone_ {-else-} do
       -- Checking λ (xs : argsT) → body : target
       verboseS "tc.term.lambda" 5 $ tick "lambda-no-target-type"
 
       -- First check that argsT is a valid type or create a meta for it.
       argsT <- workOnTypes $ isType_ typ
+      -- Andreas, 2025-08-08, issue #7001:
+      -- If the user has not written explicitly a modality for the lambda-bound variable,
+      -- the default modality is used which might not be correct.
+      -- As a consequence, the speculated function type created by @telePi tel@ below
+      -- may have the wrong modality.
       let tel = namedBindsToTel1 xs argsT
       reportSDoc "tc.term.lambda" 30 $ "dontUseTargetType tel =" <+> pretty tel
 
@@ -588,6 +618,25 @@ checkLambda' cmp r tac xps typ body target = do
         blockTermOnProblem target (Lam info $ Abs (namedArgName x) v) pid
 
     useTargetType _ _ = __IMPOSSIBLE__
+
+userOmittedModalities :: List1 (NamedArg Name) -> TCM Bool
+userOmittedModalities xs = do
+  (optErasure <$> pragmaOptions) `and2M` pure (any (null . getQuantity) xs)
+-- TODO: extend to modalities beyond erasure.
+-- userOmittedModalities :: List1 (NamedArg Name) -> TCM Bool
+-- userOmittedModalities xs = do
+--   erasure  <- optErasure <$> pragmaOptions
+--   -- polarity <- optPolarity <$> pragmaOptions
+--   return $ flip any xs \ x -> or
+--     [ erasure  && null (getQuantity x)
+--     -- TODO: ModalPolarity does not have a concept of default yet.
+--     -- , polarity && null (getPolarityMod x)
+--     -- TODO: a means for the user to tell they are serious about irrelevance,
+--     -- e.g. flag --irrelevance.
+--     -- Otherwise too many regressions.
+--     -- , null $ getRelevance x
+--     -- TODO: Cohesion and Annotation do not have a concept of default yet.
+--     ]
 
 -- | Check that modality info in lambda is compatible with modality
 --   coming from the function type.
