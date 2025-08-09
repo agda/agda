@@ -1329,7 +1329,7 @@ assignMeta' m x t n ids v = do
 
     -- Perform the assignment (and wake constraints).
 
-    let vsol = abstract tel' v'
+    v' <- blockOnBoundary telv bs v'
 
     -- Andreas, 2013-10-25 double check solution before assigning
     whenM (optDoubleCheck  <$> pragmaOptions) $ do
@@ -1339,9 +1339,7 @@ assignMeta' m x t n ids v = do
         addContext tel' $ checkSolutionForMeta x m v' a
 
     reportSDoc "tc.meta.assign" 10 $
-      "solving" <+> prettyTCM x <+> ":=" <+> prettyTCM vsol
-
-    v' <- blockOnBoundary telv bs v'
+      "solving" <+> prettyTCM x <+> ":=" <+> prettyTCM (abstract tel' v')
 
     assignTerm x (telToArgs tel') v'
   where
