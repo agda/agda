@@ -252,11 +252,6 @@ See :ref:`compilers` for backend-specific options.
 
      Default, opposite of :option:`--no-main`.
 
-.. option:: --with-compiler={PATH}
-
-     Set ``PATH`` as the executable to call to compile the backend's
-     output (default: ``ghc`` for the GHC backend).
-
 Generating highlighted source code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
