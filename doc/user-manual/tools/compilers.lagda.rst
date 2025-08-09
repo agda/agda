@@ -67,6 +67,11 @@ Options
      Then invoke ``ghc`` (or the compiler given by :option:`--with-compiler`) on the main file,
      unless option :option:`--ghc-dont-call-ghc` is given.
 
+.. option:: --with-compiler={PATH}
+
+     Set ``PATH`` as the executable to call to compile the backend's
+     output, default: ``ghc``.
+
 .. option:: --ghc-dont-call-ghc
 
      Only produce Haskell files, skip the compilation to binary.
