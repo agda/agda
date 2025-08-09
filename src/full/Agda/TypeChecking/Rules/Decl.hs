@@ -229,7 +229,7 @@ checkDecl d = setCurrentRange d $ do
           A.Generalize{} -> pure ()
           _ -> do
             reportSLn "tc.decl" 20 $ "Freezing all open metas."
-            void $ freezeMetas (openMetas metas)
+            void $ freezeMetas $ MapS.keys $ openMetas metas
 
         theMutualChecks
 
@@ -542,11 +542,12 @@ whenAbstractFreezeMetasAfter Info.DefInfo{defAccess, defAbstract, defOpaque} m =
     reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
     locallyTCState stInstanceHack (const True) $
       wakeupConstraints_   -- solve emptiness and instance constraints
-    xs <- freezeMetas (openMetas ms)
+    let oms = MapS.keys $ openMetas ms
+    xs <- freezeMetas oms
 
     reportSDoc "tc.decl.ax" 20 $ vcat
       [ "Abstract type signature produced new open metas: " <+>
-        sep (map prettyTCM $ MapS.keys (openMetas ms))
+        sep (map prettyTCM oms)
       , "We froze the following ones of these:            " <+>
         sep (map prettyTCM $ Set.toList xs)
       ]
