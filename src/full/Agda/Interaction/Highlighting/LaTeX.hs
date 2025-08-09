@@ -8,4 +8,5 @@ module Agda.Interaction.Highlighting.LaTeX
 
 import Agda.Interaction.Highlighting.LaTeX.Backend as Exports
   ( latexBackend
+  , latexBackendName
   )
