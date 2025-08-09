@@ -4,8 +4,8 @@
 Generating LaTeX
 ****************
 
-An experimental LaTeX backend was added in Agda 2.3.2. It can be used
-as follows:
+The LaTeX backend was added in Agda 2.3.2.
+It can be used as follows:
 
 .. code-block:: console
 
@@ -39,6 +39,63 @@ from :file:`agda.sty`.
   :option:`--print-agda-data-dir` since 2.6.4.1. Thus, you can get hold
   of the class file via
   :samp:`cat $(agda --print-agda-data-dir)/latex/agda.sty`.
+
+.. _latex-backend-options:
+
+Options
+-------
+
+The following command-line options change the behaviour of the LaTeX
+backend:
+
+:option:`--latex`
+
+  Generate LaTeX with highlighted source code.
+
+:option:`--only-scope-checking`
+
+  Generates highlighting without typechecking the file.
+  See :ref:`quickLaTeX`.
+
+.. option:: --latex-dir={DIR}
+
+     .. versionadded:: 2.5.2
+
+     Set directory where :file:`agda.sty` and the generated LaTeX files
+     are placed to ``DIR`` (default: ``latex``).
+
+.. option:: --count-clusters
+
+     .. versionadded:: 2.5.3
+
+     Count extended grapheme clusters when generating LaTeX code (see
+     :ref:`grapheme-clusters`).
+     Available only when Agda was built with Cabal flag :option:`enable-cluster-counting`.
+
+     This option can be given in :ref:`OPTIONS<options-pragma>` pragmas
+     since 2.5.4.
+
+.. option:: --no-count-clusters
+
+     .. versionadded:: 2.6.4
+
+     Opposite of :option:`--count-clusters`. Default.
+
+The following options can be given when loading ``agda.sty`` by using
+``\usepackage[options]{agda}``:
+
+``bw``
+  Colour scheme which highlights in black and white.
+
+``conor``
+  Colour scheme similar to the colours used in Epigram 1.
+
+``references``
+  Enables :ref:`inline typesetting <latex-inline-references>` of
+  referenced code.
+
+``links``
+  Enables :ref:`hyperlink support <latex-links>`.
 
 .. _unicode-latex:
 
@@ -150,44 +207,6 @@ Known pitfalls and issues
   Possible workaround: Download a more up-to-date version of
   polytable_ and put it together with the generated files or install
   it globally.
-
-.. _latex-backend-options:
-
-Options
--------
-
-The following command-line options change the behaviour of the LaTeX
-backend:
-
-:option:`--latex-dir={DIR}`
-  Changes the output directory where :file:`agda.sty` and the output
-  :file:`.tex` file are placed to :samp:`{DIR}`. Default:
-  ``latex``.
-
-:option:`--only-scope-checking`
-  Generates highlighting without typechecking the file. See
-  :ref:`quickLaTeX`.
-
-:option:`--count-clusters`
-  Count extended grapheme clusters when generating LaTeX code. This
-  option can be given in :ref:`OPTIONS<options-pragma>` pragmas.
-  See :ref:`grapheme-clusters`.
-
-The following options can be given when loading ``agda.sty`` by using
-``\usepackage[options]{agda}``:
-
-``bw``
-  Colour scheme which highlights in black and white.
-
-``conor``
-  Colour scheme similar to the colours used in Epigram 1.
-
-``references``
-  Enables :ref:`inline typesetting <latex-inline-references>` of
-  referenced code.
-
-``links``
-  Enables :ref:`hyperlink support <latex-links>`.
 
 .. _quickLaTeX:
 

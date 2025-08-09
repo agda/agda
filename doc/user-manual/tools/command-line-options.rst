@@ -255,22 +255,6 @@ See :ref:`compilers` for backend-specific options.
 Generating highlighted source code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. option:: --count-clusters
-
-     .. versionadded:: 2.5.3
-
-     Count extended grapheme clusters when generating LaTeX code (see
-     :ref:`grapheme-clusters`).
-     Available only when Agda was built with Cabal flag :option:`enable-cluster-counting`.
-
-     Pragma option since 2.5.4.
-
-.. option:: --no-count-clusters
-
-     .. versionadded:: 2.6.4
-
-     Opposite of :option:`--count-clusters`. Default.
-
 .. option:: --dependency-graph={FILE}
 
      .. versionadded:: 2.3.0
@@ -305,14 +289,7 @@ Generating highlighted source code
      .. versionadded:: 2.3.2
 
      Generate LaTeX with highlighted source code (see
-     :ref:`generating-latex`).
-
-.. option:: --latex-dir={DIR}
-
-     .. versionadded:: 2.5.2
-
-     Set directory in which LaTeX files are placed to ``DIR``
-     (default: ``latex``).
+     :ref:`generating-latex` for description and further options).
 
 .. option:: --vim
 
