@@ -4,7 +4,12 @@
 # A shell script to check whether all Agda options are documented in the user manual.
 
 # Options are documented in the following files of the user manual:
-DOC="doc/user-manual/tools/command-line-options.rst doc/user-manual/tools/compilers.lagda.rst"
+DOC="\
+doc/user-manual/tools/command-line-options.rst \
+doc/user-manual/tools/compilers.lagda.rst \
+doc/user-manual/tools/generating-html.rst \
+doc/user-manual/tools/generating-latex.rst \
+"
 
 # 'agda --help' omits some options which are mentioned in the user manual:
 HIDDEN_OPTIONS="--ignore-all-interfaces" # https://github.com/agda/agda/issues/3522#issuecomment-461010898

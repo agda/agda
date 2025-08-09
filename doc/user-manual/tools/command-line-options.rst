@@ -271,11 +271,6 @@ Generating highlighted source code
 
      Opposite of :option:`--count-clusters`. Default.
 
-.. option:: --css={URL}
-
-     Set URL of the CSS file used by the HTML files to ``URL`` (can be
-     relative).
-
 .. option:: --dependency-graph={FILE}
 
      .. versionadded:: 2.3.0
@@ -298,35 +293,12 @@ Generating highlighted source code
      to ``M`` (even if ``M``'s file cannot be found via the
      ``include`` paths given in the ``.agda-lib`` file).
 
-.. option:: --highlight-occurrences
-
-     .. versionadded:: 2.6.2
-
-     When :ref:`generating HTML <generating-html>`,
-     place the :file:`highlight-hover.js` script
-     in the output directory (see :option:`--html-dir`).
-     In the presence of the script,
-     hovering over an identifier in the rendering of the HTML
-     will highlight all occurrences of the same identifier on the page.
-
 .. option:: --html
 
      .. versionadded:: 2.2.0
 
      Generate HTML files with highlighted source code (see
-     :ref:`generating-html`).
-
-.. option:: --html-dir={DIR}
-
-     Set directory in which HTML files are placed to ``DIR`` (default:
-     ``html``).
-
-.. option:: --html-highlight=[code,all,auto]
-
-     .. versionadded:: 2.6.0
-
-     Whether to highlight non-Agda code as comments in generated HTML
-     files (default: ``all``; see :ref:`generating-html`).
+     :ref:`generating-html` for description and further options).
 
 .. option:: --latex
 
