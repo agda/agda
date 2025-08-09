@@ -36,8 +36,6 @@ import Control.Monad.State         ( MonadState(..), execStateT )
 import Control.Monad.Trans.Maybe
 import qualified Control.Exception as E
 
-import Debug.Trace
-
 import Data.Either
 import Data.List (intercalate)
 import qualified Data.List as List
@@ -290,7 +288,6 @@ moduleCheckMode = \case
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
-    traceM "MERGING INTERFACE"
     let sig     = iSignature i
         builtin = Map.toAscList $ iBuiltin i
         primOrBi = \case
@@ -312,15 +309,6 @@ mergeInterface i = do
         check _ _ _ = __IMPOSSIBLE__
     sequence_ $ Map.intersectionWithKey check bs bi
 
-    lbs <- useTC stLocalBuiltins
-    ibs <- useTC stImportedBuiltins
-    traceM "BUILTINS AT THIS MOMENT, BEFORE ADDING IMPORTED THINS"
-    traceM "for interface"
-    reportSDoc "" 1 $ prettyTCM (iModuleName i)
-    traceShowM (Map.keys (lbs <> ibs))
-    traceM "new builtins"
-    traceShowM (Map.keys bi)
-
     addImportedThings
       sig
       (iMetaBindings i)
@@ -332,16 +320,6 @@ mergeInterface i = do
       warns
       (iOpaqueBlocks i)
       (iOpaqueNames i)
-
-
-    lbs <- useTC stLocalBuiltins
-    ibs <- useTC stImportedBuiltins
-    traceM "BUILTINS AT THIS MOMENT, AFTER ADDING IMPORTED THINS"
-    traceM "for interface"
-    reportSDoc "" 1 $ prettyTCM (iModuleName i)
-    traceShowM (Map.keys (lbs <> ibs))
-    traceM "new builtins"
-    traceShowM (Map.keys bi)
 
     reportSLn "import.iface.merge" 50 $
       "  Rebinding primitives " ++ show prim
@@ -363,9 +341,7 @@ mergeInterface i = do
       checkConfluenceOfRules confChk rews
     where
         rebind (x, q) = do
-            traceM $ "looking up primitive " ++ show x
             PrimImpl _ pf <- lookupPrimitiveFunction x
-            traceM $ "looked up primitive " ++ show x
             stImportedBuiltins `modifyTCLens` Map.insert (someBuiltin x) (Prim pf{ primFunName = q })
 
 addImportedThings
@@ -582,9 +558,8 @@ importPrimitiveModules = whenM (optLoadPrimitives <$> pragmaOptions) $ do
   -- getInterface resets the current verbosity settings to the persistent ones.
 
   bracket_ (getsTC Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
-    (pure ())
-    -- Lens.modifyPersistentVerbosity
-    --   (Strict.Just . Trie.insert [] 0 . Strict.fromMaybe Trie.empty)
+    Lens.modifyPersistentVerbosity
+      (Strict.Just . Trie.insert [] 0 . Strict.fromMaybe Trie.empty)
       -- set root verbosity to 0
 
     -- We don't want to generate highlighting information for Agda.Primitive.
@@ -683,21 +658,11 @@ getInterface x isMain msrc =
 
       let recheck = \reason -> do
 
-            traceM "RECHECK"
-            lbs <- useTC stLocalBuiltins
-            ibs <- useTC stImportedBuiltins
-            traceShowM $ Map.keys (lbs <> ibs)
-
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
             setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
             modl <- case isMain of
               MainInterface _ -> createInterface x file isMain msrc
               NotMainInterface -> createInterfaceIsolated x file msrc
-
-            lbs <- useTC stLocalBuiltins
-            ibs <- useTC stImportedBuiltins
-            traceM "RECHECKED"
-            traceShowM $ Map.keys lbs
 
             -- Ensure that the given module name matches the one in the file.
             let topLevelName = iTopLevelModuleName (miInterface modl)
@@ -818,8 +783,6 @@ getStoredInterface x file@(SourceFile fi) msrc = do
 
       let ifp = filePath $ intFilePath $ ifile
 
-      traceShowM ("HASHES", ifp, hashes)
-
       Bench.billTo [Bench.Deserialization] $ do
         checkSourceHashET (fst hashes)
 
@@ -827,8 +790,6 @@ getStoredInterface x file@(SourceFile fi) msrc = do
 
         i <- maybeToExceptT "bad interface, re-type checking" $ MaybeT $
           readInterface ifile
-
-        traceShowM ("READ IF", ())
 
         -- Ensure that the given module name matches the one in the file.
         let topLevelName = iTopLevelModuleName i
@@ -841,8 +802,6 @@ getStoredInterface x file@(SourceFile fi) msrc = do
         lift $ chaseMsg "Loading " x $ Just ifp
         -- print imported warnings
         reportWarningsForModule x $ iWarnings i
-
-        traceShowM ("REPORT WARNINGS", ())
 
         loadDecodedModule file $ ModuleInfo
           { miInterface = i
@@ -951,10 +910,6 @@ loadDecodedModule sf@(SourceFile fi) mi = do
   unlessNull badHashMessages (throwError . unlines)
 
   reportSLn "import.iface" 5 $ prettyShow name ++ ": interface is valid and can be merged into the state."
-
-  lbs <- useTC stLocalBuiltins
-  ibs <- useTC stImportedBuiltins
-  traceShowM $ Map.keys (lbs <> ibs)
 
   lift $ mergeInterface i
   Bench.billTo [Bench.Highlighting] $
@@ -1362,7 +1317,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
         ifile <- toIFile sf
         serializedIface <- writeInterface ifile i
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Finished writing to interface file."
-        return serializedIface
+        pure serializedIface
 
     -- -- Restore the open metas, as we might continue in interaction mode.
     -- Actually, we do not serialize the metas if checking the MainInterface

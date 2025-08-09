@@ -178,12 +178,10 @@ domH = setHiding Hidden . defaultDom
 
 lookupPrimitiveFunction :: PrimitiveId -> TCM PrimitiveImpl
 lookupPrimitiveFunction x = do
-  traceM $ "REALLY LOOKING UP " ++ show x
   res <- fromMaybe (do
                 reportSDoc "tc.prim" 20 $ "Lookup of primitive function" <+> pretty x <+> "failed"
                 typeError $ NoSuchPrimitiveFunction (getBuiltinId x))
             (Map.lookup x primitiveFunctions)
-  traceM $ "SUCCESS " ++ show x
   pure res
 
 lookupPrimitiveFunctionQ :: QName -> TCM (PrimitiveId, PrimitiveImpl)

@@ -182,76 +182,78 @@ instance (EmbPrj a, Typeable b) => EmbPrj (WithDefault' a b) where
 instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
 
   {-# INLINE icod_ #-}
-  icod_ xs = icodeNode =<< go xs (length xs) where
+  icod_ xs = icodeNode =<< go' xs where
 
-    go :: [a] -> Int -> S Node
-    go as l = ReaderT \r -> case (l, as) of
-      (0, _)   -> runReaderT (pure N0) r
-      (1, a:_) -> do
-        !a <- runReaderT (icode a) r
-        pure (N1 a)
-      (2, a:b:_) -> do
-        !a <- runReaderT (icode a) r
-        !b <- runReaderT (icode b) r
-        pure (N2 a b)
-      (3, a:b:c:_) -> do
-        !a <- runReaderT (icode a) r
-        !b <- runReaderT (icode b) r
-        !c <- runReaderT (icode c) r
-        pure (N3 a b c)
-      (4, a:b:c:d:_) -> do
-        !a <- runReaderT (icode a) r
-        !b <- runReaderT (icode b) r
-        !c <- runReaderT (icode c) r
-        !d <- runReaderT (icode d) r
-        pure (N4 a b c d)
-      (5, a:b:c:d:e:_) -> do
+    go' :: [a] -> S Node
+    go' as = ReaderT \r -> case as of
+      a:b:c:d:e:as -> do
         !a <- runReaderT (icode a) r
         !b <- runReaderT (icode b) r
         !c <- runReaderT (icode c) r
         !d <- runReaderT (icode d) r
         !e <- runReaderT (icode e) r
-        pure (N5 a b c d e)
-      (l, a:as) -> do
-        !a  <- runReaderT (icode a) r
-        !as <- runReaderT (go as (l - 1)) r
-        pure (a :*: as)
-      _ -> undefined
+        runReaderT (go as (N5 e d c b a)) r
+      a:b:c:d:as -> do
+        !a <- runReaderT (icode a) r
+        !b <- runReaderT (icode b) r
+        !c <- runReaderT (icode c) r
+        !d <- runReaderT (icode d) r
+        runReaderT (go as (N4 d c b a)) r
+      a:b:c:as -> do
+        !a <- runReaderT (icode a) r
+        !b <- runReaderT (icode b) r
+        !c <- runReaderT (icode c) r
+        runReaderT (go as (N3 c b a)) r
+      a:b:as -> do
+        !a <- runReaderT (icode a) r
+        !b <- runReaderT (icode b) r
+        runReaderT (go as (N2 b a)) r
+      a:as -> do
+        !a <- runReaderT (icode a) r
+        runReaderT (go as (N1 a)) r
+      [] ->
+        pure N0
+
+    go :: [a] -> Node -> S Node
+    go as acc = ReaderT \r -> case as of
+      []   -> runReaderT (pure acc) r
+      a:as -> do
+        !a <- runReaderT (icode a) r
+        runReaderT (go as (a :*: acc)) r
 
   {-# INLINE value #-}
-  value = vcase go where
-    go :: Node -> R [a]
-    go as = ReaderT \r -> case as of
-      N0       -> return []
+  value = vcase (go []) where
+    go :: [a] -> Node -> R [a]
+    go acc as = ReaderT \r -> case as of
+      N0       -> pure acc
       N1 a     -> do
         !a <- runReaderT (value a) r
-        pure [a]
+        pure (a:acc)
       N2 a b   -> do
         !a <- runReaderT (value a) r
         !b <- runReaderT (value b) r
-        pure [a, b]
+        pure (b:a:acc)
       N3 a b c -> do
         !a <- runReaderT (value a) r
         !b <- runReaderT (value b) r
         !c <- runReaderT (value c) r
-        pure [a, b, c]
+        pure (c:b:a:acc)
       N4 a b c d -> do
         !a <- runReaderT (value a) r
         !b <- runReaderT (value b) r
         !c <- runReaderT (value c) r
         !d <- runReaderT (value d) r
-        pure [a, b, c, d]
+        pure (d:c:b:a:acc)
       N5 a b c d e -> do
         !a <- runReaderT (value a) r
         !b <- runReaderT (value b) r
         !c <- runReaderT (value c) r
         !d <- runReaderT (value d) r
         !e <- runReaderT (value e) r
-        pure [a, b, c, d, e]
-      n :*: ns -> do
-        !a  <- runReaderT (value n) r
-        !as <- runReaderT (go ns) r
-        return (a:as)
+        pure (e:d:c:b:a:acc)
+      a :*: as -> do
+        !a  <- runReaderT (value a) r
+        runReaderT (go (a:acc) as) r
 
 instance EmbPrj a => EmbPrj (List1 a) where
   icod_ = icod_ . List1.toList
@@ -265,64 +267,71 @@ instance EmbPrj a => EmbPrj (Seq a) where
   icod_ s = icode (Fold.toList s)
   value s = Seq.fromList <$!> value s
 
+{-# INLINABLE mapPairsIcode #-}
 -- | Encode a list of key-value pairs as a flat list.
-mapPairsIcode :: (EmbPrj k, EmbPrj v) => [(k, v)] -> S Word32
-mapPairsIcode xs = icodeNode =<< convert N0 xs (length xs) where
-  -- As we need to call `convert' in the tail position, the resulting list is
-  -- written (and read) in reverse order, with the highest pair first in the
-  -- resulting list.
-  convert ys xs l = case (l, xs) of
-    (0, _) -> pure ys
-    (1, (a, a'):_) -> do
-      !a  <- icode a
-      !a' <- icode a'
-      pure (N2 a a')
-    (2, (a, a'):(b, b'):_) -> do
-      !a  <- icode a
-      !a' <- icode a'
-      !b  <- icode b
-      !b' <- icode b'
-      pure (N4 a a' b b')
-    (3, (a, a'):(b, b'):(c, c'):_) -> do
-      !a  <- icode a
-      !a' <- icode a'
-      !b  <- icode b
-      !b' <- icode b'
-      !c  <- icode c
-      !c' <- icode c'
-      pure (a :*: N5 a' b b' c c')
-    (l, (a, a'):xs) -> do
-      !a  <- icode a
-      !a' <- icode a'
-      convert (a :*: a' :*: ys) xs (l - 1)
-    _ -> undefined
+mapPairsIcode :: forall k v. (EmbPrj k, EmbPrj v) => [(k, v)] -> S Word32
+mapPairsIcode xs = icodeNode =<< go' xs where
 
-mapPairsValue :: (EmbPrj k, EmbPrj v) => Node -> R [(k, v)]
-mapPairsValue = convert [] where
-  convert ys N0 = pure ys
-  convert ys (N2 start entry) = do
-    !start <- value start
-    !entry <- value entry
-    pure ((start, entry):ys)
-  convert ys (N4 start entry start' entry') = do
-    !start  <- value start
-    !entry  <- value entry
-    !start' <- value start'
-    !entry' <- value entry'
-    pure ((start', entry'):(start, entry):ys)
-  convert ys (start :*: N5 entry start' entry' start'' entry'') = do
-    !start   <- value start
-    !entry   <- value entry
-    !start'  <- value start'
-    !entry'  <- value entry'
-    !start'' <- value start''
-    !entry'' <- value entry''
-    pure ((start'',entry''):(start',entry'):(start,entry):ys)
-  convert ys (start :*: entry :*: xs) = do
-    !start <- value start
-    !entry <- value entry
-    convert ((start, entry):ys) xs
-  convert _ _ = malformed
+  go' :: [(k, v)] -> S Node
+  go' xs = ReaderT \r -> case xs of
+    (a,b):(c,d):(e,f):as -> do
+      !a <- runReaderT (icode a) r
+      !b <- runReaderT (icode b) r
+      !c <- runReaderT (icode c) r
+      !d <- runReaderT (icode d) r
+      !e <- runReaderT (icode e) r
+      !f <- runReaderT (icode f) r
+      runReaderT (go as (f :*: N5 e d c b a)) r
+    (a,b):(c,d):as -> do
+      !a <- runReaderT (icode a) r
+      !b <- runReaderT (icode b) r
+      !c <- runReaderT (icode c) r
+      !d <- runReaderT (icode d) r
+      runReaderT (go as (N4 d c b a)) r
+    (a,b):as -> do
+      !a <- runReaderT (icode a) r
+      !b <- runReaderT (icode b) r
+      runReaderT (go as (N2 b a)) r
+    [] ->
+      pure N0
+
+  go :: [(k, v)] -> Node -> S Node
+  go xs acc = ReaderT \r -> case xs of
+    []        -> pure acc
+    (a, b):xs -> do
+      !a <- runReaderT (icode a) r
+      !b <- runReaderT (icode b) r
+      runReaderT (go xs (b :*: a :*: acc)) r
+
+{-# INLINABLE mapPairsValue #-}
+mapPairsValue :: forall k v. (EmbPrj k, EmbPrj v) => Node -> R [(k, v)]
+mapPairsValue n = go n [] where
+  go :: Node -> [(k, v)] -> R [(k, v)]
+  go as acc = ReaderT \r -> case as of
+    N0     -> pure acc
+    N2 a b -> do
+      !a <- runReaderT (value a) r
+      !b <- runReaderT (value b) r
+      pure ((b, a):acc)
+    N4 a b c d -> do
+      !a <- runReaderT (value a) r
+      !b <- runReaderT (value b) r
+      !c <- runReaderT (value c) r
+      !d <- runReaderT (value d) r
+      pure ((d, c):(b, a):acc)
+    a :*: N5 b c d e f -> do
+      !a <- runReaderT (value a) r
+      !b <- runReaderT (value b) r
+      !c <- runReaderT (value c) r
+      !d <- runReaderT (value d) r
+      !e <- runReaderT (value e) r
+      !f <- runReaderT (value f) r
+      pure ((f, e):(d, c):(b, a):acc)
+    a :*: b :*: as -> do
+      !a <- runReaderT (value a) r
+      !b <- runReaderT (value b) r
+      runReaderT (go as ((b, a):acc)) r
+    _ -> malformedIO
 
 
 ---------------------------------------------------------------------------
@@ -339,7 +348,7 @@ instance (Eq k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
   icod_ m = mapPairsIcode (Map.toAscList m)
-  value = vcase ((Map.fromDistinctAscList <$!>) . mapPairsValue)
+  value = vcase ((Map.fromAscList <$!>) . mapPairsValue)
 
 ---------------------------------------------------------------------------
 -- Sets
