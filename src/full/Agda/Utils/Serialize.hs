@@ -199,10 +199,10 @@ instance Serialize Char where
   {-# INLINE size #-}
   size _ = SIZEOF_HSCHAR
   {-# INLINE put #-}
-  put (C# n) = Put \p s -> case writeCharOffAddr# p 0# n s of
+  put (C# n) = Put \p s -> case writeWideCharOffAddr# p 0# n s of
     s -> (# plusAddr# p SIZEOF_HSCHAR#, s #)
   {-# INLINE get #-}
-  get = ensure SIZEOF_HSCHAR \p' -> Get \e p s -> case readCharOffAddr# p 0# s of
+  get = ensure SIZEOF_HSCHAR \p' -> Get \e p s -> case readWideCharOffAddr# p 0# s of
     (# s, n #) -> (# p', s, C# n #)
 
 instance Serialize a => Serialize [a] where

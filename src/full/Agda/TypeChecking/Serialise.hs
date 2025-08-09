@@ -46,6 +46,7 @@ import Control.Monad.Reader
 import Control.Monad.State.Strict
 import Control.Monad.ST.Trans
 import Control.Monad.Trans.Maybe
+import Debug.Trace
 
 import Data.Array.IArray
 import Data.Foldable (traverse_)
@@ -84,7 +85,7 @@ import qualified Agda.Utils.MinimalArray.MutableLifted as ML
 #include "MachDeps.h"
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20250804 * 10 + 0
+currentInterfaceVersion = 20250809 * 10 + 0
 
 ifaceVersionSize :: Int
 ifaceVersionSize = SIZEOF_WORD64
@@ -154,8 +155,9 @@ encode a = do
     toArray tbl = do
       size <- H.size tbl
       arr <- ML.new size undefined
-      H.forAssocs tbl \k v -> ML.unsafeWrite arr (fromIntegral v) k
+      H.forAssocs tbl \k v -> ML.write arr (fromIntegral v) k
       ML.unsafeFreeze arr
+
 
     statistics :: String -> FreshAndReuse -> TCM ()
     statistics kind far = do
@@ -236,6 +238,19 @@ decodeInterface bstr = do
       i :: Encoded <- tryDecode $ deserialize i
       decode i
 
+decodeInterface' :: ByteString -> MaybeT TCM Encoded
+decodeInterface' bstr = do
+  let (prefix, i) = B.splitAt ifacePrefixSize bstr
+  ((_, _, ver) :: InterfacePrefix) <- tryDecode $ deserialize prefix
+  if ver /= currentInterfaceVersion then
+    tryDecode $ error "Wrong interface version."
+  else case Z.decompress i of
+    Z.Skip ->
+      tryDecode $ error "decompression error"
+    Z.Error e ->
+      tryDecode $ error e
+    Z.Decompress i -> tryDecode $ deserialize i
+
 -- | Encodes an interface. To ensure relocatability file paths in positions are
 -- replaced with module names.
 -- A hash-consed and compacted interface is returned.
@@ -244,11 +259,39 @@ encodeFile f i = do
   let prefix = getInterfacePrefix i
   encoded <- encode i
   decoded <- Bench.billTo [Bench.Deserialization] $
-    maybe __IMPOSSIBLE__ pure =<< runMaybeT (decode encoded)
+    maybe __IMPOSSIBLE__ pure =<< runMaybeT (decode @Interface encoded)
+
   bstr <- serializeEncodedInterface prefix encoded
+
+  --------------------------------------------------------------------------------
+  -- encoded' <- maybe __IMPOSSIBLE__ pure =<< runMaybeT (decodeInterface' (LB.toStrict bstr))
+  -- traceM ("COMPARE INTERFACES | " ++ show f ++ " " ++ show(encoded == encoded'))
+
+  -- let (r , ns , ss , lts,  sts, is, vss, ds) = encoded
+  -- let (r', ns', ss', lts', sts', is', vss', ds') = encoded'
+
+  -- traceShowM ("ns", ns  == ns')
+  -- traceShowM ("ss", ss  == ss')
+  -- traceShowM ("lts", lts == lts')
+  -- traceShowM ("sts", sts == sts')
+  -- traceShowM ("is", is  == is')
+  -- traceShowM ("vss", vss == vss')
+  -- traceShowM ("ds", ds  == ds')
+
+  -- traceM (show ss)
+  -- traceM "----------"
+  -- traceM (show ss')
+  -- decoded' <- maybe __IMPOSSIBLE__ pure =<< runMaybeT (decode @Interface encoded')
+
+  -- traceShowM ("IEQ", show decoded == show decoded')
+  -- traceShowM (iBuiltin decoded)
+  -- traceShowM (iBuiltin decoded')
+  --------------------------------------------------------------------------------
+
   liftIO $ createDirectoryIfMissing True (takeDirectory f)
   liftIO $ LB.writeFile f bstr
   pure decoded
+
 
 decodeFile :: FilePath -> TCM (Maybe Interface)
 decodeFile f = runMaybeT (decodeInterface =<< liftIO (B.readFile f))

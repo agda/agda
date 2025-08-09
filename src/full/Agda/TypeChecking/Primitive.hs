@@ -17,6 +17,7 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Word
+import Debug.Trace
 
 import qualified Agda.Interaction.Options.Lenses as Lens
 
@@ -672,7 +673,9 @@ mkPrimLevelSuc = do
 
 mkPrimLevelMax :: TCM PrimitiveImpl
 mkPrimLevelMax = do
+  traceM "PRIMLVLMAXKEK"
   t <- primType (max :: Op Lvl)
+  traceM "PRIMLVLMAXFOO"
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \ ~[a, b] -> do
     a' <- levelView' $ unArg a
     b' <- levelView' $ unArg b

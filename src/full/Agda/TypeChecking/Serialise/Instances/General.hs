@@ -182,14 +182,41 @@ instance (EmbPrj a, Typeable b) => EmbPrj (WithDefault' a b) where
 instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
 
   {-# INLINE icod_ #-}
-  icod_ xs = icodeNode =<< go xs where
-    go :: [a] -> S Node
-    go as = ReaderT \r -> case as of
-      []   -> pure N0
-      a:as -> do
+  icod_ xs = icodeNode =<< go xs (length xs) where
+
+    go :: [a] -> Int -> S Node
+    go as l = ReaderT \r -> case (l, as) of
+      (0, _)   -> runReaderT (pure N0) r
+      (1, a:_) -> do
+        !a <- runReaderT (icode a) r
+        pure (N1 a)
+      (2, a:b:_) -> do
+        !a <- runReaderT (icode a) r
+        !b <- runReaderT (icode b) r
+        pure (N2 a b)
+      (3, a:b:c:_) -> do
+        !a <- runReaderT (icode a) r
+        !b <- runReaderT (icode b) r
+        !c <- runReaderT (icode c) r
+        pure (N3 a b c)
+      (4, a:b:c:d:_) -> do
+        !a <- runReaderT (icode a) r
+        !b <- runReaderT (icode b) r
+        !c <- runReaderT (icode c) r
+        !d <- runReaderT (icode d) r
+        pure (N4 a b c d)
+      (5, a:b:c:d:e:_) -> do
+        !a <- runReaderT (icode a) r
+        !b <- runReaderT (icode b) r
+        !c <- runReaderT (icode c) r
+        !d <- runReaderT (icode d) r
+        !e <- runReaderT (icode e) r
+        pure (N5 a b c d e)
+      (l, a:as) -> do
         !a  <- runReaderT (icode a) r
-        !as <- runReaderT (go as) r
+        !as <- runReaderT (go as (l - 1)) r
         pure (a :*: as)
+      _ -> undefined
 
   {-# INLINE value #-}
   value = vcase go where
@@ -240,15 +267,35 @@ instance EmbPrj a => EmbPrj (Seq a) where
 
 -- | Encode a list of key-value pairs as a flat list.
 mapPairsIcode :: (EmbPrj k, EmbPrj v) => [(k, v)] -> S Word32
-mapPairsIcode xs = icodeNode =<< convert N0 xs where
+mapPairsIcode xs = icodeNode =<< convert N0 xs (length xs) where
   -- As we need to call `convert' in the tail position, the resulting list is
   -- written (and read) in reverse order, with the highest pair first in the
   -- resulting list.
-  convert ys [] = pure ys
-  convert ys ((start, entry):xs) = do
-    !start <- icode start
-    !entry <- icode entry
-    convert (start :*: entry :*: ys) xs
+  convert ys xs l = case (l, xs) of
+    (0, _) -> pure ys
+    (1, (a, a'):_) -> do
+      !a  <- icode a
+      !a' <- icode a'
+      pure (N2 a a')
+    (2, (a, a'):(b, b'):_) -> do
+      !a  <- icode a
+      !a' <- icode a'
+      !b  <- icode b
+      !b' <- icode b'
+      pure (N4 a a' b b')
+    (3, (a, a'):(b, b'):(c, c'):_) -> do
+      !a  <- icode a
+      !a' <- icode a'
+      !b  <- icode b
+      !b' <- icode b'
+      !c  <- icode c
+      !c' <- icode c'
+      pure (a :*: N5 a' b b' c c')
+    (l, (a, a'):xs) -> do
+      !a  <- icode a
+      !a' <- icode a'
+      convert (a :*: a' :*: ys) xs (l - 1)
+    _ -> undefined
 
 mapPairsValue :: (EmbPrj k, EmbPrj v) => Node -> R [(k, v)]
 mapPairsValue = convert [] where

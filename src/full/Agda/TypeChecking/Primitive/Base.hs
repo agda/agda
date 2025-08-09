@@ -10,6 +10,8 @@ import qualified Data.Map as Map
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
+import Debug.Trace
+
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Context
@@ -175,11 +177,14 @@ domH = setHiding Hidden . defaultDom
 ---------------------------------------------------------------------------
 
 lookupPrimitiveFunction :: PrimitiveId -> TCM PrimitiveImpl
-lookupPrimitiveFunction x =
-  fromMaybe (do
+lookupPrimitiveFunction x = do
+  traceM $ "REALLY LOOKING UP " ++ show x
+  res <- fromMaybe (do
                 reportSDoc "tc.prim" 20 $ "Lookup of primitive function" <+> pretty x <+> "failed"
                 typeError $ NoSuchPrimitiveFunction (getBuiltinId x))
             (Map.lookup x primitiveFunctions)
+  traceM $ "SUCCESS " ++ show x
+  pure res
 
 lookupPrimitiveFunctionQ :: QName -> TCM (PrimitiveId, PrimitiveImpl)
 lookupPrimitiveFunctionQ q = do

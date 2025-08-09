@@ -249,9 +249,9 @@ instance EmbPrj A.ModuleName where
 
 instance EmbPrj A.Name where
   icod_ (A.Name a b c d e f) = icodeMemo nameD nameC a $
-    icodeN' (\ a b c -> A.Name a b c . underlyingRange) a b c (SerialisedRange d) e f
+    icodeN' (\ a b c d e f -> A.Name a b c (underlyingRange d) e f) a b c (SerialisedRange d) e f
 
-  value = valueN (\a b c d -> A.Name a b c (underlyingRange d))
+  value = valueN (\a b c d e f -> A.Name a b c (underlyingRange d) e f)
 
 instance EmbPrj a => EmbPrj (C.FieldAssignment' a) where
   icod_ (C.FieldAssignment a b) = icodeN' C.FieldAssignment a b

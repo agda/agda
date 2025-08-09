@@ -29,6 +29,8 @@ import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Reader
 import Control.Monad.State.Strict (StateT, gets)
 
+import Debug.Trace
+
 import Data.Proxy
 import Data.Bits
 
