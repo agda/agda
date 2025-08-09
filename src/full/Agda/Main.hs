@@ -27,13 +27,14 @@ import qualified System.IO as IO
 import Agda.Interaction.BuildLibrary (buildLibrary, printAccumulatedWarnings)
 import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode as ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
+import Agda.Interaction.Highlighting.LaTeX.Backend (latexBackendName)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.BashCompletion (bashComplete, printedOptions)
 import Agda.Interaction.Options.Help (Help (..), helpTopicUsage)
 import Agda.Interaction.EmacsTop (mimicGHCi)
 import Agda.Interaction.JSONTop (jsonREPL)
 import Agda.Interaction.FindFile ( SourceFile(SourceFile) )
-import qualified Agda.Interaction.Imports as Imp
+import Agda.Interaction.Imports qualified as Imp
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Errors
@@ -61,6 +62,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
+import Agda.Utils.Function (applyWhen)
 
 -- | The main function
 runAgda :: [Backend] -> IO ()
@@ -349,7 +351,12 @@ printUsage backends hp = do
       forM_ optionGroups \ (header, opts) -> do
         usage header opts
       forM_ backends \ (Backend b) -> do
-        usage (T.unpack (backendName b) ++ " backend options") (commandLineFlags b)
+        let
+          opts = applyWhen (backendName b == latexBackendName)
+            (++ map void (snd latexPragmaOptions))
+            (map void (commandLineFlags b))
+            -- NB: @map void@ to make the 'OptDescr' types match.
+        usage (T.unpack (backendName b) ++ " backend options") opts
     HelpFor topic -> putStr $ helpTopicUsage topic
   where
     fmt h = "\n" ++ h ++ ":\n"

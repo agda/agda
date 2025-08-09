@@ -78,6 +78,8 @@ defaultLaTeXFlags = LaTeXFlags
   , latexFlagGenerateLaTeX = False
   }
 
+-- | Command-line flag options for LaTeX.
+--   The 'latexPragmaOptions' are not included here since they have a different 'Flag' type.
 latexFlagsDescriptions :: [OptDescr (Flag LaTeXFlags)]
 latexFlagsDescriptions =
   [ Option []     ["latex"] (NoArg latexFlag)

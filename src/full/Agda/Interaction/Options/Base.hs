@@ -29,6 +29,7 @@ module Agda.Interaction.Options.Base
     , defaultCutOff
     , defaultPragmaOptions
     , optionGroups
+    , latexPragmaOptions
     , unsafePragmaOptions
     , recheckBecausePragmaOptionsChanged
     , InfectiveCoinfective(..)
@@ -1197,8 +1198,11 @@ integerArgument flag s = maybe usage return $ readMaybe s
   where
   usage = throwError $ "option '" ++ flag ++ "' requires an integer argument"
 
+-- | This list should contain all options defined in this module.
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
-standardOptions = concat $ map snd optionGroups
+standardOptions = concat $
+  map (fmap lensPragmaOptions) (snd latexPragmaOptions) :
+  map snd optionGroups
 
 optionGroups :: [(String, [OptDescr (Flag CommandLineOptions)])]
 optionGroups =
@@ -1342,6 +1346,7 @@ deadStandardOptions =
   where
     msgSharing = "(in favor of the Agda abstract machine)"
 
+-- | This list should contain all pragma options except for the 'deadPragmaOptions'.
 pragmaOptions :: [OptDescr (Flag PragmaOptions)]
 pragmaOptions = concat $ map snd
   [ unicodePragmaOptions
@@ -1357,6 +1362,7 @@ pragmaOptions = concat $ map snd
   , equalityCheckingPragmaOptions
   , optimizationPragmaOptions
   , printerPragmaOptions
+  , latexPragmaOptions
   , backendPragmaOptions
   , compilationPragmaOptions
   , debuggingPragmaOptions
@@ -1617,9 +1623,9 @@ printerPragmaOptions = ("Checker output",) $ concat
                     $ Just "replace variables with dot patterns during case splitting"
   ]
 
--- | Backend-relevant options.
-backendPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
-backendPragmaOptions = ("Backend options",) $ concat
+-- | Latex pragma options.
+latexPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+latexPragmaOptions = ("Latex options",) $ concat
   [ pragmaFlag      "count-clusters" lensOptCountClusters
                     "count extended grapheme clusters when generating LaTeX"
                     ("(note that this flag " ++
@@ -1630,7 +1636,12 @@ backendPragmaOptions = ("Backend options",) $ concat
 #endif
                       ++ " of Agda)")
                     Nothing
-  , pragmaFlag      "keep-covering-clauses" lensOptKeepCoveringClauses
+  ]
+
+-- | Backend-relevant options.
+backendPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+backendPragmaOptions = ("Backend options",) $ concat
+  [ pragmaFlag      "keep-covering-clauses" lensOptKeepCoveringClauses
                     "do not discard covering clauses" "(required for some external backends)"
                     $ Just "discard covering clauses"
   ]
