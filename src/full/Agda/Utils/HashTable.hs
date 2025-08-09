@@ -11,6 +11,8 @@ module Agda.Utils.HashTable
   , lookup
   , toList
   , keySet
+  , forAssocs
+  , size
   ) where
 
 import Prelude hiding (lookup)
@@ -95,3 +97,7 @@ forAssocs (HashTable h) f = do
           go (i - 1)
   go (count - 1)
 {-# INLINE forAssocs #-}
+
+size :: HashTable k v -> IO Int
+size (HashTable h) = H.size h
+{-# INLINE size #-}

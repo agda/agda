@@ -81,7 +81,7 @@ instance EmbPrj Char where
 
 instance EmbPrj Double where
   icod_   = icodeDouble
-  value i = flip AL.unsafeIndex (fromIntegral i) <$!> asks doubleE
+  value i = flip AL.unsafeIndex (fromIntegral i) <$!> asks doubleA
 
 -- Andreas, Agda Hackathon 2024-10-15
 -- Are we sure we never use an Int that does not fit into 32 bits?
@@ -95,7 +95,7 @@ instance EmbPrj Int32 where
 
 instance EmbPrj Integer where
   icod_   = icodeInteger
-  value i = flip AL.unsafeIndex (fromIntegral i) <$!> asks integerE
+  value i = flip AL.unsafeIndex (fromIntegral i) <$!> asks integerA
 
 instance EmbPrj Word32 where
   icod_ i = return i
@@ -116,15 +116,15 @@ instance EmbPrj Word64 where
 
 instance {-# OVERLAPPING #-} EmbPrj String where
   icod_   = icodeString
-  value i = flip AL.unsafeIndex (fromIntegral i) <$!> asks stringE
+  value i = flip AL.unsafeIndex (fromIntegral i) <$!> asks stringA
 
 instance EmbPrj TL.Text where
   icod_   = icodeX lTextD lTextC
-  value i = flip AL.index (fromIntegral i) <$!> asks lTextE
+  value i = flip AL.index (fromIntegral i) <$!> asks lTextA
 
 instance EmbPrj T.Text where
   icod_   = icodeX sTextD sTextC
-  value i = flip AL.index (fromIntegral i) <$!> asks sTextE
+  value i = flip AL.index (fromIntegral i) <$!> asks sTextA
 
 ---------------------------------------------------------------------------
 -- Non-recursive types
@@ -315,7 +315,7 @@ instance Typeable a => EmbPrj (SmallSet a) where
 
 instance EmbPrj VarSet where
   icod_   = icodeVarSet
-  value i = flip AL.index (fromIntegral i) <$!> asks varSetE
+  value i = flip AL.index (fromIntegral i) <$!> asks varSetA
 
 ---------------------------------------------------------------------------
 -- Trees
