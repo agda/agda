@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| Instead of checking time-stamps we compute a hash of the module source and
@@ -17,7 +18,12 @@ import qualified Data.Text.Lazy as T
 import Agda.Utils.FileName
 import Agda.Utils.IO.UTF8 (readTextFile)
 
+#include "MachDeps.h"
+
 type Hash = Word64
+
+hashSize :: Int
+hashSize = SIZEOF_WORD64
 
 hashByteString :: ByteString -> Hash
 hashByteString = H.asWord64 . B.foldl' (\h b -> H.combine h (H.hashWord8 b)) (H.hashWord8 0)

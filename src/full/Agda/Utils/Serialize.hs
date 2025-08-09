@@ -25,6 +25,7 @@ import GHC.Exts
 import GHC.ForeignPtr
 import GHC.Types
 import GHC.Word
+import GHC.Num.Integer
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Internal as B
@@ -345,3 +346,20 @@ instance Serialize TL.Text where
         s -> (# p, s #)
 
   get = TL.fromStrict <$> get
+
+instance Serialize Integer where
+  size i = SIZEOF_WORD8 + case i of
+    IS i   -> size (I# i)
+    IP arr -> SIZEOF_HSINT + I# (sizeofByteArray# arr)
+    IN arr -> SIZEOF_HSINT + I# (sizeofByteArray# arr)
+  put x = Put \p s -> case x of
+    IS i   -> unPut (put (0::Word8) <> put (I# i)) p s
+    IP arr -> let sz = sizeofByteArray# arr
+              in unPut (put (1::Word8) <> put (I# sz) <> putByteArray# arr 0# sz) p s
+    IN arr -> let sz = sizeofByteArray# arr
+              in unPut (put (2::Word8) <> put (I# sz) <> putByteArray# arr 0# sz) p s
+  get = get @Word8 >>= \case
+    0 -> do {I# n  <- get; pure $ IS n}
+    1 -> do {I# sz <- get; getByteArray# sz \arr -> pure $ IP arr}
+    2 -> do {I# sz <- get; getByteArray# sz \arr -> pure $ IN arr}
+    _ -> error "deserialize: malformed input"

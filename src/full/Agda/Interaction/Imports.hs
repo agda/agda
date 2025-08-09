@@ -43,6 +43,7 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as HMap
+import qualified Data.ByteString as B
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
@@ -51,6 +52,7 @@ import qualified Data.Text.Lazy as TL
 
 import System.Directory (doesFileExist, removeFile)
 import System.FilePath  ( (</>) )
+import System.IO
 
 import Agda.Benchmarking
 
@@ -78,7 +80,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules, sortRulesOfSymbol )
 import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Serialise
+import Agda.TypeChecking.Serialise (decode, encodeFile, decodeInterface, deserializeHashes)
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.DeadCode
@@ -1034,30 +1036,17 @@ highlightFromInterface i sf = do
 readInterface :: InterfaceFile -> TCM (Maybe Interface)
 readInterface file = do
     let ifp = filePath $ intFilePath file
-    -- Decode the interface file
-    (s, close) <- liftIO $ readBinaryFile' ifp
-    do  mi <- liftIO . E.evaluate =<< decodeInterface s
-
-        -- Close the file. Note
-        -- ⑴ that evaluate ensures that i is evaluated to WHNF (before
-        --   the next IO operation is executed), and
-        -- ⑵ that decode returns Nothing if an error is encountered,
-        -- so it is safe to close the file here.
-        liftIO close
-
-        return $ constructIScope <$> mi
-      -- Catch exceptions and close
-      `catchError` \e -> liftIO close >> handler e
-  -- Catch exceptions
-  `catchError` handler
-  where
-    handler = \case
+    bstr <- (liftIO $ Just <$!> B.readFile ifp) `catchError` \case
       IOException _ _ e -> do
         alwaysReportSLn "" 0 $ "IO exception: " ++ show e
         return Nothing   -- Work-around for file locking bug.
                          -- TODO: What does this refer to? Please
                          -- document.
       e -> throwError e
+    case bstr of
+      Just bstr -> runMaybeT (decodeInterface bstr)
+      Nothing   -> pure Nothing
+
 
 -- | Writes the given interface to the given file.
 --
@@ -1082,9 +1071,9 @@ writeInterface file i = let fp = filePath file in do
     filteredIface <- pruneTemporaryInstances filteredIface
     reportSLn "import.iface.write" 50 $
       "Writing interface file with hash " ++ show (iFullHash filteredIface) ++ "."
-    encodedIface <- encodeFile fp filteredIface
+    iface <- encodeFile fp filteredIface
     reportSLn "import.iface.write" 5 "Wrote interface file."
-    fromMaybe __IMPOSSIBLE__ <$> (Bench.billTo [Bench.Deserialization] (decode encodedIface))
+    pure iface
   `catchError` \e -> do
     alwaysReportSLn "" 1 $
       "Failed to write interface " ++ fp ++ "."
@@ -1467,10 +1456,10 @@ buildInterface src topLevel = do
 getInterfaceFileHashes :: InterfaceFile -> IO (Maybe (Hash, Hash))
 getInterfaceFileHashes fp = do
   let ifile = filePath $ intFilePath fp
-  (s, close) <- readBinaryFile' ifile
-  let hs = decodeHashes s
-  maybe 0 (uncurry (+)) hs `seq` close
-  return hs
+  h    <- openBinaryFile ifile ReadMode
+  bstr <- B.hGetSome h (2 * hashSize)
+  hClose h
+  deserializeHashes bstr
 
 moduleHash :: TopLevelModuleName -> TCM Hash
 moduleHash m = iFullHash <$> getNonMainInterface m Nothing

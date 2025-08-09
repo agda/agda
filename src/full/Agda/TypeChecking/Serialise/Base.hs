@@ -190,13 +190,13 @@ emptyDict collectStats = Dict
 
 -- | Decoder arguments.
 data Decode = Decode
-  { nodeE     :: !(AL.Array Node)     -- ^ Obtained from interface file.
-  , stringE   :: !(AL.Array String)   -- ^ Obtained from interface file.
-  , lTextE    :: !(AL.Array TL.Text)  -- ^ Obtained from interface file.
-  , sTextE    :: !(AL.Array T.Text)   -- ^ Obtained from interface file.
-  , integerE  :: !(AL.Array Integer)  -- ^ Obtained from interface file.
-  , varSetE   :: !(AL.Array VarSet)   -- ^ Obtained from interface file.
-  , doubleE   :: !(AL.Array Double)   -- ^ Obtained from interface file.
+  { nodeA     :: !(AL.Array Node)     -- ^ Obtained from interface.
+  , stringA   :: !(AL.Array String)   -- ^ Obtained from interface.
+  , lTextA    :: !(AL.Array TL.Text)  -- ^ Obtained from interface.
+  , sTextA    :: !(AL.Array T.Text)   -- ^ Obtained from interface.
+  , integerA  :: !(AL.Array Integer)  -- ^ Obtained from interface.
+  , varSetA   :: !(AL.Array VarSet)   -- ^ Obtained from interface.
+  , doubleA   :: !(AL.Array Double)   -- ^ Obtained from interface.
   , nodeMemo  :: !(ML.IOArray MemoEntry)
     -- ^ Created and modified by decoder.
     --   Used to introduce sharing while deserializing objects.
@@ -438,7 +438,7 @@ vcase valu = \ix -> ReaderT \dict -> do
         pure a
       _         ->
         -- read new value and save it
-        do !v <- runReaderT (valu (AL.index (nodeE dict) iix)) dict
+        do !v <- runReaderT (valu (AL.index (nodeA dict) iix)) dict
            ML.write memo iix $! MECons fp (unsafeCoerce v) slot
            return v
 
