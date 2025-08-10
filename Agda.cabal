@@ -1100,7 +1100,6 @@ executable agda-tests
     , Agda
     , array
     , base
-    , binary
     , bytestring
     , containers
     , directory

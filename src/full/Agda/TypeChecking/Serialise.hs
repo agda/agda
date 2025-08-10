@@ -227,22 +227,10 @@ tryDecode act = MaybeT do
 --   version against the current interface version, but we don't do anything
 --   with the hash prefix.
 decodeInterface :: ByteString -> MaybeT TCM Interface
-decodeInterface bstr = do
-  let (prefix, i) = B.splitAt ifacePrefixSize bstr
-  ((_, _, ver) :: InterfacePrefix) <- tryDecode $ deserialize prefix
-  if ver /= currentInterfaceVersion then
-    tryDecode $ error "Wrong interface version."
-  else case Z.decompress i of
-    Z.Skip ->
-      tryDecode $ error "decompression error"
-    Z.Error e ->
-      tryDecode $ error e
-    Z.Decompress i -> do
-      i :: Encoded <- tryDecode $ deserialize i
-      decode i
+decodeInterface bstr = decode =<< deserializeInterface bstr
 
-decodeInterface' :: ByteString -> MaybeT TCM Encoded
-decodeInterface' bstr = do
+deserializeInterface :: ByteString -> MaybeT TCM Encoded
+deserializeInterface bstr = do
   let (prefix, i) = B.splitAt ifacePrefixSize bstr
   ((_, _, ver) :: InterfacePrefix) <- tryDecode $ deserialize prefix
   if ver /= currentInterfaceVersion then
@@ -261,9 +249,16 @@ encodeFile :: FilePath -> Interface -> TCM Interface
 encodeFile f i = do
   let prefix = getInterfacePrefix i
   iEncoded <- encode i
+  bstr <- serializeEncodedInterface prefix iEncoded
+
   i <- Bench.billTo [Bench.Deserialization] $
     maybe __IMPOSSIBLE__ pure =<< runMaybeT (decode @Interface iEncoded)
-  bstr <- serializeEncodedInterface prefix iEncoded
+
+  -- reload interface from the bytestring instead
+  -- i <- Bench.billTo [Bench.Deserialization] $
+  --     maybe __IMPOSSIBLE__ pure =<<
+  --       runMaybeT (decode =<< deserializeInterface (LB.toStrict bstr))
+
   liftIO $ createDirectoryIfMissing True (takeDirectory f)
   liftIO $ LB.writeFile f bstr
   pure i

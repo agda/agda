@@ -14,6 +14,8 @@ module Agda.Utils.Serialize (
     Serialize(..)
   , serialize
   , deserialize
+  , serializePure
+  , deserializePure
   , ensure
   , Get(..)
   , Put(..)
@@ -26,6 +28,7 @@ import GHC.ForeignPtr
 import GHC.Types
 import GHC.Word
 import GHC.Num.Integer
+import System.IO.Unsafe
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Internal as B
@@ -109,6 +112,12 @@ deserialize (B.BS (ForeignPtr p fp) (I# l)) =
         _  -> case eqAddr# p e of
           1# -> (# s, a #)
           _  -> error "deserialize: impossible out of bounds access"
+
+serializePure :: Serialize a => a -> B.ByteString
+serializePure a = unsafeDupablePerformIO $ serialize a
+
+deserializePure :: Serialize a => B.ByteString -> a
+deserializePure str = unsafeDupablePerformIO $ deserialize str
 
 testTrip :: forall a. Show a => Eq a => Serialize a => a -> IO ()
 testTrip a = do
