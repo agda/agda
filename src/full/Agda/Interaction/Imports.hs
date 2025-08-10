@@ -558,9 +558,9 @@ importPrimitiveModules = whenM (optLoadPrimitives <$> pragmaOptions) $ do
   -- getInterface resets the current verbosity settings to the persistent ones.
 
   bracket_ (getsTC Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
+    -- set root verbosity to 0
     Lens.modifyPersistentVerbosity
       (Strict.Just . Trie.insert [] 0 . Strict.fromMaybe Trie.empty)
-      -- set root verbosity to 0
 
     -- We don't want to generate highlighting information for Agda.Primitive.
     withHighlightingLevel None $
@@ -1051,7 +1051,7 @@ readInterface file = do
                          -- document.
       e -> throwError e
     case bstr of
-      Just bstr -> runMaybeT (decodeInterface bstr)
+      Just bstr -> runMaybeT (constructIScope <$!> decodeInterface bstr)
       Nothing   -> pure Nothing
 
 

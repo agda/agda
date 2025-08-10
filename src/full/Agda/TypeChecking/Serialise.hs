@@ -67,6 +67,8 @@ import GHC.Compact as C
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
+import Agda.Syntax.Position (killRange)
+
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances () --instance only
 import Agda.TypeChecking.Monad
@@ -216,7 +218,8 @@ tryDecode act = MaybeT do
   res <- liftIO ((Right <$!> act) `E.catch` \(E.ErrorCall err) -> pure (Left err))
   case res of
     Left err -> do
-      reportSLn "import.iface" 5 $ "Error when decoding interface file: " ++ err
+      traceM $ "Error when decoding interface file: " ++ err
+      -- reportSLn "import.iface" 5 $ "Error when decoding interface file: " ++ err
       pure Nothing
     Right a -> pure $ Just a
 
@@ -257,41 +260,13 @@ decodeInterface' bstr = do
 encodeFile :: FilePath -> Interface -> TCM Interface
 encodeFile f i = do
   let prefix = getInterfacePrefix i
-  encoded <- encode i
-  decoded <- Bench.billTo [Bench.Deserialization] $
-    maybe __IMPOSSIBLE__ pure =<< runMaybeT (decode @Interface encoded)
-
-  bstr <- serializeEncodedInterface prefix encoded
-
-  --------------------------------------------------------------------------------
-  -- encoded' <- maybe __IMPOSSIBLE__ pure =<< runMaybeT (decodeInterface' (LB.toStrict bstr))
-  -- traceM ("COMPARE INTERFACES | " ++ show f ++ " " ++ show(encoded == encoded'))
-
-  -- let (r , ns , ss , lts,  sts, is, vss, ds) = encoded
-  -- let (r', ns', ss', lts', sts', is', vss', ds') = encoded'
-
-  -- traceShowM ("ns", ns  == ns')
-  -- traceShowM ("ss", ss  == ss')
-  -- traceShowM ("lts", lts == lts')
-  -- traceShowM ("sts", sts == sts')
-  -- traceShowM ("is", is  == is')
-  -- traceShowM ("vss", vss == vss')
-  -- traceShowM ("ds", ds  == ds')
-
-  -- traceM (show ss)
-  -- traceM "----------"
-  -- traceM (show ss')
-  -- decoded' <- maybe __IMPOSSIBLE__ pure =<< runMaybeT (decode @Interface encoded')
-
-  -- traceShowM ("IEQ", show decoded == show decoded')
-  -- traceShowM (iBuiltin decoded)
-  -- traceShowM (iBuiltin decoded')
-  --------------------------------------------------------------------------------
-
+  iEncoded <- encode i
+  i <- Bench.billTo [Bench.Deserialization] $
+    maybe __IMPOSSIBLE__ pure =<< runMaybeT (decode @Interface iEncoded)
+  bstr <- serializeEncodedInterface prefix iEncoded
   liftIO $ createDirectoryIfMissing True (takeDirectory f)
   liftIO $ LB.writeFile f bstr
-  pure decoded
-
+  pure i
 
 decodeFile :: FilePath -> TCM (Maybe Interface)
 decodeFile f = runMaybeT (decodeInterface =<< liftIO (B.readFile f))
