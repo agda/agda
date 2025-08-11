@@ -242,6 +242,40 @@ deserializeInterface bstr = do
       tryDecode $ error e
     Z.Decompress i -> tryDecode $ deserialize i
 
+--------------------------------------------------------------------------------
+
+data NodeStat = NodeStat Int Int Int Int Int Int Int
+
+instance Semigroup NodeStat where
+  NodeStat a b c d e f g <> NodeStat a' b' c' d' e' f' g' =
+    NodeStat (a + a') (b + b') (c + c') (d + d')
+             (e + e') (f + f') (g + g')
+
+instance Monoid NodeStat where
+  mempty = NodeStat 0 0 0 0 0 0 0
+
+nodeStat :: Node -> NodeStat
+nodeStat = \case
+  N0        -> NodeStat 1 0 0 0 0 0 0
+  N1{}      -> NodeStat 0 1 0 0 0 0 0
+  N2{}      -> NodeStat 0 0 1 0 0 0 0
+  N3{}      -> NodeStat 0 0 0 1 0 0 0
+  N4{}      -> NodeStat 0 0 0 0 1 0 0
+  N5{}      -> NodeStat 0 0 0 0 0 1 0
+  (:*:) _ n -> NodeStat 0 0 0 0 0 0 1 <> nodeStat n
+
+nodesStat :: AL.Array Node -> NodeStat
+nodesStat ns = foldl' (\acc n -> nodeStat n <> acc) mempty ns
+
+displayStat :: FilePath -> Encoded -> IO ()
+displayStat fp (_, ns, _, _, _, _, _, _) = do
+  let NodeStat a b c d e f g = nodesStat ns
+  putStrLn $ "NODE STATS: " ++ show fp
+  putStrLn $ "TOTAL: " ++ show (a + b + c + d + e + f + g)
+  putStrLn $ "CONS:  " ++ show (a, b, c, d, e, f, g)
+
+--------------------------------------------------------------------------------
+
 -- | Encodes an interface. To ensure relocatability file paths in positions are
 -- replaced with module names.
 -- A hash-consed and compacted interface is returned.
@@ -249,6 +283,7 @@ encodeFile :: FilePath -> Interface -> TCM Interface
 encodeFile f i = do
   let prefix = getInterfacePrefix i
   iEncoded <- encode i
+  -- liftIO $ displayStat f iEncoded
   bstr <- serializeEncodedInterface prefix iEncoded
 
   i <- Bench.billTo [Bench.Deserialization] $
