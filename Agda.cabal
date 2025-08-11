@@ -996,7 +996,7 @@ executable agda-mode
 
 -- We use a Cabal `executable` instead of a `test-suite`
 --   since we want to avoid re-building Agda when test data changes.
--- Unfortuantely, using a `test-suite` breaks this property under nix:
+-- Unfortunately, using a `test-suite` breaks this property under nix:
 --   * Cabal runs `test-suite`s as soon as they are built
 --   * `developPackage` rebuilds Agda when re-building `test-suite`s
 --   * https://github.com/NixOS/nixpkgs/issues/9281
@@ -1007,12 +1007,11 @@ executable agda-mode
 -- This test suite should only be run using the Makefile.
 -- The Makefile sets up the required environment,
 -- executing the tests using cabal directly is almost
--- guaranteed to fail. See also Issue 1490.
+-- guaranteed to fail. See also Issue #1490.
 --
 executable agda-tests
   import:           language
 
-  type:             exitcode-stdio-1.0
   hs-source-dirs:   test/
   main-is:          Main.hs
   other-modules:
@@ -1087,7 +1086,7 @@ executable agda-tests
 
   -- Andreas, 2021-08-26, see https://github.com/haskell/cabal/issues/7577
   -- Since 'agda-tests' wants to call 'agda', we have to add it here,
-  -- should we want to run 'cabal test'.
+  -- should we want to run 'cabal run agda-tests'.
   build-tool-depends: Agda:agda
 
   build-depends:
