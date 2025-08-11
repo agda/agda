@@ -311,7 +311,7 @@ jobs:
         echo "filename        = ${{ steps.vars.outputs.filename       }}"
         echo "decompress-cmd  = ${{ steps.vars.outputs.decompress-cmd }}"
 
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v5
       with:
         name: ${{ steps.vars.outputs.filename }}
 
@@ -341,7 +341,7 @@ jobs:
       with:
         sparse-checkout: .
 
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v5
       with:
         path: artifacts
 
