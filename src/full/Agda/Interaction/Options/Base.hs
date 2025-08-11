@@ -1027,6 +1027,9 @@ ignoreInterfacesFlag o = return $ o { optIgnoreInterfaces = True }
 ignoreAllInterfacesFlag :: Flag CommandLineOptions
 ignoreAllInterfacesFlag o = return $ o { optIgnoreAllInterfaces = True }
 
+noWriteInterfacesFlag :: Flag CommandLineOptions
+noWriteInterfacesFlag o = return $ o { optWriteInterfaces = False }
+
 traceImportsFlag :: Maybe String -> Flag CommandLineOptions
 traceImportsFlag arg o = do
   mode <- case arg of
@@ -1297,6 +1300,9 @@ essentialConfigurationOptions :: (String, [OptDescr (Flag CommandLineOptions)])
 essentialConfigurationOptions = ("Essential type checker configuration",)
     [ Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
                     "ignore interface files (re-type check everything)"
+    , Option []     ["no-write-interfaces"] (NoArg noWriteInterfacesFlag)
+                    "don't write interface files to the filesystem"
+
     , Option []     ["only-scope-checking"] (NoArg onlyScopeCheckingFlag)
                     "only scope-check the top-level module, do not type-check it"
     , Option []     ["interaction-exit-on-error"]
