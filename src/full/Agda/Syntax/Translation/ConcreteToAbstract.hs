@@ -916,6 +916,11 @@ instance ToAbstract C.Expr where
         scope <- getScope
         -- Andreas, 2014-04-06 create interaction point.
         ii <- registerInteractionPoint True r n
+
+        -- Mark all copies we can see from here as having all of their
+        -- names live.
+        clobberLiveNames
+
         let info = MetaInfo
              { metaRange  = r
              , metaScope  = scope

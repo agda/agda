@@ -368,29 +368,40 @@ data NameOrModule = NameNotModule | ModuleNotName
 
 -- | A set of module and definition names that were explicitly referred
 -- to during scope checking.
-data LiveNames = LiveNames
-  { liveModules :: !(Set ModuleName)
-  , liveNames   :: !(Set A.QName)
-  }
+data LiveNames =
+  -- | We encountered these names during scope-checking, so they should
+  -- be preserved.
+  SomeLiveNames
+    { liveModules :: !(Set ModuleName)
+    , liveNames   :: !(Set A.QName)
+    }
+  -- | An interaction point can see this copy, so we should preserve
+  -- every name.
+  | AllLiveNames
+  deriving (Eq)
 
 instance Semigroup LiveNames where
-  LiveNames a b <> LiveNames a' b' = LiveNames (a <> a') (b <> b')
+  SomeLiveNames a b <> SomeLiveNames a' b' = SomeLiveNames (a <> a') (b <> b')
+  SomeLiveNames{}   <> AllLiveNames        = AllLiveNames
+  AllLiveNames <> _                        = AllLiveNames
 
 instance Monoid LiveNames where
-  mempty = LiveNames mempty mempty
+  mempty = SomeLiveNames mempty mempty
 
 -- | Is the given name alive in this set?
 --
 -- Note: a qualified name can be kept alive by liveness of any of the
 -- modules it belongs to.
 isNameAlive :: A.QName -> LiveNames -> Bool
-isNameAlive qn@(A.QName mod _) live@(LiveNames mods names)
+isNameAlive _ AllLiveNames = True
+isNameAlive qn@(A.QName mod _) live@(SomeLiveNames mods names)
   | qn `Set.member` names = True
   | otherwise             = isModuleAlive mod live
 
 -- | Is the given module (or one of its parents) a member of the set?
 isModuleAlive :: A.ModuleName -> LiveNames -> Bool
-isModuleAlive (A.MName mod) (LiveNames mods _) =
+isModuleAlive _             AllLiveNames = True
+isModuleAlive (A.MName mod) (SomeLiveNames mods _) =
   any ((`Set.member` mods) . A.MName) (List.inits mod)
 
 -- | A reference to the information shared by everything which belongs
@@ -398,18 +409,16 @@ isModuleAlive (A.MName mod) (LiveNames mods _) =
 data ScopeCopyRef = ScopeCopyRef
   { scrOriginal  :: A.ModuleName
     -- ^ For debug printing; the name of the copied module.
-  , scrLiveNames :: !(IORef (Maybe LiveNames))
+  , scrLiveNames :: !(IORef LiveNames)
     -- ^ Pointer to the live names from that copy. Conservatively, any
     -- name belonging to this module which is *possibly* referred to
     -- should belong to this set.
-    --
-    -- The type checker replaces the 'Just' by a 'Nothing' after it is
-    -- done, to release the set of names. However, we can not replace it
-    -- by an impossible since user interaction involves resolving names
-    -- even after typechecking is 'done'; and if these names are copies
-    -- they will still point to this ScopeCopyRef.
   }
-  deriving (Eq, Generic)
+  deriving (Generic)
+
+instance Eq ScopeCopyRef where
+  (==) :: ScopeCopyRef -> ScopeCopyRef -> Bool
+  _ == _ = True
 
 instance Show ScopeCopyRef where
   show (ScopeCopyRef a _) = "<" ++ show a ++ ">"
