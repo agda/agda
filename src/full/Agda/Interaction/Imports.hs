@@ -125,6 +125,11 @@ ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
 ignoreAllInterfaces :: HasOptions m => m Bool
 ignoreAllInterfaces = optIgnoreAllInterfaces <$> commandLineOptions
 
+-- | Whether to write interface files (@.agdai@)
+
+writeInterfaces :: HasOptions m => m Bool
+writeInterfaces = optWriteInterfaces <$> commandLineOptions
+
 -- | The decorated source code.
 
 data Source = Source
@@ -1292,19 +1297,24 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
 
     mallWarnings <- getAllWarnings' isMain ErrorWarnings
 
+    isWritingInterfaces <- writeInterfaces
+
     reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Considering writing to interface file."
-    finalIface <- constructIScope <$> case (null mallWarnings, isMain) of
-      (False, _) -> do
+    finalIface <- constructIScope <$> case (null mallWarnings, isMain, isWritingInterfaces) of
+      (False, _, _) -> do
         -- Andreas, 2018-11-15, re issue #3393
         -- The following is not sufficient to fix #3393
         -- since the replacement of metas by postulates did not happen.
         -- -- | not (allowUnsolved && all (isUnsolvedWarning . tcWarning) allWarnings) -> do
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": We have warnings, skipping writing interface file."
         return i
-      (True, MainInterface ScopeCheck) -> do
+      (True, MainInterface ScopeCheck , _) -> do
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": We are just scope-checking, skipping writing interface file."
         return i
-      (True, _) -> Bench.billTo [Bench.Serialization] $ do
+      (_, _, False) -> do
+        reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": We are not writing any interfaces, skipping writing interface file."
+        return i
+      (True, _, _) -> Bench.billTo [Bench.Serialization] $ do
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Actually calling writeInterface."
         -- The file was successfully type-checked (and no warnings were
         -- encountered), so the interface should be written out.

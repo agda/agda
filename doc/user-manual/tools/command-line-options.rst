@@ -304,13 +304,19 @@ Imports and libraries
 
      .. versionadded:: 2.6.0
 
-     Ignore *all* interface files, including builtin and primitive
+     Don't read *any* interface files, including builtin and primitive
      modules; only use this if you know what you are doing!
 
 .. option:: --ignore-interfaces
 
-     Ignore interface files (re-type check everything, except for
+     Don't read interface files (re-type check everything, except for
      builtin and primitive modules).
+
+.. option:: --no-write-interfaces
+
+     .. versionadded:: 2.9.0
+
+     Don't write out interface files after type-checking a module.
 
 .. option:: --include-path={DIR}, -i {DIR}
 

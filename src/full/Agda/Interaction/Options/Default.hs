@@ -39,6 +39,7 @@ defaultOptions = Options
   , optGenerateVimFile       = False
   , optIgnoreInterfaces      = False
   , optIgnoreAllInterfaces   = False
+  , optWriteInterfaces       = True
   , optPragmaOptions         = defaultPragmaOptions
   , optOnlyScopeChecking     = False
   , optTransliterate         = False
