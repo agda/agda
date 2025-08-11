@@ -691,7 +691,6 @@ defaultOptions = Options
   , optGenerateVimFile       = False
   , optIgnoreInterfaces      = False
   , optIgnoreAllInterfaces   = False
-  , optWriteInterfaces       = True
   , optPragmaOptions         = defaultPragmaOptions
   , optOnlyScopeChecking     = False
   , optTransliterate         = False
@@ -1142,9 +1141,6 @@ ignoreInterfacesFlag o = return $ o { optIgnoreInterfaces = True }
 ignoreAllInterfacesFlag :: Flag CommandLineOptions
 ignoreAllInterfacesFlag o = return $ o { optIgnoreAllInterfaces = True }
 
-noWriteInterfacesFlag :: Flag CommandLineOptions
-noWriteInterfacesFlag o = return $ o { optWriteInterfaces = False }
-
 traceImportsFlag :: Maybe String -> Flag CommandLineOptions
 traceImportsFlag arg o = do
   mode <- case arg of
@@ -1377,8 +1373,6 @@ standardOptions =
                     "generate Vim highlighting files"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)  -- TODO: rename to no-read-interfaces?
                     "ignore interface files (re-type check everything)"
-    , Option []     ["no-write-interfaces"] (NoArg noWriteInterfacesFlag)
-                    "don't write interface files to the filesystem"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
                     "look for imports in DIR"
     , Option ['l']  ["library"] (ReqArg libraryFlag "LIB")
