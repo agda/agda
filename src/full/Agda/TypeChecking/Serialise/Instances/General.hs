@@ -267,14 +267,16 @@ instance EmbPrj a => EmbPrj (Seq a) where
   icod_ s = icode (Fold.toList s)
   value s = Seq.fromList <$!> value s
 
+data KVS a b = Cons a b !(KVS a b) | Nil
+
 {-# INLINABLE mapPairsIcode #-}
 -- | Encode a list of key-value pairs as a flat list.
-mapPairsIcode :: forall k v. (EmbPrj k, EmbPrj v) => [(k, v)] -> S Word32
+mapPairsIcode :: forall k v. (EmbPrj k, EmbPrj v) => KVS k v -> S Word32
 mapPairsIcode xs = icodeNode =<< go' xs where
 
-  go' :: [(k, v)] -> S Node
+  go' :: KVS k v -> S Node
   go' xs = ReaderT \r -> case xs of
-    (a,b):(c,d):(e,f):as -> do
+    Cons a b (Cons c d (Cons e f as)) -> do
       !a <- runReaderT (icode a) r
       !b <- runReaderT (icode b) r
       !c <- runReaderT (icode c) r
@@ -282,23 +284,23 @@ mapPairsIcode xs = icodeNode =<< go' xs where
       !e <- runReaderT (icode e) r
       !f <- runReaderT (icode f) r
       runReaderT (go as (f :*: N5 e d c b a)) r
-    (a,b):(c,d):as -> do
+    Cons a b (Cons c d as) -> do
       !a <- runReaderT (icode a) r
       !b <- runReaderT (icode b) r
       !c <- runReaderT (icode c) r
       !d <- runReaderT (icode d) r
       runReaderT (go as (N4 d c b a)) r
-    (a,b):as -> do
+    Cons a b as -> do
       !a <- runReaderT (icode a) r
       !b <- runReaderT (icode b) r
       runReaderT (go as (N2 b a)) r
-    [] ->
+    Nil ->
       pure N0
 
-  go :: [(k, v)] -> Node -> S Node
+  go :: KVS k v -> Node -> S Node
   go xs acc = ReaderT \r -> case xs of
-    []        -> pure acc
-    (a, b):xs -> do
+    Nil         -> pure acc
+    Cons a b xs -> do
       !a <- runReaderT (icode a) r
       !b <- runReaderT (icode b) r
       runReaderT (go xs (b :*: a :*: acc)) r
@@ -343,26 +345,26 @@ instance (EmbPrj k, EmbPrj v, EmbPrj (BiMap.Tag v)) =>
   value m = BiMap.fromDistinctAscendingLists <$!> value m
 
 instance (Eq k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
-  icod_ m = mapPairsIcode (HMap.toList m)
+  icod_ m = mapPairsIcode (HMap.foldrWithKey' (\ k v !acc -> Cons k v acc) Nil m)
   value = vcase ((HMap.fromList <$!>) . mapPairsValue)
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
-  icod_ m = mapPairsIcode (Map.toAscList m)
+  icod_ m = mapPairsIcode (Map.foldrWithKey' (\ k v !acc -> Cons k v acc) Nil m)
   value = vcase ((Map.fromAscList <$!>) . mapPairsValue)
 
 ---------------------------------------------------------------------------
 -- Sets
 
 instance EmbPrj IntSet where
-  icod_ s = icode (IntSet.toAscList s)
+  icod_ s = icode (IntSet.foldr' (:) [] s)
   value s = IntSet.fromDistinctAscList <$!> value s
 
 instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
-  icod_ s = icode (Set.toAscList s)
+  icod_ s = icode (Set.foldr' (:) [] s)
   value s = Set.fromDistinctAscList <$!> value s
 
 instance (Ord a, EmbPrj a) => EmbPrj (Set1 a) where
-  icod_ s = icode (Set1.toAscList s)
+  icod_ s = icode (Set1.foldr' (:) [] s)
   value s = Set1.fromDistinctAscList <$!> value s
 
 instance Typeable a => EmbPrj (SmallSet a) where
