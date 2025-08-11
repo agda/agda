@@ -807,32 +807,30 @@ solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
 -- * Freezing and unfreezing metas.
 ---------------------------------------------------------------------------
 
-{-# SPECIALIZE freezeMetas :: LocalMetaStore -> TCM (Set MetaId) #-}
+{-# SPECIALIZE freezeMetas :: [MetaId] -> TCM (Set MetaId) #-}
 -- | Freeze the given meta-variables (but only if they are open) and
 -- return those that were not already frozen.
-freezeMetas :: forall m. (MonadTCState m, ReadTCState m) => LocalMetaStore -> m (Set MetaId)
-freezeMetas ms =
-  execWriterT $
-  modifyTCLensM stOpenMetaStore $
-  execStateT (mapM_ freeze $ MapS.keys ms)
+freezeMetas :: forall m t. (MonadTCState m, ReadTCState m, Traversable t) => t MetaId -> m (Set MetaId)
+freezeMetas =
+  execWriterT . modifyTCLensM stOpenMetaStore . execStateT . mapM_ freeze
+    -- For efficiency, this modifies the 'LocalMetaStore' in 'stOpenMetaStore'
+    -- in a local state and writes this store back to TCState in the end
+    -- with the accumulated changes.
   where
   freeze :: MetaId -> StateT LocalMetaStore (WriterT (Set MetaId) m) ()
   freeze m = do
     store <- get
-    case MapS.lookup m store of
-      Just mvar
-        | mvFrozen mvar /= Frozen -> do
-          lift $ tell (Set.singleton m)
-          put $ MapS.insert m (mvar { mvFrozen = Frozen }) store
-        | otherwise -> return ()
-      Nothing -> return ()
+    whenJust (MapS.lookup m store) \ mvar -> do
+      unless (mvFrozen mvar == Frozen) do
+        lift $ tell $ Set.singleton m
+        put $ MapS.insert m (mvar { mvFrozen = Frozen }) store
 
 -- | Thaw all open meta variables.
 unfreezeMetas :: TCM ()
-unfreezeMetas = stOpenMetaStore `modifyTCLens` MapS.map unfreeze
-  where
-  unfreeze :: MetaVariable -> MetaVariable
-  unfreeze mvar = mvar { mvFrozen = Instantiable }
+unfreezeMetas = stOpenMetaStore `modifyTCLens` MapS.map unfreeze_
+
+unfreeze_ :: MetaVariable -> MetaVariable
+unfreeze_ = \ mvar -> mvar { mvFrozen = Instantiable }
 
 {-# SPECIALIZE isFrozen :: MetaId -> TCM Bool #-}
 isFrozen ::
@@ -841,15 +839,16 @@ isFrozen x = do
   mvar <- lookupLocalMeta x
   return $ mvFrozen mvar == Frozen
 
+-- | Temporarily freeze all open metas (from 'stOpenMetaStore')
+--   and unfreeze exactly those that were frozen in the first step.
 withFrozenMetas ::
     (MonadMetaSolver m, MonadTCState m)
   => m a -> m a
 withFrozenMetas act = do
-  openMetas <- useR stOpenMetaStore
+  openMetas <- MapS.keys <$> useR stOpenMetaStore
   frozenMetas <- freezeMetas openMetas
   result <- act
-  forM_ frozenMetas $ \m ->
-    updateMetaVar m $ \ mv -> mv { mvFrozen = Instantiable }
+  mapM_ (`updateMetaVar` unfreeze_) frozenMetas
   return result
 
 -- | Unfreeze a meta and its type if this is a meta again.
@@ -860,7 +859,7 @@ class UnFreezeMeta a where
 
 instance UnFreezeMeta MetaId where
   unfreezeMeta x = unlessM (($ x) <$> isRemoteMeta) $ do
-    updateMetaVar x $ \ mv -> mv { mvFrozen = Instantiable }
+    updateMetaVar x unfreeze_
     unfreezeMeta =<< metaType x
 {-# SPECIALIZE unfreezeMeta :: MetaId -> TCM () #-}
 

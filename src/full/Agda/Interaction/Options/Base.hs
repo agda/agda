@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 
+{-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 
@@ -27,7 +28,8 @@ module Agda.Interaction.Options.Base
     , defaultInteractionOptions
     , defaultCutOff
     , defaultPragmaOptions
-    , standardOptions_
+    , optionGroups
+    , latexPragmaOptions
     , unsafePragmaOptions
     , recheckBecausePragmaOptionsChanged
     , InfectiveCoinfective(..)
@@ -37,7 +39,6 @@ module Agda.Interaction.Options.Base
     , impliedPragmaOptions
     , safeFlag
     , mapFlag
-    , usage
     -- Reused by PandocAgda
     , inputFlag
     , standardOptions, deadStandardOptions
@@ -187,22 +188,20 @@ module Agda.Interaction.Options.Base
 import Prelude hiding ( null, not, (&&), (||) )
 
 import Control.DeepSeq
-import Control.Monad        ( (>=>), when, unless, void )
+import Control.Monad        ( (>=>), when, void )
 import Control.Monad.Except ( ExceptT, MonadError(throwError), runExceptT )
 import Control.Monad.Writer ( Writer, runWriter, MonadWriter(..) )
 
+import Data.Bifunctor           ( second )
 import Data.Function            ( (&) )
 import Data.List                ( intercalate )
 import Data.Maybe
-import Data.Map                 ( Map )
-import qualified Data.Map as Map
 import Data.Set                 ( Set )
 import qualified Data.Set as Set
-import qualified Data.Text as T
 
 import GHC.Generics (Generic)
 
-import Agda.Utils.GetOpt        ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
+import Agda.Utils.GetOpt        ( getOpt', ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
                                 )
 import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
@@ -212,13 +211,13 @@ import Text.Read                ( readMaybe )
 
 import Agda.Termination.CutOff  ( CutOff(..), defaultCutOff )
 
-import Agda.Interaction.Library ( ExeName, LibName, OptionsPragma(..), parseLibName )
+import Agda.Interaction.Library ( OptionsPragma(..), parseLibName )
 import Agda.Interaction.Options.Arguments
+import Agda.Interaction.Options.Default
 import Agda.Interaction.Options.Help
   ( Help(HelpFor, GeneralHelp)
   , string2HelpTopic
   , allHelpTopics
-  , helpTopicUsage
   )
 import Agda.Interaction.Options.Types
 import Agda.Interaction.Options.Warnings
@@ -231,12 +230,11 @@ import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import qualified Agda.Setup.EmacsMode as EmacsMode
 
 import Agda.Utils.Boolean
-import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Function      ( applyWhen, applyUnless )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', (^.), over, set )
 import Agda.Utils.List          ( headWithDefault, initLast1 )
-import Agda.Utils.List1         ( List1, String1, pattern (:|), toList )
+import Agda.Utils.List1         ( List1, pattern (:|), toList )
 import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad         ( tell1 )
@@ -244,14 +242,11 @@ import Agda.Utils.Null
 import Agda.Interaction.Options.ProfileOptions
 import Agda.Utils.String        ( unwords1 )
 import qualified Agda.Utils.String       as String
-import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.TypeLits
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
-
-import Agda.Version
 
 parseVerboseKey :: VerboseKey -> [VerboseKeyItem]
 parseVerboseKey = List1.wordsBy (`elem` ['.', ':'])
@@ -662,115 +657,6 @@ mapFlag f (Option _ long arg descr) = Option [] (map f long) arg descr
 
 defaultInteractionOptions :: PragmaOptions
 defaultInteractionOptions = defaultPragmaOptions
-
-defaultOptions :: CommandLineOptions
-defaultOptions = Options
-  { optProgramName      = "agda"
-  , optInputFile             = Nothing
-  , optIncludePaths          = []
-  , optAbsoluteIncludePaths  = []
-  , optLibraries             = []
-  , optOverrideLibrariesFile = Nothing
-  , optDefaultLibs           = True
-  , optUseLibs               = True
-  , optTraceImports          = 1
-  , optTrustedExecutables    = Map.empty
-  , optPrintAgdaDataDir      = False
-  , optPrintAgdaAppDir       = False
-  , optPrintOptions          = False
-  , optPrintVersion          = Nothing
-  , optPrintHelp             = Nothing
-  , optBuildLibrary          = False
-  , optSetup                 = False
-  , optEmacsMode             = Set.empty
-  , optInteractive           = False
-  , optGHCiInteraction       = False
-  , optJSONInteraction       = False
-  , optExitOnError           = False
-  , optCompileDir            = Nothing
-  , optGenerateVimFile       = False
-  , optIgnoreInterfaces      = False
-  , optIgnoreAllInterfaces   = False
-  , optPragmaOptions         = defaultPragmaOptions
-  , optOnlyScopeChecking     = False
-  , optTransliterate         = False
-  , optDiagnosticsColour     = AutoColour
-  }
-
-defaultPragmaOptions :: PragmaOptions
-defaultPragmaOptions = PragmaOptions
-  { _optShowImplicit              = Default
-  , _optShowGeneralized           = Default
-  , _optShowIrrelevant            = Default
-  , _optUseUnicode                = Default -- UnicodeOk
-  , _optVerbose                   = Strict.Nothing
-  , _optProfiling                 = noProfileOptions
-  , _optProp                      = Default
-  , _optLevelUniverse             = Default
-  , _optTwoLevel                  = Default
-  , _optAllowUnsolved             = Default
-  , _optAllowIncompleteMatch      = Default
-  , _optPositivityCheck           = Default
-  , _optTerminationCheck          = Default
-  , _optTerminationDepth          = defaultCutOff
-  , _optUniverseCheck             = Default
-  , _optOmegaInOmega              = Default
-  , _optCumulativity              = Default
-  , _optSizedTypes                = Default
-  , _optGuardedness               = Default
-  , _optInjectiveTypeConstructors = Default
-  , _optUniversePolymorphism      = Default
-  , _optIrrelevantProjections     = Default
-  , _optExperimentalIrrelevance   = Default
-  , _optWithoutK                  = Default
-  , _optCubicalCompatible         = Default
-  , _optCopatterns                = Default
-  , _optPatternMatching           = Default
-  , _optExactSplit                = Default
-  , _optHiddenArgumentPuns        = Default
-  , _optEta                       = Default
-  , _optForcing                   = Default
-  , _optProjectionLike            = Default
-  , _optErasure                   = Default
-  , _optErasedMatches             = Default
-  , _optEraseRecordParameters     = Default
-  , _optRewriting                 = Default
-  , _optCubical                   = Nothing
-  , _optGuarded                   = Default
-  , _optFirstOrder                = Default
-  , _optRequireUniqueMetaSolutions = Default
-  , _optPostfixProjections        = Default
-  , _optKeepPatternVariables      = Default
-  , _optInferAbsurdClauses        = Default
-  , _optInstanceSearchDepth       = 500
-  , _optBacktrackingInstances     = Default
-  , _optQualifiedInstances        = Default
-  , _optInversionMaxDepth         = 50
-  , _optSafe                      = Default
-  , _optDoubleCheck               = Default
-  , _optSyntacticEquality         = Strict.Nothing
-  , _optWarningMode               = defaultWarningMode
-  , _optCompileMain               = Default
-  , _optCaching                   = Default
-  , _optCountClusters             = Default
-  , _optAutoInline                = Default
-  , _optPrintPatternSynonyms      = Default
-  , _optFastReduce                = Default
-  , _optCallByName                = Default
-  , _optConfluenceCheck           = Nothing
-  , _optCohesion                  = Default
-  , _optFlatSplit                 = Default
-  , _optPolarity                  = Default
-  , _optImportSorts               = Default
-  , _optLoadPrimitives            = Default
-  , _optAllowExec                 = Default
-  , _optSaveMetas                 = Default
-  , _optShowIdentitySubstitutions = Default
-  , _optKeepCoveringClauses       = Default
-  , _optForcedArgumentRecursion   = Default
-  , _optLargeIndices              = Default
-  , _optExperimentalLazyInstances = Default
-  }
 
 -- | The options parse monad 'OptM' collects warnings that are not discarded
 --   when a fatal error occurrs
@@ -1312,8 +1198,42 @@ integerArgument flag s = maybe usage return $ readMaybe s
   where
   usage = throwError $ "option '" ++ flag ++ "' requires an integer argument"
 
+-- | This list should contain all options defined in this module.
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
-standardOptions =
+standardOptions = concat $
+  map (fmap lensPragmaOptions) (snd latexPragmaOptions) :
+  map snd optionGroups
+
+optionGroups :: [(String, [OptDescr (Flag CommandLineOptions)])]
+optionGroups =
+  [ informationOptions
+  , mainModeOptions
+  , projectOptions
+  , essentialConfigurationOptions
+  , diagnosticsOptions
+  , emb warningPragmaOptions
+  , emb checkerPragmaOptions
+  , emb languagePragmaOptions
+  , emb universePragmaOptions
+  , emb modalityPragmaOptions
+  , emb terminationPragmaOptions
+  , emb patternMatchingPragmaOptions
+  , emb instancePragmaOptions
+  , emb rewritingPragmaOptions
+  , emb equalityCheckingPragmaOptions
+  , emb optimizationPragmaOptions
+  , emb printerPragmaOptions
+  , emb backendPragmaOptions
+  , compilationOptions
+  , emb debuggingPragmaOptions
+  ]
+  where
+    emb = second $ map $ fmap lensPragmaOptions
+
+-- | Options that make Agda print information, setup itself etc.
+--   Agda can execute these tasks in addition to a main mode \/ frontend \/ interactor.
+informationOptions :: (String, [OptDescr (Flag CommandLineOptions)])
+informationOptions = ("Setup and basic information",)
     [ Option ['V']  ["version"] (NoArg versionFlag)
                     ("print version information")
 
@@ -1341,24 +1261,55 @@ standardOptions =
     , Option []     ["print-options"] (NoArg printOptionsFlag)
                     ("print the full list of Agda's options")
 
-    , Option []     ["build-library"] (NoArg \ o -> return o{ optBuildLibrary = True })
-                    "build all modules included by the @.agda-lib@ file in the current directory"
-
     , Option []     ["setup"] (NoArg setupFlag)
                     ("setup the Agda data directory")
+    ]
+
+mainModeOptions :: (String, [OptDescr (Flag CommandLineOptions)])
+mainModeOptions = ("Main modes of operation",)
+    [ Option []     ["build-library"] (NoArg \ o -> return o{ optBuildLibrary = True })
+                    "build all modules included by the @.agda-lib@ file in the current directory"
 
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
                     "start in interactive mode"
+
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)
                     "for use with the Emacs mode"
     , Option []     ["interaction-json"] (NoArg jsonInteractionFlag)
                     "for use with other editors such as Atom"
+    ]
+
+projectOptions :: (String, [OptDescr (Flag CommandLineOptions)])
+projectOptions = ("Project configuration",)
+    [ Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
+                    "look for imports in DIR"
+    , Option ['l']  ["library"] (ReqArg libraryFlag "LIB")
+                    "use library LIB"
+    , Option []     ["library-file"] (ReqArg overrideLibrariesFileFlag "FILE")
+                    "use FILE instead of the standard libraries file"
+    , Option []     ["no-libraries"] (NoArg noLibsFlag)
+                    "don't use any library files"
+    , Option []     ["no-default-libraries"] (NoArg noDefaultLibsFlag)
+                    "don't use default libraries"
+    ]
+
+essentialConfigurationOptions :: (String, [OptDescr (Flag CommandLineOptions)])
+essentialConfigurationOptions = ("Essential type checker configuration",)
+    [ Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
+                    "ignore interface files (re-type check everything)"
+    , Option []     ["only-scope-checking"] (NoArg onlyScopeCheckingFlag)
+                    "only scope-check the top-level module, do not type-check it"
     , Option []     ["interaction-exit-on-error"]
                     (NoArg interactionExitFlag)
                     "exit if a type error is encountered"
+    , Option []     ["vim"] (NoArg vimFlag)
+                    "generate Vim highlighting files"
+    ]
 
-    , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
-                    ("directory for compiler output (default: the project root)")
+diagnosticsOptions :: (String, [OptDescr (Flag CommandLineOptions)])
+diagnosticsOptions = ("Diagnostics and output",) $
+    [ Option []     ["colour", "color"] (OptArg diagnosticsColour (intercalate "|" colorValues))
+                    ("whether or not to colour diagnostics output. The default is auto.")
 
     , Option []     ["trace-imports"] (OptArg traceImportsFlag traceImportsArg)
                     (concat
@@ -1369,27 +1320,15 @@ standardOptions =
                       , ", default: 2)"
                       ])
 
-    , Option []     ["vim"] (NoArg vimFlag)
-                    "generate Vim highlighting files"
-    , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)  -- TODO: rename to no-read-interfaces?
-                    "ignore interface files (re-type check everything)"
-    , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
-                    "look for imports in DIR"
-    , Option ['l']  ["library"] (ReqArg libraryFlag "LIB")
-                    "use library LIB"
-    , Option []     ["library-file"] (ReqArg overrideLibrariesFileFlag "FILE")
-                    "use FILE instead of the standard libraries file"
-    , Option []     ["no-libraries"] (NoArg noLibsFlag)
-                    "don't use any library files"
-    , Option []     ["no-default-libraries"] (NoArg noDefaultLibsFlag)
-                    "don't use default libraries"
-    , Option []     ["only-scope-checking"] (NoArg onlyScopeCheckingFlag)
-                    "only scope-check the top-level module, do not type-check it"
     , Option []     ["transliterate"] (NoArg transliterateFlag)
                     "transliterate unsupported code points when printing to stdout/stderr"
-    , Option []     ["colour", "color"] (OptArg diagnosticsColour (intercalate "|" colorValues))
-                    ("whether or not to colour diagnostics output. The default is auto.")
-    ] ++ map (fmap lensPragmaOptions) pragmaOptions
+    ] ++ map (fmap lensPragmaOptions) (snd unicodePragmaOptions)
+
+compilationOptions :: (String, [OptDescr (Flag CommandLineOptions)])
+compilationOptions = ("Compilation options",) $
+    [ Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
+                    ("directory for compiler output (default: the project root)")
+    ] ++ map (fmap lensPragmaOptions) (snd compilationPragmaOptions)
 
 -- | Command line options of previous versions of Agda.
 --   Should not be listed in the usage info, put parsed by GetOpt for good error messaging.
@@ -1406,6 +1345,332 @@ deadStandardOptions =
     ] ++ map (fmap lensPragmaOptions) deadPragmaOptions
   where
     msgSharing = "(in favor of the Agda abstract machine)"
+
+-- | This list should contain all pragma options except for the 'deadPragmaOptions'.
+pragmaOptions :: [OptDescr (Flag PragmaOptions)]
+pragmaOptions = concat $ map snd
+  [ unicodePragmaOptions
+  , warningPragmaOptions
+  , checkerPragmaOptions
+  , languagePragmaOptions
+  , universePragmaOptions
+  , modalityPragmaOptions
+  , terminationPragmaOptions
+  , patternMatchingPragmaOptions
+  , instancePragmaOptions
+  , rewritingPragmaOptions
+  , equalityCheckingPragmaOptions
+  , optimizationPragmaOptions
+  , printerPragmaOptions
+  , latexPragmaOptions
+  , backendPragmaOptions
+  , compilationPragmaOptions
+  , debuggingPragmaOptions
+  ]
+
+warningPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+warningPragmaOptions = ("Warnings",) $ concat
+  [ [ Option ['W']  ["warning"] (ReqArg warningModeFlag warningArg)
+                    ("set warning flags. See --help=warning.")
+    ]
+  ]
+
+-- | Controlling extra checks (termination etc.).
+checkerPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+checkerPragmaOptions = ("Consistency checking",) $ concat
+  [ pragmaFlag      "allow-unsolved-metas" lensOptAllowUnsolved
+                   "succeed and create interface file regardless of unsolved meta variables" ""
+                    Nothing
+  , pragmaFlag      "allow-incomplete-matches" lensOptAllowIncompleteMatch
+                    "succeed and create interface file regardless of incomplete pattern matches" ""
+                    Nothing
+  , pragmaFlag      "positivity-check" lensOptPositivityCheck
+                    "warn about not strictly positive data types" ""
+                    Nothing
+  , pragmaFlag      "termination-check" lensOptTerminationCheck
+                    "warn about possibly nonterminating code" ""
+                    Nothing
+  , [ Option []     ["termination-depth"] (ReqArg terminationDepthFlag "N")
+                    "allow termination checker to count decrease/increase upto N (default N=1)"
+    ]
+  , [ Option []     ["safe"] (NoArg safeFlag)
+                    "disable postulates, unsafe OPTION pragmas and primEraseEquality, implies --no-sized-types"
+    ]
+  , pragmaFlag      "allow-exec" lensOptAllowExec
+                    "allow system calls to trusted executables with primExec" ""
+                    Nothing
+  ]
+
+-- | Main flavor of language.
+languagePragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+languagePragmaOptions = ("Language variant",)
+    [ Option []     ["without-K"] (NoArg withoutKFlag)
+                    "turn on checks to make code compatible with HoTT (e.g. disabling the K rule). Implies --no-flat-split."
+    , Option []     ["cubical-compatible"] (NoArg cubicalCompatibleFlag)
+                    "turn on generation of auxiliary code required for --cubical, implies --without-K"
+    , Option []     ["erased-cubical"] (NoArg $ cubicalFlag CErased)
+                    "enable cubical features (some only in erased settings), implies --cubical-compatible"
+    , Option []     ["cubical"] (NoArg $ cubicalFlag CFull)
+                    "enable cubical features (e.g. overloads lambdas for paths), implies --cubical-compatible"
+    , Option []     ["with-K"] (NoArg withKFlag)
+                    "enable the K rule in pattern matching (default)"
+    ]
+
+universePragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+universePragmaOptions = ("Universes",) $ concat
+  [ pragmaFlag      "type-in-type" lensOptNoUniverseCheck
+                    "ignore universe levels"  "(this makes Agda inconsistent)"
+                    Nothing
+  , pragmaFlag      "omega-in-omega" lensOptOmegaInOmega
+                    "enable typing rule Setω : Setω" "(this makes Agda inconsistent)"
+                    Nothing
+  , pragmaFlag      "cumulativity" lensOptCumulativity
+                    "enable subtyping of universes" "(e.g. Set =< Set₁)"
+                    $ Just "disable subtyping of universes"
+  , pragmaFlag      "prop" lensOptProp
+                    "enable the use of the Prop universe" ""
+                    $ Just "disable the use of the Prop universe"
+  , pragmaFlag      "level-universe" lensOptLevelUniverse
+                    "place type Level in a dedicated LevelUniv universe" ""
+                    Nothing
+  , pragmaFlag      "two-level" lensOptTwoLevel
+                    "enable the use of SSet* universes" ""
+                    Nothing
+  , pragmaFlag      "universe-polymorphism" lensOptUniversePolymorphism
+                    "enable universe polymorphism" ""
+                    $ Just "disable universe polymorphism"
+  , pragmaFlag      "large-indices" lensOptLargeIndices
+                    "allow constructors with large indices" ""
+                    $ Just "always check that constructor arguments live in universes compatible with that of the datatype"
+
+  , pragmaFlag      "import-sorts" lensOptImportSorts
+                    "implicitly import Agda.Primitive using (Set; Prop) at the start of each top-level module" ""
+                    $ Just "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
+  , pragmaFlag      "load-primitives" lensOptLoadPrimitives
+                    "load primitives modules" ""
+                    $ Just "disable loading of primitive modules completely (implies --no-import-sorts)"
+  ]
+
+modalityPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+modalityPragmaOptions = ("Modalities",) $ concat
+  [ pragmaFlag      "erasure" lensOptErasure
+                    "enable erasure" ""
+                    Nothing
+  , pragmaFlag      "erased-matches" lensOptErasedMatches
+                    "allow matching in erased positions for single-constructor types" "(implies --erasure if supplied explicitly)"
+                    Nothing
+  , pragmaFlag      "erase-record-parameters" lensOptEraseRecordParameters
+                    "mark all parameters of record modules as erased" "(implies --erasure)"
+                    Nothing
+  , pragmaFlag      "cohesion" lensOptCohesion
+                    "enable the cohesion modalities" "(in particular @flat)"
+                    Nothing
+  , pragmaFlag      "flat-split" lensOptFlatSplit
+                    "allow splitting on `(@flat x : A)' arguments" "(implies --cohesion)"
+                    Nothing
+  , pragmaFlag      "guarded" lensOptGuarded
+                    "enable @lock/@tick attributes" ""
+                    $ Just "disable @lock/@tick attributes"
+  , pragmaFlag      "polarity" lensOptPolarity
+                    "enable the polarity modalities (@++, @mixed, etc.) and their integration in the positivity checker" ""
+                    Nothing
+  , pragmaFlag      "irrelevant-projections" lensOptIrrelevantProjections
+                    "enable projection of irrelevant record fields and similar irrelevant definitions" "(inconsistent)"
+                    $ Just "disable projection of irrelevant record fields and similar irrelevant definitions"
+  , pragmaFlag      "experimental-irrelevance" lensOptExperimentalIrrelevance
+                    "enable potentially unsound irrelevance features" "(irrelevant levels, irrelevant data matching)"
+                    Nothing
+  ]
+
+terminationPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+terminationPragmaOptions = ("Termination and productivity checking",) $ concat
+  [ pragmaFlag      "sized-types" lensOptSizedTypes
+                    "enable sized types" "(inconsistent with --guardedness)"
+                    $ Just "disable sized types"
+  , pragmaFlag      "guardedness" lensOptGuardedness
+                    "enable constructor-based guarded corecursion" "(inconsistent with --sized-types)"
+                    $ Just "disable constructor-based guarded corecursion"
+  , pragmaFlag      "forced-argument-recursion" lensOptForcedArgumentRecursion
+                    "allow recursion on forced constructor arguments" ""
+                    Nothing
+  ]
+
+patternMatchingPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+patternMatchingPragmaOptions = ("Pattern matching",) $ concat
+  [ pragmaFlag      "pattern-matching" lensOptPatternMatching
+                    "enable pattern matching" ""
+                    $ Just "disable pattern matching completely"
+  , pragmaFlag      "copatterns" lensOptCopatterns
+                    "enable definitions by copattern matching" ""
+                    $ Just "disable definitions by copattern matching"
+  , [ Option []     ["exact-split"] (NoArg $ exactSplitFlag True)
+                    "require all clauses in a definition to hold as definitional equalities (unless marked CATCHALL)"
+    , Option []     ["no-exact-split"] (NoArg $ exactSplitFlag False)
+                    "do not require all clauses in a definition to hold as definitional equalities (default)"
+    ]
+  , pragmaFlag      "hidden-argument-puns" lensOptHiddenArgumentPuns
+                    "interpret the patterns {x} and {{x}} as puns" ""
+                    Nothing
+  , pragmaFlag      "injective-type-constructors" lensOptInjectiveTypeConstructors
+                    "enable injective type constructors" "(makes Agda anti-classical and possibly inconsistent)"
+                    $ Just "disable injective type constructors"
+  , [ Option []     ["inversion-max-depth"] (ReqArg inversionMaxDepthFlag "N")
+                    "set maximum depth for pattern match inversion to N (default: 50)"
+    ]
+  ]
+
+instancePragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+instancePragmaOptions = ("Instance search",) $ concat
+  [ [ Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
+                    "set instance search depth to N (default: 500)"
+    ]
+  , backtrackingInstancesOption
+  , pragmaFlag      "qualified-instances" lensOptQualifiedInstances
+                    "use instances with qualified names" ""
+                    Nothing
+  , pragmaFlag      "experimental-lazy-instances" lensOptExperimentalLazyInstances
+                    "enable experimental, faster implementation of instance search" ""
+                    Nothing
+  ]
+
+rewritingPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+rewritingPragmaOptions = ("Rewriting and confluence",) $ concat
+  [ pragmaFlag      "rewriting" lensOptRewriting
+                    "enable declaration and use of REWRITE rules" ""
+                    $ Just "disable declaration and use of REWRITE rules"
+  , [ Option []     ["local-confluence-check"] (NoArg $ confluenceCheckFlag LocalConfluenceCheck)
+                    "enable checking of local confluence of REWRITE rules"
+    , Option []     ["confluence-check"] (NoArg $ confluenceCheckFlag GlobalConfluenceCheck)
+                    "enable global confluence checking of REWRITE rules (more restrictive than --local-confluence-check)"
+    , Option []     ["no-confluence-check"] (NoArg noConfluenceCheckFlag)
+                    "disable confluence checking of REWRITE rules (default)"
+    ]
+  ]
+
+equalityCheckingPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+equalityCheckingPragmaOptions = ("Definitional equality",) $ concat
+  [ pragmaFlag      "eta-equality" lensOptEta
+                    "default records to eta-equality" ""
+                    $ Just "default records to no-eta-equality"
+  , lossyUnificationOption
+  , requireUniqueMetaSolutionsOptions
+  , [ Option []     ["no-syntactic-equality"] (NoArg $ syntacticEqualityFlag (Just "0"))
+                    "disable the syntactic equality shortcut in the conversion checker"
+    , Option []     ["syntactic-equality"] (OptArg syntacticEqualityFlag "FUEL")
+                    "give the syntactic equality shortcut FUEL units of fuel (default: unlimited)"
+    ]
+  , pragmaFlag      "auto-inline" lensOptAutoInline
+                    "enable automatic compile-time inlining" ""
+                    $ Just "disable automatic compile-time inlining, only definitions marked INLINE will be inlined"
+
+  , pragmaFlag      "fast-reduce" lensOptFastReduce
+                    "enable reduction using the Agda Abstract Machine" ""
+                    $ Just "disable reduction using the Agda Abstract Machine"
+  , pragmaFlag      "call-by-name" lensOptCallByName
+                    "use call-by-name evaluation instead of call-by-need" ""
+                    $ Just "use call-by-need evaluation"
+  ]
+
+optimizationPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+optimizationPragmaOptions = ("Type checker optimizations",) $ concat
+  [ pragmaFlag      "caching" lensOptCaching
+                    "enable caching of typechecking" ""
+                    $ Just "disable caching of typechecking"
+  , pragmaFlag      "double-check" lensOptDoubleCheck
+                    "enable double-checking of all terms using the internal typechecker" ""
+                    $ Just "disable double-checking of terms"
+  , pragmaFlag      "forcing" lensOptForcing
+                    "enable the forcing analysis for data constructors" "(optimisation)"
+                    $ Just "disable the forcing analysis"
+  , pragmaFlag      "projection-like" lensOptProjectionLike
+                    "enable the analysis whether function signatures liken those of projections" "(optimisation)"
+                    $ Just "disable the projection-like analysis"
+  , pragmaFlag      "infer-absurd-clauses" lensOptInferAbsurdClauses
+                    "eliminate absurd clauses in case splitting and coverage checking" ""
+                    $ Just "do not automatically eliminate absurd clauses in case splitting and coverage checking (can speed up type-checking)"
+  , pragmaFlag      "save-metas" lensOptSaveMetas
+                    "save meta-variables" ""
+                    Nothing
+  ]
+
+unicodePragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+unicodePragmaOptions = ("Unicode",) $ concat
+  [ pragmaFlag'     "unicode" lensOptUseUnicode unicodeOrAsciiEffect
+                    "use unicode characters when printing terms" ""
+                    Nothing
+  ]
+
+-- | Controlling the rendering of Agda expressions.
+printerPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+printerPragmaOptions = ("Checker output",) $ concat
+  [ pragmaFlag      "show-implicit" lensOptShowImplicit
+                    "show implicit arguments when printing" ""
+                    Nothing
+  , pragmaFlag      "show-irrelevant" lensOptShowIrrelevant
+                    "show irrelevant arguments when printing" ""
+                    Nothing
+  , pragmaFlag      "show-identity-substitutions" lensOptShowIdentitySubstitutions
+                    "show all arguments of metavariables when printing terms" ""
+                    Nothing
+  , pragmaFlag      "print-pattern-synonyms" lensOptPrintPatternSynonyms
+                    "keep pattern synonyms when printing terms" ""
+                    $ Just "expand pattern synonyms when printing terms"
+  , pragmaFlag      "postfix-projections" lensOptPostfixProjections
+                    "prefer postfix projection notation" ""
+                    $ Just "prefer prefix projection notation"
+  , pragmaFlag      "keep-pattern-variables" lensOptKeepPatternVariables
+                    "don't replace variables with dot patterns during case splitting" ""
+                    $ Just "replace variables with dot patterns during case splitting"
+  ]
+
+-- | Latex pragma options.
+latexPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+latexPragmaOptions = ("Latex options",) $ concat
+  [ pragmaFlag      "count-clusters" lensOptCountClusters
+                    "count extended grapheme clusters when generating LaTeX"
+                    ("(note that this flag " ++
+#ifdef COUNT_CLUSTERS
+                      "is not enabled in all builds"
+#else
+                      "has not been enabled in this build"
+#endif
+                      ++ " of Agda)")
+                    Nothing
+  ]
+
+-- | Backend-relevant options.
+backendPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+backendPragmaOptions = ("Backend options",) $ concat
+  [ pragmaFlag      "keep-covering-clauses" lensOptKeepCoveringClauses
+                    "do not discard covering clauses" "(required for some external backends)"
+                    $ Just "discard covering clauses"
+  ]
+
+-- | Common options for compilers.
+compilationPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+compilationPragmaOptions = ("Compilation options",) $ concat
+  [ pragmaFlag      "main" lensOptCompileMain
+                    "treat the requested module as the main module of a program when compiling" ""
+                    Nothing
+  ]
+
+-- | Debugging and profiling Agda.
+debuggingPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+debuggingPragmaOptions = ("Debugging and profiling Agda",) $ concat
+  [ [ Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
+                    "set verbosity level to N. Only has an effect if Agda was built with the \"debug\" flag."
+    , Option []     ["profile"] (ReqArg profileFlag profileArg)
+                    (concat
+                       [ "turn on profiling for "
+                       , profileArg
+                       , " (where "
+                       , profileArg
+                       , "="
+                       , intercalate "|" profileValues
+                       , ")"
+                       ])
+    ]
+  ]
 
 -- | Construct a flag of type @WithDefault _@
 --
@@ -1484,238 +1749,6 @@ pragmaFlagBool' long field effect pos info neg =
     where a = fromBool b
   def  b = applyWhen (fromBool b == b0) (++ " (default)")
   expl b = if b then unwords1 [pos, info] else fromMaybe ("do not " ++ pos) neg
-
-
-pragmaOptions :: [OptDescr (Flag PragmaOptions)]
-pragmaOptions = concat
-  [ pragmaFlag      "show-implicit" lensOptShowImplicit
-                    "show implicit arguments when printing" ""
-                    Nothing
-  , pragmaFlag      "show-irrelevant" lensOptShowIrrelevant
-                    "show irrelevant arguments when printing" ""
-                    Nothing
-  , pragmaFlag      "show-identity-substitutions" lensOptShowIdentitySubstitutions
-                    "show all arguments of metavariables when printing terms" ""
-                    Nothing
-  , pragmaFlag'     "unicode" lensOptUseUnicode unicodeOrAsciiEffect
-                    "use unicode characters when printing terms" ""
-                    Nothing
-  , [ Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
-                    "set verbosity level to N. Only has an effect if Agda was built with the \"debug\" flag."
-    , Option []     ["profile"] (ReqArg profileFlag profileArg)
-                    (concat
-                       [ "turn on profiling for "
-                       , profileArg
-                       , " (where "
-                       , profileArg
-                       , "="
-                       , intercalate "|" profileValues
-                       , ")"
-                       ])
-    ]
-  , pragmaFlag      "allow-unsolved-metas" lensOptAllowUnsolved
-                    "succeed and create interface file regardless of unsolved meta variables" ""
-                    Nothing
-  , pragmaFlag      "allow-incomplete-matches" lensOptAllowIncompleteMatch
-                    "succeed and create interface file regardless of incomplete pattern matches" ""
-                    Nothing
-  , pragmaFlag      "positivity-check" lensOptPositivityCheck
-                    "warn about not strictly positive data types" ""
-                    Nothing
-  , pragmaFlag      "termination-check" lensOptTerminationCheck
-                    "warn about possibly nonterminating code" ""
-                    Nothing
-  , [ Option []     ["termination-depth"] (ReqArg terminationDepthFlag "N")
-                    "allow termination checker to count decrease/increase upto N (default N=1)"
-    ]
-  , pragmaFlag      "type-in-type" lensOptNoUniverseCheck
-                    "ignore universe levels"  "(this makes Agda inconsistent)"
-                    Nothing
-  , pragmaFlag      "omega-in-omega" lensOptOmegaInOmega
-                    "enable typing rule Setω : Setω" "(this makes Agda inconsistent)"
-                    Nothing
-  , pragmaFlag      "cumulativity" lensOptCumulativity
-                    "enable subtyping of universes" "(e.g. Set =< Set₁)"
-                    $ Just "disable subtyping of universes"
-  , pragmaFlag      "prop" lensOptProp
-                    "enable the use of the Prop universe" ""
-                    $ Just "disable the use of the Prop universe"
-  , pragmaFlag      "level-universe" lensOptLevelUniverse
-                    "place type Level in a dedicated LevelUniv universe" ""
-                    Nothing
-  , pragmaFlag      "two-level" lensOptTwoLevel
-                    "enable the use of SSet* universes" ""
-                    Nothing
-  , pragmaFlag      "sized-types" lensOptSizedTypes
-                    "enable sized types" "(inconsistent with --guardedness)"
-                    $ Just "disable sized types"
-  , pragmaFlag      "cohesion" lensOptCohesion
-                    "enable the cohesion modalities" "(in particular @flat)"
-                    Nothing
-  , pragmaFlag      "flat-split" lensOptFlatSplit
-                    "allow splitting on `(@flat x : A)' arguments" "(implies --cohesion)"
-                    Nothing
-  , pragmaFlag      "polarity" lensOptPolarity
-                    "enable the polarity modalities (@++, @mixed, etc.) and their integration in the positivity checker" ""
-                    Nothing
-  , pragmaFlag      "guardedness" lensOptGuardedness
-                    "enable constructor-based guarded corecursion" "(inconsistent with --sized-types)"
-                    $ Just "disable constructor-based guarded corecursion"
-  , pragmaFlag      "injective-type-constructors" lensOptInjectiveTypeConstructors
-                    "enable injective type constructors" "(makes Agda anti-classical and possibly inconsistent)"
-                    $ Just "disable injective type constructors"
-  , pragmaFlag      "universe-polymorphism" lensOptUniversePolymorphism
-                    "enable universe polymorphism" ""
-                    $ Just "disable universe polymorphism"
-  , pragmaFlag      "irrelevant-projections" lensOptIrrelevantProjections
-                    "enable projection of irrelevant record fields and similar irrelevant definitions" "(inconsistent)"
-                    $ Just "disable projection of irrelevant record fields and similar irrelevant definitions"
-  , pragmaFlag      "experimental-irrelevance" lensOptExperimentalIrrelevance
-                    "enable potentially unsound irrelevance features" "(irrelevant levels, irrelevant data matching)"
-                    Nothing
-  , [ Option []     ["with-K"] (NoArg withKFlag)
-                    "enable the K rule in pattern matching (default)"
-    , Option []     ["cubical-compatible"] (NoArg cubicalCompatibleFlag)
-                    "turn on generation of auxiliary code required for --cubical, implies --without-K"
-    , Option []     ["without-K"] (NoArg withoutKFlag)
-                    "turn on checks to make code compatible with HoTT (e.g. disabling the K rule). Implies --no-flat-split."
-    ]
-  , pragmaFlag      "copatterns" lensOptCopatterns
-                    "enable definitions by copattern matching" ""
-                    $ Just "disable definitions by copattern matching"
-  , pragmaFlag      "pattern-matching" lensOptPatternMatching
-                    "enable pattern matching" ""
-                    $ Just "disable pattern matching completely"
-  , [ Option []     ["exact-split"] (NoArg $ exactSplitFlag True)
-                    "require all clauses in a definition to hold as definitional equalities (unless marked CATCHALL)"
-    , Option []     ["no-exact-split"] (NoArg $ exactSplitFlag False)
-                    "do not require all clauses in a definition to hold as definitional equalities (default)"
-    ]
-  , pragmaFlag      "hidden-argument-puns" lensOptHiddenArgumentPuns
-                    "interpret the patterns {x} and {{x}} as puns" ""
-                    Nothing
-  , pragmaFlag      "eta-equality" lensOptEta
-                    "default records to eta-equality" ""
-                    $ Just "default records to no-eta-equality"
-  , pragmaFlag      "forcing" lensOptForcing
-                    "enable the forcing analysis for data constructors" "(optimisation)"
-                    $ Just "disable the forcing analysis"
-  , pragmaFlag      "projection-like" lensOptProjectionLike
-                    "enable the analysis whether function signatures liken those of projections" "(optimisation)"
-                    $ Just "disable the projection-like analysis"
-  , pragmaFlag      "erasure" lensOptErasure
-                    "enable erasure" ""
-                    Nothing
-  , pragmaFlag      "erased-matches" lensOptErasedMatches
-                    "allow matching in erased positions for single-constructor types" "(implies --erasure if supplied explicitly)"
-                    Nothing
-  , pragmaFlag      "erase-record-parameters" lensOptEraseRecordParameters
-                    "mark all parameters of record modules as erased" "(implies --erasure)"
-                    Nothing
-  , pragmaFlag      "rewriting" lensOptRewriting
-                    "enable declaration and use of REWRITE rules" ""
-                    $ Just "disable declaration and use of REWRITE rules"
-  , [ Option []     ["local-confluence-check"] (NoArg $ confluenceCheckFlag LocalConfluenceCheck)
-                    "enable checking of local confluence of REWRITE rules"
-    , Option []     ["confluence-check"] (NoArg $ confluenceCheckFlag GlobalConfluenceCheck)
-                    "enable global confluence checking of REWRITE rules (more restrictive than --local-confluence-check)"
-    , Option []     ["no-confluence-check"] (NoArg noConfluenceCheckFlag)
-                    "disable confluence checking of REWRITE rules (default)"
-    , Option []     ["cubical"] (NoArg $ cubicalFlag CFull)
-                    "enable cubical features (e.g. overloads lambdas for paths), implies --cubical-compatible"
-    , Option []     ["erased-cubical"] (NoArg $ cubicalFlag CErased)
-                    "enable cubical features (some only in erased settings), implies --cubical-compatible"
-    ]
-  , pragmaFlag      "guarded" lensOptGuarded
-                    "enable @lock/@tick attributes" ""
-                    $ Just "disable @lock/@tick attributes"
-  , lossyUnificationOption
-  , requireUniqueMetaSolutionsOptions
-  , pragmaFlag      "postfix-projections" lensOptPostfixProjections
-                    "prefer postfix projection notation" ""
-                    $ Just "prefer prefix projection notation"
-  , pragmaFlag      "keep-pattern-variables" lensOptKeepPatternVariables
-                    "don't replace variables with dot patterns during case splitting" ""
-                    $ Just "replace variables with dot patterns during case splitting"
-  , pragmaFlag      "infer-absurd-clauses" lensOptInferAbsurdClauses
-                    "eliminate absurd clauses in case splitting and coverage checking" ""
-                    $ Just "do not automatically eliminate absurd clauses in case splitting and coverage checking (can speed up type-checking)"
-  , [ Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
-                    "set instance search depth to N (default: 500)"
-    ]
-  , backtrackingInstancesOption
-  , pragmaFlag      "qualified-instances" lensOptQualifiedInstances
-                    "use instances with qualified names" ""
-                    Nothing
-  , [ Option []     ["inversion-max-depth"] (ReqArg inversionMaxDepthFlag "N")
-                    "set maximum depth for pattern match inversion to N (default: 50)"
-    , Option []     ["safe"] (NoArg safeFlag)
-                    "disable postulates, unsafe OPTION pragmas and primEraseEquality, implies --no-sized-types"
-    ]
-  , pragmaFlag      "double-check" lensOptDoubleCheck
-                    "enable double-checking of all terms using the internal typechecker" ""
-                    $ Just "disable double-checking of terms"
-  , [ Option []     ["no-syntactic-equality"] (NoArg $ syntacticEqualityFlag (Just "0"))
-                    "disable the syntactic equality shortcut in the conversion checker"
-    , Option []     ["syntactic-equality"] (OptArg syntacticEqualityFlag "FUEL")
-                    "give the syntactic equality shortcut FUEL units of fuel (default: unlimited)"
-    , Option ['W']  ["warning"] (ReqArg warningModeFlag warningArg)
-                    ("set warning flags. See --help=warning.")
-    ]
-  , pragmaFlag      "main" lensOptCompileMain
-                    "treat the requested module as the main module of a program when compiling" ""
-                    Nothing
-  , pragmaFlag      "caching" lensOptCaching
-                    "enable caching of typechecking" ""
-                    $ Just "disable caching of typechecking"
-  , pragmaFlag      "count-clusters" lensOptCountClusters
-                    "count extended grapheme clusters when generating LaTeX"
-                    ("(note that this flag " ++
-#ifdef COUNT_CLUSTERS
-                      "is not enabled in all builds"
-#else
-                      "has not been enabled in this build"
-#endif
-                      ++ " of Agda)")
-                    Nothing
-  , pragmaFlag      "auto-inline" lensOptAutoInline
-                    "enable automatic compile-time inlining" ""
-                    $ Just "disable automatic compile-time inlining, only definitions marked INLINE will be inlined"
-  , pragmaFlag      "print-pattern-synonyms" lensOptPrintPatternSynonyms
-                    "keep pattern synonyms when printing terms" ""
-                    $ Just "expand pattern synonyms when printing terms"
-  , pragmaFlag      "fast-reduce" lensOptFastReduce
-                    "enable reduction using the Agda Abstract Machine" ""
-                    $ Just "disable reduction using the Agda Abstract Machine"
-  , pragmaFlag      "call-by-name" lensOptCallByName
-                    "use call-by-name evaluation instead of call-by-need" ""
-                    $ Just "use call-by-need evaluation"
-
-  , pragmaFlag      "import-sorts" lensOptImportSorts
-                    "implicitly import Agda.Primitive using (Set; Prop) at the start of each top-level module" ""
-                    $ Just "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
-  , pragmaFlag      "load-primitives" lensOptLoadPrimitives
-                    "load primitives modules" ""
-                    $ Just "disable loading of primitive modules completely (implies --no-import-sorts)"
-  , pragmaFlag      "allow-exec" lensOptAllowExec
-                    "allow system calls to trusted executables with primExec" ""
-                    Nothing
-  , pragmaFlag      "save-metas" lensOptSaveMetas
-                    "save meta-variables" ""
-                    Nothing
-  , pragmaFlag      "keep-covering-clauses" lensOptKeepCoveringClauses
-                    "do not discard covering clauses" "(required for some external backends)"
-                    $ Just "discard covering clauses"
-  , pragmaFlag      "large-indices" lensOptLargeIndices
-                    "allow constructors with large indices" ""
-                    $ Just "always check that constructor arguments live in universes compatible with that of the datatype"
-  , pragmaFlag      "forced-argument-recursion" lensOptForcedArgumentRecursion
-                    "allow recursion on forced constructor arguments" ""
-                    Nothing
-  , pragmaFlag      "experimental-lazy-instances" lensOptExperimentalLazyInstances
-                    "enable experimental, faster implementation of instance search" ""
-                    Nothing
-  ]
 
 pragmaOptionDefault :: KnownBool b => (PragmaOptions -> WithDefault b) -> Bool -> String
 pragmaOptionDefault f b =
@@ -1869,19 +1902,6 @@ parsePluginOptions argv opts =
   getOptSimple argv opts
     (\s _ -> throwError $
                "Internal error: Flag " ++ s ++ " passed to a plugin")
-
--- | The usage info message. The argument is the program name (probably
---   agda).
-usage :: [OptDescr ()] -> String -> Help -> String
-usage options progName GeneralHelp = usageInfo header options
-    where
-        header = unlines
-          [ "Agda version " ++ version
-          , ""
-          , "Usage: " ++ progName ++ " [OPTIONS...] [FILE]"
-          ]
-
-usage options progName (HelpFor topic) = helpTopicUsage topic
 
 -- | Removes RTS options from a list of options.
 

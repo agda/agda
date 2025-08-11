@@ -489,6 +489,7 @@ library
     , filemanip            >= 0.3.6.3   && < 0.4
     , generic-data         >= 1.0.0.1   && < 1.2
     , ghc-compact          == 0.1.*
+    , ghc-bignum           >= 1.2       && < 2
     , gitrev               >= 1.3.1     && < 2
     , hashable             >= 1.4.2.0   && < 1.6
     , haskeline            >= 0.8.2     && < 0.9
@@ -568,6 +569,7 @@ library
       Agda.Interaction.BuildLibrary
       Agda.Interaction.Command
       Agda.Interaction.CommandLine
+      Agda.Interaction.Emacs.Lisp
       Agda.Interaction.EmacsCommand
       Agda.Interaction.EmacsTop
       Agda.Interaction.ExitCode
@@ -601,6 +603,7 @@ library
       Agda.Interaction.Options
       Agda.Interaction.Options.Arguments
       Agda.Interaction.Options.BashCompletion
+      Agda.Interaction.Options.Default
       Agda.Interaction.Options.Errors
       Agda.Interaction.Options.Help
       Agda.Interaction.Options.Lenses
@@ -820,6 +823,7 @@ library
       Agda.TypeChecking.Serialise.Instances.Common
       Agda.TypeChecking.Serialise.Instances.Compilers
       Agda.TypeChecking.Serialise.Instances.Errors
+      Agda.TypeChecking.Serialise.Instances.General
       Agda.TypeChecking.Serialise.Instances.Highlighting
       Agda.TypeChecking.Serialise.Instances.Internal
       Agda.TypeChecking.SizedTypes
@@ -846,10 +850,12 @@ library
       Agda.Utils.BiMap
       Agda.Utils.BoolSet
       Agda.Utils.Boolean
+      Agda.Utils.ByteArray
       Agda.Utils.CallStack
       Agda.Utils.Char
       Agda.Utils.Cluster
       Agda.Utils.CompressedTrie
+      Agda.Utils.DocTree
       Agda.Utils.Either
       Agda.Utils.Empty
       Agda.Utils.Environment
@@ -873,6 +879,7 @@ library
       Agda.Utils.IO.TempFile
       Agda.Utils.IO.UTF8
       Agda.Utils.IORef
+      Agda.Utils.IORef.Strict
       Agda.Utils.Impossible
       Agda.Utils.IndexedList
       Agda.Utils.IntSet.Infinite
@@ -895,6 +902,7 @@ library
       Agda.Utils.Parser.MemoisedCPS
       Agda.Utils.PartialOrd
       Agda.Utils.Permutation
+      Agda.Utils.Range
       Agda.Utils.RangeMap
       Agda.Utils.SemiRing
       Agda.Utils.Semigroup
@@ -914,6 +922,7 @@ library
       Agda.Utils.Update
       Agda.Utils.VarSet
       Agda.Utils.WithDefault
+      Agda.Utils.Word
       Agda.Utils.Zip
       Agda.Utils.Zipper
       Agda.Version
@@ -1069,6 +1078,7 @@ executable agda-tests
       Internal.Utils.SmallSet
       Internal.Utils.Three
       Internal.Utils.Trie
+      Internal.Utils.VarSet
       LaTeXAndHTML.Tests
       LibSucceed.Tests
       Succeed.Tests
@@ -1084,6 +1094,7 @@ executable agda-tests
     , Agda
     , array
     , base
+    , binary
     , bytestring
     , containers
     , directory

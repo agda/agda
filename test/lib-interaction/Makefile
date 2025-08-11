@@ -4,6 +4,16 @@ TOP = ../..
 
 include $(TOP)/mk/paths.mk
 
+# Extra options when running agda --interaction
+# Andreas, 2025-08-05, PR #8047:
+# Add --color=never to turn off highlighting info sent to the Agda information buffer.
+# Highlighting information for the info buffer is not portable
+# since its position info varies with the length of filepaths.
+# As they are absolute, they have different length locally and on CI.
+# So, we do not want this highlighting information in the golden values
+# until someone finishes #6192.
+AGDA_OPT=--no-default-libraries --color=never
+
 uname:=$(shell uname)
 ifeq (NT-5,$(findstring NT-5,$(uname)))
 pwd=$(shell (cmd /c 'echo %CD%') | $(SED) -e 's/\\/\\\\\\\\/g')
@@ -45,7 +55,7 @@ run_test=\
          | $(SED) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(SED) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(SED) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
-         | $(AGDA_BIN) -v 0 -i . -i .. --interaction --no-default-libraries $(RTS_$*) \
+         | $(AGDA_BIN) -v 0 -i . -i .. --interaction $(AGDA_OPT) $(RTS_$*) \
            2>&1 | $(filter) ; \
     else /usr/bin/env bash ./$*.sh $(AGDA_BIN) > $(TMPDIR)/$*.tmp_out ; \
          cat $(TMPDIR)/$*.tmp_out | $(filter) ; \

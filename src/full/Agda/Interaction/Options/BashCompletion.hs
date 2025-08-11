@@ -43,7 +43,7 @@ import Data.Maybe
 import Text.Read      ( readMaybe )
 
 import Agda.Interaction.Options.Arguments      ( optionValues )
-import Agda.Interaction.Options.Base           ( standardOptions_ )
+import Agda.Interaction.Options.Base           ( standardOptions )
 
 import Agda.Utils.Function       ( applyWhenJust )
 import Agda.Utils.GetOpt         ( OptDescr(..), ArgDescr(..) )
@@ -60,11 +60,11 @@ printedOptions :: [String]
 printedOptions = map fst printedOptionsWithHelp
 
 printedOptionsWithHelp :: [(String, Help)]
-printedOptionsWithHelp = printOptions standardOptions_
+printedOptionsWithHelp = printOptions standardOptions
 
 -- | Print just the names of the given options (e.g. for bash completion scripts).
 --   For long options with finitely enumerable arguments, print all variants.
-printOptions :: [OptDescr ()] -> [(String, Help)]
+printOptions :: [OptDescr a] -> [(String, Help)]
 printOptions = concat . map \case
   Option short long arg help -> concat $
     map (,help) ss :

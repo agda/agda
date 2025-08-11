@@ -22,7 +22,7 @@ import System.FilePath
 import Agda.Syntax.Common
 import Agda.Syntax.TopLevelModuleName
 
-import Agda.TypeChecking.Monad.Debug (reportSDoc)
+import Agda.TypeChecking.Monad.Debug (reportSDoc, reportS)
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Imports
@@ -99,7 +99,15 @@ setCommandLineOptions'
   -> CommandLineOptions
   -> TCM ()
 setCommandLineOptions' root opts = do
-  -- Andreas, 2022-11-19: removed a call to checkOpts which did nothing.
+      -- Andreas, 2025-08-05, PR #8037
+      -- 'setLibraryPaths' below can fail,
+      -- and to print the error correctly
+      -- we need knowledge of the optDiagnosticsColor command line option.
+      -- Thus, we already set this option here.
+      -- Setting all the options here breaks the optAbsoluteIncludePaths logic.
+      modifyTC $ Lens.mapCommandLineOptions \ o -> o{ optDiagnosticsColour = optDiagnosticsColour opts }
+
+      -- Compute the set of include paths.
       incs <- case optAbsoluteIncludePaths opts of
         [] -> do
           opts' <- setLibraryPaths root opts
@@ -109,7 +117,7 @@ setCommandLineOptions' root opts = do
         incs -> return incs
       modifyTC $ Lens.setCommandLineOptions opts{ optAbsoluteIncludePaths = incs }
       setPragmaOptions (optPragmaOptions opts)
-      updateBenchmarkingStatus
+      -- updateBenchmarkingStatus -- already included in setPragmaOptions
 
 libToTCM :: LibM a -> TCM a
 libToTCM m = do
@@ -262,7 +270,7 @@ displayFormsEnabled = asksTC envDisplayFormsEnabled
 -- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
 -- 'setCommandLineOptions' must have run).
 
-getIncludeDirs :: HasOptions m => m (List1 AbsolutePath)
+getIncludeDirs :: TCM (List1 AbsolutePath)
 getIncludeDirs = do
   List1.fromListSafe __IMPOSSIBLE__ . optAbsoluteIncludePaths <$> commandLineOptions
 
@@ -294,7 +302,7 @@ setIncludeDirs incs root = do
       -- Might also be useful to overwrite default imports...
   incs <- return $ List1.fromListSafe __IMPOSSIBLE__ $ nubOn id $ List1.toList $ incs <> List1.singleton primdir
 
-  reportSDoc "setIncludeDirs" 10 $ return $ vcat
+  reportS "setIncludeDirs" 10 $ vcat
     [ "Old include directories:"
     , nest 2 $ vcat $ map pretty oldIncs
     , "New include directories:"
@@ -315,7 +323,6 @@ setIncludeDirs incs root = do
   -- "old-path/M.agda", when the user actually meant
   -- "new-path/M.agda".
   when (sort oldIncs /= sort (List1.toList incs)) $ do
-    ho <- getInteractionOutputCallback
     tcWarnings <- useTC stTCWarnings -- restore already generated warnings
     libCache   <- useTC stLibCache   -- restore cached project configs & .agda-lib files, since they use absolute paths
     decodedModules <- getDecodedModules
@@ -323,7 +330,6 @@ setIncludeDirs incs root = do
     resetAllState
     setTCLens stTCWarnings tcWarnings
     setTCLens stLibCache libCache
-    setInteractionOutputCallback ho
     setDecodedModules keptDecodedModules
     setTCLens stModuleToSourceId modFile
 

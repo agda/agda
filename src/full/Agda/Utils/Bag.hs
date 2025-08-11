@@ -14,7 +14,7 @@ import qualified Data.List.NonEmpty     as List1
   -- NB: Not importing Agda.Utils.List1 to avoid import cycles.
 import           Data.Map               ( Map )
 import qualified Data.Map               as Map
-import           Data.Semigroup
+import           Data.Semigroup         ( Sum(..) )
 
 import           Agda.Utils.Functor
 

@@ -8,17 +8,17 @@ import qualified Data.Map.Strict as Map
 import Data.Strict.Tuple (Pair(..))
 import Data.Word (Word32)
 
-import qualified Agda.Interaction.Highlighting.Range   as HR
+import Agda.Utils.Range (Range(..))
 import qualified Agda.Interaction.Highlighting.Precise as HP
 import qualified Agda.Utils.RangeMap                   as RM
 
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common () --instance only
 
-instance EmbPrj HR.Range where
-  icod_ (HR.Range a b) = icodeN' HR.Range a b
+instance EmbPrj Range where
+  icod_ (Range a b) = icodeN' Range a b
 
-  value = valueN HR.Range
+  value = valueN Range
 
 instance EmbPrj HP.NameKind where
   icod_ HP.Bound           = icodeN' HP.Bound
@@ -132,22 +132,22 @@ instance EmbPrj a => EmbPrj (RM.RangeMap a) where
   -- like Map, we need to call `convert' in the tail position and so the output
   -- list is written (and read) in reverse order.
   icod_ (RM.RangeMap f) = icodeNode =<< convert Empty (Map.toAscList f) where
-    convert :: Node -> [(Int, RM.PairInt a)] -> S Node
+    convert :: Node -> [(Int, Pair Int a)] -> S Node
     convert !ys [] = return ys
-    convert  ys ((start, RM.PairInt (end :!: entry)):xs) = do
+    convert  ys ((start, end :!: entry):xs) = do
       !start <- icode start
       !end <- icode end
       !entry <- icode entry
       convert (Cons start (Cons end (Cons entry ys))) xs
 
   value = vcase (fmap (RM.RangeMap . Map.fromDistinctAscList) . convert []) where
-    convert :: [(Int, RM.PairInt a)] -> [Word32] -> R [(Int, RM.PairInt a)]
+    convert :: [(Int, Pair Int a)] -> [Word32] -> R [(Int, Pair Int a)]
     convert !ys [] = return ys
     convert  ys (start:end:entry:xs) = do
       !start <- value start
       !end <- value end
       !entry <- value entry
-      convert ((start, RM.PairInt (end :!: entry)):ys) xs
+      convert ((start, end :!: entry):ys) xs
     convert _ _ = malformed
 
 instance EmbPrj HP.TokenBased where

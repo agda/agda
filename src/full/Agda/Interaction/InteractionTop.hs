@@ -1134,7 +1134,7 @@ displayStatus :: CommandM ()
 displayStatus =
   putResponse . Resp_Status  =<< status
 
--- | @display_info@ does what @'display_info'' False@ does, but
+-- | @display_info@ does what @'displayInfo' False@ does, but
 --   additionally displays some status information (see 'status' and
 --   'displayStatus').
 

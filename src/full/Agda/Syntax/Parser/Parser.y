@@ -629,7 +629,7 @@ Expr
   | Application3 '->' Expr              { Fun (getRange ($1,$2,$3))
                                               (defaultArg $ rawApp $1)
                                               $3 }
-  | Attributes1 Application3 '->' Expr  {% applyAttrs $1 (defaultArg $ rawApp $2) <&> \ dom ->
+  | Attributes1 Application3 '->' Expr  {% applyAttrsDropTactic $1 (defaultArg $ rawApp $2) <&> \ dom ->
                                              Fun (getRange ($1,$2,$3,$4)) dom $4 }
   | Expr1 %prec LOWEST                  { $1 }
 

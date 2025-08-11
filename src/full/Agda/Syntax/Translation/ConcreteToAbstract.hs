@@ -240,7 +240,7 @@ checkModuleApplication (C.SectionApp _ tel m es) m0 x dir' = do
     -- Set the current scope to @s'@
     modifyCurrentScope $ const s'
     printScope "mod.inst" 40 "copied source module"
-    reportSDoc "scope.mod.inst" 30 $ return $ pretty copyInfo
+    reportS "scope.mod.inst" 30 $ pretty copyInfo
     let amodapp = A.SectionApp tel' m1 args'
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checked ModuleApplication " ++ prettyShow x
@@ -305,7 +305,19 @@ checkModuleMacro apply kind r p e x modapp open dir = do
           (DontOpen, _)     -> (dir, defaultImportDir)
 
     -- Restore the locals after module application has been checked.
-    (modapp', copyInfo, adir') <- withLocalVars $ checkModuleApplication modapp m0 x moduleDir
+    (modapp', copyInfo', adir') <- withLocalVars $ checkModuleApplication modapp m0 x moduleDir
+
+    -- Mark the copy as being private (renPublic = False) if the module
+    -- name is PrivateAccess and not open public.
+    -- If the user gave an explicit 'using'/'renaming'/etc, keep the
+    -- copy as 'public' to avoid trimming.
+    let
+      visible = case p of
+        PrivateAccess{} -> not (null dir) || isJust (publicOpen dir)
+        _               -> True
+
+      copyInfo = copyInfo'{ renPublic = visible }
+
     printScope "mod.inst.app" 40 "checkModuleMacro, after checkModuleApplication"
 
     reportSDoc "scope.decl" 90 $ "after mod app: trying to print m0 ..."
@@ -343,7 +355,7 @@ checkModuleMacro apply kind r p e x modapp open dir = do
     reportSLn  "scope.decl" 90 $ "info    = " ++ show info
     reportSLn  "scope.decl" 90 $ "m       = " ++ prettyShow m
     reportSLn  "scope.decl" 90 $ "modapp' = " ++ show modapp'
-    reportSDoc "scope.decl" 90 $ return $ pretty copyInfo
+    reportS    "scope.decl" 90 $ pretty copyInfo
     reportSDoc "scope.decl" 70 $ nest 2 $ prettyA adecl
     return adecl
   where
@@ -1123,13 +1135,20 @@ recordWhereNames = finish <=< foldM decl st0 where
   -- take the name from the ScopeCopyInfo if it is present (i.e. if the
   -- import directive is associated with a local module-macro),
   -- otherwise we trust that the scope checker did the right thing...
-  def :: Maybe ScopeCopyInfo -> A.QName -> PendingBinds
-  def (Just ren) nm = case Map.lookup nm (renNames ren) of
-    Just (new :| _) -> pb (nameConcrete (qnameName nm)) (A.Def new) (getRange nm)
-    Nothing         -> pb (nameConcrete (qnameName nm)) (A.Def nm) (getRange nm)
-  def Nothing nm = pb (nameConcrete (qnameName nm)) (A.Def nm) (getRange nm)
+  def :: Maybe ScopeCopyInfo -> A.QName -> ScopeM PendingBinds
+  def ren nm = do
+    let
+      new = case ren of
+        Just ren -> maybe nm List1.head $ Map.lookup nm (renNames ren)
+        Nothing  -> nm
 
-  fromRenaming :: Maybe ScopeCopyInfo -> [A.Renaming] -> PendingBinds
+    -- N.B.: since this is somewhere we might invent a reference to an
+    -- internal name that does not go through resolveName', we have to
+    -- explicitly mark the name we used as alive.
+    pb (nameConcrete (qnameName nm)) (A.Def new) (getRange nm)
+      <$ markLiveName new
+
+  fromRenaming :: Maybe ScopeCopyInfo -> [A.Renaming] -> ScopeM PendingBinds
   fromRenaming ren fs | (rens, _) <- partitionImportedNames (map renTo fs) = foldMap (def ren) rens
 
   fromImport :: Maybe ScopeCopyInfo -> A.ImportDirective -> ScopeM PendingBinds
@@ -1137,8 +1156,8 @@ recordWhereNames = finish <=< foldM decl st0 where
     case using of
       UseEverything
         | null renaming -> pure mempty -- TODO: raise a warning?
-        | otherwise     -> pure $! fromRenaming inv renaming
-      Using using | (names, _) <- partitionImportedNames using -> pure $!
+        | otherwise     -> fromRenaming inv renaming
+      Using using | (names, _) <- partitionImportedNames using ->
         fromRenaming inv renaming <> foldMap (def inv) names
 
   ins :: PendingBinds -> RecWhereState -> RecWhereState

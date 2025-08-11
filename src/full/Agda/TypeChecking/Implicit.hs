@@ -4,12 +4,17 @@
 -}
 module Agda.TypeChecking.Implicit where
 
+import Prelude hiding (null)
+
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.IO.Class
 
+import Data.Bifunctor (first)
+
 import Agda.Syntax.Position (HasRange, beginningOf, getRange)
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Abstract (Binder, mkBinder_)
 import Agda.Syntax.Info ( MetaKind (InstanceMeta, UnificationMeta) )
 import Agda.Syntax.Internal as I
@@ -21,14 +26,19 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty.Constraint ()  -- PrettyTCM Constraint instance only
 import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Function (applyWhen)
+import Agda.Utils.Function (applyWhen, applyWhenJust)
 import Agda.Utils.Functor
+import qualified Agda.Utils.List as List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
+import Agda.Utils.Null
 import Agda.Utils.Tuple
+
+import Agda.Utils.Impossible
 
 -- Cut and paste from insertImplicitPatternsT:
 
@@ -63,9 +73,9 @@ implicitArgs
   => Int               -- ^ @n@, the maximum number of implicts to be inserted.
   -> (Hiding -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type              -- ^ The (function) type @t@ we are eliminating.
-  -> m (Args, Type)  -- ^ The eliminating arguments and the remaining type.
-implicitArgs n expand t = mapFst (map (fmap namedThing)) <$> do
-  implicitNamedArgs n (\ h x -> expand h) t
+  -> m (Args, Type)    -- ^ The eliminating arguments and the remaining type.
+implicitArgs n expand t = first (map (fmap namedThing)) <$> do
+  implicitNamedArgs n (\ h _x -> expand h) t
 
 -- | @implicitNamedArgs n expand t@ generates up to @n@ named implicit arguments
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
@@ -76,14 +86,42 @@ implicitNamedArgs
   => Int                          -- ^ @n@, the maximum number of implicts to be inserted.
   -> (Hiding -> ArgName -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type                         -- ^ The (function) type @t@ we are eliminating.
-  -> m (NamedArgs, Type)        -- ^ The eliminating arguments and the remaining type.
-implicitNamedArgs 0 expand t0 = return ([], t0)
+  -> m (NamedArgs, Type)          -- ^ The eliminating arguments and the remaining type.
 implicitNamedArgs n expand t0 = do
+  (ncas, t) <- implicitCheckedArgs n expand t0
+  let (ns, cas) = List.unzipWith (\ (Named n ca) -> (n, ca)) ncas
+  es <- liftTCM $ noHeadConstraints cas
+  let nargs = zipWith (\ n (Arg ai v) -> Arg ai (Named n v)) ns (fromMaybe __IMPOSSIBLE__ $ allApplyElims es)
+  return (nargs, t)
+
+-- | Make sure there are no head constraints attached to the eliminations
+-- and just return the eliminations.
+noHeadConstraints :: [CheckedArg] -> TCM [Elim]
+noHeadConstraints = mapM noHeadConstraint
+
+noHeadConstraint :: CheckedArg -> TCM Elim
+noHeadConstraint (CheckedArg elim _  Nothing) = return elim
+noHeadConstraint (CheckedArg _ range Just{} ) = do
+  setCurrentRange range do
+    typeError $ NotSupported $
+     "Lock constraints are not (yet) supported in this position."
+
+-- | @implicitCheckedArgs n expand t@ generates up to @n@ named implicit arguments
+--   metas (unbounded if @n<0@), as long as @t@ is a function type
+--   and @expand@ holds on the hiding and name info of its domain.
+
+implicitCheckedArgs :: (PureTCM m, MonadMetaSolver m, MonadTCM m)
+  => Int                          -- ^ @n@, the maximum number of implicts to be inserted.
+  -> (Hiding -> ArgName -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
+  -> Type                         -- ^ The (function) type @t@ we are eliminating.
+  -> m ([Named_ CheckedArg], Type)-- ^ The eliminating arguments and the remaining type.
+implicitCheckedArgs 0 expand t0 = return ([], t0)
+implicitCheckedArgs n expand t0 = do
     t0' <- reduce t0
-    reportSDoc "tc.term.args" 30 $ "implicitNamedArgs" <+> prettyTCM t0'
-    reportSDoc "tc.term.args" 80 $ "implicitNamedArgs" <+> text (show t0')
+    reportSDoc "tc.term.args" 30 $ "implicitCheckedArgs" <+> prettyTCM t0'
+    reportSDoc "tc.term.args" 80 $ "implicitCheckedArgs" <+> text (show t0')
     case unEl t0' of
-      Pi dom@Dom{domInfo = info, domTactic = tac, unDom = a} b
+      Pi dom@Dom{domInfo = info, domTactic = mtac, unDom = a} b
         | let x = bareNameWithDefault "_" dom, expand (getHiding info) x -> do
           kind <- if hidden info then return UnificationMeta else do
             reportSDoc "tc.term.args.ifs" 15 $
@@ -95,11 +133,34 @@ implicitNamedArgs n expand t0 = do
 
             return InstanceMeta
           (_, v) <- newMetaArg kind info x CmpLeq a
-          whenJust tac $ \ tac -> liftTCM $
+          whenJust mtac \ tac -> liftTCM do
             applyModalityToContext info $ unquoteTactic tac v a
-          let narg = Arg info (Named (Just $ WithOrigin Inserted $ unranged x) v)
-          mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
+          let name = Just $ WithOrigin Inserted $ unranged x
+          mc <- liftTCM $ makeLockConstraint t0' v
+          let carg = CheckedArg{ caElim = Apply (Arg info v), caRange = empty, caConstraint = mc }
+          first (Named name carg :) <$> implicitCheckedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
+
+-- | @makeLockConstraint u funType@(El _ (Pi (Dom{ domInfo=info, unDom=a }) _))@
+--   creates a @CheckLockedVars@ constaint for lock @u : a@
+--   if @getLock info == IsLock _@.
+--
+--   Precondition: 'Type' is reduced.
+makeLockConstraint :: Type -> Term -> TCM (Maybe (Abs Constraint))
+makeLockConstraint funType u =
+  case funType of
+    El _ (Pi (Dom{ domInfo = info, domName = dname, unDom = a }) _) -> do
+      let
+        x  = maybe "t" prettyShow dname
+        mc = case getLock info of
+          IsLock{} -> Just $ Abs x $
+            CheckLockedVars (var 0) (raise 1 funType) (raise 1 $ Arg info u) (raise 1 a)
+          IsNotLock -> Nothing
+      whenJust mc \ c -> do
+        reportSDoc "tc.term.lock" 40 do
+          addContext (defaultDom $ funType) $ prettyTCM c
+      return mc
+    _ -> return Nothing
 
 -- | Create a metavariable of 'MetaKind'.
 

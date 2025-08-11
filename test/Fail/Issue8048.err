@@ -1,0 +1,4 @@
+Issue8048.agda:29.10-11: error: [ReferencesFutureVariables]
+The lock variable α can not appear simultaneously in the "later"
+term x and in the lock term ⦃ α ⦄
+when checking that the expression x has type A

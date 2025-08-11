@@ -9,7 +9,6 @@ import Prelude hiding (null)
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
 import Control.Monad.Trans.Maybe
 
-import qualified Data.IntSet as IntSet
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import qualified Data.Map.Strict as MapS
@@ -1027,7 +1026,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       -- we'll build solutions where the irrelevant terms are not valid
       let fvs = allFreeVars v
       reportSDoc "tc.meta.assign" 20 $
-        "fvars rhs:" <+> sep (map (text . show) $ VarSet.toList fvs)
+        "fvars rhs:" <+> sep (map (text . show) $ VarSet.toAscList fvs)
 
       -- Check that the arguments are variables
       mids <- do
@@ -1080,7 +1079,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
               case getLock (getArgInfo d) of
                 IsNotLock -> pure ()
                 IsLock{} -> do
-                let us = IntSet.unions $ map snd $ filter (earlierThan i . fst) idvars
+                let us = VarSet.unions $ map snd $ filter (earlierThan i . fst) idvars
                 -- us Earlier than u
                 unlessM (addContext tel' $ checkEarlierThan u us) $
                   patternViolation (unblockOnMeta x)  -- If the earlier check hard-fails we need to
@@ -1330,7 +1329,7 @@ assignMeta' m x t n ids v = do
 
     -- Perform the assignment (and wake constraints).
 
-    let vsol = abstract tel' v'
+    v' <- blockOnBoundary telv bs v'
 
     -- Andreas, 2013-10-25 double check solution before assigning
     whenM (optDoubleCheck  <$> pragmaOptions) $ do
@@ -1340,9 +1339,7 @@ assignMeta' m x t n ids v = do
         addContext tel' $ checkSolutionForMeta x m v' a
 
     reportSDoc "tc.meta.assign" 10 $
-      "solving" <+> prettyTCM x <+> ":=" <+> prettyTCM vsol
-
-    v' <- blockOnBoundary telv bs v'
+      "solving" <+> prettyTCM x <+> ":=" <+> prettyTCM (abstract tel' v')
 
     assignTerm x (telToArgs tel') v'
   where

@@ -9,11 +9,10 @@ module Main where
 ------------------------------------------------------------------------------
 -- Haskell base imports
 
-import Prelude        ( IO, String, pattern Right, (.), ($), putStrLn, unwords )
+import Prelude        ( IO, String, pattern Right, (.), ($), (<>), putStrLn, unwords )
 import Data.Foldable  ( mapM_ )
 import Data.Functor   ( (<$>) )
 import Data.Monoid    ( mempty )
-import Data.Semigroup ( (<>) )
 import Data.Set       ( Set )
 import Data.Text.Lazy ( unpack )
 

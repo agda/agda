@@ -86,7 +86,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TheTypeChecker
 
-import Agda.Interaction.BasicOps ( getGoals, showGoals )
+import Agda.Interaction.BasicOps ( getGoals, prettyGoals )
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
 import qualified Agda.Interaction.Highlighting.Precise as Highlighting ( convert )
@@ -840,7 +840,14 @@ getStoredInterface x file@(SourceFile fi) msrc = do
 reportWarningsForModule :: MonadDebug m => TopLevelModuleName -> Set TCWarning -> m ()
 reportWarningsForModule x warns = do
   unlessNull (filter ((Strict.Just (Just x) ==) . fmap rangeFileName . tcWarningOrigin) $ Set.toAscList warns) \ ws ->
-    alwaysReportSDoc "warning" 1 $ P.vsep $ map P.prettyTCM ws
+    alwaysReportSDoc "warning" 1 $
+      -- Andreas, 2025-08-01, PR #8040
+      -- Make sure that imported warnings coming from different modules are separated by an empty line.
+      -- E.g. test/Succeed/ImportWarnings
+      -- Technique from PR #7473:
+      P.vcat $ concatMap (\ w -> [ "", P.prettyTCM w ]) ws
+      -- Technique from PR #7362:
+      -- P.vsep $ map P.prettyTCM ws
 
 -- | Check whether the loaded module is up-to-date
 --   and merge into state if this is the case.
@@ -936,7 +943,6 @@ createInterfaceIsolated x file msrc = do
       opaqueblk   <- useTC stOpaqueBlocks
       opaqueid    <- useTC stOpaqueIds
       ipatsyns <- getPatternSynImports
-      ho       <- getInteractionOutputCallback
       -- Every interface is treated in isolation. Note: Some changes to
       -- the persistent state may not be preserved if an error other
       -- than a type error or an IO exception is encountered in an
@@ -957,7 +963,6 @@ createInterfaceIsolated x file msrc = do
                             }) $ do
                setDecodedModules ds
                setCommandLineOptions opts
-               setInteractionOutputCallback ho
                stModuleToSource `setTCLens` mf
                setVisitedModules vs
                addImportedThings isig metas ibuiltin ipatsyns display
@@ -1252,7 +1257,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     openMetas <- getOpenMetas
     unless (null openMetas) $ do
       reportSLn "import.metas" 10 $ prettyShow mname ++ ": We have unsolved metas."
-      reportSLn "import.metas" 10 =<< showGoals =<< getGoals
+      reportSDoc "import.metas" 10 $ prettyGoals =<< getGoals
 
     ifTopLevelAndHighlightingLevelIs NonInteractive printUnsolvedInfo
 

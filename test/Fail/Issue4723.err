@@ -1,6 +1,7 @@
 AGDA_UNEXPECTED_SUCCESS
 
 ret > ExitSuccess
+out >
 out > Issue4723.agda:6.1-10: warning: -W[no]UnreachableClauses
 out > Unreachable clause
 out > when checking the definition of f

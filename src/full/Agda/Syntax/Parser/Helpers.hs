@@ -13,7 +13,7 @@ import Data.Bifunctor (first, second)
 import Data.Char
 import qualified Data.List as List
 import Data.Maybe
-import Data.Semigroup ((<>), sconcat)
+import Data.Semigroup ( sconcat )
 import Data.Text (Text)
 import qualified Data.Text as T
 
@@ -38,13 +38,14 @@ import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty hiding ((<>))
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Maybe.Strict as Strict
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
 
 import Agda.Utils.Impossible
+import Data.List (partition)
 
 -- | Grab leading OPTIONS pragmas.
 takeOptionsPragmas :: [Declaration] -> Module
@@ -680,6 +681,21 @@ applyAttr :: (LensAttribute a) => Attr -> a -> Parser a
 applyAttr attr@(Attr _ _ a) = maybe failure return . setPristineAttribute a
   where
   failure = errorConflictingAttribute attr
+
+-- | Apply attributes to thing (usually `Arg`).
+--   Expects a reversed list of attributes.
+--   This will fail if one of the attributes is already set
+--   in the thing to something else than the default value.
+applyAttrsDropTactic :: LensAttribute a => [Attr] -> a -> Parser a
+applyAttrsDropTactic rattrs arg = do
+  let (tactics, attrs) = partition isTactic rattrs
+  unlessNull tactics \ ts ->
+    parseWarning $ MisplacedAttributes (getRange ts) $
+      "Ignoring misplaced @(tactic ...) attribute"
+  applyAttrs attrs arg
+  where
+    isTactic :: Attr -> Bool
+    isTactic = isJust . C.theTacticAttribute . isTacticAttribute . theAttr
 
 -- | Apply attributes to thing (usually `Arg`).
 --   Expects a reversed list of attributes.

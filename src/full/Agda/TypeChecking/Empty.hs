@@ -9,8 +9,6 @@ module Agda.TypeChecking.Empty
 
 import Control.Monad.Except ( MonadError(..) )
 
-import Data.Semigroup
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
@@ -44,7 +42,6 @@ instance Semigroup ErrorNonEmpty where
 
 instance Monoid ErrorNonEmpty where
   mempty  = Fail
-  mappend = (Data.Semigroup.<>)
 
 -- | Ensure that a type is empty.
 --   This check may be postponed as emptiness constraint.

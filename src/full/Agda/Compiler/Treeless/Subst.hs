@@ -5,7 +5,7 @@ module Agda.Compiler.Treeless.Subst where
 import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
 import Data.Maybe
-import Data.Semigroup ( Semigroup, (<>), All(..), Any(..) )
+import Data.Semigroup ( All(..), Any(..) )
 
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Substitute

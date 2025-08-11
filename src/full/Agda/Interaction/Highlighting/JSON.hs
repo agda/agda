@@ -8,7 +8,7 @@ import qualified Data.ByteString.Lazy.Char8 as BS
 
 import Agda.Interaction.Highlighting.Common
 import Agda.Interaction.Highlighting.Precise hiding (String)
-import Agda.Interaction.Highlighting.Range (Range(..))
+import Agda.Utils.Range (Range(..))
 import Agda.Interaction.JSON
 import Agda.Interaction.Response
 

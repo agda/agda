@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : Set " nil)
+(agda2-info-action "*All Goals*" "?0 : Set" nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-info-action "*Error*" "1.1-4: error: [UnequalSorts] Set₁ != Set when checking that the expression Set has type Set" nil)
 (agda2-highlight-load-and-delete-action)

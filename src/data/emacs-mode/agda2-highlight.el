@@ -572,6 +572,7 @@ removed. Otherwise all token-based syntax highlighting is removed."
     (apply 'annotation-load
            "Click mouse-2 to jump to definition"
            remove
+           nil ;; apply highlighting to current buffer
            cmds)))
 
 (defun agda2-highlight-add-annotations (remove &rest cmds)

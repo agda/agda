@@ -19,7 +19,9 @@ import Text.Show
 -- | The first arguments given to the Agda process.
 
 firstArguments :: [String]
-firstArguments = ["--interaction"]
+firstArguments = ["--interaction", "--color=never"]
+  -- Andreas, 2025-08-05, PR #8047
+  -- @--color=never@ keeps information buffer highlighting out of golden values.
 
 -- | The prompt used by the Agda process. It is assumed that the
 -- process places prompts at the start of a line.

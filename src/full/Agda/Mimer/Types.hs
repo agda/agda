@@ -260,7 +260,7 @@ haskellRecord :: Doc -> [(Doc, Doc)] -> Doc
 haskellRecord name fields = P.sep [ name, P.nest 2 $ P.braces (P.sep $ P.punctuate "," [ P.hang (k P.<+> "=") 2 v | (k, v) <- fields ]) ]
 
 keyValueList :: [(Doc, Doc)] -> Doc
-keyValueList kvs = P.braces $ P.sep $ P.punctuate "," [ P.hang (k P.<> ":") 2 v | (k, v) <- kvs ]
+keyValueList kvs = P.braces $ P.sep $ P.punctuate "," [ P.hang (k <> ":") 2 v | (k, v) <- kvs ]
 
 instance Pretty Goal where
   pretty goal = P.pretty $ goalMeta goal
@@ -309,8 +309,8 @@ instance Pretty BaseComponents where
       , f "hintProjections" (hintProjections comps)
       ]
     where
-      f n [] = n P.<> ": []"
-      f n xs = (n P.<> ":") P.$$ P.nest 2 (P.pretty xs)
+      f n [] = n <> ": []"
+      f n xs = (n <> ":") P.$$ P.nest 2 (P.pretty xs)
 
 instance Pretty SearchOptions where
   pretty opts = P.vcat

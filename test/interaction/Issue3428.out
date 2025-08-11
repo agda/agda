@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : Set ℓ " nil)
+(agda2-info-action "*All Goals*" "?0 : Set ℓ" nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-info-action "*Error*" "1.3-8: error: [NotLeqSort] Set (Agda.Primitive.lsuc _7) is not less or equal than Set ℓ when checking that the expression ∀ B → B has type Set ℓ" nil)
 (agda2-highlight-load-and-delete-action)

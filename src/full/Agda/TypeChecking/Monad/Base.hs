@@ -35,8 +35,6 @@ import Data.Function (on)
 import Data.Word (Word64, Word32)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
@@ -49,15 +47,12 @@ import qualified Data.HashMap.Strict as HMap
 import qualified Data.HashSet as HashSet
 import Data.Hashable
 import Data.HashSet (HashSet)
-import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
 import Data.Semigroup (Sum, Max)
-
-import Data.IORef
 
 import GHC.Generics (Generic)
 
@@ -67,6 +62,7 @@ import Agda.Benchmarking (Benchmark, Phase)
 
 import {-# SOURCE #-} Agda.Compiler.Treeless.Pretty () -- Instances only
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty.ANSI (putDocTreeLn)
 import Agda.Syntax.Builtin (SomeBuiltin, BuiltinId, PrimitiveId)
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Definitions
@@ -129,6 +125,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash
 import Agda.Utils.IO        ( CatchIO, catchIO, showIOException )
+import qualified Agda.Utils.IORef.Strict as Strict
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
@@ -146,6 +143,8 @@ import Agda.Utils.Set1 (Set1)
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple (Pair)
 import Agda.Utils.Update
+import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet (VarSet)
 
 import Agda.Utils.Impossible
 
@@ -248,7 +247,7 @@ data PreScopeState = PreScopeState
     -- ^ Cached @.agda-lib@ files.
   , stPreImportedMetaStore :: !RemoteMetaStore
     -- ^ Used for meta-variables from other modules.
-  , stPreCopiedNames       :: !(HashMap A.QName A.QName)
+  , stPreCopiedNames       :: !(HashMap A.QName (ScopeCopyRef, A.QName))
     -- ^ Associates a copied name (the key) to its original name (the
     -- value). Computed by the scope checker, used to compute opaque
     -- blocks.
@@ -369,6 +368,12 @@ data SessionTCState = SessionTCState
       --
       --   Also informs about whether a 'FileId' belongs to one of
       --   Agda's primitive and builtin modules.
+  , stSessionInteractionOutputCallback :: InteractionOutputCallback
+      -- ^ Callback function to call when there is a response
+      --   to give to the interactive frontend.
+      --   See the documentation of 'InteractionOutputCallback'.
+      --   Set by the interactor (Terminal (default), Emacs, JSON),
+      --   remaining fixed throughout the session.
   }
   deriving (Generic)
 
@@ -389,10 +394,6 @@ data PersistentTCState = PersistentTCSt
     -- ^ Module name hashes for top-level module names (and vice
     -- versa).
   , stPersistentOptions :: CommandLineOptions
-  , stInteractionOutputCallback  :: InteractionOutputCallback
-    -- ^ Callback function to call when there is a response
-    --   to give to the interactive frontend.
-    --   See the documentation of 'InteractionOutputCallback'.
   , stAccumStatistics   :: !Statistics
     -- ^ Should be strict field.
   , stPersistLoadedFileCache :: !(Strict.Maybe LoadedFileCache)
@@ -443,10 +444,11 @@ initFileDict primLibDir = FileDictWithBuiltins empty empty primLibDir
 
 initSessionState :: AbsolutePath -> SessionTCState
 initSessionState primLibDir = SessionTCState
-    { stSessionFileDict  = initFileDict primLibDir
-    , stSessionBenchmark = empty
-    , stSessionBackends  = empty
-    }
+  { stSessionFileDict                  = initFileDict primLibDir
+  , stSessionBenchmark                 = empty
+  , stSessionBackends                  = empty
+  , stSessionInteractionOutputCallback = defaultInteractionOutputCallback
+  }
 
 -- | Empty persistent state.
 
@@ -459,7 +461,6 @@ initPersistentStateFromSessionState s = PersistentTCSt
   , stPersistentOptions             = defaultOptions
   , stPersistentTopLevelModuleNames = empty
   , stDecodedModules                = Map.empty
-  , stInteractionOutputCallback     = defaultInteractionOutputCallback
   , stAccumStatistics               = empty
   , stPersistLoadedFileCache        = empty
   }
@@ -594,6 +595,9 @@ lensBuiltinModuleIds = lensFileDict . lensFileDictBuiltinModuleIds
 lensPrimitiveLibDir :: Lens' SessionTCState PrimitiveLibDir
 lensPrimitiveLibDir = lensFileDict . lensFileDictPrimitiveLibDir
 
+lensInteractionOutputCallback :: Lens' SessionTCState InteractionOutputCallback
+lensInteractionOutputCallback f s = f (stSessionInteractionOutputCallback s) <&> \ x -> s { stSessionInteractionOutputCallback = x }
+
 -- ** Components of 'PersistentTCState'
 
 lensPersistentSession :: Lens' PersistentTCState SessionTCState
@@ -665,7 +669,7 @@ lensLibCache f s = f (stPreLibCache s) <&> \ x -> s { stPreLibCache = x }
 lensImportedMetaStore :: Lens' PreScopeState RemoteMetaStore
 lensImportedMetaStore f s = f (stPreImportedMetaStore s) <&> \x -> s { stPreImportedMetaStore = x }
 
-lensCopiedNames :: Lens' PreScopeState (HashMap QName QName)
+lensCopiedNames :: Lens' PreScopeState (HashMap QName (ScopeCopyRef, QName))
 lensCopiedNames f s = f (stPreCopiedNames s) <&> \ x -> s { stPreCopiedNames = x }
 
 lensNameCopies :: Lens' PreScopeState (HashMap QName (HashSet QName))
@@ -804,6 +808,9 @@ stBuiltinModuleIds = lensSessionState . lensBuiltinModuleIds
 stPrimitiveLibDir :: Lens' TCState PrimitiveLibDir
 stPrimitiveLibDir = lensSessionState . lensPrimitiveLibDir
 
+stInteractionOutputCallback :: Lens' TCState InteractionOutputCallback
+stInteractionOutputCallback = lensSessionState . lensInteractionOutputCallback
+
 -- ** Persistent state
 
 stLoadedFileCache :: Lens' TCState (Maybe LoadedFileCache)
@@ -886,7 +893,7 @@ stLibCache = lensPreScopeState . lensLibCache
 stImportedMetaStore :: Lens' TCState RemoteMetaStore
 stImportedMetaStore = lensPreScopeState . lensImportedMetaStore
 
-stCopiedNames :: Lens' TCState (HashMap QName QName)
+stCopiedNames :: Lens' TCState (HashMap QName (ScopeCopyRef, QName))
 stCopiedNames = lensPreScopeState . lensCopiedNames
 
 stNameCopies :: Lens' TCState (HashMap QName (HashSet QName))
@@ -1558,8 +1565,10 @@ data Constraint
     -- ^ Resolve the head symbol of the type that the given instance targets
   | CheckFunDef A.DefInfo QName [A.Clause] TCErr
     -- ^ Last argument is the error causing us to postpone.
-  | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
-  | CheckLockedVars Term Type (Arg Term) Type     -- ^ @CheckLockedVars t ty lk lk_ty@ with @t : ty@, @lk : lk_ty@ and @t lk@ well-typed.
+  | UnquoteTactic Term Term Type
+    -- ^ First argument is computation and the others are hole and goal type.
+  | CheckLockedVars Term Type (Arg Term) Type
+    -- ^ @CheckLockedVars t ty lk lk_ty@ with @t : ty@, @lk : lk_ty@ and @t lk@ well-typed.
   | UsableAtModality WhyCheckModality (Maybe Sort) Modality Term
     -- ^ Is the term usable at the given modality?
     -- This check should run if the @Sort@ is @Nothing@ or @isFibrant@.
@@ -4592,7 +4601,7 @@ instance HasOverlapMode Candidate where
 data CheckedArg = CheckedArg
   { caElim        :: Elim
       -- ^ Checked and inserted argument.
-  , caRange       :: Maybe Range
+  , caRange       :: Range
       -- ^ Range of checked argument, where present.
       --   E.g. inserted implicits have no correponding abstract syntax.
   , caConstraint  :: Maybe (Abs Constraint)
@@ -5007,7 +5016,7 @@ data TCWarning
         -- ^ Range where the warning was raised
     , tcWarning         :: Warning
         -- ^ The warning itself
-    , tcWarningDoc      :: Doc
+    , tcWarningDoc      :: Doc -- DocTree
         -- ^ The warning printed in the state and environment where it was raised
     , tcWarningString   :: String
         -- ^ Caches @render tcWarningDoc@ for the sake of an 'Ord' instance.
@@ -5598,8 +5607,8 @@ data InductionAndEta = InductionAndEta
 -- Reason, why rewrite rule is invalid
 data IllegalRewriteRuleReason
   = LHSNotDefinitionOrConstructor
-  | VariablesNotBoundByLHS IntSet
-  | VariablesBoundMoreThanOnce IntSet
+  | VariablesNotBoundByLHS VarSet
+  | VariablesBoundMoreThanOnce VarSet
   | LHSReduces Term Term
   | HeadSymbolIsProjectionLikeFunction QName
   | HeadSymbolIsTypeConstructor QName
@@ -5859,7 +5868,7 @@ instance ReadTCState ReduceM where
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = TCM $ \ r e -> do
-  s <- readIORef r
+  s <- Strict.readIORef r
   E.evaluate $ unReduceM m $ ReduceEnv e s Nothing
   -- Andreas, 2021-05-13, issue #5379
   -- This was the following, which is apparently not strict enough
@@ -6120,7 +6129,7 @@ instance MonadBlock m => MonadBlock (ReaderT e m) where
 
 -- | The type checking monad transformer.
 -- Adds readonly 'TCEnv' and mutable 'TCState'.
-newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
+newtype TCMT m a = TCM { unTCM :: Strict.IORef TCState -> TCEnv -> m a }
 
 -- | Type checking monad.
 type TCM = TCMT IO
@@ -6131,7 +6140,7 @@ mapTCMT f (TCM m) = TCM $ \ s e -> f (m s e)
 
 pureTCM :: MonadIO m => (TCState -> TCEnv -> a) -> TCMT m a
 pureTCM f = TCM $ \ r e -> do
-  s <- liftIO $ readIORef r
+  s <- liftIO $ Strict.readIORef r
   return (f s e)
 {-# INLINE pureTCM #-}
 
@@ -6194,7 +6203,7 @@ instance MonadIO m => MonadIO (TCMT m) where
       x `seq` return x
     where
       wrap s r m = E.catch m $ \ err -> do
-        s <- readIORef s
+        s <- Strict.readIORef s
         E.throwIO $ IOException (Just s) r err
 
 instance MonadIO m => MonadTCEnv (TCMT m) where
@@ -6202,8 +6211,8 @@ instance MonadIO m => MonadTCEnv (TCMT m) where
   localTC f (TCM m) = TCM $ \ s e -> m s (f e); {-# INLINE localTC #-}
 
 instance MonadIO m => MonadTCState (TCMT m) where
-  getTC   = TCM $ \ r _e -> liftIO (readIORef r); {-# INLINE getTC #-}
-  putTC s = TCM $ \ r _e -> liftIO (writeIORef r s); {-# INLINE putTC #-}
+  getTC   = TCM $ \ r _e -> liftIO (Strict.readIORef r); {-# INLINE getTC #-}
+  putTC s = TCM $ \ r _e -> liftIO (Strict.writeIORef r s); {-# INLINE putTC #-}
   modifyTC f = putTC . f =<< getTC; {-# INLINE modifyTC #-}
 
 instance MonadIO m => ReadTCState (TCMT m) where
@@ -6225,7 +6234,7 @@ instance MonadBlock TCM where
 instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
   throwError = liftIO . E.throwIO
   catchError m h = TCM $ \ r e -> do  -- now we are in the monad m
-    oldState <- liftIO $ readIORef r
+    oldState <- liftIO $ Strict.readIORef r
     unTCM m r e `catchIO` \err -> do
       -- Reset the state, but do not forget changes to the persistent
       -- component. Not for pattern violations.
@@ -6233,8 +6242,8 @@ instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
         PatternErr{} -> return ()
         _            ->
           liftIO $ do
-            newState <- readIORef r
-            writeIORef r $ oldState { stPersistentState = stPersistentState newState }
+            newState <- Strict.readIORef r
+            Strict.writeIORef r oldState { stPersistentState = stPersistentState newState }
       unTCM (h err) r e
 
 -- | Like 'catchError', but resets the state completely before running the handler.
@@ -6245,9 +6254,9 @@ instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
 instance CatchImpossible TCM where
   catchImpossibleJust f m h = TCM $ \ r e -> do
     -- save the state
-    s <- readIORef r
+    s <- Strict.readIORef r
     catchImpossibleJust f (unTCM m r e) $ \ err -> do
-      writeIORef r s
+      Strict.writeIORef r s
       unTCM (h err) r e
 
 instance MonadIO m => MonadReduce (TCMT m) where
@@ -6382,9 +6391,9 @@ execError = locatedTypeError ExecError
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
 runTCM :: MonadIO m => TCEnv -> TCState -> TCMT m a -> m (a, TCState)
 runTCM e s m = do
-  r <- liftIO $ newIORef s
+  r <- liftIO $ Strict.newIORef s
   a <- unTCM m r e
-  s <- liftIO $ readIORef r
+  s <- liftIO $ Strict.readIORef r
   return (a, s)
 
 -- | Running the type checking monad on toplevel (with initial state).
@@ -6393,7 +6402,7 @@ runTCMTop m = (Right <$> runTCMTop' m) `E.catch` (return . Left)
 
 runTCMTop' :: MonadIO m => TCMT m a -> m a
 runTCMTop' m = do
-  r <- liftIO $ newIORef =<< initStateIO
+  r <- liftIO $ Strict.newIORef =<< initStateIO
   unTCM m r initEnv
 
 -- | 'runSafeTCM' runs a safe 'TCM' action (a 'TCM' action which
@@ -6461,9 +6470,9 @@ defaultInteractionOutputCallback = \case
   Resp_SolveAll {}          -> __IMPOSSIBLE__
   Resp_Mimer {}             -> __IMPOSSIBLE__
   Resp_DisplayInfo {}       -> __IMPOSSIBLE__
-  Resp_RunningInfo _ s      -> liftIO $ do
-                                 putStr s
-                                 hFlush stdout
+  Resp_RunningInfo _ msg    -> do
+                                 putDocTreeLn msg
+                                 liftIO $ hFlush stdout
   Resp_ClearRunningInfo {}  -> __IMPOSSIBLE__
   Resp_ClearHighlighting {} -> __IMPOSSIBLE__
   Resp_DoneAborting {}      -> __IMPOSSIBLE__
@@ -6679,7 +6688,6 @@ instance NFData MutualBlock
 instance NFData OpaqueBlock
 instance NFData (BiMap RawTopLevelModuleName ModuleNameHash)
 instance NFData PersistentTCState
-instance NFData SessionTCState
 instance NFData LoadedFileCache
 instance NFData TypeCheckAction
 instance NFData ModuleCheckMode
@@ -6705,7 +6713,6 @@ instance NFData Instantiation
 instance NFData RemoteMetaVariable
 instance NFData Frozen
 instance NFData PrincipalArgTypeMetas
-instance NFData TypeCheckingProblem
 instance NFData RunMetaOccursCheck
 instance NFData MetaInfo
 instance NFData InteractionPoint
@@ -6744,7 +6751,6 @@ instance NFData Defn
 instance NFData Simplification
 instance NFData AllowedReduction
 instance NFData ReduceDefs
-instance NFData PrimFun
 instance NFData c => NFData (FunctionInverse' c)
 instance NFData TermHead
 instance NFData Call
@@ -6785,3 +6791,29 @@ instance NFData CannotQuote
 instance NFData ExecError
 instance NFData ConstructorDisambiguationData
 instance NFData Statistics
+
+-- Andreas, 2025-07-31, cannot normalize functions with deepseq-1.5.2.0 (GHC 9.10.3-rc1).
+-- See https://github.com/haskell/deepseq/issues/111.
+
+instance NFData SessionTCState where
+  rnf (SessionTCState a b c _fun) =
+    rnf a `seq` rnf b `seq` rnf c
+
+instance NFData PrimFun where
+  rnf (PrimFun a b c _fun) =
+    rnf a `seq` rnf b `seq` rnf c
+
+instance NFData TypeCheckingProblem where
+  rnf = \case
+    CheckExpr a b c ->
+      rnf a `seq` rnf b `seq` rnf c
+    CheckArgs a b c d e f _fun ->
+      rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
+    CheckProjAppToKnownPrincipalArg a b c d e f g h i j k ->
+      rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g `seq` rnf h `seq` rnf i `seq` rnf j `seq` rnf k
+    CheckLambda a b c d ->
+      rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+    DisambiguateConstructor a _fun ->
+      rnf a
+    DoQuoteTerm a b c ->
+      rnf a `seq` rnf b `seq` rnf c

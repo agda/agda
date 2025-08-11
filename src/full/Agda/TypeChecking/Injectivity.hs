@@ -50,7 +50,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
 import Data.Traversable hiding (for)
-import Data.Semigroup ((<>))
 import Data.Foldable (fold)
 
 import qualified Agda.Syntax.Abstract.Name as A

@@ -365,7 +365,7 @@ buildParsers kind top exprNames0 = do
 
     -- Andreas, 2020-06-03 #4712
     -- Note: needs Agda to be compiled with DEBUG_PARSING to print the grammar.
-    reportSDoc "scope.grammar" 20 $ return $
+    reportS "scope.grammar" 20 $
       "Operator grammar:" $$ nest 2 (grammar (pTop g))
 
     return $ Parsers
@@ -851,7 +851,7 @@ parseApplication es  = billToParser IsExpr $ do
     let result = parser p es0
     case foldr seq () result `seq` result of
       [e]   -> do
-          reportSDoc "scope.operators" 50 $ return $
+          reportS "scope.operators" 50 $
             "Parsed an operator application:" <+> pretty e
           return e
       []    -> typeError $ OperatorInformation (operators p)

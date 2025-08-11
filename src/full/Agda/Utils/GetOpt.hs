@@ -1,7 +1,7 @@
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Agda.Utils.GetOpt
--- Copyright   :  (c) Sven Panne 2002-2005
+-- Copyright   :  (c) Sven Panne 2002-2005, Andreas Abel 2025
 -- License     :  BSD-style
 --
 -- This module provides facilities for parsing the command-line options
@@ -24,6 +24,7 @@ module Agda.Utils.GetOpt (
 ) where
 
 import Prelude
+import Control.DeepSeq (NFData, rnf)
 import Data.List (find)
 
 -- | What to do with options following non-options.
@@ -84,16 +85,18 @@ data OptKind a
 -- the header (first argument) and the options described by the
 -- second argument.
 usageInfo ::
-     String            -- ^ header
+     Int               -- ^ minimal width of long option column
+  -> String            -- ^ header
   -> [OptDescr a]      -- ^ option descriptors
   -> String            -- ^ nicely formatted description of options
-usageInfo header optDescr = unlines (header:table)
+usageInfo width header optDescr = unlines (header:table)
    where
      (ss, ls, ds)   = unzip3 $ concatMap fmtOpt optDescr
      table          = zipWith3 paste (sameLen ss) (sameLen ls) ds
-     paste x y z    = "  " ++ x ++ "  " ++ y ++ "  " ++ z
+     paste x y z    = "  " ++ pad width (x ++ "  " ++ y) ++ "  " ++ z
      sameLen xs     = flushLeft ((maximum . map length) xs) xs
-     flushLeft n xs = [ take n (x ++ repeat ' ') | x <- xs ]
+     flushLeft n xs = [ pad n x | x <- xs ]
+     pad n x        = x ++ replicate (n - length x) ' '
 
 fmtOpt :: OptDescr a -> [(String, String, String)]
 fmtOpt (Option sos los ad descr) =
@@ -215,7 +218,7 @@ shortOpt y ys rs optDescr = short ads ys rs
 -- * Miscellaneous error formatting
 
 errAmbig :: [OptDescr a] -> String -> OptKind a
-errAmbig ods optStr = OptErr (usageInfo header ods)
+errAmbig ods optStr = OptErr (usageInfo 0 header ods)
    where
      header = "option `" ++ optStr ++ "' is ambiguous; could be one of:"
 
@@ -227,3 +230,16 @@ errUnrec optStr = "unrecognized option `" ++ optStr ++ "'\n"
 
 errNoArg :: String -> OptKind a
 errNoArg optStr = OptErr ("option `" ++ optStr ++ "' doesn't allow an argument\n")
+
+-- NFData instances (new over "System.Console.GetOpt")
+
+instance NFData a => NFData (OptDescr a) where
+  rnf (Option a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+
+instance NFData a => NFData (ArgDescr a) where
+  rnf = \case
+    NoArg a       -> rnf a
+    -- Andreas, 2025-07-31, cannot serialize functions
+    -- see https://github.com/haskell/deepseq/issues/111.
+    ReqArg _fun s -> rnf s
+    OptArg _fun s -> rnf s

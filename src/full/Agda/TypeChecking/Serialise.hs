@@ -79,7 +79,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20250715 * 10 + 0
+currentInterfaceVersion = 20250801 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 
@@ -97,40 +97,37 @@ data Encoded = Encoded
 encode :: EmbPrj a => a -> TCM Encoded
 encode a = do
     collectStats <- hasProfileOption Profile.Serialize
-    newD@(Dict nD ltD stD bD iD dD
-      _nameD
-      _qnameD
-      nC ltC stC bC iC dC tC
-      nameC
-      qnameC
-      stats _) <- liftIO $ emptyDict collectStats
-    root <- liftIO $ (`runReaderT` newD) $ icode a
-    nL  <- benchSort $ l nD
-    stL <- benchSort $ l stD
-    ltL <- benchSort $ l ltD
-    bL  <- benchSort $ l bD
-    iL  <- benchSort $ l iD
-    dL  <- benchSort $ l dD
+    !newD <- liftIO $ emptyDict collectStats
+    root     <- liftIO $ (`runReaderT` newD) $ icode a
+    nodeL    <- benchSort $ l (nodeD newD)
+    stringL  <- benchSort $ l (stringD newD)
+    lTextL   <- benchSort $ l (lTextD newD)
+    sTextL   <- benchSort $ l (sTextD newD)
+    integerL <- benchSort $ l (integerD newD)
+    varSetL <- benchSort $ l (varSetD newD)
+    doubleL  <- benchSort $ l (doubleD newD)
+
     -- Record reuse statistics.
     whenProfile Profile.Sharing $ do
-      statistics "pointers" tC
+      statistics "pointers" (termC newD)
     whenProfile Profile.Serialize $ do
-      statistics "Integer"     iC
-      statistics "Lazy Text"   ltC
-      statistics "Strict Text" stC
-      statistics "Text"        bC
-      statistics "Double"      dC
-      statistics "Node"        nC
-      statistics "Shared Term" tC
-      statistics "A.QName"     qnameC
-      statistics "A.Name"      nameC
+      statistics "Integer"     (integerC newD)
+      statistics "VarSet"      (varSetC newD)
+      statistics "Lazy Text"   (lTextC newD)
+      statistics "Strict Text" (sTextC newD)
+      statistics "String"      (stringC newD)
+      statistics "Double"      (doubleC newD)
+      statistics "Node"        (nodeC newD)
+      statistics "Shared Term" (termC newD)
+      statistics "A.QName"     (qnameC newD)
+      statistics "A.Name"      (nameC newD)
     when collectStats $ do
       stats <- map (second fromIntegral) <$> do
-        liftIO $ List.sort <$> H.toList stats
+        liftIO $ List.sort <$> H.toList (stats newD)
       traverse_ (uncurry tickN) stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
-      return $!! B.encode (root, nL, ltL, stL, bL, iL, dL)
+      return $!! B.encode (root, nodeL, stringL, lTextL, sTextL, integerL, varSetL, doubleL)
     let compressParams = G.defaultCompressParams
           { G.compressLevel    = G.bestSpeed
           , G.compressStrategy = G.huffmanOnlyStrategy
@@ -209,13 +206,23 @@ decode s = do
   -- such errors can be caught by the handler here.
 
   res <- liftIO $ E.handle (\(E.ErrorCall s) -> pure $ Left s) $ do
-    ((r, nL, ltL, stL, bL, iL, dL), s, _) <- return $ runGetState B.get s 0
+    ((r, nodeL, stringL, lTextL, sTextL, integerL, varSetL, doubleL), s, _) <- return $ runGetState B.get s 0
     let ar = unListLike
     when (not (null s)) $ E.throwIO $ E.ErrorCall "Garbage at end."
-    let nL' = ar nL
-    st <- St nL' (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
-            <$> liftIO (newArray (bounds nL') MEEmpty)
-            <*> return mf <*> return incs
+    let nodeA = ar nodeL
+    nm <- liftIO (newArray (bounds nodeA) MEEmpty)
+    let st = St
+          { nodeE = nodeA
+          , stringE = ar stringL
+          , lTextE = ar lTextL
+          , sTextE = ar sTextL
+          , integerE = ar integerL
+          , varSetE = ar varSetL
+          , doubleE = ar doubleL
+          , nodeMemo = nm
+          , modFile = mf
+          , includes = incs
+          }
     (r, st) <- runStateT (value r) st
     let !mf = modFile st
     return $ Right (mf, r)

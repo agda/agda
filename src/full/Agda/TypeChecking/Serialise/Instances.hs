@@ -10,8 +10,9 @@ import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..))
-import Agda.TypeChecking.Serialise.Instances.Highlighting ()
 import Agda.TypeChecking.Serialise.Instances.Errors ()
+import Agda.TypeChecking.Serialise.Instances.General ()
+import Agda.TypeChecking.Serialise.Instances.Highlighting ()
 import Agda.Utils.Hash
 
 type RangedImportedModules =

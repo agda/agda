@@ -145,20 +145,36 @@ type RecordAssigns = [RecordAssign]
 -- | Renaming (generic).
 type Ren a = Map a (List1 a)
 
-data ScopeCopyInfo = ScopeCopyInfo
-  { renModules :: Ren ModuleName
-  , renNames   :: Ren QName }
-  deriving (Eq, Show, Generic)
+-- | Size of the range of the renaming.
+renamingSize :: Ren a -> Int
+renamingSize = Map.foldl' (\n xs -> n + length xs) 0
 
-initCopyInfo :: ScopeCopyInfo
-initCopyInfo = ScopeCopyInfo
-  { renModules = mempty
-  , renNames   = mempty
+-- | Information created by the scope checker necessary for
+-- type-checking a module copy.
+data ScopeCopyInfo = ScopeCopyInfo
+  { renModules  :: Ren ModuleName
+    -- ^ Associates to each (original) module name the list of copies
+    -- that should be created.
+  , renNames    :: Ren QName
+    -- ^ Same as for 'renModules', but for definitions.
+  , renPublic   :: Bool
+    -- ^ Does this copy belong to the interface of the module we're
+    -- type-checking?
+  , renTrimming :: ScopeCopyRef
+    -- ^ Liveness information for the copied names. This is a mutable
+    -- reference to a set of 'LiveNames', and should be shared by
+    -- everything which refers to this particular copy.
+    --
+    -- It is created by the scope checker, consumed by the type checker,
+    -- and never speculated on.
   }
+  deriving (Eq, Show, Generic)
 
 instance Pretty ScopeCopyInfo where
   pretty i = vcat [ prRen "renModules =" (renModules i)
-                  , prRen "renNames   =" (renNames i) ]
+                  , prRen "renNames   =" (renNames i)
+                  ,       "renPublic  =" <+> pretty (renPublic i)
+                  ]
     where
       prRen s r = sep [ text s, nest 2 $ vcat (map pr xs) ]
         where
@@ -865,7 +881,7 @@ instance KillRange ModuleApplication where
   killRange (RecordModuleInstance a) = killRangeN RecordModuleInstance a
 
 instance KillRange ScopeCopyInfo where
-  killRange (ScopeCopyInfo a b) = killRangeN ScopeCopyInfo a b
+  killRange (ScopeCopyInfo a b c d) = killRangeN (\a b c -> ScopeCopyInfo a b c d) a b c
 
 instance KillRange RecordConName where
   killRange (NamedRecCon x) = killRangeN NamedRecCon x

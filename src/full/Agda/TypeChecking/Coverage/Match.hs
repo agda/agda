@@ -28,7 +28,6 @@ import Data.DList (DList)
 import Data.Foldable (toList)
 import qualified Data.List as List
 import Data.Maybe (mapMaybe, fromMaybe)
-import Data.Semigroup ( Semigroup, (<>))
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

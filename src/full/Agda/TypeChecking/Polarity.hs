@@ -16,7 +16,6 @@ import Prelude hiding ( zip, zipWith )
 import Control.Monad  ( forM_, zipWithM )
 
 import Data.Maybe
-import Data.Semigroup ( Semigroup(..) )
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common

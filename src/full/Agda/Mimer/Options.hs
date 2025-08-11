@@ -9,7 +9,6 @@ import Agda.Syntax.Common (Nat)
 import Agda.Syntax.Common.Pretty (Pretty, pretty, text)
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.TypeChecking.Monad.Base (TCM)
-import Agda.Interaction.Highlighting.Range (empty)
 import Agda.Syntax.Common (InteractionId)
 import Agda.Syntax.Position (Range)
 import qualified Agda.Syntax.Abstract as A

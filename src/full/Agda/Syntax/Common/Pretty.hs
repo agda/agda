@@ -1,11 +1,10 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| Pretty printing functions.
 -}
 module Agda.Syntax.Common.Pretty
     ( module Agda.Syntax.Common.Pretty
     , module Text.PrettyPrint.Annotated
-    -- This re-export can be removed once <GHC-8.4 is dropped.
-    , module Data.Semigroup
     ) where
 
 import Prelude hiding (null)
@@ -36,8 +35,11 @@ import Text.PrettyPrint.Annotated hiding
   , lbrace, rbrace
   )
 
-import Data.Semigroup ((<>))
+import Agda.Syntax.Common.Aspect
+import Agda.Syntax.Position
 
+import Agda.Utils.DocTree qualified as DocTree
+import Agda.Utils.FileName
 import Agda.Utils.Float
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
@@ -45,10 +47,7 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Utils.Size
 
-import Agda.Syntax.Common.Aspect
-import Agda.Syntax.Position
-import Agda.Utils.Impossible
-import Agda.Utils.FileName
+type DocTree = DocTree.DocTree Aspects
 
 ---------------------------------------------------------------------------
 -- * Pretty class
@@ -103,6 +102,9 @@ instance Pretty Char where
 -- annotations is solved.
 instance a ~ Aspects => Pretty (P.Doc a) where
   pretty = id
+
+instance a ~ Aspects => Pretty (DocTree.DocTree a) where
+  pretty = DocTree.prettyDocTree
 
 instance Pretty () where
   pretty _ = P.empty

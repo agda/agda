@@ -23,7 +23,7 @@ import Agda.TypeChecking.Monad.Debug
 import qualified Agda.Utils.Benchmark as B
 
 import Agda.Utils.Monad
-import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (pretty)
 import qualified Agda.Interaction.Options.ProfileOptions as Profile
 
 -- | When profile options are set or changed, we need to turn benchmarking on or off.
@@ -56,7 +56,7 @@ print = liftTCM $ whenM (B.isBenchmarkOn [] <$> benchmarking) $ do
   -- is turned on, effectively making module/definition benchmarking impossible (since internal
   -- takes precedence). It needs to be > 1 to avoid triggering #2602 though. Also use
   -- displayDebugMessage instead of reportSLn to avoid requiring -v profile:2.
-  displayDebugMessage "profile" 2 $ prettyShow b
+  displayDebugMessage "profile" 2 $ pretty b
 
 -- -- | Bill a computation to a specific account.
 -- {-# SPECIALIZE billTo :: Account -> TCM a -> TCM a #-}

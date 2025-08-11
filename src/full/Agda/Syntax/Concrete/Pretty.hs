@@ -15,7 +15,6 @@ import Prelude hiding ( null )
 
 import Data.Maybe
 import qualified Data.Foldable  as Fold
-import qualified Data.Semigroup as Semigroup
 import qualified Data.Strict.Maybe as Strict
 
 import Agda.Syntax.Common
@@ -306,7 +305,7 @@ instance Pretty Tel where
 smashTel :: Telescope -> Telescope
 smashTel (TBind r xs e  :
           TBind _ ys e' : tel)
-  | prettyShow e == prettyShow e' = smashTel (TBind r (xs Semigroup.<> ys) e : tel)
+  | prettyShow e == prettyShow e' = smashTel (TBind r (xs <> ys) e : tel)
 smashTel (b : tel) = b : smashTel tel
 smashTel [] = []
 

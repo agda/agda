@@ -1,10 +1,6 @@
 -- | Some semigroup instances used in several places
 
-module Agda.Utils.Semigroup (
-  module Data.Semigroup)
-where
-
-import Data.Semigroup ( Semigroup, (<>) )
+module Agda.Utils.Semigroup where
 
 import Control.Applicative (liftA2)
 

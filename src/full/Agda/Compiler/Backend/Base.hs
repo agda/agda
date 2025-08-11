@@ -13,7 +13,7 @@ import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import Agda.Syntax.Position (Range)
 
 import Agda.Interaction.Base (CommandM')
-import Agda.Interaction.Options (ArgDescr(..), OptDescr(..), Flag)
+import Agda.Interaction.Options (OptDescr, Flag)
 
 type BackendVersion = Text
 
@@ -88,15 +88,21 @@ instance NFData (Backend_boot definition tcm) where
   rnf (Backend b) = rnf b
 
 instance NFData opts => NFData (Backend'_boot definition tcm opts env menv mod def) where
-  rnf (Backend' a b c d e f g h i j k l m n) =
-    rnf a `seq` rnf b `seq` rnf c `seq` rnf' d `seq` rnf e `seq`
-    rnf f `seq` rnf g `seq` rnf h `seq` rnf i `seq` rnf j `seq`
-    rnf k `seq` rnf l `seq` rnf m `seq` rnf n
-    where
-    rnf' []                   = ()
-    rnf' (Option a b c d : e) =
-      rnf a `seq` rnf b `seq` rnf'' c `seq` rnf d `seq` rnf' e
-
-    rnf'' (NoArg a)    = rnf a
-    rnf'' (ReqArg a b) = rnf a `seq` rnf b
-    rnf'' (OptArg a b) = rnf a `seq` rnf b
+  rnf (Backend' a b c d e f g h i j k l !m !n) =
+    rnf a `seq`
+    rnf b `seq`
+    rnf c `seq`
+    -- Andreas, 2025-07-31, cannot normalize functions with deepseq-1.5.2.0 (GHC 9.10.3).
+    -- see https://github.com/haskell/deepseq/issues/111.
+    -- rnf d `seq`
+    -- rnf e `seq`
+    -- rnf f `seq`
+    -- rnf g `seq`
+    -- rnf h `seq`
+    -- rnf i `seq`
+    -- rnf j `seq`
+    rnf k `seq`
+    -- rnf l `seq`
+    -- rnf m `seq`
+    -- rnf n `seq`
+    ()

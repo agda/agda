@@ -2,7 +2,7 @@
 
 AGDA=$1
 
-$AGDA --interaction --caching --no-libraries --ignore-interfaces <<EOF
+$AGDA --interaction --caching --no-libraries --ignore-interfaces --color=never <<EOF
 IOTCM "Issue2959.agda" None Indirect (Cmd_load "Issue2959.agda" [])
 IOTCM "Issue2959.agda" None Indirect (Cmd_make_case 0 noRange "")
 IOTCM "Issue2959.agda" None Indirect (Cmd_load "Issue2959.agda" [])

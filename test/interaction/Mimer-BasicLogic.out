@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : (A : Set) → A → A ?1 : (A B : Set) → A → (A → B) → B ?2 : (A B : Set) → A ∧ B → B ∧ A ?3 : (A B C : Set) → (A ∧ B) ∧ C → A ∧ (B ∧ C) ?4 : C ?5 : B ∨ A ?6 : A ∨ (B ∨ C) ?7 : ⊥ → A ?8 : (A : Set) → A → ¬ (¬ A) ?9 : (A : Set) → ¬ (¬ (¬ A)) → ¬ A ?10 : ((A : Set) → ¬ (¬ A) → A) → (A : Set) → A ∨ ¬ A ?11 : ((A : Set) → A ∨ ¬ A) → (A : Set) → ¬ (¬ A) → A ?12 : ((x : X) → P x ∧ Q x) → ((x : X) → P x) ∧ ((x : X) → Q x) ?13 : ((x : X) → P x) ∧ ((x : X) → Q x) → (x : X) → P x ∧ Q x ?14 : X → Σ X (λ x → ⊤) ?15 : Σ (X → X) (λ x → ⊤) ?16 : Σ (X → X) (λ f → (x : X) → P (f x) → P x) " nil)
+(agda2-info-action "*All Goals*" "?0 : (A : Set) → A → A ?1 : (A B : Set) → A → (A → B) → B ?2 : (A B : Set) → A ∧ B → B ∧ A ?3 : (A B C : Set) → (A ∧ B) ∧ C → A ∧ (B ∧ C) ?4 : C ?5 : B ∨ A ?6 : A ∨ (B ∨ C) ?7 : ⊥ → A ?8 : (A : Set) → A → ¬ (¬ A) ?9 : (A : Set) → ¬ (¬ (¬ A)) → ¬ A ?10 : ((A : Set) → ¬ (¬ A) → A) → (A : Set) → A ∨ ¬ A ?11 : ((A : Set) → A ∨ ¬ A) → (A : Set) → ¬ (¬ A) → A ?12 : ((x : X) → P x ∧ Q x) → ((x : X) → P x) ∧ ((x : X) → Q x) ?13 : ((x : X) → P x) ∧ ((x : X) → Q x) → (x : X) → P x ∧ Q x ?14 : X → Σ X (λ x → ⊤) ?15 : Σ (X → X) (λ x → ⊤) ?16 : Σ (X → X) (λ f → (x : X) → P (f x) → P x)" nil)
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)))
 (agda2-give-action 0 "λ A z → z")
 ((last . 1) . (agda2-goals-action '(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)))
