@@ -704,7 +704,7 @@ memoToScopeInfo (ScopeMemo names mods live) =
 -- | Create a new reference to store liveness information for names in
 -- the given copied module.
 newScopeCopyRef :: A.ModuleName -> ScopeM A.ScopeCopyRef
-newScopeCopyRef mname = liftIO $ A.ScopeCopyRef mname <$> newIORef (Just mempty)
+newScopeCopyRef mname = liftIO $ A.ScopeCopyRef mname <$> newIORef mempty
 
 -- | Mark a name as being a copy in the TC state, associating it with
 -- the given 'A.ScopeCopyRef' for liveness information.
@@ -734,15 +734,15 @@ instance MarkLive A.QName where
   markLiveName qn = HMap.lookup qn <$> useTC stCopiedNames >>= \case
     Just (A.ScopeCopyRef _ ref, _) ->
       liftIO $ modifyIORef' ref \case
-        Just (A.LiveNames a b) -> Just (A.LiveNames a (Set.insert qn b))
-        Nothing                -> Nothing
+        A.SomeLiveNames a b -> A.SomeLiveNames a (Set.insert qn b)
+        A.AllLiveNames      -> A.AllLiveNames
     Nothing -> pure ()
 
 instance MarkLive A.ModuleName where
   markLiveName qn = scopeIsCopy <$> getNamedScope qn >>= \case
     Just (A.ScopeCopyRef _ ref) -> liftIO $ modifyIORef' ref \case
-      Just (A.LiveNames a b) -> Just $! A.LiveNames (Set.insert qn a) b
-      Nothing                -> Nothing
+      A.SomeLiveNames a b -> A.SomeLiveNames (Set.insert qn a) b
+      A.AllLiveNames      -> A.AllLiveNames
     Nothing -> pure ()
 
 instance MarkLive A.AbstractName where
@@ -757,19 +757,21 @@ instance MarkLive ResolvedName where
     ConstructorName _ d -> markLiveName d
     PatternSynResName d -> markLiveName d
 
--- | Take the 'LiveNames' from the given 'ScopeCopyRef', indicating that
--- we will no longer use the 'ScopeCopyInfo' to which it belongs.
-takeLiveNames :: ScopeCopyRef -> ScopeM LiveNames
-takeLiveNames (ScopeCopyRef _ ref) = liftIO $
-  -- Replace the contained value with Nothing, indicating that we're
-  -- done with it, so we don't accidentally retain the entire set of
-  -- names forever.
-  atomicModifyIORef ref \case
-    Just a  -> (Nothing, a)
-    -- This is impossible because takeLiveNames is only called by the
-    -- type checker on copies that it hasn't seen before, and the scope
-    -- checker allocates a (Just something) for each copy.
-    Nothing -> __IMPOSSIBLE__
+-- | Read the 'LiveNames' from the given 'ScopeCopyRef'.
+readLiveNames :: ScopeCopyRef -> ScopeM LiveNames
+readLiveNames (ScopeCopyRef _ ref) = liftIO $ readIORef ref
+
+-- | Compare the trimming from an old 'ScopeCopyInfo' with a new one.
+sameTrimming :: ScopeCopyInfo -> ScopeCopyInfo -> ScopeM Bool
+sameTrimming old new | renPublic old, renPublic new = pure True
+sameTrimming old new = do
+  a <- readLiveNames (renTrimming old)
+  b <- readLiveNames (renTrimming new)
+  pure (a == b)
+
+clobberLiveNames :: ScopeM ()
+clobberLiveNames = traverse_ (traverse_ go . scopeIsCopy) . _scopeModules =<< getScope where
+  go (ScopeCopyRef _ ref) = liftIO $ writeIORef ref AllLiveNames
 
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the

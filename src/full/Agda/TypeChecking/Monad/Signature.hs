@@ -24,7 +24,7 @@ import Data.Maybe
 
 import Agda.Interaction.Options
 
-import Agda.Syntax.Scope.Monad (takeLiveNames, markLiveName)
+import Agda.Syntax.Scope.Monad (readLiveNames, markLiveName)
 import Agda.Syntax.Scope.Base (LiveNames(..), isModuleAlive, isNameAlive)
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren, renamingSize, ScopeCopyInfo(..))
@@ -434,34 +434,22 @@ onlyLiveCopies mn info@ScopeCopyInfo { renPublic = True } = (mempty, info) <$
     tickMax "largest public copy" (fromIntegral (renamingSize (renNames info)))
 
 onlyLiveCopies mn info@ScopeCopyInfo { renNames = rd, renTrimming = ref } = do
-  -- To make debugging the trimming easier: referring to any trimmed
-  -- name in an interaction point with this verbosity flag *will* give
-  -- a panic.
-  trimAnyway <- hasVerbosity "tc.mod.apply.trim" 666
-  hasIP <- not . null <$> useTC stInteractionPoints
+  live <- readLiveNames ref
 
-  let skip = hasIP && not trimAnyway
-
-  live@(LiveNames mods names) <- takeLiveNames ref
   reportSDoc "tc.mod.apply.trim" 30 $ vcat
-    [ (if skip then "not" else "") <+> "trimming renaming of module" <+> pretty mn
-    , "  mods  =" <+> pretty mods
-    , "  names =" <+> pretty names
-    , "  hasIP =" <+> pretty hasIP
+    [ "trimming renaming of module" <+> pretty mn
+    , "  mods  =" <+> (case live of SomeLiveNames x _ -> pretty x ; _ -> "*")
+    , "  names =" <+> (case live of SomeLiveNames _ x -> pretty x ; _ -> "*")
     , nest 2 (pretty info)
     ]
-  if
-    -- We can't trim the copied names if there are open interaction
-    -- points: we don't know what names the user might try to
-    -- interactively inspect.
-    | skip -> pure (mempty, info)
 
+  if
     -- Trimming information from references to submodules (or
     -- module-level references to copy itself) is not propagated
     -- upwards, so if the copy is itself alive, everything will end up
     -- being copied --- we might as well skip the work of traversing the
     -- renaming.
-    | mn `Set.member` mods -> (mempty, info) <$ whenProfile Profile.Sections do
+    | mn `isModuleAlive` live -> (mempty, info) <$ whenProfile Profile.Sections do
       tick "trimming: live copy"
 
     | otherwise -> do
