@@ -1,10 +1,13 @@
+
 {-# LANGUAGE Strict, MagicHash, AllowAmbiguousTypes, UnboxedTuples, CPP #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
+
+{-# OPTIONS_GHC -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
 
 module Agda.TypeChecking.Serialise.Node where
 
 import GHC.Exts
-import GHC.Types
 import GHC.Word
 import Agda.Utils.Serialize
 import Data.Hashable
@@ -35,26 +38,32 @@ packW64 a b = unsafeShiftL (fromIntegral a) 32 .|. fromIntegral b
 
 pattern N1 :: Word32 -> Node
 pattern N1 a = N1# a
+{-# INLINE N1 #-}
 
 pattern N2 :: Word32 -> Word32 -> Node
 pattern N2 a b <- N2# (splitW64 -> (a, b)) where
   N2 a b = N2# (packW64 a b)
+{-# INLINE N2 #-}
 
 pattern N3 :: Word32 -> Word32 -> Word32 -> Node
 pattern N3 a b c <- N3# (splitW64 -> (a, b)) c where
   N3 a b c = N3# (packW64 a b) c
+{-# INLINE N3 #-}
 
 pattern N4 :: Word32 -> Word32 -> Word32 -> Word32 -> Node
 pattern N4 a b c d <- N4# (splitW64 -> (a, b)) (splitW64 -> (c, d)) where
   N4 a b c d = N4# (packW64 a b) (packW64 c d)
+{-# INLINE N4 #-}
 
 pattern N5 :: Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Node
 pattern N5 a b c d e <- N5# (splitW64 -> (a, b)) (splitW64 -> (c, d)) e where
   N5 a b c d e = N5# (packW64 a b) (packW64 c d) e
+{-# INLINE N5 #-}
 
 pattern N6 :: Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Node -> Node
 pattern N6 a b c d e f n <- N6# (splitW64 -> (a, b)) (splitW64 -> (c, d)) (splitW64 -> (e, f)) n where
   N6 a b c d e f n = N6# (packW64 a b) (packW64 c d) (packW64 e f) n
+{-# INLINE N6 #-}
 {-# complete N0, N1, N2, N3, N4, N5, N6 #-}
 
 instance Eq Node where

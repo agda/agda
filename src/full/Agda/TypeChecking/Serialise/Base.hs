@@ -5,7 +5,8 @@
 {-# LANGUAGE UndecidableInstances #-} -- Due to ICODE vararg typeclass
 {-# LANGUAGE PatternSynonyms      #-}
 
-{-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
 
 {-
 András, 2023-10-2:
@@ -23,31 +24,22 @@ module Agda.TypeChecking.Serialise.Base (
   ) where
 
 import qualified Control.Exception as E
-import Control.Monad.Except
-import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Reader
-import Control.Monad.State.Strict (StateT, gets)
 
 import Data.Proxy
-import Data.Bits
-
-import Data.Array.IArray
-import Data.Array.IO
-import qualified Data.HashMap.Strict as Hm
-import qualified Data.ByteString.Lazy as L
 import Data.Hashable
-import Data.Word (Word32, Word64)
+import Data.Word (Word32)
 import Data.Maybe
 import qualified Data.Text      as T
 import qualified Data.Text.Lazy as TL
-import Data.Typeable ( cast, Typeable, TypeRep, typeRep, typeRepFingerprint )
+import Data.Typeable (Typeable, TypeRep, typeRep, typeRepFingerprint)
 import GHC.Exts
 import GHC.Stack
 import GHC.Fingerprint.Type
 import Unsafe.Coerce
 
 import Agda.Syntax.Common (NameId)
-import Agda.Syntax.Internal (Term, QName(..), ModuleName(..), nameId)
+import Agda.Syntax.Internal (QName(..), ModuleName(..), nameId)
 import Agda.TypeChecking.Monad.Base.Types (ModuleToSource)
 import Agda.TypeChecking.Serialise.Node
 
@@ -55,12 +47,10 @@ import Agda.Utils.FileName
 import Agda.Utils.HashTable (HashTable)
 import qualified Agda.Utils.HashTable as H
 import Agda.Utils.IORef
-import Agda.Utils.Lens
 import Agda.Utils.List1 (List1)
 import Agda.Utils.Monad
 import Agda.Utils.TypeLevel
 import Agda.Utils.VarSet (VarSet)
-import Agda.Utils.Impossible
 import qualified Agda.Utils.MinimalArray.MutablePrim as MP
 import qualified Agda.Utils.MinimalArray.Lifted as AL
 import qualified Agda.Utils.MinimalArray.MutableLifted as ML
