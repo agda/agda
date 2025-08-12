@@ -223,11 +223,14 @@ class Typeable a => EmbPrj a where
   icod_ :: a -> S Word32  -- ^ Serialization (worker).
   value :: Word32 -> R a  -- ^ Deserialization.
 
+#ifdef DEBUG_SERIALISATION
+  icode a = do
+    !r <- icod_ a
+    tickICode a
+    pure r
+#else
   icode a = icod_ a
-  -- icode a = do
-  --   !r <- icod_ a
-  --   tickICode a
-  --   pure r
+#endif
   {-# INLINE icode #-}
 
   -- Simple enumeration types can be (de)serialized using (from/to)Enum.
