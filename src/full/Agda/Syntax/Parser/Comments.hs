@@ -44,7 +44,7 @@ nestedComment = LexAction $ \ inp inp' _ ->
           let p1 = lexPos inp; p2 = lexPos inp''
               i = posToInterval (lexSrcFile inp) p1 p2
               s = case (p1, p2) of
-                    (Pn { posPos = p1 }, Pn { posPos = p2 }) ->
+                    (Pn' { posPos = p1 }, Pn' { posPos = p2 }) ->
                       List.genericTake (p2 - p1) $ lexInput inp
           return $ TokComment (i, s)
          else

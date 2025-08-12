@@ -487,7 +487,6 @@ library
     , filepath             >= 1.4.2.2   && < 1.6
     , filemanip            >= 0.3.6.3   && < 0.4
     , generic-data         >= 1.0.0.1   && < 1.2
-    , ghc-compact          == 0.1.*
     , ghc-bignum           >= 1.2       && < 2
     , ghc-prim             >= 0.11      && < 0.14
     , gitrev               >= 1.3.1     && < 2
@@ -856,6 +855,7 @@ library
       Agda.Utils.CallStack
       Agda.Utils.Char
       Agda.Utils.Cluster
+      Agda.Utils.CompactRegion
       Agda.Utils.CompressedTrie
       Agda.Utils.DocTree
       Agda.Utils.Either

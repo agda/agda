@@ -37,6 +37,8 @@ import Agda.Utils.Null
 import Agda.Utils.IORef
 import Agda.Utils.Impossible
 import Agda.Utils.CallStack
+import qualified Agda.Utils.HashTable as H
+import qualified Agda.Utils.CompactRegion as Compact
 
 instance EmbPrj ConstructorOrPatternSynonym
 
@@ -99,18 +101,26 @@ instance EmbPrj RangeFile where
   icod_ (RangeFile _ (Just a)) = icode a
 
   value r = do
-    !m :: TopLevelModuleName
-              <- value r
+    !m :: TopLevelModuleName <- value r
     !mfref    <- asks modFile
     !mf       <- liftIO $ readIORef mfref
     !incs     <- asks includes
     (!r, !mf) <- liftIO $ runStateT (findFile'' incs m) mf
     liftIO $ writeIORef mfref mf
     case r of
-      Left err -> liftIO $ E.throwIO $ E.ErrorCall $ "file not found: " ++ show err
-      Right (SourceFile i)  -> do
+      Left err ->
+        liftIO $ E.throwIO $ E.ErrorCall $ "file not found: " ++ show err
+      Right (SourceFile i) -> do
         let !fp = getIdFile (fileDict mf) i
-        return $ RangeFile fp (Just m)
+        !fpmemo <- asks filePathMemo
+        !arena  <- asks arena
+        liftIO $ H.lookup fpmemo fp >>= \case
+          Nothing -> do
+            !fp <- Compact.add arena fp
+            H.insert fpmemo fp fp
+            pure $ RangeFile fp (Just m)
+          Just fp ->
+            pure $ RangeFile fp (Just m)
 
 -- | Ranges are always deserialised as 'noRange'.
 

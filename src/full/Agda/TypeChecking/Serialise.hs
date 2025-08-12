@@ -1,6 +1,8 @@
 {-# LANGUAGE Strict #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 
 -- Andreas, Makoto, Francesco 2014-10-15 AIM XX:
@@ -63,8 +65,6 @@ import qualified Data.Text.Lazy as TL
 
 import qualified Codec.Compression.Zstd as Z
 
-import GHC.Compact as C
-
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.Syntax.Position (killRange)
@@ -80,9 +80,12 @@ import Agda.Utils.Serialize
 import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.Impossible
 import qualified Agda.Utils.HashTable as H
+import Agda.Utils.CompactRegion (Compact)
+import Agda.Utils.FileName (AbsolutePath(..))
 import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import qualified Agda.Utils.MinimalArray.Lifted as AL
 import qualified Agda.Utils.MinimalArray.MutableLifted as ML
+import qualified Agda.Utils.CompactRegion as Compact
 
 #include "MachDeps.h"
 
@@ -151,7 +154,6 @@ encode a = do
     traverse_ (uncurry tickN) stats
 
   pure (root, nodeA, stringA, lTextA, sTextA, integerA, varSetA, doubleA)
-
   where
     toArray :: H.HashTable k Word32 -> IO (AL.Array k)
     toArray tbl = do
@@ -159,7 +161,6 @@ encode a = do
       arr <- ML.new size undefined
       H.forAssocs tbl \k v -> ML.write arr (fromIntegral v) k
       ML.unsafeFreeze arr
-
 
     statistics :: String -> FreshAndReuse -> TCM ()
     statistics kind far = do
@@ -177,23 +178,36 @@ decode :: EmbPrj a => Encoded -> MaybeT TCM a
 decode enc = do
   mf       <- lift $ useTC stModuleToSource
   includes <- lift $ getIncludeDirs
+  arena    <- liftIO $ Compact.new (2 ^ 12) -- 4 KB blocks
+
+  let compactElems :: AL.Array a -> IO (AL.Array a)
+      compactElems = AL.traverseIO' (Compact.add arena)
 
   (mf, res) <- tryDecode $ do
     let (r, nodeA, stringA, lTextA, sTextA, integerA, varSetA, doubleA) = enc
-    nodeMemo <- ML.new (AL.size nodeA) MEEmpty
-    modFile  <- newIORef mf
-    let dec = Decode nodeA stringA lTextA sTextA integerA varSetA
-                     doubleA nodeMemo modFile includes
+
+    stringA      <- compactElems stringA
+    lTextA       <- compactElems lTextA
+    sTextA       <- compactElems sTextA
+    integerA     <- compactElems integerA
+    varSetA      <- compactElems varSetA
+    doubleA      <- compactElems doubleA
+    filePathMemo <- H.empty
+    nodeMemo     <- ML.new (AL.size nodeA) MEEmpty
+    modFile      <- newIORef mf
+    let dec = Decode nodeMemo arena nodeA stringA lTextA sTextA integerA varSetA
+                     doubleA filePathMemo modFile includes
     res <- runReaderT (value r) dec
     mf  <- readIORef modFile
     pure (mf, res)
 
   lift $ setTCLens stModuleToSource mf
-  -- "Compact" the interfaces (without breaking sharing) to
-  -- reduce the amount of memory that is traversed by the
-  -- garbage collector.
-  lift $ Bench.billTo [Bench.Deserialization, Bench.Compaction] $
-    liftIO $ C.getCompact <$!> C.compactWithSharing res
+  pure res
+  -- -- "Compact" the interfaces (without breaking sharing) to
+  -- -- reduce the amount of memory that is traversed by the
+  -- -- garbage collector.
+  -- lift $ Bench.billTo [Bench.Deserialization, Bench.Compaction] $
+  --   liftIO $ C.getCompact <$!> C.compactWithSharing res
 
 getInterfacePrefix :: Interface -> InterfacePrefix
 getInterfacePrefix i =
@@ -251,7 +265,6 @@ encodeFile f i = do
   let prefix = getInterfacePrefix i
   iEncoded <- encode i
   bstr <- serializeEncodedInterface prefix iEncoded
-
   i <- Bench.billTo [Bench.Deserialization] $
     maybe __IMPOSSIBLE__ pure =<< runMaybeT (decode @Interface iEncoded)
 

@@ -597,7 +597,7 @@ hiliteCName xs x fr mR asp = do
   mFilePos :: Maybe DefinitionSite
   mFilePos = do
     r <- mR
-    P.Pn { P.srcFile = Strict.Just f, P.posPos = p } <- P.rStart r
+    P.Pn (Strict.Just f) p _ _ <- P.rStart r
     mod <- P.rangeFileName f
     -- Andreas, 2017-06-16, Issue #2604: Symbolic anchors.
     -- We drop the file name part from the qualifiers, since

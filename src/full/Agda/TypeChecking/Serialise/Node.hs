@@ -10,6 +10,7 @@ module Agda.TypeChecking.Serialise.Node where
 import GHC.Exts
 import GHC.Word
 import Agda.Utils.Serialize
+import Agda.Utils.Word
 import Data.Hashable
 import Data.Bits
 
@@ -25,16 +26,6 @@ data Node
   | N5# !Word64 !Word64 !Word32
   | N6# !Word64 !Word64 !Word64 !Node
   deriving (Show)
-
-splitW64 :: Word64 -> (Word32, Word32)
-splitW64 x = let !a = fromIntegral (unsafeShiftR x 32)
-                 !b = fromIntegral (x .&. 0x00000000ffffffff)
-             in (a, b)
-{-# INLINE splitW64 #-}
-
-packW64 :: Word32 -> Word32 -> Word64
-packW64 a b = unsafeShiftL (fromIntegral a) 32 .|. fromIntegral b
-{-# INLINE packW64 #-}
 
 pattern N1 :: Word32 -> Node
 pattern N1 a = N1# a

@@ -69,3 +69,10 @@ instance Serialize a => Serialize (Array a) where
         (# s, marr #) -> case go e p s marr 0# l of
           (# p, s #) -> case unsafeFreezeArray# marr s of
             (# s, arr #) -> (# p, s, Array (A.Array arr) #)
+
+-- | Strict traversal.
+{-# INLINE traverseIO' #-}
+traverseIO' :: (a -> IO b) -> Array a -> IO (Array b)
+traverseIO' f (Array arr) = do
+  !arr <- A.traverseArrayP f arr
+  pure (Array arr)

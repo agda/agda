@@ -12,6 +12,9 @@ module Agda.Syntax.Position
     Position
   , PositionWithoutFile
   , Position'(..)
+  , pattern Pn
+  , posLine
+  , posCol
   , SrcFile
   , RangeFile(..)
   , mkRangeFile
@@ -87,7 +90,7 @@ import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Void
-import Data.Word (Word32)
+import Data.Word (Word32, Word64)
 
 import GHC.Generics (Generic)
 
@@ -104,6 +107,7 @@ import Agda.Utils.Set1 (Set1)
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.TypeLevel (IsBase, All, Domains)
 import Agda.Utils.Tuple (sortPair)
+import Agda.Utils.Word (packW64, splitW64)
 
 import Agda.Utils.Impossible
 
@@ -120,17 +124,25 @@ import Agda.Utils.Impossible
 -- messages for the user.
 --
 -- Note the invariant which positions have to satisfy: 'positionInvariant'.
-data Position' a = Pn
+data Position' a = Pn'
   { srcFile :: !a
     -- ^ File.
   , posPos  :: !Word32
     -- ^ Position, counting from 1.
-  , posLine :: !Word32
-    -- ^ Line number, counting from 1.
-  , posCol  :: !Word32
-    -- ^ Column number, counting from 1.
+  , posLineCol :: !Word64 -- ^ Line and position numbers as Word32, both counting from 1.
   }
   deriving (Show, Functor, Foldable, Traversable, Generic)
+
+pattern Pn :: a -> Word32 -> Word32 -> Word32 -> Position' a
+pattern Pn a p l c <- Pn' a p (splitW64 -> (l, c)) where
+  Pn a p l c = Pn' a p (packW64 l c)
+{-# COMPLETE Pn #-}
+
+posLine :: Position' a -> Word32
+posLine (Pn' _ _ lc) = case splitW64 lc of (x, _) -> x
+
+posCol :: Position' a -> Word32
+posCol (Pn' _ _ lc) = case splitW64 lc of (_, x) -> x
 
 positionInvariant :: Position' a -> Bool
 positionInvariant p =
@@ -561,12 +573,7 @@ instance (KillRange a, KillRange b) => KillRange (Either a b) where
 
 -- | The first position in a file: position 1, line 1, column 1.
 startPos' :: a -> Position' a
-startPos' f = Pn
-  { srcFile = f
-  , posPos  = 1
-  , posLine = 1
-  , posCol  = 1
-  }
+startPos' f = Pn f 1 1 1
 
 -- | The first position in a file: position 1, line 1, column 1.
 startPos :: Maybe RangeFile -> Position

@@ -3,8 +3,11 @@
 
 -- | Utilities for working with 'Word' and 'Word#'.
 module Agda.Utils.Word
-  ( -- * Bitwise operations
-    uncheckedBitWord#
+  ( -- * Packing Word32 in Word64
+    splitW64
+  , packW64
+    -- * Bitwise operations
+  , uncheckedBitWord#
   , uncheckedClearBitWord#
   , uncheckedSetBitWord#
   , uncheckedTestBitWord#
@@ -31,6 +34,21 @@ module Agda.Utils.Word
 #include "MachDeps.h"
 
 import GHC.Base
+import Data.Word
+import Data.Bits
+
+--------------------------------------------------------------------------------
+-- Packing Word32 to Word64
+
+splitW64 :: Word64 -> (Word32, Word32)
+splitW64 x = let !a = fromIntegral (unsafeShiftR x 32)
+                 !b = fromIntegral (x .&. 0x00000000ffffffff)
+             in (a, b)
+{-# INLINE splitW64 #-}
+
+packW64 :: Word32 -> Word32 -> Word64
+packW64 a b = unsafeShiftL (fromIntegral a) 32 .|. fromIntegral b
+{-# INLINE packW64 #-}
 
 --------------------------------------------------------------------------------
 -- Bitwise operations

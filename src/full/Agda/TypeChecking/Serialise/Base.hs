@@ -51,9 +51,11 @@ import Agda.Utils.List1 (List1)
 import Agda.Utils.Monad
 import Agda.Utils.TypeLevel
 import Agda.Utils.VarSet (VarSet)
+import Agda.Utils.CompactRegion (Compact)
 import qualified Agda.Utils.MinimalArray.MutablePrim as MP
 import qualified Agda.Utils.MinimalArray.Lifted as AL
 import qualified Agda.Utils.MinimalArray.MutableLifted as ML
+import qualified Agda.Utils.CompactRegion as Compact
 
 --------------------------------------------------------------------------------
 
@@ -133,16 +135,16 @@ data Dict = Dict
   , nameD        :: !(HashTable NameId  Word32)    -- ^ Not written to interface file.
   , qnameD       :: !(HashTable QNameId Word32)    -- ^ Not written to interface file.
   -- Fresh UIDs and reuse statistics:
-  , nodeC        :: !(FreshAndReuse)  -- counters for fresh indexes
-  , stringC      :: !(FreshAndReuse)
-  , lTextC       :: !(FreshAndReuse)
-  , sTextC       :: !(FreshAndReuse)
-  , integerC     :: !(FreshAndReuse)
-  , varSetC      :: !(FreshAndReuse)
-  , doubleC      :: !(FreshAndReuse)
-  , termC        :: !(FreshAndReuse)
-  , nameC        :: !(FreshAndReuse)
-  , qnameC       :: !(FreshAndReuse)
+  , nodeC        :: !FreshAndReuse  -- counters for fresh indexes
+  , stringC      :: !FreshAndReuse
+  , lTextC       :: !FreshAndReuse
+  , sTextC       :: !FreshAndReuse
+  , integerC     :: !FreshAndReuse
+  , varSetC      :: !FreshAndReuse
+  , doubleC      :: !FreshAndReuse
+  , termC        :: !FreshAndReuse
+  , nameC        :: !FreshAndReuse
+  , qnameC       :: !FreshAndReuse
   , stats        :: !(HashTable String Int)
   , collectStats :: !Bool
     -- ^ If @True@ collect in @stats@ the quantities of
@@ -179,16 +181,20 @@ emptyDict collectStats = Dict
 
 -- | Decoder arguments.
 data Decode = Decode
-  { nodeA     :: !(AL.Array Node)     -- ^ Obtained from interface.
-  , stringA   :: !(AL.Array String)   -- ^ Obtained from interface.
-  , lTextA    :: !(AL.Array TL.Text)  -- ^ Obtained from interface.
-  , sTextA    :: !(AL.Array T.Text)   -- ^ Obtained from interface.
-  , integerA  :: !(AL.Array Integer)  -- ^ Obtained from interface.
-  , varSetA   :: !(AL.Array VarSet)   -- ^ Obtained from interface.
-  , doubleA   :: !(AL.Array Double)   -- ^ Obtained from interface.
-  , nodeMemo  :: !(ML.IOArray MemoEntry)
-    -- ^ Created and modified by decoder.
-    --   Used to introduce sharing while deserializing objects.
+  { nodeMemo  :: !(ML.IOArray MemoEntry) -- ^ Created and modified by decoder.
+                                         --   Used to introduce sharing while deserializing objects.
+  , arena     :: !Compact                -- ^ Compact region where the decoded interface
+                                         --   is allocated.
+  , nodeA     :: !(AL.Array Node)        -- ^ Obtained from interface.
+  , stringA   :: !(AL.Array String)      -- ^ Obtained from interface.
+  , lTextA    :: !(AL.Array TL.Text)     -- ^ Obtained from interface.
+  , sTextA    :: !(AL.Array T.Text)      -- ^ Obtained from interface.
+  , integerA  :: !(AL.Array Integer)     -- ^ Obtained from interface.
+  , varSetA   :: !(AL.Array VarSet)      -- ^ Obtained from interface.
+  , doubleA   :: !(AL.Array Double)      -- ^ Obtained from interface.
+
+  , filePathMemo :: !(HashTable AbsolutePath AbsolutePath)
+    -- ^ Memoizes filepaths computed for RangeFile-s.
   , modFile   :: !(IORef ModuleToSource)
     -- ^ Maps module names to file names. Constructed by the decoder.
   , includes  :: !(List1 AbsolutePath)
@@ -212,24 +218,16 @@ malformedIO :: HasCallStack => IO a
 malformedIO = E.throwIO $ E.ErrorCall "Malformed input."
 {-# NOINLINE malformedIO #-}
 
--- malformed :: HasCallStack => R a
--- malformed = __IMPOSSIBLE__
--- {-# NOINLINE malformed #-} -- 2023-10-2 András: cold code, so should be out-of-line.
-
--- malformedIO :: HasCallStack => IO a
--- malformedIO = __IMPOSSIBLE__
--- {-# NOINLINE malformedIO #-}
-
 class Typeable a => EmbPrj a where
   icode :: a -> S Word32  -- ^ Serialization (wrapper).
   icod_ :: a -> S Word32  -- ^ Serialization (worker).
   value :: Word32 -> R a  -- ^ Deserialization.
 
-  -- icode a = icod_ a
-  icode a = do
-    !r <- icod_ a
-    tickICode a
-    pure r
+  icode a = icod_ a
+  -- icode a = do
+  --   !r <- icod_ a
+  --   tickICode a
+  --   pure r
   {-# INLINE icode #-}
 
   -- Simple enumeration types can be (de)serialized using (from/to)Enum.
@@ -431,11 +429,11 @@ vcase valu = \ix -> ReaderT \dict -> do
       -- use the stored value
       (# a | #) ->
         pure a
-      _         ->
-        -- read new value and save it
-        do !v <- runReaderT (valu (AL.index (nodeA dict) iix)) dict
-           ML.write memo iix $! MECons fp (unsafeCoerce v) slot
-           return v
+      _  -> do
+        !v <- runReaderT (valu (AL.index (nodeA dict) iix)) dict
+        !v <- Compact.add (arena dict) v
+        ML.write memo iix $! MECons fp (unsafeCoerce v) slot
+        return v
 
 
 -- Arity-generic functions
