@@ -87,7 +87,7 @@ import qualified Agda.Utils.MinimalArray.MutableLifted as ML
 #include "MachDeps.h"
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20250809 * 10 + 0
+currentInterfaceVersion = 20250812 * 10 + 0
 
 ifaceVersionSize :: Int
 ifaceVersionSize = SIZEOF_WORD64
@@ -231,15 +231,15 @@ decodeInterface bstr = decode =<< deserializeInterface bstr
 
 deserializeInterface :: ByteString -> MaybeT TCM Encoded
 deserializeInterface bstr = do
+  let decompressionError =
+        tryDecode $ E.throwIO $ E.ErrorCall "decompression error"
   let (prefix, i) = B.splitAt ifacePrefixSize bstr
   ((_, _, ver) :: InterfacePrefix) <- tryDecode $ deserialize prefix
   if ver /= currentInterfaceVersion then
-    tryDecode $ error "Wrong interface version."
+    decompressionError
   else case Z.decompress i of
-    Z.Skip ->
-      tryDecode $ error "decompression error"
-    Z.Error e ->
-      tryDecode $ error e
+    Z.Skip         -> decompressionError
+    Z.Error e      -> decompressionError
     Z.Decompress i -> tryDecode $ deserialize i
 
 --------------------------------------------------------------------------------

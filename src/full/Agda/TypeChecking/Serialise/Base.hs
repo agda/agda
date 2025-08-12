@@ -220,11 +220,11 @@ type R = ReaderT Decode IO
 -- | Throws an error which is suitable when the data stream is
 -- malformed.
 malformed :: HasCallStack => R a
-malformed = __IMPOSSIBLE__ -- liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
+malformed = liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
 {-# NOINLINE malformed #-} -- 2023-10-2 András: cold code, so should be out-of-line.
 
 malformedIO :: HasCallStack => IO a
-malformedIO = __IMPOSSIBLE__
+malformedIO = E.throwIO $ E.ErrorCall "Malformed input."
 {-# NOINLINE malformedIO #-}
 
 class Typeable a => EmbPrj a where
@@ -396,7 +396,7 @@ icodeNode key = do
         H.insert d key fresh
         return fresh
 
--- | @icode@ only if thing has not seen before.
+-- | @icode@ only if thing has not been seen before.
 icodeMemo
   :: (Ord a, Hashable a)
   => (Dict -> HashTable a Word32)    -- ^ Memo structure for thing of key @a@.

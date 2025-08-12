@@ -67,14 +67,14 @@ instance EmbPrj a => EmbPrj (Drop a) where
 
 instance EmbPrj a => EmbPrj (Elim' a) where
   icod_ (Apply a)      = icodeN' Apply a
-  icod_ (IApply x y a) = icodeN 0 IApply x y a
-  icod_ (Proj a b)     = icodeN 0 Proj a b
+  icod_ (IApply x y a) = icodeN' IApply x y a
+  icod_ (Proj a b)     = icodeN' Proj a b
 
   value = vcase valu where
-    valu (N1 a)       = valuN Apply a
-    valu (N4 0 x y a) = valuN IApply x y a
-    valu (N3 0 a b)   = valuN Proj a b
-    valu _            = malformed
+    valu (N1 a)     = valuN Apply a
+    valu (N3 x y a) = valuN IApply x y a
+    valu (N2 a b)   = valuN Proj a b
+    valu _          = malformed
 
 instance EmbPrj I.DataOrRecord where
   icod_ = \case
