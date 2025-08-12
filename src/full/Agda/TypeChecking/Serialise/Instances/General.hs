@@ -5,13 +5,13 @@
 {-# OPTIONS_GHC -Wunused-matches #-}
 {-# OPTIONS_GHC -Wunused-binds #-}
 
--- {-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+{-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
 
 -- | Serializing types that are not Agda-specific.
 
 module Agda.TypeChecking.Serialise.Instances.General where
 
-import Control.Monad              ( (<=<), (<$!>) )
+import Agda.Utils.Monad
 import Control.Monad.Reader (asks, ReaderT(..), runReaderT)
 
 import qualified Data.Foldable as Fold
@@ -182,78 +182,58 @@ instance (EmbPrj a, Typeable b) => EmbPrj (WithDefault' a b) where
 instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
 
   {-# INLINE icod_ #-}
-  icod_ xs = icodeNode =<< go' xs where
-
-    go' :: [a] -> S Node
-    go' as = ReaderT \r -> case as of
-      a:b:c:d:e:as -> do
-        !a <- runReaderT (icode a) r
-        !b <- runReaderT (icode b) r
-        !c <- runReaderT (icode c) r
-        !d <- runReaderT (icode d) r
-        !e <- runReaderT (icode e) r
-        runReaderT (go as (N5 e d c b a)) r
-      a:b:c:d:as -> do
-        !a <- runReaderT (icode a) r
-        !b <- runReaderT (icode b) r
-        !c <- runReaderT (icode c) r
-        !d <- runReaderT (icode d) r
-        runReaderT (go as (N4 d c b a)) r
-      a:b:c:as -> do
-        !a <- runReaderT (icode a) r
-        !b <- runReaderT (icode b) r
-        !c <- runReaderT (icode c) r
-        runReaderT (go as (N3 c b a)) r
-      a:b:as -> do
-        !a <- runReaderT (icode a) r
-        !b <- runReaderT (icode b) r
-        runReaderT (go as (N2 b a)) r
-      a:as -> do
-        !a <- runReaderT (icode a) r
-        runReaderT (go as (N1 a)) r
-      [] ->
-        pure N0
-
-    go :: [a] -> Node -> S Node
-    go as acc = ReaderT \r -> case as of
-      []   -> runReaderT (pure acc) r
-      a:as -> do
-        !a <- runReaderT (icode a) r
-        runReaderT (go as (a :*: acc)) r
+  icod_ xs = icodeNode =<< go xs where
+    go :: [a] -> S Node
+    go as = ReaderT \r -> case as of
+      []             -> pure N0
+      a:[]           -> runReaderT (N1 <$!> icode a) r
+      a:b:[]         -> runReaderT (N2 <$!> icode a <*!> icode b) r
+      a:b:c:[]       -> runReaderT (N3 <$!> icode a <*!> icode b <*!> icode c) r
+      a:b:c:d:[]     -> runReaderT (N4 <$!> icode a <*!> icode b <*!> icode c <*!> icode d) r
+      a:b:c:d:e:[]   -> runReaderT (N5 <$!> icode a <*!> icode b
+                                       <*!> icode c <*!> icode d <*!> icode e) r
+      a:b:c:d:e:f:as -> runReaderT (N6 <$!> icode a <*!> icode b <*!> icode c
+                                       <*!> icode d <*!> icode e <*!> icode f <*!> go as) r
 
   {-# INLINE value #-}
-  value = vcase (go []) where
-    go :: [a] -> Node -> R [a]
-    go acc as = ReaderT \r -> case as of
-      N0       -> pure acc
-      N1 a     -> do
+  value = vcase go where
+    go :: Node -> R [a]
+    go as = ReaderT \r -> case as of
+      N0   -> pure []
+      N1 a -> do
         !a <- runReaderT (value a) r
-        pure (a:acc)
+        pure [a]
       N2 a b   -> do
         !a <- runReaderT (value a) r
         !b <- runReaderT (value b) r
-        pure (b:a:acc)
+        pure [a, b]
       N3 a b c -> do
         !a <- runReaderT (value a) r
         !b <- runReaderT (value b) r
         !c <- runReaderT (value c) r
-        pure (c:b:a:acc)
+        pure [a, b, c]
       N4 a b c d -> do
         !a <- runReaderT (value a) r
         !b <- runReaderT (value b) r
         !c <- runReaderT (value c) r
         !d <- runReaderT (value d) r
-        pure (d:c:b:a:acc)
+        pure [a, b, c, d]
       N5 a b c d e -> do
         !a <- runReaderT (value a) r
         !b <- runReaderT (value b) r
         !c <- runReaderT (value c) r
         !d <- runReaderT (value d) r
         !e <- runReaderT (value e) r
-        pure (e:d:c:b:a:acc)
-      a :*: as -> do
+        pure [a, b, c, d, e]
+      N6 a b c d e f as -> do
         !a  <- runReaderT (value a) r
-        runReaderT (go (a:acc) as) r
+        !b  <- runReaderT (value b) r
+        !c  <- runReaderT (value c) r
+        !d  <- runReaderT (value d) r
+        !e  <- runReaderT (value e) r
+        !f  <- runReaderT (value f) r
+        !as <- runReaderT (go as) r
+        pure (a:b:c:d:e:f:as)
 
 instance EmbPrj a => EmbPrj (List1 a) where
   icod_ = icod_ . List1.toList
@@ -264,7 +244,7 @@ instance EmbPrj a => EmbPrj (List2 a) where
   value = maybe malformed return . List2.fromListMaybe <=< value
 
 instance EmbPrj a => EmbPrj (Seq a) where
-  icod_ s = icode (Fold.toList s)
+  icod_ s = icode (Fold.foldr' (:) [] s)
   value s = Seq.fromList <$!> value s
 
 data KVS a b = Cons a b !(KVS a b) | Nil
@@ -272,69 +252,45 @@ data KVS a b = Cons a b !(KVS a b) | Nil
 {-# INLINABLE mapPairsIcode #-}
 -- | Encode a list of key-value pairs as a flat list.
 mapPairsIcode :: forall k v. (EmbPrj k, EmbPrj v) => KVS k v -> S Word32
-mapPairsIcode xs = icodeNode =<< go' xs where
-
-  go' :: KVS k v -> S Node
-  go' xs = ReaderT \r -> case xs of
-    Cons a b (Cons c d (Cons e f as)) -> do
-      !a <- runReaderT (icode a) r
-      !b <- runReaderT (icode b) r
-      !c <- runReaderT (icode c) r
-      !d <- runReaderT (icode d) r
-      !e <- runReaderT (icode e) r
-      !f <- runReaderT (icode f) r
-      runReaderT (go as (f :*: N5 e d c b a)) r
-    Cons a b (Cons c d as) -> do
-      !a <- runReaderT (icode a) r
-      !b <- runReaderT (icode b) r
-      !c <- runReaderT (icode c) r
-      !d <- runReaderT (icode d) r
-      runReaderT (go as (N4 d c b a)) r
-    Cons a b as -> do
-      !a <- runReaderT (icode a) r
-      !b <- runReaderT (icode b) r
-      runReaderT (go as (N2 b a)) r
+mapPairsIcode xs = icodeNode =<< go xs where
+  go :: KVS k v -> S Node
+  go as = ReaderT \r -> case as of
     Nil ->
       pure N0
-
-  go :: KVS k v -> Node -> S Node
-  go xs acc = ReaderT \r -> case xs of
-    Nil         -> pure acc
-    Cons a b xs -> do
-      !a <- runReaderT (icode a) r
-      !b <- runReaderT (icode b) r
-      runReaderT (go xs (b :*: a :*: acc)) r
+    Cons a b Nil ->
+      runReaderT (N2 <$!> icode a <*!> icode b) r
+    Cons a b (Cons c d Nil) ->
+      runReaderT (N4 <$!> icode a <*!> icode b <*!> icode c <*!> icode d) r
+    Cons a b (Cons c d (Cons e f as)) -> do
+      runReaderT (N6 <$!> icode a <*!> icode b <*!> icode c
+                     <*!> icode d <*!> icode e <*!> icode f <*!> go as) r
 
 {-# INLINABLE mapPairsValue #-}
 mapPairsValue :: forall k v. (EmbPrj k, EmbPrj v) => Node -> R [(k, v)]
-mapPairsValue n = go n [] where
-  go :: Node -> [(k, v)] -> R [(k, v)]
-  go as acc = ReaderT \r -> case as of
-    N0     -> pure acc
+mapPairsValue n = go n where
+  go :: Node -> R [(k, v)]
+  go as = ReaderT \r -> case as of
+    N0     -> pure []
     N2 a b -> do
       !a <- runReaderT (value a) r
       !b <- runReaderT (value b) r
-      pure ((b, a):acc)
+      pure [(a, b)]
     N4 a b c d -> do
       !a <- runReaderT (value a) r
       !b <- runReaderT (value b) r
       !c <- runReaderT (value c) r
       !d <- runReaderT (value d) r
-      pure ((d, c):(b, a):acc)
-    a :*: N5 b c d e f -> do
-      !a <- runReaderT (value a) r
-      !b <- runReaderT (value b) r
-      !c <- runReaderT (value c) r
-      !d <- runReaderT (value d) r
-      !e <- runReaderT (value e) r
-      !f <- runReaderT (value f) r
-      pure ((f, e):(d, c):(b, a):acc)
-    a :*: b :*: as -> do
-      !a <- runReaderT (value a) r
-      !b <- runReaderT (value b) r
-      runReaderT (go as ((b, a):acc)) r
+      pure [(a, b), (c, d)]
+    N6 a b c d e f as -> do
+      !a  <- runReaderT (value a) r
+      !b  <- runReaderT (value b) r
+      !c  <- runReaderT (value c) r
+      !d  <- runReaderT (value d) r
+      !e  <- runReaderT (value e) r
+      !f  <- runReaderT (value f) r
+      !as <- runReaderT (go as) r
+      pure ((f, e):(d, c):(b, a):as)
     _ -> malformedIO
-
 
 ---------------------------------------------------------------------------
 -- Maps

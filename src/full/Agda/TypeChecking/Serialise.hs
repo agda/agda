@@ -211,15 +211,14 @@ serializeEncodedInterface prefix i = do
   i <- Bench.billTo [Bench.Serialization, Bench.Compress] $ doCompress i
   pure $! LB.fromStrict prefix <> LB.fromStrict i
 
--- | Convert IO errors (which are assumed to be deserialization errors) to
+-- | Convert ErrorCall-s (which are assumed to be deserialization errors) to
 --   MaybeT TCM.
 tryDecode :: IO a -> MaybeT TCM a
 tryDecode act = MaybeT do
   res <- liftIO ((Right <$!> act) `E.catch` \(E.ErrorCall err) -> pure (Left err))
   case res of
     Left err -> do
-      traceM $ "Error when decoding interface file: " ++ err
-      -- reportSLn "import.iface" 5 $ "Error when decoding interface file: " ++ err
+      reportSLn "import.iface" 5 $ "Error when decoding interface file: " ++ err
       pure Nothing
     Right a -> pure $ Just a
 
@@ -251,7 +250,6 @@ encodeFile :: FilePath -> Interface -> TCM Interface
 encodeFile f i = do
   let prefix = getInterfacePrefix i
   iEncoded <- encode i
-  -- liftIO $ displayStat f iEncoded
   bstr <- serializeEncodedInterface prefix iEncoded
 
   i <- Bench.billTo [Bench.Deserialization] $

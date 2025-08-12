@@ -435,24 +435,18 @@ instance EmbPrj Defn where
     -- Andreas, 2024-10-27
     -- DataOrRecSig is possible via unquoteDecl in meta-programming, see #7576
 
-  value = vcase valu where
-    valu (N2 0 a) = valuN Axiom a
-
-    valu (1 :*: a :*: b :*: s :*: u :*: c :*: d :*: e :*: f :*: N5 g h i j k) =
-        valuN (\ a b s -> Function a b s Nothing) a b s u c d e f g h i j k
-    valu (2 :*: a :*: b :*: c :*: d :*: e :*: N5 f g h i j) =
-        valuN Datatype a b c d e f g h i j
-    valu (3 :*: a :*: b :*: c :*: d :*: e :*: f :*: g :*: h :*: N5 i j k l m) =
-        valuN Record a b c d e f g h i j k l m
-    valu (4 :*: a :*: b :*: c :*: d :*: e :*: f :*: N5 g h i j k) =
-        valuN Constructor a b c d e f g h i j k
-    valu (5 :*: a :*: N5 b c d e f) =
-        valuN Primitive a b c d e f
-
-    valu (N3 6 a b) = valuN PrimitiveSort a b
-    valu (N2 7 a)   = valuN GeneralizableVar a
-    valu (N2 8 a)   = valuN DataOrRecSig a
-    valu _          = malformed
+  value = vcase \case
+    N2 0 a                                   -> valuN Axiom a
+    N6 1 a b s u c (N6 d e f g h i (N2 j k)) -> valuN (\ a b s -> Function a b s Nothing)
+                                                      a b s u c d e f g h i j k
+    N6 2 a b c d e (N5 f g h i j)            -> valuN Datatype a b c d e f g h i j
+    N6 3 a b c d e (N6 f g h i j k (N2 l m)) -> valuN Record a b c d e f g h i j k l m
+    N6 4 a b c d e (N6 f g h i j k N0)       -> valuN Constructor a b c d e f g h i j k
+    N6 5 a b c d e (N1 f)                    -> valuN Primitive a b c d e f
+    N3 6 a b                                 -> valuN PrimitiveSort a b
+    N2 7 a                                   -> valuN GeneralizableVar a
+    N2 8 a                                   -> valuN DataOrRecSig a
+    _                                        -> malformed
 
 instance EmbPrj LazySplit where
   icod_ StrictSplit = icodeN' StrictSplit

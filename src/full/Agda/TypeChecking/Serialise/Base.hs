@@ -23,7 +23,6 @@ module Agda.TypeChecking.Serialise.Base (
   ) where
 
 import qualified Control.Exception as E
-import Control.Monad ((<$!>))
 import Control.Monad.Except
 import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Reader
@@ -168,27 +167,27 @@ emptyDict
      -- ^ Collect statistics for @icode@ calls?
   -> IO Dict
 emptyDict collectStats = Dict
-  <$> H.empty
-  <*> H.empty
-  <*> H.empty
-  <*> H.empty
-  <*> H.empty
-  <*> H.empty
-  <*> H.empty
-  <*> H.empty
-  <*> H.empty
-  <*> farEmpty
-  <*> farEmpty
-  <*> farEmpty
-  <*> farEmpty
-  <*> farEmpty
-  <*> farEmpty
-  <*> farEmpty
-  <*> farEmpty
-  <*> farEmpty
-  <*> farEmpty
-  <*> H.empty
-  <*> pure collectStats
+  <$!> H.empty
+  <*!> H.empty
+  <*!> H.empty
+  <*!> H.empty
+  <*!> H.empty
+  <*!> H.empty
+  <*!> H.empty
+  <*!> H.empty
+  <*!> H.empty
+  <*!> farEmpty
+  <*!> farEmpty
+  <*!> farEmpty
+  <*!> farEmpty
+  <*!> farEmpty
+  <*!> farEmpty
+  <*!> farEmpty
+  <*!> farEmpty
+  <*!> farEmpty
+  <*!> farEmpty
+  <*!> H.empty
+  <*!> pure collectStats
 
 -- | Decoder arguments.
 data Decode = Decode
@@ -498,12 +497,18 @@ instance ICODE (a -> b -> c -> d -> e -> t) ('Suc ('Suc ('Suc ('Suc ('Suc 'Zero)
     pure $ N5 a b c d e
   {-# INLINE icodeArgs #-}
 
-instance ICODE t ('Suc ('Suc ('Suc ('Suc ('Suc n)))))
-      => ICODE (a -> t) ('Suc ('Suc ('Suc ('Suc ('Suc ('Suc n)))))) where
-  icodeArgs _ (Pair a as) = do
-    !hd   <- icode a
-    !node <- icodeArgs (Proxy :: Proxy t) as
-    pure $ (:*:) hd node
+instance ICODE t n
+      => ICODE (a -> b -> c -> d -> e -> f -> t)
+               ('Suc ('Suc ('Suc ('Suc ('Suc ('Suc n)))))) where
+  icodeArgs _ (Pair a (Pair b (Pair c (Pair d (Pair e (Pair f n)))))) = do
+    !a <- icode a
+    !b <- icode b
+    !c <- icode c
+    !d <- icode d
+    !e <- icode e
+    !f <- icode f
+    !n <- icodeArgs (Proxy :: Proxy t) n
+    pure $ N6 a b c d e f n
   {-# INLINE icodeArgs #-}
 
 -- | @icodeN tag t a1 ... an@ serialises the arguments @a1@, ..., @an@ of the
@@ -616,18 +621,26 @@ instance VALU (a -> b -> c -> d -> e -> t) ('Suc ('Suc ('Suc ('Suc ('Suc 'Zero))
     N5 a b c d e -> Just (Pair a (Pair b (Pair c (Pair d (Pair e ())))))
     _            -> Nothing
 
-instance VALU t ('Suc ('Suc ('Suc ('Suc ('Suc n)))))
-      => VALU (a -> t) ('Suc ('Suc ('Suc ('Suc ('Suc ('Suc n)))))) where
+instance VALU t n
+      => VALU (a -> b -> c -> d -> e -> f -> t)
+              ('Suc ('Suc ('Suc ('Suc ('Suc ('Suc n)))))) where
   {-# INLINE valuN' #-}
-  valuN' f (Pair a as) = do
+  valuN' fun (Pair a (Pair b (Pair c (Pair d (Pair e (Pair f n)))))) = do
     !a <- value a
-    let !fv = f a
-    valuN' fv as
+    !b <- value b
+    !c <- value c
+    !d <- value d
+    !e <- value e
+    !f <- value f
+    let !fun' = fun a b c d e f
+    valuN' fun' n
 
   {-# INLINE valueArgs #-}
   valueArgs _ xs = case xs of
-    x :*: xs' -> Pair x <$!> valueArgs (Proxy :: Proxy t) xs'
-    _         -> Nothing
+    N6 a b c d e f n -> do
+      !n <- valueArgs (Proxy :: Proxy t) n
+      Just (Pair a (Pair b (Pair c (Pair d (Pair e (Pair f n))))))
+    _ -> Nothing
 
 --------------------------------------------------------------------------------
 

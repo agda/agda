@@ -20,9 +20,8 @@ data Node
   | N3# !Word64 !Word32
   | N4# !Word64 !Word64
   | N5# !Word64 !Word64 !Word32
-  | (:*:) !Word32 !Node
-  deriving (Eq, Show)
-infixr 5 :*:
+  | N6# !Word64 !Word64 !Word64 !Node
+  deriving (Show)
 
 splitW64 :: Word64 -> (Word32, Word32)
 splitW64 x = let !a = fromIntegral (unsafeShiftR x 32)
@@ -52,7 +51,22 @@ pattern N4 a b c d <- N4# (splitW64 -> (a, b)) (splitW64 -> (c, d)) where
 pattern N5 :: Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Node
 pattern N5 a b c d e <- N5# (splitW64 -> (a, b)) (splitW64 -> (c, d)) e where
   N5 a b c d e = N5# (packW64 a b) (packW64 c d) e
-{-# complete N0, N1, N2, N3, N4, N5, (:*:) #-}
+
+pattern N6 :: Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Node -> Node
+pattern N6 a b c d e f n <- N6# (splitW64 -> (a, b)) (splitW64 -> (c, d)) (splitW64 -> (e, f)) n where
+  N6 a b c d e f n = N6# (packW64 a b) (packW64 c d) (packW64 e f) n
+{-# complete N0, N1, N2, N3, N4, N5, N6 #-}
+
+instance Eq Node where
+  N0          == N0             = True
+  N1# a       == N1# a'         = a == a'
+  N2# ab      == N2# ab'        = ab == ab'
+  N3# ab c    == N3# ab' c'     = ab == ab' && c == c'
+  N4# ab cd   == N4# ab' cd'    = ab == ab' && cd == cd'
+  N5# ab cd e == N5# ab' cd' e' = ab == ab' && cd == cd' && e == e'
+  N6# ab cd ef n == N6# ab' cd' ef' n' =
+    ab == ab' && cd == cd' && ef == ef' && n == n'
+  _ == _ = False
 
 instance Hashable Node where
   -- Adapted from https://github.com/tkaitchuck/aHash/wiki/AHash-fallback-algorithm
@@ -73,13 +87,16 @@ instance Hashable Node where
 #endif
 
     go :: Word -> Node -> Word
-    go !h N0           = h
-    go  h (N1# a)      = h `combine` fromIntegral a
-    go  h (N2# a)      = h `combine` fromIntegral a
-    go  h (N3# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
-    go  h (N4# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
-    go  h (N5# a b c)  = h `combine` fromIntegral a `combine` fromIntegral b `combine` fromIntegral c
-    go  h ((:*:) n ns) = go (combine h (fromIntegral n)) ns
+    go h N0           = h
+    go h (N1# a)      = h `combine` fromIntegral a
+    go h (N2# a)      = h `combine` fromIntegral a
+    go h (N3# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
+    go h (N4# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
+    go h (N5# a b c)  = h `combine` fromIntegral a `combine` fromIntegral b
+                        `combine` fromIntegral c
+    go h (N6# a b c n) = let h' = h `combine` fromIntegral a
+                                   `combine` fromIntegral b `combine` fromIntegral c
+                         in go h' n
 
   hash = hashWithSalt seed where
 #if WORD_SIZE_IN_BITS == 64
@@ -91,75 +108,48 @@ instance Hashable Node where
 --------------------------------------------------------------------------------
 
 instance Serialize Node where
+  size = go SIZEOF_HSINT where
+    go :: Int -> Node -> Int
+    go !acc = \case
+      N0    -> acc
+      N1#{} -> acc + SIZEOF_WORD32
+      N2#{} -> acc + SIZEOF_WORD64
+      N3#{} -> acc + SIZEOF_WORD64 + SIZEOF_WORD32
+      N4#{} -> acc + SIZEOF_WORD64 + SIZEOF_WORD64
+      N5#{} -> acc + SIZEOF_WORD64 + SIZEOF_WORD64 + SIZEOF_WORD32
+      N6# _ _ _ n -> go (acc + SIZEOF_WORD64 + SIZEOF_WORD64 + SIZEOF_WORD64) n
 
-  size x = size (0::Int) + go 0 x where
-    go acc N0         = acc
-    go acc N1#{}      = acc + SIZEOF_WORD32
-    go acc N2#{}      = acc + SIZEOF_WORD64
-    go acc N3#{}      = acc + SIZEOF_WORD64 + SIZEOF_WORD32
-    go acc N4#{}      = acc + SIZEOF_WORD64 + SIZEOF_WORD64
-    go acc N5#{}      = acc + SIZEOF_WORD64 + SIZEOF_WORD64 + SIZEOF_WORD32
-    go acc (n :*: ns) = go (acc + SIZEOF_WORD32) ns
+  put n = Put \hd s -> let
+    setHeader :: Int -> Addr# -> Put
+    setHeader n hd = Put \p s -> case unPut (put n) hd s of
+      (# _, s #) -> (# p, s #)
 
-  put n = Put \pHeader s -> let
-    go :: Node -> Addr# -> State# RealWorld -> Int# -> (# Addr#, State# RealWorld, Int# #)
-    go (N0         ) p s l = (# p, s, l #)
-    go (N1# a      ) p s l = case unPut (put a) p s of
-      (# p, s #) -> (# p, s, l +# 1# #)
-    go (N2# ab     ) p s l = case unPut (put ab) p s of
-      (# p, s #) -> (# p, s, l +# 2# #)
-    go (N3# ab c   ) p s l = case unPut (put ab <> put c) p s of
-      (# p, s #) -> (# p, s, l +# 3# #)
-    go (N4# ab cd  ) p s l = case unPut (put ab <> put cd) p s of
-      (# p, s #) -> (# p, s, l +# 4# #)
-    go (N5# ab cd e) p s l = case unPut (put ab <> put cd <> put e) p s of
-      (# p, s #) -> (# p, s, l +# 5# #)
-    go (x :*: n)     p s l = case unPut (put x) p s of
-      (# p, s #) -> go n p s (l +# 1#)
-    in case go n (plusAddr# pHeader SIZEOF_HSINT#) s 0# of
-      (# p, s, l #) -> case writeIntOffAddr# pHeader 0# l s of
-        s -> (# p, s #)
+    go :: Node -> Int -> Addr# -> Put
+    go n l hd = Put \p s -> case n of
+      N0             -> unPut (setHeader l hd) p s
+      N1# a          -> unPut (put a <> setHeader (l + 1) hd) p s
+      N2# ab         -> unPut (put ab <> setHeader (l + 2) hd) p s
+      N3# ab c       -> unPut (put ab <> put c <> setHeader (l + 3) hd) p s
+      N4# ab cd      -> unPut (put ab <> put cd <> setHeader (l + 4) hd) p s
+      N5# ab cd e    -> unPut (put ab <> put cd <> put e <> setHeader (l + 5) hd) p s
+      N6# ab cd ef n -> unPut (put ab <> put cd <> put ef <> go n (l + 6) hd) p s
 
-  get = do
-    I# l <- get
-    ensure (I# l * SIZEOF_WORD32) \p' -> Get \e p s ->
-      let
-          {-# INLINE rd32 #-}
-          rd32 :: Addr# -> State# RealWorld -> (# Addr#, State# RealWorld, Word32 #)
-          rd32 p s = case plusAddr# p (-SIZEOF_WORD32#) of
-            p -> case readWord32OffAddr# p 0# s of
-              (# s, x #) -> (# p, s, W32# x #)
+    in unPut (go n 0 hd) (plusAddr# hd SIZEOF_HSINT#) s
 
-          {-# INLINE rd64 #-}
-          rd64 :: Addr# -> State# RealWorld -> (# Addr#, State# RealWorld, Word64 #)
-          rd64 p s = case plusAddr# p (-SIZEOF_WORD64#) of
-            p -> case readWord64OffAddr# p 0# s of
-              (# s, x #) -> (# p, s, W64# x #)
+  get = do {l <- get; ensure (unsafeShiftL l 2) \_ -> go l} where
+    g32 :: Get Word32; {-# INLINE g32 #-}
+    g32 = Get \_ p s -> case readWord32OffAddr# p 0# s of
+            (# s, x #) -> (# plusAddr# p SIZEOF_WORD32#, s, W32# x #)
+    g64 :: Get Word64; {-# INLINE g64 #-}
+    g64 = Get \_ p s -> case readWord64OffAddr# p 0# s of
+            (# s, x #) -> (# plusAddr# p SIZEOF_WORD64#, s, W64# x #)
 
-          go' :: Addr# -> State# RealWorld -> Int# -> Node -> (# State# RealWorld, Node #)
-          go' p s l n = case l of
-            0# -> (# s, n #)
-            _  -> case rd32 p s of
-              (# p, s, x #) -> let n' = x :*: n in go' p s (l -# 1#) n'
-
-          go :: Addr# -> State# RealWorld -> Int# -> (# State# RealWorld, Node #)
-          go p s l = case l of
-            0# -> (# s, N0 #)
-            1# -> case rd32 p s of (# p, s, a #) -> (# s, N1# a #)
-            2# -> case rd64 p s of (# p, s, ab #) -> (# s, N2# ab #)
-            3# -> case rd32 p s of
-              (# p, s, c #) -> case rd64 p s of
-                (# p, s, ab #) -> (# s, N3# ab c #)
-            4# -> case rd64 p s of
-              (# p, s, cd #) -> case rd64 p s of
-                (# p, s, ab #) -> (# s, N4# ab cd #)
-            5# -> case rd32 p s of
-              (# p, s, e #) -> case rd64 p s of
-                (# p, s, cd #) -> case rd64 p s of
-                  (# p, s, ab #) -> (# s, N5# ab cd e #)
-            l  -> case rd32 p s of
-              (# p, s, e #) -> case rd64 p s of
-                (# p, s, cd #) -> case rd64 p s of
-                  (# p, s, ab #) -> go' p s (l -# 5#) (N5# ab cd e)
-
-      in case go p' s l of (# s, n #) -> (# p', s, n #)
+    go :: Int -> Get Node
+    go l = Get \e p s -> case l of
+      0 -> unGet (pure N0) e p s
+      1 -> unGet (N1# <$> g32) e p s
+      2 -> unGet (N2# <$> g64) e p s
+      3 -> unGet (N3# <$> g64 <*> g32) e p s
+      4 -> unGet (N4# <$> g64 <*> g64) e p s
+      5 -> unGet (N5# <$> g64 <*> g64 <*> g32) e p s
+      l -> unGet (N6# <$> g64 <*> g64 <*> g64 <*> go (l - 6)) e p s
