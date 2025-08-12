@@ -289,7 +289,7 @@ mapPairsValue n = go n where
       !e  <- runReaderT (value e) r
       !f  <- runReaderT (value f) r
       !as <- runReaderT (go as) r
-      pure ((f, e):(d, c):(b, a):as)
+      pure ((a, b):(c, d):(e, f):as)
     _ -> malformedIO
 
 ---------------------------------------------------------------------------

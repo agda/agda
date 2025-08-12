@@ -28,8 +28,6 @@ import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Reader
 import Control.Monad.State.Strict (StateT, gets)
 
-import Debug.Trace
-
 import Data.Proxy
 import Data.Bits
 
@@ -216,8 +214,6 @@ type S a = ReaderT Dict IO a
 -- decoding slower.
 type R = ReaderT Decode IO
 
--- | Throws an error which is suitable when the data stream is
--- malformed.
 malformed :: HasCallStack => R a
 malformed = liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
 {-# NOINLINE malformed #-} -- 2023-10-2 András: cold code, so should be out-of-line.
@@ -225,6 +221,14 @@ malformed = liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
 malformedIO :: HasCallStack => IO a
 malformedIO = E.throwIO $ E.ErrorCall "Malformed input."
 {-# NOINLINE malformedIO #-}
+
+-- malformed :: HasCallStack => R a
+-- malformed = __IMPOSSIBLE__
+-- {-# NOINLINE malformed #-} -- 2023-10-2 András: cold code, so should be out-of-line.
+
+-- malformedIO :: HasCallStack => IO a
+-- malformedIO = __IMPOSSIBLE__
+-- {-# NOINLINE malformedIO #-}
 
 class Typeable a => EmbPrj a where
   icode :: a -> S Word32  -- ^ Serialization (wrapper).
@@ -657,7 +661,6 @@ valuN f = strictCurrys (Proxy :: Proxy (Constant Word32 (Domains t)))
 valueN :: forall t. VALU t (Arity t) =>
           All EmbPrj (CoDomain t ': Domains t) =>
           t -> Word32 -> R (CoDomain t)
-valueN t = vcase valu where
-  valu int32s = case valueArgs (Proxy :: Proxy t) int32s of
-                  Nothing -> malformed
-                  Just vs -> valuN' t vs
+valueN t = vcase \n -> case valueArgs (Proxy :: Proxy t) n of
+  Nothing -> malformed
+  Just vs -> valuN' t vs
