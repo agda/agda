@@ -1,17 +1,19 @@
-{-# OPTIONS_GHC -Wunused-imports #-}
 
+{-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {-# options_ghc -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
 
 module Agda.TypeChecking.Serialise.Instances.Highlighting where
 
+import Control.Monad.Reader
 import qualified Data.Map.Strict as Map
-import Data.Strict.Tuple (Pair(..))
 
+import Agda.Utils.Monad
 import Agda.Utils.Range (Range(..))
 import qualified Agda.Interaction.Highlighting.Precise as HP
-import qualified Agda.Utils.RangeMap                   as RM
+import Agda.Utils.RangeMap (PairInt(..))
+import qualified Agda.Utils.RangeMap as RM
 
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common () --instance only
@@ -128,28 +130,52 @@ instance EmbPrj HP.DefinitionSite where
 
   value = valueN HP.DefinitionSite
 
-instance EmbPrj a => EmbPrj (RM.RangeMap a) where
-  -- Write the RangeMap as flat list rather than a list of (Int, (Int, x)). Much
-  -- like Map, we need to call `convert' in the tail position and so the output
-  -- list is written (and read) in reverse order.
-  icod_ (RM.RangeMap f) = icodeNode =<< convert Empty (Map.toAscList f) where
-    convert :: Node -> [(Int, Pair Int a)] -> S Node
-    convert !ys [] = return ys
-    convert  ys ((start, end :!: entry):xs) = do
-      !start <- icode start
-      !end <- icode end
-      !entry <- icode entry
-      convert ((:*:) start ((:*:) end ((:*:) entry ys))) xs
+data KVS a = Cons !Int !Int a !(KVS a) | Nil
 
-  value = vcase (fmap (RM.RangeMap . Map.fromDistinctAscList) . convert []) where
-    convert :: [(Int, RM.PairInt a)] -> Node -> R [(Int, RM.PairInt a)]
-    convert !ys Empty = return ys
-    convert  ys (start :*: end :*: entry :*: xs) = do
-      !start <- value start
-      !end <- value end
-      !entry <- value entry
-      convert ((start, end :!: entry):ys) xs
-    convert _ _ = malformed
+toAscList' :: RM.RangeMap a -> KVS a
+toAscList' (RM.RangeMap x) =
+  Map.foldrWithKey'
+    (\a (b :!: c) !acc -> Cons a b c acc)
+    Nil x
+
+{-# INLINABLE icodRM #-}
+icodRM :: EmbPrj a => KVS a -> S Node
+icodRM xs = ReaderT \r -> case xs of
+  Nil ->
+    pure N0
+  Cons a b c Nil -> flip runReaderT r $
+    N3 <$!> icode a <*!> icode b <*!> icode c
+  Cons a b c (Cons d e f xs) -> flip runReaderT r $
+    N6 <$!> icode a <*!> icode b <*!> icode c
+       <*!> icode d <*!> icode e <*!> icode f <*!> icodRM xs
+
+{-# INLINABLE valueRM #-}
+valueRM :: EmbPrj a => Node -> R [(Int, PairInt a)]
+valueRM as = ReaderT \r -> case as of
+  N0 ->
+    pure []
+  N3 a b c -> flip runReaderT r do
+    !a <- value a
+    !b <- value b
+    !c <- value c
+    pure [(a, b :!: c)]
+  N6 a b c d e f as -> flip runReaderT r do
+    !a  <- value a
+    !b  <- value b
+    !c  <- value c
+    !d  <- value d
+    !e  <- value e
+    !f  <- value f
+    !as <- valueRM as
+    pure ((a, b :!: c):(d, e :!: f):as)
+  _ -> malformedIO
+
+-- We serialize as a flat list of triples
+instance EmbPrj a => EmbPrj (RM.RangeMap a) where
+  {-# INLINE icod_ #-}
+  icod_ x = icodeNode =<< icodRM (toAscList' x) where
+  {-# INLINE value #-}
+  value = vcase (\n -> RM.RangeMap . Map.fromDistinctAscList <$!> valueRM n) where
 
 instance EmbPrj HP.TokenBased where
   icod_ HP.TokenBased        = pure 0
