@@ -1798,7 +1798,8 @@ characters to the \\xNNNN notation used in Haskell strings."
 
 (defun agda2-forget-all-goals ()
   "Remove all goal annotations."
-  (remove-text-properties (point-min) (point-max) '(category nil))
+  (annotation-preserve-mod-p-and-undo
+    (remove-text-properties (point-min) (point-max) '(category nil)))
   (dolist (ovl (overlays-in (point-min) (point-max)))
     (when (overlay-get ovl 'agda2-gn)
       (delete-overlay ovl))))
