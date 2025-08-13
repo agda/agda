@@ -92,11 +92,10 @@ bumpFresh arr = do
   pure n
 
 {-# INLINE bumpReuse #-}
-bumpReuse :: FreshAndReuse -> IO Word32
+bumpReuse :: FreshAndReuse -> IO ()
 bumpReuse arr = do
   !n <- MP.unsafeRead arr 1
   MP.unsafeWrite arr 1 (n + 1)
-  pure n
 
 farEmpty :: IO FreshAndReuse
 farEmpty = do

@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | Read the scope of an interface file.
 
@@ -10,12 +11,12 @@ module Main where
 ------------------------------------------------------------------------------
 -- Haskell imports
 
-import qualified Control.Exception as E
-import Control.Monad               ( forM_ )
+import Control.Monad               ( forM_, (<$!>) )
 import Control.Monad.IO.Class      ( liftIO )
 import Control.Monad.Except
+import Control.Monad.Trans.Maybe
 
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString as BS
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -34,9 +35,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Serialise.Base
 
-import Agda.Utils.Functor
 import Agda.Utils.Hash           ( Hash )
-import Agda.Utils.IO.Binary      ( readBinaryFile' )
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Impossible
 
@@ -59,8 +58,9 @@ data TruncatedInterface = TruncatedInterface
 instance EmbPrj TruncatedInterface where
   icod_ = __IMPOSSIBLE__
   value = vcase $ \case
-    (a : b : c : d : e : _) -> valuN TruncatedInterface a b c d e
-    _ -> __IMPOSSIBLE__
+    N5 a b c d e     -> valuN TruncatedInterface a b c d e
+    N6 a b c d e _ _ -> valuN TruncatedInterface a b c d e
+    _                -> __IMPOSSIBLE__
 
 ------------------------------------------------------------------------------
 
@@ -94,37 +94,18 @@ processInterface i = liftIO $ do
   forM_ (Map.toList $ tiScope i) $ \ (_m, s) -> do
     putStrLn $ render $ pretty s
 
--- | Cut-and-paste from 'Agda.Interaction.Imports.readInterface'.
-
-readTruncatedInterface :: FilePath -> TCM (Maybe TruncatedInterface)
+-- | Copy-and-paste from 'Agda.Interaction.Imports.readInterface'.
+readTruncatedInterface :: String -> TCM (Maybe TruncatedInterface)
 readTruncatedInterface file = do
-    -- Decode the interface file
-    (s, close) <- liftIO $ readBinaryFile' file
-    do  mi <- liftIO . E.evaluate =<< decodeTruncatedInterface s
-
-        -- Close the file. Note
-        -- ⑴ that evaluate ensures that i is evaluated to WHNF (before
-        --   the next IO operation is executed), and
-        -- ⑵ that decode returns Nothing if an error is encountered,
-        -- so it is safe to close the file here.
-        liftIO close
-
-        -- Reconstruct @iScope@.
-        return $ mi <&> \ i -> i{ tiScope = publicModules $ tiInsideScope i }
-      -- Catch exceptions and close
-      `catchError` \e -> liftIO close >> handler e
-  -- Catch exceptions
-  `catchError` handler
-  where
-    handler = \case
+    bstr <- (liftIO $ Just <$!> BS.readFile file) `catchError` \case
       IOException _ _ e -> do
-        reportSLn "" 0 $ "IO exception: " ++ show e
+        alwaysReportSLn "" 0 $ "IO exception: " ++ show e
         return Nothing   -- Work-around for file locking bug.
                          -- TODO: What does this refer to? Please
                          -- document.
       e -> throwError e
-
--- | Cut-and-paste from 'Agda.TypeChecking.Serialize.decodeInterface'.
-
-decodeTruncatedInterface :: BS.ByteString -> TCM (Maybe TruncatedInterface)
-decodeTruncatedInterface s = decode $ BS.drop 16 s
+    case bstr of
+      Just bstr -> runMaybeT $ do
+        ti <- decode =<< deserializeInterface bstr
+        pure $ ti {tiScope = publicModules $ tiInsideScope ti}
+      Nothing -> pure Nothing

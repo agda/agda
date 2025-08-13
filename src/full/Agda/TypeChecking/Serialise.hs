@@ -29,6 +29,7 @@ module Agda.TypeChecking.Serialise
   , decode
   , decodeFile
   , decodeInterface
+  , deserializeInterface
   , deserializeHashes
   )
   where
@@ -166,7 +167,7 @@ encode a = do
     statistics kind far = do
       fresh <- liftIO $ getFresh far
 #ifdef DEBUG_SERIALISATION
-      reuse <- liftIO $ getReuse far
+      reused <- liftIO $ getReuse far
 #endif
       tickN (kind ++ "  (fresh)") $ fromIntegral fresh
 #ifdef DEBUG_SERIALISATION

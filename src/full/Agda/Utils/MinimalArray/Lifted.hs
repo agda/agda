@@ -1,8 +1,11 @@
 
 {-# LANGUAGE GeneralizedNewtypeDeriving, UndecidableInstances, MagicHash, UnboxedTuples #-}
 
+{-# OPTIONS_GHC -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
+
 module Agda.Utils.MinimalArray.Lifted where
 
+import qualified Data.Foldable
 import GHC.Exts
 import qualified GHC.Arr as GHC
 import qualified Data.Primitive.Array as A
@@ -41,7 +44,7 @@ fromGHCArray :: GHC.Array i e -> Array e
 fromGHCArray (GHC.Array _ _ _ arr) = Array (A.Array arr)
 
 instance Serialize a => Serialize (Array a) where
-  size = foldl' (\s a -> Ser.size a + s) (Ser.size (0::Int))
+  size = Data.Foldable.foldl' (\s a -> Ser.size a + s) (Ser.size (0::Int))
 
   put (Array (A.Array arr)) = Put \p s ->
     let go :: Addr# -> State# RealWorld -> Int#

@@ -6,6 +6,7 @@
   , AllowAmbiguousTypes
   , TypeApplications
   , CPP
+  , PatternSynonyms
   #-}
 
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
@@ -42,6 +43,26 @@ import qualified Data.Text.Unsafe as T
 import Data.Bits
 
 #include "MachDeps.h"
+
+#if MIN_VERSION_text(2,0,0)
+
+pattern TArray :: ByteArray# -> T.Array
+pattern TArray arr = T.ByteArray arr
+{-# INLINE TArray #-}
+{-# COMPLETE TArray #-}
+
+#else
+
+pattern TArray :: ByteArray# -> T.Array
+pattern TArray arr = T.Array arr
+{-# INLINE TArray #-}
+{-# COMPLETE TArray #-}
+
+#endif
+
+{-# INLINE tLengthWord8 #-}
+tLengthWord8 :: T.Text -> Int
+tLengthWord8 (T.Text (TArray arr) _ _) = I# (sizeofByteArray# arr)
 
 type RW = State# RealWorld
 newtype Put = Put {unPut :: Addr# -> RW -> (# Addr#, RW #)}
@@ -324,20 +345,20 @@ getByteArray# len k = ensure (I# len) \p' -> Get \e p s ->
 
 instance Serialize T.Text where
   {-# INLINE size #-}
-  size t = size (0::Int) + T.lengthWord8 t
+  size t = size (0::Int) + tLengthWord8 t
 
-  put (T.Text (T.ByteArray arr) (I# start) (I# len)) =
+  put (T.Text (TArray arr) (I# start) (I# len)) =
     put (I# len) <> putByteArray# arr start len
 
   get = do
     I# l <- get
     getByteArray# l \arr -> Get \e p s ->
-      (# p, s, T.Text (T.ByteArray arr) 0 (I# l) #)
+      (# p, s, T.Text (TArray arr) 0 (I# l) #)
 
 lTextBytes :: TL.Text -> Int
 lTextBytes t = go t 0 where
   go TL.Empty        acc = acc
-  go (TL.Chunk t ts) acc = go ts (T.lengthWord8 t + acc)
+  go (TL.Chunk t ts) acc = go ts (tLengthWord8 t + acc)
 
 instance Serialize TL.Text where
   size t = size (0::Int) + lTextBytes t
@@ -346,7 +367,7 @@ instance Serialize TL.Text where
     go :: TL.Text -> Addr# -> RW -> Int# -> (# Addr#, RW, Int# #)
     go TL.Empty        p s len = (# p, s, len #)
     go (TL.Chunk t ts) p s len = case t of
-      T.Text (T.ByteArray arr) (I# start) (I# l) ->
+      T.Text (TArray arr) (I# start) (I# l) ->
         case unPut (putByteArray# arr start l) p s of
           (# p , s #) -> go ts p s (len +# l)
 
