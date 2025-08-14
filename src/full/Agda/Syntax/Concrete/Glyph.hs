@@ -11,7 +11,7 @@ module Agda.Syntax.Concrete.Glyph
   , braces', dbraces
   , forallQ
   , leftIdiomBrkt, rightIdiomBrkt, emptyIdiomBrkt
-  , arrow, lambda
+  , arrow, lambda, fromArrow
   , SpecialCharacters(..)
   ) where
 
@@ -62,13 +62,14 @@ unsafeUnicodeOrAscii = UNSAFE.unsafePerformIO (Strict.readIORef unsafeUnicodeOrA
 -- to ascii.
 
 data SpecialCharacters = SpecialCharacters
-  { _dbraces :: Doc -> Doc
-  , _lambda  :: Doc
-  , _arrow   :: Doc
-  , _forallQ :: Doc
+  { _dbraces        :: Doc -> Doc
+  , _lambda         :: Doc
+  , _arrow          :: Doc
+  , _forallQ        :: Doc
   , _leftIdiomBrkt  :: Doc
   , _rightIdiomBrkt :: Doc
   , _emptyIdiomBrkt :: Doc
+  , _fromArrow      :: Doc
   }
 
 specialCharactersUnicode :: SpecialCharacters
@@ -80,6 +81,7 @@ specialCharactersUnicode = SpecialCharacters
   , _leftIdiomBrkt  = hlSymbol "\x2987"
   , _rightIdiomBrkt = hlSymbol "\x2988"
   , _emptyIdiomBrkt = hlSymbol "\x2987\x2988"
+  , _fromArrow      = hlSymbol "←"
   }
 
 specialCharactersAscii :: SpecialCharacters
@@ -91,6 +93,7 @@ specialCharactersAscii = SpecialCharacters
   , _leftIdiomBrkt  = hlSymbol "(|"
   , _rightIdiomBrkt = hlSymbol "|)"
   , _emptyIdiomBrkt = hlSymbol "(|)"
+  , _fromArrow      = hlSymbol "<-"
   }
 
 -- | Return the glyph set based on a given (unicode or ascii) glyph mode
@@ -126,6 +129,7 @@ leftIdiomBrkt  = _leftIdiomBrkt  specialCharacters
 rightIdiomBrkt = _rightIdiomBrkt specialCharacters
 emptyIdiomBrkt = _emptyIdiomBrkt specialCharacters
 
-arrow, lambda :: Doc
-arrow  = _arrow specialCharacters
-lambda = _lambda specialCharacters
+arrow, lambda, fromArrow :: Doc
+arrow     = _arrow specialCharacters
+lambda    = _lambda specialCharacters
+fromArrow = _fromArrow specialCharacters

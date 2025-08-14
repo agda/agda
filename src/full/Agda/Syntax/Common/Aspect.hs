@@ -13,7 +13,7 @@ import Agda.Utils.Maybe ( unionMaybeWith )
 import Agda.Utils.Null ( Null(..) )
 
 data Induction = Inductive | CoInductive  -- Keep in this order!
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Generic, Show)
 
 data Aspect
   = Comment
@@ -164,7 +164,7 @@ instance Eq DefinitionSite where
 -- information from the lexer?
 
 data TokenBased = TokenBased | NotOnlyTokenBased
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 instance Null TokenBased where
   empty = TokenBased
@@ -176,25 +176,6 @@ instance Null Aspects where
 instance Eq Aspects where
   Aspects a o _ d t == Aspects a' o' _ d' t' =
     (a, o, d, t) == (a', o', d', t')
-
-instance NFData Induction where
-  rnf Inductive   = ()
-  rnf CoInductive = ()
-
-instance NFData NameKind where
-  rnf = \case
-    Bound         -> ()
-    Generalizable -> ()
-    Constructor c -> rnf c
-    Datatype      -> ()
-    Field         -> ()
-    Function      -> ()
-    Module        -> ()
-    Postulate     -> ()
-    Primitive     -> ()
-    Record        -> ()
-    Argument      -> ()
-    Macro         -> ()
 
 -- | Compute the 'Aspects' which (possibly) contain a 'DefinitionSite'
 -- for the given thing-with-range.
@@ -218,9 +199,10 @@ rangeDefinitionSite thing = do
 ------------------------------------------------------------------------
 -- NFData instances
 
-instance NFData Aspect
-instance NFData OtherAspect
 instance NFData DefinitionSite
-
-instance NFData Aspects where
-  rnf (Aspects a b c d _) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+instance NFData OtherAspect
+instance NFData TokenBased
+instance NFData Induction
+instance NFData NameKind
+instance NFData Aspects
+instance NFData Aspect

@@ -80,7 +80,7 @@ prettyTactic' t = (pretty t <+>)
 
 instance Pretty a => Pretty (TacticAttribute' a) where
   pretty (TacticAttribute t) =
-    ifNull (pretty t) empty \ d -> "@" <> parens ("tactic" <+> d)
+    ifNull (pretty t) empty \ d -> "@" <> parens (hlKeyword "tactic" <+> d)
 
 instance Pretty (ThingWithFixity Name) where
     pretty (ThingWithFixity n _) = pretty n
@@ -126,7 +126,7 @@ instance Pretty a => Pretty (MaybePlaceholder a) where
 instance Pretty Expr where
     pretty = \case
             Ident x          -> pretty x
-            KnownIdent nk x  -> annotateAspect (Asp.Name (Just nk) False) (pretty x)
+            KnownIdent nk x  -> annotate nk (pretty x)
             Lit _ l          -> pretty l
             QuestionMark _ n -> hlSymbol "?" <> maybe empty (text . show) n
             Underscore _ n   -> maybe underscore text n
@@ -138,8 +138,8 @@ instance Pretty Expr where
 --                          , nest 2 $ fsep $ map pretty args
 --                          ]
             RawApp _ es    -> fsep $ map pretty $ List2.toList es
-            OpApp _ q _ es         -> fsep $ prettyOpApp (Asp.Name Nothing True) q es
-            KnownOpApp nk _ q _ es -> fsep $ prettyOpApp (Asp.Name (Just nk) True) q es
+            OpApp _ q _ es         -> fsep $ prettyOpApp empty q es
+            KnownOpApp nk _ q _ es -> fsep $ prettyOpApp nk q es
 
             WithApp _ e es -> fsep $
               pretty e <| fmap ((hlSymbol "|" <+>) . pretty) es
@@ -184,9 +184,9 @@ instance Pretty Expr where
               sep [hlKeyword "record" <+> pretty e, bracesAndSemicolons (map pretty xs)]
             RecWhere _ _ xs -> sep [hlKeyword "record" <+> hlKeyword "where", nest 2 (vcat $ map pretty xs)]
             RecUpdateWhere _ _ e xs -> sep [hlKeyword "record" <+> pretty e <+> hlKeyword "where", nest 2 (vcat $ map pretty xs)]
-            Quote _ -> hlKeyword "quote"
+            Quote _     -> hlKeyword "quote"
             QuoteTerm _ -> hlKeyword "quoteTerm"
-            Unquote _  -> hlKeyword "unquote"
+            Unquote _   -> hlKeyword "unquote"
             Tactic _ t -> hlKeyword "tactic" <+> pretty t
             -- Andreas, 2011-10-03 print irrelevant things as .(e)
             DontCare e -> hlSymbol "." <> parens (pretty e)
@@ -202,7 +202,7 @@ instance (Pretty a, Pretty b) => Pretty (Either a b) where
   pretty = either pretty pretty
 
 instance Pretty a => Pretty (FieldAssignment' a) where
-  pretty (FieldAssignment x e) = sep [ pretty x <+> "=" , nest 2 $ pretty e ]
+  pretty (FieldAssignment x e) = sep [ pretty x <+> equals, nest 2 $ pretty e ]
 
 instance Pretty ModuleAssignment where
   pretty (ModuleAssignment m es i) = fsep (pretty m : map pretty es) <+> pretty i
@@ -245,7 +245,7 @@ instance Pretty NamedBinding where
            x@(Arg (ArgInfo h (Modality r q c p) _o _fv (Annotation lock))
                (Named _mn xb@(Binder _mp _ (BName _y _fix t _fin))))) =
     applyWhen withH prH $
-    applyWhenJust (isLabeled x) (\ l -> (text l <+>) . ("=" <+>)) (pretty xb)
+    applyWhenJust (isLabeled x) (\ l -> (text l <+>) . (equals <+>)) (pretty xb)
       -- isLabeled looks at _mn and _y
       -- pretty xb prints also the pattern _mp
     where
@@ -311,30 +311,30 @@ smashTel [] = []
 
 
 instance Pretty RHS where
-    pretty (RHS e)   = "=" <+> pretty e
+    pretty (RHS e)   = equals <+> pretty e
     pretty AbsurdRHS = empty
 
 instance Pretty WhereClause where
   pretty  NoWhere = empty
   pretty (AnyWhere _ [Module _ NotErased{} x [] ds])
     | isNoName (unqualify x)
-                       = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
-  pretty (AnyWhere _ ds) = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
+                       = vcat [ hlKeyword "where", nest 2 (vcat $ map pretty ds) ]
+  pretty (AnyWhere _ ds) = vcat [ hlKeyword "where", nest 2 (vcat $ map pretty ds) ]
   pretty (SomeWhere _ erased m a ds) =
     vcat [ hsep $ privateWhenUserWritten a
-             [ "module", prettyErased erased (pretty m), "where" ]
+             [ hlKeyword "module", prettyErased erased (pretty m), hlKeyword "where" ]
          , nest 2 (vcat $ map pretty ds)
          ]
     where
       privateWhenUserWritten = \case
-        PrivateAccess _ UserWritten -> ("private" :)
+        PrivateAccess _ UserWritten -> (hlKeyword "private" :)
         _ -> id
 
 instance Pretty LHS where
   pretty (LHS p eqs es) = sep
     [ pretty p
     , nest 2 $ if null eqs then empty else fsep $ map pretty eqs
-    , nest 2 $ prefixedThings "with" (map prettyWithd es)
+    , nest 2 $ prefixedThings (hlKeyword "with") (map prettyWithd es)
     ] where
 
     prettyWithd :: WithExpr -> Doc
@@ -342,7 +342,7 @@ instance Pretty LHS where
       let e = pretty wh in
       case nm of
         Nothing -> e
-        Just n  -> pretty n <+> ":" <+> e
+        Just n  -> pretty n <+> colon <+> e
 
 instance Pretty LHSCore where
   pretty (LHSHead f ps) = sep $ pretty f : map (parens . pretty) ps
@@ -352,25 +352,25 @@ instance Pretty LHSCore where
   pretty (LHSWith h wps ps) = if null ps then doc else
       sep $ parens doc : map (parens . pretty) ps
     where
-    doc = sep $ pretty h <$ fmap (("|" <+>) . pretty) wps
+    doc = sep $ pretty h <$ fmap ((pipe <+>) . pretty) wps
   pretty (LHSEllipsis _ _) = "..."
 
 instance Pretty ModuleApplication where
   pretty (SectionApp _ bs x es) = fsep $ concat
     [ map pretty bs
-    , [ "=", pretty x ]
+    , [ equals, pretty x ]
     , map pretty es
     ]
-  pretty (RecordModuleInstance _ x) = "=" <+> pretty x <+> "{{...}}"
+  pretty (RecordModuleInstance _ x) = equals <+> pretty x <+> "{{...}}"
 
 instance Pretty DoStmt where
   pretty (DoBind _ p e cs) =
-    ((pretty p <+> "←") <?> pretty e) <?> prCs cs
+    ((pretty p <+> fromArrow) <?> pretty e) <?> prCs cs
     where
       prCs [] = empty
-      prCs cs = "where" <?> vcat (map pretty cs)
-  pretty (DoThen e) = pretty e
-  pretty (DoLet _ ds) = "let" <+> vcat (fmap pretty ds)
+      prCs cs = hlKeyword "where" <?> vcat (map pretty cs)
+  pretty (DoThen e)   = pretty e
+  pretty (DoLet _ ds) = hlKeyword "let" <+> vcat (fmap pretty ds)
 
 instance Pretty Declaration where
   prettyList = vcat . map pretty
@@ -385,13 +385,13 @@ instance Pretty Declaration where
       prettyRelevance i $ prettyHiding i id $
       pretty $ TypeSig (setRelevance relevant i) tac x e
       where
-        mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]
+        mkInst (InstanceDef _) d = sep [ hlKeyword "instance", nest 2 d ]
         mkInst NotInstanceDef  d = d
 
-        mkOverlap i d | isYesOverlap i = "overlap" <+> d
+        mkOverlap i d | isYesOverlap i = hlKeyword "overlap" <+> d
                       | otherwise      = d
     Field _ fs ->
-      sep [ "field"
+      sep [ hlKeyword "field"
           , nest 2 $ vcat (map pretty fs)
           ]
     FunClause ai lhs rhs wh _ ->
@@ -400,40 +400,40 @@ instance Pretty Declaration where
           , nest 2 $ pretty rhs
           ] $$ nest 2 (pretty wh)
     DataSig _ erased x tel e ->
-      sep [ hsep  [ "data"
+      sep [ hsep  [ hlKeyword "data"
                   , prettyErased erased (pretty x)
                   , fsep (map pretty tel)
                   ]
           , nest 2 $ hsep
-                  [ ":"
+                  [ colon
                   , pretty e
                   ]
           ]
     Data _ erased x tel e cs ->
-      sep [ hsep  [ "data"
+      sep [ hsep  [ hlKeyword "data"
                   , prettyErased erased (pretty x)
                   , fsep (map pretty tel)
                   ]
           , nest 2 $ hsep
-                  [ ":"
+                  [ colon
                   , pretty e
-                  , "where"
+                  , hlKeyword "where"
                   ]
           ] $$ nest 2 (vcat $ map pretty cs)
     DataDef _ x tel cs ->
-      sep [ hsep  [ "data"
+      sep [ hsep  [ hlKeyword "data"
                   , pretty x
                   , fsep (map pretty tel)
                   ]
-          , nest 2 $ "where"
+          , nest 2 $ hlKeyword "where"
           ] $$ nest 2 (vcat $ map pretty cs)
     RecordSig _ erased x tel e ->
-      sep [ hsep  [ "record"
+      sep [ hsep  [ hlKeyword "record"
                   , prettyErased erased (pretty x)
                   , fsep (map pretty tel)
                   ]
           , nest 2 $ hsep
-                  [ ":"
+                  [ hlSymbol ":"
                   , pretty e
                   ]
           ]
@@ -443,9 +443,9 @@ instance Pretty Declaration where
       pRecord defaultErased x dir tel Nothing cs
     Infix f xs  ->
       pretty f <+> fsep (punctuate comma $ fmap pretty xs)
-    Syntax n _xs -> "syntax" <+> pretty n <+> "..."
-    PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
-                             <+> "=" <+> pretty p
+    Syntax n _xs -> hlKeyword "syntax" <+> pretty n <+> "..."
+    PatternSyn _ n as p -> hlKeyword "pattern" <+> pretty n <+> fsep (map pretty as)
+                             <+> equals <+> pretty p
     Mutual _ ds     -> namedBlock "mutual" ds
     InterleavedMutual _ ds  -> namedBlock "interleaved mutual" ds
     LoneConstructor _ ds -> namedBlock "data _ where" ds
@@ -473,28 +473,28 @@ instance Pretty Declaration where
     ModuleMacro _ erased x (SectionApp _ tel y es) open i ->
       sep [ pretty open <+> "module" <+>
             prettyErased erased (pretty x) <+> fsep (map pretty tel)
-          , nest 2 $ fsep $ concat [ [ "=", pretty y ], map pretty es, [ pretty i ] ]
+          , nest 2 $ fsep $ concat [ [ equals, pretty y ], map pretty es, [ pretty i ] ]
           ]
     ModuleMacro _ erased x (RecordModuleInstance _ rec) open _i ->
-      sep [ pretty open <+> "module" <+> prettyErased erased (pretty x)
-          , nest 2 $ "=" <+> pretty rec <+> "{{...}}"
+      sep [ pretty open <+> hlKeyword "module" <+> prettyErased erased (pretty x)
+          , nest 2 $ equals <+> pretty rec <+> "{{...}}"
           ]
-    Open _ x i  -> hsep [ "open", pretty x, pretty i ]
+    Open _ x i  -> hsep [ hlKeyword "open", pretty x, pretty i ]
     Import _ x rn open i   ->
-      hsep [ pretty open, "import", pretty x, as rn, pretty i ]
+      hsep [ pretty open, hlKeyword "import", pretty x, as rn, pretty i ]
       where
         as Nothing  = empty
-        as (Just x) = "as" <+> pretty (asName x)
+        as (Just x) = hlKeyword "as" <+> pretty (asName x)
     UnquoteDecl _ xs t ->
-      sep [ "unquoteDecl" <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
+      sep [ hlKeyword "unquoteDecl" <+> fsep (map pretty xs) <+> equals, nest 2 $ pretty t ]
     UnquoteDef _ xs t ->
-      sep [ "unquoteDef" <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
+      sep [ hlKeyword "unquoteDef" <+> fsep (map pretty xs) <+> equals, nest 2 $ pretty t ]
     UnquoteData _ x xs t ->
-      sep [ "unquoteData" <+> pretty x <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
+      sep [ hlKeyword "unquoteData" <+> pretty x <+> fsep (map pretty xs) <+> equals, nest 2 $ pretty t ]
     Pragma pr   -> sep [ "{-#" <+> pretty pr, "#-}" ]
     where
       namedBlock s ds =
-          sep [ text s
+          sep [ hlKeyword (text s)
               , nest 2 $ vcat $ map pretty ds
               ]
 
@@ -550,46 +550,46 @@ instance Pretty OpenShortHand where
     pretty DontOpen = empty
 
 instance Pretty Pragma where
-    pretty (OptionsPragma _ opts)  = fsep $ map text $ "OPTIONS" : opts
-    pretty (BuiltinPragma _ b x)   = hsep [ "BUILTIN", text (rangedThing b), pretty x ]
+    pretty (OptionsPragma _ opts)  = fsep $ hlKeyword "OPTIONS" : map (hlPragma . text) opts
+    pretty (BuiltinPragma _ b x)   = hsep [ hlKeyword "BUILTIN", hlPragma (text (rangedThing b)), pretty x ]
     pretty (RewritePragma _ _ xs)    =
-      hsep [ "REWRITE", hsep $ map pretty xs ]
+      hsep [ hlKeyword "REWRITE", hsep $ map pretty xs ]
     pretty (CompilePragma _ b x e) =
-      hsep [ "COMPILE", pretty (rangedThing b), pretty x, textNonEmpty e ]
+      hsep [ hlKeyword "COMPILE", pretty (rangedThing b), pretty x, textNonEmpty e ]
     pretty (ForeignPragma _ b s) =
-      vcat $ hsep [ "FOREIGN", pretty (rangedThing b) ] : map text (lines s)
+      vcat $ hsep [ hlKeyword "FOREIGN", pretty (rangedThing b) ] : map text (lines s)
     pretty (StaticPragma _ i) =
-      hsep $ ["STATIC", pretty i]
+      hsep $ [hlKeyword "STATIC", pretty i]
     pretty (InjectivePragma _ i) =
-      hsep $ ["INJECTIVE", pretty i]
+      hsep $ [hlKeyword "INJECTIVE", pretty i]
     pretty (InjectiveForInferencePragma _ i) =
-      hsep $ ["INJECTIVE_FOR_INFERENCE", pretty i]
+      hsep $ [hlKeyword "INJECTIVE_FOR_INFERENCE", pretty i]
     pretty (InlinePragma _ True i) =
-      hsep $ ["INLINE", pretty i]
+      hsep $ [hlKeyword "INLINE", pretty i]
     pretty (NotProjectionLikePragma _ i) =
-      hsep $ ["NOT_PROJECTION_LIKE", pretty i]
+      hsep $ [hlKeyword "NOT_PROJECTION_LIKE", pretty i]
     pretty (InlinePragma _ False i) =
-      hsep $ ["NOINLINE", pretty i]
+      hsep $ [hlKeyword "NOINLINE", pretty i]
     pretty (ImpossiblePragma _ strs) =
-      hsep $ ["IMPOSSIBLE"] ++ map text strs
+      hsep $ [hlKeyword "IMPOSSIBLE"] ++ map text strs
     pretty (EtaPragma _ x) =
-      hsep $ ["ETA", pretty x]
+      hsep $ [hlKeyword "ETA", pretty x]
     pretty (TerminationCheckPragma _ tc) =
       case tc of
         TerminationCheck       -> __IMPOSSIBLE__
-        NoTerminationCheck     -> "NO_TERMINATION_CHECK"
-        NonTerminating         -> "NON_TERMINATING"
-        Terminating            -> "TERMINATING"
-        TerminationMeasure _ x -> hsep $ ["MEASURE", pretty x]
-    pretty (NoCoverageCheckPragma _) = "NON_COVERING"
-    pretty (WarningOnUsage _ nm str) = hsep [ "WARNING_ON_USAGE", pretty nm, text (show str) ]
-    pretty (WarningOnImport _ str)   = hsep [ "WARNING_ON_IMPORT", text (show str) ]
-    pretty (CatchallPragma _) = "CATCHALL"
-    pretty (DisplayPragma _ lhs rhs) = "DISPLAY" <+> sep [ pretty lhs <+> "=", nest 2 $ pretty rhs ]
-    pretty (NoPositivityCheckPragma _) = "NO_POSITIVITY_CHECK"
+        NoTerminationCheck     -> hlKeyword "NO_TERMINATION_CHECK"
+        NonTerminating         -> hlKeyword "NON_TERMINATING"
+        Terminating            -> hlKeyword "TERMINATING"
+        TerminationMeasure _ x -> hsep $ [hlKeyword "MEASURE", pretty x]
+    pretty (NoCoverageCheckPragma _) = hlKeyword "NON_COVERING"
+    pretty (WarningOnUsage _ nm str) = hsep [ hlKeyword "WARNING_ON_USAGE", pretty nm, hlPragma (text (show str)) ]
+    pretty (WarningOnImport _ str)   = hsep [ hlKeyword "WARNING_ON_IMPORT", hlPragma (text (show str)) ]
+    pretty (CatchallPragma _) = hlKeyword "CATCHALL"
+    pretty (DisplayPragma _ lhs rhs) = hlKeyword "DISPLAY" <+> sep [ pretty lhs <+> equals, nest 2 $ pretty rhs ]
+    pretty (NoPositivityCheckPragma _) = hlKeyword "NO_POSITIVITY_CHECK"
     pretty (PolarityPragma _ q occs) =
-      hsep ("POLARITY" : pretty q : map pretty occs)
-    pretty (NoUniverseCheckPragma _) = "NO_UNIVERSE_CHECK"
+      hsep (hlKeyword "POLARITY" : pretty q : map pretty occs)
+    pretty (NoUniverseCheckPragma _) = hlKeyword "NO_UNIVERSE_CHECK"
     pretty (OverlapPragma _ x m) = hsep [pretty m, pretty x]
 
 instance Pretty NotationPart where
@@ -603,7 +603,7 @@ instance Pretty NotationPart where
 instance Pretty Fixity' where
     pretty (Fixity' fix nota _range)
       | null nota = pretty fix
-      | otherwise = "syntax" <+> pretty nota
+      | otherwise = hlKeyword "syntax" <+> pretty nota
 
 instance Pretty Pattern where
     prettyList = fsep . map pretty
@@ -611,23 +611,23 @@ instance Pretty Pattern where
             IdentP _ x      -> pretty x
             AppP p1 p2      -> sep [ pretty p1, nest 2 $ pretty p2 ]
             RawAppP _ ps    -> fsep $ map pretty $ List2.toList ps
-            OpAppP _ q _ ps -> fsep $ prettyOpApp (Asp.Name Nothing True) q $ fmap (fmap (fmap (NoPlaceholder Strict.Nothing))) ps
+            OpAppP _ q _ ps -> fsep $ prettyOpApp empty q $ fmap (fmap (fmap (NoPlaceholder Strict.Nothing))) ps
             HiddenP _ p     -> braces' $ pretty p
             InstanceP _ p   -> dbraces $ pretty p
             ParenP _ p      -> parens $ pretty p
             WildP _         -> underscore
-            AsP _ x p       -> pretty x <> "@" <> pretty p
+            AsP _ x p       -> pretty x <> hlSymbol "@" <> pretty p
             DotP _ _ p      -> "." <> pretty p
             AbsurdP _       -> "()"
             LitP _ l        -> pretty l
-            QuoteP _        -> "quote"
-            RecP _ _ fs     -> sep [ "record", bracesAndSemicolons (map pretty fs) ]
-            EqualP _ es     -> sep $ for es \ (e1, e2) -> parens $ sep [pretty e1, "=", pretty e2]
+            QuoteP _        -> hlKeyword "quote"
+            RecP _ _ fs     -> sep [ hlKeyword "record", bracesAndSemicolons (map pretty fs) ]
+            EqualP _ es     -> sep $ for es \ (e1, e2) -> parens $ sep [pretty e1, equals, pretty e2]
             EllipsisP _ _   -> "..."
             WithP _ p       -> "|" <+> pretty p
 
 prettyOpApp :: forall a .
-  Pretty a => Asp.Aspect -> QName -> List1 (NamedArg (MaybePlaceholder a)) -> [Doc]
+  Pretty a => Asp.Aspects -> QName -> List1 (NamedArg (MaybePlaceholder a)) -> [Doc]
 prettyOpApp asp q es = merge [] $ prOp ms xs $ List1.toList es
   where
     -- ms: the module part of the name.
@@ -644,7 +644,7 @@ prettyOpApp asp q es = merge [] $ prOp ms xs $ List1.toList es
         NoPlaceholder{} -> (pretty e, Nothing) : prOp ms xs es
           -- Module qualifier needs to go on section holes (#3072)
     prOp _  (Hole : _)  []       = __IMPOSSIBLE__
-    prOp ms (Id x : xs) es       = ( qual ms $ annotateAspect asp $ pretty $ simpleName x
+    prOp ms (Id x : xs) es       = ( qual ms $ annotate asp $ pretty $ simpleName x
                                    , Nothing
                                    ) : prOp [] xs es
       -- Qualify the name part with the module.
