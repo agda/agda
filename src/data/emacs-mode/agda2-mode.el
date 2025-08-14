@@ -975,6 +975,18 @@ The buffer is returned.")
       (set (make-local-variable 'compilation-error-regexp-alist)
            '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\)\\.\\([0-9]+\\)\\(-\\(\\([0-9]+\\)\\.\\)?\\([0-9]+\\)\\)?"
               1 (2 . 6) (3 . 7))))
+
+      ;; compilation-mode adds font-lock keywords for highlighting
+      ;; things like "make: ", assuming that they're command output.
+      ;;
+      ;; This is annoying because sometimes our messages get
+      ;; line-wrapped to start with "declaration:" (e.g. Issue2899).
+      ;;
+      ;; Conveniently all of these stupid highlights are in a variable
+      ;; that we can just undo!
+      (font-lock-remove-keywords nil compilation-mode-font-lock-keywords)
+      (font-lock-flush)
+
       ;; Do not skip errors that start in the same position as the
       ;; current one.
       (set (make-local-variable 'compilation-skip-to-next-location) nil)
@@ -988,7 +1000,7 @@ The buffer is returned.")
         ;; Hijack the bindings for going to definition in the info
         ;; buffer, away from compilation-mode's, into something that
         ;; can read definition sites from highlighting info.
-        (define-key map (kbd "M-.") 'agda2-info-goto-definition-keyboard)
+        (define-key map (kbd "RET") 'agda2-info-goto-definition-keyboard)
         (define-key map '[mouse-2]  'agda2-info-goto-definition-mouse)
 
         (use-local-map map))

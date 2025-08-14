@@ -269,7 +269,7 @@ instance Pretty LamBinding where
     pretty (DomainFull b) = pretty b
 
 instance Pretty TypedBinding where
-    pretty (TLet _ ds) = parens $ "let" <+> vcat (fmap pretty ds)
+    pretty (TLet _ ds) = parens $ hlKeyword "let" <+> vcat (fmap pretty ds)
     pretty (TBind _ xs (Underscore _ Nothing)) =
       fsep (fmap (pretty . NamedBinding True) xs)
     pretty (TBind _ xs e) = fsep
@@ -457,12 +457,12 @@ instance Pretty Declaration where
     Primitive _ ds  -> namedBlock "primitive" ds
     Generalize _ ds -> namedBlock "variable" ds
     Opaque _ ds     -> namedBlock "opaque" ds
-    Unfolding _ rs  -> "unfolding" <+> braces (fsep (punctuate semi (pretty <$> rs)))
+    Unfolding _ rs  -> hlKeyword "unfolding" <+> braces (fsep (punctuate semi (pretty <$> rs)))
     Module _ erased x tel ds ->
-      hsep [ "module"
+      hsep [ hlKeyword "module"
            , prettyErased erased (pretty x)
            , fsep (map pretty tel)
-           , "where"
+           , hlKeyword "where"
            ] $$ nest 2 (vcat $ map pretty ds)
     ModuleMacro _ NotErased{} x (SectionApp _ [] y es) DoOpen i
       | isNoName x ->
@@ -471,7 +471,7 @@ instance Pretty Declaration where
           , nest 4 $ pretty i
           ]
     ModuleMacro _ erased x (SectionApp _ tel y es) open i ->
-      sep [ pretty open <+> "module" <+>
+      sep [ pretty open <+> hlKeyword "module" <+>
             prettyErased erased (pretty x) <+> fsep (map pretty tel)
           , nest 2 $ fsep $ concat [ [ equals, pretty y ], map pretty es, [ pretty i ] ]
           ]
@@ -500,8 +500,8 @@ instance Pretty Declaration where
 
 pHasEta0 :: HasEta0 -> Doc
 pHasEta0 = \case
-  YesEta   -> "eta-equality"
-  NoEta () -> "no-eta-equality"
+  YesEta   -> hlKeyword "eta-equality"
+  NoEta () -> hlKeyword "no-eta-equality"
 
 instance Pretty RecordDirective where
   pretty = pRecordDirective
@@ -509,12 +509,12 @@ instance Pretty RecordDirective where
 pRecordDirective :: RecordDirective -> Doc
 pRecordDirective = \case
   Induction ind -> pretty (rangedThing ind)
-  Constructor n inst -> hsep [ pInst, "constructor", pretty n ] where
+  Constructor n inst -> hsep [ pInst, hlKeyword "constructor", pretty n ] where
     pInst = case inst of
-      InstanceDef{} -> "instance"
+      InstanceDef{} -> hlKeyword "instance"
       NotInstanceDef{} -> empty
   Eta eta -> pHasEta0 (rangedThing eta)
-  PatternOrCopattern{} -> "pattern"
+  PatternOrCopattern{} -> hlKeyword "pattern"
 
 pRecord
   :: Erased
@@ -526,7 +526,7 @@ pRecord
   -> Doc
 pRecord erased x directives tel me ds = vcat
     [ sep
-      [ hsep  [ "record"
+      [ hsep  [ hlKeyword "record"
               , prettyErased erased (pretty x)
               , fsep (map pretty tel)
               ]
@@ -537,16 +537,12 @@ pRecord erased x directives tel me ds = vcat
       , map pretty ds
       ]
     ]
-  where pType (Just e) = hsep
-                [ ":"
-                , pretty e
-                , "where"
-                ]
-        pType Nothing  =
-                  "where"
+  where
+    pType (Just e) = hsep [ ":" , pretty e , hlKeyword "where" ]
+    pType Nothing  = hlKeyword "where"
 
 instance Pretty OpenShortHand where
-    pretty DoOpen = "open"
+    pretty DoOpen   = hlKeyword "open"
     pretty DontOpen = empty
 
 instance Pretty Pragma where
