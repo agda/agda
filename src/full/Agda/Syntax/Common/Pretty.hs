@@ -387,12 +387,12 @@ parens p       = lparen <> p <> rparen
 brackets p     = lbrack <> p <> rbrack
 braces p       = lbrace <> p <> rbrace
 
-semi, comma, colon, dot, space, equals, lparen, rparen, lbrack, rbrack, lbrace, rbrace :: Doc
+semi, comma, colon, dot, pipe, equals, lparen, rparen, lbrack, rbrack, lbrace, rbrace :: Doc
 semi   = hlSymbol $ char ';'
 comma  = hlSymbol $ char ','
 colon  = hlSymbol $ char ':'
 dot    = hlSymbol $ char '.'
-space  = hlSymbol $ char ' '
+pipe   = hlSymbol $ char '|'
 equals = hlSymbol $ char '='
 lparen = hlSymbol $ char '('
 rparen = hlSymbol $ char ')'
