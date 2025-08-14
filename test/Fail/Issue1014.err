@@ -1,6 +1,6 @@
 Issue1014.agda:19.3-23.83: error: [TerminationIssue]
 Termination checking failed for the following functions:
-  NoWith.bar
+  bar
 Problematic calls:
   Issue1014.NoWith.♯-0
     (at Issue1014.agda:23.28-29)
@@ -9,7 +9,7 @@ Problematic calls:
 
 Issue1014.agda:30.3-34.82: error: [TerminationIssue]
 Termination checking failed for the following functions:
-  CorrectlyRejected.bar'
+  bar'
 Problematic calls:
   bar' A h n An | h n An
   Issue1014.CorrectlyRejected.♯-1
@@ -19,7 +19,7 @@ Problematic calls:
 
 Issue1014.agda:41.3-43.63: error: [TerminationIssue]
 Termination checking failed for the following functions:
-  CorrectlyRejected.bar
+  bar
 Problematic calls:
   bar n An | h n An
   Issue1014.CorrectlyRejected.♯-2
@@ -29,7 +29,7 @@ Problematic calls:
 
 Issue1014.agda:48.3-52.81: error: [TerminationIssue]
 Termination checking failed for the following functions:
-  WasAccepted1.bar
+  bar
 Problematic calls:
   bar A n h An | h n An
   Issue1014.WasAccepted1.♯-3
