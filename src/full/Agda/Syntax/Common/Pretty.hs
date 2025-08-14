@@ -9,6 +9,8 @@ module Agda.Syntax.Common.Pretty
 
 import Prelude hiding (null)
 
+import Control.DeepSeq
+
 import qualified Data.List as List
 import qualified Data.Foldable as Fold
 import qualified Data.IntSet as IntSet
@@ -33,6 +35,7 @@ import Text.PrettyPrint.Annotated hiding
 
   , semi, comma, colon, space, equals, lparen, rparen, lbrack, rbrack
   , lbrace, rbrace
+  , annotate
   )
 
 import Agda.Syntax.Common.Aspect
@@ -294,6 +297,12 @@ prefixedThings kw = \case
 ---------------------------------------------------------------------------
 -- * Annotations
 
+-- | Only adds an annotation node if the 'Aspects' is non-'null'.
+annotate :: Aspects -> Doc -> Doc
+annotate a x
+  | null a    = x
+  | otherwise = rnf a `seq` P.annotate a x
+
 -- | Attach a simple 'Aspect', rather than a full set of 'Aspects', to a
 -- document.
 annotateAspect :: Aspect -> Doc -> Doc
@@ -320,7 +329,11 @@ url s = href (Text.pack s) (text s)
 githubIssue :: Int -> Doc
 githubIssue = url . ("https://github.com/agda/agda/issues/" ++) . show
 
--- ** Syntax highlighting helpers
+-- | Attach the position of something as the "binding site" of a 'Doc'.
+definedAt :: HasRange a => Doc -> a -> Doc
+definedAt doc p = annotate (rangeDefinitionSite p) doc
+
+-- ** Basic syntax highlighting helpers
 
 hlComment, hlSymbol, hlKeyword, hlString, hlNumber, hlHole, hlPrimitiveType, hlPragma
   :: Doc -> Doc
@@ -333,6 +346,30 @@ hlNumber        = annotateAspect Number
 hlHole          = annotateAspect Hole
 hlPrimitiveType = annotateAspect PrimitiveType
 hlPragma        = annotateAspect Pragma
+
+-- ** Helpers introducing 'NameKind's
+
+hlNameKind :: NameKind -> Doc -> Doc
+hlNameKind k = annotateAspect (Name (Just k) False)
+
+hlBound, hlGeneralizable, hlDatatype, hlField,
+  hlFunction, hlModule, hlPostulate, hlPrimitive, hlRecord, hlArgument,
+  hlMacro :: Doc -> Doc
+
+hlBound         = hlNameKind Bound
+hlGeneralizable = hlNameKind Generalizable
+hlDatatype      = hlNameKind Datatype
+hlField         = hlNameKind Field
+hlFunction      = hlNameKind Function
+hlModule        = hlNameKind Module
+hlPostulate     = hlNameKind Postulate
+hlPrimitive     = hlNameKind Primitive
+hlRecord        = hlNameKind Record
+hlArgument      = hlNameKind Argument
+hlMacro         = hlNameKind Macro
+
+hlConstructor :: Induction -> Doc -> Doc
+hlConstructor = hlNameKind . Constructor
 
 ---------------------------------------------------------------------------
 -- * Delimiter wrappers

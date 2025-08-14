@@ -978,12 +978,21 @@ The buffer is returned.")
       ;; Do not skip errors that start in the same position as the
       ;; current one.
       (set (make-local-variable 'compilation-skip-to-next-location) nil)
+
       ;; No support for recompilation. The key binding is removed, and
       ;; attempts to run `recompile' will (hopefully) result in an
       ;; error.
       (let ((map (copy-keymap (current-local-map))))
-        (define-key map (kbd "g") 'undefined)
+        (define-key map (kbd "g")   'undefined)
+
+        ;; Hijack the bindings for going to definition in the info
+        ;; buffer, away from compilation-mode's, into something that
+        ;; can read definition sites from highlighting info.
+        (define-key map (kbd "M-.") 'agda2-info-goto-definition-keyboard)
+        (define-key map '[mouse-2]  'agda2-info-goto-definition-mouse)
+
         (use-local-map map))
+
       (set (make-local-variable 'compile-command)
            'agda2-does-not-support-compilation-via-the-compilation-mode)
 
@@ -1084,7 +1093,7 @@ is inserted, and point is placed before this text."
         ;; (message "text: %s" text)
         ;; (message "length: %i" (length text))
         ;; (message "annotations = %s" annotations)
-        (apply 'annotation-load nil nil text annotations)
+        (apply 'annotation-load "Click to jump to definition" nil text annotations)
         ;; (pp (text-properties-at 0 text))
         (insert text)
         (newline)))
@@ -1928,6 +1937,23 @@ Otherwise, yank (see `mouse-yank-primary')."
     ;; FIXME: Shouldn't we use something like
     ;; (call-interactively (key-binding ev))?  --Stef
     (mouse-yank-primary ev)))
+
+(defun agda2-info-goto-definition-mouse (ev)
+  "While in the information buffer, to the definition site of the name
+clicked on, if any.
+
+Otherwise, invoke `compile-goto'."
+  (interactive "e")
+
+  ;; Always "use other window" because find-file-other-window will reuse
+  ;; an existing window (i.e. the source file buffer) if it exists
+  (unless (and agda2-file-buffer (annotation-goto-indirect ev t))
+    (compile-goto-error ev)))
+
+(defun agda2-info-goto-definition-keyboard ()
+  "As `agda2-info-goto-definition-mouse', but at point."
+  (interactive)
+  (agda2-info-goto-definition-mouse (point)))
 
 (defun agda2-go-back nil
   "Go back to the previous position in which

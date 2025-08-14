@@ -793,6 +793,7 @@ instance ToConcrete A.Expr where
     toConcrete (Proj ProjPrefix p) = KnownIdent Asp.Field <$> toConcrete (headAmbQ p)
     toConcrete (Proj _          p) = C.Dot empty . KnownIdent Asp.Field <$> toConcrete (headAmbQ p)
     toConcrete (A.Macro x)         = KnownIdent Asp.Macro <$> toConcrete x
+    toConcrete (A.PatternSyn n)    = KnownIdent (Asp.Constructor Asp.Inductive) <$> toConcrete (headAmbQ n)
     toConcrete e@(Con c)           = tryToRecoverPatternSyn e $ KnownIdent (Asp.Constructor Inductive) <$> toConcrete (headAmbQ c)
         -- for names we have to use the name from the info, since the abstract
         -- name has been resolved to a fully qualified name (except for
@@ -998,7 +999,6 @@ instance ToConcrete A.Expr where
     -- Andreas, 2010-10-05 print irrelevant things as ordinary things
     toConcrete (A.DontCare e) = C.Dot empty . C.Paren r  <$> toConcrete e
        where r = getRange e
-    toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete (headAmbQ n)
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TBind _ tac (x :| []) t)) =
