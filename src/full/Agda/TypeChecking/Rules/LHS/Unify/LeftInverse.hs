@@ -10,6 +10,8 @@ import Control.Monad
 import Control.Monad.State
 import Control.Monad.Except
 
+import Data.Functor
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -41,6 +43,7 @@ instance PrettyTCM NoLeftInv where
   prettyTCM WithKEnabled       = fwords "The K rule is enabled"
   prettyTCM SplitOnStrict      = fwords "It splits on a type in SSet"
   prettyTCM SplitOnFlat        = fwords "It splits on a @♭ argument"
+  prettyTCM (CantTransport t)  = fsep $ pwords "The type" <> [prettyTCM t] <> pwords "can not be transported"
 
 data NoLeftInv
   = UnsupportedYet {badStep :: UnifyStep}
@@ -50,9 +53,10 @@ data NoLeftInv
   | SplitOnStrict  -- ^ splitting on a Strict Set.
   | SplitOnFlat    -- ^ splitting on a @♭ argument
   | UnsupportedCxt
+  | CantTransport (Closure (Abs Type))
   deriving Show
 
-buildLeftInverse :: (PureTCM tcm, MonadError TCErr tcm) => UnifyState -> UnifyLog -> tcm (Either NoLeftInv (Substitution, Substitution))
+buildLeftInverse :: forall tcm. (PureTCM tcm, MonadError TCErr tcm) => UnifyState -> UnifyLog -> tcm (Either NoLeftInv (Substitution, Substitution))
 buildLeftInverse s0 log = do
   reportSDoc "tc.lhs.unify.inv.badstep" 20 $ do
     cubical <- cubicalOption
@@ -60,58 +64,56 @@ buildLeftInverse s0 log = do
   reportSDoc "tc.lhs.unify.inv.badstep" 20 $ do
     pathp <- getTerm' builtinPathP
     "pathp:" <+> text (show $ isJust pathp)
-  let cond = andM
-       -- TODO: handle open contexts: they happen during "higher dimensional" unification,
-       --       in injectivity cases.
-       [
-         null <$> getContext
-       ]
+  let
+    cond = andM
+      -- TODO: handle open contexts: they happen during "higher dimensional" unification,
+      --       in injectivity cases.
+      [ null <$> getContext
+      ]
+
+    compose :: [(Retract, Term)] -> ExceptT NoLeftInv tcm Retract
+    compose [] = __IMPOSSIBLE__
+    compose [(xs, _)] = pure xs
+    compose ((x, t):xs) = do
+      r <- compose xs
+      ExceptT $ composeRetract x t r <&> \case
+        Left e  -> Left (CantTransport e)
+        Right x -> Right x
+
   ifNotM cond (return $ Left UnsupportedCxt) $ do
   equivs <- forM log $ uncurry buildEquiv
   case sequence equivs of
     Left no -> do
       reportSDoc "tc.lhs.unify.inv.badstep" 20 $ "No Left Inverse:" <+> prettyTCM (badStep no)
       return (Left no)
-    Right xs -> do
-    -- Γ,φ,us =_Δ vs ⊢ τ0 : Γ', φ
-    -- Γ,φ,us =_Δ vs, i : I ⊢ leftInv0 : Γ,φ,us =_Δ vs
-    -- leftInv0 : [wkS |φ,us =_Δ vs| ρ,φ,refls][τ0] = IdS : Γ,φ,us =_Δ vs
-    (tau0,leftInv0) <- case xs of
-      [] -> return (idS,raiseS 1)
-      xs -> do
-        let
-            loop [] = __IMPOSSIBLE__
-            loop [x] = return $ fst x
-            loop (x:xs) = do
-              r <- loop xs
-              uncurry composeRetract x r
-        (_,_,tau,leftInv) <- loop xs
-        return (tau,leftInv)
-    -- Γ,φ,us =_Δ vs ⊢ τ0 : Γ', φ
-    -- leftInv0 : [wkS |φ,us =_Δ vs| ρ,1,refls][τ] = idS : Γ,φ,us =_Δ vs
-    let tau = tau0 `composeS` raiseS 1
-    unview <- intervalUnview'
-    let replaceAt n x xs = xs0 ++ x:xs1
-                where (xs0,_:xs1) = splitAt n xs
-    let max r s = unview $ IMax (argN r) (argN s)
-        neg r = unview $ INeg (argN r)
-    let phieq = neg (var 0) `max` var (size (eqTel s0) + 1)
-                       -- I + us =_Δ vs -- inplaceS
-    let leftInv = termsS __IMPOSSIBLE__ $ replaceAt (size (varTel s0)) phieq $ map (lookupS leftInv0) $ downFrom (size (varTel s0) + 1 + size (eqTel s0))
-    let working_tel = abstract (varTel s0) (ExtendTel __DUMMY_DOM__ $ Abs "phi0" $ (eqTel s0))
-    reportSDoc "tc.lhs.unify.inv" 20 $ "=== before mod"
-    do
-        addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau0    :" <+> prettyTCM tau0
-        addContext working_tel $ addContext ("r" :: String, __DUMMY_DOM__)
-                               $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv0:  " <+> prettyTCM leftInv0
+    Right xs -> runExceptT (compose xs) >>= \case
+      Left no -> return (Left no)
+      Right (_, _, tau0, leftInv0) -> do
+      -- Γ,φ,us =_Δ vs ⊢ τ0 : Γ', φ
+      -- leftInv0 : [wkS |φ,us =_Δ vs| ρ,1,refls][τ] = idS : Γ,φ,us =_Δ vs
+      let tau = tau0 `composeS` raiseS 1
+      unview <- intervalUnview'
+      let replaceAt n x xs = xs0 ++ x:xs1
+                  where (xs0,_:xs1) = splitAt n xs
+      let max r s = unview $ IMax (argN r) (argN s)
+          neg r = unview $ INeg (argN r)
+      let phieq = neg (var 0) `max` var (size (eqTel s0) + 1)
+                        -- I + us =_Δ vs -- inplaceS
+      let leftInv = termsS __IMPOSSIBLE__ $ replaceAt (size (varTel s0)) phieq $ map (lookupS leftInv0) $ downFrom (size (varTel s0) + 1 + size (eqTel s0))
+      let working_tel = abstract (varTel s0) (ExtendTel __DUMMY_DOM__ $ Abs "phi0" $ (eqTel s0))
+      reportSDoc "tc.lhs.unify.inv" 20 $ "=== before mod"
+      do
+          addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau0    :" <+> prettyTCM tau0
+          addContext working_tel $ addContext ("r" :: String, __DUMMY_DOM__)
+                                $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv0:  " <+> prettyTCM leftInv0
 
-    reportSDoc "tc.lhs.unify.inv" 20 $ "=== after mod"
-    do
-        addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM tau
-        addContext working_tel $ addContext ("r" :: String, __DUMMY_DOM__)
-                               $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv:   " <+> prettyTCM leftInv
+      reportSDoc "tc.lhs.unify.inv" 20 $ "=== after mod"
+      do
+          addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM tau
+          addContext working_tel $ addContext ("r" :: String, __DUMMY_DOM__)
+                                $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv:   " <+> prettyTCM leftInv
 
-    return $ Right (tau,leftInv)
+      return $ Right (tau,leftInv)
 
 type Retract = (Telescope, Substitution, Substitution, Substitution)
      -- Γ (the problem, including equalities),
@@ -123,7 +125,7 @@ type Retract = (Telescope, Substitution, Substitution, Substitution)
 termsS ::  DeBruijn a => Impossible -> [a] -> Substitution' a
 termsS e xs = reverse xs ++# EmptyS e
 
-composeRetract :: (PureTCM tcm, MonadError TCErr tcm, MonadDebug tcm,HasBuiltins tcm, MonadAddContext tcm) => Retract -> Term -> Retract -> tcm Retract
+composeRetract :: (PureTCM tcm, MonadError TCErr tcm, MonadDebug tcm, HasBuiltins tcm, MonadAddContext tcm) => Retract -> Term -> Retract -> tcm (Either (Closure (Abs Type)) Retract)
 composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
   reportSDoc "tc.lhs.unify.inv" 20 $ "=== composing"
   reportSDoc "tc.lhs.unify.inv" 20 $ "Γ0   :" <+> prettyTCM prob0
@@ -212,22 +214,16 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
               i <- i
               -- this composition could be optimized further whenever step0i is actually constant in i.
               lift $ runExceptT (map unArg <$> transpSysTel' True tel [(i, leftInv0)] face step0i)
-  leftInv <- case result of
-    Right x  -> pure x
-    Left cl -> do
-      reportSDoc "impossible" 10 $ vcat
-        [ "transpSysTel' errored with term"
-        , prettyTCM cl
-        ]
-      __IMPOSSIBLE__
-
-  let sigma = termsS __IMPOSSIBLE__ $ absBody leftInv
-  verboseS "tc.lhs.unify.inv" 20 do
-    addContext prob0 $ addContext ("r" :: String, __DUMMY_DOM__) do
-      reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv    :" <+> prettyTCM (absBody leftInv)
-      reportSDoc "tc.lhs.unify.inv" 40 $ "leftInv    :" <+> pretty (absBody leftInv)
-      reportSDoc "tc.lhs.unify.inv" 40 $ "leftInvSub :" <+> pretty sigma
-  return (prob, rho, tau, sigma)
+  case result of
+    Left  cl      -> pure (Left cl)
+    Right leftInv -> do
+      let sigma = termsS __IMPOSSIBLE__ $ absBody leftInv
+      verboseS "tc.lhs.unify.inv" 20 do
+        addContext prob0 $ addContext ("r" :: String, __DUMMY_DOM__) do
+          reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv    :" <+> prettyTCM (absBody leftInv)
+          reportSDoc "tc.lhs.unify.inv" 40 $ "leftInv    :" <+> pretty (absBody leftInv)
+          reportSDoc "tc.lhs.unify.inv" 40 $ "leftInvSub :" <+> pretty sigma
+      return $ Right (prob, rho, tau, sigma)
 
 buildEquiv :: forall tcm. (PureTCM tcm, MonadError TCErr tcm) => UnifyLogEntry -> UnifyState -> tcm (Either NoLeftInv (Retract,Term))
 buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = runExceptT $ do
