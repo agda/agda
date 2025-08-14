@@ -323,6 +323,9 @@ cleanOutput' agda pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
       , (T.pack pwd `T.append` ".test", "..")
       , ("/[^ ]*/MAlonzo/Code/", "«path»/MAlonzo/Code/")
       , ("\\.hs(:[[:digit:]]+){2}", ".hs:«line»:«col»")
+      -- Strip NodeJS stack trace & version
+      , ("at .+[(]node:internal[^)]+[)]", "at «NodeJS internals»")
+      , ("Node[.]js v[0-9.]+", "Node.js «NodeJS version»")
       , (T.pack Agda.Version.package, "«Agda-package»")
       -- Andreas, 2021-08-26.  When run with 'cabal test',
       -- Agda.Version.package didn't match, so let's be generous:
