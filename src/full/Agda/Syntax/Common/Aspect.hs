@@ -8,7 +8,7 @@ import Data.Set (Set)
 import Data.Text (Text)
 
 import Agda.Syntax.TopLevelModuleName.Boot (TopLevelModuleName')
-import Agda.Syntax.Position (Range)
+import Agda.Syntax.Position (Range, rangeModule, rStart, Position'(posPos), HasRange(..))
 import Agda.Utils.Maybe ( unionMaybeWith )
 import Agda.Utils.Null ( Null(..) )
 
@@ -35,8 +35,8 @@ data Aspect
   | Markup
       -- ^ Delimiters used to separate the Agda code blocks
       --   from the other contents in literate Agda.
-   | URL Text
-       -- ^ Uniform Resource Locator aka clickable link.
+  | URL Text
+      -- ^ Uniform Resource Locator aka clickable link.
   deriving (Eq, Show, Generic)
 
 -- | @NameKind@s are figured out during scope checking.
@@ -195,3 +195,32 @@ instance NFData NameKind where
     Record        -> ()
     Argument      -> ()
     Macro         -> ()
+
+-- | Compute the 'Aspects' which (possibly) contain a 'DefinitionSite'
+-- for the given thing-with-range.
+rangeDefinitionSite :: HasRange a => a -> Aspects
+rangeDefinitionSite thing = do
+  let
+    r = getRange thing
+
+    defs :: Maybe DefinitionSite
+    defs = do
+      mod <- rangeModule r
+      pos <- posPos <$> rStart r
+      pure DefinitionSite
+        { defSiteModule = mod
+        , defSitePos    = fromIntegral pos
+        , defSiteHere   = False
+        , defSiteAnchor = Nothing
+        }
+  empty{ definitionSite = defs }
+
+------------------------------------------------------------------------
+-- NFData instances
+
+instance NFData Aspect
+instance NFData OtherAspect
+instance NFData DefinitionSite
+
+instance NFData Aspects where
+  rnf (Aspects a b c d _) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d

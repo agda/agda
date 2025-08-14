@@ -496,11 +496,10 @@ instance PrettyTCM TypeError where
       ]
       where
         kindOfData :: DataOrRecordE -> String
-        kindOfData IsData                                                          = "datatype"
-        kindOfData (IsRecord InductionAndEta {recordInduction=Nothing})            = "record type"
-        kindOfData (IsRecord InductionAndEta {recordInduction=(Just Inductive)})   =  "inductive record type"
-        kindOfData (IsRecord InductionAndEta {recordInduction=(Just CoInductive)}) = "coinductive record type"
-
+        kindOfData IsData                                                        = "datatype"
+        kindOfData (IsRecord InductionAndEta {recordInduction=Nothing})          = "record type"
+        kindOfData (IsRecord InductionAndEta {recordInduction=Just Inductive})   = "inductive record type"
+        kindOfData (IsRecord InductionAndEta {recordInduction=Just CoInductive}) = "coinductive record type"
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"

@@ -19,10 +19,12 @@ import qualified Data.Set as Set
 import Data.Maybe
 import Data.String    ()
 import Data.Text      (Text)
+import Data.Functor
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty ( Pretty, prettyShow )
+import qualified Agda.Syntax.Common.Aspect as Asp
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Fixity
 import Agda.Syntax.Internal
@@ -178,6 +180,38 @@ superscript = pretty . reverse . go where
     | k <= 9    = [digit k]
     | otherwise = digit (k `mod` 10):go (k `div` 10)
 
+hlBound, hlGeneralizable, hlDatatype, hlField,
+  hlFunction, hlModule, hlPostulate, hlPrimitive, hlRecord, hlArgument,
+  hlMacro :: Functor m => m Doc -> m Doc
+
+hlBound         = fmap P.hlBound
+hlGeneralizable = fmap P.hlGeneralizable
+hlDatatype      = fmap P.hlDatatype
+hlField         = fmap P.hlField
+hlFunction      = fmap P.hlFunction
+hlModule        = fmap P.hlModule
+hlPostulate     = fmap P.hlPostulate
+hlPrimitive     = fmap P.hlPrimitive
+hlRecord        = fmap P.hlRecord
+hlArgument      = fmap P.hlArgument
+hlMacro         = fmap P.hlMacro
+
+hlConstructor :: Functor m => Induction -> m Doc -> m Doc
+hlConstructor = fmap . P.hlConstructor
+
+{-# SPECIALISE hlBound         :: TCM Doc -> TCM Doc #-}
+{-# SPECIALISE hlGeneralizable :: TCM Doc -> TCM Doc #-}
+{-# SPECIALISE hlDatatype      :: TCM Doc -> TCM Doc #-}
+{-# SPECIALISE hlField         :: TCM Doc -> TCM Doc #-}
+{-# SPECIALISE hlFunction      :: TCM Doc -> TCM Doc #-}
+{-# SPECIALISE hlModule        :: TCM Doc -> TCM Doc #-}
+{-# SPECIALISE hlPostulate     :: TCM Doc -> TCM Doc #-}
+{-# SPECIALISE hlPrimitive     :: TCM Doc -> TCM Doc #-}
+{-# SPECIALISE hlRecord        :: TCM Doc -> TCM Doc #-}
+{-# SPECIALISE hlArgument      :: TCM Doc -> TCM Doc #-}
+{-# SPECIALISE hlMacro         :: TCM Doc -> TCM Doc #-}
+{-# SPECIALISE hlConstructor   :: Induction -> TCM Doc -> TCM Doc #-}
+
 ---------------------------------------------------------------------------
 -- * The PrettyTCM class
 ---------------------------------------------------------------------------
@@ -245,13 +279,47 @@ instance PrettyTCM Polarity           where prettyTCM = text . show             
 instance PrettyTCM IsForced           where prettyTCM = text . show               ; {-# SPECIALIZE prettyTCM :: IsForced          -> TCM Doc #-}
 
 instance PrettyTCM Name         where prettyTCM = fmap P.pretty . abstractToConcrete_ ; {-# SPECIALIZE prettyTCM :: Name          -> TCM Doc #-}
-instance PrettyTCM QName        where prettyTCM = fmap P.pretty . abstractToConcrete_ ; {-# SPECIALIZE prettyTCM :: QName         -> TCM Doc #-}
-instance PrettyTCM ModuleName   where prettyTCM = fmap P.pretty . abstractToConcrete_ ; {-# SPECIALIZE prettyTCM :: ModuleName    -> TCM Doc #-}
 
 instance PrettyTCM AbstractName where prettyTCM = prettyTCM . anameName           ; {-# SPECIALIZE prettyTCM :: AbstractName -> TCM Doc #-}
 instance PrettyTCM ConHead      where prettyTCM = prettyTCM . conName             ; {-# SPECIALIZE prettyTCM :: ConHead      -> TCM Doc #-}
 instance PrettyTCM DBPatVar     where prettyTCM = prettyTCM . var . dbPatVarIndex ; {-# SPECIALIZE prettyTCM :: DBPatVar     -> TCM Doc #-}
 instance PrettyTCM EqualityView where prettyTCM = prettyTCM . equalityUnview      ; {-# SPECIALIZE prettyTCM :: EqualityView -> TCM Doc #-}
+
+instance PrettyTCM ModuleName where
+  prettyTCM x =
+    let
+      def = case mnameToList x of
+        [] -> id
+        xs -> flip P.definedAt (nameBindingSite (last xs))
+    in fmap (P.hlModule . def . P.pretty) $ abstractToConcrete_ x
+
+{-# SPECIALIZE prettyTCM :: ModuleName    -> TCM Doc #-}
+
+-- | Automatically highlights the resulting document with the correct
+-- name kind.
+instance PrettyTCM QName where
+  prettyTCM x = do
+    nk <- getConstInfo' x <&> \case
+      Left  _ -> Nothing
+      Right d -> Just (defnToNameKind (theDef d))
+    fmap (flip P.definedAt (nameBindingSite (qnameName x)) . maybe id P.hlNameKind nk . P.pretty) (abstractToConcrete_ x)
+
+  {-# SPECIALIZE prettyTCM :: QName         -> TCM Doc #-}
+
+defnToNameKind :: Defn -> Asp.NameKind
+defnToNameKind   Axiom{}                      = Asp.Postulate
+defnToNameKind   DataOrRecSig{}               = Asp.Postulate
+defnToNameKind   GeneralizableVar{}           = Asp.Generalizable
+defnToNameKind d@Function{}
+  | isProperProjection d                      = Asp.Field
+  | isMacro d                                 = Asp.Macro          -- AIM XL, issue #7324
+  | otherwise                                 = Asp.Function
+defnToNameKind   Datatype{}                   = Asp.Datatype
+defnToNameKind   Record{}                     = Asp.Record
+defnToNameKind   Constructor{ conSrcCon = c } = Asp.Constructor $ conInductive c
+defnToNameKind   Primitive{}                  = Asp.Primitive
+defnToNameKind   PrimitiveSort{}              = Asp.Primitive
+defnToNameKind   AbstractDefn{}               = Asp.Function
 
 -- Functors
 

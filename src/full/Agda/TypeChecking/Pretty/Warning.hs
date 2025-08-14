@@ -122,7 +122,7 @@ prettyWarning = \case
               [ fwords "Termination checking failed for the following functions:"
               , fwords hint
               , nest 2 $ fsep $ punctuate comma $
-                  map (pretty . dropTopLevel) $
+                  map (prettyTCM . dropTopLevel) $
                     concatMap termErrFunctions because
               , fwords "Problematic calls:"
               , nest 2 $ fmap (P.vcat . List.nub) $
