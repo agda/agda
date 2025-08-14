@@ -1,0 +1,16 @@
+EXECUTED_PROGRAM
+
+ret > ExitFailure 1
+err > file:///jAgda.Issue7532-obfuscated-js.mjs:9
+err > exports["go"] = a => b => b(a(null));
+err >                             ^
+err >
+err > TypeError: a is not a function
+err >     at file:///jAgda.Issue7532-obfuscated-js.mjs:9:29
+err >     at file:///jAgda.Issue7532-obfuscated-js.mjs:10:39
+err >     at «NodeJS internals»
+err >     at «NodeJS internals»
+err >     at «NodeJS internals»
+err >
+err > Node.js «NodeJS version»
+err >
