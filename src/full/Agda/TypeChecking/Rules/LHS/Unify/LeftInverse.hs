@@ -43,7 +43,7 @@ instance PrettyTCM NoLeftInv where
   prettyTCM WithKEnabled       = fwords "The K rule is enabled"
   prettyTCM SplitOnStrict      = fwords "It splits on a type in SSet"
   prettyTCM SplitOnFlat        = fwords "It splits on a @♭ argument"
-  prettyTCM (CantTransport t)  = fsep $ pwords "The type" <> [prettyTCM t] <> pwords "can not be transported."
+  prettyTCM (CantTransport t)  = fsep $ pwords "The type" <> [prettyTCM t] <> pwords "can not be transported"
 
 data NoLeftInv
   = UnsupportedYet {badStep :: UnifyStep}
