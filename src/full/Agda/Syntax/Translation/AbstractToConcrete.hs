@@ -785,15 +785,51 @@ addSuffixConcrete' glyphMode i = set (C.lensQNameName . nameSuffix) suffix
 
 -- Expression instance ----------------------------------------------------
 
+class NameAspects a where
+  -- | Wrap the given 'Asp.NameKind' into an 'Asp.Aspects' which
+  -- contains extra information generically derived (e.g. binding site)
+  -- from the name.
+  nameAspects
+    :: Bool         -- ^ Is this an operator part?
+    -> Asp.NameKind -- ^ Specific syntax-highlighting information
+    -> a            -- ^ The name
+    -> Asp.Aspects
+
+instance NameAspects A.Name where
+  nameAspects opp nk qn = (Asp.rangeDefinitionSite (nameBindingSite qn))
+    { Asp.tokenBased     = Asp.NotOnlyTokenBased
+    , Asp.aspect         = Just (Asp.Name (Just nk) opp)
+    }
+
+instance NameAspects A.QName where
+  nameAspects opp nk = nameAspects opp nk . qnameName
+
+-- | Only adds a binding site if the name is unambiguous.
+instance NameAspects A.AmbiguousQName where
+  nameAspects op nk amb
+    | Just q <- A.getUnambiguous amb = nameAspects op nk (qnameName q)
+
+  nameAspects op nk amb = empty
+    { Asp.tokenBased = Asp.NotOnlyTokenBased
+    , Asp.aspect     = Just (Asp.Name (Just nk) False)
+    }
+
+knownIdent :: NameAspects a => Asp.NameKind -> a -> C.QName -> C.Expr
+knownIdent nk a c = C.KnownIdent (nameAspects False nk a) c
+
 instance ToConcrete A.Expr where
     type ConOfAbs A.Expr = C.Expr
 
-    toConcrete (Var x)             = KnownIdent Asp.Bound . C.QName <$> toConcrete x
-    toConcrete (Def' x suffix)     = KnownIdent Asp.Function <$> addSuffixConcrete suffix (toConcrete x)
-    toConcrete (Proj ProjPrefix p) = KnownIdent Asp.Field <$> toConcrete (headAmbQ p)
-    toConcrete (Proj _          p) = C.Dot empty . KnownIdent Asp.Field <$> toConcrete (headAmbQ p)
-    toConcrete (A.Macro x)         = KnownIdent Asp.Macro <$> toConcrete x
-    toConcrete e@(Con c)           = tryToRecoverPatternSyn e $ KnownIdent (Asp.Constructor Inductive) <$> toConcrete (headAmbQ c)
+    toConcrete (Var x)             = knownIdent Asp.Bound x . C.QName      <$> toConcrete x
+    toConcrete (Def' x suffix)     = knownIdent Asp.Function (qnameName x) <$> addSuffixConcrete suffix (toConcrete x)
+    toConcrete (Proj ProjPrefix p) = knownIdent Asp.Field    p             <$> toConcrete (headAmbQ p)
+    toConcrete (Proj _          p) = C.Dot empty . knownIdent Asp.Field p  <$> toConcrete (headAmbQ p)
+    toConcrete (A.Macro x)         = knownIdent Asp.Macro (qnameName x)    <$> toConcrete x
+    toConcrete (A.PatternSyn n)    = knownIdent (Asp.Constructor Inductive) n <$> toConcrete (headAmbQ n)
+
+    toConcrete e@(Con c) = tryToRecoverPatternSyn e $
+      knownIdent (Asp.Constructor Inductive) c <$> toConcrete (headAmbQ c)
+
         -- for names we have to use the name from the info, since the abstract
         -- name has been resolved to a fully qualified name (except for
         -- variables)
@@ -810,7 +846,7 @@ instance ToConcrete A.Expr where
     toConcrete (A.QuestionMark i ii) = do
       preserve <- asks preserveIIds
       return $ C.QuestionMark (getRange i) $
-                 interactionId ii <$ guard (preserve || isJust (metaNumber i))
+        interactionId ii <$ guard (preserve || isJust (metaNumber i))
 
     toConcrete (A.Underscore i) =
       C.Underscore (getRange i) <$>
@@ -998,7 +1034,6 @@ instance ToConcrete A.Expr where
     -- Andreas, 2010-10-05 print irrelevant things as ordinary things
     toConcrete (A.DontCare e) = C.Dot empty . C.Paren r  <$> toConcrete e
        where r = getRange e
-    toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete (headAmbQ n)
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TBind _ tac (x :| []) t)) =
@@ -1659,7 +1694,7 @@ getHead (Con c)          = Just (HdCon $ headAmbQ c)
 getHead (A.PatternSyn n) = Just (HdSyn $ headAmbQ n)
 getHead _                = Nothing
 
-cOpApp :: Asp.NameKind -> Range -> C.QName -> A.Name -> List1 (MaybeSection C.Expr) -> C.Expr
+cOpApp :: Asp.Aspects -> Range -> C.QName -> A.Name -> List1 (MaybeSection C.Expr) -> C.Expr
 cOpApp nk r x n es =
   C.KnownOpApp nk r x (singleton n) $
   fmap (defaultNamedArg . placeholder) $
@@ -1739,7 +1774,7 @@ tryToRecoverOpAppP p = do
 recoverOpApp :: forall a c m. (ToConcrete a, c ~ ConOfAbs a, HasRange c, MonadToConcrete m)
   => ((PrecedenceStack -> Bool) -> m c -> m c)
   -> (a -> Bool)  -- ^ Check for lambdas
-  -> (Asp.NameKind -> Range -> C.QName -> A.Name -> List1 (MaybeSection c) -> c)  -- ^ @opApp@
+  -> (Asp.Aspects -> Range -> C.QName -> A.Name -> List1 (MaybeSection c) -> c)  -- ^ @opApp@
   -> (a -> Maybe (Hd, [NamedArg (MaybeSection (AppInfo, a))]))
   -> a
   -> m (Maybe c)
@@ -1782,9 +1817,9 @@ recoverOpApp bracket isLam opApp view e = case view e of
       PatternSynResName (q :| _) -> (q ^. lensFixity, Asp.Constructor Asp.Inductive)
       UnknownName                -> (noFixity, Asp.Bound)
     List1.ifNull args {-then-} mDefault {-else-} $ \ as ->
-      doQName nk fx x n' as (C.nameParts $ C.unqualify x)
+      doQName (nameAspects True nk n') fx x n' as (C.nameParts $ C.unqualify x)
 
-  doQName :: MonadToConcrete m => Asp.NameKind -> Fixity -> C.QName -> A.Name -> List1 (MaybeSection (AppInfo, a)) -> NameParts -> m (Maybe c)
+  doQName :: MonadToConcrete m => Asp.Aspects -> Fixity -> C.QName -> A.Name -> List1 (MaybeSection (AppInfo, a)) -> NameParts -> m (Maybe c)
 
   -- fall-back (wrong number of arguments or no holes)
   doQName nk _ x _ as xs

@@ -1,3 +1,4 @@
+
 Issue6795.agda:13.3-22: warning: -W[no]UselessPragma
 Termination pragmas are ignored in where clauses
 (see https://github.com/agda/agda/issues/3355)
@@ -73,19 +74,19 @@ Problematic calls:
 
 Issue6795.agda:35.1-38.8: error: [TerminationIssue]
 Termination checking failed for the following functions:
-  I.i
+  i
 Problematic calls:
   i (at Issue6795.agda:38.7-8)
 
 Issue6795.agda:58.1-62.10: error: [TerminationIssue]
 Termination checking failed for the following functions:
-  M.m
+  m
 Problematic calls:
   m (at Issue6795.agda:62.9-10)
 
 Issue6795.agda:64.1-68.10: error: [TerminationIssue]
 Termination checking failed for the following functions:
-  N.n
+  n
 Problematic calls:
   n (at Issue6795.agda:68.9-10)
 
