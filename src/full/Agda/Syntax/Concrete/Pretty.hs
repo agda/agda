@@ -282,7 +282,7 @@ instance Pretty TypedBinding where
         $ prettyPolarity y
         $ prettyTactic (binderName $ namedArg y) $
         sep [ fsep (map (pretty . NamedBinding False) ys)
-            , ":" <+> pretty e ]
+            , colon <+> pretty e ]
       | ys@(y : _) <- groupBinds $ List1.toList xs ]
       where
         groupBinds [] = []
@@ -376,7 +376,7 @@ instance Pretty Declaration where
   prettyList = vcat . map pretty
   pretty = \case
     TypeSig i tac x e ->
-      sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ prettyPolarity i $ pretty x <+> ":"
+      sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ prettyPolarity i $ pretty x <+> colon
           , nest 2 $ pretty e
           ]
     FieldSig inst tac x (Arg i e) ->
@@ -433,7 +433,7 @@ instance Pretty Declaration where
                   , fsep (map pretty tel)
                   ]
           , nest 2 $ hsep
-                  [ hlSymbol ":"
+                  [ colon
                   , pretty e
                   ]
           ]
@@ -538,7 +538,7 @@ pRecord erased x directives tel me ds = vcat
       ]
     ]
   where
-    pType (Just e) = hsep [ ":" , pretty e , hlKeyword "where" ]
+    pType (Just e) = hsep [ colon, pretty e, hlKeyword "where" ]
     pType Nothing  = hlKeyword "where"
 
 instance Pretty OpenShortHand where
