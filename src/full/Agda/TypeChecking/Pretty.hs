@@ -293,7 +293,7 @@ instance PrettyTCM ModuleName where
         xs -> flip P.definedAt (nameBindingSite (last xs))
     in fmap (P.hlModule . def . P.pretty) $ abstractToConcrete_ x
 
-{-# SPECIALIZE prettyTCM :: ModuleName    -> TCM Doc #-}
+  {-# SPECIALIZE prettyTCM :: ModuleName -> TCM Doc #-}
 
 -- | Automatically highlights the resulting document with the correct
 -- name kind.
@@ -304,11 +304,12 @@ instance PrettyTCM QName where
       Right d -> Just (defnToNameKind (theDef d))
     fmap (flip P.definedAt (nameBindingSite (qnameName x)) . maybe id P.hlNameKind nk . P.pretty) (abstractToConcrete_ x)
 
-  {-# SPECIALIZE prettyTCM :: QName         -> TCM Doc #-}
+  {-# SPECIALIZE prettyTCM :: QName -> TCM Doc #-}
 
 defnToNameKind :: Defn -> Asp.NameKind
 defnToNameKind   Axiom{}                      = Asp.Postulate
 defnToNameKind   DataOrRecSig{}               = Asp.Postulate
+  -- TODO: ^ maybe break down into Data/Record?
 defnToNameKind   GeneralizableVar{}           = Asp.Generalizable
 defnToNameKind d@Function{}
   | isProperProjection d                      = Asp.Field
