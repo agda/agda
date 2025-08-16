@@ -142,7 +142,7 @@ encode a = do
 
   pure (root, nodeA, stringA, lTextA, sTextA, integerA, varSetA, doubleA)
   where
-    toArray :: H.HashTable k Word32 -> IO (AL.Array k)
+    toArray :: H.HashTableLU k Word32 -> IO (AL.Array k)
     toArray tbl = do
       size <- H.size tbl
       arr <- ML.new size undefined

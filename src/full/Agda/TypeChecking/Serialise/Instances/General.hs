@@ -117,11 +117,11 @@ instance {-# OVERLAPPING #-} EmbPrj String where
   value i = flip AL.unsafeIndex (fromIntegral i) <$!> asks stringA
 
 instance EmbPrj TL.Text where
-  icod_   = icodeX lTextD lTextC
+  icod_   = icodeLText
   value i = flip AL.index (fromIntegral i) <$!> asks lTextA
 
 instance EmbPrj T.Text where
-  icod_   = icodeX sTextD sTextC
+  icod_   = icodeSText
   value i = flip AL.index (fromIntegral i) <$!> asks sTextA
 
 ---------------------------------------------------------------------------

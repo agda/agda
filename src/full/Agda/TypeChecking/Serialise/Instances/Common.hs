@@ -112,13 +112,10 @@ instance EmbPrj RangeFile where
         let !fp = getIdFile (fileDict mf) i
         !fpmemo <- asks filePathMemo
         !arena  <- asks arena
-        liftIO $ H.lookup fpmemo fp >>= \case
-          Nothing -> do
-            !fp <- Compact.add arena fp
-            H.insert fpmemo fp fp
-            pure $ RangeFile fp (Just m)
-          Just fp ->
-            pure $ RangeFile fp (Just m)
+        liftIO $ H.insertingIfAbsent fpmemo fp
+          (\fp -> pure $ RangeFile fp (Just m))
+          (Compact.add arena fp)
+          (\fp -> pure $ RangeFile fp (Just m))
 
 -- | Ranges are always deserialised as 'noRange'.
 

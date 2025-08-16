@@ -7,6 +7,7 @@
 {-# LANGUAGE RoleAnnotations      #-}
 
 {-# OPTIONS_GHC -Wunused-imports #-}
+-- {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures #-}
 
 {-
 András, 2023-10-2:
@@ -58,7 +59,7 @@ import Agda.TypeChecking.Monad.Base.Types (ModuleToSource)
 import Agda.TypeChecking.Serialise.Node
 
 import Agda.Utils.FileName
-import Agda.Utils.HashTable (HashTable)
+import Agda.Utils.HashTable (HashTableLU, HashTableLL)
 import qualified Agda.Utils.HashTable as H
 import Agda.Utils.IORef
 import Agda.Utils.List1 (List1)
@@ -168,19 +169,19 @@ qnameId (QName (MName ns) n) = map nameId $ n:ns
 -- | State of the the encoder.
 data Dict = Dict
   -- Dictionaries which are serialized:
-  { nodeD        :: !(HashTable Node    Word32)    -- ^ Written to interface file.
-  , stringD      :: !(HashTable String  Word32)    -- ^ Written to interface file.
-  , lTextD       :: !(HashTable TL.Text Word32)    -- ^ Written to interface file.
-  , sTextD       :: !(HashTable T.Text  Word32)    -- ^ Written to interface file.
-  , integerD     :: !(HashTable Integer Word32)    -- ^ Written to interface file.
-  , varSetD      :: !(HashTable VarSet Word32)    -- ^ Written to interface file.
-  , doubleD      :: !(HashTable Double  Word32)    -- ^ Written to interface file.
+  { nodeD        :: !(HashTableLU Node    Word32)    -- ^ Written to interface file.
+  , stringD      :: !(HashTableLU String  Word32)    -- ^ Written to interface file.
+  , lTextD       :: !(HashTableLU TL.Text Word32)    -- ^ Written to interface file.
+  , sTextD       :: !(HashTableLU T.Text  Word32)    -- ^ Written to interface file.
+  , integerD     :: !(HashTableLU Integer Word32)    -- ^ Written to interface file.
+  , varSetD      :: !(HashTableLU VarSet Word32)    -- ^ Written to interface file.
+  , doubleD      :: !(HashTableLU Double  Word32)    -- ^ Written to interface file.
   -- Dicitionaries which are not serialized, but provide
   -- short cuts to speed up serialization:
   -- Andreas, Makoto, AIM XXI
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
-  , nameD        :: !(HashTable NameId  Word32)    -- ^ Not written to interface file.
-  , qnameD       :: !(HashTable QNameId Word32)    -- ^ Not written to interface file.
+  , nameD        :: !(HashTableLU NameId  Word32)    -- ^ Not written to interface file.
+  , qnameD       :: !(HashTableLU QNameId Word32)    -- ^ Not written to interface file.
   -- Fresh UIDs and reuse statistics:
   , nodeC        :: !FreshAndReuse  -- counters for fresh indexes
   , stringC      :: !FreshAndReuse
@@ -192,7 +193,7 @@ data Dict = Dict
   , termC        :: !FreshAndReuse
   , nameC        :: !FreshAndReuse
   , qnameC       :: !FreshAndReuse
-  , stats        :: !(HashTable String Int)
+  , stats        :: !(HashTableLU String Int)
   , collectStats :: !Bool
     -- ^ If @True@ collect in @stats@ the quantities of
     --   calls to @icode@ for each @Typeable a@.
@@ -240,7 +241,7 @@ data Decode = Decode
   , varSetA   :: !(AL.Array VarSet)      -- ^ Obtained from interface.
   , doubleA   :: !(AL.Array Double)      -- ^ Obtained from interface.
 
-  , filePathMemo :: !(HashTable AbsolutePath AbsolutePath)
+  , filePathMemo :: !(HashTableLL AbsolutePath AbsolutePath)
     -- ^ Memoizes filepaths computed for RangeFile-s.
   , modFile   :: !(IORef ModuleToSource)
     -- ^ Maps module names to file names. Constructed by the decoder.
@@ -307,159 +308,149 @@ tickICode :: forall a. Typeable a => a -> S ()
 tickICode _ = whenM (asks collectStats) $ goTickIcode (Proxy :: Proxy a)
 {-# INLINE tickICode #-}
 
--- Specializing icodeX leads to Warning like
--- src/full/Agda/TypeChecking/Serialise.hs:1297:1: Warning:
---     RULE left-hand side too complicated to desugar
---       case cobox_aQY5 of _ [Occ=Dead] { ghc-prim:GHC.Types.Eq# cobox ->
---       icodeX @ String $dEq_aQY3 $dHashable_aQY4
---       }
---
--- type ICodeX k
---   =  (Dict -> HashTable k Word32)
---   -> (Dict -> IORef Word32)
---   -> k -> S Word32
--- {-# SPECIALIZE icodeX :: ICodeX String  #-}
--- {-# SPECIALIZE icodeX :: ICodeX Integer #-}
--- {-# SPECIALIZE icodeX :: ICodeX Double  #-}
--- {-# SPECIALIZE icodeX :: ICodeX Node    #-}
-
--- Andreas, 2014-10-16 AIM XX:
--- Inlining this increases Serialization time by 10%
--- Makoto's theory: code size increase might lead to
--- instruction cache misses.
--- {-# INLINE icodeX #-}
-icodeX :: (Eq k, Hashable k)
-  => (Dict -> HashTable k Word32)
-  -> (Dict -> FreshAndReuse)
-  -> k -> S Word32
-icodeX dict counter key = do
-  d <- asks dict
-  c <- asks counter
-  liftIO $ do
-    mi <- H.lookup d key
-    case mi of
-      Just i  -> do
+icodeLText :: TL.Text -> S Word32
+icodeLText key = do
+  d <- asks lTextD
+  c <- asks lTextC
+  liftIO $
+    H.insertingIfAbsent d key
+      (\i -> do
 #ifdef DEBUG_SERIALISATION
-        liftIO $ bumpReuse c
+        bumpReuse c
 #endif
-        return $! i
-      Nothing -> do
-        !fresh <- liftIO $ bumpFresh c
-        H.insert d key fresh
-        return fresh
+        pure i)
+      (bumpFresh c)
+      pure
 
--- Instead of inlining icodeX, we manually specialize it to
--- its five uses: Integer, VarSet, String, Double, Node.
--- Not a great gain (hardly noticeable), but not harmful.
+icodeSText :: T.Text -> S Word32
+icodeSText key = do
+  d <- asks sTextD
+  c <- asks sTextC
+  liftIO $
+    H.insertingIfAbsent d key
+      (\i -> do
+#ifdef DEBUG_SERIALISATION
+        bumpReuse c
+#endif
+        pure i)
+      (bumpFresh c)
+      pure
 
 icodeInteger :: Integer -> S Word32
 icodeInteger key = do
   d <- asks integerD
   c <- asks integerC
-  liftIO $ do
-    mi <- H.lookup d key
-    case mi of
-      Just i  -> do
+  liftIO $
+    H.insertingIfAbsent d key
+      (\i -> do
 #ifdef DEBUG_SERIALISATION
-        liftIO $ bumpReuse c
+        bumpReuse c
 #endif
-        return $! i
-      Nothing -> do
-        !fresh <- liftIO $ bumpFresh c
-        H.insert d key fresh
-        return fresh
+        pure i)
+      (bumpFresh c)
+      pure
 
 icodeVarSet :: VarSet -> S Word32
 icodeVarSet key = do
   d <- asks varSetD
   c <- asks varSetC
-  liftIO $ do
-    mi <- H.lookup d key
-    case mi of
-      Just i  -> do
+  liftIO $
+    H.insertingIfAbsent d key
+      (\i -> do
 #ifdef DEBUG_SERIALISATION
-        liftIO $ bumpReuse c
+        bumpReuse c
 #endif
-        return $! i
-      Nothing -> do
-        !fresh <- liftIO $ bumpFresh c
-        H.insert d key fresh
-        return fresh
+        pure i)
+      (bumpFresh c)
+      pure
 
 icodeDouble :: Double -> S Word32
 icodeDouble key = do
   d <- asks doubleD
   c <- asks doubleC
-  liftIO $ do
-    mi <- H.lookup d key
-    case mi of
-      Just i  -> do
+  liftIO $
+    H.insertingIfAbsent d key
+      (\i -> do
 #ifdef DEBUG_SERIALISATION
-        liftIO $ bumpReuse c
+        bumpReuse c
 #endif
-        return $! i
-      Nothing -> do
-        !fresh <- liftIO $ bumpFresh c
-        H.insert d key fresh
-        return fresh
+        pure i)
+      (bumpFresh c)
+      pure
 
 icodeString :: String -> S Word32
 icodeString key = do
   d <- asks stringD
   c <- asks stringC
-  liftIO $ do
-    mi <- H.lookup d key
-    case mi of
-      Just i  -> do
+  liftIO $
+    H.insertingIfAbsent d key
+      (\i -> do
 #ifdef DEBUG_SERIALISATION
-        liftIO $ bumpReuse c
+        bumpReuse c
 #endif
-        return i
-      Nothing -> do
-        !fresh <- liftIO $ bumpFresh c
-        H.insert d key fresh
-        return fresh
+        pure i)
+      (bumpFresh c)
+      pure
 
 icodeNode :: Node -> S Word32
 icodeNode key = do
   d <- asks nodeD
   c <- asks nodeC
-  liftIO $ do
-    mi <- H.lookup d key
-    case mi of
-      Just i  -> do
+  liftIO $
+    H.insertingIfAbsent d key
+      (\i -> do
 #ifdef DEBUG_SERIALISATION
-        liftIO $ bumpReuse c
+        bumpReuse c
 #endif
-        return $! i
-      Nothing -> do
-        !fresh <- liftIO $ bumpFresh c
-        H.insert d key fresh
-        return fresh
+        pure i)
+      (bumpFresh c)
+      pure
+
 
 -- | @icode@ only if thing has not been seen before.
 icodeMemo
   :: (Ord a, Hashable a)
-  => (Dict -> HashTable a Word32)    -- ^ Memo structure for thing of key @a@.
+  => (Dict -> HashTableLU a Word32)    -- ^ Memo structure for thing of key @a@.
   -> (Dict -> FreshAndReuse)         -- ^ Counter and statistics.
   -> a        -- ^ Key to the thing.
   -> S Word32  -- ^ Fallback computation to encode the thing.
   -> S Word32  -- ^ Encoded thing.
-icodeMemo getDict getCounter a icodeP = do
-    h  <- asks getDict
-    mi <- liftIO $ H.lookup h a
-    c  <- asks getCounter
-    case mi of
-      Just i  -> liftIO $ do
+icodeMemo getDict getCounter a icodeP = ReaderT \dict -> do
+  let !c = getCounter dict
+      !d = getDict dict
+  H.insertingIfAbsent d a
+    (\i -> do
 #ifdef DEBUG_SERIALISATION
-        liftIO $ bumpReuse c
+        bumpReuse c
 #endif
-        return $! i
-      Nothing -> do
-        !fresh <- liftIO $ bumpFresh c
-        !i <- icodeP
-        liftIO $ H.insert h a i
-        return i
+        pure i)
+    (do _ <- bumpFresh c
+        runReaderT icodeP dict)
+    pure
+{-# INLINE icodeMemo #-}
+
+-- icodeMemo
+--   :: (Ord a, Hashable a)
+--   => (Dict -> HashTable a Word32)    -- ^ Memo structure for thing of key @a@.
+--   -> (Dict -> FreshAndReuse)         -- ^ Counter and statistics.
+--   -> a        -- ^ Key to the thing.
+--   -> S Word32  -- ^ Fallback computation to encode the thing.
+--   -> S Word32  -- ^ Encoded thing.
+-- icodeMemo getDict getCounter a icodeP = do
+--     h  <- asks getDict
+--     mi <- liftIO $ H.lookup h a
+--     c  <- asks getCounter
+--     case mi of
+--       Just i  -> liftIO $ do
+-- #ifdef DEBUG_SERIALISATION
+--         liftIO $ bumpReuse c
+-- #endif
+--         return $! i
+--       Nothing -> do
+--         !fresh <- liftIO $ bumpFresh c
+--         !i <- icodeP
+--         liftIO $ H.insert h a i
+--         return i
 
 {-# INLINE vcase #-}
 -- | @vcase value ix@ decodes thing represented by @ix :: Word32@
