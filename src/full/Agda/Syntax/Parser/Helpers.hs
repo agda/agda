@@ -242,7 +242,7 @@ recoverLayout xs@((i, _) : _) = go (iStart i) xs
     go _cur [] = ""
     go cur ((i, s) : xs) = padding cur (iStart i) ++ s ++ go (iEnd i) xs
 
-    padding Pn{ posLine = l1, posCol = c1 } Pn{ posLine = l2, posCol = c2 }
+    padding (Pn _ _ l1 c1) (Pn _ _ l2 c2)
       | l1 < l2   = List.genericReplicate (l2 - l1) '\n' ++ List.genericReplicate (max 0 (c2 - c0)) ' '
       | l1 == l2  = List.genericReplicate (c2 - c1) ' '
       | otherwise = __IMPOSSIBLE__

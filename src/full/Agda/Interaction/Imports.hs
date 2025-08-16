@@ -43,6 +43,7 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as HMap
+import qualified Data.ByteString as B
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
@@ -51,6 +52,7 @@ import qualified Data.Text.Lazy as TL
 
 import System.Directory (doesFileExist, removeFile)
 import System.FilePath  ( (</>) )
+import System.IO
 
 import Agda.Benchmarking
 
@@ -78,7 +80,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules, sortRulesOfSymbol )
 import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Serialise
+import Agda.TypeChecking.Serialise (decode, encodeFile, decodeInterface, deserializeHashes)
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.DeadCode
@@ -306,6 +308,7 @@ mergeInterface i = do
         check _ (BuiltinRewriteRelations xs) (BuiltinRewriteRelations ys) = return ()
         check _ _ _ = __IMPOSSIBLE__
     sequence_ $ Map.intersectionWithKey check bs bi
+
     addImportedThings
       sig
       (iMetaBindings i)
@@ -317,6 +320,7 @@ mergeInterface i = do
       warns
       (iOpaqueBlocks i)
       (iOpaqueNames i)
+
     reportSLn "import.iface.merge" 50 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
@@ -554,9 +558,9 @@ importPrimitiveModules = whenM (optLoadPrimitives <$> pragmaOptions) $ do
   -- getInterface resets the current verbosity settings to the persistent ones.
 
   bracket_ (getsTC Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
+    -- set root verbosity to 0
     Lens.modifyPersistentVerbosity
       (Strict.Just . Trie.insert [] 0 . Strict.fromMaybe Trie.empty)
-      -- set root verbosity to 0
 
     -- We don't want to generate highlighting information for Agda.Primitive.
     withHighlightingLevel None $
@@ -612,9 +616,11 @@ getInterface x isMain msrc =
      -- We remember but reset the pragma options locally
      -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options
      currentOptions <- useTC stPragmaOptions
-     setCurrentRange (C.modPragmas . srcModule <$> msrc) $
+
+     setCurrentRange (C.modPragmas . srcModule <$> msrc) $ do
        -- Now reset the options
-       setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
+       tc <- getTC
+       setCommandLineOptions $ stPersistentOptions $ stPersistentState tc
 
      alreadyVisited x isMain currentOptions $ do
       file <- case msrc of
@@ -651,6 +657,7 @@ getInterface x isMain msrc =
         getStoredInterface x file msrc
 
       let recheck = \reason -> do
+
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
             setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
             modl <- case isMain of
@@ -723,6 +730,7 @@ getStoredInterface :: HasCallStack
   -> Maybe Source
   -> ExceptT String TCM ModuleInfo
 getStoredInterface x file@(SourceFile fi) msrc = do
+
   -- Check whether interface file exists and is in cache
   --  in the correct version (as testified by the interface file hash).
   --
@@ -773,7 +781,7 @@ getStoredInterface x file@(SourceFile fi) msrc = do
 
       (ifile, hashes) <- getIFileHashesET
 
-      let ifp = (filePath . intFilePath $ ifile)
+      let ifp = filePath $ intFilePath $ ifile
 
       Bench.billTo [Bench.Deserialization] $ do
         checkSourceHashET (fst hashes)
@@ -902,6 +910,7 @@ loadDecodedModule sf@(SourceFile fi) mi = do
   unlessNull badHashMessages (throwError . unlines)
 
   reportSLn "import.iface" 5 $ prettyShow name ++ ": interface is valid and can be merged into the state."
+
   lift $ mergeInterface i
   Bench.billTo [Bench.Highlighting] $
     lift $ ifTopLevelAndHighlightingLevelIs NonInteractive $
@@ -1034,30 +1043,17 @@ highlightFromInterface i sf = do
 readInterface :: InterfaceFile -> TCM (Maybe Interface)
 readInterface file = do
     let ifp = filePath $ intFilePath file
-    -- Decode the interface file
-    (s, close) <- liftIO $ readBinaryFile' ifp
-    do  mi <- liftIO . E.evaluate =<< decodeInterface s
-
-        -- Close the file. Note
-        -- ⑴ that evaluate ensures that i is evaluated to WHNF (before
-        --   the next IO operation is executed), and
-        -- ⑵ that decode returns Nothing if an error is encountered,
-        -- so it is safe to close the file here.
-        liftIO close
-
-        return $ constructIScope <$> mi
-      -- Catch exceptions and close
-      `catchError` \e -> liftIO close >> handler e
-  -- Catch exceptions
-  `catchError` handler
-  where
-    handler = \case
+    bstr <- (liftIO $ Just <$!> B.readFile ifp) `catchError` \case
       IOException _ _ e -> do
         alwaysReportSLn "" 0 $ "IO exception: " ++ show e
         return Nothing   -- Work-around for file locking bug.
                          -- TODO: What does this refer to? Please
                          -- document.
       e -> throwError e
+    case bstr of
+      Just bstr -> runMaybeT (constructIScope <$!> decodeInterface bstr)
+      Nothing   -> pure Nothing
+
 
 -- | Writes the given interface to the given file.
 --
@@ -1082,9 +1078,9 @@ writeInterface file i = let fp = filePath file in do
     filteredIface <- pruneTemporaryInstances filteredIface
     reportSLn "import.iface.write" 50 $
       "Writing interface file with hash " ++ show (iFullHash filteredIface) ++ "."
-    encodedIface <- encodeFile fp filteredIface
+    iface <- encodeFile fp filteredIface
     reportSLn "import.iface.write" 5 "Wrote interface file."
-    fromMaybe __IMPOSSIBLE__ <$> (Bench.billTo [Bench.Deserialization] (decode encodedIface))
+    pure iface
   `catchError` \e -> do
     alwaysReportSLn "" 1 $
       "Failed to write interface " ++ fp ++ "."
@@ -1321,7 +1317,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
         ifile <- toIFile sf
         serializedIface <- writeInterface ifile i
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Finished writing to interface file."
-        return serializedIface
+        pure serializedIface
 
     -- -- Restore the open metas, as we might continue in interaction mode.
     -- Actually, we do not serialize the metas if checking the MainInterface
@@ -1467,10 +1463,10 @@ buildInterface src topLevel = do
 getInterfaceFileHashes :: InterfaceFile -> IO (Maybe (Hash, Hash))
 getInterfaceFileHashes fp = do
   let ifile = filePath $ intFilePath fp
-  (s, close) <- readBinaryFile' ifile
-  let hs = decodeHashes s
-  maybe 0 (uncurry (+)) hs `seq` close
-  return hs
+  h    <- openBinaryFile ifile ReadMode
+  bstr <- B.hGetSome h (2 * hashSize)
+  hClose h
+  deserializeHashes bstr
 
 moduleHash :: TopLevelModuleName -> TCM Hash
 moduleHash m = iFullHash <$> getNonMainInterface m Nothing
