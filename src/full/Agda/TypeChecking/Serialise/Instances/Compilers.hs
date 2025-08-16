@@ -2,8 +2,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans     #-}
 {-# OPTIONS_GHC -fwarn-unused-imports #-}
 
-{-# OPTIONS_GHC -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
-
 module Agda.TypeChecking.Serialise.Instances.Compilers where
 
 import Agda.TypeChecking.Serialise.Base

@@ -5,8 +5,6 @@
 {-# OPTIONS_GHC -Wunused-matches #-}
 {-# OPTIONS_GHC -Wunused-binds #-}
 
-{-# OPTIONS_GHC -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
-
 -- | Serializing types that are not Agda-specific.
 
 module Agda.TypeChecking.Serialise.Instances.General where

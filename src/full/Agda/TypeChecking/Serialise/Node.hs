@@ -3,8 +3,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 
-{-# OPTIONS_GHC -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
-
 module Agda.TypeChecking.Serialise.Node where
 
 import GHC.Exts

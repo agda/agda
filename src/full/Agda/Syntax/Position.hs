@@ -137,6 +137,7 @@ pattern Pn :: a -> Word32 -> Word32 -> Word32 -> Position' a
 pattern Pn a p l c <- Pn' a p (splitW64 -> (l, c)) where
   Pn a p l c = Pn' a p (packW64 l c)
 {-# COMPLETE Pn #-}
+{-# INLINE Pn #-}
 
 posLine :: Position' a -> Word32
 posLine (Pn' _ _ lc) = case splitW64 lc of (x, _) -> x

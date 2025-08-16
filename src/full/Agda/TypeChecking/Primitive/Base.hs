@@ -1,4 +1,5 @@
 {-# LANGUAGE ApplicativeDo #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.TypeChecking.Primitive.Base where
 
@@ -9,8 +10,6 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-
-import Debug.Trace
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
@@ -23,7 +22,6 @@ import Agda.TypeChecking.Reduce ( reduce )
 import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Maybe
 import Agda.Syntax.Common.Pretty ( prettyShow )
@@ -177,12 +175,12 @@ domH = setHiding Hidden . defaultDom
 ---------------------------------------------------------------------------
 
 lookupPrimitiveFunction :: PrimitiveId -> TCM PrimitiveImpl
-lookupPrimitiveFunction x = do
-  res <- fromMaybe (do
+lookupPrimitiveFunction x =
+  fromMaybe (do
                 reportSDoc "tc.prim" 20 $ "Lookup of primitive function" <+> pretty x <+> "failed"
                 typeError $ NoSuchPrimitiveFunction (getBuiltinId x))
             (Map.lookup x primitiveFunctions)
-  pure res
+
 
 lookupPrimitiveFunctionQ :: QName -> TCM (PrimitiveId, PrimitiveImpl)
 lookupPrimitiveFunctionQ q = do

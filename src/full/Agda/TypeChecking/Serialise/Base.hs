@@ -4,9 +4,9 @@
 {-# LANGUAGE UnboxedTuples        #-}
 {-# LANGUAGE UndecidableInstances #-} -- Due to ICODE vararg typeclass
 {-# LANGUAGE PatternSynonyms      #-}
+{-# LANGUAGE RoleAnnotations      #-}
 
 {-# OPTIONS_GHC -Wunused-imports #-}
-{-# OPTIONS_GHC -ddump-to-file -ddump-simpl -dsuppress-all -dno-suppress-type-signatures #-}
 
 {-
 András, 2023-10-2:

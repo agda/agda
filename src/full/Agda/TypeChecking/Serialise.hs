@@ -49,7 +49,6 @@ import Control.Monad.Reader
 import Control.Monad.State.Strict
 import Control.Monad.ST.Trans
 import Control.Monad.Trans.Maybe
-import Debug.Trace
 
 import Data.Array.IArray
 import Data.Foldable (traverse_)
