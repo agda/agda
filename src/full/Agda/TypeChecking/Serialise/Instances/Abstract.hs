@@ -1,10 +1,10 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.TypeChecking.Serialise.Instances.Abstract where
 
 import Control.Monad
+import Control.Monad.Reader
 import Data.Void (Void)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -76,10 +76,10 @@ instance EmbPrj WhyInScope where
   icod_ (Applied a b) = icodeN 1 Applied a b
 
   value = vcase valu where
-    valu []        = valuN Defined
-    valu [0, a, b] = valuN Opened a b
-    valu [1, a, b] = valuN Applied a b
-    valu _         = malformed
+    valu N0         = valuN Defined
+    valu (N3 0 a b) = valuN Opened a b
+    valu (N3 1 a b) = valuN Applied a b
+    valu _          = malformed
 
 -- Issue #1346: QNames are shared on their nameIds, so serializing will lose fixity information for
 -- rebound fixities. We don't care about that in terms, but in the scope it's important to keep the
@@ -106,18 +106,18 @@ instance EmbPrj NameMetadata where
   icod_ (GeneralizedVarsMetadata a) = icodeN' GeneralizedVarsMetadata a
 
   value = vcase valu where
-    valu []  = valuN NoMetadata
-    valu [a] = valuN GeneralizedVarsMetadata a
-    valu _   = malformed
+    valu N0     = valuN NoMetadata
+    valu (N1 a) = valuN GeneralizedVarsMetadata a
+    valu _      = malformed
 
 instance EmbPrj A.Suffix where
   icod_ A.NoSuffix   = icodeN' A.NoSuffix
   icod_ (A.Suffix a) = icodeN' A.Suffix a
 
   value = vcase valu where
-    valu []  = valuN A.NoSuffix
-    valu [a] = valuN A.Suffix a
-    valu _   = malformed
+    valu N0     = valuN A.NoSuffix
+    valu (N1 a) = valuN A.Suffix a
+    valu _      = malformed
 
 instance EmbPrj AbstractModule where
   icod_ (AbsModule a b) = icodeN' AbsModule a b
@@ -125,27 +125,7 @@ instance EmbPrj AbstractModule where
   value = valueN AbsModule
 
 instance EmbPrj KindOfName where
-  -- -- Enums have a generic EmbPrj
-  --
-  -- icod_ DefName        = icodeN' DefName
-  -- icod_ ConName        = icodeN 1 ConName
-  -- icod_ FldName        = icodeN 2 FldName
-  -- icod_ PatternSynName = icodeN 3 PatternSynName
-  -- icod_ QuotableName   = icodeN 4 QuotableName
-  -- icod_ MacroName      = icodeN 5 MacroName
-  -- icod_ GeneralizeName = icodeN 6 GeneralizeName
-  -- icod_ DisallowedGeneralizeName = icodeN 7 DisallowedGeneralizeName
-
-  -- value = vcase valu where
-  --   valu []  = valuN DefName
-  --   valu [1] = valuN ConName
-  --   valu [2] = valuN FldName
-  --   valu [3] = valuN PatternSynName
-  --   valu [4] = valuN QuotableName
-  --   valu [5] = valuN MacroName
-  --   valu [6] = valuN GeneralizeName
-  --   valu [7] = valuN DisallowedGeneralizeName
-  --   valu _   = malformed
+  -- Enums have a generic EmbPrj
 
 instance EmbPrj BindingSource where
   icod_ = \case
@@ -177,34 +157,36 @@ instance EmbPrj ConPatLazy
 
 -- Only for pattern synonyms (where a is Void)
 instance EmbPrj a => EmbPrj (A.Pattern' a) where
-  icod_ (A.VarP a)            = icodeN 0 A.VarP a
-  icod_ (A.ConP a b c)        = icodeN 1 A.ConP a b c
-  icod_ (A.DefP p a b)        = icodeN 2 (A.DefP p) a b
-  icod_ t@(A.WildP p)         = icodeN 3 t
-  icod_ (A.AsP p a b)         = icodeN 4 (A.AsP p) a b
-  icod_ (A.DotP r a)          = icodeN 5 (A.DotP r) a
-  icod_ t@(A.AbsurdP _)       = icodeN 6 t
-  icod_ (A.LitP i a)          = icodeN 7 (A.LitP i) a
-  icod_ (A.ProjP p a b)       = icodeN 8 (A.ProjP p) a b
-  icod_ (A.PatternSynP p a b) = icodeN 9 (A.PatternSynP p) a b
-  icod_ (A.RecP r a b)        = icodeN 10 (A.RecP r) a b
-  icod_ (A.EqualP _ a)        = __IMPOSSIBLE__
-  icod_ (A.WithP i a)         = icodeN 11 (A.WithP i) a
+  icod_ x = ReaderT \dict -> case x of
+    (A.VarP a)            -> runReaderT (icodeN 0 A.VarP a) dict
+    (A.ConP a b c)        -> runReaderT (icodeN 1 A.ConP a b c) dict
+    (A.DefP p a b)        -> runReaderT (icodeN 2 (A.DefP p) a b) dict
+    t@(A.WildP p)         -> runReaderT (icodeN 3 t) dict
+    (A.AsP p a b)         -> runReaderT (icodeN 4 (A.AsP p) a b) dict
+    (A.DotP r a)          -> runReaderT (icodeN 5 (A.DotP r) a) dict
+    t@(A.AbsurdP _)       -> runReaderT (icodeN 6 t) dict
+    (A.LitP i a)          -> runReaderT (icodeN 7 (A.LitP i) a) dict
+    (A.ProjP p a b)       -> runReaderT (icodeN 8 (A.ProjP p) a b) dict
+    (A.PatternSynP p a b) -> runReaderT (icodeN 9 (A.PatternSynP p) a b) dict
+    (A.RecP r a b)        -> runReaderT (icodeN 10 (A.RecP r) a b) dict
+    (A.EqualP _ a)        -> __IMPOSSIBLE__ dict
+    (A.WithP i a)         -> runReaderT (icodeN 11 (A.WithP i) a) dict
 
-  value = vcase valu where
-    valu [0, a]       = valuN A.VarP a
-    valu [1, a, b, c] = valuN A.ConP a b c
-    valu [2, a, b]    = valuN (A.DefP i) a b
-    valu [3]          = valuN (A.WildP i)
-    valu [4, a, b]    = valuN (A.AsP i) a b
-    valu [5, a]       = valuN (A.DotP i) a
-    valu [6]          = valuN (A.AbsurdP i)
-    valu [7, a]       = valuN (A.LitP i) a
-    valu [8, a, b]    = valuN (A.ProjP i) a b
-    valu [9, a, b]    = valuN (A.PatternSynP i) a b
-    valu [10, a, b]   = valuN (A.RecP empty) a b
-    valu [11, a]      = valuN (A.WithP i) a
-    valu _            = malformed
+  value x = ReaderT \dict -> runReaderT (vcase valu x) dict where
+    valu x = ReaderT \dict -> case x of
+      (N2 0 a)     -> runReaderT (valuN A.VarP a) dict
+      (N4 1 a b c) -> runReaderT (valuN A.ConP a b c) dict
+      (N3 2 a b)   -> runReaderT (valuN (A.DefP i) a b) dict
+      (N1 3)       -> runReaderT (valuN (A.WildP i)) dict
+      (N3 4 a b)   -> runReaderT (valuN (A.AsP i) a b) dict
+      (N2 5 a)     -> runReaderT (valuN (A.DotP i) a) dict
+      (N1 6)       -> runReaderT (valuN (A.AbsurdP i)) dict
+      (N2 7 a)     -> runReaderT (valuN (A.LitP i) a) dict
+      (N3 8 a b)   -> runReaderT (valuN (A.ProjP i) a b) dict
+      (N3 9 a b)   -> runReaderT (valuN (A.PatternSynP i) a b) dict
+      (N3 10 a b)  -> runReaderT (valuN (A.RecP empty) a b) dict
+      (N2 11 a)    -> runReaderT (valuN (A.WithP i) a) dict
+      _            -> malformedIO
 
     i = patNoRange
 
@@ -220,9 +202,9 @@ instance EmbPrj ParenPreference where
   icod_ PreferParen     = icodeN' PreferParen
   icod_ PreferParenless = icodeN 1 PreferParenless
   value = vcase valu where
-    valu []  = valuN PreferParen
-    valu [1] = valuN PreferParenless
-    valu _   = malformed
+    valu N0     = valuN PreferParen
+    valu (N1 1) = valuN PreferParenless
+    valu _      = malformed
 
 instance EmbPrj Precedence where
   icod_ TopCtx                 = icodeN' TopCtx
@@ -237,17 +219,17 @@ instance EmbPrj Precedence where
   icod_ DotPatternCtx          = icodeN 9 DotPatternCtx
 
   value = vcase valu where
-    valu []        = valuN TopCtx
-    valu [1]       = valuN FunctionSpaceDomainCtx
-    valu [2, a]    = valuN LeftOperandCtx a
-    valu [3, a, b] = valuN RightOperandCtx a b
-    valu [4]       = valuN FunctionCtx
-    valu [5, a]    = valuN ArgumentCtx a
-    valu [6]       = valuN InsideOperandCtx
-    valu [7]       = valuN WithFunCtx
-    valu [8]       = valuN WithArgCtx
-    valu [9]       = valuN DotPatternCtx
-    valu _         = malformed
+    valu N0         = valuN TopCtx
+    valu (N1 1)     = valuN FunctionSpaceDomainCtx
+    valu (N2 2 a)   = valuN LeftOperandCtx a
+    valu (N3 3 a b) = valuN RightOperandCtx a b
+    valu (N1 4)     = valuN FunctionCtx
+    valu (N2 5 a)   = valuN ArgumentCtx a
+    valu (N1 6)     = valuN InsideOperandCtx
+    valu (N1 7)     = valuN WithFunCtx
+    valu (N1 8)     = valuN WithArgCtx
+    valu (N1 9)     = valuN DotPatternCtx
+    valu _          = malformed
 
 instance EmbPrj ScopeInfo where
   icod_ (ScopeInfo a b c d e f g h i j k) = icodeN' (\ a b c d e -> ScopeInfo a b c d e f g h i j k) a b c d e

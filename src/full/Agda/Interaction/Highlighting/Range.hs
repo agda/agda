@@ -18,7 +18,7 @@ import Agda.Utils.Range
 rToR :: P.Range -> Ranges
 rToR r = Ranges (map iToR (P.rangeIntervals r))
   where
-  iToR (P.Interval () P.Pn{ P.posPos = pos1 } P.Pn{ P.posPos = pos2 }) =
+  iToR (P.Interval () P.Pn'{ P.posPos = pos1 } P.Pn'{ P.posPos = pos2 }) =
     Range { from = fromIntegral pos1, to = fromIntegral pos2 }
 
 -- | Converts a 'P.Range', seen as a continuous range, to a 'Range'.

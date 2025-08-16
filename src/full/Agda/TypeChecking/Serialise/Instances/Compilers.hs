@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans     #-}
 {-# OPTIONS_GHC -fwarn-unused-imports #-}
 

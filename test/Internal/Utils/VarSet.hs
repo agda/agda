@@ -4,7 +4,6 @@ module Internal.Utils.VarSet ( tests ) where
 
 import Test.QuickCheck
 
-import Data.Binary
 import Data.Coerce
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -12,6 +11,7 @@ import Data.Maybe
 
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.Serialize
 
 import Internal.Helpers
 
@@ -182,7 +182,7 @@ prop_toAscList (Vars ns) =
 prop_decode_encode :: [Var] -> Property
 prop_decode_encode (Vars ns) =
   let xs = VarSet.fromList ns
-  in decode @VarSet (encode xs) === xs
+  in deserializePure @VarSet (serializePure xs) === xs
 
 
 ------------------------------------------------------------------------

@@ -145,8 +145,7 @@ instance Arbitrary a => Arbitrary (Position' a) where
     let pos  = fromInteger pos'
         line = pred pos `div` 10 + 1
         col  = pred pos `mod` 10 + 1
-    return (Pn {srcFile = srcFile, posPos = pos,
-                posLine = line, posCol = col })
+    return (Pn srcFile pos line col)
 
 -- | Generates an interval located in the same file as the given
 -- interval.

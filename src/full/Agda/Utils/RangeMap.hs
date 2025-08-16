@@ -10,6 +10,7 @@ module Agda.Utils.RangeMap
   , splitAt
   , insideAndOutside
   , restrictTo
+  , PairInt(..)
   )
   where
 
@@ -22,8 +23,6 @@ import qualified Data.IntMap as IntMap
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-
-import Data.Strict.Tuple (Pair(..))
 
 import Agda.Utils.Range
 import Agda.Utils.List
@@ -76,10 +75,13 @@ several ::
 several rss m = mconcat $ map (flip singleton m) rss
 
 -- We use strict pairs.
+data PairInt a = !Int :!: !a
+  deriving (Show)
 
--- | Constructs a pair.
+instance NFData a => NFData (PairInt a) where
+  rnf (_ :!: b) = rnf b
 
-pair :: Int -> a -> Pair Int a
+pair :: Int -> a -> PairInt a
 pair = (:!:)
 
 ------------------------------------------------------------------------
@@ -94,7 +96,7 @@ pair = (:!:)
 -- ('rangeMapInvariant').
 
 newtype RangeMap a = RangeMap
-  { rangeMap :: Map Int (Pair Int a)
+  { rangeMap :: Map Int (PairInt a)
     -- ^ The keys are starting points of ranges, and the pairs contain
     -- endpoints and values.
   }
@@ -293,7 +295,7 @@ splitAt p f = (before, after)
 splitAt' ::
   Int -> RangeMap a ->
   ( RangeMap a
-  , Maybe ((Int, Pair Int a), (Int, Pair Int a))
+  , Maybe ((Int, PairInt a), (Int, PairInt a))
   , RangeMap a
   )
 splitAt' p (RangeMap f) =

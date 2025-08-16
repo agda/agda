@@ -1183,7 +1183,6 @@ tellToUpdateHighlighting (Just (info, method, modFile)) =
 tellEmacsToJumpToError :: Range -> [Response]
 tellEmacsToJumpToError r =
   case rStart r of
-    Nothing                                           -> []
-    Just (Pn { srcFile = Strict.Nothing })            -> []
-    Just (Pn { srcFile = Strict.Just f, posPos = p }) ->
-       [ Resp_JumpToError (filePath (rangeFilePath f)) p ]
+    Nothing                       -> []
+    Just (Pn' Strict.Nothing _ _)  -> []
+    Just (Pn' (Strict.Just f) p _) -> [Resp_JumpToError (filePath (rangeFilePath f)) p]

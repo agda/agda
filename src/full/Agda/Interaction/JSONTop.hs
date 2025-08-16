@@ -32,7 +32,7 @@ import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Internal
          ( telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..), alwaysUnblock )
 import Agda.Syntax.Position
-         ( Range, rangeIntervals, Interval'(..), Position'(..), noRange )
+         ( Range, rangeIntervals, Interval'(..), Position'(..), noRange, posLine, posCol )
 import Agda.Syntax.Scope.Base
          ( WhyInScopeData(..) )
 

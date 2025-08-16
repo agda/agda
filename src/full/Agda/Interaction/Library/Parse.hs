@@ -171,11 +171,7 @@ fromGeneric' file fields fs = do
           (Strict.Just $ mkRangeFile file Nothing)
           (singleton (posToInterval () p p))
       where
-      p = Pn { srcFile = ()
-             , posPos  = 1
-             , posLine = 1
-             , posCol  = 1
-             }
+      p = Pn () 1 1 1
 
     upd :: AgdaLibFile -> GenericEntry -> P AgdaLibFile
     upd l (GenericEntry h cs) = do

@@ -63,7 +63,7 @@ module Agda.Utils.VarSet
   , member
   , lookupMin
   , lookupMax
-  , size
+  , Agda.Utils.VarSet.size
   , disjoint
   , isSubsetOf
   , inRange
@@ -105,12 +105,10 @@ module Agda.Utils.VarSet
 import Control.DeepSeq
 import Control.Monad
 
-import Data.Binary
-import Data.Binary.Get
-import Data.Binary.Put
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as Fold
 import Data.Hashable
+import Data.Word
 
 import GHC.Base hiding (empty, foldr)
 import GHC.Num.BigNat
@@ -123,6 +121,7 @@ import qualified Prelude as P
 
 import Agda.Utils.ByteArray
 import Agda.Utils.Word
+import Agda.Utils.Serialize
 
 -- $varSetType
 -- = Invariants
@@ -217,35 +216,26 @@ instance Hashable VarSet where
   hashWithSalt salt (VS# w)  = hashWithSalt (I# (word2Int# w)) salt
   hashWithSalt salt (VB# bs) = hashByteArrayWithSalt bs 0 (I# (sizeofByteArray# bs)) salt
 
--- Could be much more efficient. Ideally, we would just have our hands
--- on a pointer and an offset, but 'Binary' doesn't give a nice interface
--- for this.
-instance Binary VarSet where
-  put (VS# w) = putWord8 0 <> put (W# w)
-  put (VB# bs) = putWord8 1 <> put (I# len) <> loop (len -# 1#)
-    where
-      len = bigNatSize# bs
 
-      loop :: Int# -> Put
-      loop i =
-        if isTrue# (i >=# 0#) then
-          put (W# (indexWordArray# bs i)) <> loop (i -# 1#)
-        else
-          mempty
+instance Serialize VarSet where
 
-  get = do
-    tag <- get @Word8
-    case tag of
-      0 -> do
-        W# w <- get @Word
-        pure (VS# w)
-      _ -> do
-        -- This is quite bad, but we don't have very good tools for
-        -- doing this efficiently. This should really never happen
-        -- though, so it's not the end of the world.
-        len <- get @Int
-        words <- replicateM len (get @Word)
-        pure (VB# (bigNatFromWordList words))
+  {-# INLINE size #-}
+  size x = SIZEOF_WORD8 + case x of
+    VB# arr -> SIZEOF_HSINT + I# (sizeofByteArray# arr)
+    VS# _   -> SIZEOF_HSWORD
+
+  put x = Put \p s -> case x of
+    VB# arr ->
+      let sz = sizeofByteArray# arr
+      in unPut (   put (0::Word8)
+                <> put (I# sz) <> putByteArray# arr 0# sz) p s
+    VS# w ->
+      unPut (put (1::Word8) <> put (W# w)) p s
+
+  get = get @Word8 >>= \case
+    0 -> do {I# sz <- get; getByteArray# sz \arr -> pure $ VB# arr}
+    1 -> do {W# w <- get; pure $ VS# w}
+    _ -> error "deserialize: malformed input"
 
 --------------------------------------------------------------------------------
 -- Construction

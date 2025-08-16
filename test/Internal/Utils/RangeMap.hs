@@ -15,13 +15,11 @@ import qualified Data.IntSet as IntSet
 import Data.List (sort)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (isJust)
-import Data.Strict.Tuple (Pair(..))
 
 import Agda.Interaction.Highlighting.Range
 import Agda.Utils.List (allConsecutive)
 import Agda.Utils.Null
 import Agda.Utils.RangeMap
-import Agda.Utils.Tuple
 
 import Internal.Helpers
 import Internal.Interaction.Highlighting.Range ()
@@ -319,7 +317,7 @@ instance (Arbitrary a, Semigroup a) => Arbitrary (RangeMap a) where
 instance CoArbitrary a => CoArbitrary (RangeMap a) where
   coarbitrary (RangeMap f) =
     coarbitrary $
-    fmap (mapSnd (\ (x :!: y) -> (x, y))) $
+    fmap (fmap (\ (x :!: y) -> (x, y))) $
     Map.toAscList f
 
 -- | A range that is entirely inside a given 'RangeMap'.
