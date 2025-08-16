@@ -19,22 +19,16 @@ forces all data, eventually.
 -}
 
 {-
--- Layout of Word32 --
+-- Layout of Word32
 
-The unit of hash-consing is generally Word32, but it's used in
-several different ways depending on the type of the Haskell object
-that's being encoded.
+The unit of hash-consing is generally Word32, but it's used in different ways depending on the type
+of the object that's being encoded.
 
 - For enums and word-sized integral types, the Word32 is a direct unboxed representation of the
   data. 64-bit values get truncated (dodgy, but correct so far). Let's call these "unboxed types".
-- For most types, the Word32 is an index into the corresponding hashtable.  Let's call these "boxed
-  types".
-- For boxed types, we don't use the whole Word32 range for indices:
-  - maxBound is reserved for representing an empty hashtable slot (currently unused but will be
-    possibly used in future upgrades to the hashtable implementation).
-  - For Syntax.Internal.Term, the range [(maxBound - varTableSize) .. (maxBound - 1)] is used to
-    represent terms of the form "Var i []" where "i" is in [0..varTableSize-1].  This is an
-    optimization for variables.
+- For most types, the Word32 is an index into the corresponding hashtable.
+- For Syntax.Internal.Term, the range [(maxBound - varTableSize) .. (maxBound - 1)] is used to
+  represent terms of the form "Var i []" where "i" is in [0..varTableSize-1].
 -}
 
 module Agda.TypeChecking.Serialise.Base (
