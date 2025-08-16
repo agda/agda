@@ -4,6 +4,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- Andreas, Makoto, Francesco 2014-10-15 AIM XX:
 -- -O2 does not have any noticable effect on runtime
@@ -40,25 +41,16 @@ import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( takeDirectory )
 
 import Control.Arrow (second)
-import Control.DeepSeq
 import qualified Control.Exception as E
 import Control.Monad
-import Control.Monad.Except
-import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader
-import Control.Monad.State.Strict
-import Control.Monad.ST.Trans
 import Control.Monad.Trans.Maybe
 
-import Data.Array.IArray
 import Data.Foldable (traverse_)
-import Data.Array.IO
 import Data.Word
-import Data.Function (on)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
-import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -67,21 +59,16 @@ import qualified Codec.Compression.Zstd as Z
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
-import Agda.Syntax.Position (killRange)
-
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances () --instance only
 import Agda.TypeChecking.Monad
 import Agda.Utils.Monad ((<*!>))
 import Agda.Utils.Hash
 import Agda.Utils.IORef
-import Agda.Utils.Null
 import Agda.Utils.Serialize
 import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.Impossible
 import qualified Agda.Utils.HashTable as H
-import Agda.Utils.CompactRegion (Compact)
-import Agda.Utils.FileName (AbsolutePath(..))
 import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import qualified Agda.Utils.MinimalArray.Lifted as AL
 import qualified Agda.Utils.MinimalArray.MutableLifted as ML
