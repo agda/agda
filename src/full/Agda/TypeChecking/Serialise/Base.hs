@@ -18,6 +18,25 @@ forces all data, eventually.
     be forced beforehand with strict `let`, strict binding or ($!).
 -}
 
+{-
+-- Layout of Word32 --
+
+The unit of hash-consing is generally Word32, but it's used in
+several different ways depending on the type of the Haskell object
+that's being encoded.
+
+- For enums and word-sized integral types, the Word32 is a direct unboxed representation of the
+  data. 64-bit values get truncated (dodgy, but correct so far). Let's call these "unboxed types".
+- For most types, the Word32 is an index into the corresponding hashtable.  Let's call these "boxed
+  types".
+- For boxed types, we don't use the whole Word32 range for indices:
+  - maxBound is reserved for representing an empty hashtable slot (currently unused but will be
+    possibly used in future upgrades to the hashtable implementation).
+  - For Syntax.Internal.Term, the range [(maxBound - varTableSize) .. (maxBound - 1)] is used to
+    represent terms of the form "Var i []" where "i" is in [0..varTableSize-1].  This is an
+    optimization for variables.
+-}
+
 module Agda.TypeChecking.Serialise.Base (
     module Agda.TypeChecking.Serialise.Node
   , module Agda.TypeChecking.Serialise.Base
@@ -37,9 +56,10 @@ import GHC.Exts
 import GHC.Stack
 import GHC.Fingerprint.Type
 import Unsafe.Coerce
+import System.IO.Unsafe
 
 import Agda.Syntax.Common (NameId)
-import Agda.Syntax.Internal (QName(..), ModuleName(..), nameId)
+import Agda.Syntax.Internal (QName(..), ModuleName(..), nameId, Term(..))
 import Agda.TypeChecking.Monad.Base.Types (ModuleToSource)
 import Agda.TypeChecking.Serialise.Node
 
@@ -56,6 +76,40 @@ import qualified Agda.Utils.MinimalArray.MutablePrim as MP
 import qualified Agda.Utils.MinimalArray.Lifted as AL
 import qualified Agda.Utils.MinimalArray.MutableLifted as ML
 import qualified Agda.Utils.CompactRegion as Compact
+
+
+-- Caching Var-s
+--------------------------------------------------------------------------------
+
+{-# INLINE varTableSize #-}
+varTableSize :: Int
+varTableSize = 128
+
+{-# INLINE varRangeStart #-}
+varRangeStart :: Word32
+varRangeStart = maxBound - fromIntegral varTableSize
+
+{-# NOINLINE varTable #-}
+varTable :: AL.Array Term
+varTable = unsafePerformIO $ do
+  !c   <- Compact.new 4096
+  let !tbl = AL.fromList [Var i [] | i <- [0..(varTableSize - 1)]]
+  Compact.add c tbl
+
+{-# INLINE cacheVar #-}
+cacheVar :: Int -> Maybe Word32
+cacheVar x =
+  if x < varTableSize then
+    Just $! varRangeStart + fromIntegral x
+  else
+    Nothing
+
+{-# INLINE uncacheVar #-}
+uncacheVar :: Word32 -> Maybe Term
+uncacheVar x =
+  if varRangeStart <= x
+    then Just $! AL.unsafeIndex varTable (fromIntegral (x - varRangeStart))
+    else Nothing
 
 --------------------------------------------------------------------------------
 

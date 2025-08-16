@@ -2,6 +2,8 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures #-}
+
 module Agda.TypeChecking.Serialise.Instances.Internal where
 
 import qualified Data.HashSet as HashSet
@@ -104,7 +106,9 @@ instance EmbPrj a => EmbPrj (I.Abs a) where
     valu _          = malformed
 
 instance EmbPrj I.Term where
-  icod_ (Var     a []) = icodeN' (\ a -> Var a []) a
+  icod_ (Var     a []) = case cacheVar a of
+                           Just a  -> pure a
+                           Nothing -> icodeN' (\a -> Var a []) a
   icod_ (Var      a b) = icodeN 0 Var a b
   icod_ (Lam      a b) = icodeN 1 Lam a b
   icod_ (Lit      a  ) = icodeN 2 Lit a
@@ -117,20 +121,22 @@ instance EmbPrj I.Term where
   icod_ (Level    a  ) = icodeN 9 Level a
   icod_ (Dummy    a b) = icodeN 10 Dummy a b
 
-  value = vcase valu where
-    valu (N1 a)       = valuN var   a
-    valu (N3 0 a b)   = valuN Var   a b
-    valu (N3 1 a b)   = valuN Lam   a b
-    valu (N2 2 a)     = valuN Lit   a
-    valu (N3 3 a b)   = valuN Def   a b
-    valu (N4 4 a b c) = valuN Con a b c
-    valu (N3 5 a b)   = valuN Pi    a b
-    valu (N3 6 a b)   = valuN MetaV a b
-    valu (N2 7 a)     = valuN Sort  a
-    valu (N2 8 a)     = valuN DontCare a
-    valu (N2 9 a)     = valuN Level a
-    valu (N3 10 a b)  = valuN Dummy a b
-    valu _            = malformed
+  value x = case uncacheVar x of
+    Just t  -> pure t
+    Nothing -> flip vcase x \case
+      N1 a       -> valuN var   a
+      N3 0 a b   -> valuN Var   a b
+      N3 1 a b   -> valuN Lam   a b
+      N2 2 a     -> valuN Lit   a
+      N3 3 a b   -> valuN Def   a b
+      N4 4 a b c -> valuN Con a b c
+      N3 5 a b   -> valuN Pi    a b
+      N3 6 a b   -> valuN MetaV a b
+      N2 7 a     -> valuN Sort  a
+      N2 8 a     -> valuN DontCare a
+      N2 9 a     -> valuN Level a
+      N3 10 a b  -> valuN Dummy a b
+      _          -> malformed
 
 instance EmbPrj Level where
   icod_ (Max a b) = icodeN' Max a b
