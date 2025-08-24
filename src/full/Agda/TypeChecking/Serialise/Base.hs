@@ -51,10 +51,9 @@ import GHC.Exts
 import GHC.Stack
 import GHC.Fingerprint.Type
 import Unsafe.Coerce
-import System.IO.Unsafe
 
 import Agda.Syntax.Common (NameId)
-import Agda.Syntax.Internal (QName(..), ModuleName(..), nameId, Term(..))
+import Agda.Syntax.Internal (QName(..), ModuleName(..), nameId, Term(..), varTable, varTableSize)
 import Agda.TypeChecking.Monad.Base.Types (ModuleToSource)
 import Agda.TypeChecking.Serialise.Node
 
@@ -76,20 +75,9 @@ import qualified Agda.Utils.CompactRegion as Compact
 -- Caching Var-s
 --------------------------------------------------------------------------------
 
-{-# INLINE varTableSize #-}
-varTableSize :: Int
-varTableSize = 128
-
 {-# INLINE varRangeStart #-}
 varRangeStart :: Word32
 varRangeStart = maxBound - fromIntegral varTableSize
-
-{-# NOINLINE varTable #-}
-varTable :: AL.Array Term
-varTable = unsafePerformIO $ do
-  !c   <- Compact.new 4096
-  let !tbl = AL.fromList [Var i [] | i <- [0..(varTableSize - 1)]]
-  Compact.add c tbl
 
 {-# INLINE cacheVar #-}
 cacheVar :: Int -> Maybe Word32
