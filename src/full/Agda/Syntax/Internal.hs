@@ -18,6 +18,7 @@ import Control.DeepSeq
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ( Sum(..) )
+import System.IO.Unsafe (unsafePerformIO)
 
 import GHC.Generics (Generic)
 
@@ -43,6 +44,8 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Null
 import Agda.Utils.Size
+import qualified Agda.Utils.CompactRegion as Compact
+import qualified Agda.Utils.MinimalArray.Lifted as AL
 
 import Agda.Utils.Impossible
 
@@ -218,7 +221,7 @@ instance LensConName ConHead where
 --     every constant, even if the definition is an empty
 --     list of clauses.
 --
-data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
+data Term = Var' {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           | Lam ArgInfo (Abs Term)        -- ^ Terms are beta normal. Relevance is ignored
           | Lit Literal
           | Def QName Elims               -- ^ @f es@, possibly a delta/iota-redex
@@ -245,6 +248,39 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             --   eliminators, which are only there to ease debugging when a dummy term incorrectly
             --   leaks into a relevant position.
   deriving Show
+
+-- Caching small variables
+--------------------------------------------------------------------------------
+
+{-# NOINLINE varTable #-}
+varTable :: AL.Array Term
+varTable = unsafePerformIO $ do
+  !c <- Compact.new 4096
+  let !tbl = AL.fromList [Var' i [] | i <- [0..(varTableSize - 1)]]
+  Compact.add c tbl
+
+pattern Var :: Int -> Elims -> Term
+pattern Var i es <- Var' i es where
+  Var i es = case es of
+    [] -> case i < varTableSize of
+      True -> AL.unsafeIndex varTable i
+      _    -> Var' i es
+    _  -> Var' i es
+{-# INLINE Var #-}
+{-# COMPLETE Var, Lam, Lit, Def, Con, Pi, Sort, Level, MetaV, DontCare, Dummy #-}
+
+{-# INLINE varTableSize #-}
+varTableSize :: Int
+varTableSize = 128
+
+-- | An unapplied variable.
+var :: Nat -> Term
+var i | i >= 0 = case i < varTableSize of
+          True -> AL.unsafeIndex varTable i
+          _    -> Var' i []
+      | otherwise = __IMPOSSIBLE__
+
+--------------------------------------------------------------------------------
 
 type ConInfo = ConOrigin
 
@@ -818,11 +854,6 @@ isAbsurdPatternName x = x == absurdPatternName
 ---------------------------------------------------------------------------
 -- * Smart constructors
 ---------------------------------------------------------------------------
-
--- | An unapplied variable.
-var :: Nat -> Term
-var i | i >= 0    = Var i []
-      | otherwise = __IMPOSSIBLE__
 
 -- | Add 'DontCare' is it is not already a @DontCare@.
 dontCare :: Term -> Term
