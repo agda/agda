@@ -96,7 +96,7 @@ given position."
             t)
         (error "File does not exist or is unreadable: %s." file)))))
 
-(defun annotation-merge-faces (start end faces &optional object)
+(defun annotation-merge-faces (start end faces &optional object property)
   "Helper procedure used by `annotation-annotate'.
 For each position in the range the FACES are merged
 with the current value of the annotation-faces text property, and
@@ -118,7 +118,7 @@ less than END."
         ;; In particular, compilation-mode as used in the Agda information buffer
         ;; will clear 'face annotations but preserve 'font-lock-face ones.
         ;; https://emacs.stackexchange.com/questions/17141/how-do-i-insert-text-with-a-specific-face
-        (face-or-font-lock-face (if object 'font-lock-face 'face))
+        (face-or-font-lock-face (or property (if object 'font-lock-face 'face)))
         mid)
     (while (< pos end)
       (setq mid (next-single-property-change pos 'annotation-faces
@@ -130,7 +130,7 @@ less than END."
         (setq pos mid)))))
 
 (defun annotation-annotate
-    (start end anns &optional token-based info goto object)
+    (start end anns &optional token-based info goto object face-property)
   "Annotate text between START and END in the current buffer,
 or in OBJECT if given.
 
@@ -185,7 +185,7 @@ with)."
         ;; (message "anns  = %s" anns)
         ;; (message "faces = %s" faces)
         (when faces
-          (annotation-merge-faces start end faces object)
+          (annotation-merge-faces start end faces object face-property)
           (cl-pushnew 'face props)
           (cl-pushnew 'annotation-faces props))
         (when token-based
@@ -318,6 +318,17 @@ buffer."
         (when remove
           (annotation-remove-annotations
            'token-based pos (if object (length object) (point-max)) object))))))
+
+(defun annotate-string (text &rest anns)
+  "Annotate the TEXT with the faces (exclusively) from the given ANNS,
+always into the \='face property, using the annotation-bindings from
+the current buffer.
+
+Suitable for producing a `message'."
+  (let ((s (copy-sequence text)))
+    (cl-loop for (start end faces . _) in anns do
+      (annotation-annotate start end faces nil nil nil s 'face))
+    s))
 
 (provide 'annotation)
 ;;; annotation.el ends here

@@ -5,6 +5,7 @@
 
 module Agda.Interaction.EmacsCommand
   ( displayInfo
+  , lispifyTree
   , clearRunningInfo
   , displayRunningInfo
   ) where
@@ -39,12 +40,15 @@ displayInfo header content append m = L $ concat
     , A (quote $ Text.unpack t)
     , A (if append then "t" else "nil")
     ]
-  , map Q ann
+  , ann
   ]
-  where
-    (t, ann) = case m of
-      Nothing  -> (, [])                                $ treeToTextNoAnn   content
-      Just m2s -> second (lispifyHighlightingInfo_ m2s) $ treeToTextWithAnn content
+  where (t, ann) = lispifyTree content m
+
+lispifyTree :: DocTree -> Maybe ModuleToSource -> (Text.Text, [Lisp String])
+lispifyTree content = \case
+  Nothing  -> (treeToTextNoAnn content, [])
+  Just m2s -> second (map Q . lispifyHighlightingInfo_ m2s) $
+    treeToTextWithAnn content
 
 ------------------------------------------------------------------------
 -- Running info

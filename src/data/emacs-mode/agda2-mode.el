@@ -44,6 +44,7 @@ Note that the same version of the Agda executable must be used.")
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
 (require 'agda2-queue)
+
 (eval-and-compile
   ;; Load filladapt, if it is installed.
   (condition-case nil
@@ -434,9 +435,15 @@ agda2-include-dirs is not bound." :warning))
  (force-mode-line-update)
  ;; Protect global value of default-input-method from set-input-method.
  (make-local-variable 'default-input-method)
+
  ;; Don't take script into account when determining word boundaries
  (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
  (set-input-method "Agda")
+
+ ;; Install signature help support (eldoc)
+ (add-hook 'eldoc-documentation-functions #'agda2-goal-eldoc-function t t)
+ (eldoc-mode t)
+
  ;; Highlighting etc. is removed when we switch from the Agda mode.
  ;; Use case: When a file M.lagda with a local variables list
  ;; including "mode: latex" is loaded chances are that the Agda mode
@@ -479,7 +486,7 @@ agda2-include-dirs is not bound." :warning))
         (error "Failed to start the Agda process:\n%s" output)))
 
     ;; Start the Agda process.
-    (let ((agda2-bufname "*agda2*"))
+    (let ((agda2-bufname "*agda2*") (agda2-scratch "*agda2 scratch*"))
 
       (let ((process-connection-type nil)) ; Pipes are faster than PTYs.
         (setq agda2-process
@@ -807,9 +814,8 @@ command is sent to Agda (if it is sent)."
   "Load current buffer."
   (interactive)
   (agda2-go 'save t 'busy t "Cmd_load"
-            (agda2-string-quote (buffer-file-name))
-            (agda2-list-quote agda2-program-args)
-            ))
+    (agda2-string-quote (buffer-file-name))
+    (agda2-list-quote agda2-program-args)))
 
 (defun agda2-read-backend ()
   "Get the currently set backend from the `agda2-backend' variable,
@@ -1715,6 +1721,101 @@ text properties."
               (agda2-mkRange `(,p ,(- q 2)))
               (agda2-string-quote new-txt) nil))
     )))
+
+(defvar-local agda2--async-requests (make-hash-table)
+  "Variable associating in-flight asynchronous requests to their callbacks.")
+
+(defun agda2--defer (okay &optional err)
+  "Register OKAY as a callback pair for asynchronous execution. If
+given, ERR will be called when Agda fails the callback instead.
+
+Returns an identifier suitable for use as a CallbackId in Cmds that
+take a callback."
+  (let ((id (random (expt 2 24))))
+    (puthash id (cons okay (or err (lambda ()))) agda2--async-requests)
+    id))
+
+(defmacro agda2-async (bindings &rest body)
+  "Execute a series of asynchronous commands, according to BINDINGS, and
+execute BODY after each returns. Note: the semantics of this are
+\"monadic\", not \"applicative\", so a subsequent binding will only be
+dispatched when the previous binding returns.
+
+Each form in BINDINGS should be a list of form
+
+  (ARGLIST COMMAND :args COMMAND-ARGS :else FAIL-CONTINUATION)
+
+The ARGLIST a complete CL argument list, c.f. `cl-destructuring-bind'.
+The FAIL-CONTINUATION is optional, but, if given, will be invoked if
+execution of *this* command fails (again, note: if a command fails, no
+subsequent commands will be dispatched).
+
+The COMMAND and COMMAND-ARGS should construct a value suitable for
+invoking `agda2-go'. The Haskell constructor for COMMAND should take a
+CallbackId as its *first* argument.
+"
+  (cl-labels
+    ; Dispatch a single command
+    ((async-one ((args cmd &key ((:args cargs)) (else '(lambda ()))) &rest body)
+       (agda2--with-gensyms (cbid argn)
+         `(let ((,cbid (agda2--defer
+                         (lambda (&rest ,argn)
+                           (cl-destructuring-bind ,args ,argn
+                             ,@body))
+                         ,else)))
+             (apply #'agda2-go nil nil 'not-so-busy 't ,cmd
+               (format "%d" ,cbid)
+               ,cargs)
+             t)))
+
+     ; Dispatch a bunch of them
+     (async-loop (bindings body)
+       (if (consp bindings)
+         (async-one (car bindings)
+           (async-loop (cdr bindings) body))
+         `(progn ,@body t))))
+
+    (async-loop bindings body)))
+
+(defun agda2-invoke-callback (id &rest args)
+  "Invoke the success continuation for the async command with identifier
+ID, with the given ARGS, and drop it from the `agda2--async-requests'
+table.
+
+Called from Haskell."
+  (let ((callback (gethash id agda2--async-requests)))
+    (remhash id agda2--async-requests)
+    (apply (car callback) args)))
+
+(defun agda2-drop-callback (id)
+  "Invoke the failure continuation for the async command with identifier
+ID, and drop it from the `agda2--async-requests' table.
+
+Called from Haskell."
+  (let ((callback (gethash id agda2--async-requests)))
+    (remhash id agda2--async-requests)
+    (funcall (cdr callback))))
+
+(defun agda2-goal-eldoc-function (callback &rest _ignored)
+  "Return type information for the thing under the point (if it exists)"
+  (and (agda2-goal-at (point)) (cl-multiple-value-bind (o g) (agda2-goal-at (point))
+    (let ((text (buffer-substring-no-properties
+                  (+ (overlay-start o) 2)
+                  (- (overlay-end   o) 2))))
+      (if (not (string-match "\\`\\s *\\'" text))
+        (agda2-async
+          (((text . hl) "Cmd_describe_goal"
+
+            :args (list
+              (format "%d" g)
+              (agda2-goal-Range o)
+              (agda2-string-quote text)
+              (format "%d" (- (point) (+ 2 (overlay-start o)))))
+
+            :else (lambda () (funcall callback ""))))
+
+          (funcall callback (apply #'annotate-string text hl)))
+        "")))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Misc

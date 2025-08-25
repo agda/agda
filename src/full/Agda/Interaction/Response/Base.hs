@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------
 -- | Data type for all interactive responses
 ------------------------------------------------------------------------
+{-# LANGUAGE DataKinds #-}
 
 module Agda.Interaction.Response.Base
   ( Response_boot (..)
@@ -14,6 +15,7 @@ module Agda.Interaction.Response.Base
   , ResponseContextEntry(..)
   , Status (..)
   , GiveResult (..)
+  , CallbackResponse (..)
   ) where
 
 import Control.Monad.Trans ( MonadIO(liftIO) )
@@ -21,7 +23,9 @@ import Data.Set (Set)
 import Data.Word (Word32)
 
 import Agda.Interaction.Base
-  ( CommandState
+  ( Query(..)
+  , CommandState
+  , CallbackId
   , CompilerBackend
   , ComputeMode
   , OutputConstraint_boot
@@ -66,6 +70,8 @@ data Response_boot tcErr tcWarning warningsAndNonFatalErrors
     | Resp_RunningInfo Int DocTree
       -- ^ The integer is the message's debug level.
       --   The 'DocTree' usually does not contain a final newline.
+    | forall s. Resp_CallbackResponse (CallbackId s) (CallbackResponse s)
+    | forall s. Resp_CallbackFailed (CallbackId s)
     | Resp_ClearRunningInfo
     | Resp_ClearHighlighting TokenBased
       -- ^ Clear highlighting of the given kind.
@@ -75,6 +81,9 @@ data Response_boot tcErr tcWarning warningsAndNonFatalErrors
     | Resp_DoneExiting
       -- ^ A command sent when an exit command is about to be
       -- completed.
+
+data CallbackResponse (q :: Query) where
+  NameAtPoint :: A.Expr -> A.Type -> CallbackResponse 'Q_name_at_point
 
 -- | Should token-based highlighting be removed in conjunction with
 -- the application of new highlighting (in order to reduce the risk of

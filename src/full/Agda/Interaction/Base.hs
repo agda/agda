@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -fno-cse #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
 
 module Agda.Interaction.Base where
 
@@ -309,6 +311,12 @@ data Interaction' range
 
   | Cmd_why_in_scope    InteractionId range String
   | Cmd_why_in_scope_toplevel String
+
+  | Cmd_describe_goal     (CallbackId 'Q_name_at_point)
+      InteractionId range String Int
+   -- ^ The 'Int' is the user's cursor position relative to the start of
+   -- the string.
+
     -- | Displays version of the running Agda
   | Cmd_show_version
   | Cmd_abort
@@ -338,8 +346,11 @@ data Remove
   | Keep
   deriving (Show, Read)
 
+data Query = Q_name_at_point
 
-
+-- | Identifiers for callbacks
+newtype CallbackId (q :: Query) = CallbackId { theCallback :: Int }
+  deriving newtype (Show, Read)
 
 ---------------------------------------------------------
 -- Read instances

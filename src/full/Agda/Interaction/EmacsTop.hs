@@ -37,13 +37,13 @@ import Agda.Interaction.Base
 import Agda.Interaction.BasicOps as B
 import Agda.Interaction.Response as R
 import Agda.Interaction.Emacs.Lisp
-import Agda.Interaction.EmacsCommand ( displayInfo, clearRunningInfo, displayRunningInfo)
+import Agda.Interaction.EmacsCommand ( lispifyTree, displayInfo, clearRunningInfo, displayRunningInfo )
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.Command (localStateCommandM)
 import Agda.Interaction.Options ( DiagnosticsColours(..), optDiagnosticsColour )
 
-import Agda.Utils.DocTree  ( treeToTextNoAnn, renderToTree )
+import Agda.Utils.DocTree  ( treeToTextNoAnn, renderToTree, renderToTree' )
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor  ( (<.>) )
 import Agda.Utils.Lens
@@ -163,9 +163,31 @@ lispifyResponse = \case
         , A $ quote str
         ]
 
+  Resp_CallbackResponse ci resp -> do
+    r <- lispifyCallbackResponse resp
+    return $ L $
+      [ A "agda2-invoke-callback"
+      , A (show ci)
+      ] ++ r
+
+  Resp_CallbackFailed ci -> return $ L
+    [ A "agda2-drop-callback"
+    , A (show ci)
+    ]
+
+lispifyCallbackResponse :: CallbackResponse s -> TCM [Lisp String]
+lispifyCallbackResponse = \case
+  NameAtPoint expr ty -> do
+    m2s <- wantBufferHighlighting Nothing
+
+    content <- renderToTree' maxBound 1.5 <$>
+      TCP.prettyTCM expr TCP.<+> TCP.colon TCP.<+> TCP.prettyTCM ty
+
+    let (t, ann) = lispifyTree content m2s
+    pure (A (quote (Text.unpack t)):ann)
+
 lispifyDisplayInfo :: DisplayInfo -> TCM (Lisp String)
 lispifyDisplayInfo = \case
-
     Info_CompilationOk backend ws -> do
       warnings <- prettyTCWarnings' (tcWarnings ws)
       errors   <- prettyTCWarnings' (nonFatalErrors ws)

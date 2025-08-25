@@ -14,7 +14,7 @@ import qualified Data.Set as Set
 
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Base
-         ( CommandState(..), CurrentFile(..), ComputeMode(..), Rewrite(..)
+         ( CallbackId(..), CommandState(..), CurrentFile(..), ComputeMode(..), Rewrite(..)
          , OutputConstraint_boot(..), OutputForm_boot(..))
 import Agda.Interaction.Output (OutputConstraint, OutputForm)
 import qualified Agda.Interaction.BasicOps as B
@@ -68,6 +68,7 @@ import Agda.VersionCommit
 jsonREPL :: TCM () -> TCM ()
 jsonREPL = repl (liftIO . BS.putStrLn <=< jsonifyResponse) "JSON> "
 
+deriving newtype instance EncodeTCM (CallbackId s)
 instance EncodeTCM NameInScope where
 instance ToJSON NameInScope where
   toJSON InScope    = toJSON True
@@ -475,6 +476,13 @@ instance EncodeTCM Response where
         ]
   encodeTCM (Resp_Mimer ii str) = kind "Mimer"
     [ "solution" @= str
+    ]
+  encodeTCM (Resp_CallbackResponse id str) = kind "CallbackResponse"
+    [ "id"  @= id
+    -- TODO
+    ]
+  encodeTCM (Resp_CallbackFailed id) = kind "CallbackFailed"
+    [ "id"  @= id
     ]
 
 -- | Convert Response to an JSON value for interactive editor frontends.

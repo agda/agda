@@ -44,6 +44,7 @@ import Agda.Syntax.Parser
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Glyph
+import Agda.Syntax.Scope.Monad (resolveName, freshAbstractQName')
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Info (mkDefInfo)
@@ -461,11 +462,15 @@ updateInteractionPointsAfter Cmd_make_case{}                     = True
 updateInteractionPointsAfter Cmd_compute{}                       = False
 updateInteractionPointsAfter Cmd_why_in_scope{}                  = False
 updateInteractionPointsAfter Cmd_why_in_scope_toplevel{}         = False
+updateInteractionPointsAfter Cmd_describe_goal{}                 = False
 updateInteractionPointsAfter Cmd_show_version{}                  = False
 updateInteractionPointsAfter Cmd_abort{}                         = False
 updateInteractionPointsAfter Cmd_exit{}                          = False
 
--- | Interpret an interaction
+callback :: forall s. CallbackId s -> TCM (CallbackResponse s) -> CommandM ()
+callback cbid cont =
+  (putResponse . Resp_CallbackResponse cbid =<< lift cont)
+    `catchError` (\_ -> putResponse (Resp_CallbackFailed cbid))
 
 getBackendName :: CompilerBackend -> BackendName
 getBackendName = \case
@@ -473,6 +478,8 @@ getBackendName = \case
   QuickLaTeX -> "LaTeX"
   OtherBackend "GHCNoMain" -> "GHC"
   OtherBackend b -> b
+
+-- | Interpret an interaction
 
 interpret :: Interaction -> CommandM ()
 
@@ -750,6 +757,30 @@ interpret (Cmd_show_module_contents norm ii rng s) =
 
 interpret (Cmd_why_in_scope_toplevel s) =
   atTopLevel $ whyInScope s
+
+interpret (Cmd_describe_goal cb ii rng s pos) = callback cb $ localTCState $
+  withInteractionId ii do
+
+  -- TODO: figure out a way to infer only the type of the closest
+  -- non-operator function application to the cursor, stopping at the
+  -- first token that is entirely after the cursor. e.g.:
+  --
+  --               +-- inferred type of big-function
+  --               |
+  --               ↓  ↓ inferred type of fn1
+  --   big-function (fn1 x y z) (fn2 abc def)
+  --                           ↑      ↑ inferred type of fn2 abc
+  --                           |
+  --                           +-- inferred type of big-function (fn1 ...)
+  --
+  -- Somehow robustly with respect to parse errors after the cursor
+  -- too...
+  let actual = take pos s
+
+  exp <- B.parseExprIn ii rng actual
+  ty  <- B.typeInMeta ii Instantiated exp
+
+  pure $ NameAtPoint exp ty
 
 interpret (Cmd_why_in_scope ii _range s) =
   liftCommandMT (withInteractionId ii) $ whyInScope s
