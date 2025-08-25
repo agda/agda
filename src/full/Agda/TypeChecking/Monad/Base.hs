@@ -1324,7 +1324,7 @@ instance Pretty ModuleToSource where
 
 -- | Lookup the path of a top level module name, which must be a known one.
 
-topLevelModuleFilePath :: ModuleToSource -> TopLevelModuleName -> AbsolutePath
+topLevelModuleFilePath :: HasCallStack => ModuleToSource -> TopLevelModuleName -> AbsolutePath
 topLevelModuleFilePath (ModuleToSource dict m2s) m =
   getIdFile dict $ srcFileId $ Map.findWithDefault __IMPOSSIBLE__ m m2s
 
