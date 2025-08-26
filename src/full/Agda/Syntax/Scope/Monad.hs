@@ -491,7 +491,7 @@ instance MonadFixityError ScopeM where
 --   of declarations and store them in the scope.
 computeFixitiesAndPolarities :: DoWarn -> [C.Declaration] -> ScopeM a -> ScopeM a
 computeFixitiesAndPolarities warn ds cont = do
-  fp <- fixitiesAndPolarities warn ds
+  !fp <- fixitiesAndPolarities warn ds
   -- Andreas, 2019-08-16:
   -- Since changing fixities and polarities does not affect the name sets,
   -- we do not need to invoke @modifyScope@ here
@@ -558,7 +558,7 @@ bindName'' acc kind meta x y = do
         PatternSynResName n -> ambiguous (== PatternSynName) n
         UnknownName         -> success
   let ns = if isNoName x then PrivateNS else localNameSpace acc
-  traverse_ (modifyCurrentScope . addNameToScope ns x) y'
+  traverse_ (\y' -> modifyCurrentScope $ addNameToScope ns x y') y'
   pure $ either Just (const Nothing) y'
   where
     success = Right $ AbsName y kind Defined meta
@@ -788,8 +788,9 @@ copyScope oldc new0 s =
       lift $ reportSLn "scope.copy" 50 $ prettyShow s
       s0 <- lift $ getNamedScope new
       -- Delete private names, then copy names and modules. Recompute inScope
-      -- set rather than trying to copy it.
-      s' <- recomputeInScopeSets <$> mapScopeM_ copyD copyM return (setNameSpace PrivateNS emptyNameSpace s)
+      -- set and name parts rather than trying to copy them.
+      s' <- recomputeNameParts . recomputeInScopeSets <$>
+              mapScopeM_ copyD copyM return (setNameSpace PrivateNS emptyNameSpace s)
       -- Fix name and parent.
       return $ s' { scopeName    = scopeName s0
                   , scopeParents = scopeParents s0
@@ -1198,7 +1199,7 @@ openModule kind mam cm dir = do
                 noGeneralizedVarsIfLetOpen kind =<< getNamedScope m
   let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
-  modifyCurrentScope (`mergeScope` s)
+  modifyCurrentScope \current -> recomputeNameParts $ mergeScope current s
   -- Andreas, 2018-06-03, issue #3057:
   -- If we simply check for ambiguous exported identifiers _after_
   -- importing the new identifiers into the current scope, we also

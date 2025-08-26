@@ -2301,7 +2301,7 @@ instance ToAbstract NiceDeclaration where
 
         -- If not opening, import directives are applied to the original scope.
         DontOpen -> do
-          (adir, i') <- Map.adjustM' (applyImportDirectiveM x dir) m i
+          (adir, i') <- Map.adjustM' (\m -> fmap recomputeNameParts <$> applyImportDirectiveM x dir m) m i
           -- Andreas, 2020-05-18, issue #3933
           -- We merge the new imports without deleting old imports, to be monotone.
           modifyScopes $ \ ms -> Map.unionWith mergeScope ms i'
