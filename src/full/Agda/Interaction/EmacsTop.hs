@@ -21,6 +21,7 @@ import Control.Monad.Trans    ( lift )
 import Data.List qualified as List
 import Data.Text qualified as Text
 
+import Agda.Syntax.Fixity
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Abstract.Pretty (prettyATop)
@@ -181,7 +182,9 @@ lispifyQueryResponse = \case
     m2s <- wantBufferHighlighting Nothing
 
     content <- renderToTree' maxBound 1.5 <$>
-      TCP.prettyTCM expr TCP.<+> TCP.colon TCP.<+> TCP.prettyTCM ty
+      TCP.prettyTCMCtx TopCtx expr TCP.<+>
+      TCP.colon TCP.<+>
+      TCP.prettyTCMCtx TopCtx ty
 
     let (t, ann) = lispifyTree content m2s
     pure (A (quote (Text.unpack t)):ann)

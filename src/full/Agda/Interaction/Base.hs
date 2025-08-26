@@ -22,6 +22,7 @@ import qualified Data.Text                    as T
 import Agda.TypeChecking.Monad.Base.Types
   (HighlightingLevel, HighlightingMethod, Comparison, Polarity)
 
+import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import           Agda.Syntax.Abstract         (QName)
 import           Agda.Syntax.Common           (BackendName, InteractionId (..), Modality)
@@ -417,7 +418,7 @@ data QueryResponse (q :: Query) where
        -- ^ Its inferred type
     -> QueryResponse 'Q_infer_partial
   Resp_complete_text
-    :: [A.QName]
+    :: [C.QName]
       -- ^ Possible identifiers that can finish this token.
     -> QueryResponse 'Q_complete_text
 

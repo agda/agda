@@ -469,13 +469,14 @@ updateInteractionPointsAfter Cmd_show_version{}                  = False
 updateInteractionPointsAfter Cmd_abort{}                         = False
 updateInteractionPointsAfter Cmd_exit{}                          = False
 
-callback :: forall s. QueryId s -> TCM (QueryResponse s) -> CommandM ()
+callback :: forall s. QueryId s -> TCM (Closure (QueryResponse s)) -> CommandM ()
 callback cbid cont =
-  (putResponse . Resp_QueryReply cbid =<< liftLocalState cont)
-    `catchError` (\_ -> putResponse (Resp_QueryError cbid))
+  let putc cl = enterClosure cl (putResponse . Resp_QueryReply cbid)
+   in (putc =<< liftLocalState cont)
+        `catchError` (\_ -> putResponse (Resp_QueryError cbid))
 
 goalCallback :: forall s. QueryId s -> InteractionId -> Range -> TCM (QueryResponse s) -> CommandM ()
-goalCallback cbid iid rng = callback cbid . withInteractionId iid . setCurrentRange rng
+goalCallback cbid iid rng = callback cbid . withInteractionId iid . setCurrentRange rng . (buildClosure =<<)
 
 getBackendName :: CompilerBackend -> BackendName
 getBackendName = \case
@@ -787,13 +788,10 @@ interpret (Cmd_infer_partial cb ii rng s pos) = goalCallback cb ii rng do
   pure $ Resp_infer_partial exp ty
 
 interpret (Cmd_complete_text cb ii rng str) = goalCallback cb ii rng do
-  things :: NamesInScope <- allNamesInScope <$> getCurrentScope
+  things <- concreteNamesInScope <$> getScope
   let
-    res :: [A.QName]
-    res = do
-      (cname, qnames) <- Map.toList things
-      guard (str `List.isPrefixOf` prettyShow cname)
-      anameName <$> List1.toList qnames
+    res :: [C.QName]
+    res = Set.toList $ Set.filter (List.isPrefixOf str . prettyShow) things
   res `DeepSeq.deepseq` pure (Resp_complete_text res)
 
 interpret (Cmd_why_in_scope ii _range s) =

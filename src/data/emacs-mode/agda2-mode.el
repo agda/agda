@@ -860,9 +860,7 @@ The variable `agda2-backend' determines which backend is used."
   (interactive (list (agda2-read-backend) (or agda2-backend-default-payload (read-string "Payload: "))))
   (if (agda2-goal-at (point))
      (agda2-goal-cmd "Cmd_backend_hole" nil 'goal nil backend (agda2-string-quote payload))
-     (agda2-go 'save t 'busy t "Cmd_backend_top" backend (agda2-string-quote payload))
-  )
-)
+     (agda2-go 'save t 'busy t "Cmd_backend_top" backend (agda2-string-quote payload))))
 
 (defmacro agda2-maybe-forced (name comment cmd save want)
   "This macro constructs a function NAME which runs CMD.
@@ -1363,7 +1361,7 @@ Either uses the scope of the current goal or, if point is not in a goal, the
 top-level scope."
   (interactive)
   (call-interactively (if (agda2-goal-at (point))
-                          'agda2-infer-type
+                        'agda2-infer-type
                         'agda2-infer-type-toplevel)))
 
 (defun agda2-why-in-scope ()
@@ -1453,7 +1451,7 @@ Uses either the scope of the current goal or, if point is not in
 a goal, the top-level scope."
   (interactive)
   (call-interactively (if (agda2-goal-at (point))
-                          'agda2-module-contents
+                        'agda2-module-contents
                         'agda2-module-contents-toplevel)))
 
 (defun agda2-solve-maybe-all ()
@@ -1471,8 +1469,7 @@ Either only one if point is a goal, or all of them."
   (interactive)
   (call-interactively (if (agda2-goal-at (point))
                           'agda2-mimer
-                          'agda2-mimerAll))
-)
+                          'agda2-mimerAll)))
 
 (agda2-maybe-normalised-asis
   agda2-mimer
@@ -1739,31 +1736,77 @@ text properties."
 
 (defun agda2-goal-eldoc-function (callback &rest _ignored)
   "Return type information for the thing under the point (if it exists)"
-  (and (agda2-goal-at (point)) (cl-multiple-value-bind (o g) (agda2-goal-at (point))
-    (let ((text (buffer-substring-no-properties
-                  (+ (overlay-start o) 2)
-                  (- (overlay-end   o) 2))))
-      (if (not (string-match "\\`\\s *\\'" text))
-        (agda2-async
-          (((text . hl) "Cmd_infer_partial"
+  (and (agda2-goal-at (point)) (not (eq agda2-in-progress 'busy))
+    (cl-multiple-value-bind (o g) (agda2-goal-at (point))
+      (let ((text (buffer-substring-no-properties
+                    (+ (overlay-start o) 2)
+                    (- (overlay-end   o) 2))))
+        (if (not (string-match "\\`\\s *\\'" text))
+          (agda2-async
+            (((text . hl) "Cmd_infer_partial"
 
-            :args (list
-              (format "%d" g)
-              (agda2-goal-Range o)
-              (agda2-string-quote text)
-              (format "%d" (- (point) (+ 2 (overlay-start o)))))
+              :args (list
+                (format "%d" g)
+                (agda2-goal-Range o)
+                (agda2-string-quote text)
+                (format "%d" (- (point) (+ 2 (overlay-start o)))))
 
-            :else (lambda () (funcall callback ""))))
+              :else (lambda () (funcall callback ""))))
 
-          (funcall callback (apply #'annotate-string text hl)))
-        "")))))
+            (funcall callback (apply #'annotate-string text hl)))
+          "")))))
+
+(defconst agda2-identifier-characters
+  ;; Implemented as a negated character class. We want to treat
+  ;; qualified names as being identifiers so dot is not included.
+  "^[:space:]\\|\\(\\)\\[\\]\\{\\}⦃⦄;"
+  "Rough approximation of characters that can belong in an Agda
+identifier.")
+
+(defun agda2-bounds-of-identifier-at-point ()
+  "Get the bounds of an Agda identifier around the point (technically,
+the bounds that delimit a run of `agda2-identifier-characters').
+
+Can be used with `thing-at-point' and friends."
+  (cl-labels
+    ((do-find ()
+      (let
+        ((pt (point))
+        (whitespace-before (skip-chars-backward agda2-identifier-characters))
+        (whitespace-after  (skip-chars-forward  agda2-identifier-characters)))
+        (cons (+ pt whitespace-before)
+              (+ pt whitespace-before whitespace-after)))))
+    (save-excursion
+      ;; This is definitely *a* way to implement this. If an identifier
+      ;; is smashed up against the boundary of a goal we don't want to
+      ;; include the ! in the identifier. Instead of trying to use a
+      ;; more complicated regex for identifier boundaries we can instead
+      ;; copy the goal contents to a temporary buffer, search for the
+      ;; identifier bounds there, and then do some cursed index munging
+      ;; to get back numbers in reality.
+      (pcase (agda2-goal-at (point))
+        (`(,o ,g)
+         (pcase-let*
+           ((outer (point))
+            (text (buffer-substring-no-properties
+                     (+ (overlay-start o) 2)
+                     (- (overlay-end   o) 2)))
+            (`(,s . ,e) (with-temp-buffer
+                          (insert text)
+                          (goto-char (- outer (+ (overlay-start o) 1)))
+                          (do-find))))
+           (cons (+ 1 (overlay-start o) s)
+                 (+ 1 (overlay-start o) e))))
+        (_ (do-find))))))
+
+(put 'identifier 'bounds-of-thing-at-point #'agda2-bounds-of-identifier-at-point)
 
 (cl-defun agda2-goal-completion-function ()
   "Completion-at-point function for Agda (only works inside goals)."
   (pcase-let*
     ((`(,o ,g)         (agda2-goal-at (point)))
-     (word             (thing-at-point 'word))
-     (`(,start . ,end) (bounds-of-thing-at-point 'word)))
+     (word             (thing-at-point 'identifier))
+     (`(,start . ,end) (bounds-of-thing-at-point 'identifier)))
 
     (unless (and o g start end word)
       (cl-return-from agda2-goal-completion-function nil))
@@ -1899,7 +1942,7 @@ characters to the \\xNNNN notation used in Haskell strings."
   "Convert a list of STRINGS into a string representing it in Haskell syntax."
   (concat "[" (mapconcat 'agda2-string-quote strings ", ") "]"))
 
-(defun agda2-goal-at(pos)
+(defun agda2-goal-at (pos)
   "Return (goal overlay, goal number) at POS, or nil."
   (let ((os (and pos (overlays-at pos))) o g)
     (while (and os (not(setq g (overlay-get (setq o (pop os)) 'agda2-gn)))))
