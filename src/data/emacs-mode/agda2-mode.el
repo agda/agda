@@ -44,6 +44,7 @@ Note that the same version of the Agda executable must be used.")
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
 (require 'agda2-queue)
+(require 'agda2-async)
 
 (eval-and-compile
   ;; Load filladapt, if it is installed.
@@ -63,7 +64,11 @@ properties to add to the result."
         (add-text-properties 0 (length str) properties str)
         str)))
   (unless (fboundp 'prog-mode)          ;For Emacs<24.
-    (defalias 'prog-mode 'fundamental-mode)))
+    (defalias 'prog-mode 'fundamental-mode))
+
+  (condition-case nil
+    (require 'thingatpt)
+    (error nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Utilities
@@ -396,8 +401,8 @@ The following paragraph does not apply to Emacs 23 or newer.
 Special commands:
 \\{agda2-mode-map}"
 
- (if (boundp 'agda2-include-dirs)
-     (display-warning 'agda2 "Note that the variable agda2-include-dirs is
+  (if (boundp 'agda2-include-dirs)
+    (display-warning 'agda2 "Note that the variable agda2-include-dirs is
 no longer used. You may want to update your configuration. You
 have at least two choices:
 * Use the library management system.
@@ -406,50 +411,60 @@ have at least two choices:
 One way to avoid seeing this warning is to make sure that
 agda2-include-dirs is not bound." :warning))
 
- (setq local-abbrev-table agda2-mode-abbrev-table
-       indent-tabs-mode   nil
-       mode-line-process
-         '((:eval (unless (eq 0 (length agda2-buffer-external-status))
-                    (concat ":" agda2-buffer-external-status)))))
- (let ((l '(max-specpdl-size    2600
-            max-lisp-eval-depth 2800)))
-   (while l (set (make-local-variable (pop l)) (pop l))))
- (if (and window-system agda2-fontset-name)
-     (condition-case nil
-         (set-frame-font agda2-fontset-name)
-       (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
- ;; Deactivate highlighting if the buffer is edited before
- ;; typechecking is complete.
- (add-hook 'first-change-hook 'agda2-abort-highlighting nil 'local)
- ;; If Agda is not running syntax highlighting does not work properly.
- (unless (eq 'run (agda2-process-status))
-   (agda2-restart))
- ;; Make sure that Font Lock mode is not used.
- (font-lock-mode 0)
- (agda2-highlight-setup)
- (condition-case err
-     (agda2-highlight-reload)
-   (error (message "Highlighting not loaded: %s"
-                   (error-message-string err))))
- (agda2-comments-and-paragraphs-setup)
- (force-mode-line-update)
- ;; Protect global value of default-input-method from set-input-method.
- (make-local-variable 'default-input-method)
+  (setq local-abbrev-table agda2-mode-abbrev-table
+        indent-tabs-mode   nil
+        mode-line-process
+          '((:eval (unless (eq 0 (length agda2-buffer-external-status))
+                      (concat ":" agda2-buffer-external-status)))))
 
- ;; Don't take script into account when determining word boundaries
- (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
- (set-input-method "Agda")
+  (let ((l '(max-specpdl-size    2600
+             max-lisp-eval-depth 2800)))
+    (while l (set (make-local-variable (pop l)) (pop l))))
 
- ;; Install signature help support (eldoc)
- (add-hook 'eldoc-documentation-functions #'agda2-goal-eldoc-function t t)
- (eldoc-mode t)
+  (if (and window-system agda2-fontset-name)
+    (condition-case nil
+        (set-frame-font agda2-fontset-name)
+      (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
 
- ;; Highlighting etc. is removed when we switch from the Agda mode.
- ;; Use case: When a file M.lagda with a local variables list
- ;; including "mode: latex" is loaded chances are that the Agda mode
- ;; is activated before the LaTeX mode, and the LaTeX mode does not
- ;; seem to remove the text properties set by the Agda mode.
- (add-hook 'change-major-mode-hook 'agda2-quit nil 'local))
+  ;; Deactivate highlighting if the buffer is edited before
+  ;; typechecking is complete.
+  (add-hook 'first-change-hook 'agda2-abort-highlighting nil 'local)
+
+  ;; If Agda is not running syntax highlighting does not work properly.
+  (unless (eq 'run (agda2-process-status))
+    (agda2-restart))
+
+  ;; Make sure that Font Lock mode is not used.
+  (font-lock-mode 0)
+  (agda2-highlight-setup)
+  (condition-case err
+      (agda2-highlight-reload)
+    (error (message "Highlighting not loaded: %s"
+                    (error-message-string err))))
+
+  (agda2-comments-and-paragraphs-setup)
+  (force-mode-line-update)
+  ;; Protect global value of default-input-method from set-input-method.
+  (make-local-variable 'default-input-method)
+
+  ;; Don't take script into account when determining word boundaries
+  (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
+  (set-input-method "Agda")
+
+  ;; Install signature help support (eldoc)
+  (add-hook 'eldoc-documentation-functions #'agda2-goal-eldoc-function t t)
+  (eldoc-mode t)
+
+  ;; When thingatpt is new enough (Emacs >30?!), install completion support
+  (when (fboundp #'bounds-of-thing-at-point)
+    (add-hook 'completion-at-point-functions #'agda2-goal-completion-function t t))
+
+  ;; Highlighting etc. is removed when we switch from the Agda mode.
+  ;; Use case: When a file M.lagda with a local variables list
+  ;; including "mode: latex" is loaded chances are that the Agda mode
+  ;; is activated before the LaTeX mode, and the LaTeX mode does not
+  ;; seem to remove the text properties set by the Agda mode.
+  (add-hook 'change-major-mode-hook 'agda2-quit nil 'local))
 
 (defun agda2-restart ()
   "Tries to start or restart the Agda process."
@@ -1722,80 +1737,6 @@ text properties."
               (agda2-string-quote new-txt) nil))
     )))
 
-(defvar-local agda2--async-requests (make-hash-table)
-  "Variable associating in-flight asynchronous requests to their callbacks.")
-
-(defun agda2--defer (okay &optional err)
-  "Register OKAY as a callback pair for asynchronous execution. If
-given, ERR will be called when Agda fails the callback instead.
-
-Returns an identifier suitable for use as a CallbackId in Cmds that
-take a callback."
-  (let ((id (random (expt 2 24))))
-    (puthash id (cons okay (or err (lambda ()))) agda2--async-requests)
-    id))
-
-(defmacro agda2-async (bindings &rest body)
-  "Execute a series of asynchronous commands, according to BINDINGS, and
-execute BODY after each returns. Note: the semantics of this are
-\"monadic\", not \"applicative\", so a subsequent binding will only be
-dispatched when the previous binding returns.
-
-Each form in BINDINGS should be a list of form
-
-  (ARGLIST COMMAND :args COMMAND-ARGS :else FAIL-CONTINUATION)
-
-The ARGLIST a complete CL argument list, c.f. `cl-destructuring-bind'.
-The FAIL-CONTINUATION is optional, but, if given, will be invoked if
-execution of *this* command fails (again, note: if a command fails, no
-subsequent commands will be dispatched).
-
-The COMMAND and COMMAND-ARGS should construct a value suitable for
-invoking `agda2-go'. The Haskell constructor for COMMAND should take a
-CallbackId as its *first* argument.
-"
-  (cl-labels
-    ; Dispatch a single command
-    ((async-one ((args cmd &key ((:args cargs)) (else '(lambda ()))) &rest body)
-       (agda2--with-gensyms (cbid argn)
-         `(let ((,cbid (agda2--defer
-                         (lambda (&rest ,argn)
-                           (cl-destructuring-bind ,args ,argn
-                             ,@body))
-                         ,else)))
-             (apply #'agda2-go nil nil 'not-so-busy 't ,cmd
-               (format "%d" ,cbid)
-               ,cargs)
-             t)))
-
-     ; Dispatch a bunch of them
-     (async-loop (bindings body)
-       (if (consp bindings)
-         (async-one (car bindings)
-           (async-loop (cdr bindings) body))
-         `(progn ,@body t))))
-
-    (async-loop bindings body)))
-
-(defun agda2-invoke-callback (id &rest args)
-  "Invoke the success continuation for the async command with identifier
-ID, with the given ARGS, and drop it from the `agda2--async-requests'
-table.
-
-Called from Haskell."
-  (let ((callback (gethash id agda2--async-requests)))
-    (remhash id agda2--async-requests)
-    (apply (car callback) args)))
-
-(defun agda2-drop-callback (id)
-  "Invoke the failure continuation for the async command with identifier
-ID, and drop it from the `agda2--async-requests' table.
-
-Called from Haskell."
-  (let ((callback (gethash id agda2--async-requests)))
-    (remhash id agda2--async-requests)
-    (funcall (cdr callback))))
-
 (defun agda2-goal-eldoc-function (callback &rest _ignored)
   "Return type information for the thing under the point (if it exists)"
   (and (agda2-goal-at (point)) (cl-multiple-value-bind (o g) (agda2-goal-at (point))
@@ -1804,7 +1745,7 @@ Called from Haskell."
                   (- (overlay-end   o) 2))))
       (if (not (string-match "\\`\\s *\\'" text))
         (agda2-async
-          (((text . hl) "Cmd_describe_goal"
+          (((text . hl) "Cmd_infer_partial"
 
             :args (list
               (format "%d" g)
@@ -1816,6 +1757,66 @@ Called from Haskell."
 
           (funcall callback (apply #'annotate-string text hl)))
         "")))))
+
+(cl-defun agda2-goal-completion-function ()
+  "Completion-at-point function for Agda (only works inside goals)."
+  (pcase-let*
+    ((`(,o ,g)         (agda2-goal-at (point)))
+     (word             (thing-at-point 'word))
+     (`(,start . ,end) (bounds-of-thing-at-point 'word)))
+
+    (unless (and o g start end word)
+      (cl-return-from agda2-goal-completion-function nil))
+
+    (let*
+      ((completions (agda2-async-thunk "Cmd_complete_text"
+         (format "%d" g) (agda2-goal-Range o)
+         (agda2-string-quote word)))
+
+       ;; This function is called *very often* by the completion
+       ;: infrastructure, so at some point we have to do some waiting: if
+       ;: we stay in elisp code the entire time then we just answer a
+       ;: bunch of `nil`s until Emacs gives up on the completion because
+       ;; Agda never had a chance to write its output between invocations
+       ;; of the completion table
+       ;; The waiting is interruptible by user-input so we don't hang
+       ;; the UI if there's too much to complete
+       (table (lambda (pattern pred action)
+         (condition-case nil
+           (cond
+             ;; "The return value should have form (metadata . alist)"
+             ;; Nothing very interesting (no, e.g., custom sorting
+             ;; function) but let's just give it the list anyway
+             ((eq action 'metadata)
+             `(metadata
+                 (category . agda-completion)))
+
+             ;; These cases are "are there any completions" and "do any
+             ;; match a prefix of the word" respectively.
+             ;; Have to do some waiting for Agda to have a chance to get
+             ;; back to us, otherwise Emacs assumes the nil return means
+             ;; "there's no completions at all"
+             ((eq action t) (all-completions pattern (funcall completions :wait t)))
+             ((null action) (try-completion  pattern (funcall completions :wait t)))
+
+             ;; No need to wait here: this case is "is any completion an
+             ;; exact match for the word". Here Emacs assumes nil means
+             ;; the completions are all interesting.
+             ((eq action 'lambda) (test-completion pattern (funcall completions)))
+
+             ;; Boundaries is for things like shell completion, nothing to do
+             ((eq (car-safe action) 'boundaries) nil)
+
+             ;; "If the flag has any other value, the completion function should return nil."
+             ;; Aye aye o7
+             (t                                  nil))
+
+           ;; This should *never* happen (fetching completions should at
+           ;; worst return an empty list).
+           (agda2-async-wait-failed
+             (error "Fetching completions failed!"))))))
+
+      (list start end table :eager-display t))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Misc

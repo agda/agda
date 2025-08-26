@@ -163,21 +163,21 @@ lispifyResponse = \case
         , A $ quote str
         ]
 
-  Resp_CallbackResponse ci resp -> do
-    r <- lispifyCallbackResponse resp
+  Resp_QueryReply ci resp -> do
+    r <- lispifyQueryResponse resp
     return $ L $
       [ A "agda2-invoke-callback"
       , A (show ci)
       ] ++ r
 
-  Resp_CallbackFailed ci -> return $ L
+  Resp_QueryError ci -> return $ L
     [ A "agda2-drop-callback"
     , A (show ci)
     ]
 
-lispifyCallbackResponse :: CallbackResponse s -> TCM [Lisp String]
-lispifyCallbackResponse = \case
-  NameAtPoint expr ty -> do
+lispifyQueryResponse :: QueryResponse s -> TCM [Lisp String]
+lispifyQueryResponse = \case
+  Resp_infer_partial expr ty -> do
     m2s <- wantBufferHighlighting Nothing
 
     content <- renderToTree' maxBound 1.5 <$>
@@ -185,6 +185,8 @@ lispifyCallbackResponse = \case
 
     let (t, ann) = lispifyTree content m2s
     pure (A (quote (Text.unpack t)):ann)
+
+  Resp_complete_text names -> traverse (fmap (A . quote . render) . prettyTCM) names
 
 lispifyDisplayInfo :: DisplayInfo -> TCM (Lisp String)
 lispifyDisplayInfo = \case

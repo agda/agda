@@ -22,6 +22,7 @@ import qualified Data.Text                    as T
 import Agda.TypeChecking.Monad.Base.Types
   (HighlightingLevel, HighlightingMethod, Comparison, Polarity)
 
+import qualified Agda.Syntax.Abstract as A
 import           Agda.Syntax.Abstract         (QName)
 import           Agda.Syntax.Common           (BackendName, InteractionId (..), Modality)
 import           Agda.Syntax.Internal         (ProblemId, Blocker)
@@ -312,10 +313,14 @@ data Interaction' range
   | Cmd_why_in_scope    InteractionId range String
   | Cmd_why_in_scope_toplevel String
 
-  | Cmd_describe_goal     (CallbackId 'Q_name_at_point)
-      InteractionId range String Int
+  | Cmd_infer_partial (QueryId 'Q_infer_partial)
+      InteractionId range
+      String Int
    -- ^ The 'Int' is the user's cursor position relative to the start of
    -- the string.
+
+  | Cmd_complete_text (QueryId 'Q_complete_text)
+      InteractionId range String
 
     -- | Displays version of the running Agda
   | Cmd_show_version
@@ -346,11 +351,75 @@ data Remove
   | Keep
   deriving (Show, Read)
 
-data Query = Q_name_at_point
+-- * Query design
+--
+-- $queries
+--
+-- Most of the constructors for 'Interaction' have some editor-wide (or
+-- at least buffer-wide) effect, /including/ the informational ones,
+-- which have the effect of updating the information buffer. This design
+-- is suitable for Agda's primary interaction UX, where there can be
+-- essentially at most one request in flight, but it leaves something to
+-- be desired when implementing "local", ephemeral editor integration,
+-- like type-at-point/@eldoc@, autocompletion, etc.
+--
+-- For these, whatever response we produce is intrinsically tied to the
+-- local editor context that sent the command to begin with. Instead of
+-- having separate 'Agda.Interaction.Response.Base.Response'
+-- constructors for each of these "local-scope" requests, all of which
+-- would have roughly the same method for pairing requests and
+-- responses, we have a generic design that allows the editor to send
+-- some identifying information for each "query" (currently an integer),
+-- and a single pair of responses that include this same token, which is
+-- a sufficient design for the editor side to implement a convenient
+-- (a)synchronous interface in whatever language the extension is
+-- written in.
+--
+-- "Queries" are put in the 'Interaction' type like the other
+-- interaction commands, with the distinguishing feature (there) being
+-- that they __must__ always take a 'QueryId' as their __first__
+-- argument. The 'QueryId' type is indexed by the 'Query', which is used
+-- in 'Agda.Interaction.InteractionTop' to know what response type
+-- should be produced. This index must be __fixed per constructor__. We
+-- can not easily have a single @Cmd_query@ constructor with type like
+--
+--   @
+--   Cmd_query :: forall s. QueryId s -> QueryArgs s -> Interaction' range
+--   @
+--
+-- while using 'Read' to parse `Interaction'` on the Haskell side. A
+-- constructor of 'Query' like 'Q_infer_partial' __should__ have a
+-- corresponding `Interaction'` constructor named like
+-- 'Cmd_infer_partial' and 'QueryResponse' constructor named like
+-- 'Resp_infer_partial'.
 
--- | Identifiers for callbacks
-newtype CallbackId (q :: Query) = CallbackId { theCallback :: Int }
+-- | Phantom type used to index queries, see $queries.
+data Query
+  = Q_infer_partial
+    -- ^ "Signature help". Infer the type of the "narrowest" function
+    -- application that contains the point, in the context of a goal,
+    -- where the rest of the expression may be malformed.
+  | Q_complete_text
+    -- ^ Autocompletion.
+
+-- | An identifying token for a 'Query' (see $queries), to be generated
+-- by the editor and echoed back by us.
+newtype QueryId (q :: Query) = QueryId { theQueryId :: Int }
   deriving newtype (Show, Read)
+
+-- | A response to a 'Query', see $queries.
+data QueryResponse (q :: Query) where
+  Resp_infer_partial
+    :: A.Expr
+       -- ^ The expression we actually parsed, which may be a subtree of
+       -- what the user has written
+    -> A.Type
+       -- ^ Its inferred type
+    -> QueryResponse 'Q_infer_partial
+  Resp_complete_text
+    :: [A.QName]
+      -- ^ Possible identifiers that can finish this token.
+    -> QueryResponse 'Q_complete_text
 
 ---------------------------------------------------------
 -- Read instances

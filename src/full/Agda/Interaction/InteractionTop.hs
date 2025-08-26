@@ -44,7 +44,7 @@ import Agda.Syntax.Parser
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Glyph
-import Agda.Syntax.Scope.Monad (resolveName, freshAbstractQName')
+import Agda.Syntax.Scope.Monad (getCurrentScope, freshAbstractQName')
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Info (mkDefInfo)
@@ -76,6 +76,7 @@ import Agda.Compiler.Backend
 import Agda.Mimer.Mimer as Mimer
 import qualified Control.DeepSeq as DeepSeq
 
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Function
@@ -462,15 +463,19 @@ updateInteractionPointsAfter Cmd_make_case{}                     = True
 updateInteractionPointsAfter Cmd_compute{}                       = False
 updateInteractionPointsAfter Cmd_why_in_scope{}                  = False
 updateInteractionPointsAfter Cmd_why_in_scope_toplevel{}         = False
-updateInteractionPointsAfter Cmd_describe_goal{}                 = False
+updateInteractionPointsAfter Cmd_infer_partial{}                 = False
+updateInteractionPointsAfter Cmd_complete_text{}                 = False
 updateInteractionPointsAfter Cmd_show_version{}                  = False
 updateInteractionPointsAfter Cmd_abort{}                         = False
 updateInteractionPointsAfter Cmd_exit{}                          = False
 
-callback :: forall s. CallbackId s -> TCM (CallbackResponse s) -> CommandM ()
+callback :: forall s. QueryId s -> TCM (QueryResponse s) -> CommandM ()
 callback cbid cont =
-  (putResponse . Resp_CallbackResponse cbid =<< lift cont)
-    `catchError` (\_ -> putResponse (Resp_CallbackFailed cbid))
+  (putResponse . Resp_QueryReply cbid =<< liftLocalState cont)
+    `catchError` (\_ -> putResponse (Resp_QueryError cbid))
+
+goalCallback :: forall s. QueryId s -> InteractionId -> Range -> TCM (QueryResponse s) -> CommandM ()
+goalCallback cbid iid rng = callback cbid . withInteractionId iid . setCurrentRange rng
 
 getBackendName :: CompilerBackend -> BackendName
 getBackendName = \case
@@ -758,8 +763,7 @@ interpret (Cmd_show_module_contents norm ii rng s) =
 interpret (Cmd_why_in_scope_toplevel s) =
   atTopLevel $ whyInScope s
 
-interpret (Cmd_describe_goal cb ii rng s pos) = callback cb $ localTCState $
-  withInteractionId ii do
+interpret (Cmd_infer_partial cb ii rng s pos) = goalCallback cb ii rng do
 
   -- TODO: figure out a way to infer only the type of the closest
   -- non-operator function application to the cursor, stopping at the
@@ -780,7 +784,17 @@ interpret (Cmd_describe_goal cb ii rng s pos) = callback cb $ localTCState $
   exp <- B.parseExprIn ii rng actual
   ty  <- B.typeInMeta ii Instantiated exp
 
-  pure $ NameAtPoint exp ty
+  pure $ Resp_infer_partial exp ty
+
+interpret (Cmd_complete_text cb ii rng str) = goalCallback cb ii rng do
+  things :: NamesInScope <- allNamesInScope <$> getCurrentScope
+  let
+    res :: [A.QName]
+    res = do
+      (cname, qnames) <- Map.toList things
+      guard (str `List.isPrefixOf` prettyShow cname)
+      anameName <$> List1.toList qnames
+  res `DeepSeq.deepseq` pure (Resp_complete_text res)
 
 interpret (Cmd_why_in_scope ii _range s) =
   liftCommandMT (withInteractionId ii) $ whyInScope s
