@@ -1768,6 +1768,18 @@ text properties."
     (unless (and o g start end word)
       (cl-return-from agda2-goal-completion-function nil))
 
+    ;; N.B.: completion-in-region-mode will call *this* function again
+    ;; as part of its post-command hook to figure out if the completion
+    ;; window should be closed. This can result in an error if you e.g.
+    ;; toggle completion → reload, since that will most probably trigger
+    ;; the hook (hence call this function, which wants to dispatch a
+    ;; command) while Agda is still loading.
+    ;;
+    ;; So in this situation return ; nil to indicate to close the
+    ;; completion buffer.
+    (if (and completion-in-region-mode (eq agda2-in-progress 'busy))
+      (cl-return-from agda2-goal-completion-function nil))
+
     (let*
       ((completions (agda2-async-thunk "Cmd_complete_text"
          (format "%d" g) (agda2-goal-Range o)
