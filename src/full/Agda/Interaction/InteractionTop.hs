@@ -44,6 +44,7 @@ import Agda.Syntax.Parser
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Glyph
+import Agda.Syntax.Scope.Monad (getCurrentScope, freshAbstractQName')
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Info (mkDefInfo)
@@ -75,6 +76,7 @@ import Agda.Compiler.Backend
 import Agda.Mimer.Mimer as Mimer
 import qualified Control.DeepSeq as DeepSeq
 
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Function
@@ -461,11 +463,20 @@ updateInteractionPointsAfter Cmd_make_case{}                     = True
 updateInteractionPointsAfter Cmd_compute{}                       = False
 updateInteractionPointsAfter Cmd_why_in_scope{}                  = False
 updateInteractionPointsAfter Cmd_why_in_scope_toplevel{}         = False
+updateInteractionPointsAfter Cmd_infer_partial{}                 = False
+updateInteractionPointsAfter Cmd_complete_text{}                 = False
 updateInteractionPointsAfter Cmd_show_version{}                  = False
 updateInteractionPointsAfter Cmd_abort{}                         = False
 updateInteractionPointsAfter Cmd_exit{}                          = False
 
--- | Interpret an interaction
+callback :: forall s. QueryId s -> TCM (Closure (QueryResponse s)) -> CommandM ()
+callback cbid cont =
+  let putc cl = enterClosure cl (putResponse . Resp_QueryReply cbid)
+   in (putc =<< liftLocalState cont)
+        `catchError` (\_ -> putResponse (Resp_QueryError cbid))
+
+goalCallback :: forall s. QueryId s -> InteractionId -> Range -> TCM (QueryResponse s) -> CommandM ()
+goalCallback cbid iid rng = callback cbid . withInteractionId iid . setCurrentRange rng . (buildClosure =<<)
 
 getBackendName :: CompilerBackend -> BackendName
 getBackendName = \case
@@ -473,6 +484,8 @@ getBackendName = \case
   QuickLaTeX -> "LaTeX"
   OtherBackend "GHCNoMain" -> "GHC"
   OtherBackend b -> b
+
+-- | Interpret an interaction
 
 interpret :: Interaction -> CommandM ()
 
@@ -750,6 +763,36 @@ interpret (Cmd_show_module_contents norm ii rng s) =
 
 interpret (Cmd_why_in_scope_toplevel s) =
   atTopLevel $ whyInScope s
+
+interpret (Cmd_infer_partial cb ii rng s pos) = goalCallback cb ii rng do
+
+  -- TODO: figure out a way to infer only the type of the closest
+  -- non-operator function application to the cursor, stopping at the
+  -- first token that is entirely after the cursor. e.g.:
+  --
+  --               +-- inferred type of big-function
+  --               |
+  --               ↓  ↓ inferred type of fn1
+  --   big-function (fn1 x y z) (fn2 abc def)
+  --                           ↑      ↑ inferred type of fn2 abc
+  --                           |
+  --                           +-- inferred type of big-function (fn1 ...)
+  --
+  -- Somehow robustly with respect to parse errors after the cursor
+  -- too...
+  let actual = take pos s
+
+  exp <- B.parseExprIn ii rng actual
+  ty  <- B.typeInMeta ii Instantiated exp
+
+  pure $ Resp_infer_partial exp ty
+
+interpret (Cmd_complete_text cb ii rng str) = goalCallback cb ii rng do
+  things <- concreteNamesInScope <$> getScope
+  let
+    res :: [C.QName]
+    res = Set.toList $ Set.filter (List.isPrefixOf str . prettyShow) things
+  res `DeepSeq.deepseq` pure (Resp_complete_text res)
 
 interpret (Cmd_why_in_scope ii _range s) =
   liftCommandMT (withInteractionId ii) $ whyInScope s

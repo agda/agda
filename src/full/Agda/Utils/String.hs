@@ -68,9 +68,9 @@ haskellStringLiteral s = "\"" ++ concatMap escape s ++ "\""
 -- ———— Title —————————————————————————————————————————————————
 
 delimiter :: String -> String
-delimiter s = concat [ replicate 4 '\x2014'
+delimiter s = concat [ replicate 4 '\x2500'
                      , " ", s, " "
-                     , replicate (54 - length s) '\x2014'
+                     , replicate (54 - length s) '\x2500'
                      ]
 
 -- | Adds a final newline if there is not already one.

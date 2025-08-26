@@ -44,6 +44,8 @@ Note that the same version of the Agda executable must be used.")
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
 (require 'agda2-queue)
+(require 'agda2-async)
+
 (eval-and-compile
   ;; Load filladapt, if it is installed.
   (condition-case nil
@@ -62,7 +64,11 @@ properties to add to the result."
         (add-text-properties 0 (length str) properties str)
         str)))
   (unless (fboundp 'prog-mode)          ;For Emacs<24.
-    (defalias 'prog-mode 'fundamental-mode)))
+    (defalias 'prog-mode 'fundamental-mode))
+
+  (condition-case nil
+    (require 'thingatpt)
+    (error nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Utilities
@@ -395,8 +401,8 @@ The following paragraph does not apply to Emacs 23 or newer.
 Special commands:
 \\{agda2-mode-map}"
 
- (if (boundp 'agda2-include-dirs)
-     (display-warning 'agda2 "Note that the variable agda2-include-dirs is
+  (if (boundp 'agda2-include-dirs)
+    (display-warning 'agda2 "Note that the variable agda2-include-dirs is
 no longer used. You may want to update your configuration. You
 have at least two choices:
 * Use the library management system.
@@ -405,44 +411,60 @@ have at least two choices:
 One way to avoid seeing this warning is to make sure that
 agda2-include-dirs is not bound." :warning))
 
- (setq local-abbrev-table agda2-mode-abbrev-table
-       indent-tabs-mode   nil
-       mode-line-process
-         '((:eval (unless (eq 0 (length agda2-buffer-external-status))
-                    (concat ":" agda2-buffer-external-status)))))
- (let ((l '(max-specpdl-size    2600
-            max-lisp-eval-depth 2800)))
-   (while l (set (make-local-variable (pop l)) (pop l))))
- (if (and window-system agda2-fontset-name)
-     (condition-case nil
-         (set-frame-font agda2-fontset-name)
-       (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
- ;; Deactivate highlighting if the buffer is edited before
- ;; typechecking is complete.
- (add-hook 'first-change-hook 'agda2-abort-highlighting nil 'local)
- ;; If Agda is not running syntax highlighting does not work properly.
- (unless (eq 'run (agda2-process-status))
-   (agda2-restart))
- ;; Make sure that Font Lock mode is not used.
- (font-lock-mode 0)
- (agda2-highlight-setup)
- (condition-case err
-     (agda2-highlight-reload)
-   (error (message "Highlighting not loaded: %s"
-                   (error-message-string err))))
- (agda2-comments-and-paragraphs-setup)
- (force-mode-line-update)
- ;; Protect global value of default-input-method from set-input-method.
- (make-local-variable 'default-input-method)
- ;; Don't take script into account when determining word boundaries
- (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
- (set-input-method "Agda")
- ;; Highlighting etc. is removed when we switch from the Agda mode.
- ;; Use case: When a file M.lagda with a local variables list
- ;; including "mode: latex" is loaded chances are that the Agda mode
- ;; is activated before the LaTeX mode, and the LaTeX mode does not
- ;; seem to remove the text properties set by the Agda mode.
- (add-hook 'change-major-mode-hook 'agda2-quit nil 'local))
+  (setq local-abbrev-table agda2-mode-abbrev-table
+        indent-tabs-mode   nil
+        mode-line-process
+          '((:eval (unless (eq 0 (length agda2-buffer-external-status))
+                      (concat ":" agda2-buffer-external-status)))))
+
+  (let ((l '(max-specpdl-size    2600
+             max-lisp-eval-depth 2800)))
+    (while l (set (make-local-variable (pop l)) (pop l))))
+
+  (if (and window-system agda2-fontset-name)
+    (condition-case nil
+        (set-frame-font agda2-fontset-name)
+      (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
+
+  ;; Deactivate highlighting if the buffer is edited before
+  ;; typechecking is complete.
+  (add-hook 'first-change-hook 'agda2-abort-highlighting nil 'local)
+
+  ;; If Agda is not running syntax highlighting does not work properly.
+  (unless (eq 'run (agda2-process-status))
+    (agda2-restart))
+
+  ;; Make sure that Font Lock mode is not used.
+  (font-lock-mode 0)
+  (agda2-highlight-setup)
+  (condition-case err
+      (agda2-highlight-reload)
+    (error (message "Highlighting not loaded: %s"
+                    (error-message-string err))))
+
+  (agda2-comments-and-paragraphs-setup)
+  (force-mode-line-update)
+  ;; Protect global value of default-input-method from set-input-method.
+  (make-local-variable 'default-input-method)
+
+  ;; Don't take script into account when determining word boundaries
+  (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
+  (set-input-method "Agda")
+
+  ;; Install signature help support (eldoc)
+  (add-hook 'eldoc-documentation-functions #'agda2-goal-eldoc-function t t)
+  (eldoc-mode t)
+
+  ;; When thingatpt is new enough (Emacs >30?!), install completion support
+  (when (fboundp #'bounds-of-thing-at-point)
+    (add-hook 'completion-at-point-functions #'agda2-goal-completion-function t t))
+
+  ;; Highlighting etc. is removed when we switch from the Agda mode.
+  ;; Use case: When a file M.lagda with a local variables list
+  ;; including "mode: latex" is loaded chances are that the Agda mode
+  ;; is activated before the LaTeX mode, and the LaTeX mode does not
+  ;; seem to remove the text properties set by the Agda mode.
+  (add-hook 'change-major-mode-hook 'agda2-quit nil 'local))
 
 (defun agda2-restart ()
   "Tries to start or restart the Agda process."
@@ -479,7 +501,7 @@ agda2-include-dirs is not bound." :warning))
         (error "Failed to start the Agda process:\n%s" output)))
 
     ;; Start the Agda process.
-    (let ((agda2-bufname "*agda2*"))
+    (let ((agda2-bufname "*agda2*") (agda2-scratch "*agda2 scratch*"))
 
       (let ((process-connection-type nil)) ; Pipes are faster than PTYs.
         (setq agda2-process
@@ -807,9 +829,8 @@ command is sent to Agda (if it is sent)."
   "Load current buffer."
   (interactive)
   (agda2-go 'save t 'busy t "Cmd_load"
-            (agda2-string-quote (buffer-file-name))
-            (agda2-list-quote agda2-program-args)
-            ))
+    (agda2-string-quote (buffer-file-name))
+    (agda2-list-quote agda2-program-args)))
 
 (defun agda2-read-backend ()
   "Get the currently set backend from the `agda2-backend' variable,
@@ -839,9 +860,7 @@ The variable `agda2-backend' determines which backend is used."
   (interactive (list (agda2-read-backend) (or agda2-backend-default-payload (read-string "Payload: "))))
   (if (agda2-goal-at (point))
      (agda2-goal-cmd "Cmd_backend_hole" nil 'goal nil backend (agda2-string-quote payload))
-     (agda2-go 'save t 'busy t "Cmd_backend_top" backend (agda2-string-quote payload))
-  )
-)
+     (agda2-go 'save t 'busy t "Cmd_backend_top" backend (agda2-string-quote payload))))
 
 (defmacro agda2-maybe-forced (name comment cmd save want)
   "This macro constructs a function NAME which runs CMD.
@@ -1342,7 +1361,7 @@ Either uses the scope of the current goal or, if point is not in a goal, the
 top-level scope."
   (interactive)
   (call-interactively (if (agda2-goal-at (point))
-                          'agda2-infer-type
+                        'agda2-infer-type
                         'agda2-infer-type-toplevel)))
 
 (defun agda2-why-in-scope ()
@@ -1432,7 +1451,7 @@ Uses either the scope of the current goal or, if point is not in
 a goal, the top-level scope."
   (interactive)
   (call-interactively (if (agda2-goal-at (point))
-                          'agda2-module-contents
+                        'agda2-module-contents
                         'agda2-module-contents-toplevel)))
 
 (defun agda2-solve-maybe-all ()
@@ -1450,8 +1469,7 @@ Either only one if point is a goal, or all of them."
   (interactive)
   (call-interactively (if (agda2-goal-at (point))
                           'agda2-mimer
-                          'agda2-mimerAll))
-)
+                          'agda2-mimerAll)))
 
 (agda2-maybe-normalised-asis
   agda2-mimer
@@ -1716,6 +1734,145 @@ text properties."
               (agda2-string-quote new-txt) nil))
     )))
 
+(defun agda2-goal-eldoc-function (callback &rest _ignored)
+  "Return type information for the thing under the point (if it exists)"
+  (and (agda2-goal-at (point)) (not (eq agda2-in-progress 'busy))
+    (cl-multiple-value-bind (o g) (agda2-goal-at (point))
+      (let ((text (buffer-substring-no-properties
+                    (+ (overlay-start o) 2)
+                    (- (overlay-end   o) 2))))
+        (if (not (string-match "\\`\\s *\\'" text))
+          (agda2-async
+            (((text . hl) "Cmd_infer_partial"
+
+              :args (list
+                (format "%d" g)
+                (agda2-goal-Range o)
+                (agda2-string-quote text)
+                (format "%d" (- (point) (+ 2 (overlay-start o)))))
+
+              :else (lambda () (funcall callback ""))))
+
+            (funcall callback (apply #'annotate-string text hl)))
+          "")))))
+
+(defconst agda2-identifier-characters
+  ;; Implemented as a negated character class. We want to treat
+  ;; qualified names as being identifiers so dot is not included.
+  "^[:space:]\\|\\(\\)\\[\\]\\{\\}⦃⦄;"
+  "Rough approximation of characters that can belong in an Agda
+identifier.")
+
+(defun agda2-bounds-of-identifier-at-point ()
+  "Get the bounds of an Agda identifier around the point (technically,
+the bounds that delimit a run of `agda2-identifier-characters').
+
+Can be used with `thing-at-point' and friends."
+  (cl-labels
+    ((do-find ()
+      (let
+        ((pt (point))
+        (whitespace-before (skip-chars-backward agda2-identifier-characters))
+        (whitespace-after  (skip-chars-forward  agda2-identifier-characters)))
+        (cons (+ pt whitespace-before)
+              (+ pt whitespace-before whitespace-after)))))
+    (save-excursion
+      ;; This is definitely *a* way to implement this. If an identifier
+      ;; is smashed up against the boundary of a goal we don't want to
+      ;; include the ! in the identifier. Instead of trying to use a
+      ;; more complicated regex for identifier boundaries we can instead
+      ;; copy the goal contents to a temporary buffer, search for the
+      ;; identifier bounds there, and then do some cursed index munging
+      ;; to get back numbers in reality.
+      (pcase (agda2-goal-at (point))
+        (`(,o ,g)
+         (pcase-let*
+           ((outer (point))
+            (text (buffer-substring-no-properties
+                     (+ (overlay-start o) 2)
+                     (- (overlay-end   o) 2)))
+            (`(,s . ,e) (with-temp-buffer
+                          (insert text)
+                          (goto-char (- outer (+ (overlay-start o) 1)))
+                          (do-find))))
+           (cons (+ 1 (overlay-start o) s)
+                 (+ 1 (overlay-start o) e))))
+        (_ (do-find))))))
+
+(put 'identifier 'bounds-of-thing-at-point #'agda2-bounds-of-identifier-at-point)
+
+(cl-defun agda2-goal-completion-function ()
+  "Completion-at-point function for Agda (only works inside goals)."
+  (pcase-let*
+    ((`(,o ,g)         (agda2-goal-at (point)))
+     (word             (thing-at-point 'identifier))
+     (`(,start . ,end) (bounds-of-thing-at-point 'identifier)))
+
+    (unless (and o g start end word)
+      (cl-return-from agda2-goal-completion-function nil))
+
+    ;; N.B.: completion-in-region-mode will call *this* function again
+    ;; as part of its post-command hook to figure out if the completion
+    ;; window should be closed. This can result in an error if you e.g.
+    ;; toggle completion → reload, since that will most probably trigger
+    ;; the hook (hence call this function, which wants to dispatch a
+    ;; command) while Agda is still loading.
+    ;;
+    ;; So in this situation return ; nil to indicate to close the
+    ;; completion buffer.
+    (if (and completion-in-region-mode (eq agda2-in-progress 'busy))
+      (cl-return-from agda2-goal-completion-function nil))
+
+    (let*
+      ((completions (agda2-async-thunk "Cmd_complete_text"
+         (format "%d" g) (agda2-goal-Range o)
+         (agda2-string-quote word)))
+
+       ;; This function is called *very often* by the completion
+       ;: infrastructure, so at some point we have to do some waiting: if
+       ;: we stay in elisp code the entire time then we just answer a
+       ;: bunch of `nil`s until Emacs gives up on the completion because
+       ;; Agda never had a chance to write its output between invocations
+       ;; of the completion table
+       ;; The waiting is interruptible by user-input so we don't hang
+       ;; the UI if there's too much to complete
+       (table (lambda (pattern pred action)
+         (condition-case nil
+           (cond
+             ;; "The return value should have form (metadata . alist)"
+             ;; Nothing very interesting (no, e.g., custom sorting
+             ;; function) but let's just give it the list anyway
+             ((eq action 'metadata)
+             `(metadata
+                 (category . agda-completion)))
+
+             ;; These cases are "are there any completions" and "do any
+             ;; match a prefix of the word" respectively.
+             ;; Have to do some waiting for Agda to have a chance to get
+             ;; back to us, otherwise Emacs assumes the nil return means
+             ;; "there's no completions at all"
+             ((eq action t) (all-completions pattern (funcall completions :wait t)))
+             ((null action) (try-completion  pattern (funcall completions :wait t)))
+
+             ;; No need to wait here: this case is "is any completion an
+             ;; exact match for the word". Here Emacs assumes nil means
+             ;; the completions are all interesting.
+             ((eq action 'lambda) (test-completion pattern (funcall completions)))
+
+             ;; Boundaries is for things like shell completion, nothing to do
+             ((eq (car-safe action) 'boundaries) nil)
+
+             ;; "If the flag has any other value, the completion function should return nil."
+             ;; Aye aye o7
+             (t                                  nil))
+
+           ;; This should *never* happen (fetching completions should at
+           ;; worst return an empty list).
+           (agda2-async-wait-failed
+             (error "Fetching completions failed!"))))))
+
+      (list start end table :eager-display t))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Misc
 
@@ -1785,7 +1942,7 @@ characters to the \\xNNNN notation used in Haskell strings."
   "Convert a list of STRINGS into a string representing it in Haskell syntax."
   (concat "[" (mapconcat 'agda2-string-quote strings ", ") "]"))
 
-(defun agda2-goal-at(pos)
+(defun agda2-goal-at (pos)
   "Return (goal overlay, goal number) at POS, or nil."
   (let ((os (and pos (overlays-at pos))) o g)
     (while (and os (not(setq g (overlay-get (setq o (pop os)) 'agda2-gn)))))
