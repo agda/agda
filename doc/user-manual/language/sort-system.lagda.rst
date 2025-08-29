@@ -464,9 +464,12 @@ Here are some examples for the standard universes ``U L``:
 piSort
 ------
 
-Similarly, ``piSort s1 s2`` is a constructor that computes the sort of
-a Π-type given the sort ``s1`` of its domain and the sort ``s2`` of its
-codomain as arguments.
+Similarly, ``piSort s1 (λ x → s2)`` is a more general version of ``funSort``
+that computes the sort of a Π-type given the sort ``s1`` of its domain and the
+sort ``s2`` of its codomain as arguments. It is used in cases where the sort of
+the codomain of a Π-type might be dependent on the variable bound by the Π-type.
+It computes to either ``funSort`` (when the codomain sort is not dependent) or
+to ``Setω`` (when it is dependent).
 
 To understand how ``piSort`` works in general, we set the following scenario:
 
@@ -479,8 +482,8 @@ To understand how ``piSort`` works in general, we set the following scenario:
 Under these conditions, we can build the dependent function type
 ``(x : A) → B : piSort sA (λ x → sB)``. This type signature means that the
 dependent function type ``(x : A) → B`` has a (possibly unknown) but
-well-defined sort ``piSort sA sB``, specified in terms of the element
-``x : A`` and the sorts of its domain and codomain.
+well-defined sort ``piSort sA (λ x → sB)``, specified in terms of
+the sorts of its domain and codomain.
 
 Here are some examples how ``piSort`` computes:
 
@@ -498,6 +501,6 @@ With these rules, we can compute the sort of the function type ``∀ {A}
 
 More examples:
 
-* ``piSort Level (λ l → Set l)`` evaluates to ``Setω``
+* ``piSort LevelUniv (λ l → Set l)`` evaluates to ``Setω`` (see also :ref:`level-universe`)
 * ``piSort (Set l) (λ _ → Set l')`` evaluates to ``Set (l ⊔ l')``
 * ``piSort s (λ _ → Setωi)`` evaluates to ``funSort s Setωi``

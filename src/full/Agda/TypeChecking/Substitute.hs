@@ -1684,9 +1684,14 @@ funSort' = curry \case
 funSort :: Sort -> Sort -> Sort
 funSort a b = fromRight (const $ FunSort a b) $ funSort' a b
 
--- | Compute the sort of a pi type from the sorts of its domain
---   and codomain.
--- This function should only be called on reduced sorts, since the @LevelUniv@ rules should only apply when the sort doesn't reduce to @Set@
+-- | Compute the sort of a pi type from three inputs:
+--   1. The "raw" domain of the pi type (without the sort)
+--   2. The sort of the domain
+--   3. The sort of the codomain (which lives in an extended context)
+--
+--   This function should only be called on reduced sorts,
+--   since the @LevelUniv@ rules should only apply when the
+--   sort doesn't reduce to @Set@
 piSort' :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
 piSort' a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
 piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of
