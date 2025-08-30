@@ -1333,7 +1333,9 @@ atTopLevel m = inConcreteMode $ do
         , "  types = " TP.<+> TP.sep (map prettyTCM types)
         ]
       M.withCurrentModule current $
-        evalWithScope scope $
+        evalWithScope_ scope $ do
+          -- András, 2025-08-30: building fresh scope from interface
+          modifyScope_ recomputeInverseScope
           addContext gamma $ do
             -- We're going inside the top-level module, so we have to set the
             -- checkpoints for it and all its submodules to the new checkpoint.

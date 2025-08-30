@@ -238,7 +238,9 @@ checkModuleApplication (C.SectionApp _ tel m es) m0 x dir' = do
     (adir, s) <- applyImportDirectiveM (C.QName x) dir' =<< getNamedScope m1
     (s', copyInfo) <- copyScope m m0 s
     -- Set the current scope to @s'@
-    modifyCurrentScope $ const s'
+    modifyCurrentScope_ $ const s'
+    modifyScope_ recomputeInverseScope
+
     printScope "mod.inst" 40 "copied source module"
     reportS "scope.mod.inst" 30 $ pretty copyInfo
     let amodapp = A.SectionApp tel' m1 args'
@@ -256,7 +258,8 @@ checkModuleApplication (C.RecordModuleInstance _ recN) m0 x dir' =
     s <- getNamedScope m1
     (adir, s) <- applyImportDirectiveM recN dir' s
     (s', copyInfo) <- copyScope recN m0 s
-    modifyCurrentScope $ const s'
+    modifyCurrentScope_ $ const s'
+    modifyScope_ recomputeInverseScope
 
     printScope "mod.inst" 40 "copied record module"
     return (A.RecordModuleInstance m1, copyInfo, adir)
@@ -442,7 +445,7 @@ concreteToAbstract_ :: ToAbstract c => c -> ScopeM (AbsOfCon c)
 concreteToAbstract_ = toAbstract
 
 concreteToAbstract :: ToAbstract c => ScopeInfo -> c -> ScopeM (AbsOfCon c)
-concreteToAbstract scope x = evalWithScope scope (toAbstract x)
+concreteToAbstract scope x = evalWithScope_ scope (toAbstract x)
 
 -- | Things that can be translated to abstract syntax are instances of this
 --   class.
@@ -2269,7 +2272,8 @@ instance ToAbstract NiceDeclaration where
 
           -- Merge the imported scopes with the current scopes.
           -- This might override a previous import of @m@, but monotonously (add stuff).
-          modifyScopes $ \ ms -> Map.unionWith mergeScope (Map.delete m ms) i
+          modifyScopes_ $ \ ms -> Map.unionWith mergeScope (Map.delete m ms) i
+          modifyScope_ recomputeInverseScope
 
           -- Andreas, 2019-05-29, issue #3818.
           -- Pass the resolved name to open instead triggering another resolution.
@@ -2304,7 +2308,8 @@ instance ToAbstract NiceDeclaration where
           (adir, i') <- Map.adjustM' (applyImportDirectiveM x dir) m i
           -- Andreas, 2020-05-18, issue #3933
           -- We merge the new imports without deleting old imports, to be monotone.
-          modifyScopes $ \ ms -> Map.unionWith mergeScope ms i'
+          modifyScopes_ $ \ ms -> Map.unionWith mergeScope ms i'
+          modifyScope_ recomputeInverseScope
           return adir
 
       printScope "import" 30 "merged imported sig:"
@@ -2724,7 +2729,9 @@ bindUnquoteConstructorName m p c = do
   fc <- getConcreteFixity c
   c' <- withCurrentModule m $ freshAbstractQName fc c
   let aname qn = AbsName qn QuotableName Defined NoMetadata
-      addName = modifyCurrentScope $ addNameToScope (localNameSpace p) c $ aname c'
+      addName = do
+        modifyCurrentScope_ $ addNameToScope (localNameSpace p) c $ aname c'
+        modifyScope_ recomputeInverseScope
       success = addName >> (withCurrentModule m $ addName)
       failure y = typeError $ ClashingDefinition (C.QName c) y Nothing
   case r of
@@ -2893,7 +2900,8 @@ instance ToAbstract C.Pragma where
               -- and drop the existing definition.
               unlessM ((UnknownName ==) <$> resolveName qx) $ do
                 warning $ BuiltinDeclaresIdentifier b'
-                modifyCurrentScope $ removeNameFromScope PublicNS x
+                modifyCurrentScope_ $ removeNameFromScope PublicNS x
+                modifyScope_ recomputeInverseScope
               -- We then happily bind the name
               y <- freshAbstractQName' x
               let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b'

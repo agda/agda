@@ -1241,7 +1241,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
 
       whenM (optGenerateVimFile <$> commandLineOptions) $
         -- Generate Vim file.
-        evalWithScope scope $ generateVimFile $ filePath $ srcPath
+        evalWithScope_ scope $ generateVimFile $ filePath $ srcPath
     reportSLn "import.iface.create" 15 $ prettyShow mname ++ ": Finished highlighting from type info."
 
     setScope_ scope

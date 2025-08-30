@@ -108,7 +108,9 @@ getCurrentModule :: ReadTCState m => m A.ModuleName
 getCurrentModule = setRange noRange <$> useScope scopeCurrent
 
 setCurrentModule :: MonadTCState m => A.ModuleName -> m ()
-setCurrentModule m = modifyScope $ set scopeCurrent m
+setCurrentModule m = do
+  modifyScope_ $ set scopeCurrent m
+  modifyScope_ recomputeInverseScope
 
 withCurrentModule :: (ReadTCState m, MonadTCState m) => A.ModuleName -> m a -> m a
 withCurrentModule new action = do
@@ -155,49 +157,51 @@ createModule b m = do
   -- Andreas, 2020-05-18, issue #3933:
   -- If it is not new (but apparently did not clash),
   -- we do not erase its contents for reasons of monotonicity.
-  modifyScopes $ Map.insertWith mergeScope m sm
+  modifyScopes_ $ Map.insertWith mergeScope m sm
+  -- András, 2025-08-30: TODO: only inverse modules need to be recomputed
+  modifyScope_ recomputeInverseScope
 
--- | Apply a function to the scope map.
-modifyScopes :: (Map A.ModuleName Scope -> Map A.ModuleName Scope) -> ScopeM ()
-modifyScopes = modifyScope . over scopeModules
+-- -- | Apply a function to the scope map.
+-- modifyScopes :: (Map A.ModuleName Scope -> Map A.ModuleName Scope) -> ScopeM ()
+-- modifyScopes = modifyScope . over scopeModules
 
 -- | Apply a function to the scope map.
 modifyScopes_ :: (Map A.ModuleName Scope -> Map A.ModuleName Scope) -> ScopeM ()
 modifyScopes_ = modifyScope_ . over scopeModules
 
--- | Apply a function to the given scope.
-modifyNamedScope :: A.ModuleName -> (Scope -> Scope) -> ScopeM ()
-modifyNamedScope m f = modifyScopes $ Map.adjust f m
+-- -- | Apply a function to the given scope.
+-- modifyNamedScope :: A.ModuleName -> (Scope -> Scope) -> ScopeM ()
+-- modifyNamedScope m f = modifyScopes $ Map.adjust f m
 
 -- | Apply a function to the given scope.
 modifyNamedScope_ :: A.ModuleName -> (Scope -> Scope) -> ScopeM ()
 modifyNamedScope_ m f = modifyScopes_ $ Map.adjust f m
 
-setNamedScope :: A.ModuleName -> Scope -> ScopeM ()
-setNamedScope m s = modifyNamedScope m $ const s
+-- setNamedScope :: A.ModuleName -> Scope -> ScopeM ()
+-- setNamedScope m s = modifyNamedScope m $ const s
 
--- | Apply a monadic function to the top scope.
-modifyNamedScopeM :: A.ModuleName -> (Scope -> ScopeM (a, Scope)) -> ScopeM a
-modifyNamedScopeM m f = do
-  (a, s) <- f =<< getNamedScope m
-  setNamedScope m s
-  return a
+-- -- | Apply a monadic function to the top scope.
+-- modifyNamedScopeM :: A.ModuleName -> (Scope -> ScopeM (a, Scope)) -> ScopeM a
+-- modifyNamedScopeM m f = do
+--   (a, s) <- f =<< getNamedScope m
+--   setNamedScope m s
+--   return a
 
--- | Apply a function to the current scope.
-modifyCurrentScope :: (Scope -> Scope) -> ScopeM ()
-modifyCurrentScope f = getCurrentModule >>= (`modifyNamedScope` f)
+-- -- | Apply a function to the current scope.
+-- modifyCurrentScope :: (Scope -> Scope) -> ScopeM ()
+-- modifyCurrentScope f = getCurrentModule >>= (`modifyNamedScope` f)
 
 -- | Apply a function to the current scope.
 modifyCurrentScope_ :: (Scope -> Scope) -> ScopeM ()
 modifyCurrentScope_ f = getCurrentModule >>= (`modifyNamedScope_` f)
 
-modifyCurrentScopeM :: (Scope -> ScopeM (a, Scope)) -> ScopeM a
-modifyCurrentScopeM f = getCurrentModule >>= (`modifyNamedScopeM` f)
+-- modifyCurrentScopeM :: (Scope -> ScopeM (a, Scope)) -> ScopeM a
+-- modifyCurrentScopeM f = getCurrentModule >>= (`modifyNamedScopeM` f)
 
--- | Apply a function to the public or private name space.
-modifyCurrentNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> ScopeM ()
-modifyCurrentNameSpace acc f = modifyCurrentScope $ updateScopeNameSpaces $
-  AssocList.updateAt acc f
+-- -- | Apply a function to the public or private name space.
+-- modifyCurrentNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> ScopeM ()
+-- modifyCurrentNameSpace acc f = modifyCurrentScope $ updateScopeNameSpaces $
+--   AssocList.updateAt acc f
 
 setContextPrecedence :: PrecedenceStack -> ScopeM ()
 setContextPrecedence = modifyScope_ . set scopePrecedence
@@ -563,7 +567,9 @@ addNameToInverseScope kind x y s =
 -- | Bind a name. Returns the 'TypeError' if exists, but does not throw it.
 bindName'' :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM (Maybe TypeError)
 bindName'' acc kind meta x y = do
-  when (isNoName x) $ modifyScopes $ Map.map $ removeNameFromScope PrivateNS x
+  when (isNoName x) $ do
+    modifyScopes_ $ Map.map $ removeNameFromScope PrivateNS x
+    modifyScope_ recomputeInverseScope
   r  <- resolveName (C.QName x)
   let y' :: Either TypeError AbstractName
       y' = case r of
@@ -596,24 +602,30 @@ bindName'' acc kind meta x y = do
 --   later on.
 rebindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
 rebindName acc kind x y = do
-  if kind == ConName
-    then modifyCurrentScope $
+  if kind == ConName then do
+    modifyCurrentScope_ $
            mapScopeNS (localNameSpace acc)
                       (Map.update (nonEmpty . List1.filter ((ConName ==) . anameKind)) x)
                       id
                       id
-    else modifyCurrentScope $ removeNameFromScope (localNameSpace acc) x
+    modifyScope_ recomputeInverseScope
+  else do
+    modifyCurrentScope_ $ removeNameFromScope (localNameSpace acc) x
+    modifyScope_ recomputeInverseScope
   bindName acc kind x y
 
+-- András, 2025-08-30: TODO: directly extend inverse scope.
 -- | Bind a module name.
 bindModule :: Access -> C.Name -> A.ModuleName -> ScopeM ()
-bindModule acc x m = modifyCurrentScope $
-  addModuleToScope (localNameSpace acc) x (AbsModule m Defined)
+bindModule acc x m = do
+  modifyCurrentScope_ $ addModuleToScope (localNameSpace acc) x (AbsModule m Defined)
+  modifyScope_ recomputeInverseScope
 
 -- | Bind a qualified module name. Adds it to the imports field of the scope.
 bindQModule :: Access -> C.QName -> A.ModuleName -> ScopeM ()
-bindQModule acc q m = modifyCurrentScope $ \s ->
-  s { scopeImports = Map.insert q m (scopeImports s) }
+bindQModule acc q m = do
+  modifyCurrentScope_ $ \s -> s { scopeImports = Map.insert q m (scopeImports s) }
+  modifyScope_ recomputeInverseScope
 
 ---------------------------------------------------
 -- * Operations to do with record constructor names
@@ -663,9 +675,10 @@ isRecordConstructor = fmap to . toplevel where
 
 -- | Clear the scope of any no names.
 stripNoNames :: ScopeM ()
-stripNoNames = modifyScopes $ Map.map $ mapScope_ stripN stripN id
-  where
-    stripN = Map.filterWithKey $ const . not . isNoName
+stripNoNames = do
+  let stripN = Map.filterWithKey $ const . not . isNoName
+  modifyScopes_ $ Map.map $ mapScope_ stripN stripN id
+  modifyScope_ recomputeInverseScope
 
 type WSM = StateT ScopeMemo ScopeM
 
@@ -936,7 +949,8 @@ copyScope oldc new0 s =
             copyRec x y = do
               s0 <- lift $ getNamedScope x
               s  <- withCurrentModule' y $ copy live y s0
-              lift $ modifyNamedScope y (const s)
+              -- András, 2025-08-30: inverse scope will be computed immediately after copyScope returns
+              lift $ modifyNamedScope_ y (const s)
 
 ---------------------------------------------------------------------------
 -- * Import directives
@@ -1220,7 +1234,8 @@ openModule kind mam cm dir = do
                 noGeneralizedVarsIfLetOpen kind =<< getNamedScope m
   let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
-  modifyCurrentScope (`mergeScope` s)
+  modifyCurrentScope_ (`mergeScope` s)
+  modifyScope_ recomputeInverseScope
   -- Andreas, 2018-06-03, issue #3057:
   -- If we simply check for ambiguous exported identifiers _after_
   -- importing the new identifiers into the current scope, we also
