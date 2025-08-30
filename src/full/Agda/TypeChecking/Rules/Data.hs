@@ -255,7 +255,7 @@ checkConstructor
   -> A.Constructor -- ^ Constructor declaration (type signature).
   -> TCM IsPathCons
 checkConstructor d uc tel nofIxs s (A.ScopedDecl scope [con]) = do
-  setScope scope
+  setScope_ scope
   checkConstructor d uc tel nofIxs s con
 checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
     traceCall (CheckConstructor d tel s con) $ do

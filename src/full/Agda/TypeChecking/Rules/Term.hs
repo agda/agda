@@ -1329,7 +1329,7 @@ checkLiteral lit t = do
 --   in the 'TCState'.
 
 scopedExpr :: A.Expr -> TCM A.Expr
-scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
+scopedExpr (A.ScopedExpr scope e) = setScope_ scope >> scopedExpr e
 scopedExpr e                      = return e
 
 -- | Type check an expression.
@@ -1624,7 +1624,7 @@ checkOrInferMeta
 checkOrInferMeta i newMeta mt = do
   case A.metaNumber i of
     Nothing -> do
-      unlessNull (A.metaScope i) setScope
+      unlessNull (A.metaScope i) setScope_
       (cmp , t) <- maybe ((CmpEq,) <$> workOnTypes newTypeMeta_) return mt
       (x, v) <- newMeta cmp t
       setMetaNameSuggestion x (A.metaNameSuggestion i)

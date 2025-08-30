@@ -479,12 +479,12 @@ toAbstractHiding _             = toAbstractCtx TopCtx
 localToAbstract :: ToAbstract c => c -> (AbsOfCon c -> ScopeM b) -> ScopeM b
 localToAbstract x ret = localScope_ $ ret =<< toAbstract x
 
--- | Like 'localToAbstract' but returns the scope after the completion of the
---   second argument.
-localToAbstract' :: ToAbstract c => c -> (AbsOfCon c -> ScopeM b) -> ScopeM (b, ScopeInfo)
-localToAbstract' x ret = do
-  scope <- getScope
-  withScope scope $ ret =<< toAbstract x
+-- -- | Like 'localToAbstract' but returns the scope after the completion of the
+-- --   second argument.
+-- localToAbstract' :: ToAbstract c => c -> (AbsOfCon c -> ScopeM b) -> ScopeM (b, ScopeInfo)
+-- localToAbstract' x ret = do
+--   scope <- getScope
+--   withScope scope $ ret =<< toAbstract x
 
 instance ToAbstract () where
   type AbsOfCon () = ()
@@ -864,7 +864,7 @@ scopeCheckExtendedLam r e cs = do
   -- Create the abstract syntax for the extended lambda.
   case scdef of
     A.ScopedDecl si [A.FunDef di qname' cs] -> do
-      setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
+      setScope_ si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
       return $
         A.ExtendedLam (ExprRange r) di e qname' cs
     _ -> __IMPOSSIBLE__
@@ -1565,7 +1565,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
           -- Do not eagerly remove private definitions, only when serializing
           -- let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
           let scope = insideScope
-          setScope scope
+          setScope_ scope
 
           -- While scope-checking the top-level module we might have
           -- encountered several (possibly nested) opaque blocks. We
@@ -3142,7 +3142,7 @@ whereToAbstract1 r e whname whds inner = do
   am  <- toAbstract (NewModuleName m)
   (scope, d) <- scopeCheckModule r e (C.QName m) am [] $
                 toAbstract $ Declarations $ List1.toList whds
-  setScope scope
+  setScope_ scope
   x <- inner
   setCurrentModule old
   bindModule acc m am
