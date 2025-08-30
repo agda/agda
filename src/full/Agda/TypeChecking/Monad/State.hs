@@ -150,10 +150,10 @@ lensAccumStatistics =  lensPersistentState . lensAccumStatisticsP
 getScope :: ReadTCState m => m ScopeInfo
 getScope = useR stScope
 
-{-# INLINE setScope #-}
--- | Set the current scope.
-setScope :: ScopeInfo -> TCM ()
-setScope scope = modifyScope (const scope)
+-- {-# INLINE setScope #-}
+-- -- | Set the current scope.
+-- setScope :: ScopeInfo -> TCM ()
+-- setScope scope = modifyScope (const scope)
 
 {-# INLINE setScope_ #-}
 -- | Set the current scope.
@@ -200,13 +200,13 @@ evalWithScope s m = fst <$> withScope s m
 evalWithScope_ :: ReadTCState m => ScopeInfo -> m a -> m a
 evalWithScope_ s m = fst <$> withScope_ s m
 
--- | Discard any changes to the scope by a computation.
-localScope :: TCM a -> TCM a
-localScope m = do
-  scope <- getScope
-  x <- m
-  setScope scope
-  return x
+-- -- | Discard any changes to the scope by a computation.
+-- localScope :: TCM a -> TCM a
+-- localScope m = do
+--   scope <- getScope
+--   x <- m
+--   setScope scope
+--   return x
 
 -- | Discard any changes to the scope by a computation.
 localScope_ :: TCM a -> TCM a

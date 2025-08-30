@@ -1349,7 +1349,7 @@ checkExpr' cmp e t =
   reportResult "tc.term.expr.top" 15 (\ v -> vcat
                                               [ "checkExpr" <?> fsep [ prettyTCM e, ":", prettyTCM t ]
                                               , "  returns" <?> prettyTCM v ]) $
-  traceCall (CheckExprCall cmp e t) $ localScope $ doExpandLast $ unfoldInlined =<< do
+  traceCall (CheckExprCall cmp e t) $ localScope_ $ doExpandLast $ unfoldInlined =<< do
     reportSDoc "tc.term.expr.top" 15 $
         "Checking" <+> sep
           [ fsep [ prettyTCM e, ":", prettyTCM t ]
@@ -1720,10 +1720,10 @@ checkNamedArg arg@(Arg info e0) t0 = do
     -- E.g. when 'insertImplicitPatSynArgs' inserted an instance underscore.
     let checkU i = checkMeta i (newMetaArg (A.metaKind i) info x) CmpLeq t0
     let checkQ = checkQuestionMark (newInteractionMetaArg info x) CmpLeq t0
-    if not $ isHole e then checkExpr e t0 else localScope $ do
-      -- Note: we need localScope here,
+    if not $ isHole e then checkExpr e t0 else localScope_ $ do
+      -- Note: we need localScope_ here,
       -- as scopedExpr manipulates the scope in the state.
-      -- However, we may not pull localScope over checkExpr!
+      -- However, we may not pull localScope_ over checkExpr!
       -- This is why we first test for isHole, and only do
       -- scope manipulations if we actually handle the checking
       -- of e here (and not pass it to checkExpr).
@@ -1768,7 +1768,7 @@ defOrVar _     = False
 checkDontExpandLast :: Comparison -> A.Expr -> Type -> TCM Term
 checkDontExpandLast cmp e t = case e of
   _ | Application hd args <- appView e,  defOrVar hd ->
-    traceCall (CheckExprCall cmp e t) $ localScope $ dontExpandLast $ do
+    traceCall (CheckExprCall cmp e t) $ localScope_ $ dontExpandLast $ do
       checkApplication cmp hd args e t
   _ -> checkExpr' cmp e t -- note that checkExpr always sets ExpandLast
 
