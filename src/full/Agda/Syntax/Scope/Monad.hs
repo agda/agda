@@ -161,9 +161,17 @@ createModule b m = do
 modifyScopes :: (Map A.ModuleName Scope -> Map A.ModuleName Scope) -> ScopeM ()
 modifyScopes = modifyScope . over scopeModules
 
+-- | Apply a function to the scope map.
+modifyScopes_ :: (Map A.ModuleName Scope -> Map A.ModuleName Scope) -> ScopeM ()
+modifyScopes_ = modifyScope_ . over scopeModules
+
 -- | Apply a function to the given scope.
 modifyNamedScope :: A.ModuleName -> (Scope -> Scope) -> ScopeM ()
 modifyNamedScope m f = modifyScopes $ Map.adjust f m
+
+-- | Apply a function to the given scope.
+modifyNamedScope_ :: A.ModuleName -> (Scope -> Scope) -> ScopeM ()
+modifyNamedScope_ m f = modifyScopes_ $ Map.adjust f m
 
 setNamedScope :: A.ModuleName -> Scope -> ScopeM ()
 setNamedScope m s = modifyNamedScope m $ const s
@@ -178,6 +186,10 @@ modifyNamedScopeM m f = do
 -- | Apply a function to the current scope.
 modifyCurrentScope :: (Scope -> Scope) -> ScopeM ()
 modifyCurrentScope f = getCurrentModule >>= (`modifyNamedScope` f)
+
+-- | Apply a function to the current scope.
+modifyCurrentScope_ :: (Scope -> Scope) -> ScopeM ()
+modifyCurrentScope_ f = getCurrentModule >>= (`modifyNamedScope_` f)
 
 modifyCurrentScopeM :: (Scope -> ScopeM (a, Scope)) -> ScopeM a
 modifyCurrentScopeM f = getCurrentModule >>= (`modifyNamedScopeM` f)
@@ -541,6 +553,13 @@ bindName acc kind x y = bindName' acc kind NoMetadata x y
 bindName' :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM ()
 bindName' acc kind meta x y = whenJustM (bindName'' acc kind meta x y) typeError
 
+addNameToInverseScope :: KindOfName -> C.Name -> AbstractName -> ScopeInfo -> ScopeInfo
+addNameToInverseScope kind x y s =
+  let !y' = anameName y
+  in s { _scopeInScope     = Set.insert y' (_scopeInScope s)
+       , _scopeInverseName = Map.insertWith (<>) y' (NameMapEntry kind (C.QName x :| [])) (_scopeInverseName s)
+       }
+
 -- | Bind a name. Returns the 'TypeError' if exists, but does not throw it.
 bindName'' :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM (Maybe TypeError)
 bindName'' acc kind meta x y = do
@@ -558,7 +577,10 @@ bindName'' acc kind meta x y = do
         PatternSynResName n -> ambiguous (== PatternSynName) n
         UnknownName         -> success
   let ns = if isNoName x then PrivateNS else localNameSpace acc
-  traverse_ (modifyCurrentScope . addNameToScope ns x) y'
+  forM_ y' \y' -> do
+    modifyCurrentScope_ $ addNameToScope ns x y'
+    modifyScope_ $ addNameToInverseScope kind x y'
+
   pure $ either Just (const Nothing) y'
   where
     success = Right $ AbsName y kind Defined meta
