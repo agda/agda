@@ -442,7 +442,7 @@ concreteToAbstract_ :: ToAbstract c => c -> ScopeM (AbsOfCon c)
 concreteToAbstract_ = toAbstract
 
 concreteToAbstract :: ToAbstract c => ScopeInfo -> c -> ScopeM (AbsOfCon c)
-concreteToAbstract scope x = withScope_ scope (toAbstract x)
+concreteToAbstract scope x = evalWithScope scope (toAbstract x)
 
 -- | Things that can be translated to abstract syntax are instances of this
 --   class.

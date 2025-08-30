@@ -40,6 +40,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal hiding (DataOrRecord)
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
+import Agda.Syntax.Scope.Base (ScopeInfo(..))
 
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Monad
@@ -236,8 +237,16 @@ coverageCheck f t cs = do
   -- definitional equalities and --exact-split is enabled
   -- and they are not labelled as CATCHALL.
   List1.unlessNull (filter (null . clauseCatchall) noexclauses) \ noexclauses -> do
-      setCurrentRange (fmap clauseLHSRange noexclauses) $
+
+      reportSLn "" 2 "WARNING INVERSE FORCE"
+      getScope >>= \s -> seq (_scopeInverseName s) (pure ())
+      reportSLn "" 2 "WARNING INVERSE FORCE HAPPENED"
+
+      setCurrentRange (fmap clauseLHSRange noexclauses) $ do
+        reportSLn "" 2 "FOO1"
         warning $ CoverageNoExactSplit f noexclauses
+
+      reportSLn "" 2 "FOO2"
 
   -- Warn about unused CATCHALL pragmas.
   forM_ exclauses \ c ->

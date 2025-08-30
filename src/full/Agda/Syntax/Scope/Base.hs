@@ -19,6 +19,7 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
+import Debug.Trace
 
 import GHC.Generics (Generic)
 
@@ -1342,6 +1343,7 @@ inverseScopeLookupName = inverseScopeLookupName' AmbiguousConProjs
 
 inverseScopeLookupName' :: AllowAmbiguousNames -> A.QName -> ScopeInfo -> [C.QName]
 inverseScopeLookupName' amb q scope =
+  -- []
   maybe [] (List1.toList . qnameConcrete) $ inverseScopeLookupName'' amb q scope
 
 -- | A version of 'inverseScopeLookupName' that also delivers the 'KindOfName'.
@@ -1395,7 +1397,7 @@ inverseScopeLookupModule' amb m scope = billToPure [ Scoping , InverseModuleLook
 
 recomputeInverseScope :: ScopeInfo -> ScopeInfo
 recomputeInverseScope scope =
-  scope { _scopeInverseName   = billToPure [ Scoping , InverseNameRecompute ] nameMap
+  scope { _scopeInverseName   = nameMap'
         , _scopeInverseModule = billToPure [ Scoping , InverseModuleRecompute ]
                                 (Map.fromList [ (x, findModule x) | x <- Map.keys moduleMap ++ Map.keys importMap ])
         , _scopeInScope       = billToPure [ Scoping , InverseInScopeRecompute ]
@@ -1405,6 +1407,9 @@ recomputeInverseScope scope =
     this = scope ^. scopeCurrent
     current = this : scopeParents (moduleScope this)
     scopes  = [ (m, restrict m s) | (m, s) <- Map.toList (scope ^. scopeModules) ]
+
+    -- !nameMap' = billToPure [ Scoping , InverseNameRecompute ] (trace "NAMERECOMP" nameMap)
+    nameMap' = billToPure [ Scoping , InverseNameRecompute ] nameMap
 
     moduleScope :: A.ModuleName -> Scope
     moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
