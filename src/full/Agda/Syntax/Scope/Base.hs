@@ -19,7 +19,7 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
-import Debug.Trace
+-- import Debug.Trace
 
 import GHC.Generics (Generic)
 

@@ -95,7 +95,6 @@ warning'_ loc w = do
   r <- viewTC eRange
   c <- viewTC eCall
   b <- areWeCaching
-  reportSLn "" 2 "FOO9"
   let r' = case w of
         -- Some warnings come with their own error locations.
         NicifierIssue             w0 -> getRange w0
@@ -107,7 +106,6 @@ warning'_ loc w = do
   let wn = warningName w
   let ws = warningNameToString wn
   let wref = P.href (Text.pack (warnUrl ws)) (P.text ws)
-  reportSLn "" 2 "FOO7"
   p <- vcat
     [ pure $ P.hsep
       [ if null r' then mempty else P.pretty r' <> P.colon
@@ -115,10 +113,9 @@ warning'_ loc w = do
         else "warning: -W[no]" <> wref
         -- Only benign warnings can be deactivated with -WnoXXX.
       ]
-    , reportSLn "" 2 "FOO10" *> prettyWarning w <* reportSLn "" 2 "FOO11"
-    , reportSLn "" 2 "FOO12" *> prettyTCM c <* reportSLn "" 2 "FOO13"
+    , prettyWarning w
+    , prettyTCM c
     ]
-  reportSLn "" 2 "FOO8"
   return $ TCWarning loc r' w p (P.render p) b
 
 {-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}
@@ -137,10 +134,7 @@ warning_ = withCallerCallStack . flip warning'_
 {-# SPECIALIZE warnings' :: CallStack -> List1 Warning -> TCM () #-}
 warnings' :: MonadWarning m => CallStack -> List1 Warning -> m ()
 warnings' loc ws = do
-
   WarningMode enabledWarnings wError <- optWarningMode <$> pragmaOptions
-
-  reportSLn "" 2 "FOO3"
 
   -- We collect *all* of the warnings no matter whether they are enabled or not.
   -- If we find an enabled warning which should be turned into an error, we keep processing
@@ -148,15 +142,11 @@ warnings' loc ws = do
   merrs <- forM ws $ \ w' -> do
     let wn = warningName w'
     let enabled = wn `elem` enabledWarnings
-    reportSLn "" 2 "FOO5"
     tcwarn <- warning'_ loc w'
-    reportSLn "" 2 "FOO6"
     if wError && enabled
     then pure (Just tcwarn)
     else Nothing <$ addWarning (enabled  || wn `elem` exactSplitWarnings) tcwarn
       -- Andreas, 2025-04-01, issue #6994: always highlight non-exact splits
-
-  reportSLn "" 2 "FOO4"
 
   List1.unlessNull (List1.catMaybes merrs) \ errs ->
     typeError' loc $ NonFatalErrors $ Set1.fromList errs

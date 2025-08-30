@@ -62,9 +62,7 @@ writeToCurrentLog :: (MonadDebug m, MonadTCState m, ReadTCState m) => TypeCheckA
 writeToCurrentLog !d = do
   reportSLn "cache" 10 $ "cachePostScopeState"
   !l <- getsTC stPostScopeState
-  reportSLn "" 2 "FOO0"
   modifyCache $ fmap $ \lfc -> lfc{ lfcCurrent = (d, l) : lfcCurrent lfc}
-  reportSLn "" 2 "FOO1"
 
 {-# SPECIALIZE restorePostScopeState :: PostScopeState -> TCM () #-}
 restorePostScopeState :: (MonadDebug m, MonadTCState m) => PostScopeState -> m ()

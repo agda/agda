@@ -95,8 +95,6 @@ checkFunDef i name cs = do
         let t    = defType def
         let info = getArgInfo def
 
-        reportSLn "" 2 "FOO0"
-
         -- If the function is erased, then hard compile-time mode is
         -- entered.
         setHardCompileTimeModeIfErased' info $ do
