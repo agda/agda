@@ -581,7 +581,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
     checkProjs _ _ _ [] = return ()
 
     checkProjs ftel1 ftel2 vs (A.ScopedDecl scope fs' : fs) =
-      setScope_ scope >> checkProjs ftel1 ftel2 vs (fs' ++ fs)
+      setScope scope >> checkProjs ftel1 ftel2 vs (fs' ++ fs)
 
     -- Case: projection.
     checkProjs ftel1 (ExtendTel (dom@Dom{domInfo = ai,unDom = t}) ftel2) vs (A.Field info x _ : fs) =

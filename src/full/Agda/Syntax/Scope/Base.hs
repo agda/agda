@@ -1395,8 +1395,8 @@ inverseScopeLookupModule' amb m scope = billToPure [ Scoping , InverseModuleLook
 
     unambiguousModule q = amb == AmbiguousAnything || unique (scopeLookup q scope :: [AbstractModule])
 
-recomputeInverseScope :: ScopeInfo -> ScopeInfo
-recomputeInverseScope scope =
+recomputeInverseScope' :: ScopeInfo -> ScopeInfo
+recomputeInverseScope' scope =
   scope { _scopeInverseName   = nameMap'
         , _scopeInverseModule = billToPure [ Scoping , InverseModuleRecompute ]
                                 (Map.fromList [ (x, findModule x) | x <- Map.keys moduleMap ++ Map.keys importMap ])

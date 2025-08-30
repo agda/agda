@@ -1241,10 +1241,10 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
 
       whenM (optGenerateVimFile <$> commandLineOptions) $
         -- Generate Vim file.
-        evalWithScope_ scope $ generateVimFile $ filePath $ srcPath
+        evalWithScope scope $ generateVimFile $ filePath $ srcPath
     reportSLn "import.iface.create" 15 $ prettyShow mname ++ ": Finished highlighting from type info."
 
-    setScope_ scope
+    setScope scope
     reportSLn "scope.top" 50 $ "SCOPE " ++ show scope
 
     -- TODO: It would be nice if unsolved things were highlighted

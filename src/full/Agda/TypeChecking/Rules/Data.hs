@@ -255,7 +255,7 @@ checkConstructor
   -> A.Constructor -- ^ Constructor declaration (type signature).
   -> TCM IsPathCons
 checkConstructor d uc tel nofIxs s (A.ScopedDecl scope [con]) = do
-  setScope_ scope
+  setScope scope
   checkConstructor d uc tel nofIxs s con
 checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
     traceCall (CheckConstructor d tel s con) $ do
@@ -358,7 +358,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
   where
     -- Issue 3362: we need to do the `constructs` call inside the
     -- generalization, so unpack the A.Generalize
-    checkConstructorType (A.ScopedExpr s e) d = evalWithScope_ s $ checkConstructorType e d
+    checkConstructorType (A.ScopedExpr s e) d = evalWithScope s $ checkConstructorType e d
     checkConstructorType e d = do
       let check k e = do
             t <- workOnTypes $ isType_ e

@@ -150,25 +150,20 @@ lensAccumStatistics =  lensPersistentState . lensAccumStatisticsP
 getScope :: ReadTCState m => m ScopeInfo
 getScope = useR stScope
 
--- {-# INLINE setScope #-}
--- -- | Set the current scope.
--- setScope :: ScopeInfo -> TCM ()
--- setScope scope = modifyScope (const scope)
-
-{-# INLINE setScope_ #-}
+{-# INLINE setScope #-}
 -- | Set the current scope.
-setScope_ :: ScopeInfo -> TCM ()
-setScope_ scope = modifyScope_ (const scope)
+setScope :: ScopeInfo -> TCM ()
+setScope scope = modifyScope (const scope)
 
-{-# INLINE modifyScope_ #-}
+{-# INLINE modifyScope #-}
 -- | Modify the current scope without updating the inverse maps.
-modifyScope_ :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
-modifyScope_ f = stScope `modifyTCLens` f
+modifyScope :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
+modifyScope f = stScope `modifyTCLens` f
 
--- {-# INLINE modifyScope #-}
--- -- | Modify the current scope.
--- modifyScope :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
--- modifyScope f = modifyScope_ (recomputeInverseScope . f)
+{-# INLINE recomputeInverseScope #-}
+-- | Recompute inverse names, inverse modules and InScopeSet-s.
+recomputeInverseScope :: MonadTCState m => m ()
+recomputeInverseScope = modifyScope recomputeInverseScope'
 
 {-# INLINE useScope #-}
 -- | Get a part of the current scope.
@@ -180,40 +175,22 @@ useScope l = useR $ stScope . l
 locallyScope :: ReadTCState m => Lens' ScopeInfo a -> (a -> a) -> m b -> m b
 locallyScope l = locallyTCState $ stScope . l
 
--- {-# INLINE withScope #-}
--- -- | Run a computation in a local scope.
--- withScope :: ReadTCState m => ScopeInfo -> m a -> m (a, ScopeInfo)
--- withScope s m = locallyTCState stScope (recomputeInverseScope . const s) $ (,) <$> m <*> getScope
-
-{-# INLINE withScope_ #-}
+{-# INLINE withScope #-}
 -- | Run a computation in a local scope.
-withScope_ :: ReadTCState m => ScopeInfo -> m a -> m (a, ScopeInfo)
-withScope_ s m = locallyTCState stScope (const s) $ (,) <$> m <*> getScope
+withScope :: ReadTCState m => ScopeInfo -> m a -> m (a, ScopeInfo)
+withScope s m = locallyTCState stScope (const s) $ (,) <$> m <*> getScope
 
--- {-# INLINE evalWithScope #-}
--- -- | Same as 'withScope', but discard the scope from the computation.
--- evalWithScope :: ReadTCState m => ScopeInfo -> m a -> m a
--- evalWithScope s m = fst <$> withScope s m
-
-{-# INLINE evalWithScope_ #-}
+{-# INLINE evalWithScope #-}
 -- | Same as 'withScope', but discard the scope from the computation.
-evalWithScope_ :: ReadTCState m => ScopeInfo -> m a -> m a
-evalWithScope_ s m = fst <$> withScope_ s m
-
--- -- | Discard any changes to the scope by a computation.
--- localScope :: TCM a -> TCM a
--- localScope m = do
---   scope <- getScope
---   x <- m
---   setScope scope
---   return x
+evalWithScope :: ReadTCState m => ScopeInfo -> m a -> m a
+evalWithScope s m = fst <$> withScope s m
 
 -- | Discard any changes to the scope by a computation.
-localScope_ :: TCM a -> TCM a
-localScope_ m = do
+localScope :: TCM a -> TCM a
+localScope m = do
   scope <- getScope
   x <- m
-  setScope_ scope
+  setScope scope
   return x
 
 -- | Scope error.

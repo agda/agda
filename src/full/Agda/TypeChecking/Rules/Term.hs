@@ -1329,7 +1329,7 @@ checkLiteral lit t = do
 --   in the 'TCState'.
 
 scopedExpr :: A.Expr -> TCM A.Expr
-scopedExpr (A.ScopedExpr scope e) = setScope_ scope >> scopedExpr e
+scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
 scopedExpr e                      = return e
 
 -- | Type check an expression.
@@ -1349,7 +1349,7 @@ checkExpr' cmp e t =
   reportResult "tc.term.expr.top" 15 (\ v -> vcat
                                               [ "checkExpr" <?> fsep [ prettyTCM e, ":", prettyTCM t ]
                                               , "  returns" <?> prettyTCM v ]) $
-  traceCall (CheckExprCall cmp e t) $ localScope_ $ doExpandLast $ unfoldInlined =<< do
+  traceCall (CheckExprCall cmp e t) $ localScope $ doExpandLast $ unfoldInlined =<< do
     reportSDoc "tc.term.expr.top" 15 $
         "Checking" <+> sep
           [ fsep [ prettyTCM e, ":", prettyTCM t ]
@@ -1624,7 +1624,7 @@ checkOrInferMeta
 checkOrInferMeta i newMeta mt = do
   case A.metaNumber i of
     Nothing -> do
-      unlessNull (A.metaScope i) setScope_
+      unlessNull (A.metaScope i) setScope
       (cmp , t) <- maybe ((CmpEq,) <$> workOnTypes newTypeMeta_) return mt
       (x, v) <- newMeta cmp t
       setMetaNameSuggestion x (A.metaNameSuggestion i)
@@ -1720,7 +1720,7 @@ checkNamedArg arg@(Arg info e0) t0 = do
     -- E.g. when 'insertImplicitPatSynArgs' inserted an instance underscore.
     let checkU i = checkMeta i (newMetaArg (A.metaKind i) info x) CmpLeq t0
     let checkQ = checkQuestionMark (newInteractionMetaArg info x) CmpLeq t0
-    if not $ isHole e then checkExpr e t0 else localScope_ $ do
+    if not $ isHole e then checkExpr e t0 else localScope $ do
       -- Note: we need localScope_ here,
       -- as scopedExpr manipulates the scope in the state.
       -- However, we may not pull localScope_ over checkExpr!
@@ -1768,7 +1768,7 @@ defOrVar _     = False
 checkDontExpandLast :: Comparison -> A.Expr -> Type -> TCM Term
 checkDontExpandLast cmp e t = case e of
   _ | Application hd args <- appView e,  defOrVar hd ->
-    traceCall (CheckExprCall cmp e t) $ localScope_ $ dontExpandLast $ do
+    traceCall (CheckExprCall cmp e t) $ localScope $ dontExpandLast $ do
       checkApplication cmp hd args e t
   _ -> checkExpr' cmp e t -- note that checkExpr always sets ExpandLast
 

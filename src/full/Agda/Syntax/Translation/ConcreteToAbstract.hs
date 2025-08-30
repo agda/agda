@@ -238,8 +238,8 @@ checkModuleApplication (C.SectionApp _ tel m es) m0 x dir' = do
     (adir, s) <- applyImportDirectiveM (C.QName x) dir' =<< getNamedScope m1
     (s', copyInfo) <- copyScope m m0 s
     -- Set the current scope to @s'@
-    modifyCurrentScope_ $ const s'
-    modifyScope_ recomputeInverseScope
+    modifyCurrentScope $ const s'
+    recomputeInverseScope
 
     printScope "mod.inst" 40 "copied source module"
     reportS "scope.mod.inst" 30 $ pretty copyInfo
@@ -258,8 +258,8 @@ checkModuleApplication (C.RecordModuleInstance _ recN) m0 x dir' =
     s <- getNamedScope m1
     (adir, s) <- applyImportDirectiveM recN dir' s
     (s', copyInfo) <- copyScope recN m0 s
-    modifyCurrentScope_ $ const s'
-    modifyScope_ recomputeInverseScope
+    modifyCurrentScope $ const s'
+    recomputeInverseScope
 
     printScope "mod.inst" 40 "copied record module"
     return (A.RecordModuleInstance m1, copyInfo, adir)
@@ -445,7 +445,7 @@ concreteToAbstract_ :: ToAbstract c => c -> ScopeM (AbsOfCon c)
 concreteToAbstract_ = toAbstract
 
 concreteToAbstract :: ToAbstract c => ScopeInfo -> c -> ScopeM (AbsOfCon c)
-concreteToAbstract scope x = evalWithScope_ scope (toAbstract x)
+concreteToAbstract scope x = evalWithScope scope (toAbstract x)
 
 -- | Things that can be translated to abstract syntax are instances of this
 --   class.
@@ -480,7 +480,7 @@ toAbstractHiding _             = toAbstractCtx TopCtx
 -- | This operation does not affect the scope, i.e. the original scope
 --   is restored upon completion.
 localToAbstract :: ToAbstract c => c -> (AbsOfCon c -> ScopeM b) -> ScopeM b
-localToAbstract x ret = localScope_ $ ret =<< toAbstract x
+localToAbstract x ret = localScope $ ret =<< toAbstract x
 
 -- -- | Like 'localToAbstract' but returns the scope after the completion of the
 -- --   second argument.
@@ -867,7 +867,7 @@ scopeCheckExtendedLam r e cs = do
   -- Create the abstract syntax for the extended lambda.
   case scdef of
     A.ScopedDecl si [A.FunDef di qname' cs] -> do
-      setScope_ si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
+      setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
       return $
         A.ExtendedLam (ExprRange r) di e qname' cs
     _ -> __IMPOSSIBLE__
@@ -1568,7 +1568,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
           -- Do not eagerly remove private definitions, only when serializing
           -- let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
           let scope = insideScope
-          setScope_ scope
+          setScope scope
 
           -- While scope-checking the top-level module we might have
           -- encountered several (possibly nested) opaque blocks. We
@@ -2272,8 +2272,8 @@ instance ToAbstract NiceDeclaration where
 
           -- Merge the imported scopes with the current scopes.
           -- This might override a previous import of @m@, but monotonously (add stuff).
-          modifyScopes_ $ \ ms -> Map.unionWith mergeScope (Map.delete m ms) i
-          modifyScope_ recomputeInverseScope
+          modifyScopes $ \ ms -> Map.unionWith mergeScope (Map.delete m ms) i
+          recomputeInverseScope
 
           -- Andreas, 2019-05-29, issue #3818.
           -- Pass the resolved name to open instead triggering another resolution.
@@ -2308,8 +2308,8 @@ instance ToAbstract NiceDeclaration where
           (adir, i') <- Map.adjustM' (applyImportDirectiveM x dir) m i
           -- Andreas, 2020-05-18, issue #3933
           -- We merge the new imports without deleting old imports, to be monotone.
-          modifyScopes_ $ \ ms -> Map.unionWith mergeScope ms i'
-          modifyScope_ recomputeInverseScope
+          modifyScopes $ \ ms -> Map.unionWith mergeScope ms i'
+          recomputeInverseScope
           return adir
 
       printScope "import" 30 "merged imported sig:"
@@ -2724,14 +2724,13 @@ bindRecordConstructorName x kind a p = do
 
 bindUnquoteConstructorName :: ModuleName -> Access -> C.Name -> TCM A.QName
 bindUnquoteConstructorName m p c = do
-
   r <- resolveName (C.QName c)
   fc <- getConcreteFixity c
   c' <- withCurrentModule m $ freshAbstractQName fc c
   let aname qn = AbsName qn QuotableName Defined NoMetadata
       addName = do
-        modifyCurrentScope_ $ addNameToScope (localNameSpace p) c $ aname c'
-        modifyScope_ recomputeInverseScope
+        modifyCurrentScope $ addNameToScope (localNameSpace p) c $ aname c'
+        recomputeInverseScope -- András 2025-08-30: TODO: use addNameToInverseScope instead
       success = addName >> (withCurrentModule m $ addName)
       failure y = typeError $ ClashingDefinition (C.QName c) y Nothing
   case r of
@@ -2900,8 +2899,8 @@ instance ToAbstract C.Pragma where
               -- and drop the existing definition.
               unlessM ((UnknownName ==) <$> resolveName qx) $ do
                 warning $ BuiltinDeclaresIdentifier b'
-                modifyCurrentScope_ $ removeNameFromScope PublicNS x
-                modifyScope_ recomputeInverseScope
+                modifyCurrentScope $ removeNameFromScope PublicNS x
+                recomputeInverseScope
               -- We then happily bind the name
               y <- freshAbstractQName' x
               let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b'
@@ -3073,7 +3072,7 @@ instance ToAbstract C.Clause where
   toAbstract (C.Clause top catchall ai lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
     -- Jesper, 2018-12-10, #3095: pattern variables bound outside the
     -- module are locally treated as module parameters
-    modifyScope_ $ updateScopeLocals $ map $ second patternToModuleBound
+    modifyScope $ updateScopeLocals $ map $ second patternToModuleBound
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
     vars0 <- getLocalVars
     lhs' <- toAbstract $ LeftHandSide (C.QName top) p NoDisplayLHS
@@ -3150,7 +3149,7 @@ whereToAbstract1 r e whname whds inner = do
   am  <- toAbstract (NewModuleName m)
   (scope, d) <- scopeCheckModule r e (C.QName m) am [] $
                 toAbstract $ Declarations $ List1.toList whds
-  setScope_ scope
+  setScope scope
   x <- inner
   setCurrentModule old
   bindModule acc m am

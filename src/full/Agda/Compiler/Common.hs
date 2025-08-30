@@ -20,7 +20,6 @@ import Control.Monad
 import Control.Monad.State
 
 import Agda.Syntax.Common
-import Agda.Syntax.Scope.Base (recomputeInverseScope)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.TopLevelModuleName
 
@@ -167,9 +166,10 @@ inCompilerEnv checkResult cont = do
     when (any ("--erased-cubical" `elem`) $ iFilePragmaStrings mainI) $
       setTCLens (stPragmaOptions . lensOptCubical) $ Just CErased
 
+    setScope $ iInsideScope mainI -- so that compiler errors don't use overly qualified names
     -- András, 2025-08-30: this is a fresh creation of a scope from an interface
     -- so inverse scopes don't yet exist.
-    setScope_ $ recomputeInverseScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
+    recomputeInverseScope
     ignoreAbstractMode cont
   -- keep generated warnings
   let newWarnings = stPostTCWarnings $  stPostScopeState $ s

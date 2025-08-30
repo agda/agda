@@ -672,7 +672,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           return (rΔσ ++ rΘ ++ rΓ, rΘ)
 
         -- Now we can enter the new context and create our meta variable.
-        (y, u) <- updateContext ρ (const newCxt) $ localScope_ $ do
+        (y, u) <- updateContext ρ (const newCxt) $ localScope $ do
 
           -- First, we add the named variables to the scope, to allow
           -- them to be used in holes (#3341). These should go outside Δ (#3735).
