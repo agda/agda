@@ -155,6 +155,11 @@ getScope = useR stScope
 setScope :: ScopeInfo -> TCM ()
 setScope scope = modifyScope (const scope)
 
+{-# INLINE setScope_ #-}
+-- | Set the current scope.
+setScope_ :: ScopeInfo -> TCM ()
+setScope_ scope = modifyScope_ (const scope)
+
 {-# INLINE modifyScope_ #-}
 -- | Modify the current scope without updating the inverse maps.
 modifyScope_ :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
@@ -163,7 +168,7 @@ modifyScope_ f = stScope `modifyTCLens` f
 {-# INLINE modifyScope #-}
 -- | Modify the current scope.
 modifyScope :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
-modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
+modifyScope f = modifyScope_ (recomputeInverseScope . f)
 
 {-# INLINE useScope #-}
 -- | Get a part of the current scope.
@@ -178,7 +183,7 @@ locallyScope l = locallyTCState $ stScope . l
 {-# INLINE withScope #-}
 -- | Run a computation in a local scope.
 withScope :: ReadTCState m => ScopeInfo -> m a -> m (a, ScopeInfo)
-withScope s m = locallyTCState stScope (recomputeInverseScopeMaps . const s) $ (,) <$> m <*> getScope
+withScope s m = locallyTCState stScope (recomputeInverseScope . const s) $ (,) <$> m <*> getScope
 
 {-# INLINE withScope_ #-}
 -- | Same as 'withScope', but discard the scope from the computation.
@@ -191,6 +196,14 @@ localScope m = do
   scope <- getScope
   x <- m
   setScope scope
+  return x
+
+-- | Discard any changes to the scope by a computation.
+localScope_ :: TCM a -> TCM a
+localScope_ m = do
+  scope <- getScope
+  x <- m
+  setScope_ scope
   return x
 
 -- | Scope error.

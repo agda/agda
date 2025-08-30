@@ -135,7 +135,7 @@ data NameMapEntry = NameMapEntry
   deriving (Show, Generic)
 
 -- | Invariant: the 'KindOfName' components should be equal
---   whenever we have to concrete renderings of an abstract name.
+--   whenever we have two concrete renderings of an abstract name.
 instance Semigroup NameMapEntry where
   NameMapEntry k xs <> NameMapEntry _ ys = NameMapEntry k (xs <> ys)
 
@@ -1326,7 +1326,7 @@ data AllowAmbiguousNames
 
 isNameInScope :: A.QName -> ScopeInfo -> Bool
 isNameInScope q scope =
-  billToPure [ Scoping, InverseScopeLookup ] $
+  billToPure [ Scoping, InverseInScope ] $
   Set.member q (scope ^. scopeInScope)
 
 isNameInScopeUnqualified :: A.QName -> ScopeInfo -> Bool
@@ -1347,7 +1347,7 @@ inverseScopeLookupName' amb q scope =
 -- | A version of 'inverseScopeLookupName' that also delivers the 'KindOfName'.
 --   Used in highlighting.
 inverseScopeLookupName'' :: AllowAmbiguousNames -> A.QName -> ScopeInfo -> Maybe NameMapEntry
-inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseScopeLookup ] $ do
+inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup ] $ do
   NameMapEntry k xs <- Map.lookup q (scope ^. scopeInverseName)
   NameMapEntry k <$> do List1.nonEmpty $ best $ List1.filter unambiguousName xs
   where
@@ -1378,7 +1378,7 @@ inverseScopeLookupModule :: A.ModuleName -> ScopeInfo -> [C.QName]
 inverseScopeLookupModule = inverseScopeLookupModule' AmbiguousNothing
 
 inverseScopeLookupModule' :: AllowAmbiguousNames -> A.ModuleName -> ScopeInfo -> [C.QName]
-inverseScopeLookupModule' amb m scope = billToPure [ Scoping , InverseScopeLookup ] $
+inverseScopeLookupModule' amb m scope = billToPure [ Scoping , InverseModuleLookup ] $
   best $ filter unambiguousModule $ findModule m
   where
     findModule m = fromMaybe [] $ Map.lookup m (scope ^. scopeInverseModule)
@@ -1393,11 +1393,13 @@ inverseScopeLookupModule' amb m scope = billToPure [ Scoping , InverseScopeLooku
 
     unambiguousModule q = amb == AmbiguousAnything || unique (scopeLookup q scope :: [AbstractModule])
 
-recomputeInverseScopeMaps :: ScopeInfo -> ScopeInfo
-recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
-  scope { _scopeInverseName   = nameMap
-        , _scopeInverseModule = Map.fromList [ (x, findModule x) | x <- Map.keys moduleMap ++ Map.keys importMap ]
-        , _scopeInScope       = nsInScope $ everythingInScopeQualified scope
+recomputeInverseScope :: ScopeInfo -> ScopeInfo
+recomputeInverseScope scope =
+  scope { _scopeInverseName   = billToPure [ Scoping , InverseNameRecompute ] nameMap
+        , _scopeInverseModule = billToPure [ Scoping , InverseModuleRecompute ]
+                                (Map.fromList [ (x, findModule x) | x <- Map.keys moduleMap ++ Map.keys importMap ])
+        , _scopeInScope       = billToPure [ Scoping , InverseInScopeRecompute ]
+                                (nsInScope $ everythingInScopeQualified scope)
         }
   where
     this = scope ^. scopeCurrent
