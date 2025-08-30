@@ -189,7 +189,7 @@ checkDecl d = setCurrentRange d $ do
       A.Apply i er x mapp ci d -> meta $ checkSectionApplication i er x mapp ci d
       A.Import _ _ dir         -> none $ checkImportDirective dir
       A.Pragma i p             -> none $ checkPragma i p
-      A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
+      A.ScopedDecl scope ds    -> none $ setScope_ scope >> mapM_ checkDeclCached ds
       A.FunDef i x cs          -> impossible $ check x i $ checkFunDef i x $ List1.toList cs
       A.DataDef i x uc ps cs   -> impossible $ check x i $ checkDataDef i x uc ps cs
       A.RecDef i x uc dir ps tel cs -> impossible $ check x i $ do
@@ -918,7 +918,7 @@ checkTypeSignature = checkTypeSignature' Nothing
 
 checkTypeSignature' :: Maybe A.GeneralizeTelescope -> A.TypeSignature -> TCM ()
 checkTypeSignature' gtel (A.ScopedDecl scope ds) = do
-  setScope scope
+  setScope_ scope
   mapM_ (checkTypeSignature' gtel) ds
 checkTypeSignature' gtel (A.Axiom funSig i info mp x e) =
   Bench.billTo [Bench.Definition x] $
