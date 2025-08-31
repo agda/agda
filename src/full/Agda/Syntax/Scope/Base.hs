@@ -872,7 +872,7 @@ recomputeInScopeSets = updateScopeNameSpaces (map $ second recomputeInScope)
   where
     recomputeInScope ns = ns { nsInScope = billToPure [Scoping, InverseInScopeRecompute] (allANames $ nsNames ns) }
     allANames :: NamesInScope -> InScopeSet
-    allANames = Set.fromList . map anameName . List1.concat . Map.elems
+    allANames = foldl' (\acc -> foldl' (\acc n -> Set.insert (anameName n) acc) acc) mempty
 
 -- | Filter a scope keeping only concrete names matching the predicates.
 --   The first predicate is applied to the names and the second to the modules.
