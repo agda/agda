@@ -113,8 +113,7 @@ data Phase
   | InverseNameLookup
   | InverseModuleLookup
   | InverseInScope
-  | InverseNameRecompute
-  | InverseModuleRecompute
+  | InverseNameModuleRecompute
   | InverseInScopeRecompute
   | TopModule TopLevelModuleName
   | Typeclass QName

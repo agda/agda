@@ -4,15 +4,26 @@ import Control.Monad ((<$!>))
 import Data.Functor.Compose
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import Data.Map.Internal (Map(..))
+import Data.Map.Internal (Map(..), balanceL, balanceR, singleton)
 
 import Agda.Utils.Impossible
 
 -- * Monadic map operations
 ---------------------------------------------------------------------------
 
+{-# INLINE insertWithGood #-}
+-- | Version of `insertWith` that's willing to be properly inlined.
+insertWithGood :: forall k a. Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
+insertWithGood f k !a = go k a where
+  go :: k -> a -> Map k a -> Map k a
+  go !kx x Tip               = singleton kx x
+  go  kx x (Bin sy ky y l r) = case compare kx ky of
+    LT -> balanceL ky y (go kx x l) r
+    GT -> balanceR ky y l (go kx x r)
+    EQ -> let !y' = f x y in Bin sy kx y' l r
+
 {-# INLINE forGood_ #-}
--- | Version of forM_ that deigns to be properly lambda-lifted for State, Reader, etc.
+-- | Version of `forM_` that deigns to be properly lambda-lifted for State, Reader, etc.
 forGood_ :: forall k v m. Applicative m => Map k v -> (v -> m ()) -> m ()
 forGood_ m f = go m where
   go Tip             = pure ()

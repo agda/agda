@@ -3,29 +3,31 @@
 
 module Agda.Utils.StrictState where
 
+import GHC.Exts (oneShot)
+
 newtype State s a = State {runState# :: s -> (# a, s #)}
 
 instance Functor (State s) where
   {-# INLINE fmap #-}
-  fmap f (State g) = State \s -> case g s of
-    (# a, !s #) -> let b = f a in (# b, s #)
+  fmap f (State g) = State (oneShot \s -> case g s of
+    (# a, !s #) -> let b = f a in (# b, s #))
   {-# INLINE (<$) #-}
   (<$) a m = (\_ -> a) <$> m
 
 instance Applicative (State s) where
   {-# INLINE pure #-}
-  pure a = State \s -> (# a, s #)
+  pure a = State (oneShot \s -> (# a, s #))
   {-# INLINE (<*>) #-}
-  State mf <*> State ma = State \s -> case mf s of
+  State mf <*> State ma = State (oneShot \s -> case mf s of
     (# f, s #) -> case ma s of
-      (# a, !s #) -> let b = f a in (# b, s #)
+      (# a, !s #) -> let b = f a in (# b, s #))
   {-# INLINE (*>) #-}
-  State ma *> State mb = State \s -> case ma s of
-    (# _, s #) -> mb s
+  State ma *> State mb = State (oneShot \s -> case ma s of
+    (# _, s #) -> mb s)
   {-# INLINE (<*) #-}
-  State ma <* State mb = State \s -> case ma s of
+  State ma <* State mb = State (oneShot \s -> case ma s of
     (# a, s #) -> case mb s of
-      (# _, s #) -> (# a, s #)
+      (# _, s #) -> (# a, s #))
   {-# INLINE liftA2 #-}
   liftA2 f x y = f <$> x <*> y
 
@@ -33,8 +35,8 @@ instance Monad (State s) where
   {-# INLINE return #-}
   return = pure
   {-# INLINE (>>=) #-}
-  State ma >>= f = State \s -> case ma s of
-    (# a, s #) -> runState# (f a) s
+  State ma >>= f = State (oneShot \s -> case ma s of
+    (# a, s #) -> runState# (f a) s)
   {-# INLINE (>>) #-}
   (>>) = (*>)
 
