@@ -21,6 +21,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
+import Data.Ord (Down(..))
 import Data.Maybe
 import Debug.Trace
 
@@ -1298,7 +1299,6 @@ scopeLookup' q scope = nubOn fst $ inAllScopes ++ topImports ++ imports
         s' <- maybeToList ss'
         findName q s'
 
-
 -- * Inverse look-up
 
 data AllowAmbiguousNames
@@ -1354,7 +1354,8 @@ inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup 
 
     guard unambiguous
     let !partsLen = length $ C.qnameParts q
-    pure (partsLen, q)
+    let !range = getRange q
+    pure ((partsLen, Down range), q)
 
   -- traceM ("LKUP " ++ prettyShow xs)
 
@@ -1432,7 +1433,7 @@ recomputeInverseNamesAndModules scope = St2.execState goCurrent (mempty, mempty)
     St2.modify2 $ HMap.insertWith (\_ acc -> qualx:acc) m [qualx]
 
   updNames qualx nid entry = do
-    let upd _ (NameMapEntry k xs) = NameMapEntry k (qualx List1.<| xs)
+    let upd _ (NameMapEntry k xs) = NameMapEntry k $! qualx List1.<| xs
     St2.modify1 $ HMap.insertWith upd nid entry
 
   go :: [C.Name] -> Scope -> St2.State NameMap ModuleMap ()
