@@ -21,6 +21,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
+import Data.Ord (Down(..))
 import Data.Maybe
 import Debug.Trace
 
@@ -1354,7 +1355,8 @@ inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup 
 
     guard unambiguous
     let !partsLen = length $ C.qnameParts q
-    pure (partsLen, q)
+    let !range = getRange q
+    pure ((partsLen, Down range), q)
 
   -- traceM ("LKUP " ++ prettyShow xs)
 
