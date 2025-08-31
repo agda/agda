@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures #-}
 
 {-| This module defines the notion of a scope and operations on scopes.
 -}
@@ -48,6 +49,8 @@ import Agda.Syntax.Common.Pretty
 import Agda.Utils.Set1 ( Set1 )
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Map as Map
+import Agda.Utils.Tuple ((//))
+import Agda.Utils.StrictState2
 
 import Agda.Utils.Impossible
 
@@ -867,7 +870,7 @@ zipScope_ fd fm fs = zipScope (const fd) (const fm) (const fs)
 recomputeInScopeSets :: Scope -> Scope
 recomputeInScopeSets = updateScopeNameSpaces (map $ second recomputeInScope)
   where
-    recomputeInScope ns = ns { nsInScope = allANames $ nsNames ns }
+    recomputeInScope ns = ns { nsInScope = billToPure [Scoping, InverseInScopeRecompute] (allANames $ nsNames ns) }
     allANames :: NamesInScope -> InScopeSet
     allANames = Set.fromList . map anameName . List1.concat . Map.elems
 
@@ -1184,29 +1187,6 @@ everythingInScope scope = allThingsInScope $ mergeScopes $
     look m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
     s0     = look $ scope ^. scopeCurrent
 
-everythingInScopeQualified :: ScopeInfo -> NameSpace
-everythingInScopeQualified scope =
-  allThingsInScope $ mergeScopes $
-    chase Set.empty scopes
-  where
-    s0      = look $ scope ^. scopeCurrent
-    scopes  = s0 : map look (scopeParents s0)
-    look m  = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
-    lookP   = restrictPrivate . look
-
-    -- We start with the current module and all its parents and look through
-    -- all their imports and submodules.
-    chase seen [] = []
-    chase seen (s : ss)
-      | Set.member name seen = chase seen ss
-      | otherwise = s : chase (Set.insert name seen) (imports ++ submods ++ ss)
-      where
-        -- #4166: only include things that are actually in scope here
-        inscope x _ = isInScope x == InScope
-        name    = scopeName s
-        imports = map lookP $ Map.elems $ scopeImports s
-        submods = map (lookP . amodName) $ List1.concat $ Map.elems $ Map.filterWithKey inscope $ allNamesInScope s
-
 -- | Get all concrete names in scope. Includes bound variables.
 concreteNamesInScope :: ScopeInfo -> Set C.QName
 concreteNamesInScope scope =
@@ -1241,6 +1221,9 @@ concreteNamesInScope scope =
 -- | Look up a name in the scope
 scopeLookup :: InScope a => C.QName -> ScopeInfo -> [a]
 scopeLookup q scope = map fst $ scopeLookup' q scope
+
+{-# SPECIALIZE scopeLookup' :: C.QName -> ScopeInfo -> [(AbstractName, Access)] #-}
+{-# SPECIALIZE scopeLookup' :: C.QName -> ScopeInfo -> [(AbstractModule, Access)] #-}
 
 scopeLookup' :: forall a. InScope a => C.QName -> ScopeInfo -> [(a, Access)]
 scopeLookup' q scope = nubOn fst $ inAllScopes ++ topImports ++ imports
@@ -1395,13 +1378,64 @@ inverseScopeLookupModule' amb m scope = billToPure [ Scoping , InverseModuleLook
 
     unambiguousModule q = amb == AmbiguousAnything || unique (scopeLookup q scope :: [AbstractModule])
 
+recomputeInScopeSet :: ScopeInfo -> Set A.QName
+recomputeInScopeSet scope = fst $ execState goCurrent (Set.empty, Set.empty) where
+  !mods     = scope ^. scopeModules
+  !s0       = scope ^. scopeCurrent
+  look m    = fromMaybe __IMPOSSIBLE__ $ Map.lookup m mods
+  goCurrent = go True s0 *> forM_ (scopeParents (look s0)) (go True)
+
+  go :: Bool -> ModuleName -> State (Set A.QName) (Set ModuleName) ()
+  go !isCurrent !m = do
+    seen <- get2
+    if Set.member m seen then
+      pure ()
+    else do
+      modify2 (Set.insert m)
+      let !s = look m
+      -- names and submodules
+      forM_ (scopeNameSpaces s) \(nsid, NameSpace _ mods inscope) -> do
+        when (isCurrent || nsid /= PrivateNS) do
+          modify1 (<> inscope)
+          Map.forWithKey_ mods \k ms -> do
+            when (isInScope k == InScope) do
+              forM_ ms \m -> do
+                go False (amodName m)
+      -- imports
+      when isCurrent do
+        Map.forWithKey_ (scopeImports s) \_ m -> do
+          go False m
+
+-- everythingInScopeQualified :: ScopeInfo -> NameSpace
+-- everythingInScopeQualified scope =
+--   allThingsInScope $ mergeScopes $
+--     chase Set.empty scopes
+--   where
+--     s0      = look $ scope ^. scopeCurrent
+--     scopes  = s0 : map look (scopeParents s0)
+--     look m  = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
+--     lookP   = restrictPrivate . look
+
+--     -- We start with the current module and all its parents and look through
+--     -- all their imports and submodules.
+--     chase seen [] = []
+--     chase seen (s : ss)
+--       | Set.member name seen = chase seen ss
+--       | otherwise = s : chase (Set.insert name seen) (imports ++ submods ++ ss)
+--       where
+--         -- #4166: only include things that are actually in scope here
+--         inscope x _ = isInScope x == InScope
+--         name    = scopeName s
+--         imports = map lookP $ Map.elems $ scopeImports s
+--         submods = map (lookP . amodName) $ List1.concat $ Map.elems $ Map.filterWithKey inscope $ allNamesInScope s
+
 recomputeInverseScope' :: ScopeInfo -> ScopeInfo
 recomputeInverseScope' scope =
   scope { _scopeInverseName   = nameMap'
         , _scopeInverseModule = billToPure [ Scoping , InverseModuleRecompute ]
                                 (Map.fromList [ (x, findModule x) | x <- Map.keys moduleMap ++ Map.keys importMap ])
         , _scopeInScope       = billToPure [ Scoping , InverseInScopeRecompute ]
-                                (nsInScope $ everythingInScopeQualified scope)
+                                (recomputeInScopeSet scope)
         }
   where
     this = scope ^. scopeCurrent

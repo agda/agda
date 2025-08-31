@@ -1,0 +1,70 @@
+{-# LANGUAGE MagicHash, UnboxedTuples, Strict #-}
+{-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
+
+module Agda.Utils.StrictState where
+
+newtype State s a = State {runState# :: s -> (# a, s #)}
+
+instance Functor (State s) where
+  {-# INLINE fmap #-}
+  fmap f (State g) = State \s -> case g s of
+    (# a, !s #) -> let b = f a in (# b, s #)
+  {-# INLINE (<$) #-}
+  (<$) a m = (\_ -> a) <$> m
+
+instance Applicative (State s) where
+  {-# INLINE pure #-}
+  pure a = State \s -> (# a, s #)
+  {-# INLINE (<*>) #-}
+  State mf <*> State ma = State \s -> case mf s of
+    (# f, s #) -> case ma s of
+      (# a, !s #) -> let b = f a in (# b, s #)
+  {-# INLINE (*>) #-}
+  State ma *> State mb = State \s -> case ma s of
+    (# _, s #) -> mb s
+  {-# INLINE (<*) #-}
+  State ma <* State mb = State \s -> case ma s of
+    (# a, s #) -> case mb s of
+      (# _, s #) -> (# a, s #)
+  {-# INLINE liftA2 #-}
+  liftA2 f x y = f <$> x <*> y
+
+instance Monad (State s) where
+  {-# INLINE return #-}
+  return = pure
+  {-# INLINE (>>=) #-}
+  State ma >>= f = State \s -> case ma s of
+    (# a, s #) -> runState# (f a) s
+  {-# INLINE (>>) #-}
+  (>>) = (*>)
+
+{-# INLINE put #-}
+put :: s -> State s ()
+put s = State \_ -> (# (), s #)
+
+{-# INLINE get #-}
+get :: State s s
+get = State \s -> (# s, s #)
+
+{-# INLINE gets #-}
+gets :: (s -> a) -> State s a
+gets f = f <$> get
+
+{-# INLINE modify #-}
+modify :: (s -> s) -> State s ()
+modify f = State \s -> let s' = f s in (# (), s' #)
+
+{-# INLINE execState #-}
+execState :: State s a -> s -> s
+execState (State f) s = case f s of
+  (# _, s #) -> s
+
+{-# INLINE runState #-}
+runState :: State s a -> s -> (a, s)
+runState (State f) s = case f s of
+  (# !a, !s #) -> (a, s)
+
+{-# INLINE evalState #-}
+evalState :: State s a -> s -> a
+evalState (State f) s = case f s of
+  (# a, _ #) -> a
