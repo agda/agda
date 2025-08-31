@@ -143,7 +143,7 @@ data NameMapEntry = NameMapEntry
 instance Semigroup NameMapEntry where
   NameMapEntry k xs <> NameMapEntry _ ys = NameMapEntry k (xs <> ys)
 
-type NameMap   = Map A.QName      NameMapEntry
+type NameMap   = Map NameId      NameMapEntry
 type ModuleMap = Map A.ModuleName [C.QName]
 -- type ModuleMap = Map A.ModuleName (List1 C.QName)
 
@@ -1333,7 +1333,7 @@ inverseScopeLookupName' amb q scope =
 --   Used in highlighting.
 inverseScopeLookupName'' :: AllowAmbiguousNames -> A.QName -> ScopeInfo -> Maybe NameMapEntry
 inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup ] $ do
-  NameMapEntry k xs <- Map.lookup q (scope ^. scopeInverseName)
+  NameMapEntry k xs <- Map.lookup (A.nameId $ qnameName q) (scope ^. scopeInverseName)
   NameMapEntry k <$> do List1.nonEmpty $ best $ List1.filter unambiguousName xs
   where
     best :: [C.QName] -> [C.QName]
@@ -1489,7 +1489,7 @@ recomputeInverseScope' scope =
     nameMap = Map.fromListWith (<>) $ do
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
-      (q, k)  <- (anameName &&& anameKind) <$> List1.toList ms
+      (q, k)  <- ((A.nameId . qnameName . anameName) &&& anameKind) <$> List1.toList ms
       let ret z = return (q, NameMapEntry k $ singleton z)
       if m `elem` current
         then ret $ C.QName x

@@ -531,7 +531,8 @@ addNameToInverseScope :: KindOfName -> C.Name -> AbstractName -> ScopeInfo -> Sc
 addNameToInverseScope kind x y s =
   let !y' = anameName y
   in s { _scopeInScope     = Set.insert y' (_scopeInScope s)
-       , _scopeInverseName = Map.insertWith (<>) y' (NameMapEntry kind (C.QName x :| [])) (_scopeInverseName s)
+       , _scopeInverseName = Map.insertWith (<>) (A.nameId $ qnameName y')
+                             (NameMapEntry kind (C.QName x :| [])) (_scopeInverseName s)
        }
 
 -- | Bind a name. Returns the 'TypeError' if exists, but does not throw it.
