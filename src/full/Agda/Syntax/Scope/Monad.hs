@@ -531,7 +531,7 @@ addNameToInverseScope :: KindOfName -> C.Name -> AbstractName -> ScopeInfo -> Sc
 addNameToInverseScope kind x y s =
   let !y' = anameName y
   in s { _scopeInScope     = Set.insert y' (_scopeInScope s)
-       , _scopeInverseName = Map.insertWith (<>) (A.nameId $ qnameName y')
+       , _scopeInverseName = HMap.insertWith (<>) (A.nameId $ qnameName y')
                              (NameMapEntry kind (C.QName x :| [])) (_scopeInverseName s)
        }
 

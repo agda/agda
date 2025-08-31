@@ -19,6 +19,8 @@ import Data.Map (Map)
 import qualified Data.Map.Strict as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
 import Debug.Trace
 
@@ -144,9 +146,8 @@ data NameMapEntry = NameMapEntry
 instance Semigroup NameMapEntry where
   NameMapEntry k xs <> NameMapEntry _ ys = NameMapEntry k (xs <> ys)
 
-type NameMap   = Map NameId      NameMapEntry
-type ModuleMap = Map A.ModuleName [C.QName]
--- type ModuleMap = Map A.ModuleName (List1 C.QName)
+type NameMap   = HashMap NameId      NameMapEntry
+type ModuleMap = HashMap A.ModuleName [C.QName]
 
 instance Eq ScopeInfo where
   ScopeInfo c1 m1 v1 l1 p1 _ _ _ _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ _ _ _ =
@@ -787,8 +788,8 @@ emptyScopeInfo = ScopeInfo
   , _scopeVarsToBind    = []
   , _scopeLocals        = []
   , _scopePrecedence    = []
-  , _scopeInverseName   = Map.empty
-  , _scopeInverseModule = Map.empty
+  , _scopeInverseName   = HMap.empty
+  , _scopeInverseModule = HMap.empty
   , _scopeInScope       = Set.empty
   , _scopeFixities      = Map.empty
   , _scopePolarities    = Map.empty
@@ -1335,7 +1336,7 @@ inverseScopeLookupName' amb q scope =
 inverseScopeLookupName'' :: AllowAmbiguousNames -> A.QName -> ScopeInfo -> Maybe NameMapEntry
 inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup ] $ do
 
-  NameMapEntry k xs <- Map.lookup (A.nameId $ qnameName q) (scope ^. scopeInverseName)
+  NameMapEntry k xs <- HMap.lookup (A.nameId $ qnameName q) (scope ^. scopeInverseName)
 
   !xs <- List1.nonEmpty $ map snd $ List.sortOn fst $ do
     q <- nubOn id $ List1.toList xs
@@ -1368,7 +1369,7 @@ inverseScopeLookupModule' :: AllowAmbiguousNames -> A.ModuleName -> ScopeInfo ->
 inverseScopeLookupModule' amb m scope = billToPure [ Scoping , InverseModuleLookup ] $
   best $ filter unambiguousModule $ findModule m
   where
-    findModule m = fromMaybe [] $ Map.lookup m (scope ^. scopeInverseModule)
+    findModule m = fromMaybe [] $ HMap.lookup m (scope ^. scopeInverseModule)
 
     best :: [C.QName] -> [C.QName]
     best = List.sortOn $ length . C.qnameParts
@@ -1428,11 +1429,11 @@ recomputeInverseNamesAndModules scope = St2.execState goCurrent (mempty, mempty)
     intern _ = False
 
   updModules qualx m =
-    St2.modify2 $ Map.insertWithGood (\_ acc -> qualx:acc) m [qualx]
+    St2.modify2 $ HMap.insertWith (\_ acc -> qualx:acc) m [qualx]
 
   updNames qualx nid entry = do
     let upd _ (NameMapEntry k xs) = NameMapEntry k (qualx List1.<| xs)
-    St2.modify1 $ Map.insertWithGood upd nid entry
+    St2.modify1 $ HMap.insertWith upd nid entry
 
   go :: [C.Name] -> Scope -> St2.State NameMap ModuleMap ()
   go !quals s = do
