@@ -134,7 +134,6 @@ warning_ = withCallerCallStack . flip warning'_
 {-# SPECIALIZE warnings' :: CallStack -> List1 Warning -> TCM () #-}
 warnings' :: MonadWarning m => CallStack -> List1 Warning -> m ()
 warnings' loc ws = do
-
   WarningMode enabledWarnings wError <- optWarningMode <$> pragmaOptions
 
   -- We collect *all* of the warnings no matter whether they are enabled or not.
