@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Agda.Utils.Map where
 
 import Data.Functor.Compose
@@ -22,9 +24,11 @@ adjustM' f k = getCompose . adjustM (Compose . f) k
 -- * Non-monadic map operations
 ---------------------------------------------------------------------------
 
+#if !MIN_VERSION_containers(0,8,0)
 -- | Filter a map based on the keys.
 filterKeys :: (k -> Bool) -> Map k a -> Map k a
 filterKeys p = Map.filterWithKey (const . p)
+#endif
 
 -- | Check whether a map is a singleton.
 isSingleMap :: Map k v -> Maybe (k, v)
