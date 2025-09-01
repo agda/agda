@@ -120,7 +120,6 @@ import Prelude hiding (null)
 
 import Control.Monad.Except ( MonadError(..) )
 
-import Data.Bifunctor (first)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
@@ -195,8 +194,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   -- This is not so nice. When changing the context from Γ (r : R) to Γ Δ we need to do this at the
   -- level of contexts (as a Context -> Context function), so we repeat the name logic here. Take
   -- care to preserve the name of named generalized variables.
-  let setName name d = first (const name) <$> d
-      cxtEntry (mname, dom) = do
+  let cxtEntry (mname, dom) = do
           let s = fst $ unDom dom
           name <- maybe (setNotInScope <$> freshName_ s) return mname
           return $ CtxVar name (snd <$> dom)
