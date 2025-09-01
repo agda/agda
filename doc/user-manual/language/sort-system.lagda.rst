@@ -491,10 +491,9 @@ Here are some examples how ``piSort`` computes:
   piSort (Prop ℓ) (λ x → Set ℓ') = Setω                  (if x occurs rigidly in ℓ')
   piSort Setωᵢ    (λ x → Set ℓ') = Setωᵢ                 (if x occurs rigidly in ℓ')
 
-With these rules, we can compute the sort of the function type ``∀ {A}
-→ ∀ {B} → B → A → B`` (or more explicitly, ``{A : _9} {B : _7} → B → A
-→ B``) to be ``piSort (univSort _9) (λ A → funSort (univSort _7)
-(funSort _7 (funSort _9 _7)))``
+With these rules, we can compute the sort of the function type ``∀ {A} → ∀ {B} → B → A → B``
+(or more explicitly, ``{A : _9} {B : _7} → B → A → B``)
+to be ``piSort (univSort _9) (λ A → funSort (univSort _7) (funSort _7 (funSort _9 _7)))``.
 
 More examples:
 
