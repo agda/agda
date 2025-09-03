@@ -190,6 +190,9 @@ addConstant q d = do
                       , defPolarity       = if null (defPolarity new)
                                               then defPolarity old
                                               else defPolarity new
+                      , defCompiledRep    = Map.unionWith (++)
+                                              (defCompiledRep new)
+                                              (defCompiledRep old)
                       }
 
 -- | A combination of 'addConstant' and 'defaultDefn'. The 'Language'
