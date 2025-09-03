@@ -6,6 +6,7 @@ module Agda.TypeChecking.Errors
   ( renderError
   , prettyError
   , tcErrString
+  , tcErrModuleToSource
   , prettyTCWarnings'
   , prettyTCWarnings
   , tcWarningsToError
@@ -134,6 +135,18 @@ tcErrString err =
       GenericException msg -> [ msg ]
       IOException _ r e    -> [ prettyShow r, showIOException e ]
       PatternErr{}         -> [ "PatternErr" ]
+
+-- | If the 'TCErr' carries a 'TCState', return the 'ModuleToSource'
+-- from there, since that's the 'ModuleToSource' we need for
+-- highlighting the actual error message.
+tcErrModuleToSource :: TCErr -> Maybe ModuleToSource
+tcErrModuleToSource = \case
+  err@TypeError{}    -> Just $! tcErrState err ^. stModuleToSource
+  IOException st _ _ -> (^. stModuleToSource) <$> st
+
+  GenericException{} -> Nothing
+  ParserError{}      -> Nothing
+  PatternErr{}       -> Nothing
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -496,11 +509,10 @@ instance PrettyTCM TypeError where
       ]
       where
         kindOfData :: DataOrRecordE -> String
-        kindOfData IsData                                                          = "datatype"
-        kindOfData (IsRecord InductionAndEta {recordInduction=Nothing})            = "record type"
-        kindOfData (IsRecord InductionAndEta {recordInduction=(Just Inductive)})   =  "inductive record type"
-        kindOfData (IsRecord InductionAndEta {recordInduction=(Just CoInductive)}) = "coinductive record type"
-
+        kindOfData IsData                                                        = "datatype"
+        kindOfData (IsRecord InductionAndEta {recordInduction=Nothing})          = "record type"
+        kindOfData (IsRecord InductionAndEta {recordInduction=Just Inductive})   = "inductive record type"
+        kindOfData (IsRecord InductionAndEta {recordInduction=Just CoInductive}) = "coinductive record type"
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"

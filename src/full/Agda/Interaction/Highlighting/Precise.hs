@@ -311,13 +311,3 @@ instance Semigroup PositionMap where
 instance Monoid PositionMap where
   mempty  = PositionMap { positionMap = IntMap.empty }
   mappend = (<>)
-
-------------------------------------------------------------------------
--- NFData instances
-
-instance NFData Aspect
-instance NFData OtherAspect
-instance NFData DefinitionSite
-
-instance NFData Aspects where
-  rnf (Aspects a b c d _) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d

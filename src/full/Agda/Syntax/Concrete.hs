@@ -87,7 +87,7 @@ import GHC.Generics     ( Generic )
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Common.Aspect (NameKind)
+import Agda.Syntax.Common.Aspect (Aspects)
 import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
 
@@ -196,10 +196,10 @@ data Expr
   | DontCare Expr                              -- ^ to print irrelevant things
   | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
   | Ellipsis Range                             -- ^ @...@, used internally to parse patterns.
-  | KnownIdent NameKind QName
+  | KnownIdent Aspects QName
     -- ^ An identifier coming from abstract syntax, for which we know a
     -- precise syntactic highlighting class (used in printing).
-  | KnownOpApp NameKind Range QName (Set1 A.Name) OpAppArgs
+  | KnownOpApp Aspects Range QName (Set1 A.Name) OpAppArgs
     -- ^ An operator application coming from abstract syntax, for which
     -- we know a precise syntactic highlighting class (used in
     -- printing).
