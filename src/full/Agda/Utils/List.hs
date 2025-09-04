@@ -242,6 +242,12 @@ downFrom n | n <= 0     = []
 -- * Update
 ---------------------------------------------------------------------------
 
+{-# INLINE map' #-}
+-- | Strict map.
+map' :: (a -> b) -> [a] -> [b]
+map' f [] = []
+map' f (a:as) = let !b = f a; !bs = map' f as in b:bs
+
 -- | Update the first element of a list, if it exists.
 --   O(1).
 updateHead :: (a -> a) -> [a] -> [a]
