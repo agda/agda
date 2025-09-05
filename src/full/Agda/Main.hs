@@ -90,17 +90,11 @@ runAgda' backends = do
 runAgdaArgs :: [Backend] -> [String] -> IO ()
 runAgdaArgs backends args = do
   progName <- getProgName
-  let (z, warns) = runOptM $ parseBackendOptions backends args defaultOptions
-  conf     <- runExceptT $ do
-    (bs, opts) <- ExceptT $ pure z
-    -- The absolute path of the input file, if provided
-    inputFile <- liftIO $ mapM absolute $ optInputFile opts
-    mode      <- getInteractor bs inputFile opts
-    return (bs, opts, mode)
+  let (conf, warns) = runOptM $ parseBackendOptions backends args defaultOptions
 
   case conf of
     Left err -> optionError err
-    Right (bs, opts, mode) -> do
+    Right (bs, opts) -> do
 
       -- Setup Agda if requested
       when (optSetup opts) $ Agda.Setup.setup True
@@ -127,8 +121,12 @@ runAgdaArgs backends args = do
         unless (optSetup opts) $ Agda.Setup.setup False
         printEmacsModeFile
 
-      case mode of
-        Nothing -> do
+      -- The absolute path of the input file, if provided
+      inputFile <- liftIO $ mapM absolute $ optInputFile opts
+
+      (runExceptT $ getInteractor bs inputFile opts) >>= \case
+        Left err -> optionError err
+        Right Nothing -> do
           let
             something = or
               [ opts & optSetup
@@ -142,7 +140,7 @@ runAgdaArgs backends args = do
           -- if no task was given to Agda
           unless something $ optionError "No task given."
 
-        Just interactor -> do
+        Right (Just interactor) -> do
          unless (optSetup opts) $ Agda.Setup.setup False
 
          runTCMPrettyErrors do
