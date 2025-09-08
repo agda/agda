@@ -145,9 +145,8 @@ Universe polymorphism
 
 To allow definitions of functions and datatypes that work for all
 possible universes ``Setᵢ``, Agda provides a type ``Level`` of
-universe levels and level-polymorphic universes ``Set ℓ`` where ``ℓ :
-Level``. For more information, see the page on :ref:`universe levels
-<universe-levels>`.
+universe levels and level-polymorphic universes ``Set ℓ`` where ``ℓ : Level``.
+For more information, see the page on :ref:`universe levels <universe-levels>`.
 
 Agda's sort system
 ==================
@@ -500,6 +499,6 @@ to be ``piSort (univSort _9) (λ A → funSort (univSort _7) (funSort _7 (funSor
 
 More examples:
 
-* ``piSort LevelUniv (λ l → Set l)`` evaluates to ``Setω`` (see also :ref:`level-universe`)
+* ``piSort LevelUniv (λ l → Set l)`` evaluates to ``Setω`` (see also :ref:`level universe<level-universe>`)
 * ``piSort (Set l) (λ _ → Set l')`` evaluates to ``Set (l ⊔ l')``
 * ``piSort s (λ _ → Setωi)`` evaluates to ``funSort s Setωi``
