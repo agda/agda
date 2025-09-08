@@ -1,7 +1,7 @@
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
-(agda2-info-action "*Error*" "Error-in-imported-module/M.agda:6.7-10: error: [UnequalTerms] Set !=< Nat when checking that the expression Nat has type Nat" nil '(83 84 (symbol) t) '(85 86 (symbol) t) '(99 100 (symbol) t) '(112 113 (symbol) t) '(114 117 (function) nil nil ("agda-default-include-path/Agda/Primitive.agda" . 388)) '(122 125 (function) nil nil ("agda-default-include-path/Agda/Builtin/Nat.agda" . 203)) '(160 163 (function) nil nil ("agda-default-include-path/Agda/Builtin/Nat.agda" . 203)) '(173 176 (function) nil nil ("agda-default-include-path/Agda/Builtin/Nat.agda" . 203)))
+(agda2-info-action "*Error*" "Error-in-imported-module/M.agda:6.7-10: error: [UnequalTerms] Set !=< Nat when checking that the expression Nat has type Nat" nil)
 ((last . 3) . (agda2-maybe-goto '("Error-in-imported-module/M.agda" . 88)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

@@ -1,1 +1,1 @@
-ioTCM currentFile NonInteractive Indirect (cmd_load currentFile ["--colour=always"])
+ioTCM currentFile NonInteractive Indirect (cmd_load currentFile ["--colour=never"])
