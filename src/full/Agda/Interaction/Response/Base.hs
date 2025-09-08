@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------
 -- | Data type for all interactive responses
 ------------------------------------------------------------------------
+{-# LANGUAGE DataKinds #-}
 
 module Agda.Interaction.Response.Base
   ( Response_boot (..)
@@ -14,6 +15,7 @@ module Agda.Interaction.Response.Base
   , ResponseContextEntry(..)
   , Status (..)
   , GiveResult (..)
+  , QueryResponse (..)
   ) where
 
 import Control.Monad.Trans ( MonadIO(liftIO) )
@@ -21,7 +23,10 @@ import Data.Set (Set)
 import Data.Word (Word32)
 
 import Agda.Interaction.Base
-  ( CommandState
+  ( Query(..)
+  , CommandState
+  , QueryId
+  , QueryResponse(..)
   , CompilerBackend
   , ComputeMode
   , OutputConstraint_boot
@@ -66,6 +71,14 @@ data Response_boot tcErr tcWarning warningsAndNonFatalErrors
     | Resp_RunningInfo Int DocTree
       -- ^ The integer is the message's debug level.
       --   The 'DocTree' usually does not contain a final newline.
+
+    -- | Successful response to a 'Query'. The 'QueryId' must be the
+    -- same one as the editor gave us.
+    | forall s. Resp_QueryReply (QueryId s) (QueryResponse s)
+    -- | Failure response to a callback. Since queries are meant to be
+    -- ephemeral we don't indicate failures.
+    | forall s. Resp_QueryError (QueryId s)
+
     | Resp_ClearRunningInfo
     | Resp_ClearHighlighting TokenBased
       -- ^ Clear highlighting of the given kind.

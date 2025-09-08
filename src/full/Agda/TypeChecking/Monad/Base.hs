@@ -6477,6 +6477,8 @@ defaultInteractionOutputCallback = \case
   Resp_ClearHighlighting {} -> __IMPOSSIBLE__
   Resp_DoneAborting {}      -> __IMPOSSIBLE__
   Resp_DoneExiting {}       -> __IMPOSSIBLE__
+  Resp_QueryReply {}        -> __IMPOSSIBLE__
+  Resp_QueryError {}        -> __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Names for generated definitions
