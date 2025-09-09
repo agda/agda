@@ -31,6 +31,8 @@ import qualified Data.Text.Lazy as TL
 import Data.Typeable
 import Data.Void
 import Data.Word (Word32, Word64)
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as HSet
 
 import Agda.TypeChecking.Serialise.Base
 
@@ -311,6 +313,10 @@ instance EmbPrj IntSet where
 instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
   icod_ s = icode (Set.foldr' (:) [] s)
   value s = Set.fromDistinctAscList <$!> value s
+
+instance (Hashable a, EmbPrj a) => EmbPrj (HashSet a) where
+  icod_ s = icode (Fold.foldr' (:) [] s)
+  value s = HSet.fromList <$!> value s
 
 instance (Ord a, EmbPrj a) => EmbPrj (Set1 a) where
   icod_ s = icode (Set1.foldr' (:) [] s)

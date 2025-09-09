@@ -77,7 +77,7 @@ import qualified Agda.Utils.CompactRegion as Compact
 #include "MachDeps.h"
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20250812 * 10 + 0
+currentInterfaceVersion = 20250826 * 10 + 0
 
 ifaceVersionSize :: Int
 ifaceVersionSize = SIZEOF_WORD64

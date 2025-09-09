@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wunused-matches #-}
 {-# OPTIONS_GHC -Wunused-binds #-}
 
@@ -23,9 +22,11 @@ module Agda.Syntax.Concrete.Operators
 
 import Control.Applicative ( Alternative( (<|>) ) )
 import Control.Monad.Except (throwError)
+import Control.Monad ((<$!>))
 
 import Data.Either (partitionEithers)
 import qualified Data.Function
+import Data.Foldable
 import qualified Data.List as List
 import Data.Maybe
 import Data.Set (Set)
@@ -40,7 +41,7 @@ import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Position
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Scope.Flat
+import Agda.Syntax.Scope.Operator
 import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (typeError, TypeError(..), LHSOrPatSyn(..))
@@ -101,11 +102,18 @@ data Parsers e = Parsers
   , operators :: [NotationSection]
     -- ^ All operators/notations/sections that were used to generate
     -- the grammar.
-  , flattenedScope :: FlatScope
-    -- ^ A flattened scope that only contains those names that are
-    -- unqualified or qualified by qualifiers that occur in the list
-    -- of names given to 'buildParsers'.
+  , operatorScope :: OperatorScope
+    -- ^ A flattened scope that only contains names such that
+    -- they occur in the expression or at least one of their
+    -- name parts occurs in the expression.
   }
+
+{-# SPECIALIZE
+  buildParsersFromOperatorScope ::
+     ExprKind -> Maybe QName -> Set QName -> OperatorScope -> ScopeM (Parsers Expr) #-}
+{-# SPECIALIZE
+  buildParsersFromOperatorScope ::
+     ExprKind -> Maybe QName -> Set QName -> OperatorScope -> ScopeM (Parsers Pattern) #-}
 
 -- | Builds parsers for operator applications from all the operators
 -- and function symbols in scope.
@@ -122,35 +130,22 @@ data Parsers e = Parsers
 -- sections in patterns, then we would have to accept certain such
 -- sequences of tokens as single pattern variables.
 
-buildParsers
-  :: forall e. IsExpr e
+buildParsersFromOperatorScope ::
+     forall e. IsExpr e
   => ExprKind
-     -- ^ Should expressions or patterns be parsed?
   -> Maybe QName
-     -- ^ Are we trying to parse the lhs of the function given here?
-  -> [QName]
-     -- ^ This list must include every name part in the
-     -- expression/pattern to be parsed (excluding name parts inside
-     -- things like parenthesised subexpressions that are treated as
-     -- atoms). The list is used to optimise the parser. For
-     -- instance, a given notation is only included in the generated
-     -- grammar if all of the notation's name parts are present in
-     -- the list of names.
+  -> Set QName
+  -> OperatorScope
   -> ScopeM (Parsers e)
-buildParsers kind top exprNames0 = do
-    let exprNames = applyWhenJust top (:) exprNames0
-    flat         <- flattenScope (qualifierModules exprNames) <$>
-                      getScope
-    (names, ops0) <- localNames kind top flat
+buildParsersFromOperatorScope kind top namesInExpr opScope = do
+
+    (names, ops0) <- localNames kind top opScope
     let ops | kind == IsPattern = filter (not . isLambdaNotation) ops0
             | otherwise         = ops0
 
-    let -- All names.
-        namesInExpr :: Set QName
-        namesInExpr = Set.fromList exprNames
-
-        partListsInExpr' = map (List1.toList . nameParts . unqualify) $
-                           Set.toList namesInExpr
+    let
+        partListsInExpr' = map (List1.toList . nameParts . unqualify)
+                               (Set.toList namesInExpr)
 
         partListTrie f =
           foldr (\ps -> Trie.union (Trie.everyPrefix ps ()))
@@ -240,7 +235,7 @@ buildParsers kind top exprNames0 = do
         (non, fix) = List.partition nonfix (filter (and . partsPresent) ops)
 
         cons       = getDefinedNames
-                       (someKindsOfNames [ConName, CoConName, FldName, PatternSynName]) flat
+                       (someKindsOfNames [ConName, CoConName, FldName, PatternSynName]) opScope
         conNames   = Set.fromList $
                        filter (flip Set.member namesInExpr) $
                        map (notaName . List1.head) cons
@@ -372,7 +367,7 @@ buildParsers kind top exprNames0 = do
       { parser         = parse (parseSections, pTop  g)
       , argsParser     = parse (parseSections, pArgs g)
       , operators      = everything
-      , flattenedScope = flat
+      , operatorScope  = opScope
       }
     where
         level :: NewNotation -> FixityLevel
@@ -510,6 +505,50 @@ buildParsers kind top exprNames0 = do
                   flip ($) <$> (noPlaceholder <$> (postLefts <|> higher))
                            <*> postLeft
 
+-- | Only build parsers if there's at least one relevant operator or notation in
+--   scope.
+buildParsers ::
+        forall e. IsExpr e
+     => ExprKind
+     -- ^ Should expressions or patterns be parsed?
+     -> Maybe QName
+     -- ^ Are we trying to parse the lhs of the function given here?
+     -> [QName]
+     -- ^ This list must include every name part in the
+     -- expression/pattern to be parsed (excluding name parts inside
+     -- things like parenthesised subexpressions that are treated as
+     -- atoms). The list is used to optimise the parser. For
+     -- instance, a given notation is only included in the generated
+     -- grammar if all of the notation's name parts are present in
+     -- the list of names.
+     -> ScopeM (Maybe (Parsers e))
+buildParsers kind top exprNames0 = do
+    let namesInExpr = Set.fromList $ applyWhenJust top (:) exprNames0
+    opScope <- getOperatorScope namesInExpr <$> getScope
+    if osHasOps opScope
+      then Just <$!> buildParsersFromOperatorScope kind top namesInExpr opScope
+      else pure Nothing
+
+-- | Build parsers regardless of there being operators or notations in the relevant scope.
+alwaysBuildParsers ::
+        forall e. IsExpr e
+     => ExprKind
+     -- ^ Should expressions or patterns be parsed?
+     -> Maybe QName
+     -- ^ Are we trying to parse the lhs of the function given here?
+     -> [QName]
+     -- ^ This list must include every name part in the
+     -- expression/pattern to be parsed (excluding name parts inside
+     -- things like parenthesised subexpressions that are treated as
+     -- atoms). The list is used to optimise the parser. For
+     -- instance, a given notation is only included in the generated
+     -- grammar if all of the notation's name parts are present in
+     -- the list of names.
+     -> ScopeM (Parsers e)
+alwaysBuildParsers kind top exprNames0 = do
+    let namesInExpr = Set.fromList $ applyWhenJust top (:) exprNames0
+    opScope <- getOperatorScope namesInExpr <$> getScope
+    buildParsersFromOperatorScope kind top namesInExpr opScope
 
 ---------------------------------------------------------------------------
 -- * Parse functions
@@ -622,7 +661,7 @@ parseLHS' NoDisplayLHS IsLHS (Just qn) WildP{} =
 parseLHS' displayLhs lhsOrPatSyn top p = do
 
     -- Build parser.
-    patP <- buildParsers IsPattern top (patternQNames p)
+    patP <- alwaysBuildParsers IsPattern top (patternQNames p)
 
     -- Run parser, forcing result.
     let ps   = let result = parsePat (parser patP) p
@@ -630,9 +669,9 @@ parseLHS' displayLhs lhsOrPatSyn top p = do
 
     -- Classify parse results.
     let cons = getNames (someKindsOfNames $ applyWhen displayLhs (defNameKinds ++) conLikeNameKinds)
-                        (flattenedScope patP)
+                        (operatorScope patP)
     let flds = getNames (someKindsOfNames [FldName])
-                        (flattenedScope patP)
+                        (operatorScope patP)
     let conf = PatternCheckConfig top (hasElem cons) (hasElem flds)
 
     let (errs, results) = partitionEithers $ map (validPattern conf) ps
@@ -833,32 +872,38 @@ appView = loop []
    where
    ret p = p :| reverse acc
 
--- | Return all qualifiers occuring in a list of 'QName's.
---   Each qualifier is returned as a list of names, e.g.
---   for @Data.Nat._+_@ we return the list @[Data,Nat]@.
-qualifierModules :: [QName] -> [[Name]]
-qualifierModules qs =
-  nubOn id $ filter (not . null) $ map (List1.init . qnameParts) qs
-
 -- | Parse a list of expressions (typically from a 'RawApp') into an application.
 parseApplication :: List2 Expr -> ScopeM Expr
 parseApplication es  = billToParser IsExpr $ do
     let es0 = List2.toList es
-    -- Build the parser
     p <- buildParsers IsExpr Nothing [ q | Ident q <- es0 ]
+    case p of
 
-    -- Parse
-    let result = parser p es0
-    case foldr seq () result `seq` result of
-      [e]   -> do
-          reportS "scope.operators" 50 $
-            "Parsed an operator application:" <+> pretty e
-          return e
-      []    -> typeError $ OperatorInformation (operators p)
-                         $ NoParseForApplication es
-      e:es' -> typeError $ OperatorInformation (operators p)
-                         $ AmbiguousParseForApplication es
-                         $ fmap fullParen (e :| es')
+      -- no operators or notations in scope
+      Nothing -> do
+        let hd :| rest = List2.toList1 es
+            app :: Expr -> Expr -> Expr
+            app !acc !e = let
+              range = fuseRange acc e
+              !arg  = case e of
+                HiddenArg _ e    -> hide (defaultArg e)
+                InstanceArg _ e  -> makeInstance (defaultArg e)
+                e                -> defaultArg (unnamed e)
+              in App range acc arg
+            !res = foldl' app hd rest
+        pure res
+
+      -- operators or notations in scope
+      Just p -> case parser p es0 of
+        [e]   -> do
+            reportS "scope.operators" 50 $
+              "Parsed an operator application:" <+> pretty e
+            return $! e
+        []    -> typeError $ OperatorInformation (operators p)
+                           $ NoParseForApplication es
+        e:es' -> typeError $ OperatorInformation (operators p)
+                           $ AmbiguousParseForApplication es
+                           $ fmap fullParen (e :| es')
 
 -- | Parse the arguments of a raw application with known head.
 --
@@ -875,11 +920,15 @@ parseArguments hd = \case
 
     -- Build the arguments parser
     p <- buildParsers IsExpr Nothing [ q | Ident q <- es ]
-
-    -- Parse
-    -- TODO: not sure about forcing
-    case {-force $-} argsParser p es of
-        [as] -> return as
+    case p of
+      Nothing -> do
+        let go :: Expr -> NamedArg Expr
+            go (HiddenArg _ e)   = hide (defaultArg e)
+            go (InstanceArg _ e) = makeInstance (defaultArg e)
+            go e                 = defaultArg (unnamed e)
+        return $! map' go es
+      Just p -> case argsParser p es of
+        [as] -> return $! as
         []   -> typeError $ OperatorInformation (operators p)
                           $ NoParseForApplication es2
         as : ass -> do
