@@ -40,6 +40,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal hiding (DataOrRecord)
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
+import Agda.Syntax.Scope.Base (ScopeInfo(..))
 
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Monad

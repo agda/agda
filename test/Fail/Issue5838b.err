@@ -7,7 +7,6 @@ Specifically, the terms
 and
   transp
   (λ i →
-     DoubleCover
-     (transp (twisted-square' i) (primIMin i1 (primIMax i (~ i))) base))
+     DoubleCover (transp (twisted-square' i) (i1 ∧ i ∨ ~ i) base))
   i0 false
 must be equal, since bad' i1 could reduce to either.
