@@ -66,7 +66,7 @@ instance EmbPrj Access where
     _ -> malformed
 
 instance EmbPrj NameSpace where
-  icod_ (NameSpace a b c) = icodeN' NameSpace a b c
+  icod_ (NameSpace a b c d) = icodeN' NameSpace a b c d
 
   value = valueN NameSpace
 

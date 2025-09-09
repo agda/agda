@@ -1,5 +1,5 @@
-Issue1977.agda:8.7-22: error: [NoParseForApplication]
-Could not parse the application [ M.undefined ]
-Operators used in the grammar:
-  M.[_] (closed operator) [[_] (Issue1977.agda:6.5-8)]
-when scope checking [ M.undefined ]
+Issue1977.agda:8.7-8: error: [NotInScope]
+Not in scope:
+  [
+  at Issue1977.agda:8.7-8
+when scope checking [
