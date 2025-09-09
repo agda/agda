@@ -1,7 +1,9 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.Utils.Tuple
-  ( (-*-)
+  (
+    (//)
+  , (-*-)
   , mapFst
   , mapSnd
   , (/\)
@@ -28,6 +30,12 @@ import GHC.Generics    ( Generic )
 
 infix 2 -*-
 infix 3 /\ -- backslashes at EOL interact badly with CPP...
+
+{-# INLINE (//) #-}
+-- | Strict pairing.
+(//) :: a -> b -> (a, b)
+(//) !a !b = (a, b)
+infixr 4 //
 
 -- | Bifunctoriality for pairs.
 (-*-) :: (a -> c) -> (b -> d) -> (a,b) -> (c,d)

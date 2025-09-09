@@ -155,15 +155,15 @@ getScope = useR stScope
 setScope :: ScopeInfo -> TCM ()
 setScope scope = modifyScope (const scope)
 
-{-# INLINE modifyScope_ #-}
--- | Modify the current scope without updating the inverse maps.
-modifyScope_ :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
-modifyScope_ f = stScope `modifyTCLens` f
-
 {-# INLINE modifyScope #-}
--- | Modify the current scope.
+-- | Modify the current scope without updating the inverse maps.
 modifyScope :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
-modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
+modifyScope f = stScope `modifyTCLens` f
+
+{-# INLINE recomputeInverseScope #-}
+-- | Recompute inverse names, inverse modules and InScopeSet-s.
+recomputeInverseScope :: MonadTCState m => m ()
+recomputeInverseScope = modifyScope recomputeInverseScope'
 
 {-# INLINE useScope #-}
 -- | Get a part of the current scope.
@@ -178,12 +178,12 @@ locallyScope l = locallyTCState $ stScope . l
 {-# INLINE withScope #-}
 -- | Run a computation in a local scope.
 withScope :: ReadTCState m => ScopeInfo -> m a -> m (a, ScopeInfo)
-withScope s m = locallyTCState stScope (recomputeInverseScopeMaps . const s) $ (,) <$> m <*> getScope
+withScope s m = locallyTCState stScope (const s) $ (,) <$> m <*> getScope
 
-{-# INLINE withScope_ #-}
+{-# INLINE evalWithScope #-}
 -- | Same as 'withScope', but discard the scope from the computation.
-withScope_ :: ReadTCState m => ScopeInfo -> m a -> m a
-withScope_ s m = fst <$> withScope s m
+evalWithScope :: ReadTCState m => ScopeInfo -> m a -> m a
+evalWithScope s m = fst <$> withScope s m
 
 -- | Discard any changes to the scope by a computation.
 localScope :: TCM a -> TCM a

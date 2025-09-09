@@ -17,7 +17,8 @@ import qualified Data.HashMap.Strict as HashMap
 import Agda.Interaction.Imports ( typeCheckMain, Mode(TypeCheck), parseSource, CheckResult(CheckResult), crInterface )
 import Agda.Interaction.Options ( defaultOptions )
 
-import Agda.TypeChecking.Monad   ( TCM, Definition(..), Interface(..), Signature(..), runTCMTop, setCommandLineOptions, srcFromPath, withScope_  )
+import Agda.TypeChecking.Monad   (  TCM, Definition(..), Interface(..), Signature(..), runTCMTop
+                                  , setCommandLineOptions, srcFromPath, recomputeInverseScope, evalWithScope )
 import Agda.TypeChecking.Pretty  ( prettyTCM, (<+>), text )
 
 import Agda.Utils.FileName       ( absolute )
@@ -40,7 +41,8 @@ mainTCM = do
   compilerMain i
 
 compilerMain :: Interface -> TCM ()
-compilerMain i = withScope_ (iInsideScope i) $ do -- withShowAllArguments $ disableDisplayForms $ do
+compilerMain i = evalWithScope (iInsideScope i) $ do -- withShowAllArguments $ disableDisplayForms $ do
+  recomputeInverseScope
   let Sig{_sigDefinitions = defs} = iSignature i
   forM_ (HashMap.toList defs) $ \ (q, def) -> do
     let t = defType def
