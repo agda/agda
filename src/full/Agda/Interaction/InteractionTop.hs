@@ -502,8 +502,8 @@ interpret (Cmd_backend_top backend cmd) =
 interpret (Cmd_backend_hole ii rng s backend cmd) =
   callBackendInteractHole (getBackendName backend) cmd ii rng s
 
-interpret Cmd_constraints =
-  display_info . Info_Constraints =<< lift B.getConstraints
+interpret (Cmd_constraints norm) =
+  display_info . Info_Constraints =<< lift (B.getConstraints norm)
 
 interpret (Cmd_metas norm) = do
   ms <- lift $ B.getGoals' norm (max Simplified norm)

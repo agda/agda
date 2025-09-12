@@ -617,9 +617,6 @@ prettyConstraints cs = do
             cl <- reify (PConstr Set.empty alwaysUnblock c)
             enterClosure cl abstractToConcrete_
 
-getConstraints :: TCM [OutputForm C.Expr C.Expr]
-getConstraints = getConstraints' return $ const True
-
 namedMetaOf :: OutputConstraint A.Expr a -> a
 namedMetaOf (OfType i _) = i
 namedMetaOf (JustType i) = i
@@ -720,13 +717,14 @@ interactionIdToMetaId i = do
     , metaModule = h
     }
 
-getConstraints' :: (ProblemConstraint -> TCM ProblemConstraint) -> (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]
-getConstraints' g f = liftTCM $ do
-    cs <- stripConstraintPids . filter f <$> (mapM g =<< M.getAllConstraints)
-    cs <- forM cs $ \c -> do
-            cl <- reify c
+-- | Get meta solutions and constraints.
+getConstraints :: Rewrite -> TCM [OutputForm C.Expr C.Expr]
+getConstraints norm = do
+    cs <- stripConstraintPids <$> M.getAllConstraints
+    cs <- forM cs \ (c :: ProblemConstraint) -> do
+            cl <- reify =<< normalForm norm c
             enterClosure cl abstractToConcrete_
-    ss <- mapM toOutputForm =<< getSolvedInteractionPoints True AsIs -- get all
+    ss <- mapM toOutputForm =<< getSolvedInteractionPoints True norm -- get all
     return $ ss ++ cs
   where
     toOutputForm (ii, mi, e) = do
@@ -734,7 +732,8 @@ getConstraints' g f = liftTCM $ do
       withMetaInfo mv $ do
         mi <- interactionIdToMetaId ii
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just mi } ii
-        let oform = OutputForm noRange [] alwaysUnblock $ Assign m e :: OutputForm Expr Expr
+        let oform :: OutputForm Expr Expr
+            oform = OutputForm noRange [] alwaysUnblock $ Assign m e
         abstractToConcrete_ oform
 
 -- | Reify the boundary of an interaction point as something that can be

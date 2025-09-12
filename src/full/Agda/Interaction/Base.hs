@@ -142,7 +142,8 @@ data Interaction' range
     -- @argv@ as the command-line options.
   = Cmd_load FilePath [String]
 
-  | Cmd_constraints
+    -- | Show constraints on goals.
+  | Cmd_constraints Rewrite
 
     -- | Show unsolved metas. If there are no unsolved metas but unsolved constraints
     -- show those instead.

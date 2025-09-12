@@ -87,6 +87,13 @@ Library management
 Interaction and emacs mode
 --------------------------
 
+* A normalization level can now also passed to command `Cmd_constraints`
+  ("show constraints", `C-c C-=` in Emacs).
+  In Emacs, the normalization level is given as usual by `C-u` prefixes.
+
+  This interface change is **breaking** for frontends to `agda --interaction`
+  such as the VSCode `agda-mode`, which need updating.
+
 Backends
 --------
 

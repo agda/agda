@@ -1132,10 +1132,6 @@ is inserted, and point is placed before this text."
   (kill-new text)
   (agda2-info-action name text append))
 
-(defun agda2-show-constraints()
-  "Show constraints." (interactive)
-  (agda2-go nil t 'busy t "Cmd_constraints"))
-
 (defun agda2-remove-annotations ()
   "Removes buffer annotations (overlays and text properties)."
   (interactive)
@@ -1307,6 +1303,15 @@ The form of the result depends on the prefix argument:
     ("HeadNormal"   "head normalised")
     (global ,prompt)))
 
+(defmacro agda2-maybe-normalised-toplevel-noprompt (name comment cmd)
+  `(agda2-proto-maybe-normalised
+    ,name ,comment ,cmd
+    ("Simplified"   "simplified")
+    ("Instantiated" "neither explicitly normalised nor simplified")
+    ("Normalised"   "normalised")
+    ("HeadNormal"   "head normalised")
+    (global nil)))
+
 (defmacro agda2-maybe-normalised-toplevel-asis-noprompt (name comment cmd)
   `(agda2-proto-maybe-normalised
     ,name ,comment ,cmd
@@ -1477,6 +1482,16 @@ Either only one if point is a goal, or all of them."
  "Solves all goals that are already instantiated internally."
  "Cmd_solveAll"
  )
+
+;; Andreas, 2025-09-12
+;; Cmd_constraints has same normalization strategy as Cmd_solveOne
+;; since after showing the meta solutions one might want to
+;; apply them at the same normalization level.
+(agda2-maybe-normalised-toplevel-noprompt
+  agda2-show-constraints
+  "Show meta solutions and constraints."
+  "Cmd_constraints"
+)
 
 (agda2-maybe-normalised
   agda2-solveOne

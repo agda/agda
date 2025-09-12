@@ -289,6 +289,9 @@ instance Instantiate a => Instantiate (Closure a) where
         x <- enterClosure cl instantiate'
         return $ cl { clValue = x }
 
+instance Instantiate ProblemConstraint where
+  instantiate' (PConstr p u c) = PConstr p u <$> instantiate' c
+
 instance Instantiate Constraint where
   instantiate' (ValueCmp cmp t u v) = do
     (t,u,v) <- instantiate' (t,u,v)
@@ -967,6 +970,9 @@ instance Reduce a => Reduce (Closure a) where
 instance Reduce Telescope where
   reduce' EmptyTel          = return EmptyTel
   reduce' (ExtendTel a tel) = ExtendTel <$> reduce' a <*> reduce' tel
+
+instance Reduce ProblemConstraint where
+  reduce' (PConstr p u c) = PConstr p u <$> reduce' c
 
 instance Reduce Constraint where
   reduce' (ValueCmp cmp t u v) = do

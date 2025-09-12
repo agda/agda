@@ -185,7 +185,7 @@ loadFile _ _ = liftIO $ putStrLn ":load file"
 
 showConstraints :: [String] -> TCM ()
 showConstraints [] =
-    do  cs <- BasicOps.getConstraints
+    do  cs <- BasicOps.getConstraints AsIs
         liftIO $ putStrLn $ unlines (List.map prettyShow cs)
 showConstraints _ = liftIO $ putStrLn ":constraints [cid]"
 
