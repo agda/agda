@@ -26,6 +26,7 @@ files+='test/Fail/MagicWith.err '
 files+='test/interaction/Issue1244a.out '
 files+='test/interaction/Issue1244b.out '
 files+='test/interaction/Issue6261.out '
+files+='test/interaction/Issue8098.out '
 
 if [ "$2" == "" -o "$1" == "-h" -o "$1" == "--help" ]; then
   echo "Usage: $0 OLD NEW"

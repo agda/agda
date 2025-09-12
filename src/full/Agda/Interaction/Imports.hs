@@ -116,6 +116,7 @@ import qualified Agda.Utils.Set1 as Set1
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Impossible
+import System.IO.Error (isUserError, isFullError)
 
 -- | Whether to ignore interfaces (@.agdai@) other than built-in modules
 
@@ -1084,8 +1085,12 @@ writeInterface file i = let fp = filePath file in do
   `catchError` \e -> do
     alwaysReportSLn "" 1 $
       "Failed to write interface " ++ fp ++ "."
-    liftIO $
-      whenM (doesFileExist fp) $ removeFile fp
+    -- Andreas, 2025-09-12, issue #8098, don't delete when writing failed on a readonly file.
+    -- Only delete file when disk is full or Agda had an internal error during serialization.
+    case e of
+      IOException _ _ ioe | not (isUserError ioe), not (isFullError ioe)
+        -> return ()
+      _ -> liftIO $ whenM (doesFileExist fp) $ removeFile fp
     throwError e
 
 -- | Tries to type check a module and write out its interface. The

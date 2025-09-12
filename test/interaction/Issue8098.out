@@ -1,0 +1,5 @@
+Checking Issue8098 (Issue8098.agda).
+Checking Issue8098 (Issue8098.agda).
+Failed to write interface _build/2.9.0/agda/Issue8098.agdai.
+_build/2.9.0/agda/Issue8098.agdai:
+withBinaryFile: permission denied (Permission denied)
