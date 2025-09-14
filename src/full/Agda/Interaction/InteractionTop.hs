@@ -706,7 +706,7 @@ interpret (Cmd_context norm ii _ _) =
 
 interpret (Cmd_helper_function norm ii rng s) = do
   -- Create type of application of new helper function that would solve the goal.
-  helperType <- liftLocalState $ withInteractionId ii $ inTopContext $ B.metaHelperType norm ii rng s
+  helperType <- liftLocalState $ B.metaHelperType norm ii rng s
   display_info $ Info_GoalSpecific ii (Goal_HelperFunction helperType)
 
 interpret (Cmd_infer norm ii rng s) = do

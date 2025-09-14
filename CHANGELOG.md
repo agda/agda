@@ -94,6 +94,12 @@ Interaction and emacs mode
   This interface change is **breaking** for frontends to `agda --interaction`
   such as the VSCode `agda-mode`, which need updating.
 
+* Fixed an internal error in `Cmd_helper_function` (`C-c C-h` in Emacs)
+  (Issue [#8103](https://github.com/agda/agda/issue/8103)).
+  Changed the type of `Goal_HelperFunction` which might be **breaking**
+  3rd-party interaction frontends.
+
+
 Backends
 --------
 

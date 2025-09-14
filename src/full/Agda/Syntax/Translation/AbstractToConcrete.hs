@@ -619,6 +619,10 @@ instance ToConcrete Char where
   type ConOfAbs Char = Char
   toConcrete = pure
 
+instance ToConcrete C.Name where
+  type ConOfAbs C.Name = C.Name
+  toConcrete = pure
+
 -- Functors ---------------------------------------------------------------
 
 instance ToConcrete a => ToConcrete [a] where
