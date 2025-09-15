@@ -877,9 +877,9 @@ instance (Coercible a Term, Subst a) => Subst (Sort' a) where
     LockUniv   -> LockUniv
     LevelUniv  -> LevelUniv
     IntervalUniv -> IntervalUniv
-    PiSort a s1 s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s1) (coerce $ sub s2)
-    FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
-    UnivSort s -> coerce $ univSort $ coerce $ sub s
+    PiSort a s1 s2 -> PiSort (coerce $ sub a) (coerce $ sub s1) (coerce $ sub s2)
+    FunSort s1 s2 -> FunSort (coerce $ sub s1) (coerce $ sub s2)
+    UnivSort s -> UnivSort $ coerce $ sub s
     MetaS x es -> MetaS x $ sub es
     DefS d es  -> DefS d $ sub es
     s@DummyS{} -> s
@@ -1635,14 +1635,13 @@ isSmallSort s = case sizeOfSort s of
 
 -- | Compute the sort of a function type from the sorts of its domain and codomain.
 --
---   This function should only be called on reduced sorts,
---   since the @LevelUniv@ rules should only apply when the sort does not reduce to @Set@.
-funSort' :: Sort -> Sort -> Either Blocker Sort
+--   The first argument is the value of `isLevelUniverseEnabled`
+funSort' :: Bool -> Sort -> Sort -> Either Blocker Sort
 -- Andreas, 2023-05-12, AIM XXXVI, pri #6623:
 -- On GHC 8.6 and 8.8 this pattern matching triggers warning
 -- "Pattern match checker exceeded (2000000) iterations in a case alternative."
 -- No clue how to turn off this warning, so we have to turn off -Werror for GHC < 8.10.
-funSort' = curry \case
+funSort' hasLevelUniv a b = case (normLU a, normLU b) of
   (Univ u a      , Univ u' b    ) -> Right $ Univ (funUniv u u') $ levelLub a b
   (Inf ua m      , b            ) -> sizeOfSort b <&> \ (SizeOfSort ub n) -> Inf (funUniv ua ub) (max m n)
   (a             , Inf ub n     ) -> sizeOfSort a <&> \ (SizeOfSort ua m) -> Inf (funUniv ua ub) (max m n)
@@ -1681,17 +1680,19 @@ funSort' = curry \case
   (DummyS{}      , _            ) -> Left neverUnblock
   (_             , DummyS{}     ) -> Left neverUnblock
 
-funSort :: Sort -> Sort -> Sort
-funSort a b = fromRight (const $ FunSort a b) $ funSort' a b
+  where
+  normLU | hasLevelUniv = id
+         | otherwise    = \case
+             LevelUniv -> mkType 0
+             s         -> s
+
+funSort :: Bool -> Sort -> Sort -> Sort
+funSort hasLevelUniv a b = fromRight (const $ FunSort a b) $ funSort' hasLevelUniv a b
 
 -- | Compute the sort of a pi type from three inputs:
 --   1. The "raw" domain of the pi type (without the sort)
 --   2. The sort of the domain
 --   3. The sort of the codomain (which lives in an extended context)
---
---   This function should only be called on reduced sorts,
---   since the @LevelUniv@ rules should only apply when the
---   sort doesn't reduce to @Set@
 piSort' :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
 piSort' a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
 piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of

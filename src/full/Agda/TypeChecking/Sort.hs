@@ -106,9 +106,10 @@ inferFunSort :: (PureTCM m, MonadConstraint m)
   -> Sort      -- ^ Sort of the codomain of the function type.
   -> m Sort    -- ^ Sort of the function type.
 inferFunSort a s = do
+  hasLevelUniv <- isLevelUniverseEnabled
   s1 <- reduce $ getSort a
   s2 <- reduce s
-  return $ funSort s1 s2
+  return $ funSort hasLevelUniv s1 s2
 
 -- | @hasPTSRule a x.s@ checks that we can form a Pi-type @(x : a) -> b@ where @b : s@.
 --
