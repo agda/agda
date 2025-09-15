@@ -99,6 +99,10 @@ Interaction and emacs mode
   Changed the type of `Goal_HelperFunction` which might be **breaking**
   3rd-party interaction frontends.
 
+* `NON_TERMINATING` functions now only reduce in `IgnoreAbstract` mode of
+  commands `Cmd_compute(_toplevel)` (`C-u C-c C-n` in Emacs)
+  regardless of whether invoked at toplevel or in a hole
+  (Issue [#2410](https://github.com/agda/agda/issue/2410)).
 
 Backends
 --------

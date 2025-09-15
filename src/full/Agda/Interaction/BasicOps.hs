@@ -342,9 +342,19 @@ normalForm = \case
   Simplified   -> simplify
   Normalised   -> normalise
 
--- | Modifier for the interactive computation command,
---   specifying the mode of computation and result display.
---
+-- | Evaluate the given expression in the current environment
+--   with allowed reductions modified according to 'ComputeMode'.
+computeInCurrent :: ComputeMode -> Expr -> TCM Expr
+computeInCurrent cmode e =
+  withComputeIgnoreAbstract cmode $ evalInCurrent cmode e
+
+-- | Modify the allowed reductions according to 'ComputeMode'.
+{-# SPECIALIZE withComputeIgnoreAbstract :: ComputeMode -> TCM a -> TCM a #-}
+withComputeIgnoreAbstract :: MonadTCEnv m => ComputeMode -> m a -> m a
+withComputeIgnoreAbstract cmode =
+  applyWhen (computeIgnoreAbstract cmode) $
+    allowNonTerminatingReductions . ignoreAbstractMode
+
 computeIgnoreAbstract :: ComputeMode -> Bool
 computeIgnoreAbstract DefaultCompute  = False
 computeIgnoreAbstract HeadCompute     = False

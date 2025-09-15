@@ -162,10 +162,14 @@ Global commands
      the contents of the hole as input (if any).
 
 :kbd:`C-u C-c C-n`
-     Compute normal form, ignoring ``abstract``.
+     Compute normal form,
+     ignoring :ref:`abstract <abstract-definitions>` and :ref:`NON_TERMINATING <non_terminating-pragma>`.
 
 :kbd:`C-u C-u C-c C-n`
      Compute and print normal form of ``show <expression>``.
+
+:kbd:`C-u C-u C-u C-c C-n`
+     Compute weak head normal form.
 
 :kbd:`C-c C-x M-;`
      Comment/uncomment rest of buffer.

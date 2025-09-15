@@ -461,10 +461,21 @@ instance Read CompilerBackend where
     return (b, s)
 
 -- | Ordered ascendingly by degree of normalization.
-data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
+data Rewrite = AsIs | Instantiated | HeadNormal | Simplified | Normalised
     deriving (Show, Read, Eq, Ord)
 
-data ComputeMode = DefaultCompute | HeadCompute | IgnoreAbstract | UseShowInstance
+-- | Modifier for the interactive computation command,
+--   specifying the mode of computation and result display.
+--
+data ComputeMode
+  = DefaultCompute
+      -- ^ Fully 'normalise'.
+  | HeadCompute
+      -- ^ 'reduce' to weak head normal form.
+  | IgnoreAbstract
+      -- ^ 'normalise', unfolding even @abstract@ and @NON_TERMINATING@ definitions.
+  | UseShowInstance
+      -- ^ 'normalise' to a string literal and wrap it in a @show@.
   deriving (Show, Read, Eq)
 
 data UseForce

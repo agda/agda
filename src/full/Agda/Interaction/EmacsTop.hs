@@ -209,8 +209,7 @@ lispifyDisplayInfo = \case
         prettyExpr = localStateCommandM
             $ lift
             $ B.atTopLevel
-            $ allowNonTerminatingReductions
-            $ (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
+            $ (B.withComputeIgnoreAbstract cmode)
             $ (B.showComputed cmode)
             $ expr
 

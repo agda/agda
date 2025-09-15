@@ -1,8 +1,14 @@
 top_command (cmd_load currentFile [])
 
--- Should be '0'
+-- Should be 'loop 5'
 top_command (cmd_compute_toplevel DefaultCompute "loop 5")
 
 -- Should be 'loop 5'
 goal_command 0 (cmd_compute DefaultCompute) "loop 5"
+
+-- Should be '0'
+top_command (cmd_compute_toplevel IgnoreAbstract "loop 5")
+
+-- Should be '0'
+goal_command 0 (cmd_compute IgnoreAbstract) "loop 5"
 
