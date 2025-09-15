@@ -2025,8 +2025,9 @@ equalSort s1 s2 = do
             let s1 = ignoreBlocking s1b
                 blocker = getBlocker s1b
             -- Jesper, 2019-12-27: SizeUniv is disabled at the moment.
-            if | {- sizedTypesEnabled || -} propEnabled || cubicalEnabled ->
-                case funSort' s1 (Type l2) of
+            if | {- sizedTypesEnabled || -} propEnabled || cubicalEnabled -> do
+                hasLevelUniv <- isLevelUniverseEnabled
+                case funSort' hasLevelUniv s1 (Type l2) of
                    -- If the work we did makes the @funSort@ compute,
                    -- continue working.
                    Right s -> equalSort (Type l) s
@@ -2047,7 +2048,8 @@ equalSort s1 s2 = do
             s1b <- reduceB s1
             let s1 = ignoreBlocking s1b
                 blocker = getBlocker s1b
-            case funSort' s1 (Prop l2) of
+            hasLevelUniv <- isLevelUniverseEnabled
+            case funSort' hasLevelUniv s1 (Prop l2) of
                    -- If the work we did makes the @funSort@ compute,
                    -- continue working.
                    Right s -> equalSort (Prop l) s

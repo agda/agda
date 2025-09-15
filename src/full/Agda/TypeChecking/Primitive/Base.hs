@@ -15,6 +15,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Names
 import {-# SOURCE #-} Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Pretty
@@ -32,16 +33,17 @@ infixr 4 -->
 infixr 4 .-->
 infixr 4 ..-->
 
-(-->), (.-->), (..-->) :: Applicative m => m Type -> m Type -> m Type
+(-->), (.-->), (..-->) :: HasOptions m => m Type -> m Type -> m Type
 a --> b = garr id a b
 a .--> b = garr (const irrelevant) a b
 a ..--> b = garr (const shapeIrrelevant) a b
 
-garr :: Applicative m => (Relevance -> Relevance) -> m Type -> m Type -> m Type
+garr :: HasOptions m => (Relevance -> Relevance) -> m Type -> m Type -> m Type
 garr f a b = do
+  hasLevelUniv <- isLevelUniverseEnabled
   a' <- a
   b' <- b
-  pure $ El (funSort (getSort a') (getSort b')) $
+  pure $ El (funSort hasLevelUniv (getSort a') (getSort b')) $
     Pi (mapRelevance f $ defaultDom a') (NoAbs "_" b')
 
 gpi :: (MonadAddContext m, MonadDebug m)

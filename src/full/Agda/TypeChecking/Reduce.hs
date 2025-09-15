@@ -441,7 +441,8 @@ instance Reduce Sort where
         FunSort s1 s2 -> reduceB' (s1 , s2) >>= \case
           Blocked b (s1',s2') -> return $ Blocked b $ FunSort s1' s2'
           NotBlocked _ (s1',s2') -> do
-            case funSort' s1' s2' of
+            hasLevelUniv <- isLevelUniverseEnabled
+            case funSort' hasLevelUniv s1' s2' of
               Left b -> return $ Blocked b $ FunSort s1' s2'
               Right s -> reduceB' s
         UnivSort s1 -> reduceB' s1 >>= \case
@@ -1098,7 +1099,9 @@ instance Simplify Sort where
     simplify' s = do
       case s of
         PiSort a s1 s2 -> piSort <$> simplify' a <*> simplify' s1 <*> simplify' s2
-        FunSort s1 s2 -> funSort <$> simplify' s1 <*> simplify' s2
+        FunSort s1 s2 -> do
+          hasLevelUniv <- isLevelUniverseEnabled
+          funSort hasLevelUniv <$> simplify' s1 <*> simplify' s2
         UnivSort s -> univSort <$> simplify' s
         Univ u s   -> Univ u <$> simplify' s
         Inf _ _    -> return s
@@ -1253,7 +1256,9 @@ instance Normalise Sort where
       s <- reduce' s
       case s of
         PiSort a s1 s2 -> piSort <$> normalise' a <*> normalise' s1 <*> normalise' s2
-        FunSort s1 s2 -> funSort <$> normalise' s1 <*> normalise' s2
+        FunSort s1 s2 -> do
+          hasLevelUniv <- isLevelUniverseEnabled
+          funSort hasLevelUniv <$> normalise' s1 <*> normalise' s2
         UnivSort s -> univSort <$> normalise' s
         Univ u s   -> Univ u <$> normalise' s
         Inf _ _    -> return s
@@ -1467,7 +1472,9 @@ instance InstantiateFull Sort where
         case s of
             Univ u n   -> Univ u <$> instantiateFull' n
             PiSort a s1 s2 -> piSort <$> instantiateFull' a <*> instantiateFull' s1 <*> instantiateFull' s2
-            FunSort s1 s2 -> funSort <$> instantiateFull' s1 <*> instantiateFull' s2
+            FunSort s1 s2 -> do
+              hasLevelUniv <- isLevelUniverseEnabled
+              funSort hasLevelUniv <$> instantiateFull' s1 <*> instantiateFull' s2
             UnivSort s -> univSort <$> instantiateFull' s
             Inf _ _    -> return s
             SizeUniv   -> return s
