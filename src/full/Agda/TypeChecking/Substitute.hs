@@ -1693,6 +1693,12 @@ funSort hasLevelUniv a b = fromRight (const $ FunSort a b) $ funSort' hasLevelUn
 --   1. The "raw" domain of the pi type (without the sort)
 --   2. The sort of the domain
 --   3. The sort of the codomain (which lives in an extended context)
+--
+-- Note that unlike funSort', we don't care whether --level-universe is
+-- enabled here. Instead, we just return a FunSort constructor and
+-- assume it will be simplified in the next step. See also:
+-- * `instance Reduce Sort` in Agda.TypeChecking.Substitute (this file)
+-- * `inferPiSort` in Agda.TypeChecking.Sort
 piSort' :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
 piSort' a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
 piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of

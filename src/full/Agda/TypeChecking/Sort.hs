@@ -93,10 +93,18 @@ inferPiSort :: (PureTCM m, MonadConstraint m)
   => Dom Type  -- ^ Domain of the Pi type.
   -> Abs Sort  -- ^ (Dependent) sort of the codomain of the Pi type.
   -> m Sort    -- ^ Sort of the Pi type.
-inferPiSort a s = do
-  s1 <- reduce $ getSort a
-  s2 <- mapAbstraction a reduce s
-  return $ piSort (unEl <$> a) s1 s2
+inferPiSort a s2 = case piSort' at s1 s2 of
+  Left _ -> return $ PiSort at s1 s2
+  -- Jesper, 2025-09-15: if a PiSort reduces to a FunSort, piSort'
+  -- just returns the FunSort without trying to simplify it further.
+  -- So if we get a FunSort here we call inferFunSort in the hopes
+  -- of getting a simpler result. But we DON'T call reduce as that
+  -- can lead to quadratic behavior, see #8096.
+  Right (FunSort s1' s2') -> inferFunSort (El s1' <$> at) s2'
+  Right s' -> return s'
+  where
+    at = unEl <$> a
+    s1 = getSort a
 
 {-# SPECIALIZE inferFunSort :: Dom Type -> Sort -> TCM Sort #-}
 -- | As @inferPiSort@, but for a nondependent function type.
@@ -107,9 +115,7 @@ inferFunSort :: (PureTCM m, MonadConstraint m)
   -> m Sort    -- ^ Sort of the function type.
 inferFunSort a s = do
   hasLevelUniv <- isLevelUniverseEnabled
-  s1 <- reduce $ getSort a
-  s2 <- reduce s
-  return $ funSort hasLevelUniv s1 s2
+  return $ funSort hasLevelUniv (getSort a) s
 
 -- | @hasPTSRule a x.s@ checks that we can form a Pi-type @(x : a) -> b@ where @b : s@.
 --
