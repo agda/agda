@@ -164,15 +164,15 @@ hasPTSRule a s = do
 
 -- | Recursively check that an iterated function type constructed by @telePi@
 --   is well-sorted.
-checkTelePiSort :: Type -> TCM ()
--- Jesper, 2019-07-27: This is currently doing nothing (see comment in inferPiSort)
-checkTelePiSort (El s (Pi a b)) = do
-  -- Since the function type is assumed to be constructed by @telePi@,
-  -- we already know that @s == piSort (getSort a) (getSort <$> b)@,
-  -- so we just check that this sort is well-formed.
-  hasPTSRule a (getSort <$> b)
-  underAbstraction a b checkTelePiSort
-checkTelePiSort _ = return ()
+checkTelePiSort :: Telescope -> Sort -> TCM ()
+checkTelePiSort tel s = void $ loop tel s
+  where
+    loop :: Telescope -> Sort -> TCM Sort
+    loop EmptyTel s = return s
+    loop (ExtendTel a atel) s = do
+      s' <- mapAbstraction a (\tel -> loop tel s) atel
+      hasPTSRule a s'
+      return $ piSort (unEl <$> a) (getSort $ unDom a) s'
 
 ifIsSort :: (MonadReduce m, MonadBlock m) => Type -> (Sort -> m a) -> m a -> m a
 ifIsSort t yes no = do
