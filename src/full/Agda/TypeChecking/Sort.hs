@@ -136,7 +136,7 @@ hasPTSRule a s = do
   reportSDoc "tc.conv.sort" 35 $ vcat
     [ "hasPTSRule"
     , "a =" <+> prettyTCM a
-    , "s =" <+> prettyTCM (unAbs s)
+    , "s =" <+> underAbstraction a s prettyTCM
     ]
   if alwaysValidCodomain $ unAbs s
   then yes
