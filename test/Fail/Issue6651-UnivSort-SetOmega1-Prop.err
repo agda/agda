@@ -1,7 +1,5 @@
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
-  Has PTS rule: (_8 , funSort _8 _8) (blocked on _8)
-  Has PTS rule: (A,_8) (blocked on _8)
   univSort _8 =< Setω₁ (blocked on _8)
   univSort _8 = Setω₁ (blocked on _8)
   _9 is a sort (blocked on _8)

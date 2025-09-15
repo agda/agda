@@ -41,6 +41,7 @@ import Agda.TypeChecking.Monad.Constraints (addConstraint, MonadConstraint)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.MetaVars (metaType)
+import Agda.TypeChecking.Monad.Options ( isLevelUniverseEnabled )
 import Agda.TypeChecking.Monad.Pure
 import Agda.TypeChecking.Monad.Signature (HasConstInfo(..), applyDef)
 import Agda.TypeChecking.Pretty
@@ -118,7 +119,9 @@ hasPTSRule a s = do
     , "a =" <+> prettyTCM a
     , "s =" <+> underAbstraction a s prettyTCM
     ]
-  if alwaysValidCodomain $ unAbs s
+  -- If @LevelUniv@ is disabled then all pi sorts are valid.
+  hasLevelUniv <- isLevelUniverseEnabled
+  if not hasLevelUniv || alwaysValidCodomain (unAbs s)
   then yes
   else do
     sb <- reduceB =<< inferPiSort a s
