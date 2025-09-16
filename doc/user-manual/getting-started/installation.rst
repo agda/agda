@@ -30,8 +30,9 @@ but installation problems might be harder to work around.
 
 Repology.org tracks which versions of Agda are offered by various package managers:
 
-.. image:: https://repology.org/badge/vertical-allrepos/agda.svg?columns=4
-  :target: https://repology.org/project/agda/versions
+.. raw:: html
+
+  <embed src="https://repology.org/badge/vertical-allrepos/agda.svg?columns=4&exclude_unsupported=1&exclude_sources=modules,site">
 
 As well as the repositories tracked by repology,
 an OS-independent binary installation of Agda is provided by the `python installer <https://pypi.org/project/agda/>`_.
