@@ -84,38 +84,25 @@ sortFitsIn a b = do
 hasBiggerSort :: Sort -> TCM ()
 hasBiggerSort = void . inferUnivSort
 
-{-# SPECIALIZE inferPiSort :: Dom Type -> Abs Sort -> TCM Sort #-}
+{-# SPECIALIZE inferPiSort :: Dom Type -> Abs Type -> TCM Sort #-}
 -- | Infer the sort of a Pi type.
 --   If we can compute the sort straight away, return that.
 --   Otherwise, return a 'PiSort'.
---   Note that this function does NOT check PTS constraints, use hasPTSRule for that
+--   Note that this function does NOT check PTS constraints, use 'hasPTSRule' for that
 inferPiSort :: (PureTCM m, MonadConstraint m)
   => Dom Type  -- ^ Domain of the Pi type.
-  -> Abs Sort  -- ^ (Dependent) sort of the codomain of the Pi type.
+  -> Abs Type  -- ^ (Dependent) codomain of the Pi type.
   -> m Sort    -- ^ Sort of the Pi type.
-inferPiSort a s2 = case piSort' at s1 s2 of
-  Left _ -> return $ PiSort at s1 s2
-  -- Jesper, 2025-09-15: if a PiSort reduces to a FunSort, piSort'
-  -- just returns the FunSort without trying to simplify it further.
-  -- So if we get a FunSort here we call inferFunSort in the hopes
-  -- of getting a simpler result. But we DON'T call reduce as that
-  -- can lead to quadratic behavior, see #8096.
-  Right (FunSort s1' s2') -> inferFunSort (El s1' <$> at) s2'
-  Right s' -> return s'
-  where
-    at = unEl <$> a
-    s1 = getSort a
+inferPiSort a b = piSortM (unEl <$> a) (getSort a) (getSort <$> b)
 
-{-# SPECIALIZE inferFunSort :: Dom Type -> Sort -> TCM Sort #-}
+{-# SPECIALIZE inferFunSort :: Dom Type -> Type -> TCM Sort #-}
 -- | As @inferPiSort@, but for a nondependent function type.
 --
 inferFunSort :: (PureTCM m, MonadConstraint m)
   => Dom Type  -- ^ Domain of the function type.
-  -> Sort      -- ^ Sort of the codomain of the function type.
+  -> Type      -- ^ Sort of the codomain of the function type.
   -> m Sort    -- ^ Sort of the function type.
-inferFunSort a s = do
-  hasLevelUniv <- isLevelUniverseEnabled
-  return $ funSort hasLevelUniv (getSort a) s
+inferFunSort a b = funSortM (getSort a) (getSort b)
 
 -- | @hasPTSRule a x.s@ checks that we can form a Pi-type @(x : a) -> b@ where @b : s@.
 --
@@ -131,7 +118,7 @@ hasPTSRule a s = do
   if not hasLevelUniv || alwaysValidCodomain (unAbs s)
   then yes
   else do
-    sb <- reduceB =<< inferPiSort a s
+    sb <- reduceB =<< piSortM (unEl <$> a) (getSort a) s
     case sb of
       Blocked b t | neverUnblock == b -> no sb t
                   | otherwise         -> postpone b
@@ -157,14 +144,14 @@ hasPTSRule a s = do
 -- | Recursively check that an iterated function type constructed by @telePi@
 --   is well-sorted.
 checkTelePiSort :: Telescope -> Sort -> TCM ()
-checkTelePiSort tel s = void $ loop tel s
+checkTelePiSort tel s = void $ loop tel
   where
-    loop :: Telescope -> Sort -> TCM Sort
-    loop EmptyTel s = return s
-    loop (ExtendTel a atel) s = do
-      s' <- mapAbstraction a (\tel -> loop tel s) atel
+    loop :: Telescope -> TCM Sort
+    loop EmptyTel = return s
+    loop (ExtendTel a atel) = do
+      s' <- mapAbstraction a loop atel
       hasPTSRule a s'
-      return $ piSort (unEl <$> a) (getSort $ unDom a) s'
+      piSortM (unEl <$> a) (getSort $ unDom a) s'
 
 ifIsSort :: (MonadReduce m, MonadBlock m) => Type -> (Sort -> m a) -> m a -> m a
 ifIsSort t yes no = do
@@ -203,10 +190,9 @@ sortOf t = do
     sortOfT :: Term -> m Sort
     sortOfT = \case
       Pi adom b -> do
-        let a = unEl $ unDom adom
-        sa <- sortOf a
+        sa <- sortOf $ unEl $ unDom adom
         sb <- mapAbstraction adom (sortOf . unEl) b
-        inferPiSort (adom $> El sa a) sb
+        piSortM (unEl <$> adom) sa sb
       Sort s     -> return $ univSort s
       Var i es   -> do
         a <- typeOfBV i
