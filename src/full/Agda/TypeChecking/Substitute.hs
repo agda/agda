@@ -41,6 +41,7 @@ import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence as Occ
@@ -50,7 +51,7 @@ import Agda.TypeChecking.Substitute.DeBruijn
 
 import Agda.Utils.Either
 import Agda.Utils.Empty
-import Agda.Utils.Function (applyWhen)
+import Agda.Utils.Function (applyWhen, applyUnless)
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -1681,13 +1682,24 @@ funSort' hasLevelUniv a b = case (normLU a, normLU b) of
   (_             , DummyS{}     ) -> Left neverUnblock
 
   where
-  normLU | hasLevelUniv = id
-         | otherwise    = \case
+  normLU = applyUnless hasLevelUniv \case
              LevelUniv -> mkType 0
              s         -> s
 
 funSort :: Bool -> Sort -> Sort -> Sort
 funSort hasLevelUniv a b = fromRight (const $ FunSort a b) $ funSort' hasLevelUniv a b
+
+{-# SPECIALISE funSortM' :: Sort -> Sort -> TCM (Either Blocker Sort) #-}
+funSortM' :: HasOptions m => Sort -> Sort -> m (Either Blocker Sort)
+funSortM' a b = do
+  hasLevelUniv <- isLevelUniverseEnabled
+  return $ funSort' hasLevelUniv a b
+
+{-# SPECIALISE funSortM :: Sort -> Sort -> TCM Sort #-}
+funSortM :: HasOptions m => Sort -> Sort -> m Sort
+funSortM a b = do
+  hasLevelUniv <- isLevelUniverseEnabled
+  return $ funSort hasLevelUniv a b
 
 -- | Compute the sort of a pi type from three inputs:
 --   1. The "raw" domain of the pi type (without the sort)
@@ -1755,6 +1767,20 @@ piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of
 
 piSort :: Dom Term -> Sort -> Abs Sort -> Sort
 piSort a s1 s2 = fromRight (const $ PiSort a s1 s2) $ piSort' a s1 s2
+
+{-# SPECIALISE piSortM :: Dom Term -> Sort -> Abs Sort -> TCM Sort #-}
+piSortM :: HasOptions m => Dom Term -> Sort -> Abs Sort -> m Sort
+piSortM va s1 s2 = case piSort' va s1 s2 of
+  Left _ -> return $ PiSort va s1 s2
+  -- Jesper, 2025-09-15: if a PiSort reduces to a FunSort, piSort'
+  -- just returns the FunSort without trying to simplify it further.
+  -- So if we get a FunSort here we call funSortM in the hopes
+  -- of getting a simpler result. But we DON'T call reduce as that
+  -- can lead to quadratic behavior, see #8096.
+  Right (FunSort s1' s2') -> funSortM s1' s2'
+  Right s' -> return s'
+
+
 
 ---------------------------------------------------------------------------
 -- * Level stuff

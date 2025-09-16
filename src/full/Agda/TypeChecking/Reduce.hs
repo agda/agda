@@ -443,11 +443,9 @@ instance Reduce Sort where
               Right s -> reduceB' s
         FunSort s1 s2 -> reduceB' (s1 , s2) >>= \case
           Blocked b (s1',s2') -> return $ Blocked b $ FunSort s1' s2'
-          NotBlocked _ (s1',s2') -> do
-            hasLevelUniv <- isLevelUniverseEnabled
-            case funSort' hasLevelUniv s1' s2' of
-              Left b -> return $ Blocked b $ FunSort s1' s2'
-              Right s -> reduceB' s
+          NotBlocked _ (s1',s2') -> funSortM' s1' s2' >>= \case
+            Left b -> return $ Blocked b $ FunSort s1' s2'
+            Right s -> reduceB' s
         UnivSort s1 -> reduceB' s1 >>= \case
           Blocked b s1' -> return $ Blocked b $ UnivSort s1'
           NotBlocked _ s1' -> case univSort' s1' of
@@ -457,11 +455,8 @@ instance Reduce Sort where
         Inf _ _    -> done
         SizeUniv   -> done
         LockUniv   -> done
-        LevelUniv  -> do
-          levelUniverseEnabled <- isLevelUniverseEnabled
-          if levelUniverseEnabled
-          then done
-          else return $ notBlocked (mkType 0)
+        LevelUniv  -> ifM isLevelUniverseEnabled done $
+          return $ notBlocked (mkType 0)
         IntervalUniv -> done
         MetaS x es -> done
         DefS d es  -> done -- postulated sorts do not reduce
@@ -1104,10 +1099,8 @@ instance Simplify t => Simplify (Type' t) where
 instance Simplify Sort where
     simplify' s = do
       case s of
-        PiSort a s1 s2 -> piSort <$> simplify' a <*> simplify' s1 <*> simplify' s2
-        FunSort s1 s2 -> do
-          hasLevelUniv <- isLevelUniverseEnabled
-          funSort hasLevelUniv <$> simplify' s1 <*> simplify' s2
+        PiSort a s1 s2 -> uncurry3 piSortM =<< simplify' (a, s1, s2)
+        FunSort s1 s2 -> uncurry funSortM =<< simplify' (s1, s2)
         UnivSort s -> univSort <$> simplify' s
         Univ u s   -> Univ u <$> simplify' s
         Inf _ _    -> return s
@@ -1261,10 +1254,8 @@ instance Normalise Sort where
     normalise' s = do
       s <- reduce' s
       case s of
-        PiSort a s1 s2 -> piSort <$> normalise' a <*> normalise' s1 <*> normalise' s2
-        FunSort s1 s2 -> do
-          hasLevelUniv <- isLevelUniverseEnabled
-          funSort hasLevelUniv <$> normalise' s1 <*> normalise' s2
+        PiSort a s1 s2 -> uncurry3 piSortM =<< normalise' (a, s1, s2)
+        FunSort s1 s2 -> uncurry funSortM =<< normalise' (s1, s2)
         UnivSort s -> univSort <$> normalise' s
         Univ u s   -> Univ u <$> normalise' s
         Inf _ _    -> return s
@@ -1477,10 +1468,8 @@ instance InstantiateFull Sort where
         s <- instantiate' s
         case s of
             Univ u n   -> Univ u <$> instantiateFull' n
-            PiSort a s1 s2 -> piSort <$> instantiateFull' a <*> instantiateFull' s1 <*> instantiateFull' s2
-            FunSort s1 s2 -> do
-              hasLevelUniv <- isLevelUniverseEnabled
-              funSort hasLevelUniv <$> instantiateFull' s1 <*> instantiateFull' s2
+            PiSort a s1 s2 -> uncurry3 piSortM =<< instantiateFull' (a, s1, s2)
+            FunSort s1 s2 -> uncurry funSortM =<< instantiateFull' (s1, s2)
             UnivSort s -> univSort <$> instantiateFull' s
             Inf _ _    -> return s
             SizeUniv   -> return s
