@@ -189,7 +189,7 @@ type FullUnificationResult = UnificationResult'
   ( Telescope                  -- @tel@
   , PatternSubstitution        -- @sigma@ s.t. @tel ⊢ sigma : varTel@
   , [NamedArg DeBruijnPattern] -- @ps@    s.t. @tel ⊢ ps    : eqTel @
-  , Either NoLeftInv (Substitution, Substitution) -- (τ,leftInv)
+  , TCM (Either NoLeftInv (Substitution, Substitution)) -- (τ,leftInv)
   )
 
 data UnificationResult' a
@@ -219,7 +219,6 @@ unifyIndices
   -> Args            -- ^ @vs@
   -> TCM UnificationResult
 unifyIndices linv tel flex a us vs =
-  Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $
     fmap (\(a,b,c,_) -> (a,b,c)) <$> unifyIndices' linv tel flex a us vs
 
 unifyIndices'
@@ -230,8 +229,9 @@ unifyIndices'
   -> Args          -- ^ @us@
   -> Args          -- ^ @vs@
   -> TCM FullUnificationResult
-unifyIndices' linv tel flex a [] [] = return $ Unifies (tel, idS, [], Right (idS, raiseS 1))
-unifyIndices' linv tel flex a us vs = do
+unifyIndices' linv tel flex a us vs = Bench.billTo [Bench.UnifyIndices] $ case (us, vs) of
+  ([], []) -> pure $ Unifies (tel, idS, [], pure $ Right (idS, raiseS 1))
+  _        -> do
     reportSDoc "tc.lhs.unify" 10 $
       sep [ "unifyIndices"
           , ("tel  =" <+>) $ nest 2 $ prettyTCM tel
@@ -246,19 +246,19 @@ unifyIndices' linv tel flex a us vs = do
     forM result $ \ s -> do -- Unifies case
         let output = mconcat [output | (UnificationStep _ _ output,_) <- log ]
         let ps = applySubst (unifyProof output) $ teleNamedArgs (eqTel initialState)
-        tauInv <- do
-          strict     <- asksTC envSplitOnStrict
-          cubicalCompatible <- cubicalCompatibleOption
-          withoutK <- withoutKOption
-          case linv of
-            Just reason -> pure (Left reason)
-            Nothing
-              | strict            -> pure (Left SplitOnStrict)
-              | cubicalCompatible -> buildLeftInverse initialState log
-              | withoutK          -> pure (Left NoCubical)
-              | otherwise         -> pure (Left WithKEnabled)
+        let getTauInv = do
+              strict     <- asksTC envSplitOnStrict
+              cubicalCompatible <- cubicalCompatibleOption
+              withoutK <- withoutKOption
+              case linv of
+                Just reason -> pure (Left reason)
+                Nothing
+                  | strict            -> pure (Left SplitOnStrict)
+                  | cubicalCompatible -> buildLeftInverse initialState log
+                  | withoutK          -> pure (Left NoCubical)
+                  | otherwise         -> pure (Left WithKEnabled)
         reportSDoc "tc.lhs.unify" 20 $ "ps:" <+> pretty ps
-        return $ (varTel s, unifySubst output, ps, tauInv)
+        return (varTel s, unifySubst output, ps, getTauInv)
 
 
 

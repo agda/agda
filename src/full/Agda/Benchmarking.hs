@@ -116,6 +116,8 @@ data Phase
   | InverseNameModuleRecompute
   | InverseInScopeRecompute
   | TopModule TopLevelModuleName
+  | CubicalLeftInversion
+    -- ^ Generating left inverses in LHS unification in cubical or cubical-compatible mode.
   | Typeclass QName
   | Definition QName
   deriving (Eq, Ord, Show, Generic)
