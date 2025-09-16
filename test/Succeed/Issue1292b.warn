@@ -1,12 +1,3 @@
-Issue1292b.agda:15.1-17.30: warning: -W[no]UnsupportedIndexedMatch
-This clause uses pattern-matching features that are not yet
-supported by Cubical Agda, the function to which it belongs will
-not compute when applied to transports.
-
-Reason: It relies on substitution in Setω, which is not yet
-        supported
-
-when checking the definition of sub
 
 Issue1292b.agda:15.1-17.30: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
@@ -18,13 +9,21 @@ Reason: It relies on the injectivity of size successors, which is
 
 when checking the definition of sub
 
+Issue1292b.agda:15.1-17.30: warning: -W[no]UnsupportedIndexedMatch
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: The type Size can not be transported
+
+when checking the definition of sub
+
 Issue1292b.agda:21.1-22.40: warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
 
-Reason: It relies on substitution in Setω, which is not yet
-        supported
+Reason: The type Size can not be transported
 
 when checking the definition of div'
 
@@ -35,8 +34,8 @@ This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
 
-Reason: It relies on substitution in Setω, which is not yet
-        supported
+Reason: It relies on the injectivity of size successors, which is
+        not yet supported
 
 when checking the definition of sub
 
@@ -45,8 +44,7 @@ This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
 
-Reason: It relies on the injectivity of size successors, which is
-        not yet supported
+Reason: The type Size can not be transported
 
 when checking the definition of sub
 
@@ -55,7 +53,6 @@ This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
 
-Reason: It relies on substitution in Setω, which is not yet
-        supported
+Reason: The type Size can not be transported
 
 when checking the definition of div'
