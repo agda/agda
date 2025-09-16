@@ -1,22 +1,22 @@
--- Testcase by Ulf Norell (2014-07-07, commit c8128d1).
--- Revised by Andreas 2025-09-15 for issue #2410.
+-- Testcase by Ulf (2014-07-07, commit c8128d1).
+-- Revised by Andreas and Ulf 2025-09-16 for issue #2410.
 
-data Nat : Set where
-  zero : Nat
-  suc  : Nat → Nat
+open import Agda.Builtin.Nat
+open import Agda.Builtin.Bool
 
-{-# BUILTIN NATURAL Nat #-}
+if_then_else_ : {A : Set} → Bool → A → A → A
+if true  then a else b = a
+if false then a else b = b
 
 pred : Nat → Nat
 pred zero = zero
 pred (suc n) = n
 
--- The following function is actually terminating (even at compile-time)
--- but we label it as NON_TERMINATING for the sake of this test case.
+-- The following function diverging for unknown n, so we need to label it NON_TERMINATING.
+-- At run-time it terminates, so we might want to evaluate it on some concrete numbers.
 {-# NON_TERMINATING #-}
 loop : Nat → Nat
-loop zero = zero
-loop n = loop (pred n)
+loop n = if n == 0 then 0 else loop (pred n)
 
 hole : Set
 hole = {!!}
