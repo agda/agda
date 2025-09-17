@@ -5,15 +5,57 @@ Emacs Mode
 **********
 
 Agda programs can be edited in
-`Emacs <http://www.gnu.org/software/emacs/>`_ with support by the ``agda-mode``.
+`Emacs <http://www.gnu.org/software/emacs/>`_ with support by the ``agda-mode``,
+which is maintained by the Agda developers in the main Agda repository and offers many advanced features.
 To use it, first ensure
-you have :ref:`installed Agda <installation>` and the :ref:`Emacs agda-mode <install-agda-mode>`.
+you have :ref:`installed Agda <installation>`, installed Emacs,
+and :ref:`installed agda-mode <install-agda-mode>`.
 
 To edit a module in Emacs, open a file ending in ``.agda`` and load it by pressing
 ``C-c C-l`` (other commands are listed under :ref:`notation-for-key-combinations`
 below). This will apply syntax highlighting to the code and display any errors in
 a separate buffer. Agda uses certain background colors to indicate specific issues
 with the code, see :ref:`highlight` below.
+
+
+.. _install-agda-mode:
+
+Installation
+============
+
+After installing the ``agda`` program and Emacs, run the following command:
+
+.. code-block:: bash
+
+  agda --emacs-mode setup
+
+The above command will first write the Agda data files to the
+Agda data directory (see :option:`--print-agda-data-dir`)
+if this directory does not exist yet.
+(To force writing the data files there use the :option:`--setup` option of ``agda``.)
+
+It then tries to set up Emacs for use with Agda.
+As an alternative you can copy the
+following text to your *.emacs* file:
+
+.. code-block:: emacs
+
+  (load-file (let ((coding-system-for-read 'utf-8))
+                  (shell-command-to-string "agda --emacs-mode locate")))
+
+It is also possible (but not necessary) to compile the Emacs mode's
+files:
+
+.. code-block:: bash
+
+  agda --emacs-mode compile
+
+This can, in some cases, give a noticeable speedup.
+
+.. Warning::
+  If you reinstall the Agda mode without recompiling the Emacs Lisp files,
+  then Emacs may continue using the old, compiled files.
+
 
 Menus
 =====

@@ -31,6 +31,182 @@ Note: Some instructions in this document are likely outdated,
 so take everything with a grain of salt.
 Fixes to outdated instructions welcome!
 
+How to build Agda from source
+=============================
+
+With nix
+--------
+
+Running
+
+```shellsession
+$ nix build
+```
+
+will build Agda following the instructions in the `flake.nix` file in the current directory, including dependencies.
+Results are cached in `/nix/store`, and a symlink called `result-bin` is created.
+
+`nix` can also build from a URL or other *flake reference*, e.g.
+
+```shellsession
+$ nix build github:agda/agda/v2.8.0
+```
+
+You can also tell `nix` to e.g. run tests and show logs:
+
+```shellsession
+$ nix build .#test -L
+```
+
+See the `flake.nix` to see what build goals are available.
+
+Without nix
+-----------
+
+Running `cabal install`, `stack install`, or `make` from the repository root should also build Agda,
+assuming you set up dependencies correctly (see "Troubleshooting Cabal").
+
+Cabal flag reference
+====================
+
+All of Agda's build tools indirectly build Agda with the `Cabal` library.
+
+When building Agda the following Cabal flags can be used:
+
+* `debug`
+
+  Enable debug printing. This makes Agda slightly slower, and
+  building Agda slower as well. The `--verbose={N}` option
+  only has an effect when Agda was installed with this flag.
+  Default: off.
+
+* `debug-serialisation`
+
+  Enable debug mode in serialisation.
+  This makes serialisation slower.
+  Default: off.
+
+* `debug-parsing`
+
+    Enable debug mode in the parser
+    This makes parsing slower.
+    Default: off.
+
+* `dump-core`
+
+    Save GHC Core output during compilation of Agda.
+    Default: off.
+
+* `enable-cluster-counting`
+
+     Enable cluster counting (see docs).
+     This will require the [`text-icu` Haskell library](https://hackage.haskell.org/package/text-icu),
+     which in turn requires that ICU be installed.
+     Note that if `enable-cluster-counting` is `False`, then option `--count-clusters` triggers an error message when given to Agda.
+     Default: off, but on for development version.
+
+* `optimise-heavily`
+
+     Optimise Agda heavily. If this flag is on, compiling Agda uses more memory
+     but Agda runs faster.
+     Default: on.
+
+* `use-xdg-data-home`
+
+    Added in 2.8.0
+
+    Install data files under `$XDG_DATA_HOME/agda/$AGDA_VERSION` by default
+    instead of the installation location defined by Cabal,
+    see the Agda option `--print-agda-data-dir`.
+    This should *not* be enabled in declarative build environments like Nix or Guix.
+    Default: off.
+
+Hint: You can set these flags as follows:
+
+* Cabal-install: use the `-f` argument:
+
+      cabal install -fenable-cluster-counting
+  
+* Stack: use `--flag` and an `Agda:` prefix:
+
+      stack install --flag Agda:enable-cluster-counting
+
+* Nix: code into your `.nix` scripts using `enableCabalFlag`:
+
+      hlib.enableCabalFlag "debug" hpkgs.Agda-base
+
+Troubleshooting Cabal
+=====================
+
+Dynamic linking issues
+----------------------
+
+If you have setting ``executable-dynamic: True`` in your cabal configuration
+then installation will likely fail on Windows.
+
+Cure: change to default ``executable-dynamic: False``.
+
+Further information:
+
+* https://github.com/agda/agda/issues/7163
+* https://github.com/haskell/cabal/issues/9784
+
+
+Installing ICU
+--------------
+
+If cluster counting is enabled (see the ``enable-cluster-counting`` flag above, enabled by default), then you will need the [ICU](http://site.icu-project.org) library
+to be installed. See the [text-icu Prerequisites documentation](https://github.com/haskell/text-icu#prerequisites) for how to install ICU on your system.
+
+`zlib` and `ncurses` Dependency
+-------------------------------
+
+Non-Windows users need to ensure that the development files for the C
+libraries *zlib* and *ncurses* are installed (see https://zlib.net
+and https://www.gnu.org/software/ncurses/). Your package manager may be
+able to install these files for you. For instance, on Debian or Ubuntu
+it should suffice to run
+
+    apt-get install zlib1g-dev libncurses5-dev
+
+as root to get the correct files installed.
+
+Keeping the Default Environment Clean
+--------------------------------------
+
+You may want to keep the default environment clean, e.g. to avoid conflicts with
+other installed packages. In this case you can a create a separate GHC environment for Agda by running:
+
+    cabal install --package-env agda --lib Agda ieee754
+
+You then have to set the `GHC_ENVIRONMENT` when you invoke Agda:
+
+    GHC_ENVIRONMENT=agda agda -c hello-world.agda
+
+N.B. Actually it is not necessary to register the Agda library,
+but doing so forces Cabal to install the same version of
+[ieee754](https://hackage.haskell.org/package/ieee754)
+as used by Agda.
+
+Installing Multiple Versions of Agda
+------------------------------------
+
+Multiple versions of Agda can be installed concurrently by using the ``--program-suffix`` flag.
+For example:
+
+    cabal install Agda-2.6.4.3 --program-suffix=-2.6.4.3
+
+will install version 2.6.4.3 under the name agda-2.6.4.3. You can then switch to this version
+of Agda in Emacs via
+
+    C-c C-x C-s 2.6.4.3 RETURN
+
+Switching back to the standard version of Agda is then done by:
+
+    C-c C-x C-s RETURN
+
+The VSCode mode also supports selecting multiple Agda versions.
+
 Working with Git
 ================
 
