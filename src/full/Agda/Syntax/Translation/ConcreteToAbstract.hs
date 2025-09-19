@@ -4106,6 +4106,11 @@ checkAttributes (Attr r s attr : attrs) =
       unlessM (optGuarded <$> pragmaOptions) $
         setCurrentRange r $ typeError $ AttributeKindNotEnabled "Lock" "--guarded" s
       cont
+    RewriteAttribute IsNotRewrite -> cont
+    RewriteAttribute IsRewrite -> do
+      unlessM (optRewriting <$> pragmaOptions) $
+        setCurrentRange r $ typeError $ AttributeKindNotEnabled "Rewrite" "--rewriting" s
+      cont
     QuantityAttribute Quantityω{} -> cont
     QuantityAttribute Quantity1{} -> __IMPOSSIBLE__
     QuantityAttribute Quantity0{} -> do

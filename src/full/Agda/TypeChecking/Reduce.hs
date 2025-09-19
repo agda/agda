@@ -282,7 +282,7 @@ instance Instantiate Sort where
     s -> return s
 
 instance (Instantiate t, Instantiate e) => Instantiate (Dom' t e) where
-    instantiate' (Dom i n b tac x) = Dom i n b <$> instantiate' tac <*> instantiate' x
+    instantiate' (Dom i n b tac rew x) = Dom i n b <$> instantiate' tac <*> instantiate' rew <*> instantiate' x
 
 instance Instantiate a => Instantiate (Closure a) where
     instantiate' cl = do
@@ -339,6 +339,15 @@ instance Instantiate EqualityView where
     <*> instantiate' t
     <*> instantiate' a
     <*> instantiate' b
+
+instance Instantiate LocalRewriteRule where
+  instantiate' (LocalRewriteRule a b c d e) =
+    LocalRewriteRule
+      <$> instantiate' a
+      <*> pure b
+      <*> pure c
+      <*> instantiate' d
+      <*> instantiate' e
 
 ---------------------------------------------------------------------------
 -- * Reduction to weak head normal form.
@@ -1550,7 +1559,7 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' (NoAbs x a) = NoAbs x <$> instantiateFull' a
 
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
-    instantiateFull' (Dom i n b tac x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' x
+    instantiateFull' (Dom i n b tac rew x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' rew <*> instantiateFull' x
 
 instance InstantiateFull Context where
   instantiateFull' (Context es) = Context <$> instantiateFull' es
@@ -1668,6 +1677,15 @@ instance InstantiateFull RewriteRule where
       <*> instantiateFull' t
       <*> pure c
       <*> pure top
+
+instance InstantiateFull LocalRewriteRule where
+  instantiateFull' (LocalRewriteRule a b c d e) =
+    LocalRewriteRule
+      <$> instantiateFull' a
+      <*> instantiateFull' b
+      <*> instantiateFull' c
+      <*> instantiateFull' d
+      <*> instantiateFull' e
 
 instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)
