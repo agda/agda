@@ -2304,56 +2304,6 @@ instance Pretty DisplayForm where
 defaultDisplayForm :: QName -> [LocalDisplayForm]
 defaultDisplayForm c = []
 
--- | NLPat might become definitionally singular (after a substitution)
-data DefSing
-  = NeverSing
-    -- ^ Never definitionally singular
-  | MaybeSing
-    -- ^ Might become definitionally singular after a substitution
-  | AlwaysSing
-    -- ^ Always definitionally singular (e.g. irrelevant or in |Prop|)
-  deriving (Show, Generic, Enum, Bounded)
-
-relToDefSing :: Relevance -> DefSing
-relToDefSing r = if isIrrelevant r then AlwaysSing else NeverSing
-
--- Only approximate if both sides are |NotDefSingIfInj| with non-empty
--- injective constraints
-minDefSing :: DefSing -> DefSing -> DefSing
-minDefSing s s' = toEnum $ fromEnum s `min` fromEnum s'
-
-maxDefSing :: DefSing -> DefSing -> DefSing
-maxDefSing s s' = toEnum $ fromEnum s `max` fromEnum s'
-
-isAlwaysSing :: DefSing -> Bool
-isAlwaysSing AlwaysSing = True
-isAlwaysSing _          = False
-
--- | Non-linear (non-constructor) first-order pattern.
-data NLPat
-  = PVar DefSing !Int [Arg Int]
-    -- ^ Matches anything (modulo non-linearity) that only contains bound
-    --   variables that occur in the given arguments.
-    --   Tracks the definitional singularity of the surrounding pattern (not
-    --   the type of the variable itself)
-  | PDef QName PElims
-    -- ^ Matches @f es@
-  | PLam ArgInfo (Abs NLPat)
-    -- ^ Matches @λ x → t@
-  | PPi (Dom NLPType) (Abs NLPType)
-    -- ^ Matches @(x : A) → B@
-  | PSort NLPSort
-    -- ^ Matches a sort of the given shape.
-  | PBoundVar {-# UNPACK #-} !Int PElims
-    -- ^ Matches @x es@ where x is a lambda-bound variable
-  | PTerm Term
-    -- ^ Matches the term modulo β (ideally βη).
-  deriving (Show, Generic)
-type PElims = [Elim' NLPat]
-
-type instance TypeOf NLPat = Type
-type instance TypeOf [Elim' NLPat] = (Type, Elims -> Term)
-
 instance TermLike NLPat where
   traverseTermM f = \case
     p@PVar{}       -> return p
@@ -2375,35 +2325,12 @@ instance TermLike NLPat where
 
 instance AllMetas NLPat
 
-data NLPType = NLPType
-  { nlpTypeSort :: NLPSort
-  , nlpTypeUnEl :: NLPat
-  } deriving (Show, Generic)
-
 instance TermLike NLPType where
   traverseTermM f (NLPType s t) = NLPType <$> traverseTermM f s <*> traverseTermM f t
 
   foldTerm f (NLPType s t) = foldTerm f (s, t)
 
 instance AllMetas NLPType
-
-data NLPSort
-  = PUniv Univ NLPat
-  | PInf Univ Integer
-  | PSizeUniv
-  | PLockUniv
-  | PLevelUniv
-  | PIntervalUniv
-  deriving (Show, Generic)
-
-pattern PType, PProp, PSSet :: NLPat -> NLPSort
-pattern PType p = PUniv UType p
-pattern PProp p = PUniv UProp p
-pattern PSSet p = PUniv USSet p
-
-{-# COMPLETE
-  PType, PSSet, PProp, PInf,
-  PSizeUniv, PLockUniv, PLevelUniv, PIntervalUniv #-}
 
 instance TermLike NLPSort where
   traverseTermM f = \case
@@ -6722,26 +6649,6 @@ instance KillRange Definition where
 instance KillRange NumGeneralizableArgs where
   killRange = id
 
-instance KillRange NLPat where
-  killRange (PVar s x y)    = killRangeN (PVar s) x y
-  killRange (PDef x y)      = killRangeN PDef x y
-  killRange (PLam x y)      = killRangeN PLam x y
-  killRange (PPi x y)       = killRangeN PPi x y
-  killRange (PSort x)       = killRangeN PSort x
-  killRange (PBoundVar x y) = killRangeN PBoundVar x y
-  killRange (PTerm x)       = killRangeN PTerm x
-
-instance KillRange NLPType where
-  killRange (NLPType s a) = killRangeN NLPType s a
-
-instance KillRange NLPSort where
-  killRange (PUniv u l) = killRangeN (PUniv u) l
-  killRange s@(PInf f n) = s
-  killRange PSizeUniv = PSizeUniv
-  killRange PLockUniv = PLockUniv
-  killRange PLevelUniv = PLevelUniv
-  killRange PIntervalUniv = PIntervalUniv
-
 instance KillRange RewriteRule where
   killRange (RewriteRule q gamma f es rhs t c top) =
     killRangeN RewriteRule q gamma f es rhs t c top
@@ -6900,10 +6807,6 @@ instance NFData t => NFData (IPBoundary' t)
 instance NFData IPClause
 instance NFData DisplayForm
 instance NFData DisplayTerm
-instance NFData DefSing
-instance NFData NLPat
-instance NFData NLPType
-instance NFData NLPSort
 instance NFData RewriteRule
 instance NFData InstanceInfo
 instance NFData Definition

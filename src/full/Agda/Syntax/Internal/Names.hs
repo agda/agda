@@ -88,9 +88,8 @@ instance NamesIn a => NamesIn (Open a)
 instance NamesIn a => NamesIn (C.FieldAssignment' a)
 
 instance (NamesIn a, NamesIn b) => NamesIn (Dom' a b) where
-  namesAndMetasIn' sg (Dom _ _ _ t e) =
-    mappend (namesAndMetasIn' sg t) (namesAndMetasIn' sg e)
-
+  namesAndMetasIn' sg (Dom _ _ _ t r e) =
+    namesAndMetasIn' sg (t, r, e)
 
 -- Specific collections
 instance NamesIn a => NamesIn (Tele a)
@@ -143,6 +142,9 @@ instance NamesIn ConHead where
   namesAndMetasIn' sg h = namesAndMetasIn' sg (conName h)
 
 instance NamesIn Bool where
+  namesAndMetasIn' _ _ = mempty
+
+instance NamesIn Int where
   namesAndMetasIn' _ _ = mempty
 
 -- Andreas, 2017-07-27
@@ -315,6 +317,10 @@ instance NamesIn RewriteRule where
   namesAndMetasIn' sg = \case
     RewriteRule a b c d e f _ _ ->
       namesAndMetasIn' sg (a, b, c, d, e, f)
+
+instance NamesIn LocalRewriteRule where
+  namesAndMetasIn' sg (LocalRewriteRule a b c d e) =
+    namesAndMetasIn' sg (a, b, c, d, e)
 
 instance (NamesIn b) => NamesIn (HashMap a b) where
   namesAndMetasIn' sg map = foldMap (namesAndMetasIn' sg) map

@@ -26,12 +26,15 @@ instance TermLike a => AllMetas (Elim' a)
 instance TermLike a => AllMetas (Tele a)
 
 instance (AllMetas a, AllMetas b) => AllMetas (Dom' a b) where
-  allMetas f (Dom _ _ _ t e) = allMetas f t <> allMetas f e
+  allMetas f (Dom _ _ _ t r e) = allMetas f t <> allMetas f r <> allMetas f e
 
 -- These types need to be packed up as a Term to get the metas.
 instance AllMetas Sort      where allMetas f   = allMetas f . Sort
 instance AllMetas Level     where allMetas f   = allMetas f . Level
 instance AllMetas PlusLevel where allMetas f l = allMetas f (Max 0 [l])
+
+instance AllMetas LocalRewriteRule where
+  allMetas f (LocalRewriteRule a b c d e) = allMetas f (a, d, e)
 
 instance {-# OVERLAPPING #-} AllMetas String where
   allMetas f _ = mempty
