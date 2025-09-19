@@ -375,9 +375,9 @@ instance EqualSy ArgInfo where
   equalSy (ArgInfo h m _o _fv a) (ArgInfo h' m' _o' _fv' a') =
     h == h' && m == m' && a == a'
 
--- | Ignore the tactic.
+-- | Ignore the tactic and rewrite.
 instance EqualSy a => EqualSy (Dom a) where
-  equalSy d@(Dom ai x f _tac a) d'@(Dom ai' x' f' _tac' a') = and
+  equalSy d@(Dom ai x f _tac _rew a) d'@(Dom ai' x' f' _tac' _rew' a') = and
     [ x == x'
     , f == f'
     , equalSy ai ai'

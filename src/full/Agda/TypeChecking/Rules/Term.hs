@@ -328,6 +328,8 @@ checkDomain lamOrPi xs e = do
 
         equalSort (getSort t) LockUniv
 
+    -- TODO: check that @rew arguments actually have identity type
+
     return t
   where
         -- if we are checking a typed lambda, we resurrect before we check the
