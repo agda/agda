@@ -25,7 +25,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 instance EmbPrj a => EmbPrj (Dom a) where
-  icod_ (Dom a c d e f) = icodeN' Dom a c d e f
+  icod_ (Dom a c d e f g) = icodeN' Dom a c d e f g
 
   value = valueN Dom
 
@@ -324,6 +324,11 @@ instance EmbPrj RewriteRule where
   icod_ (RewriteRule a b c d e f g h) = icodeN' RewriteRule a b c d e f g h
 
   value = valueN RewriteRule
+
+instance EmbPrj LocalRewriteRule where
+  icod_ (LocalRewriteRule a b c d e) = icodeN' LocalRewriteRule a b c d e
+
+  value = valueN LocalRewriteRule
 
 instance EmbPrj Projection where
   icod_ (Projection a b c d e) = icodeN' Projection a b c d e
