@@ -49,6 +49,8 @@ postulate
 {-# FOREIGN GHC import qualified Data.Text.IO as Text #-}
 {-# COMPILE GHC putStrLn = Text.putStrLn #-}
 {-# COMPILE GHC _>>_ = \ _ _ -> (>>) #-}
+{-# COMPILE JS putStrLn = console.log #-}
+{-# COMPILE JS _>>_ = (_) => (_) => console.log #-}
 
 assert : String → Bool → IO ⊤
 assert s true  = putStrLn (s ++ " PASSED")
