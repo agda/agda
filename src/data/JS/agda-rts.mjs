@@ -335,6 +335,23 @@ exports.primFloatATanh = function(x) {
     return Math.atanh(x);
 };
 
+// Characters
+exports.PrimCharEquality = (x, y) => x === y;
+exports.PrimIsLower = x => x === x.toLowerCase();
+exports.PrimIsDigit = x => '0' <= x && x <= '9';
+exports.PrimIsAlpha = x => ('a' <= x && x <= 'z') || ('A' <= x && x <= 'Z');
+exports.PrimIsSpace = x => x === ' ';
+exports.PrimIsAscii = x => x.codePointAt(0) < 128;
+exports.PrimIsLatin1 = x => x.codePointAt(0) < 256;
+exports.PrimIsPrint = x => x === ' ' || ('!' <= x && x <= '~');
+exports.PrimIsHexDigit = x => '0' <= x && x <= '9' || 'a' <= x && x <= 'f' || 'A' <= x && x <= 'F';
+exports.PrimToUpper = x => x.toUpperCase();
+exports.PrimToLower = x => x.toLowerCase();
+exports.PrimCharToNat = x => BigInt(x.codePointAt(0));
+exports.PrimCharToNatInjective = x => BigInt(x.codePointAt(0));
+exports.PrimNatToChar = x => String.fromCodePoint(Number(x));
+exports.primCharToNat = x => BigInt(x.codePointAt(0));
+
 // Cubical primitives.
 exports.primIMin = x => y => x && y;
 exports.primIMax = x => y => x || y;
