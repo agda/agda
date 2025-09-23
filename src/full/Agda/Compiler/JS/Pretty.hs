@@ -262,7 +262,7 @@ instance Pretty Exp where
   prettyPrec p n (Undefined)    = "undefined"
   prettyPrec p n (Null)         = "null"
   prettyPrec p n (String s)     = "\"" <> unescapes (T.unpack s) <> "\""
-  prettyPrec p n (Char c)       = "\"" <> unescapes [c] <> "\""
+  prettyPrec p n (Char c)       = "\'" <> unescapes [c] <> "\'"
   prettyPrec p n (Integer x)    = "agdaRTS.primIntegerFromString(\"" <> text (show x) <> "\")"
   prettyPrec p n (Double x)     = text $ show x
   prettyPrec p (n, min, ms) (Lambda x e) = mparens (p > 2) $

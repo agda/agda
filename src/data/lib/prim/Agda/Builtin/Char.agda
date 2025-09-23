@@ -17,6 +17,7 @@ primitive
   primNatToChar : Nat → Char
   primCharEquality : Char → Char → Bool
 
+{-# COMPILE JS Char = String #-}
 {-# COMPILE JS primCharEquality = x => y => x === y #-}
 {-# COMPILE JS primIsLower = x => 'a' <= x && x <= 'z' #-}
 {-# COMPILE JS primIsDigit = x => '0' <= x && x <= '9' #-}
@@ -29,4 +30,7 @@ primitive
 {-# COMPILE JS primToUpper = x => x.toUpperCase() #-}
 {-# COMPILE JS primToLower = x => x.toLowerCase() #-}
 {-# COMPILE JS primCharToNat = x => BigInt(x.codePointAt(0)) #-}
-{-# COMPILE JS primNatToChar = x => String.fromCodePoint(Number(x)) #-}
+{-# COMPILE JS primNatToChar = function(x) {
+    const y = x % 0x110000n;
+    return 0xD800n <= y && y <= 0xDFFFn ? '�' : String.fromCharCode(Number(y));
+} #-}
