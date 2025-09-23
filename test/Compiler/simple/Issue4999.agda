@@ -49,8 +49,8 @@ postulate
 {-# FOREIGN GHC import qualified Data.Text.IO as Text #-}
 {-# COMPILE GHC putStrLn = Text.putStrLn #-}
 {-# COMPILE GHC _>>_ = \ _ _ -> (>>) #-}
-{-# COMPILE JS putStrLn = (arg) => (console.log(arg), (_) => undefined) #-}
-{-# COMPILE JS _>>_ = (_) => (_) => (_) => (x) => x #-}
+{-# COMPILE JS putStrLn = x => y => (console.log(x), y) #-}
+{-# COMPILE JS _>>_ = _ => _ => x => y => z => y(x(z)) #-}
 
 assert : String → Bool → IO ⊤
 assert s true  = putStrLn (s ++ " PASSED")
