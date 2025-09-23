@@ -807,20 +807,20 @@ primitives = Set.fromList
   , PrimFloatPow
 
   -- Character functions
-  , PrimCharEquality
-  , PrimIsLower
-  , PrimIsDigit
-  , PrimIsAlpha
-  , PrimIsSpace
-  , PrimIsAscii
-  , PrimIsLatin1
-  , PrimIsPrint
-  , PrimIsHexDigit
-  , PrimToUpper
-  , PrimToLower
-  , PrimCharToNat
-  , PrimCharToNatInjective
-  , PrimNatToChar
+  -- , PrimCharEquality            -- in Agda.Builtin.Char
+  -- , PrimIsLower                 -- in Agda.Builtin.Char
+  -- , PrimIsDigit                 -- in Agda.Builtin.Char
+  -- , PrimIsAlpha                 -- in Agda.Builtin.Char
+  -- , PrimIsSpace                 -- in Agda.Builtin.Char
+  -- , PrimIsAscii                 -- in Agda.Builtin.Char
+  -- , PrimIsLatin1                -- in Agda.Builtin.Char
+  -- , PrimIsPrint                 -- in Agda.Builtin.Char
+  -- , PrimIsHexDigit              -- in Agda.Builtin.Char
+  -- , PrimToUpper                 -- in Agda.Builtin.Char
+  -- , PrimToLower                 -- in Agda.Builtin.Char
+  -- , PrimCharToNat               -- in Agda.Builtin.Char
+  -- , PrimCharToNatInjective      -- in Agda.Builtin.Char
+  -- , PrimNatToChar               -- in Agda.Builtin.Char
   -- , PrimShowChar                -- in Agda.Builtin.String
 
   -- String functions
