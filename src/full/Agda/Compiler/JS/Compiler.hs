@@ -627,7 +627,7 @@ compilePrim p =
     T.PEqF -> binOp "agdaRTS.uprimFloatEquality"
     T.PEqQ -> binOp "agdaRTS.uprimQNameEquality"
     T.PEqS -> primEq
-    T.PEqC -> primEq
+    T.PEqC -> binOp "agdaRTS.uprimCharEquality"
     T.PGeq -> binOp "agdaRTS.uprimIntegerGreaterOrEqualThan"
     T.PLt -> binOp "agdaRTS.uprimIntegerLessThan"
     T.PAdd -> binOp "agdaRTS.uprimIntegerPlus"
