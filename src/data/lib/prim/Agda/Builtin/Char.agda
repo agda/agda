@@ -19,10 +19,10 @@ primitive
 
 {-# COMPILE JS Char = String #-}
 {-# COMPILE JS primCharEquality = x => y => x === y #-}
-{-# COMPILE JS primIsLower = x => 'a' <= x && x <= 'z' #-}
+{-# COMPILE JS primIsLower = /\p{Lowercase}/gu.test #-}
 {-# COMPILE JS primIsDigit = x => '0' <= x && x <= '9' #-}
-{-# COMPILE JS primIsAlpha = x => ('a' <= x && x <= 'z') || ('A' <= x && x <= 'Z') #-}
-{-# COMPILE JS primIsSpace = x => x === ' ' #-}
+{-# COMPILE JS primIsAlpha = /\p{Alpha}/gu.test #-}
+{-# COMPILE JS primIsSpace = /\p{space}/gu.test #-}
 {-# COMPILE JS primIsAscii = x => x.codePointAt(0) < 128 #-}
 {-# COMPILE JS primIsLatin1 = x => x.codePointAt(0) < 256 #-}
 {-# COMPILE JS primIsPrint = x => x === ' ' || ('!' <= x && x <= '~') #-}
