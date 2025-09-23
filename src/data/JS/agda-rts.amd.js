@@ -337,7 +337,8 @@ exports.primFloatATanh = function(x) {
 };
 
 // Characters
-exports.PrimCharEquality = (x, y) => x === y;
+exports.uprimCharEquality = (x, y) => x === y;
+exports.PrimCharEquality = x => y => x === y;
 exports.PrimIsLower = x => 'a' <= x && x <= 'z';
 exports.PrimIsDigit = x => '0' <= x && x <= '9';
 exports.PrimIsAlpha = x => ('a' <= x && x <= 'z') || ('A' <= x && x <= 'Z');
