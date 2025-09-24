@@ -126,7 +126,7 @@ checkApplication cmp hd args e t =
   reportSDoc "tc.check.app" 20 $ vcat
     [ "checkApplication"
     , nest 2 $ "hd   = " <+> prettyA hd
-    , nest 2 $ "args = " <+> sep (map prettyA args)
+    , nest 2 $ "args = " <+> do prettyList $ fmap prettyA args
     , nest 2 $ "e    = " <+> prettyA e
     , nest 2 $ "t    = " <+> prettyTCM t
     ]
@@ -998,7 +998,7 @@ checkConstructorApplication cmp org t c hd args = do
       [ "org  =" <+> prettyTCM org
       , "t    =" <+> prettyTCM t
       , "c    =" <+> prettyTCM c
-      , "args =" <+> prettyTCM args
+      , "args =" <+> do prettyList $ fmap prettyTCM args
     ] ]
 
   cdef  <- getConInfo c
@@ -1348,7 +1348,7 @@ inferOrCheckProjApp e o ds hd args mt = do
   reportSDoc "tc.proj.amb" 20 $ vcat
     [ "checking ambiguous projection"
     , text $ "  ds   = " ++ prettyShow ds
-    , text   "  args = " <+> sep (map prettyTCM args)
+    , text   "  args = " <+> do prettyList $ fmap prettyTCM args
     , text   "  t    = " <+> caseMaybe mt "Nothing" prettyTCM
     ]
 
