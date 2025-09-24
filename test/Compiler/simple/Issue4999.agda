@@ -61,6 +61,5 @@ main = do
   assert "lower case ascii alphabets" (primStringEquality "abcdefghijklmnopqrstuvwxyz" (primStringFromList (map primNatToChar (fromTo 97 122))))
   assert "upper case ascii alphabets" (primStringEquality "ABCDEFGHIJKLMNOPQRSTUVWXYZ" (primStringFromList (map primNatToChar (fromTo 65 90))))
   assert "before surrogates         " (all (not ∘ isReplaced) (fromTo 0xD780 0xD7FF))
-  assert "surrogate range 1         " (all isReplaced (fromTo 0xD800 0xDBFF)) -- Break into two ranges to avoid deep recursion for JS backends
-  assert "surrogate range 2         " (all isReplaced (fromTo 0xDC00 0xDFFF))
+  assert "surrogate range.          " (all isReplaced (fromTo 0xD800 0xDFFF))
   assert "after surrogates          " (all (not ∘ isReplaced) (fromTo 0xE000 0xE07F))
