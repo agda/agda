@@ -4,7 +4,6 @@ ret > ExitSuccess
 out > lower case ascii alphabets PASSED
 out > upper case ascii alphabets PASSED
 out > before surrogates          PASSED
-out > surrogate range 1          PASSED
-out > surrogate range 2          PASSED
+out > surrogate range            PASSED
 out > after surrogates           PASSED
 out >
