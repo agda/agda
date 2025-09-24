@@ -189,7 +189,7 @@ simpleTests comp = do
 stdlibTests :: Compiler -> IO TestTree
 stdlibTests comp = do
   let testDir = "test" </> "Compiler" </> "with-stdlib"
-  let inps    = [testDir </> "AllStdLib.agda"]
+  let inps    = map (testDir </>) ["AllStdLib.agda", "AllStdLibJS.agda"]
     -- put all tests in AllStdLib to avoid compiling the standard library
     -- multiple times
 

@@ -1,0 +1,6 @@
+TestOptions
+  { forCompilers   = 
+      [(JS CJS MinifiedOptimized, CompilerOptions {extraAgdaArgs = []})
+      ]
+  , runtimeOptions = []
+  , executeProg    = True }
