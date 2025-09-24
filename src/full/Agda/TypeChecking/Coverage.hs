@@ -992,7 +992,8 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
          return $ abstract (mapCohesion updCoh <$> dtel) dt
   dsort <- addContext delta1 $ reduce (getSort dtype)
 
-  let withKIfStrict = applyWhen (isStrictDataSort dsort) $ locallyTC eSplitOnStrict $ const True
+  let withKIfStrict :: forall a. CoverM a -> CoverM a
+      withKIfStrict = applyWhen (isStrictDataSort dsort) $ locallyTC eSplitOnStrict (const True)
 
   -- Should we attempt to compute a left inverse for this clause? When
   -- --cubical-compatible --flat-split is given, we don't generate a
@@ -1004,7 +1005,6 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   let flatSplit = boolToMaybe (getCohesion info == Flat) SplitOnFlat
 
   r <- withKIfStrict $ lift $
-         Bench.billTo [Bench.Coverage, Bench.UnifyIndices] $
            unifyIndices' flatSplit
              delta1Gamma
              flex
@@ -1026,7 +1026,8 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
     UnifyStuck errs -> stuck Nothing errs
 
-    Unifies (delta1',rho0,eqs,tauInv) -> do
+    Unifies (delta1',rho0,eqs,getTauInv) -> do
+      tauInv <- withKIfStrict $ lift getTauInv
 
       let unifyInfo | Type _ <- dsort     -- only types of sort Type l have trX constructors:
                                           -- re #3733: update if we add transp for other sorts.
