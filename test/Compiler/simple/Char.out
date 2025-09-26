@@ -1,0 +1,124 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > control spaces                   - not primIsLower     PASSED
+out > control spaces                   - not primIsDigit     PASSED
+out > control spaces                   - not primIsAlpha     PASSED
+out > control spaces                   - primIsSpace         PASSED
+out > control spaces                   - primIsAscii         PASSED
+out > control spaces                   - primIsLatin1        PASSED
+out > control spaces                   - not primIsPrint     PASSED
+out > control spaces                   - not primIsHexDigit  PASSED
+out > control spaces                   - primToUpper         PASSED
+out > control spaces                   - primToLower         PASSED
+out > control spaces                   - primCharToNat       PASSED
+out > control spaces                   - primNatToChar       PASSED
+out > spaces                           - not primIsLower     PASSED
+out > spaces                           - not primIsDigit     PASSED
+out > spaces                           - not primIsAlpha     PASSED
+out > spaces                           - primIsSpace         PASSED
+out > spaces                           - not primIsAscii     PASSED
+out > spaces                           - not primIsLatin1    PASSED
+out > spaces                           - primIsPrint         PASSED
+out > spaces                           - not primIsHexDigit  PASSED
+out > spaces                           - primToUpper         PASSED
+out > spaces                           - primToLower         PASSED
+out > ascii digits                     - not primIsLower     PASSED
+out > ascii digits                     - primIsDigit         PASSED
+out > ascii digits                     - not primIsAlpha     PASSED
+out > ascii digits                     - not primIsSpace     PASSED
+out > ascii digits                     - primIsAscii         PASSED
+out > ascii digits                     - primIsLatin1        PASSED
+out > ascii digits                     - primIsPrint         PASSED
+out > ascii digits                     - primIsHexDigit      PASSED
+out > ascii digits                     - primToUpper         PASSED
+out > ascii digits                     - primToLower         PASSED
+out > ascii digits                     - primCharToNat       PASSED
+out > ascii digits                     - primNatToChar       PASSED
+out > latin small letters              - primIsLower         PASSED
+out > latin small letters              - not primIsDigit     PASSED
+out > latin small letters              - primIsAlpha         PASSED
+out > latin small letters              - not primIsSpace     PASSED
+out > latin small letters              - primIsAscii         PASSED
+out > latin small letters              - primIsLatin1        PASSED
+out > latin small letters              - primIsPrint         PASSED
+out > latin small letters (A - F)      - primIsHexDigit      PASSED
+out > latin small letters (G - Z)      - not primIsHexDigit  PASSED
+out > latin small letters              - primToUpper         PASSED
+out > latin small letters              - primToLower         PASSED
+out > latin small letters              - primCharToNat       PASSED
+out > latin small letters              - primNatToChar       PASSED
+out > latin capital letters            - not primIsLower     PASSED
+out > latin capital letters            - not primIsDigit     PASSED
+out > latin capital letters            - primIsAlpha         PASSED
+out > latin capital letters            - not primIsSpace     PASSED
+out > latin capital letters            - primIsAscii         PASSED
+out > latin capital letters            - primIsLatin1        PASSED
+out > latin capital letters            - primIsPrint         PASSED
+out > latin capital letters (A - F)    - primIsHexDigit      PASSED
+out > latin capital letters (G - Z)    - not primIsHexDigit  PASSED
+out > latin capital letters            - primToUpper         PASSED
+out > latin capital letters            - primToLower         PASSED
+out > latin capital letters            - primCharToNat       PASSED
+out > latin capital letters            - primNatToChar       PASSED
+out > latin small latters supplement   - primIsLower         PASSED
+out > latin small latters supplement   - not primIsDigit     PASSED
+out > latin small latters supplement   - primIsAlpha         PASSED
+out > latin small latters supplement   - not primIsSpace     PASSED
+out > latin small latters supplement   - not primIsAscii     PASSED
+out > latin small latters supplement   - primIsLatin1        PASSED
+out > latin small latters supplement   - primIsPrint         PASSED
+out > latin small latters supplement   - not primIsHexDigit  PASSED
+out > latin small latters supplement   - primToUpper         PASSED
+out > latin small latters supplement   - primToLower         PASSED
+out > latin small latters supplement   - primCharToNat       PASSED
+out > latin small latters supplement   - primNatToChar       PASSED
+out > latin capital latters supplement - not primIsLower     PASSED
+out > latin capital latters supplement - not primIsDigit     PASSED
+out > latin capital latters supplement - primIsAlpha         PASSED
+out > latin capital latters supplement - not primIsSpace     PASSED
+out > latin capital latters supplement - not primIsAscii     PASSED
+out > latin capital latters supplement - primIsLatin1        PASSED
+out > latin capital latters supplement - primIsPrint         PASSED
+out > latin capital latters supplement - not primIsHexDigit  PASSED
+out > latin capital latters supplement - primToUpper         PASSED
+out > latin capital latters supplement - primToLower         PASSED
+out > latin capital latters supplement - primCharToNat       PASSED
+out > latin capital latters supplement - primNatToChar       PASSED
+out > circled latin small letters      - not primIsLower     PASSED
+out > circled latin small letters      - not primIsDigit     PASSED
+out > circled latin small letters      - not primIsAlpha     PASSED
+out > circled latin small letters      - not primIsSpace     PASSED
+out > circled latin small letters      - not primIsAscii     PASSED
+out > circled latin small letters      - not primIsLatin1    PASSED
+out > circled latin small letters      - primIsPrint         PASSED
+out > circled latin small letters      - not primIsHexDigit  PASSED
+out > circled latin small letters      - primToUpper         PASSED
+out > circled latin small letters      - primToLower         PASSED
+out > circled latin small letters      - primCharToNat       PASSED
+out > circled latin small letters      - primNatToChar       PASSED
+out > circled latin capital letters    - not primIsLower     PASSED
+out > circled latin capital letters    - not primIsDigit     PASSED
+out > circled latin capital letters    - not primIsAlpha     PASSED
+out > circled latin capital letters    - not primIsSpace     PASSED
+out > circled latin capital letters    - not primIsAscii     PASSED
+out > circled latin capital letters    - not primIsLatin1    PASSED
+out > circled latin capital letters    - primIsPrint         PASSED
+out > circled latin capital letters    - not primIsHexDigit  PASSED
+out > circled latin capital letters    - primToUpper         PASSED
+out > circled latin capital letters    - primToLower         PASSED
+out > circled latin capital letters    - primCharToNat       PASSED
+out > circled latin capital letters    - primNatToChar       PASSED
+out > cjk unified ideographs           - not primIsLower     PASSED
+out > cjk unified ideographs           - not primIsDigit     PASSED
+out > cjk unified ideographs           - primIsAlpha         PASSED
+out > cjk unified ideographs           - not primIsSpace     PASSED
+out > cjk unified ideographs           - not primIsAscii     PASSED
+out > cjk unified ideographs           - not primIsLatin1    PASSED
+out > cjk unified ideographs           - primIsPrint         PASSED
+out > cjk unified ideographs           - not primIsHexDigit  PASSED
+out > cjk unified ideographs           - primToUpper         PASSED
+out > cjk unified ideographs           - primToLower         PASSED
+out > cjk unified ideographs           - primCharToNat       PASSED
+out > cjk unified ideographs           - primNatToChar       PASSED
+out >
