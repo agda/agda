@@ -41,6 +41,10 @@ fromCount (suc n) a = a ∷ fromCount n (suc a)
 fromTo : Nat → Nat → List Nat
 fromTo a b = fromCount (suc b - a) a
 
+repeat : {A : Set} → Nat → A → List A
+repeat 0 _ = []
+repeat (suc n) x = x ∷ repeat n x
+
 postulate
   putStrLn : String → IO ⊤
   _>>_ : {A B : Set} → IO A → IO B → IO B
@@ -60,12 +64,16 @@ listNatEquality []       []       = true
 listNatEquality (x ∷ xs) (y ∷ ys) = (x == y) ∧ listNatEquality xs ys
 listNatEquality _        _        = false
 
-listAppend : List Nat → List Nat → List Nat
+listAppend : {A : Set} → List A → List A → List A
 listAppend []       ys = ys
 listAppend (x ∷ xs) ys = x ∷ listAppend xs ys
 
-_++_ : List Nat → List Nat → List Nat
+_++_ : {A : Set} → List A → List A → List A
 _++_ = listAppend
+
+flatten : {A : Set} → List (List A) → List A
+flatten []       = []
+flatten (xs ∷ xss) = xs ++ (flatten xss)
 
 main : IO ⊤
 main = do
@@ -93,6 +101,9 @@ main = do
   let circledLatinCapitalLetter = primStringFromList (map primNatToChar circledLatinCapitalLetterCodes)
   let cjkUnifiedCodes = fromTo 0x4E00 0x4EFF -- "一" to "仿", a few CJK Unified Ideographs
   let cjkUnified = primStringFromList (map primNatToChar cjkUnifiedCodes)
+  let surrogatesCodes = fromTo 0xD800 0xDFFF -- surrogates
+  let repeatedSurrogates = repeat 0x800 0xFFFD
+  let surrogates = primStringFromList (map primNatToChar surrogatesCodes)
 
   -- control spaces
   assert "control spaces                   - not primIsLower    " (allString (not ∘ primIsLower) controlSpace)
@@ -233,3 +244,17 @@ main = do
   assert "cjk unified ideographs           - primToLower        " (primStringEquality cjkUnified (mapString primToLower cjkUnified))
   assert "cjk unified ideographs           - primCharToNat      " (listNatEquality cjkUnifiedCodes (map primCharToNat (primStringToList cjkUnified)))
   assert "cjk unified ideographs           - primNatToChar      " (primStringEquality cjkUnified (primStringFromList (map primNatToChar cjkUnifiedCodes)))
+
+  -- surrogates
+  assert "surrogates                       - not primIsLower    " (allString (not ∘ primIsLower) surrogates)
+  assert "surrogates                       - not primIsDigit    " (allString (not ∘ primIsDigit) surrogates)
+  assert "surrogates                       - not primIsAlpha    " (allString (not ∘ primIsAlpha) surrogates)
+  assert "surrogates                       - not primIsSpace    " (allString (not ∘ primIsSpace) surrogates)
+  assert "surrogates                       - not primIsAscii    " (allString (not ∘ primIsAscii) surrogates)
+  assert "surrogates                       - not primIsLatin1   " (allString (not ∘ primIsLatin1) surrogates)
+  assert "surrogates                       - primIsPrint        " (allString primIsPrint surrogates)
+  assert "surrogates                       - not primIsHexDigit " (allString (not ∘ primIsHexDigit) surrogates)
+  assert "surrogates                       - primToUpper        " (primStringEquality surrogates (mapString primToUpper surrogates))
+  assert "surrogates                       - primToLower        " (primStringEquality surrogates (mapString primToLower surrogates))
+  assert "surrogates                       - primCharToNat      " (listNatEquality repeatedSurrogates (map primCharToNat (primStringToList surrogates)))
+  assert "surrogates                       - primNatToChar      " (primStringEquality surrogates (primStringFromList (map primNatToChar surrogatesCodes)))
