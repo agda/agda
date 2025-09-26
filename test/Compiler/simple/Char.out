@@ -123,7 +123,7 @@ out > cjk unified ideographs           - primCharToNat       PASSED
 out > cjk unified ideographs           - primNatToChar       PASSED
 out > surrogates                       - not primIsLower     PASSED
 out > surrogates                       - not primIsDigit     PASSED
-out > surrogates                       - primIsAlpha         PASSED
+out > surrogates                       - not primIsAlpha     PASSED
 out > surrogates                       - not primIsSpace     PASSED
 out > surrogates                       - not primIsAscii     PASSED
 out > surrogates                       - not primIsLatin1    PASSED
