@@ -74,6 +74,8 @@ div-helper k m (suc n) (suc j) = div-helper k       m n j
 
 {-# BUILTIN NATDIVSUCAUX div-helper #-}
 
+{-# COMPILE JS div-helper = k => m => n => j => k + (n + m - j) / (1n + m) #-}
+
 -- Proof of the invariant by induction on n.
 --
 --   clause 1: div-helper k m 0 j
@@ -113,6 +115,8 @@ mod-helper k m (suc n)  zero   = mod-helper 0       m n m
 mod-helper k m (suc n) (suc j) = mod-helper (suc k) m n j
 
 {-# BUILTIN NATMODSUCAUX mod-helper #-}
+
+{-# COMPILE JS mod-helper = k => m => n => j => (n + k) % (1n + m) #-}
 
 -- Proof of the invariant by induction on n.
 --

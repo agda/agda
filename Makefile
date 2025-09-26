@@ -418,6 +418,7 @@ test : check-whitespace \
        benchmark-without-logs \
        compiler-test \
        std-lib-compiler-test \
+       std-lib-js-compiler-test \
        std-lib-succeed \
        std-lib-interaction \
        user-manual-test \
@@ -428,6 +429,7 @@ test : check-whitespace \
 test-using-std-lib : std-lib-test \
                      benchmark-without-logs \
                      std-lib-compiler-test \
+                     std-lib-js-compiler-test \
                      std-lib-succeed \
                      std-lib-interaction
 
@@ -604,7 +606,12 @@ js-compiler-test :
 .PHONY : std-lib-compiler-test ##
 std-lib-compiler-test :
 	@$(call decorate, "Standard library compiler tests", \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib)
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib --regex-exclude AllStdLibJS)
+
+.PHONY : std-lib-compiler-test ##
+std-lib-js-compiler-test :
+	@$(call decorate, "Standard library JS compiler tests", \
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLibJS)
 
 .PHONY : api-test ##
 api-test :
