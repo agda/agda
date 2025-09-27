@@ -367,7 +367,10 @@ printErrorInfo e =
 -- | Generate highlighting for error.
 
 errorHighlighting :: TCErr -> TCM HighlightingInfoBuilder
-errorHighlighting e = errorHighlighting' (getRange e) <$> TCM.renderError e
+errorHighlighting e = mconcat
+  [ extraErrorHighlighting e
+  , errorHighlighting' (getRange e) <$> TCM.renderError e
+  ]
 
 errorHighlighting'
   :: Range     -- ^ Error range.
@@ -382,6 +385,24 @@ errorHighlighting' r s = mconcat
                        , note         = s
                        }
   ]
+
+-- | Some errors point to things out of the errorneous expression/declaration,
+--   so we might to highlight these things as well.
+extraErrorHighlighting :: TCErr -> TCM HighlightingInfoBuilder
+extraErrorHighlighting = \case
+  TypeError _ _ cl ->
+    case clValue cl of
+      -- Andreas, 2025-09-15.
+      -- The identifier that would be shadowed by the clashing definition
+      -- is highlighted as dead code.
+      -- (Not sure how good this is.)
+      ClashingDefinition _ y _ -> return $ deadcodeHighlighting $ I.nameBindingSite $ I.qnameName y
+      ShadowedModule x ms      -> deadcodeHighlighting . snd <$> TCM.prettyShadowedModule x ms
+        -- 'prettyShadowedModule' mostly duplicates the work done by @'renderError' ('ShadowedModule' x ms)@
+        -- in 'errorHighlighting',
+        -- but since throwing an error is a once-in-a-run thing we need not worry.
+      _ -> mempty
+  _ -> mempty
 
 -- | Highlighting for warnings that are considered fatal.
 
