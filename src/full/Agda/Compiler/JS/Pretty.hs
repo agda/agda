@@ -199,6 +199,15 @@ unescape c        = [c]
 unescapes :: String -> Doc
 unescapes s = text $ concatMap unescape s
 
+unescapec :: Char -> String
+unescapec '"'      = "\\\""
+unescapec '\\'     = "\\\\"
+unescapec '\n'     = "\\n"
+unescapec '\r'     = "\\r"
+unescapec '\x2028' = "\\u2028"
+unescapec '\x2029' = "\\u2029"
+unescapec c        = [c]
+
 -- pretty (n,b) i e pretty-prints e, under n levels of de Bruijn binding
 --   if b is true then the output is minified
 
@@ -262,7 +271,7 @@ instance Pretty Exp where
   prettyPrec p n (Undefined)    = "undefined"
   prettyPrec p n (Null)         = "null"
   prettyPrec p n (String s)     = "\"" <> unescapes (T.unpack s) <> "\""
-  prettyPrec p n (Char c)       = "\'" <> unescapes [c] <> "\'"
+  prettyPrec p n (Char c)       = "\'" <> unescapec c <> "\'"
   prettyPrec p n (Integer x)    = "agdaRTS.primIntegerFromString(\"" <> text (show x) <> "\")"
   prettyPrec p n (Double x)     = text $ show x
   prettyPrec p (n, min, ms) (Lambda x e) = mparens (p > 2) $
