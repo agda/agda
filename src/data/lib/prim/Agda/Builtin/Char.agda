@@ -17,7 +17,6 @@ primitive
   primNatToChar : Nat → Char
   primCharEquality : Char → Char → Bool
 
-{-# COMPILE JS Char = String #-}
 {-# COMPILE JS primCharEquality = x => y => x === y #-}
 {-# COMPILE JS primIsLower = x => /\p{Ll}/u.test(x) #-} -- Ll stands for Lowercase letters
 {-# COMPILE JS primIsDigit = x => /\d/u.test(x) #-}
