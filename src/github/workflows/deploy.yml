@@ -53,7 +53,7 @@ jobs:
     steps:
 
     - name: Check out the master branch
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Set up platform-dependent variables
       id: vars
@@ -337,7 +337,7 @@ jobs:
     # if: ${{ success() }}
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         sparse-checkout: .
 
