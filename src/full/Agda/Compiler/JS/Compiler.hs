@@ -819,7 +819,7 @@ primitives = Set.fromList
   -- , PrimToUpper                 -- in Agda.Builtin.Char
   -- , PrimToLower                 -- in Agda.Builtin.Char
   -- , PrimCharToNat               -- in Agda.Builtin.Char
-  -- , PrimCharToNatInjective      -- in Agda.Builtin.Char
+  -- , PrimCharToNatInjective      -- missing
   -- , PrimNatToChar               -- in Agda.Builtin.Char
   -- , PrimShowChar                -- in Agda.Builtin.String
 
