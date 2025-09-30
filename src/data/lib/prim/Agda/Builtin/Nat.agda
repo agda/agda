@@ -150,7 +150,7 @@ mod-helper k m (suc n) (suc j) = mod-helper (suc k) m n j
 -- so that the JS backend produces fully equivalent codes.
 --
 -- If j ≥ n, then the recursion will eventually run into clause 1, and we have
--- 
+--
 --   mod-helper k m n j
 -- = mod-helper (k + n) m 0 (j - n)  by applying definition (case 1) n times
 -- = k + n                           by definition (case 3)
