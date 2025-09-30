@@ -164,10 +164,10 @@ mod-helper k m (suc n) (suc j) = mod-helper (suc k) m n j
 -- = (n - j - 1 + 0) mod (1 + m)     by previous proof
 -- = (n - j - 1) mod (1 + m)         by simplification
 --
-{-# COMPILE JS mod-helper = k => m => n => j => m == 
-  k + j ? 
-    (n + k) % (1n + m) : 
-      (j >= n) ? 
-        k + n : 
+{-# COMPILE JS mod-helper = k => m => n => j => m ==
+  k + j ?
+    (n + k) % (1n + m) :
+      (j >= n) ?
+        k + n :
         (n - j - 1n) % (1n + m)
 #-}
