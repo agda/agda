@@ -74,8 +74,6 @@ div-helper k m (suc n) (suc j) = div-helper k       m n j
 
 {-# BUILTIN NATDIVSUCAUX div-helper #-}
 
-{-# COMPILE JS div-helper = k => m => n => j => k + (n + m - j) / (1n + m) #-}
-
 -- Proof of the invariant by induction on n.
 --
 --   clause 1: div-helper k m 0 j
@@ -95,6 +93,18 @@ div-helper k m (suc n) (suc j) = div-helper k       m n j
 --           = k + ((1 + n) + m - (1 + j)) div (1 + m)  by expansion
 --
 -- Q.e.d.
+
+-- If we don't give a definition for div-helper in JS, the JS backend will
+-- generate a recursive function, which can exhaust the heap memory.
+-- So we provide a direct definition for the JS backend.
+--
+-- If the precondition j ≤ m is not met, the formula above is still valid,
+-- as m - j < 1 + m and other steps do not depend on the precondition.
+-- And the only point to notice is that n + m may be greater than j,
+-- in which case n + m - j is 0 in Agda's Nat, but can be negative in JS's BigInt.
+-- Thus n + m - j should be changed to something like max (n + m - j) 0,
+-- so that the JS backend produces equivalent codes.
+{-# COMPILE JS div-helper = k => m => n => j => k + (n + m - j >= 0n ? n + m - j : 0n) / (1n + m) #-}
 
 -- Helper function  mod-helper  for the remainder computation.
 ---------------------------------------------------------------------------
@@ -116,8 +126,6 @@ mod-helper k m (suc n) (suc j) = mod-helper (suc k) m n j
 
 {-# BUILTIN NATMODSUCAUX mod-helper #-}
 
-{-# COMPILE JS mod-helper = k => m => n => j => (n + k) % (1n + m) #-}
-
 -- Proof of the invariant by induction on n.
 --
 --   clause 1: mod-helper k m 0 j
@@ -128,7 +136,7 @@ mod-helper k m (suc n) (suc j) = mod-helper (suc k) m n j
 --           = mod-helper 0 m n m              by definition
 --           = (n + 0)       mod (1 + m)       by induction hypothesis
 --           = (n + (1 + m)) mod (1 + m)       by expansion
---           = (1 + n) + k)  mod (1 + m)       since k = m (as l = 0)
+--           = ((1 + n) + k) mod (1 + m)       since k = m (as l = 0)
 --
 --   clause 3: mod-helper k m (1 + n) (1 + j)
 --           = mod-helper (1 + k) m n j        by definition
@@ -136,3 +144,30 @@ mod-helper k m (suc n) (suc j) = mod-helper (suc k) m n j
 --           = ((1 + n) + k) mod (1 + m)       by commutativity
 --
 -- Q.e.d.
+
+-- Unfortunately, when the invariant m = k + j is not met, the formula above
+-- is not valid, and we need a different formula for the JS backend,
+-- so that the JS backend produces fully equivalent codes.
+--
+-- If j ≥ n, then the recursion will eventually run into clause 1, and we have
+-- 
+--   mod-helper k m n j
+-- = mod-helper (k + n) m 0 (j - n)  by applying definition (case 1) n times
+-- = k + n                           by definition (case 3)
+--
+-- otherwise, the recursion will eventually run into clause 2, which will
+-- make the invariant valid again, and we have
+--
+--   mod-helper k m n j
+-- = mod-helper (k + j) m (n - j) 0  by applying definition (case 3) j times
+-- = mod-helper 0 m (n - j - 1) m    by definition (case 2)
+-- = (n - j - 1 + 0) mod (1 + m)     by previous proof
+-- = (n - j - 1) mod (1 + m)         by simplification
+--
+{-# COMPILE JS mod-helper = k => m => n => j => m == 
+  k + j ? 
+    (n + k) % (1n + m) : 
+      (j >= n) ? 
+        k + n : 
+        (n - j - 1n) % (1n + m)
+#-}
