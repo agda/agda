@@ -1033,12 +1033,14 @@ metaHelperType norm ii rng s = withInteractionId ii do
     failure = interactionError ExpectedApplication
 
     -- An application view for concrete expressions that rejects operator applications.
+    -- Takes a suffix of the arguments in left-to-right order (e.g. the empty list)
+    -- and returns the head and the arguments in left-to-right order.
     applicationView :: [NamedArg C.Expr] -> C.Expr -> TCM (C.Name, [NamedArg C.Expr])
-    applicationView acc = \case
-      C.Ident (C.QName x) -> return (x, reverse acc)
-      C.App _ e e1        -> applicationView (e1 : acc) e
-      C.RawApp _ es       -> applicationView acc =<< parseApplication es
-      C.Paren _ e         -> applicationView acc e
+    applicationView args = \case
+      C.Ident (C.QName x) -> return (x, args)
+      C.App _ e e1        -> applicationView (e1 : args) e
+      C.RawApp _ es       -> applicationView args =<< parseApplication es
+      C.Paren _ e         -> applicationView args e
       -- Allowing operator applications would not make sense.
       -- C.OpApp _ x _ args -> failure
       _ -> failure
