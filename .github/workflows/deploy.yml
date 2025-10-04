@@ -33,7 +33,7 @@ jobs:
           echo content-type="application/zip"                       >> "${GITHUB_OUTPUT}"
           echo compress-cmd="cd ${bindist} && 7z a ${filename} -bb -mx=9 && mv ${filename} .." >> "${GITHUB_OUTPUT}"
 
-        elif [[ "$MATRIX_OS" == "macos-13" ]]; then
+        elif [[ "$MATRIX_OS" == "macos-15-intel" ]]; then
 
           filename="macOS-x64.tar.xz"
           exe="agda"
@@ -41,7 +41,7 @@ jobs:
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
           echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" ${exe}  >> "${GITHUB_OUTPUT}"
 
-        elif [[ "$MATRIX_OS" == "macos-14" ]]; then
+        elif [[ "$MATRIX_OS" == "macos-latest" ]]; then
 
           filename="macOS-arm64.tar.xz"
           exe="agda"
@@ -167,8 +167,8 @@ jobs:
         - 9.12.2
         os:
         - windows-latest
-        - macos-14
-        - macos-13
+        - macos-latest
+        - macos-15-intel
         - ubuntu-latest
   deploy:
     needs: sanity-check
@@ -224,13 +224,13 @@ jobs:
           ext="zip"
           decompress_cmd_base="7z x"
 
-        elif [[ "$MATRIX_OS" == "macos-13" ]]; then
+        elif [[ "$MATRIX_OS" == "macos-15-intel" ]]; then
 
           osname="macOS-x64"
           ext="tar.xz"
           decompress_cmd_base="tar -xf"
 
-        elif [[ "$MATRIX_OS" == "macos-14" ]]; then
+        elif [[ "$MATRIX_OS" == "macos-latest" ]]; then
 
           osname="macOS-arm64"
           ext="tar.xz"
@@ -269,8 +269,8 @@ jobs:
       matrix:
         os:
         - windows-latest
-        - macos-14
-        - macos-13
+        - macos-latest
+        - macos-15-intel
         - ubuntu-latest
 name: Deploy
 'on':
