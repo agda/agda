@@ -96,10 +96,6 @@ disabledTests =
   , disable "Compiler/JS_Optimized/simple/ModuleReexport"
   , disable "Compiler/JS_MinifiedOptimized/simple/ModuleReexport"
     -----------------------------------------------------------------------------
-    -- The following test cases use primitives that are not implemented in the
-    -- JS backend.
-  , disable "Compiler/JS_.*/simple/Issue4999"   -- primNatToChar
-    -----------------------------------------------------------------------------
     -- The following test cases are GHC backend specific and thus disabled on JS.
   , disable "Compiler/JS_.*/simple/Issue2821"
   , disable "Compiler/JS_.*/simple/Issue2879-.*"
@@ -193,7 +189,7 @@ simpleTests comp = do
 stdlibTests :: Compiler -> IO TestTree
 stdlibTests comp = do
   let testDir = "test" </> "Compiler" </> "with-stdlib"
-  let inps    = [testDir </> "AllStdLib.agda"]
+  let inps    = map (testDir </>) ["AllStdLib.agda", "AllStdLibJS.agda"]
     -- put all tests in AllStdLib to avoid compiling the standard library
     -- multiple times
 
@@ -265,7 +261,8 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
           case comp of
             JS{} -> do
               env <- (("NODE_PATH", compDir) :) <$> getEnvironment
-              (ret, out', err') <- readProcessWithEnv env Nothing "node" [exec] inp'
+              nodePath <- fromJust <$> findExecutable "node"
+              (ret, out', err') <- readProcessWithEnv env Nothing nodePath ["--stack-size=4096", exec] inp'
               out' <- cleanOutput out'
               err' <- cleanOutput err'
               return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
