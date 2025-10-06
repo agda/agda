@@ -958,6 +958,8 @@ compareElims pols0 fors0 a v els01 els02 =
   (catchConstraint (ElimCmp pols0 fors0 a v els01 els02) :: m () -> m ()) $ do
   let v1 = applyE v els01
       v2 = applyE v els02
+      -- Andreas, issue #8126, hack: use 'AsTypes' to suppress type in error message.
+      failureNoType = typeError $ UnequalTerms CmpEq v1 v2 AsTypes
       failure = typeError $ UnequalTerms CmpEq v1 v2 (AsTermsOf a)
         -- Andreas, 2013-03-15 since one of the spines is empty, @a@
         -- is the correct type here.
@@ -1095,8 +1097,18 @@ compareElims pols0 fors0 a v els01 els02 =
 
     -- case: f == f' are projections
     (Proj o f : els1, Proj _ f' : els2)
-      | f /= f'   -> typeError $ MismatchedProjectionsError f f'
-      | otherwise -> do
+      | f /= f'   -> do
+          -- Andreas, 2025-10-06, issue #8126
+          -- If we are dealing with generalizable variables rather than projections,
+          -- do not throw a MismatchedProjectionsError, but rather a generic f != f' error.
+          reportSDoc "tc.error.mismatchedProjections" 30 $ "type:" <+> prettyTCM a
+          reportSDoc "tc.error.mismatchedProjections" 40 $ "type:" <+> pretty a
+          reportSDoc "tc.error.mismatchedProjections" 30 $ "f = " <+> prettyTCM f
+          reportSDoc "tc.error.mismatchedProjections" 40 $ "f = " <+> pretty f
+          case (getGeneralizedFieldName f, getGeneralizedFieldName f') of
+            (Nothing, Nothing) -> typeError $ MismatchedProjectionsError f f'
+            _ -> failureNoType -- do not print the type "GeneralizeTel"
+        | otherwise -> do
         a   <- abortIfBlocked a
         res <- projectTyped v a o f -- fails only if f is proj.like but parameters cannot be retrieved
         case res of

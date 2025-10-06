@@ -1,0 +1,3 @@
+Issue8126.agda:17.35-36: error: [UnequalTerms]
+b != a
+when checking that the expression y has type P a

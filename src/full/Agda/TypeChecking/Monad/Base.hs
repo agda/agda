@@ -6502,11 +6502,11 @@ absurdLambdaName = ".absurdlambda"
 isAbsurdLambdaName :: QName -> Bool
 isAbsurdLambdaName = (absurdLambdaName ==) . prettyShow . qnameName
 
--- | Base name for generalized variable projections
+-- | Base name for generalized variable projections.
 generalizedFieldName :: String
 generalizedFieldName = ".generalizedField-"
 
--- | Check whether we have a generalized variable field
+-- | Check whether we have a generalized variable field.
 getGeneralizedFieldName :: A.QName -> Maybe String
 getGeneralizedFieldName = List.stripPrefix generalizedFieldName . prettyShow . nameConcrete . qnameName
 
