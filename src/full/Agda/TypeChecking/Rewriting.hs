@@ -437,6 +437,11 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         errorNotGeneral =
           illegalRule $ ConstructorParametersNotGeneral c $ fromMaybe __IMPOSSIBLE__ $ nonEmpty vs
 
+checkLocalRewriteRule :: Dom Type -> TCM (Maybe LocalRewriteRule)
+checkLocalRewriteRule adom = do
+
+  return Nothing
+
 -- | @rewriteWith t f es rew@ where @f : t@
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.
 rewriteWith :: Type
