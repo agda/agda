@@ -939,8 +939,8 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = noMutualBlock $ d
   let freshQName s = qualify current <$> freshName_ (s :: String)
       mkFieldName  = freshQName . (generalizedFieldName ++) <=< getMetaNameSuggestion
   genRecFields <- mapM (defaultDom <.> mkFieldName) sortedMetas
-  genRecName   <- freshQName "GeneralizeTel"
-  genRecCon    <- freshQName "mkGeneralizeTel" <&> \ con -> ConHead
+  genRecName   <- freshQName generalizeRecordName
+  genRecCon    <- freshQName generalizeConstructorName <&> \ con -> ConHead
                   { conName      = con
                   , conDataRecord= IsRecord CopatternMatching
                   , conInductive = Inductive

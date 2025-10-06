@@ -6502,6 +6502,14 @@ absurdLambdaName = ".absurdlambda"
 isAbsurdLambdaName :: QName -> Bool
 isAbsurdLambdaName = (absurdLambdaName ==) . prettyShow . qnameName
 
+-- | Name for telescope (record) of generalized variables.
+generalizeRecordName :: String
+generalizeRecordName = ".GeneralizeTel"
+
+-- | Name for the record constructor for the generalized variables.
+generalizeConstructorName :: String
+generalizeConstructorName = ".mkGeneralizeTel"
+
 -- | Base name for generalized variable projections.
 generalizedFieldName :: String
 generalizedFieldName = ".generalizedField-"
