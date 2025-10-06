@@ -37,8 +37,11 @@ data DeclarationException = DeclarationException
 -- | The exception type.
 data DeclarationException'
   = MultipleEllipses Pattern
-  | DuplicateDefinition Name
-  | DuplicateAnonDeclaration Range
+  | DuplicateDefinition Name Range
+      -- ^ The 'Range' is the range of the previous definition.
+  | DuplicateAnonDeclaration Range Range
+      -- ^ The first 'Range' is the range of the current declaration of _.
+      --   The second 'Range' is the range of the previous declaration of _.
   | MissingWithClauses Name LHS
   | WrongDefinition Name DataRecOrFun DataRecOrFun
   | WrongContentBlock KindOfBlock Range
@@ -330,8 +333,8 @@ instance HasRange DeclarationException where
 
 instance HasRange DeclarationException' where
   getRange (MultipleEllipses d)                 = getRange d
-  getRange (DuplicateDefinition x)              = getRange x
-  getRange (DuplicateAnonDeclaration r)         = r
+  getRange (DuplicateDefinition x _)            = getRange x
+  getRange (DuplicateAnonDeclaration r _)       = r
   getRange (MissingWithClauses _x lhs)          = getRange lhs
   getRange (WrongDefinition x _k _k')           = getRange x
   getRange (AmbiguousFunClauses lhs _xs)        = getRange lhs
@@ -399,10 +402,12 @@ instance HasRange DeclarationWarning' where
 instance Pretty DeclarationException' where
   pretty (MultipleEllipses p) = fsep $
     pwords "Multiple ellipses in left-hand side" ++ [pretty p]
-  pretty (DuplicateDefinition x) = fsep $
-    pwords "Duplicate definition of" ++ [pretty x]
-  pretty (DuplicateAnonDeclaration _) = fsep $
-    pwords "Duplicate declaration of _"
+  pretty (DuplicateDefinition x y) = fsep $
+    pwords "Duplicate definition of" ++ [pretty x <> "."] ++
+    pwords "Previous definition at" ++ [pretty y]
+  pretty (DuplicateAnonDeclaration _ y) = fsep $
+    pwords "Duplicate declaration of _." ++
+    pwords "Previous definition at" ++ [pretty y]
   pretty (MissingWithClauses x _lhs) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
 

@@ -148,8 +148,8 @@ addLoneSig r x k = do
     let (mr, s') = Map.insertLookupWithKey (\ _k new _old -> new) x (LoneSig r x' k) s
     case mr of
       Nothing -> return s'
-      Just{}  -> declarationException $
-        if not $ isNoName x then DuplicateDefinition x else DuplicateAnonDeclaration r
+      Just y  -> declarationException $
+        if not $ isNoName x then DuplicateDefinition x (loneSigRange y) else DuplicateAnonDeclaration r (loneSigRange y)
   return x'
 
 -- | Remove a lone signature from the state.

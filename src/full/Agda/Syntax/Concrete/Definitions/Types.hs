@@ -181,6 +181,11 @@ data InterleavedState = ISt
 -- | Numbering declarations in an @interleaved mutual@ block.
 type DeclNum = Int
 
+instance HasRange InterleavedDecl where
+  getRange :: InterleavedDecl -> Range
+  getRange (InterleavedFun _ d _)  = getRange d
+  getRange (InterleavedData _ d _) = getRange d
+
 isInterleavedFun :: InterleavedDecl -> Maybe ()
 isInterleavedFun InterleavedFun{} = Just ()
 isInterleavedFun _ = Nothing
