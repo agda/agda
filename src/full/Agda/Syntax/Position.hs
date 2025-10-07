@@ -131,7 +131,16 @@ data Position' a = Pn'
     -- ^ Position, counting from 1.
   , posLineCol :: !Word64 -- ^ Line and position numbers as Word32, both counting from 1.
   }
-  deriving (Show, Functor, Foldable, Traversable, Generic)
+  deriving (Functor, Foldable, Traversable, Generic)
+
+instance Show a => Show (Position' a) where
+  showsPrec :: Show a => Int -> Position' a -> ShowS
+  showsPrec i (Pn a p l c) = showParen (i > 10) $
+    showString "Pn " .
+    showsPrec 11 a . showChar ' ' .
+    showsPrec 11 p . showChar ' ' .
+    showsPrec 11 l . showChar ' ' .
+    showsPrec 11 c
 
 pattern Pn :: a -> Word32 -> Word32 -> Word32 -> Position' a
 pattern Pn a p l c <- Pn' a p (splitW64 -> (l, c)) where
