@@ -940,7 +940,7 @@ give_gen
   -> CommandM ()
 give_gen force ii rng s0 giveRefine = do
   let s = trim s0
-  reportSLn "interaction.give" 20 $ "give_gen  " ++ s
+  reportSDoc "interaction.give" 20 $ TCP.text ("give_gen  " ++ s) TCP.<+> TCP.pretty rng
   -- Andreas, 2015-02-26 if string is empty do nothing rather
   -- than giving a parse error.
   unless (null s) $ do
@@ -972,9 +972,9 @@ give_gen force ii rng s0 giveRefine = do
     iis' <- sortInteractionPoints iis
     modifyTheInteractionPoints $ replace ii iis'
     -- print abstract expr
-    ce        <- abstractToConcreteScope scope ae
+    ce <- abstractToConcreteScope scope ae
     reportS "interaction.give" 30
-      [ "ce = " ++ show ce
+      [ "ce = " ++ prettyShow ce
       , "scopePrecedence = " ++ show (scope ^. scopePrecedence)
       ]
 
