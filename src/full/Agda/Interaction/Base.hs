@@ -46,6 +46,26 @@ data CommandState = CommandState
     --   recorded in 'theTCState', but when new interaction points are
     --   added by give or refine Agda does not ensure that the ranges
     --   of later interaction points are updated.
+    --
+    --   For example, consider a term @cons ?0 ?1@ with some ranges @r0@ @r1@@
+    --   for the two interaction points.
+    --   We refine @?0 := cons ?2 ?3@.
+    --   The new interaction points will get ranges @r2 = r3 = r0@.
+    --   We cannot do much better than that, as they are constrained by
+    --   @r0 ≤ r2 ≤ r3 < r1@.
+    --   At this point @('Range','InteractionId')@ still orders the IPs correctly.
+    --   Now we refine @?2 := cons ?4 ?5@ with @r4 = r5 = r2@;
+    --   this breaks the order maintained by @('Range','InteractionId')@.
+    --
+    --   So we need some other structure to remember the correct order of IPs.
+    --   The list 'theInteractionPoints' serves this purpose.
+    --
+    --   Alternatively, we could maintain for entries in 'InteractionPoints'
+    --   a path @p : Genesis = [Int]@ into their genesis tree.
+    --   E.g. for @?2@ we would have @p2 = [0]@ (the first child of @?0@)
+    --   and @p3 = [1]@ (the second child of @?0@).
+    --   Then @p4 = [0,0]@ and @p5 = [0,1]@.
+    --   The order @('Range','Genesis')@ would be correct then.
   , theCurrentFile       :: Maybe CurrentFile
     -- ^ The file which the state applies to. Only stored if the
     -- module was successfully type checked (potentially with
