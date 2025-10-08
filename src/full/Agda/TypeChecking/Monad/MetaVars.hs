@@ -618,10 +618,15 @@ removeInteractionPoint :: MonadInteractionPoints m => InteractionId -> m ()
 removeInteractionPoint ii =
   modifyInteractionPoints $ BiMap.update (\ ip -> Just ip{ ipSolved = True }) ii
 
--- | Get a list of interaction ids.
+-- | Get a list of unsolved interaction ids.
 {-# SPECIALIZE getInteractionPoints :: TCM [InteractionId] #-}
 getInteractionPoints :: ReadTCState m => m [InteractionId]
-getInteractionPoints = BiMap.keys <$> useR stInteractionPoints
+getInteractionPoints =
+  map fst . filter (not . ipSolved . snd) . BiMap.toList <$> useR stInteractionPoints
+  -- The following alternative will not include the unreachable IPs
+  -- (e.g. test/interaction/Issue2807).
+  -- This might lead to a wrong numbering of ?s.
+  -- map fst <$> getInteractionIdsAndMetas
 
 -- | Get all metas that correspond to unsolved interaction ids.
 getInteractionMetas :: ReadTCState m => m [MetaId]
