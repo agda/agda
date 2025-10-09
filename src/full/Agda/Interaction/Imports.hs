@@ -407,71 +407,6 @@ scopeCheckImport top = do
     let s = iScope i
     return (iModuleName i, s)
 
--- | If the module has already been visited (without warnings), then
--- its interface is returned directly. Otherwise the computation is
--- used to find the interface and the computed interface is stored for
--- potential later use.
-
-alreadyVisited ::
-     TopLevelModuleName
-  -> MainInterface
-  -> PragmaOptions
-  -> TCM ModuleInfo
-  -> TCM ModuleInfo
-alreadyVisited x isMain currentOptions getModule = do
-
-  -- Lookup x in the collection of visited modules.
-  getVisitedModule x >>= \case
-
-    -- Case: already visited and usable.
-    Just mi
-        -- We can only reuse a sufficiently checked module,
-        -- e.g. we cannot import a just scope-checked module when type-checking a module.
-      | miMode mi >= mode
-        -- A module with warnings should never be allowed to be imported from another module.
-      , null $ miWarnings mi -> do
-          reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
-          addOptionsCompatibilityWarnings mi
-
-    -- Case: not already visited or unusable.
-    _ -> do
-
-      -- Load the module.
-      reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
-      mi <- addOptionsCompatibilityWarnings =<< getModule
-      reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
-
-      -- Interfaces are not stored if we are only scope-checking, or
-      -- if any warnings were encountered.
-      when (mode == ModuleTypeChecked && null (miWarnings mi)) do
-        storeDecodedModule mi
-
-      reportS "warning.import" 10
-        [ "module: " ++ show (moduleNameParts x)
-        , "WarningOnImport: " ++ show (iImportWarning (miInterface mi))
-        ]
-
-      -- Record the module as visited.
-      visitModule mi
-      return mi
-
-  where
-    mode :: ModuleCheckMode
-    mode = case isMain of
-      MainInterface TypeCheck  -> ModuleTypeChecked
-      NotMainInterface         -> ModuleTypeChecked
-      MainInterface ScopeCheck -> ModuleScopeChecked
-
-    addOptionsCompatibilityWarnings :: ModuleInfo -> TCM ModuleInfo
-    addOptionsCompatibilityWarnings
-      mi@ModuleInfo{ miInterface = i, miPrimitive = isPrim, miWarnings = ws } = do
-
-      -- Check that imported options are compatible with current ones (issue #2487),
-      -- but give primitive modules a pass.
-      -- Compute updated warnings if needed.
-      ws' <- fromMaybe ws <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
-      return mi{ miWarnings = ws' }
-
 -- | The result and associated parameters of a type-checked file,
 --   when invoked directly via interaction or a backend.
 --   Note that the constructor is not exported.
@@ -596,9 +531,14 @@ getNonMainModuleInfo x msrc =
   bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $
            getInterface x NotMainInterface msrc
 
--- | A more precise variant of 'getNonMainInterface'. If warnings are
--- encountered then they are returned instead of being turned into
--- errors.
+-- | If the module has already been visited (without warnings), then
+-- its interface is returned directly.
+--
+-- Otherwise the interface is loaded via 'getStoredInterface'.
+--
+-- If that fails it is created via 'createInterface' or, for non-main modules,
+-- 'createInterfaceIsolated'.
+-- A such created interface is stored for potential later use.
 
 getInterface
   :: TopLevelModuleName
@@ -607,17 +547,33 @@ getInterface
      -- ^ Optional: the source code and some information about the source code.
   -> TCM ModuleInfo
 getInterface x isMain msrc = locallyTC eImportStack (x :) do
-     -- We remember but reset the pragma options locally
-     -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options
-     currentOptions <- useTC stPragmaOptions
 
-     setCurrentRange (C.modPragmas . srcModule <$> msrc) $ do
-       -- Now reset the options
-       tc <- getTC
-       setCommandLineOptions $ stPersistentOptions $ stPersistentState tc
+  -- We remember but reset the pragma options locally.
+  currentOptions <- useTC stPragmaOptions
+  -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options.
+  setCurrentRange (C.modPragmas . srcModule <$> msrc) $ do
+    -- Now reset the options
+    setCommandLineOptions =<< getsTC (stPersistentOptions . stPersistentState)
 
-     alreadyVisited x isMain currentOptions $ do
-       -- Not already visited.
+  -- Lookup x in the collection of visited modules.
+  getVisitedModule x >>= \case
+
+    -- Case: already visited and usable.
+    Just mi
+        -- We can only reuse a sufficiently checked module,
+        -- e.g. we cannot import a just scope-checked module when type-checking a module.
+      | miMode mi >= mode
+        -- A module with warnings should never be allowed to be imported from another module.
+      , null $ miWarnings mi -> do
+          reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
+          addOptionsCompatibilityWarnings currentOptions mi
+
+    -- Case: not already visited or unusable.
+    _ -> do
+
+      -- Load the module.
+      reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
+
       file <- case msrc of
         Nothing  -> findFile x
         Just src -> do
@@ -632,6 +588,7 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
           let file = srcOrigin src
           modifyTCLens stModuleToSourceId $ Map.insert x file
           pure file
+
       reportSDoc "import.iface" 15 do
         path <- srcFilePath file
         P.text $ List.intercalate "\n" $ map ("  " ++)
@@ -642,22 +599,55 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
       reportSLn "import.iface" 15 $ "  Check for cycle"
       checkForImportCycle
 
-      Bench.billTo [Bench.Import] (getStoredInterface x file msrc)
+      mi <- Bench.billTo [Bench.Import] (getStoredInterface x file msrc)
         `catchExceptT` \ reason -> do
 
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
             setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
-            modl <- case isMain of
+            mi <- case isMain of
               MainInterface _ -> createInterface x file isMain msrc
               NotMainInterface -> createInterfaceIsolated x file msrc
 
             -- Ensure that the given module name matches the one in the file.
-            let topLevelName = iTopLevelModuleName (miInterface modl)
+            let topLevelName = iTopLevelModuleName (miInterface mi)
             unless (topLevelName == x) do
               path <- srcFilePath file
               typeError $ OverlappingProjects path topLevelName x
 
-            return modl
+            pure mi
+
+      mi <- addOptionsCompatibilityWarnings currentOptions mi
+      reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
+
+      -- Interfaces are not stored if we are only scope-checking, or
+      -- if any warnings were encountered.
+      when (mode == ModuleTypeChecked && null (miWarnings mi)) do
+        storeDecodedModule mi
+
+      reportS "warning.import" 10
+        [ "module: " ++ show (moduleNameParts x)
+        , "WarningOnImport: " ++ show (iImportWarning (miInterface mi))
+        ]
+
+      -- Record the module as visited.
+      visitModule mi
+      return mi
+  where
+    mode :: ModuleCheckMode
+    mode = case isMain of
+      MainInterface TypeCheck  -> ModuleTypeChecked
+      NotMainInterface         -> ModuleTypeChecked
+      MainInterface ScopeCheck -> ModuleScopeChecked
+
+    addOptionsCompatibilityWarnings :: PragmaOptions -> ModuleInfo -> TCM ModuleInfo
+    addOptionsCompatibilityWarnings currentOptions
+      mi@ModuleInfo{ miInterface = i, miPrimitive = isPrim, miWarnings = ws } = do
+
+      -- Check that imported options are compatible with current ones (issue #2487),
+      -- but give primitive modules a pass.
+      -- Compute updated warnings if needed.
+      ws' <- fromMaybe ws <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
+      return mi{ miWarnings = ws' }
 
 -- | If checking produced non-benign warnings, error out.
 --
