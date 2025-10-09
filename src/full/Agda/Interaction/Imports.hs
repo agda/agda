@@ -419,7 +419,21 @@ alreadyVisited :: TopLevelModuleName ->
                   TCM ModuleInfo
 alreadyVisited x isMain currentOptions getModule = do
 
-  fromMaybeM loadAndRecordVisited existingWithoutWarnings
+  -- Lookup x in the collection of visited modules.
+  getVisitedModule x >>= \case
+
+    -- Case: already visited and usable.
+    Just mi
+        -- We can only reuse a sufficiently checked module,
+        -- e.g. we cannot import a just scope-checked module when type-checking a module.
+      | miMode mi >= mode
+        -- A module with warnings should never be allowed to be imported from another module.
+      , null $ miWarnings mi -> do
+          reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
+          processResultingModule mi
+
+    -- Case: not already visited or unusable.
+    _ -> loadAndRecordVisited
 
   where
   mode :: ModuleCheckMode
@@ -428,32 +442,13 @@ alreadyVisited x isMain currentOptions getModule = do
     NotMainInterface         -> ModuleTypeChecked
     MainInterface ScopeCheck -> ModuleScopeChecked
 
-  -- Case: already visited.
-  --
-  -- A module with warnings should never be allowed to be
-  -- imported from another module.
-  existingWithoutWarnings :: TCM (Maybe ModuleInfo)
-  existingWithoutWarnings = runMaybeT $ exceptToMaybeT $ do
-    mi <- maybeToExceptT "interface has not been visited in this context" $ MaybeT $
-      getVisitedModule x
-
-    when (miMode mi < mode) $
-      throwError "previously-visited interface was not sufficiently checked"
-
-    unless (null $ miWarnings mi) $
-      throwError "previously-visited interface had warnings"
-
-    reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
-
-    lift $ processResultingModule mi
-
   processResultingModule :: ModuleInfo -> TCM ModuleInfo
   processResultingModule mi = do
     let ModuleInfo { miInterface = i, miPrimitive = isPrim, miWarnings = ws } = mi
 
     -- Check that imported options are compatible with current ones (issue #2487),
-    -- but give primitive modules a pass
-    -- compute updated warnings if needed
+    -- but give primitive modules a pass.
+    -- Compute updated warnings if needed.
     wt <- fromMaybe ws <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
 
     return mi { miWarnings = wt }
