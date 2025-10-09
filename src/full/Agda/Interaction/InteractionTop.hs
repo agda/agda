@@ -1020,9 +1020,9 @@ give_gen force ii rng s0 giveRefine = do
 
 highlightExpr :: A.Expr -> TCM ()
 highlightExpr e =
-  localTC (\st -> st { envImportPath         = []
-                     , envHighlightingLevel  = NonInteractive
-                     , envHighlightingMethod = Direct }) $
+  localTC (\ env -> env { envImportStack        = []
+                        , envHighlightingLevel  = NonInteractive
+                        , envHighlightingMethod = Direct }) $
     generateAndPrintSyntaxInfo decl Full True
   where
     dummy = mkName_ (NameId 0 noModuleNameHash) ("dummy" :: String)

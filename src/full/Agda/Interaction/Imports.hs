@@ -612,8 +612,7 @@ getInterface
   -> Maybe Source
      -- ^ Optional: the source code and some information about the source code.
   -> TCM ModuleInfo
-getInterface x isMain msrc =
-  addImportCycleCheck x $ do
+getInterface x isMain msrc = locallyTC eImportStack (x :) do
      -- We remember but reset the pragma options locally
      -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options
      currentOptions <- useTC stPragmaOptions
@@ -937,7 +936,7 @@ createInterfaceIsolated
 createInterfaceIsolated x file msrc = do
       cleanCachedLog
 
-      ms          <- getImportPath
+      ms          <- getImportStack
       range       <- asksTC envRange
       call        <- asksTC envCall
       mf          <- useTC stModuleToSource
@@ -962,7 +961,7 @@ createInterfaceIsolated x file msrc = do
            -- The cache should not be used for an imported module, and it
            -- should be restored after the module has been type-checked
            freshTCM $
-             withImportPath ms $
+             withImportStack ms $
              localTC (\e -> e
                               -- Andreas, 2014-08-18:
                               -- Preserve the range of import statement
@@ -1012,7 +1011,7 @@ chaseMsg
   -> Maybe String         -- ^ Optionally: the file name.
   -> TCM ()
 chaseMsg kind x file = do
-  indentation <- (`replicate` ' ') <$> asksTC (pred . length . envImportPath)
+  indentation <- (`replicate` ' ') <$> asksTC (pred . length . envImportStack)
   traceImports <- optTraceImports <$> commandLineOptions
   let maybeFile = caseMaybe file "." $ \ f -> " (" ++ f ++ ")."
       vLvl | kind == "Checking"
@@ -1152,7 +1151,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     localTC (\env -> env { envSyntacticEqualityFuel = syntactic }) $ do
 
     verboseS "import.iface.create" 15 $ do
-      nestingLevel      <- asksTC (pred . length . envImportPath)
+      nestingLevel      <- asksTC (pred . length . envImportStack)
       highlightingLevel <- asksTC envHighlightingLevel
       reportSLn "import.iface.create" 15 $ unlines
         [ "  nesting      level: " ++ show nestingLevel

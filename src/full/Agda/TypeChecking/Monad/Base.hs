@@ -4025,7 +4025,7 @@ ifTopLevelAndHighlightingLevelIsOr ::
 ifTopLevelAndHighlightingLevelIsOr l b m = do
   e <- askTC
   when (envHighlightingLevel e >= l || b) $
-    case (envImportPath e) of
+    case (envImportStack e) of
       -- Below the main module.
       (_:_:_) -> pure ()
       -- In or before the top-level module.
@@ -4053,7 +4053,7 @@ data TCEnv =
             -- type-checked.  'Nothing' if we do not have a file
             -- (like in interactive mode see @CommandLine@).
           , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
-          , envImportPath          :: [TopLevelModuleName]
+          , envImportStack         :: [TopLevelModuleName]
             -- ^ The module stack with the entry being the top-level module as
             --   Agda chases modules. It will be empty if there is no main
             --   module, will have a single entry for the top level module, or
@@ -4214,7 +4214,7 @@ initEnv = TCEnv { envContext             = []
                 , envCurrentModule       = noModuleName
                 , envCurrentPath         = Nothing
                 , envAnonymousModules    = []
-                , envImportPath          = []
+                , envImportStack         = []
                 , envMutualBlock         = Nothing
                 , envTerminationCheck    = TerminationCheck
                 , envCoverageCheck       = YesCoverageCheck
@@ -4311,8 +4311,8 @@ eCurrentPath f e = f (envCurrentPath e) <&> \ x -> e { envCurrentPath = x }
 eAnonymousModules :: Lens' TCEnv [(ModuleName, Nat)]
 eAnonymousModules f e = f (envAnonymousModules e) <&> \ x -> e { envAnonymousModules = x }
 
-eImportPath :: Lens' TCEnv [TopLevelModuleName]
-eImportPath f e = f (envImportPath e) <&> \ x -> e { envImportPath = x }
+eImportStack :: Lens' TCEnv [TopLevelModuleName]
+eImportStack f e = f (envImportStack e) <&> \ x -> e { envImportStack = x }
 
 eMutualBlock :: Lens' TCEnv (Maybe MutualId)
 eMutualBlock f e = f (envMutualBlock e) <&> \ x -> e { envMutualBlock = x }
