@@ -936,7 +936,7 @@ createInterfaceIsolated
 createInterfaceIsolated x file msrc = do
       cleanCachedLog
 
-      ms          <- getImportStack
+      ms          <- asksTC envImportStack
       range       <- asksTC envRange
       call        <- asksTC envCall
       mf          <- useTC stModuleToSource
@@ -961,7 +961,6 @@ createInterfaceIsolated x file msrc = do
            -- The cache should not be used for an imported module, and it
            -- should be restored after the module has been type-checked
            freshTCM $
-             withImportStack ms $
              localTC (\e -> e
                               -- Andreas, 2014-08-18:
                               -- Preserve the range of import statement
@@ -969,6 +968,7 @@ createInterfaceIsolated x file msrc = do
                               -- imported modules:
                             { envRange              = range
                             , envCall               = call
+                            , envImportStack        = ms
                             }) $ do
                setDecodedModules ds
                setCommandLineOptions opts
