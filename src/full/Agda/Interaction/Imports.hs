@@ -703,16 +703,18 @@ checkOptionsCompatible current imported importedModule = flip execStateT True $ 
 -- | Compare options and return collected warnings.
 -- | Returns `Nothing` if warning collection was skipped.
 
-getOptionsCompatibilityWarnings :: MainInterface -> Bool -> PragmaOptions -> Interface -> TCM (Maybe (Set TCWarning))
-getOptionsCompatibilityWarnings isMain isPrim currentOptions i = runMaybeT $ exceptToMaybeT $ do
-  -- We're just dropping these reasons-for-skipping messages for now.
-  -- They weren't logged before, but they're nice for documenting the early returns.
-  when isPrim $
-    throwError "Options consistency checking disabled for always-available primitive module"
-  whenM (lift $ checkOptionsCompatible currentOptions (iOptionsUsed i)
-                  (iTopLevelModuleName i)) $
-    throwError "No warnings to collect because options were compatible"
-  lift $ getAllWarnings' isMain ErrorWarnings
+getOptionsCompatibilityWarnings ::
+     MainInterface
+  -> Bool           -- ^ Are we looking at a primitvie module?
+  -> PragmaOptions
+  -> Interface
+  -> TCM (Maybe (Set TCWarning))
+getOptionsCompatibilityWarnings isMain False currentOptions Interface{ iOptionsUsed, iTopLevelModuleName } = do
+  ifM (checkOptionsCompatible currentOptions iOptionsUsed iTopLevelModuleName)
+    {-then-} (return Nothing) -- No warnings to collect because options were compatible.
+    {-else-} (Just <$> getAllWarnings' isMain ErrorWarnings)
+-- Options consistency checking is disabled for always-available primitive modules.
+getOptionsCompatibilityWarnings _ True _ _ = return Nothing
 
 -- | Try to get the interface from interface file or cache.
 
