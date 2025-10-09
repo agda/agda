@@ -412,11 +412,12 @@ scopeCheckImport top = do
 -- used to find the interface and the computed interface is stored for
 -- potential later use.
 
-alreadyVisited :: TopLevelModuleName ->
-                  MainInterface ->
-                  PragmaOptions ->
-                  TCM ModuleInfo ->
-                  TCM ModuleInfo
+alreadyVisited ::
+     TopLevelModuleName
+  -> MainInterface
+  -> PragmaOptions
+  -> TCM ModuleInfo
+  -> TCM ModuleInfo
 alreadyVisited x isMain currentOptions getModule = do
 
   -- Lookup x in the collection of visited modules.
@@ -433,46 +434,43 @@ alreadyVisited x isMain currentOptions getModule = do
           addOptionsCompatibilityWarnings mi
 
     -- Case: not already visited or unusable.
-    _ -> loadAndRecordVisited
+    _ -> do
+
+      -- Load the module.
+      reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
+      mi <- addOptionsCompatibilityWarnings =<< getModule
+      reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
+
+      -- Interfaces are not stored if we are only scope-checking, or
+      -- if any warnings were encountered.
+      when (mode == ModuleTypeChecked && null (miWarnings mi)) do
+        storeDecodedModule mi
+
+      reportS "warning.import" 10
+        [ "module: " ++ show (moduleNameParts x)
+        , "WarningOnImport: " ++ show (iImportWarning (miInterface mi))
+        ]
+
+      -- Record the module as visited.
+      visitModule mi
+      return mi
 
   where
-  mode :: ModuleCheckMode
-  mode = case isMain of
-    MainInterface TypeCheck  -> ModuleTypeChecked
-    NotMainInterface         -> ModuleTypeChecked
-    MainInterface ScopeCheck -> ModuleScopeChecked
+    mode :: ModuleCheckMode
+    mode = case isMain of
+      MainInterface TypeCheck  -> ModuleTypeChecked
+      NotMainInterface         -> ModuleTypeChecked
+      MainInterface ScopeCheck -> ModuleScopeChecked
 
-  addOptionsCompatibilityWarnings :: ModuleInfo -> TCM ModuleInfo
-  addOptionsCompatibilityWarnings
-    mi@ModuleInfo{ miInterface = i, miPrimitive = isPrim, miWarnings = ws } = do
+    addOptionsCompatibilityWarnings :: ModuleInfo -> TCM ModuleInfo
+    addOptionsCompatibilityWarnings
+      mi@ModuleInfo{ miInterface = i, miPrimitive = isPrim, miWarnings = ws } = do
 
-    -- Check that imported options are compatible with current ones (issue #2487),
-    -- but give primitive modules a pass.
-    -- Compute updated warnings if needed.
-    ws' <- fromMaybe ws <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
-    return mi{ miWarnings = ws' }
-
-  loadAndRecordVisited :: TCM ModuleInfo
-  loadAndRecordVisited = do
-    reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
-    mi <- addOptionsCompatibilityWarnings =<< getModule
-    reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
-
-    -- Interfaces are not stored if we are only scope-checking, or
-    -- if any warnings were encountered.
-    case (isMain, null $ miWarnings mi) of
-      (MainInterface ScopeCheck, _) -> return ()
-      (_, False)                    -> return ()
-      _                             -> storeDecodedModule mi
-
-    reportS "warning.import" 10
-      [ "module: " ++ show (moduleNameParts x)
-      , "WarningOnImport: " ++ show (iImportWarning (miInterface mi))
-      ]
-
-    visitModule mi
-    return mi
-
+      -- Check that imported options are compatible with current ones (issue #2487),
+      -- but give primitive modules a pass.
+      -- Compute updated warnings if needed.
+      ws' <- fromMaybe ws <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
+      return mi{ miWarnings = ws' }
 
 -- | The result and associated parameters of a type-checked file,
 --   when invoked directly via interaction or a backend.
