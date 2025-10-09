@@ -430,7 +430,7 @@ alreadyVisited x isMain currentOptions getModule = do
         -- A module with warnings should never be allowed to be imported from another module.
       , null $ miWarnings mi -> do
           reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
-          processResultingModule mi
+          addOptionsCompatibilityWarnings mi
 
     -- Case: not already visited or unusable.
     _ -> loadAndRecordVisited
@@ -442,21 +442,20 @@ alreadyVisited x isMain currentOptions getModule = do
     NotMainInterface         -> ModuleTypeChecked
     MainInterface ScopeCheck -> ModuleScopeChecked
 
-  processResultingModule :: ModuleInfo -> TCM ModuleInfo
-  processResultingModule mi = do
-    let ModuleInfo { miInterface = i, miPrimitive = isPrim, miWarnings = ws } = mi
+  addOptionsCompatibilityWarnings :: ModuleInfo -> TCM ModuleInfo
+  addOptionsCompatibilityWarnings
+    mi@ModuleInfo{ miInterface = i, miPrimitive = isPrim, miWarnings = ws } = do
 
     -- Check that imported options are compatible with current ones (issue #2487),
     -- but give primitive modules a pass.
     -- Compute updated warnings if needed.
-    wt <- fromMaybe ws <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
-
-    return mi { miWarnings = wt }
+    ws' <- fromMaybe ws <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
+    return mi{ miWarnings = ws' }
 
   loadAndRecordVisited :: TCM ModuleInfo
   loadAndRecordVisited = do
     reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
-    mi <- processResultingModule =<< getModule
+    mi <- addOptionsCompatibilityWarnings =<< getModule
     reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
 
     -- Interfaces are not stored if we are only scope-checking, or
