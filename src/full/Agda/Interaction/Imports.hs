@@ -417,21 +417,23 @@ alreadyVisited :: TopLevelModuleName ->
                   PragmaOptions ->
                   TCM ModuleInfo ->
                   TCM ModuleInfo
-alreadyVisited x isMain currentOptions getModule =
-  case isMain of
-    MainInterface TypeCheck                       -> useExistingOrLoadAndRecordVisited ModuleTypeChecked
-    NotMainInterface                              -> useExistingOrLoadAndRecordVisited ModuleTypeChecked
-    MainInterface ScopeCheck                      -> useExistingOrLoadAndRecordVisited ModuleScopeChecked
+alreadyVisited x isMain currentOptions getModule = do
+
+  fromMaybeM loadAndRecordVisited existingWithoutWarnings
+
   where
-  useExistingOrLoadAndRecordVisited :: ModuleCheckMode -> TCM ModuleInfo
-  useExistingOrLoadAndRecordVisited mode = fromMaybeM loadAndRecordVisited (existingWithoutWarnings mode)
+  mode :: ModuleCheckMode
+  mode = case isMain of
+    MainInterface TypeCheck  -> ModuleTypeChecked
+    NotMainInterface         -> ModuleTypeChecked
+    MainInterface ScopeCheck -> ModuleScopeChecked
 
   -- Case: already visited.
   --
   -- A module with warnings should never be allowed to be
   -- imported from another module.
-  existingWithoutWarnings :: ModuleCheckMode -> TCM (Maybe ModuleInfo)
-  existingWithoutWarnings mode = runMaybeT $ exceptToMaybeT $ do
+  existingWithoutWarnings :: TCM (Maybe ModuleInfo)
+  existingWithoutWarnings = runMaybeT $ exceptToMaybeT $ do
     mi <- maybeToExceptT "interface has not been visited in this context" $ MaybeT $
       getVisitedModule x
 
