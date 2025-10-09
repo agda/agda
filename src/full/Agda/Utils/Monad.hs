@@ -7,7 +7,7 @@ module Agda.Utils.Monad
     )
     where
 
-import Control.Monad.Except   ( MonadError(catchError, throwError) )
+import Control.Monad.Except   ( MonadError(catchError, throwError), ExceptT, runExceptT )
 import Control.Monad.Identity ( runIdentity )
 import Control.Monad.State    ( MonadState(get, put) )
 import Control.Monad.Writer   ( MonadWriter(tell), Writer, WriterT, mapWriterT )
@@ -293,6 +293,11 @@ tryCatch m = (Nothing <$ m) `catchError` \ err -> return $ Just err
 
 guardWithError :: MonadError e m => e -> Bool -> m ()
 guardWithError e b = if b then return () else throwError e
+
+-- | Handle errors thrown in 'ExceptT'.
+
+catchExceptT :: Monad m => ExceptT e m a -> (e -> m a) -> m a
+catchExceptT m h = either h return =<< runExceptT m
 
 -- State monad ------------------------------------------------------------
 

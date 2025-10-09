@@ -617,6 +617,7 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
        setCommandLineOptions $ stPersistentOptions $ stPersistentState tc
 
      alreadyVisited x isMain currentOptions $ do
+       -- Not already visited.
       file <- case msrc of
         Nothing  -> findFile x
         Just src -> do
@@ -641,16 +642,8 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
       reportSLn "import.iface" 15 $ "  Check for cycle"
       checkForImportCycle
 
-      -- -- Andreas, 2014-10-20 AIM XX:
-      -- -- Always retype-check the main file to get the iInsideScope
-      -- -- which is no longer serialized.
-      -- let maySkip = isMain == NotMainInterface
-      -- Andreas, 2015-07-13: Serialize iInsideScope again.
-      -- Andreas, 2020-05-13 issue #4647: don't skip if reload because of top-level command
-      stored <- runExceptT $ Bench.billTo [Bench.Import] $ do
-        getStoredInterface x file msrc
-
-      let recheck = \reason -> do
+      Bench.billTo [Bench.Import] (getStoredInterface x file msrc)
+        `catchExceptT` \ reason -> do
 
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
             setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
@@ -665,8 +658,6 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
               typeError $ OverlappingProjects path topLevelName x
 
             return modl
-
-      either recheck pure stored
 
 -- | If checking produced non-benign warnings, error out.
 --
