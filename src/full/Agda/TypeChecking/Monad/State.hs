@@ -422,7 +422,7 @@ currentTopLevelModule ::
 currentTopLevelModule = do
   useR stCurrentModule >>= \case
     Just (_, top) -> return (Just top)
-    Nothing       -> listToMaybe <$> asksTC envImportPath
+    Nothing       -> listToMaybe <$> asksTC envImportStack
 
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.
