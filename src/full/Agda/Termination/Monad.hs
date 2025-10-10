@@ -184,6 +184,7 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
            , HasOptions
            , HasBuiltins
            , MonadDebug
+           , MonadFileId
            , HasConstInfo
            , MonadIO
            , MonadTCEnv

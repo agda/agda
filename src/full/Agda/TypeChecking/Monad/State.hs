@@ -347,6 +347,12 @@ instance MonadIO m => MonadFileId (TCMT m) where
   fileFromId fi = useTC stFileDict <&> (`getIdFile` fi)
   idFromFile = stateTCLens stFileDict . registerFileIdWithBuiltin
 
+instance MonadFileId ReduceM where
+  fileFromId fi = useTC stFileDict <&> (`getIdFile` fi)
+  idFromFile = __IMPOSSIBLE__
+    -- we cannot write to the state here, so we cannot do sth like
+    -- stateTCLens stFileDict . registerFileIdWithBuiltin
+
 -- | Does the given 'FileId' belong to one of Agda's builtin modules?
 
 isBuiltinModule :: ReadTCState m => FileId -> m (Maybe IsBuiltinModule)

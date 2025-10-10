@@ -30,7 +30,8 @@ import Data.Text qualified as Text
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Caching
+import Agda.TypeChecking.Monad.Caching  ( areWeCaching )
+import {-# SOURCE #-} Agda.TypeChecking.Monad.State () -- instance MonadFileId TCM
 import {-# SOURCE #-} Agda.TypeChecking.Pretty ( MonadPretty, prettyTCM, vcat, ($$) )
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning )

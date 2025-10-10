@@ -71,6 +71,7 @@ newtype NLM a = NLM { unNLM :: ExceptT Blocked_ (StateT NLMState ReduceM) a }
            , MonadError Blocked_, MonadState NLMState
            , HasBuiltins, HasConstInfo, HasOptions, ReadTCState
            , MonadTCEnv, MonadReduce, MonadAddContext, MonadDebug
+           , MonadFileId
            , PureTCM
            )
 

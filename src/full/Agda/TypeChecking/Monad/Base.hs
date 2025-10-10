@@ -6123,6 +6123,8 @@ instance MonadBlock m => MonadBlock (ReaderT e m) where
   catchPatternErr h m = ReaderT $ \ e ->
     let run = flip runReaderT e in catchPatternErr (run . h) (run m)
 
+instance MonadFileId m => MonadFileId (BlockT m)
+
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
 ---------------------------------------------------------------------------
@@ -6195,6 +6197,7 @@ instance Monad m => Monad (TCMT m) where
 
 instance (CatchIO m, MonadIO m) => MonadFail (TCMT m) where
   fail = internalError
+  {-# INLINE fail #-}
 
 instance MonadIO m => MonadIO (TCMT m) where
   liftIO m = TCM $ \ s env -> do

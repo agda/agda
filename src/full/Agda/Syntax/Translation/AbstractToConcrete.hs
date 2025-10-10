@@ -97,7 +97,8 @@ import Agda.Utils.Impossible
 -- | Preconditions to run the AbstractToConcrete translation.
 --
 type MonadAbsToCon m =
-  ( MonadFresh NameId m
+  ( MonadFileId m
+  , MonadFresh NameId m
   , MonadInteractionPoints m
   , MonadStConcreteNames m
   , HasOptions m
@@ -140,7 +141,8 @@ abstractToConcreteUnqualify = runAbsToCon . doUnqualifyOutOfScopeNames . toConcr
 ---------------------------------------------------------------------------
 
 type MonadToConcrete m =
-  ( MonadAbsToCon m
+  ( MonadFileId m
+  , MonadAbsToCon m
   , MonadReader Env m
   )
 
@@ -152,6 +154,7 @@ newtype AbsToConT m a = AbsToCon { unAbsToCon :: ReaderT Env m a }
     , HasOptions
     , MonadAddContext
     , MonadDebug
+    , MonadFileId
     , MonadInteractionPoints
     , MonadReduce
     , MonadStConcreteNames

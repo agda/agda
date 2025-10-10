@@ -28,7 +28,7 @@ data FreshThings = FreshThings
 
 newtype PureConversionT m a = PureConversionT
   { unPureConversionT :: ExceptT TCErr (StateT FreshThings m) a }
-  deriving (Functor, Applicative, Monad, MonadError TCErr, MonadState FreshThings, PureTCM)
+  deriving (Functor, Applicative, Monad, MonadError TCErr, MonadState FreshThings, MonadFileId, PureTCM)
 
 {-# SPECIALIZE pureEqualTerm :: Type -> Term -> Term -> TCM Bool #-}
 pureEqualTerm
