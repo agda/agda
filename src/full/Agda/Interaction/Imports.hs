@@ -517,7 +517,7 @@ getNonMainInterface
   -> TCM Interface
 getNonMainInterface x msrc = do
   mi <- getNonMainModuleInfo x msrc
-  tcWarningsToError $ Set.toAscList $ miWarnings mi
+  tcWarningsToError x (miSourceFile mi) $ Set.toAscList $ miWarnings mi
   return (miInterface mi)
 
 getNonMainModuleInfo
@@ -785,6 +785,7 @@ getStoredInterface x file@(SourceFile fi) msrc = do
           , miWarnings = empty
           , miPrimitive = isPrimitiveMod
           , miMode = ModuleTypeChecked
+          , miSourceFile = file
           }
 
   -- Check if we have cached the module.
@@ -1320,6 +1321,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
       , miWarnings = mallWarnings
       , miPrimitive = isPrimitiveMod
       , miMode = moduleCheckMode isMain
+      , miSourceFile = sf
       }
 
 -- | Expert version of 'getAllWarnings'; if 'isMain' is a

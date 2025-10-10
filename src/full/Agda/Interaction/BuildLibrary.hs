@@ -103,5 +103,5 @@ checkModule m src = do
   let isInfectiveWarning InfectiveImport{} = True
       isInfectiveWarning _                 = False
       warns = filter (not . isInfectiveWarning . tcWarning) $ Set.toAscList $ miWarnings mi
-  tcWarningsToError warns
+  tcWarningsToError m (Imp.srcOrigin src) warns
   return ()

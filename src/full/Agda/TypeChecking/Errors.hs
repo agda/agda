@@ -774,9 +774,14 @@ instance PrettyTCM TypeError where
       , text "must not be located in the directory" <+> text (takeDirectory (lib ^. libFile))
       ]
 
-    SolvedButOpenHoles -> fsep $
-      pwords "Module cannot be imported since it has open interaction points" ++
-      pwords "(consider adding {-# OPTIONS --allow-unsolved-metas #-} to this module)"
+    SolvedButOpenHoles x file -> do
+      path <- srcFilePath file
+      let x' = setRange (rangeFromAbsolutePath path) x
+      vcat $
+        [ fsep $ pretty (PrintRange x') :
+            pwords "cannot be imported since it has open interaction points"
+        , "(consider adding {-# OPTIONS --allow-unsolved-metas #-} to that module)"
+        ]
 
     CyclicModuleDependency (List2 m0 m1 ms) ->
       fsep (pwords "cyclic module dependency:")

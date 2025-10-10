@@ -1353,6 +1353,8 @@ data ModuleInfo = ModuleInfo
     -- be importable.
   , miMode       :: ModuleCheckMode
     -- ^ The `ModuleCheckMode` used to create the `Interface`
+  , miSourceFile :: SourceFile
+    -- ^ The file belonging to the module.
   }
   deriving Generic
 
@@ -5383,9 +5385,9 @@ data TypeError
             -- ^ Collected errors when processing the @.agda-lib@ file.
         | LibTooFarDown TopLevelModuleName AgdaLibFile
             -- ^ The @.agda-lib@ file for the given module is not on the right level.
-        | SolvedButOpenHoles
-          -- ^ Some interaction points (holes) have not been filled by user.
-          --   There are not 'UnsolvedMetas' since unification solved them.
+        | SolvedButOpenHoles TopLevelModuleName SourceFile
+          -- ^ Some interaction points (holes) in the given module have not been filled by the user.
+          --   These are not 'UnsolvedMetas' since unification solved them.
           --   This is an error, since interaction points are never filled
           --   without user interaction.
         | CyclicModuleDependency (List2 TopLevelModuleName)
