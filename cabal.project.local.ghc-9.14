@@ -1,0 +1,96 @@
+with-compiler: ghc-9.14
+
+flags:       +enable-cluster-counting
+
+-- allow-newer for GHC-shipped packages
+allow-newer: *:Cabal
+allow-newer: *:Cabal-syntax
+allow-newer: *:array
+allow-newer: *:base
+allow-newer: *:binary
+allow-newer: *:bytestring
+allow-newer: *:containers
+allow-newer: *:deepseq
+allow-newer: *:directory
+allow-newer: *:exceptions
+allow-newer: *:filepath
+allow-newer: *:ghc
+allow-newer: *:ghc-bignum
+allow-newer: *:ghc-boot
+allow-newer: *:ghc-boot-th
+allow-newer: *:ghc-compact
+allow-newer: *:ghc-experimental
+allow-newer: *:ghc-heap
+allow-newer: *:ghc-prim
+allow-newer: *:ghci
+allow-newer: *:haskeline
+allow-newer: *:hpc
+allow-newer: *:integer-gmp
+allow-newer: *:libiserv
+allow-newer: *:mtl
+allow-newer: *:os-string
+allow-newer: *:parsec
+allow-newer: *:pretty
+allow-newer: *:process
+allow-newer: *:rts
+allow-newer: *:stm
+allow-newer: *:system-cxx-std-lib
+allow-newer: *:template-haskell
+allow-newer: *:terminfo
+allow-newer: *:text
+allow-newer: *:time
+allow-newer: *:transformers
+allow-newer: *:unix
+allow-newer: *:xhtml
+
+-- Fix installed versions (GHC-shipped packages)
+constraints:  Cabal              installed
+constraints:  Cabal-syntax       installed
+constraints:  array              installed
+constraints:  base               installed
+constraints:  binary             installed
+constraints:  bytestring         installed
+constraints:  containers         installed
+constraints:  deepseq            installed
+constraints:  directory          installed
+constraints:  exceptions         installed
+constraints:  filepath           installed
+constraints:  ghc                installed
+constraints:  ghc-bignum         installed
+constraints:  ghc-boot           installed
+constraints:  ghc-boot-th        installed
+constraints:  ghc-compact        installed
+constraints:  ghc-experimental   installed
+constraints:  ghc-heap           installed
+constraints:  ghc-prim           installed
+constraints:  ghci               installed
+constraints:  haskeline          installed
+constraints:  hpc                installed
+constraints:  integer-gmp        installed
+constraints:  libiserv           installed
+constraints:  mtl                installed
+constraints:  os-string          installed
+constraints:  parsec             installed
+constraints:  pretty             installed
+constraints:  process            installed
+constraints:  rts                installed
+constraints:  stm                installed
+constraints:  system-cxx-std-lib installed
+constraints:  template-haskell   installed
+constraints:  terminfo           installed
+constraints:  text               installed
+constraints:  time               installed
+constraints:  transformers       installed
+constraints:  unix               installed
+constraints:  xhtml              installed
+
+-- -- Patches
+
+-- constraints: hashable >= 1.4.3.1
+-- allow-newer: *:hashable
+
+-- source-repository-package
+--   type:     git
+--   location: /Users/abel/bin/src/hashable
+-- --   location: https://github.com/TeofilC/aeson.git
+--   tag:       4bc297689cd3ecf71612e5b45e94a442831c2106
