@@ -1,5 +1,7 @@
 {-# OPTIONS --cubical --allow-unsolved-metas #-}
 
+-- {-# OPTIONS -v tc.cover.cubical:30 #-}
+
 open import Agda.Builtin.Cubical.Path
 open import Agda.Primitive.Cubical
 open import Agda.Builtin.Bool
