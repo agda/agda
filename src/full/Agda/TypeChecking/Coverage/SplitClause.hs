@@ -70,20 +70,21 @@ data SplitClause = SClause
     --   substitution 'scSubst'.
   }
 
-data UnifyEquiv = UE { infoTel0 :: Telescope          -- Γ0
-                     , infoTel :: Telescope           -- Γ'
-                     , infoEqTel :: Telescope         -- Γ0 ⊢ Δ
-                     , infoEqLHS :: [Term]            -- Γ0 ⊢ us : Δ
-                     , infoEqRHS :: [Term]            -- Γ0 ⊢ vs : Δ
-                     , infoRho :: PatternSubstitution -- Γ' ⊢ ρ : Γ0
-                                                      -- Γ = Γ0,(φ : I),(eqs : Paths Δ us vs)
-                                                      -- Γ' ⊢ ρ,i1,refls : Γ
-                     , infoTau :: Substitution        -- Γ  ⊢ τ           : Γ'
-                     , infoLeftInv :: Substitution    -- Γ | (i : I) ⊢ leftInv : Γ
-                     -- leftInv[i=0] = ρ[τ],i1s,refls
-                     -- leftInv[i=1] = idS
-                     }
-                  deriving Show
+data UnifyEquiv = UE
+  { infoTel0    :: Telescope            -- Γ0
+  , infoTel     :: Telescope            -- Γ'
+  , infoEqTel   :: Telescope            -- Γ0 ⊢ Δ
+  , infoEqLHS   :: [Term]               -- Γ0 ⊢ us : Δ
+  , infoEqRHS   :: [Term]               -- Γ0 ⊢ vs : Δ
+  , infoRho     :: PatternSubstitution  -- Γ' ⊢ ρ : Γ0
+                                        -- Γ = Γ0,(φ : I),(eqs : Paths Δ us vs)
+                                        -- Γ' ⊢ ρ,i1,refls : Γ
+  , infoTau     :: Substitution         -- Γ  ⊢ τ           : Γ'
+  , infoLeftInv :: Substitution         -- Γ | (i : I) ⊢ leftInv : Γ
+                                        -- leftInv[i=0] = ρ[τ],i1s,refls
+                                        -- leftInv[i=1] = idS
+  }
+  deriving Show
 
 data IInfo = TheInfo UnifyEquiv | NoInfo deriving Show
 
@@ -119,6 +120,6 @@ data CoverResult = CoverResult
   , coverUsedClauses     :: IntSet -- Set Nat
   , coverMissingClauses  :: [(Telescope, [NamedArg DeBruijnPattern])]
   , coverPatterns        :: [Clause]
-  -- ^ The set of patterns used as cover.
+      -- ^ The set of patterns used as cover.
   , coverNoExactClauses  :: IntSet -- Set Nat
   }
