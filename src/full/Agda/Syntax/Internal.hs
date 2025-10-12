@@ -1331,7 +1331,17 @@ instance KillRange Substitution where
   killRange (Lift n rho)           = killRangeN (Lift n) rho
 
 instance KillRange PatOrigin where
-  killRange = id
+  killRange = \case
+    PatOSystem     -> PatOSystem
+    PatOSplit      -> PatOSplit
+    PatOSplitArg n -> killRangeN PatOSplitArg n
+    PatOVar n      -> killRangeN PatOVar n
+    PatODot        -> PatODot
+    PatOWild       -> PatOWild
+    PatOCon        -> PatOCon
+    PatORec        -> PatORec
+    PatOLit        -> PatOLit
+    PatOAbsurd     -> PatOAbsurd
 
 instance KillRange PatternInfo where
   killRange (PatternInfo o xs) = killRangeN PatternInfo o xs
