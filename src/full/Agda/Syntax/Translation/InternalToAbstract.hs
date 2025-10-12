@@ -1290,7 +1290,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
           I.Lit l -> addAsBindings asB $ return $ A.LitP empty l
           _       -> __IMPOSSIBLE__
       I.VarP i x -> addAsBindings (patAsNames i) $ case patOrigin i of
-        o@PatODot  -> reifyDotP o $ var $ dbPatVarIndex x
+        o@PatODot  -> reifyDotP keepVars o $ var $ dbPatVarIndex x
         PatOWild   -> return $ A.WildP patNoRange
         PatOAbsurd -> return $ A.AbsurdP patNoRange
         _          -> reifyVarP x
@@ -1303,8 +1303,8 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
           if nameConcrete x == nameConcrete x' then
             return $ A.VarP $ mkBindName x'
           else
-            reifyDotP o v
-        o -> reifyDotP o v
+            reifyDotP keepVars o v
+        o -> reifyDotP keepVars o v
       I.LitP i l  -> addAsBindings (patAsNames i) $ return $ A.LitP empty l
       I.ProjP o d -> return $ A.ProjP patNoRange o $ unambiguous d
       I.ConP c cpi ps | conPRecord cpi -> addAsBindings (patAsNames $ conPInfo cpi) $
@@ -1320,7 +1320,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
         PatOVar x | keepVars -> return $ A.VarP $ mkBindName x
         _ -> A.DefP patNoRange (unambiguous f) <$> reifyPatterns ps
       I.IApplyP i _ _ x -> addAsBindings (patAsNames i) $ case patOrigin i of
-        o@PatODot  -> reifyDotP o $ var $ dbPatVarIndex x
+        o@PatODot  -> reifyDotP keepVars o $ var $ dbPatVarIndex x
         PatOWild   -> return $ A.WildP patNoRange
         PatOAbsurd -> return $ A.AbsurdP patNoRange
         _          -> reifyVarP x
@@ -1339,9 +1339,8 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
          | otherwise -> return $ A.VarP $
              mkBindName n { nameConcrete = C.simpleName y }
 
-    reifyDotP :: MonadReify m => PatOrigin -> Term -> m A.Pattern
-    reifyDotP o v = do
-      keepVars <- optKeepPatternVariables <$> pragmaOptions
+    reifyDotP :: MonadReify m => Bool -> PatOrigin -> Term -> m A.Pattern
+    reifyDotP keepVars o v = do
       if | PatOVar x <- o , keepVars       -> return $ A.VarP $ mkBindName x
          | PatOSplitArg x <- o , keepVars  -> A.VarP . mkBindName <$> freshName noRange x
          | otherwise                       -> A.DotP patNoRange <$> reify v
