@@ -12,7 +12,8 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
-import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (Pretty, pretty, prettyShow)
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Internal hiding (DataOrRecord)
 
 import Agda.TypeChecking.Coverage.Match
@@ -69,6 +70,16 @@ data SplitClause = SClause
     --   'fixTargetType' computes the new 'scTarget' by applying
     --   substitution 'scSubst'.
   }
+  deriving Show
+
+instance Pretty SplitClause where
+  pretty (SClause tel ps _rho _cps mt) =
+    P.vcat
+      [ "SplitClause"
+      , P.text "tel =" P.<+> P.pretty tel
+      , P.text "ps  =" P.<+> P.pretty ps
+      , P.text "mt  =" P.<+> P.pretty mt
+      ]
 
 data UnifyEquiv = UE
   { infoTel0    :: Telescope            -- Γ0
