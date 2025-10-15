@@ -18,28 +18,10 @@ Step 1: Install Agda
 
 You can get the Agda type-checker in at least 4 ways:
 
-.. _install-agda-prebuilt:
-
-Option 1: From package manager
-------------------------------
-
-``agda`` binaries are distributed by various package managers.
-
-Installing binaries can be faster than building from source,
-but installation problems might be harder to work around.
-
-Repology.org tracks which versions of Agda are offered by various package managers:
-
-.. raw:: html
-
-  <embed src="https://repology.org/badge/vertical-allrepos/agda.svg?columns=4&exclude_unsupported=1&exclude_sources=modules,site">
-
-As well as the repositories tracked by repology,
-an OS-independent binary installation of Agda is provided by the `python installer <https://pypi.org/project/agda/>`_.
 
 .. _prebuilt-agda-from-github:
 
-Option 2: From GitHub releases
+Option : From GitHub releases
 ------------------------------
 
 Pre-built ``agda`` binaries are available for the following platforms:
@@ -55,7 +37,7 @@ To install, download the appropriate archive, extract the binary, and place it i
 
 .. _install-agda-dev:
 
-Option 3: From source
+Option 2: From source
 ---------------------
 
 If you want to work on the Agda compiler itself, or you want to work with the very
@@ -65,6 +47,20 @@ latest version of Agda, then you can compile it from source from the `Github rep
 Both ``cabal install``-based and ``nix build``-based developer builds are maintained.
 
 Miscellaneous developer information is available in the repository's ``HACKING.md``.
+
+.. _install-agda-prebuilt:
+
+Option 3: From package manager
+------------------------------
+
+``agda`` binaries are distributed by various package managers, but are often out of date. Repology.org maintains a list:
+
+.. raw:: html
+
+  <embed src="https://repology.org/badge/vertical-allrepos/agda.svg?columns=4&exclude_unsupported=1&exclude_sources=modules,site">
+
+As well as the repositories tracked by repology,
+an OS-independent binary installation of Agda is provided by the `python installer <https://pypi.org/project/agda/>`_.
 
 .. _install-agda-from-editor:
 
