@@ -21,7 +21,7 @@ You can get the Agda type-checker in at least 4 ways:
 
 .. _prebuilt-agda-from-github:
 
-Option : From GitHub releases
+Option 1: From GitHub releases
 ------------------------------
 
 Pre-built ``agda`` binaries are available for the following platforms:
