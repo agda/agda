@@ -907,6 +907,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
         SplitError (UnificationStuck b c tel us vs _) -> b
         SplitError (BlockedType b aClosure)           -> Just b
         CannotEliminateWithPattern b p a              -> b
+        CannotEliminateWithProjection b _ _ _         -> b
         -- Andrea: TODO look for blocking meta in tClosure and its Sort.
         -- SplitError (CannotCreateMissingClause _ _ _ tClosure) ->
         _                                             -> Nothing

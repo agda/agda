@@ -1,4 +1,17 @@
-Issue950b.agda:19.1-4: error: [CannotEliminateWithProjection]
-Cannot eliminate type  ?0  with projection  x
-when checking the clause left hand side
-x f
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  Check definition of f : ?0
+    stuck because
+      Issue950b.agda:19.1-4: error: [CannotEliminateWithProjection]
+      Cannot eliminate type  ?0  with projection  x
+      when checking the clause left hand side
+      x f
+    (blocked on _3)
+
+Issue950b.agda:18.5-6: error: [UnsolvedInteractionMetas]
+Unsolved interaction metas at the following locations:
+  Issue950b.agda:18.5-6
+
+Issue950b.agda:18.5-6: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue950b.agda:18.5-6

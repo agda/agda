@@ -1,0 +1,5 @@
+Issue8112a.agda:23.5-9: error: [CannotEliminateWithPattern]
+Cannot eliminate type R with dot pattern .fun (did you supply too
+many arguments?)
+when checking the clause left hand side
+.extendedlambda0 a .fun
