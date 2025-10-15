@@ -25,6 +25,8 @@ Pragmas and options
   For compatibility between modules using different variants of Cubical Agda, see
   [the documentation](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
 
+* New flag `--no-write-interfaces`
+
 Warnings
 --------
 
@@ -102,6 +104,23 @@ Library management
 
 Interaction and emacs mode
 --------------------------
+
+* A normalization level can now also passed to command `Cmd_constraints`
+  ("show constraints", `C-c C-=` in Emacs).
+  In Emacs, the normalization level is given as usual by `C-u` prefixes.
+
+  This interface change is **breaking** for frontends to `agda --interaction`
+  such as the VSCode `agda-mode`, which need updating.
+
+* Fixed an internal error in `Cmd_helper_function` (`C-c C-h` in Emacs)
+  (Issue [#8103](https://github.com/agda/agda/issue/8103)).
+  Changed the type of `Goal_HelperFunction` which might be **breaking**
+  3rd-party interaction frontends.
+
+* `NON_TERMINATING` functions now only reduce in `IgnoreAbstract` mode of
+  commands `Cmd_compute(_toplevel)` (`C-u C-c C-n` in Emacs)
+  regardless of whether invoked at toplevel or in a hole
+  (Issue [#2410](https://github.com/agda/agda/issue/2410)).
 
 Backends
 --------

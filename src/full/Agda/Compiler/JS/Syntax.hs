@@ -4,7 +4,6 @@ module Agda.Compiler.JS.Syntax where
 import Data.Map (Map)
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Semigroup ( Semigroup )
 
 import Data.Text (Text)
 

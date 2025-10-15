@@ -32,6 +32,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Size
 
+import qualified Agda.Syntax.Common.Aspect as Asp
 import Agda.Utils.Impossible
 
 -- | A name is a unique identifier and a suggestion for a concrete name. The
@@ -74,7 +75,7 @@ data QNamed a = QNamed
 -- The 'SetRange' instance for module names sets all individual ranges
 -- to the given one.
 newtype ModuleName = MName { mnameToList :: [Name] }
-  deriving (Eq, Ord, NFData, Null)
+  deriving (Eq, Ord, NFData, Null, Hashable)
 
 -- | Ambiguous qualified names. Used for overloaded constructors.
 --
@@ -381,7 +382,7 @@ namedArgName x = fromMaybe (nameToArgName $ namedArg x) $ bareNameOf x
 ------------------------------------------------------------------------
 
 instance Pretty Name where
-  pretty = pretty . nameConcrete
+  pretty n = pretty (nameConcrete n) `definedAt` (nameBindingSite n)
 
 instance Pretty ModuleName where
   pretty = hcat . punctuate "." . map pretty . mnameToList

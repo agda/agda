@@ -9,16 +9,16 @@ module Agda.Benchmarking where
 import Control.DeepSeq
 import qualified Control.Exception as E
 
-import Data.IORef
-
 import GHC.Generics (Generic)
 
 import System.IO.Unsafe
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
+
 import Agda.Utils.Benchmark (MonadBench(..))
 import qualified Agda.Utils.Benchmark as B
+import qualified Agda.Utils.IORef.Strict as Strict
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 
@@ -110,9 +110,14 @@ data Phase
     -- ^ Subphase for 'InstanceSearch': reducing overlapping instances
   | UnifyIndices
     -- ^ Subphase for 'CheckLHS': unification of the indices
-  | InverseScopeLookup
-    -- ^ Pretty printing names.
+  | InverseNameLookup
+  | InverseModuleLookup
+  | InverseInScope
+  | InverseNameModuleRecompute
+  | InverseInScopeRecompute
   | TopModule TopLevelModuleName
+  | CubicalLeftInversion
+    -- ^ Generating left inverses in LHS unification in cubical or cubical-compatible mode.
   | Typeclass QName
   | Definition QName
   deriving (Eq, Ord, Show, Generic)
@@ -146,13 +151,13 @@ isInternalAccount _                  = True
 
 -- | Global variable to store benchmark statistics.
 {-# NOINLINE benchmarks #-}
-benchmarks :: IORef Benchmark
-benchmarks = unsafePerformIO $ newIORef empty
+benchmarks :: Strict.IORef Benchmark
+benchmarks = unsafePerformIO $ Strict.newIORef empty
 
 instance MonadBench IO where
   type BenchPhase IO = Phase
-  getBenchmark = readIORef benchmarks
-  putBenchmark = writeIORef benchmarks
+  getBenchmark = Strict.readIORef benchmarks
+  putBenchmark = Strict.writeIORef benchmarks
   finally = E.finally
 
 -- | Benchmark an IO computation and bill it to the given account.

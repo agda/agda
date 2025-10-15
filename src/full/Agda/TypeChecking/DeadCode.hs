@@ -23,7 +23,7 @@ import Agda.Utils.Monad (mapMaybeM)
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
 
-import Agda.Utils.HashTable (HashTable)
+import Agda.Utils.HashTable (HashTableLU)
 import qualified Agda.Utils.HashTable as HT
 
 -- | Run before serialisation to remove data that's not reachable from the
@@ -77,28 +77,24 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
   !rootBuiltins <- useTC stLocalBuiltins
   !rootPatSyns  <- getPatternSyns
 
-  !seenNames <- liftIO HT.empty :: TCM (HashTable QName ())
-  !seenMetas <- liftIO HT.empty :: TCM (HashTable MetaId ())
+  !seenNames <- liftIO HT.empty :: TCM (HashTableLU QName ())
+  !seenMetas <- liftIO HT.empty :: TCM (HashTableLU MetaId ())
 
   let goName :: QName -> IO ()
-      goName !x = HT.lookup seenNames x >>= \case
-        Just _ ->
-          pure ()
-        Nothing -> do
-          HT.insert seenNames x ()
-          go (HMap.lookup x defs)
+      goName !x = HT.insertingIfAbsent seenNames x
+        (\_ -> pure ())
+        (pure ())
+        (\_ -> go (HMap.lookup x defs))
 
       goMeta :: MetaId -> IO ()
-      goMeta !m = HT.lookup seenMetas m >>= \case
-        Just _ ->
-          pure ()
-        Nothing -> do
-          HT.insert seenMetas m ()
-          case MapS.lookup m metas of
+      goMeta !m = HT.insertingIfAbsent seenMetas m
+        (\_ -> pure ())
+        (pure ())
+        (\_ -> case MapS.lookup m metas of
             Nothing -> pure ()
             Just mv -> do
               go (instBody (theInstantiation mv))
-              go (jMetaType (mvJudgement mv))
+              go (jMetaType (mvJudgement mv)))
 
       go :: NamesIn a => a -> IO ()
       go !x = namesAndMetasIn' (either goName goMeta) x

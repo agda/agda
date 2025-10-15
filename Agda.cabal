@@ -31,7 +31,7 @@ description:
 
 tested-with:
     GHC == 9.12.2
-    GHC == 9.10.2
+    GHC == 9.10.3
     GHC == 9.8.4
     GHC == 9.6.7
     GHC == 9.4.8
@@ -88,7 +88,7 @@ extra-doc-files:
 
 extra-source-files:
     stack-9.12.2.yaml
-    stack-9.10.2.yaml
+    stack-9.10.3.yaml
     stack-9.8.4.yaml
     stack-9.6.7.yaml
     stack-9.4.8.yaml
@@ -470,12 +470,11 @@ library
     , array                >= 0.5.4.0   && < 0.6
     , async                >= 2.2.4     && < 2.3
     , base                 >= 4.16.4.0  && < 4.22
-    , binary               >= 0.8.9.0   && < 0.9
     , blaze-html           >= 0.9.1.2   && < 0.10
     , boxes                >= 0.1.5     && < 0.2
     , bytestring           >= 0.11.4.0  && < 0.13
     , case-insensitive     >= 1.2.1.0   && < 1.3
-    , containers           >= 0.6.5.1   && < 0.8
+    , containers           >= 0.6.5.1   && < 0.9
     , data-hash            >= 0.2.0.1   && < 0.3
     , deepseq              >= 1.4.6.1   && < 1.6
     , directory            >= 1.3.6.2   && < 1.4
@@ -488,7 +487,8 @@ library
     , filepath             >= 1.4.2.2   && < 1.6
     , filemanip            >= 0.3.6.3   && < 0.4
     , generic-data         >= 1.0.0.1   && < 1.2
-    , ghc-compact          == 0.1.*
+    , ghc-bignum           >= 1.2       && < 2
+    , ghc-prim             >= 0.8       && < 0.14
     , gitrev               >= 1.3.1     && < 2
     , hashable             >= 1.4.2.0   && < 1.6
     , haskeline            >= 0.8.2     && < 0.9
@@ -501,13 +501,13 @@ library
     , parallel             >= 3.2.2.0   && < 3.3
     , peano                >= 0.1.0.1   && < 0.2
     , pqueue               >= 1.4.3.0   && < 1.6
+    , primitive            >= 0.7       && < 0.10
     , pretty               >= 1.1.3.6   && < 1.2
     , process              >= 1.6.16.0  && < 1.7
     , process-extras       >= 0.7.4     && < 0.8
     , regex-tdfa           >= 1.3.2.1   && < 1.4
     , split                >= 0.2.3.5   && < 0.3
     , stm                  >= 2.5.0.2   && < 2.6
-    , STMonadTrans         >= 0.4.7     && < 0.5
     , strict               >= 0.4.0.1   && < 0.6
     , template-haskell     >= 2.18.0.0  && < 2.24
     , text                 >= 1.2.5.0   && < 2.2
@@ -516,8 +516,9 @@ library
     , unordered-containers >= 0.2.19.1  && < 0.3
     , uri-encode           >= 1.5.0.7   && < 1.6
     , vector               >= 0.12.3.1  && < 0.14
-    , vector-hashtables    >= 0.1.1.3   && < 0.2
-    , zlib                 >= 0.6.3.0   && < 0.8
+    , vector-hashtables    >= 0.1.2.0   && < 0.2
+        -- vector-hashtables-0.1.2 introduces performance gains
+    , zstd                 == 0.1.3.0
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tool-depends` field can not be modified in Hackage.
@@ -568,6 +569,7 @@ library
       Agda.Interaction.BuildLibrary
       Agda.Interaction.Command
       Agda.Interaction.CommandLine
+      Agda.Interaction.Emacs.Lisp
       Agda.Interaction.EmacsCommand
       Agda.Interaction.EmacsTop
       Agda.Interaction.ExitCode
@@ -601,6 +603,7 @@ library
       Agda.Interaction.Options
       Agda.Interaction.Options.Arguments
       Agda.Interaction.Options.BashCompletion
+      Agda.Interaction.Options.Default
       Agda.Interaction.Options.Errors
       Agda.Interaction.Options.Help
       Agda.Interaction.Options.Lenses
@@ -678,8 +681,8 @@ library
       Agda.Syntax.Position
       Agda.Syntax.Reflected
       Agda.Syntax.Scope.Base
-      Agda.Syntax.Scope.Flat
       Agda.Syntax.Scope.Monad
+      Agda.Syntax.Scope.Operator
       Agda.Syntax.TopLevelModuleName
       Agda.Syntax.TopLevelModuleName.Boot
       Agda.Syntax.Translation.AbstractToConcrete
@@ -820,8 +823,10 @@ library
       Agda.TypeChecking.Serialise.Instances.Common
       Agda.TypeChecking.Serialise.Instances.Compilers
       Agda.TypeChecking.Serialise.Instances.Errors
+      Agda.TypeChecking.Serialise.Instances.General
       Agda.TypeChecking.Serialise.Instances.Highlighting
       Agda.TypeChecking.Serialise.Instances.Internal
+      Agda.TypeChecking.Serialise.Node
       Agda.TypeChecking.SizedTypes
       Agda.TypeChecking.SizedTypes.Pretty
       Agda.TypeChecking.SizedTypes.Solve
@@ -846,10 +851,13 @@ library
       Agda.Utils.BiMap
       Agda.Utils.BoolSet
       Agda.Utils.Boolean
+      Agda.Utils.ByteArray
       Agda.Utils.CallStack
       Agda.Utils.Char
       Agda.Utils.Cluster
+      Agda.Utils.CompactRegion
       Agda.Utils.CompressedTrie
+      Agda.Utils.DocTree
       Agda.Utils.Either
       Agda.Utils.Empty
       Agda.Utils.Environment
@@ -873,6 +881,7 @@ library
       Agda.Utils.IO.TempFile
       Agda.Utils.IO.UTF8
       Agda.Utils.IORef
+      Agda.Utils.IORef.Strict
       Agda.Utils.Impossible
       Agda.Utils.IndexedList
       Agda.Utils.IntSet.Infinite
@@ -888,6 +897,10 @@ library
       Agda.Utils.Maybe
       Agda.Utils.Maybe.Strict
       Agda.Utils.Memo
+      Agda.Utils.MinimalArray.Lifted
+      Agda.Utils.MinimalArray.MutableLifted
+      Agda.Utils.MinimalArray.MutablePrim
+      Agda.Utils.MinimalArray.Prim
       Agda.Utils.Monad
       Agda.Utils.Monoid
       Agda.Utils.Null
@@ -895,13 +908,17 @@ library
       Agda.Utils.Parser.MemoisedCPS
       Agda.Utils.PartialOrd
       Agda.Utils.Permutation
+      Agda.Utils.Range
       Agda.Utils.RangeMap
       Agda.Utils.SemiRing
       Agda.Utils.Semigroup
+      Agda.Utils.Serialize
       Agda.Utils.Set1
       Agda.Utils.Singleton
       Agda.Utils.Size
       Agda.Utils.SmallSet
+      Agda.Utils.StrictState
+      Agda.Utils.StrictState2
       Agda.Utils.String
       Agda.Utils.Suffix
       Agda.Utils.Three
@@ -914,6 +931,7 @@ library
       Agda.Utils.Update
       Agda.Utils.VarSet
       Agda.Utils.WithDefault
+      Agda.Utils.Word
       Agda.Utils.Zip
       Agda.Utils.Zipper
       Agda.Version
@@ -985,21 +1003,24 @@ executable agda-mode
     , process              >= 1.6.16.0  && < 1.7
     , template-haskell     >= 2.18.0.0  && < 2.24
 
--- Cabal testsuite integration has some serious bugs, but we
--- can still make it work. See also:
--- https://github.com/haskell/cabal/issues/1938
--- https://github.com/haskell/cabal/issues/2214
--- https://github.com/haskell/cabal/issues/1953
+-- We use a Cabal `executable` instead of a `test-suite`
+--   since we want to avoid re-building Agda when test data changes.
+-- Unfortunately, using a `test-suite` breaks this property under nix:
+--   * Cabal runs `test-suite`s as soon as they are built
+--   * `developPackage` rebuilds Agda when re-building `test-suite`s
+--   * https://github.com/NixOS/nixpkgs/issues/9281
+-- So instead we build `agda-tests` as an `executable`
+--   (alongside Agda, when building with nix),
+--   and run it later manually.
 --
 -- This test suite should only be run using the Makefile.
 -- The Makefile sets up the required environment,
 -- executing the tests using cabal directly is almost
--- guaranteed to fail. See also Issue 1490.
+-- guaranteed to fail. See also Issue #1490.
 --
-test-suite agda-tests
+executable agda-tests
   import:           language
 
-  type:             exitcode-stdio-1.0
   hs-source-dirs:   test/
   main-is:          Main.hs
   other-modules:
@@ -1065,6 +1086,7 @@ test-suite agda-tests
       Internal.Utils.SmallSet
       Internal.Utils.Three
       Internal.Utils.Trie
+      Internal.Utils.VarSet
       LaTeXAndHTML.Tests
       LibSucceed.Tests
       Succeed.Tests
@@ -1073,7 +1095,7 @@ test-suite agda-tests
 
   -- Andreas, 2021-08-26, see https://github.com/haskell/cabal/issues/7577
   -- Since 'agda-tests' wants to call 'agda', we have to add it here,
-  -- should we want to run 'cabal test'.
+  -- should we want to run 'cabal run agda-tests'.
   build-tool-depends: Agda:agda
 
   build-depends:
@@ -1091,7 +1113,6 @@ test-suite agda-tests
     , QuickCheck        >= 2.14.3    && < 2.17
     , regex-tdfa
     , split
-    , strict
     , tasty             >= 1.4.3     && < 1.6
     , tasty-hunit       >= 0.10.0.3  && < 0.11
     , tasty-quickcheck  >= 0.10.2    && < 0.12

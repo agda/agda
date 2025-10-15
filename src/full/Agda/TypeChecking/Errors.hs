@@ -6,6 +6,7 @@ module Agda.TypeChecking.Errors
   ( renderError
   , prettyError
   , tcErrString
+  , tcErrModuleToSource
   , prettyTCWarnings'
   , prettyTCWarnings
   , tcWarningsToError
@@ -134,6 +135,18 @@ tcErrString err =
       GenericException msg -> [ msg ]
       IOException _ r e    -> [ prettyShow r, showIOException e ]
       PatternErr{}         -> [ "PatternErr" ]
+
+-- | If the 'TCErr' carries a 'TCState', return the 'ModuleToSource'
+-- from there, since that's the 'ModuleToSource' we need for
+-- highlighting the actual error message.
+tcErrModuleToSource :: TCErr -> Maybe ModuleToSource
+tcErrModuleToSource = \case
+  err@TypeError{}    -> Just $! tcErrState err ^. stModuleToSource
+  IOException st _ _ -> (^. stModuleToSource) <$> st
+
+  GenericException{} -> Nothing
+  ParserError{}      -> Nothing
+  PatternErr{}       -> Nothing
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -496,11 +509,10 @@ instance PrettyTCM TypeError where
       ]
       where
         kindOfData :: DataOrRecordE -> String
-        kindOfData IsData                                                          = "datatype"
-        kindOfData (IsRecord InductionAndEta {recordInduction=Nothing})            = "record type"
-        kindOfData (IsRecord InductionAndEta {recordInduction=(Just Inductive)})   =  "inductive record type"
-        kindOfData (IsRecord InductionAndEta {recordInduction=(Just CoInductive)}) = "coinductive record type"
-
+        kindOfData IsData                                                        = "datatype"
+        kindOfData (IsRecord InductionAndEta {recordInduction=Nothing})          = "record type"
+        kindOfData (IsRecord InductionAndEta {recordInduction=Just Inductive})   = "inductive record type"
+        kindOfData (IsRecord InductionAndEta {recordInduction=Just CoInductive}) = "coinductive record type"
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
@@ -762,9 +774,14 @@ instance PrettyTCM TypeError where
       , text "must not be located in the directory" <+> text (takeDirectory (lib ^. libFile))
       ]
 
-    SolvedButOpenHoles -> fsep $
-      pwords "Module cannot be imported since it has open interaction points" ++
-      pwords "(consider adding {-# OPTIONS --allow-unsolved-metas #-} to this module)"
+    SolvedButOpenHoles x file -> do
+      path <- srcFilePath file
+      let x' = setRange (rangeFromAbsolutePath path) x
+      vcat $
+        [ fsep $ pretty (PrintRange x') :
+            pwords "cannot be imported since it has open interaction points"
+        , "(consider adding {-# OPTIONS --allow-unsolved-metas #-} to that module)"
+        ]
 
     CyclicModuleDependency (List2 m0 m1 ms) ->
       fsep (pwords "cyclic module dependency:")
@@ -1433,36 +1450,49 @@ instance PrettyTCM TypeError where
 
     ReferencesFutureVariables term (disallowed :| _) lock leftmost
       | disallowed == leftmost
-      -> fsep $ pwords "The lock variable"
-             ++ pure (prettyTCM =<< nameOfBV disallowed)
-             ++ pwords "can not appear simultaneously in the \"later\" term"
-             ++ pure (prettyTCM term)
-             ++ pwords "and in the lock term"
-             ++ pure (prettyTCM lock <> ".")
+      -> fsep $ concat
+           [ pwords "The lock variable"
+           , [ prettyTCM =<< nameOfBV disallowed ]
+           , pwords "can not appear simultaneously in the \"later\" term"
+           , [ prettyTCM term ]
+           , pwords "and in the lock term"
+           , [ prettyTCM lock ]
+           ]
 
     ReferencesFutureVariables term (disallowed :| rest) lock leftmost -> do
-      explain <- (/=) <$> prettyTCM lock <*> (prettyTCM =<< nameOfBV leftmost)
       let
         name = prettyTCM =<< nameOfBV leftmost
+        lck  = prettyTCM lock
         mod = case getLock lock of
           IsLock LockOLock -> "@lock"
           IsLock LockOTick -> "@tick"
-          _ -> __IMPOSSIBLE__
+          IsNotLock -> __IMPOSSIBLE__
+      explain <- liftA2 (/=) lck name
       vcat $ concat
-        [ pure . fsep $ concat
-          [ pwords "The variable", pure (prettyTCM =<< nameOfBV disallowed), pwords "can not be mentioned here,"
-          , pwords "since it was not introduced before the variable", pure (name <> ".")
+        [ [ fsep $ concat
+            [ pwords "The variable"
+            , [ prettyTCM =<< nameOfBV disallowed ]
+            , pwords "can not be mentioned here,"
+            , pwords "since it was not introduced before the variable"
+            , [ name <> "." ]
+            ]
           ]
-        , [ fsep ( pwords "Variables introduced after"
-                ++ pure name
-                ++ pwords "can not be used, since that is the leftmost" ++ pure mod ++ pwords "variable in the locking term"
-                ++ pure (prettyTCM lock <> "."))
+        , [ fsep $ concat
+            [ pwords "Variables introduced after"
+            , [ name ]
+            , pwords "can not be used, since that is the leftmost"
+            , [ mod ]
+            , pwords "variable in the locking term"
+            , [ lck <> "." ]
+            ]
           | explain
           ]
-        , [ fsep ( pwords "The following"
-                  ++ P.singPlural rest (pwords "variable is") (pwords "variables are")
-                  ++ pwords "not allowed here, either:"
-                  ++ punctuate comma (map (prettyTCM <=< nameOfBV) rest))
+        , [ fsep $ concat
+            [ pwords "The following"
+            , P.singPlural rest (pwords "variable is") (pwords "variables are")
+            , pwords "not allowed here, either:"
+            , punctuate comma $ map (prettyTCM <=< nameOfBV) rest
+            ]
           | not (null rest)
           ]
         ]

@@ -32,7 +32,7 @@ import qualified Data.List as List
 import qualified Data.IntMap as IntMap
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
-import Data.Semigroup (Semigroup(..))
+import Data.Semigroup (sconcat)
 import Data.Sequence (Seq)
 import qualified Data.Set as Set
 import qualified Data.Text.Lazy as Text
@@ -277,27 +277,13 @@ nameKinds hlLevel decl = do
   let syntax :: NameKindMap
       syntax = runBuilder (declaredNames decl :: NameKindBuilder) HMap.empty
   return $ \ n -> unionsMaybeWith mergeNameKind
-    [ defnToKind . theDef <$> HMap.lookup n local
+    [ TCM.defnToNameKind . theDef <$> HMap.lookup n local
     , con <$ Map.lookup n locPatSyns
-    , defnToKind . theDef <$> HMap.lookup n imported
+    , TCM.defnToNameKind . theDef <$> HMap.lookup n imported
     , con <$ Map.lookup n impPatSyns
     , HMap.lookup n syntax
     ]
   where
-  defnToKind :: TCM.Defn -> NameKind
-  defnToKind   TCM.Axiom{}                           = Postulate
-  defnToKind   TCM.DataOrRecSig{}                    = Postulate
-  defnToKind   TCM.GeneralizableVar{}                = Generalizable
-  defnToKind d@TCM.Function{}
-    | isProperProjection d                           = Field
-    | isMacro d                                      = Macro          -- AIM XL, issue #7324
-    | otherwise                                      = Function
-  defnToKind   TCM.Datatype{}                        = Datatype
-  defnToKind   TCM.Record{}                          = Record
-  defnToKind   TCM.Constructor{ TCM.conSrcCon = c }  = Constructor $ I.conInductive c
-  defnToKind   TCM.Primitive{}                       = Primitive
-  defnToKind   TCM.PrimitiveSort{}                   = Primitive
-  defnToKind   TCM.AbstractDefn{}                    = __IMPOSSIBLE__
 
   con :: NameKind
   con = Constructor Inductive

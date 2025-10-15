@@ -5,7 +5,6 @@ import Control.DeepSeq
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Semigroup
 
 import GHC.Generics (Generic)
 
@@ -13,7 +12,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal.Elim
 
-import Agda.Syntax.Common.Pretty hiding ((<>))
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Functor
 
 ---------------------------------------------------------------------------

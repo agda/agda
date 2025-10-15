@@ -32,6 +32,7 @@ import Agda.Interaction.Base
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common         (InteractionId(..), Arg)
+import Agda.Syntax.Common.Pretty  (DocTree)
 import Agda.Syntax.Concrete       (Expr)
 import Agda.Syntax.Concrete.Name  (Name, QName, NameInScope)
 import Agda.Syntax.Scope.Base     (WhyInScopeData)
@@ -40,6 +41,7 @@ import Agda.TypeChecking.Monad.Base.Types
   (HighlightingMethod, ModuleToSource, NamedMeta, IPFace')
 import Agda.Utils.Impossible
 import Agda.Utils.Time
+import qualified Agda.Syntax.Concrete.Name as C
 
 -- | Responses for any interactive interface
 --
@@ -62,8 +64,9 @@ data Response_boot tcErr tcWarning warningsAndNonFatalErrors
       -- ^ Solution for one or more meta-variables.
     | Resp_Mimer InteractionId (Maybe String)
     | Resp_DisplayInfo (DisplayInfo_boot tcErr tcWarning warningsAndNonFatalErrors)
-    | Resp_RunningInfo Int String
+    | Resp_RunningInfo Int DocTree
       -- ^ The integer is the message's debug level.
+      --   The 'DocTree' usually does not contain a final newline.
     | Resp_ClearRunningInfo
     | Resp_ClearHighlighting TokenBased
       -- ^ Clear highlighting of the given kind.
@@ -113,7 +116,7 @@ data DisplayInfo_boot tcErr tcWarning warningsAndNonFatalErrors
     | Info_GoalSpecific InteractionId (GoalDisplayInfo_boot tcErr)
 
 data GoalDisplayInfo_boot tcErr
-    = Goal_HelperFunction (OutputConstraint' A.Expr A.Expr)
+    = Goal_HelperFunction (OutputConstraint' A.Expr C.Name)
     | Goal_NormalForm ComputeMode A.Expr
     | Goal_GoalType Rewrite GoalTypeAux [ResponseContextEntry] [IPFace' Expr] [OutputForm_boot tcErr Expr Expr]
     | Goal_CurrentGoal Rewrite

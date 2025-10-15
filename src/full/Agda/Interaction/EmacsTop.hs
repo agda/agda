@@ -3,43 +3,55 @@
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
     , namedMetaOf
-    , showGoals
     , showInfoError
+    , prettyGoals
+    , prettyInfoError
     , explainWhyInScope
     , prettyResponseContext
     , prettyTypeOfMeta
     ) where
+
+import Prelude hiding (null)
 
 import Control.Monad
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.State    ( evalStateT )
 import Control.Monad.Trans    ( lift )
 
-import qualified Data.List as List
+import Data.List qualified as List
+import Data.Text qualified as Text
 
 import Agda.Syntax.Common
-import Agda.Syntax.Common.Pretty
+import Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Concrete as C
 
-import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, renderError, verbalize )
-import qualified Agda.TypeChecking.Pretty as TCP
+import Agda.TypeChecking.Errors ( tcErrModuleToSource, explainWhyInScope, getAllWarningsOfTCErr, verbalize, prettyError )
+import Agda.TypeChecking.Pretty qualified as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
-import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings)
+import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings')
 import Agda.TypeChecking.Monad
+
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Base
 import Agda.Interaction.BasicOps as B
 import Agda.Interaction.Response as R
-import Agda.Interaction.EmacsCommand hiding (putResponse)
+import Agda.Interaction.Emacs.Lisp
+import Agda.Interaction.EmacsCommand ( displayInfo, clearRunningInfo, displayRunningInfo)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.Command (localStateCommandM)
-import Agda.Utils.Function (applyWhen)
-import Agda.Utils.Null (empty)
+import Agda.Interaction.Options ( DiagnosticsColours(..), optDiagnosticsColour )
+
+import Agda.Utils.DocTree  ( treeToTextNoAnn, renderToTree )
+import Agda.Utils.Function ( applyWhen )
+import Agda.Utils.Functor  ( (<.>) )
+import Agda.Utils.Lens
+import Agda.Utils.Null
 import Agda.Utils.Maybe
 import Agda.Utils.String
 import Agda.Utils.Time (CPUTime)
+
 import Agda.VersionCommit
 
 ----------------------------------
@@ -50,127 +62,168 @@ import Agda.VersionCommit
 --   'mimicGHCi' reads the Emacs frontend commands from stdin,
 --   interprets them and print the result into stdout.
 mimicGHCi :: TCM () -> TCM ()
-mimicGHCi = repl (liftIO . mapM_ (putStrLn . prettyShow) <=< lispifyResponse) "Agda2> "
+mimicGHCi = repl (liftIO . putStrLn . prettyShow <=< lispifyResponse) "Agda2> "
 
 -- | Convert Response to an elisp value for the interactive emacs frontend.
 
-lispifyResponse :: Response -> TCM [Lisp String]
-lispifyResponse (Resp_HighlightingInfo info remove method modFile) =
-  (:[]) <$> liftIO (lispifyHighlightingInfo info remove method modFile)
-lispifyResponse (Resp_DisplayInfo info) = lispifyDisplayInfo info
-lispifyResponse (Resp_ClearHighlighting tokenBased) =
-  return [ L $ A "agda2-highlight-clear" :
-               case tokenBased of
-                 NotOnlyTokenBased -> []
-                 TokenBased        ->
-                   [ Q (lispifyTokenBased tokenBased) ]
-         ]
-lispifyResponse Resp_DoneAborting = return [ L [ A "agda2-abort-done" ] ]
-lispifyResponse Resp_DoneExiting  = return [ L [ A "agda2-exit-done"  ] ]
-lispifyResponse Resp_ClearRunningInfo = return [ clearRunningInfo ]
-lispifyResponse (Resp_RunningInfo n s)
-  | n <= 1    = return [ displayRunningInfo s ]
-  | otherwise = return [ L [A "agda2-verbose", A (quote s)] ]
-lispifyResponse (Resp_Status s)
-    = return [ L [ A "agda2-status-action"
-                 , A (quote $ List.intercalate "," $ catMaybes [checked, showImpl, showIrr])
-                 ]
-             ]
-  where
-    checked  = boolToMaybe (sChecked                 s) "Checked"
-    showImpl = boolToMaybe (sShowImplicitArguments   s) "ShowImplicit"
-    showIrr  = boolToMaybe (sShowIrrelevantArguments s) "ShowIrrelevant"
+lispifyResponse :: Response -> TCM (Lisp String)
+lispifyResponse = \case
 
-lispifyResponse (Resp_JumpToError f p) = return
-  [ lastTag 3 $
-      L [ A "agda2-maybe-goto", Q $ L [A (quote f), A ".", A (show p)] ]
-  ]
-lispifyResponse (Resp_InteractionPoints is) = return
-  [ lastTag 1 $
-      L [A "agda2-goals-action", Q $ L $ map showNumIId is]
-  ]
-lispifyResponse (Resp_GiveAction ii s)
-    = return [ L [ A "agda2-give-action", showNumIId ii, A s' ] ]
-  where
-    s' = case s of
-        Give_String str -> quote str
-        Give_Paren      -> "'paren"
-        Give_NoParen    -> "'no-paren"
-lispifyResponse (Resp_MakeCase ii variant pcs) = return
-  [ lastTag 2 $ L [ A cmd, Q $ L $ map (A . quote) pcs ] ]
-  where
-  cmd = case variant of
-    R.Function       -> "agda2-make-case-action"
-    R.ExtendedLambda -> "agda2-make-case-action-extendlam"
-lispifyResponse (Resp_SolveAll ps) = return
-  [ lastTag 2 $
-      L [ A "agda2-solveAll-action", Q . L $ concatMap prn ps ]
-  ]
-  where
-    prn (ii,e)= [showNumIId ii, A $ quote $ prettyShow e]
--- TODO: For now, I piggy-back on the Resp_SolveAll implementation
-lispifyResponse (Resp_Mimer ii msol) = return $ case msol of
-  Nothing ->
-    [ lastTag 1 $ -- TODO: What is this lastTag used for?
-        L [ A "agda2-info-action", A $ quote "*Mimer*", A $ quote "No solution found" ]
-    ]
-  Just str ->
-    [ lastTag 1 $ -- TODO: What is this lastTag used for?
-        L [ A "agda2-solve-action", showNumIId ii, A $ quote str ]
-    ]
+  Resp_HighlightingInfo info remove method modFile ->
+    liftIO (lispifyHighlightingInfo info remove method modFile)
 
-lispifyDisplayInfo :: DisplayInfo -> TCM [Lisp String]
-lispifyDisplayInfo info = case info of
+  Resp_DisplayInfo info ->
+    lispifyDisplayInfo info
+
+  Resp_ClearHighlighting tokenBased ->
+    return $ L $
+      A "agda2-highlight-clear" :
+      case tokenBased of
+        TokenBased -> [ Q (lispifyTokenBased tokenBased) ]
+        NotOnlyTokenBased -> []
+
+  Resp_DoneAborting ->
+    return $ L [ A "agda2-abort-done" ]
+
+  Resp_DoneExiting ->
+    return $ L [ A "agda2-exit-done" ]
+
+  Resp_ClearRunningInfo ->
+    return clearRunningInfo
+
+  Resp_RunningInfo n docTree
+    | n <= 1 -> do
+        displayRunningInfo docTree <$> wantBufferHighlighting Nothing
+    | otherwise ->
+        return $ L [ A "agda2-verbose", A (quote $ Text.unpack $ treeToTextNoAnn docTree) ]
+        -- TODO: do we want colored debug-printout?
+
+  Resp_Status s ->
+    return $ L
+      [ A "agda2-status-action"
+      , A (quote $ List.intercalate "," $ catMaybes [checked, showImpl, showIrr])
+      ]
+    where
+      checked  = boolToMaybe (sChecked                 s) "Checked"
+      showImpl = boolToMaybe (sShowImplicitArguments   s) "ShowImplicit"
+      showIrr  = boolToMaybe (sShowIrrelevantArguments s) "ShowIrrelevant"
+
+  Resp_JumpToError f p ->
+    return $ lastTag 3 $ L
+      [ A "agda2-maybe-goto"
+      , Q $ L [ A (quote f), A ".", A (show p) ]
+      ]
+
+  Resp_InteractionPoints is ->
+    return $ lastTag 1 $ L
+      [ A "agda2-goals-action"
+      , Q $ L $ map showNumIId is
+      ]
+
+  Resp_GiveAction ii s ->
+    return $ L
+      [ A "agda2-give-action"
+      , showNumIId ii
+      , A s'
+      ]
+    where
+      s' = case s of
+          Give_String str -> quote str
+          Give_Paren      -> "'paren"
+          Give_NoParen    -> "'no-paren"
+
+  Resp_MakeCase ii variant pcs ->
+    return $ lastTag 2 $ L
+      [ A cmd
+      , Q $ L $ map (A . quote) pcs
+      ]
+    where
+    cmd = case variant of
+      R.Function       -> "agda2-make-case-action"
+      R.ExtendedLambda -> "agda2-make-case-action-extendlam"
+
+  Resp_SolveAll ps ->
+    return $ lastTag 2 $ L
+      [ A "agda2-solveAll-action"
+      , Q $ L $ concatMap prn ps
+      ]
+    where
+      prn (ii,e)= [showNumIId ii, A $ quote $ prettyShow e]
+
+  Resp_Mimer ii msol ->
+    return $ lastTag 1 $ L $ case msol of
+      Nothing ->
+        [ A "agda2-info-action"
+        , A $ quote "*Mimer*"
+        , A $ quote "No solution found"
+        ]
+      Just str ->
+        [ A "agda2-solve-action"
+        , showNumIId ii
+        , A $ quote str
+        ]
+
+lispifyDisplayInfo :: DisplayInfo -> TCM (Lisp String)
+lispifyDisplayInfo = \case
+
     Info_CompilationOk backend ws -> do
-      warnings <- prettyTCWarnings (tcWarnings ws)
-      errors <- prettyTCWarnings (nonFatalErrors ws)
+      warnings <- prettyTCWarnings' (tcWarnings ws)
+      errors   <- prettyTCWarnings' (nonFatalErrors ws)
       let
-        msg = concat
+        msg = hcat
           [ "The module was successfully compiled with backend "
-          , prettyShow backend
+          , pretty backend
           , ".\n"
           ]
       -- abusing the goals field since we ignore the title
-        (body, _) = formatWarningsAndErrors msg warnings errors
-      format body "*Compilation result*"
+        (_title, body) = formatWarningsAndErrors msg warnings errors
+      format "*Compilation result*" body
+
     Info_Constraints s -> do
       doc <- TCP.vcat $ map prettyTCM s
-      format (render doc) "*Constraints*"
+      format "*Constraints*" doc
+
     Info_AllGoalsWarnings ms ws -> do
-      goals <- showGoals ms
-      warnings <- prettyTCWarnings (tcWarnings ws)
-      errors <- prettyTCWarnings (nonFatalErrors ws)
-      let (body, title) = formatWarningsAndErrors goals warnings errors
-      format body ("*All" ++ title ++ "*")
-    Info_Auto s -> format s "*Auto*"
+      goals    <- prettyGoals ms
+      warnings <- prettyTCWarnings' (tcWarnings ws)
+      errors   <- prettyTCWarnings' (nonFatalErrors ws)
+      let (title, body) = formatWarningsAndErrors goals warnings errors
+      format ("*All" ++ title ++ "*") body
+
+    Info_Auto s ->
+      format "*Auto*" $ P.text s
+
     Info_Error err -> do
-      s <- showInfoError err
-      format s "*Error*"
-    Info_Time s -> format (render $ prettyTimed s) "*Time*"
+      uncurry (format' "*Error*") =<< prettyInfoError err
+
+    Info_Time time ->
+      format "*Time*" $ prettyTimed time
+
     Info_NormalForm state cmode time expr -> do
       exprDoc <- evalStateT prettyExpr state
       let doc = maybe empty prettyTimed time $$ exprDoc
           lbl | cmode == HeadCompute = "*Head Normal Form*"
               | otherwise            = "*Normal Form*"
-      format (render doc) lbl
+      format lbl doc
       where
         prettyExpr = localStateCommandM
             $ lift
             $ B.atTopLevel
-            $ allowNonTerminatingReductions
-            $ (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
+            $ (B.withComputeIgnoreAbstract cmode)
             $ (B.showComputed cmode)
             $ expr
+
     Info_InferredType state time expr -> do
       exprDoc <- evalStateT prettyExpr state
       let doc = maybe empty prettyTimed time $$ exprDoc
-      format (render doc) "*Inferred Type*"
+      format "*Inferred Type*" doc
       where
         prettyExpr = localStateCommandM
             $ lift
             $ B.atTopLevel
             $ TCP.prettyA
             $ expr
+
     Info_ModuleContents modules tel types -> do
       doc <- localTCState $ do
         typeDocs <- addContext tel $ forM types $ \ (x, t) -> do
@@ -182,21 +235,27 @@ lispifyDisplayInfo info = case info of
           , "Names"
           , nest 2 $ align 10 typeDocs
           ]
-      format (render doc) "*Module contents*"
+      format "*Module contents*" doc
+
     Info_SearchAbout hits names -> do
       hitDocs <- forM hits $ \ (x, t) -> do
         doc <- prettyTCM t
         return (prettyShow x, ":" <+> doc)
       let doc = "Definitions about" <+>
                 text (List.intercalate ", " $ words names) $$ nest 2 (align 10 hitDocs)
-      format (render doc) "*Search About*"
+      format "*Search About*" doc
+
     Info_WhyInScope why -> do
       doc <- explainWhyInScope why
-      format (render doc) "*Scope Info*"
+      format "*Scope Info*" doc
+
     Info_Context ii ctx -> do
       doc <- localTCState (prettyResponseContext ii False ctx)
-      format (render doc) "*Context*"
-    Info_Intro_NotFound -> format "No introduction forms found." "*Intro*"
+      format "*Context*" doc
+
+    Info_Intro_NotFound ->
+      format "*Intro*" "No introduction forms found."
+
     Info_Intro_ConstructorUnknown ss -> do
       let doc = sep [ "Don't know which constructor to introduce of"
                     , let mkOr []     = []
@@ -204,24 +263,31 @@ lispifyDisplayInfo info = case info of
                           mkOr (x:xs) = text x : mkOr xs
                       in nest 2 $ fsep $ punctuate comma (mkOr ss)
                     ]
-      format (render doc) "*Intro*"
-    Info_Version -> format ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
-    Info_GoalSpecific ii kind -> lispifyGoalSpecificDisplayInfo ii kind
+      format "*Intro*" doc
 
-lispifyGoalSpecificDisplayInfo :: InteractionId -> GoalDisplayInfo -> TCM [Lisp String]
+    Info_Version ->
+      format "*Agda Version*" ("Agda version" <+> text versionWithCommitInfo)
+
+    Info_GoalSpecific ii kind ->
+      lispifyGoalSpecificDisplayInfo ii kind
+
+lispifyGoalSpecificDisplayInfo :: InteractionId -> GoalDisplayInfo -> TCM (Lisp String)
 lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
   case kind of
+
     Goal_HelperFunction helperType -> do
       doc <- inTopContext $ prettyATop helperType
-      return [ L [ A "agda2-info-action-and-copy"
-                 , A $ quote "*Helper function*"
-                 , A $ quote (render doc ++ "\n")
-                 , A "nil"
-                 ]
-             ]
+      return $ L
+        [ A "agda2-info-action-and-copy"
+        , A $ quote "*Helper function*"
+        , A $ quote (render doc ++ "\n")
+        , A "nil"
+        ]
+
     Goal_NormalForm cmode expr -> do
       doc <- showComputed cmode expr
-      format (render doc) "*Normal Form*"   -- show?
+      format "*Normal Form*" doc
+
     Goal_GoalType norm aux ctx bndry constraints -> do
       ctxDoc <- prettyResponseContext ii True ctx
       goalDoc <- prettyTypeOfMeta norm ii
@@ -244,25 +310,61 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
               [ TCP.text $ delimiter "Constraints"
               , TCP.vcat $ map prettyTCM constraints
               ]
-      doc <- TCP.vcat $
-        [ "Goal:" TCP.<+> return goalDoc
-        , return (vcat (boundaryDoc "Boundary (wanted)" bndry))
-        , return auxDoc
-        , TCP.text (replicate 60 '\x2014')
-        , return ctxDoc
-        ] ++ constraintsDoc
-      format (render doc) "*Goal type etc.*"
+      doc <- TCP.vcat $ concat
+        [ [ "Goal:" TCP.<+> return goalDoc
+          , return (vcat (boundaryDoc "Boundary (wanted)" bndry))
+          , return auxDoc
+          ]
+        , [ TCP.text (delimiter "Context") | not $ null ctxDoc ]
+        , [ return ctxDoc ]
+        , constraintsDoc
+        ]
+      format "*Goal type etc.*" doc
+
     Goal_CurrentGoal norm -> do
       doc <- prettyTypeOfMeta norm ii
-      format (render doc) "*Current Goal*"
+      format "*Current Goal*" doc
+
     Goal_InferredType expr -> do
       doc <- prettyATop expr
-      format (render doc) "*Inferred Type*"
+      format "*Inferred Type*" doc
 
--- | Format responses of DisplayInfo
+format :: String -> Doc -> TCM (Lisp String)
+format header = format' header Nothing
 
-format :: String -> String -> TCM [Lisp String]
-format content bufname = return [ display_info' False bufname content ]
+-- | Format responses of 'DisplayInfo'.
+format'
+  :: String
+  -- ^ String to use as a header.
+  -> Maybe ModuleToSource
+  -- ^ Map of module names to source files *as used in the context of the 'Doc'*.
+  --
+  -- Note: 'Nothing' does not mean "do not highlight", it means "use the
+  -- current 'ModuleToSource'". This is appropriate if the 'Doc' was
+  -- generated in a TC state which the current state descends from, but
+  -- not if it was generated in a now-discarded state (e.g.: an error in
+  -- an imported module).
+  -> Doc
+  -- ^ The document to print.
+  -> TCM (Lisp String)
+format' header m2s content = displayInfo header (renderToTree content) False <$>
+  wantBufferHighlighting m2s
+
+-- | Do we want highlighting in the Agda information buffer?
+--   'Nothing' with option @--color=never@.
+wantBufferHighlighting
+  :: Maybe ModuleToSource
+  -- ^ If 'Just', use the given 'ModuleToSource' instead of the one from
+  -- the TC state.
+  -> TCM (Maybe ModuleToSource)
+wantBufferHighlighting other = do
+  col <- commandLineOptions <&> optDiagnosticsColour <&> \case
+    AutoColour   -> True
+    AlwaysColour -> True
+    NeverColour  -> False
+  if col
+    then Just <$> maybe (useTC stModuleToSource) pure other
+    else return Nothing
 
 -- | Adds a \"last\" tag to a response.
 
@@ -276,48 +378,59 @@ showNumIId = A . show . interactionId
 
 --------------------------------------------------------------------------------
 
--- | Given strings of goals, warnings and errors, return a pair of the
---   body and the title for the info buffer
-formatWarningsAndErrors :: String -> String -> String -> (String, String)
-formatWarningsAndErrors g w e = (body, title)
+-- | Given goals, warnings and errors, return a pair of the
+--   title and the body for the info buffer.
+formatWarningsAndErrors :: Doc -> [Doc] -> [Doc] -> (String, Doc)
+formatWarningsAndErrors g ws es = (title, body)
   where
     isG = not $ null g
-    isW = not $ null w
-    isE = not $ null e
-    title = List.intercalate "," $ catMaybes
-              [ " Goals"    <$ guard isG
-              , " Errors"   <$ guard isE
-              , " Warnings" <$ guard isW
-              , " Done"     <$ guard (not (isG || isW || isE))
-              ]
+    isW = not $ null ws
+    isE = not $ null es
+    title = List.intercalate "," $ concat
+      [ [ " Goals"    | isG ]
+      , [ " Errors"   | isE ]
+      , [ " Warnings" | isW ]
+      , [ " Done"     | not (isG || isW || isE) ]
+      ]
+    body = vcat $ concat
+      [ [ g ]
+      , [ text $ delimiter "Error"    | isE && (isG || isW) ]
+      , es
+      , [ text $ delimiter "Warnings" | isW && (isG || isE) ]
+      , ws
+      ]
 
-    body = List.intercalate "\n" $ catMaybes
-             [ g                    <$ guard isG
-             , delimiter "Error"    <$ guard (isE && (isG || isW))
-             , e                    <$ guard isE
-             , delimiter "Warnings" <$ guard (isW && (isG || isE))
-             , w                    <$ guard isW
-             ]
-
-
--- | Serializing Info_Error
+-- | Serializing 'Info_Error'.
 showInfoError :: Info_Error -> TCM String
-showInfoError (Info_GenericError err) = do
-  e <- renderError err
-  w <- prettyTCWarnings =<< getAllWarningsOfTCErr err
-  let (body, _) = formatWarningsAndErrors "" w e
-  return body
-showInfoError (Info_CompilationError warnings) = do
-  s <- prettyTCWarnings warnings
-  return $ unlines
-    [ "You need to fix the following errors before you can compile the module:"
-    , ""
-    , s
-    ]
-showInfoError (Info_HighlightingParseError ii) =
-  return $ "Highlighting failed to parse expression in " ++ show ii
-showInfoError (Info_HighlightingScopeCheckError ii) =
-  return $ "Highlighting failed to scope check expression in " ++ show ii
+showInfoError = (render . snd) <.> prettyInfoError
+
+-- | Turn an 'Info_Error' into a 'Doc'. Possibly returns a
+-- 'ModuleToSource' appropriate for rendering the returned 'Doc'.
+--
+-- A 'Nothing' return only indicates that the 'Doc' can be safely
+-- rendered in the current TC state. Pass this value to
+-- 'wantBufferHighlighting' to respect whether the user wants syntax
+-- colouring.
+prettyInfoError :: Info_Error -> TCM (Maybe ModuleToSource, Doc)
+prettyInfoError = \case
+  Info_GenericError err -> do
+    e  <- prettyError err
+    ws <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
+    let (_title, body) = formatWarningsAndErrors empty ws [e]
+    return (tcErrModuleToSource err, body)
+
+  Info_CompilationError warnings -> do
+    docs <- prettyTCWarnings' warnings
+    return . (Nothing,) $ vcat $
+      "You need to fix the following errors before you can compile the module:" :
+      "" :
+      docs
+
+  Info_HighlightingParseError ii ->
+    return . (Nothing,) $ "Highlighting failed to parse expression in" <+> pretty ii
+
+  Info_HighlightingScopeCheckError ii ->
+    return . (Nothing,) $ "Highlighting failed to scope check expression in" <+> pretty ii
 
 -- | Pretty-prints the context of the given meta-variable.
 
@@ -377,10 +490,9 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
 
 prettyTypeOfMeta :: Rewrite -> InteractionId -> TCM Doc
 prettyTypeOfMeta norm ii = do
-  form <- B.typeOfMeta norm ii
-  case form of
+  B.typeOfMeta norm ii >>= \case
     OfType _ e -> prettyATop e
-    _            -> prettyATop form
+    form       -> prettyATop form
 
 -- | Prefix prettified CPUTime with "Time:"
 prettyTimed :: CPUTime -> Doc

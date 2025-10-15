@@ -7,7 +7,7 @@ module Agda.Syntax.Concrete.Definitions.Types where
 import Control.DeepSeq
 
 import Data.Map (Map)
-import Data.Semigroup ( Semigroup(..) )
+import Data.Semigroup ( sconcat )
 
 import GHC.Generics (Generic)
 
@@ -180,6 +180,11 @@ data InterleavedState = ISt
 
 -- | Numbering declarations in an @interleaved mutual@ block.
 type DeclNum = Int
+
+instance HasRange InterleavedDecl where
+  getRange :: InterleavedDecl -> Range
+  getRange (InterleavedFun _ d _)  = getRange d
+  getRange (InterleavedData _ d _) = getRange d
 
 isInterleavedFun :: InterleavedDecl -> Maybe ()
 isInterleavedFun InterleavedFun{} = Just ()

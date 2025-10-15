@@ -45,6 +45,7 @@ import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
+import Agda.Utils.Function (applyUnless)
 
 instance MonadConstraint TCM where
   addConstraint             = addConstraintTCM
@@ -136,7 +137,8 @@ stealConstraintsTCM pid = do
 
 
 {-# SPECIALIZE noConstraints :: TCM a -> TCM a #-}
--- | Don't allow the argument to produce any blocking constraints.
+-- | Error out with @'NonFatalErrors' 'UnsolvedConstraints'@
+-- if the computation produced blocking constraints.
 --
 -- WARNING: this does not mean that the given computation cannot
 -- constrain the solution space further.
@@ -146,21 +148,23 @@ noConstraints
   => m a -> m a
 noConstraints = noConstraints' False
 
--- | As noConstraints but also fail for non-blocking constraints.
+-- | As 'noConstraints' but also fail for non-blocking constraints.
 reallyNoConstraints
   :: (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
   => m a -> m a
 reallyNoConstraints = noConstraints' True
 
-noConstraints'
-  :: (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
+-- | Error out with @'NonFatalErrors' 'UnsolvedConstraints'@
+--   when given computation produced constraints ('True') or blocking constraints ('False').
+noConstraints' ::
+     (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
   => Bool -> m a -> m a
 noConstraints' includingNonBlocking problem = do
   (pid, x) <- newProblem problem
-  let counts | includingNonBlocking = const True
-             | otherwise            = isBlockingConstraint . clValue . theConstraint
-  cs <- List.filter counts <$> getConstraintsForProblem pid
-  List1.ifNull cs (pure ()) \ cs -> do
+  -- Consider only blocking constraints unless @includingNonBlocking@.
+  let isBlocking = isBlockingConstraint . clValue . theConstraint
+  cs <- applyUnless includingNonBlocking (List.filter isBlocking) <$> getConstraintsForProblem pid
+  List1.unlessNull cs \ cs -> do
     withCurrentCallStack \ loc -> do
       w <- warning'_ loc $ UnsolvedConstraints cs
       typeError' loc $ NonFatalErrors $ singleton w

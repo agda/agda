@@ -131,3 +131,9 @@ spanMaybe _ [] = ([], [])
 spanMaybe p xs@(x:xs') = case p x of
     Just y  -> let (ys, zs) = spanMaybe p xs' in (y : ys, zs)
     Nothing -> ([], xs)
+
+-- * MaybeT
+
+-- | Run a 'MaybeT' with a default value for 'Nothing'.
+fromMaybeT :: Monad m => a -> MaybeT m a -> m a
+fromMaybeT a m = fromMaybe a <$> runMaybeT m

@@ -111,8 +111,17 @@ class CheckInternal a where
 
 instance CheckInternal Type where
   checkInternal' action (El s t) cmp _ = do
+    reportSDoc "tc.check.internal" 20 $ sep
+      [ "checking internal type "
+      , nest 2 $ sep [ prettyTCM t <+> ":"
+                     , nest 2 $ prettyTCM s ]
+      ]
     t' <- checkInternal' action t cmp (sort s)
     s' <- sortOf t'
+    reportSDoc "tc.check.internal" 30 $
+      "checking if sort" <+> prettyTCM s' <+>
+      "of" <+> prettyTCM t' <+>
+      "fits in given sort" <+> prettyTCM s
     compareSort cmp s' s
     return (El s t')
 
@@ -207,6 +216,10 @@ instance CheckInternal Term where
                mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
         v' <- goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) CmpLeq (sort sb)
         s' <- sortOf v -- Issue #6205: do not use v' since it might not be valid syntax
+        reportSDoc "tc.check.internal" 30 $
+          "checking if sort" <+> prettyTCM s' <+>
+          "of pi type" <+> prettyTCM v <+>
+          "fits in given sort" <+> prettyTCM s
         compareSort cmp s' s
         return v'
       Sort s     -> do
@@ -214,6 +227,10 @@ instance CheckInternal Term where
         s <- inferInternal' action s
         s' <- inferUnivSort s
         s'' <- shouldBeSort t
+        reportSDoc "tc.check.internal" 30 $
+          "checking if sort" <+> prettyTCM s' <+>
+          "of universe type" <+> prettyTCM v <+>
+          "fits in" <+> prettyTCM t
         compareSort cmp s' s''
         return $ Sort s
       Level l    -> do
@@ -336,6 +353,12 @@ checkSpine action a hd es cmp t = do
                    , nest 4 $ prettyTCM es <+> ":"
                    , nest 2 $ prettyTCM t ] ]
   (t' , es') <- inferSpine action a hd es
+  reportSDoc "tc.check.internal" 30 $ sep
+    [ "checking if "
+    , prettyTCM t'
+    , "is a subtype of"
+    , prettyTCM t
+    ]
   coerceSize (compareType cmp) (hd es) t' t
   return $ hd es'
 

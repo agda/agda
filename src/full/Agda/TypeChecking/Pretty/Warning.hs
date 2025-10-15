@@ -23,8 +23,6 @@ import Control.Monad ( guard, filterM, forM, (<=<) )
 import Data.Char ( toLower )
 import qualified Data.Foldable as Fold
 import Data.Function (on)
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
 import Data.Set (Set)
@@ -78,6 +76,7 @@ import Agda.Utils.Null
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.WithDefault  ( pattern Value )
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
@@ -123,7 +122,7 @@ prettyWarning = \case
               [ fwords "Termination checking failed for the following functions:"
               , fwords hint
               , nest 2 $ fsep $ punctuate comma $
-                  map (pretty . dropTopLevel) $
+                  map (prettyTCM . dropTopLevel) $
                     concatMap termErrFunctions because
               , fwords "Problematic calls:"
               , nest 2 $ fmap (P.vcat . List.nub) $
@@ -392,12 +391,12 @@ prettyWarning = \case
       VariablesNotBoundByLHS xs -> hsep
         [ prettyTCM q
         , " is not a legal rewrite rule, since the following variables are not bound by the left hand side: "
-        , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs)
+        , prettyList_ (map (prettyTCM . var) $ VarSet.toAscList xs)
         ]
       VariablesBoundMoreThanOnce xs -> do
         (prettyTCM q
           <+> " is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side: "
-          <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ IntSet.toList xs))
+          <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ VarSet.toAscList xs))
           <> ". Perhaps you can use a postulate instead of a constructor as the head symbol?"
       LHSReduces v v' -> fsep
         [ prettyTCM q <+> " is not a legal rewrite rule, since the left-hand side "
@@ -784,10 +783,14 @@ filterTCWarnings wset = case Set.toAscList wset of
 
 
 -- | Turns warnings, if any, into errors.
-tcWarningsToError :: [TCWarning] -> TCM ()
-tcWarningsToError mws = case (unsolvedHoles, otherWarnings) of
+tcWarningsToError ::
+     TopLevelModuleName   -- ^ The module we have checked (which produced the warnings).
+  -> SourceFile           -- ^ The file containing the module.
+  -> [TCWarning]          -- ^ The warnings to turn into errors.
+  -> TCM ()
+tcWarningsToError x file mws = case (unsolvedHoles, otherWarnings) of
    ([], [])                   -> return ()
-   (_unsolvedHoles@(_:_), []) -> typeError SolvedButOpenHoles
+   (_unsolvedHoles@(_:_), []) -> typeError $ SolvedButOpenHoles x file
    (_ , w : ws)               -> typeError $ NonFatalErrors $ Set1.fromList (w :| ws)
    where
    -- filter out unsolved interaction points for imported module so

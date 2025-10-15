@@ -5,7 +5,7 @@ module Agda.Compiler.Treeless.Unused
   , stripUnusedArguments
   ) where
 
-import Prelude hiding (zip, zipWith)
+import Prelude hiding (null, zip, zipWith)
 
 import Data.Maybe
 
@@ -20,6 +20,8 @@ import Agda.Compiler.Treeless.Pretty () -- instance only
 import Agda.Utils.Function ( iterateUntilM )
 import Agda.Utils.List     ( downFrom, takeExactly )
 import Agda.Utils.ListInf qualified as ListInf
+import Agda.Utils.Null
+import Agda.Utils.Singleton
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Zip
 
@@ -48,11 +50,11 @@ computeUnused q t = iterateUntilM (==) $ \ used -> do
            ]
   where
     go = \case
-      TVar x    -> pure $ VarSet.singleton x
-      TPrim{}   -> pure VarSet.empty
-      TDef{}    -> pure VarSet.empty
-      TLit{}    -> pure VarSet.empty
-      TCon{}    -> pure VarSet.empty
+      TVar x    -> pure $ singleton x
+      TPrim{}   -> pure empty
+      TDef{}    -> pure empty
+      TLit{}    -> pure empty
+      TCon{}    -> pure empty
 
       TApp (TDef f) ts -> do
         used <- fromMaybe [] <$> getCompiledArgUse f
@@ -70,10 +72,10 @@ computeUnused q t = iterateUntilM (==) $ \ used -> do
         case e of
           Erased{}    -> cont
           NotErased{} -> VarSet.insert x <$> cont
-      TUnit{}   -> pure VarSet.empty
-      TSort{}   -> pure VarSet.empty
-      TErased{} -> pure VarSet.empty
-      TError{}  -> pure VarSet.empty
+      TUnit{}   -> pure empty
+      TSort{}   -> pure empty
+      TErased{} -> pure empty
+      TError{}  -> pure empty
       TCoerce t -> go t
 
     goAlt _ (TALit _   b) = go b
@@ -85,8 +87,7 @@ computeUnused q t = iterateUntilM (==) $ \ used -> do
     goAlt _ (TACon _ a b) = underBinders a <$> go b
 
     underBinder = underBinders 1
-    underBinders 0 = id
-    underBinders n = VarSet.filterGE 0 . VarSet.subtract n
+    underBinders n = VarSet.strengthen n
 
 stripUnusedArguments :: [ArgUsage] -> TTerm -> TTerm
 stripUnusedArguments used t = mkTLam m $ applySubst rho b

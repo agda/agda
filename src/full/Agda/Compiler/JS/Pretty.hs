@@ -5,7 +5,6 @@ import GHC.Generics (Generic)
 import Data.Char ( isAsciiLower, isAsciiUpper, isDigit )
 import Data.List ( intercalate )
 import Data.String ( IsString (fromString) )
-import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set ( Set, toList, insert, member )
 import qualified Data.Set as Set
 import Data.Map ( Map, toAscList )

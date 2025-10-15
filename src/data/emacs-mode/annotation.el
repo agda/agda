@@ -96,30 +96,43 @@ given position."
             t)
         (error "File does not exist or is unreadable: %s." file)))))
 
-(defun annotation-merge-faces (start end faces)
+(defun annotation-merge-faces (start end faces &optional object)
   "Helper procedure used by `annotation-annotate'.
 For each position in the range the FACES are merged
 with the current value of the annotation-faces text property, and
 both the face and the annotation-faces text properties are set to
 the resulting list of faces.
 
+If annotations are set in an OBJECT rather than in the current buffer,
+we set the \='font-lock-face property rather than the \='face property,
+as the latter is overwritten if we place the OBJECT in a buffer
+that uses font-lock-mode, such as the Agda information buffer.
+
 Precondition: START and END must be numbers, and START must be
 less than END."
   (cl-assert (condition-case nil (< start end) (error nil)))
   (let ((pos start)
+        ;; For the Agda buffers we use 'face,
+        ;; but for putting annotated text in the Agda information buffer
+        ;; we use 'font-lock-face, otherwise it is overwritten by font-lock.
+        ;; In particular, compilation-mode as used in the Agda information buffer
+        ;; will clear 'face annotations but preserve 'font-lock-face ones.
+        ;; https://emacs.stackexchange.com/questions/17141/how-do-i-insert-text-with-a-specific-face
+        (face-or-font-lock-face (if object 'font-lock-face 'face))
         mid)
     (while (< pos end)
       (setq mid (next-single-property-change pos 'annotation-faces
-                                             nil end))
-      (let* ((old-faces (get-text-property pos 'annotation-faces))
+                                             object end))
+      (let* ((old-faces (get-text-property pos 'annotation-faces object))
              (all-faces (cl-union old-faces faces)))
-        (mapc (lambda (prop) (put-text-property pos mid prop all-faces))
-              '(annotation-faces face))
+        (put-text-property pos mid 'annotation-faces      all-faces object)
+        (put-text-property pos mid face-or-font-lock-face all-faces object)
         (setq pos mid)))))
 
 (defun annotation-annotate
-    (start end anns &optional token-based info goto)
-  "Annotate text between START and END in the current buffer.
+    (start end anns &optional token-based info goto object)
+  "Annotate text between START and END in the current buffer,
+or in OBJECT if given.
 
 Nothing happens if either START or END are out of bounds for the
 current (possibly narrowed) buffer, or END <= START.
@@ -157,33 +170,37 @@ annotation-annotations is set to a list with all the properties
 that have been set; this ensures that the text properties can
 later be removed (if the annotation-* properties are not tampered
 with)."
-  (when (and (<= (point-min) start)
-             (< start end)
-             (<= end (point-max)))
+  (when (and (< start end)
+             (or object
+                 (and (<= (point-min) start)
+                      (<= end (point-max)))))
     (if (null anns)
-        (annotation-remove-annotations nil start end)
+        (annotation-remove-annotations nil start end object)
       (let ((faces (delq nil
                          (mapcar (lambda (ann)
                                    (cdr (assoc ann annotation-bindings)))
                                  anns)))
             (props nil))
+        ;; (message "annotation-bindings = %s" annotation-bindings)
+        ;; (message "anns  = %s" anns)
+        ;; (message "faces = %s" faces)
         (when faces
-          (annotation-merge-faces start end faces)
+          (annotation-merge-faces start end faces object)
           (cl-pushnew 'face props)
           (cl-pushnew 'annotation-faces props))
         (when token-based
           (add-text-properties start end
-                               `(annotation-token-based t))
+                               `(annotation-token-based t) object)
           (cl-pushnew 'annotation-token-based props))
         (when (consp goto)
           (add-text-properties start end
-                               `(annotation-goto ,goto
-                                 mouse-face highlight))
+                               `(annotation-goto ,goto mouse-face highlight)
+                               object)
           (cl-pushnew 'annotation-goto props)
           (cl-pushnew 'mouse-face props))
         (when info
           (add-text-properties start end
-                               `(mouse-face highlight help-echo ,info))
+                               `(mouse-face highlight help-echo ,info) object)
           (cl-pushnew 'mouse-face props)
           (cl-pushnew 'help-echo props))
         (when props
@@ -192,11 +209,11 @@ with)."
                 mid)
             (while (< pos end)
               (setq mid (next-single-property-change pos
-                           'annotation-annotations nil end))
-              (let* ((old-props (get-text-property pos 'annotation-annotations))
+                           'annotation-annotations object end))
+              (let* ((old-props (get-text-property pos 'annotation-annotations object))
                      (all-props (cl-union old-props props)))
                 (add-text-properties pos mid
-                   `(annotation-annotated t annotation-annotations ,all-props))
+                   `(annotation-annotated t annotation-annotations ,all-props) object)
                 (setq pos mid)))))))))
 
 (defmacro annotation-preserve-mod-p-and-undo (&rest code)
@@ -215,10 +232,10 @@ Modification hooks are also disabled."
          (progn ,@code)
        (restore-buffer-modified-p ,modp)))))
 
-(defun annotation-remove-annotations (&optional token-based start end)
+(defun annotation-remove-annotations (&optional token-based start end object)
   "Remove text properties set by `annotation-annotate'.
 
-In the current buffer. If START and END are given, then
+In the current buffer or OBJECT. If START and END are given, then
 properties are only removed between these positions. If
 TOKEN-BASED is non-nil, then only token-based properties are
 removed.
@@ -236,22 +253,23 @@ buffer."
    (let ((tag (if token-based
                   'annotation-token-based
                 'annotation-annotated))
-         (pos (or start (point-min)))
-         (end (or end (point-max)))
+         (pos (or start (if object 0 (point-min))))
+         (end (or end (if object (length object) (point-max))))
          pos2)
      (while pos
-       (let ((props (get-text-property pos 'annotation-annotations)))
-         (setq pos2 (next-single-property-change pos tag nil end))
+       (let ((props (get-text-property pos 'annotation-annotations object)))
+         (setq pos2 (next-single-property-change pos tag object end))
          (when (and props
                     (or (not token-based)
                         (member 'annotation-token-based props)))
            (remove-text-properties pos (or pos2 (point-max))
               (cl-mapcan (lambda (prop) (list prop nil))
-                      (cons 'annotation-annotations props)))))
+                      (cons 'annotation-annotations props))
+              object)))
        (setq pos (unless (or (not pos2) (>= pos2 end)) pos2))))))
 
-(defun annotation-load (goto-help remove &rest cmds)
-  "Apply highlighting annotations in CMDS in the current buffer.
+(defun annotation-load (goto-help remove object &rest cmds)
+  "Apply highlighting annotations in CMDS in OBJECT or the current buffer.
 
 The argument CMDS should be a list of lists (start end anns
 &optional info goto). Text between start and end will be
@@ -280,8 +298,11 @@ Note: This function may fail if there is read-only text in the
 buffer."
   (annotation-preserve-mod-p-and-undo
     (when (listp cmds)
-      (let ((pos (point-min)))
+      ;; (message "cmds = %s" cmds)
+      (let ((pos (if object 0 (point-min))))
         (dolist (cmd cmds)
+          ;; (message "cmd = %s" cmd)
+          (when cmd
           (cl-destructuring-bind
               (start end anns &optional token-based info goto) cmd
             (let ((info (if (and (not info) (consp goto))
@@ -289,13 +310,14 @@ buffer."
                           info)))
               (when remove
                 (annotation-remove-annotations
-                 'token-based pos end)
+                 'token-based pos end object)
                 (setq pos end))
               (annotation-annotate
-               start end anns token-based info goto))))
+               start end anns token-based info goto object)))))
+        ;; Remove annotations from the last point to the end of the buffer.
         (when remove
           (annotation-remove-annotations
-           'token-based pos (point-max)))))))
+           'token-based pos (if object (length object) (point-max)) object))))))
 
 (provide 'annotation)
 ;;; annotation.el ends here

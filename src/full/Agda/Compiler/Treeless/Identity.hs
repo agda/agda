@@ -6,7 +6,7 @@ module Agda.Compiler.Treeless.Identity
 import Prelude hiding ((!!))  -- don't use partial functions
 
 import Control.Applicative ( Alternative((<|>), empty) )
-import Data.Semigroup
+import Data.Semigroup ( sconcat )
 import qualified Data.List as List
 
 import Agda.Syntax.Treeless

@@ -16,13 +16,13 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install imagemagick (convert)
       run: |
         sudo apt-get update
         sudo apt-get install imagemagick
     - name: Set up Python ${{ env.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ env.python-version }}
     - name: Install dependencies

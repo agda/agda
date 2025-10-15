@@ -2,8 +2,8 @@
 --
 -- Implements one big fold over abstract syntax.
 
--- {-# OPTIONS_GHC -fwarn-unused-imports #-}  -- Data.Semigroup is redundant in later GHC versions
-{-# OPTIONS_GHC -fwarn-unused-binds   #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-binds   #-}
 
 module Agda.Interaction.Highlighting.FromAbstract
   ( runHighlighter
@@ -12,12 +12,9 @@ module Agda.Interaction.Highlighting.FromAbstract
 
 import Prelude hiding (null)
 
-import Control.Applicative
 import Control.Monad.Reader  ( MonadReader(..), asks, Reader, runReader )
 
-import qualified Data.Map      as Map
 import           Data.Maybe
-import           Data.Semigroup       ( Semigroup(..) )          -- for ghc 8.0
 import           Data.Void            ( Void )
 
 import           Agda.Interaction.Highlighting.Precise hiding ( singleton )
@@ -600,7 +597,7 @@ hiliteCName xs x fr mR asp = do
   mFilePos :: Maybe DefinitionSite
   mFilePos = do
     r <- mR
-    P.Pn { P.srcFile = Strict.Just f, P.posPos = p } <- P.rStart r
+    P.Pn (Strict.Just f) p _ _ <- P.rStart r
     mod <- P.rangeFileName f
     -- Andreas, 2017-06-16, Issue #2604: Symbolic anchors.
     -- We drop the file name part from the qualifiers, since

@@ -1,17 +1,19 @@
 module Agda.Syntax.Common.Aspect where
 
-import Agda.Syntax.TopLevelModuleName.Boot (TopLevelModuleName')
-import Agda.Syntax.Position (Range)
-import Agda.Utils.Maybe
-import GHC.Generics
+import Prelude hiding (null)
 
+import GHC.Generics ( Generic )
+import Control.DeepSeq ( NFData(..) )
 import Data.Set (Set)
 import Data.Text (Text)
 
-import Control.DeepSeq
+import Agda.Syntax.TopLevelModuleName.Boot (TopLevelModuleName')
+import Agda.Syntax.Position (Range, rangeModule, rStart, Position'(posPos), HasRange(..))
+import Agda.Utils.Maybe ( unionMaybeWith )
+import Agda.Utils.Null ( Null(..) )
 
 data Induction = Inductive | CoInductive  -- Keep in this order!
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Generic, Show)
 
 data Aspect
   = Comment
@@ -33,8 +35,8 @@ data Aspect
   | Markup
       -- ^ Delimiters used to separate the Agda code blocks
       --   from the other contents in literate Agda.
-   | URL Text
-       -- ^ Uniform Resource Locator aka clickable link.
+  | URL Text
+      -- ^ Uniform Resource Locator aka clickable link.
   deriving (Eq, Show, Generic)
 
 -- | @NameKind@s are figured out during scope checking.
@@ -162,27 +164,45 @@ instance Eq DefinitionSite where
 -- information from the lexer?
 
 data TokenBased = TokenBased | NotOnlyTokenBased
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
+
+instance Null TokenBased where
+  empty = TokenBased
+
+instance Null Aspects where
+  empty = Aspects Nothing mempty "" Nothing TokenBased
+  null (Aspects a o s d t) = null a && null o && null s && null d && null t
 
 instance Eq Aspects where
   Aspects a o _ d t == Aspects a' o' _ d' t' =
     (a, o, d, t) == (a', o', d', t')
 
-instance NFData Induction where
-  rnf Inductive   = ()
-  rnf CoInductive = ()
+-- | Compute the 'Aspects' which (possibly) contain a 'DefinitionSite'
+-- for the given thing-with-range.
+rangeDefinitionSite :: HasRange a => a -> Aspects
+rangeDefinitionSite thing = do
+  let
+    r = getRange thing
 
-instance NFData NameKind where
-  rnf = \case
-    Bound         -> ()
-    Generalizable -> ()
-    Constructor c -> rnf c
-    Datatype      -> ()
-    Field         -> ()
-    Function      -> ()
-    Module        -> ()
-    Postulate     -> ()
-    Primitive     -> ()
-    Record        -> ()
-    Argument      -> ()
-    Macro         -> ()
+    defs :: Maybe DefinitionSite
+    defs = do
+      mod <- rangeModule r
+      pos <- posPos <$> rStart r
+      pure DefinitionSite
+        { defSiteModule = mod
+        , defSitePos    = fromIntegral pos
+        , defSiteHere   = False
+        , defSiteAnchor = Nothing
+        }
+  empty{ definitionSite = defs }
+
+------------------------------------------------------------------------
+-- NFData instances
+
+instance NFData DefinitionSite
+instance NFData OtherAspect
+instance NFData TokenBased
+instance NFData Induction
+instance NFData NameKind
+instance NFData Aspects
+instance NFData Aspect

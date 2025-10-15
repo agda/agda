@@ -22,6 +22,10 @@ data ImportDecl = ImportDecl
 
 data ImportSpec = IVar Name
 
+-- | Importing a whole module qualified.
+qualifiedImport :: ModuleName -> ImportDecl
+qualifiedImport m = ImportDecl m True Nothing
+
 -- * Declarations
 
 data Decl = TypeDecl Name [TyVarBind] Type

@@ -1,23 +1,25 @@
+-- Testcase by Ulf (2014-07-07, commit c8128d1).
+-- Revised by Andreas and Ulf 2025-09-16 for issue #2410.
 
-data Nat : Set where
-  zero : Nat
-  suc  : Nat → Nat
+open import Agda.Builtin.Nat
+open import Agda.Builtin.Bool
 
-{-# BUILTIN NATURAL Nat #-}
-
-data _≡_ {A : Set} (x : A) : A → Set where
-  refl : x ≡ x
+if_then_else_ : {A : Set} → Bool → A → A → A
+if true  then a else b = a
+if false then a else b = b
 
 pred : Nat → Nat
 pred zero = zero
 pred (suc n) = n
 
+-- The following function diverging for unknown n, so we need to label it NON_TERMINATING.
+-- At run-time it terminates, so we might want to evaluate it on some concrete numbers.
 {-# NON_TERMINATING #-}
 loop : Nat → Nat
-loop zero = zero
-loop n = loop (pred n)
+loop n = if n == 0 then 0 else loop (pred n)
 
--- Non-terminating functions reduce when evaluated at top-level,
--- but not in a hole.
 hole : Set
 hole = {!!}
+
+-- Non-terminating functions do not reduce by default (C-c C-n),
+-- only when more force is applied (C-u C-c C-n).

@@ -117,17 +117,17 @@ isType_ e = traceCall (IsType_ e) $ do
     A.Fun i (Arg info t) b -> do
       a <- setArgInfo info . defaultDom <$> checkPiDomain (info :| []) t
       b <- isType_ b
-      s <- inferFunSort a (getSort b)
+      s <- inferFunSort a b
       let t' = El s $ Pi a $ NoAbs underscore b
-      checkTelePiSort t'
+      hasPTSRule a (NoAbs underscore $ getSort b)
       --noFunctionsIntoSize t'
       return t'
     A.Pi _ tel e -> do
       (t0, t') <- checkPiTelescope (List1.toList tel) $ \ tel -> do
         t0  <- instantiateFull =<< isType_ e
         tel <- instantiateFull tel
+        checkTelePiSort tel (getSort t0)
         return (t0, telePi tel t0)
-      checkTelePiSort t'
       --noFunctionsIntoSize t'
       return t'
 
@@ -1445,10 +1445,7 @@ checkExpr' cmp e t =
           else
             internalError "DontCare may only appear in irrelevant contexts"
 
-        -- Andreas, 2025-07-16, isse #7954.
-        -- 'A.Dot' can now only appear in the argument position of 'A.App',
-        -- where it is handled by 'appView'.
-        A.Dot{} -> __IMPOSSIBLE__ -- WAS: typeError InvalidDottedExpression
+        A.Dot{} -> typeError InvalidDottedExpression
 
         -- Application
         _   | Application hd args <- appView e -> checkApplication cmp hd args e t
@@ -1721,9 +1718,9 @@ checkNamedArg arg@(Arg info e0) t0 = do
     let checkU i = checkMeta i (newMetaArg (A.metaKind i) info x) CmpLeq t0
     let checkQ = checkQuestionMark (newInteractionMetaArg info x) CmpLeq t0
     if not $ isHole e then checkExpr e t0 else localScope $ do
-      -- Note: we need localScope here,
+      -- Note: we need localScope_ here,
       -- as scopedExpr manipulates the scope in the state.
-      -- However, we may not pull localScope over checkExpr!
+      -- However, we may not pull localScope_ over checkExpr!
       -- This is why we first test for isHole, and only do
       -- scope manipulations if we actually handle the checking
       -- of e here (and not pass it to checkExpr).

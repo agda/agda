@@ -944,7 +944,7 @@ niceDeclarations fixs ds = do
         addType :: Name -> (DeclNum -> InterleavedDecl) -> MutualChecks -> INice ()
         addType n c mc = do
           ISt m checks i <- get
-          when (isJust $ Map.lookup n m) $ lift $ declarationException $ DuplicateDefinition n
+          whenJust (Map.lookup n m) \ y -> lift $ declarationException $ DuplicateDefinition n $ getRange y
           put $ ISt (Map.insert n (c i) m) (mc <> checks) (i + 1)
 
         addFunType d@(FunSig _ _ _ _ _ _ tc cc n _) = do

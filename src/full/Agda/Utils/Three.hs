@@ -46,8 +46,18 @@ partitionEithers3 = \case
       In3 c -> (as, bs, c:cs)
     where (as, bs, cs) = partitionEithers3 xs
 
+mapEither3 :: (a -> Either3 b c d) -> [a] -> ([b], [c], [d])
+mapEither3 f = partitionEithers3 . map f
+
 mapEither3M :: Applicative m => (a -> m (Either3 b c d)) -> [a] -> m ([b], [c], [d])
 mapEither3M f xs = partitionEithers3 <$> traverse f xs
 
 forEither3M :: Applicative m => [a] -> (a -> m (Either3 b c d)) -> m ([b], [c], [d])
 forEither3M = flip mapEither3M
+
+-- | Convert a 'Three' tagged thing into an 'Either3'.
+mkEither3 :: (Three, a) -> Either3 a a a
+mkEither3 = \case
+  (One  , a) -> In1 a
+  (Two  , a) -> In2 a
+  (Three, a) -> In3 a

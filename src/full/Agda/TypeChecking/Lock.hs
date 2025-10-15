@@ -9,8 +9,10 @@ module Agda.TypeChecking.Lock
   )
 where
 
+import Prelude hiding (null)
+import qualified Prelude as Prelude
+
 import qualified Data.IntMap as IMap
-import qualified Data.IntSet as ISet
 import qualified Data.Set as Set
 
 import Agda.Syntax.Common
@@ -24,14 +26,16 @@ import Agda.TypeChecking.Substitute.Class
 import Agda.TypeChecking.Free
 
 import qualified Agda.Utils.List1 as List1
-import qualified Agda.Utils.VarSet as VSet
+import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Size
 
-checkLockedVars
-  :: Term
+checkLockedVars ::
+     Term
      -- ^ term to check
   -> Type
      -- ^ its type
@@ -40,15 +44,23 @@ checkLockedVars
   -> Type
      -- ^ type of the lock
   -> TCM ()
-checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) $ do
+checkLockedVars t ty lk lk_ty = do
   -- Have to instantiate the lock, otherwise we might block on it even
   -- after it's been solved (e.g.: it's an interaction point, see #6528)
   -- Update (Andreas, 2023-10-23, issue #6913): need even full instantiation.
   -- Since @lk@ is typically just a variable, 'instantiateFull' is not expensive here.
   -- In #6913 it was a postulate applied to a meta, thus, 'instantiate' was not enough.
   lk <- instantiateFull lk
+  catchConstraint (CheckLockedVars t ty lk lk_ty) do
+
   reportSDoc "tc.term.lock" 40 $ "Checking locked vars.."
-  reportSDoc "tc.term.lock" 50 $ nest 2 $ vcat
+  reportSDoc "tc.term.lock" 45 $ nest 2 $ vcat
+     [ text "t     = " <+> prettyTCM t
+     , text "ty    = " <+> prettyTCM ty
+     , text "lk    = " <+> prettyTCM lk
+     , text "lk_ty = " <+> prettyTCM lk_ty
+     ]
+  reportSDoc "tc.term.lock" 80 $ nest 2 $ vcat
      [ text "t     = " <+> pretty t
      , text "ty    = " <+> pretty ty
      , text "lk    = " <+> pretty lk
@@ -60,35 +72,35 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
   caseMaybe mi (typeError (DoesNotMentionTicks t ty lk)) $ \ i -> do
 
   cxt <- getContext
-  let toCheck = zip [0..] $ zipWith raise [1..] (take i cxt)
 
   let fv = freeVarsIgnore IgnoreInAnnotations (t,ty)
   let
     rigid = rigidVars fv
     -- flexible = IMap.keysSet $ flexibleVars fv
     termVars = allVars fv -- ISet.union rigid flexible
-    earlierVars = ISet.fromList [i + 1 .. size cxt - 1]
-  if termVars `ISet.isSubsetOf` earlierVars then return () else do
+    earlierVars = VarSet.range i (size cxt)
+  if termVars `VarSet.isSubsetOf` earlierVars then return () else do
 
+  let toCheck = zip [0..] $ zipWith raise [1..] (take i cxt)
   checked <- fmap catMaybes . forM toCheck $ \ (j,ce) -> do
     ifM (isTimeless (ctxEntryType ce))
         (return $ Just j)
         (return $ Nothing)
 
-  let allowedVars = ISet.union earlierVars (ISet.fromList checked)
+  let allowedVars = VarSet.union earlierVars (VarSet.fromList checked)
 
-  if termVars `ISet.isSubsetOf` allowedVars then return () else do
+  if termVars `VarSet.isSubsetOf` allowedVars then return () else do
   let
-    illegalVars = rigid ISet.\\ allowedVars
+    illegalVars = rigid `VarSet.difference` allowedVars
     -- flexVars = flexibleVars fv
     -- blockingMetas = map (`lookupVarMap` flexVars) (ISet.toList $ termVars ISet.\\ allowedVars)
-  if ISet.null illegalVars then  -- only flexible vars are infringing
+  if null illegalVars then  -- only flexible vars are infringing
     -- TODO: be more precise about which metas
     -- flexVars = flexibleVars fv
     -- blockingMetas = map (`lookupVarMap` flexVars) (ISet.toList $ termVars ISet.\\ allowedVars)
     patternViolation alwaysUnblock
   else
-    typeError $ ReferencesFutureVariables t (List1.fromList (ISet.toList illegalVars)) lk i
+    typeError $ ReferencesFutureVariables t (List1.fromList (VarSet.toAscList illegalVars)) lk i
     -- List1.fromList is guarded by not (null illegalVars)
 
 
@@ -110,7 +122,7 @@ getLockVar lk = do
       -- We should not block on solved metas, so we need @lk@ to be fully instantiated,
       -- otherwise it may mention solved metas which end up here.
 
-  is <- filterM isLock $ ISet.toList $ rigidVars fv
+  is <- filterM isLock $ VarSet.toAscList $ rigidVars fv
 
   -- Out of the lock variables that appear in @lk@ the one in the
   -- left-most position in the context is what will determine the
@@ -131,8 +143,8 @@ isTimeless t = do
 -- | If the first argument is a lock variable, check that all variables in the given set
 --   are either earlier than this variable or are timeless.
 --
-checkEarlierThan :: Term -> VSet.VarSet -> TCM Bool
+checkEarlierThan :: Term -> VarSet -> TCM Bool
 checkEarlierThan lk fvs = do
   getLockVar lk >>= \case
     Nothing -> return True
-    Just i  -> allM (isTimeless <=< typeOfBV) $ filter (<= i) $ VSet.toList fvs
+    Just i  -> allM (isTimeless <=< typeOfBV) $ filter (<= i) $ VarSet.toAscList fvs

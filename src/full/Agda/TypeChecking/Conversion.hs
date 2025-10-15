@@ -9,12 +9,10 @@ import Control.Arrow (second)
 import Control.Monad.Except ( MonadError(..) )
 
 import Data.Function (on)
-import Data.Semigroup ((<>))
 import Data.IntMap (IntMap)
 
 import qualified Data.List   as List
 import qualified Data.IntMap as IntMap
-import qualified Data.IntSet as IntSet
 import qualified Data.Set    as Set
 
 import Agda.Syntax.Common
@@ -62,6 +60,7 @@ import qualified Agda.Utils.BoolSet as BoolSet
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Unsafe ( unsafeComparePointers )
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
@@ -959,6 +958,8 @@ compareElims pols0 fors0 a v els01 els02 =
   (catchConstraint (ElimCmp pols0 fors0 a v els01 els02) :: m () -> m ()) $ do
   let v1 = applyE v els01
       v2 = applyE v els02
+      -- Andreas, issue #8126, hack: use 'AsTypes' to suppress type in error message.
+      failureNoType = typeError $ UnequalTerms CmpEq v1 v2 AsTypes
       failure = typeError $ UnequalTerms CmpEq v1 v2 (AsTermsOf a)
         -- Andreas, 2013-03-15 since one of the spines is empty, @a@
         -- is the correct type here.
@@ -1096,8 +1097,18 @@ compareElims pols0 fors0 a v els01 els02 =
 
     -- case: f == f' are projections
     (Proj o f : els1, Proj _ f' : els2)
-      | f /= f'   -> typeError $ MismatchedProjectionsError f f'
-      | otherwise -> do
+      | f /= f'   -> do
+          -- Andreas, 2025-10-06, issue #8126
+          -- If we are dealing with generalizable variables rather than projections,
+          -- do not throw a MismatchedProjectionsError, but rather a generic f != f' error.
+          reportSDoc "tc.error.mismatchedProjections" 30 $ "type:" <+> prettyTCM a
+          reportSDoc "tc.error.mismatchedProjections" 40 $ "type:" <+> pretty a
+          reportSDoc "tc.error.mismatchedProjections" 30 $ "f = " <+> prettyTCM f
+          reportSDoc "tc.error.mismatchedProjections" 40 $ "f = " <+> pretty f
+          case (getGeneralizedFieldName f, getGeneralizedFieldName f') of
+            (Nothing, Nothing) -> typeError $ MismatchedProjectionsError f f'
+            _ -> failureNoType -- do not print the type "GeneralizeTel"
+        | otherwise -> do
         a   <- abortIfBlocked a
         res <- projectTyped v a o f -- fails only if f is proj.like but parameters cannot be retrieved
         case res of
@@ -1356,7 +1367,7 @@ leqSort s1 s2 = do
     omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
     let infInInf = typeInTypeEnabled || omegaInOmegaEnabled
 
-    let fvsRHS = (`IntSet.member` allFreeVars s2)
+    let fvsRHS = (`VarSet.member` allFreeVars s2)
     badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
 
     postponeIfBlocked $ case (s1, s2) of
@@ -2026,8 +2037,8 @@ equalSort s1 s2 = do
             let s1 = ignoreBlocking s1b
                 blocker = getBlocker s1b
             -- Jesper, 2019-12-27: SizeUniv is disabled at the moment.
-            if | {- sizedTypesEnabled || -} propEnabled || cubicalEnabled ->
-                case funSort' s1 (Type l2) of
+            if | {- sizedTypesEnabled || -} propEnabled || cubicalEnabled -> do
+                funSortM' s1 (Type l2) >>= \case
                    -- If the work we did makes the @funSort@ compute,
                    -- continue working.
                    Right s -> equalSort (Type l) s
@@ -2048,12 +2059,12 @@ equalSort s1 s2 = do
             s1b <- reduceB s1
             let s1 = ignoreBlocking s1b
                 blocker = getBlocker s1b
-            case funSort' s1 (Prop l2) of
+            funSortM' s1 (Prop l2) >>= \case
                    -- If the work we did makes the @funSort@ compute,
                    -- continue working.
                    Right s -> equalSort (Prop l) s
                    -- Otherwise: postpone
-                   Left _  -> patternViolation blocker
+                   Left b  -> patternViolation (unblockOnEither blocker b)
 
           -- TODO: SSet l
 

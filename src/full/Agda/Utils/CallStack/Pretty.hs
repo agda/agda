@@ -9,7 +9,7 @@ import Agda.Utils.CallStack.Base
   , getCallStack
   )
 import Agda.Syntax.Common.Pretty
-  ( (<+>), ($+$), (<>)
+  ( (<+>), ($+$)
   , pshow, text
   , colon, comma
   , nest, parens

@@ -12,9 +12,6 @@ import Prelude hiding ( null )
 
 import Control.Monad.Reader ( asks )
 
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Defs
@@ -40,6 +37,8 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet (VarSet)
 
 -- | Turn a term into a non-linear pattern, treating the
 --   free variables as pattern variables.
@@ -156,9 +155,9 @@ instance PatternFrom Term NLPat where
                _              -> return Nothing
            case sequence mbvs of
              Just bvs | fastDistinct bvs -> do
-               let allBoundVars = IntSet.fromList (downFrom k)
+               let allBoundVars = VarSet.full k
                    ok = not (isIrrelevant r) ||
-                        IntSet.fromList (map unArg bvs) == allBoundVars
+                        VarSet.fromList (map unArg bvs) == allBoundVars
                if ok then return (PVar i bvs) else done
              _ -> done
        | otherwise -> done
@@ -242,9 +241,9 @@ instance NLPatToTerm NLPSort Sort where
 
 -- | Gather the set of pattern variables of a non-linear pattern
 class NLPatVars a where
-  nlPatVarsUnder :: Int -> a -> IntSet
+  nlPatVarsUnder :: Int -> a -> VarSet
 
-  nlPatVars :: a -> IntSet
+  nlPatVars :: a -> VarSet
   nlPatVars = nlPatVarsUnder 0
 
 instance {-# OVERLAPPABLE #-} (Foldable f, NLPatVars a) => NLPatVars (f a) where

@@ -115,7 +115,7 @@ data Cl = Cl
   } deriving (Show)
 
 instance P.Pretty Cl where
-  pretty (Cl no mr ps b) = (P.pretty no P.<> ":") P.<+> P.prettyList ps P.<+> "->" P.<+> maybe "_|_" P.pretty b
+  pretty (Cl no mr ps b) = (P.pretty no <> ":") P.<+> P.prettyList ps P.<+> "->" P.<+> maybe "_|_" P.pretty b
 
 type Cls = [Cl]
 

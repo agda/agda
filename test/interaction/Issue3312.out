@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : _64 ?1 : ?0 (at = at) Sort _64 [ at Issue3312.agda:30.89-103 ] ———— Error ————————————————————————————————————————————————— error: [UnsolvedConstraints] Failed to solve the following constraints: Has PTS rule: (Fin (length xs) , _64 (at = at)) (blocked on _64) Has PTS rule: ({List I} , funSort Set (piSort Set (λ at → _64 (at = at)))) (blocked on _64) Has PTS rule: ({I → Set} , piSort Set (λ xs → funSort Set (piSort Set (λ at → _64 (at = at))))) (blocked on _64) Has PTS rule: ({Set} , piSort Set₁ (λ T → piSort Set (λ xs → funSort Set (piSort Set (λ at → _64 (at = at)))))) (blocked on _64)" nil)
+(agda2-info-action "*All Goals*" "?0 : _64 ?1 : ?0 (at = at) Sort _64 [ at Issue3312.agda:30.89-103 ]" nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
 (agda2-status-action "")
 (agda2-info-action "*Intro*" "No introduction forms found." nil)

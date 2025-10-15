@@ -9,7 +9,6 @@ import qualified Data.Foldable as Fold
 import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Semigroup ((<>))
 
 import Agda.Interaction.Options.Base
 import Agda.Syntax.Internal

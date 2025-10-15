@@ -1,14 +1,15 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| Pretty printing functions.
 -}
 module Agda.Syntax.Common.Pretty
     ( module Agda.Syntax.Common.Pretty
     , module Text.PrettyPrint.Annotated
-    -- This re-export can be removed once <GHC-8.4 is dropped.
-    , module Data.Semigroup
     ) where
 
 import Prelude hiding (null)
+
+import Control.DeepSeq
 
 import qualified Data.List as List
 import qualified Data.Foldable as Fold
@@ -34,10 +35,14 @@ import Text.PrettyPrint.Annotated hiding
 
   , semi, comma, colon, space, equals, lparen, rparen, lbrack, rbrack
   , lbrace, rbrace
+  , annotate
   )
 
-import Data.Semigroup ((<>))
+import Agda.Syntax.Common.Aspect
+import Agda.Syntax.Position
 
+import Agda.Utils.DocTree qualified as DocTree
+import Agda.Utils.FileName
 import Agda.Utils.Float
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
@@ -45,10 +50,7 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Utils.Size
 
-import Agda.Syntax.Common.Aspect
-import Agda.Syntax.Position
-import Agda.Utils.Impossible
-import Agda.Utils.FileName
+type DocTree = DocTree.DocTree Aspects
 
 ---------------------------------------------------------------------------
 -- * Pretty class
@@ -103,6 +105,9 @@ instance Pretty Char where
 -- annotations is solved.
 instance a ~ Aspects => Pretty (P.Doc a) where
   pretty = id
+
+instance a ~ Aspects => Pretty (DocTree.DocTree a) where
+  pretty = DocTree.prettyDocTree
 
 instance Pretty () where
   pretty _ = P.empty
@@ -292,6 +297,12 @@ prefixedThings kw = \case
 ---------------------------------------------------------------------------
 -- * Annotations
 
+-- | Only adds an annotation node if the 'Aspects' is non-'null'.
+annotate :: Aspects -> Doc -> Doc
+annotate a x
+  | null a    = x
+  | otherwise = rnf a `seq` P.annotate a x
+
 -- | Attach a simple 'Aspect', rather than a full set of 'Aspects', to a
 -- document.
 annotateAspect :: Aspect -> Doc -> Doc
@@ -318,7 +329,11 @@ url s = href (Text.pack s) (text s)
 githubIssue :: Int -> Doc
 githubIssue = url . ("https://github.com/agda/agda/issues/" ++) . show
 
--- ** Syntax highlighting helpers
+-- | Attach the position of something as the "binding site" of a 'Doc'.
+definedAt :: HasRange a => Doc -> a -> Doc
+definedAt doc p = annotate (rangeDefinitionSite p) doc
+
+-- ** Basic syntax highlighting helpers
 
 hlComment, hlSymbol, hlKeyword, hlString, hlNumber, hlHole, hlPrimitiveType, hlPragma
   :: Doc -> Doc
@@ -331,6 +346,30 @@ hlNumber        = annotateAspect Number
 hlHole          = annotateAspect Hole
 hlPrimitiveType = annotateAspect PrimitiveType
 hlPragma        = annotateAspect Pragma
+
+-- ** Helpers introducing 'NameKind's
+
+hlNameKind :: NameKind -> Doc -> Doc
+hlNameKind k = annotateAspect (Name (Just k) False)
+
+hlBound, hlGeneralizable, hlDatatype, hlField,
+  hlFunction, hlModule, hlPostulate, hlPrimitive, hlRecord, hlArgument,
+  hlMacro :: Doc -> Doc
+
+hlBound         = hlNameKind Bound
+hlGeneralizable = hlNameKind Generalizable
+hlDatatype      = hlNameKind Datatype
+hlField         = hlNameKind Field
+hlFunction      = hlNameKind Function
+hlModule        = hlNameKind Module
+hlPostulate     = hlNameKind Postulate
+hlPrimitive     = hlNameKind Primitive
+hlRecord        = hlNameKind Record
+hlArgument      = hlNameKind Argument
+hlMacro         = hlNameKind Macro
+
+hlConstructor :: Induction -> Doc -> Doc
+hlConstructor = hlNameKind . Constructor
 
 ---------------------------------------------------------------------------
 -- * Delimiter wrappers
@@ -348,12 +387,12 @@ parens p       = lparen <> p <> rparen
 brackets p     = lbrack <> p <> rbrack
 braces p       = lbrace <> p <> rbrace
 
-semi, comma, colon, dot, space, equals, lparen, rparen, lbrack, rbrack, lbrace, rbrace :: Doc
+semi, comma, colon, dot, pipe, equals, lparen, rparen, lbrack, rbrack, lbrace, rbrace :: Doc
 semi   = hlSymbol $ char ';'
 comma  = hlSymbol $ char ','
 colon  = hlSymbol $ char ':'
 dot    = hlSymbol $ char '.'
-space  = hlSymbol $ char ' '
+pipe   = hlSymbol $ char '|'
 equals = hlSymbol $ char '='
 lparen = hlSymbol $ char '('
 rparen = hlSymbol $ char ')'

@@ -239,8 +239,10 @@ checkModuleApplication (C.SectionApp _ tel m es) m0 x dir' = do
     (s', copyInfo) <- copyScope m m0 s
     -- Set the current scope to @s'@
     modifyCurrentScope $ const s'
+    recomputeInverseScope
+
     printScope "mod.inst" 40 "copied source module"
-    reportSDoc "scope.mod.inst" 30 $ return $ pretty copyInfo
+    reportS "scope.mod.inst" 30 $ pretty copyInfo
     let amodapp = A.SectionApp tel' m1 args'
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checked ModuleApplication " ++ prettyShow x
@@ -257,6 +259,7 @@ checkModuleApplication (C.RecordModuleInstance _ recN) m0 x dir' =
     (adir, s) <- applyImportDirectiveM recN dir' s
     (s', copyInfo) <- copyScope recN m0 s
     modifyCurrentScope $ const s'
+    recomputeInverseScope
 
     printScope "mod.inst" 40 "copied record module"
     return (A.RecordModuleInstance m1, copyInfo, adir)
@@ -305,7 +308,19 @@ checkModuleMacro apply kind r p e x modapp open dir = do
           (DontOpen, _)     -> (dir, defaultImportDir)
 
     -- Restore the locals after module application has been checked.
-    (modapp', copyInfo, adir') <- withLocalVars $ checkModuleApplication modapp m0 x moduleDir
+    (modapp', copyInfo', adir') <- withLocalVars $ checkModuleApplication modapp m0 x moduleDir
+
+    -- Mark the copy as being private (renPublic = False) if the module
+    -- name is PrivateAccess and not open public.
+    -- If the user gave an explicit 'using'/'renaming'/etc, keep the
+    -- copy as 'public' to avoid trimming.
+    let
+      visible = case p of
+        PrivateAccess{} -> not (null dir) || isJust (publicOpen dir)
+        _               -> True
+
+      copyInfo = copyInfo'{ renPublic = visible }
+
     printScope "mod.inst.app" 40 "checkModuleMacro, after checkModuleApplication"
 
     reportSDoc "scope.decl" 90 $ "after mod app: trying to print m0 ..."
@@ -343,7 +358,7 @@ checkModuleMacro apply kind r p e x modapp open dir = do
     reportSLn  "scope.decl" 90 $ "info    = " ++ show info
     reportSLn  "scope.decl" 90 $ "m       = " ++ prettyShow m
     reportSLn  "scope.decl" 90 $ "modapp' = " ++ show modapp'
-    reportSDoc "scope.decl" 90 $ return $ pretty copyInfo
+    reportS    "scope.decl" 90 $ pretty copyInfo
     reportSDoc "scope.decl" 70 $ nest 2 $ prettyA adecl
     return adecl
   where
@@ -430,7 +445,7 @@ concreteToAbstract_ :: ToAbstract c => c -> ScopeM (AbsOfCon c)
 concreteToAbstract_ = toAbstract
 
 concreteToAbstract :: ToAbstract c => ScopeInfo -> c -> ScopeM (AbsOfCon c)
-concreteToAbstract scope x = withScope_ scope (toAbstract x)
+concreteToAbstract scope x = evalWithScope scope (toAbstract x)
 
 -- | Things that can be translated to abstract syntax are instances of this
 --   class.
@@ -466,13 +481,6 @@ toAbstractHiding _             = toAbstractCtx TopCtx
 --   is restored upon completion.
 localToAbstract :: ToAbstract c => c -> (AbsOfCon c -> ScopeM b) -> ScopeM b
 localToAbstract x ret = localScope $ ret =<< toAbstract x
-
--- | Like 'localToAbstract' but returns the scope after the completion of the
---   second argument.
-localToAbstract' :: ToAbstract c => c -> (AbsOfCon c -> ScopeM b) -> ScopeM (b, ScopeInfo)
-localToAbstract' x ret = do
-  scope <- getScope
-  withScope scope $ ret =<< toAbstract x
 
 instance ToAbstract () where
   type AbsOfCon () = ()
@@ -904,6 +912,11 @@ instance ToAbstract C.Expr where
         scope <- getScope
         -- Andreas, 2014-04-06 create interaction point.
         ii <- registerInteractionPoint True r n
+
+        -- Mark all copies we can see from here as having all of their
+        -- names live.
+        clobberLiveNames
+
         let info = MetaInfo
              { metaRange  = r
              , metaScope  = scope
@@ -1123,13 +1136,20 @@ recordWhereNames = finish <=< foldM decl st0 where
   -- take the name from the ScopeCopyInfo if it is present (i.e. if the
   -- import directive is associated with a local module-macro),
   -- otherwise we trust that the scope checker did the right thing...
-  def :: Maybe ScopeCopyInfo -> A.QName -> PendingBinds
-  def (Just ren) nm = case Map.lookup nm (renNames ren) of
-    Just (new :| _) -> pb (nameConcrete (qnameName nm)) (A.Def new) (getRange nm)
-    Nothing         -> pb (nameConcrete (qnameName nm)) (A.Def nm) (getRange nm)
-  def Nothing nm = pb (nameConcrete (qnameName nm)) (A.Def nm) (getRange nm)
+  def :: Maybe ScopeCopyInfo -> A.QName -> ScopeM PendingBinds
+  def ren nm = do
+    let
+      new = case ren of
+        Just ren -> maybe nm List1.head $ Map.lookup nm (renNames ren)
+        Nothing  -> nm
 
-  fromRenaming :: Maybe ScopeCopyInfo -> [A.Renaming] -> PendingBinds
+    -- N.B.: since this is somewhere we might invent a reference to an
+    -- internal name that does not go through resolveName', we have to
+    -- explicitly mark the name we used as alive.
+    pb (nameConcrete (qnameName nm)) (A.Def new) (getRange nm)
+      <$ markLiveName new
+
+  fromRenaming :: Maybe ScopeCopyInfo -> [A.Renaming] -> ScopeM PendingBinds
   fromRenaming ren fs | (rens, _) <- partitionImportedNames (map renTo fs) = foldMap (def ren) rens
 
   fromImport :: Maybe ScopeCopyInfo -> A.ImportDirective -> ScopeM PendingBinds
@@ -1137,8 +1157,8 @@ recordWhereNames = finish <=< foldM decl st0 where
     case using of
       UseEverything
         | null renaming -> pure mempty -- TODO: raise a warning?
-        | otherwise     -> pure $! fromRenaming inv renaming
-      Using using | (names, _) <- partitionImportedNames using -> pure $!
+        | otherwise     -> fromRenaming inv renaming
+      Using using | (names, _) <- partitionImportedNames using ->
         fromRenaming inv renaming <> foldMap (def inv) names
 
   ins :: PendingBinds -> RecWhereState -> RecWhereState
@@ -2246,6 +2266,7 @@ instance ToAbstract NiceDeclaration where
           -- Merge the imported scopes with the current scopes.
           -- This might override a previous import of @m@, but monotonously (add stuff).
           modifyScopes $ \ ms -> Map.unionWith mergeScope (Map.delete m ms) i
+          recomputeInverseScope
 
           -- Andreas, 2019-05-29, issue #3818.
           -- Pass the resolved name to open instead triggering another resolution.
@@ -2277,10 +2298,11 @@ instance ToAbstract NiceDeclaration where
 
         -- If not opening, import directives are applied to the original scope.
         DontOpen -> do
-          (adir, i') <- Map.adjustM' (applyImportDirectiveM x dir) m i
+          (adir, i') <- Map.adjustM' (\m -> fmap recomputeNameParts <$> applyImportDirectiveM x dir m) m i
           -- Andreas, 2020-05-18, issue #3933
           -- We merge the new imports without deleting old imports, to be monotone.
           modifyScopes $ \ ms -> Map.unionWith mergeScope ms i'
+          recomputeInverseScope
           return adir
 
       printScope "import" 30 "merged imported sig:"
@@ -2695,12 +2717,13 @@ bindRecordConstructorName x kind a p = do
 
 bindUnquoteConstructorName :: ModuleName -> Access -> C.Name -> TCM A.QName
 bindUnquoteConstructorName m p c = do
-
   r <- resolveName (C.QName c)
   fc <- getConcreteFixity c
   c' <- withCurrentModule m $ freshAbstractQName fc c
   let aname qn = AbsName qn QuotableName Defined NoMetadata
-      addName = modifyCurrentScope $ addNameToScope (localNameSpace p) c $ aname c'
+      addName = do
+        modifyCurrentScope $ addNameToScope (localNameSpace p) c $ aname c'
+        recomputeInverseScope -- András 2025-08-30: TODO: use addNameToInverseScope instead
       success = addName >> (withCurrentModule m $ addName)
       failure y = typeError $ ClashingDefinition (C.QName c) y Nothing
   case r of
@@ -2870,6 +2893,7 @@ instance ToAbstract C.Pragma where
               unlessM ((UnknownName ==) <$> resolveName qx) $ do
                 warning $ BuiltinDeclaresIdentifier b'
                 modifyCurrentScope $ removeNameFromScope PublicNS x
+                recomputeInverseScope
               -- We then happily bind the name
               y <- freshAbstractQName' x
               let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b'
@@ -3041,7 +3065,7 @@ instance ToAbstract C.Clause where
   toAbstract (C.Clause top catchall ai lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
     -- Jesper, 2018-12-10, #3095: pattern variables bound outside the
     -- module are locally treated as module parameters
-    modifyScope_ $ updateScopeLocals $ map $ second patternToModuleBound
+    modifyScope $ updateScopeLocals $ map $ second patternToModuleBound
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
     vars0 <- getLocalVars
     lhs' <- toAbstract $ LeftHandSide (C.QName top) p NoDisplayLHS

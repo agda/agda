@@ -18,7 +18,7 @@ import qualified Data.IntSet as IntSet
 import Data.List (sort)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (isJust)
-import Data.Semigroup (Endo(..), (<>))
+import Data.Semigroup ( Endo(..) )
 
 import Internal.Helpers
 import Internal.Interaction.Highlighting.Range ()

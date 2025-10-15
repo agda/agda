@@ -975,55 +975,59 @@ The buffer is returned.")
       (set (make-local-variable 'compilation-error-regexp-alist)
            '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\)\\.\\([0-9]+\\)\\(-\\(\\([0-9]+\\)\\.\\)?\\([0-9]+\\)\\)?"
               1 (2 . 6) (3 . 7))))
+
+      ;; compilation-mode adds font-lock keywords for highlighting
+      ;; things like "make: ", assuming that they're command output.
+      ;;
+      ;; This is annoying because sometimes our messages get
+      ;; line-wrapped to start with "declaration:" (e.g. Issue2899).
+      ;;
+      ;; Conveniently all of these stupid highlights are in a variable
+      ;; that we can just undo!
+      (font-lock-remove-keywords nil compilation-mode-font-lock-keywords)
+      (font-lock-flush)
+
       ;; Do not skip errors that start in the same position as the
       ;; current one.
       (set (make-local-variable 'compilation-skip-to-next-location) nil)
+
       ;; No support for recompilation. The key binding is removed, and
       ;; attempts to run `recompile' will (hopefully) result in an
       ;; error.
       (let ((map (copy-keymap (current-local-map))))
-        (define-key map (kbd "g") 'undefined)
+        (define-key map (kbd "g")   'undefined)
+
+        ;; Hijack the bindings for going to definition in the info
+        ;; buffer, away from compilation-mode's, into something that
+        ;; can read definition sites from highlighting info.
+        (define-key map (kbd "RET") 'agda2-info-goto-definition-keyboard)
+        (define-key map '[mouse-2]  'agda2-info-goto-definition-mouse)
+
         (use-local-map map))
+
       (set (make-local-variable 'compile-command)
            'agda2-does-not-support-compilation-via-the-compilation-mode)
 
       (set-syntax-table agda2-mode-syntax-table)
       (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
-      (set-input-method "Agda")))
+      (set-input-method "Agda")
+      ;; Andreas, 2025-08-05, PR #8047.
+      ;; We setup highlighting so that annotation-bindings is defined
+      ;; and can be accessed by annotation-annotate.
+      ;; This allows us to create Agda-style highlighting from aspects
+      ;; also in the Agda information buffer.
+      (agda2-highlight-setup)
+      ))
 
   ,buffer))
 
 (agda2-information-buffer agda2-info-buffer "info" "*Agda information*")
 
-(defun agda2-info-action (name text &optional append)
-  "Insert TEXT into the Agda info buffer and display it.
-NAME is displayed in the buffer's mode line.
-
-If APPEND is non-nil, then TEXT is appended at the end of the
-buffer, and point placed after this text.
-
-If APPEND is nil, then any previous text is removed before TEXT
-is inserted, and point is placed before this text."
+(defun agda2-display-information-buffer ()
+  "Make sure the Agda information buffer is displayed in the current window.
+Helper factored out from agda2-info-action."
   (interactive)
   (let ((buf (agda2-info-buffer)))
-    (with-current-buffer buf
-      ;; In some cases the jump-to-position-mentioned-in-text
-      ;; functionality (see compilation-error-regexp-alist above)
-      ;; didn't work: Emacs jumped to the wrong position. However, it
-      ;; seems to work if compilation-forget-errors is used. This
-      ;; problem may be related to Emacs bug #9679
-      ;; (http://debbugs.gnu.org/cgi/bugreport.cgi?bug=9679). The idea
-      ;; to use compilation-forget-errors comes from a comment due to
-      ;; Oleksandr Manzyuk
-      ;; (https://github.com/haskell/haskell-mode/issues/67).
-      (compilation-forget-errors)
-      (unless append (erase-buffer))
-      (save-excursion
-        (goto-char (point-max))
-        (insert text))
-      (put-text-property 0 (length name) 'face '(:weight bold) name)
-      (setq mode-line-buffer-identification name)
-      (force-mode-line-update))
     ;; If the current window displays the information buffer, then the
     ;; window configuration is left untouched.
     (unless (equal (window-buffer) buf)
@@ -1061,7 +1065,57 @@ is inserted, and point is placed before this text."
                 (fit-window-to-buffer window
                   (truncate
                     (* (frame-height)
-                       agda2-information-window-max-height))))))))
+                       agda2-information-window-max-height))))))))))
+
+(defun agda2-info-action (name text append &rest annotations)
+  "Insert TEXT plus a final newline into the Agda info buffer and display it.
+NAME is displayed in the buffer's mode line.
+
+The TEXT is highlighted by the given ANNOTATIONS
+which come in the same format as for agda2-highlight-apply.
+
+If APPEND is non-nil, then TEXT is appended at the end of the
+buffer, and point placed after this text.
+
+If APPEND is nil, then any previous text is removed before TEXT
+is inserted, and point is placed before this text."
+  (interactive)
+  (let ((buf (agda2-info-buffer)))
+    (with-current-buffer buf
+      ;; In some cases the jump-to-position-mentioned-in-text
+      ;; functionality (see compilation-error-regexp-alist above)
+      ;; didn't work: Emacs jumped to the wrong position. However, it
+      ;; seems to work if compilation-forget-errors is used. This
+      ;; problem may be related to Emacs bug #9679
+      ;; (http://debbugs.gnu.org/cgi/bugreport.cgi?bug=9679). The idea
+      ;; to use compilation-forget-errors comes from a comment due to
+      ;; Oleksandr Manzyuk
+      ;; (https://github.com/haskell/haskell-mode/issues/67).
+      (compilation-forget-errors)
+      (unless append (erase-buffer))
+      (unless (string-empty-p text)
+       ;; (message "text = //%s//" text)
+       (save-excursion
+        (goto-char (point-max))
+        ;; Andreas, 2025-08-04, PR #8047.
+        ;; Experiment shows that 'face annotations do not survive in compilation-mode,
+        ;; but 'font-lock-face is not removed.
+        ;; https://emacs.stackexchange.com/questions/17141/how-do-i-insert-text-with-a-specific-face
+        ;; (put-text-property 0 (max 0 (- (length text) 10)) 'font-lock-face '(:weight bold) text)
+        ;; (message "text: %s" text)
+        ;; (message "length: %i" (length text))
+        ;; (message "annotations = %s" annotations)
+        (apply 'annotation-load "Click to jump to definition" nil text annotations)
+        ;; (pp (text-properties-at 0 text))
+        (insert text)
+        (newline)))
+      ;; Update the mode line of the Agda information buffer,
+      ;; displaying NAME in bold
+      ;; in the place where usually the file name is displayed.
+      (put-text-property 0 (length name) 'face '(:weight bold) name)
+      (setq mode-line-buffer-identification name)
+      (force-mode-line-update))
+    (agda2-display-information-buffer)
     ;; Move point in every window displaying the information buffer.
     ;; Exception: If we are appending, don't move point in selected
     ;; windows.
@@ -1077,10 +1131,6 @@ is inserted, and point is placed before this text."
   "Same as agda2-info-action but also puts TEXT in the kill ring."
   (kill-new text)
   (agda2-info-action name text append))
-
-(defun agda2-show-constraints()
-  "Show constraints." (interactive)
-  (agda2-go nil t 'busy t "Cmd_constraints"))
 
 (defun agda2-remove-annotations ()
   "Removes buffer annotations (overlays and text properties)."
@@ -1253,6 +1303,15 @@ The form of the result depends on the prefix argument:
     ("HeadNormal"   "head normalised")
     (global ,prompt)))
 
+(defmacro agda2-maybe-normalised-toplevel-noprompt (name comment cmd)
+  `(agda2-proto-maybe-normalised
+    ,name ,comment ,cmd
+    ("Simplified"   "simplified")
+    ("Instantiated" "neither explicitly normalised nor simplified")
+    ("Normalised"   "normalised")
+    ("HeadNormal"   "head normalised")
+    (global nil)))
+
 (defmacro agda2-maybe-normalised-toplevel-asis-noprompt (name comment cmd)
   `(agda2-proto-maybe-normalised
     ,name ,comment ,cmd
@@ -1423,6 +1482,16 @@ Either only one if point is a goal, or all of them."
  "Solves all goals that are already instantiated internally."
  "Cmd_solveAll"
  )
+
+;; Andreas, 2025-09-12
+;; Cmd_constraints has same normalization strategy as Cmd_solveOne
+;; since after showing the meta solutions one might want to
+;; apply them at the same normalization level.
+(agda2-maybe-normalised-toplevel-noprompt
+  agda2-show-constraints
+  "Show meta solutions and constraints."
+  "Cmd_constraints"
+)
 
 (agda2-maybe-normalised
   agda2-solveOne
@@ -1808,13 +1877,16 @@ To do: dealing with semicolon separated decls."
   "The name of the buffer used for Agda debug messages.")
 
 (defun agda2-verbose (msg)
-  "Appends the string MSG to the `agda2-debug-buffer-name' buffer.
+  "Appends the string MSG plus a final newline
+to the `agda2-debug-buffer-name' buffer.
 Note that this buffer's contents is not erased automatically when
 a file is loaded."
+ (unless (string-empty-p msg)
   (with-current-buffer (get-buffer-create agda2-debug-buffer-name)
     (save-excursion
       (goto-char (point-max))
-      (insert msg))))
+      (insert msg)
+      (newline)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Comments and paragraphs
@@ -1892,6 +1964,23 @@ Otherwise, yank (see `mouse-yank-primary')."
     ;; FIXME: Shouldn't we use something like
     ;; (call-interactively (key-binding ev))?  --Stef
     (mouse-yank-primary ev)))
+
+(defun agda2-info-goto-definition-mouse (ev)
+  "While in the information buffer, to the definition site of the name
+clicked on, if any.
+
+Otherwise, invoke `compile-goto'."
+  (interactive "e")
+
+  ;; Always "use other window" because find-file-other-window will reuse
+  ;; an existing window (i.e. the source file buffer) if it exists
+  (unless (and agda2-file-buffer (annotation-goto-indirect ev t))
+    (compile-goto-error ev)))
+
+(defun agda2-info-goto-definition-keyboard ()
+  "As `agda2-info-goto-definition-mouse', but at point."
+  (interactive)
+  (agda2-info-goto-definition-mouse (point)))
 
 (defun agda2-go-back nil
   "Go back to the previous position in which

@@ -5,29 +5,34 @@
 
 module Agda.Utils.FileId where
 
-import           Prelude               hiding (null)
+import Prelude hiding (null)
 
-import           Control.DeepSeq       (NFData)
-import           Control.Monad.Except  (ExceptT)
-import           Control.Monad.Reader  (ReaderT)
-import           Control.Monad.State   (StateT)
-import           Control.Monad.Trans   (MonadTrans, lift)
+import Control.DeepSeq           (NFData)
+import Control.Monad.Except      (ExceptT)
+import Control.Monad.Identity    (IdentityT)
+import Control.Monad.Reader      (ReaderT)
+import Control.Monad.State       (StateT)
+import Control.Monad.Trans       (MonadTrans, lift)
+import Control.Monad.Trans.Maybe (MaybeT)
+import Control.Monad.Writer      (WriterT)
 
-import           Data.Bifunctor        (second)
-import           Data.EnumMap          (EnumMap)
-import qualified Data.EnumMap          as EnumMap
-import           Data.Map              (Map)
-import qualified Data.Map              as Map
-import           Data.Maybe            (fromMaybe)
-import           Data.Word             (Word32)
+import Data.Bifunctor            (second)
+import Data.EnumMap              (EnumMap)
+import Data.EnumMap qualified    as EnumMap
+import Data.Map                  (Map)
+import Data.Map qualified        as Map
+import Data.Maybe                (fromMaybe)
+import Data.Word                 (Word32)
 
-import           GHC.Generics          (Generic)
+import GHC.Generics              (Generic)
 
-import           Agda.Utils.CallStack  (HasCallStack)
-import           Agda.Utils.FileName   (AbsolutePath)
-import           Agda.Utils.Null       (Null(..))
+import Agda.Utils.CallStack      (HasCallStack)
+import Agda.Utils.FileName       (AbsolutePath)
+import Agda.Utils.ListT          (ListT)
+import Agda.Utils.Null           (Null(..))
+import Agda.Utils.Update         (ChangeT)
 
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
+import Agda.Utils.Impossible
 
 type File = AbsolutePath
 
@@ -96,8 +101,13 @@ class Monad m => MonadFileId m where
   idFromFile = lift . idFromFile
 
 instance MonadFileId m => MonadFileId (ExceptT e m)
+instance MonadFileId m => MonadFileId (IdentityT m)
+instance MonadFileId m => MonadFileId (ListT m)
+instance MonadFileId m => MonadFileId (MaybeT m)
 instance MonadFileId m => MonadFileId (ReaderT r m)
 instance MonadFileId m => MonadFileId (StateT s m)
+instance (MonadFileId m, Monoid w) => MonadFileId (WriterT w m)
+instance MonadFileId m => MonadFileId (ChangeT m)
 
 -- Instances for GetFileId
 

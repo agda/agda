@@ -227,6 +227,8 @@ General options
      are used Agda uses UTF-8 when writing to stdout (and when reading
      from stdin).
 
+.. _compilation-options:
+
 Compilation
 ~~~~~~~~~~~
 
@@ -250,34 +252,8 @@ See :ref:`compilers` for backend-specific options.
 
      Default, opposite of :option:`--no-main`.
 
-.. option:: --with-compiler={PATH}
-
-     Set ``PATH`` as the executable to call to compile the backend's
-     output (default: ``ghc`` for the GHC backend).
-
 Generating highlighted source code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. option:: --count-clusters
-
-     .. versionadded:: 2.5.3
-
-     Count extended grapheme clusters when generating LaTeX code (see
-     :ref:`grapheme-clusters`).
-     Available only when Agda was built with Cabal flag :option:`enable-cluster-counting`.
-
-     Pragma option since 2.5.4.
-
-.. option:: --no-count-clusters
-
-     .. versionadded:: 2.6.4
-
-     Opposite of :option:`--count-clusters`. Default.
-
-.. option:: --css={URL}
-
-     Set URL of the CSS file used by the HTML files to ``URL`` (can be
-     relative).
 
 .. option:: --dependency-graph={FILE}
 
@@ -301,49 +277,19 @@ Generating highlighted source code
      to ``M`` (even if ``M``'s file cannot be found via the
      ``include`` paths given in the ``.agda-lib`` file).
 
-.. option:: --highlight-occurrences
-
-     .. versionadded:: 2.6.2
-
-     When :ref:`generating HTML <generating-html>`,
-     place the :file:`highlight-hover.js` script
-     in the output directory (see :option:`--html-dir`).
-     In the presence of the script,
-     hovering over an identifier in the rendering of the HTML
-     will highlight all occurrences of the same identifier on the page.
-
 .. option:: --html
 
      .. versionadded:: 2.2.0
 
      Generate HTML files with highlighted source code (see
-     :ref:`generating-html`).
-
-.. option:: --html-dir={DIR}
-
-     Set directory in which HTML files are placed to ``DIR`` (default:
-     ``html``).
-
-.. option:: --html-highlight=[code,all,auto]
-
-     .. versionadded:: 2.6.0
-
-     Whether to highlight non-Agda code as comments in generated HTML
-     files (default: ``all``; see :ref:`generating-html`).
+     :ref:`generating-html` for description and further options).
 
 .. option:: --latex
 
      .. versionadded:: 2.3.2
 
      Generate LaTeX with highlighted source code (see
-     :ref:`generating-latex`).
-
-.. option:: --latex-dir={DIR}
-
-     .. versionadded:: 2.5.2
-
-     Set directory in which LaTeX files are placed to ``DIR``
-     (default: ``latex``).
+     :ref:`generating-latex` for description and further options).
 
 .. option:: --vim
 
@@ -358,13 +304,19 @@ Imports and libraries
 
      .. versionadded:: 2.6.0
 
-     Ignore *all* interface files, including builtin and primitive
+     Don't read *any* interface files, including builtin and primitive
      modules; only use this if you know what you are doing!
 
 .. option:: --ignore-interfaces
 
-     Ignore interface files (re-type check everything, except for
+     Don't read interface files (re-type check everything, except for
      builtin and primitive modules).
+
+.. option:: --no-write-interfaces
+
+     .. versionadded:: 2.9.0
+
+     Don't write out interface files after type-checking a module.
 
 .. option:: --include-path={DIR}, -i {DIR}
 

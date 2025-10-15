@@ -95,11 +95,10 @@ Pragmas and Options
 * The ``NON_TERMINATING`` pragma
 
   This is a safer version of :ref:`TERMINATING <terminating-pragma>`
-  which doesn't treat the affected functions as terminating. This
-  means that ``NON_TERMINATING`` functions do not reduce during type
-  checking. They do reduce at run-time and when invoking ``C-c C-n``
-  at top-level (but not in a hole). The pragma was added in Agda
-  2.4.2.
+  which doesn't treat the affected functions as terminating.
+  This means that ``NON_TERMINATING`` functions do not reduce during type checking.
+  Though, they do reduce at run-time and when invoking ``C-u C-c C-n`` interactively.
+  The pragma was added in Agda 2.4.2.
 
 .. _terminating-pragma:
 

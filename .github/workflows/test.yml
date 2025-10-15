@@ -32,7 +32,7 @@ jobs:
       uses: styfle/cancel-workflow-action@0.12.1
       with:
         access_token: ${{ github.token }}
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: recursive
     - id: setup-haskell
@@ -90,7 +90,7 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: recursive
     - id: setup-haskell
@@ -99,7 +99,7 @@ jobs:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v5
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -116,7 +116,7 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: recursive
     - id: setup-haskell
@@ -125,7 +125,7 @@ jobs:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v5
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -177,7 +177,7 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: recursive
     - id: setup-haskell
@@ -186,7 +186,7 @@ jobs:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v5
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -216,7 +216,7 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: recursive
     - id: setup-haskell
@@ -225,7 +225,7 @@ jobs:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v5
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts

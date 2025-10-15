@@ -2,6 +2,7 @@
 
 module Agda.Interaction.Highlighting.LaTeX.Backend
   ( latexBackend
+  , latexBackendName
   ) where
 
 import Agda.Interaction.Highlighting.LaTeX.Base
@@ -35,6 +36,7 @@ import Agda.Interaction.Options
   , OptDescr(..)
   )
 
+import Agda.Syntax.Common (BackendName)
 import Agda.Syntax.Position (mkRangeFile, rangeFilePath)
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName, projectRoot)
 
@@ -76,6 +78,8 @@ defaultLaTeXFlags = LaTeXFlags
   , latexFlagGenerateLaTeX = False
   }
 
+-- | Command-line flag options for LaTeX.
+--   The 'latexPragmaOptions' are not included here since they have a different 'Flag' type.
 latexFlagsDescriptions :: [OptDescr (Flag LaTeXFlags)]
 latexFlagsDescriptions =
   [ Option []     ["latex"] (NoArg latexFlag)
@@ -96,12 +100,15 @@ data LaTeXModuleEnv  = LaTeXModuleEnv LaTeXOptions
 data LaTeXModule     = LaTeXModule
 data LaTeXDef        = LaTeXDef
 
+latexBackendName :: BackendName
+latexBackendName = "LaTeX"
+
 latexBackend :: Backend
 latexBackend = Backend latexBackend'
 
 latexBackend' :: Backend' LaTeXFlags LaTeXCompileEnv LaTeXModuleEnv LaTeXModule LaTeXDef
 latexBackend' = Backend'
-  { backendName           = "LaTeX"
+  { backendName           = latexBackendName
   , backendVersion        = Nothing
   , options               = defaultLaTeXFlags
   , commandLineFlags      = latexFlagsDescriptions

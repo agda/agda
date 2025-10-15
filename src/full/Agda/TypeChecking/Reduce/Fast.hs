@@ -35,7 +35,7 @@ Some other tricks that improves performance:
 module Agda.TypeChecking.Reduce.Fast
   ( fastReduce, fastNormalise ) where
 
-import Prelude hiding ((!!))
+import Prelude hiding ((!!), null)
 
 import Control.Applicative hiding (empty)
 import Control.Monad.ST
@@ -47,7 +47,6 @@ import qualified Data.Map as Map
 import qualified Data.Map.Strict as MapS
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
-import Data.Semigroup ((<>))
 import Data.Text (Text)
 import qualified Data.Text as T
 
@@ -75,12 +74,13 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Null (empty)
+import Agda.Utils.Null (empty, null)
 import Agda.Utils.Functor
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Zipper
 import qualified Agda.Utils.SmallSet as SmallSet
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
@@ -776,7 +776,7 @@ elimsToSpine env es = do
 trimEnvironment :: FreeVariables -> Env s -> Env s
 trimEnvironment UnknownFVs env = env
 trimEnvironment (KnownFVs fvs) env
-  | IntSet.null fvs = emptyEnv
+  | null fvs = emptyEnv
     -- Environment trimming is too expensive (costs 50% on some benchmarks), and while it does make
     -- some cases run in constant instead of linear space you need quite contrived examples to
     -- notice the effect.
@@ -785,7 +785,7 @@ trimEnvironment (KnownFVs fvs) env
     -- Important: strict enough that the trimming actually happens
     trim _ [] = []
     trim i (p : ps)
-      | IntSet.member i fvs = (p :)             $! trim (i + 1) ps
+      | VarSet.member i fvs = (p :)             $! trim (i + 1) ps
       | otherwise           = (unusedPointer :) $! trim (i + 1) ps
 
 -- | Build an environment for a body with some given free variables from a spine of arguments.

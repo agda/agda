@@ -26,11 +26,12 @@ import qualified Data.List as List
 import qualified Data.Map  as Map
 import qualified Data.Set  as Set
 import Data.Maybe     ( catMaybes )
-import Data.Semigroup ( Semigroup, (<>) )
+import Data.Text qualified as Text
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Caching
+import Agda.TypeChecking.Monad.Caching  ( areWeCaching )
+import {-# SOURCE #-} Agda.TypeChecking.Monad.State () -- instance MonadFileId TCM
 import {-# SOURCE #-} Agda.TypeChecking.Pretty ( MonadPretty, prettyTCM, vcat, ($$) )
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning )
@@ -44,6 +45,8 @@ import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate (highlightWarning)
 
+import Agda.Version         ( docsUrl )
+
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Function  ( applyUnless )
 import Agda.Utils.Lens
@@ -54,7 +57,6 @@ import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
-
 
 -- * The warning monad
 ---------------------------------------------------------------------------
@@ -85,6 +87,8 @@ instance MonadWarning TCM where
 
 -- * Raising warnings
 ---------------------------------------------------------------------------
+warnUrl :: String -> String
+warnUrl = docsUrl . ("tools/command-line-options.html#cmdoption-arg-" ++)
 
 {-# SPECIALIZE warning'_ :: CallStack -> Warning -> TCM TCWarning #-}
 warning'_ :: (MonadWarning m) => CallStack -> Warning -> m TCWarning
@@ -102,11 +106,12 @@ warning'_ loc w = do
         _ -> r
   let wn = warningName w
   let ws = warningNameToString wn
+  let wref = P.href (Text.pack (warnUrl ws)) (P.text ws)
   p <- vcat
     [ pure $ P.hsep
-      [ if null r' then mempty else P.pretty r' P.<> P.colon
-      , if wn `elem` errorWarnings then "error:" P.<+> P.brackets (P.text ws)
-        else P.text $ "warning: -W[no]" ++ ws
+      [ if null r' then mempty else P.pretty r' <> P.colon
+      , if wn `elem` errorWarnings then "error:" P.<+> P.brackets wref
+        else "warning: -W[no]" <> wref
         -- Only benign warnings can be deactivated with -WnoXXX.
       ]
     , prettyWarning w

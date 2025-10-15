@@ -18,7 +18,6 @@ import Data.Functor (($>))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List ( sortOn )
-import Data.Semigroup ( Semigroup, (<>) )
 import qualified Data.Set as Set
 
 import Agda.Syntax.Common

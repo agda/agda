@@ -22,6 +22,7 @@ import Agda.Interaction.Monad
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty
+import Agda.Syntax.Common.Pretty.ANSI (putDocLn)
 import Agda.Syntax.Internal (telToList, alwaysUnblock)
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Parser
@@ -107,8 +108,7 @@ interaction prompt cmds eval = loop
                     Just _ ->
                         do  go =<< liftTCM (eval $ fromJust ms)
             `catchError` \e ->
-                do  s <- renderError e
-                    liftIO $ putStrLn s
+                do  putDocLn =<< prettyError e
                     loop
 
 runInteractionLoop :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM CheckResult) -> TCM ()
@@ -135,15 +135,18 @@ interactionLoop = do
     where
         reload :: ReplM () = do
             checked <- checkCurrentFile
-            liftTCM $ setScope $ maybe emptyScopeInfo (iInsideScope . crInterface) checked
+            liftTCM $ do
+              case checked of
+                Nothing    -> setScope emptyScopeInfo
+                Just scope -> do setScope (iInsideScope $ crInterface scope)
+                                 recomputeInverseScope
             -- Andreas, 2021-01-27, issue #5132, make Set and Prop available from Agda.Primitive
             -- if no module is loaded.
             when (isNothing checked) $ do
               -- @open import Agda.Primitive using (Set; Prop)@
               void $ liftTCM importPrimitives
           `catchError` \e -> do
-            s <- renderError e
-            liftIO $ putStrLn s
+            putDocLn =<< prettyError e
             liftIO $ putStrLn "Failed."
 
         commands =
@@ -186,7 +189,7 @@ loadFile _ _ = liftIO $ putStrLn ":load file"
 
 showConstraints :: [String] -> TCM ()
 showConstraints [] =
-    do  cs <- BasicOps.getConstraints
+    do  cs <- BasicOps.getConstraints AsIs
         liftIO $ putStrLn $ unlines (List.map prettyShow cs)
 showConstraints _ = liftIO $ putStrLn ":constraints [cid]"
 

@@ -24,16 +24,17 @@ import System.FilePath ( takeFileName )
 import Agda.Utils.GetOpt
 import qualified System.IO as IO
 
-import Agda.Interaction.BuildLibrary (buildLibrary)
+import Agda.Interaction.BuildLibrary (buildLibrary, printAccumulatedWarnings)
 import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode as ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
+import Agda.Interaction.Highlighting.LaTeX.Backend (latexBackendName)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.BashCompletion (bashComplete, printedOptions)
-import Agda.Interaction.Options.Help (Help (..))
+import Agda.Interaction.Options.Help (Help (..), helpTopicUsage)
 import Agda.Interaction.EmacsTop (mimicGHCi)
 import Agda.Interaction.JSONTop (jsonREPL)
 import Agda.Interaction.FindFile ( SourceFile(SourceFile) )
-import qualified Agda.Interaction.Imports as Imp
+import Agda.Interaction.Imports qualified as Imp
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Errors
@@ -47,6 +48,8 @@ import Agda.Compiler.Builtin
 
 import Agda.Setup ( getAgdaAppDir, getDataDir, setup )
 import Agda.Setup.EmacsMode
+
+import Agda.Version (version)
 import Agda.VersionCommit ( versionWithCommitInfo )
 
 import qualified Agda.Utils.Benchmark as UtilsBench
@@ -59,6 +62,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
+import Agda.Utils.Function (applyWhen)
 
 -- | The main function
 runAgda :: [Backend] -> IO ()
@@ -86,17 +90,11 @@ runAgda' backends = do
 runAgdaArgs :: [Backend] -> [String] -> IO ()
 runAgdaArgs backends args = do
   progName <- getProgName
-  let (z, warns) = runOptM $ parseBackendOptions backends args defaultOptions
-  conf     <- runExceptT $ do
-    (bs, opts) <- ExceptT $ pure z
-    -- The absolute path of the input file, if provided
-    inputFile <- liftIO $ mapM absolute $ optInputFile opts
-    mode      <- getInteractor bs inputFile opts
-    return (bs, opts, mode)
+  let (conf, warns) = runOptM $ parseBackendOptions backends args defaultOptions
 
   case conf of
     Left err -> optionError err
-    Right (bs, opts, mode) -> do
+    Right (bs, opts) -> do
 
       -- Setup Agda if requested
       when (optSetup opts) $ Agda.Setup.setup True
@@ -123,8 +121,12 @@ runAgdaArgs backends args = do
         unless (optSetup opts) $ Agda.Setup.setup False
         printEmacsModeFile
 
-      case mode of
-        Nothing -> do
+      -- The absolute path of the input file, if provided
+      inputFile <- liftIO $ mapM absolute $ optInputFile opts
+
+      (runExceptT $ getInteractor bs inputFile opts) >>= \case
+        Left err -> optionError err
+        Right Nothing -> do
           let
             something = or
               [ opts & optSetup
@@ -138,7 +140,7 @@ runAgdaArgs backends args = do
           -- if no task was given to Agda
           unless something $ optionError "No task given."
 
-        Just interactor -> do
+        Right (Just interactor) -> do
          unless (optSetup opts) $ Agda.Setup.setup False
 
          runTCMPrettyErrors do
@@ -241,6 +243,7 @@ getInteractor configuredBackends maybeInputFile opts = do
           return $ Just $ interactionInteractor i
         -- --build-library
         FrontEndBuildLibrary -> do
+          noBackends fe  -- Issue #8024: Backends are not supported yet.
           unless (optUseLibs opts) $
             throwError "--build-library cannot be combined with --no-libraries"
           noInputFile fe
@@ -328,27 +331,36 @@ runAgdaWithOptions interactor progName opts = do
           let i = crInterface result
           reportSDoc "main" 50 $ pretty i
 
-          -- Print accumulated warnings
-          unlessNullM (tcWarnings . classifyWarnings . Set.toAscList <$> getAllWarnings AllWarnings) $ \ ws -> do
-            let banner = text $ "\n" ++ delimiter "All done; warnings encountered"
-            alwaysReportSDoc "warning" 1 $
-              vsep $ (banner :) $ map prettyTCM $ Set.toAscList ws
-
+          printAccumulatedWarnings
           return result
-
 
 
 -- | Print usage information.
 printUsage :: [Backend] -> Help -> IO ()
 printUsage backends hp = do
   progName <- getProgName
-  putStr $ usage standardOptions_ progName hp
-  when (hp == GeneralHelp) $ mapM_ (putStr . backendUsage) backends
-
-backendUsage :: Backend -> String
-backendUsage (Backend b) =
-  usageInfo ("\n" ++ T.unpack (backendName b) ++ " backend options") $
-    map void (commandLineFlags b)
+  putStr $ unlines
+    [ "Agda version " ++ version
+    , ""
+    , "Usage: " ++ progName ++ " [OPTIONS...] [FILE]"
+    ]
+  case hp of
+    GeneralHelp -> do
+      forM_ optionGroups \ (header, opts) -> do
+        usage header opts
+      forM_ backends \ (Backend b) -> do
+        let
+          opts = applyWhen (backendName b == latexBackendName)
+            (++ map void (snd latexPragmaOptions))
+            (map void (commandLineFlags b))
+            -- NB: @map void@ to make the 'OptDescr' types match.
+        usage (T.unpack (backendName b) ++ " backend options") opts
+    HelpFor topic -> putStr $ helpTopicUsage topic
+  where
+    fmt h = "\n" ++ h ++ ":\n"
+    width = 40
+    usage :: String -> [OptDescr a] -> IO ()
+    usage header opts = putStr $ usageInfo width (fmt header) opts
 
 -- | Print version information.
 printVersion :: [Backend] -> PrintAgdaVersion -> IO ()
@@ -429,7 +441,7 @@ runTCMPrettyErrors tcm = do
           `catchError` \err -> do
             s2s <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
             s1  <- prettyError err
-            ANSI.putDoc $ P.vsep $ s2s ++ [ s1 ]
+            ANSI.putDocLn $ P.vsep $ s2s ++ [ s1 ]
             liftIO $ do
               helpForLocaleError err
             return (Just TCMError)

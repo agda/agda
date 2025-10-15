@@ -4,7 +4,6 @@
 module Agda.Syntax.Internal.SanityCheck where
 
 import Control.Monad
-import qualified Data.IntSet as Set
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Free
@@ -14,11 +13,12 @@ import Agda.Utils.List ( dropEnd, initWithDefault )
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Impossible
+import qualified Agda.Utils.VarSet as VarSet
 
 
 sanityCheckVars :: (Pretty a, Free a) => Telescope -> a -> TCM ()
 sanityCheckVars tel v =
-  case filter bad (Set.toList $ allFreeVars v) of
+  case filter bad (VarSet.toAscList $ allFreeVars v) of
     [] -> return ()
     xs -> do
       alwaysReportSDoc "impossible" 1 . return $

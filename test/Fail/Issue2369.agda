@@ -1,4 +1,6 @@
 -- Andreas, 2016-12-30 test case for #2369
+-- Test importing a module with an unsolved interaction point.
+-- See Issue1296 for the same with a solved interaction point.
 
 -- {-# OPTIONS --allow-unsolved-metas #-}
 -- {-# OPTIONS -v scope.import:20 #-}

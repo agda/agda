@@ -21,6 +21,7 @@ import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 import Control.Monad.Except ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.State  ( State, evalState, state )
 
+import Data.Bifunctor (second)
 import Data.Either (partitionEithers)
 import Data.Foldable (for_)
 import Data.IntMap (IntMap)
@@ -40,6 +41,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal hiding (DataOrRecord)
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
+import Agda.Syntax.Scope.Base (ScopeInfo(..))
 
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Monad
@@ -518,15 +520,19 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
             (res,cs') <- createMissingHCompClause f n x sc newSc cs
             let scs2 = filter (not . isComp . fst) scs
             return (scs2,cs',res)
-          let results_extra = results_hc ++ results_trX
-              trees_extra = map (\(sp,cr) -> (sp, coverSplitTree cr)) results_extra
 
-          results <- (++ map snd (results_extra)) <$> mapM ((cover f cs) . snd) scs
-          let trees = map coverSplitTree      results
-              useds = map coverUsedClauses    results
-              psss  = map coverMissingClauses results
-              qsss  = map coverPatterns       results
-              noex  = map coverNoExactClauses results
+          results <- mapM (cover f cs . snd) scs
+          let
+            results_extra = results_hc ++ results_trX
+            trees_extra   = map (second coverSplitTree) results_extra
+            results'      = results ++ map snd results_extra
+            -- Andreas, 2025-10-12: add trees_extra later because they would get lost
+            -- by the zipWith that constructs trees' below.
+            trees = map coverSplitTree      results   -- missing ' is not a typo
+            useds = map coverUsedClauses    results'
+            psss  = map coverMissingClauses results'
+            qsss  = map coverPatterns       results'
+            noex  = map coverNoExactClauses results'
           -- Jesper, 2016-03-10  We need to remember which variables were
           -- eta-expanded by the unifier in order to generate a correct split
           -- tree (see Issue 1872).
@@ -538,8 +544,15 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
               , "ps  = " <+> prettyTCMPatternList (fromSplitPatterns ps)
               ]
             ]
-          let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
+          let trees' = zipWith (second . etaRecordSplits (unArg n) ps) trees scs
               tree   = SplitAt n StrictSplit (trees' ++ trees_extra) -- TODO: Lazy?
+          -- Andreas, 2025-10-12: Debug printing to clarify the trees_extra situation.
+          reportSDoc "tc.cover.cubical" 30 $ vcat $
+            "trees:"           : map pretty trees ++
+            "trees':"          : map pretty trees' ++
+            "trees_extra:"     : map pretty trees_extra ++
+            "coverSplitTree:"  : pretty tree :
+            "coverPatterns:"   : map prettyTCM (concat qsss)
           return $ CoverResult tree (IntSet.unions useds) (concat psss) (concat qsss) (IntSet.unions noex)
 
     -- Try to split result
@@ -644,10 +657,9 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       DefP{}        -> __IMPOSSIBLE__ -- Andrea: maybe?
       IApplyP{}     -> addEtaSplits (k + 1) ps t
 
-    etaRecordSplits :: Int -> [NamedArg SplitPattern] -> (SplitTag,SplitClause)
-                    -> SplitTree -> (SplitTag,SplitTree)
-    etaRecordSplits n ps (q , sc) t =
-      (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
+    etaRecordSplits :: Int -> [NamedArg SplitPattern]
+                    -> SplitTree -> SplitClause -> SplitTree
+    etaRecordSplits n ps t sc = addEtaSplits 0 (gatherEtaSplits n sc ps) t
 
 
 -- | Append a instance clause to the clauses of a function.
@@ -991,7 +1003,8 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
          return $ abstract (mapCohesion updCoh <$> dtel) dt
   dsort <- addContext delta1 $ reduce (getSort dtype)
 
-  let withKIfStrict = applyWhen (isStrictDataSort dsort) $ locallyTC eSplitOnStrict $ const True
+  let withKIfStrict :: forall a. CoverM a -> CoverM a
+      withKIfStrict = applyWhen (isStrictDataSort dsort) $ locallyTC eSplitOnStrict (const True)
 
   -- Should we attempt to compute a left inverse for this clause? When
   -- --cubical=compatible --flat-split is given, we don't generate a
@@ -1003,7 +1016,6 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   let flatSplit = boolToMaybe (getCohesion info == Flat) SplitOnFlat
 
   r <- withKIfStrict $ lift $
-         Bench.billTo [Bench.Coverage, Bench.UnifyIndices] $
            unifyIndices' flatSplit
              delta1Gamma
              flex
@@ -1025,7 +1037,8 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
     UnifyStuck errs -> stuck Nothing errs
 
-    Unifies (delta1',rho0,eqs,tauInv) -> do
+    Unifies (delta1',rho0,eqs,getTauInv) -> do
+      tauInv <- withKIfStrict $ lift getTauInv
 
       let unifyInfo | Type _ <- dsort     -- only types of sort Type l have trX constructors:
                                           -- re #3733: update if we add transp for other sorts.

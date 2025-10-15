@@ -50,6 +50,7 @@ newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
            , MonadIO
            , HasOptions
            , MonadDebug
+           , MonadFileId
            , MonadTCEnv
            , MonadTCState
            , MonadTCM

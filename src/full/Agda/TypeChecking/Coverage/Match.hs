@@ -28,7 +28,6 @@ import Data.DList (DList)
 import Data.Foldable (toList)
 import qualified Data.List as List
 import Data.Maybe (mapMaybe, fromMaybe)
-import Data.Semigroup ( Semigroup, (<>))
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -46,6 +45,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
+import Agda.Syntax.Position (KillRange, killRange, killRangeN)
 
 -- | If matching is inconclusive (@Block@) we want to know which
 --   variables or projections are blocking the match.
@@ -133,6 +133,9 @@ instance Pretty SplitPatVar where
 
 instance PrettyTCM SplitPatVar where
   prettyTCM = prettyTCM . var . splitPatVarIndex
+
+instance KillRange SplitPatVar where
+  killRange (SplitPatVar n i lits) = killRangeN SplitPatVar n i lits
 
 type SplitPattern = Pattern' SplitPatVar
 

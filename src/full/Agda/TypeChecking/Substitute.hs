@@ -41,6 +41,7 @@ import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence as Occ
@@ -50,7 +51,7 @@ import Agda.TypeChecking.Substitute.DeBruijn
 
 import Agda.Utils.Either
 import Agda.Utils.Empty
-import Agda.Utils.Function (applyWhen)
+import Agda.Utils.Function (applyWhen, applyUnless)
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -877,9 +878,9 @@ instance (Coercible a Term, Subst a) => Subst (Sort' a) where
     LockUniv   -> LockUniv
     LevelUniv  -> LevelUniv
     IntervalUniv -> IntervalUniv
-    PiSort a s1 s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s1) (coerce $ sub s2)
-    FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
-    UnivSort s -> coerce $ univSort $ coerce $ sub s
+    PiSort a s1 s2 -> PiSort (coerce $ sub a) (coerce $ sub s1) (coerce $ sub s2)
+    FunSort s1 s2 -> FunSort (coerce $ sub s1) (coerce $ sub s2)
+    UnivSort s -> UnivSort $ coerce $ sub s
     MetaS x es -> MetaS x $ sub es
     DefS d es  -> DefS d $ sub es
     s@DummyS{} -> s
@@ -1635,14 +1636,13 @@ isSmallSort s = case sizeOfSort s of
 
 -- | Compute the sort of a function type from the sorts of its domain and codomain.
 --
---   This function should only be called on reduced sorts,
---   since the @LevelUniv@ rules should only apply when the sort does not reduce to @Set@.
-funSort' :: Sort -> Sort -> Either Blocker Sort
+--   The first argument is the value of `isLevelUniverseEnabled`
+funSort' :: Bool -> Sort -> Sort -> Either Blocker Sort
 -- Andreas, 2023-05-12, AIM XXXVI, pri #6623:
 -- On GHC 8.6 and 8.8 this pattern matching triggers warning
 -- "Pattern match checker exceeded (2000000) iterations in a case alternative."
 -- No clue how to turn off this warning, so we have to turn off -Werror for GHC < 8.10.
-funSort' = curry \case
+funSort' hasLevelUniv a b = case (normLU a, normLU b) of
   (Univ u a      , Univ u' b    ) -> Right $ Univ (funUniv u u') $ levelLub a b
   (Inf ua m      , b            ) -> sizeOfSort b <&> \ (SizeOfSort ub n) -> Inf (funUniv ua ub) (max m n)
   (a             , Inf ub n     ) -> sizeOfSort a <&> \ (SizeOfSort ua m) -> Inf (funUniv ua ub) (max m n)
@@ -1681,12 +1681,36 @@ funSort' = curry \case
   (DummyS{}      , _            ) -> Left neverUnblock
   (_             , DummyS{}     ) -> Left neverUnblock
 
-funSort :: Sort -> Sort -> Sort
-funSort a b = fromRight (const $ FunSort a b) $ funSort' a b
+  where
+  normLU = applyUnless hasLevelUniv \case
+             LevelUniv -> mkType 0
+             s         -> s
 
--- | Compute the sort of a pi type from the sorts of its domain
---   and codomain.
--- This function should only be called on reduced sorts, since the @LevelUniv@ rules should only apply when the sort doesn't reduce to @Set@
+funSort :: Bool -> Sort -> Sort -> Sort
+funSort hasLevelUniv a b = fromRight (const $ FunSort a b) $ funSort' hasLevelUniv a b
+
+{-# SPECIALISE funSortM' :: Sort -> Sort -> TCM (Either Blocker Sort) #-}
+funSortM' :: HasOptions m => Sort -> Sort -> m (Either Blocker Sort)
+funSortM' a b = do
+  hasLevelUniv <- isLevelUniverseEnabled
+  return $ funSort' hasLevelUniv a b
+
+{-# SPECIALISE funSortM :: Sort -> Sort -> TCM Sort #-}
+funSortM :: HasOptions m => Sort -> Sort -> m Sort
+funSortM a b = do
+  hasLevelUniv <- isLevelUniverseEnabled
+  return $ funSort hasLevelUniv a b
+
+-- | Compute the sort of a pi type from three inputs:
+--   1. The "raw" domain of the pi type (without the sort)
+--   2. The sort of the domain
+--   3. The sort of the codomain (which lives in an extended context)
+--
+-- Note that unlike funSort', we don't care whether --level-universe is
+-- enabled here. Instead, we just return a FunSort constructor and
+-- assume it will be simplified in the next step. See also:
+-- * `instance Reduce Sort` in Agda.TypeChecking.Substitute (this file)
+-- * `inferPiSort` in Agda.TypeChecking.Sort
 piSort' :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
 piSort' a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
 piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of
@@ -1743,6 +1767,20 @@ piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of
 
 piSort :: Dom Term -> Sort -> Abs Sort -> Sort
 piSort a s1 s2 = fromRight (const $ PiSort a s1 s2) $ piSort' a s1 s2
+
+{-# SPECIALISE piSortM :: Dom Term -> Sort -> Abs Sort -> TCM Sort #-}
+piSortM :: HasOptions m => Dom Term -> Sort -> Abs Sort -> m Sort
+piSortM va s1 s2 = case piSort' va s1 s2 of
+  Left _ -> return $ PiSort va s1 s2
+  -- Jesper, 2025-09-15: if a PiSort reduces to a FunSort, piSort'
+  -- just returns the FunSort without trying to simplify it further.
+  -- So if we get a FunSort here we call funSortM in the hopes
+  -- of getting a simpler result. But we DON'T call reduce as that
+  -- can lead to quadratic behavior, see #8096.
+  Right (FunSort s1' s2') -> funSortM s1' s2'
+  Right s' -> return s'
+
+
 
 ---------------------------------------------------------------------------
 -- * Level stuff

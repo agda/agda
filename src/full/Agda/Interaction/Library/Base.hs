@@ -19,7 +19,6 @@ import Data.Hashable               ( Hashable )
 import qualified Data.List         as List
 import Data.Map                    ( Map )
 import qualified Data.Map          as Map
-import Data.Semigroup              ( Semigroup(..) )
 import Data.Text                   ( Text, unpack )
 import qualified Data.Text         as T
 

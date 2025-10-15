@@ -67,6 +67,11 @@ Options
      Then invoke ``ghc`` (or the compiler given by :option:`--with-compiler`) on the main file,
      unless option :option:`--ghc-dont-call-ghc` is given.
 
+.. option:: --with-compiler={PATH}
+
+     Set ``PATH`` as the executable to call to compile the backend's
+     output, default: ``ghc``.
+
 .. option:: --ghc-dont-call-ghc
 
      Only produce Haskell files, skip the compilation to binary.
@@ -87,6 +92,8 @@ Options
 
      Instrument the code to trace function calls,
      inserting a ``Debug.Trace.trace`` statement at the beginning of each function.
+
+See :ref:`compilation-options` for options common to the compiler backends.
 
 Pragmas
 ^^^^^^^
@@ -190,6 +197,7 @@ Options
      Except for the main module, run the generated modules through ``node``,
      to verify absence of syntax errors.
 
+See :ref:`compilation-options` for options common to the compiler backends.
 
 Optimizations
 -------------

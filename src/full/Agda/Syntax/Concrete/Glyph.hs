@@ -11,19 +11,19 @@ module Agda.Syntax.Concrete.Glyph
   , braces', dbraces
   , forallQ
   , leftIdiomBrkt, rightIdiomBrkt, emptyIdiomBrkt
-  , arrow, lambda
+  , arrow, lambda, fromArrow
   , SpecialCharacters(..)
   ) where
 
 import Control.DeepSeq
 
-import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 import GHC.Generics (Generic)
 
 import Agda.Utils.Boolean
 import Agda.Utils.List
+import qualified Agda.Utils.IORef.Strict as Strict
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 
@@ -46,29 +46,30 @@ instance IsBool UnicodeOrAscii where
     AsciiOnly -> False
 
 {-# NOINLINE unsafeUnicodeOrAsciiIORef #-}
-unsafeUnicodeOrAsciiIORef :: IORef UnicodeOrAscii
-unsafeUnicodeOrAsciiIORef = UNSAFE.unsafePerformIO $ newIORef UnicodeOk
+unsafeUnicodeOrAsciiIORef :: Strict.IORef UnicodeOrAscii
+unsafeUnicodeOrAsciiIORef = UNSAFE.unsafePerformIO $ Strict.newIORef UnicodeOk
 
 {-# NOINLINE unsafeSetUnicodeOrAscii #-}
 unsafeSetUnicodeOrAscii :: UnicodeOrAscii -> IO ()
-unsafeSetUnicodeOrAscii = writeIORef unsafeUnicodeOrAsciiIORef
+unsafeSetUnicodeOrAscii = Strict.writeIORef unsafeUnicodeOrAsciiIORef
 
 -- | Are we allowed to use unicode supscript characters?
 unsafeUnicodeOrAscii :: UnicodeOrAscii
-unsafeUnicodeOrAscii = UNSAFE.unsafePerformIO (readIORef unsafeUnicodeOrAsciiIORef)
+unsafeUnicodeOrAscii = UNSAFE.unsafePerformIO (Strict.readIORef unsafeUnicodeOrAsciiIORef)
 
 -- | Picking the appropriate set of special characters depending on
 -- whether we are allowed to use unicode or have to limit ourselves
 -- to ascii.
 
 data SpecialCharacters = SpecialCharacters
-  { _dbraces :: Doc -> Doc
-  , _lambda  :: Doc
-  , _arrow   :: Doc
-  , _forallQ :: Doc
+  { _dbraces        :: Doc -> Doc
+  , _lambda         :: Doc
+  , _arrow          :: Doc
+  , _forallQ        :: Doc
   , _leftIdiomBrkt  :: Doc
   , _rightIdiomBrkt :: Doc
   , _emptyIdiomBrkt :: Doc
+  , _fromArrow      :: Doc
   }
 
 specialCharactersUnicode :: SpecialCharacters
@@ -80,6 +81,7 @@ specialCharactersUnicode = SpecialCharacters
   , _leftIdiomBrkt  = hlSymbol "\x2987"
   , _rightIdiomBrkt = hlSymbol "\x2988"
   , _emptyIdiomBrkt = hlSymbol "\x2987\x2988"
+  , _fromArrow      = hlSymbol "←"
   }
 
 specialCharactersAscii :: SpecialCharacters
@@ -91,6 +93,7 @@ specialCharactersAscii = SpecialCharacters
   , _leftIdiomBrkt  = hlSymbol "(|"
   , _rightIdiomBrkt = hlSymbol "|)"
   , _emptyIdiomBrkt = hlSymbol "(|)"
+  , _fromArrow      = hlSymbol "<-"
   }
 
 -- | Return the glyph set based on a given (unicode or ascii) glyph mode
@@ -126,6 +129,7 @@ leftIdiomBrkt  = _leftIdiomBrkt  specialCharacters
 rightIdiomBrkt = _rightIdiomBrkt specialCharacters
 emptyIdiomBrkt = _emptyIdiomBrkt specialCharacters
 
-arrow, lambda :: Doc
-arrow  = _arrow specialCharacters
-lambda = _lambda specialCharacters
+arrow, lambda, fromArrow :: Doc
+arrow     = _arrow specialCharacters
+lambda    = _lambda specialCharacters
+fromArrow = _fromArrow specialCharacters

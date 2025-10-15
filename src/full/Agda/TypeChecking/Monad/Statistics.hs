@@ -6,29 +6,30 @@ module Agda.TypeChecking.Monad.Statistics
   ( MonadStatistics(..), tick, getStatistics, modifyStatistics, printStatistics
   ) where
 
-import Control.DeepSeq
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State
-import Control.Monad.Writer
-import Control.Monad.Trans.Maybe
+import Control.DeepSeq ( NFData(rnf) )
+import Control.Monad.Except ( ExceptT )
+import Control.Monad.Reader ( ReaderT )
+import Control.Monad.State ( StateT )
+import Control.Monad.Writer ( WriterT )
+import Control.Monad.Trans.Class ( MonadTrans(lift) )
+import Control.Monad.Trans.Maybe ( MaybeT )
 
 import qualified Data.HashMap.Strict as HMap
-import Data.Semigroup
-import Data.Coerce
+import Data.Semigroup ( Max(..), Sum(..) )
+import Data.Coerce ( coerce )
 
-import Data.List
-import Data.Word
+import Data.List ( sortOn )
+import Data.Word ( Word64 )
 
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.Debug ( MonadDebug, alwaysReportSLn )
 
-import Agda.Syntax.Common.Pretty
-import Agda.Utils.String
-import Agda.Utils.Maybe
-import Agda.Utils.Null
+import Agda.Syntax.Common.Pretty ( prettyShow )
+import Agda.Utils.String ( showThousandSep )
+import Agda.Utils.Maybe ( caseMaybe )
+import Agda.Utils.Null ( unlessNull )
 
 class ReadTCState m => MonadStatistics m where
   tickN   :: String -> Word64 -> m ()

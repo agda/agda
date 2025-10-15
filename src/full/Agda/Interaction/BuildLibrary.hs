@@ -1,6 +1,6 @@
 -- | Type-check all files of a library (option @--build-library@).
 
-module Agda.Interaction.BuildLibrary (buildLibrary) where
+module Agda.Interaction.BuildLibrary (buildLibrary, printAccumulatedWarnings) where
 
 import           Control.Monad.Except             (throwError)
 import           Control.Monad.IO.Class           (liftIO)
@@ -86,7 +86,10 @@ buildLibrary = do
            $ checkModule m src
       return ()
 
-  -- Print accumulated warnings
+  printAccumulatedWarnings
+
+printAccumulatedWarnings :: TCM ()
+printAccumulatedWarnings = do
   unlessNullM (tcWarnings . classifyWarnings . Set.toAscList <$> getAllWarnings AllWarnings) $ \ ws -> do
     let banner = text $ "\n" ++ delimiter "All done; warnings encountered"
     alwaysReportSDoc "warning" 1 $
@@ -100,5 +103,5 @@ checkModule m src = do
   let isInfectiveWarning InfectiveImport{} = True
       isInfectiveWarning _                 = False
       warns = filter (not . isInfectiveWarning . tcWarning) $ Set.toAscList $ miWarnings mi
-  tcWarningsToError warns
+  tcWarningsToError m (Imp.srcOrigin src) warns
   return ()

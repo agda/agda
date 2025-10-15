@@ -6,7 +6,6 @@ module Agda.Interaction.MakeCase where
 
 import Prelude hiding ((!!), null)
 
-import Data.Either
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
@@ -14,12 +13,12 @@ import Data.Monoid
 import Agda.Syntax.Common
 import Agda.Syntax.Info
 import Agda.Syntax.Position
-import Agda.Syntax.Concrete (NameInScope(..))
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Pattern as C
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Pattern as A
 import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Parser.Helpers ( mkValidName )
@@ -45,11 +44,29 @@ import Agda.Utils.Lens   (set)
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Three
 import Agda.Utils.WithDefault (lensKeepDefault)
 
 import Agda.Utils.Impossible
 
 type CaseContext = Maybe ExtLamInfo
+
+-- | For the names the user enters for case-splitting, there can be different actions
+--   depending on what the name resolved to.
+data SplitAction
+  = RevealDotPattern     Name
+      -- ^ De Bruijn index of a pattern variable bound to a value, turn into dot pattern.
+  | RevealHiddenVariable Int
+      -- ^ De Bruijn index of a hidden argument, make this argument visible.
+  | SplitOnVariable      Int
+      -- ^ De Bruijn index of an unconstrained pattern variable, split on it.
+  deriving (Show)
+
+splitActionToEither3 :: SplitAction -> Either3 Name Int Int
+splitActionToEither3 = \case
+  RevealDotPattern     i -> In1 i
+  RevealHiddenVariable i -> In2 i
+  SplitOnVariable      i -> In3 i
 
 -- | Parse variables (visible or hidden), returning their de Bruijn indices.
 --   Used in 'makeCase'.
@@ -61,8 +78,8 @@ parseVariables
   -> InteractionId   -- ^ The hole of this function we are working on.
   -> Range           -- ^ The range of this hole.
   -> [String]        -- ^ The words the user entered in this hole (variable names).
-  -> TCM [(Int,NameInScope)] -- ^ The computed de Bruijn indices of the variables to split on,
-                             --   with information about whether each variable is in scope.
+  -> TCM [SplitAction]
+       -- ^ The computed de Bruijn indices of the variables and the inferred action.
 parseVariables f cxt asb ii rng ss = do
 
   -- We parse the variables in two steps:
@@ -140,9 +157,10 @@ parseVariables f cxt asb ii rng ss = do
       -- has been refined to a module parameter we do allow splitting
       -- on it, since the instantiation could as well have been the
       -- other way around (see #2183).
-      (Just (Var i []), PatternBound _) -> return (i, C.InScope)
+      (Just (Var i []), PatternBound _) -> return (SplitOnVariable i)
       -- Case 1b: the variable has been refined.
-      (Just v         , PatternBound _) -> failInstantiatedVar s v
+      -- Andreas, 2025-10-12, issue #7941: We can turn it into an explicit dot pattern.
+      (Just v         , PatternBound _) -> return (RevealDotPattern name) -- failInstantiatedVar s v
       -- Case 1c: the variable is bound locally (e.g. a record let)
       (Nothing        , PatternBound _) -> failCaseLet s
       -- Case 1d: module parameter
@@ -162,10 +180,11 @@ parseVariables f cxt asb ii rng ss = do
       -- clause context. If it is not a parameter, we can make it
       -- visible.
       Just (x, Var i []) | isParam i -> failHiddenModuleBound s
-                         | otherwise -> return (i, C.NotInScope)
+                         | otherwise -> return (RevealHiddenVariable i)
       -- Case 2b: there is a variable with that concrete name, but it
       -- has been refined.
-      Just (x, v) -> failInstantiatedVar s v
+      -- Andreas, 2025-10-12, issue #7941: We can turn it into an explicit dot pattern.
+      Just (x, v) -> return (RevealDotPattern x) -- failInstantiatedVar s v
       -- Case 2c: there is no variable with that name. Since it was in
       -- scope for the interaction meta, the only possibility is that
       -- it is a hidden lambda-bound variable.
@@ -190,10 +209,10 @@ parseVariables f cxt asb ii rng ss = do
   failWithBound s = interactionError $ CaseSplitError $ P.text $
     "Cannot split on variable " ++ s ++
     ", because it is an equality proof bound by a with-abstraction"
-  failInstantiatedVar s v = interactionError . CaseSplitError =<< sep
-      [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
-      , prettyTCM v
-      ]
+  -- failInstantiatedVar s v = interactionError . CaseSplitError =<< sep
+  --     [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
+  --     , prettyTCM v
+  --     ]
   failCaseLet s     = interactionError $ CaseSplitError $ P.text $
     "Cannot split on variable " ++ s ++
     ", because let-declarations may not be defined by pattern-matching"
@@ -358,7 +377,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
             typeError $ SplitError err
           -- Otherwise, we make these user-written
           let xs = map (dbPatVarIndex . namedArg) trailingPatVars
-          return [makePatternVarsVisible xs sc]
+          return [makePatternVarsVisible [] xs sc]
 
         Right cov -> ifNotM (optCopatterns <$> pragmaOptions) failNoCop $ {-else-} do
           -- Andreas, 2016-05-03: do not introduce function arguments after projection.
@@ -378,9 +397,14 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     reportSLn "interaction.case" 30 $ "parsedVariables: " ++ show (zip xs vars)
     -- Variables that are not in scope yet are brought into scope (@toShow@)
     -- The other variables are split on (@toSplit@).
-    let (toShow, toSplit) = partitionEithers $ for (zip xs vars) $ \ ((x,nis), s) ->
-          if (nis == C.NotInScope) then Left x else Right x
-    let sc = makePatternVarsVisible toShow $ clauseToSplitClause clause
+    let (toDotP, toShow, toSplit) = mapEither3 splitActionToEither3 xs
+    let sc0 = clauseToSplitClause clause
+    let sc  = makePatternVarsVisible toDotP toShow sc0
+    reportSLn "interaction.case" 30 $ "toDot = " ++ prettyShow toDotP
+    reportSLn "interaction.case" 30 $ "splitclause before makePatternVarsVisible: " ++ prettyShow sc0
+    reportSLn "interaction.case" 30 $ "splitclause after: " ++ prettyShow sc
+    reportSLn "interaction.case" 60 $ "splitclause before makePatternVarsVisible: " ++ show (killRange $ scPats sc0)
+    reportSLn "interaction.case" 60 $ "splitclause after: " ++ show (killRange $ scPats sc)
     scs <- split f toSplit sc
     reportSLn "interaction.case" 70 $ "makeCase: survived the splitting"
 
@@ -468,9 +492,8 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
 
 -- | Make the given pattern variables visible by marking their origin as
 --   'CaseSplit' and pattern origin as 'PatOSplit' in the 'SplitClause'.
-makePatternVarsVisible :: [Nat] -> SplitClause -> SplitClause
-makePatternVarsVisible [] sc = sc
-makePatternVarsVisible is sc@SClause{ scPats = ps } =
+makePatternVarsVisible :: [Name] -> [Nat] -> SplitClause -> SplitClause
+makePatternVarsVisible xs is sc@SClause{ scPats = ps } =
   sc{ scPats = mapNamedArgPattern mkVis ps }
   where
   mkVis :: NamedArg SplitPattern -> NamedArg SplitPattern
@@ -480,6 +503,8 @@ makePatternVarsVisible is sc@SClause{ scPats = ps } =
       -- if visible ai then __IMPOSSIBLE__ else
       -- or passing the parsed name along and comparing it with @x@
       Arg (setOrigin CaseSplit ai) $ Named n $ VarP (PatternInfo PatOSplit []) $ SplitPatVar x i ls
+  mkVis (Arg ai (Named n (DotP (PatternInfo (PatOVar x) _) v)))
+    | x `elem` xs = Arg ai (Named n (DotP (PatternInfo PatOSplit []) v))
   mkVis np = np
 
 -- | If a copattern split yields no clauses, we must be at an empty record type.

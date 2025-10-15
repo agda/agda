@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : _35 ?1 : ?0 (X = X) (a = a) Sort _35 [ at Issue2076.agda:98.19-23 ] ———— Error ————————————————————————————————————————————————— error: [UnsolvedConstraints] Failed to solve the following constraints: Has PTS rule: (A , _35 (X = X) (a = a)) (blocked on _35)" nil)
+(agda2-info-action "*All Goals*" "?0 : _35 ?1 : ?0 (X = X) (a = a) Sort _35 [ at Issue2076.agda:98.19-23 ]" nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
 (agda2-status-action "")
 (agda2-info-action "*Normal Form*" "λ a → λ { true → a , a }" nil)

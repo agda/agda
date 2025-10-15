@@ -358,7 +358,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
   where
     -- Issue 3362: we need to do the `constructs` call inside the
     -- generalization, so unpack the A.Generalize
-    checkConstructorType (A.ScopedExpr s e) d = withScope_ s $ checkConstructorType e d
+    checkConstructorType (A.ScopedExpr s e) d = evalWithScope s $ checkConstructorType e d
     checkConstructorType e d = do
       let check k e = do
             t <- workOnTypes $ isType_ e

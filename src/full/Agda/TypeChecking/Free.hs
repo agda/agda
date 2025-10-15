@@ -62,9 +62,7 @@ module Agda.TypeChecking.Free
 
 import Prelude hiding (null)
 
-import Data.Semigroup ( Semigroup, (<>), Any(..), All(..) )
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
+import Data.Semigroup ( Any(..), All(..) )
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 
@@ -81,12 +79,13 @@ import Agda.TypeChecking.Free.Lazy
   -- , IsVarSet(..), runFreeM
   -- )
 
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Singleton
 
 ---------------------------------------------------------------------------
 -- * Simple variable set implementations.
 
-type VarSet = IntSet
 
 -- In most cases we don't care about the VarOcc.
 
@@ -257,11 +256,11 @@ closed t = getAll $ runFree (const $ All False) IgnoreNot t
 
 -- | Collect all free variables.
 allFreeVars :: Free t => t -> VarSet
-allFreeVars = runFree IntSet.singleton IgnoreNot
+allFreeVars = runFree singleton IgnoreNot
 
 -- | Collect all relevant free variables, possibly ignoring sorts.
 allRelevantVarsIgnoring :: Free t => IgnoreSorts -> t -> VarSet
-allRelevantVarsIgnoring ig = getRelevantIn . runFree (RelevantIn . IntSet.singleton) ig
+allRelevantVarsIgnoring ig = getRelevantIn . runFree (RelevantIn . singleton) ig
 
 -- | Collect all relevant free variables, excluding the "unused" ones.
 allRelevantVars :: Free t => t -> VarSet
@@ -271,7 +270,7 @@ allRelevantVars = allRelevantVarsIgnoring IgnoreNot
 -- * Backwards-compatible interface to 'freeVars'.
 
 filterVarMap :: (VarOcc -> Bool) -> VarMap -> VarSet
-filterVarMap f = IntMap.keysSet . IntMap.filter f . theVarMap
+filterVarMap f = VarSet.fromList . IntMap.keys . IntMap.filter f . theVarMap
 
 filterVarMapToList :: (VarOcc -> Bool) -> VarMap -> [Variable]
 filterVarMapToList f = map fst . filter (f . snd) . IntMap.toList . theVarMap
@@ -318,4 +317,4 @@ flexibleVars (VarMap m) = (`IntMap.mapMaybe` m) $ \case
 --irrelevantVars = filterVarMap isIrrelevant
 
 allVars :: VarMap -> VarSet
-allVars = IntMap.keysSet . theVarMap
+allVars = VarSet.fromList . IntMap.keys . theVarMap

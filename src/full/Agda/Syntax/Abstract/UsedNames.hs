@@ -5,7 +5,6 @@ module Agda.Syntax.Abstract.UsedNames
   ) where
 
 import Data.Foldable (foldMap)
-import Data.Semigroup (Semigroup, (<>))
 import Data.Set (Set)
 import qualified Data.Set as Set
 

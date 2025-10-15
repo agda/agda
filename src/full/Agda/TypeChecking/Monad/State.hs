@@ -37,7 +37,7 @@ import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Warnings
 
-import Agda.TypeChecking.Monad.Debug (reportSDoc, reportSLn, verboseS)
+import Agda.TypeChecking.Monad.Debug (reportS, reportSDoc, reportSLn, verboseS)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 
@@ -155,15 +155,15 @@ getScope = useR stScope
 setScope :: ScopeInfo -> TCM ()
 setScope scope = modifyScope (const scope)
 
-{-# INLINE modifyScope_ #-}
--- | Modify the current scope without updating the inverse maps.
-modifyScope_ :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
-modifyScope_ f = stScope `modifyTCLens` f
-
 {-# INLINE modifyScope #-}
--- | Modify the current scope.
+-- | Modify the current scope without updating the inverse maps.
 modifyScope :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
-modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
+modifyScope f = stScope `modifyTCLens` f
+
+{-# INLINE recomputeInverseScope #-}
+-- | Recompute inverse names, inverse modules and InScopeSet-s.
+recomputeInverseScope :: MonadTCState m => m ()
+recomputeInverseScope = modifyScope recomputeInverseScope'
 
 {-# INLINE useScope #-}
 -- | Get a part of the current scope.
@@ -178,12 +178,12 @@ locallyScope l = locallyTCState $ stScope . l
 {-# INLINE withScope #-}
 -- | Run a computation in a local scope.
 withScope :: ReadTCState m => ScopeInfo -> m a -> m (a, ScopeInfo)
-withScope s m = locallyTCState stScope (recomputeInverseScopeMaps . const s) $ (,) <$> m <*> getScope
+withScope s m = locallyTCState stScope (const s) $ (,) <$> m <*> getScope
 
-{-# INLINE withScope_ #-}
+{-# INLINE evalWithScope #-}
 -- | Same as 'withScope', but discard the scope from the computation.
-withScope_ :: ReadTCState m => ScopeInfo -> m a -> m a
-withScope_ s m = fst <$> withScope s m
+evalWithScope :: ReadTCState m => ScopeInfo -> m a -> m a
+evalWithScope s m = fst <$> withScope s m
 
 -- | Discard any changes to the scope by a computation.
 localScope :: TCM a -> TCM a
@@ -208,7 +208,7 @@ notInScopeWarning x = do
 printScope :: String -> Int -> String -> TCM ()
 printScope tag v s = verboseS ("scope." ++ tag) v $ do
   scope <- getScope
-  reportSDoc ("scope." ++ tag) v $ return $ vcat [ text s, pretty scope ]
+  reportS ("scope." ++ tag) v $ vcat [ text s, pretty scope ]
 
 ---------------------------------------------------------------------------
 -- * Signature
@@ -347,6 +347,12 @@ instance MonadIO m => MonadFileId (TCMT m) where
   fileFromId fi = useTC stFileDict <&> (`getIdFile` fi)
   idFromFile = stateTCLens stFileDict . registerFileIdWithBuiltin
 
+instance MonadFileId ReduceM where
+  fileFromId fi = useTC stFileDict <&> (`getIdFile` fi)
+  idFromFile = __IMPOSSIBLE__
+    -- we cannot write to the state here, so we cannot do sth like
+    -- stateTCLens stFileDict . registerFileIdWithBuiltin
+
 -- | Does the given 'FileId' belong to one of Agda's builtin modules?
 
 isBuiltinModule :: ReadTCState m => FileId -> m (Maybe IsBuiltinModule)
@@ -422,7 +428,7 @@ currentTopLevelModule ::
 currentTopLevelModule = do
   useR stCurrentModule >>= \case
     Just (_, top) -> return (Just top)
-    Nothing       -> listToMaybe <$> asksTC envImportPath
+    Nothing       -> listToMaybe <$> asksTC envImportStack
 
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.
@@ -479,17 +485,18 @@ addForeignCode backend code = do
 -- * Interaction output callback
 ---------------------------------------------------------------------------
 
+{-# INLINE getInteractionOutputCallback #-}
 getInteractionOutputCallback :: ReadTCState m => m InteractionOutputCallback
 getInteractionOutputCallback
-  = getsTC $ stInteractionOutputCallback . stPersistentState
+  = useTC stInteractionOutputCallback
 
 appInteractionOutputCallback :: Response -> TCM ()
 appInteractionOutputCallback r
   = getInteractionOutputCallback >>= \ cb -> cb r
 
 setInteractionOutputCallback :: InteractionOutputCallback -> TCM ()
-setInteractionOutputCallback cb
-  = modifyPersistentState $ \ s -> s { stInteractionOutputCallback = cb }
+setInteractionOutputCallback
+  = setTCLens' stInteractionOutputCallback
 
 ---------------------------------------------------------------------------
 -- * Pattern synonyms

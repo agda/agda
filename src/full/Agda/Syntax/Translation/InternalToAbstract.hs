@@ -30,7 +30,6 @@ import Control.Monad       ( filterM, forM )
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -476,11 +475,11 @@ reifyTerm ::
 reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
   -- Jesper 2018-11-02: If 'PrintMetasBare', drop all meta eliminations.
   metasBare <- asksTC envPrintMetasBare
-  reportSDoc "reify.term" 80 $ pure $ "reifyTerm v0 = " <+> pretty v0
+  reportS "reify.term" 80 $ "reifyTerm v0 = " <+> pretty v0
   v <- instantiate v0 >>= \case
     I.MetaV x _ | metasBare -> return $ I.MetaV x []
     v -> return v
-  reportSDoc "reify.term" 80 $ pure $ "reifyTerm v = " <+> pretty v
+  reportS "reify.term" 80 $ "reifyTerm v = " <+> pretty v
   -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
   -- (i.e. when we don't care about nice printing)
   expandAnonDefs <- return expandAnonDefs0 `and2M` displayFormsEnabled
@@ -501,7 +500,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
           -- print e.g. G .|_| as | G |
       , hasDisplay name
       ]
-  reportSDoc "reify.term" 80 $ pure $ "reifyTerm (unSpine v) = " <+> pretty (unSpine' prefixize v)
+  reportS "reify.term" 80 $ "reifyTerm (unSpine v) = " <+> pretty (unSpine' prefixize v)
 
   case unSpine' prefixize v of
     -- Hack to print generalized field projections with nicer names. Should
@@ -514,7 +513,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
       x <- fromMaybeM (freshName_ $ "@" ++ show n) $ nameOfBV' n
       elims (A.Var x) =<< reify es
     I.Def x es -> do
-      reportSDoc "reify.def" 80 $ return $ "reifying def" <+> pretty x
+      reportS "reify.def" 80 $ "reifying def" <+> pretty x
       (x, es) <- reifyPathPConstAsPath x es
       reifyDisplayForm x es $ reifyDef expandAnonDefs x es
 
@@ -873,7 +872,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
             -- If it is not a projection(-like) function, we need no padding.
             _ -> return ([], map (fmap unnamed) $ drop n es)
 
-           reportSDoc "reify.def" 100 $ return $ vcat
+           reportS "reify.def" 100 $ vcat
              [ "  pad =" <+> pshow pad
              , "  nes =" <+> pshow nes
              ]
@@ -906,8 +905,8 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
       => QName -> ArgInfo -> Int -> Maybe System -> [I.Clause]
       -> I.Elims -> m Expr
     reifyExtLam x ai npars msys cls es = do
-      reportSLn "reify.def" 10 $ "reifying extended lambda " ++ prettyShow x
-      reportSLn "reify.def" 50 $ render $ nest 2 $ vcat
+      reportS "reify.def" 10 $ "reifying extended lambda" <+> pretty x
+      reportS "reify.def" 50 $ nest 2 $ vcat
         [ "npars =" <+> pretty npars
         , "es    =" <+> fsep (map (prettyPrec 10) es)
         , "def   =" <+> vcat (map pretty cls) ]
@@ -998,12 +997,12 @@ stripImplicits :: MonadReify m
 stripImplicits toKeep params ps = do
   -- if --show-implicit we don't need the names
   ifM showImplicitArguments (return $ map (fmap removeNameUnlessUserWritten) ps) $ do
-    reportSDoc "reify.implicit" 100 $ return $ vcat
+    reportS "reify.implicit" 100 $ vcat
       [ "stripping implicits"
       , nest 2 $ "ps   =" <+> pshow ps
       ]
     let ps' = blankDots $ strip ps
-    reportSDoc "reify.implicit" 100 $ return $ vcat
+    reportS "reify.implicit" 100 $ vcat
       [ nest 2 $ "ps'  =" <+> pshow ps'
       ]
     return ps'
@@ -1078,7 +1077,7 @@ blankNotInScope e = do
   ctxNames <- getContextNames
   letNames <- map fst <$> getLetBindings
   let names = Set.fromList . filter ((== C.InScope) . C.isInScope) $ ctxNames ++ letNames
-  reportSDoc "reify.blank" 80 . pure $ "names in scope for blanking:" <+> pretty names
+  reportS "reify.blank" 80 $ "names in scope for blanking:" <+> pretty names
   return $ blank names e
 
 
@@ -1282,7 +1281,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
 
     reifyPat :: MonadReify m => I.DeBruijnPattern -> m A.Pattern
     reifyPat p = do
-     reportSDoc "reify.pat" 80 $ return $ "reifying pattern" <+> pretty p
+     reportS "reify.pat" 80 $ "reifying pattern" <+> pretty p
      keepVars <- optKeepPatternVariables <$> pragmaOptions
      case p of
       -- Possibly expanded literal pattern (see #4215)
@@ -1291,7 +1290,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
           I.Lit l -> addAsBindings asB $ return $ A.LitP empty l
           _       -> __IMPOSSIBLE__
       I.VarP i x -> addAsBindings (patAsNames i) $ case patOrigin i of
-        o@PatODot  -> reifyDotP o $ var $ dbPatVarIndex x
+        o@PatODot  -> reifyDotP keepVars o $ var $ dbPatVarIndex x
         PatOWild   -> return $ A.WildP patNoRange
         PatOAbsurd -> return $ A.AbsurdP patNoRange
         _          -> reifyVarP x
@@ -1304,8 +1303,8 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
           if nameConcrete x == nameConcrete x' then
             return $ A.VarP $ mkBindName x'
           else
-            reifyDotP o v
-        o -> reifyDotP o v
+            reifyDotP keepVars o v
+        o -> reifyDotP keepVars o v
       I.LitP i l  -> addAsBindings (patAsNames i) $ return $ A.LitP empty l
       I.ProjP o d -> return $ A.ProjP patNoRange o $ unambiguous d
       I.ConP c cpi ps | conPRecord cpi -> addAsBindings (patAsNames $ conPInfo cpi) $
@@ -1321,7 +1320,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
         PatOVar x | keepVars -> return $ A.VarP $ mkBindName x
         _ -> A.DefP patNoRange (unambiguous f) <$> reifyPatterns ps
       I.IApplyP i _ _ x -> addAsBindings (patAsNames i) $ case patOrigin i of
-        o@PatODot  -> reifyDotP o $ var $ dbPatVarIndex x
+        o@PatODot  -> reifyDotP keepVars o $ var $ dbPatVarIndex x
         PatOWild   -> return $ A.WildP patNoRange
         PatOAbsurd -> return $ A.AbsurdP patNoRange
         _          -> reifyVarP x
@@ -1340,9 +1339,8 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
          | otherwise -> return $ A.VarP $
              mkBindName n { nameConcrete = C.simpleName y }
 
-    reifyDotP :: MonadReify m => PatOrigin -> Term -> m A.Pattern
-    reifyDotP o v = do
-      keepVars <- optKeepPatternVariables <$> pragmaOptions
+    reifyDotP :: MonadReify m => Bool -> PatOrigin -> Term -> m A.Pattern
+    reifyDotP keepVars o v = do
       if | PatOVar x <- o , keepVars       -> return $ A.VarP $ mkBindName x
          | PatOSplitArg x <- o , keepVars  -> A.VarP . mkBindName <$> freshName noRange x
          | otherwise                       -> A.DotP patNoRange <$> reify v
@@ -1370,7 +1368,7 @@ tryRecPFromConP p = do
   let fallback = return p
   case p of
     A.ConP ci c ps -> do
-        reportSLn "reify.pat" 60 $ "tryRecPFromConP " ++ prettyShow c
+        reportS "reify.pat" 60 $ "tryRecPFromConP" <+> pretty c
         caseMaybeM (isRecordConstructor $ headAmbQ c) fallback $ \ (r, def) -> do
           -- If the record constructor is generated or the user wrote a record pattern,
           -- print record pattern.
@@ -1389,7 +1387,7 @@ tryRecPFromConP p = do
 --   Otherwise, keep constructor expression.
 recOrCon :: MonadReify m => QName -> ConOrigin -> [Arg Expr] -> m A.Expr
 recOrCon c co es = do
-  reportSLn "reify.expr" 60 $ "recOrCon " ++ prettyShow c
+  reportS "reify.expr" 60 $ "recOrCon" <+> pretty c
   caseMaybeM (isRecordConstructor c) fallback $ \ (r, def) -> do
     -- If the record constructor is generated or the user wrote a record expression,
     -- print record expression.
@@ -1411,7 +1409,7 @@ instance Reify NamedClause where
   type ReifiesTo NamedClause = A.Clause
 
   reify (NamedClause f toDrop cl) = addContext (clauseTel cl) $ do
-    reportSDoc "reify.clause" 60 $ return $ vcat
+    reportS "reify.clause" 60 $ vcat
       [ "reifying NamedClause"
       , "  f      =" <+> pretty f
       , "  toDrop =" <+> pshow toDrop
@@ -1426,11 +1424,11 @@ instance Reify NamedClause where
     let rhsUsedNames = maybe mempty allUsedNames rhsBody
         rhsUsedVars  = [i | (i, Just n) <- zip rhsVars rhsVarNames, n `Set.member` rhsUsedNames]
 
-    reportSDoc "reify.clause" 60 $ return $ "RHS:" <+> pretty clBody
-    reportSDoc "reify.clause" 60 $ return $ "variables occurring on RHS:" <+> pretty rhsVars
+    reportS "reify.clause" 60 $ "RHS:" <+> pretty clBody
+    reportS "reify.clause" 60 $ "variables occurring on RHS:" <+> pretty rhsVars
       <+> "variable names:" <+> pretty rhsVarNames
       <+> parens (maybe "no clause body" (const "there was a clause body") clBody)
-    reportSDoc "reify.clause" 60 $ return $ "names occurring on RHS" <+> pretty (Set.toList rhsUsedNames)
+    reportS "reify.clause" 60 $ "names occurring on RHS" <+> pretty (Set.toList rhsUsedNames)
 
     let ell = clauseEllipsis cl
     ps  <- reifyPatterns $ namedClausePats cl

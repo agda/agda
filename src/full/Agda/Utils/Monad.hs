@@ -7,7 +7,7 @@ module Agda.Utils.Monad
     )
     where
 
-import Control.Monad.Except   ( MonadError(catchError, throwError) )
+import Control.Monad.Except   ( MonadError(catchError, throwError), ExceptT, runExceptT )
 import Control.Monad.Identity ( runIdentity )
 import Control.Monad.State    ( MonadState(get, put) )
 import Control.Monad.Writer   ( MonadWriter(tell), Writer, WriterT, mapWriterT )
@@ -137,6 +137,10 @@ anyM f = Fold.foldl' (\ b -> or2M b . f) (return False)
 
 existsM :: (Foldable f, Monad m) => f a -> (a -> m Bool) -> m Bool
 existsM xs f = anyM f xs
+
+-- https://hackage-content.haskell.org/package/extra-1.8/docs/src/Data.Foldable.Extra.html#findM
+findM :: (Foldable f, Monad m) => (a -> m Bool) -> f a -> m (Maybe a)
+findM p = foldr (\x -> ifM (p x) (pure $ Just x)) (pure Nothing)
 
 -- | Lazy monadic disjunction with @Either@  truth values.
 --   Returns the last error message if all fail.
@@ -289,6 +293,11 @@ tryCatch m = (Nothing <$ m) `catchError` \ err -> return $ Just err
 
 guardWithError :: MonadError e m => e -> Bool -> m ()
 guardWithError e b = if b then return () else throwError e
+
+-- | Handle errors thrown in 'ExceptT'.
+
+catchExceptT :: Monad m => ExceptT e m a -> (e -> m a) -> m a
+catchExceptT m h = either h return =<< runExceptT m
 
 -- State monad ------------------------------------------------------------
 

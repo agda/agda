@@ -2,12 +2,10 @@
 
 module Agda.TypeChecking.Monad.Imports
   ( addImport
-  , addImportCycleCheck
   , checkForImportCycle
   , dropDecodedModule
   , getDecodedModule
   , getDecodedModules
-  , getImportPath
   , getPrettyVisitedModules
   , getVisitedModule
   , getVisitedModules
@@ -15,7 +13,6 @@ module Agda.TypeChecking.Monad.Imports
   , setVisitedModules
   , storeDecodedModule
   , visitModule
-  , withImportPath
   ) where
 
 import Control.Arrow   ( (***) )
@@ -60,13 +57,6 @@ completeTransitiveImports ms old = if null ms then return old else do
 
   -- Recurse on the new imports.
   completeTransitiveImports (imps `Set.difference` next) next
-
-addImportCycleCheck :: TopLevelModuleName -> TCM a -> TCM a
-addImportCycleCheck m =
-    localTC $ \e -> e { envImportPath = m : envImportPath e }
-
-getImportPath :: TCM [TopLevelModuleName]
-getImportPath = asksTC envImportPath
 
 visitModule :: ModuleInfo -> TCM ()
 visitModule mi =
@@ -121,14 +111,12 @@ dropDecodedModule x = modifyTC $ \s ->
                               }
   }
 
-withImportPath :: [TopLevelModuleName] -> TCM a -> TCM a
-withImportPath path = localTC $ \e -> e { envImportPath = path }
 
 -- | Assumes that the first module in the import path is the module we are
 --   worried about.
 checkForImportCycle :: TCM ()
 checkForImportCycle = do
-  caseListM getImportPath __IMPOSSIBLE__ $ \ m ms -> do
+  caseListM (asksTC envImportStack) __IMPOSSIBLE__ $ \ m ms -> do
     when (m `elem` ms) $ typeError $ CyclicModuleDependency $
       List2.snoc (List1.fromListSafe __IMPOSSIBLE__ $ dropWhile (/= m) $ reverse ms) m
         -- NB: we know that ms contains m, so even after dropWhile the list is not empty.
