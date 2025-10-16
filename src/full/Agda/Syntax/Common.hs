@@ -106,15 +106,16 @@ instance NFData FileType
 
 -- | Variants of Cubical Agda.
 
-data Cubical = CErased | CFull
+data Cubical = CWithoutGlue | CErased | CFull
     deriving (Eq, Show, Generic)
 
 instance NFData Cubical
 
 cubicalOptionString :: Cubical -> String
 cubicalOptionString = \case
-  CErased -> "--erased-cubical"
-  CFull   -> "--cubical"
+  CWithoutGlue -> "--cubical=no-glue"
+  CErased -> "--cubical=erased"
+  CFull   -> "--cubical[=full]"
 
 -- | Agda variants.
 --

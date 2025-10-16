@@ -575,19 +575,27 @@ Experimental features
 
      Default is :option:`--no-confluence-check`.
 
-.. option:: --cubical
+.. option:: --cubical, --cubical=full
 
      .. versionadded:: 2.6.0
 
-     Enable cubical features. Turns on :option:`--cubical-compatible`
+     Enable cubical features. Turns on :option:`--cubical=compatible`
      and :option:`--without-K` (see :ref:`cubical`).
 
-.. option:: --erased-cubical
+.. option:: --cubical=erased, --erased-cubical
 
      .. versionadded:: 2.6.3
 
      Enable a :ref:`variant<erased-cubical>` of Cubical Agda, and turn
-     on :option:`--without-K`.
+     on :option:`--cubical=compatible` and :option:`--without-K`.
+
+.. option:: --cubical=no-glue
+
+     .. versionadded:: 2.9.0
+
+     Enable a :ref:`variant<cubical-without-glue>` of Cubical Agda
+     without the :ref:`Glue types<glue-types>`.
+     Turns on :option:`--cubical=compatible` and :option:`--without-K`.
 
 .. option:: --experimental-irrelevance
 
@@ -858,7 +866,7 @@ Pattern matching and equality
      theory, most importantly Streicher's K axiom (see
      :ref:`without-K`).
 
-.. option:: --cubical-compatible
+.. option:: --cubical=compatible, --cubical-compatible
 
      .. versionadded:: 2.6.3
 
@@ -1970,9 +1978,21 @@ are infective:
 * :option:`--rewriting`
 * :option:`--two-level`
 
-Furthermore :option:`--cubical` and :option:`--erased-cubical` are
-*jointly infective*: if one of them is used in one module, then one or
-the other must be used in all modules that depend on this module.
+Furthermore, the Cubical options are *jointly infective*
+in the following sense: if one of them is used in one module,
+modules depending on it should use a Cubical option
+at least as strong as the imported module.
+The Cubical options are listed below in increasing strength:
+
+- :ref:`Cubical without Glue<cubical-without-glue>` :option:`--cubical=no-glue`
+- :ref:`Cubical with Erased Glue<erased-cubical>` :option:`--cubical=erased` *
+- (Full) :ref:`Cubical` :option:`--cubical[=full]` *
+
+\* : Exceptionally,
+modules using Full Cubical :option:`--cubical[=full]` can be imported
+from modules using Erased Cubical :option:`--cubical=erased`
+if :option:`--erasure` is enabled and imports are only used in erased positions.
+See :ref:`here<variants>` for a summary.
 
 A *coinfective* option is an option that if used in one module, must
 be used in all modules that this module depends on. The following
@@ -1985,15 +2005,15 @@ options are coinfective:
 * :option:`--no-guardedness`
 * :option:`--level-universe`
 
-Furthermore the option :option:`--cubical-compatible` is mostly
-coinfective. If a module uses :option:`--cubical-compatible` then all
+Furthermore the option :option:`--cubical=compatible` is mostly
+coinfective. If a module uses :option:`--cubical=compatible` then all
 modules that this module imports (directly) must also use
-:option:`--cubical-compatible`, with the following exception: if a
-module uses both :option:`--cubical-compatible` and
+:option:`--cubical=compatible`, with the following exception: if a
+module uses both :option:`--cubical=compatible` and
 :option:`--with-K`, then it is not required to use
-:option:`--cubical-compatible` in (directly) imported modules that use
+:option:`--cubical=compatible` in (directly) imported modules that use
 :option:`--with-K`. (Note that one cannot use
-:option:`--cubical-compatible` and :option:`--with-K` at the same time
+:option:`--cubical=compatible` and :option:`--with-K` at the same time
 if :option:`--safe` is used.)
 
 Agda records the options used when generating an interface file. If
@@ -2007,12 +2027,12 @@ again, the source file is re-typechecked instead:
 * :option:`--cohesion`
 * :option:`--confluence-check`
 * :option:`--copatterns`
-* :option:`--cubical-compatible`
+* :option:`--cubical=compatible`
 * :option:`--cubical`
 * :option:`--cumulativity`
 * :option:`--double-check`
 * :option:`--erase-record-parameters`
-* :option:`--erased-cubical`
+* :option:`--cubical=erased`
 * :option:`--erased-matches`
 * :option:`--erasure`
 * :option:`--exact-split`

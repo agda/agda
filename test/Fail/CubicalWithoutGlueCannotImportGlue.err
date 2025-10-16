@@ -1,0 +1,5 @@
+CubicalWithoutGlueCannotImportGlue.agda:3.1-38: error: [InfectiveImport]
+Importing module Agda.Builtin.Cubical.Glue which might contain glue
+to a module with the option --cubical=no-glue.
+when scope checking the declaration
+  open import Agda.Builtin.Cubical.Glue

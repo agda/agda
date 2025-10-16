@@ -41,7 +41,7 @@ But many have worked on these features for improvements and maintenance.
 * Catarina Coquand: *Agda 1*
 * Jonathan Coates: *performance*
 * Matthew Daggitt: *standard library 1.0 and above*
-* Nils Anders Danielsson: *efficient positivity checker, HTML backend, highlighting, standard library*, :option:`--erased-cubical`, *erasure*, *performance improvements*
+* Nils Anders Danielsson: *efficient positivity checker, HTML backend, highlighting, standard library*, :option:`--cubical=erased`, *erasure*, *performance improvements*
 * Dominique Devriese: ``instance`` *arguments*
 * Péter Diviánszky: *web frontent,* ``variable`` *declarations*
 * Lucas Escot: ``--polarity``

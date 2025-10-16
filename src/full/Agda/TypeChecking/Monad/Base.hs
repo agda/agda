@@ -1532,7 +1532,7 @@ data WhyCheckModality
   -- which mentions a dotted argument (first name) must have a type
   -- which is usable at the context's modality.
   | GeneratedClause
-  -- ^ Because we double-check the --cubical-compatible clauses. This is
+  -- ^ Because we double-check the --cubical=compatible clauses. This is
   -- an internal error!
   deriving (Show, Generic)
 
@@ -5335,8 +5335,8 @@ data TypeError
         | CannotGenerateTransportClause QName (Closure (Abs Type))
             -- ^ Cannot generate transport clause because type is not fibrant.
         | CubicalNotErasure QName
-            -- ^ Name was defined for @--cubical@
-            --   and for use in @--erased-cubical@ the option @--erasure@ is needed.
+            -- ^ Name was defined for @--cubical[=full]@
+            --   and for use in @--cubical=erased@ the option @--erasure@ is needed.
         | CubicalPrimitiveNotFullyApplied QName
         | ExpectedIntervalLiteral A.Expr
             -- ^ Expected an interval literal (0 or 1) but found 'A.Expr'.

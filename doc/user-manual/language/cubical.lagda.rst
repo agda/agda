@@ -68,10 +68,16 @@ Cubical Agda at https://www.doi.org/10.1017/S0956796821000034.
 
 To use the cubical mode Agda needs to be run with the
 :option:`--cubical` command-line-option or with ``{-#
-OPTIONS --cubical #-}`` at the top of the file. There is also a
-variant of the cubical mode, activated using
-:option:`--erased-cubical`, which is described
-:ref:`below<erased-cubical>`.
+OPTIONS --cubical #-}`` at the top of the file.
+
+There are also two other :ref:`variants<variants>` of the cubical mode:
+
+- :option:`--cubical=erased`,
+  which is described :ref:`below<erased-cubical>`, and
+
+- :option:`--cubical=no-glue`,
+  which allows Cubical features without the :ref:`Glue types<glue-types>`,
+  described :ref:`below<cubical-without-glue>`.
 
 The cubical mode adds the following features to Agda:
 
@@ -524,6 +530,8 @@ direct cubical proof that composing ``p`` with ``refl`` is ``p``.
                                              (~ j)
 
 
+.. _glue-types:
+
 Glue types
 ==========
 
@@ -940,19 +948,47 @@ relevant position.
 Any argument which is used in the result type, or appears after a forced
 (dot) pattern, must have a modality-correct type.
 
+
+.. _variants:
+
+Variants
+========
+
+Summary of variant compatibilities:
+
+.. |cng| replace:: :option:`--cubical=no-glue`
+.. |ec|  replace:: :option:`--cubical=erased`
+.. |c|   replace:: :option:`--cubical[=full]`
+.. |v|   replace:: :math:`\checkmark`
+.. |x|   replace:: :math:`\times`
+
++---------------------+-------+------+----------+
+| Current \\ Imported | |cng| | |ec| | |c|      |
++=====================+=======+======+==========+
+| |cng|               | |v|   | |x|  | |x|      |
++---------------------+-------+------+----------+
+| |ec|                | |v|   | |v|  | |v| [#]_ |
++---------------------+-------+------+----------+
+| |c|                 | |v|   | |v|  | |v|      |
++---------------------+-------+------+----------+
+
+.. [#] only if :option:`--erasure` is enabled and is used in erased positions.
+       See :ref:`below<erased-cubical>`.
+
 .. _erased-cubical:
 
-Cubical Agda with erased Glue
-=============================
 
-The option :option:`--erased-cubical` enables a variant of Cubical
+Cubical Agda with erased Glue
+-----------------------------
+
+The option :option:`--cubical=erased` enables a variant of Cubical
 Agda in which Glue (and the other builtins defined in
 ``Agda.Builtin.Cubical.Glue``) must only be used in
 :ref:`erased<runtime-irrelevance>` settings.
 
 Regular Cubical Agda code can import code that uses
-:option:`--erased-cubical`. Regular Cubical Agda code can also be
-imported from code that uses :option:`--erased-cubical`, but names
+:option:`--cubical=erased`. Regular Cubical Agda code can also be
+imported from code that uses :option:`--cubical=erased`, but names
 defined using Cubical Agda can only be used if the option
 :option:`--erasure` is used. In that case the names are treated as if
 they had been marked as erased, with an exception related to pattern
@@ -968,6 +1004,36 @@ non-erased constructors are not treated as erased.
 Note that names that are re-exported from a Cubical Agda module using
 ``open import M args public`` are seen as defined using Cubical Agda.
 
+
+.. _cubical-without-glue:
+
+Cubical Agda without Glue
+-------------------------
+
+The option :option:`--cubical=no-glue` enables a variant (strict subset) of Cubical Agda,
+in which primitives such as ``hcomp`` and ``transp`` are still available,
+but Glue types (and the other builtins defined in ``Agda.Builtin.Cubical.Glue``) are disabled.
+Therefore, it should be sound to postulate in this variant
+either the uniqueness of identity proofs (UIP) or univalence; but of course not both.
+A source of inspiration for a Cubical Type Theory compatible with UIP is `XTT`_,
+in which UIP holds definitionally.
+
+If the current module enables the option :option:`--cubical=no-glue`, then:
+
+- It cannot import from modules with the options
+  :option:`--cubical` or :option:`--cubical=erased`,
+  since they allow the use of Glue types (to different extents).
+
+- Modules that depend on the current module must enable
+  any of the Cubical (variant) options:
+  :option:`--cubical=no-glue`, :option:`--cubical=erased`, or :option:`--cubical`.
+
+On the other hand, if the current module enables any of the the opions
+:option:`--cubical=erased` or :option:`--cubical`,
+one can always import modules with :option:`--cubical=no-glue`.
+
+
+
 References
 ==========
 
@@ -981,6 +1047,11 @@ References
 
   Thierry Coquand, Simon Huber, Anders Mörtberg; `"On Higher Inductive
   Types in Cubical Type Theory" <https://arxiv.org/abs/1802.01170>`_.
+
+.. _`XTT`:
+
+  Jonathan Sterling, Carlo Angiuli, Daniel Gratzer; `"A Cubical Language for
+  Bishop Sets" <https://dblp.org/rec/journals/lmcs/SterlingAG22.html>`_.
 
 .. _primitives-ref:
 

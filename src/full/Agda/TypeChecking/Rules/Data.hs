@@ -316,7 +316,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
 
             defineProjections d con params names fields dataT
             -- Andreas, 2024-01-05 issue #7048:
-            -- Only define hcomp when --cubical-compatible.
+            -- Only define hcomp when --cubical=compatible.
             cubicalCompatible <- cubicalCompatibleOption
             -- Cannot compose indexed inductive types yet.
             comp <- if cubicalCompatible && nofIxs == 0 && Info.defAbstract i == ConcreteDef

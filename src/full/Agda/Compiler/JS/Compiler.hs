@@ -227,9 +227,10 @@ jsPreModule opts _ m mifile = do
   cubical <- cubicalOption
   let compile = case cubical of
         -- Code that uses --cubical is not compiled.
-        Just CFull   -> False
-        Just CErased -> True
-        Nothing      -> True
+        Just CFull        -> False
+        Just CErased      -> True
+        Just CWithoutGlue -> True
+        Nothing           -> True
   ifM uptodate noComp (yesComp compile)
   where
     outFile_ = do

@@ -1007,7 +1007,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
       withKIfStrict = applyWhen (isStrictDataSort dsort) $ locallyTC eSplitOnStrict (const True)
 
   -- Should we attempt to compute a left inverse for this clause? When
-  -- --cubical-compatible --flat-split is given, we don't generate a
+  -- --cubical=compatible --flat-split is given, we don't generate a
   -- left inverse (at all). This means that, when the coverage checker
   -- gets to the clause this was in, it won't generate a (malformed!)
   -- transpX clause for @♭ matching.

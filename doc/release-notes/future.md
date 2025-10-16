@@ -29,3 +29,4 @@ Pragmas and Options
   ```
 
   [See also Issue [#709](https://github.com/agda/agda/issues/709)]
+

@@ -1275,7 +1275,7 @@ introTactic pmLambda ii = do
       let tel  = telFromList [defaultDom ("_", t)]
           pat  = [defaultArg $ unnamed $ deBruijnNamedVar "c" 0]
       -- Gallais, 2023-08-24: #6787 we need to locally ignore the
-      -- --without-K or --cubical-compatible options to figure out
+      -- --without-K or --cubical=compatible options to figure out
       -- that refl is a valid constructor for refl ≡ refl.
 
       cubical <- isJust <$> cubicalOption

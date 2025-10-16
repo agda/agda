@@ -14,6 +14,17 @@ Pragmas and options
 * New option `--print-options` to print a simple list of all options.
   This list can e.g. be used to implement bash completion.
 
+* Consolidated Cubical-related flags to
+  | Old                    | New                                               |
+  | ---------------------- | ------------------------------------------------- |
+  | `--cubical`            | `--cubical`, or `--cubical=full`                  |
+  | `--erased-cubical`     | `--erased-cubical`, or `--cubical=erased`         |
+  | `--cubical-compatible` | `--cubical-compatible`, or `--cubical=compatible` |
+  | -                      | `--cubical=no-glue`                               |
+
+  For compatibility between modules using different variants of Cubical Agda, see
+  [the documentation](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
+
 * New flag `--no-write-interfaces`
 
 Warnings
@@ -74,6 +85,13 @@ Language
 --------
 
 Changes to type checker and other components defining the Agda language.
+
+* Added support for [Cubical Agda without Glue Types](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#cubical-agda-without-glue)
+  by using the flag `--cubical=no-glue`,
+  a variant of Cubical Agda which disables the Glue types.
+  For compatibility with modules using `--cubical[=full]` and `--cubical=erased`, see
+  [variants](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
+
 
 Reflection
 ----------
