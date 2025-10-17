@@ -261,7 +261,7 @@ reifyDisplayFormP f ps wps = do
     -- Ulf, can you add an explanation?
     md <- -- addContext (replicate (length ps) "x") $
       displayForm f $ zipWith (\ p i -> I.Apply $ p $> I.var i) ps [0..]
-    reportSLn "reify.display" 60 $
+    reportSLn "reify.display" 95 $
       "display form of " ++ prettyShow f ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
       Just d  | okDisplayForm d -> do

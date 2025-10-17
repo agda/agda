@@ -314,7 +314,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
           sep [ "clauses before injectivity test"
               , nest 2 $ prettyTCM $ fmap (QNamed name) cs  -- broken, reify (QNamed n cl) expect cl to live at top level
               ]
-        reportSDoc "tc.cc" 60 $ inTopContext $ do
+        reportSDoc "tc.cc" 90 $ inTopContext $ do
           sep [ "raw clauses: "
               , nest 2 $ sep $ fmap (text . show . QNamed name) cs
               ]
@@ -776,7 +776,7 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
             ]
           ]
 
-        reportSDoc "tc.lhs.top" 60 $ escapeContext impossible (size delta) $ vcat
+        reportSDoc "tc.lhs.top" 90 $ escapeContext impossible (size delta) $ vcat
           [ "Clause before translation (raw):"
           , nest 2 $ vcat
             [ "ps    =" <+> text (show ps)

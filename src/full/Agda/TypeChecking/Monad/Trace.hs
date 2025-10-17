@@ -214,7 +214,7 @@ instance MonadTrace TCM where
   printHighlightingInfo remove info = do
     modToSrc <- useTC stModuleToSource
     method   <- viewTC eHighlightingMethod
-    reportSDoc "highlighting" 50 $ pure $ vcat
+    reportSDoc "highlighting" 90 $ pure $ vcat
       [ "Printing highlighting info:"
       , nest 2 $ (text . show) info
       , "File modules:"
