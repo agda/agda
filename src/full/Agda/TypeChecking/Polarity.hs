@@ -158,7 +158,7 @@ computePolarity xs = do
   --                        -- variable occurrence test in  dependentPolarity.
   reportSDoc "tc.polarity.set" 15 $
     "Refining polarity with type " <+> prettyTCM t
-  reportSDoc "tc.polarity.set" 60 $
+  reportSDoc "tc.polarity.set" 90 $
     "Refining polarity with type (raw): " <+> (text .show) t
 
   pol <- dependentPolarity t (enablePhantomTypes (theDef def) pol1) pol1

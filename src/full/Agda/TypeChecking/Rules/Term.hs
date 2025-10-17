@@ -1590,7 +1590,7 @@ checkQuestionMark new cmp t0 i ii = do
     , ":"
     , prettyTCM t0
     ]
-  reportSDoc "tc.interaction" 60 $ sep
+  reportSDoc "tc.interaction" 90 $ sep
     [ "Raw:"
     , text (show t0)
     ]

@@ -3339,7 +3339,7 @@ instance ToAbstract LeftHandSide where
       traceCall (ScopeCheckLHS top lhs) $ do
         reportSLn "scope.lhs" 25 $ "original lhs: " ++ prettyShow lhs
         reportSLn "scope.lhs" 60 $ "patternQNames: " ++ prettyShow (patternQNames lhs)
-        reportSLn "scope.lhs" 60 $ "original lhs (raw): " ++ show lhs
+        reportSLn "scope.lhs" 90 $ "original lhs (raw): " ++ show lhs
 
         -- Expand puns if optHiddenArgumentPuns is True. Note that pun
         -- expansion should happen before the left-hand side is
@@ -3364,12 +3364,12 @@ instance ToAbstract LeftHandSide where
         lhscore <- toAbstract $ CLHSCore displayLhs lhscore
         bindVarsToBind
         -- reportSLn "scope.lhs" 25 $ "parsed lhs patterns: " ++ prettyShow lhscore  -- TODO: Pretty A.LHSCore'
-        reportSLn "scope.lhs" 60 $ "parsed lhs patterns: " ++ show lhscore
+        reportSLn "scope.lhs" 90 $ "parsed lhs patterns: " ++ show lhscore
         printLocals 30 "checked pattern:"
         -- scope check dot patterns
         lhscore <- toAbstract lhscore
         -- reportSLn "scope.lhs" 25 $ "parsed lhs dot patterns: " ++ prettyShow lhscore  -- TODO: Pretty A.LHSCore'
-        reportSLn "scope.lhs" 60 $ "parsed lhs dot patterns: " ++ show lhscore
+        reportSLn "scope.lhs" 90 $ "parsed lhs dot patterns: " ++ show lhscore
         printLocals 30 "checked dots:"
         return $ A.LHS (LHSInfo (getRange lhs) ell) lhscore
 

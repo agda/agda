@@ -922,7 +922,7 @@ typeOfMetaMI norm mi =
           , "x    =" TP.<+> TP.pretty x
           ]
         ]
-      reportSDoc "interactive.meta.scope" 20 $ TP.text $ show $ getMetaScope mv
+      reportSDoc "interactive.meta.scope" 90 $ TP.text $ show $ getMetaScope mv
       -- Andreas, 2016-01-19, issue #1783: need piApplyM instead of just piApply
       OfType x <$> reifyUnblocked t
     rewriteJudg mv (IsSort i t) = do
