@@ -34,7 +34,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Conversion (equalType)
 import Agda.TypeChecking.Constraints (noConstraints)
 import Agda.TypeChecking.Telescope (flattenTel, piApplyM)
-import Agda.TypeChecking.Substitute (pattern TelV, telView', piApply, apply, applyE, NoSubst(..))
+import Agda.TypeChecking.Substitute (pattern TelV, telView', piApply, apply, applyE)
 import Agda.Interaction.BasicOps (normalForm)
 import Agda.Interaction.Base (Rewrite(..))
 import Agda.Benchmarking qualified as Bench

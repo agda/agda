@@ -15,7 +15,6 @@ import Agda.Syntax.Common (InteractionId, Nat)
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad (TCState, CheckpointId, Open, TCEnv, openThing)
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Substitute (NoSubst(..))
 import Agda.Interaction.Base (Rewrite(..))
 import Agda.Utils.Tuple (mapSnd)
 import Agda.Utils.Impossible

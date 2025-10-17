@@ -757,6 +757,11 @@ instance Null (Substitution' a) where
   null IdS = True
   null _   = False
 
+-- | Wrapper for types that do not contain variables (so applying a substitution is the identity).
+--   Useful if you have a structure of types that support substitution mixed with types that don't
+--   and need to apply a substitution to the full structure.
+newtype NoSubst t a = NoSubst { unNoSubst :: a }
+  deriving (Generic, NFData, Functor)
 
 ---------------------------------------------------------------------------
 -- * Views
@@ -1537,6 +1542,9 @@ instance Pretty a => Pretty (Blocked a) where
     NotBlocked ReallyNotBlocked a -> pretty a
     NotBlocked nb a -> pretty a <+> ("[ blocked on" <+> pretty nb <+> "]")
     Blocked     b a -> pretty a <+> ("[ stuck on" <+> pretty  b <+> "]")
+
+instance Pretty a => Pretty (NoSubst t a) where
+  pretty = pretty . unNoSubst
 
 -----------------------------------------------------------------------------
 -- * NFData instances
