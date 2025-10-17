@@ -67,9 +67,6 @@ instance Eq SearchBranch where
 instance Ord SearchBranch where
   compare = compare `on` sbCost
 
-addBranchGoals :: [Goal] -> SearchBranch -> SearchBranch
-addBranchGoals goals branch = branch {sbGoals = goals ++ sbGoals branch}
-
 data Goal = Goal
   { goalMeta :: MetaId
   }
