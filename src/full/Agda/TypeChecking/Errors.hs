@@ -345,7 +345,7 @@ instance PrettyTCM TypeError where
         A.AsP _ _ p -> kindOfPattern p
         A.PatternSynP{} -> __IMPOSSIBLE__
 
-    CannotEliminateWithProjection ty isAmbiguous projection -> sep
+    CannotEliminateWithProjection _ ty isAmbiguous projection -> sep
         [ "Cannot eliminate type "
         , prettyTCM (unArg ty)
         , " with projection "

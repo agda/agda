@@ -82,6 +82,7 @@ import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.List2 (pattern List2)
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
+import Agda.Utils.Either
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -1716,7 +1717,7 @@ disambiguateProjection
 disambiguateProjection h ambD@(AmbQ ds) b = do
   -- If the target is not a record type, that's an error.
   -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
-  caseMaybeM (liftTCM $ isRecordType $ unArg b) notRecord
+  caseEitherM (liftTCM $ tryRecordType $ unArg b) notRecord
     \ (r, vs, RecordData{ _recFields = fs, _recInduction = ind, _recEtaEquality' = eta }) -> do
       reportSDoc "tc.lhs.split" 20 $ sep
         [ "we are of record type r  = " <> pure (P.pretty r)
@@ -1754,12 +1755,12 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
           return (d, comatching, r, a, ai)
         other -> failure other
 
-    notRecord = wrongProj $ List1.head ds
+    notRecord blk = wrongProj (Just (getBlocker blk)) $ List1.head ds
 
-    wrongProj :: (MonadTCM m, MonadError TCErr m, ReadTCState m) => QName -> m a
-    wrongProj d = softTypeError =<< do
-      liftTCM $ if isAmbiguous ambD then CannotEliminateWithProjection b True <$> dropTopLevelModule d
-                else pure $ CannotEliminateWithProjection b False d
+    wrongProj :: (MonadTCM m, MonadError TCErr m, ReadTCState m) => Maybe Blocker -> QName -> m a
+    wrongProj blk d = softTypeError =<< do
+      liftTCM $ if isAmbiguous ambD then CannotEliminateWithProjection blk b True <$> dropTopLevelModule d
+                else pure $ CannotEliminateWithProjection blk b False d
 
     tryProj
       :: Bool                 -- Are we allowed to create new constraints?
@@ -1771,17 +1772,17 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
            -- TCState contains possibly new constraints/meta solutions.
     tryProj constraintsOk fs r vs d0 = isProjection d0 >>= \case
       -- Not a projection
-      Nothing -> wrongProj d0
+      Nothing -> wrongProj Nothing d0
       Just proj -> do
         let d = projOrig proj
 
         -- Andreas, 2015-05-06 issue 1413 projProper=Nothing is not impossible
-        qr <- maybe (wrongProj d) return $ projProper proj
+        qr <- maybe (wrongProj Nothing d) return $ projProper proj
 
         -- If projIndex==0, then the projection is already applied
         -- to the record value (like in @open R r@), and then it
         -- is no longer a projection but a record field.
-        when (null $ projLams proj) $ wrongProj d
+        when (null $ projLams proj) $ wrongProj Nothing d
         reportSLn "tc.lhs.split" 90 "we are a projection pattern"
         -- If the target is not a record type, that's an error.
         -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
@@ -1793,7 +1794,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         -- If the projection pattern name @d@ is not a field name,
         -- we have to try the next projection name.
         -- If this was not an ambiguous projection, that's an error.
-        argd <- maybe (wrongProj d) return $ List.find ((d ==) . unDom) fs
+        argd <- maybe (wrongProj Nothing d) return $ List.find ((d ==) . unDom) fs
 
         -- Issue4998: This used to use the hiding from the principal argument, but this is not
         -- relevant for the ArgInfo of the clause rhs. We return that separately so we can set the

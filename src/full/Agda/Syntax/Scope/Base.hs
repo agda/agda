@@ -397,6 +397,13 @@ instance Semigroup LiveNames where
 instance Monoid LiveNames where
   mempty = SomeLiveNames mempty mempty
 
+instance Pretty LiveNames where
+  pretty AllLiveNames = "*"
+  pretty (SomeLiveNames mod name) = braces $ vcat
+    [ "mods: " <+> pretty mod
+    , "names:" <+> pretty name
+    ]
+
 -- | Is the given name alive in this set?
 --
 -- Note: a qualified name can be kept alive by liveness of any of the

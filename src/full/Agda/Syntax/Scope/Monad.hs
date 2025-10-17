@@ -771,6 +771,10 @@ sameTrimming old new | renPublic old, renPublic new = pure True
 sameTrimming old new = do
   a <- readLiveNames (renTrimming old)
   b <- readLiveNames (renTrimming new)
+  reportSDoc "cache.trimming" 100 $ pure $ vcat
+    [ "old trimming:" <+> pretty a
+    , "new trimming:" <+> pretty b
+    ]
   pure (a == b)
 
 clobberLiveNames :: ScopeM ()

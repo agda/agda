@@ -135,7 +135,7 @@ checkDeclCached d = do
     -- variables or a field in the TC state.
     Just (Decl d'@(A.Apply _ _ _ _ ci' _), s)
       | compareDecl d d', A.Apply _ _ _ _ ci _ <- d ->
-      ifM (sameTrimming ci ci')
+      ifM (sameTrimming ci' ci)
         {- then -} (reportSLn "cache.decl" 10 "  cache Apply: same trimming" *> reuse s)
         {- else -} (reportSLn "cache.decl" 10 "  cache Apply: diff trimming" *> drop)
 
