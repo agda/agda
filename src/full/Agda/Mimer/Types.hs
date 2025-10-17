@@ -151,8 +151,8 @@ noName = Nothing
 addCost :: Cost -> Component -> Component
 addCost cost comp = comp { compCost = cost + compCost comp }
 
-replaceCompMeta :: MetaId -> [MetaId] -> Component -> Component
-replaceCompMeta old new c = c{ compMetas = new ++ List.delete old (compMetas c) }
+deleteCompMeta :: MetaId -> Component -> Component
+deleteCompMeta old c = c{ compMetas = List.delete old (compMetas c) }
 
 ------------------------------------------------------------------------
 -- * SearchOptions
