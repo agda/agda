@@ -28,6 +28,7 @@ module Agda.Mimer.Mimer
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Except (catchError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), runReaderT, asks, ask, lift)
 import Data.Functor ((<&>))
@@ -53,10 +54,11 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Rules.Term  (makeAbsurdLambda)
-import Agda.TypeChecking.Substitute (apply, NoSubst(..))
+import Agda.TypeChecking.Substitute (apply)
 
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Maybe (catMaybes)
+import Agda.Utils.Monad (concatMapM, ifM)
 import Agda.Utils.Null
 import Agda.Utils.Tuple (mapFst, mapSnd)
 import Agda.Utils.Time (measureTime, getCPUTime, fromMilliseconds)
@@ -65,11 +67,10 @@ import Data.IORef (readIORef)
 
 import Agda.Interaction.Base (Rewrite(..))
 import Agda.Interaction.BasicOps (normalForm)
-import Agda.Utils.Monad (concatMapM)
 
 import Agda.Mimer.Types (MimerResult(..), BaseComponents(..), Component(..),
                          SearchBranch(..), SearchStepResult(..), SearchOptions(..),
-                         Goal(..), Costs(..), goalMeta, replaceCompMeta,
+                         Goal(..), Costs(..), goalMeta, deleteCompMeta,
                          incRefineFail, incRefineSuccess, incCompRegen, incCompNoRegen,
                          nextGoal, addCost, isNoResult)
 import Agda.Mimer.Monad
@@ -301,13 +302,19 @@ genComponents = do
   opts <- ask
   let comps = searchBaseComponents opts
   n <- localVarCount
+  reportSDoc "mimer.components" 20 $ "Generating components"
   localVars <- lift (getLocalVars n (costLocal $ searchCosts opts))
     >>= genAddSource (searchGenProjectionsLocal opts)
+  reportSDoc "mimer.components" 25 $ "  localVars = " <+> pretty localVars
   recCalls <- genAddSource (searchGenProjectionsRec opts) (maybeToList $ hintThisFn comps)
+  reportSDoc "mimer.components" 25 $ "  recCalls = " <+> pretty recCalls
   letVars <- mapM getOpenComponent (hintLetVars comps)
     >>= genAddSource (searchGenProjectionsLet opts)
+  reportSDoc "mimer.components" 25 $ "  letVars = " <+> pretty letVars
   fns <- genAddSource (searchGenProjectionsExternal opts) (hintFns comps)
+  reportSDoc "mimer.components" 25 $ "  fns = " <+> pretty fns
   axioms <- genAddSource (searchGenProjectionsExternal opts) (hintAxioms comps)
+  reportSDoc "mimer.components" 25 $ "  axioms = " <+> pretty axioms
   return $ localVars ++ letVars ++ recCalls ++ fns ++ axioms
   where
     genAddSource :: Bool -> [Component] -> SM [(Component, [Component])]
@@ -345,10 +352,14 @@ genRecCalls thisFn = do
   reportSDoc "mimer.components.open" 40 $ "Generating recursive calls for component" <+> prettyTCM (compId thisFn) <+> prettyTCM (compName thisFn)
   reportSDoc "mimer.components.open" 60 $ "  checkpoint =" <+> (prettyTCM =<< viewTC eCurrentCheckpoint)
   -- TODO: Make sure there are no pruning problems
-  asks (hintRecVars . searchBaseComponents) >>= getOpen >>= \case
-    -- No candidate arguments for a recursive call
-    [] -> return []
+  rv <- asks (hintRecVars . searchBaseComponents)
+  reportSDoc "mimer.components" 40 $ "  rv = " <+> pretty (fmap (map fst) rv)
+  getOpen rv >>= \case
+    [] -> do
+      reportSDoc "mimer.components" 40 $ "No candidate arguments for a recursive call"
+      return []
     recCandTerms -> do
+      reportSDoc "mimer.components" 45 $ "  recCandTerms = " <+> pretty (map fst recCandTerms)
       Costs{..} <- asks searchCosts
       n <- localVarCount
       localVars <- lift $ getLocalVars n costLocal
@@ -375,17 +386,18 @@ genRecCalls thisFn = do
               , "for" <+> prettyTCM (goalMeta goal) ]
             goalType <- getMetaTypeInContext (goalMeta goal)
             state <- getTC
-            tryRefineWith' goal goalType arg >>= \case
-              Nothing -> do
-                putTC state
-                go thisFn ((goal, i) : goals) args
-              Just (newMetas1, newMetas2) -> do
-                let newComp = replaceCompMeta (goalMeta goal) (newMetas1 ++ newMetas2) thisFn
+            ifM (tryRefineWith' goal goalType arg)
+              (do
+                let newComp = deleteCompMeta (goalMeta goal) thisFn
                 (thisFn', goals') <- newRecCall
-                (newComp:) <$> go thisFn' (drop (length goals' - length goals - 1) goals') args
+                (newComp:) <$> go thisFn' (drop (length goals' - length goals - 1) goals') args)
+              (do
+                putTC state
+                go thisFn ((goal, i) : goals) args)
           go thisFn goals (_ : args) = go thisFn goals args
       (thisFn', argGoals) <- newRecCall
       comps <- go thisFn' argGoals recCands
+      reportSDoc "mimer.components" 45 $ "  comps = " <+> pretty comps
       -- Compute costs for the calls:
       --  - costNewMeta/costNewHiddenMeta for each unsolved argument
       --  - zero for solved arguments
@@ -423,7 +435,7 @@ refine branch = withBranchState branch $ do
       -- Absurd lambda
       Left branch2 -> do
         mimerTrace 1 10 $ sep
-              [ "Absurd bambda refinement", nest 2 $ prettyGoalInst goal1 ]
+              [ "Absurd lambda refinement", nest 2 $ prettyGoalInst goal1 ]
         args <- map Apply <$> getContextArgs
         e <- blankNotInScope =<< reify (MetaV (goalMeta goal1) args)
         return [ResultExpr e]
@@ -467,10 +479,12 @@ tryLamAbs goal goalType branch =
   case unEl goalType of
     Pi dom abs -> isEmptyType (unDom dom) >>= \case
       True -> do
+        reportSDoc "mimer.lam" 40 $ "Trying absurd lambda for pi type" <+> prettyTCM goalType
         f <- liftTCM $ makeAbsurdLambda noRange dom abs
         args <- map Apply <$> getContextArgs
-        newMetaIds <- assignMeta (goalMeta goal) (Def f args) goalType
-        Left <$> updateBranch newMetaIds branch
+        -- TODO: what happens when assignMeta fails?
+        assignMeta (goalMeta goal) (Def f args) goalType
+        return $ Left branch
       False -> do
         reportSDoc "mimer.lam" 40 $ "Trying lambda abstraction for pi type" <+> prettyTCM goalType
         let abs' | isNoName (absName abs) = abs { absName = "z" }
@@ -489,11 +503,9 @@ tryLamAbs goal goalType branch =
             -- look at mkLam
             term = Lam argInf newAbs
 
-        newMetaIds <- assignMeta (goalMeta goal) term goalType
+        assignMeta (goalMeta goal) term goalType
 
-        withEnv env $ do
-          branch' <- updateBranch newMetaIds branch
-          tryLamAbs (Goal metaId') bodyType branch'
+        withEnv env $ tryLamAbs (Goal metaId') bodyType branch
     _ -> done
   where
     done = do
@@ -566,6 +578,7 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
     -- TODO: Add an extra filtering on the sort
     trySet :: Level -> SM [SearchStepResult]
     trySet level = do
+      reportSDoc "mimer.try" 40 $ "trySet" <+> prettyTCM level
       reducedLevel <- reduce level
       cost <- asks (costSet . searchCosts)
       setCandidates <- case reducedLevel of
@@ -577,6 +590,7 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
         (Max i ps) -> do
               (metaId, metaTerm) <- createMeta =<< levelType
               comp <- newComponent [metaId] cost Nothing 0 (Sort $ Type $ Max (max 0 (i - 1)) [Plus 0 metaTerm]) goalType
+              reportSDoc "mimer.lam" 45 $ "  new metaId =" <+> pretty metaId
               branch' <- updateBranch [metaId] branch
               return [(branch', comp)]
       reportSDoc "mimer.refine.set" 40 $
@@ -594,44 +608,40 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
 -- NOTE: Does not reset the state!
 -- TODO: Make sure the type is always reduced
 tryRefineWith :: Goal -> Type -> SearchBranch -> Component -> SM (Maybe SearchBranch)
-tryRefineWith goal goalType branch comp = withBranchAndGoal branch goal $ do
-
-  metasCreatedBy (dumbUnifierErr (compType comp) goalType) >>= \case
-    (Nothing, newMetaStore) -> do
-      updateStat incRefineSuccess
-      -- TODO: Why is newMetaIds not used here?
-      newMetaIds <- assignMeta (goalMeta goal) (compTerm comp) goalType
-      let newMetaIds' = Map.keys (openMetas newMetaStore)
-      reportSDoc "mimer.refine" 60 $
-        "Refine: assignMeta created new metas:" <+> prettyTCM newMetaIds
-
-      reportSMDoc "mimer.refine" 50 $ "Refinement succeeded"
-
-      mimerTrace 2 10 $ sep
-        [ "Found refinement"
-        , nest 2 $ sep [ prettyTCM (compTerm comp)
-                       , ":" <+> prettyTCM (compType comp) ] ]
+tryRefineWith goal goalType branch comp = withBranchAndGoal branch goal $
+  ifM (tryRefineWith' goal goalType comp)
       -- Take the metas stored in the component and add them as sub-goals
-      Just <$> updateBranchCost comp (newMetaIds' ++ compMetas comp) branch
-    (Just err, _) -> do
-      updateStat incRefineFail
-      reportSMDoc "mimer.refine" 50 $ "Refinement failed"
+  {-then-} (Just <$> updateBranchCost comp (compMetas comp) branch)
+  {-else-} (return Nothing)
 
-      mimerTrace 2 60 $ vcat
-        [ "Failed refinement"
-        , nest 2 $ sep [ prettyTCM (compTerm comp)
-                       , ":" <+> prettyTCM (compType comp) ]
-        , nest 2 $ prettyTCM err ]
-      return Nothing
-
-tryRefineWith' :: Goal -> Type -> Component -> SM (Maybe ([MetaId], [MetaId]))
+tryRefineWith' :: Goal -> Type -> Component -> SM Bool
 tryRefineWith' goal goalType comp = do
-  metasCreatedBy (dumbUnifier (compType comp) goalType) >>= \case
-    (True, newMetaStore) -> do
-      newMetaIds <- assignMeta (goalMeta goal) (compTerm comp) goalType
-      let newMetaIds' = Map.keys (openMetas newMetaStore)
-      return $ Just (newMetaIds, newMetaIds')
-    (False, _) -> return Nothing
+    -- 2025-10-17, Jesper (#8097): the calls to dumbUnifier and assignMeta
+    -- here might generate new metas (e.g. through pruning existing ones) but
+    -- these do not necessarily fall under the same context as the hole we're
+    -- solving so we should not consider them as new goals (lest we run into
+    -- bad checkpoints later).
+    dumbUnifier (compType comp) goalType
+    assignMeta (goalMeta goal) (compTerm comp) goalType
+
+    updateStat incRefineSuccess
+    reportSMDoc "mimer.refine" 50 $ "Refinement succeeded"
+
+    mimerTrace 2 10 $ sep
+      [ "Found refinement"
+      , nest 2 $ sep [ prettyTCM (compTerm comp)
+                      , ":" <+> prettyTCM (compType comp) ] ]
+    return True
+  `catchError` \err -> do
+    updateStat incRefineFail
+    reportSMDoc "mimer.refine" 50 $ "Refinement failed"
+
+    mimerTrace 2 60 $ vcat
+      [ "Failed refinement"
+      , nest 2 $ sep [ prettyTCM (compTerm comp)
+                      , ":" <+> prettyTCM (compType comp) ]
+      , nest 2 $ prettyTCM err ]
+    return False
 
 -- TODO: Make policy for when state should be put
 tryRefineAddMetas :: Goal -> Type -> SearchBranch -> Component -> SM (Maybe SearchBranch)

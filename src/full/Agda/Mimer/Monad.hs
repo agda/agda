@@ -6,6 +6,7 @@ import Control.Monad
 import Control.Monad.Except (catchError, MonadError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), asks, ask, lift)
+import Data.Functor ( ($>) )
 import Data.IORef (modifyIORef', newIORef)
 import Data.Map qualified as Map
 import Data.List qualified as List
@@ -34,7 +35,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Conversion (equalType)
 import Agda.TypeChecking.Constraints (noConstraints)
 import Agda.TypeChecking.Telescope (flattenTel, piApplyM)
-import Agda.TypeChecking.Substitute (pattern TelV, telView', piApply, apply, applyE, NoSubst(..))
+import Agda.TypeChecking.Substitute (pattern TelV, telView', piApply, apply, applyE)
 import Agda.Interaction.BasicOps (normalForm)
 import Agda.Interaction.Base (Rewrite(..))
 import Agda.Benchmarking qualified as Bench
@@ -77,9 +78,8 @@ allOpenMetas t = do
   openMetas <- getOpenMetas
   return $ allMetas (:[]) t `List.intersect` openMetas
 
-assignMeta :: MetaId -> Term -> Type -> SM [MetaId]
+assignMeta :: MetaId -> Term -> Type -> SM ()
 assignMeta metaId term metaType = bench [Bench.CheckRHS] $ do
-  ((), newMetaStore) <- metasCreatedBy $ do
     metaVar <- lookupLocalMeta metaId
     metaArgs <- getMetaContextArgs metaVar
 
@@ -90,18 +90,7 @@ assignMeta metaId term metaType = bench [Bench.CheckRHS] $ do
                       ]
       ]
 
-    assignV DirLeq metaId metaArgs term (AsTermsOf metaType) `catchError` \err -> do
-      reportSMDoc "mimer.assignMeta" 30 $ vcat
-        [ "Got error from assignV:" <+> prettyTCM err
-        , nest 2 $ vcat
-          [ "when trying to assign" <+> prettyTCM term
-          , "to" <+> prettyTCM metaId <+> ":" <+> prettyTCM metaType
-          , "in context" <+> (inTopContext . prettyTCM =<< getContextTelescope)
-          ]
-        ]
-
-  let newMetaIds = Map.keys (openMetas newMetaStore)
-  return newMetaIds
+    assignV DirLeq metaId metaArgs term (AsTermsOf metaType)
 
 getLocalVarTerms :: Int -> TCM [(Term, Dom Type)]
 getLocalVarTerms localCxt = do
@@ -254,8 +243,18 @@ collectComponents :: Options
                   -> TCM BaseComponents
 collectComponents opts costs ii mDefName whereNames metaId = do
 
+  reportSDoc "mimer.components" 30 $ "collectComponents"
+  reportSDoc "mimer.components" 40 $ nest 2 $ vcat
+     [ "ii =" <+> pretty ii
+     , "mDefName =" <+> pretty mDefName
+     , "whereNames =" <+> pretty whereNames
+     , "metaId =" <+> pretty metaId
+     ]
+
   lhsVars <- collectLHSVars ii
   let recVars = lhsVars <&> \ vars -> [ (tm, NoSubst i) | (tm, Just i) <- vars ]
+
+  reportSDoc "mimer.components" 40 $ "recVars =" <+> pretty recVars
 
   -- Prepare the initial component record
   letVars <- getLetVars (costLet costs)
@@ -398,6 +397,10 @@ collectLHSVars ii = do
     IPNoClause -> makeOpen []
     IPClause{ipcQName = fnName, ipcClauseNo = clauseNr} -> do
       reportSDoc "mimer.components" 40 $ "Collecting LHS vars for" <+> prettyTCM ii
+      reportSDoc "mimer.components" 45 $ nest 2 $ vcat
+        [ "fnName =" <+> pretty fnName
+        , "clauseNr =" <+> pretty clauseNr
+        ]
       info <- getConstInfo fnName
       parCount <- liftTCM getCurrentModuleFreeVars
       case theDef info of
@@ -642,15 +645,10 @@ makeSearchOptions norm options ii = do
 -- * Unification
 ------------------------------------------------------------------------
 
-dumbUnifier :: Type -> Type -> SM Bool
-dumbUnifier t1 t2 = isNothing <$> dumbUnifierErr t1 t2
-
-dumbUnifierErr :: Type -> Type -> SM (Maybe TCErr)
-dumbUnifierErr t1 t2 = bench [Bench.UnifyIndices] $ do
+dumbUnifier :: Type -> Type -> SM ()
+dumbUnifier t1 t2 = bench [Bench.UnifyIndices] $ do
   updateStat incTypeEqChecks
-  noConstraints (Nothing <$ equalType t2 t1) `catchError` \err -> do
-    reportSDoc "mimer.unify" 80 $ sep [ "Unification failed with error:", nest 2 $ prettyTCM err ]
-    return $ Just err
+  noConstraints (equalType t2 t1)
 
 ------------------------------------------------------------------------
 -- * Debugging

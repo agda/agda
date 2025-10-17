@@ -1227,7 +1227,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     reportSLn "import.iface.create" 15 $ prettyShow mname ++ ": Finished highlighting from type info."
 
     setScope scope
-    reportSLn "scope.top" 50 $ "SCOPE " ++ show scope
+    reportSLn "scope.top" 90 $ "SCOPE " ++ show scope
 
     -- TODO: It would be nice if unsolved things were highlighted
     -- after every mutual block.

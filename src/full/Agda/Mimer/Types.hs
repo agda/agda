@@ -15,7 +15,6 @@ import Agda.Syntax.Common (InteractionId, Nat)
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad (TCState, CheckpointId, Open, TCEnv, openThing)
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Substitute (NoSubst(..))
 import Agda.Interaction.Base (Rewrite(..))
 import Agda.Utils.Tuple (mapSnd)
 import Agda.Utils.Impossible
@@ -67,9 +66,6 @@ instance Eq SearchBranch where
 -- TODO: Explain
 instance Ord SearchBranch where
   compare = compare `on` sbCost
-
-addBranchGoals :: [Goal] -> SearchBranch -> SearchBranch
-addBranchGoals goals branch = branch {sbGoals = goals ++ sbGoals branch}
 
 data Goal = Goal
   { goalMeta :: MetaId
@@ -155,8 +151,8 @@ noName = Nothing
 addCost :: Cost -> Component -> Component
 addCost cost comp = comp { compCost = cost + compCost comp }
 
-replaceCompMeta :: MetaId -> [MetaId] -> Component -> Component
-replaceCompMeta old new c = c{ compMetas = new ++ List.delete old (compMetas c) }
+deleteCompMeta :: MetaId -> Component -> Component
+deleteCompMeta old c = c{ compMetas = List.delete old (compMetas c) }
 
 ------------------------------------------------------------------------
 -- * SearchOptions

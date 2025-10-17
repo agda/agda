@@ -142,7 +142,7 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit ixspl
       , "b     =" <+> addContext tel1 (prettyTCM b)
       ]
     ]
-  reportSDoc "tc.lhs.problem" 60 $ addContext tel0 $ vcat
+  reportSDoc "tc.lhs.problem" 90 $ addContext tel0 $ vcat
     [ nest 2 $ vcat
       [ "ps    =" <+> (text . show) ps
       , "a     =" <+> (text . show) a
