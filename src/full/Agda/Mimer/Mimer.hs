@@ -301,13 +301,19 @@ genComponents = do
   opts <- ask
   let comps = searchBaseComponents opts
   n <- localVarCount
+  reportSDoc "mimer.components" 20 $ "Generating components"
   localVars <- lift (getLocalVars n (costLocal $ searchCosts opts))
     >>= genAddSource (searchGenProjectionsLocal opts)
+  reportSDoc "mimer.components" 25 $ "  localVars = " <+> pretty localVars
   recCalls <- genAddSource (searchGenProjectionsRec opts) (maybeToList $ hintThisFn comps)
+  reportSDoc "mimer.components" 25 $ "  recCalls = " <+> pretty recCalls
   letVars <- mapM getOpenComponent (hintLetVars comps)
     >>= genAddSource (searchGenProjectionsLet opts)
+  reportSDoc "mimer.components" 25 $ "  letVars = " <+> pretty letVars
   fns <- genAddSource (searchGenProjectionsExternal opts) (hintFns comps)
+  reportSDoc "mimer.components" 25 $ "  fns = " <+> pretty fns
   axioms <- genAddSource (searchGenProjectionsExternal opts) (hintAxioms comps)
+  reportSDoc "mimer.components" 25 $ "  axioms = " <+> pretty axioms
   return $ localVars ++ letVars ++ recCalls ++ fns ++ axioms
   where
     genAddSource :: Bool -> [Component] -> SM [(Component, [Component])]
@@ -345,10 +351,14 @@ genRecCalls thisFn = do
   reportSDoc "mimer.components.open" 40 $ "Generating recursive calls for component" <+> prettyTCM (compId thisFn) <+> prettyTCM (compName thisFn)
   reportSDoc "mimer.components.open" 60 $ "  checkpoint =" <+> (prettyTCM =<< viewTC eCurrentCheckpoint)
   -- TODO: Make sure there are no pruning problems
-  asks (hintRecVars . searchBaseComponents) >>= getOpen >>= \case
-    -- No candidate arguments for a recursive call
-    [] -> return []
+  rv <- asks (hintRecVars . searchBaseComponents)
+  reportSDoc "mimer.components" 40 $ "  rv = " <+> pretty (fmap (map fst) rv)
+  getOpen rv >>= \case
+    [] -> do
+      reportSDoc "mimer.components" 40 $ "No candidate arguments for a recursive call"
+      return []
     recCandTerms -> do
+      reportSDoc "mimer.components" 45 $ "  recCandTerms = " <+> pretty (map fst recCandTerms)
       Costs{..} <- asks searchCosts
       n <- localVarCount
       localVars <- lift $ getLocalVars n costLocal
@@ -386,6 +396,7 @@ genRecCalls thisFn = do
           go thisFn goals (_ : args) = go thisFn goals args
       (thisFn', argGoals) <- newRecCall
       comps <- go thisFn' argGoals recCands
+      reportSDoc "mimer.components" 45 $ "  comps = " <+> pretty comps
       -- Compute costs for the calls:
       --  - costNewMeta/costNewHiddenMeta for each unsolved argument
       --  - zero for solved arguments
@@ -423,7 +434,7 @@ refine branch = withBranchState branch $ do
       -- Absurd lambda
       Left branch2 -> do
         mimerTrace 1 10 $ sep
-              [ "Absurd bambda refinement", nest 2 $ prettyGoalInst goal1 ]
+              [ "Absurd lambda refinement", nest 2 $ prettyGoalInst goal1 ]
         args <- map Apply <$> getContextArgs
         e <- blankNotInScope =<< reify (MetaV (goalMeta goal1) args)
         return [ResultExpr e]
@@ -467,6 +478,7 @@ tryLamAbs goal goalType branch =
   case unEl goalType of
     Pi dom abs -> isEmptyType (unDom dom) >>= \case
       True -> do
+        reportSDoc "mimer.lam" 40 $ "Trying absurd lambda for pi type" <+> prettyTCM goalType
         f <- liftTCM $ makeAbsurdLambda noRange dom abs
         args <- map Apply <$> getContextArgs
         newMetaIds <- assignMeta (goalMeta goal) (Def f args) goalType
@@ -566,6 +578,7 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
     -- TODO: Add an extra filtering on the sort
     trySet :: Level -> SM [SearchStepResult]
     trySet level = do
+      reportSDoc "mimer.try" 40 $ "trySet" <+> prettyTCM level
       reducedLevel <- reduce level
       cost <- asks (costSet . searchCosts)
       setCandidates <- case reducedLevel of
@@ -577,6 +590,7 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
         (Max i ps) -> do
               (metaId, metaTerm) <- createMeta =<< levelType
               comp <- newComponent [metaId] cost Nothing 0 (Sort $ Type $ Max (max 0 (i - 1)) [Plus 0 metaTerm]) goalType
+              reportSDoc "mimer.lam" 45 $ "  new metaId =" <+> pretty metaId
               branch' <- updateBranch [metaId] branch
               return [(branch', comp)]
       reportSDoc "mimer.refine.set" 40 $

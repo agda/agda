@@ -254,8 +254,18 @@ collectComponents :: Options
                   -> TCM BaseComponents
 collectComponents opts costs ii mDefName whereNames metaId = do
 
+  reportSDoc "mimer.components" 30 $ "collectComponents"
+  reportSDoc "mimer.components" 40 $ nest 2 $ vcat
+     [ "ii =" <+> pretty ii
+     , "mDefName =" <+> pretty mDefName
+     , "whereNames =" <+> pretty whereNames
+     , "metaId =" <+> pretty metaId
+     ]
+
   lhsVars <- collectLHSVars ii
   let recVars = lhsVars <&> \ vars -> [ (tm, NoSubst i) | (tm, Just i) <- vars ]
+
+  reportSDoc "mimer.components" 40 $ "recVars =" <+> pretty recVars
 
   -- Prepare the initial component record
   letVars <- getLetVars (costLet costs)
@@ -398,6 +408,10 @@ collectLHSVars ii = do
     IPNoClause -> makeOpen []
     IPClause{ipcQName = fnName, ipcClauseNo = clauseNr} -> do
       reportSDoc "mimer.components" 40 $ "Collecting LHS vars for" <+> prettyTCM ii
+      reportSDoc "mimer.components" 45 $ nest 2 $ vcat
+        [ "fnName =" <+> pretty fnName
+        , "clauseNr =" <+> pretty clauseNr
+        ]
       info <- getConstInfo fnName
       parCount <- liftTCM getCurrentModuleFreeVars
       case theDef info of
