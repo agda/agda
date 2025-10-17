@@ -27,7 +27,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (pretty, prettyShow, (<+>))
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
@@ -35,7 +35,7 @@ import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Constraints (MonadConstraint(..))
 import Agda.TypeChecking.Monad.Debug
-  (MonadDebug, reportSLn, __IMPOSSIBLE_VERBOSE__)
+  (MonadDebug, reportSLn, reportSDoc, __IMPOSSIBLE_VERBOSE__)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Signature (HasConstInfo)
 import Agda.TypeChecking.Monad.State
@@ -832,7 +832,9 @@ freezeMetas =
 
 -- | Thaw all open meta variables.
 unfreezeMetas :: TCM ()
-unfreezeMetas = stOpenMetaStore `modifyTCLens` MapS.map unfreeze_
+unfreezeMetas = do
+  reportSDoc "tc.meta" 40 $ "unfreezing ALL metas"
+  stOpenMetaStore `modifyTCLens` MapS.map unfreeze_
 
 unfreeze_ :: MetaVariable -> MetaVariable
 unfreeze_ = \ mvar -> mvar { mvFrozen = Instantiable }
@@ -864,6 +866,7 @@ class UnFreezeMeta a where
 
 instance UnFreezeMeta MetaId where
   unfreezeMeta x = unlessM (($ x) <$> isRemoteMeta) $ do
+    reportSDoc "tc.meta" 50 $ pure $ "unfreezing meta" <+> pretty x
     updateMetaVar x unfreeze_
     unfreezeMeta =<< metaType x
 {-# SPECIALIZE unfreezeMeta :: MetaId -> TCM () #-}
