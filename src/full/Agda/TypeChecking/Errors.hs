@@ -59,7 +59,7 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
-import Agda.Syntax.Scope.Monad (isDatatypeModule)
+import Agda.Syntax.Scope.Monad (isDatatypeModule, resolveName', tryResolveName)
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Errors.Names (typeErrorString)
@@ -898,7 +898,30 @@ instance PrettyTCM TypeError where
       -- using the warning version to avoid code duplication
       prettyWarning $ NotInScopeW x
 
-    NoSuchModule x -> fsep $ pwords "No module" ++ [pretty x] ++ pwords "in scope"
+    NoSuchModule x -> do
+      -- Andreas, 2025-10-18, issue #8144
+      -- In the situation
+      -- @
+      --   mutual
+      --     record R : Set where ...
+      --     open R
+      -- @
+      -- which desugars to
+      -- @
+      --   record R : Set
+      --   open R
+      --   record R where ...
+      -- @
+      -- we want to give some hint that while record R is defined,
+      -- its module R is not defined yet.
+      hint <- do
+        runExceptT (tryResolveName (someKindsOfNames [DataName, RecName]) Nothing x) >>= \case
+          Right (DefinedName _ (AbsName y DataName _ _) _) -> do
+            return "---but a data type of that name is in scope whose data module is either not defined yet or hidden"
+          Right (DefinedName _ (AbsName y RecName  _ _) _) -> do
+            return "---but a record type of that name is in scope whose record module is either not defined yet or hidden (note that records defined in a `mutual' block cannot be opened in the same block)"
+          _ -> return ""
+      fsep $ pwords "No module" ++ [pretty x] ++ pwords ("in scope" ++ hint)
 
     AmbiguousName x reason -> vcat
       [ fsep $ pwords "Ambiguous name" ++ [pretty x <> "."] ++
