@@ -1,6 +1,6 @@
 CyclicModuleDependency.agda:3.1-30: error: [CyclicModuleDependency]
 cyclic module dependency:
-  CyclicModuleDependency
-  importing CyclicModuleDependency
+  CyclicModuleDependency (at CyclicModuleDependency.agda:1.1)
+  importing CyclicModuleDependency (at CyclicModuleDependency.agda:1.1)
 when scope checking the declaration
   import CyclicModuleDependency

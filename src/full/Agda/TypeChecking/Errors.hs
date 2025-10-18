@@ -747,9 +747,10 @@ instance PrettyTCM TypeError where
         , "(consider adding {-# OPTIONS --allow-unsolved-metas #-} to that module)"
         ]
 
-    CyclicModuleDependency (List2 m0 m1 ms) ->
+    CyclicModuleDependency ms0 -> do
+      List2 m0 m1 ms <- for ms0 <$> topLevelModuleNameWithSourceFileCompleter
       fsep (pwords "cyclic module dependency:")
-      $$ nest 2 (vcat $ (pretty m0 :) $ map (("importing" <+>) . pretty) (m1 : ms))
+        $$ nest 2 (vcat $ (prettyTCM m0 :) $ map (("importing" <+>) . prettyTCM) (m1 : ms))
 
     FileNotFound x files ->
       fsep ( pwords "Failed to find source of module" ++ [pretty x] ++

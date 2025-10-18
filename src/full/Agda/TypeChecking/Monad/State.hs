@@ -450,6 +450,14 @@ currentModuleNameHash = do
   NameId _ h <- useTC stFreshNameId
   return h
 
+-- | Get a function that completes 'TopLevelModuleName's
+--   with their 'SourceFile' to 'TopLevelModuleNameWithSourceFile's.
+topLevelModuleNameWithSourceFileCompleter :: ReadTCState m
+  => m (TopLevelModuleName -> TopLevelModuleNameWithSourceFile)
+topLevelModuleNameWithSourceFileCompleter = do
+  ModuleToSource _dict m2s <- useTC stModuleToSource
+  return \ m -> TopLevelModuleNameWithSourceFile m $ Map.findWithDefault __IMPOSSIBLE__ m m2s
+
 ---------------------------------------------------------------------------
 -- * Backends and foreign code
 ---------------------------------------------------------------------------
