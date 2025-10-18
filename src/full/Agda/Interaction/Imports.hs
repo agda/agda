@@ -517,7 +517,7 @@ getNonMainInterface
   -> TCM Interface
 getNonMainInterface x msrc = do
   mi <- getNonMainModuleInfo x msrc
-  tcWarningsToError x (miSourceFile mi) $ Set.toAscList $ miWarnings mi
+  tcWarningsToError (TopLevelModuleNameWithSourceFile x $ miSourceFile mi) $ Set.toAscList $ miWarnings mi
   return (miInterface mi)
 
 getNonMainModuleInfo

@@ -740,11 +740,9 @@ instance PrettyTCM TypeError where
       , text "must not be located in the directory" <+> text (takeDirectory (lib ^. libFile))
       ]
 
-    SolvedButOpenHoles x file -> do
-      path <- srcFilePath file
-      let x' = setRange (rangeFromAbsolutePath path) x
+    SolvedButOpenHoles x -> do
       vcat $
-        [ fsep $ pretty (PrintRange x') :
+        [ fsep $ prettyTCM x :
             pwords "cannot be imported since it has open interaction points"
         , "(consider adding {-# OPTIONS --allow-unsolved-metas #-} to that module)"
         ]
@@ -1773,6 +1771,11 @@ prettyShadowedModule x ms@(m0 :| _) = do
           IsDataModule   -> "(datatype)"
           IsRecordModule -> "(record)"
 
+instance PrettyTCM TopLevelModuleNameWithSourceFile where
+  prettyTCM (TopLevelModuleNameWithSourceFile x file) = do
+    path <- srcFilePath file
+    let x' = setRange (rangeFromAbsolutePath path) x
+    pretty (PrintRange x')
 
 instance PrettyTCM ExecError where
   prettyTCM = \case

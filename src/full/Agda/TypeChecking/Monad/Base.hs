@@ -5385,7 +5385,7 @@ data TypeError
             -- ^ Collected errors when processing the @.agda-lib@ file.
         | LibTooFarDown TopLevelModuleName AgdaLibFile
             -- ^ The @.agda-lib@ file for the given module is not on the right level.
-        | SolvedButOpenHoles TopLevelModuleName SourceFile
+        | SolvedButOpenHoles TopLevelModuleNameWithSourceFile
           -- ^ Some interaction points (holes) in the given module have not been filled by the user.
           --   These are not 'UnsolvedMetas' since unification solved them.
           --   This is an error, since interaction points are never filled

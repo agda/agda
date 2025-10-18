@@ -784,13 +784,14 @@ filterTCWarnings wset = case Set.toAscList wset of
 
 -- | Turns warnings, if any, into errors.
 tcWarningsToError ::
-     TopLevelModuleName   -- ^ The module we have checked (which produced the warnings).
-  -> SourceFile           -- ^ The file containing the module.
-  -> [TCWarning]          -- ^ The warnings to turn into errors.
+     TopLevelModuleNameWithSourceFile
+       -- ^ The module we have checked (which produced the warnings).
+  -> [TCWarning]
+       -- ^ The warnings to turn into errors.
   -> TCM ()
-tcWarningsToError x file mws = case (unsolvedHoles, otherWarnings) of
+tcWarningsToError x mws = case (unsolvedHoles, otherWarnings) of
    ([], [])                   -> return ()
-   (_unsolvedHoles@(_:_), []) -> typeError $ SolvedButOpenHoles x file
+   (_unsolvedHoles@(_:_), []) -> typeError $ SolvedButOpenHoles x
    (_ , w : ws)               -> typeError $ NonFatalErrors $ Set1.fromList (w :| ws)
    where
    -- filter out unsolved interaction points for imported module so

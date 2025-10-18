@@ -147,6 +147,12 @@ type PrimitiveLibDir = AbsolutePath
 newtype SourceFile = SourceFile { srcFileId :: FileId }
   deriving (Eq, Ord, Show, Generic)
 
+data TopLevelModuleNameWithSourceFile = TopLevelModuleNameWithSourceFile
+  { fileModuleName       :: TopLevelModuleName
+  , fileModuleSourceFile :: SourceFile
+  }
+  deriving (Show, Generic)
+
 -- | Maps top-level module names to the corresponding source file ids.
 
 type ModuleToSourceId = Map TopLevelModuleName SourceFile
@@ -202,3 +208,4 @@ instance NFData ContextEntry
 instance NFData FileDictWithBuiltins
 instance NFData SourceFile
 instance NFData IsBuiltinModule
+instance NFData TopLevelModuleNameWithSourceFile
