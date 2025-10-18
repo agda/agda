@@ -830,23 +830,23 @@ instance PrettyTCM TypeError where
         else empty
       ]
 
-    ModuleNameUnexpected given expected
-      | canon dGiven == canon dExpected -> fsep $ concat
+    ModuleNameUnexpected given expected -> do
+      let
+        canon = CaseInsens.mk . P.render
+        dExpected = P.pretty expected
+      dGiven <- prettyTCM given
+      if| canon dGiven == canon dExpected -> fsep $ concat
           [ pwords "Case mismatch between the actual module name"
           , [ pure dGiven ]
           , pwords "and the expected module name"
           , [ pure dExpected ]
           ]
-      | otherwise -> fsep $ concat
+        | otherwise -> fsep $ concat
           [ pwords "The name of the top level module does not match the file name. The module"
           , [ pure dGiven ]
           , pwords "should probably be named"
           , [ pure dExpected ]
           ]
-      where
-      canon = CaseInsens.mk . P.render
-      dGiven    = P.pretty given
-      dExpected = P.pretty expected
 
     ModuleNameHashCollision raw raw' -> fwords $ case raw' of
       Nothing ->

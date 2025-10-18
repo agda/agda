@@ -5397,7 +5397,7 @@ data TypeError
         | OverlappingProjects AbsolutePath TopLevelModuleName TopLevelModuleName
         | AmbiguousTopLevelModuleName TopLevelModuleName (List2 AbsolutePath)
             -- ^ The given module has at least 2 file locations.
-        | ModuleNameUnexpected TopLevelModuleName TopLevelModuleName
+        | ModuleNameUnexpected TopLevelModuleNameWithSourceFile TopLevelModuleName
           -- ^ Found module name, expected module name.
         | ModuleNameDoesntMatchFileName TopLevelModuleName [AbsolutePath]
             -- ^ The list can be empty.

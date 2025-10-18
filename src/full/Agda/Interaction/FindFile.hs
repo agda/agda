@@ -241,7 +241,7 @@ checkModuleName name src0 mexpected = do
     Left (NotFound files)  -> typeError $
       case mexpected of
         Nothing -> ModuleNameDoesntMatchFileName name files
-        Just expected -> ModuleNameUnexpected name expected
+        Just expected -> ModuleNameUnexpected (TopLevelModuleNameWithSourceFile name src0) expected
 
     Left (Ambiguous files) -> typeError $
       AmbiguousTopLevelModuleName name files
