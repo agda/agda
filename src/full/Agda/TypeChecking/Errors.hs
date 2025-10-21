@@ -949,14 +949,19 @@ instance PrettyTCM TypeError where
 
     ClashingDefinition x y suggestion -> fsep $
       pwords "Multiple definitions of" ++ [pretty x <> "."] ++
-      pwords "Previous definition at"
-      ++ [prettyTCM $ nameBindingSite $ qnameName y] ++
+      clashingWith y ++
       caseMaybe suggestion [] (\d ->
-        [  "Perhaps you meant to write "
+        [  "Perhaps you meant to write"
         $$ nest 2 ("'" <> pretty (notSoNiceDeclarations d) <> "'")
         $$ ("at" <+> (pretty . envRange =<< askTC)) <> "?"
         $$ "In data definitions separate from data declaration, the ':' and type must be omitted."
         ])
+       where
+         clashingWith = \case
+           ClashingAbstractName y -> do
+             pwords "Previous definition" ++ [explainWhyInScope $ whyInScopeDataFromAbstractName x y]
+           ClashingQName y ->
+             pwords "Previous definition at" ++ [prettyTCM $ nameBindingSite $ qnameName y]
 
     ClashingModule m1 m2 -> fsep $
       pwords "The modules" ++ [prettyTCM m1, "and", prettyTCM m2]

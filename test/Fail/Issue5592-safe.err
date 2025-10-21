@@ -3,8 +3,10 @@ The following names are declared but not accompanied by a
 definition: A
 
 Issue5592-safe.agda:5.6-13: error: [ClashingDefinition]
-Multiple definitions of A. Previous definition at
-Issue5592-safe.agda:3.6-7
+Multiple definitions of A. Previous definition
+A is in scope as
+  * a postulate Issue5592-safe.A brought into scope by
+    - its definition at Issue5592-safe.agda:3.6-7
 Perhaps you meant to write
   'data A where'
 at Issue5592-safe.agda:5.6-13?

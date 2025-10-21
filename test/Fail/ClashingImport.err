@@ -1,5 +1,7 @@
 ClashingImport.agda:8.1-22: error: [ClashingDefinition]
-Multiple definitions of A. Previous definition at
-ClashingImport.agda:5.11-12
+Multiple definitions of A. Previous definition
+A is in scope as
+  * a postulate ClashingImport.A brought into scope by
+    - its definition at ClashingImport.agda:5.11-12
 when scope checking the declaration
   open Imports.A public

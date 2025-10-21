@@ -547,8 +547,8 @@ bindName'' acc kind meta x y = do
         -- Binding an anonymous declaration always succeeds.
         -- In case it's not the first one, we simply remove the one that came before
         _ | isNoName x      -> success
-        DefinedName _ d _   -> clash $ anameName d
-        VarName z _         -> clash $ A.qualify_ z
+        DefinedName _ d _   -> clash $ ClashingAbstractName d
+        VarName z _         -> clash $ ClashingQName $ A.qualify_ z
         FieldName       ds  -> ambiguous (== FldName) ds
         ConstructorName i ds-> ambiguous (isJust . isConName) ds
         PatternSynResName n -> ambiguous (== PatternSynName) n
@@ -564,7 +564,7 @@ bindName'' acc kind meta x y = do
 
     ambiguous f ds =
       if f kind && all (f . anameKind) ds
-      then success else clash $ anameName (List1.head ds)
+      then success else clash $ ClashingAbstractName $ List1.head ds
 
 -- | Rebind a name. Use with care!
 --   Ulf, 2014-06-29: Currently used to rebind the name defined by an
@@ -1251,7 +1251,7 @@ openModule kind mam cm dir = do
               where ks = fmap anameKind qs
         -- We report the first clashing exported identifier.
         () <- List1.unlessNull (filter defClash defClashes) $
-          \ ((x, q :| _) :| _) -> typeError $ ClashingDefinition (C.QName x) (anameName q) Nothing
+          \ ((x, q :| _) :| _) -> typeError $ ClashingDefinition (C.QName x) (ClashingAbstractName q) Nothing
 
         List1.unlessNull modClashes $ \ ((_, ms) :| _) -> do
           caseMaybe (List1.last2 ms) __IMPOSSIBLE__ $ \ (m0, m1) -> do

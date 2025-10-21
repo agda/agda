@@ -2656,7 +2656,7 @@ instance LivesInCurrentModule A.QName where
 --   report a 'ClashingDefinition' for the 'C.Name'.
 clashUnless :: C.Name -> KindOfName -> AbstractName -> ScopeM ()
 clashUnless x k ax = unless (anameKind ax == k) $
-  typeError $ ClashingDefinition (C.QName x) (anameName ax) Nothing
+  typeError $ ClashingDefinition (C.QName x) (ClashingAbstractName ax) Nothing
 
 -- | If a (data/record) module with the given name is already present in the current module,
 --   we take this as evidence that a data/record with that name is already defined.
@@ -2665,7 +2665,7 @@ clashIfModuleAlreadyDefinedInCurrentModule x ax = do
   datRecMods <- catMaybes <$> do
     mapM (isDatatypeModule . amodName) =<< lookupModuleInCurrentModule x
   unlessNull datRecMods $ const $
-    typeError $ ClashingDefinition (C.QName x) (anameName ax) Nothing
+    typeError $ ClashingDefinition (C.QName x) (ClashingAbstractName ax) Nothing
 
 lookupModuleInCurrentModule :: C.Name -> ScopeM [AbstractModule]
 lookupModuleInCurrentModule x =
@@ -2731,11 +2731,11 @@ bindUnquoteConstructorName m p c = do
     UnknownName          -> success
     ConstructorName i ds -> if all (isJust . isConName . anameKind) ds
       then success
-      else failure $ anameName $ List1.head ds
-    DefinedName _ d _    -> failure $ anameName d
-    FieldName ds         -> failure $ anameName $ List1.head ds
-    PatternSynResName ds -> failure $ anameName $ List1.head ds
-    VarName y _          -> failure $ qualify_ y
+      else failure $ ClashingAbstractName $ List1.head ds
+    DefinedName _ d _    -> failure $ ClashingAbstractName d
+    FieldName ds         -> failure $ ClashingAbstractName $ List1.head ds
+    PatternSynResName ds -> failure $ ClashingAbstractName $ List1.head ds
+    VarName y _          -> failure $ ClashingQName $ qualify_ y
   return c'
 
 instance ToAbstract DataConstrDecl where

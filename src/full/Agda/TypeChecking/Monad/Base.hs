@@ -5419,7 +5419,7 @@ data TypeError
         | AmbiguousField C.Name (List2 A.ModuleName)
         | AmbiguousConstructor QName (List2 QName)
             -- ^ The list contains all interpretations of the name.
-        | ClashingDefinition C.QName A.QName (Maybe NiceDeclaration)
+        | ClashingDefinition C.QName ClashingName (Maybe NiceDeclaration)
         | ClashingModule A.ModuleName A.ModuleName
         | DefinitionInDifferentModule A.QName
             -- ^ The given data/record definition rests in a different module than its signature.
@@ -5527,6 +5527,20 @@ data TypeError
         | UnknownBackend BackendName (Set BackendName)
             -- ^ Unknown backend requested, known ones are in the 'Set'.
           deriving (Show, Generic)
+
+-- | Name a 'ClashingDefinition' clashes with.
+data ClashingName
+  = ClashingAbstractName AbstractName
+      -- ^ We have 'WhyInScope' information for the previously defined name.
+  | ClashingQName        QName
+      -- ^ We have no extra information for the previously defined name.
+  deriving (Show, Generic)
+
+-- | Extract the 'QName' from the 'ClashingName'.
+clashingQName :: ClashingName -> QName
+clashingQName = \case
+  ClashingAbstractName x -> anameName x
+  ClashingQName x -> x
 
 -- | Reason for why the instance type is invalid.
 data WhyInvalidInstanceType
@@ -6789,6 +6803,7 @@ instance NFData UnificationFailure
 instance NFData UnquoteError
 instance NFData TypeError
 instance NFData WhyInvalidInstanceType
+instance NFData ClashingName
 instance NFData InvalidFileNameReason
 instance NFData LHSOrPatSyn
 instance NFData InductionAndEta

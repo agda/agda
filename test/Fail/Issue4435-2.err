@@ -1,5 +1,7 @@
 Issue4435-2.agda:12.6-17: error: [ClashingDefinition]
-Multiple definitions of Foo. Previous definition at
-Issue4435-2.agda:5.6-9
+Multiple definitions of Foo. Previous definition
+Foo is in scope as
+  * a data type Issue4435-2.Foo brought into scope by
+    - its definition at Issue4435-2.agda:5.6-9
 when scope checking the declaration
   data Foo a : Set

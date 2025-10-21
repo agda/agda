@@ -396,7 +396,7 @@ extraErrorHighlighting = \case
       -- The identifier that would be shadowed by the clashing definition
       -- is highlighted as dead code.
       -- (Not sure how good this is.)
-      ClashingDefinition _ y _ -> return $ deadcodeHighlighting $ I.nameBindingSite $ I.qnameName y
+      ClashingDefinition _ y _ -> return $ deadcodeHighlighting $ I.nameBindingSite $ I.qnameName $ clashingQName y
       ShadowedModule x ms      -> deadcodeHighlighting . snd <$> TCM.prettyShadowedModule x ms
         -- 'prettyShadowedModule' mostly duplicates the work done by @'renderError' ('ShadowedModule' x ms)@
         -- in 'errorHighlighting',

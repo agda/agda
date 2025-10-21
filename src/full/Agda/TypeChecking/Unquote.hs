@@ -1004,7 +1004,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
         getConstInfo' x >>= \case
           Left _    -> pure ()
-          Right def -> typeError $ ClashingDefinition (qnameToConcrete x) (defName def) Nothing
+          Right def -> typeError $ ClashingDefinition (qnameToConcrete x) (ClashingQName $ defName def) Nothing
         addConstant' x i a defn
         when (isInstance i) $ addTypedInstance x a
         primUnitUnit
@@ -1030,7 +1030,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         ]
       getConstInfo' x >>= \case
         Left _    -> pure ()
-        Right def -> liftTCM $ typeError $ ClashingDefinition (qnameToConcrete x) (defName def) Nothing
+        Right def -> liftTCM $ typeError $ ClashingDefinition (qnameToConcrete x) (ClashingQName $ defName def) Nothing
       e <- liftTCM $ toAbstract_ t
       -- The type to be checked with @checkSig@ is without parameters.
       (tel, e') <- splitPars (fromInteger npars) e

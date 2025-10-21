@@ -4,7 +4,10 @@ when scope checking the declaration
   open M public renaming (a to A)
 
 Issue3057.agda:14.1-32: error: [ClashingDefinition]
-Multiple definitions of A. Previous definition at
-Issue3057.agda:11.5-6
+Multiple definitions of A. Previous definition
+A is in scope as
+  * a postulate Issue3057.M.A brought into scope by
+    - the opening of M at Issue3057.agda:14.6-7
+    - its definition at Issue3057.agda:11.5-6
 when scope checking the declaration
   open M public renaming (a to A)

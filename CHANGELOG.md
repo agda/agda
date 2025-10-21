@@ -27,6 +27,20 @@ Pragmas and options
 
 * New flag `--no-write-interfaces`
 
+Errors
+------
+
+* Error `ClashingDefinition` now gives the lineage of the previous definition of the same name.
+  This helps when it is unclear how this name was imported.  Example:
+  ```
+    error: [ClashingDefinition]
+    Multiple definitions of A. Previous definition
+    A is in scope as
+      * a postulate Imports.A.A brought into scope by
+        - the opening of Imports.A at ...
+        - its definition at ...
+  ```
+
 Warnings
 --------
 

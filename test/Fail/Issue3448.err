@@ -3,7 +3,9 @@ The following names are declared but not accompanied by a
 definition: D
 
 Issue3448.agda:4.1-2: error: [ClashingDefinition]
-Multiple definitions of D. Previous definition at
-Issue3448.agda:3.6-7
+Multiple definitions of D. Previous definition
+D is in scope as
+  * a data type Issue3448.D brought into scope by
+    - its definition at Issue3448.agda:3.6-7
 when scope checking the declaration
   D : Set

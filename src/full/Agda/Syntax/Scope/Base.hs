@@ -688,6 +688,9 @@ data WhyInScopeData
       [AbstractModule]
         -- ^ The modules that @x@ could denote.
 
+whyInScopeDataFromAbstractName :: C.QName -> AbstractName -> WhyInScopeData
+whyInScopeDataFromAbstractName q x = WhyInScopeData q empty Nothing [x] empty
+
 whyInScopeDataFromAmbiguousNameReason :: C.QName -> AmbiguousNameReason -> WhyInScopeData
 whyInScopeDataFromAmbiguousNameReason q = \case
   AmbiguousLocalVar x ys -> WhyInScopeData q empty (Just x) (toList ys) empty
