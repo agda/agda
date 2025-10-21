@@ -11,9 +11,5 @@ data A : Set where
 --   * a postulate Imports.A.A brought into scope by
 --     - the opening of Imports.A at ClashingDefinitionWhyInScope.agda:4.13-22
 --     - its definition at Imports/A.agda:4.11-12
--- Perhaps you meant to write
---   'data A where'
--- at ClashingDefinitionWhyInScope.agda:6.6-13?
--- In data definitions separate from data declaration, the ':' and type must be omitted.
 -- when scope checking the declaration
 --   data A : Set

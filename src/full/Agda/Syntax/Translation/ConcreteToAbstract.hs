@@ -2016,7 +2016,7 @@ instance ToAbstract NiceDeclaration where
           x' <- freshAbstractQName f x
           mErr <- bindName'' p DataName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
           whenJust mErr $ \case
-            err@(ClashingDefinition cn an _) -> do
+            err@(ClashingDefinition cn an _) | qnameModule (clashingQName an) == qnameModule x' -> do
               resolveName (C.QName x) >>= \case
                 -- #4435: if a data type signature causes a ClashingDefinition error, and if
                 -- the data type name is bound to an Axiom, then the error may be caused by
