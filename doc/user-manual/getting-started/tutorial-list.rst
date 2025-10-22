@@ -35,6 +35,7 @@ Tutorials and lecture notes
 - Musa Al-hassy (2019). `A slow-paced introduction to reflection in Agda <https://github.com/alhassy/gentle-intro-to-reflection>`__.
 - Jesper Cockx (2019). `Formalize all the things (in Agda) <https://jesper.sikanda.be/posts/formalize-all-the-things.html>`__.
 - Peter Dybjer (2017). `An Introduction to Programming and Proving in Agda (incomplete draft) <https://www.cse.chalmers.se/edu/year/2017/course/DAT350/LectureNotes.pdf>`__.
+- Conor McBride (2015). `Datatypes of Datatypes <https://www.cs.ox.ac.uk/projects/utgp/school/conor.pdf>`__.
 - Jan Malakhovski (2013). `Brutal [Meta]Introduction to Dependent
   Types in Agda <https://oxij.org/note/BrutalDepTypes/>`__.
 - Diviánszky Péter (2012). `Agda Tutorial
