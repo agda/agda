@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : SuperBag (delete xs (reindex sb i)) ys" nil)
+((last . 1) . (agda2-goals-action '(0)))
+(agda2-status-action "")
+(agda2-info-action-and-copy "*Helper function*" "SuperBag-delete : (i : y ∈ ys) (sb : SuperBag xs ys) → SuperBag (delete ys i) ys → SuperBag (delete xs (reindex sb i)) ys " nil)

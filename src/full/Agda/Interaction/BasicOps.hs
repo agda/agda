@@ -970,7 +970,11 @@ metaHelperType norm ii rng s = withInteractionId ii do
       -- TODO: investigate why and how this 'deepUnscope' affects the printing,
       -- and whether we should remove it here.
 
-    inCxt   <- hasElem <$> getContextNames
+    cxtNames <- getContextNames
+    reportSDoc "interaction.helper" 30 $ TP.vcat $
+      [ "args =" TP.<+> prettyTCM args
+      , "cxt  =" TP.<+> prettyTCM cxtNames
+      ]
     cxtArgs <- getContextArgs
     enclosingFunctionName <- ipcQName . envClause <$> getEnv
     a0      <- (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
@@ -986,20 +990,22 @@ metaHelperType norm ii rng s = withInteractionId ii do
                                  . withoutPrintingGeneralization
                                  . dontFoldLetBindings
 
-    case mapM (isVar . namedArg) args >>= \ xs -> xs <$ guard (all inCxt xs) of
+    case mapM (isVar . namedArg) args of
 
      -- Andreas, 2019-10-11
      -- If all arguments are variables, there is no need to abstract.
      -- We simply make exactly the given arguments visible and all other hidden.
-     Just xs -> do
+     -- Andreas, 2025-10-22, issue #8150:
+     -- Also, the arguments need to be in the same order as in the context.
+     Just xs | xs `List.isSubsequenceOf` cxtNames -> do
       let inXs = hasElem xs
       let hideButXs ce = setHiding (if inXs (ctxEntryName ce) then NotHidden else Hidden) ce
       let tel = contextToTel . map hideButXs $ contextForAbstracting
       OfType' h <$> do
         runInPrintingEnvironment $ reify $ telePiVisible tel a0
 
-     -- If some arguments are not variables (in this case, @args@ is not empty).
-     Nothing -> do
+     -- If some arguments are not variables or not in the right order (in this case, @args@ is not empty).
+     _ -> do
       -- cleanupType relies on with arguments being named 'w',
       -- so we'd better rename any actual 'w's to avoid confusion.
       let tel = runIdentity . onNamesTel unW . contextToTel $ contextForAbstracting
