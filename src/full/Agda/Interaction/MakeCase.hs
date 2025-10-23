@@ -520,9 +520,10 @@ makeRHSEmptyRecord = \case
 
 makeAbsurdClause :: QName -> ExpandedEllipsis -> SplitClause -> TCM A.Clause
 makeAbsurdClause f ell (SClause tel sps _ _ t) = do
+  showImp <- showImplicitArguments
   let
     ps  = fromSplitPatterns sps
-    ps' = filterOutGeneralizedVarPatterns ps
+    ps' = applyWhen showImp filterOutGeneralizedVarPatterns ps
     -- Internal clause
     cl = Clause
       { clauseLHSRange  = noRange

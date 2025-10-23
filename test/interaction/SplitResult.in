@@ -11,5 +11,6 @@ goal_command 3 cmd_make_case ""
 
 -- issue #8153
 
-top_command ToggleImplicitArgs
 goal_command 4 cmd_make_case ""
+top_command ToggleImplicitArgs
+goal_command 5 cmd_make_case ""

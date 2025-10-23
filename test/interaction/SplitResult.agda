@@ -39,8 +39,19 @@ module Issue8153 where
   open import Agda.Primitive
 
   variable
-    l : Level
-    A : Set l
+    l   : Level
+    A B : Set l
+    x   : A
+
+  -- Intermittent bug after #8154
+  mix : (y : A) (R : B → {C : Set} → C → Set) (p : R x y) → R x y
+  mix = {!!}
+
+  -- WAS after #8154:
+  --   mix {B = B} y R p = {!!}
+  --
+  -- Expected:
+  --   mix y R p = {!!}
 
   id : A → A
   id = {!!}
