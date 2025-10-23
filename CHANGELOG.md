@@ -133,6 +133,25 @@ Library management
 Interaction and emacs mode
 --------------------------
 
+* By temporarily turning on printing of hidden arguments
+  (`OPTION --show-implicit`, `C-c C-x C-h` in Emacs)
+  and then splitting on result in a hole
+  (`C-c C-c RET` in Emacs, the whole sequence being `C-c C-x C-h C-c C-c RET`),
+  hidden arguments can be introduced in the left hand side of a clause.
+  In the presence of generalized variables, this used to introduce unparsable names.
+  For instance:
+  ```agda
+    variable
+      l : Level
+      A : Set l
+
+    id : A → A
+    id = {!!}
+  ```
+  Here, `id {A.l} {A} x = ?` was produced, triggering an error.
+  Now, the correct `id {A = A} x = ?` is produced
+  (Issue [#8153](https://github.com/agda/agda/issue/8153)).
+
 * A normalization level can now also passed to command `Cmd_constraints`
   ("show constraints", `C-c C-=` in Emacs).
   In Emacs, the normalization level is given as usual by `C-u` prefixes.
