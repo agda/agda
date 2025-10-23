@@ -8,3 +8,8 @@ goal_command 3 cmd_make_case ""
 -- top_command (cmd_load currentFile ["-i.","-i.."])
 -- goal_command 0 cmd_give "a"
 -- goal_command 1 cmd_give "b"
+
+-- issue #8153
+
+top_command ToggleImplicitArgs
+goal_command 4 cmd_make_case ""

@@ -1,4 +1,4 @@
-{-# OPTIONS --copatterns #-}
+-- {-# OPTIONS -v interaction.case:90 #-}
 
 module SplitResult where
 
@@ -30,3 +30,24 @@ issue4536 : ⊤
 issue4536 = {!!}
 -- expected
 -- issue4536 = record{}
+
+-- Andreas, 2025-10-22, issue #8153
+-- When introducing hidden arguments into the lhs,
+-- bindings with unparsable generalized names should be skipped.
+
+module Issue8153 where
+  open import Agda.Primitive
+
+  variable
+    l : Level
+    A : Set l
+
+  id : A → A
+  id = {!!}
+    -- C-c C-x C-h C-c C-c RET
+
+  -- WAS:
+  --   id {A.l} {A} x = ?
+  --
+  -- Expected:
+  --   id {A = A} x = ?

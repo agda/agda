@@ -359,7 +359,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
       -- if any of them is shown by the printer
       imp <- optShowImplicit <$> pragmaOptions
       return $ imp || any visible (telToList piTel)
-    scs <- if newPats then return [sc] else postProjInExtLam $ do
+    scs <- if newPats then pure [sc] else postProjInExtLam $ do
       res <- splitResult f sc
       case res of
 
@@ -520,22 +520,15 @@ makeRHSEmptyRecord = \case
 
 makeAbsurdClause :: QName -> ExpandedEllipsis -> SplitClause -> TCM A.Clause
 makeAbsurdClause f ell (SClause tel sps _ _ t) = do
-  let ps = fromSplitPatterns sps
-  reportSDoc "interaction.case" 10 $ vcat
-    [ "Interaction.MakeCase.makeAbsurdClause: split clause:"
-    , nest 2 $ vcat
-      [ "context =" <+> do (inTopContext . prettyTCM) =<< getContextTelescope
-      , "tel     =" <+> do inTopContext $ prettyTCM tel
-      , "ps      =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList ps -- P.sep <$> prettyTCMPatterns ps
-      , "ell     =" <+> text (show ell)
-      ]
-    ]
-  withCurrentModule (qnameModule f) $
-    inTopContext $ reify $ QNamed f $ Clause
+  let
+    ps  = fromSplitPatterns sps
+    ps' = filterOutGeneralizedVarPatterns ps
+    -- Internal clause
+    cl = Clause
       { clauseLHSRange  = noRange
       , clauseFullRange = noRange
       , clauseTel       = tel
-      , namedClausePats = ps
+      , namedClausePats = ps'
       , clauseBody      = Nothing
       , clauseType      = argFromDom <$> t
       , clauseCatchall    = empty
@@ -544,6 +537,39 @@ makeAbsurdClause f ell (SClause tel sps _ _ t) = do
       , clauseEllipsis    = ell
       , clauseWhereModule = Nothing
       }
+  reportSDoc "interaction.case" 10 $ vcat
+    [ "Interaction.MakeCase.makeAbsurdClause: split clause:"
+    , nest 2 $ vcat
+      [ "context =" <+> do (inTopContext . prettyTCM) =<< getContextTelescope
+      , "tel     =" <+> do inTopContext $ prettyTCM tel
+      , "ps      =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList ps -- P.sep <$> prettyTCMPatterns ps
+      , "ps'     =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList ps'
+      , "ell     =" <+> text (show ell)
+      ]
+    ]
+  reportSDoc "interaction.case" 10 $
+    nest 2 $ vcat
+      [ "ps (raw)=" <+> text (show ps)
+      ]
+  withCurrentModule (qnameModule f) $
+    inTopContext $ reify $ QNamed f cl
+
+-- | Drop hidden patterns introduced by generalization with an unparsable name.
+--   If we drop one, we need to make the next non-dropped hidden pattern named.
+filterOutGeneralizedVarPatterns :: [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
+filterOutGeneralizedVarPatterns = go False
+  where
+    go b [] = []
+    go b (p : ps)
+      | maybe False (isGeneralizedVarName . prettyShow) (getNameOf p) = go True ps
+      | otherwise = applyWhen (b && getHiding p == Hidden) makeNamedArgUserWritten p : go False ps
+
+makeNamedArgUserWritten :: NamedArg a -> NamedArg a
+makeNamedArgUserWritten (Arg info (Named n a)) = Arg info (Named (setOrigin UserWritten <$> n) a)
+
+-- | Unparseable variable names are those that contain a '.'.
+isGeneralizedVarName :: PatVarName -> Bool
+isGeneralizedVarName = elem '.'
 
 -- | Make a clause with a question mark as rhs.
 
