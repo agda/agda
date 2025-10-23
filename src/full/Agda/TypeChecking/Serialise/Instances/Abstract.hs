@@ -5,24 +5,28 @@ module Agda.TypeChecking.Serialise.Instances.Abstract where
 
 import Control.Monad
 import Control.Monad.Reader
-import Data.Void (Void)
-import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
-import qualified Data.Set as Set
 
-import Agda.Syntax.Common
-import qualified Agda.Syntax.Abstract as A
+import Data.HashMap.Strict qualified as HMap
+import Data.Map qualified as Map
+import Data.Set qualified as Set
+import Data.Void (Void)
+
+import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Abstract.Pattern ( noDotOrEqPattern )
-import Agda.Syntax.Info
-import Agda.Syntax.Scope.Base
+import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Name qualified as C
 import Agda.Syntax.Fixity
+import Agda.Syntax.Info
+import Agda.Syntax.Position
+import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances.Common () --instance only
+import Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..))
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Null
+
 import Agda.Utils.Impossible
 
 -- Don't serialize the tactic.
@@ -71,16 +75,41 @@ instance EmbPrj NameSpace where
 
   value = valueN NameSpace
 
-instance EmbPrj WhyInScope where
-  icod_ Defined       = icodeN' Defined
-  icod_ (Opened a b)  = icodeN 0 Opened a b
-  icod_ (Applied a b) = icodeN 1 Applied a b
+-- Andreas, 2025-10-23:
+-- We serialize the Ranges in WhyInScope
+-- so that we have then in the ClashingDefinition error.
 
-  value = vcase valu where
-    valu N0         = valuN Defined
-    valu (N3 0 a b) = valuN Opened a b
-    valu (N3 1 a b) = valuN Applied a b
-    valu _          = malformed
+data WhyInScopeWithRange
+  = Defined'
+  | Opened'  SerialisedRange C.QName WhyInScope
+  | Applied' SerialisedRange C.QName WhyInScope
+
+instance EmbPrj WhyInScopeWithRange where
+  icod_ Defined'         = icodeN' Defined'
+  icod_ (Opened'  r a b) = icodeN 0 Opened'  r a b
+  icod_ (Applied' r a b) = icodeN 1 Applied' r a b
+
+  value = vcase \case
+    N0           -> valuN Defined'
+    (N4 0 r a b) -> valuN Opened'  r a b
+    (N4 1 r a b) -> valuN Applied' r a b
+    _            -> malformed
+
+toWhyInScopeWithRange :: WhyInScope -> WhyInScopeWithRange
+toWhyInScopeWithRange = \case
+  Defined     -> Defined'
+  Opened  x w -> Opened'  (SerialisedRange (getRange x)) x w
+  Applied x w -> Applied' (SerialisedRange (getRange x)) x w
+
+fromWhyInScopeWithRange :: WhyInScopeWithRange -> WhyInScope
+fromWhyInScopeWithRange = \case
+  Defined'                         -> Defined
+  Opened'  (SerialisedRange r) x w -> Opened  (setRange r x) w
+  Applied' (SerialisedRange r) x w -> Applied (setRange r x) w
+
+instance EmbPrj WhyInScope where
+  icod_ = icod_ . toWhyInScopeWithRange
+  value = fromWhyInScopeWithRange <.> value
 
 -- Issue #1346: QNames are shared on their nameIds, so serializing will lose fixity information for
 -- rebound fixities. We don't care about that in terms, but in the scope it's important to keep the
