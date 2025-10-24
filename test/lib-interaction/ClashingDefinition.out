@@ -1,7 +1,7 @@
 Agda2> (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
-(agda2-info-action "*Error*" "ClashingDefinition.agda:8.3-10: error: [ClashingDefinition] Multiple definitions of ℕ. Previous definition ℕ is in scope as * a data type Agda.Builtin.Nat.Nat brought into scope by - the opening of Data.Nat.Base at ClashingDefinition.agda:5.13-26 - the opening of Agda.Builtin.Nat at /Users/abela/agda/std-lib/src/Data/Nat/Base.agda:28.13-29 - its definition at agda-default-include-path/Agda/Builtin/Nat.agda:8.6-9 when scope checking the declaration ℕ : Set" nil)
+(agda2-info-action "*Error*" "ClashingDefinition.agda:8.3-10: error: [ClashingDefinition] Multiple definitions of ℕ. Previous definition ℕ is in scope as * a data type Agda.Builtin.Nat.Nat brought into scope by - the opening of Data.Nat.Base at ClashingDefinition.agda:5.13-26 - the opening of Agda.Builtin.Nat at agda-default-standard-library-path/src/Data/Nat/Base.agda:28.13-29 - its definition at agda-default-include-path/Agda/Builtin/Nat.agda:8.6-9 when scope checking the declaration ℕ : Set" nil)
 ((last . 3) . (agda2-maybe-goto '("ClashingDefinition.agda" . 161)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
