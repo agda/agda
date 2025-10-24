@@ -140,7 +140,7 @@ coverageCheck f t cs = do
 
   -- used = actually used clauses for cover
   -- pss  = non-covered cases
-  CoverResult splitTree used pss qss noex <- cover f cs sc
+  CoverResult splitTree used pss qss noex <- cover YesInferMissing f cs sc
 
   -- Andreas, 2018-11-12, issue #378:
   -- some indices in @used@ and @noex@ point outside of @cs@,
@@ -251,6 +251,13 @@ coverageCheck f t cs = do
 
   return splitTree
 
+-- | When checking whether a clause is already covered,
+--   we do not want 'inferMissingClause' as a side effect.
+data InferMissing
+  = YesInferMissing  -- ^ Infer missing instance and tactic clauses.
+  | NoInferMissing   -- ^ Don't.
+  deriving (Eq, Show)
+
 -- | Top-level function for eliminating redundant clauses in the interactive
 --   case splitter
 isCovered :: QName -> [Clause] -> SplitClause -> TCM Bool
@@ -265,23 +272,23 @@ isCovered f cs sc = do
     ]
   -- Jesper, 2019-10: introduce trailing arguments (see #3828)
   (_ , sc') <- insertTrailingArgs True sc
-  CoverResult { coverMissingClauses = missing } <- cover f cs sc'
+  CoverResult { coverMissingClauses = missing } <- cover NoInferMissing f cs sc'
   return $ null missing
  -- Andreas, 2019-08-08 and 2020-02-11
  -- If there is an error (e.g. unification error), don't report it
  -- to the user.  Rather, assume the clause is not already covered.
  `catchError` \ _ -> return False
 
--- | @cover f cs (SClause _ _ ps _) = return (CoverResult splitTree used missing covering noex)@.
+-- | @cover infermissing f cs (SClause _ _ ps _) = return (CoverResult splitTree used missing covering noex)@.
 --   checks that the list of clauses @cs@ covers the given split clause.
 --   Returns the @splitTree@, the @used@ clauses, @missing@ cases, the @covering@ clauses,
 --   and the non-exact clauses @noex@.
 --
---   Effect: adds missing instance clauses for @f@ to signature.
+--   Effect: if 'YesInferMissing', adds missing instance clauses for @f@ to signature.
 --
-cover :: QName -> [Clause] -> SplitClause ->
+cover :: InferMissing -> QName -> [Clause] -> SplitClause ->
          TCM CoverResult
-cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
+cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
   reportSDoc "tc.cover.cover" 10 $ inTopContext $ vcat
     [ "checking coverage of pattern:"
     , nest 2 $ prettyTCM sc
@@ -321,7 +328,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
       let infer dom = isInstance dom || isJust (domTactic dom)
-      if maybe False infer target
+      if infermissing == YesInferMissing && maybe False infer target
         then do
           -- Ulf, 2016-10-31: For now we only infer instance clauses. It would
           -- make sense to do it also for hidden, but since the value of a
@@ -522,7 +529,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
             let scs2 = filter (not . isComp . fst) scs
             return (scs2,cs',res)
 
-          results <- mapM (cover f cs . snd) scs
+          results <- mapM (cover infermissing f cs . snd) scs
           let
             results_extra = results_hc ++ results_trX
             trees_extra   = map (second coverSplitTree) results_extra
@@ -578,12 +585,12 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       if null tel then
         if finalSplit then __IMPOSSIBLE__ -- already ruled out by lhs checker
         else cont
-      else cover f cs sc'
+      else cover infermissing f cs sc'
 
     -- ...or it was an IApply pattern, so we might just need to introduce the variable now.
     trySplitRes (BlockedOnApply IsIApply) finalSplit splitError cont
        = do
-         caseMaybeM (splitResultPath f sc) fallback $ (cover f cs . snd) <=< insertTrailingArgs False
+         caseMaybeM (splitResultPath f sc) fallback $ (cover infermissing f cs . snd) <=< insertTrailingArgs False
       where
         fallback | finalSplit = __IMPOSSIBLE__ -- already ruled out by lhs checker?
                  | otherwise  = cont
@@ -607,7 +614,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
         Right (Covering n scs) -> do
           -- If result splitting was successful, continue coverage checking.
           (projs, results) <- unzip <$> do
-            mapM (traverseF $ cover f cs <=< (snd <.> insertTrailingArgs False)) (map (\(t,(sc,i)) -> (t,sc)) scs)
+            mapM (traverseF $ cover infermissing f cs <=< (snd <.> insertTrailingArgs False)) (map (\(t,(sc,i)) -> (t,sc)) scs)
             -- OR:
             -- forM scs $ \ (proj, sc') -> (proj,) <$> do
             --   cover f cs =<< do

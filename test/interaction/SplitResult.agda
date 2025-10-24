@@ -62,3 +62,25 @@ module Issue8153 where
   --
   -- Expected:
   --   id {A = A} x = ?
+
+-- Andreas, 2025-10-25, issue #8157
+-- Splitting makes instance clauses vanish.
+
+module Issue8157 where
+  open import Agda.Builtin.Nat
+
+  postulate
+    A : Set
+    instance a : A
+
+  record R : Set where
+    field {{i}} : A
+
+  issue8157 : Nat → R
+  issue8157 n .R.i = {!n!}  -- C-c -C-c n
+
+  -- Splitting here makes the clause disappear as a whole.
+  --
+  -- Expected:  Splitting succeeds ordinarily and produces:
+  --    test zero    .R.i = ?
+  --    test (suc n) .R.i = ?
