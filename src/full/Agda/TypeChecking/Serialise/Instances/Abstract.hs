@@ -1,28 +1,31 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Agda.TypeChecking.Serialise.Instances.Abstract where
 
 import Control.Monad
 import Control.Monad.Reader
-import Data.Void (Void)
-import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
-import qualified Data.Set as Set
 
-import Agda.Syntax.Common
-import qualified Agda.Syntax.Abstract as A
+import Data.HashMap.Strict qualified as HMap
+import Data.Map qualified as Map
+import Data.Set qualified as Set
+import Data.Void (Void)
+
+import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Abstract.Pattern ( noDotOrEqPattern )
-import Agda.Syntax.Info
-import Agda.Syntax.Scope.Base
+import Agda.Syntax.Common
 import Agda.Syntax.Fixity
+import Agda.Syntax.Info
+import Agda.Syntax.Position
+import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances.Common () --instance only
+import Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..))
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Null
+
 import Agda.Utils.Impossible
 
 -- Don't serialize the tactic.
@@ -71,16 +74,20 @@ instance EmbPrj NameSpace where
 
   value = valueN NameSpace
 
+-- Andreas, 2025-10-23:
+-- We serialize the Ranges in WhyInScope
+-- so that we have then e.g. in the ClashingDefinition error.
+
 instance EmbPrj WhyInScope where
   icod_ Defined       = icodeN' Defined
-  icod_ (Opened a b)  = icodeN 0 Opened a b
-  icod_ (Applied a b) = icodeN 1 Applied a b
+  icod_ (Opened a b)  = icodeN 0 (\(_ :: SerialisedRange) -> Opened) (SerialisedRange (getRange a)) a b
+  icod_ (Applied a b) = icodeN 1 (\(_ :: SerialisedRange) -> Applied) (SerialisedRange (getRange a)) a b
 
-  value = vcase valu where
-    valu N0         = valuN Defined
-    valu (N3 0 a b) = valuN Opened a b
-    valu (N3 1 a b) = valuN Applied a b
-    valu _          = malformed
+  value = vcase \case
+    N0           -> valuN Defined
+    (N4 0 r a b) -> valuN (\(SerialisedRange r) a b -> Opened (setRange r a) b) r a b
+    (N4 1 r a b) -> valuN (\(SerialisedRange r) a b -> Applied (setRange r a) b) r a b
+    _            -> malformed
 
 -- Issue #1346: QNames are shared on their nameIds, so serializing will lose fixity information for
 -- rebound fixities. We don't care about that in terms, but in the scope it's important to keep the
