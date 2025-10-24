@@ -141,17 +141,9 @@ blockedOnProjection = return $ Block (BlockedOnProj False) []
 
 blockedOnApplication :: Monad m => ApplyOrIApply -> m (Match a)
 blockedOnApplication b = return $ Block (BlockedOnApply b) []
---UNUSED Liang-Ting Chen 2019-07-16
----- | Lens for 'blockingVarCons'.
---mapBlockingVarCons :: ([ConHead] -> [ConHead]) -> BlockingVar -> BlockingVar
---mapBlockingVarCons f b = b { blockingVarCons = f (blockingVarCons b) }
---
----- | Lens for 'blockingVarLits'.
---mapBlockingVarLits :: ([Literal] -> [Literal]) -> BlockingVar -> BlockingVar
---mapBlockingVarLits f b = b { blockingVarLits = f (blockingVarLits b) }
 
 setBlockingVarOverlap :: BlockingVar -> BlockingVar
-setBlockingVarOverlap = \x -> x { blockingVarOverlap = True }
+setBlockingVarOverlap x = x { blockingVarOverlap = True }
 
 overlapping :: BlockingVars -> BlockingVars
 overlapping = map setBlockingVarOverlap

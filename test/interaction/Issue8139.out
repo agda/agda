@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals, Errors, Warnings*" "?0 : Σ A B ———— Error ————————————————————————————————————————————————— Issue8139.agda:16.1-17.5: error: [CoverageIssue] Incomplete pattern matching for test. Missing cases: test .snd when checking the definition of test ———— Warnings —————————————————————————————————————————————— Issue8139.agda:17.1-12: warning: -W[no]UnreachableClauses Unreachable clause when checking the definition of test" nil)
+((last . 1) . (agda2-goals-action '(0)))
+((last . 2) . (agda2-make-case-action '("test .snd = ?")))
+((last . 1) . (agda2-goals-action '(0)))

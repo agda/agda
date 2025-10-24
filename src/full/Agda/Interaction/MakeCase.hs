@@ -291,6 +291,34 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     -- Kill the ranges of the existing clauses to prevent wrong error
     -- location to be set by the coverage checker (via isCovered)
     -- for test/interaction/Issue191
+
+  -- See below, CLEAN UP OF THE GENERATED CLAUSES
+  let
+   filterOutExistingClauses :: [(SplitClause,a)] -> TCM [(SplitClause,a)]
+   filterOutExistingClauses scs = do
+    -- 1. filter out the generated clauses that are already covered
+    --    we consider a generated clause already covered if it is covered by:
+    --    a. a pre-existing clause defined before the one we splitted (prevClauses)
+    --    b. a pre-existing clause defined after the one we splitted (follClauses)
+    --       under the condition that it did not cover the one we splitted but was
+    --       covered by it (i.e. it was considered unreachable).
+    -- The key idea here is:
+    --       f m    zero = ?  ---- split on m --->  f (suc m) zero = ?
+    --       f zero zero = ?                        f zero    zero = ?
+    --       f _    _    = ?                        f _       _    = ?
+    -- because [f zero zero] is already defined.
+    -- However we ignore [f _ _]: [f m zero] was already a refinement of it,
+    -- hinting that we considered it more important than the catchall.
+    reportSDoc "interaction.case.filter" 20 $ vcat
+      [ "prevClauses:"
+      , nest 2 $ vcat $ map prettyTCM prevClauses
+      ]
+    let sclause = clauseToSplitClause clause
+    fcs <- filterM (\ cl -> (isCovered f [clause] (clauseToSplitClause cl)) `and2M`
+                            (not <$> isCovered f [cl] sclause))
+                   follClauses
+    filterM (not <.> isCovered f (prevClauses ++ fcs) . fst) scs
+
   let perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
       tel  = clauseTel  clause
       ps   = namedClausePats clause
@@ -390,7 +418,9 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
       -- When result splitting yields no clauses, replace rhs by @record{}@.
       if null scs then
         return [ A.spineToLhs $ absCl{ A.clauseRHS = makeRHSEmptyRecord rhs } ]
-      else mapM (makeAbstractClause f rhs ell) scs
+      else do
+        scs <- map fst <$> filterOutExistingClauses (map (, ()) scs)
+        mapM (makeAbstractClause f rhs ell) scs
   else do
     -- split on variables
     xs <- parseVariables f clauseCxt clauseAsBindings hole rng vars
@@ -429,11 +459,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     -- because [f zero zero] is already defined.
     -- However we ignore [f _ _]: [f m zero] was already a refinement of it,
     -- hinting that we considered it more important than the catchall.
-    let sclause = clauseToSplitClause clause
-    fcs <- filterM (\ cl -> (isCovered f [clause] (clauseToSplitClause cl)) `and2M`
-                            (not <$> isCovered f [cl] sclause))
-                   follClauses
-    scs <- filterM (not <.> isCovered f (prevClauses ++ fcs) . fst) scs
+    scs <- filterOutExistingClauses scs
     reportSLn "interaction.case" 70 $ "makeCase: survived filtering out already covered clauses"
     -- 2. filter out trivially impossible clauses not asked for by the user
     cs <- catMaybes <$> do

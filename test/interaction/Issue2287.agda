@@ -1,9 +1,12 @@
+postulate
+  S : Set
+  instance s : S
 
-record R : Set₁ where
+record R : Set where
   field
-    A     : Set
-    {B}   : Set
-    {{C}} : Set
+    A     : S
+    {B}   : S
+    {{C}} : S
 
 open R
 

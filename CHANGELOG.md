@@ -152,6 +152,21 @@ Interaction and emacs mode
   Now, the correct `id {A = A} x = ?` is produced
   (Issue [#8153](https://github.com/agda/agda/issue/8153)).
 
+* Catch-all copattern clauses are now tolerated as unreachable clauses
+  rather than being outright rejected with a `CosplitCatchall` error.
+  They can be used as jumpboard for further result splitting.
+  (A scenario is a record type that got extended with new fields,
+  and definitions producing record values need to be extended as well.)
+  Example:
+  ```agda
+    test : Σ A B
+    test .fst = a
+    test = {!!}  -- C-c C-c RET
+  ```
+  This split produces the clause `test .snd = ?`.
+  (Issue [#8139](https://github.com/agda/agda/issue/8139)).
+
+
 * A normalization level can now also passed to command `Cmd_constraints`
   ("show constraints", `C-c C-=` in Emacs).
   In Emacs, the normalization level is given as usual by `C-u` prefixes.

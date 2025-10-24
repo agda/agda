@@ -595,15 +595,26 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
         fallback | finalSplit = __IMPOSSIBLE__ -- already ruled out by lhs checker?
                  | otherwise  = cont
 
+    -- Andreas, 2025-10-25, issue #8139
+    --
+    -- - This was the old logic:
+    --
+    -- -- blocked on result but there are catchalls:
+    -- -- try regular splits if there are any, or else throw an error,
+    -- -- this is nicer than continuing and reporting unreachable clauses
+    -- -- (see issue #2833)
+    -- trySplitRes (BlockedOnProj True) finalSplit splitError cont
+    --   | finalSplit = splitError CosplitCatchall
+    --   | otherwise  = cont
+    --
+    -- - The new logic allows copattern catchalls for the sake of further splitting
+    --   but they are reported as unreachable.
+    --
     -- blocked on result but there are catchalls:
-    -- try regular splits if there are any, or else throw an error,
-    -- this is nicer than continuing and reporting unreachable clauses
-    -- (see issue #2833)
-    trySplitRes (BlockedOnProj True) finalSplit splitError cont
-      | finalSplit = splitError CosplitCatchall
-      | otherwise  = cont
+    -- try regular splits if there are any
+    trySplitRes (BlockedOnProj True) False splitError cont = cont
     -- all clauses have an unsplit copattern: try to split
-    trySplitRes (BlockedOnProj False) finalSplit splitError cont = do
+    trySplitRes (BlockedOnProj _) finalSplit splitError cont = do
       reportSLn "tc.cover" 20 $ "blocked by projection pattern"
       -- forM is a monadic map over a Maybe here
       mcov <- splitResultRecord f sc
