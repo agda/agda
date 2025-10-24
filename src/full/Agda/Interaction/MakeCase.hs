@@ -28,7 +28,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Coverage
-import Agda.TypeChecking.Coverage.Match ( SplitPatVar(..) , SplitPattern , applySplitPSubst , fromSplitPatterns )
+import Agda.TypeChecking.Coverage.SplitPattern ( SplitPatVar(..) , SplitPattern , applySplitPSubst , fromSplitPatterns )
 import Agda.TypeChecking.Empty ( isEmptyTel )
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Rules.Def (checkClauseLHS)

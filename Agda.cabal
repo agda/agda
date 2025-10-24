@@ -713,6 +713,7 @@ library
       Agda.TypeChecking.Coverage.Cubical
       Agda.TypeChecking.Coverage.Match
       Agda.TypeChecking.Coverage.SplitClause
+      Agda.TypeChecking.Coverage.SplitPattern
       Agda.TypeChecking.Coverage.SplitTree
       Agda.TypeChecking.Datatypes
       Agda.TypeChecking.DeadCode

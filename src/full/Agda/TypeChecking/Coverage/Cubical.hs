@@ -19,6 +19,7 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.TypeChecking.Constraints () -- instance MonadConstraint TCM
 import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitClause
+import Agda.TypeChecking.Coverage.SplitPattern
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes (getDatatypeArgs)
 import Agda.TypeChecking.Irrelevance

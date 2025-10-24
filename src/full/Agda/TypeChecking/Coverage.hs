@@ -53,6 +53,7 @@ import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.Term (unquoteTactic)
 
 import Agda.TypeChecking.Coverage.Match
+import Agda.TypeChecking.Coverage.SplitPattern
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Coverage.SplitClause
 import Agda.TypeChecking.Coverage.Cubical

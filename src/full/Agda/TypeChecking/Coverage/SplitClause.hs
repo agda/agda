@@ -17,6 +17,7 @@ import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Internal hiding (DataOrRecord)
 
 import Agda.TypeChecking.Coverage.Match
+import Agda.TypeChecking.Coverage.SplitPattern
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute

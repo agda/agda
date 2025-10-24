@@ -59,7 +59,7 @@ import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Coverage
-import Agda.TypeChecking.Coverage.Match ( SplitPattern )
+import Agda.TypeChecking.Coverage.SplitPattern ( SplitPattern )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty ( PrettyTCM, prettyTCM )
 import Agda.TypeChecking.Pretty.Constraint (prettyRangeConstraint)

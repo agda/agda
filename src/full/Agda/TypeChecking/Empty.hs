@@ -16,7 +16,7 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Coverage
-import Agda.TypeChecking.Coverage.Match ( fromSplitPatterns )
+import Agda.TypeChecking.Coverage.SplitPattern ( fromSplitPatterns )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce ( instantiateFull )
 import Agda.TypeChecking.Substitute
