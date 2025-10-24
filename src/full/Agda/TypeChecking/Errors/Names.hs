@@ -332,7 +332,6 @@ splitErrorName = \case
   BlockedType               {} -> BlockedType_
   CannotCreateMissingClause {} -> CannotCreateMissingClause_
   CoinductiveDatatype       {} -> CoinductiveDatatype_
-  CosplitCatchall           {} -> CosplitCatchall_
   CosplitNoRecordType       {} -> CosplitNoRecordType_
   CosplitNoTarget           {} -> CosplitNoTarget_
   NotADatatype              {} -> NotADatatype_

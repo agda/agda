@@ -2074,9 +2074,6 @@ instance PrettyTCM SplitError where
         prEq cIx gIx = addContext tel $ nest 2 $ hsep [ pr cIx , "≟" , pr gIx ]
         pr arg = prettyRelevance arg . prettyHiding arg id <$> prettyTCM (unArg arg)
 
-    CosplitCatchall -> fsep $
-      pwords "Cannot split into projections because not all clauses have a projection copattern"
-
     CosplitNoTarget -> fsep $
       pwords "Cannot split into projections because target type is unknown"
 

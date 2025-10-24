@@ -377,7 +377,6 @@ data SplitError_
   | BlockedType_
   | CannotCreateMissingClause_
   | CoinductiveDatatype_
-  | CosplitCatchall_
   | CosplitNoRecordType_
   | CosplitNoTarget_
   | NotADatatype_
