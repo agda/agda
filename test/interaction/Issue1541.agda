@@ -4,4 +4,4 @@ data Nat : Set where
 
 _+_ : Nat → Nat → Nat
 zero  + n = n
-suc m + n = suc ?
+suc m + n = suc {!m +_!}

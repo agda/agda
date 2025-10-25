@@ -8,7 +8,7 @@
 ((last . 1) . (agda2-goals-action '(0 1)))
 ((last . 2) . (agda2-make-case-action-extendlam '("tt → ?")))
 ((last . 1) . (agda2-goals-action '(0 1)))
-(agda2-give-action 1 "tt")
+(agda2-give-action 1 'no-paren)
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : ⊥" nil)
 ((last . 1) . (agda2-goals-action '(0)))

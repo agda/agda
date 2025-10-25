@@ -29,7 +29,7 @@ u = f s
 -- interactive
 
 hole0 : A
-hole0 = {! f s !}  -- normalize me
+hole0 = {!f s!}  -- normalize me
 
 hole1 = {!λ r → f (t r)!} -- normalize me
 
@@ -44,4 +44,4 @@ hole2 t x = f t {!x!}
 
 -- Milestone 2: Postpone overloading.
 
-hole3 = f {! r !}
+hole3 = f {!r!}

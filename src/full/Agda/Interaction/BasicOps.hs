@@ -196,7 +196,7 @@ give_ ::
      Bool           -- ^ Elaborating?
   -> UseForce       -- ^ Skip safety checks?
   -> InteractionId  -- ^ Hole.
-  -> Maybe Range
+  -> Maybe Range    -- ^ If supplied, set the interaction meta to this 'Range'.
   -> Expr           -- ^ The expression to give.
   -> TCM Term       -- ^ Value of the expression
 give_ elaborating force ii mr e = do
@@ -221,7 +221,7 @@ give_ elaborating force ii mr e = do
 give ::
      UseForce       -- ^ Skip safety checks?
   -> InteractionId  -- ^ Hole.
-  -> Maybe Range
+  -> Maybe Range    -- ^ If supplied, set the interaction meta to this 'Range'.
   -> Expr           -- ^ The expression to give.
   -> TCM Expr       -- ^ If successful, the very expression is returned unchanged.
 give force ii mr e = do
@@ -234,7 +234,7 @@ elaborate_give
   :: Rewrite        -- ^ Normalise result?
   -> UseForce       -- ^ Skip safety checks?
   -> InteractionId  -- ^ Hole.
-  -> Maybe Range
+  -> Maybe Range    -- ^ If supplied, set the interaction meta to this 'Range'.
   -> Expr           -- ^ The expression to give.
   -> TCM Expr       -- ^ If successful, return the elaborated expression.
 elaborate_give norm force ii mr e = withInteractionId ii $ do
@@ -252,7 +252,8 @@ elaborate_give norm force ii mr e = withInteractionId ii $ do
 refine
   :: UseForce       -- ^ Skip safety checks when giving?
   -> InteractionId  -- ^ Hole.
-  -> Maybe Range
+  -> Maybe Range    -- ^ If supplied, use this 'Range' and set the interaction meta to it.
+                    --   Otherwise, use the range from the 'InteractionId'.
   -> Expr           -- ^ The expression to refine the hole with.
   -> TCM Expr       -- ^ The successfully given expression.
 refine force ii mr e = do

@@ -4,7 +4,7 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : M ?1 : (λ x → x) ≡ op ?0 ?2 : MC M op → MC M op → MC M op" nil)
 ((last . 1) . (agda2-goals-action '(0 1 2)))
-(agda2-give-action 1 "funExt ?")
+(agda2-give-action 1 'no-paren)
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : M ?2 : MC M op → MC M op → MC M op ?3 : (x : M) → x ≡ op ?0 x" nil)
 ((last . 1) . (agda2-goals-action '(0 3 2)))

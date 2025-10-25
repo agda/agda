@@ -718,6 +718,14 @@ getInteractionRange
   => InteractionId -> m Range
 getInteractionRange = ipRange <.> lookupInteractionPoint
 
+-- | Set the 'Range' for an interaction point.
+{-# SPECIALIZE setInteractionRange :: Range -> InteractionId -> TCM () #-}
+setInteractionRange :: (MonadInteractionPoints m, MonadDebug m, MonadError TCErr m)
+  => Range -> InteractionId -> m ()
+setInteractionRange r ii = do
+  modifyInteractionPoints $ BiMap.update (\ ip -> Just ip{ ipRange = r }) ii
+  return ()
+
 -- | Get the 'Range' for a local meta-variable.
 getMetaRange ::
   (HasCallStack, MonadDebug m, ReadTCState m) => MetaId -> m Range

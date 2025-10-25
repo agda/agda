@@ -13,8 +13,8 @@ goal_command 0 (cmd_compute IgnoreAbstract) "f s"
 -- Inferred type should be "A"
 goal_command 0 (cmd_goal_type_context_infer Normalised) "f s"
 
-goal_command 1 (cmd_compute IgnoreAbstract) "\ r -> f (t r)"
-goal_command 1 (cmd_goal_type_context_infer Normalised) "\ r -> f (t r)"
+goal_command 1 (cmd_compute IgnoreAbstract) "λ r -> f (t r)"
+goal_command 1 (cmd_goal_type_context_infer Normalised) "λ r -> f (t r)"
 
 goal_command 2 (cmd_give "x")
 

@@ -6,7 +6,7 @@
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4)))
 (agda2-status-action "")
 (agda2-info-action "*Normal Form*" "(y : Bool) → parameterised.Bar (λ _ → Void) (λ { true → true ; false → false })" nil)
-(agda2-give-action 4 "λ { a {x} b → a }")
+(agda2-give-action 4 'no-paren)
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Bool ?1 : Bool ?2 : Bool ?3 : Bool" nil)
 ((last . 1) . (agda2-goals-action '(0 1 2 3)))

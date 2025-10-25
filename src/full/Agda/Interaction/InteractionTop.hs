@@ -465,8 +465,6 @@ updateInteractionPointsAfter Cmd_show_version{}                  = False
 updateInteractionPointsAfter Cmd_abort{}                         = False
 updateInteractionPointsAfter Cmd_exit{}                          = False
 
--- | Interpret an interaction
-
 getBackendName :: CompilerBackend -> BackendName
 getBackendName = \case
   LaTeX -> "LaTeX"
@@ -474,14 +472,29 @@ getBackendName = \case
   OtherBackend "GHCNoMain" -> "GHC"
   OtherBackend b -> b
 
+-- | Interpret an interaction.
+--
+-- For each goal command specific to an 'InteractionPoint'
+-- that comes with a 'Range' for this interaction point
+-- we first synchronize this 'Range' with the 'Range'
+-- Agda has stored for the interaction meta.
+-- In general, we consider the 'Range' sent with the command
+-- as more up-to-date than the  the 'Range' Agda has stored.
+-- This is because the editor keeps track of changes
+-- (that usually modify the position of interaction points),
+-- but Agda does not.
+--
+-- Some goal commands carry a 'Range' for reasons of uniformity but do not use it.
+-- For those, we do not synchronize the range.
+
 interpret :: Interaction -> CommandM ()
 
-interpret (Cmd_load m argv) =
+interpret (Cmd_load m argv) = do
   cmd_load' m argv True mode $ \_ -> interpret $ Cmd_metas AsIs
   where
   mode = TypeCheck
 
-interpret (Cmd_compile backend file argv) =
+interpret (Cmd_compile backend file argv) = do
   cmd_load' file argv allowUnsolved mode $ \ checkResult -> do
     ws <- lift $ applyFlagsToTCWarnings $ crWarnings checkResult
     case null ws of
@@ -496,13 +509,14 @@ interpret (Cmd_compile backend file argv) =
   isMain | OtherBackend "GHCNoMain" <- backend = NotMain
          | otherwise                           = IsMain
 
-interpret (Cmd_backend_top backend cmd) =
+interpret (Cmd_backend_top backend cmd) = do
   callBackendInteractTop (getBackendName backend) cmd
 
-interpret (Cmd_backend_hole ii rng s backend cmd) =
+interpret (Cmd_backend_hole ii rng s backend cmd) = do
+  rng <- syncInteractionRange ii rng
   callBackendInteractHole (getBackendName backend) cmd ii rng s
 
-interpret (Cmd_constraints norm) =
+interpret (Cmd_constraints norm) = do
   display_info . Info_Constraints =<< lift (B.getConstraints norm)
 
 interpret (Cmd_metas norm) = do
@@ -516,10 +530,10 @@ interpret (Cmd_load_no_metas file) = do
     Imp.raiseNonFatalErrors result
     unlessM (null <$> getOpenMetas) __IMPOSSIBLE__
 
-interpret (Cmd_show_module_contents_toplevel norm s) =
+interpret (Cmd_show_module_contents_toplevel norm s) = do
   atTopLevel $ showModuleContents norm noRange s
 
-interpret (Cmd_search_about_toplevel norm s) =
+interpret (Cmd_search_about_toplevel norm s) = do
   atTopLevel $ searchAbout norm noRange s
 
 interpret (Cmd_solveAll norm)        = solveInstantiatedGoals norm Nothing
@@ -607,6 +621,7 @@ interpret (Cmd_tokenHighlighting source remove) = do
     Nothing    -> return ()
 
 interpret (Cmd_highlight ii rng s) = do
+  rng <- syncInteractionRange ii rng
   l <- asksTC envHighlightingLevel
   when (l /= None) $ do
     scope <- getOldInteractionScope ii
@@ -631,10 +646,16 @@ interpret (Cmd_highlight ii rng s) = do
       (mapLeft (const err) <$> freshTCM m) `catchError` \ _ -> return (Left err)
       -- freshTCM to avoid scope checking creating new interaction points
 
-interpret (Cmd_give   force ii rng s) = give_gen force ii rng s Give
-interpret (Cmd_refine ii rng s) = give_gen WithoutForce ii rng s Refine
+interpret (Cmd_give   force ii rng s) = do
+  rng <- syncInteractionRange ii rng
+  give_gen force ii rng s Give
+
+interpret (Cmd_refine ii rng s) = do
+  rng <- syncInteractionRange ii rng
+  give_gen WithoutForce ii rng s Refine
 
 interpret (Cmd_intro pmLambda ii rng _) = do
+  rng <- syncInteractionRange ii rng
   ss <- lift $ B.introTactic pmLambda ii
   liftCommandMT (withInteractionId ii) $ case ss of
     []    -> do
@@ -648,6 +669,7 @@ interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
   in (if null s' then Cmd_intro pmLambda else Cmd_refine) ii r s'
 
 interpret (Cmd_autoOne norm ii rng str) = do
+  rng <- syncInteractionRange ii rng
   iscope <- getInteractionScope ii
   (time, result) <- maybeTimed $ Mimer.mimer norm ii rng str
   case result of
@@ -685,28 +707,33 @@ interpret (Cmd_autoAll norm) = do
         MimerList{} -> pure []    -- Don't list solutions in autoAll
     modifyTheInteractionPoints (List.\\ solved)
 
-interpret (Cmd_context norm ii _ _) =
+interpret (Cmd_context norm ii _ _) = do
   display_info . Info_Context ii =<< liftLocalState (B.getResponseContext norm ii)
 
 interpret (Cmd_helper_function norm ii rng s) = do
+  rng <- syncInteractionRange ii rng
   -- Create type of application of new helper function that would solve the goal.
   helperType <- liftLocalState $ B.metaHelperType norm ii rng s
   display_info $ Info_GoalSpecific ii (Goal_HelperFunction helperType)
 
 interpret (Cmd_infer norm ii rng s) = do
+  rng <- syncInteractionRange ii rng
   expr <- liftLocalState $ withInteractionId ii $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
   display_info $ Info_GoalSpecific ii (Goal_InferredType expr)
 
-interpret (Cmd_goal_type norm ii _ _) =
+interpret (Cmd_goal_type norm ii _ _) = do
   display_info $ Info_GoalSpecific ii (Goal_CurrentGoal norm)
 
-interpret (Cmd_elaborate_give norm ii rng s) =
+interpret (Cmd_elaborate_give norm ii rng s) = do
+  rng <- syncInteractionRange ii rng
   give_gen WithoutForce ii rng s $ ElaborateGive norm
 
-interpret (Cmd_goal_type_context norm ii rng s) =
+interpret (Cmd_goal_type_context norm ii rng s) = do
+  rng <- syncInteractionRange ii rng
   cmd_goal_type_context_and GoalOnly norm ii rng s
 
 interpret (Cmd_goal_type_context_infer norm ii rng s) = do
+  rng <- syncInteractionRange ii rng
   -- In case of the empty expression to type, don't fail with
   -- a stupid parse error, but just fall back to
   -- Cmd_goal_type_context.
@@ -720,6 +747,7 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
   cmd_goal_type_context_and aux norm ii rng s
 
 interpret (Cmd_goal_type_context_check norm ii rng s) = do
+  rng <- syncInteractionRange ii rng
   expr <- liftLocalState $ withInteractionId ii $ do
     expr <- B.parseExprIn ii rng s
     goal <- B.typeOfMeta AsIs ii
@@ -729,16 +757,18 @@ interpret (Cmd_goal_type_context_check norm ii rng s) = do
     reify =<< B.normalForm norm term
   cmd_goal_type_context_and (GoalAndElaboration expr) norm ii rng s
 
-interpret (Cmd_show_module_contents norm ii rng s) =
+interpret (Cmd_show_module_contents norm ii rng s) = do
+  rng <- syncInteractionRange ii rng
   liftCommandMT (withInteractionId ii) $ showModuleContents norm rng s
 
-interpret (Cmd_why_in_scope_toplevel s) =
+interpret (Cmd_why_in_scope_toplevel s) = do
   atTopLevel $ whyInScope s
 
-interpret (Cmd_why_in_scope ii _range s) =
+interpret (Cmd_why_in_scope ii _range s) = do
   liftCommandMT (withInteractionId ii) $ whyInScope s
 
 interpret (Cmd_make_case ii rng s) = do
+  rng <- syncInteractionRange ii rng
   (f, casectxt, cs) <- lift $ makeCase ii rng s
   liftCommandMT (withInteractionId ii) $ do
     tel <- lift $ lookupSection (qnameModule f) -- don't shadow the names in this telescope
@@ -767,6 +797,7 @@ interpret (Cmd_compute_toplevel cmode s) = do
   display_info $ Info_NormalForm state cmode time expr
 
 interpret (Cmd_compute cmode ii rng s) = do
+  rng <- syncInteractionRange ii rng
   expr <- liftLocalState $ do
     e <- B.parseExprIn ii rng $ B.computeWrapInput cmode s
     withInteractionId ii $ B.computeInCurrent cmode e
@@ -776,6 +807,20 @@ interpret Cmd_show_version = display_info Info_Version
 
 interpret Cmd_abort = return ()
 interpret Cmd_exit  = return ()
+
+-- | If given range is empty, get the range of the interaction point.
+--   Otherwise, set the range of the interaction point to the given range.
+--
+--   The idea is that the interaction frontend may have a more recent range for an interaction point
+--   (for example, if the user has edited the file since the last command was sent).
+--
+--   There may be frontends that do not send ranges (like the interaction test suite),
+--   so in that case get the range from the interaction point.
+syncInteractionRange :: (MonadInteractionPoints m, MonadDebug m, MonadError TCErr m)
+  => InteractionId -> Range -> m Range
+syncInteractionRange ii r
+  | null r    = getInteractionRange ii
+  | otherwise = r <$ setInteractionRange r ii
 
 
 decorate :: Doc -> String

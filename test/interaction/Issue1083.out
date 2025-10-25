@@ -4,7 +4,7 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals, Errors*" "?1 : T false _x_12 : Bool [ at Issue1083.agda:16.13-14 ] _14 : Bool → Bool [ at Issue1083.agda:16.13-19 ] ———— Error ————————————————————————————————————————————————— error: [UnsolvedConstraints] Unsolved constraints" nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
-(agda2-give-action 1 "λ x → x")
+(agda2-give-action 1 'no-paren)
 (agda2-status-action "")
 (agda2-info-action "*All Goals, Errors*" "_x_12 : Bool [ at Issue1083.agda:16.13-14 ] _14 : Bool → Bool [ at Issue1083.agda:16.13-19 ] ———— Error ————————————————————————————————————————————————— error: [UnsolvedConstraints] Unsolved constraints" nil)
 ((last . 1) . (agda2-goals-action '(0)))

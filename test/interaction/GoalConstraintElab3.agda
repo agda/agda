@@ -25,6 +25,6 @@ hfill : ∀ {ℓ} {A : Type ℓ} (φ : I) → I
       → (u : (i : I) → Partial (φ ∨ ~ i) A)
       → A
 hfill φ i u = hcomp (φ ∨ ~ i) λ where
-  j (φ = i1) → {!   !}
+  j (φ = i1) → {!u (i ∧ j) 1=1!}
   j (i = i0) → u i0 1=1
   j (j = i0) → u i0 1=1
