@@ -676,7 +676,7 @@ interpret (Cmd_autoOne norm ii rng str) = do
     MimerNoResult -> display_info $ Info_Auto "No solution found"
     MimerExpr str -> do
       insertOldInteractionScope ii iscope
-      _ <- lift $ B.parseExprIn ii rng str >>= B.give WithForce ii (Just rng)
+      _ <- lift $ B.parseExprIn ii rng str >>= B.give WithForce ii
       putResponse $ Resp_GiveAction ii $ Give_String str
       modifyTheInteractionPoints (List.delete ii)
       maybe (return ()) (display_info . Info_Time) time
@@ -701,7 +701,7 @@ interpret (Cmd_autoAll norm) = do
         MimerExpr str -> do
           iscope <- getOldScope ii
           insertOldInteractionScope ii iscope
-          _ <- liftTCM $ B.parseExprIn ii rng str >>= B.give WithoutForce ii (Just rng)
+          _ <- liftTCM $ B.parseExprIn ii rng str >>= B.give WithoutForce ii
           putResponse $ Resp_GiveAction ii $ Give_String str
           pure [ii]
         MimerList{} -> pure []    -- Don't list solutions in autoAll
@@ -1006,7 +1006,7 @@ give_gen force ii rng s0 giveRefine = do
         mis  <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points before = " ++ show mis
         given <- lift $ B.parseExprIn ii rng s
-        ae    <- lift $ give_ref force ii Nothing given
+        ae    <- lift $ give_ref force ii given
         mis' <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
         return (ae, given, mis' List.\\ mis)

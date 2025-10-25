@@ -196,13 +196,10 @@ give_ ::
      Bool           -- ^ Elaborating?
   -> UseForce       -- ^ Skip safety checks?
   -> InteractionId  -- ^ Hole.
-  -> Maybe Range    -- ^ If supplied, set the interaction meta to this 'Range'.
   -> Expr           -- ^ The expression to give.
   -> TCM Term       -- ^ Value of the expression
-give_ elaborating force ii mr e = do
-  -- if Range is given, update the range of the interaction meta
+give_ elaborating force ii e = do
   mi  <- lookupInteractionId ii
-  whenJust mr $ updateMetaVarRange mi
   reportSDoc "interaction.give" 10 $ "giving expression" TP.<+> prettyTCM e
   reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
   -- Try to give mi := e
@@ -221,11 +218,10 @@ give_ elaborating force ii mr e = do
 give ::
      UseForce       -- ^ Skip safety checks?
   -> InteractionId  -- ^ Hole.
-  -> Maybe Range    -- ^ If supplied, set the interaction meta to this 'Range'.
   -> Expr           -- ^ The expression to give.
   -> TCM Expr       -- ^ If successful, the very expression is returned unchanged.
-give force ii mr e = do
-  _ <- give_ False force ii mr e
+give force ii e = do
+  _ <- give_ False force ii e
   removeInteractionPoint ii
   return e
 
@@ -234,11 +230,10 @@ elaborate_give
   :: Rewrite        -- ^ Normalise result?
   -> UseForce       -- ^ Skip safety checks?
   -> InteractionId  -- ^ Hole.
-  -> Maybe Range    -- ^ If supplied, set the interaction meta to this 'Range'.
   -> Expr           -- ^ The expression to give.
   -> TCM Expr       -- ^ If successful, return the elaborated expression.
-elaborate_give norm force ii mr e = withInteractionId ii $ do
-  v <- give_ True force ii mr e
+elaborate_give norm force ii e = withInteractionId ii $ do
+  v <- give_ True force ii e
   reportSDoc "interaction.give" 40 $ "v = " TP.<+> pure (pretty v)
   -- Reduce projection-likes before quoting, otherwise instance
   -- selection may fail on reload (see #6203).
@@ -252,14 +247,12 @@ elaborate_give norm force ii mr e = withInteractionId ii $ do
 refine
   :: UseForce       -- ^ Skip safety checks when giving?
   -> InteractionId  -- ^ Hole.
-  -> Maybe Range    -- ^ If supplied, use this 'Range' and set the interaction meta to it.
-                    --   Otherwise, use the range from the 'InteractionId'.
   -> Expr           -- ^ The expression to refine the hole with.
   -> TCM Expr       -- ^ The successfully given expression.
-refine force ii mr e = do
+refine force ii e = do
   mi <- lookupInteractionId ii
   mv <- lookupLocalMeta mi
-  let range = fromMaybe (getRange mv) mr
+  let range = getRange mv
       scope = M.getMetaScope mv
   reportSDoc "interaction.refine" 10 $
     "refining with expression" TP.<+> prettyTCM e
@@ -268,20 +261,23 @@ refine force ii mr e = do
   -- We try to append up to 10 meta variables
   tryRefine 10 range scope e
   where
-    tryRefine :: Int -> Range -> ScopeInfo -> Expr -> TCM Expr
-    tryRefine nrOfMetas r scope = try nrOfMetas Nothing
+    -- This wrapper around 'try' makes 'range' and 'scope' available there.
+    tryRefine :: Int -> Range -> ScopeInfo  -> Expr -> TCM Expr
+    tryRefine nrOfMetas range scope = try nrOfMetas Nothing
       where
         try :: Int -> Maybe TCErr -> Expr -> TCM Expr
         try 0 err e = interactionError $ CannotRefine $ case err of
            Just (TypeError _ _ cl) | UnequalTerms _ I.Pi{} _ _ <- clValue cl ->
              "functions with 10 or more arguments"
            _ -> ""
-        try n _ e = give force ii (Just r) e `catchError` \err -> try (n - 1) (Just err) =<< appMeta e
+        try n _ e = give force ii e `catchError` \err -> try (n - 1) (Just err) =<< appMeta e
 
         -- Apply A.Expr to a new meta
         appMeta :: Expr -> TCM Expr
         appMeta e = do
-          let rng = rightMargin r -- Andreas, 2013-05-01 conflate range to its right margin to ensure that appended metas are last in numbering.  This fixes issue 841.
+          -- Andreas, 2013-05-01 conflate range to its right margin to ensure that appended metas are last in numbering.
+          -- This fixes issue 841.
+          let rng = rightMargin range
           -- Make new interaction point
           ii <- registerInteractionPoint False rng Nothing
           let info = Info.MetaInfo
@@ -313,7 +309,7 @@ refine force ii mr e = do
                     where subX (A.Var y) | x == y = namedArg arg
                           subX e = e
                   _ -> App i e arg
-          return $ smartApp (defaultAppInfo r) e $ defaultNamedArg metaVar
+          return $ smartApp (defaultAppInfo range) e $ defaultNamedArg metaVar
 
 {-| Evaluate the given expression in the current environment -}
 evalInCurrent :: ComputeMode -> Expr -> TCM Expr
