@@ -1,0 +1,3 @@
+CannotGeneralizeEtaExpandable.agda:10.23-24: error: [CannotGeneralizeEtaExpandable]
+Cannot generalize over x of eta-expandable type ⊤
+when checking that the expression P x is a type

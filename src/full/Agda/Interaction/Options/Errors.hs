@@ -116,6 +116,7 @@ data ErrorName
   | CannotApply_
   | CannotEliminateWithPattern_
   | CannotEliminateWithProjection_
+  | CannotGeneralizeEtaExpandable_
   | CannotGenerateHCompClause_
   | CannotGenerateTransportClause_
   | CannotQuote_ CannotQuote_
