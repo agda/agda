@@ -529,7 +529,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     prepruneError :: String -> MetaId -> TCM a
     prepruneError msg x = do
       r <- getMetaRange x
-      genericDocError =<<
+      typeError . GeneralizationPrepruneError =<<
         (fwords (msg ++ " The problematic unsolved meta is") $$
                  nest 2 (prettyTCM (MetaV x []) <+> "at" <+> pretty r)
         )

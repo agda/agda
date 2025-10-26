@@ -52,6 +52,7 @@ Exec.ExeNotFound
 Exec.ExeNotTrusted
 FunctionTypeInSizeUniv
 GeneralizeCyclicDependency
+GeneralizationPrepruneError
 ModuleNameHashCollision
 SplitError.CosplitNoTarget
 SplitError.GenericSplitError
