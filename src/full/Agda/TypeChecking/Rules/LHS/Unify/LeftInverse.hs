@@ -442,7 +442,7 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
                  , termsS __IMPOSSIBLE__ $ map unArg tau
                  , termsS __IMPOSSIBLE__ $ map unArg leftInv)
                  , phi)
-buildEquiv (DUnificationStep st step@(DEtaExpandVar fv _d _args) output) next = fmap Right $ do
+buildEquiv (DUnificationStep st step@(DEtaExpandVar fv _d _args) output) next = runExceptT $ do
         reportSDoc "tc.lhs.unify.inv" 20 "buildEquiv EtaExpandVar"
         let
           gamma = varTel st
@@ -450,12 +450,13 @@ buildEquiv (DUnificationStep st step@(DEtaExpandVar fv _d _args) output) next = 
           x = flexVar fv
           neqs = size eqs
           phis = 1
-        interval <- primIntervalType
+        interval <- lift primIntervalType
          -- Γ, φs : I^phis
         let gamma_phis = abstract gamma $ telFromList $
               map (defaultDom . (,interval) . ("phi" ++) . show) [0 .. phis - 1]
-        working_tel <- abstract gamma_phis <$>
-          pathTelescope (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st)
+        working_tel <- abstract gamma_phis <$> do
+         withExceptT CantTransport' $
+          pathTelescope' (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st)
         let raiseFrom tel x = (size working_tel - size tel) + x
         let phi = var $ raiseFrom gamma_phis 0
 

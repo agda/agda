@@ -1045,29 +1045,6 @@ trFillTel' flag delta phi args r = do
 
 
 
--- hcompTel' :: Bool -> Telescope -> [(Term,Abs [Term])] -> [Term] -> ExceptT (Closure (Abs Type)) TCM [Term]
--- hcompTel' b delta sides base = undefined
-
--- hFillTel' :: Bool -> Telescope -- Γ ⊢ Δ
---           -> [(Term,Abs [Term])]  -- [(φ,i.δ)] with  Γ,φ ⊢ i.δ : I → Δ
---           -> [Term]            -- Γ ⊢ δ0 : Δ, matching the [(φ,i.δ)]
---           -> Term -- Γ ⊢ r : I
---           -> ExceptT (Closure (Abs Type)) TCM [Term]
--- hFillTel' b delta sides base = undefined
-
-pathTelescope :: forall m. (PureTCM m, MonadError TCErr m)
-  => Telescope  -- ^ Δ
-  -> [Arg Term] -- ^ lhs : Δ
-  -> [Arg Term] -- ^ rhs : Δ
-  -> m Telescope
-pathTelescope tel lhs rhs = do
-  runExceptT (pathTelescope' tel lhs rhs) >>= \case
-    Left t -> do
-      enterClosure t $ \ t ->
-                 typeError . GenericDocError =<<
-                    (text "The sort of" <+> pretty t <+> text "should be of the form \"Set l\"")
-    Right tel -> return tel
-
 pathTelescope' :: forall m. (PureTCM m, MonadError (Closure Type) m)
   => Telescope  -- ^ Δ
   -> [Arg Term] -- ^ lhs : Δ
