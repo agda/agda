@@ -5430,6 +5430,7 @@ data TypeError
         | RepeatedNamesInImportDirective (List1 (List2 C.ImportedName))
             -- ^ Some names are bound several times by an @import@/@open@ directive.
         | RepeatedVariablesInPattern (List1 C.Name)
+        | CannotGeneralizeEtaExpandable A.QName Type
         | GeneralizeNotSupportedHere A.QName
         | GeneralizedVarInLetOpenedModule A.QName
         | MultipleFixityDecls (List1 (C.Name, Pair Fixity'))

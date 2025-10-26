@@ -1331,6 +1331,9 @@ instance PrettyTCM TypeError where
     NeedOptionUniversePolymorphism -> fsep $
       pwords "Universe polymorphism is disabled (use option --universe-polymorphism to allow level arguments to sorts)"
 
+    CannotGeneralizeEtaExpandable x metaType ->
+      ("Cannot generalize over" <+> prettyTCM x <+> "of eta-expandable type") <?> prettyTCM metaType
+
     GeneralizeNotSupportedHere x -> fsep $
       pwords $ "Generalizable variable " ++ prettyShow x ++ " is not supported here"
 

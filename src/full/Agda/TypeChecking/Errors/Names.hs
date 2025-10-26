@@ -73,6 +73,7 @@ typeErrorName = \case
   CannotApply                                                {} -> CannotApply_
   CannotEliminateWithPattern                                 {} -> CannotEliminateWithPattern_
   CannotEliminateWithProjection                              {} -> CannotEliminateWithProjection_
+  CannotGeneralizeEtaExpandable                              {} -> CannotGeneralizeEtaExpandable_
   CannotGenerateHCompClause                                  {} -> CannotGenerateHCompClause_
   CannotGenerateTransportClause                              {} -> CannotGenerateTransportClause_
   CannotResolveAmbiguousPatternSynonym                       {} -> CannotResolveAmbiguousPatternSynonym_

@@ -924,8 +924,8 @@ createGenValue x = setCurrentRange x $ do
 
   case term of
     MetaV{} -> return ()
-    _       -> genericDocError =<< ("Cannot generalize over" <+> prettyTCM x <+> "of eta-expandable type") <?>
-                                    prettyTCM metaType
+    _       -> typeError $ CannotGeneralizeEtaExpandable x metaType
+
   return . (m,) $ GeneralizedValue
     { genvalCheckpoint = cp
     , genvalTerm       = term
