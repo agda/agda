@@ -54,6 +54,7 @@ import Agda.Syntax.Concrete.Definitions (notSoNiceDeclarations)
 import Agda.Syntax.Concrete.Definitions.Errors (declarationExceptionString)
 import Agda.Syntax.Concrete.Pretty (attributesForModality)
 import Agda.Syntax.Notation
+import Agda.Syntax.Parser (agdaFileExtensions)
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract as A
@@ -62,7 +63,6 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Scope.Monad (isDatatypeModule, resolveName', tryResolveName)
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.TopLevelModuleName (moduleNameToFileName)
-import Agda.Syntax.Parser.Literate (literateExtsShortList)
 
 import Agda.TypeChecking.Errors.Names (typeErrorString)
 import Agda.TypeChecking.Monad
@@ -1741,15 +1741,14 @@ instance PrettyTCM TypeError where
 
 {-# SPECIALIZE prettyPossibleFilesForModule :: TopLevelModuleName -> List1 AbsolutePath -> TCM Doc #-}
 prettyPossibleFilesForModule :: MonadPretty m => TopLevelModuleName -> List1 AbsolutePath -> m Doc
-prettyPossibleFilesForModule m dirs = do
-    nest 2 $ vcat $ map text $
-      [ filePath dir </> file
+prettyPossibleFilesForModule m dirs = vcat
+    [ nest 2 $ vcat $ map text $
+      [ filePath dir </> moduleNameToFileName m ".AGDA"
       | dir  <- List1.toList dirs
-      , file <- map (moduleNameToFileName m) parseFileExtsShortList
       ]
-  where
-    parseFileExtsShortList :: [String]
-    parseFileExtsShortList = ".agda" : List1.toList literateExtsShortList
+    , "where .AGDA denotes a legal extension for an Agda file"
+    , parens $ fsep $ pwords "i.e., one of" ++ map text agdaFileExtensions
+    ]
 
 -- | Pretty-print error 'ShadowedModule' and return the range of the shadowed module.
 {-# SPECIALIZE prettyShadowedModule :: C.Name -> List1 A.ModuleName -> TCM (TCM Doc, Range) #-}

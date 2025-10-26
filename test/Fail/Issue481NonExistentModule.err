@@ -1,11 +1,11 @@
 Issue481NonExistentModule.agda:4.6-30: error: [FileNotFound]
 Failed to find source of module NonExistentModule in any of the
 following locations:
-  ../NonExistentModule.agda
-  ../NonExistentModule.lagda
-  NonExistentModule.agda
-  NonExistentModule.lagda
-  agda-default-include-path/NonExistentModule.agda
-  agda-default-include-path/NonExistentModule.lagda
+  ../NonExistentModule.AGDA
+  NonExistentModule.AGDA
+  agda-default-include-path/NonExistentModule.AGDA
+where .AGDA denotes a legal extension for an Agda file
+(i.e., one of .agda .lagda .lagda.rst .lagda.tex .lagda.md
+ .lagda.org .lagda.tree .lagda.typ)
 when scope checking the declaration
   import NonExistentModule as .#NonExistentModule-4871442055463982176

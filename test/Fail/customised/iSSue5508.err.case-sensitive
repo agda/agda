@@ -2,8 +2,8 @@ customised/iSSue5508.agda:6.8-17: error: [ModuleNameDoesntMatchFileName]
 The name 'Issue5508' of the top level module does not match the
 file name. A such named module should be defined in one of the
 following files:
-  customised/Issue5508.agda
-  customised/Issue5508.lagda
-  agda-default-include-path/Issue5508.agda
-  agda-default-include-path/Issue5508.lagda
-
+  customised/Issue5508.AGDA
+  agda-default-include-path/Issue5508.AGDA
+where .AGDA denotes a legal extension for an Agda file
+(i.e., one of .agda .lagda .lagda.rst .lagda.tex .lagda.md
+ .lagda.org .lagda.tree .lagda.typ)

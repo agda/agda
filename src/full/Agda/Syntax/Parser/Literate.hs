@@ -4,7 +4,6 @@
 
 module Agda.Syntax.Parser.Literate
   ( literateProcessors
-  , literateExtsShortList
   , literateTeX
   , literateRsT
   , literateMd
@@ -32,9 +31,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 
 import Agda.Utils.List
-import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -138,12 +135,6 @@ bleach = map $ \ c -> if isSpace c && c /= '\t' then c else ' '
 
 isBlank :: Char -> Bool
 isBlank = (&&) <$> isSpace <*> (/= '\n')
-
--- | Short list of extensions for literate Agda files.
---   For display purposes.
-
-literateExtsShortList :: List1 String
-literateExtsShortList = singleton ".lagda"
 
 -- | Returns a tuple consisting of the first line of the input, and the rest
 --   of the input.

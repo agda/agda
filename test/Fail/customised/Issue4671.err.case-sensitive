@@ -1,9 +1,10 @@
 customised/Issue4671.agda:1.1-22: error: [FileNotFound]
 Failed to find source of module Agda.PRIMITIVE in any of the
 following locations:
-  customised/Agda/PRIMITIVE.agda
-  customised/Agda/PRIMITIVE.lagda
-  agda-default-include-path/Agda/PRIMITIVE.agda
-  agda-default-include-path/Agda/PRIMITIVE.lagda
+  customised/Agda/PRIMITIVE.AGDA
+  agda-default-include-path/Agda/PRIMITIVE.AGDA
+where .AGDA denotes a legal extension for an Agda file
+(i.e., one of .agda .lagda .lagda.rst .lagda.tex .lagda.md
+ .lagda.org .lagda.tree .lagda.typ)
 when scope checking the declaration
   import Agda.PRIMITIVE

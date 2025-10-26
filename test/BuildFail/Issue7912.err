@@ -5,7 +5,8 @@ Error raised at (typeError, src/full/Agda/Interaction/FindFile.hs:«line»:«col
 The name 'Definitely-not-F' of the top level module does not match
 the file name. A such named module should be defined in one of the
 following files:
-  ../BuildFail/Issue7912/Definitely-not-F.agda
-  ../BuildFail/Issue7912/Definitely-not-F.lagda
-  agda-default-include-path/Definitely-not-F.agda
-  agda-default-include-path/Definitely-not-F.lagda
+  ../BuildFail/Issue7912/Definitely-not-F.AGDA
+  agda-default-include-path/Definitely-not-F.AGDA
+where .AGDA denotes a legal extension for an Agda file
+(i.e., one of .agda .lagda .lagda.rst .lagda.tex .lagda.md
+ .lagda.org .lagda.tree .lagda.typ)

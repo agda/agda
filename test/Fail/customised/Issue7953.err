@@ -2,9 +2,10 @@
 The inferred name 'Test' of the top level module does not match the
 file name. A such named module should be defined in one of the
 following files:
-  customised/Test.agda
-  customised/Test.lagda
-  agda-default-include-path/Test.agda
-  agda-default-include-path/Test.lagda
+  customised/Test.AGDA
+  agda-default-include-path/Test.AGDA
+where .AGDA denotes a legal extension for an Agda file
+(i.e., one of .agda .lagda .lagda.rst .lagda.tex .lagda.md
+ .lagda.org .lagda.tree .lagda.typ)
 (Hint: no module header was found in this file; adding one might
 fix this error.)
