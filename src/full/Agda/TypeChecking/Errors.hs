@@ -222,6 +222,8 @@ instance PrettyTCM TypeError where
 
     GenericDocError d -> return d
 
+    GeneralizationFailed d -> return d
+
     ExecError err -> prettyTCM err
 
     NicifierError err -> pretty err

@@ -5431,6 +5431,7 @@ data TypeError
             -- ^ Some names are bound several times by an @import@/@open@ directive.
         | RepeatedVariablesInPattern (List1 C.Name)
         | CannotGeneralizeEtaExpandable A.QName Type
+        | GeneralizationFailed Doc
         | GeneralizeNotSupportedHere A.QName
         | GeneralizedVarInLetOpenedModule A.QName
         | MultipleFixityDecls (List1 (C.Name, Pair Fixity'))

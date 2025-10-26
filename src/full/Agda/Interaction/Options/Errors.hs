@@ -160,6 +160,7 @@ data ErrorName
   | FileNotFound_
   | ForcedConstructorNotInstantiated_
   | FunctionTypeInSizeUniv_
+  | GeneralizationFailed_
   | GeneralizeCyclicDependency_
   | GeneralizeNotSupportedHere_
   | GeneralizedVarInLetOpenedModule_

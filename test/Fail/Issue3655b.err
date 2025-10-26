@@ -1,4 +1,4 @@
-Issue3655b.agda:19.9-10: error: [GenericDocError]
+Issue3655b.agda:19.9-10: error: [GeneralizationFailed]
 Variable generalization failed.
   - Probable cause
       There were unsolved constraints that obscured the dependencies
