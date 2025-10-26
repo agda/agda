@@ -797,7 +797,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
             , singPlural late (<> "s") id "depend"  -- NB: this is a singular "s"
             , "on", commas $ Set.toList early
             ]
-      genericDocError =<< vcat
+      typeError . GeneralizationFailed =<< vcat
         [ fwords $ "Variable generalization failed."
         , nest 2 $ sep ["- Probable cause", nest 4 $ fwords cause]
         , nest 2 $ sep ["- Suggestion", nest 4 $ fwords solution]
