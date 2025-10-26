@@ -21,7 +21,7 @@ unquoteDef id-ok = defineFun id-ok (idClause-ok ∷ [])
 idClause-fail : Clause
 idClause-fail = clause
              (("A" , hArg (agda-sort (lit 0))) ∷ ("x" , vArg (var 0 [])) ∷ [])
-             ({-hArg (var 1) ∷-} vArg (var 0) ∷ [])
+             ({-hArg (var 1) ∷-} vArg (var 0) ∷ [])  -- "A" (var 1) not bound here
              (var 0 [])
 
 id-fail : {A : Set} → A → A

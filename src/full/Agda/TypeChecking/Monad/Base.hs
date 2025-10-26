@@ -5493,6 +5493,7 @@ data TypeError
         | UnquoteFailed UnquoteError
         | DeBruijnIndexOutOfScope Nat Telescope [Name]
             -- ^ The list can be empty.
+        | MissingBindingsForTelescopeVariables (List1 Text)
     -- Language option errors
         | NeedOptionAllowExec
         | NeedOptionCopatterns

@@ -1291,6 +1291,12 @@ instance PrettyTCM TypeError where
         nameCxt (x : xs) = ExtendTel (defaultDom (El __DUMMY_SORT__ $ I.var 0)) $
           NoAbs (P.prettyShow x) $ nameCxt xs
 
+    MissingBindingsForTelescopeVariables xs -> vcat
+      [ fsep [ "Missing", pluralS xs "binding", "for", "telescope", pluralS xs "variable" ]
+        <?> (fsep (punctuate ", " $ fmap (text . Text.unpack) xs) <> ".")
+      , "All variables in the clause telescope must be bound in the left-hand side."
+      ]
+
     NeedOptionAllowExec -> fsep $
       pwords "Option --allow-exec needed to call external commands from macros"
 

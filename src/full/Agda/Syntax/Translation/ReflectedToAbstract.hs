@@ -298,12 +298,8 @@ instance ToAbstract (List1 (QNamed R.Clause)) where
 checkClauseTelescopeBindings :: MonadReflectedToAbstract m => [(Text, Arg R.Type)] -> [Arg R.Pattern] -> m ()
 checkClauseTelescopeBindings tel pats =
   case reverse [ x | ((x, _), i) <- zip (reverse tel) [0..], not $ Set.member i bs ] of
-    [] -> return ()
-    xs -> genericDocError $ vcat
-      [ fsep (pwords "Missing bindings for telescope" ++ [ pluralS xs "variable" ])
-        <?> (fsep (punctuate ", " $ map (text . Text.unpack) xs) <> ".")
-      , "All variables in the clause telescope must be bound in the left-hand side."
-      ]
+    []   -> return ()
+    x:xs -> typeError $ MissingBindingsForTelescopeVariables (x :| xs)
   where
     bs = boundVars pats
 

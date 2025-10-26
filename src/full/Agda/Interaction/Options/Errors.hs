@@ -193,6 +193,7 @@ data ErrorName
   | MetaErasedSolution_
   | MetaIrrelevantSolution_
   | MismatchedProjectionsError_
+  | MissingBindingsForTelescopeVariables_
   | MissingTypeSignature_ DataRecOrFun_
   | ModuleArityMismatch_
   | ModuleDefinedInOtherFile_

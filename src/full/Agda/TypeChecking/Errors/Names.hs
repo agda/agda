@@ -147,6 +147,7 @@ typeErrorName = \case
   MetaErasedSolution                                         {} -> MetaErasedSolution_
   MetaIrrelevantSolution                                     {} -> MetaIrrelevantSolution_
   MismatchedProjectionsError                                 {} -> MismatchedProjectionsError_
+  MissingBindingsForTelescopeVariables                       {} -> MissingBindingsForTelescopeVariables_
   ModuleArityMismatch                                        {} -> ModuleArityMismatch_
   ModuleDefinedInOtherFile                                   {} -> ModuleDefinedInOtherFile_
   ModuleNameDoesntMatchFileName                              {} -> ModuleNameDoesntMatchFileName_
