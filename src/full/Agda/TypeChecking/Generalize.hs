@@ -499,6 +499,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
   | all isGeneralized metas = return ()
   | otherwise               = prune [] genTel metas
   where
+    prune :: ListTel -> Telescope -> [MetaId] -> TCM ()
     prune _ _ [] = return ()
     prune cxt tel (x : xs) | not (isGeneralized x) = do
       -- If x is a blocked term we shouldn't instantiate it.
@@ -535,6 +536,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
 
     -- If one of the fields depend on this meta, we have to make sure that this meta doesn't depend
     -- on any variables introduced after the genRec. See test/Fail/Issue3672b.agda for a test case.
+    prePrune :: MetaId -> TCM MetaId
     prePrune x = do
       cp <- viewTC eCurrentCheckpoint
       mv <- lookupLocalMeta x
@@ -563,7 +565,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           Just (j, _) | j < i -> prepruneErrorCyclicDependencies x
           _                   -> return ()
 
-        -- If it doesn't we can strenghten it to the current context (this is done by
+        -- If it doesn't we can strengthen it to the current context (this is done by
         -- newMetaFromOld).
         --   Γ (r : GenRec) ⊢ ρ : Γ (r : GenRec) Δ
         let ρ  = strengthenS impossible i
@@ -587,6 +589,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           setInteractionPoint x y
           return y
 
+    pruneMeta :: Telescope -> MetaId -> TCM ()
     pruneMeta _Θ x = do
       cp <- viewTC eCurrentCheckpoint
       mv <- lookupLocalMeta x
@@ -738,6 +741,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
                             (jComparison $ mvJudgement mv) _Aρ
 
     -- If x is a hole, update the hole to point to y instead.
+    setInteractionPoint :: MetaId -> MetaId -> TCM ()
     setInteractionPoint x y =
       whenJust (Map.lookup x interactionPoints) (`connectInteractionPoint` y)
 
@@ -756,6 +760,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         unwrapSort (Sort s) = s
         unwrapSort _        = __IMPOSSIBLE__
 
+    niceError :: MetaId -> Term -> TCErr -> TCM a
     niceError x u err = do
       u <- instantiateFull u
       let err' = case err of
@@ -802,6 +807,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
                          [ nest 2 $ "-" <+> sep [ fwords "The dependency error is", prettyTCM err' ] ]
         ]
 
+    addNamedVariablesToScope :: Context -> TCM ()
     addNamedVariablesToScope cxt =
       forM_ cxt $ \ (CtxVar x _) -> do
         -- Recognize named variables by lack of '.' (TODO: hacky!)
