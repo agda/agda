@@ -21,8 +21,9 @@ import Data.Function (on)
 
 import Agda.Interaction.Options.Base
 
-import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Name qualified as C
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
@@ -48,7 +49,8 @@ import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
 import Agda.Utils.Functor
 import Agda.Utils.List
-import Agda.Utils.List1 (pattern (:|))
+import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.List2 (List2(List2))
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -906,12 +908,12 @@ bindBuiltin b x = do
 isUntypedBuiltin :: BuiltinId -> Bool
 isUntypedBuiltin = hasElem [ builtinFromNat, builtinFromNeg, builtinFromString ]
 
-bindUntypedBuiltin :: BuiltinId -> ResolvedName -> TCM ()
-bindUntypedBuiltin b = \case
+bindUntypedBuiltin :: BuiltinId -> C.QName -> ResolvedName -> TCM ()
+bindUntypedBuiltin b qx = \case
   DefinedName _ x NoSuffix -> bind x
   DefinedName _ x Suffix{} -> wrong
   FieldName (x :| [])  -> bind x
-  FieldName (x :| _)   -> amb x
+  FieldName xs         -> err xs
   VarName _x _bnd      -> wrong
   UnknownName          -> wrong
   ConstructorName _ xs -> err xs
@@ -920,9 +922,9 @@ bindUntypedBuiltin b = \case
   bind x = bindBuiltinName b (Def (anameName x) [])
   wrong  = typeError $ BuiltinMustBeDef b
   amb x  = genericDocError =<< do text "Name " <+> prettyTCM x <+> text " is ambiguous"
-  err (x :| xs1)
-    | null xs1  = wrong
-    | otherwise = amb x
+  err :: List1 AbstractName -> TCM ()
+  err (x :| []) = wrong
+  err (x :| y : zs) = typeError $ AmbiguousName qx $ AmbiguousDeclName $ List2 x y zs
 
 -- | Bind a builtin thing to a new name.
 --

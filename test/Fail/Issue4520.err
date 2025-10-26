@@ -1,4 +1,16 @@
-Issue4520.agda:20.1-32: error: [GenericDocError]
-Name  fromNat  is ambiguous
+Issue4520.agda:20.1-32: error: [AmbiguousName]
+Ambiguous name fromNat. It could refer to any one of
+  fromNat bound at
+    agda-default-include-path/Agda/Builtin/FromNat.agda:11.5-12
+  fromNat bound at Issue4520.agda:17.5-12
+fromNat is in scope as
+  * a record field Agda.Builtin.FromNat._.fromNat
+    brought into scope by
+    - the opening of Agda.Builtin.FromNat at Issue4520.agda:7.13-33
+    - the application of Number at agda-default-include-path/Agda/Builtin/FromNat.agda:13.6-12
+    - its definition at agda-default-include-path/Agda/Builtin/FromNat.agda:11.5-12
+  * a record field Issue4520._.fromNat brought into scope by
+    - the application of FromNat at Issue4520.agda:18.6-13
+    - its definition at Issue4520.agda:17.5-12
 when scope checking the declaration
   {-# BUILTIN FROMNAT fromNat #-}

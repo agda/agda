@@ -2880,7 +2880,7 @@ instance ToAbstract C.Pragma where
   toAbstract pragma@(C.BuiltinPragma _ rb qx)
     | Just b' <- b, isUntypedBuiltin b' = do
         q <- resolveQName qx
-        bindUntypedBuiltin b' q
+        bindUntypedBuiltin b' qx q
         return [ A.BuiltinPragma rb q ]
         -- Andreas, 2015-02-14
         -- Some builtins cannot be given a valid Agda type,
