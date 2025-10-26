@@ -5432,6 +5432,7 @@ data TypeError
         | RepeatedVariablesInPattern (List1 C.Name)
         | CannotGeneralizeEtaExpandable A.QName Type
         | GeneralizationFailed Doc
+        | GeneralizationPrepruneError Doc
         | GeneralizeNotSupportedHere A.QName
         | GeneralizedVarInLetOpenedModule A.QName
         | MultipleFixityDecls (List1 (C.Name, Pair Fixity'))

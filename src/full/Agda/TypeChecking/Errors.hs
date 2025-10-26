@@ -224,6 +224,16 @@ instance PrettyTCM TypeError where
 
     GeneralizationFailed d -> return d
 
+    GeneralizationPrepruneError d -> vcat
+      [ fsep $ concat
+        [ pwords "Congratulations, you have hit a so far unreproduced error in generalization!"
+        , pwords "Please submit your self-contained reproducer (max 50 lines) at"
+        , [ url "https://github.com/agda/agda/issues/8161" ]
+        , pwords "to earn a honorable mention in the next Agda release."
+        ]
+      , pure d
+      ]
+
     ExecError err -> prettyTCM err
 
     NicifierError err -> pretty err

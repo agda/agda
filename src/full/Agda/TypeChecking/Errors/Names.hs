@@ -117,6 +117,7 @@ typeErrorName = \case
   ForcedConstructorNotInstantiated                           {} -> ForcedConstructorNotInstantiated_
   FunctionTypeInSizeUniv                                     {} -> FunctionTypeInSizeUniv_
   GeneralizationFailed                                       {} -> GeneralizationFailed_
+  GeneralizationPrepruneError                                {} -> GeneralizationPrepruneError_
   GeneralizeCyclicDependency                                 {} -> GeneralizeCyclicDependency_
   GeneralizeNotSupportedHere                                 {} -> GeneralizeNotSupportedHere_
   GeneralizedVarInLetOpenedModule                            {} -> GeneralizedVarInLetOpenedModule_
