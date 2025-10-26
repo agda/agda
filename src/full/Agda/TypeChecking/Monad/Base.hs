@@ -5390,15 +5390,17 @@ data TypeError
           --   without user interaction.
         | CyclicModuleDependency (List2 TopLevelModuleName)
             -- ^ The cycle starts and ends with the same module.
-        | FileNotFound TopLevelModuleName [AbsolutePath]
-            -- ^ The list can be empty.
+        | FileNotFound TopLevelModuleName (List1 AbsolutePath)
+            -- ^ No file for the module was found when searching
+            --   in the given list of include directories.
         | OverlappingProjects AbsolutePath TopLevelModuleName TopLevelModuleName
         | AmbiguousTopLevelModuleName TopLevelModuleName (List2 AbsolutePath)
             -- ^ The given module has at least 2 file locations.
         | ModuleNameUnexpected TopLevelModuleNameWithSourceFile TopLevelModuleName
           -- ^ Found module name, expected module name.
-        | ModuleNameDoesntMatchFileName TopLevelModuleName [AbsolutePath]
-            -- ^ The list can be empty.
+        | ModuleNameDoesntMatchFileName TopLevelModuleName (List1 AbsolutePath)
+            -- ^ No matching file for the module was found when searching
+            --   in the given list of include directories.
         | ModuleDefinedInOtherFile TopLevelModuleName AbsolutePath AbsolutePath
           -- ^ Module name, file from which it was loaded, file which
           -- the include path says contains the module.

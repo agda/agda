@@ -61,6 +61,8 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Scope.Monad (isDatatypeModule, resolveName', tryResolveName)
 import Agda.Syntax.Scope.Base
+import Agda.Syntax.TopLevelModuleName (moduleNameToFileName)
+import Agda.Syntax.Parser.Literate (literateExtsShortList)
 
 import Agda.TypeChecking.Errors.Names (typeErrorString)
 import Agda.TypeChecking.Monad
@@ -752,10 +754,10 @@ instance PrettyTCM TypeError where
       fsep (pwords "cyclic module dependency:")
         $$ nest 2 (vcat $ (prettyTCM m0 :) $ map (("importing" <+>) . prettyTCM) (m1 : ms))
 
-    FileNotFound x files ->
+    FileNotFound x dirs ->
       fsep ( pwords "Failed to find source of module" ++ [pretty x] ++
              pwords "in any of the following locations:"
-           ) $$ nest 2 (vcat $ map (text . filePath) files)
+           ) $$ prettyPossibleFilesForModule x dirs
 
     OverlappingProjects f m1 m2
       | canon d1 == canon d2 -> fsep $ concat
@@ -858,7 +860,7 @@ instance PrettyTCM TypeError where
         " and " ++ prettyShow raw' ++ " (you may want to consider " ++
         "renaming one of these modules)"
 
-    ModuleNameDoesntMatchFileName given files -> vcat
+    ModuleNameDoesntMatchFileName given dirs -> vcat
       [ fsep $ concat
         [ [ "The" ]
         , [ "inferred" | moduleNameInferred given ]
@@ -868,7 +870,7 @@ instance PrettyTCM TypeError where
         , pwords "does not match the file name."
         , pwords "A such named module should be defined in one of the following files:"
         ]
-      , nest 2 (vcat $ map (text . filePath) files)
+      , prettyPossibleFilesForModule given dirs
       , if moduleNameInferred given then fsep $
           pwords "(Hint: no module header was found in this file; adding one might fix this error.)"
         else empty
@@ -1736,6 +1738,18 @@ instance PrettyTCM TypeError where
     prettyPat _ (I.LitP _ l) = prettyTCM l
     prettyPat _ (I.ProjP _ p) = "." <> prettyTCM p
     prettyPat _ (I.IApplyP _ _ _ _) = "_"
+
+{-# SPECIALIZE prettyPossibleFilesForModule :: TopLevelModuleName -> List1 AbsolutePath -> TCM Doc #-}
+prettyPossibleFilesForModule :: MonadPretty m => TopLevelModuleName -> List1 AbsolutePath -> m Doc
+prettyPossibleFilesForModule m dirs = do
+    nest 2 $ vcat $ map text $
+      [ filePath dir </> file
+      | dir  <- List1.toList dirs
+      , file <- map (moduleNameToFileName m) parseFileExtsShortList
+      ]
+  where
+    parseFileExtsShortList :: [String]
+    parseFileExtsShortList = ".agda" : List1.toList literateExtsShortList
 
 -- | Pretty-print error 'ShadowedModule' and return the range of the shadowed module.
 {-# SPECIALIZE prettyShadowedModule :: C.Name -> List1 A.ModuleName -> TCM (TCM Doc, Range) #-}
