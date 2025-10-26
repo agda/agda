@@ -133,6 +133,10 @@ Library management
 Interaction and emacs mode
 --------------------------
 
+* Syntax highlighting and go-to-definition now also works in the Agda
+  information buffer in Emacs where goals etc. are displayed.
+  This fixes long-standing [Issue #706](https://github.com/agda/agda/issues/706).
+
 * By temporarily turning on printing of hidden arguments
   (`OPTION --show-implicit`, `C-c C-x C-h` in Emacs)
   and then splitting on result in a hole
