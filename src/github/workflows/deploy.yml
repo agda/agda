@@ -257,7 +257,7 @@ jobs:
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v5
       with:
         path: ${{ steps.vars.outputs.filename }}
         name: ${{ steps.vars.outputs.filename }}
@@ -313,7 +313,7 @@ jobs:
         echo "filename        = ${{ steps.vars.outputs.filename       }}"
         echo "decompress-cmd  = ${{ steps.vars.outputs.decompress-cmd }}"
 
-    - uses: actions/download-artifact@v5
+    - uses: actions/download-artifact@v6
       with:
         name: ${{ steps.vars.outputs.filename }}
 
@@ -343,7 +343,7 @@ jobs:
       with:
         sparse-checkout: .
 
-    - uses: actions/download-artifact@v5
+    - uses: actions/download-artifact@v6
       with:
         path: artifacts
 
