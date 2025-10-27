@@ -543,11 +543,11 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
   OccursAs (InDefOf q) <$> case theDef def of
 
     Function{funClauses = cs} -> do
-      cs <- mapM etaExpandClause =<< instantiateFull cs
+      cs <- mapM etaExpandClause cs
       Concat . zipWith (OccursAs . InClause) [0..] <$>
         mapM (getOccurrences []) cs
 
-    Datatype{dataClause = Just c} -> getOccurrences [] =<< instantiateFull c
+    Datatype{dataClause = Just c} -> getOccurrences [] c
     Datatype{dataPars = np0, dataCons = cs, dataTranspIx = trx} -> do
       -- Andreas, 2013-02-27 (later edited by someone else): First,
       -- include each index of an inductive family.
@@ -614,7 +614,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       -- positivity.
       mconcat $ pure ioccs : map conOcc (cs ++ maybeToList trx)
 
-    Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
+    Record{recClause = Just c} -> getOccurrences [] c
     Record{recPars = np, recTel = tel} -> do
       let (tel0,tel1) = splitTelescopeAt np tel
       pvars <- parametersToItems tel0 np

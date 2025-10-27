@@ -1408,7 +1408,7 @@ buildInterface src topLevel = do
           , iImportedModules      = mhs
           , iModuleName           = mname
           , iTopLevelModuleName   = srcModuleName src
-          , iScope                = empty -- publicModules scope
+          , iScope                = empty -- can be computed as "publicModules iInsideScope"
           , iInsideScope          = scope
           , iSignature            = sig
           , iMetaBindings         = solvedMetas
@@ -1427,12 +1427,7 @@ buildInterface src topLevel = do
           , iOpaqueBlocks         = opaqueBlocks
           , iOpaqueNames          = opaqueIds
           }
-    !i <-
-      ifM (optSaveMetas <$> pragmaOptions)
-        (return i)
-        (do reportSLn "import.iface" 7
-              "  instantiating all metavariables in interface"
-            Bench.billTo [Bench.InterfaceInstantiateFull] $ liftReduce $ instantiateFull' i)
+
     reportSLn "import.iface" 7 "  interface complete"
     return i
 

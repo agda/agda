@@ -181,10 +181,10 @@ checkAlias t ai i name e mc =
 
   solveSizeConstraints DontDefaultToInfty
 
-  v <- instantiateFull v  -- if we omit this, we loop (stdlib: Relation.Binary.Sum)
-    -- or the termination checker might stumble over levels in sorts
-    -- that cannot be converted to expressions without the level built-ins
-    -- (test/succeed/Issue655.agda)
+  -- v <- instantiateFull v  -- if we omit this, we loop (stdlib: Relation.Binary.Sum)
+  --   -- or the termination checker might stumble over levels in sorts
+  --   -- that cannot be converted to expressions without the level built-ins
+  --   -- (test/succeed/Issue655.agda)
 
   -- compute body modification for irrelevant definitions, see issue 610
   let bodyMod = applyWhen (isIrrelevant ai) dontCare
@@ -350,8 +350,8 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
           ismacro  = isMacro (theDef info)
           isinline = isInlineFun (theDef info)
 
-        -- Annotate the clauses with which arguments are actually used.
-        cs <- instantiateFull {- =<< mapM rebindClause -} cs
+        -- -- Annotate the clauses with which arguments are actually used.
+        -- cs <- instantiateFull {- =<< mapM rebindClause -} cs
 
         -- Andreas, 2010-11-12
         -- rebindClause is the identity, and instantiateFull eta-contracts

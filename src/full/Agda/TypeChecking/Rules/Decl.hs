@@ -162,8 +162,29 @@ checkDecls ds = do
   reportSLn "tc.decl" 45 $ "Checking " ++ show (length ds) ++ " declarations..."
   mapM_ checkDecl ds
 
--- | Type check a single declaration.
+-- Andreas, 2014-04-11
+-- UNUSED, costs a couple of sec on the std-lib
+-- -- | Instantiate all metas in 'Definition' associated to 'QName'.
+-- --   Makes sense after freezing metas.
+-- --   Some checks, like free variable analysis, are not in 'TCM',
+-- --   so they will be more precise (see issue 1099) after meta instantiation.
+-- | Instantiate metas in new definitions at the end of a mutual block.
+instantiateNewDefinitions :: [QName] -> TCM ()
+instantiateNewDefinitions xs = forM_ xs \x -> do
+  reportSLn "tc.decl.inst" 20 $ "instantiating " ++ prettyShow x
+  s <- getSignature
+  d' <- instantiateFull $ fromMaybe __IMPOSSIBLE__ (lookupDefinition x s)
+  setSignature $! updateDefinition x (\_ -> d') s
 
+instantiateNewSection :: ModuleName -> TCM ()
+instantiateNewSection x = do
+  reportSLn "tc.decl.inst" 20 $ "instantiating " ++ prettyShow x
+  s <- getSignature
+  let secs = _sigSections s
+  sec <- instantiateFull $ fromMaybe __IMPOSSIBLE__ $ MapS.lookup x secs
+  setSignature $! s {_sigSections = MapS.insert x sec secs}
+
+-- | Type check a single declaration.
 checkDecl :: A.Declaration -> TCM ()
 checkDecl d = setCurrentRange d $ do
     reportSDoc "tc.decl" 10 $ "checking declaration"
@@ -173,25 +194,27 @@ checkDecl d = setCurrentRange d $ do
 
     let -- What kind of final checks/computations should be performed
         -- if we're not inside a mutual block?
-        none        m = m $>  Nothing           -- skip all checks
-        meta        m = m $>  Just (return ())  -- do the usual checks
-        mutual i ds m = m <&> Just . uncurry (mutualChecks i d ds)
-        impossible  m = m $>  __IMPOSSIBLE__
-                        -- We're definitely inside a mutual block.
+        none         m    = m $>  Nothing                              -- skip all checks
+        meta         m    = m $>  Just (pure ())                       -- basic checks
+        newdef  x    m    = m $>  Just (instantiateNewDefinitions [x]) -- basic checks + new defs
+        newsection x m    = m $>  Just (instantiateNewSection x)       -- basic checks + new section
+        mutual i ds  m    = m <&> Just . uncurry (mutualChecks i d ds) -- basic checks + new defs + mutual checks
+        impossible   m    = m $>  __IMPOSSIBLE__
+                           -- We're definitely inside a mutual block.
 
     (finalChecks, metas) <- metasCreatedBy $ case d of
-      A.Axiom{}                -> meta $ checkTypeSignature d
-      A.Generalize s i info x e -> meta $ inConcreteMode $ checkGeneralize s i info x e
-      A.Field{}                -> typeError FieldOutsideRecord
-      A.Primitive i x e        -> meta $ checkPrimitive i x e
-      A.Mutual i ds            -> mutual i ds $ checkMutual i ds
-      A.Section _r er x tel ds -> meta $ checkSection er x tel ds
-      A.Apply i er x mapp ci d -> meta $ checkSectionApplication i er x mapp ci d
-      A.Import _ _ dir         -> none $ checkImportDirective dir
-      A.Pragma i p             -> none $ checkPragma i p
-      A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
-      A.FunDef i x cs          -> impossible $ check x i $ checkFunDef i x $ List1.toList cs
-      A.DataDef i x uc ps cs   -> impossible $ check x i $ checkDataDef i x uc ps cs
+      A.Axiom _ _ _ _ x _       -> newdef x $ checkTypeSignature d
+      A.Generalize s i info x e -> newdef x $ inConcreteMode $ checkGeneralize s i info x e
+      A.Field{}                 -> typeError FieldOutsideRecord
+      A.Primitive i x e         -> newdef x $ checkPrimitive i x e
+      A.Mutual i ds             -> mutual i ds $ checkMutual i ds
+      A.Section _r er x tel ds  -> newsection x $ checkSection er x tel ds
+      A.Apply i er x mapp ci d  -> meta $ checkSectionApplication i er x mapp ci d
+      A.Import _ _ dir          -> none $ checkImportDirective dir
+      A.Pragma i p              -> none $ checkPragma i p
+      A.ScopedDecl scope ds     -> none $ setScope scope >> mapM_ checkDeclCached ds
+      A.FunDef i x cs           -> impossible $ check x i $ checkFunDef i x $ List1.toList cs
+      A.DataDef i x uc ps cs    -> impossible $ check x i $ checkDataDef i x uc ps cs
       A.RecDef i x uc dir ps tel cs -> impossible $ check x i $ do
                                     checkRecDef i x uc dir ps tel cs
                                     blockId <- defMutual <$> getConstInfo x
@@ -296,8 +319,10 @@ checkDecl d = setCurrentRange d $ do
 mutualChecks :: Info.MutualInfo -> A.Declaration -> [A.Declaration] -> MutualId -> Set QName -> TCM ()
 mutualChecks mi d ds mid names = do
   -- Andreas, 2014-04-11: instantiate metas in definition types
+  -- András, 2025-10-27: instantiate metas everywhere in new definitions
   let nameList = Set.toList names
-  mapM_ instantiateDefinitionType nameList
+  instantiateNewDefinitions nameList
+
   -- Andreas, 2017-03-23: check positivity before termination.
   -- This allows us to reuse the information about SCCs
   -- to skip termination of non-recursive functions.
@@ -391,38 +416,6 @@ unquoteTop xs e = do
   case res of
     Left err      -> typeError $ UnquoteFailed err
     Right (_, xs) -> return xs
-
--- | Instantiate all metas in 'Definition' associated to 'QName'.
---   Makes sense after freezing metas. Some checks, like free variable
---   analysis, are not in 'TCM', so they will be more precise (see issue 1099)
---   after meta instantiation.
---   Precondition: name has been added to signature already.
-instantiateDefinitionType :: QName -> TCM ()
-instantiateDefinitionType q = do
-  reportSLn "tc.decl.inst" 20 $ "instantiating type of " ++ prettyShow q
-  t  <- defType . fromMaybe __IMPOSSIBLE__ . lookupDefinition q <$> getSignature
-  t' <- instantiateFull t
-  modifySignature $ updateDefinition q $ updateDefType $ const t'
-  reportSDoc "tc.decl.inst" 30 $ vcat
-    [ "  t  = " <+> prettyTCM t
-    , "  t' = " <+> prettyTCM t'
-    ]
-
--- Andreas, 2014-04-11
--- UNUSED, costs a couple of sec on the std-lib
--- -- | Instantiate all metas in 'Definition' associated to 'QName'.
--- --   Makes sense after freezing metas.
--- --   Some checks, like free variable analysis, are not in 'TCM',
--- --   so they will be more precise (see issue 1099) after meta instantiation.
--- --
--- --   Precondition: name has been added to signature already.
--- instantiateDefinition :: QName -> TCM ()
--- instantiateDefinition q = do
---   reportSLn "tc.decl.inst" 20 $ "instantiating " ++ prettyShow q
---   sig <- getSignature
---   let def = fromMaybe __IMPOSSIBLE__ $ lookupDefinition q sig
---   def <- instantiateFull def
---   modifySignature $ updateDefinition q $ const def
 
 data HighlightModuleContents = DontHightlightModuleContents | DoHighlightModuleContents
   deriving (Eq)
