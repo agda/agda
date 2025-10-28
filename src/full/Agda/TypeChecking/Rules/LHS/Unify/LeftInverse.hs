@@ -53,25 +53,31 @@ type DigestedUnifyLog = [(DigestedUnifyLogEntry,UnifyState)]
 
 -- | Pre-process a UnifyLog so that we catch unsupported steps early.
 digestUnifyLog :: UnifyLog -> Either NoLeftInv DigestedUnifyLog
-digestUnifyLog log = forM log \(UnificationStep s step out, s') -> do
-  let illegal     = Left $ Illegal step
-      unsupported = Left $ UnsupportedYet step
-      ret step    = pure (DUnificationStep s step out, s')
-  case step of
-    Solution a b c d e   -> ret $ DSolution a b c d e
-    EtaExpandVar a b c   -> ret $ DEtaExpandVar a b c
-    Deletion{}           -> illegal
-    TypeConInjectivity{} -> illegal
-    -- These should end up in a NoUnify
-    Conflict{}    -> __IMPOSSIBLE__
-    LitConflict{} -> __IMPOSSIBLE__
-    Cycle{}       -> __IMPOSSIBLE__
-    _             -> unsupported
+digestUnifyLog log = go log 0 where
+  go :: UnifyLog -> Int -> Either NoLeftInv DigestedUnifyLog
+  go log numSolutions = case log of
+    [] -> pure []
+    (UnificationStep s step out, s'):log -> do
+      let illegal         = Left $ Illegal step
+          unsupported     = Left $ UnsupportedYet step
+          digestStep step = (DUnificationStep s step out, s')
+      case step of
+        Solution a b c d e | numSolutions == 2 -> Left TooManyIndices
+        Solution a b c d e   -> (digestStep (DSolution a b c d e):) <$> go log (numSolutions + 1)
+        EtaExpandVar a b c   -> (digestStep (DEtaExpandVar a b c):) <$> go log numSolutions
+        Deletion{}           -> illegal
+        TypeConInjectivity{} -> illegal
+        -- These should end up in a NoUnify
+        Conflict{}    -> __IMPOSSIBLE__
+        LitConflict{} -> __IMPOSSIBLE__
+        Cycle{}       -> __IMPOSSIBLE__
+        _             -> unsupported
 
 instance PrettyTCM NoLeftInv where
   prettyTCM (UnsupportedYet s) = fsep $ pwords "It relies on" ++ [explainStep s <> ","] ++ pwords "which is not yet supported"
   prettyTCM UnsupportedCxt     = fwords "it relies on higher-dimensional unification, which is not yet supported"
   prettyTCM (Illegal s)        = fsep $ pwords "It relies on" ++ [explainStep s <> ","] ++ pwords "which is incompatible with" ++ [text "Cubical Agda"]
+  prettyTCM TooManyIndices     = fwords "It uses more than two inductive indices"
   prettyTCM NoCubical          = fwords "Cubical Agda is disabled"
   prettyTCM WithKEnabled       = fwords "The K rule is enabled"
   prettyTCM SplitOnStrict      = fwords "It splits on a type in SSet"
@@ -82,6 +88,7 @@ instance PrettyTCM NoLeftInv where
 data NoLeftInv
   = UnsupportedYet {badStep :: UnifyStep}
   | Illegal        {badStep :: UnifyStep}
+  | TooManyIndices
   | NoCubical
   | WithKEnabled
   | SplitOnStrict  -- ^ splitting on a Strict Set.
@@ -442,6 +449,8 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
                  , termsS __IMPOSSIBLE__ $ map unArg tau
                  , termsS __IMPOSSIBLE__ $ map unArg leftInv)
                  , phi)
+
+-- András 2025-10-28: this code is currently unused, it's disabled in digestUnifyLog
 buildEquiv (DUnificationStep st step@(DEtaExpandVar fv _d _args) output) next = runExceptT $ do
         reportSDoc "tc.lhs.unify.inv" 20 "buildEquiv EtaExpandVar"
         let
