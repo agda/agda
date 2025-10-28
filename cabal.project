@@ -1,0 +1,5 @@
+packages:
+  .
+  src/size-solver
+
+write-ghc-environment-files: always
