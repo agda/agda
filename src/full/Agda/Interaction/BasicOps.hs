@@ -99,11 +99,10 @@ import Agda.Utils.Impossible
 parseExpr :: Range -> String -> TCM C.Expr
 parseExpr rng s = do
   (C.ExprWhere e wh, attrs) <-
-    runPM $ parsePosString exprWhereParser pos s
+    runPM $ parseRangeString exprWhereParser rng s
   checkAttributes attrs
   unless (null wh) $ interactionError UnexpectedWhere
   return e
-  where pos = fromMaybe (startPos Nothing) $ rStart rng
 
 parseExprIn :: InteractionId -> Range -> String -> TCM Expr
 parseExprIn ii rng s = do

@@ -38,7 +38,7 @@ import Control.Exception ( displayException )
 import Control.Monad.Except
 import Control.Monad.State
 
-import Data.Maybe ( listToMaybe )
+import Data.Maybe ( listToMaybe, fromMaybe )
 import Data.Word  ( Word32)
 
 import Agda.Interaction.Options.Warnings
@@ -367,6 +367,11 @@ parse flags st p input = parseFromSrc flags st p Strict.Nothing input
 parsePosString :: Position -> ParseFlags -> [LexState] -> Parser a -> String ->
                   ParseResult a
 parsePosString pos flags st p input = unP p (initStatePos pos flags input st)
+
+-- | Calls 'parsePosString' with 'Position' extracted from the Range.
+parseRangeString :: Range -> ParseFlags -> [LexState] -> Parser a -> String ->
+                    ParseResult a
+parseRangeString = parsePosString . fromMaybe (startPos Nothing) . rStart
 
 -- | Parses a string as if it were the contents of the given file
 --   Useful for integrating preprocessors.

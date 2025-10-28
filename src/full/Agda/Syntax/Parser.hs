@@ -3,8 +3,9 @@ module Agda.Syntax.Parser
     ( -- * Types
       Parser
       -- * Parse functions
-    , Agda.Syntax.Parser.parse
-    , Agda.Syntax.Parser.parsePosString
+    , parse
+    , parsePosString
+    , parseRangeString
     , parseFile
       -- * Parsers
     , moduleParser
@@ -35,7 +36,10 @@ import Data.Text.Lazy (Text)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
-import Agda.Syntax.Parser.Monad as M hiding (Parser, parseFlags)
+import Agda.Syntax.Parser.Monad
+  ( ParseError(..), ParseWarning(..), ParseResult(..), ParseFlags, LexState
+  , ParseState (parseWarnings, parseAttributes), defaultParseFlags, parseKeepComments
+  )
 import qualified Agda.Syntax.Parser.Monad as M
 import qualified Agda.Syntax.Parser.Parser as P
 import Agda.Syntax.Parser.Lexer
@@ -46,7 +50,7 @@ import Agda.Syntax.Parser.Tokens
 
 import Agda.Utils.FileName
 import Agda.Utils.IO.UTF8 (readTextFile)
-import Agda.Utils.Maybe   (forMaybe)
+import Agda.Utils.Maybe   (forMaybe, fromMaybe)
 import qualified Agda.Utils.Maybe.Strict as Strict
 
 ------------------------------------------------------------------------
@@ -169,6 +173,10 @@ parseLiterateFile po p path = parseLiterate p p (pure path) . po (startPos' ())
 
 parsePosString :: Parser a -> Position -> String -> PM (a, Attributes)
 parsePosString p pos = wrapM . return . M.parsePosString pos (parseFlags p) normalLexState (parser p)
+
+-- | Calls 'parsePosString' with 'Position' extracted from the Range.
+parseRangeString :: Parser a -> Range -> String -> PM (a, Attributes)
+parseRangeString p = parsePosString p . fromMaybe (startPos Nothing) . rStart
 
 -- | Extensions supported by `parseFile`.
 
