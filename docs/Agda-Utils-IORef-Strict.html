@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Agda.Utils.IORef.Strict</title><link href="linuwial.css" rel="stylesheet" type="text/css" title="Linuwial" /><link rel="stylesheet" type="text/css" href="quick-jump.css" /><link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400i,700" /><script src="haddock-bundle.min.js" async="async" type="text/javascript"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { processClass: "mathjax", ignoreClass: ".*" } });</script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script></head><body><div id="package-header"><span class="caption">Agda</span><ul class="links" id="page-menu"><li><a href="src/Agda.Utils.IORef.Strict.html">Source</a></li><li><a href="index.html">Contents</a></li><li><a href="doc-index.html">Index</a></li></ul></div><div id="content"><div id="module-header"><table class="info"><tr><th>Safe Haskell</th><td>None</td></tr><tr><th>Language</th><td>Haskell2010</td></tr></table><p class="caption">Agda.Utils.IORef.Strict</p></div><div id="table-of-contents"><div id="contents-list"><p class="caption" onclick="window.scrollTo(0,0)">Contents</p><ul><li><a href="#g:strict-45-ioref">Strict IO references </a></li></ul></div></div><div id="description"><p class="caption">Description</p><div class="doc"><p>A variant of <code><a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a></code> that ensures the value stored
+ inside the reference is always in WHNF.</p><p>This module should be imported qualified, ala</p><pre>import qualified Agda.Utils.IORef.Strict as Strict
+</pre></div></div><div id="synopsis"><details id="syn"><summary>Synopsis</summary><ul class="details-toggle" data-details-id="syn"><li class="src short"><span class="keyword">data</span> <a href="#t:IORef">IORef</a> a</li><li class="src short"><a href="#v:newIORef">newIORef</a> :: a -&gt; <a href="https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html#t:IO" title="Prelude">IO</a> (<a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a> a)</li><li class="src short"><a href="#v:readIORef">readIORef</a> :: <a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a> a -&gt; <a href="https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html#t:IO" title="Prelude">IO</a> a</li><li class="src short"><a href="#v:writeIORef">writeIORef</a> :: <a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a> a -&gt; a -&gt; <a href="https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html#t:IO" title="Prelude">IO</a> ()</li><li class="src short"><a href="#v:modifyIORef">modifyIORef</a> :: <a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a> a -&gt; (a -&gt; a) -&gt; <a href="https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html#t:IO" title="Prelude">IO</a> ()</li></ul></details></div><div id="interface"><a href="#g:strict-45-ioref" id="g:strict-45-ioref"><h1>Strict IO references </h1></a><div class="doc"><p>A classic laziness footgun is that <code><a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a></code> does not force
+ values written to it to weak-head normal form. This is a
+ common source of space leaks, as illustrated by the following
+ (somewhat contrived) example:</p><pre>gotcha :: IO ()
+gotcha = do
+  ref &lt;- newIORef 1
+  loop ref (10 ^ 9)
+  n &lt;- readIORef ref
+  print n
+  where
+    loop :: IORef Int -&gt; Int -&gt; IO ()
+    loop ref i =
+      if i == 0 then
+        pure ()
+      else do
+        n &lt;- readIORef ref
+        writeIORef ref (n + 1)
+        loop ref (i - 1)
+</pre><p>As the name suggests, this is a classic example of a space leak.
+ When we start the loop, <code class="inline-code">ref</code> contains 1. At each iteration, we
+ read the contents of <code class="inline-code">ref</code> into <code class="inline-code">n</code>, and write a *thunk* to <code class="inline-code">ref</code>
+ that will compute <code class="inline-code">n + 1</code> when forced. This results in a chain of
+ 1 billion thunks being allocated and kept live until we <code><a href="https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html#v:print" title="Prelude">print</a></code>
+ the value stored in <code class="inline-code">ref</code>, which causes us to force the thunk chain.
+ The solution is to replace <code class="inline-code">writeIORef ref (n + 1)</code> with <code class="inline-code">writeIORef ref $! (n + 1)</code>,
+ which forces the thunk <code class="inline-code">n + 1</code> to weak-heak normal form, which prevents
+ the thunk chain from building up inside of the <code><a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a></code>.</p><p>Lazy IO references can also cause programs to keep data live
+ for much longer than required, leading to memory leaks. The
+ basic anatomy of this class of leaks is something like the following:</p><pre>import Control.Concurrent
+import Data.IORef
+import GHC.Profiling
+import System.Mem
+import System.IO
+
+memoryLeak :: IO ()
+memoryLeak = do
+  let bigList = [1..10 ^ 6]
+  -- Force the spine of the list to make GHC allocate the whole thing.
+  print (length bigList)
+  hFlush stdout
+  -- Make an <code><a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a></code> that uses <code class="inline-code">bigList</code>, and then do some unrelated slow computation.
+  ref &lt;- newIORef (sum bigList)
+  loop 10
+  -- Finally print the value in the reference.
+  n &lt;- readIORef ref
+  putStrLn $! show n
+  where
+    loop :: Int -&gt; IO ()
+    loop 0 = pure ()
+    loop i = do
+      threadDelay (10 ^ 6)
+      performBlockingMajorGC
+      requestHeapCensus
+      putStrLn &quot;Working...&quot;
+      hFlush stdout
+      loop (i - 1)
+</pre><p>If we run this program with <code class="inline-code">+RTS -l -hT -RTS</code> and view the resulting <code class="inline-code">.eventlog</code> file
+ with <a href="https://mpickering.github.io/eventlog2html/">eventlog2html</a>, we will see that
+ <code class="inline-code">bigList</code> is kept live for the duration of <code class="inline-code">loop</code>, despite the repeated calls to
+ <code class="inline-code">performBlockingMajorGC</code>. This is because <code class="inline-code">newIORef (sum bigList)</code> allocates a thunk
+ for <code class="inline-code">sum bigList</code>, which <code class="inline-code">newIORef</code> does not force. This thunk references <code class="inline-code">bigList</code>,
+ so the garbage collector is forced to keep <code class="inline-code">bigList</code> live until we actually force the
+ value stored inside <code class="inline-code">ref</code> by printing it. We can avoid this by replacing the <code class="inline-code">newIORef</code>
+ call with <code class="inline-code">newIORef $! (sum bigList)</code>, which forces the <code class="inline-code">sum bigList</code> thunk to weak-head
+ normal form, which removes the final reference to <code class="inline-code">bigList</code>. The GC will then free it on the
+ first <code class="inline-code">performBlockingMajorGC</code> call.</p><p>These sorts of mistakes are very easy to make, and very hard to diagnose. This
+ module attempts to (partially) solve the problem by providing an opaque wrapper around <code><a href="https://hackage.haskell.org/package/base-4.21.0.0/docs/Data-IORef.html#v:IORef" title="Data.IORef">IORef</a></code>,
+ along with a corresponding API that ensures that the value stored in the reference
+ is always in weak-head normal form.</p><h2>When should I use strict references?</h2><p>The short answer is: &quot;If you are unsure, you should probably use strict references&quot;.</p><p>The less short answer depends on your usage patterns:</p><ul><li>Do you repeatedly read and then write to the reference? If so, you probably
+   want to use strict references to avoid space leaks like the first example.</li><li>Do you use the reference to store things that are computed from things that
+   shouldn't be kept live? If so, you probably want to use strict references to avoid
+   memory leaks like the second example.</li><li>Do you use the reference to store something that is expensive to compute
+   that you rarely use? If so, you might want to use <code><a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a></code> to
+   avoid doing redundant work, though warnings about repeated read/writes and memory
+   leaks still apply.</li></ul><h2>Caveats</h2><p>The API for strict <code><a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a></code> only ensures that the value in the reference is in
+ weak-head normal form, *not* normal form. This is done for the sake of efficiency:
+ using <code><a href="https://hackage.haskell.org/package/deepseq-1.5.1.0/docs/Control-DeepSeq.html#v:NFData" title="Control.DeepSeq">NFData</a></code> to place the value into normal form requires us to
+ fully traverse the value being stored inside of the reference, which can be quite
+ expensive for recursive structures.</p><p>This design decision does lead to some unfortunate gotchas. Namely, if you store
+ a type inside of a strict <code><a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a></code> that has non-strict fields, it is still possible
+ to have space/memory leaks. This is best explained by an example:</p><pre>gotcha :: IO ()
+gotcha = do
+  ref &lt;- Strict.newIORef (Just 1)
+  loop ref (10 ^ 9)
+  n &lt;- Strict.readIORef ref
+  print n
+  where
+    loop :: Strict.IORef (Maybe Int) -&gt; Int -&gt; IO ()
+    loop ref i =
+      if i == 0 then
+        pure ()
+      else do
+        n &lt;- Strict.readIORef ref
+        Strict.writeIORef ref (fmap (+ 1) n)
+        loop ref (i - 1)
+</pre><p>This leaks even though we are using a strict <code><a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a></code>, as <code><a href="Agda-Utils-IORef-Strict.html#v:writeIORef" title="Agda.Utils.IORef.Strict">writeIORef</a></code> only forces the
+ thunk containing the <code><a href="https://hackage.haskell.org/package/base-4.21.0.0/docs/Data-Maybe.html#v:Just" title="Data.Maybe">Just</a></code>, and *not* the thunk stored within the <code><a href="https://hackage.haskell.org/package/base-4.21.0.0/docs/Data-Maybe.html#v:Just" title="Data.Maybe">Just</a></code>. Similar problems
+ exist with <code class="inline-code">Strict.IORef (a, b)</code>, as pairs in Haskell are lazy.</p><p>In light of this, users are encouraged to use strict <code><a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a></code> in concert with types that have strict
+ fields. This ensures that forcing the outer constructor of the type also forces the fields, avoiding any potential
+ leaks. If this is not possible, users are encouraged to use strict let bindings, <code><a href="https://hackage.haskell.org/package/base-4.21.0.0/docs/GHC-Exts.html#v:seq" title="GHC.Exts">seq</a></code>, and
+ extreme care.</p><h2>Implementation notes</h2><p>When forcing values to WHNF before writing to the reference, we have two options</p><ul><li>Use <code class="inline-code">Lazy.writeIORef ref $! a</code></li><li>Use <code class="inline-code">Lazy.writeIORef ref =&lt;&lt; evaluate a</code></li></ul><p>These are subtly different in the presence of exceptions. The former
+ unfolds to:</p><pre>let !a' = a
+in writeIORef ref a'
+</pre><p>If forcing <code class="inline-code">a</code> to WHNF causes an exception to get thrown, then we don't produce any IO action at
+ all. Conversely, <code class="inline-code">writeIORef ref =&lt;&lt; evaluate a</code> will always produce an IO action that itself will
+ throw when evaluated.</p><p>In practice, this means that</p><pre>(writeIORef ref $! (error &quot;a&quot;)) &gt;&gt; error &quot;b&quot;
+</pre><p>can throw either <code class="inline-code">&quot;a&quot;</code> or <code class="inline-code">&quot;b&quot;</code> depending on what the optimizer decides to do, whereas</p><pre>evaluate (error &quot;a&quot;) &gt;&gt;= writeIORef ref &gt;&gt; error &quot;b&quot;
+</pre><p>must always throw <code class="inline-code">&quot;a&quot;</code>.</p><p>We opt to use <code class="inline-code">writeIORef ref $! a</code> in this module, as it gives the optimizer more leeway
+ when doing code transformations that might move where a value gets forced (EG: worker-wrapper).
+ This is a safe choice, as Agda does not rely on precise exception semantics for correctness.</p></div><div class="top"><p class="src"><span class="keyword">data</span> <a id="t:IORef" class="def">IORef</a> a <a href="src/Agda.Utils.IORef.Strict.html#IORef" class="link">Source</a> <a href="#t:IORef" class="selflink">#</a></p><div class="doc"><p>Strict IO references.</p></div></div><div class="top"><p class="src"><a id="v:newIORef" class="def">newIORef</a> :: a -&gt; <a href="https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html#t:IO" title="Prelude">IO</a> (<a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a> a) <a href="src/Agda.Utils.IORef.Strict.html#newIORef" class="link">Source</a> <a href="#v:newIORef" class="selflink">#</a></p><div class="doc"><p>Create a new strict <code><a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a></code>.</p><p>This will force the value to WHNF before creating the reference.</p></div></div><div class="top"><p class="src"><a id="v:readIORef" class="def">readIORef</a> :: <a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a> a -&gt; <a href="https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html#t:IO" title="Prelude">IO</a> a <a href="src/Agda.Utils.IORef.Strict.html#readIORef" class="link">Source</a> <a href="#v:readIORef" class="selflink">#</a></p><div class="doc"><p>Read the contents of a strict <code><a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a></code>.</p></div></div><div class="top"><p class="src"><a id="v:writeIORef" class="def">writeIORef</a> :: <a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a> a -&gt; a -&gt; <a href="https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html#t:IO" title="Prelude">IO</a> () <a href="src/Agda.Utils.IORef.Strict.html#writeIORef" class="link">Source</a> <a href="#v:writeIORef" class="selflink">#</a></p><div class="doc"><p>Write to a strict <code><a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a></code>.</p><p>This will force the value to WHNF before writing.</p></div></div><div class="top"><p class="src"><a id="v:modifyIORef" class="def">modifyIORef</a> :: <a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a> a -&gt; (a -&gt; a) -&gt; <a href="https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html#t:IO" title="Prelude">IO</a> () <a href="src/Agda.Utils.IORef.Strict.html#modifyIORef" class="link">Source</a> <a href="#v:modifyIORef" class="selflink">#</a></p><div class="doc"><p>Modify a strict <code><a href="Agda-Utils-IORef-Strict.html#t:IORef" title="Agda.Utils.IORef.Strict">IORef</a></code> by a applying a function to the value stored in the reference.</p><p>This will force the value to WHNF before writing.</p></div></div></div></div><div id="footer"><p>Produced by <a href="http://www.haskell.org/haddock/">Haddock</a> version 2.30.0</p></div></body></html>
