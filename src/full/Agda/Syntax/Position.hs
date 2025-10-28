@@ -636,7 +636,7 @@ posToRange' f p1 p2 = intervalToRange f (posToInterval () p1 p2)
 -- | Converts two positions to a range.
 --
 -- Precondition: The positions have to point to the same file.
-posToRange :: Position' a -> Position' a -> Range' a
+posToRange :: Position' a -> Position' b -> Range' a
 posToRange p1 p2 =
   posToRange' (srcFile p1) (p1 { srcFile = () }) (p2 { srcFile = () })
 

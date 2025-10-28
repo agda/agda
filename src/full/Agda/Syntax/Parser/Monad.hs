@@ -50,6 +50,8 @@ import Agda.Syntax.Parser.Tokens ( Keyword( KwMutual ) )
 
 import Agda.TypeChecking.Positivity.Occurrence ( pattern Mixed )
 
+import Agda.Utils.Function ( applyUnless )
+import Agda.Utils.Functor  ( (<&>) )
 import Agda.Utils.IO   ( showIOException )
 import Agda.Utils.List ( tailWithDefault )
 import Agda.Utils.Maybe.Strict qualified as Strict
@@ -139,9 +141,7 @@ data ParseError
 
   -- | Errors that arise at a specific position in the file
   = ParseError
-    { errSrcFile   :: !SrcFile
-                      -- ^ The file in which the error occurred.
-    , errPos       :: !PositionWithoutFile
+    { errPos       :: !Position
                       -- ^ Where the error occurred.
     , errInput     :: String
                       -- ^ The remaining input.
@@ -171,14 +171,14 @@ data ParseError
 
 instance KillRange ParseError where
   killRange = \case
-    ParseError _ _ inp tok msg   -> ParseError empty empty inp tok msg
+    ParseError _ inp tok msg     -> ParseError empty inp tok msg
     OverlappingTokensError _     -> OverlappingTokensError empty
     InvalidExtensionError _ exts -> InvalidExtensionError empty exts
     ReadFileError _ err          -> ReadFileError empty err
 
 instance NFData ParseError where
   rnf = \case
-    ParseError _f _r inp tok msg  -> rnf inp `seq` rnf tok `seq` rnf msg
+    ParseError _r inp tok msg     -> rnf inp `seq` rnf tok `seq` rnf msg
     OverlappingTokensError _r     -> ()
     InvalidExtensionError _r exts -> rnf exts
     ReadFileError _r _err         -> ()
@@ -237,8 +237,7 @@ parseError :: String -> Parser a
 parseError msg = do
   s <- get
   throwError $ ParseError
-    { errSrcFile   = parseSrcFile s
-    , errPos       = parseLastPos s
+    { errPos       = parseLastPos s <&> const (parseSrcFile s)
     , errInput     = parseInp s
     , errPrevToken = parsePrevToken s
     , errMsg       = msg
@@ -255,8 +254,8 @@ parseWarning w =
  --------------------------------------------------------------------------}
 
 instance Pretty ParseError where
-  pretty ParseError{errPos,errSrcFile,errMsg,errPrevToken,errInput} = vcat
-      [ (pretty errPos{ srcFile = errSrcFile } <> colon) <+> "error: [ParseError]"
+  pretty ParseError{ errPos, errMsg, errPrevToken, errInput } = vcat
+      [ applyUnless (null errPos) ((pretty errPos <> colon) <+>) "error: [ParseError]"
       , if not $ null errMsg then text errMsg else sep
           -- Happy errors have no message, so we print the context instead
           [ text $ errPrevToken ++ "<ERROR>"
@@ -264,22 +263,22 @@ instance Pretty ParseError where
           ]
       ]
   pretty OverlappingTokensError{errRange} = vcat
-      [ (pretty errRange <> colon) <+> "error: [OverlappingTokensError]"
+      [ applyUnless (null errRange) ((pretty errRange <> colon) <+>) "error: [OverlappingTokensError]"
       , "Multi-line comment spans one or more literate text blocks."
       ]
   pretty InvalidExtensionError{errPath,errValidExts} = vcat
-      [ (pretty errPath <> colon) <+> "error: [InvalidExtensionError]"
+      [ applyUnless (null errPath) ((pretty errPath <> colon) <+>) "error: [InvalidExtensionError]"
       , "Unsupported extension."
       , "Supported extensions are:" <+> prettyList_ errValidExts
       ]
-  pretty ReadFileError{errPath,errIOError} = vcat
-      [ "Cannot read file" <+> pretty errPath
-      , "Error:" <+> text (showIOException errIOError)
+  pretty ReadFileError{errPath,errIOError} = vcat $ concat
+      [ [ "Cannot read file" <+> pretty errPath | not (null errPath) ]
+      , [ "Error:" <+> text (showIOException errIOError) ]
       ]
 
 instance HasRange ParseError where
   getRange err = case err of
-      ParseError{ errSrcFile, errPos = p } -> posToRange' errSrcFile p p
+      ParseError{ errPos = p }             -> posToRange p p
       OverlappingTokensError{ errRange }   -> errRange
       InvalidExtensionError{}              -> errPathRange
       ReadFileError{}                      -> errPathRange
