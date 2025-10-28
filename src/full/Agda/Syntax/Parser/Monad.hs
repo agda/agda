@@ -31,6 +31,8 @@ module Agda.Syntax.Parser.Monad
     )
     where
 
+import Prelude hiding ( null )
+
 import Control.DeepSeq
 import Control.Exception ( displayException )
 import Control.Monad.Except
@@ -41,6 +43,7 @@ import Data.Word  ( Word32)
 
 import Agda.Interaction.Options.Warnings
 
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Tokens ( Keyword( KwMutual ) )
@@ -49,8 +52,8 @@ import Agda.TypeChecking.Positivity.Occurrence ( pattern Mixed )
 
 import Agda.Utils.IO   ( showIOException )
 import Agda.Utils.List ( tailWithDefault )
-import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Syntax.Common.Pretty
+import Agda.Utils.Maybe.Strict qualified as Strict
+import Agda.Utils.Null
 
 import Agda.Utils.Impossible
 
@@ -150,7 +153,7 @@ data ParseError
 
   -- | Parse errors that concern a range in a file.
   | OverlappingTokensError
-    { errRange     :: !(Range' SrcFile)
+    { errRange     :: !Range
                       -- ^ The range of the bigger overlapping token
     }
 
@@ -165,6 +168,13 @@ data ParseError
     , errIOError   :: IOError
     }
   deriving Show
+
+instance KillRange ParseError where
+  killRange = \case
+    ParseError _ _ inp tok msg   -> ParseError empty empty inp tok msg
+    OverlappingTokensError _     -> OverlappingTokensError empty
+    InvalidExtensionError _ exts -> InvalidExtensionError empty exts
+    ReadFileError _ err          -> ReadFileError empty err
 
 instance NFData ParseError where
   rnf = \case
