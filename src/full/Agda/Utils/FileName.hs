@@ -32,6 +32,7 @@ import System.Directory
 import System.FilePath
 
 import Agda.Utils.Monad
+import Agda.Utils.Null
 
 import Agda.Utils.Impossible
 
@@ -41,7 +42,7 @@ import Agda.Utils.Impossible
 -- paths point to the same files or directories.
 
 newtype AbsolutePath = AbsolutePath { textPath :: Text }
-  deriving (Show, Eq, Ord, Hashable, NFData)
+  deriving (Show, Eq, Ord, Hashable, NFData, Null)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath

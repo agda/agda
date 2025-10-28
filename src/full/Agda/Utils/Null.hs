@@ -41,6 +41,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Word (Word32, Word64)
 
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -179,6 +180,14 @@ instance Null (Maybe a) where
   {-# INLINE empty #-}
   null  = isNothing
   {-# INLINE null #-}
+
+instance Null Word32 where
+  empty = 0
+  {-# INLINE empty #-}
+
+instance Null Word64 where
+  empty = 0
+  {-# INLINE empty #-}
 
 -- | Viewing 'Bool' as @'Maybe' ()@, a boolean is 'null' when it is false.
 instance Null Bool where

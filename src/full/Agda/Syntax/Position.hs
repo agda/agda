@@ -167,6 +167,10 @@ instance Eq a => Eq (Position' a) where
 instance Ord a => Ord (Position' a) where
   compare = compare `on` importantPart
 
+instance Null a => Null (Position' a) where
+  null (Pn' f p lc) = null f && null p && null lc
+  empty = Pn' empty 0 0
+
 type SrcFile = Strict.Maybe RangeFile
 
 -- | File information used in the 'Position', 'Interval' and 'Range'
@@ -207,6 +211,10 @@ instance Eq RangeFile where
 
 instance Ord RangeFile where
   compare = compare `on` rangeFileName
+
+instance Null RangeFile where
+  null (RangeFile file n) = null file && null n
+  empty = RangeFile empty empty
 
 instance NFData RangeFile where
   rnf (RangeFile _ n) = rnf n
