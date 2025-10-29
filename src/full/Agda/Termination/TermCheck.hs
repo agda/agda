@@ -42,7 +42,7 @@ import qualified Agda.Termination.CallGraph as CallGraph
 import Agda.Termination.CallMatrix hiding (toList)
 import Agda.Termination.Order     as Order
 import qualified Agda.Termination.SparseMatrix as Matrix
-import Agda.Termination.Termination (Terminates(..), GuardednessHelps(..), endos, idempotent)
+import Agda.Termination.Termination (Terminates(..), GuardednessHelps(..), idempotentEndos)
 import qualified Agda.Termination.Termination  as Term
 import Agda.Termination.RecCheck
 
@@ -353,7 +353,7 @@ reportCalls no calls = do
 
     -- Print the result of completion.
     let calls' = CallGraph.complete calls
-        idems = filter idempotent $ endos $ CallGraph.toList calls'
+        idems = idempotentEndos calls'
     -- TODO
     -- reportSDoc "term.behaviours" 20 $ vcat
     --   [ text $ "Recursion behaviours (" ++ no ++ "dot patterns):"

@@ -24,7 +24,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , neighbours, neighboursMap
   , edgesFrom
   , edgesTo
-  , diagonal
+  , diagonal, loops
   , nodes, sourceNodes, targetNodes, isolatedNodes
   , Nodes(..), computeNodes
   , discrete
@@ -230,8 +230,13 @@ edgesTo (Graph g) ts =
 -- | All self-loops. /O(n log n)/.
 
 diagonal :: Ord n => Graph n e -> [Edge n e]
-diagonal (Graph g) =
-  [ Edge s s e
+diagonal = map (\ (s, e) -> Edge s s e) . loops
+
+-- | All self-loops. /O(n log n)/.
+
+loops ::  Ord n => Graph n e -> [(n, e)]
+loops (Graph g) =
+  [ (s, e)
   | (s, m) <- Map.assocs g
   , e      <- maybeToList $ Map.lookup s m
   ]

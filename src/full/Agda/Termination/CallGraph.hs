@@ -15,6 +15,7 @@ module Agda.Termination.CallGraph
   , (>*<)
     -- * Call graphs
   , CallGraph(..)
+  , loops
   , targetNodes
   , fromList
   , toList
@@ -84,6 +85,10 @@ mkCall' s t m = mkCall s t m mempty
 newtype CallGraph cinfo = CallGraph { theCallGraph :: Graph Node (CMSet cinfo) }
   deriving (Show)
 
+-- | Returns all nodes with self-loops.
+
+loops :: CallGraph cinfo -> [(Node, CMSet cinfo)]
+loops = Graph.loops . theCallGraph
 
 -- | Returns all the nodes with incoming edges.  Somewhat expensive. @O(e)@.
 
