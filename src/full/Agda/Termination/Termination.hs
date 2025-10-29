@@ -14,8 +14,7 @@ module Agda.Termination.Termination
   , GuardednessHelps(..)
   , terminates
   , terminatesFilter
-  , endos
-  , idempotent
+  , idempotentEndos
   ) where
 
 import Prelude hiding ((&&), null)
@@ -75,21 +74,23 @@ terminatesFilter f cs
   | cm:_ <- needGuardedness = TerminatesNot GuardednessHelpsYes $ augCallInfo cm
   | otherwise               = Terminates
   where
-    f' = f . source && f . target
     -- Every idempotent call must have decrease in the diagonal.
-    idems = filter idempotent $ endos $ filter f' $ toList $ complete cs
+    idems = idempotentEndosFilter f $ complete cs
     hasDecr cm = case diagonal cm of
       g : xs
         | any isDecr xs -> In1 ()        -- Evidence found without guardedness.
         | isDecr g      -> In2 cm        -- Evidence found in guardedness.
         | otherwise     -> In3 cm        -- No evidence found.
       []                -> In3 cm        -- No information means no evidence for termination.
-    (good, needGuardedness, bad) = partitionEithers3 $ map hasDecr idems
+    (_good, needGuardedness, bad) = partitionEithers3 $ map hasDecr idems
 
-endos :: [Call cinfo] -> [CallMatrixAug cinfo]
-endos cs = [ m | c <- cs, source c == target c
-               , m <- CMSet.toList $ callMatrixSet c
-           ]
+-- | Get all idempotent call-matrixes of loops in the call graph that match the given node-filter.
+idempotentEndosFilter :: (?cutoff :: CutOff) => (Node -> Bool) -> CallGraph cinfo -> [CallMatrixAug cinfo]
+idempotentEndosFilter f = filter idempotent . concatMap (CMSet.toList . snd) . filter (f . fst) . loops
+
+-- | Get all idempotent call-matrixes of loops in the call graph.
+idempotentEndos :: (?cutoff :: CutOff) => CallGraph cinfo -> [CallMatrixAug cinfo]
+idempotentEndos = idempotentEndosFilter $ const True
 
 -- | A call @c@ is idempotent if it is an endo (@'source' == 'target'@)
 --   of order 1.
