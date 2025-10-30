@@ -66,7 +66,7 @@ matches cons icons defs idefs flds iflds =
                      . List.sortBy (compare `on` f)
 
         foo :: String -> [List1 String] -> [(Int, String)]
-        foo cat = map (length . List1.head /\ match cat)
+        foo cat = map (length . List1.head &&& match cat)
 
 toVim :: NamesInScope -> String
 toVim ns = unlines $ matches mcons micons mdefs midefs mflds miflds

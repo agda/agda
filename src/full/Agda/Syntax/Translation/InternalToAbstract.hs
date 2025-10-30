@@ -24,7 +24,6 @@ module Agda.Syntax.Translation.InternalToAbstract
 import Prelude hiding (null)
 
 import Control.Applicative ( liftA2 )
-import Control.Arrow       ( (&&&) )
 import Control.Monad       ( filterM, forM )
 
 import qualified Data.List as List
@@ -537,7 +536,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
           showImp <- showImplicitArguments
           let keep (a, v) = showImp || visible a
           A.Rec empty noExprInfo
-            . map (Left . uncurry FieldAssignment . mapFst unDom)
+            . map (Left . uncurry FieldAssignment . first unDom)
             . filter keep
             . zip (recordFieldNames def)
             . map unArg

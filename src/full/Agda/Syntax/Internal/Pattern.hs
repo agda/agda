@@ -2,7 +2,6 @@
 
 module Agda.Syntax.Internal.Pattern where
 
-import Control.Arrow       ( second )
 import Control.Monad       ( (>=>), forM )
 import Control.Monad.State ( MonadState(..), State, evalState )
 
@@ -16,6 +15,7 @@ import Agda.Syntax.Internal
 import Agda.Utils.List
 import Agda.Utils.Permutation
 import Agda.Utils.Size (size)
+import Agda.Utils.Tuple ( second )
 
 import Agda.Utils.Impossible
 

@@ -484,7 +484,7 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       where
       mps' =
         Map.fromList $
-        map (mapSnd (namedArg . fromSplitPattern . defaultNamedArg)) mps
+        map (second (namedArg . fromSplitPattern . defaultNamedArg)) mps
       s = parallelS (for (case Map.lookupMax mps' of
                             Nothing     -> []
                             Just (i, _) -> [0..i]) $ \ i ->

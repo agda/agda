@@ -1659,7 +1659,7 @@ checkMeta i newMeta cmp t = fst <$> checkOrInferMeta i newMeta (Just (cmp , t))
 -- | Infer the type of a meta variable.
 --   If it is a new one, we create a new meta for its type.
 inferMeta :: A.MetaInfo -> (Comparison -> Type -> TCM (MetaId, Term)) -> TCM (Elims -> Term, Type)
-inferMeta i newMeta = mapFst applyE <$> checkOrInferMeta i newMeta Nothing
+inferMeta i newMeta = first applyE <$> checkOrInferMeta i newMeta Nothing
 
 -- | Type check a meta variable.
 --   If its type is not given, we return its type, or a fresh one, if it is a new meta.

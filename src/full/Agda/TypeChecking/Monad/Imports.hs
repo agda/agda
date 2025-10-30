@@ -15,22 +15,22 @@ module Agda.TypeChecking.Monad.Imports
   , visitModule
   ) where
 
-import Control.Arrow   ( (***) )
 import Control.Monad   ( when )
 
 import Data.Maybe (catMaybes)
-import qualified Data.Map as Map
+import Data.Map qualified as Map
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 
 import Agda.Syntax.Common.Pretty
 import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad.Base
 
 import Agda.Utils.List ( caseListM )
-import qualified Agda.Utils.List1 as List1
-import qualified Agda.Utils.List2 as List2
+import Agda.Utils.List1 qualified as List1
+import Agda.Utils.List2 qualified as List2
 import Agda.Utils.Singleton (singleton)
+import Agda.Utils.Tuple ( (***) )
 
 import Agda.Utils.Impossible
 

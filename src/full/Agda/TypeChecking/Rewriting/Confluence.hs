@@ -38,7 +38,6 @@ module Agda.TypeChecking.Rewriting.Confluence
   ) where
 
 import Control.Applicative
-import Control.Arrow ((***))
 import Control.Monad.Except ( MonadError(..) )
 import Control.Monad.Reader ( MonadReader(..), asks, runReaderT )
 
@@ -90,6 +89,7 @@ import Agda.Utils.Null (unlessNullM)
 import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.Tuple ((***))
 
 -- | Check confluence of the clauses of the given function wrt rewrite rules of the
 -- constructors they match against

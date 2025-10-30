@@ -617,7 +617,7 @@ infallibleSortKit = do
 
 getPrimName :: Term -> QName
 getPrimName ty = do
-  let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
+  let lamV (Lam i b)  = first (getHiding i :) $ lamV (unAbs b)
       lamV (Pi _ b)   = lamV (unEl $ unAbs b)
       lamV v          = ([], v)
   case lamV ty of
@@ -747,7 +747,7 @@ primEqualityName = do
   -- 1. universe and type polymorphic
   -- 2. type polymorphic only
   -- 3. monomorphic.
-  let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
+  let lamV (Lam i b)  = first (getHiding i :) $ lamV (unAbs b)
       lamV v          = ([], v)
   return $ case lamV eq of
     (_, Def equality _) -> equality

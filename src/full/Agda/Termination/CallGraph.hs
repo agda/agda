@@ -161,8 +161,8 @@ instance (Monoid a, CombineNewOld a, Ord n) => CombineNewOld (Graph n a) where
       new' = (,mempty) <$> new
       old' = (mempty,) <$> old
       comb (new1,old1) (new2,old2)  -- TODO: ensure old1 is null
-        = mapFst (new2 `mappend`) $ combineNewOld new1 old2
-        -- -- | old1 == mempty = mapFst (new2 `mappend`) $ combineNewOld new1 old2
+        = first (new2 `mappend`) $ combineNewOld new1 old2
+        -- -- | old1 == mempty = first (new2 `mappend`) $ combineNewOld new1 old2
         -- -- | otherwise      = __IMPOSSIBLE__
 
       -- Filter unlabelled edges from the resulting new graph.
@@ -179,13 +179,13 @@ instance (Monoid a, CombineNewOld a, Ord n) => CombineNewOld (Graph n a) where
 -- https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/implicit_parameters.html#implicit-parameter-type-constraints
 -- KEEP:
 -- instance (Monoid cinfo, ?cutoff :: CutOff) => CombineNewOld (CallGraph cinfo) where
---   combineNewOld (CallGraph new) (CallGraph old) = CallGraph -*- CallGraph $ combineNewOld comb old
+--   combineNewOld (CallGraph new) (CallGraph old) = CallGraph *** CallGraph $ combineNewOld comb old
 --     -- combined calls:
 --     where comb = Graph.composeWith (>*<) CMSet.union new old
 
 -- Non-overloaded version:
 combineNewOldCallGraph :: forall cinfo. (Monoid cinfo, ?cutoff :: CutOff) => CombineNewOldT (CallGraph cinfo)
-combineNewOldCallGraph (CallGraph new) (CallGraph old) = CallGraph -*- CallGraph $ combineNewOld comb old
+combineNewOldCallGraph (CallGraph new) (CallGraph old) = CallGraph *** CallGraph $ combineNewOld comb old
     -- combined calls:
     where
       comb :: Graph Node (CMSet cinfo)
@@ -206,7 +206,7 @@ combineNewOldCallGraph (CallGraph new) (CallGraph old) = CallGraph -*- CallGraph
 -- h@ are present in the graph, then @f -> h@ should also be present.
 
 complete :: (?cutoff :: CutOff) => Monoid cinfo => CallGraph cinfo -> CallGraph cinfo
-complete cs = repeatWhile (mapFst (not . null) . completionStep cs) cs
+complete cs = repeatWhile (first (not . null) . completionStep cs) cs
 
 completionStep :: (?cutoff :: CutOff) => Monoid cinfo =>
   CallGraph cinfo -> CallGraph cinfo -> (CallGraph cinfo, CallGraph cinfo)

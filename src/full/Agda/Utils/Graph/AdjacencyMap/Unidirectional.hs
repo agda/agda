@@ -780,7 +780,7 @@ sccDAG' g sccs = DAG theDAG componentMap secondNodeMap
   convertInt i = fromMaybe __IMPOSSIBLE__ (toVertex i)
 
   componentMap :: IntMap (Graph.SCC n)
-  componentMap = IntMap.fromList (map (mapFst convertInt) components)
+  componentMap = IntMap.fromList (map (first convertInt) components)
 
   secondNodeMap :: Map n Int
   secondNodeMap = Map.map convertInt firstNodeMap
@@ -894,7 +894,7 @@ longestPaths ::
   forall n e. Ord n => Graph n e -> Graph n (Int, [[Edge n e]])
 longestPaths g =
   Graph $
-  fmap (fmap (mapSnd toList)) $
+  fmap (fmap (second toList)) $
   List.foldl' (flip addLongestFrom) Map.empty $
   sccs' g
   where
@@ -924,7 +924,7 @@ longestPaths g =
             }
       in case Map.lookup n' pss of
         Nothing -> Map.empty
-        Just ps -> fmap (succ -*- fmap (edge :)) ps
+        Just ps -> fmap (succ *** fmap (edge :)) ps
 
 ------------------------------------------------------------------------
 -- Transitive closure
@@ -934,7 +934,7 @@ longestPaths g =
 --   Relatively efficient, see Issue 1560.
 
 complete :: (Eq e, Null e, SemiRing e, Ord n) => Graph n e -> Graph n e
-complete g = repeatWhile (mapFst (not . discrete) . combineNewOld' g) g
+complete g = repeatWhile (first (not . discrete) . combineNewOld' g) g
   where
     combineNewOld' new old = unzip $ unionWith comb new' old'
       where

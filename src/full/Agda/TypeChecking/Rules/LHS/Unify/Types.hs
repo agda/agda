@@ -477,4 +477,4 @@ writeUnifyLog ::
 writeUnifyLog x = tell (singleton x) -- UnifyOutput IdS IdS [x]
 
 runUnifyLogT :: Functor m => UnifyLogT m a -> m (a, UnifyLog)
-runUnifyLogT m = mapSnd toList <$> runWriterT m
+runUnifyLogT m = second toList <$> runWriterT m

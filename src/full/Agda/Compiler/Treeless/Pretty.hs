@@ -6,19 +6,20 @@ module Agda.Compiler.Treeless.Pretty () where
 
 import Prelude hiding ((!!)) -- don't use partial functions!
 
-import Control.Arrow (first)
 import Control.Monad.Reader
 import Data.Maybe
 import qualified Data.IntMap as IntMap
 
-import Agda.Syntax.Treeless
 import Agda.Syntax.Common.Pretty
+import Agda.Syntax.Treeless
 
 import Agda.Compiler.Treeless.Subst
 
-import Agda.Utils.Impossible
 import Agda.Utils.Function
 import Agda.Utils.List
+import Agda.Utils.Tuple (first)
+
+import Agda.Utils.Impossible
 
 instance Pretty Compiled where
   pretty Compiled {cTreeless, cArgUsage} =

@@ -569,7 +569,7 @@ getAnonInstanceDefs = snd <$> getAllInstanceDefs
 
 -- | Remove an instance from the set of unresolved instances.
 clearUnknownInstance :: QName -> TCM ()
-clearUnknownInstance q = modifyInstanceDefs $ mapSnd $ Set.delete q
+clearUnknownInstance q = modifyInstanceDefs $ second $ Set.delete q
 
 -- | Add an instance whose type is still unresolved.
 addUnknownInstance :: QName -> TCM ()
@@ -577,4 +577,4 @@ addUnknownInstance x = do
   reportSLn "tc.decl.instance" 10 $
     "adding definition " ++ prettyShow x ++
     " to the instance table (the type is not yet known)"
-  modifyInstanceDefs $ mapSnd $ Set.insert x
+  modifyInstanceDefs $ second $ Set.insert x

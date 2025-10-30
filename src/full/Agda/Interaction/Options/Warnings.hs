@@ -25,7 +25,6 @@ module Agda.Interaction.Options.Warnings
        )
 where
 
-import Control.Arrow ( (&&&) )
 import Control.DeepSeq
 import Control.Monad ( guard, when )
 import Control.Monad.Except ( throwError )
@@ -45,6 +44,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Tuple ( (&&&) )
 
 import Agda.Utils.Impossible
 

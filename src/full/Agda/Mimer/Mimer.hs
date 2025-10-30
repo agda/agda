@@ -60,7 +60,7 @@ import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Maybe (catMaybes)
 import Agda.Utils.Monad (concatMapM, ifM)
 import Agda.Utils.Null
-import Agda.Utils.Tuple (mapFst, mapSnd)
+import Agda.Utils.Tuple (first, second)
 import Agda.Utils.Time (measureTime, getCPUTime, fromMilliseconds)
 
 import Data.IORef (readIORef)
@@ -248,7 +248,7 @@ runSearch norm options ii rng = withInteractionId ii $ do
                      ]
 
                   let sols' = take need sols
-                  mapFst (sols' ++) <$> go (need - length sols') (n + 1) branchQueue''
+                  first (sols' ++) <$> go (need - length sols') (n + 1) branchQueue''
                 else do
                   reportSLn "mimer.search" 30 $ "Search time limit reached. Elapsed search time: " ++ show elapsed
                   return ([], n)
@@ -285,7 +285,7 @@ prepareComponents goal branch = withBranchAndGoal branch goal $ do
       return comps
     -- Yes, just update the missing generated components
     Just cache -> mapM prepare (Map.toAscList cache)
-  let newCache = Map.fromList $ map (mapSnd Just) comps
+  let newCache = Map.fromList $ map (second Just) comps
   branch' <- updateBranch [] branch{sbCache = Map.insert checkpoint newCache (sbCache branch)}
   return (branch', comps)
   where

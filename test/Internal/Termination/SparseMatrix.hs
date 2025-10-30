@@ -164,7 +164,7 @@ toSparseRows' (Matrix _ m) =
   -- group list by row index
   for (List.groupBy ((==) `on` (row . fst)) m) $ \ ((MIx i j, b) : vs) ->
   -- turn each group into a sparse row
-    (i, (j,b) : map (mapFst col) vs)
+    (i, (j,b) : map (first col) vs)
 
 prop_toSparseRows :: TM -> Bool
 prop_toSparseRows m = toSparseRows m == toSparseRows' m
@@ -201,8 +201,8 @@ zipMatrices' :: forall a b c i . (Ord i)
 zipMatrices' f g h zero m1 m2 = Matrix (supSize m1 m2) (merge (unM m1) (unM m2))
   where
     merge :: [(MIx i,a)] -> [(MIx i,b)] -> [(MIx i,c)]
-    merge [] m2 = filter (not . zero . snd) $ map (mapSnd g) m2
-    merge m1 [] = filter (not . zero . snd) $ map (mapSnd f) m1
+    merge [] m2 = filter (not . zero . snd) $ map (second g) m2
+    merge m1 [] = filter (not . zero . snd) $ map (second f) m1
     merge m1@((i,a):m1') m2@((j,b):m2') =
       case compare i j of
         LT -> if zero c then r else (i,c) : r where c = f a   ; r = merge m1' m2

@@ -242,7 +242,7 @@ topoSortM :: Monad m => (a -> a -> m Bool) -> [a] -> m (Maybe Permutation)
 topoSortM parent xs = do
   let nodes     = zip [0..] xs
       parents x = map fst <$> filterM (\(_, y) -> parent y x) nodes
-  g <- mapM (mapSndM parents) nodes
+  g <- mapM (secondM parents) nodes
   return $ Perm (size xs) <$> topo g
   where
 

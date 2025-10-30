@@ -33,7 +33,6 @@ import qualified Agda.Utils.Bag as Bag
 import Agda.Utils.CallStack.Base
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor  ((<.>))
-import Agda.Utils.Tuple
 
 import {-# SOURCE #-} Agda.Utils.List1 (List1)
 
@@ -285,7 +284,7 @@ type Suffix a = [a]  -- ^ The list after the split point.
 splitExactlyAt :: Integral n => n -> [a] -> Maybe (Prefix a, Suffix a)
 splitExactlyAt 0 xs       = return ([], xs)
 splitExactlyAt n []       = Nothing
-splitExactlyAt n (x : xs) = mapFst (x :) <$> splitExactlyAt (n-1) xs
+splitExactlyAt n (x : xs) = first (x :) <$> splitExactlyAt (n-1) xs
 
 -- | @takeExactly a n as == take n (as ++ repeat a)@
 --
@@ -380,7 +379,7 @@ takeWhileJust p = loop
 spanJust :: (a -> Maybe b) -> [a] -> (Prefix b, Suffix a)
 spanJust p = loop
   where
-    loop (a : as) | Just b <- p a = mapFst (b :) $ loop as
+    loop (a : as) | Just b <- p a = first (b :) $ loop as
     loop as                       = ([], as)
 
 -- | Partition a list into 'Nothing's and 'Just's.
@@ -394,8 +393,8 @@ partitionMaybe f = loop
   where
     loop []       = ([], [])
     loop (a : as) = case f a of
-      Nothing -> mapFst (a :) $ loop as
-      Just b  -> mapSnd (b :) $ loop as
+      Nothing -> first  (a :) $ loop as
+      Just b  -> second (b :) $ loop as
 
 -- | Like 'filter', but additionally return the last partition
 --   of the list where the predicate is @False@ everywhere.

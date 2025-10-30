@@ -206,7 +206,7 @@ blowUpSparseVec zero n l = aux 1 l
 toLists :: (Integral i, HasZero b) => Matrix i b -> [[b]]
 toLists m@(Matrix size@(Size nrows ncols) _) =
     blowUpSparseVec emptyRow nrows $
-      map (mapSnd (blowUpSparseVec zeroElement ncols)) $ toSparseRows m
+      map (second (blowUpSparseVec zeroElement ncols)) $ toSparseRows m
   where
     emptyRow = List.genericReplicate ncols zeroElement
 
@@ -263,7 +263,7 @@ instance Ord i => Transpose (Matrix i b) where
   transpose (Matrix size m) =
     Matrix (transpose size) $
       List.sortBy (compare `on` fst) $
-        map (mapFst transpose) m
+        map (first transpose) m
 
 
 -- | General pointwise combination function for association lists.

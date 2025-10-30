@@ -5,7 +5,6 @@
 
 module Agda.TypeChecking.Conversion where
 
-import Control.Arrow (second)
 import Control.Monad.Except ( MonadError(..) )
 
 import Data.Function (on)
@@ -2151,7 +2150,7 @@ forallFaceMaps t kb k = do
     substContextN c [] = return (c, idS)
     substContextN c ((i,t):xs) = do
       (c', sigma) <- substContext i t c
-      (c'', sigma')  <- substContextN c' (map (subtract 1 -*- applySubst sigma) xs)
+      (c'', sigma')  <- substContextN c' (map (subtract 1 *** applySubst sigma) xs)
       return (c'', applySubst sigma' sigma)
 
 

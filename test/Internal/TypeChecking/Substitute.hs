@@ -2,7 +2,6 @@
 
 module Internal.TypeChecking.Substitute ( tests ) where
 
-import Control.Arrow ((***), first, second)
 import Control.Applicative
 import Control.Monad
 import Data.Maybe
@@ -12,6 +11,7 @@ import Data.Traversable (traverse)
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Substitute
+import Agda.Utils.Tuple ((***), first, second)
 
 import Internal.Helpers
 import Test.Tasty ( localOption )

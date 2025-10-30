@@ -2,8 +2,6 @@
 
 module Agda.TypeChecking.DropArgs where
 
-import Control.Arrow (second)
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -15,6 +13,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.Utils.Functor
 import Agda.Utils.Permutation
+import Agda.Utils.Tuple (second)
 
 import Agda.Utils.Impossible
 

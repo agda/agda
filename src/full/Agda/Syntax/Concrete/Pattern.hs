@@ -7,7 +7,6 @@
 module Agda.Syntax.Concrete.Pattern where
 
 import Control.Applicative ( liftA2 )
-import Control.Arrow ( first )
 import Control.Monad ( (>=>) )
 import Control.Monad.Identity
 
@@ -24,7 +23,8 @@ import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
 import Agda.Utils.List2  ( List2 )
 import Agda.Utils.Maybe
 import Agda.Utils.Singleton
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 qualified as List1
+import Agda.Utils.Tuple ( first )
 
 
 -- | Check for ellipsis @...@.

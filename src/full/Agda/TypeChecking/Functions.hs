@@ -5,8 +5,6 @@ module Agda.TypeChecking.Functions
   , getDef
   ) where
 
-import Control.Arrow ( first )
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -25,6 +23,7 @@ import Agda.Utils.Functor ( ($>) )
 import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Monad
 import Agda.Utils.Size
+import Agda.Utils.Tuple ( first )
 
 
 -- | Expand a clause to the maximal arity, by inserting variable

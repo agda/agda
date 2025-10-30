@@ -73,11 +73,11 @@ compareWithFavorites a favs = loop $ toList favs where
 --   @compareFavorites new old = (new', old')@
 compareFavorites :: PartialOrd a => Favorites a -> Favorites a ->
                     (Favorites a, Favorites a)
-compareFavorites new old = mapFst Favorites $ loop (toList new) old where
+compareFavorites new old = first Favorites $ loop (toList new) old where
   loop []        old = ([], old)
   loop (a : new) old = case compareWithFavorites a old of
     -- Better: Discard all @old@ ones that @a@ dominates and keep @a@
-    Dominates _ old -> mapFst (a:) $ loop new (Favorites old)
+    Dominates _ old -> first (a:) $ loop new (Favorites old)
     -- Not better:  Discard @a@
     IsDominated{}   -> loop new old
 

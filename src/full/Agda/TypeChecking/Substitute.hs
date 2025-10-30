@@ -21,8 +21,6 @@ module Agda.TypeChecking.Substitute
 
 import Prelude hiding ( zip, zipWith )
 
-import Control.Arrow (first, second)
-
 import Data.Coerce
 import Data.Function (on)
 import qualified Data.List as List
@@ -501,7 +499,7 @@ instance Apply System where
   -- lambda lifting.
   apply (System tel sys) args
       = if nargs > ntel then __IMPOSSIBLE__
-        else System newTel (map (map (f -*- id) -*- f) sys)
+        else System newTel (map (map (f *** id) *** f) sys)
 
     where
       f = applySubst sigma

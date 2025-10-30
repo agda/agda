@@ -2,13 +2,13 @@
 
 module Agda.TypeChecking.Substitute.Class where
 
-import Control.Arrow ((***), second)
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute.DeBruijn
+
+import Agda.Utils.Tuple ((***), second)
 
 import Agda.Utils.Impossible
 

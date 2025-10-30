@@ -13,7 +13,6 @@ module Agda.TypeChecking.Monad.Base
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
-import Control.Arrow                ( (&&&) )
 import Control.Concurrent           ( forkIO )
 import Control.DeepSeq
 import qualified Control.Exception as E
@@ -60,8 +59,11 @@ import System.IO (hFlush, stdout)
 
 import Agda.Benchmarking (Benchmark, Phase)
 
+import Agda.Compiler.Backend.Base (Backend_boot, Backend'_boot)
 import {-# SOURCE #-} Agda.Compiler.Treeless.Pretty () -- Instances only
+
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Common.Pretty.ANSI (putDocTreeLn)
 import Agda.Syntax.Builtin (SomeBuiltin, BuiltinId, PrimitiveId)
 import qualified Agda.Syntax.Concrete as C
@@ -82,10 +84,10 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Info ( MetaKind(InstanceMeta, UnificationMeta), MetaNameSuggestion, MutualInfo )
 
-import           Agda.TypeChecking.Monad.Base.Types
-import qualified Agda.TypeChecking.Monad.Base.Warning as W
-import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning, UselessPublicReason(..))
-import           Agda.TypeChecking.SizedTypes.Syntax  (HypSizeConstraint)
+import Agda.TypeChecking.Monad.Base.Types
+import Agda.TypeChecking.Monad.Base.Warning qualified as W
+import Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning, UselessPublicReason(..))
+import Agda.TypeChecking.SizedTypes.Syntax  (HypSizeConstraint)
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
@@ -96,10 +98,8 @@ import Agda.TypeChecking.DiscrimTree.Types
 
 import Agda.Termination.Termination (GuardednessHelps(..))
 
-import Agda.Compiler.Backend.Base (Backend_boot, Backend'_boot)
-
 import Agda.Interaction.Options
-import qualified Agda.Interaction.Options.Errors as ErrorName
+import Agda.Interaction.Options.Errors qualified as ErrorName
 import Agda.Interaction.Options.Errors as X
   ( CannotQuoteTerm(..)
   , ErasedDatatypeReason(..)
@@ -116,7 +116,7 @@ import Agda.Interaction.Library.Base ( ExeName, ExeMap, LibCache, LibErrors )
 
 import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.BiMap (BiMap, HasTag(..))
-import qualified Agda.Utils.BiMap as BiMap
+import Agda.Utils.BiMap qualified as BiMap
 import Agda.Utils.Boolean   ( fromBool, toBool )
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.FileId    as X ( FileId, MonadFileId( idFromFile, fileFromId ) )
@@ -125,25 +125,24 @@ import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash
 import Agda.Utils.IO        ( CatchIO, catchIO, showIOException )
-import qualified Agda.Utils.IORef.Strict as Strict
+import Agda.Utils.IORef.Strict qualified as Strict
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.List2 (List2, pattern List2)
-import qualified Agda.Utils.List1 as List1
-import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.List1 qualified as List1
+import Agda.Utils.Maybe.Strict qualified as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Syntax.Common.Pretty
 import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
-import qualified Agda.Utils.SmallSet as SmallSet
+import Agda.Utils.SmallSet qualified as SmallSet
 import Agda.Utils.Set1 (Set1)
 import Agda.Utils.Singleton
-import Agda.Utils.Tuple (Pair)
+import Agda.Utils.Tuple (Pair, (&&&) )
 import Agda.Utils.Update
-import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.VarSet (VarSet)
 
 import Agda.Utils.Impossible

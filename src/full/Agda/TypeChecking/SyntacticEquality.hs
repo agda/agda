@@ -17,7 +17,6 @@ module Agda.TypeChecking.SyntacticEquality
   )
   where
 
-import Control.Arrow            ( (***) )
 import Control.Monad            ( zipWithM )
 import Control.Monad.State      ( MonadState(..), StateT, runStateT )
 import Control.Monad.Trans      ( lift )
@@ -29,9 +28,10 @@ import Agda.TypeChecking.Monad  ( ReduceM, MonadReduce(..), TCEnv(..), MonadTCEn
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
-import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Utils.Monad (ifM)
-import Agda.Utils.Unsafe (unsafeComparePointers)
+import Agda.Utils.Maybe.Strict  qualified as Strict
+import Agda.Utils.Monad         ( ifM )
+import Agda.Utils.Unsafe        ( unsafeComparePointers )
+import Agda.Utils.Tuple         ( (***) )
 
 -- | Syntactic equality check for terms. If syntactic equality
 -- checking has fuel left, then 'checkSyntacticEquality' behaves as if

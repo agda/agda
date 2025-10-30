@@ -94,4 +94,4 @@ mapWithKeyM f = mapM $ \ (k,v) -> (k,) <$> f k v
 --   To preserve the invariant, it is sufficient that the key
 --   transformation is injective (rather than monotonic).
 mapKeysMonotonic :: (k -> k') -> AssocList k v -> AssocList k' v
-mapKeysMonotonic f = map $ mapFst f
+mapKeysMonotonic f = map $ first f

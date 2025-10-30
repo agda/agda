@@ -4,7 +4,6 @@ module Agda.TypeChecking.Monad.Signature where
 
 import Prelude hiding (null)
 
-import Control.Arrow                 ( first, second )
 import Control.Monad.Except          ( ExceptT )
 import Control.Monad.State           ( StateT  )
 import Control.Monad.Reader          ( ReaderT )
@@ -76,6 +75,7 @@ import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty (Doc, prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.Tuple ( first, second )
 import Agda.Utils.Update
 
 import Agda.Utils.Impossible

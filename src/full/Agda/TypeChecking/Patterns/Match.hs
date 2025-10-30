@@ -176,7 +176,7 @@ matchCopatterns ps vs = do
           , nest 2 $ "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
           ]) $ do
   -- Buggy, see issue 1124:
-  -- mapFst mconcat . unzip <$> zipWithM' (matchCopattern . namedArg) ps vs
+  -- first mconcat . unzip <$> zipWithM' (matchCopattern . namedArg) ps vs
   foldMatch (matchCopattern . namedArg) ps vs
 
 -- | Match a single copattern.
@@ -194,8 +194,8 @@ matchCopattern pat@ProjP{} elim@(Proj _ q) = do
 -- The following two cases are not impossible, see #2964
 matchCopattern ProjP{} elim@Apply{}   = return (No , elim)
 matchCopattern _       elim@Proj{}    = return (No , elim)
-matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
-matchCopattern p       e@(IApply x y r) = mapSnd (mergeElim e) <$> matchPattern p (defaultArg r)
+matchCopattern p       (Apply v) = second Apply <$> matchPattern p v
+matchCopattern p       e@(IApply x y r) = second (mergeElim e) <$> matchPattern p (defaultArg r)
 
 {-# SPECIALIZE matchPatterns :: [NamedArg DeBruijnPattern] -> [Arg Term] -> TCM (Match Term, [Arg Term]) #-}
 matchPatterns :: MonadMatch m
@@ -266,7 +266,7 @@ matchPattern p u = case (p, u) of
           _ -> do
             let fs = map argFromDom $ _recFields def
             unless (size fs == size ps) __IMPOSSIBLE__
-            mapSnd (Arg info . Con c (fromConPatternInfo cpi) . map Apply) <$> do
+            second (Arg info . Con c (fromConPatternInfo cpi) . map Apply) <$> do
               matchPatterns ps $ for fs $ \ (Arg ai f) -> Arg ai $ v `applyE` [Proj ProjSystem f]
   (DefP o q ps, v) -> do
     let f (Def q' vs) | q == q' = Just (Def q, vs)
