@@ -14,7 +14,6 @@ module Agda.Syntax.Treeless
     , module Agda.Syntax.Treeless
     ) where
 
-import Control.Arrow (first, second)
 import Control.DeepSeq
 
 import Data.Word
@@ -25,6 +24,8 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
+
+import Agda.Utils.Tuple (first, second)
 
 data Compiled = Compiled
   { cTreeless :: TTerm

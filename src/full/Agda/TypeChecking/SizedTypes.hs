@@ -583,7 +583,7 @@ oldSizeExpr u = do
   s <- sizeView u
   case s of
     SizeInf     -> patternViolation neverUnblock
-    SizeSuc u   -> mapSnd (+ 1) <$> oldSizeExpr u
+    SizeSuc u   -> second (+ 1) <$> oldSizeExpr u
     OtherSize u -> case u of
       Var i []  -> return (Rigid i, 0)
       MetaV m es | Just xs <- mapM isVar es, fastDistinct xs

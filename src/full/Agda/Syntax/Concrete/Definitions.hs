@@ -859,7 +859,7 @@ niceDeclarations fixs ds = do
         subClauses :: [Declaration] -> ([Declaration],[Declaration])
         subClauses (c@(FunClause _ (LHS p0 _ _) _ _ _) : cs)
          | isEllipsis p0 ||
-           numberOfWithPatterns p0 >= numWith = mapFst (c:) (subClauses cs)
+           numberOfWithPatterns p0 >= numWith = first (c:) (subClauses cs)
          | otherwise                           = ([], c:cs)
         subClauses (c@(Pragma (CatchallPragma _r)) : cs) = case subClauses cs of
           ([], cs') -> ([], c:cs')

@@ -3,10 +3,10 @@
 module Agda.Utils.Tuple
   (
     (//)
-  , (-*-)
-  , mapFst
-  , mapSnd
-  , (/\)
+  , (***)
+  , (&&&)
+  , first
+  , second
   , sortPair
   , fst3
   , snd3
@@ -15,43 +15,24 @@ module Agda.Utils.Tuple
   , uncurry3
   , uncurry4
   , mapPairM
-  , mapFstM
-  , mapSndM
+  , firstM
+  , secondM
   , Pair(..)
   ) where
 
-import Control.Arrow   ( (&&&) )
+import Control.Arrow   ( (&&&), (***) )
 import Control.DeepSeq ( NFData )
 
-import Data.Bifunctor  ( bimap, first, second )
+import Data.Bifunctor  ( first, second )
 import Data.Tuple      ( swap )
 
 import GHC.Generics    ( Generic )
-
-infix 2 -*-
-infix 3 /\ -- backslashes at EOL interact badly with CPP...
 
 {-# INLINE (//) #-}
 -- | Strict pairing.
 (//) :: a -> b -> (a, b)
 (//) !a !b = (a, b)
 infixr 4 //
-
--- | Bifunctoriality for pairs.
-(-*-) :: (a -> c) -> (b -> d) -> (a,b) -> (c,d)
-(-*-) = bimap
-
--- | @mapFst f = f -*- id@
-mapFst :: (a -> c) -> (a,b) -> (c,b)
-mapFst = first
-
--- | @mapSnd g = id -*- g@
-mapSnd :: (b -> d) -> (a,b) -> (a,d)
-mapSnd = second
-
--- | Lifted pairing.
-(/\) :: (a -> b) -> (a -> c) -> a -> (b,c)
-(/\) = (&&&)
 
 -- | Order a pair.
 sortPair :: Ord a => (a, a) -> (a, a)
@@ -81,17 +62,17 @@ uncurry3 f ~(x,y,z) = f x y z
 uncurry4 :: (a -> b -> c -> d -> e) -> (a,b,c,d) -> e
 uncurry4 f ~(w,x,y,z) = f w x y z
 
--- | Monadic version of '-*-'.
+-- | Monadic version of '***'.
 mapPairM :: (Applicative m) => (a -> m c) -> (b -> m d) -> (a,b) -> m (c,d)
 mapPairM f g ~(a,b) = (,) <$> f a <*> g b
 
--- | Monadic 'mapFst'.
-mapFstM :: Functor m => (a -> m c) -> (a,b) -> m (c,b)
-mapFstM f ~(a,b) = (,b) <$> f a
+-- | Monadic 'first'.
+firstM :: Functor m => (a -> m c) -> (a,b) -> m (c,b)
+firstM f ~(a,b) = (,b) <$> f a
 
--- | Monadic 'mapSnd'.
-mapSndM :: Functor m => (b -> m d) -> (a,b) -> m (a,d)
-mapSndM f ~(a,b) = (a,) <$> f b
+-- | Monadic 'second'.
+secondM :: Functor m => (b -> m d) -> (a,b) -> m (a,d)
+secondM f ~(a,b) = (a,) <$> f b
 
 data Pair a = Pair a a
   deriving (Show, Eq, Generic, Functor, Foldable, Traversable)

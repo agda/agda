@@ -55,7 +55,7 @@ instance Monad m => MonadChange (ChangeT m) where
 
 -- | Run a 'ChangeT' computation, returning result plus change flag.
 runChangeT :: Functor m => ChangeT m a -> m (a, Bool)
-runChangeT = fmap (mapSnd getAny) . runWriterT . fromChangeT
+runChangeT = fmap (second getAny) . runWriterT . fromChangeT
 {-# INLINE runChangeT #-}
 
 -- | Map a 'ChangeT' computation (monad transformer action).

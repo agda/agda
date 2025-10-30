@@ -16,7 +16,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad (TCState, CheckpointId, Open, TCEnv, openThing)
 import Agda.TypeChecking.Pretty
 import Agda.Interaction.Base (Rewrite(..))
-import Agda.Utils.Tuple (mapSnd)
+import Agda.Utils.Tuple (second)
 import Agda.Utils.Impossible
 
 import Agda.Mimer.Options
@@ -284,7 +284,7 @@ instance PrettyTCM BaseComponents where
            , f "hintProjections" (hintProjections comps)
            , "hintThisFn:" <+> thisFn
            , g prettyOpenComp "hintLetVars" (hintLetVars comps)
-           , "hintRecVars: Open" <+> pretty (mapSnd unNoSubst <$> openThing (hintRecVars comps))
+           , "hintRecVars: Open" <+> pretty (second unNoSubst <$> openThing (hintRecVars comps))
            ]
          ]
     where

@@ -2,7 +2,6 @@
 
 module Agda.Compiler.Treeless.Simplify (simplifyTTerm) where
 
-import Control.Arrow        ( (***), second )
 import Control.Monad        ( (>=>), guard )
 import Control.Monad.Reader ( MonadReader(..), asks, Reader, runReader )
 import qualified Data.List as List
@@ -18,6 +17,7 @@ import Agda.Compiler.Treeless.Compare
 
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Tuple ( (***), second )
 
 import Agda.Utils.Impossible
 

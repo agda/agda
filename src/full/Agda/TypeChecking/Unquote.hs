@@ -2,7 +2,6 @@ module Agda.TypeChecking.Unquote where
 
 import Prelude hiding (null)
 
-import Control.Arrow          ( first, second, (&&&) )
 import Control.Monad          ( (<=<) )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
@@ -46,6 +45,7 @@ import Agda.Syntax.Parser
 
 import Agda.Interaction.Library ( ExeName )
 import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
+import Agda.Interaction.Options.Lenses qualified as Lens
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Constraints
@@ -69,14 +69,14 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl
 import Agda.TypeChecking.Rules.Data
 
-import Agda.Utils.CallStack           ( HasCallStack )
+import Agda.Utils.CallStack ( HasCallStack )
 import Agda.Utils.Either
 import Agda.Utils.Lens
-import Agda.Utils.List1 (List1, pattern (:|))
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1     ( List1, pattern (:|))
+import Agda.Utils.List1     qualified as List1
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Interaction.Options.Lenses as Lens
+import Agda.Utils.Tuple     ( first, second, (&&&) )
 
 import Agda.Utils.Impossible
 

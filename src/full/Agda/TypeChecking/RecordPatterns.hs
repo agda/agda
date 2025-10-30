@@ -9,7 +9,6 @@ module Agda.TypeChecking.RecordPatterns
   , recordRHSToCopatterns
   ) where
 
-import Control.Arrow          ( first, second )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader   ( MonadReader(..), ReaderT(..), runReaderT )
 import Control.Monad.State    ( MonadState(..), StateT(..), runStateT )

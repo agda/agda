@@ -6,7 +6,6 @@ module Agda.Syntax.Scope.Base where
 
 import Prelude hiding ( null, length )
 
-import Control.Arrow (first, second)
 import Control.DeepSeq
 import Control.Monad
 
@@ -50,9 +49,9 @@ import Agda.Syntax.Common.Pretty
 import Agda.Utils.Set1 ( Set1 )
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Map as Map
-import Agda.Utils.Tuple ((//))
 import qualified Agda.Utils.StrictState2 as St2
 import qualified Agda.Utils.StrictState as St
+import Agda.Utils.Tuple ( (//), first, second )
 
 import Agda.Utils.Impossible
 

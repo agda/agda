@@ -6,7 +6,6 @@ import Prelude hiding (null)
 
 import Control.Monad
 
-import Data.Bifunctor (first)
 import Data.Foldable (find)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -292,7 +291,7 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
     tel'  = unflattenTel (permute perm names) ts1
 
     m     = VarSet.size is
-    (tel1, tel2) = telFromList -*- telFromList $ splitAt m $ telToList tel'
+    (tel1, tel2) = telFromList *** telFromList $ splitAt m $ telToList tel'
 
 -- | As splitTelescope, but fails if any additional variables or reordering
 --   would be needed to make the first part well-typed.
@@ -329,7 +328,7 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
     tel'  = unflattenTel (permute perm names) ts1
 
     m     = size is
-    (tel1, tel2) = telFromList -*- telFromList $ splitAt m $ telToList tel'
+    (tel1, tel2) = telFromList *** telFromList $ splitAt m $ telToList tel'
 
 -- | Try to instantiate one variable in the telescope (given by its de Bruijn
 --   level) with the given value, returning the new telescope and a

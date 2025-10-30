@@ -83,7 +83,7 @@ import qualified Agda.Utils.List2   as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
-import Agda.Utils.Tuple ( mapSndM )
+import Agda.Utils.Tuple ( secondM )
 
 import Agda.Setup ( getDataFileName, getAgdaAppDir )
 import Agda.Version
@@ -451,7 +451,7 @@ getTrustedExecutables = mkLibM [] $ do
     file <- liftIO getExecutablesFile
     if not (efExists file) then return Map.empty else do
       es    <- liftIO $ stripCommentLines <$> UTF8.readFile (efPath file)
-      lines <- liftIO $ mapM (mapSndM expandEnvironmentVariables) es
+      lines <- liftIO $ mapM (secondM expandEnvironmentVariables) es
       parseExecutablesFile file lines
   `catchIO` \ e -> do
     raiseErrors' [ ReadError e "Failed to read trusted executables." ]

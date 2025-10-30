@@ -14,7 +14,6 @@ import Prelude hiding ( null )
 import Data.Function (on)
 import Data.Maybe
 
-import Control.Arrow (left)
 import Control.Monad.Except       ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.Reader       ( MonadReader(..), asks, runReaderT )
 import Control.Monad.Writer       ( MonadWriter(..), runWriterT )
@@ -1007,13 +1006,13 @@ checkLHS mf = updateModality checkLHS_ where
              -> tcm (Either [TCErr] (LHSState a))
     trySplit eq tryNextSplit = runExceptT (splitArg eq) >>= \case
       Right st' -> return $ Right st'
-      Left err  -> left (err:) <$> tryNextSplit
+      Left err  -> first (err:) <$> tryNextSplit
 
     -- If there are any remaining user patterns, try to split on them
     trySplitRest :: tcm (Either [TCErr] (LHSState a))
     trySplitRest = case problem ^. problemRestPats of
       []    -> return $ Left []
-      (p:_) -> left singleton <$> runExceptT (splitRest p)
+      (p:_) -> first singleton <$> runExceptT (splitRest p)
 
     splitArg :: ProblemEq -> ExceptT TCErr tcm (LHSState a)
     -- Split on constructor/literal pattern

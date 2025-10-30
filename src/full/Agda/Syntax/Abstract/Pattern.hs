@@ -7,7 +7,6 @@ module Agda.Syntax.Abstract.Pattern where
 
 import Prelude hiding (null)
 
-import Control.Arrow           ( (***), second )
 import Control.Monad           ( (>=>) )
 import Control.Monad.Identity  ( Identity(..), runIdentity )
 import Control.Monad.Reader    ( Reader, runReader, asks, local )
@@ -31,6 +30,7 @@ import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Singleton
+import Agda.Utils.Tuple ( (***), second )
 
 import Agda.Utils.Impossible
 

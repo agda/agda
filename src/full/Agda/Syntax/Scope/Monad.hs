@@ -7,7 +7,6 @@ module Agda.Syntax.Scope.Monad where
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***))
 import Control.Monad.Except       ( MonadError, throwError, runExceptT )
 import Control.Monad.State        ( StateT, runStateT, gets, modify )
 import Control.Monad.Trans        ( MonadTrans, lift )
@@ -71,7 +70,7 @@ import Agda.Utils.Set1 ( Set1 )
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix as C
-import Agda.Utils.Tuple (pattern Pair)
+import Agda.Utils.Tuple ((***), pattern Pair)
 
 import Agda.Utils.Impossible
 

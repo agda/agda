@@ -229,7 +229,7 @@ checkApplication cmp hd args e t =
           target <- addContext tel newTypeMeta_     -- Z x y
           let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
           let hd       = namedArg arg
-          (Just vs, EmptyTel) <- mapFst allApplyElims <$> checkArguments_ CmpLeq ExpandLast hd args tel
+          (Just vs, EmptyTel) <- first allApplyElims <$> checkArguments_ CmpLeq ExpandLast hd args tel
                                                     -- a b : (x : X) (y : Y x)
           (_, hole) <- newValueMeta RunMetaOccursCheck CmpLeq holeType
           unquoteM hd hole holeType
@@ -287,7 +287,7 @@ inferHeadDef o x = do
         case proj of
           Nothing -> \ args -> Def x $ map Apply args
           Just p  -> \ args -> projDropParsApply p o rel args
-  mapFst applyE <$> inferDef app x
+  first applyE <$> inferDef app x
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor).
 --   We return a function that applies the head to arguments.

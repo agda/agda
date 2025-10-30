@@ -8,13 +8,13 @@ module Agda.Compiler.Treeless.Erase
        , isErasable
        ) where
 
-import Control.Arrow       ( first, second )
 import Control.Monad.State ( StateT, evalStateT )
 
 import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
@@ -30,13 +30,13 @@ import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Unused
 
 import Agda.Utils.Functor
+import Agda.Utils.IntSet.Infinite ( IntSet )
+import Agda.Utils.IntSet.Infinite qualified as IntSet
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Memo
 import Agda.Utils.Monad
-import Agda.Syntax.Common.Pretty (prettyShow)
-import Agda.Utils.IntSet.Infinite (IntSet)
-import qualified Agda.Utils.IntSet.Infinite as IntSet
+import Agda.Utils.Tuple           ( first, second )
 
 import Agda.Utils.Impossible
 

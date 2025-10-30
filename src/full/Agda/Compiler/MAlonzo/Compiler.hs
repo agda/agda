@@ -6,7 +6,7 @@ module Agda.Compiler.MAlonzo.Compiler
   where
 
 import Prelude hiding ( zip, zipWith )
-import Control.Arrow (second)
+
 import Control.DeepSeq
 import Control.Monad.Except   ( throwError )
 import Control.Monad.IO.Class ( MonadIO(..) )
@@ -26,8 +26,6 @@ import qualified Data.Text as Text
 import Data.Monoid (Monoid, mempty, mappend)
 
 import GHC.Generics (Generic)
-
-import qualified Agda.Utils.Haskell.Syntax as HS
 
 import System.Directory (createDirectoryIfMissing)
 import System.Environment (setEnv)
@@ -69,6 +67,7 @@ import Agda.Utils.FileName (isNewerThan)
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Float
+import qualified Agda.Utils.Haskell.Syntax as HS
 import Agda.Utils.IO.Directory
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -77,6 +76,7 @@ import qualified Agda.Utils.ListInf as ListInf
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
+import Agda.Utils.Tuple (second)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Zip
 

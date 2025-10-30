@@ -288,7 +288,7 @@ newValueMetaCtx
   :: MonadMetaSolver m
   => Frozen -> RunMetaOccursCheck -> Comparison -> Type -> Telescope -> Permutation -> Args -> m (MetaId, Term)
 newValueMetaCtx frozen b cmp t tel perm ctx =
-  mapSndM instantiateFull =<< newValueMetaCtx' frozen b cmp t tel perm ctx
+  secondM instantiateFull =<< newValueMetaCtx' frozen b cmp t tel perm ctx
 
 {-# SPECIALIZE newValueMeta' :: RunMetaOccursCheck -> Comparison -> Type -> TCM (MetaId, Term) #-}
 -- | Create a new value meta without η-expanding.
@@ -1070,7 +1070,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
           -- Check ids is time respecting.
           () <- do
-            let idvars = map (mapSnd allFreeVars) ids
+            let idvars = map (second allFreeVars) ids
             -- earlierThan α v := v "arrives" before α
             let earlierThan l j = j > l
             TelV tel' _ <- telViewUpToPath (length args) t
@@ -1649,7 +1649,7 @@ data InvertExcept
 --   has to be checked separately.
 --
 inverseSubst' :: (Term -> Bool) -> Args -> ExceptT InvertExcept TCM SubstCand
-inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
+inverseSubst' skip args = map (first unArg) <$> loop (zip args terms)
   where
   loop  = foldM isVarOrIrrelevant []
   terms = map var (downFrom (size args))

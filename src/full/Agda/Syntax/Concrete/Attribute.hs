@@ -10,7 +10,6 @@ module Agda.Syntax.Concrete.Attribute where
 
 import Prelude hiding (null)
 
-import Control.Arrow (second)
 import Control.Monad (foldM)
 
 #if !MIN_VERSION_base(4,20,0)
@@ -29,6 +28,7 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Position
 
 import Agda.Utils.Null
+import Agda.Utils.Tuple (second)
 
 import Agda.Utils.Impossible
 

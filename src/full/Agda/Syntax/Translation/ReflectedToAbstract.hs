@@ -2,16 +2,15 @@
 
 module Agda.Syntax.Translation.ReflectedToAbstract where
 
-import Control.Arrow        ( (***) )
 import Control.Monad        ( foldM )
 import Control.Monad.Except ( MonadError )
 import Control.Monad.Reader ( MonadReader(..), asks, reader, runReaderT )
 
 import Data.Maybe
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 import Data.Text (Text)
-import qualified Data.Text as Text
+import Data.Text qualified as Text
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
@@ -21,7 +20,7 @@ import Agda.Syntax.Abstract
   ( Name, QName, QNamed(QNamed)
   , isNoName, nameConcrete, nextName, qualify, unambiguous
   )
-import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Reflected as R
 import Agda.Syntax.Internal (Dom,Dom'(..))
@@ -35,12 +34,13 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 qualified as List1
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Functor
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.Tuple ( (***) )
 
 type Vars = [(Name,R.Type)]
 

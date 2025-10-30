@@ -79,7 +79,7 @@ alexGetChar inp@(AlexInput { lexInput = c:s, lexPos = p }) =
 
 alexGetByte :: AlexInput -> Maybe (Word8, AlexInput)
 alexGetByte ai =
-  mapFst (fromIntegral . fromEnum . toASCII) <$> alexGetChar ai
+  first (fromIntegral . fromEnum . toASCII) <$> alexGetChar ai
   where
   toASCII c
     | isSpace c && c /= '\t' && c /= '\n' = ' '

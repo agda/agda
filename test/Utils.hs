@@ -7,7 +7,6 @@ module Utils
   ) where
 
 import Control.Applicative
-import Control.Arrow ((&&&))
 import Control.Exception (finally)
 import Control.Monad
 
@@ -54,6 +53,7 @@ import Agda.Utils.Environment
 import Agda.Utils.FileName            ( stripAnyOfExtensions )
 import Agda.Utils.Functor
 import Agda.Utils.IO.Directory        ( findWithInfo )
+import Agda.Utils.Tuple ((&&&))
 
 import qualified Agda.Version (package)
 
