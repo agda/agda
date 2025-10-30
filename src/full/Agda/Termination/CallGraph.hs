@@ -175,6 +175,8 @@ instance (Monoid a, CombineNewOld a, Ord n) => CombineNewOld (Graph n a) where
 
 -- GHC supports implicit-parameter constraints in instance declarations
 -- only from 7.4.  To maintain compatibility with 7.2, we skip this instance:
+-- Andreas, 2025-10-29, not allowed in GHC 9.12:
+-- https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/implicit_parameters.html#implicit-parameter-type-constraints
 -- KEEP:
 -- instance (Monoid cinfo, ?cutoff :: CutOff) => CombineNewOld (CallGraph cinfo) where
 --   combineNewOld (CallGraph new) (CallGraph old) = CallGraph -*- CallGraph $ combineNewOld comb old
@@ -182,10 +184,12 @@ instance (Monoid a, CombineNewOld a, Ord n) => CombineNewOld (Graph n a) where
 --     where comb = Graph.composeWith (>*<) CMSet.union new old
 
 -- Non-overloaded version:
-combineNewOldCallGraph :: (Monoid cinfo, ?cutoff :: CutOff) => CombineNewOldT (CallGraph cinfo)
+combineNewOldCallGraph :: forall cinfo. (Monoid cinfo, ?cutoff :: CutOff) => CombineNewOldT (CallGraph cinfo)
 combineNewOldCallGraph (CallGraph new) (CallGraph old) = CallGraph -*- CallGraph $ combineNewOld comb old
     -- combined calls:
-    where comb = Graph.composeWith (>*<) CMSet.union new old
+    where
+      comb :: Graph Node (CMSet cinfo)
+      comb = Graph.composeWith (>*<) CMSet.union new old
 
 -- | Call graph comparison.
 --   A graph @cs'@ is ``worse'' than @cs@ if it has a new edge (call)
