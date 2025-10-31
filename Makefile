@@ -407,13 +407,14 @@ test : check-whitespace \
        succeed \
        fail \
        bugs \
-	   build-succeed-test \
-	   build-fail-test \
-       interaction \
-	   test-suite-covers-errors \
-	   test-suite-covers-warnings \
-	   user-manual-covers-options \
-	   user-manual-covers-warnings \
+       build-succeed-test \
+       build-fail-test \
+       interaction-simple \
+       interaction-custom \
+       test-suite-covers-errors \
+       test-suite-covers-warnings \
+       user-manual-covers-options \
+       user-manual-covers-warnings \
        examples \
        std-lib-test \
        cubical-test \
@@ -517,9 +518,18 @@ fast-build-succeed-test :
 	@$(call decorate, "Suite of successful --build-library tests (using agda-fast)", \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/BuildSucceed)
 
+# For CI
 .PHONY : interaction ##
-interaction :
-	@$(call decorate, "Suite of interaction tests", \
+interaction : interaction-simple interaction-custom
+
+.PHONY : interaction-simple ##
+interaction-simple :
+	@$(call decorate, "Suite of interaction tests (simple)", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Interaction/simple)
+
+.PHONY : interaction-custom ##
+interaction-custom :
+	@$(call decorate, "Suite of interaction tests (custom)", \
 		$(MAKE) -C test/interaction)
 
 .PHONY : interactive ##
