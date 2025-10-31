@@ -382,6 +382,9 @@ textDiffWithTouch agdaFile t1 t2
         touchFile agdaFile
         return $ DiffText Nothing t1 t2
 
+readFileMaybeText :: FilePath -> IO (Maybe Text)
+readFileMaybeText fp = fmap decodeUtf8 <$> readFileMaybe fp
+
 -- | Compare something text-like against the golden file contents.
 -- For the conversion of inputs to text you may want to use the Data.Text.Encoding
 -- or/and System.Process.Text modules.
@@ -399,11 +402,12 @@ goldenVsAction'
 goldenVsAction' name ref act toTxt =
   goldenTest1
     name
-    (fmap decodeUtf8 <$> readFileMaybe ref)
+    (readFileMaybeText ref)
     (toTxt <$> act)
     textDiff
     ShowText
     (BS.writeFile ref . encodeUtf8)
+
 
 -- | Scrapes the output of @agda --version@
 -- to determine whether agda was built with or without
