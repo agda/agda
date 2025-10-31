@@ -1076,6 +1076,7 @@ executable agda-tests
       Compiler.Tests
       CubicalSucceed.Tests
       Fail.Tests
+      Interaction.Simple.Tests
       Interactive.Tests
       Internal.Compiler.MAlonzo.Encode
       Internal.Helpers

@@ -407,7 +407,8 @@ test : check-whitespace \
        succeed \
        fail \
        bugs \
-       interaction \
+       interaction-simple \
+       interaction-custom \
        examples \
        std-lib-test \
        cubical-test \
@@ -510,9 +511,14 @@ fast-build-succeed-test :
 	@$(call decorate, "Suite of successful --build-library tests (using agda-fast)", \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/BuildSucceed)
 
-.PHONY : interaction ##
-interaction :
-	@$(call decorate, "Suite of interaction tests", \
+.PHONY : interaction-simple ##
+interaction-simple :
+	@$(call decorate, "Suite of interaction tests (simple)", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Interaction/simple)
+
+.PHONY : interaction-custom ##
+interaction-custom :
+	@$(call decorate, "Suite of interaction tests (custom)", \
 		$(MAKE) -C test/interaction)
 
 .PHONY : interactive ##

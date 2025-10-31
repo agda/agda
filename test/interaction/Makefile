@@ -27,8 +27,12 @@ clean=/usr/bin/env bash $(shell pwd)/clean.sh $(SED)
 # Construct the list of tests to carry out.
 # Andreas, 2017-04-24 ls -t: sort by newest first
 AgdaFiles=$(shell ls -t *agda)
-OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFiles)))
-Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFiles)))
+# Lawrence, 2025-04-13: skip files with .in
+# (these now have a tasty test runner),
+# unless they have a .sh file
+AgdaFilesWithoutIn=$(shell for file in $(AgdaFiles); do (test -f ${file/.*/.in} && test ! -f ${file/.*/.sh} ) || echo $$file done)
+OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFilesWithoutIn)))
+Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFilesWithoutIn)))
 
 default : $(Tests)
 
@@ -53,27 +57,11 @@ filter=$(SED) -e 's"$(pwdPlusDelimiter)""g' \
 # Turn off "eager failure" flags (e, E, pipefail) while running the test.
 run_test=\
     set +eE +o pipefail; \
-    if test -f $*.in; \
-    then cat $*.in \
-         | $(SED) "s/ioTCM/IOTCM/g" \
-         | $(SED) "s/cmd_give/(cmd_give WithoutForce)/g" \
-         | $(SED) "s/cmd_/Cmd_/g" \
-         | $(SED) "s/showImplicitArgs/ShowImplicitArgs/g" \
-         | $(SED) "s/toggleImplicitArgs/ToggleImplicitArgs/g" \
-         | $(SED) "s/top_command/IOTCM currentFile None Indirect/g" \
-         | $(SED) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
-         | $(SED) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
-         | $(SED) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
-         | $(SED) "s+currentFullPath+\"$(pwd)/$(wildcard $*.agda $*.lagda)\"+g" \
-         | $(AGDA_BIN) -v0 -i . -i .. --interaction --ignore-interfaces $(AGDA_OPT) $(RTS_$*) \
-           2>&1 | $(filter) ; \
-    elif test -f $*.hs; \
+    if test -f $*.hs; \
     then $(RUNGHC) --ghc-arg=-v0 --ghc-arg=-w ./$*.hs $(AGDA_BIN) 2>&1 | $(filter) ; \
     else /usr/bin/env bash ./$*.sh $(AGDA_BIN) "$(RUNGHC)" > $(TMPDIR)/$*.tmp_out ; \
          cat $(TMPDIR)/$*.tmp_out | $(filter) ; \
     fi
-
-# Note that RTS_... variables are ignored when .hs/.sh files are used.
 
 setup_Issue591     = rm -f Issue591/M.agdai
 setup_Issue2217    = rm -f Issue2217/M.agdai
@@ -90,9 +78,6 @@ cleanup_Issue2714  = rm -rf MAlonzo
 cleanup_CompilationWarnings = rm -rf MAlonzo
 setup_QuickLaTeX-Caching = rm -rf latex
 cleanup_QuickLaTeX-Caching = rm -rf latex
-RTS_Issue637       = +RTS -K10000 -RTS
-RTS_Issue639       = --safe
-RTS_Issue1785      = --library-file=issue1785.libs
 
 # No recorded output
 ########################################################################
