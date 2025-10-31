@@ -40,6 +40,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , unions, unionsWith
     -- * Transformation
   , mapWithEdge
+  , mapLoops
   , transposeEdge, transpose
   , clean
   , removeNode, removeNodes
@@ -88,15 +89,15 @@ import Data.Map.Strict (Map)
 import Data.Foldable (toList)
 
 import Data.Maybe (maybeToList, fromMaybe)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 import Data.Set (Set)
-import qualified Data.Tree as Tree
+import Data.Tree qualified as Tree
 
 import Agda.Utils.Function
 import Agda.Utils.List1 (List1)
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 qualified as List1
 import Agda.Utils.Null (Null(null))
-import qualified Agda.Utils.Null as Null
+import Agda.Utils.Null qualified as Null
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.SemiRing
 import Agda.Utils.Tuple
@@ -418,6 +419,10 @@ unionsWith f = List.foldl' (unionWith f) empty
 mapWithEdge :: (Edge n e -> e') -> Graph n e -> Graph n e'
 mapWithEdge f (Graph g) = Graph $ flip Map.mapWithKey g $ \ s m ->
   flip Map.mapWithKey m $ \ t e -> f (Edge s t e)
+
+-- | Only transform the self-loops.
+mapLoops :: Ord n => (e -> e) -> Graph n e -> Graph n e
+mapLoops f (Graph g) = Graph $ flip Map.mapWithKey g $ Map.adjust f
 
 -- | Reverses an edge. /O(1)/.
 
