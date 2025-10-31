@@ -2,11 +2,8 @@ Issue1075.agda:283.1-435.54: error: [TerminationIssue]
 Termination checking failed for the following functions:
   cut⁺, cut⁻, rsubst+, lsubst
 Problematic calls:
-  cut⁺ pfΓ pf (z ∷ LA) (id⁺ v ∷ Values) N | pfΓ v
   rsubst+ Γ' pfΓ pf [] LA- LT [] (focL pf₁ x Sp)
   | fromctxGen Γ' (map Pers LA-) x
-  cut⁺ (conssusp pfΓ) pf LA (wken-all-rfoc Values) N
-    (at Issue1075.agda:329.40-44)
   rsubst+ [] pfΓ pf LA (A ∷ []) (N ∷ []) Values N'
     (at Issue1075.agda:331.3-10)
   cut⁺ pfΓ pf (A ∷ []) (V₁ ∷ []) N
