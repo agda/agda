@@ -173,7 +173,8 @@
             "succeed" = {};
             "fail" = {};
             "bugs" = {};
-            # "interaction"     # runs Haskell scripts that import Agda
+            "interaction-simple" = {};
+            # "interaction-custom"     # runs Haskell scripts that import Agda
             "examples" = {};
             # "std-lib-test"    # requires std-lib submodule, runs its cabal build
             # "cubical-test"    # requires cubical submodule, runs its cabal build

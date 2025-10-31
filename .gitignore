@@ -71,6 +71,8 @@
 /test/Compiler/with-stdlib/highlight-hover.js
 /test/Compiler/with-stdlib/highlight-hover.mjs
 /test/interaction/Issue6261?.out
+/test/interaction/latex/agda.sty
+/test/interaction/latex/QuickLaTeX-Caching.tex
 /test/Succeed/agda-rts.js
 /test/Succeed/agda-rts.mjs
 /test/Succeed/Issue296
