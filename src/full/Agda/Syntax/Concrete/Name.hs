@@ -7,6 +7,8 @@
 -}
 module Agda.Syntax.Concrete.Name where
 
+import Prelude hiding (null)
+
 import Control.DeepSeq
 
 import Data.ByteString.Char8 (ByteString)
@@ -27,6 +29,7 @@ import Agda.Utils.Singleton
 import Agda.Utils.Suffix
 
 import Agda.Utils.Impossible
+import Agda.Utils.Null (Null (empty, null))
 
 {-| A name is a non-empty list of alternating 'Id's and 'Hole's. A normal name
     is represented by a singleton list, and operators are represented by a list
@@ -62,6 +65,12 @@ instance Underscore Name where
   isUnderscore NoName{} = True
   isUnderscore (Name {nameNameParts = Id x :| []}) = isUnderscore x
   isUnderscore _ = False
+
+instance Null Name where
+  empty = NoName empty empty
+  null = \case
+    NoName _r i -> null i
+    Name{} -> False
 
 -- | Mixfix identifiers are composed of words and holes,
 --   e.g. @_+_@ or @if_then_else_@ or @[_/_]@.
@@ -117,6 +126,12 @@ instance Underscore QName where
   underscore = QName underscore
   isUnderscore (QName x) = isUnderscore x
   isUnderscore Qual{}    = False
+
+instance Null QName where
+  empty = QName empty
+  null = \case
+    QName x -> null x
+    Qual{} -> False
 
 ------------------------------------------------------------------------
 -- * Constructing simple 'Name's.

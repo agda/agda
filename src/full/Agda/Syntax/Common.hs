@@ -3224,6 +3224,10 @@ instance AllAreOpaque a => AllAreOpaque (Maybe a) where
 data NameId = NameId {-# UNPACK #-} !Word64 {-# UNPACK #-} !ModuleNameHash
     deriving (Eq, Ord, Generic, Show)
 
+instance Null NameId where
+  empty = NameId empty empty
+  null (NameId n m) = null n && null m
+
 instance KillRange NameId where
   killRange = id
 

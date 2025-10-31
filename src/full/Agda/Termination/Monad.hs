@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | The monad for the termination checker.
 --
@@ -9,27 +10,31 @@ module Agda.Termination.Monad where
 
 import Prelude hiding (null, zip, zipWith)
 
-import Control.Applicative hiding (empty)
-
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except   ( MonadError(..) )
 import Control.Monad.Reader   ( MonadReader(..), ReaderT(..) )
 
-import Data.DList (DList)
-import qualified Data.DList as DL
-import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.DList ( DList )
+import Data.DList qualified as DL
+import Data.Set   ( Set )
+import Data.Set   qualified as Set
 
-import Agda.Interaction.Options (optTerminationDepth)
+import Agda.Interaction.Options ( optTerminationDepth )
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty ( Pretty, prettyShow )
+import Agda.Syntax.Common.Pretty qualified as P
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Literal
+import Agda.Syntax.Internal.Pattern ( PatternLike(foldrPattern) )
+import Agda.Syntax.Literal          ( Literal(LitString) )
 
-import Agda.Termination.CutOff
-import Agda.Termination.Order (Order,le,unknown)
-import Agda.Termination.RecCheck (MutualNames, anyDefs)
+import Agda.Termination.CallMatrix ( CallMatrix, CallMatrix'(CallMatrix), CallMatrixAug(CallMatrixAug), CMSet )
+import Agda.Termination.CallMatrix qualified as CallMatrix
+import Agda.Termination.CallGraph  ( CallGraph, callMatrixSet )
+import Agda.Termination.CallGraph  qualified as CallGraph
+import Agda.Termination.CutOff     ( CutOff, defaultCutOff )
+import Agda.Termination.Order      ( Order, le, unknown )
+import Agda.Termination.RecCheck   ( MutualNames, anyDefs )
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark
@@ -42,19 +47,17 @@ import Agda.Utils.Benchmark as B
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List   ( hasElem )
+import Agda.Utils.List    ( hasElem )
 import Agda.Utils.ListInf ( ListInf )
 import Agda.Utils.ListInf qualified as ListInf
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Monoid
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty (Pretty, prettyShow)
 import Agda.Utils.Singleton
-import qualified Agda.Syntax.Common.Pretty as P
-import Agda.Utils.VarSet (VarSet)
-import qualified Agda.Utils.VarSet as VarSet
-import Agda.Utils.Zip
+import Agda.Utils.VarSet  ( VarSet )
+import Agda.Utils.VarSet  qualified as VarSet
+import Agda.Utils.Zip     () -- for zip, zipWith instance
 
 import Agda.Utils.Impossible
 
@@ -481,6 +484,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
     -- @_recMutual@ should be something (@Just (_:_)@) to be safe
 
 -- * De Bruijn pattern stuff
+---------------------------------------------------------------------------
 
 -- | How long is the path to the deepest atomic pattern?
 patternDepth :: forall a. Pattern' a -> Int
@@ -543,8 +547,11 @@ instance UsableSizeVars MaskedDeBruijnPatterns where
       (Masked _ (ProjP _ q) : ps) -> projUseSizeLt q $ usableSizeVars ps
       (p                    : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
 
--- * Masked patterns (which are not eligible for structural descent, only for size descent)
---   See issue #1023.
+-- * Masked patterns
+---------------------------------------------------------------------------
+
+-- Masked patterns are not eligible for structural descent, only for size descent.
+-- See issue #1023.
 
 type MaskedDeBruijnPatterns = [Masked DeBruijnPattern]
 
@@ -566,7 +573,8 @@ instance Decoration Masked where
 instance PrettyTCM a => PrettyTCM (Masked a) where
   prettyTCM (Masked m a) = applyWhen m (parens . parens) $ prettyTCM a
 
--- * Call pathes
+-- * Call paths
+---------------------------------------------------------------------------
 
 -- | Call paths.
 
@@ -585,13 +593,22 @@ instance PrettyTCM a => PrettyTCM (Masked a) where
 -- If the binary tree is balanced "incorrectly", then forcing it could
 -- be expensive, so a switch was made to difference lists.
 
-newtype CallPath = CallPath (DList CallInfo)
-  deriving (Show, Semigroup, Monoid)
+data CallPath = CallPath
+  { callPathStart :: QName
+  , callPathSteps :: DList CallInfo
+  }
+  deriving (Show)
 
 -- | The calls making up the call path.
 
 callInfos :: CallPath -> [CallInfo]
-callInfos (CallPath cs) = DL.toList cs
+callInfos (CallPath _ cs) = DL.toList cs
+
+instance Semigroup CallPath where
+  CallPath start steps <> CallPath _ steps' = CallPath start (steps <> steps')
+
+instance Monoid CallPath where
+  mempty = CallPath empty mempty
 
 -- | Only show intermediate nodes.  (Drop last 'CallInfo').
 instance Pretty CallPath where
@@ -602,6 +619,7 @@ instance Pretty CallPath where
       arrow = "-->"
 
 -- * Size depth estimation
+---------------------------------------------------------------------------
 
 -- | A very crude way of estimating the @SIZELT@ chains
 --   @i > j > k@ in context.  Returns 3 in this case.
@@ -626,3 +644,35 @@ instance TerSetSizeDepth ListTel where
             MetaV{} -> return 1
             _       -> return 0
     terLocal (set terSizeDepth n) cont
+
+-- * PrettyTCM
+---------------------------------------------------------------------------
+--
+-- This mostly duplicates the 'Pretty' instances,
+-- but we use 'PrettyTCM' for the 'QName' in the 'CallPath'.
+
+-- This conflicts with an existing instance in TypeChecking.Pretty
+-- -- | We only print the name of the callee, omitting the actual call term.
+-- instance PrettyTCM CallInfo where
+--   prettyTCM (CallInfo target _term) = prettyTCM target
+
+-- | Show all nodes.
+instance PrettyTCM CallPath where
+  prettyTCM cp = hsep $
+    prettyTCM (callPathStart cp) :
+    map (\ (CallInfo g _) -> "-->" <+> prettyTCM g) (callInfos cp)
+
+instance PrettyTCM CallMatrix where
+  prettyTCM (CallMatrix m) = pretty m
+
+instance PrettyTCM cinfo => PrettyTCM (CallMatrixAug cinfo) where
+  prettyTCM (CallMatrixAug m cinfo) = prettyTCM cinfo $$ (nest 4 $ prettyTCM m)
+
+instance PrettyTCM cinfo => PrettyTCM (CMSet cinfo) where
+  prettyTCM = vcat . punctuate "\n" . map prettyTCM . CallMatrix.toList
+
+instance PrettyTCM cinfo => PrettyTCM (CallGraph.Call cinfo) where
+  prettyTCM = prettyTCM . callMatrixSet
+
+instance PrettyTCM cinfo => PrettyTCM (CallGraph cinfo) where
+  prettyTCM = vcat . map prettyTCM . CallGraph.toList

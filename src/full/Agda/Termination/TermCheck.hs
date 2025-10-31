@@ -341,7 +341,7 @@ reportCalls no calls = do
                   k' = r - k
       let report s cs = reportSDoc "term.matrices" 40 $ vcat
             [ text   $ header s
-            , nest 2 $ pretty cs
+            , nest 2 $ prettyTCM cs
             ]
           cs0     = calls
           step cs = do
@@ -361,7 +361,7 @@ reportCalls no calls = do
     --   ]
     reportSDoc "term.matrices" 30 $ vcat
       [ text $ "Idempotent call matrices (" ++ no ++ "dot patterns):\n"
-      , nest 2 $ vcat $ punctuate "\n" $ map pretty idems
+      , nest 2 $ vcat $ punctuate "\n" $ map prettyTCM idems
       ]
     -- reportSDoc "term.matrices" 30 $ vcat
     --   [ text $ "Other call matrices (" ++ no ++ "dot patterns):"
@@ -937,11 +937,11 @@ function g es0 = do
          let src  = fromMaybe __IMPOSSIBLE__ $ Set.lookupIndex f names
              tgt  = gInd
              cm   = makeCM ncols nrows matrix'
-             info = CallPath $ singleton $
+             info = CallPath { callPathStart = f, callPathSteps = singleton $
                     CallInfo
                       { callInfoTarget = g
                       , callInfoCall   = doc
-                      }
+                      }}
          verboseS "term.kept.call" 5 $ do
            pats <- terGetPatterns
            reportSDoc "term.kept.call" 5 $ vcat

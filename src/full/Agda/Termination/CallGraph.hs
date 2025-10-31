@@ -11,7 +11,8 @@
 module Agda.Termination.CallGraph
   ( -- * Calls
     Node
-  , Call, mkCall, mkCall', source, target, callMatrixSet
+  , Call, source, target, callMatrixSet
+  , mkCall, mkCall' -- exported for the sake of testing, otherwise we use 'insert'
   , (>*<)
     -- * Call graphs
   , CallGraph(..)
@@ -27,23 +28,24 @@ module Agda.Termination.CallGraph
 
 import Prelude hiding (null)
 
-import qualified Data.List as List
+import Data.List qualified as List
 import Data.Set (Set)
+
+import Agda.Syntax.Common.Pretty
 
 import Agda.Termination.CallMatrix (CallMatrix, CallMatrixAug(..), CMSet(..), CallComb(..))
 import qualified Agda.Termination.CallMatrix as CMSet
 import Agda.Termination.CutOff
 
 import Agda.Utils.Favorites (Favorites)
-import qualified Agda.Utils.Favorites as Fav
+import Agda.Utils.Favorites qualified as Fav
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Edge(..),Graph(..))
-import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.Graph.AdjacencyMap.Unidirectional qualified as Graph
 
 import Agda.Utils.Function
 
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
-import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 
@@ -70,6 +72,7 @@ callMatrixSet = label
 mkCall :: Node -> Node -> CallMatrix -> cinfo -> Call cinfo
 mkCall s t m cinfo = Edge s t $ singleton $ CallMatrixAug m cinfo
 
+-- @mkCall'@ is only used in our Internal tests.
 -- | Make a call with empty @cinfo@.
 mkCall' :: Monoid cinfo => Node -> Node -> CallMatrix -> Call cinfo
 mkCall' s t m = mkCall s t m mempty
