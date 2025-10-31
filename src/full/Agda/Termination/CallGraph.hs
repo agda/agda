@@ -208,11 +208,15 @@ combineNewOldCallGraph (CallGraph new) (CallGraph old) = CallGraph *** CallGraph
 -- complete if it contains all indirect calls; if @f -> g@ and @g ->
 -- h@ are present in the graph, then @f -> h@ should also be present.
 
-complete :: (?cutoff :: CutOff) => Monoid cinfo => CallGraph cinfo -> CallGraph cinfo
+complete :: (Monoid cinfo, ?cutoff :: CutOff) => CallGraph cinfo -> CallGraph cinfo
 complete cs = repeatWhile (first (not . null) . completionStep cs) cs
 
-completionStep :: (?cutoff :: CutOff) => Monoid cinfo =>
-  CallGraph cinfo -> CallGraph cinfo -> (CallGraph cinfo, CallGraph cinfo)
+completionStep :: (Monoid cinfo, ?cutoff :: CutOff)
+  => CallGraph cinfo
+       -- ^ The original call graph.
+  -> CallGraph cinfo
+       -- ^ The current completion.
+  -> (CallGraph cinfo, CallGraph cinfo)
 completionStep gOrig gThis = combineNewOldCallGraph gOrig gThis
 
 ------------------------------------------------------------------------

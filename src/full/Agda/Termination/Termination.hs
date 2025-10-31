@@ -14,6 +14,7 @@ module Agda.Termination.Termination
   , GuardednessHelps(..)
   , terminates
   , terminatesFilter
+  , terminationCounterexample
   , idempotentEndos
   ) where
 
@@ -64,25 +65,45 @@ data Terminates cinfo
 terminates :: (Monoid cinfo, ?cutoff :: CutOff) => CallGraph cinfo -> Terminates cinfo
 terminates = terminatesFilter $ const True
 
-terminatesFilter ::
-     (Monoid cinfo, ?cutoff :: CutOff)
+-- | While no counterexample to termination is found,
+--   complete the given call graph step-by-step.
+terminatesFilter :: forall cinfo. (Monoid cinfo, ?cutoff :: CutOff)
   => (Node -> Bool)    -- ^ Only consider calls whose source and target satisfy this predicate.
   -> CallGraph cinfo   -- ^ Callgraph augmented with @cinfo@.
   -> Terminates cinfo  -- ^ A bad call path of type @cinfo@, if termination could not be proven.
-terminatesFilter f cs
+terminatesFilter f cs0 = loop (cs0, cs0)
+  where
+    loop :: (CallGraph cinfo, CallGraph cinfo) -> Terminates cinfo
+    loop (new, cs)
+      -- If we have no new calls, the call graph is complete,
+      -- and we have not found a counterexample.
+      | null new  = Terminates
+      -- Otherwise the new calls might contain a counterexample.
+      | otherwise = case terminationCounterexample f new of
+          -- If we have a counterexample already, we can stop the search for one.
+          result@TerminatesNot{} -> result
+          -- Otherwise, we continue to complete the call-graph one step and look again.
+          Terminates -> loop $ completionStep cs0 cs
+
+-- | Does the given callgraph contain a counterexample to termination?
+terminationCounterexample :: (Monoid cinfo, ?cutoff :: CutOff)
+  => (Node -> Bool)    -- ^ Only consider calls whose source and target satisfy this predicate.
+  -> CallGraph cinfo   -- ^ Callgraph augmented with @cinfo@.
+  -> Terminates cinfo  -- ^ A bad call path of type @cinfo@, if termination could not be proven.
+terminationCounterexample f cs
   | cm:_ <- bad             = TerminatesNot GuardednessHelpsNot $ augCallInfo cm
   | cm:_ <- needGuardedness = TerminatesNot GuardednessHelpsYes $ augCallInfo cm
   | otherwise               = Terminates
   where
     -- Every idempotent call must have decrease in the diagonal.
-    idems = idempotentEndosFilter f $ complete cs
+    (_good, needGuardedness, bad) = partitionEithers3 $ map hasDecr idems
+    idems = idempotentEndosFilter f cs
     hasDecr cm = case diagonal cm of
       g : xs
         | any isDecr xs -> In1 ()        -- Evidence found without guardedness.
         | isDecr g      -> In2 cm        -- Evidence found in guardedness.
         | otherwise     -> In3 cm        -- No evidence found.
       []                -> In3 cm        -- No information means no evidence for termination.
-    (_good, needGuardedness, bad) = partitionEithers3 $ map hasDecr idems
 
 -- | Get all idempotent call-matrixes of loops in the call graph that match the given node-filter.
 idempotentEndosFilter :: (?cutoff :: CutOff) => (Node -> Bool) -> CallGraph cinfo -> [CallMatrixAug cinfo]
