@@ -300,7 +300,7 @@ instance Hashable QName where
   hashWithSalt salt = hashWithSalt salt . qnameName
 
 ------------------------------------------------------------------------
--- * IsNoName instances (checking for "_")
+-- * 'IsNoName' and 'Null' instances (checking for "_")
 ------------------------------------------------------------------------
 
 -- | An abstract name is empty if its concrete name is empty.
@@ -309,6 +309,18 @@ instance IsNoName Name where
 
 instance IsNoName ModuleName where
   isNoName (MName xs) = all isNoName xs
+
+instance Null Name where
+  empty = Name empty empty empty empty empty empty
+  null = isNoName
+
+instance Null QName where
+  empty = QName empty empty
+  null (QName m x) = null m && null x
+
+------------------------------------------------------------------------
+-- * 'NumHoles' instances
+------------------------------------------------------------------------
 
 instance NumHoles Name where
   numHoles = numHoles . nameConcrete
