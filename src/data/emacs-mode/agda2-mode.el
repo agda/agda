@@ -43,6 +43,7 @@ Note that the same version of the Agda executable must be used.")
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
 (require 'agda2-queue)
+(require 'xref)
 (eval-and-compile
   ;; Load filladapt, if it is installed.
   (condition-case nil
@@ -260,10 +261,7 @@ constituents.")
     (eri-indent-reverse          [S-iso-lefttab])
     (eri-indent-reverse          [S-lefttab])
     (eri-indent-reverse          [S-tab])
-    (agda2-goto-definition-mouse [mouse-2])
-    (agda2-goto-definition-keyboard "\M-.")
-    (agda2-go-back                  ,(if (version< emacs-version "25.1") "\M-*" "\M-,"))
-    )
+    (xref-find-definitions-at-mouse [mouse-2]))
   "Table of commands, used to build keymaps and menus.
 Each element has the form (CMD &optional KEYS WHERE DESC) where
 CMD is a command; KEYS is its key binding (if any); WHERE is a
@@ -441,7 +439,9 @@ agda2-include-dirs is not bound." :warning))
  ;; including "mode: latex" is loaded chances are that the Agda mode
  ;; is activated before the LaTeX mode, and the LaTeX mode does not
  ;; seem to remove the text properties set by the Agda mode.
- (add-hook 'change-major-mode-hook 'agda2-quit nil 'local))
+ (add-hook 'change-major-mode-hook 'agda2-quit nil 'local)
+ ;; Enable Xref
+ (add-hook 'xref-backend-functions #'agda2-xref-backend -90 t))
 
 (defun agda2-restart ()
   "Tries to start or restart the Agda process."
@@ -999,8 +999,8 @@ The buffer is returned.")
         ;; Hijack the bindings for going to definition in the info
         ;; buffer, away from compilation-mode's, into something that
         ;; can read definition sites from highlighting info.
-        (define-key map (kbd "RET") 'agda2-info-goto-definition-keyboard)
-        (define-key map '[mouse-2]  'agda2-info-goto-definition-mouse)
+        (define-key map (kbd "RET") #'xref-find-definitions)
+        (define-key map '[mouse-2]  #'xref-find-definitions-at-mouse)
 
         (use-local-map map))
 
@@ -1066,29 +1066,29 @@ Helper factored out from agda2-info-action."
                     (* (frame-height)
                        agda2-information-window-max-height))))))))))
 
-(defun agda2-info-action (name text append &rest annotations)
-  "Insert TEXT plus a final newline into the Agda info buffer and display it.
-NAME is displayed in the buffer's mode line.
+(defun agda2-info-action (name text append)
+  "insert text plus a final newline into the agda info buffer and display it.
+name is displayed in the buffer's mode line.
 
-The TEXT is highlighted by the given ANNOTATIONS
+the text is highlighted by the given annotations
 which come in the same format as for agda2-highlight-apply.
 
-If APPEND is non-nil, then TEXT is appended at the end of the
+if append is non-nil, then text is appended at the end of the
 buffer, and point placed after this text.
 
-If APPEND is nil, then any previous text is removed before TEXT
+if append is nil, then any previous text is removed before text
 is inserted, and point is placed before this text."
   (interactive)
   (let ((buf (agda2-info-buffer)))
     (with-current-buffer buf
-      ;; In some cases the jump-to-position-mentioned-in-text
+      ;; in some cases the jump-to-position-mentioned-in-text
       ;; functionality (see compilation-error-regexp-alist above)
-      ;; didn't work: Emacs jumped to the wrong position. However, it
-      ;; seems to work if compilation-forget-errors is used. This
-      ;; problem may be related to Emacs bug #9679
-      ;; (http://debbugs.gnu.org/cgi/bugreport.cgi?bug=9679). The idea
+      ;; didn't work: emacs jumped to the wrong position. however, it
+      ;; seems to work if compilation-forget-errors is used. this
+      ;; problem may be related to emacs bug #9679
+      ;; (http://debbugs.gnu.org/cgi/bugreport.cgi?bug=9679). the idea
       ;; to use compilation-forget-errors comes from a comment due to
-      ;; Oleksandr Manzyuk
+      ;; oleksandr manzyuk
       ;; (https://github.com/haskell/haskell-mode/issues/67).
       (compilation-forget-errors)
       (unless append (erase-buffer))
@@ -1096,15 +1096,13 @@ is inserted, and point is placed before this text."
        ;; (message "text = //%s//" text)
        (save-excursion
         (goto-char (point-max))
-        ;; Andreas, 2025-08-04, PR #8047.
-        ;; Experiment shows that 'face annotations do not survive in compilation-mode,
+        ;; andreas, 2025-08-04, pr #8047.
+        ;; experiment shows that 'face annotations do not survive in compilation-mode,
         ;; but 'font-lock-face is not removed.
         ;; https://emacs.stackexchange.com/questions/17141/how-do-i-insert-text-with-a-specific-face
         ;; (put-text-property 0 (max 0 (- (length text) 10)) 'font-lock-face '(:weight bold) text)
         ;; (message "text: %s" text)
         ;; (message "length: %i" (length text))
-        ;; (message "annotations = %s" annotations)
-        (apply 'annotation-load "Click to jump to definition" nil text annotations)
         ;; (pp (text-properties-at 0 text))
         (insert text)
         (newline)))
@@ -1940,48 +1938,95 @@ the buffer."
               (agda2-string-quote (buffer-file-name))
               "Keep")))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Go to definition site
+;;;; Xref integration
 
-(defun agda2-goto-definition-keyboard (&optional other-window)
-  "Go to the definition site of the name under point (if any).
-If this function is invoked with a prefix argument then another window is used
-to display the given position."
-  (interactive "P")
-  (ignore "placeholder for Xref"))
+(defun agda2-xref-backend ()
+  "Return an Xref backend."
+  'agda2)
 
-(defun agda2-goto-definition-mouse (ev)
-  "Go to the definition site of the name clicked on, if any.
-Otherwise, yank (see `mouse-yank-primary')."
-  (interactive "e")
-  (unless (ignore "placeholder for Xref")
-    ;; FIXME: Shouldn't we use something like
-    ;; (call-interactively (key-binding ev))?  --Stef
-    (mouse-yank-primary ev)))
+(cl-defmethod xref-backend-identifier-at-point ((_ (eql 'agda2)))
+  "Return the symbol at point with text properties."
+  (and (get-text-property (point) 'agda2-xref-info)
+       (save-excursion
+         (let ((initial (point)) start end)
+           (goto-char (previous-single-property-change
+                       (point) 'agda2-xref-info))
+           (goto-char (setq start (next-single-property-change
+                                   (point) 'agda2-xref-info)))
+           (if (< initial start)
+               (setq start initial end (point)) ;swap
+             (goto-char (setq end (next-single-property-change
+                                   (point) 'agda2-xref-info))))
+           (and (<= start initial (1- end))
+                (buffer-substring start end))))))
 
-(defun agda2-info-goto-definition-mouse (ev)
-  "While in the information buffer, to the definition site of the name
-clicked on, if any.
+(defvar agda2-last-xref-ict (make-hash-table :test 'equal)
+  "Cached table of unambiguous identifiers and their locations.")
 
-Otherwise, invoke `compile-goto'."
-  (interactive "e")
+(defun agda2-slurp-identifiers ()
+  "Traverse the buffer for identifiers and update `agda2-last-xref-ict'."
+  (save-excursion
+    (let ((idents (make-hash-table)) start end)
+      (goto-char (point-min))
+      (catch 'done
+        (while t
+          (setq start (next-single-property-change
+                       (point) 'agda2-xref-info))
+          (goto-char (or start (throw 'done t)))
+          (cl-assert (get-text-property (point) 'agda2-xref-info))
+          (setq end (next-single-property-change
+                     (point) 'agda2-xref-info))
+          (goto-char (or end (throw 'done t)))
+          (cl-assert (null (get-text-property (point) 'agda2-xref-info)))
+          (when (< start end)
+            (push (get-text-property (1- (point)) 'agda2-xref-info)
+                  (gethash (buffer-substring-no-properties start end)
+                           idents)))))
+      (maphash
+       (lambda (ident refs)
+         (when (and (car refs) (null (cadr refs))) ;(length= refs 1q)
+           (puthash ident (car refs) agda2-last-xref-ict)))
+       idents))))
 
-  ;; Always "use other window" because find-file-other-window will reuse
-  ;; an existing window (i.e. the source file buffer) if it exists
-  (unless (and agda2-file-buffer (ignore "placeholder for Xref"))
-    (compile-goto-error ev)))
+(cl-defmethod xref-backend-identifier-completion-table ((_ (eql 'agda2)))
+  "Generate a list of possible candidates."
+  (clrhash agda2-last-xref-ict)
+  (agda2-slurp-identifiers)
+  agda2-last-xref-ict)
 
-(defun agda2-info-goto-definition-keyboard ()
-  "As `agda2-info-goto-definition-mouse', but at point."
-  (interactive)
-  (agda2-info-goto-definition-mouse (point)))
+(cl-defmethod xref-backend-definitions ((_ (eql 'agda2)) ident)
+  "Generate a list of definitions for identifier IDENT."
+  (let ((xref-info (or (get-text-property 0 'agda2-xref-info ident)
+                       (gethash ident agda2-last-xref-ict))))
+    (and xref-info
+         (let ((loc (xref-make-buffer-location
+                     (find-file-noselect (car xref-info))
+                     (cdr xref-info))))
+           (list (xref-make ident loc))))))
 
-(defun agda2-go-back nil
-  "Go back to the previous position in which
-`agda2-goto-definition-keyboard' or `agda2-goto-definition-mouse' was
-invoked."
-  (interactive)
-  (ignore "placeholder for Xref"))
+(cl-defmethod xref-backend-references ((_ (eql 'agda2)) identifier)
+  "Generate a list of references for IDENTIFIER."
+  ;; TODO: Do not defer to the default implementation.  This is just
+  ;; grep, but we could also look through all open buffers as well.
+  (xref-backend-references nil identifier))
+
+(cl-defmethod xref-backend-apropos ((_ (eql 'agda2)) pattern)
+  "Generate a list of definitions matching PATTERN."
+  (clrhash agda2-last-xref-ict)
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (when (derived-mode-p 'agda2-mode)
+        (agda2-slurp-identifiers))))
+  ;; TODO: add type annotations
+  (cl-loop with regexp = (xref-apropos-regexp pattern)
+           for ident being the hash-keys of agda2-last-xref-ict
+           using (hash-values xref-info)
+           when (string-match-p regexp ident)
+           collect (xref-make
+                    ident
+                    (xref-make-buffer-location
+                     (find-file-noselect (car xref-info))
+                     (cdr xref-info)))))
 
 (defun agda2-maybe-goto (filepos)
   "Might move point to the given error.
@@ -1998,19 +2043,13 @@ configuration and the selected window are not changed."
              (consp filepos)
              (stringp (car filepos))
              (integerp (cdr filepos)))
-    (if agda2-in-agda2-file-buffer
-        (ignore "placeholder for Xref")
-      (save-excursion
-        (let ((buffer (find-buffer-visiting (car filepos))))
-          (when buffer
-            (let ((windows (get-buffer-window-list buffer
-                                                   'no-minibuffer t)))
-              (if windows
-                  (dolist (window windows)
-                    (with-selected-window window
-                      (goto-char (cdr filepos))))
-                (with-current-buffer buffer
-                  (goto-char (cdr filepos)))))))))))
+    ;; We don't use `xref-show-xrefs', as we know that there is a
+    ;; concrete position we want to jump to.  nevertheless, we push
+    ;; the current marker onto Xref' stack to make it seem like a Xref
+    ;; jump.
+    (xref-push-marker-stack)
+    (set-buffer (find-file-noselect (car filepos)))
+    (goto-char (cdr filepos))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implicit arguments
