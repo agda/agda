@@ -37,7 +37,6 @@ Note that the same version of the Agda executable must be used.")
 (require 'compile)
 (require 'time-date)
 (require 'eri)
-(require 'annotation)
 (require 'fontset)
 (require 'agda-input)
 (require 'agda2)
@@ -1210,8 +1209,8 @@ is inserted, and point is placed before this text."
   (dolist (o (overlays-in (point-min) (point-max)))
     (delete-overlay o))
   (let ((inhibit-read-only t))
-    (annotation-preserve-mod-p-and-undo
-     (set-text-properties (point-min) (point-max) '()))
+    (with-silent-modifications
+      (set-text-properties (point-min) (point-max) '()))
     (force-mode-line-update)))
 
 (defun agda2-next-goal ()     "Go to the next goal, if any."     (interactive)
@@ -1744,17 +1743,17 @@ ways."
 
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
-  (annotation-preserve-mod-p-and-undo
-   (let ((atp (lambda (x ps) (add-text-properties x (1+ x) ps))))
-     (funcall atp p       '(category agda2-delim1))
-     (funcall atp (1+ p)  '(category agda2-delim2))
-     (funcall atp (- q 2) '(category agda2-delim3))
-     (funcall atp (1- q)  '(category agda2-delim4)))
-   (let ((o (make-overlay p q nil t nil)))
-     (overlay-put o 'modification-hooks '(agda2-protect-goal-markers))
-     (overlay-put o 'agda2-gn           n)
-     (overlay-put o 'face               'highlight)
-     (overlay-put o 'after-string       (propertize (format "%s" n) 'face 'highlight)))))
+  (with-silent-modifications
+    (let ((atp (lambda (x ps) (add-text-properties x (1+ x) ps))))
+      (funcall atp p       '(category agda2-delim1))
+      (funcall atp (1+ p)  '(category agda2-delim2))
+      (funcall atp (- q 2) '(category agda2-delim3))
+      (funcall atp (1- q)  '(category agda2-delim4)))
+    (let ((o (make-overlay p q nil t nil)))
+      (overlay-put o 'modification-hooks '(agda2-protect-goal-markers))
+      (overlay-put o 'agda2-gn           n)
+      (overlay-put o 'face               'highlight)
+      (overlay-put o 'after-string       (propertize (format "%s" n) 'face 'highlight)))))
 
 (defun agda2-protect-goal-markers (ol action beg end &optional _length)
   "Ensures that the goal markers cannot be tampered with.
@@ -1908,7 +1907,7 @@ characters to the \\xNNNN notation used in Haskell strings."
 
 (defun agda2-forget-all-goals ()
   "Remove all goal annotations."
-  (annotation-preserve-mod-p-and-undo
+  (with-silent-modifications
     (remove-text-properties (point-min) (point-max) '(category nil)))
   (dolist (ovl (overlays-in (point-min) (point-max)))
     (when (overlay-get ovl 'agda2-gn)
@@ -2023,13 +2022,13 @@ the buffer."
 If this function is invoked with a prefix argument then another window is used
 to display the given position."
   (interactive "P")
-  (annotation-goto-indirect (point) other-window))
+  (ignore "placeholder for Xref"))
 
 (defun agda2-goto-definition-mouse (ev)
   "Go to the definition site of the name clicked on, if any.
 Otherwise, yank (see `mouse-yank-primary')."
   (interactive "e")
-  (unless (annotation-goto-indirect ev)
+  (unless (ignore "placeholder for Xref")
     ;; FIXME: Shouldn't we use something like
     ;; (call-interactively (key-binding ev))?  --Stef
     (mouse-yank-primary ev)))
@@ -2043,7 +2042,7 @@ Otherwise, invoke `compile-goto'."
 
   ;; Always "use other window" because find-file-other-window will reuse
   ;; an existing window (i.e. the source file buffer) if it exists
-  (unless (and agda2-file-buffer (annotation-goto-indirect ev t))
+  (unless (and agda2-file-buffer (ignore "placeholder for Xref"))
     (compile-goto-error ev)))
 
 (defun agda2-info-goto-definition-keyboard ()
@@ -2056,7 +2055,7 @@ Otherwise, invoke `compile-goto'."
 `agda2-goto-definition-keyboard' or `agda2-goto-definition-mouse' was
 invoked."
   (interactive)
-  (annotation-go-back))
+  (ignore "placeholder for Xref"))
 
 (defun agda2-maybe-goto (filepos)
   "Might move point to the given error.
@@ -2075,7 +2074,7 @@ configuration and the selected window are not changed."
              (stringp (car filepos))
              (integerp (cdr filepos)))
     (if agda2-in-agda2-file-buffer
-        (annotation-goto-and-push (current-buffer) (point) filepos)
+        (ignore "placeholder for Xref")
       (save-excursion
         (let ((buffer (find-buffer-visiting (car filepos))))
           (when buffer
@@ -2262,7 +2261,6 @@ An attempt is made to preserve the default value of `agda2-mode-hook'."
     (unload-feature 'agda2-mode      'force)
     (unload-feature 'agda2           'force)
     (unload-feature 'eri             'force)
-    (unload-feature 'annotation      'force)
     (unload-feature 'agda-input      'force)
     (unload-feature 'agda2-highlight 'force)
     (unload-feature 'agda2-abbrevs   'force)
