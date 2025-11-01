@@ -16,3 +16,9 @@ iswf< x = acc (h x)
   where
   h : ∀ x y → y < x → Acc _<_ y
   h .(suc y) y <S = acc (h y)
+
+iswf' : ∀ x → Acc _<_ x
+iswf' x = acc (h x)
+  where
+  h : ∀ x y → y < x → Acc _<_ y
+  h suc-y y <S = acc (h y)
