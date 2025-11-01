@@ -38,12 +38,11 @@ import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
 import Agda.Termination.CallGraph hiding (toList)
-import qualified Agda.Termination.CallGraph as CallGraph
+import Agda.Termination.CallGraph qualified as CallGraph
 import Agda.Termination.CallMatrix hiding (toList)
 import Agda.Termination.Order     as Order
-import qualified Agda.Termination.SparseMatrix as Matrix
-import Agda.Termination.Termination (Terminates(..), GuardednessHelps(..), idempotentEndos, terminationCounterexample)
-import qualified Agda.Termination.Termination  as Term
+import Agda.Termination.SparseMatrix qualified as Matrix
+import Agda.Termination.Termination (Terminates(..), GuardednessHelps(..), idempotentEndos, terminatesFilter, terminationCounterexample)
 import Agda.Termination.RecCheck
 
 import Agda.TypeChecking.Datatypes
@@ -258,11 +257,11 @@ withOrWithoutDotPatterns filt collect = do
     -- First try to termination check ignoring the dot patterns
     calls1 <- terSetUseDotPatterns False collect
     reportCalls "no " filt calls1
-    unlessTerminates (billToTerGraph $ Term.terminatesFilter filt calls1) \ r1 -> do
+    unlessTerminates (billToTerGraph $ terminatesFilter useGuardedness filt calls1) \ r1 -> do
       -- Try again, but include the dot patterns this time.
       calls2 <- terSetUseDotPatterns True collect
       reportCalls "" filt calls2
-      unlessTerminates (billToTerGraph $ Term.terminatesFilter filt calls2) \ r2 -> do
+      unlessTerminates (billToTerGraph $ terminatesFilter useGuardedness filt calls2) \ r2 -> do
         case r1 of
           TerminatesNot GuardednessHelpsNot _ -> return r2
             -- We might terminate with guardedness and dot patterns (r2).
@@ -318,6 +317,7 @@ billToTerGraph a = liftTCM $ billPureTo [Benchmark.Termination, Benchmark.Graph]
 
 reportCalls :: String -> (Node -> Bool) -> Calls -> TerM ()
 reportCalls no filt calls = do
+  useGuardedness <- liftTCM guardednessOption
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
 
@@ -347,7 +347,7 @@ reportCalls no filt calls = do
           step cs = do
             let (new, cs') = completionStep cs0 cs
             report " New call matrices " new
-            case terminationCounterexample filt new of
+            case terminationCounterexample useGuardedness filt new of
               Terminates | not (null new) -> return $ Right cs'
               _ -> return $ Left ()
             -- return $ if null new then Left () else Right cs'
