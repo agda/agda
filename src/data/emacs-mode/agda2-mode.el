@@ -122,16 +122,13 @@ A multiple of the frame height."
   :group 'agda2)
 
 (defcustom agda2-fontset-name
-  (unless (or (eq window-system 'mac)
-              ;; Emacs-23 uses a revamped font engine which should
-              ;; make agda2-fontset-name unnecessary in most cases.
-              ;; And if it turns out to be necessary, we should
-              ;; probably use face-remapping-alist rather than
-              ;; set-frame-font so the special font only applies to
-              ;; Agda buffers, and so it applies in all frames where
-              ;; Agda buffers are displayed.
-              (boundp 'face-remapping-alist))
-    "fontset-agda2")
+  ;; Emacs-23 uses a revamped font engine which should make
+  ;; agda2-fontset-name unnecessary in most cases.  And if it turns
+  ;; out to be necessary, we should probably use face-remapping-alist
+  ;; rather than set-frame-font so the special font only applies to
+  ;; Agda buffers, and so it applies in all frames where Agda buffers
+  ;; are displayed.
+  (and (not (boundp 'face-remapping-alist)) "fontset-agda2")
   "Default font to use in the selected frame when activating the Agda mode.
 This is only used if it's non-nil and Emacs is not running in a
 terminal.
@@ -183,7 +180,7 @@ to this variable to take effect."
   :group 'agda2
   :type 'string)
 
-(if (and (equal agda2-fontset-name "fontset-agda2") window-system)
+(if (and (equal agda2-fontset-name "fontset-agda2") (display-graphic-p))
     (create-fontset-from-fontset-spec agda2-fontset-spec-of-fontset-agda2 t t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -413,7 +410,7 @@ agda2-include-dirs is not bound." :warning))
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
- (if (and window-system agda2-fontset-name)
+ (if (and (display-graphic-p) agda2-fontset-name)
      (condition-case nil
          (set-frame-font agda2-fontset-name)
        (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
