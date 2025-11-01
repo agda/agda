@@ -37,6 +37,7 @@ module Agda.Termination.SparseMatrix
   , add
   , intersectWith
   , interAssocWith
+  , mapNonZeros, mapDiagonalNonZeros
   , mul
   , transpose
   , Diagonal(..)
@@ -70,6 +71,7 @@ import Agda.Syntax.Common.Pretty hiding (isEmpty)
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
+import Agda.Utils.Function (applyWhen)
 
 ------------------------------------------------------------------------
 -- * Basic data types
@@ -240,6 +242,13 @@ instance (Integral i, HasZero b) => Diagonal (Matrix i b) b where
     blowUpSparseVec zeroElement (min r c) $
       mapMaybe (\ (MIx i j, b) -> if i == j then Just (i, b) else Nothing) m
 
+-- | Apply the given function to the non-zero diagonal elements of a matrix.
+--
+--   @O(n)@ where @n@ is the number of non-zero elements in the matrix.
+
+mapDiagonalNonZeros :: (Integral i, HasZero a) => (a -> a) -> Matrix i a -> Matrix i a
+mapDiagonalNonZeros f = mapNonZeros \ r c -> applyWhen (r == c) f
+
 -- | Transposable things.
 
 class Transpose a where
@@ -265,6 +274,17 @@ instance Ord i => Transpose (Matrix i b) where
       List.sortBy (compare `on` fst) $
         map (first transpose) m
 
+-- | Apply the given function to all non-zero elements.
+--
+--   @O(n)@ where @n@ is the number of non-zero elements in the matrix.
+
+mapNonZeros :: forall i a b. HasZero b => (i -> i -> a -> b) -> Matrix i a -> Matrix i b
+mapNonZeros f (Matrix size m) = Matrix size $ mapMaybe f' m
+  where
+    f' :: (MIx i, a) -> Maybe (MIx i, b)
+    f' (i@(MIx r c), a) = if b == zeroElement then Nothing else Just (i, b)
+      where
+        b = f r c a
 
 -- | General pointwise combination function for association lists.
 --   @O(n1 + n2)@ where @ni@ is the number of non-zero element in matrix @i@.
