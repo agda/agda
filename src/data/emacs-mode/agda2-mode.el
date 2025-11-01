@@ -273,6 +273,44 @@ the goal menu and \\='global if the command should exist in the main
 menu; and DESC is the description of the command used in the
 menus.")
 
+(defvar agda2-movement-repeat-map (make-sparse-keymap))
+(defcustom agda2-repeatable-commands
+  '(agda2-next-goal
+    agda2-previous-goal
+    agda2-give
+    agda2-refine
+    agda2-make-case
+    agda2-goal-and-context
+    agda2-goal-and-context-and-inferred
+    agda2-goal-and-context-and-checked)
+  "List of commands that should be supported by `repeat-mode'.
+This feature added in Emacs 28 enables a transient keymap after invoking
+a command that binds shorter key chords.  For Agda, the shorter keys
+derived from the last key of the global key chord (so \"C-c C-f\" just
+becomes \"C-f\" until you invoke a non-repeatable command).  To make use
+of this feature, the global minor mode `repeat-mode' must be enabled
+separately."
+  :set (lambda (sym val)
+         (let ((m (make-sparse-keymap)))
+           (map-keymap
+            (lambda (_ev def)
+              (when (symbolp def)
+                (put def 'repeat-map nil)))
+            agda2-movement-repeat-map)
+           (dolist (fn val)
+             (let* ((chord (cadr (assq fn agda2-command-table)))
+                    (key (aref chord (1- (length chord))))
+                    (kbd (vector key))
+                    (prev (lookup-key m kbd)))
+               (when prev
+                 (error "Repeat-key duplicate: %S for `%S' already bound for `%S'"
+                        kbd fn prev))
+               (define-key m kbd fn))
+             (put fn 'repeat-map agda2-movement-repeat-map))
+           (setq agda2-movement-repeat-map m))
+         (custom-set-default sym val))
+  :type '(repeat function))
+
 (defvar agda2-mode-map
   (let ((map (make-sparse-keymap "Agda mode")))
     (define-key map [menu-bar Agda]
