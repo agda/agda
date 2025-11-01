@@ -230,43 +230,19 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
          -- Else: Old check, all at once.
          (runTerm $ termMutual')
 
--- | Run the termination checker possibly twice and take the best result.
---   Run it first without extracting descent information from dot patterns.
---   If this proves termination, we are done.
---   If this did not manage to prove termination, try with dot patterns.
---   If this did not manage to prove termination either, return the offending paths.
---   Otherwise, if the first run proved termination subject to (deactivated) guardedness,
---   return this result.
---   Otherwise, return the second result.
-withOrWithoutDotPatterns ::
+-- | Run the termination checker.
+runTerminationCheck ::
      (Node -> Bool)
   -> TerM Calls
   -> TerM (Terminates CallPath)
-withOrWithoutDotPatterns filt collect = do
+runTerminationCheck filt collect = do
     useGuardedness <- liftTCM guardednessOption
     cutoff <- terGetCutOff
     let ?cutoff = cutoff
-    -- Run the continuation @k@ with the result of @m@ unless @m@ already certifies termination.
-    let unlessTerminates m k = m >>= \case
-          Terminates
-            -> return Terminates
-          TerminatesNot GuardednessHelpsYes _ | useGuardedness
-            -> return Terminates
-          r -> k r
 
-    -- First try to termination check ignoring the dot patterns
-    calls1 <- terSetUseDotPatterns False collect
-    reportCalls "no " filt calls1
-    unlessTerminates (billToTerGraph $ terminatesFilter useGuardedness filt calls1) \ r1 -> do
-      -- Try again, but include the dot patterns this time.
-      calls2 <- terSetUseDotPatterns True collect
-      reportCalls "" filt calls2
-      unlessTerminates (billToTerGraph $ terminatesFilter useGuardedness filt calls2) \ r2 -> do
-        case r1 of
-          TerminatesNot GuardednessHelpsNot _ -> return r2
-            -- We might terminate with guardedness and dot patterns (r2).
-          _              -> return r1
-            -- Since r2 did not certify termination, the simpler r1 is preferable.
+    calls <- collect
+    reportCalls filt calls
+    billToTerGraph $ terminatesFilter useGuardedness filt calls
 
 -- | @termMutual'@ checks all names of the current mutual block,
 --   henceforth called @allNames@, for termination.
@@ -282,7 +258,7 @@ termMutual' = do
   let collect :: TerM Calls
       collect = forM' allNames termDef
 
-  r <- withOrWithoutDotPatterns (const True) collect
+  r <- runTerminationCheck (const True) collect
 
   -- @names@ is taken from the 'Abstract' syntax, so it contains only
   -- the names the user has declared.  This is for error reporting.
@@ -315,8 +291,8 @@ billToTerGraph a = liftTCM $ billPureTo [Benchmark.Termination, Benchmark.Graph]
 --
 --   Replays the call graph completion for debugging.
 
-reportCalls :: String -> (Node -> Bool) -> Calls -> TerM ()
-reportCalls no filt calls = do
+reportCalls :: (Node -> Bool) -> Calls -> TerM ()
+reportCalls filt calls = do
   useGuardedness <- liftTCM guardednessOption
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
@@ -325,7 +301,7 @@ reportCalls no filt calls = do
   liftTCM $ do
 
     reportS "term.lex" 20
-      [ "Calls (" ++ no ++ "dot patterns): " ++ prettyShow calls
+      [ "Calls: " ++ prettyShow calls
       ]
 
     -- Print the whole completion phase.
@@ -363,7 +339,7 @@ reportCalls no filt calls = do
     --   , nest 2 $ return $ Term.prettyBehaviour calls'
     --   ]
     reportSDoc "term.matrices" 30 $ vcat
-      [ text $ "Idempotent call matrices (" ++ no ++ "dot patterns):\n"
+      [ text $ "Idempotent call matrices:\n"
       , nest 2 $ vcat $ punctuate "\n" $ map prettyTCM idems
       ]
     -- reportSDoc "term.matrices" 30 $ vcat
@@ -420,7 +396,7 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
             -- Jump the trampoline.
             return $ Right (todo', done', calls')
 
-    r <- withOrWithoutDotPatterns (== index) collect
+    r <- runTerminationCheck (== index) collect
 
     names <- terGetUserNames
     case r of
@@ -613,7 +589,7 @@ targetElem ds = terGetTarget <&> \case
 --   The term is first normalized and stripped of all non-coinductive projections.
 
 termToDBP :: Term -> TerM DeBruijnPattern
-termToDBP t = ifNotM terGetUseDotPatterns (return unusedVar) $ {- else -} do
+termToDBP t =
   termToPattern =<< do liftTCM $ stripAllProjections =<< normalise t
 
 -- | Convert a term (from a dot pattern) to a pattern for the purposes of the termination checker.

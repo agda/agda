@@ -82,9 +82,7 @@ data TerEnv = TerEnv
 
   -- First part: options, configuration.
 
-  { terUseDotPatterns :: Bool
-    -- ^ Are we mining dot patterns to find evindence of structal descent?
-  , terSizeSuc :: Maybe QName
+  { terSizeSuc :: Maybe QName
     -- ^ The name of size successor, if any.
   , terSharp   :: Maybe QName
     -- ^ The name of the delay constructor (sharp), if any.
@@ -148,8 +146,7 @@ data TerEnv = TerEnv
 
 defaultTerEnv :: TerEnv
 defaultTerEnv = TerEnv
-  { terUseDotPatterns           = False -- must be False initially!
-  , terSizeSuc                  = Nothing
+  { terSizeSuc                  = Nothing
   , terSharp                    = Nothing
   , terCutOff                   = defaultCutOff
   , terUserNames                = __IMPOSSIBLE__ -- needs to be set!
@@ -256,12 +253,6 @@ instance (Semigroup m, Monoid m) => Monoid (TerM m) where
   mconcat = mconcat <.> sequence
 
 -- * Modifiers and accessors for the termination environment in the monad.
-
-terGetUseDotPatterns :: TerM Bool
-terGetUseDotPatterns = terAsks terUseDotPatterns
-
-terSetUseDotPatterns :: Bool -> TerM a -> TerM a
-terSetUseDotPatterns b = terLocal $ \ e -> e { terUseDotPatterns = b }
 
 terGetSizeSuc :: TerM (Maybe QName)
 terGetSizeSuc = terAsks terSizeSuc
