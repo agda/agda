@@ -18,7 +18,7 @@ module Agda.Termination.Termination
   , idempotentEndos
   ) where
 
-import Prelude hiding ((&&), null)
+import Prelude hiding ((&&), not, null)
 
 import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
@@ -61,17 +61,19 @@ data Terminates cinfo
 --
 -- This criterion is strictly more liberal than searching for a
 -- lexicographic order (and easier to implement, but harder to justify).
-
+--
+-- 'terminates' does not use guardedness, 'terminatesFilter' is more general.
 terminates :: (Monoid cinfo, ?cutoff :: CutOff) => CallGraph cinfo -> Terminates cinfo
-terminates = terminatesFilter $ const True
+terminates = terminatesFilter False $ const True
 
 -- | While no counterexample to termination is found,
 --   complete the given call graph step-by-step.
 terminatesFilter :: forall cinfo. (Monoid cinfo, ?cutoff :: CutOff)
-  => (Node -> Bool)    -- ^ Only consider calls whose source and target satisfy this predicate.
+  => Bool              -- ^ Use guardedness?
+  -> (Node -> Bool)    -- ^ Only consider calls whose source and target satisfy this predicate.
   -> CallGraph cinfo   -- ^ Callgraph augmented with @cinfo@.
   -> Terminates cinfo  -- ^ A bad call path of type @cinfo@, if termination could not be proven.
-terminatesFilter f cs0 = loop (cs0, cs0)
+terminatesFilter useGuardedness f cs0 = loop (cs0, cs0)
   where
     loop :: (CallGraph cinfo, CallGraph cinfo) -> Terminates cinfo
     loop (new, cs)
@@ -79,7 +81,7 @@ terminatesFilter f cs0 = loop (cs0, cs0)
       -- and we have not found a counterexample.
       | null new  = Terminates
       -- Otherwise the new calls might contain a counterexample.
-      | otherwise = case terminationCounterexample f new of
+      | otherwise = case terminationCounterexample useGuardedness f new of
           -- If we have a counterexample already, we can stop the search for one.
           result@TerminatesNot{} -> result
           -- Otherwise, we continue to complete the call-graph one step and look again.
@@ -87,12 +89,14 @@ terminatesFilter f cs0 = loop (cs0, cs0)
 
 -- | Does the given callgraph contain a counterexample to termination?
 terminationCounterexample :: (Monoid cinfo, ?cutoff :: CutOff)
-  => (Node -> Bool)    -- ^ Only consider calls whose source and target satisfy this predicate.
+  => Bool              -- ^ Use guardedness?
+  -> (Node -> Bool)    -- ^ Only consider calls whose source and target satisfy this predicate.
   -> CallGraph cinfo   -- ^ Callgraph augmented with @cinfo@.
   -> Terminates cinfo  -- ^ A bad call path of type @cinfo@, if termination could not be proven.
-terminationCounterexample f cs
+terminationCounterexample useGuardedness f cs
   | cm:_ <- bad             = TerminatesNot GuardednessHelpsNot $ augCallInfo cm
-  | cm:_ <- needGuardedness = TerminatesNot GuardednessHelpsYes $ augCallInfo cm
+  | cm:_ <- needGuardedness
+  , not useGuardedness      = TerminatesNot GuardednessHelpsYes $ augCallInfo cm
   | otherwise               = Terminates
   where
     -- Every idempotent call must have decrease in the diagonal.
