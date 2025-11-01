@@ -23,7 +23,7 @@ import Agda.Utils.Tuple
 
 -- | A list of incomparable favorites.
 newtype Favorites a = Favorites { toList :: [a] }
-  deriving (Foldable, Show, Null, Singleton a)
+  deriving (Foldable, Show, Null, Singleton a, Functor)
 
 -- | Equality checking is a bit expensive, since we need to sort!
 --   Maybe use a 'Set' of favorites in the first place?

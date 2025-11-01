@@ -401,7 +401,10 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
     -- involve @name@,
     -- taking the target of @name@ into account for computing guardedness.
 
-    let collect = (`trampolineM` (Set.singleton index, mempty, mempty)) $ \ (todo, done, calls) -> do
+    let
+      collect :: TerM Calls
+      collect = strengthenLoopDiagonals <$> do
+        (`trampolineM` (Set.singleton index, mempty, mempty)) $ \ (todo, done, calls) -> do
           if null todo then return $ Left calls else do
             -- Extract calls originating from indices in @todo@.
             new <- forM' todo $ \ i ->
@@ -474,7 +477,7 @@ typeEndsInDef t = liftTCM $ do
 --   Only the latter depends on the choice whether we
 --   consider dot patterns or not.
 termDef :: QName -> TerM Calls
-termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
+termDef name = terSetCurrent name $ inConcreteOrAbstractMode name \ def -> strengthenLoopDiagonals <$> do
 
  -- Skip calls to record types unless we are checking a record type in the first place.
  let isRecord_ = case theDef def of { Record{} -> True; _ -> False }

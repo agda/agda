@@ -617,20 +617,23 @@ unzip :: Graph n (e, e') -> (Graph n e, Graph n e')
 unzip g = (fst <$> g, snd <$> g)
 
 -- | @composeWith times plus g g'@ finds all edges
---   @s --c_i--> t_i --d_i--> u@ and constructs the
---   result graph from @edge(s,u) = sum_i (c_i times d_i)@.
+--   @s --c_i--> t_i --d_i--> u@
+--   with @s --c_i--> t_i@ in @g@ and @t_i --d_i--> u@ in @g'@
+--   and constructs the result graph from
+--   @edge(s,u) = sum_i (c_i times d_i)@.
 --
 --   Complexity:  For each edge @s --> t@ in @g@ we look up
 --   all edges starting with @t@ in @g'@.
 --
 --   Precondition: The two graphs must have exactly the same nodes.
 
-composeWith ::
+composeWith :: forall c d e n.
   Ord n =>
   (c -> d -> e) -> (e -> e -> e) ->
   Graph n c -> Graph n d -> Graph n e
 composeWith times plus (Graph g) (Graph g') = Graph (Map.map comp g)
   where
+  comp :: Map n c -> Map n e
   comp m = Map.fromListWith plus
     [ (u, c `times` d)
     | (t, c) <- Map.assocs m
