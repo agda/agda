@@ -23,6 +23,11 @@ module Test1 where
   f .(suc n) (c1  n d) = f n (c2 n d)
   f n        (c2 .n d) = f n d
 
+  f' : ∀ n → D n → Nat
+  f' n=zero   cz        = zero
+  f' suc-n    (c1  n d) = f' n (c2 n d)
+  f' n        (c2 n' d) = f' n d
+
 -- There was a bug with dot patterns having the wrong context which manifested
 -- itself in the following example.
 module Test2 where
@@ -71,3 +76,7 @@ module Test4 where
     f : ∀ n → D n → Set
     f .(sucN n) (c1  n d) = f n (c2 n (c2 n d))
     f n         (c2 .n d) = f n d
+
+    f' : ∀ n → D n → Set
+    f' suc-n  (c1  n d) = f' n (c2 n (c2 n d))
+    f' n      (c2 =n d) = f' n d
