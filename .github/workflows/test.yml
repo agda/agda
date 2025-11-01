@@ -143,7 +143,7 @@ jobs:
       run: |
         sudo apt-get update
         # shellcheck disable=SC2086
-        sudo apt-get install ${APT_GET_OPTS} texlive-binaries emacs-nox
+        sudo apt-get install ${APT_GET_OPTS} texlive-binaries emacs-nox elpa-xref
     - name: Test agda --build-library (successful)
       run: make build-succeed-test
     - if: always()
