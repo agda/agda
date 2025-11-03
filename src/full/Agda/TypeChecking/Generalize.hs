@@ -19,9 +19,9 @@ foo : SomeType xs
 generalisation should produce @{A : Set} {n : Nat} {xs : Vec A n} → SomeType xs@ for the type of
 @foo@.
 
-The functions `generalizeType` and `generalizeTelescope` don't have access to the abstract syntax to
+The functions 'generalizeType' and 'generalizeTelescope' don't have access to the abstract syntax to
 be type checked (@SomeType xs@ in the example). Instead they are provided a type checking action
-that delivers a `Type` or a `Telescope`. The challenge is setting up a context in which @SomeType
+that delivers a 'Type' or a 'Telescope'. The challenge is setting up a context in which @SomeType
 xs@ can be type checked successfully by this action, without knowing what the telescope of
 generalised variables will be. Once we have computed this telescope the result needs to be
 transformed into a well typed type abstracted over it.
@@ -37,14 +37,14 @@ variable.
 
 In more detail, generalisation proceeds as follows:
 
-- Add a variable @genTel@ of an unknown type to the context (`withGenRecVar`).
+- Add a variable @genTel@ of an unknown type to the context ('withGenRecVar').
 
 @
   (genTel : _GenTel)
 @
 
 - Create metavariables for the generalisable variables appearing in the problem and their
-  dependencies (`createGenValues`). In the example this would be
+  dependencies ('createGenValues'). In the example this would be
 
 @
   (genTel : _GenTel) ⊢
@@ -53,16 +53,16 @@ In more detail, generalisation proceeds as follows:
     _xs : Vec _A _n
 @
 
-- Run the type checking action (`createMetasAndTypeCheck`), binding the mentioned generalisable
+- Run the type checking action ('createMetasAndTypeCheck'), binding the mentioned generalisable
   variables to the corresponding newly created metavariables. This binding is stored in
-  `eGeneralizedVars` and picked up in `Agda.TypeChecking.Rules.Application.inferDef`
+  'eGeneralizedVars' and picked up in 'Agda.TypeChecking.Rules.Application.inferDef'
 
 @
   (genTel : _GenTel) ⊢ SomeType (_xs genTel)
 @
 
-- Compute the telescope of generalised variables (`computeGeneralization`). This is done by taking
-  the unconstrained metavariables created by `createGenValues` or created during the type checking
+- Compute the telescope of generalised variables ('computeGeneralization'). This is done by taking
+  the unconstrained metavariables created by 'createGenValues' or created during the type checking
   action and sorting them into a well formed telescope.
 
 @
@@ -70,7 +70,7 @@ In more detail, generalisation proceeds as follows:
 @
 
 - Create a record type @GeneralizeTel@ whose fields are the generalised variables and instantiate
-  the type of @genTel@ to it (`createGenRecordType`).
+  the type of @genTel@ to it ('createGenRecordType').
 
 @
   record GeneralizeTel : Set₁ where
@@ -89,7 +89,7 @@ In more detail, generalisation proceeds as follows:
   _xs := λ genTel → genTel .xs
 @
 
-- Build the unpacking substitution (`unpackSub`) that maps terms in @(genTel : GeneralizeTel)@ to
+- Build the unpacking substitution ('unpackSub') that maps terms in @(genTel : GeneralizeTel)@ to
   terms in the context of the generalised variables by substituting a record value for @genTel@.
 
 @
@@ -104,8 +104,8 @@ In more detail, generalisation proceeds as follows:
   {A : Set} {n : Nat} {xs : Vec A n} → SomeType xs
 @
 
-- In case of `generalizeType` return the resulting pi type.
-- In case of `generalizeTelescope` enter the resulting context, applying the unpacking substitution
+- In case of 'generalizeType' return the resulting pi type.
+- In case of 'generalizeTelescope' enter the resulting context, applying the unpacking substitution
   to let bindings (TODO #6916: and also module applications!) created in the telescope, and call the
   continuation.
 
