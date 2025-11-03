@@ -67,8 +67,12 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
     -- Ulf, 2016-04-12:
     -- Non-closed display forms are not applicable outside the module anyway,
     -- and should be dead-code eliminated (#1928).
+  let eliminateNonClosed fs = case filter isClosed fs of
+        [] -> Nothing
+        l  -> Just l
+
   !rootDisplayForms <-
-      HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
+      HMap.mapMaybe eliminateNonClosed <$> useTC stImportsDisplayForms
 
   let !rootPubNames  = map anameName $ publicNamesOfModules pubModules
   let !rootExtraDefs = mapMaybe extraRootsFilter $ HMap.toList defs
