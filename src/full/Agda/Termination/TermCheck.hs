@@ -236,13 +236,33 @@ runTerminationCheck ::
   -> TerM Calls
   -> TerM (Terminates CallPath)
 runTerminationCheck filt collect = do
-    useGuardedness <- liftTCM guardednessOption
-    cutoff <- terGetCutOff
-    let ?cutoff = cutoff
-
+    -- Use full precision when extracting calls
+    let ?cutoff = DontCutOff
     calls <- collect
-    reportCalls filt calls
-    billToTerGraph $ terminatesFilter useGuardedness filt calls
+
+    useGuardedness <- liftTCM guardednessOption
+    maxcutoff <- terGetCutOff
+    -- Iteratively increase cutoff up to its maximal value.
+    let
+      loop :: CutOff
+           -> Maybe (GuardednessHelps, CallPath)
+           -> TerM (Terminates CallPath)
+      loop cutoff currentResult = do
+        let ?cutoff = cutoff
+        reportCalls cutoff filt calls
+        r <- billToTerGraph $ terminatesFilter useGuardedness filt calls
+        case r of
+          Terminates -> return Terminates
+          TerminatesNot gh cinfo -> do
+            let result = bestResult currentResult (gh, cinfo)
+            if cutoff >= maxcutoff then return $ uncurry TerminatesNot result
+              else loop (cutoff + 1) (Just result)
+    loop 0 Nothing
+  where
+    bestResult :: Maybe (GuardednessHelps, CallPath) -> (GuardednessHelps, CallPath) -> (GuardednessHelps, CallPath)
+    bestResult Nothing r = r
+    bestResult (Just (GuardednessHelpsNot, _)) r@(GuardednessHelpsYes, _) = r
+    bestResult (Just r0) _ = r0
 
 -- | @termMutual'@ checks all names of the current mutual block,
 --   henceforth called @allNames@, for termination.
@@ -291,17 +311,17 @@ billToTerGraph a = liftTCM $ billPureTo [Benchmark.Termination, Benchmark.Graph]
 --
 --   Replays the call graph completion for debugging.
 
-reportCalls :: (Node -> Bool) -> Calls -> TerM ()
-reportCalls filt calls = do
+reportCalls :: CutOff -> (Node -> Bool) -> Calls -> TerM ()
+reportCalls cutoff filt calls = do
   useGuardedness <- liftTCM guardednessOption
-  cutoff <- terGetCutOff
   let ?cutoff = cutoff
 
   -- We work in TCM exclusively.
   liftTCM $ do
 
     reportS "term.lex" 20
-      [ "Calls: " ++ prettyShow calls
+      [ "Termination depth: " ++ show cutoff
+      , "Calls: " ++ prettyShow calls
       ]
 
     -- Print the whole completion phase.
@@ -327,7 +347,7 @@ reportCalls filt calls = do
               Terminates | not (null new) -> return $ Right cs'
               _ -> return $ Left ()
             -- return $ if null new then Left () else Right cs'
-      report " Initial call matrices " cs0
+      report (" Initial call matrices (cutoff: " ++ show cutoff ++ ") ") cs0
       trampolineM step cs0
 
     -- Print the result of completion.
