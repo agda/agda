@@ -838,7 +838,7 @@ addDisplayForm x df = do
   let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
   ifM (isLocal x)
     {-then-} (modifySignature add)
-    {-else-} (stImportsDisplayForms `modifyTCLens` HMap.insertWith (++) x [d])
+    {-else-} (stImportsDisplayForms `modifyTCLens` HMap.insertWith (<>) x (List1.singleton d))
 
 isLocal :: ReadTCState m => QName -> m Bool
 isLocal x = HMap.member x <$> useR (stSignature . sigDefinitions)
@@ -846,8 +846,8 @@ isLocal x = HMap.member x <$> useR (stSignature . sigDefinitions)
 getDisplayForms :: (HasConstInfo m, ReadTCState m) => QName -> m [LocalDisplayForm]
 getDisplayForms q = do
   ds  <- either (const []) defDisplay <$> getConstInfo' q
-  ds1 <- HMap.lookupDefault [] q <$> useR stImportsDisplayForms
-  ds2 <- HMap.lookupDefault [] q <$> useR stImportedDisplayForms
+  ds1 <- List1.toList' . HMap.lookup q <$> useR stImportsDisplayForms
+  ds2 <- List1.toList' . HMap.lookup q <$> useR stImportedDisplayForms
   ifM (isLocal q) (return $ ds ++ ds1 ++ ds2)
                   (return $ ds1 ++ ds ++ ds2)
 

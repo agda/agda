@@ -2191,7 +2191,7 @@ sigRewriteRules f s =
 type Sections    = Map ModuleName Section
 type Definitions = HashMap QName Definition
 type RewriteRuleMap = HashMap QName RewriteRules
-type DisplayForms = HashMap QName [LocalDisplayForm]
+type DisplayForms = HashMap QName (List1 LocalDisplayForm)
 
 {-# SPECIALIZE HMap.insert :: QName -> v -> HashMap QName v -> HashMap QName v #-}
 {-# SPECIALIZE HMap.lookup :: QName -> HashMap QName v -> Maybe v #-}

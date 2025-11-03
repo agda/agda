@@ -365,7 +365,7 @@ addImportedThings isig metas ibuiltin patsyns display userwarn
   stImportedUserWarnings `modifyTCLens` \ imp -> Map.union imp userwarn
   stImportedPartialDefs  `modifyTCLens` \ imp -> Set.union imp partialdefs
   stPatternSynImports    `modifyTCLens` \ imp -> Map.union imp patsyns
-  stImportedDisplayForms `modifyTCLens` \ imp -> HMap.unionWith (++) imp display
+  stImportedDisplayForms `modifyTCLens` \ imp -> HMap.unionWith (<>) imp display
   stTCWarnings           `modifyTCLens` \ imp -> Set.union imp warnings
   stOpaqueBlocks         `modifyTCLens` \ imp -> imp `Map.union` oblock
   stOpaqueIds            `modifyTCLens` \ imp -> imp `Map.union` oid
