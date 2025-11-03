@@ -22,6 +22,7 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.Monad (mapMaybeM)
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
+import qualified Agda.Utils.List1 as List1
 
 import Agda.Utils.HashTable (HashTableLU)
 import qualified Agda.Utils.HashTable as HT
@@ -67,9 +68,7 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
     -- Ulf, 2016-04-12:
     -- Non-closed display forms are not applicable outside the module anyway,
     -- and should be dead-code eliminated (#1928).
-  let eliminateNonClosed fs = case filter isClosed fs of
-        [] -> Nothing
-        l  -> Just l
+  let eliminateNonClosed = List1.nonEmpty . List1.filter isClosed
 
   !rootDisplayForms <-
       HMap.mapMaybe eliminateNonClosed <$> useTC stImportsDisplayForms
