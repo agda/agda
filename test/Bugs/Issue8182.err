@@ -1,0 +1,55 @@
+AGDA_FAILURE
+
+ret > ExitFailure 154
+out > computing generalization for type _2
+out > we're generalizing over
+out > checking record def R
+out >   ps = []
+out >   contel = (let h : G → P ? (g ?)
+out >                 h = ?)
+out >            (B : Set) →
+out >            Set
+out >   fields = mutual
+out >              syntax h ...
+out >              postulate h : G → P ? (g ?)
+out >              h = ?
+out >            syntax B ...
+out > checking fields
+out > Found interaction point ConcreteDef ?0 : Set
+out > Found interaction point ConcreteDef ?1 : Set
+out > computing generalization for type _3
+out > we're generalizing over _G_4
+out > Found interaction point
+out > ConcreteDef
+out > ?2
+out > :
+out > {G : Set} → G → P (F (?1 {G = G})) (g (?1 {G = G}))
+out > contype =  Set → Set
+out > gamma = 
+out > adding record type to signature
+out > record constructor is  Issue8182.R.constructor
+out > record section: R (r : R) [], [Issue8182.R.B]
+out >   field tel = (B : Set)
+out > Found interaction point ConcreteDef ?0 : Set
+out > reusing meta
+out >   creation context: [(genTel : Issue8182..GeneralizeTel)]
+out >   reusage  context: [(genTel : _11 (r = genTel)), (r : R)]
+out >   k     = 1
+out >   glen  = 1
+out >   g0len = 0
+out >   g1len = 1
+out >   d2len = 0
+out > meta reuse arguments: [genTel]
+out > Found interaction point ConcreteDef ?1 : Set
+out > reusing meta
+out >   creation context: [{G : Set}]
+out >   reusage  context: [(genTel : _11 (r = genTel)), (r : R)]
+out >   k     = 1
+out >   glen  = 1
+out >   g0len = 0
+out >   g1len = 0
+out >   d2len = 1
+out >   fs    = [(Issue8182.R.B)]
+out >   gfs   = [G]
+out > An internal error has occurred. Please report this as a bug.
+out > Location of the error: __IMPOSSIBLE__, called at src/full/Agda/TypeChecking/MetaVars.hs:«line»:«col» in «Agda-package»:Agda.TypeChecking.MetaVars
