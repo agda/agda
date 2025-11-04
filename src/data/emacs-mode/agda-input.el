@@ -28,25 +28,26 @@
 
 ;;;; Utility functions
 
-(defun agda-input-concat-map (f xs)
-  "Concat (map F XS)."
-  (apply 'append (mapcar f xs)))
+(unless (fboundp 'mapcan)
+  ;; Compatibility definition for `mapcan', added in Emacs 26 (the
+  ;; version added in 26 is in the core and should be faster than this
+  ;; Elisp version)
+  (defun mapcan (func sequence)
+    "Apply FUNC to each element of SEQUENCE.
+Concatenate the results by altering them (using `nconc').
+SEQUENCE may be a list, a vector, a boolean vector, or a string."
+    (apply #'nconc (mapcar func sequence))))
 
 (defun agda-input-to-string-list (s)
-  "Convert a string S to a list of one-character strings, after
-removing all space and newline characters."
-  (agda-input-concat-map
-   (lambda (c) (if (member c (string-to-list " \n"))
-              nil
-            (list (string c))))
-   (string-to-list s)))
+  "Convert a string S to a list of one-character strings.
+Spaces and newlines are ignored."
+  (cl-loop for ch across s
+	   unless (memq ch '(?\s ?\n))
+	   collect (string ch)))
 
 (defun agda-input-character-range (from to)
   "A string consisting of the characters from FROM to TO."
-  (let (seq)
-    (dotimes (i (1+ (- to from)))
-      (setq seq (cons (+ from i) seq)))
-    (concat (nreverse seq))))
+  (cl-coerce (number-sequence from to) 'string))
 
 ;;;; Functions used to tweak translation pairs
 
