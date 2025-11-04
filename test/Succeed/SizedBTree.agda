@@ -1,6 +1,7 @@
 {-# OPTIONS --show-implicit #-}
 {-# OPTIONS --sized-types #-}
--- {-# OPTIONS --termination-depth=2 #-} -- no longer necessary
+{-# OPTIONS --no-double-check #-} -- otherwise we have an unsolved size constraint
+-- {-# OPTIONS --termination-depth=2 #-} -- no longer necessary (PR #8184)
 -- {-# OPTIONS -v term:10 #-}
 
 module SizedBTree where
@@ -67,3 +68,5 @@ module New where
   deep2 (node (node l r) _) with deep2 (deep2 (node l r))
   ... | leaf a     = leaf a
   ... | node l2 r2 = deep2 (node l2 r2)
+
+-- Should termination check with termination-depth 2.

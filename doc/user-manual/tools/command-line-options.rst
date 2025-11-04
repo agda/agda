@@ -957,8 +957,10 @@ Recursion
 
      .. versionadded:: 2.2.8
 
-     Allow termination checker to count decrease/increase upto ``N``
-     (default: 1; see :ref:`termination-checking`).
+     Allow termination checker to count decrease/increase upto ``N``,
+     see :ref:`termination-checking`.
+
+     Defaults to 3 since 2.9.0.
 
 Sorts and universes
 ~~~~~~~~~~~~~~~~~~~

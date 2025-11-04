@@ -48,4 +48,4 @@ instance NFData CutOff where
 -- | The default termination depth.
 
 defaultCutOff :: CutOff
-defaultCutOff = CutOff 0 -- minimum value
+defaultCutOff = CutOff 2 -- termination-depth=3

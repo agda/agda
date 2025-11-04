@@ -1427,7 +1427,8 @@ checkerPragmaOptions = ("Consistency checking",) $ concat
                     "warn about possibly nonterminating code" ""
                     Nothing
   , [ Option []     ["termination-depth"] (ReqArg terminationDepthFlag "N")
-                    "allow termination checker to count decrease/increase upto N (default N=1)"
+                    ("allow termination checker to count decrease/increase upto N (default N=" ++
+                     show (1 + defaultCutOff) ++ ")")
     ]
   , [ Option []     ["safe"] (NoArg safeFlag)
                     "disable postulates, unsafe OPTION pragmas and primEraseEquality, implies --no-sized-types"
