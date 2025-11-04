@@ -25,7 +25,22 @@ Pragmas and options
   For compatibility between modules using different variants of Cubical Agda, see
   [the documentation](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
 
-* New flag `--no-write-interfaces`
+* New flag `--no-write-interfaces`.
+
+* The flag `--termination-depth=N` now means _maximum_ termination depth and
+  the termination checker now performs iterative deepening,
+  starting with depth `1` and increasing it up to the given `N`, stopping early
+  as soon as the termination check succeeds.
+  Increasing `N` can thus slow down things only for failing termination checks.
+
+  The default value of `N` has been increased from `1` to `3`, yet not higher,
+  because cases requiring a termination depth `> 1` are already very rare in practice.
+
+  There is also an internal change to the termination checker.
+  Dot patterns are now taken into account from the beginning and not only when
+  the termination check fails without taking them into account.
+  The overhead to also mine dot patterns for structural descent was already
+  negligible so it made sense to simplify the termination checking algorithm.
 
 Errors
 ------
@@ -120,6 +135,7 @@ Changes to type checker and other components defining the Agda language.
   ```
   With that change `--erasure` gets more akin to Cubical Agda that categorically
   refuses to infer lambdas (since they could construct either functions or paths).
+
 
 Reflection
 ----------

@@ -64,3 +64,5 @@ test {i = i} {t = t} (acc sntE) = acc
   λ { (↦E (there r)) → test (sntE ANY)
     ; (↦E (π {i = j})) → test {i = j} (acc sntE)
     }
+
+-- Andreas, 2025-11-04, succeeds with termination-depth=2.

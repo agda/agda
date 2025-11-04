@@ -164,9 +164,9 @@ Pragmas and Options
 
 .. _termination-depth:
 
-* Increasing the analysis depth with :option:`--termination-depth`.
+* Increasing the maximal analysis depth with :option:`--termination-depth`.
 
-  With ``{-# OPTIONS --termination-depth=2 #-}`` the following mutual functions are accepted
+  The following mutual functions need a termination depth of 2 to be accepted
   by the termination checker::
 
       mutual
@@ -179,9 +179,9 @@ Pragmas and Options
         g : Nat → Nat
         g y = f (suc y)
 
-  Without the option, the termination checker would only register that the call from ``f``
-  to ``g`` decreases the argument and the call from ``g`` to ``f`` increases the argument,
-  but not by how much.
+  With a termination depth of 1, the termination checker would only register that the call from ``f``
+  to ``g`` *decreases* the argument and the call from ``g`` to ``f`` *increases* the argument,
+  but not by *how much*.
   Thus, it has no evidence that the call sequence ``f → g → f`` decreases the argument.
 
   With termination depth 2, it will see that the call ``f → g`` decreases by 2 and the
@@ -189,9 +189,15 @@ Pragmas and Options
 
   In general termination depth *N* can track decrease up to *N* and increase up to *N-1*.
 
-  Increasing the termination depth from the default 1 can make the termination checker slower
-  and more memory hungry.
-  Rather then increasing the termination depth, function should be reformulated such that
+  Agda will first check termination with a termination depth of 1 and increase this value
+  until the termination check succeeds or the maximum termination depth has been reached.
+  The maximum depth is by default 3 (since Agda 2.9.0) and can be set by the
+  :option:`--termination-depth`.
+
+  In practice, it should not be necessary to increase the maximum termination depth,
+  as examples using depth 2 are already rare.
+  A high termination depth can make the termination checker slow and memory hungry.
+  Rather then increasing the termination depth, functions should be reformulated such that
   they are structurally recursive, i.e., only match one level deep.
 
 

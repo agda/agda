@@ -3,9 +3,12 @@
 -- This is a larger example for the termination checker, to test performance.
 -- In 2014-02-X, it exhausted the heap.
 
--- 2013-03-17
+-- 2014-03-17
 -- The termination checker now rejects this code instead of crashing.
 -- I do not know whether it is supposed to terminate.
+
+-- 2025-11-04
+-- It termination checks with termination-depth 2.
 
 {-# OPTIONS --allow-unsolved-metas #-}
 
@@ -414,7 +417,7 @@ rsubst+ Γ' pfΓ pf (⊤⁺ ∷ LA+) LA- LT (_ ∷ Values) (⊤⁺L N) =  rsubst
 -- ... | proj₁ , ()
 rsubst+ Γ' pfΓ pf ((x ∧⁺ x₁) ∷ LA+) LA- LT (∧⁺R V₁ V₂ ∷ Values) (∧⁺L N) =
   rsubst+ Γ' pfΓ pf (x ∷ x₁ ∷ LA+) LA- LT (V₁ ∷ V₂ ∷ Values) N
-rsubst+ {_} {_} {_} _ _ _ _ _ _ _ _ = ?
+rsubst+ {_} {_} {_} _ _ _ _ _ _ _ _ = {!!}
 
 
 
@@ -433,3 +436,5 @@ lsubst pfΓ pf (↑L M) N = ↑L (lsubst pfΓ pf M N)
 lsubst pfΓ pf (⊃L V Sp) N = ⊃L V (lsubst pfΓ pf Sp N)
 lsubst pfΓ pf (∧⁻L₁ Sp) N = ∧⁻L₁ (lsubst pfΓ pf Sp N)
 lsubst pfΓ pf (∧⁻L₂ Sp) N = ∧⁻L₂ (lsubst pfΓ pf Sp N)
+
+-- Succeeds with termination depth 2.
