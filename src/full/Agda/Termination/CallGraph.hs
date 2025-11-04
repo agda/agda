@@ -23,7 +23,7 @@ module Agda.Termination.CallGraph
   , union
   , insert
   , complete, completionStep
-  , strengthenLoopDiagonals
+  -- , strengthenLoopDiagonals -- bad heuristics, see https://github.com/agda/agda/pull/8184#issuecomment-3487147737
   -- , prettyBehaviour
   ) where
 
@@ -34,11 +34,11 @@ import Data.Set (Set)
 
 import Agda.Syntax.Common.Pretty
 
-import Agda.Termination.CallMatrix (CallMatrix, CallMatrixAug(..), CMSet(..), CallComb(..), mapCMSet, mapCallMatrixAug, mapCallMatrix)
+import Agda.Termination.CallMatrix (CallMatrix, CallMatrixAug(..), CMSet(..), CallComb(..)) -- , mapCMSet, mapCallMatrixAug, mapCallMatrix)
 import Agda.Termination.CallMatrix qualified as CMSet
 import Agda.Termination.CutOff
-import Agda.Termination.Order        ( makeIncreaseInfinite )
-import Agda.Termination.SparseMatrix ( mapDiagonalNonZeros )
+-- import Agda.Termination.Order        ( makeIncreaseInfinite )
+-- import Agda.Termination.SparseMatrix ( mapDiagonalNonZeros )
 
 import Agda.Utils.Favorites (Favorites)
 import Agda.Utils.Favorites qualified as Fav
@@ -198,19 +198,22 @@ combineNewOldCallGraph (CallGraph new) (CallGraph old) = CallGraph *** CallGraph
     -- combined calls:
     where
       comb :: Graph Node (CMSet cinfo)
-      comb = strengthenLoopDiagonals' $ Graph.composeWith (>*<) CMSet.union new old
+      comb = -- strengthenLoopDiagonals' $ -- bad heuristics, see https://github.com/agda/agda/pull/8184#issuecomment-3487147737
+        Graph.composeWith (>*<) CMSet.union new old
 
--- | Any increase in the diagonal of a loop can be strengthened to infinite increase
---   since we can iterate loops indefinitely.
-strengthenLoopDiagonals' :: Graph Node (CMSet cinfo) -> Graph Node (CMSet cinfo)
-strengthenLoopDiagonals' =
-  Graph.mapLoops $ mapCMSet $ fmap $ mapCallMatrixAug $ mapCallMatrix $
-    mapDiagonalNonZeros makeIncreaseInfinite
+-- Andreas, 2025-11-04
+-- bad heuristics, see https://github.com/agda/agda/pull/8184#issuecomment-3487147737
+-- -- | Any increase in the diagonal of a loop can be strengthened to infinite increase
+-- --   since we can iterate loops indefinitely.
+-- strengthenLoopDiagonals' :: Graph Node (CMSet cinfo) -> Graph Node (CMSet cinfo)
+-- strengthenLoopDiagonals' =
+--   Graph.mapLoops $ mapCMSet $ fmap $ mapCallMatrixAug $ mapCallMatrix $
+--     mapDiagonalNonZeros makeIncreaseInfinite
 
--- | Any increase in the diagonal of a loop can be strengthened to infinite increase
---   since we can iterate loops indefinitely.
-strengthenLoopDiagonals :: CallGraph cinfo -> CallGraph cinfo
-strengthenLoopDiagonals = mapCallGraph $ strengthenLoopDiagonals'
+-- -- | Any increase in the diagonal of a loop can be strengthened to infinite increase
+-- --   since we can iterate loops indefinitely.
+-- strengthenLoopDiagonals :: CallGraph cinfo -> CallGraph cinfo
+-- strengthenLoopDiagonals = mapCallGraph $ strengthenLoopDiagonals'
 
 -- | Call graph comparison.
 --   A graph @cs'@ is ``worse'' than @cs@ if it has a new edge (call)

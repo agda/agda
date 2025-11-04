@@ -1,7 +1,11 @@
 -- Andreas, 2025-11-01
--- Example that was slow with high termination-depth
+-- Example that was slow with high termination-depth.
+-- Andreas, 2025-11-04
+-- Again slow, because heuristics
+-- "Any increase in the diagonal of a loop can be strengthened to infinite increase"
+-- is moot.
 
-{-# OPTIONS --termination-depth=500 #-}
+{-# OPTIONS --termination-depth=42 #-}  -- don't make this too high!
 
 -- {-# OPTIONS --profile=internal #-}
 -- {-# OPTIONS -v debug.time:100 #-}
