@@ -1,11 +1,11 @@
-;;; -*- lexical-binding: t; -*-
-;;; agda-input.el --- The Agda input method
+;;; agda-input.el --- The Agda input method -*- lexical-binding: t; -*-
 
 ;; SPDX-License-Identifier: MIT License
+
 ;;; Commentary:
 
 ;; A highly customisable input method which can inherit from other
-;; Quail input methods. By default the input method is geared towards
+;; Quail input methods.  By default the input method is geared towards
 ;; the input of mathematical and other symbols in Agda programs.
 ;;
 ;; Use M-x customize-group agda-input to customise this input method.
@@ -20,14 +20,13 @@
 
 ;;; Code:
 
-(require 'quail)
 (require 'cl-lib)
+(require 'quail)
 ;; Quail is quite stateful, so be careful when editing this code.  Note
 ;; that with-temp-buffer is used below whenever buffer-local state is
 ;; modified.
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Utility functions
+;;;; Utility functions
 
 (defun agda-input-concat-map (f xs)
   "Concat (map F XS)."
@@ -49,67 +48,67 @@ removing all space and newline characters."
       (setq seq (cons (+ from i) seq)))
     (concat (nreverse seq))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Functions used to tweak translation pairs
+;;;; Functions used to tweak translation pairs
 
 (defun agda-input-compose (f g)
-  "λ x -> concatMap F (G x)"
-    (lambda (x) (agda-input-concat-map f (funcall g x))))
+  "Apply G before calling `mapcan' with F."
+  (lambda (x) (mapcan f (funcall g x))))
 
-(defun agda-input-or (f g)
-  "λ x -> F x ++ G x"
-    (lambda (x) (append (funcall f x) (funcall g x))))
+(defun agda-input-or (&rest fns)
+  "Return a function that will apply and contact the results of FNS."
+  (lambda (x)
+    (apply #'append (mapcar (lambda (fn) (funcall fn x)) fns))))
 
 (defun agda-input-nonempty ()
   "Only keep pairs with a non-empty first component."
-  (lambda (x) (if (> (length (car x)) 0) (list x))))
+  (lambda (x) (and (car x) (list x))))
 
 (defun agda-input-prepend (prefix)
   "Prepend PREFIX to all key sequences."
-    (lambda (x) `((,(concat prefix (car x)) . ,(cdr x)))))
+  (lambda (x)
+    (list (cons (concat prefix (car x)) (cdr x)))))
 
 (defun agda-input-prefix (prefix)
-  "Only keep pairs whose key sequence starts with PREFIX."
-    (lambda (x)
-      (if (equal (substring (car x) 0 (length prefix)) prefix)
-          (list x))))
+  "Discard pairs where the key sequence doesn't start with PREFIX."
+  (lambda (x)
+    (and (string-prefix-p prefix (car x))
+         (list x))))
 
 (defun agda-input-suffix (suffix)
   "Only keep pairs whose key sequence ends with SUFFIX."
-    (lambda (x)
-      (if (equal (substring (car x)
-                            (- (length (car x)) (length suffix)))
-                 suffix)
-          (list x))))
+  (lambda (x)
+    (and (string-suffix-p suffix (car x))
+         (list x))))
 
 (defun agda-input-drop (ss)
   "Drop pairs matching one of the given key sequences.
 SS should be a list of strings."
-    (lambda (x) (unless (member (car x) ss) (list x))))
+  (lambda (x) (and (not (member (car x) ss)) (list x))))
 
 (defun agda-input-drop-beginning (n)
   "Drop N characters from the beginning of each key sequence."
-    (lambda (x) `((,(substring (car x) n) . ,(cdr x)))))
+  (lambda (x)
+    (list (cons (substring (car x) n) (cdr x)))))
 
 (defun agda-input-drop-end (n)
   "Drop N characters from the end of each key sequence."
-    (lambda (x)
-      `((,(substring (car x) 0 (- (length (car x)) n)) .
-         ,(cdr x)))))
+  (lambda (x)
+    (list (cons (substring (car x) 0 (- (length (car x)) n))
+                (cdr x)))))
 
 (defun agda-input-drop-prefix (prefix)
-  "Only keep pairs whose key sequence starts with PREFIX.
+  "Remove pairs that don't start with PREFIX.
 This prefix is dropped."
   (agda-input-compose
    (agda-input-drop-beginning (length prefix))
    (agda-input-prefix prefix)))
 
 (defun agda-input-drop-suffix (suffix)
-  "Only keep pairs whose key sequence ends with SUFFIX.
+  "Remove pairs that don't start with SUFFIX.
 This suffix is dropped."
-    (agda-input-compose
-     (agda-input-drop-end (length suffix))
-     (agda-input-suffix suffix)))
+  (agda-input-compose
+   (agda-input-drop-end (length suffix))
+   (agda-input-suffix suffix)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Customization
@@ -129,38 +128,34 @@ translations using `agda-input-show-translations'."
   :group 'leim)
 
 (defcustom agda-input-tweak-all
-  '(agda-input-compose
-    (agda-input-prepend "\\")
-    (agda-input-nonempty))
-  "An expression yielding a function which can be used to tweak
-all translations before they are included in the input method.
-The resulting function (if non-nil) is applied to every
-\(KEY-SEQUENCE . TRANSLATION) pair and should return a list of such
-pairs. (Note that the translations can be anything accepted by
-`quail-defrule'.)
+  (agda-input-compose
+   (agda-input-prepend "\\")
+   (agda-input-nonempty))
+  "A function which can be used to tweak all translations.
+This occurs before they are included in the input method.  The resulting
+function (if non-nil) is applied to every \(KEY-SEQUENCE . TRANSLATION)
+pair and should return a list of such pairs.  Note that the translations
+can be anything accepted by `quail-defrule'.
 
-If you change this setting manually (without using the
-customization buffer) you need to call `agda-input-setup' in
-order for the change to take effect."
-  :group 'agda-input
+If you change this setting manually (without using the customization
+buffer) you need to call `agda-input-setup' in order for the change to
+take effect."
   :set 'agda-input-incorporate-changed-setting
   :initialize 'custom-initialize-default
-  :type 'sexp)
+  :type 'function)
 
 (defcustom agda-input-inherit
-  `(("TeX" . (agda-input-compose
-              (agda-input-drop '("geq" "leq" "bullet" "qed" "par"))
-              (agda-input-or
-               (agda-input-drop-prefix "\\")
+  `(("TeX" . ,(agda-input-compose
+               (agda-input-drop '("geq" "leq" "bullet" "qed" "par"))
                (agda-input-or
                 (agda-input-compose
                  (agda-input-drop '("^l" "^o" "^r" "^v"))
                  (agda-input-prefix "^"))
                 (agda-input-prefix "_")))))
-    )
-  "A list of Quail input methods whose translations should be
-inherited by the Agda input method (with the exception of
-translations corresponding to ASCII characters).
+  "A list of Quail input methods for the Agda input mode.
+Their translations should be inherited by the Agda input
+method (with the exception of translations corresponding to ASCII
+characters).
 
 The list consists of pairs (qp . tweak), where qp is the name of
 a Quail package, and tweak is an expression of the same kind as
@@ -173,9 +168,8 @@ The inherited translation pairs are added last, after
 If you change this setting manually (without using the
 customization buffer) you need to call `agda-input-setup' in
 order for the change to take effect."
-  :group 'agda-input
-  :set 'agda-input-incorporate-changed-setting
-  :initialize 'custom-initialize-default
+  :set #'agda-input-incorporate-changed-setting
+  :initialize #'custom-initialize-default
   :type '(repeat (cons (string :tag "Quail package")
                        (sexp :tag "Tweaking function"))))
 
@@ -1410,24 +1404,22 @@ from other input methods (see `agda-input-inherit').
 If you change this setting manually (without using the
 customization buffer) you need to call `agda-input-setup' in
 order for the change to take effect."
-  :group 'agda-input
-  :set 'agda-input-incorporate-changed-setting
-  :initialize 'custom-initialize-default
-  :type '(repeat (cons (string :tag "Key sequence")
-                       (repeat :tag "Translations" string))))
+  :set #'agda-input-incorporate-changed-setting
+  :initialize #'custom-initialize-default
+  :type '(alist :key-type key-sequence
+                :value-type (repeat :tag "Translations" string)))
 
 (defcustom agda-input-user-translations nil
-  "Like `agda-input-translations', but more suitable for user
-customizations since by default it is empty.
+  "User specific additions to `agda-input-translations'.
 
 These translation pairs are included first, before those in
 `agda-input-translations' and the ones inherited from other input
-methods."
-  :group 'agda-input
-  :set 'agda-input-incorporate-changed-setting
-  :initialize 'custom-initialize-default
-  :type '(repeat (cons (string :tag "Key sequence")
-                       (repeat :tag "Translations" string))))
+methods.  You can use the `agda-input-process-translations' macro
+simplify the syntax of creating the alist."
+  :set #'agda-input-incorporate-changed-setting
+  :initialize #'custom-initialize-default
+  :type '(alist :key-type key-sequence
+                :value-type (repeat :tag "Translations" string)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Inspecting and modifying translation maps
@@ -1439,7 +1431,7 @@ Each pair in the list has the form (KEY-SEQUENCE . TRANSLATION)."
   (with-temp-buffer
     (activate-input-method qp) ; To make sure that the package is loaded.
     (unless (quail-package qp)
-      (error "%s is not a Quail package." qp))
+      (error "%s is not a Quail package" qp))
     (let ((decode-map (list 'decode-map)))
       (quail-build-decode-map (list (quail-map)) "" decode-map 0)
       (cdr decode-map))))
@@ -1457,10 +1449,10 @@ Each pair in the list has the form (KEY-SEQUENCE . TRANSLATION)."
 
 (defun agda-input-add-translations (trans)
   "Add the given translations TRANS to the Agda input method.
-TRANS is a list of pairs (KEY-SEQUENCE . TRANSLATION). The
+TRANS is a list of pairs (KEY-SEQUENCE . TRANSLATION).  The
 translations are appended to the current translations."
   (with-temp-buffer
-    (dolist (tr (agda-input-concat-map (eval agda-input-tweak-all) trans))
+    (dolist (tr (mapcan (eval agda-input-tweak-all) trans))
       (quail-defrule (car tr) (cdr tr) "Agda" t))))
 
 (defun agda-input-inherit-package (qp &optional fun)
@@ -1472,11 +1464,10 @@ It is given a pair (KEY-SEQUENCE . TRANSLATION) and should return
 a list of such pairs."
   (let ((trans (agda-input-get-translations qp)))
     (agda-input-add-translations
-     (if fun (agda-input-concat-map fun trans)
+     (if fun (mapcan fun trans)
        trans))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Setting up the input method
+;;;; Setting up the input method
 
 (defun agda-input-setup ()
   "Set up the Agda input method based on the customisable
@@ -1508,11 +1499,7 @@ Suitable for use in the :set field of `defcustom'."
   (agda-input-setup))
 
 ;; Set up the input method.
-
 (agda-input-setup)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Administrative details
 
 (provide 'agda-input)
 ;;; agda-input.el ends here
