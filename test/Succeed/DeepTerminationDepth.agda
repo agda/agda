@@ -1,5 +1,6 @@
 -- Andreas, 2025-11-01
--- Examples the termination-checked slowly with high termination depth.
+-- Examples that termination-checked slowly with high termination depth.
+-- Fast thanks to iterative deepening.
 
 {-# OPTIONS --termination-depth=1000 #-}
 

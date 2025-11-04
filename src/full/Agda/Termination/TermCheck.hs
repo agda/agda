@@ -399,7 +399,7 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
 
     let
       collect :: TerM Calls
-      collect = strengthenLoopDiagonals <$> do
+      collect = -- strengthenLoopDiagonals <$> do  -- bad heuristics, see https://github.com/agda/agda/pull/8184#issuecomment-3487147737
         (`trampolineM` (Set.singleton index, mempty, mempty)) $ \ (todo, done, calls) -> do
           if null todo then return $ Left calls else do
             -- Extract calls originating from indices in @todo@.
@@ -473,7 +473,8 @@ typeEndsInDef t = liftTCM $ do
 --   Only the latter depends on the choice whether we
 --   consider dot patterns or not.
 termDef :: QName -> TerM Calls
-termDef name = terSetCurrent name $ inConcreteOrAbstractMode name \ def -> strengthenLoopDiagonals <$> do
+termDef name = terSetCurrent name $ inConcreteOrAbstractMode name \ def -> do
+  -- strengthenLoopDiagonals <$> do -- bad heuristics, see https://github.com/agda/agda/pull/8184#issuecomment-3487147737
 
  -- Skip calls to record types unless we are checking a record type in the first place.
  let isRecord_ = case theDef def of { Record{} -> True; _ -> False }

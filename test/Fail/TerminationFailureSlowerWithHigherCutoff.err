@@ -1,10 +1,10 @@
-TerminationFailureSlowerWithHigherCutoff.agda:20.1-39.18: error: [TerminationIssue]
+TerminationFailureSlowerWithHigherCutoff.agda:24.1-43.18: error: [TerminationIssue]
 Termination checking failed for the following functions:
   f, g
 Problematic calls:
   g x x
-    (at TerminationFailureSlowerWithHigherCutoff.agda:34.9-10)
+    (at TerminationFailureSlowerWithHigherCutoff.agda:38.9-10)
   g x (s y)
-    (at TerminationFailureSlowerWithHigherCutoff.agda:38.15-16)
+    (at TerminationFailureSlowerWithHigherCutoff.agda:42.15-16)
   f y
-    (at TerminationFailureSlowerWithHigherCutoff.agda:39.15-16)
+    (at TerminationFailureSlowerWithHigherCutoff.agda:43.15-16)
