@@ -1277,7 +1277,7 @@ compareTerm' v mp@(Masked m p) = do
   suc  <- terGetSizeSuc
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  v <- liftTCM (instantiate v)
+  -- v <- liftTCM (instantiate v) -- call extraction already instantiates metas in call arguments
   let fallback = return $ subTerm v p
   case (v, p) of
 
