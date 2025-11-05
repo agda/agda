@@ -40,7 +40,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Irrelevance (isPropM)
 import Agda.TypeChecking.Level
-import Agda.TypeChecking.Monad hiding (constructorForm)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce

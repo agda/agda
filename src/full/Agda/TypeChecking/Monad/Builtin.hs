@@ -228,10 +228,19 @@ constructorForm :: HasBuiltins m => Term -> m Term
 constructorForm v = do
   let pZero = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
       pSuc  = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
+  -- By passing the builtins lazily we do not have to look them up if @v@ is not a 'LitNat'.
   constructorForm' pZero pSuc v
+
+-- | Produce a function that rewrites a literal to constructor form if possible.
+constructorFormer :: HasBuiltins m => m (Term -> Term)
+constructorFormer = do
+  mz <- getBuiltin' builtinZero
+  ms <- getBuiltin' builtinSuc
+  return \ v -> fromMaybe v (constructorForm' mz ms v)
 
 {-# INLINABLE constructorForm' #-}
 {-# SPECIALIZE constructorForm' :: TCM Term -> TCM Term -> Term -> TCM Term #-}
+{-# SPECIALIZE constructorForm' :: Maybe Term -> Maybe Term -> Term -> Maybe Term #-}
 constructorForm' :: Applicative m => m Term -> m Term -> Term -> m Term
 constructorForm' pZero pSuc v =
   case v of

@@ -609,10 +609,7 @@ primTransHComp cmd ts nelims = do
       let iNeg t = tNeg `apply` [argN t]
           iMin t u = tMin `apply` [argN t, argN u]
           iz = pure iZ
-      constrForm <- do
-        mz <- getTerm' builtinZero
-        ms <- getTerm' builtinSuc
-        return $ \ t -> fromMaybe t (constructorForm' mz ms t)
+      constrForm <- constructorFormer
       su  <- reduceB' u
       sa0 <- reduceB' a0
       view   <- intervalView'
@@ -689,10 +686,7 @@ primTransHComp cmd ts nelims = do
           getTermLocal = getTerm $ getBuiltinId builtinTrans ++ " for data types"
       let sc = famThing <$> fsc
       mhcompName <- getName' builtinHComp
-      constrForm <- do
-        mz <- getTerm' builtinZero
-        ms <- getTerm' builtinSuc
-        return $ \ t -> fromMaybe t (constructorForm' mz ms t)
+      constrForm <- constructorFormer
       sa0 <- reduceB' a0
       let f = unArg . ignoreBlocking
           phi = f sphi

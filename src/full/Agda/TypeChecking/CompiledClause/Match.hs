@@ -11,9 +11,8 @@ import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Monad hiding (constructorForm)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Reduce.Monad as RedM
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Maybe

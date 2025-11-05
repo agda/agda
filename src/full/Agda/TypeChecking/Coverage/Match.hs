@@ -386,10 +386,7 @@ isLitP _ = return Nothing
 {-# SPECIALIZE unLitP :: Pattern' a -> TCM (Pattern' a) #-}
 unLitP :: HasBuiltins m => Pattern' a -> m (Pattern' a)
 unLitP (LitP info l@(LitNat n)) | n >= 0 = do
- constructorForm'
-   (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero)
-   (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc)
-   (Lit l) >>= \case
+ constructorForm (Lit l) >>= \case
   Con c ci es -> do
     let toP (Apply (Arg i (Lit l))) = Arg i (LitP info l)
         toP _ = __IMPOSSIBLE__

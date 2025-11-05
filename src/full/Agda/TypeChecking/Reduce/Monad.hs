@@ -3,8 +3,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.TypeChecking.Reduce.Monad
-  ( constructorForm
-  , enterClosure
+  ( enterClosure
   , getConstInfo
   , askR, applyWhenVerboseS
   ) where
@@ -12,14 +11,13 @@ module Agda.TypeChecking.Reduce.Monad
 import Prelude hiding (null)
 
 import qualified Data.Map as Map
-import Data.Maybe
 
 import System.IO.Unsafe
 
 import Agda.Syntax.Common.Pretty () --instance only
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad hiding (enterClosure, constructorForm)
+import Agda.TypeChecking.Monad hiding (enterClosure)
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Lens
@@ -31,12 +29,6 @@ instance HasBuiltins ReduceM where
     liftM2 (unionMaybeWith unionBuiltin)
       (Map.lookup b <$> useR stLocalBuiltins)
       (Map.lookup b <$> useR stImportedBuiltins)
-
-constructorForm :: HasBuiltins m => Term -> m Term
-constructorForm v = do
-  mz <- getBuiltin' builtinZero
-  ms <- getBuiltin' builtinSuc
-  return $ fromMaybe v $ constructorForm' mz ms v
 
 enterClosure :: LensClosure c a => c -> (a -> ReduceM b) -> ReduceM b
 enterClosure c | Closure _sig env scope cps x <- c ^. lensClosure = \case
