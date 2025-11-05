@@ -1263,7 +1263,7 @@ compareTerm t p = do
 --   reportSDoc "term.compare" 25 $
 --     " comparing term " <+> prettyTCM t <+>
 --     " to pattern " <+> prettyTCM p
-  o <- compareTerm' t p
+  o <- compareTerm' t =<< traverse reduceConPattern p
   liftTCM $ reportSDoc "term.compare" 25 $
     " comparing term " <+> prettyTCM t <+>
     " to pattern " <+> prettyTCM p <+>
@@ -1272,13 +1272,16 @@ compareTerm t p = do
 
 -- | Normalize outermost constructor name in a pattern.
 
-reduceConPattern :: DeBruijnPattern -> TCM DeBruijnPattern
+{-# SPECIALIZE reduceConPattern :: DeBruijnPattern -> TerM DeBruijnPattern #-}
+reduceConPattern :: MonadTCM tcm => DeBruijnPattern -> tcm DeBruijnPattern
 reduceConPattern = \case
-  ConP c i ps -> fromRightM (\ err -> return c) (getConForm (conName c)) <&> \ c' ->
+  ConP c i ps -> fromRightM (\ err -> return c) (liftTCM $ getConForm $ conName c) <&> \ c' ->
     ConP c' i ps
   p -> return p
 
 -- | @compareTerm' t dbpat@
+--
+-- Precondition: 'reduceConPattern' has been applied to the pattern.
 
 compareTerm' :: Term -> Masked DeBruijnPattern -> TerM Order
 compareTerm' v mp@(Masked m p) = do
@@ -1286,7 +1289,6 @@ compareTerm' v mp@(Masked m p) = do
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   v <- liftTCM (instantiate v)
-  p <- liftTCM $ reduceConPattern p
   let fallback = return $ subTerm v p
   case (v, p) of
 
@@ -1314,7 +1316,7 @@ compareTerm' v mp@(Masked m p) = do
     -- Successor on both sides cancel each other.
     -- We ignore the mask for sizes.
     (Def s [Apply t], ConP s' _ [p]) | s == conName s' && Just s == suc ->
-      compareTerm' (unArg t) (notMasked $ namedArg p)
+      compareTerm' (unArg t) . notMasked =<< reduceConPattern (namedArg p)
 
     -- Register also size increase.
     (Def s [Apply t], p) | Just s == suc ->
