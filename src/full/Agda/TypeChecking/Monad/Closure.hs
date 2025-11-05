@@ -16,6 +16,7 @@ enterClosure :: (MonadTCEnv m, ReadTCState m, LensClosure c a)
 enterClosure c k | Closure _sig env scope cps x <- c ^. lensClosure = do
   isDbg <- viewTC eIsDebugPrinting
   evalWithScope scope
+      -- TODO: use the signature here? would that fix parts of issue #118?
     $ locallyTCState stModuleCheckpoints (const cps)
     $ withEnv env{ envIsDebugPrinting = isDbg }
     $ k x

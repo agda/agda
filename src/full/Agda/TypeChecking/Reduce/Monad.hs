@@ -17,10 +17,9 @@ import System.IO.Unsafe
 import Agda.Syntax.Common.Pretty () --instance only
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad hiding (enterClosure)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
@@ -29,17 +28,6 @@ instance HasBuiltins ReduceM where
     liftM2 (unionMaybeWith unionBuiltin)
       (Map.lookup b <$> useR stLocalBuiltins)
       (Map.lookup b <$> useR stImportedBuiltins)
-
-enterClosure :: LensClosure c a => c -> (a -> ReduceM b) -> ReduceM b
-enterClosure c | Closure _sig env scope cps x <- c ^. lensClosure = \case
-  -- The \case is a hack to correctly associate the where block to the rhs
-  -- rather than to the expression in the pattern guard.
-  f -> localR (mapRedEnvSt inEnv inState) (f x)
-    where
-    inEnv   e = env
-    inState s =
-      -- TODO: use the signature here? would that fix parts of issue 118?
-      set stScope scope $ set stModuleCheckpoints cps s
 
 withFreshR :: (ReadTCState m, HasFresh i) => (i -> m a) -> m a
 withFreshR f = do

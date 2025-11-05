@@ -46,7 +46,7 @@ import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
 import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (isPropM)
-import Agda.TypeChecking.Monad hiding ( enterClosure )
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.EtaContract
