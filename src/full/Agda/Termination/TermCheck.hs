@@ -604,15 +604,6 @@ targetElem ds = terGetTarget <&> \case
   TargetRecord -> False
   TargetOther  -> False
 
-
--- | Convert a term (from a dot pattern) to a DeBruijn pattern.
---
---   The term is first normalized.
-
-termToDBP :: Term -> TerM DeBruijnPattern
-termToDBP t =
-  termToPattern =<< do liftTCM $ normalise t
-
 -- | Convert a term (from a dot pattern) to a pattern for the purposes of the termination checker.
 --
 --   @SIZESUC@ is treated as a constructor.
@@ -627,12 +618,8 @@ instance TermToPattern a b => TermToPattern [a] [b] where
 instance TermToPattern a b => TermToPattern (Arg a) (Arg b) where
 instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
 
--- OVERLAPPING
--- instance TermToPattern a b => TermToPattern a (Named c b) where
---   termToPattern t = unnamed <$> termToPattern t
-
 instance TermToPattern Term DeBruijnPattern where
-  termToPattern t = liftTCM (constructorForm t) >>= \case
+  termToPattern t = reduce t >>= constructorForm >>= \case
     -- Constructors.
     Con c _ args -> ifNotConsOfHIT c $
       ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
@@ -714,9 +701,11 @@ termClause clause = do
         extract v
 
   where
+    parseDotP :: DeBruijnPattern -> TerM DeBruijnPattern
     parseDotP = \case
-      DotP o t -> termToDBP t
+      DotP o t -> termToPattern t
       p        -> return p
+    stripCoCon :: DeBruijnPattern -> TerM DeBruijnPattern
     stripCoCon = \case
       ConP (ConHead c _ CoInductive _) _ _ -> return unusedVar
       p -> return p
