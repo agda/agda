@@ -607,11 +607,11 @@ targetElem ds = terGetTarget <&> \case
 
 -- | Convert a term (from a dot pattern) to a DeBruijn pattern.
 --
---   The term is first normalized and stripped of all non-coinductive projections.
+--   The term is first normalized.
 
 termToDBP :: Term -> TerM DeBruijnPattern
 termToDBP t =
-  termToPattern =<< do liftTCM $ stripAllProjections =<< normalise t
+  termToPattern =<< do liftTCM $ normalise t
 
 -- | Convert a term (from a dot pattern) to a pattern for the purposes of the termination checker.
 --
@@ -640,9 +640,14 @@ instance TermToPattern Term DeBruijnPattern where
       suc <- terGetSizeSuc
       if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
        else fallback
-    DontCare t  -> termToPattern t -- OR: __IMPOSSIBLE__  -- removed by stripAllProjections
+    DontCare t  -> termToPattern t
     -- Leaves.
-    Var i []    -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
+    -- Any (not coinductively) projected variable becomes a variable pattern.
+    Var i es    -> case mapM isProjElim es of
+      Just oxs  -> foldMap (All <.> isProjectionButNotCoinductive . snd) oxs >>= \case
+        All True -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
+        _        -> fallback
+      _ -> fallback
     Lit l       -> return $ litP l
     Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
     t           -> fallback
@@ -1253,73 +1258,17 @@ offsetFromConstructor :: HasConstInfo tcm => QName -> tcm Int
 offsetFromConstructor c =
   ifM (isEtaOrCoinductiveRecordConstructor c) (return 0) (return 1)
 
---UNUSED Liang-Ting 2019-07-16
----- | Compute the proper subpatterns of a 'DeBruijnPattern'.
---subPatterns :: DeBruijnPattern -> [DeBruijnPattern]
---subPatterns = foldPattern $ \case
---  ConP _ _ ps -> map namedArg ps
---  DefP _ _ ps -> map namedArg ps -- TODO check semantics
---  VarP _ _    -> mempty
---  LitP _      -> mempty
---  DotP _ _    -> mempty
---  ProjP _ _   -> mempty
---  IApplyP{}   -> mempty
-
-
 compareTerm :: Term -> Masked DeBruijnPattern -> TerM Order
 compareTerm t p = do
 --   reportSDoc "term.compare" 25 $
 --     " comparing term " <+> prettyTCM t <+>
 --     " to pattern " <+> prettyTCM p
-  t <- liftTCM $ stripAllProjections t
   o <- compareTerm' t p
   liftTCM $ reportSDoc "term.compare" 25 $
     " comparing term " <+> prettyTCM t <+>
     " to pattern " <+> prettyTCM p <+>
     text (" results in " ++ prettyShow o)
   return o
-
-
--- | Remove all non-coinductive projections from an algebraic term
---   (not going under binders).
---   Also, remove 'DontCare's.
---
-class StripAllProjections a where
-  stripAllProjections :: a -> TCM a
-
-instance StripAllProjections a => StripAllProjections (Arg a) where
-  stripAllProjections = traverse stripAllProjections
-
-instance StripAllProjections Elims where
-  stripAllProjections es =
-    case es of
-      []             -> return []
-      (Apply a : es) -> do
-        (:) <$> (Apply <$> stripAllProjections a) <*> stripAllProjections es
-      (IApply x y a : es) -> do
-        -- TODO Andrea: are we doind extra work?
-        (:) <$> (IApply <$> stripAllProjections x
-                        <*> stripAllProjections y
-                        <*> stripAllProjections a)
-            <*> stripAllProjections es
-      (Proj o p  : es) -> do
-        isP <- isProjectionButNotCoinductive p
-        applyUnless isP (Proj o p :) <$> stripAllProjections es
-
-instance StripAllProjections Args where
-  stripAllProjections = mapM stripAllProjections
-
-instance StripAllProjections Term where
-  stripAllProjections t = do
-    case t of
-      Var i es   -> Var i <$> stripAllProjections es
-      Con c ci ts -> do
-        -- Andreas, 2019-02-23, re #2613.  This is apparently not necessary:
-        -- c <- fromRightM (\ err -> return c) $ getConForm (conName c)
-        Con c ci <$> stripAllProjections ts
-      Def d es   -> Def d <$> stripAllProjections es
-      DontCare t -> stripAllProjections t
-      _ -> return t
 
 -- | Normalize outermost constructor name in a pattern.
 
@@ -1338,12 +1287,15 @@ compareTerm' v mp@(Masked m p) = do
   let ?cutoff = cutoff
   v <- liftTCM (instantiate v)
   p <- liftTCM $ reduceConPattern p
+  let fallback = return $ subTerm v p
   case (v, p) of
 
     -- Andreas, 2013-11-20 do not drop projections,
     -- in any case not coinductive ones!:
-    (Var i es, _) | Just{} <- allApplyElims es ->
-      compareVar i mp
+    -- Andreas, 2025-11-05 we may drop all eliminations that are not coinductive projections.
+    (Var i es, _) -> foldMap (All <.> elimNotCoinductive) es >>= \case
+      All True -> compareVar i mp
+      _ -> fallback
 
     (DontCare t, _) ->
       compareTerm' t mp
@@ -1402,7 +1354,7 @@ compareTerm' v mp@(Masked m p) = do
       increase <$> offsetFromConstructor (conName c)
                <*> (infimum <$> mapM (\ t -> compareTerm' (unArg t) mp) ts)
 
-    (t, p) -> return $ subTerm t p
+    _ -> fallback
 
 -- | @subTerm@ computes a size difference (Order)
 subTerm :: (?cutoff :: CutOff) => Term -> DeBruijnPattern -> Order

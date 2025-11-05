@@ -402,6 +402,12 @@ isProjectionButNotCoinductive qn = liftTCM $ do
               -> isInductiveRecord (unArg t)
             _ -> return False
 
+-- | Is the given elimination anything but a coinductive projection?
+elimNotCoinductive :: MonadTCM tcm => Elim' t -> tcm Bool
+elimNotCoinductive e = case isProjElim e of
+  Nothing      -> return True
+  Just (_o, x) -> isProjectionButNotCoinductive x
+
 -- | Check whether a projection belongs to a coinductive record
 --   and is actually recursive.
 --   E.g.
