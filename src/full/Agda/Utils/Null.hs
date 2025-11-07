@@ -198,7 +198,16 @@ instance Null Bool where
 
 instance Null (Doc a) where
   empty = mempty
+  {-# INLINE empty #-}
   null  = isEmpty
+  {-# NOINLINE null #-}
+
+-- | 'Either' is seen as error monad.
+instance Null a => Null (Either e a) where
+  empty = Right empty
+  {-# INLINE empty #-}
+  null  = either (const False) null
+  {-# NOINLINE null #-}
 
 instance Null a => Null (Identity a) where
   empty = return empty

@@ -1353,7 +1353,7 @@ instance ToConcrete A.Declaration where
     x <- toConcrete x
     let open = fromMaybe DontOpen $ minfoOpenShort i
         dir  = fromMaybe defaultImportDir $ minfoDirective i
-    return [ C.Import (getRange i) x Nothing open dir]
+    return [ C.Import (unranged open) (kwRange (getRange i)) x empty dir]
 
   toConcrete (A.Pragma i p)     = do
     p <- toConcrete $ RangeAndPragma (getRange i) p

@@ -1591,7 +1591,7 @@ importPrimitives = do
           , [ "SSet" | twoLevel ]
           ]
         directives          = ImportDirective noRange (Using usingDirective) [] [] Nothing
-        importAgdaPrimitive = [C.Import noRange agdaPrimitiveName Nothing C.DoOpen directives]
+        importAgdaPrimitive = [C.Import (unranged C.DoOpen) empty agdaPrimitiveName empty directives]
     toAbstract (Declarations importAgdaPrimitive)
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module

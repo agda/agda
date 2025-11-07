@@ -839,7 +839,7 @@ TypedBindings
 -- Andreas, 2011-04-27: or ..(x1 .. xn : A) or ..{y1 .. ym : B}
 TypedBinding :: { TypedBinding }
 TypedBinding
-    : '(' Open ')'               { TLet (getRange ($1,$3)) $2 }
+    : '(' Open ')'               { TLet (getRange ($1,$3)) (singleton $2) }
     | '(' 'let' Declarations ')' { TLet (getRange ($1,$4)) $3 }
 -- relevant
     | '(' TBindWithHiding ')'                { setRange (getRange ($1,$2,$3)) $
@@ -1227,7 +1227,8 @@ Declaration
     | Macro           { singleton $1 }
     | Postulate       { singleton $1 }
     | Primitive       { singleton $1 }
-    | Open            { $1 }
+    | Import          { singleton $1 }
+    | Open            { singleton $1 }
     | ModuleMacro     { singleton $1 }
     | Module          { singleton $1 }
     | Pragma          { singleton $1 }
@@ -1500,69 +1501,22 @@ MaybeOpen :: { Maybe Range }
 MaybeOpen : 'open'      { Just (getRange $1) }
           | {- empty -} { Nothing }
 
--- Open
-Open :: { List1 Declaration }
-Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
-    let
-    { doOpen = maybe DontOpen (const DoOpen) $1
-    ; m   = $3
-    ; es  = $4
-    ; dir = $5
-    ; r   = getRange ($1, $2, m, es, dir)
-    ; mr  = getRange m
-    ; unique = hashString $ prettyShow $ (Strict.Nothing :: Strict.Maybe ()) <$ r
-         -- turn range into unique id, but delete file path
-         -- which is absolute and messes up suite of failing tests
-         -- (different hashs on different installations)
-         -- TODO: Don't use (insecure) hashes in this way.
-    ; fresh  = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show unique
-    ; fresh' = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show (unique + 1)
-    ; impStm asR = Import (getRange ($2, $3)) m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
-    ; appStm m' es =
-        Private empty Inserted
-          [ ModuleMacro r defaultErased m'
-             (SectionApp (getRange es) [] (QName fresh) es)
-             doOpen dir
-          ]
-    ; (initArgs, last2Args) = splitAt (length es - 2) es
-    ; parseAsClause = case last2Args of
-      { [ Ident (QName (Name asR InScope (Id x :| [])))
-        , e
-          -- Andreas, 2018-11-03, issue #3364, accept anything after 'as'
-          -- but require it to be a 'Name' in the scope checker.
-        ] | rawNameToString x == "as" -> Just . (asR,) $
-          if | Ident (QName m') <- e -> Right m'
-             | otherwise             -> Left e
-      ; _ -> Nothing
-      }
-    } in
-    case es of
-      { [] -> return $ singleton $ Import r m Nothing doOpen dir
-      ; _ | Just (asR, m') <- parseAsClause -> return $
-              if null initArgs then singleton
-                 ( Import (getRange (m, asR, m', dir)) m
-                     (Just (AsName m' asR)) doOpen dir
-                 )
-              else impStm asR :| [ appStm (fromRight (const fresh') m') initArgs ]
-          -- Andreas, 2017-05-13, issue #2579
-          -- Nisse reports that importing with instantation but without open
-          -- could be usefule for bringing instances into scope.
-          -- Ulf, 2018-12-6: Not since fixes of #1913 and #2489 which require
-          -- instances to be in scope.
-          | DontOpen <- doOpen -> parseErrorRange $2 "An import statement with module instantiation is useless without either an `open' keyword or an `as` binding giving a name to the instantiated module."
-          | otherwise -> return $
-              impStm noRange :|
-              appStm (noName $ beginningOf $ getRange m) es :
-              []
-      }
-  }
-  |'open' ModuleName OpenArgs ImportDirective {
+-- Import with possible opening.
+Import :: { Declaration }
+Import
+  : MaybeOpen 'import' ModuleName OpenArgs ImportDirective
+    { Import (Ranged (getRange $1) $ maybe DontOpen (const DoOpen) $1) (kwRange $2) $3 (Right $4) $5 }
+
+-- Open without import.
+Open :: { Declaration }
+Open
+  : 'open' ModuleName OpenArgs ImportDirective {
     let
     { m   = $2
     ; es  = $3
     ; dir = $4
     ; r   = getRange ($1, m, es, dir)
-    } in singleton $
+    } in
       case es of
       { []  -> Open r m dir
       ; _   -> Private empty Inserted
@@ -1572,14 +1526,14 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
                      DoOpen dir
                  ]
       }
-  }
+    }
   | 'open' ModuleName '{{' '...' DoubleCloseBrace ImportDirective {
-    let r = getRange $2 in singleton $
+    let r = getRange $2 in
       Private empty Inserted
-      [ ModuleMacro r defaultErased (noName $ beginningOf $ getRange $2)
+      [ ModuleMacro r defaultErased (noName $ beginningOf r)
           (RecordModuleInstance r $2) DoOpen $6
       ]
-  }
+    }
 
 OpenArgs :: { [Expr] }
 OpenArgs : {- empty -}    { [] }

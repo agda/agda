@@ -60,30 +60,34 @@ import Control.Monad.Reader  ( asks )
 import Control.Monad.State   ( MonadState(..), gets, runStateT )
 
 import Data.Either           ( isRight )
+import Data.Foldable         qualified as Fold
 import Data.Function         ( on )
-import qualified Data.Map as Map
+import Data.List             qualified as List
+import Data.Map              qualified as Map
 import Data.Maybe
-import qualified Data.List as List
-import qualified Data.Foldable as Fold
-import qualified Data.Traversable as Trav
+import Data.Traversable      qualified as Trav
 
-import Agda.Syntax.Concrete
-import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Common hiding (TerminationCheck())
-import Agda.Syntax.Position
-import Agda.Syntax.Notation
-import Agda.Syntax.Concrete.Fixity
+import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Definitions.Errors
 import Agda.Syntax.Concrete.Definitions.Monad
 import Agda.Syntax.Concrete.Definitions.Types
+import Agda.Syntax.Concrete.Fixity
+import Agda.Syntax.Concrete.Pattern
+import Agda.Syntax.Notation
+import Agda.Syntax.Position
 
 import Agda.Utils.AffineHole
-import Agda.Utils.CallStack ( HasCallStack, withCallerCallStack )
+import Agda.Utils.CallStack  ( HasCallStack, withCallerCallStack )
+import Agda.Utils.Either     ( fromRight )
+import Agda.Utils.Function   ( applyWhenJust )
 import Agda.Utils.Functor
+import Agda.Utils.Hash       ( hashString )
 import Agda.Utils.Lens
-import Agda.Utils.List (spanJust)
-import Agda.Utils.List1 (List1, pattern (:|), (<|))
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List       ( spanJust )
+import Agda.Utils.List1      ( List1, pattern (:|), (<|) )
+import Agda.Utils.List1      qualified as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -488,7 +492,9 @@ niceDeclarations fixs ds = do
         PatternSyn r n as p -> do
           return ([NicePatternSyn r PublicAccess n as p] , ds)
         Open r x is         -> return ([NiceOpen r x is] , ds)
-        Import r x as op is -> return ([NiceImport r x as op is] , ds)
+        Import op r x as is -> do
+          (dImport, dApp) <- niceImport op r x as is
+          return (maybeToList dImport, applyWhenJust dApp (:) ds)
 
         UnquoteDecl r xs e -> do
           tc <- use terminationCheckPragma
@@ -1577,6 +1583,77 @@ dropTactic = \case
   TacticAttribute Nothing   -> return ()
   TacticAttribute (Just re) -> declarationWarning $ InvalidTacticAttribute $ getRange re
 
+-- | Desugar a raw 'Import' statement from the parser into a 'NiceImport' statement
+-- and possibly a module application.
+
+niceImport ::
+     Ranged OpenShortHand  -- ^ @open@ keyword, if any.
+  -> KwRange               -- ^ 'Range' of the @import@ keyword.
+  -> QName                 -- ^ Module to import.
+  -> Either AsName RawOpenArgs
+                           -- ^ Expressions following the module name, possibly ending in @as X@.
+  -> ImportDirective       -- ^ @using hiding renaming@.
+  -> Nice (Maybe NiceDeclaration, Maybe Declaration)
+      -- ^ 'NiceImport' and possibly a 'ModuleMacro'.
+
+-- Case: already parsed @as@ clause.
+niceImport (Ranged rOpen doOpen) kwR m (Left asClause) dir =
+    return (Just $ NiceImport r m (Just asClause) doOpen dir, Nothing)
+  where
+    -- The Range of the whole declaration.
+    r = getRange (rOpen, kwR, m, asClause, dir)
+
+-- Case: no module arguments, no @as@ clause.
+niceImport (Ranged rOpen doOpen) kwR m (Right []) dir =
+    return (Just $ NiceImport r m Nothing doOpen dir, Nothing)
+  where
+    -- The Range of the whole declaration.
+    r = getRange (rOpen, kwR, m, dir)
+-- Case: some module arguments
+
+niceImport (Ranged rOpen doOpen) kwR m (Right es) dir
+  -- Subcase: @as@ clause
+    | Just (asR, m') <- parseAsClause =
+        if null initArgs then return . (,Nothing) $ Just $
+           NiceImport (getRange (rOpen, kwR, m, asR, m', dir)) m (Just (AsName m' asR)) doOpen dir
+        else return (Just $ impStm asR, Just $ appStm (fromRight (const fresh') m') initArgs)
+        -- Andreas, 2017-05-13, issue #2579
+        -- Nisse reports that importing with instantation but without open
+        -- could be useful for bringing instances into scope.
+        -- Ulf, 2018-12-6: Not since fixes of #1913 and #2489 which require
+        -- instances to be in scope.
+  -- Subcase: no @as@ clause
+    | DontOpen <- doOpen = do
+        declarationWarning $ UselessImport fullRange
+        return (Nothing, Nothing)
+    | otherwise =
+        return (Just $ impStm noRange, Just $ appStm (noName $ beginningOf $ getRange m) es)
+  where
+    fullRange = getRange (rOpen, kwR, m, es, dir)
+    impStm asR = NiceImport (getRange (kwR, m)) m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
+    appStm m' es =
+      Private empty Inserted
+        [ ModuleMacro (getRange (rOpen, m, es, dir)) defaultErased m'
+           (SectionApp (getRange es) [] (QName fresh) es)
+           doOpen dir
+        ]
+    (initArgs, last2Args) = splitAt (length es - 2) es
+    parseAsClause = case last2Args of
+      [ Ident (QName (Name asR InScope (Id x :| []))), e ]
+        -- Andreas, 2018-11-03, issue #3364, accept anything after 'as'
+        -- but require it to be a 'Name' in the scope checker.
+        | rawNameToString x == "as" -> Just . (asR,) $
+        if | Ident (QName m') <- e -> Right m'
+           | otherwise             -> Left e
+      _ -> Nothing
+    mkFresh i = Name (getRange m) NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show i
+    unique = hashString $ prettyShow $ getRangeWithoutFile fullRange
+       -- turn range into unique id, but delete file path
+       -- which is absolute and messes up suite of failing tests
+       -- (different hashs on different installations)
+       -- TODO: Don't use (insecure) hashes in this way.
+    fresh  = mkFresh unique
+    fresh' = mkFresh $ unique + 1
 
 -- The following function is (at the time of writing) only used three
 -- times: for building Lets, and for printing error messages.
@@ -1594,7 +1671,7 @@ notSoNiceDeclarations = \case
     NiceModuleMacro r _ e x ma o dir
                                      -> singleton $ ModuleMacro r e x ma o dir
     NiceOpen r x dir                 -> singleton $ Open r x dir
-    NiceImport r x as o dir          -> singleton $ Import r x as o dir
+    NiceImport r x as o dir          -> singleton $ Import (unranged o) (kwRange r) x (maybe empty Left as) dir
     NicePragma _ p                   -> singleton $ Pragma p
     NiceRecSig r er _ _ _ _ x bs e   -> singleton $ RecordSig r er x bs e
     NiceDataSig r er _ _ _ _ x bs e  -> singleton $ DataSig r er x bs e

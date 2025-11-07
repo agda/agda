@@ -174,6 +174,8 @@ data DeclarationWarning'
       -- ^ @macro@ block with nothing that can (newly) be made macro.
   | UselessPrivate KwRange
       -- ^ @private@ block with nothing that can (newly) be made private.
+  | UselessImport Range
+      -- ^ An @import@ that is applied to parameters by neither bound not opened.
   deriving (Show, Generic)
 
 -- | @open@ or @import@
@@ -229,6 +231,7 @@ declarationWarningName' = \case
   UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
   UnknownNamesInPolarityPragmas{}   -> UnknownNamesInPolarityPragmas_
   UselessAbstract{}                 -> UselessAbstract_
+  UselessImport{}                   -> UselessImport_
   UselessInstance{}                 -> UselessInstance_
   UselessMacro{}                    -> UselessMacro_
   UselessPrivate{}                  -> UselessPrivate_
@@ -281,6 +284,7 @@ unsafeDeclarationWarning' = \case
   UnknownNamesInFixityDecl{}        -> False
   UnknownNamesInPolarityPragmas{}   -> False
   UselessAbstract{}                 -> False
+  UselessImport{}                   -> False
   UselessInstance{}                 -> False
   UselessMacro{}                    -> False
   UselessPrivate{}                  -> False
@@ -393,6 +397,7 @@ instance HasRange DeclarationWarning' where
     UnknownNamesInFixityDecl xs        -> getRange xs
     UnknownNamesInPolarityPragmas xs   -> getRange xs
     UselessAbstract kwr                -> getRange kwr
+    UselessImport r                    -> r
     UselessInstance kwr                -> getRange kwr
     UselessMacro kwr                   -> getRange kwr
     UselessPrivate kwr                 -> getRange kwr
@@ -497,6 +502,9 @@ instance Pretty DeclarationWarning' where
 
     UselessAbstract _ -> fsep $
       pwords "Using abstract here has no effect. Abstract applies to only definitions like data definitions, record type definitions and function clauses."
+
+    UselessImport _ -> fsep $
+      pwords "An import statement with module instantiation is useless without either an `open' keyword or an `as` binding giving a name to the instantiated module."
 
     UselessInstance _ -> fsep $
       pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms (other than primitives)."

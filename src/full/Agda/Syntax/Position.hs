@@ -453,6 +453,9 @@ instance HasRangeWithoutFile IntervalWithoutFile where
 instance HasRangeWithoutFile RangeWithoutFile where
     getRangeWithoutFile = id
 
+instance HasRangeWithoutFile Range where
+    getRangeWithoutFile = void . getRange
+
 instance HasRangeWithoutFile () where
   getRangeWithoutFile _ = noRange
 

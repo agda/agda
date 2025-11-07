@@ -263,6 +263,7 @@ data WarningName
   | UnknownNamesInFixityDecl_
   | UnknownNamesInPolarityPragmas_
   | UselessAbstract_
+  | UselessImport_
   | UselessInstance_
   | UselessMacro_
   | UselessPrivate_
@@ -503,6 +504,7 @@ warningNameDescription = \case
   UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."
   UselessAbstract_                 -> "`abstract' blocks where they have no effect."
   UselessHiding_                   -> "Names in `hiding' directive that are anyway not imported."
+  UselessImport_                   -> "`import' statements that do not bring anything into scope."
   UselessInline_                   -> "`INLINE' pragmas where they have no effect."
   UselessInstance_                 -> "`instance' blocks where they have no effect."
   UselessMacro_                    -> "`macro' blocks where they have no effect."

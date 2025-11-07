@@ -53,8 +53,9 @@ module Agda.Syntax.Concrete
   , TypeSignatureOrInstanceBlock
   , ImportDirective, Using, ImportedName
   , Renaming, RenamingDirective, HidingDirective
-  , AsName'(..), AsName
-  , OpenShortHand(..), RewriteEqn, WithExpr
+  , AsName'(..), AsName, RawOpenArgs
+  , OpenShortHand(..)
+  , RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
   , LamClause(..)
   , RHS, RHS'(..)
@@ -546,7 +547,7 @@ data Declaration
   | Postulate   KwRange [TypeSignatureOrInstanceBlock]
   | Primitive   KwRange [TypeSignature]
   | Open        Range QName ImportDirective
-  | Import      Range QName (Maybe AsName) !OpenShortHand ImportDirective
+  | Import      (Ranged OpenShortHand) KwRange QName (Either AsName RawOpenArgs) ImportDirective
   | ModuleMacro Range Erased  Name ModuleApplication !OpenShortHand
                 ImportDirective
   | Module      Range Erased QName Telescope [Declaration]
@@ -562,6 +563,17 @@ data Declaration
   | Unfolding   KwRange [QName]
     -- ^ @unfolding ...@
   deriving Eq
+
+-- | Expressions usually instantiating module parameters as in
+-- @
+--   open import Monoid Carrier _==_
+-- @
+-- that might also code an @as@ clause e.g. in
+-- @
+--    open import File as M
+-- @
+-- The parser does not distinguish these so we do it in the nicifier.
+type RawOpenArgs = [Expr]
 
 -- | Return 'Pragma' if 'Declaration' is 'Pragma'.
 {-# SPECIALIZE isPragma :: Declaration -> Maybe Pragma #-}
@@ -1019,7 +1031,7 @@ instance HasRange Declaration where
   getRange (Open r _ _)            = r
   getRange (ModuleMacro r _ _ _ _ _)
                                    = r
-  getRange (Import r _ _ _ _)      = r
+  getRange (Import a b c d e)      = getRange (a, b, c, d, e)
   getRange (InstanceB kwr _)       = getRange kwr
   getRange (Macro kwr ds)          = fuseRange kwr ds
   getRange (Private kwr _ ds)      = fuseRange kwr ds
@@ -1179,7 +1191,7 @@ instance KillRange Declaration where
   killRange (Postulate _ t)         = killRangeN (Postulate empty) t
   killRange (Primitive _ t)         = killRangeN (Primitive empty) t
   killRange (Open _ q i)            = killRangeN (Open noRange) q i
-  killRange (Import _ q a o i)      = killRangeN (\q a -> Import noRange q a o) q a i
+  killRange (Import a b c d e)      = killRangeN Import a b c d e
   killRange (ModuleMacro _ e n m o i)
                                     = killRangeN
                                         (\e n m -> ModuleMacro noRange e n m o)

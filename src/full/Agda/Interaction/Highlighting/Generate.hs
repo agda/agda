@@ -565,6 +565,7 @@ warningHighlighting' b w = case tcWarning w of
       -- Highlighting the variable instead might be misleading,
       -- suggesting that it is not generalized over.
     UselessAbstract{}                -> deadcodeHighlighting w
+    UselessImport{}                  -> deadcodeHighlighting w
     UselessInstance{}                -> deadcodeHighlighting w
     UselessMacro{}                   -> deadcodeHighlighting w
     UselessPrivate{}                 -> deadcodeHighlighting w

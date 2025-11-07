@@ -59,6 +59,15 @@ Errors
 Warnings
 --------
 
+* `UselessImport` warning instead of parse error when an module is instantiated
+  but not opened during `import`, for instance:
+  ```agda
+  import Structures.IsMonoid Carrier Eq
+  ```
+  This does not bring module `Structures.IsMonoid` into scope and
+  neither any of its exports.
+  It either needs an `open` or an `as`-clause such as `as MyMonoid`.
+
 * `UselessPragma` warning instead of hard error `NeedOptionRewriting` when a
   `REWRITE` or `BUILTIN REWRITE` pragma is encountered but `--rewriting` is off.
 

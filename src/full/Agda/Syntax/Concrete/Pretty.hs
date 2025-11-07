@@ -480,11 +480,11 @@ instance Pretty Declaration where
           , nest 2 $ equals <+> pretty rec <+> "{{...}}"
           ]
     Open _ x i  -> hsep [ hlKeyword "open", pretty x, pretty i ]
-    Import _ x rn open i   ->
+    Import open _ x rn i   ->
       hsep [ pretty open, hlKeyword "import", pretty x, as rn, pretty i ]
       where
-        as Nothing  = empty
-        as (Just x) = hlKeyword "as" <+> pretty (asName x)
+        as (Left x) = hlKeyword "as" <+> pretty (asName x)
+        as (Right args) = fsep (map pretty args)
     UnquoteDecl _ xs t ->
       sep [ hlKeyword "unquoteDecl" <+> fsep (map pretty xs) <+> equals, nest 2 $ pretty t ]
     UnquoteDef _ xs t ->

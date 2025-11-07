@@ -364,6 +364,7 @@ instance EmbPrj DeclarationWarning' where
     SafeFlagPolarity               {} -> __IMPOSSIBLE__
     SafeFlagTerminating            {} -> __IMPOSSIBLE__
     EmptyPolarityPragma r             -> icodeN 35 EmptyPolarityPragma r
+    UselessImport r                   -> icodeN 36 UselessImport r
 
   value = vcase $ \case
     N2 0  a            -> valuN UnknownNamesInFixityDecl a
@@ -402,6 +403,7 @@ instance EmbPrj DeclarationWarning' where
     N2 33 r            -> valuN HiddenGeneralize r
     N2 34 r            -> valuN UselessMacro r
     N2 35 r            -> valuN EmptyPolarityPragma r
+    N2 36 r            -> valuN UselessImport r
     _ -> malformed
 
 instance EmbPrj OpenOrImport

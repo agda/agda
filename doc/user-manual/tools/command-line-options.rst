@@ -1732,6 +1732,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      :ref:`INLINE<inline-pragma>` pragmas where they have no effect.
 
+.. option:: UselessImport
+
+     ``import`` statements that do not bring anything into scope.
+
 .. option:: UselessInstance
 
      ``instance`` blocks where they have no effect.
