@@ -628,6 +628,7 @@ library
       Agda.Syntax.Abstract.Pretty
       Agda.Syntax.Abstract.UsedNames
       Agda.Syntax.Abstract.Views
+      Agda.Syntax.Abstract.PreView
       Agda.Syntax.Builtin
       Agda.Syntax.Common
       Agda.Syntax.Common.Aspect

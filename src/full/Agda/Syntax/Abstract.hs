@@ -783,6 +783,22 @@ instance HasRange LetBinding where
   getRange (LetApply i _ _ _ _ _)  = getRange i
   getRange (LetOpen  i _ _)        = getRange i
 
+
+instance HasRange Void where
+    getRange _ = noRange
+instance HasRange GeneralizeTelescope where
+    getRange _ = noRange
+instance HasRange DataDefParams where
+    getRange _ = noRange
+instance HasRange TypedBindingInfo where
+    getRange _ = noRange
+instance HasRange ModuleApplication where
+    getRange _ = noRange
+  
+instance HasRange Pragma where
+    getRange _ = noRange
+
+
 -- setRange for patterns applies the range to the outermost pattern constructor
 instance SetRange (Pattern' a) where
     setRange r (VarP x)            = VarP (setRange r x)
