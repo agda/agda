@@ -410,6 +410,7 @@ data UnquoteError_
   | ConInsteadOfDef_
   | DefineDataNotData_
   | DefInsteadOfCon_
+  | EscapingVariable_
   | MissingDeclaration_
   | MissingDefinition_
   | NakedUnquote_

@@ -5117,6 +5117,8 @@ data UnquoteError
   | ConInsteadOfDef QName String String
   | DefineDataNotData QName
   | DefInsteadOfCon QName String String
+  | EscapingVariable (Closure Term)
+      -- ^ Given meta-program produces unbound variable under @extendContext@.
   | MissingDeclaration QName
   | MissingDefinition QName
   | NakedUnquote
@@ -6380,13 +6382,6 @@ type MonadTCError m = (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
 -- Note that the @HasCallStack@ constraint is on the *resulting* function.
 locatedTypeError :: MonadTCError m => (a -> TypeError) -> (HasCallStack => a -> m b)
 locatedTypeError f e = withCallerCallStack (flip typeError' (f e))
-
-genericError :: (HasCallStack, MonadTCError m) => String -> m a
-genericError = locatedTypeError GenericError
-
-{-# SPECIALIZE genericDocError :: Doc -> TCM a #-}
-genericDocError :: (HasCallStack, MonadTCError m) => Doc -> m a
-genericDocError = locatedTypeError GenericDocError
 
 {-# SPECIALIZE typeError' :: CallStack -> TypeError -> TCM a #-}
 typeError' :: MonadTCError m => CallStack -> TypeError -> m a

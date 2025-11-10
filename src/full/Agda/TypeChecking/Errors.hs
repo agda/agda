@@ -1965,6 +1965,10 @@ instance PrettyTCM UnquoteError where
       pwords ("Use " ++ def ++ " instead of " ++ con ++ " for non-constructor")
       ++ [prettyTCM x]
 
+    EscapingVariable v -> enterClosure v \ v ->
+      hcat ["Local variable '", prettyTCM (var 0), "' escaping in result of extendContext:"]
+      <?> prettyTCM v
+
     MissingDeclaration x -> fsep $
       pwords "Missing declaration for" ++ [ prettyTCM x ]
 

@@ -358,6 +358,7 @@ unquoteErrorName = \case
   ConInsteadOfDef             {} -> ConInsteadOfDef_
   DefineDataNotData           {} -> DefineDataNotData_
   DefInsteadOfCon             {} -> DefInsteadOfCon_
+  EscapingVariable            {} -> EscapingVariable_
   MissingDeclaration          {} -> MissingDeclaration_
   MissingDefinition           {} -> MissingDefinition_
   NakedUnquote                {} -> NakedUnquote_

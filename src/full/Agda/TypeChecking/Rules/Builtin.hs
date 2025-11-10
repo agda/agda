@@ -35,7 +35,6 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints ( noConstraints )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Names
-import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Reduce
