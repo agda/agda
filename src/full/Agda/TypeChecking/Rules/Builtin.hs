@@ -921,7 +921,6 @@ bindUntypedBuiltin b qx = \case
   where
   bind x = bindBuiltinName b (Def (anameName x) [])
   wrong  = typeError $ BuiltinMustBeDef b
-  amb x  = genericDocError =<< do text "Name " <+> prettyTCM x <+> text " is ambiguous"
   err :: List1 AbstractName -> TCM ()
   err (x :| []) = wrong
   err (x :| y : zs) = typeError $ AmbiguousName qx $ AmbiguousDeclName $ List2 x y zs
