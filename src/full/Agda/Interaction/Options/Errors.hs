@@ -81,8 +81,6 @@ data ErrorName
   -- Generic errors (alphabetically)
   | CompilationError_
   | CustomBackendError_
-  | GenericError_
-  | GenericDocError_
   | InternalError_
   | LibraryError_
   | NonFatalErrors_
@@ -90,6 +88,7 @@ data ErrorName
   | NotSupported_
   | OptionError_
   | SyntaxError_
+  | UserError_
   -- Other errors (alphabetically)
   | AbsentRHSRequiresAbsurdPattern_
   | AbstractConstructorNotInScope_

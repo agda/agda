@@ -218,9 +218,7 @@ instance PrettyTCM TypeError where
 
     CompilationError s -> sep [fwords "Compilation error:", text s]
 
-    GenericError s -> fwords s
-
-    GenericDocError d -> return d
+    UserError d -> return d
 
     GeneralizationFailed d -> return d
 

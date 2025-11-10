@@ -5270,8 +5270,8 @@ data TypeError
         | MetaErasedSolution MetaId Term
             -- ^ When solving @'MetaId' ... := 'Term'@,
             --   part of the 'Term' is invalid as it was created in an erased context.
-        | GenericError String
-        | GenericDocError Doc
+        | UserError Doc
+            -- ^ Error message produced by a meta program.
         | SortOfSplitVarError (Maybe Blocker) Doc
           -- ^ the meta is what we might be blocked on.
         | WrongSharpArity A.QName

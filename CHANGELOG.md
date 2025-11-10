@@ -56,6 +56,9 @@ Errors
         - its definition at ...
   ```
 
+* Errors `GenericError` and `GenericDocError` have been replaced by more specific errors.
+  (Issue [#7225](https://github.com/agda/agda/issues/7225).)
+
 Warnings
 --------
 
@@ -149,7 +152,7 @@ Changes to type checker and other components defining the Agda language.
 Reflection
 ----------
 
-Changes to the meta-programming facilities.
+* `tcTypeError` now throws `UserError` instead of `GenericDocError`.
 
 Library management
 ------------------

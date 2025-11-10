@@ -38,8 +38,7 @@ typeErrorName = \case
   -- Generic errors (alphabetically)
   CompilationError          {} -> CompilationError_
   CustomBackendError        {} -> CustomBackendError_
-  GenericError              {} -> GenericError_
-  GenericDocError           {} -> GenericDocError_
+  UserError                 {} -> UserError_
   InternalError             {} -> InternalError_
   LibraryError              {} -> LibraryError_
   NonFatalErrors            {} -> NonFatalErrors_

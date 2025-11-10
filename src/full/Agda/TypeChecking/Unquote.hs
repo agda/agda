@@ -769,7 +769,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcFormatErrorParts msg = quoteString . prettyShow <$> renderErrorParts msg
 
     tcTypeError :: [ErrorPart] -> TCM a
-    tcTypeError err = typeError . GenericDocError =<< renderErrorParts err
+    tcTypeError err = typeError . UserError =<< renderErrorParts err
 
     tcDebugPrint :: Text -> Integer -> [ErrorPart] -> TCM Term
     tcDebugPrint s n msg = do
@@ -1136,7 +1136,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         Con _ _ [Apply (Arg { unArg = x }), Apply (Arg { unArg = b })] -> do
           unlessM (unquote b) $ putTC oldState
           return x
-        _ -> liftTCM $ typeError . GenericDocError =<<
+        _ -> liftTCM $ typeError . UserError =<<
           "Should be a pair: " <+> prettyTCM u
 
     tcGetInstances :: MetaId -> UnquoteM Term

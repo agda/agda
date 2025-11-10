@@ -1,2 +1,2 @@
-UnquoteSpeculativeNonPair.agda:10.1-13.34: error: [GenericDocError]
+UnquoteSpeculativeNonPair.agda:10.1-13.34: error: [UserError]
 Should be a pair:  foo
