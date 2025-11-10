@@ -1,5 +1,7 @@
-AmbiguousModule.agda:5.10-11: error: [ShadowedModule]
-Duplicate definition of module A. Previous definition of module A
-at AmbiguousModule.agda:3.8-9
+AmbiguousModule.agda:9.6-7: error: [AmbiguousModule]
+Ambiguous module name A. It could refer to any one of
+  B.A
+  AmbiguousModule.A
+(hint: Use C-c C-w (in Emacs) if you want to know why)
 when scope checking the declaration
-  module A where
+  open A
