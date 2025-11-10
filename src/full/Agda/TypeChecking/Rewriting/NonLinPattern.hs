@@ -368,7 +368,7 @@ assertPi t = abortIfBlocked t >>= \case
   t             -> errNotPi t
 
 errNotPi :: Type -> TCM a
-errNotPi t = typeError . GenericDocError =<< fsep
+errNotPi t = typeError . IlltypedRewriteRule =<< fsep
     [ prettyTCM t
     , "should be a function type, but it isn't."
     , "Do you have any non-confluent rewrite rules?"
@@ -380,7 +380,7 @@ assertPath t = abortIfBlocked t >>= pathView >>= \case
   OType t -> errNotPath t
 
 errNotPath :: Type -> TCM a
-errNotPath t = typeError . GenericDocError =<< fsep
+errNotPath t = typeError . IlltypedRewriteRule =<< fsep
     [ prettyTCM t
     , "should be a path type, but it isn't."
     , "Do you have any non-confluent rewrite rules?"
@@ -394,7 +394,7 @@ assertProjOf f t = do
     _ -> errNotProjOf f t
 
 errNotProjOf :: QName -> Type -> TCM a
-errNotProjOf f t = typeError . GenericDocError =<< fsep
+errNotProjOf f t = typeError . IlltypedRewriteRule =<< fsep
       [ prettyTCM f , "should be a projection from type"
       , prettyTCM t , "but it isn't."
       , "Do you have any non-confluent rewrite rules?"
@@ -406,7 +406,7 @@ assertConOf c t = getFullyAppliedConType c t >>= \case
     Nothing -> errNotConOf c t
 
 errNotConOf :: ConHead -> Type -> TCM a
-errNotConOf c t = typeError . GenericDocError =<< fsep
+errNotConOf c t = typeError . IlltypedRewriteRule =<< fsep
       [ prettyTCM c , "should be a constructor of type"
       , prettyTCM t , "but it isn't."
       , "Do you have any non-confluent rewrite rules?"

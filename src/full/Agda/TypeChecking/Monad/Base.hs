@@ -5325,6 +5325,13 @@ data TypeError
             -- ^ The lists should have the same length.
             --   TODO: enforce this by construction.
         | ComatchingDisabledForRecord QName
+    -- Rewriting errors
+        | IlltypedRewriteRule Doc
+            -- TODO: split this into finer errors rather than using 'Doc',
+            -- and add reproducers for all the shades of this error to the testsuite.
+            -- ^ When constructing a rewrite rule from a type,
+            --   an error occurred, possibly due to non-confluence of rewrite rules.
+            --   This was a @GenericDocError@ before.
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
     -- Cubical errors
         | CannotGenerateHCompClause Type

@@ -1613,6 +1613,8 @@ instance PrettyTCM TypeError where
     ComatchingDisabledForRecord recName ->
       "Copattern matching is disabled for record" <+> prettyTCM recName
 
+    IlltypedRewriteRule d -> return d
+
     IncorrectTypeForRewriteRelation v reason -> case reason of
       ShouldAcceptAtLeastTwoArguments -> sep
         [ prettyTCM v <+> " does not have the right type for a rewriting relation"

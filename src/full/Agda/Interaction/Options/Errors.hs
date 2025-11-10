@@ -171,6 +171,7 @@ data ErrorName
   | InvalidBuiltin_
   | InvalidDottedExpression_
   | IllTypedPatternAfterWithAbstraction_
+  | IlltypedRewriteRule_
   | IllegalDeclarationBeforeTopLevelModule_
   | IllegalDeclarationInDataDefinition_
   | IllegalHidingInPostfixProjection_

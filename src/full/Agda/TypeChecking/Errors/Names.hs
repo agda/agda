@@ -126,6 +126,7 @@ typeErrorName = \case
   InvalidBuiltin                                             {} -> InvalidBuiltin_
   InvalidDottedExpression                                    {} -> InvalidDottedExpression_
   IllTypedPatternAfterWithAbstraction                        {} -> IllTypedPatternAfterWithAbstraction_
+  IlltypedRewriteRule                                        {} -> IlltypedRewriteRule_
   IllegalDeclarationBeforeTopLevelModule                     {} -> IllegalDeclarationBeforeTopLevelModule_
   IllegalDeclarationInDataDefinition                         {} -> IllegalDeclarationInDataDefinition_
   IllegalHidingInPostfixProjection                           {} -> IllegalHidingInPostfixProjection_
