@@ -15,7 +15,7 @@ module Agda.Interaction.Imports
   , crSource
 
   , Source(..)
-  , scopeCheckImport
+  , scopeCheckFileImport
   , parseSource
   , typeCheckMain
   , getNonMainInterface
@@ -373,10 +373,10 @@ addImportedThings isig metas ibuiltin patsyns display userwarn
 -- | Scope checks the given module, generating an interface or retrieving an existing one.
 --   Returns the module name and exported scope from the interface.
 --
-scopeCheckImport ::
+scopeCheckFileImport ::
      TopLevelModuleName
   -> TCM (ModuleName, Map ModuleName Scope)
-scopeCheckImport top = do
+scopeCheckFileImport top = do
     reportSLn "import.scope" 15 $ "Scope checking " ++ prettyShow top
     verboseS "import.scope" 30 $ do
       visited <- prettyShow <$> getPrettyVisitedModules

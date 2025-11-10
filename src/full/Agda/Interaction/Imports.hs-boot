@@ -9,4 +9,4 @@ import Agda.Syntax.Scope.Base         ( Scope )
 import Agda.Syntax.TopLevelModuleName ( TopLevelModuleName )
 import Agda.TypeChecking.Monad.Base   ( TCM )
 
-scopeCheckImport :: TopLevelModuleName -> TCM (ModuleName, Map ModuleName Scope)
+scopeCheckFileImport :: TopLevelModuleName -> TCM (ModuleName, Map ModuleName Scope)
