@@ -52,6 +52,7 @@ import qualified Agda.Utils.Map as Map
 import qualified Agda.Utils.StrictState2 as St2
 import qualified Agda.Utils.StrictState as St
 import Agda.Utils.Tuple ( (//), first, second )
+import Agda.Utils.Tuple.Strict ( (&!&) )
 
 import Agda.Utils.Impossible
 
@@ -1417,8 +1418,9 @@ inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup 
 
   NameMapEntry k xs <- HMap.lookup (A.nameId $ qnameName q) (scope ^. scopeInverseName)
 
-  !xs <- List1.nonEmpty $ map snd $ List.sortOn fst $ do
-    q <- nubOn id $ List1.toList xs
+  !xs <- List1.nonEmpty $ List.sortOn (length . C.qnameParts &!& Down . getRange) $ do
+    -- List comprehension written in monadic form
+    q :: C.QName <- nubOn id $ List1.toList xs
     let y:ys = scopeLookup' q scope
     let !k = anameKind $ fst y
 
@@ -1432,9 +1434,7 @@ inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup 
                      && all ((k ==) . anameKind . fst) ys)))
 
     guard unambiguous
-    let !partsLen = length $ C.qnameParts q
-    let !range = getRange q
-    pure ((partsLen, Down range), q)
+    pure q
 
   -- traceM ("LKUP " ++ prettyShow xs)
 

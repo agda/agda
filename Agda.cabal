@@ -926,6 +926,7 @@ library
       Agda.Utils.Time
       Agda.Utils.Trie
       Agda.Utils.Tuple
+      Agda.Utils.Tuple.Strict
       Agda.Utils.TypeLevel
       Agda.Utils.TypeLits
       Agda.Utils.Unsafe
