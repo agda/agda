@@ -10,7 +10,7 @@ import Data.List as X (uncons)
 
 -- Regular imports
 
-import Control.Monad (filterM)
+import Control.Monad (filterM, forM)
 import Control.Applicative (Alternative, (<|>))
 import qualified Control.Applicative as A
 
@@ -583,19 +583,15 @@ chopWhen p (x:xs) = loop (x :| xs)
     (w, _ : y : ys) -> w : loop (y :| ys)
 
 ---------------------------------------------------------------------------
--- * List as sets
+-- * Sorting
 ---------------------------------------------------------------------------
 
--- | Check membership for the same list often.
---   Use partially applied to create membership predicate
---   @hasElem xs :: a -> Bool@.
---
---   * First time: @O(n log n)@ in the worst case.
---   * Subsequently: @O(log n)@.
---
---   Specification: @hasElem xs == (`elem` xs)@.
-hasElem :: Ord a => [a] -> a -> Bool
-hasElem xs = (`Set.member` Set.fromList xs)
+-- | Monadic version of 'sortOn'.
+--   The effect is executed exactly once for each list element.
+
+sortOnM :: (Monad m, Ord b) => (a -> m b) -> [a] -> m [a]
+sortOnM f xs =
+  map fst . List.sortBy (compare `on` snd) <$> forM xs \ !x -> (x,) <$> f x
 
 -- | Check whether a list is sorted.
 -- O(n).
@@ -610,6 +606,21 @@ sorted = allConsecutive (<=)
 --
 allConsecutive :: (a -> a -> Bool) -> [a] -> Bool
 allConsecutive cmp xs = and $ zipWith cmp xs $ drop 1 xs
+
+---------------------------------------------------------------------------
+-- * List as sets
+---------------------------------------------------------------------------
+
+-- | Check membership for the same list often.
+--   Use partially applied to create membership predicate
+--   @hasElem xs :: a -> Bool@.
+--
+--   * First time: @O(n log n)@ in the worst case.
+--   * Subsequently: @O(log n)@.
+--
+--   Specification: @hasElem xs == (`elem` xs)@.
+hasElem :: Ord a => [a] -> a -> Bool
+hasElem xs = (`Set.member` Set.fromList xs)
 
 -- | Check whether all elements in a list are distinct from each other.
 --   Assumes that the 'Eq' instance stands for an equivalence relation.
