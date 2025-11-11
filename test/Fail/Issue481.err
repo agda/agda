@@ -2,5 +2,4 @@ Issue481.agda:7.53-55: error: [ShadowedModule]
 Duplicate definition of module as. Previous definition of module as
 at Issue481.agda:6.50-52
 when scope checking the declaration
-  open module as
-    = .#Common.Issue481ParametrizedModule-2472342625871235265 as
+  open import Common.Issue481ParametrizedModule as as as

@@ -98,6 +98,7 @@ import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Function ( applyWhen, applyWhenJust, applyWhenM, applyUnless )
 import Agda.Utils.Functor
+import Agda.Utils.Hash (hashString)
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1, pattern (:|) )
@@ -114,7 +115,7 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
 import Agda.ImpossibleTest (impossibleTest, impossibleTestReduceM)
-import qualified Agda.Syntax.Common as A
+
 
 {--------------------------------------------------------------------------
     Exceptions
@@ -1850,7 +1851,7 @@ instance ToAbstract LetDef where
       patternName _ = Nothing
 
       -- Named patterns not allowed in let definitions
-      lambda :: A.Expr -> A.NamedArg (A.Pattern' C.Expr) -> TCM A.Expr
+      lambda :: A.Expr -> NamedArg (A.Pattern' C.Expr) -> TCM A.Expr
       lambda e ai@(Arg info (Named thing pat)) | allowedPat pat = do
         let
           i = ExprRange (fuseRange pat e)
@@ -2211,23 +2212,80 @@ instance ToAbstract NiceDeclaration where
       ps <- toAbstract p  -- could result in empty list of pragmas
       return $ map (A.Pragma r) ps
 
-    NiceImport r x as open dir -> do
+    NiceImport (Ranged rOpen doOpen) kwR m (Left asClause) dir ->
+      -- Case: already parsed @as@ clause.
+        scopeCheckImport r m (Just asClause) doOpen dir
+      where
+        -- The Range of the whole declaration.
+        r = getRange (rOpen, kwR, m, asClause, dir)
 
-      -- Andreas, 2018-11-03, issue #3364, parse expression in as-clause as Name.
-      let illformedAs s = setCurrentRange as $ do
-            -- If @as@ is followed by something that is not a simple name,
-            -- throw a warning and discard the as-clause.
-            Nothing <$ warning (IllformedAsClause s)
-      as <- case as of
-        -- Ok if no as-clause or it (already) contains a Name.
-        Nothing -> return Nothing
-        Just (AsName (Right asName) r)                    -> return $ Just $ AsName asName r
-        Just (AsName (Left (C.Ident (C.QName asName))) r) -> return $ Just $ AsName asName r
-        Just (AsName (Left C.Underscore{})     r)         -> return $ Just $ AsName underscore r
-        Just (AsName (Left (C.Ident C.Qual{})) r) -> illformedAs "; a qualified name is not allowed here"
-        Just (AsName (Left e)                  r) -> illformedAs ""
+    NiceImport (Ranged rOpen doOpen) kwR m (Right []) dir ->
+      -- Case: no module arguments, no @as@ clause.
+        scopeCheckImport r m Nothing doOpen dir
+      where
+        -- The Range of the whole declaration.
+        r = getRange (rOpen, kwR, m, dir)
 
-      scopeCheckImport r x as open dir
+      -- Case: some module arguments
+    NiceImport (Ranged rOpen doOpen) kwR m (Right es) dir
+
+      -- Subcase: @as@ clause
+        | Just (asR, as) <- parseAsClause -> do
+
+            -- Andreas, 2018-11-03, issue #3364, parse expression in as-clause as Name.
+            let illformedAs s = setCurrentRange as $ do
+                  -- If @as@ is followed by something that is not a simple name,
+                  -- throw a warning and discard the as-clause.
+                  Nothing <$ warning (IllformedAsClause s)
+            m' <- case as of
+              -- Ok if no as-clause or it (already) contains a Name.
+              Right asName                    -> return $ Just asName
+              Left (C.Ident (C.QName asName)) -> return $ Just asName
+              Left C.Underscore{}             -> return $ Just underscore
+              Left (C.Ident C.Qual{})         -> illformedAs "; a qualified name is not allowed here"
+              Left e                          -> illformedAs ""
+
+            if null initArgs then
+               scopeCheckImport (getRange (rOpen, kwR, m, asR, m', dir)) m (m' <&> (`AsName` asR)) doOpen dir
+            else do
+              snoc <$> impStm asR
+                   <*> appStm (fromMaybe fresh' m') initArgs
+
+      -- Subcase: no @as@ clause
+        | DontOpen <- doOpen -> [] <$ do
+            declarationWarning $ UselessImport fullRange
+        | otherwise -> do
+            snoc <$> impStm noRange
+                 <*> appStm (noName $ beginningOf $ getRange m) es
+
+      where
+        fullRange = getRange (rOpen, kwR, m, es, dir)
+        impStm asR =
+          scopeCheckImport (getRange (kwR, m))
+            m (Just (AsName fresh asR))
+            DontOpen defaultImportDir
+        appStm m' es =
+          checkModuleMacro Apply TopOpenModule (getRange (rOpen, m, es, dir))
+            (PrivateAccess empty Inserted)
+            defaultErased m' (C.SectionApp (getRange es) [] (C.QName fresh) es)
+            doOpen dir
+        (initArgs, last2Args) = splitAt (length es - 2) es
+        parseAsClause = case last2Args of
+          [ Ident (C.QName (C.Name asR InScope (Id x :| []))), e ]
+            -- Andreas, 2018-11-03, issue #3364, accept anything after 'as'
+            -- but require it to be a 'Name' in the scope checker.
+            | rawNameToString x == "as" -> Just . (asR,) $
+            if | Ident (C.QName m') <- e -> Right m'
+               | otherwise             -> Left e
+          _ -> Nothing
+        mkFresh i = C.Name (getRange m) C.NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show i
+        unique = hashString $ prettyShow $ getRangeWithoutFile fullRange
+           -- turn range into unique id, but delete file path
+           -- which is absolute and messes up suite of failing tests
+           -- (different hashs on different installations)
+           -- TODO: Don't use (insecure) hashes in this way.
+        fresh  = mkFresh unique
+        fresh' = mkFresh $ unique + 1
 
     NiceUnquoteDecl r p a i tc cc xs e -> do
       fxs <- mapM getConcreteFixity xs
@@ -2320,9 +2378,8 @@ instance ToAbstract NiceDeclaration where
             -- Other cases are impossible because parsing the pattern syn rhs would have failed.
             _ -> __IMPOSSIBLE__
 
-    d@NiceLoneConstructor{} -> withCurrentCallStack $ \ stk -> do
-      warning $ NicifierIssue (DeclarationWarning stk (InvalidConstructorBlock (getRange d)))
-      pure []
+    d@NiceLoneConstructor{} -> [] <$ do
+      declarationWarning $ InvalidConstructorBlock $ getRange d
 
     d@(NiceOpaque kwr xs decls) -> do
       -- The names in an 'unfolding' clause must be unambiguous names of definitions:
@@ -2373,7 +2430,6 @@ scopeCheckImport ::
        --   Several imports of the same file module accumulate accumulate exports,
        --   but see <https://github.com/agda/agda/issues/7656>.
   -> TCMT IO [A.Declaration]
->>>>>>> 7a1d94a9ae (fixup! Refactor: move toAbstract NiceImport to its own function scopeCheckImport)
 scopeCheckImport r x as open dir =
   setCurrentRange r do
       dir <- notPublicWithoutOpen open dir

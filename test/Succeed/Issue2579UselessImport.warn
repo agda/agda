@@ -3,6 +3,8 @@ Issue2579UselessImport.agda:5.1-27: warning: -W[no]UselessImport
 An import statement with module instantiation is useless without
 either an 'open' keyword or an 'as' binding giving a name to the
 instantiated module.
+when scope checking the declaration
+  import DummyModule Set Set
 
 ———— All done; warnings encountered ————————————————————————
 
@@ -10,3 +12,5 @@ Issue2579UselessImport.agda:5.1-27: warning: -W[no]UselessImport
 An import statement with module instantiation is useless without
 either an 'open' keyword or an 'as' binding giving a name to the
 instantiated module.
+when scope checking the declaration
+  import DummyModule Set Set

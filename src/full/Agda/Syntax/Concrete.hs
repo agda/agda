@@ -471,7 +471,7 @@ data AsName' a = AsName
 
 -- | From the parser, we get an expression for the @as@-'Name', which
 --   we have to parse into a 'Name'.
-type AsName = AsName' (Either Expr Name)
+type AsName = AsName' Name
 
 {--------------------------------------------------------------------------
     Declarations

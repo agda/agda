@@ -62,7 +62,7 @@ data NiceDeclaration
   | NiceModuleMacro Range Access Erased Name ModuleApplication
       OpenShortHand ImportDirective
   | NiceOpen Range QName ImportDirective
-  | NiceImport Range QName (Maybe AsName) OpenShortHand ImportDirective
+  | NiceImport (Ranged OpenShortHand) KwRange QName (Either AsName RawOpenArgs) ImportDirective
   | NicePragma Range Pragma
   | NiceRecSig Range Erased Access IsAbstract PositivityCheck
       UniverseCheck Name [LamBinding] Expr
@@ -226,7 +226,7 @@ instance HasRange NiceDeclaration where
   getRange (NiceModule r _ _ _ _ _ _ )     = r
   getRange (NiceModuleMacro r _ _ _ _ _ _) = r
   getRange (NiceOpen r _ _)                = r
-  getRange (NiceImport r _ _ _ _)          = r
+  getRange (NiceImport o r x as dir)       = getRange (o, r, x, as, dir)
   getRange (NicePragma r _)                = r
   getRange (PrimitiveFunction r _ _ _ _)   = r
   getRange (FunSig r _ _ _ _ _ _ _ _ _)    = r
