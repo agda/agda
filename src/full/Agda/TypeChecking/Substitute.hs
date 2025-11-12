@@ -302,7 +302,7 @@ instance Apply ProjLams where
 
 instance Apply Defn where
   apply d [] = d
-  apply d args@(arg1:args1) = case d of
+  apply d args = case d of
     Axiom{} -> d
     DataOrRecSig n -> DataOrRecSig (n - length args)
     GeneralizableVar gv -> GeneralizableVar $ apply gv args
@@ -319,25 +319,24 @@ instance Apply Defn where
 
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
-            , funProjection = Right p0 } ->
+            , funProjection = Right p0@Projection{ projIndex = n0 } } ->
       case p0 `apply` args of
         p@Projection{ projIndex = n }
-          | n < 0     -> d { funProjection = __IMPOSSIBLE__ } -- TODO (#3123): we actually get here!
           -- case: applied only to parameters
           | n > 0     -> d { funProjection = Right p }
-          -- case: applied also to record value (n == 0)
+          -- case: applied also to record value (and possibly more)
           | otherwise ->
               d { funClauses        = apply cs args'
                 , funCompiled       = apply cc args'
                 , funCovering       = apply cov args'
                 , funInv            = apply inv args'
-                , funProjection     = if isVar0 then Right p{ projIndex = 0 } else Left MaybeProjection
+                , funProjection     = if n == 0 && isVar0 then Right p else Left MaybeProjection
                 , funExtLam         = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
                 }
               where
-                larg  = last1 arg1 args1 -- the record value
-                args' = [larg]
-                isVar0 = case unArg larg of Var 0 [] -> True; _ -> False
+                args' = drop n0 args
+                -- if n == 0 then n0 <= length args (which is at least 1) so we can drop all but one
+                isVar0 = case map unArg $ drop (n0 - 1) args of [Var 0 []] -> True; _ -> False
 
     Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars = np - size args
