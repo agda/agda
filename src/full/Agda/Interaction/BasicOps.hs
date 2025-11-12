@@ -243,16 +243,21 @@ refine
   :: UseForce       -- ^ Skip safety checks when giving?
   -> InteractionId  -- ^ Hole.
   -> Expr           -- ^ The expression to refine the hole with.
+                    --   Precondition: it was parsed in the context of the hole
+                    --   so its ranges are correct.
   -> TCM Expr       -- ^ The successfully given expression.
 refine force ii e = do
-  mi <- lookupInteractionId ii
-  mv <- lookupLocalMeta mi
-  let range = getRange mv
-      scope = M.getMetaScope mv
   reportSDoc "interaction.refine" 10 $
     "refining with expression" TP.<+> prettyTCM e
   reportSDoc "interaction.refine" 50 $
     TP.text $ show $ deepUnscope e
+  -- Andreas, 2025-11-12, issue #8197
+  -- We use the range of @e@ which might contain questionmarks
+  -- so that the new questionmarks appended to @e@
+  -- can receive a 'Range' relatively correct to the ranges
+  -- of the questionmarks withing @e@.
+  let range = getRange e
+  scope <- getInteractionScope ii
   -- We try to append up to 10 meta variables
   tryRefine 10 range scope e
   where

@@ -1037,6 +1037,8 @@ give_gen force ii rng s0 giveRefine = do
     insertOldInteractionScope ii scope
     -- sort the new interaction points and put them into the state
     -- in replacement of the old interaction point
+    reportSDoc "interaction.give" 30 $ TCP.hsep $ ("new interaction points:" :) $
+      map (\ i -> TCP.prettyTCM =<< do (i,) <$> getInteractionRange i) iis
     iis' <- sortInteractionPoints iis
     modifyTheInteractionPoints $ replace ii iis'
     -- print abstract expr
