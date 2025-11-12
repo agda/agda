@@ -148,9 +148,15 @@ $(Tests) : %.cmp : %.out
 			cat $*.tmp; \
 			echo "=== Diff ==="; \
 			(  git diff --no-index --no-ext-diff -w $*.out $*.tmp || true  ) ; \
-			echo -n "Accept new error [y/n/Q] (default: no)? "; \
-			read -n 1; \
-			echo ""; \
+			while true; do \
+				echo -n "Accept new error [y/n/Q] (default: no)? "; \
+				read -n 1; \
+				echo ""; \
+				case "$$REPLY" in \
+					y|n|Q|"") break;; \
+					*) echo "Invalid input. Please enter y, n, Q, or press Enter.";; \
+				esac; \
+			done; \
 			if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \
 			  then echo "Keeping old output"; \
 			       rm -f $*.tmp; \
