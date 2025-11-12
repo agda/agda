@@ -157,23 +157,12 @@ data ScopeCopyInfo = ScopeCopyInfo
     -- that should be created.
   , renNames    :: Ren QName
     -- ^ Same as for 'renModules', but for definitions.
-  , renPublic   :: Bool
-    -- ^ Does this copy belong to the interface of the module we're
-    -- type-checking?
-  , renTrimming :: ScopeCopyRef
-    -- ^ Liveness information for the copied names. This is a mutable
-    -- reference to a set of 'LiveNames', and should be shared by
-    -- everything which refers to this particular copy.
-    --
-    -- It is created by the scope checker, consumed by the type checker,
-    -- and never speculated on.
   }
   deriving (Eq, Show, Generic)
 
 instance Pretty ScopeCopyInfo where
   pretty i = vcat [ prRen "renModules =" (renModules i)
                   , prRen "renNames   =" (renNames i)
-                  ,       "renPublic  =" <+> pretty (renPublic i)
                   ]
     where
       prRen s r = sep [ text s, nest 2 $ vcat (map pr xs) ]
@@ -881,7 +870,7 @@ instance KillRange ModuleApplication where
   killRange (RecordModuleInstance a) = killRangeN RecordModuleInstance a
 
 instance KillRange ScopeCopyInfo where
-  killRange (ScopeCopyInfo a b c d) = killRangeN (\a b c -> ScopeCopyInfo a b c d) a b c
+  killRange (ScopeCopyInfo a b) = killRangeN ScopeCopyInfo a b
 
 instance KillRange RecordConName where
   killRange (NamedRecCon x) = killRangeN NamedRecCon x

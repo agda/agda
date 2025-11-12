@@ -334,7 +334,7 @@ resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
     UnknownName -> setCurrentRange x $ typeError $ I.NotInScope q
     _ -> setCurrentRange x $ typeError $ ConstructorNameOfNonRecord r
 
-  Right x' -> x' <$ markLiveName x'
+  Right x' -> pure x'
 
 tryResolveName :: forall m. (ReadTCState m, HasBuiltins m, MonadError NameResolutionError m)
   => KindsOfNames
@@ -448,9 +448,7 @@ resolveModule :: C.QName -> ScopeM AbstractModule
 resolveModule x = do
   ms <- scopeLookup x <$> getScope
   caseMaybe (nonEmpty ms) (typeError $ NoSuchModule x) $ \ case
-    AbsModule m why :| [] -> do
-      markLiveName m
-      return $ AbsModule (m `withRangeOf` x) why
+    AbsModule m why :| [] -> return $ AbsModule (m `withRangeOf` x) why
     ms                    -> typeError $ AmbiguousModule x (fmap amodName ms)
 
 -- | Get the fixity of a not yet bound name.
@@ -656,141 +654,35 @@ data ScopeMemo = ScopeMemo
     -- ^ Bool: did we copy recursively? We need to track this because we don't
     --   copy recursively when creating new modules for reexported functions
     --   (issue1985), but we might need to copy recursively later.
-  , memoTrimming :: A.ScopeCopyRef
   }
 
 memoToScopeInfo :: ScopeMemo -> ScopeCopyInfo
-memoToScopeInfo (ScopeMemo names mods live) =
+memoToScopeInfo (ScopeMemo names mods) =
   ScopeCopyInfo
     { renNames    = names
     , renModules  = Map.map (pure . fst) mods
-
-    -- Conservatively we need to assume that this copy belongs to the
-    -- signature, otherwise we might end up dropping things that
-    -- downstream modules will try to access.
-    --
-    -- The scope checker sets this to 'False' when it is sure that the
-    -- copy is short-lived.
-    , renPublic   = True
-
-    , renTrimming = live
     }
-
----------------------------------------------------------------------------
--- * Definition liveness & copy trimming
----------------------------------------------------------------------------
-
--- $liveness
--- The purpose of these operations is to let the type checker know what
--- definition copies are actually used for type-checking and need to be
--- created, and which can be safely skipped ("trimmed", hence the name
--- 'renTrimming').
---
--- The liveness the scope-checker reports should be a conservative
--- over-approximation of what names are actually used.  For example,
--- when an overloaded field/constructor name is resolved, we (have to)
--- mark all of the names in the set as used: not only do we not know
--- which one the type checker will actually pick, but the type checker
--- will ask for all of their
--- `Agda.TypeChecking.Monad.Signature.getConstInfo` when disambiguating.
---
--- Marking a name as live is done through the `markLiveName` function,
--- which is called from `resolveName'`, so any names coming from
--- concrete syntax will already be marked live. However, if potential
--- references to copies are being inserted "synthetically" by the scope
--- checker, they __must__ be referred to by an explicit `markLiveName`
--- call.
---
--- Module names can also be `markLiveName`d, and this has the effect of
--- transitively saving every definition having that module as a prefix.
-
--- | Create a new reference to store liveness information for names in
--- the given copied module.
-newScopeCopyRef :: A.ModuleName -> ScopeM A.ScopeCopyRef
-newScopeCopyRef mname = liftIO $ A.ScopeCopyRef mname <$> newIORef mempty
 
 -- | Mark a name as being a copy in the TC state, associating it with
 -- the given 'A.ScopeCopyRef' for liveness information.
-copyName :: A.ScopeCopyRef -> A.QName -> A.QName -> ScopeM ()
-copyName copy from to = do
-  from <- fromMaybe from . fmap snd . HMap.lookup from <$> useTC stCopiedNames
-  modifyTCLens stCopiedNames $ HMap.insert to (copy, from)
+copyName :: A.QName -> A.QName -> ScopeM ()
+copyName from to = do
+  from <- fromMaybe from . HMap.lookup from <$> useTC stCopiedNames
+  modifyTCLens stCopiedNames $ HMap.insert to from
   let
     k Nothing  = Just (HSet.singleton to)
     k (Just s) = Just (HSet.insert to s)
   modifyTCLens stNameCopies $ HMap.alter k from
-
--- | Class for entities which contain names that can be marked live.
--- The two fundamental instances are 'A.QName's and 'A.ModuleName's, but
--- there are some convenience instances for things like
--- 'A.ResolvedName's.
-class MarkLive n where
-  -- | Mark a name as (potentially) having been used.
-  markLiveName :: n -> ScopeM ()
-
-  default markLiveName :: forall t n'. (Traversable t, n ~ t n', MarkLive n') => n -> ScopeM ()
-  markLiveName = traverse_ markLiveName
-
-instance MarkLive n => MarkLive (List1 n)
-
-instance MarkLive A.QName where
-  markLiveName qn = HMap.lookup qn <$> useTC stCopiedNames >>= \case
-    Just (A.ScopeCopyRef _ ref, _) ->
-      liftIO $ modifyIORef' ref \case
-        A.SomeLiveNames a b -> A.SomeLiveNames a (Set.insert qn b)
-        A.AllLiveNames      -> A.AllLiveNames
-    Nothing -> pure ()
-
-instance MarkLive A.ModuleName where
-  markLiveName qn = scopeIsCopy <$> getNamedScope qn >>= \case
-    Just (A.ScopeCopyRef _ ref) -> liftIO $ modifyIORef' ref \case
-      A.SomeLiveNames a b -> A.SomeLiveNames (Set.insert qn a) b
-      A.AllLiveNames      -> A.AllLiveNames
-    Nothing -> pure ()
-
-instance MarkLive A.AbstractName where
-  markLiveName = markLiveName . anameName
-
-instance MarkLive ResolvedName where
-  markLiveName = \case
-    UnknownName         -> pure ()
-    VarName{}           -> pure ()
-    DefinedName _ d _   -> markLiveName d
-    FieldName d         -> markLiveName d
-    ConstructorName _ d -> markLiveName d
-    PatternSynResName d -> markLiveName d
-
--- | Read the 'LiveNames' from the given 'ScopeCopyRef'.
-readLiveNames :: ScopeCopyRef -> ScopeM LiveNames
-readLiveNames (ScopeCopyRef _ ref) = liftIO $ readIORef ref
-
--- | Compare the trimming from an old 'ScopeCopyInfo' with a new one.
-sameTrimming :: ScopeCopyInfo -> ScopeCopyInfo -> ScopeM Bool
-sameTrimming old new | renPublic old, renPublic new = pure True
-sameTrimming old new = do
-  a <- readLiveNames (renTrimming old)
-  b <- readLiveNames (renTrimming new)
-  reportSDoc "cache.trimming" 100 $ pure $ vcat
-    [ "old trimming:" <+> pretty a
-    , "new trimming:" <+> pretty b
-    ]
-  pure (a == b)
-
-clobberLiveNames :: ScopeM ()
-clobberLiveNames = traverse_ (traverse_ go . scopeIsCopy) . _scopeModules =<< getScope where
-  go (ScopeCopyRef _ ref) = liftIO $ writeIORef ref AllLiveNames
 
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
 --   renamings.
 copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, ScopeCopyInfo)
 copyScope oldc new0 s =
-  do
-    live <- newScopeCopyRef new0
-    (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> runStateT (copy live new0 s) (ScopeMemo mempty mempty live)
+  (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> runStateT (copy new0 s) (ScopeMemo mempty mempty)
   where
-    copy :: A.ScopeCopyRef -> A.ModuleName -> Scope -> WSM Scope
-    copy live new s = do
+    copy :: A.ModuleName -> Scope -> WSM Scope
+    copy new s = do
       lift $ reportSLn "scope.copy" 20 $ "Copying scope " ++ prettyShow old ++ " to " ++ prettyShow new
       lift $ reportSLn "scope.copy" 50 $ prettyShow s
       s0 <- lift $ getNamedScope new
@@ -801,7 +693,6 @@ copyScope oldc new0 s =
       -- Fix name and parent.
       return $ s' { scopeName    = scopeName s0
                   , scopeParents = scopeParents s0
-                  , scopeIsCopy  = Just live
                   }
       where
         rnew = getRange new
@@ -876,7 +767,7 @@ copyScope oldc new0 s =
           y <- setRange rnew . A.qualify m <$> refresh (qnameName x)
           lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ prettyShow x ++ " to " ++ prettyShow y
           addName x y
-          lift (copyName live x y)
+          lift (copyName x y)
           copyRecordConstr x y
           return y
 
@@ -921,7 +812,7 @@ copyScope oldc new0 s =
           where
             copyRec x y = do
               s0 <- lift $ getNamedScope x
-              s  <- withCurrentModule' y $ copy live y s0
+              s  <- withCurrentModule' y $ copy y s0
               -- András, 2025-08-30: inverse scope will be computed immediately after copyScope returns
               lift $ modifyNamedScope y (const s)
 

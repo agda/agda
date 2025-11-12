@@ -23,7 +23,6 @@ import Data.Maybe
 
 import Agda.Interaction.Options
 
-import Agda.Syntax.Scope.Monad (readLiveNames, markLiveName)
 import Agda.Syntax.Scope.Base (LiveNames(..), isModuleAlive, isNameAlive)
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren, renamingSize, ScopeCopyInfo(..))
@@ -424,71 +423,6 @@ addDisplayForms x = do
                 ((v' :) <$> unfoldings y v')  -- another copy so keep going
                 (return [v'])                 -- not a copy, we stop
 
--- | Filter a 'ScopeCopyInfo' to only those names which were explicitly
--- referred to by the programmer.
---
--- Returns the new 'ScopeCopyInfo' and the complement of the definition
--- renaming, i.e. the names that were pruned.
-
-onlyLiveCopies :: ModuleName -> ScopeCopyInfo -> TCM (Ren QName, ScopeCopyInfo)
-onlyLiveCopies mn info@ScopeCopyInfo { renPublic = True } = (mempty, info) <$
-  whenProfile Profile.Sections do
-    tick    "trimming: public copy"
-    tickMax "largest public copy" (fromIntegral (renamingSize (renNames info)))
-
-onlyLiveCopies mn info@ScopeCopyInfo { renNames = rd, renTrimming = ref } = do
-  live <- readLiveNames ref
-
-  reportSDoc "tc.mod.apply.trim" 30 $ vcat
-    [ "trimming renaming of module" <+> pretty mn
-    , "  mods  =" <+> (case live of SomeLiveNames x _ -> pretty x ; _ -> "*")
-    , "  names =" <+> (case live of SomeLiveNames _ x -> pretty x ; _ -> "*")
-    , nest 2 (pretty info)
-    ]
-
-  if
-    -- Trimming information from references to submodules (or
-    -- module-level references to copy itself) is not propagated
-    -- upwards, so if the copy is itself alive, everything will end up
-    -- being copied --- we might as well skip the work of traversing the
-    -- renaming.
-    | mn `isModuleAlive` live -> (mempty, info) <$ whenProfile Profile.Sections do
-      tick "trimming: live copy"
-
-    | otherwise -> do
-      let
-      -- The scope checker will have marked any name from 'new' which is
-      -- referred to as live (including, conservatively, every name from
-      -- the submodules of 'new'), but the scope checker can't foresee
-      -- which instances will be used --- and neither can we, here --- so
-      -- we have to copy all of them, too.
-        keep (from, to) = defInstance <$> getConstInfo from <&> \case
-          Just{} -> Right (from, to)
-          _      -> case List1.filter (`isNameAlive` live) to of
-            []     -> Left (from, to)
-            (x:xs) -> Right (from, x List1.:| xs)
-
-        rsz = renamingSize rd
-
-      (deleted, kept) <- partitionEithers <$> traverse keep (Map.toAscList rd)
-      let
-        rd    = Map.fromAscList kept
-        saved = fromIntegral (rsz - renamingSize rd)
-
-      whenProfile Profile.Sections $ tickN "trimmed definitions" saved
-      when (saved == 0) do
-        reportSLn "tc.mod.apply.trim" 30 "... but nothing happened!"
-        whenProfile Profile.Sections $ tick "trimming: no effect"
-
-      let
-        -- Elaboration of overloaded projections depends on whether the
-        -- section is in the signature or not, and since copying
-        -- sections is cheap (copying definitions is the big issue),
-        -- it's easier to just preserve all the original sections than
-        -- it is to trim them.
-        info' = info { renNames = rd }
-      (Map.fromAscList deleted, info') <$ reportSDoc "tc.mod.apply.trim" 30 (pretty info')
-
 -- | Module application (followed by module parameter abstraction).
 applySection
   :: ModuleName     -- ^ Name of new module defined by the module macro.
@@ -497,9 +431,8 @@ applySection
   -> Args           -- ^ Arguments of module application.
   -> ScopeCopyInfo  -- ^ Imported names and modules
   -> TCM ()
-applySection new ptel old ts info = do
-  (deleted, info@ScopeCopyInfo{ renModules = rm, renNames = rd }) <- onlyLiveCopies new info
-  rd <- closeConstructors deleted rd
+applySection new ptel old ts info@ScopeCopyInfo{ renModules = rm, renNames = rd } = do
+  rd <- closeConstructors rd
   applySection' new ptel old ts info{ renModules = rm, renNames = rd }
   where
 
@@ -508,8 +441,8 @@ applySection new ptel old ts info = do
     --
     -- If a proper projection is being copied, its record needs to be
     -- copied too (#8037).
-    closeConstructors :: Ren QName -> Ren QName -> TCM (Ren QName)
-    closeConstructors del rd = do
+    closeConstructors :: Ren QName -> TCM (Ren QName)
+    closeConstructors rd = do
         let defs = Map.toList rd
         ds <- nubOn snd . catMaybes <$> traverse childToParent defs
         cs <- nubOn snd . concat    <$> traverse parentToChild defs
@@ -521,10 +454,6 @@ applySection new ptel old ts info = do
         rename :: (ModuleName, QName) -> TCM (Ren QName)
         rename (m, x)
           | x `Map.member` rd          = pure mempty
-          -- If the name got pruned by liveness, but we're going to add
-          -- it back, then we might as well add it back with the
-          -- original renaming.
-          | Just n <- Map.lookup x del = pure (Map.singleton x n)
           | otherwise =
               -- Ulf, 2024-06-24 (#7329):
               --   Here we used to generate an unqualified name, but this breaks things if the new
@@ -541,17 +470,8 @@ applySection new ptel old ts info = do
         childToParent :: (QName, List1.List1 QName) -> TCM (Maybe (ModuleName, QName))
         childToParent (x, y List1.:| _) = do  -- All new names share the same module, so we can safely grab the first one
           theDef <$> getConstInfo x <&> \case
-            Constructor{ conData = d }
-              -> Just (qnameModule y, d)
-
-            -- If we trimmed the record type away from a proper
-            -- projection we actually need to bring it back it otherwise
-            -- #1976 turns into #8037.
-            def | Just Projection{ projProper = Just r } <- isProjection_ def
-                , r `Map.member` del
-              -> Just (qnameModule y, r)
-
-            _ -> Nothing
+            Constructor{ conData = d } -> Just (qnameModule y, d)
+            _                          -> Nothing
 
         parentToChild :: (QName, List1.List1 QName) -> TCM [(ModuleName, QName)]
         parentToChild (x, y List1.:| _) = do

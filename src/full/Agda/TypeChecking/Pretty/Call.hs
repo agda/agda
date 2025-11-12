@@ -212,7 +212,7 @@ instance PrettyTCM Call where
         [prettyA $ A.Apply info erased m1 modapp copy empty]
       where
       info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
-      copy = ScopeCopyInfo { renNames = mempty, renModules = mempty, renPublic = True, renTrimming = __IMPOSSIBLE__ }
+      copy = ScopeCopyInfo { renNames = mempty, renModules = mempty }
 
     ModuleContents -> fsep $ pwords "when retrieving the contents of a module"
 
