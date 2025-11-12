@@ -1,6 +1,14 @@
 {-# LANGUAGE MagicHash, UnboxedTuples, Strict #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 
+{-|
+This is a plain strict state monad, where state update, monadic binding and return are all strict.
+If you only need a single strict state effect, use this module.
+
+Do not use @Control.Monad.State.Strict@ for the same purpose; it's not even strict in state updates
+and is /much/ less amenable to GHC optimizations than this module.
+-}
+
 module Agda.Utils.StrictState where
 
 import GHC.Exts (oneShot)
