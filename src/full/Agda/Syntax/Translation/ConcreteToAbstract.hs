@@ -309,18 +309,7 @@ checkModuleMacro apply kind r p e x modapp open dir = do
           (DontOpen, _)     -> (dir, defaultImportDir)
 
     -- Restore the locals after module application has been checked.
-    (modapp', copyInfo', adir') <- withLocalVars $ checkModuleApplication modapp m0 x moduleDir
-
-    -- Mark the copy as being private (renPublic = False) if the module
-    -- name is PrivateAccess and not open public.
-    -- If the user gave an explicit 'using'/'renaming'/etc, keep the
-    -- copy as 'public' to avoid trimming.
-    let
-      visible = case p of
-        PrivateAccess{} -> not (null dir) || isJust (publicOpen dir)
-        _               -> True
-
-      copyInfo = copyInfo'{ renPublic = visible }
+    (modapp', copyInfo, adir') <- withLocalVars $ checkModuleApplication modapp m0 x moduleDir
 
     printScope "mod.inst.app" 40 "checkModuleMacro, after checkModuleApplication"
 
@@ -914,10 +903,6 @@ instance ToAbstract C.Expr where
         -- Andreas, 2014-04-06 create interaction point.
         ii <- registerInteractionPoint True r n
 
-        -- Mark all copies we can see from here as having all of their
-        -- names live.
-        clobberLiveNames
-
         let info = MetaInfo
              { metaRange  = r
              , metaScope  = scope
@@ -1147,8 +1132,7 @@ recordWhereNames = finish <=< foldM decl st0 where
     -- N.B.: since this is somewhere we might invent a reference to an
     -- internal name that does not go through resolveName', we have to
     -- explicitly mark the name we used as alive.
-    pb (nameConcrete (qnameName nm)) (A.Def new) (getRange nm)
-      <$ markLiveName new
+    pure $ pb (nameConcrete (qnameName nm)) (A.Def new) (getRange nm)
 
   fromRenaming :: Maybe ScopeCopyInfo -> [A.Renaming] -> ScopeM PendingBinds
   fromRenaming ren fs | (rens, _) <- partitionImportedNames (map renTo fs) = foldMap (def ren) rens

@@ -66,8 +66,6 @@ data Scope = Scope
       , scopeNameSpaces     :: ScopeNameSpaces
       , scopeImports        :: Map C.QName A.ModuleName
       , scopeDatatypeModule :: Maybe DataOrRecordModule
-      , scopeIsCopy         :: Maybe ScopeCopyRef
-        -- ^ Not serialised, always deserialised as 'Nothing'.
       }
   deriving (Eq, Show, Generic)
 
@@ -419,25 +417,6 @@ isModuleAlive :: A.ModuleName -> LiveNames -> Bool
 isModuleAlive _             AllLiveNames = True
 isModuleAlive (A.MName mod) (SomeLiveNames mods _) =
   any ((`Set.member` mods) . A.MName) (List.inits mod)
-
--- | A reference to the information shared by everything which belongs
--- to a copied module, used for trimming module application renamings.
-data ScopeCopyRef = ScopeCopyRef
-  { scrOriginal  :: A.ModuleName
-    -- ^ For debug printing; the name of the copied module.
-  , scrLiveNames :: !(IORef LiveNames)
-    -- ^ Pointer to the live names from that copy. Conservatively, any
-    -- name belonging to this module which is *possibly* referred to
-    -- should belong to this set.
-  }
-  deriving (Generic)
-
-instance Eq ScopeCopyRef where
-  (==) :: ScopeCopyRef -> ScopeCopyRef -> Bool
-  _ == _ = True
-
-instance Show ScopeCopyRef where
-  show (ScopeCopyRef a _) = "<" ++ show a ++ ">"
 
 ------------------------------------------------------------------------
 -- * Decorated names
@@ -799,7 +778,6 @@ emptyScope = Scope
       -- zipScope assumes all NameSpaces to be present and in the same order.
   , scopeImports        = Map.empty
   , scopeDatatypeModule = Nothing
-  , scopeIsCopy         = Nothing
   }
 
 -- | The empty scope info.
@@ -1666,7 +1644,6 @@ instance SetRange AbstractName where
   setRange r x = x { anameName = setRange r $ anameName x }
 
 instance NFData Scope
-instance NFData ScopeCopyRef
 instance NFData DataOrRecordModule
 instance NFData NameSpaceId
 instance NFData ScopeInfo
