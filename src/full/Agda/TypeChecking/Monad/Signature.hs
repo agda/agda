@@ -153,6 +153,7 @@ warnForPlentyInHardCompileTimeMode = \case
 addConstant :: QName -> Definition -> TCM ()
 addConstant q d = do
   reportSDoc "tc.signature" 20 $ "adding constant " <+> pretty q <+> " to signature"
+  reportSDoc "tc.signature" 80 $ "definition =" <?> pretty d
 
   -- Every constant that gets added to the signature in hard
   -- compile-time mode is treated as erased.

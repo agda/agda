@@ -599,10 +599,15 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         ]
       -- Andreas, 2021-05-11, issue #5378
       -- The impossible is sometimes possible, so splitting out this part...
-      reportSDoc "tc.rec.proj" 5 $ nest 2 $ vcat
+      reportSDoc "tc.rec.proj.escapeContext" 45 $ nest 2 $ vcat
           [ "ftel1 =" <+> escapeContext impossible 1 (prettyTCM ftel1)
           , "t     =" <+> escapeContext impossible 1 (addContext ftel1 $ prettyTCM t)
           , "ftel2 =" <+> escapeContext impossible 1 (addContext ftel1 $ underAbstraction dom ftel2 prettyTCM)
+          ]
+      reportSDoc "tc.rec.proj" 5 $ nest 2 $ vcat
+          [ "ftel1 =" <+> unsafeEscapeContext 1 (prettyTCM ftel1)
+          , "t     =" <+> unsafeEscapeContext 1 (addContext ftel1 $ prettyTCM t)
+          , "ftel2 =" <+> unsafeEscapeContext 1 (addContext ftel1 $ underAbstraction dom ftel2 prettyTCM)
           ]
       reportSDoc "tc.rec.proj" 55 $ nest 2 $ vcat
           [ "ftel1 (raw) =" <+> pretty ftel1
