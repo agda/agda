@@ -236,14 +236,30 @@ To simplify this we introduce the short-hand
 
 .. code-block:: agda
 
-  open module M1 Δ = M2 terms [public] mods
+  open module M1 Δ = M2 terms [public] modifiers
 
 for:
 
 .. code-block:: agda
 
-  module M1 Δ = M2 terms mods
+  module M1 Δ = M2 terms modifiers
   open M1 [public]
+
+No infix module application
+"""""""""""""""""""""""""""
+
+While module names follow the same syntactic rules as ordinary names, they cannot be used in infix form (and neither in pre-, post- or mixfix form).
+Continuing the above example, even if you defined:
+
+.. code-block:: agda
+
+  module _Sort_ (A : Set)(_≤_ : A → A → Bool) where
+
+you could not instantiate it using infix notation:
+
+.. code-block:: agda
+
+  module SortNat = Nat Sort leqNat
 
 
 .. _anonymous-modules:
