@@ -37,13 +37,13 @@ Note that the same version of the Agda executable must be used.")
 (require 'compile)
 (require 'time-date)
 (require 'eri)
-(require 'annotation)
 (require 'fontset)
 (require 'agda-input)
 (require 'agda2)
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
 (require 'agda2-queue)
+(require 'xref)
 (eval-and-compile
   ;; Load filladapt, if it is installed.
   (condition-case nil
@@ -258,10 +258,7 @@ constituents.")
     (eri-indent-reverse          [S-iso-lefttab])
     (eri-indent-reverse          [S-lefttab])
     (eri-indent-reverse          [S-tab])
-    (agda2-goto-definition-mouse [mouse-2])
-    (agda2-goto-definition-keyboard "\M-.")
-    (agda2-go-back                  ,(if (version< emacs-version "25.1") "\M-*" "\M-,"))
-    )
+    (xref-find-definitions-at-mouse [mouse-2]))
   "Table of commands, used to build keymaps and menus.
 Each element has the form (CMD &optional KEYS WHERE DESC) where
 CMD is a command; KEYS is its key binding (if any); WHERE is a
@@ -441,7 +438,9 @@ agda2-include-dirs is not bound." :warning))
  ;; including "mode: latex" is loaded chances are that the Agda mode
  ;; is activated before the LaTeX mode, and the LaTeX mode does not
  ;; seem to remove the text properties set by the Agda mode.
- (add-hook 'change-major-mode-hook 'agda2-quit nil 'local))
+ (add-hook 'change-major-mode-hook 'agda2-quit nil 'local)
+ ;; Enable Xref
+ (add-hook 'xref-backend-functions #'agda2-xref-backend -90 t))
 
 (defun agda2-restart ()
   "Tries to start or restart the Agda process."
@@ -999,8 +998,8 @@ The buffer is returned.")
         ;; Hijack the bindings for going to definition in the info
         ;; buffer, away from compilation-mode's, into something that
         ;; can read definition sites from highlighting info.
-        (define-key map (kbd "RET") 'agda2-info-goto-definition-keyboard)
-        (define-key map '[mouse-2]  'agda2-info-goto-definition-mouse)
+        (define-key map (kbd "RET") #'xref-find-definitions)
+        (define-key map '[mouse-2]  #'xref-find-definitions-at-mouse)
 
         (use-local-map map))
 
@@ -1104,7 +1103,10 @@ is inserted, and point is placed before this text."
         ;; (message "text: %s" text)
         ;; (message "length: %i" (length text))
         ;; (message "annotations = %s" annotations)
-        (apply 'annotation-load "Click to jump to definition" nil text annotations)
+        ;;
+        ;; FIXME: Do we still need this now that we are using Xref?
+        (ignore annotations)
+        ;; (apply 'annotation-load "Click to jump to definition" nil text annotations)
         ;; (pp (text-properties-at 0 text))
         (insert text)
         (newline)))
@@ -1137,8 +1139,8 @@ is inserted, and point is placed before this text."
   (dolist (o (overlays-in (point-min) (point-max)))
     (delete-overlay o))
   (let ((inhibit-read-only t))
-    (annotation-preserve-mod-p-and-undo
-     (set-text-properties (point-min) (point-max) '()))
+    (with-silent-modifications
+      (set-text-properties (point-min) (point-max) '()))
     (force-mode-line-update)))
 
 (defun agda2-next-goal ()     "Go to the next goal, if any."     (interactive)
@@ -1669,17 +1671,17 @@ ways."
 
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
-  (annotation-preserve-mod-p-and-undo
-   (let ((atp (lambda (x ps) (add-text-properties x (1+ x) ps))))
-     (funcall atp p       '(category agda2-delim1))
-     (funcall atp (1+ p)  '(category agda2-delim2))
-     (funcall atp (- q 2) '(category agda2-delim3))
-     (funcall atp (1- q)  '(category agda2-delim4)))
-   (let ((o (make-overlay p q nil t nil)))
-     (overlay-put o 'modification-hooks '(agda2-protect-goal-markers))
-     (overlay-put o 'agda2-gn           n)
-     (overlay-put o 'face               'highlight)
-     (overlay-put o 'after-string       (propertize (format "%s" n) 'face 'highlight)))))
+  (with-silent-modifications
+    (let ((atp (lambda (x ps) (add-text-properties x (1+ x) ps))))
+      (funcall atp p       '(category agda2-delim1))
+      (funcall atp (1+ p)  '(category agda2-delim2))
+      (funcall atp (- q 2) '(category agda2-delim3))
+      (funcall atp (1- q)  '(category agda2-delim4)))
+    (let ((o (make-overlay p q nil t nil)))
+      (overlay-put o 'modification-hooks '(agda2-protect-goal-markers))
+      (overlay-put o 'agda2-gn           n)
+      (overlay-put o 'face               'highlight)
+      (overlay-put o 'after-string       (propertize (format "%s" n) 'face 'highlight)))))
 
 (defun agda2-protect-goal-markers (ol action beg end &optional _length)
   "Ensures that the goal markers cannot be tampered with.
@@ -1833,7 +1835,7 @@ characters to the \\xNNNN notation used in Haskell strings."
 
 (defun agda2-forget-all-goals ()
   "Remove all goal annotations."
-  (annotation-preserve-mod-p-and-undo
+  (with-silent-modifications
     (remove-text-properties (point-min) (point-max) '(category nil)))
   (dolist (ovl (overlays-in (point-min) (point-max)))
     (when (overlay-get ovl 'agda2-gn)
@@ -1940,48 +1942,95 @@ the buffer."
               (agda2-string-quote (buffer-file-name))
               "Keep")))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Go to definition site
+;;;; Xref integration
 
-(defun agda2-goto-definition-keyboard (&optional other-window)
-  "Go to the definition site of the name under point (if any).
-If this function is invoked with a prefix argument then another window is used
-to display the given position."
-  (interactive "P")
-  (annotation-goto-indirect (point) other-window))
+(defun agda2-xref-backend ()
+  "Return an Xref backend."
+  'agda2)
 
-(defun agda2-goto-definition-mouse (ev)
-  "Go to the definition site of the name clicked on, if any.
-Otherwise, yank (see `mouse-yank-primary')."
-  (interactive "e")
-  (unless (annotation-goto-indirect ev)
-    ;; FIXME: Shouldn't we use something like
-    ;; (call-interactively (key-binding ev))?  --Stef
-    (mouse-yank-primary ev)))
+(cl-defmethod xref-backend-identifier-at-point ((_ (eql 'agda2)))
+  "Return the symbol at point with text properties."
+  (and (get-text-property (point) 'agda2-xref-info)
+       (save-excursion
+         (let ((initial (point)) start end)
+           (goto-char (previous-single-property-change
+                       (point) 'agda2-xref-info))
+           (goto-char (setq start (next-single-property-change
+                                   (point) 'agda2-xref-info)))
+           (if (< initial start)
+               (setq start initial end (point)) ;swap
+             (goto-char (setq end (next-single-property-change
+                                   (point) 'agda2-xref-info))))
+           (and (<= start initial (1- end))
+                (buffer-substring start end))))))
 
-(defun agda2-info-goto-definition-mouse (ev)
-  "While in the information buffer, to the definition site of the name
-clicked on, if any.
+(defvar agda2-last-xref-ict (make-hash-table :test 'equal)
+  "Cached table of unambiguous identifiers and their locations.")
 
-Otherwise, invoke `compile-goto'."
-  (interactive "e")
+(defun agda2-slurp-identifiers ()
+  "Traverse the buffer for identifiers and update `agda2-last-xref-ict'."
+  (save-excursion
+    (let ((idents (make-hash-table)) start end)
+      (goto-char (point-min))
+      (catch 'done
+        (while t
+          (setq start (next-single-property-change
+                       (point) 'agda2-xref-info))
+          (goto-char (or start (throw 'done t)))
+          (cl-assert (get-text-property (point) 'agda2-xref-info))
+          (setq end (next-single-property-change
+                     (point) 'agda2-xref-info))
+          (goto-char (or end (throw 'done t)))
+          (cl-assert (null (get-text-property (point) 'agda2-xref-info)))
+          (when (< start end)
+            (push (get-text-property (1- (point)) 'agda2-xref-info)
+                  (gethash (buffer-substring-no-properties start end)
+                           idents)))))
+      (maphash
+       (lambda (ident refs)
+         (when (and (car refs) (null (cadr refs))) ;(length= refs 1q)
+           (puthash ident (car refs) agda2-last-xref-ict)))
+       idents))))
 
-  ;; Always "use other window" because find-file-other-window will reuse
-  ;; an existing window (i.e. the source file buffer) if it exists
-  (unless (and agda2-file-buffer (annotation-goto-indirect ev t))
-    (compile-goto-error ev)))
+(cl-defmethod xref-backend-identifier-completion-table ((_ (eql 'agda2)))
+  "Generate a list of possible candidates."
+  (clrhash agda2-last-xref-ict)
+  (agda2-slurp-identifiers)
+  agda2-last-xref-ict)
 
-(defun agda2-info-goto-definition-keyboard ()
-  "As `agda2-info-goto-definition-mouse', but at point."
-  (interactive)
-  (agda2-info-goto-definition-mouse (point)))
+(cl-defmethod xref-backend-definitions ((_ (eql 'agda2)) ident)
+  "Generate a list of definitions for identifier IDENT."
+  (let ((xref-info (or (get-text-property 0 'agda2-xref-info ident)
+                       (gethash ident agda2-last-xref-ict))))
+    (and xref-info
+         (let ((loc (xref-make-buffer-location
+                     (find-file-noselect (car xref-info))
+                     (cdr xref-info))))
+           (list (xref-make ident loc))))))
 
-(defun agda2-go-back nil
-  "Go back to the previous position in which
-`agda2-goto-definition-keyboard' or `agda2-goto-definition-mouse' was
-invoked."
-  (interactive)
-  (annotation-go-back))
+(cl-defmethod xref-backend-references ((_ (eql 'agda2)) identifier)
+  "Generate a list of references for IDENTIFIER."
+  ;; TODO: Do not defer to the default implementation.  This is just
+  ;; grep, but we could also look through all open buffers as well.
+  (xref-backend-references nil identifier))
+
+(cl-defmethod xref-backend-apropos ((_ (eql 'agda2)) pattern)
+  "Generate a list of definitions matching PATTERN."
+  (clrhash agda2-last-xref-ict)
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (when (derived-mode-p 'agda2-mode)
+        (agda2-slurp-identifiers))))
+  ;; TODO: add type annotations
+  (cl-loop with regexp = (xref-apropos-regexp pattern)
+           for ident being the hash-keys of agda2-last-xref-ict
+           using (hash-values xref-info)
+           when (string-match-p regexp ident)
+           collect (xref-make
+                    ident
+                    (xref-make-buffer-location
+                     (find-file-noselect (car xref-info))
+                     (cdr xref-info)))))
 
 (defun agda2-maybe-goto (filepos)
   "Might move point to the given error.
@@ -1998,19 +2047,13 @@ configuration and the selected window are not changed."
              (consp filepos)
              (stringp (car filepos))
              (integerp (cdr filepos)))
-    (if agda2-in-agda2-file-buffer
-        (annotation-goto-and-push (current-buffer) (point) filepos)
-      (save-excursion
-        (let ((buffer (find-buffer-visiting (car filepos))))
-          (when buffer
-            (let ((windows (get-buffer-window-list buffer
-                                                   'no-minibuffer t)))
-              (if windows
-                  (dolist (window windows)
-                    (with-selected-window window
-                      (goto-char (cdr filepos))))
-                (with-current-buffer buffer
-                  (goto-char (cdr filepos)))))))))))
+    ;; We don't use `xref-show-xrefs', as we know that there is a
+    ;; concrete position we want to jump to.  nevertheless, we push
+    ;; the current marker onto Xref' stack to make it seem like a Xref
+    ;; jump.
+    (xref-push-marker-stack)
+    (set-buffer (find-file-noselect (car filepos)))
+    (goto-char (cdr filepos))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implicit arguments
@@ -2186,7 +2229,6 @@ An attempt is made to preserve the default value of `agda2-mode-hook'."
     (unload-feature 'agda2-mode      'force)
     (unload-feature 'agda2           'force)
     (unload-feature 'eri             'force)
-    (unload-feature 'annotation      'force)
     (unload-feature 'agda-input      'force)
     (unload-feature 'agda2-highlight 'force)
     (unload-feature 'agda2-abbrevs   'force)
