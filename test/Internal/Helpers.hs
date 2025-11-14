@@ -263,10 +263,6 @@ smaller k g = sized $ \ n -> resize (1 + div n k) g
 instance Fail.MonadFail Gen where
   fail = error
 
-instance Arbitrary a => Arbitrary (List1 a) where
-  arbitrary = List1.fromListSafe __IMPOSSIBLE__ . getNonEmpty <$> arbitrary
-  shrink = map (List1.fromListSafe __IMPOSSIBLE__ . getNonEmpty) . shrink . (NonEmpty . List1.toList)
-
 instance CoArbitrary a => CoArbitrary (List1 a) where
   coarbitrary (x :| xs) = coarbitrary (x, xs)
 
