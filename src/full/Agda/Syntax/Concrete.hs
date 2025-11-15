@@ -40,7 +40,7 @@ module Agda.Syntax.Concrete
   , TacticAttribute
   , TacticAttribute'(..)
   , Telescope, Telescope1
-  , lamBindingsToTelescope
+  , Parameters, parametersToTelescope
   , makePi
   , mkLam, mkLet, mkTLet
     -- * Declarations
@@ -271,7 +271,7 @@ mkBinder_ = mkBinder . mkBoundName_
 mkBinder :: a -> Binder' a
 mkBinder = Binder Nothing UserBinderName
 
--- | A lambda binding is either domain free or typed.
+-- | A lambda binding is either untyped (domain free) or typed ('TypedBinding').
 
 type LamBinding = LamBinding' TypedBinding
 data LamBinding' a
@@ -280,6 +280,9 @@ data LamBinding' a
   | DomainFull a
     -- ^ . @(xs : e)@ or @{xs : e}@
   deriving (Functor, Foldable, Traversable, Eq)
+
+-- | Parameters are sequences of typed or untyped bindings.
+type Parameters = [LamBinding]
 
 -- | Drop type annotations and lets from bindings.
 dropTypeAndModality :: LamBinding -> [LamBinding]
@@ -328,11 +331,11 @@ data TypedBinding' e
 type Telescope1 = List1 TypedBinding
 type Telescope  = [TypedBinding]
 
--- | We can try to get a @Telescope@ from a @[LamBinding]@.
+-- | We can get a @Telescope@ from @Parameters@.
 --   If we have a type annotation already, we're happy.
 --   Otherwise we manufacture a binder with an underscore for the type.
-lamBindingsToTelescope :: Range -> [LamBinding] -> Telescope
-lamBindingsToTelescope r = fmap $ \case
+parametersToTelescope :: Range -> Parameters -> Telescope
+parametersToTelescope r = fmap $ \case
   DomainFull ty -> ty
   DomainFree nm -> TBind r (List1.singleton nm) $ Underscore r Nothing
 
@@ -520,13 +523,13 @@ data Declaration
   | Generalize KwRange [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
   | Field KwRange [FieldSignature]
   | FunClause ArgInfo LHS RHS WhereClause Catchall -- ^ Only 'Modality' is used in 'ArgInfo'.
-  | DataSig     Range Erased Name [LamBinding] Expr -- ^ lone data signature in mutual block
-  | Data        Range Erased Name [LamBinding] Expr
+  | DataSig     Range Erased Name Parameters Expr -- ^ lone data signature in mutual block
+  | Data        Range Erased Name Parameters Expr
                 [TypeSignatureOrInstanceBlock]
-  | DataDef     Range Name [LamBinding] [TypeSignatureOrInstanceBlock]
-  | RecordSig   Range Erased Name [LamBinding] Expr -- ^ lone record signature in mutual block
-  | RecordDef   Range Name [RecordDirective] [LamBinding] [Declaration]
-  | Record      Range Erased Name [RecordDirective] [LamBinding] Expr
+  | DataDef     Range Name Parameters [TypeSignatureOrInstanceBlock]
+  | RecordSig   Range Erased Name Parameters Expr -- ^ lone record signature in mutual block
+  | RecordDef   Range Name [RecordDirective] Parameters [Declaration]
+  | Record      Range Erased Name [RecordDirective] Parameters Expr
                 [Declaration]
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name

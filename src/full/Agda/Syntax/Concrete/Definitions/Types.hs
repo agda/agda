@@ -65,9 +65,9 @@ data NiceDeclaration
   | NiceImport (Ranged OpenShortHand) KwRange QName (Either AsName RawOpenArgs) ImportDirective
   | NicePragma Range Pragma
   | NiceRecSig Range Erased Access IsAbstract PositivityCheck
-      UniverseCheck Name [LamBinding] Expr
+      UniverseCheck Name Parameters Expr
   | NiceDataSig Range Erased Access IsAbstract PositivityCheck
-      UniverseCheck Name [LamBinding] Expr
+      UniverseCheck Name Parameters Expr
   | NiceFunClause Range Access IsAbstract TerminationCheck CoverageCheck Catchall Declaration
     -- ^ An uncategorized function clause, could be a function clause
     --   without type signature or a pattern lhs (e.g. for irrefutable let).
@@ -79,9 +79,9 @@ data NiceDeclaration
       --   into this 'FunDef' and are only used in 'notSoNiceDeclaration'.
       --   Andreas, 2017-01-01: Because of issue #2372, we add 'IsInstance' here.
       --   An alias should know that it is an instance.
-  | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [LamBinding] [NiceConstructor]
+  | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name Parameters [NiceConstructor]
   | NiceLoneConstructor KwRange [NiceConstructor]
-  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [RecordDirective] [LamBinding] [Declaration]
+  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [RecordDirective] Parameters [Declaration]
       -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
   | NicePatternSyn Range Access Name [WithHiding Name] Pattern
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr

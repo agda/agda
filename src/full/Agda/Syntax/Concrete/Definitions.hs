@@ -202,7 +202,7 @@ replaceSigs ps = if Map.null ps then id else \case
       _ -> Nothing
       where
         retAx r erased acc abst x pars t = do
-          let e = Generalized $ makePi (lamBindingsToTelescope r pars) t
+          let e = Generalized $ makePi (parametersToTelescope r pars) t
           let ai = setOrigin Inserted (setQuantity (asQuantity erased) defaultArgInfo)
           return (x, Axiom r acc abst NotInstanceDef ai x e)
 
@@ -684,19 +684,18 @@ niceDeclarations fixs ds = do
         unless (sameKind k k') $ declarationException $ WrongDefinition x k' k
         Nothing <$ removeLoneSig x
 
-    dataOrRec
-      :: forall a decl
-      .  PositivityCheck
+    dataOrRec :: forall a decl.
+         PositivityCheck
       -> UniverseCheck
-      -> (Range -> Origin -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> [LamBinding] -> [decl] -> NiceDeclaration)
+      -> (Range -> Origin -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> Parameters -> [decl] -> NiceDeclaration)
          -- Construct definition.
-      -> (Range -> Access -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> [LamBinding] -> Expr -> NiceDeclaration)
+      -> (Range -> Access -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> Parameters -> Expr -> NiceDeclaration)
          -- Construct signature.
       -> ([a] -> Nice [decl])        -- Constructor checking.
       -> Range
       -> Name                        -- Data/record type name.
-      -> Maybe ([LamBinding], Expr)  -- Parameters and type.  If not @Nothing@ a signature is created.
-      -> Maybe ([LamBinding], [a])   -- Parameters and constructors.  If not @Nothing@, a definition body is created.
+      -> Maybe (Parameters, Expr)  -- Parameters and type.  If not @Nothing@ a signature is created.
+      -> Maybe (Parameters, [a])   -- Parameters and constructors.  If not @Nothing@, a definition body is created.
       -> Nice [NiceDeclaration]
     dataOrRec pc uc mkDef mkSig niceD r x mt mcs = do
       mds <- Trav.forM mcs $ \ (tel, cs) -> (tel,) <$> niceD cs
