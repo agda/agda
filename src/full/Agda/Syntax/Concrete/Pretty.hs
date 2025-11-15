@@ -520,7 +520,7 @@ pRecord
   :: Erased
   -> Name
   -> [RecordDirective]
-  -> [LamBinding]
+  -> Parameters
   -> Maybe Expr
   -> [Declaration]
   -> Doc

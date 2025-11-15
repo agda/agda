@@ -816,6 +816,7 @@ library
       Agda.TypeChecking.Rules.LHS.Unify.LeftInverse
       Agda.TypeChecking.Rules.LHS.Unify.Types
       Agda.TypeChecking.Rules.Record
+      Agda.TypeChecking.Rules.Record.Cubical
       Agda.TypeChecking.Rules.Term
       Agda.TypeChecking.Serialise
       Agda.TypeChecking.Serialise.Base

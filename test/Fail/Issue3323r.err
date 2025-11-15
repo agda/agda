@@ -1,3 +1,0 @@
-Issue3323r.agda:10.11-12: error: [UnexpectedModalityAnnotationInParameter]
-Unexpected modality/relevance annotation in .b
-when checking the definition of R
