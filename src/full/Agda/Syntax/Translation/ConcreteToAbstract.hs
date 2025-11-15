@@ -2038,146 +2038,12 @@ instance ToAbstract NiceDeclaration where
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
-    C.NiceDataDef r o a _ uc x pars cons -> notAffectedByOpaque $ do
-        reportSLn "scope.data.def" 40 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
-        (p, ax) <- resolveName (C.QName x) >>= \case
-          DefinedName p ax NoSuffix -> do
-            clashUnless x DataName ax  -- Andreas 2019-07-07, issue #3892
-            livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
-            clashIfModuleAlreadyDefinedInCurrentModule x ax
-            return (p, ax)
-          _ -> typeError $ MissingTypeSignature $ MissingDataSignature x
-
-        ensureNoLetStms pars
-        withLocalVars $ do
-          gvars <- bindGeneralizablesIfInserted o ax
-          -- Check for duplicate constructors
-          do cs <- mapM conName cons
-             List1.unlessNull (duplicates cs) $ \ dups -> do
-               let bad = filter (`elem` dups) cs
-               setCurrentRange bad $
-                 typeError $ DuplicateConstructors dups
-
-          pars <- catMaybes <$> toAbstract pars
-          let x' = anameName ax
-          -- Create the module for the qualified constructors
-          checkForModuleClash x -- disallow shadowing previously defined modules
-          let m = qnameToMName x'
-          createModule (Just IsDataModule) m
-          bindModule p x m  -- make it a proper module
-          cons <- toAbstract (map (DataConstrDecl m a p) cons)
-          printScope "data" 40 $ "Checked data " ++ prettyShow x
-          f <- getConcreteFixity x
-          return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc (DataDefParams gvars pars) cons ]
-      where
-        conName (C.Axiom _ _ _ _ _ c _) = return c
-        conName d = errorNotConstrDecl d
+    C.NiceDataDef r o a _ uc x pars cons -> singleton <$>
+      scopeCheckDataDef r o a uc x pars cons
 
   -- Record definitions (mucho interesting)
-    C.NiceRecDef r o a _ uc x directives pars fields -> notAffectedByOpaque $ do
-      reportSLn "scope.rec.def" 40 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
-
-      -- #3008: Termination pragmas are ignored in records
-      checkNoTerminationPragma InRecordDef fields
-
-      -- Check record directives for consistency.
-      RecordDirectives ind eta pat cm <- gatherRecordDirectives directives
-      -- Andreas, 2020-04-19, issue #4560
-      -- 'pattern' declaration is incompatible with 'coinductive' or 'eta-equality'.
-      pat <- case pat of
-        Just r
-          | Just (Ranged _ CoInductive) <- ind -> Nothing <$ warn "coinductive"
-          | Just (Ranged _ YesEta)      <- eta -> Nothing <$ warn "eta"
-          | otherwise -> return pat
-          where warn = setCurrentRange r . warning . UselessPatternDeclarationForRecord
-        Nothing -> return pat
-
-      -- Retrieve the abstract name of the record type
-      -- that was created when scope checking the record type signature.
-      (p, ax) <- resolveName (C.QName x) >>= \case
-        DefinedName p ax NoSuffix -> return (p, ax)
-        _ -> typeError $ MissingTypeSignature $ MissingRecordSignature x
-      let x' = anameName ax
-
-      -- Check for correct placement of this record definition wrt. the existing record signature.
-      -- These checks give more precise errors than the generic 'checkForModuleClash' below.
-      clashUnless x RecName ax  -- Andreas 2019-07-07, issue #3892
-      livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
-      clashIfModuleAlreadyDefinedInCurrentModule x ax  -- Andreas, 2019-07-07, issue #2576
-
-      -- Check that the generated module doesn't clash with a previously
-      -- defined module
-      checkForModuleClash x
-
-      -- @let@ is not (yet) supported in record parameters.
-      ensureNoLetStms pars
-
-      -- Preserve the local variable set since we add some generalizable ones.
-      withLocalVars $ do
-        gvars  <- bindGeneralizablesIfInserted o ax
-        pars   <- catMaybes <$> toAbstract pars
-
-        -- We scope check the fields a first time when putting together
-        -- the type of the constructor.
-        contel <- localToAbstract (RecordConstructorType fields) return
-
-        -- Use the name @x'@ of the record type also as name of the new record module.
-        m0     <- getCurrentModule
-        let m = A.qualifyM m0 $ mnameFromList1 $ singleton $ List1.last $ qnameToList x'
-        printScope "rec" 25 "before record"
-        createModule (Just IsRecordModule) m
-
-        -- We scope check the fields a second time, as actual fields.
-        afields <- withCurrentModule m $ do
-          afields <- toAbstract (Declarations fields)
-          printScope "rec" 25 "checked fields"
-          return afields
-
-        -- Andreas, 2017-07-13 issue #2642 disallow duplicate fields
-        -- Check for duplicate fields. (See "Check for duplicate constructors")
-        do let fs :: [C.Name]
-               fs = concat $ forMaybe fields $ \case
-                 C.Field _ fs -> Just $ fs <&> \case
-                   -- a Field block only contains field signatures
-                   C.FieldSig _ _ f _ -> f
-                   _ -> __IMPOSSIBLE__
-                 _ -> Nothing
-           List1.unlessNull (duplicates fs) $ \ dups -> do
-             let bad = filter (`elem` dups) fs
-             setCurrentRange bad $
-               typeError $ DuplicateFields dups
-
-        bindModule p x m
-
-        -- Bind the record constructor.
-        cm' <- case cm of
-
-          -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
-          Just (c, _) -> NamedRecCon <$> bindRecordConstructorName c kind a p
-            where
-              -- Name kind of the record constructor (inductive/coinductive).
-              kind = maybe ConName (conKindOfName . rangedThing) ind
-
-          -- Amy, 2024-09-25: if the record does not have a named
-          -- constructor, then generate the QName here, and record it in
-          -- the TC state so that 'Record.constructor' can be resolved.
-          Nothing -> do
-            -- Technically it doesn't matter with what this name is
-            -- qualified since record constructor names have a special
-            -- printing rule in lookupQName.
-            constr <- withCurrentModule m $
-              freshAbstractQName noFixity' $ simpleName "constructor"
-            pure $ FreshRecCon constr
-
-        setRecordConstructor x' (recordConName cm', fmap rangedThing ind)
-
-        -- Return the translated record definition.
-        let inst = caseMaybe cm NotInstanceDef snd
-        printScope "rec" 25 "record complete"
-        f <- getConcreteFixity x
-        let params = DataDefParams gvars pars
-        let dir' = RecordDirectives ind eta pat cm'
-        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc dir' params contel afields ]
+    C.NiceRecDef r o a _ uc x directives pars fields -> singleton <$>
+      scopeCheckRecDef r o a uc x directives pars fields
 
     NiceModule r p a e x@(C.QName name) tel ds -> notAffectedByOpaque $ do
       reportSDoc "scope.decl" 70 $ vcat $
@@ -2417,6 +2283,190 @@ declarationWarning :: MonadWarning m => DeclarationWarning' -> m ()
 declarationWarning w = withCurrentCallStack \ stk -> do
   warning $ NicifierIssue $ DeclarationWarning stk w
 
+-- | Scope check a data definition.
+--   The data signature must have been checked already.
+scopeCheckDataDef ::
+     Range
+       -- ^ The range of the data definition.
+  -> Origin
+       -- ^ The origin of the data definition.
+       --   'UserWritten' when the definition was written separately from the signature.
+       --   'Inserted' when there was no separate signature.
+  -> IsAbstract
+       -- ^ Whether the data definition is abstract.
+  -> UniverseCheck
+       -- ^ Whether to check constructors' types for universe consistency.
+  -> C.Name
+       -- ^ The name of the data type.
+  -> C.Parameters
+       -- ^ The parameters of the data type.
+  -> [NiceDeclaration]
+       -- ^ The constructors of the data type.
+  -> ScopeM A.Declaration
+scopeCheckDataDef r o a uc x pars cons =
+  notAffectedByOpaque do
+    reportSLn "scope.data.def" 40 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
+    (p, ax) <- resolveName (C.QName x) >>= \case
+      DefinedName p ax NoSuffix -> do
+        clashUnless x DataName ax  -- Andreas 2019-07-07, issue #3892
+        livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
+        clashIfModuleAlreadyDefinedInCurrentModule x ax
+        return (p, ax)
+      _ -> typeError $ MissingTypeSignature $ MissingDataSignature x
+
+    ensureNoLetStms pars
+    withLocalVars $ do
+      gvars <- bindGeneralizablesIfInserted o ax
+      -- Check for duplicate constructors
+      do cs <- mapM conName cons
+         List1.unlessNull (duplicates cs) $ \ dups -> do
+           let bad = filter (`elem` dups) cs
+           setCurrentRange bad $
+             typeError $ DuplicateConstructors dups
+
+      pars <- catMaybes <$> toAbstract pars
+      let x' = anameName ax
+      -- Create the module for the qualified constructors
+      checkForModuleClash x -- disallow shadowing previously defined modules
+      let m = qnameToMName x'
+      createModule (Just IsDataModule) m
+      bindModule p x m  -- make it a proper module
+      cons <- toAbstract (map (DataConstrDecl m a p) cons)
+      printScope "data" 40 $ "Checked data " ++ prettyShow x
+      f <- getConcreteFixity x
+      return $ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc (DataDefParams gvars pars) cons
+  where
+    conName (C.Axiom _ _ _ _ _ c _) = return c
+    conName d = errorNotConstrDecl d
+
+-- | Scope check a record definition.
+--   The record signature must have been checked already.
+scopeCheckRecDef ::
+     Range
+       -- ^ The range of the record definition.
+  -> Origin
+       -- ^ The origin of the record definition.
+       --   'UserWritten' when the definition was written separately from the signature.
+       --   'Inserted' when there was no separate signature.
+  -> IsAbstract
+       -- ^ Whether the record definition is abstract.
+  -> UniverseCheck
+       -- ^ Whether to check field types for universe consistency.
+  -> C.Name
+       -- ^ The name of the record type.
+  -> [RecordDirective]
+       -- ^ The record directives, e.g., 'inductive', 'eta-equality', 'pattern'.
+  -> C.Parameters
+       -- ^ The parameters of the record type.
+  -> [C.Declaration]
+       -- ^ The fields of the record type and other declarations in the record module.
+  -> ScopeM A.Declaration
+scopeCheckRecDef r o a uc x directives pars fields =
+  notAffectedByOpaque do
+    reportSLn "scope.rec.def" 40 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
+
+    -- #3008: Termination pragmas are ignored in records
+    checkNoTerminationPragma InRecordDef fields
+
+    -- Check record directives for consistency.
+    RecordDirectives ind eta pat cm <- gatherRecordDirectives directives
+    -- Andreas, 2020-04-19, issue #4560
+    -- 'pattern' declaration is incompatible with 'coinductive' or 'eta-equality'.
+    pat <- case pat of
+      Just r
+        | Just (Ranged _ CoInductive) <- ind -> Nothing <$ warn "coinductive"
+        | Just (Ranged _ YesEta)      <- eta -> Nothing <$ warn "eta"
+        | otherwise -> return pat
+        where warn = setCurrentRange r . warning . UselessPatternDeclarationForRecord
+      Nothing -> return pat
+
+    -- Retrieve the abstract name of the record type
+    -- that was created when scope checking the record type signature.
+    (p, ax) <- resolveName (C.QName x) >>= \case
+      DefinedName p ax NoSuffix -> return (p, ax)
+      _ -> typeError $ MissingTypeSignature $ MissingRecordSignature x
+    let x' = anameName ax
+
+    -- Check for correct placement of this record definition wrt. the existing record signature.
+    -- These checks give more precise errors than the generic 'checkForModuleClash' below.
+    clashUnless x RecName ax  -- Andreas 2019-07-07, issue #3892
+    livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
+    clashIfModuleAlreadyDefinedInCurrentModule x ax  -- Andreas, 2019-07-07, issue #2576
+
+    -- Check that the generated module doesn't clash with a previously
+    -- defined module
+    checkForModuleClash x
+
+    -- @let@ is not (yet) supported in record parameters.
+    ensureNoLetStms pars
+
+    -- Preserve the local variable set since we add some generalizable ones.
+    withLocalVars $ do
+      gvars  <- bindGeneralizablesIfInserted o ax
+      pars   <- catMaybes <$> toAbstract pars
+
+      -- We scope check the fields a first time when putting together
+      -- the type of the constructor.
+      contel <- localToAbstract (RecordConstructorType fields) return
+
+      -- Use the name @x'@ of the record type also as name of the new record module.
+      m0     <- getCurrentModule
+      let m = A.qualifyM m0 $ mnameFromList1 $ singleton $ List1.last $ qnameToList x'
+      printScope "rec" 25 "before record"
+      createModule (Just IsRecordModule) m
+
+      -- We scope check the fields a second time, as actual fields.
+      afields <- withCurrentModule m $ do
+        afields <- toAbstract (Declarations fields)
+        printScope "rec" 25 "checked fields"
+        return afields
+
+      -- Andreas, 2017-07-13 issue #2642 disallow duplicate fields
+      -- Check for duplicate fields. (See "Check for duplicate constructors")
+      do let fs :: [C.Name]
+             fs = concat $ forMaybe fields $ \case
+               C.Field _ fs -> Just $ fs <&> \case
+                 -- a Field block only contains field signatures
+                 C.FieldSig _ _ f _ -> f
+                 _ -> __IMPOSSIBLE__
+               _ -> Nothing
+         List1.unlessNull (duplicates fs) $ \ dups -> do
+           let bad = filter (`elem` dups) fs
+           setCurrentRange bad $
+             typeError $ DuplicateFields dups
+
+      bindModule p x m
+
+      -- Bind the record constructor.
+      cm' <- case cm of
+
+        -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
+        Just (c, _) -> NamedRecCon <$> bindRecordConstructorName c kind a p
+          where
+            -- Name kind of the record constructor (inductive/coinductive).
+            kind = maybe ConName (conKindOfName . rangedThing) ind
+
+        -- Amy, 2024-09-25: if the record does not have a named
+        -- constructor, then generate the QName here, and record it in
+        -- the TC state so that 'Record.constructor' can be resolved.
+        Nothing -> do
+          -- Technically it doesn't matter with what this name is
+          -- qualified since record constructor names have a special
+          -- printing rule in lookupQName.
+          constr <- withCurrentModule m $
+            freshAbstractQName noFixity' $ simpleName "constructor"
+          pure $ FreshRecCon constr
+
+      setRecordConstructor x' (recordConName cm', fmap rangedThing ind)
+
+      -- Return the translated record definition.
+      let inst = caseMaybe cm NotInstanceDef snd
+      printScope "rec" 25 "record complete"
+      f <- getConcreteFixity x
+      let params = DataDefParams gvars pars
+      let dir' = RecordDirectives ind eta pat cm'
+      return $ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc dir' params contel afields
+
 -- | Scope check @[open] import M [as N] using/hiding/renaming@.
 scopeCheckImport ::
      Range
@@ -2436,7 +2486,7 @@ scopeCheckImport ::
        --   of the imported module itself.
        --   Several imports of the same file module accumulate accumulate exports,
        --   but see <https://github.com/agda/agda/issues/7656>.
-  -> TCMT IO [A.Declaration]
+  -> TCM [A.Declaration]
 scopeCheckImport r x as open dir =
   setCurrentRange r do
       dir <- notPublicWithoutOpen open dir
