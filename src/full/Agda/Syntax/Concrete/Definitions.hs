@@ -376,10 +376,9 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- defaultTypeSig (DataName pc uc) x (Just t)
           (,ds) <$> dataOrRec pc uc NiceDataDef
                       (flip NiceDataSig erased) (niceAxioms DataBlock) r
-                      x ((tel,) <$> mt) (Just (parametersToDefParameters tel, cs))
+                      x (Just (tel, t)) (Just (parametersToDefParameters tel, cs))
 
         DataDef r x tel cs -> do
           pc <- use positivityCheckPragma
@@ -389,12 +388,11 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- defaultTypeSig (DataName pc uc) x Nothing
+          mt <- retrieveTypeSig (DataName pc uc) x
           defpars <- niceDefParameters IsData tel
           (,ds) <$> dataOrRec pc uc NiceDataDef
-                      (flip NiceDataSig defaultErased)
-                      (niceAxioms DataBlock) r x ((tel,) <$> mt)
-                      (Just (defpars, cs))
+                      (flip NiceDataSig defaultErased) (niceAxioms DataBlock) r
+                      x ((tel,) <$> mt) (Just (defpars, cs))
 
         RecordSig r erased x tel t -> do
           pc <- use positivityCheckPragma
@@ -413,12 +411,11 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- defaultTypeSig (RecName pc uc) x (Just t)
           (,ds) <$> dataOrRec pc uc
                       (\r o a pc uc x tel cs ->
                         NiceRecDef r o a pc uc x dir tel cs)
                       (flip NiceRecSig erased) return r x
-                      ((tel,) <$> mt) (Just (parametersToDefParameters tel, cs))
+                      (Just (tel, t)) (Just (parametersToDefParameters tel, cs))
 
         RecordDef r x dir tel cs   -> do
           pc <- use positivityCheckPragma
@@ -428,7 +425,7 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- defaultTypeSig (RecName pc uc) x Nothing
+          mt <- retrieveTypeSig (RecName pc uc) x
           defpars <- niceDefParameters (IsRecord ()) tel
           (,ds) <$> dataOrRec pc uc
                       (\r o a pc uc x tel cs ->
@@ -680,9 +677,8 @@ niceDeclarations fixs ds = do
 
     -- We could add a default type signature here, but at the moment we can't
     -- infer the type of a record or datatype, so better to just fail here.
-    defaultTypeSig :: DataRecOrFun -> Name -> Maybe Expr -> Nice (Maybe Expr)
-    defaultTypeSig _ _ t@Just{} = return t
-    defaultTypeSig k x Nothing  = do
+    retrieveTypeSig :: DataRecOrFun -> Name -> Nice (Maybe Expr)
+    retrieveTypeSig k x = do
       caseMaybeM (getSig x) (return Nothing) $ \ k' -> do
         unless (sameKind k k') $ declarationException $ WrongDefinition x k' k
         Nothing <$ removeLoneSig x
@@ -697,11 +693,11 @@ niceDeclarations fixs ds = do
       -> ([a] -> Nice [decl])        -- Constructor checking.
       -> Range
       -> Name                        -- Data/record type name.
-      -> Maybe (Parameters, Expr)  -- Parameters and type.  If not @Nothing@ a signature is created.
-      -> Maybe (DefParameters, [a])   -- Parameters and constructors.  If not @Nothing@, a definition body is created.
+      -> Maybe (Parameters, Expr)    -- Parameters and type.  If not @Nothing@ a signature is created.
+      -> Maybe (DefParameters, [a])  -- Parameters and constructors.  If not @Nothing@, a definition body is created.
       -> Nice [NiceDeclaration]
     dataOrRec pc uc mkDef mkSig niceD r x mt mcs = do
-      mds <- Trav.forM mcs $ \ (tel, cs) -> (tel,) <$> niceD cs
+      mds <- mapM (secondM niceD) mcs
       -- We set origin to UserWritten if the user split the data/rec herself,
       -- and to Inserted if the she wrote a single declaration that we're
       -- splitting up here. We distinguish these because the scoping rules for
