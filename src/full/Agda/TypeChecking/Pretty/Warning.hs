@@ -50,7 +50,7 @@ import Agda.Syntax.Common
   ( ImportedName'(..), fromImportedName, partitionImportedNames
   , IsOpaque(OpaqueDef, TransparentDef)
   , ProjOrigin(..)
-  , getHiding
+  , getHiding, DataOrRecord_, DataOrRecord'(IsData, IsRecord)
   )
 import Agda.Syntax.Common.Pretty ( Pretty, prettyShow, singPlural )
 import qualified Agda.Syntax.Common.Pretty as P

@@ -151,27 +151,6 @@ defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ WithOrig
 type Args       = [Arg Term]
 type NamedArgs  = [NamedArg Term]
 
-data DataOrRecord' p
-  = IsData
-  | IsRecord p
-  deriving (Show, Eq, Generic)
-
-type DataOrRecord = DataOrRecord' PatternOrCopattern
-type DataOrRecord_ = DataOrRecord' ()
-
-pattern IsRecord_ :: DataOrRecord_
-pattern IsRecord_ = IsRecord ()
-
-instance PatternMatchingAllowed DataOrRecord where
-  patternMatchingAllowed = \case
-    IsData -> True
-    IsRecord patCopat -> patternMatchingAllowed patCopat
-
-instance CopatternMatchingAllowed DataOrRecord where
-  copatternMatchingAllowed = \case
-    IsData -> False
-    IsRecord patCopat -> copatternMatchingAllowed patCopat
-
 -- | Store the names of the record fields in the constructor.
 --   This allows reduction of projection redexes outside of TCM.
 --   For instance, during substitution and application.

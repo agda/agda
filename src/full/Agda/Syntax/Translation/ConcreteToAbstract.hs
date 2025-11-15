@@ -2008,7 +2008,7 @@ instance ToAbstract NiceDeclaration where
                 -- the illegal type signature. Convert the NiceDataSig into a NiceDataDef
                 -- (which removes the type signature) and suggest it as a possible fix.
                 DefinedName p ax NoSuffix | anameKind ax == AxiomName -> do
-                  let suggestion = NiceDataDef r Inserted a pc uc x ls []
+                  let suggestion = NiceDataDef r Inserted a pc uc x (parametersToDefParameters ls) []
                   typeError $ ClashingDefinition cn an (Just suggestion)
                 _ -> typeError err
             otherErr -> typeError otherErr
@@ -2298,7 +2298,7 @@ scopeCheckDataDef ::
        -- ^ Whether to check constructors' types for universe consistency.
   -> C.Name
        -- ^ The name of the data type.
-  -> C.Parameters
+  -> C.DefParameters
        -- ^ The parameters of the data type.
   -> [NiceDeclaration]
        -- ^ The constructors of the data type.
@@ -2314,7 +2314,6 @@ scopeCheckDataDef r o a uc x pars cons =
         return (p, ax)
       _ -> typeError $ MissingTypeSignature $ MissingDataSignature x
 
-    ensureNoLetStms pars
     withLocalVars $ do
       gvars <- bindGeneralizablesIfInserted o ax
       -- Check for duplicate constructors
@@ -2324,7 +2323,7 @@ scopeCheckDataDef r o a uc x pars cons =
            setCurrentRange bad $
              typeError $ DuplicateConstructors dups
 
-      pars <- catMaybes <$> toAbstract pars
+      pars <- catMaybes <$> toAbstract (defParametersToParameters pars)
       let x' = anameName ax
       -- Create the module for the qualified constructors
       checkForModuleClash x -- disallow shadowing previously defined modules
@@ -2356,7 +2355,7 @@ scopeCheckRecDef ::
        -- ^ The name of the record type.
   -> [RecordDirective]
        -- ^ The record directives, e.g., 'inductive', 'eta-equality', 'pattern'.
-  -> C.Parameters
+  -> C.DefParameters
        -- ^ The parameters of the record type.
   -> [C.Declaration]
        -- ^ The fields of the record type and other declarations in the record module.
@@ -2397,13 +2396,10 @@ scopeCheckRecDef r o a uc x directives pars fields =
     -- defined module
     checkForModuleClash x
 
-    -- @let@ is not (yet) supported in record parameters.
-    ensureNoLetStms pars
-
     -- Preserve the local variable set since we add some generalizable ones.
     withLocalVars $ do
       gvars  <- bindGeneralizablesIfInserted o ax
-      pars   <- catMaybes <$> toAbstract pars
+      pars   <- catMaybes <$> toAbstract (defParametersToParameters pars)
 
       -- We scope check the fields a first time when putting together
       -- the type of the constructor.

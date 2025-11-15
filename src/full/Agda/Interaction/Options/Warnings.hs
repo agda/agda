@@ -245,6 +245,7 @@ data WarningName
   | InvalidCatchallPragma_
   | InvalidConstructorBlock_
   | InvalidCoverageCheckPragma_
+  | InvalidDataOrRecDefParameter_
   | InvalidNoPositivityCheckPragma_
   | InvalidNoUniverseCheckPragma_
   | DuplicateRecordDirective_
@@ -485,6 +486,7 @@ warningNameDescription = \case
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
   InvalidConstructorBlock_         -> "`constructor' blocks outside of `interleaved mutual' blocks."
   InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
+  InvalidDataOrRecDefParameter_    -> "Invalid decorations of parameters of a `data' or `record' definition (that is separate of the `data' or `record' declaration)."
   InvalidNoPositivityCheckPragma_  -> "Positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "Universe checking pragmas before non-`data' or `record' declaration."
   DuplicateRecordDirective_        -> "Conflicting directives in a record declaration."

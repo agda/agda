@@ -1468,6 +1468,11 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      :ref:`NON_COVERING <non_covering-pragma>` pragmas before non-function or ``mutual`` blocks.
 
+.. option:: InvalidDataOrRecDefParameter
+
+     A ``data/record D parameters where`` definition where the parameters do not match up
+     with the previously given signature or contain more than just names with hiding information.
+
 .. option:: InvalidNoPositivityCheckPragma
 
      :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>` pragmas before something

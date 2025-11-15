@@ -315,6 +315,17 @@ instance EmbPrj a => EmbPrj (HasEta' a) where
     valu _      = malformed
 
 instance EmbPrj PatternOrCopattern
+
+instance EmbPrj a => EmbPrj (DataOrRecord' a) where
+  icod_ = \case
+    IsData      -> icodeN' IsData
+    IsRecord pm -> icodeN' IsRecord pm
+
+  value = vcase $ \case
+    N0    -> valuN IsData
+    N1 pm -> valuN IsRecord pm
+    _     -> malformed
+
 instance EmbPrj OverlapMode
 
 instance EmbPrj Induction where

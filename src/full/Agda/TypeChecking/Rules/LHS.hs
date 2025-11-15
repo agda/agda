@@ -31,12 +31,12 @@ import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
 
-import Agda.Syntax.Internal as I hiding (DataOrRecord)
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
 import Agda.Syntax.Concrete (FieldAssignment'(..),LensInScope(..))
-import Agda.Syntax.Common as Common
+import Agda.Syntax.Common as Common hiding (DataOrRecord)
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Literal
 import Agda.Syntax.Position

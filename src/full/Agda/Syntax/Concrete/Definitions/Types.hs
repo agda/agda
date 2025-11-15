@@ -7,21 +7,18 @@ module Agda.Syntax.Concrete.Definitions.Types where
 import Control.DeepSeq
 
 import Data.Map (Map)
-import Data.Semigroup ( sconcat )
 
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (TerminationCheck())
 import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Name   ()
 import Agda.Syntax.Concrete.Pretty ()
 
-import Agda.Syntax.Common.Pretty
-import Agda.Utils.Impossible
 import Agda.Utils.List1 (List1)
-import qualified Agda.Utils.List1 as List1
 
 {--------------------------------------------------------------------------
     Types
@@ -79,9 +76,9 @@ data NiceDeclaration
       --   into this 'FunDef' and are only used in 'notSoNiceDeclaration'.
       --   Andreas, 2017-01-01: Because of issue #2372, we add 'IsInstance' here.
       --   An alias should know that it is an instance.
-  | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name Parameters [NiceConstructor]
+  | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name DefParameters [NiceConstructor]
   | NiceLoneConstructor KwRange [NiceConstructor]
-  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [RecordDirective] Parameters [Declaration]
+  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [RecordDirective] DefParameters [Declaration]
       -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
   | NicePatternSyn Range Access Name [WithHiding Name] Pattern
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
@@ -159,7 +156,7 @@ data InterleavedDecl
         -- ^ Internal number of the data signature.
     , interleavedDeclSig  :: NiceDeclaration
         -- ^ The data signature.
-    , interleavedDataCons :: Maybe (DeclNum, List1 [NiceConstructor])
+    , interleavedDataCons :: Maybe (DeclNum, List1 (DefParameters, [NiceConstructor]))
         -- ^ Constructors associated to the data signature.
     }
   | InterleavedFun
@@ -193,20 +190,6 @@ isInterleavedFun _ = Nothing
 isInterleavedData :: InterleavedDecl -> Maybe ()
 isInterleavedData InterleavedData{} = Just ()
 isInterleavedData _ = Nothing
-
-interleavedDecl :: Name -> InterleavedDecl -> [(DeclNum, NiceDeclaration)]
-interleavedDecl k = \case
-  InterleavedData i d@(NiceDataSig _ _ _acc abs pc uc _ pars _) ds ->
-    let fpars   = concatMap dropTypeAndModality pars
-        r       = getRange (k, fpars)
-        ddef cs = NiceDataDef (getRange (r, cs)) UserWritten
-                    abs pc uc k fpars cs
-    in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (sconcat (List1.reverse dss)))]) ds
-  InterleavedFun i d@(FunSig r _acc abs inst _mac _info tc cc n _e) dcs ->
-    let fdef dcss = let (dss, css) = List1.unzip dcss in
-                    FunDef r (sconcat dss) abs inst tc cc n (sconcat css)
-    in (i,d) : maybe [] (\ (j, dcss) -> [(j, fdef (List1.reverse dcss))]) dcs
-  _ -> __IMPOSSIBLE__ -- someone messed up and broke the invariant
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock

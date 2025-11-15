@@ -65,7 +65,8 @@ import Data.Function         ( on )
 import Data.List             qualified as List
 import Data.Map              qualified as Map
 import Data.Maybe
-import Data.Traversable      qualified as Trav
+import Data.Semigroup        ( sconcat )
+import Data.Text             ( Text )
 
 import Agda.Syntax.Common hiding (TerminationCheck())
 import Agda.Syntax.Concrete
@@ -375,10 +376,9 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- defaultTypeSig (DataName pc uc) x (Just t)
           (,ds) <$> dataOrRec pc uc NiceDataDef
                       (flip NiceDataSig erased) (niceAxioms DataBlock) r
-                      x ((tel,) <$> mt) (Just (tel, cs))
+                      x (Just (tel, t)) (Just (parametersToDefParameters tel, cs))
 
         DataDef r x tel cs -> do
           pc <- use positivityCheckPragma
@@ -388,11 +388,11 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- defaultTypeSig (DataName pc uc) x Nothing
+          mt <- retrieveTypeSig (DataName pc uc) x
+          defpars <- niceDefParameters IsData tel
           (,ds) <$> dataOrRec pc uc NiceDataDef
-                      (flip NiceDataSig defaultErased)
-                      (niceAxioms DataBlock) r x ((tel,) <$> mt)
-                      (Just (tel, cs))
+                      (flip NiceDataSig defaultErased) (niceAxioms DataBlock) r
+                      x ((tel,) <$> mt) (Just (defpars, cs))
 
         RecordSig r erased x tel t -> do
           pc <- use positivityCheckPragma
@@ -411,12 +411,11 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- defaultTypeSig (RecName pc uc) x (Just t)
           (,ds) <$> dataOrRec pc uc
                       (\r o a pc uc x tel cs ->
                         NiceRecDef r o a pc uc x dir tel cs)
                       (flip NiceRecSig erased) return r x
-                      ((tel,) <$> mt) (Just (tel, cs))
+                      (Just (tel, t)) (Just (parametersToDefParameters tel, cs))
 
         RecordDef r x dir tel cs   -> do
           pc <- use positivityCheckPragma
@@ -426,12 +425,13 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- defaultTypeSig (RecName pc uc) x Nothing
+          mt <- retrieveTypeSig (RecName pc uc) x
+          defpars <- niceDefParameters (IsRecord ()) tel
           (,ds) <$> dataOrRec pc uc
                       (\r o a pc uc x tel cs ->
                         NiceRecDef r o a pc uc x dir tel cs)
                       (flip NiceRecSig defaultErased) return r x
-                      ((tel,) <$> mt) (Just (tel, cs))
+                      ((tel,) <$> mt) (Just (defpars, cs))
 
         Mutual r ds' -> do
           -- The lone signatures encountered so far are not in scope
@@ -675,11 +675,9 @@ niceDeclarations fixs ds = do
       NoUniverseCheckPragma{}   -> True
       _                         -> False
 
-    -- We could add a default type signature here, but at the moment we can't
-    -- infer the type of a record or datatype, so better to just fail here.
-    defaultTypeSig :: DataRecOrFun -> Name -> Maybe Expr -> Nice (Maybe Expr)
-    defaultTypeSig _ _ t@Just{} = return t
-    defaultTypeSig k x Nothing  = do
+    -- Get the data or record type signature.
+    retrieveTypeSig :: DataRecOrFun -> Name -> Nice (Maybe Expr)
+    retrieveTypeSig k x = do
       caseMaybeM (getSig x) (return Nothing) $ \ k' -> do
         unless (sameKind k k') $ declarationException $ WrongDefinition x k' k
         Nothing <$ removeLoneSig x
@@ -687,18 +685,18 @@ niceDeclarations fixs ds = do
     dataOrRec :: forall a decl.
          PositivityCheck
       -> UniverseCheck
-      -> (Range -> Origin -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> Parameters -> [decl] -> NiceDeclaration)
+      -> (Range -> Origin -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> DefParameters -> [decl] -> NiceDeclaration)
          -- Construct definition.
       -> (Range -> Access -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> Parameters -> Expr -> NiceDeclaration)
          -- Construct signature.
       -> ([a] -> Nice [decl])        -- Constructor checking.
       -> Range
       -> Name                        -- Data/record type name.
-      -> Maybe (Parameters, Expr)  -- Parameters and type.  If not @Nothing@ a signature is created.
-      -> Maybe (Parameters, [a])   -- Parameters and constructors.  If not @Nothing@, a definition body is created.
+      -> Maybe (Parameters, Expr)    -- Parameters and type.  If not @Nothing@ a signature is created.
+      -> Maybe (DefParameters, [a])  -- Parameters and constructors.  If not @Nothing@, a definition body is created.
       -> Nice [NiceDeclaration]
     dataOrRec pc uc mkDef mkSig niceD r x mt mcs = do
-      mds <- Trav.forM mcs $ \ (tel, cs) -> (tel,) <$> niceD cs
+      mds <- mapM (secondM niceD) mcs
       -- We set origin to UserWritten if the user split the data/rec herself,
       -- and to Inserted if the she wrote a single declaration that we're
       -- splitting up here. We distinguish these because the scoping rules for
@@ -707,10 +705,11 @@ niceDeclarations fixs ds = do
             | otherwise               = UserWritten
       return $ catMaybes $
         [ mt  <&> \ (tel, t)  -> mkSig (fuseRange x t) PublicAccess ConcreteDef pc uc x tel t
-        , mds <&> \ (tel, ds) -> mkDef r o ConcreteDef pc uc x (caseMaybe mt tel $ const $ concatMap dropTypeAndModality tel) ds
+        , mds <&> \ (tel, ds) -> mkDef r o ConcreteDef pc uc x tel ds
           -- If a type is given (mt /= Nothing), we have to delete the types in @tel@
           -- for the data definition, lest we duplicate them. And also drop modalities (#1886).
         ]
+
     -- Translate axioms
     niceAxioms :: KindOfBlock -> [TypeSignatureOrInstanceBlock] -> Nice [NiceDeclaration]
     niceAxioms b ds = List.concat <$> mapM niceAxiom ds
@@ -924,7 +923,7 @@ niceDeclarations fixs ds = do
       -> Nice NiceDeclaration  -- Returns a 'NiceMutual'.
     mkInterleavedMutual kwr ds' = do
       (other, ISt m checks _) <- runStateT (groupByBlocks kwr ds') $ ISt empty mempty 0
-      let idecls = other ++ concatMap (uncurry interleavedDecl) (Map.toList m)
+      idecls <- (other ++) . concat <$> mapM (uncurry interleavedDecl) (Map.toList m)
       let decls0 = map snd $ List.sortBy (compare `on` fst) idecls
       ps <- use loneSigs
       checkLoneSigs ps
@@ -960,19 +959,21 @@ niceDeclarations fixs ds = do
         -- Adding constructors & clauses
 
         addDataConstructors ::
-             Maybe Name         -- Data type the constructors belong to
-          -> [NiceConstructor]  -- Constructors to add
+             Maybe (Name, DefParameters)
+               -- Data type the constructors belong to, and parameter telescope of the data definition.
+          -> [NiceConstructor]
+               -- Constructors to add.
           -> INice ()
         -- if we know the type's name, we can go ahead
-        addDataConstructors (Just n) ds = do
+        addDataConstructors (Just (n, pars)) ds = do
           ISt m checks i <- get
           case Map.lookup n m of
             Just (InterleavedData i0 sig cs) -> do
               lift $ removeLoneSig n
               -- add the constructors to the existing ones (if any)
               let (cs', i') = case cs of
-                    Nothing        -> ((i , ds :| [] ), i + 1)
-                    Just (i1, ds1) -> ((i1, ds <| ds1), i)
+                    Nothing        -> ((i , (pars, ds) :| [] ), i + 1)
+                    Just (i1, ds1) -> ((i1, (pars, ds) <| ds1), i)
               put $ ISt (Map.insert n (InterleavedData i0 sig (Just cs')) m) checks i'
             _ -> lift $ declarationWarning $ MissingDataDeclaration n
 
@@ -988,7 +989,7 @@ niceDeclarations fixs ds = do
             Right n -> do
               -- if so grab the whole block that may work and add them
               let (ds0, ds1) = span (isRight . isConstructor [n]) ds
-              addDataConstructors (Just n) (d : ds0)
+              addDataConstructors (Just (n, [])) (d : ds0)
               -- and then repeat the process for the rest of the block
               addDataConstructors Nothing ds1
             Left (n, ns) -> lift $ declarationException $ AmbiguousConstructor (getRange d) n ns
@@ -1053,7 +1054,8 @@ niceDeclarations fixs ds = do
           let oneOff act = act >>= \ ns -> (ns ++) <$> groupByBlocks kwr ds
           case d of
             NiceDataSig{}                -> oneOff $ [] <$ addDataType d
-            NiceDataDef _ _ _ _ _ n _ ds -> oneOff $ [] <$ addDataConstructors (Just n) ds
+            NiceDataDef _ _ _ _ _ n pars ds
+                                         -> oneOff $ [] <$ addDataConstructors (Just (n, pars)) ds
             NiceLoneConstructor _ ds     -> oneOff $ [] <$ addDataConstructors Nothing ds
             FunSig{}                     -> oneOff $ [] <$ addFunType d
             FunDef _ _ _  _ _ _ n _cs
@@ -1570,6 +1572,65 @@ instance MakePrivate WhereClause where
     SomeWhere r e m a ds ->
       mkPrivate kwr o a <&> \a' -> SomeWhere r e m a' ds
 
+-- | Check data/record definition parameters for parts that are not allowed
+--   (allowed if at all in data/record signatures).
+niceDefParameters :: DataOrRecord_ -> Parameters -> Nice DefParameters
+niceDefParameters dataOrRec = concatMapM \case
+    DomainFree x ->
+      singleton <$> strip x
+    DomainFull (TBind _r xs a) -> do
+      warn a "parameter type"
+      mapM strip $ List1.toList xs
+    DomainFull (TLet r _ds) ->
+      [] <$ warn r "parameter `let'"
+  where
+    warn  :: HasRange a => a -> Text -> Nice ()
+    warn a what = declarationWarning $
+      InvalidDataOrRecDefParameter (getRange a) dataOrRec what $
+      "(note: parameters may not repeat information from signature)"
+
+    strip :: NamedArg Binder -> Nice (WithHiding (Named_ Name))
+    strip (Arg (ArgInfo h m _o _fv ann) (Named mn (Binder mp _bo (BName x fx tac _)))) =
+      WithHiding h (Named mn x) <$ do
+        unless (null m)   $ warn m   "parameter modality"
+        unless (null ann) $ warn ann "parameter annotation"
+        unless (null mp)  $ warn mp  "pattern attacted to parameter"
+        unless (null fx)  $ __IMPOSSIBLE__
+        unless (null tac) $ __IMPOSSIBLE__  -- warn tac "tactic (you should not see this, please report a bug)"
+
+-- | Emit bits attached to the given name
+--   that have been accumulated during processing of the interleaved mutual block
+--   as 'NiceDeclaration'.
+--
+--   Warns about mistakes in parameters in data definition blocks;
+--   but those parameters are finally ignored, taking the parameters of
+--   the data signature instead.
+interleavedDecl :: Name -> InterleavedDecl -> Nice [(DeclNum, NiceDeclaration)]
+interleavedDecl k = \case
+
+  InterleavedData i d@(NiceDataSig _ _ _acc abs pc uc _ pars _) ds -> do
+    let
+      fpars   = parametersToDefParameters pars
+      r       = getRange (k, fpars)
+      ddef cs = NiceDataDef (getRange (r, cs)) UserWritten abs pc uc k fpars cs
+    case ds of
+      Nothing -> return [(i, d)]  -- signature only
+      Just (j, dds) -> do
+        dds' <- forM (List1.reverse dds) \ (defpars, cs) -> do
+          unless (null defpars || defpars == fpars) $ declarationWarning $
+            InvalidDataOrRecDefParameter (getRange defpars) IsData "parameter names" $
+            "(in `interleaved mutual' blocks, parameters of a data definition must either be omitted or match exactly the parameters given in the data signature)"
+          pure cs
+        return [(i, d), (j, ddef $ sconcat dds')]
+
+  InterleavedFun i d@(FunSig r _acc abs inst _mac _info tc cc n _e) dcs -> do
+    let
+      fdef dcss = FunDef r (sconcat dss) abs inst tc cc n (sconcat css)
+        where (dss, css) = List1.unzip $ List1.reverse dcss
+    return . ((i,d) :) . maybeToList $ fmap (second fdef) dcs
+
+  _ -> __IMPOSSIBLE__ -- someone messed up and broke the invariant
+
 -- | Make sure that the 'TacticAttribute' is empty.
 dropTactic :: TacticAttribute -> Nice ()
 dropTactic = \case
@@ -1599,8 +1660,8 @@ notSoNiceDeclarations = \case
     NiceFunClause _ _ _ _ _ _ d      -> singleton $ d
     FunSig _ _ _ i _ rel _ _ x e     -> inst i $ TypeSig rel empty x e
     FunDef _ ds _ _ _ _ _ _          -> ds
-    NiceDataDef r _ _ _ _ x bs cs    -> singleton $ DataDef r x bs $ List1.concat $ fmap notSoNiceDeclarations cs
-    NiceRecDef r _ _ _ _ x dir bs ds -> singleton $ RecordDef r x dir bs ds
+    NiceDataDef r _ _ _ _ x bs cs    -> singleton $ DataDef r x (defParametersToParameters bs) $ List1.concat $ fmap notSoNiceDeclarations cs
+    NiceRecDef r _ _ _ _ x dir bs ds -> singleton $ RecordDef r x dir (defParametersToParameters bs) ds
     NicePatternSyn r _ n as p        -> singleton $ PatternSyn r n as p
     NiceGeneralize _ _ i tac n e     -> singleton $ Generalize empty $ singleton $ TypeSig i tac n e
     NiceUnquoteDecl r _ _ i _ _ x e  -> inst i $ UnquoteDecl r x e

@@ -11,10 +11,10 @@ import qualified Data.Set as Set
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (DataOrRecord)
 import Agda.Syntax.Common.Pretty (Pretty, pretty, prettyShow)
 import qualified Agda.Syntax.Common.Pretty as P
-import Agda.Syntax.Internal hiding (DataOrRecord)
+import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitPattern

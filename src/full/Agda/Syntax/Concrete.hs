@@ -29,7 +29,7 @@ module Agda.Syntax.Concrete
   , mkBinder
   , LamBinding
   , LamBinding'(..)
-  , dropTypeAndModality
+  , DefParameters, parametersToDefParameters, defParametersToParameters
   , TypedBinding
   , TypedBinding'(..)
   , RecordAssignment
@@ -271,6 +271,11 @@ mkBinder_ = mkBinder . mkBoundName_
 mkBinder :: a -> Binder' a
 mkBinder = Binder Nothing UserBinderName
 
+-- | Parameters supplied to data and record definitions (as opposed to their signatures)
+--   are stripped of their type information.
+--   They also cannot contain @let@ or pattern bindings or tactic attributes.
+type DefParameters = [WithHiding (Named_ Name)]
+
 -- | A lambda binding is either untyped (domain free) or typed ('TypedBinding').
 
 type LamBinding = LamBinding' TypedBinding
@@ -284,12 +289,22 @@ data LamBinding' a
 -- | Parameters are sequences of typed or untyped bindings.
 type Parameters = [LamBinding]
 
--- | Drop type annotations and lets from bindings.
-dropTypeAndModality :: LamBinding -> [LamBinding]
-dropTypeAndModality (DomainFull (TBind _ xs _)) =
-  map (DomainFree . setModality defaultModality) $ List1.toList xs
-dropTypeAndModality (DomainFull TLet{}) = []
-dropTypeAndModality (DomainFree x) = [DomainFree $ setModality defaultModality x]
+-- | Drop type annotations and modalities from bindings.
+--   Also drop let, patterns, fixity, and tactics,
+--   but those should not be present in the first place when using this function,
+--   because all such cannot occur in data and record parameters.
+parametersToDefParameters :: Parameters -> DefParameters
+parametersToDefParameters = concatMap \case
+    DomainFree x              -> [strip x]
+    DomainFull (TBind _ xs _) -> map strip $ List1.toList xs
+    DomainFull TLet{}         -> __IMPOSSIBLE__
+  where
+    strip :: NamedArg Binder -> WithHiding (Named_ Name)
+    strip = unArgKeepHiding . fmap (fmap (boundName . binderName))
+
+defParametersToParameters :: DefParameters -> Parameters
+defParametersToParameters = map \ (WithHiding h n) ->
+  DomainFree $ setHiding h $ defaultArg $ mkBinder_ <$> n
 
 data BoundName = BName
   { boundName       :: Name

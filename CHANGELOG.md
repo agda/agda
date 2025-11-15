@@ -81,6 +81,13 @@ Warnings
   @0 A = Set
   ```
 
+* New warning `InvalidDataOrRecDefParameter` for information (e.g. type, attributes)
+  attached to parameters in a `data` or `record` definition (that is separate of its
+  data or record signature).
+  This replaces errors:
+  - `UnexpectedModalityAnnotationInParameter`
+  - `UnexpectedTypeSignatureForParameter`
+
 * New warning `InvalidTacticAttribute` for misplaced `@(tactic ...)` attributes.
   This was silently accepted up to Agda 2.8.0 but raises now the new warning:
   ```agda

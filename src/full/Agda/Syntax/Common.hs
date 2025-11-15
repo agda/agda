@@ -274,6 +274,31 @@ instance CopatternMatchingAllowed HasEta where
     NoEta p -> copatternMatchingAllowed p
 
 ---------------------------------------------------------------------------
+-- * Data or record
+---------------------------------------------------------------------------
+
+data DataOrRecord' p
+  = IsData
+  | IsRecord p
+  deriving (Show, Eq, Generic)
+
+type DataOrRecord = DataOrRecord' PatternOrCopattern
+type DataOrRecord_ = DataOrRecord' ()
+
+pattern IsRecord_ :: DataOrRecord_
+pattern IsRecord_ = IsRecord ()
+
+instance PatternMatchingAllowed DataOrRecord where
+  patternMatchingAllowed = \case
+    IsData -> True
+    IsRecord patCopat -> patternMatchingAllowed patCopat
+
+instance CopatternMatchingAllowed DataOrRecord where
+  copatternMatchingAllowed = \case
+    IsData -> False
+    IsRecord patCopat -> copatternMatchingAllowed patCopat
+
+---------------------------------------------------------------------------
 -- * Induction
 ---------------------------------------------------------------------------
 
@@ -547,6 +572,9 @@ prettyHiding a parens =
 
 instance Pretty a => Pretty (WithHiding a) where
   pretty w = prettyHiding w id $ pretty $ dget w
+
+unArgKeepHiding :: Arg a -> WithHiding a
+unArgKeepHiding (Arg i a) = WithHiding (getHiding i) a
 
 ---------------------------------------------------------------------------
 -- * Modalities
