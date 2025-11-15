@@ -65,6 +65,7 @@ import Data.Function         ( on )
 import Data.List             qualified as List
 import Data.Map              qualified as Map
 import Data.Maybe
+import Data.Semigroup        ( sconcat )
 import Data.Text             ( Text )
 import Data.Traversable      qualified as Trav
 
@@ -924,7 +925,7 @@ niceDeclarations fixs ds = do
       -> Nice NiceDeclaration  -- Returns a 'NiceMutual'.
     mkInterleavedMutual kwr ds' = do
       (other, ISt m checks _) <- runStateT (groupByBlocks kwr ds') $ ISt empty mempty 0
-      let idecls = other ++ concatMap (uncurry interleavedDecl) (Map.toList m)
+      idecls <- (other ++) . concat <$> mapM (uncurry interleavedDecl) (Map.toList m)
       let decls0 = map snd $ List.sortBy (compare `on` fst) idecls
       ps <- use loneSigs
       checkLoneSigs ps
@@ -1593,6 +1594,26 @@ niceDefParameters dataOrRec = concatMapM \case
         unless (null mp)  $ warn mp  "pattern"
         unless (null fx)  $ __IMPOSSIBLE__
         unless (null tac) $ __IMPOSSIBLE__  -- warn tac "tactic (you should not see this, please report a bug)"
+
+interleavedDecl :: Name -> InterleavedDecl -> Nice [(DeclNum, NiceDeclaration)]
+interleavedDecl k = \case
+
+  InterleavedData i d@(NiceDataSig _ _ _acc abs pc uc _ pars _) ds -> do
+    -- fpars <- niceDefParameters IsData pars
+    let fpars = parametersToDefParameters pars
+    let
+      r       = getRange (k, fpars)
+      ddef cs = NiceDataDef (getRange (r, cs)) UserWritten abs pc uc k fpars cs
+    return . ((i,d) :) . maybeToList $ fmap (second $ ddef . sconcat . List1.reverse) ds
+
+  InterleavedFun i d@(FunSig r _acc abs inst _mac _info tc cc n _e) dcs -> do
+    let
+      fdef dcss = FunDef r (sconcat dss) abs inst tc cc n (sconcat css)
+        where (dss, css) = List1.unzip $ List1.reverse dcss
+    return . ((i,d) :) . maybeToList $ fmap (second fdef) dcs
+
+
+  _ -> __IMPOSSIBLE__ -- someone messed up and broke the invariant
 
 -- | Make sure that the 'TacticAttribute' is empty.
 dropTactic :: TacticAttribute -> Nice ()
