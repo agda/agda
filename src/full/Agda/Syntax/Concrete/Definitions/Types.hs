@@ -79,9 +79,9 @@ data NiceDeclaration
       --   into this 'FunDef' and are only used in 'notSoNiceDeclaration'.
       --   Andreas, 2017-01-01: Because of issue #2372, we add 'IsInstance' here.
       --   An alias should know that it is an instance.
-  | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name Parameters [NiceConstructor]
+  | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name DefParameters [NiceConstructor]
   | NiceLoneConstructor KwRange [NiceConstructor]
-  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [RecordDirective] Parameters [Declaration]
+  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [RecordDirective] DefParameters [Declaration]
       -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
   | NicePatternSyn Range Access Name [WithHiding Name] Pattern
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
@@ -197,7 +197,7 @@ isInterleavedData _ = Nothing
 interleavedDecl :: Name -> InterleavedDecl -> [(DeclNum, NiceDeclaration)]
 interleavedDecl k = \case
   InterleavedData i d@(NiceDataSig _ _ _acc abs pc uc _ pars _) ds ->
-    let fpars   = concatMap dropTypeAndModality pars
+    let fpars   = parametersToDefParameters pars
         r       = getRange (k, fpars)
         ddef cs = NiceDataDef (getRange (r, cs)) UserWritten
                     abs pc uc k fpars cs

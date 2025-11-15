@@ -378,7 +378,7 @@ niceDeclarations fixs ds = do
           mt <- defaultTypeSig (DataName pc uc) x (Just t)
           (,ds) <$> dataOrRec pc uc NiceDataDef
                       (flip NiceDataSig erased) (niceAxioms DataBlock) r
-                      x ((tel,) <$> mt) (Just (tel, cs))
+                      x ((tel,) <$> mt) (Just (parametersToDefParameters tel, cs))
 
         DataDef r x tel cs -> do
           pc <- use positivityCheckPragma
@@ -392,7 +392,7 @@ niceDeclarations fixs ds = do
           (,ds) <$> dataOrRec pc uc NiceDataDef
                       (flip NiceDataSig defaultErased)
                       (niceAxioms DataBlock) r x ((tel,) <$> mt)
-                      (Just (tel, cs))
+                      (Just (parametersToDefParameters tel, cs))
 
         RecordSig r erased x tel t -> do
           pc <- use positivityCheckPragma
@@ -416,7 +416,7 @@ niceDeclarations fixs ds = do
                       (\r o a pc uc x tel cs ->
                         NiceRecDef r o a pc uc x dir tel cs)
                       (flip NiceRecSig erased) return r x
-                      ((tel,) <$> mt) (Just (tel, cs))
+                      ((tel,) <$> mt) (Just (parametersToDefParameters tel, cs))
 
         RecordDef r x dir tel cs   -> do
           pc <- use positivityCheckPragma
@@ -431,7 +431,7 @@ niceDeclarations fixs ds = do
                       (\r o a pc uc x tel cs ->
                         NiceRecDef r o a pc uc x dir tel cs)
                       (flip NiceRecSig defaultErased) return r x
-                      ((tel,) <$> mt) (Just (tel, cs))
+                      ((tel,) <$> mt) (Just (parametersToDefParameters tel, cs))
 
         Mutual r ds' -> do
           -- The lone signatures encountered so far are not in scope
@@ -687,7 +687,7 @@ niceDeclarations fixs ds = do
     dataOrRec :: forall a decl.
          PositivityCheck
       -> UniverseCheck
-      -> (Range -> Origin -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> Parameters -> [decl] -> NiceDeclaration)
+      -> (Range -> Origin -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> DefParameters -> [decl] -> NiceDeclaration)
          -- Construct definition.
       -> (Range -> Access -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> Parameters -> Expr -> NiceDeclaration)
          -- Construct signature.
@@ -695,7 +695,7 @@ niceDeclarations fixs ds = do
       -> Range
       -> Name                        -- Data/record type name.
       -> Maybe (Parameters, Expr)  -- Parameters and type.  If not @Nothing@ a signature is created.
-      -> Maybe (Parameters, [a])   -- Parameters and constructors.  If not @Nothing@, a definition body is created.
+      -> Maybe (DefParameters, [a])   -- Parameters and constructors.  If not @Nothing@, a definition body is created.
       -> Nice [NiceDeclaration]
     dataOrRec pc uc mkDef mkSig niceD r x mt mcs = do
       mds <- Trav.forM mcs $ \ (tel, cs) -> (tel,) <$> niceD cs
@@ -707,7 +707,7 @@ niceDeclarations fixs ds = do
             | otherwise               = UserWritten
       return $ catMaybes $
         [ mt  <&> \ (tel, t)  -> mkSig (fuseRange x t) PublicAccess ConcreteDef pc uc x tel t
-        , mds <&> \ (tel, ds) -> mkDef r o ConcreteDef pc uc x (caseMaybe mt tel $ const $ concatMap dropTypeAndModality tel) ds
+        , mds <&> \ (tel, ds) -> mkDef r o ConcreteDef pc uc x tel ds
           -- If a type is given (mt /= Nothing), we have to delete the types in @tel@
           -- for the data definition, lest we duplicate them. And also drop modalities (#1886).
         ]
@@ -1599,8 +1599,8 @@ notSoNiceDeclarations = \case
     NiceFunClause _ _ _ _ _ _ d      -> singleton $ d
     FunSig _ _ _ i _ rel _ _ x e     -> inst i $ TypeSig rel empty x e
     FunDef _ ds _ _ _ _ _ _          -> ds
-    NiceDataDef r _ _ _ _ x bs cs    -> singleton $ DataDef r x bs $ List1.concat $ fmap notSoNiceDeclarations cs
-    NiceRecDef r _ _ _ _ x dir bs ds -> singleton $ RecordDef r x dir bs ds
+    NiceDataDef r _ _ _ _ x bs cs    -> singleton $ DataDef r x (defParametersToParameters bs) $ List1.concat $ fmap notSoNiceDeclarations cs
+    NiceRecDef r _ _ _ _ x dir bs ds -> singleton $ RecordDef r x dir (defParametersToParameters bs) ds
     NicePatternSyn r _ n as p        -> singleton $ PatternSyn r n as p
     NiceGeneralize _ _ i tac n e     -> singleton $ Generalize empty $ singleton $ TypeSig i tac n e
     NiceUnquoteDecl r _ _ i _ _ x e  -> inst i $ UnquoteDecl r x e

@@ -29,7 +29,7 @@ module Agda.Syntax.Concrete
   , mkBinder
   , LamBinding
   , LamBinding'(..)
-  , dropTypeAndModality
+  , DefParameters, parametersToDefParameters, defParametersToParameters
   , TypedBinding
   , TypedBinding'(..)
   , RecordAssignment
@@ -271,6 +271,10 @@ mkBinder_ = mkBinder . mkBoundName_
 mkBinder :: a -> Binder' a
 mkBinder = Binder Nothing UserBinderName
 
+-- | Parameters supplied to data and record definitions (as opposed to their signatures)
+--   are stripped of their type information.
+type DefParameters = [NamedArg Binder]
+
 -- | A lambda binding is either untyped (domain free) or typed ('TypedBinding').
 
 type LamBinding = LamBinding' TypedBinding
@@ -285,11 +289,15 @@ data LamBinding' a
 type Parameters = [LamBinding]
 
 -- | Drop type annotations and lets from bindings.
-dropTypeAndModality :: LamBinding -> [LamBinding]
-dropTypeAndModality (DomainFull (TBind _ xs _)) =
-  map (DomainFree . setModality defaultModality) $ List1.toList xs
-dropTypeAndModality (DomainFull TLet{}) = []
-dropTypeAndModality (DomainFree x) = [DomainFree $ setModality defaultModality x]
+parametersToDefParameters :: Parameters -> DefParameters
+parametersToDefParameters = concatMap \case
+  (DomainFull (TBind _ xs _)) ->
+    map (setModality defaultModality) $ List1.toList xs
+  (DomainFull TLet{}) -> []
+  (DomainFree x) -> [setModality defaultModality x]
+
+defParametersToParameters :: DefParameters -> Parameters
+defParametersToParameters = map DomainFree
 
 data BoundName = BName
   { boundName       :: Name
