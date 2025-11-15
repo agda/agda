@@ -65,6 +65,8 @@ import Data.Function         ( on )
 import Data.List             qualified as List
 import Data.Map              qualified as Map
 import Data.Maybe
+import Data.Semigroup        ( sconcat )
+import Data.Text             ( Text )
 import Data.Traversable      qualified as Trav
 
 import Agda.Syntax.Common hiding (TerminationCheck())
@@ -389,10 +391,11 @@ niceDeclarations fixs ds = do
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
           mt <- defaultTypeSig (DataName pc uc) x Nothing
+          defpars <- niceDefParameters IsData tel
           (,ds) <$> dataOrRec pc uc NiceDataDef
                       (flip NiceDataSig defaultErased)
                       (niceAxioms DataBlock) r x ((tel,) <$> mt)
-                      (Just (parametersToDefParameters tel, cs))
+                      (Just (defpars, cs))
 
         RecordSig r erased x tel t -> do
           pc <- use positivityCheckPragma
@@ -427,11 +430,12 @@ niceDeclarations fixs ds = do
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
           mt <- defaultTypeSig (RecName pc uc) x Nothing
+          defpars <- niceDefParameters (IsRecord ()) tel
           (,ds) <$> dataOrRec pc uc
                       (\r o a pc uc x tel cs ->
                         NiceRecDef r o a pc uc x dir tel cs)
                       (flip NiceRecSig defaultErased) return r x
-                      ((tel,) <$> mt) (Just (parametersToDefParameters tel, cs))
+                      ((tel,) <$> mt) (Just (defpars, cs))
 
         Mutual r ds' -> do
           -- The lone signatures encountered so far are not in scope
@@ -711,6 +715,7 @@ niceDeclarations fixs ds = do
           -- If a type is given (mt /= Nothing), we have to delete the types in @tel@
           -- for the data definition, lest we duplicate them. And also drop modalities (#1886).
         ]
+
     -- Translate axioms
     niceAxioms :: KindOfBlock -> [TypeSignatureOrInstanceBlock] -> Nice [NiceDeclaration]
     niceAxioms b ds = List.concat <$> mapM niceAxiom ds
@@ -1569,6 +1574,30 @@ instance MakePrivate WhereClause where
     -- Thus, we do not recurse into the @ds@ (could not anyway).
     SomeWhere r e m a ds ->
       mkPrivate kwr o a <&> \a' -> SomeWhere r e m a' ds
+
+-- | Check data/record definition parameters for parts that are not allowed
+--   (allowed if at all in data/record signatures).
+niceDefParameters :: DataOrRecord_ -> Parameters -> Nice DefParameters
+niceDefParameters dataOrRec = concatMapM \case
+    DomainFree x ->
+      singleton <$> strip x
+    DomainFull (TBind _r xs a) -> do
+      warn a "type"
+      mapM strip $ List1.toList xs
+    DomainFull (TLet r _ds) ->
+      [] <$ warn r "`let'"
+  where
+    warn  :: HasRange a => a -> Text -> Nice ()
+    warn a = declarationWarning . InvalidDataOrRecDefParameter (getRange a) dataOrRec
+
+    strip :: NamedArg Binder -> Nice (WithHiding (Named_ Name))
+    strip (Arg (ArgInfo h m _o _fv ann) (Named mn (Binder mp _bo (BName x fx tac _)))) =
+      WithHiding h (Named mn x) <$ do
+        unless (null m)   $ warn m   "modality"
+        unless (null ann) $ warn ann "annotation"
+        unless (null mp)  $ warn mp  "pattern"
+        unless (null fx)  $ __IMPOSSIBLE__
+        unless (null tac) $ __IMPOSSIBLE__  -- warn tac "tactic (you should not see this, please report a bug)"
 
 -- | Make sure that the 'TacticAttribute' is empty.
 dropTactic :: TacticAttribute -> Nice ()

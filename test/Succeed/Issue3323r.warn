@@ -1,0 +1,8 @@
+
+Issue3323r.agda:10.10-11: warning: -W[no]InvalidDataOrRecDefParameter
+Ignoring misplaced modality of parameter in a record definition
+
+———— All done; warnings encountered ————————————————————————
+
+Issue3323r.agda:10.10-11: warning: -W[no]InvalidDataOrRecDefParameter
+Ignoring misplaced modality of parameter in a record definition

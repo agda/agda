@@ -207,6 +207,9 @@ punctuate d = P.punctuate d . Fold.toList
 vsep :: [Doc] -> Doc
 vsep = vcat . List.intersperse ""
 
+twords :: Text -> [Doc]
+twords = map pretty . Text.words
+
 pwords :: String -> [Doc]
 pwords = map text . words
 

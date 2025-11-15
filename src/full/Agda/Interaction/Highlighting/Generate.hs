@@ -575,6 +575,7 @@ warningHighlighting' b w = case tcWarning w of
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting w
     InvalidCoverageCheckPragma{}     -> deadcodeHighlighting w
     InvalidConstructorBlock{}        -> deadcodeHighlighting w
+    InvalidDataOrRecDefParameter{}   -> deadcodeHighlighting w
     InvalidTacticAttribute{}         -> deadcodeHighlighting w
     OpenImportAbstract{}             -> cosmeticProblemHighlighting w
     OpenImportPrivate{}              -> cosmeticProblemHighlighting w

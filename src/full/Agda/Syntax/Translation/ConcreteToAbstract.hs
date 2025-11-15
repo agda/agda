@@ -2314,7 +2314,6 @@ scopeCheckDataDef r o a uc x pars cons =
         return (p, ax)
       _ -> typeError $ MissingTypeSignature $ MissingDataSignature x
 
-    ensureNoLetStms pars
     withLocalVars $ do
       gvars <- bindGeneralizablesIfInserted o ax
       -- Check for duplicate constructors
@@ -2396,9 +2395,6 @@ scopeCheckRecDef r o a uc x directives pars fields =
     -- Check that the generated module doesn't clash with a previously
     -- defined module
     checkForModuleClash x
-
-    -- @let@ is not (yet) supported in record parameters.
-    ensureNoLetStms pars
 
     -- Preserve the local variable set since we add some generalizable ones.
     withLocalVars $ do
