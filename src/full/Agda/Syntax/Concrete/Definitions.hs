@@ -67,7 +67,6 @@ import Data.Map              qualified as Map
 import Data.Maybe
 import Data.Semigroup        ( sconcat )
 import Data.Text             ( Text )
-import Data.Traversable      qualified as Trav
 
 import Agda.Syntax.Common hiding (TerminationCheck())
 import Agda.Syntax.Concrete
@@ -961,19 +960,21 @@ niceDeclarations fixs ds = do
         -- Adding constructors & clauses
 
         addDataConstructors ::
-             Maybe Name         -- Data type the constructors belong to
-          -> [NiceConstructor]  -- Constructors to add
+             Maybe (Name, DefParameters)
+               -- Data type the constructors belong to, and parameter telescope of the data definition.
+          -> [NiceConstructor]
+              -- Constructors to add
           -> INice ()
         -- if we know the type's name, we can go ahead
-        addDataConstructors (Just n) ds = do
+        addDataConstructors (Just (n, pars)) ds = do
           ISt m checks i <- get
           case Map.lookup n m of
             Just (InterleavedData i0 sig cs) -> do
               lift $ removeLoneSig n
               -- add the constructors to the existing ones (if any)
               let (cs', i') = case cs of
-                    Nothing        -> ((i , ds :| [] ), i + 1)
-                    Just (i1, ds1) -> ((i1, ds <| ds1), i)
+                    Nothing        -> ((i , (pars, ds) :| [] ), i + 1)
+                    Just (i1, ds1) -> ((i1, (pars, ds) <| ds1), i)
               put $ ISt (Map.insert n (InterleavedData i0 sig (Just cs')) m) checks i'
             _ -> lift $ declarationWarning $ MissingDataDeclaration n
 
@@ -989,7 +990,7 @@ niceDeclarations fixs ds = do
             Right n -> do
               -- if so grab the whole block that may work and add them
               let (ds0, ds1) = span (isRight . isConstructor [n]) ds
-              addDataConstructors (Just n) (d : ds0)
+              addDataConstructors (Just (n, [])) (d : ds0)
               -- and then repeat the process for the rest of the block
               addDataConstructors Nothing ds1
             Left (n, ns) -> lift $ declarationException $ AmbiguousConstructor (getRange d) n ns
@@ -1054,7 +1055,8 @@ niceDeclarations fixs ds = do
           let oneOff act = act >>= \ ns -> (ns ++) <$> groupByBlocks kwr ds
           case d of
             NiceDataSig{}                -> oneOff $ [] <$ addDataType d
-            NiceDataDef _ _ _ _ _ n _ ds -> oneOff $ [] <$ addDataConstructors (Just n) ds
+            NiceDataDef _ _ _ _ _ n pars ds
+                                         -> oneOff $ [] <$ addDataConstructors (Just (n, pars)) ds
             NiceLoneConstructor _ ds     -> oneOff $ [] <$ addDataConstructors Nothing ds
             FunSig{}                     -> oneOff $ [] <$ addFunType d
             FunDef _ _ _  _ _ _ n _cs
@@ -1584,14 +1586,16 @@ niceDefParameters dataOrRec = concatMapM \case
       [] <$ warn r "`let'"
   where
     warn  :: HasRange a => a -> Text -> Nice ()
-    warn a = declarationWarning . InvalidDataOrRecDefParameter (getRange a) dataOrRec
+    warn a what = declarationWarning $
+      InvalidDataOrRecDefParameter (getRange a) dataOrRec what $
+      "(note: parameters may not repeat information from signature)"
 
     strip :: NamedArg Binder -> Nice (WithHiding (Named_ Name))
     strip (Arg (ArgInfo h m _o _fv ann) (Named mn (Binder mp _bo (BName x fx tac _)))) =
       WithHiding h (Named mn x) <$ do
-        unless (null m)   $ warn m   "modality"
-        unless (null ann) $ warn ann "annotation"
-        unless (null mp)  $ warn mp  "pattern"
+        unless (null m)   $ warn m   "parameter modality"
+        unless (null ann) $ warn ann "parameter annotation"
+        unless (null mp)  $ warn mp  "pattern attacted to parameter"
         unless (null fx)  $ __IMPOSSIBLE__
         unless (null tac) $ __IMPOSSIBLE__  -- warn tac "tactic (you should not see this, please report a bug)"
 
@@ -1599,12 +1603,21 @@ interleavedDecl :: Name -> InterleavedDecl -> Nice [(DeclNum, NiceDeclaration)]
 interleavedDecl k = \case
 
   InterleavedData i d@(NiceDataSig _ _ _acc abs pc uc _ pars _) ds -> do
-    -- fpars <- niceDefParameters IsData pars
-    let fpars = parametersToDefParameters pars
     let
+      fpars   = parametersToDefParameters pars
       r       = getRange (k, fpars)
       ddef cs = NiceDataDef (getRange (r, cs)) UserWritten abs pc uc k fpars cs
-    return . ((i,d) :) . maybeToList $ fmap (second $ ddef . sconcat . List1.reverse) ds
+    case ds of
+      Nothing -> return [(i, d)]  -- signature only
+      Just (j, dds) -> do
+        dds' <- forM (List1.reverse dds) \ (defpars, cs) -> do
+          unless (null defpars || defpars == fpars) $ declarationWarning $
+            InvalidDataOrRecDefParameter (getRange defpars) IsData "parameter names" $
+            "(in `interleaved mutual' blocks, parameters of a data definition must either be omitted or match exactly the parameters given in the data signature)"
+          pure cs
+        return [(i, d), (j, ddef $ sconcat dds')]
+
+    -- return . ((i,d) :) . maybeToList $ fmap (second $ ddef . sconcat . List1.reverse) ds
 
   InterleavedFun i d@(FunSig r _acc abs inst _mac _info tc cc n _e) dcs -> do
     let

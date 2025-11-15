@@ -1,5 +1,12 @@
+Issue8206.agda:11.12-15: warning: -W[no]InvalidDataOrRecDefParameter
+Ignoring parameter names in data definition (in 'interleaved
+mutual' blocks, parameters of a data definition must either be
+omitted or match exactly the parameters given in the data
+signature)
+
 Issue8206.agda:17.20-23: warning: -W[no]InvalidDataOrRecDefParameter
-Ignoring misplaced type of parameter in a data definition
+Ignoring type in data definition (note: parameters may not repeat
+information from signature)
 
 Issue8206.agda:18.14-15: error: [UnequalSorts]
 Set₁ != Set

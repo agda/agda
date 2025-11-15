@@ -123,10 +123,11 @@ data DeclarationWarning'
       -- ^ Invalid constructor block (not inside an interleaved mutual block)
   | InvalidCoverageCheckPragma Range
       -- ^ A {-\# NON_COVERING \#-} pragma that does not apply to any function.
-  | InvalidDataOrRecDefParameter Range DataOrRecord_ Text
+  | InvalidDataOrRecDefParameter Range DataOrRecord_ Text Text
       -- ^ An entry in a data or record definition parameter that is not allowed here.
       --   Such parameters can only be names with hiding.
-      --   The 'Text' may contain extra details or clarification.
+      --   The first 'Text' says what is wrong and thus ignored.
+      --   The second 'Text' may contain extra details or clarification.
   | InvalidNoPositivityCheckPragma Range
       -- ^ A {-\# NO_POSITIVITY_CHECK \#-} pragma
       --   that does not apply to any data or record type.
@@ -379,7 +380,7 @@ instance HasRange DeclarationWarning' where
     InvalidCatchallPragma r            -> r
     InvalidConstructorBlock r          -> r
     InvalidCoverageCheckPragma r       -> r
-    InvalidDataOrRecDefParameter r _ _ -> r
+    InvalidDataOrRecDefParameter r _ _ _ -> r
     InvalidNoPositivityCheckPragma r   -> r
     InvalidNoUniverseCheckPragma r     -> r
     InvalidTerminationCheckPragma r    -> r
@@ -544,11 +545,12 @@ instance Pretty DeclarationWarning' where
 
     HiddenGeneralize _ -> fsep $ pwords "Declaring a variable as hidden has no effect in a variable block. Generalization never introduces visible arguments."
 
-    InvalidDataOrRecDefParameter _ dataOrRec msg -> fsep $ concat
-      [ [ "Ignoring misplaced" ]
-      , twords msg
-      , pwords "of parameter in a"
+    InvalidDataOrRecDefParameter _ dataOrRec what explanation -> fsep $ concat
+      [ [ "Ignoring" ]
+      , twords what
+      , pwords "in"
       , [ case dataOrRec of { IsData -> "data"; IsRecord () -> "record" }, "definition" ]
+      , twords explanation
       ]
 
     InvalidTacticAttribute _ -> fsep $

@@ -1,8 +1,10 @@
 
 Issue8206.agda:9.15-19: warning: -W[no]InvalidDataOrRecDefParameter
-Ignoring misplaced type of parameter in a data definition
+Ignoring type in data definition (note: parameters may not repeat
+information from signature)
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue8206.agda:9.15-19: warning: -W[no]InvalidDataOrRecDefParameter
-Ignoring misplaced type of parameter in a data definition
+Ignoring type in data definition (note: parameters may not repeat
+information from signature)

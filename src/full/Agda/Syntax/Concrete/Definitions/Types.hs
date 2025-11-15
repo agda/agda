@@ -156,7 +156,7 @@ data InterleavedDecl
         -- ^ Internal number of the data signature.
     , interleavedDeclSig  :: NiceDeclaration
         -- ^ The data signature.
-    , interleavedDataCons :: Maybe (DeclNum, List1 [NiceConstructor])
+    , interleavedDataCons :: Maybe (DeclNum, List1 (DefParameters, [NiceConstructor]))
         -- ^ Constructors associated to the data signature.
     }
   | InterleavedFun
