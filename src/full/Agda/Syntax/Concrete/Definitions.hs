@@ -65,7 +65,6 @@ import Data.Function         ( on )
 import Data.List             qualified as List
 import Data.Map              qualified as Map
 import Data.Maybe
-import Data.Semigroup        ( sconcat )
 import Data.Text             ( Text )
 import Data.Traversable      qualified as Trav
 
