@@ -2047,6 +2047,7 @@ instance ToAbstract NiceDeclaration where
             clashIfModuleAlreadyDefinedInCurrentModule x ax
             return (p, ax)
           _ -> typeError $ MissingTypeSignature $ MissingDataSignature x
+
         ensureNoLetStms pars
         withLocalVars $ do
           gvars <- bindGeneralizablesIfInserted o ax
@@ -2075,8 +2076,11 @@ instance ToAbstract NiceDeclaration where
   -- Record definitions (mucho interesting)
     C.NiceRecDef r o a _ uc x directives pars fields -> notAffectedByOpaque $ do
       reportSLn "scope.rec.def" 40 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
+
       -- #3008: Termination pragmas are ignored in records
       checkNoTerminationPragma InRecordDef fields
+
+      -- Check record directives for consistency.
       RecordDirectives ind eta pat cm <- gatherRecordDirectives directives
       -- Andreas, 2020-04-19, issue #4560
       -- 'pattern' declaration is incompatible with 'coinductive' or 'eta-equality'.
@@ -2088,33 +2092,47 @@ instance ToAbstract NiceDeclaration where
           where warn = setCurrentRange r . warning . UselessPatternDeclarationForRecord
         Nothing -> return pat
 
+      -- Retrieve the abstract name of the record type
+      -- that was created when scope checking the record type signature.
       (p, ax) <- resolveName (C.QName x) >>= \case
-        DefinedName p ax NoSuffix -> do
-          clashUnless x RecName ax  -- Andreas 2019-07-07, issue #3892
-          livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
-          clashIfModuleAlreadyDefinedInCurrentModule x ax
-          return (p, ax)
+        DefinedName p ax NoSuffix -> return (p, ax)
         _ -> typeError $ MissingTypeSignature $ MissingRecordSignature x
+      let x' = anameName ax
+
+      -- Check for correct placement of this record definition wrt. the existing record signature.
+      -- These checks give more precise errors than the generic 'checkForModuleClash' below.
+      clashUnless x RecName ax  -- Andreas 2019-07-07, issue #3892
+      livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
+      clashIfModuleAlreadyDefinedInCurrentModule x ax  -- Andreas, 2019-07-07, issue #2576
+
+      -- Check that the generated module doesn't clash with a previously
+      -- defined module
+      checkForModuleClash x
+
+      -- @let@ is not (yet) supported in record parameters.
       ensureNoLetStms pars
+
+      -- Preserve the local variable set since we add some generalizable ones.
       withLocalVars $ do
-        gvars <- bindGeneralizablesIfInserted o ax
-        -- Check that the generated module doesn't clash with a previously
-        -- defined module
-        checkForModuleClash x
+        gvars  <- bindGeneralizablesIfInserted o ax
         pars   <- catMaybes <$> toAbstract pars
-        let x' = anameName ax
+
         -- We scope check the fields a first time when putting together
         -- the type of the constructor.
         contel <- localToAbstract (RecordConstructorType fields) return
+
+        -- Use the name @x'@ of the record type also as name of the new record module.
         m0     <- getCurrentModule
         let m = A.qualifyM m0 $ mnameFromList1 $ singleton $ List1.last $ qnameToList x'
         printScope "rec" 25 "before record"
         createModule (Just IsRecordModule) m
+
         -- We scope check the fields a second time, as actual fields.
         afields <- withCurrentModule m $ do
           afields <- toAbstract (Declarations fields)
           printScope "rec" 25 "checked fields"
           return afields
+
         -- Andreas, 2017-07-13 issue #2642 disallow duplicate fields
         -- Check for duplicate fields. (See "Check for duplicate constructors")
         do let fs :: [C.Name]
@@ -2130,11 +2148,15 @@ instance ToAbstract NiceDeclaration where
                typeError $ DuplicateFields dups
 
         bindModule p x m
-        let kind = maybe ConName (conKindOfName . rangedThing) ind
 
+        -- Bind the record constructor.
         cm' <- case cm of
+
           -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
           Just (c, _) -> NamedRecCon <$> bindRecordConstructorName c kind a p
+            where
+              -- Name kind of the record constructor (inductive/coinductive).
+              kind = maybe ConName (conKindOfName . rangedThing) ind
 
           -- Amy, 2024-09-25: if the record does not have a named
           -- constructor, then generate the QName here, and record it in
@@ -2149,6 +2171,7 @@ instance ToAbstract NiceDeclaration where
 
         setRecordConstructor x' (recordConName cm', fmap rangedThing ind)
 
+        -- Return the translated record definition.
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 25 "record complete"
         f <- getConcreteFixity x
@@ -2656,10 +2679,11 @@ bindGeneralizables vars =
 --   (origin == Inserted)
 bindGeneralizablesIfInserted :: Origin -> AbstractName -> ScopeM (Set A.Name)
 bindGeneralizablesIfInserted Inserted y = bound <$ bindGeneralizables gvars
-  where gvars = case anameMetadata y of
+  where
+    gvars = case anameMetadata y of
           GeneralizedVarsMetadata gvars -> gvars
           NoMetadata                    -> Map.empty
-        bound = Set.fromList (Map.elems gvars)
+    bound = Set.fromList (Map.elems gvars)
 bindGeneralizablesIfInserted UserWritten _ = return Set.empty
 bindGeneralizablesIfInserted _ _           = __IMPOSSIBLE__
 
