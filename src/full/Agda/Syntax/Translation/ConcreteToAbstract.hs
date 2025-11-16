@@ -1976,44 +1976,6 @@ instance ToAbstract NiceDeclaration where
       -- We only termination check blocks that do not have a measure.
       return [ A.Mutual (MutualInfo tc cc pc (fuseRange kwr ds)) ds' ]
 
-    C.NiceRecSig r er p a _pc _uc x ls t -> do
-      ensureNoLetStms ls
-      withLocalVars $ do
-        (ls', _) <- withCheckNoShadowing $
-          -- Minor hack: record types don't have indices so we include t when
-          -- computing generalised parameters, but in the type checker any named
-          -- generalizable arguments in the sort should be bound variables.
-          toAbstract (GenTelAndType (map makeDomainFull ls) t)
-        t' <- toAbstract t
-        f  <- getConcreteFixity x
-        x' <- freshAbstractQName f x
-        bindName' p RecName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
-        return [ A.RecSig (mkDefInfo x f p a r) er x' ls' t' ]
-
-    C.NiceDataSig r er p a pc uc x ls t -> do
-        reportSLn "scope.data.sig" 40 ("checking DataSig for " ++ prettyShow x)
-        ensureNoLetStms ls
-        withLocalVars $ do
-          ls' <- withCheckNoShadowing $
-            toAbstract $ GenTel $ map makeDomainFull ls
-          t'  <- toAbstract $ C.Generalized t
-          f  <- getConcreteFixity x
-          x' <- freshAbstractQName f x
-          mErr <- bindName'' p DataName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
-          whenJust mErr $ \case
-            err@(ClashingDefinition cn an _) | qnameModule (clashingQName an) == qnameModule x' -> do
-              resolveName (C.QName x) >>= \case
-                -- #4435: if a data type signature causes a ClashingDefinition error, and if
-                -- the data type name is bound to an Axiom, then the error may be caused by
-                -- the illegal type signature. Convert the NiceDataSig into a NiceDataDef
-                -- (which removes the type signature) and suggest it as a possible fix.
-                DefinedName p ax NoSuffix | anameKind ax == AxiomName -> do
-                  let suggestion = NiceDataDef r Inserted a pc uc x (parametersToDefParameters ls) []
-                  typeError $ ClashingDefinition cn an (Just suggestion)
-                _ -> typeError err
-            otherErr -> typeError otherErr
-          return [ A.DataSig (mkDefInfo x f p a r) er x' ls' t' ]
-
   -- Type signatures
     C.FunSig r p a i m rel _ _ x t -> do
         let kind = if m == MacroDef then MacroName else FunName
@@ -2038,10 +2000,17 @@ instance ToAbstract NiceDeclaration where
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
+    C.NiceDataSig r er p a pc uc x ls t -> do
+      reportSLn "scope.data.sig" 40 ("checking DataSig for " ++ prettyShow x)
+      singleton <$> scopeCheckDataOrRecSig IsData r er p a pc uc x ls t
+
     C.NiceDataDef r o a _ uc x pars cons -> singleton <$>
       scopeCheckDataDef r o a uc x pars cons
 
   -- Record definitions (mucho interesting)
+    C.NiceRecSig r er p a pc uc x ls t -> do
+      singleton <$> scopeCheckDataOrRecSig IsRecord_ r er p a pc uc x ls t
+
     C.NiceRecDef r o a _ uc x directives pars fields -> singleton <$>
       scopeCheckRecDef r o a uc x directives pars fields
 
@@ -2283,6 +2252,66 @@ declarationWarning :: MonadWarning m => DeclarationWarning' -> m ()
 declarationWarning w = withCurrentCallStack \ stk -> do
   warning $ NicifierIssue $ DeclarationWarning stk w
 
+-- | Scope check a data or record signature.
+scopeCheckDataOrRecSig ::
+     DataOrRecord_
+       -- ^ Whether we are checking a data or record signature.
+  -> Range
+        -- ^ The range of the data or record signature.
+  -> Erased
+        -- ^ Whether the data or record type is erased.
+  -> Access
+        -- ^ Whether the data or record type is private or public.
+  -> IsAbstract
+        -- ^ Whether the data or record type is abstract.
+  -> PositivityCheck
+        -- ^ Whether to perform positivity checking.
+  -> UniverseCheck
+        -- ^ Whether to check the constructors for universe consistency.
+  -> C.Name
+        -- ^ The name of the data or record type.
+  -> C.Parameters
+        -- ^ The parameters of the data or record type.
+  -> C.Expr
+        -- ^ The type of the data or record type.
+  -> ScopeM A.Declaration
+        -- ^ The resulting data or record signature in abstract syntax.
+scopeCheckDataOrRecSig IsData r er p a pc uc x ls t = do
+  ensureNoLetStms ls
+  withLocalVars $ do
+    ls' <- withCheckNoShadowing $
+      toAbstract $ GenTel $ map makeDomainFull ls
+    t'  <- toAbstract $ C.Generalized t
+    f  <- getConcreteFixity x
+    x' <- freshAbstractQName f x
+    mErr <- bindName'' p DataName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+    whenJust mErr $ \case
+      err@(ClashingDefinition cn an _) | qnameModule (clashingQName an) == qnameModule x' -> do
+        resolveName (C.QName x) >>= \case
+          -- #4435: if a data type signature causes a ClashingDefinition error, and if
+          -- the data type name is bound to an Axiom, then the error may be caused by
+          -- the illegal type signature. Convert the NiceDataSig into a NiceDataDef
+          -- (which removes the type signature) and suggest it as a possible fix.
+          DefinedName p ax NoSuffix | anameKind ax == AxiomName -> do
+            let suggestion = NiceDataDef r Inserted a pc uc x (parametersToDefParameters ls) []
+            typeError $ ClashingDefinition cn an (Just suggestion)
+          _ -> typeError err
+      otherErr -> typeError otherErr
+    return $ A.DataSig (mkDefInfo x f p a r) er x' ls' t'
+scopeCheckDataOrRecSig IsRecord_ r er p a pc uc x ls t = do
+  ensureNoLetStms ls
+  withLocalVars $ do
+    (ls', _) <- withCheckNoShadowing $
+      -- Minor hack: record types don't have indices so we include t when
+      -- computing generalised parameters, but in the type checker any named
+      -- generalizable arguments in the sort should be bound variables.
+      toAbstract (GenTelAndType (map makeDomainFull ls) t)
+    t' <- toAbstract t
+    f  <- getConcreteFixity x
+    x' <- freshAbstractQName f x
+    bindName' p RecName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+    return $ A.RecSig (mkDefInfo x f p a r) er x' ls' t'
+
 -- | Scope check a data definition.
 --   The data signature must have been checked already.
 scopeCheckDataDef ::
@@ -2482,7 +2511,7 @@ scopeCheckImport ::
        --   of the imported module itself.
        --   Several imports of the same file module accumulate accumulate exports,
        --   but see <https://github.com/agda/agda/issues/7656>.
-  -> TCM [A.Declaration]
+  -> ScopeM [A.Declaration]
 scopeCheckImport r x as open dir =
   setCurrentRange r do
       dir <- notPublicWithoutOpen open dir
@@ -2856,7 +2885,7 @@ bindRecordConstructorName x kind a p = do
            AbstractDef -> privateAccessInserted
            _           -> p
 
-bindUnquoteConstructorName :: ModuleName -> Access -> C.Name -> TCM A.QName
+bindUnquoteConstructorName :: ModuleName -> Access -> C.Name -> ScopeM A.QName
 bindUnquoteConstructorName m p c = do
   r <- resolveName (C.QName c)
   fc <- getConcreteFixity c

@@ -288,6 +288,8 @@ type DataOrRecord_ = DataOrRecord' ()
 pattern IsRecord_ :: DataOrRecord_
 pattern IsRecord_ = IsRecord ()
 
+{-# COMPLETE IsData, IsRecord_ #-}
+
 instance PatternMatchingAllowed DataOrRecord where
   patternMatchingAllowed = \case
     IsData -> True
