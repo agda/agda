@@ -2332,13 +2332,7 @@ scopeCheckDataDef ::
 scopeCheckDataDef r o a uc x pars cons =
   notAffectedByOpaque do
     reportSLn "scope.data.def" 40 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
-    (p, ax) <- resolveName (C.QName x) >>= \case
-      DefinedName p ax NoSuffix -> do
-        clashUnless x DataName ax  -- Andreas 2019-07-07, issue #3892
-        livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
-        clashIfModuleAlreadyDefinedInCurrentModule x ax
-        return (p, ax)
-      _ -> typeError $ MissingTypeSignature $ MissingDataSignature x
+    (p, ax) <- retrieveDataOrRecName IsData x
 
     withLocalVars $ do
       gvars <- bindGeneralizablesIfInserted o ax
@@ -2352,7 +2346,6 @@ scopeCheckDataDef r o a uc x pars cons =
       pars <- catMaybes <$> toAbstract (defParametersToParameters pars)
       let x' = anameName ax
       -- Create the module for the qualified constructors
-      checkForModuleClash x -- disallow shadowing previously defined modules
       let m = qnameToMName x'
       createModule (Just IsDataModule) m
       bindModule p x m  -- make it a proper module
@@ -2407,20 +2400,8 @@ scopeCheckRecDef r o a uc x directives pars fields =
 
     -- Retrieve the abstract name of the record type
     -- that was created when scope checking the record type signature.
-    (p, ax) <- resolveName (C.QName x) >>= \case
-      DefinedName p ax NoSuffix -> return (p, ax)
-      _ -> typeError $ MissingTypeSignature $ MissingRecordSignature x
+    (p, ax) <- retrieveDataOrRecName IsRecord_ x
     let x' = anameName ax
-
-    -- Check for correct placement of this record definition wrt. the existing record signature.
-    -- These checks give more precise errors than the generic 'checkForModuleClash' below.
-    clashUnless x RecName ax  -- Andreas 2019-07-07, issue #3892
-    livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
-    clashIfModuleAlreadyDefinedInCurrentModule x ax  -- Andreas, 2019-07-07, issue #2576
-
-    -- Check that the generated module doesn't clash with a previously
-    -- defined module
-    checkForModuleClash x
 
     -- Preserve the local variable set since we add some generalizable ones.
     withLocalVars $ do
@@ -2487,6 +2468,34 @@ scopeCheckRecDef r o a uc x directives pars fields =
       let params = DataDefParams gvars pars
       let dir' = RecordDirectives ind eta pat cm'
       return $ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc dir' params contel afields
+
+-- | Retrieve the abstract name of a data or record type
+--   that was created by scope checking the data or record signature.
+--
+--   Check that this name does not clash with existing modules.
+--
+--   Also check that the data/record definition has been placed in the same module
+--   as the data/record signature.
+retrieveDataOrRecName :: DataOrRecord_ -> C.Name -> ScopeM (Access, AbstractName)
+retrieveDataOrRecName dataOrRec x = do
+
+    -- Retrieve the abstract name of the record type
+    -- that was created when scope checking the record type signature.
+    (p, ax) <- resolveName (C.QName x) >>= \case
+      DefinedName p ax NoSuffix -> return (p, ax)
+      _ -> typeError $ MissingTypeSignature $ ifThenElse dataOrRec MissingDataSignature MissingRecordSignature $ x
+
+    -- Check for correct placement of this record definition wrt. the existing record signature.
+    -- These checks give more precise errors than the generic 'checkForModuleClash' below.
+    clashUnless x (ifThenElse dataOrRec DataName RecName) ax  -- Andreas 2019-07-07, issue #3892
+    livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
+    clashIfModuleAlreadyDefinedInCurrentModule x ax  -- Andreas, 2019-07-07, issue #2576
+
+    -- Check that the generated module doesn't clash with a previously
+    -- defined module
+    checkForModuleClash x
+
+    return (p, ax)
 
 -- | Scope check @[open] import M [as N] using/hiding/renaming@.
 scopeCheckImport ::
