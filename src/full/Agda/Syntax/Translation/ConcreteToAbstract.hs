@@ -2334,28 +2334,38 @@ scopeCheckDataDef r o a uc x pars cons =
     reportSLn "scope.data.def" 40 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
     (p, ax) <- retrieveDataOrRecName IsData x
 
-    withLocalVars $ do
+    withLocalVars do
+      -- Scope check parameters
       gvars <- bindGeneralizablesIfInserted o ax
-      -- Check for duplicate constructors
-      do cs <- mapM conName cons
-         List1.unlessNull (duplicates cs) $ \ dups -> do
-           let bad = filter (`elem` dups) cs
-           setCurrentRange bad $
-             typeError $ DuplicateConstructors dups
-
       pars <- catMaybes <$> toAbstract (defParametersToParameters pars)
+
+      -- Create the data module
       let x' = anameName ax
       -- Create the module for the qualified constructors
       let m = qnameToMName x'
       createModule (Just IsDataModule) m
       bindModule p x m  -- make it a proper module
+
+      cons <- checkConstructors cons
       cons <- toAbstract (map (DataConstrDecl m a p) cons)
       printScope "data" 40 $ "Checked data " ++ prettyShow x
       f <- getConcreteFixity x
       return $ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc (DataDefParams gvars pars) cons
   where
-    conName (C.Axiom _ _ _ _ _ c _) = return c
-    conName d = errorNotConstrDecl d
+    -- Filter out non-type signatures and error out on duplicate constructors.
+    checkConstructors cons = do
+      -- Only type signatures (for constructors) are allowed in data definitions.
+      (cs, cons') <- unzip . catMaybes <$> forM cons \case
+        d@(C.Axiom _ _ _ _ _ c _) -> pure $ Just (c, d)
+        d -> Nothing <$ do
+          setCurrentRange d $
+            warning $ IllegalDeclarationInDataDefinition $ notSoNiceDeclarations d
+      -- Check for duplicate constructors.
+      List1.unlessNull (duplicates cs) $ \ dups -> do
+        let bad = filter (`elem` dups) cs
+        setCurrentRange bad $
+          typeError $ DuplicateConstructors dups
+      return cons'
 
 -- | Scope check a record definition.
 --   The record signature must have been checked already.
@@ -2930,7 +2940,7 @@ instance ToAbstract DataConstrDecl where
         printScope "con" 25 "bound constructor"
         let defInfo = mkDefInfoInstance x f p a i NotMacroDef r
         return $ A.Axiom ConName defInfo ai Nothing y t'
-      _ -> errorNotConstrDecl d
+      _ -> __IMPOSSIBLE__
 
 -- | Delete (with warning) attributes that are illegal for constructor declarations.
 checkConstructorArgInfo :: ArgInfo -> ScopeM ArgInfo
@@ -2941,10 +2951,6 @@ checkConstructorArgInfo =
     ensureMixedPolarity msg
   where
     msg = Just "of constructor"
-
-errorNotConstrDecl :: C.NiceDeclaration -> ScopeM a
-errorNotConstrDecl d = setCurrentRange d $
-  typeError $ IllegalDeclarationInDataDefinition $ notSoNiceDeclarations d
 
 ensureRelevant :: LensRelevance a => Maybe String -> a -> ScopeM a
 ensureRelevant ms info = do

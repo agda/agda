@@ -144,6 +144,7 @@ instance EmbPrj Warning where
     FixingCohesion a b c                        -> icodeN 72 FixingCohesion a b c
     FixingPolarity a b c                        -> icodeN 73 FixingPolarity a b c
     RewritesNothing                             -> icodeN 74 RewritesNothing
+    IllegalDeclarationInDataDefinition ds       -> __IMPOSSIBLE__  -- We don't serialize concrete definitions (yet)
 
   value = vcase $ \ case
     N3 0 a b      -> valuN UnreachableClauses a b

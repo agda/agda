@@ -1425,6 +1425,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Hidden identifiers in ``variable`` blocks.
 
+.. option:: IllegalDeclarationInDataDefinition
+
+     Declarations inside of a ``data`` definition that are not constructor type signatures.
+
 .. option:: IllformedAsClause
 
      Illformed ``as``-clauses in ``import`` statements.

@@ -74,6 +74,10 @@ Warnings
 * `UselessPragma` warning instead of hard error `NeedOptionRewriting` when a
   `REWRITE` or `BUILTIN REWRITE` pragma is encountered but `--rewriting` is off.
 
+* Error warning `IllegalDeclarationInDataDefinition` instead of hard error
+  when `data` definition contains declarations other than type signatures of
+  constructors.
+
 * New warning `DivergentModalityInClause` when modality of a clause diverges
   from that of the function.  Example:
   ```agda

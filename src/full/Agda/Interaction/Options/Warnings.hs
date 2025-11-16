@@ -189,6 +189,7 @@ errorWarnings = Set.fromList
   , InstanceNotInArgumentPosition_
   , MacroInLetBindings_
   , AbstractInLetBindings_
+  , IllegalDeclarationInDataDefinition_
   ]
 
 allWarnings :: Set WarningName
@@ -287,6 +288,7 @@ data WarningName
   | FixityInRenamingModule_
   | InvalidCharacterLiteral_
   | UselessPragma_
+  | IllegalDeclarationInDataDefinition_
   | IllformedAsClause_
   | InstanceArgWithExplicitArg_
   | InstanceWithExplicitArg_
@@ -531,6 +533,7 @@ warningNameDescription = \case
   FixingPolarity_                  -> "Correcting invalid user-written polarity attribute."
   InvalidCharacterLiteral_         -> "Illegal character literals."
   UselessPragma_                   -> "Pragmas that get ignored."
+  IllegalDeclarationInDataDefinition_ -> "Declarations not allowed in `data' definitions."
   IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."
   InstanceNoOutputTypeName_        -> "Instance arguments whose type does not end in a named or variable type; those are never considered by instance search."
   InstanceArgWithExplicitArg_      -> "Instance arguments with explicit arguments; those are never considered by instance search."

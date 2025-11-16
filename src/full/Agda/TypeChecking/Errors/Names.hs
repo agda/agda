@@ -127,7 +127,6 @@ typeErrorName = \case
   IllTypedPatternAfterWithAbstraction                        {} -> IllTypedPatternAfterWithAbstraction_
   IlltypedRewriteRule                                        {} -> IlltypedRewriteRule_
   IllegalDeclarationBeforeTopLevelModule                     {} -> IllegalDeclarationBeforeTopLevelModule_
-  IllegalDeclarationInDataDefinition                         {} -> IllegalDeclarationInDataDefinition_
   IllegalHidingInPostfixProjection                           {} -> IllegalHidingInPostfixProjection_
   IllegalInstanceVariableInPatternSynonym                    {} -> IllegalInstanceVariableInPatternSynonym_
   IllegalLetInTelescope                                      {} -> IllegalLetInTelescope_

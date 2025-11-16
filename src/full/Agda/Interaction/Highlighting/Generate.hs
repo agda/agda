@@ -540,6 +540,7 @@ warningHighlighting' b w = case tcWarning w of
   InstanceNotInArgumentPosition{} -> errorWarningHighlighting w
   MacroInLetBindings{}            -> errorWarningHighlighting w
   AbstractInLetBindings{}         -> errorWarningHighlighting w
+  IllegalDeclarationInDataDefinition{} -> errorWarningHighlighting w
 
   NicifierIssue (DeclarationWarning _ w) -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of

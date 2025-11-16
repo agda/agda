@@ -172,7 +172,6 @@ data ErrorName
   | IllTypedPatternAfterWithAbstraction_
   | IlltypedRewriteRule_
   | IllegalDeclarationBeforeTopLevelModule_
-  | IllegalDeclarationInDataDefinition_
   | IllegalHidingInPostfixProjection_
   | IllegalInstanceVariableInPatternSynonym_
   | IllegalLetInTelescope_

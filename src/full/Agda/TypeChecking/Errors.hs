@@ -727,11 +727,6 @@ instance PrettyTCM TypeError where
       "The BUILTIN pragma cannot appear inside a bound context " ++
       "(for instance, in a parameterised module or as a local declaration)"
 
-    IllegalDeclarationInDataDefinition ds -> vcat
-      [ "Illegal declaration in data type definition"
-      , nest 2 $ vcat $ fmap pretty ds
-      ]
-
     IllegalLetInTelescope tb -> fsep $
       -- pwords "The binding" ++
       pretty tb :

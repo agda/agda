@@ -4814,6 +4814,8 @@ data Warning
   | InstanceNotInArgumentPosition C.Expr
   | MacroInLetBindings
   | AbstractInLetBindings
+  | IllegalDeclarationInDataDefinition (List1 C.Declaration)
+      -- ^ The declaration list comes from a single 'C.NiceDeclaration'.
 
   -- Display form warnings
   | InvalidDisplayForm QName String
@@ -4961,6 +4963,7 @@ warningName = \case
   InstanceNotInArgumentPosition{} -> InstanceNotInArgumentPosition_
   MacroInLetBindings{}            -> MacroInLetBindings_
   AbstractInLetBindings{}         -> AbstractInLetBindings_
+  IllegalDeclarationInDataDefinition{} -> IllegalDeclarationInDataDefinition_
 
   -- Display forms
   InvalidDisplayForm{}                 -> InvalidDisplayForm_
@@ -5290,8 +5293,6 @@ data TypeError
         | WrongArgInfoForPrimitive PrimitiveId ArgInfo ArgInfo
         | ShadowedModule C.Name (List1 A.ModuleName)
         | BuiltinInParameterisedModule BuiltinId
-        | IllegalDeclarationInDataDefinition (List1 C.Declaration)
-            -- ^ The declaration list comes from a single 'C.NiceDeclaration'.
         | IllegalLetInTelescope C.TypedBinding
         | IllegalPatternInTelescope C.Binder
         | AbsentRHSRequiresAbsurdPattern
