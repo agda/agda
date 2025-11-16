@@ -2432,8 +2432,7 @@ scopeCheckRecDef r o a uc x directives pars fields =
       contel <- localToAbstract (RecordConstructorType fields) return
 
       -- Use the name @x'@ of the record type also as name of the new record module.
-      m0     <- getCurrentModule
-      let m = A.qualifyM m0 $ mnameFromList1 $ singleton $ List1.last $ qnameToList x'
+      let m = qnameToMName x'
       printScope "rec" 25 "before record"
       createModule (Just IsRecordModule) m
 
