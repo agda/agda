@@ -290,6 +290,14 @@ pattern IsRecord_ = IsRecord ()
 
 {-# COMPLETE IsData, IsRecord_ #-}
 
+instance Boolean DataOrRecord_ where
+  fromBool True  = IsData
+  fromBool False = IsRecord_
+
+instance IsBool DataOrRecord_ where
+  toBool IsData    = True
+  toBool IsRecord_ = False
+
 instance PatternMatchingAllowed DataOrRecord where
   patternMatchingAllowed = \case
     IsData -> True

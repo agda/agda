@@ -2276,15 +2276,23 @@ scopeCheckDataOrRecSig ::
         -- ^ The type of the data or record type.
   -> ScopeM A.Declaration
         -- ^ The resulting data or record signature in abstract syntax.
-scopeCheckDataOrRecSig IsData r er p a pc uc x ls t = do
+scopeCheckDataOrRecSig dataOrRec r er p a pc uc x ls t = do
   ensureNoLetStms ls
   withLocalVars $ do
-    ls' <- withCheckNoShadowing $
-      toAbstract $ GenTel $ map makeDomainFull ls
-    t'  <- toAbstract $ C.Generalized t
+    (ls', t') <- withCheckNoShadowing do
+      case dataOrRec of
+        IsData -> do
+          (,) <$> toAbstract (GenTel $ map makeDomainFull ls)
+              <*> toAbstract (C.Generalized t)
+        IsRecord_ -> do
+          -- Minor hack: record types don't have indices so we include t when
+          -- computing generalised parameters, but in the type checker any named
+          -- generalizable arguments in the sort should be bound variables.
+          (,) <$> (fst <$> toAbstract (GenTelAndType (map makeDomainFull ls) t))
+              <*> toAbstract t
     f  <- getConcreteFixity x
     x' <- freshAbstractQName f x
-    mErr <- bindName'' p DataName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+    mErr <- bindName'' p (ifThenElse dataOrRec DataName RecName) (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
     whenJust mErr $ \case
       err@(ClashingDefinition cn an _) | qnameModule (clashingQName an) == qnameModule x' -> do
         resolveName (C.QName x) >>= \case
@@ -2293,24 +2301,13 @@ scopeCheckDataOrRecSig IsData r er p a pc uc x ls t = do
           -- the illegal type signature. Convert the NiceDataSig into a NiceDataDef
           -- (which removes the type signature) and suggest it as a possible fix.
           DefinedName p ax NoSuffix | anameKind ax == AxiomName -> do
-            let suggestion = NiceDataDef r Inserted a pc uc x (parametersToDefParameters ls) []
+            let suggestion = case dataOrRec of
+                  IsData    -> NiceDataDef r Inserted a pc uc x (parametersToDefParameters ls) []
+                  IsRecord_ -> NiceRecDef r Inserted a pc uc x [] (parametersToDefParameters ls) []
             typeError $ ClashingDefinition cn an (Just suggestion)
           _ -> typeError err
       otherErr -> typeError otherErr
-    return $ A.DataSig (mkDefInfo x f p a r) er x' ls' t'
-scopeCheckDataOrRecSig IsRecord_ r er p a pc uc x ls t = do
-  ensureNoLetStms ls
-  withLocalVars $ do
-    (ls', _) <- withCheckNoShadowing $
-      -- Minor hack: record types don't have indices so we include t when
-      -- computing generalised parameters, but in the type checker any named
-      -- generalizable arguments in the sort should be bound variables.
-      toAbstract (GenTelAndType (map makeDomainFull ls) t)
-    t' <- toAbstract t
-    f  <- getConcreteFixity x
-    x' <- freshAbstractQName f x
-    bindName' p RecName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
-    return $ A.RecSig (mkDefInfo x f p a r) er x' ls' t'
+    return $ (ifThenElse dataOrRec A.DataSig A.RecSig) (mkDefInfo x f p a r) er x' ls' t'
 
 -- | Scope check a data definition.
 --   The data signature must have been checked already.

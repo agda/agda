@@ -50,7 +50,7 @@ import Agda.Interaction.Options.Errors
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty ( prettyShow, render )
 import qualified Agda.Syntax.Common.Pretty as P
-import Agda.Syntax.Concrete.Definitions (notSoNiceDeclarations)
+import Agda.Syntax.Concrete.Definitions (notSoNiceDeclarations, NiceDeclaration (NiceDataDef, NiceRecDef))
 import Agda.Syntax.Concrete.Definitions.Errors (declarationExceptionString)
 import Agda.Syntax.Concrete.Pretty (attributesForModality)
 import Agda.Syntax.Notation
@@ -959,21 +959,31 @@ instance PrettyTCM TypeError where
       hsep [ "Ambiguity: the field", prettyTCM field, "appears in the following modules:" ]
       : map prettyTCM (List2.toList modules)
 
-    ClashingDefinition x y suggestion -> fsep $
-      pwords "Multiple definitions of" ++ [pretty x <> "."] ++
-      clashingWith y ++
-      caseMaybe suggestion [] (\d ->
-        [  "Perhaps you meant to write"
-        $$ nest 2 ("'" <> pretty (notSoNiceDeclarations d) <> "'")
-        $$ ("at" <+> (pretty . envRange =<< askTC)) <> "?"
-        $$ "In data definitions separate from data declaration, the ':' and type must be omitted."
-        ])
-       where
-         clashingWith = \case
-           ClashingAbstractName y -> do
-             pwords "Previous definition" ++ [explainWhyInScope $ whyInScopeDataFromAbstractName x y]
-           ClashingQName y ->
-             pwords "Previous definition at" ++ [prettyTCM $ nameBindingSite $ qnameName y]
+    ClashingDefinition x y suggestion -> vcat
+      [ fsep $ pwords "Multiple definitions of" ++ [ pretty x <> "." ] ++ clashingWith y
+      , fromMaybe empty $ fmap hint suggestion
+      ]
+      where
+        clashingWith = \case
+          ClashingAbstractName y -> do
+            pwords "Previous definition" ++ [explainWhyInScope $ whyInScopeDataFromAbstractName x y]
+          ClashingQName y ->
+            pwords "Previous definition at" ++ [prettyTCM $ nameBindingSite $ qnameName y]
+        hint d = do
+          let dataOrRecord = case d of
+                NiceDataDef{} -> "data"
+                NiceRecDef{}  -> "record"
+                _ -> __IMPOSSIBLE__
+          vcat
+            [ "Perhaps you meant to write"
+            , nest 2 ("'" <> pretty (notSoNiceDeclarations d) <> "'")
+            , ("at" <+> (pretty . envRange =<< askTC)) <> "?"
+            , fsep $ concat
+              [ [ "In", dataOrRecord ]
+              , pwords "definitions separate from their"
+              , [ dataOrRecord ]
+              , pwords "declaration, the ':' and type must be omitted"
+            ] ]
 
     ClashingModule m1 m2 -> fsep $
       pwords "The modules" ++ [prettyTCM m1, "and", prettyTCM m2]

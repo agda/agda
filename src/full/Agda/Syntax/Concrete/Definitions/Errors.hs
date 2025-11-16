@@ -17,6 +17,7 @@ import Agda.Syntax.Concrete.Definitions.Types
 
 import Agda.Interaction.Options.Warnings
 
+import Agda.Utils.Boolean   ( ifThenElse )
 import Agda.Utils.CallStack ( CallStack )
 import Agda.Utils.List1     ( List1 )
 import Agda.Utils.List1     qualified as List1
@@ -549,7 +550,7 @@ instance Pretty DeclarationWarning' where
       [ [ "Ignoring" ]
       , twords what
       , pwords "in"
-      , [ case dataOrRec of { IsData -> "data"; IsRecord () -> "record" }, "definition" ]
+      , [ ifThenElse dataOrRec "data" "record", "definition" ]
       , twords explanation
       ]
 

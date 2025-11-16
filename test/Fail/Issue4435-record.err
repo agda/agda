@@ -1,0 +1,16 @@
+Issue4435-record.agda:8.1-27: error: [MissingDefinitions]
+The following names are declared but not accompanied by a
+definition: Foo
+
+Issue4435-record.agda:12.8-19: error: [ClashingDefinition]
+Multiple definitions of Foo. Previous definition
+Foo is in scope as
+  * a postulate Issue4435-record.Foo brought into scope by
+    - its definition at Issue4435-record.agda:8.8-11
+Perhaps you meant to write
+  'record Foo a where'
+at Issue4435-record.agda:12.8-19?
+In record definitions separate from their record declaration, the
+':' and type must be omitted
+when scope checking the declaration
+  record Foo a : Set
