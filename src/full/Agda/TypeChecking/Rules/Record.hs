@@ -488,7 +488,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       -}
       let t'       = raiseFrom (size ftel1) 1 t
           t''      = applySubst (parallelS vs) t'
-          finalt   = telePi (replaceEmptyName "r" tel) t''
+          finalt   = telePi tel t''
           projname = qualify m $ qnameName x
           projcall o = Var 0 [Proj o projname]
           rel      = getRelevance ai
