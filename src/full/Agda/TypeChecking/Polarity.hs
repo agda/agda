@@ -120,6 +120,7 @@ computePolarity
      , MonadDebug m, MonadPretty m )
   => [QName] -> m ()
 computePolarity xs = do
+ reportSDoc "tc.polarity.set" 40 $ "computePolarity" <+> prettyTCM xs
 
  -- Andreas, 2017-04-26, issue #2554
  -- First, for mutual definitions, obtain a crude polarity from positivity.

@@ -370,6 +370,8 @@ addDisplayForms x = do
 
   -- and add them
   mapM_ (uncurry addDisplayForm) dfs
+  reportSDoc "tc.display.section" 20 $ "Added display forms for" <+> pretty x
+
   where
 
     -- To get display forms for projections we need to unSpine here.
@@ -514,9 +516,16 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
     tickN   "copied definitions"     ds
     tickN   ("copies for " <> oldn)  (ds + ms)
 
+  reportSLn "tc.mod.apply" 40 "applySection': copying definitions"
   _ <- Map.traverseWithKey (traverse . copyDef ts) rd
+
+  reportSLn "tc.mod.apply" 40 "applySection': copying modules"
   _ <- Map.traverseWithKey (traverse . copySec ts) rm
+
+  reportSLn "tc.mod.apply" 40 "applySection': computing polarities"
   computePolarity (Map.elems rd >>= List1.toList)
+
+  reportSLn "tc.mod.apply" 40 "finished applySection'"
   where
     -- Andreas, 2013-10-29
     -- Here, if the name x is not imported, it persists as
@@ -562,6 +571,8 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                            }
       localTC (over eContext (map (mapModality (m `inverseComposeModality`)))) $
         copyDef' ts' np def
+      reportSDoc "tc.mod.apply" 80 $
+        "finished copyDef" <+> pretty x <+> "->" <+> pretty y
       where
         copyDef' ts np d = do
           reportSDoc "tc.mod.apply" 60 $ "making new def for" <+> pretty y <+> "from" <+> pretty x <+> "with" <+> text (show np) <+> "args" <+> text (show $ defAbstract d)
@@ -745,15 +756,17 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
     -}
     copySec :: Args -> ModuleName -> ModuleName -> TCM ()
     copySec ts x y = do
+      reportSDoc "tc.mod.apply" 80 $ "Copying section" <+> pretty x <+> "to" <+> pretty y
       totalArgs <- argsToUse x
       tel       <- lookupSection x
-      let sectionTel =  apply tel $ take totalArgs ts
-      reportSDoc "tc.mod.apply" 80 $ "Copying section" <+> pretty x <+> "to" <+> pretty y
+      let sectionTel = apply tel $ take totalArgs ts
       reportSDoc "tc.mod.apply" 80 $ "  ts           = " <+> mconcat (List.intersperse "; " (map pretty ts))
       reportSDoc "tc.mod.apply" 80 $ "  totalArgs    = " <+> text (show totalArgs)
       reportSDoc "tc.mod.apply" 80 $ "  tel          = " <+> text (unwords (map (fst . unDom) $ telToList tel))  -- only names
       reportSDoc "tc.mod.apply" 80 $ "  sectionTel   = " <+> text (unwords (map (fst . unDom) $ telToList ptel)) -- only names
       addContext sectionTel $ addSection y
+      reportSDoc "tc.mod.apply" 80 $
+        "finished copySec" <+> pretty x <+> "->" <+> pretty y
 
 -- | Add a display form to a definition (could be in this or imported signature).
 addDisplayForm :: QName -> DisplayForm -> TCM ()
@@ -766,6 +779,7 @@ addDisplayForm x df = do
   ifM (isLocal x)
     {-then-} (modifySignature add)
     {-else-} (stImportsDisplayForms `modifyTCLens` HMap.insertWith (<>) x (List1.singleton d))
+  reportSDoc "tc.display.section" 30 $ "Added display form for" <+> pretty x
 
 isLocal :: ReadTCState m => QName -> m Bool
 isLocal x = HMap.member x <$> useR (stSignature . sigDefinitions)
