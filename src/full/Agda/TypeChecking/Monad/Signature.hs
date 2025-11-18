@@ -13,12 +13,12 @@ import Control.Monad.Trans.Identity  ( IdentityT )
 import Control.Monad.Trans           ( MonadTrans, lift )
 
 import Data.Either
-import Data.Foldable (for_)
-import qualified Data.List as List
-import Data.Set (Set)
-import qualified Data.Set as Set
-import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
+import Data.Foldable                 ( for_ )
+import Data.List                     qualified as List
+import Data.Set                      ( Set )
+import Data.Set                      qualified as Set
+import Data.Map                      qualified as Map
+import Data.HashMap.Strict           qualified as HMap
 import Data.Maybe
 
 import Agda.Interaction.Options
@@ -66,7 +66,8 @@ import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import Agda.Utils.List1 qualified as List1
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -468,8 +469,8 @@ applySection new ptel old ts info@ScopeCopyInfo{ renModules = rm, renNames = rd 
               --   mkD` which we did before).
               Map.singleton x . pure . qualify m <$> freshName_ (prettyShow $ qnameName x)
 
-        childToParent :: (QName, List1.List1 QName) -> TCM (Maybe (ModuleName, QName))
-        childToParent (x, y List1.:| _) = do  -- All new names share the same module, so we can safely grab the first one
+        childToParent :: (QName, List1 QName) -> TCM (Maybe (ModuleName, QName))
+        childToParent (x, y :| _) = do  -- All new names share the same module, so we can safely grab the first one
           theDef <$> getConstInfo x <&> \case
             Constructor{ conData = d }
               -> Just (qnameModule y, d)
@@ -479,8 +480,8 @@ applySection new ptel old ts info@ScopeCopyInfo{ renModules = rm, renNames = rd 
               -> Just (qnameModule y, r)
             _ -> Nothing
 
-        parentToChild :: (QName, List1.List1 QName) -> TCM [(ModuleName, QName)]
-        parentToChild (x, y List1.:| _) = do
+        parentToChild :: (QName, List1 QName) -> TCM [(ModuleName, QName)]
+        parentToChild (x, y :| _) = do
           (theDef <$> getConstInfo x) <&> \case
             Datatype{ dataCons = cs } -> map (qnameModule y,) cs
             Record{ recConHead = h }  -> [(qnameModule y, conName h)]
