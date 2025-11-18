@@ -495,7 +495,7 @@ isEtaRecordType a = case unEl a of
 --
 isRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, RecordData))
 isRecordConstructor c = getConstInfo' c >>= \case
-  Left (SigUnknown err)     -> __IMPOSSIBLE__
+  Left (SigUnknown err)     -> __IMPOSSIBLE_VERBOSE__ err
   Left SigCubicalNotErasure -> __IMPOSSIBLE__
   Left SigAbstract          -> return Nothing
   Right def                 -> case theDef $ def of
