@@ -48,8 +48,11 @@ getConForm c = caseEitherM (getConHead c) (return . Left) $ \ ch -> do
 
 -- | Augment constructor with record fields (preserve constructor name).
 --   The true constructor might only surface via 'reduce'.
-getOrigConHead :: QName -> TCM (Either SigError ConHead)
-getOrigConHead c = mapRight (setConName c) <$> getConHead c
+getOrigConHead :: HasCallStack => QName -> TCM ConHead
+getOrigConHead c = setConName c <$> do
+  fromRightM
+    (sigError c (typeError $ AbstractConstructorNotInScope c)) $
+    getConHead c
 
 -- | Get the name of the datatype constructed by a given constructor.
 --   Precondition: The argument must refer to a constructor

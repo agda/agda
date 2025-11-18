@@ -149,10 +149,7 @@ checkApplication cmp hd args e t =
     -- Subcase: unambiguous constructor
     A.Con ambC | Just c <- getUnambiguous ambC -> do
       -- augment c with record fields, but do not revert to original name
-      con <-
-        fromRightM
-          (sigError c (typeError $ AbstractConstructorNotInScope c)) $
-          getOrigConHead c
+      con <- getOrigConHead c
       checkConstructorApplication cmp e t con hd args
 
     -- Subcase: ambiguous constructor
@@ -334,10 +331,7 @@ inferHead e = do
 
       -- First, inferDef will try to apply the constructor
       -- to the free parameters of the current context. We ignore that.
-      con <-
-        fromRightM
-          (sigError c (typeError $ AbstractConstructorNotInScope c)) $
-          getOrigConHead c
+      con <- getOrigConHead c
       (u, a) <- inferDef (\ _ -> Con con ConOCon []) c
 
       -- Next get the number of parameters in the current context.
