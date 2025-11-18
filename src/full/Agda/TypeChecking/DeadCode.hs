@@ -61,6 +61,10 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
 
       extraRootsFilter (name, def)
         | hasCompilePragma def || isPrimitive (theDef def) = Just name
+          -- Andreas, 2025-11-18, issue #8037
+          -- When copying the record type along with one of its projections in a module application,
+          -- we need to make sure the record type has not been deleted as deadcode.
+        | Just Projection{ projProper = Just r } <- isProjection_ (theDef def) = Just r
         | otherwise = Nothing
 
   let !pubModules = publicModules scope

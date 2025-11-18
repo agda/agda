@@ -471,8 +471,13 @@ applySection new ptel old ts info@ScopeCopyInfo{ renModules = rm, renNames = rd 
         childToParent :: (QName, List1.List1 QName) -> TCM (Maybe (ModuleName, QName))
         childToParent (x, y List1.:| _) = do  -- All new names share the same module, so we can safely grab the first one
           theDef <$> getConstInfo x <&> \case
-            Constructor{ conData = d } -> Just (qnameModule y, d)
-            _                          -> Nothing
+            Constructor{ conData = d }
+              -> Just (qnameModule y, d)
+            -- If a proper projection is being copied, its record needs to be
+            -- copied too (#8037).
+            def | Just Projection{ projProper = Just r } <- isProjection_ def
+              -> Just (qnameModule y, r)
+            _ -> Nothing
 
         parentToChild :: (QName, List1.List1 QName) -> TCM [(ModuleName, QName)]
         parentToChild (x, y List1.:| _) = do
