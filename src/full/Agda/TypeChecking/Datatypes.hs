@@ -16,6 +16,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.CallStack
 import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Syntax.Common.Pretty ( prettyShow )
@@ -28,7 +29,7 @@ import Agda.Utils.Impossible
 ---------------------------------------------------------------------------
 
 -- | Get true constructor with record fields.
-getConHead :: (HasConstInfo m) => QName -> m (Either SigError ConHead)
+getConHead :: (HasCallStack, HasConstInfo m) => QName -> m (Either SigError ConHead)
 getConHead c = runExceptT $ do
   def <- ExceptT $ getConstInfo' c
   case theDef def of
@@ -36,12 +37,12 @@ getConHead c = runExceptT $ do
     Record     { recConHead = c' } -> return c'
     _ -> throwError $ SigUnknown $ prettyShow c ++ " is not a constructor"
 
-isConstructor :: (HasConstInfo m) => QName -> m Bool
+isConstructor :: (HasCallStack, HasConstInfo m) => QName -> m Bool
 isConstructor q = isRight <$> getConHead q
 
 -- | Get true constructor with fields, expanding literals to constructors
 --   if possible.
-getConForm :: QName -> TCM (Either SigError ConHead)
+getConForm :: HasCallStack => QName -> TCM (Either SigError ConHead)
 getConForm c = caseEitherM (getConHead c) (return . Left) $ \ ch -> do
   Con con _ [] <- constructorForm (Con ch ConOCon [])
   return $ Right con
@@ -57,7 +58,7 @@ getOrigConHead c = setConName c <$> do
 -- | Get the name of the datatype constructed by a given constructor.
 --   Precondition: The argument must refer to a constructor
 {-# SPECIALIZE getConstructorData :: QName -> TCM QName #-}
-getConstructorData :: HasConstInfo m => QName -> m QName
+getConstructorData :: (HasCallStack, HasConstInfo m) => QName -> m QName
 getConstructorData c = do
   def <- getConstInfo c
   case theDef def of
@@ -66,7 +67,7 @@ getConstructorData c = do
 
 -- | Is the datatype of this constructor a Higher Inductive Type?
 --   Precondition: The argument must refer to a constructor of a datatype or record.
-consOfHIT :: HasConstInfo m => QName -> m Bool
+consOfHIT :: (HasCallStack, HasConstInfo m) => QName -> m Bool
 consOfHIT c = do
   d <- getConstructorData c
   def <- theDef <$> getConstInfo d
@@ -75,7 +76,7 @@ consOfHIT c = do
     Record{} -> return False
     _  -> __IMPOSSIBLE__
 
-isPathCons :: HasConstInfo m => QName -> m Bool
+isPathCons :: (HasCallStack, HasConstInfo m) => QName -> m Bool
 isPathCons c = do
   d <- getConstructorData c
   def <- theDef <$> getConstInfo d
@@ -221,10 +222,10 @@ data ConstructorInfo
 -- | Return the number of non-parameter arguments to a constructor (arity).
 --   In case of record constructors, also return the field names (plus other info).
 --
-getConstructorInfo :: HasConstInfo m => QName -> m ConstructorInfo
+getConstructorInfo :: (HasCallStack, HasConstInfo m) => QName -> m ConstructorInfo
 getConstructorInfo c = fromMaybe __IMPOSSIBLE__ <$> getConstructorInfo' c
 
-getConstructorInfo' :: HasConstInfo m => QName -> m (Maybe ConstructorInfo)
+getConstructorInfo' :: (HasCallStack, HasConstInfo m) => QName -> m (Maybe ConstructorInfo)
 getConstructorInfo' c = do
   getConstInfo c <&> theDef >>= \case
     Constructor{ conData = d, conArity = n } -> Just <$> do
@@ -269,7 +270,7 @@ isDataOrRecord = \case
     Def d _ -> fmap (d,) <$> isDataOrRecordType d
     _       -> return Nothing
 
-getNumberOfParameters :: HasConstInfo m => QName -> m (Maybe Nat)
+getNumberOfParameters :: (HasCallStack, HasConstInfo m) => QName -> m (Maybe Nat)
 getNumberOfParameters d = do
   def <- getConstInfo d
   case theDef def of
@@ -280,7 +281,7 @@ getNumberOfParameters d = do
 
 -- | This is a simplified version of @isDatatype@ from @Coverage@,
 --   useful when we do not want to import the module.
-getDatatypeArgs :: HasConstInfo m => Type -> m (Maybe (QName, Args, Args))
+getDatatypeArgs :: (HasCallStack, HasConstInfo m) => Type -> m (Maybe (QName, Args, Args))
 getDatatypeArgs t = do
   case unEl t of
     Def d es -> do

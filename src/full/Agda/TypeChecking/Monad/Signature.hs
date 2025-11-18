@@ -915,7 +915,7 @@ class ( Functor m
       ) => HasConstInfo m where
   -- | Lookup the definition of a name. The result is a closed thing, all free
   --   variables have been abstracted over.
-  getConstInfo :: QName -> m Definition
+  getConstInfo :: HasCallStack => QName -> m Definition
   getConstInfo q =
     getConstInfo' q >>= \case
       Right d -> return d
@@ -924,7 +924,7 @@ class ( Functor m
         "Abstract, thus, not in scope: " ++ prettyShow q
 
   -- | Version that reports exceptions:
-  getConstInfo' :: QName -> m (Either SigError Definition)
+  getConstInfo' :: HasCallStack => QName -> m (Either SigError Definition)
   -- getConstInfo' q = Right <$> getConstInfo q -- conflicts with default signature
 
   -- | Return the rewrite rules for the given head symbol that could be tried.
@@ -937,7 +937,7 @@ class ( Functor m
   -- Lifting HasConstInfo through monad transformers:
 
   default getConstInfo'
-    :: (HasConstInfo n, MonadTrans t, m ~ t n)
+    :: (HasCallStack, HasConstInfo n, MonadTrans t, m ~ t n)
     => QName -> m (Either SigError Definition)
   getConstInfo' = lift . getConstInfo'
 
@@ -946,15 +946,15 @@ class ( Functor m
     => QName -> m RewriteRules
   getRewriteRulesFor = lift . getRewriteRulesFor
 
-{-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
+{-# SPECIALIZE getConstInfo :: HasCallStack => QName -> TCM Definition #-}
 
-{-# SPECIALIZE getOriginalConstInfo :: QName -> TCM Definition #-}
+{-# SPECIALIZE getOriginalConstInfo :: HasCallStack => QName -> TCM Definition #-}
 -- | The computation 'getConstInfo' sometimes tweaks the returned
 -- 'Definition', depending on the current 'Language' and the
 -- 'Language' of the 'Definition'. This variant of 'getConstInfo' does
 -- not perform any tweaks.
 getOriginalConstInfo ::
-  (ReadTCState m, HasConstInfo m) => QName -> m Definition
+  (HasCallStack, ReadTCState m, HasConstInfo m) => QName -> m Definition
 getOriginalConstInfo q = do
   def  <- getConstInfo q
   lang <- getLanguage
@@ -996,7 +996,7 @@ getFilteredRewriteRulesFor filt q = do
 
 -- | Get the original name of the projection
 --   (the current one could be from a module application).
-getOriginalProjection :: HasConstInfo m => QName -> m QName
+getOriginalProjection :: (HasCallStack, HasConstInfo m) => QName -> m QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 instance HasConstInfo TCM where
@@ -1012,7 +1012,7 @@ instance HasConstInfo TCM where
       Left SigCubicalNotErasure -> typeError $ CubicalNotErasure q
 
 defaultGetConstInfo
-  :: (HasOptions m, MonadDebug m, MonadTCEnv m)
+  :: (HasCallStack, HasOptions m, MonadDebug m, MonadTCEnv m)
   => TCState -> TCEnv -> QName -> m (Either SigError Definition)
 defaultGetConstInfo st env q = do
     let defs  = st ^. stSignature . sigDefinitions
@@ -1076,16 +1076,17 @@ instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m)
 instance HasConstInfo m => HasConstInfo (BlockT m)
 
 {-# INLINE getConInfo #-}
-getConInfo :: HasConstInfo m => ConHead -> m Definition
+getConInfo :: (HasCallStack, HasConstInfo m) => ConHead -> m Definition
 getConInfo = getConstInfo . conName
 
+{-# INLINE getPolarity #-}
 -- | Look up the polarity of a definition.
-getPolarity :: HasConstInfo m => QName -> m [Polarity]
+getPolarity :: (HasCallStack, HasConstInfo m) => QName -> m [Polarity]
 getPolarity q = defPolarity <$> getConstInfo q
 
 -- | Look up polarity of a definition and compose with polarity
 --   represented by 'Comparison'.
-getPolarity' :: HasConstInfo m => Comparison -> QName -> m [Polarity]
+getPolarity' :: (HasCallStack, HasConstInfo m) => Comparison -> QName -> m [Polarity]
 getPolarity' CmpEq  q = map (composePol Invariant) <$> getPolarity q -- return []
 getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 
@@ -1110,7 +1111,7 @@ getOccurrencesFromType t = do
   else return []
 
 -- | Get argument occurrence info for argument @i@ of definition @d@ (never fails).
-getArgOccurrence :: QName -> Nat -> TCM Occurrence
+getArgOccurrence :: HasCallStack => QName -> Nat -> TCM Occurrence
 getArgOccurrence d i = do
   def <- getConstInfo d
   case theDef def of
@@ -1159,7 +1160,7 @@ getCompiled q = do
 
 -- | Returns a list of length 'conArity'.
 --   If no erasure analysis has been performed yet, this will be a list of 'False's.
-getErasedConArgs :: HasConstInfo m => QName -> m [Bool]
+getErasedConArgs :: (HasCallStack, HasConstInfo m) => QName -> m [Bool]
 getErasedConArgs q = do
   def <- getConstInfo q
   case theDef def of

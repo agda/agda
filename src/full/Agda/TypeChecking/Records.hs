@@ -37,6 +37,7 @@ import Agda.TypeChecking.Warnings
 import {-# SOURCE #-} Agda.TypeChecking.Primitive.Cubical.Base (isCubicalSubtype)
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
 
+import Agda.Utils.CallStack ( HasCallStack )
 import Agda.Utils.Empty
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor (for, ($>), (<&>))
@@ -195,9 +196,9 @@ insertMissingFieldsFail o r placeholder fs axs =
 
 -- | Check if a name refers to a record.
 --   If yes, return record definition.
-{-# SPECIALIZE isRecord :: QName -> TCM (Maybe RecordData) #-}
-{-# SPECIALIZE isRecord :: QName -> ReduceM (Maybe RecordData) #-}
-isRecord :: HasConstInfo m => QName -> m (Maybe RecordData)
+{-# SPECIALIZE isRecord :: HasCallStack => QName -> TCM (Maybe RecordData) #-}
+{-# SPECIALIZE isRecord :: HasCallStack => QName -> ReduceM (Maybe RecordData) #-}
+isRecord :: (HasCallStack, HasConstInfo m) => QName -> m (Maybe RecordData)
 isRecord r = do
   getConstInfo r <&> theDef <&> \case
     RecordDefn rd -> Just rd
@@ -205,18 +206,18 @@ isRecord r = do
 
 -- | Get the definition for a record. Throws an exception if the name
 --   does not refer to a record or the record is abstract.
-getRecordDef :: (HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m RecordData
+getRecordDef :: (HasCallStack, HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m RecordData
 getRecordDef r = fromMaybeM err $ isRecord r
   where err = typeError $ ShouldBeRecordType (El __DUMMY_SORT__ $ Def r [])
 
 -- | Get the record name belonging to a field name.
-getRecordOfField :: QName -> TCM (Maybe QName)
+getRecordOfField :: HasCallStack => QName -> TCM (Maybe QName)
 getRecordOfField d = caseMaybeM (isProjection d) (return Nothing) $
   \ Projection{ projProper = proper, projFromType = r} ->
     return $ unArg r <$ proper -- if proper then Just (unArg r) else Nothing
 
 -- | Get the field names of a record.
-getRecordFieldNames :: (HasConstInfo m, ReadTCState m, MonadError TCErr m)
+getRecordFieldNames :: (HasCallStack, HasConstInfo m, ReadTCState m, MonadError TCErr m)
   => QName
   -> m [Dom C.Name]
 getRecordFieldNames r = recordFieldNames <$> getRecordDef r
@@ -243,8 +244,8 @@ findPossibleRecords fields = do
     given = Set.fromList fields
 
 -- | Get the field names belonging to a record type.
-getRecordTypeFields
-  :: Type  -- ^ Record type.  Need not be reduced.
+getRecordTypeFields :: HasCallStack
+  => Type  -- ^ Record type.  Need not be reduced.
   -> TCM [Dom QName]
 getRecordTypeFields t = do
   t <- reduce t  -- Andreas, 2018-03-03, fix for #2989.
@@ -258,20 +259,20 @@ getRecordTypeFields t = do
 
 -- | Returns the given record type's constructor name (with an empty
 -- range).
-getRecordConstructor :: (HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m ConHead
+getRecordConstructor :: (HasCallStack, HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m ConHead
 getRecordConstructor r = killRange . _recConHead <$> getRecordDef r
 
 -- | Reduce a type and check whether it is a record type.
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
-isRecordType :: PureTCM m => Type -> m (Maybe (QName, Args, RecordData))
+isRecordType :: (HasCallStack, PureTCM m) => Type -> m (Maybe (QName, Args, RecordData))
 isRecordType t = either (const Nothing) Just <$> tryRecordType t
 
 -- | Reduce a type and check whether it is a record type.
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
 --   If no, return the reduced type (unless it is blocked).
-tryRecordType :: PureTCM m => Type -> m (Either (Blocked Type) (QName, Args, RecordData))
+tryRecordType :: (HasCallStack, PureTCM m) => Type -> m (Either (Blocked Type) (QName, Args, RecordData))
 tryRecordType t = ifBlocked t (\ m a -> return $ Left $ Blocked m a) $ \ nb t -> do
   let no = return $ Left $ NotBlocked nb t
   case unEl t of
@@ -281,8 +282,8 @@ tryRecordType t = ifBlocked t (\ m a -> return $ Left $ Blocked m a) $ \ nb t ->
     _ -> no
 
 -- | Get the original projection info for name.
-{-# SPECIALIZE origProjection :: QName -> TCM (QName, Definition, Maybe Projection) #-}
-origProjection ::  HasConstInfo m => QName -> m (QName, Definition, Maybe Projection)
+{-# SPECIALIZE origProjection :: HasCallStack => QName -> TCM (QName, Definition, Maybe Projection) #-}
+origProjection ::  (HasCallStack, HasConstInfo m) => QName -> m (QName, Definition, Maybe Projection)
 origProjection f = do
   def <- getConstInfo f
   let proj     = isProjection_ $ theDef def
@@ -450,9 +451,9 @@ eliminateType' err hd t (e : es) = case e of
 --
 -- The answer is no for a record type with an erased constructor
 -- unless the current quantity is \"erased\".
-{-# SPECIALIZE isEtaRecord :: QName -> TCM Bool #-}
-{-# SPECIALIZE isEtaRecord :: QName -> ReduceM Bool #-}
-isEtaRecord :: HasConstInfo m => QName -> m Bool
+{-# SPECIALIZE isEtaRecord :: HasCallStack => QName -> TCM Bool #-}
+{-# SPECIALIZE isEtaRecord :: HasCallStack => QName -> ReduceM Bool #-}
+isEtaRecord :: (HasCallStack, HasConstInfo m) => QName -> m Bool
 isEtaRecord r = do
   isRecord r >>= \case
     Just r | isEtaRecordDef r -> do
@@ -464,12 +465,12 @@ isEtaRecord r = do
 isEtaRecordDef :: RecordData -> Bool
 isEtaRecordDef r = _recEtaEquality r == YesEta
 
-{-# SPECIALIZE isEtaCon :: QName -> TCM Bool #-}
-isEtaCon :: HasConstInfo m => QName -> m Bool
+{-# INLINE isEtaCon #-}
+isEtaCon :: (HasCallStack, HasConstInfo m) => QName -> m Bool
 isEtaCon c = isJust <$> isEtaRecordConstructor c
 
 -- | Going under one of these does not count as a decrease in size for the termination checker.
-isEtaOrCoinductiveRecordConstructor :: HasConstInfo m => QName -> m Bool
+isEtaOrCoinductiveRecordConstructor :: (HasCallStack, HasConstInfo m) => QName -> m Bool
 isEtaOrCoinductiveRecordConstructor c =
   caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) ->
     pure (isEtaRecordDef def) `or2M`
@@ -477,11 +478,11 @@ isEtaOrCoinductiveRecordConstructor c =
       -- If in doubt about coinductivity, then yes.
 
 -- | Check if a name refers to a record which is not coinductive.  (Projections are then size-preserving)
-isInductiveRecord :: HasConstInfo m => QName -> m Bool
+isInductiveRecord :: (HasCallStack, HasConstInfo m) => QName -> m Bool
 isInductiveRecord r = maybe False ((Just CoInductive /=) . _recInduction) <$> isRecord r
 
 -- | Check if a type is an eta expandable record and return the record identifier and the parameters.
-isEtaRecordType :: (HasConstInfo m)
+isEtaRecordType :: (HasCallStack, HasConstInfo m)
   => Type
   -> m (Maybe (QName, Args))
 isEtaRecordType a = case unEl a of
@@ -493,7 +494,7 @@ isEtaRecordType a = case unEl a of
 -- | Check if a name refers to a record constructor.
 --   If yes, return record definition.
 --
-isRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, RecordData))
+isRecordConstructor :: (HasCallStack, HasConstInfo m) => QName -> m (Maybe (QName, RecordData))
 isRecordConstructor c = getConstInfo' c >>= \case
   Left (SigUnknown err)     -> __IMPOSSIBLE_VERBOSE__ err
   Left SigCubicalNotErasure -> __IMPOSSIBLE__
@@ -502,7 +503,7 @@ isRecordConstructor c = getConstInfo' c >>= \case
     Constructor{ conData = r } -> fmap (r,) <$> isRecord r
     _                          -> return Nothing
 
-isEtaRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, RecordData))
+isEtaRecordConstructor :: (HasCallStack, HasConstInfo m) => QName -> m (Maybe (QName, RecordData))
 isEtaRecordConstructor c = isRecordConstructor c >>= \case
   Nothing -> return Nothing
   Just (d, def) -> if isEtaRecordDef def then return $ Just (d, def) else return Nothing
