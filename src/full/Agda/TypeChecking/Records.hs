@@ -955,7 +955,7 @@ isSingletonType' regardIrrelevance t rs = do
             OTerm phi' -> patternViolation (unblockOnAnyMetaIn phi')
             -- This fails the MaybeT: we're not looking at a
             -- definitional singleton.
-            _ -> fail ""
+            _ -> mzero
 
       (<|>) <$> record <*> subtype
 

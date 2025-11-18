@@ -984,7 +984,7 @@ getFilteredRewriteRulesFor filt q = do
 getOriginalProjection :: HasConstInfo m => QName -> m QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
-instance HasConstInfo (TCMT IO) where
+instance HasConstInfo TCM where
   getRewriteRulesFor = defaultGetRewriteRulesFor
   getConstInfo' q = do
     st  <- getTC
@@ -992,7 +992,7 @@ instance HasConstInfo (TCMT IO) where
     defaultGetConstInfo st env q
   getConstInfo q = getConstInfo' q >>= \case
       Right d -> return d
-      Left (SigUnknown err)     -> fail err
+      Left (SigUnknown err)     -> internalError err
       Left SigAbstract          -> notInScopeError $ qnameToConcrete q
       Left SigCubicalNotErasure -> typeError $ CubicalNotErasure q
 
