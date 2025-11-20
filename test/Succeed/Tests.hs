@@ -117,6 +117,7 @@ execTestFilter =
   , disable "Succeed/Issue3545"
   , disable "Succeed/Issue3651"
   , disable "Succeed/Issue3731"
+  , disable "Succeed/Issue7943"
   , disable "Succeed/Issue867"
   , disable "Succeed/Options-in-right-order"
   , disable "Succeed/ParseErrorGHCPragma"

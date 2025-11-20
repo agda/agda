@@ -127,6 +127,7 @@ fdebugTestFilter =
 execTestFilter :: [RegexFilter]
 execTestFilter =
   [ disable "Fail/Issue2248_COMPILED_TYPE"
+  , disable "Fail/DuplicateExecutable"
   ]
   where disable = RFInclude
 

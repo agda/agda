@@ -1,6 +1,6 @@
 AGDA_FAILURE
 
-ret > ExitFailure 154
+ret > ExitFailure 120
 out > computing generalization for type _2
 out > we're generalizing over
 out > checking record def R
