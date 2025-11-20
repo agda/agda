@@ -144,8 +144,7 @@ warnForPlentyInHardCompileTimeMode = \case
   Erased{}    -> return ()
   NotErased o -> do
     let warn = warning $ PlentyInHardCompileTimeMode o
-    hard <- viewTC eHardCompileTimeMode
-    if not hard then return () else case o of
+    whenM (viewTC eHardCompileTimeMode) $ case o of
       QωInferred{} -> return ()
       Qω{}         -> warn
       QωPlenty{}   -> warn
