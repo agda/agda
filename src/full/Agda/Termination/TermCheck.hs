@@ -619,43 +619,51 @@ instance TermToPattern a b => TermToPattern (Arg a) (Arg b) where
 instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
 
 instance TermToPattern Term DeBruijnPattern where
-  termToPattern t = reduce t >>= constructorForm >>= \case
-    -- Constructors.
-    Con c _ args -> ifNotConsOfHIT c $
-      ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
-    Def s [Apply arg] -> do
-      suc <- terGetSizeSuc
-      if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
-       else fallback
-    DontCare t  -> termToPattern t
-    -- Leaves.
-    -- Any (not coinductively) projected variable becomes a variable pattern.
-    Var i es    -> case mapM isProjElim es of
-      Just oxs  -> foldMap (All <.> isProjectionButNotCoinductive . snd) oxs >>= \case
-        All True -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
-        _        -> fallback
-      _ -> fallback
-    Lit l       -> return $ litP l
-    Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
-    t           -> fallback
-    where
-    -- Andrea: 22/04/2020.
-    -- With cubical we will always have a clause where the dot
-    -- patterns are instead replaced with a variable, so they
-    -- cannot be relied on for termination.
-    -- See issue #4606 for a counterexample involving HITs.
-    --
-    -- Without the presence of HITs I conjecture that dot patterns
-    -- could be turned into actual splits, because no-confusion
-    -- would make the other cases impossible, so I do not disable
-    -- this for --without-K entirely.
-    --
-    -- Szumi, 2025-03-11:
-    -- Instead of completely turning off dot-pattern termination for cubical,
-    -- it should be enough to only ignore constructors of HITs in dot patterns.
-    -- This way, the issues #5953 and #4725 are also avoided.
-    ifNotConsOfHIT c    = ifM (consOfHIT (conName c)) fallback
-    fallback            = return $ dotP t
+  termToPattern t = do
+    t <- constructorForm =<< reduce t
+    let
+      -- Andrea: 22/04/2020.
+      -- With cubical we will always have a clause where the dot
+      -- patterns are instead replaced with a variable, so they
+      -- cannot be relied on for termination.
+      -- See issue #4606 for a counterexample involving HITs.
+      --
+      -- Without the presence of HITs I conjecture that dot patterns
+      -- could be turned into actual splits, because no-confusion
+      -- would make the other cases impossible, so I do not disable
+      -- this for --without-K entirely.
+      --
+      -- Szumi, 2025-03-11:
+      -- Instead of completely turning off dot-pattern termination for cubical,
+      -- it should be enough to only ignore constructors of HITs in dot patterns.
+      -- This way, the issues #5953 and #4725 are also avoided.
+      ifNotConsOfHIT :: ConHead -> TerM DeBruijnPattern -> TerM DeBruijnPattern
+      ifNotConsOfHIT c = ifM (consOfHIT (conName c)) fallback
+      -- Andreas, 2025-11-20, issue #8212
+      -- Reduce constructor to their original form
+      -- as this also happens in the call arguments.
+      fallback :: TerM DeBruijnPattern
+      fallback = dotP <$> do reduceCon t
+    case t of
+      -- Constructors.
+      Con c _ args -> ifNotConsOfHIT c $
+        ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
+      Def s [Apply arg] -> do
+        suc <- terGetSizeSuc
+        if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
+         else fallback
+      DontCare t  -> termToPattern t
+      -- Leaves.
+      -- Any (not coinductively) projected variable becomes a variable pattern.
+      Var i es -> case mapM isProjElim es of
+        Just oxs  -> foldMap (All <.> isProjectionButNotCoinductive . snd) oxs >>= \case
+          All True -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
+          _        -> fallback
+        _ -> fallback
+      Lit l       -> return $ litP l
+      Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
+      _           -> fallback
+
 
 -- | Masks all non-data/record type patterns if --without-K.
 --   See issue #1023.
@@ -950,14 +958,13 @@ function g es0 = do
              ]
          return $ CallGraph.insert src tgt cm info calls
 
-  where
-    -- We have to reduce constructors in case they're reexported.
-    -- Andreas, Issue 1530: constructors have to be reduced deep inside terms,
-    -- thus, we need to use traverseTermM.
-    reduceCon :: Term -> TCM Term
-    reduceCon = traverseTermM $ \case
-      Con c ci vs -> (`applyE` vs) <$> reduce (Con c ci [])  -- make sure we don't reduce the arguments
-      t -> return t
+-- We have to reduce constructors in case they're reexported.
+-- Andreas, Issue 1530: constructors have to be reduced deep inside terms,
+-- thus, we need to use traverseTermM.
+reduceCon :: MonadTCM tcm => Term -> tcm Term
+reduceCon = liftTCM . traverseTermM \case
+  Con c ci vs -> (`applyE` vs) <$> reduce (Con c ci [])  -- make sure we don't reduce the arguments
+  t -> return t
 
 
 -- | Try to get rid of a function call targeting the current SCC
