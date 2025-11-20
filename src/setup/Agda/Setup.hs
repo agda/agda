@@ -39,7 +39,9 @@ import           Agda.Setup.DataFiles       ( dataFiles, dataPath )
 import           Agda.Setup.LockFile        ( withLockFile )
 import           Agda.VersionCommit         ( versionWithCommitInfo )
 
+#ifndef USE_XDG_DATA_HOME
 import qualified Paths_Agda                 as Paths
+#endif
 
 -- | Given the `Agda_datadir`, what should the Agda data dir be?
 
