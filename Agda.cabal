@@ -101,6 +101,8 @@ extra-source-files:
     src/data/emacs-mode/agda2-mode-pkg.el
     src/data/emacs-mode/agda2-mode.el
     src/data/emacs-mode/agda2-queue.el
+    src/data/emacs-mode/agda2-ast.el
+    src/data/emacs-mode/agda2-ast-commands.el
     src/data/emacs-mode/agda2.el
     src/data/emacs-mode/annotation.el
     src/data/emacs-mode/eri.el
@@ -159,6 +161,8 @@ data-files:
     emacs-mode/agda2-mode-pkg.el
     emacs-mode/agda2-mode.el
     emacs-mode/agda2-queue.el
+    emacs-mode/agda2-ast.el
+    emacs-mode/agda2-ast-commands.el
     emacs-mode/agda2.el
     emacs-mode/annotation.el
     emacs-mode/eri.el
@@ -613,6 +617,7 @@ library
       Agda.Interaction.Response
       Agda.Interaction.Response.Base
       Agda.Interaction.SearchAbout
+      Agda.Interaction.ASTMap
       Agda.Main
       Agda.Mimer.Mimer
       Agda.Mimer.Monad

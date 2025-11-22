@@ -162,7 +162,15 @@ lispifyResponse = \case
         , showNumIId ii
         , A $ quote str
         ]
-
+  Resp_AstMap m ->
+    -- Minimal shape:
+    -- (agda2-ast-map-action POSITIONS TOPLEVELS ((ID KIND BEG END (CHILD ...)) ...))
+    return $ L
+      [ A "agda2-ast-map-action"
+      , lispifyAstPositions (astPositions m)
+      , Q $ L (map (A . show) (astTopLevel m))
+      , Q $ L (map lispifyAstNode (astNodes m))
+      ]
 lispifyDisplayInfo :: DisplayInfo -> TCM (Lisp String)
 lispifyDisplayInfo = \case
 
@@ -249,8 +257,13 @@ lispifyDisplayInfo = \case
       doc <- explainWhyInScope why
       format "*Scope Info*" doc
 
-    Info_Context ii ctx -> do
+    Info_Context ii Nothing ctx -> do
       doc <- localTCState (prettyResponseContext ii False ctx)
+      format "*Context*" doc
+
+
+    Info_Context _ (Just cl) ctx -> do
+      doc <- localTCState (withMetaInfo cl $ prettyResponseContext' False ctx)
       format "*Context*" doc
 
     Info_Intro_NotFound ->
@@ -268,11 +281,15 @@ lispifyDisplayInfo = \case
     Info_Version ->
       format "*Agda Version*" ("Agda version" <+> text versionWithCommitInfo)
 
-    Info_GoalSpecific ii kind ->
+    Info_GoalSpecific ii Nothing kind ->
       lispifyGoalSpecificDisplayInfo ii kind
 
-lispifyGoalSpecificDisplayInfo :: InteractionId -> GoalDisplayInfo -> TCM (Lisp String)
-lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
+    Info_GoalSpecific ii (Just cl) kind ->
+      localTCState $ withMetaInfo cl $ lispifyGoalSpecificDisplayInfo' ii kind
+
+
+lispifyGoalSpecificDisplayInfo' :: InteractionId -> GoalDisplayInfo -> TCM (Lisp String)
+lispifyGoalSpecificDisplayInfo' ii kind = 
   case kind of
 
     Goal_HelperFunction helperType -> do
@@ -328,6 +345,10 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
     Goal_InferredType expr -> do
       doc <- prettyATop expr
       format "*Inferred Type*" doc
+
+lispifyGoalSpecificDisplayInfo :: InteractionId -> GoalDisplayInfo -> TCM (Lisp String)
+lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $ lispifyGoalSpecificDisplayInfo' ii kind
+  
 
 format :: String -> Doc -> TCM (Lisp String)
 format header = format' header Nothing
@@ -434,12 +455,11 @@ prettyInfoError = \case
 
 -- | Pretty-prints the context of the given meta-variable.
 
-prettyResponseContext
-  :: InteractionId  -- ^ Context of this meta-variable.
-  -> Bool           -- ^ Print the elements in reverse order?
+prettyResponseContext'
+  :: Bool           -- ^ Print the elements in reverse order?
   -> [ResponseContextEntry]
   -> TCM Doc
-prettyResponseContext ii rev ctx = withInteractionId ii $ do
+prettyResponseContext' rev ctx = do 
   mod <- currentModality
   align 10 . concat . applyWhen rev reverse <$> do
     forM ctx $ \ (ResponseContextEntry n x (Arg ai expr) letv nis) -> do
@@ -485,6 +505,13 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
       | null docs = empty
       | otherwise = (" " <+>) $ parens $ fsep $ punctuate comma docs
 
+prettyResponseContext
+  :: InteractionId  -- ^ Context of this meta-variable.
+  -> Bool           -- ^ Print the elements in reverse order?
+  -> [ResponseContextEntry]
+  -> TCM Doc
+prettyResponseContext ii rev ctx = withInteractionId ii $ prettyResponseContext' rev ctx
+  
 
 -- | Pretty-prints the type of the meta-variable.
 
@@ -497,3 +524,19 @@ prettyTypeOfMeta norm ii = do
 -- | Prefix prettified CPUTime with "Time:"
 prettyTimed :: CPUTime -> Doc
 prettyTimed time = "Time:" <+> pretty time
+
+-- Small atom Emacs can dispatch on.
+lispifyAstPositions :: AstPositions -> Lisp String
+lispifyAstPositions = \case
+  AstCodepoint -> A "'codepoint"
+  AstLineCol   -> A "'line-col"
+
+-- Node as: (ID KIND BEG END (CHILD ...))
+lispifyAstNode :: AstNode -> Lisp String
+lispifyAstNode n = L
+  [ A (show  $ astNodeId   n)
+  , A (quote $ astNodeKind n)
+  , A (show  $ astNodeBeg  n)
+  , A (show  $ astNodeEnd  n)
+  , L (map (A . show) (astNodeChildren n))
+  ]

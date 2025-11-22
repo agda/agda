@@ -99,6 +99,8 @@ import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Options.Warnings (unsolvedWarnings)
 import Agda.Interaction.Response
   (RemoveTokenBasedHighlighting(KeepHighlighting))
+import qualified Agda.Interaction.Response.Base as R
+import Agda.Interaction.ASTMap
 
 import Agda.Utils.CallStack (HasCallStack)
 import Agda.Utils.FileName
@@ -1146,6 +1148,12 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     let ds    = topLevelDecls topLevel
         scope = topLevelScope topLevel
 
+
+    ifTopLevel $ do
+       let astPld = buildAstMapFromExprLike OpaqueWrappers R.AstLineCol ds
+       appInteractionOutputCallback $
+          R.Resp_AstMap astPld  
+    
     -- Highlighting from scope checker.
     reportSLn "import.iface.highlight" 15 $ prettyShow mname ++ ": Starting highlighting from scope."
     Bench.billTo [Bench.Highlighting] $ do
@@ -1180,6 +1188,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Skipping type checking."
         cacheCurrentLog
       else do
+        ifTopLevel $ setTCLens (lensPostScopeState . lensClosuresRanges) (Just [])
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Starting type checking."
         Bench.billTo [Bench.Typing] $ mapM_ checkDeclCached ds `finally_` cacheCurrentLog
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Finished type checking."

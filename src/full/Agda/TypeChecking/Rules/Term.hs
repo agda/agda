@@ -1414,7 +1414,7 @@ checkExpr' cmp e t =
         "    --> " <+> prettyTCM tReduced
 
     e <- scopedExpr e
-
+    putClosuresRangesType t
     irrelevantIfProp <- runBlocked (isPropM t) >>= \case
       Right True  -> do
         let mod = unitModality { modRelevance = irrelevant }

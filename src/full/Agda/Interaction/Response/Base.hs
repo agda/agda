@@ -14,6 +14,10 @@ module Agda.Interaction.Response.Base
   , ResponseContextEntry(..)
   , Status (..)
   , GiveResult (..)
+  , AstPositions(..)
+  , AstNodeId
+  , AstNode(..)
+  , AstMapPayload(..)
   ) where
 
 import Control.Monad.Trans ( MonadIO(liftIO) )
@@ -48,7 +52,7 @@ import qualified Agda.Syntax.Concrete.Name as C
 --   Note that the response is given in pieces and incrementally,
 --   so the user can have timely response even during long computations.
 
-data Response_boot tcErr tcWarning warningsAndNonFatalErrors
+data Response_boot tcErr tcWarning warningsAndNonFatalErrors closureRange
     = Resp_HighlightingInfo
         HighlightingInfo
         RemoveTokenBasedHighlighting
@@ -63,7 +67,7 @@ data Response_boot tcErr tcWarning warningsAndNonFatalErrors
     | Resp_SolveAll [(InteractionId, Expr)]
       -- ^ Solution for one or more meta-variables.
     | Resp_Mimer InteractionId (Maybe String)
-    | Resp_DisplayInfo (DisplayInfo_boot tcErr tcWarning warningsAndNonFatalErrors)
+    | Resp_DisplayInfo (DisplayInfo_boot tcErr tcWarning warningsAndNonFatalErrors closureRange)
     | Resp_RunningInfo Int DocTree
       -- ^ The integer is the message's debug level.
       --   The 'DocTree' usually does not contain a final newline.
@@ -76,6 +80,8 @@ data Response_boot tcErr tcWarning warningsAndNonFatalErrors
     | Resp_DoneExiting
       -- ^ A command sent when an exit command is about to be
       -- completed.
+    | Resp_AstMap AstMapPayload
+      -- ^ Push the whole-file AST→range map for the current file (single shot).
 
 -- | Should token-based highlighting be removed in conjunction with
 -- the application of new highlighting (in order to reduce the risk of
@@ -93,7 +99,7 @@ data MakeCaseVariant = Function | ExtendedLambda
 
 -- | Info to display at the end of an interactive command
 
-data DisplayInfo_boot tcErr tcWarning warningsAndNonFatalErrors
+data DisplayInfo_boot tcErr tcWarning warningsAndNonFatalErrors closureRange
     = Info_CompilationOk CompilerBackend warningsAndNonFatalErrors
     | Info_Constraints [OutputForm_boot tcErr Expr Expr]
     | Info_AllGoalsWarnings (Goals_boot tcErr) warningsAndNonFatalErrors
@@ -111,9 +117,9 @@ data DisplayInfo_boot tcErr tcWarning warningsAndNonFatalErrors
     | Info_WhyInScope WhyInScopeData
     | Info_NormalForm CommandState ComputeMode (Maybe CPUTime) A.Expr
     | Info_InferredType CommandState (Maybe CPUTime) A.Expr
-    | Info_Context InteractionId [ResponseContextEntry]
+    | Info_Context InteractionId (Maybe closureRange) [ResponseContextEntry]
     | Info_Version
-    | Info_GoalSpecific InteractionId (GoalDisplayInfo_boot tcErr)
+    | Info_GoalSpecific InteractionId (Maybe closureRange) (GoalDisplayInfo_boot tcErr)
 
 data GoalDisplayInfo_boot tcErr
     = Goal_HelperFunction (OutputConstraint' A.Expr C.Name)
@@ -179,3 +185,28 @@ data GiveResult
     = Give_String String
     | Give_Paren
     | Give_NoParen
+
+-- | Coordinate system used for ranges.
+data AstPositions
+  = AstCodepoint  -- ^ Absolute codepoint offsets from start of file (half-open [beg,end)).
+  | AstLineCol    -- ^ 1-based (line, column) coordinates (not used in v1 on the Emacs side).
+  deriving (Eq, Ord, Show)
+
+-- | Node identifiers are dense 32-bit integers (fast, compact).
+type AstNodeId = Word32
+
+-- | Minimal node payload for AST-aware navigation (v1).
+data AstNode = AstNode
+  { astNodeId       :: !AstNodeId
+  , astNodeKind     :: !String          -- ^ Free-form tag, e.g. \"Module\", \"Decl\", \"Expr\", ...
+  , astNodeBeg      :: !Word32          -- ^ Half-open start, in the units given by 'AstPositions'.
+  , astNodeEnd      :: !Word32          -- ^ Half-open end.
+  , astNodeChildren :: ![AstNodeId]     -- ^ Children in source order (by 'astNodeBeg').
+  } deriving (Eq, Show)
+
+-- | Whole-file AST map that we push interactively to Emacs.
+data AstMapPayload = AstMapPayload
+  { astPositions :: !AstPositions      -- ^ How to interpret 'astNodeBeg'/'astNodeEnd'.
+  , astTopLevel  :: ![AstNodeId]
+  , astNodes     :: ![AstNode]
+  } deriving (Eq, Show)

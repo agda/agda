@@ -50,6 +50,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.String
 import Data.Text (Text)
+import qualified Data.Text as Text
 import qualified Data.Text.Lazy as TL
 import Data.Semigroup (Sum, Max)
 
@@ -266,6 +267,14 @@ type ConcreteNames = Map Name (List1 C.Name)
 type ShadowingNames = Map Name (Set1 RawName)
 type UsedNames = Map RawName (Set1 RawName)
 
+data ClosureRangeArtefact = ClosureRangeArtefact
+  { craRange         :: Range
+  , craType          :: I.Type
+  , craHiddenArgs    :: [Named_ Elim]
+  } deriving (Show, Generic)
+
+type ClosureRangeList = [Closure ClosureRangeArtefact]
+
 data PostScopeState = PostScopeState
   { stPostSyntaxInfo          :: !HighlightingInfo
     -- ^ Highlighting info.
@@ -349,6 +358,7 @@ data PostScopeState = PostScopeState
     -- ^ Is this a context where we should always try every possible
     -- instance candidate? Used to support "inert improvement", see
     -- @shouldBlockOverlap@ in InstanceArguments.
+  , stClosuresRanges    :: !(Maybe ClosureRangeList)
   }
   deriving (Generic)
 
@@ -540,6 +550,7 @@ initPostScopeState = PostScopeState
   , stPostOpaqueIds              = Map.empty
   , stPostForeignCode            = Map.empty
   , stPostInstanceHack           = False
+  , stClosuresRanges     = Nothing
   }
 
 initStateIO :: IO TCState
@@ -786,6 +797,9 @@ lensInstantiateBlocking f s = f (stPostInstantiateBlocking s) <&> \ x -> s { stP
 
 lensInstanceHack :: Lens' PostScopeState Bool
 lensInstanceHack f s = f (stPostInstanceHack s) <&> \ x -> s { stPostInstanceHack = x }
+
+lensClosuresRanges :: Lens' PostScopeState (Maybe ClosureRangeList)
+lensClosuresRanges f s = f (stClosuresRanges s) <&> \ x -> s { stClosuresRanges = x }
 
 -- * @st@-prefixed lenses
 ------------------------------------------------------------------------
@@ -1152,6 +1166,21 @@ freshRecordName :: MonadFresh NameId m => m Name
 freshRecordName = do
   i <- fresh
   return $ makeName i (C.setNotInScope $ C.simpleName "r") noRange noFixity' True
+
+
+putClosuresRangesAt :: ClosureRangeArtefact -> TCM ()
+putClosuresRangesAt cra@(ClosureRangeArtefact{..}) = 
+  case (rangeToPosPair craRange) of
+    Nothing -> return ()
+    Just _ -> do
+       cl <- buildClosure cra
+       modifyTCLens (lensPostScopeState . lensClosuresRanges)
+           (fmap ((:) cl))
+
+
+putClosuresRangesType :: I.Type -> TCM ()
+putClosuresRangesType ty = do 
+  ((\r -> ClosureRangeArtefact r ty []) <$> asksTC envRange) >>= putClosuresRangesAt
 
 -- | Create a fresh name from @a@.
 class FreshName a where
@@ -4032,6 +4061,17 @@ ifTopLevelAndHighlightingLevelIsOr l b m = do
       -- In or before the top-level module.
       _ -> m
 
+ifTopLevel ::
+  MonadTCEnv tcm => tcm () -> tcm ()
+ifTopLevel m = do
+  e <- askTC
+  case (envImportStack e) of
+      -- Below the main module.
+      (_:_:_) -> pure ()
+      -- In or before the top-level module.
+      _ -> m
+
+
 -- | @ifTopLevelAndHighlightingLevelIs l m@ runs @m@ when we're
 -- type-checking the top-level module (or before we've started doing
 -- this) and the highlighting level is /at least/ @l@.
@@ -6476,7 +6516,7 @@ forkTCM m = do
 --      closure of the 'InteractionOutputCallback' function.
 --      (suitable for intra-process communication).
 
-type InteractionOutputCallback = Response_boot TCErr TCWarning WarningsAndNonFatalErrors -> TCM ()
+type InteractionOutputCallback = Response_boot TCErr TCWarning WarningsAndNonFatalErrors (Closure Range) -> TCM ()
 
 -- | The default 'InteractionOutputCallback' function prints certain
 -- things to stdout (other things generate internal errors).
@@ -6499,6 +6539,7 @@ defaultInteractionOutputCallback = \case
   Resp_ClearHighlighting {} -> __IMPOSSIBLE__
   Resp_DoneAborting {}      -> __IMPOSSIBLE__
   Resp_DoneExiting {}       -> __IMPOSSIBLE__
+  Resp_AstMap {}            -> __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Names for generated definitions
@@ -6822,7 +6863,7 @@ instance NFData CannotQuote
 instance NFData ExecError
 instance NFData ConstructorDisambiguationData
 instance NFData Statistics
-
+instance NFData ClosureRangeArtefact
 -- Andreas, 2025-07-31, cannot normalize functions with deepseq-1.5.2.0 (GHC 9.10.3-rc1).
 -- See https://github.com/haskell/deepseq/issues/111.
 

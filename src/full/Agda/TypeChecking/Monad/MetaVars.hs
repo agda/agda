@@ -193,6 +193,32 @@ lookupLocalMeta m =
   where
   err = "no such local meta-variable " ++ prettyShow m
 
+
+class ClosureRangeTC a where
+  closureRangeTC :: (MonadDebug m, ReadTCState m, MonadError TCErr m,
+   MonadTCEnv m, MonadTrace m) =>
+     a  -> m (Closure Range)
+  
+
+withClosureRnage :: (MonadDebug m, ReadTCState m, MonadError TCErr m,
+   MonadTCEnv m, MonadTrace m , ClosureRangeTC a) =>
+    a -> m b -> m b
+withClosureRnage a m = do
+   c <- closureRangeTC a
+   withMetaInfo c m
+
+
+withClosureRnage' :: (MonadDebug m, ReadTCState m, MonadError TCErr m,
+   MonadTCEnv m, MonadTrace m , ClosureRangeTC a) =>
+    a -> (Closure Range -> m b) -> m b
+withClosureRnage' a m = do
+   c <- closureRangeTC a
+   withMetaInfo c (m c)
+
+  
+instance ClosureRangeTC MetaId where
+  closureRangeTC = fmap getMetaInfo . lookupLocalMeta  
+  
 -- | Find information about the (local or remote) meta-variable, if
 -- any.
 --
@@ -211,6 +237,7 @@ lookupMeta m = do
   case mv of
     Just mv -> return (Just (Right mv))
     Nothing -> fmap Left . HMap.lookup m <$> useR stImportedMetaStore
+
 
 -- | Find the meta-variable's instantiation.
 
@@ -615,6 +642,7 @@ connectInteractionPoint ii mi = do
 
 -- | Mark an interaction point as solved.
 removeInteractionPoint :: MonadInteractionPoints m => InteractionId -> m ()
+removeInteractionPoint (InteractionId (-1)) = pure ()
 removeInteractionPoint ii =
   modifyInteractionPoints $ BiMap.update (\ ip -> Just ip{ ipSolved = True }) ii
 
@@ -722,6 +750,7 @@ getInteractionRange = ipRange <.> lookupInteractionPoint
 {-# SPECIALIZE setInteractionRange :: Range -> InteractionId -> TCM () #-}
 setInteractionRange :: (MonadInteractionPoints m, MonadDebug m, MonadError TCErr m)
   => Range -> InteractionId -> m ()
+setInteractionRange r (InteractionId (-1)) = pure ()
 setInteractionRange r ii = do
   modifyInteractionPoints $ BiMap.update (\ ip -> Just ip{ ipRange = r }) ii
   return ()

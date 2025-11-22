@@ -51,7 +51,7 @@ import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Info (mkDefInfo)
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
-import Agda.Syntax.Translation.InternalToAbstract (reify)
+import Agda.Syntax.Translation.InternalToAbstract (reify,reifyUnblocked)
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.TopLevelModuleName
 
@@ -417,6 +417,7 @@ independent (Cmd_compile {})                = True
 independent (Cmd_load_highlighting_info {}) = True
 independent Cmd_tokenHighlighting {}        = True
 independent Cmd_show_version                = True
+independent (Cmd_elaborate_give _ (InteractionId (-1)) _ _) = True
 independent _                               = False
 
 -- | Should 'Resp_InteractionPoints' be issued after the command has
@@ -472,6 +473,7 @@ getBackendName = \case
   QuickLaTeX -> "LaTeX"
   OtherBackend "GHCNoMain" -> "GHC"
   OtherBackend b -> b
+
 
 -- | Interpret an interaction.
 --
@@ -713,22 +715,46 @@ interpret (Cmd_autoAll norm) = do
     unlessNull (concat solveds) \ solved -> modifyTheInteractionPoints (List.\\ solved)
     unlessNull (concat msgs) (display_info . Info_Auto)
 
-interpret (Cmd_context norm ii _ _) = do
-  display_info . Info_Context ii =<< liftLocalState (B.getResponseContext norm ii)
+-- interpret (Cmd_context norm ii@(InteractionId (-1)) rng _) = do
+
+--   resp <- liftLocalState $ atClosureRange rng
+--                 (\cl -> do
+--                    r <- B.contextOfClosure norm cl
+--                    return (cl , r))
+     
+--   case resp of
+--      Just (cl , ctx) -> display_info (Info_Context ii (Just cl) ctx)
+--      Nothing -> display_info (Info_Error $ Info_GenericError
+--                                $ TCM.GenericException "unable to match range to AST closure") 
+    
+  
+interpret (Cmd_context norm ii rng _) = do
+  display_info . uncurry (Info_Context ii) =<< liftLocalState (B.getResponseContext norm ii rng)
 
 interpret (Cmd_helper_function norm ii rng s) = do
   rng <- syncInteractionRange ii rng
   -- Create type of application of new helper function that would solve the goal.
   helperType <- liftLocalState $ B.metaHelperType norm ii rng s
-  display_info $ Info_GoalSpecific ii (Goal_HelperFunction helperType)
+  display_info $ Info_GoalSpecific ii Nothing (Goal_HelperFunction helperType)
 
 interpret (Cmd_infer norm ii rng s) = do
   rng <- syncInteractionRange ii rng
-  expr <- liftLocalState $ withInteractionId ii $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
-  display_info $ Info_GoalSpecific ii (Goal_InferredType expr)
+  (mbcl , expr) <- liftLocalState $ B.withClosureRnage'wrp ii rng
+    \_ -> do
+       mbRa <- B.pickRangeArtefact rng
+       case mbRa of
+         Nothing -> B.typeInMeta (ii , rng) norm =<< B.parseExprIn (ii , rng) rng s
+         Just ra -> B.normalForm norm (craType ra) >>= reifyUnblocked
+             
+  display_info $ Info_GoalSpecific ii mbcl (Goal_InferredType expr)
+
 
 interpret (Cmd_goal_type norm ii _ _) = do
-  display_info $ Info_GoalSpecific ii (Goal_CurrentGoal norm)
+  display_info $ Info_GoalSpecific ii Nothing  (Goal_CurrentGoal norm)
+
+interpret (Cmd_elaborate_give norm ii@(InteractionId (-1)) rng s) =
+   error "not implemented (InteractonTop.hs - interpret (Cmd_elaborate_give))"
+
 
 interpret (Cmd_elaborate_give norm ii rng s) = do
   rng <- syncInteractionRange ii rng
@@ -804,10 +830,17 @@ interpret (Cmd_compute_toplevel cmode s) = do
 
 interpret (Cmd_compute cmode ii rng s) = do
   rng <- syncInteractionRange ii rng
-  expr <- liftLocalState $ do
-    e <- B.parseExprIn ii rng $ B.computeWrapInput cmode s
-    withInteractionId ii $ B.computeInCurrent cmode e
-  display_info $ Info_GoalSpecific ii (Goal_NormalForm cmode expr)
+  (mbcl , expr) <- liftLocalState $ do
+    e <- B.parseExprIn (ii , rng) rng $ B.computeWrapInput cmode s
+    B.withClosureRnage'wrp ii rng
+       \_ -> undefined
+         -- do
+         --  mbRa <- pickRangeArtefact
+         --  case mbRa of
+         --     Nothing -> B.computeInCurrent cmode e
+         --     Just ra -> B.normalForm  
+  display_info $ Info_GoalSpecific ii mbcl (Goal_NormalForm cmode expr)
+
 
 interpret Cmd_show_version = display_info Info_Version
 
@@ -1085,6 +1118,7 @@ give_gen force ii rng s0 giveRefine = do
     -- Otherwise, we replace it by the reified value Agda computed.
     mkNewTxt False ce        = Give_String $ prettyShow ce
 
+
 highlightExpr :: A.Expr -> TCM ()
 highlightExpr e =
   localTC (\ env -> env { envImportStack        = []
@@ -1113,11 +1147,11 @@ sortInteractionPoints is =
 
 cmd_goal_type_context_and :: GoalTypeAux -> Rewrite -> InteractionId -> Range ->
                              String -> CommandM ()
-cmd_goal_type_context_and aux norm ii _ _ = do
-  ctx <- lift $ B.getResponseContext norm ii
+cmd_goal_type_context_and aux norm ii rng _ = do
+  (_ , ctx) <- lift $ B.getResponseContext norm ii rng
   constr <- lift $ lookupInteractionId ii >>= B.getConstraintsMentioning norm
   boundary <- lift $ B.getIPBoundary norm ii
-  display_info $ Info_GoalSpecific ii (Goal_GoalType norm aux ctx boundary constr)
+  display_info $ Info_GoalSpecific ii Nothing (Goal_GoalType norm aux ctx boundary constr)
 
 -- | Shows all the top-level names in the given module, along with
 -- their types.

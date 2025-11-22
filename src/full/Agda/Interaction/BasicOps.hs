@@ -104,7 +104,11 @@ parseExpr rng s = do
   unless (null wh) $ interactionError UnexpectedWhere
   return e
 
-parseExprIn :: InteractionId -> Range -> String -> TCM Expr
+
+instance ClosureRangeTC (Closure Range) where
+  closureRangeTC = pure
+
+parseExprIn :: (ClosureRangeTC a) => a -> Range -> String -> TCM Expr
 parseExprIn ii rng s = do
     e <- parseExpr rng s
     -- Andreas, 2019-08-19, issue #4007
@@ -112,7 +116,7 @@ parseExprIn ii rng s = do
     -- such that the scope checker can label the clause
     -- of a parsed extended lambda as IsAbstract if the
     -- interaction point was created in AbstractMode.
-    withInteractionId ii $ concreteToAbstract_ e
+    withClosureRnage ii $ concreteToAbstract_ e
 
 -- Type check the given expression and assign its value to the meta
 -- Precondition: we are in the context where the given meta was created.
@@ -852,12 +856,42 @@ getWarningsAndNonFatalErrors = do
     ws@(_:_) -> classifyWarnings ws
     _ -> empty
 
+
+instance ClosureRangeTC (InteractionId , Range) where
+  closureRangeTC (InteractionId (-1) , rng) = do
+    
+      cs <- useTC (lensPostScopeState . lensClosuresRanges)
+      case cs >>= List.find (\x -> rng == craRange (clValue x)) of
+          --smallestContaining (craRange . clValue) rng of
+        Nothing -> error "unable to match closure range"
+        Just cl -> pure (fmap craRange cl) 
+  closureRangeTC (ii , _) = closureRangeTC ii
+
+
+pickRangeArtefact :: Range -> TCM (Maybe (ClosureRangeArtefact)) 
+pickRangeArtefact rng = do
+  cs <- useTC (lensPostScopeState . lensClosuresRanges)
+  pure ((clValue) <$> (cs >>= List.find (\x -> rng == craRange (clValue x))))
+  
+        
+withClosureRnage'wrp :: InteractionId -> Range -> (Closure Range -> TCM b) ->
+  TCM ((Maybe (Closure Range)) , b)
+withClosureRnage'wrp ii rng m = do
+  withClosureRnage' (ii , rng) \info -> do
+  b <- m info
+  case ii of
+    InteractionId (-1) -> pure (Just info , b)
+    _ -> pure (Nothing , b)
+
+
 -- | Collecting the context of the given meta-variable.
 getResponseContext
   :: Rewrite      -- ^ Normalise?
-  -> InteractionId
-  -> TCM [ResponseContextEntry]
-getResponseContext norm ii = contextOfMeta ii norm
+  -> InteractionId -> Range
+  -> TCM ((Maybe (Closure Range)) , [ResponseContextEntry])
+getResponseContext norm ii rng =
+  withClosureRnage'wrp ii rng (contextOfClosure norm)
+
 
 -- | @getSolvedInteractionPoints True@ returns all solutions,
 --   even if just solved by another, non-interaction meta.
@@ -1122,10 +1156,9 @@ metaHelperType norm ii rng s = withInteractionId ii do
 -- | Gives a list of names and corresponding types.
 --   This list includes not only the local variables in scope, but also the let-bindings.
 
-contextOfMeta :: InteractionId -> Rewrite -> TCM [ResponseContextEntry]
-contextOfMeta ii norm = withInteractionId ii $ do
-  info <- getMetaInfo <$> (lookupLocalMeta =<< lookupInteractionId ii)
-  withMetaInfo info $ do
+
+contextOfClosure :: Rewrite -> Closure Range -> TCM [ResponseContextEntry]
+contextOfClosure norm info = withMetaInfo info $ do
     -- List of local variables.
     cxt <- getContext
     let localVars = zipWith raise [1..] cxt
@@ -1153,13 +1186,15 @@ contextOfMeta ii norm = withInteractionId ii $ do
         x  <- abstractToConcrete_ name
         let s = C.isInScope x
         ty <- reifyUnblocked =<< normalForm norm dom
-              -- Remove let bindings from x and later, to avoid folding to x = x, or using bindings
+              -- Remove let bindings from x and later, to avoid folding to x = x, or us ing bindings
               -- not introduced when x was defined.
         v  <- removeLetBindingsFrom name $ reifyUnblocked =<< normalForm norm tm
         return $ ResponseContextEntry n x ty (Just v) s
 
     shouldHide :: ArgInfo -> A.Name -> Bool
     shouldHide ai n = not (isInstance ai) && (isNoName n || nameIsRecordName n)
+
+
 
 -- | Returns the type of the expression in the current environment
 --   We wake up irrelevant variables just in case the user want to
@@ -1171,12 +1206,13 @@ typeInCurrent norm e =
         reifyUnblocked v
 
 
+instance ClosureRangeTC InteractionId where
+  closureRangeTC = lookupInteractionId >=> closureRangeTC
 
-typeInMeta :: InteractionId -> Rewrite -> Expr -> TCM Expr
-typeInMeta ii norm e =
-   do   m <- lookupInteractionId ii
-        mi <- getMetaInfo <$> lookupLocalMeta m
-        withMetaInfo mi $
+
+
+typeInMeta :: ClosureRangeTC a => a -> Rewrite -> Expr -> TCM Expr
+typeInMeta a norm e = withClosureRnage a $
             typeInCurrent norm e
 
 -- | The intro tactic.

@@ -176,6 +176,9 @@ class HasRange a => ExprLike a where
   mapExprLike :: (forall b. ExprLike b => b -> b) -> a -> a
   mapExprLike g = runIdentity . traverseExprLike (pure . g)
 
+  isWrapper :: a -> Bool
+  isWrapper _ = False
+    
 instance ExprLike Expr where
   recurseExpr :: forall m. RecurseExprFn m Expr
   recurseExpr f e0 = f e0 $ do
@@ -314,6 +317,9 @@ instance ExprLike Expr where
    Unquote _                 -> "Unquote"
    DontCare _                -> "DontCare"
 
+  isWrapper e = case e of
+   ScopedExpr _ _            -> True
+   _                         -> False
   recurseExprLike :: forall m. RecurseLikeFn m Expr
   recurseExprLike g e0 = g e0 $ do
     let rec :: TraverseLikeRecFn m
@@ -350,14 +356,14 @@ instance ExprLike Expr where
 
 instance ExprLike a => ExprLike (Arg a) where
   ctorName (Arg _ _) = "Arg"
-
+  isWrapper _ = True
 instance ExprLike a => ExprLike (Maybe a) where
   ctorName Nothing  = "Nothing"
   ctorName (Just _) = "Just"
 
 instance ExprLike a => ExprLike (Named x a) where
   ctorName (Named _ _) = "Named"
-
+  isWrapper _ = True
 instance ExprLike a => ExprLike (Ranged a) where
   ctorName _ = "Ranged"
 
@@ -368,6 +374,9 @@ instance ExprLike a => ExprLike [a] where
 instance ExprLike a => ExprLike (List1 a) where
   ctorName (_ :| _) = ":|"
 
+  isWrapper (_ :| []) = True
+  isWrapper (_ :| _) = False
+  
 instance ExprLike a => ExprLike (TacticAttribute' a) where
   ctorName _ = "TacticAttribute'"
 
