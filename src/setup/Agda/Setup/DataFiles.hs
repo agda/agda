@@ -78,7 +78,6 @@ emacsModeDir = "emacs-mode"
 emacsLispFiles :: [FilePath]
 emacsLispFiles =
   [ "agda2-abbrevs.el"
-  , "annotation.el"
   , "agda2-queue.el"
   , "eri.el"
   , "agda2.el"

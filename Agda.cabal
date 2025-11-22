@@ -102,7 +102,6 @@ extra-source-files:
     src/data/emacs-mode/agda2-mode.el
     src/data/emacs-mode/agda2-queue.el
     src/data/emacs-mode/agda2.el
-    src/data/emacs-mode/annotation.el
     src/data/emacs-mode/eri.el
     src/data/html/Agda.css
     src/data/html/highlight-hover.js
@@ -160,7 +159,6 @@ data-files:
     emacs-mode/agda2-mode.el
     emacs-mode/agda2-queue.el
     emacs-mode/agda2.el
-    emacs-mode/annotation.el
     emacs-mode/eri.el
     html/Agda.css
     html/highlight-hover.js
