@@ -348,6 +348,26 @@ lookupSection m = maybe EmptyTel (^. secTelescope) <$> getSection m
 -- @
 -- A.B.C.f vs ==> f xs
 -- @
+--
+-- Invoking @'addDisplayForms' x@ will add a display form for each copy @x@ transitively reduces to.
+-- E.g. consider the following iterated module application.
+-- @
+--   module M0 (n : Nat) where
+--     b : Bool
+--     b = n > 42
+--   module M1 (n : Nat) = M0 (suc n)
+--   module M2 (n : Nat) = M1 (suc n)
+--   module M3 (n : Nat) = M2 (suc n)
+-- @
+--
+-- For the first copy @M1.b n = M0.b (suc n)@ we add the display form @M0.b (suc n) --> M1.b n@.
+--
+-- For the second copy @M2.b n = M1.b (suc n)@ we first add display form @M1.b (suc n) --> M2.b n@
+-- and for the further unfolding we add display form @M0.b (suc (suc n)) --> M2.b n@.
+--
+-- For the third copy @M3.b n = M2.b (suc n)@ we add display forms @M2.b (suc n) --> M3.b n@,
+-- @M1.b (suc (suc n)) --> M3.b n@ and @M0.b (suc (suc (suc n))) --> M3.b n@.
+
 addDisplayForms :: QName -> TCM ()
 addDisplayForms x = do
   reportSDoc "tc.display.section" 20 $ "Computing display forms for" <+> pretty x
