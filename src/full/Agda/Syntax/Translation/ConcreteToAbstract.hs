@@ -521,10 +521,6 @@ data OldQName = OldQName
 --   (e.g. drop the offending COMPILE pragma)
 data MaybeOldQName = MaybeOldQName OldQName
 
--- | Wrapper for a concrete name that we already bound to an 'A.Def'.
---
-newtype OldName a = OldName a
-
 -- | Wrapper to resolve a name in a pattern.
 data PatName = PatName
   C.QName
@@ -659,10 +655,9 @@ class ToQName a where
 instance ToQName C.Name  where toQName = C.QName
 instance ToQName C.QName where toQName = id
 
--- | Should be a defined name.
-instance ToQName a => ToAbstract (OldName a) where
-  type AbsOfCon (OldName a) = A.QName
-  toAbstract (OldName x) = do
+-- | Resolve a concrete name that we already bound to an 'A.Def'.
+toAbstractOldName :: ToQName a => a -> ScopeM A.QName
+toAbstractOldName x = do
     resolveName (toQName x) >>= \case
       DefinedName _ d NoSuffix -> return $ anameName d
       DefinedName _ d Suffix{} -> __IMPOSSIBLE__
@@ -1984,7 +1979,8 @@ instance ToAbstract NiceDeclaration where
   -- Function definitions
     C.FunDef r ds a i _ _ x cs -> do
         printLocals 30 $ "checking def " ++ prettyShow x
-        (x',cs) <- toAbstract (OldName x, cs)
+        x' <- toAbstractOldName x
+        cs <- toAbstract cs
         -- Andreas, 2017-12-04 the name must reside in the current module
         unlessM ((A.qnameModule x' ==) <$> getCurrentModule) $
           __IMPOSSIBLE__
@@ -2146,7 +2142,7 @@ instance ToAbstract NiceDeclaration where
 
     NiceUnquoteDef r p a _ _ xs e -> do
       fxs <- mapM getConcreteFixity xs
-      ys <- mapM (toAbstract . OldName) xs
+      ys <- mapM toAbstractOldName xs
       zipWithM_ (rebindName p QuotableName) xs ys
       e <- toAbstract e
       zipWithM_ (rebindName p OtherDefName) xs ys
@@ -3639,7 +3635,7 @@ instance ToAbstract CLHSCore where
     C.LHSHead x ps -> do
         x <- withLocalVars do
           setLocalVars []
-          toAbstract (OldName x)
+          toAbstractOldName x
         ps <- toAbstract $ (fmap . fmap . fmap) (CPattern displayLhs) ps
         A.LHSHead x <$> mergeEqualPs ps
 
