@@ -903,8 +903,8 @@ loadDecodedModule sf@(SourceFile fi) mi = do
 --   we do it in a fresh state, suitably initialize,
 --   in order to forget some state changes after successful type checking.
 
-createInterfaceIsolated
-  :: TopLevelModuleName
+createInterfaceIsolated ::
+     TopLevelModuleName
      -- ^ Module name of file we process.
   -> SourceFile
      -- ^ File we process.
@@ -1077,8 +1077,8 @@ writeInterface file i = let fp = filePath file in do
 -- If appropriate this function writes out syntax highlighting
 -- information.
 
-createInterface
-  :: TopLevelModuleName    -- ^ The expected module name.
+createInterface ::
+     TopLevelModuleName    -- ^ The expected module name.
   -> SourceFile            -- ^ The file to type check.
   -> MainInterface         -- ^ Are we dealing with the main module?
   -> Maybe Source      -- ^ Optional information about the source code.

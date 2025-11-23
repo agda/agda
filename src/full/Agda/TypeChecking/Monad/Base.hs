@@ -260,6 +260,8 @@ data PreScopeState = PreScopeState
 -- | Name disambiguation for the sake of highlighting.
 data DisambiguatedName = DisambiguatedName NameKind A.QName
   deriving Generic
+
+-- | Name from file position of occurrence to disambiguation.
 type DisambiguatedNames = IntMap DisambiguatedName
 
 type ConcreteNames = Map Name (List1 C.Name)
@@ -4896,7 +4898,7 @@ warningName = \case
   InvalidCharacterLiteral{}    -> InvalidCharacterLiteral_
   UselessPragma{}              -> UselessPragma_
   InversionDepthReached{}      -> InversionDepthReached_
-  InteractionMetaBoundaries{}  -> InteractionMetaBoundaries_{}
+  InteractionMetaBoundaries{}  -> InteractionMetaBoundaries_
   ModuleDoesntExport{}         -> ModuleDoesntExport_
   NotInScopeW{}                -> NotInScope_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
@@ -6254,14 +6256,13 @@ instance MonadIO m => ReadTCState (TCMT m) where
 instance MonadBlock TCM where
   patternViolation b = throwError (PatternErr b)
   catchPatternErr handle v =
-       catchError_ v $ \err ->
-       case err of
+       catchError_ v \case
             -- Not putting s (which should really be the what's already there) makes things go
             -- a lot slower (+20% total time on standard library). How is that possible??
             -- The problem is most likely that there are internal catchErrors which forgets the
             -- state. catchError should preserve the state on pattern violations.
            PatternErr u -> handle u
-           _            -> throwError err
+           err -> throwError err
 
 instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
   throwError = liftIO . E.throwIO
