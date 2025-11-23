@@ -559,9 +559,20 @@ instance Hashable AbstractName where
   hashWithSalt salt n =
     hashWithSalt salt (A.nameId (qnameName (anameName n)))
 
-data NameMetadata = NoMetadata
-                  | GeneralizedVarsMetadata (Map A.QName A.Name)
+data NameMetadata = NameMetadata
+  { nameDataGeneralizedVars :: Map A.QName A.Name
+  }
   deriving (Show, Generic)
+
+instance Null NameMetadata where
+  empty = NameMetadata empty
+  null (NameMetadata m) = null m
+
+noMetadata :: NameMetadata
+noMetadata = empty
+
+generalizedVarsMetadata :: Map A.QName A.Name -> NameMetadata
+generalizedVarsMetadata m = NameMetadata m
 
 -- | A decoration of abstract syntax module names.
 data AbstractModule = AbsModule

@@ -110,13 +110,8 @@ instance EmbPrj AbstractName where
   value = toAbsName <.> value
 
 instance EmbPrj NameMetadata where
-  icod_ NoMetadata                  = icodeN' NoMetadata
-  icod_ (GeneralizedVarsMetadata a) = icodeN' GeneralizedVarsMetadata a
-
-  value = vcase valu where
-    valu N0     = valuN NoMetadata
-    valu (N1 a) = valuN GeneralizedVarsMetadata a
-    valu _      = malformed
+  icod_ (NameMetadata a) = icodeN' NameMetadata a
+  value = valueN NameMetadata
 
 instance EmbPrj A.Suffix where
   icod_ A.NoSuffix   = icodeN' A.NoSuffix

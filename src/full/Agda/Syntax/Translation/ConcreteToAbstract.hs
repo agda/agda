@@ -2288,7 +2288,7 @@ scopeCheckDataOrRecSig dataOrRec r er p a pc uc x ls t = do
               <*> toAbstract t
     f  <- getConcreteFixity x
     x' <- freshAbstractQName f x
-    mErr <- bindName'' p (ifThenElse dataOrRec DataName RecName) (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+    mErr <- bindName'' p (ifThenElse dataOrRec DataName RecName) (generalizedVarsMetadata $ generalizeTelVars ls') x x'
     whenJust mErr $ \case
       err@(ClashingDefinition cn an _) | qnameModule (clashingQName an) == qnameModule x' -> do
         resolveName (C.QName x) >>= \case
@@ -2766,9 +2766,7 @@ bindGeneralizables vars =
 bindGeneralizablesIfInserted :: Origin -> AbstractName -> ScopeM (Set A.Name)
 bindGeneralizablesIfInserted Inserted y = bound <$ bindGeneralizables gvars
   where
-    gvars = case anameMetadata y of
-          GeneralizedVarsMetadata gvars -> gvars
-          NoMetadata                    -> Map.empty
+    gvars = nameDataGeneralizedVars $ anameMetadata y
     bound = Set.fromList (Map.elems gvars)
 bindGeneralizablesIfInserted UserWritten _ = return Set.empty
 bindGeneralizablesIfInserted _ _           = __IMPOSSIBLE__
@@ -2901,7 +2899,7 @@ bindUnquoteConstructorName m p c = do
   r <- resolveName (C.QName c)
   fc <- getConcreteFixity c
   c' <- withCurrentModule m $ freshAbstractQName fc c
-  let aname qn = AbsName qn QuotableName Defined NoMetadata
+  let aname qn = AbsName qn QuotableName Defined noMetadata
       addName = do
         modifyCurrentScope $ addNameToScope (localNameSpace p) c $ aname c'
         recomputeInverseScope -- András 2025-08-30: TODO: use addNameToInverseScope instead
