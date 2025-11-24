@@ -27,32 +27,33 @@ import GHC.Generics (Generic)
 
 import Agda.Benchmarking
 
-import Agda.Syntax.Position
+import Agda.Syntax.Abstract.Name   as A
 import Agda.Syntax.Common
-import Agda.Syntax.Fixity
-import Agda.Syntax.Abstract.Name as A
-import Agda.Syntax.Concrete.Name as C
-import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete        qualified as C
 import Agda.Syntax.Concrete.Fixity as C
+import Agda.Syntax.Concrete.Name   as C
+import Agda.Syntax.Fixity
+import Agda.Syntax.Position
 
-import Agda.Utils.AssocList (AssocList)
-import qualified Agda.Utils.AssocList as AssocList
+import Agda.Syntax.Common.Pretty
+import Agda.Utils.AssocList        ( AssocList )
+import Agda.Utils.AssocList        qualified as AssocList
+import Agda.Utils.Function         ( applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.List1 ( List1, pattern (:|) )
-import Agda.Utils.List2 ( List2 )
-import qualified Agda.Utils.List1 as List1
-import qualified Agda.Utils.List2 as List2
+import Agda.Utils.List1            ( List1, pattern (:|) )
+import Agda.Utils.List1            qualified as List1
+import Agda.Utils.List2            ( List2 )
+import Agda.Utils.List2            qualified as List2
+import Agda.Utils.Map              qualified as Map
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty
-import Agda.Utils.Set1 ( Set1 )
+import Agda.Utils.Set1             ( Set1 )
 import Agda.Utils.Singleton
-import qualified Agda.Utils.Map as Map
-import qualified Agda.Utils.StrictState2 as St2
-import qualified Agda.Utils.StrictState as St
-import Agda.Utils.Tuple ( (//), first, second )
-import Agda.Utils.Tuple.Strict ( (&!&) )
+import Agda.Utils.StrictState      qualified as St
+import Agda.Utils.StrictState2     qualified as St2
+import Agda.Utils.Tuple            ( (//), first, second )
+import Agda.Utils.Tuple.Strict     ( (&!&) )
 
 import Agda.Utils.Impossible
 
@@ -1613,12 +1614,20 @@ instance Pretty NameSpace where
 
 prettyNameSpace :: NameSpace -> [Doc]
 prettyNameSpace (NameSpace names nameParts mods _) =
-    blockOfLines "names"      (map pr $ Map.toList names) ++
+    blockOfLines "names"      (map pr' $ Map.toList names) ++
     blockOfLines "name parts" (map pr $ Map.toList nameParts) ++
     blockOfLines "modules"    (map pr $ Map.toList mods)
   where
     pr :: (Pretty a, Pretty b) => (a,b) -> Doc
     pr (x, y) = pretty x <+> "-->" <+> pretty y
+    -- pr' :: (Pretty a, IsInstanceDef b, Pretty b) => (a, List1 b) -> Doc
+    pr' :: (C.Name, List1 AbstractName) -> Doc
+    pr' (x, ys) = pretty x <+> "-->" <+> prettyList (map PrettyWithInstance $ List1.toList ys)
+
+newtype PrettyWithInstance a = PrettyWithInstance a
+instance (IsInstanceDef a, Pretty a) => Pretty (PrettyWithInstance a) where
+  pretty (PrettyWithInstance x) =
+    applyWhen (isJust $ isInstanceDef x) ("instance" <+>) $ pretty x
 
 instance Pretty Scope where
   pretty scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps } =
