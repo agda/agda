@@ -567,8 +567,8 @@ bindName'' acc kind meta x y = do
 --   Ulf, 2014-06-29: Currently used to rebind the name defined by an
 --   unquoteDecl, which is a 'QuotableName' in the body, but a 'DefinedName'
 --   later on.
-rebindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
-rebindName acc kind x y = do
+rebindName :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM ()
+rebindName acc kind meta x y = do
   if kind == ConName then do
     modifyCurrentScope $
            mapScopeNS (localNameSpace acc)
@@ -578,7 +578,7 @@ rebindName acc kind x y = do
   else do
     modifyCurrentScope $ removeNameFromScope (localNameSpace acc) x
   recomputeInverseScope
-  bindName acc kind x y
+  bindName' acc kind meta x y
 
 -- András, 2025-08-30: TODO: directly extend inverse scope.
 -- | Bind a module name.

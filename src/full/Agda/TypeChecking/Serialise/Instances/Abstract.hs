@@ -110,7 +110,7 @@ instance EmbPrj AbstractName where
   value = toAbsName <.> value
 
 instance EmbPrj NameMetadata where
-  icod_ (NameMetadata a) = icodeN' NameMetadata a
+  icod_ (NameMetadata a b) = icodeN' NameMetadata a b
   value = valueN NameMetadata
 
 instance EmbPrj A.Suffix where

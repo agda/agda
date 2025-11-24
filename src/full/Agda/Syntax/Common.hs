@@ -3167,6 +3167,9 @@ data IsInstance
   | NotInstanceDef
     deriving (Show, Eq, Ord)
 
+instance Null IsInstance where
+  empty = NotInstanceDef
+
 instance KillRange IsInstance where
   killRange = \case
     InstanceDef _    -> InstanceDef empty
@@ -3180,6 +3183,14 @@ instance HasRange IsInstance where
 instance NFData IsInstance where
   rnf (InstanceDef _) = ()
   rnf NotInstanceDef  = ()
+
+class IsInstanceDef a where
+  isInstanceDef :: a -> Maybe KwRange
+
+instance IsInstanceDef IsInstance where
+  isInstanceDef = \case
+    InstanceDef r  -> Just r
+    NotInstanceDef -> Nothing
 
 -- ** macro blocks
 
