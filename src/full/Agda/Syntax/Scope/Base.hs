@@ -561,18 +561,28 @@ instance Hashable AbstractName where
 
 data NameMetadata = NameMetadata
   { nameDataGeneralizedVars :: Map A.QName A.Name
+  , nameDataIsInstance      :: IsInstance
   }
   deriving (Show, Generic)
 
 instance Null NameMetadata where
-  empty = NameMetadata empty
-  null (NameMetadata m) = null m
+  empty = NameMetadata empty empty
+  null (NameMetadata m i) = null m && null i
 
 noMetadata :: NameMetadata
 noMetadata = empty
 
 generalizedVarsMetadata :: Map A.QName A.Name -> NameMetadata
-generalizedVarsMetadata m = NameMetadata m
+generalizedVarsMetadata m = NameMetadata m empty
+
+instanceMetadata :: IsInstance -> NameMetadata
+instanceMetadata i = NameMetadata empty i
+
+instance IsInstanceDef NameMetadata where
+  isInstanceDef = isInstanceDef . nameDataIsInstance
+
+instance IsInstanceDef AbstractName where
+  isInstanceDef = isInstanceDef . anameMetadata
 
 -- | A decoration of abstract syntax module names.
 data AbstractModule = AbsModule

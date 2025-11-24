@@ -1949,7 +1949,7 @@ instance ToAbstract NiceDeclaration where
       --   -- Andreas, 2010-09-24: irrelevant fields are not in scope
       --   -- this ensures that projections out of irrelevant fields cannot occur
       --   -- Ulf: unless you turn on --irrelevant-projections
-      bindName p FldName x y
+      bindName' p FldName (instanceMetadata i) x y
       let info = (mkDefInfoInstance x f p a i NotMacroDef r) { defTactic = tac }
       return [ A.Field info y (Arg ai t) ]
 
@@ -2128,9 +2128,10 @@ instance ToAbstract NiceDeclaration where
     NiceUnquoteDecl r p a i tc cc xs e -> do
       fxs <- mapM getConcreteFixity xs
       ys <- zipWithM freshAbstractQName fxs xs
-      zipWithM_ (bindName p QuotableName) xs ys
+      let meta = instanceMetadata i
+      zipWithM_ (bindName' p QuotableName meta) xs ys
       e <- toAbstract e
-      zipWithM_ (rebindName p OtherDefName) xs ys
+      zipWithM_ (rebindName p OtherDefName meta) xs ys
       let mi = MutualInfo tc cc YesPositivityCheck r
       mapM_ unfoldFunction ys
       opaque <- contextIsOpaque
@@ -2143,9 +2144,9 @@ instance ToAbstract NiceDeclaration where
     NiceUnquoteDef r p a _ _ xs e -> do
       fxs <- mapM getConcreteFixity xs
       ys <- mapM toAbstractOldName xs
-      zipWithM_ (rebindName p QuotableName) xs ys
+      zipWithM_ (rebindName p QuotableName noMetadata) xs ys
       e <- toAbstract e
-      zipWithM_ (rebindName p OtherDefName) xs ys
+      zipWithM_ (rebindName p OtherDefName noMetadata) xs ys
       mapM_ unfoldFunction ys
       opaque <- contextIsOpaque
       return [ A.UnquoteDef [ (mkDefInfo x fx PublicAccess a r) { Info.defOpaque = opaque } | (fx, x) <- zip fxs xs ] ys e ]
@@ -2165,9 +2166,9 @@ instance ToAbstract NiceDeclaration where
 
       e <- withCurrentModule m $ toAbstract e
 
-      rebindName p DataName x x'
-      zipWithM_ (rebindName p ConName) cs cs'
-      withCurrentModule m $ zipWithM_ (rebindName p ConName) cs cs'
+      rebindName p DataName noMetadata x x'
+      zipWithM_ (rebindName p ConName noMetadata) cs cs'
+      withCurrentModule m $ zipWithM_ (rebindName p ConName noMetadata) cs cs'
 
       fcs <- mapM getConcreteFixity cs
       let mi = MutualInfo TerminationCheck YesCoverageCheck pc r
@@ -2449,7 +2450,7 @@ scopeCheckRecDef r o a uc x directives pars fields =
       cm' <- case cm of
 
         -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
-        Just (c, _) -> NamedRecCon <$> bindRecordConstructorName c kind a p
+        Just (c, inst) -> NamedRecCon <$> bindRecordConstructorName c kind inst a p
           where
             -- Name kind of the record constructor (inductive/coinductive).
             kind = maybe ConName (conKindOfName . rangedThing) ind
@@ -2632,7 +2633,7 @@ toAbstractNiceAxiom kind (C.Axiom r p a i info x t) = do
   y  <- freshAbstractQName f x
   let isMacro | kind == MacroName = MacroDef
               | otherwise         = NotMacroDef
-  bindName p kind x y
+  bindName' p kind (instanceMetadata i) x y
   definfo <- updateDefInfoOpacity $ mkDefInfoInstance x f p a i isMacro r
   return (y, A.Axiom kind definfo info mp y t')
 toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
@@ -2856,19 +2857,21 @@ lookupModuleInCurrentModule x =
 data DataConstrDecl = DataConstrDecl A.ModuleName IsAbstract Access C.NiceDeclaration
 
 -- | Bind a @data@ constructor.
-bindConstructorName
-  :: ModuleName      -- ^ Name of @data@/@record@ module.
+bindConstructorName ::
+     ModuleName      -- ^ Name of @data@/@record@ module.
   -> C.Name          -- ^ Constructor name.
+  -> IsInstance
   -> IsAbstract
   -> Access
   -> ScopeM A.QName
-bindConstructorName m x a p = do
+bindConstructorName m x i a p = do
   f <- getConcreteFixity x
   -- The abstract name is the qualified one
   y <- withCurrentModule m $ freshAbstractQName f x
   -- Bind it twice, once unqualified and once qualified
-  bindName p' ConName x y
-  withCurrentModule m $ bindName p'' ConName x y
+  let meta = instanceMetadata i
+  bindName' p' ConName meta x y
+  withCurrentModule m $ bindName' p'' ConName meta x y
   return y
   where
     -- An abstract constructor is private (abstract constructor means
@@ -2882,10 +2885,10 @@ bindConstructorName m x a p = do
 
 -- | Record constructors do not live in the record module (as it is parameterized).
 --   Abstract constructors are bound privately, so that they are not exported.
-bindRecordConstructorName :: C.Name -> KindOfName -> IsAbstract -> Access -> ScopeM A.QName
-bindRecordConstructorName x kind a p = do
+bindRecordConstructorName :: C.Name -> KindOfName -> IsInstance -> IsAbstract -> Access -> ScopeM A.QName
+bindRecordConstructorName x kind inst a p = do
   y <- freshAbstractQName' x
-  bindName p' kind x y
+  bindName' p' kind (instanceMetadata inst) x y
   return y
   where
     -- An abstract constructor is private (abstract constructor means
@@ -2930,7 +2933,7 @@ instance ToAbstract DataConstrDecl where
         -- The abstract name is the qualified one
         -- Bind it twice, once unqualified and once qualified
         f <- getConcreteFixity x
-        y <- bindConstructorName m x a p
+        y <- bindConstructorName m x i a p
         printScope "con" 25 "bound constructor"
         let defInfo = mkDefInfoInstance x f p a i NotMacroDef r
         return $ A.Axiom ConName defInfo ai Nothing y t'
@@ -3086,7 +3089,7 @@ instance ToAbstract C.Pragma where
             (DefinedName acc y suffix, Just kind, C.QName x)
               | anameKind y /= kind
               , kind `elem` [ PrimName, AxiomName ] -> do
-                  rebindName acc kind x $ anameName y
+                  rebindName acc kind noMetadata x $ anameName y
                   return $ DefinedName acc y{ anameKind = kind } suffix
             _ -> return q0
 
