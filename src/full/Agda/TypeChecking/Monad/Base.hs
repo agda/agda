@@ -270,6 +270,7 @@ type UsedNames = Map RawName (Set1 RawName)
 data ClosureRangeArtefact = ClosureRangeArtefact
   { craRange         :: Range
   , craType          :: I.Type
+  , craTerm          :: Maybe I.Term
   , craHiddenArgs    :: [Named_ Elim]
   } deriving (Show, Generic)
 
@@ -1178,9 +1179,9 @@ putClosuresRangesAt cra@(ClosureRangeArtefact{..}) =
            (fmap ((:) cl))
 
 
-putClosuresRangesType :: I.Type -> TCM ()
-putClosuresRangesType ty = do 
-  ((\r -> ClosureRangeArtefact r ty []) <$> asksTC envRange) >>= putClosuresRangesAt
+putClosuresRangesType :: I.Type -> Maybe I.Term -> TCM ()
+putClosuresRangesType ty mbTm = do 
+  ((\r -> ClosureRangeArtefact r ty mbTm  []) <$> asksTC envRange) >>= putClosuresRangesAt
 
 -- | Create a fresh name from @a@.
 class FreshName a where

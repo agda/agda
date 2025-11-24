@@ -94,6 +94,8 @@ import Agda.Utils.WithDefault ( WithDefault'(Value) )
 
 import Agda.Utils.Impossible
 
+import Agda.Interaction.Highlighting.Range (rangeToRange)
+
 -- | Parses an expression.
 
 parseExpr :: Range -> String -> TCM C.Expr
@@ -311,10 +313,20 @@ refine force ii e = do
           return $ smartApp (defaultAppInfo range) e $ defaultNamedArg metaVar
 
 {-| Evaluate the given expression in the current environment -}
-evalInCurrent :: ComputeMode -> Expr -> TCM Expr
-evalInCurrent cmode e = do
-  (v, _t) <- inferExpr e
+evalInCurrent :: ComputeMode -> Maybe I.Type -> Expr -> TCM Expr
+evalInCurrent cmode mbTy e = do
+  (v, _t) <-
+      case mbTy of
+        Nothing -> inferExpr e
+        Just ty -> (\x -> (x , ty)) <$> checkExpr e ty
   vb <- reduceB v
+  reportSDoc "interaction.eval" 30 $ "evaluated to" TP.<+> TP.pretty vb
+  v  <- pure $ ignoreBlocking vb
+  reify =<< if cmode == HeadCompute then pure v else normalise v
+
+evalInCurrentTm :: ComputeMode -> I.Type -> I.Term -> TCM Expr
+evalInCurrentTm cmode ty tm = do
+  vb <- reduceB tm
   reportSDoc "interaction.eval" 30 $ "evaluated to" TP.<+> TP.pretty vb
   v  <- pure $ ignoreBlocking vb
   reify =<< if cmode == HeadCompute then pure v else normalise v
@@ -325,7 +337,7 @@ evalInMeta ii cmode e =
    do   m <- lookupInteractionId ii
         mi <- getMetaInfo <$> lookupLocalMeta m
         withMetaInfo mi $
-            evalInCurrent cmode e
+            evalInCurrent cmode Nothing  e
 
 -- | Modifier for interactive commands,
 --   specifying the amount of normalization in the output.
@@ -340,9 +352,9 @@ normalForm = \case
 
 -- | Evaluate the given expression in the current environment
 --   with allowed reductions modified according to 'ComputeMode'.
-computeInCurrent :: ComputeMode -> Expr -> TCM Expr
-computeInCurrent cmode e =
-  withComputeIgnoreAbstract cmode $ evalInCurrent cmode e
+computeInCurrent :: ComputeMode -> Maybe I.Type -> Expr -> TCM Expr
+computeInCurrent cmode mbTy e =
+  withComputeIgnoreAbstract cmode $ evalInCurrent cmode mbTy e
 
 -- | Modify the allowed reductions according to 'ComputeMode'.
 {-# SPECIALIZE withComputeIgnoreAbstract :: ComputeMode -> TCM a -> TCM a #-}
@@ -861,9 +873,9 @@ instance ClosureRangeTC (InteractionId , Range) where
   closureRangeTC (InteractionId (-1) , rng) = do
     
       cs <- useTC (lensPostScopeState . lensClosuresRanges)
-      case cs >>= List.find (\x -> rng == craRange (clValue x)) of
+      case cs >>= List.find (\x -> rangeToRange rng == rangeToRange (craRange (clValue x))) of
           --smallestContaining (craRange . clValue) rng of
-        Nothing -> error "unable to match closure range"
+        Nothing -> error "no closure for that range"
         Just cl -> pure (fmap craRange cl) 
   closureRangeTC (ii , _) = closureRangeTC ii
 
@@ -871,7 +883,7 @@ instance ClosureRangeTC (InteractionId , Range) where
 pickRangeArtefact :: Range -> TCM (Maybe (ClosureRangeArtefact)) 
 pickRangeArtefact rng = do
   cs <- useTC (lensPostScopeState . lensClosuresRanges)
-  pure ((clValue) <$> (cs >>= List.find (\x -> rng == craRange (clValue x))))
+  pure ((clValue) <$> (cs >>= List.find (\x -> rangeToRange rng == rangeToRange (craRange (clValue x)))))
   
         
 withClosureRnage'wrp :: InteractionId -> Range -> (Closure Range -> TCM b) ->

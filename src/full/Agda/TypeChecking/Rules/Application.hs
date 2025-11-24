@@ -565,13 +565,18 @@ data SkipCheck
 
 type CheckArgumentsE' = ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM (ArgsCheckState CheckedTarget)
 
+onCheckArgumentsE' :: CheckArgumentsE'State -> ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM ()
+onCheckArgumentsE' S{ .. } =
+   lift $ putClosuresRangesAt (ClosureRangeArtefact (getRange sFun) sFunType Nothing [])
+
 checkArgumentsE'
   :: CheckArgumentsE'State
   -> CheckArgumentsE'
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
-checkArgumentsE' S{ sArgs = [], .. }
-  | isDontExpandLast sExpand =
+checkArgumentsE' s@S{ sArgs = [], .. }
+  | isDontExpandLast sExpand = do
+    onCheckArgumentsE' s
     return $ ACState
       { acCheckedArgs = []
       , acFun         = sFun
@@ -580,7 +585,8 @@ checkArgumentsE' S{ sArgs = [], .. }
       }
 
 -- Case: no arguments, but need to insert trailing hiddens.
-checkArgumentsE' S{ sArgs = [], .. } =
+checkArgumentsE' s@S{ sArgs = [], .. } = do
+  onCheckArgumentsE' s
   traceCallE (CheckArguments sFun [] sFunType sResultType) $ lift $ do
     sResultType <- traverse (unEl <.> reduce) sResultType
     (ncargs, t) <- implicitCheckedArgs (-1) (\ h _x -> expand sResultType h) sFunType
@@ -599,8 +605,8 @@ checkArgumentsE' S{ sArgs = [], .. } =
 
 -- Case: argument given.
 checkArgumentsE'
-  s@S{ sArgs = sArgs@((arg@(Arg info e), sArgsVisible) : args), .. } =
-
+  s@S{ sArgs = sArgs@((arg@(Arg info e), sArgsVisible) : args), .. } = do
+    onCheckArgumentsE' s
     traceCallE (CheckArguments sFun (map fst sArgs) sFunType sResultType) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
         [ "checkArgumentsE"

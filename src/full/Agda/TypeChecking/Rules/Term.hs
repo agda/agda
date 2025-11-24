@@ -1414,7 +1414,7 @@ checkExpr' cmp e t =
         "    --> " <+> prettyTCM tReduced
 
     e <- scopedExpr e
-    putClosuresRangesType t
+    putClosuresRangesType t Nothing
     irrelevantIfProp <- runBlocked (isPropM t) >>= \case
       Right True  -> do
         let mod = unitModality { modRelevance = irrelevant }
@@ -1650,12 +1650,18 @@ checkQuestionMark new cmp t0 i ii = do
 
 -- | Check an underscore without arguments.
 checkUnderscore :: A.MetaInfo -> Comparison -> Type -> TCM Term
-checkUnderscore i = checkMeta i (newValueMetaOfKind i RunMetaOccursCheck)
-
+checkUnderscore i cmp ty = do
+  tm <- checkMeta i (newValueMetaOfKind i RunMetaOccursCheck) cmp ty
+  putClosuresRangesType ty (Just tm)
+  pure tm
+  
 -- | Type check a meta variable.
 checkMeta :: A.MetaInfo -> (Comparison -> Type -> TCM (MetaId, Term)) -> Comparison -> Type -> TCM Term
-checkMeta i newMeta cmp t = fst <$> checkOrInferMeta i newMeta (Just (cmp , t))
-
+checkMeta i newMeta cmp t = do
+   tm <- fst <$> checkOrInferMeta i newMeta (Just (cmp , t))
+   putClosuresRangesType t (Just tm)
+   pure tm
+   
 -- | Infer the type of a meta variable.
 --   If it is a new one, we create a new meta for its type.
 inferMeta :: A.MetaInfo -> (Comparison -> Type -> TCM (MetaId, Term)) -> TCM (Elims -> Term, Type)
@@ -1776,6 +1782,7 @@ checkNamedArg arg@(Arg info e0) t0 = do
       -- This is why we first test for isHole, and only do
       -- scope manipulations if we actually handle the checking
       -- of e here (and not pass it to checkExpr).
+      
       scopedExpr e >>= \case
         A.Underscore i ->  checkU i
         A.QuestionMark i ii -> checkQ i ii

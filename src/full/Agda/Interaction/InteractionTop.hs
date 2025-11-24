@@ -824,7 +824,7 @@ interpret (Cmd_make_case ii rng s) = do
     putResponse $ Resp_MakeCase ii (makeCaseVariant casectxt) pcs'
 
 interpret (Cmd_compute_toplevel cmode s) = do
-  (time, expr) <- parseAndDoAtToplevel (B.computeInCurrent cmode) (B.computeWrapInput cmode s)
+  (time, expr) <- parseAndDoAtToplevel (B.computeInCurrent cmode Nothing) (B.computeWrapInput cmode s)
   state <- get
   display_info $ Info_NormalForm state cmode time expr
 
@@ -833,13 +833,17 @@ interpret (Cmd_compute cmode ii rng s) = do
   (mbcl , expr) <- liftLocalState $ do
     e <- B.parseExprIn (ii , rng) rng $ B.computeWrapInput cmode s
     B.withClosureRnage'wrp ii rng
-       \_ -> undefined
-         -- do
-         --  mbRa <- pickRangeArtefact
-         --  case mbRa of
-         --     Nothing -> B.computeInCurrent cmode e
-         --     Just ra -> B.normalForm  
+       \_ -> do
+          mbRa <- B.pickRangeArtefact rng
+          case mbRa of
+             Nothing -> B.computeInCurrent cmode Nothing e
+             Just ra ->
+                case craTerm ra of
+                  Nothing -> 
+                    B.computeInCurrent cmode (Just (craType ra)) e
+                  Just tm -> B.evalInCurrentTm cmode (craType ra) tm
   display_info $ Info_GoalSpecific ii mbcl (Goal_NormalForm cmode expr)
+
 
 
 interpret Cmd_show_version = display_info Info_Version

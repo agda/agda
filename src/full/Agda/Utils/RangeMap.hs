@@ -11,6 +11,7 @@ module Agda.Utils.RangeMap
   , insideAndOutside
   , restrictTo
   , PairInt(..)
+  , fromListForce
   )
   where
 
@@ -355,3 +356,9 @@ insideAndOutside r f
 
 restrictTo :: Range -> RangeMap a -> RangeMap a
 restrictTo r = fst . insideAndOutside r
+
+fromListForce :: [(Range, a)] -> RangeMap a
+fromListForce =
+  foldr
+    (\(r, x) acc -> insert (\new _old -> new) r x acc)
+    empty

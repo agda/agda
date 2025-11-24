@@ -16,7 +16,7 @@ import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA, TacticAttribute')
 import Agda.Syntax.Info
 import Agda.Syntax.Scope.Base (KindOfName(..), conKindOfName, WithKind(..))
-import Agda.Syntax.Position (HasRange, Range'(..), Range, noRange, rangeToPosPair, getRange, contains)
+import Agda.Syntax.Position (Position, HasRange, Range'(..), Range, noRange, rangeToPosPair, getRange, contains)
 
 import Agda.Utils.Either
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -1058,3 +1058,21 @@ alignRangeToAbstractExprLikeDecls decls target =
           (s2 <= s1 && e1 <= e2 && (s2 < s1 || e1 < e2)) ||
           ((e1 - s1) < (e2 - s2))
         _ -> False
+
+filterMissingRangesFromExprLike :: ExprLike a => a -> [Range] -> [Range]
+filterMissingRangesFromExprLike root ranges =
+  filter (not . isPresent) ranges
+  where
+    -- All (start,end) pairs of ranges of ExprLike nodes under 'root'.
+    presentPairs :: [(Int, Int)]
+    presentPairs = foldExprLike collect root
+
+    collect node =
+      case rangeToPosPair (getRange node) of
+        Just p  -> [p]
+        Nothing -> []
+
+    isPresent r =
+      case rangeToPosPair r of
+        Just p  -> p `elem` presentPairs
+        Nothing -> False
