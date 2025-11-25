@@ -11,7 +11,7 @@ newtype Array s a = Array {unwrap :: A.MutablePrimArray s a}
 type IOArray a = Array RealWorld a
 
 {-# INLINE new #-}
-new :: Prim a => PrimMonad m => Int -> m (Array (PrimState m) a)
+new :: PrimMonad m => Prim a => Int -> m (Array (PrimState m) a)
 new n = Array <$> A.newPrimArray n
 
 {-# INLINE size #-}
@@ -33,7 +33,7 @@ read arr i = do
   if 0 <= i && i < s then
     unsafeRead arr i
   else
-    error "Array.read: out of bounds"
+    error "Agda.Utils.MinimalArray.MutablePrim.read: out of bounds"
 
 {-# INLINE write #-}
 write :: PrimMonad m => Prim a => Array (PrimState m) a -> Int -> a -> m ()
@@ -42,7 +42,7 @@ write arr i a = do
   if 0 <= i && i < s then
     unsafeWrite arr i a
   else
-    error "Array.write: out of bounds"
+    error "Agda.Utils.MinimalArray.MutablePrim.write: out of bounds"
 
 {-# INLINE freeze #-}
 freeze :: PrimMonad m => Prim a => Array (PrimState m) a -> m (PA.Array a)
@@ -52,7 +52,7 @@ freeze (Array arr) = do
   pure (PA.Array arr)
 
 {-# INLINE set #-}
-set :: Prim a => PrimMonad m => Array (PrimState m) a -> a -> m ()
+set :: PrimMonad m => Prim a => Array (PrimState m) a -> a -> m ()
 set (Array arr) a = do
   s <- size (Array arr)
   A.setPrimArray arr 0 s a
