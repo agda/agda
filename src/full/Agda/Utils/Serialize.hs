@@ -82,7 +82,7 @@ instance Monoid Put where
   mempty = Put \p s -> (# p, s #)
   {-# INLINE mappend #-}
   mappend = (<>)
-  mconcat = error "Put: mconcat not implemented"
+  mconcat = error "Agda.Utils.Serialize.Put: mconcat not implemented"
 
 instance Functor Get where
   {-# INLINE fmap #-}
@@ -110,7 +110,7 @@ ensure (I# n) k = Get \e p s ->
   let p' = plusAddr# p n in
   case leAddr# p' e of
     1# -> unGet (k p') e p s
-    _  -> error "deserialize: not enough input"
+    _  -> error "Agda.Utils.Serialize.deserialize: not enough input"
 {-# INLINE ensure #-}
 
 serialize :: Serialize a => a -> IO B.ByteString
@@ -121,7 +121,7 @@ serialize a = do
     (# p, s #) -> (# s, B.BS fptr (I# (minusAddr# p addr)) #)
   if B.length str == sz
     then pure str
-    else error "serialize: impossible mismatch of computed and written size"
+    else error "Agda.Utils.Serialize.serialize: impossible mismatch of computed and written size"
 
 deserialize :: forall a. Serialize a => B.ByteString -> IO a
 deserialize (B.BS (ForeignPtr p fp) (I# l)) =
@@ -129,10 +129,10 @@ deserialize (B.BS (ForeignPtr p fp) (I# l)) =
     let e = plusAddr# p l in
     case unGet (get @a) (plusAddr# p l) p s of
       (# p, s, a #) -> case ltAddr# p e of
-        1# -> error "deserialize: not all input was consumed"
+        1# -> error "Agda.Utils.Serialize.deserialize: not all input was consumed"
         _  -> case eqAddr# p e of
           1# -> (# s, a #)
-          _  -> error "deserialize: impossible out of bounds access"
+          _  -> error "Agda.Utils.Serialize.deserialize: impossible out of bounds access"
 
 serializePure :: Serialize a => a -> B.ByteString
 serializePure a = unsafeDupablePerformIO $ serialize a
@@ -392,4 +392,4 @@ instance Serialize Integer where
     0 -> do {I# n  <- get; pure $ IS n}
     1 -> do {I# sz <- get; getByteArray# sz \arr -> pure $ IP arr}
     2 -> do {I# sz <- get; getByteArray# sz \arr -> pure $ IN arr}
-    _ -> error "deserialize: malformed input"
+    _ -> error "Agda.Utils.Serialize.deserialize: malformed input"
