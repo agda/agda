@@ -3932,9 +3932,9 @@ instance ToAbstract CPattern where
 -- | An argument @OpApp C.Expr@ to an operator can have binders,
 --   in case the operator is some @syntax@-notation.
 --   For these binders, we have to create lambda-abstractions.
-toAbstractOpArg :: Precedence -> OpApp C.Expr -> ScopeM A.Expr
-toAbstractOpArg ctx (Ordinary e)                 = toAbstractCtx ctx e
-toAbstractOpArg ctx (SyntaxBindingLambda r bs e) = toAbstractLam r bs e ctx
+toAbstractOpArg :: Precedence -> OpApp C.Expr -> ScopeM (Ranged A.Expr)
+toAbstractOpArg ctx (Ordinary e)                 = Ranged (getRange e) <$> toAbstractCtx ctx e
+toAbstractOpArg ctx (SyntaxBindingLambda r bs e) = Ranged r <$> toAbstractLam r bs e ctx
 
 -- | Turn an operator application into abstract syntax. Make sure to
 -- record the right precedences for the various arguments.
@@ -3959,10 +3959,11 @@ toAbstractOpApp op ns es = do
     return $ foldr (A.Lam (ExprRange (getRange body))) body binders
   where
     -- Build an application in the abstract syntax, with correct Range.
-    app e (pref, arg) = A.App info e arg
-      where info = (defaultAppInfo r) { appOrigin = getOrigin arg
+    app e (pref, argR) = A.App info e arg
+      where arg = (fmap rangedThing) <$> argR
+            info = (defaultAppInfo r) { appOrigin = getOrigin arg
                                       , appParens = pref }
-            r = fuseRange e arg
+            r = fuseRange e argR
 
     inferParenPref :: NamedArg (Either A.Expr (OpApp C.Expr)) -> ParenPreference
     inferParenPref e =
@@ -3975,15 +3976,15 @@ toAbstractOpApp op ns es = do
     -- we can build the correct info for the A.App node.
     toAbsOpArg :: Precedence ->
                   NamedArg (Either A.Expr (OpApp C.Expr)) ->
-                  ScopeM (ParenPreference, NamedArg A.Expr)
-    toAbsOpArg cxt e = (pref,) <$> (traverse . traverse) (either return (toAbstractOpArg cxt)) e
+                  ScopeM (ParenPreference, NamedArg (Ranged A.Expr))
+    toAbsOpArg cxt e = (pref,) <$> (traverse . traverse) (either (return . Ranged noRange) (toAbstractOpArg cxt)) e
       where pref = inferParenPref e
 
     -- The hole left to the first @IdPart@ is filled with an expression in @LeftOperandCtx@.
     left :: Fixity
          -> [NotationPart]
          -> [NamedArg (Either A.Expr (OpApp C.Expr))]
-         -> ScopeM [(ParenPreference, NamedArg A.Expr)]
+         -> ScopeM [(ParenPreference, NamedArg (Ranged A.Expr))]
     left f (IdPart _ : xs) es = inside f xs es
     left f (_ : xs) (e : es) = do
         e  <- toAbsOpArg (LeftOperandCtx f) e
@@ -3996,7 +3997,7 @@ toAbstractOpApp op ns es = do
     inside :: Fixity
            -> [NotationPart]
            -> [NamedArg (Either A.Expr (OpApp C.Expr))]
-           -> ScopeM [(ParenPreference, NamedArg A.Expr)]
+           -> ScopeM [(ParenPreference, NamedArg (Ranged A.Expr))]
     inside f [x]             es = right f x es
     inside f (IdPart _ : xs) es = inside f xs es
     inside f (_  : xs) (e : es) = do
@@ -4011,7 +4012,7 @@ toAbstractOpApp op ns es = do
     right :: Fixity
           -> NotationPart
           -> [NamedArg (Either A.Expr (OpApp C.Expr))]
-          -> ScopeM [(ParenPreference, NamedArg A.Expr)]
+          -> ScopeM [(ParenPreference, NamedArg (Ranged A.Expr))]
     right _ (IdPart _)  [] = return []
     right f _          [e] = do
         let pref = inferParenPref e
