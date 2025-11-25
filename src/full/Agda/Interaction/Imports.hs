@@ -117,6 +117,7 @@ import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Impossible
 import System.IO.Error (isUserError, isFullError)
+import Agda.TypeChecking.Rewriting.NonLinPattern (getMatchables)
 
 -- | Whether to ignore interfaces (@.agdai@) other than built-in modules
 
@@ -321,6 +322,14 @@ mergeInterface i = do
       warns
       (iOpaqueBlocks i)
       (iOpaqueNames i)
+
+    -- #8218: Rewrite rules might modify the signature (e.g. definitional
+    -- injectivity of definitions). We need to redo these adjustments when
+    -- importing because rewrite rules might be defined in a different module to
+    -- the definitions we modify.
+    forM_ (HMap.toList (sig ^. sigRewriteRules)) \(f, rews) -> do
+      let matchables = rews >>= getMatchables
+      modifyGlobalSignature $ updateSignatureForRewrites f rews matchables
 
     reportSLn "import.iface.merge" 50 $
       "  Rebinding primitives " ++ show prim

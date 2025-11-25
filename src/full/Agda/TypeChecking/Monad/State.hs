@@ -228,6 +228,14 @@ modifyImportedSignature f = stImports `modifyTCLens` f
 getSignature :: ReadTCState m => m Signature
 getSignature = useR stSignature
 
+{-# INLINE modifyGlobalSignature #-}
+-- | The same caveats as with |modifyGlobalDefinition|, apply: changes will not
+-- persist outside the current module!
+modifyGlobalSignature :: MonadTCState m => (Signature -> Signature) -> m ()
+modifyGlobalSignature f = do
+  modifySignature f
+  modifyImportedSignature f
+
 {-# SPECIALIZE modifyGlobalDefinition :: QName -> (Definition -> Definition) -> TCM () #-}
 -- | Update a possibly imported definition. Warning: changes made to imported
 --   definitions (during type checking) will not persist outside the current
@@ -253,19 +261,23 @@ withSignature sig m = do
   return r
 
 -- ** Modifiers for rewrite rules
-addRewriteRulesFor :: QName -> RewriteRules -> [QName] -> Signature -> Signature
-addRewriteRulesFor f rews matchables =
-    over sigRewriteRules (HMap.insertWith mappend f rews)
-  . updateDefinition f (updateTheDef setNotInjective . setCopatternLHS)
-  . (setMatchableSymbols f matchables)
-    where
-      setNotInjective def@Function{} = def { funInv = NotInjective }
-      setNotInjective def            = def
+addRewriteRulesFor :: QName -> RewriteRules -> Signature -> Signature
+addRewriteRulesFor f rews =
+  over sigRewriteRules $ HMap.insertWith mappend f rews
 
-      setCopatternLHS =
-        updateDefCopatternLHS (|| any hasProjectionPattern rews)
+updateSignatureForRewrites :: QName -> RewriteRules -> [QName]
+                           -> Signature -> Signature
+updateSignatureForRewrites f rews matchables
+  = updateDefinition f (updateTheDef setNotInjective . setCopatternLHS)
+  . setMatchableSymbols f matchables
+  where
+    setNotInjective def@Function{} = def { funInv = NotInjective }
+    setNotInjective def            = def
 
-      hasProjectionPattern rew = any (isJust . isProjElim) $ rewPats rew
+    setCopatternLHS =
+      updateDefCopatternLHS (|| any hasProjectionPattern rews)
+
+    hasProjectionPattern rew = any (isJust . isProjElim) $ rewPats rew
 
 setMatchableSymbols :: QName -> [QName] -> Signature -> Signature
 setMatchableSymbols f matchables =
