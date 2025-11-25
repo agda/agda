@@ -1581,7 +1581,10 @@ importPrimitives = do
           ]
         directives          = ImportDirective noRange (Using usingDirective) [] [] Nothing
         importAgdaPrimitive = [C.Import (C.DoOpen empty) empty agdaPrimitiveName empty directives]
-    toAbstract (Declarations importAgdaPrimitive)
+    -- We don't want UnusedImports warnings when importing the primitives,
+    -- since the open statement was not assembled by the user.
+    locallyTCState (stPragmaOptions . lensOptWarningMode . lensSingleWarning UnusedImports_) (const False) do
+      toAbstract (Declarations importAgdaPrimitive)
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a

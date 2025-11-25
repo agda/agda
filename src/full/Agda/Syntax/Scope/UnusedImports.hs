@@ -16,7 +16,7 @@
 
 module Agda.Syntax.Scope.UnusedImports where
 
-import Prelude hiding (null)
+import Prelude hiding (null, (||))
 
 import Data.IntMap (IntMap)
 import Data.IntMap qualified as IntMap
@@ -25,21 +25,29 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 
+import Agda.Interaction.Options (lensOptWarningMode, optQualifiedInstances)
+import Agda.Interaction.Options.Warnings (lensSingleWarning, WarningName (UnusedImports_))
+
 import Agda.Syntax.Abstract.Name qualified as A
 import Agda.Syntax.Common ( IsInstanceDef(isInstanceDef) )
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Concrete.Name qualified as C
-import Agda.Syntax.Position ( HasRange(getRange) )
+import Agda.Syntax.Position ( HasRange(getRange), SetRange(setRange) )
 import Agda.Syntax.Position qualified as P
 import Agda.Syntax.Scope.Base as A
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.Trace (setCurrentRange)
 import Agda.TypeChecking.Warnings (warning)
 
+import Agda.Utils.Boolean ( (||) )
 import Agda.Utils.Lens
 import Agda.Utils.List1 ( pattern (:|), List1 )
 import Agda.Utils.List1 qualified as List1
 import Agda.Utils.List2 ( List2(..) )
 import Agda.Utils.List2 qualified as List2
+import Agda.Utils.Map qualified as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -67,54 +75,61 @@ lookedupName x = \case
     -- The range
     i = maybe __IMPOSSIBLE__ (fromIntegral . P.posPos) $ P.rStart' $ getRange x
 
--- lookedupName :: C.QName -> List1 AbstractName -> ScopeM ()
--- lookedupName x = \case
---   y :| [] -> modifyTCLens stUnambiguousLookups $ Set.insert y
---   y1 :| y2 :| ys -> modifyLens stAmbiguousLookups $ IntMap.insert i $ List2 y1 y2 ys
---   where
---     i = maybe __IMPOSSIBLE__ (fromIntegral . P.posPos) $ P.rStart' $ getRange x
-
 -- | Call this when opening a module with all the names it brings into scope.
-openedModule :: Scope -> ScopeM ()
-openedModule (Scope m _parents ns imports _dataOrRec) = do
-  -- imports have been removed by restrictPrivate
+openedModule :: C.QName -> Scope -> ScopeM ()
+openedModule x (Scope m0 _parents ns imports _dataOrRec) = do
+  -- @imports@ have been removed by 'restrictPrivate'.
   unless (null imports) __IMPOSSIBLE__
-  let
-    broughtIntoScope :: NamesInScope -- [Map C.Name (List1 AbstractName)]
-    broughtIntoScope = mergeNamesMany $ map (nsNames . snd) ns
-  modifyTCLens stOpenedModules $ Map.insert m broughtIntoScope
 
--- openedModule :: ModuleName -> Set AbstractName -> ScopeM ()
--- openedModule m ys = modifyTCLens stOpenedModules $ Map.insert m ys
+  -- When the UnusedImports warning is off, do not collect information about @open@.
+  -- E.g. we do not want to see warnings for the automatically inserted
+  -- @open import Agda.Primitive using (Set)@.
+  doWarn :: Bool <- useTC $ stPragmaOptions . lensOptWarningMode . lensSingleWarning UnusedImports_
+  -- curM <- asksTC envCurrentModule
+  reportSLn "warning.unusedImports" 20 $ unlines
+    [ "openedModule: " <> prettyShow doWarn
+    -- , "currentModule: " <> prettyShow curM
+    ]
+  when doWarn do
+    let
+      m = setRange (getRange x) m0
+      broughtIntoScope :: NamesInScope -- [Map C.Name (List1 AbstractName)]
+      broughtIntoScope = mergeNamesMany $ map (nsNames . snd) ns
+    modifyTCLens stOpenedModules $ Map.insert m broughtIntoScope
 
 -- | Call this when a file has been checked.
-warnUnusedImports :: ScopeM ()
+warnUnusedImports :: TCM ()
 warnUnusedImports = do
-  st <- useTC stUnusedImportsState
-  disambiguatedNames <- useTC stDisambiguatedNames
-  let
-    xs :: [A.QName]
-    xs = flip concatMap (IntMap.toList $ ambiguousLookups st) \ (i :: Int, ys :: List2 A.QName) -> do
-      case IntMap.lookup i disambiguatedNames of
-        Just (DisambiguatedName _k x) -> [x]
-        Nothing -> List2.toList ys -- __IMPOSSIBLE__
+    st <- useTC stUnusedImportsState
+    disambiguatedNames <- useTC stDisambiguatedNames
+    -- If instances can be used qualified, they do not need to be imported,
+    -- so we should warn about them.
+    qualifiedInstances <- optQualifiedInstances <$> pragmaOptions
 
-  -- Compute unambiguous lookups by using name disambiguation info from type checker.
-  let lookups = unambiguousLookups st `Set.union` Set.fromList xs
-  let
-    isUsed :: A.AbstractName -> Bool
-    isUsed y = isJust (isInstanceDef y) || anameName y `Set.member`lookups
-  -- TODO: traverseWithKey_
-  forM_ (Map.toList $ openedModules st) \ (m :: A.ModuleName, sc :: NamesInScope) -> do
     let
-      unused :: [(C.Name, List1 A.AbstractName)]
-      unused = filter (\ (_x :: C.Name, ys :: List1 A.AbstractName) -> all (not . isUsed) ys) $ Map.toList sc
-    List1.unlessNull (map fst unused) \ unused1 -> do
-      warning $ UnusedImports m unused1
-  -- forMM_ (Map.toList <$> useTCLens stOpenedModules) \ (m, ys) -> do
-  --   unused = filter (\ x -> anameName x `Set.notMember` lookups) $ Set.toList ys
-  --   let unused = Map.restrictKeysSet ys lookups
-  --   warning $ UnusedImports m unused
+      xs :: [A.QName]
+      xs = flip IntMap.foldMapWithKey (ambiguousLookups st) \ (i :: Int) (ys :: List2 A.QName) -> do
+        case IntMap.lookup i disambiguatedNames of
+          Just (DisambiguatedName _k x) -> [x]
+          Nothing -> List2.toList ys -- __IMPOSSIBLE__
+
+    -- Compute unambiguous lookups by using name disambiguation info from type checker.
+    let
+      lookups = unambiguousLookups st `Set.union` Set.fromList xs
+      isLookedUp :: A.AbstractName -> Bool
+      isLookedUp y = anameName y `Set.member`lookups
+      isInst :: A.AbstractName -> Bool
+      isInst = isJust . isInstanceDef
+      isUsed :: A.AbstractName -> Bool
+      isUsed = if qualifiedInstances then isLookedUp else isInst || isLookedUp
+    -- For Andras: use 'forWithKey_' instead of @forM_ . Map.toList@.
+    Map.forWithKey_ (openedModules st) \ (m :: A.ModuleName) (sc :: NamesInScope) -> do
+      let
+        unused :: [(C.Name, List1 A.AbstractName)]
+        unused = filter (\ (_x :: C.Name, ys :: List1 A.AbstractName) -> all (not . isUsed) ys) $ Map.toList sc
+      List1.unlessNull (map snd unused) \ unused1 -> do
+        setCurrentRange m do
+          warning $ UnusedImports m $ fmap List1.head unused1
 
 stUnambiguousLookups :: Lens' TCState (Set A.QName)
 stUnambiguousLookups = stUnusedImportsState . lensUnambiguousLookups
