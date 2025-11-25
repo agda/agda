@@ -725,6 +725,7 @@ library
       Agda.TypeChecking.Errors
       Agda.TypeChecking.Errors.Names
       Agda.TypeChecking.EtaContract
+      Agda.TypeChecking.Evaluation
       Agda.TypeChecking.Forcing
       Agda.TypeChecking.Free
       Agda.TypeChecking.Free.Lazy
