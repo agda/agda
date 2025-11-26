@@ -147,8 +147,7 @@ addRewriteRules qs = do
       "adding rule" <+> prettyTCM (rewName rew) <+>
       "to the definition of" <+> prettyTCM f
     reportSDoc "rewriting" 30 $ "matchable symbols: " <+> prettyTCM matchables
-    modifySignature $ addRewriteRulesFor f [rew]
-    modifyGlobalSignature $ updateSignatureForRewrites f [rew] matchables
+    addRewriteRulesFor f [rew] matchables
 
   -- Run confluence check for the new rules
   -- (should be done after adding all rules, see #3795)

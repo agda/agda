@@ -278,16 +278,6 @@ markInjective q = modifyGlobalDefinition q $ \def -> def { defInjective = True }
 markFirstOrder :: QName -> TCM ()
 markFirstOrder = setFunctionFlag FunFirstOrder True
 
-unionSignatures :: [Signature] -> Signature
-unionSignatures ss = foldr unionSignature emptySignature ss
-
-unionSignature :: Signature -> Signature -> Signature
-unionSignature (Sig a b c d) (Sig a' b' c' d') =
-      Sig (Map.union a a')
-          (HMap.union b b')             -- definitions are unique (in at most one module)
-          (HMap.unionWith mappend c c') -- rewrite rules are accumulated
-          (d <> d')                     -- instances are accumulated
-
 -- | Add a section to the signature.
 --
 --   The current context will be stored as the cumulative module parameters

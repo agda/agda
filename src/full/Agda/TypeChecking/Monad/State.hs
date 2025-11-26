@@ -261,27 +261,32 @@ withSignature sig m = do
   return r
 
 -- ** Modifiers for rewrite rules
-addRewriteRulesFor :: QName -> RewriteRules -> Signature -> Signature
-addRewriteRulesFor f rews =
-  over sigRewriteRules $ HMap.insertWith mappend f rews
+addRewriteRulesFor :: QName -> RewriteRules -> [QName] -> TCM ()
+addRewriteRulesFor f rews matchables = do
+  modifySignature $ over sigRewriteRules $ HMap.insertWith mappend f rews
+  modifyGlobalSignature $ updateDefinitions $ updateDefsForRewrites f rews matchables
 
-updateSignatureForRewrites :: QName -> RewriteRules -> [QName]
-                           -> Signature -> Signature
-updateSignatureForRewrites f rews matchables
-  = updateDefinition f (updateTheDef setNotInjective . setCopatternLHS)
-  . setMatchableSymbols f matchables
-  where
-    setNotInjective def@Function{} = def { funInv = NotInjective }
-    setNotInjective def            = def
+updateDefsForRewrites :: QName -> RewriteRules -> [QName]
+                      -> Definitions -> Definitions
+updateDefsForRewrites f rews matchables
+  = HMap.adjust (updateTheDef setNotInjective . setCopatternLHS) f
+  . setMatchableSymbols' f matchables
+    where
+      setNotInjective def@Function{} = def { funInv = NotInjective }
+      setNotInjective def            = def
 
-    setCopatternLHS =
-      updateDefCopatternLHS (|| any hasProjectionPattern rews)
+      setCopatternLHS =
+        updateDefCopatternLHS (|| any hasProjectionPattern rews)
 
-    hasProjectionPattern rew = any (isJust . isProjElim) $ rewPats rew
+      hasProjectionPattern rew = any (isJust . isProjElim) $ rewPats rew
 
 setMatchableSymbols :: QName -> [QName] -> Signature -> Signature
-setMatchableSymbols f matchables =
-  foldr ((.) . (\g -> updateDefinition g setMatchable)) id matchables
+setMatchableSymbols f matchables
+  = updateDefinitions $ setMatchableSymbols' f matchables
+
+setMatchableSymbols' :: QName -> [QName] -> Definitions -> Definitions
+setMatchableSymbols' f matchables =
+  foldr ((.) . (\g -> HMap.adjust setMatchable g)) id matchables
     where
       setMatchable def = def { defMatchable = Set.insert f $ defMatchable def }
 

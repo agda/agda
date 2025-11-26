@@ -323,14 +323,6 @@ mergeInterface i = do
       (iOpaqueBlocks i)
       (iOpaqueNames i)
 
-    -- #8218: Rewrite rules might modify the signature (e.g. definitional
-    -- injectivity of definitions). We need to redo these adjustments when
-    -- importing because rewrite rules might be defined in a different module to
-    -- the definitions we modify.
-    forM_ (HMap.toList (sig ^. sigRewriteRules)) \(f, rews) -> do
-      let matchables = rews >>= getMatchables
-      modifyGlobalSignature $ updateSignatureForRewrites f rews matchables
-
     reportSLn "import.iface.merge" 50 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
@@ -368,7 +360,7 @@ addImportedThings
   -> TCM ()
 addImportedThings isig metas ibuiltin patsyns display userwarn
                   partialdefs warnings oblock oid = do
-  stImports              `modifyTCLens` \ imp -> unionSignature imp isig
+  stImports              `modifyTCLens` \ imp -> importSignature imp isig
   stImportedMetaStore    `modifyTCLens` HMap.union metas
   stImportedBuiltins     `modifyTCLens` \ imp -> Map.union imp ibuiltin
   stImportedUserWarnings `modifyTCLens` \ imp -> Map.union imp userwarn
@@ -378,6 +370,25 @@ addImportedThings isig metas ibuiltin patsyns display userwarn
   stTCWarnings           `modifyTCLens` \ imp -> Set.union imp warnings
   stOpaqueBlocks         `modifyTCLens` \ imp -> imp `Map.union` oblock
   stOpaqueIds            `modifyTCLens` \ imp -> imp `Map.union` oid
+
+-- | Merges two signatures, assuming the second is being imported into the first
+--
+-- This is not commutative, because we assume rewrite rules in the second
+-- signature cannot refer to definitions in the first.
+importSignature :: Signature -> Signature -> Signature
+importSignature (Sig a b c d) (Sig a' b' c' d') =
+  Sig (Map.union a a')
+      (fixupDefs $ HMap.union b b') -- definitions are unique (in at most one module, but need to be fixed to account for the new rewrite rules)
+      (HMap.unionWith mappend c c') -- rewrite rules are accumulated
+      (d <> d')                     -- instances are accumulated
+  where
+    -- #8218: Rewrite rules can modify the signature (e.g. definitional
+    -- injectivity of the head symbol). We need to replay these adjustments when
+    -- importing because rewrite rules might be defined in a different module
+    -- from the definitions the modify.
+    fixupDefs ds = foldr (\(f, rews) -> updateDefsForRewrites f rews
+                                      $ rews >>= getMatchables)
+                         ds (HMap.toList c')
 
 -- | Scope checks the given module, generating an interface or retrieving an existing one.
 --   Returns the module name and exported scope from the interface.
