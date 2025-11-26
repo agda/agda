@@ -454,7 +454,7 @@ rewrite block hd rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
   if (rewritingAllowed && not (null rules)) then do
     (_ , t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
-    loop block t rules =<< instantiateFull' es -- TODO: remove instantiateFull?
+    loop block t rules es
   else
     return $ NoReduction (block $> hd es)
   where
