@@ -1081,7 +1081,7 @@ checkSectionApplication'
       -- applications with the 'instance hack' enabled.
       k = locallyTCState stInstanceHack (const True) . noConstraints
 
-    ts <- k (checkArguments_ CmpEq DontExpandLast hd args tel') >>= \case
+    ts <- k (checkArguments_ CmpEq DontExpandLast hd (map (updateNamedArg (((Info.defaultAppInfo noRange),))) args) tel') >>= \case
       (ts', etaTel') | (size etaTel == size etaTel')
                      , Just ts <- allApplyElims ts' -> return ts
       _ -> __IMPOSSIBLE__

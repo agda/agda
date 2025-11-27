@@ -75,6 +75,8 @@ instance Ord BindName where
 
 type Args = [NamedArg Expr]
 
+type ArgsWithInfo = [NamedArg (AppInfo , Expr)]
+
 -- | Types are just expressions.
 -- Use this type synonym for hinting that an expression should be a type.
 type Type = Expr

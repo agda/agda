@@ -75,7 +75,7 @@ import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 import Agda.Utils.Singleton (singleton)
-
+import Data.Text (pack)
 ---------------------------------------------------------------------------
 -- * Data structures for checking arguments
 ---------------------------------------------------------------------------
@@ -119,8 +119,8 @@ checkHeadConstraints hd st = do
 --   @checkApplication@ disambiguates constructors
 --   (and continues to 'checkConstructorApplication')
 --   and resolves pattern synonyms.
-checkApplication :: Comparison -> A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
-checkApplication cmp hd args e t =
+checkApplication :: Comparison -> A.Expr -> A.ArgsWithInfo -> A.Expr -> Type -> TCM Term
+checkApplication cmp hd args' e t = let args = map (updateNamedArg snd) args' in
   turnOffExpandLastIfExistingMeta hd $
   postponeInstanceConstraints $ do
   reportSDoc "tc.check.app" 20 $ vcat
@@ -140,11 +140,11 @@ checkApplication cmp hd args e t =
   case unScope hd of
     -- Subcase: unambiguous projection
     A.Proj o p | Just x <- getUnambiguous p -> do
-      checkUnambiguousProjectionApplication cmp e t x o hd args
+      checkUnambiguousProjectionApplication cmp e t x o hd args'
 
     -- Subcase: ambiguous projection
     A.Proj o p -> do
-      checkProjApp cmp e o (unAmbQ p) hd args t
+      checkProjApp cmp e o (unAmbQ p) hd args' t
 
     -- Subcase: unambiguous constructor
     A.Con ambC | Just c <- getUnambiguous ambC -> do
@@ -153,11 +153,11 @@ checkApplication cmp hd args e t =
         fromRightM
           (sigError c (typeError $ AbstractConstructorNotInScope c)) $
           getOrigConHead c
-      checkConstructorApplication cmp e t con hd args
+      checkConstructorApplication cmp e t con hd args'
 
     -- Subcase: ambiguous constructor
     A.Con (AmbQ cs0) -> do
-      let cont c = checkConstructorApplication cmp e t c hd args
+      let cont c = checkConstructorApplication cmp e t c hd args'
       afterDisambiguation cont $ disambiguateConstructor cs0 args t
 
     -- Subcase: pattern synonym
@@ -207,7 +207,7 @@ checkApplication cmp hd args e t =
               NoSuchName{}   -> (arg : args, [])  -- ditto
 
           (macroArgs, otherArgs) = makeArgs argTel args
-          unq = A.App (A.defaultAppInfo $ fuseRange x args) (A.Unquote A.exprNoRange) . defaultNamedArg
+          unq = A.App (A.defaultAppInfo $ fuseRange x (map (updateNamedArg fst) args')) (A.Unquote A.exprNoRange) . defaultNamedArg
 
           desugared = A.app (unq $ unAppView $ Application (A.Def x) $ macroArgs) otherArgs
 
@@ -219,23 +219,26 @@ checkApplication cmp hd args e t =
           (_, hole) <- newValueMeta RunMetaOccursCheck CmpLeq t
           unquoteM (namedArg arg) hole t
           return hole
-      | arg : args <- args -> do
+      | arg' : args' <- args' -> do
           -- Example: unquote v a b : A
           --  Create meta H : (x : X) (y : Y x) → Z x y for the hole
           --  Check a : X, b : Y a
           --  Run the tactic on H
           --  Check H a b : A
-          tel    <- metaTel args                    -- (x : X) (y : Y x)
+          let arg = updateNamedArg snd arg'
+          tel    <- metaTel (map (updateNamedArg snd) args')                    -- (x : X) (y : Y x)
           target <- addContext tel newTypeMeta_     -- Z x y
           let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
           let hd       = namedArg arg
-          (Just vs, EmptyTel) <- first allApplyElims <$> checkArguments_ CmpLeq ExpandLast hd args tel
+          (Just vs, EmptyTel) <- first allApplyElims <$> checkArguments_ CmpLeq ExpandLast hd args' tel
                                                     -- a b : (x : X) (y : Y x)
           (_, hole) <- newValueMeta RunMetaOccursCheck CmpLeq holeType
           unquoteM hd hole holeType
           let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
           coerce CmpEq (apply hole vs) (applySubst rho target) t -- H a b : A
       where
+
+        
         metaTel :: [Arg a] -> TCM Telescope
         metaTel []           = pure EmptyTel
         metaTel (arg : args) = do
@@ -246,7 +249,7 @@ checkApplication cmp hd args e t =
 
     -- Subcase: defined symbol or variable.
     _ -> do
-      v <- checkHeadApplication cmp e t hd args
+      v <- checkHeadApplication cmp e t hd args'
       reportSDoc "tc.term.app" 30 $ vcat
         [ "checkApplication: checkHeadApplication returned"
         , nest 2 $ "v = " <+> prettyTCM v
@@ -254,7 +257,7 @@ checkApplication cmp hd args e t =
       return v
 
 -- | Precondition: @Application hd args = appView e@.
-inferApplication :: ExpandHidden -> A.Expr -> A.Args -> A.Expr -> TCM (Term, Type)
+inferApplication :: ExpandHidden -> A.Expr -> A.ArgsWithInfo -> A.Expr -> TCM (Term, Type)
 inferApplication exh hd args e | not (defOrVar hd) = do
   t <- workOnTypes $ newTypeMeta_
   v <- checkExpr' CmpEq e t
@@ -263,7 +266,7 @@ inferApplication exh hd args e = postponeInstanceConstraints $ do
   SortKit{..} <- sortKit
   case unScope hd of
     A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) hd args
-    A.Def' x s | Just (sz, u) <- isNameOfUniv x -> inferUniv sz u e x s args
+    A.Def' x s | Just (sz, u) <- isNameOfUniv x -> inferUniv sz u e x s (map (updateNamedArg snd) args)
     _ -> do
       (f, t0) <- inferHead hd
       res <- runExceptT $ checkArgumentsE CmpEq exh hd args t0 Nothing
@@ -271,7 +274,8 @@ inferApplication exh hd args e = postponeInstanceConstraints $ do
         Right st@(ACState{acType = t1}) -> fmap (,t1) $ unfoldInlined =<< checkHeadConstraints f st
         Left problem -> do
           t <- workOnTypes $ newTypeMeta_
-          v <- postponeArgs problem CmpEq exh hd args t0 t $ \ st -> unfoldInlined =<< checkHeadConstraints f st
+          v <- postponeArgs problem CmpEq exh hd args
+                 t0 t $ \ st -> unfoldInlined =<< checkHeadConstraints f st
           return (v, t)
 
 -----------------------------------------------------------------------------
@@ -415,7 +419,7 @@ inferDef mkTerm x =
 --
 -- Precondition: The head @hd@ has to be unambiguous, and there should
 -- not be any need to insert hidden lambdas.
-checkHeadApplication :: Comparison -> A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
+checkHeadApplication :: Comparison -> A.Expr -> Type -> A.Expr -> A.ArgsWithInfo -> TCM Term
 checkHeadApplication cmp e t hd args = do
   SortKit{..} <- sortKit
   sharp <- fmap nameOfSharp <$> coinductionKit
@@ -426,7 +430,7 @@ checkHeadApplication cmp e t hd args = do
   mglue  <- getNameOfConstrained builtin_glue
   mglueU  <- getNameOfConstrained builtin_glueU
   case hd of
-    A.Def' c s | Just (sz, u) <- isNameOfUniv c -> checkUniv sz u cmp e t c s args
+    A.Def' c s | Just (sz, u) <- isNameOfUniv c -> checkUniv sz u cmp e t c s (map (updateNamedArg snd) args)
 
     -- Type checking #. The # that the user can write will be a Def, but the
     -- sharp we generate in the body of the wrapper is a Con.
@@ -503,13 +507,13 @@ checkArgumentsE ::
        -- ^ Insert trailing hidden arguments?
   -> A.Expr
        -- ^ The function.
-  -> [NamedArg A.Expr]
+  -> [NamedArg (A.AppInfo , A.Expr)]
        -- ^ The arguments.
   -> Type
        -- ^ Type of the function.
   -> Maybe Type
        -- ^ Optional: expected result type (type of the whole application).
-  -> ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM (ArgsCheckState CheckedTarget)
+  -> ExceptT (ArgsCheckState A.ArgsWithInfo) TCM (ArgsCheckState CheckedTarget)
        -- ^ Upon failure, return the current state for creating a postponed type checking problem.
 checkArgumentsE cmp exph hd args t0 t = do
   sPathView <- pathView'
@@ -538,7 +542,7 @@ data CheckArgumentsE'State = S
     -- ^ Insert trailing hidden arguments?
   , sFun :: A.Expr
     -- ^ The function.
-  , sArgs :: [(NamedArg A.Expr, Bool)]
+  , sArgs :: [(NamedArg (A.AppInfo , A.Expr) , Bool)]
     -- ^ Arguments, along with information about whether a given
     -- argument and all remaining arguments are 'visible'.
   , sArgsLen :: !Nat
@@ -563,9 +567,9 @@ data SkipCheck
     -- ^ Skip the given number of checks.
   | DontSkip
 
-type CheckArgumentsE' = ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM (ArgsCheckState CheckedTarget)
+type CheckArgumentsE' = ExceptT (ArgsCheckState A.ArgsWithInfo) TCM (ArgsCheckState CheckedTarget)
 
-onCheckArgumentsE' :: CheckArgumentsE'State -> ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM ()
+onCheckArgumentsE' :: CheckArgumentsE'State -> ExceptT (ArgsCheckState A.ArgsWithInfo) TCM ()
 onCheckArgumentsE' S{ .. } =
    lift $ putClosuresRangesAt (ClosureRangeArtefact (getRange sFun) sFunType Nothing [])
 
@@ -605,14 +609,15 @@ checkArgumentsE' s@S{ sArgs = [], .. } = do
 
 -- Case: argument given.
 checkArgumentsE'
-  s@S{ sArgs = sArgs@((arg@(Arg info e), sArgsVisible) : args), .. } = do
+  s@S{ sArgs = sArgs@((arg'@(Arg info e), sArgsVisible) : args), .. } = do
+    let arg = updateNamedArg snd arg'
     onCheckArgumentsE' s
     traceCallE (CheckArguments sFun (map fst sArgs) sFunType sResultType) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
         [ "checkArgumentsE"
 --        , "  sArgs =" <+> prettyA sArgs
         , nest 2 $ vcat
-          [ "e (argument) =" <+> prettyA e
+          [ "e (argument) =" <+> prettyA (fmap snd e)
           , "sFun         =" <+> prettyA sFun
           , "sFunType     =" <+> prettyTCM sFunType
           , "sResultType  =" <+> maybe "Nothing" prettyTCM sResultType
@@ -682,7 +687,8 @@ checkArgumentsE'
                 GT -> (True,  SkipNext (n - 1))
 
         s <- pure s
-          { sFun       = A.App (A.defaultAppInfo $ getRange (sFun, arg)) sFun arg
+          { sFun       = A.App (fst (namedThing (unArg arg'))) sFun arg
+                            --A.App (A.defaultAppInfo $ getRange (sFun , arg')) sFun arg
           , sArgs      = args
           , sArgsLen   = sArgsLen - 1
           , sFunType   = sFunType
@@ -792,12 +798,12 @@ checkArgumentsE'
                  -- if not $ isBinderUsed b
                  -- then postponeTypeCheckingProblem (CheckExpr (namedThing e) a) (return True) else
                   let e' = e { nameOf = (nameOf e) <|> dname }
-                  checkNamedArg (Arg info' e') a
+                  checkNamedArg (Arg info' (fmap snd e')) a
 
                 c <- lift $ makeLockConstraint sFunType u
                 -- save relevance info' from domain in argument
                 let ca = CheckedArg{ caElim = Apply (Arg info' u), caRange = getRange e, caConstraint = c }
-                addCheckedArgs cargs ca $
+                addCheckedArgs ncargs cargs ca $
                   checkArgumentsE' s{ sFunType = absApp b u }
             | otherwise -> do
                 reportSDoc "error" 10 $ nest 2 $ vcat
@@ -811,13 +817,13 @@ checkArgumentsE'
             | visible info
             , PathType sort _ _ bA x y <- sPathView sFunType -> do
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
-                u <- lift $ checkExpr (namedThing e) =<< primIntervalType
+                u <- lift $ checkExpr (namedThing (fmap snd e)) =<< primIntervalType
                 let ca = CheckedArg
                      { caElim       = IApply (unArg x) (unArg y) u
                      , caRange      = getRange e
                      , caConstraint = Nothing
                      }
-                addCheckedArgs cargs ca $
+                addCheckedArgs ncargs cargs ca $
                   checkArgumentsE'
                     s{ sChecked = NotCheckedTarget
                      , sFunType = El sort $ unArg bA `apply` [argN u]
@@ -825,14 +831,25 @@ checkArgumentsE'
           _ -> shouldBePi
   where
     addCheckedArgs ::
-         [CheckedArg]
+        [Named_ CheckedArg]
+      -> [CheckedArg]
       -> CheckedArg
       -> CheckArgumentsE'
       -> CheckArgumentsE'
-    addCheckedArgs cas ca cont = do
+    addCheckedArgs nms cas ca cont = do
       let upd :: ArgsCheckState a -> ArgsCheckState a
           upd st = st{ acCheckedArgs = cas ++ ca : acCheckedArgs st }
       -- Add checked arguments to both regular and exceptional result of @cont@.
+      -- unless (null cas) $ do
+         -- lift $ do
+         --  putPreRangesArtefactsExprAt (getRange sFun)
+         --     (PRAHiddenArgs (map (fmap caElim) nms))
+         -- lift $ putClosuresRangesAt (ClosureRangeArtefact (getRange (fuseRange sFun sArgs)) sFunType Nothing [])
+      unless (null cas && null nms) $ do
+          cs <- useTC (lensPostScopeState . lensClosuresRanges)
+          case cs of
+             Just _ -> lift (warning (UserWarning (pack ("H:" ++ show (length nms)))))
+             Nothing -> pure ()
       withError upd $ upd <$> cont
 
 -- | The result of 'isRigid'.
@@ -897,7 +914,7 @@ checkArguments_
   :: Comparison           -- ^ Comparison for target
   -> ExpandHidden         -- ^ Eagerly insert trailing hidden arguments?
   -> A.Expr               -- ^ Function.
-  -> [NamedArg A.Expr]    -- ^ Arguments to check.
+  -> [NamedArg (A.AppInfo , A.Expr)]    -- ^ Arguments to check.
   -> Telescope            -- ^ Telescope to check arguments against.
   -> TCM (Elims, Telescope)
      -- ^ Checked arguments and remaining telescope if successful.
@@ -924,7 +941,7 @@ checkArguments ::
        -- ^ Insert trailing hidden arguments?
   -> A.Expr
        -- ^ The function (a head).
-  -> [NamedArg A.Expr]
+  -> A.ArgsWithInfo
        -- ^ The arguments to check.
   -> Type
        -- ^ Type of the function.
@@ -941,7 +958,7 @@ checkArguments cmp exph hd args t0 t k = postponeInstanceConstraints $ do
       -- if unsuccessful, postpone checking until t0 unblocks
 
 postponeArgs ::
-     (ArgsCheckState [NamedArg A.Expr])
+     (ArgsCheckState A.ArgsWithInfo)
        -- ^ The last sound state of the arguments checker.
   -> Comparison
        -- ^ How the inferred type should be compared to the expected result type.
@@ -949,7 +966,7 @@ postponeArgs ::
        -- ^ Insert trailing hidden arguments?
   -> A.Expr
        -- ^ The original function (a head).
-  -> [NamedArg A.Expr]
+  -> A.ArgsWithInfo
        -- ^ The original arguments to check.
   -> Type
        -- ^ Type of the original function.
@@ -961,14 +978,14 @@ postponeArgs ::
 postponeArgs (ACState cas fun t1 es) cmp exph hd args t0 t k = do
   reportSDoc "tc.term.expr.args" 80 $
     sep [ "postponed checking arguments"
-        , nest 4 $ prettyList (map (prettyA . namedThing . unArg) args)
+        , nest 4 $ prettyList (map (prettyA . snd . namedThing . unArg) args)
         , nest 2 $ "against"
         , nest 4 $ prettyTCM t0
         ] $$
     sep [ "progress:"
         , nest 2 $ "checked" <+> prettyList (map (prettyTCM . caElim) cas)
         , nest 2 $ "remaining" <+> sep
-            [ prettyList (map (prettyA . namedThing . unArg) es)
+            [ prettyList (map (prettyA . snd . namedThing . unArg) es)
             , nest 2 $ ":" <+> prettyTCM t1
             ]
         ]
@@ -994,7 +1011,7 @@ checkConstructorApplication ::
        -- ^ The head of the application.
   -> A.Expr
        -- ^ The original head of the application.
-  -> [NamedArg A.Expr]
+  -> A.ArgsWithInfo
        -- ^ The arguments.
   -> TCM Term
 checkConstructorApplication cmp org t c hd args = do
@@ -1004,14 +1021,14 @@ checkConstructorApplication cmp org t c hd args = do
       [ "org  =" <+> prettyTCM org
       , "t    =" <+> prettyTCM t
       , "c    =" <+> prettyTCM c
-      , "args =" <+> do prettyList $ fmap prettyTCM args
+      , "args =" <+> do prettyList $ fmap prettyTCM (map (updateNamedArg snd) args)
     ] ]
 
   cdef  <- getConInfo c
 
   checkModality (conName c) cdef
 
-  let paramsGiven = checkForParams args
+  let paramsGiven = checkForParams (map (updateNamedArg snd) args)
   if paramsGiven then fallback else do
     reportSDoc "tc.term.con" 50 $ "checkConstructorApplication: no parameters explicitly supplied, continuing..."
 
@@ -1278,7 +1295,7 @@ getTypeHead t = do
 -- * Projections
 ---------------------------------------------------------------------------
 
-checkUnambiguousProjectionApplication :: Comparison -> A.Expr -> Type -> QName -> ProjOrigin -> A.Expr -> [NamedArg A.Expr] -> TCM Term
+checkUnambiguousProjectionApplication :: Comparison -> A.Expr -> Type -> QName -> ProjOrigin -> A.Expr -> A.ArgsWithInfo -> TCM Term
 checkUnambiguousProjectionApplication cmp e t x o hd args = do
   let fallback = checkHeadApplication cmp e t hd args
   -- Andreas, 2021-02-19, issue #3289
@@ -1297,7 +1314,7 @@ checkUnambiguousProjectionApplication cmp e t x o hd args = do
 -- | Inferring the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
-inferProjApp :: A.Expr -> ProjOrigin -> List1 QName -> A.Expr -> A.Args -> TCM (Term, Type)
+inferProjApp :: A.Expr -> ProjOrigin -> List1 QName -> A.Expr -> A.ArgsWithInfo -> TCM (Term, Type)
 inferProjApp e o ds hd args0 = do
   (v, t, _) <- inferOrCheckProjApp e o ds hd args0 Nothing
   return (v, t)
@@ -1305,7 +1322,7 @@ inferProjApp e o ds hd args0 = do
 -- | Checking the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
-checkProjApp  :: Comparison -> A.Expr -> ProjOrigin -> List1 QName -> A.Expr -> A.Args -> Type -> TCM Term
+checkProjApp  :: Comparison -> A.Expr -> ProjOrigin -> List1 QName -> A.Expr -> A.ArgsWithInfo -> Type -> TCM Term
 checkProjApp cmp e o ds hd args0 t = do
   (v, ti, targetCheck) <- inferOrCheckProjApp e o ds hd args0 (Just (cmp, t))
   coerce' cmp targetCheck v ti t
@@ -1319,7 +1336,7 @@ checkProjAppToKnownPrincipalArg ::
   -> ProjOrigin
   -> List1 QName
   -> A.Expr
-  -> A.Args
+  -> A.ArgsWithInfo
   -> Type
   -> Int
   -> Term
@@ -1344,7 +1361,7 @@ inferOrCheckProjApp
      -- ^ The projection name (potentially ambiguous).
   -> A.Expr
      -- ^ The projection as expression.
-  -> A.Args
+  -> A.ArgsWithInfo
      -- ^ The arguments to the projection.
   -> Maybe (Comparison, Type)
      -- ^ The expected type of the expression (if 'Nothing', infer it).
@@ -1354,7 +1371,7 @@ inferOrCheckProjApp e o ds hd args mt = do
   reportSDoc "tc.proj.amb" 20 $ vcat
     [ "checking ambiguous projection"
     , text $ "  ds   = " ++ prettyShow ds
-    , text   "  args = " <+> do prettyList $ fmap prettyTCM args
+    , text   "  args = " <+> do prettyList $ fmap prettyTCM (map (updateNamedArg snd) args)
     , text   "  t    = " <+> caseMaybe mt "Nothing" prettyTCM
     ]
 
@@ -1400,9 +1417,9 @@ inferOrCheckProjApp e o ds hd args mt = do
 
     -- Case: we have a visible argument
     ((k, arg) : _) -> do
-      (v0, ta) <- inferExpr $ namedArg arg
+      (v0, ta) <- inferExpr $ namedArg (updateNamedArg snd arg)
       reportSDoc "tc.proj.amb" 25 $ vcat
-        [ "  principal arg " <+> prettyTCM arg
+        [ "  principal arg " <+> prettyTCM (map (updateNamedArg snd) args)
         , "  has type "      <+> prettyTCM ta
         ]
       inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta Nothing
@@ -1418,7 +1435,7 @@ inferOrCheckProjAppToKnownPrincipalArg
      -- ^ The projection name (potentially ambiguous).
   -> A.Expr
      -- ^ The projection (as application head).
-  -> A.Args
+  -> A.ArgsWithInfo
      -- ^ The arguments to the projection.
   -> Maybe (Comparison, Type)
      -- ^ The expected type of the expression (if 'Nothing', infer it).
@@ -1520,14 +1537,14 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
           -- Check parameters
           tfull <- typeOfConst d
           (args0, princArg : args') <- pure $ splitAt k args
-          (_,_) <- checkKnownArguments args0 pars tfull
+          (_,_) <- checkKnownArguments (map (updateNamedArg snd) args0) pars tfull
 
           -- Check remaining arguments
           let
             fun = A.App
               (A.defaultAppInfo $ getRange (hd, args0, princArg))
-              (A.unAppView $ A.Application hd args0)
-              princArg
+              (A.unAppView $ A.Application hd (map (updateNamedArg snd) args0))
+              (updateNamedArg snd princArg)
           z <- runExceptT $ checkArgumentsE cmp ExpandLast fun args' tb (snd <$> mt)
           case z of
             Right st@(ACState _ _ trest targetCheck) -> do
@@ -1619,10 +1636,10 @@ inferUnivOmega u q suffix args = do
 -- * Coinduction
 -----------------------------------------------------------------------------
 
-checkSharpApplication :: A.Expr -> Type -> QName -> [NamedArg A.Expr] -> TCM Term
+checkSharpApplication :: A.Expr -> Type -> QName -> A.ArgsWithInfo -> TCM Term
 checkSharpApplication e t c args = do
   arg <- case args of
-           [a] | visible a -> return $ namedArg a
+           [a] | visible a -> return $ (namedThing (unArg a))
            _ -> typeError $ WrongSharpArity c
 
   -- The name of the fresh function.
@@ -1663,7 +1680,7 @@ checkSharpApplication e t c args = do
                            , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
                            , A.lhsPats       = [] }
         clause = A.Clause (A.LHS empty core) []
-                          (A.RHS arg Nothing)
+                          (A.RHS (snd arg) Nothing)
                           A.noWhereDecls empty
 
     i <- currentOrFreshMutualBlock

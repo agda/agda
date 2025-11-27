@@ -112,6 +112,7 @@ import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Response.Base (Response_boot(..))
 import Agda.Interaction.Highlighting.Precise
   (HighlightingInfo, NameKind)
+import Agda.Interaction.Highlighting.Range (rangeToRange)
 import Agda.Interaction.Library
 import Agda.Interaction.Library.Base ( ExeName, ExeMap, LibCache, LibErrors )
 
@@ -145,6 +146,7 @@ import Agda.Utils.Tuple (Pair, (&&&) )
 import Agda.Utils.Update
 import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.Range as U
 
 import Agda.Utils.Impossible
 
@@ -274,7 +276,10 @@ data ClosureRangeArtefact = ClosureRangeArtefact
   , craHiddenArgs    :: [Named_ Elim]
   } deriving (Show, Generic)
 
-type ClosureRangeList = [Closure ClosureRangeArtefact]
+instance HasRange ClosureRangeArtefact where
+  getRange = craRange
+
+type ClosureRangeList = Map U.Range (Closure ClosureRangeArtefact)
 
 data PostScopeState = PostScopeState
   { stPostSyntaxInfo          :: !HighlightingInfo
@@ -1176,7 +1181,7 @@ putClosuresRangesAt cra@(ClosureRangeArtefact{..}) =
     Just _ -> do
        cl <- buildClosure cra
        modifyTCLens (lensPostScopeState . lensClosuresRanges)
-           (fmap ((:) cl))
+           (fmap (Map.insertWith (\a _ -> a) (rangeToRange  craRange) cl))
 
 
 putClosuresRangesType :: I.Type -> Maybe I.Term -> TCM ()
@@ -1923,8 +1928,8 @@ instance AllMetas PrincipalArgTypeMetas where
 
 data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
-  | CheckArgs Comparison ExpandHidden A.Expr [NamedArg A.Expr] Type Type (ArgsCheckState CheckedTarget -> TCM Term)
-  | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (List1 QName) A.Expr A.Args Type Int Term Type PrincipalArgTypeMetas
+  | CheckArgs Comparison ExpandHidden A.Expr A.ArgsWithInfo Type Type (ArgsCheckState CheckedTarget -> TCM Term)
+  | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (List1 QName) A.Expr A.ArgsWithInfo Type Int Term Type PrincipalArgTypeMetas
   | CheckLambda Comparison (Arg (List1 (WithHiding Name), Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
     --   This is not an instance of 'CheckExpr' as the domain type
@@ -3833,7 +3838,7 @@ data Call
   | IsType_ A.Expr
   | InferVar Name
   | InferDef QName
-  | CheckArguments A.Expr [NamedArg A.Expr] Type (Maybe Type)
+  | CheckArguments A.Expr A.ArgsWithInfo Type (Maybe Type)
   | CheckMetaSolution Range MetaId Type Term
   | CheckTargetType Range Type Type
   | CheckDataDef Range QName [A.LamBinding] [A.Constructor]

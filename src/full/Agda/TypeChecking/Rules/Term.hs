@@ -1402,6 +1402,7 @@ checkExpr' cmp e t =
                                               [ "checkExpr" <?> fsep [ prettyTCM e, ":", prettyTCM t ]
                                               , "  returns" <?> prettyTCM v ]) $
   traceCall (CheckExprCall cmp e t) $ localScope $ doExpandLast $ unfoldInlined =<< do
+    -- (\tm -> do putClosuresRangesAt ( ) ; return tm) =<< do
     reportSDoc "tc.term.expr.top" 15 $
         "Checking" <+> sep
           [ fsep [ prettyTCM e, ":", prettyTCM t ]
@@ -1500,7 +1501,7 @@ checkExpr' cmp e t =
         A.Dot{} -> typeError InvalidDottedExpression
 
         -- Application
-        _   | Application hd args <- appView e -> checkApplication cmp hd args e t
+        _   | Application hd args <- appView' e -> checkApplication cmp hd args e t
 
       `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
         -- We could not check the term because the type of some pattern is blocked.
@@ -1801,11 +1802,11 @@ inferExpr = inferExpr' DontExpandLast
 
 inferExpr' :: ExpandHidden -> A.Expr -> TCM (Term, Type)
 inferExpr' exh e = traceCall (InferExpr e) $ do
-  let Application hd args = appView e
+  let Application hd args = appView' e
   reportSDoc "tc.infer" 30 $ vcat
     [ "inferExpr': appView of " <+> prettyA e
     , "  hd   = " <+> prettyA hd
-    , "  args = " <+> prettyAs args
+    , "  args = " <+> prettyAs (map (updateNamedArg snd) args)
     ]
   reportSDoc "tc.infer" 60 $ vcat
     [ text $ "  hd (raw) = " ++ show hd
@@ -1823,7 +1824,7 @@ defOrVar _     = False
 --   Switches off 'ExpandLast' for the checking of top-level application.
 checkDontExpandLast :: Comparison -> A.Expr -> Type -> TCM Term
 checkDontExpandLast cmp e t = case e of
-  _ | Application hd args <- appView e,  defOrVar hd ->
+  _ | Application hd args <- appView' e,  defOrVar hd ->
     traceCall (CheckExprCall cmp e t) $ localScope $ dontExpandLast $ do
       checkApplication cmp hd args e t
   _ -> checkExpr' cmp e t -- note that checkExpr always sets ExpandLast

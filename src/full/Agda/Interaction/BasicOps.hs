@@ -469,7 +469,7 @@ instance Reify Constraint where
           CheckArgs _ _ _ args t0 t1 _ -> do
             t0 <- reify t0
             t1 <- reify t1
-            return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
+            return $ PostponedCheckArgs m' (map (snd . namedThing . unArg) args) t0 t1
           CheckProjAppToKnownPrincipalArg cmp e _ _ _ _ t _ _ _ _ -> TypedAssign m' e <$> reify t
           DoQuoteTerm cmp v t -> do
             tm <- A.App defaultAppInfo_ (A.QuoteTerm exprNoRange) . defaultNamedArg <$> reify v
@@ -873,7 +873,7 @@ instance ClosureRangeTC (InteractionId , Range) where
   closureRangeTC (InteractionId (-1) , rng) = do
     
       cs <- useTC (lensPostScopeState . lensClosuresRanges)
-      case cs >>= List.find (\x -> rangeToRange rng == rangeToRange (craRange (clValue x))) of
+      case cs >>= Map.lookup (rangeToRange rng) of
           --smallestContaining (craRange . clValue) rng of
         Nothing -> error "no closure for that range"
         Just cl -> pure (fmap craRange cl) 
@@ -883,7 +883,7 @@ instance ClosureRangeTC (InteractionId , Range) where
 pickRangeArtefact :: Range -> TCM (Maybe (ClosureRangeArtefact)) 
 pickRangeArtefact rng = do
   cs <- useTC (lensPostScopeState . lensClosuresRanges)
-  pure ((clValue) <$> (cs >>= List.find (\x -> rangeToRange rng == rangeToRange (craRange (clValue x)))))
+  pure ((clValue) <$> (cs >>= Map.lookup (rangeToRange rng)))
   
         
 withClosureRnage'wrp :: InteractionId -> Range -> (Closure Range -> TCM b) ->

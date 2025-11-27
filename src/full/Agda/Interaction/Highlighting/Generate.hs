@@ -489,7 +489,7 @@ warningHighlighting' b w = case tcWarning w of
   WithoutKFlagPrimEraseEquality -> mempty
   ConflictingPragmaOptions{} -> mempty
   DeprecationWarning{}       -> mempty
-  UserWarning{}              -> mempty
+  UserWarning{}              -> cosmeticProblemHighlighting (w { tcWarningRange = P.followingChar (tcWarningRange w)})
   LibraryWarning{}           -> mempty
   ConfluenceCheckingIncompleteBecauseOfMeta{} -> confluenceErrorHighlighting w
   ConfluenceForCubicalNotSupported{} -> mempty

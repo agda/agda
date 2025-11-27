@@ -17,9 +17,11 @@ import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
 
 import Agda.Syntax.Common
+import Agda.Syntax.Info (defaultAppInfo,AppInfo(..))
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Abstract.Name
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal.MetaVars (unblockOnAnyMetaIn)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
@@ -171,9 +173,11 @@ insertMissingFieldsWarn
   -> (C.Name -> a)        -- ^ Function to generate a placeholder for missing visible field.
   -> [FieldAssignment' a] -- ^ Given fields.
   -> [Arg C.Name]         -- ^ All record field names with 'ArgInfo'.
-  -> TCM [NamedArg a]     -- ^ Given fields enriched by placeholders for missing explicit fields.
+  -> TCM [NamedArg (AppInfo , a)]     -- ^ Given fields enriched by placeholders for missing explicit fields.
 insertMissingFieldsWarn o r placeholder fs axs =
-  warnOnRecordFieldWarnings $ insertMissingFields o r placeholder fs axs
+  map (updateNamedArg (((defaultAppInfo noRange),))) <$> 
+  (warnOnRecordFieldWarnings $
+   (insertMissingFields o r placeholder fs axs))
 
 -- | A record field assignment @record{xs = es}@ might not mention all
 --   visible fields.  @insertMissingFields@ inserts placeholders for

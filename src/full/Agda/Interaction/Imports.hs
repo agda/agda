@@ -1194,19 +1194,16 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Skipping type checking."
         cacheCurrentLog
       else do
-        ifTopLevel $ setTCLens (lensPostScopeState . lensClosuresRanges) (Just [])
+        ifTopLevel $ setTCLens (lensPostScopeState . lensClosuresRanges) (Just empty)
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Starting type checking."
         Bench.billTo [Bench.Typing] $ mapM_ checkDeclCached ds `finally_` cacheCurrentLog
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Finished type checking."
         
-        caseMaybeM (useTC (lensPostScopeState . lensClosuresRanges)) (pure ())
-          (reportSLn "rangeartefacts" 20 . ((++) "pre conversion ") . show . length)  
-        modifyTCLens (lensPostScopeState . lensClosuresRanges)
-          (fmap $ (filter (not . null . craRange . clValue ) . map (fmap (\x ->
-                let alignedRange = alignRangeToAbstractExprLikeDecls ds (craRange x)
-                in (x {craRange = alignedRange})))))
-        caseMaybeM (useTC (lensPostScopeState . lensClosuresRanges)) (pure ())
-          (reportSLn "rangeartefacts" 20 . ((++) "post conversion "). show . length)  
+
+        -- modifyTCLens (lensPostScopeState . lensClosuresRanges)
+        --   (fmap $ (filter (not . null . craRange . clValue ) . map (fmap (\x ->
+        --         let alignedRange = alignRangeToAbstractExprLikeDecls ds (craRange x)
+        --         in (x {craRange = alignedRange})))))
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.
     -- Ulf, 2013-11-13: Errors are now caught and highlighted in InteractionTop.
@@ -1214,21 +1211,6 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     --   ifTopLevelAndHighlightingLevelIs NonInteractive $
     --     printErrorInfo e
     --   throwError e
-
-    -- (do
-    --         mcs <- useTC (lensPostScopeState . lensClosuresRanges)
-    --         case mcs of
-    --           Nothing -> pure ()
-    --           Just cs -> do
-    --              printHighlightingInfo KeepHighlighting
-    --               (fromListForce (fmap (\x ->
-    --                                        (rangeToRange x ,
-    --                                       (Highlighting.parserBased{
-    --                                            otherAspects = Set.singleton UnsolvedMeta})) )
-    --                              (filterMissingRangesFromExprLike ds (fmap (craRange . clValue) cs))) )
-    --              -- throwError "stopForNow"
-                  
-    --             )
 
     unfreezeMetas
 
