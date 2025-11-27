@@ -81,8 +81,8 @@ rangeToPosPos :: HasRange a => a -> Maybe Int
 rangeToPosPos = fmap (fromIntegral . P.posPos) . P.rStart' . getRange
 
 -- | Call this when opening a module with all the names it brings into scope.
-openedModule :: C.QName -> Scope -> ScopeM ()
-openedModule x (Scope m0 _parents ns imports _dataOrRec) = do
+openedModule :: A.ModuleName -> C.QName -> Scope -> ScopeM ()
+openedModule currentModule x (Scope m0 _parents ns imports _dataOrRec) = do
   -- @imports@ have been removed by 'restrictPrivate'.
   unless (null imports) __IMPOSSIBLE__
 
@@ -90,7 +90,6 @@ openedModule x (Scope m0 _parents ns imports _dataOrRec) = do
   -- E.g. we do not want to see warnings for the automatically inserted
   -- @open import Agda.Primitive using (Set)@.
   doWarn :: Bool <- useTC $ stPragmaOptions . lensOptWarningMode . lensSingleWarning UnusedImports_
-  -- curM <- asksTC envCurrentModule
   reportSLn "warning.unusedImports" 20 $ unlines
     [ "openedModule: " <> prettyShow doWarn
     -- , "currentModule: " <> prettyShow curM
@@ -100,7 +99,7 @@ openedModule x (Scope m0 _parents ns imports _dataOrRec) = do
       m = setRange (getRange x) m0
       broughtIntoScope :: NamesInScope -- [Map C.Name (List1 AbstractName)]
       broughtIntoScope = mergeNamesMany $ map (nsNames . snd) ns
-    modifyTCLens stOpenedModules $ Map.insert m broughtIntoScope
+    modifyTCLens stOpenedModules $ Map.insert m (currentModule, broughtIntoScope)
 
 data ImportedName = ImportedName
   { iWhere :: Int -- Position of 'Opened' extracted from the 'AbstractName'.
@@ -142,7 +141,7 @@ warnUnusedImports = do
       isInst = isJust . isInstanceDef
       isUsed = if qualifiedInstances then isLookedUp else isInst || isLookedUp
     -- For Andras: use 'forWithKey_' instead of @forM_ . Map.toList@.
-    Map.forWithKey_ (openedModules st) \ (m :: A.ModuleName) (sc :: NamesInScope) -> do
+    Map.forWithKey_ (openedModules st) \ (m :: A.ModuleName) (parent :: A.ModuleName, sc :: NamesInScope) -> do
       let
         f :: (C.Name, List1 AbstractName) -> Maybe (C.Name, List1 ImportedName)
         f = traverse $ traverse toImportedName
@@ -151,7 +150,7 @@ warnUnusedImports = do
         (other, imps) = partitionMaybe f $ Map.toList sc
         used, unused :: [(C.Name, List1 ImportedName)]
         (used, unused) = partition (\ (_x :: C.Name, ys :: List1 ImportedName) -> any isUsed ys) imps
-        warn = setCurrentRange m . warning . UnusedImports m
+        warn = setCurrentRange m . withCurrentModule parent . warning . UnusedImports m
       unless (null other) do
         __IMPOSSIBLE_VERBOSE__ (show other)
       if null used then warn Nothing else
@@ -164,5 +163,5 @@ stUnambiguousLookups = stUnusedImportsState . lensUnambiguousLookups
 stAmbiguousLookups :: Lens' TCState (IntMap (List2 AbstractName))
 stAmbiguousLookups = stUnusedImportsState . lensAmbiguousLookups
 
-stOpenedModules :: Lens' TCState (Map A.ModuleName NamesInScope)
+stOpenedModules :: Lens' TCState (Map A.ModuleName (A.ModuleName, NamesInScope))
 stOpenedModules = stUnusedImportsState . lensOpenedModules
