@@ -22,6 +22,10 @@ import Data.Maybe
 boolToMaybe :: Bool -> a -> Maybe a
 boolToMaybe b x = if b then Just x else Nothing
 
+-- | Retain object when it passes the given test.
+predicateToMaybe :: (a -> Bool) -> a -> Maybe a
+predicateToMaybe f x = boolToMaybe (f x) x
+
 -- * Collection operations.
 
 -- | @unionWith@ for collections of size <= 1.
