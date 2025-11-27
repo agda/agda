@@ -30,7 +30,7 @@ import Agda.Interaction.Options (lensOptWarningMode, optQualifiedInstances)
 import Agda.Interaction.Options.Warnings (lensSingleWarning, WarningName (UnusedImports_))
 
 import Agda.Syntax.Abstract.Name qualified as A
-import Agda.Syntax.Common ( IsInstanceDef(isInstanceDef), IsInstance )
+import Agda.Syntax.Common ( IsInstanceDef(isInstanceDef), IsInstance, KwRange )
 import Agda.Syntax.Common.Pretty (prettyShow, Pretty (pretty))
 import Agda.Syntax.Concrete.Name qualified as C
 import Agda.Syntax.Position ( HasRange(getRange), SetRange(setRange), Range )
@@ -81,8 +81,8 @@ rangeToPosPos :: HasRange a => a -> Maybe Int
 rangeToPosPos = fmap (fromIntegral . P.posPos) . P.rStart' . getRange
 
 -- | Call this when opening a module with all the names it brings into scope.
-openedModule :: A.ModuleName -> C.QName -> Scope -> ScopeM ()
-openedModule currentModule x (Scope m0 _parents ns imports _dataOrRec) = do
+openedModule :: KwRange -> A.ModuleName -> C.QName -> Scope -> ScopeM ()
+openedModule kwr currentModule x (Scope m0 _parents ns imports _dataOrRec) = do
   -- @imports@ have been removed by 'restrictPrivate'.
   unless (null imports) __IMPOSSIBLE__
 
@@ -100,7 +100,7 @@ openedModule currentModule x (Scope m0 _parents ns imports _dataOrRec) = do
       broughtIntoScope :: NamesInScope -- [Map C.Name (List1 AbstractName)]
       broughtIntoScope = mergeNamesMany $ map (nsNames . snd) ns
       k = fromMaybe __IMPOSSIBLE__ $ rangeToPosPos x
-    modifyTCLens stOpenedModules $ IntMap.insert k (m, currentModule, broughtIntoScope)
+    modifyTCLens stOpenedModules $ IntMap.insert k (kwr, m, currentModule, broughtIntoScope)
 
 data ImportedName = ImportedName
   { iWhere :: Int -- Position of 'Opened' extracted from the 'AbstractName'.
@@ -163,7 +163,7 @@ warnUnusedImports = do
     --   reportSLn "warning.unusedImports" 60 $ "unknowns: " <> show unknowns
     --   __IMPOSSIBLE__
 
-    forM_ (openedModules st) \ (m :: A.ModuleName, parent :: A.ModuleName, sc :: NamesInScope) -> do
+    forM_ (openedModules st) \ (kwr :: KwRange, m :: A.ModuleName, parent :: A.ModuleName, sc :: NamesInScope) -> do
       let
         f :: (C.Name, List1 AbstractName) -> Maybe (C.Name, List1 ImportedName)
         f = traverse $ traverse toImportedName
@@ -173,7 +173,7 @@ warnUnusedImports = do
         used, unused :: [(C.Name, List1 ImportedName)]
         imps' = map (\ (x, ys) -> (x, setRange (getRange x) <$> ys)) imps
         (used, unused) = partition (\ (x :: C.Name, ys :: List1 ImportedName) -> any isUsed ys) imps'
-        warn = setCurrentRange m . withCurrentModule parent . warning . UnusedImports m
+        warn = setCurrentRange (getRange (kwr, m)) . withCurrentModule parent . warning . UnusedImports m
 
       reportSLn "warning.unusedImports" 60 $ "used: " <> prettyShow used
       reportSLn "warning.unusedImports" 60 $ "unused: " <> prettyShow unused
@@ -189,5 +189,5 @@ stUnambiguousLookups = stUnusedImportsState . lensUnambiguousLookups
 stAmbiguousLookups :: Lens' TCState (IntMap (List2 AbstractName))
 stAmbiguousLookups = stUnusedImportsState . lensAmbiguousLookups
 
-stOpenedModules :: Lens' TCState (IntMap (A.ModuleName, A.ModuleName, NamesInScope))
+stOpenedModules :: Lens' TCState (IntMap (KwRange, A.ModuleName, A.ModuleName, NamesInScope))
 stOpenedModules = stUnusedImportsState . lensOpenedModules

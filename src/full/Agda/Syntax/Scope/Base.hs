@@ -448,7 +448,7 @@ lensUnambiguousLookups f s = f (unambiguousLookups s) <&> \x -> s { unambiguousL
 lensAmbiguousLookups :: Lens' UnusedImportsState (IntMap (List2 AbstractName))
 lensAmbiguousLookups f s = f (ambiguousLookups s) <&> \x -> s { ambiguousLookups = x }
 
-lensOpenedModules :: Lens' UnusedImportsState (IntMap (ModuleName, ModuleName, NamesInScope))
+lensOpenedModules :: Lens' UnusedImportsState (IntMap (KwRange, ModuleName, ModuleName, NamesInScope))
 lensOpenedModules f s = f (openedModules s) <&> \x -> s { openedModules = x }
 
 ------------------------------------------------------------------------

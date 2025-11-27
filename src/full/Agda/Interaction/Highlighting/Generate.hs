@@ -459,7 +459,7 @@ warningHighlighting' b w = case tcWarning w of
     where r = getRange q
   IllformedAsClause{}        -> deadcodeHighlighting w
   UnusedImports m Nothing    -> deadcodeHighlighting w
-  UnusedImports m xs         -> cosmeticProblemHighlighting m <> foldMap deadcodeHighlighting xs
+  UnusedImports m xs         -> cosmeticProblemHighlighting w <> foldMap deadcodeHighlighting xs
   UselessPragma r _          -> deadcodeHighlighting r
   UselessPublic{}            -> deadcodeHighlighting w
   UselessHiding xs           -> foldMap deadcodeHighlighting xs
