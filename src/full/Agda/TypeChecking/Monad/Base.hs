@@ -4696,8 +4696,9 @@ data Warning
     -- ^ If a `renaming' import directive introduces a name or module name clash
     --   in the exported names of a module.
     --   (See issue #4154.)
-  | UnusedImports A.ModuleName (List1 AbstractName)
+  | UnusedImports A.ModuleName (Maybe (List1 AbstractName))
     -- ^ The given module was opened but the names in the list were not used.
+    --   If 'Nothing', then none of the imported name was used.
   | UselessPatternDeclarationForRecord String
     -- ^ The 'pattern' declaration is useless in the presence
     --   of either @coinductive@ or @eta-equality@.

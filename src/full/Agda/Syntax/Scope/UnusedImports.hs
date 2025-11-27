@@ -125,11 +125,12 @@ warnUnusedImports = do
     -- For Andras: use 'forWithKey_' instead of @forM_ . Map.toList@.
     Map.forWithKey_ (openedModules st) \ (m :: A.ModuleName) (sc :: NamesInScope) -> do
       let
-        unused :: [(C.Name, List1 A.AbstractName)]
-        unused = filter (\ (_x :: C.Name, ys :: List1 A.AbstractName) -> all (not . isUsed) ys) $ Map.toList sc
-      List1.unlessNull (map snd unused) \ unused1 -> do
-        setCurrentRange m do
-          warning $ UnusedImports m $ fmap List1.head unused1
+        warn = setCurrentRange m . warning . UnusedImports m
+        used, unused :: [(C.Name, List1 A.AbstractName)]
+        (used, unused) = partition (\ (_x :: C.Name, ys :: List1 A.AbstractName) -> any isUsed ys) $ Map.toList sc
+      if null used then warn Nothing else
+        List1.unlessNull (map snd unused) \ unused1 -> do
+          warn $ Just $ fmap List1.head unused1
 
 stUnambiguousLookups :: Lens' TCState (Set A.QName)
 stUnambiguousLookups = stUnusedImportsState . lensUnambiguousLookups
