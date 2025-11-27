@@ -107,6 +107,12 @@ data ImportedName = ImportedName
   , iName  :: AbstractName
   } deriving (Eq, Ord, Show)
 
+instance HasRange ImportedName where
+  getRange = getRange . iName
+
+instance SetRange ImportedName where
+  setRange r (ImportedName i n) = ImportedName i (setRange r n)
+
 instance Pretty ImportedName where
   pretty (ImportedName i n) = pretty n <> " (at position " <> pretty i <> ")"
 
@@ -165,7 +171,8 @@ warnUnusedImports = do
         imps :: [(C.Name, List1 ImportedName)]
         (other, imps) = partitionMaybe f $ Map.toList sc
         used, unused :: [(C.Name, List1 ImportedName)]
-        (used, unused) = partition (\ (_x :: C.Name, ys :: List1 ImportedName) -> any isUsed ys) imps
+        imps' = map (\ (x, ys) -> (x, setRange (getRange x) <$> ys)) imps
+        (used, unused) = partition (\ (x :: C.Name, ys :: List1 ImportedName) -> any isUsed ys) imps'
         warn = setCurrentRange m . withCurrentModule parent . warning . UnusedImports m
 
       reportSLn "warning.unusedImports" 60 $ "used: " <> prettyShow used
