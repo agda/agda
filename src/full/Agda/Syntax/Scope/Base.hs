@@ -428,9 +428,9 @@ isModuleAlive (A.MName mod) (SomeLiveNames mods _) =
 
 -- | Information gathered during scope checking for the unused-imports warning.
 data UnusedImportsState = UnusedImportsState
-  { unambiguousLookups :: Set A.QName
+  { unambiguousLookups :: [AbstractName]
       -- ^ Names that were unambiguously resolved from a concrete name in the source.
-  , ambiguousLookups   :: IntMap (List2 A.QName)
+  , ambiguousLookups   :: IntMap (List2 AbstractName)
       -- ^ Names that were ambiguously resolved from a concrete name in the source.
       --   They are stored with their position in the file
       --   that is matched with disambiguation information produced by the type checker.
@@ -442,10 +442,10 @@ instance Null UnusedImportsState where
   empty = UnusedImportsState empty empty empty
   null (UnusedImportsState u a o) = null u && null a && null o
 
-lensUnambiguousLookups :: Lens' UnusedImportsState (Set A.QName)
+lensUnambiguousLookups :: Lens' UnusedImportsState [AbstractName]
 lensUnambiguousLookups f s = f (unambiguousLookups s) <&> \x -> s { unambiguousLookups = x }
 
-lensAmbiguousLookups :: Lens' UnusedImportsState (IntMap (List2 A.QName))
+lensAmbiguousLookups :: Lens' UnusedImportsState (IntMap (List2 AbstractName))
 lensAmbiguousLookups f s = f (ambiguousLookups s) <&> \x -> s { ambiguousLookups = x }
 
 lensOpenedModules :: Lens' UnusedImportsState (Map ModuleName NamesInScope)
