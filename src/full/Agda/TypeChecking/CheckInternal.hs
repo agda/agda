@@ -18,7 +18,7 @@ module Agda.TypeChecking.CheckInternal
 import Control.Monad
 import Control.Monad.Except ( MonadError(..))
 
-import qualified Data.Map as Map
+--import qualified Data.Map as Map
 import Data.Map (Map)
 
 import Agda.Syntax.Common
@@ -29,7 +29,8 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.TypeChecking.Conversion
 --import Agda.TypeChecking.Coverage.SplitClause
-import Agda.TypeChecking.Coverage.Match
+--import Agda.TypeChecking.Coverage.Match
+import Agda.TypeChecking.Coverage.SplitPattern
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
@@ -487,13 +488,13 @@ checkClauses
   -> Comparison
   -> CheckClause
   -> m (CheckClause, CompiledClauses)
-checkClauses act c@(Done arg t) cmp s = addContext (ccTel s) $ do
+checkClauses act c@(Done n isrec arg t) cmp s = addContext (ccTel s) $ do
   reportSDoc "tc.check.internal.cc" 50 $ vcat
     [ "checking internal done clause of " <+> prettyTCM (ccName s)
     , nest 2 $ return $ P.pretty c ]
   let sub = checkClauseSubst s
   nt <- checkInternal' act (applySubst sub t) cmp (unDom . ccTarget $ s)
-  return (s, Done arg nt)
+  return (s, Done n isrec arg nt)
 checkClauses act c@(Case arg cases) cmp s = do
   reportSDoc "tc.check.internal.cc" 50 $ vcat
     [ "checking internal case clause of " <+> prettyTCM (ccName s)
@@ -505,19 +506,18 @@ checkClauses act c@(Case arg cases) cmp s = do
   (n, t, delta1, delta2) <- do
     let (tel1, dom : tel2) = splitAt (size tel - narg - 1) $ telToList tel
     return (fst $ unDom dom, snd <$> dom, telFromList tel1, telFromList tel2)
-  (dr, d, s, pars, ixs, cons', _) <- inContextOfT tel narg $ isDatatypeCool Inductive t
-  cons <- case False of --checkEmpty
+  (dr, d, s, pars, ixs, cons', _) <- undefined --inContextOfT tel narg $ isDatatypeCool Inductive t
+  cons <- case undefined of --checkEmpty
     True  -> undefined --ifM (liftTCM $ inContextOfT $ isEmptyType $ unDom t) (pure []) (pure cons')
     False -> pure cons'
-  mns <- forM cons $ \ con ->
-    computeNeighbourhood delta1 n delta2 d pars ixs narg tel con
+  mns <- undefined {-forM cons $ \ con ->
+    computeNeighbourhood delta1 n delta2 d pars ixs narg tel con-}
   return undefined
-  where
-    inContextOfT :: (MonadAddContext tcm, MonadDebug tcm)
-                 => Telescope -> Int -> tcm a -> tcm a
-    inContextOfT tel x = addContext tel . escapeContext impossible (x + 1)
 checkClauses act (Fail arg) cmp s = undefined
 
+inContextOfT :: (MonadAddContext tcm, MonadDebug tcm)
+             => Telescope -> Int -> tcm a -> tcm a
+inContextOfT tel x = addContext tel . escapeContext impossible (x + 1)
 
 computeNeighbourhood
   :: (MonadError TCErr m, MonadCheckInternal m)
