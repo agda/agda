@@ -31,7 +31,7 @@ import Agda.Interaction.Options.Warnings (lensSingleWarning, WarningName (Unused
 
 import Agda.Syntax.Abstract.Name qualified as A
 import Agda.Syntax.Common ( IsInstanceDef(isInstanceDef), IsInstance )
-import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow, Pretty (pretty))
 import Agda.Syntax.Concrete.Name qualified as C
 import Agda.Syntax.Position ( HasRange(getRange), SetRange(setRange), Range )
 import Agda.Syntax.Position qualified as P
@@ -104,7 +104,10 @@ openedModule currentModule x (Scope m0 _parents ns imports _dataOrRec) = do
 data ImportedName = ImportedName
   { iWhere :: Int -- Position of 'Opened' extracted from the 'AbstractName'.
   , iName  :: AbstractName
-  } deriving (Eq, Ord)
+  } deriving (Eq, Ord, Show)
+
+instance Pretty ImportedName where
+  pretty (ImportedName i n) = pretty n <> " (at position " <> pretty i <> ")"
 
 instance IsInstanceDef ImportedName where
   isInstanceDef = isInstanceDef . iName
@@ -124,22 +127,34 @@ warnUnusedImports = do
     -- so we should warn about them.
     qualifiedInstances <- optQualifiedInstances <$> pragmaOptions
 
+    reportSLn "warning.unusedImports" 60 $ "unambiguousLookups: " <> prettyShow (unambiguousLookups st)
+
     -- Disambiguate overloaded lookups.
     let
-      xs :: [AbstractName] -> [AbstractName]
-      xs = flip IntMap.foldMapWithKey (ambiguousLookups st) \ (i :: Int) (ys :: List2 AbstractName) -> do
+      helper =  \ (i :: Int) (ys :: List2 AbstractName) -> do
         case IntMap.lookup i disambiguatedNames of
           Just (DisambiguatedName _k x) -> (filter ((x ==) . anameName) (List2.toList ys) ++)
           Nothing -> (List2.toList ys ++) -- __IMPOSSIBLE__
+      allLookups :: [AbstractName]
+      allLookups = IntMap.foldrWithKey helper (unambiguousLookups st) (ambiguousLookups st)
 
     -- Compute unambiguous lookups by using name disambiguation info from type checker.
     let
-      lookups :: Set ImportedName
-      lookups = Set.fromList $ mapMaybe toImportedName $ xs $ unambiguousLookups st
+      lookups :: [ImportedName]
+      (unknowns, lookups) = partitionMaybe toImportedName allLookups
+      lookupSet :: Set ImportedName
+      lookupSet = Set.fromList lookups
       isLookedUp, isInst, isUsed  :: ImportedName -> Bool
-      isLookedUp = (`Set.member` lookups)
+      isLookedUp = (`Set.member` lookupSet)
       isInst = isJust . isInstanceDef
       isUsed = if qualifiedInstances then isLookedUp else isInst || isLookedUp
+
+    reportSLn "warning.unusedImports" 60 $ "allLookups: " <> prettyShow allLookups
+    reportSLn "warning.unusedImports" 60 $ "lookups: " <> prettyShow lookups
+    reportSLn "warning.unusedImports" 60 $ "unknowns: " <> prettyShow unknowns
+    -- unless (null unknowns) do
+    --   reportSLn "warning.unusedImports" 60 $ "unknowns: " <> show unknowns
+    --   __IMPOSSIBLE__
     -- For Andras: use 'forWithKey_' instead of @forM_ . Map.toList@.
     Map.forWithKey_ (openedModules st) \ (m :: A.ModuleName) (parent :: A.ModuleName, sc :: NamesInScope) -> do
       let
@@ -151,6 +166,9 @@ warnUnusedImports = do
         used, unused :: [(C.Name, List1 ImportedName)]
         (used, unused) = partition (\ (_x :: C.Name, ys :: List1 ImportedName) -> any isUsed ys) imps
         warn = setCurrentRange m . withCurrentModule parent . warning . UnusedImports m
+
+      reportSLn "warning.unusedImports" 60 $ "used: " <> prettyShow used
+      reportSLn "warning.unusedImports" 60 $ "unused: " <> prettyShow unused
       unless (null other) do
         __IMPOSSIBLE_VERBOSE__ (show other)
       if null used then warn Nothing else
