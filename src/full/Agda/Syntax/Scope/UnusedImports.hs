@@ -20,6 +20,7 @@ import Prelude hiding (null, (||))
 
 import Data.IntMap (IntMap)
 import Data.IntMap qualified as IntMap
+import Data.List (partition)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
@@ -107,15 +108,15 @@ warnUnusedImports = do
     qualifiedInstances <- optQualifiedInstances <$> pragmaOptions
 
     let
-      xs :: [A.QName]
+      xs :: Set A.QName -> Set A.QName
       xs = flip IntMap.foldMapWithKey (ambiguousLookups st) \ (i :: Int) (ys :: List2 A.QName) -> do
         case IntMap.lookup i disambiguatedNames of
-          Just (DisambiguatedName _k x) -> [x]
-          Nothing -> List2.toList ys -- __IMPOSSIBLE__
+          Just (DisambiguatedName _k x) -> Set.insert x
+          Nothing -> foldMap Set.insert ys -- __IMPOSSIBLE__
 
     -- Compute unambiguous lookups by using name disambiguation info from type checker.
     let
-      lookups = unambiguousLookups st `Set.union` Set.fromList xs
+      lookups = unambiguousLookups st `Set.union` xs empty
       isLookedUp :: A.AbstractName -> Bool
       isLookedUp y = anameName y `Set.member`lookups
       isInst :: A.AbstractName -> Bool
