@@ -3,7 +3,7 @@
 {-| The scope monad with operations.
 -}
 
-module Agda.Syntax.Scope.Monad where
+module Agda.Syntax.Scope.Monad (module Agda.Syntax.Scope.Monad, module Agda.Syntax.Scope.State) where
 
 import Prelude hiding (null)
 
@@ -36,13 +36,14 @@ import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Abstract.Name as A
-import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Abstract (ScopeCopyInfo(..))
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Fixity
 import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWarning'(..) )
   -- TODO: move the relevant warnings out of there
 import Agda.Syntax.Scope.Base as A
+import Agda.Syntax.Scope.State
 
 import Agda.TypeChecking.Monad.Base as I
 import Agda.TypeChecking.Monad.Builtin
@@ -74,14 +75,6 @@ import Agda.Utils.Tuple ((***), pattern Pair)
 
 import Agda.Utils.Impossible
 
----------------------------------------------------------------------------
--- * The scope checking monad
----------------------------------------------------------------------------
-
--- | To simplify interaction between scope checking and type checking (in
---   particular when chasing imports), we use the same monad.
-type ScopeM = TCM
-
 -- Debugging
 
 printLocals :: Int -> String -> ScopeM ()
@@ -102,30 +95,6 @@ scopeWarning = withCallerCallStack scopeWarning'
 isDatatypeModule :: ReadTCState m => A.ModuleName -> m (Maybe DataOrRecordModule)
 isDatatypeModule m = do
    scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m <$> useScope scopeModules
-
-getCurrentModule :: ReadTCState m => m A.ModuleName
-getCurrentModule = setRange noRange <$> useScope scopeCurrent
-
-setCurrentModule :: MonadTCState m => A.ModuleName -> m ()
-setCurrentModule m = do
-  modifyScope $ set scopeCurrent m
-  recomputeInverseScope
-
-withCurrentModule :: (ReadTCState m, MonadTCState m) => A.ModuleName -> m a -> m a
-withCurrentModule new action = do
-  old <- getCurrentModule
-  setCurrentModule new
-  x   <- action
-  setCurrentModule old
-  return x
-
-withCurrentModule' :: (MonadTrans t, Monad (t ScopeM)) => A.ModuleName -> t ScopeM a -> t ScopeM a
-withCurrentModule' new action = do
-  old <- lift getCurrentModule
-  lift $ setCurrentModule new
-  x   <- action
-  lift $ setCurrentModule old
-  return x
 
 getNamedScope :: A.ModuleName -> ScopeM Scope
 getNamedScope m = do
