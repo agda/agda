@@ -51,7 +51,6 @@ mkBuildFailTest dir =
     let
       agdaArgs =
         [ "--build-library"
-        , "-v10" -- , "-v0"
         , "-vimpossible:10" -- BEWARE: no spaces allowed here
         , "-vwarning:1"
         , "--double-check"
