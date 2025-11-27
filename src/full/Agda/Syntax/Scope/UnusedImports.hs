@@ -99,7 +99,8 @@ openedModule currentModule x (Scope m0 _parents ns imports _dataOrRec) = do
       m = setRange (getRange x) m0
       broughtIntoScope :: NamesInScope -- [Map C.Name (List1 AbstractName)]
       broughtIntoScope = mergeNamesMany $ map (nsNames . snd) ns
-    modifyTCLens stOpenedModules $ Map.insert m (currentModule, broughtIntoScope)
+      k = fromMaybe __IMPOSSIBLE__ $ rangeToPosPos x
+    modifyTCLens stOpenedModules $ IntMap.insert k (m, currentModule, broughtIntoScope)
 
 data ImportedName = ImportedName
   { iWhere :: Int -- Position of 'Opened' extracted from the 'AbstractName'.
@@ -155,8 +156,8 @@ warnUnusedImports = do
     -- unless (null unknowns) do
     --   reportSLn "warning.unusedImports" 60 $ "unknowns: " <> show unknowns
     --   __IMPOSSIBLE__
-    -- For Andras: use 'forWithKey_' instead of @forM_ . Map.toList@.
-    Map.forWithKey_ (openedModules st) \ (m :: A.ModuleName) (parent :: A.ModuleName, sc :: NamesInScope) -> do
+
+    forM_ (openedModules st) \ (m :: A.ModuleName, parent :: A.ModuleName, sc :: NamesInScope) -> do
       let
         f :: (C.Name, List1 AbstractName) -> Maybe (C.Name, List1 ImportedName)
         f = traverse $ traverse toImportedName
@@ -181,5 +182,5 @@ stUnambiguousLookups = stUnusedImportsState . lensUnambiguousLookups
 stAmbiguousLookups :: Lens' TCState (IntMap (List2 AbstractName))
 stAmbiguousLookups = stUnusedImportsState . lensAmbiguousLookups
 
-stOpenedModules :: Lens' TCState (Map A.ModuleName (A.ModuleName, NamesInScope))
+stOpenedModules :: Lens' TCState (IntMap (A.ModuleName, A.ModuleName, NamesInScope))
 stOpenedModules = stUnusedImportsState . lensOpenedModules

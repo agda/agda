@@ -434,7 +434,7 @@ data UnusedImportsState = UnusedImportsState
       -- ^ Names that were ambiguously resolved from a concrete name in the source.
       --   They are stored with their position in the file
       --   that is matched with disambiguation information produced by the type checker.
-  , openedModules      :: Map ModuleName (A.ModuleName, NamesInScope)
+  , openedModules      :: IntMap (A.ModuleName, A.ModuleName, NamesInScope)
       -- ^ Log of module @open@s with the names they brought into scope.
   } deriving (Generic)
 
@@ -448,7 +448,7 @@ lensUnambiguousLookups f s = f (unambiguousLookups s) <&> \x -> s { unambiguousL
 lensAmbiguousLookups :: Lens' UnusedImportsState (IntMap (List2 AbstractName))
 lensAmbiguousLookups f s = f (ambiguousLookups s) <&> \x -> s { ambiguousLookups = x }
 
-lensOpenedModules :: Lens' UnusedImportsState (Map ModuleName (A.ModuleName, NamesInScope))
+lensOpenedModules :: Lens' UnusedImportsState (IntMap (ModuleName, ModuleName, NamesInScope))
 lensOpenedModules f s = f (openedModules s) <&> \x -> s { openedModules = x }
 
 ------------------------------------------------------------------------
