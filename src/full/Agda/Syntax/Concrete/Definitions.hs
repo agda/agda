@@ -487,7 +487,7 @@ niceDeclarations fixs ds = do
 
         PatternSyn r n as p -> do
           return ([NicePatternSyn r PublicAccess n as p] , ds)
-        Open r x is         -> return ([NiceOpen r x is] , ds)
+        Open kwr x is       -> return ([NiceOpen kwr x is] , ds)
         Import opn r x as is-> return ([NiceImport opn r x as is], ds)
 
         UnquoteDecl r xs e -> do
@@ -1539,10 +1539,10 @@ instance MakePrivate NiceDeclaration where
       NiceGeneralize r p i tac x t             -> (\ p -> NiceGeneralize r p i tac x t)         <$> mkPrivate kwr o p
       NiceOpaque r ns ds                       -> (\ p -> NiceOpaque r ns p)                    <$> mkPrivate kwr o ds
       d@NicePragma{}                           -> return d
-      d@(NiceOpen r _x dir)                    -> d <$ do
+      d@(NiceOpen _kwr _x dir)                    -> d <$ do
         unless (null kwr) $
           whenJust (publicOpen dir) \ kwrPublic ->
-            lift $ declarationWarning $ OpenImportPrivate r kwrPublic kwr OpenNotImport
+            lift $ declarationWarning $ OpenImportPrivate (getRange d) kwrPublic kwr OpenNotImport
       d@(NiceImport opn impR x args dir)       -> d <$ do
         unless (null kwr) $
           whenJust (publicOpen dir) \ kwrPublic ->
@@ -1652,7 +1652,7 @@ notSoNiceDeclarations = \case
     NiceModule r _ _ e x tel ds      -> singleton $ Module r e x tel ds
     NiceModuleMacro r _ e x ma o dir
                                      -> singleton $ ModuleMacro r e x ma o dir
-    NiceOpen r x dir                 -> singleton $ Open r x dir
+    NiceOpen kwr x dir               -> singleton $ Open kwr x dir
     NiceImport o r x as dir          -> singleton $ Import o r x as dir
     NicePragma _ p                   -> singleton $ Pragma p
     NiceRecSig r er _ _ _ _ x bs e   -> singleton $ RecordSig r er x bs e

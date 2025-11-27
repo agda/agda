@@ -1497,15 +1497,15 @@ SimpleIdOrWildcard
   : SimpleId { $1 }
   | '_'      { Ranged (getRange $1) "_" }
 
-MaybeOpen :: { Maybe Range }
-MaybeOpen : 'open'      { Just (getRange $1) }
-          | {- empty -} { Nothing }
+MaybeOpen :: { OpenShortHand }
+MaybeOpen : 'open'      { DoOpen (kwRange $1) }
+          | {- empty -} { DontOpen }
 
 -- Import with possible opening.
 Import :: { Declaration }
 Import
   : MaybeOpen 'import' ModuleName OpenArgs ImportDirective
-    { Import (Ranged (getRange $1) $ maybe DontOpen (const DoOpen) $1) (kwRange $2) $3 (Right $4) $5 }
+    { Import $1 (kwRange $2) $3 (Right $4) $5 }
 
 -- Open without import.
 Open :: { Declaration }
@@ -1518,12 +1518,12 @@ Open
     ; r   = getRange ($1, m, es, dir)
     } in
       case es of
-      { []  -> Open r m dir
+      { []  -> Open (kwRange $1) m dir
       ; _   -> Private empty Inserted
                  [ ModuleMacro r defaultErased
                      (noName $ beginningOf $ getRange m)
                      (SectionApp (getRange (m , es)) [] m es)
-                     DoOpen dir
+                     (DoOpen (kwRange $1)) dir
                  ]
       }
     }
@@ -1531,7 +1531,7 @@ Open
     let r = getRange $2 in
       Private empty Inserted
       [ ModuleMacro r defaultErased (noName $ beginningOf r)
-          (RecordModuleInstance r $2) DoOpen $6
+          (RecordModuleInstance r $2) (DoOpen (kwRange $1)) $6
       ]
     }
 
@@ -1565,7 +1565,7 @@ ModuleMacro
     {% do { ma     <- $7 (map addType $5)
           ; erased <- onlyErased $3
           ; return $ ModuleMacro (getRange ($1, $2, $3, $4, ma, $8))
-                       erased $4 ma DoOpen $8
+                       erased $4 ma (DoOpen (kwRange $1)) $8
           } }
 
 -- Module

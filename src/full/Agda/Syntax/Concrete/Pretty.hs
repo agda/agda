@@ -464,9 +464,9 @@ instance Pretty Declaration where
            , fsep (map pretty tel)
            , hlKeyword "where"
            ] $$ nest 2 (vcat $ map pretty ds)
-    ModuleMacro _ NotErased{} x (SectionApp _ [] y es) DoOpen i
+    ModuleMacro _ NotErased{} x (SectionApp _ [] y es) doOpen@(DoOpen _kwr) i
       | isNoName x ->
-      sep [ pretty DoOpen
+      sep [ pretty doOpen
           , nest 2 $ fsep $ pretty y : map pretty es
           , nest 4 $ pretty i
           ]
@@ -542,8 +542,9 @@ pRecord erased x directives tel me ds = vcat
     pType Nothing  = hlKeyword "where"
 
 instance Pretty OpenShortHand where
-    pretty DoOpen   = hlKeyword "open"
-    pretty DontOpen = empty
+    pretty = \case
+      DoOpen _ -> hlKeyword "open"
+      DontOpen -> empty
 
 instance Pretty Pragma where
     pretty (OptionsPragma _ opts)  = fsep $ hlKeyword "OPTIONS" : map (hlPragma . text) opts

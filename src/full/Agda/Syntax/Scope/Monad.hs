@@ -1050,12 +1050,12 @@ noGeneralizedVarsIfLetOpen TopOpenModule = id
 noGeneralizedVarsIfLetOpen LetOpenModule = disallowGeneralizedVars
 
 -- | Open a module.
-openModule_ :: OpenKind -> C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
-openModule_ kind cm dir = openModule kind Nothing cm dir
+openModule_ :: KwRange -> OpenKind -> C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
+openModule_ kwr kind cm dir = openModule kwr kind Nothing cm dir
 
 -- | Open a module, possibly given an already resolved module name.
-openModule :: OpenKind -> Maybe A.ModuleName  -> C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
-openModule kind mam cm dir = do
+openModule :: KwRange -> OpenKind -> Maybe A.ModuleName  -> C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
+openModule kwr kind mam cm dir = do
   current <- getCurrentModule
   m <- caseMaybe mam (amodName <$> resolveModule cm) return
   let acc | Nothing <- publicOpen dir     = PrivateNS

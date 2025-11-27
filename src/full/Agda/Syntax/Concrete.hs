@@ -564,8 +564,8 @@ data Declaration
   | Macro       KwRange [Declaration]
   | Postulate   KwRange [TypeSignatureOrInstanceBlock]
   | Primitive   KwRange [TypeSignature]
-  | Open        Range QName ImportDirective
-  | Import      (Ranged OpenShortHand) KwRange QName (Either AsName RawOpenArgs) ImportDirective
+  | Open        KwRange QName ImportDirective
+  | Import      OpenShortHand KwRange QName (Either AsName RawOpenArgs) ImportDirective
   | ModuleMacro Range Erased  Name ModuleApplication !OpenShortHand
                 ImportDirective
   | Module      Range Erased QName Telescope [Declaration]
@@ -639,7 +639,9 @@ data ModuleApplication
     -- ^ @M {{...}}@
   deriving Eq
 
-data OpenShortHand = DoOpen | DontOpen
+data OpenShortHand
+  = DoOpen KwRange -- ^ Range of the @open@ keyword.
+  | DontOpen
   deriving (Eq, Show, Generic)
 
 -- Pragmas ----------------------------------------------------------------
@@ -904,6 +906,9 @@ isBinderP = \case
 -- Null
 ------------------------------------------------------------------------
 
+instance Null OpenShortHand where
+  empty = DontOpen
+
 -- | A 'WhereClause' is 'null' when the @where@ keyword is absent.
 --   An empty list of declarations does not count as 'null' here.
 
@@ -942,6 +947,11 @@ instance LensRelevance TypedBinding where
 
 -- HasRange instances
 ------------------------------------------------------------------------
+
+instance HasRange OpenShortHand where
+  getRange = \case
+    DoOpen kwr -> getRange kwr
+    DontOpen   -> empty
 
 instance HasRange e => HasRange (OpApp e) where
   getRange = \case
@@ -1046,7 +1056,7 @@ instance HasRange Declaration where
   getRange (LoneConstructor kwr ds)= fuseRange kwr ds
   getRange (Abstract kwr ds)       = fuseRange kwr ds
   getRange (Generalize kwr ds)     = fuseRange kwr ds
-  getRange (Open r _ _)            = r
+  getRange (Open kwr x dir)        = getRange (kwr, x, dir)
   getRange (ModuleMacro r _ _ _ _ _)
                                    = r
   getRange (Import a b c d e)      = getRange (a, b, c, d, e)
@@ -1162,6 +1172,11 @@ instance SetRange TypedBinding where
 -- KillRange instances
 ------------------------------------------------------------------------
 
+instance KillRange OpenShortHand where
+  killRange = \case
+    DoOpen _ -> DoOpen empty
+    DontOpen -> DontOpen
+
 instance KillRange a => KillRange (FieldAssignment' a) where
   killRange (FieldAssignment a b) = killRangeN FieldAssignment a b
 
@@ -1208,7 +1223,7 @@ instance KillRange Declaration where
   killRange (Macro _ d)             = killRangeN (Macro empty) d
   killRange (Postulate _ t)         = killRangeN (Postulate empty) t
   killRange (Primitive _ t)         = killRangeN (Primitive empty) t
-  killRange (Open _ q i)            = killRangeN (Open noRange) q i
+  killRange (Open _ q i)            = killRangeN (Open empty) q i
   killRange (Import a b c d e)      = killRangeN Import a b c d e
   killRange (ModuleMacro _ e n m o i)
                                     = killRangeN
