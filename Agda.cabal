@@ -886,6 +886,7 @@ library
       Agda.Utils.IORef.Strict
       Agda.Utils.Impossible
       Agda.Utils.IndexedList
+      Agda.Utils.IntMap
       Agda.Utils.IntSet.Infinite
       Agda.Utils.Lens
       Agda.Utils.Lens.Examples
