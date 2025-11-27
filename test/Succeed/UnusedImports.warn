@@ -1,0 +1,34 @@
+
+UnusedImports.agda:17.1-34: warning: -W[no]UnusedImports
+Redundant opening of Agda.Builtin.Equality
+
+UnusedImports.agda:23.1-29: warning: -W[no]UnusedImports
+Opening Agda.Builtin.Nat brings the following unused names into
+scope: _+_
+
+UnusedImports.agda:30.1-29: warning: -W[no]UnusedImports
+Redundant opening of Agda.Builtin.Nat
+
+UnusedImports.agda:36.1-29: warning: -W[no]UnusedImports
+Redundant opening of Agda.Builtin.Nat
+
+UnusedImports.agda:62.1-11: warning: -W[no]UnusedImports
+Redundant opening of Empty
+
+———— All done; warnings encountered ————————————————————————
+
+UnusedImports.agda:17.1-34: warning: -W[no]UnusedImports
+Redundant opening of Agda.Builtin.Equality
+
+UnusedImports.agda:23.1-29: warning: -W[no]UnusedImports
+Opening Agda.Builtin.Nat brings the following unused names into
+scope: _+_
+
+UnusedImports.agda:30.1-29: warning: -W[no]UnusedImports
+Redundant opening of Agda.Builtin.Nat
+
+UnusedImports.agda:36.1-29: warning: -W[no]UnusedImports
+Redundant opening of Agda.Builtin.Nat
+
+UnusedImports.agda:62.1-11: warning: -W[no]UnusedImports
+Redundant opening of Empty
