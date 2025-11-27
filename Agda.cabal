@@ -917,6 +917,7 @@ library
       Agda.Utils.SemiRing
       Agda.Utils.Semigroup
       Agda.Utils.Serialize
+      Agda.Utils.Set
       Agda.Utils.Set1
       Agda.Utils.Singleton
       Agda.Utils.Size

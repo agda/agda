@@ -7,6 +7,7 @@ import Data.Functor.Compose
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Map.Internal (Map(..), balanceL, balanceR, singleton)
+import Data.Maybe (mapMaybe)
 
 import Agda.Utils.Impossible
 
@@ -58,6 +59,10 @@ adjustM' f k = getCompose . adjustM (Compose . f) k
 filterKeys :: (k -> Bool) -> Map k a -> Map k a
 filterKeys p = Map.filterWithKey (const . p)
 #endif
+
+-- | Filter a map and rewrite the keys.
+mapKeysMaybe :: Ord k => (k -> Maybe k) -> Map k a -> Map k a
+mapKeysMaybe f = Map.fromList . mapMaybe (\ (k, a) -> (, a) <$> f k) . Map.toList
 
 -- | Check whether a map is a singleton.
 isSingleMap :: Map k v -> Maybe (k, v)
