@@ -177,8 +177,8 @@ recordConstructorType decls =
 
         -- Public open is allowed and will take effect when scope checking as
         -- proper declarations.
-        C.NiceOpen r m dir -> do
-          mkLet $ C.NiceOpen r m dir{ publicOpen = Nothing }
+        C.NiceOpen kwr m dir -> do
+          mkLet $ C.NiceOpen kwr m dir{ publicOpen = Nothing }
         C.NiceModuleMacro r p e x modapp open dir -> do
           mkLet $ C.NiceModuleMacro r p e x modapp open
                     dir{ publicOpen = Nothing }
@@ -269,8 +269,7 @@ checkModuleApplication (C.RecordModuleInstance _ recN) m0 x dir' =
 --
 --   Preserves local variables.
 
-checkModuleMacro
-  :: (ToConcrete a, Pretty (ConOfAbs a))
+checkModuleMacro :: (ToConcrete a, Pretty (ConOfAbs a))
   => (ModuleInfo
       -> Erased
       -> ModuleName
@@ -279,13 +278,21 @@ checkModuleMacro
       -> A.ImportDirective
       -> a)
   -> OpenKind
+       -- ^ 'LetOpen' or ordinary 'Open'.
   -> Range
+       -- ^ Range of the module definition.
   -> Access
+       -- ^ Whether the new module will be public or private.
   -> Erased
+       -- ^ Whether the contents of the new module will be marked as erased.
   -> C.Name
+      -- ^ Name of the new module.
   -> C.ModuleApplication
+      -- ^ Definition of the new module.
   -> OpenShortHand
+      -- ^ Whether to open it.
   -> C.ImportDirective
+      -- ^ Restricting the exports of the module.
   -> ScopeM a
 checkModuleMacro apply kind r p e x modapp open dir = do
     reportSDoc "scope.decl" 70 $ vcat $
@@ -302,8 +309,8 @@ checkModuleMacro apply kind r p e x modapp open dir = do
     -- applied to the "open", otherwise to the module itself. However,
     -- "public" is always applied to the "open".
     let (moduleDir, openDir) = case (open, isNoName x) of
-          (DoOpen,   False) -> (defaultImportDir, dir)
-          (DoOpen,   True)  -> ( dir { publicOpen = Nothing }
+          (DoOpen _, False) -> (defaultImportDir, dir)
+          (DoOpen _, True)  -> ( dir { publicOpen = Nothing }
                                , defaultImportDir { publicOpen = publicOpen dir }
                                )
           (DontOpen, _)     -> (dir, defaultImportDir)
@@ -325,8 +332,8 @@ checkModuleMacro apply kind r p e x modapp open dir = do
     -- Andreas, 2014-09-02: @openModule@ might shadow some locals!
     adir <- case open of
       DontOpen -> return adir'
-      DoOpen   -> do
-        adir'' <- openModule kind (Just m0) (C.QName x) openDir
+      DoOpen kwr -> do
+        adir'' <- openModule kwr kind (Just m0) (C.QName x) openDir
         -- Andreas, 2020-05-14, issue #4656
         -- Keep the more meaningful import directive for highlighting
         -- (the other one is a defaultImportDir).
@@ -356,14 +363,14 @@ checkModuleMacro apply kind r p e x modapp open dir = do
              { minfoRange  = r
              , minfoAsName = Nothing
              , minfoAsTo   = renamingRange dir
-             , minfoOpenShort = Just open
+             , minfoOpenShort = open
              , minfoDirective = Just dir
              }
 
 -- | The @public@ keyword must only be used together with @open@.
 
 notPublicWithoutOpen :: OpenShortHand -> C.ImportDirective -> ScopeM C.ImportDirective
-notPublicWithoutOpen DoOpen   = return
+notPublicWithoutOpen (DoOpen _kwr) = return
 notPublicWithoutOpen DontOpen = uselessPublic UselessPublicNoOpen
 
 -- | Warn about useless @public@.
@@ -382,12 +389,12 @@ renamingRange = getRange . map renToRange . impRenaming
 
 -- | Scope check a 'NiceOpen'.
 checkOpen
-  :: Range                -- ^ Range of @open@ statement.
+  :: KwRange              -- ^ Range of the @open@ keyword.
   -> Maybe A.ModuleName   -- ^ Resolution of concrete module name (if already resolved).
   -> C.QName              -- ^ Module to open.
   -> C.ImportDirective    -- ^ Scope modifier.
   -> ScopeM (ModuleInfo, A.ModuleName, A.ImportDirective) -- ^ Arguments of 'A.Open'
-checkOpen r mam x dir = do
+checkOpen kwr mam x dir = do
   cm <- getCurrentModule
   reportSDoc "scope.decl" 70 $ do
     vcat $
@@ -401,13 +408,13 @@ checkOpen r mam x dir = do
 
   m <- caseMaybe mam (toAbstract (OldModuleName x)) return
   printScope "open" 40 $ "opening " ++ prettyShow x
-  adir <- openModule TopOpenModule (Just m) x dir
+  adir <- openModule kwr TopOpenModule (Just m) x dir
   printScope "open" 40 $ "result:"
   let minfo = ModuleInfo
-        { minfoRange     = r
+        { minfoRange     = getRange (kwr, x, dir)
         , minfoAsName    = Nothing
         , minfoAsTo      = renamingRange dir
-        , minfoOpenShort = Nothing
+        , minfoOpenShort = DoOpen kwr
         , minfoDirective = Just dir
         }
   let adecls = [A.Open minfo m adir]
@@ -1173,7 +1180,7 @@ recordWhereNames = finish <=< foldM decl st0 where
     -- duplicate bindings if this module macro is opened again, and the
     -- opens have some overlap.
     case minfoOpenShort mi of
-      Just DoOpen -> pure $! ins mod_pbs st0
+      DoOpen _kwr -> pure $! ins mod_pbs st0
       _ -> pure st0{ recWhereMods = Map.insert modn mod_pbs (recWhereMods st0) }
 
   -- If we're opening a module macro which was created in the scope of
@@ -1364,7 +1371,7 @@ scopeCheckNiceModule r p e name tel checkDs = do
       -- unless it's private, in which case we just open it (#2099)
       when open $
        void $ -- We can discard the returned default A.ImportDirective.
-        openModule TopOpenModule (Just aname) (C.QName name) $
+        openModule empty TopOpenModule (Just aname) (C.QName name) $
           defaultImportDir { publicOpen = boolToMaybe (p == PublicAccess) empty }
       return d
 
@@ -1571,7 +1578,7 @@ importPrimitives = do
           , [ "SSet" | twoLevel ]
           ]
         directives          = ImportDirective noRange (Using usingDirective) [] [] Nothing
-        importAgdaPrimitive = [C.Import (unranged C.DoOpen) empty agdaPrimitiveName empty directives]
+        importAgdaPrimitive = [C.Import (C.DoOpen empty) empty agdaPrimitiveName empty directives]
     toAbstract (Declarations importAgdaPrimitive)
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
@@ -1765,15 +1772,15 @@ instance ToAbstract LetDef where
             definedName C.EllipsisP{}          = Nothing -- Not impossible, see issue #3937
 
     -- You can't open public in a let
-    NiceOpen r x dir -> do
+    NiceOpen kwr x dir -> do
       dir  <- uselessPublic UselessPublicLet dir
       m    <- toAbstract (OldModuleName x)
-      adir <- openModule_ LetOpenModule x dir
+      adir <- openModule_ kwr LetOpenModule x dir
       let minfo = ModuleInfo
-            { minfoRange  = r
+            { minfoRange  = getRange (kwr, x, dir)
             , minfoAsName = Nothing
             , minfoAsTo   = renamingRange dir
-            , minfoOpenShort = Nothing
+            , minfoOpenShort = DoOpen kwr
             , minfoDirective = Just dir
             }
       return $ singleton $ A.LetOpen minfo m adir
@@ -2042,30 +2049,30 @@ instance ToAbstract NiceDeclaration where
         ]
       return [ adecl ]
 
-    NiceOpen r x dir -> do
-      (minfo, m, adir) <- checkOpen r Nothing x dir
+    NiceOpen kwr x dir -> do
+      (minfo, m, adir) <- checkOpen kwr Nothing x dir
       return [A.Open minfo m adir]
 
     NicePragma r p -> do
       ps <- toAbstract p  -- could result in empty list of pragmas
       return $ map (A.Pragma r) ps
 
-    NiceImport (Ranged rOpen doOpen) kwR m (Left asClause) dir ->
+    NiceImport doOpen kwR m (Left asClause) dir ->
       -- Case: already parsed @as@ clause.
         scopeCheckImport r m (Just asClause) doOpen dir
       where
         -- The Range of the whole declaration.
-        r = getRange (rOpen, kwR, m, asClause, dir)
+        r = getRange (doOpen, kwR, m, asClause, dir)
 
-    NiceImport (Ranged rOpen doOpen) kwR m (Right []) dir ->
+    NiceImport doOpen kwR m (Right []) dir ->
       -- Case: no module arguments, no @as@ clause.
         scopeCheckImport r m Nothing doOpen dir
       where
         -- The Range of the whole declaration.
-        r = getRange (rOpen, kwR, m, dir)
+        r = getRange (doOpen, kwR, m, dir)
 
       -- Case: some module arguments
-    NiceImport (Ranged rOpen doOpen) kwR m (Right es) dir
+    NiceImport doOpen kwR m (Right es) dir
 
       -- Subcase: @as@ clause
         | Just (asR, as) <- parseAsClause -> do
@@ -2084,7 +2091,7 @@ instance ToAbstract NiceDeclaration where
               Left e                          -> illformedAs ""
 
             if null initArgs then
-               scopeCheckImport (getRange (rOpen, kwR, m, asR, m', dir)) m (m' <&> (`AsName` asR)) doOpen dir
+               scopeCheckImport (getRange (doOpen, kwR, m, asR, m', dir)) m (m' <&> (`AsName` asR)) doOpen dir
             else do
               snoc <$> impStm asR
                    <*> appStm (fromMaybe fresh' m') initArgs
@@ -2097,13 +2104,13 @@ instance ToAbstract NiceDeclaration where
                  <*> appStm (noName $ beginningOf $ getRange m) es
 
       where
-        fullRange = getRange (rOpen, kwR, m, es, dir)
+        fullRange = getRange (doOpen, kwR, m, es, dir)
         impStm asR =
           scopeCheckImport (getRange (kwR, m))
             m (Just (AsName fresh asR))
             DontOpen defaultImportDir
         appStm m' es =
-          checkModuleMacro Apply TopOpenModule (getRange (rOpen, m, es, dir))
+          checkModuleMacro Apply TopOpenModule (getRange (doOpen, m, es, dir))
             (PrivateAccess empty Inserted)
             defaultErased m' (C.SectionApp (getRange es) [] (C.QName fresh) es)
             doOpen dir
@@ -2561,7 +2568,7 @@ scopeCheckImport r x as open dir =
 
         -- With @open@ import directives apply to the opening.
         -- The module is thus present in its qualified form without restrictions.
-        DoOpen   -> do
+        DoOpen kwr -> do
 
           -- Merge the imported scopes with the current scopes.
           -- This might override a previous import of @m@, but monotonously (add stuff).
@@ -2593,7 +2600,7 @@ scopeCheckImport r x as open dir =
           -- @
           -- will not work, as @M@ is now ambiguous in @open M@;
           -- the information that @M@ is external is lost here.
-          (_minfo, _m, adir) <- checkOpen r (Just m) name dir
+          (_minfo, _m, adir) <- checkOpen kwr (Just m) name dir
           return adir
 
         -- If not opening, import directives are applied to the original scope.
@@ -2610,7 +2617,7 @@ scopeCheckImport r x as open dir =
             { minfoRange     = r
             , minfoAsName    = theAsName
             , minfoAsTo      = getRange (theAsSymbol, renamingRange dir)
-            , minfoOpenShort = Just open
+            , minfoOpenShort = open
             , minfoDirective = Just dir
             }
       return [ A.Import minfo m adir ]
@@ -3328,7 +3335,7 @@ whereToAbstract1 r e whname whds inner = do
   let anonymousSomeWhere = maybe False (isNoName . fst) whname
   when anonymousSomeWhere $
    void $ -- We can ignore the returned default A.ImportDirective.
-    openModule TopOpenModule (Just am) (C.QName m) $
+    openModule empty TopOpenModule (Just am) (C.QName m) $
       defaultImportDir { publicOpen = Just empty }
   return (x, A.WhereDecls (Just am) (isNothing whname) $ singleton d)
 

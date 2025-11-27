@@ -146,7 +146,7 @@ data ModuleInfo = ModuleInfo
     -- if any. Retained for highlighting purposes.
   , minfoAsName   :: Maybe C.Name
     -- ^ The \"as\" module name, if any. Retained for highlighting purposes.
-  , minfoOpenShort :: Maybe OpenShortHand
+  , minfoOpenShort :: OpenShortHand
   , minfoDirective :: Maybe ImportDirective
     -- ^ Retained for @abstractToConcrete@ of 'ModuleMacro'.
   }

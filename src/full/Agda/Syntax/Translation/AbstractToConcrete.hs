@@ -1127,7 +1127,7 @@ instance ToConcrete A.LetBinding where
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
       let r = getRange modapp
-          open = fromMaybe DontOpen $ minfoOpenShort i
+          open = minfoOpenShort i
           dir  = fromMaybe defaultImportDir{ importDirRange = r } $ minfoDirective i
       -- This is no use since toAbstract LetDefs is in localToAbstract.
       local (openModule' x dir id) $
@@ -1136,7 +1136,9 @@ instance ToConcrete A.LetBinding where
       x' <- toConcrete x
       let dir = fromMaybe defaultImportDir $ minfoDirective i
       local (openModule' x dir restrictPrivate) $
-            ret [ C.Open (getRange i) x' dir ]
+            ret [ C.Open (kwRange i) x' dir ]
+              -- Andreas, 2025-11-27, kwRange is a lie,
+              -- but we do not have the range of the @open@ keyword here.
 
 instance ToConcrete A.WhereDeclarations where
   type ConOfAbs A.WhereDeclarations = WhereClause
@@ -1345,15 +1347,15 @@ instance ToConcrete A.Declaration where
     x  <- unsafeQNameToName <$> toConcrete x
     modapp <- toConcrete modapp
     let r = getRange modapp
-        open = fromMaybe DontOpen $ minfoOpenShort i
+        open = minfoOpenShort i
         dir  = fromMaybe defaultImportDir{ importDirRange = r } $ minfoDirective i
     return [ C.ModuleMacro (getRange i) erased x modapp open dir ]
 
   toConcrete (A.Import i x _) = do
     x <- toConcrete x
-    let open = fromMaybe DontOpen $ minfoOpenShort i
+    let open = minfoOpenShort i
         dir  = fromMaybe defaultImportDir $ minfoDirective i
-    return [ C.Import (unranged open) (kwRange (getRange i)) x empty dir]
+    return [ C.Import open (kwRange i) x empty dir]
 
   toConcrete (A.Pragma i p)     = do
     p <- toConcrete $ RangeAndPragma (getRange i) p
@@ -1361,7 +1363,9 @@ instance ToConcrete A.Declaration where
 
   toConcrete (A.Open i x _) = do
     x <- toConcrete x
-    return [C.Open (getRange i) x defaultImportDir]
+    return [C.Open (kwRange i) x defaultImportDir]
+      -- Andreas, 2025-11-27, kwRange is a lie,
+      -- but we do not have the range of the @open@ keyword here.
 
   toConcrete (A.PatternSynDef x xs p) = toConcrete x >>= \case
     C.QName x -> bindToConcrete (map (fmap A.unBind) xs) \ xs ->
