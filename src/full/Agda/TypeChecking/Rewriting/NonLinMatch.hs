@@ -394,6 +394,8 @@ instance Match NLPat Term where
             Nothing -> no ""
         v -> maybeBlock v
       PTerm u -> traceSDoc "rewriting.match" 60 ("matching a PTerm" <+> addContext gamma (addContext k $ prettyTCM u)) $
+        -- #8231: We need to skip testing conversion if we are matching at
+        -- unusable irrelevance
         when (usableRelevance r) $ tellEq gamma k t u v
 
 extendContext :: MonadAddContext m => Context -> ArgName -> Dom Type -> m Context
