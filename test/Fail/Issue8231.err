@@ -1,0 +1,3 @@
+Issue8231.agda:22.9-13: error: [UnequalTerms]
+f 1 x != x of type T 1
+when checking that the expression refl has type f 1 x ≡ x
