@@ -35,10 +35,10 @@ import qualified Data.Set as Set
 
 import qualified Agda.Benchmarking as Bench
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (DataOrRecord)
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Position
-import Agda.Syntax.Internal hiding (DataOrRecord)
+import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 import Agda.Syntax.Scope.Base (ScopeInfo(..))

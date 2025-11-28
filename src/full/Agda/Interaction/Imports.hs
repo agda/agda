@@ -15,7 +15,7 @@ module Agda.Interaction.Imports
   , crSource
 
   , Source(..)
-  , scopeCheckImport
+  , scopeCheckFileImport
   , parseSource
   , typeCheckMain
   , getNonMainInterface
@@ -377,10 +377,10 @@ addImportedThings isig metas ibuiltin patsyns display userwarn
 -- | Scope checks the given module, generating an interface or retrieving an existing one.
 --   Returns the module name and exported scope from the interface.
 --
-scopeCheckImport ::
+scopeCheckFileImport ::
      TopLevelModuleName
   -> TCM (ModuleName, Map ModuleName Scope)
-scopeCheckImport top = do
+scopeCheckFileImport top = do
     reportSLn "import.scope" 15 $ "Scope checking " ++ prettyShow top
     verboseS "import.scope" 30 $ do
       visited <- prettyShow <$> getPrettyVisitedModules
@@ -907,8 +907,8 @@ loadDecodedModule sf@(SourceFile fi) mi = do
 --   we do it in a fresh state, suitably initialize,
 --   in order to forget some state changes after successful type checking.
 
-createInterfaceIsolated
-  :: TopLevelModuleName
+createInterfaceIsolated ::
+     TopLevelModuleName
      -- ^ Module name of file we process.
   -> SourceFile
      -- ^ File we process.
@@ -1081,8 +1081,8 @@ writeInterface file i = let fp = filePath file in do
 -- If appropriate this function writes out syntax highlighting
 -- information.
 
-createInterface
-  :: TopLevelModuleName    -- ^ The expected module name.
+createInterface ::
+     TopLevelModuleName    -- ^ The expected module name.
   -> SourceFile            -- ^ The file to type check.
   -> MainInterface         -- ^ Are we dealing with the main module?
   -> Maybe Source      -- ^ Optional information about the source code.

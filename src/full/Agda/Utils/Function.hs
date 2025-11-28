@@ -111,7 +111,7 @@ iterateUntilM r f = loop where
 iterate' :: Integral i => i -> (a -> a) -> a -> a
 iterate' n f x
   | n >= 0    = go n x
-  | otherwise = error "iterate': Negative input."
+  | otherwise = error "Agda.Utils.Function.iterate': Negative input."
   where
     go n x
       | n > 0     = go (n - 1) $! f x

@@ -1,4 +1,3 @@
 Issue721trim.agda:14.12-13: error: [UnequalTerms]
-Bool !=< (F Foo.* x) ≡ (λ x₁ → x₁)
-when checking that the expression x has type
-(F Foo.* x) ≡ (λ x₁ → x₁)
+Bool !=< _*_ x ≡ (λ x₁ → x₁)
+when checking that the expression x has type _*_ x ≡ (λ x₁ → x₁)

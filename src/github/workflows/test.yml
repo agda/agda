@@ -118,6 +118,12 @@ jobs:
     - name: "Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml"
       run:  cp stack-${{ env.GHC_VER }}.yaml stack.yaml
 
+    # Update the package index.
+    # Issue #8211: do this as explicit step so that the following one will not bear its costs.
+    - name: Update package index
+      run: |
+        ${STACK} update
+
     # Get the list of dependencies and versions to create a correct cache key.
     - name: "List dependencies and versions"
       run: |

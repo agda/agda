@@ -1,0 +1,4 @@
+Issue8037.agda:22.7-9: error: [UnequalTerms]
+A != B of type Set
+when checking the clause left hand side
+wrong .F

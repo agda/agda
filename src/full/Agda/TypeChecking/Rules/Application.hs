@@ -149,10 +149,7 @@ checkApplication cmp hd args' e t = let args = map (updateNamedArg snd) args' in
     -- Subcase: unambiguous constructor
     A.Con ambC | Just c <- getUnambiguous ambC -> do
       -- augment c with record fields, but do not revert to original name
-      con <-
-        fromRightM
-          (sigError c (typeError $ AbstractConstructorNotInScope c)) $
-          getOrigConHead c
+      con <- getOrigConHead c
       checkConstructorApplication cmp e t con hd args'
 
     -- Subcase: ambiguous constructor
@@ -338,10 +335,7 @@ inferHead e = do
 
       -- First, inferDef will try to apply the constructor
       -- to the free parameters of the current context. We ignore that.
-      con <-
-        fromRightM
-          (sigError c (typeError $ AbstractConstructorNotInScope c)) $
-          getOrigConHead c
+      con <- getOrigConHead c
       (u, a) <- inferDef (\ _ -> Con con ConOCon []) c
 
       -- Next get the number of parameters in the current context.
@@ -371,8 +365,10 @@ inferDef mkTerm x =
     -- Irrelevant defs are only allowed in irrelevant position.
     -- Erased defs are only allowed in erased position (see #3855).
     checkModality x d
+    reportSDoc "tc.term.def" 30 $ "  checked modality!"
     case theDef d of
       GeneralizableVar{} -> do
+        reportSDoc "tc.term.def" 30 $ "  we are a GeneralizableVar"
         -- Generalizable variables corresponds to metas created
         -- at the point where they should be generalized. Module parameters
         -- have already been applied to the meta, so we don't have to do that
@@ -383,6 +379,7 @@ inferDef mkTerm x =
         debug [] t v
         return (v, t)
       _ -> do
+        reportSDoc "tc.term.def" 30 $ "  we are not a GeneralizableVar"
         -- since x is considered living in the top-level, we have to
         -- apply it to the current context
         vs <- freeVarsToApply x

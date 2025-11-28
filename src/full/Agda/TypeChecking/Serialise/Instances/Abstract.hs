@@ -34,9 +34,9 @@ instance EmbPrj A.BindName where
   value = valueN A.BindName
 
 instance EmbPrj Scope where
-  icod_ (Scope a b c d e f) = icodeN' (\a b c d e -> Scope a b c d e f) a b c d e
+  icod_ (Scope a b c d e) = icodeN' Scope a b c d e
 
-  value = valueN \a b c d e -> Scope a b c d e Nothing
+  value = valueN Scope
 
 instance EmbPrj DataOrRecordModule where
   icod_ IsDataModule   = pure 0
@@ -110,13 +110,8 @@ instance EmbPrj AbstractName where
   value = toAbsName <.> value
 
 instance EmbPrj NameMetadata where
-  icod_ NoMetadata                  = icodeN' NoMetadata
-  icod_ (GeneralizedVarsMetadata a) = icodeN' GeneralizedVarsMetadata a
-
-  value = vcase valu where
-    valu N0     = valuN NoMetadata
-    valu (N1 a) = valuN GeneralizedVarsMetadata a
-    valu _      = malformed
+  icod_ (NameMetadata a b) = icodeN' NameMetadata a b
+  value = valueN NameMetadata
 
 instance EmbPrj A.Suffix where
   icod_ A.NoSuffix   = icodeN' A.NoSuffix

@@ -1,7 +1,17 @@
 
 {-# LANGUAGE MagicHash, UnboxedTuples, Strict #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
-{-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures #-}
+
+{-|
+This is a strict state monad, where state update, monadic binding and return are all strict.  It is
+specialized to the case where we have @(s, t)@ for state, i.e. two state components.  The reason for
+specialization is that GHC cannot reliably unbox @State (s, t)@ for any definition of plain @State@,
+so we need to directly use unboxed tuples for two state components in the internals.
+
+If you need two strict state components and no other effects, use this module. Do not use
+@Control.Monad.State.Strict@ for the same purpose; it's not even strict in state updates and is
+/much/ less amenable to GHC optimizations than this module.
+-}
 
 module Agda.Utils.StrictState2 where
 

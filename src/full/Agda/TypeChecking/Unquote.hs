@@ -769,7 +769,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcFormatErrorParts msg = quoteString . prettyShow <$> renderErrorParts msg
 
     tcTypeError :: [ErrorPart] -> TCM a
-    tcTypeError err = typeError . GenericDocError =<< renderErrorParts err
+    tcTypeError err = typeError . UserError =<< renderErrorParts err
 
     tcDebugPrint :: Text -> Integer -> [ErrorPart] -> TCM Term
     tcDebugPrint s n msg = do
@@ -898,7 +898,11 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       locallyScope scopeLocals ((simpleName (T.unpack s') , LocalVar s MacroBound []) :)
           $ liftU1 (addContext (s, domFromArg a :: Dom Type)) m
 
-    tcExtendContext :: Term -> Term -> Term -> UnquoteM Term
+    tcExtendContext ::
+         Term          -- Name of the variable introduced into the context.
+      -> Term          -- Type of this variable.
+      -> Term          -- Computation to run in the extended context.
+      -> UnquoteM Term -- Result in the original context.
     tcExtendContext s a m = do
       s <- unquote s
       a <- unquote a
@@ -906,9 +910,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         v <- evalTCM $ raise 1 m
         -- 2024-04-20: free variable analysis only really makes sense on normal forms; see #7227
         v <- normalise v
-        when (freeIn 0 v) $ liftTCM $ genericDocError =<<
-          hcat ["Local variable '", prettyTCM (var 0), "' escaping in result of extendContext:"]
-            <?> prettyTCM v
+        when (freeIn 0 v) . throwError . EscapingVariable =<< buildClosure v
         return v
 
     tcInContext :: Term -> Term -> UnquoteM Term
@@ -1134,7 +1136,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         Con _ _ [Apply (Arg { unArg = x }), Apply (Arg { unArg = b })] -> do
           unlessM (unquote b) $ putTC oldState
           return x
-        _ -> liftTCM $ typeError . GenericDocError =<<
+        _ -> liftTCM $ typeError . UserError =<<
           "Should be a pair: " <+> prettyTCM u
 
     tcGetInstances :: MetaId -> UnquoteM Term

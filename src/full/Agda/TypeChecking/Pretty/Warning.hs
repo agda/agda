@@ -50,7 +50,7 @@ import Agda.Syntax.Common
   ( ImportedName'(..), fromImportedName, partitionImportedNames
   , IsOpaque(OpaqueDef, TransparentDef)
   , ProjOrigin(..)
-  , getHiding
+  , getHiding, DataOrRecord_, DataOrRecord'(IsData, IsRecord)
   )
 import Agda.Syntax.Common.Pretty ( Pretty, prettyShow, singPlural )
 import qualified Agda.Syntax.Common.Pretty as P
@@ -626,6 +626,11 @@ prettyWarning = \case
     InstanceNotInArgumentPosition e -> fsep $
       [pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
       pwords "a function expecting an instance argument."
+
+    IllegalDeclarationInDataDefinition ds -> vcat
+      [ "Illegal declaration in data type definition"
+      , nest 2 $ vcat $ fmap pretty ds
+      ]
 
     InvalidDisplayForm x reason -> fsep $ concat
         [ pwords "Ignoring invalid display form for"

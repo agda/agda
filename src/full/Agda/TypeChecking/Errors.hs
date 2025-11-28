@@ -50,7 +50,7 @@ import Agda.Interaction.Options.Errors
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty ( prettyShow, render )
 import qualified Agda.Syntax.Common.Pretty as P
-import Agda.Syntax.Concrete.Definitions (notSoNiceDeclarations)
+import Agda.Syntax.Concrete.Definitions (notSoNiceDeclarations, NiceDeclaration (NiceDataDef, NiceRecDef))
 import Agda.Syntax.Concrete.Definitions.Errors (declarationExceptionString)
 import Agda.Syntax.Concrete.Pretty (attributesForModality)
 import Agda.Syntax.Notation
@@ -218,9 +218,7 @@ instance PrettyTCM TypeError where
 
     CompilationError s -> sep [fwords "Compilation error:", text s]
 
-    GenericError s -> fwords s
-
-    GenericDocError d -> return d
+    UserError d -> return d
 
     GeneralizationFailed d -> return d
 
@@ -729,11 +727,6 @@ instance PrettyTCM TypeError where
       "The BUILTIN pragma cannot appear inside a bound context " ++
       "(for instance, in a parameterised module or as a local declaration)"
 
-    IllegalDeclarationInDataDefinition ds -> vcat
-      [ "Illegal declaration in data type definition"
-      , nest 2 $ vcat $ fmap pretty ds
-      ]
-
     IllegalLetInTelescope tb -> fsep $
       -- pwords "The binding" ++
       pretty tb :
@@ -961,21 +954,31 @@ instance PrettyTCM TypeError where
       hsep [ "Ambiguity: the field", prettyTCM field, "appears in the following modules:" ]
       : map prettyTCM (List2.toList modules)
 
-    ClashingDefinition x y suggestion -> fsep $
-      pwords "Multiple definitions of" ++ [pretty x <> "."] ++
-      clashingWith y ++
-      caseMaybe suggestion [] (\d ->
-        [  "Perhaps you meant to write"
-        $$ nest 2 ("'" <> pretty (notSoNiceDeclarations d) <> "'")
-        $$ ("at" <+> (pretty . envRange =<< askTC)) <> "?"
-        $$ "In data definitions separate from data declaration, the ':' and type must be omitted."
-        ])
-       where
-         clashingWith = \case
-           ClashingAbstractName y -> do
-             pwords "Previous definition" ++ [explainWhyInScope $ whyInScopeDataFromAbstractName x y]
-           ClashingQName y ->
-             pwords "Previous definition at" ++ [prettyTCM $ nameBindingSite $ qnameName y]
+    ClashingDefinition x y suggestion -> vcat
+      [ fsep $ pwords "Multiple definitions of" ++ [ pretty x <> "." ] ++ clashingWith y
+      , fromMaybe empty $ fmap hint suggestion
+      ]
+      where
+        clashingWith = \case
+          ClashingAbstractName y -> do
+            pwords "Previous definition" ++ [explainWhyInScope $ whyInScopeDataFromAbstractName x y]
+          ClashingQName y ->
+            pwords "Previous definition at" ++ [prettyTCM $ nameBindingSite $ qnameName y]
+        hint d = do
+          let dataOrRecord = case d of
+                NiceDataDef{} -> "data"
+                NiceRecDef{}  -> "record"
+                _ -> __IMPOSSIBLE__
+          vcat
+            [ "Perhaps you meant to write"
+            , nest 2 ("'" <> pretty (notSoNiceDeclarations d) <> "'")
+            , ("at" <+> (pretty . envRange =<< askTC)) <> "?"
+            , fsep $ concat
+              [ [ "In", dataOrRecord ]
+              , pwords "definitions separate from their"
+              , [ dataOrRecord ]
+              , pwords "declaration, the ':' and type must be omitted"
+            ] ]
 
     ClashingModule m1 m2 -> fsep $
       pwords "The modules" ++ [prettyTCM m1, "and", prettyTCM m2]
@@ -1613,6 +1616,8 @@ instance PrettyTCM TypeError where
     ComatchingDisabledForRecord recName ->
       "Copattern matching is disabled for record" <+> prettyTCM recName
 
+    IlltypedRewriteRule d -> return d
+
     IncorrectTypeForRewriteRelation v reason -> case reason of
       ShouldAcceptAtLeastTwoArguments -> sep
         [ prettyTCM v <+> " does not have the right type for a rewriting relation"
@@ -1962,6 +1967,10 @@ instance PrettyTCM UnquoteError where
     DefInsteadOfCon x def con -> fsep $
       pwords ("Use " ++ def ++ " instead of " ++ con ++ " for non-constructor")
       ++ [prettyTCM x]
+
+    EscapingVariable v -> enterClosure v \ v ->
+      hcat ["Local variable '", prettyTCM (var 0), "' escaping in result of extendContext:"]
+      <?> prettyTCM v
 
     MissingDeclaration x -> fsep $
       pwords "Missing declaration for" ++ [ prettyTCM x ]

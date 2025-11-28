@@ -27,31 +27,33 @@ import GHC.Generics (Generic)
 
 import Agda.Benchmarking
 
-import Agda.Syntax.Position
+import Agda.Syntax.Abstract.Name   as A
 import Agda.Syntax.Common
-import Agda.Syntax.Fixity
-import Agda.Syntax.Abstract.Name as A
-import Agda.Syntax.Concrete.Name as C
-import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete        qualified as C
 import Agda.Syntax.Concrete.Fixity as C
+import Agda.Syntax.Concrete.Name   as C
+import Agda.Syntax.Fixity
+import Agda.Syntax.Position
 
-import Agda.Utils.AssocList (AssocList)
-import qualified Agda.Utils.AssocList as AssocList
+import Agda.Syntax.Common.Pretty
+import Agda.Utils.AssocList        ( AssocList )
+import Agda.Utils.AssocList        qualified as AssocList
+import Agda.Utils.Function         ( applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.List1 ( List1, pattern (:|) )
-import Agda.Utils.List2 ( List2 )
-import qualified Agda.Utils.List1 as List1
-import qualified Agda.Utils.List2 as List2
+import Agda.Utils.List1            ( List1, pattern (:|) )
+import Agda.Utils.List1            qualified as List1
+import Agda.Utils.List2            ( List2 )
+import Agda.Utils.List2            qualified as List2
+import Agda.Utils.Map              qualified as Map
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty
-import Agda.Utils.Set1 ( Set1 )
+import Agda.Utils.Set1             ( Set1 )
 import Agda.Utils.Singleton
-import qualified Agda.Utils.Map as Map
-import qualified Agda.Utils.StrictState2 as St2
-import qualified Agda.Utils.StrictState as St
-import Agda.Utils.Tuple ( (//), first, second )
+import Agda.Utils.StrictState      qualified as St
+import Agda.Utils.StrictState2     qualified as St2
+import Agda.Utils.Tuple            ( (//), first, second )
+import Agda.Utils.Tuple.Strict     ( (&!&) )
 
 import Agda.Utils.Impossible
 
@@ -65,8 +67,6 @@ data Scope = Scope
       , scopeNameSpaces     :: ScopeNameSpaces
       , scopeImports        :: Map C.QName A.ModuleName
       , scopeDatatypeModule :: Maybe DataOrRecordModule
-      , scopeIsCopy         :: Maybe ScopeCopyRef
-        -- ^ Not serialised, always deserialised as 'Nothing'.
       }
   deriving (Eq, Show, Generic)
 
@@ -419,25 +419,6 @@ isModuleAlive _             AllLiveNames = True
 isModuleAlive (A.MName mod) (SomeLiveNames mods _) =
   any ((`Set.member` mods) . A.MName) (List.inits mod)
 
--- | A reference to the information shared by everything which belongs
--- to a copied module, used for trimming module application renamings.
-data ScopeCopyRef = ScopeCopyRef
-  { scrOriginal  :: A.ModuleName
-    -- ^ For debug printing; the name of the copied module.
-  , scrLiveNames :: !(IORef LiveNames)
-    -- ^ Pointer to the live names from that copy. Conservatively, any
-    -- name belonging to this module which is *possibly* referred to
-    -- should belong to this set.
-  }
-  deriving (Generic)
-
-instance Eq ScopeCopyRef where
-  (==) :: ScopeCopyRef -> ScopeCopyRef -> Bool
-  _ == _ = True
-
-instance Show ScopeCopyRef where
-  show (ScopeCopyRef a _) = "<" ++ show a ++ ">"
-
 ------------------------------------------------------------------------
 -- * Decorated names
 --
@@ -579,9 +560,30 @@ instance Hashable AbstractName where
   hashWithSalt salt n =
     hashWithSalt salt (A.nameId (qnameName (anameName n)))
 
-data NameMetadata = NoMetadata
-                  | GeneralizedVarsMetadata (Map A.QName A.Name)
+data NameMetadata = NameMetadata
+  { nameDataGeneralizedVars :: Map A.QName A.Name
+  , nameDataIsInstance      :: IsInstance
+  }
   deriving (Show, Generic)
+
+instance Null NameMetadata where
+  empty = NameMetadata empty empty
+  null (NameMetadata m i) = null m && null i
+
+noMetadata :: NameMetadata
+noMetadata = empty
+
+generalizedVarsMetadata :: Map A.QName A.Name -> NameMetadata
+generalizedVarsMetadata m = NameMetadata m empty
+
+instanceMetadata :: IsInstance -> NameMetadata
+instanceMetadata i = NameMetadata empty i
+
+instance IsInstanceDef NameMetadata where
+  isInstanceDef = isInstanceDef . nameDataIsInstance
+
+instance IsInstanceDef AbstractName where
+  isInstanceDef = isInstanceDef . anameMetadata
 
 -- | A decoration of abstract syntax module names.
 data AbstractModule = AbsModule
@@ -798,7 +800,6 @@ emptyScope = Scope
       -- zipScope assumes all NameSpaces to be present and in the same order.
   , scopeImports        = Map.empty
   , scopeDatatypeModule = Nothing
-  , scopeIsCopy         = Nothing
   }
 
 -- | The empty scope info.
@@ -1417,8 +1418,9 @@ inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup 
 
   NameMapEntry k xs <- HMap.lookup (A.nameId $ qnameName q) (scope ^. scopeInverseName)
 
-  !xs <- List1.nonEmpty $ map snd $ List.sortOn fst $ do
-    q <- nubOn id $ List1.toList xs
+  !xs <- List1.nonEmpty $ List.sortOn (length . C.qnameParts &!& Down . getRange) $ do
+    -- List comprehension written in monadic form
+    q :: C.QName <- nubOn id $ List1.toList xs
     let y:ys = scopeLookup' q scope
     let !k = anameKind $ fst y
 
@@ -1432,9 +1434,7 @@ inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup 
                      && all ((k ==) . anameKind . fst) ys)))
 
     guard unambiguous
-    let !partsLen = length $ C.qnameParts q
-    let !range = getRange q
-    pure ((partsLen, Down range), q)
+    pure q
 
   -- traceM ("LKUP " ++ prettyShow xs)
 
@@ -1614,12 +1614,20 @@ instance Pretty NameSpace where
 
 prettyNameSpace :: NameSpace -> [Doc]
 prettyNameSpace (NameSpace names nameParts mods _) =
-    blockOfLines "names"      (map pr $ Map.toList names) ++
+    blockOfLines "names"      (map pr' $ Map.toList names) ++
     blockOfLines "name parts" (map pr $ Map.toList nameParts) ++
     blockOfLines "modules"    (map pr $ Map.toList mods)
   where
     pr :: (Pretty a, Pretty b) => (a,b) -> Doc
     pr (x, y) = pretty x <+> "-->" <+> pretty y
+    -- pr' :: (Pretty a, IsInstanceDef b, Pretty b) => (a, List1 b) -> Doc
+    pr' :: (C.Name, List1 AbstractName) -> Doc
+    pr' (x, ys) = pretty x <+> "-->" <+> prettyList (map PrettyWithInstance $ List1.toList ys)
+
+newtype PrettyWithInstance a = PrettyWithInstance a
+instance (IsInstanceDef a, Pretty a) => Pretty (PrettyWithInstance a) where
+  pretty (PrettyWithInstance x) =
+    applyWhen (isJust $ isInstanceDef x) ("instance" <+>) $ pretty x
 
 instance Pretty Scope where
   pretty scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps } =
@@ -1666,7 +1674,6 @@ instance SetRange AbstractName where
   setRange r x = x { anameName = setRange r $ anameName x }
 
 instance NFData Scope
-instance NFData ScopeCopyRef
 instance NFData DataOrRecordModule
 instance NFData NameSpaceId
 instance NFData ScopeInfo

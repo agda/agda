@@ -1425,6 +1425,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Hidden identifiers in ``variable`` blocks.
 
+.. option:: IllegalDeclarationInDataDefinition
+
+     Declarations inside of a ``data`` definition that are not constructor type signatures.
+
 .. option:: IllformedAsClause
 
      Illformed ``as``-clauses in ``import`` statements.
@@ -1467,6 +1471,11 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 .. option:: InvalidCoverageCheckPragma
 
      :ref:`NON_COVERING <non_covering-pragma>` pragmas before non-function or ``mutual`` blocks.
+
+.. option:: InvalidDataOrRecDefParameter
+
+     A ``data/record D parameters where`` definition where the parameters do not match up
+     with the previously given signature or contain more than just names with hiding information.
 
 .. option:: InvalidNoPositivityCheckPragma
 
@@ -1731,6 +1740,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 .. option:: UselessInline
 
      :ref:`INLINE<inline-pragma>` pragmas where they have no effect.
+
+.. option:: UselessImport
+
+     ``import`` statements that do not bring anything into scope.
 
 .. option:: UselessInstance
 

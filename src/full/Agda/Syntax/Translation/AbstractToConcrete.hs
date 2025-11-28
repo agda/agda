@@ -1353,7 +1353,7 @@ instance ToConcrete A.Declaration where
     x <- toConcrete x
     let open = fromMaybe DontOpen $ minfoOpenShort i
         dir  = fromMaybe defaultImportDir $ minfoDirective i
-    return [ C.Import (getRange i) x Nothing open dir]
+    return [ C.Import (unranged open) (kwRange (getRange i)) x empty dir]
 
   toConcrete (A.Pragma i p)     = do
     p <- toConcrete $ RangeAndPragma (getRange i) p
@@ -1591,7 +1591,7 @@ instance ToConcrete A.Pattern where
         where r = getRange i
 
       -- gallais, 2019-02-12, issue #3491
-      -- Print p as .(p) if p is a variable but there is a projection of the
+      -- Print .p as .(p) if p is a variable but there is a projection of the
       -- same name in scope.
       A.DotP i e@(A.Var v) -> do
         let r = getRange i

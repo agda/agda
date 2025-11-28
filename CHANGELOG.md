@@ -56,11 +56,27 @@ Errors
         - its definition at ...
   ```
 
+* Errors `GenericError` and `GenericDocError` have been replaced by more specific errors.
+  (Issue [#7225](https://github.com/agda/agda/issues/7225).)
+
 Warnings
 --------
 
+* `UselessImport` warning instead of parse error when an module is instantiated
+  but not opened during `import`, for instance:
+  ```agda
+  import Structures.IsMonoid Carrier Eq
+  ```
+  This does not bring module `Structures.IsMonoid` into scope and
+  neither any of its exports.
+  It either needs an `open` or an `as`-clause such as `as MyMonoid`.
+
 * `UselessPragma` warning instead of hard error `NeedOptionRewriting` when a
   `REWRITE` or `BUILTIN REWRITE` pragma is encountered but `--rewriting` is off.
+
+* Error warning `IllegalDeclarationInDataDefinition` instead of hard error
+  when `data` definition contains declarations other than type signatures of
+  constructors.
 
 * New warning `DivergentModalityInClause` when modality of a clause diverges
   from that of the function.  Example:
@@ -68,6 +84,13 @@ Warnings
   A : Set₁
   @0 A = Set
   ```
+
+* New warning `InvalidDataOrRecDefParameter` for information (e.g. type, attributes)
+  attached to parameters in a `data` or `record` definition (that is separate of its
+  data or record signature).
+  This replaces errors:
+  - `UnexpectedModalityAnnotationInParameter`
+  - `UnexpectedTypeSignatureForParameter`
 
 * New warning `InvalidTacticAttribute` for misplaced `@(tactic ...)` attributes.
   This was silently accepted up to Agda 2.8.0 but raises now the new warning:
@@ -140,7 +163,7 @@ Changes to type checker and other components defining the Agda language.
 Reflection
 ----------
 
-Changes to the meta-programming facilities.
+* `tcTypeError` now throws `UserError` instead of `GenericDocError`.
 
 Library management
 ------------------

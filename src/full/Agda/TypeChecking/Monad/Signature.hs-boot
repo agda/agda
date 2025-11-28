@@ -6,6 +6,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Agda.Syntax.Abstract.Name (QName)
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Internal (ModuleName, Telescope)
 
 import Agda.TypeChecking.Monad.Base
@@ -14,7 +15,7 @@ import Agda.TypeChecking.Monad.Base
   )
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug (MonadDebug)
 
-import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Utils.CallStack (HasCallStack)
 
 data SigError = SigUnknown String | SigAbstract | SigCubicalNotErasure
 
@@ -26,7 +27,7 @@ class ( Functor m
       , MonadDebug m
       , MonadTCEnv m
       ) => HasConstInfo m where
-  getConstInfo :: QName -> m Definition
+  getConstInfo :: HasCallStack => QName -> m Definition
   getConstInfo q = getConstInfo' q >>= \case
       Right d -> return d
       Left (SigUnknown err) -> __IMPOSSIBLE_VERBOSE__ err
@@ -35,11 +36,11 @@ class ( Functor m
       Left SigCubicalNotErasure -> __IMPOSSIBLE_VERBOSE__ $
         notSoPrettySigCubicalNotErasure q
 
-  getConstInfo' :: QName -> m (Either SigError Definition)
+  getConstInfo' :: HasCallStack => QName -> m (Either SigError Definition)
   -- getConstInfo' q = Right <$> getConstInfo q
   getRewriteRulesFor :: QName -> m RewriteRules
 
-  default getConstInfo' :: (HasConstInfo n, MonadTrans t, m ~ t n) => QName -> m (Either SigError Definition)
+  default getConstInfo' :: (HasCallStack, HasConstInfo n, MonadTrans t, m ~ t n) => QName -> m (Either SigError Definition)
   getConstInfo' = lift . getConstInfo'
 
   default getRewriteRulesFor :: (HasConstInfo n, MonadTrans t, m ~ t n) => QName -> m RewriteRules

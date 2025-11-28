@@ -43,6 +43,9 @@ jobs:
         stack-version: latest
     - name: Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml
       run: cp stack-${{ env.GHC_VER }}.yaml stack.yaml
+    - name: Update package index
+      run: |
+        ${STACK} update
     - name: List dependencies and versions
       run: |
         ${STACK} ls dependencies | tee deps.txt

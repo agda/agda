@@ -16,8 +16,7 @@ import Prelude hiding (null)
 import Control.Monad.Except      ( catchError )
 import Control.Monad.Trans.Maybe
 
-import Data.List (find, sortBy)
-import Data.Function (on)
+import Data.List (find)
 
 import Agda.Interaction.Options.Base
 
@@ -35,7 +34,6 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints ( noConstraints )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Names
-import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Reduce
@@ -674,14 +672,13 @@ bindBuiltinData s t = do
         return a
       getBuiltinArity (BuiltinDataCons t) = arity <$> t
       getBuiltinArity _ = __IMPOSSIBLE__
-      sortByM f xs = map fst . sortBy (compare `on` snd) . zip xs <$> mapM f xs
   -- Order constructurs by arity
-  cs <- sortByM getArity cs
+  cs <- sortOnM getArity cs
   -- Do the same for the builtins
   let bcis = fromMaybe __IMPOSSIBLE__ $ do
         BuiltinData _ bcs <- builtinDesc <$> findBuiltinInfo s
         mapM findBuiltinInfo bcs
-  bcis <- sortByM (getBuiltinArity . builtinDesc) bcis
+  bcis <- sortOnM (getBuiltinArity . builtinDesc) bcis
   unless (length cs == length bcis) __IMPOSSIBLE__  -- we already checked this
   zipWithM_ (\ c bci -> bindBuiltinInfo bci (A.Con $ unambiguous $ setRange (getRange name) c)) cs bcis
 
@@ -921,7 +918,6 @@ bindUntypedBuiltin b qx = \case
   where
   bind x = bindBuiltinName b (Def (anameName x) [])
   wrong  = typeError $ BuiltinMustBeDef b
-  amb x  = genericDocError =<< do text "Name " <+> prettyTCM x <+> text " is ambiguous"
   err :: List1 AbstractName -> TCM ()
   err (x :| []) = wrong
   err (x :| y : zs) = typeError $ AmbiguousName qx $ AmbiguousDeclName $ List2 x y zs

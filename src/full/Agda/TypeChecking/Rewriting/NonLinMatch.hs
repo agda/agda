@@ -297,23 +297,26 @@ instance Match NLPat Term where
           _          -> no ""
     case p of
       PVar i bvs -> traceSDoc "rewriting.match" 60 ("matching a PVar: " <+> text (show i)) $ do
-        let vars = map unArg bvs
-        let allowedVars :: VarSet
-            allowedVars = VarSet.fromList vars
-            badVars :: VarSet
-            badVars = VarSet.complement n allowedVars
-            perm :: Permutation
-            perm = Perm n $ reverse vars
-            tel :: Telescope
-            tel = permuteContext perm k
-        ok <- addContext k $ reallyFree badVars v
-        case ok of
-          Left b         -> block b
-          Right Nothing  -> no ""
-          Right (Just v) ->
-            let t' = telePi  tel $ renameP impossible perm t
-                v' = teleLam tel $ renameP impossible perm v
-            in tellSub r (i-n) t' v'
+        case n of
+          0 -> tellSub r (i-n) t v
+          _ -> do
+            let vars = map unArg bvs
+            let allowedVars :: VarSet
+                allowedVars = VarSet.fromList vars
+                badVars :: VarSet
+                badVars = VarSet.complement n allowedVars
+                perm :: Permutation
+                perm = Perm n $ reverse vars
+                tel :: Telescope
+                tel = permuteContext perm k
+            ok <- addContext k $ reallyFree badVars v
+            case ok of
+              Left b         -> block b
+              Right Nothing  -> no ""
+              Right (Just v) ->
+                let t' = telePi  tel $ renameP impossible perm t
+                    v' = teleLam tel $ renameP impossible perm v
+                in tellSub r (i-n) t' v'
 
       PDef f ps -> traceSDoc "rewriting.match" 60 ("matching a PDef: " <+> prettyTCM f) $ do
         v <- addContext k $ constructorForm =<< unLevel v

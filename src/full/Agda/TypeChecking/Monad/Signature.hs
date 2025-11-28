@@ -13,17 +13,16 @@ import Control.Monad.Trans.Identity  ( IdentityT )
 import Control.Monad.Trans           ( MonadTrans, lift )
 
 import Data.Either
-import Data.Foldable (for_)
-import qualified Data.List as List
-import Data.Set (Set)
-import qualified Data.Set as Set
-import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
+import Data.Foldable                 ( for_ )
+import Data.List                     qualified as List
+import Data.Set                      ( Set )
+import Data.Set                      qualified as Set
+import Data.Map                      qualified as Map
+import Data.HashMap.Strict           qualified as HMap
 import Data.Maybe
 
 import Agda.Interaction.Options
 
-import Agda.Syntax.Scope.Monad (readLiveNames, markLiveName)
 import Agda.Syntax.Scope.Base (LiveNames(..), isModuleAlive, isNameAlive)
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren, renamingSize, ScopeCopyInfo(..))
@@ -67,7 +66,8 @@ import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import Agda.Utils.List1 qualified as List1
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -144,8 +144,7 @@ warnForPlentyInHardCompileTimeMode = \case
   Erased{}    -> return ()
   NotErased o -> do
     let warn = warning $ PlentyInHardCompileTimeMode o
-    hard <- viewTC eHardCompileTimeMode
-    if not hard then return () else case o of
+    whenM (viewTC eHardCompileTimeMode) $ case o of
       QωInferred{} -> return ()
       Qω{}         -> warn
       QωPlenty{}   -> warn
@@ -154,6 +153,7 @@ warnForPlentyInHardCompileTimeMode = \case
 addConstant :: QName -> Definition -> TCM ()
 addConstant q d = do
   reportSDoc "tc.signature" 20 $ "adding constant " <+> pretty q <+> " to signature"
+  reportSDoc "tc.signature" 80 $ "definition =" <?> pretty d
 
   -- Every constant that gets added to the signature in hard
   -- compile-time mode is treated as erased.
@@ -166,7 +166,7 @@ addConstant q d = do
         return $ mapQuantity (zeroQuantity `composeQuantity`) d
 
   tel <- getContextTelescope
-  let tel' = replaceEmptyName "r" $ killRange $ case theDef d of
+  let tel' = killRange $ case theDef d of
               Constructor{} -> fmap hideOrKeepInstance tel
               Function{ funProjection = Right Projection{ projProper = Just{}, projIndex = n } } ->
                 let fallback = fmap hideOrKeepInstance tel in
@@ -348,6 +348,26 @@ lookupSection m = maybe EmptyTel (^. secTelescope) <$> getSection m
 -- @
 -- A.B.C.f vs ==> f xs
 -- @
+--
+-- Invoking @'addDisplayForms' x@ will add a display form for each copy @x@ transitively reduces to.
+-- E.g. consider the following iterated module application.
+-- @
+--   module M0 (n : Nat) where
+--     b : Bool
+--     b = n > 42
+--   module M1 (n : Nat) = M0 (suc n)
+--   module M2 (n : Nat) = M1 (suc n)
+--   module M3 (n : Nat) = M2 (suc n)
+-- @
+--
+-- For the first copy @M1.b n = M0.b (suc n)@ we add the display form @M0.b (suc n) --> M1.b n@.
+--
+-- For the second copy @M2.b n = M1.b (suc n)@ we first add display form @M1.b (suc n) --> M2.b n@
+-- and for the further unfolding we add display form @M0.b (suc (suc n)) --> M2.b n@.
+--
+-- For the third copy @M3.b n = M2.b (suc n)@ we add display forms @M2.b (suc n) --> M3.b n@,
+-- @M1.b (suc (suc n)) --> M3.b n@ and @M0.b (suc (suc (suc n))) --> M3.b n@.
+
 addDisplayForms :: QName -> TCM ()
 addDisplayForms x = do
   reportSDoc "tc.display.section" 20 $ "Computing display forms for" <+> pretty x
@@ -369,6 +389,8 @@ addDisplayForms x = do
 
   -- and add them
   mapM_ (uncurry addDisplayForm) dfs
+  reportSDoc "tc.display.section" 20 $ "Added display forms for" <+> pretty x
+
   where
 
     -- To get display forms for projections we need to unSpine here.
@@ -424,71 +446,6 @@ addDisplayForms x = do
                 ((v' :) <$> unfoldings y v')  -- another copy so keep going
                 (return [v'])                 -- not a copy, we stop
 
--- | Filter a 'ScopeCopyInfo' to only those names which were explicitly
--- referred to by the programmer.
---
--- Returns the new 'ScopeCopyInfo' and the complement of the definition
--- renaming, i.e. the names that were pruned.
-
-onlyLiveCopies :: ModuleName -> ScopeCopyInfo -> TCM (Ren QName, ScopeCopyInfo)
-onlyLiveCopies mn info@ScopeCopyInfo { renPublic = True } = (mempty, info) <$
-  whenProfile Profile.Sections do
-    tick    "trimming: public copy"
-    tickMax "largest public copy" (fromIntegral (renamingSize (renNames info)))
-
-onlyLiveCopies mn info@ScopeCopyInfo { renNames = rd, renTrimming = ref } = do
-  live <- readLiveNames ref
-
-  reportSDoc "tc.mod.apply.trim" 30 $ vcat
-    [ "trimming renaming of module" <+> pretty mn
-    , "  mods  =" <+> (case live of SomeLiveNames x _ -> pretty x ; _ -> "*")
-    , "  names =" <+> (case live of SomeLiveNames _ x -> pretty x ; _ -> "*")
-    , nest 2 (pretty info)
-    ]
-
-  if
-    -- Trimming information from references to submodules (or
-    -- module-level references to copy itself) is not propagated
-    -- upwards, so if the copy is itself alive, everything will end up
-    -- being copied --- we might as well skip the work of traversing the
-    -- renaming.
-    | mn `isModuleAlive` live -> (mempty, info) <$ whenProfile Profile.Sections do
-      tick "trimming: live copy"
-
-    | otherwise -> do
-      let
-      -- The scope checker will have marked any name from 'new' which is
-      -- referred to as live (including, conservatively, every name from
-      -- the submodules of 'new'), but the scope checker can't foresee
-      -- which instances will be used --- and neither can we, here --- so
-      -- we have to copy all of them, too.
-        keep (from, to) = defInstance <$> getConstInfo from <&> \case
-          Just{} -> Right (from, to)
-          _      -> case List1.filter (`isNameAlive` live) to of
-            []     -> Left (from, to)
-            (x:xs) -> Right (from, x List1.:| xs)
-
-        rsz = renamingSize rd
-
-      (deleted, kept) <- partitionEithers <$> traverse keep (Map.toAscList rd)
-      let
-        rd    = Map.fromAscList kept
-        saved = fromIntegral (rsz - renamingSize rd)
-
-      whenProfile Profile.Sections $ tickN "trimmed definitions" saved
-      when (saved == 0) do
-        reportSLn "tc.mod.apply.trim" 30 "... but nothing happened!"
-        whenProfile Profile.Sections $ tick "trimming: no effect"
-
-      let
-        -- Elaboration of overloaded projections depends on whether the
-        -- section is in the signature or not, and since copying
-        -- sections is cheap (copying definitions is the big issue),
-        -- it's easier to just preserve all the original sections than
-        -- it is to trim them.
-        info' = info { renNames = rd }
-      (Map.fromAscList deleted, info') <$ reportSDoc "tc.mod.apply.trim" 30 (pretty info')
-
 -- | Module application (followed by module parameter abstraction).
 applySection
   :: ModuleName     -- ^ Name of new module defined by the module macro.
@@ -497,9 +454,8 @@ applySection
   -> Args           -- ^ Arguments of module application.
   -> ScopeCopyInfo  -- ^ Imported names and modules
   -> TCM ()
-applySection new ptel old ts info = do
-  (deleted, info@ScopeCopyInfo{ renModules = rm, renNames = rd }) <- onlyLiveCopies new info
-  rd <- closeConstructors deleted rd
+applySection new ptel old ts info@ScopeCopyInfo{ renModules = rm, renNames = rd } = do
+  rd <- closeConstructors rd
   applySection' new ptel old ts info{ renModules = rm, renNames = rd }
   where
 
@@ -508,8 +464,8 @@ applySection new ptel old ts info = do
     --
     -- If a proper projection is being copied, its record needs to be
     -- copied too (#8037).
-    closeConstructors :: Ren QName -> Ren QName -> TCM (Ren QName)
-    closeConstructors del rd = do
+    closeConstructors :: Ren QName -> TCM (Ren QName)
+    closeConstructors rd = do
         let defs = Map.toList rd
         ds <- nubOn snd . catMaybes <$> traverse childToParent defs
         cs <- nubOn snd . concat    <$> traverse parentToChild defs
@@ -521,10 +477,6 @@ applySection new ptel old ts info = do
         rename :: (ModuleName, QName) -> TCM (Ren QName)
         rename (m, x)
           | x `Map.member` rd          = pure mempty
-          -- If the name got pruned by liveness, but we're going to add
-          -- it back, then we might as well add it back with the
-          -- original renaming.
-          | Just n <- Map.lookup x del = pure (Map.singleton x n)
           | otherwise =
               -- Ulf, 2024-06-24 (#7329):
               --   Here we used to generate an unqualified name, but this breaks things if the new
@@ -538,23 +490,19 @@ applySection new ptel old ts info = do
               --   mkD` which we did before).
               Map.singleton x . pure . qualify m <$> freshName_ (prettyShow $ qnameName x)
 
-        childToParent :: (QName, List1.List1 QName) -> TCM (Maybe (ModuleName, QName))
-        childToParent (x, y List1.:| _) = do  -- All new names share the same module, so we can safely grab the first one
+        childToParent :: (QName, List1 QName) -> TCM (Maybe (ModuleName, QName))
+        childToParent (x, y :| _) = do  -- All new names share the same module, so we can safely grab the first one
           theDef <$> getConstInfo x <&> \case
             Constructor{ conData = d }
               -> Just (qnameModule y, d)
-
-            -- If we trimmed the record type away from a proper
-            -- projection we actually need to bring it back it otherwise
-            -- #1976 turns into #8037.
+            -- If a proper projection is being copied, its record needs to be
+            -- copied too (#8037).
             def | Just Projection{ projProper = Just r } <- isProjection_ def
-                , r `Map.member` del
               -> Just (qnameModule y, r)
-
             _ -> Nothing
 
-        parentToChild :: (QName, List1.List1 QName) -> TCM [(ModuleName, QName)]
-        parentToChild (x, y List1.:| _) = do
+        parentToChild :: (QName, List1 QName) -> TCM [(ModuleName, QName)]
+        parentToChild (x, y :| _) = do
           (theDef <$> getConstInfo x) <&> \case
             Datatype{ dataCons = cs } -> map (qnameModule y,) cs
             Record{ recConHead = h }  -> [(qnameModule y, conName h)]
@@ -587,9 +535,16 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
     tickN   "copied definitions"     ds
     tickN   ("copies for " <> oldn)  (ds + ms)
 
+  reportSLn "tc.mod.apply" 40 "applySection': copying definitions"
   _ <- Map.traverseWithKey (traverse . copyDef ts) rd
+
+  reportSLn "tc.mod.apply" 40 "applySection': copying modules"
   _ <- Map.traverseWithKey (traverse . copySec ts) rm
+
+  reportSLn "tc.mod.apply" 40 "applySection': computing polarities"
   computePolarity (Map.elems rd >>= List1.toList)
+
+  reportSLn "tc.mod.apply" 40 "finished applySection'"
   where
     -- Andreas, 2013-10-29
     -- Here, if the name x is not imported, it persists as
@@ -635,6 +590,8 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                            }
       localTC (over eContext (map (mapModality (m `inverseComposeModality`)))) $
         copyDef' ts' np def
+      reportSDoc "tc.mod.apply" 80 $
+        "finished copyDef" <+> pretty x <+> "->" <+> pretty y
       where
         copyDef' ts np d = do
           reportSDoc "tc.mod.apply" 60 $ "making new def for" <+> pretty y <+> "from" <+> pretty x <+> "with" <+> text (show np) <+> "args" <+> text (show $ defAbstract d)
@@ -818,15 +775,17 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
     -}
     copySec :: Args -> ModuleName -> ModuleName -> TCM ()
     copySec ts x y = do
+      reportSDoc "tc.mod.apply" 80 $ "Copying section" <+> pretty x <+> "to" <+> pretty y
       totalArgs <- argsToUse x
       tel       <- lookupSection x
-      let sectionTel =  apply tel $ take totalArgs ts
-      reportSDoc "tc.mod.apply" 80 $ "Copying section" <+> pretty x <+> "to" <+> pretty y
+      let sectionTel = apply tel $ take totalArgs ts
       reportSDoc "tc.mod.apply" 80 $ "  ts           = " <+> mconcat (List.intersperse "; " (map pretty ts))
       reportSDoc "tc.mod.apply" 80 $ "  totalArgs    = " <+> text (show totalArgs)
       reportSDoc "tc.mod.apply" 80 $ "  tel          = " <+> text (unwords (map (fst . unDom) $ telToList tel))  -- only names
       reportSDoc "tc.mod.apply" 80 $ "  sectionTel   = " <+> text (unwords (map (fst . unDom) $ telToList ptel)) -- only names
       addContext sectionTel $ addSection y
+      reportSDoc "tc.mod.apply" 80 $
+        "finished copySec" <+> pretty x <+> "->" <+> pretty y
 
 -- | Add a display form to a definition (could be in this or imported signature).
 addDisplayForm :: QName -> DisplayForm -> TCM ()
@@ -839,6 +798,7 @@ addDisplayForm x df = do
   ifM (isLocal x)
     {-then-} (modifySignature add)
     {-else-} (stImportsDisplayForms `modifyTCLens` HMap.insertWith (<>) x (List1.singleton d))
+  reportSDoc "tc.display.section" 30 $ "Added display form for" <+> pretty x
 
 isLocal :: ReadTCState m => QName -> m Bool
 isLocal x = HMap.member x <$> useR (stSignature . sigDefinitions)
@@ -974,7 +934,7 @@ class ( Functor m
       ) => HasConstInfo m where
   -- | Lookup the definition of a name. The result is a closed thing, all free
   --   variables have been abstracted over.
-  getConstInfo :: QName -> m Definition
+  getConstInfo :: HasCallStack => QName -> m Definition
   getConstInfo q =
     getConstInfo' q >>= \case
       Right d -> return d
@@ -983,7 +943,7 @@ class ( Functor m
         "Abstract, thus, not in scope: " ++ prettyShow q
 
   -- | Version that reports exceptions:
-  getConstInfo' :: QName -> m (Either SigError Definition)
+  getConstInfo' :: HasCallStack => QName -> m (Either SigError Definition)
   -- getConstInfo' q = Right <$> getConstInfo q -- conflicts with default signature
 
   -- | Return the rewrite rules for the given head symbol that could be tried.
@@ -996,7 +956,7 @@ class ( Functor m
   -- Lifting HasConstInfo through monad transformers:
 
   default getConstInfo'
-    :: (HasConstInfo n, MonadTrans t, m ~ t n)
+    :: (HasCallStack, HasConstInfo n, MonadTrans t, m ~ t n)
     => QName -> m (Either SigError Definition)
   getConstInfo' = lift . getConstInfo'
 
@@ -1005,15 +965,15 @@ class ( Functor m
     => QName -> m RewriteRules
   getRewriteRulesFor = lift . getRewriteRulesFor
 
-{-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
+{-# SPECIALIZE getConstInfo :: HasCallStack => QName -> TCM Definition #-}
 
-{-# SPECIALIZE getOriginalConstInfo :: QName -> TCM Definition #-}
+{-# SPECIALIZE getOriginalConstInfo :: HasCallStack => QName -> TCM Definition #-}
 -- | The computation 'getConstInfo' sometimes tweaks the returned
 -- 'Definition', depending on the current 'Language' and the
 -- 'Language' of the 'Definition'. This variant of 'getConstInfo' does
 -- not perform any tweaks.
 getOriginalConstInfo ::
-  (ReadTCState m, HasConstInfo m) => QName -> m Definition
+  (HasCallStack, ReadTCState m, HasConstInfo m) => QName -> m Definition
 getOriginalConstInfo q = do
   def  <- getConstInfo q
   lang <- getLanguage
@@ -1055,10 +1015,10 @@ getFilteredRewriteRulesFor filt q = do
 
 -- | Get the original name of the projection
 --   (the current one could be from a module application).
-getOriginalProjection :: HasConstInfo m => QName -> m QName
+getOriginalProjection :: (HasCallStack, HasConstInfo m) => QName -> m QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
-instance HasConstInfo (TCMT IO) where
+instance HasConstInfo TCM where
   getRewriteRulesFor = defaultGetRewriteRulesFor
   getConstInfo' q = do
     st  <- getTC
@@ -1066,12 +1026,12 @@ instance HasConstInfo (TCMT IO) where
     defaultGetConstInfo st env q
   getConstInfo q = getConstInfo' q >>= \case
       Right d -> return d
-      Left (SigUnknown err)     -> fail err
+      Left (SigUnknown err)     -> internalError err
       Left SigAbstract          -> notInScopeError $ qnameToConcrete q
       Left SigCubicalNotErasure -> typeError $ CubicalNotErasure q
 
 defaultGetConstInfo
-  :: (HasOptions m, MonadDebug m, MonadTCEnv m)
+  :: (HasCallStack, HasOptions m, MonadDebug m, MonadTCEnv m)
   => TCState -> TCEnv -> QName -> m (Either SigError Definition)
 defaultGetConstInfo st env q = do
     let defs  = st ^. stSignature . sigDefinitions
@@ -1135,16 +1095,17 @@ instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m)
 instance HasConstInfo m => HasConstInfo (BlockT m)
 
 {-# INLINE getConInfo #-}
-getConInfo :: HasConstInfo m => ConHead -> m Definition
+getConInfo :: (HasCallStack, HasConstInfo m) => ConHead -> m Definition
 getConInfo = getConstInfo . conName
 
+{-# INLINE getPolarity #-}
 -- | Look up the polarity of a definition.
-getPolarity :: HasConstInfo m => QName -> m [Polarity]
+getPolarity :: (HasCallStack, HasConstInfo m) => QName -> m [Polarity]
 getPolarity q = defPolarity <$> getConstInfo q
 
 -- | Look up polarity of a definition and compose with polarity
 --   represented by 'Comparison'.
-getPolarity' :: HasConstInfo m => Comparison -> QName -> m [Polarity]
+getPolarity' :: (HasCallStack, HasConstInfo m) => Comparison -> QName -> m [Polarity]
 getPolarity' CmpEq  q = map (composePol Invariant) <$> getPolarity q -- return []
 getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 
@@ -1169,7 +1130,7 @@ getOccurrencesFromType t = do
   else return []
 
 -- | Get argument occurrence info for argument @i@ of definition @d@ (never fails).
-getArgOccurrence :: QName -> Nat -> TCM Occurrence
+getArgOccurrence :: HasCallStack => QName -> Nat -> TCM Occurrence
 getArgOccurrence d i = do
   def <- getConstInfo d
   case theDef def of
@@ -1218,7 +1179,7 @@ getCompiled q = do
 
 -- | Returns a list of length 'conArity'.
 --   If no erasure analysis has been performed yet, this will be a list of 'False's.
-getErasedConArgs :: HasConstInfo m => QName -> m [Bool]
+getErasedConArgs :: (HasCallStack, HasConstInfo m) => QName -> m [Bool]
 getErasedConArgs q = do
   def <- getConstInfo q
   case theDef def of

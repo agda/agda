@@ -22,7 +22,6 @@ ${AGDA_BIN:-agda} --help=error | sed -nr 's/^([A-Z][a-z\.]+[A-Z][A-Za-z\.]+).*/\
 #
 cat > $ERRORS <<EOF
 CustomBackendError
-GenericError
 InternalError
 NonFatalErrors
 EOF
@@ -40,6 +39,14 @@ EOF
 #
 cat >> $ERRORS <<EOF
 NeedOptionRewriting
+EOF
+
+# Errors which became impossible for ordinary data definitions
+# but may be still be triggerable by reflection.
+#
+cat >> $ERRORS <<EOF
+UnexpectedModalityAnnotationInParameter
+UnexpectedTypeSignatureForParameter
 EOF
 
 # Errors we currently do not cover by the testsuite (TODO!).

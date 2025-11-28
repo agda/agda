@@ -1,0 +1,16 @@
+AmbiguousNameFromImportParameterized.agda:7.9-12: error: [AmbiguousName]
+Ambiguous name Bla. It could refer to any one of
+  Common.Issue481ParametrizedModule.Bla bound at
+    Issue481ParametrizedModule.agda:7.3-6
+  AmbiguousNameFromImportParameterized.Bla bound at
+    Issue481ParametrizedModule.agda:7.3-6
+Bla is in scope as
+  * a postulate Common.Issue481ParametrizedModule.Bla
+    brought into scope by
+    - the opening of Common.Issue481ParametrizedModule at AmbiguousNameFromImportParameterized.agda:3.13-46
+    - its definition at Issue481ParametrizedModule.agda:7.3-6
+  * a postulate AmbiguousNameFromImportParameterized._.Bla
+    brought into scope by
+    - the application of .#Common.Issue481ParametrizedModule-7612168281832392919 at AmbiguousNameFromImportParameterized.agda:4.13-46
+    - its definition at Issue481ParametrizedModule.agda:7.3-6
+when scope checking Bla

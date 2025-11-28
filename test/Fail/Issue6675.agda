@@ -13,8 +13,7 @@ interleaved mutual
     refl : Id A a a
     {-# REWRITE refl #-}
 
--- Expected:
-
+-- Expected error: [IllegalDeclarationInDataDefinition]
 -- Illegal declaration in data type definition
 --   {-# REWRITE refl #-}
 -- when scope checking the declaration

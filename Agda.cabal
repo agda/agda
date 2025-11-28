@@ -502,9 +502,9 @@ library
     , mtl                  >= 2.2.2     && < 2.4
     , murmur-hash          >= 0.1.0.10  && < 0.2
     , nonempty-containers  >= 0.3.4.4   && < 0.4
-    , parallel             >= 3.2.2.0   && < 3.3
+    , parallel             >= 3.2.2.0   && < 3.4
     , peano                >= 0.1.0.1   && < 0.2
-    , pqueue               >= 1.4.3.0   && < 1.6
+    , pqueue               >= 1.4.3.0   && < 1.7
     , primitive            >= 0.7       && < 0.10
     , pretty               >= 1.1.3.6   && < 1.2
     , process              >= 1.6.16.0  && < 1.7
@@ -822,6 +822,7 @@ library
       Agda.TypeChecking.Rules.LHS.Unify.LeftInverse
       Agda.TypeChecking.Rules.LHS.Unify.Types
       Agda.TypeChecking.Rules.Record
+      Agda.TypeChecking.Rules.Record.Cubical
       Agda.TypeChecking.Rules.Term
       Agda.TypeChecking.Serialise
       Agda.TypeChecking.Serialise.Base
@@ -891,6 +892,7 @@ library
       Agda.Utils.IORef.Strict
       Agda.Utils.Impossible
       Agda.Utils.IndexedList
+      Agda.Utils.IntMap
       Agda.Utils.IntSet.Infinite
       Agda.Utils.Lens
       Agda.Utils.Lens.Examples
@@ -926,12 +928,14 @@ library
       Agda.Utils.SmallSet
       Agda.Utils.StrictState
       Agda.Utils.StrictState2
+      Agda.Utils.StrictWriter
       Agda.Utils.String
       Agda.Utils.Suffix
       Agda.Utils.Three
       Agda.Utils.Time
       Agda.Utils.Trie
       Agda.Utils.Tuple
+      Agda.Utils.Tuple.Strict
       Agda.Utils.TypeLevel
       Agda.Utils.TypeLits
       Agda.Utils.Unsafe

@@ -151,27 +151,6 @@ defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ WithOrig
 type Args       = [Arg Term]
 type NamedArgs  = [NamedArg Term]
 
-data DataOrRecord' p
-  = IsData
-  | IsRecord p
-  deriving (Show, Eq, Generic)
-
-type DataOrRecord = DataOrRecord' PatternOrCopattern
-type DataOrRecord_ = DataOrRecord' ()
-
-pattern IsRecord_ :: DataOrRecord_
-pattern IsRecord_ = IsRecord ()
-
-instance PatternMatchingAllowed DataOrRecord where
-  patternMatchingAllowed = \case
-    IsData -> True
-    IsRecord patCopat -> patternMatchingAllowed patCopat
-
-instance CopatternMatchingAllowed DataOrRecord where
-  copatternMatchingAllowed = \case
-    IsData -> False
-    IsRecord patCopat -> copatternMatchingAllowed patCopat
-
 -- | Store the names of the record fields in the constructor.
 --   This allows reduction of projection redexes outside of TCM.
 --   For instance, during substitution and application.
@@ -1001,17 +980,6 @@ mapAbsNamesM f (ExtendTel a (NoAbs x b)) = ExtendTel a <$> (NoAbs <$> f x <*> ma
 
 mapAbsNames :: (ArgName -> ArgName) -> Tele a -> Tele a
 mapAbsNames f = runIdentity . mapAbsNamesM (Identity . f)
-
--- Ulf, 2013-11-06
--- The record parameter is named "" inside the record module so we can avoid
--- printing it (issue 208), but we don't want that to show up in the type of
--- the functions in the module (issue 892). This function is used on the record
--- module telescope before adding it to a type in
--- TypeChecking.Monad.Signature.addConstant (to handle functions defined in
--- record modules) and TypeChecking.Rules.Record.checkProjection (to handle
--- record projections).
-replaceEmptyName :: ArgName -> Tele a -> Tele a
-replaceEmptyName x = mapAbsNames $ \ y -> if null y then x else y
 
 -- | Telescope as list.
 type ListTel' a = [Dom (a, Type)]

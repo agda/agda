@@ -1,0 +1,10 @@
+
+Issue3323a.agda:10.8-9: warning: -W[no]InvalidDataOrRecDefParameter
+Ignoring parameter modality in data definition (note: parameters
+may not repeat information from signature)
+
+———— All done; warnings encountered ————————————————————————
+
+Issue3323a.agda:10.8-9: warning: -W[no]InvalidDataOrRecDefParameter
+Ignoring parameter modality in data definition (note: parameters
+may not repeat information from signature)

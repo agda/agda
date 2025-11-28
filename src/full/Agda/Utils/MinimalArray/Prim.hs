@@ -21,7 +21,7 @@ unsafeIndex (Array arr) i = A.indexPrimArray arr i
 {-# INLINE index #-}
 index :: Prim a => Array a -> Int -> a
 index arr i | 0 <= i && i < size arr = unsafeIndex arr i
-            | otherwise = error "Array: out of bounds"
+            | otherwise = error "Agda.Utils.MinimalArray.Prim.index: out of bounds"
 
 {-# INLINE foldr' #-}
 foldr' :: forall a b. Prim a => (a -> b -> b) -> b -> Array a -> b

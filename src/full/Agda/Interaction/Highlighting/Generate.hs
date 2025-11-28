@@ -540,6 +540,7 @@ warningHighlighting' b w = case tcWarning w of
   InstanceNotInArgumentPosition{} -> errorWarningHighlighting w
   MacroInLetBindings{}            -> errorWarningHighlighting w
   AbstractInLetBindings{}         -> errorWarningHighlighting w
+  IllegalDeclarationInDataDefinition{} -> errorWarningHighlighting w
 
   NicifierIssue (DeclarationWarning _ w) -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
@@ -565,6 +566,7 @@ warningHighlighting' b w = case tcWarning w of
       -- Highlighting the variable instead might be misleading,
       -- suggesting that it is not generalized over.
     UselessAbstract{}                -> deadcodeHighlighting w
+    UselessImport{}                  -> deadcodeHighlighting w
     UselessInstance{}                -> deadcodeHighlighting w
     UselessMacro{}                   -> deadcodeHighlighting w
     UselessPrivate{}                 -> deadcodeHighlighting w
@@ -574,6 +576,7 @@ warningHighlighting' b w = case tcWarning w of
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting w
     InvalidCoverageCheckPragma{}     -> deadcodeHighlighting w
     InvalidConstructorBlock{}        -> deadcodeHighlighting w
+    InvalidDataOrRecDefParameter{}   -> deadcodeHighlighting w
     InvalidTacticAttribute{}         -> deadcodeHighlighting w
     OpenImportAbstract{}             -> cosmeticProblemHighlighting w
     OpenImportPrivate{}              -> cosmeticProblemHighlighting w

@@ -447,8 +447,10 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
     let dlen = length dxs
     reportSDoc "tc.interaction" 20 $ vcat
       [ "reusing meta"
-      , nest 2 $ "creation context:" <+> pretty gxs
-      , nest 2 $ "reusage  context:" <+> pretty dxs
+      , nest 2 $ "creation context:" <+> prettyTCM gamma
+      -- , nest 2 $ "creation context:" <+> pretty gxs
+      , nest 2 $ "reusage  context:" <+> prettyTCM delta
+      -- , nest 2 $ "reusage  context:" <+> pretty dxs
       ]
 
     -- When checking a record declaration (e.g. Σ), creation context Γ
@@ -487,7 +489,8 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
         -- This is a bit risky... blame goes to #434.
         let (d2len, g1len) = findOverlap (take k dys) gys
         reportSDoc "tc.interaction" 30 $ vcat $ map (nest 2)
-          [ "glen  =" <+> pretty glen
+          [ "k     =" <+> pretty k
+          , "glen  =" <+> pretty glen
           , "g0len =" <+> pretty g0len
           , "g1len =" <+> pretty g1len
           , "d2len =" <+> pretty d2len
@@ -517,11 +520,21 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
           -- Get the record type.
           let t = (unDom . ctxEntryDom) $ fromMaybe __IMPOSSIBLE__ $ delta !!! k
           -- Get the record field names.
-          fs <- getRecordTypeFields t
+          fs <- reverse . take numFields <$> getRecordTypeFields t
+          -- Check that the record field names match
+          -- the supposed record field names from the context of the original meta.
+          let gfs = take numFields (drop g1len gxs)
+          reportSDoc "tc.interaction" 30 $ vcat $ map (nest 2)
+            [ "fs    =" <+> pretty fs
+            , "gfs   =" <+> pretty gfs
+            ]
+          -- NameIds do not match, so we have to revert to the concrete name.
+          -- unless (gfs == map (qnameName . unDom) fs) __IMPOSSIBLE__
+          unless (((==) `on` map nameCanonical) gfs (map (qnameName . unDom) fs)) __IMPOSSIBLE__
           -- Field arguments to the original meta are projections from the record var.
           let vfs = map ((\ x -> v `applyE` [Proj ProjSystem x]) . unDom) fs
           -- These are the final args to the original meta:
-          return $ vs1 ++ reverse (take numFields vfs) ++ vs0
+          return $ vs1 ++ vfs ++ vs0
 
     -- Use ArgInfo from Γ.
     let args = zipWith (<$) (reverse rev_args) $ contextArgs gamma

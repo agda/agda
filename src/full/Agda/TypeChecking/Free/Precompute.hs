@@ -5,7 +5,7 @@ module Agda.TypeChecking.Free.Precompute
   ( PrecomputeFreeVars, precomputeFreeVars
   , precomputedFreeVars, precomputeFreeVars_ ) where
 
-import Control.Monad.Writer ( Writer, runWriter, censor, listen, tell )
+import Agda.Utils.StrictWriter ( Writer, runWriter, censor, listen, tell )
 
 import Agda.Utils.Singleton
 import Agda.Utils.VarSet (VarSet)

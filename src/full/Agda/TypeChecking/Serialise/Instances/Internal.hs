@@ -76,15 +76,6 @@ instance EmbPrj a => EmbPrj (Elim' a) where
     valu (N2 a b)   = valuN Proj a b
     valu _          = malformed
 
-instance EmbPrj I.DataOrRecord where
-  icod_ = \case
-    IsData      -> icodeN' IsData
-    IsRecord pm -> icodeN' IsRecord pm
-
-  value = vcase $ \case
-    N0    -> valuN IsData
-    N1 pm -> valuN IsRecord pm
-    _     -> malformed
 
 instance EmbPrj I.ConHead where
   icod_ (ConHead a b c d) = icodeN' ConHead a b c d

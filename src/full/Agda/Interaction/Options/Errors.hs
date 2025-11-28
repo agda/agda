@@ -81,8 +81,6 @@ data ErrorName
   -- Generic errors (alphabetically)
   | CompilationError_
   | CustomBackendError_
-  | GenericError_
-  | GenericDocError_
   | InternalError_
   | LibraryError_
   | NonFatalErrors_
@@ -90,6 +88,7 @@ data ErrorName
   | NotSupported_
   | OptionError_
   | SyntaxError_
+  | UserError_
   -- Other errors (alphabetically)
   | AbsentRHSRequiresAbsurdPattern_
   | AbstractConstructorNotInScope_
@@ -171,8 +170,8 @@ data ErrorName
   | InvalidBuiltin_
   | InvalidDottedExpression_
   | IllTypedPatternAfterWithAbstraction_
+  | IlltypedRewriteRule_
   | IllegalDeclarationBeforeTopLevelModule_
-  | IllegalDeclarationInDataDefinition_
   | IllegalHidingInPostfixProjection_
   | IllegalInstanceVariableInPatternSynonym_
   | IllegalLetInTelescope_
@@ -409,6 +408,7 @@ data UnquoteError_
   | ConInsteadOfDef_
   | DefineDataNotData_
   | DefInsteadOfCon_
+  | EscapingVariable_
   | MissingDeclaration_
   | MissingDefinition_
   | NakedUnquote_

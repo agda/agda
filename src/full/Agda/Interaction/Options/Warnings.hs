@@ -189,6 +189,7 @@ errorWarnings = Set.fromList
   , InstanceNotInArgumentPosition_
   , MacroInLetBindings_
   , AbstractInLetBindings_
+  , IllegalDeclarationInDataDefinition_
   ]
 
 allWarnings :: Set WarningName
@@ -245,6 +246,7 @@ data WarningName
   | InvalidCatchallPragma_
   | InvalidConstructorBlock_
   | InvalidCoverageCheckPragma_
+  | InvalidDataOrRecDefParameter_
   | InvalidNoPositivityCheckPragma_
   | InvalidNoUniverseCheckPragma_
   | DuplicateRecordDirective_
@@ -263,6 +265,7 @@ data WarningName
   | UnknownNamesInFixityDecl_
   | UnknownNamesInPolarityPragmas_
   | UselessAbstract_
+  | UselessImport_
   | UselessInstance_
   | UselessMacro_
   | UselessPrivate_
@@ -285,6 +288,7 @@ data WarningName
   | FixityInRenamingModule_
   | InvalidCharacterLiteral_
   | UselessPragma_
+  | IllegalDeclarationInDataDefinition_
   | IllformedAsClause_
   | InstanceArgWithExplicitArg_
   | InstanceWithExplicitArg_
@@ -484,6 +488,7 @@ warningNameDescription = \case
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
   InvalidConstructorBlock_         -> "`constructor' blocks outside of `interleaved mutual' blocks."
   InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
+  InvalidDataOrRecDefParameter_    -> "Invalid decorations of parameters of a `data' or `record' definition (that is separate of the `data' or `record' declaration)."
   InvalidNoPositivityCheckPragma_  -> "Positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "Universe checking pragmas before non-`data' or `record' declaration."
   DuplicateRecordDirective_        -> "Conflicting directives in a record declaration."
@@ -503,6 +508,7 @@ warningNameDescription = \case
   UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."
   UselessAbstract_                 -> "`abstract' blocks where they have no effect."
   UselessHiding_                   -> "Names in `hiding' directive that are anyway not imported."
+  UselessImport_                   -> "`import' statements that do not bring anything into scope."
   UselessInline_                   -> "`INLINE' pragmas where they have no effect."
   UselessInstance_                 -> "`instance' blocks where they have no effect."
   UselessMacro_                    -> "`macro' blocks where they have no effect."
@@ -527,6 +533,7 @@ warningNameDescription = \case
   FixingPolarity_                  -> "Correcting invalid user-written polarity attribute."
   InvalidCharacterLiteral_         -> "Illegal character literals."
   UselessPragma_                   -> "Pragmas that get ignored."
+  IllegalDeclarationInDataDefinition_ -> "Declarations not allowed in `data' definitions."
   IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."
   InstanceNoOutputTypeName_        -> "Instance arguments whose type does not end in a named or variable type; those are never considered by instance search."
   InstanceArgWithExplicitArg_      -> "Instance arguments with explicit arguments; those are never considered by instance search."

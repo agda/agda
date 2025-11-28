@@ -27,7 +27,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Concrete (pattern NoWhere_)
 import Agda.Syntax.Literal
-import Agda.Syntax.Scope.Monad ( sameTrimming )
 import Agda.Syntax.Scope.Base ( KindOfName(..) )
 
 import Agda.TypeChecking.Monad
@@ -104,43 +103,14 @@ checkDeclCached
 checkDeclCached d = do
   e <- readFromCachedLog
 
-  reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
-
-  let
-    reuse s = do
+  case e of
+    Just (Decl d', s) | compareDecl d d' -> do
       restorePostScopeState s
       reportSLn "cache.decl" 50 $ "range: " ++ prettyShow (getRange d)
       printSyntaxInfo (getRange d)
-    drop = do
+    _ -> do
       cleanCachedLog
       checkDeclWrap d
-
-  case e of
-    -- Scope checking creates 'IORef's for trimming which are different
-    -- every run, so if identity of 'Decl's depended on those we would
-    -- never cache anything that happens after a module application
-    -- declaration...
-    --
-    -- ... but we can't just consider them the same, because otherwise
-    -- checking new declarations with an old cached state would run into
-    -- unbound names for copies the first time around ...
-    --
-    -- ... but even if we didn't use 'IORef's, the declarations would
-    -- still look identical, since we can't know what the LiveNames will
-    -- be when the A.Apply value is created!
-    --
-    -- In short: scope trimming necessarily makes the validity of
-    -- reusing a cache for 'Apply' declarations depend on some
-    -- out-of-band information, regardless of whether we use mutable
-    -- variables or a field in the TC state.
-    Just (Decl d'@(A.Apply _ _ _ _ ci' _), s)
-      | compareDecl d d', A.Apply _ _ _ _ ci _ <- d ->
-      ifM (sameTrimming ci' ci)
-        {- then -} (reportSLn "cache.decl" 10 "  cache Apply: same trimming" *> reuse s)
-        {- else -} (reportSLn "cache.decl" 10 "  cache Apply: diff trimming" *> drop)
-
-    Just (Decl d', s) | compareDecl d d' -> reuse s
-    _ -> drop
 
   writeToCurrentLog $ Decl d
  where

@@ -123,16 +123,13 @@ A multiple of the frame height."
   :group 'agda2)
 
 (defcustom agda2-fontset-name
-  (unless (or (eq window-system 'mac)
-              ;; Emacs-23 uses a revamped font engine which should
-              ;; make agda2-fontset-name unnecessary in most cases.
-              ;; And if it turns out to be necessary, we should
-              ;; probably use face-remapping-alist rather than
-              ;; set-frame-font so the special font only applies to
-              ;; Agda buffers, and so it applies in all frames where
-              ;; Agda buffers are displayed.
-              (boundp 'face-remapping-alist))
-    "fontset-agda2")
+  ;; Emacs-23 uses a revamped font engine which should make
+  ;; agda2-fontset-name unnecessary in most cases.  And if it turns
+  ;; out to be necessary, we should probably use face-remapping-alist
+  ;; rather than set-frame-font so the special font only applies to
+  ;; Agda buffers, and so it applies in all frames where Agda buffers
+  ;; are displayed.
+  (and (not (boundp 'face-remapping-alist)) "fontset-agda2")
   "Default font to use in the selected frame when activating the Agda mode.
 This is only used if it's non-nil and Emacs is not running in a
 terminal.
@@ -184,7 +181,7 @@ to this variable to take effect."
   :group 'agda2
   :type 'string)
 
-(if (and (equal agda2-fontset-name "fontset-agda2") window-system)
+(if (and (equal agda2-fontset-name "fontset-agda2") (display-graphic-p))
     (create-fontset-from-fontset-spec agda2-fontset-spec-of-fontset-agda2 t t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -273,6 +270,44 @@ list which should contain \\='local if the command should exist in
 the goal menu and \\='global if the command should exist in the main
 menu; and DESC is the description of the command used in the
 menus.")
+
+(defvar agda2-movement-repeat-map (make-sparse-keymap))
+(defcustom agda2-repeatable-commands
+  '(agda2-next-goal
+    agda2-previous-goal
+    agda2-give
+    agda2-refine
+    agda2-make-case
+    agda2-goal-and-context
+    agda2-goal-and-context-and-inferred
+    agda2-goal-and-context-and-checked)
+  "List of commands that should be supported by `repeat-mode'.
+This feature added in Emacs 28 enables a transient keymap after invoking
+a command that binds shorter key chords.  For Agda, the shorter keys
+derived from the last key of the global key chord (so \"C-c C-f\" just
+becomes \"C-f\" until you invoke a non-repeatable command).  To make use
+of this feature, the global minor mode `repeat-mode' must be enabled
+separately."
+  :set (lambda (sym val)
+         (let ((m (make-sparse-keymap)))
+           (map-keymap
+            (lambda (_ev def)
+              (when (symbolp def)
+                (put def 'repeat-map nil)))
+            agda2-movement-repeat-map)
+           (dolist (fn val)
+             (let* ((chord (cadr (assq fn agda2-command-table)))
+                    (key (aref chord (1- (length chord))))
+                    (kbd (vector key))
+                    (prev (lookup-key m kbd)))
+               (when prev
+                 (error "Repeat-key duplicate: %S for `%S' already bound for `%S'"
+                        kbd fn prev))
+               (define-key m kbd fn))
+             (put fn 'repeat-map agda2-movement-repeat-map))
+           (setq agda2-movement-repeat-map m))
+         (custom-set-default sym val))
+  :type '(repeat function))
 
 (defvar agda2-mode-map
   (let ((map (make-sparse-keymap "Agda mode")))
@@ -376,6 +411,8 @@ Note that this variable is not buffer-local.")
 ;;;; agda2-mode
 
 ;;;###autoload
+(add-to-list 'completion-ignored-extensions ".agdai")
+;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.l?agda\\'" . agda2-mode))
 ;;;###autoload
 (modify-coding-system-alist 'file "\\.l?agda\\'" 'utf-8)
@@ -414,7 +451,7 @@ agda2-include-dirs is not bound." :warning))
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
- (if (and window-system agda2-fontset-name)
+ (if (and (display-graphic-p) agda2-fontset-name)
      (condition-case nil
          (set-frame-font agda2-fontset-name)
        (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
@@ -433,11 +470,9 @@ agda2-include-dirs is not bound." :warning))
                    (error-message-string err))))
  (agda2-comments-and-paragraphs-setup)
  (force-mode-line-update)
- ;; Protect global value of default-input-method from set-input-method.
- (make-local-variable 'default-input-method)
  ;; Don't take script into account when determining word boundaries
  (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
- (set-input-method "Agda")
+ (activate-input-method "Agda")
  ;; Highlighting etc. is removed when we switch from the Agda mode.
  ;; Use case: When a file M.lagda with a local variables list
  ;; including "mode: latex" is loaded chances are that the Agda mode
@@ -613,6 +648,7 @@ May be more efficient than restarting Agda."
   "Resets certain variables.
 Intended to be used by the backend if an abort command was
 successful."
+  (declare (agda2-command ()))
   (agda2-info-action "*Aborted*" "Aborted." t)
   (setq agda2-highlight-in-progress nil
         agda2-last-responses        nil))
@@ -790,16 +826,43 @@ command is sent to Agda (if it is sent)."
              (if input-from-goal (agda2-goal-Range o) (agda2-mkRange nil))
              (agda2-string-quote txt) args))))
 
-;; Note that the following function is a security risk, since it
-;; evaluates code without first inspecting it. The code (supposedly)
-;; comes from the Agda backend, but there could be bugs in the backend
-;; which can be exploited by an attacker which manages to trick
-;; someone into type-checking compromised Agda code.
-
 (defun agda2-exec-response (response)
-  "Interprets response."
-  (let ((inhibit-read-only t))
-    (eval response)))
+  "Execute RESPONSE if recognised by `agda2-handler-alist'."
+  (cl-assert (symbolp (car-safe response)))
+  ;; Agda sends us a an S-expression that we can just `eval'uate.  To
+  ;; avoid arbitrary code execution and ensure that the commands Agda
+  ;; sends us are well-formed, we use `apply' without evaluating any
+  ;; arguments.  The symbol of the invoked function must have a
+  ;; `agda2-safe-function' symbol property asserting the expected
+  ;; types of all arguments, w.r.t `cl-typep'.
+  (save-buffer)
+  (unwind-protect
+      (let* ((inhibit-read-only t)
+             (func (car response))
+             (safe-p (plist-member (symbol-plist func) 'agda2-safe-function))
+             (safe-data (cadr safe-p))
+             (args '()))
+        (unless safe-p
+          (error "The function `%S' is not a valid Agda command" func))
+        ;; Check each argument
+        (dolist (arg (cdr response))
+          (when (null safe-data)
+            (error "More arguments than expected for `%S' (%S, got %S)"
+                   func safe-data response))
+          (when (eq (car-safe arg) 'quote) ;unquote arguments
+            (setq arg (cadr arg)))
+          (let ((type (pop safe-data)))
+            (unless (cl-typep arg type)
+              (error "The function `%S' was invoked with %S which is not a %S"
+                     func arg type)))
+          (push arg args))
+        (condition-case err
+            (with-local-quit
+              (apply func (nreverse args)))
+          (error (warn "Error while evaluating %S: %S" response err))))
+    (setq agda2-in-progress nil)))
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User commands and response processing
@@ -883,6 +946,10 @@ The action depends on the prefix argument:
 
 (defun agda2-give-action (old-g paren)
   "Update the goal OLD-G with the expression in it."
+  (declare (agda2-command (integer (or (eql paren)
+                                       (eql no-paren)
+                                       string
+                                       null))))
   (let
      ;; Don't run modification hooks: we don't want this to
       ;; trigger agda2-abort-highlighting.
@@ -916,6 +983,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
 
 (defun agda2-make-case-action (newcls)
   "Replace the line at point with new clauses NEWCLS and reload."
+  (declare (agda2-command (list)))
   (agda2-forget-all-goals);; we reload later anyway.
   (let* ((p0 (point))
          (p1 (goto-char (+ (current-indentation) (line-beginning-position))))
@@ -930,6 +998,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
 
 (defun agda2-make-case-action-extendlam (newcls)
   "Replace definition of extended lambda with new clauses NEWCLS and reload."
+  (declare (agda2-command (list)))
   (agda2-forget-all-goals);; we reload later anyway.
   (let* ((p0 (point))
          (pmax (re-search-forward "!}"))
@@ -957,6 +1026,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
   "Display the string STATUS in the current buffer's mode line.
 \(precondition: the current buffer has to use the Agda mode as the
 major mode)."
+  (declare (agda2-command (string)))
   (setq agda2-buffer-external-status status)
   (force-mode-line-update))
 
@@ -1080,6 +1150,7 @@ buffer, and point placed after this text.
 
 If APPEND is nil, then any previous text is removed before TEXT
 is inserted, and point is placed before this text."
+  (declare (agda2-command (string string boolean &repeat t))) ;
   (interactive)
   (let ((buf (agda2-info-buffer)))
     (with-current-buffer buf
@@ -1130,6 +1201,7 @@ is inserted, and point is placed before this text."
 
 (defun agda2-info-action-and-copy (name text &optional append)
   "Same as agda2-info-action but also puts TEXT in the kill ring."
+  (declare (agda2-command (string string t)))
   (kill-new text)
   (agda2-info-action name text append))
 
@@ -1502,6 +1574,7 @@ Either only one if point is a goal, or all of them."
 )
 
 (defun agda2-solveAll-action (iss)
+  (declare (agda2-command (list)))
   (while iss
     (let* ((g (pop iss)) (txt (pop iss))
            (cmd (cons 'agda2-solve-action (cons g (cons txt nil)))))
@@ -1606,6 +1679,7 @@ which they appear in the buffer. Note that this function should
 be run /after/ syntax highlighting information has been loaded,
 because the two highlighting mechanisms interact in unfortunate
 ways."
+  (declare (agda2-command (list)))
   (agda2-forget-all-goals)
   (agda2-let
       ((literate (agda2-literate-p))
@@ -1996,6 +2070,7 @@ FILE (assuming that the FILE is readable). Otherwise point is
 moved to the given position in the buffer visiting the file, if
 any, and in every window displaying the buffer, but the window
 configuration and the selected window are not changed."
+  (declare (agda2-command (cons)))
   (when (and agda2-highlight-in-progress
              (consp filepos)
              (stringp (car filepos))

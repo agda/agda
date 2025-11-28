@@ -171,8 +171,12 @@ instance IsBool DisplayLHS where
 
 -- | Expression kinds: Expressions or patterns.
 
-data ExprKind = IsExpr | IsPattern
+data ExprKind = IsExpr | IsPattern DisplayLHS
   deriving (Eq, Show)
+
+isKindPattern :: ExprKind -> Bool
+isKindPattern (IsPattern _) = True
+isKindPattern IsExpr        = False
 
 ---------------------------------------------------------------------------
 -- * Record Directives
@@ -272,6 +276,41 @@ instance CopatternMatchingAllowed HasEta where
   copatternMatchingAllowed = \case
     YesEta -> True
     NoEta p -> copatternMatchingAllowed p
+
+---------------------------------------------------------------------------
+-- * Data or record
+---------------------------------------------------------------------------
+
+data DataOrRecord' p
+  = IsData
+  | IsRecord p
+  deriving (Show, Eq, Generic)
+
+type DataOrRecord = DataOrRecord' PatternOrCopattern
+type DataOrRecord_ = DataOrRecord' ()
+
+pattern IsRecord_ :: DataOrRecord_
+pattern IsRecord_ = IsRecord ()
+
+{-# COMPLETE IsData, IsRecord_ #-}
+
+instance Boolean DataOrRecord_ where
+  fromBool True  = IsData
+  fromBool False = IsRecord_
+
+instance IsBool DataOrRecord_ where
+  toBool IsData    = True
+  toBool IsRecord_ = False
+
+instance PatternMatchingAllowed DataOrRecord where
+  patternMatchingAllowed = \case
+    IsData -> True
+    IsRecord patCopat -> patternMatchingAllowed patCopat
+
+instance CopatternMatchingAllowed DataOrRecord where
+  copatternMatchingAllowed = \case
+    IsData -> False
+    IsRecord patCopat -> copatternMatchingAllowed patCopat
 
 ---------------------------------------------------------------------------
 -- * Induction
@@ -547,6 +586,9 @@ prettyHiding a parens =
 
 instance Pretty a => Pretty (WithHiding a) where
   pretty w = prettyHiding w id $ pretty $ dget w
+
+unArgKeepHiding :: Arg a -> WithHiding a
+unArgKeepHiding (Arg i a) = WithHiding (getHiding i) a
 
 ---------------------------------------------------------------------------
 -- * Modalities
@@ -3129,6 +3171,9 @@ data IsInstance
   | NotInstanceDef
     deriving (Show, Eq, Ord)
 
+instance Null IsInstance where
+  empty = NotInstanceDef
+
 instance KillRange IsInstance where
   killRange = \case
     InstanceDef _    -> InstanceDef empty
@@ -3142,6 +3187,14 @@ instance HasRange IsInstance where
 instance NFData IsInstance where
   rnf (InstanceDef _) = ()
   rnf NotInstanceDef  = ()
+
+class IsInstanceDef a where
+  isInstanceDef :: a -> Maybe KwRange
+
+instance IsInstanceDef IsInstance where
+  isInstanceDef = \case
+    InstanceDef r  -> Just r
+    NotInstanceDef -> Nothing
 
 -- ** macro blocks
 

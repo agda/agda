@@ -249,7 +249,7 @@ data PreScopeState = PreScopeState
     -- ^ Cached @.agda-lib@ files.
   , stPreImportedMetaStore :: !RemoteMetaStore
     -- ^ Used for meta-variables from other modules.
-  , stPreCopiedNames       :: !(HashMap A.QName (ScopeCopyRef, A.QName))
+  , stPreCopiedNames       :: !(HashMap A.QName A.QName)
     -- ^ Associates a copied name (the key) to its original name (the
     -- value). Computed by the scope checker, used to compute opaque
     -- blocks.
@@ -263,6 +263,8 @@ data PreScopeState = PreScopeState
 -- | Name disambiguation for the sake of highlighting.
 data DisambiguatedName = DisambiguatedName NameKind A.QName
   deriving Generic
+
+-- | Name from file position of occurrence to disambiguation.
 type DisambiguatedNames = IntMap DisambiguatedName
 
 type ConcreteNames = Map Name (List1 C.Name)
@@ -685,7 +687,7 @@ lensLibCache f s = f (stPreLibCache s) <&> \ x -> s { stPreLibCache = x }
 lensImportedMetaStore :: Lens' PreScopeState RemoteMetaStore
 lensImportedMetaStore f s = f (stPreImportedMetaStore s) <&> \x -> s { stPreImportedMetaStore = x }
 
-lensCopiedNames :: Lens' PreScopeState (HashMap QName (ScopeCopyRef, QName))
+lensCopiedNames :: Lens' PreScopeState (HashMap QName QName)
 lensCopiedNames f s = f (stPreCopiedNames s) <&> \ x -> s { stPreCopiedNames = x }
 
 lensNameCopies :: Lens' PreScopeState (HashMap QName (HashSet QName))
@@ -912,7 +914,7 @@ stLibCache = lensPreScopeState . lensLibCache
 stImportedMetaStore :: Lens' TCState RemoteMetaStore
 stImportedMetaStore = lensPreScopeState . lensImportedMetaStore
 
-stCopiedNames :: Lens' TCState (HashMap QName (ScopeCopyRef, QName))
+stCopiedNames :: Lens' TCState (HashMap QName QName)
 stCopiedNames = lensPreScopeState . lensCopiedNames
 
 stNameCopies :: Lens' TCState (HashMap QName (HashSet QName))
@@ -4860,6 +4862,8 @@ data Warning
   | InstanceNotInArgumentPosition C.Expr
   | MacroInLetBindings
   | AbstractInLetBindings
+  | IllegalDeclarationInDataDefinition (List1 C.Declaration)
+      -- ^ The declaration list comes from a single 'C.NiceDeclaration'.
 
   -- Display form warnings
   | InvalidDisplayForm QName String
@@ -4940,7 +4944,7 @@ warningName = \case
   InvalidCharacterLiteral{}    -> InvalidCharacterLiteral_
   UselessPragma{}              -> UselessPragma_
   InversionDepthReached{}      -> InversionDepthReached_
-  InteractionMetaBoundaries{}  -> InteractionMetaBoundaries_{}
+  InteractionMetaBoundaries{}  -> InteractionMetaBoundaries_
   ModuleDoesntExport{}         -> ModuleDoesntExport_
   NotInScopeW{}                -> NotInScope_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
@@ -5007,6 +5011,7 @@ warningName = \case
   InstanceNotInArgumentPosition{} -> InstanceNotInArgumentPosition_
   MacroInLetBindings{}            -> MacroInLetBindings_
   AbstractInLetBindings{}         -> AbstractInLetBindings_
+  IllegalDeclarationInDataDefinition{} -> IllegalDeclarationInDataDefinition_
 
   -- Display forms
   InvalidDisplayForm{}                 -> InvalidDisplayForm_
@@ -5163,6 +5168,8 @@ data UnquoteError
   | ConInsteadOfDef QName String String
   | DefineDataNotData QName
   | DefInsteadOfCon QName String String
+  | EscapingVariable (Closure Term)
+      -- ^ Given meta-program produces unbound variable under @extendContext@.
   | MissingDeclaration QName
   | MissingDefinition QName
   | NakedUnquote
@@ -5314,8 +5321,8 @@ data TypeError
         | MetaErasedSolution MetaId Term
             -- ^ When solving @'MetaId' ... := 'Term'@,
             --   part of the 'Term' is invalid as it was created in an erased context.
-        | GenericError String
-        | GenericDocError Doc
+        | UserError Doc
+            -- ^ Error message produced by a meta program.
         | SortOfSplitVarError (Maybe Blocker) Doc
           -- ^ the meta is what we might be blocked on.
         | WrongSharpArity A.QName
@@ -5334,8 +5341,6 @@ data TypeError
         | WrongArgInfoForPrimitive PrimitiveId ArgInfo ArgInfo
         | ShadowedModule C.Name (List1 A.ModuleName)
         | BuiltinInParameterisedModule BuiltinId
-        | IllegalDeclarationInDataDefinition (List1 C.Declaration)
-            -- ^ The declaration list comes from a single 'C.NiceDeclaration'.
         | IllegalLetInTelescope C.TypedBinding
         | IllegalPatternInTelescope C.Binder
         | AbsentRHSRequiresAbsurdPattern
@@ -5371,6 +5376,13 @@ data TypeError
             -- ^ The lists should have the same length.
             --   TODO: enforce this by construction.
         | ComatchingDisabledForRecord QName
+    -- Rewriting errors
+        | IlltypedRewriteRule Doc
+            -- TODO: split this into finer errors rather than using 'Doc',
+            -- and add reproducers for all the shades of this error to the testsuite.
+            -- ^ When constructing a rewrite rule from a type,
+            --   an error occurred, possibly due to non-confluence of rewrite rules.
+            --   This was a @GenericDocError@ before.
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
     -- Cubical errors
         | CannotGenerateHCompClause Type
@@ -6290,14 +6302,13 @@ instance MonadIO m => ReadTCState (TCMT m) where
 instance MonadBlock TCM where
   patternViolation b = throwError (PatternErr b)
   catchPatternErr handle v =
-       catchError_ v $ \err ->
-       case err of
+       catchError_ v \case
             -- Not putting s (which should really be the what's already there) makes things go
             -- a lot slower (+20% total time on standard library). How is that possible??
             -- The problem is most likely that there are internal catchErrors which forgets the
             -- state. catchError should preserve the state on pattern violations.
            PatternErr u -> handle u
-           _            -> throwError err
+           err -> throwError err
 
 instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
   throwError = liftIO . E.throwIO
@@ -6419,13 +6430,6 @@ type MonadTCError m = (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
 -- Note that the @HasCallStack@ constraint is on the *resulting* function.
 locatedTypeError :: MonadTCError m => (a -> TypeError) -> (HasCallStack => a -> m b)
 locatedTypeError f e = withCallerCallStack (flip typeError' (f e))
-
-genericError :: (HasCallStack, MonadTCError m) => String -> m a
-genericError = locatedTypeError GenericError
-
-{-# SPECIALIZE genericDocError :: Doc -> TCM a #-}
-genericDocError :: (HasCallStack, MonadTCError m) => Doc -> m a
-genericDocError = locatedTypeError GenericDocError
 
 {-# SPECIALIZE typeError' :: CallStack -> TypeError -> TCM a #-}
 typeError' :: MonadTCError m => CallStack -> TypeError -> m a

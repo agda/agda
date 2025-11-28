@@ -40,7 +40,7 @@ import Agda.Utils.CallStack ( withCurrentCallStack )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Null ()
+import Agda.Utils.Null (unlessNullM)
 import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import Agda.Utils.Singleton
 
@@ -251,10 +251,11 @@ solveSomeAwakeConstraintsTCM solveThis force = do
      locallyTC eActiveProblems (const Set.empty) solve
   where
     solve = do
-      reportSDoc "tc.constr.solve" 10 $ hsep [ "Solving awake constraints."
-                                             , text . show . length =<< getAwakeConstraints
-                                             , "remaining." ]
-      whenJustM (takeAwakeConstraint' solveThis) $ \ c -> do
+      verboseS "tc.constr.solve" 10 do
+        unlessNullM getAwakeConstraints \ cs ->
+          reportSDoc "tc.constr.solve" 10 $ hsep
+            [ "Solving awake constraints.", text . show $ length cs, "remaining."]
+      whenJustM (takeAwakeConstraint' solveThis) \ c -> do
         withConstraint solveConstraint c
         solve
 

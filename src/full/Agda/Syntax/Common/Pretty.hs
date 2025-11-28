@@ -119,6 +119,10 @@ instance Pretty a => Pretty (Maybe a) where
   prettyPrec p Nothing  = P.empty
   prettyPrec p (Just x) = prettyPrec p x
 
+instance Pretty a => Pretty (Strict.Maybe a) where
+  prettyPrec p Strict.Nothing  = P.empty
+  prettyPrec p (Strict.Just x) = prettyPrec p x
+
 instance Pretty a => Pretty [a] where
   pretty = prettyList
 
@@ -156,8 +160,8 @@ instance Pretty a => Pretty (Position' (Strict.Maybe a)) where
 instance Pretty PositionWithoutFile where
   pretty = prettyLineColumn
 
-instance Pretty IntervalWithoutFile where
-  pretty (Interval () s e)
+prettyInterval :: Eq a => Position' a -> Position' a -> Doc
+prettyInterval s e
     | s == e    = start
     | otherwise = start <> "-" <> end
     where
@@ -173,15 +177,11 @@ instance Pretty IntervalWithoutFile where
         | sl == el  = pretty ec
         | otherwise = pretty el <> dot <> pretty ec
 
-instance Pretty a => Pretty (Interval' (Strict.Maybe a)) where
-  pretty i@(Interval f s e) = file <> pretty (Interval () s e)
-    where
-      file :: Doc
-      file = case f of
-               Strict.Nothing -> empty
-               Strict.Just f  -> pretty f <> colon
+instance Pretty a => Pretty (Interval' a) where
+  pretty :: Pretty a => Interval' a -> Doc
+  pretty i@(Interval f s e) = applyUnlessNull (pretty f) (\ d -> ((d <> colon) <>)) (prettyInterval s e)
 
-instance Pretty a => Pretty (Range' (Strict.Maybe a)) where
+instance Pretty a => Pretty (Range' a) where
   pretty r = maybe empty pretty (rangeToIntervalWithFile r)
 
 instance (Pretty a, HasRange a) => Pretty (PrintRange a) where
@@ -206,6 +206,9 @@ punctuate d = P.punctuate d . Fold.toList
 
 vsep :: [Doc] -> Doc
 vsep = vcat . List.intersperse ""
+
+twords :: Text -> [Doc]
+twords = map pretty . Text.words
 
 pwords :: String -> [Doc]
 pwords = map text . words

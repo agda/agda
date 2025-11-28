@@ -46,7 +46,7 @@ saturateOpaqueBlocks = entry where
     inverse <- useTC stOpaqueIds
     OpaqueId _ ourmod <- fresh
 
-    canonical  <- fmap snd <$> useTC stCopiedNames
+    canonical  <- useTC stCopiedNames
     backcopies <- useTC stNameCopies
 
     reportSDoc "tc.opaque.copy" 45 $ "Canonical names of copied definitions:" $+$ pretty (HashMap.toList canonical)

@@ -5,6 +5,7 @@
 module Agda.Syntax.Concrete.Definitions.Errors where
 
 import Control.DeepSeq
+import Data.Text (Text)
 
 import GHC.Generics (Generic)
 
@@ -16,13 +17,14 @@ import Agda.Syntax.Concrete.Definitions.Types
 
 import Agda.Interaction.Options.Warnings
 
-import Agda.Utils.Null ( empty )
+import Agda.Utils.Boolean   ( ifThenElse )
 import Agda.Utils.CallStack ( CallStack )
-import Agda.Utils.List1 (List1)
-import Agda.Utils.List2 (List2)
-import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Set1 (Set1)
-import qualified Agda.Utils.Set1 as Set1
+import Agda.Utils.List1     ( List1 )
+import Agda.Utils.List1     qualified as List1
+import Agda.Utils.List2     ( List2 )
+import Agda.Utils.Null      ( empty )
+import Agda.Utils.Set1      ( Set1 )
+import Agda.Utils.Set1      qualified as Set1
 import Agda.Utils.Singleton
 
 ------------------------------------------------------------------------
@@ -122,6 +124,11 @@ data DeclarationWarning'
       -- ^ Invalid constructor block (not inside an interleaved mutual block)
   | InvalidCoverageCheckPragma Range
       -- ^ A {-\# NON_COVERING \#-} pragma that does not apply to any function.
+  | InvalidDataOrRecDefParameter Range DataOrRecord_ Text Text
+      -- ^ An entry in a data or record definition parameter that is not allowed here.
+      --   Such parameters can only be names with hiding.
+      --   The first 'Text' says what is wrong and thus ignored.
+      --   The second 'Text' may contain extra details or clarification.
   | InvalidNoPositivityCheckPragma Range
       -- ^ A {-\# NO_POSITIVITY_CHECK \#-} pragma
       --   that does not apply to any data or record type.
@@ -174,6 +181,8 @@ data DeclarationWarning'
       -- ^ @macro@ block with nothing that can (newly) be made macro.
   | UselessPrivate KwRange
       -- ^ @private@ block with nothing that can (newly) be made private.
+  | UselessImport Range
+      -- ^ An @import@ that is applied to parameters by neither bound not opened.
   deriving (Show, Generic)
 
 -- | @open@ or @import@
@@ -188,50 +197,52 @@ declarationWarningName = declarationWarningName' . dwWarning
 declarationWarningName' :: DeclarationWarning' -> WarningName
 declarationWarningName' = \case
   -- Please keep in alphabetical order.
-  DivergentModalityInClause{}       -> DivergentModalityInClause_
-  EmptyAbstract{}                   -> EmptyAbstract_
-  EmptyConstructor{}                -> EmptyConstructor_
-  EmptyField{}                      -> EmptyField_
-  EmptyGeneralize{}                 -> EmptyGeneralize_
-  EmptyInstance{}                   -> EmptyInstance_
-  EmptyMacro{}                      -> EmptyMacro_
-  EmptyMutual{}                     -> EmptyMutual_
-  EmptyPrivate{}                    -> EmptyPrivate_
-  EmptyPostulate{}                  -> EmptyPostulate_
-  EmptyPrimitive{}                  -> EmptyPrimitive_
-  EmptyPolarityPragma{}             -> EmptyPolarityPragma_
-  HiddenGeneralize{}                -> HiddenGeneralize_
-  InvalidCatchallPragma{}           -> InvalidCatchallPragma_
-  InvalidConstructorBlock{}         -> InvalidConstructorBlock_
-  InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
-  InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
-  InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
-  InvalidCoverageCheckPragma{}      -> InvalidCoverageCheckPragma_
-  InvalidTacticAttribute{}          -> InvalidTacticAttribute_
-  MissingDataDeclaration{}          -> MissingDataDeclaration_
-  MissingDefinitions{}              -> MissingDefinitions_
-  NotAllowedInMutual{}              -> NotAllowedInMutual_
-  OpenImportPrivate{}               -> OpenImportPrivate_
-  OpenImportAbstract{}              -> OpenImportAbstract_
-  PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
-  PragmaNoTerminationCheck{}        -> PragmaNoTerminationCheck_
-  PragmaCompiled{}                  -> PragmaCompiled_
-  SafeFlagEta                    {} -> SafeFlagEta_
-  SafeFlagInjective              {} -> SafeFlagInjective_
-  SafeFlagNoCoverageCheck        {} -> SafeFlagNoCoverageCheck_
-  SafeFlagNoPositivityCheck      {} -> SafeFlagNoPositivityCheck_
-  SafeFlagNoUniverseCheck        {} -> SafeFlagNoUniverseCheck_
-  SafeFlagNonTerminating         {} -> SafeFlagNonTerminating_
-  SafeFlagPolarity               {} -> SafeFlagPolarity_
-  SafeFlagTerminating            {} -> SafeFlagTerminating_
-  ShadowingInTelescope{}            -> ShadowingInTelescope_
-  UnknownFixityInMixfixDecl{}       -> UnknownFixityInMixfixDecl_
-  UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
-  UnknownNamesInPolarityPragmas{}   -> UnknownNamesInPolarityPragmas_
-  UselessAbstract{}                 -> UselessAbstract_
-  UselessInstance{}                 -> UselessInstance_
-  UselessMacro{}                    -> UselessMacro_
-  UselessPrivate{}                  -> UselessPrivate_
+  DivergentModalityInClause       {} -> DivergentModalityInClause_
+  EmptyAbstract                   {} -> EmptyAbstract_
+  EmptyConstructor                {} -> EmptyConstructor_
+  EmptyField                      {} -> EmptyField_
+  EmptyGeneralize                 {} -> EmptyGeneralize_
+  EmptyInstance                   {} -> EmptyInstance_
+  EmptyMacro                      {} -> EmptyMacro_
+  EmptyMutual                     {} -> EmptyMutual_
+  EmptyPrivate                    {} -> EmptyPrivate_
+  EmptyPostulate                  {} -> EmptyPostulate_
+  EmptyPrimitive                  {} -> EmptyPrimitive_
+  EmptyPolarityPragma             {} -> EmptyPolarityPragma_
+  HiddenGeneralize                {} -> HiddenGeneralize_
+  InvalidCatchallPragma           {} -> InvalidCatchallPragma_
+  InvalidConstructorBlock         {} -> InvalidConstructorBlock_
+  InvalidDataOrRecDefParameter    {} -> InvalidDataOrRecDefParameter_
+  InvalidNoPositivityCheckPragma  {} -> InvalidNoPositivityCheckPragma_
+  InvalidNoUniverseCheckPragma    {} -> InvalidNoUniverseCheckPragma_
+  InvalidTerminationCheckPragma   {} -> InvalidTerminationCheckPragma_
+  InvalidCoverageCheckPragma      {} -> InvalidCoverageCheckPragma_
+  InvalidTacticAttribute          {} -> InvalidTacticAttribute_
+  MissingDataDeclaration          {} -> MissingDataDeclaration_
+  MissingDefinitions              {} -> MissingDefinitions_
+  NotAllowedInMutual              {} -> NotAllowedInMutual_
+  OpenImportPrivate               {} -> OpenImportPrivate_
+  OpenImportAbstract              {} -> OpenImportAbstract_
+  PolarityPragmasButNotPostulates {} -> PolarityPragmasButNotPostulates_
+  PragmaNoTerminationCheck        {} -> PragmaNoTerminationCheck_
+  PragmaCompiled                  {} -> PragmaCompiled_
+  SafeFlagEta                     {} -> SafeFlagEta_
+  SafeFlagInjective               {} -> SafeFlagInjective_
+  SafeFlagNoCoverageCheck         {} -> SafeFlagNoCoverageCheck_
+  SafeFlagNoPositivityCheck       {} -> SafeFlagNoPositivityCheck_
+  SafeFlagNoUniverseCheck         {} -> SafeFlagNoUniverseCheck_
+  SafeFlagNonTerminating          {} -> SafeFlagNonTerminating_
+  SafeFlagPolarity                {} -> SafeFlagPolarity_
+  SafeFlagTerminating             {} -> SafeFlagTerminating_
+  ShadowingInTelescope            {} -> ShadowingInTelescope_
+  UnknownFixityInMixfixDecl       {} -> UnknownFixityInMixfixDecl_
+  UnknownNamesInFixityDecl        {} -> UnknownNamesInFixityDecl_
+  UnknownNamesInPolarityPragmas   {} -> UnknownNamesInPolarityPragmas_
+  UselessAbstract                 {} -> UselessAbstract_
+  UselessImport                   {} -> UselessImport_
+  UselessInstance                 {} -> UselessInstance_
+  UselessMacro                    {} -> UselessMacro_
+  UselessPrivate                  {} -> UselessPrivate_
 
 -- | Nicifier warnings turned into errors in @--safe@ mode.
 unsafeDeclarationWarning :: DeclarationWarning -> Bool
@@ -255,6 +266,7 @@ unsafeDeclarationWarning' = \case
   HiddenGeneralize{}                -> False
   InvalidCatchallPragma{}           -> False
   InvalidConstructorBlock{}         -> False
+  InvalidDataOrRecDefParameter{}    -> False
   InvalidNoPositivityCheckPragma{}  -> False
   InvalidNoUniverseCheckPragma{}    -> False
   InvalidTerminationCheckPragma{}   -> False
@@ -281,6 +293,7 @@ unsafeDeclarationWarning' = \case
   UnknownNamesInFixityDecl{}        -> False
   UnknownNamesInPolarityPragmas{}   -> False
   UselessAbstract{}                 -> False
+  UselessImport{}                   -> False
   UselessInstance{}                 -> False
   UselessMacro{}                    -> False
   UselessPrivate{}                  -> False
@@ -368,6 +381,7 @@ instance HasRange DeclarationWarning' where
     InvalidCatchallPragma r            -> r
     InvalidConstructorBlock r          -> r
     InvalidCoverageCheckPragma r       -> r
+    InvalidDataOrRecDefParameter r _ _ _ -> r
     InvalidNoPositivityCheckPragma r   -> r
     InvalidNoUniverseCheckPragma r     -> r
     InvalidTerminationCheckPragma r    -> r
@@ -393,6 +407,7 @@ instance HasRange DeclarationWarning' where
     UnknownNamesInFixityDecl xs        -> getRange xs
     UnknownNamesInPolarityPragmas xs   -> getRange xs
     UselessAbstract kwr                -> getRange kwr
+    UselessImport r                    -> r
     UselessInstance kwr                -> getRange kwr
     UselessMacro kwr                   -> getRange kwr
     UselessPrivate kwr                 -> getRange kwr
@@ -498,6 +513,9 @@ instance Pretty DeclarationWarning' where
     UselessAbstract _ -> fsep $
       pwords "Using abstract here has no effect. Abstract applies to only definitions like data definitions, record type definitions and function clauses."
 
+    UselessImport _ -> fsep $
+      pwords "An import statement with module instantiation is useless without either an `open' keyword or an `as` binding giving a name to the instantiated module."
+
     UselessInstance _ -> fsep $
       pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms (other than primitives)."
 
@@ -527,6 +545,14 @@ instance Pretty DeclarationWarning' where
     EmptyPolarityPragma _ -> fsep $ pwords "POLARITY pragma without polarities (ignored)."
 
     HiddenGeneralize _ -> fsep $ pwords "Declaring a variable as hidden has no effect in a variable block. Generalization never introduces visible arguments."
+
+    InvalidDataOrRecDefParameter _ dataOrRec what explanation -> fsep $ concat
+      [ [ "Ignoring" ]
+      , twords what
+      , pwords "in"
+      , [ ifThenElse dataOrRec "data" "record", "definition" ]
+      , twords explanation
+      ]
 
     InvalidTacticAttribute _ -> fsep $
       pwords "Ignoring misplaced tactic attribute."

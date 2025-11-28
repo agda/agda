@@ -38,8 +38,7 @@ typeErrorName = \case
   -- Generic errors (alphabetically)
   CompilationError          {} -> CompilationError_
   CustomBackendError        {} -> CustomBackendError_
-  GenericError              {} -> GenericError_
-  GenericDocError           {} -> GenericDocError_
+  UserError                 {} -> UserError_
   InternalError             {} -> InternalError_
   LibraryError              {} -> LibraryError_
   NonFatalErrors            {} -> NonFatalErrors_
@@ -126,8 +125,8 @@ typeErrorName = \case
   InvalidBuiltin                                             {} -> InvalidBuiltin_
   InvalidDottedExpression                                    {} -> InvalidDottedExpression_
   IllTypedPatternAfterWithAbstraction                        {} -> IllTypedPatternAfterWithAbstraction_
+  IlltypedRewriteRule                                        {} -> IlltypedRewriteRule_
   IllegalDeclarationBeforeTopLevelModule                     {} -> IllegalDeclarationBeforeTopLevelModule_
-  IllegalDeclarationInDataDefinition                         {} -> IllegalDeclarationInDataDefinition_
   IllegalHidingInPostfixProjection                           {} -> IllegalHidingInPostfixProjection_
   IllegalInstanceVariableInPatternSynonym                    {} -> IllegalInstanceVariableInPatternSynonym_
   IllegalLetInTelescope                                      {} -> IllegalLetInTelescope_
@@ -357,6 +356,7 @@ unquoteErrorName = \case
   ConInsteadOfDef             {} -> ConInsteadOfDef_
   DefineDataNotData           {} -> DefineDataNotData_
   DefInsteadOfCon             {} -> DefInsteadOfCon_
+  EscapingVariable            {} -> EscapingVariable_
   MissingDeclaration          {} -> MissingDeclaration_
   MissingDefinition           {} -> MissingDefinition_
   NakedUnquote                {} -> NakedUnquote_
