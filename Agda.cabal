@@ -921,6 +921,7 @@ library
       Agda.Utils.SmallSet
       Agda.Utils.StrictState
       Agda.Utils.StrictState2
+      Agda.Utils.StrictWriter
       Agda.Utils.String
       Agda.Utils.Suffix
       Agda.Utils.Three
