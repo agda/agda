@@ -196,7 +196,10 @@ localNames k top opScope@(OpScope _ _ locals) = do
   let
     f = case k of
       IsExpr    -> const True
-      IsPattern -> let
+      IsPattern YesDisplayLHS -> const True
+        -- #8228: Non-constructor-like operators are useful in DISPLAY
+        -- pragmas.
+      IsPattern NoDisplayLHS -> let
           -- Andreas, 2025-02-28, issue #7722
           -- Filter by kind.
           -- Just return the constructor-like operators,

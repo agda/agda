@@ -74,8 +74,8 @@ billToParser :: ExprKind -> ScopeM a -> ScopeM a
 billToParser k = Bench.billTo
   [ Bench.Parsing
   , case k of
-      IsExpr    -> Bench.OperatorsExpr
-      IsPattern -> Bench.OperatorsPattern
+      IsExpr      -> Bench.OperatorsExpr
+      IsPattern _ -> Bench.OperatorsPattern
   ]
 
 ---------------------------------------------------------------------------
@@ -108,11 +108,9 @@ data Parsers e = Parsers
     -- name parts occurs in the expression.
   }
 
-{-# SPECIALIZE
-  buildParsersFromOperatorScope ::
+{-# SPECIALIZE buildParsersFromOperatorScope ::
      ExprKind -> Maybe QName -> Set QName -> OperatorScope -> ScopeM (Parsers Expr) #-}
-{-# SPECIALIZE
-  buildParsersFromOperatorScope ::
+{-# SPECIALIZE buildParsersFromOperatorScope ::
      ExprKind -> Maybe QName -> Set QName -> OperatorScope -> ScopeM (Parsers Pattern) #-}
 
 -- | Builds parsers for operator applications from all the operators
@@ -140,8 +138,8 @@ buildParsersFromOperatorScope ::
 buildParsersFromOperatorScope kind top namesInExpr opScope = do
 
     (names, ops0) <- localNames kind top opScope
-    let ops | kind == IsPattern = filter (not . isLambdaNotation) ops0
-            | otherwise         = ops0
+    let ops | isKindPattern kind = filter (not . isLambdaNotation) ops0
+            | otherwise          = ops0
 
     let
         partListsInExpr' = map (List1.toList . nameParts . unqualify)
@@ -227,7 +225,7 @@ buildParsersFromOperatorScope kind top namesInExpr opScope = do
           _                                  -> __IMPOSSIBLE__
 
         -- If "or" is replaced by "and" in conParts/allParts below,
-        -- then the misspelled operator application "if x thenn x else
+        -- then the misspelled operator application "if x then x else
         -- x" can be parsed as "if" applied to five arguments,
         -- resulting in a confusing error message claiming that "if"
         -- is not in scope.
@@ -252,7 +250,7 @@ buildParsersFromOperatorScope kind top namesInExpr opScope = do
                         filter (or . partsPresent) ops)
 
         isAtom x
-          | kind == IsPattern && not (isQualified x) =
+          | isKindPattern kind && not (isQualified x) =
             not (Set.member x conParts) || Set.member x conNames
           | otherwise =
             not (Set.member x allParts) || Set.member x allNames
@@ -260,8 +258,8 @@ buildParsersFromOperatorScope kind top namesInExpr opScope = do
         -- unless it is also used as an identifier. See issue 307.
 
         parseSections = case kind of
-          IsPattern -> DoNotParseSections
-          IsExpr    -> ParseSections
+          IsPattern _ -> DoNotParseSections
+          IsExpr      -> ParseSections
 
     let nonClosedSections l ns =
           case parseSections of
@@ -661,7 +659,7 @@ parseLHS' NoDisplayLHS IsLHS (Just qn) WildP{} =
 parseLHS' displayLhs lhsOrPatSyn top p = do
 
     -- Build parser.
-    patP <- alwaysBuildParsers IsPattern top (patternQNames p)
+    patP <- alwaysBuildParsers (IsPattern displayLhs) top (patternQNames p)
 
     -- Run parser, forcing result.
     let ps   = let result = parsePat (parser patP) p
@@ -779,7 +777,7 @@ parseLHS ::
   -> Pattern
        -- ^ Full left hand side.
   -> ScopeM LHSCore
-parseLHS displayLhs top p = billToParser IsPattern $ do
+parseLHS displayLhs top p = billToParser (IsPattern displayLhs) $ do
   (res, ops) <- parseLHS' displayLhs IsLHS (Just top) p
   case res of
     ParseLHS _f lhs -> return lhs
@@ -794,7 +792,7 @@ parsePatternSyn :: Pattern -> ScopeM Pattern
 parsePatternSyn = parsePatternOrSyn IsPatSyn
 
 parsePatternOrSyn :: LHSOrPatSyn -> Pattern -> ScopeM Pattern
-parsePatternOrSyn lhsOrPatSyn p = billToParser IsPattern $ do
+parsePatternOrSyn lhsOrPatSyn p = billToParser (IsPattern NoDisplayLHS) $ do
   (res, ops) <- parseLHS' NoDisplayLHS lhsOrPatSyn Nothing p
   case res of
     ParsePattern p -> return p

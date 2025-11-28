@@ -171,8 +171,12 @@ instance IsBool DisplayLHS where
 
 -- | Expression kinds: Expressions or patterns.
 
-data ExprKind = IsExpr | IsPattern
+data ExprKind = IsExpr | IsPattern DisplayLHS
   deriving (Eq, Show)
+
+isKindPattern :: ExprKind -> Bool
+isKindPattern (IsPattern _) = True
+isKindPattern IsExpr        = False
 
 ---------------------------------------------------------------------------
 -- * Record Directives
