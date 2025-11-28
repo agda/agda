@@ -373,19 +373,27 @@ addImportedThings isig metas ibuiltin patsyns display userwarn
 
 -- | Merges two signatures, assuming the second is being imported into the first
 --
--- This is not commutative, because we assume rewrite rules in the second
--- signature cannot refer to definitions in the first.
-importSignature :: Signature -> Signature -> Signature
+-- This is not commutative: `Map.union` is left-biased and we also assume that
+-- updates from rewrite rules in the first signature do not need to be
+-- re-applied (rewrite rules in the current signature cannot refer to
+-- definitions that are not in the current signature)
+importSignature ::
+     Signature
+       -- ^ Current signature
+  -> Signature
+       -- ^ Signature being imported
+  -> Signature
+       -- ^ Merged signature
 importSignature (Sig a b c d) (Sig a' b' c' d') =
   Sig (Map.union a a')
-      (fixupDefs $ HMap.union b b') -- definitions are unique (in at most one module, but need to be fixed to account for the new rewrite rules)
+      (fixupDefs $ HMap.union b b') -- definitions are unique (in at most one module) but need to be fixed to account for the new rewrite rules
       (HMap.unionWith mappend c c') -- rewrite rules are accumulated
       (d <> d')                     -- instances are accumulated
   where
     -- #8218: Rewrite rules can modify the signature (e.g. definitional
     -- injectivity of the head symbol). We need to replay these adjustments when
     -- importing because rewrite rules might be defined in a different module
-    -- from the definitions the modify.
+    -- from the definitions they modify.
     fixupDefs ds = foldr (\(f, rews) -> updateDefsForRewrites f rews
                                       $ rews >>= getMatchables)
                          ds (HMap.toList c')
