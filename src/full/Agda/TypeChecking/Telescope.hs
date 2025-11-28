@@ -501,9 +501,13 @@ instance Subst Boundary where
   type SubstArg Boundary = Term
   applySubst sub = varBoundary . applySubst sub . tmBoundary
 
+  applySubst' = applySubst -- TODO
+
 instance Subst TmBoundary where
   type SubstArg TmBoundary = Term
   applySubst sub = Boundary . applySubst sub . theBoundary
+
+  applySubst' = applySubst -- TODO
 
 deriving instance (Pretty x, Pretty a) => Pretty (Boundary' x a)
 

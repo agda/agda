@@ -247,6 +247,13 @@ map' :: (a -> b) -> [a] -> [b]
 map' f [] = []
 map' f (a:as) = let !b = f a; !bs = map' f as in b:bs
 
+-- | Strict appending.
+append' :: [a] -> [a] -> [a]
+append' [] ys = ys
+append' (x:xs) ys =
+  let !rest = append' xs ys
+  in x : rest
+
 -- | Update the first element of a list, if it exists.
 --   O(1).
 updateHead :: (a -> a) -> [a] -> [a]

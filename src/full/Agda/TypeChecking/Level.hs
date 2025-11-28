@@ -17,6 +17,7 @@ import Agda.Utils.List1 ( List1, pattern (:|) )
 import Agda.Utils.Maybe ( caseMaybeM, allJustM )
 import Agda.Utils.Monad ( tryMaybe )
 import Agda.Utils.Singleton
+import Agda.Utils.PointerEquality
 
 import Agda.Utils.Impossible
 
@@ -252,6 +253,10 @@ instance Subst t => Subst (SingleLevel' t) where
 
   applySubst sub (SingleClosed m) = SingleClosed m
   applySubst sub (SinglePlus a)   = SinglePlus $ applySubst sub a
+
+  applySubst' rho = \case
+    old@(SingleClosed m) -> old
+    old@(SinglePlus a)   -> copyCon1 old SinglePlus a (applySubst' rho a)
 
 instance Free t => Free (SingleLevel' t) where
   freeVars' (SingleClosed m) = mempty

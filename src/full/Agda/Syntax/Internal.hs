@@ -839,7 +839,7 @@ isAbsurdPatternName x = x == absurdPatternName
 -- * Smart constructors
 ---------------------------------------------------------------------------
 
--- | Add 'DontCare' is it is not already a @DontCare@.
+-- | Add 'DontCare' if it is not already a @DontCare@.
 dontCare :: Term -> Term
 dontCare v =
   case v of

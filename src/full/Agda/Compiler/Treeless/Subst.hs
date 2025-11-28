@@ -44,11 +44,15 @@ instance Subst TTerm where
       tApp (TPrim PSeq) [TErased, b] = b
       tApp f ts = TApp f ts
 
+  applySubst' = applySubst -- TODO
+
 instance Subst TAlt where
   type SubstArg TAlt = TTerm
   applySubst rho (TACon c i b) = TACon c i (applySubst (liftS i rho) b)
   applySubst rho (TALit l b)   = TALit l (applySubst rho b)
   applySubst rho (TAGuard g b) = TAGuard (applySubst rho g) (applySubst rho b)
+
+  applySubst' = applySubst -- TODO
 
 newtype UnderLambda = UnderLambda Any
   deriving (Eq, Ord, Show, Semigroup, Monoid)

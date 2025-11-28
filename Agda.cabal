@@ -910,6 +910,7 @@ library
       Agda.Utils.Parser.MemoisedCPS
       Agda.Utils.PartialOrd
       Agda.Utils.Permutation
+      Agda.Utils.PointerEquality
       Agda.Utils.Range
       Agda.Utils.RangeMap
       Agda.Utils.SemiRing
@@ -930,7 +931,6 @@ library
       Agda.Utils.Tuple.Strict
       Agda.Utils.TypeLevel
       Agda.Utils.TypeLits
-      Agda.Utils.Unsafe
       Agda.Utils.Update
       Agda.Utils.VarSet
       Agda.Utils.WithDefault

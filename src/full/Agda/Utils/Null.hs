@@ -53,7 +53,7 @@ import qualified Agda.Utils.Bag as Bag
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
-import Agda.Utils.Unsafe (unsafeComparePointers)
+import Agda.Utils.PointerEquality (ptrEq)
 import Agda.Utils.Impossible
 
 class Null a where
@@ -64,7 +64,7 @@ class Null a where
   -- | The default implementation of 'null' compares with 'empty',
   --   first trying pointer equality, then falling back to 'Eq' equality.
   default null :: Eq a => a -> Bool
-  null a = unsafeComparePointers a empty || a == empty
+  null a = ptrEq a empty || a == empty
 
 instance Null () where
   empty  = ()

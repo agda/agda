@@ -1319,7 +1319,7 @@ assignMeta' m x t n ids v = do
         l                    -> Nothing : assocToList (i + 1) l
       ivs = assocToList 0 ids
       rho = prependS impossible ivs $ raiseS n
-      v'  = applySubst rho v
+      v'  = applySubst' rho v
 
   -- Metas are top-level so we do the assignment at top-level.
   inTopContext $ do

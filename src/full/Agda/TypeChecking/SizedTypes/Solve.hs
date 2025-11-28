@@ -99,6 +99,7 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.VarSet (VarSet)
+import Agda.Utils.PointerEquality
 
 import Agda.Utils.Impossible
 
@@ -656,6 +657,13 @@ instance Subst SizeMeta where
           Var j [] -> j
           _        -> __IMPOSSIBLE__
 
+  applySubst' sigma old@(SizeMeta x es)
+    = copyCon1 old (SizeMeta x) es (mapCopy raise es)
+     where
+       raise i = case lookupS sigma i of
+         Var j [] -> if j == i then i else j
+         _        -> __IMPOSSIBLE__
+
 -- | Only for 'raise'.
 instance Subst (SizeExpr' NamedRigid SizeMeta) where
   type SubstArg (SizeExpr' NamedRigid SizeMeta) = Term
@@ -669,10 +677,14 @@ instance Subst (SizeExpr' NamedRigid SizeMeta) where
           Var j [] -> Rigid r{ rigidIndex = j } n
           _        -> __IMPOSSIBLE__
 
+  applySubst' = applySubst -- TODO
+
 instance Subst SizeConstraint where
   type SubstArg SizeConstraint = Term
   applySubst sigma (Constraint a cmp b) =
     Constraint (applySubst sigma a) cmp (applySubst sigma b)
+
+  applySubst' = applySubst -- TODO
 
 -- | Turn a constraint over de Bruijn indices into a size constraint.
 computeSizeConstraint :: ProblemConstraint -> TCM (Maybe HypSizeConstraint)

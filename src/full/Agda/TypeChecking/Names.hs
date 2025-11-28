@@ -40,6 +40,7 @@ import Agda.TypeChecking.Pretty ()  -- instances only
 import Agda.Utils.Fail (Fail, runFail_)
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import Agda.Utils.Impossible
+import Agda.Utils.PointerEquality (copyCon1)
 
 newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
   deriving ( Functor
@@ -159,6 +160,8 @@ data AbsN a = AbsN { absNName :: [ArgName], unAbsN :: a } deriving (Functor,Fold
 instance Subst a => Subst (AbsN a) where
   type SubstArg (AbsN a) = SubstArg a
   applySubst rho (AbsN xs a) = AbsN xs (applySubst (liftS (length xs) rho) a)
+  applySubst' rho old@(AbsN xs a) =
+    copyCon1 old (AbsN xs) a (applySubst' (liftS (length xs) rho) a)
 
 -- | Will crash on @NoAbs@
 toAbsN :: Abs (AbsN a) -> AbsN a

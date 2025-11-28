@@ -21,6 +21,11 @@ import Agda.Utils.Impossible
 class Apply t where
   apply  :: t -> Args -> t
   applyE :: t -> Elims -> t
+  apply' :: t -> Args -> t
+  applyE' :: t -> Elims -> t
+
+  apply' = apply   -- TODO
+  applyE' = applyE -- TODO
 
   apply t args = applyE t $ map Apply args
   -- Andreas, 2018-06-18, issue #3136
@@ -65,9 +70,14 @@ class Abstract t where
 class DeBruijn (SubstArg a) => Subst a where
   type SubstArg a
   applySubst :: Substitution' (SubstArg a) -> a -> a
+  applySubst' :: Substitution' (SubstArg a) -> a -> a
+  -- applySubst' = undefined
 
   default applySubst :: (a ~ f b, Functor f, Subst b, SubstArg a ~ SubstArg b) => Substitution' (SubstArg a) -> a -> a
   applySubst rho = fmap (applySubst rho)
+
+  -- default applySubst' :: (a ~ f b, Functor f, Subst b, SubstArg a ~ SubstArg b) => Substitution' (SubstArg a) -> a -> a
+  -- applySubst' rho = fmap (applySubst' rho)
 
 -- | Simple constraint alias for a `Subst` instance `a` with arg type `t`.
 type SubstWith t a = (Subst a, SubstArg a ~ t)
@@ -82,20 +92,39 @@ type TermSubst a = SubstWith Term a
 raise :: Subst a => Nat -> a -> a
 raise = raiseFrom 0
 
+-- | Raise de Bruijn index, i.e. weakening
+raise' :: Subst a => Nat -> a -> a
+raise' = raiseFrom' 0
+
 raiseFrom :: Subst a => Nat -> Nat -> a -> a
 raiseFrom n k = applySubst (raiseFromS n k)
+
+raiseFrom' :: Subst a => Nat -> Nat -> a -> a
+raiseFrom' n k = applySubst' (raiseFromS n k)
 
 -- | Replace de Bruijn index i by a 'Term' in something.
 subst :: Subst a => Int -> SubstArg a -> a -> a
 subst i u = applySubst $ singletonS i u
 
+-- | Replace de Bruijn index i by a 'Term' in something.
+subst' :: Subst a => Int -> SubstArg a -> a -> a
+subst' i u = applySubst' $! singletonS i u
+
 strengthen :: Subst a => Impossible -> a -> a
 strengthen err = applySubst (strengthenS err 1)
+
+strengthen' :: Subst a => Impossible -> a -> a
+strengthen' err = applySubst' $! strengthenS err 1
 
 -- | Replace what is now de Bruijn index 0, but go under n binders.
 --   @substUnder n u == subst n (raise n u)@.
 substUnder :: Subst a => Nat -> SubstArg a -> a -> a
-substUnder n u = applySubst (liftS n (singletonS 0 u))
+substUnder n u = applySubst $! liftS n (singletonS 0 u)
+
+-- | Replace what is now de Bruijn index 0, but go under n binders.
+--   @substUnder n u == subst n (raise n u)@.
+substUnder' :: Subst a => Nat -> SubstArg a -> a -> a
+substUnder' n u = applySubst' $! liftS n (singletonS 0 u)
 
 -- | Checks whether the variable bound by the abstraction is actually
 -- used, and, if /not/, returns the term within, 'strengthen'ed to live in
@@ -112,10 +141,12 @@ isNoAbs (Abs _ b)
 instance Subst QName where
   type SubstArg QName = Term
   applySubst _ q = q
+  applySubst' _ q = q
 
 instance DeBruijn t => Subst (NoSubst t a) where
   type SubstArg (NoSubst t a) = t
   applySubst _ x = x
+  applySubst' _ x = x
 
 ---------------------------------------------------------------------------
 -- * Explicit substitutions

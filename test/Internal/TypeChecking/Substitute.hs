@@ -97,6 +97,7 @@ instance Subst Tm where
     AnnT t v  -> AnnT t $ applySubst rho v
     ConT t vs -> ConT t $ map (applySubst rho) vs
     LamT t b  -> LamT t $ applySubst (liftS 1 rho) b
+  applySubst' = applySubst
 
 -- Checking terms ---------------------------------------------------------
 

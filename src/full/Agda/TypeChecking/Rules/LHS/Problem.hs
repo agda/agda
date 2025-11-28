@@ -371,18 +371,22 @@ getUserVariableNames tel names = runWriter $
 instance Subst (Problem a) where
   type SubstArg (Problem a) = Term
   applySubst rho (Problem eqs rps cont) = Problem (applySubst rho eqs) rps cont
+  applySubst' = applySubst -- TODO
 
 instance Subst AsBinding where
   type SubstArg AsBinding = Term
   applySubst rho (AsB x v a) = (\(v,a) -> AsB x v a) $ applySubst rho (v, a)
+  applySubst' = applySubst -- TODO
 
 instance Subst DotPattern where
   type SubstArg DotPattern = Term
   applySubst rho (Dot e v a) = uncurry (Dot e) $ applySubst rho (v, a)
+  applySubst' = applySubst -- TODO
 
 instance Subst AbsurdPattern where
   type SubstArg AbsurdPattern = Term
   applySubst rho (Absurd r a) = Absurd r $ applySubst rho a
+  applySubst' = applySubst -- TODO
 
 instance PrettyTCM ProblemEq where
   prettyTCM (ProblemEq p v a) = sep

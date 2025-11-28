@@ -48,6 +48,7 @@ import Agda.Utils.Null
 import Agda.Utils.Tuple
 import Agda.Utils.Size
 import Agda.Utils.BoolSet (BoolSet)
+import Agda.Utils.PointerEquality
 import qualified Agda.Utils.BoolSet as BoolSet
 
 import Agda.TypeChecking.Primitive.Cubical.HCompU
@@ -1228,6 +1229,9 @@ instance Subst LType where
   type SubstArg LType = Term
   applySubst rho (LEl l t) = LEl (applySubst rho l) (applySubst rho t)
 
+  applySubst' rho old@(LEl l t) =
+    copyCon2 old LEl l (applySubst' rho l) t (applySubst' rho t)
+
 -- | A @Type@ that either has sort @Type l@ or is a closed definition.
 --   Such a type supports some version of transp.
 --   In particular we want to allow the Interval as a @ClosedType@.
@@ -1268,6 +1272,10 @@ instance Subst CType where
   type SubstArg CType = Term
   applySubst rho (ClosedType s q) = ClosedType (applySubst rho s) q
   applySubst rho (LType t) = LType $ applySubst rho t
+
+  applySubst' rho = \case
+    old@(ClosedType s q) -> copyCon1 old (flip ClosedType q) s (applySubst' rho s)
+    old@(LType t)        -> copyCon1 old LType t (applySubst' rho t)
 
 hcomp :: (HasBuiltins m, MonadError TCErr m, MonadReduce m, MonadPretty m)
   => NamesT m Type

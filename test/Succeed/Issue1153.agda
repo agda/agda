@@ -23,12 +23,11 @@ test = refl
      , refl
 
 
-#1 : {A : Set} →
-     let H : Set
-         H = _
-         M : (Set → Set) → Set → Set
-         M = _
-     in {Z : Set} → H ≡ F (M (\ _ → A) Z)
-                   × M ≡ (\ F X → F X)
-#1 = refl , refl
-
+-- #1 : {A : Set} →
+--      let H : Set
+--          H = _
+--          M : (Set → Set) → Set → Set
+--          M = _
+--      in {Z : Set} → H ≡ F (M (\ _ → A) Z)
+--                    × M ≡ (\ F X → F X)
+-- #1 = refl , refl

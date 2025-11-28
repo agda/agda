@@ -58,7 +58,7 @@ import Agda.Utils.BoolSet (BoolSet)
 import qualified Agda.Utils.BoolSet as BoolSet
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-import Agda.Utils.Unsafe ( unsafeComparePointers )
+import Agda.Utils.PointerEquality ( ptrEq )
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
@@ -111,10 +111,9 @@ intersectVars = zipWithM areVars where
 
 -- | @guardPointerEquality x y s m@ behaves as @m@ if @x@ and @y@ are equal as pointers,
 -- or does nothing otherwise.
--- Use with care, see the documentation for 'unsafeComparePointers'
 guardPointerEquality :: MonadConversion m => a -> a -> String -> m () -> m ()
 guardPointerEquality u v profileSection action =
-  if unsafeComparePointers u v
+  if ptrEq u v
   then whenProfile Profile.Conversion $ tick profileSection
   else action
 

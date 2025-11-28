@@ -135,3 +135,5 @@ instance Subst SplitPattern where
         (VarP o x) -> VarP o $ x
           { splitExcludedLits = lits ++ splitExcludedLits x }
         p -> p
+
+  applySubst' = applySubst -- TODO
