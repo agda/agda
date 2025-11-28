@@ -2089,6 +2089,18 @@ the buffer."
   ;; grep, but we could also look through all open buffers as well.
   (xref-backend-references nil identifier))
 
+;; Copy of `xref-apropos-regexp' for releases of Emacs<28.1
+(declare-function apropos-parse-pattern "apropos" (pattern &optional multiline-p))
+(defun agda2-mode-apropos-regexp (pattern)
+  "Return an Emacs regexp from PATTERN similar to `apropos'."
+  (require 'apropos)
+  (apropos-parse-pattern
+   (if (string-equal (regexp-quote pattern) pattern)
+       ;; Split into words
+       (or (split-string pattern "[ \t]+" t)
+           (user-error "No word list given"))
+     pattern)))
+
 (cl-defmethod xref-backend-apropos ((_ (eql 'agda2)) pattern)
   "Generate a list of definitions matching PATTERN."
   (clrhash agda2-last-xref-ict)
@@ -2097,7 +2109,7 @@ the buffer."
       (when (derived-mode-p 'agda2-mode)
         (agda2-slurp-identifiers))))
   ;; TODO: add type annotations
-  (cl-loop with regexp = (xref-apropos-regexp pattern)
+  (cl-loop with regexp = (agda2-mode-apropos-regexp pattern)
            for ident being the hash-keys of agda2-last-xref-ict
            using (hash-values xref-info)
            when (string-match-p regexp ident)
