@@ -1402,6 +1402,7 @@ checkExpr' cmp e t =
                                               [ "checkExpr" <?> fsep [ prettyTCM e, ":", prettyTCM t ]
                                               , "  returns" <?> prettyTCM v ]) $
   traceCall (CheckExprCall cmp e t) $ localScope $ doExpandLast $ unfoldInlined =<< do
+    -- (\tm -> do putClosuresRangesAt ( ) ; return tm) =<< do
     reportSDoc "tc.term.expr.top" 15 $
         "Checking" <+> sep
           [ fsep [ prettyTCM e, ":", prettyTCM t ]
@@ -1414,7 +1415,7 @@ checkExpr' cmp e t =
         "    --> " <+> prettyTCM tReduced
 
     e <- scopedExpr e
-
+    putClosuresRangesType t Nothing
     irrelevantIfProp <- runBlocked (isPropM t) >>= \case
       Right True  -> do
         let mod = unitModality { modRelevance = irrelevant }
@@ -1500,7 +1501,7 @@ checkExpr' cmp e t =
         A.Dot{} -> typeError InvalidDottedExpression
 
         -- Application
-        _   | Application hd args <- appView e -> checkApplication cmp hd args e t
+        _   | Application hd args <- appView' e -> checkApplication cmp hd args e t
 
       `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
         -- We could not check the term because the type of some pattern is blocked.
@@ -1650,12 +1651,18 @@ checkQuestionMark new cmp t0 i ii = do
 
 -- | Check an underscore without arguments.
 checkUnderscore :: A.MetaInfo -> Comparison -> Type -> TCM Term
-checkUnderscore i = checkMeta i (newValueMetaOfKind i RunMetaOccursCheck)
-
+checkUnderscore i cmp ty = do
+  tm <- checkMeta i (newValueMetaOfKind i RunMetaOccursCheck) cmp ty
+  putClosuresRangesType ty (Just tm)
+  pure tm
+  
 -- | Type check a meta variable.
 checkMeta :: A.MetaInfo -> (Comparison -> Type -> TCM (MetaId, Term)) -> Comparison -> Type -> TCM Term
-checkMeta i newMeta cmp t = fst <$> checkOrInferMeta i newMeta (Just (cmp , t))
-
+checkMeta i newMeta cmp t = do
+   tm <- fst <$> checkOrInferMeta i newMeta (Just (cmp , t))
+   putClosuresRangesType t (Just tm)
+   pure tm
+   
 -- | Infer the type of a meta variable.
 --   If it is a new one, we create a new meta for its type.
 inferMeta :: A.MetaInfo -> (Comparison -> Type -> TCM (MetaId, Term)) -> TCM (Elims -> Term, Type)
@@ -1776,6 +1783,7 @@ checkNamedArg arg@(Arg info e0) t0 = do
       -- This is why we first test for isHole, and only do
       -- scope manipulations if we actually handle the checking
       -- of e here (and not pass it to checkExpr).
+      
       scopedExpr e >>= \case
         A.Underscore i ->  checkU i
         A.QuestionMark i ii -> checkQ i ii
@@ -1794,11 +1802,11 @@ inferExpr = inferExpr' DontExpandLast
 
 inferExpr' :: ExpandHidden -> A.Expr -> TCM (Term, Type)
 inferExpr' exh e = traceCall (InferExpr e) $ do
-  let Application hd args = appView e
+  let Application hd args = appView' e
   reportSDoc "tc.infer" 30 $ vcat
     [ "inferExpr': appView of " <+> prettyA e
     , "  hd   = " <+> prettyA hd
-    , "  args = " <+> prettyAs args
+    , "  args = " <+> prettyAs (map (updateNamedArg snd) args)
     ]
   reportSDoc "tc.infer" 60 $ vcat
     [ text $ "  hd (raw) = " ++ show hd
@@ -1816,7 +1824,7 @@ defOrVar _     = False
 --   Switches off 'ExpandLast' for the checking of top-level application.
 checkDontExpandLast :: Comparison -> A.Expr -> Type -> TCM Term
 checkDontExpandLast cmp e t = case e of
-  _ | Application hd args <- appView e,  defOrVar hd ->
+  _ | Application hd args <- appView' e,  defOrVar hd ->
     traceCall (CheckExprCall cmp e t) $ localScope $ dontExpandLast $ do
       checkApplication cmp hd args e t
   _ -> checkExpr' cmp e t -- note that checkExpr always sets ExpandLast

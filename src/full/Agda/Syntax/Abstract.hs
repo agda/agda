@@ -75,6 +75,8 @@ instance Ord BindName where
 
 type Args = [NamedArg Expr]
 
+type ArgsWithInfo = [NamedArg (AppInfo , Expr)]
+
 -- | Types are just expressions.
 -- Use this type synonym for hinting that an expression should be a type.
 type Type = Expr
@@ -771,6 +773,22 @@ instance HasRange LetBinding where
   getRange (LetPatBind i _ _ _)    = getRange i
   getRange (LetApply i _ _ _ _ _)  = getRange i
   getRange (LetOpen  i _ _)        = getRange i
+
+
+instance HasRange Void where
+    getRange _ = noRange
+instance HasRange GeneralizeTelescope where
+    getRange _ = noRange
+instance HasRange DataDefParams where
+    getRange _ = noRange
+instance HasRange TypedBindingInfo where
+    getRange _ = noRange
+instance HasRange ModuleApplication where
+    getRange _ = noRange
+  
+instance HasRange Pragma where
+    getRange _ = noRange
+
 
 -- setRange for patterns applies the range to the outermost pattern constructor
 instance SetRange (Pattern' a) where

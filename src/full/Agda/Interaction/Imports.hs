@@ -60,6 +60,7 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Abstract.Views (alignRangeToAbstractExprLikeDecls)
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty hiding (Mode)
 import Agda.Syntax.Parser
@@ -91,7 +92,7 @@ import Agda.TheTypeChecker
 import Agda.Interaction.BasicOps ( getGoals, prettyGoals )
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
-import qualified Agda.Interaction.Highlighting.Precise as Highlighting ( convert )
+import qualified Agda.Interaction.Highlighting.Precise as Highlighting ( convert , parserBased )
 import Agda.Interaction.Highlighting.Vim
 import Agda.Interaction.Library
 import Agda.Interaction.Options
@@ -99,6 +100,8 @@ import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Options.Warnings (unsolvedWarnings)
 import Agda.Interaction.Response
   (RemoveTokenBasedHighlighting(KeepHighlighting))
+import qualified Agda.Interaction.Response.Base as R
+import Agda.Interaction.ASTMap
 
 import Agda.Utils.CallStack (HasCallStack)
 import Agda.Utils.FileName
@@ -114,10 +117,11 @@ import qualified Agda.Interaction.Options.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Set1 as Set1
 import qualified Agda.Utils.Trie as Trie
-
+import Agda.Utils.RangeMap (fromListForce)
+import Agda.Interaction.Highlighting.Range (rangeToRange)
 import Agda.Utils.Impossible
 import System.IO.Error (isUserError, isFullError)
-
+import Agda.Syntax.Common.Aspect (otherAspects, OtherAspect(UnsolvedMeta))
 -- | Whether to ignore interfaces (@.agdai@) other than built-in modules
 
 ignoreInterfaces :: HasOptions m => m Bool
@@ -1146,14 +1150,24 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     let ds    = topLevelDecls topLevel
         scope = topLevelScope topLevel
 
+
+    ifTopLevel $ do
+       let astPld = buildAstMapFromExprLike OpaqueWrappers R.AstLineCol ds
+       appInteractionOutputCallback $
+          R.Resp_AstMap astPld  
+    
     -- Highlighting from scope checker.
     reportSLn "import.iface.highlight" 15 $ prettyShow mname ++ ": Starting highlighting from scope."
     Bench.billTo [Bench.Highlighting] $ do
       -- Generate and print approximate syntax highlighting info.
-      ifTopLevelAndHighlightingLevelIs NonInteractive $
-        printHighlightingInfo KeepHighlighting fileTokenInfo
-      ifTopLevelAndHighlightingLevelIsOr NonInteractive onlyScope $
-        mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial onlyScope) ds
+      
+        ifTopLevelAndHighlightingLevelIs NonInteractive $
+          printHighlightingInfo KeepHighlighting fileTokenInfo
+        ifTopLevelAndHighlightingLevelIsOr NonInteractive onlyScope $
+          mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial onlyScope) ds
+         
+          
+        
     reportSLn "import.iface.highlight" 15 $ prettyShow mname ++ ": Finished highlighting from scope."
 
 
@@ -1180,10 +1194,16 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Skipping type checking."
         cacheCurrentLog
       else do
+        ifTopLevel $ setTCLens (lensPostScopeState . lensClosuresRanges) (Just empty)
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Starting type checking."
         Bench.billTo [Bench.Typing] $ mapM_ checkDeclCached ds `finally_` cacheCurrentLog
         reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Finished type checking."
+        
 
+        -- modifyTCLens (lensPostScopeState . lensClosuresRanges)
+        --   (fmap $ (filter (not . null . craRange . clValue ) . map (fmap (\x ->
+        --         let alignedRange = alignRangeToAbstractExprLikeDecls ds (craRange x)
+        --         in (x {craRange = alignedRange})))))
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.
     -- Ulf, 2013-11-13: Errors are now caught and highlighted in InteractionTop.

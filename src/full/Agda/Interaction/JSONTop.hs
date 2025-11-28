@@ -360,14 +360,14 @@ instance EncodeTCM DisplayInfo where
     , "time"              @= time
     , "expr"              #= encodePrettyTCM expr
     ]
-  encodeTCM (Info_Context ii ctx) = kind "Context"
+  encodeTCM (Info_Context ii _ ctx) = kind "Context"
     [ "interactionPoint"  @= ii
     , "context"           @= ctx
     ]
   encodeTCM Info_Version = kind "Version"
     [ "version"           @= (versionWithCommitInfo :: String)
     ]
-  encodeTCM (Info_GoalSpecific ii info) = kind "GoalSpecific"
+  encodeTCM (Info_GoalSpecific ii _ info) = kind "GoalSpecific"
     [ "interactionPoint"  @= ii
     , "goalInfo"          #= withInteractionId ii (encodeGoalSpecific ii info)
     ]
@@ -476,7 +476,52 @@ instance EncodeTCM Response where
   encodeTCM (Resp_Mimer ii str) = kind "Mimer"
     [ "solution" @= str
     ]
-
+  encodeTCM (Resp_AstMap payload) = encodeTCM payload
+  
 -- | Convert Response to an JSON value for interactive editor frontends.
 jsonifyResponse :: Response -> TCM ByteString
 jsonifyResponse = pure . encode <=< encodeTCM
+
+-- AST positions tag
+instance EncodeTCM AstPositions where
+  encodeTCM AstCodepoint = pure (String "codepoint")
+  encodeTCM AstLineCol   = pure (String "line-col")
+
+instance ToJSON AstPositions where
+  toJSON AstCodepoint = String "codepoint"
+  toJSON AstLineCol   = String "line-col"
+
+-- Single AST node
+instance EncodeTCM AstNode where
+  encodeTCM (AstNode i k b e cs) = obj
+    [ "id"       @= toJSON i
+    , "kind"     @= toJSON k
+    , "beg"      @= toJSON b
+    , "end"      @= toJSON e
+    , "children" @= toJSON cs
+    ]
+
+instance ToJSON AstNode where
+  toJSON (AstNode i k b e cs) = object
+    [ "id"       .= i
+    , "kind"     .= k
+    , "beg"      .= b
+    , "end"      .= e
+    , "children" .= cs
+    ]
+
+-- Whole-file AST map (minimal: positions + root + nodes)
+instance EncodeTCM AstMapPayload where
+  encodeTCM (AstMapPayload pos roots ns) = kind "AstMap"
+    [ "positions" #= encodeTCM pos
+    , "astTopLevel"     @= toJSON roots
+    , "nodes"     #= traverse encodeTCM ns
+    ]
+
+instance ToJSON AstMapPayload where
+  toJSON (AstMapPayload pos roots ns) = object
+    [ "kind"      .= String "AstMap"
+    , "positions" .= toJSON pos
+    , "astTopLevel"     .= roots
+    , "nodes"     .= ns
+    ]

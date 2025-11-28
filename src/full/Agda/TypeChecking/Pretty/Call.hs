@@ -99,7 +99,7 @@ instance PrettyTCM Call where
       let
         prefix =
           pwords "when checking that" ++
-          map hPretty es ++
+          map hPretty (map (updateNamedArg snd) es) ++
           pwords (P.singPlural es "is a valid argument" "are valid arguments")
       case unEl cod of
         Dummy{} -> fsep $

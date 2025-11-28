@@ -456,7 +456,7 @@ instance PrettyTCM TypeCheckingProblem where
     sep [ prettyA e <+> ":?", prettyTCM a ]
   prettyTCM (CheckArgs _ _ _ es t0 t1 _) =
     sep [ parens $ "_ :" <+> prettyTCM t0
-        , nest 2 $ prettyList $ map prettyA es
+        , nest 2 $ prettyList $ map prettyA (map (updateNamedArg snd) es)
         , nest 2 $ ":?" <+> prettyTCM t1 ]
   prettyTCM (CheckProjAppToKnownPrincipalArg cmp e _ _ _ _ t _ _ _ _) = prettyTCM (CheckExpr cmp e t)
   prettyTCM (CheckLambda cmp (Arg ai (xs, mt)) e t) =

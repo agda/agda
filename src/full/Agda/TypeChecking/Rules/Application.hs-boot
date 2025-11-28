@@ -4,7 +4,7 @@ module Agda.TypeChecking.Rules.Application where
 
 import Data.List.NonEmpty (NonEmpty)
 
-import Agda.Syntax.Common (NamedArg, ProjOrigin)
+import Agda.Syntax.Common (ProjOrigin)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
@@ -13,7 +13,7 @@ checkArguments ::
      Comparison
   -> ExpandHidden
   -> A.Expr
-  -> [NamedArg A.Expr]
+  -> A.ArgsWithInfo
   -> Type
   -> Type
   -> (ArgsCheckState CheckedTarget -> TCM Term)
@@ -23,13 +23,13 @@ checkArguments_ ::
      Comparison
   -> ExpandHidden
   -> A.Expr
-  -> [NamedArg A.Expr]
+  -> A.ArgsWithInfo
   -> Telescope
   -> TCM (Elims, Telescope)
 
-checkApplication :: Comparison -> A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
+checkApplication :: Comparison -> A.Expr -> A.ArgsWithInfo -> A.Expr -> Type -> TCM Term
 
-inferApplication :: ExpandHidden -> A.Expr -> A.Args -> A.Expr -> TCM (Term, Type)
+inferApplication :: ExpandHidden -> A.Expr -> A.ArgsWithInfo -> A.Expr -> TCM (Term, Type)
 
 checkProjAppToKnownPrincipalArg ::
      Comparison
@@ -37,7 +37,7 @@ checkProjAppToKnownPrincipalArg ::
   -> ProjOrigin
   -> NonEmpty QName
   -> A.Expr
-  -> A.Args
+  -> A.ArgsWithInfo
   -> Type
   -> Int
   -> Term

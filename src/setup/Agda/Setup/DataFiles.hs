@@ -84,6 +84,8 @@ emacsLispFiles =
   , "agda2.el"
   , "agda-input.el"
   , "agda2-highlight.el"
+  , "agda2-ast.el"
+  , "agda2-ast-commands.el"
   , "agda2-mode.el"
   ]
   -- N.B.: We also ship agda2-mode-pkg.el for melpa,

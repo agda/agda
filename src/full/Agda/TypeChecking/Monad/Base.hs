@@ -50,6 +50,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.String
 import Data.Text (Text)
+import qualified Data.Text as Text
 import qualified Data.Text.Lazy as TL
 import Data.Semigroup (Sum, Max)
 
@@ -111,6 +112,7 @@ import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Response.Base (Response_boot(..))
 import Agda.Interaction.Highlighting.Precise
   (HighlightingInfo, NameKind)
+import Agda.Interaction.Highlighting.Range (rangeToRange)
 import Agda.Interaction.Library
 import Agda.Interaction.Library.Base ( ExeName, ExeMap, LibCache, LibErrors )
 
@@ -144,6 +146,7 @@ import Agda.Utils.Tuple (Pair, (&&&) )
 import Agda.Utils.Update
 import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.Range as U
 
 import Agda.Utils.Impossible
 
@@ -268,6 +271,18 @@ type ConcreteNames = Map Name (List1 C.Name)
 type ShadowingNames = Map Name (Set1 RawName)
 type UsedNames = Map RawName (Set1 RawName)
 
+data ClosureRangeArtefact = ClosureRangeArtefact
+  { craRange         :: Range
+  , craType          :: I.Type
+  , craTerm          :: Maybe I.Term
+  , craHiddenArgs    :: [Named_ Elim]
+  } deriving (Show, Generic)
+
+instance HasRange ClosureRangeArtefact where
+  getRange = craRange
+
+type ClosureRangeList = Map U.Range (Closure ClosureRangeArtefact)
+
 data PostScopeState = PostScopeState
   { stPostSyntaxInfo          :: !HighlightingInfo
     -- ^ Highlighting info.
@@ -351,6 +366,7 @@ data PostScopeState = PostScopeState
     -- ^ Is this a context where we should always try every possible
     -- instance candidate? Used to support "inert improvement", see
     -- @shouldBlockOverlap@ in InstanceArguments.
+  , stClosuresRanges    :: !(Maybe ClosureRangeList)
   }
   deriving (Generic)
 
@@ -542,6 +558,7 @@ initPostScopeState = PostScopeState
   , stPostOpaqueIds              = Map.empty
   , stPostForeignCode            = Map.empty
   , stPostInstanceHack           = False
+  , stClosuresRanges     = Nothing
   }
 
 initStateIO :: IO TCState
@@ -788,6 +805,9 @@ lensInstantiateBlocking f s = f (stPostInstantiateBlocking s) <&> \ x -> s { stP
 
 lensInstanceHack :: Lens' PostScopeState Bool
 lensInstanceHack f s = f (stPostInstanceHack s) <&> \ x -> s { stPostInstanceHack = x }
+
+lensClosuresRanges :: Lens' PostScopeState (Maybe ClosureRangeList)
+lensClosuresRanges f s = f (stClosuresRanges s) <&> \ x -> s { stClosuresRanges = x }
 
 -- * @st@-prefixed lenses
 ------------------------------------------------------------------------
@@ -1154,6 +1174,21 @@ freshRecordName :: MonadFresh NameId m => m Name
 freshRecordName = do
   i <- fresh
   return $ makeName i (C.setNotInScope $ C.simpleName "r") noRange noFixity' True
+
+
+putClosuresRangesAt :: ClosureRangeArtefact -> TCM ()
+putClosuresRangesAt cra@(ClosureRangeArtefact{..}) = 
+  case (rangeToPosPair craRange) of
+    Nothing -> return ()
+    Just _ -> do
+       cl <- buildClosure cra
+       modifyTCLens (lensPostScopeState . lensClosuresRanges)
+           (fmap (Map.insertWith (\a _ -> a) (rangeToRange  craRange) cl))
+
+
+putClosuresRangesType :: I.Type -> Maybe I.Term -> TCM ()
+putClosuresRangesType ty mbTm = do 
+  ((\r -> ClosureRangeArtefact r ty mbTm  []) <$> asksTC envRange) >>= putClosuresRangesAt
 
 -- | Create a fresh name from @a@.
 class FreshName a where
@@ -1895,8 +1930,8 @@ instance AllMetas PrincipalArgTypeMetas where
 
 data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
-  | CheckArgs Comparison ExpandHidden A.Expr [NamedArg A.Expr] Type Type (ArgsCheckState CheckedTarget -> TCM Term)
-  | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (List1 QName) A.Expr A.Args Type Int Term Type PrincipalArgTypeMetas
+  | CheckArgs Comparison ExpandHidden A.Expr A.ArgsWithInfo Type Type (ArgsCheckState CheckedTarget -> TCM Term)
+  | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (List1 QName) A.Expr A.ArgsWithInfo Type Int Term Type PrincipalArgTypeMetas
   | CheckLambda Comparison (Arg (List1 (WithHiding Name), Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
     --   This is not an instance of 'CheckExpr' as the domain type
@@ -3805,7 +3840,7 @@ data Call
   | IsType_ A.Expr
   | InferVar Name
   | InferDef QName
-  | CheckArguments A.Expr [NamedArg A.Expr] Type (Maybe Type)
+  | CheckArguments A.Expr A.ArgsWithInfo Type (Maybe Type)
   | CheckMetaSolution Range MetaId Type Term
   | CheckTargetType Range Type Type
   | CheckDataDef Range QName [A.LamBinding] [A.Constructor]
@@ -4033,6 +4068,17 @@ ifTopLevelAndHighlightingLevelIsOr l b m = do
       (_:_:_) -> pure ()
       -- In or before the top-level module.
       _ -> m
+
+ifTopLevel ::
+  MonadTCEnv tcm => tcm () -> tcm ()
+ifTopLevel m = do
+  e <- askTC
+  case (envImportStack e) of
+      -- Below the main module.
+      (_:_:_) -> pure ()
+      -- In or before the top-level module.
+      _ -> m
+
 
 -- | @ifTopLevelAndHighlightingLevelIs l m@ runs @m@ when we're
 -- type-checking the top-level module (or before we've started doing
@@ -6480,7 +6526,7 @@ forkTCM m = do
 --      closure of the 'InteractionOutputCallback' function.
 --      (suitable for intra-process communication).
 
-type InteractionOutputCallback = Response_boot TCErr TCWarning WarningsAndNonFatalErrors -> TCM ()
+type InteractionOutputCallback = Response_boot TCErr TCWarning WarningsAndNonFatalErrors (Closure Range) -> TCM ()
 
 -- | The default 'InteractionOutputCallback' function prints certain
 -- things to stdout (other things generate internal errors).
@@ -6503,6 +6549,7 @@ defaultInteractionOutputCallback = \case
   Resp_ClearHighlighting {} -> __IMPOSSIBLE__
   Resp_DoneAborting {}      -> __IMPOSSIBLE__
   Resp_DoneExiting {}       -> __IMPOSSIBLE__
+  Resp_AstMap {}            -> __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Names for generated definitions
@@ -6826,7 +6873,7 @@ instance NFData CannotQuote
 instance NFData ExecError
 instance NFData ConstructorDisambiguationData
 instance NFData Statistics
-
+instance NFData ClosureRangeArtefact
 -- Andreas, 2025-07-31, cannot normalize functions with deepseq-1.5.2.0 (GHC 9.10.3-rc1).
 -- See https://github.com/haskell/deepseq/issues/111.
 

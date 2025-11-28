@@ -5,6 +5,7 @@ import Prelude hiding (null)
 
 import Control.Applicative ( Const(Const), getConst )
 import Control.Monad.Identity
+import Control.Monad.State.Strict (State, evalState, get, modify')
 
 import Data.Foldable (foldMap)
 import qualified Data.DList as DL
@@ -15,11 +16,13 @@ import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA, TacticAttribute')
 import Agda.Syntax.Info
 import Agda.Syntax.Scope.Base (KindOfName(..), conKindOfName, WithKind(..))
+import Agda.Syntax.Position (Position, HasRange, Range'(..), Range, noRange, rangeToPosPair, getRange, contains)
 
 import Agda.Utils.Either
-import Agda.Utils.List1 (List1)
+import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.Null
 import Agda.Utils.Singleton
+import Agda.Utils.Maybe
 
 import Agda.Utils.Impossible
 
@@ -130,9 +133,16 @@ type FoldExprRecFn m = forall a. ExprLike a => a -> m
 type TraverseExprFn m a = (Applicative m, Monad m) => (Expr -> m Expr) -> a -> m a
 type TraverseExprRecFn m = forall a. ExprLike a => a -> m a
 
+
+
+type RecurseLikeFn   m a = Applicative m => (forall b. ExprLike b => b -> m b -> m b) -> a -> m a
+type TraverseLikeFn  m a = (Applicative m, Monad m) => (forall b. ExprLike b => b -> m b) -> a -> m a
+type FoldLikeFn      m a = Monoid m => (forall b. ExprLike b => b -> m) -> a -> m
+type TraverseLikeRecFn m = forall b. ExprLike b => b -> m b
+
 -- | Apply an expression rewriting to every subexpression, inside-out.
 --   See "Agda.Syntax.Internal.Generic".
-class ExprLike a where
+class HasRange a => ExprLike a where
   -- | The first expression is pre-traversal, the second one post-traversal.
   recurseExpr :: RecurseExprFn m a
   default recurseExpr :: (Traversable f, ExprLike a', a ~ f a', Applicative m)
@@ -148,6 +158,27 @@ class ExprLike a where
   mapExpr :: (Expr -> Expr) -> (a -> a)
   mapExpr f = runIdentity . traverseExpr (Identity . f)
 
+  ctorName :: a -> String
+  ctorName _ = "TODO - ctorName"
+
+  recurseExprLike :: RecurseLikeFn m a
+  default recurseExprLike
+    :: (Traversable t, ExprLike a', a ~ t a', Applicative m)
+    => (forall b. ExprLike b => b -> m b -> m b) -> a -> m a
+  recurseExprLike g x = g x (traverse (recurseExprLike g) x)
+
+  foldExprLike :: FoldLikeFn m a
+  foldExprLike g = getConst . recurseExprLike (\node post -> Const (g node) <* post) 
+
+  traverseExprLike :: TraverseLikeFn m a
+  traverseExprLike g = recurseExprLike (\_ post -> post >>= g)
+
+  mapExprLike :: (forall b. ExprLike b => b -> b) -> a -> a
+  mapExprLike g = runIdentity . traverseExprLike (pure . g)
+
+  isWrapper :: a -> Bool
+  isWrapper _ = False
+    
 instance ExprLike Expr where
   recurseExpr :: forall m. RecurseExprFn m Expr
   recurseExpr f e0 = f e0 $ do
@@ -255,22 +286,111 @@ instance ExprLike Expr where
       PatternSyn{}               -> f e
       Macro{}                    -> f e
 
-instance ExprLike a => ExprLike (Arg a)
-instance ExprLike a => ExprLike (Maybe a)
-instance ExprLike a => ExprLike (Named x a)
-instance ExprLike a => ExprLike (Ranged a)
-instance ExprLike a => ExprLike [a]
-instance ExprLike a => ExprLike (List1 a)
-instance ExprLike a => ExprLike (TacticAttribute' a)
+
+  ctorName e = case e of
+   Var _                     -> "Var"
+   Def' _ _                  -> "Def'"
+   Proj _ _                  -> "Proj"
+   Con _                     -> "Con"
+   PatternSyn _              -> "PatternSyn"
+   Macro _                   -> "Macro"
+   Lit _ _                   -> "Lit"
+   QuestionMark _ _          -> "QuestionMark"
+   Underscore _              -> "Underscore"
+   Dot _ _                   -> "Dot"
+   App _ _ _                 -> "App"
+   WithApp _ _ _             -> "WithApp"
+   Lam _ _ _                 -> "Lam"
+   AbsurdLam _ _             -> "AbsurdLam"
+   ExtendedLam _ _ _ _ _     -> "ExtendedLam"
+   Pi _ _ _                  -> "Pi"
+   Generalized _ _           -> "Generalized"
+   Fun _ _ _                 -> "Fun"
+   Let _ _ _                 -> "Let"
+   Rec _ _ _                 -> "Rec"
+   RecUpdate _ _ _ _         -> "RecUpdate"
+   RecWhere _ _ _ _          -> "RecWhere"
+   RecUpdateWhere _ _ _ _ _  -> "RecUpdateWhere"
+   ScopedExpr _ _            -> "ScopedExpr"
+   Quote _                   -> "Quote"
+   QuoteTerm _               -> "QuoteTerm"
+   Unquote _                 -> "Unquote"
+   DontCare _                -> "DontCare"
+
+  isWrapper e = case e of
+   ScopedExpr _ _            -> True
+   _                         -> False
+  recurseExprLike :: forall m. RecurseLikeFn m Expr
+  recurseExprLike g e0 = g e0 $ do
+    let rec :: TraverseLikeRecFn m
+        rec = recurseExprLike g
+    case e0 of
+      Var{}                      -> pure e0
+      Def'{}                     -> pure e0
+      Proj{}                     -> pure e0
+      Con{}                      -> pure e0
+      Lit{}                      -> pure e0
+      QuestionMark{}             -> pure e0
+      Underscore{}               -> pure e0
+      Dot ei e                   -> Dot ei <$> rec e
+      App ei e arg               -> App ei <$> rec e <*> rec arg
+      WithApp ei e es            -> WithApp ei <$> rec e <*> rec es
+      Lam ei b e                 -> Lam ei <$> rec b <*> rec e
+      AbsurdLam{}                -> pure e0
+      ExtendedLam ei di re x cs  -> ExtendedLam ei di re x <$> rec cs
+      Pi ei tel e                -> Pi ei <$> rec tel <*> rec e
+      Generalized s e            -> Generalized s <$> rec e
+      Fun ei arg e               -> Fun ei <$> rec arg <*> rec e
+      Let ei bs e                -> Let ei <$> rec bs <*> rec e
+      Rec kwr ei bs              -> Rec kwr ei <$> rec bs
+      RecUpdate kwr ei e bs      -> RecUpdate kwr ei <$> rec e <*> rec bs
+      RecWhere kwr ei bs e       -> RecWhere kwr ei <$> rec bs <*> rec e
+      RecUpdateWhere k r ei e bs -> RecUpdateWhere k r ei <$> rec e <*> rec bs
+      ScopedExpr sc e            -> ScopedExpr sc <$> rec e
+      Quote{}                    -> pure e0
+      QuoteTerm{}                -> pure e0
+      Unquote{}                  -> pure e0
+      DontCare e                 -> DontCare <$> rec e
+      PatternSyn{}               -> pure e0
+      Macro{}                    -> pure e0
+
+instance ExprLike a => ExprLike (Arg a) where
+  ctorName (Arg _ _) = "Arg"
+  isWrapper _ = True
+instance ExprLike a => ExprLike (Maybe a) where
+  ctorName Nothing  = "Nothing"
+  ctorName (Just _) = "Just"
+
+instance ExprLike a => ExprLike (Named x a) where
+  ctorName (Named _ _) = "Named"
+  isWrapper _ = True
+instance ExprLike a => ExprLike (Ranged a) where
+  ctorName _ = "Ranged"
+
+instance ExprLike a => ExprLike [a] where
+  ctorName []      = "[]"
+  ctorName (_:_)   = ":"
+
+instance ExprLike a => ExprLike (List1 a) where
+  ctorName (_ :| _) = ":|"
+
+  isWrapper (_ :| []) = True
+  isWrapper (_ :| _) = False
+  
+instance ExprLike a => ExprLike (TacticAttribute' a) where
+  ctorName _ = "TacticAttribute'"
 
 instance (ExprLike a, ExprLike b) => ExprLike (a, b) where
   recurseExpr f (x, y) = (,) <$> recurseExpr f x <*> recurseExpr f y
 
 instance ExprLike Void where
   recurseExpr f = absurd
+  recurseExprLike _ = absurd
 
 instance ExprLike a => ExprLike (FieldAssignment' a) where
   recurseExpr = exprFieldA . recurseExpr
+
+  recurseExprLike g = exprFieldA (recurseExprLike g)
 
 instance (ExprLike a, ExprLike b) => ExprLike (Either a b) where
   recurseExpr f = traverseEither (recurseExpr f)
@@ -278,12 +398,13 @@ instance (ExprLike a, ExprLike b) => ExprLike (Either a b) where
 
 instance ExprLike BindName where
   recurseExpr f = pure
-
+  recurseExprLike g x = g x (pure x)
 instance ExprLike ModuleName where
   recurseExpr f = pure
-
+  recurseExprLike g x = g x (pure x)
 instance ExprLike QName where
   recurseExpr _ = pure
+  recurseExprLike g x = g x (pure x)
 
 instance ExprLike LamBinding where
   recurseExpr f e =
@@ -299,20 +420,41 @@ instance ExprLike LamBinding where
       DomainFree t x -> DomainFree <$> traverseExpr f t <*> pure x
       DomainFull bs  -> DomainFull <$> traverseExpr f bs
 
+  recurseExprLike :: forall m. RecurseLikeFn m LamBinding
+  recurseExprLike g e =
+    g e $ case e of
+      DomainFree t x -> DomainFree <$> rec t <*> pure x
+      DomainFull bs  -> DomainFull <$> rec bs
+    where
+      rec :: forall b. ExprLike b => b -> m b
+      rec = recurseExprLike g
+
 instance ExprLike GeneralizeTelescope where
   recurseExpr  f (GeneralizeTel s tel) = GeneralizeTel s <$> recurseExpr f tel
   foldExpr     f (GeneralizeTel s tel) = foldExpr f tel
   traverseExpr f (GeneralizeTel s tel) = GeneralizeTel s <$> traverseExpr f tel
+
+  recurseExprLike g (GeneralizeTel s tel) =
+    g (GeneralizeTel s tel) (GeneralizeTel s <$> rec tel)
+    where rec = recurseExprLike g
 
 instance ExprLike DataDefParams where
   recurseExpr  f (DataDefParams s tel) = DataDefParams s <$> recurseExpr f tel
   foldExpr     f (DataDefParams s tel) = foldExpr f tel
   traverseExpr f (DataDefParams s tel) = DataDefParams s <$> traverseExpr f tel
 
+  recurseExprLike g (DataDefParams s tel) =
+    g (DataDefParams s tel) (DataDefParams s <$> rec tel)
+    where rec = recurseExprLike g
+
 instance ExprLike TypedBindingInfo where
   recurseExpr f (TypedBindingInfo s t)  = TypedBindingInfo <$> recurseExpr f s <*> pure t
   foldExpr f (TypedBindingInfo s t)     = foldExpr f s
   traverseExpr f (TypedBindingInfo s t) = TypedBindingInfo <$> traverseExpr f s <*> pure t
+
+  recurseExprLike g (TypedBindingInfo s t) =
+    g (TypedBindingInfo s t) (TypedBindingInfo <$> rec s <*> pure t)
+    where rec = recurseExprLike g
 
 instance ExprLike TypedBinding where
   recurseExpr f e =
@@ -328,6 +470,15 @@ instance ExprLike TypedBinding where
       TBind r t xs e -> TBind r <$> traverseExpr f t <*> pure xs <*> traverseExpr f e
       TLet r ds      -> TLet r <$> traverseExpr f ds
 
+  recurseExprLike :: forall m. RecurseLikeFn m TypedBinding
+  recurseExprLike g tb =
+    g tb $ case tb of
+      TBind r t xs e' -> TBind r <$> rec t <*> pure xs <*> rec e'
+      TLet  r ds      -> TLet  r <$> rec ds
+    where
+      rec :: forall b. ExprLike b => b -> m b
+      rec = recurseExprLike g
+      
 instance ExprLike LetBinding where
   recurseExpr :: forall m. RecurseExprFn m LetBinding
   recurseExpr f e = do
@@ -365,14 +516,71 @@ instance ExprLike LetBinding where
       LetApply{}            -> pure e
       LetOpen{}             -> pure e
 
-instance ExprLike a => ExprLike (Pattern' a) where
+  recurseExprLike :: forall m. RecurseLikeFn m LetBinding
+  recurseExprLike g lb = g lb $ case lb of
+    LetBind li ai x e e'  -> LetBind li ai x <$> rec e <*> rec e'
+    LetAxiom li ai x e    -> LetAxiom li ai x <$> rec e
+    LetPatBind li ai p e  -> LetPatBind li ai <$> rec p <*> rec e
+    LetApply{}            -> pure lb
+    LetOpen{}             -> pure lb
+    where rec :: TraverseLikeRecFn m
+          rec = recurseExprLike g
 
+instance ExprLike AmbiguousQName where
+  -- no Exprs inside; the Expr-focused traversal is a no-op
+  recurseExpr _ aq = pure aq
+
+  -- node-level traversal over the AmbiguousQName and its QNames
+  recurseExprLike :: forall m. RecurseLikeFn m AmbiguousQName
+  recurseExprLike g aq@(AmbQ qs) =
+    g aq (AmbQ <$> rec qs)
+    where
+      rec :: forall b. ExprLike b => b -> m b
+      rec = recurseExprLike g
+      
+instance ExprLike a => ExprLike (Pattern' a) where
+  ctorName = \case
+    VarP{}        -> "VarP";      ConP{}        -> "ConP"
+    ProjP{}       -> "ProjP";     DefP{}        -> "DefP"
+    WildP{}       -> "WildP";     AsP{}         -> "AsP"
+    DotP{}        -> "DotP";      AbsurdP{}     -> "AbsurdP"
+    LitP{}        -> "LitP";      PatternSynP{} -> "PatternSynP"
+    RecP{}        -> "RecP";      EqualP{}      -> "EqualP"
+    WithP{}       -> "WithP"
+
+  recurseExprLike :: forall m. RecurseLikeFn m (Pattern' a)
+  recurseExprLike g p =
+    g p $ case p of
+      VarP x              -> VarP <$> rec x
+      ConP i q as         -> ConP i <$> rec q <*> rec as
+      ProjP i o q         -> pure (ProjP i o q)
+      DefP i q as         -> DefP i <$> rec q <*> rec as
+      WildP i             -> pure (WildP i)
+      AsP i n p'          -> AsP i <$> rec n <*> rec p'
+      DotP i e            -> DotP i <$> rec e
+      AbsurdP i           -> pure (AbsurdP i)
+      LitP i l            -> pure (LitP i l)
+      PatternSynP i q as  -> PatternSynP i q <$> rec as
+      RecP kwr ci fas     -> RecP kwr ci <$> rec fas
+      EqualP i es         -> EqualP i <$> rec es
+      WithP i p'          -> WithP i <$> rec p'
+    where
+      rec :: forall b. ExprLike b => b -> m b
+      rec = recurseExprLike g
+  
 instance ExprLike a => ExprLike (Clause' a) where
   recurseExpr :: forall m. RecurseExprFn m (Clause' a)
   recurseExpr f (Clause lhs spats rhs ds ca) = Clause <$> rec lhs <*> pure spats <*> rec rhs <*> rec ds <*> pure ca
     where
       rec :: RecurseExprRecFn m
       rec = recurseExpr f
+
+  recurseExprLike :: forall m. RecurseLikeFn m (Clause' a)
+  recurseExprLike g c@(Clause lhs spats rhs ds ca) =
+    g c $ Clause <$> rec lhs <*> pure spats <*> rec rhs <*> rec ds <*> pure ca
+    where
+      rec :: forall b. ExprLike b => b -> m b
+      rec = recurseExprLike g
 
 instance ExprLike RHS where
   recurseExpr :: forall m. RecurseExprFn m RHS
@@ -386,14 +594,34 @@ instance ExprLike RHS where
       rec :: RecurseExprRecFn m
       rec e = recurseExpr f e
 
+  recurseExprLike :: forall m. RecurseLikeFn m RHS
+  recurseExprLike g r = g r $ case r of
+    RHS e c                    -> RHS <$> rec e <*> pure c
+    AbsurdRHS                  -> pure r
+    WithRHS x es cs            -> WithRHS x <$> rec es <*> rec cs
+    RewriteRHS xes spats rhs ds-> RewriteRHS <$> rec xes <*> pure spats <*> rec rhs <*> rec ds
+    where rec :: TraverseLikeRecFn m
+          rec = recurseExprLike g
+
 instance (ExprLike qn, ExprLike nm, ExprLike p, ExprLike e) => ExprLike (RewriteEqn' qn nm p e) where
   recurseExpr f = \case
     Rewrite es    -> Rewrite <$> recurseExpr f es
     Invert qn pes -> Invert <$> recurseExpr f qn <*> recurseExpr f pes
     LeftLet pes   -> LeftLet <$> recurseExpr f pes
 
+
+  recurseExprLike :: forall m. RecurseLikeFn m (RewriteEqn' qn nm p e)
+  recurseExprLike g = \case
+    re@(Rewrite es)    -> g re $ Rewrite <$> recurseExprLike g es
+    iv@(Invert q pes)  -> g iv $ Invert  <$> recurseExprLike g q  <*> recurseExprLike g pes
+    ll@(LeftLet pes)   -> g ll $ LeftLet <$> recurseExprLike g pes
+    
 instance ExprLike WhereDeclarations where
   recurseExpr f (WhereDecls a b c) = WhereDecls a b <$> recurseExpr f c
+
+  recurseExprLike g wd@(WhereDecls a b c) =
+    g wd $ WhereDecls a b <$> rec c
+    where rec = recurseExprLike g
 
 instance ExprLike ModuleApplication where
   recurseExpr :: forall m. RecurseExprFn m ModuleApplication
@@ -404,6 +632,14 @@ instance ExprLike ModuleApplication where
     where
       rec :: RecurseExprRecFn m
       rec e = recurseExpr f e
+
+  recurseExprLike :: forall m. RecurseLikeFn m ModuleApplication
+  recurseExprLike g a =
+    g a $ case a of
+      SectionApp tel m es     -> SectionApp <$> rec tel <*> rec m <*> rec es
+      RecordModuleInstance{}  -> pure a
+    where rec :: TraverseLikeRecFn m
+          rec = recurseExprLike g
 
 instance ExprLike Pragma where
   recurseExpr :: forall m. RecurseExprFn m Pragma
@@ -426,14 +662,38 @@ instance ExprLike Pragma where
       rec :: RecurseExprRecFn m
       rec e = recurseExpr f e
 
+  recurseExprLike :: forall m. RecurseLikeFn m Pragma
+  recurseExprLike g p =
+    g p $ case p of
+      DisplayPragma q xs e -> DisplayPragma q <$> rec xs <*> rec e
+      _                    -> pure p
+    where rec :: TraverseLikeRecFn m
+          rec = recurseExprLike g
+
 instance ExprLike LHS where
   recurseExpr f (LHS i p) = LHS i <$> recurseExpr f p
 
+  recurseExprLike g l@(LHS i p) = g l $ LHS i <$> rec p
+    where rec = recurseExprLike g
+
 instance ExprLike a => ExprLike (LHSCore' a)   where
+  recurseExprLike :: forall m. RecurseLikeFn m (LHSCore' a)
+  recurseExprLike g h =
+    g h $ case h of
+      LHSHead f ps         -> LHSHead f <$> rec ps
+      LHSProj d focus ps   -> LHSProj d <$> rec focus <*> rec ps
+      LHSWith h' wps ps    -> LHSWith  <$> rec h'    <*> rec wps <*> rec ps
+    where
+      rec :: forall b. ExprLike b => b -> m b
+      rec = recurseExprLike g
+      
 instance ExprLike a => ExprLike (WithHiding a) where
 
 instance ExprLike SpineLHS where
   recurseExpr f (SpineLHS i x ps) = SpineLHS i x <$> recurseExpr f ps
+
+  recurseExprLike g s@(SpineLHS i x ps) = g s $ SpineLHS i x <$> rec ps
+    where rec = recurseExprLike g
 
 instance ExprLike Declaration where
   recurseExpr :: forall m. RecurseExprFn m Declaration
@@ -464,6 +724,54 @@ instance ExprLike Declaration where
       rec :: RecurseExprRecFn m
       rec e = recurseExpr f e
 
+  ctorName Axiom{}         = "Axiom"
+  ctorName Generalize{}    = "Generalize"
+  ctorName Field{}         = "Field"
+  ctorName Primitive{}     = "Primitive"
+  ctorName Mutual{}        = "Mutual"
+  ctorName Section{}       = "Section"
+  ctorName Apply{}         = "Apply"
+  ctorName Import{}        = "Import"
+  ctorName Pragma{}        = "Pragma"
+  ctorName Open{}          = "Open"
+  ctorName FunDef{}        = "FunDef"
+  ctorName DataSig{}       = "DataSig"
+  ctorName DataDef{}       = "DataDef"
+  ctorName RecSig{}        = "RecSig"
+  ctorName RecDef{}        = "RecDef"
+  ctorName PatternSynDef{} = "PatternSynDef"
+  ctorName UnquoteDecl{}   = "UnquoteDecl"
+  ctorName UnquoteDef{}    = "UnquoteDef"
+  ctorName UnquoteData{}   = "UnquoteData"
+  ctorName ScopedDecl{}    = "ScopedDecl"
+  ctorName UnfoldingDecl{} = "UnfoldingDecl"
+
+  recurseExprLike :: forall m. RecurseLikeFn m Declaration
+  recurseExprLike g d =
+    g d $ case d of
+      Axiom a di i mp x e         -> Axiom a di i mp x <$> rec e
+      Generalize s i j x e        -> Generalize s i j x <$> rec e
+      Field i x e                 -> Field i x <$> rec e
+      Primitive i x e             -> Primitive i x <$> rec e
+      Mutual i ds                 -> Mutual i <$> rec ds
+      Section i e m tel ds        -> Section i e m <$> rec tel <*> rec ds
+      Apply i e m a ci d'         -> (\a' -> Apply i e m a' ci d') <$> rec a
+      Import{}                    -> pure d
+      Pragma i p                  -> Pragma i <$> rec p
+      Open{}                      -> pure d
+      FunDef i f' cs              -> FunDef i f' <$> rec cs
+      DataSig i er d' tel e       -> DataSig i er d' <$> rec tel <*> rec e
+      DataDef i d' uc bs cs       -> DataDef i d' uc <$> rec bs <*> rec cs
+      RecSig i er r tel e         -> RecSig i er r <$> rec tel <*> rec e
+      RecDef i r uc dir bs e ds   -> RecDef i r uc dir <$> rec bs <*> rec e <*> rec ds
+      PatternSynDef f' xs p       -> PatternSynDef f' xs <$> rec p
+      UnquoteDecl i is xs e       -> UnquoteDecl i is xs <$> rec e
+      UnquoteDef i xs e           -> UnquoteDef i xs <$> rec e
+      UnquoteData i xs uc j cs e  -> UnquoteData i xs uc j cs <$> rec e
+      ScopedDecl s ds             -> ScopedDecl s <$> rec ds
+      UnfoldingDecl r ds          -> UnfoldingDecl r <$> rec ds
+    where rec :: TraverseLikeRecFn m
+          rec = recurseExprLike g
 
 -- * Getting all declared names
 ---------------------------------------------------------------------------
@@ -640,3 +948,131 @@ instance DeclaredNames RHS where
 -- instance DeclaredNames ModuleApplication where
 --   declaredNames (SectionApp bindss _ es) = declaredNames bindss <> declaredNames es
 --   declaredNames RecordModuleInstance{}   = mempty
+    
+
+-- | Smallest *strictly* containing expressions (by Range).
+-- If several expressions share the same minimal range, return all of them.
+findSmallestStrictlyContainingA :: Range -> [Declaration] -> [Expr]
+findSmallestStrictlyContainingA = findSmallestContainingWithA Strict
+
+-- | Smallest containing expressions with *non-strict* inclusion (outer may equal target).
+-- If several expressions share the same minimal range, return all of them.
+findSmallestContainingA :: Range -> [Declaration] -> [Expr]
+findSmallestContainingA = findSmallestContainingWithA NonStrict
+
+alignRangeToAbstractDecls :: [Declaration] -> Range -> Range
+alignRangeToAbstractDecls dcs r =
+  case (findSmallestContainingA r dcs) of
+    [] -> noRange
+    (x : _) -> getRange x
+
+
+-- Internal: strictness flag.
+data Strictness = Strict | NonStrict
+
+findSmallestContainingWithA :: Strictness -> Range -> [Declaration] -> [Expr]
+findSmallestContainingWithA strictness target decls =
+  evalState (mapM_ (traverseExpr visit) decls >> get) []
+  where
+    visit :: Expr -> State [Expr] Expr
+    visit e = do
+      let er = getRange e
+      if contains er target
+            then modify' (updateCandidates er e) >> pure e
+            else pure e
+
+    -- Containment predicate (strict or non-strict).
+    contains :: Range -> Range -> Bool
+    contains outer inner =
+      case (rangeToPosPair outer, rangeToPosPair inner) of
+        (Just (so, eo), Just (si, ei)) ->
+          case strictness of
+            Strict    -> so <= si && ei <= eo && (so < si || ei < eo)
+            NonStrict -> so <= si && ei <= eo
+        _ -> False
+
+    -- Update the current best candidate list.
+    -- Invariant: list is empty or all Exprs in it share the same minimal range.
+    updateCandidates :: Range -> Expr -> [Expr] -> [Expr]
+    updateCandidates er e [] = [e]
+    updateCandidates er e best@(b:_) =
+      let br = expectRange b
+      in if rangesEqual er br
+           then e : best
+           else if isStrictlySmaller er br
+                  then [e]
+                  else best
+
+    -- Current best range (we only store Exprs in state).
+    expectRange :: Expr -> Range
+    expectRange x = case getRange x of
+      NoRange -> error "findSmallestContainingWithA: internal invariant violated (Expr without range in state)."
+      _  -> getRange x 
+      
+
+    rangesEqual :: Range -> Range -> Bool
+    rangesEqual r1 r2 = rangeToPosPair r1 == rangeToPosPair r2
+
+    -- Prefer containers that are "smaller" (closer to the target).
+    -- We use strict inclusion if available; otherwise fall back to length comparison.
+    isStrictlySmaller :: Range -> Range -> Bool
+    isStrictlySmaller r1 r2 =
+      -- r1 inside r2 (hence strictly smaller)
+      (case (rangeToPosPair r1, rangeToPosPair r2) of
+         (Just (s1,e1), Just (s2,e2)) -> s2 <= s1 && e1 <= e2 && (s2 < s1 || e1 < e2)
+         _                            -> False)
+      ||
+      -- fallback: shorter length
+      case (rangeToPosPair r1, rangeToPosPair r2) of
+        (Just (s1,e1), Just (s2,e2)) -> (e1 - s1) < (e2 - s2)
+        _                            -> False
+
+alignRangeToAbstractExprLikeDecls :: [Declaration] -> Range -> Range
+alignRangeToAbstractExprLikeDecls decls target =
+  case evalState (mapM_ (traverseExprLike visit) decls >> get) (Nothing :: Maybe Range) of
+    Just r  -> r
+    Nothing -> noRange
+  where
+    -- Visit every ExprLike node, and if its range contains the target, update best candidate.
+    visit :: forall b. ExprLike b => b -> State (Maybe Range) b
+    visit node = do
+      let r = getRange node
+      when (contains r target) (modify' (updateBest r))
+      pure node
+
+    updateBest :: Range -> Maybe Range -> Maybe Range
+    updateBest r Nothing   = Just r
+    updateBest r (Just br)
+      | rangesEqual r br        = Just br
+      | isStrictlySmaller r br  = Just r
+      | otherwise               = Just br
+
+    rangesEqual :: Range -> Range -> Bool
+    rangesEqual r1 r2 = rangeToPosPair r1 == rangeToPosPair r2
+
+    -- Prefer the strictly smaller container; tie-break by span length.
+    isStrictlySmaller :: Range -> Range -> Bool
+    isStrictlySmaller r1 r2 =
+      case (rangeToPosPair r1, rangeToPosPair r2) of
+        (Just (s1,e1), Just (s2,e2)) ->
+          (s2 <= s1 && e1 <= e2 && (s2 < s1 || e1 < e2)) ||
+          ((e1 - s1) < (e2 - s2))
+        _ -> False
+
+filterMissingRangesFromExprLike :: ExprLike a => a -> [Range] -> [Range]
+filterMissingRangesFromExprLike root ranges =
+  filter (not . isPresent) ranges
+  where
+    -- All (start,end) pairs of ranges of ExprLike nodes under 'root'.
+    presentPairs :: [(Int, Int)]
+    presentPairs = foldExprLike collect root
+
+    collect node =
+      case rangeToPosPair (getRange node) of
+        Just p  -> [p]
+        Nothing -> []
+
+    isPresent r =
+      case rangeToPosPair r of
+        Just p  -> p `elem` presentPairs
+        Nothing -> False

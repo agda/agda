@@ -44,6 +44,7 @@ Note that the same version of the Agda executable must be used.")
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
 (require 'agda2-queue)
+(require 'agda2-ast)
 (eval-and-compile
   ;; Load filladapt, if it is installed.
   (condition-case nil
@@ -2266,6 +2267,7 @@ An attempt is made to preserve the default value of `agda2-mode-hook'."
     (unload-feature 'agda-input      'force)
     (unload-feature 'agda2-highlight 'force)
     (unload-feature 'agda2-abbrevs   'force)
+    (unload-feature 'agda2-ast   'force)
     (unload-feature 'agda2-queue     'force)
 
     ;; Load the new version of Agda.
@@ -2285,3 +2287,6 @@ An attempt is made to preserve the default value of `agda2-mode-hook'."
 
 (provide 'agda2-mode)
 ;;; agda2-mode.el ends here
+
+(with-eval-after-load 'agda2-mode
+  (require 'agda2-ast-commands))

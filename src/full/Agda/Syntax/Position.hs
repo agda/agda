@@ -73,6 +73,12 @@ module Agda.Syntax.Position
   , beginningOf
   , beginningOfFile
   , interleaveRanges
+  , rangeToPosPair
+  , followingChar
+  , precedingChar
+  , lastChar
+  , contains
+  , smallestContaining
   ) where
 
 import Prelude hiding ( null )
@@ -284,6 +290,8 @@ data Range' a
 type Range = Range' SrcFile
 type RangeWithoutFile = Range' ()
 
+
+
 instance NFData a => NFData (Range' a)
 
 instance Null (Range' a) where
@@ -381,6 +389,7 @@ instance HasRange Range where
 
 instance HasRange () where
   getRange _ = noRange
+  
 
 instance HasRange Bool where
     getRange _ = noRange
@@ -655,6 +664,11 @@ rangeToIntervalWithFile (Range f is) =
     (head Seq.:< _, _ Seq.:> last) -> Just $ Interval f (iStart head) (iEnd last)
     _ -> __IMPOSSIBLE__
 
+rangeToPosPair :: Range' a -> Maybe (Int , Int)
+rangeToPosPair =
+     fmap (\x -> (fromIntegral $ posPos (iStart' x) , fromIntegral $ posPos (iEnd' x)))
+     . rangeToIntervalWithFile
+  
 -- | Converts a range to an interval, if possible.
 -- Note that the information about the source file is lost.
 rangeToInterval :: Range' a -> Maybe IntervalWithoutFile
@@ -825,3 +839,62 @@ interleaveRanges as bs = runWriter $ go as bs
           (a:) <$> go as' bs
         else
           (b:) <$> go as bs'
+
+
+lastChar :: Range -> Range
+lastChar NoRange       = NoRange
+lastChar r@(Range f _) =
+  case rEnd' r of
+    Nothing              -> __IMPOSSIBLE__
+    Just (Pn _ p _ _)    ->
+      let s = Pn () (p - 1)     1 1
+          e = Pn () p 1 1
+      in posToRange' f s e
+
+
+followingChar :: Range -> Range
+followingChar NoRange       = NoRange
+followingChar r@(Range f _) =
+  case rEnd' r of
+    Nothing              -> __IMPOSSIBLE__
+    Just (Pn _ p _ _)    ->
+      let s = Pn () p     1 1
+          e = Pn () (p + 1) 1 1
+      in posToRange' f s e
+
+precedingChar :: Range -> Range
+precedingChar NoRange       = NoRange
+precedingChar r@(Range f _) =
+  case rStart' r of
+    Nothing             -> __IMPOSSIBLE__
+    Just (Pn _ p _ _)
+      | p <= 1          -> NoRange
+      | otherwise       ->
+          let s = Pn () (p - 1) 1 1
+              e = Pn () p       1 1
+          in posToRange' f s e
+
+
+-- Non-strict containment: outer may equal inner.
+contains :: Range -> Range -> Bool
+contains outer inner =
+  case (rangeToPosPair outer, rangeToPosPair inner) of
+    (Just (so, eo), Just (si, ei)) -> so <= si && ei <= eo
+    _                              -> False
+
+
+smallestContaining :: (a -> Range) -> Range -> [a] -> Maybe a
+smallestContaining getR target =
+  foldr step Nothing
+  where
+    step x acc
+      | not (contains (getR x) target) = acc
+      | otherwise = Just $ case acc of
+          Nothing -> x
+          Just y  -> if width (getR x) < width (getR y) then x else y
+
+    -- width from absolute offsets returned by rangeToPosPair
+    width :: Range -> Int
+    width r = case rangeToPosPair r of
+      Just (s, e) -> e - s
+      Nothing     -> maxBound
