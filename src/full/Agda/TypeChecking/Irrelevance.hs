@@ -327,7 +327,8 @@ isNeverDefSing a = do
   if p
   then pure False -- Strict propositions are always definitional singletons
   else do
-  -- TODO: Do we need to reduce the type before this case split?
+  -- I think the type should always be reduced by the time we get here...
+  -- a <- ignoreBlocking <$> reduceB a
   case unEl a of
     Var _ _           -> pure False
     Lam _ _           -> __IMPOSSIBLE__
