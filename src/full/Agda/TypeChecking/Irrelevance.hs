@@ -316,6 +316,46 @@ usableAtModality :: MonadConstraint TCM => WhyCheckModality -> Modality -> Term 
 usableAtModality = usableAtModality' Nothing
 
 
+{-# SPECIALIZE isNeverDefSing :: Type -> TCM Bool #-}
+
+-- | Is the type definitely not a definitional singleton (even after
+--   substitution)? (Needs reduction.)
+isNeverDefSing :: (PureTCM m, MonadBlock m) => Type -> m Bool
+isNeverDefSing a = do
+  let s = getSort a
+  p <- isProp <$> abortIfBlocked s
+  if p
+  then pure False -- Strict propositions are always definitional singletons
+  else do
+  -- TODO: Do we need to reduce the type before this case split?
+  case unEl a of
+    Var _ _           -> pure False
+    Lam _ _           -> __IMPOSSIBLE__
+    Lit _             -> __IMPOSSIBLE__
+    Def d _           -> do
+      def <- getConstInfo d
+      case theDef def of
+        Datatype{}         -> pure True
+        Record{}           -> pure True
+          -- If the record was a definitional singleton, we technically would
+          -- have already eta-expanded. Still, we probably should check this
+          -- properly.
+        Axiom{}            -> pure True
+        DataOrRecSig{}     -> pure True
+        AbstractDefn{}     -> pure False -- TODO: ???
+        Function{}         -> pure False
+        Primitive{}        -> pure False -- TODO: ???
+        PrimitiveSort{}    -> __IMPOSSIBLE__
+        GeneralizableVar{} -> __IMPOSSIBLE__
+        Constructor{}      -> __IMPOSSIBLE__
+    Con _ _ _         -> __IMPOSSIBLE__
+    Pi _ (unAbs -> b) -> isNeverDefSing b
+    Sort _            -> pure True
+    Level _           -> __IMPOSSIBLE__
+    MetaV _ _         -> __IMPOSSIBLE__ -- TODO: Is this actually impossible?
+    DontCare a        -> isNeverDefSing (El s a) -- TODO: Is this correct?
+    Dummy _ _         -> __IMPOSSIBLE__
+
 -- * Propositions
 
 -- | Is a type a proposition?  (Needs reduction.)
