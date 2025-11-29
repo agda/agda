@@ -275,7 +275,7 @@ Records with anonymous constructors
 Even if a record was not defined with a named ``constructor`` directive,
 Agda will still internally generate a constructor for the record. This
 name is used internally to implement ``record{}`` syntax, but it can
-still be obtained through using :ref:`reflection`. Since Agda 2.6.5,
+still be obtained through using :ref:`reflection`. Since Agda 2.8.0,
 it's possible to refer to this name from surface syntax as well:
 
 ::
