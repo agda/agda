@@ -121,6 +121,10 @@ instance PatternFrom Term NLPat where
     t <- abortIfBlocked t
     etaRecord <- isEtaRecordType t
     notSing <- isNeverDefSing t
+    reportSDoc "rewriting.build" 60 $
+      if notSing
+      then sep [prettyTCM t, "can never be definitional singleton"]
+      else sep [prettyTCM t, "could become a definitional singleton"]
     let r = if notSing then r0 else irrelevant
     v <- unLevel =<< abortIfBlocked v
     reportSDoc "rewriting.build" 60 $ sep

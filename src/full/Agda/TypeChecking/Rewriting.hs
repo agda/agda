@@ -285,10 +285,12 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         --    even though they don't appear in the lhs, since they can be reconstructed.
         --    For postulated or abstract rewrite rules, we consider all arguments
         --    as 'used' (see #5238).
-        let boundVars = nlPatVars ps
-            freeVars  = allFreeVars (ps,rhs)
-            allVars   = VarSet.full $ size gamma
-            usedVars  = case theDef def of
+        let boundVars   = nlPatVars ps
+            freeVarsLhs = allFreeVars ps
+            freeVarsRhs = allFreeVars rhs
+            freeVars    = freeVarsLhs <> freeVarsRhs
+            allVars     = VarSet.full $ size gamma
+            usedVars    = case theDef def of
               Function{}         -> usedArgs def
               Axiom{}            -> allVars
               AbstractDefn{}     -> allVars
@@ -302,11 +304,13 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         reportSDoc "rewriting" 70 $
           "variables bound by the pattern: " <+> text (show boundVars)
         reportSDoc "rewriting" 70 $
-          "variables free in the rewrite rule: " <+> text (show freeVars)
+          "variables free in the pattern: " <+> text (show freeVarsLhs)
+        reportSDoc "rewriting" 70 $
+          "variables free in the rhs: " <+> text (show freeVarsRhs)
         reportSDoc "rewriting" 70 $
           "variables used by the rewrite rule: " <+> text (show usedVars)
-        unlessNull (freeVars VarSet.\\ boundVars) failureFreeVars
-        unlessNull (usedVars VarSet.\\ (boundVars `VarSet.union` VarSet.fromList pars)) failureFreeVars
+        unlessNull (freeVarsRhs VarSet.\\ boundVars) failureFreeVars
+        unlessNull (usedVars VarSet.\\ (boundVars `VarSet.union` freeVarsLhs `VarSet.union` VarSet.fromList pars)) failureFreeVars
 
         reportSDoc "rewriting" 70 $
           "variables bound in (erased) parameter position: " <+> text (show pars)
