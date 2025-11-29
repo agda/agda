@@ -57,4 +57,4 @@ Language Reference
    universe-levels
    with-abstraction
    without-k
-   quoted-holes
+   quote-metas
