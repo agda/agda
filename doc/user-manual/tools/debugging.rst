@@ -27,6 +27,7 @@ verbosity level in form ``tag:level``. For example, running Agda with
   will include debugging information at verbosity level 30.
 By convention, very gory details will be printed only with verbosity of at least 50, so it is advisable in most cases to keep the level below 50.
 
+
 Verbosity tags and levels can be found by inspecting the source code of Agda by
 searching for calls to ``reportSLn`` and ``reportSDoc``. Below are a few common
 debug flags that might be useful for developers:
