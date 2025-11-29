@@ -225,7 +225,7 @@ buildParsersFromOperatorScope kind top namesInExpr opScope = do
           _                                  -> __IMPOSSIBLE__
 
         -- If "or" is replaced by "and" in conParts/allParts below,
-        -- then the misspelled operator application "if x then x else
+        -- then the misspelled operator application "if x thenn x else
         -- x" can be parsed as "if" applied to five arguments,
         -- resulting in a confusing error message claiming that "if"
         -- is not in scope.
