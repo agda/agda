@@ -15,7 +15,7 @@ If Agda was installed with the :option:`debug` flag (e.g. using ``cabal install
 Agda -fdebug``), it can print internal information by setting the
 :option:`--verbose={N}` flag (or :option:`-v {N}`) with a verbosity tag and a
 verbosity level in form ``tag:level``. For example, running Agda with
-``--verbose=tc.term:30`` will print enable debug printing for the verbosity key
+``--verbose=tc.term:30`` turns on debug printing for the verbosity key
 ``tc.term`` at verbosity level ``30``. Verbosity levels range between 0 and 100.
 
 * Activating a verbosity key will also enable all the verbosity keys that
@@ -25,6 +25,7 @@ verbosity level in form ``tag:level``. For example, running Agda with
 * The higher the verbosity level, the more
   detailed debugging information will be printed, for example ``-v tc.term:50``
   will include debugging information at verbosity level 30.
+By convention, very gory details will be printed only with verbosity of at least 50, so it is advisable in most cases to keep the level below 50.
 
 Verbosity tags and levels can be found by inspecting the source code of Agda by
 searching for calls to ``reportSLn`` and ``reportSDoc``. Below are a few common
