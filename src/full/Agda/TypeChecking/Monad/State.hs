@@ -228,6 +228,18 @@ modifyImportedSignature f = stImports `modifyTCLens` f
 getSignature :: ReadTCState m => m Signature
 getSignature = useR stSignature
 
+{-# INLINE modifyGlobalSignature #-}
+-- | The same caveats as with |modifyGlobalDefinition|, applied changes will not
+-- persist outside the current module!
+modifyGlobalSignature ::
+  MonadTCState m
+  => (Signature -> Signature)
+       -- ^ Function to map over the signatures
+  -> m ()
+modifyGlobalSignature f = do
+  modifySignature f
+  modifyImportedSignature f
+
 {-# SPECIALIZE modifyGlobalDefinition :: QName -> (Definition -> Definition) -> TCM () #-}
 -- | Update a possibly imported definition. Warning: changes made to imported
 --   definitions (during type checking) will not persist outside the current
@@ -253,11 +265,32 @@ withSignature sig m = do
   return r
 
 -- ** Modifiers for rewrite rules
-addRewriteRulesFor :: QName -> RewriteRules -> [QName] -> Signature -> Signature
-addRewriteRulesFor f rews matchables =
-    over sigRewriteRules (HMap.insertWith mappend f rews)
-  . updateDefinition f (updateTheDef setNotInjective . setCopatternLHS)
-  . (setMatchableSymbols f matchables)
+addRewriteRulesFor ::
+     QName
+       -- ^ Head symbol of rewrite rules
+  -> RewriteRules
+       -- ^ Rewrite rules
+  -> [QName]
+       -- ^ Matchable symbols
+  -> TCM ()
+addRewriteRulesFor f rews matchables = do
+  modifySignature $ over sigRewriteRules $ HMap.insertWith mappend f rews
+  modifyGlobalSignature $ updateDefinitions $ updateDefsForRewrites f rews matchables
+
+updateDefsForRewrites ::
+     QName
+        -- ^ Head symbol of rewrite rules
+  -> RewriteRules
+        -- ^ Rewrites
+  -> [QName]
+        -- ^ Matchable symbols
+  -> Definitions
+        -- ^ Definitions we need to update
+  -> Definitions
+        -- ^ Updated definitions
+updateDefsForRewrites f rews matchables
+  = HMap.adjust (updateTheDef setNotInjective . setCopatternLHS) f
+  . setMatchableSymbols' f matchables
     where
       setNotInjective def@Function{} = def { funInv = NotInjective }
       setNotInjective def            = def
@@ -267,9 +300,29 @@ addRewriteRulesFor f rews matchables =
 
       hasProjectionPattern rew = any (isJust . isProjElim) $ rewPats rew
 
-setMatchableSymbols :: QName -> [QName] -> Signature -> Signature
-setMatchableSymbols f matchables =
-  foldr ((.) . (\g -> updateDefinition g setMatchable)) id matchables
+setMatchableSymbols ::
+     QName
+       -- ^ Head symbol
+  -> [QName]
+       -- ^ Matchable symbols
+  -> Signature
+       -- ^ Current signature
+  -> Signature
+       -- ^ Updated signature
+setMatchableSymbols f matchables
+  = updateDefinitions $ setMatchableSymbols' f matchables
+
+setMatchableSymbols' ::
+     QName
+       -- ^ Head symbol
+  -> [QName]
+       -- ^ Matchable symbols
+  -> Definitions
+       -- ^ Current definitions
+  -> Definitions
+       -- ^ Updated definitions
+setMatchableSymbols' f matchables =
+  foldr ((.) . (\g -> HMap.adjust setMatchable g)) id matchables
     where
       setMatchable def = def { defMatchable = Set.insert f $ defMatchable def }
 

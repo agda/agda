@@ -1,0 +1,7 @@
+Issue7893.agda:26.13-22: error: [RewriteNonConfluent]
+Local confluence check failed: replicate (m + 0) x reduces to both
+replicate m x ++ replicate 0 x and replicate m x
+which are not equal because
+replicate m x ++ replicate 0 x != replicate m x of type List x.A
+when checking confluence of the rewrite rule replicate-rew with
+plus-zero
