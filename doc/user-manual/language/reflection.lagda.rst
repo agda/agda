@@ -655,6 +655,8 @@ Limitations:
     recursive function outside the macro block and have the macro call the
     recursive function.
 
+  - Macros and ``quoteTerm`` can get blocked on quoting a term with an interactive hole inside it. Enable :option:`--quoted-holes` to disable this blocking, so that quoted holes can be constrained by macro unquoting.
+
 Silly example:
 
 ..
