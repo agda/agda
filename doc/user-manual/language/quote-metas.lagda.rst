@@ -42,7 +42,7 @@ However, actually unquoting the macro would reveal that the interactive hole
 should have type ``ℕ``. Enabling :option:`--quote-metas` allows exactly this.
 
 .. code-block:: agda
-    
+
     {-# OPTIONS --quote-metas #-}
 
     -- ...
