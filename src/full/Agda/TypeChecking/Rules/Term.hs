@@ -1614,7 +1614,7 @@ checkExpr' cmp e t =
 doQuoteTerm :: Comparison -> Term -> Type -> TCM Term
 doQuoteTerm cmp et t = do
   et'       <- etaContract =<< instantiateFull et
-  quotedHoles <- optQuotedHoles <$> pragmaOptions
+  quotedHoles <- optQuoteMetas <$> pragmaOptions
   let metas = allMetasList et'
   if quotedHoles || null metas then do
     q  <- quoteTerm et'

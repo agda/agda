@@ -1283,11 +1283,11 @@ Erasure
 
      Enable lossy unification, see :ref:`lossy-unification`.
 
-.. option:: --quoted-holes
+.. option:: --quote-metas
 
      .. versionadded 2.9.1
 
-     Enable quoted holes, see :ref:`quoted-holes`.
+     Enable quoted holes, see :ref:`quote-metas`.
 
 .. _warnings:
 
@@ -2156,7 +2156,7 @@ again, the source file is re-typechecked instead:
 * :option:`--type-in-type`
 * :option:`--warning`
 * :option:`--without-K`
-* :option:`--quoted-holes`
+* :option:`--quote-metas`
 
 
 .. _Vim: https://www.vim.org/

@@ -174,7 +174,7 @@ module Agda.Interaction.Options.Base
     , optKeepCoveringClauses
     , optLargeIndices
     , optForcedArgumentRecursion
-    , optQuotedHoles
+    , optQuoteMetas
     -- * Non-boolean accessors to 'PragmaOptions'
     , optConfluenceCheck
     , optCubical
@@ -410,7 +410,7 @@ optShowIdentitySubstitutions = collapseDefault . _optShowIdentitySubstitutions
 optKeepCoveringClauses       = collapseDefault . _optKeepCoveringClauses
 optLargeIndices              = collapseDefault . _optLargeIndices
 optForcedArgumentRecursion   = collapseDefault . _optForcedArgumentRecursion
-optQuotedHoles               = collapseDefault . _optQuotedHoles
+optQuoteMetas               = collapseDefault . _optQuoteMetas
 
 -- Collapse defaults (non-Bool)
 
@@ -1118,8 +1118,8 @@ withoutKFlag o = return $ o
   , _optErasedMatches           = setDefault False $ _optErasedMatches o
   }
 
-quotedHolesFlag :: Flag PragmaOptions
-quotedHolesFlag o = return $ o { _optQuotedHoles = Value True }
+quoteMetasFlag :: Flag PragmaOptions
+quoteMetasFlag o = return $ o { _optQuoteMetas = Value True }
 
 -- A unified flag for all cubical variants:
 -- [--cubical] defaults to Cubical
@@ -1481,8 +1481,8 @@ languagePragmaOptions = ("Language variant",)
                     "enable cubical features (some only in erased settings), implies --cubical=compatible"
     , Option []     ["with-K"] (NoArg withKFlag)
                     "enable the K rule in pattern matching (default)"
-    , Option []     ["quoted-holes"] (NoArg quotedHolesFlag)
-                    "allow macros to not get blocked by default when a quoted argument is an interactive hole"
+    , Option []     ["quote-metas"] (NoArg quoteMetasFlag)
+                    "allow unquoting to not get blocked by metas"
     ]
 
 universePragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
