@@ -449,11 +449,10 @@ code onlyCode fileType = if onlyCode
         (Network.URI.Encode.encode $ modToFile m "html")
 
 
-------------------------------------------------------------
--- Wrapping ranges of tokens in new Nodes
-------------------------------------------------------------
 
--- | Compute the (min, max) token position of a tree, if any.
+-- Wrapping ranges of tokens in new Nodes
+
+
 treeSpan :: TokenTree -> Maybe (Int, Int)
 treeSpan (Leaf (p, _, _)) = Just (p, p)
 treeSpan (Node _ cs) =
@@ -464,8 +463,7 @@ treeSpan (Node _ cs) =
           maxs = map snd spans
       in Just (minimum mins, maximum maxs)
 
--- | Split a forest of token trees into those strictly before a position
---   and those starting at or after that position (w.r.t. token positions).
+
 splitForestBefore :: Int -> [TokenTree] -> ([TokenTree], [TokenTree])
 splitForestBefore p = go []
   where
@@ -486,9 +484,7 @@ splitForestBefore p = go []
                  , maybeToList mr ++ ts
                  )
 
--- | Split a single tree at position p (same convention as 'splitForestBefore').
---   The first component has all leaves with position < p,
---   the second with position >= p.
+
 splitTreeBefore :: Int -> TokenTree -> (Maybe TokenTree, Maybe TokenTree)
 splitTreeBefore p leaf@(Leaf (pos, _, _))
   | pos < p   = (Just leaf, Nothing)
@@ -504,26 +500,21 @@ splitTreeBefore p (Node attrs cs) =
                 _  -> Just (Node attrs rs)
   in (left, right)
 
--- | Wrap an inclusive range of token positions in a fresh 'Node' with the
---   given attributes.
---
---   Precondition for your use case: the root is 'Node [] (map Leaf tokens)'
---   and you can call this repeatedly, possibly with overlapping ranges.
+
 wrapTokenRange :: (Int, Int) -> [Attribute] -> TokenTree -> TokenTree
 wrapTokenRange (startPos, endPos) newAttrs tree
-  | startPos > endPos = tree  -- empty / invalid range, no-op
+  | startPos > endPos = tree
   | otherwise =
       case tree of
-        Leaf _ -> tree  -- not expected as root, but harmless
+        Leaf _ -> tree
         Node rootAttrs children ->
-          let -- everything strictly before startPos
-              (beforeStart, rest) = splitForestBefore startPos children
-              -- from startPos up to and including endPos
+          let (beforeStart, rest) = splitForestBefore startPos children
+
               (insideRange, afterEnd) = splitForestBefore (endPos + 1) rest
 
               wrappedInside =
                 case insideRange of
-                  [] -> []               -- nothing in range -> no-op
+                  [] -> []
                   xs -> [Node newAttrs xs]
           in Node rootAttrs (beforeStart ++ wrappedInside ++ afterEnd)
 
@@ -533,7 +524,7 @@ tokenTreeFromSourceNodes :: [TokenInfo] -> TCM.SourceNodes -> TokenTree
 tokenTreeFromSourceNodes tokens nodes =
   foldl addNode baseTree nodes
   where
-    -- Initial tree: everything in a single top-level Node
+
     baseTree :: TokenTree
     baseTree = Node [] (map Leaf tokens)
 
@@ -541,7 +532,7 @@ tokenTreeFromSourceNodes tokens nodes =
     addNode tree (range, rawAttrs) =
       wrapTokenRange range (map mkAttr rawAttrs) tree
 
-    -- Turn (name, value) into a Blaze Attribute
+
     mkAttr :: (String, String) -> Attribute
     mkAttr (name, val) =
       Html5.customAttribute (Html5.stringTag name) (stringValue val)
