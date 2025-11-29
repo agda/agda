@@ -832,7 +832,7 @@ Pattern matching and equality
 
 .. option:: --polarity, --no-polarity
 
-     .. versionadded:: 2.6.5
+     .. versionadded:: 2.8.0
 
      Enables the use of modal polarity annotations, and their interaction with
      the positivity checker. See :ref:`polarity`.
@@ -1040,7 +1040,7 @@ Search depth and instances
 
 .. option:: --backtracking-instance-search, --no-backtracking-instance-search
 
-     .. versionadded:: 2.6.5
+     .. versionadded:: 2.7.0
 
      Consider [do not consider] recursive instance arguments during
      pruning of instance candidates, see :ref:`backtracking-instances`
