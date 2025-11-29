@@ -4,8 +4,8 @@
 Quote Metas
 ***********
 
-The option :option:`--quote-metas` enables term quotation constraints to be 
-resolved even when the term has meta variables in it. This allows for typed 
+The option :option:`--quote-metas` enables term quotation constraints to be
+resolved even when the term has meta variables in it. This allows for typed
 hole-driven development for macros, where the expected type for an interactive
 hole given as a quoted argument to a macro can be constrained by the unquoting
 of the macro.
@@ -39,7 +39,7 @@ will cause the constraint to be blocked, which looks something like
 
 
 However, actually unquoting the macro would reveal that the interactive hole
-should have type ``ℕ``. Enabling :option:`--quote-metas` allows exactly this. 
+should have type ``ℕ``. Enabling :option:`--quote-metas` allows exactly this.
 
 .. code-block:: agda
     
