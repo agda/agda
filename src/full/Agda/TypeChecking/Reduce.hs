@@ -1746,7 +1746,7 @@ instance InstantiateFull Interface where
   instantiateFull'
     (Interface h s ft ms mod tlmod scope inside sig _ display userwarn
          importwarn b foreignCode highlighting libPragmas filePragmas
-         usedOpts patsyns warnings partialdefs oblocks onames) = do
+         usedOpts patsyns warnings partialdefs oblocks onames srcNodes) = do
     Interface h s ft ms mod tlmod scope inside
       <$!> instantiateFull' sig
       <*!> pure mempty               -- remote metas are dropped
@@ -1764,6 +1764,7 @@ instance InstantiateFull Interface where
       <*!> return partialdefs
       <*!> return oblocks
       <*!> return onames
+      <*!> return srcNodes
 
 instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull' (Builtin t) = Builtin <$> instantiateFull' t
