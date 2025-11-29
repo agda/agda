@@ -125,7 +125,13 @@ getHsVar i =
 haskellType' :: Type -> HsCompileM HS.Type
 haskellType' t = runToHs (unEl t) (fromType t)
   where
-    fromArgs = mapM (fromTerm . unArg)
+    fromArgs = mapM fromArg
+    fromArg v
+      | usableModality v = fromTerm (unArg v)
+      | otherwise = pure hsUnit
+    fromDom dom
+      | usableModality dom = fromType (unDom dom)
+      | otherwise = pure hsUnit
     fromType = fromTerm . unEl
     fromTerm v = do
       v   <- liftTCM $ unSpine <$> reduce v
@@ -142,10 +148,10 @@ haskellType' t = runToHs (unEl t) (fromType t)
         Pi a b ->
           if isBinderUsed b  -- Andreas, 2012-04-03.  Q: could we rely on Abs/NoAbs instead of again checking freeness of variable?
           then do
-            hsA <- fromType (unDom a)
+            hsA <- fromDom a
             liftE1' (underAbstraction a b) $ \ b ->
               hsForall <$> getHsVar 0 <*> (hsFun hsA <$> fromType b)
-          else hsFun <$> fromType (unDom a) <*> fromType (noabsApp __IMPOSSIBLE__ b)
+          else hsFun <$> fromDom a <*> fromType (noabsApp __IMPOSSIBLE__ b)
         Con c ci es -> do
           let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           hsApp <$> getHsType (conName c) <*> fromArgs args
@@ -185,8 +191,10 @@ haskellType q = do
 data PolyApprox = PolyApprox | NoPolyApprox
   deriving (Eq)
 
-hsTypeApproximation :: PolyApprox -> Int -> Type -> HsCompileM HS.Type
-hsTypeApproximation poly fv t = do
+hsTypeApproximation :: PolyApprox -> Int -> Dom Type -> HsCompileM HS.Type
+hsTypeApproximation poly fv dom
+  | not (usableModality dom) = pure hsUnit
+  | otherwise = do
   env <- askGHCEnv
   let is q b = Just q == b env
       tyCon  = HS.TyCon . HS.UnQual . HS.Ident
@@ -198,31 +206,37 @@ hsTypeApproximation poly fv t = do
         t <- unSpine <$> reduce t
         case t of
           Var i _ | poly == PolyApprox -> return $ tyVar n i
-          Pi a b -> hsFun <$> go n (unEl $ unDom a) <*> go (n + k) (unEl $ unAbs b)
+          Pi a b -> hsFun <$> goDom n a <*> go (n + k) (unEl $ unAbs b)
             where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els
             | q `is` ghcEnvList
             , Just k <- ghcEnvListArity env
             , [Apply t] <- drop (k-1) els ->
-              HS.TyApp (tyCon "[]") <$> go n (unArg t)
+              HS.TyApp (tyCon "[]") <$> goArg n t
             | q `is` ghcEnvMaybe
             , Just k <- ghcEnvMaybeArity env
             , [Apply t] <- drop (k-1) els ->
-              HS.TyApp (tyCon "Maybe") <$> go n (unArg t)
+              HS.TyApp (tyCon "Maybe") <$> goArg n t
             | q `is` ghcEnvBool    -> return $ tyCon "Bool"
             | q `is` ghcEnvInteger -> return $ tyCon "Integer"
             | q `is` ghcEnvNat     -> return $ tyCon "Integer"
             | q `is` ghcEnvWord64  -> return $ rteCon "Word64"
             | otherwise -> do
                 let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims els
-                foldl HS.TyApp <$> getHsType' q <*> mapM (go n . unArg) args
+                foldl HS.TyApp <$> getHsType' q <*> mapM (goArg n) args
               `catchError` \ _ -> -- Not a Haskell type
                 ifM (and2M (isCompiled q) (isData q))
                   (HS.TyCon <$> xhqn TypeK q)
                   (return mazAnyType)
           Sort{} -> return $ HS.FakeType "()"
           _ -> return mazAnyType
-  go fv (unEl t)
+      goArg n v
+        | usableModality v = go n (unArg v)
+        | otherwise = pure hsUnit
+      goDom n dom
+        | usableModality dom = go n (unEl $ unDom dom)
+        | otherwise = pure hsUnit
+  goDom fv dom
 
 -- Approximating polymorphic types is not actually a good idea unless we
 -- actually keep track of type applications in recursive functions, and
@@ -234,5 +248,5 @@ hsTelApproximation = hsTelApproximation' NoPolyApprox
 hsTelApproximation' :: PolyApprox -> Type -> HsCompileM ([HS.Type], HS.Type)
 hsTelApproximation' poly t = do
   TelV tel res <- telViewPath t
-  let args = map (snd . unDom) (telToList tel)
-  (,) <$> zipWithM (hsTypeApproximation poly) [0..] args <*> hsTypeApproximation poly (length args) res
+  let doms = map (fmap snd) (telToList tel)
+  (,) <$> zipWithM (hsTypeApproximation poly) [0..] doms <*> hsTypeApproximation poly (length doms) (defaultDom res)
