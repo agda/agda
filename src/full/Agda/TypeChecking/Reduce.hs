@@ -200,6 +200,56 @@ ifPredicateDoesNotHoldFor m doesNotHold holds = do
     Nothing -> holds
     Just p  -> ifM (p m) holds doesNotHold
 
+-- | Strict instantiation for terms.
+instantiateTerm' :: Term -> ReduceM Term
+instantiateTerm' t@(MetaV x es) = ifPredicateDoesNotHoldFor x (return t) $ do
+  !blocking <- view stInstantiateBlocking <$> getTCState
+
+  m <- lookupMeta x
+  case m of
+    Just (Left rmv) -> cont (rmvInstantiation rmv)
+
+    Just (Right mv) -> case mvInstantiation mv of
+       InstV inst -> cont inst
+
+       _ | Just m' <- mvTwin mv, blocking ->
+         instantiate' (MetaV m' es)
+
+       OpenMeta _ -> return t
+
+       BlockedConst u
+         | blocking  -> instantiateTerm' . unBrave $ BraveTerm u `applyE'` es
+         | otherwise -> return t
+       PostponedTypeCheckingProblem _ -> return t
+
+    Nothing -> __IMPOSSIBLE_VERBOSE__
+                 ("Meta-variable not found: " ++ prettyShow x)
+  where
+  {-# INLINE cont #-}
+  cont i = instantiateTerm' inst
+
+    -- TODO: optimize
+    where
+    -- A slight complication here is that the meta might be underapplied,
+    -- in which case we have to build the lambda abstraction before
+    -- applying the substitution, or overapplied in which case we need to
+    -- fall back to applyE.
+    (es1, es2) = splitAt (length (instTel i)) es
+    !vs1 = reverse $ map' unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es1
+    rho = vs1 ++# wkS (length vs1) idS
+          -- really should be .. ++# emptyS but using wkS makes it reduce to idS
+          -- when applicable
+    -- specification:
+    -- inst == foldr mkLam (instBody i) (instTel i) `applyE` es
+    inst =
+      applySubst' rho
+        (foldr' mkLam (instBody i) $ drop (length es1) (instTel i))
+        `applyE'` es2
+
+instantiateTerm' (Level l) = levelTm <$!> instantiate' l -- TODO: strict
+instantiateTerm' (Sort s) = Sort <$!> instantiate' s  -- TODO: strict
+instantiateTerm' t = return t
+
 instance Instantiate Term where
   instantiate' t@(MetaV x es) = ifPredicateDoesNotHoldFor x (return t) $ do
     blocking <- view stInstantiateBlocking <$> getTCState
@@ -1417,14 +1467,17 @@ instance InstantiateFull t => InstantiateFull (IPBoundary' t)
 -- Tuples:
 
 instance (InstantiateFull a, InstantiateFull b) => InstantiateFull (a,b) where
-    instantiateFull' (x,y) = (,) <$> instantiateFull' x <*> instantiateFull' y
+    {-# INLINE instantiateFull' #-}
+    instantiateFull' (x,y) = (,) <$!> instantiateFull' x <*!> instantiateFull' y
 
 instance (InstantiateFull a, InstantiateFull b, InstantiateFull c) => InstantiateFull (a,b,c) where
+    {-# INLINE instantiateFull' #-}
     instantiateFull' (x,y,z) =
         do  (x,(y,z)) <- instantiateFull' (x,(y,z))
             return (x,y,z)
 
 instance (InstantiateFull a, InstantiateFull b, InstantiateFull c, InstantiateFull d) => InstantiateFull (a,b,c,d) where
+    {-# INLINE instantiateFull' #-}
     instantiateFull' (x,y,z,w) =
         do  (x,(y,z,w)) <- instantiateFull' (x,(y,z,w))
             return (x,y,z,w)
@@ -1467,90 +1520,90 @@ instance InstantiateFull Sort where
     instantiateFull' s = do
         s <- instantiate' s
         case s of
-            Univ u n   -> Univ u <$> instantiateFull' n
+            Univ u n   -> Univ u <$!> instantiateFull' n
             PiSort a s1 s2 -> uncurry3 piSortM =<< instantiateFull' (a, s1, s2)
             FunSort s1 s2 -> uncurry funSortM =<< instantiateFull' (s1, s2)
-            UnivSort s -> univSort <$> instantiateFull' s
+            UnivSort s -> univSort <$!> instantiateFull' s
             Inf _ _    -> return s
             SizeUniv   -> return s
             LockUniv   -> return s
             LevelUniv  -> return s
             IntervalUniv -> return s
-            MetaS x es -> MetaS x <$> instantiateFull' es
-            DefS d es  -> DefS d <$> instantiateFull' es
+            MetaS x es -> MetaS x <$!> instantiateFull' es
+            DefS d es  -> DefS d <$!> instantiateFull' es
             DummyS{}   -> return s
 
 instance InstantiateFull t => InstantiateFull (Type' t) where
     instantiateFull' (El s t) =
-      El <$> instantiateFull' s <*> instantiateFull' t
+      El <$!> instantiateFull' s <*!> instantiateFull' t
 
 instance InstantiateFull Term where
-    instantiateFull' = instantiate' >=> recurse >=> etaOnce
+    instantiateFull' = instantiateTerm' >=> recurse >=> etaOnce
       -- Andreas, 2010-11-12 DONT ETA!? eta-reduction breaks subject reduction
       -- but removing etaOnce now breaks everything
       where
         recurse = \case
-          Var n vs    -> Var n <$> instantiateFull' vs
-          Con c ci vs -> Con c ci <$> instantiateFull' vs
-          Def f vs    -> Def f <$> instantiateFull' vs
-          MetaV x vs  -> MetaV x <$> instantiateFull' vs
+          Var n vs    -> Var n <$!> instantiateFull' vs
+          Con c ci vs -> Con c ci <$!> instantiateFull' vs
+          Def f vs    -> Def f <$!> instantiateFull' vs
+          MetaV x vs  -> MetaV x <$!> instantiateFull' vs
           v@Lit{}     -> return v
-          Level l     -> levelTm <$> instantiateFull' l
-          Lam h b     -> Lam h <$> instantiateFull' b
-          Sort s      -> Sort <$> instantiateFull' s
-          Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
-          DontCare v  -> dontCare <$> instantiateFull' v
+          Level l     -> levelTm <$!> instantiateFull' l
+          Lam h b     -> Lam h <$!> instantiateFull' b
+          Sort s      -> Sort <$!> instantiateFull' s
+          Pi a b      -> uncurry Pi <$!> instantiateFull' (a,b)
+          DontCare v  -> dontCare <$!> instantiateFull' v
           v@Dummy{}   -> return v
 
 instance InstantiateFull Level where
-  instantiateFull' (Max m as) = levelMax m <$> instantiateFull' as
+  instantiateFull' (Max m as) = levelMax m <$!> instantiateFull' as
 
 instance InstantiateFull PlusLevel where
-  instantiateFull' (Plus n l) = Plus n <$> instantiateFull' l
+  instantiateFull' (Plus n l) = Plus n <$!> instantiateFull' l
 
 instance InstantiateFull Substitution where
   instantiateFull' sigma =
     case sigma of
       IdS                    -> return IdS
       EmptyS err             -> return $ EmptyS err
-      Wk   n sigma           -> Wk   n           <$> instantiateFull' sigma
-      Lift n sigma           -> Lift n           <$> instantiateFull' sigma
-      Strengthen bot n sigma -> Strengthen bot n <$> instantiateFull' sigma
-      t :# sigma             -> consS <$> instantiateFull' t
-                                      <*> instantiateFull' sigma
+      Wk   n sigma           -> Wk   n           <$!> instantiateFull' sigma
+      Lift n sigma           -> Lift n           <$!> instantiateFull' sigma
+      Strengthen bot n sigma -> Strengthen bot n <$!> instantiateFull' sigma
+      t :# sigma             -> consS <$!> instantiateFull' t
+                                      <*!> instantiateFull' sigma
 
 instance InstantiateFull ConPatternInfo where
     instantiateFull' i = instantiateFull' (conPType i) <&> \ t -> i { conPType = t }
 
 instance InstantiateFull a => InstantiateFull (Pattern' a) where
-    instantiateFull' (VarP o x)     = VarP o <$> instantiateFull' x
-    instantiateFull' (DotP o t)     = DotP o <$> instantiateFull' t
-    instantiateFull' (ConP n mt ps) = ConP n <$> instantiateFull' mt <*> instantiateFull' ps
-    instantiateFull' (DefP o q ps) = DefP o q <$> instantiateFull' ps
+    instantiateFull' (VarP o x)     = VarP o <$!> instantiateFull' x
+    instantiateFull' (DotP o t)     = DotP o <$!> instantiateFull' t
+    instantiateFull' (ConP n mt ps) = ConP n <$!> instantiateFull' mt <*!> instantiateFull' ps
+    instantiateFull' (DefP o q ps) = DefP o q <$!> instantiateFull' ps
     instantiateFull' l@LitP{}       = return l
     instantiateFull' p@ProjP{}      = return p
-    instantiateFull' (IApplyP o t u x) = IApplyP o <$> instantiateFull' t <*> instantiateFull' u <*> instantiateFull' x
+    instantiateFull' (IApplyP o t u x) = IApplyP o <$!> instantiateFull' t <*!> instantiateFull' u <*!> instantiateFull' x
 
 instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
-    instantiateFull' a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull'
-    instantiateFull' (NoAbs x a) = NoAbs x <$> instantiateFull' a
+    instantiateFull' a@(Abs x _) = Abs x <$!> underAbstraction_ a instantiateFull'
+    instantiateFull' (NoAbs x a) = NoAbs x <$!> instantiateFull' a
 
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
-    instantiateFull' (Dom i n b tac x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' x
+    instantiateFull' (Dom i n b tac x) = Dom i n b <$!> instantiateFull' tac <*!> instantiateFull' x
 
 instance InstantiateFull ContextEntry where
-  instantiateFull' (CtxVar x a) = CtxVar x <$> instantiateFull' a
+  instantiateFull' (CtxVar x a) = CtxVar x <$!> instantiateFull' a
 
 instance InstantiateFull LetBinding where
-  instantiateFull' (LetBinding o v t) = LetBinding o <$> instantiateFull' v <*> instantiateFull' t
+  instantiateFull' (LetBinding o v t) = LetBinding o <$!> instantiateFull' v <*!> instantiateFull' t
 
 -- Andreas, 2021-09-13, issue #5544, need to traverse @checkpoints@ map
 instance InstantiateFull t => InstantiateFull (Open t) where
   instantiateFull' (OpenThing checkpoint checkpoints modl t) =
     OpenThing checkpoint
-    <$> (instantiateFull' =<< prune checkpoints)
-    <*> pure modl
-    <*> instantiateFull' t
+    <$!> (instantiateFull' =<< prune checkpoints)
+    <*!> pure modl
+    <*!> instantiateFull' t
     where
       -- Ulf, 2021-11-17, #5544
       --  Remove checkpoints that are no longer in scope, since they can
@@ -1565,7 +1618,7 @@ instance InstantiateFull a => InstantiateFull (Closure a) where
         return $ cl { clValue = x }
 
 instance InstantiateFull ProblemConstraint where
-  instantiateFull' (PConstr p u c) = PConstr p u <$> instantiateFull' c
+  instantiateFull' (PConstr p u c) = PConstr p u <$!> instantiateFull' c
 
 instance InstantiateFull Constraint where
   instantiateFull' = \case
@@ -1576,43 +1629,43 @@ instance InstantiateFull Constraint where
       ((p,t),u,v) <- instantiateFull' ((p,t),u,v)
       return $ ValueCmpOnFace cmp p t u v
     ElimCmp cmp fs t v as bs ->
-      ElimCmp cmp fs <$> instantiateFull' t <*> instantiateFull' v <*> instantiateFull' as <*> instantiateFull' bs
-    LevelCmp cmp u v    -> uncurry (LevelCmp cmp) <$> instantiateFull' (u,v)
-    SortCmp cmp a b     -> uncurry (SortCmp cmp) <$> instantiateFull' (a,b)
+      ElimCmp cmp fs <$!> instantiateFull' t <*!> instantiateFull' v <*!> instantiateFull' as <*!> instantiateFull' bs
+    LevelCmp cmp u v    -> uncurry (LevelCmp cmp) <$!> instantiateFull' (u,v)
+    SortCmp cmp a b     -> uncurry (SortCmp cmp) <$!> instantiateFull' (a,b)
     UnBlock m           -> return $ UnBlock m
-    FindInstance r m cs -> FindInstance r m <$> mapM instantiateFull' cs
+    FindInstance r m cs -> FindInstance r m <$!> mapM instantiateFull' cs
     ResolveInstanceHead q -> return $ ResolveInstanceHead q
-    IsEmpty r t         -> IsEmpty r <$> instantiateFull' t
-    CheckSizeLtSat t    -> CheckSizeLtSat <$> instantiateFull' t
+    IsEmpty r t         -> IsEmpty r <$!> instantiateFull' t
+    CheckSizeLtSat t    -> CheckSizeLtSat <$!> instantiateFull' t
     c@CheckFunDef{}     -> return c
-    HasBiggerSort a     -> HasBiggerSort <$> instantiateFull' a
-    HasPTSRule a b      -> uncurry HasPTSRule <$> instantiateFull' (a,b)
-    UnquoteTactic t g h -> UnquoteTactic <$> instantiateFull' t <*> instantiateFull' g <*> instantiateFull' h
+    HasBiggerSort a     -> HasBiggerSort <$!> instantiateFull' a
+    HasPTSRule a b      -> uncurry HasPTSRule <$!> instantiateFull' (a,b)
+    UnquoteTactic t g h -> UnquoteTactic <$!> instantiateFull' t <*!> instantiateFull' g <*!> instantiateFull' h
     CheckLockedVars a b c d ->
-      CheckLockedVars <$> instantiateFull' a <*> instantiateFull' b <*> instantiateFull' c <*> instantiateFull' d
-    CheckDataSort q s   -> CheckDataSort q <$> instantiateFull' s
+      CheckLockedVars <$!> instantiateFull' a <*!> instantiateFull' b <*!> instantiateFull' c <*!> instantiateFull' d
+    CheckDataSort q s   -> CheckDataSort q <$!> instantiateFull' s
     c@CheckMetaInst{}   -> return c
-    CheckType t         -> CheckType <$> instantiateFull' t
-    UsableAtModality cc ms mod t -> flip (UsableAtModality cc) mod <$> instantiateFull' ms <*> instantiateFull' t
+    CheckType t         -> CheckType <$!> instantiateFull' t
+    UsableAtModality cc ms mod t -> flip (UsableAtModality cc) mod <$!> instantiateFull' ms <*!> instantiateFull' t
 
 instance InstantiateFull CompareAs where
-  instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a
+  instantiateFull' (AsTermsOf a) = AsTermsOf <$!> instantiateFull' a
   instantiateFull' AsSizes       = return AsSizes
   instantiateFull' AsTypes       = return AsTypes
 
 instance InstantiateFull Signature where
   instantiateFull' (Sig a b c d) = Sig
-    <$> instantiateFull' a
-    <*> instantiateFull' b
-    <*> instantiateFull' c
-    <*> pure d             -- The instance table only stores names
+    <$!> instantiateFull' a
+    <*!> instantiateFull' b
+    <*!> instantiateFull' c
+    <*!> pure d             -- The instance table only stores names
 
 instance InstantiateFull Section where
-  instantiateFull' (Section tel) = Section <$> instantiateFull' tel
+  instantiateFull' (Section tel) = Section <$!> instantiateFull' tel
 
 instance (Subst a, InstantiateFull a) => InstantiateFull (Tele a) where
   instantiateFull' EmptyTel = return EmptyTel
-  instantiateFull' (ExtendTel a b) = uncurry ExtendTel <$> instantiateFull' (a, b)
+  instantiateFull' (ExtendTel a b) = uncurry ExtendTel <$!> instantiateFull' (a, b)
 
 instance InstantiateFull Definition where
     instantiateFull' def@Defn{ defType = t ,defDisplay = df, theDef = d } = do
@@ -1621,20 +1674,20 @@ instance InstantiateFull Definition where
 
 instance InstantiateFull NLPat where
   instantiateFull' (PVar x y) = return $ PVar x y
-  instantiateFull' (PDef x y) = PDef <$> instantiateFull' x <*> instantiateFull' y
-  instantiateFull' (PLam x y) = PLam x <$> instantiateFull' y
-  instantiateFull' (PPi x y)  = PPi <$> instantiateFull' x <*> instantiateFull' y
-  instantiateFull' (PSort x)  = PSort <$> instantiateFull' x
-  instantiateFull' (PBoundVar x y) = PBoundVar x <$> instantiateFull' y
-  instantiateFull' (PTerm x)  = PTerm <$> instantiateFull' x
+  instantiateFull' (PDef x y) = PDef <$!> instantiateFull' x <*!> instantiateFull' y
+  instantiateFull' (PLam x y) = PLam x <$!> instantiateFull' y
+  instantiateFull' (PPi x y)  = PPi <$!> instantiateFull' x <*!> instantiateFull' y
+  instantiateFull' (PSort x)  = PSort <$!> instantiateFull' x
+  instantiateFull' (PBoundVar x y) = PBoundVar x <$!> instantiateFull' y
+  instantiateFull' (PTerm x)  = PTerm <$!> instantiateFull' x
 
 instance InstantiateFull NLPType where
   instantiateFull' (NLPType s a) = NLPType
-    <$> instantiateFull' s
-    <*> instantiateFull' a
+    <$!> instantiateFull' s
+    <*!> instantiateFull' a
 
 instance InstantiateFull NLPSort where
-  instantiateFull' (PUniv u x) = PUniv u <$> instantiateFull' x
+  instantiateFull' (PUniv u x) = PUniv u <$!> instantiateFull' x
   instantiateFull' (PInf f n) = return $ PInf f n
   instantiateFull' PSizeUniv = return PSizeUniv
   instantiateFull' PLockUniv = return PLockUniv
@@ -1644,30 +1697,30 @@ instance InstantiateFull NLPSort where
 instance InstantiateFull RewriteRule where
   instantiateFull' (RewriteRule q gamma f ps rhs t c top) =
     RewriteRule q
-      <$> instantiateFull' gamma
-      <*> pure f
-      <*> instantiateFull' ps
-      <*> instantiateFull' rhs
-      <*> instantiateFull' t
-      <*> pure c
-      <*> pure top
+      <$!> instantiateFull' gamma
+      <*!> pure f
+      <*!> instantiateFull' ps
+      <*!> instantiateFull' rhs
+      <*!> instantiateFull' t
+      <*!> pure c
+      <*!> pure top
 
 instance InstantiateFull DisplayForm where
-  instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)
+  instantiateFull' (Display n ps v) = uncurry (Display n) <$!> instantiateFull' (ps, v)
 
 instance InstantiateFull DisplayTerm where
-  instantiateFull' (DTerm' v es)   = DTerm' <$> instantiateFull' v <*> instantiateFull' es
-  instantiateFull' (DDot' v es)    = DDot'  <$> instantiateFull' v <*> instantiateFull' es
-  instantiateFull' (DCon c ci vs)  = DCon c ci <$> instantiateFull' vs
-  instantiateFull' (DDef c es)     = DDef c <$> instantiateFull' es
-  instantiateFull' (DWithApp v vs ws) = uncurry3 DWithApp <$> instantiateFull' (v, vs, ws)
+  instantiateFull' (DTerm' v es)   = DTerm' <$!> instantiateFull' v <*!> instantiateFull' es
+  instantiateFull' (DDot' v es)    = DDot'  <$!> instantiateFull' v <*!> instantiateFull' es
+  instantiateFull' (DCon c ci vs)  = DCon c ci <$!> instantiateFull' vs
+  instantiateFull' (DDef c es)     = DDef c <$!> instantiateFull' es
+  instantiateFull' (DWithApp v vs ws) = uncurry3 DWithApp <$!> instantiateFull' (v, vs, ws)
 
 instance InstantiateFull Defn where
     instantiateFull' d = case d of
       Axiom{} -> return d
       DataOrRecSig{} -> return d
       GeneralizableVar{} -> return d
-      AbstractDefn d -> AbstractDefn <$> instantiateFull' d
+      AbstractDefn d -> AbstractDefn <$!> instantiateFull' d
       Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam } -> do
         (cs, cc, cov, inv) <- instantiateFull' (cs, cc, cov, inv)
         extLam <- instantiateFull' extLam
@@ -1692,55 +1745,55 @@ instance InstantiateFull ExtLamInfo where
     return $ e { extLamSys = sys}
 
 instance InstantiateFull System where
-  instantiateFull' (System tel sys) = System <$> instantiateFull' tel <*> instantiateFull' sys
+  instantiateFull' (System tel sys) = System <$!> instantiateFull' tel <*!> instantiateFull' sys
 
 instance InstantiateFull FunctionInverse where
   instantiateFull' NotInjective = return NotInjective
-  instantiateFull' (Inverse inv) = Inverse <$> instantiateFull' inv
+  instantiateFull' (Inverse inv) = Inverse <$!> instantiateFull' inv
 
 instance InstantiateFull a => InstantiateFull (Case a) where
   instantiateFull' (Branches cop cs eta ls m b lz) =
     Branches cop
-      <$> instantiateFull' cs
-      <*> instantiateFull' eta
-      <*> instantiateFull' ls
-      <*> instantiateFull' m
-      <*> pure b
-      <*> pure lz
+      <$!> instantiateFull' cs
+      <*!> instantiateFull' eta
+      <*!> instantiateFull' ls
+      <*!> instantiateFull' m
+      <*!> pure b
+      <*!> pure lz
 
 instance InstantiateFull CompiledClauses where
   instantiateFull' = \case
     Fail xs        -> return $ Fail xs
-    Done no mr m t -> Done no mr m <$> instantiateFull' t
-    Case n bs      -> Case n <$> instantiateFull' bs
+    Done no mr m t -> Done no mr m <$!> instantiateFull' t
+    Case n bs      -> Case n <$!> instantiateFull' bs
 
 instance InstantiateFull Clause where
     instantiateFull' (Clause rl rf tel ps b t catchall recursive unreachable ell wm) =
-       Clause rl rf <$> instantiateFull' tel
-       <*> instantiateFull' ps
-       <*> instantiateFull' b
-       <*> instantiateFull' t
-       <*> return catchall
-       <*> return recursive
-       <*> return unreachable
-       <*> return ell
-       <*> return wm
+       Clause rl rf <$!> instantiateFull' tel
+       <*!> instantiateFull' ps
+       <*!> instantiateFull' b
+       <*!> instantiateFull' t
+       <*!> return catchall
+       <*!> return recursive
+       <*!> return unreachable
+       <*!> return ell
+       <*!> return wm
 
 instance InstantiateFull Instantiation where
   instantiateFull' (Instantiation a b) =
-    Instantiation a <$> instantiateFull' b
+    Instantiation a <$!> instantiateFull' b
 
 instance InstantiateFull (Judgement MetaId) where
   instantiateFull' (HasType a b c) =
-    HasType a b <$> instantiateFull' c
+    HasType a b <$!> instantiateFull' c
   instantiateFull' (IsSort a b) =
-    IsSort a <$> instantiateFull' b
+    IsSort a <$!> instantiateFull' b
 
 instance InstantiateFull RemoteMetaVariable where
   instantiateFull' (RemoteMetaVariable a b c) = RemoteMetaVariable
-    <$> instantiateFull' a
-    <*> return b
-    <*> instantiateFull' c
+    <$!> instantiateFull' a
+    <*!> return b
+    <*!> instantiateFull' c
 
 instance InstantiateFull Interface where
   instantiateFull'
@@ -1766,23 +1819,23 @@ instance InstantiateFull Interface where
       <*!> return onames
 
 instance InstantiateFull a => InstantiateFull (Builtin a) where
-    instantiateFull' (Builtin t) = Builtin <$> instantiateFull' t
-    instantiateFull' (Prim x)   = Prim <$> instantiateFull' x
+    instantiateFull' (Builtin t) = Builtin <$!> instantiateFull' t
+    instantiateFull' (Prim x)   = Prim <$!> instantiateFull' x
     instantiateFull' b@(BuiltinRewriteRelations xs) = pure b
 
 instance InstantiateFull Candidate where
   instantiateFull' (Candidate q u t ov) =
-    Candidate q <$> instantiateFull' u <*> instantiateFull' t <*> pure ov
+    Candidate q <$!> instantiateFull' u <*!> instantiateFull' t <*!> pure ov
 
 instance InstantiateFull EqualityView where
   instantiateFull' (OtherType t)            = OtherType
-    <$> instantiateFull' t
+    <$!> instantiateFull' t
   instantiateFull' (IdiomType t)            = IdiomType
-    <$> instantiateFull' t
+    <$!> instantiateFull' t
   instantiateFull' (EqualityType r s eq l t a b) = EqualityType r
-    <$> instantiateFull' s
-    <*> return eq
-    <*> mapM instantiateFull' l
-    <*> instantiateFull' t
-    <*> instantiateFull' a
-    <*> instantiateFull' b
+    <$!> instantiateFull' s
+    <*!> return eq
+    <*!> mapM instantiateFull' l
+    <*!> instantiateFull' t
+    <*!> instantiateFull' a
+    <*!> instantiateFull' b

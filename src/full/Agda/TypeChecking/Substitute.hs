@@ -99,6 +99,7 @@ applyTermE err' m es = coerce $
      app u es = coerce $ (coerce u :: t) `applyE` es
      err e = err' e (coerce m) es
 
+-- TODO: need the error continuation for brave terms
 applyTermE' :: Term -> Elims -> Term
 applyTermE' m [] = m
 applyTermE' m es =
@@ -125,7 +126,7 @@ instance Apply Term where
   applyE' = applyTermE'
 
 instance Apply BraveTerm where
-  applyE = applyTermE (\ _ t es ->  Dummy "applyE" (Apply (defaultArg t) : es))
+  applyE = applyTermE (\ _ t es -> Dummy "applyE" (Apply (defaultArg t) : es))
   applyE' = coerce applyTermE'
 
 -- | If @v@ is a record or constructed value, @canProject f v@
@@ -879,14 +880,14 @@ renameP err p = applySubst (renaming err p)
 
 instance EndoSubst a => Subst (Substitution' a) where
   type SubstArg (Substitution' a) = a
-  applySubst rho sgm = composeS rho sgm
-  applySubst' rho sgm = composeS rho sgm -- TODO: do we have this in Term?
+  applySubst  rho sgm = composeS rho sgm
+  applySubst' rho sgm = composeS rho sgm
 
 {-# SPECIALIZE applySubstTerm :: Substitution -> Term -> Term #-}
 {-# SPECIALIZE applySubstTerm :: Substitution' BraveTerm -> BraveTerm -> BraveTerm #-}
 applySubstTerm :: forall t. (Coercible t Term, EndoSubst t, Apply t) => Substitution' t -> t -> t
 applySubstTerm IdS t = t
-applySubstTerm rho t    = coerce $ case coerce t of
+applySubstTerm rho t = coerce $ case coerce t of
     Var i es    -> coerce $ lookupS rho i  `applyE` subE es
     Lam h m     -> Lam h $ sub @(Abs t) m
     Def f es    -> defApp f [] $ subE es
@@ -910,38 +911,47 @@ applySubstTerm' :: Substitution' Term -> Term -> Term
 applySubstTerm' IdS t = t
 applySubstTerm' rho t = case t of
 
-    old@(Var i es   ) -> case (lookupS rho i, applySubst' rho es) of
+    old@(Var !i !es) -> case (lookupS rho i, applySubst' rho es) of
       (Var i' [], es') | i == i', ptrEq es es' -> old
       (t, es)                                  -> applyE' t es
 
-    old@(Lam h m    ) -> copyCon1 old (Lam h) m (applySubst' rho m)
+    old@(Lam !h !m) -> copyCon1 old (Lam h) m (applySubst' rho m)
 
-    old@(Def f es   ) -> case applySubst' rho es of
+    old@(Def !f !es) -> case applySubst' rho es of
       es' | ptrEq es es' -> old
       es'                -> defApp' f [] es'
 
-    old@(Con c ci vs) -> copyCon1 old (Con c ci) vs (applySubst' rho vs)
-    old@(MetaV x es ) -> copyCon1 old (MetaV x) es (applySubst' rho es)
-    old@(Lit l      ) -> old
+    old@(Con c ci !vs  ) -> copyCon1 old (Con c ci) vs (applySubst' rho vs)
+    old@(MetaV x !es   ) -> copyCon1 old (MetaV x) es (applySubst' rho es)
+    old@(Lit l         ) -> old
 
-    old@(Level l    ) -> case applySubst' rho l of
+    old@(Level !l) -> case applySubst' rho l of
       l' | ptrEq l l' -> case l' of
              Max 0 [Plus 0 l] -> l
              _                -> old
       l' -> levelTm l'
 
-    old@(Pi a b     ) -> copyCon2 old Pi
-                            a (applySubst' rho a)
-                            b (applySubst' rho b)
+    old@(Pi !a !b) ->
+      copyCon2 old Pi a (applySubst' rho a) b (applySubst' rho b)
+      -- let !a' = applySubst' rho a
+      --     !b' = applySubst' rho b
+      -- in trace "SUB: Pi" $
+      --    trace ("PIDOM: " ++ show (ptrEq a a')) $
+      --    trace ("PICOD: " ++ show (ptrEq b b')) $
+      --    copyCon2 old Pi a a' b b'
 
-    old@(Sort s     ) -> copyCon1 old Sort s (applySubst' rho s)
+       -- copyCon2 old Pi
+       --   a (applySubst' rho a)
+       --   b (applySubst' rho b)
 
-    old@(DontCare mv) -> case applySubst' rho mv of
+    old@(Sort !s) -> copyCon1 old Sort s (applySubst' rho s)
+
+    old@(DontCare !mv) -> case applySubst' rho mv of
       mv' | ptrEq mv mv' -> old
       mv'@DontCare{}     -> mv'
       mv'                -> DontCare mv'
 
-    old@(Dummy s es ) -> copyCon1 old (Dummy s) es (applySubst' rho es)
+    old@(Dummy s !es) -> copyCon1 old (Dummy s) es (applySubst' rho es)
 
 instance Subst Term where
   type SubstArg Term = Term
@@ -960,8 +970,8 @@ instance Subst BraveTerm where
 instance (Coercible a Term, Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Type'' a b) where
   type SubstArg (Type'' a b) = SubstArg a
   applySubst rho  (El s t) = applySubst rho s `El` applySubst rho t
-  applySubst' rho old@(El s t) =
-    copyCon2 old El s (applySubst rho s) t (applySubst rho t)
+  applySubst' rho old@(El !s !t) =
+    copyCon2 old El s (applySubst' rho s) t (applySubst' rho t)
 
 instance (Coercible a Term, Subst a) => Subst (Sort' a) where
   type SubstArg (Sort' a) = SubstArg a
@@ -983,34 +993,34 @@ instance (Coercible a Term, Subst a) => Subst (Sort' a) where
       sub x = applySubst rho x
 
   applySubst' rho = \case
-    old@(Univ u n      ) -> copyCon1 old (Univ u) n (applySubst' rho n)
-    old@(Inf u n       ) -> old
-    old@(SizeUniv      ) -> old
-    old@(LockUniv      ) -> old
-    old@(LevelUniv     ) -> old
-    old@(IntervalUniv  ) -> old
-    old@(PiSort a s1 s2) -> copyCon3 old PiSort
+    old@(Univ u !n        ) -> copyCon1 old (Univ u) n (applySubst' rho n)
+    old@(Inf u n          ) -> old
+    old@(SizeUniv         ) -> old
+    old@(LockUniv         ) -> old
+    old@(LevelUniv        ) -> old
+    old@(IntervalUniv     ) -> old
+    old@(PiSort !a !s1 !s2) -> copyCon3 old PiSort
                               a (applySubst' rho a)
                               s1 (applySubst' rho s1)
                               s2 (applySubst' rho s2)
-    old@(FunSort s1 s2 ) -> copyCon2 old FunSort
+    old@(FunSort !s1 !s2) -> copyCon2 old FunSort
                              s1 (applySubst' rho s1)
                              s2 (applySubst' rho s2)
-    old@(UnivSort s    ) -> copyCon1 old UnivSort s (applySubst' rho s)
-    old@(MetaS x es    ) -> copyCon1 old (MetaS x) es (applySubst' rho es)
-    old@(DefS d es     ) -> copyCon1 old (DefS d) es (applySubst' rho es)
-    old@(DummyS{}      ) -> old
+    old@(UnivSort !s     ) -> copyCon1 old UnivSort s (applySubst' rho s)
+    old@(MetaS x !es     ) -> copyCon1 old (MetaS x) es (applySubst' rho es)
+    old@(DefS d !es      ) -> copyCon1 old (DefS d) es (applySubst' rho es)
+    old@(DummyS{}        ) -> old
 
 instance Subst a => Subst (Level' a) where
   type SubstArg (Level' a) = SubstArg a
   applySubst rho (Max n as) = Max n $ applySubst rho as
-  applySubst' rho old@(Max n as) =
+  applySubst' rho old@(Max n !as) =
     copyCon1 old (Max n) as (applySubst' rho as)
 
 instance Subst a => Subst (PlusLevel' a) where
   type SubstArg (PlusLevel' a) = SubstArg a
   applySubst rho (Plus n l) = Plus n $ applySubst rho l
-  applySubst' rho old@(Plus n l) =
+  applySubst' rho old@(Plus n !l) =
     copyCon1 old (Plus n) l (applySubst' rho l)
 
 instance Subst Name where
@@ -1036,16 +1046,16 @@ instance Subst Pattern where
     IApplyP o t u x -> IApplyP o (applySubst rho t) (applySubst rho u) x
 
   applySubst' rho = \case
-    old@(ConP c mt ps   ) ->
+    old@(ConP c !mt !ps) ->
       copyCon2 old (ConP c) mt (applySubst' rho mt) ps (applySubst' rho ps)
-    old@(DefP o q ps    ) ->
+    old@(DefP o q !ps) ->
       copyCon1 old (DefP o q) ps (applySubst' rho ps)
-    old@(DotP o t       ) ->
+    old@(DotP o !t) ->
       copyCon1 old (DotP o) t (applySubst' rho t)
-    old@(VarP _o _x     ) -> old
-    old@(LitP _o _l     ) -> old
-    old@(ProjP _o _x    ) -> old
-    old@(IApplyP o t u x) ->
+    old@(VarP _o _x       ) -> old
+    old@(LitP _o _l       ) -> old
+    old@(ProjP _o _x      ) -> old
+    old@(IApplyP o !t !u x) ->
       copyCon2 old (\a b -> IApplyP o a b x)
                    t (applySubst' rho t) u (applySubst' rho u)
 
@@ -1175,7 +1185,7 @@ instance Subst a => Subst (Tele a) where
 
   applySubst' rho = \case
     old@EmptyTel -> old
-    old@(ExtendTel t tel) ->
+    old@(ExtendTel !t !tel) ->
       copyCon2 old ExtendTel t (applySubst' rho t) tel (applySubst' rho tel)
 
 instance Subst Constraint where
@@ -1226,8 +1236,8 @@ instance Subst a => Subst (Elim' a) where
     e@Proj{}     -> e
 
   applySubst' rho = \case
-    old@(Apply v) -> copyCon1 old Apply v (applySubst' rho v)
-    old@(IApply x y r) ->
+    old@(Apply !v) -> copyCon1 old Apply v (applySubst' rho v)
+    old@(IApply !x !y !r) ->
       copyCon3 old IApply x (applySubst' rho x)
                           y (applySubst' rho y)
                           r (applySubst' rho r)
@@ -1239,8 +1249,8 @@ instance Subst a => Subst (Abs a) where
   applySubst rho (NoAbs x a) = NoAbs x $ applySubst rho a
 
   applySubst' rho = \case
-    old@(Abs x a)   -> copyCon1 old (Abs x)   a ((applySubst' $! liftS 1 rho) a)
-    old@(NoAbs x a) -> copyCon1 old (NoAbs x) a (applySubst' rho a)
+    old@(Abs x !a)   -> copyCon1 old (Abs x)   a ((applySubst' $! liftS 1 rho) a)
+    old@(NoAbs x !a) -> copyCon1 old (NoAbs x) a (applySubst' rho a)
 
 instance Subst a => Subst (Arg a) where
   type SubstArg (Arg a) = SubstArg a
@@ -1248,8 +1258,11 @@ instance Subst a => Subst (Arg a) where
   applySubst rho arg = setFreeVariables unknownFreeVariables $ fmap (applySubst rho) arg
 
   applySubst' IdS old = old
-  applySubst' rho old@(Arg i a) =
-    copyCon1 old (Arg $! setFreeVariables unknownFreeVariables i) a (applySubst' rho a)
+  applySubst' rho old@(Arg !i !a) =
+    if getFreeVariables i == unknownFreeVariables then
+      copyCon1 old (Arg i) a (applySubst' rho a)
+    else
+      (Arg $! setFreeVariables unknownFreeVariables i) $! applySubst' rho a
 
 instance Subst a => Subst (Named name a) where
   type SubstArg (Named name a) = SubstArg a
@@ -1265,8 +1278,19 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
     fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
   {-# INLINABLE applySubst #-}
 
-  applySubst' rho old@(Dom a b c d e) =
-    copyCon2 old (Dom a b c) d (applySubst' rho d) e (applySubst' rho e)
+  applySubst' rho old@(Dom !a b c !d !e) =
+    if getFreeVariables a == unknownFreeVariables then
+      copyCon2 old (Dom a b c) d (applySubst' rho d) e (applySubst' rho e)
+      -- let !d' = applySubst' rho d
+      --     !e' = applySubst' rho e
+      -- in trace "SUB: Dom UnknownFVs" $
+      --    trace ("DOM TACTIC: " ++ show (ptrEq d d')) $
+      --    trace ("DOM BODY: " ++ show (ptrEq e e')) $
+      -- copyCon2 old (Dom a b c) d d' e e'
+    else
+     (((Dom $! setFreeVariables unknownFreeVariables a) b c)
+       $! applySubst' rho d) $! applySubst' rho e
+
 
 instance Subst LetBinding where
   type SubstArg LetBinding = Term

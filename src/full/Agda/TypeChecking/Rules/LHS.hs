@@ -901,7 +901,7 @@ conSplitModalityCheck lhsRng mod rho blocking gamma target = when (any ((/= defa
           -- first forced variable free.
           -- The variable appears free in the result type.
           docheck = and
-            [ ix `freeIn` applySubst (wkS (arg + 1) idS) (unEl (snd (unDom d)))
+            [ ix `freeIn` applySubst' (wkS (arg + 1) idS) (unEl (snd (unDom d)))
             , arg /= blocking
             , arg `freeIn` target
             ]

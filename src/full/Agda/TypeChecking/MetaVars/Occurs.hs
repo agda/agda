@@ -1,6 +1,6 @@
-{-# OPTIONS_GHC -Wunused-imports #-}
-
 {-# LANGUAGE NondecreasingIndentation  #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -ddump-to-file -dno-suppress-type-signatures #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.
 
@@ -286,15 +286,16 @@ metaCheck m = do
     wakeupConstraints m
     return m
 
+{-# INLINE allowedVars #-}
 -- | Construct a test whether a de Bruijn index is allowed
 --   or needs to be pruned.
 allowedVars :: OccursM (Nat -> Bool)
 allowedVars = do
   -- @n@ is the number of binders we have stepped under.
-  n  <- liftM2 (-) getContextSize (asks (occCxtSize . feExtra))
-  xs <- asks (theVarMap . occVars . feExtra)
+  !n  <- liftM2 (-) getContextSize (asks (occCxtSize . feExtra))
+  !xs <- asks (theVarMap . occVars . feExtra)
   -- Bound variables are allowed, and those mentioned in occVars.
-  return $ \ i -> i < n || (i - n) `IntMap.member` xs
+  return $! \ i -> i < n || (i - n) `IntMap.member` xs
 
 -- ** Unfolding during occurs check.
 
@@ -433,7 +434,7 @@ instance Occurs Term where
           | otherwise -> id
     v <- reduceProjectionLike $ ignoreBlocking vb
     flexIfBlocked $ do
-        ctx <- ask
+        !ctx <- ask
         let m = occMeta . feExtra $ ctx
         reportSDoc "tc.meta.occurs" 45 $
           text ("occursCheck " ++ prettyShow m ++ " (" ++ show (feFlexRig ctx) ++ ") of ") <+> prettyTCM v
@@ -441,12 +442,12 @@ instance Occurs Term where
           nest 2 $ pretty v
         case v of
           Var i es   -> do
-            allowed <- getAll . ($ unitModality) <$> variable i
-            if allowed then Var i <$> weakly (occurs es) else do
+            allowed <- getAll . ($ unitModality) <$!> variable i
+            if allowed then Var i <$!> weakly (occurs es) else do
               -- if the offending variable is of singleton type,
               -- eta-expand it away
               reportSDoc "tc.meta.occurs" 35 $ "offending variable: " <+> prettyTCM (var i)
-              t <-  typeOfBV i
+              !t <- typeOfBV i
               reportSDoc "tc.meta.occurs" 35 $ nest 2 $ "of type " <+> prettyTCM t
               isST <- typeLevelReductions $ isSingletonType t
               reportSDoc "tc.meta.occurs" 35 $ nest 2 $ "(after singleton test)"
@@ -459,26 +460,25 @@ instance Occurs Term where
                       (patternViolation' neverUnblock 70 $ "Disallowed var " ++ show i ++ " due to modality/relevance")
                       (strongly $ abort neverUnblock $ MetaCannotDependOn m (occRHS $ feExtra ctx) i)
                 -- is a singleton type with unique inhabitant sv
-                (Just sv) -> return $ sv `applyE` es
-          Lam h f     -> do
-            Lam h <$> occurs f
-          Level l     -> Level <$> occurs_ l
+                Just sv -> return $! sv `applyE'` es
+          Lam h f     -> Lam h <$!> occurs f
+          Level l     -> Level <$!> occurs_ l
           Lit l       -> return v
           Dummy{}     -> return v
-          DontCare v  -> dontCare <$> do
+          DontCare v  -> dontCare <$!> do
             onlyReduceTypes $ underRelevance irrelevant $ occurs v
           Def d es    -> do
             definitionCheck d
-            Def d <$> occDef d es
+            Def d <$!> occDef d es
           Con c ci vs -> do
-            definitionCheck (conName c)
-            Con c ci <$> conArgs vs (occurs vs)  -- if strongly rigid, remain so, except with unreduced IApply arguments.
-          Pi a b      -> Pi <$> occurs_ a <*> occurs b
-          Sort s      -> Sort <$> do underRelevance shapeIrrelevant $ occurs_ s
+            definitionCheck $! conName c
+            Con c ci <$!> conArgs vs (occurs vs)  -- if strongly rigid, remain so, except with unreduced IApply arguments.
+          Pi a b      -> Pi <$!> occurs_ a <*!> occurs b
+          Sort s      -> Sort <$!> do underRelevance shapeIrrelevant $ occurs_ s
           MetaV m' es -> do
             m' <- metaCheck m'
             -- The arguments of a meta are in a flexible position
-            (MetaV m' <$> do flexibly $ occurs es) `catchError` \ err -> do
+            (MetaV m' <$!> do flexibly $ occurs es) `catchError` \ err -> do
                 ctx <- ask
                 reportSDoc "tc.meta.kill" 25 $ vcat
                   [ text $ "error during flexible occurs check, we are " ++ show (ctx ^. lensFlexRig)
@@ -564,7 +564,7 @@ instance Occurs Clause where
   metaOccurs m cl = whenJust (clauseBody cl) $ metaOccurs m
 
 instance Occurs Level where
-  occurs (Max n as) = Max n <$> traverse occurs_ as
+  occurs (Max n as) = Max n <$!> traverse occurs_ as
 
   metaOccurs m (Max _ as) =
     addOrUnblocker (unblockOnAnyMetaIn as) $ traverse_ (metaOccurs m) as
@@ -574,13 +574,11 @@ instance Occurs Level where
     --       failing occurs check.
 
 instance Occurs PlusLevel where
-  occurs (Plus n l) = do
-    Plus n <$> occurs l
-
+  occurs (Plus n l) = Plus n <$!> occurs l
   metaOccurs m (Plus n l) = metaOccurs m l
 
 instance Occurs Type where
-  occurs (El s v) = El <$> occurs_ s <*> occurs v
+  occurs (El s v) = El <$!> occurs_ s <*!> occurs v
 
   metaOccurs m (El s v) = metaOccurs2 m s v
 
@@ -588,18 +586,18 @@ instance Occurs Sort where
   occurs s = do
     unfold s >>= \case
       PiSort a s1 s2 -> do
-        s1' <- flexibly $ occurs_ s1
-        a'  <- (a $>) <$> do flexibly $ occurs (unDom a)
-        s2' <- mapAbstraction (El s1' <$> a') (flexibly . underBinder . occurs_) s2
+        !s1' <- flexibly $ occurs_ s1
+        !a'  <- (a $>) <$!> do flexibly $ occurs (unDom a)
+        !s2' <- mapAbstraction (El s1' <$> a') (flexibly . underBinder . occurs_) s2
         return $ PiSort a' s1' s2'
-      FunSort s1 s2 -> FunSort <$> flexibly (occurs_ s1) <*> flexibly (occurs_ s2)
-      Univ u a   -> Univ u <$> occurs_ a
-      s@Inf{}    -> return s
-      s@SizeUniv -> return s
-      s@LockUniv -> return s
+      FunSort s1 s2 -> FunSort <$!> flexibly (occurs_ s1) <*!> flexibly (occurs_ s2)
+      Univ u a   -> Univ u <$!> occurs_ a
+      s@Inf{}     -> return s
+      s@SizeUniv  -> return s
+      s@LockUniv  -> return s
       s@LevelUniv -> return s
       s@IntervalUniv -> return s
-      UnivSort s -> UnivSort <$> do flexibly $ occurs_ s
+      UnivSort s -> UnivSort <$!> do flexibly $ occurs_ s
       MetaS x es -> do
         MetaV x es <- occurs (MetaV x es)
         return $ MetaS x es
@@ -632,19 +630,19 @@ instance Occurs Elims where
   occurs (e:es) = do
     reportSDoc "tc.meta.occurs.elim" 45 $ "occurs" <+> prettyTCM e
     reportSDoc "tc.meta.occurs.elim" 70 $ "occurs" <+> pretty e
-    e' <- case e of
+    !e' <- case e of
       (Proj o f)     -> do
         definitionCheck f
         return e
       (Apply u)      -> do
-        u' <- occurs u
+        !u' <- occurs u
         return (Apply u')
       (IApply x y u) -> do
-        x' <- occurs x
-        y' <- occurs y
-        u' <- occurs u
+        !x' <- occurs x
+        !y' <- occurs y
+        !u' <- occurs u
         return (IApply x' y' u')
-    (e':) <$> occurs es
+    (e':) <$!> occurs es
 
   metaOccurs m es = forM_ es $ \case
     Proj{} -> return ()
@@ -652,14 +650,14 @@ instance Occurs Elims where
     IApply x y a -> metaOccurs3 m x y a
 
 instance Occurs (Abs Term) where
-  occurs (NoAbs s x) = NoAbs s <$> occurs x
+  occurs (NoAbs s x) = NoAbs s <$!> occurs x
   occurs x = mapAbstraction_ (\body -> underBinder $ occurs body) x
 
   metaOccurs m (Abs   _ x) = metaOccurs m x
   metaOccurs m (NoAbs _ x) = metaOccurs m x
 
 instance Occurs (Abs Type) where
-  occurs (NoAbs s x) = NoAbs s <$> occurs_ x
+  occurs (NoAbs s x) = NoAbs s <$!> occurs_ x
   occurs x = mapAbstraction_ (\body -> underBinder $ occurs_ body) x
 
   metaOccurs m (Abs   _ x) = metaOccurs m x
@@ -674,7 +672,7 @@ instance Occurs a => Occurs (Arg a) where
 instance Occurs a => Occurs (Dom a) where
   occurs :: Occurs a => Dom a -> OccursM (Dom a)
   occurs (Dom info n f t x) =
-    Dom info n f t <$> underQuantity info (occurs x)
+    Dom info n f t <$!> underQuantity info (occurs x)
 
 ---------------------------------------------------------------------------
 -- * Pruning: getting rid of flexible occurrences.

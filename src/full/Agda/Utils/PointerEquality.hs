@@ -52,5 +52,5 @@ copyCon6 old fun !a !a' !b !b' !c !c' !d !d' !e !e' !f !f'
 mapCopy :: (a -> a) -> [a] -> [a]
 mapCopy f = go where
   go as = case as of
-    old@[]     -> old
-    old@(a:as) -> copyCon2 old (:) a (f a) as (go as)
+    old@[]         -> old
+    old@(!a : !as) -> copyCon2 old (:) a (f a) as (go as)

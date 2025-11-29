@@ -440,9 +440,9 @@ instance (Functor m, Applicative m, Monad m, Semigroup c, Monoid c) => Monoid (F
 -- | Base case: a variable.
 variable :: (Monad m, IsVarSet a c) => Int -> FreeT a b m c
 variable n = do
-  o <- asks feFlexRig
-  r <- asks feModality
-  s <- asks feSingleton
+  !o <- asks feFlexRig
+  !r <- asks feModality
+  !s <- asks feSingleton
   return $ withVarOcc (VarOcc o r) (s $ Just n)
 
 -- | Subtract, but return Nothing if result is negative.

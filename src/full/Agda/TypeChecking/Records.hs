@@ -57,7 +57,7 @@ import Agda.Utils.Impossible
 -- * Tools to build record values
 
 mkCon :: ConHead -> ConInfo -> Args -> Term
-mkCon h info args = Con h info (map Apply args)
+mkCon h info args = Con h info (map' Apply args)
 
 -- | Order the fields of a record construction.
 orderFields
@@ -821,7 +821,7 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
           _ -> fallBack -- just irrelevant terms
         _ -> fallBack  -- a Nothing
   where
-  fallBack = return (mkCon c ci args)
+  fallBack = return $! mkCon c ci args
   check :: Arg Term -> Dom QName -> Maybe (Maybe Term)
   check a ax = do
   -- @a@ is the constructor argument, @ax@ the corr. record field name
@@ -833,7 +833,7 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
       (_, Just (_, [])) -> Nothing  -- not a projection
       (_, Just (h, e0:es0))
         | (es, Proj _o f) <- initLast1 e0 es0
-        , unDom ax == f -> Just $ Just $ h es
+        , unDom ax == f -> Just $! Just $! h es
       _                 -> Nothing
 
 {-# SPECIALIZE isSingletonRecord :: QName -> Args -> TCM Bool #-}

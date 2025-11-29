@@ -72,6 +72,7 @@ etaOnce = \case
 
   v -> return v
 
+{-# INLINE etaCon #-}
 -- | If record constructor, call eta-contraction function.
 etaCon :: (MonadTCEnv m, HasConstInfo m, HasOptions m)
   => ConHead  -- ^ Constructor name @c@.
@@ -86,8 +87,10 @@ etaCon c ci es cont = ignoreAbstractMode $ do
   r <- getConstructorData $ conName c -- fails in ConcreteMode if c is abstract
   ifNotM (isEtaRecord r) fallback $ {-else-} do
     -- reportSDoc "tc.eta" 20 $ "eta-contracting record" <+> prettyTCM t
-    let Just args = allApplyElims es
-    cont r c ci args
+    case allApplyElims es of
+      Nothing   -> __IMPOSSIBLE__
+      Just args -> cont r c ci args
+
 
 -- | Try to contract a lambda-abstraction @Lam i (Abs x b)@.
 etaLam :: (MonadTCEnv m, HasConstInfo m, HasOptions m)
@@ -108,7 +111,7 @@ etaLam i x b = do
              && sameHiding i info
              && sameModality i info
              && not (freeIn 0 u)
-           then return $ strengthen impossible u
+           then return $! strengthen' impossible u
            else fallback
       _ -> fallback
   where
