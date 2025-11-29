@@ -11,6 +11,7 @@ Tools
    auto
    command-line-options
    compilers
+   debugging
    emacs-mode
    literate-programming
    generating-html
