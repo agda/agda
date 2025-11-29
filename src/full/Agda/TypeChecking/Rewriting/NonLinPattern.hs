@@ -20,7 +20,7 @@ import Agda.Syntax.Internal.MetaVars ( AllMetas, unblockOnAllMetasIn )
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
-import Agda.TypeChecking.Irrelevance (isPropM)
+import Agda.TypeChecking.Irrelevance (isNeverDefSing)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -120,8 +120,8 @@ instance PatternFrom Term NLPat where
   patternFrom r0 k t v = do
     t <- abortIfBlocked t
     etaRecord <- isEtaRecordType t
-    prop <- isPropM t
-    let r = if prop then irrelevant else r0
+    notSing <- isNeverDefSing t
+    let r = if notSing then r0 else irrelevant
     v <- unLevel =<< abortIfBlocked v
     reportSDoc "rewriting.build" 60 $ sep
       [ "building a pattern from term v = " <+> prettyTCM v
