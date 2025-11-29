@@ -67,6 +67,7 @@ import Agda.Utils.Singleton
 import qualified Agda.Utils.Graph.TopSort as Graph
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.PointerEquality
 
 import Agda.Utils.Impossible
 
@@ -1294,7 +1295,7 @@ assignMeta m x t ids v = do
 --   where term @u@ lives in a context of length @m@,
 --   and @ids@ is a partial substitution.
 assignMeta' :: Int -> MetaId -> Type -> Int -> SubstCand -> Term -> TCM ()
-assignMeta' m x t n ids v = do
+assignMeta' m x t n ids !v = do
   -- we are linear, so we can solve!
   reportSDoc "tc.meta.assign" 25 $
       "preparing to instantiate: " <+> prettyTCM v
@@ -1320,6 +1321,14 @@ assignMeta' m x t n ids v = do
       ivs = assocToList 0 ids
       rho = prependS impossible ivs $ raiseS n
       v'  = applySubst' rho v
+
+  reportSLn  "tc.meta.assign" 1 "meta RHS substitution"
+  -- reportSDoc "tc.meta.assign" 1 $ prettyTCM v
+  -- reportSDoc "tc.meta.assign" 1 $ prettyTCM v'
+  reportSLn "tc.meta.assign" 1 $ show v
+  reportSLn "tc.meta.assign" 1 $ show v'
+  reportSDoc "tc.meta.assign" 1 $ prettyTCM rho
+  reportSLn  "tc.meta.assign" 1 $ "ptr eq: " ++ show (ptrEq v v')
 
   -- Metas are top-level so we do the assignment at top-level.
   inTopContext $ do

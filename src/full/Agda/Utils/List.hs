@@ -216,10 +216,12 @@ indexWithDefault a (_ : xs) n = indexWithDefault a xs (n - 1)
 
 -- | Find an element satisfying a predicate and return it with its index.
 --   O(n) in the worst case, e.g. @findWithIndex f xs = Nothing@.
---
---   TODO: more efficient implementation!?
-findWithIndex :: (a -> Bool) -> [a] -> Maybe (a, Int)
-findWithIndex p as = List.find (p . fst) (zip as [0..])
+{-# INLINE findWithIndex #-}
+findWithIndex :: forall a. (a -> Bool) -> [a] -> Maybe (a, Int)
+findWithIndex f = go 0 where
+  go :: Int -> [a] -> Maybe (a, Int)
+  go ix []     = Nothing
+  go ix (a:as) = if f a then Just (a, ix) else go (ix + 1) as
 
 -- | A generalised variant of 'elemIndex'.
 -- O(n).

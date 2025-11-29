@@ -3,7 +3,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -ddump-to-file #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -ddump-to-file -dno-suppress-type-signatures #-}
 
 -- | This module contains the definition of hereditary substitution
 -- and application operating on internal syntax which is in β-normal
@@ -78,7 +78,7 @@ applyTermE :: forall t. (Coercible Term t, Apply t, EndoSubst t)
 applyTermE err' m [] = m
 applyTermE err' m es = coerce $
     case coerce m of
-      Var i es'   -> Var i (es' ++ es)
+      Var i es'   -> Var i (append' es' es)
       Def f es'   -> defApp f es' es  -- remove projection redexes
       Con c ci args -> conApp @t err' c ci args es
       Lam _ b     ->
@@ -86,12 +86,12 @@ applyTermE err' m es = coerce $
           Apply a : es0      -> lazyAbsApp (coerce b :: Abs t) (coerce $ unArg a) `app` es0
           IApply _ _ a : es0 -> lazyAbsApp (coerce b :: Abs t) (coerce a)         `app` es0
           _                  -> err __IMPOSSIBLE__
-      MetaV x es' -> MetaV x (es' ++ es)
+      MetaV x es' -> MetaV x (append' es' es)
       Lit{}       -> err __IMPOSSIBLE__
       Level{}     -> err __IMPOSSIBLE__
       Pi _ _      -> err __IMPOSSIBLE__
       Sort s      -> Sort $ s `applyE` es
-      Dummy s es' -> Dummy s (es' ++ es)
+      Dummy s es' -> Dummy s (append' es' es)
       DontCare mv -> dontCare $ mv `app` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
    where
@@ -99,11 +99,34 @@ applyTermE err' m es = coerce $
      app u es = coerce $ (coerce u :: t) `applyE` es
      err e = err' e (coerce m) es
 
+applyTermE' :: Term -> Elims -> Term
+applyTermE' m [] = m
+applyTermE' m es =
+    case m of
+      Var i es'     -> Var i (append' es' es)
+      Def f es'     -> defApp' f es' es  -- remove projection redexes
+      Con c ci args -> conApp' c ci args es
+      Lam _ b     ->
+        case es of
+          Apply a : es0      -> lazyAbsApp' b (unArg a) `applyE'` es0
+          IApply _ _ a : es0 -> lazyAbsApp' b a         `applyE'` es0
+          _                  -> __IMPOSSIBLE__
+      MetaV x es' -> MetaV x (append' es' es)
+      Lit{}       -> __IMPOSSIBLE__
+      Level{}     -> __IMPOSSIBLE__
+      Pi _ _      -> __IMPOSSIBLE__
+      Sort s      -> Sort $! s `applyE'` es
+      Dummy s es' -> Dummy s $! append' es' es
+      DontCare mv -> dontCare $! mv `applyE'` es  -- Andreas, 2011-10-02
+        -- need to go under DontCare, since "with" might resurrect irrelevant term
+
 instance Apply Term where
   applyE = applyTermE absurd
+  applyE' = applyTermE'
 
 instance Apply BraveTerm where
   applyE = applyTermE (\ _ t es ->  Dummy "applyE" (Apply (defaultArg t) : es))
+  applyE' = coerce applyTermE'
 
 -- | If @v@ is a record or constructed value, @canProject f v@
 --   returns its field @f@.
@@ -124,8 +147,8 @@ canProject f v =
 -- | Eliminate a constructed term.
 conApp :: forall t. (Coercible t Term, Apply t) => (Empty -> Term -> Elims -> Term) -> ConHead -> ConInfo -> Elims -> Elims -> Term
 conApp fallback ch                    ci args []                  = Con ch ci args
-conApp fallback ch                    ci args    (a@Apply{} : es) = conApp @t fallback ch ci (args ++ [a]) es
-conApp fallback ch                    ci args   (a@IApply{} : es) = conApp @t fallback ch ci (args ++ [a]) es
+conApp fallback ch                    ci args    (a@Apply{} : es) = conApp @t fallback ch ci (append' args [a]) es
+conApp fallback ch                    ci args   (a@IApply{} : es) = conApp @t fallback ch ci (append' args [a]) es
 conApp fallback ch@(ConHead c _ _ fs) ci args ees@(Proj o f : es) =
   let failure :: forall a. a -> a
       failure err = flip trace err $ concat
@@ -176,6 +199,32 @@ conApp fallback ch@(ConHead c _ _ fs) ci args ees@(Proj o f : es) =
         | otherwise       = v
   in  applyE v es
 -}
+
+-- | Eliminate a constructed term.
+conApp' :: ConHead -> ConInfo -> Elims -> Elims -> Term
+conApp' ch                    ci args []                  = Con ch ci args
+conApp' ch                    ci args (a@Apply{}    : es) = conApp' ch ci (append' args [a]) es
+conApp' ch                    ci args (a@IApply{}   : es) = conApp' ch ci (append' args [a]) es
+conApp' ch@(ConHead c _ _ fs) ci args ees@(Proj o f : es) =
+  let failure :: forall a. a -> a
+      failure err = flip trace err $ concat
+        [ "conApp': constructor ", prettyShow c
+        , unlines $ " with fields" : map (("  " ++) . prettyShow) fs
+        , unlines $ " and args"    : map (("  " ++) . prettyShow) args
+        , " projected by ", prettyShow f
+        ]
+      isApply e = fromMaybe (failure __IMPOSSIBLE__) $ isApplyElim e
+      stuck err = err (Con ch ci args) [Proj o f]
+  in
+   case findWithIndex ((f ==) . unArg) fs of
+     Nothing -> failure $ stuck __IMPOSSIBLE__ `applyE'` es
+     Just (fld, i) -> let
+      -- Andreas, 2018-06-12, issue #2170
+      -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
+      -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
+      v = maybe (failure $ stuck __IMPOSSIBLE__) (relToDontCare fld . argToDontCare . isApply) $ listToMaybe $ drop i args
+      in v `applyE'` es
+
 
 -- | @defApp f us vs@ applies @Def f us@ to further arguments @vs@,
 --   eliminating top projection redexes.
@@ -861,45 +910,38 @@ applySubstTerm' :: Substitution' Term -> Term -> Term
 applySubstTerm' IdS t = t
 applySubstTerm' rho t = case t of
 
-    old@(Var i es   ) -> case (lookupS rho i, subE es) of
+    old@(Var i es   ) -> case (lookupS rho i, applySubst' rho es) of
       (Var i' [], es') | i == i', ptrEq es es' -> old
       (t, es)                                  -> applyE' t es
 
-    old@(Lam h m    ) -> copyCon1 old (Lam h) m (sub @(Abs Term) m)
+    old@(Lam h m    ) -> copyCon1 old (Lam h) m (applySubst' rho m)
 
-    old@(Def f es   ) -> case subE es of
+    old@(Def f es   ) -> case applySubst' rho es of
       es' | ptrEq es es' -> old
-      es'                -> defApp f [] es'
+      es'                -> defApp' f [] es'
 
-    old@(Con c ci vs) -> copyCon1 old (Con c ci) vs (subE vs)
-
-    old@(MetaV x es ) -> copyCon1 old (MetaV x) es (subE es)
-
+    old@(Con c ci vs) -> copyCon1 old (Con c ci) vs (applySubst' rho vs)
+    old@(MetaV x es ) -> copyCon1 old (MetaV x) es (applySubst' rho es)
     old@(Lit l      ) -> old
 
-    old@(Level l    ) -> case sub @(Level' Term) l of
+    old@(Level l    ) -> case applySubst' rho l of
       l' | ptrEq l l' -> case l' of
              Max 0 [Plus 0 l] -> l
              _                -> old
       l' -> levelTm l'
 
     old@(Pi a b     ) -> copyCon2 old Pi
-                            a (sub @(Dom' Term (Type'' Term Term)) a)
-                            b (sub @(Abs (Type'' Term Term)) b)
+                            a (applySubst' rho a)
+                            b (applySubst' rho b)
 
-    old@(Sort s     ) -> copyCon1 old Sort s (sub @(Sort' Term) s)
+    old@(Sort s     ) -> copyCon1 old Sort s (applySubst' rho s)
 
-    old@(DontCare mv) -> case sub @Term mv of
+    old@(DontCare mv) -> case applySubst' rho mv of
       mv' | ptrEq mv mv' -> old
       mv'@DontCare{}     -> mv'
       mv'                -> DontCare mv'
 
-    old@(Dummy s es ) -> copyCon1 old (Dummy s) es (subE es)
- where
-   sub :: forall a b. (Coercible b a, SubstWith Term a) => b -> b
-   sub t = coerce $ applySubst' rho (coerce t :: a)
-   subE :: Elims -> Elims
-   subE  = sub @[Elim' Term]
+    old@(Dummy s es ) -> copyCon1 old (Dummy s) es (applySubst' rho es)
 
 instance Subst Term where
   type SubstArg Term = Term
@@ -1197,7 +1239,7 @@ instance Subst a => Subst (Abs a) where
   applySubst rho (NoAbs x a) = NoAbs x $ applySubst rho a
 
   applySubst' rho = \case
-    old@(Abs x a)   -> copyCon1 old (Abs x)   a (applySubst' (liftS 1 rho) a)
+    old@(Abs x a)   -> copyCon1 old (Abs x)   a ((applySubst' $! liftS 1 rho) a)
     old@(NoAbs x a) -> copyCon1 old (NoAbs x) a (applySubst' rho a)
 
 instance Subst a => Subst (Arg a) where
@@ -1207,8 +1249,7 @@ instance Subst a => Subst (Arg a) where
 
   applySubst' IdS old = old
   applySubst' rho old@(Arg i a) =
-    copyCon1 old (setFreeVariables unknownFreeVariables . Arg i)
-             a (applySubst' rho a)
+    copyCon1 old (Arg $! setFreeVariables unknownFreeVariables i) a (applySubst' rho a)
 
 instance Subst a => Subst (Named name a) where
   type SubstArg (Named name a) = SubstArg a

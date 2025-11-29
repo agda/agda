@@ -359,6 +359,10 @@ lazyAbsApp :: Subst a => Abs a -> SubstArg a -> a
 lazyAbsApp (Abs   _ v) u = applySubst (u :# IdS) v  -- Note: do not use consS here!
 lazyAbsApp (NoAbs _ v) _ = v
 
+lazyAbsApp' :: Subst a => Abs a -> SubstArg a -> a
+lazyAbsApp' (Abs   _ v) u = applySubst' (u :# IdS) v  -- Note: do not use consS here!
+lazyAbsApp' (NoAbs _ v) _ = v
+
 -- | Instantiate an abstraction that doesn't use its argument.
 noabsApp :: Subst a => Impossible -> Abs a -> a
 noabsApp err (Abs   _ v) = strengthen err v
