@@ -90,9 +90,18 @@ The following notation is used when describing key combinations:
 :kbd:`SPC`
      is the space bar.
 
-Commands working with terms or types can be prefixed with ``C-u`` to compute without further
-normalisation, with ``C-u C-u`` to compute normal forms, and ``C-u C-u C-u`` to compute
-weak-head normal forms.
+By default, terms and types printed by interactive commands
+will be simplified by evaluating certain functions.
+Specifically, only those functions that match on a
+constructor pattern or a projection copattern will be reduced, as well as
+primitive functions of Agda. For example, ``(suc x) + y`` will be simplified
+to ``suc (x + y)`` but ``id 42`` will be printed as is.
+The level of normalisation of commands that print a term or type can be
+modified by prefixing the command by one or more repetitions of ``C-u``:
+
+* ``C-u`` to print the term without any simplification.
+* ``C-u C-u`` to print the full normal form.
+* ``C-u C-u C-u`` to print the weak-head normal form.
 
 .. _emacs-global-commands:
 
