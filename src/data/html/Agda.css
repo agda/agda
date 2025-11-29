@@ -44,3 +44,18 @@
 .Agda div[ast-wrapper] {
     display: inline;
 }
+
+pre.Agda.sig > div > div[ast-wrapper] {
+    display : none;
+}
+
+pre.Agda.sig > div > div[abstract-ctr="Axiom"] {
+    display: block;
+    margin-bottom: 17px;
+    border-bottom: 1px dotted black;
+    padding-bottom: 14px;
+}
+
+pre.Agda.sig > div > div[abstract-ctr="Axiom"] > * {
+    display : inline;
+}

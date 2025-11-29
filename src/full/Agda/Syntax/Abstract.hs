@@ -705,7 +705,7 @@ instance HasRange Expr where
     getRange (Macro x)                  = getRange x
 
 instance HasRange Declaration where
-    getRange (Axiom    _ i _ _ _ _  )  = getRange i
+    getRange (Axiom    _ i _ _ _ t)    = getRange (i,t)
     getRange (Generalize _ i _ _ _)    = getRange i
     getRange (Field      i _ _      )  = getRange i
     getRange (Mutual     i _        )  = getRange i
