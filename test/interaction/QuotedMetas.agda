@@ -1,4 +1,4 @@
-{-# OPTIONS --quoted-holes #-}
+{-# OPTIONS --quote-metas #-}
 
 module QuotedMetas where
 
