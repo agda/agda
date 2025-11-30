@@ -113,7 +113,8 @@ registerModuleOpening kwr currentModule x dir (Scope m0 _parents ns imports _dat
   -- When the UnusedImports warning is off, do not collect information about @open@.
   -- E.g. we do not want to see warnings for the automatically inserted
   -- @open import Agda.Primitive using (Set)@.
-  doWarn :: Bool <- (not . null) <$> unusedImportWs
+  -- It is sufficient to check for 'UnusedImports_' since it is implied by 'UnusedImportsAll_'.
+  doWarn <- (UnusedImports_ `Set.member`) <$> useTC stWarningSet
   reportSLn "warning.unusedImports" 20 $ unlines
     [ "openedModule: " <> prettyShow doWarn
     , "x = " <> prettyShow x
@@ -205,9 +206,6 @@ warnUnusedImports = do
 
 ------------------------------------------------------------------------------
 -- * Auxiliary definitions
-
-unusedImportWs :: ScopeM (Set WarningName)
-unusedImportWs = (unusedImportsWarnings `Set.intersection`) <$> useTC stWarningSet
 
 -- | A wrapper around 'AbstractName' to make the position of the 'Opened' in the lineage available.
 --   This wrapper is needed when 'AbstractName's are stored in sets
