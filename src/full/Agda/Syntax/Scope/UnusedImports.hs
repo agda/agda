@@ -95,8 +95,8 @@ unusedImportWs :: ScopeM (Set WarningName)
 unusedImportWs = (unusedImportsWarnings `Set.intersection`) <$> useTC stWarningSet
 
 -- | Call this when opening a module with all the names it brings into scope.
-openedModule :: KwRange -> A.ModuleName -> C.QName -> C.ImportDirective -> Scope -> ScopeM ()
-openedModule kwr currentModule x dir (Scope m0 _parents ns imports _dataOrRec) = do
+registerModuleOpening :: KwRange -> A.ModuleName -> C.QName -> C.ImportDirective -> Scope -> ScopeM ()
+registerModuleOpening kwr currentModule x dir (Scope m0 _parents ns imports _dataOrRec) = do
   -- @imports@ have been removed by 'restrictPrivate'.
   unless (null imports) __IMPOSSIBLE__
 
@@ -116,7 +116,7 @@ openedModule kwr currentModule x dir (Scope m0 _parents ns imports _dataOrRec) =
       broughtIntoScope = mergeNamesMany $ map (nsNames . snd) ns
       !k = fromMaybe __IMPOSSIBLE__ $ rangeToPosPos x
       hasDir = not (null (using dir)) || not (null (impRenaming dir))
-    modifyTCLens stOpenedModules $ IntMap.insert k (kwr, m, currentModule, hasDir, broughtIntoScope)
+    modifyTCLens stOpenedModules $ IntMap.insert k (OpenedModule kwr m currentModule hasDir broughtIntoScope)
 
 data ImportedName = ImportedName
   { iWhere :: Int -- Position of 'Opened' extracted from the 'AbstractName'.
@@ -180,7 +180,7 @@ warnUnusedImports = do
     --   reportSLn "warning.unusedImports" 60 $ "unknowns: " <> show unknowns
     --   __IMPOSSIBLE__
 
-    forM_ (openedModules st) \ (kwr :: KwRange, m :: A.ModuleName, parent :: A.ModuleName, hasDir :: Bool, sc :: NamesInScope) -> do
+    forM_ (openedModules st) \ (OpenedModule (kwr :: KwRange) (m :: A.ModuleName) (parent :: A.ModuleName) (hasDir :: Bool) (sc :: NamesInScope)) -> do
       let
         f :: (C.Name, List1 AbstractName) -> Maybe (C.Name, List1 ImportedName)
         f = traverse $ traverse toImportedName
@@ -218,5 +218,5 @@ stUnambiguousLookups = stUnusedImportsState . lensUnambiguousLookups
 stAmbiguousLookups :: Lens' TCState (IntMap (List2 AbstractName))
 stAmbiguousLookups = stUnusedImportsState . lensAmbiguousLookups
 
-stOpenedModules :: Lens' TCState (IntMap (KwRange, A.ModuleName, A.ModuleName, Bool, NamesInScope))
+stOpenedModules :: Lens' TCState (IntMap OpenedModule)
 stOpenedModules = stUnusedImportsState . lensOpenedModules

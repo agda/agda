@@ -426,6 +426,27 @@ isModuleAlive (A.MName mod) (SomeLiveNames mods _) =
 -- * Unused imports
 ------------------------------------------------------------------------
 
+-- | Information gathered during scope checking for the unused-imports warning
+--   when a module is opened.
+data OpenedModule = OpenedModule
+  { openedRange  :: KwRange
+      -- ^ 'Range' of the @open@ keyword.
+  , openedParent :: A.ModuleName
+      -- ^ Parent module into which we merged the opened module.
+  , openedModule :: A.ModuleName
+      -- ^ Module we opened.
+  , openedHasDir :: Bool
+      -- ^ Whether the @open@ statement comes with @using@ or @renaming@.
+  , openedScope  :: NamesInScope
+      -- ^ The scope imported by the @open@ statement.
+      --   The keys ('C.Name') of this map should be the concrete names of
+      --   the opening directive, if such was given.
+  } deriving (Generic)
+
+instance Null OpenedModule where
+  empty = OpenedModule empty empty empty empty empty
+  null (OpenedModule _ _ _ _ s) = null s
+
 -- | Information gathered during scope checking for the unused-imports warning.
 data UnusedImportsState = UnusedImportsState
   { unambiguousLookups :: ![AbstractName]
@@ -434,7 +455,7 @@ data UnusedImportsState = UnusedImportsState
       -- ^ Names that were ambiguously resolved from a concrete name in the source.
       --   They are stored with their position in the file
       --   that is matched with disambiguation information produced by the type checker.
-  , openedModules      :: !(IntMap (KwRange, A.ModuleName, A.ModuleName, Bool, NamesInScope))
+  , openedModules      :: !(IntMap OpenedModule)
       -- ^ Log of module @open@s with the names they brought into scope.
   } deriving (Generic)
 
@@ -448,7 +469,7 @@ lensUnambiguousLookups f s = f (unambiguousLookups s) <&> \ !x -> s { unambiguou
 lensAmbiguousLookups :: Lens' UnusedImportsState (IntMap (List2 AbstractName))
 lensAmbiguousLookups f s = f (ambiguousLookups s) <&> \ !x -> s { ambiguousLookups = x }
 
-lensOpenedModules :: Lens' UnusedImportsState (IntMap (KwRange, ModuleName, ModuleName, Bool, NamesInScope))
+lensOpenedModules :: Lens' UnusedImportsState (IntMap OpenedModule)
 lensOpenedModules f s = f (openedModules s) <&> \ !x -> s { openedModules = x }
 
 ------------------------------------------------------------------------

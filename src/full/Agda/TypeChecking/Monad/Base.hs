@@ -6843,6 +6843,7 @@ instance NFData ExecError
 instance NFData ConstructorDisambiguationData
 instance NFData Statistics
 instance NFData UnusedImportsState
+instance NFData OpenedModule
 
 -- Andreas, 2025-07-31, cannot normalize functions with deepseq-1.5.2.0 (GHC 9.10.3-rc1).
 -- See https://github.com/haskell/deepseq/issues/111.

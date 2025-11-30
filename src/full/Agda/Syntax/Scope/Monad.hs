@@ -44,7 +44,7 @@ import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWar
   -- TODO: move the relevant warnings out of there
 import Agda.Syntax.Scope.Base as A
 import Agda.Syntax.Scope.State
-import Agda.Syntax.Scope.UnusedImports (openedModule)
+import Agda.Syntax.Scope.UnusedImports (registerModuleOpening)
 
 import Agda.TypeChecking.Monad.Base as I
 import Agda.TypeChecking.Monad.Builtin
@@ -1066,7 +1066,7 @@ openModule kwr kind mam cm dir = do
   -- Get the scope exported by module to be opened.
   (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) .
                 noGeneralizedVarsIfLetOpen kind =<< getNamedScope m
-  whenNothing (publicOpen dir) $ openedModule kwr current cm dir s' -- For the unused import warning
+  whenNothing (publicOpen dir) $ registerModuleOpening kwr current cm dir s' -- For the unused import warning
   let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
   modifyCurrentScope \current -> recomputeNameParts $ mergeScope current s
