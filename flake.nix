@@ -1,7 +1,7 @@
 {
   description = "Agda is a dependently typed programming language / interactive theorem prover.";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
   inputs.flake-parts.url = "github:hercules-ci/flake-parts";
   inputs.ghc-wasm.url = "git+https://gitlab.haskell.org/haskell-wasm/ghc-wasm-meta.git";
 
@@ -121,7 +121,7 @@
               # Tools for building the agda docs
               (pkgs.python3.withPackages (py3pkgs: [
                 py3pkgs.sphinx
-                py3pkgs.sphinx_rtd_theme
+                py3pkgs.sphinx-rtd-theme
               ]))
               # Tools for running the agda test-suite
               pkgs.nodejs_22
