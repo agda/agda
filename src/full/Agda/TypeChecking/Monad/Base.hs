@@ -2316,12 +2316,20 @@ instance Pretty DisplayForm where
 defaultDisplayForm :: QName -> [LocalDisplayForm]
 defaultDisplayForm c = []
 
+-- | NLPat might become definitionally irrelevant (after a substitution)
+data DefSing = MaybeDefSing | NeverDefSing
+  deriving (Show, Generic, Enum, Bounded)
+
+composeDefSing :: DefSing -> DefSing -> DefSing
+composeDefSing NeverDefSing r = r
+composeDefSing MaybeDefSing _ = MaybeDefSing
+
 -- | Non-linear (non-constructor) first-order pattern.
 data NLPat
   = PVar !Int [Arg Int]
     -- ^ Matches anything (modulo non-linearity) that only contains bound
     --   variables that occur in the given arguments.
-  | PDef QName PElims
+  | PDef DefSing QName PElims
     -- ^ Matches @f es@
   | PLam ArgInfo (Abs NLPat)
     -- ^ Matches @λ x → t@
@@ -2329,7 +2337,7 @@ data NLPat
     -- ^ Matches @(x : A) → B@
   | PSort NLPSort
     -- ^ Matches a sort of the given shape.
-  | PBoundVar {-# UNPACK #-} !Int PElims
+  | PBoundVar DefSing {-# UNPACK #-} !Int PElims
     -- ^ Matches @x es@ where x is a lambda-bound variable
   | PTerm Term
     -- ^ Matches the term modulo β (ideally βη).
@@ -2341,22 +2349,22 @@ type instance TypeOf [Elim' NLPat] = (Type, Elims -> Term)
 
 instance TermLike NLPat where
   traverseTermM f = \case
-    p@PVar{}       -> return p
-    PDef d ps      -> PDef d <$> traverseTermM f ps
-    PLam i p       -> PLam i <$> traverseTermM f p
-    PPi a b        -> PPi <$> traverseTermM f a <*> traverseTermM f b
-    PSort s        -> PSort <$> traverseTermM f s
-    PBoundVar i ps -> PBoundVar i <$> traverseTermM f ps
-    PTerm t        -> PTerm <$> f t
+    p@PVar{}         -> return p
+    PDef s d ps      -> PDef s d <$> traverseTermM f ps
+    PLam i p         -> PLam i <$> traverseTermM f p
+    PPi a b          -> PPi <$> traverseTermM f a <*> traverseTermM f b
+    PSort s          -> PSort <$> traverseTermM f s
+    PBoundVar s i ps -> PBoundVar s i <$> traverseTermM f ps
+    PTerm t          -> PTerm <$> f t
 
   foldTerm f t = case t of
-    PVar{}         -> mempty
-    PDef d ps      -> foldTerm f ps
-    PLam i p       -> foldTerm f p
-    PPi a b        -> foldTerm f (a, b)
-    PSort s        -> foldTerm f s
-    PBoundVar i ps -> foldTerm f ps
-    PTerm t        -> foldTerm f t
+    PVar{}           -> mempty
+    PDef s d ps      -> foldTerm f ps
+    PLam i p         -> foldTerm f p
+    PPi a b          -> foldTerm f (a, b)
+    PSort s          -> foldTerm f s
+    PBoundVar s i ps -> foldTerm f ps
+    PTerm t          -> foldTerm f t
 
 instance AllMetas NLPat
 
@@ -6592,13 +6600,13 @@ instance KillRange NumGeneralizableArgs where
   killRange = id
 
 instance KillRange NLPat where
-  killRange (PVar x y) = killRangeN PVar x y
-  killRange (PDef x y) = killRangeN PDef x y
-  killRange (PLam x y) = killRangeN PLam x y
-  killRange (PPi x y)  = killRangeN PPi x y
-  killRange (PSort x)  = killRangeN PSort x
-  killRange (PBoundVar x y) = killRangeN PBoundVar x y
-  killRange (PTerm x)  = killRangeN PTerm x
+  killRange (PVar x y)        = killRangeN PVar x y
+  killRange (PDef s x y)      = killRangeN (PDef s) x y
+  killRange (PLam x y)        = killRangeN PLam x y
+  killRange (PPi x y)         = killRangeN PPi x y
+  killRange (PSort x)         = killRangeN PSort x
+  killRange (PBoundVar s x y) = killRangeN (PBoundVar s) x y
+  killRange (PTerm x)         = killRangeN PTerm x
 
 instance KillRange NLPType where
   killRange (NLPType s a) = killRangeN NLPType s a
@@ -6769,6 +6777,7 @@ instance NFData t => NFData (IPBoundary' t)
 instance NFData IPClause
 instance NFData DisplayForm
 instance NFData DisplayTerm
+instance NFData DefSing
 instance NFData NLPat
 instance NFData NLPType
 instance NFData NLPSort

@@ -318,7 +318,7 @@ instance Match NLPat Term where
                     v' = teleLam tel $ renameP impossible perm v
                 in tellSub r (i-n) t' v'
 
-      PDef f ps -> traceSDoc "rewriting.match" 60 ("matching a PDef: " <+> prettyTCM f) $ do
+      PDef s f ps -> traceSDoc "rewriting.match" 60 ("matching a PDef: " <+> prettyTCM f) $ do
         v <- addContext k $ constructorForm =<< unLevel v
         case v of
           Def f' es
@@ -332,7 +332,7 @@ instance Match NLPat Term where
                   Nothing -> no ""
           _ | Pi a b <- unEl t -> do
             let ai    = domInfo a
-                pbody = PDef f $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
+                pbody = PDef s f $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
                 body  = raise 1 v `apply` [ Arg (domInfo a) $ var 0 ]
             k' <- extendContext k (absName b) a
             match r gamma k' (absBody b) pbody body
@@ -345,7 +345,7 @@ instance Match NLPat Term where
             addContext k (getFullyAppliedConType c t) >>= \case
               Just (_ , ct) -> do
                 let flds = map argFromDom $ _recFields def
-                    mkField fld = PDef f (ps ++ [Proj ProjSystem fld])
+                    mkField fld = PDef s f (ps ++ [Proj ProjSystem fld])
                     -- Issue #3335: when matching against the record constructor,
                     -- don't add projections but take record field directly.
                     ps'
@@ -373,13 +373,13 @@ instance Match NLPat Term where
       PSort ps -> case v of
         Sort s -> match r gamma k () ps s
         v -> maybeBlock v
-      PBoundVar i ps -> case v of
+      PBoundVar s i ps -> case v of
         Var i' es | i == i' -> do
           let ti = maybe __IMPOSSIBLE__ (unDom . ctxEntryDom) $ lookupBV_ i k
           match r gamma k (ti , Var i) ps es
         _ | Pi a b <- unEl t -> do
           let ai    = domInfo a
-              pbody = PBoundVar (1 + i) $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
+              pbody = PBoundVar s (1 + i) $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
               body  = raise 1 v `apply` [ Arg ai $ var 0 ]
           k' <- extendContext k (absName b) a
           match r gamma k' (absBody b) pbody body
@@ -389,7 +389,7 @@ instance Match NLPat Term where
           addContext k (getFullyAppliedConType c t) >>= \case
             Just (_ , ct) -> do
               let flds = map argFromDom $ _recFields def
-                  ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
+                  ps'  = map (fmap $ \fld -> PBoundVar s i (ps ++ [Proj ProjSystem fld])) flds
               match r gamma k (ct, Con c ci) (map Apply ps') (map Apply vs)
             Nothing -> no ""
         v -> maybeBlock v

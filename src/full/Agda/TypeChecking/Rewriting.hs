@@ -273,7 +273,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
             Right <$> patternFrom relevant 0 (t , Def f) es
 
         reportSDoc "rewriting" 30 $
-          "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
+          "Pattern generated from lhs: " <+> prettyTCM (PDef MaybeDefSing f ps)
 
         -- We need to check two properties on the variables used in the rewrite rule
         -- 1. For actually being able to apply the rewrite rule, we need
@@ -285,7 +285,8 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         --    even though they don't appear in the lhs, since they can be reconstructed.
         --    For postulated or abstract rewrite rules, we consider all arguments
         --    as 'used' (see #5238).
-        let boundVars   = nlPatVars ps
+        let PatVars defBoundVars maybeBoundVars = nlPatVars ps
+            boundVars   = defBoundVars <> maybeBoundVars
             freeVarsLhs = allFreeVars ps
             freeVarsRhs = allFreeVars rhs
             freeVars    = freeVarsLhs <> freeVarsRhs
@@ -309,8 +310,10 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
           "variables free in the rhs: " <+> text (show freeVarsRhs)
         reportSDoc "rewriting" 70 $
           "variables used by the rewrite rule: " <+> text (show usedVars)
-        unlessNull (freeVarsRhs VarSet.\\ boundVars) failureFreeVars
-        unlessNull (usedVars VarSet.\\ (boundVars `VarSet.union` freeVarsLhs `VarSet.union` VarSet.fromList pars)) failureFreeVars
+        unlessNull (freeVarsRhs VarSet.\\ defBoundVars) failureFreeVars
+        -- TODO: Is this check necessary?
+        unlessNull (freeVars VarSet.\\ boundVars) failureFreeVars
+        unlessNull (usedVars VarSet.\\ (boundVars `VarSet.union` VarSet.fromList pars)) failureFreeVars
 
         reportSDoc "rewriting" 70 $
           "variables bound in (erased) parameter position: " <+> text (show pars)

@@ -20,7 +20,7 @@ import Agda.Syntax.Internal.MetaVars ( AllMetas, unblockOnAllMetasIn )
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
-import Agda.TypeChecking.Irrelevance (isNeverDefSing)
+import Agda.TypeChecking.Irrelevance (isPropM, isNeverDefSing)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -39,6 +39,7 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.VarSet (VarSet)
+import Data.Foldable (Foldable(fold))
 
 -- | Turn a term into a non-linear pattern, treating the
 --   free variables as pattern variables.
@@ -54,7 +55,7 @@ instance (PatternFrom a b) => PatternFrom (Arg a) (Arg b) where
   patternFrom r k t u = let r' = r `composeRelevance` getRelevance u
                         in  traverse (patternFrom r' k $ unDom t) u
 
-instance PatternFrom Elims [Elim' NLPat] where
+instance PatternFrom Elims PElims where
   patternFrom r k (t,hd) = \case
     [] -> return []
     (Apply u : es) -> do
@@ -120,12 +121,9 @@ instance PatternFrom Term NLPat where
   patternFrom r0 k t v = do
     t <- abortIfBlocked t
     etaRecord <- isEtaRecordType t
-    notSing <- isNeverDefSing t
-    reportSDoc "rewriting.build" 60 $
-      if notSing
-      then sep [prettyTCM t, "can never be definitional singleton"]
-      else sep [prettyTCM t, "could become a definitional singleton"]
-    let r = if notSing then r0 else irrelevant
+    prop <- isPropM t
+    sing <- isNeverDefSing t
+    let r = if prop then irrelevant else r0
     v <- unLevel =<< abortIfBlocked v
     reportSDoc "rewriting.build" 60 $ sep
       [ "building a pattern from term v = " <+> prettyTCM v
@@ -145,7 +143,7 @@ instance PatternFrom Term NLPat where
       (_ , Var i es)
        | i < k     -> do
            t <- typeOfBV i
-           PBoundVar i <$> patternFrom r k (t , Var i) es
+           PBoundVar sing i <$> patternFrom r k (t , Var i) es
        -- The arguments of `var i` should be distinct bound variables
        -- in order to build a Miller pattern
        | Just vs <- allApplyElims es -> do
@@ -169,7 +167,7 @@ instance PatternFrom Term NLPat where
         RecordDefn def <- theDef <$> getConstInfo d
         (tel, c, ci, vs) <- etaExpandRecord_ d pars def v
         ct <- assertConOf c t
-        PDef (conName c) <$> patternFrom r k (ct , Con c ci) (map Apply vs)
+        PDef sing (conName c) <$> patternFrom r k (ct , Con c ci) (map Apply vs)
       (_ , Lam{})   -> errNotPi t
       (_ , Lit{})   -> done
       (_ , Def f es) | isIrrelevant r -> done
@@ -181,11 +179,11 @@ instance PatternFrom Term NLPat where
           [x , y] | f == lmax -> done
           _                   -> do
             ft <- defType <$> getConstInfo f
-            PDef f <$> patternFrom r k (ft , Def f) es
+            PDef sing f <$> patternFrom r k (ft , Def f) es
       (_ , Con c ci vs) | isIrrelevant r -> done
       (_ , Con c ci vs) -> do
         ct <- assertConOf c t
-        PDef (conName c) <$> patternFrom r k (ct , Con c ci) vs
+        PDef sing (conName c) <$> patternFrom r k (ct , Con c ci) vs
       (_ , Pi a b) | isIrrelevant r -> done
       (_ , Pi a b) -> do
         pa <- patternFrom r k () a
@@ -221,13 +219,13 @@ instance NLPatToTerm NLPat Term where
   nlPatToTerm = \case
     PVar i xs      -> Var i . map Apply <$> nlPatToTerm xs
     PTerm u        -> return u
-    PDef f es      -> (theDef <$> getConstInfo f) >>= \case
+    PDef _ f es      -> (theDef <$> getConstInfo f) >>= \case
       Constructor{ conSrcCon = c } -> Con c ConOSystem <$> nlPatToTerm es
       _                            -> Def f <$> nlPatToTerm es
     PLam i u       -> Lam i <$> nlPatToTerm u
     PPi a b        -> Pi    <$> nlPatToTerm a <*> nlPatToTerm b
     PSort s        -> Sort  <$> nlPatToTerm s
-    PBoundVar i es -> Var i <$> nlPatToTerm es
+    PBoundVar _ i es -> Var i <$> nlPatToTerm es
 
 instance NLPatToTerm NLPat Level where
   nlPatToTerm = nlPatToTerm >=> levelView
@@ -243,15 +241,41 @@ instance NLPatToTerm NLPSort Sort where
   nlPatToTerm PLevelUniv = return LevelUniv
   nlPatToTerm PIntervalUniv = return IntervalUniv
 
+-- | TODO: Explain what makes a pat var good or bad... lol
+data PatVars = PatVars { goodPatVars :: VarSet, badPatVars :: VarSet }
+  deriving (Eq)
+
+instance Null PatVars where
+  empty = PatVars empty empty
+  null (PatVars ps ps') = null ps && null ps'
+
+instance Semigroup PatVars where
+  PatVars ps ps' <> PatVars qs qs' = PatVars (ps <> qs) (ps' <> qs')
+
+instance Monoid PatVars where
+  mempty = PatVars mempty mempty
+
+instance Singleton Int PatVars where
+  singleton x = PatVars (singleton x) empty
+
+singPatVar :: Int -> PatVars
+singPatVar x = PatVars (singleton x) empty
+
+adjustPatVars :: DefSing -> PatVars -> PatVars
+adjustPatVars NeverDefSing ps               = ps
+adjustPatVars MaybeDefSing (PatVars ps ps') = PatVars empty (ps <> ps')
+
 -- | Gather the set of pattern variables of a non-linear pattern
 class NLPatVars a where
-  nlPatVarsUnder :: Int -> a -> VarSet
+  nlPatVarsUnder :: Int -> a -> PatVars
 
-  nlPatVars :: a -> VarSet
+  default nlPatVarsUnder ::
+    ( NLPatVars p, Foldable f, Functor f, a ~ f p
+    ) => Int -> a -> PatVars
+  nlPatVarsUnder k x = fold $ nlPatVarsUnder k <$> x
+
+  nlPatVars :: a -> PatVars
   nlPatVars = nlPatVarsUnder 0
-
-instance {-# OVERLAPPABLE #-} (Foldable f, NLPatVars a) => NLPatVars (f a) where
-  nlPatVarsUnder k = foldMap $ nlPatVarsUnder k
 
 instance NLPatVars NLPType where
   nlPatVarsUnder k (NLPType l a) = nlPatVarsUnder k (l, a)
@@ -267,21 +291,26 @@ instance NLPatVars NLPSort where
 
 instance NLPatVars NLPat where
   nlPatVarsUnder k = \case
-      PVar i _  -> singleton $ i - k
-      PDef _ es -> nlPatVarsUnder k es
-      PLam _ p  -> nlPatVarsUnder k p
-      PPi a b   -> nlPatVarsUnder k (a, b)
-      PSort s   -> nlPatVarsUnder k s
-      PBoundVar _ es -> nlPatVarsUnder k es
-      PTerm{}   -> empty
+      PVar i _         -> singleton $ i - k
+      PDef s _ es      -> adjustPatVars s $ nlPatVarsUnder k es
+      PLam _ p         -> nlPatVarsUnder k p
+      PPi a b          -> nlPatVarsUnder k (a, b)
+      PSort s          -> nlPatVarsUnder k s
+      PBoundVar s _ es -> adjustPatVars s $ nlPatVarsUnder k es
+      PTerm{}          -> empty
 
 instance (NLPatVars a, NLPatVars b) => NLPatVars (a,b) where
-  nlPatVarsUnder k (a,b) = nlPatVarsUnder k a `mappend` nlPatVarsUnder k b
+  nlPatVarsUnder k (a,b) = nlPatVarsUnder k a <> nlPatVarsUnder k b
 
 instance NLPatVars a => NLPatVars (Abs a) where
   nlPatVarsUnder k = \case
     Abs   _ v -> nlPatVarsUnder (k + 1) v
     NoAbs _ v -> nlPatVarsUnder k v
+
+instance NLPatVars a => NLPatVars (Arg a) where
+instance NLPatVars a => NLPatVars (Dom a) where
+instance NLPatVars a => NLPatVars (Elim' a) where
+instance NLPatVars PElims where
 
 -- | Get all symbols that a non-linear pattern matches against
 class GetMatchables a where
@@ -302,13 +331,13 @@ instance (GetMatchables a, GetMatchables b) => GetMatchables (a,b) where
 instance GetMatchables NLPat where
   getMatchables p =
     case p of
-      PVar _ _       -> empty
-      PDef f es      -> singleton f ++ getMatchables es
-      PLam _ x       -> getMatchables x
-      PPi a b        -> getMatchables (a,b)
-      PSort s        -> getMatchables s
-      PBoundVar i es -> getMatchables es
-      PTerm u        -> getMatchables u
+      PVar _ _         -> empty
+      PDef _ f es      -> singleton f ++ getMatchables es
+      PLam _ x         -> getMatchables x
+      PPi a b          -> getMatchables (a,b)
+      PSort s          -> getMatchables s
+      PBoundVar _ i es -> getMatchables es
+      PTerm u          -> getMatchables u
 
 instance GetMatchables NLPType where
   getMatchables = getMatchables . nlpTypeUnEl
@@ -333,13 +362,13 @@ instance GetMatchables RewriteRule where
 
 instance Free NLPat where
   freeVars' = \case
-    PVar _ _       -> mempty
-    PDef _ es      -> freeVars' es
-    PLam _ u       -> freeVars' u
-    PPi a b        -> freeVars' (a,b)
-    PSort s        -> freeVars' s
-    PBoundVar _ es -> freeVars' es
-    PTerm t        -> freeVars' t
+    PVar _ _         -> mempty
+    PDef _ _ es      -> freeVars' es
+    PLam _ u         -> freeVars' u
+    PPi a b          -> freeVars' (a,b)
+    PSort s          -> freeVars' s
+    PBoundVar _ _ es -> freeVars' es
+    PTerm t          -> freeVars' t
 
 instance Free NLPType where
   freeVars' (NLPType s a) =

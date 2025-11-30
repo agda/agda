@@ -315,43 +315,42 @@ usableAtModality' ms why mod t =
 usableAtModality :: MonadConstraint TCM => WhyCheckModality -> Modality -> Term -> TCM ()
 usableAtModality = usableAtModality' Nothing
 
-
-{-# SPECIALIZE isNeverDefSing :: Type -> TCM Bool #-}
+{-# SPECIALIZE isNeverDefSing :: Type -> TCM DefSing #-}
 
 -- | Is the type definitely not a definitional singleton (even after
 --   substitution)? (Needs reduction.)
-isNeverDefSing :: (PureTCM m, MonadBlock m) => Type -> m Bool
+isNeverDefSing :: (PureTCM m, MonadBlock m) => Type -> m DefSing
 isNeverDefSing a = do
   let s = getSort a
   p <- isProp <$> abortIfBlocked s
   if p
-  then pure False -- Strict propositions are always definitional singletons
+  then pure NeverDefSing -- Strict propositions are always definitional singletons
   else do
   -- I think the type should always be reduced by the time we get here...
   -- a <- ignoreBlocking <$> reduceB a
   case unEl a of
-    Var _ _           -> pure False
+    Var _ _           -> pure MaybeDefSing
     Lam _ _           -> __IMPOSSIBLE__
     Lit _             -> __IMPOSSIBLE__
     Def d _           -> do
       def <- getConstInfo d
       case theDef def of
-        Datatype{}         -> pure True
-        Record{}           -> pure True
+        Datatype{}         -> pure NeverDefSing
+        Record{}           -> pure NeverDefSing
           -- If the record was a definitional singleton, we technically would
           -- have already eta-expanded. Still, we probably should check this
           -- properly.
-        Axiom{}            -> pure True
-        DataOrRecSig{}     -> pure True
-        AbstractDefn{}     -> pure False -- TODO: ???
-        Function{}         -> pure False
-        Primitive{}        -> pure False -- TODO: ???
+        Axiom{}            -> pure NeverDefSing
+        DataOrRecSig{}     -> pure NeverDefSing
+        AbstractDefn{}     -> pure MaybeDefSing -- TODO: ???
+        Function{}         -> pure MaybeDefSing
+        Primitive{}        -> pure MaybeDefSing -- TODO: ???
         PrimitiveSort{}    -> __IMPOSSIBLE__
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{}      -> __IMPOSSIBLE__
     Con _ _ _         -> __IMPOSSIBLE__
     Pi _ (unAbs -> b) -> isNeverDefSing b
-    Sort _            -> pure True
+    Sort _            -> pure NeverDefSing
     Level _           -> __IMPOSSIBLE__
     MetaV _ _         -> __IMPOSSIBLE__ -- TODO: Is this actually impossible?
     DontCare a        -> isNeverDefSing (El s a) -- TODO: Is this correct?
