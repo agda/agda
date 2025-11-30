@@ -75,9 +75,18 @@ lookedupName x = \case
       y  :| []      -> unamb y
       y1 :| y2 : ys -> amb $ List2 y1 y2 ys
     unamb = modifyTCLens stUnambiguousLookups . (:)
-    amb = modifyTCLens stAmbiguousLookups . IntMap.insert i
-    -- The range
-    i = fromMaybe __IMPOSSIBLE__ $ rangeToPosPos x
+    amb xs = case rangeToPosPos x of
+      -- Andreas, 2025-11-30
+      -- It can happen that a concrete identifier has no range,
+      -- e.g. when it comes from an expanded ellipsis.
+      -- In this case, we do not record the lookup,
+      -- since it should have been looked up already
+      -- when processing the pattern from the original lhs
+      -- (that was duplicated by ellipsis expansion).
+      -- See test/interaction/ExpandEllipsis.
+      Nothing -> pure ()
+      Just i -> modifyTCLens stAmbiguousLookups $ IntMap.insert i xs
+
 
 rangeToPosPos :: HasRange a => a -> Maybe Int
 rangeToPosPos = fmap (fromIntegral . P.posPos) . P.rStart' . getRange

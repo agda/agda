@@ -17,7 +17,7 @@ COVERED=$TMPDIR/covered.txt
 # Those are printed by `agda --help=warning` at line beginnings and follow
 # the camel-case convention, with at least two capital letters.
 #
-${AGDA_BIN:-agda} --help=warning | sed -nr 's/^([A-Z][a-z]+[A-Z][A-Za-z=]+).*/\1/p' | sort | uniq > $HELPWARNS
+${AGDA_BIN:-agda} --help=warning | sed -nr 's/^([A-Z][a-z]+[A-Z][A-Za-z]+).*/\1/p' | sort | uniq > $HELPWARNS
 
 if [[ "$1" == "--debug" ]]; then
   cat $HELPWARNS
