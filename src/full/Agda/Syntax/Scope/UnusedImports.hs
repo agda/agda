@@ -64,7 +64,10 @@ import Agda.Utils.Null     ( Null(null) )
 import Agda.Utils.Impossible
 
 -- | Call these whenever a concrete name was translated to an abstract one.
-lookedupName :: C.QName -> ResolvedName -> ScopeM ()
+lookedupName ::
+     C.QName       -- ^ The concrete name resolved by the scope checker.
+  -> ResolvedName  -- ^ The resolution of the name.
+  -> ScopeM ()
 lookedupName x = \case
     DefinedName _access y _suffix -> unamb y
     FieldName ys                  -> add ys
@@ -96,7 +99,13 @@ rangeToPosPos = fmap (fromIntegral . P.posPos) . P.rStart' . getRange
 --   When the 'UnusedImports' warning is enabled, we will store this information
 --   to later issue a warning connected to this 'open' statement
 --   for the names that were not used.
-registerModuleOpening :: KwRange -> A.ModuleName -> C.QName -> C.ImportDirective -> Scope -> ScopeM ()
+registerModuleOpening ::
+     KwRange             -- ^ Range of the @open@ keyword.
+  -> A.ModuleName        -- ^ Parent module: module into which we pour the opened module.
+  -> C.QName             -- ^ Opened module.
+  -> C.ImportDirective   -- ^ Directive restricting the scope of the opened module.
+  -> Scope               -- ^ The scope resulting from applying the import directive.
+  -> ScopeM ()
 registerModuleOpening kwr currentModule x dir (Scope m0 _parents ns imports _dataOrRec) = do
   -- @imports@ have been removed by 'restrictPrivate'.
   unless (null imports) __IMPOSSIBLE__
@@ -134,17 +143,18 @@ warnUnusedImports = do
 
     reportSLn "warning.unusedImports" 60 $ "unambiguousLookups: " <> prettyShow (unambiguousLookups st)
 
-    -- Disambiguate overloaded lookups.
     let
-      helper (i :: Int) (ys :: List2 AbstractName) = do
+      -- Disambiguate overloaded lookups.
+      addAmbLookup (i :: Int) (ys :: List2 AbstractName) = do
         case IntMap.lookup i disambiguatedNames of
           Just (DisambiguatedName _k x) -> (filter ((x ==) . anameName) (List2.toList ys) ++)
           Nothing -> (List2.toList ys ++) -- __IMPOSSIBLE__
       allLookups :: [AbstractName]
-      allLookups = IntMap.foldrWithKey helper (unambiguousLookups st) (ambiguousLookups st)
+      allLookups = IntMap.foldrWithKey addAmbLookup (unambiguousLookups st) (ambiguousLookups st)
 
-    -- Compute unambiguous lookups by using name disambiguation info from type checker.
-    let
+      -- To make a set of the list of looked-up 'AbstractName's,
+      -- we need to convert them to 'ImportedName's lest we
+      -- conflate names from different openings.
       lookups :: [ImportedName]
       (unknowns, lookups) = partitionMaybe toImportedName allLookups
       isLookedUp, isInst, isUsed  :: ImportedName -> Bool
@@ -155,33 +165,36 @@ warnUnusedImports = do
     reportSLn "warning.unusedImports" 60 $ "allLookups: " <> prettyShow allLookups
     reportSLn "warning.unusedImports" 60 $ "lookups: " <> prettyShow lookups
     reportSLn "warning.unusedImports" 60 $ "unknowns: " <> prettyShow unknowns
-    -- unless (null unknowns) do
-    --   reportSLn "warning.unusedImports" 60 $ "unknowns: " <> show unknowns
-    --   __IMPOSSIBLE__
 
+    -- Iterate through the @open@ statements and issue warnings.
     forM_ (openedModules st) \ (OpenedModule (kwr :: KwRange) (m :: A.ModuleName) (parent :: A.ModuleName) (hasDir :: Bool) (sc :: NamesInScope)) -> do
       let
+        -- Partition the names brought into scope by the open statement
+        -- into used and unused ones.
         f :: (C.Name, List1 AbstractName) -> Maybe (C.Name, List1 ImportedName)
         f = traverse $ traverse toImportedName
         -- f (x, ys) = (x ,) <$> traverse toImportedName ys
-        imps, used, unused :: [(C.Name, List1 ImportedName)]
+        imps, imps', used, unused :: [(C.Name, List1 ImportedName)]
         (other, imps) = partitionMaybe f $ Map.toList sc
         imps' = map (\ (x, ys) -> (x, setRange (getRange x) <$> ys)) imps
-        (used, unused) = partition (\ (x :: C.Name, ys :: List1 ImportedName) -> any isUsed ys) imps'
-        -- Commands to issue the warnings
+        (used, unused) = partition (any isUsed . snd) imps'
+
+      reportSLn "warning.unusedImports" 60 $ "used: " <> prettyShow used
+      reportSLn "warning.unusedImports" 60 $ "unused: " <> prettyShow unused
+      unless (null other) $ __IMPOSSIBLE_VERBOSE__ (show other)
+
+      let
+        -- Commands to issue the warnings:
         warn = setCurrentRange (getRange (kwr, m)) . withCurrentModule parent . warning . UnusedImports m
         warnModule = warn Nothing
         warnEach = do
           List1.unlessNull (map snd unused) \ unused1 -> do
             warn $ Just $ fmap (iName . List1.head) unused1
 
-      reportSLn "warning.unusedImports" 60 $ "used: " <> prettyShow used
-      reportSLn "warning.unusedImports" 60 $ "unused: " <> prettyShow unused
-      unless (null other) do
-        __IMPOSSIBLE_VERBOSE__ (show other)
+      -- Issue warning.
       -- If nothing was used, we warn about the whole import.
       -- If the open statement has a 'using' or 'renaming' directive,
-      -- or if the UnusedImportsAll warning is enabled,
+      -- or if the 'UnusedImportsAll_' warning is enabled,
       -- we warn about each unused name individually.
       -- Otherwise, we just warn once about the whole import.
       if  | hasDir      -> warnEach
