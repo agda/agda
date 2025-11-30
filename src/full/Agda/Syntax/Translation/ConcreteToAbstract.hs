@@ -60,6 +60,7 @@ import Agda.Syntax.Concrete.Fixity (DoWarn(..))
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base as A
 import Agda.Syntax.Scope.Monad
+import Agda.Syntax.Scope.UnusedImports (lookedupName)
 import Agda.Syntax.Translation.AbstractToConcrete (ToConcrete, ConOfAbs)
 import Agda.Syntax.DoNotation
 import Agda.Syntax.IdiomBrackets
@@ -564,6 +565,7 @@ instance ToAbstract MaybeOldQName where
   type AbsOfCon MaybeOldQName = Maybe A.Expr
   toAbstract (MaybeOldQName (OldQName x ns)) = do
     qx <- resolveName' allKindsOfNames ns x
+    lookedupName x qx -- Mark this name as used for the unused-imports analysis
     reportSLn "scope.name" 30 $ "resolved " ++ prettyShow x ++ ": " ++ prettyShow qx
     case qx of
       VarName x' _         -> return $ Just $ A.Var x'

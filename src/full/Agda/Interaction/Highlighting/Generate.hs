@@ -458,6 +458,7 @@ warningHighlighting' b w = case tcWarning w of
   FixingPolarity _ q _       -> if null r then cosmeticProblemHighlighting w else deadcodeHighlighting r
     where r = getRange q
   IllformedAsClause{}        -> deadcodeHighlighting w
+  UnusedImports m xs         -> cosmeticProblemHighlighting m <> foldMap deadcodeHighlighting xs
   UselessPragma r _          -> deadcodeHighlighting r
   UselessPublic{}            -> deadcodeHighlighting w
   UselessHiding xs           -> foldMap deadcodeHighlighting xs

@@ -684,6 +684,7 @@ library
       Agda.Syntax.Scope.Monad
       Agda.Syntax.Scope.Operator
       Agda.Syntax.Scope.State
+      Agda.Syntax.Scope.UnusedImports
       Agda.Syntax.TopLevelModuleName
       Agda.Syntax.TopLevelModuleName.Boot
       Agda.Syntax.Translation.AbstractToConcrete

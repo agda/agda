@@ -320,6 +320,11 @@ prettyWarning = \case
       pwords "Invalid character literal" ++ [text $ show c] ++
       pwords "(surrogate code points are not supported)"
 
+    UnusedImports m xs -> vcat
+      [ fsep $ [ "Opening", prettyTCM m ] ++ pwords "brings the following unused names into scope:"
+      , fsep $ fmap prettyTCM xs
+      ]
+
     UselessPragma _r d -> return d
 
     SafeFlagPostulate q -> fsep $

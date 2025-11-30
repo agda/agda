@@ -200,6 +200,7 @@ usualWarnings =
   allWarnings Set.\\ exactSplitWarnings Set.\\ Set.fromList
     [ UnknownFixityInMixfixDecl_
     , ShadowingInTelescope_
+    , UnusedImports_
     ]
 
 -- | Warnings enabled by @--exact-split@.
@@ -287,6 +288,7 @@ data WarningName
   -- -- | FixingQuantity_
   | FixityInRenamingModule_
   | InvalidCharacterLiteral_
+  | UnusedImports_
   | UselessPragma_
   | IllegalDeclarationInDataDefinition_
   | IllformedAsClause_
@@ -610,6 +612,7 @@ warningNameDescription = \case
   WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."
   TooManyPolarities_               -> "Too many polarities given in POLARITY pragma."
   TopLevelPolarity_                -> "Declaring definitions with an explicit polarity annotation."
+  UnusedImports_                   -> "Identifiers brought into scope but never referenced."
   -- Checking consistency of options
   CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does."
   InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which does not."

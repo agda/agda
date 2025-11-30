@@ -17,6 +17,7 @@ import Data.Function       ( on )
 import Data.HashMap.Strict ( HashMap )
 import Data.HashMap.Strict qualified as HMap
 import Data.Hashable       ( Hashable, hashWithSalt )
+import Data.IntMap         ( IntMap )
 import Data.List           qualified as List
 import Data.Map.Strict     ( Map )
 import Data.Map.Strict     qualified as Map
@@ -420,6 +421,35 @@ isModuleAlive :: A.ModuleName -> LiveNames -> Bool
 isModuleAlive _             AllLiveNames = True
 isModuleAlive (A.MName mod) (SomeLiveNames mods _) =
   any ((`Set.member` mods) . A.MName) (List.inits mod)
+
+------------------------------------------------------------------------
+-- * Unused imports
+------------------------------------------------------------------------
+
+-- | Information gathered during scope checking for the unused-imports warning.
+data UnusedImportsState = UnusedImportsState
+  { unambiguousLookups :: Set A.QName
+      -- ^ Names that were unambiguously resolved from a concrete name in the source.
+  , ambiguousLookups   :: IntMap (List2 A.QName)
+      -- ^ Names that were ambiguously resolved from a concrete name in the source.
+      --   They are stored with their position in the file
+      --   that is matched with disambiguation information produced by the type checker.
+  , openedModules      :: Map ModuleName NamesInScope
+      -- ^ Log of module @open@s with the names they brought into scope.
+  } deriving (Generic)
+
+instance Null UnusedImportsState where
+  empty = UnusedImportsState empty empty empty
+  null (UnusedImportsState u a o) = null u && null a && null o
+
+lensUnambiguousLookups :: Lens' UnusedImportsState (Set A.QName)
+lensUnambiguousLookups f s = f (unambiguousLookups s) <&> \x -> s { unambiguousLookups = x }
+
+lensAmbiguousLookups :: Lens' UnusedImportsState (IntMap (List2 A.QName))
+lensAmbiguousLookups f s = f (ambiguousLookups s) <&> \x -> s { ambiguousLookups = x }
+
+lensOpenedModules :: Lens' UnusedImportsState (Map ModuleName NamesInScope)
+lensOpenedModules f s = f (openedModules s) <&> \x -> s { openedModules = x }
 
 ------------------------------------------------------------------------
 -- * Decorated names

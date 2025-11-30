@@ -53,6 +53,7 @@ import qualified Data.Text.Lazy as TL
 import System.Directory (doesFileExist, removeFile)
 import System.FilePath  ( (</>) )
 import System.IO
+import System.IO.Error (isUserError, isFullError)
 
 import Agda.Benchmarking
 
@@ -65,6 +66,7 @@ import Agda.Syntax.Common.Pretty hiding (Mode)
 import Agda.Syntax.Parser
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.UnusedImports (warnUnusedImports)
 import Agda.Syntax.TopLevelModuleName
 import Agda.Syntax.Translation.ConcreteToAbstract
   ( TopLevel( TopLevel )
@@ -78,6 +80,7 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings hiding (warnings)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules, sortRulesOfSymbol )
+import Agda.TypeChecking.Rewriting.NonLinPattern (getMatchables)
 import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise (decode, encodeFile, decodeInterface, deserializeHashes)
@@ -116,8 +119,6 @@ import qualified Agda.Utils.Set1 as Set1
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Impossible
-import System.IO.Error (isUserError, isFullError)
-import Agda.TypeChecking.Rewriting.NonLinPattern (getMatchables)
 
 -- | Whether to ignore interfaces (@.agdai@) other than built-in modules
 
@@ -409,7 +410,7 @@ scopeCheckFileImport top = do
     verboseS "import.scope" 30 $ do
       visited <- prettyShow <$> getPrettyVisitedModules
       reportSLn "import.scope" 30 $ "  visited: " ++ visited
-    -- Since scopeCheckImport is called from the scope checker,
+    -- Since scopeCheckFileImport is called from the scope checker,
     -- we need to reimburse her account.
     i <- Bench.billTo [] $ getNonMainInterface top Nothing
     addImport top
@@ -1226,6 +1227,9 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     whenProfile Profile.Metas $ do
       m <- fresh
       tickN "metas" (metaId m)
+
+    -- Generate unused imports warning.
+    warnUnusedImports
 
     -- Highlighting from type checker.
     reportSLn "import.iface.highlight" 15 $ prettyShow mname ++ ": Starting highlighting from type info."
