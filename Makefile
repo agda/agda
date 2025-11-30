@@ -834,6 +834,8 @@ debug : ## Print debug information.
 	@echo "STACK_OPTS                     = $(STACK_OPTS)"
 	@echo "STACK_OPT_FAST                 = $(STACK_OPT_FAST)"
 	@echo "STACK_OPT_NO_DOCS              = $(STACK_OPT_NO_DOCS)"
+	@echo Agda version:
+	$(AGDA_BIN) --version
 	@echo
 	@echo "Run \`make -pq\` to get a detailed report."
 	@echo
