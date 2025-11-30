@@ -327,6 +327,12 @@ setScopeLocals = set scopeLocals
 data NameSpace = NameSpace
       { nsNames   :: NamesInScope
         -- ^ Maps concrete names to a list of abstract names.
+        --   If this is part of a scope produced by an 'ImportDirective',
+        --   the concrete names should (where possible) match those of the directive.
+        --   E.g., if the directive mentions @using (x)@, then the concrete @x@
+        --   in the map should be this @x@ rather then the @x@ from the original
+        --   scope that is restricted by the import directive.
+        --   This is important for the highlighting of the 'UnusedImports' warning.
       , nsNameParts :: NamePartsInScope
         -- ^ Maps name parts to a list of abstract names in which the name
         --   part occurs.

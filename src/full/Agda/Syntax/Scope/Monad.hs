@@ -1066,7 +1066,7 @@ openModule kwr kind mam cm dir = do
   -- Get the scope exported by module to be opened.
   (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) .
                 noGeneralizedVarsIfLetOpen kind =<< getNamedScope m
-  whenNothing (publicOpen dir) $ registerModuleOpening kwr current cm dir s' -- For the unused import warning
+  registerModuleOpening kwr current cm dir s' -- For the unused import warning
   let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
   modifyCurrentScope \current -> recomputeNameParts $ mergeScope current s

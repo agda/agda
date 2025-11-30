@@ -14,7 +14,11 @@
 -- When checking the file is done, we can traverse the each opened module
 -- and report all the 'AbstractName's that we not used.
 
-module Agda.Syntax.Scope.UnusedImports where
+module Agda.Syntax.Scope.UnusedImports
+  ( lookedupName
+  , registerModuleOpening
+  , warnUnusedImports
+  ) where
 
 import Prelude hiding (null, (||))
 
@@ -30,36 +34,34 @@ import Agda.Interaction.Options (lensOptWarningMode, optQualifiedInstances)
 import Agda.Interaction.Options.Warnings (lensSingleWarning, WarningName (UnusedImports_, UnusedImportsAll_), warningSet, unusedImportsWarnings)
 
 import Agda.Syntax.Abstract.Name qualified as A
-import Agda.Syntax.Common ( IsInstanceDef(isInstanceDef), IsInstance, KwRange, ImportDirective' (using, impRenaming) )
+import Agda.Syntax.Common ( IsInstanceDef(isInstanceDef), IsInstance, KwRange, ImportDirective' (using, impRenaming, publicOpen) )
 import Agda.Syntax.Common.Pretty (prettyShow, Pretty (pretty))
 import Agda.Syntax.Concrete qualified as C
 import Agda.Syntax.Position ( HasRange(getRange), SetRange(setRange), Range )
 import Agda.Syntax.Position qualified as P
 import Agda.Syntax.Scope.Base as A
-import Agda.Syntax.Scope.State (withCurrentModule)
+import Agda.Syntax.Scope.State ( ScopeM, withCurrentModule )
+-- importing Agda.Syntax.Scope.Monad creates import cycles
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.Debug ( reportSLn, __IMPOSSIBLE_VERBOSE__ )
 import Agda.TypeChecking.Monad.Trace (setCurrentRange)
 import Agda.TypeChecking.Warnings (warning)
 
 import Agda.Utils.Boolean  ( (||) )
 import Agda.Utils.Function ( applyUnless )
-import Agda.Utils.Lens
-import Agda.Utils.List     ( partitionMaybe )
+import Agda.Utils.Lens     ( (<&>), Lens' )
+import Agda.Utils.List     ( partitionMaybe, hasElem )
 import Agda.Utils.List1    ( pattern (:|), List1 )
 import Agda.Utils.List1    qualified as List1
 import Agda.Utils.List2    ( List2(..) )
 import Agda.Utils.List2    qualified as List2
 import Agda.Utils.Map      qualified as Map
-import Agda.Utils.Maybe
-import Agda.Utils.Monad
-import Agda.Utils.Null
+import Agda.Utils.Maybe    ( fromMaybe, isJust, whenNothing )
+import Agda.Utils.Monad    ( forM_, when, unless )
+import Agda.Utils.Null     ( Null(null) )
 
 import Agda.Utils.Impossible
-
--- import Agda.Syntax.Scope.Monad (ScopeM) -- cyclic import
-type ScopeM = TCM -- to avoid cyclic imports
 
 -- | Call these whenever a concrete name was translated to an abstract one.
 lookedupName :: C.QName -> ResolvedName -> ScopeM ()
@@ -87,14 +89,13 @@ lookedupName x = \case
       Nothing -> pure ()
       Just i -> modifyTCLens stAmbiguousLookups $ IntMap.insert i xs
 
-
 rangeToPosPos :: HasRange a => a -> Maybe Int
 rangeToPosPos = fmap (fromIntegral . P.posPos) . P.rStart' . getRange
 
-unusedImportWs :: ScopeM (Set WarningName)
-unusedImportWs = (unusedImportsWarnings `Set.intersection`) <$> useTC stWarningSet
-
 -- | Call this when opening a module with all the names it brings into scope.
+--   When the 'UnusedImports' warning is enabled, we will store this information
+--   to later issue a warning connected to this 'open' statement
+--   for the names that were not used.
 registerModuleOpening :: KwRange -> A.ModuleName -> C.QName -> C.ImportDirective -> Scope -> ScopeM ()
 registerModuleOpening kwr currentModule x dir (Scope m0 _parents ns imports _dataOrRec) = do
   -- @imports@ have been removed by 'restrictPrivate'.
@@ -109,39 +110,19 @@ registerModuleOpening kwr currentModule x dir (Scope m0 _parents ns imports _dat
     , "x = " <> prettyShow x
     -- , "currentModule: " <> prettyShow curM
     ]
-  when doWarn do
+  when doWarn $ whenNothing (publicOpen dir) do
     let
       m = setRange (getRange x) m0
       broughtIntoScope :: NamesInScope -- [Map C.Name (List1 AbstractName)]
       broughtIntoScope = mergeNamesMany $ map (nsNames . snd) ns
       !k = fromMaybe __IMPOSSIBLE__ $ rangeToPosPos x
       hasDir = not (null (using dir)) || not (null (impRenaming dir))
-    modifyTCLens stOpenedModules $ IntMap.insert k (OpenedModule kwr m currentModule hasDir broughtIntoScope)
+    modifyTCLens stOpenedModules $
+      IntMap.insert k (OpenedModule kwr m currentModule hasDir broughtIntoScope)
 
-data ImportedName = ImportedName
-  { iWhere :: Int -- Position of 'Opened' extracted from the 'AbstractName'.
-  , iName  :: AbstractName
-  } deriving (Eq, Ord, Show)
-
-instance HasRange ImportedName where
-  getRange = getRange . iName
-
-instance SetRange ImportedName where
-  setRange r (ImportedName i n) = ImportedName i (setRange r n)
-
-instance Pretty ImportedName where
-  pretty (ImportedName i n) = pretty n <> " (at position " <> pretty i <> ")"
-
-instance IsInstanceDef ImportedName where
-  isInstanceDef = isInstanceDef . iName
-
-toImportedName :: AbstractName -> Maybe ImportedName
-toImportedName x = case anameLineage x of
-  Opened m _ -> rangeToPosPos m <&> (`ImportedName` x)
-  Applied{} -> Nothing
-  Defined{} -> Nothing
-
--- | Call this when a file has been checked.
+-- | Call this when a file has been checked to generate the unused-imports warnings for each opened module.
+--   Assumes that all names have been looked up via 'lookedupName'.
+--   Needs the disambiguation information from the type checker to correctly report ununsed overloaded names.
 warnUnusedImports :: TCM ()
 warnUnusedImports = do
     warnAll <- (UnusedImportsAll_ `Set.member`) <$> useTC stWarningSet
@@ -166,10 +147,8 @@ warnUnusedImports = do
     let
       lookups :: [ImportedName]
       (unknowns, lookups) = partitionMaybe toImportedName allLookups
-      lookupSet :: Set ImportedName
-      lookupSet = Set.fromList lookups
       isLookedUp, isInst, isUsed  :: ImportedName -> Bool
-      isLookedUp = (`Set.member` lookupSet)
+      isLookedUp = hasElem lookups
       isInst = isJust . isInstanceDef
       isUsed = applyUnless qualifiedInstances (isInst ||) isLookedUp
 
@@ -185,9 +164,8 @@ warnUnusedImports = do
         f :: (C.Name, List1 AbstractName) -> Maybe (C.Name, List1 ImportedName)
         f = traverse $ traverse toImportedName
         -- f (x, ys) = (x ,) <$> traverse toImportedName ys
-        imps :: [(C.Name, List1 ImportedName)]
+        imps, used, unused :: [(C.Name, List1 ImportedName)]
         (other, imps) = partitionMaybe f $ Map.toList sc
-        used, unused :: [(C.Name, List1 ImportedName)]
         imps' = map (\ (x, ys) -> (x, setRange (getRange x) <$> ys)) imps
         (used, unused) = partition (\ (x :: C.Name, ys :: List1 ImportedName) -> any isUsed ys) imps'
         -- Commands to issue the warnings
@@ -211,6 +189,42 @@ warnUnusedImports = do
           | null unused -> pure ()
           | warnAll     -> warnEach
           | otherwise   -> warnModule
+
+------------------------------------------------------------------------------
+-- * Auxiliary definitions
+
+unusedImportWs :: ScopeM (Set WarningName)
+unusedImportWs = (unusedImportsWarnings `Set.intersection`) <$> useTC stWarningSet
+
+-- | A wrapper around 'AbstractName' to make the position of the 'Opened' in the lineage available.
+--   This wrapper is needed when 'AbstractName's are stored in sets
+--   so that we do not conflate different 'AbstractName's with the same underlying 'A.QName'
+--   that were brought into scope by different 'open' statements.
+data ImportedName = ImportedName
+  { iWhere :: Int -- Position of 'Opened' extracted from the 'AbstractName'.
+  , iName  :: AbstractName
+  } deriving (Eq, Ord, Show)
+
+instance HasRange ImportedName where
+  getRange = getRange . iName
+
+instance SetRange ImportedName where
+  setRange r (ImportedName i n) = ImportedName i (setRange r n)
+
+instance Pretty ImportedName where
+  pretty (ImportedName i n) = pretty n <> " (at position " <> pretty i <> ")"
+
+instance IsInstanceDef ImportedName where
+  isInstanceDef = isInstanceDef . iName
+
+-- | Convert an 'AbstractName' to an 'ImportedName' if it was brought into scope by an 'open' statement.
+toImportedName :: AbstractName -> Maybe ImportedName
+toImportedName x = case anameLineage x of
+  Opened m _ -> rangeToPosPos m <&> (`ImportedName` x)
+  Applied{} -> Nothing
+  Defined{} -> Nothing
+
+-- Lenses for the components of the UnusedImportsState in the TCState.
 
 stUnambiguousLookups :: Lens' TCState [AbstractName]
 stUnambiguousLookups = stUnusedImportsState . lensUnambiguousLookups
