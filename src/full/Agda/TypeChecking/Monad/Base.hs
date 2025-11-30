@@ -254,7 +254,7 @@ data PreScopeState = PreScopeState
     -- ^ Associates an original name (the key) to all its copies (the
     -- value). Computed by the scope checker, used to compute opaque
     -- blocks.
-  , stPreUnusedImportsState :: UnusedImportsState
+  , stPreUnusedImportsState :: !UnusedImportsState
     -- ^ Information collected by the scope checker to generate warnings about unused imports.
   }
   deriving Generic
@@ -680,7 +680,7 @@ lensNameCopies :: Lens' PreScopeState (HashMap QName (HashSet QName))
 lensNameCopies f s = f (stPreNameCopies s) <&> \ x -> s { stPreNameCopies = x }
 
 lensUnusedImportsState :: Lens' PreScopeState UnusedImportsState
-lensUnusedImportsState f s = f (stPreUnusedImportsState s) <&> \ x -> s { stPreUnusedImportsState = x }
+lensUnusedImportsState f s = f (stPreUnusedImportsState s) <&> \ !x -> s { stPreUnusedImportsState = x }
 
 -- ** Components of PostScopeState
 
@@ -976,6 +976,9 @@ stModuleCheckpoints = lensPostScopeState . lensModuleCheckpoints
 
 stImportsDisplayForms :: Lens' TCState DisplayForms
 stImportsDisplayForms = lensPostScopeState . lensImportsDisplayForms
+
+stWarningSet :: Lens' TCState (Set WarningName)
+stWarningSet = stPragmaOptions . lensOptWarningMode . warningSet
 
 -- | Note that the lens is \"strict\".
 

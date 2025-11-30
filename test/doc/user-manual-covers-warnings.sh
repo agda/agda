@@ -15,7 +15,7 @@ IGNOREDWARNS=$TMPDIR/ignored-warnings.txt
 HELPWARNS=$TMPDIR/help-text-warnings.txt
 
 # Documented warnings.
-sed -nr 's/^.. option:: ([A-Z][A-Za-z]*)/\1/p' $DOC | sort > $DOCWARNS
+sed -nr 's/^.. option:: ([A-Z][A-Za-z=]*)/\1/p' $DOC | sort > $DOCWARNS
 
 # Ignored warnings (e.g. future warnings, not yet triggered).
 cat > $IGNOREDWARNS <<EOF
@@ -28,7 +28,7 @@ cat $DOCWARNS $IGNOREDWARNS | sort | uniq > $COVEREDWARNS
 # Existing warnings.
 # Those are printed by `agda --help=warning` at line beginnings and follow
 # the camel-case convention, with at least two capital letters.
-$AGDA_BIN --help=warning | sed -nr 's/^([A-Z][a-z]+[A-Z][A-Za-z]+).*/\1/p' | sort > $HELPWARNS
+$AGDA_BIN --help=warning | sed -nr 's/^([A-Z][a-z]+[A-Z][A-Za-z=]+).*/\1/p' | sort | uniq > $HELPWARNS
 
 # Warnings that are documented but don't exist any longer.
 REMOVED=$(comm -23 $DOCWARNS $HELPWARNS)

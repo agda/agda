@@ -428,13 +428,13 @@ isModuleAlive (A.MName mod) (SomeLiveNames mods _) =
 
 -- | Information gathered during scope checking for the unused-imports warning.
 data UnusedImportsState = UnusedImportsState
-  { unambiguousLookups :: [AbstractName]
+  { unambiguousLookups :: ![AbstractName]
       -- ^ Names that were unambiguously resolved from a concrete name in the source.
-  , ambiguousLookups   :: IntMap (List2 AbstractName)
+  , ambiguousLookups   :: !(IntMap (List2 AbstractName))
       -- ^ Names that were ambiguously resolved from a concrete name in the source.
       --   They are stored with their position in the file
       --   that is matched with disambiguation information produced by the type checker.
-  , openedModules      :: IntMap (A.ModuleName, A.ModuleName, NamesInScope)
+  , openedModules      :: !(IntMap (KwRange, A.ModuleName, A.ModuleName, Bool, NamesInScope))
       -- ^ Log of module @open@s with the names they brought into scope.
   } deriving (Generic)
 
@@ -443,13 +443,13 @@ instance Null UnusedImportsState where
   null (UnusedImportsState u a o) = null u && null a && null o
 
 lensUnambiguousLookups :: Lens' UnusedImportsState [AbstractName]
-lensUnambiguousLookups f s = f (unambiguousLookups s) <&> \x -> s { unambiguousLookups = x }
+lensUnambiguousLookups f s = f (unambiguousLookups s) <&> \ !x -> s { unambiguousLookups = x }
 
 lensAmbiguousLookups :: Lens' UnusedImportsState (IntMap (List2 AbstractName))
-lensAmbiguousLookups f s = f (ambiguousLookups s) <&> \x -> s { ambiguousLookups = x }
+lensAmbiguousLookups f s = f (ambiguousLookups s) <&> \ !x -> s { ambiguousLookups = x }
 
-lensOpenedModules :: Lens' UnusedImportsState (IntMap (KwRange, ModuleName, ModuleName, NamesInScope))
-lensOpenedModules f s = f (openedModules s) <&> \x -> s { openedModules = x }
+lensOpenedModules :: Lens' UnusedImportsState (IntMap (KwRange, ModuleName, ModuleName, Bool, NamesInScope))
+lensOpenedModules f s = f (openedModules s) <&> \ !x -> s { openedModules = x }
 
 ------------------------------------------------------------------------
 -- * Decorated names

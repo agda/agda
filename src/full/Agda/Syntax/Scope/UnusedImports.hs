@@ -18,8 +18,8 @@ module Agda.Syntax.Scope.UnusedImports where
 
 import Prelude hiding (null, (||))
 
-import Data.IntMap (IntMap)
-import Data.IntMap qualified as IntMap
+import Data.IntMap.Strict (IntMap)
+import Data.IntMap.Strict qualified as IntMap
 import Data.List (partition)
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -27,29 +27,31 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 
 import Agda.Interaction.Options (lensOptWarningMode, optQualifiedInstances)
-import Agda.Interaction.Options.Warnings (lensSingleWarning, WarningName (UnusedImports_))
+import Agda.Interaction.Options.Warnings (lensSingleWarning, WarningName (UnusedImports_, UnusedImportsAll_), warningSet, unusedImportsWarnings)
 
 import Agda.Syntax.Abstract.Name qualified as A
-import Agda.Syntax.Common ( IsInstanceDef(isInstanceDef), IsInstance, KwRange )
+import Agda.Syntax.Common ( IsInstanceDef(isInstanceDef), IsInstance, KwRange, ImportDirective' (using, impRenaming) )
 import Agda.Syntax.Common.Pretty (prettyShow, Pretty (pretty))
-import Agda.Syntax.Concrete.Name qualified as C
+import Agda.Syntax.Concrete qualified as C
 import Agda.Syntax.Position ( HasRange(getRange), SetRange(setRange), Range )
 import Agda.Syntax.Position qualified as P
 import Agda.Syntax.Scope.Base as A
+import Agda.Syntax.Scope.State (withCurrentModule)
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Trace (setCurrentRange)
 import Agda.TypeChecking.Warnings (warning)
 
-import Agda.Utils.Boolean ( (||) )
+import Agda.Utils.Boolean  ( (||) )
+import Agda.Utils.Function ( applyUnless )
 import Agda.Utils.Lens
-import Agda.Utils.List (partitionMaybe)
-import Agda.Utils.List1 ( pattern (:|), List1 )
-import Agda.Utils.List1 qualified as List1
-import Agda.Utils.List2 ( List2(..) )
-import Agda.Utils.List2 qualified as List2
-import Agda.Utils.Map qualified as Map
+import Agda.Utils.List     ( partitionMaybe )
+import Agda.Utils.List1    ( pattern (:|), List1 )
+import Agda.Utils.List1    qualified as List1
+import Agda.Utils.List2    ( List2(..) )
+import Agda.Utils.List2    qualified as List2
+import Agda.Utils.Map      qualified as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -80,18 +82,22 @@ lookedupName x = \case
 rangeToPosPos :: HasRange a => a -> Maybe Int
 rangeToPosPos = fmap (fromIntegral . P.posPos) . P.rStart' . getRange
 
+unusedImportWs :: ScopeM (Set WarningName)
+unusedImportWs = (unusedImportsWarnings `Set.intersection`) <$> useTC stWarningSet
+
 -- | Call this when opening a module with all the names it brings into scope.
-openedModule :: KwRange -> A.ModuleName -> C.QName -> Scope -> ScopeM ()
-openedModule kwr currentModule x (Scope m0 _parents ns imports _dataOrRec) = do
+openedModule :: KwRange -> A.ModuleName -> C.QName -> C.ImportDirective -> Scope -> ScopeM ()
+openedModule kwr currentModule x dir (Scope m0 _parents ns imports _dataOrRec) = do
   -- @imports@ have been removed by 'restrictPrivate'.
   unless (null imports) __IMPOSSIBLE__
 
   -- When the UnusedImports warning is off, do not collect information about @open@.
   -- E.g. we do not want to see warnings for the automatically inserted
   -- @open import Agda.Primitive using (Set)@.
-  doWarn :: Bool <- useTC $ stPragmaOptions . lensOptWarningMode . lensSingleWarning UnusedImports_
+  doWarn :: Bool <- (not . null) <$> unusedImportWs
   reportSLn "warning.unusedImports" 20 $ unlines
     [ "openedModule: " <> prettyShow doWarn
+    , "x = " <> prettyShow x
     -- , "currentModule: " <> prettyShow curM
     ]
   when doWarn do
@@ -99,8 +105,9 @@ openedModule kwr currentModule x (Scope m0 _parents ns imports _dataOrRec) = do
       m = setRange (getRange x) m0
       broughtIntoScope :: NamesInScope -- [Map C.Name (List1 AbstractName)]
       broughtIntoScope = mergeNamesMany $ map (nsNames . snd) ns
-      k = fromMaybe __IMPOSSIBLE__ $ rangeToPosPos x
-    modifyTCLens stOpenedModules $ IntMap.insert k (kwr, m, currentModule, broughtIntoScope)
+      !k = fromMaybe __IMPOSSIBLE__ $ rangeToPosPos x
+      hasDir = not (null (using dir)) || not (null (impRenaming dir))
+    modifyTCLens stOpenedModules $ IntMap.insert k (kwr, m, currentModule, hasDir, broughtIntoScope)
 
 data ImportedName = ImportedName
   { iWhere :: Int -- Position of 'Opened' extracted from the 'AbstractName'.
@@ -128,6 +135,7 @@ toImportedName x = case anameLineage x of
 -- | Call this when a file has been checked.
 warnUnusedImports :: TCM ()
 warnUnusedImports = do
+    warnAll <- (UnusedImportsAll_ `Set.member`) <$> useTC stWarningSet
     st <- useTC stUnusedImportsState
     disambiguatedNames <- useTC stDisambiguatedNames
     -- If instances can be used qualified, they do not need to be imported,
@@ -138,7 +146,7 @@ warnUnusedImports = do
 
     -- Disambiguate overloaded lookups.
     let
-      helper =  \ (i :: Int) (ys :: List2 AbstractName) -> do
+      helper (i :: Int) (ys :: List2 AbstractName) = do
         case IntMap.lookup i disambiguatedNames of
           Just (DisambiguatedName _k x) -> (filter ((x ==) . anameName) (List2.toList ys) ++)
           Nothing -> (List2.toList ys ++) -- __IMPOSSIBLE__
@@ -154,7 +162,7 @@ warnUnusedImports = do
       isLookedUp, isInst, isUsed  :: ImportedName -> Bool
       isLookedUp = (`Set.member` lookupSet)
       isInst = isJust . isInstanceDef
-      isUsed = if qualifiedInstances then isLookedUp else isInst || isLookedUp
+      isUsed = applyUnless qualifiedInstances (isInst ||) isLookedUp
 
     reportSLn "warning.unusedImports" 60 $ "allLookups: " <> prettyShow allLookups
     reportSLn "warning.unusedImports" 60 $ "lookups: " <> prettyShow lookups
@@ -163,7 +171,7 @@ warnUnusedImports = do
     --   reportSLn "warning.unusedImports" 60 $ "unknowns: " <> show unknowns
     --   __IMPOSSIBLE__
 
-    forM_ (openedModules st) \ (kwr :: KwRange, m :: A.ModuleName, parent :: A.ModuleName, sc :: NamesInScope) -> do
+    forM_ (openedModules st) \ (kwr :: KwRange, m :: A.ModuleName, parent :: A.ModuleName, hasDir :: Bool, sc :: NamesInScope) -> do
       let
         f :: (C.Name, List1 AbstractName) -> Maybe (C.Name, List1 ImportedName)
         f = traverse $ traverse toImportedName
@@ -173,15 +181,27 @@ warnUnusedImports = do
         used, unused :: [(C.Name, List1 ImportedName)]
         imps' = map (\ (x, ys) -> (x, setRange (getRange x) <$> ys)) imps
         (used, unused) = partition (\ (x :: C.Name, ys :: List1 ImportedName) -> any isUsed ys) imps'
+        -- Commands to issue the warnings
         warn = setCurrentRange (getRange (kwr, m)) . withCurrentModule parent . warning . UnusedImports m
+        warnModule = warn Nothing
+        warnEach = do
+          List1.unlessNull (map snd unused) \ unused1 -> do
+            warn $ Just $ fmap (iName . List1.head) unused1
 
       reportSLn "warning.unusedImports" 60 $ "used: " <> prettyShow used
       reportSLn "warning.unusedImports" 60 $ "unused: " <> prettyShow unused
       unless (null other) do
         __IMPOSSIBLE_VERBOSE__ (show other)
-      if null used then warn Nothing else
-        List1.unlessNull (map snd unused) \ unused1 -> do
-          warn $ Just $ fmap (iName . List1.head) unused1
+      -- If nothing was used, we warn about the whole import.
+      -- If the open statement has a 'using' or 'renaming' directive,
+      -- or if the UnusedImportsAll warning is enabled,
+      -- we warn about each unused name individually.
+      -- Otherwise, we just warn once about the whole import.
+      if  | hasDir      -> warnEach
+          | null used   -> warnModule
+          | null unused -> pure ()
+          | warnAll     -> warnEach
+          | otherwise   -> warnModule
 
 stUnambiguousLookups :: Lens' TCState [AbstractName]
 stUnambiguousLookups = stUnusedImportsState . lensUnambiguousLookups
@@ -189,5 +209,5 @@ stUnambiguousLookups = stUnusedImportsState . lensUnambiguousLookups
 stAmbiguousLookups :: Lens' TCState (IntMap (List2 AbstractName))
 stAmbiguousLookups = stUnusedImportsState . lensAmbiguousLookups
 
-stOpenedModules :: Lens' TCState (IntMap (KwRange, A.ModuleName, A.ModuleName, NamesInScope))
+stOpenedModules :: Lens' TCState (IntMap (KwRange, A.ModuleName, A.ModuleName, Bool, NamesInScope))
 stOpenedModules = stUnusedImportsState . lensOpenedModules

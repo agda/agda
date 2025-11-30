@@ -1583,7 +1583,7 @@ importPrimitives = do
         importAgdaPrimitive = [C.Import (C.DoOpen empty) empty agdaPrimitiveName empty directives]
     -- We don't want UnusedImports warnings when importing the primitives,
     -- since the open statement was not assembled by the user.
-    locallyTCState (stPragmaOptions . lensOptWarningMode . lensSingleWarning UnusedImports_) (const False) do
+    locallyTCState stWarningSet (Set.\\ unusedImportsWarnings) do
       toAbstract (Declarations importAgdaPrimitive)
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module

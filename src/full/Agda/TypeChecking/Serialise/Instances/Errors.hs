@@ -281,10 +281,12 @@ instance EmbPrj WarningModeError where
   icod_ = \case
     Unknown a   -> icodeN 0 Unknown a
     NoNoError a -> icodeN 1 NoNoError a
+    NoUnusedImportsAll -> icodeN 2 NoUnusedImportsAll
 
   value = vcase $ \case
     N2 0 a -> valuN Unknown a
     N2 1 a -> valuN NoNoError a
+    N1 2   -> valuN NoUnusedImportsAll
     _      -> malformed
 
 instance EmbPrj ParseWarning where

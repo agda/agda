@@ -1,11 +1,11 @@
--- Andreas, 2025-11-27, AIM XLI, Angers, France
--- New warning UnusedImports
+-- Andreas, 2025-11-30, AIM XLI, Angers, France
+-- New warning UnusedImports, flavor 'all'.
 
-{-# OPTIONS -WUnusedImports #-}
+{-# OPTIONS -WUnusedImports=all #-}
 
-{-# OPTIONS --no-qualified-instances #-}
-  -- Instances have to be in scope unqualified,
-  -- so instances are always assumed to be used.
+-- {-# OPTIONS --no-qualified-instances #-}
+--   -- Instances have to be in scope unqualified,
+--   -- so instances are always assumed to be used.
 
 -- There should be no warning for the implicit
 -- open import Agda.Primitive using (Set)
@@ -22,20 +22,20 @@ open import Agda.Builtin.Equality using (_≡_)
 -- Redundant opening of Agda.Builtin.Equality
 
 -- We are not using everything we import, so there should be a warning.
-open import Agda.Builtin.Nat using (Nat; zero; suc; _+_)
+open import Agda.Builtin.Nat using (zero; suc; _+_)
 
 -- Expected warning:
 -- Opening Agda.Builtin.Nat brings the following unused names into scope: _+_
 
+-- This contains many useless imports, with the 'all' flavor we mention all of them.
+open import Agda.Builtin.Nat renaming (Nat to Nat)
+
+-- Opening Agda.Builtin.Nat brings the following unused names into
+-- scope: _*_ _+_ _-_ _<_ _==_ div-helper mod-helper suc zero
+
 -- We are using nothing from this import that is not already in scope,
 -- so it should be redundant.
 open import Agda.Builtin.Nat
-
--- Expected warning:
--- Redundant opening of Agda.Builtin.Nat
-
--- ditto
-open import Agda.Builtin.Nat using (Nat)
 
 -- Expected warning:
 -- Redundant opening of Agda.Builtin.Nat
@@ -49,8 +49,12 @@ module M where
     z : Nat
     z = zero
 
--- There should be no warning because of OPTIONS --no-qualified-instances
+-- This brings instance z into scope, but we could use it qualified,
+-- so there is a warning.
 open M
+
+-- Expected warning:
+-- Redundant opening of M
 
 g : {{x : Nat}} → Nat
 g {{x}} = x
