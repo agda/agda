@@ -1352,7 +1352,7 @@ essentialConfigurationOptions = ("Essential type checker configuration",)
 
 inputPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
 inputPragmaOptions = ("Input",) $ concat
-  [ pragmaFlag      "literate-md-only-agda-blocks" lensOptMdOnlyAgdaBlocks
+  [ pragmaFlag      "literate-markdown-only-agda-blocks" lensOptMdOnlyAgdaBlocks
                     "in literate Markdown/Typst, only treat code blocks marked ```agda as Agda code" ""
                     Nothing
   ]

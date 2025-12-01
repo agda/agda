@@ -27,6 +27,12 @@ Pragmas and options
 
 * New flag `--no-write-interfaces`.
 
+* New flag `--literate-markdown-only-agda-blocks` (off by default, a pragma option).
+  When enabled, only code blocks explicitly marked with ` ```agda ` are treated as
+  Agda code in literate Markdown (`.lagda.md`) and Typst (`.lagda.typ`) files.
+  Unmarked code blocks (` ``` `) are treated as verbatim text and not type-checked.
+  (See [#7971](https://github.com/agda/agda/issues/7971).)
+
 * The flag `--termination-depth=N` now means _maximum_ termination depth and
   the termination checker now performs iterative deepening,
   starting with depth `1` and increasing it up to the given `N`, stopping early
