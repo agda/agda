@@ -37,73 +37,56 @@ jobs:
       with:
         python-version: ${{ env.python-version }}
 
-    - name: Install dependencies
+    - name: Install dependencies (Sphinx)
       run: |
         make -C doc/user-manual requirements
 
-    # Source: https://medium.com/@balazskocsis/latex-in-github-actions-3cf2d591fee8
-    - name: Install dependencies
-      run: |
-        sudo apt-get update -y
-        sudo apt install texlive-full -y
-      # Install the full version
-      # or only your required latex packages
-      # sudo apt install -y \
-      #     texlive-base \
-      #     texlive-latex-base \
-      #     texlive-latex-recommended \
-      #     texlive-latex-extra \
-      #     texlive-fonts-recommended \
-      #     latexmk \
-      #     lmodern
-
-    # # This action vanished from github without warning
-    # - name: Setup TeX Live
-    #   uses: teatimeguest/setup-texlive-action@v3
-    #   with:
-    #     packages: >-
-    #       scheme-basic
-    #       anyfontsize
-    #       bbm
-    #       bbm-macros
-    #       booktabs
-    #       capt-of
-    #       cmap
-    #       colortbl
-    #       dvipng
-    #       ellipse
-    #       etoolbox
-    #       fancyvrb
-    #       float
-    #       fncychap
-    #       fontawesome5
-    #       framed
-    #       keystroke
-    #       latexmk
-    #       mathtools
-    #       needspace
-    #       parskip
-    #       pict2e
-    #       psnfss
-    #       stmaryrd
-    #       tabulary
-    #       tex-gyre
-    #       titlesec
-    #       upquote
-    #       varwidth
-    #       wrapfig
-    #       xcolor
-    #       zapfchan
+    # This is a fork of teatimeguest/setup-texlive-action, which vanished from github.
+    # See https://github.com/TeX-Live/setup-texlive-action
+    - name: Install dependencies (LaTeX)
+      uses: TeX-Live/setup-texlive-action@v3
+      with:
+        packages: >-
+          scheme-basic
+          anyfontsize
+          bbm
+          bbm-macros
+          booktabs
+          capt-of
+          cmap
+          colortbl
+          dvipng
+          ellipse
+          etoolbox
+          fancyvrb
+          float
+          fncychap
+          fontawesome5
+          framed
+          keystroke
+          latexmk
+          mathtools
+          needspace
+          parskip
+          pict2e
+          psnfss
+          stmaryrd
+          tabulary
+          tex-gyre
+          titlesec
+          upquote
+          varwidth
+          wrapfig
+          xcolor
+          zapfchan
 
     - name: Build User Manual in PDF
       run: |
-        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-pdf
 
     - name: Build User Manual in HTML
       # Note: latex is already needed to build HTML (for math formulas).
       run: |
-        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-html
 
     - uses: actions/upload-artifact@v5
