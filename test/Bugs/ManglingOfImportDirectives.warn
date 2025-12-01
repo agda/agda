@@ -1,0 +1,22 @@
+
+ManglingOfImportDirectives.lagda.md:11.3-12.38: warning: -W[no]ModuleDoesntExport
+The module Agda.Builtin.Nat doesn't export the following:
+  Bool
+  false
+  true
+  if
+when scope checking the declaration
+  open import Agda.Builtin.Nat using (Bool; false)
+                               renaming (true to tt; if to when)
+
+———— All done; warnings encountered ————————————————————————
+
+ManglingOfImportDirectives.lagda.md:11.3-12.38: warning: -W[no]ModuleDoesntExport
+The module Agda.Builtin.Nat doesn't export the following:
+  Bool
+  false
+  true
+  if
+when scope checking the declaration
+  open import Agda.Builtin.Nat using (Bool; false)
+                               renaming (true to tt; if to when)
