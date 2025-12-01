@@ -43,7 +43,7 @@ import Agda.Interaction.Highlighting.Precise as H
 import Agda.Interaction.Highlighting.Range
   (rToR, rangeToRange, overlappings, Ranges)
 import Agda.Interaction.Highlighting.FromAbstract
-import Agda.Interaction.Options (optMdOnlyAgdaBlocks)
+import Agda.Interaction.Options.Types (optMdOnlyAgdaBlocks)
 
 import qualified Agda.TypeChecking.Errors as TCM
 import Agda.TypeChecking.MetaVars (isBlockedTerm, hasTwinMeta)
@@ -212,7 +212,7 @@ generateTokenInfoFromSource
      -- disk.
   -> TCM HighlightingInfo
 generateTokenInfoFromSource file input = do
-  mdOnlyAgdaBlocks <- optMdOnlyAgdaBlocks <$> pragmaOptions
+  mdOnlyAgdaBlocks <- optMdOnlyAgdaBlocks <$> commandLineOptions
   runPM $ tokenHighlighting . fst . fst <$>
           Pa.parseFile mdOnlyAgdaBlocks Pa.tokensParser file input
 

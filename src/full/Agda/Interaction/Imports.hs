@@ -175,7 +175,7 @@ parseSource sourceFile = Bench.billTo [Bench.Parsing] $ do
   let txt = TL.unpack source
 
   -- Get the literate markdown option.
-  mdOnlyAgdaBlocks <- optMdOnlyAgdaBlocks <$> pragmaOptions
+  mdOnlyAgdaBlocks <- optMdOnlyAgdaBlocks <$> commandLineOptions
 
   -- Bootstrapping: parse the module name.
   parsedModName0 <- moduleName f . fst . fst =<< do

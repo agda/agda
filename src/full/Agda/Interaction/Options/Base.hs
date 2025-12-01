@@ -112,7 +112,6 @@ module Agda.Interaction.Options.Base
     , lensOptSaveMetas
     , lensOptShowIdentitySubstitutions
     , lensOptKeepCoveringClauses
-    , lensOptMdOnlyAgdaBlocks
     -- * Boolean accessors to 'PragmaOptions' collapsing default
     , optShowImplicit
     , optShowGeneralized
@@ -173,7 +172,6 @@ module Agda.Interaction.Options.Base
     , optKeepCoveringClauses
     , optLargeIndices
     , optForcedArgumentRecursion
-    , optMdOnlyAgdaBlocks
     -- * Non-boolean accessors to 'PragmaOptions'
     , optConfluenceCheck
     , optCubical
@@ -343,7 +341,6 @@ optShowIdentitySubstitutions :: PragmaOptions -> Bool
 optKeepCoveringClauses       :: PragmaOptions -> Bool
 optLargeIndices              :: PragmaOptions -> Bool
 optForcedArgumentRecursion   :: PragmaOptions -> Bool
-optMdOnlyAgdaBlocks          :: PragmaOptions -> Bool
 
 optShowImplicit              = collapseDefault . _optShowImplicit
 optShowGeneralized           = collapseDefault . _optShowGeneralized
@@ -408,7 +405,6 @@ optShowIdentitySubstitutions = collapseDefault . _optShowIdentitySubstitutions
 optKeepCoveringClauses       = collapseDefault . _optKeepCoveringClauses
 optLargeIndices              = collapseDefault . _optLargeIndices
 optForcedArgumentRecursion   = collapseDefault . _optForcedArgumentRecursion
-optMdOnlyAgdaBlocks          = collapseDefault . _optMdOnlyAgdaBlocks
 
 -- Collapse defaults (non-Bool)
 
@@ -652,9 +648,6 @@ lensOptForcedArgumentRecursion f o = f (_optForcedArgumentRecursion o) <&> \ i -
 
 lensOptExperimentalLazyInstances :: Lens' PragmaOptions _
 lensOptExperimentalLazyInstances f o = f (_optExperimentalLazyInstances o) <&> \ i -> o{ _optExperimentalLazyInstances = i }
-
-lensOptMdOnlyAgdaBlocks :: Lens' PragmaOptions _
-lensOptMdOnlyAgdaBlocks f o = f (_optMdOnlyAgdaBlocks o) <&> \ i -> o{ _optMdOnlyAgdaBlocks = i }
 
 
 -- | Map a function over the long options. Also removes the short options.
@@ -1096,6 +1089,12 @@ onlyScopeCheckingFlag o = return $ o { optOnlyScopeChecking = True }
 transliterateFlag :: Flag CommandLineOptions
 transliterateFlag o = return $ o { optTransliterate = True }
 
+mdOnlyAgdaBlocksFlag :: Flag CommandLineOptions
+mdOnlyAgdaBlocksFlag o = return $ o { optMdOnlyAgdaBlocks = True }
+
+noMdOnlyAgdaBlocksFlag :: Flag CommandLineOptions
+noMdOnlyAgdaBlocksFlag o = return $ o { optMdOnlyAgdaBlocks = False }
+
 withKFlag :: Flag PragmaOptions
 withKFlag =
   -- with-K is the opposite of --without-K, so collapse default when disabling --without-K
@@ -1250,7 +1249,7 @@ optionGroups =
   , mainModeOptions
   , projectOptions
   , essentialConfigurationOptions
-  , emb inputPragmaOptions
+  , literateOptions
   , diagnosticsOptions
   , emb warningPragmaOptions
   , emb checkerPragmaOptions
@@ -1350,12 +1349,13 @@ essentialConfigurationOptions = ("Essential type checker configuration",)
                     "generate Vim highlighting files"
     ]
 
-inputPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
-inputPragmaOptions = ("Input",) $ concat
-  [ pragmaFlag      "literate-markdown-only-agda-blocks" lensOptMdOnlyAgdaBlocks
-                    "in literate Markdown/Typst, only treat code blocks marked ```agda as Agda code" ""
-                    Nothing
-  ]
+literateOptions :: (String, [OptDescr (Flag CommandLineOptions)])
+literateOptions = ("Literate Agda",)
+    [ Option []     ["literate-markdown-only-agda-blocks"] (NoArg mdOnlyAgdaBlocksFlag)
+                    "in literate Markdown/Typst, only treat code blocks marked ```agda as Agda code"
+    , Option []     ["no-literate-markdown-only-agda-blocks"] (NoArg noMdOnlyAgdaBlocksFlag)
+                    "treat all code blocks as Agda code (default)"
+    ]
 
 diagnosticsOptions :: (String, [OptDescr (Flag CommandLineOptions)])
 diagnosticsOptions = ("Diagnostics and output",) $
@@ -1401,7 +1401,6 @@ deadStandardOptions =
 pragmaOptions :: [OptDescr (Flag PragmaOptions)]
 pragmaOptions = concat $ map snd
   [ unicodePragmaOptions
-  , inputPragmaOptions
   , warningPragmaOptions
   , checkerPragmaOptions
   , languagePragmaOptions

@@ -44,6 +44,7 @@ defaultOptions = Options
   , optOnlyScopeChecking     = False
   , optTransliterate         = False
   , optDiagnosticsColour     = AutoColour
+  , optMdOnlyAgdaBlocks      = False
   }
 
 defaultPragmaOptions :: PragmaOptions
@@ -119,7 +120,6 @@ defaultPragmaOptions = PragmaOptions
   , _optForcedArgumentRecursion    = Default
   , _optLargeIndices               = Default
   , _optExperimentalLazyInstances  = Default
-  , _optMdOnlyAgdaBlocks           = Default
   }
 
 -- Null instances

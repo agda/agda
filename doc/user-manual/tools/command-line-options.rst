@@ -227,6 +227,29 @@ General options
      are used Agda uses UTF-8 when writing to stdout (and when reading
      from stdin).
 
+.. _literate-options:
+
+Literate programming
+~~~~~~~~~~~~~~~~~~~~
+
+.. option:: --literate-markdown-only-agda-blocks
+
+     .. versionadded:: 2.9.0
+
+     In literate Markdown (``.lagda.md``) and Typst (``.lagda.typ``) files,
+     only treat code blocks explicitly marked with ``````agda`` as Agda code.
+     Unmarked code blocks (``````) are treated as verbatim text and are not
+     type-checked.
+
+     See :ref:`literate-markdown-only-agda-blocks` for more details.
+
+.. option:: --no-literate-markdown-only-agda-blocks
+
+     .. versionadded:: 2.9.0
+
+     Treat all code blocks as Agda code in literate Markdown and Typst files
+     (default).
+
 .. _compilation-options:
 
 Compilation

@@ -94,6 +94,8 @@ data CommandLineOptions = Options
       -- ^ Should code points that are not supported by the locale be transliterated?
   , optDiagnosticsColour     :: DiagnosticsColours
       -- ^ Configure colour output.
+  , optMdOnlyAgdaBlocks      :: Bool
+      -- ^ In literate Markdown/Typst, only treat ```agda blocks as code.
   }
   deriving (Show, Generic)
 
@@ -227,8 +229,6 @@ data PragmaOptions = PragmaOptions
       -- ^ Allow recursion on forced constructor arguments.
   , _optExperimentalLazyInstances :: WithDefault 'False
       -- ^ Defer instance search based on discrimination tree results
-  , _optMdOnlyAgdaBlocks          :: WithDefault 'False
-      -- ^ In literate Markdown/Typst, only treat ```agda blocks as code.
   }
   deriving (Show, Eq, Generic)
 
