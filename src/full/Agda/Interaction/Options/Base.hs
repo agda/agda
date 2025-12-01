@@ -1089,11 +1089,8 @@ onlyScopeCheckingFlag o = return $ o { optOnlyScopeChecking = True }
 transliterateFlag :: Flag CommandLineOptions
 transliterateFlag o = return $ o { optTransliterate = True }
 
-mdOnlyAgdaBlocksFlag :: Flag CommandLineOptions
-mdOnlyAgdaBlocksFlag o = return $ o { optMdOnlyAgdaBlocks = True }
-
-noMdOnlyAgdaBlocksFlag :: Flag CommandLineOptions
-noMdOnlyAgdaBlocksFlag o = return $ o { optMdOnlyAgdaBlocks = False }
+mdOnlyAgdaBlocksFlag :: Bool -> Flag CommandLineOptions
+mdOnlyAgdaBlocksFlag b o = return $ o { optMdOnlyAgdaBlocks = b }
 
 withKFlag :: Flag PragmaOptions
 withKFlag =
@@ -1351,9 +1348,9 @@ essentialConfigurationOptions = ("Essential type checker configuration",)
 
 literateOptions :: (String, [OptDescr (Flag CommandLineOptions)])
 literateOptions = ("Literate Agda",)
-    [ Option []     ["literate-markdown-only-agda-blocks"] (NoArg mdOnlyAgdaBlocksFlag)
+    [ Option []     ["literate-markdown-only-agda-blocks"] (NoArg $ mdOnlyAgdaBlocksFlag True)
                     "in literate Markdown/Typst, only treat code blocks marked ```agda as Agda code"
-    , Option []     ["no-literate-markdown-only-agda-blocks"] (NoArg noMdOnlyAgdaBlocksFlag)
+    , Option []     ["no-literate-markdown-only-agda-blocks"] (NoArg $ mdOnlyAgdaBlocksFlag False)
                     "treat all code blocks as Agda code (default)"
     ]
 
