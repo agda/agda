@@ -227,6 +227,8 @@ data PragmaOptions = PragmaOptions
       -- ^ Allow recursion on forced constructor arguments.
   , _optExperimentalLazyInstances :: WithDefault 'False
       -- ^ Defer instance search based on discrimination tree results
+  , _optMdOnlyAgdaBlocks          :: WithDefault 'False
+      -- ^ In literate Markdown/Typst, only treat ```agda blocks as code.
   }
   deriving (Show, Eq, Generic)
 

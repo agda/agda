@@ -181,22 +181,31 @@ parseRangeString p = parsePosString p . fromMaybe (startPos Nothing) . rStart
 -- | Extensions supported by `parseFile`.
 
 agdaFileExtensions :: [String]
-agdaFileExtensions = ".agda" : (fst <$> literateProcessors)
+agdaFileExtensions = ".agda" : literateExts
+
+-- | Parse a file.
+--
+--   The 'Bool' parameter controls whether only @```agda@ blocks
+--   are treated as Agda code in Markdown/Typst files.
+--   When @True@, only blocks marked @```agda@ are considered code.
+--   When @False@, both @```@ and @```agda@ blocks are code (default).
 
 parseFile
   :: Show a
-  => Parser a
+  => Bool
+     -- ^ When @True@, only treat @```agda@ blocks as code in Markdown/Typst.
+  -> Parser a
   -> RangeFile
      -- ^ The file.
   -> String
      -- ^ The file contents. Note that the file is /not/ read from
      -- disk.
   -> PM ((a, Attributes), FileType)
-parseFile p file input =
+parseFile onlyAgdaBlocks p file input =
   if ".agda" `List.isSuffixOf` path then
     (, AgdaFileType) <$> parseFileFromString (Strict.Just file) p input
   else
-    go literateProcessors
+    go (literateProcessors onlyAgdaBlocks)
   where
     path = filePath (rangeFilePath file)
 

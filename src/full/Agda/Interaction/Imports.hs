@@ -174,13 +174,16 @@ parseSource sourceFile = Bench.billTo [Bench.Parsing] $ do
   source <- runPM $ readFilePM rf0
   let txt = TL.unpack source
 
+  -- Get the literate markdown option.
+  mdOnlyAgdaBlocks <- optMdOnlyAgdaBlocks <$> pragmaOptions
+
   -- Bootstrapping: parse the module name.
   parsedModName0 <- moduleName f . fst . fst =<< do
-    runPMDropWarnings $ parseFile moduleParser rf0 txt
+    runPMDropWarnings $ parseFile mdOnlyAgdaBlocks moduleParser rf0 txt
 
   -- Now parse again, with module name present to be filled into the ranges.
   let rf = mkRangeFile f $ Just parsedModName0
-  ((parsedMod, attrs), fileType) <- runPM $ parseFile moduleParser rf txt
+  ((parsedMod, attrs), fileType) <- runPM $ parseFile mdOnlyAgdaBlocks moduleParser rf txt
   parsedModName                  <- moduleName f parsedMod
 
   libs <- getAgdaLibFiles f parsedModName

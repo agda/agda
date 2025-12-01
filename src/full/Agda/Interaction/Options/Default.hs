@@ -119,6 +119,7 @@ defaultPragmaOptions = PragmaOptions
   , _optForcedArgumentRecursion    = Default
   , _optLargeIndices               = Default
   , _optExperimentalLazyInstances  = Default
+  , _optMdOnlyAgdaBlocks           = Default
   }
 
 -- Null instances

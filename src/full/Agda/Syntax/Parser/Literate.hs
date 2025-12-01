@@ -4,6 +4,7 @@
 
 module Agda.Syntax.Parser.Literate
   ( literateProcessors
+  , literateExts
   , literateTeX
   , literateRsT
   , literateMd
@@ -88,20 +89,29 @@ type Processor = PositionWithoutFile -> String -> [Layer]
 --
 --   If you add new extensions, remember to update test/Utils.hs so
 --   that test cases ending in the new extensions are found.
+--
+--   The 'Bool' parameter controls whether only @```agda@ blocks
+--   are treated as Agda code in Markdown/Typst files.
+--   When @True@, only blocks marked @```agda@ are considered code.
+--   When @False@, both @```@ and @```agda@ blocks are code (default).
 
-literateProcessors :: [(String, (Processor, FileType))]
-literateProcessors =
+literateProcessors :: Bool -> [(String, (Processor, FileType))]
+literateProcessors onlyAgdaBlocks =
   ((,) <$> (".lagda" ++) . fst <*> snd) <$>
     [ (""    , (literateTeX, TexFileType))
     , (".rst", (literateRsT, RstFileType))
     , (".tex", (literateTeX, TexFileType))
-    , (".md",  (literateMd,  MdFileType ))
+    , (".md",  (literateMd onlyAgdaBlocks,  MdFileType ))
     , (".org", (literateOrg, OrgFileType))
     , (".tree", (literateTree, TreeFileType))
     -- For now, treat typst as markdown because they use the same
     -- syntax for code blocks.
-    , (".typ", (literateMd,  TypstFileType))
+    , (".typ", (literateMd onlyAgdaBlocks,  TypstFileType))
     ]
+
+-- | List of valid literate file extensions.
+literateExts :: [String]
+literateExts = fst <$> literateProcessors False
 
 -- | Returns @True@ if the role corresponds to Agda code.
 
@@ -187,15 +197,23 @@ literateTeX pos s = mkLayers pos (tex s)
   r_end = rex "([[:blank:]]*)(\\\\end\\{code\\})(.*)"
 
 -- | Preprocessor for Markdown.
+--
+--   The 'Bool' parameter controls whether only @```agda@ blocks
+--   are treated as Agda code.
+--   When @True@, only blocks explicitly marked @```agda@ are considered code.
+--   When @False@, both unmarked @```@ and @```agda@ blocks are code (default).
 
-literateMd :: Processor
-literateMd pos s = mkLayers pos $ md s
+literateMd :: Bool -> Processor
+literateMd onlyAgdaBlocks pos s = mkLayers pos $ md s
   where
   md :: String -> [(LayerRole, String)]
   md = caseLine [] $ \ line rest ->
     case md_begin `matchM` line of
-      Just (getAllTextSubmatches -> [_, pre, markup, _]) ->
-        (Comment, pre) : (Markup, markup) : code rest
+      Just (getAllTextSubmatches -> [_, pre, markup, tag]) ->
+        -- When onlyAgdaBlocks is True, only treat blocks with "agda" tag as code
+        if onlyAgdaBlocks && null tag
+        then (Comment, pre) : (Comment, markup) : code_other rest
+        else (Comment, pre) : (Markup, markup) : code rest
       Just _  -> __IMPOSSIBLE__
       Nothing ->
         (Comment, line) :
