@@ -247,7 +247,7 @@ Literate programming
 
      .. versionadded:: 2.9.0
 
-     Treat all code blocks as Agda code in literate Markdown and Typst files
+     Treat also unmarked code blocks as Agda code in literate Markdown and Typst files
      (default).
 
 .. _compilation-options:

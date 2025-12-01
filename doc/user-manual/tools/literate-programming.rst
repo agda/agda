@@ -140,11 +140,11 @@ Only ``agda`` code blocks
 
 .. versionadded:: 2.9.0
 
-By default, both unmarked code blocks (``````) and explicitly
-marked code blocks (``````agda``) are treated as Agda code.
+By default, both unmarked code blocks (```````) and explicitly
+marked code blocks (`````agda``) are treated as Agda code.
 
 With the :option:`--literate-markdown-only-agda-blocks` command-line option
-(off by default), only code blocks explicitly marked with ``````agda`` are
+(off by default), only code blocks explicitly marked with `````agda`` are
 treated as Agda code. Unmarked code blocks are treated as verbatim text and
 are not type-checked. This allows including other code examples in the
 document without Agda attempting to parse them.
@@ -174,9 +174,10 @@ Example with ``--literate-markdown-only-agda-blocks``:
    main = putStrLn "Hello, World!"
    ```
 
-This option must be set via command line
-(``agda --literate-markdown-only-agda-blocks``) since it affects parsing
-before any pragma options are processed.
+This option is not available as pragma since it affects parsing before any pragma options are processed.
+It must be set via command line (``agda --literate-markdown-only-agda-blocks``)
+or passed under ``flags:`` in the ``.agda-lib`` file.
+
 
 Literate Org
 ------------
