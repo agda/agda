@@ -95,7 +95,7 @@ data CommandLineOptions = Options
   , optDiagnosticsColour     :: DiagnosticsColours
       -- ^ Configure colour output.
   , optMdOnlyAgdaBlocks      :: Bool
-      -- ^ In literate Markdown/Typst, only treat ```agda blocks as code.
+      -- ^ In literate Markdown/Typst, only treat @```agda@ blocks as code.
   }
   deriving (Show, Generic)
 
