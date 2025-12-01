@@ -39,7 +39,7 @@
 -- Tailored optimized variable checks can be implemented as semimodules to 'VarOcc',
 -- see, for example, 'VarCounts' or 'SingleFlexRig'.
 
-module Agda.TypeChecking.Free where
+module Agda.TypeChecking.FreeNew where
     -- ( VarCounts(..)
     -- , Free
     -- , IsVarSet(..)
