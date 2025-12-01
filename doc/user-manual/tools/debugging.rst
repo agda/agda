@@ -25,7 +25,7 @@ verbosity level in form ``tag:level``. For example, running Agda with
 * The higher the verbosity level, the more
   detailed debugging information will be printed, for example ``-v tc.term:50``
   will include debugging information at verbosity level 30.
-  
+
 By convention, very gory details will be printed only with verbosity of at least 50, so it is advisable in most cases to keep the level below 50.
 
 
