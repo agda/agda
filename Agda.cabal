@@ -737,8 +737,10 @@ library
       Agda.TypeChecking.Forcing
       Agda.TypeChecking.Free
       Agda.TypeChecking.Free.Lazy
+      Agda.TypeChecking.Free.LazyNew
       Agda.TypeChecking.Free.Precompute
       Agda.TypeChecking.Free.Reduce
+      Agda.TypeChecking.FreeNew
       Agda.TypeChecking.Functions
       Agda.TypeChecking.Generalize
       Agda.TypeChecking.IApplyConfluence
@@ -931,6 +933,7 @@ library
       Agda.Utils.Singleton
       Agda.Utils.Size
       Agda.Utils.SmallSet
+      Agda.Utils.StrictReader
       Agda.Utils.StrictState
       Agda.Utils.StrictState2
       Agda.Utils.StrictWriter

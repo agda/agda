@@ -200,7 +200,9 @@ instance Free Term where
     -- Even as we do not permit infinite type expressions,
     -- we cannot prove their absence (as Set is not inductive).
     -- Also, this is incompatible with univalence (HoTT).
-    Pi a b       -> freeVars (a, b)
+    -- András 2026-01-22: the above comment sounds wrong to me. Pi very much has to be definitionally
+    -- injective.
+    Pi a b       -> freeVars (a, b) -- TODO: test with "underConstructor"
     Sort s       -> freeVars s
     Level l      -> freeVars l
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars ts
@@ -288,7 +290,7 @@ instance Free EqualityView where
 --   which would work if 'Flexible' did not have the 'MetaSet' as an argument.
 --   Now, to aggregate two 'Flexible' occurrences, we union the involved 'MetaSet's.
 addFlexRig :: Semigroup a => FlexRig' a -> FlexRig' a -> FlexRig' a
-addFlexRig = curry $ \case
+addFlexRig x y = case (x, y) of
   -- StronglyRigid is dominant
   (StronglyRigid, _) -> StronglyRigid
   (_, StronglyRigid) -> StronglyRigid
@@ -327,7 +329,7 @@ omegaFlexRig = StronglyRigid
 --
 composeFlexRig :: Semigroup a => FlexRig' a -> FlexRig' a -> FlexRig' a
 composeFlexRig x y = case (x, y) of
-    (Flexible ms1 , Flexible ms2 ) -> Flexible $ ms1 <> ms2
+    (Flexible ms1 , Flexible ms2 ) -> Flexible $! ms1 <> ms2
     (Flexible ms1 , _            ) -> Flexible ms1
     (_            , Flexible ms2 ) -> Flexible ms2
     (WeaklyRigid  , _            ) -> WeaklyRigid
