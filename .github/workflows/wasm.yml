@@ -46,6 +46,8 @@ jobs:
       run: |
         echo "AGDA_WASM=$(nix develop --command wasm32-wasi-cabal list-bin agda 2> /dev/null)" >> $GITHUB_ENV
         echo "AGDA_BIN=$PWD/test/run-agda-wasm.sh" >> $GITHUB_ENV
+    - name: Run Agda setup (WASM)
+      run: nix develop --command $(AGDA_BIN) --setup
     - name: Suite of tests for bugs
       run: nix develop --command make bugs
     - if: ${{ !cancelled() && steps.test-setup.conclusion == 'success' }}
