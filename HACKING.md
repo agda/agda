@@ -378,6 +378,16 @@ commit's message is checked for the phrase).
 | `[ci skip]` | Skips GitHub workflows |
 | `[skip ci]` | As-per `[ci skip]` |
 
+### Opt-in test suites
+
+Some test suites are not run by default due to their long running time.
+They can be enabled by including a special phrase in the commit message
+(for push events) or in the PR title (for pull request events).
+
+| Phrase | Effect |
+|--------|--------|
+| `[cubical]` | Runs the cubical library tests (adds ~10 minutes) |
+
 ### Editing the GitHub Actions
 
 The actions residing in the standard location `.github/workflows` are
