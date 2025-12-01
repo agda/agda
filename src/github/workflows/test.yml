@@ -380,6 +380,7 @@ jobs:
   ###########################################################################
 
   cubical:
+    if: contains(github.event.head_commit.message, '[cubical]')
     needs: build
     runs-on: *runs_on
 
