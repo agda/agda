@@ -235,7 +235,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     VariablesNotBoundByLHS a                    -> icodeN 1 VariablesNotBoundByLHS a
     VariablesBoundMoreThanOnce a                -> icodeN 2 VariablesBoundMoreThanOnce a
     LHSReduces a b                              -> icodeN 3 LHSReduces a b
-    -- 4 was HeadSymbolIsProjection
+    VariablesBoundUnsafely a                    -> icodeN 4 VariablesBoundUnsafely a
     HeadSymbolIsProjectionLikeFunction a        -> icodeN 5 HeadSymbolIsProjectionLikeFunction a
     HeadSymbolIsTypeConstructor a               -> icodeN 6 HeadSymbolIsTypeConstructor a
     HeadSymbolContainsMetas a                   -> icodeN 7 HeadSymbolContainsMetas a
@@ -253,7 +253,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     N2 1 a   -> valuN VariablesNotBoundByLHS a
     N2 2 a   -> valuN VariablesBoundMoreThanOnce a
     N3 3 a b -> valuN LHSReduces a b
-    -- 4 was HeadSymbolIsProjection
+    N2 4 a   -> valuN VariablesBoundUnsafely a
     N2 5 a   -> valuN HeadSymbolIsProjectionLikeFunction a
     N2 6 a   -> valuN HeadSymbolIsTypeConstructor a
     N2 7 a   -> valuN HeadSymbolContainsMetas a

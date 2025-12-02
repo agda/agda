@@ -347,6 +347,7 @@ data WarningName
   | RewriteLHSNotDefinitionOrConstructor_
   | RewriteVariablesNotBoundByLHS_
   | RewriteVariablesBoundMoreThanOnce_
+  | RewriteVariablesBoundUnsafely_
   | RewriteLHSReduces_
   | RewriteHeadSymbolIsProjectionLikeFunction_
   | RewriteHeadSymbolIsTypeConstructor_
@@ -588,7 +589,7 @@ warningNameDescription = \case
   PragmaCompileUnparsable_         -> "Unparsable `COMPILE GHC' pragmas."
   PragmaCompileWrong_              -> "Ill-formed `COMPILE GHC' pragmas."
   PragmaCompileWrongName_          -> "`COMPILE' pragmas referring to identifiers that are neither definitions nor constructors.'"
-  PragmaExpectsDefinedSymbol_      -> "Pragmas referrings to identifiers that are not defined symbols."
+  PragmaExpectsDefinedSymbol_      -> "Pragmas referring to identifiers that are not defined symbols."
   PragmaExpectsUnambiguousConstructorOrFunction_    -> "Pragmas referring to identifiers that are not unambiguous constructors or functions.'"
   PragmaExpectsUnambiguousProjectionOrFunction_     -> "Pragmas referring to identifiers that are not unambiguous projections or functions.'"
   NoMain_                          -> "Compilation of modules that do not define `main'."
@@ -596,6 +597,7 @@ warningNameDescription = \case
   RewriteLHSNotDefinitionOrConstructor_             -> "Rewrite rule head symbol is not a defined symbol or constructor."
   RewriteVariablesNotBoundByLHS_                    -> "Rewrite rule does not bind all of its variables."
   RewriteVariablesBoundMoreThanOnce_                -> "Constructor-headed rewrite rule has non-linear parameters."
+  RewriteVariablesBoundUnsafely_                    -> "Rewrite rule binds some variables in possibly definitionally singular contexts."
   RewriteLHSReduces_                                -> "Rewrite rule LHS is not in weak-head normal form."
   RewriteHeadSymbolIsProjectionLikeFunction_        -> "Rewrite rule head symbol is a projection-like function."
   RewriteHeadSymbolIsTypeConstructor_               -> "Rewrite rule head symbol is a type constructor."
