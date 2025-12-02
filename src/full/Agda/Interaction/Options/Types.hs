@@ -94,6 +94,8 @@ data CommandLineOptions = Options
       -- ^ Should code points that are not supported by the locale be transliterated?
   , optDiagnosticsColour     :: DiagnosticsColours
       -- ^ Configure colour output.
+  , optMdOnlyAgdaBlocks      :: Bool
+      -- ^ In literate Markdown/Typst, only treat @```agda@ blocks as code.
   }
   deriving (Show, Generic)
 

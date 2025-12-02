@@ -133,6 +133,52 @@ HTML or LaTeX using PanDoc_.
   difficulty of interpreting their indentation level with respect to
   the rest of the file.
 
+.. _literate-markdown-only-agda-blocks:
+
+Only ``agda`` code blocks
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 2.9.0
+
+By default, both unmarked code blocks (```````) and explicitly
+marked code blocks (`````agda``) are treated as Agda code.
+
+With the :option:`--literate-markdown-only-agda-blocks` command-line option
+(off by default), only code blocks explicitly marked with `````agda`` are
+treated as Agda code. Unmarked code blocks are treated as verbatim text and
+are not type-checked. This allows including other code examples in the
+document without Agda attempting to parse them.
+
+Example with ``--literate-markdown-only-agda-blocks``:
+
+.. code-block:: md
+
+   This is prose.
+
+   Here is some Agda code:
+
+   ```agda
+   data Bool : Set where
+     true false : Bool
+   ```
+
+   Here is a JavaScript example that is NOT type-checked:
+
+   ```
+   function hello() { return "world"; }
+   ```
+
+   Here is another verbatim block with a language tag:
+
+   ```haskell
+   main = putStrLn "Hello, World!"
+   ```
+
+This option is not available as pragma since it affects parsing before any pragma options are processed.
+It must be set via command line (``agda --literate-markdown-only-agda-blocks``)
+or passed under ``flags:`` in the ``.agda-lib`` file.
+
+
 Literate Org
 ------------
 

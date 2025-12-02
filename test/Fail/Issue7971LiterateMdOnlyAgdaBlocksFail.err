@@ -1,0 +1,5 @@
+Issue7971LiterateMdOnlyAgdaBlocksFail.lagda.md:42.10-13: error: [NotInScope]
+Not in scope:
+  Nat
+  at Issue7971LiterateMdOnlyAgdaBlocksFail.lagda.md:42.10-13
+when scope checking Nat

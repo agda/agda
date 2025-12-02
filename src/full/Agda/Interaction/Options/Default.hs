@@ -44,6 +44,7 @@ defaultOptions = Options
   , optOnlyScopeChecking     = False
   , optTransliterate         = False
   , optDiagnosticsColour     = AutoColour
+  , optMdOnlyAgdaBlocks      = False
   }
 
 defaultPragmaOptions :: PragmaOptions

@@ -1089,6 +1089,9 @@ onlyScopeCheckingFlag o = return $ o { optOnlyScopeChecking = True }
 transliterateFlag :: Flag CommandLineOptions
 transliterateFlag o = return $ o { optTransliterate = True }
 
+mdOnlyAgdaBlocksFlag :: Bool -> Flag CommandLineOptions
+mdOnlyAgdaBlocksFlag b o = return $ o { optMdOnlyAgdaBlocks = b }
+
 withKFlag :: Flag PragmaOptions
 withKFlag =
   -- with-K is the opposite of --without-K, so collapse default when disabling --without-K
@@ -1243,6 +1246,7 @@ optionGroups =
   , mainModeOptions
   , projectOptions
   , essentialConfigurationOptions
+  , literateOptions
   , diagnosticsOptions
   , emb warningPragmaOptions
   , emb checkerPragmaOptions
@@ -1340,6 +1344,14 @@ essentialConfigurationOptions = ("Essential type checker configuration",)
                     "exit if a type error is encountered"
     , Option []     ["vim"] (NoArg vimFlag)
                     "generate Vim highlighting files"
+    ]
+
+literateOptions :: (String, [OptDescr (Flag CommandLineOptions)])
+literateOptions = ("Literate Agda",)
+    [ Option []     ["literate-markdown-only-agda-blocks"] (NoArg $ mdOnlyAgdaBlocksFlag True)
+                    "in literate Markdown/Typst, only treat code blocks marked ```agda as Agda code"
+    , Option []     ["no-literate-markdown-only-agda-blocks"] (NoArg $ mdOnlyAgdaBlocksFlag False)
+                    "treat all code blocks as Agda code (default)"
     ]
 
 diagnosticsOptions :: (String, [OptDescr (Flag CommandLineOptions)])

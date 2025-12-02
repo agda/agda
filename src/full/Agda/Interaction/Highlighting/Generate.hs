@@ -43,6 +43,7 @@ import Agda.Interaction.Highlighting.Precise as H
 import Agda.Interaction.Highlighting.Range
   (rToR, rangeToRange, overlappings, Ranges)
 import Agda.Interaction.Highlighting.FromAbstract
+import Agda.Interaction.Options.Types (optMdOnlyAgdaBlocks)
 
 import qualified Agda.TypeChecking.Errors as TCM
 import Agda.TypeChecking.MetaVars (isBlockedTerm, hasTwinMeta)
@@ -210,9 +211,10 @@ generateTokenInfoFromSource
      -- ^ The file contents. Note that the file is /not/ read from
      -- disk.
   -> TCM HighlightingInfo
-generateTokenInfoFromSource file input =
+generateTokenInfoFromSource file input = do
+  mdOnlyAgdaBlocks <- optMdOnlyAgdaBlocks <$> commandLineOptions
   runPM $ tokenHighlighting . fst . fst <$>
-          Pa.parseFile Pa.tokensParser file input
+          Pa.parseFile mdOnlyAgdaBlocks Pa.tokensParser file input
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given string, which is assumed to correspond to the
