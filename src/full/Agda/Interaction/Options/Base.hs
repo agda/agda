@@ -1266,6 +1266,7 @@ optionGroups =
   , emb backendPragmaOptions
   , compilationOptions
   , emb debuggingPragmaOptions
+  , emb reflectionPragmaOptions
   ]
   where
     emb = second $ map $ fmap lensPragmaOptions
