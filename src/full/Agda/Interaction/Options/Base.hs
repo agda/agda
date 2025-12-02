@@ -410,7 +410,7 @@ optShowIdentitySubstitutions = collapseDefault . _optShowIdentitySubstitutions
 optKeepCoveringClauses       = collapseDefault . _optKeepCoveringClauses
 optLargeIndices              = collapseDefault . _optLargeIndices
 optForcedArgumentRecursion   = collapseDefault . _optForcedArgumentRecursion
-optQuoteMetas               = collapseDefault . _optQuoteMetas
+optQuoteMetas                = collapseDefault . _optQuoteMetas
 
 -- Collapse defaults (non-Bool)
 
