@@ -1747,7 +1747,7 @@ debuggingPragmaOptions = ("Debugging and profiling Agda",) $ concat
 
 reflectionPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
 reflectionPragmaOptions = ("Reflection",) $ concat
-  [ pragmaFlag "quote-metas" lensOptQuoteMetas 
+  [ pragmaFlag "quote-metas" lensOptQuoteMetas
                "allow unquoting to not get blocked by metas" ""
                Nothing
   ]
