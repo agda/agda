@@ -659,6 +659,8 @@ lensOptForcedArgumentRecursion f o = f (_optForcedArgumentRecursion o) <&> \ i -
 lensOptExperimentalLazyInstances :: Lens' PragmaOptions _
 lensOptExperimentalLazyInstances f o = f (_optExperimentalLazyInstances o) <&> \ i -> o{ _optExperimentalLazyInstances = i }
 
+lensOptQuoteMetas :: Lens' PragmaOptions _
+lensOptQuoteMetas f o = f (_optQuoteMetas o) <&> \ i -> o{ _optQuoteMetas = i }
 
 -- | Map a function over the long options. Also removes the short options.
 --   Will be used to add the plugin name to the plugin options.
@@ -1481,8 +1483,6 @@ languagePragmaOptions = ("Language variant",)
                     "enable cubical features (some only in erased settings), implies --cubical=compatible"
     , Option []     ["with-K"] (NoArg withKFlag)
                     "enable the K rule in pattern matching (default)"
-    , Option []     ["quote-metas"] (NoArg quoteMetasFlag)
-                    "allow unquoting to not get blocked by metas"
     ]
 
 universePragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
@@ -1743,6 +1743,13 @@ debuggingPragmaOptions = ("Debugging and profiling Agda",) $ concat
                        , ")"
                        ])
     ]
+  ]
+
+reflectionPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
+reflectionPragmaOptions = ("Reflection",) $ concat
+  [ pragmaFlag "quote-metas" lensOptQuoteMetas 
+               "allow unquoting to not get blocked by metas" ""
+               Nothing
   ]
 
 -- | Construct a flag of type @WithDefault _@
