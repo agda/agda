@@ -2091,7 +2091,7 @@ instance ToAbstract NiceDeclaration where
               -- Ok if no as-clause or it (already) contains a Name.
               Right asName                    -> return $ Just asName
               Left (C.Ident (C.QName asName)) -> return $ Just asName
-              Left C.Underscore{}             -> return $ Just underscore
+              Left (C.Underscore r _)         -> return $ Just $ C.noName r
               Left (C.Ident C.Qual{})         -> illformedAs "; a qualified name is not allowed here"
               Left e                          -> illformedAs ""
 
