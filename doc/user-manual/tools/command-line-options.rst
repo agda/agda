@@ -1726,6 +1726,27 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Failures to compute full equivalence when splitting on indexed family.
 
+.. option:: UnusedImports
+
+     .. versionadded:: 2.9.0
+
+     Warn about openings of modules that do not bring identifiers into scope that are subsequently used.
+     If the ``open`` comes with an explicit ``using`` or ``renaming`` directive,
+     warn about individual unused identifiers (typically those mentioned in the directive).
+     There is no warning about ``public`` openings.
+     In the presence of option:`--no-qualified-instances`,
+     there are also no warnings about unused instances brought into scope.
+
+     This warning is off by default.
+
+.. option:: UnusedImports=all
+
+     .. versionadded:: 2.9.0
+
+     Same as :option:`UnusedImports`, but warn about each unused identifier also when no ``using`` or ``renaming`` directive is given.
+
+     Option ``-WnoUnusedImports`` disables both :option:`UnusedImports` and :option:`UnusedImports=all`.
+
 .. option:: UnusedVariablesInDisplayForm
 
      :ref:`DISPLAY <display-pragma>` forms that bind variables they do not use.

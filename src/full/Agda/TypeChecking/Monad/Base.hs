@@ -254,6 +254,8 @@ data PreScopeState = PreScopeState
     -- ^ Associates an original name (the key) to all its copies (the
     -- value). Computed by the scope checker, used to compute opaque
     -- blocks.
+  , stPreUnusedImportsState :: !UnusedImportsState
+    -- ^ Information collected by the scope checker to generate warnings about unused imports.
   }
   deriving Generic
 
@@ -500,6 +502,7 @@ initPreScopeState = PreScopeState
   , stPreImportedMetaStore    = HMap.empty
   , stPreCopiedNames          = HMap.empty
   , stPreNameCopies           = HMap.empty
+  , stPreUnusedImportsState   = empty
   }
 
 initPostScopeState :: PostScopeState
@@ -675,6 +678,9 @@ lensCopiedNames f s = f (stPreCopiedNames s) <&> \ x -> s { stPreCopiedNames = x
 
 lensNameCopies :: Lens' PreScopeState (HashMap QName (HashSet QName))
 lensNameCopies f s = f (stPreNameCopies s) <&> \ x -> s { stPreNameCopies = x }
+
+lensUnusedImportsState :: Lens' PreScopeState UnusedImportsState
+lensUnusedImportsState f s = f (stPreUnusedImportsState s) <&> \ !x -> s { stPreUnusedImportsState = x }
 
 -- ** Components of PostScopeState
 
@@ -903,6 +909,9 @@ stNameCopies = lensPreScopeState . lensNameCopies
 stImportedDisplayForms :: Lens' TCState DisplayForms
 stImportedDisplayForms = lensPreScopeState . lensImportedDisplayForms
 
+stUnusedImportsState :: Lens' TCState UnusedImportsState
+stUnusedImportsState = lensPreScopeState . lensUnusedImportsState
+
 -- ** Post scope state
 
 stLocalPartialDefs :: Lens' TCState (Set QName)
@@ -967,6 +976,9 @@ stModuleCheckpoints = lensPostScopeState . lensModuleCheckpoints
 
 stImportsDisplayForms :: Lens' TCState DisplayForms
 stImportsDisplayForms = lensPostScopeState . lensImportsDisplayForms
+
+stWarningSet :: Lens' TCState (Set WarningName)
+stWarningSet = stPragmaOptions . lensOptWarningMode . warningSet
 
 -- | Note that the lens is \"strict\".
 
@@ -4687,6 +4699,9 @@ data Warning
     -- ^ If a `renaming' import directive introduces a name or module name clash
     --   in the exported names of a module.
     --   (See issue #4154.)
+  | UnusedImports A.ModuleName (Maybe (List1 AbstractName))
+    -- ^ The given module was opened but the names in the list were not used.
+    --   If 'Nothing', then none of the imported name was used.
   | UselessPatternDeclarationForRecord String
     -- ^ The 'pattern' declaration is useless in the presence
     --   of either @coinductive@ or @eta-equality@.
@@ -4896,6 +4911,7 @@ warningName = \case
   DuplicateUsing{}             -> DuplicateUsing_
   FixityInRenamingModule{}     -> FixityInRenamingModule_
   InvalidCharacterLiteral{}    -> InvalidCharacterLiteral_
+  UnusedImports{}              -> UnusedImports_
   UselessPragma{}              -> UselessPragma_
   InversionDepthReached{}      -> InversionDepthReached_
   InteractionMetaBoundaries{}  -> InteractionMetaBoundaries_
@@ -6826,6 +6842,8 @@ instance NFData CannotQuote
 instance NFData ExecError
 instance NFData ConstructorDisambiguationData
 instance NFData Statistics
+instance NFData UnusedImportsState
+instance NFData OpenedModule
 
 -- Andreas, 2025-07-31, cannot normalize functions with deepseq-1.5.2.0 (GHC 9.10.3-rc1).
 -- See https://github.com/haskell/deepseq/issues/111.

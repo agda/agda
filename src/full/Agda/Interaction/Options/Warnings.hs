@@ -10,6 +10,7 @@ module Agda.Interaction.Options.Warnings
        , usualWarnings
        , noWarnings
        , unsolvedWarnings
+       , unusedImportsWarnings
        , incompleteMatchWarnings
        , errorWarnings
        , exactSplitWarnings
@@ -44,6 +45,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Singleton ( singleton )
 import Agda.Utils.Tuple ( (&&&) )
 
 import Agda.Utils.Impossible
@@ -53,6 +55,7 @@ import Agda.Utils.Impossible
 -- and a flag stating whether warnings should be turned into fatal errors.
 data WarningMode = WarningMode
   { _warningSet :: Set WarningName
+      -- ^ Invariant: When 'UnusedImportsAll_' is in the warning set, so must be 'UnusedImports_'.
   , _warn2Error :: Bool
   } deriving (Eq, Show, Generic)
 
@@ -85,6 +88,8 @@ data WarningModeError
       -- ^ Unknown warning.
   | NoNoError Text
       -- ^ Warning that cannot be disabled.
+  | NoUnusedImportsAll
+      -- ^ @-WnoUnusedImports=all@ is not supported, use @-WnoUnusedImports@ instead.
   deriving (Show, Generic)
 
 instance NFData WarningModeError
@@ -97,6 +102,8 @@ prettyWarningModeError = \case
     , w
     , " is a non-fatal error and thus cannot be ignored."
     ]
+  NoUnusedImportsAll ->
+    "-WnoUnusedImports=all is not supported, use -WnoUnusedImports instead."
 
 -- | From user-given directives we compute WarningMode updates
 type WarningModeUpdate = WarningMode -> WarningMode
@@ -114,12 +121,22 @@ warningModeUpdate str = case str of
   _ -> case stripPrefix "no" str of
     Nothing   -> do
       wname <- stringToWarningName str
-      pure (over warningSet $ Set.insert wname)
+      let
+        wnames = case wname of
+          -- Invariant: when UnusedImportsAll_ is in the warning set,
+          -- so must be UnusedImports_
+          UnusedImportsAll_ -> unusedImportsWarnings
+          w -> singleton w
+      pure $ over warningSet $ (`Set.union` wnames)
     Just str' -> do
       wname <- stringToWarningName str'
       when (wname `elem` errorWarnings) $
         throwError $ NoNoError $ Text.pack str'
-      pure (over warningSet $ Set.delete wname)
+      wnames <- case wname of
+        UnusedImports_    -> pure unusedImportsWarnings
+        UnusedImportsAll_ -> throwError NoUnusedImportsAll
+        w -> pure $ singleton w
+      pure $ over warningSet $ (Set.\\ wnames)
   where
     stringToWarningName :: String -> Either WarningModeError WarningName
     stringToWarningName str = maybeToEither (Unknown $ Text.pack str) $ string2WarningName str
@@ -200,6 +217,8 @@ usualWarnings =
   allWarnings Set.\\ exactSplitWarnings Set.\\ Set.fromList
     [ UnknownFixityInMixfixDecl_
     , ShadowingInTelescope_
+    , UnusedImports_
+    , UnusedImportsAll_
     ]
 
 -- | Warnings enabled by @--exact-split@.
@@ -209,6 +228,10 @@ exactSplitWarnings = Set.fromList
   [ CoverageNoExactSplit_
   , InlineNoExactSplit_
   ]
+
+-- | Both of these warnings are disabled by @-WnoUnusedImports@.
+unusedImportsWarnings :: Set WarningName
+unusedImportsWarnings = Set.fromList [ UnusedImports_, UnusedImportsAll_ ]
 
 -- | The @WarningName@ data enumeration is meant to have a one-to-one correspondance
 -- to existing warnings in the codebase.
@@ -287,6 +310,8 @@ data WarningName
   -- -- | FixingQuantity_
   | FixityInRenamingModule_
   | InvalidCharacterLiteral_
+  | UnusedImports_
+  | UnusedImportsAll_
   | UselessPragma_
   | IllegalDeclarationInDataDefinition_
   | IllformedAsClause_
@@ -402,7 +427,9 @@ string2WarningName = (`HMap.lookup` warnings) where
   warnings = HMap.fromList $ map (\x -> (warningNameToString x, x)) [minBound..maxBound]
 
 warningNameToString :: WarningName -> String
-warningNameToString = initWithDefault __IMPOSSIBLE__ . show
+warningNameToString = \case
+  UnusedImportsAll_ -> "UnusedImports=all"
+  w -> initWithDefault __IMPOSSIBLE__ $ show w
 
 -- | @warningUsage@ generated using @warningNameDescription@
 
@@ -610,6 +637,8 @@ warningNameDescription = \case
   WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."
   TooManyPolarities_               -> "Too many polarities given in POLARITY pragma."
   TopLevelPolarity_                -> "Declaring definitions with an explicit polarity annotation."
+  UnusedImports_                   -> "Identifiers brought into scope but never referenced."
+  UnusedImportsAll_                -> "Identifiers brought into scope but never referenced (strict version)."
   -- Checking consistency of options
   CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does."
   InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which does not."

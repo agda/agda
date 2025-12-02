@@ -145,6 +145,7 @@ instance EmbPrj Warning where
     FixingPolarity a b c                        -> icodeN 73 FixingPolarity a b c
     RewritesNothing                             -> icodeN 74 RewritesNothing
     IllegalDeclarationInDataDefinition ds       -> __IMPOSSIBLE__  -- We don't serialize concrete definitions (yet)
+    UnusedImports a b                           -> icodeN 75 UnusedImports a b
 
   value = vcase $ \ case
     N3 0 a b      -> valuN UnreachableClauses a b
@@ -223,6 +224,7 @@ instance EmbPrj Warning where
     N4 72 a b c   -> valuN FixingCohesion a b c
     N4 73 a b c   -> valuN FixingPolarity a b c
     N1 74         -> valuN RewritesNothing
+    N3 75 a b     -> valuN UnusedImports a b
     _ -> malformed
 
 instance EmbPrj UselessPublicReason
@@ -279,10 +281,12 @@ instance EmbPrj WarningModeError where
   icod_ = \case
     Unknown a   -> icodeN 0 Unknown a
     NoNoError a -> icodeN 1 NoNoError a
+    NoUnusedImportsAll -> icodeN 2 NoUnusedImportsAll
 
   value = vcase $ \case
     N2 0 a -> valuN Unknown a
     N2 1 a -> valuN NoNoError a
+    N1 2   -> valuN NoUnusedImportsAll
     _      -> malformed
 
 instance EmbPrj ParseWarning where

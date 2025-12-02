@@ -17,6 +17,7 @@ import Data.Function       ( on )
 import Data.HashMap.Strict ( HashMap )
 import Data.HashMap.Strict qualified as HMap
 import Data.Hashable       ( Hashable, hashWithSalt )
+import Data.IntMap         ( IntMap )
 import Data.List           qualified as List
 import Data.Map.Strict     ( Map )
 import Data.Map.Strict     qualified as Map
@@ -326,6 +327,12 @@ setScopeLocals = set scopeLocals
 data NameSpace = NameSpace
       { nsNames   :: NamesInScope
         -- ^ Maps concrete names to a list of abstract names.
+        --   If this is part of a scope produced by an 'ImportDirective',
+        --   the concrete names should (where possible) match those of the directive.
+        --   E.g., if the directive mentions @using (x)@, then the concrete @x@
+        --   in the map should be this @x@ rather then the @x@ from the original
+        --   scope that is restricted by the import directive.
+        --   This is important for the highlighting of the 'UnusedImports' warning.
       , nsNameParts :: NamePartsInScope
         -- ^ Maps name parts to a list of abstract names in which the name
         --   part occurs.
@@ -420,6 +427,56 @@ isModuleAlive :: A.ModuleName -> LiveNames -> Bool
 isModuleAlive _             AllLiveNames = True
 isModuleAlive (A.MName mod) (SomeLiveNames mods _) =
   any ((`Set.member` mods) . A.MName) (List.inits mod)
+
+------------------------------------------------------------------------
+-- * Unused imports
+------------------------------------------------------------------------
+
+-- | Information gathered during scope checking for the unused-imports warning
+--   when a module is opened.
+data OpenedModule = OpenedModule
+  { openedRange  :: KwRange
+      -- ^ 'Range' of the @open@ keyword.
+  , openedParent :: A.ModuleName
+      -- ^ Parent module into which we merged the opened module.
+  , openedModule :: A.ModuleName
+      -- ^ Module we opened.
+  , openedHasDir :: Bool
+      -- ^ Whether the @open@ statement comes with @using@ or @renaming@.
+  , openedScope  :: NamesInScope
+      -- ^ The scope imported by the @open@ statement.
+      --   The keys ('C.Name') of this map should be the concrete names of
+      --   the opening directive, if such was given.
+  } deriving (Generic)
+
+instance Null OpenedModule where
+  empty = OpenedModule empty empty empty empty empty
+  null (OpenedModule _ _ _ _ s) = null s
+
+-- | Information gathered during scope checking for the unused-imports warning.
+data UnusedImportsState = UnusedImportsState
+  { unambiguousLookups :: ![AbstractName]
+      -- ^ Names that were unambiguously resolved from a concrete name in the source.
+  , ambiguousLookups   :: !(IntMap (List2 AbstractName))
+      -- ^ Names that were ambiguously resolved from a concrete name in the source.
+      --   They are stored with their position in the file
+      --   that is matched with disambiguation information produced by the type checker.
+  , openedModules      :: !(IntMap OpenedModule)
+      -- ^ Log of module @open@s with the names they brought into scope.
+  } deriving (Generic)
+
+instance Null UnusedImportsState where
+  empty = UnusedImportsState empty empty empty
+  null (UnusedImportsState u a o) = null u && null a && null o
+
+lensUnambiguousLookups :: Lens' UnusedImportsState [AbstractName]
+lensUnambiguousLookups f s = f (unambiguousLookups s) <&> \ !x -> s { unambiguousLookups = x }
+
+lensAmbiguousLookups :: Lens' UnusedImportsState (IntMap (List2 AbstractName))
+lensAmbiguousLookups f s = f (ambiguousLookups s) <&> \ !x -> s { ambiguousLookups = x }
+
+lensOpenedModules :: Lens' UnusedImportsState (IntMap OpenedModule)
+lensOpenedModules f s = f (openedModules s) <&> \ !x -> s { openedModules = x }
 
 ------------------------------------------------------------------------
 -- * Decorated names

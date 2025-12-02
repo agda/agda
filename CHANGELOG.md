@@ -62,6 +62,19 @@ Errors
 Warnings
 --------
 
+* New warning `UnusedImports` when `open` brings identifiers into scope
+  that are definitely not used subsequently.
+
+  If `using` or `renaming` directives are given, or in flavor `-WUnusedImports=all`,
+  Agda warns about each name that is unused.
+  If no directive or only a `hiding` directive is given,
+  and unless the flavor is `all`,
+  Agda only warns if none of the imported names are used.
+
+  Agda also warns about instances brought into scope
+  unless `--no-qualified-instances` is on
+  (which requires bringing instances into scope if they should be found by instance search).
+
 * `UselessImport` warning instead of parse error when an module is instantiated
   but not opened during `import`, for instance:
   ```agda
