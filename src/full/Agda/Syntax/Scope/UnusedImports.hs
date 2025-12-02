@@ -200,9 +200,8 @@ warnUnusedImports = do
       -- Otherwise, we just warn once about the whole import.
       if  | hasDir      -> warnEach
           | null used   -> warnModule
-          | null unused -> pure ()
           | warnAll     -> warnEach
-          | otherwise   -> warnModule
+          | otherwise   -> pure ()
 
 ------------------------------------------------------------------------------
 -- * Auxiliary definitions
