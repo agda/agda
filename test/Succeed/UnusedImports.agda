@@ -65,3 +65,13 @@ open Empty
 
 -- Expected warning:
 -- Redundant opening of Empty
+
+-- Andreas, 2025-12-02, issue #8258 reported by nad
+module Issue8258 where
+
+  -- We use some definitions from this open, so there should be no warning
+  -- unless -WUnusedImports=all.
+  open import Agda.Builtin.Bool
+
+  ff : Bool
+  ff = false
