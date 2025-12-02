@@ -196,7 +196,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
   -- for a type signature whose body has not been type-checked yet.
   when (isEmptyFunction $ theDef def) $
     illegalRule BeforeFunctionDefinition
-  -- Issue 6643: Also check that there are no mututal definitions
+  -- Issue 6643: Also check that there are no mutual definitions
   -- that are not yet defined.
   whenJustM (asksTC envMutualBlock) \ mb -> do
     qs <- mutualNames <$> lookupMutualBlock mb
@@ -220,6 +220,8 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         | otherwise = __IMPOSSIBLE__
   let failureFreeVars :: VarSet -> MaybeT TCM a
       failureFreeVars xs = illegalRule $ VariablesNotBoundByLHS xs
+  let warnUnsafeVars :: VarSet -> MaybeT TCM ()
+      warnUnsafeVars xs = unsafeRule $ VariablesBoundUnsafely xs
   let failureNonLinearPars :: VarSet -> MaybeT TCM a
       failureNonLinearPars xs = illegalRule $ VariablesBoundMoreThanOnce xs
 
@@ -287,9 +289,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         --    as 'used' (see #5238).
         let PatVars defBoundVars maybeBoundVars = nlPatVars ps
             boundVars   = defBoundVars <> maybeBoundVars
-            freeVarsLhs = allFreeVars ps
             freeVarsRhs = allFreeVars rhs
-            freeVars    = freeVarsLhs <> freeVarsRhs
             allVars     = VarSet.full $ size gamma
             usedVars    = case theDef def of
               Function{}         -> usedArgs def
@@ -305,14 +305,10 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         reportSDoc "rewriting" 70 $
           "variables bound by the pattern: " <+> text (show boundVars)
         reportSDoc "rewriting" 70 $
-          "variables free in the pattern: " <+> text (show freeVarsLhs)
-        reportSDoc "rewriting" 70 $
           "variables free in the rhs: " <+> text (show freeVarsRhs)
         reportSDoc "rewriting" 70 $
           "variables used by the rewrite rule: " <+> text (show usedVars)
-        unlessNull (freeVarsRhs VarSet.\\ defBoundVars) failureFreeVars
-        -- TODO: Is this check necessary?
-        unlessNull (freeVars VarSet.\\ boundVars) failureFreeVars
+        unlessNull (freeVarsRhs VarSet.\\ defBoundVars) warnUnsafeVars
         unlessNull (usedVars VarSet.\\ (boundVars `VarSet.union` VarSet.fromList pars)) failureFreeVars
 
         reportSDoc "rewriting" 70 $
@@ -332,9 +328,12 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
     _ -> illegalRule DoesNotTargetRewriteRelation
 
   where
+    unsafeRule :: IllegalRewriteRuleReason -> MaybeT TCM ()
+    unsafeRule reason = lift $ warning $ IllegalRewriteRule q reason
+
     illegalRule :: IllegalRewriteRuleReason -> MaybeT TCM a
     illegalRule reason = do
-      lift $ warning $ IllegalRewriteRule q reason
+      unsafeRule reason
       mzero
 
     checkNoLhsReduction :: QName -> (Elims -> Term) -> Elims -> MaybeT TCM ()

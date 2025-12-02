@@ -5016,6 +5016,7 @@ illegalRewriteWarningName = \case
   LHSNotDefinitionOrConstructor{}      -> RewriteLHSNotDefinitionOrConstructor_
   VariablesNotBoundByLHS{}             -> RewriteVariablesNotBoundByLHS_
   VariablesBoundMoreThanOnce{}         -> RewriteVariablesBoundMoreThanOnce_
+  VariablesBoundUnsafely{}             -> RewriteVariablesBoundUnsafely_
   LHSReduces{}                         -> RewriteLHSReduces_
   HeadSymbolIsProjectionLikeFunction{} -> RewriteHeadSymbolIsProjectionLikeFunction_
   HeadSymbolIsTypeConstructor{}        -> RewriteHeadSymbolIsTypeConstructor_
@@ -5664,6 +5665,7 @@ data IllegalRewriteRuleReason
   = LHSNotDefinitionOrConstructor
   | VariablesNotBoundByLHS VarSet
   | VariablesBoundMoreThanOnce VarSet
+  | VariablesBoundUnsafely VarSet
   | LHSReduces Term Term
   | HeadSymbolIsProjectionLikeFunction QName
   | HeadSymbolIsTypeConstructor QName
