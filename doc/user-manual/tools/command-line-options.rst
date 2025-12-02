@@ -1285,9 +1285,9 @@ Erasure
 
 .. option:: --quote-metas
 
-     .. versionadded 2.9.1
+     .. versionadded 2.9.0
 
-     Enable quoted holes, see :ref:`quote-metas`.
+     Allow typechecking to quote metas, see :ref:`quote-metas`.
 
 .. _warnings:
 
