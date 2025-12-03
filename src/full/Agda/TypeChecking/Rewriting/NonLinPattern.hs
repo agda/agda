@@ -241,8 +241,12 @@ instance NLPatToTerm NLPSort Sort where
   nlPatToTerm PLevelUniv = return LevelUniv
   nlPatToTerm PIntervalUniv = return IntervalUniv
 
--- | TODO: Explain what makes a pat var good or bad... lol
-data PatVars = PatVars { goodPatVars :: VarSet, badPatVars :: VarSet }
+data PatVars = PatVars
+  { neverSingPatVars :: VarSet
+      -- ^ Variables bound in never definitionally singular contexts
+  , maybeSingPatVars :: VarSet
+      -- ^ Variables bound in possibly definitionally singular contexts
+  }
   deriving (Eq)
 
 instance Null PatVars where
@@ -257,9 +261,6 @@ instance Monoid PatVars where
 
 instance Singleton Int PatVars where
   singleton x = PatVars (singleton x) empty
-
-singPatVar :: Int -> PatVars
-singPatVar x = PatVars (singleton x) empty
 
 adjustPatVars :: DefSing -> PatVars -> PatVars
 adjustPatVars NeverDefSing ps               = ps
