@@ -323,8 +323,9 @@ isNeverDefSing :: (PureTCM m, MonadBlock m) => Type -> m DefSing
 isNeverDefSing a = do
   let s = getSort a
   p <- isProp <$> abortIfBlocked s
+  -- Strict propositions are always definitional singletons
   if p
-  then pure NeverDefSing -- Strict propositions are always definitional singletons
+  then pure MaybeDefSing
   else do
   -- I think the type should always be reduced by the time we get here...
   -- a <- ignoreBlocking <$> reduceB a
@@ -333,13 +334,14 @@ isNeverDefSing a = do
     Lam _ _           -> __IMPOSSIBLE__
     Lit _             -> __IMPOSSIBLE__
     Def d _           -> do
-      def <- getConstInfo d
-      case theDef def of
+      def <- theDef <$> getConstInfo d
+      case def of
         Datatype{}         -> pure NeverDefSing
-        Record{}           -> pure NeverDefSing
-          -- If the record was a definitional singleton, we technically would
-          -- have already eta-expanded. Still, we probably should check this
-          -- properly.
+        Record{recTel=tel} -> case recEtaEquality def of
+          YesEta  -> do
+            sings <- traverse (isNeverDefSing . unDom) tel
+            pure $ foldr minDefSing MaybeDefSing sings
+          NoEta _ -> pure NeverDefSing
         Axiom{}            -> pure NeverDefSing
         DataOrRecSig{}     -> pure NeverDefSing
         AbstractDefn{}     -> pure MaybeDefSing -- TODO: ???
