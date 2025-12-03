@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-compatible --rewriting #-}
+{-# OPTIONS --cubical-compatible --rewriting -WnoRewriteVariablesBoundUnsafely #-}
 
 module Issue1719.Pushouts where
 
