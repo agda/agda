@@ -2320,9 +2320,13 @@ defaultDisplayForm c = []
 data DefSing = MaybeDefSing | NeverDefSing
   deriving (Show, Generic, Enum, Bounded)
 
-composeDefSing :: DefSing -> DefSing -> DefSing
-composeDefSing NeverDefSing r = r
-composeDefSing MaybeDefSing _ = MaybeDefSing
+minDefSing :: DefSing -> DefSing -> DefSing
+minDefSing NeverDefSing _ = NeverDefSing
+minDefSing MaybeDefSing r = r
+
+maxDefSing :: DefSing -> DefSing -> DefSing
+maxDefSing NeverDefSing r = r
+maxDefSing MaybeDefSing _ = MaybeDefSing
 
 -- | Non-linear (non-constructor) first-order pattern.
 data NLPat
