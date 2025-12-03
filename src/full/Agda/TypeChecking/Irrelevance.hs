@@ -333,20 +333,26 @@ isNeverDefSing a = do
     Var _ _           -> pure MaybeDefSing
     Lam _ _           -> __IMPOSSIBLE__
     Lit _             -> __IMPOSSIBLE__
-    Def d _           -> do
+    Def d es          -> do
       def <- theDef <$> getConstInfo d
       case def of
         Datatype{}         -> pure NeverDefSing
         Record{recTel=tel} -> case recEtaEquality def of
           YesEta  -> do
-            sings <- traverse (isNeverDefSing . unDom) tel
+            let Just vs = allApplyElims es
+            sings <- traverse (isNeverDefSing . unDom) (tel `apply` vs)
             pure $ foldr minDefSing MaybeDefSing sings
           NoEta _ -> pure NeverDefSing
         Axiom{}            -> pure NeverDefSing
         DataOrRecSig{}     -> pure NeverDefSing
-        AbstractDefn{}     -> pure MaybeDefSing -- TODO: ???
+        AbstractDefn{}     -> pure MaybeDefSing
+          -- I am erring on the side of caution here: specifically, I am
+          -- worried about the possibility that a rewrite might look fine
+          -- outside of an abstract block, but then inside an abstract block,
+          -- all the abstract definitions will reduce and the rewrite will
+          -- become invalid.
         Function{}         -> pure MaybeDefSing
-        Primitive{}        -> pure MaybeDefSing -- TODO: ???
+        Primitive{}        -> pure MaybeDefSing
         PrimitiveSort{}    -> __IMPOSSIBLE__
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{}      -> __IMPOSSIBLE__
@@ -354,8 +360,8 @@ isNeverDefSing a = do
     Pi _ (unAbs -> b) -> isNeverDefSing b
     Sort _            -> pure NeverDefSing
     Level _           -> __IMPOSSIBLE__
-    MetaV _ _         -> __IMPOSSIBLE__ -- TODO: Is this actually impossible?
-    DontCare a        -> isNeverDefSing (El s a) -- TODO: Is this correct?
+    MetaV _ _         -> __IMPOSSIBLE__
+    DontCare a        -> pure MaybeDefSing
     Dummy _ _         -> __IMPOSSIBLE__
 
 -- * Propositions

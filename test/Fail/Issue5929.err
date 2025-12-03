@@ -1,3 +1,0 @@
-Issue5929.agda:13,13-19: warning: -W[no]RewriteVariablesNotBoundByLHS
-rew-fg  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  A
-when checking the pragma REWRITE rew-fg
