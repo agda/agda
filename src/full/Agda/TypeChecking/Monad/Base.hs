@@ -5025,7 +5025,7 @@ illegalRewriteWarningName = \case
   LHSNotDefinitionOrConstructor{}      -> RewriteLHSNotDefinitionOrConstructor_
   VariablesNotBoundByLHS{}             -> RewriteVariablesNotBoundByLHS_
   VariablesBoundMoreThanOnce{}         -> RewriteVariablesBoundMoreThanOnce_
-  VariablesBoundUnsafely{}             -> RewriteVariablesBoundUnsafely_
+  VariablesBoundUnsafely{}             -> RewriteVariablesBoundInSingleton_
   LHSReduces{}                         -> RewriteLHSReduces_
   HeadSymbolIsProjectionLikeFunction{} -> RewriteHeadSymbolIsProjectionLikeFunction_
   HeadSymbolIsTypeConstructor{}        -> RewriteHeadSymbolIsTypeConstructor_
