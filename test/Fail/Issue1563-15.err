@@ -1,3 +1,8 @@
+Issue1563-15.agda:23.15-28: warning: -W[no]RewriteVariablesBoundUnsafely
+I am not certain that the rewrite rule:  Circle-loop-β  is safe because it appears that the following variables:  loop*  are only bound in contexts which might become definitionally singular.
+This warning can be silenced with -WnoRewriteVariablesBoundUnsafely, but be aware that this rewrite might behave strangely in the presence of e.g. eta records with no fields.
+when checking the pragma REWRITE Circle-loop-β
+
 Issue1563-15.agda:26.10-13: error: [UnequalTerms]
 The terms
   ap (Circle-rec (Circle → Circle) (λ y → y) idp x) loop

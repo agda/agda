@@ -319,14 +319,15 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         -- Searching the context is not feasible though, so we instead use the
         -- tighter criteria that the variables must occur somewhere on the LHS.
         unlessNull (usedVars VarSet.\\ (boundVars `VarSet.union` VarSet.fromList pars)) failureFreeVars
-        -- #5929: All variables occurring on the rhs should be bound in
-        -- contexts that will never become definitionally singular (even after
-        -- a substitution), otherwise we can lose subject reduction.
-        unlessNull (freeVarsRhs VarSet.\\ defBoundVars) warnUnsafeVars
 
         reportSDoc "rewriting" 70 $
           "variables bound in (erased) parameter position: " <+> text (show pars)
         unlessNull (boundVars `VarSet.intersection` VarSet.fromList pars) failureNonLinearPars
+
+        -- #5929: All variables occurring on the rhs should be bound in
+        -- contexts that will never become definitionally singular (even after
+        -- a substitution), otherwise we can lose subject reduction.
+        unlessNull (freeVarsRhs VarSet.\\ defBoundVars) warnUnsafeVars
 
         top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
         let rew = RewriteRule q gamma f ps rhs (unDom b) False top

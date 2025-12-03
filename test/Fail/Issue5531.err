@@ -1,3 +1,13 @@
+Issue5531.agda:28.15-26: warning: -W[no]RewriteVariablesBoundUnsafely
+I am not certain that the rewrite rule:  idTel-sigma  is safe because it appears that the following variables:  a₁ , a₀ , δ₁ , δ₀  are only bound in contexts which might become definitionally singular.
+This warning can be silenced with -WnoRewriteVariablesBoundUnsafely, but be aware that this rewrite might behave strangely in the presence of e.g. eta records with no fields.
+when checking the pragma REWRITE idTel-sigma
+
+Issue5531.agda:43.15-23: warning: -W[no]RewriteVariablesBoundUnsafely
+I am not certain that the rewrite rule:  ap-sigma  is safe because it appears that the following variables:  b₁ , b₀ , a₁ , a₀  are only bound in contexts which might become definitionally singular.
+This warning can be silenced with -WnoRewriteVariablesBoundUnsafely, but be aware that this rewrite might behave strangely in the presence of e.g. eta records with no fields.
+when checking the pragma REWRITE ap-sigma
+
 Issue5531.agda:50.23-31: error: [UnequalTypes]
 The type
   ap (λ z → Σ (_A_208 z) (B z)) _239 (ab _δ₀_236) (ab _δ₁_237)
