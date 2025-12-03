@@ -79,7 +79,7 @@ jobs:
           exe="agda"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" ${exe}  >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" "${exe}"  >> "${GITHUB_OUTPUT}"
 
         elif [[ "$MATRIX_OS" == "macos-latest" ]]; then
 
@@ -87,7 +87,7 @@ jobs:
           exe="agda"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" ${exe}  >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" "${exe}"  >> "${GITHUB_OUTPUT}"
 
         elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
 
@@ -95,12 +95,12 @@ jobs:
           exe="agda"
           echo args="${ARGS} ${LINUX_ARGS}"                         >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" ${exe}  >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" "${exe}"  >> "${GITHUB_OUTPUT}"
 
         fi
 
         echo bindist="${bindist}"                                 >> "${GITHUB_OUTPUT}"
-        echo exe=${exe}                                           >> "${GITHUB_OUTPUT}"
+        echo exe="${exe}"                                         >> "${GITHUB_OUTPUT}"
         echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
 
     - name: Display build variables
@@ -352,16 +352,16 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: |
-        sha="$(git rev-parse --short=7 HEAD)"
+        sha=$(git rev-parse --short=7 HEAD)
 
         git fetch -q origin 'refs/tags/*:refs/tags/*'
         last_tag=$(git tag -l | grep -e '^v[[:digit:]]\+\(\.[[:digit:]]\+\)\{2,\}$' | sort -Vr | head -n 1)
         echo "last_tag  = ${last_tag}"
 
         gh release delete 'nightly' --repo "${GITHUB_REPOSITORY}" --cleanup-tag --yes || true
-        for i in artifacts/**/*; do mv "$i" "$(dirname ${i})/Agda-${sha}-$(basename ${i})"; done
+        for i in artifacts/**/*; do mv "${i}" "$(dirname "${i}")/Agda-${sha}-$(basename "${i}")"; done
         ls -R artifacts
-        gh release create 'nightly' artifacts/**/* --repo "${GITHUB_REPOSITORY}" --generate-notes --notes-start-tag ${last_tag} --prerelease --title "${sha}@master"
+        gh release create 'nightly' artifacts/**/* --repo "${GITHUB_REPOSITORY}" --generate-notes --notes-start-tag "${last_tag}" --prerelease --title "${sha}@master"
 
     - name: Create a release with the bindist as release assets
       if: startsWith(github.ref, 'refs/tags/v')
@@ -373,6 +373,6 @@ jobs:
 
         gh release delete "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --yes || true
         gh release create "${GITHUB_REF_NAME}" -d --notes-file CHANGELOG.md --title "${GITHUB_REF_NAME}"
-        for i in artifacts/**/*; do mv "$i" "$(dirname ${i})/Agda-${GITHUB_REF_NAME}-$(basename ${i})"; done
+        for i in artifacts/**/*; do mv "${i}" "$(dirname "${i}")/Agda-${GITHUB_REF_NAME}-$(basename "${i}")"; done
         ls -R artifacts
         gh release upload "${GITHUB_REF_NAME}" artifacts/**/* --repo "${GITHUB_REPOSITORY}"
