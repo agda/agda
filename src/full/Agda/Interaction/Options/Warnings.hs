@@ -597,7 +597,7 @@ warningNameDescription = \case
   RewriteLHSNotDefinitionOrConstructor_             -> "Rewrite rule head symbol is not a defined symbol or constructor."
   RewriteVariablesNotBoundByLHS_                    -> "Rewrite rule does not bind all of its variables."
   RewriteVariablesBoundMoreThanOnce_                -> "Constructor-headed rewrite rule has non-linear parameters."
-  RewriteVariablesBoundInSingleton_                    -> "Rewrite rule binds some variables in possibly definitionally singular contexts."
+  RewriteVariablesBoundInSingleton_                 -> "Rewrite rule binds some variables in possibly definitionally singular contexts."
   RewriteLHSReduces_                                -> "Rewrite rule LHS is not in weak-head normal form."
   RewriteHeadSymbolIsProjectionLikeFunction_        -> "Rewrite rule head symbol is a projection-like function."
   RewriteHeadSymbolIsTypeConstructor_               -> "Rewrite rule head symbol is a type constructor."

@@ -407,7 +407,7 @@ prettyWarning = \case
           <+> " is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side: "
           <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ VarSet.toAscList xs))
           <> ". Perhaps you can use a postulate instead of a constructor as the head symbol?"
-      VariablesBoundUnsafely xs -> do
+      VariablesBoundInSingleton xs -> do
         -- This warning is motivated in #8238. If #6636 is implemented, then
         -- this warning should be disabled.
         vcat ["I am not certain that the rewrite rule: " <+> prettyTCM q
