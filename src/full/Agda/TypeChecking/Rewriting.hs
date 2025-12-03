@@ -221,7 +221,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
   let failureFreeVars :: VarSet -> MaybeT TCM a
       failureFreeVars xs = illegalRule $ VariablesNotBoundByLHS xs
   let warnUnsafeVars :: VarSet -> MaybeT TCM ()
-      warnUnsafeVars xs = unsafeRule $ VariablesBoundUnsafely xs
+      warnUnsafeVars xs = unsafeRule $ VariablesBoundInSingleton xs
   let failureNonLinearPars :: VarSet -> MaybeT TCM a
       failureNonLinearPars xs = illegalRule $ VariablesBoundMoreThanOnce xs
 
