@@ -1120,9 +1120,6 @@ withoutKFlag o = return $ o
   , _optErasedMatches           = setDefault False $ _optErasedMatches o
   }
 
-quoteMetasFlag :: Flag PragmaOptions
-quoteMetasFlag o = return $ o { _optQuoteMetas = Value True }
-
 -- A unified flag for all cubical variants:
 -- [--cubical] defaults to Cubical
 -- [--cubical={compatible,no-glue,erased,full}] corresponds to the 4 options.
