@@ -1687,6 +1687,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Constructor-headed rewrite rule has non-linear parameters.
 
+.. option:: RewriteVariablesBoundUnsafely
+
+     Rewrite rule binds some variables in possibly definitionally singular contexts.
+
 .. option:: RewriteLHSReduces
 
      Rewrite rule LHS is not in weak-head normal form.
