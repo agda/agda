@@ -1950,6 +1950,7 @@ To do: dealing with semicolon separated decls."
 to the `agda2-debug-buffer-name' buffer.
 Note that this buffer's contents is not erased automatically when
 a file is loaded."
+ (declare (agda2-command (string)))
  (unless (string-empty-p msg)
   (with-current-buffer (get-buffer-create agda2-debug-buffer-name)
     (save-excursion
