@@ -287,8 +287,8 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         --    even though they don't appear in the lhs, since they can be reconstructed.
         --    For postulated or abstract rewrite rules, we consider all arguments
         --    as 'used' (see #5238).
-        let PatVars defBoundVars maybeBoundVars = nlPatVars ps
-            boundVars   = defBoundVars <> maybeBoundVars
+        let PatVars neverSingPatVars maybeSingPatVars = nlPatVars ps
+            boundVars   = neverSingPatVars <> maybeSingPatVars
             freeVarsLhs = allFreeVars lhs
             freeVarsRhs = allFreeVars rhs
             freeVars    = freeVarsLhs <> freeVarsRhs
@@ -327,7 +327,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         -- #5929: All variables occurring on the rhs should be bound in
         -- contexts that will never become definitionally singular (even after
         -- a substitution), otherwise we can lose subject reduction.
-        unlessNull (freeVarsRhs VarSet.\\ defBoundVars) warnUnsafeVars
+        unlessNull (freeVarsRhs VarSet.\\ neverSingPatVars) warnUnsafeVars
 
         top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
         let rew = RewriteRule q gamma f ps rhs (unDom b) False top
