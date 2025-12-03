@@ -289,7 +289,9 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         --    as 'used' (see #5238).
         let PatVars defBoundVars maybeBoundVars = nlPatVars ps
             boundVars   = defBoundVars <> maybeBoundVars
+            freeVarsLhs = allFreeVars lhs
             freeVarsRhs = allFreeVars rhs
+            freeVars    = freeVarsLhs <> freeVarsRhs
             allVars     = VarSet.full $ size gamma
             usedVars    = case theDef def of
               Function{}         -> usedArgs def
@@ -308,8 +310,19 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
           "variables free in the rhs: " <+> text (show freeVarsRhs)
         reportSDoc "rewriting" 70 $
           "variables used by the rewrite rule: " <+> text (show usedVars)
-        unlessNull (freeVarsRhs VarSet.\\ defBoundVars) warnUnsafeVars
+
+        -- All variables occurring in the rewrite must be bound somewhere
+        -- (otherwise the rewrite will simply never fire)
+        unlessNull (freeVars VarSet.\\ boundVars) failureFreeVars
+        -- #5238: All variables used in the proof of the rewrite must be
+        -- present in the context for the rewrite to fire safely.
+        -- Searching the context is not feasible though, so we instead use the
+        -- tighter criteria that the variables must occur somewhere on the LHS.
         unlessNull (usedVars VarSet.\\ (boundVars `VarSet.union` VarSet.fromList pars)) failureFreeVars
+        -- #5929: All variables occurring on the rhs should be bound in
+        -- contexts that will never become definitionally singular (even after
+        -- a substitution), otherwise we can lose subject reduction.
+        unlessNull (freeVarsRhs VarSet.\\ defBoundVars) warnUnsafeVars
 
         reportSDoc "rewriting" 70 $
           "variables bound in (erased) parameter position: " <+> text (show pars)

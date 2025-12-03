@@ -1,3 +1,4 @@
-Issue5923.agda:16.8-12: error: [UnequalTerms]
-f tt != a of type A
-when checking that the expression refl has type f tt ≡ a
+Issue5929.agda:13,13-19: warning: -W[no]RewriteVariablesBoundUnsafely
+I am not certain that the rewrite rule:  rew-fg  is safe because it appears that the following variables:  A  are only bound in contexts which might become definitionally singular.
+This warning can be silenced with -WnoRewriteVariablesBoundUnsafely, but be aware that this rewrite might behave strangely in the presence of e.g. eta records with no fields.
+when checking the pragma REWRITE rew-fg
