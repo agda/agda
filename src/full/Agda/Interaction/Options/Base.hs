@@ -1407,6 +1407,7 @@ pragmaOptions = concat $ map snd
   , backendPragmaOptions
   , compilationPragmaOptions
   , debuggingPragmaOptions
+  , reflectionPragmaOptions
   ]
 
 warningPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])
