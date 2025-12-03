@@ -1,5 +1,5 @@
 {-# OPTIONS --cubical-compatible --rewriting --confluence-check
-            -WnoRewriteVariablesBoundUnsafely #-}
+            -WnoRewriteVariablesBoundInSingleton #-}
 
 postulate
   _↦_ : ∀ {i} {A : Set i} → A → A → Set i
