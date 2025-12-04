@@ -315,53 +315,54 @@ usableAtModality' ms why mod t =
 usableAtModality :: MonadConstraint TCM => WhyCheckModality -> Modality -> Term -> TCM ()
 usableAtModality = usableAtModality' Nothing
 
-{-# SPECIALIZE isNeverDefSing :: Type -> TCM DefSing #-}
+{-# SPECIALIZE isDefSing :: Type -> TCM DefSing #-}
 
--- | Is the type definitely not a definitional singleton (even after
---   substitution)? (Needs reduction.)
-isNeverDefSing :: (PureTCM m, MonadBlock m) => Type -> m DefSing
-isNeverDefSing a = do
+-- | Compute whether a type is a definitional singleton or might become one
+--   after a substitution or after the addition of some rewrite rules
+--   Assumes type passed in has been reduced (otherwise will be even more
+--   conservative than necessary).
+isDefSing :: (PureTCM m, MonadBlock m) => Type -> m DefSing
+isDefSing a = do
   let s = getSort a
   p <- isProp <$> abortIfBlocked s
   -- Strict propositions are always definitional singletons
   if p
-  then pure MaybeDefSing
+  then pure MaybeSing
   else do
-  -- I think the type should always be reduced by the time we get here...
-  -- a <- ignoreBlocking <$> reduceB a
   case unEl a of
-    Var _ _           -> pure MaybeDefSing
+    Var _ _           -> pure MaybeSing
     Lam _ _           -> __IMPOSSIBLE__
     Lit _             -> __IMPOSSIBLE__
     Def d es          -> do
       def <- theDef <$> getConstInfo d
       case def of
-        Datatype{}         -> pure NeverDefSing
+        Datatype{}         -> pure NeverSing
         Record{recTel=tel} -> case recEtaEquality def of
           YesEta  -> do
             let Just vs = allApplyElims es
-            sings <- traverse (isNeverDefSing . unDom) (tel `apply` vs)
-            pure $ foldr minDefSing MaybeDefSing sings
-          NoEta _ -> pure NeverDefSing
-        Axiom{}            -> pure NeverDefSing
-        DataOrRecSig{}     -> pure NeverDefSing
-        AbstractDefn{}     -> pure MaybeDefSing
+            sings <- traverse (isDefSing . unDom) (tel `apply` vs)
+            pure $ foldr minDefSing MaybeSing sings
+          NoEta _ -> pure NeverSing
+        Axiom{}            -> do
+          pure $ NotSingIfStuck [d]
+        DataOrRecSig{}     -> pure NeverSing
+        AbstractDefn{}     -> pure MaybeSing
           -- I am erring on the side of caution here: specifically, I am
           -- worried about the possibility that a rewrite might look fine
           -- outside of an abstract block, but then inside an abstract block,
           -- all the abstract definitions will reduce and the rewrite will
           -- become invalid.
-        Function{}         -> pure MaybeDefSing
-        Primitive{}        -> pure MaybeDefSing
+        Function{}         -> pure MaybeSing
+        Primitive{}        -> pure MaybeSing
         PrimitiveSort{}    -> __IMPOSSIBLE__
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{}      -> __IMPOSSIBLE__
     Con _ _ _         -> __IMPOSSIBLE__
-    Pi _ (unAbs -> b) -> isNeverDefSing b
-    Sort _            -> pure NeverDefSing
+    Pi _ (unAbs -> b) -> isDefSing b
+    Sort _            -> pure NeverSing
     Level _           -> __IMPOSSIBLE__
     MetaV _ _         -> __IMPOSSIBLE__
-    DontCare a        -> pure MaybeDefSing
+    DontCare a        -> __IMPOSSIBLE__
     Dummy _ _         -> __IMPOSSIBLE__
 
 -- * Propositions

@@ -272,10 +272,10 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
 
         ps <- fromRightM failureBlocked $ lift $
           catchPatternErr (pure . Left) $
-            Right <$> patternFrom relevant 0 (t , Def f) es
+            Right <$> patternFrom NeverSing 0 (t , Def f) es
 
         reportSDoc "rewriting" 30 $
-          "Pattern generated from lhs: " <+> prettyTCM (PDef MaybeDefSing f ps)
+          "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
 
         -- We need to check two properties on the variables used in the rewrite rule
         -- 1. For actually being able to apply the rewrite rule, we need
