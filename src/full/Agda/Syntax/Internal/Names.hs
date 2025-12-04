@@ -289,13 +289,13 @@ instance NamesIn Section where
 
 instance NamesIn NLPat where
   namesAndMetasIn' sg = \case
-    PVar _ _        -> mempty
-    PDef _ a b      -> namesAndMetasIn' sg (a, b)
-    PLam _ a        -> namesAndMetasIn' sg a
-    PPi a b         -> namesAndMetasIn' sg (a, b)
-    PSort a         -> namesAndMetasIn' sg a
-    PBoundVar _ _ a -> namesAndMetasIn' sg a
-    PTerm a         -> namesAndMetasIn' sg a
+    PVar _ _ _    -> mempty
+    PDef a b      -> namesAndMetasIn' sg (a, b)
+    PLam _ a      -> namesAndMetasIn' sg a
+    PPi a b       -> namesAndMetasIn' sg (a, b)
+    PSort a       -> namesAndMetasIn' sg a
+    PBoundVar _ a -> namesAndMetasIn' sg a
+    PTerm a       -> namesAndMetasIn' sg a
 
 instance NamesIn NLPType where
   namesAndMetasIn' sg = \case

@@ -556,8 +556,8 @@ instance PrettyTCM (Elim' DisplayTerm) where
 {-# SPECIALIZE prettyTCM :: Elim' DisplayTerm -> TCM Doc #-}
 
 instance PrettyTCM NLPat where
-  prettyTCM (PVar x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
-  prettyTCM (PDef s f es) = parens $
+  prettyTCM (PVar s x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
+  prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
   prettyTCM (PLam i u)  = parens $ fsep
     [ "λ"
@@ -571,8 +571,8 @@ instance PrettyTCM NLPat where
     , addContext (absName b) $ prettyTCM $ unAbs b
     ]
   prettyTCM (PSort s)        = prettyTCM s
-  prettyTCM (PBoundVar s i []) = prettyTCM (var i)
-  prettyTCM (PBoundVar s i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
+  prettyTCM (PBoundVar i []) = prettyTCM (var i)
+  prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
   prettyTCM (PTerm t)   = "." <> parens (prettyTCM t)
 {-# SPECIALIZE prettyTCM :: NLPat -> TCM Doc #-}
 
@@ -606,7 +606,7 @@ instance PrettyTCM RewriteRule where
     [ prettyTCM q
     , prettyTCM gamma <+> " |- "
     , addContext gamma $ sep
-      [ prettyTCM (PDef MaybeDefSing f ps)
+      [ prettyTCM (PDef f ps)
       , " --> "
       , prettyTCM rhs
       , " : "

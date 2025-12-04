@@ -415,7 +415,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
 
     checkTrianglePropertyForRule :: RewriteRule -> TCM ()
     checkTrianglePropertyForRule (RewriteRule q gamma f ps rhs b c _) = addContext gamma $ do
-      u  <- nlPatToTerm $ PDef MaybeDefSing f ps
+      u  <- nlPatToTerm $ PDef f ps
       -- First element in the list is the "best reduct" @ρ(u)@
       (rhou,vs) <- fromMaybe __IMPOSSIBLE__ . uncons <$> allParallelReductions u
       reportSDoc "rewriting.confluence" 40 $ ("rho(" <> prettyTCM u <> ") =") <+> prettyTCM rhou

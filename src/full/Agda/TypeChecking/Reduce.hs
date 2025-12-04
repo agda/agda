@@ -1620,13 +1620,13 @@ instance InstantiateFull Definition where
       return $ def{ defType = t, defDisplay = df, theDef = d }
 
 instance InstantiateFull NLPat where
-  instantiateFull' (PVar x y) = return $ PVar x y
-  instantiateFull' (PDef s x y) = PDef s <$> instantiateFull' x <*> instantiateFull' y
-  instantiateFull' (PLam x y) = PLam x <$> instantiateFull' y
-  instantiateFull' (PPi x y)  = PPi <$> instantiateFull' x <*> instantiateFull' y
-  instantiateFull' (PSort x)  = PSort <$> instantiateFull' x
-  instantiateFull' (PBoundVar s x y) = PBoundVar s x <$> instantiateFull' y
-  instantiateFull' (PTerm x)  = PTerm <$> instantiateFull' x
+  instantiateFull' (PVar s x y)    = return $ PVar s x y
+  instantiateFull' (PDef x y)      = PDef <$> instantiateFull' x <*> instantiateFull' y
+  instantiateFull' (PLam x y)      = PLam x <$> instantiateFull' y
+  instantiateFull' (PPi x y)       = PPi <$> instantiateFull' x <*> instantiateFull' y
+  instantiateFull' (PSort x)       = PSort <$> instantiateFull' x
+  instantiateFull' (PBoundVar x y) = PBoundVar x <$> instantiateFull' y
+  instantiateFull' (PTerm x)       = PTerm <$> instantiateFull' x
 
 instance InstantiateFull NLPType where
   instantiateFull' (NLPType s a) = NLPType

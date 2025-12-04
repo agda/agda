@@ -922,9 +922,9 @@ instance DeBruijn BraveTerm where
   deBruijnView = deBruijnView . unBrave
 
 instance DeBruijn NLPat where
-  deBruijnVar i = PVar i []
+  deBruijnVar i = PVar MaybeSing i []
   deBruijnView = \case
-    PVar i []   -> Just i
+    PVar s i [] -> Just i
     PVar{}      -> Nothing
     PDef{}      -> Nothing
     PLam{}      -> Nothing
@@ -938,13 +938,13 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
   where
     nlPatToTerm :: NLPat -> Term
     nlPatToTerm = \case
-      PVar i xs        -> Var i $ map (Apply . fmap var) xs
-      PTerm u          -> u
-      PDef s f es      -> __IMPOSSIBLE__
-      PLam i u         -> __IMPOSSIBLE__
-      PPi a b          -> __IMPOSSIBLE__
-      PSort s          -> __IMPOSSIBLE__
-      PBoundVar s i es -> __IMPOSSIBLE__
+      PVar s i xs    -> Var i $ map (Apply . fmap var) xs
+      PTerm u        -> u
+      PDef f es      -> __IMPOSSIBLE__
+      PLam i u       -> __IMPOSSIBLE__
+      PPi a b        -> __IMPOSSIBLE__
+      PSort s        -> __IMPOSSIBLE__
+      PBoundVar i es -> __IMPOSSIBLE__
 
 applyNLSubstToDom :: SubstWith NLPat a => Substitution' NLPat -> Dom a -> Dom a
 applyNLSubstToDom rho dom = applySubst rho <$> dom{ domTactic = applyNLPatSubst rho $ domTactic dom }
@@ -952,24 +952,24 @@ applyNLSubstToDom rho dom = applySubst rho <$> dom{ domTactic = applyNLPatSubst 
 instance Subst NLPat where
   type SubstArg NLPat = NLPat
   applySubst rho = \case
-    PVar i bvs       -> lookupS rho i `applyBV` bvs
-    PDef s f es      -> PDef s f $ applySubst rho es
-    PLam i u         -> PLam i $ applySubst rho u
-    PPi a b          -> PPi (applyNLSubstToDom rho a) (applySubst rho b)
-    PSort s          -> PSort $ applySubst rho s
-    PBoundVar s i es -> PBoundVar s i $ applySubst rho es
-    PTerm u          -> PTerm $ applyNLPatSubst rho u
+    PVar s i bvs   -> lookupS rho i `applyBV` bvs
+    PDef f es      -> PDef f $ applySubst rho es
+    PLam i u       -> PLam i $ applySubst rho u
+    PPi a b        -> PPi (applyNLSubstToDom rho a) (applySubst rho b)
+    PSort s        -> PSort $ applySubst rho s
+    PBoundVar i es -> PBoundVar i $ applySubst rho es
+    PTerm u        -> PTerm $ applyNLPatSubst rho u
 
     where
       applyBV :: NLPat -> [Arg Int] -> NLPat
       applyBV p ys = case p of
-        PVar i xs        -> PVar i (xs ++ ys)
-        PTerm u          -> PTerm $ u `apply` map (fmap var) ys
-        PDef s f es      -> __IMPOSSIBLE__
-        PLam i u         -> __IMPOSSIBLE__
-        PPi a b          -> __IMPOSSIBLE__
-        PSort s          -> __IMPOSSIBLE__
-        PBoundVar s i es -> __IMPOSSIBLE__
+        PVar s i xs    -> PVar s i (xs ++ ys)
+        PTerm u        -> PTerm $ u `apply` map (fmap var) ys
+        PDef f es      -> __IMPOSSIBLE__
+        PLam i u       -> __IMPOSSIBLE__
+        PPi a b        -> __IMPOSSIBLE__
+        PSort s        -> __IMPOSSIBLE__
+        PBoundVar i es -> __IMPOSSIBLE__
 
 instance Subst NLPType where
   type SubstArg NLPType = NLPat
