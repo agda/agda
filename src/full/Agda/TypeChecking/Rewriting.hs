@@ -272,7 +272,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
 
         ps <- fromRightM failureBlocked $ lift $
           catchPatternErr (pure . Left) $
-            Right <$> patternFrom NeverSing 0 (t , Def f) es
+            Right <$> patternFrom NeverSing NeverSing 0 (t , Def f) es
 
         reportSDoc "rewriting" 30 $
           "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
