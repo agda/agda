@@ -1383,6 +1383,8 @@ newtype ForeignCodeStack = ForeignCodeStack
   { getForeignCodeStack :: [ForeignCode]
   } deriving (Show, Generic, NFData)
 
+type SourceNodes = [((Int,Int),[(String,String)])]
+
 data Interface = Interface
   { iSourceHash      :: !Hash
     -- ^ Hash of the source code.
@@ -1433,6 +1435,7 @@ data Interface = Interface
   , iPartialDefs     :: Set QName
   , iOpaqueBlocks    :: Map OpaqueId OpaqueBlock
   , iOpaqueNames     :: Map QName OpaqueId
+  , iTopLevelDecls   :: SourceNodes
   }
   deriving (Show, Generic)
 
@@ -1441,7 +1444,7 @@ instance Pretty Interface where
             sourceH source fileT importedM moduleN topModN scope insideS
             signature metas display userwarn importwarn builtin
             foreignCode highlighting libPragmaO filePragmaO oUsed
-            patternS warnings partialdefs oblocks onames) =
+            patternS warnings partialdefs oblocks onames _) =
 
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
