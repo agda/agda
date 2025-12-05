@@ -316,7 +316,6 @@ usableAtModality :: MonadConstraint TCM => WhyCheckModality -> Modality -> Term 
 usableAtModality = usableAtModality' Nothing
 
 {-# SPECIALIZE isDefSing :: Type -> TCM DefSing #-}
-
 -- | Compute whether a type is a definitional singleton or might become one
 --   after a substitution or after the addition of some rewrite rules
 --   Assumes type passed in has been reduced (otherwise will be even more
@@ -340,8 +339,8 @@ isDefSing a = do
         Record{recTel=tel} -> case recEtaEquality def of
           YesEta  -> do
             let Just vs = allApplyElims es
-            sings <- traverse (isDefSing . unDom) (tel `apply` vs)
-            pure $ foldr minDefSing MaybeSing sings
+            sings <- traverse isDefSing' $ tel `apply` vs
+            pure $ foldr minDefSing AlwaysSing sings
           NoEta _ -> pure NeverSing
         Axiom{}            -> pure $ NeverSing
           -- TODO: Postulated type formers might still become definitionally
@@ -365,6 +364,13 @@ isDefSing a = do
     MetaV _ _         -> __IMPOSSIBLE__
     DontCare a        -> __IMPOSSIBLE__
     Dummy _ _         -> __IMPOSSIBLE__
+
+{-# SPECIALIZE isDefSing' :: Dom Type -> TCM DefSing #-}
+isDefSing' :: (PureTCM m, MonadBlock m) => Dom Type -> m DefSing
+isDefSing' t =
+  if isIrrelevant $ getRelevance t
+  then pure AlwaysSing
+  else isDefSing $ unDom t
 
 -- * Propositions
 
