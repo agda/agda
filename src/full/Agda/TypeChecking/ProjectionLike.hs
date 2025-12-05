@@ -438,6 +438,8 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
 inferNeutral :: (PureTCM m, MonadBlock m) => Term -> m Type
 inferNeutral u = do
   reportSDoc "tc.infer" 20 $ "inferNeutral" <+> prettyTCM u
+  reportSDoc "tc.infer" 40 $ "inferNeutral (rawer)" <+> pretty u
+  reportSDoc "tc.infer" 40 $ "in Context" <+> (prettyTCM =<< getContextTelescope)
   case u of
     Var i es -> do
       a <- typeOfBV i
