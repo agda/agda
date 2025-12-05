@@ -548,7 +548,7 @@ latex-test-quick :
 .PHONY : std-lib-test ##
 std-lib-test :
 	@$(call decorate, "Standard library test", \
-		(cd std-lib && cabal run GenerateEverything && \
+		(cd std-lib && cabal run --project-dir=. GenerateEverything && \
 						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries $(PROFILEOPTS) \
 														 -i. -isrc Everything.agda \
 														 +RTS -s))
