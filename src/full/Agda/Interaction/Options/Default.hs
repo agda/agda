@@ -120,6 +120,7 @@ defaultPragmaOptions = PragmaOptions
   , _optForcedArgumentRecursion    = Default
   , _optLargeIndices               = Default
   , _optExperimentalLazyInstances  = Default
+  , _optQuoteMetas                 = Default
   }
 
 -- Null instances

@@ -49,6 +49,8 @@ Pragmas and options
   The overhead to also mine dot patterns for structural descent was already
   negligible so it made sense to simplify the termination checking algorithm.
 
+* New option `--quote-metas` to allow for `quoteTerm` constraints to be solved even when the quoted term contains unsolved metas. This allows for elaborating macro applications with quoted arguments that still have interactive holes in them. See the [quote metas documentation](https://agda.readthedocs.io/en/v2.9.0/language/quote-metas.html).
+
 Errors
 ------
 

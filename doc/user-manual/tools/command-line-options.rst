@@ -1274,6 +1274,20 @@ Erasure
 
      Enable lossy unification, see :ref:`lossy-unification`.
 
+.. option:: --quote-metas
+
+     .. versionadded 2.9.0
+
+     Allow typechecking to quote terms with metas in them, see :ref:`quote-metas`.
+
+.. option:: --no-quote-metas
+
+     .. versionadded 2.9.0
+
+     Block typechecking when attempting to quote terms with metas in them.
+
+     Opposite of :option:`--quote-metas`, default.
+
 .. _warnings:
 
 Warnings
@@ -2136,6 +2150,7 @@ again, the source file is re-typechecked instead:
 * :option:`--type-in-type`
 * :option:`--warning`
 * :option:`--without-K`
+* :option:`--quote-metas`
 
 
 .. _Vim: https://www.vim.org/
