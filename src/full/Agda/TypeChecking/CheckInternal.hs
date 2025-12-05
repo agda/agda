@@ -26,7 +26,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.ProjectionLike (elimView, ProjEliminator(..))
+import Agda.TypeChecking.ProjectionLike (elimView, LoneProjectionLikeToLambda(..))
 import Agda.TypeChecking.Records (shouldBeProjectible)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Sort
@@ -72,7 +72,7 @@ defaultAction = Action
   { preAction       = \ _ -> return
   , postAction      = \ _ -> return
   , modalityAction  = \ _ -> id
-  , elimViewAction  = elimView EvenLone
+  , elimViewAction  = elimView LoneProjectionLikeToLambda
   }
 
 eraseUnusedAction :: Action TCM

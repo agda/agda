@@ -107,8 +107,7 @@ data ProjectionView
 
 -- | Semantics of 'ProjectionView'.
 unProjView :: ProjectionView -> Term
-unProjView pv =
-  case pv of
+unProjView = \case
     ProjectionView f a es   -> Def f (Apply a : es)
     LoneProjectionLike f ai -> Def f []
     NoProjection v          -> v
@@ -140,45 +139,46 @@ reduceProjectionLike :: PureTCM m => Term -> m Term
 reduceProjectionLike v = do
   -- Andreas, 2013-11-01 make sure we do not reduce a constructor
   -- because that could be folded back into a literal by reduce.
-  pv <- projView v
-  case pv of
+  projView v >>= \case
     ProjectionView{} -> onlyReduceProjections $ reduce v
                             -- ordinary reduce, only different for Def's
     _                -> return v
 
-data ProjEliminator = EvenLone | ButLone | NoPostfix
+-- | How to treat lone projection-like functions
+--   (i.e. those that miss their principal argument) in 'elimView'.
+data LoneProjectionLikeToLambda
+  = LoneProjectionLikeToLambda
+      -- ^ Turn lone projection-like functions into lambdas.
+  | KeepLoneProjectionLike
+      -- ^ Leave lone projection-like functions as they are.
   deriving Eq
 
-{-# SPECIALIZE elimView :: ProjEliminator -> Term -> TCM Term #-}
+{-# SPECIALIZE elimView :: LoneProjectionLikeToLambda -> Term -> TCM Term #-}
 -- | Turn prefix projection-like function application into postfix ones.
 --   This does just one layer, such that the top spine contains
 --   the projection-like functions as projections.
 --   Used in 'compareElims' in @TypeChecking.Conversion@
 --   and in "Agda.TypeChecking.CheckInternal".
 --
---   If the 'Bool' is 'True', a lone projection like function will be
+--   With 'LoneProjectionLikeToLambda', a lone projection like function will be
 --   turned into a lambda-abstraction, expecting the principal argument.
---   If the 'Bool' is 'False', it will be returned unaltered.
+--   If the 'KeepLoneProjectionLike', it will be returned unaltered.
 --
 --   No precondition.
 --   Preserves constructorForm, since it really does only something
 --   on (applications of) projection-like functions.
-elimView :: PureTCM m => ProjEliminator -> Term -> m Term
-elimView pe v = do
+elimView :: PureTCM m => LoneProjectionLikeToLambda -> Term -> m Term
+elimView loneProjectionLikeToLambda v = do
   reportSDoc "tc.conv.elim" 60 $ "elimView of " <+> prettyTCM v
   v <- reduceProjectionLike v
   reportSDoc "tc.conv.elim" 65 $
     "elimView (projections reduced) of " <+> prettyTCM v
-  case pe of
-    NoPostfix -> return v
-    _         -> do
-      pv <- projView v
-      case pv of
-        NoProjection{}        -> return v
-        LoneProjectionLike f ai
-          | pe == EvenLone  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj ProjPrefix f]
-          | otherwise     -> return v
-        ProjectionView f a es -> (`applyE` (Proj ProjPrefix f : es)) <$> elimView pe (unArg a)
+  projView v >>= \case
+    LoneProjectionLike f ai -> case loneProjectionLikeToLambda of
+      LoneProjectionLikeToLambda -> return $ Lam ai $ Abs "r" $ Var 0 [Proj ProjPrefix f]
+      KeepLoneProjectionLike -> return v
+    ProjectionView f a es -> (`applyE` (Proj ProjPrefix f : es)) <$> elimView loneProjectionLikeToLambda (unArg a)
+    NoProjection{} -> return v
 
 {-# SPECIALIZE eligibleForProjectionLike :: QName -> TCM Bool #-}
 -- | Which @Def@types are eligible for the principle argument
@@ -489,7 +489,7 @@ computeDefType f es = do
       -- Jesper, 2023-02-06: infer crashes on non-inferable terms,
       -- e.g. applications of projection-like functions. Hence we bring them
       -- into postfix form.
-      targ <- inferNeutral =<< elimView EvenLone (unArg arg)
+      targ <- inferNeutral =<< elimView LoneProjectionLikeToLambda (unArg arg)
       reportSDoc "tc.infer" 30 $
         "inferred type: " <+> prettyTCM targ
       -- getDefType wants the argument type reduced.

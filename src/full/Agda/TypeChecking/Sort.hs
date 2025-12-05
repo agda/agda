@@ -184,7 +184,7 @@ sortOf
   => Term -> m Sort
 sortOf t = do
   reportSDoc "tc.sort" 60 $ "sortOf" <+> prettyTCM t
-  sortOfT =<< elimView EvenLone t
+  sortOfT =<< elimView LoneProjectionLikeToLambda t
 
   where
     sortOfT :: Term -> m Sort
