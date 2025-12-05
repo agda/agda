@@ -4,7 +4,7 @@ This warning can be silenced with -WnoRewriteVariablesBoundInSingleton, but be a
 when checking the pragma REWRITE idTel-sigma
 
 Issue5531.agda:43.15-23: warning: -W[no]RewriteVariablesBoundInSingleton
-I am not certain that the rewrite rule:  ap-sigma  is safe because it appears that the following variables:  b₁ , b₀ , a₁ , a₀  are only bound in contexts which might become definitionally singular.
+I am not certain that the rewrite rule:  ap-sigma  is safe because it appears that the following variables:  b₁ , b₀ , B , a₁ , a₀ , A  are only bound in contexts which might become definitionally singular.
 This warning can be silenced with -WnoRewriteVariablesBoundInSingleton, but be aware that this rewrite might behave strangely in the presence of e.g. eta records with no fields.
 when checking the pragma REWRITE ap-sigma
 
